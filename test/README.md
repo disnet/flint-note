@@ -23,6 +23,7 @@ Unit tests focus on testing individual classes and functions in isolation. They:
 
 **Files:**
 - `basic.test.ts` - Basic import, configuration, and workspace tests
+- `batch-operations.test.ts` - Batch note creation and update operations
 - `links.test.ts` - Link management functionality
 - `metadata-schema.test.ts` - Metadata schema parsing and validation
 - `note-creation.test.ts` - Note creation logic and validation
@@ -46,6 +47,7 @@ E2E integration tests focus on testing complete workflows and system interaction
 - Test the full stack including MCP protocol communication
 
 **Files:**
+- `batch-operations.test.ts` - Batch note operations through MCP server
 - `command-line-args.test.ts` - Command line argument parsing and workspace setup
 - `deletion-integration.test.ts` - Note and note type deletion through MCP server
 - `error-handling.test.ts` - Error handling and edge cases across all operations

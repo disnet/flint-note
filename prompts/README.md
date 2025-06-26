@@ -27,10 +27,10 @@ This directory contains all prompt files for flint-note AI integrations, organiz
 
 | Model Capability | Recommended Prompts | Key Features |
 |-----------------|-------------------|--------------|
-| **GPT-4, Claude 3.5+** | `system_core.md` | Natural conversation, agent instruction checking |
-| **GPT-3.5, Claude 3** | `system_core.md` + `instructions_comprehensive.md` | Explicit guidance, mandatory agent instruction checking |
-| **Smaller Models** | `simple_models_detailed.md` | Step-by-step procedures, agent instruction workflows |
-| **Very Basic Models** | `simple_models_basic.md` | Template responses, mandatory agent instruction checking |
+| **GPT-4, Claude 3.5+** | `system_core.md` | Natural conversation, agent instruction checking, batch operations |
+| **GPT-3.5, Claude 3** | `system_core.md` + `instructions_comprehensive.md` | Explicit guidance, mandatory agent instruction checking, batch operations |
+| **Smaller Models** | `simple_models_detailed.md` | Step-by-step procedures, agent instruction workflows, basic batch support |
+| **Very Basic Models** | `simple_models_basic.md` | Template responses, mandatory agent instruction checking, single operations only |
 
 ## 🔄 Integration Workflow
 
@@ -65,6 +65,8 @@ Every implementation should pass scenarios from `training_examples.md`:
 - ✅ User permission for new note types
 - ✅ Agent instruction following
 - ✅ Error handling and recovery
+- ✅ Batch operations (create/update multiple notes)
+- ✅ Partial failure handling in batch operations
 
 ### Success Criteria
 - Models follow mandatory workflow steps
@@ -73,3 +75,5 @@ Every implementation should pass scenarios from `training_examples.md`:
 - Agent instructions are followed consistently
 - Information extraction works accurately
 - Conversations feel natural and helpful
+- Batch operations are used efficiently for multiple notes
+- Partial failures in batch operations are handled gracefully

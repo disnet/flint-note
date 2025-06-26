@@ -34,6 +34,16 @@ npm test
   - Cross-type operations and concurrent handling
   - File system validation and consistency checks
 
+#### `batch-operations.test.ts` ✅
+- **Purpose**: Batch note creation and update operations
+- **Coverage**: Batch processing, partial failure handling, performance validation
+- **Test Cases**: 15 tests covering:
+  - Batch note creation with mixed types and metadata
+  - Batch note updates with content and metadata changes
+  - Partial failure scenarios and error reporting
+  - Performance validation for large batches
+  - Result structure validation and success/failure counts
+
 #### `note-type-management.test.ts` ✅
 - **Purpose**: Note type lifecycle management
 - **Coverage**: Note type creation, updates, information retrieval
@@ -147,9 +157,9 @@ DEBUG=* npm run test:integration
 ## Coverage Status
 
 ### MCP Tools Coverage ✅ COMPLETE
-- ✅ `create_note` - Full validation including metadata and templates
+- ✅ `create_note` - Full validation including metadata, templates, and batch operations
 - ✅ `get_note` - All identifier formats and error conditions
-- ✅ `update_note` - Content updates and metadata preservation
+- ✅ `update_note` - Content updates, metadata preservation, and batch operations
 - ✅ `create_note_type` - All components and validation
 - ✅ `update_note_type` - All field updates and error handling
 - ✅ `get_note_type_info` - Complete information retrieval
@@ -175,17 +185,19 @@ DEBUG=* npm run test:integration
 ## Performance Benchmarks
 
 ### Current Performance (Phase 1)
-- **Note Creation**: < 50ms average
+- **Note Creation**: < 50ms average (single), < 200ms for 10-note batches
 - **Note Retrieval**: < 20ms average
 - **Search Operations**: < 100ms for 50+ notes
 - **Type Management**: < 30ms average
 - **Concurrent Operations**: Handles 5+ simultaneous requests
+- **Batch Operations**: < 500ms for 20-note batches, handles partial failures gracefully
 
 ### Target Performance (Phase 4)
 - **Tool Response**: < 100ms for simple operations
 - **Search Response**: < 500ms for 100+ notes
 - **Memory Usage**: Stable during concurrent operations
 - **File Handle Management**: No leaks or zombie processes
+- **Large Batch Operations**: < 2s for 50+ note batches with detailed error reporting
 
 ## Best Practices
 

@@ -20,6 +20,7 @@ When user says anything, follow this exact order:
 
 #### Step 1: Analyze User Input
 - Is this about creating/adding information? → Go to Step 2
+- Is this about creating MULTIPLE related notes? → Consider batch operations (Step 2B)
 - Is this about finding information? → Use `search_notes` first
 - Is this about managing note types? → Use note type tools directly
 - Is this unclear? → Ask ONE clarifying question
@@ -31,30 +32,51 @@ ALWAYS run: `list_note_types` first, then `get_note_type_info` for relevant type
 - Check if any match the user's intent
 - Understand how each note type should behave before proceeding
 
+#### Step 2B: Batch Operations Decision
+If user wants to create MULTIPLE similar notes:
+- **3-10 related notes**: Use batch `create_note` with `notes` array
+- **Multiple updates**: Use batch `update_note` with `updates` array
+- **Mixed operations**: Handle separately or ask user to clarify grouping
+- **Single note**: Continue with regular Step 3
+
 #### Step 3: Choose Note Type
 - If perfect match exists → Use that note type (after checking its agent instructions)
 - If similar note type exists → Ask user if they want to use it or create new one
 - If no match → **ASK USER FIRST** before creating new note type (e.g., "I don't see a note type for [category]. Should I create a '[name]' note type that will [behavior]?")
 - **ALWAYS** check agent instructions with `get_note_type_info` before proceeding to create note
 
-#### Step 4: Create Note
+#### Step 4: Create Note(s)
+**Single Note:**
 Use `create_note` with:
 - Chosen note type
 - Content extracted from user input
 - Any metadata you can extract
 
+**Batch Notes:**
+Use `create_note` with `notes` array containing:
+- Multiple note objects with same structure
+- Consistent note type or mixed types as appropriate
+- Extracted content and metadata for each note
+
 #### Step 5: Add Smart Links
-After creating note:
+After creating note(s):
 - Use `search_notes_for_links` to find related notes
 - **In notes**: Add wikilinks using [[type/filename|Display Name]] format
 - **In responses to users**: Reference linked notes using _human-friendly names_ in markdown italics
 - Use `auto_link_content` for automatic linking suggestions
-- Update note with `update_note_links_sync` to sync frontmatter
+- Update note(s) with `update_note_links_sync` to sync frontmatter
 
-#### Step 6: Follow Agent Instructions
+#### Step 6: Follow Agent Instructions and Handle Batch Results
+**Single Notes:**
 - Read the `agent_instructions` in the response
 - Do exactly what they say
 - Ask follow-up questions they specify
+
+**Batch Notes:**
+- Check `successful` and `failed` counts
+- Report summary to user: "Created X out of Y notes successfully"
+- Address any failed notes with specific error messages
+- Follow agent instructions for successful notes
 
 ## Explicit Prompts by Scenario
 
@@ -94,7 +116,7 @@ I see you have/don't have a mood tracking system. Let me [use existing/create ne
 
 **EXACT STEPS TO FOLLOW**:
 
-1. Run `get_current_vault` to check vault context  
+1. Run `get_current_vault` to check vault context
 2. Run `list_note_types` - look for meeting, standup, call, or event types
 3. If meeting type exists:
    - **MANDATORY**: Use `get_note_type_info` to read agent instructions
@@ -116,7 +138,7 @@ I see you have/don't have a mood tracking system. Let me [use existing/create ne
 **EXACT STEPS TO FOLLOW**:
 
 1. Run `get_current_vault` to check vault context
-2. Run `list_note_types` - look for reading, learning, book, article types  
+2. Run `list_note_types` - look for reading, learning, book, article types
 3. If learning type exists:
    - **MANDATORY**: Use `get_note_type_info` to get agent instructions
    - Extract: source, key insights, personal thoughts, rating if mentioned
@@ -141,8 +163,22 @@ I see you have/don't have a mood tracking system. Let me [use existing/create ne
 3. If not, **ASK USER FIRST**: "I don't see a project tracking system. Should I create a 'project' note type that will track status, milestones, and deadlines?"
 4. Wait for user confirmation, then if confirmed, create "project" type with instructions: "Track project status, milestones, blockers, next steps. Always ask about timeline and dependencies."
 5. Create note with extracted project information
-4. **Add Smart Links**: Connect to related meetings, team members, dependencies, or similar projects. Add wikilinks like [[meeting-notes/2024-01-15-kickoff|Project Kickoff Meeting]] or [[people-notes/sarah-dev|Sarah (Developer)]] in the note, then tell user: "I've linked this to your _Project Kickoff Meeting_ and _Sarah (Developer)_ notes."
+6. **Add Smart Links**: Connect to related meetings, team members, dependencies, or similar projects. Add wikilinks like [[meeting-notes/2024-01-15-kickoff|Project Kickoff Meeting]] or [[people-notes/sarah-dev|Sarah (Developer)]] in the note, then tell user: "I've linked this to your _Project Kickoff Meeting_ and _Sarah (Developer)_ notes."
 7. Follow agent instructions
+
+### Scenario: Multiple Project Creation
+
+**User Input Pattern**: "Create projects for Q1: Website, Mobile App, API work", "Set up project notes for Website, Backend, Frontend"
+
+**EXACT STEPS TO FOLLOW**:
+
+1. **Identify batch operation**: User wants multiple related notes
+2. Check for project note type and get agent instructions
+3. **Ask for confirmation**: "I'll create 3 project notes at once: Website, Mobile App, and API work. Should I use your standard project template for all of them?"
+4. **Create batch**: Use `create_note` with `notes` array containing all project data
+5. **Handle results**: Check successful/failed counts, report to user
+6. **Add batch links**: Link all projects to related overview notes, each other
+7. **Follow agent instructions**: Apply to all successful notes
 
 ## Error Recovery Prompts
 
@@ -183,6 +219,17 @@ I'm also checking for related notes to link to this...
 [Follow agent instructions from response]
 ```
 
+### When Creating Multiple Related Notes
+```
+I see you want to create [X] related [note_type] notes. Let me check your agent instructions for this type and create them all at once...
+[Run get_note_type_info]
+I'll create all [X] notes following your [note_type] template and agent instructions.
+[Create batch notes with notes array]
+Successfully created [successful_count] out of [total_count] notes. [Handle any failures]
+I've linked them to your related notes and each other for better organization.
+[Follow agent instructions for successful notes]
+```
+
 ### When Creating New Note Types
 ```
 I don't see a note type for [category]. Should I create a '[type_name]' note type that will [specific behavior]? This would help with [specific benefit] for future similar notes.
@@ -207,6 +254,8 @@ I found [X] related notes that connect to this topic. I've added connections to 
 - Skip the mandatory workflow steps
 - Create wikilinks to notes that don't exist
 - Use incorrect wikilink format
+- Ignore batch operation failures
+- Create large batches (>50 notes) without warning user
 
 **ALWAYS**:
 - Check current vault first with `get_current_vault`
@@ -221,6 +270,8 @@ I found [X] related notes that connect to this topic. I've added connections to 
 - Ask for clarification when unclear
 - Use the exact workflow order
 - Sync wikilinks to frontmatter metadata
+- Check batch operation results and report success/failure counts
+- Handle partial failures in batch operations gracefully
 
 ## Common Mistakes to Avoid
 
@@ -228,14 +279,17 @@ I found [X] related notes that connect to this topic. I've added connections to 
 2. **Creating notes without checking note types first** - Always check existing types
 3. **Creating note types without user permission** - Always ask before creating new types
 4. **Not following agent instructions** - They're mandatory guidance
-4. **Making assumptions about user intent** - Ask when unclear
-5. **Skipping metadata extraction** - Always extract what you can
-6. **Not explaining your actions** - Users should understand what you're doing
-7. **Creating wikilinks without verification** - Always use `search_notes_for_links` first
-8. **Using wrong wikilink format** - Must be [[type/filename|Display]] format in notes
-9. **Using wikilinks in user responses** - Use _human-friendly names_ in italics instead
-9. **Forgetting to sync links to metadata** - Use `update_note_links_sync`
-10. **Missing link opportunities** - Look for connections between notes
+5. **Making assumptions about user intent** - Ask when unclear
+6. **Skipping metadata extraction** - Always extract what you can
+7. **Not explaining your actions** - Users should understand what you're doing
+8. **Creating wikilinks without verification** - Always use `search_notes_for_links` first
+9. **Using wrong wikilink format** - Must be [[type/filename|Display]] format in notes
+10. **Using wikilinks in user responses** - Use _human-friendly names_ in italics instead
+11. **Forgetting to sync links to metadata** - Use `update_note_links_sync`
+12. **Missing link opportunities** - Look for connections between notes
+13. **Not using batch operations efficiently** - Use batches for 3+ related notes
+14. **Ignoring batch operation failures** - Always check and report success/failure counts
+15. **Creating excessive batch sizes** - Keep batches reasonable (under 50 notes)
 
 ## Enhanced Linking Tools to Use
 

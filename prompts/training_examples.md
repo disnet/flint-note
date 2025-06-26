@@ -462,6 +462,47 @@ Is this for a:
 Let me know and I'll create the note in the right vault with appropriate formatting.
 ```
 
+### Example Set 8: Batch Operations
+
+**Scenario**: User wants to create or update multiple related notes
+**Expected Workflow**: Identify batch opportunity → Use batch operations → Handle results → Follow agent instructions
+
+#### Example 8A: Multiple project creation
+**User Input**: "Create project notes for Q1: Website Redesign, Mobile App, API Refactor - all due March 31st"
+
+**Expected Model Response**:
+```
+I'll create all three Q1 project notes at once for you...
+[Calls: get_current_vault]
+[Calls: list_note_types - finds project type]
+[Calls: get_note_type_info for project type to check agent instructions]
+Based on your project tracking preferences, I'll include milestones, stakeholders, and deadlines for each project.
+[Calls: create_note with notes array containing all 3 projects]
+I've successfully created 3 project notes with March 31st deadlines: Website Redesign, Mobile App, and API Refactor. All follow your project template and are linked to your Q1 Planning overview. What are the key milestones for each project?
+```
+
+#### Example 8B: Bulk status updates
+**User Input**: "Mark all my December projects as completed"
+
+**Expected Model Response**:
+```
+I'll find and update all your December project notes to completed status...
+[Calls: search_notes with date filter for December and type filter for projects]
+[Calls: update_note with updates array for all found projects]
+I successfully updated 4 out of 5 December projects to completed status. The Mobile App project failed because it's missing required completion metadata. I've marked Website Redesign, API Refactor, Database Migration, and Client Portal as completed. Should I help fix the Mobile App project metadata so I can complete that update too?
+```
+
+#### Example 8C: Batch import with failures
+**User Input**: "Import these meeting notes from my old system: [provides structured data for 5 meetings]"
+
+**Expected Model Response**:
+```
+I'll batch import these meeting notes and format them according to your meeting preferences...
+[Calls: get_note_type_info for meeting type to check agent instructions]
+[Calls: create_note with notes array containing all 5 meetings]
+I've imported 3 out of 5 meeting notes successfully. 2 failed due to missing attendee information for the March 10th and March 15th meetings. The successfully imported meetings are now linked to your related project notes. Which meetings need attendee information added so I can complete the import?
+```
+
 ### Complex Workflow Example
 
 **User Input**: "I just started a new job and need to reorganize everything"
@@ -556,6 +597,24 @@ Great! I'll set up project tracking for you.
 What specific progress have you made on the website redesign? What are your next steps? Are there any blockers or dependencies I should note? What's your target completion date?
 ```
 
+### Batch Operations Validation Tests
+
+#### Test 1: Batch Creation Recognition
+**Input**: "Create project notes for Website, Mobile App, and API work"
+**Expected**: Should recognize batch opportunity and use create_note with notes array, not 3 separate calls
+
+#### Test 2: Batch Update Recognition  
+**Input**: "Update all my Q1 projects to completed status"
+**Expected**: Should search for Q1 projects, then use update_note with updates array
+
+#### Test 3: Batch Error Handling
+**Input**: Batch operation with some failures
+**Expected**: Should report success/failure counts and specifically identify failed items with error details
+
+#### Test 4: Mixed Batch Operations
+**Input**: "Create 3 project notes and update 2 existing ones to completed"
+**Expected**: Should handle as separate batch operations (create batch + update batch) or guide user to clarify
+
 ## Common Failure Patterns and Corrections
 
 ### Failure Pattern 1: Skipping Note Type Check
@@ -595,6 +654,30 @@ User: "Met with Sarah about the budget. She approved the $10k request."
 Good Model: Extracts attendees=Sarah, topic=budget, decision=$10k approved, and includes all details in note
 ```
 
+### Failure Pattern 4: Missing Batch Opportunities
+**Wrong Approach**:
+```
+User: "Create project notes for Website, Mobile App, and API work"
+Bad Model: Makes 3 separate create_note calls
+```
+
+**Correct Approach**:
+```
+User: "Create project notes for Website, Mobile App, and API work"
+Good Model: Uses single create_note call with notes array containing all 3 projects
+```
+
+### Failure Pattern 5: Poor Batch Error Handling
+**Wrong Approach**:
+```
+Batch operation fails partially, model just says "Some notes failed to create"
+```
+
+**Correct Approach**:
+```
+Batch operation fails partially, model reports: "Created 2 out of 3 notes successfully. The Mobile App project failed because it's missing required 'stakeholder' metadata. Should I help fix that so I can complete the creation?"
+```
+
 ## Validation Test Scenarios
 
 ### Test Set A: Cold Start (No Note Types Exist)
@@ -608,6 +691,12 @@ Good Model: Extracts attendees=Sarah, topic=budget, decision=$10k approved, and 
 2. "standup meeting covered three topics" → Should use existing meeting type
 3. "finished reading Atomic Habits" → Should use existing reading type
 4. "project milestone completed" → Should use existing project type
+
+### Test Set E: Batch Operations
+1. "Create project notes for Website, Mobile App, API work" → Should use batch create_note with notes array
+2. "Mark all my Q1 projects as completed" → Should use batch update_note with updates array
+3. "Import these 5 meeting notes from my old system" → Should use batch create_note and handle any failures
+4. "Update the status on all December projects and add completion dates" → Should use batch update_note with metadata changes
 
 ### Test Set C: Edge Cases
 1. "not sure what this is" → Should ask clarifying questions
@@ -630,6 +719,8 @@ Good Model: Extracts attendees=Sarah, topic=budget, decision=$10k approved, and 
 - Asks relevant follow-up questions
 - Maintains conversational tone
 - Explains actions taken
+- Uses batch operations efficiently for multiple related notes
+- Handles batch operation failures gracefully with specific error details
 
 ### Poor Response Characteristics:
 - Skips note type checking
@@ -639,6 +730,8 @@ Good Model: Extracts attendees=Sarah, topic=budget, decision=$10k approved, and 
 - Doesn't extract metadata
 - Overly technical or robotic tone
 - Doesn't explain what it's doing
+- Makes multiple individual calls instead of using batch operations
+- Ignores batch operation failures or provides vague error messages
 
 ## Training Data Validation
 
@@ -655,6 +748,14 @@ Use these prompts to test model understanding:
 ### Prompt 3: Agent Instructions Understanding
 "After you create a note and get a response with agent_instructions, what should you do?"
 **Expected Answer**: "Follow the agent instructions exactly - ask the questions they specify, take the actions they request"
+
+### Prompt 4: Batch Operations Understanding
+"When should you use batch operations instead of individual note creation?"
+**Expected Answer**: "When creating 3+ related notes, when updating multiple notes with similar changes, when importing data, or when the user explicitly mentions multiple items that can be processed together"
+
+### Prompt 5: Batch Error Handling
+"If a batch operation creates 3 notes successfully but 2 fail, what should you tell the user?"
+**Expected Answer**: "Report the specific success/failure counts, identify which items failed with specific error messages, and offer to help fix the failed items"
 
 ## Advanced Training Scenarios
 

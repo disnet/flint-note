@@ -139,9 +139,9 @@ note_types:
 flint-note exposes these tools to AI agents:
 
 ### Note Management
-- `create_note` - Create a new note in a specific type
+- `create_note` - Create one or more notes (supports batch operations)
 - `get_note` - Retrieve a note by identifier
-- `update_note` - Update an existing note
+- `update_note` - Update one or more existing notes (supports batch operations)
 - `search_notes` - Search notes by content/type
 
 ### Note Type Management
@@ -166,8 +166,11 @@ Include fields for attendees, date, and action items."
 ### Adding Notes
 
 ```bash
-# Through an AI agent:
+# Single note through an AI agent:
 "Add a meeting note for today's team standup.
+
+# Batch notes through an AI agent:
+"Create project notes for Q1: Website Redesign, Mobile App, API Refactor - all due March 31st"
 Attendees were Alice, Bob, and Charlie.
 Main topic was the Q4 planning."
 ```

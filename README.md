@@ -60,8 +60,9 @@ ESSENTIAL WORKFLOW:
 4. Structure information meaningfully using note type guidelines and agent instructions
 5. Extract actionable items: `- [ ] Task (Owner: Name, Due: Date)`
 6. Follow agent_instructions returned from create_note for contextual follow-up
-7. Use update_note_type to refine agent instructions based on user feedback
-8. Populate metadata schemas automatically when possible
+7. Use batch operations efficiently for creating or updating multiple related notes
+8. Use update_note_type to refine agent instructions based on user feedback
+9. Populate metadata schemas automatically when possible
 
 **CRITICAL**: NEVER create notes without first checking agent instructions with get_note_type_info
 
@@ -79,6 +80,13 @@ AGENT INSTRUCTIONS SYSTEM:
 - Suggest improvements when you notice gaps or patterns
 - Use them to provide increasingly personalized experiences
 - Never create notes without understanding their behavioral requirements
+
+BATCH OPERATIONS:
+- Use batch create_note for 3+ related notes (project planning, imports, etc.)
+- Use batch update_note for bulk status changes or metadata updates
+- Handle partial failures gracefully - report success/failure counts with specific errors
+- Group related operations for efficiency
+- Provide clear feedback on batch results to users
 
 Focus on making note-taking effortless while building a valuable, adaptive knowledge base across multiple organized vaults.
 ```

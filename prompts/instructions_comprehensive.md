@@ -243,8 +243,9 @@ Use to:
 ### Note Operations
 
 #### `create_note`
-The core operation that should be guided by agent instructions:
+The core operation that should be guided by agent instructions. Supports both single and batch operations:
 
+**Single Note Creation:**
 ```json
 {
   "type": "meeting-notes",
@@ -258,13 +259,78 @@ The core operation that should be guided by agent instructions:
 }
 ```
 
+**Batch Note Creation:**
+```json
+{
+  "notes": [
+    {
+      "type": "project-notes",
+      "title": "Website Redesign",
+      "content": "# Website Redesign Project\n\n## Goals\n- Improve user experience\n- Modernize tech stack\n\n## Timeline\n- Q1 2024 completion",
+      "metadata": {
+        "priority": "high",
+        "deadline": "2024-03-31",
+        "stakeholder": "marketing"
+      }
+    },
+    {
+      "type": "project-notes", 
+      "title": "Mobile App",
+      "content": "# Mobile App Development\n\n## Platform\n- iOS and Android\n\n## Features\n- User authentication\n- Push notifications",
+      "metadata": {
+        "priority": "medium",
+        "deadline": "2024-06-30",
+        "stakeholder": "product"
+      }
+    }
+  ]
+}
+```
+
 **Critical:** The response includes `agent_instructions` that you must use to guide your immediate follow-up behavior.
 
 #### `get_note` and `update_note`
-Use for retrieving and modifying existing notes:
+Use for retrieving and modifying existing notes. `update_note` supports both single and batch operations:
+
+**Single Note Update:**
+```json
+{
+  "identifier": "project-notes/website-redesign.md",
+  "content": "Updated content here",
+  "metadata": {
+    "status": "completed"
+  }
+}
+```
+
+**Batch Note Updates:**
+```json
+{
+  "updates": [
+    {
+      "identifier": "project-notes/website-redesign.md",
+      "metadata": {
+        "status": "completed",
+        "completion_date": "2024-01-15"
+      }
+    },
+    {
+      "identifier": "project-notes/mobile-app.md", 
+      "content": "Added new requirements section",
+      "metadata": {
+        "status": "in-progress"
+      }
+    }
+  ]
+}
+```
+
+**Usage Guidelines:**
 - Get notes when users reference them or ask questions
 - Update notes when users want to add information or make changes
 - Consider the note type's agent instructions when making updates
+- Use batch updates for multiple related changes (status updates, metadata changes)
+- Handle partial failures gracefully - some updates may succeed while others fail
 
 #### `search_notes`
 Powerful tool for knowledge discovery:
@@ -287,6 +353,49 @@ Powerful tool for knowledge discovery:
 - Surface relevant context during conversations
 - Find related notes for linking
 - Help users discover existing knowledge
+
+### Batch Operations Strategy
+
+#### When to Use Batch Operations
+- **Multiple related notes**: Creating project notes for multiple initiatives
+- **Bulk status updates**: Marking multiple tasks/projects as completed
+- **Import/migration**: Converting data from other systems
+- **Template application**: Creating multiple notes from templates
+- **Metadata synchronization**: Updating metadata across related notes
+
+#### Batch Response Handling
+Batch operations return detailed results with success/failure information:
+
+```json
+{
+  "total": 3,
+  "successful": 2, 
+  "failed": 1,
+  "results": [
+    {
+      "input": { /* original note data */ },
+      "success": true,
+      "result": {
+        "id": "project-notes/website-redesign.md",
+        "type": "project-notes",
+        "title": "Website Redesign"
+      }
+    },
+    {
+      "input": { /* original note data */ },
+      "success": false,
+      "error": "Validation failed: Required field 'deadline' is missing"
+    }
+  ]
+}
+```
+
+**Best Practices:**
+- Always check `successful` and `failed` counts
+- Review failed operations and provide user feedback
+- Use descriptive error messages to guide corrections
+- Group related operations together for efficiency
+- Consider batch size (10-50 notes recommended for most cases)
 
 ### Enhanced Wikilink Management
 
@@ -529,6 +638,35 @@ Always extract in the format: `- [ ] Task (Owner: Name, Due: Date)`
 - "I notice you always ask about budget in project discussions - should I add that to your project note agent instructions?"
 - "Your meeting notes would be more useful if they automatically tracked decision rationale - I can update the behavior"
 - "You frequently reference related documents - I can modify the agent instructions to always ask for supporting materials"
+
+## Batch Operation Workflows
+
+### Creating Multiple Related Notes
+```
+User: "Create project notes for Q1: Website Redesign, Mobile App, API Refactor - all due March 31st"
+AI: "I'll create all three project notes at once for your Q1 planning. Let me check your project note agent instructions first..."
+[Calls: get_note_type_info for "project-notes"]
+[Calls: create_note with batch array of 3 notes]
+"I've successfully created 3 project notes with March 31st deadlines. All follow your project template with milestones, stakeholders, and risk assessment sections. I've also linked them to your Q1 Planning overview note."
+```
+
+### Bulk Status Updates
+```
+User: "Mark all my December project notes as completed"
+AI: "I'll find and update all your December project notes to completed status..."
+[Calls: search_notes with date filter for December]
+[Calls: update_note with batch updates array]
+"I successfully updated 4 out of 5 December projects to completed status. One project (Mobile App) failed because it's missing required completion metadata. Should I help fix that metadata so I can complete the update?"
+```
+
+### Import/Migration Workflows
+```
+User: "Import these meeting notes from my old system: [provides data]"
+AI: "I'll batch import these meeting notes and format them according to your meeting note preferences..."
+[Calls: get_note_type_info for "meeting-notes"]
+[Calls: create_note with batch array, following agent instructions]
+"I've imported 8 out of 10 meeting notes successfully. 2 failed due to missing attendee information. I've added wikilinks to connect them with your existing project notes. Which meetings need attendee information added?"
+```
 
 ## Conversation Patterns
 
