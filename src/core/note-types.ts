@@ -417,11 +417,6 @@ export class NoteTypeManager {
         throw new Error('Note type deletion is disabled in configuration');
       }
 
-      // Check if this is a protected built-in type
-      if (config?.deletion?.protect_builtin_types && this.isBuiltinType(typeName)) {
-        throw new Error(`Cannot delete built-in note type '${typeName}'`);
-      }
-
       // Validate deletion
       const validation = await this.validateNoteTypeDeletion(
         typeName,
@@ -567,14 +562,6 @@ export class NoteTypeManager {
       );
       return validation;
     }
-  }
-
-  /**
-   * Check if a note type is a built-in type
-   */
-  isBuiltinType(typeName: string): boolean {
-    const builtinTypes = ['daily', 'reading', 'project', 'meeting', 'todo', 'goals'];
-    return builtinTypes.includes(typeName);
   }
 
   /**

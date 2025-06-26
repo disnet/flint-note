@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## upcoming
+
+### Fixed
+- Automatic configuration upgrade for old vaults missing deletion settings
+- Configuration schema updated to version 1.1.0 with deletion settings
+
+### Removed
+- `protect_builtin_types` configuration option - all note types can now be deleted equally
+
 ## 0.2.0
 
 ### Added

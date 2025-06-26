@@ -215,7 +215,6 @@ describe('Note Type Deletion Unit Tests', () => {
           create_backups: true,
           backup_path: '.flint-note/backups',
           allow_note_type_deletion: true,
-          protect_builtin_types: true,
           max_bulk_delete: 2
         }
       };
@@ -242,64 +241,6 @@ describe('Note Type Deletion Unit Tests', () => {
     });
   });
 
-  describe('Built-in Type Protection', () => {
-    test('should protect built-in types when configured', async () => {
-      const { noteTypeManager, workspace } = context;
-
-      // Configure built-in type protection
-      const config = {
-        deletion: {
-          require_confirmation: false,
-          create_backups: true,
-          backup_path: '.flint-note/backups',
-          allow_note_type_deletion: true,
-          protect_builtin_types: true,
-          max_bulk_delete: 10
-        }
-      };
-      await workspace.updateConfig(config);
-
-      // Create a built-in type that actually exists in the built-in list
-      await workspace.ensureNoteType('daily');
-
-      await assert.rejects(
-        async () =>
-          await noteTypeManager.deleteNoteType('daily', 'error', undefined, true),
-        /Cannot delete built-in note type/,
-        'Should protect built-in types'
-      );
-    });
-
-    test('should allow built-in type deletion when protection is disabled', async () => {
-      const { noteTypeManager, workspace } = context;
-
-      // Disable built-in type protection
-      const config = {
-        deletion: {
-          require_confirmation: false,
-          create_backups: true,
-          backup_path: '.flint-note/backups',
-          allow_note_type_deletion: true,
-          protect_builtin_types: false,
-          max_bulk_delete: 10
-        }
-      };
-      await workspace.updateConfig(config);
-
-      // Create a test built-in type instead of using 'general' which may not exist
-      await workspace.ensureNoteType('test-builtin');
-
-      // This should succeed when protection is disabled
-      const result = await noteTypeManager.deleteNoteType(
-        'test-builtin',
-        'error',
-        undefined,
-        true
-      );
-      assert.ok(result.deleted, 'Should allow deletion when protection is disabled');
-    });
-  });
-
   describe('Configuration Validation', () => {
     test('should reject deletion when disabled in configuration', async () => {
       const { noteTypeManager, workspace } = context;
@@ -311,7 +252,6 @@ describe('Note Type Deletion Unit Tests', () => {
           create_backups: true,
           backup_path: '.flint-note/backups',
           allow_note_type_deletion: false,
-          protect_builtin_types: true,
           max_bulk_delete: 10
         }
       };
@@ -337,7 +277,6 @@ describe('Note Type Deletion Unit Tests', () => {
           create_backups: true,
           backup_path: '.flint-note/backups',
           allow_note_type_deletion: true,
-          protect_builtin_types: true,
           max_bulk_delete: 10
         }
       };
@@ -378,7 +317,6 @@ describe('Note Type Deletion Unit Tests', () => {
           create_backups: true,
           backup_path: backupDir,
           allow_note_type_deletion: true,
-          protect_builtin_types: true,
           max_bulk_delete: 10
         }
       };
@@ -414,7 +352,6 @@ describe('Note Type Deletion Unit Tests', () => {
           create_backups: true,
           backup_path: backupDir,
           allow_note_type_deletion: true,
-          protect_builtin_types: true,
           max_bulk_delete: 10
         }
       };
@@ -519,7 +456,6 @@ describe('Note Type Deletion Unit Tests', () => {
           create_backups: true,
           backup_path: '.flint-note/backups',
           allow_note_type_deletion: true,
-          protect_builtin_types: true,
           max_bulk_delete: 10
         }
       };

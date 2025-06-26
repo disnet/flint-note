@@ -165,7 +165,7 @@ Deleting note types is more complex due to potential existing notes of that type
 - Automatic backup creation before bulk operations
 - Rollback capability for failed migrations
 - Detailed logging of all deletion operations
-- Prevention of deleting built-in note types (configurable)
+
 
 ## Metadata Schema System
 
@@ -653,7 +653,6 @@ deletion:
   create_backups: true  # Automatically backup notes before deletion
   backup_path: ".flint-note/backups"  # Where to store deletion backups
   allow_note_type_deletion: true  # Allow deletion of custom note types
-  protect_builtin_types: true  # Prevent deletion of built-in note types
   max_bulk_delete: 10  # Maximum notes to delete in single note type deletion
 ```
 

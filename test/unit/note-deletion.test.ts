@@ -68,7 +68,6 @@ describe('Note Deletion Unit Tests', () => {
           create_backups: true,
           backup_path: '.flint-note/backups',
           allow_note_type_deletion: true,
-          protect_builtin_types: true,
           max_bulk_delete: 10
         }
       };
@@ -105,7 +104,6 @@ describe('Note Deletion Unit Tests', () => {
           create_backups: true,
           backup_path: '.flint-note/test-backups',
           allow_note_type_deletion: true,
-          protect_builtin_types: true,
           max_bulk_delete: 10
         }
       };
@@ -319,7 +317,6 @@ Different content.`
           create_backups: true,
           backup_path: '.flint-note/backups',
           allow_note_type_deletion: true,
-          protect_builtin_types: true,
           max_bulk_delete: 2
         }
       };
@@ -360,7 +357,6 @@ Different content.`
           create_backups: true,
           backup_path: '.flint-note/backups',
           allow_note_type_deletion: true,
-          protect_builtin_types: true,
           max_bulk_delete: 10
         }
       };

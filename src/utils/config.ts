@@ -29,6 +29,13 @@ interface WorkspaceConfig {
     auto_create_directories: boolean;
     require_descriptions: boolean;
   };
+  deletion: {
+    require_confirmation: boolean;
+    create_backups: boolean;
+    backup_path: string;
+    allow_note_type_deletion: boolean;
+    max_bulk_delete: number;
+  };
   features: {
     auto_linking: boolean;
     auto_tagging: boolean;
@@ -98,7 +105,7 @@ export class ConfigManager {
    */
   getDefaultConfig(): WorkspaceConfig {
     return {
-      version: '1.0.0',
+      version: '1.1.0',
       workspace_root: '.',
       default_note_type: 'general',
       mcp_server: {
@@ -117,6 +124,13 @@ export class ConfigManager {
       note_types: {
         auto_create_directories: true,
         require_descriptions: true
+      },
+      deletion: {
+        require_confirmation: true,
+        create_backups: true,
+        backup_path: '.flint-note/backups',
+        allow_note_type_deletion: true,
+        max_bulk_delete: 10
       },
       features: {
         auto_linking: false,

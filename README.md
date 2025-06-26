@@ -201,6 +201,38 @@ Agent: I'll modify your project note instructions to emphasize deadline tracking
        [Updates projects/_description.md accordingly]
 ```
 
+## Configuration
+
+Flint Note automatically manages its configuration and will upgrade older vaults seamlessly. The configuration is stored in `.flint-note/config.yml` in each vault.
+
+### Automatic Configuration Upgrades
+
+When you open an older vault (created before v1.1.0), Flint Note will automatically detect the missing deletion settings and upgrade your configuration:
+
+```
+📝 Upgrading vault configuration with new deletion settings...
+✅ Configuration upgraded successfully
+```
+
+The upgrade:
+- Adds deletion configuration with safe defaults
+- Preserves all your existing settings
+- Updates the configuration version to 1.1.0
+- Saves the upgraded configuration automatically
+
+Your existing notes and note types remain completely unchanged.
+
+### Configuration Settings
+
+Key configuration sections include:
+
+- **deletion**: Controls note and note type deletion behavior
+  - `require_confirmation`: Requires explicit confirmation for deletions (default: true)
+  - `create_backups`: Creates backups before deletion (default: true) 
+  - `backup_path`: Where to store backups (default: `.flint-note/backups`)
+  - `allow_note_type_deletion`: Allows deletion of entire note types (default: true)
+  - `max_bulk_delete`: Maximum notes that can be deleted in one operation (default: 10)
+
 ## Tutorial
 
 Check out our [tutorial](./TUTORIAL.md) for a more detailed guide on how to use Flint Note.

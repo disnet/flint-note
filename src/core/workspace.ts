@@ -30,8 +30,33 @@ interface WorkspaceConfig {
     create_backups: boolean;
     backup_path: string;
     allow_note_type_deletion: boolean;
-    protect_builtin_types: boolean;
     max_bulk_delete: number;
+  };
+  version?: string;
+}
+
+// Partial config interface for handling old configurations during upgrade
+interface PartialWorkspaceConfig {
+  workspace_root?: string;
+  default_note_type?: string;
+  mcp_server?: {
+    port?: number;
+    log_level?: string;
+  };
+  search?: {
+    index_enabled?: boolean;
+    index_path?: string;
+  };
+  note_types?: {
+    auto_create_directories?: boolean;
+    require_descriptions?: boolean;
+  };
+  deletion?: {
+    require_confirmation?: boolean;
+    create_backups?: boolean;
+    backup_path?: string;
+    allow_note_type_deletion?: boolean;
+    max_bulk_delete?: number;
   };
   version?: string;
 }
@@ -135,7 +160,15 @@ export class Workspace {
   async loadOrCreateConfig(): Promise<void> {
     try {
       const configContent = await fs.readFile(this.configPath, 'utf-8');
-      this.config = yaml.load(configContent) as WorkspaceConfig;
+      const partialConfig = yaml.load(configContent) as PartialWorkspaceConfig;
+
+      // Check if config needs upgrading
+      if (this.needsConfigUpgrade(partialConfig)) {
+        this.config = this.upgradeConfig(partialConfig);
+        await this.saveConfig();
+      } else {
+        this.config = partialConfig as WorkspaceConfig;
+      }
     } catch (error) {
       if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
         // Create default configuration
@@ -172,10 +205,107 @@ export class Workspace {
         create_backups: true,
         backup_path: '.flint-note/backups',
         allow_note_type_deletion: true,
-        protect_builtin_types: true,
         max_bulk_delete: 10
-      }
+      },
+      version: '1.1.0'
     };
+  }
+
+  /**
+   * Check if the configuration needs upgrading
+   */
+  needsConfigUpgrade(config: PartialWorkspaceConfig): boolean {
+    // Check if deletion config is missing or incomplete
+    if (!config.deletion) {
+      return true;
+    }
+
+    // Check if any required deletion fields are missing
+    const requiredDeletionFields = [
+      'require_confirmation',
+      'create_backups',
+      'backup_path',
+      'allow_note_type_deletion',
+      'max_bulk_delete'
+    ];
+
+    for (const field of requiredDeletionFields) {
+      if (!(field in config.deletion)) {
+        return true;
+      }
+    }
+
+    // Check version-based upgrades
+    if (!config.version || this.compareVersions(config.version, '1.1.0') < 0) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Upgrade configuration to latest schema
+   */
+  upgradeConfig(oldConfig: PartialWorkspaceConfig): WorkspaceConfig {
+    const defaultConfig = this.getDefaultConfig();
+
+    // Deep merge old config with defaults, preserving existing values
+    const upgradedConfig: WorkspaceConfig = {
+      workspace_root: oldConfig.workspace_root || defaultConfig.workspace_root,
+      default_note_type: oldConfig.default_note_type || defaultConfig.default_note_type,
+      mcp_server: {
+        port: oldConfig.mcp_server?.port || defaultConfig.mcp_server.port,
+        log_level: oldConfig.mcp_server?.log_level || defaultConfig.mcp_server.log_level
+      },
+      search: {
+        index_enabled:
+          oldConfig.search?.index_enabled ?? defaultConfig.search.index_enabled,
+        index_path: oldConfig.search?.index_path || defaultConfig.search.index_path
+      },
+      note_types: {
+        auto_create_directories:
+          oldConfig.note_types?.auto_create_directories ??
+          defaultConfig.note_types.auto_create_directories,
+        require_descriptions:
+          oldConfig.note_types?.require_descriptions ??
+          defaultConfig.note_types.require_descriptions
+      },
+      deletion: {
+        require_confirmation:
+          oldConfig.deletion?.require_confirmation ??
+          defaultConfig.deletion.require_confirmation,
+        create_backups:
+          oldConfig.deletion?.create_backups ?? defaultConfig.deletion.create_backups,
+        backup_path:
+          oldConfig.deletion?.backup_path || defaultConfig.deletion.backup_path,
+        allow_note_type_deletion:
+          oldConfig.deletion?.allow_note_type_deletion ??
+          defaultConfig.deletion.allow_note_type_deletion,
+        max_bulk_delete:
+          oldConfig.deletion?.max_bulk_delete ?? defaultConfig.deletion.max_bulk_delete
+      },
+      version: defaultConfig.version
+    };
+
+    return upgradedConfig;
+  }
+
+  /**
+   * Compare two version strings (simple semver comparison)
+   */
+  compareVersions(version1: string, version2: string): number {
+    const v1Parts = version1.split('.').map(Number);
+    const v2Parts = version2.split('.').map(Number);
+
+    for (let i = 0; i < Math.max(v1Parts.length, v2Parts.length); i++) {
+      const v1Part = v1Parts[i] || 0;
+      const v2Part = v2Parts[i] || 0;
+
+      if (v1Part < v2Part) return -1;
+      if (v1Part > v2Part) return 1;
+    }
+
+    return 0;
   }
 
   /**
