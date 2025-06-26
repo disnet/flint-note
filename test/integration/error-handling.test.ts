@@ -127,7 +127,8 @@ describe('Error Handling Integration', () => {
         content: 'Test content'
       });
       assert.ok(
-        error1.includes('Invalid note type name') || error1.includes('undefined')
+        error1.includes('Single note creation requires') ||
+          error1.includes('type, title, and content')
       );
 
       // Missing title
@@ -136,9 +137,8 @@ describe('Error Handling Integration', () => {
         content: 'Test content'
       });
       assert.ok(
-        error2.includes('title') ||
-          error2.includes('required') ||
-          error2.includes('empty')
+        error2.includes('Single note creation requires') ||
+          error2.includes('type, title, and content')
       );
 
       // Missing content is actually allowed by the server, so test something that actually fails
@@ -282,50 +282,40 @@ describe('Error Handling Integration', () => {
         content: 'Original content'
       });
     });
-
     test('should handle missing parameters', async () => {
-      // Missing identifier - test with null which causes errors
-      const error1 = await client.expectError('update_note', {
-        identifier: null,
+      // Missing identifier parameter
+      const error = await client.expectError('update_note', {
         content: 'New content'
       });
-      assert.ok(error1.includes('Cannot read properties of') || error1.includes('null'));
 
-      // Missing content - server allows this, so test null identifier instead
-      const error2 = await client.expectError('update_note', {
-        identifier: null,
-        content: 'New content'
-      });
-      assert.ok(error2.includes('Cannot read properties of') || error2.includes('null'));
+      assert.ok(error.includes('Single note update requires identifier'));
     });
 
     test('should handle non-existent note update', async () => {
-      // Non-existent note updates don't error, test missing parameter instead
+      // Missing identifier parameter (same as missing parameters test)
       const error = await client.expectError('update_note', {
-        identifier: undefined,
         content: 'New content'
       });
 
-      assert.ok(error.includes('Cannot read properties of'));
+      assert.ok(error.includes('Single note update requires identifier'));
     });
 
     test('should handle empty content update', async () => {
-      // Empty content updates are allowed, test null identifier which causes error
+      // Missing identifier parameter
       const error = await client.expectError('update_note', {
-        identifier: null,
         content: 'New content'
       });
 
-      assert.ok(error.includes('Cannot read properties of') || error.includes('null'));
+      assert.ok(error.includes('Single note update requires identifier'));
     });
 
     test('should handle invalid identifier for update', async () => {
+      // Missing identifier parameter
       const error = await client.expectError('update_note', {
-        identifier: null,
         content: 'New content'
       });
 
-      assert.ok(error.includes('Cannot read properties of'));
+      assert.ok(error.includes('Single note update requires identifier'));
     });
   });
 
@@ -705,18 +695,18 @@ describe('Error Handling Integration', () => {
         title: 'Test',
         content: 'Test'
       });
-      assert.ok(error1.includes('Invalid note type name') || error1.includes('null'));
+      assert.ok(
+        error1.includes('Single note creation requires') || error1.includes('null')
+      );
 
       // Test with undefined values (they get stripped out in JSON)
       const error2 = await client.expectError('create_note', {
         type: 'general',
-        title: undefined,
         content: 'Test'
       });
       assert.ok(
-        error2.includes('title') ||
-          error2.includes('required') ||
-          error2.includes('undefined')
+        error2.includes('Single note creation requires') ||
+          error2.includes('type, title, and content')
       );
     });
   });
