@@ -20,7 +20,7 @@
     "lint": "eslint src/ test/",
     "format": "prettier --write src/**/*.ts test/**/*.ts",
     "type-check": "tsc --project tsconfig.dev.json --noEmit",
-    "inspector": "DANGEROUSLY_OMIT_AUTH=true npx @modelcontextprotocol/inspector tsx src/index.ts",
+    "inspector": "DANGEROUSLY_OMIT_AUTH=true npx @modelcontextprotocol/inspector node dist/index.js",
     "prepublish": "npm run build",
     "prepublishOnly": "npm run build"
   },

@@ -380,65 +380,57 @@ export class FlintNoteServer {
             name: 'create_note',
             description: 'Create one or more notes of the specified type(s)',
             inputSchema: {
-              oneOf: [
-                {
-                  type: 'object',
-                  properties: {
-                    type: {
-                      type: 'string',
-                      description: 'Note type (must exist)'
-                    },
-                    title: {
-                      type: 'string',
-                      description: 'Title of the note'
-                    },
-                    content: {
-                      type: 'string',
-                      description: 'Content of the note in markdown format'
-                    },
-                    metadata: {
-                      type: 'object',
-                      description:
-                        'Additional metadata fields for the note (validated against note type schema)',
-                      additionalProperties: true
-                    }
-                  },
-                  required: ['type', 'title', 'content']
+              type: 'object',
+              properties: {
+                type: {
+                  type: 'string',
+                  description:
+                    'Note type (must exist) - only used for single note creation'
                 },
-                {
+                title: {
+                  type: 'string',
+                  description: 'Title of the note - only used for single note creation'
+                },
+                content: {
+                  type: 'string',
+                  description:
+                    'Content of the note in markdown format - only used for single note creation'
+                },
+                metadata: {
                   type: 'object',
-                  properties: {
-                    notes: {
-                      type: 'array',
-                      items: {
-                        type: 'object',
-                        properties: {
-                          type: {
-                            type: 'string',
-                            description: 'Note type (must exist)'
-                          },
-                          title: {
-                            type: 'string',
-                            description: 'Title of the note'
-                          },
-                          content: {
-                            type: 'string',
-                            description: 'Content of the note in markdown format'
-                          },
-                          metadata: {
-                            type: 'object',
-                            description: 'Additional metadata fields for the note',
-                            additionalProperties: true
-                          }
-                        },
-                        required: ['type', 'title', 'content']
+                  description:
+                    'Additional metadata fields for the note (validated against note type schema) - only used for single note creation',
+                  additionalProperties: true
+                },
+                notes: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      type: {
+                        type: 'string',
+                        description: 'Note type (must exist)'
                       },
-                      description: 'Array of notes to create'
-                    }
+                      title: {
+                        type: 'string',
+                        description: 'Title of the note'
+                      },
+                      content: {
+                        type: 'string',
+                        description: 'Content of the note in markdown format'
+                      },
+                      metadata: {
+                        type: 'object',
+                        description: 'Additional metadata fields for the note',
+                        additionalProperties: true
+                      }
+                    },
+                    required: ['type', 'title', 'content']
                   },
-                  required: ['notes']
+                  description: 'Array of notes to create - used for batch creation'
                 }
-              ]
+              },
+              required: []
             }
           },
           {
@@ -459,59 +451,51 @@ export class FlintNoteServer {
             name: 'update_note',
             description: 'Update one or more existing notes',
             inputSchema: {
-              oneOf: [
-                {
-                  type: 'object',
-                  properties: {
-                    identifier: {
-                      type: 'string',
-                      description:
-                        'Note identifier in format "type/filename" or full path'
-                    },
-                    content: {
-                      type: 'string',
-                      description: 'New content for the note'
-                    },
-                    metadata: {
-                      type: 'object',
-                      description: 'Metadata fields to update',
-                      additionalProperties: true
-                    }
-                  },
-                  required: ['identifier']
+              type: 'object',
+              properties: {
+                identifier: {
+                  type: 'string',
+                  description:
+                    'Note identifier in format "type/filename" or full path - only used for single note update'
                 },
-                {
+                content: {
+                  type: 'string',
+                  description:
+                    'New content for the note - only used for single note update'
+                },
+                metadata: {
                   type: 'object',
-                  properties: {
-                    updates: {
-                      type: 'array',
-                      items: {
-                        type: 'object',
-                        properties: {
-                          identifier: {
-                            type: 'string',
-                            description:
-                              'Note identifier in format "type/filename" or full path'
-                          },
-                          content: {
-                            type: 'string',
-                            description: 'New content for the note'
-                          },
-                          metadata: {
-                            type: 'object',
-                            description: 'Metadata fields to update',
-                            additionalProperties: true
-                          }
-                        },
-                        required: ['identifier']
+                  description:
+                    'Metadata fields to update - only used for single note update',
+                  additionalProperties: true
+                },
+                updates: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      identifier: {
+                        type: 'string',
+                        description:
+                          'Note identifier in format "type/filename" or full path'
                       },
-                      description:
-                        'Array of note updates (must specify content, metadata, or both)'
-                    }
+                      content: {
+                        type: 'string',
+                        description: 'New content for the note'
+                      },
+                      metadata: {
+                        type: 'object',
+                        description: 'Metadata fields to update',
+                        additionalProperties: true
+                      }
+                    },
+                    required: ['identifier']
                   },
-                  required: ['updates']
+                  description:
+                    'Array of note updates (must specify content, metadata, or both) - used for batch updates'
                 }
-              ]
+              },
+              required: []
             }
           },
           {

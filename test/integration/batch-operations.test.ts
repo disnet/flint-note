@@ -756,8 +756,20 @@ describe('Batch Operations Integration', () => {
       assert(createNoteTool.description, 'Should have description');
       assert(createNoteTool.inputSchema, 'Should have input schema');
       assert(
-        createNoteTool.inputSchema.oneOf,
-        'Should have oneOf for single/batch support'
+        createNoteTool.inputSchema.type === 'object',
+        'Should have object type for unified schema'
+      );
+      assert(
+        createNoteTool.inputSchema.properties,
+        'Should have properties for unified schema'
+      );
+      assert(
+        createNoteTool.inputSchema.properties.type,
+        'Should have type property for single note creation'
+      );
+      assert(
+        createNoteTool.inputSchema.properties.notes,
+        'Should have notes array property for batch creation'
       );
 
       // Check update_note schema supports both single and batch
@@ -768,8 +780,20 @@ describe('Batch Operations Integration', () => {
       assert(updateNoteTool.description, 'Should have description');
       assert(updateNoteTool.inputSchema, 'Should have input schema');
       assert(
-        updateNoteTool.inputSchema.oneOf,
-        'Should have oneOf for single/batch support'
+        updateNoteTool.inputSchema.type === 'object',
+        'Should have object type for unified schema'
+      );
+      assert(
+        updateNoteTool.inputSchema.properties,
+        'Should have properties for unified schema'
+      );
+      assert(
+        updateNoteTool.inputSchema.properties.identifier,
+        'Should have identifier property for single note update'
+      );
+      assert(
+        updateNoteTool.inputSchema.properties.updates,
+        'Should have updates array property for batch updates'
       );
     });
   });
