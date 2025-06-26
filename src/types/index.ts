@@ -177,7 +177,7 @@ export interface BatchOperationResult<T> {
   results: Array<{
     input: T;
     success: boolean;
-    result?: any;
+    result?: unknown;
     error?: string;
   }>;
 }

@@ -63,6 +63,7 @@ describe('Note Operations (Single and Batch)', () => {
 
       // Verify the note was created with metadata
       const retrievedNote = await context.noteManager.getNote(noteInfo.id);
+      assert(retrievedNote, 'Retrieved note should not be null');
       assert.strictEqual(retrievedNote.metadata?.author, 'Test Author');
       assert.strictEqual(retrievedNote.metadata?.rating, 5);
     });
@@ -145,6 +146,7 @@ describe('Note Operations (Single and Batch)', () => {
 
         // Read the actual note to verify metadata
         const note = await context.noteManager.getNote(itemResult.result.id);
+        assert(note, 'Note should not be null');
         assert(note.metadata);
         assert.strictEqual(note.metadata.author, itemResult.input.metadata?.author);
         assert.strictEqual(note.metadata.rating, itemResult.input.metadata?.rating);
@@ -256,6 +258,7 @@ describe('Note Operations (Single and Batch)', () => {
 
       // Verify the update
       const updatedNote = await context.noteManager.getNote(noteInfo.id);
+      assert(updatedNote, 'Updated note should not be null');
       assert(updatedNote.content.includes('Updated content'));
     });
 
@@ -288,6 +291,7 @@ describe('Note Operations (Single and Batch)', () => {
 
       // Verify the update
       const updatedNote = await context.noteManager.getNote(noteInfo.id);
+      assert(updatedNote, 'Updated note should not be null');
       assert(updatedNote.content.includes('Updated content'));
       assert.strictEqual(updatedNote.metadata?.author, 'Updated Author');
       assert.strictEqual(updatedNote.metadata?.rating, 5);
@@ -346,6 +350,7 @@ describe('Note Operations (Single and Batch)', () => {
 
         // Verify actual content was updated
         const updatedNote = await context.noteManager.getNote(updates[i].identifier);
+        assert(updatedNote, 'Updated note should not be null');
         assert(updatedNote.content.includes(`Updated content ${i + 1}`));
       }
     });
@@ -383,6 +388,7 @@ describe('Note Operations (Single and Batch)', () => {
 
       // Verify metadata was updated while content remained the same
       const updatedNote = await context.noteManager.getNote(note.id);
+      assert(updatedNote, 'Updated note should not be null');
       assert(updatedNote.content.includes('Original review content'));
       assert.strictEqual(updatedNote.metadata?.author, 'Updated Author');
       assert.strictEqual(updatedNote.metadata?.rating, 5);
@@ -421,6 +427,7 @@ describe('Note Operations (Single and Batch)', () => {
 
       // Verify both content and metadata were updated
       const updatedNote = await context.noteManager.getNote(note.id);
+      assert(updatedNote, 'Updated note should not be null');
       assert(updatedNote.content.includes('Updated content with new insights'));
       assert.strictEqual(updatedNote.metadata?.author, 'Updated Author');
       assert.strictEqual(updatedNote.metadata?.rating, 5);

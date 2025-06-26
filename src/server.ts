@@ -21,14 +21,7 @@ import { SearchManager } from './core/search.js';
 import { LinkManager } from './core/links.js';
 import { GlobalConfigManager } from './utils/global-config.js';
 import { resolvePath, isPathSafe } from './utils/path.js';
-import type {
-  LinkRelationship,
-  BatchCreateNoteInput,
-  BatchUpdateNoteInput,
-  BatchCreateResult,
-  BatchUpdateResult,
-  NoteMetadata
-} from './types/index.js';
+import type { LinkRelationship, NoteMetadata } from './types/index.js';
 import type { MetadataSchema } from './core/metadata-schema.js';
 import fs from 'fs/promises';
 import path from 'path';

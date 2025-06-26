@@ -6,10 +6,7 @@
 
 import { test, describe, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert';
-import { spawn, type ChildProcess } from 'node:child_process';
-import { promises as fs } from 'node:fs';
-import { join } from 'node:path';
-import { tmpdir } from 'node:os';
+import { type ChildProcess } from 'node:child_process';
 import {
   createIntegrationWorkspace,
   cleanupIntegrationWorkspace,
@@ -73,7 +70,7 @@ describe('Batch Operations Integration', () => {
 
       serverProcess.stdin!.write(JSON.stringify(request) + '\n');
 
-      const responsePromise = new Promise<void>(resolve => {
+      const _responsePromise = new Promise<void>(resolve => {
         const onData = (data: Buffer) => {
           if (resolved) return;
 
@@ -178,7 +175,7 @@ describe('Batch Operations Integration', () => {
 
       serverProcess.stdin!.write(JSON.stringify(request) + '\n');
 
-      const responsePromise = new Promise<void>(resolve => {
+      const _responsePromise = new Promise<void>(resolve => {
         const onData = (data: Buffer) => {
           if (resolved) return;
 
@@ -265,7 +262,7 @@ describe('Batch Operations Integration', () => {
 
       serverProcess.stdin!.write(JSON.stringify(request) + '\n');
 
-      const responsePromise = new Promise<void>(resolve => {
+      const _responsePromise = new Promise<void>(resolve => {
         const onData = (data: Buffer) => {
           if (resolved) return;
 
@@ -356,7 +353,7 @@ describe('Batch Operations Integration', () => {
 
       serverProcess.stdin!.write(JSON.stringify(createRequest) + '\n');
 
-      const createResponsePromise = new Promise<void>(resolve => {
+      const _createResponsePromise = new Promise<void>(resolve => {
         const onData = (data: Buffer) => {
           if (createResolved) return;
 
@@ -440,7 +437,7 @@ describe('Batch Operations Integration', () => {
 
       serverProcess.stdin!.write(JSON.stringify(updateRequest) + '\n');
 
-      const updateResponsePromise = new Promise<void>(resolve => {
+      const _updateResponsePromise = new Promise<void>(resolve => {
         const onData = (data: Buffer) => {
           if (updateResolved) return;
 
@@ -528,7 +525,7 @@ describe('Batch Operations Integration', () => {
 
       serverProcess.stdin!.write(JSON.stringify(createRequest) + '\n');
 
-      const createResponsePromise = new Promise<void>(resolve => {
+      const _createResponsePromise = new Promise<void>(resolve => {
         const onData = (data: Buffer) => {
           if (createResolved) return;
 
@@ -612,7 +609,7 @@ describe('Batch Operations Integration', () => {
 
       serverProcess.stdin!.write(JSON.stringify(updateRequest) + '\n');
 
-      const updateResponsePromise = new Promise<void>(resolve => {
+      const _updateResponsePromise = new Promise<void>(resolve => {
         const onData = (data: Buffer) => {
           if (updateResolved) return;
 
@@ -694,7 +691,7 @@ describe('Batch Operations Integration', () => {
 
       serverProcess.stdin!.write(JSON.stringify(request) + '\n');
 
-      const responsePromise = new Promise<void>(resolve => {
+      const _responsePromise = new Promise<void>(resolve => {
         const onData = (data: Buffer) => {
           if (resolved) return;
 
