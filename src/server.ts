@@ -21,7 +21,14 @@ import { SearchManager } from './core/search.js';
 import { LinkManager } from './core/links.js';
 import { GlobalConfigManager } from './utils/global-config.js';
 import { resolvePath, isPathSafe } from './utils/path.js';
-import type { LinkRelationship } from './types/index.js';
+import type {
+  LinkRelationship,
+  BatchCreateNoteInput,
+  BatchUpdateNoteInput,
+  BatchCreateResult,
+  BatchUpdateResult,
+  NoteMetadata
+} from './types/index.js';
 import type { MetadataSchema } from './core/metadata-schema.js';
 import fs from 'fs/promises';
 import path from 'path';
@@ -39,10 +46,16 @@ interface CreateNoteTypeArgs {
 }
 
 interface CreateNoteArgs {
-  type: string;
-  title: string;
-  content: string;
+  type?: string;
+  title?: string;
+  content?: string;
   metadata?: Record<string, unknown>;
+  notes?: Array<{
+    type: string;
+    title: string;
+    content: string;
+    metadata?: Record<string, unknown>;
+  }>;
 }
 
 interface GetNoteArgs {
@@ -50,8 +63,14 @@ interface GetNoteArgs {
 }
 
 interface UpdateNoteArgs {
-  identifier: string;
-  content: string;
+  identifier?: string;
+  content?: string;
+  metadata?: Record<string, unknown>;
+  updates?: Array<{
+    identifier: string;
+    content?: string;
+    metadata?: Record<string, unknown>;
+  }>;
 }
 
 interface SearchNotesArgs {
@@ -366,31 +385,67 @@ export class FlintNoteServer {
           },
           {
             name: 'create_note',
-            description: 'Create a new note of the specified type',
+            description: 'Create one or more notes of the specified type(s)',
             inputSchema: {
-              type: 'object',
-              properties: {
-                type: {
-                  type: 'string',
-                  description: 'Note type (must exist)'
-                },
-                title: {
-                  type: 'string',
-                  description: 'Title of the note'
-                },
-                content: {
-                  type: 'string',
-                  description: 'Content of the note in markdown format'
-                },
-
-                metadata: {
+              oneOf: [
+                {
                   type: 'object',
-                  description:
-                    'Additional metadata fields for the note (validated against note type schema)',
-                  additionalProperties: true
+                  properties: {
+                    type: {
+                      type: 'string',
+                      description: 'Note type (must exist)'
+                    },
+                    title: {
+                      type: 'string',
+                      description: 'Title of the note'
+                    },
+                    content: {
+                      type: 'string',
+                      description: 'Content of the note in markdown format'
+                    },
+                    metadata: {
+                      type: 'object',
+                      description:
+                        'Additional metadata fields for the note (validated against note type schema)',
+                      additionalProperties: true
+                    }
+                  },
+                  required: ['type', 'title', 'content']
+                },
+                {
+                  type: 'object',
+                  properties: {
+                    notes: {
+                      type: 'array',
+                      items: {
+                        type: 'object',
+                        properties: {
+                          type: {
+                            type: 'string',
+                            description: 'Note type (must exist)'
+                          },
+                          title: {
+                            type: 'string',
+                            description: 'Title of the note'
+                          },
+                          content: {
+                            type: 'string',
+                            description: 'Content of the note in markdown format'
+                          },
+                          metadata: {
+                            type: 'object',
+                            description: 'Additional metadata fields for the note',
+                            additionalProperties: true
+                          }
+                        },
+                        required: ['type', 'title', 'content']
+                      },
+                      description: 'Array of notes to create'
+                    }
+                  },
+                  required: ['notes']
                 }
-              },
-              required: ['type', 'title', 'content']
+              ]
             }
           },
           {
@@ -409,20 +464,61 @@ export class FlintNoteServer {
           },
           {
             name: 'update_note',
-            description: 'Update an existing note',
+            description: 'Update one or more existing notes',
             inputSchema: {
-              type: 'object',
-              properties: {
-                identifier: {
-                  type: 'string',
-                  description: 'Note identifier in format "type/filename" or full path'
+              oneOf: [
+                {
+                  type: 'object',
+                  properties: {
+                    identifier: {
+                      type: 'string',
+                      description:
+                        'Note identifier in format "type/filename" or full path'
+                    },
+                    content: {
+                      type: 'string',
+                      description: 'New content for the note'
+                    },
+                    metadata: {
+                      type: 'object',
+                      description: 'Metadata fields to update',
+                      additionalProperties: true
+                    }
+                  },
+                  required: ['identifier']
                 },
-                content: {
-                  type: 'string',
-                  description: 'New content for the note'
+                {
+                  type: 'object',
+                  properties: {
+                    updates: {
+                      type: 'array',
+                      items: {
+                        type: 'object',
+                        properties: {
+                          identifier: {
+                            type: 'string',
+                            description:
+                              'Note identifier in format "type/filename" or full path'
+                          },
+                          content: {
+                            type: 'string',
+                            description: 'New content for the note'
+                          },
+                          metadata: {
+                            type: 'object',
+                            description: 'Metadata fields to update',
+                            additionalProperties: true
+                          }
+                        },
+                        required: ['identifier']
+                      },
+                      description:
+                        'Array of note updates (must specify content, metadata, or both)'
+                    }
+                  },
+                  required: ['updates']
                 }
-              },
-              required: ['identifier', 'content']
+              ]
             }
           },
           {
@@ -1020,6 +1116,7 @@ export class FlintNoteServer {
             return await this.#handleBulkDeleteNotes(
               args as unknown as BulkDeleteNotesArgs
             );
+
           default:
             throw new Error(`Unknown tool: ${name}`);
         }
@@ -1134,6 +1231,24 @@ export class FlintNoteServer {
       throw new Error('Server not initialized');
     }
 
+    // Handle batch creation if notes array is provided
+    if (args.notes) {
+      const result = await this.#noteManager.batchCreateNotes(args.notes);
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(result, null, 2)
+          }
+        ]
+      };
+    }
+
+    // Handle single note creation
+    if (!args.type || !args.title || !args.content) {
+      throw new Error('Single note creation requires type, title, and content');
+    }
+
     const noteInfo = await this.#noteManager.createNote(
       args.type,
       args.title,
@@ -1195,7 +1310,50 @@ export class FlintNoteServer {
       throw new Error('Server not initialized');
     }
 
-    const result = await this.#noteManager.updateNote(args.identifier, args.content);
+    // Handle batch updates if updates array is provided
+    if (args.updates) {
+      const result = await this.#noteManager.batchUpdateNotes(args.updates);
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(result, null, 2)
+          }
+        ]
+      };
+    }
+
+    // Handle single note update
+    if (!args.identifier) {
+      throw new Error('Single note update requires identifier');
+    }
+
+    let result;
+    if (args.content !== undefined && args.metadata !== undefined) {
+      // Both content and metadata update
+      result = await this.#noteManager.updateNoteWithMetadata(
+        args.identifier,
+        args.content,
+        args.metadata as NoteMetadata
+      );
+    } else if (args.content !== undefined) {
+      // Content-only update
+      result = await this.#noteManager.updateNote(args.identifier, args.content);
+    } else if (args.metadata !== undefined) {
+      // Metadata-only update
+      const currentNote = await this.#noteManager.getNote(args.identifier);
+      if (!currentNote) {
+        throw new Error(`Note '${args.identifier}' not found`);
+      }
+      result = await this.#noteManager.updateNoteWithMetadata(
+        args.identifier,
+        currentNote.content,
+        args.metadata as NoteMetadata
+      );
+    } else {
+      throw new Error('Either content or metadata must be provided for update');
+    }
+
     return {
       content: [
         {

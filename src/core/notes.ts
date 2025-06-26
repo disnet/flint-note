@@ -19,7 +19,11 @@ import type {
   FlintNoteError,
   DeletionValidation,
   BackupInfo,
-  WikiLink
+  WikiLink,
+  BatchCreateNoteInput,
+  BatchUpdateNoteInput,
+  BatchCreateResult,
+  BatchUpdateResult
 } from '../types/index.js';
 import { WikilinkParser } from './wikilink-parser.js';
 
@@ -1070,5 +1074,108 @@ export class NoteManager {
       );
       return { valid: true, errors: [], warnings: [] };
     }
+  }
+
+  /**
+   * Create multiple notes in a batch operation
+   */
+  async batchCreateNotes(notes: BatchCreateNoteInput[]): Promise<BatchCreateResult> {
+    const results: BatchCreateResult['results'] = [];
+    let successful = 0;
+    let failed = 0;
+
+    for (const noteInput of notes) {
+      try {
+        const result = await this.createNote(
+          noteInput.type,
+          noteInput.title,
+          noteInput.content,
+          noteInput.metadata || {}
+        );
+        results.push({
+          input: noteInput,
+          success: true,
+          result
+        });
+        successful++;
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        results.push({
+          input: noteInput,
+          success: false,
+          error: errorMessage
+        });
+        failed++;
+      }
+    }
+
+    return {
+      total: notes.length,
+      successful,
+      failed,
+      results
+    };
+  }
+
+  /**
+   * Update multiple notes in a batch operation
+   */
+  async batchUpdateNotes(updates: BatchUpdateNoteInput[]): Promise<BatchUpdateResult> {
+    const results: BatchUpdateResult['results'] = [];
+    let successful = 0;
+    let failed = 0;
+
+    for (const updateInput of updates) {
+      try {
+        let result: UpdateResult;
+
+        if (updateInput.content !== undefined && updateInput.metadata !== undefined) {
+          // Both content and metadata update
+          result = await this.updateNoteWithMetadata(
+            updateInput.identifier,
+            updateInput.content,
+            updateInput.metadata as NoteMetadata
+          );
+        } else if (updateInput.content !== undefined) {
+          // Content-only update
+          result = await this.updateNote(updateInput.identifier, updateInput.content);
+        } else if (updateInput.metadata !== undefined) {
+          // Metadata-only update - read current content and update with new metadata
+          const currentNote = await this.getNote(updateInput.identifier);
+          if (!currentNote) {
+            throw new Error(`Note '${updateInput.identifier}' not found`);
+          }
+          result = await this.updateNoteWithMetadata(
+            updateInput.identifier,
+            currentNote.content,
+            updateInput.metadata as NoteMetadata
+          );
+        } else {
+          throw new Error('Either content or metadata must be provided for update');
+        }
+
+        results.push({
+          input: updateInput,
+          success: true,
+          result
+        });
+        successful++;
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        results.push({
+          input: updateInput,
+          success: false,
+          error: errorMessage
+        });
+        failed++;
+      }
+    }
+
+    return {
+      total: updates.length,
+      successful,
+      failed,
+      results
+    };
   }
 }

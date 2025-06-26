@@ -156,6 +156,66 @@ export interface DeletionValidation {
   incoming_links?: string[];
 }
 
+// Batch operation types
+export interface BatchCreateNoteInput {
+  type: string;
+  title: string;
+  content: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface BatchUpdateNoteInput {
+  identifier: string;
+  content?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface BatchOperationResult<T> {
+  total: number;
+  successful: number;
+  failed: number;
+  results: Array<{
+    input: T;
+    success: boolean;
+    result?: any;
+    error?: string;
+  }>;
+}
+
+export interface BatchCreateResult extends BatchOperationResult<BatchCreateNoteInput> {
+  results: Array<{
+    input: BatchCreateNoteInput;
+    success: boolean;
+    result?: NoteInfo;
+    error?: string;
+  }>;
+}
+
+export interface BatchUpdateResult extends BatchOperationResult<BatchUpdateNoteInput> {
+  results: Array<{
+    input: BatchUpdateNoteInput;
+    success: boolean;
+    result?: UpdateResult;
+    error?: string;
+  }>;
+}
+
+// Note info and update result types (needed for batch results)
+export interface NoteInfo {
+  id: string;
+  type: string;
+  title: string;
+  filename: string;
+  path: string;
+  created: string;
+}
+
+export interface UpdateResult {
+  id: string;
+  updated: boolean;
+  timestamp: string;
+}
+
 // Error types
 export interface FlintNoteError extends Error {
   code?: string;

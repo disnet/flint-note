@@ -311,9 +311,9 @@ The flint-note MCP server exposes the following tools and resources:
 | `remove_vault` | Remove vault from registry (files preserved) | `vault_id` |
 | **Note Management** | | |
 | `create_note_type` | Create new note type with description | `type_name`, `description`, `agent_instructions?`, `metadata_schema?` |
-| `create_note` | Create new note of specified type | `type`, `title`, `content`, `metadata?` |
+| `create_note` | Create one or more notes | Single: `type`, `title`, `content`, `metadata?` OR Batch: `notes` (array) |
 | `get_note` | Retrieve specific note | `identifier` |
-| `update_note` | Update existing note | `identifier`, `content` |
+| `update_note` | Update one or more existing notes | Single: `identifier`, `content?`, `metadata?` OR Batch: `updates` (array) |
 | `search_notes` | Search notes by content/type | `query`, `type_filter?`, `limit?`, `use_regex?` |
 | `list_note_types` | List all available note types | none |
 | `link_notes` | Create explicit links between notes | `source`, `target`, `relationship?` |
@@ -332,6 +332,164 @@ The flint-note MCP server exposes the following tools and resources:
 | `flint-note://types` | Available note types and descriptions | JSON list of types |
 | `flint-note://recent` | Recently modified notes | JSON list of recent notes |
 | `flint-note://stats` | Workspace statistics | JSON with counts, types, etc. |
+
+## Batch Operations
+
+Flint-note supports batch operations through the standard `create_note` and `update_note` tools. These tools accept either single note objects or arrays for batch processing, providing a unified API for both individual and bulk operations.
+
+### Batch Note Creation
+
+The `create_note` tool can create multiple notes by passing a `notes` array:
+
+```json
+{
+  "name": "create_note",
+  "arguments": {
+    "notes": [
+      {
+        "type": "general",
+        "title": "First Note",
+        "content": "Content for the first note",
+        "metadata": {
+          "tags": ["batch", "import"],
+          "priority": "high"
+        }
+      },
+      {
+        "type": "projects",
+        "title": "Second Note", 
+        "content": "Content for the second note"
+      }
+    ]
+  }
+}
+```
+
+**Features:**
+- Creates notes atomically - each note creation is independent
+- Supports metadata validation per note type
+- Returns detailed results with success/failure status for each note
+- Handles partial failures gracefully
+- Updates search index for all successfully created notes
+
+**Response Format:**
+```json
+{
+  "total": 2,
+  "successful": 2,
+  "failed": 0,
+  "results": [
+    {
+      "input": { /* original note input */ },
+      "success": true,
+      "result": {
+        "id": "general/first-note.md",
+        "type": "general",
+        "title": "First Note",
+        "filename": "first-note.md",
+        "path": "/path/to/vault/general/first-note.md",
+        "created": "2024-01-15T10:30:00Z"
+      }
+    }
+  ]
+}
+```
+
+### Batch Note Updates
+
+The `update_note` tool can update multiple notes by passing an `updates` array:
+
+```json
+{
+  "name": "update_note", 
+  "arguments": {
+    "updates": [
+      {
+        "identifier": "general/first-note.md",
+        "content": "Updated content"
+      },
+      {
+        "identifier": "projects/second-note.md",
+        "metadata": {
+          "status": "completed",
+          "priority": "low"
+        }
+      },
+      {
+        "identifier": "general/third-note.md",
+        "content": "New content",
+        "metadata": {
+          "updated_by": "batch-operation"
+        }
+      }
+    ]
+  }
+}
+```
+
+**Features:**
+- Supports content-only, metadata-only, or combined updates
+- Validates metadata against note type schemas
+- Preserves existing metadata when updating content only
+- Returns detailed results with success/failure status for each update
+- Updates search index for all successfully modified notes
+
+**Update Types:**
+- **Content Only**: Preserves existing metadata, updates content
+- **Metadata Only**: Preserves existing content, updates metadata
+- **Combined**: Updates both content and metadata
+
+### Single Note Operations
+
+Both tools also support single note operations using the same API:
+
+**Single Note Creation:**
+```json
+{
+  "name": "create_note",
+  "arguments": {
+    "type": "general",
+    "title": "My Note",
+    "content": "Note content",
+    "metadata": { "tags": ["example"] }
+  }
+}
+```
+
+**Single Note Update:**
+```json
+{
+  "name": "update_note",
+  "arguments": {
+    "identifier": "general/my-note.md",
+    "content": "Updated content",
+    "metadata": { "updated": true }
+  }
+}
+```
+
+### Error Handling
+
+Batch operations use a "fail-fast per item" approach:
+- Each note/update operation is independent
+- If one item fails, others continue processing
+- Detailed error messages are provided for failed items
+- Successful operations are completed even if others fail
+
+**Common Error Scenarios:**
+- Invalid note type names
+- Missing required metadata fields
+- Note identifier not found (for updates)
+- Filename conflicts (for creation)
+- Metadata validation failures
+
+### Performance Considerations
+
+- Batch operations are more efficient than individual API calls
+- Search index is updated efficiently for all modified notes
+- Memory usage scales linearly with batch size
+- Recommended batch size: 50-100 notes per operation
+- Large batches are automatically processed in chunks
 
 ## Vault Initialization
 
@@ -548,6 +706,7 @@ The project has a comprehensive design document and core implementation with MCP
 - ✅ MCP server interface (implemented)
 - ✅ metadata validation (implemented)
 - ✅ search indexing (implemented)
+- ✅ Unified batch operations through create_note and update_note tools (implemented)
 - 🔄 Note and note type deletion with safety checks
 
 #### **3. Improve Documentation with Real Examples**
