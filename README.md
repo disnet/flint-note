@@ -152,8 +152,7 @@ my-notes/
 │   └── config.yml
 ├── reading/
 │   ├── _description.md          # Defines how agents help with reading notes
-│   ├── atomic-habits.md
-│   └── psychology-of-money.md
+│   ├── the-unaccountability-machine.md
 ├── projects/
 │   ├── _description.md          # Defines how agents help with projects
 │   ├── website-redesign.md
@@ -232,7 +231,7 @@ Key configuration sections include:
 
 - **deletion**: Controls note and note type deletion behavior
   - `require_confirmation`: Requires explicit confirmation for deletions (default: true)
-  - `create_backups`: Creates backups before deletion (default: true) 
+  - `create_backups`: Creates backups before deletion (default: true)
   - `backup_path`: Where to store backups (default: `.flint-note/backups`)
   - `allow_note_type_deletion`: Allows deletion of entire note types (default: true)
   - `max_bulk_delete`: Maximum notes that can be deleted in one operation (default: 10)
