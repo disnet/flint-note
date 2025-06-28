@@ -16,6 +16,10 @@ import type {
   DeletionValidation,
   BackupInfo
 } from '../types/index.js';
+import {
+  generateContentHash,
+  createNoteTypeHashableContent
+} from '../utils/content-hash.js';
 
 interface NoteTypeInfo {
   name: string;
@@ -36,6 +40,7 @@ interface NoteTypeDescription {
   description: string;
   parsed: ParsedNoteTypeDescription;
   metadataSchema: MetadataSchema;
+  content_hash: string;
 }
 
 interface NoteTypeListItem {
@@ -201,12 +206,21 @@ export class NoteTypeManager {
       const parsed = this.parseNoteTypeDescription(description);
       const metadataSchema = parsed.parsedMetadataSchema;
 
+      // Generate content hash for optimistic locking
+      const hashableContent = createNoteTypeHashableContent({
+        description,
+        agent_instructions: parsed.agentInstructions.join('\n'),
+        metadata_schema: metadataSchema
+      });
+      const contentHash = generateContentHash(hashableContent);
+
       return {
         name: typeName,
         path: typePath,
         description,
         parsed,
-        metadataSchema
+        metadataSchema,
+        content_hash: contentHash
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';

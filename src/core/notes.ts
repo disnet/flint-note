@@ -13,6 +13,12 @@ import { SearchManager } from './search.js';
 import { MetadataValidator } from './metadata-schema.js';
 import type { ValidationResult } from './metadata-schema.js';
 import { parseFrontmatter, parseNoteContent } from '../utils/yaml-parser.js';
+import {
+  generateContentHash,
+  validateContentHash,
+  ContentHashMismatchError,
+  MissingContentHashError
+} from '../utils/content-hash.js';
 import type {
   NoteLink,
   NoteMetadata,
@@ -48,6 +54,7 @@ interface Note {
   path: string;
   title: string;
   content: string;
+  content_hash: string;
   metadata: NoteMetadata;
   created: string;
   modified: string;
@@ -328,6 +335,9 @@ export class NoteManager {
       // Parse frontmatter and content
       const parsed = this.parseNoteContent(content);
 
+      // Generate content hash for optimistic locking
+      const contentHash = generateContentHash(parsed.content);
+
       return {
         id: identifier,
         type: typeName,
@@ -335,6 +345,7 @@ export class NoteManager {
         path: notePath,
         title: parsed.metadata.title || this.extractTitleFromFilename(filename),
         content: parsed.content,
+        content_hash: contentHash,
         metadata: parsed.metadata,
         created: parsed.metadata.created || stats.birthtime.toISOString(),
         modified: parsed.metadata.updated || stats.mtime.toISOString(),
@@ -378,6 +389,9 @@ export class NoteManager {
       // Parse frontmatter and content
       const parsed = this.parseNoteContent(content);
 
+      // Generate content hash for optimistic locking
+      const contentHash = generateContentHash(parsed.content);
+
       return {
         id: identifier,
         type: typeName,
@@ -385,6 +399,7 @@ export class NoteManager {
         path: notePath,
         title: parsed.metadata.title || this.extractTitleFromFilename(filename),
         content: parsed.content,
+        content_hash: contentHash,
         metadata: parsed.metadata,
         created: parsed.metadata.created || stats.birthtime.toISOString(),
         modified: parsed.metadata.updated || stats.mtime.toISOString(),
@@ -453,8 +468,16 @@ export class NoteManager {
   /**
    * Update an existing note
    */
-  async updateNote(identifier: string, newContent: string): Promise<UpdateResult> {
+  async updateNote(
+    identifier: string,
+    newContent: string,
+    contentHash: string
+  ): Promise<UpdateResult> {
     try {
+      if (!contentHash) {
+        throw new MissingContentHashError('note update');
+      }
+
       const {
         typeName: _typeName,
         filename: _filename,
@@ -471,6 +494,9 @@ export class NoteManager {
       // Read current content to preserve metadata
       const currentContent = await fs.readFile(notePath, 'utf-8');
       const parsed = this.parseNoteContent(currentContent);
+
+      // Validate content hash to prevent conflicts
+      validateContentHash(parsed.content, contentHash);
 
       // Update the content while preserving metadata
       const updatedMetadata = {
@@ -585,9 +611,14 @@ export class NoteManager {
   async updateNoteWithMetadata(
     identifier: string,
     content: string,
-    metadata: NoteMetadata
+    metadata: NoteMetadata,
+    contentHash: string
   ): Promise<UpdateResult> {
     try {
+      if (!contentHash) {
+        throw new MissingContentHashError('note metadata update');
+      }
+
       const {
         typeName: _typeName,
         filename: _filename,
@@ -604,6 +635,9 @@ export class NoteManager {
       // Read current content to preserve existing metadata
       const currentContent = await fs.readFile(notePath, 'utf-8');
       const parsed = this.parseNoteContent(currentContent);
+
+      // Validate content hash to prevent conflicts
+      validateContentHash(parsed.content, contentHash);
 
       // Merge new metadata with existing metadata
       const updatedMetadata = {
@@ -1125,6 +1159,13 @@ export class NoteManager {
     let successful = 0;
     let failed = 0;
 
+    // First validate that all updates include content hashes
+    for (const updateInput of updates) {
+      if (!updateInput.content_hash) {
+        throw new MissingContentHashError('batch note update');
+      }
+    }
+
     for (const updateInput of updates) {
       try {
         let result: UpdateResult;
@@ -1134,11 +1175,16 @@ export class NoteManager {
           result = await this.updateNoteWithMetadata(
             updateInput.identifier,
             updateInput.content,
-            updateInput.metadata as NoteMetadata
+            updateInput.metadata as NoteMetadata,
+            updateInput.content_hash
           );
         } else if (updateInput.content !== undefined) {
           // Content-only update
-          result = await this.updateNote(updateInput.identifier, updateInput.content);
+          result = await this.updateNote(
+            updateInput.identifier,
+            updateInput.content,
+            updateInput.content_hash
+          );
         } else if (updateInput.metadata !== undefined) {
           // Metadata-only update - read current content and update with new metadata
           const currentNote = await this.getNote(updateInput.identifier);
@@ -1148,7 +1194,8 @@ export class NoteManager {
           result = await this.updateNoteWithMetadata(
             updateInput.identifier,
             currentNote.content,
-            updateInput.metadata as NoteMetadata
+            updateInput.metadata as NoteMetadata,
+            updateInput.content_hash
           );
         } else {
           throw new Error('Either content or metadata must be provided for update');
@@ -1162,11 +1209,24 @@ export class NoteManager {
         successful++;
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        results.push({
-          input: updateInput,
-          success: false,
-          error: errorMessage
-        });
+        // Include hash mismatch details in error response
+        if (error instanceof ContentHashMismatchError) {
+          results.push({
+            input: updateInput,
+            success: false,
+            error: errorMessage,
+            hash_mismatch: {
+              current_hash: error.current_hash,
+              provided_hash: error.provided_hash
+            }
+          });
+        } else {
+          results.push({
+            input: updateInput,
+            success: false,
+            error: errorMessage
+          });
+        }
         failed++;
       }
     }

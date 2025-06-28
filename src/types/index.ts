@@ -168,6 +168,7 @@ export interface BatchUpdateNoteInput {
   identifier: string;
   content?: string;
   metadata?: Record<string, unknown>;
+  content_hash: string;
 }
 
 export interface BatchOperationResult<T> {
@@ -197,6 +198,10 @@ export interface BatchUpdateResult extends BatchOperationResult<BatchUpdateNoteI
     success: boolean;
     result?: UpdateResult;
     error?: string;
+    hash_mismatch?: {
+      current_hash: string;
+      provided_hash: string;
+    };
   }>;
 }
 

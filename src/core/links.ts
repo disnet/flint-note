@@ -149,7 +149,8 @@ export class LinkManager implements NoteLinkingManager {
     await this.#noteManager.updateNoteWithMetadata(
       identifier,
       note.content,
-      updatedMetadata
+      updatedMetadata,
+      note.content_hash
     );
   }
 
@@ -219,7 +220,8 @@ export class LinkManager implements NoteLinkingManager {
       await this.#noteManager.updateNoteWithMetadata(
         sourceIdentifier,
         updatedContent,
-        currentNote.metadata
+        currentNote.metadata,
+        currentNote.content_hash
       );
     }
   }
@@ -332,7 +334,12 @@ export class LinkManager implements NoteLinkingManager {
       ...note.metadata,
       links: { ...links, outbound: outboundLinks }
     };
-    await this.#noteManager.updateNoteWithMetadata(source, note.content, updatedMetadata);
+    await this.#noteManager.updateNoteWithMetadata(
+      source,
+      note.content,
+      updatedMetadata,
+      note.content_hash
+    );
 
     return true;
   }
@@ -380,7 +387,8 @@ export class LinkManager implements NoteLinkingManager {
     await this.#noteManager.updateNoteWithMetadata(
       identifier,
       note.content,
-      updatedMetadata
+      updatedMetadata,
+      note.content_hash
     );
   }
 
@@ -525,7 +533,8 @@ export class LinkManager implements NoteLinkingManager {
     await this.#noteManager.updateNoteWithMetadata(
       targetIdentifier,
       targetNote.content,
-      updatedMetadata
+      updatedMetadata,
+      targetNote.content_hash
     );
   }
 
