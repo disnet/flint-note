@@ -33,6 +33,7 @@ Unit tests focus on testing individual classes and functions in isolation. They:
 - `regex-search.test.ts` - Regex search functionality
 - `search-unit.test.ts` - Search manager unit tests
 - `template-creation.test.ts` - Template creation and processing logic
+- `content-hash.test.ts` - Content hash utilities and optimistic locking system
 
 **Shared Helpers:**
 - `helpers/test-utils.ts` - Common test setup, teardown, and utility functions
@@ -99,6 +100,39 @@ node --test test/unit/search-*.test.ts
 - Handle cross-platform differences in process management
 
 ## Style Guidelines
+
+## Content Hash Tests
+
+### Unit Tests (`test/unit/content-hash.test.ts`)
+
+Comprehensive tests for the content hash system that implements optimistic locking:
+
+**Content Hash Utilities:**
+- SHA-256 hash generation with consistent output
+- Deterministic note type content hashing
+- Hash validation and error handling
+- Special character and unicode support
+
+**Note Manager Integration:**
+- Content hash inclusion in note retrieval
+- Required content hash validation for updates
+- Hash mismatch detection and error reporting
+- Metadata-only updates with hash validation
+
+**Note Type Manager Integration:**
+- Content hash generation for note type definitions
+- Hash validation for note type updates
+- Consistent hashing across identical content
+
+**Batch Operations:**
+- Content hash validation for batch updates
+- Mixed success/failure handling in batches
+- Hash mismatch details in error responses
+
+**Performance and Edge Cases:**
+- Large content handling
+- Concurrent hash generation
+- Various newline format handling
 
 Following the project's style guide (`STYLE.md`):
 
