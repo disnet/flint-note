@@ -803,123 +803,22 @@ deletion:
 The content hash system should be implemented as follows:
 
 #### Hash Generation
-```javascript
-const crypto = require('crypto');
-
-function generateContentHash(content) {
-  return 'sha256:' + crypto.createHash('sha256')
-    .update(content, 'utf8')
-    .digest('hex');
-}
-```
+Content hashes are generated using SHA-256 algorithm with UTF-8 encoding, prefixed with "sha256:" for clarity.
 
 #### get_note Implementation
-```javascript
-async function getNote(identifier) {
-  const content = await readNoteContent(identifier);
-  const contentHash = generateContentHash(content);
-  
-  return {
-    id: identifier,
-    // ... other fields
-    content: content,
-    content_hash: contentHash
-  };
-}
-```
+The `get_note` operation computes a content hash from the note's current content and includes it in the response for safe updates.
 
 #### get_note_type_info Implementation
-```javascript
-async function getNoteTypeInfo(typeName) {
-  const noteType = await readNoteTypeDefinition(typeName);
-  // Create hashable content from note type definition
-  const hashableContent = JSON.stringify({
-    description: noteType.description,
-    agent_instructions: noteType.agent_instructions,
-    metadata_schema: noteType.metadata_schema
-  });
-  const contentHash = generateContentHash(hashableContent);
-  
-  return {
-    type_name: typeName,
-    description: noteType.description,
-    agent_instructions: noteType.agent_instructions,
-    metadata_schema: noteType.metadata_schema,
-    content_hash: contentHash,
-    created: noteType.created,
-    updated: noteType.updated
-  };
-}
-```
+The `get_note_type_info` operation creates a deterministic hash from the note type's description, agent instructions, and metadata schema fields, returning it with the note type information.
 
 #### update_note Implementation
-```javascript
-async function updateNote(identifier, newContent, providedHash) {
-  if (!providedHash) {
-    throw new Error("content_hash is required for all update operations");
-  }
-  
-  const currentContent = await readNoteContent(identifier);
-  const currentHash = generateContentHash(currentContent);
-  
-  if (currentHash !== providedHash) {
-    throw new ContentHashMismatchError({
-      message: "Note content has been modified since last read",
-      current_hash: currentHash,
-      provided_hash: providedHash
-    });
-  }
-  
-  // Proceed with update
-  await writeNoteContent(identifier, newContent);
-}
-```
+The `update_note` operation requires a content hash parameter, validates it against the current note content, and throws a `ContentHashMismatchError` if conflicts are detected.
 
 #### update_note_type Implementation
-```javascript
-async function updateNoteType(typeName, field, value, providedHash) {
-  if (!providedHash) {
-    throw new Error("content_hash is required for all note type update operations");
-  }
-  
-  const currentNoteType = await readNoteTypeDefinition(typeName);
-  const currentHashableContent = JSON.stringify({
-    description: currentNoteType.description,
-    agent_instructions: currentNoteType.agent_instructions,
-    metadata_schema: currentNoteType.metadata_schema
-  });
-  const currentHash = generateContentHash(currentHashableContent);
-  
-  if (currentHash !== providedHash) {
-    throw new ContentHashMismatchError({
-      message: "Note type definition has been modified since last read",
-      current_hash: currentHash,
-      provided_hash: providedHash
-    });
-  }
-  
-  // Proceed with update
-  await updateNoteTypeField(typeName, field, value);
-}
-```
+The `update_note_type` operation requires a content hash parameter, validates it against the current note type definition, and throws a `ContentHashMismatchError` if the note type was modified by another process.
 
 #### Note Type Hash Computation
-```javascript
-function createNoteTypeHashableContent(noteType) {
-  // Create deterministic, stable representation for hashing
-  return JSON.stringify({
-    description: noteType.description || "",
-    agent_instructions: noteType.agent_instructions || "",
-    metadata_schema: noteType.metadata_schema || {}
-  }, null, 0); // No indentation for consistent hashing
-}
-```
-
-**Note Type Hash Strategy:**
-- Hash is computed from description, agent_instructions, and metadata_schema fields
-- Uses deterministic JSON.stringify to ensure consistent hashing
-- Empty/null values are normalized to ensure stable hashes
-- File timestamps and other metadata are excluded from hash computation
+Note type hashes are computed from description, agent_instructions, and metadata_schema fields using deterministic JSON serialization. Empty/null values are normalized and file timestamps are excluded to ensure stable hashes.
 
 #### Batch Operation Handling
 - Validate that all updates include content hashes (reject entire batch if any are missing)
