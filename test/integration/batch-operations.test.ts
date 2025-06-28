@@ -438,7 +438,9 @@ describe('Batch Operations Integration', () => {
                   resolve();
                   break;
                 }
-              } catch {}
+              } catch (_e) {
+                // Ignore JSON parse errors for incomplete messages
+              }
             }
           }
         };
@@ -476,7 +478,9 @@ describe('Batch Operations Integration', () => {
                   resolve();
                   break;
                 }
-              } catch {}
+              } catch (_e) {
+                // Ignore JSON parse errors for incomplete messages
+              }
             }
           }
         };
@@ -495,7 +499,9 @@ describe('Batch Operations Integration', () => {
               contentHash1 = noteData.content_hash;
               break;
             }
-          } catch {}
+          } catch (_e) {
+            // Ignore JSON parse errors for incomplete messages
+          }
         }
       }
 
@@ -510,7 +516,9 @@ describe('Batch Operations Integration', () => {
               contentHash2 = noteData.content_hash;
               break;
             }
-          } catch {}
+          } catch (_e) {
+            // Ignore JSON parse errors for incomplete messages
+          }
         }
       }
 
@@ -720,7 +728,9 @@ describe('Batch Operations Integration', () => {
                   resolve();
                   break;
                 }
-              } catch {}
+              } catch (_e) {
+                // Ignore JSON parse errors for incomplete messages
+              }
             }
           }
         };
@@ -739,7 +749,9 @@ describe('Batch Operations Integration', () => {
               contentHash = noteData.content_hash;
               break;
             }
-          } catch {}
+          } catch (_e) {
+            // Ignore JSON parse errors for incomplete messages
+          }
         }
       }
 
