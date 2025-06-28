@@ -313,11 +313,11 @@ The flint-note MCP server exposes the following tools and resources:
 | `create_note_type` | Create new note type with description | `type_name`, `description`, `agent_instructions?`, `metadata_schema?` |
 | `create_note` | Create one or more notes | Single: `type`, `title`, `content`, `metadata?` OR Batch: `notes` (array) |
 | `get_note` | Retrieve specific note | `identifier` |
-| `update_note` | Update one or more existing notes | Single: `identifier`, `content?`, `metadata?` OR Batch: `updates` (array) |
+| `update_note` | Update one or more existing notes | Single: `identifier`, `content?`, `metadata?`, `content_hash` OR Batch: `updates` (array) |
 | `search_notes` | Search notes by content/type | `query`, `type_filter?`, `limit?`, `use_regex?` |
 | `list_note_types` | List all available note types | none |
 | `link_notes` | Create explicit links between notes | `source`, `target`, `relationship?` |
-| `update_note_type` | Update specific field of existing note type | `type_name`, `field` (instructions\|description\|metadata_schema), `value` |
+| `update_note_type` | Update specific field of existing note type | `type_name`, `field` (instructions\|description\|metadata_schema), `value`, `content_hash` |
 | `get_note_type_info` | Get comprehensive note type information including agent instructions | `type_name` |
 | `analyze_note` | Get AI analysis/suggestions for a note | `identifier` |
 | `delete_note` | Delete an existing note permanently | `identifier`, `confirm?` |
@@ -332,6 +332,115 @@ The flint-note MCP server exposes the following tools and resources:
 | `flint-note://types` | Available note types and descriptions | JSON list of types |
 | `flint-note://recent` | Recently modified notes | JSON list of recent notes |
 | `flint-note://stats` | Workspace statistics | JSON with counts, types, etc. |
+
+## Content Hash System for Optimistic Locking
+
+Flint-note implements an optimistic locking system using content hashes to prevent accidental overwrites when multiple applications or agents are editing the same note.
+
+### How It Works
+
+1. **get_note returns content hash**: When retrieving a note, the response includes a `content_hash` field containing a SHA-256 hash of the current content
+2. **update_note requires content hash**: When updating a note, you must provide the `content_hash` parameter
+3. **Hash validation**: The system verifies the hash matches the current content before applying updates
+4. **Conflict detection**: If hashes don't match, the update is rejected with a detailed error message
+
+### Content Hash Response Format
+
+The `get_note` tool returns an additional `content_hash` field:
+
+```json
+{
+  "id": "general/my-note.md",
+  "type": "general", 
+  "title": "My Note",
+  "content": "Note content here...",
+  "content_hash": "sha256:a1b2c3d4e5f6...",
+  "metadata": { ... },
+  "created": "2024-01-15T10:30:00Z",
+  "updated": "2024-01-15T14:20:00Z"
+}
+```
+
+### Update with Content Hash
+
+```json
+{
+  "name": "update_note",
+  "arguments": {
+    "identifier": "general/my-note.md",
+    "content": "Updated content",
+    "content_hash": "sha256:a1b2c3d4e5f6..."
+  }
+}
+```
+
+### Error Handling
+
+If the content hash doesn't match (indicating the note was modified since last read):
+
+```json
+{
+  "error": "content_hash_mismatch",
+  "message": "Note content has been modified since last read. Please fetch the latest version.",
+  "current_hash": "sha256:x1y2z3...",
+  "provided_hash": "sha256:a1b2c3d4e5f6..."
+}
+```
+
+### Note Type Content Hash
+
+Note types also include content hashes to prevent conflicts when updating note type definitions:
+
+```json
+{
+  "name": "get_note_type_info",
+  "result": {
+    "type_name": "reading",
+    "description": "Notes for tracking books and articles",
+    "agent_instructions": "Help analyze and summarize reading materials...",
+    "metadata_schema": { ... },
+    "content_hash": "sha256:d1e2f3g4h5i6...",
+    "created": "2024-01-15T10:30:00Z",
+    "updated": "2024-01-15T14:20:00Z"
+  }
+}
+```
+
+```json
+{
+  "name": "update_note_type",
+  "arguments": {
+    "type_name": "reading",
+    "field": "agent_instructions", 
+    "value": "Updated instructions for reading notes...",
+    "content_hash": "sha256:d1e2f3g4h5i6..."
+  }
+}
+```
+
+### Best Practices
+
+1. **Content hashes are required for updates**: All update operations must provide content hashes to prevent accidental overwrites and data loss
+2. **Always get_note before update_note**: The typical workflow is:
+   - Call `get_note` to retrieve current content and hash
+   - Modify the content as needed
+   - Call `update_note` with the hash from step 1
+3. **Handle hash mismatches gracefully**: When a hash mismatch occurs, fetch the latest version and either:
+   - Present differences to the user for manual resolution
+   - Attempt automatic merging if changes are non-conflicting
+   - Abort the operation and request user guidance
+4. **Batch operations**: Each update in a batch must include its own content hash for validation
+5. **Note type updates**: Always call `get_note_type_info` before `update_note_type` to get the current content hash
+
+### Implementation Details
+
+- **Hash algorithm**: SHA-256 is used for content hashing
+- **Hash format**: Returned as `sha256:` prefix followed by hexadecimal digest
+- **Performance**: Hashes are computed on-demand and not stored persistently
+- **Metadata-only updates**: Content hash is still required for metadata-only updates to ensure the note hasn't been modified
+- **Required parameter**: Content hash is mandatory for all update operations to ensure data integrity
+- **Workflow requirement**: Updates must be preceded by `get_note` or `get_note_type_info` calls to obtain valid content hashes
+- **Note type protection**: Note type definitions are also protected with content hashes since they can be modified externally
 
 ## Batch Operations
 
@@ -397,7 +506,7 @@ The `create_note` tool can create multiple notes by passing a `notes` array:
 
 ### Batch Note Updates
 
-The `update_note` tool can update multiple notes by passing an `updates` array:
+The `update_note` tool can update multiple notes by passing an `updates` array. Each update must include a `content_hash` for optimistic locking:
 
 ```json
 {
@@ -406,10 +515,12 @@ The `update_note` tool can update multiple notes by passing an `updates` array:
     "updates": [
       {
         "identifier": "general/first-note.md",
-        "content": "Updated content"
+        "content": "Updated content",
+        "content_hash": "sha256:a1b2c3d4e5f6..."
       },
       {
         "identifier": "projects/second-note.md",
+        "content_hash": "sha256:b2c3d4e5f6g7...",
         "metadata": {
           "status": "completed",
           "priority": "low"
@@ -418,6 +529,7 @@ The `update_note` tool can update multiple notes by passing an `updates` array:
       {
         "identifier": "general/third-note.md",
         "content": "New content",
+        "content_hash": "sha256:x1y2z3a4b5c6...",
         "metadata": {
           "updated_by": "batch-operation"
         }
@@ -428,7 +540,7 @@ The `update_note` tool can update multiple notes by passing an `updates` array:
 ```
 
 **Features:**
-- Supports content-only, metadata-only, or combined updates
+- Supports content-only, metadata-only, or combined updates (all require content hash)
 - Validates metadata against note type schemas
 - Preserves existing metadata when updating content only
 - Returns detailed results with success/failure status for each update
@@ -463,6 +575,7 @@ Both tools also support single note operations using the same API:
   "arguments": {
     "identifier": "general/my-note.md",
     "content": "Updated content",
+    "content_hash": "sha256:a1b2c3d4e5f6...",
     "metadata": { "updated": true }
   }
 }
@@ -482,6 +595,15 @@ Batch operations use a "fail-fast per item" approach:
 - Note identifier not found (for updates)
 - Filename conflicts (for creation)
 - Metadata validation failures
+- Missing content hash parameter (for updates and note type updates)
+- Content hash mismatches (optimistic locking conflicts for notes and note types)
+
+**Content Hash Error Details:**
+- Missing content hash: Entire operation fails immediately (batch operations are rejected if any update lacks content hash)
+- Hash mismatches: Batch operations continue processing remaining items
+- Each failed update includes current and provided hash values
+- Successful updates in the same batch are still applied
+- Note type hash mismatches: Provides current and provided hash values for resolution
 
 ### Performance Considerations
 
@@ -668,6 +790,150 @@ deletion:
 - Note deletion safety checks and confirmation requirements
 - Note type deletion with dependency validation
 - Orphaned note handling during note type deletion
+- **Content hash conflict detection and resolution**:
+  - Hash mismatch errors with current and provided hash values
+  - Graceful handling in batch operations (failed items don't block successful ones)
+  - Clear error messages guiding users to fetch latest version
+  - Optional hash validation allows backward compatibility
+
+## Content Hash Implementation Guide
+
+### Technical Implementation
+
+The content hash system should be implemented as follows:
+
+#### Hash Generation
+```javascript
+const crypto = require('crypto');
+
+function generateContentHash(content) {
+  return 'sha256:' + crypto.createHash('sha256')
+    .update(content, 'utf8')
+    .digest('hex');
+}
+```
+
+#### get_note Implementation
+```javascript
+async function getNote(identifier) {
+  const content = await readNoteContent(identifier);
+  const contentHash = generateContentHash(content);
+  
+  return {
+    id: identifier,
+    // ... other fields
+    content: content,
+    content_hash: contentHash
+  };
+}
+```
+
+#### get_note_type_info Implementation
+```javascript
+async function getNoteTypeInfo(typeName) {
+  const noteType = await readNoteTypeDefinition(typeName);
+  // Create hashable content from note type definition
+  const hashableContent = JSON.stringify({
+    description: noteType.description,
+    agent_instructions: noteType.agent_instructions,
+    metadata_schema: noteType.metadata_schema
+  });
+  const contentHash = generateContentHash(hashableContent);
+  
+  return {
+    type_name: typeName,
+    description: noteType.description,
+    agent_instructions: noteType.agent_instructions,
+    metadata_schema: noteType.metadata_schema,
+    content_hash: contentHash,
+    created: noteType.created,
+    updated: noteType.updated
+  };
+}
+```
+
+#### update_note Implementation
+```javascript
+async function updateNote(identifier, newContent, providedHash) {
+  if (!providedHash) {
+    throw new Error("content_hash is required for all update operations");
+  }
+  
+  const currentContent = await readNoteContent(identifier);
+  const currentHash = generateContentHash(currentContent);
+  
+  if (currentHash !== providedHash) {
+    throw new ContentHashMismatchError({
+      message: "Note content has been modified since last read",
+      current_hash: currentHash,
+      provided_hash: providedHash
+    });
+  }
+  
+  // Proceed with update
+  await writeNoteContent(identifier, newContent);
+}
+```
+
+#### update_note_type Implementation
+```javascript
+async function updateNoteType(typeName, field, value, providedHash) {
+  if (!providedHash) {
+    throw new Error("content_hash is required for all note type update operations");
+  }
+  
+  const currentNoteType = await readNoteTypeDefinition(typeName);
+  const currentHashableContent = JSON.stringify({
+    description: currentNoteType.description,
+    agent_instructions: currentNoteType.agent_instructions,
+    metadata_schema: currentNoteType.metadata_schema
+  });
+  const currentHash = generateContentHash(currentHashableContent);
+  
+  if (currentHash !== providedHash) {
+    throw new ContentHashMismatchError({
+      message: "Note type definition has been modified since last read",
+      current_hash: currentHash,
+      provided_hash: providedHash
+    });
+  }
+  
+  // Proceed with update
+  await updateNoteTypeField(typeName, field, value);
+}
+```
+
+#### Note Type Hash Computation
+```javascript
+function createNoteTypeHashableContent(noteType) {
+  // Create deterministic, stable representation for hashing
+  return JSON.stringify({
+    description: noteType.description || "",
+    agent_instructions: noteType.agent_instructions || "",
+    metadata_schema: noteType.metadata_schema || {}
+  }, null, 0); // No indentation for consistent hashing
+}
+```
+
+**Note Type Hash Strategy:**
+- Hash is computed from description, agent_instructions, and metadata_schema fields
+- Uses deterministic JSON.stringify to ensure consistent hashing
+- Empty/null values are normalized to ensure stable hashes
+- File timestamps and other metadata are excluded from hash computation
+
+#### Batch Operation Handling
+- Validate that all updates include content hashes (reject entire batch if any are missing)
+- Generate current hashes for each note independently  
+- Validate all hashes before any updates are applied
+- Continue processing remaining items even if some fail hash validation
+- Return detailed results showing which items succeeded/failed with reasons
+
+#### Performance Optimization
+- Compute hashes for all update operations, get_note calls, and get_note_type_info calls
+- Consider caching hashes with file modification time to avoid recomputation
+- Use streaming hash computation for very large notes
+- Batch hash computation when processing multiple updates
+- Cache note type hashes since they change less frequently than note content
 
 ### Security Considerations
 - Restrict file operations to workspace directory
