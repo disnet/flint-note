@@ -363,10 +363,17 @@ describe('Note Type Management Integration', () => {
     });
 
     test('should update note type description', async () => {
+      // Get current content hash
+      const infoResult = await client.callTool('get_note_type_info', {
+        type_name: 'updateable'
+      });
+      const info = JSON.parse(infoResult.content[0].text);
+
       const result = await client.callTool('update_note_type', {
         type_name: 'updateable',
         field: 'description',
-        value: 'Updated description with new information.'
+        value: 'Updated description with new information.',
+        content_hash: info.content_hash
       });
 
       assert.ok(result.content[0].text.includes('Updated'), 'Should confirm update');
@@ -388,10 +395,17 @@ describe('Note Type Management Integration', () => {
       const newDescription =
         'Updated description for comprehensive testing of note type modifications.';
 
+      // Get current content hash
+      const infoResult = await client.callTool('get_note_type_info', {
+        type_name: 'updateable'
+      });
+      const info = JSON.parse(infoResult.content[0].text);
+
       const result = await client.callTool('update_note_type', {
         type_name: 'updateable',
         field: 'description',
-        value: newDescription
+        value: newDescription,
+        content_hash: info.content_hash
       });
 
       assert.ok(result.content[0].text.includes('Updated'), 'Should confirm update');
@@ -416,10 +430,17 @@ describe('Note Type Management Integration', () => {
 - Cross-reference related notes when applicable
 - Maintain clear and concise language`;
 
+      // Get current content hash
+      const infoResult = await client.callTool('get_note_type_info', {
+        type_name: 'updateable'
+      });
+      const info = JSON.parse(infoResult.content[0].text);
+
       const result = await client.callTool('update_note_type', {
         type_name: 'updateable',
         field: 'instructions',
-        value: newInstructions
+        value: newInstructions,
+        content_hash: info.content_hash
       });
 
       const responseData = JSON.parse(result.content[0].text);
@@ -448,10 +469,17 @@ created_date: date
 estimated_hours: number
 completed: boolean`;
 
+      // Get current content hash
+      const infoResult = await client.callTool('get_note_type_info', {
+        type_name: 'updateable'
+      });
+      const info = JSON.parse(infoResult.content[0].text);
+
       const result = await client.callTool('update_note_type', {
         type_name: 'updateable',
         field: 'metadata_schema',
-        value: metadataSchema
+        value: metadataSchema,
+        content_hash: info.content_hash
       });
 
       const responseData = JSON.parse(result.content[0].text);
@@ -463,11 +491,18 @@ completed: boolean`;
     });
 
     test('should handle invalid field names', async () => {
+      // Get current content hash
+      const infoResult = await client.callTool('get_note_type_info', {
+        type_name: 'updateable'
+      });
+      const info = JSON.parse(infoResult.content[0].text);
+
       try {
         await client.callTool('update_note_type', {
           type_name: 'updateable',
           field: 'invalid_field',
-          value: 'some value'
+          value: 'some value',
+          content_hash: info.content_hash
         });
         assert.fail('Should reject invalid field name');
       } catch (error) {
@@ -480,7 +515,8 @@ completed: boolean`;
       const result = await client.callTool('update_note_type', {
         type_name: 'non-existent',
         field: 'description',
-        value: 'New description'
+        value: 'New description',
+        content_hash: 'dummy-hash'
       });
 
       // Server returns error response in content
@@ -511,6 +547,12 @@ completed: boolean`;
       });
 
       // Add metadata schema
+      // Get current content hash first
+      const infoResult = await client.callTool('get_note_type_info', {
+        type_name: 'comprehensive'
+      });
+      const info = JSON.parse(infoResult.content[0].text);
+
       await client.callTool('update_note_type', {
         type_name: 'comprehensive',
         field: 'metadata_schema',
@@ -519,7 +561,8 @@ category: enum [analysis, summary, reference]
 tags: array
 priority: enum [high, medium, low]
 created: date
-reviewed: boolean`
+reviewed: boolean`,
+        content_hash: info.content_hash
       });
     });
 

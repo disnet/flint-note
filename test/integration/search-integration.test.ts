@@ -671,6 +671,12 @@ External contacts:
     });
 
     test('should sort results by last updated when returning all notes', async () => {
+      // Get current content hash first
+      const noteResult = await client.callTool('get_note', {
+        identifier: 'general/javascript-best-practices'
+      });
+      const noteData = JSON.parse(noteResult.content[0].text);
+
       // Update one of the notes to change its timestamp
       await client.callTool('update_note', {
         identifier: 'general/javascript-best-practices',
@@ -680,7 +686,8 @@ Updated content with new timestamp.
 
 ## Recently Added
 - New ES2024 features
-- Performance optimizations`
+- Performance optimizations`,
+        content_hash: noteData.content_hash
       });
 
       const result = await client.callTool('search_notes', {

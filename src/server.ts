@@ -611,9 +611,14 @@ export class FlintNoteServer {
                 value: {
                   type: 'string',
                   description: 'New value for the field'
+                },
+                content_hash: {
+                  type: 'string',
+                  description:
+                    'Content hash of the current note type definition to prevent conflicts'
                 }
               },
-              required: ['type_name', 'field', 'value']
+              required: ['type_name', 'field', 'value', 'content_hash']
             }
           },
           {
