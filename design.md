@@ -335,93 +335,194 @@ The flint-note MCP server exposes the following tools and resources:
 
 ### Search Functionality
 
-The `search_notes` tool provides comprehensive search capabilities with rich metadata support.
+The search system uses a hybrid approach combining file-based storage with SQLite indexing for powerful querying capabilities.
 
-#### Search Parameters
-- `query`: Search terms or regex pattern (optional - empty returns all notes)
-- `type_filter`: Filter by specific note type (optional)
-- `limit`: Maximum number of results (default: 10)
-- `use_regex`: Enable regex pattern matching (default: false)
+#### Architecture: Hybrid File + SQLite Index
 
-#### Search Response Format
+**File Storage:**
+- Notes remain as human-readable markdown files
+- Maintains existing file structure and compatibility
+- Direct file access for simple operations
 
-Each search result includes comprehensive note information:
+**SQLite Index:**
+- Comprehensive database index for complex queries
+- Real-time synchronization with file changes
+- Supports full-text search and complex metadata queries
+- Enables SQL-based searches for maximum flexibility
 
+#### Database Schema
+
+```sql
+-- Core notes table
+CREATE TABLE notes (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    content TEXT,
+    type TEXT NOT NULL,
+    filename TEXT NOT NULL,
+    path TEXT NOT NULL,
+    created DATETIME NOT NULL,
+    updated DATETIME NOT NULL,
+    size INTEGER
+);
+
+-- Metadata as key-value pairs with type information
+CREATE TABLE note_metadata (
+    note_id TEXT,
+    key TEXT,
+    value TEXT,
+    value_type TEXT, -- 'string', 'number', 'date', 'boolean', 'array'
+    FOREIGN KEY (note_id) REFERENCES notes(id)
+);
+
+-- Full-text search index
+CREATE VIRTUAL TABLE notes_fts USING fts5(
+    id, title, content, type, content=notes
+);
+
+-- Indexes for performance
+CREATE INDEX idx_notes_type ON notes(type);
+CREATE INDEX idx_notes_updated ON notes(updated);
+CREATE INDEX idx_metadata_key_value ON note_metadata(key, value);
+```
+
+#### Search Tools
+
+The system provides multiple search interfaces for different use cases:
+
+**1. Simple Text Search (Backward Compatible)**
 ```json
 {
-  "id": "note-identifier",
-  "title": "Note Title",
-  "type": "note-type",
-  "tags": ["tag1", "tag2"],
-  "score": 0.95,
-  "snippet": "Relevant content excerpt...",
-  "lastUpdated": "2024-01-15T10:30:00Z",
-  "filename": "note-file.md",
-  "path": "/full/path/to/note.md",
-  "created": "2024-01-10T09:00:00Z",
-  "modified": "2024-01-15T10:30:00Z",
-  "size": 1024,
-  "metadata": {
-    "title": "Note Title",
-    "type": "note-type",
-    "created": "2024-01-10T09:00:00Z",
-    "updated": "2024-01-15T10:30:00Z",
-    "tags": ["tag1", "tag2"],
-    "custom_field": "value",
-    "rating": 5,
-    "status": "active"
+  "name": "search_notes",
+  "arguments": {
+    "query": "meeting notes",
+    "type_filter": "meeting",
+    "limit": 10
   }
 }
 ```
 
-#### Metadata in Search Results
-
-The `metadata` field contains the complete metadata object from the note's frontmatter, including:
-- **Standard fields**: title, type, created, updated, tags
-- **Custom fields**: Any additional fields defined in the note type's metadata schema
-- **Typed values**: Metadata values are preserved with their original types (string, number, boolean, array, etc.)
-
-This allows agents to:
-- Access rich structured data about notes
-- Filter and sort based on custom metadata fields
-- Understand note context through metadata
-- Provide more intelligent suggestions and analysis
-
-#### Search Index Structure
-
-The search index captures full metadata to enable rich search responses:
-- Content and title for text matching
-- Complete metadata object for structured access
-- Type information for filtering
-- Tags for categorization
-- Timestamps for sorting
-
-#### Example Usage
-
-Here's how agents can leverage metadata in search results:
-
-```javascript
-// Search for notes with specific metadata values
-const results = await searchNotes("project");
-const highPriorityNotes = results.filter(note => 
-  note.metadata.priority === "high"
-);
-
-// Access custom metadata fields
-results.forEach(note => {
-  console.log(`Title: ${note.title}`);
-  console.log(`Status: ${note.metadata.status || 'unknown'}`);
-  console.log(`Rating: ${note.metadata.rating || 'unrated'}`);
-  console.log(`Custom field: ${note.metadata.custom_field || 'N/A'}`);
-});
-
-// Sort by custom metadata
-const sortedByRating = results.sort((a, b) => 
-  (b.metadata.rating || 0) - (a.metadata.rating || 0)
-);
+**2. Advanced Structured Search**
+```json
+{
+  "name": "search_notes_advanced",
+  "arguments": {
+    "type": "todo",
+    "metadata_filters": [
+      {"key": "status", "value": "in_progress"},
+      {"key": "priority", "operator": ">=", "value": "3"}
+    ],
+    "updated_within": "7d",
+    "content_contains": "review",
+    "sort": [{"field": "updated", "order": "desc"}],
+    "limit": 50
+  }
+}
 ```
 
-This enables sophisticated note analysis and organization based on structured metadata.
+**3. SQL Search (Maximum Flexibility)**
+```json
+{
+  "name": "search_notes_sql",
+  "arguments": {
+    "query": "SELECT n.*, GROUP_CONCAT(m.key || ':' || m.value) as metadata FROM notes n LEFT JOIN note_metadata m ON n.id = m.note_id WHERE n.type = 'todo' AND n.updated < datetime('now', '-7 days') AND EXISTS (SELECT 1 FROM note_metadata WHERE note_id = n.id AND key = 'status' AND value = 'in_progress') GROUP BY n.id ORDER BY n.updated DESC",
+    "limit": 50
+  }
+}
+```
+
+#### Search Response Format
+
+All search methods return consistent result format:
+
+```json
+{
+  "results": [
+    {
+      "id": "note-identifier",
+      "title": "Note Title",
+      "type": "note-type",
+      "tags": ["tag1", "tag2"],
+      "score": 0.95,
+      "snippet": "Relevant content excerpt...",
+      "lastUpdated": "2024-01-15T10:30:00Z",
+      "filename": "note-file.md",
+      "path": "/full/path/to/note.md",
+      "created": "2024-01-10T09:00:00Z",
+      "modified": "2024-01-15T10:30:00Z",
+      "size": 1024,
+      "metadata": {
+        "title": "Note Title",
+        "type": "note-type",
+        "created": "2024-01-10T09:00:00Z",
+        "updated": "2024-01-15T10:30:00Z",
+        "tags": ["tag1", "tag2"],
+        "custom_field": "value",
+        "rating": 5,
+        "status": "active"
+      }
+    }
+  ],
+  "total": 1,
+  "has_more": false
+}
+```
+
+#### SQL Search Safety Measures
+
+To ensure secure SQL execution:
+- **Parameterized Queries**: All user input is properly parameterized
+- **Read-Only Access**: Only SELECT statements are allowed
+- **Query Timeout**: Queries are limited to 30 seconds execution time
+- **Result Limits**: Maximum 1000 results per query
+- **Complexity Analysis**: Overly complex queries are rejected
+
+#### Common Query Patterns
+
+**Find todos by status and priority:**
+```sql
+SELECT n.* FROM notes n 
+JOIN note_metadata m1 ON n.id = m1.note_id AND m1.key = 'status' AND m1.value = 'in_progress'
+JOIN note_metadata m2 ON n.id = m2.note_id AND m2.key = 'priority' AND CAST(m2.value AS INTEGER) >= 3
+WHERE n.type = 'todo'
+ORDER BY n.updated DESC
+```
+
+**Find reading notes with high ratings from this year:**
+```sql
+SELECT n.* FROM notes n 
+JOIN note_metadata m ON n.id = m.note_id AND m.key = 'rating' AND CAST(m.value AS INTEGER) > 4
+WHERE n.type = 'reading' AND n.created >= datetime('now', 'start of year')
+ORDER BY CAST(m.value AS INTEGER) DESC
+```
+
+**Group meeting notes by attendees:**
+```sql
+SELECT m.value as attendee, COUNT(*) as meeting_count
+FROM notes n 
+JOIN note_metadata m ON n.id = m.note_id AND m.key = 'attendees'
+WHERE n.type = 'meeting' AND n.created >= datetime('now', '-30 days')
+GROUP BY m.value
+ORDER BY meeting_count DESC
+```
+
+#### Synchronization
+
+The SQLite index is kept in sync with file changes through:
+- **File Watcher**: Monitors note directories for changes
+- **Batch Updates**: Processes multiple file changes efficiently  
+- **Conflict Resolution**: Handles concurrent file and database modifications
+- **Recovery**: Rebuilds index from files if corruption is detected
+
+#### Performance Characteristics
+
+- **Simple Searches**: Sub-millisecond response for basic text queries
+- **Complex Queries**: Optimized for metadata-heavy searches with proper indexing
+- **Scalability**: Handles thousands of notes efficiently
+- **Memory Usage**: Lightweight index with minimal memory footprint
+- **Startup Time**: Fast initialization with incremental index building
+
+This hybrid approach provides agents with unprecedented querying power while maintaining the human-friendly file-based storage that makes notes accessible and portable.
 
 ## Content Hash System for Optimistic Locking
 

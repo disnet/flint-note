@@ -155,23 +155,6 @@ describe('Server Search Index Rebuild on Startup', () => {
     server = new FlintNoteServer({});
     await server.initialize();
 
-    // Debug: Log all console output to understand what's happening
-    console.log('All console output:', consoleOutput);
-
-    // Verify that search index rebuild was NOT triggered
-    const rebuildMessages = consoleOutput.filter(msg =>
-      msg.includes('Rebuilding search index on startup')
-    );
-
-    console.log('Rebuild messages found:', rebuildMessages);
-
-    // Should have message about no vault configured
-    const noVaultMessages = consoleOutput.filter(msg =>
-      msg.includes('no vault configured')
-    );
-
-    console.log('No vault messages found:', noVaultMessages);
-
     // If we're getting rebuild messages when we shouldn't, this means there's a vault configured
     // Let's be more lenient for now and just check that the server starts successfully
     const successMessages = consoleOutput.filter(msg =>
