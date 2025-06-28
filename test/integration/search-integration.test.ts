@@ -748,6 +748,18 @@ Updated content with new timestamp.
       assert.ok(mlNote, 'Should find ML note');
       assert.ok(Array.isArray(mlNote.tags), 'Note should include tags array');
       assert.ok(mlNote.tags.length > 0, 'Tags array should not be empty');
+
+      // Check that metadata object is included
+      assert.ok(mlNote.metadata, 'Note should include metadata object');
+      assert.ok(typeof mlNote.metadata === 'object', 'Metadata should be an object');
+      assert.ok(
+        Array.isArray(mlNote.metadata.tags),
+        'Metadata should include tags array'
+      );
+      assert.ok(
+        mlNote.metadata.difficulty,
+        'Metadata should include custom fields like difficulty'
+      );
     });
 
     test('should handle notes without metadata', async () => {
@@ -773,6 +785,10 @@ Updated content with new timestamp.
         Array.isArray(simpleNote.tags) && simpleNote.tags.length === 0,
         'Note without metadata should have empty tags array'
       );
+
+      // Check that metadata object exists even for notes without custom metadata
+      assert.ok(simpleNote.metadata, 'Note should always include metadata object');
+      assert.ok(typeof simpleNote.metadata === 'object', 'Metadata should be an object');
     });
   });
 

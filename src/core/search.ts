@@ -23,6 +23,7 @@ interface SearchIndexEntry {
   type: string;
   tags: string[];
   updated: string;
+  metadata: Record<string, unknown>;
 }
 
 interface SearchResult {
@@ -38,6 +39,7 @@ interface SearchResult {
   created: string;
   modified: string;
   size: number;
+  metadata: Record<string, unknown>;
 }
 
 interface TagSearchResult {
@@ -132,7 +134,8 @@ export class SearchManager {
             path: notePath,
             created: stats.created,
             modified: stats.modified,
-            size: stats.size
+            size: stats.size,
+            metadata: noteData.metadata
           });
         }
 
@@ -170,7 +173,8 @@ export class SearchManager {
             path: notePath,
             created: stats.created,
             modified: stats.modified,
-            size: stats.size
+            size: stats.size,
+            metadata: noteData.metadata
           });
         }
       }
@@ -222,7 +226,8 @@ export class SearchManager {
             path: notePath,
             created: stats.created,
             modified: stats.modified,
-            size: stats.size
+            size: stats.size,
+            metadata: noteData.metadata
           });
         }
 
@@ -281,7 +286,8 @@ export class SearchManager {
             path: notePath,
             created: stats.created,
             modified: stats.modified,
-            size: stats.size
+            size: stats.size,
+            metadata: noteData.metadata
           });
         }
       }
@@ -737,7 +743,8 @@ export class SearchManager {
                       parsed.metadata.title || this.extractTitleFromFilename(filename),
                     type: parsed.metadata.type || entry.name,
                     tags: parsed.metadata.tags || [],
-                    updated: new Date().toISOString()
+                    updated: new Date().toISOString(),
+                    metadata: parsed.metadata
                   };
                 } catch (_error) {
                   // Skip files that can't be read
@@ -876,7 +883,7 @@ export class SearchManager {
           (parsed.metadata.tags || []).join(' ')
         ].join(' ');
 
-        // Update index entry
+        // Add to index
         index.notes[notePath] = {
           content: searchableContent,
           title:
@@ -884,7 +891,8 @@ export class SearchManager {
             this.extractTitleFromFilename(path.basename(notePath)),
           type: parsed.metadata.type || path.basename(path.dirname(notePath)),
           tags: parsed.metadata.tags || [],
-          updated: new Date().toISOString()
+          updated: new Date().toISOString(),
+          metadata: parsed.metadata
         };
 
         index.last_updated = new Date().toISOString();

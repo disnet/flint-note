@@ -333,6 +333,96 @@ The flint-note MCP server exposes the following tools and resources:
 | `flint-note://recent` | Recently modified notes | JSON list of recent notes |
 | `flint-note://stats` | Workspace statistics | JSON with counts, types, etc. |
 
+### Search Functionality
+
+The `search_notes` tool provides comprehensive search capabilities with rich metadata support.
+
+#### Search Parameters
+- `query`: Search terms or regex pattern (optional - empty returns all notes)
+- `type_filter`: Filter by specific note type (optional)
+- `limit`: Maximum number of results (default: 10)
+- `use_regex`: Enable regex pattern matching (default: false)
+
+#### Search Response Format
+
+Each search result includes comprehensive note information:
+
+```json
+{
+  "id": "note-identifier",
+  "title": "Note Title",
+  "type": "note-type",
+  "tags": ["tag1", "tag2"],
+  "score": 0.95,
+  "snippet": "Relevant content excerpt...",
+  "lastUpdated": "2024-01-15T10:30:00Z",
+  "filename": "note-file.md",
+  "path": "/full/path/to/note.md",
+  "created": "2024-01-10T09:00:00Z",
+  "modified": "2024-01-15T10:30:00Z",
+  "size": 1024,
+  "metadata": {
+    "title": "Note Title",
+    "type": "note-type",
+    "created": "2024-01-10T09:00:00Z",
+    "updated": "2024-01-15T10:30:00Z",
+    "tags": ["tag1", "tag2"],
+    "custom_field": "value",
+    "rating": 5,
+    "status": "active"
+  }
+}
+```
+
+#### Metadata in Search Results
+
+The `metadata` field contains the complete metadata object from the note's frontmatter, including:
+- **Standard fields**: title, type, created, updated, tags
+- **Custom fields**: Any additional fields defined in the note type's metadata schema
+- **Typed values**: Metadata values are preserved with their original types (string, number, boolean, array, etc.)
+
+This allows agents to:
+- Access rich structured data about notes
+- Filter and sort based on custom metadata fields
+- Understand note context through metadata
+- Provide more intelligent suggestions and analysis
+
+#### Search Index Structure
+
+The search index captures full metadata to enable rich search responses:
+- Content and title for text matching
+- Complete metadata object for structured access
+- Type information for filtering
+- Tags for categorization
+- Timestamps for sorting
+
+#### Example Usage
+
+Here's how agents can leverage metadata in search results:
+
+```javascript
+// Search for notes with specific metadata values
+const results = await searchNotes("project");
+const highPriorityNotes = results.filter(note => 
+  note.metadata.priority === "high"
+);
+
+// Access custom metadata fields
+results.forEach(note => {
+  console.log(`Title: ${note.title}`);
+  console.log(`Status: ${note.metadata.status || 'unknown'}`);
+  console.log(`Rating: ${note.metadata.rating || 'unrated'}`);
+  console.log(`Custom field: ${note.metadata.custom_field || 'N/A'}`);
+});
+
+// Sort by custom metadata
+const sortedByRating = results.sort((a, b) => 
+  (b.metadata.rating || 0) - (a.metadata.rating || 0)
+);
+```
+
+This enables sophisticated note analysis and organization based on structured metadata.
+
 ## Content Hash System for Optimistic Locking
 
 Flint-note implements an optimistic locking system using content hashes to prevent accidental overwrites when multiple applications or agents are editing the same note.
