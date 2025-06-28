@@ -351,7 +351,7 @@ The `get_note` tool returns an additional `content_hash` field:
 ```json
 {
   "id": "general/my-note.md",
-  "type": "general", 
+  "type": "general",
   "title": "My Note",
   "content": "Note content here...",
   "content_hash": "sha256:a1b2c3d4e5f6...",
@@ -411,7 +411,7 @@ Note types also include content hashes to prevent conflicts when updating note t
   "name": "update_note_type",
   "arguments": {
     "type_name": "reading",
-    "field": "agent_instructions", 
+    "field": "agent_instructions",
     "value": "Updated instructions for reading notes...",
     "content_hash": "sha256:d1e2f3g4h5i6..."
   }
@@ -466,7 +466,7 @@ The `create_note` tool can create multiple notes by passing a `notes` array:
       },
       {
         "type": "projects",
-        "title": "Second Note", 
+        "title": "Second Note",
         "content": "Content for the second note"
       }
     ]
@@ -510,7 +510,7 @@ The `update_note` tool can update multiple notes by passing an `updates` array. 
 
 ```json
 {
-  "name": "update_note", 
+  "name": "update_note",
   "arguments": {
     "updates": [
       {
@@ -795,58 +795,6 @@ deletion:
   - Graceful handling in batch operations (failed items don't block successful ones)
   - Clear error messages guiding users to fetch latest version
   - Optional hash validation allows backward compatibility
-
-## Content Hash Implementation Guide
-
-### Technical Implementation
-
-The content hash system should be implemented as follows:
-
-#### Hash Generation
-Content hashes are generated using SHA-256 algorithm with UTF-8 encoding, prefixed with "sha256:" for clarity.
-
-#### get_note Implementation
-The `get_note` operation computes a content hash from the note's current content and includes it in the response for safe updates.
-
-#### get_note_type_info Implementation
-The `get_note_type_info` operation creates a deterministic hash from the note type's description, agent instructions, and metadata schema fields, returning it with the note type information.
-
-#### update_note Implementation
-The `update_note` operation requires a content hash parameter, validates it against the current note content, and throws a `ContentHashMismatchError` if conflicts are detected.
-
-#### update_note_type Implementation
-The `update_note_type` operation requires a content hash parameter, validates it against the current note type definition, and throws a `ContentHashMismatchError` if the note type was modified by another process.
-
-#### Note Type Hash Computation
-Note type hashes are computed from description, agent_instructions, and metadata_schema fields using deterministic JSON serialization. Empty/null values are normalized and file timestamps are excluded to ensure stable hashes.
-
-#### Batch Operation Handling
-- Validate that all updates include content hashes (reject entire batch if any are missing)
-- Generate current hashes for each note independently  
-- Validate all hashes before any updates are applied
-- Continue processing remaining items even if some fail hash validation
-- Return detailed results showing which items succeeded/failed with reasons
-
-#### Performance Optimization
-- Compute hashes for all update operations, get_note calls, and get_note_type_info calls
-- Consider caching hashes with file modification time to avoid recomputation
-- Use streaming hash computation for very large notes
-- Batch hash computation when processing multiple updates
-- Cache note type hashes since they change less frequently than note content
-
-### Security Considerations
-- Restrict file operations to workspace directory
-- Validate all file paths to prevent directory traversal
-- No execution of user-provided code
-- Read-only access to system files
-- Sanitize metadata field names and values
-- Validate regex patterns in metadata constraints
-- Prevent schema injection attacks through field definitions
-- Secure deletion operations with proper authorization checks
-- Prevent accidental deletion through confirmation requirements
-- Audit logging for all deletion operations
-- Rate limiting for bulk deletion operations
-- Backup verification before permanent deletion
 
 ## Development Roadmap
 
