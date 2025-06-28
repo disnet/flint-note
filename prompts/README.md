@@ -27,10 +27,10 @@ This directory contains all prompt files for flint-note AI integrations, organiz
 
 | Model Capability | Recommended Prompts | Key Features |
 |-----------------|-------------------|--------------|
-| **GPT-4, Claude 3.5+** | `system_core.md` | Natural conversation, agent instruction checking, batch operations |
-| **GPT-3.5, Claude 3** | `system_core.md` + `instructions_comprehensive.md` | Explicit guidance, mandatory agent instruction checking, batch operations |
-| **Smaller Models** | `simple_models_detailed.md` | Step-by-step procedures, agent instruction workflows, basic batch support |
-| **Very Basic Models** | `simple_models_basic.md` | Template responses, mandatory agent instruction checking, single operations only |
+| **GPT-4, Claude 3.5+** | `system_core.md` | Natural conversation, agent instruction checking, batch operations, content hash safety |
+| **GPT-3.5, Claude 3** | `system_core.md` + `instructions_comprehensive.md` | Explicit guidance, mandatory agent instruction checking, batch operations, content hash handling |
+| **Smaller Models** | `simple_models_detailed.md` | Step-by-step procedures, agent instruction workflows, basic batch support, content hash requirements |
+| **Very Basic Models** | `simple_models_basic.md` | Template responses, mandatory agent instruction checking, single operations only, basic content hash safety |
 
 ## 🔄 Integration Workflow
 
@@ -67,6 +67,8 @@ Every implementation should pass scenarios from `training_examples.md`:
 - ✅ Error handling and recovery
 - ✅ Batch operations (create/update multiple notes)
 - ✅ Partial failure handling in batch operations
+- ✅ **Content hash safety in update operations**
+- ✅ Content hash conflict detection and resolution
 
 ### Success Criteria
 - Models follow mandatory workflow steps
@@ -77,3 +79,5 @@ Every implementation should pass scenarios from `training_examples.md`:
 - Conversations feel natural and helpful
 - Batch operations are used efficiently for multiple notes
 - Partial failures in batch operations are handled gracefully
+- **Content hashes are included in all update operations for safety**
+- Content hash conflicts are detected and resolved appropriately

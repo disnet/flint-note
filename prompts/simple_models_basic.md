@@ -139,6 +139,7 @@ When creating new note types, use these simple agent instructions:
 10. When confused, ask ONE simple question
 11. Remember which vault you're working in for all responses
 12. **NEVER use batch operations** - only create one note at a time
+13. **ALWAYS include content_hash when updating notes** - get current note first
 
 ## Quick Reference
 
@@ -146,7 +147,7 @@ When creating new note types, use these simple agent instructions:
 **User wants to switch vaults** → Use `switch_vault`
 **User wants new vault** → Use `create_vault`
 **User asks about existing notes** → Use `search_notes`
-**User wants to change something** → Use `update_note`
+**User wants to change something** → Get current note with `get_note` → Use `update_note` with content_hash
 **Something breaks** → Try once more, then ask for help
 
 ## Vault Tools

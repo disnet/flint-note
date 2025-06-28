@@ -55,6 +55,7 @@ CORE BEHAVIORS:
 - Be vault-aware: understand current vault context and adapt behavior accordingly
 - Follow agent instructions: adapt behavior based on note type-specific agent instructions
 - Use metadata intelligently: validate and populate metadata schemas automatically
+- Use content hashes safely: always include content_hash when updating notes to prevent conflicts
 - Evolve continuously: suggest agent instruction improvements based on usage patterns
 
 ESSENTIAL WORKFLOW:
@@ -65,8 +66,9 @@ ESSENTIAL WORKFLOW:
 5. Extract actionable items: `- [ ] Task (Owner: Name, Due: Date)`
 6. Follow agent_instructions returned from create_note for contextual follow-up
 7. Use batch operations efficiently for creating or updating multiple related notes
-8. Use update_note_type to refine agent instructions based on user feedback
-9. Populate metadata schemas automatically when possible
+8. **ALWAYS include content_hash when updating notes** - get current version first with get_note
+9. Use update_note_type to refine agent instructions based on user feedback
+10. Populate metadata schemas automatically when possible
 
 **CRITICAL**: NEVER create notes without first checking agent instructions with get_note_type_info
 
@@ -85,9 +87,17 @@ AGENT INSTRUCTIONS SYSTEM:
 - Use them to provide increasingly personalized experiences
 - Never create notes without understanding their behavioral requirements
 
+CONTENT HASH SAFETY:
+- **ALWAYS include content_hash when updating notes** - prevents conflicts and data loss
+- Get current note version with get_note before making updates
+- Handle CONTENT_HASH_MISMATCH errors by explaining conflicts and offering resolution
+- Include content_hash for each update in batch operations
+- Explain to users when conflicts occur: "The note was modified by another process"
+
 BATCH OPERATIONS:
 - Use batch create_note for 3+ related notes (project planning, imports, etc.)
 - Use batch update_note for bulk status changes or metadata updates
+- **Include content_hash for each update in batch operations** for safety
 - Handle partial failures gracefully - report success/failure counts with specific errors
 - Group related operations for efficiency
 - Provide clear feedback on batch results to users
@@ -139,7 +149,20 @@ Agent: Creating your meeting note. I see you have a standup template that includ
 You: The whole team - Sarah, Mike, Alex, and me
 Agent: Got it! I'll create meetings/standup-2024-01-15.md with those attendees and
        the standup template. The metadata will automatically tag this as a "standup"
-       meeting for easy filtering later.
+       meeting for easy filtering later. The note includes a content hash for safe
+       future updates.
+```
+
+### Safe Concurrent Updates
+```
+You: Update my project status to completed
+Agent: I'll update your project note safely. Let me get the current version with its
+       content hash first... Now updating with hash verification to prevent conflicts.
+       ✅ Project status updated to completed with content hash protection.
+You: What if someone else was editing it?
+Agent: The content hash system would detect that conflict and alert me to get the
+       latest version first. This prevents accidentally overwriting changes made by
+       other agents or processes.
 ```
 
 ## How Note Types Work
@@ -203,6 +226,65 @@ Agent: I'll modify your project note instructions to emphasize deadline tracking
        and proactive blocker identification.
        [Updates projects/_description.md accordingly]
 ```
+
+## Content Hash System for Optimistic Locking
+
+Flint Note includes a robust content hash system that prevents conflicts when multiple agents or users modify the same notes. This ensures data integrity and prevents accidental overwrites.
+
+### How It Works
+
+When you retrieve a note, Flint Note calculates a content hash based on the note's current state:
+
+```json
+{
+  "id": "reading/atomic-habits.md",
+  "type": "reading",
+  "title": "Atomic Habits",
+  "content": "# Atomic Habits\n\n## Summary\n...",
+  "content_hash": "a1b2c3d4e5f6...",
+  "metadata": { "author": "James Clear", "rating": 5 },
+  "created": "2024-01-15T10:00:00Z",
+  "updated": "2024-01-15T15:30:00Z"
+}
+```
+
+### Safe Updates
+
+When updating a note, include the `content_hash` to ensure your changes are based on the latest version:
+
+```json
+{
+  "identifier": "reading/atomic-habits.md",
+  "content": "Updated content here...",
+  "content_hash": "a1b2c3d4e5f6...",
+  "metadata": { "rating": 4 }
+}
+```
+
+If someone else modified the note since you retrieved it, you'll get a conflict error with the current hash:
+
+```json
+{
+  "error": "CONTENT_HASH_MISMATCH",
+  "message": "Note was modified by another process",
+  "current_hash": "x7y8z9a1b2c3...",
+  "provided_hash": "a1b2c3d4e5f6..."
+}
+```
+
+### Benefits
+
+- **Prevents data loss**: Ensures updates are always based on the latest version
+- **Multi-agent safety**: Multiple AI agents can work with the same vault safely
+- **Conflict detection**: Immediately alerts when conflicts occur
+- **Optimistic concurrency**: Allows concurrent access with conflict resolution
+
+### Best Practices
+
+- Always include `content_hash` when updating notes
+- Handle hash mismatch errors by retrieving the latest version
+- Use batch operations with content hashes for efficient bulk updates
+- Agent systems automatically manage content hashes for you
 
 ## Configuration
 

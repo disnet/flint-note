@@ -290,33 +290,51 @@ The core operation that should be guided by agent instructions. Supports both si
 **Critical:** The response includes `agent_instructions` that you must use to guide your immediate follow-up behavior.
 
 #### `get_note` and `update_note`
-Use for retrieving and modifying existing notes. `update_note` supports both single and batch operations:
+Use for retrieving and modifying existing notes. `update_note` supports both single and batch operations with content hash protection:
 
-**Single Note Update:**
+**Note Retrieval with Content Hash:**
+When you retrieve a note, it includes a `content_hash` for safe updates:
+```json
+{
+  "id": "project-notes/website-redesign.md",
+  "type": "project",
+  "title": "Website Redesign",
+  "content": "Project content here...",
+  "content_hash": "a1b2c3d4e5f6...",
+  "metadata": { "status": "in-progress" },
+  "created": "2024-01-15T10:00:00Z",
+  "updated": "2024-01-15T15:30:00Z"
+}
+```
+
+**Single Note Update with Content Hash:**
 ```json
 {
   "identifier": "project-notes/website-redesign.md",
   "content": "Updated content here",
+  "content_hash": "a1b2c3d4e5f6...",
   "metadata": {
     "status": "completed"
   }
 }
 ```
 
-**Batch Note Updates:**
+**Batch Note Updates with Content Hashes:**
 ```json
 {
   "updates": [
     {
       "identifier": "project-notes/website-redesign.md",
+      "content_hash": "a1b2c3d4e5f6...",
       "metadata": {
         "status": "completed",
         "completion_date": "2024-01-15"
       }
     },
     {
-      "identifier": "project-notes/mobile-app.md", 
+      "identifier": "project-notes/mobile-app.md",
       "content": "Added new requirements section",
+      "content_hash": "x7y8z9a1b2c3...",
       "metadata": {
         "status": "in-progress"
       }
@@ -325,12 +343,26 @@ Use for retrieving and modifying existing notes. `update_note` supports both sin
 }
 ```
 
+**Content Hash Conflict Error:**
+If a note was modified by another process, you'll receive:
+```json
+{
+  "error": "CONTENT_HASH_MISMATCH",
+  "message": "Note was modified by another process",
+  "current_hash": "new_hash_value...",
+  "provided_hash": "old_hash_value..."
+}
+```
+
 **Usage Guidelines:**
-- Get notes when users reference them or ask questions
+- **ALWAYS include content_hash when updating notes** - This prevents conflicts and data loss
+- Get notes when users reference them or ask questions  
 - Update notes when users want to add information or make changes
 - Consider the note type's agent instructions when making updates
 - Use batch updates for multiple related changes (status updates, metadata changes)
 - Handle partial failures gracefully - some updates may succeed while others fail
+- **Handle hash mismatch errors** by retrieving the latest version and informing the user
+- **In batch operations**, include content_hash for each individual update
 
 #### `search_notes`
 Powerful tool for knowledge discovery:
@@ -396,6 +428,42 @@ Batch operations return detailed results with success/failure information:
 - Use descriptive error messages to guide corrections
 - Group related operations together for efficiency
 - Consider batch size (10-50 notes recommended for most cases)
+
+## Content Hash Best Practices
+
+### Understanding Content Hashes
+Content hashes provide optimistic locking to prevent data conflicts when multiple agents or processes modify the same notes. Every `get_note` operation returns a `content_hash` that represents the current state of the note.
+
+### Essential Workflow
+1. **Retrieve with hash**: Always get the current `content_hash` before updating
+2. **Include in updates**: Pass the `content_hash` in all update operations
+3. **Handle conflicts**: Gracefully manage hash mismatch errors
+4. **Batch safety**: Include content hashes for each note in batch operations
+
+### Content Hash Error Handling
+When you receive a `CONTENT_HASH_MISMATCH` error:
+1. **Inform the user**: Explain that the note was modified by another process
+2. **Retrieve latest**: Get the current version with `get_note`
+3. **Show differences**: If possible, explain what changed
+4. **Offer resolution**: Ask user how to proceed (merge, overwrite, cancel)
+
+### Example Conflict Resolution
+```
+User: "Update my project status to completed"
+You: "I'll update your project safely. Let me get the current version first... 
+     I detected a conflict - the project was modified since I last checked. 
+     Someone added new milestones while we were talking. Should I:
+     1. Merge your completion status with the new milestones
+     2. Show you the changes first
+     3. Overwrite with just your update"
+```
+
+### Batch Operations with Content Hashes
+For batch updates, include content_hash for each note:
+- Get current versions of all notes first
+- Include respective content_hash in each update
+- Handle partial failures where some hashes conflict
+- Report which updates succeeded vs failed due to conflicts
 
 ### Enhanced Wikilink Management
 

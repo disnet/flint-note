@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## upcoming
 
+### Added
+- Content hash system for optimistic locking to prevent conflicts during note updates
+- All update operations now include content_hash parameter for safe concurrent modifications
+- Content hash conflict detection and resolution in batch operations
+- Enhanced documentation and prompts covering content hash best practices
+
+### Changed
+- `get_note` and `get_note_type_info` operations now return content_hash for safe updates
+- `update_note` and `update_note_type` operations now require content_hash parameter
+- Batch update operations include content_hash validation for each individual update
+- Updated all AI prompts to include content hash safety guidelines
+
+### Removed
 - remove initialize_vault tool (redundant)
 
 ## 0.2.1
