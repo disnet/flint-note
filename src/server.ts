@@ -256,6 +256,17 @@ export class FlintNoteServer {
         this.#searchManager = new SearchManager(this.#workspace);
         this.#linkManager = new LinkManager(this.#workspace, this.#noteManager);
 
+        // Always rebuild search index on server startup
+        try {
+          console.error('Rebuilding search index on startup...');
+          const rebuildResult = await this.#searchManager.rebuildSearchIndex();
+          console.error(
+            `Search index rebuilt: ${rebuildResult.indexedNotes} notes indexed`
+          );
+        } catch (error) {
+          console.error('Warning: Failed to rebuild search index on startup:', error);
+        }
+
         console.error(
           `flint-note server initialized successfully with workspace: ${workspacePath}`
         );
@@ -272,6 +283,17 @@ export class FlintNoteServer {
           this.#noteTypeManager = new NoteTypeManager(this.#workspace);
           this.#searchManager = new SearchManager(this.#workspace);
           this.#linkManager = new LinkManager(this.#workspace, this.#noteManager);
+
+          // Always rebuild search index on server startup
+          try {
+            console.error('Rebuilding search index on startup...');
+            const rebuildResult = await this.#searchManager.rebuildSearchIndex();
+            console.error(
+              `Search index rebuilt: ${rebuildResult.indexedNotes} notes indexed`
+            );
+          } catch (error) {
+            console.error('Warning: Failed to rebuild search index on startup:', error);
+          }
 
           console.error(
             `flint-note server initialized successfully with vault: ${currentVault.name}`
