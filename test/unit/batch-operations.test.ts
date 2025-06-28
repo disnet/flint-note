@@ -250,8 +250,17 @@ describe('Note Operations (Single and Batch)', () => {
         'Original content'
       );
 
+      // Get the current note to obtain content hash
+      const currentNote = await context.noteManager.getNote(noteInfo.id);
+      assert(currentNote, 'Current note should not be null');
+      assert(currentNote.content_hash, 'Current note should have content hash');
+
       // Update it
-      const result = await context.noteManager.updateNote(noteInfo.id, 'Updated content');
+      const result = await context.noteManager.updateNote(
+        noteInfo.id,
+        'Updated content',
+        currentNote.content_hash
+      );
 
       assert.strictEqual(result.updated, true);
       assert(result.timestamp);
@@ -275,6 +284,11 @@ describe('Note Operations (Single and Batch)', () => {
         }
       );
 
+      // Get the current note to obtain content hash
+      const currentNote = await context.noteManager.getNote(noteInfo.id);
+      assert(currentNote, 'Current note should not be null');
+      assert(currentNote.content_hash, 'Current note should have content hash');
+
       // Update with new metadata
       const result = await context.noteManager.updateNoteWithMetadata(
         noteInfo.id,
@@ -284,7 +298,8 @@ describe('Note Operations (Single and Batch)', () => {
           rating: 5,
           status: 'completed',
           notes: 'Added some notes'
-        }
+        },
+        currentNote.content_hash
       );
 
       assert.strictEqual(result.updated, true);
@@ -318,18 +333,30 @@ describe('Note Operations (Single and Batch)', () => {
         'Original content 3'
       );
 
+      // Get current notes to obtain content hashes
+      const currentNote1 = await context.noteManager.getNote(note1.id);
+      const currentNote2 = await context.noteManager.getNote(note2.id);
+      const currentNote3 = await context.noteManager.getNote(note3.id);
+
+      assert(currentNote1?.content_hash, 'Note 1 should have content hash');
+      assert(currentNote2?.content_hash, 'Note 2 should have content hash');
+      assert(currentNote3?.content_hash, 'Note 3 should have content hash');
+
       const updates: BatchUpdateNoteInput[] = [
         {
           identifier: note1.id,
-          content: 'Updated content 1'
+          content: 'Updated content 1',
+          content_hash: currentNote1.content_hash
         },
         {
           identifier: note2.id,
-          content: 'Updated content 2'
+          content: 'Updated content 2',
+          content_hash: currentNote2.content_hash
         },
         {
           identifier: note3.id,
-          content: 'Updated content 3'
+          content: 'Updated content 3',
+          content_hash: currentNote3.content_hash
         }
       ];
 
@@ -368,6 +395,10 @@ describe('Note Operations (Single and Batch)', () => {
         }
       );
 
+      // Get current note to obtain content hash
+      const currentNote = await context.noteManager.getNote(note.id);
+      assert(currentNote?.content_hash, 'Note should have content hash');
+
       const updates: BatchUpdateNoteInput[] = [
         {
           identifier: note.id,
@@ -376,7 +407,8 @@ describe('Note Operations (Single and Batch)', () => {
             rating: 5,
             status: 'completed',
             genre: 'fiction'
-          }
+          },
+          content_hash: currentNote.content_hash
         }
       ];
 
@@ -408,15 +440,20 @@ describe('Note Operations (Single and Batch)', () => {
         }
       );
 
+      // Get current note to obtain content hash
+      const currentNote = await context.noteManager.getNote(note.id);
+      assert(currentNote?.content_hash, 'Note should have content hash');
+
       const updates: BatchUpdateNoteInput[] = [
         {
           identifier: note.id,
-          content: 'Updated content with new insights',
+          content: 'Updated content with both changes',
           metadata: {
             author: 'Updated Author',
             rating: 5,
             status: 'completed'
-          }
+          },
+          content_hash: currentNote.content_hash
         }
       ];
 
@@ -428,7 +465,7 @@ describe('Note Operations (Single and Batch)', () => {
       // Verify both content and metadata were updated
       const updatedNote = await context.noteManager.getNote(note.id);
       assert(updatedNote, 'Updated note should not be null');
-      assert(updatedNote.content.includes('Updated content with new insights'));
+      assert(updatedNote.content.includes('Updated content with both changes'));
       assert.strictEqual(updatedNote.metadata?.author, 'Updated Author');
       assert.strictEqual(updatedNote.metadata?.rating, 5);
       assert.strictEqual(updatedNote.metadata?.status, 'completed');
@@ -442,18 +479,25 @@ describe('Note Operations (Single and Batch)', () => {
         'Content to update'
       );
 
+      // Get current note to obtain content hash
+      const currentNote = await context.noteManager.getNote(validNote.id);
+      assert(currentNote?.content_hash, 'Valid note should have content hash');
+
       const updates: BatchUpdateNoteInput[] = [
         {
           identifier: validNote.id,
-          content: 'Successfully updated content'
+          content: 'Successfully updated content',
+          content_hash: currentNote.content_hash
         },
         {
           identifier: 'nonexistent/note.md',
-          content: 'This should fail - note does not exist'
+          content: 'This should fail - note does not exist',
+          content_hash: 'dummy-hash'
         },
         {
           identifier: 'general/another-nonexistent.md',
-          content: 'This should also fail'
+          content: 'This should also fail',
+          content_hash: 'dummy-hash'
         }
       ];
 
@@ -485,10 +529,15 @@ describe('Note Operations (Single and Batch)', () => {
         'Original content'
       );
 
+      // Get current note to obtain content hash
+      const currentNote = await context.noteManager.getNote(note.id);
+      assert(currentNote?.content_hash, 'Note should have content hash');
+
       const updates: BatchUpdateNoteInput[] = [
         {
-          identifier: note.id
-          // No content or metadata provided
+          identifier: note.id,
+          content_hash: currentNote.content_hash
+          // No content or metadata - should fail
         }
       ];
 
@@ -536,17 +585,22 @@ describe('Note Operations (Single and Batch)', () => {
       assert.strictEqual(createResult.successful, 50);
       assert.strictEqual(createResult.failed, 0);
 
-      // Now update half of them
+      // Now update half of them - first get their content hashes
       const updateBatch: BatchUpdateNoteInput[] = [];
       for (let i = 0; i < 25; i++) {
+        const noteId = createResult.results[i].result!.id;
+        const currentNote = await context.noteManager.getNote(noteId);
+        assert(currentNote?.content_hash, `Note ${noteId} should have content hash`);
+
         updateBatch.push({
-          identifier: createResult.results[i].result!.id,
+          identifier: noteId,
           content: `Updated content for note ${i + 1}`,
           metadata: {
             sequence: i + 1,
             batch: 'large-test',
             updated: true
-          }
+          },
+          content_hash: currentNote.content_hash
         });
       }
 

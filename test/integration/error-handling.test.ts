@@ -283,21 +283,23 @@ describe('Error Handling Integration', () => {
       });
     });
     test('should handle missing parameters', async () => {
-      // Missing identifier parameter
+      // Missing content_hash parameter
       const error = await client.expectError('update_note', {
+        identifier: 'general/update-test-note',
         content: 'New content'
       });
 
-      assert.ok(error.includes('Single note update requires identifier'));
+      assert.ok(error.includes('content_hash is required'));
     });
 
     test('should handle non-existent note update', async () => {
-      // Missing identifier parameter (same as missing parameters test)
       const error = await client.expectError('update_note', {
-        content: 'New content'
+        identifier: 'nonexistent/note',
+        content: 'New content',
+        content_hash: 'dummy-hash'
       });
 
-      assert.ok(error.includes('Single note update requires identifier'));
+      assert.ok(error.includes('Note') && error.includes('not found'));
     });
 
     test('should handle empty content update', async () => {
@@ -310,9 +312,10 @@ describe('Error Handling Integration', () => {
     });
 
     test('should handle invalid identifier for update', async () => {
-      // Missing identifier parameter
       const error = await client.expectError('update_note', {
-        content: 'New content'
+        identifier: '',
+        content: 'New content',
+        content_hash: 'dummy-hash'
       });
 
       assert.ok(error.includes('Single note update requires identifier'));

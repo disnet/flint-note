@@ -466,6 +466,11 @@ export class FlintNoteServer {
                   description:
                     'New content for the note - only used for single note update'
                 },
+                content_hash: {
+                  type: 'string',
+                  description:
+                    'Content hash of the current note for optimistic locking - required for single note update'
+                },
                 metadata: {
                   type: 'object',
                   description:
@@ -486,13 +491,17 @@ export class FlintNoteServer {
                         type: 'string',
                         description: 'New content for the note'
                       },
+                      content_hash: {
+                        type: 'string',
+                        description: 'Content hash for optimistic locking'
+                      },
                       metadata: {
                         type: 'object',
                         description: 'Metadata fields to update',
                         additionalProperties: true
                       }
                     },
-                    required: ['identifier']
+                    required: ['identifier', 'content_hash']
                   },
                   description:
                     'Array of note updates (must specify content, metadata, or both) - used for batch updates'

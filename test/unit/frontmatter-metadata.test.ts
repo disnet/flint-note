@@ -278,8 +278,17 @@ Some content here.`;
 
       const updatedContent = 'Updated content with new information.';
 
+      // Get the current note to obtain content hash
+      const currentNote = await context.noteManager.getNote(noteInfo.id);
+      assert(currentNote, 'Current note should not be null');
+      assert(currentNote.content_hash, 'Current note should have content hash');
+
       // Update the note
-      await context.noteManager.updateNote(noteInfo.id, updatedContent);
+      await context.noteManager.updateNote(
+        noteInfo.id,
+        updatedContent,
+        currentNote.content_hash
+      );
 
       // Read the updated file
       const fileContent = await fs.readFile(noteInfo.path, 'utf-8');
@@ -322,11 +331,17 @@ Some content here.`;
         new_field: 'new value'
       };
 
+      // Get the current note to obtain content hash
+      const currentNote = await context.noteManager.getNote(updatedNote.id);
+      assert(currentNote, 'Current note should not be null');
+      assert(currentNote.content_hash, 'Current note should have content hash');
+
       // Update with new metadata
       await context.noteManager.updateNoteWithMetadata(
         updatedNote.id,
         content,
-        newMetadata
+        newMetadata,
+        currentNote.content_hash
       );
 
       // Read the updated file

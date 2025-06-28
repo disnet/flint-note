@@ -329,9 +329,16 @@ Updated content with more details.
 
 This section was added in the update.`;
 
+      // First get the current note to obtain content hash
+      const getCurrentResult = await client.callTool('get_note', {
+        identifier: 'general/update-test-note'
+      });
+      const currentNoteData = JSON.parse(getCurrentResult.content[0].text);
+
       const result = await client.callTool('update_note', {
         identifier: 'general/update-test-note',
-        content: newContent
+        content: newContent,
+        content_hash: currentNoteData.content_hash
       });
 
       // Verify MCP response
@@ -354,9 +361,16 @@ This section was added in the update.`;
       const newContent =
         '# Update Test Note\n\nContent updated but metadata should remain.';
 
+      // First get the current note to obtain content hash
+      const getCurrentResult = await client.callTool('get_note', {
+        identifier: 'general/update-test-note'
+      });
+      const currentNoteData = JSON.parse(getCurrentResult.content[0].text);
+
       await client.callTool('update_note', {
         identifier: 'general/update-test-note',
-        content: newContent
+        content: newContent,
+        content_hash: currentNoteData.content_hash
       });
 
       // Retrieve updated note and check metadata
@@ -385,9 +399,16 @@ updated: "2024-01-15T10:00:00Z"
 
 Content updated with new metadata.`;
 
+      // First get the current note to obtain content hash
+      const getCurrentResult = await client.callTool('get_note', {
+        identifier: 'general/update-test-note'
+      });
+      const currentNoteData = JSON.parse(getCurrentResult.content[0].text);
+
       await client.callTool('update_note', {
         identifier: 'general/update-test-note',
-        content: newContent
+        content: newContent,
+        content_hash: currentNoteData.content_hash
       });
 
       // Verify metadata was updated
@@ -412,7 +433,8 @@ Content updated with new metadata.`;
     test('should handle update of non-existent note', async () => {
       const result = await client.callTool('update_note', {
         identifier: 'general/non-existent',
-        content: 'Updated content'
+        content: 'Updated content',
+        content_hash: 'dummy-hash'
       });
 
       // Server returns error response in content
