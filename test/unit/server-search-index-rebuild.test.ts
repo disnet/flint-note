@@ -135,15 +135,20 @@ describe('Server Search Index Rebuild on Startup', () => {
     // Add more notes
     await createAdditionalTestNotes(testContext.tempDir);
 
-    // Initialize server again (simulating restart)
+    // Initialize server again (simulating restart) with forced rebuild
+    process.env.FORCE_INDEX_REBUILD = 'true';
     server = new FlintNoteServer({ workspacePath: testContext.tempDir });
     await server.initialize();
+    delete process.env.FORCE_INDEX_REBUILD;
 
     // Verify that hybrid search index was rebuilt again
     const rebuildMessages = consoleOutput.filter(msg =>
       msg.includes('Rebuilding hybrid search index on startup')
     );
-    assert.ok(rebuildMessages.length >= 1, 'Should rebuild on second startup');
+    assert.ok(
+      rebuildMessages.length >= 1,
+      'Should rebuild on second startup when forced'
+    );
 
     // Verify that hybrid search index was rebuilt successfully
     const indexedMessages = consoleOutput.filter(msg =>
@@ -163,6 +168,34 @@ describe('Server Search Index Rebuild on Startup', () => {
       msg.includes('flint-note server initialized successfully')
     );
     assert.ok(successMessages.length > 0, 'Server should initialize successfully');
+  });
+
+  test('should not rebuild search index when it already exists', async () => {
+    // Create test notes
+    await createTestNotes(testContext.tempDir);
+
+    // Initialize server first time (should rebuild)
+    server = new FlintNoteServer({ workspacePath: testContext.tempDir });
+    await server.initialize();
+
+    // Clear console output
+    consoleOutput.length = 0;
+
+    // Initialize server again (should NOT rebuild since index exists)
+    server = new FlintNoteServer({ workspacePath: testContext.tempDir });
+    await server.initialize();
+
+    // Verify that hybrid search index was NOT rebuilt
+    const rebuildMessages = consoleOutput.filter(msg =>
+      msg.includes('Rebuilding hybrid search index on startup')
+    );
+    assert.strictEqual(rebuildMessages.length, 0, 'Should not rebuild when index exists');
+
+    // Should see ready message instead
+    const readyMessages = consoleOutput.filter(msg =>
+      msg.includes('Hybrid search index ready')
+    );
+    assert.ok(readyMessages.length >= 1, 'Should show index ready message');
   });
 
   test('should include search index rebuild timing information', async () => {
