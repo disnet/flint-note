@@ -15,6 +15,7 @@ import { SearchManager } from '../../../src/core/search.ts';
 import { LinkManager } from '../../../src/core/links.ts';
 import { ConfigManager } from '../../../src/utils/config.ts';
 import { FlintNoteServer } from '../../../src/server.ts';
+import { HybridSearchManager } from '../../../src/database/search-manager.ts';
 
 /**
  * Test context containing all managers and workspace info
@@ -27,6 +28,7 @@ export interface TestContext {
   searchManager: SearchManager;
   linkManager: LinkManager;
   configManager: ConfigManager;
+  hybridSearchManager?: HybridSearchManager;
 }
 
 /**
@@ -52,6 +54,10 @@ export function createTempDirName(prefix = 'flint-note-test'): string {
 export async function createTestWorkspace(prefix?: string): Promise<TestContext> {
   const tempDir = createTempDirName(prefix);
   await fs.mkdir(tempDir, { recursive: true });
+
+  // Create basic workspace structure
+  await fs.mkdir(join(tempDir, 'general'), { recursive: true });
+  await fs.mkdir(join(tempDir, '.flint-note'), { recursive: true });
 
   const workspace = new Workspace(tempDir);
   await workspace.initialize();
@@ -142,10 +148,137 @@ export async function createTestNotes(context: TestContext): Promise<void> {
 }
 
 /**
+ * Creates and initializes a hybrid search manager for testing
+ */
+export async function createHybridSearchManager(
+  context: TestContext
+): Promise<HybridSearchManager> {
+  const hybridSearch = new HybridSearchManager(context.tempDir);
+  context.hybridSearchManager = hybridSearch;
+  return hybridSearch;
+}
+
+/**
+ * Creates test notes optimized for hybrid search testing
+ */
+export async function createTestNotesForHybridSearch(
+  context: TestContext
+): Promise<void> {
+  const { workspace } = context;
+
+  // Ensure directories exist
+  await fs.mkdir(workspace.getNoteTypePath('general'), { recursive: true });
+  await fs.mkdir(workspace.getNoteTypePath('book-reviews'), { recursive: true });
+  await fs.mkdir(workspace.getNoteTypePath('projects'), { recursive: true });
+
+  // Create notes with rich metadata for advanced search testing
+  const bookReviewNote = `---
+title: "The Pragmatic Programmer"
+author: "Andy Hunt, Dave Thomas"
+rating: 5
+status: "completed"
+genre: "programming"
+pages: 352
+read_date: "2024-01-10"
+tags: ["programming", "best-practices", "career"]
+type: "book-review"
+created: "2024-01-10T10:00:00Z"
+updated: "2024-01-10T10:00:00Z"
+---
+
+# The Pragmatic Programmer Review
+
+Essential reading for any software developer.
+
+## Key Takeaways
+- Don't repeat yourself (DRY)
+- Write code that writes code
+- Fix broken windows
+- Be a catalyst for change
+
+## Rating: 5/5 stars
+This book shaped my programming philosophy.
+`;
+
+  const projectNote = `---
+title: "Authentication System"
+status: "in-progress"
+priority: 5
+assignee: "Development Team"
+start_date: "2024-01-15"
+deadline: "2024-02-15"
+tags: ["backend", "security", "authentication"]
+type: "project"
+created: "2024-01-15T09:00:00Z"
+updated: "2024-01-22T16:30:00Z"
+---
+
+# Authentication System Implementation
+
+Building secure user authentication for the application.
+
+## Requirements
+- JWT token-based authentication
+- Multi-factor authentication support
+- Password strength validation
+- Session management
+
+## Progress
+Currently implementing the JWT token system.
+`;
+
+  const meetingNote = `---
+title: "Architecture Review Meeting"
+date: "2024-01-20"
+attendees: ["Alice", "Bob", "Charlie", "Diana"]
+meeting_type: "review"
+duration: 90
+status: "completed"
+tags: ["architecture", "review", "team"]
+type: "meeting"
+created: "2024-01-20T14:00:00Z"
+updated: "2024-01-20T15:30:00Z"
+---
+
+# Architecture Review Meeting
+
+## Decisions Made
+- Adopt microservices architecture
+- Use PostgreSQL for primary database
+- Implement event-driven communication
+
+## Action Items
+- Create service boundaries document
+- Set up development environment
+- Schedule follow-up meeting
+`;
+
+  await fs.writeFile(
+    workspace.getNotePath('book-reviews', 'pragmatic-programmer.md'),
+    bookReviewNote,
+    'utf8'
+  );
+  await fs.writeFile(
+    workspace.getNotePath('projects', 'auth-system-project.md'),
+    projectNote,
+    'utf8'
+  );
+  await fs.writeFile(
+    workspace.getNotePath('general', 'architecture-meeting.md'),
+    meetingNote,
+    'utf8'
+  );
+}
+
+/**
  * Creates test notes with metadata for testing metadata functionality
  */
 export async function createTestNotesWithMetadata(context: TestContext): Promise<void> {
   const { workspace } = context;
+
+  // Ensure directories exist
+  await fs.mkdir(workspace.getNoteTypePath('general'), { recursive: true });
+  await fs.mkdir(workspace.getNoteTypePath('book-reviews'), { recursive: true });
 
   // Create a note with YAML frontmatter
   const noteWithMetadata = `---
@@ -169,8 +302,39 @@ This book provides excellent insights into habit formation and breaking bad habi
 - Environment design is crucial
 `;
 
-  const notePath = workspace.getNotePath('general', 'atomic-habits-review.md');
+  const notePath = workspace.getNotePath('book-reviews', 'atomic-habits-review.md');
   await fs.writeFile(notePath, noteWithMetadata, 'utf8');
+
+  // Create a todo note with different metadata structure
+  const todoNote = `---
+title: "Complete Project Setup"
+type: "todo"
+status: "in-progress"
+priority: 3
+assignee: "Alice"
+due_date: "2024-02-01"
+tags: ["setup", "project", "urgent"]
+created: "2024-01-10T08:00:00Z"
+updated: "2024-01-20T12:00:00Z"
+---
+
+# Project Setup Tasks
+
+High priority project setup tasks that need completion.
+
+## Checklist
+- [x] Initialize repository
+- [x] Set up development environment
+- [ ] Configure CI/CD pipeline
+- [ ] Write initial documentation
+- [ ] Set up testing framework
+
+## Notes
+This is critical for the project launch timeline.
+`;
+
+  const todoNotePath = workspace.getNotePath('general', 'project-setup-todo.md');
+  await fs.writeFile(todoNotePath, todoNote, 'utf8');
 
   // Create another note with different metadata
   const anotherNoteWithMetadata = `---
@@ -340,5 +504,30 @@ This note has metadata in the frontmatter.`
     SIMPLE: 'test',
     REGEX: '\\b(test|sample)\\b',
     PARTIAL: 'sam'
+  },
+
+  HYBRID_SEARCH: {
+    METADATA_FILTERS: {
+      STATUS_COMPLETED: { key: 'status', value: 'completed' },
+      HIGH_PRIORITY: { key: 'priority', operator: '>=', value: '4' },
+      RECENT_UPDATES: '7d',
+      BOOK_REVIEWS: { key: 'type', value: 'book-review' }
+    },
+
+    SQL_QUERIES: {
+      BASIC_SELECT: 'SELECT * FROM notes WHERE type = ?',
+      JOIN_METADATA: `
+        SELECT n.*, m.value as metadata_value
+        FROM notes n
+        JOIN note_metadata m ON n.id = m.note_id
+        WHERE m.key = ? AND m.value = ?
+      `,
+      AGGREGATION: `
+        SELECT type, COUNT(*) as count, AVG(CAST(m.value AS REAL)) as avg_rating
+        FROM notes n
+        LEFT JOIN note_metadata m ON n.id = m.note_id AND m.key = 'rating'
+        GROUP BY type
+      `
+    }
   }
 } as const;

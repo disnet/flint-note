@@ -34,6 +34,7 @@ Unit tests focus on testing individual classes and functions in isolation. They:
 - `search-unit.test.ts` - Search manager unit tests
 - `template-creation.test.ts` - Template creation and processing logic
 - `content-hash.test.ts` - Content hash utilities and optimistic locking system
+- `hybrid-search-unit.test.ts` - Hybrid search functionality (SQLite + file storage)
 
 **Shared Helpers:**
 - `helpers/test-utils.ts` - Common test setup, teardown, and utility functions
@@ -56,6 +57,7 @@ E2E integration tests focus on testing complete workflows and system interaction
 - `note-type-management.test.ts` - Note type creation and management through MCP
 - `search-integration.test.ts` - Search functionality through MCP server
 - `server-basic.test.ts` - Basic server startup, shutdown, and error handling tests
+- `hybrid-search-integration.test.ts` - Hybrid search MCP tools (search_notes_advanced, search_notes_sql)
 
 **Shared Helpers:**
 - `helpers/integration-utils.ts` - Common integration test utilities for server management
@@ -132,4 +134,42 @@ Following the project's style guide (`STYLE.md`):
 - `waitFor()` - Utility for waiting on conditions with timeout
 - `INTEGRATION_CONSTANTS` - Integration test constants and timeouts
 
-Use these helpers to reduce duplication and ensure consistency across tests.
+### Hybrid Search Test Helpers
+Additional helpers in unit test utilities for hybrid search testing:
+- `createHybridSearchManager()` - Creates and initializes hybrid search manager
+- `createTestNotesForHybridSearch()` - Creates notes optimized for advanced search testing
+- `TEST_CONSTANTS.HYBRID_SEARCH` - Metadata filters, SQL queries, and search patterns
+
+## Hybrid Search Testing
+
+The hybrid search system (SQLite + file storage) has dedicated test coverage:
+
+### Unit Tests (`hybrid-search-unit.test.ts`)
+- **DatabaseManager Tests**: Connection, schema initialization, rebuild operations
+- **HybridSearchManager Core**: Initialization, statistics, index management
+- **Simple Search**: Text search, type filtering, regex support, content snippets
+- **Advanced Search**: Metadata filtering, comparison operators, date ranges, sorting
+- **SQL Search**: Direct SQL queries, JOINs, aggregations, security validation
+- **Index Management**: Note upsert/remove, file system scanning, real-time sync
+- **Metadata Serialization**: Type-safe serialization of different data types
+- **Error Handling**: Connection failures, invalid queries, malformed data
+- **Performance**: Concurrent operations, query efficiency, large datasets
+- **Security**: SQL injection prevention, dangerous operation blocking
+
+### Integration Tests (`hybrid-search-integration.test.ts`)
+- **Basic Search Tool**: `search_notes` with text queries, type filters, regex
+- **Advanced Search Tool**: `search_notes_advanced` with metadata filters, sorting
+- **SQL Search Tool**: `search_notes_sql` with complex queries, security validation
+- **Cross-Tool Integration**: Consistency between different search methods
+- **Real-time Updates**: Index synchronization with file system changes
+- **Performance**: Concurrent requests, complex query performance
+- **Error Recovery**: Malformed requests, Unicode handling, edge cases
+
+### Test Data Structure
+Hybrid search tests use comprehensive test datasets including:
+- **Book Reviews**: With ratings, status, genre, tags metadata
+- **Project Notes**: With priority, assignee, deadline, status tracking
+- **Meeting Notes**: With attendees, duration, action items
+- **General Notes**: With categories, importance levels, research content
+
+This ensures thorough testing of metadata filtering, full-text search, and complex analytical queries.
