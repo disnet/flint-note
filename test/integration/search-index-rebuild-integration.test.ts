@@ -7,7 +7,7 @@ import { test, describe, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert';
 import { promises as fs } from 'node:fs';
 import { join } from 'node:path';
-import { spawn, ChildProcess as _ChildProcess } from 'node:child_process';
+import { ChildProcess as _ChildProcess } from 'node:child_process';
 import {
   createIntegrationWorkspace,
   cleanupIntegrationWorkspace,
