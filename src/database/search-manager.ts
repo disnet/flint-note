@@ -734,18 +734,28 @@ export class HybridSearchManager {
       progressCallback(0, noteFiles.length);
     }
 
+    // Process files in batches for better performance
+    const batchSize = 10;
     let processed = 0;
-    for (const filePath of noteFiles) {
-      try {
-        await this.indexNoteFile(filePath);
-        processed++;
 
-        if (progressCallback) {
-          progressCallback(processed, noteFiles.length);
-        }
-      } catch (error) {
-        console.error(`Failed to index note file ${filePath}:`, error);
-        // Continue with other files
+    for (let i = 0; i < noteFiles.length; i += batchSize) {
+      const batch = noteFiles.slice(i, i + batchSize);
+
+      // Process batch in parallel
+      await Promise.allSettled(
+        batch.map(async filePath => {
+          try {
+            await this.indexNoteFile(filePath);
+          } catch (error) {
+            console.error(`Failed to index note file ${filePath}:`, error);
+            // Continue with other files
+          }
+        })
+      );
+
+      processed += batch.length;
+      if (progressCallback) {
+        progressCallback(Math.min(processed, noteFiles.length), noteFiles.length);
       }
     }
   }
@@ -757,18 +767,25 @@ export class HybridSearchManager {
     try {
       const entries = await fs.readdir(this.workspacePath, { withFileTypes: true });
 
-      for (const entry of entries) {
-        if (entry.isDirectory() && !entry.name.startsWith('.')) {
-          const dirPath = path.join(this.workspacePath, entry.name);
-          const dirFiles = await fs.readdir(dirPath);
+      // Process directories in parallel
+      const dirPromises = entries
+        .filter(entry => entry.isDirectory() && !entry.name.startsWith('.'))
+        .map(async entry => {
+          try {
+            const dirPath = path.join(this.workspacePath, entry.name);
+            const dirFiles = await fs.readdir(dirPath);
 
-          for (const file of dirFiles) {
-            if (file.endsWith('.md')) {
-              noteFiles.push(path.join(dirPath, file));
-            }
+            return dirFiles
+              .filter(file => file.endsWith('.md'))
+              .map(file => path.join(dirPath, file));
+          } catch (error) {
+            console.error(`Error scanning directory ${entry.name}:`, error);
+            return [];
           }
-        }
-      }
+        });
+
+      const results = await Promise.all(dirPromises);
+      noteFiles.push(...results.flat());
     } catch (error) {
       console.error('Error scanning for note files:', error);
     }
@@ -902,36 +919,51 @@ export class HybridSearchManager {
     metadataCount: number;
     dbSize: number;
   }> {
-    const connection = await this.getConnection();
+    const dbPath = path.join(this.workspacePath, '.flint-note', 'search.db');
+
+    // Check if database file exists first
+    try {
+      await fs.access(dbPath);
+    } catch {
+      // Database doesn't exist yet
+      return {
+        noteCount: 0,
+        metadataCount: 0,
+        dbSize: 0
+      };
+    }
 
     try {
-      const noteCount = await connection.get<{ count: number }>(
-        'SELECT COUNT(*) as count FROM notes'
-      );
-      const metadataCount = await connection.get<{ count: number }>(
-        'SELECT COUNT(*) as count FROM note_metadata'
-      );
+      const connection = await this.getConnection();
+
+      const [noteResult, metadataResult] = await Promise.all([
+        connection.get<{ count: number }>('SELECT COUNT(*) as count FROM notes'),
+        connection.get<{ count: number }>('SELECT COUNT(*) as count FROM note_metadata')
+      ]);
 
       // Get database file size
       let dbSize = 0;
       try {
-        const stats = await fs.stat(
-          path.join(this.workspacePath, '.flint-note', 'search.db')
-        );
+        const stats = await fs.stat(dbPath);
         dbSize = stats.size;
       } catch {
         // Ignore errors getting file size
+        dbSize = 0;
       }
 
       return {
-        noteCount: noteCount?.count || 0,
-        metadataCount: metadataCount?.count || 0,
+        noteCount: noteResult?.count || 0,
+        metadataCount: metadataResult?.count || 0,
         dbSize
       };
     } catch (error) {
-      throw new Error(
-        `Failed to get stats: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      // If database doesn't exist or can't connect, return zero stats
+      console.error('Failed to get database stats:', error);
+      return {
+        noteCount: 0,
+        metadataCount: 0,
+        dbSize: 0
+      };
     }
   }
 }

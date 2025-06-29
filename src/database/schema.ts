@@ -37,16 +37,21 @@ export class DatabaseManager {
     await fs.mkdir(path.dirname(this.dbPath), { recursive: true });
 
     return new Promise((resolve, reject) => {
-      this.db = new sqlite3.Database(this.dbPath, err => {
-        if (err) {
-          reject(new Error(`Failed to connect to database: ${err.message}`));
-          return;
-        }
+      // Use faster WAL mode and optimize for Windows
+      this.db = new sqlite3.Database(
+        this.dbPath,
+        sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE,
+        err => {
+          if (err) {
+            reject(new Error(`Failed to connect to database: ${err.message}`));
+            return;
+          }
 
-        this.initializeSchema()
-          .then(() => resolve(this.createConnection(this.db!)))
-          .catch(reject);
-      });
+          this.initializeSchema()
+            .then(() => resolve(this.createConnection(this.db!)))
+            .catch(reject);
+        }
+      );
     });
   }
 
@@ -124,8 +129,12 @@ export class DatabaseManager {
     const connection = this.createConnection(this.db);
 
     try {
-      // Enable foreign keys
+      // Enable foreign keys and optimize for performance
       await connection.run('PRAGMA foreign_keys = ON');
+      await connection.run('PRAGMA journal_mode = WAL');
+      await connection.run('PRAGMA synchronous = NORMAL');
+      await connection.run('PRAGMA cache_size = 10000');
+      await connection.run('PRAGMA temp_store = MEMORY');
 
       // Create notes table
       await connection.run(`
@@ -220,11 +229,18 @@ export class DatabaseManager {
     const connection = this.createConnection(this.db);
 
     try {
-      // Clear existing data
+      // Use more efficient bulk delete with transaction
+      await connection.run('BEGIN TRANSACTION');
       await connection.run('DELETE FROM note_metadata');
       await connection.run('DELETE FROM notes');
       await connection.run('DELETE FROM notes_fts');
+      await connection.run('COMMIT');
+
+      // Optimize database after bulk operations
+      await connection.run('VACUUM');
+      await connection.run('ANALYZE');
     } catch (error) {
+      await connection.run('ROLLBACK');
       throw new Error(`Failed to rebuild database: ${error}`);
     }
   }

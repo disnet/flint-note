@@ -13,6 +13,7 @@ import {
   cleanupIntegrationWorkspace,
   startServer as _startServer,
   stopServer,
+  spawnTsxCommand,
   type IntegrationTestContext,
   INTEGRATION_CONSTANTS
 } from './helpers/integration-utils.js';
@@ -37,12 +38,11 @@ describe('Search Index Rebuild Integration', () => {
     let serverStarted = false;
 
     // Start the server and capture stderr output
-    const serverProcess = spawn(
-      'npx',
-      ['tsx', 'src/index.ts', '--workspace', context.tempDir],
+    const serverProcess = await spawnTsxCommand(
+      ['src/index.ts', '--workspace', context.tempDir],
       {
         stdio: ['pipe', 'pipe', 'pipe'],
-        cwd: process.cwd()
+        env: { FORCE_INDEX_REBUILD: 'true' }
       }
     );
 
@@ -136,12 +136,11 @@ describe('Search Index Rebuild Integration', () => {
     let indexedCount = 0;
     let serverStarted = false;
 
-    const serverProcess = spawn(
-      'npx',
-      ['tsx', 'src/index.ts', '--workspace', context.tempDir],
+    const serverProcess = await spawnTsxCommand(
+      ['src/index.ts', '--workspace', context.tempDir],
       {
         stdio: ['pipe', 'pipe', 'pipe'],
-        cwd: process.cwd()
+        env: { FORCE_INDEX_REBUILD: 'true' }
       }
     );
 
@@ -200,12 +199,12 @@ describe('Search Index Rebuild Integration', () => {
     await createTestNotes(context.tempDir);
 
     // First server startup
-    const firstServerProcess = spawn(
-      'npx',
-      ['tsx', 'src/index.ts', '--workspace', context.tempDir],
+    // Start first server
+    const firstServerProcess = await spawnTsxCommand(
+      ['src/index.ts', '--workspace', context.tempDir],
       {
         stdio: ['pipe', 'pipe', 'pipe'],
-        cwd: process.cwd()
+        env: { FORCE_INDEX_REBUILD: 'true' }
       }
     );
 
@@ -239,12 +238,12 @@ describe('Search Index Rebuild Integration', () => {
     // Second server startup
     let secondRebuildSeen = false;
 
-    const secondServerProcess = spawn(
-      'npx',
-      ['tsx', 'src/index.ts', '--workspace', context.tempDir],
+    // Start second server
+    const secondServerProcess = await spawnTsxCommand(
+      ['src/index.ts', '--workspace', context.tempDir],
       {
         stdio: ['pipe', 'pipe', 'pipe'],
-        cwd: process.cwd()
+        env: { FORCE_INDEX_REBUILD: 'true' }
       }
     );
 
@@ -295,12 +294,11 @@ describe('Search Index Rebuild Integration', () => {
     let serverStarted = false;
     let rebuildAttempted = false;
 
-    const serverProcess = spawn(
-      'npx',
-      ['tsx', 'src/index.ts', '--workspace', context.tempDir],
+    const serverProcess = await spawnTsxCommand(
+      ['src/index.ts', '--workspace', context.tempDir],
       {
         stdio: ['pipe', 'pipe', 'pipe'],
-        cwd: process.cwd()
+        env: { FORCE_INDEX_REBUILD: 'true' }
       }
     );
 
@@ -364,12 +362,11 @@ describe('Search Index Rebuild Integration', () => {
     let indexedCount = 0;
     let serverStarted = false;
 
-    const serverProcess = spawn(
-      'npx',
-      ['tsx', 'src/index.ts', '--workspace', context.tempDir],
+    const serverProcess = await spawnTsxCommand(
+      ['src/index.ts', '--workspace', context.tempDir],
       {
         stdio: ['pipe', 'pipe', 'pipe'],
-        cwd: process.cwd()
+        env: { FORCE_INDEX_REBUILD: 'true' }
       }
     );
 
@@ -440,12 +437,11 @@ describe('Search Index Rebuild Integration', () => {
     let serverStarted = false;
     const startTime = Date.now();
 
-    const serverProcess = spawn(
-      'npx',
-      ['tsx', 'src/index.ts', '--workspace', context.tempDir],
+    const serverProcess = await spawnTsxCommand(
+      ['src/index.ts', '--workspace', context.tempDir],
       {
         stdio: ['pipe', 'pipe', 'pipe'],
-        cwd: process.cwd()
+        env: { FORCE_INDEX_REBUILD: 'true' }
       }
     );
 

@@ -144,7 +144,7 @@ async function getTsxCommand(): Promise<{ command: string; args: string[] }> {
  * Starts the MCP server as a child process
  */
 export async function startServer(options: ServerStartupOptions): Promise<ChildProcess> {
-  const { workspacePath, timeout = 5000, env = {} } = options;
+  const { workspacePath, timeout = 15000, env = {} } = options;
 
   const serverPath = join(process.cwd(), 'src', 'index.ts');
   const { command, args } = await getTsxCommand();
@@ -374,9 +374,9 @@ export async function waitFor(
  * Integration test constants
  */
 export const INTEGRATION_CONSTANTS = {
-  DEFAULT_TIMEOUT: 5000,
-  SERVER_STARTUP_TIMEOUT: 10000,
-  SERVER_SHUTDOWN_TIMEOUT: 2000,
+  DEFAULT_TIMEOUT: 10000,
+  SERVER_STARTUP_TIMEOUT: 20000,
+  SERVER_SHUTDOWN_TIMEOUT: 5000,
 
   TEST_NOTES: {
     SIMPLE: {

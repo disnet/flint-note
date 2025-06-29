@@ -283,18 +283,31 @@ export class FlintNoteServer {
         this.#noteTypeManager = new NoteTypeManager(this.#workspace);
         this.#linkManager = new LinkManager(this.#workspace, this.#noteManager);
 
-        // Always rebuild search index on server startup
+        // Initialize hybrid search index - only rebuild if necessary
         try {
-          console.error('Rebuilding hybrid search index on startup...');
-          await this.#hybridSearchManager.rebuildIndex((processed, total) => {
-            if (processed % 10 === 0 || processed === total) {
-              console.error(`Hybrid search index: ${processed}/${total} notes processed`);
-            }
-          });
-          console.error('Hybrid search index rebuilt successfully');
+          const stats = await this.#hybridSearchManager.getStats();
+          const forceRebuild = process.env.FORCE_INDEX_REBUILD === 'true';
+          const isEmptyIndex = stats.noteCount === 0;
+
+          // Check if index exists but might be stale
+          const shouldRebuild = forceRebuild || isEmptyIndex;
+
+          if (shouldRebuild) {
+            console.error('Rebuilding hybrid search index on startup...');
+            await this.#hybridSearchManager.rebuildIndex((processed, total) => {
+              if (processed % 5 === 0 || processed === total) {
+                console.error(
+                  `Hybrid search index: ${processed}/${total} notes processed`
+                );
+              }
+            });
+            console.error('Hybrid search index rebuilt successfully');
+          } else {
+            console.error(`Hybrid search index ready (${stats.noteCount} notes indexed)`);
+          }
         } catch (error) {
           console.error(
-            'Warning: Failed to rebuild hybrid search index on startup:',
+            'Warning: Failed to initialize hybrid search index on startup:',
             error
           );
         }
@@ -316,20 +329,33 @@ export class FlintNoteServer {
           this.#noteTypeManager = new NoteTypeManager(this.#workspace);
           this.#linkManager = new LinkManager(this.#workspace, this.#noteManager);
 
-          // Always rebuild search index on server startup
+          // Initialize hybrid search index - only rebuild if necessary
           try {
-            console.error('Rebuilding hybrid search index on startup...');
-            await this.#hybridSearchManager.rebuildIndex((processed, total) => {
-              if (processed % 10 === 0 || processed === total) {
-                console.error(
-                  `Hybrid search index: ${processed}/${total} notes processed`
-                );
-              }
-            });
-            console.error('Hybrid search index rebuilt successfully');
+            const stats = await this.#hybridSearchManager.getStats();
+            const forceRebuild = process.env.FORCE_INDEX_REBUILD === 'true';
+            const isEmptyIndex = stats.noteCount === 0;
+
+            // Check if index exists but might be stale
+            const shouldRebuild = forceRebuild || isEmptyIndex;
+
+            if (shouldRebuild) {
+              console.error('Rebuilding hybrid search index on startup...');
+              await this.#hybridSearchManager.rebuildIndex((processed, total) => {
+                if (processed % 5 === 0 || processed === total) {
+                  console.error(
+                    `Hybrid search index: ${processed}/${total} notes processed`
+                  );
+                }
+              });
+              console.error('Hybrid search index rebuilt successfully');
+            } else {
+              console.error(
+                `Hybrid search index ready (${stats.noteCount} notes indexed)`
+              );
+            }
           } catch (error) {
             console.error(
-              'Warning: Failed to rebuild hybrid search index on startup:',
+              'Warning: Failed to initialize hybrid search index on startup:',
               error
             );
           }
