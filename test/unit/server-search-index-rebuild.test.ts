@@ -127,7 +127,6 @@ describe('Server Search Index Rebuild on Startup', () => {
     server = new FlintNoteServer({ workspacePath: testContext.tempDir });
     await server.initialize();
 
-    const initialOutput = [...consoleOutput];
     consoleOutput.length = 0; // Clear output
 
     // Add more notes

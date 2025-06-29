@@ -7,7 +7,7 @@ import {
   serializeMetadataValue,
   deserializeMetadataValue
 } from './schema.js';
-import { NoteMetadata } from '../types/index.js';
+import { NoteMetadata, NoteLink } from '../types/index.js';
 import fs from 'fs/promises';
 import path from 'path';
 import { createHash } from 'crypto';
@@ -50,7 +50,7 @@ export interface AdvancedSearchOptions {
 
 export interface SqlSearchOptions {
   query: string;
-  params?: any[];
+  params?: (string | number | boolean | null)[];
   limit?: number;
   timeout?: number;
 }
@@ -95,13 +95,13 @@ export class HybridSearchManager {
     limit: number = 10,
     useRegex: boolean = false
   ): Promise<SearchResult[]> {
-    const startTime = Date.now();
+    const _startTime = Date.now();
     const connection = await this.getConnection();
 
     try {
       const safeQuery = query ?? '';
       let sql: string;
-      let params: any[] = [];
+      let params: (string | number)[] = [];
 
       if (!safeQuery) {
         // Return all notes
@@ -164,12 +164,12 @@ export class HybridSearchManager {
       const limit = options.limit ?? 50;
       const offset = options.offset ?? 0;
 
-      let sql = 'SELECT DISTINCT n.*';
-      let countSql = 'SELECT COUNT(DISTINCT n.id) as total';
+      const sql = 'SELECT DISTINCT n.*';
+      const countSql = 'SELECT COUNT(DISTINCT n.id) as total';
       let fromClause = ' FROM notes n';
-      let whereConditions: string[] = [];
-      let params: any[] = [];
-      let joins: string[] = [];
+      const whereConditions: string[] = [];
+      const params: (string | number)[] = [];
+      const joins: string[] = [];
 
       // Type filter
       if (options.type) {
@@ -404,7 +404,15 @@ export class HybridSearchManager {
         metadata[metaRow.key] = deserializeMetadataValue(
           metaRow.value,
           metaRow.value_type
-        );
+        ) as
+          | string
+          | number
+          | boolean
+          | object
+          | string[]
+          | NoteLink[]
+          | null
+          | undefined;
       }
 
       // Extract tags from metadata
@@ -571,7 +579,7 @@ export class HybridSearchManager {
   async rebuildIndex(
     progressCallback?: (processed: number, total: number) => void
   ): Promise<void> {
-    const connection = await this.getConnection();
+    const _connection = await this.getConnection();
 
     try {
       // Clear existing data
@@ -652,7 +660,7 @@ export class HybridSearchManager {
           parsed.type,
           parsed.filename,
           filePath,
-          parsed.metadata
+          parsed.metadata as NoteMetadata
         );
       }
     } catch (error) {
@@ -672,12 +680,12 @@ export class HybridSearchManager {
     content: string;
     type: string;
     filename: string;
-    metadata: any;
+    metadata: Record<string, unknown>;
   } | null {
     try {
       // Parse frontmatter
       const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
-      let metadata: any = {};
+      const metadata: Record<string, unknown> = {};
       let bodyContent = content;
 
       if (frontmatterMatch) {
@@ -719,10 +727,13 @@ export class HybridSearchManager {
       const parentDir = path.basename(path.dirname(filePath));
 
       // Determine note type from directory name or metadata
-      const type = metadata.type || parentDir;
+      const type =
+        (typeof metadata.type === 'string' ? metadata.type : null) || parentDir;
 
       // Determine title from metadata or filename
-      const title = metadata.title || filename.replace('.md', '');
+      const title =
+        (typeof metadata.title === 'string' ? metadata.title : null) ||
+        filename.replace('.md', '');
 
       // Generate note ID
       const id = `${type}/${filename}`;

@@ -7,11 +7,11 @@ import { test, describe, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert';
 import { promises as fs } from 'node:fs';
 import { join } from 'node:path';
-import { spawn, ChildProcess } from 'node:child_process';
+import { spawn, ChildProcess as _ChildProcess } from 'node:child_process';
 import {
   createIntegrationWorkspace,
   cleanupIntegrationWorkspace,
-  startServer,
+  startServer as _startServer,
   stopServer,
   type IntegrationTestContext,
   INTEGRATION_CONSTANTS
@@ -200,7 +200,7 @@ describe('Search Index Rebuild Integration', () => {
     await createTestNotes(context.tempDir);
 
     // First server startup
-    let firstServerProcess = spawn(
+    const firstServerProcess = spawn(
       'npx',
       ['tsx', 'src/index.ts', '--workspace', context.tempDir],
       {

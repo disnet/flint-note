@@ -5,9 +5,18 @@ import fs from 'fs/promises';
 
 export interface DatabaseConnection {
   db: sqlite3.Database;
-  run: (sql: string, params?: any[]) => Promise<sqlite3.RunResult>;
-  get: <T = any>(sql: string, params?: any[]) => Promise<T | undefined>;
-  all: <T = any>(sql: string, params?: any[]) => Promise<T[]>;
+  run: (
+    sql: string,
+    params?: (string | number | boolean | null)[]
+  ) => Promise<sqlite3.RunResult>;
+  get: <T = unknown>(
+    sql: string,
+    params?: (string | number | boolean | null)[]
+  ) => Promise<T | undefined>;
+  all: <T = unknown>(
+    sql: string,
+    params?: (string | number | boolean | null)[]
+  ) => Promise<T[]>;
   close: () => Promise<void>;
 }
 
@@ -42,14 +51,14 @@ export class DatabaseManager {
   }
 
   private createConnection(db: sqlite3.Database): DatabaseConnection {
-    const run = promisify(db.run.bind(db));
-    const get = promisify(db.get.bind(db));
-    const all = promisify(db.all.bind(db));
+    const _run = promisify(db.run.bind(db));
+    const _get = promisify(db.get.bind(db));
+    const _all = promisify(db.all.bind(db));
     const close = promisify(db.close.bind(db));
 
     return {
       db,
-      run: async (sql: string, params?: any[]) => {
+      run: async (sql: string, params?: (string | number | boolean | null)[]) => {
         return new Promise<sqlite3.RunResult>((resolve, reject) => {
           if (params && params.length > 0) {
             db.run(sql, params, function (err) {
@@ -64,7 +73,10 @@ export class DatabaseManager {
           }
         });
       },
-      get: async <T = any>(sql: string, params?: any[]) => {
+      get: async <T = unknown>(
+        sql: string,
+        params?: (string | number | boolean | null)[]
+      ) => {
         return new Promise<T | undefined>((resolve, reject) => {
           if (params && params.length > 0) {
             db.get(sql, params, (err, row) => {
@@ -79,7 +91,10 @@ export class DatabaseManager {
           }
         });
       },
-      all: async <T = any>(sql: string, params?: any[]) => {
+      all: async <T = unknown>(
+        sql: string,
+        params?: (string | number | boolean | null)[]
+      ) => {
         return new Promise<T[]>((resolve, reject) => {
           if (params && params.length > 0) {
             db.all(sql, params, (err, rows) => {
@@ -250,7 +265,7 @@ export interface SearchRow extends NoteRow {
 }
 
 // Helper functions for metadata type conversion
-export function serializeMetadataValue(value: any): {
+export function serializeMetadataValue(value: unknown): {
   value: string;
   type: MetadataRow['value_type'];
 } {
@@ -283,7 +298,7 @@ export function serializeMetadataValue(value: any): {
 export function deserializeMetadataValue(
   value: string,
   type: MetadataRow['value_type']
-): any {
+): unknown {
   switch (type) {
     case 'boolean':
       return value === 'true';

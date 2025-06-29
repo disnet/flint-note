@@ -102,7 +102,7 @@ interface SearchNotesAdvancedArgs {
 
 interface SearchNotesSqlArgs {
   query: string;
-  params?: any[];
+  params?: (string | number | boolean | null)[];
   limit?: number;
   timeout?: number;
 }
