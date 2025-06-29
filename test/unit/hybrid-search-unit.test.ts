@@ -8,6 +8,7 @@
 import { test, describe, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { promises as fs } from 'node:fs';
+import path from 'node:path';
 
 import { HybridSearchManager } from '../../src/database/search-manager.js';
 import {
@@ -99,20 +100,36 @@ describe('Hybrid Search Unit Tests', () => {
     });
 
     test('should handle connection errors gracefully', async () => {
-      // Create database manager with invalid path
-      const invalidPath = '/invalid/nonexistent/path';
-      const dbManager = new DatabaseManager(invalidPath);
+      // Create a temporary file first, then try to use it as a directory path
+      // This should fail reliably on all platforms since you can't create a directory
+      // where a file already exists
+      const tempFilePath = path.join(context.tempDir, 'blocking-file.txt');
+      await fs.writeFile(tempFilePath, 'test content');
+
+      // Now try to create a database manager using the file as if it were a directory
+      const dbManager = new DatabaseManager(tempFilePath);
 
       try {
         await dbManager.connect();
-        assert.fail('Should throw error for invalid path');
+        assert.fail('Should throw error when trying to use file as directory');
       } catch (error) {
         assert(error instanceof Error, 'Should throw Error instance');
+
+        // The error can come from fs.mkdir() or SQLite connection
+        // Check for various error patterns that indicate connection/path issues
         assert(
           error.message.includes('Failed to connect') ||
+            error.message.includes('ENOTDIR') ||
+            error.message.includes('EEXIST') ||
             error.message.includes('ENOENT') ||
-            error.message.includes('no such file or directory'),
-          'Should provide meaningful error message'
+            error.message.includes('not a directory') ||
+            error.message.includes('file exists') ||
+            error.message.includes('no such file or directory') ||
+            error.message.includes('mkdir') ||
+            error.message.includes('cannot create') ||
+            error.message.includes('permission denied') ||
+            error.message.includes('access denied'),
+          `Should provide meaningful error message. Got: "${error.message}"`
         );
       }
     });
