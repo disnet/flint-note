@@ -68,6 +68,7 @@ export class HybridSearchManager {
   private dbManager: DatabaseManager;
   private workspacePath: string;
   private connection: DatabaseConnection | null = null;
+  private readOnlyConnection: DatabaseConnection | null = null;
   private isInitialized = false;
 
   constructor(workspacePath: string) {
@@ -90,6 +91,13 @@ export class HybridSearchManager {
     return this.connection;
   }
 
+  private async getReadOnlyConnection(): Promise<DatabaseConnection> {
+    if (!this.readOnlyConnection) {
+      this.readOnlyConnection = await this.dbManager.connectReadOnly();
+    }
+    return this.readOnlyConnection;
+  }
+
   // Simple text search (backward compatible)
   async searchNotes(
     query: string | undefined,
@@ -97,8 +105,7 @@ export class HybridSearchManager {
     limit: number = 10,
     useRegex: boolean = false
   ): Promise<SearchResult[]> {
-    const _startTime = Date.now();
-    const connection = await this.getConnection();
+    const connection = await this.getReadOnlyConnection();
 
     try {
       const safeQuery = (query ?? '').trim();
@@ -222,7 +229,7 @@ export class HybridSearchManager {
 
   async searchNotesAdvanced(options: AdvancedSearchOptions): Promise<SearchResponse> {
     const startTime = Date.now();
-    const connection = await this.getConnection();
+    const connection = await this.getReadOnlyConnection();
 
     try {
       const limit = options.limit ?? 50;
@@ -343,7 +350,7 @@ export class HybridSearchManager {
   // SQL search with safety measures
   async searchNotesSQL(options: SqlSearchOptions): Promise<SearchResponse> {
     const startTime = Date.now();
-    const connection = await this.getConnection();
+    const connection = await this.getReadOnlyConnection();
 
     // Validate SQL query for safety
     this.validateSQLQuery(options.query);
@@ -910,6 +917,10 @@ export class HybridSearchManager {
       await this.connection.close();
       this.connection = null;
       this.isInitialized = false;
+    }
+    if (this.readOnlyConnection) {
+      await this.readOnlyConnection.close();
+      this.readOnlyConnection = null;
     }
   }
 

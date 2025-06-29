@@ -22,6 +22,7 @@ export interface DatabaseConnection {
 
 export class DatabaseManager {
   private db: sqlite3.Database | null = null;
+  private readOnlyDb: sqlite3.Database | null = null;
   private dbPath: string;
 
   constructor(workspacePath: string) {
@@ -52,6 +53,28 @@ export class DatabaseManager {
             .catch(reject);
         }
       );
+    });
+  }
+
+  async connectReadOnly(): Promise<DatabaseConnection> {
+    if (this.readOnlyDb) {
+      return this.createConnection(this.readOnlyDb);
+    }
+
+    // Ensure the database exists first by creating a read-write connection
+    if (!this.db) {
+      await this.connect();
+    }
+
+    return new Promise((resolve, reject) => {
+      this.readOnlyDb = new sqlite3.Database(this.dbPath, sqlite3.OPEN_READONLY, err => {
+        if (err) {
+          reject(new Error(`Failed to connect to read-only database: ${err.message}`));
+          return;
+        }
+
+        resolve(this.createConnection(this.readOnlyDb!));
+      });
     });
   }
 
@@ -116,7 +139,12 @@ export class DatabaseManager {
       },
       close: async () => {
         await close();
-        this.db = null;
+        if (this.db === db) {
+          this.db = null;
+        }
+        if (this.readOnlyDb === db) {
+          this.readOnlyDb = null;
+        }
       }
     };
   }
@@ -249,6 +277,10 @@ export class DatabaseManager {
     if (this.db) {
       const connection = this.createConnection(this.db);
       await connection.close();
+    }
+    if (this.readOnlyDb) {
+      const readOnlyConnection = this.createConnection(this.readOnlyDb);
+      await readOnlyConnection.close();
     }
   }
 }
