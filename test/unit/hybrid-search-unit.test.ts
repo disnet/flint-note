@@ -131,7 +131,7 @@ describe('Hybrid Search Unit Tests', () => {
       const stats = await hybridSearch.getStats();
       assert(typeof stats.noteCount === 'number', 'Should return note count');
       assert(typeof stats.metadataCount === 'number', 'Should return metadata count');
-      assert(typeof stats.databaseSize !== 'undefined', 'Should return database size');
+      assert(typeof stats.dbSize !== 'undefined', 'Should return database size');
       assert.equal(stats.noteCount, 0, 'Should start with zero notes');
 
       await hybridSearch.close();
@@ -540,6 +540,8 @@ describe('Hybrid Search Unit Tests', () => {
 
     beforeEach(async () => {
       hybridSearch = new HybridSearchManager(context.tempDir);
+      await createTestNotesWithMetadata(context);
+      await hybridSearch.rebuildIndex();
     });
 
     afterEach(async () => {
@@ -747,6 +749,8 @@ describe('Hybrid Search Unit Tests', () => {
 
     beforeEach(async () => {
       hybridSearch = new HybridSearchManager(context.tempDir);
+      await createTestNotesWithMetadata(context);
+      await hybridSearch.rebuildIndex();
     });
 
     afterEach(async () => {
@@ -846,6 +850,8 @@ describe('Hybrid Search Unit Tests', () => {
 
     beforeEach(async () => {
       hybridSearch = new HybridSearchManager(context.tempDir);
+      await createTestNotesWithMetadata(context);
+      await hybridSearch.rebuildIndex();
     });
 
     afterEach(async () => {

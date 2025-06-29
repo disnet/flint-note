@@ -1305,6 +1305,22 @@ export class FlintNoteServer {
         }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+        // For SQL security validation errors, throw as MCP protocol errors
+        // so the client will properly throw exceptions
+        if (
+          name === 'search_notes_sql' &&
+          errorMessage.includes('SELECT queries are allowed')
+        ) {
+          throw new Error(`SQL Security Error: ${errorMessage}`);
+        }
+        if (
+          name === 'search_notes_sql' &&
+          errorMessage.includes('Forbidden SQL keyword')
+        ) {
+          throw new Error(`SQL Security Error: ${errorMessage}`);
+        }
+
         return {
           content: [
             {

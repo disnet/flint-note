@@ -297,8 +297,20 @@ export class HybridSearchManager {
         sql += ` LIMIT ${limit}`;
       }
 
-      const rows = await connection.all<SearchRow>(sql, options.params || []);
-      const results = await this.convertRowsToResults(rows, connection);
+      const rows = await connection.all<any>(sql, options.params || []);
+
+      // Detect if this is an aggregation query or custom SQL
+      const isAggregationQuery = this.isAggregationQuery(sql);
+
+      let results: any[];
+      if (isAggregationQuery) {
+        // For aggregation queries, return raw results
+        results = rows;
+      } else {
+        // For regular note queries, convert to SearchResult format
+        results = await this.convertRowsToResults(rows as SearchRow[], connection);
+      }
+
       const queryTime = Date.now() - startTime;
 
       return {
@@ -314,6 +326,35 @@ export class HybridSearchManager {
     }
   }
 
+  // Detect if SQL query is an aggregation or custom query
+  private isAggregationQuery(sql: string): boolean {
+    const lowerSql = sql.toLowerCase();
+
+    // Check for aggregation functions
+    const aggregationFunctions = [
+      'count(',
+      'sum(',
+      'avg(',
+      'min(',
+      'max(',
+      'group_concat('
+    ];
+    const hasAggregation = aggregationFunctions.some(func => lowerSql.includes(func));
+
+    // Check for GROUP BY clause
+    const hasGroupBy = lowerSql.includes('group by');
+
+    // If it has aggregation functions or GROUP BY, it's an aggregation query
+    // Exception: Simple SELECT * FROM notes should be treated as a regular query
+    const isSimpleSelectAll =
+      lowerSql.includes('select *') &&
+      lowerSql.includes('from notes') &&
+      !hasAggregation &&
+      !hasGroupBy;
+
+    return (hasAggregation || hasGroupBy) && !isSimpleSelectAll;
+  }
+
   // Validate SQL query for security
   private validateSQLQuery(query: string): void {
     const sql = query.toLowerCase().trim();
@@ -323,7 +364,7 @@ export class HybridSearchManager {
       throw new Error('Only SELECT queries are allowed');
     }
 
-    // Prevent dangerous operations
+    // Prevent dangerous operations using word boundaries
     const forbidden = [
       'drop',
       'delete',
@@ -335,7 +376,8 @@ export class HybridSearchManager {
       'execute'
     ];
     for (const keyword of forbidden) {
-      if (sql.includes(keyword)) {
+      const wordBoundaryRegex = new RegExp(`\\b${keyword}\\b`, 'i');
+      if (wordBoundaryRegex.test(sql)) {
         throw new Error(`Forbidden SQL keyword: ${keyword}`);
       }
     }
