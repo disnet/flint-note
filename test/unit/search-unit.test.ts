@@ -45,7 +45,7 @@ describe('Search Unit Tests', () => {
     );
 
     // Update search index
-    await context.searchManager.rebuildSearchIndex();
+    await context.searchManager.rebuildIndex();
   });
 
   afterEach(async () => {
@@ -158,10 +158,15 @@ describe('Search Unit Tests', () => {
     });
 
     test('should search by tags', async () => {
-      const results = await context.searchManager.searchByTags(['productivity']);
+      const results = await context.searchManager.searchNotesAdvanced({
+        metadata_filters: [{ key: 'tags', value: 'productivity' }],
+        limit: 10
+      });
 
-      if (results.length > 0) {
-        const hasProductivityTag = results.some(r => r.tags?.includes('productivity'));
+      if (results.results.length > 0) {
+        const hasProductivityTag = results.results.some(r =>
+          r.metadata?.tags?.includes('productivity')
+        );
         assert.ok(hasProductivityTag, 'Should find notes with productivity tag');
       }
     });
@@ -198,7 +203,7 @@ describe('Search Unit Tests', () => {
         'This note has "Test Ranking" in the content for comparison.'
       );
 
-      await context.searchManager.rebuildSearchIndex();
+      await context.searchManager.rebuildIndex();
       const results = await context.searchManager.searchNotes('Test Ranking');
 
       assert.ok(results.length >= 2, 'Should find both notes');
@@ -228,7 +233,7 @@ describe('Search Unit Tests', () => {
         'This note has multiple relevance mentions. Relevance is key. Relevance matters.'
       );
 
-      await context.searchManager.rebuildSearchIndex();
+      await context.searchManager.rebuildIndex();
       const results = await context.searchManager.searchNotes('relevance');
 
       assert.ok(results.length >= 2, 'Should find both notes');
@@ -264,7 +269,7 @@ describe('Search Unit Tests', () => {
       );
 
       // Index should be updated automatically or we can force update
-      await context.searchManager.rebuildSearchIndex();
+      await context.searchManager.rebuildIndex();
 
       const results = await context.searchManager.searchNotes('New Indexed Note');
 
@@ -276,7 +281,7 @@ describe('Search Unit Tests', () => {
     test('should handle index corruption gracefully', async () => {
       try {
         // Try to rebuild index
-        await context.searchManager.rebuildSearchIndex();
+        await context.searchManager.rebuildIndex();
       } catch (_error) {
         // Index operations might not be exposed, that's okay
       }
@@ -300,7 +305,7 @@ describe('Search Unit Tests', () => {
       }
 
       await Promise.all(promises);
-      await context.searchManager.rebuildSearchIndex();
+      await context.searchManager.rebuildIndex();
 
       const startTime = Date.now();
       const results = await context.searchManager.searchNotes('searchable', null, 50);
@@ -332,7 +337,7 @@ describe('Search Unit Tests', () => {
         'This note contains special chars: @#$%^&*()[]{}|\\:";\'<>?,./'
       );
 
-      await context.searchManager.rebuildSearchIndex();
+      await context.searchManager.rebuildIndex();
 
       const results = await context.searchManager.searchNotes('@#$%');
       assert.ok(Array.isArray(results), 'Should handle special characters');
@@ -345,7 +350,7 @@ describe('Search Unit Tests', () => {
         'This note contains Unicode: 你好世界 こんにちは 안녕하세요 🌟'
       );
 
-      await context.searchManager.rebuildSearchIndex();
+      await context.searchManager.rebuildIndex();
 
       const unicodeResults = await context.searchManager.searchNotes('你好');
       const emojiResults = await context.searchManager.searchNotes('🚀');
@@ -470,7 +475,7 @@ describe('Search Unit Tests', () => {
         'Original content for update testing.'
       );
 
-      await context.searchManager.rebuildSearchIndex();
+      await context.searchManager.rebuildIndex();
 
       // Search for original content
       const originalResults = await context.searchManager.searchNotes('Original content');
@@ -495,7 +500,7 @@ updated: ${new Date().toISOString()}
 ${updatedContent}`;
 
         await fs.writeFile(note.path, noteContent, 'utf8');
-        await context.searchManager.rebuildSearchIndex();
+        await context.searchManager.rebuildIndex();
 
         // Search for updated content
         const updatedResults = await context.searchManager.searchNotes('Updated content');
@@ -518,7 +523,7 @@ ${updatedContent}`;
         'This note will be deleted for testing.'
       );
 
-      await context.searchManager.rebuildSearchIndex();
+      await context.searchManager.rebuildIndex();
 
       // Verify note is searchable
       const beforeResults = await context.searchManager.searchNotes('Deletion Test Note');
@@ -527,7 +532,7 @@ ${updatedContent}`;
 
       // Delete the note file
       await fs.unlink(note.path);
-      await context.searchManager.rebuildSearchIndex();
+      await context.searchManager.rebuildIndex();
 
       // Should not find deleted note
       const afterResults = await context.searchManager.searchNotes('Deletion Test Note');

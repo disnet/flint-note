@@ -11,7 +11,6 @@ import { tmpdir } from 'node:os';
 import { Workspace } from '../../../src/core/workspace.ts';
 import { NoteManager } from '../../../src/core/notes.ts';
 import { NoteTypeManager } from '../../../src/core/note-types.ts';
-import { SearchManager } from '../../../src/core/search.ts';
 import { LinkManager } from '../../../src/core/links.ts';
 import { ConfigManager } from '../../../src/utils/config.ts';
 import { FlintNoteServer } from '../../../src/server.ts';
@@ -25,10 +24,10 @@ export interface TestContext {
   workspace: Workspace;
   noteManager: NoteManager;
   noteTypeManager: NoteTypeManager;
-  searchManager: SearchManager;
+  searchManager: HybridSearchManager;
   linkManager: LinkManager;
   configManager: ConfigManager;
-  hybridSearchManager?: HybridSearchManager;
+  hybridSearchManager: HybridSearchManager;
 }
 
 /**
@@ -62,9 +61,10 @@ export async function createTestWorkspace(prefix?: string): Promise<TestContext>
   const workspace = new Workspace(tempDir);
   await workspace.initialize();
 
-  const noteManager = new NoteManager(workspace);
+  const hybridSearchManager = new HybridSearchManager(tempDir);
+  const noteManager = new NoteManager(workspace, hybridSearchManager);
   const noteTypeManager = new NoteTypeManager(workspace);
-  const searchManager = new SearchManager(workspace);
+  const searchManager = hybridSearchManager; // Alias for backward compatibility
   const linkManager = new LinkManager(workspace, noteManager);
   const configManager = new ConfigManager(tempDir);
 
@@ -75,7 +75,8 @@ export async function createTestWorkspace(prefix?: string): Promise<TestContext>
     noteTypeManager,
     searchManager,
     linkManager,
-    configManager
+    configManager,
+    hybridSearchManager
   };
 }
 

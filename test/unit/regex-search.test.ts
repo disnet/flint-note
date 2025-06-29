@@ -63,7 +63,7 @@ describe('Regex Search', () => {
     );
 
     // Update search index
-    await context.searchManager.rebuildSearchIndex();
+    await context.searchManager.rebuildIndex();
   });
 
   afterEach(async () => {
@@ -487,7 +487,7 @@ describe('Regex Search', () => {
         "TODO: Finish the project\n- [ ] TODO: Review code\nNOTE: Don't forget to TODO: test everything"
       );
 
-      await context.searchManager.rebuildSearchIndex();
+      await context.searchManager.rebuildIndex();
 
       const todoPattern = /TODO:\s*[^\n\r]*/g;
       const results = await context.searchManager.searchNotes(
@@ -510,7 +510,7 @@ describe('Regex Search', () => {
         'Check out [this link](https://example.com) and [another one](http://test.org).'
       );
 
-      await context.searchManager.rebuildSearchIndex();
+      await context.searchManager.rebuildIndex();
 
       const markdownLinkPattern = /\[([^\]]+)\]\(([^)]+)\)/g;
       const results = await context.searchManager.searchNotes(
@@ -533,7 +533,7 @@ describe('Regex Search', () => {
         '```javascript\nfunction test() {\n  return "hello";\n}\n```\n\n```python\ndef test():\n    return "hello"\n```'
       );
 
-      await context.searchManager.rebuildSearchIndex();
+      await context.searchManager.rebuildIndex();
 
       const codeBlockPattern = /```[\w]*\n([\s\S]*?)\n```/g;
       const results = await context.searchManager.searchNotes(
@@ -556,7 +556,7 @@ describe('Regex Search', () => {
         'This is a great day! #awesome #productivity #coding #javascript'
       );
 
-      await context.searchManager.rebuildSearchIndex();
+      await context.searchManager.rebuildIndex();
 
       const hashtagPattern = /#[a-zA-Z0-9_]+/g;
       const results = await context.searchManager.searchNotes(

@@ -467,15 +467,15 @@ Different content.`
     test('should remove deleted note from search index', async () => {
       const { noteManager, searchManager } = context;
 
-      // Create and index a note
+      // Create a note (automatically indexed by hybrid search)
       const note = await noteManager.createNote(
         TEST_CONSTANTS.NOTE_TYPES.DEFAULT,
         'Searchable Note',
         'This note contains searchable content that should be removed from index.'
       );
 
-      const noteContent = await fs.readFile(note.path, 'utf8');
-      await searchManager.updateNoteInIndex(note.path, noteContent);
+      // Give the hybrid search a moment to index the note
+      await new Promise(resolve => setTimeout(resolve, 100));
 
       // Verify note is in search index
       const beforeResults = await searchManager.searchNotes('searchable content');
@@ -484,6 +484,9 @@ Different content.`
 
       // Delete the note
       await noteManager.deleteNote(note.id, true);
+
+      // Give the hybrid search a moment to remove the note from index
+      await new Promise(resolve => setTimeout(resolve, 100));
 
       // Verify note is removed from search index
       const afterResults = await searchManager.searchNotes('searchable content');

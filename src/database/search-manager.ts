@@ -115,33 +115,65 @@ export class HybridSearchManager {
         `;
         params = typeFilter ? [typeFilter, limit] : [limit];
       } else if (useRegex) {
-        // Use REGEXP for regex search (note: SQLite needs REGEXP extension)
+        // For regex search, fetch all notes and filter in JavaScript
         sql = `
           SELECT n.*,
                  1.0 as score
           FROM notes n
-          WHERE (n.title REGEXP ? OR n.content REGEXP ?)
-          ${typeFilter ? 'AND n.type = ?' : ''}
+          ${typeFilter ? 'WHERE n.type = ?' : ''}
           ORDER BY n.updated DESC
-          LIMIT ?
         `;
-        params = typeFilter
-          ? [safeQuery, safeQuery, typeFilter, limit]
-          : [safeQuery, safeQuery, limit];
+        params = typeFilter ? [typeFilter] : [];
+
+        const allRows = await connection.all<SearchRow>(sql, params);
+        const filteredRows: SearchRow[] = [];
+
+        try {
+          const regex = new RegExp(safeQuery, 'i');
+          for (const row of allRows) {
+            if (regex.test(row.title || '') || regex.test(row.content || '')) {
+              filteredRows.push(row);
+              if (filteredRows.length >= limit) break;
+            }
+          }
+        } catch (regexError) {
+          throw new Error(`Invalid regex pattern: ${safeQuery}`);
+        }
+
+        const results = await this.convertRowsToResults(filteredRows, connection);
+        return results;
       } else {
-        // Use FTS for text search
-        sql = `
-          SELECT n.*,
-                 fts.rank as score,
-                 snippet(notes_fts, 2, '<mark>', '</mark>', '...', 32) as snippet
-          FROM notes_fts fts
-          JOIN notes n ON n.id = fts.id
-          WHERE notes_fts MATCH ?
-          ${typeFilter ? 'AND n.type = ?' : ''}
-          ORDER BY fts.rank
-          LIMIT ?
-        `;
-        params = typeFilter ? [safeQuery, typeFilter, limit] : [safeQuery, limit];
+        // Use FTS for text search with proper escaping
+        const escapedQuery = this.escapeFTSQuery(safeQuery);
+        if (!escapedQuery) {
+          // If query can't be escaped for FTS, fall back to LIKE search
+          sql = `
+            SELECT n.*,
+                   1.0 as score
+            FROM notes n
+            WHERE (n.title LIKE ? OR n.content LIKE ?)
+            ${typeFilter ? 'AND n.type = ?' : ''}
+            ORDER BY n.updated DESC
+            LIMIT ?
+          `;
+          const likeQuery = `%${safeQuery}%`;
+          params = typeFilter
+            ? [likeQuery, likeQuery, typeFilter, limit]
+            : [likeQuery, likeQuery, limit];
+        } else {
+          sql = `
+            SELECT n.*,
+                   -fts.rank as score,
+                   snippet(notes_fts, 2, '<mark>', '</mark>', '...', 32) as snippet
+            FROM notes_fts fts
+            JOIN notes n ON n.id = fts.id
+            WHERE notes_fts MATCH ?
+            ${typeFilter ? 'AND n.type = ?' : ''}
+            ORDER BY fts.rank
+            LIMIT ?
+          `;
+          params = typeFilter ? [escapedQuery, typeFilter, limit] : [escapedQuery, limit];
+        }
       }
 
       const rows = await connection.all<SearchRow>(sql, params);
@@ -155,7 +187,32 @@ export class HybridSearchManager {
     }
   }
 
-  // Advanced structured search
+  /**
+   * Escape query string for FTS5 MATCH operator
+   * Returns null if query cannot be safely used with FTS
+   */
+  private escapeFTSQuery(query: string): string | null {
+    if (!query || typeof query !== 'string') {
+      return null;
+    }
+
+    // Remove leading/trailing whitespace
+    const trimmed = query.trim();
+    if (!trimmed) {
+      return null;
+    }
+
+    // Check for FTS5 special characters that might cause syntax errors
+    const ftsSpecialChars = /[()@*"'-]/;
+    if (ftsSpecialChars.test(trimmed)) {
+      return null; // Fall back to LIKE search
+    }
+
+    // For simple word queries, just return as-is
+    // FTS5 will handle basic text matching
+    return trimmed;
+  }
+
   async searchNotesAdvanced(options: AdvancedSearchOptions): Promise<SearchResponse> {
     const startTime = Date.now();
     const connection = await this.getConnection();

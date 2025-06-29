@@ -17,7 +17,6 @@ import {
 import { Workspace } from './core/workspace.js';
 import { NoteManager } from './core/notes.js';
 import { NoteTypeManager } from './core/note-types.js';
-import { SearchManager } from './core/search.js';
 import { HybridSearchManager } from './database/search-manager.js';
 import { LinkManager } from './core/links.js';
 import { GlobalConfigManager } from './utils/global-config.js';
@@ -225,7 +224,6 @@ export class FlintNoteServer {
   #workspace!: Workspace;
   #noteManager!: NoteManager;
   #noteTypeManager!: NoteTypeManager;
-  #searchManager!: SearchManager;
   #hybridSearchManager!: HybridSearchManager;
   #linkManager!: LinkManager;
   #globalConfig: GlobalConfigManager;
@@ -283,21 +281,9 @@ export class FlintNoteServer {
         this.#hybridSearchManager = new HybridSearchManager(this.#workspace.rootPath);
         this.#noteManager = new NoteManager(this.#workspace, this.#hybridSearchManager);
         this.#noteTypeManager = new NoteTypeManager(this.#workspace);
-        this.#searchManager = new SearchManager(this.#workspace);
         this.#linkManager = new LinkManager(this.#workspace, this.#noteManager);
 
         // Always rebuild search index on server startup
-        try {
-          console.error('Rebuilding search index on startup...');
-          const rebuildResult = await this.#searchManager.rebuildSearchIndex();
-          console.error(
-            `Search index rebuilt: ${rebuildResult.indexedNotes} notes indexed`
-          );
-        } catch (error) {
-          console.error('Warning: Failed to rebuild search index on startup:', error);
-        }
-
-        // Rebuild hybrid search index
         try {
           console.error('Rebuilding hybrid search index on startup...');
           await this.#hybridSearchManager.rebuildIndex((processed, total) => {
@@ -328,21 +314,9 @@ export class FlintNoteServer {
           this.#hybridSearchManager = new HybridSearchManager(this.#workspace.rootPath);
           this.#noteManager = new NoteManager(this.#workspace, this.#hybridSearchManager);
           this.#noteTypeManager = new NoteTypeManager(this.#workspace);
-          this.#searchManager = new SearchManager(this.#workspace);
           this.#linkManager = new LinkManager(this.#workspace, this.#noteManager);
 
           // Always rebuild search index on server startup
-          try {
-            console.error('Rebuilding search index on startup...');
-            const rebuildResult = await this.#searchManager.rebuildSearchIndex();
-            console.error(
-              `Search index rebuilt: ${rebuildResult.indexedNotes} notes indexed`
-            );
-          } catch (error) {
-            console.error('Warning: Failed to rebuild search index on startup:', error);
-          }
-
-          // Rebuild hybrid search index
           try {
             console.error('Rebuilding hybrid search index on startup...');
             await this.#hybridSearchManager.rebuildIndex((processed, total) => {
@@ -1575,11 +1549,11 @@ export class FlintNoteServer {
 
   #handleSearchNotes = async (args: SearchNotesArgs) => {
     this.#requireWorkspace();
-    if (!this.#searchManager) {
-      throw new Error('Server not initialized');
+    if (!this.#hybridSearchManager) {
+      throw new Error('Hybrid search manager not initialized');
     }
 
-    const results = await this.#searchManager.searchNotes(
+    const results = await this.#hybridSearchManager.searchNotes(
       args.query,
       args.type_filter,
       args.limit,
