@@ -265,10 +265,10 @@ export class SearchManager {
           regex.lastIndex = 0;
 
           // Calculate score based on match types
-          let _score = 0;
-          if (titleMatches) _score += 10;
-          if (contentMatches) _score += 5;
-          if (tagMatches) _score += 3;
+          let score = 0;
+          if (titleMatches) score += 10;
+          if (contentMatches) score += 5;
+          if (tagMatches) score += 3;
 
           // Parse note path to get identifier
           const identifier = this.pathToIdentifier(notePath);
@@ -279,7 +279,7 @@ export class SearchManager {
             title: noteData.title,
             type: noteData.type,
             tags: noteData.tags,
-            score: 1,
+            score: score,
             snippet: this.generateRegexSnippet(noteData.content, regex),
             lastUpdated: noteData.updated,
             filename: path.basename(notePath),
