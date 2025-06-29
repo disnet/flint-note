@@ -863,7 +863,7 @@ This note should be immediately searchable after creation.`,
 
   describe('Performance and Scalability', () => {
     test('should handle multiple concurrent search requests', async () => {
-      const searchPromises = [];
+      const searchPromises: Promise<any>[] = [];
 
       // Create multiple concurrent searches
       for (let i = 0; i < 5; i++) {
@@ -983,7 +983,7 @@ This note should be immediately searchable after creation.`,
           let response;
           try {
             response = JSON.parse(result.content[0].text);
-          } catch (parseError) {
+          } catch (_parseError) {
             // If JSON parsing fails, the response might be an error message
             // This is still a valid test result - the system handled the special character
             // without crashing, even if it returned an error

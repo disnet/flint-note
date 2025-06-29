@@ -293,7 +293,7 @@ describe('Search Unit Tests', () => {
 
     test('should efficiently handle large result sets', async () => {
       // Create many notes with common term
-      const promises = [];
+      const promises: Promise<any>[] = [];
       for (let i = 0; i < 20; i++) {
         promises.push(
           context.noteManager.createNote(
@@ -369,7 +369,7 @@ describe('Search Unit Tests', () => {
 
   describe('Performance and Concurrency', () => {
     test('should handle concurrent search requests', async () => {
-      const promises = [];
+      const promises: Promise<any>[] = [];
       const queries = ['JavaScript', 'React', 'programming', 'development', 'test'];
 
       for (const query of queries) {

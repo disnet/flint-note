@@ -14,7 +14,7 @@ import {
   createTestNoteType,
   type IntegrationTestContext,
   INTEGRATION_CONSTANTS
-} from './helpers/integration-utils.ts';
+} from './helpers/integration-utils.js';
 
 /**
  * MCP client simulation for sending requests to the server

@@ -12,7 +12,7 @@ import {
   spawnTsxCommand,
   type IntegrationTestContext,
   INTEGRATION_CONSTANTS
-} from './helpers/integration-utils.ts';
+} from './helpers/integration-utils.js';
 
 describe('Command Line Arguments Integration', () => {
   let context: IntegrationTestContext;

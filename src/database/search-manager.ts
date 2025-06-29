@@ -26,6 +26,8 @@ export interface SearchResult {
   modified: string;
   size: number;
   metadata: NoteMetadata;
+  // Allow additional properties for aggregation results
+  [key: string]: unknown;
 }
 
 export interface AdvancedSearchOptions {
@@ -136,7 +138,7 @@ export class HybridSearchManager {
               if (filteredRows.length >= limit) break;
             }
           }
-        } catch (regexError) {
+        } catch (_regexError) {
           throw new Error(`Invalid regex pattern: ${safeQuery}`);
         }
 
@@ -371,6 +373,7 @@ export class HybridSearchManager {
       if (isAggregationQuery) {
         // For aggregation queries, return raw results with custom columns preserved
         results = rows.map(row => ({
+          ...row, // Preserve all custom aggregation columns first
           id: String(row.id || ''),
           title: String(row.title || ''),
           type: String(row.type || ''),
@@ -382,16 +385,14 @@ export class HybridSearchManager {
           path: String(row.path || ''),
           created: String(row.created || ''),
           modified: String(row.updated || ''),
-          size: Number(row.size) || 0,
+          size: Number(row.size ?? 0),
           metadata: {
             title: String(row.title || ''),
             type: String(row.type || ''),
             created: String(row.created || ''),
             updated: String(row.updated || ''),
-            filename: String(row.filename || ''),
-            ...row // Preserve all custom aggregation columns
-          },
-          ...row // Also preserve custom columns at the top level for backward compatibility
+            filename: String(row.filename || '')
+          }
         }));
       } else {
         // For regular note queries, convert to SearchResult format

@@ -15,7 +15,7 @@ import {
   stopServer,
   type IntegrationTestContext,
   INTEGRATION_CONSTANTS
-} from './helpers/integration-utils.ts';
+} from './helpers/integration-utils.js';
 
 describe('Search Index Rebuild Integration', () => {
   let context: IntegrationTestContext;

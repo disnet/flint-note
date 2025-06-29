@@ -816,7 +816,7 @@ describe('Hybrid Search Unit Tests', () => {
 
     test('should handle concurrent operations safely', async () => {
       // Create multiple concurrent operations
-      const promises = [];
+      const promises: Promise<void>[] = [];
 
       for (let i = 0; i < 10; i++) {
         const filePath = context.workspace.getNotePath('general', `concurrent-${i}.md`);
@@ -862,7 +862,7 @@ describe('Hybrid Search Unit Tests', () => {
       await fs.mkdir(context.workspace.getNoteTypePath('projects'), { recursive: true });
 
       // Create a reasonable number of test notes
-      const notePromises = [];
+      const notePromises: Promise<void>[] = [];
       for (let i = 0; i < 50; i++) {
         const noteType = i % 3 === 0 ? 'projects' : 'general';
         const filePath = context.workspace.getNotePath(noteType, `perf-${i}.md`);

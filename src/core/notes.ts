@@ -1087,6 +1087,27 @@ export class NoteManager {
   }
 
   /**
+   * Search notes using the hybrid search manager
+   */
+  async searchNotes(options: {
+    query?: string;
+    type_filter?: string;
+    limit?: number;
+  }): Promise<import('../database/search-manager.js').SearchResult[]> {
+    if (!this.#hybridSearchManager) {
+      throw new Error(
+        'Search functionality not available - hybrid search manager not initialized'
+      );
+    }
+
+    return await this.#hybridSearchManager.searchNotes(
+      options.query,
+      options.type_filter || null,
+      options.limit || 50
+    );
+  }
+
+  /**
    * Validate metadata against note type schema
    */
   async validateMetadata(

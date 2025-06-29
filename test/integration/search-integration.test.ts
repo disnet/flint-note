@@ -13,7 +13,7 @@ import {
   createTestNoteType,
   type IntegrationTestContext,
   INTEGRATION_CONSTANTS
-} from './helpers/integration-utils.ts';
+} from './helpers/integration-utils.js';
 
 /**
  * MCP client simulation for sending requests to the server
@@ -818,7 +818,7 @@ Updated content with new timestamp.
           let searchResults;
           try {
             searchResults = JSON.parse(result.content[0].text);
-          } catch (parseError) {
+          } catch (_parseError) {
             // If JSON parsing fails, the response might be an error message
             // This is still a valid test result - the system handled the special character
             // without crashing, even if it returned an error
