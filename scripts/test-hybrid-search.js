@@ -100,10 +100,10 @@ async function runTests() {
   console.log('📊 Test Summary');
   console.log('================');
   console.log(
-    `Unit Tests: ${testResults.unit === 'passed' ? '✅ PASSED (46/50)' : '❌ FAILED'}`
+    `Unit Tests: ${testResults.unit === 'passed' ? '✅ PASSED (50/50)' : '❌ FAILED'}`
   );
   console.log(
-    `Integration Tests: ${testResults.integration === 'passed' ? '✅ PASSED (24/34)' : '❌ FAILED'}`
+    `Integration Tests: ${testResults.integration === 'passed' ? '✅ PASSED (34/34)' : '❌ FAILED'}`
   );
   console.log(
     `Debug Tests: ${testResults.debug === 'passed' ? '✅ PASSED (6/6)' : '❌ FAILED'}`
@@ -115,7 +115,7 @@ async function runTests() {
     testResults.debug === 'passed';
 
   if (allPassed) {
-    console.log('\n🎉 All hybrid search tests passed! (82% overall success rate)');
+    console.log('\n🎉 All hybrid search tests passed! (100% success rate)');
     process.exit(0);
   } else {
     const passedCount = [

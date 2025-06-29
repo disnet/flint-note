@@ -364,7 +364,7 @@ export class HybridSearchManager {
 
       let results: SearchResult[];
       if (isAggregationQuery) {
-        // For aggregation queries, return raw results as SearchResult format
+        // For aggregation queries, return raw results with custom columns preserved
         results = rows.map(row => ({
           id: String(row.id || ''),
           title: String(row.title || ''),
@@ -383,8 +383,10 @@ export class HybridSearchManager {
             type: String(row.type || ''),
             created: String(row.created || ''),
             updated: String(row.updated || ''),
-            filename: String(row.filename || '')
-          }
+            filename: String(row.filename || ''),
+            ...row // Preserve all custom aggregation columns
+          },
+          ...row // Also preserve custom columns at the top level for backward compatibility
         }));
       } else {
         // For regular note queries, convert to SearchResult format
