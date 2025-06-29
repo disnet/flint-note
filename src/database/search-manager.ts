@@ -297,15 +297,38 @@ export class HybridSearchManager {
         sql += ` LIMIT ${limit}`;
       }
 
-      const rows = await connection.all<any>(sql, options.params || []);
+      const rows = await connection.all<SearchRow | Record<string, unknown>>(
+        sql,
+        options.params || []
+      );
 
       // Detect if this is an aggregation query or custom SQL
       const isAggregationQuery = this.isAggregationQuery(sql);
 
-      let results: any[];
+      let results: SearchResult[];
       if (isAggregationQuery) {
-        // For aggregation queries, return raw results
-        results = rows;
+        // For aggregation queries, return raw results as SearchResult format
+        results = rows.map(row => ({
+          id: String(row.id || ''),
+          title: String(row.title || ''),
+          type: String(row.type || ''),
+          tags: [],
+          score: 1.0,
+          snippet: '',
+          lastUpdated: String(row.updated || ''),
+          filename: String(row.filename || ''),
+          path: String(row.path || ''),
+          created: String(row.created || ''),
+          modified: String(row.updated || ''),
+          size: Number(row.size) || 0,
+          metadata: {
+            title: String(row.title || ''),
+            type: String(row.type || ''),
+            created: String(row.created || ''),
+            updated: String(row.updated || ''),
+            filename: String(row.filename || '')
+          }
+        }));
       } else {
         // For regular note queries, convert to SearchResult format
         results = await this.convertRowsToResults(rows as SearchRow[], connection);

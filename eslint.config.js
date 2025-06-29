@@ -1,9 +1,28 @@
 import js from '@eslint/js';
 import tseslint from '@typescript-eslint/eslint-plugin';
 import tsparser from '@typescript-eslint/parser';
+import globals from 'globals';
 
 export default [
   js.configs.recommended,
+  {
+    files: ['**/*.js'],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      globals: {
+        ...globals.node
+      }
+    },
+    rules: {
+      'prefer-const': 'error',
+      'no-var': 'error',
+      'no-console': 'off',
+      semi: ['error', 'always'],
+      quotes: ['error', 'single', { allowTemplateLiterals: true, avoidEscape: true }],
+      'comma-dangle': ['error', 'never']
+    }
+  },
   {
     files: ['**/*.ts'],
     languageOptions: {

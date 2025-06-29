@@ -39,7 +39,7 @@ class MCPClient {
 
     return new Promise((resolve, reject) => {
       let responseData = '';
-      let errorData = '';
+      const _errorData = '';
 
       const timeout = setTimeout(() => {
         reject(new Error(`Request timeout for method: ${method}`));
@@ -72,8 +72,8 @@ class MCPClient {
         }
       };
 
-      const onError = (data: Buffer) => {
-        errorData += data.toString();
+      const onError = (_data: Buffer) => {
+        // Error data handling removed as it was unused
       };
 
       this.serverProcess.stdout?.on('data', onData);

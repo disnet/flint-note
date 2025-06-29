@@ -8,7 +8,6 @@
 import { test, describe, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { promises as fs } from 'node:fs';
-import { join } from 'node:path';
 
 import { HybridSearchManager } from '../../src/database/search-manager.js';
 import {

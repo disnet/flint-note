@@ -54,7 +54,7 @@ class DebugMCPClient {
   private async sendRequest(request: any): Promise<any> {
     return new Promise((resolve, reject) => {
       let responseData = '';
-      let errorData = '';
+      const _errorData = '';
 
       const timeout = setTimeout(() => {
         reject(new Error(`Request timeout for: ${JSON.stringify(request)}`));
@@ -88,7 +88,6 @@ class DebugMCPClient {
       };
 
       const onError = (data: Buffer) => {
-        errorData += data.toString();
         console.error('Server stderr:', data.toString());
       };
 
