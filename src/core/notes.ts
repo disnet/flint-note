@@ -10,6 +10,7 @@ import fs from 'fs/promises';
 import { Workspace } from './workspace.js';
 import { NoteTypeManager } from './note-types.js';
 import { SearchManager } from './search.js';
+import { HybridSearchManager } from '../database/search-manager.js';
 import { MetadataValidator } from './metadata-schema.js';
 import type { ValidationResult } from './metadata-schema.js';
 import { parseFrontmatter, parseNoteContent } from '../utils/yaml-parser.js';
@@ -105,11 +106,13 @@ export class NoteManager {
   #workspace: Workspace;
   #noteTypeManager: NoteTypeManager;
   #searchManager: SearchManager;
+  #hybridSearchManager?: HybridSearchManager;
 
-  constructor(workspace: Workspace) {
+  constructor(workspace: Workspace, hybridSearchManager?: HybridSearchManager) {
     this.#workspace = workspace;
     this.#noteTypeManager = new NoteTypeManager(workspace);
     this.#searchManager = new SearchManager(workspace);
+    this.#hybridSearchManager = hybridSearchManager;
   }
 
   /**
@@ -1066,6 +1069,23 @@ export class NoteManager {
   async updateSearchIndex(notePath: string, content: string): Promise<void> {
     try {
       await this.#searchManager.updateNoteInIndex(notePath, content);
+
+      // Also update hybrid search index if available
+      if (this.#hybridSearchManager) {
+        const parsed = parseNoteContent(content);
+        const filename = path.basename(notePath);
+        const noteId = this.generateNoteId(parsed.metadata.type || 'default', filename);
+
+        await this.#hybridSearchManager.upsertNote(
+          noteId,
+          parsed.metadata.title || filename.replace('.md', ''),
+          parsed.content,
+          parsed.metadata.type || 'default',
+          filename,
+          notePath,
+          parsed.metadata
+        );
+      }
     } catch (error) {
       // Don't fail note operations if search index update fails
       console.error(
@@ -1081,6 +1101,16 @@ export class NoteManager {
   async removeFromSearchIndex(notePath: string): Promise<void> {
     try {
       await this.#searchManager.removeNoteFromIndex(notePath);
+
+      // Also remove from hybrid search index if available
+      if (this.#hybridSearchManager) {
+        const filename = path.basename(notePath);
+        const content = await fs.readFile(notePath, 'utf-8');
+        const parsed = parseNoteContent(content);
+        const noteId = this.generateNoteId(parsed.metadata.type || 'default', filename);
+
+        await this.#hybridSearchManager.removeNote(noteId);
+      }
     } catch (error) {
       // Don't fail note operations if search index update fails
       console.error(

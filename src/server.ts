@@ -18,6 +18,7 @@ import { Workspace } from './core/workspace.js';
 import { NoteManager } from './core/notes.js';
 import { NoteTypeManager } from './core/note-types.js';
 import { SearchManager } from './core/search.js';
+import { HybridSearchManager } from './database/search-manager.js';
 import { LinkManager } from './core/links.js';
 import { GlobalConfigManager } from './utils/global-config.js';
 import { resolvePath, isPathSafe } from './utils/path.js';
@@ -77,6 +78,33 @@ interface SearchNotesArgs {
   type_filter?: string;
   limit?: number;
   use_regex?: boolean;
+}
+
+interface SearchNotesAdvancedArgs {
+  type?: string;
+  metadata_filters?: Array<{
+    key: string;
+    value: string;
+    operator?: '=' | '!=' | '>' | '<' | '>=' | '<=' | 'LIKE' | 'IN';
+  }>;
+  updated_within?: string;
+  updated_before?: string;
+  created_within?: string;
+  created_before?: string;
+  content_contains?: string;
+  sort?: Array<{
+    field: 'title' | 'type' | 'created' | 'updated' | 'size';
+    order: 'asc' | 'desc';
+  }>;
+  limit?: number;
+  offset?: number;
+}
+
+interface SearchNotesSqlArgs {
+  query: string;
+  params?: any[];
+  limit?: number;
+  timeout?: number;
 }
 
 interface ListNoteTypesArgs {
@@ -198,6 +226,7 @@ export class FlintNoteServer {
   #noteManager!: NoteManager;
   #noteTypeManager!: NoteTypeManager;
   #searchManager!: SearchManager;
+  #hybridSearchManager!: HybridSearchManager;
   #linkManager!: LinkManager;
   #globalConfig: GlobalConfigManager;
   #config: ServerConfig;
@@ -251,7 +280,8 @@ export class FlintNoteServer {
           await this.#workspace.initialize();
         }
 
-        this.#noteManager = new NoteManager(this.#workspace);
+        this.#hybridSearchManager = new HybridSearchManager(this.#workspace.rootPath);
+        this.#noteManager = new NoteManager(this.#workspace, this.#hybridSearchManager);
         this.#noteTypeManager = new NoteTypeManager(this.#workspace);
         this.#searchManager = new SearchManager(this.#workspace);
         this.#linkManager = new LinkManager(this.#workspace, this.#noteManager);
@@ -267,6 +297,22 @@ export class FlintNoteServer {
           console.error('Warning: Failed to rebuild search index on startup:', error);
         }
 
+        // Rebuild hybrid search index
+        try {
+          console.error('Rebuilding hybrid search index on startup...');
+          await this.#hybridSearchManager.rebuildIndex((processed, total) => {
+            if (processed % 10 === 0 || processed === total) {
+              console.error(`Hybrid search index: ${processed}/${total} notes processed`);
+            }
+          });
+          console.error('Hybrid search index rebuilt successfully');
+        } catch (error) {
+          console.error(
+            'Warning: Failed to rebuild hybrid search index on startup:',
+            error
+          );
+        }
+
         console.error(
           `flint-note server initialized successfully with workspace: ${workspacePath}`
         );
@@ -279,7 +325,8 @@ export class FlintNoteServer {
           this.#workspace = new Workspace(currentVault.path);
           await this.#workspace.initialize();
 
-          this.#noteManager = new NoteManager(this.#workspace);
+          this.#hybridSearchManager = new HybridSearchManager(this.#workspace.rootPath);
+          this.#noteManager = new NoteManager(this.#workspace, this.#hybridSearchManager);
           this.#noteTypeManager = new NoteTypeManager(this.#workspace);
           this.#searchManager = new SearchManager(this.#workspace);
           this.#linkManager = new LinkManager(this.#workspace, this.#noteManager);
@@ -293,6 +340,24 @@ export class FlintNoteServer {
             );
           } catch (error) {
             console.error('Warning: Failed to rebuild search index on startup:', error);
+          }
+
+          // Rebuild hybrid search index
+          try {
+            console.error('Rebuilding hybrid search index on startup...');
+            await this.#hybridSearchManager.rebuildIndex((processed, total) => {
+              if (processed % 10 === 0 || processed === total) {
+                console.error(
+                  `Hybrid search index: ${processed}/${total} notes processed`
+                );
+              }
+            });
+            console.error('Hybrid search index rebuilt successfully');
+          } catch (error) {
+            console.error(
+              'Warning: Failed to rebuild hybrid search index on startup:',
+              error
+            );
           }
 
           console.error(
@@ -560,6 +625,120 @@ export class FlintNoteServer {
                 }
               },
               required: []
+            }
+          },
+          {
+            name: 'search_notes_advanced',
+            description:
+              'Advanced search with structured filters for metadata, dates, and content',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                type: {
+                  type: 'string',
+                  description: 'Filter by note type'
+                },
+                metadata_filters: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      key: { type: 'string', description: 'Metadata key to filter on' },
+                      value: { type: 'string', description: 'Value to match' },
+                      operator: {
+                        type: 'string',
+                        enum: ['=', '!=', '>', '<', '>=', '<=', 'LIKE', 'IN'],
+                        default: '=',
+                        description: 'Comparison operator'
+                      }
+                    },
+                    required: ['key', 'value']
+                  },
+                  description: 'Array of metadata filters'
+                },
+                updated_within: {
+                  type: 'string',
+                  description:
+                    'Find notes updated within time period (e.g., "7d", "1w", "2m")'
+                },
+                updated_before: {
+                  type: 'string',
+                  description:
+                    'Find notes updated before time period (e.g., "7d", "1w", "2m")'
+                },
+                created_within: {
+                  type: 'string',
+                  description: 'Find notes created within time period'
+                },
+                created_before: {
+                  type: 'string',
+                  description: 'Find notes created before time period'
+                },
+                content_contains: {
+                  type: 'string',
+                  description: 'Search within note content'
+                },
+                sort: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      field: {
+                        type: 'string',
+                        enum: ['title', 'type', 'created', 'updated', 'size']
+                      },
+                      order: {
+                        type: 'string',
+                        enum: ['asc', 'desc']
+                      }
+                    },
+                    required: ['field', 'order']
+                  },
+                  description: 'Sort order for results'
+                },
+                limit: {
+                  type: 'number',
+                  description: 'Maximum number of results',
+                  default: 50
+                },
+                offset: {
+                  type: 'number',
+                  description: 'Number of results to skip',
+                  default: 0
+                }
+              },
+              required: []
+            }
+          },
+          {
+            name: 'search_notes_sql',
+            description:
+              'Direct SQL search against notes database for maximum flexibility. Only SELECT queries allowed.',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                query: {
+                  type: 'string',
+                  description:
+                    'SQL SELECT query. Tables: notes (id, title, content, type, filename, path, created, updated, size), note_metadata (note_id, key, value, value_type)'
+                },
+                params: {
+                  type: 'array',
+                  items: { type: 'string' },
+                  description: 'Optional parameters for parameterized queries'
+                },
+                limit: {
+                  type: 'number',
+                  description: 'Maximum number of results',
+                  default: 1000
+                },
+                timeout: {
+                  type: 'number',
+                  description: 'Query timeout in milliseconds',
+                  default: 30000
+                }
+              },
+              required: ['query']
             }
           },
           {
@@ -1043,6 +1222,14 @@ export class FlintNoteServer {
             return await this.#handleUpdateNote(args as unknown as UpdateNoteArgs);
           case 'search_notes':
             return await this.#handleSearchNotes(args as unknown as SearchNotesArgs);
+          case 'search_notes_advanced':
+            return await this.#handleSearchNotesAdvanced(
+              args as unknown as SearchNotesAdvancedArgs
+            );
+          case 'search_notes_sql':
+            return await this.#handleSearchNotesSQL(
+              args as unknown as SearchNotesSqlArgs
+            );
           case 'list_note_types':
             return await this.#handleListNoteTypes(args as unknown as ListNoteTypesArgs);
           case 'link_notes':
@@ -1382,6 +1569,40 @@ export class FlintNoteServer {
       args.limit,
       args.use_regex
     );
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify(results, null, 2)
+        }
+      ]
+    };
+  };
+
+  #handleSearchNotesAdvanced = async (args: SearchNotesAdvancedArgs) => {
+    this.#requireWorkspace();
+    if (!this.#hybridSearchManager) {
+      throw new Error('Hybrid search manager not initialized');
+    }
+
+    const results = await this.#hybridSearchManager.searchNotesAdvanced(args);
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify(results, null, 2)
+        }
+      ]
+    };
+  };
+
+  #handleSearchNotesSQL = async (args: SearchNotesSqlArgs) => {
+    this.#requireWorkspace();
+    if (!this.#hybridSearchManager) {
+      throw new Error('Hybrid search manager not initialized');
+    }
+
+    const results = await this.#hybridSearchManager.searchNotesSQL(args);
     return {
       content: [
         {
