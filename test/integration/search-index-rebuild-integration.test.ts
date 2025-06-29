@@ -57,14 +57,14 @@ describe('Search Index Rebuild Integration', () => {
       serverProcess.stderr?.on('data', data => {
         const output = data.toString();
 
-        if (output.includes('Rebuilding search index on startup')) {
+        if (output.includes('Rebuilding hybrid search index on startup')) {
           rebuildMessageSeen = true;
         }
 
-        if (output.includes('Search index rebuilt:')) {
-          const match = output.match(/(\d+) notes indexed/);
+        if (output.includes('Hybrid search index:')) {
+          const match = output.match(/(\d+)\/(\d+) notes processed/);
           if (match) {
-            indexedCount = parseInt(match[1]);
+            indexedCount = parseInt(match[2]); // Use total count
           }
         }
 
@@ -156,10 +156,10 @@ describe('Search Index Rebuild Integration', () => {
       serverProcess.stderr?.on('data', data => {
         const output = data.toString();
 
-        if (output.includes('Search index rebuilt:')) {
-          const match = output.match(/(\d+) notes indexed/);
+        if (output.includes('Hybrid search index:')) {
+          const match = output.match(/(\d+)\/(\d+) notes processed/);
           if (match) {
-            indexedCount = parseInt(match[1]);
+            indexedCount = parseInt(match[2]); // Use total count
           }
         }
 
@@ -259,7 +259,7 @@ describe('Search Index Rebuild Integration', () => {
       secondServerProcess.stderr?.on('data', data => {
         const output = data.toString();
 
-        if (output.includes('Rebuilding search index on startup')) {
+        if (output.includes('Rebuilding hybrid search index on startup')) {
           secondRebuildSeen = true;
         }
 
@@ -315,7 +315,7 @@ describe('Search Index Rebuild Integration', () => {
       serverProcess.stderr?.on('data', data => {
         const output = data.toString();
 
-        if (output.includes('Rebuilding search index on startup')) {
+        if (output.includes('Rebuilding hybrid search index on startup')) {
           rebuildAttempted = true;
         }
 
@@ -384,14 +384,14 @@ describe('Search Index Rebuild Integration', () => {
       serverProcess.stderr?.on('data', data => {
         const output = data.toString();
 
-        if (output.includes('Rebuilding search index on startup')) {
+        if (output.includes('Rebuilding hybrid search index on startup')) {
           rebuildMessageSeen = true;
         }
 
-        if (output.includes('Search index rebuilt:')) {
-          const match = output.match(/(\d+) notes indexed/);
+        if (output.includes('Hybrid search index:')) {
+          const match = output.match(/(\d+)\/(\d+) notes processed/);
           if (match) {
-            indexedCount = parseInt(match[1]);
+            indexedCount = parseInt(match[2]); // Use total count
           }
         }
 
@@ -460,7 +460,7 @@ describe('Search Index Rebuild Integration', () => {
       serverProcess.stderr?.on('data', data => {
         const output = data.toString();
 
-        if (output.includes('Rebuilding search index on startup')) {
+        if (output.includes('Rebuilding hybrid search index on startup')) {
           rebuildSeen = true;
         }
 

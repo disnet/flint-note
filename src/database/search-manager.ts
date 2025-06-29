@@ -99,7 +99,7 @@ export class HybridSearchManager {
     const connection = await this.getConnection();
 
     try {
-      const safeQuery = query ?? '';
+      const safeQuery = (query ?? '').trim();
       let sql: string;
       let params: (string | number)[] = [];
 
@@ -203,13 +203,18 @@ export class HybridSearchManager {
     }
 
     // Check for FTS5 special characters that might cause syntax errors
-    const ftsSpecialChars = /[()@*"'-]/;
-    if (ftsSpecialChars.test(trimmed)) {
+    // Allow * for prefix matching, but escape others
+    const dangerousChars = /[()@"'-]/;
+    if (dangerousChars.test(trimmed)) {
       return null; // Fall back to LIKE search
     }
 
-    // For simple word queries, just return as-is
-    // FTS5 will handle basic text matching
+    // If query doesn't already end with *, add it for prefix matching
+    // This allows partial word matches like "prog" -> "prog*"
+    if (!trimmed.endsWith('*') && trimmed.length >= 3) {
+      return trimmed + '*';
+    }
+
     return trimmed;
   }
 

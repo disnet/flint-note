@@ -430,8 +430,8 @@ export class TestAssertions {
     if (!(noteTypeManager instanceof NoteTypeManager)) {
       throw new Error('NoteTypeManager should be importable and instantiable');
     }
-    if (!(searchManager instanceof SearchManager)) {
-      throw new Error('SearchManager should be importable and instantiable');
+    if (!(searchManager instanceof HybridSearchManager)) {
+      throw new Error('HybridSearchManager should be importable and instantiable');
     }
     if (!(linkManager instanceof LinkManager)) {
       throw new Error('LinkManager should be importable and instantiable');
