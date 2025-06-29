@@ -19,18 +19,18 @@ This directory contains all prompt files for flint-note AI integrations, organiz
 2. Reference **`instructions_comprehensive.md`** for advanced scenarios
 
 ### For Weak/Simple AI Models
-1. **Very Basic Models**: Use **`simple_models_basic.md`** (7-step workflow with agent instructions)
-2. **Moderately Weak Models**: Use **`simple_models_detailed.md`** (detailed procedures with agent instructions)
+1. **Very Basic Models**: Use **`simple_models_basic.md`** (7-step workflow with agent instructions and basic search)
+2. **Moderately Weak Models**: Use **`simple_models_detailed.md`** (detailed procedures with agent instructions and advanced search)
 3. **Training/Validation**: Use **`training_examples.md`** for testing
 
 ## 📊 Model Complexity Guide
 
 | Model Capability | Recommended Prompts | Key Features |
 |-----------------|-------------------|--------------|
-| **GPT-4, Claude 3.5+** | `system_core.md` | Natural conversation, agent instruction checking, batch operations, content hash safety |
-| **GPT-3.5, Claude 3** | `system_core.md` + `instructions_comprehensive.md` | Explicit guidance, mandatory agent instruction checking, batch operations, content hash handling |
-| **Smaller Models** | `simple_models_detailed.md` | Step-by-step procedures, agent instruction workflows, basic batch support, content hash requirements |
-| **Very Basic Models** | `simple_models_basic.md` | Template responses, mandatory agent instruction checking, single operations only, basic content hash safety |
+| **GPT-4, Claude 3.5+** | `system_core.md` | Natural conversation, advanced search mastery, agent instruction checking, batch operations, content hash safety |
+| **GPT-3.5, Claude 3** | `system_core.md` + `instructions_comprehensive.md` | Explicit guidance, advanced search tools, mandatory agent instruction checking, batch operations, content hash handling |
+| **Smaller Models** | `simple_models_detailed.md` | Step-by-step procedures, search guidance, agent instruction workflows, basic batch support, content hash requirements |
+| **Very Basic Models** | `simple_models_basic.md` | Template responses, basic search tools, mandatory agent instruction checking, single operations only, basic content hash safety |
 
 ## 🔄 Integration Workflow
 
@@ -53,7 +53,8 @@ Test error handling and edge cases
 1. Start with appropriate base prompt
 2. Add domain-specific note types and agent instructions
 3. Include relevant metadata schemas
-4. Test with domain-specific scenarios
+4. Configure search strategies for domain-specific discovery
+5. Test with domain-specific scenarios
 
 ## 🧪 Testing and Validation
 
@@ -65,6 +66,8 @@ Every implementation should pass scenarios from `training_examples.md`:
 - ✅ User permission for new note types
 - ✅ Agent instruction following
 - ✅ Error handling and recovery
+- ✅ **Hybrid search tool usage (search_notes, search_notes_advanced, search_notes_sql)**
+- ✅ Search result interpretation and connection suggestions
 - ✅ Batch operations (create/update multiple notes)
 - ✅ Partial failure handling in batch operations
 - ✅ **Content hash safety in update operations**
@@ -75,6 +78,8 @@ Every implementation should pass scenarios from `training_examples.md`:
 - **Models ALWAYS check agent instructions before creating notes**
 - Users give permission before new note types created
 - Agent instructions are followed consistently
+- **Models use appropriate hybrid search tools for discovery and connections**
+- Search results are interpreted correctly and connections suggested
 - Information extraction works accurately
 - Conversations feel natural and helpful
 - Batch operations are used efficiently for multiple notes

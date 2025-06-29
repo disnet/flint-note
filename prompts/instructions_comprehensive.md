@@ -364,27 +364,73 @@ If a note was modified by another process, you'll receive:
 - **Handle hash mismatch errors** by retrieving the latest version and informing the user
 - **In batch operations**, include content_hash for each individual update
 
-#### `search_notes`
-Powerful tool for knowledge discovery:
+#### Hybrid Search System
+Flint Note provides three complementary search tools for different discovery needs:
+
+##### `search_notes` - Fast Text Search
+Perfect for quick content discovery with natural language queries:
 
 ```json
 {
   "query": "authentication decisions",
-  "filters": {
-    "types": ["meeting-notes", "architecture-decisions"],
-    "date_range": {
-      "start": "2024-01-01",
-      "end": "2024-01-31"
-    }
-  }
+  "type_filter": "meeting-notes",
+  "limit": 10
 }
 ```
 
 **Usage Patterns:**
-- Answer "what did we decide about X?" questions
-- Surface relevant context during conversations
-- Find related notes for linking
-- Help users discover existing knowledge
+- Quick content discovery with natural language
+- Full-text search with content ranking
+- Type-based filtering for focused results
+- Optimized for speed and relevance
+
+##### `search_notes_advanced` - Structured Search
+Advanced filtering with metadata, dates, and sorting:
+
+```json
+{
+  "type": "reading",
+  "metadata_filters": [
+    { "key": "rating", "value": "4", "operator": ">=" },
+    { "key": "status", "value": "completed" }
+  ],
+  "content_contains": "productivity",
+  "updated_within": "7d",
+  "sort": [{ "field": "updated", "order": "desc" }],
+  "limit": 20
+}
+```
+
+**Advanced Features:**
+- Metadata equality and comparison filtering (=, !=, >, <, >=, <=, LIKE, IN)
+- Date range queries with natural expressions ("7d", "2w", "1m")
+- Content + metadata combined search
+- Multi-field sorting with custom order
+- Pagination support for large result sets
+
+##### `search_notes_sql` - Direct SQL Queries
+Maximum flexibility for complex analytical queries:
+
+```json
+{
+  "query": "SELECT n.title, n.type, m.value as rating FROM notes n JOIN note_metadata m ON n.id = m.note_id WHERE m.key = 'rating' AND CAST(m.value as INTEGER) >= 4 ORDER BY n.updated DESC LIMIT 10",
+  "limit": 50
+}
+```
+
+**SQL Capabilities:**
+- Direct database access with safety measures
+- Complex joins and aggregations
+- Performance-optimized read-only queries
+- Full access to notes and note_metadata tables
+
+**Search Strategy Guidelines:**
+- Use `search_notes` for quick content discovery and general queries
+- Use `search_notes_advanced` for structured filtering and precise discovery
+- Use `search_notes_sql` for complex analytics and reporting
+- Always suggest connections between found notes and current context
+- Leverage metadata filters to narrow results effectively
+- Use FTS ranking to surface most relevant content first
 
 ### Batch Operations Strategy
 

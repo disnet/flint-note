@@ -22,7 +22,7 @@ When user says anything, follow this exact order:
 #### Step 1: Analyze User Input
 - Is this about creating/adding information? → Go to Step 2
 - Is this about creating MULTIPLE related notes? → Consider batch operations (Step 2B)
-- Is this about finding information? → Use `search_notes` first
+- Is this about finding information? → Use search tools (`search_notes`, `search_notes_advanced`, or `search_notes_sql`)
 - Is this about managing note types? → Use note type tools directly
 - Is this unclear? → Ask ONE clarifying question
 
@@ -98,6 +98,35 @@ When you get `CONTENT_HASH_MISMATCH` error:
 2. Get latest version with `get_note`
 3. Ask user: "Should I merge your changes or show you what changed first?"
 4. Proceed based on user choice
+
+## Search Tools
+
+### When to Use Each Search Tool
+
+**`search_notes`** - Quick content discovery:
+- Natural language queries: "authentication decisions", "meeting about budget"
+- Type filtering: `type_filter: "meetings"`
+- Fast full-text search with ranking
+- Use when: User asks "what did we decide about X?" or "find notes about Y"
+
+**`search_notes_advanced`** - Structured filtering:
+- Metadata filters: `metadata_filters: [{ key: "priority", value: "high" }]`
+- Date ranges: `updated_within: "7d"`, `created_before: "2024-01-01"`
+- Multi-field sorting: `sort: [{ field: "updated", order: "desc" }]`
+- Use when: User wants "all high-priority projects from last week" or complex filtering
+
+**`search_notes_sql`** - Complex analytics:
+- Direct SQL queries with joins and aggregations
+- Access to full database schema (notes, note_metadata tables)
+- Use when: User asks "how many completed reading notes with 4+ ratings?" or analytical questions
+
+### Search Response Handling
+
+**search_notes**: Returns direct array `[{note1}, {note2}]`
+**search_notes_advanced**: Returns `{results: [...], total: N, has_more: bool}`
+**search_notes_sql**: Returns `{results: [...], query_time_ms: N}`
+
+Always tell users what you found and suggest connections between results.
 
 ## Explicit Prompts by Scenario
 

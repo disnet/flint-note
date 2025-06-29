@@ -67,8 +67,9 @@ ESSENTIAL WORKFLOW:
 6. Follow agent_instructions returned from create_note for contextual follow-up
 7. Use batch operations efficiently for creating or updating multiple related notes
 8. **ALWAYS include content_hash when updating notes** - get current version first with get_note
-9. Use update_note_type to refine agent instructions based on user feedback
-10. Populate metadata schemas automatically when possible
+9. Use search tools effectively for discovery and connections
+10. Use update_note_type to refine agent instructions based on user feedback
+11. Populate metadata schemas automatically when possible
 
 **CRITICAL**: NEVER create notes without first checking agent instructions with get_note_type_info
 
@@ -101,6 +102,14 @@ BATCH OPERATIONS:
 - Handle partial failures gracefully - report success/failure counts with specific errors
 - Group related operations for efficiency
 - Provide clear feedback on batch results to users
+
+SEARCH SYSTEM:
+- **search_notes**: Fast full-text search with content ranking and type filtering
+- **search_notes_advanced**: Structured search with metadata filters, date ranges, and sorting
+- **search_notes_sql**: Direct SQL queries for complex analytical searches
+- Always use search to find related notes and suggest connections
+- Leverage metadata filters for precise discovery
+- Use FTS ranking to surface most relevant content
 
 Focus on making note-taking effortless while building a valuable, adaptive knowledge base across multiple organized vaults.
 ```
@@ -227,85 +236,10 @@ Agent: I'll modify your project note instructions to emphasize deadline tracking
        [Updates projects/_description.md accordingly]
 ```
 
-## Content Hash System for Optimistic Locking
-
-Flint Note includes a robust content hash system that prevents conflicts when multiple agents or users modify the same notes. This ensures data integrity and prevents accidental overwrites.
-
-### How It Works
-
-When you retrieve a note, Flint Note calculates a content hash based on the note's current state:
-
-```json
-{
-  "id": "reading/atomic-habits.md",
-  "type": "reading",
-  "title": "Atomic Habits",
-  "content": "# Atomic Habits\n\n## Summary\n...",
-  "content_hash": "a1b2c3d4e5f6...",
-  "metadata": { "author": "James Clear", "rating": 5 },
-  "created": "2024-01-15T10:00:00Z",
-  "updated": "2024-01-15T15:30:00Z"
-}
-```
-
-### Safe Updates
-
-When updating a note, include the `content_hash` to ensure your changes are based on the latest version:
-
-```json
-{
-  "identifier": "reading/atomic-habits.md",
-  "content": "Updated content here...",
-  "content_hash": "a1b2c3d4e5f6...",
-  "metadata": { "rating": 4 }
-}
-```
-
-If someone else modified the note since you retrieved it, you'll get a conflict error with the current hash:
-
-```json
-{
-  "error": "CONTENT_HASH_MISMATCH",
-  "message": "Note was modified by another process",
-  "current_hash": "x7y8z9a1b2c3...",
-  "provided_hash": "a1b2c3d4e5f6..."
-}
-```
-
-### Benefits
-
-- **Prevents data loss**: Ensures updates are always based on the latest version
-- **Multi-agent safety**: Multiple AI agents can work with the same vault safely
-- **Conflict detection**: Immediately alerts when conflicts occur
-- **Optimistic concurrency**: Allows concurrent access with conflict resolution
-
-### Best Practices
-
-- Always include `content_hash` when updating notes
-- Handle hash mismatch errors by retrieving the latest version
-- Use batch operations with content hashes for efficient bulk updates
-- Agent systems automatically manage content hashes for you
-
 ## Configuration
 
 Flint Note automatically manages its configuration and will upgrade older vaults seamlessly. The configuration is stored in `.flint-note/config.yml` in each vault.
 
-### Automatic Configuration Upgrades
-
-When you open an older vault (created before v1.1.0), Flint Note will automatically detect the missing deletion settings and upgrade your configuration:
-
-```
-📝 Upgrading vault configuration with new deletion settings...
-✅ Configuration upgraded successfully
-```
-
-The upgrade:
-- Adds deletion configuration with safe defaults
-- Preserves all your existing settings
-- Updates the configuration version to 1.1.0
-- Saves the upgraded configuration automatically
-
-Your existing notes and note types remain completely unchanged.
 
 ### Configuration Settings
 

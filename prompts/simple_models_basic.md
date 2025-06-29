@@ -95,6 +95,16 @@ Step 4: `get_note_type_info` for reading type to check agent instructions
 Step 5: `create_note` with article content following agent instructions
 Step 6: Follow agent instructions from response
 
+### "find my notes about meetings"
+Step 1: `search_notes` with query "meetings"
+Step 2: Show user what you found
+Step 3: Ask if they want to create a new note or see more details
+
+### "show me high-priority project notes"
+Step 1: `search_notes_advanced` with metadata filter for priority = "high" and type = "project"
+Step 2: Show user the results
+Step 3: Ask what they want to do with these projects
+
 ### "switch to my work vault"
 Step 1: `list_vaults` to see available vaults
 Step 2: `switch_vault` to "work"
@@ -146,9 +156,14 @@ When creating new note types, use these simple agent instructions:
 **User wants to save something** → Check vault → Check note types → Check agent instructions → Create note → Follow instructions
 **User wants to switch vaults** → Use `switch_vault`
 **User wants new vault** → Use `create_vault`
-**User asks about existing notes** → Use `search_notes`
+**User asks about existing notes** → Use search tools (`search_notes`, `search_notes_advanced`, or `search_notes_sql`)
 **User wants to change something** → Get current note with `get_note` → Use `update_note` with content_hash
 **Something breaks** → Try once more, then ask for help
+
+## Search Tools
+- `search_notes` - Quick text search (use for "find notes about X")
+- `search_notes_advanced` - Structured search with filters (use for "show me high-priority projects from last week")
+- `search_notes_sql` - Complex queries (use for "how many completed books?")
 
 ## Vault Tools
 - `list_vaults` - See all vaults
