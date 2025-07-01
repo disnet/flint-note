@@ -463,7 +463,7 @@ describe('Note Type Management Integration', () => {
     test('should update metadata schema', async () => {
       const metadataSchemaFields = [
         {
-          name: 'title',
+          name: 'item_title',
           type: 'string',
           required: true,
           description: 'Title of the item'
@@ -490,10 +490,10 @@ describe('Note Type Management Integration', () => {
           description: 'Associated tags'
         },
         {
-          name: 'created_date',
+          name: 'due_date',
           type: 'date',
           required: false,
-          description: 'Creation date'
+          description: 'Due date for the item'
         },
         {
           name: 'estimated_hours',
@@ -544,7 +544,7 @@ describe('Note Type Management Integration', () => {
         type_name: 'updateable',
         metadata_schema: [
           {
-            name: 'title'
+            name: 'item_title'
             // Missing 'type' field
           }
         ],
@@ -560,7 +560,7 @@ describe('Note Type Management Integration', () => {
         type_name: 'updateable',
         metadata_schema: [
           {
-            name: 'title',
+            name: 'item_title',
             type: 'invalid_type',
             required: true
           }
@@ -580,12 +580,12 @@ describe('Note Type Management Integration', () => {
         type_name: 'updateable',
         metadata_schema: [
           {
-            name: 'title',
+            name: 'item_title',
             type: 'string',
             required: true
           },
           {
-            name: 'title', // Duplicate name
+            name: 'item_title', // Duplicate name
             type: 'string',
             required: false
           }
@@ -923,6 +923,181 @@ describe('Note Type Management Integration', () => {
         3,
         'Should list all concurrent note types'
       );
+    });
+  });
+
+  describe('Protected Field Validation', () => {
+    test('should reject creating note type with protected title field', async () => {
+      const metadataSchema = {
+        fields: [
+          {
+            name: 'title',
+            type: 'string',
+            description: 'Title of the note'
+          },
+          {
+            name: 'status',
+            type: 'string',
+            description: 'Status of the note'
+          }
+        ]
+      };
+
+      const result = await client.callTool('create_note_type', {
+        type_name: 'protected-test',
+        description: 'A test note type with protected field',
+        agent_instructions: ['Test instruction'],
+        metadata_schema: metadataSchema
+      });
+
+      assert.ok(result.isError, 'Should return an error for protected title field');
+      const errorMessage = result.content[0].text;
+      assert.ok(
+        errorMessage.includes('title') &&
+          errorMessage.includes('protected') &&
+          errorMessage.includes('automatically managed'),
+        `Error should mention protected title field, got: ${errorMessage}`
+      );
+    });
+
+    test('should reject creating note type with protected created field', async () => {
+      const metadataSchema = {
+        fields: [
+          {
+            name: 'created',
+            type: 'date',
+            description: 'Creation timestamp'
+          }
+        ]
+      };
+
+      const result = await client.callTool('create_note_type', {
+        type_name: 'protected-created-test',
+        description: 'A test note type with protected created field',
+        metadata_schema: metadataSchema
+      });
+
+      assert.ok(result.isError, 'Should return an error for protected created field');
+      const errorMessage = result.content[0].text;
+      assert.ok(
+        errorMessage.includes('created') &&
+          errorMessage.includes('protected') &&
+          errorMessage.includes('automatically managed'),
+        `Error should mention protected created field, got: ${errorMessage}`
+      );
+    });
+
+    test('should reject updating note type with protected updated field', async () => {
+      // First create a valid note type
+      await client.callTool('create_note_type', {
+        type_name: 'update-test',
+        description: 'A test note type for update validation'
+      });
+
+      // Get the current info to obtain content hash
+      const infoResult = await client.callTool('get_note_type_info', {
+        type_name: 'update-test'
+      });
+      const info = JSON.parse(infoResult.content[0].text);
+
+      const protectedSchema = [
+        {
+          name: 'updated',
+          type: 'date',
+          description: 'Last updated timestamp'
+        },
+        {
+          name: 'status',
+          type: 'string',
+          description: 'Status field'
+        }
+      ];
+
+      const result = await client.callTool('update_note_type', {
+        type_name: 'update-test',
+        metadata_schema: protectedSchema,
+        content_hash: info.content_hash
+      });
+
+      assert.ok(result.isError, 'Should return an error for protected updated field');
+      const errorMessage = result.content[0].text;
+      assert.ok(
+        errorMessage.includes('updated') &&
+          errorMessage.includes('protected') &&
+          errorMessage.includes('automatically managed'),
+        `Error should mention protected updated field, got: ${errorMessage}`
+      );
+    });
+
+    test('should reject updating note type with multiple protected fields', async () => {
+      // First create a valid note type
+      await client.callTool('create_note_type', {
+        type_name: 'multi-protected-test',
+        description: 'A test note type for multi-field validation'
+      });
+
+      // Get the current info to obtain content hash
+      const infoResult = await client.callTool('get_note_type_info', {
+        type_name: 'multi-protected-test'
+      });
+      const info = JSON.parse(infoResult.content[0].text);
+
+      const protectedSchema = [
+        {
+          name: 'filename',
+          type: 'string',
+          description: 'Filename of the note'
+        },
+        {
+          name: 'created',
+          type: 'date',
+          description: 'Creation timestamp'
+        }
+      ];
+
+      const result = await client.callTool('update_note_type', {
+        type_name: 'multi-protected-test',
+        metadata_schema: protectedSchema,
+        content_hash: info.content_hash
+      });
+
+      assert.ok(result.isError, 'Should return an error for multiple protected fields');
+      const errorMessage = result.content[0].text;
+      assert.ok(
+        errorMessage.includes('filename') && errorMessage.includes('protected'),
+        `Error should mention protected fields, got: ${errorMessage}`
+      );
+    });
+
+    test('should allow creating note type with non-protected fields', async () => {
+      const validSchema = {
+        fields: [
+          {
+            name: 'status',
+            type: 'string',
+            description: 'Status of the note',
+            constraints: {
+              options: ['draft', 'published', 'archived']
+            }
+          },
+          {
+            name: 'priority',
+            type: 'number',
+            description: 'Priority level'
+          }
+        ]
+      };
+
+      const result = await client.callTool('create_note_type', {
+        type_name: 'valid-protected-test',
+        description: 'A valid note type without protected fields',
+        metadata_schema: validSchema
+      });
+
+      assert.ok(!result.isError, 'Should not return an error for valid fields');
+      const response = JSON.parse(result.content[0].text);
+      assert.strictEqual(response.success, true);
+      assert.strictEqual(response.type_name, 'valid-protected-test');
     });
   });
 });

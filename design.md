@@ -314,6 +314,7 @@ The flint-note MCP server exposes the following tools and resources:
 | `create_note` | Create one or more notes | Single: `type`, `title`, `content`, `metadata?` OR Batch: `notes` (array) |
 | `get_note` | Retrieve specific note | `identifier` |
 | `update_note` | Update one or more existing notes | Single: `identifier`, `content?`, `metadata?`, `content_hash` OR Batch: `updates` (array) |
+| `rename_note` | Rename note display title while preserving filename/ID | `identifier`, `new_title`, `content_hash`, `update_wikilinks?` |
 | `search_notes` | Search notes by content/type | `query`, `type_filter?`, `limit?`, `use_regex?` |
 | `list_note_types` | List all available note types | none |
 | `link_notes` | Create explicit links between notes | `source`, `target`, `relationship?` |
@@ -523,6 +524,48 @@ The SQLite index is kept in sync with file changes through:
 - **Startup Time**: Fast initialization with incremental index building
 
 This hybrid approach provides agents with unprecedented querying power while maintaining the human-friendly file-based storage that makes notes accessible and portable.
+
+## Unified Naming System
+
+Flint-note implements a clear hierarchy for note naming that eliminates confusion between display names and stable identifiers:
+
+### Naming Hierarchy
+
+1. **Primary Display Name**: The `title` field in YAML frontmatter - this is what users see and what agents can safely rename
+2. **Stable Reference ID**: The `type/filename` format used for linking and internal references - never changes after creation
+3. **Filesystem Name**: The actual file path on disk - managed automatically by the system
+
+### Note Renaming
+
+The `rename_note` tool provides safe title updates:
+
+**Key Features:**
+- Updates only the `title` field in note metadata
+- Preserves the original filename and stable ID
+- Maintains all existing wikilinks and references
+- Includes content hash validation for conflict prevention
+- Optional wikilink display text updates (future enhancement)
+
+**Safety Guarantees:**
+- All existing links continue to work after renaming
+- Search and discovery systems automatically pick up new titles
+- No risk of breaking knowledge graph connections
+- Content hash prevents concurrent edit conflicts
+
+**Usage Pattern:**
+```json
+{
+  "name": "rename_note",
+  "arguments": {
+    "identifier": "projects/website-redesign.md",
+    "new_title": "Website Redesign v2.0 - Mobile First",
+    "content_hash": "sha256:a1b2c3d4e5f6...",
+    "update_wikilinks": false
+  }
+}
+```
+
+This design ensures that note titles can evolve naturally while preserving the stability that makes knowledge graphs reliable.
 
 ## Content Hash System for Optimistic Locking
 

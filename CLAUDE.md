@@ -127,6 +127,12 @@ The system supports multiple vaults. Default vault operations:
 - Always call `get_note` before `update_note` to obtain current hash
 - Supports optimistic locking for concurrent access safety
 
+### Note Renaming
+- Use `rename_note` tool to change note display titles (preserves filenames and links)
+- The `title` field in YAML frontmatter is the user-visible name
+- Filenames remain unchanged to maintain stable wikilink references
+- When asked to rename a note, ALWAYS use `rename_note` instead of `update_note`
+
 ### Metadata Validation
 - Schemas support string, number, boolean, date, array, select field types
 - Constraints include min/max, patterns, required fields, selection options

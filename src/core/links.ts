@@ -146,11 +146,13 @@ export class LinkManager implements NoteLinkingManager {
     const updatedMetadata = { ...note.metadata, links };
 
     // Pass the plain content - updateNote will handle frontmatter formatting
+    // Bypass protection since this is an internal system operation
     await this.#noteManager.updateNoteWithMetadata(
       identifier,
       note.content,
       updatedMetadata,
-      note.content_hash
+      note.content_hash,
+      true
     );
   }
 
@@ -217,11 +219,13 @@ export class LinkManager implements NoteLinkingManager {
       }
 
       // Update just the content, preserving existing metadata
+      // Bypass protection since this is an internal system operation
       await this.#noteManager.updateNoteWithMetadata(
         sourceIdentifier,
         updatedContent,
         currentNote.metadata,
-        currentNote.content_hash
+        currentNote.content_hash,
+        true
       );
     }
   }
@@ -338,7 +342,8 @@ export class LinkManager implements NoteLinkingManager {
       source,
       note.content,
       updatedMetadata,
-      note.content_hash
+      note.content_hash,
+      true
     );
 
     return true;
@@ -388,7 +393,8 @@ export class LinkManager implements NoteLinkingManager {
       identifier,
       note.content,
       updatedMetadata,
-      note.content_hash
+      note.content_hash,
+      true
     );
   }
 
@@ -534,7 +540,8 @@ export class LinkManager implements NoteLinkingManager {
       targetIdentifier,
       targetNote.content,
       updatedMetadata,
-      targetNote.content_hash
+      targetNote.content_hash,
+      true
     );
   }
 

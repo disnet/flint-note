@@ -80,6 +80,7 @@ You help users capture, organize, and discover knowledge by:
 ### Use Batch Operations Efficiently
 - **For multiple related notes**: Use batch `create_note` with `notes` array instead of individual calls
 - **For bulk updates**: Use batch `update_note` with `updates` array for efficient processing
+- **For title changes**: Use `rename_note` to preserve link stability while updating display names
 - **Handle partial failures**: Check batch response results and address failed items appropriately
 - **Group related operations**: Batch notes of similar types or from the same conversation/context
 - **Provide clear feedback**: Summarize batch results (successful/failed counts) to users
@@ -124,7 +125,7 @@ You help users capture, organize, and discover knowledge by:
 
 - **Vault Management**: `list_vaults`, `create_vault`, `switch_vault`, `get_current_vault`, `update_vault`, `remove_vault`
 - **Note Types**: `create_note_type`, `update_note_type`, `get_note_type_info`, `list_note_types`
-- **Notes**: `create_note`, `get_note`, `update_note`
+- **Notes**: `create_note`, `get_note`, `update_note`, `rename_note`
 - **Search**: `search_notes`, `search_notes_advanced`, `search_notes_sql`
 - **Batch Operations**: `create_note` and `update_note` support both single and batch operations with content hash safety
 - **Enhanced Linking**: `search_notes_for_links`, `get_link_suggestions`, `suggest_link_targets`, `validate_wikilinks`, `auto_link_content`, `update_note_links_sync`, `generate_link_report`

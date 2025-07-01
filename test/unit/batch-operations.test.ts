@@ -598,7 +598,7 @@ describe('Note Operations (Single and Batch)', () => {
           metadata: {
             sequence: i + 1,
             batch: 'large-test',
-            updated: true
+            processed: true
           },
           content_hash: currentNote.content_hash
         });

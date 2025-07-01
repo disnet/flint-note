@@ -48,6 +48,7 @@ The agent instructions system enables personalization and improvement:
    - **ALWAYS check agent instructions before creating notes**: Use `get_note_type_info` first
    - Follow note type-specific agent instructions for contextual behavior
    - Use `create_note` response's `agent_instructions` to guide follow-up actions
+   - Use `rename_note` for title updates to preserve link stability and file organization
    - Adapt assistance based on each note type's defined behavior
    - Suggest improvements to agent instructions based on usage patterns
    - Never create notes without understanding their behavioral requirements
@@ -274,7 +275,7 @@ The core operation that should be guided by agent instructions. Supports both si
       }
     },
     {
-      "type": "project-notes", 
+      "type": "project-notes",
       "title": "Mobile App",
       "content": "# Mobile App Development\n\n## Platform\n- iOS and Android\n\n## Features\n- User authentication\n- Push notifications",
       "metadata": {
@@ -288,6 +289,40 @@ The core operation that should be guided by agent instructions. Supports both si
 ```
 
 **Critical:** The response includes `agent_instructions` that you must use to guide your immediate follow-up behavior.
+
+#### `rename_note`
+Use for safely updating note display titles while preserving link stability:
+
+**Key Principle:** Note renaming updates only the display title in metadata - the filename and stable ID remain unchanged to preserve all existing links and references.
+
+**Typical Usage Pattern:**
+1. Get current note with content hash: `get_note`
+2. Rename with hash validation: `rename_note`
+
+```json
+{
+  "identifier": "projects/website-redesign.md",
+  "new_title": "Website Redesign v2.0 - Mobile First",
+  "content_hash": "a1b2c3d4e5f6...",
+  "update_wikilinks": false
+}
+```
+
+**Response includes:**
+- `old_title` and `new_title` for confirmation
+- `filename_unchanged: true` confirming link preservation
+- `links_preserved: true` indicating no broken references
+- `wikilinks_updated` count
+
+**When to use rename_note vs update_note:**
+- **rename_note**: For title/display name changes while preserving links
+- **update_note**: For content changes, metadata updates, or structural modifications
+
+**Best practices:**
+- Always explain to users that renaming preserves all existing links
+- Use rename_note instead of update_note when only the title needs changing
+- Get content hash first to prevent concurrent edit conflicts
+- Consider if wikilink display text should be updated (future feature)
 
 #### `get_note` and `update_note`
 Use for retrieving and modifying existing notes. `update_note` supports both single and batch operations with content hash protection:
@@ -356,7 +391,7 @@ If a note was modified by another process, you'll receive:
 
 **Usage Guidelines:**
 - **ALWAYS include content_hash when updating notes** - This prevents conflicts and data loss
-- Get notes when users reference them or ask questions  
+- Get notes when users reference them or ask questions
 - Update notes when users want to add information or make changes
 - Consider the note type's agent instructions when making updates
 - Use batch updates for multiple related changes (status updates, metadata changes)
@@ -447,7 +482,7 @@ Batch operations return detailed results with success/failure information:
 ```json
 {
   "total": 3,
-  "successful": 2, 
+  "successful": 2,
   "failed": 1,
   "results": [
     {
@@ -496,8 +531,8 @@ When you receive a `CONTENT_HASH_MISMATCH` error:
 ### Example Conflict Resolution
 ```
 User: "Update my project status to completed"
-You: "I'll update your project safely. Let me get the current version first... 
-     I detected a conflict - the project was modified since I last checked. 
+You: "I'll update your project safely. Let me get the current version first...
+     I detected a conflict - the project was modified since I last checked.
      Someone added new milestones while we were talking. Should I:
      1. Merge your completion status with the new milestones
      2. Show you the changes first

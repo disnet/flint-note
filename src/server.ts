@@ -221,6 +221,13 @@ interface BulkDeleteNotesArgs {
   confirm?: boolean;
 }
 
+interface RenameNoteArgs {
+  identifier: string;
+  new_title: string;
+  content_hash: string;
+  update_wikilinks?: boolean;
+}
+
 export class FlintNoteServer {
   #server: Server;
   #workspace!: Workspace;
@@ -1243,6 +1250,35 @@ export class FlintNoteServer {
                 }
               }
             }
+          },
+          {
+            name: 'rename_note',
+            description:
+              'Rename a note by updating its title field (display name). The filename and ID remain unchanged to preserve links.',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                identifier: {
+                  type: 'string',
+                  description: 'Note identifier in format "type/filename" or full path'
+                },
+                new_title: {
+                  type: 'string',
+                  description: 'New display title for the note'
+                },
+                content_hash: {
+                  type: 'string',
+                  description: 'Content hash of the current note for optimistic locking'
+                },
+                update_wikilinks: {
+                  type: 'boolean',
+                  description:
+                    'Whether to update display text in wikilinks that reference this note',
+                  default: false
+                }
+              },
+              required: ['identifier', 'new_title', 'content_hash']
+            }
           }
         ]
       };
@@ -1343,6 +1379,8 @@ export class FlintNoteServer {
             return await this.#handleBulkDeleteNotes(
               args as unknown as BulkDeleteNotesArgs
             );
+          case 'rename_note':
+            return await this.#handleRenameNote(args as unknown as RenameNoteArgs);
 
           default:
             throw new Error(`Unknown tool: ${name}`);
@@ -1713,230 +1751,251 @@ export class FlintNoteServer {
       throw new Error('Server not initialized');
     }
 
-    if (!args.content_hash) {
-      throw new Error('content_hash is required for all note type update operations');
-    }
+    try {
+      if (!args.content_hash) {
+        throw new Error('content_hash is required for all note type update operations');
+      }
 
-    // Validate that at least one field is provided
-    if (
-      args.instructions === undefined &&
-      args.description === undefined &&
-      args.metadata_schema === undefined
-    ) {
-      throw new Error(
-        'At least one field must be provided: instructions, description, or metadata_schema'
+      // Validate that at least one field is provided
+      if (
+        args.instructions === undefined &&
+        args.description === undefined &&
+        args.metadata_schema === undefined
+      ) {
+        throw new Error(
+          'At least one field must be provided: instructions, description, or metadata_schema'
+        );
+      }
+
+      // Get current note type info
+      const currentInfo = await this.#noteTypeManager.getNoteTypeDescription(
+        args.type_name
       );
-    }
 
-    // Get current note type info
-    const currentInfo = await this.#noteTypeManager.getNoteTypeDescription(
-      args.type_name
-    );
+      // Validate content hash to prevent conflicts
+      const currentHashableContent = createNoteTypeHashableContent({
+        description: currentInfo.description,
+        agent_instructions: currentInfo.parsed.agentInstructions.join('\n'),
+        metadata_schema: currentInfo.metadataSchema
+      });
+      const currentHash = generateContentHash(currentHashableContent);
 
-    // Validate content hash to prevent conflicts
-    const currentHashableContent = createNoteTypeHashableContent({
-      description: currentInfo.description,
-      agent_instructions: currentInfo.parsed.agentInstructions.join('\n'),
-      metadata_schema: currentInfo.metadataSchema
-    });
-    const currentHash = generateContentHash(currentHashableContent);
+      if (currentHash !== args.content_hash) {
+        const error = new Error(
+          'Note type definition has been modified since last read. Please fetch the latest version.'
+        ) as Error & {
+          code: string;
+          current_hash: string;
+          provided_hash: string;
+        };
+        error.code = 'content_hash_mismatch';
+        error.current_hash = currentHash;
+        error.provided_hash = args.content_hash;
+        throw error;
+      }
 
-    if (currentHash !== args.content_hash) {
-      const error = new Error(
-        'Note type definition has been modified since last read. Please fetch the latest version.'
-      ) as Error & {
-        code: string;
-        current_hash: string;
-        provided_hash: string;
-      };
-      error.code = 'content_hash_mismatch';
-      error.current_hash = currentHash;
-      error.provided_hash = args.content_hash;
-      throw error;
-    }
+      // Start with current description
+      let updatedDescription = currentInfo.description;
+      const fieldsUpdated: string[] = [];
 
-    // Start with current description
-    let updatedDescription = currentInfo.description;
-    const fieldsUpdated: string[] = [];
+      // Update instructions if provided
+      if (args.instructions) {
+        // Parse instructions from value (can be newline-separated or bullet points)
+        const instructions = args.instructions
+          .split('\n')
+          .map(line => line.trim())
+          .filter(line => line.length > 0)
+          .map(line => (line.startsWith('-') ? line.substring(1).trim() : line))
+          .map(line => `- ${line}`)
+          .join('\n');
 
-    // Update instructions if provided
-    if (args.instructions) {
-      // Parse instructions from value (can be newline-separated or bullet points)
-      const instructions = args.instructions
-        .split('\n')
-        .map(line => line.trim())
-        .filter(line => line.length > 0)
-        .map(line => (line.startsWith('-') ? line.substring(1).trim() : line))
-        .map(line => `- ${line}`)
-        .join('\n');
+        // Use the current description and replace the agent instructions section
+        updatedDescription = updatedDescription.replace(
+          /## Agent Instructions\n[\s\S]*?(?=\n## |$)/,
+          `## Agent Instructions\n${instructions}\n`
+        );
+        fieldsUpdated.push('instructions');
+      }
 
-      // Use the current description and replace the agent instructions section
-      updatedDescription = updatedDescription.replace(
-        /## Agent Instructions\n[\s\S]*?(?=\n## |$)/,
-        `## Agent Instructions\n${instructions}\n`
-      );
-      fieldsUpdated.push('instructions');
-    }
+      // Update description if provided
+      if (args.description) {
+        updatedDescription = this.#noteTypeManager.formatNoteTypeDescription(
+          args.type_name,
+          args.description
+        );
+        fieldsUpdated.push('description');
+      }
 
-    // Update description if provided
-    if (args.description) {
-      updatedDescription = this.#noteTypeManager.formatNoteTypeDescription(
-        args.type_name,
-        args.description
-      );
-      fieldsUpdated.push('description');
-    }
+      // Update metadata schema if provided
+      if (args.metadata_schema) {
+        const fields = args.metadata_schema;
 
-    // Update metadata schema if provided
-    if (args.metadata_schema) {
-      const fields = args.metadata_schema;
-
-      // Validate each field definition
-      for (let i = 0; i < fields.length; i++) {
-        const field = fields[i];
-        if (!field || typeof field !== 'object') {
-          throw new Error(`Field at index ${i} must be an object`);
-        }
-
-        if (!field.name || typeof field.name !== 'string') {
-          throw new Error(`Field at index ${i} must have a valid "name" string`);
-        }
-
-        if (!field.type || typeof field.type !== 'string') {
-          throw new Error(`Field at index ${i} must have a valid "type" string`);
-        }
-
-        const validTypes = ['string', 'number', 'boolean', 'date', 'array', 'select'];
-        if (!validTypes.includes(field.type)) {
-          throw new Error(
-            `Field "${field.name}" has invalid type "${field.type}". Valid types: ${validTypes.join(', ')}`
-          );
-        }
-
-        // Validate constraints if present
-        if (field.constraints) {
-          if (typeof field.constraints !== 'object') {
-            throw new Error(`Field "${field.name}" constraints must be an object`);
+        // Validate each field definition
+        for (let i = 0; i < fields.length; i++) {
+          const field = fields[i];
+          if (!field || typeof field !== 'object') {
+            throw new Error(`Field at index ${i} must be an object`);
           }
 
-          // Validate select field options
-          if (field.type === 'select') {
-            if (!field.constraints.options || !Array.isArray(field.constraints.options)) {
-              throw new Error(
-                `Select field "${field.name}" must have constraints.options array`
-              );
-            }
-            if (field.constraints.options.length === 0) {
-              throw new Error(
-                `Select field "${field.name}" must have at least one option`
-              );
-            }
+          if (!field.name || typeof field.name !== 'string') {
+            throw new Error(`Field at index ${i} must have a valid "name" string`);
           }
 
-          // Validate numeric constraints
-          if (
-            field.constraints.min !== undefined &&
-            typeof field.constraints.min !== 'number'
-          ) {
-            throw new Error(`Field "${field.name}" min constraint must be a number`);
+          if (!field.type || typeof field.type !== 'string') {
+            throw new Error(`Field at index ${i} must have a valid "type" string`);
           }
-          if (
-            field.constraints.max !== undefined &&
-            typeof field.constraints.max !== 'number'
-          ) {
-            throw new Error(`Field "${field.name}" max constraint must be a number`);
-          }
-          if (
-            field.constraints.min !== undefined &&
-            field.constraints.max !== undefined &&
-            field.constraints.min > field.constraints.max
-          ) {
+
+          // Check for protected fields
+          const protectedFields = new Set(['title', 'filename', 'created', 'updated']);
+          if (protectedFields.has(field.name)) {
             throw new Error(
-              `Field "${field.name}" min constraint cannot be greater than max`
+              `Cannot define protected field "${field.name}" in metadata schema. ` +
+                `These fields are automatically managed by the system and cannot be redefined.`
             );
           }
 
-          // Validate pattern constraint
-          if (field.constraints.pattern !== undefined) {
-            if (typeof field.constraints.pattern !== 'string') {
-              throw new Error(
-                `Field "${field.name}" pattern constraint must be a string`
-              );
-            }
-            try {
-              new RegExp(field.constraints.pattern);
-            } catch (regexError) {
-              throw new Error(
-                `Field "${field.name}" pattern constraint is not a valid regex: ${regexError instanceof Error ? regexError.message : 'Unknown regex error'}`
-              );
-            }
+          const validTypes = ['string', 'number', 'boolean', 'date', 'array', 'select'];
+          if (!validTypes.includes(field.type)) {
+            throw new Error(
+              `Field "${field.name}" has invalid type "${field.type}". Valid types: ${validTypes.join(', ')}`
+            );
           }
-        }
 
-        // Validate default values if present
-        if (field.default !== undefined) {
-          const validationError = this.#validateDefaultValue(
-            field.name,
-            field.default,
-            field
-          );
-          if (validationError) {
-            throw new Error(validationError);
-          }
-        }
-      }
+          // Validate constraints if present
+          if (field.constraints) {
+            if (typeof field.constraints !== 'object') {
+              throw new Error(`Field "${field.name}" constraints must be an object`);
+            }
 
-      // Check for duplicate field names
-      const fieldNames = fields.map(f => f.name);
-      const duplicates = fieldNames.filter(
-        (name, index) => fieldNames.indexOf(name) !== index
-      );
-      if (duplicates.length > 0) {
-        throw new Error(`Duplicate field names found: ${duplicates.join(', ')}`);
-      }
-
-      // Create MetadataSchema object and generate the schema section
-      const parsedSchema = { fields };
-      const schemaSection = MetadataSchemaParser.generateSchemaSection(parsedSchema);
-
-      updatedDescription = updatedDescription.replace(
-        /## Metadata Schema\n[\s\S]*$/,
-        schemaSection
-      );
-      fieldsUpdated.push('metadata_schema');
-    }
-
-    // Write the updated description to the file in note type directory
-    const descriptionPath = path.join(
-      this.#workspace.getNoteTypePath(args.type_name),
-      '_description.md'
-    );
-    await fs.writeFile(descriptionPath, updatedDescription, 'utf-8');
-
-    // Get the updated note type info
-    const result = await this.#noteTypeManager.getNoteTypeDescription(args.type_name);
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(
-            {
-              success: true,
-              type_name: args.type_name,
-              fields_updated: fieldsUpdated,
-              updated_info: {
-                name: result.name,
-                purpose: result.parsed.purpose,
-                agent_instructions: result.parsed.agentInstructions
+            // Validate select field options
+            if (field.type === 'select') {
+              if (!field.constraints.options || !Array.isArray(field.constraints.options)) {
+                throw new Error(
+                  `Select field "${field.name}" must have constraints.options array`
+                );
               }
-            },
-            null,
-            2
-          )
+              if (field.constraints.options.length === 0) {
+                throw new Error(
+                  `Select field "${field.name}" must have at least one option`
+                );
+              }
+            }
+
+            // Validate numeric constraints
+            if (
+              field.constraints.min !== undefined &&
+              typeof field.constraints.min !== 'number'
+            ) {
+              throw new Error(`Field "${field.name}" min constraint must be a number`);
+            }
+            if (
+              field.constraints.max !== undefined &&
+              typeof field.constraints.max !== 'number'
+            ) {
+              throw new Error(`Field "${field.name}" max constraint must be a number`);
+            }
+            if (
+              field.constraints.min !== undefined &&
+              field.constraints.max !== undefined &&
+              field.constraints.min > field.constraints.max
+            ) {
+              throw new Error(
+                `Field "${field.name}" min constraint cannot be greater than max`
+              );
+            }
+
+            // Validate pattern constraint
+            if (field.constraints.pattern !== undefined) {
+              if (typeof field.constraints.pattern !== 'string') {
+                throw new Error(
+                  `Field "${field.name}" pattern constraint must be a string`
+                );
+              }
+              try {
+                new RegExp(field.constraints.pattern);
+              } catch (regexError) {
+                throw new Error(
+                  `Field "${field.name}" pattern constraint is not a valid regex: ${regexError instanceof Error ? regexError.message : 'Unknown regex error'}`
+                );
+              }
+            }
+          }
+
+          // Validate default values if present
+          if (field.default !== undefined) {
+            const validationError = this.#validateDefaultValue(
+              field.name,
+              field.default,
+              field
+            );
+            if (validationError) {
+              throw new Error(validationError);
+            }
+          }
         }
-      ]
-    };
+
+        // Check for duplicate field names
+        const fieldNames = fields.map(f => f.name);
+        const duplicates = fieldNames.filter(
+          (name, index) => fieldNames.indexOf(name) !== index
+        );
+        if (duplicates.length > 0) {
+          throw new Error(`Duplicate field names found: ${duplicates.join(', ')}`);
+        }
+
+        // Create MetadataSchema object and generate the schema section
+        const parsedSchema = { fields };
+        const schemaSection = MetadataSchemaParser.generateSchemaSection(parsedSchema);
+
+        updatedDescription = updatedDescription.replace(
+          /## Metadata Schema\n[\s\S]*$/,
+          schemaSection
+        );
+        fieldsUpdated.push('metadata_schema');
+      }
+
+      // Write the updated description to the file in note type directory
+      const descriptionPath = path.join(
+        this.#workspace.getNoteTypePath(args.type_name),
+        '_description.md'
+      );
+      await fs.writeFile(descriptionPath, updatedDescription, 'utf-8');
+
+      // Get the updated note type info
+      const result = await this.#noteTypeManager.getNoteTypeDescription(args.type_name);
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(
+              {
+                success: true,
+                type_name: args.type_name,
+                fields_updated: fieldsUpdated,
+                updated_info: {
+                  name: result.name,
+                  purpose: result.parsed.purpose,
+                  agent_instructions: result.parsed.agentInstructions
+                }
+              },
+              null,
+              2
+            )
+          }
+        ]
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+          }
+        ],
+        isError: true
+      };
+    }
   };
 
   /**
@@ -2844,6 +2903,85 @@ export class FlintNoteServer {
           {
             type: 'text',
             text: `Failed to update vault: ${errorMessage}`
+          }
+        ],
+        isError: true
+      };
+    }
+  };
+
+  #handleRenameNote = async (args: RenameNoteArgs) => {
+    this.#requireWorkspace();
+    if (!this.#noteManager) {
+      throw new Error('Server not initialized');
+    }
+
+    try {
+      // Get the current note to read current metadata
+      const currentNote = await this.#noteManager.getNote(args.identifier);
+      if (!currentNote) {
+        throw new Error(`Note '${args.identifier}' not found`);
+      }
+
+      // Update the title in metadata while preserving all other metadata
+      const updatedMetadata = {
+        ...currentNote.metadata,
+        title: args.new_title
+      };
+
+      // Use the existing updateNoteWithMetadata method with protection bypass for rename
+      const result = await this.#noteManager.updateNoteWithMetadata(
+        args.identifier,
+        currentNote.content, // Keep content unchanged
+        updatedMetadata,
+        args.content_hash,
+        true // Bypass protection for legitimate rename operations
+      );
+
+      // Handle wikilink display text updates if requested
+      let wikilinkMessage = '';
+      const linksUpdated = 0;
+      if (args.update_wikilinks) {
+        // TODO: Implement wikilink updates in a future version
+        wikilinkMessage = '\n\n📝 Wikilink display text updates are not yet implemented.';
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(
+              {
+                success: true,
+                message: `Note renamed successfully${wikilinkMessage}`,
+                old_title: currentNote.title,
+                new_title: args.new_title,
+                identifier: args.identifier,
+                filename_unchanged: true,
+                links_preserved: true,
+                wikilinks_updated: args.update_wikilinks ? linksUpdated : null,
+                result
+              },
+              null,
+              2
+            )
+          }
+        ]
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(
+              {
+                success: false,
+                error: errorMessage
+              },
+              null,
+              2
+            )
           }
         ],
         isError: true

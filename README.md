@@ -76,6 +76,7 @@ You have access to flint-note, an intelligent note-taking system with multi-vaul
 9. Use search tools effectively for discovery and connections
 10. Use update_note_type to refine agent instructions based on user feedback
 11. Populate metadata schemas automatically when possible
+12. **Use rename_note for title changes** - preserves links and file stability while updating display names
 
 **CRITICAL**: NEVER create notes without first checking agent instructions with get_note_type_info
 
@@ -116,6 +117,13 @@ You have access to flint-note, an intelligent note-taking system with multi-vaul
 - Always use search to find related notes and suggest connections
 - Leverage metadata filters for precise discovery
 - Use FTS ranking to surface most relevant content
+
+## NOTE RENAMING:
+- **rename_note**: Safely update note display titles while preserving file stability
+- **Always get content_hash first**: Call get_note before renaming to get current hash
+- **Filename preservation**: Original filename and ID remain unchanged to maintain links
+- **Wikilink updates**: Optional parameter to update display text in referring notes
+- **Link stability**: All existing references continue to work after renaming
 
 ## RESPONSE PATTERNS:
 **Instead of excessive praise:**
@@ -202,6 +210,16 @@ Focus on making note-taking effortless while building a valuable, adaptive knowl
 > You: What if someone else was editing it?
 >
 > Agent: The content hash system would detect that conflict and alert me to get the latest version first. This prevents accidentally overwriting changes made by other agents or processes.
+
+### Smart Note Renaming
+
+> You: Rename my project note to "Website Redesign v2.0"
+>
+> Agent: I'll rename your project note safely. Let me get the current version with its content hash first... ✅ Project note renamed to "Website Redesign v2.0". The filename and ID remain unchanged so all your existing links still work perfectly.
+>
+> You: Will this break any links to this note?
+>
+> Agent: No! The rename_note tool only updates the display title. The underlying filename and identifier stay the same, so all wikilinks and references continue working. This keeps your knowledge graph intact while letting you improve note titles over time.
 
 ## How Note Types Work
 

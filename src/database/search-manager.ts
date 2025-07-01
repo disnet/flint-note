@@ -452,35 +452,63 @@ export class HybridSearchManager {
 
   // Validate SQL query for security
   private validateSQLQuery(query: string): void {
-    const sql = query.toLowerCase().trim();
+    const lowerSql = query.toLowerCase().trim();
 
-    // Only allow SELECT statements
-    if (!sql.startsWith('select')) {
-      throw new Error('Only SELECT queries are allowed');
+    // 1. Only allow SELECT statements
+    if (!lowerSql.startsWith('select')) {
+      throw new Error('SQL Security Error: Only SELECT queries are allowed.');
     }
 
-    // Prevent dangerous operations using word boundaries
-    const forbidden = [
+    // 2. Prohibit dangerous keywords and commands
+    const prohibitedKeywords = [
       'drop',
       'delete',
       'insert',
       'update',
       'alter',
       'create',
+      'attach',
+      'detach',
+      'grant',
+      'revoke',
+      'commit',
+      'rollback',
+      'truncate',
+      'replace',
       'exec',
-      'execute'
+      'execute',
+      'pragma'
     ];
-    for (const keyword of forbidden) {
-      const wordBoundaryRegex = new RegExp(`\\b${keyword}\\b`, 'i');
-      if (wordBoundaryRegex.test(sql)) {
-        throw new Error(`Forbidden SQL keyword: ${keyword}`);
+
+    for (const keyword of prohibitedKeywords) {
+      const regex = new RegExp(`\\b${keyword}\\b`, 'i');
+      if (regex.test(lowerSql)) {
+        throw new Error(`SQL Security Error: Prohibited keyword \'${keyword}\' found.`);
       }
     }
 
-    // Check for excessive complexity (basic heuristic)
-    const subqueryCount = (sql.match(/\bselect\b/g) || []).length;
-    if (subqueryCount > 5) {
-      throw new Error('Query too complex: too many subqueries');
+    // 3. Prevent manipulation of system tables
+    const systemTables = ['sqlite_master', 'sqlite_sequence', 'sqlite_stat1'];
+    for (const table of systemTables) {
+      if (lowerSql.includes(table)) {
+        throw new Error(`SQL Security Error: Direct access to system table \'${table}\' is not allowed.`);
+      }
+    }
+
+    // 4. Limit query complexity (basic heuristics)
+    const subqueryCount = (lowerSql.match(/select/g) || []).length - 1;
+    if (subqueryCount > 3) {
+      throw new Error('SQL Security Error: Query is too complex (too many subqueries). Maximum 3 are allowed.');
+    }
+
+    const joinCount = (lowerSql.match(/join/g) || []).length;
+    if (joinCount > 5) {
+      throw new Error('SQL Security Error: Query is too complex (too many JOINs). Maximum 5 are allowed.');
+    }
+
+    // 5. Disallow comments which can be used to hide malicious code
+    if (lowerSql.includes('--') || lowerSql.includes('/*')) {
+      throw new Error('SQL Security Error: Comments are not allowed in queries.');
     }
   }
 

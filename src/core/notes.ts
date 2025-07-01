@@ -608,7 +608,8 @@ export class NoteManager {
     identifier: string,
     content: string,
     metadata: NoteMetadata,
-    contentHash: string
+    contentHash: string,
+    bypassProtection: boolean = false
   ): Promise<UpdateResult> {
     try {
       if (!contentHash) {
@@ -635,7 +636,12 @@ export class NoteManager {
       // Validate content hash to prevent conflicts
       validateContentHash(parsed.content, contentHash);
 
-      // Merge new metadata with existing metadata
+      // Check for protected fields unless bypassing protection
+      if (!bypassProtection) {
+        this.#validateNoProtectedFields(metadata);
+      }
+
+      // Merge metadata with existing metadata
       const updatedMetadata = {
         ...parsed.metadata,
         ...metadata,
@@ -1193,7 +1199,8 @@ export class NoteManager {
             updateInput.identifier,
             updateInput.content,
             updateInput.metadata as NoteMetadata,
-            updateInput.content_hash
+            updateInput.content_hash,
+            false // Don't bypass protection for batch operations
           );
         } else if (updateInput.content !== undefined) {
           // Content-only update
@@ -1212,7 +1219,8 @@ export class NoteManager {
             updateInput.identifier,
             currentNote.content,
             updateInput.metadata as NoteMetadata,
-            updateInput.content_hash
+            updateInput.content_hash,
+            false // Don't bypass protection for batch operations
           );
         } else {
           throw new Error('Either content or metadata must be provided for update');
@@ -1254,5 +1262,53 @@ export class NoteManager {
       failed,
       results
     };
+  }
+
+  /**
+   * Validate that metadata does not contain protected fields
+   *
+   * This method prevents modification of critical note identification fields
+   * through regular metadata updates. Protected fields include:
+   * - 'title': The display name of the note (use rename_note tool instead)
+   * - 'filename': The file system name (use rename_note tool instead)
+   *
+   * This protection ensures that:
+   * 1. Note renaming goes through the proper rename_note tool which handles wikilink updates
+   * 2. File system consistency is maintained
+   * 3. Note IDs and references remain stable
+   * 4. Users receive clear guidance on the correct tool to use
+   *
+   * @param metadata - The metadata object to validate
+   * @throws Error with descriptive message directing users to rename_note tool if protected fields are present
+   */
+  #validateNoProtectedFields(metadata: NoteMetadata): void {
+    const protectedFields = new Set(['title', 'filename', 'created', 'updated']);
+    const foundProtectedFields: string[] = [];
+
+    for (const [key, value] of Object.entries(metadata)) {
+      if (protectedFields.has(key) && value !== undefined && value !== null) {
+        foundProtectedFields.push(key);
+      }
+    }
+
+    if (foundProtectedFields.length > 0) {
+      const fieldList = foundProtectedFields.join(', ');
+      const titleMessage = foundProtectedFields.some(field =>
+        ['title', 'filename'].includes(field)
+      )
+        ? `Use the 'rename_note' tool to safely update note titles and preserve links. `
+        : '';
+      const timestampMessage = foundProtectedFields.some(field =>
+        ['created', 'updated'].includes(field)
+      )
+        ? `The 'created' and 'updated' fields are handled automatically and cannot be modified manually.`
+        : '';
+
+      throw new Error(
+        `Cannot modify protected field(s): ${fieldList}. ` +
+          titleMessage +
+          timestampMessage
+      );
+    }
   }
 }

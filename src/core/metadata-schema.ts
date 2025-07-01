@@ -63,46 +63,27 @@ export class MetadataSchemaParser {
     const schemaContent = schemaMatch[1];
     const lines = schemaContent.split('\n');
 
-    let currentField: Partial<MetadataFieldDefinition> | null = null;
-
     for (const line of lines) {
       const trimmed = line.trim();
 
-      // Skip empty lines and headers
-      if (!trimmed || trimmed.startsWith('Expected frontmatter')) {
+      if (!trimmed.startsWith('-')) {
         continue;
       }
 
-      // Parse field definition line: "- field_name: description (type, required/optional)"
-      const fieldMatch = trimmed.match(/^-\s+([^:]+):\s*(.+)/);
+      const fieldMatch = trimmed.match(/^-\s+([^:]+):\s*(.*)/);
       if (fieldMatch) {
-        // Save previous field if exists
-        if (currentField && currentField.name) {
-          fields.push(currentField as MetadataFieldDefinition);
-        }
+        const name = fieldMatch[1].trim();
+        const description = fieldMatch[2].trim();
+        const field: Partial<MetadataFieldDefinition> = { name, description };
 
-        const fieldName = fieldMatch[1].trim();
-        const fieldDesc = fieldMatch[2].trim();
-
-        currentField = {
-          name: fieldName,
-          type: 'string', // default
-          required: false,
-          description: fieldDesc
-        };
-
-        // Parse field details from description
-        this.parseFieldDetails(currentField, fieldDesc);
+        this.parseFieldDetails(field, description);
+        fields.push(field as MetadataFieldDefinition);
       }
-    }
-
-    // Add last field
-    if (currentField && currentField.name) {
-      fields.push(currentField as MetadataFieldDefinition);
     }
 
     return { fields };
   }
+
 
   /**
    * Parse field details from description text
@@ -114,6 +95,8 @@ export class MetadataSchemaParser {
     // Check if required
     if (description.includes('(required)') || description.includes('required')) {
       field.required = true;
+    } else {
+      field.required = false;
     }
 
     // Extract type information
@@ -127,6 +110,9 @@ export class MetadataSchemaParser {
       else if (typeInfo.includes('date')) field.type = 'date';
       else if (typeInfo.includes('array')) field.type = 'array';
       else if (typeInfo.includes('select')) field.type = 'select';
+      else field.type = 'string';
+    } else {
+      field.type = 'string';
     }
 
     // Extract constraints
@@ -148,7 +134,7 @@ export class MetadataSchemaParser {
     if (optionsMatch) {
       constraints.options = optionsMatch[1]
         .split(',')
-        .map(opt => opt.trim().replace(/['"]/g, ''));
+        .map(opt => opt.trim().replace(/['|"]/g, ''));
     }
 
     if (Object.keys(constraints).length > 0) {
@@ -169,7 +155,7 @@ export class MetadataSchemaParser {
    * Generate metadata schema section for _description.md
    */
   static generateSchemaSection(schema: MetadataSchema): string {
-    if (schema.fields.length === 0) {
+    if (!schema || !schema.fields || schema.fields.length === 0) {
       return `## Metadata Schema
 Expected frontmatter or metadata fields for this note type:
 - type: Note type (auto-set)
@@ -182,7 +168,7 @@ Expected frontmatter or metadata fields for this note type:
 
     for (const field of schema.fields) {
       const requiredText = field.required ? 'required' : 'optional';
-      const typeText = field.type !== 'string' ? `, ${field.type}` : '';
+      const typeText = field.type && field.type !== 'string' ? `, ${field.type}` : '';
       const constraintTexts: string[] = [];
 
       if (field.constraints) {
@@ -194,7 +180,7 @@ Expected frontmatter or metadata fields for this note type:
           constraintTexts.push(`pattern: "${field.constraints.pattern}"`);
         if (field.constraints.options)
           constraintTexts.push(
-            `options: [${field.constraints.options.map(o => `"${o}"`).join(', ')}]`
+            `options: [${field.constraints.options.map(o => `\"${o}\"`).join(', ')}]`
           );
       }
 
@@ -206,6 +192,40 @@ Expected frontmatter or metadata fields for this note type:
     }
 
     return content;
+  }
+
+  static validateSchema(schema: MetadataSchema): { errors: string[]; warnings: string[] } {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+    const fieldNames = new Set<string>();
+
+    if (!schema || !Array.isArray(schema.fields)) {
+      errors.push('Schema must have a \'fields\' array.');
+      return { errors, warnings };
+    }
+
+    for (const field of schema.fields) {
+      if (!field.name || !field.type) {
+        errors.push(`Field missing required properties \'name\' or \'type\': ${JSON.stringify(field)}`);
+        continue;
+      }
+
+      if (fieldNames.has(field.name)) {
+        errors.push(`Duplicate field name \'${field.name}\' found in schema.`);
+      }
+      fieldNames.add(field.name);
+
+      const validTypes: MetadataFieldType[] = ['string', 'number', 'boolean', 'date', 'array', 'select'];
+      if (!validTypes.includes(field.type)) {
+        errors.push(`Invalid type \'${field.type}\' for field \'${field.name}\'. Valid types are: ${validTypes.join(', ')}`);
+      }
+
+      if (field.type === 'select' && (!field.constraints?.options || field.constraints.options.length === 0)) {
+        warnings.push(`Field \'${field.name}\' is of type \'select\' but has no options defined in constraints.`);
+      }
+    }
+
+    return { errors, warnings };
   }
 }
 
@@ -393,6 +413,46 @@ export class MetadataValidator {
     }
 
     return null;
+  }
+
+  /**
+   * Validate the structure and rules of a metadata schema definition.
+   *
+   * @param schema - The metadata schema to validate.
+   * @returns An object containing lists of errors and warnings.
+   */
+  static validateSchema(schema: MetadataSchema): { errors: string[]; warnings: string[] } {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+    const fieldNames = new Set<string>();
+
+    if (!schema || !Array.isArray(schema.fields)) {
+      errors.push('Schema must have a \'fields\' array.');
+      return { errors, warnings };
+    }
+
+    for (const field of schema.fields) {
+      if (!field.name || !field.type) {
+        errors.push(`Field missing required properties 'name' or 'type': ${JSON.stringify(field)}`);
+        continue;
+      }
+
+      if (fieldNames.has(field.name)) {
+        errors.push(`Duplicate field name '${field.name}' found in schema.`);
+      }
+      fieldNames.add(field.name);
+
+      const validTypes: MetadataFieldType[] = ['string', 'number', 'boolean', 'date', 'array', 'select'];
+      if (!validTypes.includes(field.type)) {
+        errors.push(`Invalid type '${field.type}' for field '${field.name}'. Valid types are: ${validTypes.join(', ')}`);
+      }
+
+      if (field.type === 'select' && (!field.constraints?.options || field.constraints.options.length === 0)) {
+        warnings.push(`Field '${field.name}' is of type 'select' but has no options defined in constraints.`);
+      }
+    }
+
+    return { errors, warnings };
   }
 
   /**

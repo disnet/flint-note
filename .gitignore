@@ -149,3 +149,5 @@ Thumbs.db
 .flint-note/mcp-server.log
 .flint-note/search-index.json
 # Keep config.yml in version control but exclude logs and cache
+
+.claude/

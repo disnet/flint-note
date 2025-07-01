@@ -23,6 +23,7 @@ When user says anything, follow this exact order:
 - Is this about creating/adding information? → Go to Step 2
 - Is this about creating MULTIPLE related notes? → Consider batch operations (Step 2B)
 - Is this about finding information? → Use search tools (`search_notes`, `search_notes_advanced`, or `search_notes_sql`)
+- Is this about renaming a note title? → Use `rename_note` to preserve links and file stability
 - Is this about managing note types? → Use note type tools directly
 - Is this unclear? → Ask ONE clarifying question
 
@@ -58,6 +59,13 @@ For updates, ALWAYS:
 1. Use `get_note` to get current version with `content_hash`
 2. Use `update_note` with the `content_hash` included
 3. Handle hash mismatch errors by getting latest version
+
+**Note Renaming:**
+For title changes only, use `rename_note` instead of `update_note`:
+1. Use `get_note` to get current version with `content_hash`
+2. Use `rename_note` with the `content_hash` included
+3. This preserves the filename and all existing links
+4. Explain to users that links remain unbroken
 
 **Batch Notes:**
 Use `create_note` with `notes` array containing:

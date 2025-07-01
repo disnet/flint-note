@@ -65,6 +65,32 @@ export class NoteTypeManager {
   }
 
   /**
+   * Validate that metadata schema doesn't contain protected fields
+   * @param metadataSchema - The metadata schema to validate
+   * @throws Error if protected fields are found
+   */
+  #validateNoProtectedFieldsInSchema(metadataSchema: MetadataSchema | null): void {
+    if (!metadataSchema || !metadataSchema.fields) return;
+
+    const protectedFields = new Set(['title', 'filename', 'created', 'updated']);
+    const foundProtectedFields: string[] = [];
+
+    for (const field of metadataSchema.fields) {
+      if (protectedFields.has(field.name)) {
+        foundProtectedFields.push(field.name);
+      }
+    }
+
+    if (foundProtectedFields.length > 0) {
+      const fieldList = foundProtectedFields.join(', ');
+      throw new Error(
+        `Cannot define protected field(s) in metadata schema: ${fieldList}. ` +
+          `These fields are automatically managed by the system and cannot be redefined.`
+      );
+    }
+  }
+
+  /**
    * Create a new note type with description
    */
   async createNoteType(
@@ -78,6 +104,9 @@ export class NoteTypeManager {
       if (!this.workspace.isValidNoteTypeName(name)) {
         throw new Error(`Invalid note type name: ${name}`);
       }
+
+      // Validate metadata schema doesn't contain protected fields
+      this.#validateNoProtectedFieldsInSchema(metadataSchema);
 
       // Ensure the note type directory exists
       const typePath = await this.workspace.ensureNoteType(name);
@@ -751,6 +780,7 @@ export class NoteTypeManager {
   async updateMetadataSchema(typeName: string, schema: MetadataSchema): Promise<void> {
     try {
       const _noteType = await this.getNoteTypeDescription(typeName);
+      this.#validateNoProtectedFieldsInSchema(schema);
 
       // Generate new description with updated schema
       const newDescription = this.formatNoteTypeDescription(
@@ -771,6 +801,51 @@ export class NoteTypeManager {
       throw new Error(
         `Failed to update metadata schema for note type '${typeName}': ${errorMessage}`
       );
+    }
+  }
+
+  /**
+   * Update an existing note type
+   */
+  async updateNoteType(
+    typeName: string,
+    updates: {
+      description?: string;
+      instructions?: string[];
+      metadata_schema?: MetadataSchema;
+    }
+  ): Promise<NoteTypeDescription> {
+    try {
+      const noteType = await this.getNoteTypeDescription(typeName);
+
+      const newDescription = updates.description ?? noteType.parsed.purpose;
+      const newInstructions = updates.instructions ?? noteType.parsed.agentInstructions;
+      const newSchema = updates.metadata_schema ?? noteType.metadataSchema;
+
+      const validation = MetadataSchemaParser.validateSchema(newSchema);
+      if (validation.errors.length > 0) {
+        throw new Error(`Invalid metadata schema: ${validation.errors.join(', ')}`);
+      }
+
+      this.#validateNoProtectedFieldsInSchema(newSchema);
+
+      const newContent = this.formatNoteTypeDescription(
+        typeName,
+        newDescription,
+        newInstructions,
+        newSchema
+      );
+
+      const descriptionPath = path.join(
+        this.workspace.getNoteTypePath(typeName),
+        '_description.md'
+      );
+      await fs.writeFile(descriptionPath, newContent, 'utf-8');
+
+      return await this.getNoteTypeDescription(typeName);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      throw new Error(`Failed to update note type '${typeName}': ${errorMessage}`);
     }
   }
 }
