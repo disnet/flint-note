@@ -14,6 +14,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm test` - Run all tests (unit + integration)
 - `npm run test:unit` - Run only unit tests
 - `npm run test:integration` - Run only integration tests
+- `npm run test -- --test-name-pattern="pattern to narrow down tests"` - Run tests matching the provided pattern
 
 ### Code Quality
 - `npm run lint` - Lint TypeScript files with ESLint
@@ -107,7 +108,7 @@ npm run type-check && npm run lint && npm test
 
 ### Working with Vaults
 The system supports multiple vaults. Default vault operations:
-- Configuration in `~/.config/flint-note/` (Unix) or `%APPDATA%\flint-note` (Windows)  
+- Configuration in `~/.config/flint-note/` (Unix) or `%APPDATA%\flint-note` (Windows)
 - Use CLI commands for vault management: `npm run cli -- list`, `npm run cli -- create`, etc.
 
 ### MCP Development

@@ -573,7 +573,15 @@ export class HybridSearchManager {
         metadata[metaRow.key] = _deserializeMetadataValue(
           metaRow.value,
           metaRow.value_type
-        );
+        ) as
+          | string
+          | number
+          | boolean
+          | object
+          | string[]
+          | _NoteLink[]
+          | null
+          | undefined;
       }
 
       // Extract tags from metadata
@@ -862,7 +870,7 @@ export class HybridSearchManager {
   } | null {
     try {
       // Parse frontmatter
-      const frontmatterMatch = content.match(/^---[\s\S]*?---[\s\S]*$/);
+      const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
       const metadata: Record<string, unknown> = {};
       let bodyContent = content;
 
@@ -889,7 +897,18 @@ export class HybridSearchManager {
                     .split(',')
                     .map(v => v.trim().replace(/^["']|["']$/g, ''));
                 } else {
-                  metadata[key] = cleanValue;
+                  // Handle numbers
+                  if (/^\d+(\.\d+)?$/.test(cleanValue)) {
+                    metadata[key] = parseFloat(cleanValue);
+                  } else if (cleanValue === 'true') {
+                    metadata[key] = true;
+                  } else if (cleanValue === 'false') {
+                    metadata[key] = false;
+                  } else if (cleanValue === 'null') {
+                    metadata[key] = null;
+                  } else {
+                    metadata[key] = cleanValue;
+                  }
                 }
               }
             }

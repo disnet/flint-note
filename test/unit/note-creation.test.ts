@@ -15,6 +15,7 @@ import {
   TEST_CONSTANTS,
   type TestContext
 } from './helpers/test-utils.ts';
+import type { NoteInfo } from '../../src/types/index.js';
 
 describe('Note Creation', () => {
   let context: TestContext;
@@ -434,7 +435,7 @@ This has malformed frontmatter.`;
 
   describe('Concurrent Operations', () => {
     test('should handle concurrent note creation', async () => {
-      const promises = [];
+      const promises: Promise<NoteInfo>[] = [];
       const noteCount = 5;
 
       // Create multiple notes concurrently
