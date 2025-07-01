@@ -84,7 +84,6 @@ export class MetadataSchemaParser {
     return { fields };
   }
 
-
   /**
    * Parse field details from description text
    */
@@ -180,7 +179,7 @@ Expected frontmatter or metadata fields for this note type:
           constraintTexts.push(`pattern: "${field.constraints.pattern}"`);
         if (field.constraints.options)
           constraintTexts.push(
-            `options: [${field.constraints.options.map(o => `\"${o}\"`).join(', ')}]`
+            `options: [${field.constraints.options.map(o => `"${o}"`).join(', ')}]`
           );
       }
 
@@ -194,34 +193,53 @@ Expected frontmatter or metadata fields for this note type:
     return content;
   }
 
-  static validateSchema(schema: MetadataSchema): { errors: string[]; warnings: string[] } {
+  static validateSchema(schema: MetadataSchema): {
+    errors: string[];
+    warnings: string[];
+  } {
     const errors: string[] = [];
     const warnings: string[] = [];
     const fieldNames = new Set<string>();
 
     if (!schema || !Array.isArray(schema.fields)) {
-      errors.push('Schema must have a \'fields\' array.');
+      errors.push('Schema must have a "fields" array.');
       return { errors, warnings };
     }
 
     for (const field of schema.fields) {
       if (!field.name || !field.type) {
-        errors.push(`Field missing required properties \'name\' or \'type\': ${JSON.stringify(field)}`);
+        errors.push(
+          `Field missing required properties 'name' or 'type': ${JSON.stringify(field)}`
+        );
         continue;
       }
 
       if (fieldNames.has(field.name)) {
-        errors.push(`Duplicate field name \'${field.name}\' found in schema.`);
+        errors.push(`Duplicate field name '${field.name}' found in schema.`);
       }
       fieldNames.add(field.name);
 
-      const validTypes: MetadataFieldType[] = ['string', 'number', 'boolean', 'date', 'array', 'select'];
+      const validTypes: MetadataFieldType[] = [
+        'string',
+        'number',
+        'boolean',
+        'date',
+        'array',
+        'select'
+      ];
       if (!validTypes.includes(field.type)) {
-        errors.push(`Invalid type \'${field.type}\' for field \'${field.name}\'. Valid types are: ${validTypes.join(', ')}`);
+        errors.push(
+          `Invalid type '${field.type}' for field '${field.name}'. Valid types are: ${validTypes.join(', ')}`
+        );
       }
 
-      if (field.type === 'select' && (!field.constraints?.options || field.constraints.options.length === 0)) {
-        warnings.push(`Field \'${field.name}\' is of type \'select\' but has no options defined in constraints.`);
+      if (
+        field.type === 'select' &&
+        (!field.constraints?.options || field.constraints.options.length === 0)
+      ) {
+        warnings.push(
+          `Field '${field.name}' is of type 'select' but has no options defined in constraints.`
+        );
       }
     }
 
@@ -421,19 +439,24 @@ export class MetadataValidator {
    * @param schema - The metadata schema to validate.
    * @returns An object containing lists of errors and warnings.
    */
-  static validateSchema(schema: MetadataSchema): { errors: string[]; warnings: string[] } {
+  static validateSchema(schema: MetadataSchema): {
+    errors: string[];
+    warnings: string[];
+  } {
     const errors: string[] = [];
     const warnings: string[] = [];
     const fieldNames = new Set<string>();
 
     if (!schema || !Array.isArray(schema.fields)) {
-      errors.push('Schema must have a \'fields\' array.');
+      errors.push("Schema must have a 'fields' array.");
       return { errors, warnings };
     }
 
     for (const field of schema.fields) {
       if (!field.name || !field.type) {
-        errors.push(`Field missing required properties 'name' or 'type': ${JSON.stringify(field)}`);
+        errors.push(
+          `Field missing required properties 'name' or 'type': ${JSON.stringify(field)}`
+        );
         continue;
       }
 
@@ -442,13 +465,27 @@ export class MetadataValidator {
       }
       fieldNames.add(field.name);
 
-      const validTypes: MetadataFieldType[] = ['string', 'number', 'boolean', 'date', 'array', 'select'];
+      const validTypes: MetadataFieldType[] = [
+        'string',
+        'number',
+        'boolean',
+        'date',
+        'array',
+        'select'
+      ];
       if (!validTypes.includes(field.type)) {
-        errors.push(`Invalid type '${field.type}' for field '${field.name}'. Valid types are: ${validTypes.join(', ')}`);
+        errors.push(
+          `Invalid type '${field.type}' for field '${field.name}'. Valid types are: ${validTypes.join(', ')}`
+        );
       }
 
-      if (field.type === 'select' && (!field.constraints?.options || field.constraints.options.length === 0)) {
-        warnings.push(`Field '${field.name}' is of type 'select' but has no options defined in constraints.`);
+      if (
+        field.type === 'select' &&
+        (!field.constraints?.options || field.constraints.options.length === 0)
+      ) {
+        warnings.push(
+          `Field '${field.name}' is of type 'select' but has no options defined in constraints.`
+        );
       }
     }
 

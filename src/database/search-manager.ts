@@ -5,9 +5,9 @@ import {
   MetadataRow,
   SearchRow,
   serializeMetadataValue,
-  deserializeMetadataValue
+  deserializeMetadataValue as _deserializeMetadataValue
 } from './schema.js';
-import { NoteMetadata, NoteLink } from '../types/index.js';
+import { NoteMetadata, NoteLink as _NoteLink } from '../types/index.js';
 import fs from 'fs/promises';
 import path from 'path';
 import { createHash } from 'crypto';
@@ -160,8 +160,7 @@ export class HybridSearchManager {
             SELECT n.*,
                    1.0 as score
             FROM notes n
-            WHERE (n.title LIKE ? OR n.content LIKE ?)
-            ${typeFilter ? 'AND n.type = ?' : ''}
+            WHERE (n.title LIKE ? OR n.content LIKE ?)${typeFilter ? 'AND n.type = ?' : ''}
             ORDER BY n.updated DESC
             LIMIT ?
           `;
@@ -176,8 +175,7 @@ export class HybridSearchManager {
                    snippet(notes_fts, 2, '<mark>', '</mark>', '...', 32) as snippet
             FROM notes_fts fts
             JOIN notes n ON n.id = fts.id
-            WHERE notes_fts MATCH ?
-            ${typeFilter ? 'AND n.type = ?' : ''}
+            WHERE notes_fts MATCH ?${typeFilter ? 'AND n.type = ?' : ''}
             ORDER BY fts.rank
             LIMIT ?
           `;
@@ -483,7 +481,7 @@ export class HybridSearchManager {
     for (const keyword of prohibitedKeywords) {
       const regex = new RegExp(`\\b${keyword}\\b`, 'i');
       if (regex.test(lowerSql)) {
-        throw new Error(`SQL Security Error: Prohibited keyword \'${keyword}\' found.`);
+        throw new Error(`SQL Security Error: Prohibited keyword '${keyword}' found.`);
       }
     }
 
@@ -491,19 +489,25 @@ export class HybridSearchManager {
     const systemTables = ['sqlite_master', 'sqlite_sequence', 'sqlite_stat1'];
     for (const table of systemTables) {
       if (lowerSql.includes(table)) {
-        throw new Error(`SQL Security Error: Direct access to system table \'${table}\' is not allowed.`);
+        throw new Error(
+          `SQL Security Error: Direct access to system table '${table}' is not allowed.`
+        );
       }
     }
 
     // 4. Limit query complexity (basic heuristics)
     const subqueryCount = (lowerSql.match(/select/g) || []).length - 1;
     if (subqueryCount > 3) {
-      throw new Error('SQL Security Error: Query is too complex (too many subqueries). Maximum 3 are allowed.');
+      throw new Error(
+        'SQL Security Error: Query is too complex (too many subqueries). Maximum 3 are allowed.'
+      );
     }
 
     const joinCount = (lowerSql.match(/join/g) || []).length;
     if (joinCount > 5) {
-      throw new Error('SQL Security Error: Query is too complex (too many JOINs). Maximum 5 are allowed.');
+      throw new Error(
+        'SQL Security Error: Query is too complex (too many JOINs). Maximum 5 are allowed.'
+      );
     }
 
     // 5. Disallow comments which can be used to hide malicious code
@@ -566,18 +570,10 @@ export class HybridSearchManager {
 
       // Add custom metadata
       for (const metaRow of metadataRows) {
-        metadata[metaRow.key] = deserializeMetadataValue(
+        metadata[metaRow.key] = _deserializeMetadataValue(
           metaRow.value,
           metaRow.value_type
-        ) as
-          | string
-          | number
-          | boolean
-          | object
-          | string[]
-          | NoteLink[]
-          | null
-          | undefined;
+        );
       }
 
       // Extract tags from metadata
@@ -866,7 +862,7 @@ export class HybridSearchManager {
   } | null {
     try {
       // Parse frontmatter
-      const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
+      const frontmatterMatch = content.match(/^---[\s\S]*?---[\s\S]*$/);
       const metadata: Record<string, unknown> = {};
       let bodyContent = content;
 
