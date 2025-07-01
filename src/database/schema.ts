@@ -203,6 +203,35 @@ export class DatabaseManager {
         )
       `);
 
+      // Create internal links table (wikilinks)
+      await connection.run(`
+        CREATE TABLE IF NOT EXISTS note_links (
+          id INTEGER PRIMARY KEY,
+          source_note_id TEXT NOT NULL,
+          target_note_id TEXT,
+          target_title TEXT NOT NULL,
+          link_text TEXT,
+          line_number INTEGER,
+          created DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (source_note_id) REFERENCES notes(id) ON DELETE CASCADE,
+          FOREIGN KEY (target_note_id) REFERENCES notes(id) ON DELETE SET NULL
+        )
+      `);
+
+      // Create external links table
+      await connection.run(`
+        CREATE TABLE IF NOT EXISTS external_links (
+          id INTEGER PRIMARY KEY,
+          note_id TEXT NOT NULL,
+          url TEXT NOT NULL,
+          title TEXT,
+          line_number INTEGER,
+          link_type TEXT DEFAULT 'url' CHECK (link_type IN ('url', 'image', 'embed')),
+          created DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
+        )
+      `);
+
       // Create indexes for performance
       await connection.run('CREATE INDEX IF NOT EXISTS idx_notes_type ON notes(type)');
       await connection.run(
@@ -220,6 +249,13 @@ export class DatabaseManager {
       await connection.run(
         'CREATE INDEX IF NOT EXISTS idx_metadata_note_id ON note_metadata(note_id)'
       );
+
+      // Create indexes for link tables
+      await connection.run('CREATE INDEX IF NOT EXISTS idx_note_links_source ON note_links(source_note_id)');
+      await connection.run('CREATE INDEX IF NOT EXISTS idx_note_links_target ON note_links(target_note_id)');
+      await connection.run('CREATE INDEX IF NOT EXISTS idx_note_links_target_title ON note_links(target_title)');
+      await connection.run('CREATE INDEX IF NOT EXISTS idx_external_links_note ON external_links(note_id)');
+      await connection.run('CREATE INDEX IF NOT EXISTS idx_external_links_url ON external_links(url)');
 
       // Create triggers to keep FTS table in sync
       await connection.run(`
@@ -259,6 +295,8 @@ export class DatabaseManager {
     try {
       // Use more efficient bulk delete with transaction
       await connection.run('BEGIN TRANSACTION');
+      await connection.run('DELETE FROM external_links');
+      await connection.run('DELETE FROM note_links');
       await connection.run('DELETE FROM note_metadata');
       await connection.run('DELETE FROM notes');
       await connection.run('DELETE FROM notes_fts');
@@ -310,6 +348,26 @@ export interface SearchRow extends NoteRow {
   rank?: number;
   snippet?: string;
   score?: number;
+}
+
+export interface NoteLinkRow {
+  id: number;
+  source_note_id: string;
+  target_note_id: string | null;
+  target_title: string;
+  link_text: string | null;
+  line_number: number | null;
+  created: string;
+}
+
+export interface ExternalLinkRow {
+  id: number;
+  note_id: string;
+  url: string;
+  title: string | null;
+  line_number: number | null;
+  link_type: 'url' | 'image' | 'embed';
+  created: string;
 }
 
 // Helper functions for metadata type conversion

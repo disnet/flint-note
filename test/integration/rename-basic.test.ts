@@ -219,10 +219,8 @@ describe('Rename Operations Integration', () => {
 
     const renameData = JSON.parse(renameResult.content[0].text);
     assert.ok(renameData.success);
-    // Wikilink updates are not yet implemented, so it should be 0
-    assert.strictEqual(renameData.wikilinks_updated, 0);
-    // But the message should indicate this feature is not implemented
-    assert.ok(renameData.message.includes('not yet implemented'));
+    // Broken links resolved should be 0 since no broken links exist
+    assert.strictEqual(renameData.broken_links_resolved, 0);
   });
 
   test('should require content_hash for rename', async () => {

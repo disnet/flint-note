@@ -18,7 +18,9 @@ import { Workspace } from './core/workspace.js';
 import { NoteManager } from './core/notes.js';
 import { NoteTypeManager } from './core/note-types.js';
 import { HybridSearchManager } from './database/search-manager.js';
+import type { NoteRow } from './database/schema.js';
 import { LinkManager } from './core/links.js';
+import { LinkExtractor } from './core/link-extractor.js';
 import { GlobalConfigManager } from './utils/global-config.js';
 import { resolvePath, isPathSafe } from './utils/path.js';
 import type { LinkRelationship, NoteMetadata } from './types/index.js';
@@ -1279,6 +1281,85 @@ export class FlintNoteServer {
               },
               required: ['identifier', 'new_title', 'content_hash']
             }
+          },
+          {
+            name: 'get_note_links',
+            description: 'Get all links for a specific note (incoming, outgoing internal, and external)',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                identifier: {
+                  type: 'string',
+                  description: 'Note identifier (type/filename format)'
+                }
+              },
+              required: ['identifier']
+            }
+          },
+          {
+            name: 'get_backlinks',
+            description: 'Get all notes that link to the specified note',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                identifier: {
+                  type: 'string',
+                  description: 'Note identifier (type/filename format)'
+                }
+              },
+              required: ['identifier']
+            }
+          },
+          {
+            name: 'find_broken_links',
+            description: 'Find all broken wikilinks (links to non-existent notes)',
+            inputSchema: {
+              type: 'object',
+              properties: {},
+              required: []
+            }
+          },
+          {
+            name: 'search_by_links',
+            description: 'Search for notes based on their link relationships',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                has_links_to: {
+                  type: 'array',
+                  items: { type: 'string' },
+                  description: 'Find notes that link to any of these notes'
+                },
+                linked_from: {
+                  type: 'array',
+                  items: { type: 'string' },
+                  description: 'Find notes that are linked from any of these notes'
+                },
+                external_domains: {
+                  type: 'array',
+                  items: { type: 'string' },
+                  description: 'Find notes with external links to these domains'
+                },
+                broken_links: {
+                  type: 'boolean',
+                  description: 'Find notes with broken internal links'
+                }
+              }
+            }
+          },
+          {
+            name: 'migrate_links',
+            description: 'Scan all existing notes and populate the link tables (one-time migration)',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                force: {
+                  type: 'boolean',
+                  description: 'Force migration even if link tables already contain data',
+                  default: false
+                }
+              }
+            }
           }
         ]
       };
@@ -1381,6 +1462,26 @@ export class FlintNoteServer {
             );
           case 'rename_note':
             return await this.#handleRenameNote(args as unknown as RenameNoteArgs);
+
+          case 'get_note_links':
+            return await this.#handleGetNoteLinks(args as unknown as { identifier: string });
+
+          case 'get_backlinks':
+            return await this.#handleGetBacklinks(args as unknown as { identifier: string });
+
+          case 'find_broken_links':
+            return await this.#handleFindBrokenLinks();
+
+          case 'search_by_links':
+            return await this.#handleSearchByLinks(args as unknown as {
+              has_links_to?: string[];
+              linked_from?: string[];
+              external_domains?: string[];
+              broken_links?: boolean;
+            });
+
+          case 'migrate_links':
+            return await this.#handleMigrateLinks(args as unknown as { force?: boolean });
 
           default:
             throw new Error(`Unknown tool: ${name}`);
@@ -2938,12 +3039,14 @@ export class FlintNoteServer {
         true // Bypass protection for legitimate rename operations
       );
 
-      // Handle wikilink display text updates if requested
+      // Update broken links that might now be resolved due to the new title
+      const db = await this.#hybridSearchManager.getDatabaseConnection();
+      const noteId = this.#generateNoteIdFromIdentifier(args.identifier);
+      const linksUpdated = await LinkExtractor.updateBrokenLinks(noteId, args.new_title, db);
+      
       let wikilinkMessage = '';
-      const linksUpdated = 0;
-      if (args.update_wikilinks) {
-        // TODO: Implement wikilink updates in a future version
-        wikilinkMessage = '\n\n📝 Wikilink display text updates are not yet implemented.';
+      if (linksUpdated > 0) {
+        wikilinkMessage = `\n\n🔗 Updated ${linksUpdated} broken links that now resolve to this note.`;
       }
 
       return {
@@ -2959,7 +3062,7 @@ export class FlintNoteServer {
                 identifier: args.identifier,
                 filename_unchanged: true,
                 links_preserved: true,
-                wikilinks_updated: args.update_wikilinks ? linksUpdated : null,
+                broken_links_resolved: linksUpdated,
                 result
               },
               null,
@@ -2987,5 +3090,340 @@ export class FlintNoteServer {
         isError: true
       };
     }
+  };
+
+  #handleGetNoteLinks = async (args: { identifier: string }) => {
+    try {
+      const db = await this.#hybridSearchManager.getDatabaseConnection();
+      const noteId = this.#generateNoteIdFromIdentifier(args.identifier);
+      
+      // Check if note exists
+      const note = await db.get('SELECT id FROM notes WHERE id = ?', [noteId]);
+      if (!note) {
+        throw new Error(`Note not found: ${args.identifier}`);
+      }
+      
+      const links = await LinkExtractor.getLinksForNote(noteId, db);
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(
+              {
+                success: true,
+                note_id: noteId,
+                links: {
+                  outgoing_internal: links.outgoing_internal,
+                  outgoing_external: links.outgoing_external,
+                  incoming: links.incoming
+                }
+              },
+              null,
+              2
+            )
+          }
+        ]
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(
+              {
+                success: false,
+                error: errorMessage
+              },
+              null,
+              2
+            )
+          }
+        ],
+        isError: true
+      };
+    }
+  };
+
+  #handleGetBacklinks = async (args: { identifier: string }) => {
+    try {
+      const db = await this.#hybridSearchManager.getDatabaseConnection();
+      const noteId = this.#generateNoteIdFromIdentifier(args.identifier);
+      
+      // Check if note exists
+      const note = await db.get('SELECT id FROM notes WHERE id = ?', [noteId]);
+      if (!note) {
+        throw new Error(`Note not found: ${args.identifier}`);
+      }
+      
+      const backlinks = await LinkExtractor.getBacklinks(noteId, db);
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(
+              {
+                success: true,
+                note_id: noteId,
+                backlinks: backlinks
+              },
+              null,
+              2
+            )
+          }
+        ]
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(
+              {
+                success: false,
+                error: errorMessage
+              },
+              null,
+              2
+            )
+          }
+        ],
+        isError: true
+      };
+    }
+  };
+
+  #handleFindBrokenLinks = async () => {
+    try {
+      const db = await this.#hybridSearchManager.getDatabaseConnection();
+      const brokenLinks = await LinkExtractor.findBrokenLinks(db);
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(
+              {
+                success: true,
+                broken_links: brokenLinks,
+                count: brokenLinks.length
+              },
+              null,
+              2
+            )
+          }
+        ]
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(
+              {
+                success: false,
+                error: errorMessage
+              },
+              null,
+              2
+            )
+          }
+        ],
+        isError: true
+      };
+    }
+  };
+
+  #handleSearchByLinks = async (args: {
+    has_links_to?: string[];
+    linked_from?: string[];
+    external_domains?: string[];
+    broken_links?: boolean;
+  }) => {
+    try {
+      const db = await this.#hybridSearchManager.getDatabaseConnection();
+      let notes: NoteRow[] = [];
+
+      // Handle different search criteria
+      if (args.has_links_to && args.has_links_to.length > 0) {
+        // Find notes that link to any of the specified notes
+        const targetIds = args.has_links_to.map(id => this.#generateNoteIdFromIdentifier(id));
+        const placeholders = targetIds.map(() => '?').join(',');
+        notes = await db.all(
+          `SELECT DISTINCT n.* FROM notes n 
+           INNER JOIN note_links nl ON n.id = nl.source_note_id 
+           WHERE nl.target_note_id IN (${placeholders})`,
+          targetIds
+        );
+      } else if (args.linked_from && args.linked_from.length > 0) {
+        // Find notes that are linked from any of the specified notes
+        const sourceIds = args.linked_from.map(id => this.#generateNoteIdFromIdentifier(id));
+        const placeholders = sourceIds.map(() => '?').join(',');
+        notes = await db.all(
+          `SELECT DISTINCT n.* FROM notes n 
+           INNER JOIN note_links nl ON n.id = nl.target_note_id 
+           WHERE nl.source_note_id IN (${placeholders})`,
+          sourceIds
+        );
+      } else if (args.external_domains && args.external_domains.length > 0) {
+        // Find notes with external links to specified domains
+        const domainConditions = args.external_domains.map(() => 'el.url LIKE ?').join(' OR ');
+        const domainParams = args.external_domains.map(domain => `%${domain}%`);
+        notes = await db.all(
+          `SELECT DISTINCT n.* FROM notes n 
+           INNER JOIN external_links el ON n.id = el.note_id 
+           WHERE ${domainConditions}`,
+          domainParams
+        );
+      } else if (args.broken_links) {
+        // Find notes with broken internal links
+        notes = await db.all(
+          `SELECT DISTINCT n.* FROM notes n 
+           INNER JOIN note_links nl ON n.id = nl.source_note_id 
+           WHERE nl.target_note_id IS NULL`
+        );
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(
+              {
+                success: true,
+                notes: notes,
+                count: notes.length
+              },
+              null,
+              2
+            )
+          }
+        ]
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(
+              {
+                success: false,
+                error: errorMessage
+              },
+              null,
+              2
+            )
+          }
+        ],
+        isError: true
+      };
+    }
+  };
+
+  #handleMigrateLinks = async (args: { force?: boolean }) => {
+    try {
+      const db = await this.#hybridSearchManager.getDatabaseConnection();
+      
+      // Check if migration is needed
+      if (!args.force) {
+        const existingLinks = await db.get<{ count: number }>('SELECT COUNT(*) as count FROM note_links');
+        if (existingLinks && existingLinks.count > 0) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify(
+                  {
+                    success: false,
+                    message: 'Link tables already contain data. Use force=true to migrate anyway.',
+                    existing_links: existingLinks.count
+                  },
+                  null,
+                  2
+                )
+              }
+            ]
+          };
+        }
+      }
+
+      // Get all notes from the database
+      const notes = await db.all<{ id: string; content: string }>('SELECT id, content FROM notes');
+      let processedCount = 0;
+      let errorCount = 0;
+      const errors: string[] = [];
+
+      for (const note of notes) {
+        try {
+          // Extract links from note content
+          const extractionResult = LinkExtractor.extractLinks(note.content);
+          
+          // Store the extracted links
+          await LinkExtractor.storeLinks(note.id, extractionResult, db);
+          processedCount++;
+        } catch (error) {
+          errorCount++;
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          errors.push(`${note.id}: ${errorMessage}`);
+        }
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(
+              {
+                success: true,
+                message: 'Link migration completed',
+                total_notes: notes.length,
+                processed: processedCount,
+                errors: errorCount,
+                error_details: errors.length > 0 ? errors.slice(0, 10) : undefined // Limit error details to first 10
+              },
+              null,
+              2
+            )
+          }
+        ]
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(
+              {
+                success: false,
+                error: errorMessage
+              },
+              null,
+              2
+            )
+          }
+        ],
+        isError: true
+      };
+    }
+  };
+
+  /**
+   * Helper method to generate note ID from identifier
+   */
+  #generateNoteIdFromIdentifier(identifier: string): string {
+    // Check if identifier is already in type/filename format
+    if (identifier.includes('/')) {
+      return identifier;
+    }
+
+    // If it's just a filename, we need to find the note and get its type
+    // For now, we'll assume it's in the format we expect
+    return identifier;
   };
 }
