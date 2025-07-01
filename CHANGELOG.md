@@ -5,15 +5,8 @@ All notable changes to this project will be documented in this file.
 ## 0.4.2
 
 ### Added
+- Added `rename_note` tool for safe title changes
 - Protection against title/filename modifications via `update_note` metadata updates
-- Comprehensive test coverage for update_note protections (unit and integration tests)
-- Internal bypass mechanism for legitimate rename operations while maintaining protection for all other updates
-- Clear error messages directing users to use `rename_note` tool for title changes
-
-### Fixed
-- `update_note` now throws descriptive errors when attempting to modify protected title/filename fields
-- Only `rename_note` tool can safely modify note titles while preserving links and file system consistency
-- Fixed `rename_note` functionality to work correctly with new protection system
 
 ## 0.4.1
 

@@ -8,7 +8,7 @@
 import path from 'path';
 import fs from 'fs/promises';
 import { Workspace } from './workspace.js';
-import { MetadataSchemaParser } from './metadata-schema.js';
+import { MetadataSchemaParser, MetadataValidator } from './metadata-schema.js';
 import type { MetadataSchema } from './metadata-schema.js';
 import type {
   DeletionAction,
@@ -822,7 +822,7 @@ export class NoteTypeManager {
       const newInstructions = updates.instructions ?? noteType.parsed.agentInstructions;
       const newSchema = updates.metadata_schema ?? noteType.metadataSchema;
 
-      const validation = MetadataSchemaParser.validateSchema(newSchema);
+      const validation = MetadataValidator.validateSchema(newSchema);
       if (validation.errors.length > 0) {
         throw new Error(`Invalid metadata schema: ${validation.errors.join(', ')}`);
       }
