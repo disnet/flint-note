@@ -371,8 +371,7 @@ describe('Note Type Management Integration', () => {
 
       const result = await client.callTool('update_note_type', {
         type_name: 'updateable',
-        field: 'description',
-        value: 'Updated description with new information.',
+        description: 'Updated description with new information.',
         content_hash: info.content_hash
       });
 
@@ -403,8 +402,7 @@ describe('Note Type Management Integration', () => {
 
       const result = await client.callTool('update_note_type', {
         type_name: 'updateable',
-        field: 'description',
-        value: newDescription,
+        description: newDescription,
         content_hash: info.content_hash
       });
 
@@ -438,14 +436,16 @@ describe('Note Type Management Integration', () => {
 
       const result = await client.callTool('update_note_type', {
         type_name: 'updateable',
-        field: 'instructions',
-        value: newInstructions,
+        instructions: newInstructions,
         content_hash: info.content_hash
       });
 
       const responseData = JSON.parse(result.content[0].text);
       assert.ok(responseData.success, 'Should confirm update');
-      assert.strictEqual(responseData.field_updated, 'instructions');
+      assert.ok(
+        responseData.fields_updated.includes('instructions'),
+        'Should include instructions in updated fields'
+      );
 
       // Verify instructions are stored in description file
       const descriptionPath = join(context.tempDir, 'updateable', '_description.md');
@@ -461,13 +461,53 @@ describe('Note Type Management Integration', () => {
     });
 
     test('should update metadata schema', async () => {
-      const metadataSchema = `title: string
-author: string
-priority: enum [high, medium, low]
-tags: array
-created_date: date
-estimated_hours: number
-completed: boolean`;
+      const metadataSchemaFields = [
+        {
+          name: 'title',
+          type: 'string',
+          required: true,
+          description: 'Title of the item'
+        },
+        {
+          name: 'author',
+          type: 'string',
+          required: false,
+          description: 'Author name'
+        },
+        {
+          name: 'priority',
+          type: 'select',
+          required: false,
+          description: 'Priority level',
+          constraints: {
+            options: ['high', 'medium', 'low']
+          }
+        },
+        {
+          name: 'tags',
+          type: 'array',
+          required: false,
+          description: 'Associated tags'
+        },
+        {
+          name: 'created_date',
+          type: 'date',
+          required: false,
+          description: 'Creation date'
+        },
+        {
+          name: 'estimated_hours',
+          type: 'number',
+          required: false,
+          description: 'Estimated hours to complete'
+        },
+        {
+          name: 'completed',
+          type: 'boolean',
+          required: false,
+          description: 'Completion status'
+        }
+      ];
 
       // Get current content hash
       const infoResult = await client.callTool('get_note_type_info', {
@@ -477,17 +517,88 @@ completed: boolean`;
 
       const result = await client.callTool('update_note_type', {
         type_name: 'updateable',
-        field: 'metadata_schema',
-        value: metadataSchema,
+        metadata_schema: metadataSchemaFields,
         content_hash: info.content_hash
       });
 
       const responseData = JSON.parse(result.content[0].text);
       assert.ok(responseData.success, 'Should confirm update');
-      assert.strictEqual(responseData.field_updated, 'metadata_schema');
+      assert.ok(
+        responseData.fields_updated.includes('metadata_schema'),
+        'Should include metadata_schema in updated fields'
+      );
 
       // Verify updated info includes metadata schema
       assert.ok(responseData.updated_info, 'Should include updated info');
+    });
+
+    test('should validate metadata schema array format', async () => {
+      // Get current content hash
+      const infoResult = await client.callTool('get_note_type_info', {
+        type_name: 'updateable'
+      });
+      const info = JSON.parse(infoResult.content[0].text);
+
+      // Test with invalid field definition (missing required fields)
+      const result1 = await client.callTool('update_note_type', {
+        type_name: 'updateable',
+        metadata_schema: [
+          {
+            name: 'title'
+            // Missing 'type' field
+          }
+        ],
+        content_hash: info.content_hash
+      });
+
+      assert.ok(result1.isError, 'Should return error for missing type field');
+      const error1 = result1.content[0].text;
+      assert.ok(error1.includes('type'), 'Error should mention missing type field');
+
+      // Test with invalid field type
+      const result2 = await client.callTool('update_note_type', {
+        type_name: 'updateable',
+        metadata_schema: [
+          {
+            name: 'title',
+            type: 'invalid_type',
+            required: true
+          }
+        ],
+        content_hash: info.content_hash
+      });
+
+      assert.ok(result2.isError, 'Should return error for invalid field type');
+      const error2 = result2.content[0].text;
+      assert.ok(
+        error2.includes('invalid type') || error2.includes('Valid types'),
+        'Error should mention invalid field type'
+      );
+
+      // Test with duplicate field names
+      const result3 = await client.callTool('update_note_type', {
+        type_name: 'updateable',
+        metadata_schema: [
+          {
+            name: 'title',
+            type: 'string',
+            required: true
+          },
+          {
+            name: 'title', // Duplicate name
+            type: 'string',
+            required: false
+          }
+        ],
+        content_hash: info.content_hash
+      });
+
+      assert.ok(result3.isError, 'Should return error for duplicate field names');
+      const error3 = result3.content[0].text;
+      assert.ok(
+        error3.includes('Duplicate field names'),
+        'Error should mention duplicate field names'
+      );
     });
 
     test('should handle invalid field names', async () => {
@@ -500,8 +611,7 @@ completed: boolean`;
       try {
         await client.callTool('update_note_type', {
           type_name: 'updateable',
-          field: 'invalid_field',
-          value: 'some value',
+          invalid_field: 'some value',
           content_hash: info.content_hash
         });
         assert.fail('Should reject invalid field name');
@@ -514,8 +624,7 @@ completed: boolean`;
     test('should handle non-existent note type', async () => {
       const result = await client.callTool('update_note_type', {
         type_name: 'non-existent',
-        field: 'description',
-        value: 'New description',
+        description: 'New description',
         content_hash: 'dummy-hash'
       });
 
@@ -555,13 +664,50 @@ completed: boolean`;
 
       await client.callTool('update_note_type', {
         type_name: 'comprehensive',
-        field: 'metadata_schema',
-        value: `title: string
-category: enum [analysis, summary, reference]
-tags: array
-priority: enum [high, medium, low]
-created: date
-reviewed: boolean`,
+        metadata_schema: [
+          {
+            name: 'title',
+            type: 'string',
+            required: false,
+            description: 'Title of the note'
+          },
+          {
+            name: 'category',
+            type: 'select',
+            required: false,
+            description: 'Note category',
+            constraints: {
+              options: ['analysis', 'summary', 'reference']
+            }
+          },
+          {
+            name: 'tags',
+            type: 'array',
+            required: false,
+            description: 'Associated tags'
+          },
+          {
+            name: 'priority',
+            type: 'select',
+            required: false,
+            description: 'Priority level',
+            constraints: {
+              options: ['high', 'medium', 'low']
+            }
+          },
+          {
+            name: 'created',
+            type: 'date',
+            required: false,
+            description: 'Creation date'
+          },
+          {
+            name: 'reviewed',
+            type: 'boolean',
+            required: false,
+            description: 'Review status'
+          }
+        ],
         content_hash: info.content_hash
       });
     });

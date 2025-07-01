@@ -22,7 +22,8 @@ import { LinkManager } from './core/links.js';
 import { GlobalConfigManager } from './utils/global-config.js';
 import { resolvePath, isPathSafe } from './utils/path.js';
 import type { LinkRelationship, NoteMetadata } from './types/index.js';
-import type { MetadataSchema } from './core/metadata-schema.js';
+import type { MetadataSchema, MetadataFieldDefinition } from './core/metadata-schema.js';
+import { MetadataSchemaParser } from './core/metadata-schema.js';
 import {
   generateContentHash,
   createNoteTypeHashableContent
@@ -121,8 +122,9 @@ interface LinkNotesArgs {
 
 interface UpdateNoteTypeArgs {
   type_name: string;
-  field: 'instructions' | 'description' | 'metadata_schema';
-  value: string;
+  instructions?: string;
+  description?: string;
+  metadata_schema?: MetadataFieldDefinition[];
   content_hash: string;
 }
 
@@ -796,7 +798,7 @@ export class FlintNoteServer {
 
           {
             name: 'update_note_type',
-            description: 'Update a specific field of an existing note type',
+            description: 'Update one or more fields of an existing note type',
             inputSchema: {
               type: 'object',
               properties: {
@@ -804,14 +806,56 @@ export class FlintNoteServer {
                   type: 'string',
                   description: 'Name of the note type to update'
                 },
-                field: {
+                instructions: {
                   type: 'string',
-                  description: 'Field to update',
-                  enum: ['instructions', 'description', 'metadata_schema']
+                  description: 'New agent instructions for the note type'
                 },
-                value: {
+                description: {
                   type: 'string',
-                  description: 'New value for the field'
+                  description: 'New description for the note type'
+                },
+                metadata_schema: {
+                  type: 'array',
+                  description: 'Array of metadata field definitions',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      name: {
+                        type: 'string',
+                        description: 'Field name'
+                      },
+                      type: {
+                        type: 'string',
+                        enum: ['string', 'number', 'boolean', 'date', 'array', 'select'],
+                        description: 'Field type'
+                      },
+                      description: {
+                        type: 'string',
+                        description: 'Human-readable description of the field'
+                      },
+                      required: {
+                        type: 'boolean',
+                        description: 'Whether the field is required'
+                      },
+                      constraints: {
+                        type: 'object',
+                        description: 'Field constraints',
+                        properties: {
+                          min: { type: 'number' },
+                          max: { type: 'number' },
+                          pattern: { type: 'string' },
+                          options: {
+                            type: 'array',
+                            items: { type: 'string' }
+                          }
+                        }
+                      },
+                      default: {
+                        description: 'Default value for the field'
+                      }
+                    },
+                    required: ['name', 'type']
+                  }
                 },
                 content_hash: {
                   type: 'string',
@@ -819,7 +863,7 @@ export class FlintNoteServer {
                     'Content hash of the current note type definition to prevent conflicts'
                 }
               },
-              required: ['type_name', 'field', 'value', 'content_hash']
+              required: ['type_name', 'content_hash']
             }
           },
           {
@@ -1673,6 +1717,17 @@ export class FlintNoteServer {
       throw new Error('content_hash is required for all note type update operations');
     }
 
+    // Validate that at least one field is provided
+    if (
+      args.instructions === undefined &&
+      args.description === undefined &&
+      args.metadata_schema === undefined
+    ) {
+      throw new Error(
+        'At least one field must be provided: instructions, description, or metadata_schema'
+      );
+    }
+
     // Get current note type info
     const currentInfo = await this.#noteTypeManager.getNoteTypeDescription(
       args.type_name
@@ -1700,54 +1755,155 @@ export class FlintNoteServer {
       throw error;
     }
 
-    // Update based on field type
-    let updatedDescription: string;
+    // Start with current description
+    let updatedDescription = currentInfo.description;
+    const fieldsUpdated: string[] = [];
 
-    switch (args.field) {
-      case 'instructions': {
-        // Parse instructions from value (can be newline-separated or bullet points)
-        const instructions = args.value
-          .split('\n')
-          .map(line => line.trim())
-          .filter(line => line.length > 0)
-          .map(line => (line.startsWith('-') ? line.substring(1).trim() : line))
-          .map(line => `- ${line}`)
-          .join('\n');
+    // Update instructions if provided
+    if (args.instructions) {
+      // Parse instructions from value (can be newline-separated or bullet points)
+      const instructions = args.instructions
+        .split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0)
+        .map(line => (line.startsWith('-') ? line.substring(1).trim() : line))
+        .map(line => `- ${line}`)
+        .join('\n');
 
-        // Use the current description and replace the agent instructions section
-        updatedDescription = currentInfo.description.replace(
-          /## Agent Instructions\n[\s\S]*?(?=\n## |$)/,
-          `## Agent Instructions\n${instructions}\n`
-        );
-        break;
+      // Use the current description and replace the agent instructions section
+      updatedDescription = updatedDescription.replace(
+        /## Agent Instructions\n[\s\S]*?(?=\n## |$)/,
+        `## Agent Instructions\n${instructions}\n`
+      );
+      fieldsUpdated.push('instructions');
+    }
+
+    // Update description if provided
+    if (args.description) {
+      updatedDescription = this.#noteTypeManager.formatNoteTypeDescription(
+        args.type_name,
+        args.description
+      );
+      fieldsUpdated.push('description');
+    }
+
+    // Update metadata schema if provided
+    if (args.metadata_schema) {
+      const fields = args.metadata_schema;
+
+      // Validate each field definition
+      for (let i = 0; i < fields.length; i++) {
+        const field = fields[i];
+        if (!field || typeof field !== 'object') {
+          throw new Error(`Field at index ${i} must be an object`);
+        }
+
+        if (!field.name || typeof field.name !== 'string') {
+          throw new Error(`Field at index ${i} must have a valid "name" string`);
+        }
+
+        if (!field.type || typeof field.type !== 'string') {
+          throw new Error(`Field at index ${i} must have a valid "type" string`);
+        }
+
+        const validTypes = ['string', 'number', 'boolean', 'date', 'array', 'select'];
+        if (!validTypes.includes(field.type)) {
+          throw new Error(
+            `Field "${field.name}" has invalid type "${field.type}". Valid types: ${validTypes.join(', ')}`
+          );
+        }
+
+        // Validate constraints if present
+        if (field.constraints) {
+          if (typeof field.constraints !== 'object') {
+            throw new Error(`Field "${field.name}" constraints must be an object`);
+          }
+
+          // Validate select field options
+          if (field.type === 'select') {
+            if (!field.constraints.options || !Array.isArray(field.constraints.options)) {
+              throw new Error(
+                `Select field "${field.name}" must have constraints.options array`
+              );
+            }
+            if (field.constraints.options.length === 0) {
+              throw new Error(
+                `Select field "${field.name}" must have at least one option`
+              );
+            }
+          }
+
+          // Validate numeric constraints
+          if (
+            field.constraints.min !== undefined &&
+            typeof field.constraints.min !== 'number'
+          ) {
+            throw new Error(`Field "${field.name}" min constraint must be a number`);
+          }
+          if (
+            field.constraints.max !== undefined &&
+            typeof field.constraints.max !== 'number'
+          ) {
+            throw new Error(`Field "${field.name}" max constraint must be a number`);
+          }
+          if (
+            field.constraints.min !== undefined &&
+            field.constraints.max !== undefined &&
+            field.constraints.min > field.constraints.max
+          ) {
+            throw new Error(
+              `Field "${field.name}" min constraint cannot be greater than max`
+            );
+          }
+
+          // Validate pattern constraint
+          if (field.constraints.pattern !== undefined) {
+            if (typeof field.constraints.pattern !== 'string') {
+              throw new Error(
+                `Field "${field.name}" pattern constraint must be a string`
+              );
+            }
+            try {
+              new RegExp(field.constraints.pattern);
+            } catch (regexError) {
+              throw new Error(
+                `Field "${field.name}" pattern constraint is not a valid regex: ${regexError instanceof Error ? regexError.message : 'Unknown regex error'}`
+              );
+            }
+          }
+        }
+
+        // Validate default values if present
+        if (field.default !== undefined) {
+          const validationError = this.#validateDefaultValue(
+            field.name,
+            field.default,
+            field
+          );
+          if (validationError) {
+            throw new Error(validationError);
+          }
+        }
       }
 
-      case 'description':
-        updatedDescription = this.#noteTypeManager.formatNoteTypeDescription(
-          args.type_name,
-          args.value
-        );
-        break;
-
-      case 'metadata_schema': {
-        // Parse metadata schema from value
-        const schema = args.value
-          .split('\n')
-          .map(line => line.trim())
-          .filter(line => line.length > 0)
-          .map(line => (line.startsWith('-') ? line.substring(1).trim() : line))
-          .map(line => `- ${line}`)
-          .join('\n');
-
-        updatedDescription = currentInfo.description.replace(
-          /## Metadata Schema\n[\s\S]*$/,
-          `## Metadata Schema\nExpected frontmatter or metadata fields for this note type:\n${schema}\n`
-        );
-        break;
+      // Check for duplicate field names
+      const fieldNames = fields.map(f => f.name);
+      const duplicates = fieldNames.filter(
+        (name, index) => fieldNames.indexOf(name) !== index
+      );
+      if (duplicates.length > 0) {
+        throw new Error(`Duplicate field names found: ${duplicates.join(', ')}`);
       }
 
-      default:
-        throw new Error(`Invalid field: ${args.field}`);
+      // Create MetadataSchema object and generate the schema section
+      const parsedSchema = { fields };
+      const schemaSection = MetadataSchemaParser.generateSchemaSection(parsedSchema);
+
+      updatedDescription = updatedDescription.replace(
+        /## Metadata Schema\n[\s\S]*$/,
+        schemaSection
+      );
+      fieldsUpdated.push('metadata_schema');
     }
 
     // Write the updated description to the file in note type directory
@@ -1768,7 +1924,7 @@ export class FlintNoteServer {
             {
               success: true,
               type_name: args.type_name,
-              field_updated: args.field,
+              fields_updated: fieldsUpdated,
               updated_info: {
                 name: result.name,
                 purpose: result.parsed.purpose,
@@ -1782,6 +1938,79 @@ export class FlintNoteServer {
       ]
     };
   };
+
+  /**
+   * Helper method to validate default values against field definitions
+   */
+  #validateDefaultValue(
+    fieldName: string,
+    defaultValue: unknown,
+    fieldDef: MetadataFieldDefinition
+  ): string | null {
+    switch (fieldDef.type) {
+      case 'string':
+        if (typeof defaultValue !== 'string') {
+          return `Field "${fieldName}" default value must be a string`;
+        }
+        break;
+
+      case 'number':
+        if (typeof defaultValue !== 'number' || isNaN(defaultValue)) {
+          return `Field "${fieldName}" default value must be a number`;
+        }
+        if (
+          fieldDef.constraints?.min !== undefined &&
+          defaultValue < fieldDef.constraints.min
+        ) {
+          return `Field "${fieldName}" default value must be at least ${fieldDef.constraints.min}`;
+        }
+        if (
+          fieldDef.constraints?.max !== undefined &&
+          defaultValue > fieldDef.constraints.max
+        ) {
+          return `Field "${fieldName}" default value must be at most ${fieldDef.constraints.max}`;
+        }
+        break;
+
+      case 'boolean':
+        if (typeof defaultValue !== 'boolean') {
+          return `Field "${fieldName}" default value must be a boolean`;
+        }
+        break;
+
+      case 'date':
+        if (typeof defaultValue !== 'string' || isNaN(Date.parse(defaultValue))) {
+          return `Field "${fieldName}" default value must be a valid date string`;
+        }
+        break;
+
+      case 'array':
+        if (!Array.isArray(defaultValue)) {
+          return `Field "${fieldName}" default value must be an array`;
+        }
+        if (
+          fieldDef.constraints?.min !== undefined &&
+          defaultValue.length < fieldDef.constraints.min
+        ) {
+          return `Field "${fieldName}" default value array must have at least ${fieldDef.constraints.min} items`;
+        }
+        if (
+          fieldDef.constraints?.max !== undefined &&
+          defaultValue.length > fieldDef.constraints.max
+        ) {
+          return `Field "${fieldName}" default value array must have at most ${fieldDef.constraints.max} items`;
+        }
+        break;
+
+      case 'select':
+        if (!fieldDef.constraints?.options?.includes(String(defaultValue))) {
+          return `Field "${fieldName}" default value must be one of: ${fieldDef.constraints?.options?.join(', ')}`;
+        }
+        break;
+    }
+
+    return null;
+  }
 
   #handleGetNoteTypeInfo = async (args: GetNoteTypeInfoArgs) => {
     this.#requireWorkspace();

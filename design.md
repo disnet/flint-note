@@ -597,13 +597,102 @@ Note types also include content hashes to prevent conflicts when updating note t
 }
 ```
 
+#### Update Note Type Tool
+
+The `update_note_type` tool allows updating one or more fields of a note type in a single operation:
+
+**Parameters:**
+- `type_name` (string): Name of the note type to update
+- `instructions` (string, optional): New agent instructions
+- `description` (string, optional): New description for the note type
+- `metadata_schema` (array, optional): Array of metadata field definitions
+- `content_hash` (string): Current content hash to prevent conflicts
+
+At least one of the optional fields (`instructions`, `description`, or `metadata_schema`) must be provided.
+
+**Metadata Field Object Structure:**
+Each metadata field object in the `metadata_schema` array contains:
+- `name` (string): Field name
+- `type` (string): Field type ("string", "number", "boolean", "date", "array", "select")
+- `required` (boolean): Whether the field is required
+- `description` (string): Human-readable description of the field
+- `constraints` (object, optional): Field constraints
+  - `min` (number, optional): Minimum value for number types
+  - `max` (number, optional): Maximum value for number types
+  - `pattern` (string, optional): Regex pattern for string validation
+  - `options` (array, optional): Valid options for select types
+- `default` (any, optional): Default value for the field
+
+**Example - Updating agent instructions:**
 ```json
 {
   "name": "update_note_type",
   "arguments": {
     "type_name": "reading",
-    "field": "agent_instructions",
-    "value": "Updated instructions for reading notes...",
+    "instructions": "Updated instructions for reading notes...",
+    "content_hash": "sha256:d1e2f3g4h5i6..."
+  }
+}
+```
+
+**Example - Updating metadata schema:**
+```json
+{
+  "name": "update_note_type",
+  "arguments": {
+    "type_name": "reading",
+    "metadata_schema": [
+      {
+        "name": "title",
+        "type": "string",
+        "required": true,
+        "description": "Book title"
+      },
+      {
+        "name": "author",
+        "type": "string",
+        "required": true,
+        "description": "Author name"
+      },
+      {
+        "name": "rating",
+        "type": "number",
+        "required": true,
+        "description": "Personal rating",
+        "constraints": {
+          "min": 1,
+          "max": 5
+        }
+      },
+      {
+        "name": "status",
+        "type": "select",
+        "required": false,
+        "description": "Reading status",
+        "constraints": {
+          "options": ["to-read", "reading", "completed"]
+        }
+      },
+      {
+        "name": "tags",
+        "type": "array",
+        "required": false,
+        "description": "Topic tags"
+      }
+    ],
+    "content_hash": "sha256:d1e2f3g4h5i6..."
+  }
+}
+```
+
+**Example - Updating multiple fields:**
+```json
+{
+  "name": "update_note_type",
+  "arguments": {
+    "type_name": "reading",
+    "description": "Enhanced note type for tracking books and articles",
+    "instructions": "Help analyze and summarize reading materials with focus on key insights",
     "content_hash": "sha256:d1e2f3g4h5i6..."
   }
 }

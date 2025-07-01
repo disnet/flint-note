@@ -416,43 +416,31 @@ describe('Error Handling Integration', () => {
       // Test missing content_hash parameter
       const error1 = await client.expectError('update_note_type', {
         type_name: 'updateable-type',
-        field: 'description',
-        value: 'New description'
+        description: 'New description'
       });
       assert.ok(error1.includes('content_hash is required'));
 
       // Test with non-existent note type which will fail
       const error2 = await client.expectError('update_note_type', {
-        type_name: 'non-existent-type',
-        field: 'description',
-        value: 'New description',
+        type_name: 'non-existent-updateable-type',
+        description: 'New description',
         content_hash: 'dummy-hash'
       });
-      assert.ok(error2.includes('does not exist'));
 
-      // Test with invalid field name which will fail
-      const infoResult = await client.callTool('get_note_type_info', {
-        type_name: 'updateable-type'
-      });
-      const info = JSON.parse(infoResult.content[0].text);
+      // Test missing all optional fields
       const error3 = await client.expectError('update_note_type', {
         type_name: 'updateable-type',
-        field: 'invalid_field_name',
-        value: 'New value',
-        content_hash: info.content_hash
+        content_hash: 'dummy-hash'
       });
-      assert.ok(
-        error3.includes('field') ||
-          error3.includes('invalid') ||
-          error3.includes('supported')
-      );
+      assert.ok(error3.includes('At least one field must be provided'));
+
+      assert.ok(error2.includes('does not exist') || error2.includes('not found'));
     });
 
     test('should handle non-existent note type', async () => {
       const error = await client.expectError('update_note_type', {
         type_name: 'non-existent-type',
-        field: 'description',
-        value: 'New description',
+        description: 'New description',
         content_hash: 'dummy-hash'
       });
 
@@ -466,38 +454,25 @@ describe('Error Handling Integration', () => {
       });
       const info = JSON.parse(infoResult.content[0].text);
 
-      const invalidFields = [
-        'invalid_field',
-        'name',
-        'path',
-        'created',
-        'updated',
-        'random_field'
-      ];
+      // Test invalid field names by passing unknown properties
+      const error = await client.expectError('update_note_type', {
+        type_name: 'updateable-type',
+        invalid_field: 'New value',
+        content_hash: info.content_hash
+      });
 
-      for (const field of invalidFields) {
-        const error = await client.expectError('update_note_type', {
-          type_name: 'updateable-type',
-          field: field,
-          value: 'New value',
-          content_hash: info.content_hash
-        });
-
-        assert.ok(
-          error.includes('field') ||
-            error.includes('invalid') ||
-            error.includes('supported'),
-          `Should reject field: ${field}`
-        );
-      }
+      assert.ok(
+        error.includes('At least one field must be provided') ||
+          error.includes('invalid') ||
+          error.includes('unknown')
+      );
     });
 
     test('should handle empty field values', async () => {
       // Test with non-existent note type which will cause error
       const error = await client.expectError('update_note_type', {
         type_name: 'non-existent-for-empty-test',
-        field: 'description',
-        value: '',
+        description: '',
         content_hash: 'dummy-hash'
       });
 
