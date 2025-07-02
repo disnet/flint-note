@@ -222,7 +222,11 @@ export class FlintNoteServer {
       // If workspace path is provided explicitly, use it
       if (this.#config.workspacePath) {
         const workspacePath = this.#config.workspacePath;
-        this.#workspace = new Workspace(workspacePath);
+        this.#hybridSearchManager = new HybridSearchManager(workspacePath);
+        this.#workspace = new Workspace(
+          workspacePath,
+          this.#hybridSearchManager.getDatabaseManager()
+        );
 
         // Check if workspace has any note type descriptions
         const flintNoteDir = path.join(workspacePath, '.flint-note');
@@ -244,7 +248,6 @@ export class FlintNoteServer {
           await this.#workspace.initialize();
         }
 
-        this.#hybridSearchManager = new HybridSearchManager(this.#workspace.rootPath);
         this.#noteManager = new NoteManager(this.#workspace, this.#hybridSearchManager);
         this.#noteTypeManager = new NoteTypeManager(this.#workspace);
 
@@ -286,10 +289,12 @@ export class FlintNoteServer {
 
         if (currentVault) {
           // Initialize with current vault
-          this.#workspace = new Workspace(currentVault.path);
+          this.#hybridSearchManager = new HybridSearchManager(currentVault.path);
+          this.#workspace = new Workspace(
+            currentVault.path,
+            this.#hybridSearchManager.getDatabaseManager()
+          );
           await this.#workspace.initialize();
-
-          this.#hybridSearchManager = new HybridSearchManager(this.#workspace.rootPath);
           this.#noteManager = new NoteManager(this.#workspace, this.#hybridSearchManager);
           this.#noteTypeManager = new NoteTypeManager(this.#workspace);
 
@@ -2315,7 +2320,11 @@ export class FlintNoteServer {
       let initMessage = '';
       if (args.initialize !== false) {
         // Initialize the vault with default note types
-        const workspace = new Workspace(resolvedPath);
+        const tempHybridSearchManager = new HybridSearchManager(resolvedPath);
+        const workspace = new Workspace(
+          resolvedPath,
+          tempHybridSearchManager.getDatabaseManager()
+        );
         await workspace.initializeVault();
         initMessage =
           '\n\n✅ Vault initialized with default note types (daily, reading, todos, projects, goals, games, movies)';

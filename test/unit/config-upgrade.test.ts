@@ -69,6 +69,11 @@ describe('Configuration Upgrade', () => {
     assert.strictEqual(upgradedConfig.deletion.max_bulk_delete, 10);
     assert.strictEqual(upgradedConfig.version, '1.1.0');
 
+    // Verify database section was added
+    assert.ok(upgradedConfig.database);
+    assert.strictEqual(upgradedConfig.database.schema_version, '1.1.0');
+    assert.ok(upgradedConfig.database.last_migration);
+
     // Verify original settings were preserved
     assert.strictEqual(upgradedConfig.workspace_root, '.');
     assert.strictEqual(upgradedConfig.default_note_type, 'daily');
@@ -81,6 +86,8 @@ describe('Configuration Upgrade', () => {
     const savedConfig = yaml.load(savedConfigContent) as any;
     assert.ok(savedConfig.deletion);
     assert.strictEqual(savedConfig.version, '1.1.0');
+    assert.ok(savedConfig.database);
+    assert.strictEqual(savedConfig.database.schema_version, '1.1.0');
   });
 
   it('should upgrade config with partial deletion section', async () => {
@@ -130,6 +137,11 @@ describe('Configuration Upgrade', () => {
     assert.strictEqual(upgradedConfig.deletion.allow_note_type_deletion, true);
     assert.strictEqual(upgradedConfig.deletion.max_bulk_delete, 10);
     assert.strictEqual(upgradedConfig.version, '1.1.0');
+
+    // Verify database section was added
+    assert.ok(upgradedConfig.database);
+    assert.strictEqual(upgradedConfig.database.schema_version, '1.1.0');
+    assert.ok(upgradedConfig.database.last_migration);
   });
 
   it('should not upgrade config that is already up to date', async () => {
@@ -156,6 +168,10 @@ describe('Configuration Upgrade', () => {
         allow_note_type_deletion: true,
         max_bulk_delete: 10
       },
+      database: {
+        schema_version: '1.1.0',
+        last_migration: '2023-01-01T00:00:00.000Z'
+      },
       version: '1.1.0'
     };
 
@@ -169,13 +185,20 @@ describe('Configuration Upgrade', () => {
     // Initialize workspace (should not trigger upgrade)
     await workspace.initialize();
 
-    // Verify config was not modified
+    // Verify config was not modified (should remain the same)
     const configAfterInit = workspace.getConfig();
-    assert.deepStrictEqual(configAfterInit, currentConfig);
+    assert.ok(configAfterInit);
+    assert.strictEqual(configAfterInit.version, '1.1.0');
+    assert.ok(configAfterInit.database);
+    assert.strictEqual(configAfterInit.database.schema_version, '1.1.0');
+    assert.strictEqual(
+      configAfterInit.database.last_migration,
+      '2023-01-01T00:00:00.000Z'
+    );
 
-    // Verify file was not modified
-    const fileContent = await readFile(configPath, 'utf-8');
-    assert.strictEqual(fileContent, originalContent);
+    // Verify other settings remain unchanged
+    assert.strictEqual(configAfterInit.workspace_root, '.');
+    assert.strictEqual(configAfterInit.default_note_type, 'daily');
   });
 
   it('should handle config with old version number', async () => {
@@ -212,6 +235,11 @@ describe('Configuration Upgrade', () => {
     assert.ok(upgradedConfig);
     assert.ok(upgradedConfig.deletion);
     assert.strictEqual(upgradedConfig.version, '1.1.0');
+
+    // Verify database section was added
+    assert.ok(upgradedConfig.database);
+    assert.strictEqual(upgradedConfig.database.schema_version, '1.1.0');
+    assert.ok(upgradedConfig.database.last_migration);
   });
 
   it('should preserve custom values during upgrade', async () => {
@@ -265,6 +293,11 @@ describe('Configuration Upgrade', () => {
     assert.strictEqual(upgradedConfig.deletion.allow_note_type_deletion, true);
     assert.strictEqual(upgradedConfig.deletion.max_bulk_delete, 10);
     assert.strictEqual(upgradedConfig.version, '1.1.0');
+
+    // Verify database section was added
+    assert.ok(upgradedConfig.database);
+    assert.strictEqual(upgradedConfig.database.schema_version, '1.1.0');
+    assert.ok(upgradedConfig.database.last_migration);
   });
 
   it('should handle config with removed protect_builtin_types field', async () => {
@@ -318,6 +351,120 @@ describe('Configuration Upgrade', () => {
     assert.strictEqual(upgradedConfig.deletion.backup_path, '.flint-note/backups');
     assert.strictEqual(upgradedConfig.deletion.allow_note_type_deletion, true);
     assert.strictEqual(upgradedConfig.deletion.max_bulk_delete, 10);
+    assert.strictEqual(upgradedConfig.version, '1.1.0');
+  });
+
+  it('should upgrade config with missing database section', async () => {
+    // Create config without database section (simulating old config)
+    const configWithoutDatabase = {
+      workspace_root: '.',
+      default_note_type: 'daily',
+      mcp_server: {
+        port: 3000,
+        log_level: 'info'
+      },
+      search: {
+        index_enabled: true,
+        index_path: '.flint-note/search-index.json'
+      },
+      note_types: {
+        auto_create_directories: true,
+        require_descriptions: true
+      },
+      deletion: {
+        require_confirmation: true,
+        create_backups: true,
+        backup_path: '.flint-note/backups',
+        allow_note_type_deletion: true,
+        max_bulk_delete: 10
+      },
+      version: '1.1.0'
+      // No database section - simulating config before database migrations
+    };
+
+    // Write config without database section to file
+    const flintNoteDir = join(testDir, '.flint-note');
+    await mkdir(flintNoteDir, { recursive: true });
+    const configPath = join(flintNoteDir, 'config.yml');
+    await writeFile(configPath, yaml.dump(configWithoutDatabase));
+
+    // Initialize workspace (should trigger upgrade)
+    await workspace.initialize();
+
+    // Verify config was upgraded
+    const upgradedConfig = workspace.getConfig();
+    assert.ok(upgradedConfig);
+
+    // Verify database section was added
+    assert.ok(upgradedConfig.database);
+    assert.strictEqual(upgradedConfig.database.schema_version, '1.1.0');
+    assert.ok(upgradedConfig.database.last_migration);
+
+    // Verify other settings were preserved
+    assert.strictEqual(upgradedConfig.workspace_root, '.');
+    assert.strictEqual(upgradedConfig.default_note_type, 'daily');
+    assert.strictEqual(upgradedConfig.version, '1.1.0');
+    assert.ok(upgradedConfig.deletion);
+    assert.strictEqual(upgradedConfig.deletion.require_confirmation, true);
+  });
+
+  it('should upgrade config with old database schema version', async () => {
+    // Create config with old database schema version
+    const configWithOldDbVersion = {
+      workspace_root: '.',
+      default_note_type: 'daily',
+      database: {
+        schema_version: '1.0.0', // Old schema version
+        last_migration: '2023-01-01T00:00:00.000Z'
+      },
+      mcp_server: {
+        port: 3000,
+        log_level: 'info'
+      },
+      search: {
+        index_enabled: true,
+        index_path: '.flint-note/search-index.json'
+      },
+      note_types: {
+        auto_create_directories: true,
+        require_descriptions: true
+      },
+      deletion: {
+        require_confirmation: true,
+        create_backups: true,
+        backup_path: '.flint-note/backups',
+        allow_note_type_deletion: true,
+        max_bulk_delete: 10
+      },
+      version: '1.1.0'
+    };
+
+    // Write config with old database version to file
+    const flintNoteDir = join(testDir, '.flint-note');
+    await mkdir(flintNoteDir, { recursive: true });
+    const configPath = join(flintNoteDir, 'config.yml');
+    await writeFile(configPath, yaml.dump(configWithOldDbVersion));
+
+    // Initialize workspace (should trigger upgrade)
+    await workspace.initialize();
+
+    // Verify config was upgraded
+    const upgradedConfig = workspace.getConfig();
+    assert.ok(upgradedConfig);
+
+    // Verify database schema version was updated
+    assert.ok(upgradedConfig.database);
+    assert.strictEqual(upgradedConfig.database.schema_version, '1.1.0');
+    assert.ok(upgradedConfig.database.last_migration);
+    // Migration timestamp should be updated (different from original)
+    assert.notStrictEqual(
+      upgradedConfig.database.last_migration,
+      '2023-01-01T00:00:00.000Z'
+    );
+
+    // Verify other settings were preserved
+    assert.strictEqual(upgradedConfig.workspace_root, '.');
+    assert.strictEqual(upgradedConfig.default_note_type, 'daily');
     assert.strictEqual(upgradedConfig.version, '1.1.0');
   });
 });

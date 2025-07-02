@@ -98,6 +98,13 @@ export class HybridSearchManager {
     return await this.getConnection();
   }
 
+  /**
+   * Get database manager for migrations and other database operations
+   */
+  getDatabaseManager(): DatabaseManager {
+    return this.dbManager;
+  }
+
   private async getReadOnlyConnection(): Promise<DatabaseConnection> {
     if (!this.readOnlyConnection) {
       this.readOnlyConnection = await this.dbManager.connectReadOnly();

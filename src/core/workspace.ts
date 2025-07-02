@@ -9,10 +9,16 @@ import path from 'path';
 import fs from 'fs/promises';
 import yaml from 'js-yaml';
 import type { MetadataSchema } from './metadata-schema.js';
+import { DatabaseMigrationManager } from '../database/migration-manager.js';
+import type { DatabaseManager } from '../database/schema.js';
 
 interface WorkspaceConfig {
   workspace_root: string;
   default_note_type: string;
+  database: {
+    schema_version: string;
+    last_migration: string;
+  };
   mcp_server: {
     port: number;
     log_level: string;
@@ -39,6 +45,10 @@ interface WorkspaceConfig {
 interface PartialWorkspaceConfig {
   workspace_root?: string;
   default_note_type?: string;
+  database?: {
+    schema_version?: string;
+    last_migration?: string;
+  };
   mcp_server?: {
     port?: number;
     log_level?: string;
@@ -83,13 +93,22 @@ export class Workspace {
   public readonly searchIndexPath: string;
   public readonly logPath: string;
   public config: WorkspaceConfig | null = null;
+  #databaseManager: DatabaseManager | null = null;
 
-  constructor(rootPath: string) {
+  constructor(rootPath: string, databaseManager?: DatabaseManager) {
     this.rootPath = path.resolve(rootPath);
     this.flintNoteDir = path.join(this.rootPath, '.flint-note');
     this.configPath = path.join(this.flintNoteDir, 'config.yml');
     this.searchIndexPath = path.join(this.flintNoteDir, 'search-index.json');
     this.logPath = path.join(this.flintNoteDir, 'mcp-server.log');
+    this.#databaseManager = databaseManager || null;
+  }
+
+  /**
+   * Set the database manager for migrations
+   */
+  setDatabaseManager(databaseManager: DatabaseManager): void {
+    this.#databaseManager = databaseManager;
   }
 
   /**
@@ -102,6 +121,11 @@ export class Workspace {
 
       // Load or create configuration
       await this.loadOrCreateConfig();
+
+      // Handle database migrations if database manager is available
+      if (this.#databaseManager && this.config) {
+        await this.handleDatabaseMigrations();
+      }
 
       // Create default note type if it doesn't exist
       await this.ensureDefaultNoteType();
@@ -125,6 +149,11 @@ export class Workspace {
       // Load or create configuration
       await this.loadOrCreateConfig();
 
+      // Handle database migrations if database manager is available
+      if (this.#databaseManager && this.config) {
+        await this.handleDatabaseMigrations();
+      }
+
       // Create all default note types
       await this.createDefaultNoteTypes();
 
@@ -136,6 +165,48 @@ export class Workspace {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       throw new Error(`Failed to initialize vault: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Handle database migrations when needed
+   */
+  private async handleDatabaseMigrations(): Promise<void> {
+    if (!this.#databaseManager || !this.config) {
+      return;
+    }
+
+    try {
+      const currentSchemaVersion = this.config.database?.schema_version;
+
+      const migrationResult = await DatabaseMigrationManager.checkAndMigrate(
+        currentSchemaVersion,
+        this.#databaseManager,
+        this.rootPath
+      );
+
+      if (migrationResult.migrated) {
+        // Update config with new schema version and timestamp
+        this.config.database = {
+          schema_version: migrationResult.toVersion,
+          last_migration: new Date().toISOString()
+        };
+
+        // Save updated config
+        await this.saveConfig();
+
+        console.log(
+          `Database migration completed: ${migrationResult.fromVersion} -> ${migrationResult.toVersion}`
+        );
+
+        if (migrationResult.migratedLinks) {
+          console.log('Links migration completed successfully');
+        }
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('Database migration failed:', errorMessage);
+      throw new Error(`Database migration failed: ${errorMessage}`);
     }
   }
 
@@ -188,6 +259,10 @@ export class Workspace {
     return {
       workspace_root: '.',
       default_note_type: 'daily',
+      database: {
+        schema_version: '1.1.0',
+        last_migration: new Date().toISOString()
+      },
       mcp_server: {
         port: 3000,
         log_level: 'info'
@@ -215,6 +290,11 @@ export class Workspace {
    * Check if the configuration needs upgrading
    */
   needsConfigUpgrade(config: PartialWorkspaceConfig): boolean {
+    // Check if database config is missing
+    if (!config.database) {
+      return true;
+    }
+
     // Check if deletion config is missing or incomplete
     if (!config.deletion) {
       return true;
@@ -240,6 +320,16 @@ export class Workspace {
       return true;
     }
 
+    // Check database schema version (only if database exists)
+    if (config.database) {
+      if (
+        !config.database.schema_version ||
+        this.compareVersions(config.database.schema_version, '1.1.0') < 0
+      ) {
+        return true;
+      }
+    }
+
     return false;
   }
 
@@ -253,6 +343,10 @@ export class Workspace {
     const upgradedConfig: WorkspaceConfig = {
       workspace_root: oldConfig.workspace_root || defaultConfig.workspace_root,
       default_note_type: oldConfig.default_note_type || defaultConfig.default_note_type,
+      database: {
+        schema_version: defaultConfig.database.schema_version, // Always use current schema version
+        last_migration: new Date().toISOString() // Update migration timestamp on upgrade
+      },
       mcp_server: {
         port: oldConfig.mcp_server?.port || defaultConfig.mcp_server.port,
         log_level: oldConfig.mcp_server?.log_level || defaultConfig.mcp_server.log_level

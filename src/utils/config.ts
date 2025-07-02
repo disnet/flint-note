@@ -10,6 +10,10 @@ import yaml from 'js-yaml';
 
 interface WorkspaceConfig {
   version: string;
+  database: {
+    schema_version: string;
+    last_migration: string;
+  };
   workspace_root: string;
   default_note_type: string;
   mcp_server: {
@@ -106,6 +110,10 @@ export class ConfigManager {
   getDefaultConfig(): WorkspaceConfig {
     return {
       version: '1.1.0',
+      database: {
+        schema_version: '1.1.0',
+        last_migration: new Date().toISOString()
+      },
       workspace_root: '.',
       default_note_type: 'general',
       mcp_server: {
@@ -156,12 +164,23 @@ export class ConfigManager {
     // Validate required fields
     const requiredFields: (keyof WorkspaceConfig)[] = [
       'version',
+      'database',
       'workspace_root',
       'default_note_type'
     ];
     for (const field of requiredFields) {
       if (!this.config[field]) {
         throw new Error(`Missing required configuration field: ${field}`);
+      }
+    }
+
+    // Validate database configuration
+    if (this.config.database) {
+      if (!this.config.database.schema_version) {
+        throw new Error('Missing database schema_version');
+      }
+      if (!this.config.database.last_migration) {
+        throw new Error('Missing database last_migration timestamp');
       }
     }
 
