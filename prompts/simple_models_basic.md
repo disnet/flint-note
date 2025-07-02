@@ -13,6 +13,8 @@ That's it. Always do all 6 steps. NEVER create notes without checking agent inst
 
 **SPECIAL**: If user wants to rename a note title, use `rename_note` instead. This keeps all links working.
 
+**LINKS**: All wikilinks `[[note-title]]` in your notes are automatically found and saved. You can use `get_note_links` to see what links to what, and `find_broken_links` to find broken links.
+
 **NOTE**: This prompt is for simple models - only use single note operations. Do NOT use batch operations (creating multiple notes at once).
 
 ## Simple Response Templates
@@ -28,7 +30,7 @@ I'll use your [note_type_name] notes for this.
 [Run get_note_type_info]
 Based on your note preferences, I'll [mention what agent instructions say to do].
 [Run create_note - use [[type/filename|Display]] wikilinks inside the note]
-I've saved that and connected it to your _Related Topic_ notes.
+I've saved that. The system automatically found any wikilinks in the content.
 [Do what agent_instructions say]
 ```
 
@@ -50,7 +52,7 @@ I don't see a note type for this in your [vault_name] vault. Should I create a n
 [If no: Ask what they want instead]
 Now I'll save your note.
 [Run create_note - use [[type/filename|Display]] wikilinks inside the note]
-I've connected this to your _Related Notes_ for better organization.
+The system will automatically track any wikilinks you include in the content.
 ```
 
 ### When user wants to switch vaults:
@@ -96,6 +98,23 @@ Step 3b: If no meeting type, ask "Should I create a 'meeting' note type for trac
 Step 4: `get_note_type_info` for meeting type to check agent instructions
 Step 5: `create_note` with content about John meeting following agent instructions
 Step 6: Follow agent instructions from response
+
+## Simple Link Commands
+
+### "show me what links to my project note"
+Step 1: `get_current_vault`
+Step 2: `get_backlinks` with the note identifier
+Step 3: Tell user what notes link to their project
+
+### "find broken links"
+Step 1: `get_current_vault` 
+Step 2: `find_broken_links`
+Step 3: Tell user about any broken links found
+
+### "what links are in my daily note"
+Step 1: `get_current_vault`
+Step 2: `get_note_links` with the note identifier
+Step 3: Show user incoming and outgoing links
 
 ### "read an interesting article"
 Step 1: `get_current_vault`

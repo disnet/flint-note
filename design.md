@@ -1213,29 +1213,29 @@ The project has a comprehensive design document and core implementation with MCP
 
 ## Link Management System
 
-### Current State and Motivation
+### Current Implementation Overview
 
-Currently, flint-note handles links through YAML frontmatter with dedicated MCP tools for link management. However, this approach has several limitations:
+flint-note now features a fully implemented SQLite-based link management system that automatically extracts and stores links from note content. The system provides comprehensive link tracking, validation, and querying capabilities while maintaining full compatibility with Obsidian-style wikilinks.
 
-- Links are stored as metadata rather than being extracted from content
-- Limited querying capabilities for link relationships
-- Inefficient link discovery and navigation
-- No automatic link extraction from wikilink syntax
-- Difficult to maintain link integrity across note operations
+### Key Features
 
-With the recent addition of SQLite for search indexing, we can leverage the database for more sophisticated link management while maintaining full compatibility with Obsidian-style wikilinks.
+- **Automatic Link Extraction**: Links are automatically extracted from content during note create/update operations
+- **Dual Link Support**: Handles both internal wikilinks (`[[note-title]]`) and external URLs seamlessly
+- **Real-time Link Resolution**: Wikilinks are resolved to actual note IDs with automatic broken link detection
+- **Comprehensive MCP Tools**: Rich set of tools for link querying, validation, and management
+- **Obsidian Compatibility**: Full support for `[[wikilink]]` and `[[target|display]]` formats
 
-### Proposed Design: SQLite-Based Link Storage
+### Architecture: SQLite-Based Link Storage
 
-#### Core Principles
+#### Implementation Principles
 
-1. **Content-Driven Link Extraction**: Automatically extract links from note content during create/update operations
-2. **Dual Link Support**: Handle both internal wikilinks (`[[note-title]]`) and external URLs 
-3. **Obsidian Compatibility**: Maintain full compatibility with `[[wikilink]]` format
-4. **Database-Powered Queries**: Enable complex link relationship queries through SQLite
-5. **Automatic Maintenance**: Keep link relationships synchronized with note operations
+1. **Content-Driven Extraction**: Links are automatically extracted using the `LinkExtractor` class during all note operations
+2. **Dual Link Support**: Separate handling for internal wikilinks and external URLs with dedicated database tables
+3. **Real-time Resolution**: Wikilinks are resolved to note IDs immediately, with broken links tracked for future resolution
+4. **Database Integration**: Full integration with existing SQLite search infrastructure
+5. **Automatic Synchronization**: Link relationships are maintained automatically across note operations
 
-#### Database Schema Extension
+#### Database Schema (Implemented)
 
 ```sql
 -- Internal links between notes (wikilinks)
@@ -1271,151 +1271,150 @@ CREATE INDEX idx_external_links_note ON external_links(note_id);
 CREATE INDEX idx_external_links_url ON external_links(url);
 ```
 
-#### Link Extraction Process
+#### Link Extraction Process (Implemented)
+
+The `LinkExtractor` class handles automatic link extraction during all note operations:
 
 **During Note Create/Update Operations:**
 
-1. **Parse Content**: Extract all wikilinks and external URLs from markdown content
-2. **Resolve Internal Links**: 
-   - Match `[[note-title]]` patterns to existing notes by title
-   - Handle `[[note-title|display-text]]` format
-   - Support case-insensitive matching
-   - Track unresolved links for future resolution
-3. **Extract External Links**: Find HTTP/HTTPS URLs in markdown link format
-4. **Update Database**: Replace all existing links for the note with newly extracted ones
-5. **Backlink Updates**: Update reverse link relationships when target notes are referenced
+1. **Content Parsing**: 
+   - Uses `WikilinkParser` to extract `[[wikilink]]` patterns with display text support
+   - Extracts markdown links `[title](url)`, image embeds `![alt](url)`, and plain URLs
+   - Tracks line numbers for all extracted links
 
-**Wikilink Resolution Strategy:**
-- Primary: Match against note `title` field in metadata
-- Fallback: Match against filename (without extension)
-- Case-insensitive matching with normalization
-- Support for partial matches when unambiguous
+2. **Link Resolution**:
+   - Resolves wikilinks to actual note IDs using title matching
+   - Supports case-insensitive matching with normalization
+   - Handles both `[[note-title]]` and `[[note-title|display-text]]` formats
+   - Tracks unresolved links as broken links (target_note_id = NULL)
 
-#### New MCP Tools
+3. **Database Updates**:
+   - Clears existing links for the note
+   - Inserts new internal links into `note_links` table
+   - Inserts new external links into `external_links` table
+   - Maintains referential integrity with cascade operations
+
+4. **Automatic Broken Link Resolution**:
+   - When notes are created or renamed, broken links are automatically resolved
+   - Updates link relationships in real-time
+
+#### MCP Tools (Implemented)
+
+The following MCP tools are available for link management:
+
+**Core Link Tools:**
+- `get_note_links(identifier)` - Get all links for a note (incoming, outgoing internal, and external)
+- `get_backlinks(identifier)` - Get all notes that link to the specified note
+- `find_broken_links()` - Find all broken wikilinks (links to non-existent notes)
+
+**Link Discovery & Validation:**
+- `get_link_suggestions(query, context_type?, limit?)` - Get link suggestions for partial queries
+- `suggest_link_targets(partial_query, context_type?, limit?)` - Get formatted wikilink suggestions
+- `validate_wikilinks(content, context_type?)` - Validate wikilinks and get suggestions for broken ones
+
+**Advanced Link Search:**
+- `search_by_links(criteria)` - Search notes by link relationships:
+  - `has_links_to: string[]` - Find notes linking to specified targets
+  - `linked_from: string[]` - Find notes linked from specified sources  
+  - `external_domains: string[]` - Find notes with links to specified domains
+  - `broken_links: boolean` - Find notes with broken internal links
+
+**Link Reporting:**
+- `generate_link_report(identifier)` - Generate comprehensive link analysis report
+- `get_note_info(title_or_filename)` - Get note details including filename for link creation
+
+**Response Formats:**
 
 ```typescript
-// Enhanced link management tools
-interface LinkTools {
-  // Query note relationships
-  get_note_links(note_id: string): {
-    outgoing_internal: InternalLink[],
-    outgoing_external: ExternalLink[],
-    incoming: InternalLink[]
-  };
-  
-  // Find notes linking to a target
-  get_backlinks(note_id: string): InternalLink[];
-  
-  // Search by link relationships
-  search_by_links(criteria: {
-    has_links_to?: string[],
-    linked_from?: string[],
-    external_domains?: string[],
-    broken_links?: boolean
-  }): Note[];
-  
-  // Link maintenance
-  find_broken_links(): BrokenLink[];
-  resolve_broken_link(link_id: number, target_note_id: string): void;
-  
-  // Bulk link operations
-  update_link_targets(old_title: string, new_title: string): void;
+// get_note_links response
+{
+  success: true,
+  note_id: string,
+  outgoing_internal: NoteLinkRow[],
+  outgoing_external: ExternalLinkRow[],
+  incoming: NoteLinkRow[]
 }
 
-interface InternalLink {
-  id: number;
-  source_note_id: string;
-  target_note_id: string | null;
-  target_title: string;
-  link_text?: string;
-  line_number: number;
-  is_broken: boolean;
+// NoteLinkRow (internal links)
+{
+  id: number,
+  source_note_id: string,
+  target_note_id: string | null,
+  target_title: string,
+  link_text: string | null,
+  line_number: number,
+  created: string
 }
 
-interface ExternalLink {
-  id: number;
-  note_id: string;
-  url: string;
-  title?: string;
-  line_number: number;
-  link_type: 'url' | 'image' | 'embed';
+// ExternalLinkRow
+{
+  id: number,
+  note_id: string,
+  url: string,
+  title: string | null,
+  line_number: number,
+  link_type: string,
+  created: string
 }
 ```
 
-#### Migration Strategy
+#### Integration with Note Operations
 
-**Phase 1: Database Schema**
-- Add link tables to existing SQLite schema
-- Create indexes for performance
-- Implement link extraction functions
-
-**Phase 2: Content Analysis**
-- Scan all existing notes to extract current links
-- Populate link tables with discovered relationships
-- Maintain backward compatibility with existing YAML frontmatter
-
-**Phase 3: Tool Enhancement**
-- Update `create_note` and `update_note` to extract links automatically
-- Enhance search tools to include link-based queries
-- Add new dedicated link management tools
-
-**Phase 4: Legacy Cleanup**
-- Gradually deprecate YAML frontmatter link storage
-- Provide migration assistance for custom link metadata
-- Clean up redundant link management tools
-
-#### Integration Points
-
-**Note Operations:**
-- `create_note`: Extract and store links during creation
-- `update_note`: Re-extract links on content changes, handle link target updates
-- `rename_note`: Update all incoming links when note title changes
-- `delete_note`: Clean up all link references
+**Automatic Link Processing:**
+- `create_note`: Automatically extracts and stores links during note creation
+- `update_note`: Re-extracts links when content changes, maintains link integrity
+- `rename_note`: Updates broken links that now resolve to the renamed note
+- `delete_note`: Cleans up all link references (sets target_note_id to NULL for incoming links)
 
 **Search Integration:**
-- Include link relationships in search results
-- Add link-based filtering to advanced search
-- Support queries like "notes linking to X" or "orphaned notes"
+- `search_by_links` tool enables complex link relationship queries
+- Advanced search includes link-based filtering capabilities
+- Support for finding orphaned notes, broken links, and external link analysis
 
-**Wikilink Processing:**
-```typescript
-// Example link extraction logic
-function extractWikilinks(content: string): WikilinkMatch[] {
-  const pattern = /\[\[([^\]|]+)(\|([^\]]+))?\]\]/g;
-  const matches: WikilinkMatch[] = [];
-  let match;
-  
-  while ((match = pattern.exec(content)) !== null) {
-    matches.push({
-      target_title: match[1].trim(),
-      link_text: match[3]?.trim(),
-      line_number: content.substring(0, match.index).split('\n').length,
-      raw_match: match[0]
-    });
-  }
-  
-  return matches;
-}
-```
+**Migration Support:**
+- `migrate_links` tool available for populating link tables from existing notes
+- Automatic link extraction runs during normal note operations
+- Backward compatibility maintained with existing YAML frontmatter
 
-#### Performance Considerations
+#### Key Implementation Details
 
-- **Batch Processing**: Extract links for multiple notes efficiently
-- **Incremental Updates**: Only re-process changed content sections
-- **Index Optimization**: Proper indexing for fast link traversal queries
-- **Lazy Resolution**: Resolve broken links when target notes are created
-- **Cache Strategy**: Cache frequently accessed link relationships
+**Link Extraction Algorithm:**
+The `LinkExtractor` class uses specialized parsers:
+- `WikilinkParser` for `[[wikilink]]` pattern matching with display text support
+- Regex patterns for markdown links, image embeds, and plain URLs
+- Line-by-line processing to maintain accurate line number tracking
 
-#### Benefits
+**Wikilink Resolution:**
+- Primary matching against note `title` field in metadata
+- Fallback matching against filename (without extension)
+- Case-insensitive matching with target normalization
+- Automatic resolution of broken links when target notes are created/renamed
 
-1. **Powerful Queries**: SQL-based link relationship analysis
-2. **Automatic Maintenance**: Links stay synchronized with content changes
-3. **Obsidian Compatibility**: Full support for standard wikilink format
-4. **Broken Link Detection**: Identify and help resolve orphaned references
-5. **Rich Navigation**: Build knowledge graphs and link-based discovery
-6. **Performance**: Fast link traversal through proper indexing
+**Database Performance:**
+- Proper indexing on source_note_id, target_note_id, and target_title
+- Efficient batch operations for link updates
+- Referential integrity maintained with foreign key constraints
 
-This design leverages the existing SQLite infrastructure while providing a much more robust foundation for link management that scales with vault size and complexity.
+#### Current Status & Benefits
+
+**Fully Implemented Features:**
+✅ Automatic link extraction from content
+✅ Real-time wikilink resolution
+✅ Comprehensive MCP tool suite
+✅ Broken link detection and resolution
+✅ External link tracking
+✅ Link-based search capabilities
+✅ Integration with note operations
+
+**Key Benefits Achieved:**
+1. **Zero-Maintenance Linking**: Links are automatically extracted and maintained
+2. **Obsidian Compatibility**: Full support for `[[wikilink]]` syntax
+3. **Powerful Queries**: SQL-based link relationship analysis
+4. **Broken Link Management**: Automatic detection and resolution
+5. **Rich Navigation**: Comprehensive backlink and forward link discovery
+6. **Performance**: Fast link traversal with proper database indexing
+
+The link management system is production-ready and provides a robust foundation for knowledge graph navigation and relationship discovery.
 
 ---
 

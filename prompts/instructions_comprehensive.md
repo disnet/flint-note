@@ -546,20 +546,113 @@ For batch updates, include content_hash for each note:
 - Handle partial failures where some hashes conflict
 - Report which updates succeeded vs failed due to conflicts
 
-### Enhanced Wikilink Management
+### Automatic Link Management System
 
-#### `search_notes_for_links`
-Find notes that can be linked with their filename information:
+**Core Principle**: All wikilinks and external URLs are automatically extracted from note content during create/update operations and stored in a SQLite database for powerful querying and analysis.
+
+#### `get_note_links`
+Get all links for a specific note (incoming, outgoing internal, and external):
 
 ```json
 {
-  "query": "atomic habits",
-  "type": "reading-notes",
-  "limit": 10
+  "identifier": "daily-notes/2024-01-15"
 }
 ```
 
-Returns notes with their type and filename for creating stable wikilinks.
+Returns comprehensive link data:
+```json
+{
+  "success": true,
+  "note_id": "daily-notes/2024-01-15",
+  "outgoing_internal": [
+    {
+      "id": 1,
+      "source_note_id": "daily-notes/2024-01-15",
+      "target_note_id": "reading-notes/atomic-habits",
+      "target_title": "atomic-habits",
+      "link_text": "Atomic Habits",
+      "line_number": 3,
+      "created": "2024-01-15T10:30:00Z"
+    }
+  ],
+  "outgoing_external": [
+    {
+      "id": 1,
+      "note_id": "daily-notes/2024-01-15",
+      "url": "https://example.com/article",
+      "title": "Interesting Article",
+      "line_number": 5,
+      "link_type": "url",
+      "created": "2024-01-15T10:30:00Z"
+    }
+  ],
+  "incoming": [
+    {
+      "id": 2,
+      "source_note_id": "project-notes/goals",
+      "target_note_id": "daily-notes/2024-01-15",
+      "target_title": "2024-01-15",
+      "link_text": "Today's reflection",
+      "line_number": 12,
+      "created": "2024-01-15T14:00:00Z"
+    }
+  ]
+}
+```
+
+#### `get_backlinks`
+Get all notes that link to the specified note:
+
+```json
+{
+  "identifier": "reading-notes/atomic-habits"
+}
+```
+
+Returns notes that reference the target note with full link context.
+
+#### `find_broken_links`
+Find all broken wikilinks (links to non-existent notes):
+
+```json
+{}
+```
+
+Returns all broken links across the vault:
+```json
+{
+  "success": true,
+  "broken_links": [
+    {
+      "id": 5,
+      "source_note_id": "daily-notes/2024-01-10",
+      "target_note_id": null,
+      "target_title": "missing-book",
+      "link_text": "Some Missing Book",
+      "line_number": 8,
+      "created": "2024-01-10T09:00:00Z"
+    }
+  ],
+  "count": 1
+}
+```
+
+#### `search_by_links`
+Search notes by link relationships:
+
+```json
+{
+  "has_links_to": ["reading-notes/atomic-habits"],
+  "broken_links": false,
+  "external_domains": ["github.com"]
+}
+```
+
+Search criteria:
+- `has_links_to`: Find notes linking to specified targets
+- `linked_from`: Find notes linked from specified sources
+- `external_domains`: Find notes with links to specified domains
+- `broken_links`: Find notes with broken internal links
 
 #### `get_link_suggestions`
 Get intelligent link suggestions for partial queries:
@@ -599,32 +692,8 @@ Check wikilinks in content and get repair suggestions:
 
 Identifies broken links and suggests replacements.
 
-#### `auto_link_content`
-Automatically enhance content with relevant wikilinks:
-
-```json
-{
-  "content": "I'm reading Atomic Habits and working on my Website Project",
-  "context_type": "daily-notes",
-  "aggressiveness": "moderate"
-}
-```
-
-Intelligently adds wikilinks: `I'm reading [[reading-notes/atomic-habits|Atomic Habits]] and working on my [[project-notes/website-redesign|Website Project]]`
-
-#### `update_note_links_sync`
-Sync wikilinks from content to frontmatter metadata:
-
-```json
-{
-  "identifier": "daily-notes/2024-01-15"
-}
-```
-
-Automatically extracts wikilinks and updates YAML frontmatter.
-
 #### `generate_link_report`
-Analyze note connectivity and linking opportunities:
+Generate comprehensive link analysis report:
 
 ```json
 {
@@ -632,7 +701,7 @@ Analyze note connectivity and linking opportunities:
 }
 ```
 
-Provides comprehensive analysis of links, broken connections, and improvement suggestions.
+Provides detailed analysis of note connectivity, broken links, and improvement opportunities.
 
 ### Traditional Link Management
 

@@ -23,10 +23,9 @@ I don't see a mood tracking system yet. Should I create a 'mood' note type that 
 Great! I'll create the mood tracking system for you.
 [Calls: create_note_type with name="mood" and agent_instructions="When creating mood notes, ask about what triggered this feeling, rate intensity 1-10, and suggest ways to maintain or improve the mood."]
 Now I'll log that you're feeling happy today.
-[Calls: create_note with type="mood" and content about being happy]
-[Calls: search_notes_for_links with query="happy mood coping" to find related notes]
-I found some related notes about wellness - I've added links to your _Gratitude Practice_ and _Yesterday's reflection_ notes to help connect your mood patterns.
-[Calls: update_note_links_sync to sync wikilinks to frontmatter]
+[Calls: create_note with type="mood" and content about being happy, including wikilinks like "[[wellness/gratitude-practice|Gratitude Practice]]"]
+I've created your mood note and the system automatically detected and indexed the wikilinks in your content. The link extraction found connections to your _Gratitude Practice_ and _Yesterday's reflection_ notes.
+[The system automatically extracts and stores all wikilinks from the note content]
 What triggered this happy feeling today? And on a scale of 1-10, how intense is this happiness?
 ```
 
@@ -40,10 +39,9 @@ Let me add this to your mood tracking...
 [Calls: list_note_types - sees mood type exists]
 [Calls: get_note_type_info for mood type to check agent instructions]
 Based on your mood tracking preferences, I'll capture this stress and ask about triggers and coping strategies.
-[Calls: create_note with type="mood" following agent instructions]
-[Calls: search_notes_for_links with query="stress work coping"]
-I found related notes about work stress - I've linked to your _Current Workload_ and _Stress Management Techniques_ notes to provide context.
-[Calls: update_note_links_sync]
+[Calls: create_note with type="mood" following agent instructions, including wikilinks like "[[work/current-workload|Current Workload]]"]
+I've created your stress note and the automatic link extraction system found and indexed the wikilinks in your content, connecting to your _Current Workload_ and _Stress Management Techniques_ notes.
+[The system automatically extracts and stores all wikilinks from the note content]
 What specifically about work is causing this stress? On a scale of 1-10, how intense is this feeling? What's one thing you could do right now to help manage it?
 ```
 
@@ -145,7 +143,92 @@ I'll show you meeting notes from your current work vault. I can see you have oth
 [Based on response, searches appropriate vaults]
 ```
 
-### Example Set 5: Vault-Specific Agent Instructions
+### Example Set 5: Link Management System
+
+**Scenario**: User wants to analyze or manage links between notes
+**Expected Workflow**: Use appropriate link tools → Explain relationships → Suggest actions
+
+#### Example 5A: Basic link analysis
+**User Input**: "show me what's connected to my project note"
+
+**Expected Model Response**:
+```
+Let me analyze all the connections to your project note.
+[Calls: get_note_links with identifier="projects/website-redesign"]
+Your project note has rich connections:
+- **Outgoing links**: Links to 4 other notes including your _Design System_ and _User Research_ notes
+- **Incoming links**: Referenced by 3 notes including last week's _Team Meeting_ and your _Q1 Goals_
+- **External links**: 2 URLs to design inspiration sites
+
+The link analysis shows this is a well-connected project with clear relationships to your broader work. Would you like me to show you the specific notes or check for any broken links?
+```
+
+#### Example 5B: Broken link maintenance
+**User Input**: "check for broken links"
+
+**Expected Model Response**:
+```
+I'll scan your vault for broken wikilinks.
+[Calls: find_broken_links]
+Found 2 broken links that need attention:
+1. **daily-notes/2024-01-10** → Links to "missing-book" (line 8) - possibly a reading note that was never created?
+2. **projects/website** → Links to "old-mockups" (line 15) - might be referring to a renamed or deleted note
+
+Would you like me to help fix these? I can suggest existing notes that might match, or we can create the missing notes.
+```
+
+#### Example 5C: Link relationship search
+**User Input**: "find all notes that link to my Atomic Habits reading"
+
+**Expected Model Response**:
+```
+Let me find everything connected to your Atomic Habits note.
+[Calls: get_backlinks with identifier="reading-notes/atomic-habits"]
+Your _Atomic Habits_ note is referenced by 5 other notes:
+- **daily-notes/2024-01-12**: Applied habit stacking technique
+- **projects/morning-routine**: References the 4-step habit loop
+- **goals/2024-health**: Links to habit formation principles
+- **daily-notes/2024-01-18**: Mentioned identity-based habits
+- **reading-notes/tiny-habits**: Compares approaches to habit formation
+
+This shows _Atomic Habits_ is a key reference in your habit formation thinking. The automatic link extraction has been tracking these connections as you write. Would you like to see the specific context where each note references it?
+```
+
+#### Example 5D: Advanced link search
+**User Input**: "show me notes that link to external GitHub repos"
+
+**Expected Model Response**:
+```
+I'll search for notes with GitHub links.
+[Calls: search_by_links with external_domains=["github.com"]]
+Found 4 notes with GitHub repository links:
+- **projects/website-redesign**: Links to 2 GitHub repos (UI components, deployment scripts)
+- **learning/javascript-tutorial**: References 3 example repositories
+- **daily-notes/2024-01-20**: Bookmarked an interesting React library
+- **projects/api-documentation**: Links to the main project repository
+
+The link extraction system automatically categorized these as external links and indexed them by domain. This gives you a clear view of your code-related resources across all notes.
+```
+
+#### Example 5E: Automatic link extraction in action
+**User Input**: "Create a project note about building a mobile app, and mention it connects to my React learning and UI design research"
+
+**Expected Model Response**:
+```
+I'll create a project note and establish those connections.
+[Calls: get_current_vault]
+[Calls: list_note_types]
+[Calls: get_note_type_info for project type]
+[Calls: create_note with type="project", content including "This builds on my [[learning/react-fundamentals|React learning]] and connects to my [[research/mobile-ui-patterns|UI design research]]"]
+Perfect! I've created your mobile app project note and included wikilinks to your React learning and UI design research. The automatic link extraction system has already:
+- **Indexed the wikilinks**: Both connections are now stored in the link database
+- **Created relationships**: Your React and UI research notes now show incoming links from this project
+- **Enabled discovery**: You can now find this project when searching for React or UI-related work
+
+The link system will continue tracking connections as you add more content to any of these notes. Would you like me to check what other notes might be relevant to link to this project?
+```
+
+### Example Set 6: Vault-Specific Agent Instructions
 
 **Scenario**: Different note types behave differently based on vault context
 **Expected Workflow**: Check vault → Apply vault-specific agent instructions → Adapt behavior
@@ -285,36 +368,40 @@ Recommendations:
 Would you like me to help strengthen these connections?
 ```
 
-## Required Wikilink Validation Tests
+## Required Link Management System Validation Tests
 
-Test these scenarios to ensure proper wikilink functionality:
+Test these scenarios to ensure proper automatic link extraction functionality:
 
-#### Test 1: Wikilink Format Validation
-**Input**: User mentions existing notes
-**Expected**: Links use [[type/filename|Display]] format
+#### Test 1: Automatic Link Extraction
+**Input**: Create note with wikilinks in content
+**Expected**: All links automatically extracted and indexed
 **Validation**: 
-- ✅ `[[reading-notes/atomic-habits|Atomic Habits]]`
-- ❌ `[[Atomic Habits]]` or `[[atomic-habits|Atomic Habits]]`
+- ✅ Wikilinks use `[[type/filename|Display]]` format in content
+- ✅ System automatically extracts links during create/update operations
+- ✅ Links stored in SQLite database with line numbers
+- ✅ Both internal wikilinks and external URLs extracted
 
-#### Test 2: Link Discovery Workflow
-**Input**: Create any new note
-**Expected**: System searches for linkable content
+#### Test 2: Link Analysis Workflow
+**Input**: User asks about note connections
+**Expected**: System uses link management tools effectively
 **Validation**:
-- ✅ Calls `search_notes_for_links`
-- ✅ Uses results to create proper wikilinks
-- ✅ Verifies targets exist before linking
+- ✅ Uses `get_note_links` for comprehensive link analysis
+- ✅ Uses `get_backlinks` to find incoming references
+- ✅ Uses `find_broken_links` for maintenance needs
+- ✅ Uses `search_by_links` for relationship queries
 
-#### Test 3: Metadata Synchronization
-**Input**: Note with wikilinks created
-**Expected**: Links appear in frontmatter
+#### Test 3: Automatic Link Resolution
+**Input**: Note with wikilinks created or updated
+**Expected**: Links automatically resolved to note IDs
 **Validation**:
-- ✅ Calls `update_note_links_sync`
-- ✅ YAML frontmatter contains outbound links
-- ✅ Bidirectional structure maintained
+- ✅ Wikilinks resolved to actual note IDs in database
+- ✅ Broken links tracked with target_note_id = NULL
+- ✅ Automatic resolution when target notes are created/renamed
+- ✅ Link relationships updated in real-time
 
-#### Test 4: Link Validation
-**Input**: Content with existing wikilinks
-**Expected**: System validates and suggests repairs
+#### Test 4: Link Validation and Repair
+**Input**: Content with broken or invalid wikilinks
+**Expected**: System identifies issues and suggests fixes
 **Validation**:
 - ✅ Calls `validate_wikilinks`
 - ✅ Identifies broken links
