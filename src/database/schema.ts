@@ -251,11 +251,21 @@ export class DatabaseManager {
       );
 
       // Create indexes for link tables
-      await connection.run('CREATE INDEX IF NOT EXISTS idx_note_links_source ON note_links(source_note_id)');
-      await connection.run('CREATE INDEX IF NOT EXISTS idx_note_links_target ON note_links(target_note_id)');
-      await connection.run('CREATE INDEX IF NOT EXISTS idx_note_links_target_title ON note_links(target_title)');
-      await connection.run('CREATE INDEX IF NOT EXISTS idx_external_links_note ON external_links(note_id)');
-      await connection.run('CREATE INDEX IF NOT EXISTS idx_external_links_url ON external_links(url)');
+      await connection.run(
+        'CREATE INDEX IF NOT EXISTS idx_note_links_source ON note_links(source_note_id)'
+      );
+      await connection.run(
+        'CREATE INDEX IF NOT EXISTS idx_note_links_target ON note_links(target_note_id)'
+      );
+      await connection.run(
+        'CREATE INDEX IF NOT EXISTS idx_note_links_target_title ON note_links(target_title)'
+      );
+      await connection.run(
+        'CREATE INDEX IF NOT EXISTS idx_external_links_note ON external_links(note_id)'
+      );
+      await connection.run(
+        'CREATE INDEX IF NOT EXISTS idx_external_links_url ON external_links(url)'
+      );
 
       // Create triggers to keep FTS table in sync
       await connection.run(`

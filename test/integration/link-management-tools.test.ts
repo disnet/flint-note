@@ -1,9 +1,9 @@
 /**
  * Integration tests for new link management MCP tools
- * 
+ *
  * Tests the complete MCP interface for link management including:
  * - get_note_links
- * - get_backlinks  
+ * - get_backlinks
  * - find_broken_links
  * - search_by_links
  */
@@ -92,7 +92,9 @@ class MCPClient {
   async expectSuccess(toolName: string, args: any): Promise<any> {
     const result = await this.callTool(toolName, args);
     if (result.isError) {
-      throw new Error(`Expected ${toolName} to succeed but got error: ${result.content[0].text}`);
+      throw new Error(
+        `Expected ${toolName} to succeed but got error: ${result.content[0].text}`
+      );
     }
     return JSON.parse(result.content[0].text);
   }
@@ -170,24 +172,30 @@ Broken link: [[non-existent-note]]`;
 
       // Check outgoing internal links (wikilinks)
       assert.strictEqual(linksData.links.outgoing_internal.length, 3);
-      
-      const validLinks = linksData.links.outgoing_internal.filter((link: any) => link.target_note_id !== null);
-      const brokenLinks = linksData.links.outgoing_internal.filter((link: any) => link.target_note_id === null);
-      
+
+      const validLinks = linksData.links.outgoing_internal.filter(
+        (link: any) => link.target_note_id !== null
+      );
+      const brokenLinks = linksData.links.outgoing_internal.filter(
+        (link: any) => link.target_note_id === null
+      );
+
       assert.strictEqual(validLinks.length, 2);
       assert.strictEqual(brokenLinks.length, 1);
       assert.strictEqual(brokenLinks[0].target_title, 'non-existent-note');
 
       // Check outgoing external links (may be more due to multiple pattern matching)
       assert.ok(linksData.links.outgoing_external.length >= 3);
-      
+
       const urls = linksData.links.outgoing_external.map((link: any) => link.url);
       assert.ok(urls.includes('https://example.com'));
       assert.ok(urls.includes('https://test.com/image.png'));
       assert.ok(urls.includes('https://github.com/example/repo'));
 
       // Check link types
-      const linkTypes = linksData.links.outgoing_external.map((link: any) => link.link_type);
+      const linkTypes = linksData.links.outgoing_external.map(
+        (link: any) => link.link_type
+      );
       assert.ok(linkTypes.includes('url'));
       assert.ok(linkTypes.includes('image'));
     });
@@ -223,7 +231,7 @@ Broken link: [[non-existent-note]]`;
 
       // Should have 2 incoming links
       assert.strictEqual(linksData.links.incoming.length, 2);
-      
+
       const sourceIds = linksData.links.incoming.map((link: any) => link.source_note_id);
       assert.strictEqual(sourceIds.length, 2);
     });
@@ -264,7 +272,7 @@ Broken link: [[non-existent-note]]`;
 
       const source2 = await client.expectSuccess('create_note', {
         type: 'research',
-        title: 'Source 2', 
+        title: 'Source 2',
         content: `Also links to [[${targetResult.id}]].`
       });
 
@@ -395,7 +403,7 @@ Broken link: [[non-existent-note]]`;
       });
 
       researchNote = await client.expectSuccess('create_note', {
-        type: 'research', 
+        type: 'research',
         title: 'Research Note',
         content: `Research that references [[${hubNote.id}]] and external: https://arxiv.org/paper123`
       });
@@ -409,7 +417,7 @@ Broken link: [[non-existent-note]]`;
 
       await client.expectSuccess('create_note', {
         type: 'general',
-        title: 'Linker 2', 
+        title: 'Linker 2',
         content: `References [[${researchNote.id}]] and has broken: [[missing-note]].`
       });
 
@@ -491,10 +499,14 @@ Broken link: [[non-existent-note]]`;
       });
 
       // Check if it's an error response
-      const isError = result.isError === true || (result.content && result.content[0] && 
-        (result.content[0].text.includes('error') || result.content[0].text.includes('not found') || 
-         result.content[0].text.includes('Error')));
-      
+      const isError =
+        result.isError === true ||
+        (result.content &&
+          result.content[0] &&
+          (result.content[0].text.includes('error') ||
+            result.content[0].text.includes('not found') ||
+            result.content[0].text.includes('Error')));
+
       assert.ok(isError, 'Expected error response for non-existent note');
     });
 
@@ -504,10 +516,14 @@ Broken link: [[non-existent-note]]`;
       });
 
       // Check if it's an error response
-      const isError = result.isError === true || (result.content && result.content[0] && 
-        (result.content[0].text.includes('error') || result.content[0].text.includes('not found') || 
-         result.content[0].text.includes('Error')));
-      
+      const isError =
+        result.isError === true ||
+        (result.content &&
+          result.content[0] &&
+          (result.content[0].text.includes('error') ||
+            result.content[0].text.includes('not found') ||
+            result.content[0].text.includes('Error')));
+
       assert.ok(isError, 'Expected error response for non-existent note');
     });
 

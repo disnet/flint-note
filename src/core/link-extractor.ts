@@ -6,7 +6,11 @@
  */
 
 import { WikilinkParser } from './wikilink-parser.js';
-import type { DatabaseConnection, NoteLinkRow, ExternalLinkRow } from '../database/schema.js';
+import type {
+  DatabaseConnection,
+  NoteLinkRow,
+  ExternalLinkRow
+} from '../database/schema.js';
 
 export interface ExtractedWikilink {
   target_title: string;
@@ -30,10 +34,10 @@ export interface LinkExtractionResult {
 export class LinkExtractor {
   // Regex for markdown links [title](url)
   private static readonly MARKDOWN_LINK_REGEX = /\[([^\]]*)\]\(([^)]+)\)/g;
-  
+
   // Regex for plain URLs
   private static readonly URL_REGEX = /https?:\/\/[^\s<>"']+/g;
-  
+
   // Regex for image embeds ![alt](url)
   private static readonly IMAGE_EMBED_REGEX = /!\[([^\]]*)\]\(([^)]+)\)/g;
 
@@ -58,7 +62,7 @@ export class LinkExtractor {
 
       // Extract external links from this line
       const lineExternalLinks = this.extractExternalLinksFromLine(line, lineNumber);
-      
+
       // Filter out duplicates
       for (const link of lineExternalLinks) {
         if (!processedUrls.has(link.url)) {
@@ -74,7 +78,10 @@ export class LinkExtractor {
   /**
    * Extract wikilinks from a single line
    */
-  private static extractWikilinksFromLine(line: string, lineNumber: number): ExtractedWikilink[] {
+  private static extractWikilinksFromLine(
+    line: string,
+    lineNumber: number
+  ): ExtractedWikilink[] {
     const wikilinks: ExtractedWikilink[] = [];
     const parseResult = WikilinkParser.parseWikilinks(line);
 
@@ -92,7 +99,10 @@ export class LinkExtractor {
   /**
    * Extract external links from a single line
    */
-  private static extractExternalLinksFromLine(line: string, lineNumber: number): ExtractedExternalLink[] {
+  private static extractExternalLinksFromLine(
+    line: string,
+    lineNumber: number
+  ): ExtractedExternalLink[] {
     const links: ExtractedExternalLink[] = [];
 
     // First, extract image embeds
@@ -195,7 +205,7 @@ export class LinkExtractor {
     if (typeFileMatch) {
       const [, type, filename] = typeFileMatch;
       const filenameWithExt = filename.endsWith('.md') ? filename : `${filename}.md`;
-      
+
       note = await db.get<{ id: string }>(
         'SELECT id FROM notes WHERE type = ? AND filename = ?',
         [type, filenameWithExt]
@@ -209,7 +219,7 @@ export class LinkExtractor {
     // Try filename match (with and without .md extension)
     const cleanTitle = targetTitle.replace(/\.md$/, '');
     const titleWithExt = cleanTitle.endsWith('.md') ? cleanTitle : `${cleanTitle}.md`;
-    
+
     note = await db.get<{ id: string }>(
       'SELECT id FROM notes WHERE filename = ? OR filename = ?',
       [cleanTitle, titleWithExt]
@@ -235,7 +245,10 @@ export class LinkExtractor {
       await db.run('DELETE FROM external_links WHERE note_id = ?', [noteId]);
 
       // Resolve wikilinks to note IDs
-      const resolvedWikilinks = await this.resolveWikilinks(extractionResult.wikilinks, db);
+      const resolvedWikilinks = await this.resolveWikilinks(
+        extractionResult.wikilinks,
+        db
+      );
 
       // Insert wikilinks
       for (const wikilink of resolvedWikilinks) {
@@ -257,13 +270,7 @@ export class LinkExtractor {
         await db.run(
           `INSERT INTO external_links (note_id, url, title, line_number, link_type)
            VALUES (?, ?, ?, ?, ?)`,
-          [
-            noteId,
-            link.url,
-            link.title || null,
-            link.line_number,
-            link.link_type
-          ]
+          [noteId, link.url, link.title || null, link.line_number, link.link_type]
         );
       }
 
@@ -322,7 +329,10 @@ export class LinkExtractor {
   /**
    * Get backlinks for a note
    */
-  static async getBacklinks(noteId: string, db: DatabaseConnection): Promise<NoteLinkRow[]> {
+  static async getBacklinks(
+    noteId: string,
+    db: DatabaseConnection
+  ): Promise<NoteLinkRow[]> {
     return await db.all<NoteLinkRow>(
       `SELECT * FROM note_links WHERE target_note_id = ? ORDER BY created DESC`,
       [noteId]
@@ -332,7 +342,11 @@ export class LinkExtractor {
   /**
    * Update broken links when a note is created or renamed
    */
-  static async updateBrokenLinks(noteId: string, noteTitle: string, db: DatabaseConnection): Promise<number> {
+  static async updateBrokenLinks(
+    noteId: string,
+    noteTitle: string,
+    db: DatabaseConnection
+  ): Promise<number> {
     const result = await db.run(
       `UPDATE note_links 
        SET target_note_id = ? 
@@ -348,15 +362,18 @@ export class LinkExtractor {
    */
   static async clearLinksForNote(noteId: string, db: DatabaseConnection): Promise<void> {
     await db.run('BEGIN TRANSACTION');
-    
+
     try {
       // Clear outgoing links
       await db.run('DELETE FROM note_links WHERE source_note_id = ?', [noteId]);
       await db.run('DELETE FROM external_links WHERE note_id = ?', [noteId]);
-      
+
       // Set target_note_id to NULL for incoming links (making them broken)
-      await db.run('UPDATE note_links SET target_note_id = NULL WHERE target_note_id = ?', [noteId]);
-      
+      await db.run(
+        'UPDATE note_links SET target_note_id = NULL WHERE target_note_id = ?',
+        [noteId]
+      );
+
       await db.run('COMMIT');
     } catch (error) {
       await db.run('ROLLBACK');

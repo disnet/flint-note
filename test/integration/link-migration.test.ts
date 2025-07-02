@@ -1,6 +1,6 @@
 /**
  * Integration tests for link migration functionality
- * 
+ *
  * Tests the migrate_links tool that populates link tables
  * for existing notes in a vault.
  */
@@ -91,7 +91,9 @@ class MCPClient {
   async expectSuccess(toolName: string, args: any): Promise<any> {
     const result = await this.callTool(toolName, args);
     if (result.isError) {
-      throw new Error(`Expected ${toolName} to succeed but got error: ${result.content[0].text}`);
+      throw new Error(
+        `Expected ${toolName} to succeed but got error: ${result.content[0].text}`
+      );
     }
     return JSON.parse(result.content[0].text);
   }
@@ -126,7 +128,7 @@ describe('Link Migration Integration', () => {
   ): Promise<string> {
     const typeDir = path.join(context.tempDir, noteType);
     await fs.mkdir(typeDir, { recursive: true });
-    
+
     const filePath = path.join(typeDir, filename);
     const noteContent = `---
 title: "${title}"
@@ -188,7 +190,7 @@ External research: https://arxiv.org/paper123`
       // At this point, link tables should be empty (no auto-extraction for existing files)
       const _initialBrokenLinks = await client.expectSuccess('find_broken_links', {});
       // Might be 0 or might have some links depending on how search index works
-      
+
       // Run migration
       const migrationResult = await client.expectSuccess('migrate_links', {});
 
@@ -198,7 +200,7 @@ External research: https://arxiv.org/paper123`
       assert.strictEqual(migrationResult.errors, 0);
 
       // Verify links were extracted and stored
-      
+
       // Check source note links
       const sourceLinksData = await client.expectSuccess('get_note_links', {
         identifier: sourceId
@@ -206,24 +208,26 @@ External research: https://arxiv.org/paper123`
 
       // Should have 2 internal links (1 valid, 1 broken)
       assert.strictEqual(sourceLinksData.links.outgoing_internal.length, 2);
-      
+
       const validInternalLinks = sourceLinksData.links.outgoing_internal.filter(
         (link: any) => link.target_note_id !== null
       );
       const brokenInternalLinks = sourceLinksData.links.outgoing_internal.filter(
         (link: any) => link.target_note_id === null
       );
-      
+
       assert.strictEqual(validInternalLinks.length, 1);
       assert.strictEqual(validInternalLinks[0].target_note_id, targetId);
-      
+
       assert.strictEqual(brokenInternalLinks.length, 1);
       assert.strictEqual(brokenInternalLinks[0].target_title, 'non-existent-note');
 
       // Should have at least 3 external links (may be more due to multiple pattern matching)
       assert.ok(sourceLinksData.links.outgoing_external.length >= 3);
-      
-      const externalUrls = sourceLinksData.links.outgoing_external.map((link: any) => link.url);
+
+      const externalUrls = sourceLinksData.links.outgoing_external.map(
+        (link: any) => link.url
+      );
       assert.ok(externalUrls.includes('https://github.com/example'));
       assert.ok(externalUrls.includes('https://example.com/diagram.png'));
       assert.ok(externalUrls.includes('https://docs.example.com'));
@@ -235,7 +239,10 @@ External research: https://arxiv.org/paper123`
 
       assert.strictEqual(researchLinksData.links.outgoing_internal.length, 2);
       assert.strictEqual(researchLinksData.links.outgoing_external.length, 1);
-      assert.strictEqual(researchLinksData.links.outgoing_external[0].url, 'https://arxiv.org/paper123');
+      assert.strictEqual(
+        researchLinksData.links.outgoing_external[0].url,
+        'https://arxiv.org/paper123'
+      );
 
       // Check target note incoming links
       const targetLinksData = await client.expectSuccess('get_note_links', {
@@ -243,14 +250,19 @@ External research: https://arxiv.org/paper123`
       });
 
       assert.strictEqual(targetLinksData.links.incoming.length, 2);
-      const incomingSourceIds = targetLinksData.links.incoming.map((link: any) => link.source_note_id);
+      const incomingSourceIds = targetLinksData.links.incoming.map(
+        (link: any) => link.source_note_id
+      );
       assert.ok(incomingSourceIds.includes(sourceId));
       assert.ok(incomingSourceIds.includes(anotherSourceId));
 
       // Verify broken links are found
       const finalBrokenLinks = await client.expectSuccess('find_broken_links', {});
       assert.strictEqual(finalBrokenLinks.count, 1);
-      assert.strictEqual(finalBrokenLinks.broken_links[0].target_title, 'non-existent-note');
+      assert.strictEqual(
+        finalBrokenLinks.broken_links[0].target_title,
+        'non-existent-note'
+      );
     });
 
     test('should prevent duplicate migration by default', async () => {
@@ -278,7 +290,7 @@ External research: https://arxiv.org/paper123`
       // Try to run migration again (should be prevented)
       const result = await client.callTool('migrate_links', {});
       const secondMigration = JSON.parse(result.content[0].text);
-      
+
       assert.strictEqual(secondMigration.success, false);
       assert.ok(secondMigration.message.includes('already contain data'));
       assert.ok(secondMigration.existing_links > 0);
@@ -316,7 +328,7 @@ External research: https://arxiv.org/paper123`
       const forcedMigration = await client.expectSuccess('migrate_links', {
         force: true
       });
-      
+
       assert.ok(forcedMigration.success);
       assert.strictEqual(forcedMigration.processed, 2);
 
@@ -350,12 +362,7 @@ Embedded image: ![Chart](https://charts.example.com/data.svg)`;
       );
 
       // Create some target notes
-      await createFileSystemNote(
-        'general',
-        'note1.md',
-        'note1',
-        'Note 1 content.'
-      );
+      await createFileSystemNote('general', 'note1.md', 'note1', 'Note 1 content.');
 
       await createFileSystemNote(
         'projects',
@@ -382,27 +389,27 @@ Embedded image: ![Chart](https://charts.example.com/data.svg)`;
 
       // Should have at least 5 internal links (3 broken, 2 valid)
       assert.ok(linksData.links.outgoing_internal.length >= 5);
-      
+
       const validLinks = linksData.links.outgoing_internal.filter(
         (link: any) => link.target_note_id !== null
       );
       const brokenLinks = linksData.links.outgoing_internal.filter(
         (link: any) => link.target_note_id === null
       );
-      
+
       assert.strictEqual(validLinks.length, 2);
       assert.ok(brokenLinks.length >= 3); // At least 3 broken links
 
       // Should have at least 5 external links (may be more due to multiple pattern matching)
       assert.ok(linksData.links.outgoing_external.length >= 5);
-      
+
       const imageLinks = linksData.links.outgoing_external.filter(
         (link: any) => link.link_type === 'image'
       );
       const urlLinks = linksData.links.outgoing_external.filter(
         (link: any) => link.link_type === 'url'
       );
-      
+
       assert.ok(imageLinks.length >= 2); // At least 2 image links
       assert.ok(urlLinks.length >= 3); // At least 3 URL links
     });
@@ -411,15 +418,19 @@ Embedded image: ![Chart](https://charts.example.com/data.svg)`;
       // Create a note with malformed content
       const typeDir = path.join(context.tempDir, 'general');
       await fs.mkdir(typeDir, { recursive: true });
-      
+
       const malformedPath = path.join(typeDir, 'malformed.md');
       // Create file with incomplete frontmatter that might cause parsing issues
-      await fs.writeFile(malformedPath, `---
+      await fs.writeFile(
+        malformedPath,
+        `---
 title: "Incomplete
 content: "This has malformed frontmatter"
 ---
 
-Some content here.`, 'utf-8');
+Some content here.`,
+        'utf-8'
+      );
 
       // Create a valid note
       await createFileSystemNote(
@@ -438,12 +449,12 @@ Some content here.`, 'utf-8');
       await new Promise(resolve => setTimeout(resolve, 500));
 
       const migrationResult = await client.expectSuccess('migrate_links', {});
-      
+
       // Migration should succeed overall but may have some errors
       assert.ok(migrationResult.success);
       assert.ok(migrationResult.total_notes >= 1); // At least the valid note
       assert.ok(migrationResult.processed >= 1);
-      
+
       // Should provide error details if any occurred
       if (migrationResult.errors > 0) {
         assert.ok(Array.isArray(migrationResult.error_details));
@@ -460,7 +471,7 @@ Some content here.`, 'utf-8');
       await new Promise(resolve => setTimeout(resolve, 500));
 
       const migrationResult = await client.expectSuccess('migrate_links', {});
-      
+
       assert.ok(migrationResult.success);
       assert.strictEqual(migrationResult.total_notes, 0);
       assert.strictEqual(migrationResult.processed, 0);
@@ -497,7 +508,7 @@ Some content here.`, 'utf-8');
       // Now try migration (should be prevented due to existing data)
       const result = await client.callTool('migrate_links', {});
       const migrationResult = JSON.parse(result.content[0].text);
-      
+
       assert.strictEqual(migrationResult.success, false);
       assert.ok(migrationResult.message.includes('already contain data'));
       assert.strictEqual(migrationResult.existing_links, 1);
@@ -534,7 +545,7 @@ Some content here.`, 'utf-8');
       const migrationResult = await client.expectSuccess('migrate_links', {
         force: true
       });
-      
+
       assert.ok(migrationResult.success);
       assert.strictEqual(migrationResult.total_notes, 2);
       assert.strictEqual(migrationResult.processed, 2);
@@ -542,7 +553,7 @@ Some content here.`, 'utf-8');
       // Verify both notes have their links
       const brokenLinks = await client.expectSuccess('find_broken_links', {});
       assert.strictEqual(brokenLinks.count, 2); // Both links are broken
-      
+
       const brokenTitles = brokenLinks.broken_links.map((link: any) => link.target_title);
       assert.ok(brokenTitles.includes('old-link'));
       assert.ok(brokenTitles.includes('new-link'));

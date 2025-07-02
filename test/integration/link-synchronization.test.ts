@@ -1,6 +1,6 @@
 /**
  * Integration tests for link synchronization functionality
- * 
+ *
  * Tests that links are automatically extracted, updated, and cleaned up
  * during note create, update, rename, and delete operations.
  */
@@ -89,7 +89,9 @@ class MCPClient {
   async expectSuccess(toolName: string, args: any): Promise<any> {
     const result = await this.callTool(toolName, args);
     if (result.isError) {
-      throw new Error(`Expected ${toolName} to succeed but got error: ${result.content[0].text}`);
+      throw new Error(
+        `Expected ${toolName} to succeed but got error: ${result.content[0].text}`
+      );
     }
     return JSON.parse(result.content[0].text);
   }
@@ -158,19 +160,23 @@ Broken link: [[non-existent-note]]`;
 
       // Should have internal links (including broken one)
       assert.strictEqual(linksData.links.outgoing_internal.length, 2);
-      
-      const validLinks = linksData.links.outgoing_internal.filter((link: any) => link.target_note_id !== null);
-      const brokenLinks = linksData.links.outgoing_internal.filter((link: any) => link.target_note_id === null);
-      
+
+      const validLinks = linksData.links.outgoing_internal.filter(
+        (link: any) => link.target_note_id !== null
+      );
+      const brokenLinks = linksData.links.outgoing_internal.filter(
+        (link: any) => link.target_note_id === null
+      );
+
       assert.strictEqual(validLinks.length, 1);
       assert.strictEqual(validLinks[0].target_note_id, targetResult.id);
-      
+
       assert.strictEqual(brokenLinks.length, 1);
       assert.strictEqual(brokenLinks[0].target_title, 'non-existent-note');
 
       // Should have external links (may be more due to multiple pattern matching)
       assert.ok(linksData.links.outgoing_external.length >= 3);
-      
+
       const urls = linksData.links.outgoing_external.map((link: any) => link.url);
       assert.ok(urls.includes('https://github.com/example'));
       assert.ok(urls.includes('https://example.com/image.png'));
@@ -180,9 +186,12 @@ Broken link: [[non-existent-note]]`;
       const targetLinksData = await client.expectSuccess('get_note_links', {
         identifier: targetResult.id
       });
-      
+
       assert.strictEqual(targetLinksData.links.incoming.length, 1);
-      assert.strictEqual(targetLinksData.links.incoming[0].source_note_id, sourceResult.id);
+      assert.strictEqual(
+        targetLinksData.links.incoming[0].source_note_id,
+        sourceResult.id
+      );
     });
   });
 
@@ -208,9 +217,15 @@ Links to [[non-existent]] and external: https://old-site.com`;
       });
 
       assert.strictEqual(linksData.links.outgoing_internal.length, 1);
-      assert.strictEqual(linksData.links.outgoing_internal[0].target_title, 'non-existent');
+      assert.strictEqual(
+        linksData.links.outgoing_internal[0].target_title,
+        'non-existent'
+      );
       assert.strictEqual(linksData.links.outgoing_external.length, 1);
-      assert.strictEqual(linksData.links.outgoing_external[0].url, 'https://old-site.com');
+      assert.strictEqual(
+        linksData.links.outgoing_external[0].url,
+        'https://old-site.com'
+      );
 
       // Create a target note
       const targetResult = await client.expectSuccess('create_note', {
@@ -246,8 +261,14 @@ Also: [Documentation](https://docs.new-site.com)`;
 
       // Should have new internal link
       assert.strictEqual(linksData.links.outgoing_internal.length, 1);
-      assert.strictEqual(linksData.links.outgoing_internal[0].target_note_id, targetResult.id);
-      assert.strictEqual(linksData.links.outgoing_internal[0].target_title, targetResult.id);
+      assert.strictEqual(
+        linksData.links.outgoing_internal[0].target_note_id,
+        targetResult.id
+      );
+      assert.strictEqual(
+        linksData.links.outgoing_internal[0].target_title,
+        targetResult.id
+      );
 
       // Should have new external links (may be more due to multiple pattern matching)
       assert.ok(linksData.links.outgoing_external.length >= 2);
@@ -273,7 +294,10 @@ Also: [Documentation](https://docs.new-site.com)`;
       // Verify broken link exists
       let brokenLinksData = await client.expectSuccess('find_broken_links', {});
       assert.strictEqual(brokenLinksData.count, 1);
-      assert.strictEqual(brokenLinksData.broken_links[0].target_title, 'Future Note Title');
+      assert.strictEqual(
+        brokenLinksData.broken_links[0].target_title,
+        'Future Note Title'
+      );
 
       // Create target note with different title
       const targetResult = await client.expectSuccess('create_note', {
@@ -305,10 +329,16 @@ Also: [Documentation](https://docs.new-site.com)`;
       const sourceLinksData = await client.expectSuccess('get_note_links', {
         identifier: sourceResult.id
       });
-      
+
       assert.strictEqual(sourceLinksData.links.outgoing_internal.length, 1);
-      assert.strictEqual(sourceLinksData.links.outgoing_internal[0].target_note_id, targetResult.id);
-      assert.strictEqual(sourceLinksData.links.outgoing_internal[0].target_title, 'Future Note Title');
+      assert.strictEqual(
+        sourceLinksData.links.outgoing_internal[0].target_note_id,
+        targetResult.id
+      );
+      assert.strictEqual(
+        sourceLinksData.links.outgoing_internal[0].target_title,
+        'Future Note Title'
+      );
     });
 
     test('should not affect existing valid links when renaming', async () => {
@@ -333,9 +363,12 @@ Also: [Documentation](https://docs.new-site.com)`;
       let sourceLinksData = await client.expectSuccess('get_note_links', {
         identifier: sourceResult.id
       });
-      
+
       assert.strictEqual(sourceLinksData.links.outgoing_internal.length, 1);
-      assert.strictEqual(sourceLinksData.links.outgoing_internal[0].target_note_id, targetResult.id);
+      assert.strictEqual(
+        sourceLinksData.links.outgoing_internal[0].target_note_id,
+        targetResult.id
+      );
 
       // Rename target note
       const targetData = await client.expectSuccess('get_note', {
@@ -352,9 +385,12 @@ Also: [Documentation](https://docs.new-site.com)`;
       sourceLinksData = await client.expectSuccess('get_note_links', {
         identifier: sourceResult.id
       });
-      
+
       assert.strictEqual(sourceLinksData.links.outgoing_internal.length, 1);
-      assert.strictEqual(sourceLinksData.links.outgoing_internal[0].target_note_id, targetResult.id);
+      assert.strictEqual(
+        sourceLinksData.links.outgoing_internal[0].target_note_id,
+        targetResult.id
+      );
     });
   });
 
@@ -400,7 +436,7 @@ External: https://example.com`;
       const sourceLinksData = await client.expectSuccess('get_note_links', {
         identifier: sourceResult.id
       });
-      
+
       assert.strictEqual(sourceLinksData.links.outgoing_internal.length, 2);
       assert.strictEqual(sourceLinksData.links.outgoing_external.length, 1);
       assert.strictEqual(sourceLinksData.links.incoming.length, 1);
@@ -460,9 +496,12 @@ External: https://example.com`;
       const linksData = await client.expectSuccess('get_note_links', {
         identifier: sourceResult.id
       });
-      
+
       assert.strictEqual(linksData.links.outgoing_internal.length, 1);
-      assert.strictEqual(linksData.links.outgoing_internal[0].target_note_id, note1Result.id);
+      assert.strictEqual(
+        linksData.links.outgoing_internal[0].target_note_id,
+        note1Result.id
+      );
     });
 
     test('should handle circular link references', async () => {
@@ -497,20 +536,26 @@ External: https://example.com`;
       const note1LinksData = await client.expectSuccess('get_note_links', {
         identifier: note1Result.id
       });
-      
+
       const note2LinksData = await client.expectSuccess('get_note_links', {
         identifier: note2Result.id
       });
 
       // Note 1 should link to Note 2 and have incoming from Note 2
       assert.strictEqual(note1LinksData.links.outgoing_internal.length, 1);
-      assert.strictEqual(note1LinksData.links.outgoing_internal[0].target_note_id, note2Result.id);
+      assert.strictEqual(
+        note1LinksData.links.outgoing_internal[0].target_note_id,
+        note2Result.id
+      );
       assert.strictEqual(note1LinksData.links.incoming.length, 1);
       assert.strictEqual(note1LinksData.links.incoming[0].source_note_id, note2Result.id);
 
       // Note 2 should link to Note 1 and have incoming from Note 1
       assert.strictEqual(note2LinksData.links.outgoing_internal.length, 1);
-      assert.strictEqual(note2LinksData.links.outgoing_internal[0].target_note_id, note1Result.id);
+      assert.strictEqual(
+        note2LinksData.links.outgoing_internal[0].target_note_id,
+        note1Result.id
+      );
       assert.strictEqual(note2LinksData.links.incoming.length, 1);
       assert.strictEqual(note2LinksData.links.incoming[0].source_note_id, note1Result.id);
     });
@@ -564,10 +609,16 @@ External: https://example${i}.com`;
       });
 
       assert.strictEqual(finalLinksData.links.outgoing_internal.length, 1);
-      assert.strictEqual(finalLinksData.links.outgoing_internal[0].target_note_id, targetResult.id);
-      
+      assert.strictEqual(
+        finalLinksData.links.outgoing_internal[0].target_note_id,
+        targetResult.id
+      );
+
       assert.strictEqual(finalLinksData.links.outgoing_external.length, 1);
-      assert.strictEqual(finalLinksData.links.outgoing_external[0].url, 'https://example3.com');
+      assert.strictEqual(
+        finalLinksData.links.outgoing_external[0].url,
+        'https://example3.com'
+      );
     });
   });
 });

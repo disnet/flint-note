@@ -1,6 +1,6 @@
 /**
  * Performance tests for link management operations
- * 
+ *
  * Tests the performance characteristics of link extraction,
  * storage, and querying operations with larger datasets.
  */
@@ -38,7 +38,16 @@ describe('Link Performance Tests', () => {
     for (const noteName of baseNotes) {
       await db.run(
         'INSERT INTO notes (id, title, content, type, filename, path, created, updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [`general/${noteName}.md`, noteName, 'Content', 'general', `${noteName}.md`, `/path/${noteName}`, '2024-01-01', '2024-01-01']
+        [
+          `general/${noteName}.md`,
+          noteName,
+          'Content',
+          'general',
+          `${noteName}.md`,
+          `/path/${noteName}`,
+          '2024-01-01',
+          '2024-01-01'
+        ]
       );
     }
 
@@ -47,7 +56,16 @@ describe('Link Performance Tests', () => {
       const noteId = `test/note-${i}.md`;
       await db.run(
         'INSERT INTO notes (id, title, content, type, filename, path, created, updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [noteId, `Note ${i}`, 'Content', 'test', `note-${i}.md`, `/path/note-${i}`, '2024-01-01', '2024-01-01']
+        [
+          noteId,
+          `Note ${i}`,
+          'Content',
+          'test',
+          `note-${i}.md`,
+          `/path/note-${i}`,
+          '2024-01-01',
+          '2024-01-01'
+        ]
       );
     }
   }
@@ -108,7 +126,10 @@ This is a test note with various types of links.
       const extractionTime = Date.now() - startTime;
 
       // Should complete extraction quickly
-      assert.ok(extractionTime < 100, `Extraction took ${extractionTime}ms, should be under 100ms`);
+      assert.ok(
+        extractionTime < 100,
+        `Extraction took ${extractionTime}ms, should be under 100ms`
+      );
 
       // Verify correct extraction (actual counts may be higher due to multiple pattern matching)
       assert.ok(result.wikilinks.length >= 100); // At least 100 wikilinks
@@ -126,7 +147,10 @@ This is a test note with various types of links.
       const result = LinkExtractor.extractLinks(content);
       const extractionTime = Date.now() - startTime;
 
-      assert.ok(extractionTime < 150, `Extraction with duplicates took ${extractionTime}ms`);
+      assert.ok(
+        extractionTime < 150,
+        `Extraction with duplicates took ${extractionTime}ms`
+      );
       assert.strictEqual(result.wikilinks.length, 200); // All instances should be extracted
     });
 
@@ -138,7 +162,7 @@ This is a test note with various types of links.
 | Name | Link | External |
 |------|------|----------|
 `;
-      
+
       for (let i = 0; i < 50; i++) {
         content += `| Item ${i} | [[general/project-a.md]] | [Site](https://example${i}.com) |\n`;
       }
@@ -165,7 +189,7 @@ https://should-not-extract.com
       const extractionTime = Date.now() - startTime;
 
       assert.ok(extractionTime < 200, `Complex extraction took ${extractionTime}ms`);
-      
+
       // Should extract links from tables and lists but not code blocks
       assert.ok(result.wikilinks.length >= 130); // 50 + 50 + 30
       assert.ok(result.external_links.length >= 100); // 50 + 50
@@ -179,7 +203,16 @@ https://should-not-extract.com
       // Add the source note to database first
       await db.run(
         'INSERT INTO notes (id, title, content, type, filename, path, created, updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        ['test/large-note.md', 'Large Note', 'Content', 'test', 'large-note.md', '/test/path', '2024-01-01', '2024-01-01']
+        [
+          'test/large-note.md',
+          'Large Note',
+          'Content',
+          'test',
+          'large-note.md',
+          '/test/path',
+          '2024-01-01',
+          '2024-01-01'
+        ]
       );
 
       const content = generateContentWithLinks(200, 100);
@@ -189,11 +222,20 @@ https://should-not-extract.com
       await LinkExtractor.storeLinks('test/large-note.md', extractionResult, db);
       const storageTime = Date.now() - startTime;
 
-      assert.ok(storageTime < 500, `Storage took ${storageTime}ms, should be under 500ms`);
+      assert.ok(
+        storageTime < 500,
+        `Storage took ${storageTime}ms, should be under 500ms`
+      );
 
       // Verify all links were stored
-      const storedInternal = await db.all('SELECT * FROM note_links WHERE source_note_id = ?', ['test/large-note.md']);
-      const storedExternal = await db.all('SELECT * FROM external_links WHERE note_id = ?', ['test/large-note.md']);
+      const storedInternal = await db.all(
+        'SELECT * FROM note_links WHERE source_note_id = ?',
+        ['test/large-note.md']
+      );
+      const storedExternal = await db.all(
+        'SELECT * FROM external_links WHERE note_id = ?',
+        ['test/large-note.md']
+      );
 
       assert.strictEqual(storedInternal.length, extractionResult.wikilinks.length);
       assert.strictEqual(storedExternal.length, extractionResult.external_links.length);
@@ -203,13 +245,22 @@ https://should-not-extract.com
       await setupTestNotes(10);
 
       const noteId = 'test/batch-note.md';
-      
+
       // Add the note to database first
       await db.run(
         'INSERT INTO notes (id, title, content, type, filename, path, created, updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [noteId, 'Batch Note', 'Content', 'test', 'batch-note.md', '/test/path', '2024-01-01', '2024-01-01']
+        [
+          noteId,
+          'Batch Note',
+          'Content',
+          'test',
+          'batch-note.md',
+          '/test/path',
+          '2024-01-01',
+          '2024-01-01'
+        ]
       );
-      
+
       // Store initial links
       const initialContent = generateContentWithLinks(50, 25);
       const initialResult = LinkExtractor.extractLinks(initialContent);
@@ -223,11 +274,20 @@ https://should-not-extract.com
       await LinkExtractor.storeLinks(noteId, updatedResult, db);
       const updateTime = Date.now() - startTime;
 
-      assert.ok(updateTime < 300, `Batch update took ${updateTime}ms, should be under 300ms`);
+      assert.ok(
+        updateTime < 300,
+        `Batch update took ${updateTime}ms, should be under 300ms`
+      );
 
       // Verify only new links remain
-      const finalInternal = await db.all('SELECT * FROM note_links WHERE source_note_id = ?', [noteId]);
-      const finalExternal = await db.all('SELECT * FROM external_links WHERE note_id = ?', [noteId]);
+      const finalInternal = await db.all(
+        'SELECT * FROM note_links WHERE source_note_id = ?',
+        [noteId]
+      );
+      const finalExternal = await db.all(
+        'SELECT * FROM external_links WHERE note_id = ?',
+        [noteId]
+      );
 
       assert.strictEqual(finalInternal.length, updatedResult.wikilinks.length);
       assert.strictEqual(finalExternal.length, updatedResult.external_links.length);
@@ -243,7 +303,7 @@ https://should-not-extract.com
         const noteId = `test/note-${i}.md`;
         const content = generateContentWithLinks(
           Math.floor(Math.random() * 10) + 5, // 5-15 internal links
-          Math.floor(Math.random() * 5) + 2   // 2-7 external links
+          Math.floor(Math.random() * 5) + 2 // 2-7 external links
         );
         const result = LinkExtractor.extractLinks(content);
         await LinkExtractor.storeLinks(noteId, result, db);
@@ -257,8 +317,11 @@ https://should-not-extract.com
       const links = await LinkExtractor.getLinksForNote(noteId, db);
       const queryTime = Date.now() - startTime;
 
-      assert.ok(queryTime < 50, `Note links query took ${queryTime}ms, should be under 50ms`);
-      
+      assert.ok(
+        queryTime < 50,
+        `Note links query took ${queryTime}ms, should be under 50ms`
+      );
+
       // Should have links
       assert.ok(links.outgoing_internal.length > 0);
       assert.ok(links.outgoing_external.length > 0);
@@ -272,8 +335,11 @@ https://should-not-extract.com
       const backlinks = await LinkExtractor.getBacklinks(targetId, db);
       const queryTime = Date.now() - startTime;
 
-      assert.ok(queryTime < 100, `Backlinks query took ${queryTime}ms, should be under 100ms`);
-      
+      assert.ok(
+        queryTime < 100,
+        `Backlinks query took ${queryTime}ms, should be under 100ms`
+      );
+
       // Should have found backlinks
       assert.ok(backlinks.length > 0);
     });
@@ -283,8 +349,11 @@ https://should-not-extract.com
       const brokenLinks = await LinkExtractor.findBrokenLinks(db);
       const queryTime = Date.now() - startTime;
 
-      assert.ok(queryTime < 200, `Broken links query took ${queryTime}ms, should be under 200ms`);
-      
+      assert.ok(
+        queryTime < 200,
+        `Broken links query took ${queryTime}ms, should be under 200ms`
+      );
+
       // Should have found some broken links
       assert.ok(brokenLinks.length > 0);
     });
@@ -292,7 +361,7 @@ https://should-not-extract.com
     test('should perform complex link relationship queries efficiently', async () => {
       // Complex query: Find notes that link to hub and have external links to specific domains
       const startTime = Date.now();
-      
+
       const complexQuery = await db.all(`
         SELECT DISTINCT n.id, n.title, 
                COUNT(DISTINCT nl.id) as internal_link_count,
@@ -318,8 +387,11 @@ https://should-not-extract.com
 
       const queryTime = Date.now() - startTime;
 
-      assert.ok(queryTime < 300, `Complex query took ${queryTime}ms, should be under 300ms`);
-      
+      assert.ok(
+        queryTime < 300,
+        `Complex query took ${queryTime}ms, should be under 300ms`
+      );
+
       // Should return some results
       assert.ok(Array.isArray(complexQuery));
     });
@@ -329,9 +401,18 @@ https://should-not-extract.com
       const sourceNoteId = 'test/source-with-broken.md';
       await db.run(
         'INSERT INTO notes (id, title, content, type, filename, path, created, updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [sourceNoteId, 'Source Note', 'Content', 'test', 'source-with-broken.md', '/test/path', '2024-01-01', '2024-01-01']
+        [
+          sourceNoteId,
+          'Source Note',
+          'Content',
+          'test',
+          'source-with-broken.md',
+          '/test/path',
+          '2024-01-01',
+          '2024-01-01'
+        ]
       );
-      
+
       // Insert broken link
       await db.run(
         'INSERT INTO note_links (source_note_id, target_note_id, target_title, line_number) VALUES (?, ?, ?, ?)',
@@ -341,19 +422,35 @@ https://should-not-extract.com
       // Create a new note that matches the broken link title
       const matchingTitle = 'Future Note';
       const newNoteId = 'test/newly-created.md';
-      
+
       // Add the new note to database first
       await db.run(
         'INSERT INTO notes (id, title, content, type, filename, path, created, updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [newNoteId, matchingTitle, 'Content', 'test', 'newly-created.md', '/test/path', '2024-01-01', '2024-01-01']
+        [
+          newNoteId,
+          matchingTitle,
+          'Content',
+          'test',
+          'newly-created.md',
+          '/test/path',
+          '2024-01-01',
+          '2024-01-01'
+        ]
       );
 
       const startTime = Date.now();
-      const updatedCount = await LinkExtractor.updateBrokenLinks(newNoteId, matchingTitle, db);
+      const updatedCount = await LinkExtractor.updateBrokenLinks(
+        newNoteId,
+        matchingTitle,
+        db
+      );
       const updateTime = Date.now() - startTime;
 
-      assert.ok(updateTime < 100, `Broken link update took ${updateTime}ms, should be under 100ms`);
-      
+      assert.ok(
+        updateTime < 100,
+        `Broken link update took ${updateTime}ms, should be under 100ms`
+      );
+
       // Should have updated at least one link
       assert.ok(updatedCount >= 1);
     });
@@ -364,7 +461,16 @@ https://should-not-extract.com
         const noteId = `concurrent/note-${i}.md`;
         await db.run(
           'INSERT INTO notes (id, title, content, type, filename, path, created, updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-          [noteId, `Concurrent Note ${i}`, 'Content', 'concurrent', `note-${i}.md`, `/concurrent/path${i}`, '2024-01-01', '2024-01-01']
+          [
+            noteId,
+            `Concurrent Note ${i}`,
+            'Content',
+            'concurrent',
+            `note-${i}.md`,
+            `/concurrent/path${i}`,
+            '2024-01-01',
+            '2024-01-01'
+          ]
         );
       }
 
@@ -373,7 +479,7 @@ https://should-not-extract.com
 
       for (let i = 0; i < 10; i++) {
         const noteId = `concurrent/note-${i}.md`;
-        
+
         operations.push(async () => {
           const content = generateContentWithLinks(20, 10);
           const result = LinkExtractor.extractLinks(content);
@@ -390,8 +496,11 @@ https://should-not-extract.com
       }
       const totalTime = Date.now() - startTime;
 
-      assert.ok(totalTime < 2000, `Concurrent operations took ${totalTime}ms, should be under 2000ms`);
-      
+      assert.ok(
+        totalTime < 2000,
+        `Concurrent operations took ${totalTime}ms, should be under 2000ms`
+      );
+
       // All operations should have completed successfully
       assert.strictEqual(results.length, 10);
       results.forEach(result => {
@@ -410,7 +519,7 @@ https://should-not-extract.com
       for (let i = 0; i < 50; i++) {
         const largeContent = generateContentWithLinks(100, 50);
         const result = LinkExtractor.extractLinks(largeContent);
-        
+
         // Verify extraction worked
         assert.ok(result.wikilinks.length > 0);
         assert.ok(result.external_links.length > 0);
@@ -425,8 +534,10 @@ https://should-not-extract.com
       const memoryIncrease = finalMemory.heapUsed - initialMemory.heapUsed;
 
       // Memory increase should be reasonable (less than 50MB)
-      assert.ok(memoryIncrease < 50 * 1024 * 1024, 
-        `Memory increased by ${Math.round(memoryIncrease / 1024 / 1024)}MB, should be under 50MB`);
+      assert.ok(
+        memoryIncrease < 50 * 1024 * 1024,
+        `Memory increased by ${Math.round(memoryIncrease / 1024 / 1024)}MB, should be under 50MB`
+      );
     });
   });
 
@@ -443,11 +554,20 @@ https://should-not-extract.com
         const noteId = `test/scale-${size}.md`;
         await db.run(
           'INSERT INTO notes (id, title, content, type, filename, path, created, updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-          [noteId, `Scale Note ${size}`, 'Content', 'test', `scale-${size}.md`, `/test/path${size}`, '2024-01-01', '2024-01-01']
+          [
+            noteId,
+            `Scale Note ${size}`,
+            'Content',
+            'test',
+            `scale-${size}.md`,
+            `/test/path${size}`,
+            '2024-01-01',
+            '2024-01-01'
+          ]
         );
 
         const content = generateContentWithLinks(size, Math.floor(size / 2));
-        
+
         // Test extraction time
         const extractStart = Date.now();
         const result = LinkExtractor.extractLinks(content);
@@ -464,21 +584,27 @@ https://should-not-extract.com
       // Performance should not degrade exponentially
       for (let i = 1; i < testSizes.length; i++) {
         const sizeRatio = testSizes[i] / testSizes[i - 1];
-        
+
         // Handle cases where previous time was 0 (avoid division by zero)
-        const extractTimeRatio = extractionTimes[i - 1] === 0 ? 1 : extractionTimes[i] / extractionTimes[i - 1];
-        const storeTimeRatio = storageTimes[i - 1] === 0 ? 1 : storageTimes[i] / storageTimes[i - 1];
+        const extractTimeRatio =
+          extractionTimes[i - 1] === 0 ? 1 : extractionTimes[i] / extractionTimes[i - 1];
+        const storeTimeRatio =
+          storageTimes[i - 1] === 0 ? 1 : storageTimes[i] / storageTimes[i - 1];
 
         // Time increase should be roughly linear with size (not exponential)
         // Skip assertion if we have invalid ratios (NaN, Infinity)
         if (isFinite(extractTimeRatio) && !isNaN(extractTimeRatio)) {
-          assert.ok(extractTimeRatio < sizeRatio * 3, 
-            `Extraction time scaling too poorly: ${extractTimeRatio} vs size ratio ${sizeRatio}`);
+          assert.ok(
+            extractTimeRatio < sizeRatio * 3,
+            `Extraction time scaling too poorly: ${extractTimeRatio} vs size ratio ${sizeRatio}`
+          );
         }
-        
+
         if (isFinite(storeTimeRatio) && !isNaN(storeTimeRatio)) {
-          assert.ok(storeTimeRatio < sizeRatio * 5, 
-            `Storage time scaling too poorly: ${storeTimeRatio} vs size ratio ${sizeRatio}`);
+          assert.ok(
+            storeTimeRatio < sizeRatio * 5,
+            `Storage time scaling too poorly: ${storeTimeRatio} vs size ratio ${sizeRatio}`
+          );
         }
       }
     });
