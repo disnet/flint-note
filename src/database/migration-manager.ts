@@ -75,9 +75,10 @@ export class DatabaseMigrationManager {
     console.log(`Database migration required: ${fromVersion} -> ${toVersion}`);
     console.log(`Executing ${pendingMigrations.length} migration(s)...`);
 
-    const db = await dbManager.connect();
+    let db: DatabaseConnection;
 
     try {
+      db = await dbManager.connect();
       // Execute migrations in order
       for (const migration of pendingMigrations) {
         console.log(`Executing migration: ${migration.description}`);

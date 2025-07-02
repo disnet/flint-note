@@ -119,18 +119,20 @@ describe('Database Migration Manager', () => {
   });
 
   it('should handle database connection errors gracefully', async () => {
-    // Use a temporary directory and then make it inaccessible to simulate an error
-    const tempDir = join(testDir, 'inaccessible-dir');
-    await mkdir(tempDir, { recursive: true, mode: 0o444 }); // Read-only
-
-    const badDbManager = new DatabaseManager(tempDir);
+    // Create a mock DatabaseManager that will fail during connect
+    const badDbManager = {
+      connect: async () => {
+        throw new Error('Mock connection failure');
+      },
+      close: async () => {},
+      rebuild: async () => {
+        throw new Error('Mock rebuild failure');
+      }
+    } as any;
 
     await assert.rejects(async () => {
-      await DatabaseMigrationManager.checkAndMigrate('1.0.0', badDbManager, tempDir);
-    }, /EACCES|ENOENT|Database migration failed/);
-
-    // Clean up the directory
-    await rm(tempDir, { recursive: true, force: true });
+      await DatabaseMigrationManager.checkAndMigrate('1.0.0', badDbManager, testDir);
+    }, /Database migration failed/);
   });
 
   it('should handle specific migration execution', async () => {
