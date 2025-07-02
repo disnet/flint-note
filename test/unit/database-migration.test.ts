@@ -119,16 +119,22 @@ describe('Database Migration Manager', () => {
   });
 
   it('should handle database connection errors gracefully', async () => {
-    // Use an invalid path to cause connection errors
-    const badDbManager = new DatabaseManager('/invalid/path/that/does/not/exist');
+    // Use a temporary directory and then make it inaccessible to simulate an error
+    const tempDir = join(testDir, 'inaccessible-dir');
+    await mkdir(tempDir, { recursive: true, mode: 0o444 }); // Read-only
+
+    const badDbManager = new DatabaseManager(tempDir);
 
     await assert.rejects(async () => {
       await DatabaseMigrationManager.checkAndMigrate(
         '1.0.0',
         badDbManager,
-        '/invalid/path'
+        tempDir
       );
-    }, /ENOENT|Database migration failed/);
+    }, /EACCES|ENOENT|Database migration failed/);
+
+    // Clean up the directory
+    await rm(tempDir, { recursive: true, force: true });
   });
 
   it('should handle specific migration execution', async () => {
