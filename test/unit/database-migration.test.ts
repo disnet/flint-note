@@ -126,11 +126,7 @@ describe('Database Migration Manager', () => {
     const badDbManager = new DatabaseManager(tempDir);
 
     await assert.rejects(async () => {
-      await DatabaseMigrationManager.checkAndMigrate(
-        '1.0.0',
-        badDbManager,
-        tempDir
-      );
+      await DatabaseMigrationManager.checkAndMigrate('1.0.0', badDbManager, tempDir);
     }, /EACCES|ENOENT|Database migration failed/);
 
     // Clean up the directory
