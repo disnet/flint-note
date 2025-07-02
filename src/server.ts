@@ -1049,7 +1049,7 @@ export class FlintNoteServer {
                 update_wikilinks: {
                   type: 'boolean',
                   description:
-                    'Whether to update display text in wikilinks that reference this note',
+                    'Whether to update wikilinks in other notes that reference the old title. When true, finds all notes linking to this note and updates wikilink display text from old title to new title while preserving custom link text and targets.',
                   default: false
                 }
               },
@@ -2580,9 +2580,23 @@ export class FlintNoteServer {
         db
       );
 
+      // Update wikilinks in other notes if requested
+      let wikilinksResult = { notesUpdated: 0, linksUpdated: 0 };
+      if (args.update_wikilinks) {
+        wikilinksResult = await LinkExtractor.updateWikilinksForRenamedNote(
+          noteId,
+          currentNote.title,
+          args.new_title,
+          db
+        );
+      }
+
       let wikilinkMessage = '';
       if (linksUpdated > 0) {
         wikilinkMessage = `\n\n🔗 Updated ${linksUpdated} broken links that now resolve to this note.`;
+      }
+      if (wikilinksResult.notesUpdated > 0) {
+        wikilinkMessage += `\n🔗 Updated ${wikilinksResult.linksUpdated} wikilinks in ${wikilinksResult.notesUpdated} notes that referenced the old title.`;
       }
 
       return {
@@ -2599,6 +2613,9 @@ export class FlintNoteServer {
                 filename_unchanged: true,
                 links_preserved: true,
                 broken_links_resolved: linksUpdated,
+                wikilinks_updated: args.update_wikilinks || false,
+                notes_with_updated_wikilinks: wikilinksResult.notesUpdated,
+                total_wikilinks_updated: wikilinksResult.linksUpdated,
                 result
               },
               null,

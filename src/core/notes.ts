@@ -1338,4 +1338,63 @@ export class NoteManager {
       );
     }
   }
+
+  /**
+   * Rename a note by updating its title field
+   */
+  async renameNote(
+    identifier: string,
+    newTitle: string,
+    contentHash: string,
+    updateWikilinks: boolean = false
+  ): Promise<{ success: boolean; notesUpdated?: number; linksUpdated?: number }> {
+    // Get the current note
+    const currentNote = await this.getNote(identifier);
+    if (!currentNote) {
+      throw new Error(`Note '${identifier}' not found`);
+    }
+
+    // Update the title in metadata while preserving all other metadata
+    const updatedMetadata = {
+      ...currentNote.metadata,
+      title: newTitle
+    };
+
+    // Use the existing updateNoteWithMetadata method with protection bypass for rename
+    await this.updateNoteWithMetadata(
+      identifier,
+      currentNote.content, // Keep content unchanged
+      updatedMetadata,
+      contentHash,
+      true // Bypass protection for legitimate rename operations
+    );
+
+    let brokenLinksUpdated = 0;
+    let wikilinksResult = { notesUpdated: 0, linksUpdated: 0 };
+
+    // Only proceed with link updates if search manager is available
+    if (this.#hybridSearchManager) {
+      const db = await this.#hybridSearchManager.getDatabaseConnection();
+      const noteId = this.generateNoteId(currentNote.type, currentNote.filename);
+
+      // Update broken links that might now be resolved due to the new title
+      brokenLinksUpdated = await LinkExtractor.updateBrokenLinks(noteId, newTitle, db);
+
+      // Update wikilinks in other notes if requested
+      if (updateWikilinks) {
+        wikilinksResult = await LinkExtractor.updateWikilinksForRenamedNote(
+          noteId,
+          currentNote.title,
+          newTitle,
+          db
+        );
+      }
+    }
+
+    return {
+      success: true,
+      notesUpdated: wikilinksResult.notesUpdated,
+      linksUpdated: wikilinksResult.linksUpdated + brokenLinksUpdated
+    };
+  }
 }
