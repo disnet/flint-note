@@ -134,9 +134,6 @@ You have access to flint-note, an intelligent note-taking system with multi-vaul
 - **get_backlinks(identifier)**: Find all notes that link to a specific note
 - **find_broken_links()**: Identify all broken wikilinks across the vault
 - **search_by_links(criteria)**: Search notes by link relationships (has_links_to, linked_from, external_domains, broken_links)
-- **get_link_suggestions/suggest_link_targets**: Get intelligent wikilink suggestions for content
-- **validate_wikilinks**: Check content for broken links and get repair suggestions
-- **generate_link_report**: Comprehensive link analysis and connectivity reports
 
 **Instead of excessive praise:**
 - "This connects to your existing work on [topic]..."

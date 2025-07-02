@@ -317,7 +317,6 @@ The flint-note MCP server exposes the following tools and resources:
 | `rename_note` | Rename note display title while preserving filename/ID | `identifier`, `new_title`, `content_hash`, `update_wikilinks?` |
 | `search_notes` | Search notes by content/type | `query`, `type_filter?`, `limit?`, `use_regex?` |
 | `list_note_types` | List all available note types | none |
-| `link_notes` | Create explicit links between notes | `source`, `target`, `relationship?` |
 | `update_note_type` | Update specific field of existing note type | `type_name`, `field` (instructions\|description\|metadata_schema), `value`, `content_hash` |
 | `get_note_type_info` | Get comprehensive note type information including agent instructions | `type_name` |
 | `analyze_note` | Get AI analysis/suggestions for a note | `identifier` |
@@ -1307,10 +1306,7 @@ The following MCP tools are available for link management:
 - `get_backlinks(identifier)` - Get all notes that link to the specified note
 - `find_broken_links()` - Find all broken wikilinks (links to non-existent notes)
 
-**Link Discovery & Validation:**
-- `get_link_suggestions(query, context_type?, limit?)` - Get link suggestions for partial queries
-- `suggest_link_targets(partial_query, context_type?, limit?)` - Get formatted wikilink suggestions
-- `validate_wikilinks(content, context_type?)` - Validate wikilinks and get suggestions for broken ones
+
 
 **Advanced Link Search:**
 - `search_by_links(criteria)` - Search notes by link relationships:
@@ -1319,9 +1315,8 @@ The following MCP tools are available for link management:
   - `external_domains: string[]` - Find notes with links to specified domains
   - `broken_links: boolean` - Find notes with broken internal links
 
-**Link Reporting:**
-- `generate_link_report(identifier)` - Generate comprehensive link analysis report
-- `get_note_info(title_or_filename)` - Get note details including filename for link creation
+**Link Migration:**
+- `migrate_links(force?)` - One-time migration to populate link tables from existing notes
 
 **Response Formats:**
 

@@ -166,7 +166,7 @@ DEBUG=* npm run test:integration
 - ✅ `get_note_type_template` - Template access and validation
 - ✅ `list_note_types` - Listing and structure validation
 - ✅ `search_notes` - All search features and performance
-- ✅ `link_notes` - Basic error handling (full implementation in Phase 2)
+
 
 ### MCP Resources Coverage (Phase 3)
 - ⏳ `flint-note://types` - Note types resource

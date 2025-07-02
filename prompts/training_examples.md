@@ -62,9 +62,8 @@ You're in your work vault - perfect for team meetings.
 [Calls: get_note_type_info for meeting type to check agent instructions]
 Based on your meeting note preferences, I'll capture attendees and key updates.
 [Calls: create_note with type="meeting" following agent instructions]
-[Calls: search_notes_for_links with query="standup team meeting"]
+[Calls: search_notes with query="standup team meeting"]
 I found related project notes and previous standups - I've linked to your _Current Sprint_ and _Yesterday's Standup_ notes for context.
-[Calls: update_note_links_sync]
 Who attended the standup? What were the key updates and any blockers discussed?
 ```
 
@@ -243,9 +242,8 @@ The link system will continue tracking connections as you add more content to an
 [Calls: get_note_type_info for "meeting" in work vault]
 I'll create a client meeting note following your professional documentation standards.
 [Calls: create_note]
-[Calls: search_notes_for_links with query="client meeting project"]
+[Calls: search_notes with query="client meeting project"]
 I found related client and project notes - I've linked to [[client-notes/acme-corp|ACME Corp Profile]] and [[project-notes/q1-deliverables|Q1 Deliverables]] to provide context.
-[Calls: update_note_links_sync]
 Based on your work meeting guidelines, I should capture: client objectives, key decisions, action items with owners, and next steps. What was the main purpose of today's meeting?
 ```
 
@@ -259,9 +257,8 @@ Based on your work meeting guidelines, I should capture: client objectives, key 
 [Calls: get_note_type_info for social/meeting equivalent in personal vault]
 I'll create a note about your time with Sarah. 
 [Calls: create_note]
-[Calls: search_notes_for_links with query="Sarah friend social"]
+[Calls: search_notes with query="Sarah friend social"]
 I found previous notes about Sarah - I've linked to [[people-notes/sarah|Sarah's Profile]] and [[social-notes/2024-01-05-sarah-birthday|Sarah's Birthday Celebration]] to maintain your social connection history.
-[Calls: update_note_links_sync]
 Since this is in your personal vault, I'll focus on the social connection rather than formal meeting structure. What did you and Sarah catch up about?
 ```
 
@@ -311,10 +308,8 @@ Each vault will have note types optimized for that academic context. Your disser
 ```
 [Calls: get_current_vault]
 [Calls: create_note with type="reading" or appropriate type]
-[Calls: search_notes_for_links with query="atomic habits productivity"]
+[Calls: search_notes with query="atomic habits productivity"]
 I found several related notes! I've created your reading note and linked it to [[reading-notes/atomic-habits|Atomic Habits]] (if you have previous notes) and [[project-notes/productivity-system|Productivity System Project]].
-[Calls: auto_link_content to enhance the content with more connections]
-[Calls: update_note_links_sync]
 The content now includes intelligent links to your related notes. What specific techniques from Atomic Habits are you applying to your system?
 ```
 
@@ -324,12 +319,11 @@ The content now includes intelligent links to your related notes. What specific 
 **Expected Model Response**:
 ```
 [Calls: get_note with project identifier]
-[Calls: validate_wikilinks with the note content]
+[Calls: find_broken_links]
 I notice some of your project links may be outdated. I found 2 broken links to [[team-notes/old-sprint|Old Sprint]] and [[resources/deprecated-guide|Deprecated Guide]].
 [Shows suggestions for repairs]
 Would you like me to update these to [[team-notes/current-sprint|Current Sprint]] and [[resources/updated-guide|Updated Guide]] instead?
 [Updates content with user approval]
-[Calls: update_note_links_sync]
 Your project note is now updated with current information and working links.
 ```
 
@@ -339,11 +333,9 @@ Your project note is now updated with current information and working links.
 **Expected Model Response**:
 ```
 [Calls: create_note with type="daily" or "habits"]
-[Calls: get_link_suggestions with query="morning routine habits"]
+[Calls: search_notes with query="morning routine habits"]
 I've created your morning routine note. I noticed you have related notes about [[habits/meditation-practice|Meditation Practice]], [[health/exercise-routine|Exercise Routine]], and [[productivity/morning-planning|Morning Planning]]. 
-[Calls: auto_link_content to add relevant connections]
 Should I connect this routine note to these existing habits and practices? This will help you see how your morning routine connects to your broader life systems.
-[Calls: update_note_links_sync after user approval]
 ```
 
 #### Example 7D: Link report analysis
@@ -353,7 +345,8 @@ Should I connect this routine note to these existing habits and practices? This 
 ```
 [Calls: search_notes with type_filter="project"]
 Let me analyze the connectivity of your project notes...
-[Calls: generate_link_report for main project notes]
+[Calls: search_by_links with various criteria to analyze connectivity]
+[Calls: find_broken_links]
 Here's your project connectivity analysis:
 - 5 project notes with 12 total links
 - 8 valid connections, 1 broken link
@@ -362,9 +355,10 @@ Here's your project connectivity analysis:
 
 Recommendations:
 - Fix broken link in [[project-notes/website-redesign|Website Project]]
-- Connect [[project-notes/isolated-project|Isolated Project]] to related meetings/people
-- Consider linking [[project-notes/mobile-app|Mobile App]] to [[technical-specs/api-design|API Design]]
+- Consider connecting isolated notes to the main project ecosystem
+- Your _Product Launch_ note could link to _Marketing Strategy_ and _Development Timeline_
 
+Would you like me to help establish these connections or fix the broken link?
 Would you like me to help strengthen these connections?
 ```
 
@@ -403,7 +397,7 @@ Test these scenarios to ensure proper automatic link extraction functionality:
 **Input**: Content with broken or invalid wikilinks
 **Expected**: System identifies issues and suggests fixes
 **Validation**:
-- ✅ Calls `validate_wikilinks`
+- ✅ Calls `find_broken_links`
 - ✅ Identifies broken links
 - ✅ Provides repair suggestions
 
@@ -411,8 +405,8 @@ Test these scenarios to ensure proper automatic link extraction functionality:
 **Input**: Plain text mentioning existing topics
 **Expected**: System suggests wikilink additions
 **Validation**:
-- ✅ Calls `auto_link_content`
-- ✅ Suggests relevant connections
+- ✅ Searches for relevant connections
+- ✅ Suggests intelligent links
 - ✅ Maintains proper format
 
 ### Standard Validation Checkpoints
@@ -422,10 +416,10 @@ Test these scenarios to ensure proper automatic link extraction functionality:
 2. ✅ Always calls `list_note_types` before creating notes
 3. ✅ Always asks user permission before creating new note types
 4. ✅ Always follows agent instructions from responses
-5. ✅ Always calls `search_notes_for_links` before creating wikilinks
+5. ✅ Always calls `search_notes` before creating wikilinks
 6. ✅ Always uses [[type/filename|Display]] format for wikilinks
-7. ✅ Always calls `update_note_links_sync` after adding wikilinks
-8. ✅ Validates existing wikilinks when updating content
+7. ✅ Links are automatically tracked in the system
+8. ✅ Uses `find_broken_links` to identify link issues
 9. ✅ Provides link suggestions for relevant connections
 10. ✅ Maintains vault-aware behavior across all operations
 

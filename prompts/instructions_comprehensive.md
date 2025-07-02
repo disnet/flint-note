@@ -654,77 +654,10 @@ Search criteria:
 - `external_domains`: Find notes with links to specified domains
 - `broken_links`: Find notes with broken internal links
 
-#### `get_link_suggestions`
-Get intelligent link suggestions for partial queries:
 
-```json
-{
-  "query": "habit",
-  "context_type": "daily-notes",
-  "limit": 5
-}
-```
 
-Provides formatted wikilink suggestions with relevance scores.
 
-#### `suggest_link_targets`
-Get properly formatted wikilink suggestions:
 
-```json
-{
-  "partial_query": "atomic",
-  "context_type": "reading-notes",
-  "limit": 5
-}
-```
-
-Returns ready-to-use wikilinks: `[[reading-notes/atomic-habits|Atomic Habits]]`
-
-#### `validate_wikilinks`
-Check wikilinks in content and get repair suggestions:
-
-```json
-{
-  "content": "I read [[reading-notes/missing-book|Some Book]] and [[project-notes/website|Website Project]]",
-  "context_type": "daily-notes"
-}
-```
-
-Identifies broken links and suggests replacements.
-
-#### `generate_link_report`
-Generate comprehensive link analysis report:
-
-```json
-{
-  "identifier": "project-notes/website-redesign"
-}
-```
-
-Provides detailed analysis of note connectivity, broken links, and improvement opportunities.
-
-### Traditional Link Management
-
-#### `link_notes`
-Create explicit bidirectional links between notes:
-
-```json
-{
-  "source_id": "meeting-20240115",
-  "target_id": "project-alpha-overview",
-  "relationship_type": "relates_to",
-  "description": "Standup covered Alpha project progress and blockers"
-}
-```
-
-**Wikilink vs Traditional Linking:**
-- **Wikilinks**: Natural, inline, Obsidian-compatible `[[type/filename|Display]]`
-- **Traditional Links**: Explicit relationships in frontmatter metadata
-- **Best Practice**: Use wikilinks for natural connections, traditional links for formal relationships
-
-**When to Use Each:**
-- **Wikilinks**: References, mentions, related content, natural flow
-- **Traditional Links**: Formal dependencies, project hierarchies, workflow connections
 
 ### Analysis and Enhancement
 
@@ -765,40 +698,40 @@ This helps identify missing information, suggest connections, and recommend stru
 
 1. **Search for Linkable Content**:
    ```
-   User mentions "atomic habits" → search_notes_for_links("atomic habits")
+   User mentions "atomic habits" → search_notes("atomic habits")
    ```
 
 2. **Get Smart Suggestions**:
    ```
-   User typing "I learned about..." → get_link_suggestions("learned")
+   User typing "I learned about..." → search_notes("learned")
    ```
 
 3. **Validate Existing Links**:
    ```
-   Before updating content → validate_wikilinks(content)
+   Before updating content → check existing wikilinks manually
    ```
 
 4. **Auto-enhance Content**:
    ```
-   Plain text → auto_link_content() → Enhanced with wikilinks
+   Plain text → manually add wikilinks → Enhanced with connections
    ```
 
 5. **Sync Metadata**:
    ```
-   After adding wikilinks → update_note_links_sync()
+   After adding wikilinks → links are automatically tracked
    ```
 
 ### Link Quality Management
 
 **Always Check Before Linking:**
-- Use `search_notes_for_links` to verify target exists
+- Use `search_notes` to verify target exists
 - Get filename from search results for stable links
 - Validate display text matches user expectations
 
 **Link Maintenance:**
-- Run `validate_wikilinks` on important notes periodically
-- Use `generate_link_report` to analyze note connectivity
-- Fix broken links using repair suggestions
+- Use `find_broken_links` to identify broken wikilinks
+- Use `search_by_links` to analyze note connectivity
+- Fix broken links by updating content manually
 
 **Context-Aware Suggestions:**
 - Pass `context_type` to filter relevant suggestions

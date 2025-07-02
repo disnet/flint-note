@@ -15,6 +15,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run test:unit` - Run only unit tests
 - `npm run test:integration` - Run only integration tests
 - `npm run test -- --test-name-pattern="pattern to narrow down tests"` - Run tests matching the provided pattern
+- `npm run test:file "test/unit/specific-file.test.ts"` - Run tests in a specific file
 
 ### Code Quality
 - `npm run lint` - Lint TypeScript files with ESLint
