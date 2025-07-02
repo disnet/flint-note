@@ -303,8 +303,7 @@ Use for safely updating note display titles while preserving link stability:
 {
   "identifier": "projects/website-redesign.md",
   "new_title": "Website Redesign v2.0 - Mobile First",
-  "content_hash": "a1b2c3d4e5f6...",
-  "update_wikilinks": false
+  "content_hash": "a1b2c3d4e5f6..."
 }
 ```
 

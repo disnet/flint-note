@@ -1,5 +1,5 @@
 /**
- * Integration tests for rename_note with update_wikilinks functionality
+ * Integration tests for rename_note functionality
  */
 
 import { describe, it, before, after } from 'node:test';
