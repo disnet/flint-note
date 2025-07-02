@@ -182,7 +182,6 @@ interface RenameNoteArgs {
   identifier: string;
   new_title: string;
   content_hash: string;
-  update_wikilinks?: boolean;
 }
 
 export class FlintNoteServer {
@@ -1030,7 +1029,7 @@ export class FlintNoteServer {
           {
             name: 'rename_note',
             description:
-              'Rename a note by updating its title field (display name). The filename and ID remain unchanged to preserve links.',
+              'Rename a note by updating its title field (display name). The filename and ID remain unchanged to preserve links. Automatically updates wikilinks in other notes that reference the old title.',
             inputSchema: {
               type: 'object',
               properties: {
@@ -1045,12 +1044,6 @@ export class FlintNoteServer {
                 content_hash: {
                   type: 'string',
                   description: 'Content hash of the current note for optimistic locking'
-                },
-                update_wikilinks: {
-                  type: 'boolean',
-                  description:
-                    'Whether to update wikilinks in other notes that reference the old title. When true, finds all notes linking to this note and updates wikilink display text from old title to new title while preserving custom link text and targets.',
-                  default: false
                 }
               },
               required: ['identifier', 'new_title', 'content_hash']
@@ -2571,18 +2564,22 @@ export class FlintNoteServer {
         true // Bypass protection for legitimate rename operations
       );
 
-      // Update broken links that might now be resolved due to the new title
-      const db = await this.#hybridSearchManager.getDatabaseConnection();
-      const noteId = this.#generateNoteIdFromIdentifier(args.identifier);
-      const linksUpdated = await LinkExtractor.updateBrokenLinks(
-        noteId,
-        args.new_title,
-        db
-      );
-
-      // Update wikilinks in other notes if requested
+      let brokenLinksUpdated = 0;
       let wikilinksResult = { notesUpdated: 0, linksUpdated: 0 };
-      if (args.update_wikilinks) {
+
+      // Only proceed with link updates if search manager is available
+      if (this.#hybridSearchManager) {
+        const db = await this.#hybridSearchManager.getDatabaseConnection();
+        const noteId = this.#generateNoteIdFromIdentifier(args.identifier);
+
+        // Update broken links that might now be resolved due to the new title
+        brokenLinksUpdated = await LinkExtractor.updateBrokenLinks(
+          noteId,
+          args.new_title,
+          db
+        );
+
+        // Always update wikilinks in other notes
         wikilinksResult = await LinkExtractor.updateWikilinksForRenamedNote(
           noteId,
           currentNote.title,
@@ -2592,8 +2589,8 @@ export class FlintNoteServer {
       }
 
       let wikilinkMessage = '';
-      if (linksUpdated > 0) {
-        wikilinkMessage = `\n\n🔗 Updated ${linksUpdated} broken links that now resolve to this note.`;
+      if (brokenLinksUpdated > 0) {
+        wikilinkMessage = `\n\n🔗 Updated ${brokenLinksUpdated} broken links that now resolve to this note.`;
       }
       if (wikilinksResult.notesUpdated > 0) {
         wikilinkMessage += `\n🔗 Updated ${wikilinksResult.linksUpdated} wikilinks in ${wikilinksResult.notesUpdated} notes that referenced the old title.`;
@@ -2612,8 +2609,8 @@ export class FlintNoteServer {
                 identifier: args.identifier,
                 filename_unchanged: true,
                 links_preserved: true,
-                broken_links_resolved: linksUpdated,
-                wikilinks_updated: args.update_wikilinks || false,
+                broken_links_resolved: brokenLinksUpdated,
+                wikilinks_updated: true,
                 notes_with_updated_wikilinks: wikilinksResult.notesUpdated,
                 total_wikilinks_updated: wikilinksResult.linksUpdated,
                 result

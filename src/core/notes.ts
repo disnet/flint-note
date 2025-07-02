@@ -1345,8 +1345,7 @@ export class NoteManager {
   async renameNote(
     identifier: string,
     newTitle: string,
-    contentHash: string,
-    updateWikilinks: boolean = false
+    contentHash: string
   ): Promise<{ success: boolean; notesUpdated?: number; linksUpdated?: number }> {
     // Get the current note
     const currentNote = await this.getNote(identifier);
@@ -1380,15 +1379,13 @@ export class NoteManager {
       // Update broken links that might now be resolved due to the new title
       brokenLinksUpdated = await LinkExtractor.updateBrokenLinks(noteId, newTitle, db);
 
-      // Update wikilinks in other notes if requested
-      if (updateWikilinks) {
-        wikilinksResult = await LinkExtractor.updateWikilinksForRenamedNote(
-          noteId,
-          currentNote.title,
-          newTitle,
-          db
-        );
-      }
+      // Always update wikilinks in other notes
+      wikilinksResult = await LinkExtractor.updateWikilinksForRenamedNote(
+        noteId,
+        currentNote.title,
+        newTitle,
+        db
+      );
     }
 
     return {

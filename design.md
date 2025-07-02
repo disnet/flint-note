@@ -314,7 +314,7 @@ The flint-note MCP server exposes the following tools and resources:
 | `create_note` | Create one or more notes | Single: `type`, `title`, `content`, `metadata?` OR Batch: `notes` (array) |
 | `get_note` | Retrieve specific note | `identifier` |
 | `update_note` | Update one or more existing notes | Single: `identifier`, `content?`, `metadata?`, `content_hash` OR Batch: `updates` (array) |
-| `rename_note` | Rename note display title while preserving filename/ID | `identifier`, `new_title`, `content_hash`, `update_wikilinks?` |
+| `rename_note` | Rename note display title while preserving filename/ID | `identifier`, `new_title`, `content_hash` |
 | `search_notes` | Search notes by content/type | `query`, `type_filter?`, `limit?`, `use_regex?` |
 | `list_note_types` | List all available note types | none |
 | `update_note_type` | Update specific field of existing note type | `type_name`, `field` (instructions\|description\|metadata_schema), `value`, `content_hash` |
@@ -536,7 +536,7 @@ Flint-note implements a clear hierarchy for note naming that eliminates confusio
 
 ### Note Renaming
 
-The `rename_note` tool provides safe title updates:
+The `rename_note` tool provides safe title updates and automatically updates wikilinks in other notes:
 
 **Key Features:**
 - Updates only the `title` field in note metadata
@@ -558,8 +558,7 @@ The `rename_note` tool provides safe title updates:
   "arguments": {
     "identifier": "projects/website-redesign.md",
     "new_title": "Website Redesign v2.0 - Mobile First",
-    "content_hash": "sha256:a1b2c3d4e5f6...",
-    "update_wikilinks": false
+    "content_hash": "sha256:a1b2c3d4e5f6..."
   }
 }
 ```
@@ -1358,7 +1357,7 @@ The following MCP tools are available for link management:
 **Automatic Link Processing:**
 - `create_note`: Automatically extracts and stores links during note creation
 - `update_note`: Re-extracts links when content changes, maintains link integrity
-- `rename_note`: Updates broken links that now resolve to the renamed note
+- `rename_note`: Updates broken links that now resolve to the renamed note and automatically updates wikilinks in other notes that reference the old title
 - `delete_note`: Cleans up all link references (sets target_note_id to NULL for incoming links)
 
 **Search Integration:**
