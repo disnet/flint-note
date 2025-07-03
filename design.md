@@ -87,6 +87,113 @@ When working with multi-vault systems, flint-note automatically provides context
 - **Vault-Specific Behavior**: Agents understand the purpose and context of each vault (work, personal, research, etc.)
 - **Cross-Vault Awareness**: When switching vaults, agents maintain awareness of the transition and can help organize content appropriately
 - **Contextual Suggestions**: Note creation and management suggestions are tailored to the current vault's purpose and existing content
+- **Optional Vault Targeting**: All note operations can target specific vaults using the optional `vault_id` parameter
+
+### Vault-Specific Operations
+
+All note-related MCP tools support an optional `vault_id` parameter that allows operations to be performed on specific vaults without switching the global "active" vault context.
+
+#### How It Works
+
+- **Default Behavior**: When `vault_id` is not provided, operations are performed on the currently active vault
+- **Explicit Targeting**: When `vault_id` is provided, operations are performed on the specified vault
+- **Vault Isolation**: Each vault maintains complete isolation - notes, note types, and search indexes are vault-specific
+- **Temporary Context**: Vault-specific operations create temporary workspace contexts without affecting the global active vault
+
+#### Supported Tools
+
+The following tools support the optional `vault_id` parameter:
+
+**Note Management:**
+- `create_note_type`
+- `create_note`
+- `get_note`
+- `update_note`
+- `rename_note`
+- `delete_note`
+
+**Note Type Management:**
+- `list_note_types`
+- `update_note_type`
+- `get_note_type_info`
+- `delete_note_type`
+
+**Search Operations:**
+- `search_notes`
+- `search_notes_advanced`
+- `search_notes_sql`
+
+**Link Management:**
+- `get_note_links`
+- `get_backlinks`
+- `find_broken_links`
+- `search_by_links`
+- `migrate_links`
+
+**Utility Operations:**
+- `get_note_info`
+- `list_notes_by_type`
+- `bulk_delete_notes`
+
+#### Usage Examples
+
+```json
+// Create a note in the current active vault
+{
+  "name": "create_note",
+  "arguments": {
+    "type": "daily",
+    "title": "Today's Work",
+    "content": "Meeting notes and tasks"
+  }
+}
+
+// Create a note in a specific vault
+{
+  "name": "create_note",
+  "arguments": {
+    "type": "daily",
+    "title": "Today's Work",
+    "content": "Meeting notes and tasks",
+    "vault_id": "work"
+  }
+}
+
+// Search notes in a specific vault
+{
+  "name": "search_notes",
+  "arguments": {
+    "query": "project planning",
+    "vault_id": "personal"
+  }
+}
+```
+
+#### Benefits
+
+- **Cross-Vault Operations**: Perform operations on multiple vaults without constantly switching context
+- **Workflow Efficiency**: Maintain awareness of current active vault while working with specific vaults
+- **Script Automation**: Enable automated workflows that operate across multiple vaults
+- **Context Preservation**: Avoid disrupting user's current workspace when performing vault-specific operations
+
+#### Technical Implementation
+
+The vault_id parameter is implemented through a vault resolution system in the MCP server:
+
+1. **Vault Resolution**: When a tool is called with `vault_id`, the server creates a temporary workspace context for that vault
+2. **Manager Instances**: Temporary instances of `NoteManager`, `NoteTypeManager`, and `HybridSearchManager` are created for the target vault
+3. **Isolation**: Each vault maintains complete data isolation - no cross-vault contamination of notes, types, or search indexes
+4. **Performance**: Vault resolution is optimized to minimize overhead when operating on non-active vaults
+5. **Error Handling**: Invalid vault IDs result in clear error messages with available vault suggestions
+
+#### Backwards Compatibility
+
+The vault_id parameter is completely optional and maintains full backwards compatibility:
+
+- Existing tools continue to work without modification
+- When vault_id is omitted, behavior is identical to previous versions
+- No breaking changes to existing MCP tool signatures
+- Legacy configurations and workflows continue to function normally
 
 ## Agent Instructions System
 
@@ -310,18 +417,18 @@ The flint-note MCP server exposes the following tools and resources:
 | `update_vault` | Update vault name or description | `vault_id`, `name?`, `description?` |
 | `remove_vault` | Remove vault from registry (files preserved) | `vault_id` |
 | **Note Management** | | |
-| `create_note_type` | Create new note type with description | `type_name`, `description`, `agent_instructions?`, `metadata_schema?` |
-| `create_note` | Create one or more notes | Single: `type`, `title`, `content`, `metadata?` OR Batch: `notes` (array) |
-| `get_note` | Retrieve specific note | `identifier` |
-| `update_note` | Update one or more existing notes | Single: `identifier`, `content?`, `metadata?`, `content_hash` OR Batch: `updates` (array) |
-| `rename_note` | Rename note display title while preserving filename/ID | `identifier`, `new_title`, `content_hash` |
-| `search_notes` | Search notes by content/type | `query`, `type_filter?`, `limit?`, `use_regex?` |
-| `list_note_types` | List all available note types | none |
-| `update_note_type` | Update specific field of existing note type | `type_name`, `field` (instructions\|description\|metadata_schema), `value`, `content_hash` |
-| `get_note_type_info` | Get comprehensive note type information including agent instructions | `type_name` |
-| `analyze_note` | Get AI analysis/suggestions for a note | `identifier` |
-| `delete_note` | Delete an existing note permanently | `identifier`, `confirm?` |
-| `delete_note_type` | Delete a note type and optionally handle existing notes | `type_name`, `action` (error\|migrate\|delete), `target_type?`, `confirm?` |
+| `create_note_type` | Create new note type with description | `type_name`, `description`, `agent_instructions?`, `metadata_schema?`, `vault_id?` |
+| `create_note` | Create one or more notes | Single: `type`, `title`, `content`, `metadata?`, `vault_id?` OR Batch: `notes` (array), `vault_id?` |
+| `get_note` | Retrieve specific note | `identifier`, `vault_id?` |
+| `update_note` | Update one or more existing notes | Single: `identifier`, `content?`, `metadata?`, `content_hash`, `vault_id?` OR Batch: `updates` (array), `vault_id?` |
+| `rename_note` | Rename note display title while preserving filename/ID | `identifier`, `new_title`, `content_hash`, `vault_id?` |
+| `search_notes` | Search notes by content/type | `query`, `type_filter?`, `limit?`, `use_regex?`, `vault_id?` |
+| `list_note_types` | List all available note types | `vault_id?` |
+| `update_note_type` | Update specific field of existing note type | `type_name`, `field` (instructions\|description\|metadata_schema), `value`, `content_hash`, `vault_id?` |
+| `get_note_type_info` | Get comprehensive note type information including agent instructions | `type_name`, `vault_id?` |
+| `analyze_note` | Get AI analysis/suggestions for a note | `identifier`, `vault_id?` |
+| `delete_note` | Delete an existing note permanently | `identifier`, `confirm?`, `vault_id?` |
+| `delete_note_type` | Delete a note type and optionally handle existing notes | `type_name`, `action` (error\|migrate\|delete), `target_type?`, `confirm?`, `vault_id?` |
 
 #### Resources
 
@@ -481,7 +588,7 @@ To ensure secure SQL execution:
 
 **Find todos by status and priority:**
 ```sql
-SELECT n.* FROM notes n 
+SELECT n.* FROM notes n
 JOIN note_metadata m1 ON n.id = m1.note_id AND m1.key = 'status' AND m1.value = 'in_progress'
 JOIN note_metadata m2 ON n.id = m2.note_id AND m2.key = 'priority' AND CAST(m2.value AS INTEGER) >= 3
 WHERE n.type = 'todo'
@@ -490,7 +597,7 @@ ORDER BY n.updated DESC
 
 **Find reading notes with high ratings from this year:**
 ```sql
-SELECT n.* FROM notes n 
+SELECT n.* FROM notes n
 JOIN note_metadata m ON n.id = m.note_id AND m.key = 'rating' AND CAST(m.value AS INTEGER) > 4
 WHERE n.type = 'reading' AND n.created >= datetime('now', 'start of year')
 ORDER BY CAST(m.value AS INTEGER) DESC
@@ -499,7 +606,7 @@ ORDER BY CAST(m.value AS INTEGER) DESC
 **Group meeting notes by attendees:**
 ```sql
 SELECT m.value as attendee, COUNT(*) as meeting_count
-FROM notes n 
+FROM notes n
 JOIN note_metadata m ON n.id = m.note_id AND m.key = 'attendees'
 WHERE n.type = 'meeting' AND n.created >= datetime('now', '-30 days')
 GROUP BY m.value
@@ -510,7 +617,7 @@ ORDER BY meeting_count DESC
 
 The SQLite index is kept in sync with file changes through:
 - **File Watcher**: Monitors note directories for changes
-- **Batch Updates**: Processes multiple file changes efficiently  
+- **Batch Updates**: Processes multiple file changes efficiently
 - **Conflict Resolution**: Handles concurrent file and database modifications
 - **Recovery**: Rebuilds index from files if corruption is detected
 
@@ -1275,7 +1382,7 @@ The `LinkExtractor` class handles automatic link extraction during all note oper
 
 **During Note Create/Update Operations:**
 
-1. **Content Parsing**: 
+1. **Content Parsing**:
    - Uses `WikilinkParser` to extract `[[wikilink]]` patterns with display text support
    - Extracts markdown links `[title](url)`, image embeds `![alt](url)`, and plain URLs
    - Tracks line numbers for all extracted links
@@ -1310,7 +1417,7 @@ The following MCP tools are available for link management:
 **Advanced Link Search:**
 - `search_by_links(criteria)` - Search notes by link relationships:
   - `has_links_to: string[]` - Find notes linking to specified targets
-  - `linked_from: string[]` - Find notes linked from specified sources  
+  - `linked_from: string[]` - Find notes linked from specified sources
   - `external_domains: string[]` - Find notes with links to specified domains
   - `broken_links: boolean` - Find notes with broken internal links
 

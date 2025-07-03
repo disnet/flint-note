@@ -43,6 +43,7 @@ interface CreateNoteTypeArgs {
   description: string;
   agent_instructions?: string[];
   metadata_schema?: MetadataSchema;
+  vault_id?: string;
 }
 
 interface CreateNoteArgs {
@@ -56,10 +57,12 @@ interface CreateNoteArgs {
     content: string;
     metadata?: Record<string, unknown>;
   }>;
+  vault_id?: string;
 }
 
 interface GetNoteArgs {
   identifier: string;
+  vault_id?: string;
 }
 
 interface UpdateNoteArgs {
@@ -73,6 +76,7 @@ interface UpdateNoteArgs {
     metadata?: Record<string, unknown>;
     content_hash: string;
   }>;
+  vault_id?: string;
 }
 
 interface SearchNotesArgs {
@@ -80,6 +84,7 @@ interface SearchNotesArgs {
   type_filter?: string;
   limit?: number;
   use_regex?: boolean;
+  vault_id?: string;
 }
 
 interface SearchNotesAdvancedArgs {
@@ -100,6 +105,7 @@ interface SearchNotesAdvancedArgs {
   }>;
   limit?: number;
   offset?: number;
+  vault_id?: string;
 }
 
 interface SearchNotesSqlArgs {
@@ -107,11 +113,11 @@ interface SearchNotesSqlArgs {
   params?: (string | number | boolean | null)[];
   limit?: number;
   timeout?: number;
+  vault_id?: string;
 }
 
 interface ListNoteTypesArgs {
-  // Empty interface for consistency
-  [key: string]: never;
+  vault_id?: string;
 }
 
 interface UpdateNoteTypeArgs {
@@ -120,10 +126,12 @@ interface UpdateNoteTypeArgs {
   description?: string;
   metadata_schema?: MetadataFieldDefinition[];
   content_hash: string;
+  vault_id?: string;
 }
 
 interface GetNoteTypeInfoArgs {
   type_name: string;
+  vault_id?: string;
 }
 
 interface CreateVaultArgs {
@@ -152,16 +160,19 @@ interface UpdateVaultArgs {
 interface GetNoteInfoArgs {
   title_or_filename: string;
   type?: string;
+  vault_id?: string;
 }
 
 interface ListNotesByTypeArgs {
   type: string;
   limit?: number;
+  vault_id?: string;
 }
 
 interface DeleteNoteArgs {
   identifier: string;
   confirm?: boolean;
+  vault_id?: string;
 }
 
 interface DeleteNoteTypeArgs {
@@ -169,6 +180,7 @@ interface DeleteNoteTypeArgs {
   action: 'error' | 'migrate' | 'delete';
   target_type?: string;
   confirm?: boolean;
+  vault_id?: string;
 }
 
 interface BulkDeleteNotesArgs {
@@ -176,12 +188,24 @@ interface BulkDeleteNotesArgs {
   tags?: string[];
   pattern?: string;
   confirm?: boolean;
+  vault_id?: string;
 }
 
 interface RenameNoteArgs {
   identifier: string;
   new_title: string;
   content_hash: string;
+  vault_id?: string;
+}
+
+/**
+ * Vault-specific operation context
+ */
+interface VaultContext {
+  workspace: Workspace;
+  noteManager: NoteManager;
+  noteTypeManager: NoteTypeManager;
+  hybridSearchManager: HybridSearchManager;
 }
 
 export class FlintNoteServer {
@@ -429,6 +453,10 @@ export class FlintNoteServer {
                   },
                   required: ['fields'],
                   description: 'Optional metadata schema definition for this note type'
+                },
+                vault_id: {
+                  type: 'string',
+                  description: 'Optional vault ID to operate on. If not provided, uses the current active vault.'
                 }
               },
               required: ['type_name', 'description']
@@ -486,6 +514,10 @@ export class FlintNoteServer {
                     required: ['type', 'title', 'content']
                   },
                   description: 'Array of notes to create - used for batch creation'
+                },
+                vault_id: {
+                  type: 'string',
+                  description: 'Optional vault ID to operate on. If not provided, uses the current active vault.'
                 }
               },
               required: []
@@ -500,6 +532,10 @@ export class FlintNoteServer {
                 identifier: {
                   type: 'string',
                   description: 'Note identifier in format "type/filename" or full path'
+                },
+                vault_id: {
+                  type: 'string',
+                  description: 'Optional vault ID to operate on. If not provided, uses the current active vault.'
                 }
               },
               required: ['identifier']
@@ -560,6 +596,10 @@ export class FlintNoteServer {
                   },
                   description:
                     'Array of note updates (must specify content, metadata, or both) - used for batch updates'
+                },
+                vault_id: {
+                  type: 'string',
+                  description: 'Optional vault ID to operate on. If not provided, uses the current active vault.'
                 }
               },
               required: []
@@ -590,6 +630,10 @@ export class FlintNoteServer {
                   type: 'boolean',
                   description: 'Enable regex pattern matching',
                   default: false
+                },
+                vault_id: {
+                  type: 'string',
+                  description: 'Optional vault ID to operate on. If not provided, uses the current active vault.'
                 }
               },
               required: []
@@ -673,6 +717,10 @@ export class FlintNoteServer {
                   type: 'number',
                   description: 'Number of results to skip',
                   default: 0
+                },
+                vault_id: {
+                  type: 'string',
+                  description: 'Optional vault ID to operate on. If not provided, uses the current active vault.'
                 }
               },
               required: []
@@ -704,6 +752,10 @@ export class FlintNoteServer {
                   type: 'number',
                   description: 'Query timeout in milliseconds',
                   default: 30000
+                },
+                vault_id: {
+                  type: 'string',
+                  description: 'Optional vault ID to operate on. If not provided, uses the current active vault.'
                 }
               },
               required: ['query']
@@ -715,7 +767,12 @@ export class FlintNoteServer {
               'List all available note types with their purposes and agent instructions',
             inputSchema: {
               type: 'object',
-              properties: {}
+              properties: {
+                vault_id: {
+                  type: 'string',
+                  description: 'Optional vault ID to operate on. If not provided, uses the current active vault.'
+                }
+              }
             }
           },
 
@@ -784,6 +841,10 @@ export class FlintNoteServer {
                   type: 'string',
                   description:
                     'Content hash of the current note type definition to prevent conflicts'
+                },
+                vault_id: {
+                  type: 'string',
+                  description: 'Optional vault ID to operate on. If not provided, uses the current active vault.'
                 }
               },
               required: ['type_name', 'content_hash']
@@ -799,6 +860,10 @@ export class FlintNoteServer {
                 type_name: {
                   type: 'string',
                   description: 'Name of the note type to get information for'
+                },
+                vault_id: {
+                  type: 'string',
+                  description: 'Optional vault ID to operate on. If not provided, uses the current active vault.'
                 }
               },
               required: ['type_name']
@@ -923,6 +988,10 @@ export class FlintNoteServer {
                 type: {
                   type: 'string',
                   description: 'Optional: note type to narrow search'
+                },
+                vault_id: {
+                  type: 'string',
+                  description: 'Optional vault ID to operate on. If not provided, uses the current active vault.'
                 }
               },
               required: ['title_or_filename']
@@ -942,6 +1011,10 @@ export class FlintNoteServer {
                   type: 'number',
                   description: 'Optional: maximum number of results (default: 50)',
                   default: 50
+                },
+                vault_id: {
+                  type: 'string',
+                  description: 'Optional vault ID to operate on. If not provided, uses the current active vault.'
                 }
               },
               required: ['type']
@@ -962,6 +1035,10 @@ export class FlintNoteServer {
                   type: 'boolean',
                   description: 'Explicit confirmation required for deletion',
                   default: false
+                },
+                vault_id: {
+                  type: 'string',
+                  description: 'Optional vault ID to operate on. If not provided, uses the current active vault.'
                 }
               },
               required: ['identifier']
@@ -1044,6 +1121,10 @@ export class FlintNoteServer {
                 content_hash: {
                   type: 'string',
                   description: 'Content hash of the current note for optimistic locking'
+                },
+                vault_id: {
+                  type: 'string',
+                  description: 'Optional vault ID to operate on. If not provided, uses the current active vault.'
                 }
               },
               required: ['identifier', 'new_title', 'content_hash']
@@ -1206,16 +1287,18 @@ export class FlintNoteServer {
 
           case 'get_note_links':
             return await this.#handleGetNoteLinks(
-              args as unknown as { identifier: string }
+              args as unknown as { identifier: string; vault_id?: string }
             );
 
           case 'get_backlinks':
             return await this.#handleGetBacklinks(
-              args as unknown as { identifier: string }
+              args as unknown as { identifier: string; vault_id?: string }
             );
 
           case 'find_broken_links':
-            return await this.#handleFindBrokenLinks();
+            return await this.#handleFindBrokenLinks(
+              args as unknown as { vault_id?: string }
+            );
 
           case 'search_by_links':
             return await this.#handleSearchByLinks(
@@ -1224,11 +1307,12 @@ export class FlintNoteServer {
                 linked_from?: string[];
                 external_domains?: string[];
                 broken_links?: boolean;
+                vault_id?: string;
               }
             );
 
           case 'migrate_links':
-            return await this.#handleMigrateLinks(args as unknown as { force?: boolean });
+            return await this.#handleMigrateLinks(args as unknown as { force?: boolean; vault_id?: string });
 
           default:
             throw new Error(`Unknown tool: ${name}`);
@@ -1323,14 +1407,56 @@ export class FlintNoteServer {
     }
   }
 
-  // Tool handlers
-  #handleCreateNoteType = async (args: CreateNoteTypeArgs) => {
-    this.#requireWorkspace();
-    if (!this.#noteTypeManager) {
-      throw new Error('Server not initialized');
+  /**
+   * Resolve vault context for operations
+   * If vault_id is provided, creates temporary context for that vault
+   * If vault_id is not provided, uses the current active vault
+   */
+  async #resolveVaultContext(vault_id?: string): Promise<VaultContext> {
+    if (!vault_id) {
+      // Use current active vault
+      this.#requireWorkspace();
+      if (!this.#noteManager || !this.#noteTypeManager || !this.#hybridSearchManager) {
+        throw new Error('Server not fully initialized');
+      }
+      return {
+        workspace: this.#workspace,
+        noteManager: this.#noteManager,
+        noteTypeManager: this.#noteTypeManager,
+        hybridSearchManager: this.#hybridSearchManager
+      };
     }
 
-    await this.#noteTypeManager.createNoteType(
+    // Create temporary context for specified vault
+    const vault = this.#globalConfig.getVault(vault_id);
+    if (!vault) {
+      throw new Error(`Vault with ID '${vault_id}' does not exist`);
+    }
+
+    // Create temporary workspace and managers for this vault
+    const tempHybridSearchManager = new HybridSearchManager(vault.path);
+    const tempWorkspace = new Workspace(
+      vault.path,
+      tempHybridSearchManager.getDatabaseManager()
+    );
+    await tempWorkspace.initialize();
+    
+    const tempNoteManager = new NoteManager(tempWorkspace, tempHybridSearchManager);
+    const tempNoteTypeManager = new NoteTypeManager(tempWorkspace);
+
+    return {
+      workspace: tempWorkspace,
+      noteManager: tempNoteManager,
+      noteTypeManager: tempNoteTypeManager,
+      hybridSearchManager: tempHybridSearchManager
+    };
+  }
+
+  // Tool handlers
+  #handleCreateNoteType = async (args: CreateNoteTypeArgs) => {
+    const { noteTypeManager } = await this.#resolveVaultContext(args.vault_id);
+
+    await noteTypeManager.createNoteType(
       args.type_name,
       args.description,
       args.agent_instructions,
@@ -1355,14 +1481,11 @@ export class FlintNoteServer {
   };
 
   #handleCreateNote = async (args: CreateNoteArgs) => {
-    this.#requireWorkspace();
-    if (!this.#noteManager || !this.#noteTypeManager) {
-      throw new Error('Server not initialized');
-    }
+    const { noteManager, noteTypeManager } = await this.#resolveVaultContext(args.vault_id);
 
     // Handle batch creation if notes array is provided
     if (args.notes) {
-      const result = await this.#noteManager.batchCreateNotes(args.notes);
+      const result = await noteManager.batchCreateNotes(args.notes);
       return {
         content: [
           {
@@ -1378,7 +1501,7 @@ export class FlintNoteServer {
       throw new Error('Single note creation requires type, title, and content');
     }
 
-    const noteInfo = await this.#noteManager.createNote(
+    const noteInfo = await noteManager.createNote(
       args.type,
       args.title,
       args.content,
@@ -1389,7 +1512,7 @@ export class FlintNoteServer {
     let agentInstructions: string[] = [];
     let nextSuggestions = '';
     try {
-      const typeInfo = await this.#noteTypeManager.getNoteTypeDescription(args.type);
+      const typeInfo = await noteTypeManager.getNoteTypeDescription(args.type);
       agentInstructions = typeInfo.parsed.agentInstructions;
       if (agentInstructions.length > 0) {
         nextSuggestions = `Consider following these guidelines for ${args.type} notes: ${agentInstructions.join(', ')}`;
@@ -1417,12 +1540,9 @@ export class FlintNoteServer {
   };
 
   #handleGetNote = async (args: GetNoteArgs) => {
-    this.#requireWorkspace();
-    if (!this.#noteManager) {
-      throw new Error('Server not initialized');
-    }
+    const { noteManager } = await this.#resolveVaultContext(args.vault_id);
 
-    const note = await this.#noteManager.getNote(args.identifier);
+    const note = await noteManager.getNote(args.identifier);
     return {
       content: [
         {
@@ -1434,14 +1554,11 @@ export class FlintNoteServer {
   };
 
   #handleUpdateNote = async (args: UpdateNoteArgs) => {
-    this.#requireWorkspace();
-    if (!this.#noteManager) {
-      throw new Error('Server not initialized');
-    }
+    const { noteManager } = await this.#resolveVaultContext(args.vault_id);
 
     // Handle batch updates if updates array is provided
     if (args.updates) {
-      const result = await this.#noteManager.batchUpdateNotes(args.updates);
+      const result = await noteManager.batchUpdateNotes(args.updates);
       return {
         content: [
           {
@@ -1464,7 +1581,7 @@ export class FlintNoteServer {
     let result;
     if (args.content !== undefined && args.metadata !== undefined) {
       // Both content and metadata update
-      result = await this.#noteManager.updateNoteWithMetadata(
+      result = await noteManager.updateNoteWithMetadata(
         args.identifier,
         args.content,
         args.metadata as NoteMetadata,
@@ -1472,18 +1589,18 @@ export class FlintNoteServer {
       );
     } else if (args.content !== undefined) {
       // Content-only update
-      result = await this.#noteManager.updateNote(
+      result = await noteManager.updateNote(
         args.identifier,
         args.content,
         args.content_hash
       );
     } else if (args.metadata !== undefined) {
       // Metadata-only update
-      const currentNote = await this.#noteManager.getNote(args.identifier);
+      const currentNote = await noteManager.getNote(args.identifier);
       if (!currentNote) {
         throw new Error(`Note '${args.identifier}' not found`);
       }
-      result = await this.#noteManager.updateNoteWithMetadata(
+      result = await noteManager.updateNoteWithMetadata(
         args.identifier,
         currentNote.content,
         args.metadata as NoteMetadata,
@@ -1504,12 +1621,9 @@ export class FlintNoteServer {
   };
 
   #handleSearchNotes = async (args: SearchNotesArgs) => {
-    this.#requireWorkspace();
-    if (!this.#hybridSearchManager) {
-      throw new Error('Hybrid search manager not initialized');
-    }
+    const { hybridSearchManager } = await this.#resolveVaultContext(args.vault_id);
 
-    const results = await this.#hybridSearchManager.searchNotes(
+    const results = await hybridSearchManager.searchNotes(
       args.query,
       args.type_filter,
       args.limit,
@@ -1526,12 +1640,9 @@ export class FlintNoteServer {
   };
 
   #handleSearchNotesAdvanced = async (args: SearchNotesAdvancedArgs) => {
-    this.#requireWorkspace();
-    if (!this.#hybridSearchManager) {
-      throw new Error('Hybrid search manager not initialized');
-    }
+    const { hybridSearchManager } = await this.#resolveVaultContext(args.vault_id);
 
-    const results = await this.#hybridSearchManager.searchNotesAdvanced(args);
+    const results = await hybridSearchManager.searchNotesAdvanced(args);
     return {
       content: [
         {
@@ -1543,12 +1654,9 @@ export class FlintNoteServer {
   };
 
   #handleSearchNotesSQL = async (args: SearchNotesSqlArgs) => {
-    this.#requireWorkspace();
-    if (!this.#hybridSearchManager) {
-      throw new Error('Hybrid search manager not initialized');
-    }
+    const { hybridSearchManager } = await this.#resolveVaultContext(args.vault_id);
 
-    const results = await this.#hybridSearchManager.searchNotesSQL(args);
+    const results = await hybridSearchManager.searchNotesSQL(args);
     return {
       content: [
         {
@@ -1559,13 +1667,10 @@ export class FlintNoteServer {
     };
   };
 
-  #handleListNoteTypes = async (_args: ListNoteTypesArgs) => {
-    this.#requireWorkspace();
-    if (!this.#noteTypeManager) {
-      throw new Error('Server not initialized');
-    }
+  #handleListNoteTypes = async (args: ListNoteTypesArgs) => {
+    const { noteTypeManager } = await this.#resolveVaultContext(args.vault_id);
 
-    const types = await this.#noteTypeManager.listNoteTypes();
+    const types = await noteTypeManager.listNoteTypes();
     return {
       content: [
         {
@@ -1577,10 +1682,7 @@ export class FlintNoteServer {
   };
 
   #handleUpdateNoteType = async (args: UpdateNoteTypeArgs) => {
-    this.#requireWorkspace();
-    if (!this.#noteTypeManager) {
-      throw new Error('Server not initialized');
-    }
+    const { noteTypeManager, workspace } = await this.#resolveVaultContext(args.vault_id);
 
     try {
       if (!args.content_hash) {
@@ -1599,7 +1701,7 @@ export class FlintNoteServer {
       }
 
       // Get current note type info
-      const currentInfo = await this.#noteTypeManager.getNoteTypeDescription(
+      const currentInfo = await noteTypeManager.getNoteTypeDescription(
         args.type_name
       );
 
@@ -1650,7 +1752,7 @@ export class FlintNoteServer {
 
       // Update description if provided
       if (args.description) {
-        updatedDescription = this.#noteTypeManager.formatNoteTypeDescription(
+        updatedDescription = noteTypeManager.formatNoteTypeDescription(
           args.type_name,
           args.description
         );
@@ -1790,13 +1892,13 @@ export class FlintNoteServer {
 
       // Write the updated description to the file in note type directory
       const descriptionPath = path.join(
-        this.#workspace.getNoteTypePath(args.type_name),
+        workspace.getNoteTypePath(args.type_name),
         '_description.md'
       );
       await fs.writeFile(descriptionPath, updatedDescription, 'utf-8');
 
       // Get the updated note type info
-      const result = await this.#noteTypeManager.getNoteTypeDescription(args.type_name);
+      const result = await noteTypeManager.getNoteTypeDescription(args.type_name);
 
       return {
         content: [
@@ -1906,12 +2008,9 @@ export class FlintNoteServer {
   }
 
   #handleGetNoteTypeInfo = async (args: GetNoteTypeInfoArgs) => {
-    this.#requireWorkspace();
-    if (!this.#noteTypeManager) {
-      throw new Error('Server not initialized');
-    }
+    const { noteTypeManager } = await this.#resolveVaultContext(args.vault_id);
 
-    const info = await this.#noteTypeManager.getNoteTypeDescription(args.type_name);
+    const info = await noteTypeManager.getNoteTypeDescription(args.type_name);
 
     return {
       content: [
@@ -1990,13 +2089,10 @@ export class FlintNoteServer {
   };
 
   #handleGetNoteInfo = async (args: GetNoteInfoArgs) => {
-    this.#requireWorkspace();
-    if (!this.#noteManager) {
-      throw new Error('Server not initialized');
-    }
+    const { noteManager } = await this.#resolveVaultContext(args.vault_id);
 
     // Try to find the note by title or filename
-    const searchResults = await this.#noteManager.searchNotes({
+    const searchResults = await noteManager.searchNotes({
       query: args.title_or_filename,
       type_filter: args.type,
       limit: 5
@@ -2047,12 +2143,9 @@ export class FlintNoteServer {
   };
 
   #handleListNotesByType = async (args: ListNotesByTypeArgs) => {
-    this.#requireWorkspace();
-    if (!this.#noteManager) {
-      throw new Error('Server not initialized');
-    }
+    const { noteManager } = await this.#resolveVaultContext(args.vault_id);
 
-    const notes = await this.#noteManager.searchNotes({
+    const notes = await noteManager.searchNotes({
       type_filter: args.type,
       limit: args.limit || 50
     });
@@ -2079,10 +2172,9 @@ export class FlintNoteServer {
   };
 
   #handleDeleteNote = async (args: DeleteNoteArgs) => {
-    this.#requireWorkspace();
-
     try {
-      const result = await this.#noteManager.deleteNote(args.identifier, args.confirm);
+      const { noteManager } = await this.#resolveVaultContext(args.vault_id);
+      const result = await noteManager.deleteNote(args.identifier, args.confirm);
 
       return {
         content: [
@@ -2537,14 +2629,11 @@ export class FlintNoteServer {
   };
 
   #handleRenameNote = async (args: RenameNoteArgs) => {
-    this.#requireWorkspace();
-    if (!this.#noteManager) {
-      throw new Error('Server not initialized');
-    }
-
     try {
+      const { noteManager, hybridSearchManager } = await this.#resolveVaultContext(args.vault_id);
+      
       // Get the current note to read current metadata
-      const currentNote = await this.#noteManager.getNote(args.identifier);
+      const currentNote = await noteManager.getNote(args.identifier);
       if (!currentNote) {
         throw new Error(`Note '${args.identifier}' not found`);
       }
@@ -2556,7 +2645,7 @@ export class FlintNoteServer {
       };
 
       // Use the existing updateNoteWithMetadata method with protection bypass for rename
-      const result = await this.#noteManager.updateNoteWithMetadata(
+      const result = await noteManager.updateNoteWithMetadata(
         args.identifier,
         currentNote.content, // Keep content unchanged
         updatedMetadata,
@@ -2567,26 +2656,24 @@ export class FlintNoteServer {
       let brokenLinksUpdated = 0;
       let wikilinksResult = { notesUpdated: 0, linksUpdated: 0 };
 
-      // Only proceed with link updates if search manager is available
-      if (this.#hybridSearchManager) {
-        const db = await this.#hybridSearchManager.getDatabaseConnection();
-        const noteId = this.#generateNoteIdFromIdentifier(args.identifier);
+      // Update links using the vault-specific hybrid search manager
+      const db = await hybridSearchManager.getDatabaseConnection();
+      const noteId = this.#generateNoteIdFromIdentifier(args.identifier);
 
-        // Update broken links that might now be resolved due to the new title
-        brokenLinksUpdated = await LinkExtractor.updateBrokenLinks(
-          noteId,
-          args.new_title,
-          db
-        );
+      // Update broken links that might now be resolved due to the new title
+      brokenLinksUpdated = await LinkExtractor.updateBrokenLinks(
+        noteId,
+        args.new_title,
+        db
+      );
 
-        // Always update wikilinks in other notes
-        wikilinksResult = await LinkExtractor.updateWikilinksForRenamedNote(
-          noteId,
-          currentNote.title,
-          args.new_title,
-          db
-        );
-      }
+      // Always update wikilinks in other notes
+      wikilinksResult = await LinkExtractor.updateWikilinksForRenamedNote(
+        noteId,
+        currentNote.title,
+        args.new_title,
+        db
+      );
 
       let wikilinkMessage = '';
       if (brokenLinksUpdated > 0) {
@@ -2642,9 +2729,10 @@ export class FlintNoteServer {
     }
   };
 
-  #handleGetNoteLinks = async (args: { identifier: string }) => {
+  #handleGetNoteLinks = async (args: { identifier: string; vault_id?: string }) => {
     try {
-      const db = await this.#hybridSearchManager.getDatabaseConnection();
+      const { hybridSearchManager } = await this.#resolveVaultContext(args.vault_id);
+      const db = await hybridSearchManager.getDatabaseConnection();
       const noteId = this.#generateNoteIdFromIdentifier(args.identifier);
 
       // Check if note exists
@@ -2696,9 +2784,10 @@ export class FlintNoteServer {
     }
   };
 
-  #handleGetBacklinks = async (args: { identifier: string }) => {
+  #handleGetBacklinks = async (args: { identifier: string; vault_id?: string }) => {
     try {
-      const db = await this.#hybridSearchManager.getDatabaseConnection();
+      const { hybridSearchManager } = await this.#resolveVaultContext(args.vault_id);
+      const db = await hybridSearchManager.getDatabaseConnection();
       const noteId = this.#generateNoteIdFromIdentifier(args.identifier);
 
       // Check if note exists
@@ -2746,9 +2835,10 @@ export class FlintNoteServer {
     }
   };
 
-  #handleFindBrokenLinks = async () => {
+  #handleFindBrokenLinks = async (args?: { vault_id?: string }) => {
     try {
-      const db = await this.#hybridSearchManager.getDatabaseConnection();
+      const { hybridSearchManager } = await this.#resolveVaultContext(args?.vault_id);
+      const db = await hybridSearchManager.getDatabaseConnection();
       const brokenLinks = await LinkExtractor.findBrokenLinks(db);
 
       return {
@@ -2793,9 +2883,11 @@ export class FlintNoteServer {
     linked_from?: string[];
     external_domains?: string[];
     broken_links?: boolean;
+    vault_id?: string;
   }) => {
     try {
-      const db = await this.#hybridSearchManager.getDatabaseConnection();
+      const { hybridSearchManager } = await this.#resolveVaultContext(args.vault_id);
+      const db = await hybridSearchManager.getDatabaseConnection();
       let notes: NoteRow[] = [];
 
       // Handle different search criteria
@@ -2881,9 +2973,10 @@ export class FlintNoteServer {
     }
   };
 
-  #handleMigrateLinks = async (args: { force?: boolean }) => {
+  #handleMigrateLinks = async (args: { force?: boolean; vault_id?: string }) => {
     try {
-      const db = await this.#hybridSearchManager.getDatabaseConnection();
+      const { hybridSearchManager } = await this.#resolveVaultContext(args.vault_id);
+      const db = await hybridSearchManager.getDatabaseConnection();
 
       // Check if migration is needed
       if (!args.force) {
