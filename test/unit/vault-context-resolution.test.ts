@@ -37,7 +37,7 @@ describe('Vault Context via MCP Tools', () => {
     tempDir = await createTempDir('vault-context-test');
     vault1Path = path.join(tempDir, 'vault1');
     vault2Path = path.join(tempDir, 'vault2');
-    
+
     await fs.mkdir(vault1Path, { recursive: true });
     await fs.mkdir(vault2Path, { recursive: true });
 
@@ -67,7 +67,7 @@ describe('Vault Context via MCP Tools', () => {
   it('should initialize with multiple vaults configured', async () => {
     // Test that the server starts with the active vault
     assert(server, 'Server should be initialized');
-    
+
     // Test that vault directories exist
     try {
       await fs.access(vault1Path);
@@ -75,7 +75,7 @@ describe('Vault Context via MCP Tools', () => {
     } catch {
       assert.fail('Vault directories should exist');
     }
-    
+
     // Test that global config has the vaults
     const vaults = await globalConfig.listVaults();
     assert.strictEqual(vaults.length, 2);
@@ -92,14 +92,14 @@ describe('Vault Context via MCP Tools', () => {
   it('should handle vault switching', async () => {
     // Switch to vault2
     await globalConfig.switchVault('vault2');
-    
+
     let vaults = globalConfig.listVaults();
     const currentVault = vaults.find(v => v.is_current);
     assert.strictEqual(currentVault?.id, 'vault2');
-    
+
     // Switch back to vault1
     await globalConfig.switchVault('vault1');
-    
+
     vaults = globalConfig.listVaults();
     const finalVault = vaults.find(v => v.is_current);
     assert.strictEqual(finalVault?.id, 'vault1');
