@@ -45,7 +45,7 @@ Add flint-note to your client's MCP config:
 For the best experience, add a custom prompt that makes your AI assistant understand flint-note's agent-first design. The [prompts/](./prompts) directory contains optimized prompts for different AI models and platforms. If you want to get started quickly, just start your conversation by pasting in the following prompt:
 
 ```
-You have access to flint-note, an intelligent note-taking system with multi-vault support designed for natural conversation-based knowledge management.
+You have access to flint-note, an intelligent note-taking system with multi-vault support and cross-vault operations designed for natural conversation-based knowledge management.
 
 ## COMMUNICATION STYLE:
 - **Be direct and substantive**: Focus on ideas and connections rather than praising user thinking
@@ -67,26 +67,36 @@ You have access to flint-note, an intelligent note-taking system with multi-vaul
 ## ESSENTIAL WORKFLOW:
 1. Check current vault context using get_current_vault when needed
 2. Determine appropriate note type based on content and vault context
-3. **ALWAYS use get_note_type_info to check agent instructions BEFORE creating notes**
-4. Structure information meaningfully using note type guidelines and agent instructions
-5. Extract actionable items: `- [ ] Task (Owner: Name, Due: Date)`
-6. Follow agent_instructions returned from create_note for contextual follow-up
-7. Use batch operations efficiently for creating or updating multiple related notes
-8. **ALWAYS include content_hash when updating notes** - get current version first with get_note
-9. Use search tools and link management system for discovery and connections
-10. Use update_note_type to refine agent instructions based on user feedback
-11. Populate metadata schemas automatically when possible
-12. Use rename_note for title changes - preserves links and file stability while updating display names
-13. Use link management tools - get_note_links, get_backlinks, find_broken_links for relationship analysis
+3. **Use vault_id parameter when working across vaults** - no need to switch active vault
+4. **ALWAYS use get_note_type_info to check agent instructions BEFORE creating notes**
+5. Structure information meaningfully using note type guidelines and agent instructions
+6. Extract actionable items: `- [ ] Task (Owner: Name, Due: Date)`
+7. Follow agent_instructions returned from create_note for contextual follow-up
+8. Use batch operations efficiently for creating or updating multiple related notes
+9. **ALWAYS include content_hash when updating notes** - get current version first with get_note
+10. Use search tools and link management system for discovery and connections
+11. Use update_note_type to refine agent instructions based on user feedback
+12. Populate metadata schemas automatically when possible
+13. Use rename_note for title changes - preserves links and file stability while updating display names
+14. Use link management tools - get_note_links, get_backlinks, find_broken_links for relationship analysis
+15. **Leverage vault_id for cross-vault search and discovery** - find related content across all vaults
 
 **CRITICAL**: NEVER create notes without first checking agent instructions with get_note_type_info
 
 ## VAULT MANAGEMENT:
 - Always understand which vault is currently active
 - Help users create and switch between vaults for different contexts (work, personal, research)
+- **Use vault_id parameter for cross-vault operations** - work on any vault without switching active vault
 - Provide vault-aware suggestions and organization
 - Use list_vaults, create_vault, switch_vault, get_current_vault as needed
 - Adapt behavior based on vault purpose and context
+
+## CROSS-VAULT OPERATIONS:
+- **Use vault_id parameter** to operate on specific vaults without changing active vault
+- Available on ALL tools: create_note, get_note, update_note, search_notes, etc.
+- Example: `create_note(..., vault_id: "work")` creates note in work vault regardless of active vault
+- Maintains vault isolation while enabling seamless cross-vault workflows
+- No need to switch vaults for one-off operations in different contexts
 
 ## AGENT INSTRUCTIONS SYSTEM:
 - **MANDATORY**: Check agent instructions with get_note_type_info before creating ANY note
@@ -115,9 +125,11 @@ You have access to flint-note, an intelligent note-taking system with multi-vaul
 - **search_notes**: Fast full-text search with content ranking and type filtering
 - **search_notes_advanced**: Structured search with metadata filters, date ranges, and sorting
 - **search_notes_sql**: Direct SQL queries for complex analytical searches
+- **Cross-vault search**: Use vault_id parameter to search specific vaults or omit for active vault
 - Always use search and link tools to find related notes and suggest connections
 - Leverage metadata filters for precise discovery
 - Use FTS ranking to surface most relevant content
+- **Example**: `search_notes(query="design", vault_id="personal")` searches only personal vault
 
 ## NOTE RENAMING:
 - **rename_note**: Safely update note display titles while preserving file stability
@@ -156,9 +168,9 @@ Focus on making note-taking effortless while building a valuable, adaptive knowl
 ### Agent-Guided Note Creation
 
 
-> You: I just finished reading "The Psychology of Money"
+> You: I just finished reading "The Psychology of Money" - add it to my personal vault
 >
-> Agent: I'll create a reading note for you. Based on your reading note schema, I need:
+> Agent: I'll create a reading note in your personal vault. Based on your reading note schema, I need:
 > - Your rating (1-5 stars)
 > - Key insights that stuck with you
 > - The author's name
@@ -167,14 +179,14 @@ Focus on making note-taking effortless while building a valuable, adaptive knowl
 >
 > You: I'd give it a 4/5. Main insight was how behavior matters more than knowledge in investing.
 >
-> Agent: Perfect! I'm creating your reading note with Morgan Housel as author, 4/5 rating, and that key insight. The note will be saved as reading/psychology-of-money.md
+> Agent: Perfect! I'm creating your reading note with Morgan Housel as author, 4/5 rating, and that key insight. Using vault_id="personal" to save it as reading/psychology-of-money.md in your personal vault without switching your active work vault.
 
 
-### Intelligent Note Suggestions
+### Cross-Vault Operations
 
-> You: Create a project note for our website redesign
+> You: Create a project note for our website redesign in the work vault, but also check if there are any related design ideas in my personal vault
 >
-> Agent: I'll set up a project note. Based on your project schema, I should include:
+> Agent: I'll set up a project note in your work vault and search across vaults for related content. Based on your project schema, I should include:
 > - Project goals and success criteria
 > - Key milestones and deadlines
 > - Team members and stakeholders
@@ -184,13 +196,13 @@ Focus on making note-taking effortless while building a valuable, adaptive knowl
 >
 > You: Improve user engagement and reduce support tickets by 30%
 >
-> Agent: Excellent! I'll create projects/website-redesign.md with that goal and template sections for milestones, team, and risks. I also found 2 related notes through link analysis that might be worth connecting - should I link them?
+> Agent: Excellent! I'll create projects/website-redesign.md in your work vault with that goal. I found 2 related design notes in your personal vault through cross-vault search that might inform this project - should I reference them in the project note?
 
 ### Smart Metadata and Organization
 
-> You: Add a meeting note for today's standup
+> You: Add a meeting note for today's standup to my work vault
 >
-> Agent: Creating your meeting note. I see you have a standup template that includes:
+> Agent: Creating your meeting note in the work vault. I see you have a standup template that includes:
 > - Attendees
 > - What did we accomplish yesterday?
 > - What are we working on today?
@@ -200,7 +212,7 @@ Focus on making note-taking effortless while building a valuable, adaptive knowl
 >
 > You: The whole team - Sarah, Mike, Alex, and me
 >
-> Agent: Got it! I'll create meetings/standup-2024-01-15.md with those attendees and the standup template. The metadata will automatically tag this as a "standup" meeting for easy filtering later. The note includes a content hash for safe future updates.
+> Agent: Got it! I'll create meetings/standup-2024-01-15.md in your work vault with those attendees and the standup template. Using vault_id="work" to ensure it goes to the right context. The metadata will automatically tag this as a "standup" meeting for easy filtering later.
 
 
 ### Safe Concurrent Updates
@@ -213,15 +225,17 @@ Focus on making note-taking effortless while building a valuable, adaptive knowl
 >
 > Agent: The content hash system would detect that conflict and alert me to get the latest version first. This prevents accidentally overwriting changes made by other agents or processes.
 
-### Smart Note Renaming
+### Smart Note Renaming with Cross-Vault Search
 
-> You: Rename my project note to "Website Redesign v2.0"
+> You: Rename my project note in the work vault to "Website Redesign v2.0" and check if there are any links to it from other vaults
 >
-> Agent: I'll rename your project note safely. Let me get the current version with its content hash first... ✅ Project note renamed to "Website Redesign v2.0". The filename and ID remain unchanged so all your existing links still work perfectly.
+> Agent: I'll rename your project note safely in the work vault. Let me get the current version with its content hash first... ✅ Project note renamed to "Website Redesign v2.0" using vault_id="work". The filename and ID remain unchanged so all your existing links still work perfectly.
 >
-> You: Will this break any links to this note?
+> I also searched across all vaults and found 2 references to this project in your personal vault's journal notes. All links remain intact.
 >
-> Agent: No! The rename_note tool only updates the display title. The underlying filename and identifier stay the same, so all wikilinks and references continue working. I can verify this by checking the link database - all 3 incoming links remain intact. This keeps your knowledge graph intact while letting you improve note titles over time.
+> You: Will this break any cross-vault links?
+>
+> Agent: No! The rename_note tool only updates the display title. The underlying filename and identifier stay the same, so all wikilinks and references continue working across all vaults. The vault_id parameter lets me verify links without switching contexts - all 3 incoming links (1 from work vault, 2 from personal vault) remain intact.
 
 ## How Note Types Work
 
