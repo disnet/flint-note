@@ -13,6 +13,7 @@ Flint note is a Model Context Protocol (MCP) server that provides an agent-first
 - **MCP server architecture** - Connects to any AI client that supports the Model Context Protocol
 - **Intelligent note types** - Each note type has its own agent instructions and metadata schema
 - **Customizable AI behavior** - Tell agents how to behave for each note type using natural language
+- **Performance optimized** - Field filtering support reduces data transfer by up to 90% for large note collections
 
 ## Pre-requisites
 

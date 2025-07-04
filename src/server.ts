@@ -30,6 +30,7 @@ import {
   generateContentHash,
   createNoteTypeHashableContent
 } from './utils/content-hash.js';
+import { filterNoteFields, filterSearchResults } from './utils/field-filter.js';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -63,11 +64,13 @@ interface CreateNoteArgs {
 interface GetNoteArgs {
   identifier: string;
   vault_id?: string;
+  fields?: string[];
 }
 
 interface GetNotesArgs {
   identifiers: string[];
   vault_id?: string;
+  fields?: string[];
 }
 
 interface UpdateNoteArgs {
@@ -90,6 +93,7 @@ interface SearchNotesArgs {
   limit?: number;
   use_regex?: boolean;
   vault_id?: string;
+  fields?: string[];
 }
 
 interface SearchNotesAdvancedArgs {
@@ -111,6 +115,7 @@ interface SearchNotesAdvancedArgs {
   limit?: number;
   offset?: number;
   vault_id?: string;
+  fields?: string[];
 }
 
 interface SearchNotesSqlArgs {
@@ -119,6 +124,7 @@ interface SearchNotesSqlArgs {
   limit?: number;
   timeout?: number;
   vault_id?: string;
+  fields?: string[];
 }
 
 interface ListNoteTypesArgs {
@@ -544,6 +550,14 @@ export class FlintNoteServer {
                   type: 'string',
                   description:
                     'Optional vault ID to operate on. If not provided, uses the current active vault.'
+                },
+                fields: {
+                  type: 'array',
+                  items: {
+                    type: 'string'
+                  },
+                  description:
+                    'Optional array of field names to include in response. Supports dot notation for nested fields (e.g. "metadata.tags") and wildcard patterns (e.g. "metadata.*"). If not specified, all fields are returned.'
                 }
               },
               required: ['identifier']
@@ -567,6 +581,14 @@ export class FlintNoteServer {
                   type: 'string',
                   description:
                     'Optional vault ID to operate on. If not provided, uses the current active vault.'
+                },
+                fields: {
+                  type: 'array',
+                  items: {
+                    type: 'string'
+                  },
+                  description:
+                    'Optional array of field names to include in response. Supports dot notation for nested fields (e.g. "metadata.tags") and wildcard patterns (e.g. "metadata.*"). If not specified, all fields are returned.'
                 }
               },
               required: ['identifiers']
@@ -667,6 +689,14 @@ export class FlintNoteServer {
                   type: 'string',
                   description:
                     'Optional vault ID to operate on. If not provided, uses the current active vault.'
+                },
+                fields: {
+                  type: 'array',
+                  items: {
+                    type: 'string'
+                  },
+                  description:
+                    'Optional array of field names to include in response. Supports dot notation for nested fields (e.g. "metadata.tags") and wildcard patterns (e.g. "metadata.*"). If not specified, all fields are returned.'
                 }
               },
               required: []
@@ -755,6 +785,14 @@ export class FlintNoteServer {
                   type: 'string',
                   description:
                     'Optional vault ID to operate on. If not provided, uses the current active vault.'
+                },
+                fields: {
+                  type: 'array',
+                  items: {
+                    type: 'string'
+                  },
+                  description:
+                    'Optional array of field names to include in response. Supports dot notation for nested fields (e.g. "metadata.tags") and wildcard patterns (e.g. "metadata.*"). If not specified, all fields are returned.'
                 }
               },
               required: []
@@ -791,6 +829,14 @@ export class FlintNoteServer {
                   type: 'string',
                   description:
                     'Optional vault ID to operate on. If not provided, uses the current active vault.'
+                },
+                fields: {
+                  type: 'array',
+                  items: {
+                    type: 'string'
+                  },
+                  description:
+                    'Optional array of field names to include in response. Supports dot notation for nested fields (e.g. "metadata.tags") and wildcard patterns (e.g. "metadata.*"). If not specified, all fields are returned.'
                 }
               },
               required: ['query']
@@ -1591,11 +1637,15 @@ export class FlintNoteServer {
     const { noteManager } = await this.#resolveVaultContext(args.vault_id);
 
     const note = await noteManager.getNote(args.identifier);
+
+    // Apply field filtering if specified
+    const filteredNote = note ? filterNoteFields(note, args.fields) : null;
+
     return {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(note, null, 2)
+          text: JSON.stringify(filteredNote, null, 2)
         }
       ]
     };
@@ -1616,7 +1666,11 @@ export class FlintNoteServer {
           if (!note) {
             throw new Error(`Note not found: ${identifier}`);
           }
-          return { success: true, note };
+
+          // Apply field filtering if specified
+          const filteredNote = filterNoteFields(note, args.fields);
+
+          return { success: true, note: filteredNote };
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
           return { success: false, error: errorMessage };
@@ -1732,11 +1786,17 @@ export class FlintNoteServer {
       args.limit,
       args.use_regex
     );
+
+    // Apply field filtering if specified
+    const filteredResults = args.fields
+      ? results.map(result => filterNoteFields(result, args.fields))
+      : results;
+
     return {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(results, null, 2)
+          text: JSON.stringify(filteredResults, null, 2)
         }
       ]
     };
@@ -1746,11 +1806,15 @@ export class FlintNoteServer {
     const { hybridSearchManager } = await this.#resolveVaultContext(args.vault_id);
 
     const results = await hybridSearchManager.searchNotesAdvanced(args);
+
+    // Apply field filtering if specified
+    const filteredResults = filterSearchResults(results, args.fields);
+
     return {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(results, null, 2)
+          text: JSON.stringify(filteredResults, null, 2)
         }
       ]
     };
@@ -1760,11 +1824,15 @@ export class FlintNoteServer {
     const { hybridSearchManager } = await this.#resolveVaultContext(args.vault_id);
 
     const results = await hybridSearchManager.searchNotesSQL(args);
+
+    // Apply field filtering if specified
+    const filteredResults = filterSearchResults(results, args.fields);
+
     return {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(results, null, 2)
+          text: JSON.stringify(filteredResults, null, 2)
         }
       ]
     };

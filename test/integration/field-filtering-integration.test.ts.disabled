@@ -1,0 +1,598 @@
+/**
+ * Field Filtering Integration Tests
+ *
+ * Tests for field filtering functionality in the MCP server, including
+ * get_note, get_notes, and all search operations.
+ */
+
+import { strict as assert } from 'assert';
+import { describe, it, beforeEach, afterEach } from 'node:test';
+import { spawn, ChildProcess } from 'child_process';
+import path from 'path';
+import fs from 'fs/promises';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Simple MCP client for testing
+class MCPClient {
+  #serverProcess: ChildProcess | null = null;
+
+  constructor() {}
+
+  async sendRequest(method: string, params: any = {}) {
+    if (!this.#serverProcess) {
+      throw new Error('Server not started');
+    }
+
+    const request = {
+      jsonrpc: '2.0',
+      id: Date.now(),
+      method,
+      params
+    };
+
+    return new Promise((resolve, reject) => {
+      let responseData = '';
+      let errorData = '';
+
+      const timeout = setTimeout(() => {
+        reject(new Error('Request timeout'));
+      }, 10000);
+
+      const dataHandler = (data: Buffer) => {
+        responseData += data.toString();
+        const lines = responseData.split('\n');
+
+        for (const line of lines) {
+          if (line.trim()) {
+            try {
+              const response = JSON.parse(line);
+              if (response.id === request.id) {
+                clearTimeout(timeout);
+                this.#serverProcess?.stdout?.off('data', dataHandler);
+                this.#serverProcess?.stderr?.off('data', errorHandler);
+                resolve(response);
+                return;
+              }
+            } catch (e) {
+              // Continue reading
+            }
+          }
+        }
+      };
+
+      const errorHandler = (data: Buffer) => {
+        errorData += data.toString();
+      };
+
+      this.#serverProcess.stdout?.on('data', dataHandler);
+      this.#serverProcess.stderr?.on('data', errorHandler);
+
+      this.#serverProcess.stdin?.write(JSON.stringify(request) + '\n');
+    });
+  }
+
+  async callTool(name: string, args: any) {
+    return this.sendRequest('tools/call', { name, arguments: args });
+  }
+}
+
+describe('Field Filtering Integration', () => {
+  let client: MCPClient;
+  let serverProcess: ChildProcess;
+  let testVaultPath: string;
+
+  beforeEach(async () => {
+    // Create a temporary test vault
+    testVaultPath = path.join(__dirname, '..', 'temp-vault-field-filtering');
+    await fs.mkdir(testVaultPath, { recursive: true });
+
+    // Start the MCP server
+    const serverScript = path.join(__dirname, '..', '..', 'dist', 'index.js');
+    serverProcess = spawn('node', [serverScript, testVaultPath], {
+      stdio: 'pipe',
+      env: { ...process.env, NODE_ENV: 'test' }
+    });
+
+    client = new MCPClient();
+    client['#serverProcess'] = serverProcess;
+
+    // Wait for server to be ready
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // Create test note types
+    await client.callTool('create_note_type', {
+      type_name: 'general',
+      description: 'General notes'
+    });
+
+    await client.callTool('create_note_type', {
+      type_name: 'project',
+      description: 'Project notes',
+      metadata_schema: {
+        fields: [
+          { name: 'status', type: 'string', required: true },
+          { name: 'priority', type: 'number', required: false },
+          { name: 'tags', type: 'array', required: false }
+        ]
+      }
+    });
+
+    // Create test notes
+    await client.callTool('create_note', {
+      type: 'general',
+      title: 'Test Note 1',
+      content: 'This is the first test note with some content.',
+      metadata: {
+        tags: ['test', 'example'],
+        custom_field: 'custom_value'
+      }
+    });
+
+    await client.callTool('create_note', {
+      type: 'project',
+      title: 'Test Project',
+      content: 'This is a project note with structured metadata.',
+      metadata: {
+        status: 'active',
+        priority: 5,
+        tags: ['project', 'important']
+      }
+    });
+
+    await client.callTool('create_note', {
+      type: 'general',
+      title: 'Large Note',
+      content: 'This is a large note with lots of content. '.repeat(100),
+      metadata: {
+        tags: ['large', 'test'],
+        size_category: 'large'
+      }
+    });
+  });
+
+  afterEach(async () => {
+    // Clean up
+    if (serverProcess) {
+      serverProcess.kill();
+    }
+    try {
+      await fs.rm(testVaultPath, { recursive: true, force: true });
+    } catch (e) {
+      // Ignore cleanup errors
+    }
+  });
+
+  describe('get_note field filtering', () => {
+    it('should return all fields when no fields parameter provided', async () => {
+      const response = await client.callTool('get_note', {
+        identifier: 'general/test-note-1.md'
+      });
+
+      assert.equal(response.error, undefined);
+      const note = JSON.parse(response.result.content[0].text);
+
+      // Should have all core fields
+      assert.ok(note.id);
+      assert.ok(note.type);
+      assert.ok(note.title);
+      assert.ok(note.content);
+      assert.ok(note.content_hash);
+      assert.ok(note.created);
+      assert.ok(note.updated);
+      assert.ok(note.metadata);
+    });
+
+    it('should filter to only requested fields', async () => {
+      const response = await client.callTool('get_note', {
+        identifier: 'general/test-note-1.md',
+        fields: ['id', 'title', 'content_hash']
+      });
+
+      assert.equal(response.error, undefined);
+      const note = JSON.parse(response.result.content[0].text);
+
+      // Should only have requested fields
+      assert.ok(note.id);
+      assert.ok(note.title);
+      assert.ok(note.content_hash);
+
+      // Should not have unrequested fields
+      assert.equal(note.content, undefined);
+      assert.equal(note.type, undefined);
+      assert.equal(note.metadata, undefined);
+    });
+
+    it('should handle metadata field filtering', async () => {
+      const response = await client.callTool('get_note', {
+        identifier: 'general/test-note-1.md',
+        fields: ['id', 'metadata.tags', 'metadata.custom_field']
+      });
+
+      assert.equal(response.error, undefined);
+      const note = JSON.parse(response.result.content[0].text);
+
+      assert.ok(note.id);
+      assert.ok(note.metadata);
+      assert.deepEqual(note.metadata.tags, ['test', 'example']);
+      assert.equal(note.metadata.custom_field, 'custom_value');
+
+      // Should not have other metadata fields
+      assert.equal(note.metadata.created, undefined);
+      assert.equal(note.metadata.updated, undefined);
+    });
+
+    it('should handle metadata wildcard filtering', async () => {
+      const response = await client.callTool('get_note', {
+        identifier: 'general/test-note-1.md',
+        fields: ['id', 'metadata.*']
+      });
+
+      assert.equal(response.error, undefined);
+      const note = JSON.parse(response.result.content[0].text);
+
+      assert.ok(note.id);
+      assert.ok(note.metadata);
+      assert.ok(note.metadata.tags);
+      assert.ok(note.metadata.custom_field);
+
+      // Should not have core fields
+      assert.equal(note.content, undefined);
+      assert.equal(note.title, undefined);
+    });
+
+    it('should handle performance optimized field filtering', async () => {
+      // Test excluding content for performance
+      const response = await client.callTool('get_note', {
+        identifier: 'general/large-note.md',
+        fields: ['id', 'title', 'type', 'created', 'updated', 'metadata.*']
+      });
+
+      assert.equal(response.error, undefined);
+      const note = JSON.parse(response.result.content[0].text);
+
+      assert.ok(note.id);
+      assert.ok(note.title);
+      assert.ok(note.type);
+      assert.ok(note.created);
+      assert.ok(note.updated);
+      assert.ok(note.metadata);
+
+      // Content should be excluded
+      assert.equal(note.content, undefined);
+      assert.equal(note.content_hash, undefined);
+    });
+  });
+
+  describe('get_notes field filtering', () => {
+    it('should filter fields for batch retrieval', async () => {
+      const response = await client.callTool('get_notes', {
+        identifiers: ['general/test-note-1.md', 'project/test-project.md'],
+        fields: ['id', 'title', 'type', 'metadata.tags']
+      });
+
+      assert.equal(response.error, undefined);
+      const result = JSON.parse(response.result.content[0].text);
+
+      assert.equal(result.success, true);
+      assert.equal(result.results.length, 2);
+
+      for (const noteResult of result.results) {
+        assert.equal(noteResult.success, true);
+        const note = noteResult.note;
+
+        assert.ok(note.id);
+        assert.ok(note.title);
+        assert.ok(note.type);
+        assert.ok(note.metadata);
+        assert.ok(note.metadata.tags);
+
+        // Should not have unrequested fields
+        assert.equal(note.content, undefined);
+        assert.equal(note.content_hash, undefined);
+        assert.equal(note.created, undefined);
+      }
+    });
+
+    it('should handle mixed success/failure with field filtering', async () => {
+      const response = await client.callTool('get_notes', {
+        identifiers: ['general/test-note-1.md', 'general/nonexistent.md'],
+        fields: ['id', 'title']
+      });
+
+      assert.equal(response.error, undefined);
+      const result = JSON.parse(response.result.content[0].text);
+
+      assert.equal(result.total_requested, 2);
+      assert.equal(result.successful, 1);
+      assert.equal(result.failed, 1);
+
+      // Successful note should be filtered
+      const successResult = result.results.find(r => r.success);
+      assert.ok(successResult);
+      assert.ok(successResult.note.id);
+      assert.ok(successResult.note.title);
+      assert.equal(successResult.note.content, undefined);
+
+      // Failed note should have error
+      const failureResult = result.results.find(r => !r.success);
+      assert.ok(failureResult);
+      assert.ok(failureResult.error);
+    });
+  });
+
+  describe('search_notes field filtering', () => {
+    it('should filter fields in simple search results', async () => {
+      const response = await client.callTool('search_notes', {
+        query: 'test',
+        fields: ['id', 'title', 'type']
+      });
+
+      assert.equal(response.error, undefined);
+      const results = JSON.parse(response.result.content[0].text);
+
+      assert.ok(Array.isArray(results));
+      assert.ok(results.length > 0);
+
+      for (const result of results) {
+        assert.ok(result.id);
+        assert.ok(result.title);
+        assert.ok(result.type);
+
+        // Search-specific fields should always be present
+        assert.ok(result.score !== undefined);
+        assert.ok(result.snippet !== undefined);
+        assert.ok(result.filename !== undefined);
+        assert.ok(result.path !== undefined);
+
+        // Other fields should be filtered out
+        assert.equal(result.content, undefined);
+        assert.equal(result.created, undefined);
+      }
+    });
+
+    it('should handle metadata filtering in search results', async () => {
+      const response = await client.callTool('search_notes', {
+        query: 'project',
+        fields: ['id', 'metadata.status', 'metadata.priority']
+      });
+
+      assert.equal(response.error, undefined);
+      const results = JSON.parse(response.result.content[0].text);
+
+      const projectNote = results.find(r => r.type === 'project');
+      if (projectNote) {
+        assert.ok(projectNote.metadata);
+        assert.equal(projectNote.metadata.status, 'active');
+        assert.equal(projectNote.metadata.priority, 5);
+        assert.equal(projectNote.metadata.tags, undefined);
+      }
+    });
+  });
+
+  describe('search_notes_advanced field filtering', () => {
+    it('should filter fields in advanced search results', async () => {
+      const response = await client.callTool('search_notes_advanced', {
+        type: 'project',
+        fields: ['id', 'title', 'metadata.status']
+      });
+
+      assert.equal(response.error, undefined);
+      const searchResponse = JSON.parse(response.result.content[0].text);
+
+      assert.ok(searchResponse.results);
+      assert.ok(searchResponse.total !== undefined);
+      assert.ok(searchResponse.has_more !== undefined);
+
+      for (const result of searchResponse.results) {
+        assert.ok(result.id);
+        assert.ok(result.title);
+        assert.ok(result.metadata);
+        assert.ok(result.metadata.status);
+
+        // Search-specific fields should be present
+        assert.ok(result.score !== undefined);
+        assert.ok(result.snippet !== undefined);
+
+        // Other fields should be filtered
+        assert.equal(result.type, undefined);
+        assert.equal(result.content, undefined);
+      }
+    });
+
+    it('should handle complex metadata filtering', async () => {
+      const response = await client.callTool('search_notes_advanced', {
+        metadata_filters: [
+          { key: 'status', value: 'active' }
+        ],
+        fields: ['id', 'metadata.priority', 'metadata.tags']
+      });
+
+      assert.equal(response.error, undefined);
+      const searchResponse = JSON.parse(response.result.content[0].text);
+
+      assert.ok(searchResponse.results);
+      const result = searchResponse.results[0];
+      if (result) {
+        assert.ok(result.metadata);
+        assert.equal(result.metadata.priority, 5);
+        assert.deepEqual(result.metadata.tags, ['project', 'important']);
+        assert.equal(result.metadata.status, undefined); // Not in fields list
+      }
+    });
+  });
+
+  describe('search_notes_sql field filtering', () => {
+    it('should filter fields in SQL search results', async () => {
+      const response = await client.callTool('search_notes_sql', {
+        query: 'SELECT * FROM notes WHERE type = ? LIMIT 10',
+        params: ['project'],
+        fields: ['id', 'title', 'type']
+      });
+
+      assert.equal(response.error, undefined);
+      const searchResponse = JSON.parse(response.result.content[0].text);
+
+      assert.ok(searchResponse.results);
+
+      for (const result of searchResponse.results) {
+        assert.ok(result.id);
+        assert.ok(result.title);
+        assert.ok(result.type);
+
+        // Search-specific fields should be present
+        assert.ok(result.score !== undefined);
+        assert.ok(result.snippet !== undefined);
+
+        // Other fields should be filtered
+        assert.equal(result.content, undefined);
+        assert.equal(result.created, undefined);
+      }
+    });
+  });
+
+  describe('Common field filtering patterns', () => {
+    it('should handle listing pattern efficiently', async () => {
+      const listingFields = ['id', 'type', 'title', 'created', 'updated', 'metadata.tags', 'metadata.status'];
+
+      const response = await client.callTool('get_notes', {
+        identifiers: ['general/test-note-1.md', 'project/test-project.md'],
+        fields: listingFields
+      });
+
+      assert.equal(response.error, undefined);
+      const result = JSON.parse(response.result.content[0].text);
+
+      for (const noteResult of result.results) {
+        if (noteResult.success) {
+          const note = noteResult.note;
+          assert.ok(note.id);
+          assert.ok(note.type);
+          assert.ok(note.title);
+          assert.ok(note.created);
+          assert.ok(note.updated);
+          assert.ok(note.metadata);
+
+          // Content should be excluded for performance
+          assert.equal(note.content, undefined);
+          assert.equal(note.content_hash, undefined);
+        }
+      }
+    });
+
+    it('should handle validation pattern for optimistic locking', async () => {
+      const validationFields = ['id', 'content_hash'];
+
+      const response = await client.callTool('get_note', {
+        identifier: 'general/test-note-1.md',
+        fields: validationFields
+      });
+
+      assert.equal(response.error, undefined);
+      const note = JSON.parse(response.result.content[0].text);
+
+      assert.ok(note.id);
+      assert.ok(note.content_hash);
+
+      // Everything else should be excluded
+      assert.equal(note.content, undefined);
+      assert.equal(note.title, undefined);
+      assert.equal(note.metadata, undefined);
+    });
+
+    it('should handle content update pattern', async () => {
+      const contentUpdateFields = ['content', 'content_hash'];
+
+      const response = await client.callTool('get_note', {
+        identifier: 'general/test-note-1.md',
+        fields: contentUpdateFields
+      });
+
+      assert.equal(response.error, undefined);
+      const note = JSON.parse(response.result.content[0].text);
+
+      assert.ok(note.content);
+      assert.ok(note.content_hash);
+
+      // Metadata and other fields should be excluded
+      assert.equal(note.id, undefined);
+      assert.equal(note.title, undefined);
+      assert.equal(note.metadata, undefined);
+    });
+
+    it('should handle metadata-only pattern', async () => {
+      const metadataOnlyFields = ['id', 'type', 'metadata.*', 'created', 'updated'];
+
+      const response = await client.callTool('get_note', {
+        identifier: 'project/test-project.md',
+        fields: metadataOnlyFields
+      });
+
+      assert.equal(response.error, undefined);
+      const note = JSON.parse(response.result.content[0].text);
+
+      assert.ok(note.id);
+      assert.ok(note.type);
+      assert.ok(note.created);
+      assert.ok(note.updated);
+      assert.ok(note.metadata);
+      assert.ok(note.metadata.status);
+      assert.ok(note.metadata.priority);
+      assert.ok(note.metadata.tags);
+
+      // Content should be excluded
+      assert.equal(note.content, undefined);
+      assert.equal(note.content_hash, undefined);
+      assert.equal(note.title, undefined);
+    });
+  });
+
+  describe('Error handling and edge cases', () => {
+    it('should handle empty fields array', async () => {
+      const response = await client.callTool('get_note', {
+        identifier: 'general/test-note-1.md',
+        fields: []
+      });
+
+      assert.equal(response.error, undefined);
+      const note = JSON.parse(response.result.content[0].text);
+
+      // Should return all fields when fields array is empty
+      assert.ok(note.id);
+      assert.ok(note.title);
+      assert.ok(note.content);
+      assert.ok(note.metadata);
+    });
+
+    it('should handle invalid field specifications gracefully', async () => {
+      const response = await client.callTool('get_note', {
+        identifier: 'general/test-note-1.md',
+        fields: ['id', 'nonexistent.field', 'metadata.missing', 'title']
+      });
+
+      assert.equal(response.error, undefined);
+      const note = JSON.parse(response.result.content[0].text);
+
+      // Should return valid fields and silently ignore invalid ones
+      assert.ok(note.id);
+      assert.ok(note.title);
+      assert.equal(note.content, undefined);
+      assert.equal(note.metadata, undefined);
+    });
+
+    it('should handle null note with field filtering', async () => {
+      const response = await client.callTool('get_note', {
+        identifier: 'general/nonexistent.md',
+        fields: ['id', 'title']
+      });
+
+      assert.equal(response.error, undefined);
+      const note = JSON.parse(response.result.content[0].text);
+
+      // Should return null when note doesn't exist
+      assert.equal(note, null);
+    });
+  });
+});

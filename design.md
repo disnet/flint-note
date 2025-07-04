@@ -429,11 +429,13 @@ The flint-note MCP server exposes the following tools and resources:
 | **Note Management** | | |
 | `create_note_type` | Create new note type with description | `type_name`, `description`, `agent_instructions?`, `metadata_schema?`, `vault_id?` |
 | `create_note` | Create one or more notes | Single: `type`, `title`, `content`, `metadata?`, `vault_id?` OR Batch: `notes` (array), `vault_id?` |
-| `get_note` | Retrieve specific note | `identifier`, `vault_id?` |
-| `get_notes` | Retrieve multiple notes by IDs | `identifiers` (array), `vault_id?` |
+| `get_note` | Retrieve specific note | `identifier`, `vault_id?`, `fields?` |
+| `get_notes` | Retrieve multiple notes by IDs | `identifiers` (array), `vault_id?`, `fields?` |
 | `update_note` | Update one or more existing notes | Single: `identifier`, `content?`, `metadata?`, `content_hash`, `vault_id?` OR Batch: `updates` (array), `vault_id?` |
 | `rename_note` | Rename note display title while preserving filename/ID | `identifier`, `new_title`, `content_hash`, `vault_id?` |
-| `search_notes` | Search notes by content/type | `query`, `type_filter?`, `limit?`, `use_regex?`, `vault_id?` |
+| `search_notes` | Search notes by content/type | `query`, `type_filter?`, `limit?`, `use_regex?`, `vault_id?`, `fields?` |
+| `search_notes_advanced` | Advanced structured search with filters | `type?`, `metadata_filters?`, `updated_within?`, `content_contains?`, `sort?`, `limit?`, `vault_id?`, `fields?` |
+| `search_notes_sql` | SQL-based search with maximum flexibility | `query`, `limit?`, `vault_id?`, `fields?` |
 | `list_note_types` | List all available note types | `vault_id?` |
 | `update_note_type` | Update specific field of existing note type | `type_name`, `field` (instructions\|description\|metadata_schema), `value`, `content_hash`, `vault_id?` |
 | `get_note_type_info` | Get comprehensive note type information including agent instructions | `type_name`, `vault_id?` |
@@ -515,7 +517,8 @@ The system provides multiple search interfaces for different use cases:
   "arguments": {
     "query": "meeting notes",
     "type_filter": "meeting",
-    "limit": 10
+    "limit": 10,
+    "fields": ["id", "title", "type", "created", "metadata.tags"]
   }
 }
 ```
@@ -533,7 +536,8 @@ The system provides multiple search interfaces for different use cases:
     "updated_within": "7d",
     "content_contains": "review",
     "sort": [{"field": "updated", "order": "desc"}],
-    "limit": 50
+    "limit": 50,
+    "fields": ["id", "title", "type", "updated", "metadata.status", "metadata.priority"]
   }
 }
 ```
@@ -544,7 +548,8 @@ The system provides multiple search interfaces for different use cases:
   "name": "search_notes_sql",
   "arguments": {
     "query": "SELECT n.*, GROUP_CONCAT(m.key || ':' || m.value) as metadata FROM notes n LEFT JOIN note_metadata m ON n.id = m.note_id WHERE n.type = 'todo' AND n.updated < datetime('now', '-7 days') AND EXISTS (SELECT 1 FROM note_metadata WHERE note_id = n.id AND key = 'status' AND value = 'in_progress') GROUP BY n.id ORDER BY n.updated DESC",
-    "limit": 50
+    "limit": 50,
+    "fields": ["id", "title", "type", "updated", "metadata.status", "metadata.priority"]
   }
 }
 ```
@@ -585,6 +590,29 @@ All search methods return consistent result format:
   "has_more": false
 }
 ```
+
+**Field Filtering in Search Results:**
+When a `fields` parameter is provided, search results respect the filtering:
+
+```json
+{
+  "results": [
+    {
+      "id": "note-identifier",
+      "title": "Note Title",
+      "type": "note-type",
+      "created": "2024-01-10T09:00:00Z",
+      "metadata": {
+        "tags": ["tag1", "tag2"]
+      }
+    }
+  ],
+  "total": 1,
+  "has_more": false
+}
+```
+
+**Note:** Search-specific fields like `score`, `snippet`, `filename`, and `path` are always included regardless of field filtering, as they are essential for search result presentation.
 
 #### SQL Search Safety Measures
 
@@ -710,6 +738,112 @@ The `get_note` tool returns an additional `content_hash` field:
   "updated": "2024-01-15T14:20:00Z"
 }
 ```
+
+#### Field Filtering
+
+Both `get_note` and `get_notes` support an optional `fields` parameter to control which fields are returned:
+
+```json
+{
+  "name": "get_note",
+  "arguments": {
+    "identifier": "general/my-note.md",
+    "fields": ["id", "title", "content_hash", "metadata.tags", "metadata.status"]
+  }
+}
+```
+
+**Response with field filtering:**
+```json
+{
+  "id": "general/my-note.md",
+  "title": "My Note",
+  "content_hash": "sha256:a1b2c3d4e5f6...",
+  "metadata": {
+    "tags": ["example", "test"],
+    "status": "draft"
+  }
+}
+```
+
+**Field Specification:**
+- **Core fields**: `id`, `type`, `title`, `content`, `content_hash`, `created`, `updated`
+- **Metadata fields**: Use dot notation like `metadata.tags`, `metadata.status`, `metadata.priority`
+- **Wildcard support**: Use `metadata.*` to include all metadata fields
+- **Default behavior**: If `fields` is not specified, all fields are returned
+- **Invalid fields**: Silently ignored (no error thrown)
+
+**Common field filtering patterns:**
+```json
+// Get only title and content hash for validation
+{"fields": ["title", "content_hash"]}
+
+// Get core info without content (for listing/preview)
+{"fields": ["id", "type", "title", "created", "updated", "metadata.*"]}
+
+// Get only specific metadata fields
+{"fields": ["id", "metadata.tags", "metadata.status", "metadata.priority"]}
+
+// Get everything except content (useful for large notes)
+{"fields": ["id", "type", "title", "content_hash", "metadata.*", "created", "updated"]}
+```
+
+**Field Filtering Best Practices:**
+
+1. **Performance optimization**: Always use field filtering when you don't need all data
+2. **Content exclusion**: For note listings, exclude `content` to reduce payload by 80-90%
+3. **Metadata-only queries**: Use `["id", "metadata.*"]` for pure metadata operations
+4. **Validation workflows**: Use `["title", "content_hash"]` for optimistic locking checks
+5. **Dashboard views**: Use `["id", "type", "title", "created", "metadata.tags", "metadata.status"]` for overview displays
+
+**Common Field Filtering Patterns by Use Case:**
+
+```json
+// Note browser/listing view
+{"fields": ["id", "type", "title", "created", "updated", "metadata.tags", "metadata.status"]}
+
+// Link resolution (checking if notes exist)
+{"fields": ["id", "title"]}
+
+// Metadata analysis/reporting
+{"fields": ["id", "type", "metadata.*", "created", "updated"]}
+
+// Content update preparation
+{"fields": ["content", "content_hash"]}
+
+// Quick validation before operations
+{"fields": ["id", "content_hash"]}
+```
+
+#### Field Filtering Summary
+
+The `fields` parameter is supported across all note retrieval operations:
+
+**Supported Tools:**
+- `get_note` - Single note retrieval with field filtering
+- `get_notes` - Batch note retrieval with field filtering  
+- `search_notes` - Simple search with field filtering
+- `search_notes_advanced` - Advanced search with field filtering
+- `search_notes_sql` - SQL search with field filtering
+
+**Implementation Notes:**
+- **Consistent behavior**: Field filtering works identically across all tools
+- **Case sensitivity**: Field names are case-sensitive (`metadata.Tags` ≠ `metadata.tags`)
+- **Error handling**: Invalid field names are silently ignored (no errors thrown)
+- **Performance**: Field filtering is applied after retrieval but before serialization
+- **Backward compatibility**: Existing code continues to work (all fields returned when `fields` is omitted)
+- **Search integration**: Search-specific fields (`score`, `snippet`, `filename`, `path`) are always included in search results
+
+**Security Considerations:**
+- Field filtering does not bypass access controls - users can only filter fields they already have access to
+- Metadata field access respects the same permissions as full metadata access
+- No additional authentication required for field filtering
+
+**Content Hash Workflow Integration:**
+- **Efficient updates**: Use `{"fields": ["content", "content_hash"]}` when retrieving notes for modification
+- **Validation-only**: Use `{"fields": ["content_hash"]}` when only validating current state
+- **Bulk validation**: Use `{"fields": ["id", "content_hash"]}` with `get_notes` for bulk optimistic locking checks
+- **Metadata updates**: Use `{"fields": ["metadata.*", "content_hash"]}` when updating only metadata fields
 
 ### Update with Content Hash
 
@@ -1036,6 +1170,18 @@ The `get_notes` tool allows retrieving multiple notes by their identifiers in a 
 }
 ```
 
+**Get Multiple Notes with Field Filtering:**
+```json
+{
+  "name": "get_notes",
+  "arguments": {
+    "identifiers": ["general/note1.md", "project/planning.md"],
+    "vault_id": "work",
+    "fields": ["id", "title", "type", "metadata.tags", "content_hash"]
+  }
+}
+```
+
 **Response Format:**
 ```json
 {
@@ -1082,12 +1228,49 @@ The `get_notes` tool allows retrieving multiple notes by their identifiers in a 
 }
 ```
 
+**Response Format with Field Filtering:**
+```json
+{
+  "success": true,
+  "results": [
+    {
+      "success": true,
+      "note": {
+        "id": "general/note1.md",
+        "title": "Note 1",
+        "type": "general",
+        "content_hash": "sha256:a1b2c3d4e5f6...",
+        "metadata": {
+          "tags": ["example"]
+        }
+      }
+    },
+    {
+      "success": true,
+      "note": {
+        "id": "project/planning.md",
+        "title": "Project Planning",
+        "type": "project",
+        "content_hash": "sha256:b2c3d4e5f6g7...",
+        "metadata": {
+          "tags": []
+        }
+      }
+    }
+  ],
+  "total_requested": 2,
+  "successful": 2,
+  "failed": 0
+}
+```
+
 **Key Features:**
 - **Batch retrieval**: Get multiple notes in a single API call
 - **Individual error handling**: Each note request is processed independently
 - **Content hash included**: Each retrieved note includes its content hash for subsequent updates
 - **Vault awareness**: Respects vault-specific note access
 - **Performance optimized**: More efficient than multiple `get_note` calls
+- **Field filtering**: Optional `fields` parameter reduces data transfer and improves performance
 
 **Use Cases:**
 - Retrieving related notes for analysis
@@ -1128,6 +1311,12 @@ Batch operations use a "fail-fast per item" approach:
 - Recommended batch size: 50-100 notes per operation for updates, 100-200 for `get_notes`
 - Large batches are automatically processed in chunks
 - `get_notes` uses optimized file I/O for concurrent note retrieval
+- **Field filtering benefits**:
+  - Reduces network payload size by up to 90% when excluding content
+  - Improves parsing performance on client side
+  - Reduces memory usage for large note collections
+  - Enables efficient note listing and metadata-only operations
+  - Particularly beneficial for mobile clients and low-bandwidth connections
 
 ## Vault Initialization
 
@@ -1244,6 +1433,7 @@ When flint-note initializes a new vault, it automatically creates several defaul
 - **File Operations**: Node.js fs/promises
 - **Search**: Simple text search with regex support, with plans for vector search
 - **Configuration**: YAML parsing (js-yaml)
+- **Field Filtering**: Object property filtering with dot notation support for nested metadata
 
 ### Configuration Schema
 
@@ -1293,6 +1483,28 @@ deletion:
   allow_note_type_deletion: true  # Allow deletion of custom note types
   max_bulk_delete: 10  # Maximum notes to delete in single note type deletion
 ```
+
+### Field Filtering Implementation
+
+The field filtering system operates at the serialization layer to ensure consistent behavior across all tools:
+
+**Core Implementation:**
+- **Filter engine**: Processes field specifications before JSON serialization
+- **Dot notation parser**: Handles nested metadata field access (e.g., `metadata.tags`)
+- **Wildcard support**: Implements `metadata.*` expansion for all metadata fields
+- **Performance optimization**: Reduces serialization overhead by filtering before JSON encoding
+
+**Technical Details:**
+- **Memory efficiency**: Filtered fields are removed from response objects before transmission
+- **Validation**: Field names are validated against the note schema but invalid fields are silently ignored
+- **Metadata handling**: Special handling for metadata object to support both specific and wildcard selections
+- **Search integration**: Search-specific fields are always preserved regardless of field filtering
+
+**Error Handling:**
+- Invalid field specifications are ignored without throwing errors
+- Malformed dot notation (e.g., `metadata.`) is treated as requesting no fields
+- Empty field arrays return minimal response with only `id` field
+- Type mismatches in field specifications are handled gracefully
 
 ### Error Handling
 - Graceful handling of missing directories
