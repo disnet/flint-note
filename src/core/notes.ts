@@ -356,32 +356,65 @@ export class NoteManager {
   }
 
   /**
-   * Get a specific note by file path
+   * Get multiple notes by their identifiers
    */
-  async getNoteByPath(notePath: string): Promise<Note | null> {
+  async getNotes(
+    identifiers: string[]
+  ): Promise<Array<{ success: boolean; note?: Note; error?: string }>> {
+    const results = await Promise.allSettled(
+      identifiers.map(async identifier => {
+        try {
+          const note = await this.getNote(identifier);
+          if (!note) {
+            throw new Error(`Note not found: ${identifier}`);
+          }
+          return { success: true, note };
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          return { success: false, error: errorMessage };
+        }
+      })
+    );
+
+    return results.map((result, index) => {
+      if (result.status === 'fulfilled') {
+        return result.value;
+      } else {
+        return {
+          success: false,
+          error: `Failed to retrieve note ${identifiers[index]}: ${result.reason}`
+        };
+      }
+    });
+  }
+
+  /**
+   * Get a note by file path
+   */
+  async getNoteByPath(filePath: string): Promise<Note | null> {
     try {
       // Validate path is in workspace
-      if (!this.#workspace.isPathInWorkspace(notePath)) {
+      if (!this.#workspace.isPathInWorkspace(filePath)) {
         throw new Error('Path is outside workspace');
       }
 
       // Check if note exists
       try {
-        await fs.access(notePath);
+        await fs.access(filePath);
       } catch {
         return null;
       }
 
       // Extract type and filename from path
-      const relativePath = path.relative(this.#workspace.rootPath, notePath);
+      const relativePath = path.relative(this.#workspace.rootPath, filePath);
       const pathParts = relativePath.split(path.sep);
       const typeName = pathParts[0];
       const filename = pathParts.slice(1).join(path.sep);
       const identifier = `${typeName}/${filename}`;
 
       // Read note content
-      const content = await fs.readFile(notePath, 'utf-8');
-      const stats = await fs.stat(notePath);
+      const content = await fs.readFile(filePath, 'utf-8');
+      const stats = await fs.stat(filePath);
 
       // Parse frontmatter and content
       const parsed = this.parseNoteContent(content);
@@ -393,7 +426,7 @@ export class NoteManager {
         id: identifier,
         type: typeName,
         filename,
-        path: notePath,
+        path: filePath,
         title: parsed.metadata.title || this.extractTitleFromFilename(filename),
         content: parsed.content,
         content_hash: contentHash,
@@ -405,7 +438,7 @@ export class NoteManager {
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      throw new Error(`Failed to get note by path '${notePath}': ${errorMessage}`);
+      throw new Error(`Failed to get note at path '${filePath}': ${errorMessage}`);
     }
   }
 
