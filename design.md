@@ -108,6 +108,7 @@ The following tools support the optional `vault_id` parameter:
 - `create_note_type`
 - `create_note`
 - `get_note`
+- `get_notes`
 - `update_note`
 - `rename_note`
 - `delete_note`
@@ -165,6 +166,15 @@ The following tools support the optional `vault_id` parameter:
   "arguments": {
     "query": "project planning",
     "vault_id": "personal"
+  }
+}
+
+// Get multiple notes by their identifiers
+{
+  "name": "get_notes",
+  "arguments": {
+    "identifiers": ["daily/2024-01-15.md", "project/planning.md", "general/ideas.md"],
+    "vault_id": "work"
   }
 }
 ```
@@ -420,6 +430,7 @@ The flint-note MCP server exposes the following tools and resources:
 | `create_note_type` | Create new note type with description | `type_name`, `description`, `agent_instructions?`, `metadata_schema?`, `vault_id?` |
 | `create_note` | Create one or more notes | Single: `type`, `title`, `content`, `metadata?`, `vault_id?` OR Batch: `notes` (array), `vault_id?` |
 | `get_note` | Retrieve specific note | `identifier`, `vault_id?` |
+| `get_notes` | Retrieve multiple notes by IDs | `identifiers` (array), `vault_id?` |
 | `update_note` | Update one or more existing notes | Single: `identifier`, `content?`, `metadata?`, `content_hash`, `vault_id?` OR Batch: `updates` (array), `vault_id?` |
 | `rename_note` | Rename note display title while preserving filename/ID | `identifier`, `new_title`, `content_hash`, `vault_id?` |
 | `search_notes` | Search notes by content/type | `query`, `type_filter?`, `limit?`, `use_regex?`, `vault_id?` |
@@ -678,7 +689,7 @@ Flint-note implements an optimistic locking system using content hashes to preve
 
 ### How It Works
 
-1. **get_note returns content hash**: When retrieving a note, the response includes a `content_hash` field containing a SHA-256 hash of the current content
+1. **get_note and get_notes return content hash**: When retrieving notes, the response includes a `content_hash` field containing a SHA-256 hash of the current content
 2. **update_note requires content hash**: When updating a note, you must provide the `content_hash` parameter
 3. **Hash validation**: The system verifies the hash matches the current content before applying updates
 4. **Conflict detection**: If hashes don't match, the update is rejected with a detailed error message
@@ -849,8 +860,8 @@ Each metadata field object in the `metadata_schema` array contains:
 ### Best Practices
 
 1. **Content hashes are required for updates**: All update operations must provide content hashes to prevent accidental overwrites and data loss
-2. **Always get_note before update_note**: The typical workflow is:
-   - Call `get_note` to retrieve current content and hash
+2. **Always get_note/get_notes before update_note**: The typical workflow is:
+   - Call `get_note` or `get_notes` to retrieve current content and hash
    - Modify the content as needed
    - Call `update_note` with the hash from step 1
 3. **Handle hash mismatches gracefully**: When a hash mismatch occurs, fetch the latest version and either:
@@ -859,6 +870,7 @@ Each metadata field object in the `metadata_schema` array contains:
    - Abort the operation and request user guidance
 4. **Batch operations**: Each update in a batch must include its own content hash for validation
 5. **Note type updates**: Always call `get_note_type_info` before `update_note_type` to get the current content hash
+6. **Prefer get_notes for multiple notes**: When retrieving multiple notes, use `get_notes` instead of multiple `get_note` calls for better performance and reduced API overhead
 
 ### Implementation Details
 
@@ -867,7 +879,7 @@ Each metadata field object in the `metadata_schema` array contains:
 - **Performance**: Hashes are computed on-demand and not stored persistently
 - **Metadata-only updates**: Content hash is still required for metadata-only updates to ensure the note hasn't been modified
 - **Required parameter**: Content hash is mandatory for all update operations to ensure data integrity
-- **Workflow requirement**: Updates must be preceded by `get_note` or `get_note_type_info` calls to obtain valid content hashes
+- **Workflow requirement**: Updates must be preceded by `get_note`, `get_notes`, or `get_note_type_info` calls to obtain valid content hashes
 - **Note type protection**: Note type definitions are also protected with content hashes since they can be modified externally
 
 ## Batch Operations
@@ -1009,6 +1021,80 @@ Both tools also support single note operations using the same API:
 }
 ```
 
+### Get Multiple Notes
+
+The `get_notes` tool allows retrieving multiple notes by their identifiers in a single operation:
+
+**Get Multiple Notes:**
+```json
+{
+  "name": "get_notes",
+  "arguments": {
+    "identifiers": ["general/note1.md", "project/planning.md", "daily/2024-01-15.md"],
+    "vault_id": "work"
+  }
+}
+```
+
+**Response Format:**
+```json
+{
+  "success": true,
+  "results": [
+    {
+      "success": true,
+      "note": {
+        "id": "general/note1.md",
+        "type": "general",
+        "title": "Note 1",
+        "content": "Content of note 1",
+        "content_hash": "sha256:a1b2c3d4e5f6...",
+        "metadata": {
+          "created": "2024-01-15T10:00:00Z",
+          "updated": "2024-01-15T14:30:00Z",
+          "tags": ["example"]
+        }
+      }
+    },
+    {
+      "success": true,
+      "note": {
+        "id": "project/planning.md",
+        "type": "project",
+        "title": "Project Planning",
+        "content": "Planning content",
+        "content_hash": "sha256:b2c3d4e5f6g7...",
+        "metadata": {
+          "created": "2024-01-10T09:00:00Z",
+          "updated": "2024-01-14T16:45:00Z",
+          "status": "in-progress"
+        }
+      }
+    },
+    {
+      "success": false,
+      "error": "Note not found: daily/2024-01-15.md"
+    }
+  ],
+  "total_requested": 3,
+  "successful": 2,
+  "failed": 1
+}
+```
+
+**Key Features:**
+- **Batch retrieval**: Get multiple notes in a single API call
+- **Individual error handling**: Each note request is processed independently
+- **Content hash included**: Each retrieved note includes its content hash for subsequent updates
+- **Vault awareness**: Respects vault-specific note access
+- **Performance optimized**: More efficient than multiple `get_note` calls
+
+**Use Cases:**
+- Retrieving related notes for analysis
+- Bulk content operations
+- Dashboard views showing multiple notes
+- Link resolution for multiple references
+
 ### Error Handling
 
 Batch operations use a "fail-fast per item" approach:
@@ -1036,10 +1122,12 @@ Batch operations use a "fail-fast per item" approach:
 ### Performance Considerations
 
 - Batch operations are more efficient than individual API calls
+- `get_notes` is significantly more efficient than multiple `get_note` calls
 - Search index is updated efficiently for all modified notes
 - Memory usage scales linearly with batch size
-- Recommended batch size: 50-100 notes per operation
+- Recommended batch size: 50-100 notes per operation for updates, 100-200 for `get_notes`
 - Large batches are automatically processed in chunks
+- `get_notes` uses optimized file I/O for concurrent note retrieval
 
 ## Vault Initialization
 
