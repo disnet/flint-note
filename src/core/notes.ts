@@ -50,6 +50,7 @@ interface NoteInfo {
 }
 
 interface Note {
+  [key: string]: unknown;
   id: string;
   type: string;
   filename: string;

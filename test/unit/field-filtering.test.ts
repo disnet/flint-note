@@ -5,8 +5,14 @@
  */
 
 import { strict as assert } from 'assert';
-import { describe, it, beforeEach, afterEach } from 'node:test';
-import { filterFields, filterNoteFields, filterSearchResults, validateFieldSpecs, COMMON_FIELD_PATTERNS } from '../../src/utils/field-filter.js';
+import { describe, it } from 'node:test';
+import {
+  filterFields,
+  filterNoteFields,
+  filterSearchResults,
+  validateFieldSpecs,
+  COMMON_FIELD_PATTERNS
+} from '../../src/utils/field-filter.js';
 
 describe('Field Filtering Utility', () => {
   describe('filterFields', () => {
@@ -110,7 +116,12 @@ describe('Field Filtering Utility', () => {
         }
       };
 
-      const result = filterFields(objWithNulls, ['id', 'nullField', 'metadata.tags', 'metadata.status']);
+      const result = filterFields(objWithNulls, [
+        'id',
+        'nullField',
+        'metadata.tags',
+        'metadata.status'
+      ]);
       assert.deepEqual(result, {
         id: 'test',
         nullField: null,
@@ -250,9 +261,9 @@ describe('Field Filtering Utility', () => {
     it('should handle metadata filtering in search results', () => {
       const result = filterSearchResults(testSearchResults, ['id', 'metadata.status']);
 
-      assert.equal(result.results[0].metadata.status, 'active');
-      assert.equal(result.results[0].metadata.priority, undefined);
-      assert.equal(result.results[1].metadata.status, 'draft');
+      assert.equal(result.results[0].metadata?.status, 'active');
+      assert.equal(result.results[0].metadata?.priority, undefined);
+      assert.equal(result.results[1].metadata?.status, 'draft');
     });
   });
 
@@ -311,8 +322,12 @@ describe('Field Filtering Utility', () => {
 
     it('should have valid field specifications', () => {
       for (const [patternName, fields] of Object.entries(COMMON_FIELD_PATTERNS)) {
-        const errors = validateFieldSpecs(fields);
-        assert.deepEqual(errors, [], `Pattern ${patternName} has invalid field specs: ${errors.join(', ')}`);
+        const errors = validateFieldSpecs([...fields]);
+        assert.deepEqual(
+          errors,
+          [],
+          `Pattern ${patternName} has invalid field specs: ${errors.join(', ')}`
+        );
       }
     });
 
@@ -332,21 +347,27 @@ describe('Field Filtering Utility', () => {
       };
 
       // Test LISTING pattern
-      const listingResult = filterNoteFields(testNote, COMMON_FIELD_PATTERNS.LISTING);
+      const listingResult = filterNoteFields(testNote, [
+        ...COMMON_FIELD_PATTERNS.LISTING
+      ]);
       assert.ok(listingResult.id);
       assert.ok(listingResult.title);
       assert.ok(listingResult.type);
       assert.equal(listingResult.content, undefined);
 
       // Test VALIDATION pattern
-      const validationResult = filterNoteFields(testNote, COMMON_FIELD_PATTERNS.VALIDATION);
+      const validationResult = filterNoteFields(testNote, [
+        ...COMMON_FIELD_PATTERNS.VALIDATION
+      ]);
       assert.ok(validationResult.id);
       assert.ok(validationResult.content_hash);
       assert.equal(validationResult.content, undefined);
       assert.equal(validationResult.metadata, undefined);
 
       // Test MINIMAL pattern
-      const minimalResult = filterNoteFields(testNote, COMMON_FIELD_PATTERNS.MINIMAL);
+      const minimalResult = filterNoteFields(testNote, [
+        ...COMMON_FIELD_PATTERNS.MINIMAL
+      ]);
       assert.ok(minimalResult.id);
       assert.equal(Object.keys(minimalResult).length, 1);
     });
@@ -380,7 +401,9 @@ describe('Field Filtering Utility', () => {
       assert.equal(result1.metadata, undefined);
 
       // Preserve empty objects
-      const result2 = filterFields(testObj, ['id', 'metadata.nonexistent'], { preserveEmptyObjects: true });
+      const result2 = filterFields(testObj, ['id', 'metadata.nonexistent'], {
+        preserveEmptyObjects: true
+      });
       assert.ok(result2.metadata);
       assert.deepEqual(result2.metadata, {});
     });
@@ -392,7 +415,7 @@ describe('Field Filtering Utility', () => {
         id: 'test',
         title: 'Test',
         content: 'x'.repeat(10000), // Large content
-        metadata: {}
+        metadata: {} as Record<string, any>
       };
 
       // Add many metadata fields
@@ -401,7 +424,12 @@ describe('Field Filtering Utility', () => {
       }
 
       const start = Date.now();
-      const result = filterFields(largeObj, ['id', 'title', 'metadata.field1', 'metadata.field50']);
+      const result = filterFields(largeObj, [
+        'id',
+        'title',
+        'metadata.field1',
+        'metadata.field50'
+      ]);
       const end = Date.now();
 
       // Should complete quickly (less than 100ms for this size)
@@ -409,9 +437,9 @@ describe('Field Filtering Utility', () => {
       assert.equal(result.id, 'test');
       assert.equal(result.title, 'Test');
       assert.equal(result.content, undefined);
-      assert.equal(result.metadata.field1, 'value1');
-      assert.equal(result.metadata.field50, 'value50');
-      assert.equal(result.metadata.field99, undefined);
+      assert.equal((result.metadata as any)?.field1, 'value1');
+      assert.equal((result.metadata as any)?.field50, 'value50');
+      assert.equal((result.metadata as any)?.field99, undefined);
     });
   });
 });

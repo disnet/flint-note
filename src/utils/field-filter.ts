@@ -35,7 +35,7 @@ export interface FieldFilterOptions {
  * @param options - Configuration options for filtering behavior
  * @returns Filtered object containing only the specified fields
  */
-export function filterFields<T extends Record<string, any>>(
+export function filterFields<T extends Record<string, unknown>>(
   obj: T,
   fields: FieldSpec[],
   options: FieldFilterOptions = {}
@@ -49,7 +49,7 @@ export function filterFields<T extends Record<string, any>>(
   }
 
   const { strict = false, preserveEmptyObjects = false } = options;
-  const result: any = {};
+  const result: Partial<T> = {};
 
   // Process each field specification
   for (const fieldSpec of fields) {
@@ -82,8 +82,8 @@ export function filterFields<T extends Record<string, any>>(
  * Applies a single field specification to the result object
  */
 function applyFieldSpec(
-  source: any,
-  target: any,
+  source: Record<string, unknown>,
+  target: Record<string, unknown>,
   fieldSpec: string,
   preserveEmptyObjects: boolean
 ): void {
@@ -97,11 +97,15 @@ function applyFieldSpec(
 /**
  * Applies a simple field specification (no dot notation)
  */
-function applySimpleFieldSpec(source: any, target: any, fieldName: string): void {
+function applySimpleFieldSpec(
+  source: Record<string, unknown>,
+  target: Record<string, unknown>,
+  fieldName: string
+): void {
   if (fieldName === '*') {
     // Wildcard at root level - copy all properties
     Object.assign(target, source);
-  } else if (source.hasOwnProperty(fieldName)) {
+  } else if (Object.prototype.hasOwnProperty.call(source, fieldName)) {
     target[fieldName] = source[fieldName];
   }
 }
@@ -110,15 +114,15 @@ function applySimpleFieldSpec(source: any, target: any, fieldName: string): void
  * Applies a nested field specification (with dot notation)
  */
 function applyNestedFieldSpec(
-  source: any,
-  target: any,
+  source: Record<string, unknown>,
+  target: Record<string, unknown>,
   fieldSpec: string,
   preserveEmptyObjects: boolean
 ): void {
   const parts = fieldSpec.split('.');
   const [rootField, ...remainingParts] = parts;
 
-  if (!source.hasOwnProperty(rootField)) {
+  if (!Object.prototype.hasOwnProperty.call(source, rootField)) {
     return; // Root field doesn't exist
   }
 
@@ -147,12 +151,20 @@ function applyNestedFieldSpec(
         target[rootField] = {};
       }
 
-      applyFieldSpec(sourceValue, target[rootField], nestedFieldSpec, preserveEmptyObjects);
+      applyFieldSpec(
+        sourceValue as Record<string, unknown>,
+        target[rootField] as Record<string, unknown>,
+        nestedFieldSpec,
+        preserveEmptyObjects
+      );
 
       // Remove empty objects if not preserving them
-      if (!preserveEmptyObjects &&
-          typeof target[rootField] === 'object' &&
-          Object.keys(target[rootField]).length === 0) {
+      if (
+        !preserveEmptyObjects &&
+        typeof target[rootField] === 'object' &&
+        target[rootField] &&
+        Object.keys(target[rootField]).length === 0
+      ) {
         delete target[rootField];
       }
     }
@@ -170,7 +182,7 @@ function applyNestedFieldSpec(
  * @param options - Configuration options
  * @returns Filtered note object
  */
-export function filterNoteFields<T extends Record<string, any>>(
+export function filterNoteFields<T extends Record<string, unknown>>(
   note: T,
   fields?: FieldSpec[],
   options: FieldFilterOptions = {}
@@ -191,11 +203,11 @@ export function filterNoteFields<T extends Record<string, any>>(
  * @param options - Configuration options
  * @returns Filtered search results
  */
-export function filterSearchResults<T extends Record<string, any>>(
-  results: { results: T[]; [key: string]: any },
+export function filterSearchResults<T extends Record<string, unknown>>(
+  results: { results: T[]; [key: string]: unknown },
   fields?: FieldSpec[],
   options: FieldFilterOptions = {}
-): { results: Partial<T>[]; [key: string]: any } {
+): { results: Partial<T>[]; [key: string]: unknown } {
   if (!fields || fields.length === 0) {
     return results;
   }
@@ -206,9 +218,7 @@ export function filterSearchResults<T extends Record<string, any>>(
 
   return {
     ...results,
-    results: results.results.map(result =>
-      filterFields(result, enhancedFields, options)
-    )
+    results: results.results.map(result => filterFields(result, enhancedFields, options))
   };
 }
 
@@ -256,7 +266,15 @@ export function validateFieldSpecs(fields: FieldSpec[]): string[] {
  */
 export const COMMON_FIELD_PATTERNS = {
   // Note browser/listing view
-  LISTING: ['id', 'type', 'title', 'created', 'updated', 'metadata.tags', 'metadata.status'],
+  LISTING: [
+    'id',
+    'type',
+    'title',
+    'created',
+    'updated',
+    'metadata.tags',
+    'metadata.status'
+  ],
 
   // Link resolution (checking if notes exist)
   LINK_CHECK: ['id', 'title'],

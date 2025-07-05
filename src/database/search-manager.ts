@@ -58,6 +58,7 @@ export interface SqlSearchOptions {
 }
 
 export interface SearchResponse {
+  [key: string]: unknown;
   results: SearchResult[];
   total: number;
   has_more: boolean;
