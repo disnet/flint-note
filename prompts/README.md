@@ -27,10 +27,10 @@ This directory contains all prompt files for flint-note AI integrations, organiz
 
 | Model Capability | Recommended Prompts | Key Features |
 |-----------------|-------------------|--------------|
-| **GPT-4, Claude 3.5+** | `system_core.md` | Natural conversation, advanced search mastery, agent instruction checking, batch operations, content hash safety |
-| **GPT-3.5, Claude 3** | `system_core.md` + `instructions_comprehensive.md` | Explicit guidance, advanced search tools, mandatory agent instruction checking, batch operations, content hash handling |
-| **Smaller Models** | `simple_models_detailed.md` | Step-by-step procedures, search guidance, agent instruction workflows, basic batch support, content hash requirements |
-| **Very Basic Models** | `simple_models_basic.md` | Template responses, basic search tools, mandatory agent instruction checking, single operations only, basic content hash safety |
+| **GPT-4, Claude 3.5+** | `system_core.md` | Natural conversation, advanced search mastery, agent instruction checking, batch operations, content hash safety, multi-note retrieval with get_notes, field filtering optimization |
+| **GPT-3.5, Claude 3** | `system_core.md` + `instructions_comprehensive.md` | Explicit guidance, advanced search tools, mandatory agent instruction checking, batch operations, content hash handling, get_notes support, field filtering |
+| **Smaller Models** | `simple_models_detailed.md` | Step-by-step procedures, search guidance, agent instruction workflows, basic batch support, content hash requirements, get_notes usage, basic field filtering |
+| **Very Basic Models** | `simple_models_basic.md` | Template responses, basic search tools, mandatory agent instruction checking, single operations only, basic content hash safety, get_notes for multiple notes |
 
 ## 🔄 Integration Workflow
 
@@ -72,6 +72,10 @@ Every implementation should pass scenarios from `training_examples.md`:
 - ✅ Partial failure handling in batch operations
 - ✅ **Content hash safety in update operations**
 - ✅ Content hash conflict detection and resolution
+- ✅ **Multi-note retrieval with get_notes for efficient bulk operations**
+- ✅ **Field filtering for performance optimization (up to 90% data reduction)**
+- ✅ Proper use of get_notes instead of multiple get_note calls
+- ✅ Strategic field filtering for different use cases (listings, editing, validation)
 
 ### Success Criteria
 - Models follow mandatory workflow steps
@@ -86,3 +90,7 @@ Every implementation should pass scenarios from `training_examples.md`:
 - Partial failures in batch operations are handled gracefully
 - **Content hashes are included in all update operations for safety**
 - Content hash conflicts are detected and resolved appropriately
+- **Models use get_notes for fetching multiple notes instead of multiple get_note calls**
+- **Models apply field filtering strategically to optimize performance and reduce data transfer**
+- Field filtering choices match use case requirements (listings vs editing vs validation)
+- Performance improvements are communicated to users when appropriate

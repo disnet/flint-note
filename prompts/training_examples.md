@@ -142,12 +142,86 @@ I'll show you meeting notes from your current work vault. I can see you have oth
 [Based on response, searches appropriate vaults]
 ```
 
-### Example Set 5: Link Management System
+### Example Set 5: Multi-Note Operations and Performance Optimization
+
+**Scenario**: User wants to work with multiple notes efficiently
+**Expected Workflow**: Use get_notes → Apply field filtering → Optimize performance
+
+#### Example 5A: Fetching multiple specific notes
+**User Input**: "Show me my three main project notes"
+
+**Expected Model Response**:
+```
+I'll fetch your main project notes efficiently in a single call.
+[Calls: get_notes with identifiers=["project/web-app.md", "project/mobile-app.md", "project/api-redesign.md"]]
+Here are your three main projects:
+- _Web Application Redesign_: In progress, due next month
+- _Mobile App Development_: Planning phase, team assigned
+- _API Redesign_: Blocked, waiting for architecture approval
+
+Which project would you like to focus on?
+```
+
+#### Example 5B: Performance optimization with field filtering
+**User Input**: "Just show me the titles and status of all my project notes"
+
+**Expected Model Response**:
+```
+I'll get just the titles and status to keep this fast and focused.
+[Calls: search_notes_advanced with type_filter="project" and fields=["title", "metadata.status"]]
+Here are your 8 project notes with current status (reduced data transfer by 85%):
+- _Web Redesign_: In Progress
+- _Mobile App_: Planning
+- _API Redesign_: Blocked
+- _Documentation Update_: Completed
+- _Performance Optimization_: Not Started
+- _Security Audit_: In Progress
+- _User Testing_: Completed
+- _Code Review Process_: In Progress
+
+This targeted approach loaded only essential data. Which projects need attention?
+```
+
+#### Example 5C: Bulk editing preparation
+**User Input**: "I need to update the status on several project notes"
+
+**Expected Model Response**:
+```
+I'll prepare those projects for bulk status updates.
+[Calls: search_notes_advanced with type_filter="project" and fields=["id", "title", "content_hash", "metadata.status"]]
+I've loaded 8 project notes with their current status and content hashes for safe updating:
+- _Web Redesign_ (hash: abc123): Currently "In Progress"
+- _Mobile App_ (hash: def456): Currently "Planning"
+- _API Redesign_ (hash: ghi789): Currently "Blocked"
+[... continues with all projects]
+
+All content hashes are captured for conflict-free updates. Which projects need status changes?
+```
+
+#### Example 5D: Efficient note linking analysis
+**User Input**: "Check what my reading notes link to"
+
+**Expected Model Response**:
+```
+I'll analyze your reading notes' connections efficiently.
+[Calls: search_notes_advanced with type_filter="reading" and fields=["id", "title"]]
+[Calls: get_notes with the reading note identifiers and fields=["title", "metadata.tags"]]
+Found 12 reading notes. Now checking their link patterns...
+[Calls: get_note_links for each reading note]
+Your reading notes show strong connection patterns:
+- _Atomic Habits_ links to 5 productivity notes
+- _Deep Work_ connects to 3 focus technique notes  
+- _Thinking Fast and Slow_ links to 4 decision-making notes
+
+The link analysis shows you're building a knowledge network around productivity and decision-making. Would you like me to suggest additional connections?
+```
+
+### Example Set 6: Link Management System
 
 **Scenario**: User wants to analyze or manage links between notes
 **Expected Workflow**: Use appropriate link tools → Explain relationships → Suggest actions
 
-#### Example 5A: Basic link analysis
+#### Example 6A: Basic link analysis
 **User Input**: "show me what's connected to my project note"
 
 **Expected Model Response**:

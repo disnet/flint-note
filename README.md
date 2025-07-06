@@ -14,6 +14,7 @@ Flint note is a Model Context Protocol (MCP) server that provides an agent-first
 - **Intelligent note types** - Each note type has its own agent instructions and metadata schema
 - **Customizable AI behavior** - Tell agents how to behave for each note type using natural language
 - **Performance optimized** - Field filtering support reduces data transfer by up to 90% for large note collections
+- **Batch operations** - Fetch multiple notes in a single call with `get_notes` for efficient bulk operations
 
 ## Pre-requisites
 
@@ -74,13 +75,15 @@ You have access to flint-note, an intelligent note-taking system with multi-vaul
 6. Extract actionable items: `- [ ] Task (Owner: Name, Due: Date)`
 7. Follow agent_instructions returned from create_note for contextual follow-up
 8. Use batch operations efficiently for creating or updating multiple related notes
-9. **ALWAYS include content_hash when updating notes** - get current version first with get_note
-10. Use search tools and link management system for discovery and connections
-11. Use update_note_type to refine agent instructions based on user feedback
-12. Populate metadata schemas automatically when possible
-13. Use rename_note for title changes - preserves links and file stability while updating display names
-14. Use link management tools - get_note_links, get_backlinks, find_broken_links for relationship analysis
-15. **Leverage vault_id for cross-vault search and discovery** - find related content across all vaults
+9. **ALWAYS include content_hash when updating notes** - get current version first with get_note or get_notes
+10. **Use get_notes for fetching multiple notes** - more efficient than multiple get_note calls
+11. **Use field filtering to optimize performance** - specify only needed fields to reduce data transfer
+12. Use search tools and link management system for discovery and connections
+13. Use update_note_type to refine agent instructions based on user feedback
+14. Populate metadata schemas automatically when possible
+15. Use rename_note for title changes - preserves links and file stability while updating display names
+16. Use link management tools - get_note_links, get_backlinks, find_broken_links for relationship analysis
+17. **Leverage vault_id for cross-vault search and discovery** - find related content across all vaults
 
 **CRITICAL**: NEVER create notes without first checking agent instructions with get_note_type_info
 
@@ -94,10 +97,20 @@ You have access to flint-note, an intelligent note-taking system with multi-vaul
 
 ## CROSS-VAULT OPERATIONS:
 - **Use vault_id parameter** to operate on specific vaults without changing active vault
-- Available on ALL tools: create_note, get_note, update_note, search_notes, etc.
+- Available on ALL tools: create_note, get_note, get_notes, update_note, search_notes, etc.
 - Example: `create_note(..., vault_id: "work")` creates note in work vault regardless of active vault
+- Example: `get_notes(identifiers: ["note1.md", "note2.md"], vault_id: "personal")` fetches multiple notes from personal vault
 - Maintains vault isolation while enabling seamless cross-vault workflows
 - No need to switch vaults for one-off operations in different contexts
+
+## PERFORMANCE OPTIMIZATION:
+- **Use get_notes instead of multiple get_note calls** - fetch multiple notes in a single operation
+- **Use field filtering** - specify `fields: ["id", "title", "metadata.tags"]` to reduce data transfer by up to 90%
+- **Batch operations** - use batch create_note and update_note for multiple notes at once
+- **Examples**:
+  - `get_notes(identifiers: [...], fields: ["id", "title", "content_hash"])` - just get identifiers and hashes
+  - `search_notes(query: "...", fields: ["title", "metadata.tags"])` - search without heavy content
+  - `get_note(identifier: "...", fields: ["content", "content_hash"])` - get just content for editing
 
 ## AGENT INSTRUCTIONS SYSTEM:
 - **MANDATORY**: Check agent instructions with get_note_type_info before creating ANY note
@@ -182,6 +195,29 @@ Focus on making note-taking effortless while building a valuable, adaptive knowl
 >
 > Agent: Perfect! I'm creating your reading note with Morgan Housel as author, 4/5 rating, and that key insight. Using vault_id="personal" to save it as reading/psychology-of-money.md in your personal vault without switching your active work vault.
 
+
+### Efficient Multi-Note Operations
+
+> You: Show me the status of my three main projects
+>
+> Agent: I'll fetch your main project notes efficiently in a single call...
+> 
+> *[Uses get_notes with identifiers array and fields=["title", "metadata.status", "content_hash"]]*
+> 
+> Here are your three main projects with current status:
+> - **Web Application Redesign**: In Progress (due next month)
+> - **Mobile App Development**: Planning (team assigned)  
+> - **API Redesign**: Blocked (waiting for architecture approval)
+> 
+> This targeted field filtering reduced data transfer by 85% while getting exactly what you need. Which project needs attention?
+>
+> You: Update the API project to "In Progress" - architecture was approved
+>
+> Agent: I'll update the API project status safely using the content hash I already have...
+> 
+> *[Uses update_note with content_hash for conflict-free update]*
+> 
+> Updated! Your API Redesign project is now "In Progress". Should I add a note about the architecture approval to track this decision?
 
 ### Cross-Vault Operations
 

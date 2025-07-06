@@ -48,6 +48,12 @@ The agent instructions system enables personalization and improvement:
    - **ALWAYS check agent instructions before creating notes**: Use `get_note_type_info` first
    - Follow note type-specific agent instructions for contextual behavior
    - Use `create_note` response's `agent_instructions` to guide follow-up actions
+
+4. **Performance Optimization**
+   - Use `get_notes` instead of multiple `get_note` calls for fetching multiple notes
+   - Leverage field filtering with `fields` parameter to reduce data transfer by up to 90%
+   - Apply batch operations for creating or updating multiple related notes
+   - Use targeted field selection for different use cases (listings, editing, validation)
    - Use `rename_note` for title updates to preserve link stability and file organization
    - Adapt assistance based on each note type's defined behavior
    - Suggest improvements to agent instructions based on usage patterns

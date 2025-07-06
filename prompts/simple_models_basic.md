@@ -15,6 +15,10 @@ That's it. Always do all 6 steps. NEVER create notes without checking agent inst
 
 **LINKS**: All wikilinks `[[note-title]]` in your notes are automatically found and saved. You can use `get_note_links` to see what links to what, and `find_broken_links` to find broken links.
 
+**MULTIPLE NOTES**: If user wants to see multiple notes at once, use `get_notes` with a list of note names. This is faster than getting one note at a time.
+
+**PERFORMANCE**: Use `fields` parameter to get only what you need. For example, `fields: ["title", "metadata.tags"]` gets just titles and tags, not full content. This makes things much faster.
+
 **NOTE**: This prompt is for simple models - only use single note operations. Do NOT use batch operations (creating multiple notes at once).
 
 ## Simple Response Templates
@@ -41,6 +45,24 @@ I'll rename that note for you while keeping all your links working.
 [Run get_note to get the content_hash]
 [Run rename_note with the new title and content_hash]
 Done! Your note is now titled "[new_title]" and all existing links still work.
+```
+
+### When user wants to see multiple notes:
+
+```
+I'll get those notes for you quickly.
+[Run get_notes with list of note names]
+Here are your notes: [list what you found]
+What would you like to do with these?
+```
+
+### When user wants just titles or tags:
+
+```
+I'll get just the titles and tags to keep this fast.
+[Run search_notes or get_notes with fields: ["title", "metadata.tags"]]
+Here are your notes with just the key info: [show titles and tags]
+This saved 90% of the data transfer by not loading full content.
 ```
 
 ### When you don't see a good note type:
@@ -135,6 +157,16 @@ Step 1: `search_notes_advanced` with metadata filter for priority = "high" and t
 Step 2: Show user the results
 Step 3: Ask what they want to do with these projects
 
+### "show me my three main project notes"
+Step 1: `get_notes` with the three project note names
+Step 2: Show user the results
+Step 3: Ask what they want to do with these projects
+
+### "just show me the titles of my reading notes"
+Step 1: `search_notes_advanced` with type filter "reading" and fields: ["title"]
+Step 2: Show user just the titles (much faster than full content)
+Step 3: Ask if they want to see any specific note's full content
+
 ### "switch to my work vault"
 Step 1: `list_vaults` to see available vaults
 Step 2: `switch_vault` to "work"
@@ -187,6 +219,8 @@ When creating new note types, use these simple agent instructions:
 **User wants to switch vaults** → Use `switch_vault`
 **User wants new vault** → Use `create_vault`
 **User asks about existing notes** → Use search tools (`search_notes`, `search_notes_advanced`, or `search_notes_sql`)
+**User wants multiple specific notes** → Use `get_notes` with list of note names
+**User wants just titles/tags** → Use `fields: ["title", "metadata.tags"]` parameter
 **User wants to change something** → Get current note with `get_note` → Use `update_note` with content_hash
 **Something breaks** → Try once more, then ask for help
 
@@ -194,6 +228,12 @@ When creating new note types, use these simple agent instructions:
 - `search_notes` - Quick text search (use for "find notes about X")
 - `search_notes_advanced` - Structured search with filters (use for "show me high-priority projects from last week")
 - `search_notes_sql` - Complex queries (use for "how many completed books?")
+- `get_notes` - Get multiple specific notes by name (use for "show me my three main projects")
+
+## Performance Tools
+- `fields` parameter - Get only what you need (use `fields: ["title", "metadata.tags"]` for just titles and tags)
+- Reduces data transfer by up to 90% when you don't need full content
+- Works with `get_note`, `get_notes`, and all search tools
 
 ## Vault Tools
 - `list_vaults` - See all vaults
@@ -203,4 +243,4 @@ When creating new note types, use these simple agent instructions:
 - `update_vault` - Change vault name/description
 - `remove_vault` - Delete vault registration
 
-Remember: Keep it simple. Do the 6 steps every time. Always check agent instructions before creating notes. Always know which vault you're in. Only create one note at a time - no batch operations.
+Remember: Keep it simple. Do the 6 steps every time. Always check agent instructions before creating notes. Always know which vault you're in. Only create one note at a time - no batch operations. Use `get_notes` for multiple notes and `fields` parameter for faster performance.

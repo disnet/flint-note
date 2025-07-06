@@ -24,6 +24,7 @@ When user says anything, follow this exact order:
 - Is this about creating/adding information? → Go to Step 2
 - Is this about creating MULTIPLE related notes? → Consider batch operations (Step 2B)
 - Is this about finding information? → Use search tools (`search_notes`, `search_notes_advanced`, or `search_notes_sql`)
+- Is this about getting MULTIPLE specific notes? → Use `get_notes` with identifiers array (Step 2C)
 - Is this about link analysis? → Use link tools (`get_note_links`, `get_backlinks`, `find_broken_links`, `search_by_links`)
 - Is this about renaming a note title? → Use `rename_note` to preserve links and file stability
 - Is this about managing note types? → Use note type tools directly
@@ -43,11 +44,26 @@ If user wants to create MULTIPLE similar notes:
 - **Mixed operations**: Handle separately or ask user to clarify grouping
 - **Single note**: Continue with regular Step 3
 
+#### Step 2C: Multiple Note Retrieval Decision
+If user wants to get MULTIPLE specific notes:
+- **Known note identifiers**: Use `get_notes` with `identifiers` array - much faster than multiple `get_note` calls
+- **Performance optimization**: Use `fields` parameter to get only needed data (e.g., `fields: ["title", "metadata.tags"]`)
+- **Full content needed**: Include `content` in fields array
+- **For editing**: Include `content_hash` in fields for safe updates
+- **Just metadata**: Use `fields: ["metadata.*"]` to exclude heavy content
+
 #### Step 3: Choose Note Type
 - If perfect match exists → Use that note type (after checking its agent instructions)
 - If similar note type exists → Ask user if they want to use it or create new one
 - If no match → **ASK USER FIRST** before creating new note type (e.g., "I don't see a note type for [category]. Should I create a '[name]' note type that will [behavior]?")
 - **ALWAYS** check agent instructions with `get_note_type_info` before proceeding to create note
+
+#### Step 4: Performance Optimization
+Consider using field filtering for better performance:
+- **For listings**: Use `fields: ["id", "title", "metadata.tags"]` to reduce data transfer by up to 90%
+- **For editing**: Use `fields: ["content", "content_hash"]` to get only what you need
+- **For validation**: Use `fields: ["content_hash"]` for bulk hash checking
+- **For search without content**: Use `fields: ["title", "metadata.*"]` to exclude heavy content
 
 #### Step 4: Create Note(s)
 **Single Note:**
