@@ -1,0 +1,545 @@
+<script lang="ts">
+  import { onMount } from 'svelte';
+  import type { Message, SlashCommand, NoteReference } from '../types/chat';
+  import SlashCommands from './SlashCommands.svelte';
+  import MessageContent from './MessageContent.svelte';
+  import { generateMockMessageWithNotes } from '../utils/messageParser';
+
+  // Mock data for now
+  let messages: Message[] = [
+    {
+      id: '1',
+      type: 'system',
+      content: "Welcome to Flint! I'm your AI assistant. How can I help you today?",
+      timestamp: new Date(Date.now() - 15000)
+    },
+    {
+      id: '2',
+      type: 'user',
+      content: 'Can you help me create a new note about project planning?',
+      timestamp: new Date(Date.now() - 12000)
+    },
+    {
+      id: '3',
+      type: 'agent',
+      content:
+        "I'd be happy to help you create a note about project planning. I've updated the [[Project Planning Template]] with a comprehensive structure. You might also want to check the [[Daily Standup Notes]] for recent progress updates.\n\n**Key sections include:**\n- Project Overview\n- Timeline and Milestones\n- Resource Allocation\n- Risk Assessment\n- Success Metrics\n\nWould you like me to create this note with these sections?",
+      timestamp: new Date(Date.now() - 10000)
+    },
+    {
+      id: '4',
+      type: 'user',
+      content: 'Yes, that sounds perfect! Can you also show me the meeting notes from yesterday?',
+      timestamp: new Date(Date.now() - 8000)
+    },
+    {
+      id: '5',
+      type: 'agent',
+      content:
+        "Great! I've created your project planning note. Here are the [[Meeting with Design Team]] notes from yesterday. The team discussed several [[Feature Ideas Brainstorm]] items that should be integrated into your project plan.\n\n*Key takeaways:*\n- Timeline approved for Q1 delivery\n- Resource allocation confirmed\n- Next steps documented in [[API Documentation]]",
+      timestamp: new Date(Date.now() - 6000)
+    }
+  ];
+
+  let inputValue = '';
+  let chatContainer: HTMLElement;
+  let isTyping = false;
+  let showSlashCommands = false;
+  let slashCommandQuery = '';
+  let slashCommandPosition = { x: 0, y: 0 };
+  let inputElement: HTMLTextAreaElement;
+
+  const handleSendMessage = () => {
+    if (!inputValue.trim()) return;
+
+    const newMessage: Message = {
+      id: Date.now().toString(),
+      type: 'user',
+      content: inputValue,
+      timestamp: new Date()
+    };
+
+    messages = [...messages, newMessage];
+    inputValue = '';
+
+    // Reset textarea height
+    if (inputElement) {
+      inputElement.style.height = 'auto';
+      inputElement.style.height = '2.5rem';
+    }
+
+    // Simulate agent response
+    setTimeout(() => {
+      isTyping = true;
+      setTimeout(() => {
+        const agentResponse: Message = {
+          id: (Date.now() + 1).toString(),
+          type: 'agent',
+          content:
+            Math.random() > 0.5
+              ? `I received your message: "${newMessage.content}". This is a mock response for now.`
+              : generateMockMessageWithNotes(),
+          timestamp: new Date()
+        };
+        messages = [...messages, agentResponse];
+        isTyping = false;
+      }, 1000);
+    }, 500);
+  };
+
+  const handleKeyDown = (event: KeyboardEvent) => {
+    if (showSlashCommands) {
+      // Let SlashCommands component handle navigation
+      return;
+    }
+
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  const handleInput = (event: Event) => {
+    const target = event.target as HTMLTextAreaElement;
+    inputValue = target.value;
+
+    // Auto-resize textarea
+    target.style.height = 'auto';
+    target.style.height = Math.min(target.scrollHeight, 8 * 24) + 'px'; // Max 8 lines
+
+    // Check for slash command trigger
+    const cursorPosition = target.selectionStart;
+    const textBeforeCursor = inputValue.substring(0, cursorPosition);
+    const lastSlashIndex = textBeforeCursor.lastIndexOf('/');
+
+    if (lastSlashIndex !== -1) {
+      const textAfterSlash = textBeforeCursor.substring(lastSlashIndex + 1);
+      // Only show commands if slash is at start or after whitespace
+      const charBeforeSlash = lastSlashIndex === 0 ? ' ' : textBeforeCursor[lastSlashIndex - 1];
+
+      if (charBeforeSlash === ' ' || lastSlashIndex === 0) {
+        if (!textAfterSlash.includes(' ') || textAfterSlash.trim() === '') {
+          showSlashCommands = true;
+          slashCommandQuery = textAfterSlash;
+          updateSlashCommandPosition(target);
+          return;
+        }
+      }
+    }
+
+    // Hide slash commands if not triggered
+    showSlashCommands = false;
+  };
+
+  const updateSlashCommandPosition = (textarea: HTMLTextAreaElement) => {
+    const rect = textarea.getBoundingClientRect();
+    slashCommandPosition = {
+      x: rect.left,
+      y: rect.top - 10
+    };
+  };
+
+  const handleSlashCommand = (event: CustomEvent<{ command: SlashCommand; args: string[] }>) => {
+    const { command, args } = event.detail;
+
+    // Remove the slash command from input
+    const slashIndex = inputValue.lastIndexOf('/');
+    if (slashIndex !== -1) {
+      inputValue = inputValue.substring(0, slashIndex);
+    }
+
+    // Execute the command
+    executeSlashCommand(command, args);
+    showSlashCommands = false;
+  };
+
+  const executeSlashCommand = (command: SlashCommand, args: string[]) => {
+    // Create a system message showing the command execution
+    const commandMessage: Message = {
+      id: Date.now().toString(),
+      type: 'system',
+      content: `Executed command: /${command.name}${args.length > 0 ? ' ' + args.join(' ') : ''}`,
+      timestamp: new Date()
+    };
+
+    messages = [...messages, commandMessage];
+
+    // Simulate command response with contextual content
+    setTimeout(() => {
+      isTyping = true;
+      setTimeout(() => {
+        const response: Message = {
+          id: (Date.now() + 1).toString(),
+          type: 'agent',
+          content: getCommandResponse(command, args),
+          timestamp: new Date()
+        };
+        messages = [...messages, response];
+        isTyping = false;
+      }, 1000);
+    }, 500);
+  };
+
+  const getCommandResponse = (command: SlashCommand, args: string[]): string => {
+    const argText = args.length > 0 ? args.join(' ') : '';
+
+    switch (command.name) {
+      case 'create':
+        return `I've created a new note${argText ? ` about "${argText}"` : ''}. The [[${argText || 'New Note'}]] is now available in your vault. Would you like me to add any specific sections or content?`;
+
+      case 'find':
+        return `I found several notes${argText ? ` related to "${argText}"` : ''}:\n\n• [[Project Planning Template]]\n• [[Daily Standup Notes]]\n• [[Meeting with Design Team]]\n\nWhich one would you like to open?`;
+
+      case 'update':
+        return `I've updated the [[${argText || 'selected note'}]] with your recent changes. The modifications have been saved and are ready for review.`;
+
+      case 'switch-vault':
+        return `Switched to vault: ${argText || 'Personal Notes'}. You now have access to all notes in this vault. Current vault contains 47 notes across 8 categories.`;
+
+      case 'list-vaults':
+        return `Available vaults:\n\n• **Personal Notes** (47 notes) - *Current*\n• **Work Projects** (23 notes)\n• **Research** (15 notes)\n• **Archive** (102 notes)\n\nUse \`/switch-vault [name]\` to change vaults.`;
+
+      case 'weekly-review':
+        return `I've generated your weekly review template. Here's what I found:\n\n**This Week's Progress:**\n• Completed 5 tasks from [[Project Planning Template]]\n• Updated [[Daily Standup Notes]] daily\n• Attended [[Meeting with Design Team]]\n\n**Next Week's Goals:**\n• Finalize project timeline\n• Review [[Feature Ideas Brainstorm]]\n• Update [[API Documentation]]`;
+
+      case 'brainstorm':
+        return `Let's start brainstorming${argText ? ` about "${argText}"` : ''}! I'll help you generate ideas and organize them.\n\n**Initial thoughts:**\n• What are the core objectives?\n• Who are the stakeholders?\n• What constraints should we consider?\n\nI can create a [[Feature Ideas Brainstorm]] document to track our session.`;
+
+      case 'help':
+        return `Here are the available commands:\n\n**Note Commands:**\n• \`/create [title]\` - Create a new note\n• \`/find [query]\` - Search for notes\n• \`/update [title]\` - Update existing note\n\n**Vault Commands:**\n• \`/switch-vault [name]\` - Switch vaults\n• \`/list-vaults\` - Show all vaults\n\n**Templates:**\n• \`/weekly-review\` - Generate weekly review\n• \`/brainstorm [topic]\` - Start brainstorming session\n\nType \`/\` to see all commands with autocomplete!`;
+
+      default:
+        return `Command /${command.name} executed successfully. This is a mock response for the ${command.category} command.`;
+    }
+  };
+
+  const closeSlashCommands = () => {
+    showSlashCommands = false;
+  };
+
+  const handleNoteClick = (event: CustomEvent<{ note: NoteReference }>) => {
+    const { note } = event.detail;
+
+    // Create a system message showing the note click
+    const noteMessage: Message = {
+      id: Date.now().toString(),
+      type: 'system',
+      content: `Opening note: ${note.title}${note.type ? ` (${note.type})` : ''}`,
+      timestamp: new Date()
+    };
+
+    messages = [...messages, noteMessage];
+
+    // TODO: Implement note editor opening logic
+    console.log('Opening note:', note);
+  };
+
+  // Auto-scroll to bottom when new messages arrive
+  $: if (messages.length && chatContainer) {
+    setTimeout(() => {
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }, 100);
+  }
+
+  onMount(() => {
+    // Focus input on mount
+    if (inputElement) inputElement.focus();
+  });
+</script>
+
+<div class="chat-container">
+  <div class="messages-container" bind:this={chatContainer}>
+    {#each messages as message (message.id)}
+      <div class="message message-{message.type}">
+        <div class="message-content">
+          <MessageContent
+            content={message.content}
+            messageType={message.type}
+            on:noteClick={handleNoteClick}
+          />
+        </div>
+        <div class="message-timestamp">
+          {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </div>
+      </div>
+    {/each}
+
+    {#if isTyping}
+      <div class="message message-agent">
+        <div class="message-content typing-indicator">
+          <div class="typing-dots">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+        </div>
+      </div>
+    {/if}
+  </div>
+
+  <div class="input-area">
+    <div class="input-wrapper">
+      <textarea
+        id="chat-input"
+        bind:this={inputElement}
+        bind:value={inputValue}
+        on:keydown={handleKeyDown}
+        on:input={handleInput}
+        placeholder="Type your message... (Press Enter to send, Shift+Enter for new line, / for commands)"
+        rows="1"
+        class="chat-input"
+        style="height: auto; min-height: 2.5rem;"
+      ></textarea>
+      <button
+        on:click={handleSendMessage}
+        disabled={!inputValue.trim()}
+        class="send-button"
+        aria-label="Send message"
+      >
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M22 2L11 13" />
+          <path d="M22 2L15 22L11 13L2 9L22 2Z" />
+        </svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<SlashCommands
+  {showSlashCommands}
+  isOpen={showSlashCommands}
+  query={slashCommandQuery}
+  position={slashCommandPosition}
+  on:command={handleSlashCommand}
+  on:close={closeSlashCommands}
+/>
+
+<style>
+  .chat-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    max-width: 100%;
+  }
+
+  .messages-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem;
+    scroll-behavior: smooth;
+  }
+
+  .message {
+    margin-bottom: 1rem;
+    max-width: 80%;
+    word-wrap: break-word;
+  }
+
+  .message-user {
+    margin-left: auto;
+  }
+
+  .message-agent,
+  .message-system {
+    margin-right: auto;
+  }
+
+  .message-content {
+    padding: 0.75rem 1rem;
+    border-radius: 1rem;
+    white-space: pre-wrap;
+    font-size: 0.9rem;
+    line-height: 1.4;
+  }
+
+  .message-user .message-content {
+    background-color: #007bff;
+    color: white;
+    border-bottom-right-radius: 0.25rem;
+  }
+
+  .message-agent .message-content {
+    background-color: #f8f9fa;
+    color: #333;
+    border: 1px solid #dee2e6;
+    border-bottom-left-radius: 0.25rem;
+  }
+
+  .message-system .message-content {
+    background-color: #e9ecef;
+    color: #6c757d;
+    font-style: italic;
+    text-align: center;
+  }
+
+  .message-timestamp {
+    font-size: 0.75rem;
+    color: #6c757d;
+    margin-top: 0.25rem;
+    text-align: right;
+  }
+
+  .message-agent .message-timestamp,
+  .message-system .message-timestamp {
+    text-align: left;
+  }
+
+  .typing-indicator {
+    background-color: #f8f9fa !important;
+    border: 1px solid #dee2e6 !important;
+    padding: 0.75rem 1rem !important;
+  }
+
+  .typing-dots {
+    display: flex;
+    gap: 0.25rem;
+  }
+
+  .typing-dots span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: #6c757d;
+    animation: typing 1.4s infinite ease-in-out;
+  }
+
+  .typing-dots span:nth-child(1) {
+    animation-delay: -0.32s;
+  }
+
+  .typing-dots span:nth-child(2) {
+    animation-delay: -0.16s;
+  }
+
+  @keyframes typing {
+    0%,
+    80%,
+    100% {
+      transform: scale(0);
+    }
+    40% {
+      transform: scale(1);
+    }
+  }
+
+  .input-area {
+    padding: 1rem;
+    border-top: 1px solid #dee2e6;
+    background-color: white;
+  }
+
+  .input-wrapper {
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-end;
+    max-width: 100%;
+  }
+
+  .chat-input {
+    flex: 1;
+    resize: none;
+    border: 1px solid #dee2e6;
+    border-radius: 1rem;
+    padding: 0.75rem 1rem;
+    font-family: inherit;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    min-height: 2.5rem;
+    max-height: 8rem;
+    overflow-y: auto;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .chat-input:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+  }
+
+  .send-button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 2.5rem;
+    height: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+
+  .send-button:hover:not(:disabled) {
+    background-color: #0056b3;
+    transform: scale(1.05);
+  }
+
+  .send-button:disabled {
+    background-color: #6c757d;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  /* Dark mode support */
+  @media (prefers-color-scheme: dark) {
+    .message-agent .message-content {
+      background-color: #343a40;
+      color: #f8f9fa;
+      border-color: #495057;
+    }
+
+    .message-system .message-content {
+      background-color: #495057;
+      color: #adb5bd;
+    }
+
+    .input-area {
+      background-color: #212529;
+      border-color: #495057;
+    }
+
+    .chat-input {
+      background-color: #343a40;
+      color: #f8f9fa;
+      border-color: #495057;
+    }
+
+    .chat-input:focus {
+      border-color: #007bff;
+      box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+    }
+
+    .typing-indicator {
+      background-color: #343a40 !important;
+      border-color: #495057 !important;
+    }
+  }
+
+  /* Mobile responsive */
+  @media (max-width: 768px) {
+    .message {
+      max-width: 90%;
+    }
+
+    .messages-container {
+      padding: 0.5rem;
+    }
+
+    .input-area {
+      padding: 0.5rem;
+    }
+
+    .message-content {
+      font-size: 0.85rem;
+    }
+  }
+</style>
