@@ -2,6 +2,10 @@ import { app, shell, BrowserWindow, ipcMain } from 'electron';
 import { join } from 'path';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import icon from '../../resources/icon.png?asset';
+import { LLMService, FLINT_SYSTEM_PROMPT, LLMMessage } from './services/llmService';
+
+// Initialize LLM service
+const llmService = new LLMService();
 
 function createWindow(): void {
   // Create the browser window.
@@ -13,7 +17,9 @@ function createWindow(): void {
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
+      sandbox: false,
+      contextIsolation: true,
+      nodeIntegration: false
     }
   });
 
@@ -49,8 +55,84 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window);
   });
 
-  // IPC test
+  // IPC handlers
   ipcMain.on('ping', () => console.log('pong'));
+
+  // LLM IPC handlers
+  ipcMain.handle('llm:generate-response', async (_, messages: LLMMessage[]) => {
+    try {
+      // Add system prompt if not present
+      const messagesWithSystem = messages.some((msg) => msg.role === 'system')
+        ? messages
+        : [{ role: 'system' as const, content: FLINT_SYSTEM_PROMPT }, ...messages];
+
+      const response = await llmService.generateResponse(messagesWithSystem);
+      return { success: true, data: response };
+    } catch (error) {
+      console.error('Error generating response:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  });
+
+  ipcMain.handle('llm:stream-response', async (event, messages: LLMMessage[]) => {
+    try {
+      // Add system prompt if not present
+      const messagesWithSystem = messages.some((msg) => msg.role === 'system')
+        ? messages
+        : [{ role: 'system' as const, content: FLINT_SYSTEM_PROMPT }, ...messages];
+
+      let fullResponse = '';
+
+      await llmService.streamResponse(messagesWithSystem, (chunk) => {
+        fullResponse += chunk;
+        event.sender.send('llm:stream-chunk', chunk);
+      });
+
+      event.sender.send('llm:stream-end', fullResponse);
+      return { success: true };
+    } catch (error) {
+      console.error('Error streaming response:', error);
+      event.sender.send(
+        'llm:stream-error',
+        error instanceof Error ? error.message : 'Unknown error'
+      );
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  });
+
+  ipcMain.handle('llm:test-connection', async () => {
+    try {
+      const isConnected = await llmService.testConnection();
+      return { success: true, connected: isConnected };
+    } catch (error) {
+      console.error('Error testing LLM connection:', error);
+      return {
+        success: false,
+        connected: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  });
+
+  ipcMain.handle('llm:update-config', async (_, config) => {
+    try {
+      llmService.updateConfig(config);
+      return { success: true };
+    } catch (error) {
+      console.error('Error updating LLM config:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  });
+
+  ipcMain.handle('llm:get-config', async () => {
+    try {
+      const config = llmService.getConfig();
+      return { success: true, config };
+    } catch (error) {
+      console.error('Error getting LLM config:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  });
 
   createWindow();
 

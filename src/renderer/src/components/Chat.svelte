@@ -1,43 +1,19 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import type { Message, SlashCommand, NoteReference } from '../types/chat';
   import SlashCommands from './SlashCommands.svelte';
   import MessageContent from './MessageContent.svelte';
   import { generateMockMessageWithNotes } from '../utils/messageParser';
+  import { llmClient } from '../services/llmClient';
 
-  // Mock data for now
+  // Initial welcome message
   let messages: Message[] = [
     {
       id: '1',
       type: 'system',
-      content: "Welcome to Flint! I'm your AI assistant. How can I help you today?",
-      timestamp: new Date(Date.now() - 15000)
-    },
-    {
-      id: '2',
-      type: 'user',
-      content: 'Can you help me create a new note about project planning?',
-      timestamp: new Date(Date.now() - 12000)
-    },
-    {
-      id: '3',
-      type: 'agent',
       content:
-        "I'd be happy to help you create a note about project planning. I've updated the [[Project Planning Template]] with a comprehensive structure. You might also want to check the [[Daily Standup Notes]] for recent progress updates.\n\n**Key sections include:**\n- Project Overview\n- Timeline and Milestones\n- Resource Allocation\n- Risk Assessment\n- Success Metrics\n\nWould you like me to create this note with these sections?",
-      timestamp: new Date(Date.now() - 10000)
-    },
-    {
-      id: '4',
-      type: 'user',
-      content: 'Yes, that sounds perfect! Can you also show me the meeting notes from yesterday?',
-      timestamp: new Date(Date.now() - 8000)
-    },
-    {
-      id: '5',
-      type: 'agent',
-      content:
-        "Great! I've created your project planning note. Here are the [[Meeting with Design Team]] notes from yesterday. The team discussed several [[Feature Ideas Brainstorm]] items that should be integrated into your project plan.\n\n*Key takeaways:*\n- Timeline approved for Q1 delivery\n- Resource allocation confirmed\n- Next steps documented in [[API Documentation]]",
-      timestamp: new Date(Date.now() - 6000)
+        "Welcome to Flint! I'm your AI assistant powered by LM Studio. How can I help you today?",
+      timestamp: new Date()
     }
   ];
 
@@ -48,8 +24,11 @@
   let slashCommandQuery = '';
   let slashCommandPosition = { x: 0, y: 0 };
   let inputElement: HTMLTextAreaElement;
+  let isLLMAvailable = false;
+  let streamingResponse = '';
+  let isStreaming = false;
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
 
     const newMessage: Message = {
@@ -60,6 +39,7 @@
     };
 
     messages = [...messages, newMessage];
+    const userInput = inputValue;
     inputValue = '';
 
     // Reset textarea height
@@ -68,23 +48,78 @@
       inputElement.style.height = '2.5rem';
     }
 
-    // Simulate agent response
-    setTimeout(() => {
+    // Generate LLM response
+    await generateLLMResponse(userInput);
+  };
+
+  const generateLLMResponse = async (userInput: string) => {
+    if (!isLLMAvailable) {
+      // Fallback to mock response if LLM is not available
+      const fallbackResponse: Message = {
+        id: Date.now().toString(),
+        type: 'agent',
+        content: `I received your message: "${userInput}". LLM is not available. Please check your LM Studio connection.`,
+        timestamp: new Date()
+      };
+      messages = [...messages, fallbackResponse];
+      return;
+    }
+
+    try {
       isTyping = true;
-      setTimeout(() => {
-        const agentResponse: Message = {
-          id: (Date.now() + 1).toString(),
-          type: 'agent',
-          content:
-            Math.random() > 0.5
-              ? `I received your message: "${newMessage.content}". This is a mock response for now.`
-              : generateMockMessageWithNotes(),
-          timestamp: new Date()
-        };
-        messages = [...messages, agentResponse];
-        isTyping = false;
-      }, 1000);
-    }, 500);
+      isStreaming = true;
+      streamingResponse = '';
+
+      // Create conversation history for context
+      const conversationHistory = llmClient.createConversationHistory(messages, 10);
+
+      // Stream the response
+      await llmClient.streamResponse(
+        conversationHistory,
+        (chunk: string) => {
+          streamingResponse += chunk;
+        },
+        (fullResponse: string) => {
+          // Response complete
+          const agentResponse: Message = {
+            id: Date.now().toString(),
+            type: 'agent',
+            content: fullResponse,
+            timestamp: new Date()
+          };
+          messages = [...messages, agentResponse];
+          isTyping = false;
+          isStreaming = false;
+          streamingResponse = '';
+        },
+        (error: string) => {
+          // Error occurred
+          console.error('LLM streaming error:', error);
+          const errorResponse: Message = {
+            id: Date.now().toString(),
+            type: 'agent',
+            content: `Sorry, I encountered an error: ${error}`,
+            timestamp: new Date()
+          };
+          messages = [...messages, errorResponse];
+          isTyping = false;
+          isStreaming = false;
+          streamingResponse = '';
+        }
+      );
+    } catch (error) {
+      console.error('Error generating LLM response:', error);
+      const errorResponse: Message = {
+        id: Date.now().toString(),
+        type: 'agent',
+        content: `Sorry, I encountered an error: ${error.message}`,
+        timestamp: new Date()
+      };
+      messages = [...messages, errorResponse];
+      isTyping = false;
+      isStreaming = false;
+      streamingResponse = '';
+    }
   };
 
   const handleKeyDown = (event: KeyboardEvent) => {
@@ -153,7 +188,7 @@
     showSlashCommands = false;
   };
 
-  const executeSlashCommand = (command: SlashCommand, args: string[]) => {
+  const executeSlashCommand = async (command: SlashCommand, args: string[]) => {
     // Create a system message showing the command execution
     const commandMessage: Message = {
       id: Date.now().toString(),
@@ -164,9 +199,13 @@
 
     messages = [...messages, commandMessage];
 
-    // Simulate command response with contextual content
-    setTimeout(() => {
-      isTyping = true;
+    // Generate contextual response using LLM
+    const commandPrompt = `User executed the command: /${command.name}${args.length > 0 ? ' ' + args.join(' ') : ''}. ${command.description}. Please provide a helpful response for this command.`;
+
+    if (isLLMAvailable) {
+      await generateLLMResponse(commandPrompt);
+    } else {
+      // Fallback to mock responses
       setTimeout(() => {
         const response: Message = {
           id: (Date.now() + 1).toString(),
@@ -175,9 +214,8 @@
           timestamp: new Date()
         };
         messages = [...messages, response];
-        isTyping = false;
       }, 1000);
-    }, 500);
+    }
   };
 
   const getCommandResponse = (command: SlashCommand, args: string[]): string => {
@@ -241,9 +279,36 @@
     }, 100);
   }
 
-  onMount(() => {
+  // Auto-scroll when streaming
+  $: if (isStreaming && chatContainer) {
+    setTimeout(() => {
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }, 100);
+  }
+
+  onMount(async () => {
     // Focus input on mount
     if (inputElement) inputElement.focus();
+
+    // Test LLM connection
+    try {
+      isLLMAvailable = await llmClient.testConnection();
+      if (isLLMAvailable) {
+        console.log('LLM connection established');
+      } else {
+        console.warn('LLM connection failed - falling back to mock responses');
+      }
+    } catch (error) {
+      console.error('Error testing LLM connection:', error);
+      isLLMAvailable = false;
+    }
+  });
+
+  onDestroy(() => {
+    // Clean up streaming listeners
+    if (llmClient) {
+      llmClient.stopStreaming();
+    }
   });
 </script>
 
@@ -266,12 +331,22 @@
 
     {#if isTyping}
       <div class="message message-agent">
-        <div class="message-content typing-indicator">
-          <div class="typing-dots">
-            <span></span>
-            <span></span>
-            <span></span>
-          </div>
+        <div class="message-content">
+          {#if isStreaming && streamingResponse}
+            <MessageContent
+              content={streamingResponse}
+              messageType="agent"
+              on:noteClick={handleNoteClick}
+            />
+          {:else}
+            <div class="typing-indicator">
+              <div class="typing-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+            </div>
+          {/if}
         </div>
       </div>
     {/if}
@@ -285,14 +360,17 @@
         bind:value={inputValue}
         on:keydown={handleKeyDown}
         on:input={handleInput}
-        placeholder="Type your message... (Press Enter to send, Shift+Enter for new line, / for commands)"
+        placeholder="Type your message... (Press Enter to send, Shift+Enter for new line, / for commands){isLLMAvailable
+          ? ''
+          : ' - LLM offline'}"
         rows="1"
         class="chat-input"
         style="height: auto; min-height: 2.5rem;"
+        disabled={isStreaming}
       ></textarea>
       <button
         on:click={handleSendMessage}
-        disabled={!inputValue.trim()}
+        disabled={!inputValue.trim() || isStreaming}
         class="send-button"
         aria-label="Send message"
       >

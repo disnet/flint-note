@@ -1,8 +1,11 @@
 <script lang="ts">
+  import LLMSettings from './LLMSettings.svelte';
+
   // Mock data for now
   let currentVault = 'Personal Notes';
   let availableVaults = ['Personal Notes', 'Work Projects', 'Research'];
   let isVaultDropdownOpen = false;
+  let isSettingsOpen = false;
 
   const handleVaultChange = (vault: string) => {
     currentVault = vault;
@@ -16,8 +19,11 @@
   };
 
   const handleSettings = () => {
-    // TODO: Implement settings modal
-    console.log('Open settings');
+    isSettingsOpen = true;
+  };
+
+  const closeSettings = () => {
+    isSettingsOpen = false;
   };
 </script>
 
@@ -73,13 +79,15 @@
         stroke-width="2"
       >
         <circle cx="12" cy="12" r="3" />
-        <path d="M12 1v6m0 6v6" />
-        <path d="M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10z" />
-        <path d="M12 1a11 11 0 0 0 0 22 11 11 0 0 0 0-22" />
+        <path
+          d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1 1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
+        />
       </svg>
     </button>
   </div>
 </header>
+
+<LLMSettings isOpen={isSettingsOpen} onClose={closeSettings} />
 
 <style>
   .header {
