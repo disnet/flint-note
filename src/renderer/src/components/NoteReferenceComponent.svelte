@@ -15,23 +15,35 @@
 
   const getNoteIcon = (type?: string): string => {
     switch (type) {
-      case 'daily': return '📅';
-      case 'project': return '📋';
-      case 'meeting': return '🤝';
-      case 'idea': return '💡';
-      case 'reference': return '🔗';
-      default: return '📄';
+      case 'daily':
+        return '📅';
+      case 'project':
+        return '📋';
+      case 'meeting':
+        return '🤝';
+      case 'idea':
+        return '💡';
+      case 'reference':
+        return '🔗';
+      default:
+        return '📄';
     }
   };
 
   const getNoteTypeColor = (type?: string): string => {
     switch (type) {
-      case 'daily': return '#28a745';
-      case 'project': return '#007bff';
-      case 'meeting': return '#fd7e14';
-      case 'idea': return '#6f42c1';
-      case 'reference': return '#6c757d';
-      default: return '#007bff';
+      case 'daily':
+        return '#28a745';
+      case 'project':
+        return '#007bff';
+      case 'meeting':
+        return '#fd7e14';
+      case 'idea':
+        return '#6f42c1';
+      case 'reference':
+        return '#6c757d';
+      default:
+        return '#007bff';
     }
   };
 </script>

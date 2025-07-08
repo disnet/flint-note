@@ -120,18 +120,19 @@ export function parseMessageContent(content: string): MessagePart[] {
  */
 function findNoteByTitleOrPath(titleOrPath: string): NoteReference | null {
   // First try to find by exact title match
-  let note = mockNotes.find(n => n.title === titleOrPath);
+  let note = mockNotes.find((n) => n.title === titleOrPath);
 
   if (!note) {
     // Try to find by path
-    note = mockNotes.find(n => n.path === titleOrPath);
+    note = mockNotes.find((n) => n.path === titleOrPath);
   }
 
   if (!note) {
     // Try fuzzy matching on title
-    note = mockNotes.find(n =>
-      n.title.toLowerCase().includes(titleOrPath.toLowerCase()) ||
-      titleOrPath.toLowerCase().includes(n.title.toLowerCase())
+    note = mockNotes.find(
+      (n) =>
+        n.title.toLowerCase().includes(titleOrPath.toLowerCase()) ||
+        titleOrPath.toLowerCase().includes(n.title.toLowerCase())
     );
   }
 
@@ -145,8 +146,8 @@ export function generateMockMessageWithNotes(): string {
   const templates = [
     "I've updated the [[Project Planning Template]] with the new sections you requested. You might also want to check the [[Daily Standup Notes]] for recent progress updates.",
     "Based on our [[Meeting with Design Team]], I've created a new [[Feature Ideas Brainstorm]] document. The [[API Documentation]] has also been updated.",
-    "The [[Daily Standup Notes]] show good progress on the current sprint. Let me know if you need to update the [[Project Planning Template]].",
-    "I found some relevant information in the [[API Documentation]]. This should help with the ideas we discussed in [[Feature Ideas Brainstorm]]."
+    'The [[Daily Standup Notes]] show good progress on the current sprint. Let me know if you need to update the [[Project Planning Template]].',
+    'I found some relevant information in the [[API Documentation]]. This should help with the ideas we discussed in [[Feature Ideas Brainstorm]].'
   ];
 
   return templates[Math.floor(Math.random() * templates.length)];
@@ -158,9 +159,9 @@ export function generateMockMessageWithNotes(): string {
 export function extractNoteReferences(content: string): NoteReference[] {
   const parts = parseMessageContent(content);
   return parts
-    .filter(part => part.type === 'note' && part.note)
-    .map(part => part.note!)
-    .filter(note => note.id !== 'broken'); // Filter out broken references
+    .filter((part) => part.type === 'note' && part.note)
+    .map((part) => part.note!)
+    .filter((note) => note.id !== 'broken'); // Filter out broken references
 }
 
 /**

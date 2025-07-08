@@ -41,7 +41,7 @@
           height="12"
           viewBox="0 0 12 12"
         >
-          <path d="M2 4L6 8L10 4" stroke="currentColor" stroke-width="1.5" fill="none"/>
+          <path d="M2 4L6 8L10 4" stroke="currentColor" stroke-width="1.5" fill="none" />
         </svg>
       </button>
 
@@ -63,16 +63,19 @@
   </div>
 
   <div class="header-right">
-    <button
-      class="settings-button"
-      on:click={handleSettings}
-      aria-label="Settings"
-    >
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <circle cx="12" cy="12" r="3"/>
-        <path d="M12 1v6m0 6v6"/>
-        <path d="M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10z"/>
-        <path d="M12 1a11 11 0 0 0 0 22 11 11 0 0 0 0-22"/>
+    <button class="settings-button" on:click={handleSettings} aria-label="Settings">
+      <svg
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <circle cx="12" cy="12" r="3" />
+        <path d="M12 1v6m0 6v6" />
+        <path d="M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10z" />
+        <path d="M12 1a11 11 0 0 0 0 22 11 11 0 0 0 0-22" />
       </svg>
     </button>
   </div>

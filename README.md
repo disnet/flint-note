@@ -18,6 +18,7 @@ A Svelte 5 + Electron application implementing a chat-first interface for Flint,
 ### 🚧 Mock Data & Simulation
 
 Currently using mock data for:
+
 - Sample conversations with note references
 - Slash command responses
 - Note database for link resolution
