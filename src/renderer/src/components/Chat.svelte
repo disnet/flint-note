@@ -452,8 +452,8 @@
         id="chat-input"
         bind:this={inputElement}
         bind:value={inputValue}
-        on:keydown={handleKeyDown}
-        on:input={handleInput}
+        onkeydown={handleKeyDown}
+        oninput={handleInput}
         placeholder="Type your message... (Press Enter to send, Shift+Enter for new line, / for commands){isLLMAvailable
           ? ''
           : ' - LLM offline'}"
@@ -463,7 +463,7 @@
         disabled={isStreaming}
       ></textarea>
       <button
-        on:click={handleSendMessage}
+        onclick={handleSendMessage}
         disabled={!inputValue.trim() || isStreaming}
         class="send-button"
         aria-label="Send message"
