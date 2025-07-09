@@ -17,7 +17,7 @@
     command
   }: Props = $props();
 
-  let commandsContainer: HTMLElement;
+  let commandsContainer: HTMLElement = $state();
   let selectedIndex = $state(0);
 
   // Mock commands for now
@@ -86,9 +86,6 @@
         cmd.description.toLowerCase().includes(query.toLowerCase())
     )
   );
-
-  // Reset selection when filtered commands change
-  selectedIndex = Math.min(selectedIndex, filteredCommands.length - 1);
 
   const handleKeyDown = (event: KeyboardEvent): void => {
     if (!isOpen) return;
@@ -198,7 +195,7 @@
           <button
             class="command-item"
             class:selected={index === selectedIndex}
-            on:click={() => command(cmd, ['' + index])}
+            onclick={() => command(cmd, ['' + index])}
             role="option"
             aria-selected={index === selectedIndex}
           >

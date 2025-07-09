@@ -1,21 +1,16 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
   import type { NoteReference } from '../types/chat';
   import { parseMessageContent } from '../utils/messageParser';
   import NoteReferenceComponent from './NoteReferenceComponent.svelte';
 
-  export let content: string;
-  export let messageType: 'user' | 'agent' | 'system' = 'agent';
+  interface Props {
+    content: string;
+    messageType: 'user' | 'agent' | 'system';
+    openNote: (note: NoteReference) => void;
+  }
+  let { content, messageType = 'agent', openNote }: Props = $props();
 
-  const dispatch = createEventDispatcher<{
-    noteClick: { note: NoteReference };
-  }>();
-
-  $: messageParts = parseMessageContent(content);
-
-  const handleNoteClick = (event: CustomEvent<{ note: NoteReference }>): void => {
-    dispatch('noteClick', event.detail);
-  };
+  let messageParts = $derived(parseMessageContent(content));
 
   const formatText = (text: string): { type: string; content: string }[] => {
     // Parse text into segments for safe rendering
@@ -98,7 +93,11 @@
         {/if}
       {/each}
     {:else if part.type === 'note' && part.note}
-      <NoteReferenceComponent note={part.note} inline={true} on:click={handleNoteClick} />
+      <NoteReferenceComponent
+        note={part.note}
+        inline={true}
+        onclick={() => openNote(part.note)}
+      />
     {/if}
   {/each}
 </div>

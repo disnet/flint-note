@@ -149,7 +149,8 @@
     if (lastSlashIndex !== -1) {
       const textAfterSlash = textBeforeCursor.substring(lastSlashIndex + 1);
       // Only show commands if slash is at start or after whitespace
-      const charBeforeSlash = lastSlashIndex === 0 ? ' ' : textBeforeCursor[lastSlashIndex - 1];
+      const charBeforeSlash =
+        lastSlashIndex === 0 ? ' ' : textBeforeCursor[lastSlashIndex - 1];
 
       if (charBeforeSlash === ' ' || lastSlashIndex === 0) {
         if (!textAfterSlash.includes(' ') || textAfterSlash.trim() === '') {
@@ -173,11 +174,7 @@
     };
   };
 
-  const handleSlashCommand = (
-    event: CustomEvent<{ command: SlashCommand; args: string[] }>
-  ): void => {
-    const { command, args } = event.detail;
-
+  const handleSlashCommand = (command: SlashCommand, args: string[]): void => {
     // Remove the slash command from input
     const slashIndex = inputValue.lastIndexOf('/');
     if (slashIndex !== -1) {
@@ -189,7 +186,10 @@
     showSlashCommands = false;
   };
 
-  const executeSlashCommand = async (command: SlashCommand, args: string[]): Promise<void> => {
+  const executeSlashCommand = async (
+    command: SlashCommand,
+    args: string[]
+  ): Promise<void> => {
     // Create a system message showing the command execution
     const commandMessage: Message = {
       id: Date.now().toString(),
@@ -256,9 +256,7 @@
     showSlashCommands = false;
   };
 
-  const handleNoteClick = (event: CustomEvent<{ note: NoteReference }>): void => {
-    const { note } = event.detail;
-
+  const handleNoteOpen = (note: NoteReference): void => {
     // Create a system message showing the note click
     const noteMessage: Message = {
       id: Date.now().toString(),
@@ -327,11 +325,14 @@
           <MessageContent
             content={message.content}
             messageType={message.type}
-            on:noteClick={handleNoteClick}
+            openNote={handleNoteOpen}
           />
         </div>
         <div class="message-timestamp">
-          {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          {message.timestamp.toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit'
+          })}
         </div>
       </div>
     {/each}
@@ -343,7 +344,7 @@
             <MessageContent
               content={streamingResponse}
               messageType="agent"
-              on:noteClick={handleNoteClick}
+              openNote={handleNoteOpen}
             />
           {:else}
             <div class="typing-indicator">
@@ -398,12 +399,11 @@
 </div>
 
 <SlashCommands
-  {showSlashCommands}
   isOpen={showSlashCommands}
   query={slashCommandQuery}
   position={slashCommandPosition}
-  on:command={handleSlashCommand}
-  on:close={closeSlashCommands}
+  command={handleSlashCommand}
+  close={closeSlashCommands}
 />
 
 <style>

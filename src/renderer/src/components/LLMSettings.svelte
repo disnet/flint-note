@@ -3,21 +3,25 @@
   import { llmClient } from '../services/llmClient';
   import type { LLMConfig } from '../services/llmClient';
 
-  export let isOpen = false;
-  export let onClose: () => void;
+  interface Props {
+    isOpen: boolean;
+    onClose: () => void;
+  }
 
-  let config: LLMConfig = {
+  let { isOpen = false, onClose }: Props = $props();
+
+  let config: LLMConfig = $state({
     baseURL: 'http://localhost:1234/v1',
     apiKey: 'lm-studio',
     modelName: 'local-model',
     temperature: 0.7,
     maxTokens: 2048
-  };
+  });
 
-  let isConnected = false;
-  let isTestingConnection = false;
-  let isSaving = false;
-  let testResult = '';
+  let isConnected = $state(false);
+  let isTestingConnection = $state(false);
+  let isSaving = $state(false);
+  let testResult = $state('');
 
   const testConnection = async (): Promise<void> => {
     isTestingConnection = true;
@@ -25,7 +29,7 @@
 
     try {
       // Update config first
-      await llmClient.updateConfig(config);
+      await llmClient.updateConfig($state.snapshot(config));
 
       // Test connection
       const connected = await llmClient.testConnection();
@@ -38,13 +42,15 @@
       }
     } catch (error) {
       isConnected = false;
+      console.error(error);
       testResult = `Connection error: ${error.message}`;
     } finally {
       isTestingConnection = false;
     }
   };
 
-  const saveConfig = async (): Promise<void> => {
+  const saveConfig = async (e: Event): Promise<void> => {
+    e.preventDefault();
     isSaving = true;
 
     try {
@@ -95,16 +101,16 @@
 {#if isOpen}
   <div
     class="modal-overlay"
-    on:click={onClose}
-    on:keydown={handleKeyDown}
+    onclick={onClose}
+    onkeydown={handleKeyDown}
     role="dialog"
     aria-modal="true"
     tabindex="-1"
   >
-    <div class="modal-content" on:click|stopPropagation role="document">
+    <div class="modal-content" onclick={(e) => e.stopPropagation()} role="document">
       <div class="modal-header">
         <h2>LLM Settings</h2>
-        <button class="close-button" on:click={onClose} aria-label="Close settings">
+        <button class="close-button" onclick={onClose} aria-label="Close settings">
           <svg
             width="24"
             height="24"
@@ -129,13 +135,17 @@
             <span>{isConnected ? 'Connected' : 'Disconnected'}</span>
           </div>
           {#if testResult}
-            <div class="test-result" class:success={isConnected} class:error={!isConnected}>
+            <div
+              class="test-result"
+              class:success={isConnected}
+              class:error={!isConnected}
+            >
               {testResult}
             </div>
           {/if}
         </div>
 
-        <form class="settings-form" on:submit|preventDefault={saveConfig}>
+        <form class="settings-form" onsubmit={saveConfig}>
           <div class="form-group">
             <label for="baseURL">Base URL:</label>
             <input
@@ -203,7 +213,7 @@
             <button
               type="button"
               class="btn btn-secondary"
-              on:click={resetToDefaults}
+              onclick={resetToDefaults}
               disabled={isSaving || isTestingConnection}
             >
               Reset to Defaults
@@ -212,7 +222,7 @@
             <button
               type="button"
               class="btn btn-secondary"
-              on:click={testConnection}
+              onclick={testConnection}
               disabled={isTestingConnection || isSaving}
             >
               {isTestingConnection ? 'Testing...' : 'Test Connection'}

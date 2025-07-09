@@ -1,17 +1,13 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
   import type { NoteReference } from '../types/chat';
 
-  export let note: NoteReference;
-  export let inline: boolean = false;
+  interface Props {
+    note: NoteReference;
+    inline: boolean;
+    onclick: (evt: MouseEvent) => void;
+  }
 
-  const dispatch = createEventDispatcher<{
-    click: { note: NoteReference };
-  }>();
-
-  const handleClick = (): void => {
-    dispatch('click', { note });
-  };
+  let { note, inline = false, onclick }: Props = $props();
 
   const getNoteIcon = (type?: string): string => {
     switch (type) {
@@ -51,7 +47,7 @@
 <button
   class="note-reference"
   class:inline
-  on:click={handleClick}
+  {onclick}
   style="--note-color: {getNoteTypeColor(note.type)}"
   title={note.path ? `${note.title} (${note.path})` : note.title}
 >
