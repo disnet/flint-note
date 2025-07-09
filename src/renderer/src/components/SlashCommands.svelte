@@ -1,12 +1,22 @@
 <script lang="ts">
   import type { SlashCommand } from '../types/chat';
 
-  export let isOpen: boolean = false;
-  export let query: string = '';
-  export let position: { x: number; y: number } = { x: 0, y: 0 };
-  export let maxHeight: number = 400;
-  export let close: () => void;
-  export let command: (command: SlashCommand, args: string[]) => void;
+  interface Props {
+    isOpen: boolean;
+    query: string;
+    position: { x: number; y: number };
+    maxHeight: number;
+    close: () => void;
+    command: (command: SlashCommand, args: string[]) => void;
+  }
+  let {
+    isOpen = false,
+    query = '',
+    position = { x: 0, y: 0 },
+    maxHeight = 400,
+    close,
+    command
+  }: Props = $props();
 
   let commandsContainer: HTMLElement;
   let selectedIndex = 0;
@@ -82,10 +92,12 @@
   ];
 
   // Filter commands based on query
-  $: filteredCommands = commands.filter(
-    (cmd) =>
-      cmd.name.toLowerCase().includes(query.toLowerCase()) ||
-      cmd.description.toLowerCase().includes(query.toLowerCase())
+  let filteredCommands = $derived(
+    commands.filter(
+      (cmd) =>
+        cmd.name.toLowerCase().includes(query.toLowerCase()) ||
+        cmd.description.toLowerCase().includes(query.toLowerCase())
+    )
   );
 
   const handleKeyDown = (event: KeyboardEvent): void => {
