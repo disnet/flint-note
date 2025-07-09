@@ -37,8 +37,20 @@ interface LLMAPI {
   removeStreamListeners: () => void;
 }
 
+interface MCPAPI {
+  getTools: () => Promise<unknown>;
+  isEnabled: () => Promise<unknown>;
+  setEnabled: (enabled: boolean) => Promise<unknown>;
+  getServers: () => Promise<unknown>;
+  addServer: (server: unknown) => Promise<unknown>;
+  updateServer: (serverId: string, updates: unknown) => Promise<unknown>;
+  removeServer: (serverId: string) => Promise<unknown>;
+  testServer: (server: unknown) => Promise<unknown>;
+}
+
 interface API {
   llm: LLMAPI;
+  mcp: MCPAPI;
 }
 
 declare global {

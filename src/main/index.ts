@@ -189,6 +189,72 @@ app.whenReady().then(() => {
     }
   });
 
+  // MCP Server management handlers
+  ipcMain.handle('mcp:get-servers', async () => {
+    try {
+      const servers = await llmService.getMCPServers();
+      return { success: true, servers };
+    } catch (error) {
+      console.error('Error getting MCP servers:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  });
+
+  ipcMain.handle('mcp:add-server', async (_, server) => {
+    try {
+      const newServer = await llmService.addMCPServer(server);
+      return { success: true, server: newServer };
+    } catch (error) {
+      console.error('Error adding MCP server:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  });
+
+  ipcMain.handle('mcp:update-server', async (_, serverId, updates) => {
+    try {
+      const updatedServer = await llmService.updateMCPServer(serverId, updates);
+      return { success: true, server: updatedServer };
+    } catch (error) {
+      console.error('Error updating MCP server:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  });
+
+  ipcMain.handle('mcp:remove-server', async (_, serverId) => {
+    try {
+      const removed = await llmService.removeMCPServer(serverId);
+      return { success: true, removed };
+    } catch (error) {
+      console.error('Error removing MCP server:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  });
+
+  ipcMain.handle('mcp:test-server', async (_, server) => {
+    try {
+      const result = await llmService.testMCPServer(server);
+      return { success: true, result };
+    } catch (error) {
+      console.error('Error testing MCP server:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  });
+
   createWindow();
 
   app.on('activate', function () {

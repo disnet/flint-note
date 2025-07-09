@@ -1,0 +1,119 @@
+{
+  "servers": [
+    {
+      "id": "weather-example",
+      "name": "Weather Service",
+      "command": "python",
+      "args": ["-m", "weather_mcp_server", "--api-key", "${WEATHER_API_KEY}"],
+      "enabled": true,
+      "description": "Provides current weather conditions and forecasts for locations worldwide",
+      "env": {
+        "WEATHER_API_KEY": "your-api-key-here"
+      }
+    },
+    {
+      "id": "filesystem-example",
+      "name": "File System Tools",
+      "command": "node",
+      "args": ["/path/to/filesystem-mcp-server.js", "--workspace", "/home/user/projects"],
+      "enabled": false,
+      "description": "File system operations including read, write, search, and directory listing",
+      "env": {
+        "NODE_ENV": "production"
+      }
+    },
+    {
+      "id": "database-example",
+      "name": "Database Query Tools",
+      "command": "python",
+      "args": ["-m", "database_mcp_server", "--config", "/etc/db-config.json"],
+      "enabled": false,
+      "description": "Execute SQL queries and database operations safely",
+      "env": {
+        "DB_CONNECTION_STRING": "postgresql://user:pass@localhost:5432/mydb"
+      }
+    },
+    {
+      "id": "web-scraper-example",
+      "name": "Web Scraper",
+      "command": "/usr/local/bin/web-scraper-mcp",
+      "args": ["--rate-limit", "1000", "--timeout", "30"],
+      "enabled": false,
+      "description": "Web scraping and content extraction from URLs",
+      "env": {
+        "USER_AGENT": "FlintBot/1.0",
+        "MAX_PAGES": "100"
+      }
+    },
+    {
+      "id": "code-analysis-example",
+      "name": "Code Analysis Tools",
+      "command": "cargo",
+      "args": ["run", "--release", "--bin", "code-analysis-mcp"],
+      "enabled": false,
+      "description": "Static code analysis, linting, and code quality metrics",
+      "env": {
+        "RUST_LOG": "info"
+      }
+    },
+    {
+      "id": "git-tools-example",
+      "name": "Git Integration",
+      "command": "python",
+      "args": ["-m", "git_mcp_server", "--repo-path", "/home/user/repos"],
+      "enabled": false,
+      "description": "Git repository operations including status, commits, and history",
+      "env": {
+        "GIT_AUTHOR_NAME": "Flint Assistant",
+        "GIT_AUTHOR_EMAIL": "flint@example.com"
+      }
+    },
+    {
+      "id": "system-monitor-example",
+      "name": "System Monitor",
+      "command": "./system-monitor-mcp",
+      "args": ["--interval", "5", "--metrics", "cpu,memory,disk"],
+      "enabled": false,
+      "description": "System resource monitoring and performance metrics",
+      "env": {
+        "MONITOR_INTERVAL": "5000"
+      }
+    },
+    {
+      "id": "api-client-example",
+      "name": "REST API Client",
+      "command": "node",
+      "args": ["api-client-mcp.js", "--base-url", "https://api.example.com"],
+      "enabled": false,
+      "description": "Generic REST API client for making HTTP requests",
+      "env": {
+        "API_BASE_URL": "https://api.example.com",
+        "API_KEY": "your-api-key",
+        "REQUEST_TIMEOUT": "30000"
+      }
+    },
+    {
+      "id": "calculator-example",
+      "name": "Advanced Calculator",
+      "command": "python",
+      "args": ["-m", "calculator_mcp_server", "--precision", "10"],
+      "enabled": true,
+      "description": "Mathematical calculations, unit conversions, and scientific functions",
+      "env": {
+        "DECIMAL_PRECISION": "10"
+      }
+    },
+    {
+      "id": "text-processing-example",
+      "name": "Text Processing Tools",
+      "command": "python",
+      "args": ["-m", "text_mcp_server", "--language", "en"],
+      "enabled": false,
+      "description": "Text analysis, transformation, and natural language processing",
+      "env": {
+        "DEFAULT_LANGUAGE": "en",
+        "SPACY_MODEL": "en_core_web_sm"
+      }
+    }
+  ]
+}

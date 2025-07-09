@@ -53,9 +53,24 @@ export interface MCPToolResult {
   isError?: boolean;
 }
 
+export interface MCPServer {
+  id: string;
+  name: string;
+  command: string;
+  args: string[];
+  enabled: boolean;
+  description?: string;
+  env?: Record<string, string>;
+}
+
+export interface MCPServerConfig {
+  servers: MCPServer[];
+}
+
 export interface MCPResponse {
   success: boolean;
   tools?: MCPTool[];
   enabled?: boolean;
+  servers?: MCPServer[];
   error?: string;
 }

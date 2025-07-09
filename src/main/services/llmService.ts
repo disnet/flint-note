@@ -7,7 +7,13 @@ import {
 } from '@langchain/core/messages';
 import { BaseMessage } from '@langchain/core/messages';
 import { mcpService } from './mcpService';
-import type { LLMMessage, LLMConfig, MCPTool, MCPToolCall } from '../../shared/types';
+import type {
+  LLMMessage,
+  LLMConfig,
+  MCPTool,
+  MCPToolCall,
+  MCPServer
+} from '../../shared/types';
 
 export class LLMService {
   private llm: ChatOpenAI | any;
@@ -452,10 +458,94 @@ Error: ${error instanceof Error ? error.message : 'Unknown error'}
   isMCPEnabled(): boolean {
     return this.mcpToolsEnabled && mcpService.isReady();
   }
+
+  // MCP Server management methods
+  async getMCPServers(): Promise<MCPServer[]> {
+    return mcpService.getServers();
+  }
+
+  async addMCPServer(server: Omit<MCPServer, 'id'>): Promise<MCPServer> {
+    const newServer = await mcpService.addServer(server);
+
+    // Update LLM with new tools if MCP is enabled
+    if (this.mcpToolsEnabled) {
+      await this.updateLLMWithTools();
+    }
+
+    return newServer;
+  }
+
+  async updateMCPServer(
+    serverId: string,
+    updates: Partial<MCPServer>
+  ): Promise<MCPServer | null> {
+    const updatedServer = await mcpService.updateServer(serverId, updates);
+
+    // Update LLM with new tools if MCP is enabled
+    if (this.mcpToolsEnabled) {
+      await this.updateLLMWithTools();
+    }
+
+    return updatedServer;
+  }
+
+  async removeMCPServer(serverId: string): Promise<boolean> {
+    const removed = await mcpService.removeServer(serverId);
+
+    // Update LLM with new tools if MCP is enabled
+    if (this.mcpToolsEnabled) {
+      await this.updateLLMWithTools();
+    }
+
+    return removed;
+  }
+
+  async testMCPServer(
+    server: Omit<MCPServer, 'id'>
+  ): Promise<{ success: boolean; error?: string; toolCount?: number }> {
+    try {
+      // Import child_process to test the server
+      const { spawn } = await import('child_process');
+
+      // Try to spawn the process
+      const testProcess = spawn(server.command, server.args, {
+        stdio: ['pipe', 'pipe', 'pipe'],
+        env: { ...process.env, ...server.env }
+      });
+
+      // Wait for the process to either error or be ready
+      const result = await new Promise<{ success: boolean; error?: string }>(
+        (resolve) => {
+          const timeout = setTimeout(() => {
+            testProcess.kill();
+            resolve({ success: false, error: 'Connection timeout' });
+          }, 5000);
+
+          testProcess.on('error', (error) => {
+            clearTimeout(timeout);
+            resolve({ success: false, error: error.message });
+          });
+
+          testProcess.on('spawn', () => {
+            clearTimeout(timeout);
+            testProcess.kill();
+            resolve({ success: true });
+          });
+        }
+      );
+
+      return { ...result, toolCount: result.success ? 1 : 0 };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  }
 }
 
 // Export types for use in other modules
-export type { LLMMessage, LLMConfig };
+export type { LLMMessage, LLMConfig, MCPServer };
 
 // Default system prompt for Flint
 export const FLINT_SYSTEM_PROMPT = `You are Flint, an AI assistant designed to help with note-taking and knowledge management. You are integrated into a chat-first interface where users can:

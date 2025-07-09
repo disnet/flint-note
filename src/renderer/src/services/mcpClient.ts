@@ -1,4 +1,4 @@
-import type { MCPTool, MCPResponse } from '../../../shared/types';
+import type { MCPTool, MCPResponse, MCPServer } from '../../../shared/types';
 
 export class MCPClient {
   private api: typeof window.api.mcp;
@@ -67,6 +67,108 @@ export class MCPClient {
     return tools.some(
       (tool) => tool.name === 'get_weather' || tool.name === 'get_forecast'
     );
+  }
+
+  async getServers(): Promise<MCPServer[]> {
+    try {
+      const response = (await this.api.getServers()) as MCPResponse;
+
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to get MCP servers');
+      }
+
+      return response.servers || [];
+    } catch (error) {
+      console.error('Error getting MCP servers:', error);
+      return [];
+    }
+  }
+
+  async addServer(server: Omit<MCPServer, 'id'>): Promise<MCPServer> {
+    try {
+      const response = (await this.api.addServer(server)) as {
+        success: boolean;
+        server?: MCPServer;
+        error?: string;
+      };
+
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to add MCP server');
+      }
+
+      return response.server!;
+    } catch (error) {
+      console.error('Error adding MCP server:', error);
+      throw error;
+    }
+  }
+
+  async updateServer(serverId: string, updates: Partial<MCPServer>): Promise<MCPServer> {
+    try {
+      const response = (await this.api.updateServer(serverId, updates)) as {
+        success: boolean;
+        server?: MCPServer;
+        error?: string;
+      };
+
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to update MCP server');
+      }
+
+      return response.server!;
+    } catch (error) {
+      console.error('Error updating MCP server:', error);
+      throw error;
+    }
+  }
+
+  async removeServer(serverId: string): Promise<boolean> {
+    try {
+      const response = (await this.api.removeServer(serverId)) as {
+        success: boolean;
+        removed?: boolean;
+        error?: string;
+      };
+
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to remove MCP server');
+      }
+
+      return response.removed || false;
+    } catch (error) {
+      console.error('Error removing MCP server:', error);
+      throw error;
+    }
+  }
+
+  async testServer(server: Omit<MCPServer, 'id'>): Promise<{
+    success: boolean;
+    error?: string;
+    toolCount?: number;
+  }> {
+    try {
+      const response = (await this.api.testServer(server)) as {
+        success: boolean;
+        result?: {
+          success: boolean;
+          error?: string;
+          toolCount?: number;
+        };
+        error?: string;
+      };
+
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to test MCP server');
+      }
+
+      return response.result!;
+    } catch (error) {
+      console.error('Error testing MCP server:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
   }
 }
 
