@@ -1,24 +1,15 @@
 <script lang="ts">
   import type { SlashCommand } from '../types/chat';
 
-  interface Props {
-    isOpen: boolean;
-    query: string;
-    position: { x: number; y: number };
-    close: () => void;
-    command: (command: SlashCommand, args: string[]) => void;
-  }
+  export let isOpen: boolean = false;
+  export let query: string = '';
+  export let position: { x: number; y: number } = { x: 0, y: 0 };
+  export let maxHeight: number = 400;
+  export let close: () => void;
+  export let command: (command: SlashCommand, args: string[]) => void;
 
-  let {
-    isOpen = false,
-    query = '',
-    position = { x: 0, y: 0 },
-    close,
-    command
-  }: Props = $props();
-
-  let commandsContainer: HTMLElement = $state();
-  let selectedIndex = $state(0);
+  let commandsContainer: HTMLElement;
+  let selectedIndex = 0;
 
   // Mock commands for now
   const commands: SlashCommand[] = [
@@ -91,12 +82,10 @@
   ];
 
   // Filter commands based on query
-  let filteredCommands = $derived(
-    commands.filter(
-      (cmd) =>
-        cmd.name.toLowerCase().includes(query.toLowerCase()) ||
-        cmd.description.toLowerCase().includes(query.toLowerCase())
-    )
+  $: filteredCommands = commands.filter(
+    (cmd) =>
+      cmd.name.toLowerCase().includes(query.toLowerCase()) ||
+      cmd.description.toLowerCase().includes(query.toLowerCase())
   );
 
   const handleKeyDown = (event: KeyboardEvent): void => {
@@ -192,7 +181,7 @@
 {#if isOpen}
   <div
     class="command-palette"
-    style="left: {position.x}px; top: {position.y}px;"
+    style="left: {position.x}px; top: {position.y}px; max-height: {maxHeight}px;"
     role="listbox"
     aria-label="Command palette"
   >
@@ -282,7 +271,7 @@
   }
 
   .commands-container {
-    max-height: 300px;
+    max-height: calc(100% - 100px); /* Account for header and footer */
     overflow-y: auto;
   }
 

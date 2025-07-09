@@ -1,13 +1,13 @@
 <script lang="ts">
-  import { onMount, onDestroy, afterUpdate } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import type { Message, SlashCommand, NoteReference } from '../types/chat';
   import SlashCommands from './SlashCommands.svelte';
   import MessageContent from './MessageContent.svelte';
   import { llmClient } from '../services/llmClient';
   import { mcpClient } from '../services/mcpClient';
 
-  // Initial welcome message
-  let messages: Message[] = [
+  // Initial welcome message - use regular let for now
+  let messages: Message[] = $state([
     {
       id: '1',
       type: 'system',
@@ -15,20 +15,21 @@
         "Welcome to Flint! I'm your AI assistant powered by LM Studio. How can I help you today?",
       timestamp: new Date()
     }
-  ];
+  ]);
 
-  let inputValue = '';
+  let inputValue = $state('');
   let chatContainer: HTMLElement;
-  let isTyping = false;
-  let showSlashCommands = false;
-  let slashCommandQuery = '';
-  let slashCommandPosition = { x: 0, y: 0 };
+  let isTyping = $state(false);
+  let showSlashCommands = $state(false);
+  let slashCommandQuery = $state('');
+  let slashCommandPosition = $state({ x: 0, y: 0 });
+  let slashCommandMaxHeight = $state(400);
   let inputElement: HTMLTextAreaElement;
-  let isLLMAvailable = false;
-  let streamingResponse = '';
-  let isStreaming = false;
-  let mcpEnabled = false;
-  let mcpTools = [];
+  let isLLMAvailable = $state(false);
+  let streamingResponse = $state('');
+  let isStreaming = $state(false);
+  let mcpEnabled = $state(false);
+  let mcpTools: any[] = [];
 
   const handleSendMessage = async (): Promise<void> => {
     if (!inputValue.trim()) return;
@@ -171,10 +172,51 @@
 
   const updateSlashCommandPosition = (textarea: HTMLTextAreaElement): void => {
     const rect = textarea.getBoundingClientRect();
-    slashCommandPosition = {
-      x: rect.left,
-      y: rect.top - 10
-    };
+    const viewportHeight = window.innerHeight;
+
+    // Calculate available space above and below the textarea
+    const spaceAbove = rect.top;
+    const spaceBelow = viewportHeight - rect.bottom;
+
+    // Preferred command palette height (from CSS max-height)
+    const preferredHeight = 400;
+    const minHeight = 200;
+    const padding = 20;
+
+    // Check if we have enough space above for the full palette
+    if (spaceAbove >= preferredHeight + padding) {
+      // Position above with full height
+      slashCommandPosition = {
+        x: rect.left,
+        y: rect.top - preferredHeight - padding
+      };
+      slashCommandMaxHeight = preferredHeight;
+    } else if (spaceAbove >= minHeight + padding) {
+      // Position above with reduced height
+      const availableHeight = spaceAbove - padding;
+      slashCommandPosition = {
+        x: rect.left,
+        y: padding
+      };
+      slashCommandMaxHeight = availableHeight;
+    } else {
+      // Not enough space above, position below if there's more space there
+      if (spaceBelow > spaceAbove) {
+        slashCommandPosition = {
+          x: rect.left,
+          y: rect.bottom + 10
+        };
+        slashCommandMaxHeight = Math.min(spaceBelow - 20, preferredHeight);
+      } else {
+        // Position at top of viewport with available height
+        const availableHeight = spaceAbove - padding;
+        slashCommandPosition = {
+          x: rect.left,
+          y: padding
+        };
+        slashCommandMaxHeight = Math.max(availableHeight, minHeight);
+      }
+    }
   };
 
   const handleSlashCommand = (command: SlashCommand, args: string[]): void => {
@@ -284,7 +326,7 @@
   let previousMessagesLength = 0;
   let previousStreamingState = false;
 
-  afterUpdate(() => {
+  $effect(() => {
     if (chatContainer) {
       const messagesChanged = messages.length !== previousMessagesLength;
       const streamingChanged = isStreaming !== previousStreamingState;
@@ -329,6 +371,22 @@
       console.error('Error checking MCP status:', error);
       mcpEnabled = false;
     }
+
+    // Add window resize listener to update slash command position
+    const handleResize = () => {
+      if (showSlashCommands && inputElement) {
+        updateSlashCommandPosition(inputElement);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    // Cleanup on unmount
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+
+
   });
 
   onDestroy(() => {
@@ -432,6 +490,7 @@
   isOpen={showSlashCommands}
   query={slashCommandQuery}
   position={slashCommandPosition}
+  maxHeight={slashCommandMaxHeight}
   command={handleSlashCommand}
   close={closeSlashCommands}
 />
