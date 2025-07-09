@@ -70,7 +70,7 @@ export class LLMService {
         maxTokens: this.config.maxTokens
       });
 
-      this.llm = baseLLM.bind({
+      this.llm = baseLLM.withConfig({
         tools: tools
       }) as ChatOpenAI;
     } catch (error) {
@@ -136,6 +136,8 @@ export class LLMService {
 
       // Handle tool calls after streaming is complete
       if (hasToolCalls && toolCalls.length > 0) {
+        console.log(responseMessage);
+        console.log(langchainMessages);
         const toolResponse = await this.handleToolCalls(
           responseMessage,
           langchainMessages
@@ -174,7 +176,10 @@ export class LLMService {
         try {
           const mcpToolCall: MCPToolCall = {
             name: toolCall.name,
-            arguments: JSON.parse(toolCall.args)
+            arguments:
+              typeof toolCall.args === 'string'
+                ? JSON.parse(toolCall.args)
+                : toolCall.args
           };
 
           const toolResult = await mcpService.callTool(mcpToolCall);
@@ -220,7 +225,10 @@ export class LLMService {
               content: msg.content,
               tool_calls: msg.tool_calls.map((tc) => ({
                 name: tc.function.name,
-                args: JSON.parse(tc.function.arguments),
+                args:
+                  typeof tc.function.arguments === 'string'
+                    ? JSON.parse(tc.function.arguments)
+                    : tc.function.arguments,
                 id: tc.id
               }))
             });
