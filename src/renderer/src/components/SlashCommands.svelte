@@ -84,7 +84,7 @@
     selectedIndex = Math.min(selectedIndex, filteredCommands.length - 1);
   }
 
-  const handleKeyDown = (event: KeyboardEvent) => {
+  const handleKeyDown = (event: KeyboardEvent): void => {
     if (!isOpen) return;
 
     switch (event.key) {
@@ -111,7 +111,7 @@
     }
   };
 
-  const scrollToSelected = () => {
+  const scrollToSelected = (): void => {
     if (commandsContainer) {
       const selectedElement = commandsContainer.children[selectedIndex] as HTMLElement;
       if (selectedElement) {
@@ -120,13 +120,13 @@
     }
   };
 
-  const executeCommand = (command: SlashCommand) => {
+  const executeCommand = (command: SlashCommand): void => {
     // Parse arguments from query (everything after command name)
     const args = query.split(' ').slice(1);
     dispatch('command', { command, args });
   };
 
-  const handleCommandClick = (command: SlashCommand, index: number) => {
+  const handleCommandClick = (command: SlashCommand, index: number): void => {
     selectedIndex = index;
     executeCommand(command);
   };
@@ -162,7 +162,7 @@
   };
 
   // Handle click outside to close
-  const handleClickOutside = (event: MouseEvent) => {
+  const handleClickOutside = (event: MouseEvent): void => {
     if (!isOpen) return;
 
     const target = event.target as HTMLElement;
@@ -199,7 +199,7 @@
 
     {#if filteredCommands.length > 0}
       <div class="commands-container" bind:this={commandsContainer}>
-        {#each filteredCommands as command, index}
+        {#each filteredCommands as command, index (command.name)}
           <button
             class="command-item"
             class:selected={index === selectedIndex}

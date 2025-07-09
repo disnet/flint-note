@@ -13,17 +13,67 @@
 
   $: messageParts = parseMessageContent(content);
 
-  const handleNoteClick = (event: CustomEvent<{ note: NoteReference }>) => {
+  const handleNoteClick = (event: CustomEvent<{ note: NoteReference }>): void => {
     dispatch('noteClick', event.detail);
   };
 
-  const formatText = (text: string): string => {
-    // Basic markdown-style formatting
-    return text
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      .replace(/`(.*?)`/g, '<code>$1</code>')
-      .replace(/\n/g, '<br>');
+  const formatText = (text: string): { type: string; content: string }[] => {
+    // Parse text into segments for safe rendering
+    const segments: { type: string; content: string }[] = [];
+
+    // Simple regex patterns for basic markdown
+    const patterns = [
+      { regex: /\*\*(.*?)\*\*/g, type: 'bold' },
+      { regex: /\*(.*?)\*/g, type: 'italic' },
+      { regex: /`(.*?)`/g, type: 'code' }
+    ];
+
+    const lines = text.split('\n');
+
+    for (let i = 0; i < lines.length; i++) {
+      if (i > 0) {
+        segments.push({ type: 'br', content: '' });
+      }
+
+      let line = lines[i];
+      let lastIndex = 0;
+      const matches: { start: number; end: number; type: string; content: string }[] = [];
+
+      // Find all matches in this line
+      for (const pattern of patterns) {
+        let match;
+        while ((match = pattern.regex.exec(line)) !== null) {
+          matches.push({
+            start: match.index,
+            end: match.index + match[0].length,
+            type: pattern.type,
+            content: match[1]
+          });
+        }
+      }
+
+      // Sort matches by position
+      matches.sort((a, b) => a.start - b.start);
+
+      // Process matches
+      for (const match of matches) {
+        // Add text before match
+        if (match.start > lastIndex) {
+          segments.push({ type: 'text', content: line.slice(lastIndex, match.start) });
+        }
+
+        // Add formatted match
+        segments.push({ type: match.type, content: match.content });
+        lastIndex = match.end;
+      }
+
+      // Add remaining text
+      if (lastIndex < line.length) {
+        segments.push({ type: 'text', content: line.slice(lastIndex) });
+      }
+    }
+
+    return segments;
   };
 </script>
 
@@ -32,9 +82,21 @@
   class:user={messageType === 'user'}
   class:system={messageType === 'system'}
 >
-  {#each messageParts as part}
+  {#each messageParts as part, index (index)}
     {#if part.type === 'text'}
-      <span class="text-part">{@html formatText(part.content)}</span>
+      {#each formatText(part.content) as segment, segIndex (segIndex)}
+        {#if segment.type === 'text'}
+          <span class="text-part">{segment.content}</span>
+        {:else if segment.type === 'bold'}
+          <strong>{segment.content}</strong>
+        {:else if segment.type === 'italic'}
+          <em>{segment.content}</em>
+        {:else if segment.type === 'code'}
+          <code>{segment.content}</code>
+        {:else if segment.type === 'br'}
+          <br />
+        {/if}
+      {/each}
     {:else if part.type === 'note' && part.note}
       <NoteReferenceComponent note={part.note} inline={true} on:click={handleNoteClick} />
     {/if}

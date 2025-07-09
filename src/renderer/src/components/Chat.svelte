@@ -1,9 +1,8 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount, onDestroy, afterUpdate } from 'svelte';
   import type { Message, SlashCommand, NoteReference } from '../types/chat';
   import SlashCommands from './SlashCommands.svelte';
   import MessageContent from './MessageContent.svelte';
-  import { generateMockMessageWithNotes } from '../utils/messageParser';
   import { llmClient } from '../services/llmClient';
 
   // Initial welcome message
@@ -28,7 +27,7 @@
   let streamingResponse = '';
   let isStreaming = false;
 
-  const handleSendMessage = async () => {
+  const handleSendMessage = async (): Promise<void> => {
     if (!inputValue.trim()) return;
 
     const newMessage: Message = {
@@ -52,7 +51,7 @@
     await generateLLMResponse(userInput);
   };
 
-  const generateLLMResponse = async (userInput: string) => {
+  const generateLLMResponse = async (userInput: string): Promise<void> => {
     if (!isLLMAvailable) {
       // Fallback to mock response if LLM is not available
       const fallbackResponse: Message = {
@@ -122,7 +121,7 @@
     }
   };
 
-  const handleKeyDown = (event: KeyboardEvent) => {
+  const handleKeyDown = (event: KeyboardEvent): void => {
     if (showSlashCommands) {
       // Let SlashCommands component handle navigation
       return;
@@ -134,7 +133,7 @@
     }
   };
 
-  const handleInput = (event: Event) => {
+  const handleInput = (event: Event): void => {
     const target = event.target as HTMLTextAreaElement;
     inputValue = target.value;
 
@@ -166,7 +165,7 @@
     showSlashCommands = false;
   };
 
-  const updateSlashCommandPosition = (textarea: HTMLTextAreaElement) => {
+  const updateSlashCommandPosition = (textarea: HTMLTextAreaElement): void => {
     const rect = textarea.getBoundingClientRect();
     slashCommandPosition = {
       x: rect.left,
@@ -174,7 +173,9 @@
     };
   };
 
-  const handleSlashCommand = (event: CustomEvent<{ command: SlashCommand; args: string[] }>) => {
+  const handleSlashCommand = (
+    event: CustomEvent<{ command: SlashCommand; args: string[] }>
+  ): void => {
     const { command, args } = event.detail;
 
     // Remove the slash command from input
@@ -188,7 +189,7 @@
     showSlashCommands = false;
   };
 
-  const executeSlashCommand = async (command: SlashCommand, args: string[]) => {
+  const executeSlashCommand = async (command: SlashCommand, args: string[]): Promise<void> => {
     // Create a system message showing the command execution
     const commandMessage: Message = {
       id: Date.now().toString(),
@@ -251,11 +252,11 @@
     }
   };
 
-  const closeSlashCommands = () => {
+  const closeSlashCommands = (): void => {
     showSlashCommands = false;
   };
 
-  const handleNoteClick = (event: CustomEvent<{ note: NoteReference }>) => {
+  const handleNoteClick = (event: CustomEvent<{ note: NoteReference }>): void => {
     const { note } = event.detail;
 
     // Create a system message showing the note click
@@ -272,19 +273,25 @@
     console.log('Opening note:', note);
   };
 
-  // Auto-scroll to bottom when new messages arrive
-  $: if (messages.length && chatContainer) {
-    setTimeout(() => {
-      chatContainer.scrollTop = chatContainer.scrollHeight;
-    }, 100);
-  }
+  // Auto-scroll to bottom when messages or streaming state changes
+  let previousMessagesLength = 0;
+  let previousStreamingState = false;
 
-  // Auto-scroll when streaming
-  $: if (isStreaming && chatContainer) {
-    setTimeout(() => {
-      chatContainer.scrollTop = chatContainer.scrollHeight;
-    }, 100);
-  }
+  afterUpdate(() => {
+    if (chatContainer) {
+      const messagesChanged = messages.length !== previousMessagesLength;
+      const streamingChanged = isStreaming !== previousStreamingState;
+
+      if (messagesChanged || streamingChanged) {
+        setTimeout(() => {
+          chatContainer.scrollTop = chatContainer.scrollHeight;
+        }, 100);
+      }
+
+      previousMessagesLength = messages.length;
+      previousStreamingState = isStreaming;
+    }
+  });
 
   onMount(async () => {
     // Focus input on mount

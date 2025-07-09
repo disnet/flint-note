@@ -3,14 +3,14 @@
 
 declare global {
   interface Window {
-    electron: any;
+    electron: unknown;
     api: {
       llm: {
-        generateResponse: (messages: any[]) => Promise<any>;
-        streamResponse: (messages: any[]) => Promise<any>;
-        testConnection: () => Promise<any>;
-        updateConfig: (config: any) => Promise<any>;
-        getConfig: () => Promise<any>;
+        generateResponse: (messages: unknown[]) => Promise<unknown>;
+        streamResponse: (messages: unknown[]) => Promise<unknown>;
+        testConnection: () => Promise<unknown>;
+        updateConfig: (config: unknown) => Promise<unknown>;
+        getConfig: () => Promise<unknown>;
         onStreamChunk: (callback: (chunk: string) => void) => void;
         onStreamEnd: (callback: (fullResponse: string) => void) => void;
         onStreamError: (callback: (error: string) => void) => void;

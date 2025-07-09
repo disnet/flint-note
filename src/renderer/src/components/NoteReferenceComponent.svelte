@@ -9,7 +9,7 @@
     click: { note: NoteReference };
   }>();
 
-  const handleClick = () => {
+  const handleClick = (): void => {
     dispatch('click', { note });
   };
 

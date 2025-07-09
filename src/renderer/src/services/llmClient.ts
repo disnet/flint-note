@@ -26,10 +26,10 @@ export interface LLMConnectionTest {
 }
 
 export class LLMClient {
-  private api: any;
+  private api: typeof window.api.llm;
 
   constructor() {
-    this.api = (window as any).api?.llm;
+    this.api = window.api?.llm;
     if (!this.api) {
       throw new Error('LLM API not available. Make sure the preload script is loaded.');
     }
@@ -93,7 +93,8 @@ export class LLMClient {
   }
 
   async getConfig(): Promise<LLMConfig> {
-    const response: { success: boolean; config?: LLMConfig; error?: string } = await this.api.getConfig();
+    const response: { success: boolean; config?: LLMConfig; error?: string } =
+      await this.api.getConfig();
 
     if (!response.success) {
       throw new Error(response.error || 'Failed to get config');
@@ -103,7 +104,7 @@ export class LLMClient {
   }
 
   private convertToLLMMessages(messages: Message[]): LLMMessage[] {
-    return messages.map((msg) => {
+    return messages.map((msg): LLMMessage => {
       let role: 'system' | 'user' | 'assistant';
 
       switch (msg.type) {
@@ -130,7 +131,7 @@ export class LLMClient {
   // Helper method to create conversation history for context
   createConversationHistory(messages: Message[], maxMessages: number = 10): Message[] {
     // Filter out system messages for conversation context (they're handled separately)
-    const conversationMessages = messages.filter(msg => msg.type !== 'system');
+    const conversationMessages = messages.filter((msg) => msg.type !== 'system');
 
     // Take the last N messages to keep context manageable
     return conversationMessages.slice(-maxMessages);

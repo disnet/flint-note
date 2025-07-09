@@ -4,10 +4,11 @@ import { electronAPI } from '@electron-toolkit/preload';
 // Custom APIs for renderer
 const api = {
   llm: {
-    generateResponse: (messages: any[]) => ipcRenderer.invoke('llm:generate-response', messages),
-    streamResponse: (messages: any[]) => ipcRenderer.invoke('llm:stream-response', messages),
+    generateResponse: (messages: unknown[]) =>
+      ipcRenderer.invoke('llm:generate-response', messages),
+    streamResponse: (messages: unknown[]) => ipcRenderer.invoke('llm:stream-response', messages),
     testConnection: () => ipcRenderer.invoke('llm:test-connection'),
-    updateConfig: (config: any) => ipcRenderer.invoke('llm:update-config', config),
+    updateConfig: (config: unknown) => ipcRenderer.invoke('llm:update-config', config),
     getConfig: () => ipcRenderer.invoke('llm:get-config'),
     onStreamChunk: (callback: (chunk: string) => void) => {
       ipcRenderer.on('llm:stream-chunk', (_, chunk) => callback(chunk));

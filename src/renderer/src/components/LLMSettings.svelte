@@ -19,7 +19,7 @@
   let isSaving = false;
   let testResult = '';
 
-  const testConnection = async () => {
+  const testConnection = async (): Promise<void> => {
     isTestingConnection = true;
     testResult = '';
 
@@ -44,7 +44,7 @@
     }
   };
 
-  const saveConfig = async () => {
+  const saveConfig = async (): Promise<void> => {
     isSaving = true;
 
     try {
@@ -62,7 +62,7 @@
     }
   };
 
-  const resetToDefaults = () => {
+  const resetToDefaults = (): void => {
     config = {
       baseURL: 'http://localhost:1234/v1',
       apiKey: 'lm-studio',
@@ -73,7 +73,7 @@
     testResult = '';
   };
 
-  const handleKeyDown = (event: KeyboardEvent) => {
+  const handleKeyDown = (event: KeyboardEvent): void => {
     if (event.key === 'Escape') {
       onClose();
     }

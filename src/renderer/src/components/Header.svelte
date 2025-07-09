@@ -7,22 +7,22 @@
   let isVaultDropdownOpen = false;
   let isSettingsOpen = false;
 
-  const handleVaultChange = (vault: string) => {
+  const handleVaultChange = (vault: string): void => {
     currentVault = vault;
     isVaultDropdownOpen = false;
     // TODO: Implement vault switching logic
     console.log('Switching to vault:', vault);
   };
 
-  const toggleVaultDropdown = () => {
+  const toggleVaultDropdown = (): void => {
     isVaultDropdownOpen = !isVaultDropdownOpen;
   };
 
-  const handleSettings = () => {
+  const handleSettings = (): void => {
     isSettingsOpen = true;
   };
 
-  const closeSettings = () => {
+  const closeSettings = (): void => {
     isSettingsOpen = false;
   };
 </script>
@@ -53,7 +53,7 @@
 
       {#if isVaultDropdownOpen}
         <div class="vault-dropdown">
-          {#each availableVaults as vault}
+          {#each availableVaults as vault (vault)}
             <button
               class="vault-option"
               class:active={vault === currentVault}
