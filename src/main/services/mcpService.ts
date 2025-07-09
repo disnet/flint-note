@@ -16,7 +16,9 @@ export class MCPService {
   private isConnected = false;
   private availableTools: MCPTool[] = [];
 
-  constructor() {}
+  constructor() {
+    // Initialize empty service
+  }
 
   async connect(): Promise<void> {
     try {
@@ -82,7 +84,7 @@ export class MCPService {
     return this.availableTools.some((tool) => tool.name === toolName);
   }
 
-  getToolSchema(toolName: string): any {
+  getToolSchema(toolName: string): Record<string, unknown> | undefined {
     const tool = this.availableTools.find((tool) => tool.name === toolName);
     return tool?.inputSchema;
   }
@@ -130,7 +132,7 @@ export class MCPService {
     ];
   }
 
-  private async mockGetWeather(args: Record<string, any>): Promise<MCPToolResult> {
+  private async mockGetWeather(args: Record<string, unknown>): Promise<MCPToolResult> {
     const location = args.location;
     if (!location) {
       throw new Error('Location is required');
@@ -163,9 +165,9 @@ export class MCPService {
     };
   }
 
-  private async mockGetForecast(args: Record<string, any>): Promise<MCPToolResult> {
+  private async mockGetForecast(args: Record<string, unknown>): Promise<MCPToolResult> {
     const location = args.location;
-    const days = args.days || 3;
+    const days = (args.days as number) || 3;
 
     if (!location) {
       throw new Error('Location is required');

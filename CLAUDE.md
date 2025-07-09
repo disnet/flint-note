@@ -22,6 +22,7 @@ This is a Svelte-based UI application for Flint.
 ## Coding guidlines
 
 - avoid creating summary documents for changes unless specifically requested
+- use svelte 5 syntax (e.g. `$state`, `$props`, `$derived`, `$derived.by`, `onclick` vs `on:click`, no `createEventDispatcher` etc.)
 
 ## Recent Changes
 

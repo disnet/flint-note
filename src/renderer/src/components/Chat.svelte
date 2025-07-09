@@ -29,7 +29,7 @@
   let streamingResponse = $state('');
   let isStreaming = $state(false);
   let mcpEnabled = $state(false);
-  let mcpTools: any[] = [];
+  let mcpTools: Array<{ name: string; description: string }> = [];
 
   const handleSendMessage = async (): Promise<void> => {
     if (!inputValue.trim()) return;
@@ -373,7 +373,7 @@
     }
 
     // Add window resize listener to update slash command position
-    const handleResize = () => {
+    const handleResize = (): void => {
       if (showSlashCommands && inputElement) {
         updateSlashCommandPosition(inputElement);
       }
@@ -385,8 +385,6 @@
     return () => {
       window.removeEventListener('resize', handleResize);
     };
-
-
   });
 
   onDestroy(() => {

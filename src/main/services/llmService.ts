@@ -10,7 +10,7 @@ import { mcpService } from './mcpService';
 import type { LLMMessage, LLMConfig, MCPTool, MCPToolCall } from '../../shared/types';
 
 export class LLMService {
-  private llm: any;
+  private llm: ChatOpenAI | any;
   private config: LLMConfig;
   private mcpToolsEnabled: boolean = true;
 
@@ -141,7 +141,7 @@ export class LLMService {
       let hasToolCalls = false;
       let toolCalls: any[] = [];
       let responseMessage: any = null;
-      let toolCallsAccumulator: any = {};
+      const toolCallsAccumulator: any = {};
 
       for await (const chunk of stream) {
         // Check if this chunk contains tool calls
@@ -258,7 +258,10 @@ export class LLMService {
         try {
           // Handle test tool directly
           if (toolCall.name === 'test_tool') {
-            const args = typeof toolCall.args === 'string' ? JSON.parse(toolCall.args) : toolCall.args;
+            const args =
+              typeof toolCall.args === 'string'
+                ? JSON.parse(toolCall.args)
+                : toolCall.args;
             const testResult = `Hello! Test tool called with message: "${args.message || 'No message provided'}"`;
 
             // Add debug info for test tool
@@ -340,7 +343,8 @@ Error: ${error instanceof Error ? error.message : 'Unknown error'}
       const finalResponse = await this.llm.invoke(conversationWithToolCall);
 
       // Include debug info in response
-      const debugSection = debugInfo.length > 0 ? `\n\n---\n\n${debugInfo.join('\n\n')}` : '';
+      const debugSection =
+        debugInfo.length > 0 ? `\n\n---\n\n${debugInfo.join('\n\n')}` : '';
 
       return (finalResponse.content as string) + debugSection;
     } catch (error) {

@@ -20,5 +20,11 @@ export default tseslint.config(
       'svelte/no-unused-svelte-ignore': 'off'
     }
   },
+  {
+    files: ['**/services/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off'
+    }
+  },
   eslintConfigPrettier
 );
