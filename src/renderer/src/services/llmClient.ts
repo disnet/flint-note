@@ -1,29 +1,10 @@
 import type { Message } from '../types/chat';
-
-export interface LLMMessage {
-  role: 'system' | 'user' | 'assistant';
-  content: string;
-}
-
-export interface LLMConfig {
-  baseURL: string;
-  apiKey: string;
-  modelName: string;
-  temperature: number;
-  maxTokens: number;
-}
-
-export interface LLMResponse {
-  success: boolean;
-  data?: string;
-  error?: string;
-}
-
-export interface LLMConnectionTest {
-  success: boolean;
-  connected: boolean;
-  error?: string;
-}
+import type {
+  LLMMessage,
+  LLMConfig,
+  LLMResponse,
+  LLMConnectionTest
+} from '../../../shared/types';
 
 export class LLMClient {
   private api: typeof window.api.llm;
@@ -37,7 +18,7 @@ export class LLMClient {
 
   async generateResponse(messages: Message[]): Promise<string> {
     const llmMessages = this.convertToLLMMessages(messages);
-    const response: LLMResponse = await this.api.generateResponse(llmMessages);
+    const response = (await this.api.generateResponse(llmMessages)) as LLMResponse;
 
     if (!response.success) {
       throw new Error(response.error || 'Failed to generate response');
@@ -60,7 +41,7 @@ export class LLMClient {
     this.api.onStreamError(onError);
 
     try {
-      const response: LLMResponse = await this.api.streamResponse(llmMessages);
+      const response = (await this.api.streamResponse(llmMessages)) as LLMResponse;
 
       if (!response.success) {
         onError(response.error || 'Failed to stream response');
@@ -76,7 +57,7 @@ export class LLMClient {
 
   async testConnection(): Promise<boolean> {
     try {
-      const result: LLMConnectionTest = await this.api.testConnection();
+      const result = (await this.api.testConnection()) as LLMConnectionTest;
       return result.success && result.connected;
     } catch (error) {
       console.error('Connection test failed:', error);
@@ -85,7 +66,7 @@ export class LLMClient {
   }
 
   async updateConfig(config: Partial<LLMConfig>): Promise<void> {
-    const response: LLMResponse = await this.api.updateConfig(config);
+    const response = (await this.api.updateConfig(config)) as LLMResponse;
 
     if (!response.success) {
       throw new Error(response.error || 'Failed to update config');
@@ -93,8 +74,11 @@ export class LLMClient {
   }
 
   async getConfig(): Promise<LLMConfig> {
-    const response: { success: boolean; config?: LLMConfig; error?: string } =
-      await this.api.getConfig();
+    const response = (await this.api.getConfig()) as {
+      success: boolean;
+      config?: LLMConfig;
+      error?: string;
+    };
 
     if (!response.success) {
       throw new Error(response.error || 'Failed to get config');
@@ -105,7 +89,7 @@ export class LLMClient {
 
   private convertToLLMMessages(messages: Message[]): LLMMessage[] {
     return messages.map((msg): LLMMessage => {
-      let role: 'system' | 'user' | 'assistant';
+      let role: 'system' | 'user' | 'assistant' | 'tool';
 
       switch (msg.type) {
         case 'system':
@@ -117,14 +101,29 @@ export class LLMClient {
         case 'agent':
           role = 'assistant';
           break;
+        case 'tool':
+          role = 'tool';
+          break;
         default:
           role = 'user'; // fallback
       }
 
-      return {
+      const llmMessage: LLMMessage = {
         role,
         content: msg.content
       };
+
+      // Add tool calls if present
+      if (msg.metadata?.toolCalls) {
+        llmMessage.tool_calls = msg.metadata.toolCalls;
+      }
+
+      // Add tool call ID if present
+      if (msg.metadata?.toolCallId) {
+        llmMessage.tool_call_id = msg.metadata.toolCallId;
+      }
+
+      return llmMessage;
     });
   }
 

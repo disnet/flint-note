@@ -4,6 +4,7 @@
   import SlashCommands from './SlashCommands.svelte';
   import MessageContent from './MessageContent.svelte';
   import { llmClient } from '../services/llmClient';
+  import { mcpClient } from '../services/mcpClient';
 
   // Initial welcome message
   let messages: Message[] = [
@@ -26,6 +27,8 @@
   let isLLMAvailable = false;
   let streamingResponse = '';
   let isStreaming = false;
+  let mcpEnabled = false;
+  let mcpTools = [];
 
   const handleSendMessage = async (): Promise<void> => {
     if (!inputValue.trim()) return;
@@ -244,8 +247,14 @@
       case 'brainstorm':
         return `Let's start brainstorming${argText ? ` about "${argText}"` : ''}! I'll help you generate ideas and organize them.\n\n**Initial thoughts:**\n• What are the core objectives?\n• Who are the stakeholders?\n• What constraints should we consider?\n\nI can create a [[Feature Ideas Brainstorm]] document to track our session.`;
 
+      case 'weather':
+        return `Getting current weather for ${argText || 'your location'}...\n\nI'll use the weather tool to get real-time weather information. Please wait a moment while I fetch the data.`;
+
+      case 'forecast':
+        return `Getting weather forecast for ${argText || 'your location'}...\n\nI'll use the forecast tool to get the upcoming weather predictions. Please wait a moment while I fetch the data.`;
+
       case 'help':
-        return `Here are the available commands:\n\n**Note Commands:**\n• \`/create [title]\` - Create a new note\n• \`/find [query]\` - Search for notes\n• \`/update [title]\` - Update existing note\n\n**Vault Commands:**\n• \`/switch-vault [name]\` - Switch vaults\n• \`/list-vaults\` - Show all vaults\n\n**Templates:**\n• \`/weekly-review\` - Generate weekly review\n• \`/brainstorm [topic]\` - Start brainstorming session\n\nType \`/\` to see all commands with autocomplete!`;
+        return `Here are the available commands:\n\n**Note Commands:**\n• \`/create [title]\` - Create a new note\n• \`/find [query]\` - Search for notes\n• \`/update [title]\` - Update existing note\n\n**Vault Commands:**\n• \`/switch-vault [name]\` - Switch vaults\n• \`/list-vaults\` - Show all vaults\n\n**Tool Commands:**\n• \`/weather [location]\` - Get current weather\n• \`/forecast [location]\` - Get weather forecast\n\n**Templates:**\n• \`/weekly-review\` - Generate weekly review\n• \`/brainstorm [topic]\` - Start brainstorming session\n\nType \`/\` to see all commands with autocomplete!`;
 
       default:
         return `Command /${command.name} executed successfully. This is a mock response for the ${command.category} command.`;
@@ -307,6 +316,19 @@
       console.error('Error testing LLM connection:', error);
       isLLMAvailable = false;
     }
+
+    // Check MCP status
+    try {
+      mcpEnabled = await mcpClient.isEnabled();
+      if (mcpEnabled) {
+        mcpTools = await mcpClient.getAvailableTools();
+        console.log('MCP tools available:', mcpTools.length);
+        console.log(mcpTools);
+      }
+    } catch (error) {
+      console.error('Error checking MCP status:', error);
+      mcpEnabled = false;
+    }
   });
 
   onDestroy(() => {
@@ -359,6 +381,14 @@
       </div>
     {/if}
   </div>
+
+  <!-- MCP Status Indicator -->
+  <!-- {#if mcpEnabled && mcpTools.length > 0}
+    <div class="mcp-status">
+      <span class="mcp-indicator">🔧</span>
+      <span class="mcp-text">MCP Tools: {mcpTools.length} available</span>
+    </div>
+  {/if} -->
 
   <div class="input-area">
     <div class="input-wrapper">

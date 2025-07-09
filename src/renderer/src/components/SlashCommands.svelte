@@ -59,6 +59,18 @@
       handler: async () => {}
     },
     {
+      name: 'weather',
+      description: 'Get current weather for a location',
+      category: 'tool',
+      handler: async () => {}
+    },
+    {
+      name: 'forecast',
+      description: 'Get weather forecast for a location',
+      category: 'tool',
+      handler: async () => {}
+    },
+    {
       name: 'weekly-review',
       description: 'Generate weekly review template',
       category: 'prompt',

@@ -3,6 +3,8 @@ import { join } from 'path';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import icon from '../../resources/icon.png?asset';
 import { LLMService, FLINT_SYSTEM_PROMPT, LLMMessage } from './services/llmService';
+// MCP service is initialized within LLMService
+// import { mcpService } from './services/mcpService';
 
 // Initialize LLM service
 const llmService = new LLMService();
@@ -10,7 +12,7 @@ const llmService = new LLMService();
 function createWindow(): void {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
-    width: 900,
+    width: 1500,
     height: 670,
     show: false,
     autoHideMenuBar: true,
@@ -22,6 +24,7 @@ function createWindow(): void {
       nodeIntegration: false
     }
   });
+  mainWindow.webContents.openDevTools();
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show();
@@ -139,6 +142,46 @@ app.whenReady().then(() => {
       return { success: true, config };
     } catch (error) {
       console.error('Error getting LLM config:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  });
+
+  // MCP IPC handlers
+  ipcMain.handle('mcp:get-tools', async () => {
+    try {
+      const tools = await llmService.getAvailableTools();
+      return { success: true, tools };
+    } catch (error) {
+      console.error('Error getting MCP tools:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  });
+
+  ipcMain.handle('mcp:is-enabled', async () => {
+    try {
+      const enabled = llmService.isMCPEnabled();
+      return { success: true, enabled };
+    } catch (error) {
+      console.error('Error checking MCP status:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  });
+
+  ipcMain.handle('mcp:set-enabled', async (_, enabled: boolean) => {
+    try {
+      llmService.setMCPToolsEnabled(enabled);
+      return { success: true };
+    } catch (error) {
+      console.error('Error setting MCP enabled state:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'

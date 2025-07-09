@@ -1,7 +1,9 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { llmClient } from '../services/llmClient';
-  import type { LLMConfig } from '../services/llmClient';
+  import { mcpClient } from '../services/mcpClient';
+  import type { LLMConfig } from '../../../shared/types';
+  import type { MCPTool } from '../types/chat';
 
   interface Props {
     isOpen: boolean;
@@ -22,6 +24,12 @@
   let isTestingConnection = $state(false);
   let isSaving = $state(false);
   let testResult = $state('');
+
+  // MCP settings
+  let mcpEnabled = $state(false);
+  let mcpTools: MCPTool[] = $state([]);
+  let isLoadingMCPTools = $state(false);
+  let mcpError = $state('');
 
   const testConnection = async (): Promise<void> => {
     isTestingConnection = true;
@@ -85,6 +93,38 @@
     }
   };
 
+  const toggleMCP = async (): Promise<void> => {
+    try {
+      mcpError = '';
+      await mcpClient.setEnabled(mcpEnabled);
+
+      if (mcpEnabled) {
+        await loadMCPTools();
+      } else {
+        mcpTools = [];
+      }
+    } catch (error) {
+      console.error('Error toggling MCP:', error);
+      mcpError = `Error toggling MCP: ${error.message}`;
+      mcpEnabled = !mcpEnabled; // Revert the toggle
+    }
+  };
+
+  const loadMCPTools = async (): Promise<void> => {
+    isLoadingMCPTools = true;
+    mcpError = '';
+
+    try {
+      mcpTools = await mcpClient.getAvailableTools();
+    } catch (error) {
+      console.error('Error loading MCP tools:', error);
+      mcpError = `Error loading MCP tools: ${error.message}`;
+      mcpTools = [];
+    } finally {
+      isLoadingMCPTools = false;
+    }
+  };
+
   onMount(async () => {
     // Load current config
     try {
@@ -92,6 +132,17 @@
       await testConnection();
     } catch (error) {
       console.error('Error loading LLM config:', error);
+    }
+
+    // Load MCP status and tools
+    try {
+      mcpEnabled = await mcpClient.isEnabled();
+      if (mcpEnabled) {
+        await loadMCPTools();
+      }
+    } catch (error) {
+      console.error('Error loading MCP status:', error);
+      mcpError = 'Error loading MCP status';
     }
   });
 </script>
@@ -248,6 +299,47 @@
           </ol>
         </div>
       </div>
+    </div>
+
+    <!-- MCP Tools Section -->
+    <div class="section">
+      <h3>MCP Tools</h3>
+      <div class="form-group">
+        <label class="checkbox-label">
+          <input type="checkbox" bind:checked={mcpEnabled} onchange={toggleMCP} />
+          Enable MCP Tools
+        </label>
+        <p class="help-text">
+          Model Context Protocol tools provide additional capabilities like weather
+          information.
+        </p>
+      </div>
+
+      {#if mcpError}
+        <div class="error-message">
+          {mcpError}
+        </div>
+      {/if}
+
+      {#if mcpEnabled}
+        <div class="form-group">
+          <label>Available Tools:</label>
+          {#if isLoadingMCPTools}
+            <div class="loading">Loading tools...</div>
+          {:else if mcpTools.length > 0}
+            <div class="tools-list">
+              {#each mcpTools as tool (tool.name)}
+                <div class="tool-item">
+                  <div class="tool-name">{tool.name}</div>
+                  <div class="tool-description">{tool.description}</div>
+                </div>
+              {/each}
+            </div>
+          {:else}
+            <div class="no-tools">No MCP tools available</div>
+          {/if}
+        </div>
+      {/if}
     </div>
   </div>
 {/if}
@@ -502,6 +594,59 @@
       color: #9ca3af;
     }
 
+    .checkbox-label {
+      background-color: #374151;
+      border-color: #4b5563;
+    }
+
+    .help-text {
+      color: #9ca3af;
+    }
+
+    .error-message {
+      background-color: #7f1d1d;
+      border-color: #dc2626;
+      color: #fca5a5;
+    }
+
+    .loading {
+      color: #9ca3af;
+    }
+
+    .tools-list {
+      background-color: #374151;
+      border-color: #4b5563;
+    }
+
+    .tool-item {
+      border-color: #4b5563;
+    }
+
+    .tool-name {
+      color: #f3f4f6;
+    }
+
+    .tool-description {
+      color: #9ca3af;
+    }
+
+    .no-tools {
+      color: #9ca3af;
+    }
+
+    .instructions {
+      background-color: #1e3a8a;
+      border-color: #1d4ed8;
+    }
+
+    .instructions h3 {
+      color: #93c5fd;
+    }
+
+    .instructions ol {
+      color: #93c5fd;
+    }
+
     .form-actions {
       border-color: #374151;
     }
@@ -528,5 +673,78 @@
     .instructions ol {
       color: #93c5fd;
     }
+  }
+
+  /* MCP-specific styles */
+  .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    cursor: pointer;
+  }
+
+  .checkbox-label input[type='checkbox'] {
+    width: auto;
+    margin: 0;
+  }
+
+  .help-text {
+    font-size: 0.875rem;
+    color: #6b7280;
+    margin-top: 0.25rem;
+  }
+
+  .error-message {
+    background-color: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #dc2626;
+    padding: 0.75rem;
+    border-radius: 6px;
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+  }
+
+  .loading {
+    color: #6b7280;
+    font-style: italic;
+    font-size: 0.875rem;
+  }
+
+  .tools-list {
+    background-color: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 1rem;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+
+  .tool-item {
+    border-bottom: 1px solid #e5e7eb;
+    padding: 0.75rem 0;
+  }
+
+  .tool-item:last-child {
+    border-bottom: none;
+  }
+
+  .tool-name {
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 0.25rem;
+  }
+
+  .tool-description {
+    font-size: 0.875rem;
+    color: #6b7280;
+    line-height: 1.4;
+  }
+
+  .no-tools {
+    color: #6b7280;
+    font-style: italic;
+    text-align: center;
+    padding: 1rem;
   }
 </style>

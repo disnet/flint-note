@@ -5,7 +5,7 @@
 
   interface Props {
     content: string;
-    messageType: 'user' | 'agent' | 'system';
+    messageType: 'user' | 'agent' | 'system' | 'tool';
     openNote: (note: NoteReference) => void;
   }
   let { content, messageType = 'agent', openNote }: Props = $props();

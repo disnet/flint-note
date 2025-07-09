@@ -1,12 +1,13 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { electronAPI } from '@electron-toolkit/preload';
+import type { LLMMessage } from '../shared/types';
 
 // Custom APIs for renderer
 const api = {
   llm: {
-    generateResponse: (messages: unknown[]) =>
+    generateResponse: (messages: LLMMessage[]) =>
       ipcRenderer.invoke('llm:generate-response', messages),
-    streamResponse: (messages: unknown[]) =>
+    streamResponse: (messages: LLMMessage[]) =>
       ipcRenderer.invoke('llm:stream-response', messages),
     testConnection: () => ipcRenderer.invoke('llm:test-connection'),
     updateConfig: (config: unknown) => ipcRenderer.invoke('llm:update-config', config),
@@ -25,6 +26,11 @@ const api = {
       ipcRenderer.removeAllListeners('llm:stream-end');
       ipcRenderer.removeAllListeners('llm:stream-error');
     }
+  },
+  mcp: {
+    getTools: () => ipcRenderer.invoke('mcp:get-tools'),
+    isEnabled: () => ipcRenderer.invoke('mcp:is-enabled'),
+    setEnabled: (enabled: boolean) => ipcRenderer.invoke('mcp:set-enabled', enabled)
   }
 };
 

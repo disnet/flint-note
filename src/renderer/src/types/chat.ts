@@ -1,11 +1,15 @@
+import type { ToolCall, MCPTool } from '../../../shared/types';
+
 export interface Message {
   id: string;
-  type: 'user' | 'agent' | 'system';
+  type: 'user' | 'agent' | 'system' | 'tool';
   content: string;
   timestamp: Date;
   metadata?: {
     noteReferences?: NoteReference[];
     error?: boolean;
+    toolCalls?: ToolCall[];
+    toolCallId?: string;
   };
 }
 
@@ -25,6 +29,9 @@ export interface ChatState {
 export interface SlashCommand {
   name: string;
   description: string;
-  category: 'note' | 'vault' | 'prompt' | 'system';
+  category: 'note' | 'vault' | 'prompt' | 'system' | 'tool';
   handler: (args: string[]) => Promise<void>;
 }
+
+// Re-export shared types for convenience
+export type { MCPTool, ToolCall };
