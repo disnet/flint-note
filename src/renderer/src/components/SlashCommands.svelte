@@ -1,18 +1,24 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
   import type { SlashCommand } from '../types/chat';
 
-  const dispatch = createEventDispatcher<{
-    command: { command: SlashCommand; args: string[] };
-    close: void;
-  }>();
+  interface Props {
+    isOpen: boolean;
+    query: string;
+    position: { x: number; y: number };
+    close: () => void;
+    command: (command: SlashCommand, args: string[]) => void;
+  }
 
-  export let isOpen = false;
-  export let query = '';
-  export let position: { x: number; y: number } = { x: 0, y: 0 };
+  let {
+    isOpen = false,
+    query = '',
+    position = { x: 0, y: 0 },
+    close,
+    command
+  }: Props = $props();
 
-  let selectedIndex = 0;
   let commandsContainer: HTMLElement;
+  let selectedIndex = $state(0);
 
   // Mock commands for now
   const commands: SlashCommand[] = [
@@ -73,16 +79,16 @@
   ];
 
   // Filter commands based on query
-  $: filteredCommands = commands.filter(
-    (cmd) =>
-      cmd.name.toLowerCase().includes(query.toLowerCase()) ||
-      cmd.description.toLowerCase().includes(query.toLowerCase())
+  let filteredCommands = $derived(
+    commands.filter(
+      (cmd) =>
+        cmd.name.toLowerCase().includes(query.toLowerCase()) ||
+        cmd.description.toLowerCase().includes(query.toLowerCase())
+    )
   );
 
   // Reset selection when filtered commands change
-  $: if (filteredCommands.length > 0) {
-    selectedIndex = Math.min(selectedIndex, filteredCommands.length - 1);
-  }
+  selectedIndex = Math.min(selectedIndex, filteredCommands.length - 1);
 
   const handleKeyDown = (event: KeyboardEvent): void => {
     if (!isOpen) return;
@@ -101,12 +107,12 @@
       case 'Enter':
         event.preventDefault();
         if (filteredCommands[selectedIndex]) {
-          executeCommand(filteredCommands[selectedIndex]);
+          command(filteredCommands[selectedIndex], []);
         }
         break;
       case 'Escape':
         event.preventDefault();
-        dispatch('close');
+        close();
         break;
     }
   };
@@ -118,17 +124,6 @@
         selectedElement.scrollIntoView({ block: 'nearest' });
       }
     }
-  };
-
-  const executeCommand = (command: SlashCommand): void => {
-    // Parse arguments from query (everything after command name)
-    const args = query.split(' ').slice(1);
-    dispatch('command', { command, args });
-  };
-
-  const handleCommandClick = (command: SlashCommand, index: number): void => {
-    selectedIndex = index;
-    executeCommand(command);
   };
 
   const getCategoryIcon = (category: string): string => {
@@ -169,12 +164,12 @@
     const palette = document.querySelector('.command-palette') as HTMLElement;
 
     if (palette && !palette.contains(target)) {
-      dispatch('close');
+      close();
     }
   };
 
   // Bind to window for global keyboard handling and click outside
-  $: if (typeof window !== 'undefined') {
+  if (typeof window !== 'undefined') {
     if (isOpen) {
       window.addEventListener('keydown', handleKeyDown);
       window.addEventListener('click', handleClickOutside);
@@ -199,27 +194,27 @@
 
     {#if filteredCommands.length > 0}
       <div class="commands-container" bind:this={commandsContainer}>
-        {#each filteredCommands as command, index (command.name)}
+        {#each filteredCommands as cmd, index (cmd.name)}
           <button
             class="command-item"
             class:selected={index === selectedIndex}
-            on:click={() => handleCommandClick(command, index)}
+            on:click={() => command(cmd, ['' + index])}
             role="option"
             aria-selected={index === selectedIndex}
           >
-            <div class="command-icon" style="color: {getCategoryColor(command.category)}">
-              {getCategoryIcon(command.category)}
+            <div class="command-icon" style="color: {getCategoryColor(cmd.category)}">
+              {getCategoryIcon(cmd.category)}
             </div>
             <div class="command-content">
               <div class="command-name">
                 <span class="command-slash">/</span>{command.name}
               </div>
               <div class="command-description">
-                {command.description}
+                {cmd.description}
               </div>
             </div>
             <div class="command-category">
-              {command.category}
+              {cmd.category}
             </div>
           </button>
         {/each}
@@ -233,7 +228,8 @@
 
     <div class="command-footer">
       <div class="command-hint">
-        <kbd>↑</kbd><kbd>↓</kbd> to navigate • <kbd>Enter</kbd> to select • <kbd>Esc</kbd> to close
+        <kbd>↑</kbd><kbd>↓</kbd> to navigate • <kbd>Enter</kbd> to select • <kbd>Esc</kbd>
+        to close
       </div>
     </div>
   </div>
