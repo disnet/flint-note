@@ -10,7 +10,7 @@ import { mcpService } from './mcpService';
 import type { LLMMessage, LLMConfig, MCPTool, MCPToolCall } from '../../shared/types';
 
 export class LLMService {
-  private llm: ChatOpenAI;
+  private llm: any;
   private config: LLMConfig;
   private mcpToolsEnabled: boolean = true;
 
@@ -24,7 +24,7 @@ export class LLMService {
       ...config
     };
 
-    this.llm = new ChatOpenAI({
+    const baseLLM = new ChatOpenAI({
       openAIApiKey: this.config.apiKey,
       configuration: {
         baseURL: this.config.baseURL
@@ -33,6 +33,8 @@ export class LLMService {
       temperature: this.config.temperature,
       maxTokens: this.config.maxTokens
     });
+
+    this.llm = baseLLM;
 
     // Initialize MCP service
     this.initializeMCP();
@@ -57,7 +59,27 @@ export class LLMService {
 
     try {
       const mcpTools = await mcpService.listTools();
-      const tools = mcpTools.map(this.convertMCPToolToLangChain);
+
+      // Add a simple test tool to debug function calling
+      const testTool = {
+        type: 'function',
+        function: {
+          name: 'test_tool',
+          description: 'A simple test tool that returns a greeting',
+          parameters: {
+            type: 'object',
+            properties: {
+              message: {
+                type: 'string',
+                description: 'A message to include in the greeting'
+              }
+            },
+            required: ['message']
+          }
+        }
+      };
+
+      const tools = [testTool, ...mcpTools.map(this.convertMCPToolToLangChain)];
 
       // Recreate LLM with tools
       const baseLLM = new ChatOpenAI({
@@ -70,16 +92,14 @@ export class LLMService {
         maxTokens: this.config.maxTokens
       });
 
-      this.llm = baseLLM.withConfig({
-        tools: tools
-      }) as ChatOpenAI;
+      this.llm = baseLLM.bindTools(tools);
     } catch (error) {
       console.error('Failed to update LLM with tools:', error);
     }
   }
 
   private convertMCPToolToLangChain(mcpTool: MCPTool): any {
-    return {
+    const langchainTool = {
       type: 'function',
       function: {
         name: mcpTool.name,
@@ -87,6 +107,8 @@ export class LLMService {
         parameters: mcpTool.inputSchema
       }
     };
+
+    return langchainTool;
   }
 
   async generateResponse(messages: LLMMessage[]): Promise<string> {
@@ -119,6 +141,7 @@ export class LLMService {
       let hasToolCalls = false;
       let toolCalls: any[] = [];
       let responseMessage: any = null;
+      let toolCallsAccumulator: any = {};
 
       for await (const chunk of stream) {
         // Check if this chunk contains tool calls
@@ -128,16 +151,69 @@ export class LLMService {
           responseMessage = chunk;
         }
 
+        // Check for tool call chunks (streaming arguments)
+        if (chunk.tool_call_chunks && chunk.tool_call_chunks.length > 0) {
+          for (const toolChunk of chunk.tool_call_chunks) {
+            const chunkIndex = toolChunk.index?.toString() || '0';
+
+            if (!toolCallsAccumulator[chunkIndex]) {
+              toolCallsAccumulator[chunkIndex] = {
+                id: toolChunk.id || chunkIndex,
+                name: toolChunk.name || '',
+                args: ''
+              };
+            }
+
+            if (toolChunk.name && !toolCallsAccumulator[chunkIndex].name) {
+              toolCallsAccumulator[chunkIndex].name = toolChunk.name;
+            }
+
+            if (toolChunk.id && !toolCallsAccumulator[chunkIndex].id) {
+              toolCallsAccumulator[chunkIndex].id = toolChunk.id;
+            }
+
+            if (toolChunk.args) {
+              toolCallsAccumulator[chunkIndex].args += toolChunk.args;
+            }
+          }
+        }
+
         const content = chunk.content as string;
         if (content) {
           onChunk(content);
         }
       }
 
+      // If we have accumulated tool call chunks, use those instead
+      if (Object.keys(toolCallsAccumulator).length > 0) {
+        // Filter out incomplete tool calls and parse JSON args
+        const validToolCalls = Object.values(toolCallsAccumulator)
+          .filter((call: any) => call.name && call.args)
+          .map((call: any) => ({
+            id: call.id,
+            name: call.name,
+            args: call.args,
+            type: 'tool_call'
+          }));
+
+        if (validToolCalls.length > 0) {
+          toolCalls = validToolCalls;
+          hasToolCalls = true;
+
+          // Create a synthetic response message
+          if (!responseMessage) {
+            responseMessage = {
+              tool_calls: toolCalls,
+              content: ''
+            };
+          } else {
+            responseMessage.tool_calls = toolCalls;
+          }
+        }
+      }
+
       // Handle tool calls after streaming is complete
       if (hasToolCalls && toolCalls.length > 0) {
-        console.log(responseMessage);
-        console.log(langchainMessages);
         const toolResponse = await this.handleToolCalls(
           responseMessage,
           langchainMessages
@@ -162,11 +238,17 @@ export class LLMService {
 
     try {
       const toolResults: string[] = [];
+      const debugInfo: string[] = [];
 
       // Add the assistant's message with tool calls to the conversation
       const assistantMessage = new AIMessage({
         content: response.content || '',
-        tool_calls: response.tool_calls
+        tool_calls: response.tool_calls.map((tc: any) => ({
+          name: tc.name,
+          args: typeof tc.args === 'string' ? JSON.parse(tc.args) : tc.args,
+          id: tc.id,
+          type: tc.type
+        }))
       });
 
       const conversationWithToolCall = [...previousMessages, assistantMessage];
@@ -174,6 +256,35 @@ export class LLMService {
       // Execute each tool call
       for (const toolCall of response.tool_calls) {
         try {
+          // Handle test tool directly
+          if (toolCall.name === 'test_tool') {
+            const args = typeof toolCall.args === 'string' ? JSON.parse(toolCall.args) : toolCall.args;
+            const testResult = `Hello! Test tool called with message: "${args.message || 'No message provided'}"`;
+
+            // Add debug info for test tool
+            debugInfo.push(`**🔧 Test Tool Call:**
+\`\`\`json
+{
+  "tool": "test_tool",
+  "arguments": ${JSON.stringify(args, null, 2)}
+}
+\`\`\``);
+
+            debugInfo.push(`**📋 Test Tool Result:**
+\`\`\`
+${testResult}
+\`\`\``);
+
+            const toolMessage = new ToolMessage({
+              content: testResult,
+              tool_call_id: toolCall.id
+            });
+
+            conversationWithToolCall.push(toolMessage);
+            toolResults.push(testResult);
+            continue;
+          }
+
           const mcpToolCall: MCPToolCall = {
             name: toolCall.name,
             arguments:
@@ -182,8 +293,23 @@ export class LLMService {
                 : toolCall.args
           };
 
+          // Add debug info for tool call
+          debugInfo.push(`**🔧 Tool Call Debug:**
+\`\`\`json
+{
+  "tool": "${mcpToolCall.name}",
+  "arguments": ${JSON.stringify(mcpToolCall.arguments, null, 2)}
+}
+\`\`\``);
+
           const toolResult = await mcpService.callTool(mcpToolCall);
           const toolResultText = toolResult.content.map((c) => c.text).join('\n');
+
+          // Add debug info for tool result
+          debugInfo.push(`**📋 Tool Result:**
+\`\`\`
+${toolResultText}
+\`\`\``);
 
           // Add tool result to conversation
           const toolMessage = new ToolMessage({
@@ -200,12 +326,23 @@ export class LLMService {
             tool_call_id: toolCall.id
           });
           conversationWithToolCall.push(errorMessage);
+
+          // Add debug info for error
+          debugInfo.push(`**❌ Tool Error:**
+\`\`\`
+Tool: ${toolCall.name}
+Error: ${error instanceof Error ? error.message : 'Unknown error'}
+\`\`\``);
         }
       }
 
       // Get final response from LLM with tool results
       const finalResponse = await this.llm.invoke(conversationWithToolCall);
-      return finalResponse.content as string;
+
+      // Include debug info in response
+      const debugSection = debugInfo.length > 0 ? `\n\n---\n\n${debugInfo.join('\n\n')}` : '';
+
+      return (finalResponse.content as string) + debugSection;
     } catch (error) {
       console.error('Error handling tool calls:', error);
       return response.content as string;
@@ -266,7 +403,7 @@ export class LLMService {
     this.config = { ...this.config, ...newConfig };
 
     // Recreate the LLM instance with new config
-    this.llm = new ChatOpenAI({
+    const baseLLM = new ChatOpenAI({
       openAIApiKey: this.config.apiKey,
       configuration: {
         baseURL: this.config.baseURL
@@ -275,6 +412,8 @@ export class LLMService {
       temperature: this.config.temperature,
       maxTokens: this.config.maxTokens
     });
+
+    this.llm = baseLLM;
 
     // Update tools if MCP is enabled
     if (this.mcpToolsEnabled) {
