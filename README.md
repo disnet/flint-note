@@ -27,6 +27,7 @@ Currently using mock data for:
 ### 🤖 LLM Integration
 
 Real LLM integration using:
+
 - **LangChain**: For LLM abstraction and streaming
 - **LM Studio**: Local LLM server for privacy and control
 - **OpenAI-Compatible API**: Easy model switching

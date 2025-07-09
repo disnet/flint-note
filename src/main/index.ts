@@ -70,7 +70,10 @@ app.whenReady().then(() => {
       return { success: true, data: response };
     } catch (error) {
       console.error('Error generating response:', error);
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
     }
   });
 
@@ -96,7 +99,10 @@ app.whenReady().then(() => {
         'llm:stream-error',
         error instanceof Error ? error.message : 'Unknown error'
       );
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
     }
   });
 
@@ -120,7 +126,10 @@ app.whenReady().then(() => {
       return { success: true };
     } catch (error) {
       console.error('Error updating LLM config:', error);
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
     }
   });
 
@@ -130,7 +139,10 @@ app.whenReady().then(() => {
       return { success: true, config };
     } catch (error) {
       console.error('Error getting LLM config:', error);
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
     }
   });
 

@@ -6,7 +6,8 @@ const api = {
   llm: {
     generateResponse: (messages: unknown[]) =>
       ipcRenderer.invoke('llm:generate-response', messages),
-    streamResponse: (messages: unknown[]) => ipcRenderer.invoke('llm:stream-response', messages),
+    streamResponse: (messages: unknown[]) =>
+      ipcRenderer.invoke('llm:stream-response', messages),
     testConnection: () => ipcRenderer.invoke('llm:test-connection'),
     updateConfig: (config: unknown) => ipcRenderer.invoke('llm:update-config', config),
     getConfig: () => ipcRenderer.invoke('llm:get-config'),

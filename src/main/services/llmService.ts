@@ -53,7 +53,10 @@ export class LLMService {
     }
   }
 
-  async streamResponse(messages: LLMMessage[], onChunk: (chunk: string) => void): Promise<void> {
+  async streamResponse(
+    messages: LLMMessage[],
+    onChunk: (chunk: string) => void
+  ): Promise<void> {
     try {
       const langchainMessages = this.convertToLangChainMessages(messages);
       const stream = await this.llm.stream(langchainMessages);
