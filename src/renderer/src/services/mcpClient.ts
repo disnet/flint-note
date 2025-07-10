@@ -86,6 +86,27 @@ export class MCPClient {
 
   async addServer(server: Omit<MCPServer, 'id'>): Promise<MCPServer> {
     try {
+      // Debug logging
+      console.log('MCPClient.addServer called with:', server);
+      console.log('Server type:', typeof server);
+      console.log('Server keys:', Object.keys(server));
+      console.log('Args type:', typeof server.args, 'Array?', Array.isArray(server.args));
+      console.log(
+        'Env type:',
+        typeof server.env,
+        'Keys:',
+        server.env ? Object.keys(server.env) : 'null'
+      );
+
+      // Try to serialize to catch issues early
+      try {
+        const serialized = JSON.stringify(server);
+        console.log('Server serializes OK, length:', serialized.length);
+      } catch (serErr) {
+        console.error('Server serialization failed:', serErr);
+        throw new Error('Server object cannot be serialized: ' + serErr.message);
+      }
+
       const response = (await this.api.addServer(server)) as {
         success: boolean;
         server?: MCPServer;
@@ -147,6 +168,27 @@ export class MCPClient {
     toolCount?: number;
   }> {
     try {
+      // Debug logging
+      console.log('MCPClient.testServer called with:', server);
+      console.log('Server type:', typeof server);
+      console.log('Server keys:', Object.keys(server));
+      console.log('Args type:', typeof server.args, 'Array?', Array.isArray(server.args));
+      console.log(
+        'Env type:',
+        typeof server.env,
+        'Keys:',
+        server.env ? Object.keys(server.env) : 'null'
+      );
+
+      // Try to serialize to catch issues early
+      try {
+        const serialized = JSON.stringify(server);
+        console.log('Server serializes OK, length:', serialized.length);
+      } catch (serErr) {
+        console.error('Server serialization failed:', serErr);
+        throw new Error('Server object cannot be serialized: ' + serErr.message);
+      }
+
       const response = (await this.api.testServer(server)) as {
         success: boolean;
         result?: {

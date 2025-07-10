@@ -172,7 +172,9 @@
 
     try {
       mcpError = '';
-      await mcpClient.addServer(newServer);
+      // Create a completely clean object by destructuring and explicitly creating new structures
+
+      await mcpClient.addServer($state.snapshot(newServer));
 
       // Reset form
       newServer = {
@@ -232,13 +234,13 @@
     testingServer = server.id;
 
     try {
-      const result = await mcpClient.testServer(server);
+      const result = await mcpClient.testServer($state.snapshot(server));
       testResults[server.id] = result;
     } catch (error) {
       console.error('Error testing MCP server:', error);
       testResults[server.id] = {
         success: false,
-        error: error.message
+        error: error instanceof Error ? error.message : 'Unknown error'
       };
     } finally {
       testingServer = null;
@@ -479,7 +481,15 @@
 
     <!-- MCP Server Management Section -->
     <div class="section">
-      <h3>MCP Server Management</h3>
+      <div class="section-header">
+        <h3>MCP Server Management</h3>
+        <button
+          class="btn btn-primary"
+          onclick={() => (showAddServerForm = !showAddServerForm)}
+        >
+          {showAddServerForm ? 'Cancel' : 'Add Server'}
+        </button>
+      </div>
 
       {#if mcpError}
         <div class="error-message">
@@ -488,15 +498,6 @@
       {/if}
 
       <div class="server-management">
-        <div class="server-actions">
-          <button
-            class="btn btn-primary"
-            onclick={() => (showAddServerForm = !showAddServerForm)}
-          >
-            {showAddServerForm ? 'Cancel' : 'Add Server'}
-          </button>
-        </div>
-
         {#if showAddServerForm}
           <div class="add-server-form">
             <h4>Add New MCP Server</h4>
@@ -528,7 +529,10 @@
                 id="serverArgs"
                 type="text"
                 value={formatArgsArray(newServer.args)}
-                oninput={(e) => (newServer.args = parseArgsString(e.target.value))}
+                oninput={(e) => {
+                  const target = e.target as HTMLInputElement;
+                  newServer.args = parseArgsString(target.value);
+                }}
                 placeholder="--port, 8080, --verbose"
               />
             </div>
@@ -637,7 +641,12 @@
           </div>
         {:else}
           <div class="no-servers">
-            <p>No MCP servers configured.</p>
+            <div class="no-servers-icon">🔧</div>
+            <h4>No MCP servers configured</h4>
+            <p>
+              Model Context Protocol (MCP) servers provide additional tools and
+              capabilities for your AI assistant.
+            </p>
             <p>Click "Add Server" to add your first MCP server.</p>
           </div>
         {/if}
@@ -1050,21 +1059,49 @@
     padding: 1rem;
   }
 
-  /* MCP Server Management Styles */
-  .server-management {
-    margin-top: 1rem;
+  /* General Section Styles */
+  .section {
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    background-color: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
   }
 
-  .server-actions {
-    margin-bottom: 1rem;
+  .section:last-child {
+    margin-bottom: 0;
+  }
+
+  .section h3 {
+    margin: 0 0 1rem 0;
+    color: #374151;
+    font-size: 1.25rem;
+    font-weight: 600;
+  }
+
+  /* MCP Server Management Styles */
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+  }
+
+  .section-header h3 {
+    margin: 0;
+  }
+
+  .server-management {
+    margin-top: 0;
   }
 
   .add-server-form {
-    background-color: #f9fafb;
+    background-color: white;
     border: 1px solid #e5e7eb;
     border-radius: 6px;
-    padding: 1rem;
-    margin-bottom: 1rem;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
   }
 
   .add-server-form h4 {
@@ -1073,10 +1110,11 @@
   }
 
   .servers-list {
-    background-color: #f9fafb;
+    background-color: white;
     border: 1px solid #e5e7eb;
     border-radius: 6px;
-    padding: 1rem;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
   }
 
   .servers-list h4 {
@@ -1087,9 +1125,10 @@
   .server-item {
     border: 1px solid #e5e7eb;
     border-radius: 6px;
-    padding: 1rem;
+    padding: 1.5rem;
     margin-bottom: 1rem;
-    background-color: white;
+    background-color: #f9fafb;
+    transition: background-color 0.2s ease;
   }
 
   .server-item:last-child {
@@ -1147,12 +1186,36 @@
 
   .no-servers {
     text-align: center;
-    padding: 2rem;
+    padding: 3rem 2rem;
     color: #6b7280;
+    background-color: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    margin-top: 1rem;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  }
+
+  .no-servers-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.7;
+  }
+
+  .no-servers h4 {
+    margin: 0 0 1rem 0;
+    color: #374151;
+    font-size: 1.25rem;
+    font-weight: 600;
   }
 
   .no-servers p {
     margin: 0.5rem 0;
+    line-height: 1.5;
+  }
+
+  .no-servers p:last-child {
+    margin-top: 1rem;
+    font-weight: 500;
   }
 
   .test-result {
@@ -1177,7 +1240,7 @@
   /* Dark mode support for server management */
   @media (prefers-color-scheme: dark) {
     .add-server-form {
-      background-color: #374151;
+      background-color: #1f2937;
       border-color: #4b5563;
     }
 
@@ -1186,7 +1249,7 @@
     }
 
     .servers-list {
-      background-color: #374151;
+      background-color: #1f2937;
       border-color: #4b5563;
     }
 
@@ -1195,7 +1258,7 @@
     }
 
     .server-item {
-      background-color: #1f2937;
+      background-color: #374151;
       border-color: #4b5563;
     }
 
@@ -1215,6 +1278,21 @@
 
     .no-servers {
       color: #9ca3af;
+      background-color: #1f2937;
+      border-color: #4b5563;
+    }
+
+    .no-servers h4 {
+      color: #f3f4f6;
+    }
+
+    .section {
+      background-color: #374151;
+      border-color: #4b5563;
+    }
+
+    .section h3 {
+      color: #f3f4f6;
     }
   }
 </style>
