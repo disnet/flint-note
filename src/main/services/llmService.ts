@@ -504,37 +504,9 @@ Error: ${error instanceof Error ? error.message : 'Unknown error'}
     server: Omit<MCPServer, 'id'>
   ): Promise<{ success: boolean; error?: string; toolCount?: number }> {
     try {
-      // Import child_process to test the server
-      const { spawn } = await import('child_process');
-
-      // Try to spawn the process
-      const testProcess = spawn(server.command, server.args, {
-        stdio: ['pipe', 'pipe', 'pipe'],
-        env: { ...process.env, ...server.env }
-      });
-
-      // Wait for the process to either error or be ready
-      const result = await new Promise<{ success: boolean; error?: string }>(
-        (resolve) => {
-          const timeout = setTimeout(() => {
-            testProcess.kill();
-            resolve({ success: false, error: 'Connection timeout' });
-          }, 5000);
-
-          testProcess.on('error', (error) => {
-            clearTimeout(timeout);
-            resolve({ success: false, error: error.message });
-          });
-
-          testProcess.on('spawn', () => {
-            clearTimeout(timeout);
-            testProcess.kill();
-            resolve({ success: true });
-          });
-        }
-      );
-
-      return { ...result, toolCount: result.success ? 1 : 0 };
+      // Use the real MCP service to test the server
+      const result = await mcpService.testServer(server as MCPServer);
+      return result;
     } catch (error) {
       return {
         success: false,

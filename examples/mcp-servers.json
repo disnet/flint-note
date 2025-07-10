@@ -1,12 +1,21 @@
 {
   "servers": [
     {
+      "id": "weather-test-example",
+      "name": "Weather Test Server",
+      "command": "node",
+      "args": ["examples/test-servers/weather.js"],
+      "enabled": true,
+      "description": "Test weather MCP server with mock data for development and testing",
+      "env": {}
+    },
+    {
       "id": "weather-example",
       "name": "Weather Service",
       "command": "python",
       "args": ["-m", "weather_mcp_server", "--api-key", "${WEATHER_API_KEY}"],
-      "enabled": true,
-      "description": "Provides current weather conditions and forecasts for locations worldwide",
+      "enabled": false,
+      "description": "Real weather service with live data (requires API key)",
       "env": {
         "WEATHER_API_KEY": "your-api-key-here"
       }

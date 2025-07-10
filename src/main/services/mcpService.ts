@@ -1,4 +1,11 @@
-import { spawn, ChildProcess } from 'child_process';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import {
+  ListToolsResultSchema,
+  CallToolResultSchema,
+  Tool,
+  CallToolRequest
+} from '@modelcontextprotocol/sdk/types.js';
 import { mcpConfigService } from './mcpConfigService';
 import type { MCPTool, MCPToolCall, MCPToolResult, MCPServer } from '../../shared/types';
 
@@ -7,16 +14,24 @@ export type { MCPTool, MCPToolCall, MCPToolResult, MCPServer };
 
 interface MCPConnection {
   server: MCPServer;
-  process: ChildProcess | null;
+  client: Client;
+  transport: StdioClientTransport;
   tools: MCPTool[];
   connected: boolean;
   lastError?: string;
 }
 
+interface MCPToolWithServer extends MCPTool {
+  serverId: string;
+  serverName: string;
+  originalName: string;
+  hasConflict: boolean;
+}
+
 export class MCPService {
   private connections: Map<string, MCPConnection> = new Map();
   private isInitialized = false;
-  private availableTools: MCPTool[] = [];
+  private availableTools: MCPToolWithServer[] = [];
 
   constructor() {
     // Initialize the service
@@ -27,52 +42,10 @@ export class MCPService {
     try {
       await mcpConfigService.loadConfig();
       this.isInitialized = true;
-
-      // Initialize with mock weather tools for demonstration
-      await this.initializeMockTools();
     } catch (error) {
       console.error('Failed to initialize MCP service:', error);
       this.isInitialized = false;
     }
-  }
-
-  private async initializeMockTools(): Promise<void> {
-    // Mock tools for demonstration
-    this.availableTools = [
-      {
-        name: 'weather:get_current',
-        description: 'Get current weather conditions for a location',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            location: {
-              type: 'string',
-              description: 'The location to get weather for (city, state/country)'
-            }
-          },
-          required: ['location']
-        }
-      },
-      {
-        name: 'weather:get_forecast',
-        description: 'Get weather forecast for a location',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            location: {
-              type: 'string',
-              description: 'The location to get forecast for (city, state/country)'
-            },
-            days: {
-              type: 'number',
-              description: 'Number of days to forecast (1-7)',
-              default: 3
-            }
-          },
-          required: ['location']
-        }
-      }
-    ];
   }
 
   async connect(): Promise<void> {
@@ -109,7 +82,7 @@ export class MCPService {
       }
     }
     this.connections.clear();
-    await this.initializeMockTools();
+    this.availableTools = [];
   }
 
   private async connectToServer(server: MCPServer): Promise<void> {
@@ -119,85 +92,88 @@ export class MCPService {
     }
 
     try {
-      // For now, we'll create a mock connection
-      // In a real implementation, this would use the actual MCP SDK
-      const connection: MCPConnection = {
-        server,
-        process: null,
-        tools: this.generateMockToolsForServer(server),
-        connected: true
-      };
+      // Create transport for stdio communication
+      const transport = new StdioClientTransport({
+        command: server.command,
+        args: server.args,
+        env: {
+          ...(Object.fromEntries(
+            Object.entries(process.env).filter(([, value]) => value !== undefined)
+          ) as Record<string, string>),
+          ...server.env
+        }
+      });
 
-      this.connections.set(server.id, connection);
-
-      // Try to spawn the actual process for validation
-      try {
-        const childProcess = spawn(server.command, server.args, {
-          stdio: ['pipe', 'pipe', 'pipe'],
-          env: { ...process.env, ...server.env }
-        });
-
-        connection.process = childProcess;
-
-        // Handle process events
-        childProcess.on('error', (error) => {
-          console.error(`MCP server ${server.name} process error:`, error);
-          this.handleServerError(server.id, error);
-        });
-
-        childProcess.on('exit', (code) => {
-          console.log(`MCP server ${server.name} exited with code ${code}`);
-          this.handleServerExit(server.id, code);
-        });
-
-        // For now, assume connection is successful if process spawns
-        console.log(`Mock connection established to MCP server ${server.name}`);
-      } catch (error) {
-        console.warn(
-          `Could not spawn process for ${server.name}, using mock connection:`,
-          error
-        );
-        connection.lastError = error instanceof Error ? error.message : 'Unknown error';
-      }
-    } catch (error) {
-      console.error(`Failed to connect to MCP server ${server.name}:`, error);
-      throw error;
-    }
-  }
-
-  private generateMockToolsForServer(server: MCPServer): MCPTool[] {
-    // Generate some mock tools based on server name
-    const baseName = server.name.toLowerCase();
-    return [
-      {
-        name: `${baseName}:list`,
-        description: `List items from ${server.name}`,
-        inputSchema: {
-          type: 'object',
-          properties: {
-            limit: {
-              type: 'number',
-              description: 'Maximum number of items to return',
-              default: 10
-            }
+      // Create MCP client
+      const client = new Client(
+        {
+          name: 'flint-electron',
+          version: '1.0.0'
+        },
+        {
+          capabilities: {
+            tools: {}
           }
         }
-      },
-      {
-        name: `${baseName}:get`,
-        description: `Get an item from ${server.name}`,
-        inputSchema: {
-          type: 'object',
-          properties: {
-            id: {
-              type: 'string',
-              description: 'The ID of the item to get'
-            }
-          },
-          required: ['id']
-        }
+      );
+
+      // Create connection object
+      const connection: MCPConnection = {
+        server,
+        client,
+        transport,
+        tools: [],
+        connected: false
+      };
+
+      // Add to connections map
+      this.connections.set(server.id, connection);
+
+      // Connect to server
+      await client.connect(transport);
+      connection.connected = true;
+
+      // List available tools from server
+      try {
+        const toolsResult = await client.request(
+          { method: 'tools/list' },
+          ListToolsResultSchema
+        );
+
+        // Convert MCP tools to our format - keep original names for LLM
+        connection.tools = toolsResult.tools.map((tool: Tool) => ({
+          name: tool.name,
+          description: tool.description || '',
+          inputSchema: tool.inputSchema || {}
+        }));
+
+        console.log(
+          `Connected to MCP server ${server.name} with ${connection.tools.length} tools`
+        );
+      } catch (error) {
+        console.warn(`Failed to list tools from server ${server.name}:`, error);
+        connection.tools = [];
       }
-    ];
+
+      // Set up error handlers
+      transport.onclose = () => {
+        console.log(`MCP server ${server.name} connection closed`);
+        connection.connected = false;
+        this.updateAvailableTools();
+      };
+
+      transport.onerror = (error: Error) => {
+        console.error(`MCP server ${server.name} error:`, error);
+        connection.connected = false;
+        connection.lastError = error.message;
+        this.updateAvailableTools();
+      };
+    } catch (error) {
+      console.error(`Failed to connect to MCP server ${server.name}:`, error);
+      // Remove failed connection
+      this.connections.delete(server.id);
+      throw error;
+    }
   }
 
   private async disconnectFromServer(serverId: string): Promise<void> {
@@ -207,9 +183,9 @@ export class MCPService {
     }
 
     try {
-      // Kill process if running
-      if (connection.process && !connection.process.killed) {
-        connection.process.kill();
+      // Close the transport connection
+      if (connection.transport) {
+        await connection.transport.close();
       }
 
       // Remove from connections
@@ -222,73 +198,43 @@ export class MCPService {
     }
   }
 
-  private handleServerError(serverId: string, error: Error): void {
-    const connection = this.connections.get(serverId);
-    if (connection) {
-      connection.connected = false;
-      connection.lastError = error.message;
-      console.error(`MCP server ${connection.server.name} error:`, error);
-    }
-  }
-
-  private handleServerExit(serverId: string, code: number | null): void {
-    const connection = this.connections.get(serverId);
-    if (connection) {
-      connection.connected = false;
-      this.connections.delete(serverId);
-      console.log(`MCP server ${connection.server.name} exited with code ${code}`);
-
-      // Update available tools
-      this.updateAvailableTools();
-    }
-  }
-
   private async updateAvailableTools(): Promise<void> {
     this.availableTools = [];
 
-    // Add mock weather tools
-    this.availableTools.push(
-      {
-        name: 'weather:get_current',
-        description: 'Get current weather conditions for a location',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            location: {
-              type: 'string',
-              description: 'The location to get weather for (city, state/country)'
-            }
-          },
-          required: ['location']
-        }
-      },
-      {
-        name: 'weather:get_forecast',
-        description: 'Get weather forecast for a location',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            location: {
-              type: 'string',
-              description: 'The location to get forecast for (city, state/country)'
-            },
-            days: {
-              type: 'number',
-              description: 'Number of days to forecast (1-7)',
-              default: 3
-            }
-          },
-          required: ['location']
-        }
-      }
-    );
+    // Add tools from all connected servers
+    const allToolsWithServer: MCPToolWithServer[] = [];
 
-    // Add tools from connected servers
     for (const connection of this.connections.values()) {
       if (connection.connected) {
-        this.availableTools.push(...connection.tools);
+        const toolsWithServer = connection.tools.map((tool) => ({
+          ...tool,
+          serverId: connection.server.id,
+          serverName: connection.server.name,
+          originalName: tool.name,
+          hasConflict: false
+        }));
+        allToolsWithServer.push(...toolsWithServer);
       }
     }
+
+    // Check for tool name conflicts and namespace when needed
+    const toolNameCounts = new Map<string, number>();
+    allToolsWithServer.forEach((tool) => {
+      toolNameCounts.set(
+        tool.originalName,
+        (toolNameCounts.get(tool.originalName) || 0) + 1
+      );
+    });
+
+    // Update tool names and conflict flags
+    this.availableTools = allToolsWithServer.map((tool) => {
+      const hasConflict = (toolNameCounts.get(tool.originalName) || 0) > 1;
+      return {
+        ...tool,
+        name: hasConflict ? `${tool.serverName}:${tool.originalName}` : tool.originalName,
+        hasConflict
+      };
+    });
   }
 
   async listTools(): Promise<MCPTool[]> {
@@ -296,7 +242,11 @@ export class MCPService {
       await this.initialize();
     }
 
-    return this.availableTools;
+    return this.availableTools.map((tool) => ({
+      name: tool.name,
+      description: tool.description,
+      inputSchema: tool.inputSchema
+    }));
   }
 
   async callTool(toolCall: MCPToolCall): Promise<MCPToolResult> {
@@ -305,24 +255,48 @@ export class MCPService {
     }
 
     try {
-      // Handle mock weather tools
-      if (toolCall.name === 'weather:get_current') {
-        return await this.mockGetWeather(toolCall.arguments);
-      } else if (toolCall.name === 'weather:get_forecast') {
-        return await this.mockGetForecast(toolCall.arguments);
+      // Find the tool in our available tools list
+      let toolWithServer = this.availableTools.find(
+        (tool) => tool.name === toolCall.name
+      );
+
+      // If not found and tool name doesn't contain ':', try to find by original name
+      if (!toolWithServer && !toolCall.name.includes(':')) {
+        toolWithServer = this.availableTools.find(
+          (tool) => tool.originalName === toolCall.name
+        );
       }
 
-      // Handle tools from connected servers
-      for (const connection of this.connections.values()) {
-        if (connection.connected) {
-          const tool = connection.tools.find((t) => t.name === toolCall.name);
-          if (tool) {
-            return await this.mockCallServerTool(connection.server, toolCall);
-          }
+      if (!toolWithServer) {
+        throw new Error(`Tool not found: ${toolCall.name}`);
+      }
+
+      // Find the connection for this server
+      const connection = this.connections.get(toolWithServer.serverId);
+      if (!connection || !connection.connected) {
+        throw new Error(`No connected server found for tool: ${toolCall.name}`);
+      }
+
+      // Prepare the MCP tool call request
+      const mcpRequest: CallToolRequest = {
+        method: 'tools/call',
+        params: {
+          name: toolWithServer.originalName,
+          arguments: toolCall.arguments
         }
-      }
+      };
 
-      throw new Error(`Unknown tool: ${toolCall.name}`);
+      // Call the tool on the server
+      const result = await connection.client.request(mcpRequest, CallToolResultSchema);
+
+      // Convert MCP result to our format
+      return {
+        content: result.content.map((item) => ({
+          type: item.type,
+          text: (item as any).text || ''
+        })),
+        isError: result.isError || false
+      };
     } catch (error) {
       console.error('Error calling MCP tool:', error);
       return {
@@ -335,111 +309,6 @@ export class MCPService {
         isError: true
       };
     }
-  }
-
-  private async mockGetWeather(args: Record<string, unknown>): Promise<MCPToolResult> {
-    const location = args.location;
-    if (!location) {
-      throw new Error('Location is required');
-    }
-
-    // Mock weather data
-    const weatherData = {
-      location: location,
-      temperature: Math.floor(Math.random() * 30) + 10, // 10-40°C
-      condition: ['sunny', 'cloudy', 'rainy', 'snowy'][Math.floor(Math.random() * 4)],
-      humidity: Math.floor(Math.random() * 40) + 40, // 40-80%
-      windSpeed: Math.floor(Math.random() * 20) + 5, // 5-25 km/h
-      timestamp: new Date().toISOString()
-    };
-
-    const weatherText = `Current weather in ${weatherData.location}:
-- Temperature: ${weatherData.temperature}°C
-- Condition: ${weatherData.condition}
-- Humidity: ${weatherData.humidity}%
-- Wind Speed: ${weatherData.windSpeed} km/h
-- Last updated: ${new Date(weatherData.timestamp).toLocaleString()}`;
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: weatherText
-        }
-      ]
-    };
-  }
-
-  private async mockGetForecast(args: Record<string, unknown>): Promise<MCPToolResult> {
-    const location = args.location;
-    const days = (args.days as number) || 3;
-
-    if (!location) {
-      throw new Error('Location is required');
-    }
-
-    if (days < 1 || days > 7) {
-      throw new Error('Days must be between 1 and 7');
-    }
-
-    // Mock forecast data
-    const forecast: Array<{
-      date: string;
-      high: number;
-      low: number;
-      condition: string;
-      precipitationChance: number;
-    }> = [];
-    const conditions = ['sunny', 'cloudy', 'rainy', 'snowy', 'partly cloudy'];
-
-    for (let i = 0; i < days; i++) {
-      const date = new Date();
-      date.setDate(date.getDate() + i);
-
-      forecast.push({
-        date: date.toDateString(),
-        high: Math.floor(Math.random() * 15) + 20, // 20-35°C
-        low: Math.floor(Math.random() * 15) + 5, // 5-20°C
-        condition: conditions[Math.floor(Math.random() * conditions.length)],
-        precipitationChance: Math.floor(Math.random() * 100)
-      });
-    }
-
-    const forecastText = `${days}-day weather forecast for ${location}:
-
-${forecast
-  .map(
-    (day) =>
-      `${day.date}:
-  - High: ${day.high}°C, Low: ${day.low}°C
-  - Condition: ${day.condition}
-  - Precipitation: ${day.precipitationChance}%`
-  )
-  .join('\n\n')}`;
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: forecastText
-        }
-      ]
-    };
-  }
-
-  private async mockCallServerTool(
-    server: MCPServer,
-    toolCall: MCPToolCall
-  ): Promise<MCPToolResult> {
-    // Mock implementation for server tools
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `Mock response from ${server.name} for tool ${toolCall.name} with arguments: ${JSON.stringify(toolCall.arguments, null, 2)}`
-        }
-      ]
-    };
   }
 
   isToolAvailable(toolName: string): boolean {
@@ -554,6 +423,51 @@ ${forecast
   async reconnectAllServers(): Promise<void> {
     await this.disconnect();
     await this.connect();
+  }
+
+  async testServer(server: MCPServer): Promise<{ success: boolean; error?: string }> {
+    try {
+      // Create temporary transport
+      const transport = new StdioClientTransport({
+        command: server.command,
+        args: server.args,
+        env: {
+          ...(Object.fromEntries(
+            Object.entries(process.env).filter(([, value]) => value !== undefined)
+          ) as Record<string, string>),
+          ...server.env
+        }
+      });
+
+      // Create temporary client
+      const client = new Client(
+        {
+          name: 'flint-electron-test',
+          version: '1.0.0'
+        },
+        {
+          capabilities: {
+            tools: {}
+          }
+        }
+      );
+
+      // Test connection
+      await client.connect(transport);
+
+      // Try to list tools
+      await client.request({ method: 'tools/list' }, ListToolsResultSchema);
+
+      // Close test connection
+      await transport.close();
+
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
   }
 }
 

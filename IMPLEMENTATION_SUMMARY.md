@@ -2,7 +2,7 @@
 
 ## Overview
 
-This implementation adds the ability to configure and manage arbitrary stdio MCP (Model Context Protocol) servers in the Flint GUI. Users can now extend the AI assistant's capabilities by adding custom tools through MCP servers.
+This implementation adds the ability to configure and manage arbitrary stdio MCP (Model Context Protocol) servers in the Flint GUI. Users can now extend the AI assistant's capabilities by adding custom tools through MCP servers. The system uses the official MCP TypeScript SDK to provide real protocol support with proper tool discovery and execution.
 
 ## Key Features Implemented
 
@@ -16,10 +16,10 @@ This implementation adds the ability to configure and manage arbitrary stdio MCP
 ### 2. MCP Service Enhancement
 
 - **Multi-Server Support**: Connect to multiple MCP servers simultaneously
-- **Process Management**: Spawn and manage child processes for each server
-- **Tool Aggregation**: Collect tools from all connected servers
-- **Error Handling**: Graceful handling of server failures and disconnections
-- **Mock Implementation**: Currently uses mock connections with plans for full MCP SDK integration
+- **Real MCP Protocol**: Uses official MCP TypeScript SDK for proper protocol implementation
+- **Tool Discovery**: Automatic discovery of available tools from connected servers
+- **Tool Execution**: Real tool execution with proper error handling and type safety
+- **Connection Management**: Proper MCP client connections with lifecycle management
 
 ### 3. User Interface
 
@@ -78,10 +78,11 @@ interface MCPServer {
 
 ### Connection Management
 
-- Each server runs as a separate child process
-- Processes are spawned with custom environment variables
+- Each server runs as an MCP client connection using StdioClientTransport
+- Real MCP protocol handshake and capability negotiation
+- Proper transport management with connection lifecycle handling
 - Automatic cleanup on server removal or application shutdown
-- Process monitoring with error and exit event handlers
+- Error handling for connection failures and tool execution errors
 
 ### Tool Naming Convention
 
@@ -89,14 +90,15 @@ interface MCPServer {
 - Format: `server-name:tool-name`
 - Example: `weather:get_current`, `filesystem:read_file`
 
-### Mock Implementation
+### Real MCP Implementation
 
-The current implementation uses mock connections for demonstration:
+The implementation uses the official MCP TypeScript SDK:
 
-- Mock weather tools for testing
-- Server-specific tool generation
-- Simulated stdio communication
-- Ready for real MCP SDK integration
+- Real stdio communication with MCP protocol
+- Proper tool listing using tools/list method
+- Real tool execution using tools/call method
+- Full MCP protocol compliance with handshake and capability negotiation
+- Type-safe tool schema validation
 
 ## User Workflow
 
@@ -118,20 +120,20 @@ The current implementation uses mock connections for demonstration:
 
 ### Planned Improvements
 
-- Full MCP SDK integration replacing mock implementation
 - Server health monitoring and automatic restart
 - Enhanced error reporting and logging
 - Server configuration templates
 - Import/export functionality
 - Performance metrics and monitoring
+- Resource usage monitoring
 
 ### Technical Debt
 
-- Replace mock implementation with real MCP SDK
 - Improve error handling and recovery
 - Add comprehensive logging
 - Enhance security validations
-- Optimize process management
+- Optimize connection management
+- Add server configuration validation
 
 ## Testing
 
@@ -167,4 +169,24 @@ The current implementation uses mock connections for demonstration:
 - Backup and recovery mechanisms
 - Migration support for future schema changes
 
-This implementation provides a solid foundation for MCP server management while maintaining code quality, type safety, and user experience standards.
+## Real MCP Protocol Support
+
+The implementation now includes full MCP protocol support:
+
+- **Official SDK Integration**: Uses @modelcontextprotocol/sdk for type-safe protocol implementation
+- **Proper Handshake**: Full MCP initialization and capability negotiation
+- **Tool Discovery**: Real-time tool listing from connected servers
+- **Tool Execution**: Direct tool calls with proper error handling and result parsing
+- **Connection Management**: Proper transport lifecycle with cleanup and error handling
+- **Type Safety**: Full TypeScript support for all MCP operations and schemas
+
+## Test Server Example
+
+A complete weather MCP server example is included at `examples/test-servers/weather.js` demonstrating:
+
+- Proper MCP server setup using the official SDK
+- Tool registration with schema validation
+- Stdio transport communication
+- Error handling and response formatting
+
+This implementation provides a solid foundation for MCP server management with real protocol support, maintaining code quality, type safety, and user experience standards.

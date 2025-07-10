@@ -1,0 +1,16 @@
+{
+  "name": "test-mcp-servers",
+  "version": "1.0.0",
+  "description": "Test MCP servers for development",
+  "type": "module",
+  "scripts": {
+    "weather": "node weather.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.15.0",
+    "zod": "^3.23.8"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -4,12 +4,13 @@ This document explains how to configure and manage MCP (Model Context Protocol) 
 
 ## Overview
 
-Flint GUI supports adding arbitrary stdio MCP servers that can extend the capabilities of the AI assistant with custom tools and functionality. The MCP server management system allows you to:
+Flint GUI supports adding arbitrary stdio MCP servers that can extend the capabilities of the AI assistant with custom tools and functionality. The system uses the official MCP TypeScript SDK to provide real protocol support with proper tool discovery and execution. The MCP server management system allows you to:
 
 - Add custom MCP servers with their own tools
 - Enable/disable servers independently
-- Test server connections
-- Monitor server status
+- Test server connections with real MCP protocol validation
+- Monitor server status and tool availability
+- Execute tools with proper error handling and type safety
 
 ## Accessing MCP Settings
 
@@ -32,6 +33,15 @@ To add a new MCP server:
 3. Click "Add Server" to save the configuration
 
 ## Server Configuration Examples
+
+### Weather MCP Server (Test Example)
+
+```
+Name: Weather
+Command: node
+Arguments: examples/test-servers/weather.js
+Description: Test weather service with current conditions and forecasts
+```
 
 ### Python MCP Server
 
@@ -81,10 +91,11 @@ Description: System monitoring and management tools
 
 For a server to work with Flint, it must:
 
-1. **Support stdio communication**: The server must communicate via stdin/stdout
-2. **Implement MCP protocol**: Follow the Model Context Protocol specification
+1. **Support stdio communication**: The server must communicate via stdin/stdout using JSON-RPC
+2. **Implement MCP protocol**: Follow the Model Context Protocol specification (tools/list, tools/call methods)
 3. **Be executable**: The command must be accessible from the system PATH or use absolute paths
 4. **Handle lifecycle**: Properly start, respond to requests, and shutdown when needed
+5. **Protocol compliance**: Support MCP initialization handshake and capability negotiation
 
 ## Environment Variables
 
@@ -102,16 +113,19 @@ You can set environment variables for your MCP servers by configuring them in th
 - Check that all required dependencies are installed
 - Ensure the server executable has proper permissions
 - Review the server's own documentation for setup requirements
+- Check if the server supports MCP protocol initialization
 
 ### No Tools Available
 
-- Check that the server implements the `tools/list` method
-- Verify the server is running and responding to requests
+- Check that the server implements the `tools/list` method correctly
+- Verify the server is running and responding to MCP requests
 - Look for error messages in the console
+- Test the server manually with MCP protocol messages
 
 ### Connection Timeouts
 
-- Increase timeout values if your server takes time to start
+- Check if the server properly handles MCP initialization handshake
+- Verify the server responds to protocol capability negotiation
 - Check system resources (CPU, memory)
 - Verify network connectivity if the server requires internet access
 
@@ -141,16 +155,26 @@ This ensures tools from different servers don't interfere with each other.
 4. **Testing**: Always test servers before enabling them
 5. **Updates**: Keep your MCP servers updated to their latest versions
 
+## Technical Implementation
+
+The MCP integration uses the official MCP TypeScript SDK with:
+
+- **Real Protocol Support**: Full MCP protocol implementation with proper handshake and capability negotiation
+- **Type Safety**: TypeScript types for all MCP operations and tool schemas
+- **Error Handling**: Comprehensive error handling for connection failures and tool execution errors
+- **Resource Management**: Proper cleanup of server processes and connections
+- **Tool Discovery**: Automatic discovery of available tools from connected servers
+
 ## Future Enhancements
 
 Planned improvements include:
 
-- Server health monitoring
-- Automatic server restart on failure
+- Server health monitoring and automatic restart
+- Enhanced error reporting and logging
 - Server configuration templates
 - Import/export server configurations
 - Server performance metrics
-- Enhanced error reporting and logging
+- Resource usage monitoring
 
 ## Getting Help
 
