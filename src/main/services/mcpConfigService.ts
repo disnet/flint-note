@@ -23,7 +23,7 @@ export class MCPConfigService {
       }
 
       return this.config;
-    } catch (error) {
+    } catch {
       // If file doesn't exist or is invalid, create default config
       this.config = { servers: [] };
       await this.saveConfig();
@@ -53,7 +53,7 @@ export class MCPConfigService {
   }
 
   async updateServer(id: string, updates: Partial<MCPServer>): Promise<MCPServer | null> {
-    const index = this.config.servers.findIndex(s => s.id === id);
+    const index = this.config.servers.findIndex((s) => s.id === id);
     if (index === -1) {
       return null;
     }
@@ -65,7 +65,7 @@ export class MCPConfigService {
   }
 
   async removeServer(id: string): Promise<boolean> {
-    const index = this.config.servers.findIndex(s => s.id === id);
+    const index = this.config.servers.findIndex((s) => s.id === id);
     if (index === -1) {
       return false;
     }
@@ -85,12 +85,12 @@ export class MCPConfigService {
 
   async getServer(id: string): Promise<MCPServer | null> {
     const servers = await this.getServers();
-    return servers.find(s => s.id === id) || null;
+    return servers.find((s) => s.id === id) || null;
   }
 
   async getEnabledServers(): Promise<MCPServer[]> {
     const servers = await this.getServers();
-    return servers.filter(s => s.enabled);
+    return servers.filter((s) => s.enabled);
   }
 
   async toggleServer(id: string): Promise<MCPServer | null> {

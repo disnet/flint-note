@@ -34,6 +34,7 @@ To add a new MCP server:
 ## Server Configuration Examples
 
 ### Python MCP Server
+
 ```
 Name: My Python Server
 Command: python
@@ -42,6 +43,7 @@ Description: Custom Python MCP server for data processing
 ```
 
 ### Node.js MCP Server
+
 ```
 Name: File System Tools
 Command: node
@@ -50,6 +52,7 @@ Description: File system operations and code analysis tools
 ```
 
 ### Rust MCP Server
+
 ```
 Name: System Tools
 Command: /path/to/system-mcp-server
@@ -60,14 +63,17 @@ Description: System monitoring and management tools
 ## Managing Servers
 
 ### Enabling/Disabling Servers
+
 - Use the checkbox next to each server to enable or disable it
 - Disabled servers won't be connected to and their tools won't be available
 
 ### Testing Server Connection
+
 - Click "Test" next to any server to verify it can be started
 - The test will show if the connection is successful and how many tools are available
 
 ### Removing Servers
+
 - Click "Remove" next to any server to delete it from the configuration
 - This action cannot be undone
 
@@ -91,17 +97,20 @@ You can set environment variables for your MCP servers by configuring them in th
 ## Troubleshooting
 
 ### Server Won't Start
+
 - Verify the command path is correct
 - Check that all required dependencies are installed
 - Ensure the server executable has proper permissions
 - Review the server's own documentation for setup requirements
 
 ### No Tools Available
+
 - Check that the server implements the `tools/list` method
 - Verify the server is running and responding to requests
 - Look for error messages in the console
 
 ### Connection Timeouts
+
 - Increase timeout values if your server takes time to start
 - Check system resources (CPU, memory)
 - Verify network connectivity if the server requires internet access
@@ -118,6 +127,7 @@ When adding MCP servers:
 ## Tool Naming
 
 Tools from different servers are namespaced to avoid conflicts:
+
 - Format: `server-name:tool-name`
 - Example: `weather:get_current` or `filesystem:read_file`
 

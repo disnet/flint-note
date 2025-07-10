@@ -71,6 +71,7 @@ Flint now supports adding arbitrary stdio MCP (Model Context Protocol) servers t
 ### Example Server Configurations
 
 #### Python MCP Server
+
 ```
 Name: Weather Service
 Command: python
@@ -78,6 +79,7 @@ Arguments: -m, weather_mcp_server, --api-key, ${WEATHER_API_KEY}
 ```
 
 #### Node.js MCP Server
+
 ```
 Name: File Tools
 Command: node
@@ -85,6 +87,7 @@ Arguments: /path/to/file-server.js, --workspace, /home/user/projects
 ```
 
 #### Custom Binary
+
 ```
 Name: System Monitor
 Command: /usr/local/bin/system-mcp

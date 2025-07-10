@@ -111,6 +111,12 @@
     }
   };
 
+  const handleOverlayClick = (event: MouseEvent): void => {
+    if (event.target === event.currentTarget) {
+      onClose();
+    }
+  };
+
   const toggleMCP = async (): Promise<void> => {
     try {
       mcpError = '';
@@ -279,13 +285,13 @@
 {#if isOpen}
   <div
     class="modal-overlay"
-    onclick={onClose}
+    onclick={handleOverlayClick}
     onkeydown={handleKeyDown}
     role="dialog"
     aria-modal="true"
     tabindex="-1"
   >
-    <div class="modal-content" onclick={(e) => e.stopPropagation()} role="document">
+    <div class="modal-content" role="document">
       <div class="modal-header">
         <h2>LLM Settings</h2>
         <button class="close-button" onclick={onClose} aria-label="Close settings">
@@ -296,6 +302,8 @@
             fill="none"
             stroke="currentColor"
             stroke-width="2"
+            aria-hidden="true"
+            focusable="false"
           >
             <path d="M18 6L6 18M6 6l12 12" />
           </svg>
@@ -450,11 +458,11 @@
 
       {#if mcpEnabled}
         <div class="form-group">
-          <label>Available Tools:</label>
+          <label for="available-tools">Available Tools:</label>
           {#if isLoadingMCPTools}
             <div class="loading">Loading tools...</div>
           {:else if mcpTools.length > 0}
-            <div class="tools-list">
+            <div class="tools-list" id="available-tools">
               {#each mcpTools as tool (tool.name)}
                 <div class="tool-item">
                   <div class="tool-name">{tool.name}</div>
@@ -463,7 +471,7 @@
               {/each}
             </div>
           {:else}
-            <div class="no-tools">No MCP tools available</div>
+            <div class="no-tools" id="available-tools">No MCP tools available</div>
           {/if}
         </div>
       {/if}

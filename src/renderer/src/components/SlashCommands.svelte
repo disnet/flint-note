@@ -18,8 +18,8 @@
     command
   }: Props = $props();
 
-  let commandsContainer: HTMLElement;
-  let selectedIndex = 0;
+  let commandsContainer: HTMLElement = $state()!;
+  let selectedIndex = $state(0);
 
   // Mock commands for now
   const commands: SlashCommand[] = [
@@ -178,16 +178,20 @@
     }
   };
 
-  // Bind to window for global keyboard handling and click outside
-  if (typeof window !== 'undefined') {
-    if (isOpen) {
-      window.addEventListener('keydown', handleKeyDown);
-      window.addEventListener('click', handleClickOutside);
-    } else {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('click', handleClickOutside);
+  // Effect for handling keyboard and click events
+  $effect(() => {
+    if (typeof window !== 'undefined') {
+      if (isOpen) {
+        window.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('click', handleClickOutside);
+
+        return () => {
+          window.removeEventListener('keydown', handleKeyDown);
+          window.removeEventListener('click', handleClickOutside);
+        };
+      }
     }
-  }
+  });
 </script>
 
 {#if isOpen}
@@ -217,7 +221,7 @@
             </div>
             <div class="command-content">
               <div class="command-name">
-                <span class="command-slash">/</span>{command.name}
+                <span class="command-slash">/</span>{cmd.name}
               </div>
               <div class="command-description">
                 {cmd.description}
