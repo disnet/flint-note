@@ -1,20 +1,20 @@
 # Flint Electron - Chat Interface
 
-A Svelte 5 + Electron application implementing a chat-first interface for Flint, an agent-first note-taking system. Now integrated with LangChain and LM Studio for real LLM conversations.
+A Svelte 5 + Electron application implementing a chat-first interface for Flint, an agent-first note-taking system. Now integrated with LangChain and OpenRouter for real LLM conversations.
 
 ## Current Implementation Status
 
 ### ✅ Completed Features
 
 - **Chat Interface**: Core conversational UI with message history
-- **LLM Integration**: Real conversations powered by LangChain and LM Studio
+- **LLM Integration**: Real conversations powered by LangChain and OpenRouter
 - **Message Types**: Support for user, agent, and system messages
 - **Slash Commands**: Command palette with fuzzy search (`/create`, `/find`, `/switch-vault`, etc.)
 - **Note References**: Clickable note links using `[[Note Title]]` syntax
 - **Auto-resize Input**: Textarea automatically adjusts height as you type
 - **Responsive Design**: Mobile-friendly layout with dark mode support
 - **Streaming Responses**: Real-time streaming of LLM responses
-- **LLM Settings**: Configure connection to LM Studio server
+- **LLM Settings**: Configure connection to LLM provider
 - **MCP Server Management**: Add and manage arbitrary stdio MCP servers
 - **Header**: Vault selector and settings button
 
@@ -30,7 +30,7 @@ Currently using mock data for:
 Real LLM integration using:
 
 - **LangChain**: For LLM abstraction and streaming
-- **LM Studio**: Local LLM server for privacy and control
+- **OpenRouter**: Access to multiple LLM providers (Claude, GPT-4, etc.)
 - **OpenAI-Compatible API**: Easy model switching
 - **Streaming Responses**: Real-time conversation experience
 
@@ -42,6 +42,7 @@ Real LLM integration using:
 - Vault management
 - Search functionality
 - Advanced LLM features (temperature control, model switching)
+- Local LLM support (LM Studio, Ollama, etc.)
 
 ## MCP Server Management
 
@@ -122,25 +123,35 @@ For detailed information, see [MCP_SERVERS.md](MCP_SERVERS.md).
 $ npm install
 ```
 
-### LM Studio Setup
+### OpenRouter Setup
 
-1. **Download and install LM Studio** from [https://lmstudio.ai/](https://lmstudio.ai/)
+1. **Get an API key** from [OpenRouter](https://openrouter.ai/):
+   - Sign up at openrouter.ai
+   - Go to your account settings
+   - Generate a new API key
 
-2. **Load a model** (recommended: Llama 3.1 8B or similar)
-
-3. **Start the local server**:
-   - Click "Local Server" in LM Studio
-   - Start server on port 1234 (default)
-   - Note the server URL (usually `http://localhost:1234/v1`)
-
-4. **Configure in Flint**:
+2. **Configure in Flint**:
    - Open Flint
    - Click the settings gear icon
    - Configure LLM settings:
-     - Base URL: `http://localhost:1234/v1`
-     - API Key: `lm-studio` (default)
-     - Model Name: Your loaded model name
+     - Base URL: `https://openrouter.ai/api/v1` (default)
+     - API Key: Your OpenRouter API key (starts with `sk-or-v1-`)
+     - Model Name: `anthropic/claude-3.5-sonnet` (default, or choose another)
    - Test the connection
+
+### Alternative: Local LLM Setup
+
+For privacy or offline use, you can also use local LLM servers:
+
+1. **LM Studio**: Download from [https://lmstudio.ai/](https://lmstudio.ai/)
+   - Load a model and start the server
+   - Configure Base URL: `http://localhost:1234/v1`
+   - API Key: `lm-studio`
+
+2. **Ollama**: Install from [https://ollama.ai/](https://ollama.ai/)
+   - Start Ollama server
+   - Configure Base URL: `http://localhost:11434/v1`
+   - API Key: `ollama`
 
 ### Development
 
@@ -185,7 +196,7 @@ $ npm run build:linux
 
 ### Key Features
 
-- **Real LLM Conversations**: Powered by LangChain and LM Studio
+- **Real LLM Conversations**: Powered by LangChain and OpenRouter
 - **Streaming Responses**: See responses as they're generated
 - **Slash Commands**: Type `/` to open command palette
 - **Note References**: Use `[[Note Title]]` syntax for clickable links
@@ -202,15 +213,17 @@ $ npm run build:linux
 - **Electron** for desktop app packaging
 - **Vite** for fast development and building
 - **LangChain** for LLM integration and streaming
-- **LM Studio** for local LLM hosting
+- **OpenRouter** for LLM provider access
 - **MCP Protocol** for extensible tool integration
 
 ### LLM Features
 
-- **Local Privacy**: All conversations stay on your machine
+- **Multiple Providers**: Access to OpenRouter's model marketplace
+- **Local Privacy**: Optional local LLM support for privacy
 - **Streaming**: Real-time response generation
 - **Configurable**: Adjust temperature, max tokens, and model
 - **Fallback**: Graceful degradation when LLM is unavailable
 - **Error Handling**: Comprehensive error reporting and recovery
 - **MCP Tools**: Extensible tool system via MCP servers
 - **Server Management**: Easy configuration and testing of MCP servers
+- **Provider Flexibility**: Use OpenRouter or local LLM servers

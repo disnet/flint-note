@@ -12,8 +12,7 @@
     {
       id: '1',
       type: 'system',
-      content:
-        "Welcome to Flint! I'm your AI assistant powered by LM Studio. How can I help you today?",
+      content: "Welcome to Flint! I'm your AI assistant. How can I help you today?",
       timestamp: new Date()
     }
   ]);
@@ -67,7 +66,7 @@
       const fallbackResponse: Message = {
         id: Date.now().toString(),
         type: 'agent',
-        content: `I received your message: "${userInput}". LLM is not available (Status: ${llmStatus}). Please check your LM Studio connection.`,
+        content: `I received your message: "${userInput}". LLM is not available (Status: ${llmStatus}). Please check your LLM connection in settings.`,
         timestamp: new Date()
       };
       messages = [...messages, fallbackResponse];

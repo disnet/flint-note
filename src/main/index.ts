@@ -5,6 +5,7 @@ import { promisify } from 'util';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import icon from '../../resources/icon.png?asset';
 import { LLMService, FLINT_SYSTEM_PROMPT, LLMMessage } from './services/llmService';
+import { settingsService } from './services/settingsService';
 // MCP service is initialized within LLMService
 // import { mcpService } from './services/mcpService';
 
@@ -14,7 +15,7 @@ const writeFileAsync = promisify(writeFile);
 // File watchers management
 const fileWatchers: Map<string, FSWatcher> = new Map();
 
-// Initialize LLM service
+// Initialize LLM service (will be properly initialized after settings load)
 const llmService = new LLMService();
 
 function createWindow(): void {
@@ -55,9 +56,19 @@ function createWindow(): void {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron');
+
+  // Initialize settings service and LLM service with persisted settings
+  try {
+    await settingsService.loadSettings();
+    await llmService.initialize();
+    console.log('✅ Settings and LLM service initialized');
+    console.log('📁 Settings file location:', settingsService.getSettingsPath());
+  } catch (error) {
+    console.error('❌ Error initializing settings:', error);
+  }
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
@@ -133,7 +144,7 @@ app.whenReady().then(() => {
 
   ipcMain.handle('llm:update-config', async (_, config) => {
     try {
-      llmService.updateConfig(config);
+      await llmService.updateConfig(config);
       return { success: true };
     } catch (error) {
       console.error('Error updating LLM config:', error);
@@ -186,10 +197,10 @@ app.whenReady().then(() => {
 
   ipcMain.handle('mcp:set-enabled', async (_, enabled: boolean) => {
     try {
-      llmService.setMCPToolsEnabled(enabled);
+      await llmService.setMCPToolsEnabled(enabled);
       return { success: true };
     } catch (error) {
-      console.error('Error setting MCP enabled state:', error);
+      console.error('Error setting MCP enabled:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -257,10 +268,10 @@ app.whenReady().then(() => {
   // Tool limit configuration handlers
   ipcMain.handle('llm:set-max-tools', async (_, limit: number) => {
     try {
-      llmService.setMaxToolsLimit(limit);
+      await llmService.setMaxToolsLimit(limit);
       return { success: true };
     } catch (error) {
-      console.error('Error setting tool limit:', error);
+      console.error('Error setting max tools limit:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -273,7 +284,21 @@ app.whenReady().then(() => {
       const limit = llmService.getMaxToolsLimit();
       return { success: true, limit };
     } catch (error) {
-      console.error('Error getting tool limit:', error);
+      console.error('Error getting max tools limit:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  });
+
+  // Settings debugging handler
+  ipcMain.handle('settings:get-path', async () => {
+    try {
+      const path = settingsService.getSettingsPath();
+      return { success: true, path };
+    } catch (error) {
+      console.error('Error getting settings path:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'

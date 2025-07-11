@@ -13,9 +13,9 @@
   let { isOpen = false, onClose }: Props = $props();
 
   let config: LLMConfig = $state({
-    baseURL: 'http://localhost:1234/v1',
-    apiKey: 'lm-studio',
-    modelName: 'local-model',
+    baseURL: 'https://openrouter.ai/api/v1',
+    apiKey: '',
+    modelName: 'anthropic/claude-3.5-haiku',
     temperature: 0.7,
     maxTokens: 2048
   });
@@ -72,7 +72,7 @@
     isSaving = true;
 
     try {
-      await llmClient.updateConfig(config);
+      await llmClient.updateConfig($state.snapshot(config));
       // Success message will be handled by event listener
     } catch (error) {
       testResult = `Error saving settings: ${error.message}`;
@@ -83,9 +83,9 @@
 
   const resetToDefaults = (): void => {
     config = {
-      baseURL: 'http://localhost:1234/v1',
-      apiKey: 'lm-studio',
-      modelName: 'local-model',
+      baseURL: 'https://openrouter.ai/api/v1',
+      apiKey: '',
+      modelName: 'anthropic/claude-3.5-haiku',
       temperature: 0.7,
       maxTokens: 2048
     };
@@ -205,7 +205,7 @@
       if (status === 'connecting') {
         testResult = 'Testing connection...';
       } else if (status === 'disconnected') {
-        testResult = 'Connection failed. Please check your LM Studio server.';
+        testResult = 'Connection failed. Please check your LLM server configuration.';
       }
     });
 
@@ -214,7 +214,7 @@
       if (connected) {
         testResult = 'Connection successful!';
       } else {
-        testResult = 'Connection failed. Please check your LM Studio server.';
+        testResult = 'Connection failed. Please check your LLM server configuration.';
       }
     });
 
@@ -337,10 +337,10 @@
               id="baseURL"
               type="url"
               bind:value={config.baseURL}
-              placeholder="http://localhost:1234/v1"
+              placeholder="https://openrouter.ai/api/v1"
               required
             />
-            <small>The URL where your LM Studio server is running</small>
+            <small>The API endpoint (default: OpenRouter)</small>
           </div>
 
           <div class="form-group">
@@ -349,22 +349,25 @@
               id="apiKey"
               type="text"
               bind:value={config.apiKey}
-              placeholder="lm-studio"
+              placeholder="sk-or-v1-..."
               required
             />
-            <small>API key for authentication (usually "lm-studio" for local)</small>
+            <small>Your OpenRouter API key (get one at openrouter.ai)</small>
           </div>
 
           <div class="form-group">
             <label for="modelName">Model Name:</label>
             <input
-              id="modelName"
               type="text"
+              id="modelName"
               bind:value={config.modelName}
-              placeholder="local-model"
+              placeholder="anthropic/claude-3.5-haiku"
               required
             />
-            <small>Name of the model to use</small>
+            <small
+              >The model to use (e.g., anthropic/claude-3.5-haiku,
+              openai/gpt-4-turbo-preview)</small
+            >
           </div>
 
           <div class="form-group">
@@ -426,9 +429,9 @@
         <div class="instructions">
           <h3>Setup Instructions:</h3>
           <ol>
-            <li>Install and start <strong>LM Studio</strong></li>
-            <li>Load a model in LM Studio</li>
-            <li>Start the local server (usually on port 1234)</li>
+            <li>Sign up at <strong>openrouter.ai</strong> and get an API key</li>
+            <li>Enter your API key in the field above</li>
+            <li>Choose your preferred model (default: Claude 3.5 Haiku)</li>
             <li>Click "Test Connection" to verify setup</li>
           </ol>
         </div>

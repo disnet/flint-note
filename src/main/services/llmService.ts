@@ -7,21 +7,20 @@ import {
 } from '@langchain/core/messages';
 import { BaseMessage } from '@langchain/core/messages';
 import { mcpService } from './mcpService';
+import { settingsService } from './settingsService';
 import type { LLMMessage, LLMConfig, MCPTool, MCPToolCall } from '../../shared/types';
 
 export class LLMService {
   private llm: ChatOpenAI | any;
   private config: LLMConfig;
-  private mcpToolsEnabled: boolean = true;
-  private maxToolsLimit: number = 7;
+  private mcpToolsEnabled: boolean;
+  private maxToolsLimit: number;
 
   constructor(config: Partial<LLMConfig> = {}) {
+    // Load config from settings service, with provided config taking precedence
+    const savedConfig = settingsService.getLLMConfig();
     this.config = {
-      baseURL: config.baseURL || 'http://localhost:1234/v1',
-      apiKey: config.apiKey || 'lm-studio',
-      modelName: config.modelName || 'local-model',
-      temperature: config.temperature || 0.7,
-      maxTokens: config.maxTokens || 2048,
+      ...savedConfig,
       ...config
     };
 
@@ -30,7 +29,8 @@ export class LLMService {
       modelName: this.config.modelName,
       temperature: this.config.temperature,
       maxTokens: this.config.maxTokens,
-      apiKey: this.config.apiKey ? `${this.config.apiKey.slice(0, 10)}...` : 'not set'
+      apiKey: this.config.apiKey ? `${this.config.apiKey.slice(0, 10)}...` : 'not set',
+      provider: this.config.baseURL.includes('openrouter') ? 'OpenRouter' : 'Custom'
     });
 
     const baseLLM = new ChatOpenAI({
@@ -47,8 +47,41 @@ export class LLMService {
 
     this.llm = baseLLM;
 
+    // Load MCP settings from persistent storage
+    this.mcpToolsEnabled = settingsService.getMCPToolsEnabled();
+    this.maxToolsLimit = settingsService.getMaxToolsLimit();
+
     // Initialize MCP service
     this.initializeMCP();
+  }
+
+  async initialize(): Promise<void> {
+    // Load settings from persistent storage
+    await settingsService.loadSettings();
+
+    // Update configuration with loaded settings
+    const savedConfig = settingsService.getLLMConfig();
+    this.config = { ...this.config, ...savedConfig };
+
+    // Update MCP settings
+    this.mcpToolsEnabled = settingsService.getMCPToolsEnabled();
+    this.maxToolsLimit = settingsService.getMaxToolsLimit();
+
+    // Recreate LLM with loaded config
+    const baseLLM = new ChatOpenAI({
+      openAIApiKey: this.config.apiKey,
+      configuration: {
+        baseURL: this.config.baseURL
+      },
+      modelName: this.config.modelName,
+      temperature: this.config.temperature,
+      maxTokens: this.config.maxTokens
+    });
+
+    this.llm = baseLLM;
+
+    // Initialize MCP with loaded settings
+    await this.initializeMCP();
   }
 
   private async initializeMCP(): Promise<void> {
@@ -71,8 +104,8 @@ export class LLMService {
     try {
       const mcpTools = await mcpService.listTools();
 
-      // Limit tools to prevent overwhelming LM Studio
-      const maxTools = this.maxToolsLimit; // Configurable limit for local LLM servers
+      // Limit tools to prevent overwhelming the LLM
+      const maxTools = this.maxToolsLimit; // Configurable limit for LLM servers
       const prioritizedTools = this.prioritizeTools(mcpTools);
       const limitedMcpTools = prioritizedTools.slice(0, maxTools); // -1 for test_tool
 
@@ -96,7 +129,13 @@ export class LLMService {
       const baseLLM = new ChatOpenAI({
         openAIApiKey: this.config.apiKey,
         configuration: {
-          baseURL: this.config.baseURL
+          baseURL: this.config.baseURL,
+          defaultHeaders: this.config.baseURL.includes('openrouter')
+            ? {
+                'HTTP-Referer': 'https://flint-ai.com',
+                'X-Title': 'Flint AI'
+              }
+            : undefined
         },
         modelName: this.config.modelName,
         temperature: this.config.temperature,
@@ -165,8 +204,11 @@ export class LLMService {
       const langchainMessages = this.convertToLangChainMessages(messages);
       const response = await this.llm.invoke(langchainMessages);
 
-      // Handle tool calls if present
-      if (response.tool_calls && response.tool_calls.length > 0) {
+      // Handle tool calls if present (both valid and invalid)
+      if (
+        (response.tool_calls && response.tool_calls.length > 0) ||
+        (response.invalid_tool_calls && response.invalid_tool_calls.length > 0)
+      ) {
         return await this.handleToolCalls(response, langchainMessages);
       }
 
@@ -281,13 +323,30 @@ export class LLMService {
 
         // Filter out incomplete tool calls and parse JSON args
         const validToolCalls = Object.values(toolCallsAccumulator)
-          .filter((call: any) => call.name && call.args)
-          .map((call: any) => ({
-            id: call.id,
-            name: call.name,
-            args: call.args,
-            type: 'tool_call'
-          }));
+          .filter((call: any) => call.name)
+          .map((call: any) => {
+            let parsedArgs = {};
+            try {
+              // Handle empty args or parse JSON
+              if (call.args === '' || call.args === null || call.args === undefined) {
+                parsedArgs = {};
+              } else if (typeof call.args === 'string') {
+                parsedArgs = JSON.parse(call.args);
+              } else {
+                parsedArgs = call.args;
+              }
+            } catch (error) {
+              console.log('❌ Error parsing tool args:', call.args, error);
+              parsedArgs = {};
+            }
+
+            return {
+              id: call.id,
+              name: call.name,
+              args: parsedArgs,
+              type: 'tool_call'
+            };
+          });
 
         console.log('✅ Valid tool calls:', validToolCalls);
 
@@ -314,7 +373,8 @@ export class LLMService {
           responseMessage,
           langchainMessages
         );
-        onChunk('\n\n' + toolResponse);
+        console.log('🔧 Sending tool response to chat:', toolResponse);
+        onChunk(toolResponse);
       } else {
         console.log('ℹ️ No tool calls to handle');
       }
@@ -325,7 +385,7 @@ export class LLMService {
       // Check if this is a timeout error
       if (error instanceof Error && error.message.includes('timeout')) {
         throw new Error(
-          'Stream request timed out - check if LM Studio is running and responsive'
+          'Stream request timed out - check if LLM server is running and responsive'
         );
       }
 
@@ -335,7 +395,7 @@ export class LLMService {
         (error.message.includes('ECONNREFUSED') || error.message.includes('fetch failed'))
       ) {
         throw new Error(
-          'Cannot connect to LLM server - check if LM Studio is running on the configured port'
+          'Cannot connect to LLM server - check if server is running on the configured port'
         );
       }
 
@@ -352,7 +412,11 @@ export class LLMService {
     console.log('🔧 handleToolCalls called with response:', {
       hasContent: !!response.content,
       hasToolCalls: !!(response.tool_calls && response.tool_calls.length > 0),
-      toolCallsCount: response.tool_calls?.length || 0
+      toolCallsCount: response.tool_calls?.length || 0,
+      hasInvalidToolCalls: !!(
+        response.invalid_tool_calls && response.invalid_tool_calls.length > 0
+      ),
+      invalidToolCallsCount: response.invalid_tool_calls?.length || 0
     });
 
     if (!this.mcpToolsEnabled || !mcpService.isReady()) {
@@ -364,29 +428,89 @@ export class LLMService {
       const toolResults: string[] = [];
       const debugInfo: string[] = [];
 
-      console.log('🔧 Processing tool calls:', response.tool_calls);
+      // Combine valid and invalid tool calls
+      const allToolCalls = [
+        ...(response.tool_calls || []),
+        ...(response.invalid_tool_calls || [])
+      ];
+
+      console.log('🔧 Processing tool calls:', JSON.stringify(allToolCalls, null, 2));
+
+      // Generate proper IDs for tool calls that don't have them
+      const toolCallsWithIds = allToolCalls.map((tc: any, index: number) => {
+        const toolCallId = tc.id || `tool_call_${Date.now()}_${index}`;
+        console.log('🔧 Processing tool call:', JSON.stringify(tc, null, 2));
+        console.log('🔧 Tool call name:', tc.name, 'Type:', typeof tc.name);
+        console.log('🔧 Tool call args:', tc.args, 'Type:', typeof tc.args);
+        console.log('🔧 Tool call keys:', Object.keys(tc));
+        console.log('🔧 Full tool call structure:', tc);
+
+        // Handle different tool call formats
+        let toolName = tc.name || tc.function?.name || 'unknown_tool';
+        let toolArgs = tc.args || tc.function?.arguments || {};
+
+        // Handle invalid tool calls with string args
+        if (typeof toolArgs === 'string') {
+          try {
+            toolArgs = toolArgs === '' ? {} : JSON.parse(toolArgs);
+          } catch (error) {
+            console.log('❌ Error parsing tool args:', toolArgs, error);
+            toolArgs = {};
+          }
+        }
+
+        console.log('🔧 Extracted tool name:', toolName);
+        console.log('🔧 Extracted tool args:', toolArgs);
+
+        return {
+          ...tc,
+          id: toolCallId,
+          type: tc.type || 'function',
+          name: toolName,
+          args: toolArgs
+        };
+      });
 
       // Add the assistant's message with tool calls to the conversation
       const assistantMessage = new AIMessage({
-        content: response.content || '',
-        tool_calls: response.tool_calls.map((tc: any) => {
-          console.log('🔧 Processing tool call:', tc);
-          return {
-            name: tc.name,
-            args: typeof tc.args === 'string' ? JSON.parse(tc.args) : tc.args,
-            id: tc.id,
-            type: tc.type
-          };
-        })
+        content: 'I need to use some tools to help you.',
+        tool_calls: toolCallsWithIds.map((tc: any) => ({
+          name: tc.name || 'unknown_tool',
+          args: typeof tc.args === 'string' ? JSON.parse(tc.args) : tc.args,
+          id: tc.id,
+          type: tc.type
+        }))
       });
 
       const conversationWithToolCall = [...previousMessages, assistantMessage];
 
-      // Execute each tool call
-      for (const toolCall of response.tool_calls) {
-        console.log('🔧 Executing tool call:', toolCall);
+      // Execute each tool call (using the ones with IDs)
+      for (const toolCall of toolCallsWithIds) {
+        console.log('🔧 Executing tool call:', JSON.stringify(toolCall, null, 2));
+        console.log(
+          '🔧 Tool name check:',
+          toolCall.name,
+          'Length:',
+          toolCall.name?.length
+        );
 
         try {
+          // Skip if tool name is empty or invalid
+          if (
+            !toolCall.name ||
+            toolCall.name.trim() === '' ||
+            toolCall.name === 'unknown_tool'
+          ) {
+            console.log('❌ Skipping tool call with empty name:', toolCall.name);
+            console.log('❌ Full tool call object:', JSON.stringify(toolCall, null, 2));
+            const errorMessage = new ToolMessage({
+              content: `Error: Tool name is empty or invalid (${toolCall.name})`,
+              tool_call_id: toolCall.id
+            });
+            conversationWithToolCall.push(errorMessage);
+            continue;
+          }
+
           // Handle test tool directly
           if (toolCall.name === 'test_tool') {
             console.log('🧪 Handling test tool');
@@ -426,7 +550,7 @@ ${testResult}
             arguments:
               typeof toolCall.args === 'string'
                 ? JSON.parse(toolCall.args)
-                : toolCall.args
+                : toolCall.args || {}
           };
 
           // Add debug info for tool call
@@ -484,15 +608,59 @@ Stack: ${error instanceof Error ? error.stack : 'No stack'}
       console.log('🔄 Getting final response from LLM with tool results...');
       console.log('💬 Conversation length:', conversationWithToolCall.length);
 
-      // Get final response from LLM with tool results
-      const finalResponse = await this.llm.invoke(conversationWithToolCall);
+      // Create a fresh conversation for Bedrock compatibility
+      const toolResultsText = toolResults.join('\n\n');
+      const summaryMessage = toolResultsText
+        ? `Here are the results from the tools I used:\n\n${toolResultsText}`
+        : 'I attempted to use tools to help you, but encountered some issues.';
+
+      console.log('🔄 Creating fresh conversation for Bedrock compatibility');
+
+      // Create a completely new conversation without tool calls
+      const freshConversation = [
+        previousMessages[0], // Keep the original system message
+        new HumanMessage(
+          String(
+            previousMessages[previousMessages.length - 1].content || 'Please help me'
+          )
+        ), // Keep the user's question
+        new AIMessage(summaryMessage) // Add our summary
+      ];
+
+      console.log('🔄 Getting final response from LLM with fresh conversation...');
+
+      // Create a new LLM instance without tools to prevent additional tool calls
+      const baseLLM = new ChatOpenAI({
+        openAIApiKey: this.config.apiKey,
+        configuration: {
+          baseURL: this.config.baseURL,
+          defaultHeaders: this.config.baseURL.includes('openrouter')
+            ? {
+                'HTTP-Referer': 'https://flint-ai.com',
+                'X-Title': 'Flint AI'
+              }
+            : undefined
+        },
+        modelName: this.config.modelName,
+        temperature: this.config.temperature,
+        maxTokens: this.config.maxTokens
+      });
+
+      // Get final response from LLM with clean conversation (no tools)
+      const finalResponse = await baseLLM.invoke(freshConversation);
       console.log('✅ Final response received:', finalResponse);
 
       // Include debug info in response
       const debugSection =
         debugInfo.length > 0 ? `\n\n---\n\n${debugInfo.join('\n\n')}` : '';
 
-      return (finalResponse.content as string) + debugSection;
+      const finalContent = ((finalResponse.content as string) || '').trim();
+      const fullResponse = finalContent + debugSection;
+
+      console.log('🔧 Final response content:', finalContent);
+      console.log('🔧 Full response with debug:', fullResponse);
+
+      return fullResponse;
     } catch (error) {
       console.error('❌ Error handling tool calls:', error);
       console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
@@ -501,16 +669,53 @@ Stack: ${error instanceof Error ? error.stack : 'No stack'}
   }
 
   private convertToLangChainMessages(messages: LLMMessage[]): BaseMessage[] {
-    return messages.map((msg) => {
+    console.log('🔄 Converting messages to LangChain format:', messages.length);
+    return messages.map((msg, index) => {
+      console.log(`🔍 Converting message ${index}:`, {
+        role: msg.role,
+        hasContent: !!msg.content,
+        contentType: typeof msg.content,
+        contentLength: msg.content?.length || 0,
+        isArray: Array.isArray(msg.content),
+        hasToolCalls: !!(msg.tool_calls && msg.tool_calls.length > 0)
+      });
+
+      // Ensure content is always a string
+      const ensureStringContent = (content: any): string => {
+        if (typeof content === 'string') return content || '';
+        if (Array.isArray(content)) {
+          // Handle array content properly
+          if (content.length === 0) return '';
+          return content
+            .map((c) => {
+              if (typeof c === 'string') return c;
+              if (c && typeof c === 'object' && c.text) return c.text;
+              if (c && typeof c === 'object' && c.content) return c.content;
+              return JSON.stringify(c);
+            })
+            .join('');
+        }
+        if (content && typeof content === 'object') {
+          if (content.text) return content.text;
+          if (content.content) return content.content;
+          return JSON.stringify(content);
+        }
+        return String(content || '');
+      };
+
       switch (msg.role) {
         case 'system':
-          return new SystemMessage(msg.content);
+          return new SystemMessage(
+            ensureStringContent(msg.content) || 'You are a helpful assistant.'
+          );
         case 'user':
-          return new HumanMessage(msg.content);
+          return new HumanMessage(ensureStringContent(msg.content) || 'Hello');
         case 'assistant':
           if (msg.tool_calls && msg.tool_calls.length > 0) {
             return new AIMessage({
-              content: msg.content,
+              content:
+                ensureStringContent(msg.content) ||
+                'I need to use some tools to help you.',
               tool_calls: msg.tool_calls.map((tc) => ({
                 name: tc.function.name,
                 args:
@@ -521,10 +726,10 @@ Stack: ${error instanceof Error ? error.stack : 'No stack'}
               }))
             });
           }
-          return new AIMessage(msg.content);
+          return new AIMessage(ensureStringContent(msg.content) || 'I understand.');
         case 'tool':
           return new ToolMessage({
-            content: msg.content,
+            content: ensureStringContent(msg.content) || 'Tool execution completed.',
             tool_call_id: msg.tool_call_id || 'unknown'
           });
         default:
@@ -546,20 +751,39 @@ Stack: ${error instanceof Error ? error.stack : 'No stack'}
       return response.toLowerCase().includes('ok');
     } catch (error) {
       console.error('LLM connection test failed:', error);
+
+      // Provide better error messages for OpenRouter
+      if (this.config.baseURL.includes('openrouter')) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        if (errorMessage.includes('401') || errorMessage.includes('unauthorized')) {
+          console.error('OpenRouter authentication failed. Please check your API key.');
+        } else if (errorMessage.includes('404') || errorMessage.includes('not found')) {
+          console.error('OpenRouter model not found. Please check your model name.');
+        } else if (errorMessage.includes('rate limit')) {
+          console.error('OpenRouter rate limit exceeded. Please try again later.');
+        } else {
+          console.error('OpenRouter connection failed:', errorMessage);
+        }
+      }
+
       return false;
     }
   }
 
-  updateConfig(config: Partial<LLMConfig>): void {
+  async updateConfig(config: Partial<LLMConfig>): Promise<void> {
     console.log('🔧 Updating LLM config:', config);
     this.config = { ...this.config, ...config };
+
+    // Save to persistent storage
+    await settingsService.updateLLMConfig(this.config);
 
     console.log('🔧 New LLM configuration:', {
       baseURL: this.config.baseURL,
       modelName: this.config.modelName,
       temperature: this.config.temperature,
       maxTokens: this.config.maxTokens,
-      apiKey: this.config.apiKey ? `${this.config.apiKey.slice(0, 10)}...` : 'not set'
+      apiKey: this.config.apiKey ? `${this.config.apiKey.slice(0, 10)}...` : 'not set',
+      provider: this.config.baseURL.includes('openrouter') ? 'OpenRouter' : 'Custom'
     });
 
     // Recreate LLM with new config
@@ -601,8 +825,9 @@ Stack: ${error instanceof Error ? error.stack : 'No stack'}
     }
   }
 
-  setMCPToolsEnabled(enabled: boolean): void {
+  async setMCPToolsEnabled(enabled: boolean): Promise<void> {
     this.mcpToolsEnabled = enabled;
+    await settingsService.setMCPToolsEnabled(enabled);
     if (enabled) {
       this.initializeMCP();
     }
@@ -612,9 +837,12 @@ Stack: ${error instanceof Error ? error.stack : 'No stack'}
     return this.mcpToolsEnabled && mcpService.isReady();
   }
 
-  setMaxToolsLimit(limit: number): void {
+  async setMaxToolsLimit(limit: number): Promise<void> {
     this.maxToolsLimit = Math.max(1, Math.min(limit, 50)); // Clamp between 1 and 50
     console.log(`🔧 Tool limit set to: ${this.maxToolsLimit}`);
+
+    // Save to persistent storage
+    await settingsService.setMaxToolsLimit(this.maxToolsLimit);
 
     // Update LLM with new tool limit if MCP is enabled
     if (this.mcpToolsEnabled) {

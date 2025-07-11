@@ -37,6 +37,9 @@ const api = {
     callTool: (toolCall: { name: string; arguments: Record<string, unknown> }) =>
       ipcRenderer.invoke('mcp:call-tool', toolCall)
   },
+  settings: {
+    getPath: () => ipcRenderer.invoke('settings:get-path')
+  },
   fileSystem: {
     readFile: (filePath: string) => ipcRenderer.invoke('fs:read-file', filePath),
     writeFile: (filePath: string, content: string) =>
