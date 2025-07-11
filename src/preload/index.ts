@@ -36,6 +36,21 @@ const api = {
     testConnection: () => ipcRenderer.invoke('mcp:test-connection'),
     callTool: (toolCall: { name: string; arguments: Record<string, unknown> }) =>
       ipcRenderer.invoke('mcp:call-tool', toolCall)
+  },
+  fileSystem: {
+    readFile: (filePath: string) => ipcRenderer.invoke('fs:read-file', filePath),
+    writeFile: (filePath: string, content: string) =>
+      ipcRenderer.invoke('fs:write-file', filePath, content),
+    watchFile: (filePath: string) => ipcRenderer.invoke('fs:watch-file', filePath),
+    unwatchFile: (filePath: string) => ipcRenderer.invoke('fs:unwatch-file', filePath),
+    onFileChange: (callback: (filePath: string, content: string) => void) => {
+      ipcRenderer.on('fs:file-changed', (_, filePath, content) =>
+        callback(filePath, content)
+      );
+    },
+    removeFileListeners: () => {
+      ipcRenderer.removeAllListeners('fs:file-changed');
+    }
   }
 };
 

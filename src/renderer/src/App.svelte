@@ -2,8 +2,24 @@
   import Chat from './components/Chat.svelte';
   import Header from './components/Header.svelte';
   import ToolInspector from './components/ToolInspector.svelte';
+  import NoteEditorLayout from './components/NoteEditorLayout.svelte';
+  import { noteEditorStore } from './stores/noteEditor.svelte';
 
   let activeTab = $state('chat');
+  let windowWidth = $state(window.innerWidth);
+
+  // Track window resize for responsive layout
+  $effect(() => {
+    const handleResize = () => {
+      windowWidth = window.innerWidth;
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  });
+
+  // Determine if note editor should affect main layout
+  let isDesktopWithSidebar = $derived(windowWidth >= 1200 && noteEditorStore.isOpen);
 </script>
 
 <div class="app">
@@ -24,13 +40,19 @@
       Tool Inspector
     </button>
   </div>
-  <main class="main-content">
+  <main class="main-content" class:with-sidebar={isDesktopWithSidebar}>
     {#if activeTab === 'chat'}
       <Chat />
     {:else if activeTab === 'tools'}
       <ToolInspector />
     {/if}
   </main>
+
+  <!-- Note Editor Layout -->
+  <NoteEditorLayout
+    note={noteEditorStore.activeNote}
+    onClose={() => noteEditorStore.closeNote()}
+  />
 </div>
 
 <style>
@@ -76,6 +98,11 @@
   .main-content {
     flex: 1;
     overflow: hidden;
+    transition: margin-right 0.3s ease;
+  }
+
+  .main-content.with-sidebar {
+    margin-right: 400px;
   }
 
   /* Global styles */
@@ -121,6 +148,24 @@
     :global(body) {
       background-color: #1a1a1a;
       color: #f0f0f0;
+    }
+  }
+
+  /* Responsive adjustments */
+  @media (max-width: 1199px) {
+    .main-content.with-sidebar {
+      margin-right: 0;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .tabs {
+      padding: 0 0.5rem;
+    }
+
+    .tab {
+      padding: 0.5rem 0.75rem;
+      font-size: 0.85rem;
     }
   }
 </style>

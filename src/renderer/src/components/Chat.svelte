@@ -5,6 +5,7 @@
   import MessageContent from './MessageContent.svelte';
   import { llmClient } from '../services/llmClient';
   import { mcpClient } from '../services/mcpClient';
+  import { noteEditorStore } from '../stores/noteEditor.svelte';
 
   // Initial welcome message - use regular let for now
   let messages: Message[] = $state([
@@ -323,8 +324,8 @@
 
     messages = [...messages, noteMessage];
 
-    // TODO: Implement note editor opening logic
-    console.log('Opening note:', note);
+    // Open the note editor
+    noteEditorStore.openNote(note);
   };
 
   // Auto-scroll to bottom when messages or streaming state changes

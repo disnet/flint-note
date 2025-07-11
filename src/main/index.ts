@@ -1,10 +1,18 @@
 import { app, shell, BrowserWindow, ipcMain } from 'electron';
 import { join } from 'path';
+import { readFile, writeFile, watch, FSWatcher } from 'fs';
+import { promisify } from 'util';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import icon from '../../resources/icon.png?asset';
 import { LLMService, FLINT_SYSTEM_PROMPT, LLMMessage } from './services/llmService';
 // MCP service is initialized within LLMService
 // import { mcpService } from './services/mcpService';
+
+const readFileAsync = promisify(readFile);
+const writeFileAsync = promisify(writeFile);
+
+// File watchers management
+const fileWatchers: Map<string, FSWatcher> = new Map();
 
 // Initialize LLM service
 const llmService = new LLMService();
@@ -273,6 +281,80 @@ app.whenReady().then(() => {
     }
   });
 
+  // File system handlers
+  ipcMain.handle('fs:read-file', async (_, filePath: string) => {
+    try {
+      const content = await readFileAsync(filePath, 'utf-8');
+      return { success: true, content };
+    } catch (error) {
+      console.error('Error reading file:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  });
+
+  ipcMain.handle('fs:write-file', async (_, filePath: string, content: string) => {
+    try {
+      await writeFileAsync(filePath, content, 'utf-8');
+      return { success: true };
+    } catch (error) {
+      console.error('Error writing file:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  });
+
+  ipcMain.handle('fs:watch-file', async (event, filePath: string) => {
+    try {
+      // Remove existing watcher if present
+      if (fileWatchers.has(filePath)) {
+        fileWatchers.get(filePath)?.close();
+        fileWatchers.delete(filePath);
+      }
+
+      // Create new watcher
+      const watcher = watch(filePath, { persistent: false }, async (eventType) => {
+        if (eventType === 'change') {
+          try {
+            const content = await readFileAsync(filePath, 'utf-8');
+            event.sender.send('fs:file-changed', filePath, content);
+          } catch (error) {
+            console.error('Error reading changed file:', error);
+          }
+        }
+      });
+
+      fileWatchers.set(filePath, watcher);
+      return { success: true };
+    } catch (error) {
+      console.error('Error watching file:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  });
+
+  ipcMain.handle('fs:unwatch-file', async (_, filePath: string) => {
+    try {
+      if (fileWatchers.has(filePath)) {
+        fileWatchers.get(filePath)?.close();
+        fileWatchers.delete(filePath);
+      }
+      return { success: true };
+    } catch (error) {
+      console.error('Error unwatching file:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  });
+
   createWindow();
 
   app.on('activate', function () {
@@ -286,6 +368,10 @@ app.whenReady().then(() => {
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
+  // Clean up file watchers
+  fileWatchers.forEach((watcher) => watcher.close());
+  fileWatchers.clear();
+
   if (process.platform !== 'darwin') {
     app.quit();
   }

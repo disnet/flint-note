@@ -30,6 +30,19 @@ declare global {
           arguments: Record<string, unknown>;
         }) => Promise<unknown>;
       };
+      fileSystem: {
+        readFile: (
+          filePath: string
+        ) => Promise<{ success: boolean; content?: string; error?: string }>;
+        writeFile: (
+          filePath: string,
+          content: string
+        ) => Promise<{ success: boolean; error?: string }>;
+        watchFile: (filePath: string) => Promise<{ success: boolean; error?: string }>;
+        unwatchFile: (filePath: string) => Promise<{ success: boolean; error?: string }>;
+        onFileChange: (callback: (filePath: string, content: string) => void) => void;
+        removeFileListeners: () => void;
+      };
     };
   }
 }
