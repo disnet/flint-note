@@ -59,6 +59,24 @@ export class MCPClient {
     }
     return response;
   }
+
+  async callTool(toolCall: {
+    name: string;
+    arguments: Record<string, unknown>;
+  }): Promise<{
+    success: boolean;
+    result?: any;
+    error?: string;
+  }> {
+    console.log('🔧 MCPClient.callTool called with:', toolCall);
+    console.log('🔧 Tool name:', toolCall.name);
+    console.log('🔧 Tool arguments:', JSON.stringify(toolCall.arguments));
+
+    const response = (await window.api.mcp.callTool(toolCall)) as any;
+    console.log('🔧 MCPClient.callTool response:', response);
+
+    return response;
+  }
 }
 
 export const mcpClient = new MCPClient();

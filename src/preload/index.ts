@@ -33,7 +33,8 @@ const api = {
     setEnabled: (enabled: boolean) => ipcRenderer.invoke('mcp:set-enabled', enabled),
     getStatus: () => ipcRenderer.invoke('mcp:get-status'),
     reconnect: () => ipcRenderer.invoke('mcp:reconnect'),
-    testConnection: () => ipcRenderer.invoke('mcp:test-connection')
+    testConnection: () => ipcRenderer.invoke('mcp:test-connection'),
+    callTool: (toolCall: any) => ipcRenderer.invoke('mcp:call-tool', toolCall)
   }
 };
 

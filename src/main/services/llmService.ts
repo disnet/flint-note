@@ -647,6 +647,33 @@ Stack: ${error instanceof Error ? error.stack : 'No stack'}
   async testMCPConnection(): Promise<{ success: boolean; error?: string }> {
     return mcpService.testConnection();
   }
+
+  async callMCPTool(
+    toolCall: MCPToolCall
+  ): Promise<{ success: boolean; result?: any; error?: string }> {
+    try {
+      console.log('🔧 LLM Service callMCPTool called with:', toolCall);
+
+      if (!this.mcpToolsEnabled) {
+        throw new Error('MCP tools are disabled');
+      }
+
+      const result = await mcpService.callTool(toolCall);
+      console.log('📋 MCP tool result:', result);
+
+      if (result.isError) {
+        throw new Error(result.content[0]?.text || 'Tool call failed');
+      }
+
+      return { success: true, result };
+    } catch (error) {
+      console.error('❌ Error calling MCP tool:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  }
 }
 
 // Export types for use in other modules

@@ -1,17 +1,96 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import LLMSettings from './LLMSettings.svelte';
+  import { vaultService, type VaultInfo } from '../services/vaultService';
 
-  // Mock data for now
-  let currentVault = 'Personal Notes';
-  let availableVaults = ['Personal Notes', 'Work Projects', 'Research'];
-  let isVaultDropdownOpen = false;
-  let isSettingsOpen = false;
+  // Reactive state
+  let currentVault = $state('Loading...');
+  let availableVaults = $state<VaultInfo[]>([]);
+  let isVaultDropdownOpen = $state(false);
+  let isSettingsOpen = $state(false);
+  let isLoadingVaults = $state(true);
+  let retryCount = $state(0);
 
-  const handleVaultChange = (vault: string): void => {
-    currentVault = vault;
-    isVaultDropdownOpen = false;
-    // TODO: Implement vault switching logic
-    console.log('Switching to vault:', vault);
+  onMount(async () => {
+    try {
+      await vaultService.initialize();
+      currentVault = vaultService.getCurrentVault() || 'No Vault';
+      availableVaults = vaultService.getAvailableVaults();
+
+      // Try to get more vaults if we only have one
+      if (availableVaults.length <= 1) {
+        try {
+          const vaults = await vaultService.listVaults();
+          availableVaults = vaults;
+        } catch (listError) {
+          console.warn('Failed to list additional vaults:', listError);
+          // Keep existing vault list if listing fails
+        }
+      }
+    } catch (error) {
+      console.error('Failed to initialize vault service:', error);
+      currentVault = 'Default Vault';
+      availableVaults = [
+        { id: 'default', name: 'Default Vault', path: '', isActive: true }
+      ];
+    } finally {
+      isLoadingVaults = false;
+    }
+  });
+
+  const retryVaultLoading = async (): Promise<void> => {
+    try {
+      isLoadingVaults = true;
+      retryCount++;
+      console.log(`🔄 Manual retry attempt ${retryCount}`);
+
+      await vaultService.initialize();
+      currentVault = vaultService.getCurrentVault() || 'No Vault';
+      availableVaults = vaultService.getAvailableVaults();
+
+      // Try to get more vaults if we only have one
+      if (availableVaults.length <= 1) {
+        try {
+          const vaults = await vaultService.listVaults();
+          availableVaults = vaults;
+        } catch (listError) {
+          console.warn('Failed to list additional vaults:', listError);
+        }
+      }
+    } catch (error) {
+      console.error('Manual retry failed:', error);
+      currentVault = 'Retry Failed';
+    } finally {
+      isLoadingVaults = false;
+    }
+  };
+
+  const handleVaultChange = async (vault: string): Promise<void> => {
+    const previousVault = currentVault;
+    try {
+      isVaultDropdownOpen = false;
+      if (vault === currentVault) return;
+
+      currentVault = 'Switching...';
+
+      await vaultService.switchVault(vault);
+      currentVault = vault;
+
+      // Update available vaults to reflect the change
+      availableVaults = availableVaults.map((v) => ({
+        ...v,
+        isActive: v.name === vault
+      }));
+    } catch (error) {
+      console.error('Failed to switch vault:', error);
+      // Restore previous vault name on error
+      currentVault = vaultService.getCurrentVault() || previousVault || 'Default Vault';
+
+      // Show user-friendly error (could be replaced with toast notification)
+      alert(
+        `Failed to switch to vault "${vault}". The vault tools may not be available.`
+      );
+    }
   };
 
   const toggleVaultDropdown = (): void => {
@@ -34,7 +113,7 @@
     <div class="vault-selector">
       <button
         class="vault-button"
-        on:click={toggleVaultDropdown}
+        onclick={toggleVaultDropdown}
         aria-expanded={isVaultDropdownOpen}
         aria-haspopup="true"
       >
@@ -51,25 +130,67 @@
         </svg>
       </button>
 
+      {#if currentVault === 'Default Vault' || currentVault === 'No Vault' || currentVault === 'Retry Failed'}
+        <button
+          class="retry-button"
+          onclick={retryVaultLoading}
+          disabled={isLoadingVaults}
+          title="Retry loading vault data"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16">
+            <path
+              d="M4 4.5V2L1 4.5L4 7V4.5H8C9.1046 4.5 10 5.3954 10 6.5V7.5C10 8.6046 9.1046 9.5 8 9.5H6V11H8C10.2091 11 12 9.2091 12 7.5V6.5C12 4.7909 10.2091 3 8 3H4Z"
+              fill="currentColor"
+            />
+          </svg>
+          {#if retryCount > 0}
+            <span class="retry-count">{retryCount}</span>
+          {/if}
+        </button>
+      {/if}
+
       {#if isVaultDropdownOpen}
         <div class="vault-dropdown">
-          {#each availableVaults as vault (vault)}
-            <button
-              class="vault-option"
-              class:active={vault === currentVault}
-              on:click={() => handleVaultChange(vault)}
-            >
+          {#if isLoadingVaults}
+            <div class="vault-loading">
+              <span class="loading-spinner">⏳</span>
+              Loading vaults...
+            </div>
+          {:else if availableVaults.length === 0}
+            <div class="vault-empty">
               <span class="vault-icon">📁</span>
-              {vault}
-            </button>
-          {/each}
+              No vaults available
+            </div>
+          {:else}
+            {#each availableVaults as vault (vault.id)}
+              <button
+                class="vault-option"
+                class:active={vault.name === currentVault}
+                onclick={() => handleVaultChange(vault.name)}
+                title={vault.description || vault.path}
+              >
+                <div class="vault-info">
+                  <span class="vault-icon">📁</span>
+                  <div class="vault-details">
+                    <span class="vault-name">{vault.name}</span>
+                    {#if vault.description}
+                      <span class="vault-description">{vault.description}</span>
+                    {/if}
+                  </div>
+                </div>
+                {#if vault.isActive}
+                  <span class="active-indicator">✓</span>
+                {/if}
+              </button>
+            {/each}
+          {/if}
         </div>
       {/if}
     </div>
   </div>
 
   <div class="header-right">
-    <button class="settings-button" on:click={handleSettings} aria-label="Settings">
+    <button class="settings-button" onclick={handleSettings} aria-label="Settings">
       <svg
         width="20"
         height="20"
@@ -172,7 +293,7 @@
   .vault-option {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    justify-content: space-between;
     width: 100%;
     padding: 0.75rem;
     background: none;
@@ -181,6 +302,29 @@
     cursor: pointer;
     transition: background-color 0.2s;
     font-size: 0.9rem;
+  }
+
+  .vault-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-grow: 1;
+  }
+
+  .vault-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .vault-name {
+    font-weight: 500;
+  }
+
+  .vault-description {
+    font-size: 0.8rem;
+    color: #6c757d;
+    line-height: 1.2;
   }
 
   .vault-option:hover {
@@ -264,6 +408,10 @@
       color: #66b2ff;
     }
 
+    .vault-description {
+      color: #adb5bd;
+    }
+
     .settings-button {
       color: #adb5bd;
     }
@@ -272,6 +420,73 @@
       background-color: #343a40;
       color: #f8f9fa;
     }
+  }
+
+  .retry-button {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    background-color: #ffc107;
+    color: #212529;
+    border: none;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.2s;
+    margin-left: 0.5rem;
+  }
+
+  .retry-button:hover:not(:disabled) {
+    background-color: #ffca2c;
+  }
+
+  .retry-button:disabled {
+    background-color: #6c757d;
+    color: #fff;
+    cursor: not-allowed;
+  }
+
+  .retry-count {
+    background-color: #dc3545;
+    color: white;
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: bold;
+  }
+
+  .vault-loading,
+  .vault-empty {
+    padding: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #6c757d;
+    font-size: 0.9rem;
+  }
+
+  .loading-spinner {
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .active-indicator {
+    margin-left: auto;
+    color: #007bff;
+    font-weight: bold;
   }
 
   /* Mobile responsive */

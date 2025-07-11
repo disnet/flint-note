@@ -229,6 +229,20 @@ app.whenReady().then(() => {
     }
   });
 
+  // Direct MCP tool call handler
+  ipcMain.handle('mcp:call-tool', async (_, toolCall: any) => {
+    try {
+      const result = await llmService.callMCPTool(toolCall);
+      return result;
+    } catch (error) {
+      console.error('Error calling MCP tool:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  });
+
   // Tool limit configuration handlers
   ipcMain.handle('llm:set-max-tools', async (_, limit: number) => {
     try {

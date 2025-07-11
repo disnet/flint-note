@@ -25,6 +25,10 @@ declare global {
         getStatus: () => Promise<unknown>;
         reconnect: () => Promise<unknown>;
         testConnection: () => Promise<unknown>;
+        callTool: (toolCall: {
+          name: string;
+          arguments: Record<string, unknown>;
+        }) => Promise<unknown>;
       };
     };
   }
