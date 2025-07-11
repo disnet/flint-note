@@ -16,7 +16,8 @@ export interface LLMClientEvents {
 
 export class LLMClient {
   private api: typeof window.api.llm;
-  private eventListeners: Map<keyof LLMClientEvents, Set<Function>> = new Map();
+  private eventListeners: Map<keyof LLMClientEvents, Set<(...args: any[]) => void>> =
+    new Map();
   private status: 'connecting' | 'connected' | 'disconnected' | 'error' = 'disconnected';
   private isInitialized: boolean = false;
   private initializationPromise: Promise<void> | null = null;

@@ -7,7 +7,8 @@ export interface MCPClientEvents {
 }
 
 export class MCPClient {
-  private eventListeners: Map<keyof MCPClientEvents, Set<Function>> = new Map();
+  private eventListeners: Map<keyof MCPClientEvents, Set<(...args: any[]) => void>> =
+    new Map();
   private status: 'connecting' | 'connected' | 'disconnected' | 'error' = 'disconnected';
 
   constructor() {

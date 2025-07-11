@@ -46,7 +46,6 @@
 
   // Computed properties
   const isConnected = $derived(llmStatus === 'connected');
-  const isLoading = $derived(llmStatus === 'connecting' || isTestingConnection);
 
   const testConnection = async (): Promise<void> => {
     if (isTestingConnection) return;

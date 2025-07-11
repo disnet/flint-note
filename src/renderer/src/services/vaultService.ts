@@ -23,7 +23,8 @@ export class VaultService {
   private availableVaults: VaultInfo[] = [];
   private isInitialized: boolean = false;
   private status: 'initializing' | 'ready' | 'error' = 'initializing';
-  private eventListeners: Map<keyof VaultServiceEvents, Set<Function>> = new Map();
+  private eventListeners: Map<keyof VaultServiceEvents, Set<(...args: any[]) => void>> =
+    new Map();
   private initializationPromise: Promise<void> | null = null;
 
   constructor() {
