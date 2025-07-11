@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { llmClient } from '../services/llmClient';
   import { mcpClient } from '../services/mcpClient';
   import type { LLMConfig } from '../../../shared/types';
@@ -20,7 +20,9 @@
     maxTokens: 2048
   });
 
-  let isConnected = $state(false);
+  let llmStatus = $state<'connecting' | 'connected' | 'disconnected' | 'error'>(
+    'disconnected'
+  );
   let isTestingConnection = $state(false);
   let isSaving = $state(false);
   let testResult = $state('');
@@ -39,7 +41,16 @@
   }>({ connected: false, toolCount: 0 });
   let isTestingMCPConnection = $state(false);
 
+  // Store unsubscribe functions for cleanup
+  let unsubscribeFunctions: (() => void)[] = [];
+
+  // Computed properties
+  const isConnected = $derived(llmStatus === 'connected');
+  const isLoading = $derived(llmStatus === 'connecting' || isTestingConnection);
+
   const testConnection = async (): Promise<void> => {
+    if (isTestingConnection) return;
+
     isTestingConnection = true;
     testResult = '';
 
@@ -47,18 +58,10 @@
       // Update config first
       await llmClient.updateConfig($state.snapshot(config));
 
-      // Test connection
-      const connected = await llmClient.testConnection();
-      isConnected = connected;
-
-      if (connected) {
-        testResult = 'Connection successful!';
-      } else {
-        testResult = 'Connection failed. Please check your LM Studio server.';
-      }
+      // Test connection (this will trigger events)
+      await llmClient.testConnection();
     } catch (error) {
-      isConnected = false;
-      console.error(error);
+      console.error('Error testing connection:', error);
       testResult = `Connection error: ${error.message}`;
     } finally {
       isTestingConnection = false;
@@ -71,12 +74,7 @@
 
     try {
       await llmClient.updateConfig(config);
-      testResult = 'Settings saved successfully!';
-
-      // Test connection after saving
-      setTimeout(() => {
-        testConnection();
-      }, 500);
+      // Success message will be handled by event listener
     } catch (error) {
       testResult = `Error saving settings: ${error.message}`;
     } finally {
@@ -188,12 +186,69 @@
   };
 
   onMount(async () => {
+    // Subscribe to LLM client events
+    const unsubscribeReady = llmClient.on('ready', () => {
+      console.log('✅ LLM client ready');
+      llmStatus = 'connected';
+      testResult = 'Connection successful!';
+    });
+
+    const unsubscribeError = llmClient.on('error', (error) => {
+      console.error('❌ LLM client error:', error);
+      llmStatus = 'error';
+      testResult = `Connection error: ${error.message}`;
+    });
+
+    const unsubscribeStatusChanged = llmClient.on('statusChanged', (status) => {
+      console.log('🔄 LLM client status changed:', status);
+      llmStatus = status;
+
+      if (status === 'connecting') {
+        testResult = 'Testing connection...';
+      } else if (status === 'disconnected') {
+        testResult = 'Connection failed. Please check your LM Studio server.';
+      }
+    });
+
+    const unsubscribeConnectionTest = llmClient.on('connectionTest', (connected) => {
+      console.log(`🔍 LLM connection test: ${connected ? 'connected' : 'disconnected'}`);
+      if (connected) {
+        testResult = 'Connection successful!';
+      } else {
+        testResult = 'Connection failed. Please check your LM Studio server.';
+      }
+    });
+
+    const unsubscribeConfigUpdated = llmClient.on('configUpdated', (newConfig) => {
+      console.log('🔧 LLM config updated:', newConfig);
+      config = newConfig;
+      testResult = 'Settings saved successfully!';
+    });
+
+    // Store unsubscribe functions for cleanup
+    unsubscribeFunctions = [
+      unsubscribeReady,
+      unsubscribeError,
+      unsubscribeStatusChanged,
+      unsubscribeConnectionTest,
+      unsubscribeConfigUpdated
+    ];
+
     // Load current config
     try {
       config = await llmClient.getConfig();
-      await testConnection();
+
+      // Check if already connected
+      if (llmClient.isReady()) {
+        llmStatus = 'connected';
+        testResult = 'Connection successful!';
+      } else {
+        // Initialize LLM client
+        await llmClient.initialize();
+      }
     } catch (error) {
       console.error('Error loading LLM config:', error);
+      testResult = `Error loading config: ${error.message}`;
     }
 
     // Load MCP status and tools
@@ -207,6 +262,11 @@
       console.error('Error loading MCP status:', error);
       mcpError = 'Error loading MCP status';
     }
+  });
+
+  onDestroy(() => {
+    // Clean up event subscriptions
+    unsubscribeFunctions.forEach((unsubscribe) => unsubscribe());
   });
 </script>
 
@@ -246,9 +306,19 @@
             class="status-indicator"
             class:connected={isConnected}
             class:disconnected={!isConnected}
+            class:connecting={llmStatus === 'connecting'}
+            class:error={llmStatus === 'error'}
           >
             <div class="status-dot"></div>
-            <span>{isConnected ? 'Connected' : 'Disconnected'}</span>
+            <span class={llmStatus}>
+              {llmStatus === 'connected'
+                ? 'Connected'
+                : llmStatus === 'connecting'
+                  ? 'Connecting...'
+                  : llmStatus === 'error'
+                    ? 'Error'
+                    : 'Disconnected'}
+            </span>
           </div>
           {#if testResult}
             <div
@@ -535,6 +605,25 @@
 
   .connected .status-dot {
     background-color: #16a34a;
+  }
+
+  .connecting .status-dot {
+    background-color: #f59e0b;
+    animation: pulse 1s infinite;
+  }
+
+  .error .status-dot {
+    background-color: #dc2626;
+  }
+
+  @keyframes pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
   }
 
   .test-result {
@@ -939,6 +1028,16 @@
     font-weight: 500;
   }
 
+  .status-item .connecting {
+    color: #f59e0b;
+    font-weight: 500;
+  }
+
+  .status-item .error {
+    color: #dc2626;
+    font-weight: 500;
+  }
+
   .connection-actions {
     display: flex;
     gap: 0.5rem;
@@ -963,6 +1062,14 @@
     }
 
     .status-item .disconnected {
+      color: #f87171;
+    }
+
+    .status-item .connecting {
+      color: #fbbf24;
+    }
+
+    .status-item .error {
       color: #f87171;
     }
   }

@@ -10,29 +10,190 @@ export interface VaultInfo {
   lastAccessed?: string;
 }
 
+export interface VaultServiceEvents {
+  ready: () => void;
+  vaultChanged: (vaultName: string) => void;
+  vaultsUpdated: (vaults: VaultInfo[]) => void;
+  error: (error: Error) => void;
+  statusChanged: (status: 'initializing' | 'ready' | 'error') => void;
+}
+
 export class VaultService {
   private currentVault: string | null = null;
   private availableVaults: VaultInfo[] = [];
   private isInitialized: boolean = false;
+  private status: 'initializing' | 'ready' | 'error' = 'initializing';
+  private eventListeners: Map<keyof VaultServiceEvents, Set<Function>> = new Map();
+  private initializationPromise: Promise<void> | null = null;
+
+  constructor() {
+    this.initEventListeners();
+  }
+
+  private initEventListeners(): void {
+    // Initialize event listener sets
+    const eventTypes: (keyof VaultServiceEvents)[] = [
+      'ready',
+      'vaultChanged',
+      'vaultsUpdated',
+      'error',
+      'statusChanged'
+    ];
+
+    eventTypes.forEach((eventType) => {
+      this.eventListeners.set(eventType, new Set());
+    });
+  }
+
+  // Event system
+  on<T extends keyof VaultServiceEvents>(
+    event: T,
+    listener: VaultServiceEvents[T]
+  ): () => void {
+    const listeners = this.eventListeners.get(event);
+    if (listeners) {
+      listeners.add(listener);
+    }
+
+    // Return unsubscribe function
+    return () => {
+      const listeners = this.eventListeners.get(event);
+      if (listeners) {
+        listeners.delete(listener);
+      }
+    };
+  }
+
+  private emit<T extends keyof VaultServiceEvents>(
+    event: T,
+    ...args: Parameters<VaultServiceEvents[T]>
+  ): void {
+    const listeners = this.eventListeners.get(event);
+    if (listeners) {
+      listeners.forEach((listener) => {
+        try {
+          (listener as any)(...args);
+        } catch (error) {
+          console.error(`Error in ${event} event listener:`, error);
+        }
+      });
+    }
+  }
+
+  private setStatus(status: 'initializing' | 'ready' | 'error'): void {
+    if (this.status !== status) {
+      this.status = status;
+      this.emit('statusChanged', status);
+    }
+  }
+
+  getStatus(): 'initializing' | 'ready' | 'error' {
+    return this.status;
+  }
+
+  // Wait for service to be ready
+  async waitForReady(): Promise<void> {
+    if (this.isInitialized) {
+      return;
+    }
+
+    if (this.initializationPromise) {
+      return this.initializationPromise;
+    }
+
+    return new Promise((resolve, reject) => {
+      if (this.isInitialized) {
+        resolve();
+        return;
+      }
+
+      const unsubscribeReady = this.on('ready', () => {
+        unsubscribeReady();
+        unsubscribeError();
+        resolve();
+      });
+
+      const unsubscribeError = this.on('error', (error) => {
+        unsubscribeReady();
+        unsubscribeError();
+        reject(error);
+      });
+
+      // Start initialization if not already started
+      if (!this.initializationPromise) {
+        this.initialize();
+      }
+    });
+  }
 
   async initialize(): Promise<void> {
     if (this.isInitialized) {
       return;
     }
 
+    if (this.initializationPromise) {
+      return this.initializationPromise;
+    }
+
+    this.initializationPromise = this.doInitialize();
+    return this.initializationPromise;
+  }
+
+  private async doInitialize(): Promise<void> {
     try {
+      this.setStatus('initializing');
+      console.log('🔄 Initializing vault service...');
+
+      // Wait for MCP client to be ready
+      await this.waitForMCPReady();
+
+      // Fetch vault data
       await this.fetchCurrentVaultWithRetry();
+
       this.isInitialized = true;
+      this.setStatus('ready');
       console.log('✅ Vault service initialized');
+      this.emit('ready');
     } catch (error) {
       console.error('❌ Failed to initialize vault service:', error);
+      this.setStatus('error');
+
       // Set default values even if initialization fails
       this.currentVault = 'Default Vault';
       this.availableVaults = [
         { id: 'default', name: 'Default Vault', path: '', isActive: true }
       ];
       this.isInitialized = true;
+
+      this.emit('error', error as Error);
+      this.emit('vaultsUpdated', this.availableVaults);
     }
+  }
+
+  private async waitForMCPReady(): Promise<void> {
+    const maxWaitTime = 10000; // 10 seconds
+    const checkInterval = 500; // 500ms
+    const startTime = Date.now();
+
+    while (Date.now() - startTime < maxWaitTime) {
+      try {
+        console.log('🔍 Checking MCP client status...');
+        const status = await mcpClient.getStatus();
+
+        if (status.success && status.status.connected) {
+          console.log('✅ MCP client is ready');
+          return;
+        }
+
+        console.log('⏳ MCP client not ready yet, waiting...');
+        await new Promise((resolve) => setTimeout(resolve, checkInterval));
+      } catch (error) {
+        console.log('⚠️ Error checking MCP status:', error);
+        await new Promise((resolve) => setTimeout(resolve, checkInterval));
+      }
+    }
+
+    throw new Error('MCP client did not become ready within timeout');
   }
 
   async fetchCurrentVaultWithRetry(
@@ -191,17 +352,17 @@ export class VaultService {
     for (const line of lines) {
       const trimmed = line.trim();
 
-      const pathMatch = trimmed.match(/[*]{2}Path[*]{2}:\s*(.+)$/);
+      const pathMatch = trimmed.match(/[*]{2}Path[*]{2]:\s*(.+)$/);
       if (pathMatch) {
         vault.path = pathMatch[1];
       }
 
-      const createdMatch = trimmed.match(/[*]{2}Created[*]{2}:\s*(.+)$/);
+      const createdMatch = trimmed.match(/[*]{2}Created[*]{2]:\s*(.+)$/);
       if (createdMatch) {
         vault.created = createdMatch[1];
       }
 
-      const accessedMatch = trimmed.match(/[*]{2}Last accessed[*]{2}:\s*(.+)$/);
+      const accessedMatch = trimmed.match(/[*]{2}Last accessed[*]{2]:\s*(.+)$/);
       if (accessedMatch) {
         vault.lastAccessed = accessedMatch[1];
       }
@@ -252,11 +413,13 @@ export class VaultService {
               // Parse the formatted vault list from Flint
               const vaults = this.parseFlintVaultData(content.text);
               this.availableVaults = vaults;
+              this.emit('vaultsUpdated', vaults);
 
               // Find current vault
               const currentVault = vaults.find((v) => v.isActive);
               if (currentVault) {
                 this.currentVault = currentVault.name;
+                this.emit('vaultChanged', currentVault.name);
               }
             } else if (toolName === 'get_current_vault') {
               // Parse the current vault data
@@ -264,6 +427,8 @@ export class VaultService {
               if (currentVault) {
                 this.currentVault = currentVault.name;
                 this.availableVaults = [currentVault];
+                this.emit('vaultChanged', currentVault.name);
+                this.emit('vaultsUpdated', [currentVault]);
               }
             } else {
               // Fallback for other tools - try JSON parse first
@@ -276,9 +441,12 @@ export class VaultService {
                     path: vault.path || '',
                     isActive: vault.isActive || false
                   }));
+                  this.emit('vaultsUpdated', this.availableVaults);
+
                   const activeVault = this.availableVaults.find((v) => v.isActive);
                   if (activeVault) {
                     this.currentVault = activeVault.name;
+                    this.emit('vaultChanged', activeVault.name);
                   }
                 }
               } catch {
@@ -292,6 +460,8 @@ export class VaultService {
                     path: '',
                     isActive: index === 0
                   }));
+                  this.emit('vaultChanged', this.currentVault);
+                  this.emit('vaultsUpdated', this.availableVaults);
                 }
               }
             }
@@ -387,8 +557,12 @@ export class VaultService {
         ...vault,
         isActive: vault.name === vaultName
       }));
+
+      this.emit('vaultChanged', vaultName);
+      this.emit('vaultsUpdated', this.availableVaults);
     } catch (error) {
       console.error('❌ Error switching vault:', error);
+      this.emit('error', error as Error);
       throw error;
     }
   }
@@ -417,12 +591,14 @@ export class VaultService {
                   isActive:
                     vault.name === this.currentVault || vault === this.currentVault
                 }));
+                this.emit('vaultsUpdated', this.availableVaults);
               }
             } catch {
               // Parse Flint formatted vault data
               const vaults = this.parseFlintVaultData(content.text);
               if (vaults.length > 0) {
                 this.availableVaults = vaults;
+                this.emit('vaultsUpdated', vaults);
               } else {
                 // Fallback to plain text parsing
                 const vaultNames = content.text.split('\n').filter((name) => name.trim());
@@ -432,6 +608,7 @@ export class VaultService {
                   path: '',
                   isActive: name.trim() === this.currentVault
                 }));
+                this.emit('vaultsUpdated', this.availableVaults);
               }
             }
           }
@@ -441,6 +618,7 @@ export class VaultService {
       return this.availableVaults;
     } catch (error) {
       console.error('❌ Error listing vaults:', error);
+      this.emit('error', error as Error);
       // Return current vault list if listing fails
       return this.availableVaults;
     }
@@ -458,12 +636,18 @@ export class VaultService {
     return this.isInitialized;
   }
 
-  // Subscribe to vault changes
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  onVaultChange(_: (vaultName: string) => void): () => void {
-    // This would be implemented with an event system
-    // For now, just return a no-op unsubscribe function
-    return () => {};
+  // Legacy method for backward compatibility
+  onVaultChange(callback: (vaultName: string) => void): () => void {
+    return this.on('vaultChanged', callback);
+  }
+
+  // Convenience method to refresh vault data
+  async refresh(): Promise<void> {
+    if (!this.isInitialized) {
+      await this.initialize();
+    } else {
+      await this.fetchCurrentVault();
+    }
   }
 }
 

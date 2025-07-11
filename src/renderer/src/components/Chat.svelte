@@ -25,11 +25,16 @@
   let slashCommandPosition = $state({ x: 0, y: 0 });
   let slashCommandMaxHeight = $state(400);
   let inputElement: HTMLTextAreaElement;
-  let isLLMAvailable = $state(false);
+  let llmStatus = $state<'connecting' | 'connected' | 'disconnected' | 'error'>(
+    'disconnected'
+  );
   let streamingResponse = $state('');
   let isStreaming = $state(false);
   let mcpEnabled = $state(false);
   let mcpTools: Array<{ name: string; description: string }> = [];
+
+  // Store unsubscribe functions for cleanup
+  let unsubscribeFunctions: (() => void)[] = [];
 
   const handleSendMessage = async (): Promise<void> => {
     if (!inputValue.trim()) return;
@@ -56,12 +61,12 @@
   };
 
   const generateLLMResponse = async (userInput: string): Promise<void> => {
-    if (!isLLMAvailable) {
+    if (llmStatus !== 'connected') {
       // Fallback to mock response if LLM is not available
       const fallbackResponse: Message = {
         id: Date.now().toString(),
         type: 'agent',
-        content: `I received your message: "${userInput}". LLM is not available. Please check your LM Studio connection.`,
+        content: `I received your message: "${userInput}". LLM is not available (Status: ${llmStatus}). Please check your LM Studio connection.`,
         timestamp: new Date()
       };
       messages = [...messages, fallbackResponse];
@@ -248,7 +253,7 @@
     // Generate contextual response using LLM
     const commandPrompt = `User executed the command: /${command.name}${args.length > 0 ? ' ' + args.join(' ') : ''}. ${command.description}. Please provide a helpful response for this command.`;
 
-    if (isLLMAvailable) {
+    if (llmStatus === 'connected') {
       await generateLLMResponse(commandPrompt);
     } else {
       // Fallback to mock responses
@@ -346,17 +351,46 @@
     // Focus input on mount
     if (inputElement) inputElement.focus();
 
-    // Test LLM connection
-    try {
-      isLLMAvailable = await llmClient.testConnection();
-      if (isLLMAvailable) {
-        console.log('LLM connection established');
-      } else {
-        console.warn('LLM connection failed - falling back to mock responses');
+    // Subscribe to LLM client events
+    const unsubscribeReady = llmClient.on('ready', () => {
+      console.log('✅ LLM client ready');
+      llmStatus = 'connected';
+    });
+
+    const unsubscribeError = llmClient.on('error', (error) => {
+      console.error('❌ LLM client error:', error);
+      llmStatus = 'error';
+    });
+
+    const unsubscribeStatusChanged = llmClient.on('statusChanged', (status) => {
+      console.log('🔄 LLM client status changed:', status);
+      llmStatus = status;
+    });
+
+    const unsubscribeConnectionTest = llmClient.on('connectionTest', (connected) => {
+      console.log(`🔍 LLM connection test: ${connected ? 'connected' : 'disconnected'}`);
+      llmStatus = connected ? 'connected' : 'disconnected';
+    });
+
+    // Store unsubscribe functions for cleanup
+    unsubscribeFunctions = [
+      unsubscribeReady,
+      unsubscribeError,
+      unsubscribeStatusChanged,
+      unsubscribeConnectionTest
+    ];
+
+    // Check if already initialized
+    if (llmClient.isReady()) {
+      llmStatus = 'connected';
+    } else {
+      // Initialize LLM client (this will trigger events)
+      try {
+        await llmClient.initialize();
+      } catch (error) {
+        console.error('Failed to initialize LLM client:', error);
+        // Error handling is done through events
       }
-    } catch (error) {
-      console.error('Error testing LLM connection:', error);
-      isLLMAvailable = false;
     }
 
     // Check MCP status
@@ -392,6 +426,9 @@
     if (llmClient) {
       llmClient.stopStreaming();
     }
+
+    // Clean up event subscriptions
+    unsubscribeFunctions.forEach((unsubscribe) => unsubscribe());
   });
 </script>
 
@@ -454,7 +491,8 @@
         bind:value={inputValue}
         onkeydown={handleKeyDown}
         oninput={handleInput}
-        placeholder="Type your message... (Press Enter to send, Shift+Enter for new line, / for commands){isLLMAvailable
+        placeholder="Type your message... (Press Enter to send, Shift+Enter for new line, / for commands){llmStatus ===
+        'connected'
           ? ''
           : ' - LLM offline'}"
         rows="1"

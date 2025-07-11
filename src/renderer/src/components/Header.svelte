@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import LLMSettings from './LLMSettings.svelte';
   import { vaultService, type VaultInfo } from '../services/vaultService';
 
@@ -8,60 +8,88 @@
   let availableVaults = $state<VaultInfo[]>([]);
   let isVaultDropdownOpen = $state(false);
   let isSettingsOpen = $state(false);
-  let isLoadingVaults = $state(true);
+  let vaultStatus = $state<'initializing' | 'ready' | 'error'>('initializing');
   let retryCount = $state(0);
 
+  // Store unsubscribe functions
+  let unsubscribeFunctions: (() => void)[] = [];
+
   onMount(async () => {
-    try {
-      await vaultService.initialize();
+    // Subscribe to vault service events
+    const unsubscribeReady = vaultService.on('ready', () => {
+      console.log('✅ Vault service ready');
       currentVault = vaultService.getCurrentVault() || 'No Vault';
       availableVaults = vaultService.getAvailableVaults();
+      vaultStatus = 'ready';
+    });
 
-      // Try to get more vaults if we only have one
-      if (availableVaults.length <= 1) {
-        try {
-          const vaults = await vaultService.listVaults();
-          availableVaults = vaults;
-        } catch (listError) {
-          console.warn('Failed to list additional vaults:', listError);
-          // Keep existing vault list if listing fails
-        }
+    const unsubscribeVaultChanged = vaultService.on('vaultChanged', (vaultName) => {
+      console.log('🔄 Vault changed to:', vaultName);
+      currentVault = vaultName;
+    });
+
+    const unsubscribeVaultsUpdated = vaultService.on('vaultsUpdated', (vaults) => {
+      console.log('📁 Vaults updated:', vaults);
+      availableVaults = vaults;
+    });
+
+    const unsubscribeError = vaultService.on('error', (error) => {
+      console.error('❌ Vault service error:', error);
+      vaultStatus = 'error';
+      currentVault = 'Error';
+    });
+
+    const unsubscribeStatusChanged = vaultService.on('statusChanged', (status) => {
+      console.log('🔄 Vault service status changed:', status);
+      vaultStatus = status;
+
+      if (status === 'initializing') {
+        currentVault = 'Loading...';
+      } else if (status === 'error') {
+        currentVault = 'Error';
       }
-    } catch (error) {
-      console.error('Failed to initialize vault service:', error);
-      currentVault = 'Default Vault';
-      availableVaults = [
-        { id: 'default', name: 'Default Vault', path: '', isActive: true }
-      ];
-    } finally {
-      isLoadingVaults = false;
+    });
+
+    // Store unsubscribe functions for cleanup
+    unsubscribeFunctions = [
+      unsubscribeReady,
+      unsubscribeVaultChanged,
+      unsubscribeVaultsUpdated,
+      unsubscribeError,
+      unsubscribeStatusChanged
+    ];
+
+    // Check if already initialized
+    if (vaultService.isReady()) {
+      currentVault = vaultService.getCurrentVault() || 'No Vault';
+      availableVaults = vaultService.getAvailableVaults();
+      vaultStatus = 'ready';
+    } else {
+      // Initialize vault service (this will trigger events)
+      try {
+        await vaultService.initialize();
+      } catch (error) {
+        console.error('Failed to initialize vault service:', error);
+        // Error handling is done through events
+      }
     }
+  });
+
+  onDestroy(() => {
+    // Clean up event subscriptions
+    unsubscribeFunctions.forEach((unsubscribe) => unsubscribe());
   });
 
   const retryVaultLoading = async (): Promise<void> => {
     try {
-      isLoadingVaults = true;
       retryCount++;
       console.log(`🔄 Manual retry attempt ${retryCount}`);
 
-      await vaultService.initialize();
-      currentVault = vaultService.getCurrentVault() || 'No Vault';
-      availableVaults = vaultService.getAvailableVaults();
-
-      // Try to get more vaults if we only have one
-      if (availableVaults.length <= 1) {
-        try {
-          const vaults = await vaultService.listVaults();
-          availableVaults = vaults;
-        } catch (listError) {
-          console.warn('Failed to list additional vaults:', listError);
-        }
-      }
+      // Use the vault service's refresh method
+      await vaultService.refresh();
     } catch (error) {
       console.error('Manual retry failed:', error);
-      currentVault = 'Retry Failed';
-    } finally {
-      isLoadingVaults = false;
+      // Error handling is done through events
     }
   };
 
@@ -74,13 +102,7 @@
       currentVault = 'Switching...';
 
       await vaultService.switchVault(vault);
-      currentVault = vault;
-
-      // Update available vaults to reflect the change
-      availableVaults = availableVaults.map((v) => ({
-        ...v,
-        isActive: v.name === vault
-      }));
+      // Success is handled through events
     } catch (error) {
       console.error('Failed to switch vault:', error);
       // Restore previous vault name on error
@@ -104,6 +126,16 @@
   const closeSettings = (): void => {
     isSettingsOpen = false;
   };
+
+  // Computed properties for better UX
+  const isLoading = $derived(vaultStatus === 'initializing');
+  const hasError = $derived(vaultStatus === 'error');
+  const showRetryButton = $derived(
+    hasError ||
+      currentVault === 'Default Vault' ||
+      currentVault === 'No Vault' ||
+      currentVault === 'Error'
+  );
 </script>
 
 <header class="header">
@@ -113,11 +145,21 @@
     <div class="vault-selector">
       <button
         class="vault-button"
+        class:loading={isLoading}
+        class:error={hasError}
         onclick={toggleVaultDropdown}
         aria-expanded={isVaultDropdownOpen}
         aria-haspopup="true"
       >
-        <span class="vault-icon">📁</span>
+        <span class="vault-icon">
+          {#if isLoading}
+            ⏳
+          {:else if hasError}
+            ⚠️
+          {:else}
+            📁
+          {/if}
+        </span>
         <span class="vault-name">{currentVault}</span>
         <svg
           class="dropdown-arrow"
@@ -130,11 +172,11 @@
         </svg>
       </button>
 
-      {#if currentVault === 'Default Vault' || currentVault === 'No Vault' || currentVault === 'Retry Failed'}
+      {#if showRetryButton}
         <button
           class="retry-button"
           onclick={retryVaultLoading}
-          disabled={isLoadingVaults}
+          disabled={isLoading}
           title="Retry loading vault data"
         >
           <svg width="16" height="16" viewBox="0 0 16 16">
@@ -151,7 +193,7 @@
 
       {#if isVaultDropdownOpen}
         <div class="vault-dropdown">
-          {#if isLoadingVaults}
+          {#if isLoading}
             <div class="vault-loading">
               <span class="loading-spinner">⏳</span>
               Loading vaults...
@@ -256,6 +298,16 @@
   .vault-button:hover {
     background-color: #e9ecef;
     border-color: #adb5bd;
+  }
+
+  .vault-button.loading {
+    background-color: #fff3cd;
+    border-color: #ffeaa7;
+  }
+
+  .vault-button.error {
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
   }
 
   .vault-icon {
@@ -388,6 +440,16 @@
     .vault-button:hover {
       background-color: #495057;
       border-color: #6c757d;
+    }
+
+    .vault-button.loading {
+      background-color: #664d03;
+      border-color: #997404;
+    }
+
+    .vault-button.error {
+      background-color: #58151c;
+      border-color: #721c24;
     }
 
     .vault-name {
