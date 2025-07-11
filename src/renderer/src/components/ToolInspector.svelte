@@ -2,7 +2,9 @@
   import { onMount } from 'svelte';
   import { mcpClient } from '../services/mcpClient';
 
-  let tools = $state<any[]>([]);
+  let tools = $state<
+    Array<{ name: string; description?: string; inputSchema?: unknown }>
+  >([]);
   let isLoading = $state(true);
   let error = $state<string | null>(null);
   let testResults = $state<string[]>([]);
@@ -11,7 +13,7 @@
     await loadTools();
   });
 
-  async function loadTools() {
+  async function loadTools(): Promise<void> {
     try {
       isLoading = true;
       error = null;
@@ -38,7 +40,7 @@
     }
   }
 
-  async function testTool(toolName: string) {
+  async function testTool(toolName: string): Promise<void> {
     try {
       addTestResult(`🔧 Testing tool: ${toolName}`);
 
@@ -60,7 +62,7 @@
     }
   }
 
-  async function testVaultTools() {
+  async function testVaultTools(): Promise<void> {
     const vaultTools = [
       'list_vaults',
       'get_current_vault',
@@ -93,11 +95,11 @@
     }
   }
 
-  function addTestResult(message: string) {
+  function addTestResult(message: string): void {
     testResults = [...testResults, `${new Date().toLocaleTimeString()}: ${message}`];
   }
 
-  function clearResults() {
+  function clearResults(): void {
     testResults = [];
   }
 </script>
@@ -126,7 +128,7 @@
     <h3>Available Tools ({tools.length})</h3>
     {#if tools.length > 0}
       <div class="tools-grid">
-        {#each tools as tool}
+        {#each tools as tool (tool.name)}
           <div class="tool-card">
             <div class="tool-header">
               <h4>{tool.name}</h4>
@@ -160,7 +162,7 @@
     <div class="results-container">
       {#if testResults.length > 0}
         <div class="results">
-          {#each testResults as result}
+          {#each testResults as result, index (index)}
             <div class="result-item">{result}</div>
           {/each}
         </div>

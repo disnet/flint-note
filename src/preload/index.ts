@@ -34,7 +34,8 @@ const api = {
     getStatus: () => ipcRenderer.invoke('mcp:get-status'),
     reconnect: () => ipcRenderer.invoke('mcp:reconnect'),
     testConnection: () => ipcRenderer.invoke('mcp:test-connection'),
-    callTool: (toolCall: any) => ipcRenderer.invoke('mcp:call-tool', toolCall)
+    callTool: (toolCall: { name: string; arguments: Record<string, unknown> }) =>
+      ipcRenderer.invoke('mcp:call-tool', toolCall)
   }
 };
 

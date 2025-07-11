@@ -13,7 +13,7 @@
     await loadVaultInfo();
   });
 
-  async function loadVaultInfo() {
+  async function loadVaultInfo(): Promise<void> {
     try {
       isLoading = true;
       error = null;
@@ -51,7 +51,7 @@
     }
   }
 
-  async function testDirectToolCall() {
+  async function testDirectToolCall(): Promise<void> {
     try {
       addTestResult('🔧 Testing direct tool call...');
 
@@ -73,7 +73,7 @@
     }
   }
 
-  async function testSwitchVault(vaultName: string) {
+  async function testSwitchVault(vaultName: string): Promise<void> {
     try {
       addTestResult(`🔄 Testing vault switch to: ${vaultName}`);
 
@@ -89,11 +89,11 @@
     }
   }
 
-  function addTestResult(message: string) {
+  function addTestResult(message: string): void {
     testResults = [...testResults, `${new Date().toLocaleTimeString()}: ${message}`];
   }
 
-  function clearResults() {
+  function clearResults(): void {
     testResults = [];
   }
 </script>
@@ -114,7 +114,7 @@
     <h3>Available Vaults</h3>
     {#if availableVaults.length > 0}
       <ul class="vault-list">
-        {#each availableVaults as vault}
+        {#each availableVaults as vault (vault.id)}
           <li class="vault-item" class:active={vault.isActive}>
             <div class="vault-main-info">
               <span class="vault-icon">📁</span>
@@ -172,7 +172,7 @@
     <div class="results-container">
       {#if testResults.length > 0}
         <div class="results">
-          {#each testResults as result}
+          {#each testResults as result, index (index)}
             <div class="result-item">{result}</div>
           {/each}
         </div>

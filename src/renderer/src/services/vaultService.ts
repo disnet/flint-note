@@ -115,7 +115,7 @@ export class VaultService {
 
       // Match vault header like "⚪ **__default_workspace__**: Default Workspace"
       const vaultMatch = trimmed.match(
-        /^[⚪🟢]\s*(?:\(current\)\s*)?[*]{2}([^*]+)[*]{2}:\s*(.+)$/
+        /^[⚪🟢]\s*(?:\(current\)\s*)?[*]{2}([^*]+)[*]{2}:\s*(.+)$/u
       );
       if (vaultMatch) {
         console.log('🔍 Matched vault line:', line);
@@ -281,7 +281,7 @@ export class VaultService {
                     this.currentVault = activeVault.name;
                   }
                 }
-              } catch (jsonError) {
+              } catch {
                 // Plain text fallback
                 const vaultNames = content.text.split('\n').filter((name) => name.trim());
                 if (vaultNames.length > 0) {
@@ -418,7 +418,7 @@ export class VaultService {
                     vault.name === this.currentVault || vault === this.currentVault
                 }));
               }
-            } catch (jsonError) {
+            } catch {
               // Parse Flint formatted vault data
               const vaults = this.parseFlintVaultData(content.text);
               if (vaults.length > 0) {
@@ -459,7 +459,8 @@ export class VaultService {
   }
 
   // Subscribe to vault changes
-  onVaultChange(_callback: (vaultName: string) => void): () => void {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  onVaultChange(_: (vaultName: string) => void): () => void {
     // This would be implemented with an event system
     // For now, just return a no-op unsubscribe function
     return () => {};
