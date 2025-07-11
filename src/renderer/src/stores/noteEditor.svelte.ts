@@ -1,4 +1,3 @@
-import { writable, derived } from 'svelte/store';
 import type { NoteReference } from '../types/chat';
 
 interface NoteEditorState {

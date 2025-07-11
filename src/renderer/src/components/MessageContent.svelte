@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { NoteReference } from '../types/chat';
-  import { parseMessageContent } from '../utils/messageParser';
+  import { parseMessageContentSync, preloadNoteReferences } from '../utils/messageParser';
   import NoteReferenceComponent from './NoteReferenceComponent.svelte';
 
   interface Props {
@@ -10,7 +10,14 @@
   }
   let { content, messageType = 'agent', openNote }: Props = $props();
 
-  let messageParts = $derived(parseMessageContent(content));
+  let messageParts = $derived(parseMessageContentSync(content));
+
+  // Preload note references in the background
+  $effect(() => {
+    if (content) {
+      preloadNoteReferences(content).catch(console.error);
+    }
+  });
 
   const formatText = (text: string): { type: string; content: string }[] => {
     // Parse text into segments for safe rendering

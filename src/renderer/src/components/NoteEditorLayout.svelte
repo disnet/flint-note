@@ -53,7 +53,7 @@
     error = null;
 
     try {
-      console.log('Loading note:', note);
+      console.log('Loading note:', $state.snapshot(note));
       const response = await window.api.mcp.callTool({
         name: 'get_note',
         arguments: {

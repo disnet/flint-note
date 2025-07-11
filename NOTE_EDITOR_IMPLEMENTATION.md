@@ -69,6 +69,17 @@ The note editor integrates with the Model Context Protocol (MCP) to perform file
 
 - **get_note**: Loads note content by title
 - **update_note**: Saves note content changes
+- **search_notes**: Finds notes by title or content for note reference parsing
+
+### Message Parsing with MCP
+
+The message parser has been updated to use real MCP calls instead of mock data:
+
+- **Real-time Note Resolution**: Note references like `[[Note Title]]` are resolved using MCP search
+- **Caching**: Note references are cached to avoid repeated MCP calls
+- **Async/Sync Support**: Both async and sync parsing methods available
+- **Loading States**: Notes show loading state while being resolved
+- **Broken Reference Handling**: Invalid note references are marked as broken
 
 ### Responsive Layout Logic
 
@@ -130,7 +141,14 @@ Added IPC handlers for file system operations:
 
 ## Usage Flow
 
-1. **Opening Notes**: User clicks on a note reference in the chat
+### Note Reference Parsing
+1. **Message Display**: When chat messages are displayed, note references like `[[Note Title]]` are parsed
+2. **MCP Resolution**: The message parser uses MCP `search_notes` to resolve note references
+3. **Visual Indicators**: Notes show different states (loading, found, broken) with appropriate icons
+4. **Caching**: Successfully resolved notes are cached for better performance
+
+### Note Editing
+1. **Opening Notes**: User clicks on a resolved note reference in the chat
 2. **Note Loading**: `handleNoteOpen` in Chat component calls `noteEditorStore.openNote()`
 3. **Content Loading**: Note editor loads content using MCP `get_note` tool
 4. **Editing**: User can edit content with auto-save functionality
@@ -177,10 +195,20 @@ To test the note editor:
 1. **Start the application**: `npm run dev`
 2. **Open chat interface**: Navigate to the chat tab
 3. **Send a message**: Ask the agent about notes or create a note
-4. **Click note references**: Click on any note reference in the chat
-5. **Edit content**: The note editor should open with the note content
-6. **Test auto-save**: Make changes and wait for auto-save
-7. **Test keyboard shortcuts**: Use Ctrl+S to save, ESC to close
+4. **Test note references**: Look for `[[Note Title]]` style references in agent responses
+5. **Verify resolution**: Note references should show appropriate icons (⏳ loading, ✅ found, ❌ broken)
+6. **Click note references**: Click on any resolved note reference in the chat
+7. **Edit content**: The note editor should open with the note content
+8. **Test auto-save**: Make changes and wait for auto-save
+9. **Test keyboard shortcuts**: Use Ctrl+S to save, ESC to close
+
+### Testing Note References
+
+You can test note reference parsing by:
+1. Creating messages with `[[Note Title]]` syntax
+2. Verifying that existing notes are resolved and clickable
+3. Testing that non-existent notes show as broken references
+4. Checking that the cache works by repeated references to the same note
 
 ## Future Enhancements
 
@@ -193,6 +221,9 @@ Potential improvements for future versions:
 - **Plugin System**: Extensible editor plugins
 - **Advanced Search**: Search within note content
 - **Export Options**: Export notes to various formats
+- **Smart Note Suggestions**: AI-powered note recommendations
+- **Batch Operations**: Edit multiple notes simultaneously
+- **Real-time Sync**: Live updates when notes change externally
 
 ## Performance Considerations
 
@@ -200,6 +231,9 @@ Potential improvements for future versions:
 - **Lazy Loading**: Content loaded only when needed
 - **Memory Management**: Proper cleanup of timeouts and listeners
 - **Virtual Scrolling**: For large note content (future enhancement)
+- **Note Reference Caching**: Reduces redundant MCP calls
+- **Async/Sync Parsing**: Supports both immediate display and background resolution
+- **Batch MCP Operations**: Multiple note lookups performed in parallel
 
 ## Security Notes
 

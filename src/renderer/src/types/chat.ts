@@ -16,7 +16,7 @@ export interface Message {
 export interface NoteReference {
   id: string;
   title: string;
-  type?: string;
+  type?: string | 'loading' | 'broken';
   path?: string;
 }
 

@@ -147,6 +147,16 @@ This is a comprehensive project planning document for the new feature developmen
 - "Plugin system would allow for customization"`
 };
 
+// Test messages with note references
+const testMessages = [
+  "I've updated the [[Project Planning]] with the new sections you requested. You might also want to check the [[Daily Standup Notes]] for recent progress updates.",
+  "Based on our [[Meeting with Design Team]], I've created a new [[Feature Ideas Brainstorm]] document. The [[API Documentation]] has also been updated.",
+  'The [[Daily Standup Notes]] show good progress on the current sprint. Let me know if you need to update the [[Project Planning Template]].',
+  'I found some relevant information in the [[API Documentation]]. This should help with the ideas we discussed in [[Feature Ideas Brainstorm]].',
+  "Here's a note without references.",
+  'This message has a [[Non-existent Note]] reference that should be marked as broken.'
+];
+
 // Mock MCP client for testing
 class MockMCPClient {
   async callTool(toolCall) {
@@ -172,10 +182,10 @@ class MockMCPClient {
     console.log(`Loading note: ${title}`);
 
     // Simulate loading delay
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
     // Find note by title
-    const note = mockNoteReferences.find(n => n.title === title);
+    const note = mockNoteReferences.find((n) => n.title === title);
     if (!note) {
       return {
         success: false,
@@ -207,10 +217,10 @@ class MockMCPClient {
     console.log(`Saving note: ${title}, Content length: ${content.length}`);
 
     // Simulate save delay
-    await new Promise(resolve => setTimeout(resolve, 300));
+    await new Promise((resolve) => setTimeout(resolve, 300));
 
     // Find note by title
-    const note = mockNoteReferences.find(n => n.title === title);
+    const note = mockNoteReferences.find((n) => n.title === title);
     if (!note) {
       return {
         success: false,
@@ -295,7 +305,8 @@ class NoteEditorTest {
 
     for (const note of mockNoteReferences) {
       try {
-        const newContent = mockNoteContent[note.id] + '\n\n## Test Update\nThis is a test update.';
+        const newContent =
+          mockNoteContent[note.id] + '\n\n## Test Update\nThis is a test update.';
 
         const result = await this.mcpClient.callTool({
           name: 'update_note',
@@ -396,7 +407,7 @@ class NoteEditorTest {
     console.log('\n🔄 Testing Multiple Notes...');
 
     // Test loading multiple notes quickly
-    const promises = mockNoteReferences.map(note =>
+    const promises = mockNoteReferences.map((note) =>
       this.mcpClient.callTool({
         name: 'get_note',
         arguments: { title: note.title }
@@ -405,7 +416,7 @@ class NoteEditorTest {
 
     try {
       const results = await Promise.all(promises);
-      const successCount = results.filter(r => r.success).length;
+      const successCount = results.filter((r) => r.success).length;
 
       if (successCount === mockNoteReferences.length) {
         console.log('✅ Multiple notes loaded successfully');
@@ -435,9 +446,9 @@ class NoteEditorTest {
     console.log('\n📊 Test Results Summary');
     console.log('=======================');
 
-    const passed = this.testResults.filter(r => r.status === 'PASS').length;
-    const failed = this.testResults.filter(r => r.status === 'FAIL').length;
-    const errors = this.testResults.filter(r => r.status === 'ERROR').length;
+    const passed = this.testResults.filter((r) => r.status === 'PASS').length;
+    const failed = this.testResults.filter((r) => r.status === 'FAIL').length;
+    const errors = this.testResults.filter((r) => r.status === 'ERROR').length;
 
     console.log(`✅ Passed: ${passed}`);
     console.log(`❌ Failed: ${failed}`);
@@ -447,8 +458,8 @@ class NoteEditorTest {
     if (failed > 0 || errors > 0) {
       console.log('\n💥 Failed/Error Tests:');
       this.testResults
-        .filter(r => r.status !== 'PASS')
-        .forEach(result => {
+        .filter((r) => r.status !== 'PASS')
+        .forEach((result) => {
           console.log(`- ${result.test}: ${result.status}`);
           if (result.error) {
             console.log(`  Error: ${result.error}`);
@@ -495,10 +506,12 @@ class PerformanceTest {
     console.time('Concurrent Operations');
     const promises = [];
     for (let i = 0; i < 5; i++) {
-      promises.push(mcpClient.callTool({
-        name: 'get_note',
-        arguments: { title: mockNoteReferences[i % mockNoteReferences.length].title }
-      }));
+      promises.push(
+        mcpClient.callTool({
+          name: 'get_note',
+          arguments: { title: mockNoteReferences[i % mockNoteReferences.length].title }
+        })
+      );
     }
     await Promise.all(promises);
     console.timeEnd('Concurrent Operations');

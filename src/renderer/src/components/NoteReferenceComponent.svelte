@@ -21,6 +21,10 @@
         return '💡';
       case 'reference':
         return '🔗';
+      case 'loading':
+        return '⏳';
+      case 'broken':
+        return '❌';
       default:
         return '📄';
     }
@@ -38,6 +42,10 @@
         return '#6f42c1';
       case 'reference':
         return '#6c757d';
+      case 'loading':
+        return '#ffc107';
+      case 'broken':
+        return '#dc3545';
       default:
         return '#007bff';
     }
@@ -47,9 +55,12 @@
 <button
   class="note-reference"
   class:inline
-  {onclick}
+  class:loading={note.type === 'loading'}
+  class:broken={note.type === 'broken'}
+  onclick={note.type === 'loading' || note.type === 'broken' ? undefined : onclick}
   style="--note-color: {getNoteTypeColor(note.type)}"
   title={note.path ? `${note.title} (${note.path})` : note.title}
+  disabled={note.type === 'loading' || note.type === 'broken'}
 >
   <span class="note-icon">{getNoteIcon(note.type)}</span>
   <span class="note-title">{note.title}</span>
@@ -86,6 +97,25 @@
 
   .note-reference:active {
     transform: translateY(0);
+  }
+
+  .note-reference.loading {
+    opacity: 0.7;
+    cursor: wait;
+  }
+
+  .note-reference.broken {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .note-reference:disabled {
+    cursor: not-allowed;
+  }
+
+  .note-reference:disabled:hover {
+    transform: none;
+    box-shadow: none;
   }
 
   .note-reference.inline {
