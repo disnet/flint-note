@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { llmClient } from '../services/llmClient';
   import { mcpClient } from '../services/mcpClient';
-  import type { LLMConfig, MCPServer } from '../../../shared/types';
+  import type { LLMConfig } from '../../../shared/types';
   import type { MCPTool } from '../types/chat';
 
   interface Props {
@@ -31,23 +31,13 @@
   let isLoadingMCPTools = $state(false);
   let mcpError = $state('');
 
-  // MCP server management
-  let mcpServers: MCPServer[] = $state([]);
-  let isLoadingServers = $state(false);
-  let showAddServerForm = $state(false);
-  let newServer: Omit<MCPServer, 'id'> = $state({
-    name: '',
-    command: '',
-    args: [],
-    enabled: true,
-    description: '',
-    env: {}
-  });
-  let testingServer: string | null = $state(null);
-  let testResults: Record<
-    string,
-    { success: boolean; error?: string; toolCount?: number }
-  > = $state({});
+  // MCP connection status
+  let mcpConnectionStatus = $state<{
+    connected: boolean;
+    toolCount: number;
+    error?: string;
+  }>({ connected: false, toolCount: 0 });
+  let isTestingMCPConnection = $state(false);
 
   const testConnection = async (): Promise<void> => {
     isTestingConnection = true;
@@ -139,7 +129,7 @@
     mcpError = '';
 
     try {
-      mcpTools = await mcpClient.getAvailableTools();
+      mcpTools = await mcpClient.getTools();
     } catch (error) {
       console.error('Error loading MCP tools:', error);
       mcpError = `Error loading MCP tools: ${error.message}`;
@@ -149,114 +139,52 @@
     }
   };
 
-  const loadMCPServers = async (): Promise<void> => {
-    isLoadingServers = true;
+  const loadMCPConnectionStatus = async (): Promise<void> => {
     mcpError = '';
 
     try {
-      mcpServers = await mcpClient.getServers();
+      const response = await mcpClient.getStatus();
+      mcpConnectionStatus = response.status;
     } catch (error) {
-      console.error('Error loading MCP servers:', error);
-      mcpError = `Error loading MCP servers: ${error.message}`;
-      mcpServers = [];
+      console.error('Error loading MCP connection status:', error);
+      mcpError = `Error loading MCP connection status: ${error.message}`;
+      mcpConnectionStatus = { connected: false, toolCount: 0 };
+    }
+  };
+
+  const reconnectMCP = async (): Promise<void> => {
+    mcpError = '';
+
+    try {
+      await mcpClient.reconnect();
+      await loadMCPConnectionStatus();
+      if (mcpEnabled) {
+        await loadMCPTools();
+      }
+    } catch (error) {
+      console.error('Error reconnecting MCP:', error);
+      mcpError = `Error reconnecting MCP: ${error.message}`;
+    }
+  };
+
+  const testMCPConnection = async (): Promise<void> => {
+    isTestingMCPConnection = true;
+    mcpError = '';
+
+    try {
+      const result = await mcpClient.testConnection();
+      if (result.result.success) {
+        mcpError = '';
+        await loadMCPConnectionStatus();
+      } else {
+        mcpError = `Connection test failed: ${result.result.error}`;
+      }
+    } catch (error) {
+      console.error('Error testing MCP connection:', error);
+      mcpError = `Error testing MCP connection: ${error.message}`;
     } finally {
-      isLoadingServers = false;
+      isTestingMCPConnection = false;
     }
-  };
-
-  const addMCPServer = async (): Promise<void> => {
-    if (!newServer.name || !newServer.command) {
-      mcpError = 'Server name and command are required';
-      return;
-    }
-
-    try {
-      mcpError = '';
-      // Create a completely clean object by destructuring and explicitly creating new structures
-
-      await mcpClient.addServer($state.snapshot(newServer));
-
-      // Reset form
-      newServer = {
-        name: '',
-        command: '',
-        args: [],
-        enabled: true,
-        description: '',
-        env: {}
-      };
-      showAddServerForm = false;
-
-      // Reload servers and tools
-      await loadMCPServers();
-      if (mcpEnabled) {
-        await loadMCPTools();
-      }
-    } catch (error) {
-      console.error('Error adding MCP server:', error);
-      mcpError = `Error adding MCP server: ${error.message}`;
-    }
-  };
-
-  const removeMCPServer = async (serverId: string): Promise<void> => {
-    try {
-      mcpError = '';
-      await mcpClient.removeServer(serverId);
-
-      // Reload servers and tools
-      await loadMCPServers();
-      if (mcpEnabled) {
-        await loadMCPTools();
-      }
-    } catch (error) {
-      console.error('Error removing MCP server:', error);
-      mcpError = `Error removing MCP server: ${error.message}`;
-    }
-  };
-
-  const toggleMCPServer = async (serverId: string, enabled: boolean): Promise<void> => {
-    try {
-      mcpError = '';
-      await mcpClient.updateServer(serverId, { enabled });
-
-      // Reload servers and tools
-      await loadMCPServers();
-      if (mcpEnabled) {
-        await loadMCPTools();
-      }
-    } catch (error) {
-      console.error('Error toggling MCP server:', error);
-      mcpError = `Error toggling MCP server: ${error.message}`;
-    }
-  };
-
-  const testMCPServer = async (server: MCPServer): Promise<void> => {
-    testingServer = server.id;
-
-    try {
-      const result = await mcpClient.testServer($state.snapshot(server));
-      testResults[server.id] = result;
-    } catch (error) {
-      console.error('Error testing MCP server:', error);
-      testResults[server.id] = {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      };
-    } finally {
-      testingServer = null;
-    }
-  };
-
-  const parseArgsString = (argsString: string): string[] => {
-    if (!argsString.trim()) return [];
-    return argsString
-      .split(',')
-      .map((arg) => arg.trim())
-      .filter((arg) => arg);
-  };
-
-  const formatArgsArray = (args: string[]): string => {
-    return args.join(', ');
   };
 
   onMount(async () => {
@@ -271,7 +199,7 @@
     // Load MCP status and tools
     try {
       mcpEnabled = await mcpClient.isEnabled();
-      await loadMCPServers();
+      await loadMCPConnectionStatus();
       if (mcpEnabled) {
         await loadMCPTools();
       }
@@ -479,16 +407,42 @@
       {/if}
     </div>
 
-    <!-- MCP Server Management Section -->
+    <!-- MCP Connection Status Section -->
     <div class="section">
       <div class="section-header">
-        <h3>MCP Server Management</h3>
-        <button
-          class="btn btn-primary"
-          onclick={() => (showAddServerForm = !showAddServerForm)}
-        >
-          {showAddServerForm ? 'Cancel' : 'Add Server'}
-        </button>
+        <h3>Flint Note MCP Connection</h3>
+        <button class="btn btn-primary" onclick={reconnectMCP}> Reconnect </button>
+      </div>
+
+      <div class="connection-status">
+        <div class="status-info">
+          <div class="status-item">
+            <strong>Status:</strong>
+            <span class={mcpConnectionStatus.connected ? 'connected' : 'disconnected'}>
+              {mcpConnectionStatus.connected ? 'Connected' : 'Disconnected'}
+            </span>
+          </div>
+          <div class="status-item">
+            <strong>Tools Available:</strong>
+            <span>{mcpConnectionStatus.toolCount}</span>
+          </div>
+          {#if mcpConnectionStatus.error}
+            <div class="status-item error">
+              <strong>Error:</strong>
+              <span>{mcpConnectionStatus.error}</span>
+            </div>
+          {/if}
+        </div>
+
+        <div class="connection-actions">
+          <button
+            class="btn btn-secondary"
+            onclick={testMCPConnection}
+            disabled={isTestingMCPConnection}
+          >
+            {isTestingMCPConnection ? 'Testing...' : 'Test Connection'}
+          </button>
+        </div>
       </div>
 
       {#if mcpError}
@@ -496,161 +450,6 @@
           {mcpError}
         </div>
       {/if}
-
-      <div class="server-management">
-        {#if showAddServerForm}
-          <div class="add-server-form">
-            <h4>Add New MCP Server</h4>
-            <div class="form-group">
-              <label for="serverName">Server Name:</label>
-              <input
-                id="serverName"
-                type="text"
-                bind:value={newServer.name}
-                placeholder="My Server"
-                required
-              />
-            </div>
-
-            <div class="form-group">
-              <label for="serverCommand">Command:</label>
-              <input
-                id="serverCommand"
-                type="text"
-                bind:value={newServer.command}
-                placeholder="python -m my_mcp_server"
-                required
-              />
-            </div>
-
-            <div class="form-group">
-              <label for="serverArgs">Arguments (comma-separated):</label>
-              <input
-                id="serverArgs"
-                type="text"
-                value={formatArgsArray(newServer.args)}
-                oninput={(e) => {
-                  const target = e.target as HTMLInputElement;
-                  newServer.args = parseArgsString(target.value);
-                }}
-                placeholder="--port, 8080, --verbose"
-              />
-            </div>
-
-            <div class="form-group">
-              <label for="serverDescription">Description:</label>
-              <input
-                id="serverDescription"
-                type="text"
-                bind:value={newServer.description}
-                placeholder="Optional description"
-              />
-            </div>
-
-            <div class="form-group">
-              <label class="checkbox-label">
-                <input type="checkbox" bind:checked={newServer.enabled} />
-                Enable on startup
-              </label>
-            </div>
-
-            <div class="form-actions">
-              <button
-                type="button"
-                class="btn btn-secondary"
-                onclick={() => (showAddServerForm = false)}
-              >
-                Cancel
-              </button>
-              <button type="button" class="btn btn-primary" onclick={addMCPServer}>
-                Add Server
-              </button>
-            </div>
-          </div>
-        {/if}
-
-        {#if isLoadingServers}
-          <div class="loading">Loading servers...</div>
-        {:else if mcpServers.length > 0}
-          <div class="servers-list">
-            <h4>Configured Servers</h4>
-            {#each mcpServers as server (server.id)}
-              <div class="server-item">
-                <div class="server-info">
-                  <div class="server-header">
-                    <h5>{server.name}</h5>
-                    <div class="server-controls">
-                      <label class="checkbox-label">
-                        <input
-                          type="checkbox"
-                          checked={server.enabled}
-                          onchange={(e) => toggleMCPServer(server.id, e.target.checked)}
-                        />
-                        Enabled
-                      </label>
-                      <button
-                        class="btn btn-small btn-secondary"
-                        onclick={() => testMCPServer(server)}
-                        disabled={testingServer === server.id}
-                      >
-                        {testingServer === server.id ? 'Testing...' : 'Test'}
-                      </button>
-                      <button
-                        class="btn btn-small btn-danger"
-                        onclick={() => removeMCPServer(server.id)}
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  </div>
-
-                  <div class="server-details">
-                    <div class="server-command">
-                      <strong>Command:</strong>
-                      {server.command}
-                      {#if server.args.length > 0}
-                        {server.args.join(' ')}
-                      {/if}
-                    </div>
-
-                    {#if server.description}
-                      <div class="server-description">
-                        <strong>Description:</strong>
-                        {server.description}
-                      </div>
-                    {/if}
-                  </div>
-
-                  {#if testResults[server.id]}
-                    <div
-                      class="test-result"
-                      class:success={testResults[server.id].success}
-                      class:error={!testResults[server.id].success}
-                    >
-                      {#if testResults[server.id].success}
-                        ✅ Connection successful! Found {testResults[server.id].toolCount}
-                        tools.
-                      {:else}
-                        ❌ Connection failed: {testResults[server.id].error}
-                      {/if}
-                    </div>
-                  {/if}
-                </div>
-              </div>
-            {/each}
-          </div>
-        {:else}
-          <div class="no-servers">
-            <div class="no-servers-icon">🔧</div>
-            <h4>No MCP servers configured</h4>
-            <p>
-              Model Context Protocol (MCP) servers provide additional tools and
-              capabilities for your AI assistant.
-            </p>
-            <p>Click "Add Server" to add your first MCP server.</p>
-          </div>
-        {/if}
-      </div>
     </div>
   </div>
 {/if}
@@ -1091,201 +890,8 @@
     margin: 0;
   }
 
-  .server-management {
-    margin-top: 0;
-  }
-
-  .add-server-form {
-    background-color: white;
-    border: 1px solid #e5e7eb;
-    border-radius: 6px;
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
-  }
-
-  .add-server-form h4 {
-    margin: 0 0 1rem 0;
-    color: #374151;
-  }
-
-  .servers-list {
-    background-color: white;
-    border: 1px solid #e5e7eb;
-    border-radius: 6px;
-    padding: 1.5rem;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
-  }
-
-  .servers-list h4 {
-    margin: 0 0 1rem 0;
-    color: #374151;
-  }
-
-  .server-item {
-    border: 1px solid #e5e7eb;
-    border-radius: 6px;
-    padding: 1.5rem;
-    margin-bottom: 1rem;
-    background-color: #f9fafb;
-    transition: background-color 0.2s ease;
-  }
-
-  .server-item:last-child {
-    margin-bottom: 0;
-  }
-
-  .server-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 0.5rem;
-  }
-
-  .server-header h5 {
-    margin: 0;
-    color: #374151;
-    font-size: 1rem;
-  }
-
-  .server-controls {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .server-details {
-    margin-bottom: 0.5rem;
-  }
-
-  .server-command,
-  .server-description {
-    font-size: 0.875rem;
-    color: #6b7280;
-    margin-bottom: 0.25rem;
-  }
-
-  .server-command strong,
-  .server-description strong {
-    color: #374151;
-  }
-
-  .btn-small {
-    padding: 0.375rem 0.75rem;
-    font-size: 0.75rem;
-  }
-
-  .btn-danger {
-    background-color: #dc2626;
-    color: white;
-  }
-
-  .btn-danger:hover:not(:disabled) {
-    background-color: #b91c1c;
-  }
-
-  .no-servers {
-    text-align: center;
-    padding: 3rem 2rem;
-    color: #6b7280;
-    background-color: white;
-    border: 1px solid #e5e7eb;
-    border-radius: 6px;
-    margin-top: 1rem;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
-  }
-
-  .no-servers-icon {
-    font-size: 3rem;
-    margin-bottom: 1rem;
-    opacity: 0.7;
-  }
-
-  .no-servers h4 {
-    margin: 0 0 1rem 0;
-    color: #374151;
-    font-size: 1.25rem;
-    font-weight: 600;
-  }
-
-  .no-servers p {
-    margin: 0.5rem 0;
-    line-height: 1.5;
-  }
-
-  .no-servers p:last-child {
-    margin-top: 1rem;
-    font-weight: 500;
-  }
-
-  .test-result {
-    margin-top: 0.5rem;
-    padding: 0.5rem;
-    border-radius: 4px;
-    font-size: 0.875rem;
-  }
-
-  .test-result.success {
-    background-color: #dcfce7;
-    color: #166534;
-    border: 1px solid #bbf7d0;
-  }
-
-  .test-result.error {
-    background-color: #fee2e2;
-    color: #991b1b;
-    border: 1px solid #fecaca;
-  }
-
-  /* Dark mode support for server management */
+  /* Dark mode support */
   @media (prefers-color-scheme: dark) {
-    .add-server-form {
-      background-color: #1f2937;
-      border-color: #4b5563;
-    }
-
-    .add-server-form h4 {
-      color: #f3f4f6;
-    }
-
-    .servers-list {
-      background-color: #1f2937;
-      border-color: #4b5563;
-    }
-
-    .servers-list h4 {
-      color: #f3f4f6;
-    }
-
-    .server-item {
-      background-color: #374151;
-      border-color: #4b5563;
-    }
-
-    .server-header h5 {
-      color: #f3f4f6;
-    }
-
-    .server-command,
-    .server-description {
-      color: #9ca3af;
-    }
-
-    .server-command strong,
-    .server-description strong {
-      color: #f3f4f6;
-    }
-
-    .no-servers {
-      color: #9ca3af;
-      background-color: #1f2937;
-      border-color: #4b5563;
-    }
-
-    .no-servers h4 {
-      color: #f3f4f6;
-    }
-
     .section {
       background-color: #374151;
       border-color: #4b5563;
@@ -1293,6 +899,71 @@
 
     .section h3 {
       color: #f3f4f6;
+    }
+  }
+
+  /* Connection Status Styles */
+  .connection-status {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .status-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .status-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .status-item strong {
+    min-width: 120px;
+  }
+
+  .status-item.error {
+    color: #ef4444;
+  }
+
+  .status-item .connected {
+    color: #10b981;
+    font-weight: 500;
+  }
+
+  .status-item .disconnected {
+    color: #ef4444;
+    font-weight: 500;
+  }
+
+  .connection-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  /* Dark mode connection status */
+  @media (prefers-color-scheme: dark) {
+    .status-item {
+      color: #d1d5db;
+    }
+
+    .status-item strong {
+      color: #f3f4f6;
+    }
+
+    .status-item.error {
+      color: #f87171;
+    }
+
+    .status-item .connected {
+      color: #34d399;
+    }
+
+    .status-item .disconnected {
+      color: #f87171;
     }
   }
 </style>

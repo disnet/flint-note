@@ -363,7 +363,7 @@
     try {
       mcpEnabled = await mcpClient.isEnabled();
       if (mcpEnabled) {
-        mcpTools = await mcpClient.getAvailableTools();
+        mcpTools = await mcpClient.getTools();
         console.log('MCP tools available:', mcpTools.length);
         console.log(mcpTools);
       }

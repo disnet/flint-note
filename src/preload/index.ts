@@ -31,12 +31,9 @@ const api = {
     getTools: () => ipcRenderer.invoke('mcp:get-tools'),
     isEnabled: () => ipcRenderer.invoke('mcp:is-enabled'),
     setEnabled: (enabled: boolean) => ipcRenderer.invoke('mcp:set-enabled', enabled),
-    getServers: () => ipcRenderer.invoke('mcp:get-servers'),
-    addServer: (server: unknown) => ipcRenderer.invoke('mcp:add-server', server),
-    updateServer: (serverId: string, updates: unknown) =>
-      ipcRenderer.invoke('mcp:update-server', serverId, updates),
-    removeServer: (serverId: string) => ipcRenderer.invoke('mcp:remove-server', serverId),
-    testServer: (server: unknown) => ipcRenderer.invoke('mcp:test-server', server)
+    getStatus: () => ipcRenderer.invoke('mcp:get-status'),
+    reconnect: () => ipcRenderer.invoke('mcp:reconnect'),
+    testConnection: () => ipcRenderer.invoke('mcp:test-connection')
   }
 };
 

@@ -189,13 +189,13 @@ app.whenReady().then(() => {
     }
   });
 
-  // MCP Server management handlers
-  ipcMain.handle('mcp:get-servers', async () => {
+  // MCP Connection management handlers
+  ipcMain.handle('mcp:get-status', async () => {
     try {
-      const servers = await llmService.getMCPServers();
-      return { success: true, servers };
+      const status = await llmService.getMCPConnectionStatus();
+      return { success: true, status };
     } catch (error) {
-      console.error('Error getting MCP servers:', error);
+      console.error('Error getting MCP connection status:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -203,12 +203,12 @@ app.whenReady().then(() => {
     }
   });
 
-  ipcMain.handle('mcp:add-server', async (_, server) => {
+  ipcMain.handle('mcp:reconnect', async () => {
     try {
-      const newServer = await llmService.addMCPServer(server);
-      return { success: true, server: newServer };
+      await llmService.reconnectMCP();
+      return { success: true };
     } catch (error) {
-      console.error('Error adding MCP server:', error);
+      console.error('Error reconnecting MCP:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -216,38 +216,12 @@ app.whenReady().then(() => {
     }
   });
 
-  ipcMain.handle('mcp:update-server', async (_, serverId, updates) => {
+  ipcMain.handle('mcp:test-connection', async () => {
     try {
-      const updatedServer = await llmService.updateMCPServer(serverId, updates);
-      return { success: true, server: updatedServer };
-    } catch (error) {
-      console.error('Error updating MCP server:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      };
-    }
-  });
-
-  ipcMain.handle('mcp:remove-server', async (_, serverId) => {
-    try {
-      const removed = await llmService.removeMCPServer(serverId);
-      return { success: true, removed };
-    } catch (error) {
-      console.error('Error removing MCP server:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      };
-    }
-  });
-
-  ipcMain.handle('mcp:test-server', async (_, server) => {
-    try {
-      const result = await llmService.testMCPServer(server);
+      const result = await llmService.testMCPConnection();
       return { success: true, result };
     } catch (error) {
-      console.error('Error testing MCP server:', error);
+      console.error('Error testing MCP connection:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'

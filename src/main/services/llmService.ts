@@ -7,19 +7,13 @@ import {
 } from '@langchain/core/messages';
 import { BaseMessage } from '@langchain/core/messages';
 import { mcpService } from './mcpService';
-import type {
-  LLMMessage,
-  LLMConfig,
-  MCPTool,
-  MCPToolCall,
-  MCPServer
-} from '../../shared/types';
+import type { LLMMessage, LLMConfig, MCPTool, MCPToolCall } from '../../shared/types';
 
 export class LLMService {
   private llm: ChatOpenAI | any;
   private config: LLMConfig;
   private mcpToolsEnabled: boolean = true;
-  private maxToolsLimit: number = 5;
+  private maxToolsLimit: number = 7;
 
   constructor(config: Partial<LLMConfig> = {}) {
     this.config = {
@@ -77,29 +71,10 @@ export class LLMService {
     try {
       const mcpTools = await mcpService.listTools();
 
-      // Add a simple test tool to debug function calling
-      const testTool = {
-        type: 'function',
-        function: {
-          name: 'test_tool',
-          description: 'A simple test tool that returns a greeting',
-          parameters: {
-            type: 'object',
-            properties: {
-              message: {
-                type: 'string',
-                description: 'A message to include in the greeting'
-              }
-            },
-            required: ['message']
-          }
-        }
-      };
-
       // Limit tools to prevent overwhelming LM Studio
       const maxTools = this.maxToolsLimit; // Configurable limit for local LLM servers
       const prioritizedTools = this.prioritizeTools(mcpTools);
-      const limitedMcpTools = prioritizedTools.slice(0, maxTools - 1); // -1 for test_tool
+      const limitedMcpTools = prioritizedTools.slice(0, maxTools); // -1 for test_tool
 
       console.log(
         `🔧 Limiting tools: ${mcpTools.length} available, using ${limitedMcpTools.length + 1} (including test_tool)`
@@ -109,7 +84,7 @@ export class LLMService {
         limitedMcpTools.map((t) => t.name)
       );
 
-      const tools = [testTool, ...limitedMcpTools.map(this.convertMCPToolToLangChain)];
+      const tools = [...limitedMcpTools.map(this.convertMCPToolToLangChain)];
 
       // Recreate LLM with tools
       console.log('🔧 Creating LLM with tools:', tools.length);
@@ -651,65 +626,31 @@ Stack: ${error instanceof Error ? error.stack : 'No stack'}
     return this.maxToolsLimit;
   }
 
-  // MCP Server management methods
-  async getMCPServers(): Promise<MCPServer[]> {
-    return mcpService.getServers();
+  // MCP Connection management methods
+  async getMCPConnectionStatus(): Promise<{
+    connected: boolean;
+    toolCount: number;
+    error?: string;
+  }> {
+    return mcpService.getConnectionStatus();
   }
 
-  async addMCPServer(server: Omit<MCPServer, 'id'>): Promise<MCPServer> {
-    const newServer = await mcpService.addServer(server);
+  async reconnectMCP(): Promise<void> {
+    await mcpService.reconnect();
 
-    // Update LLM with new tools if MCP is enabled
+    // Update LLM with tools after reconnection
     if (this.mcpToolsEnabled) {
       await this.updateLLMWithTools();
     }
-
-    return newServer;
   }
 
-  async updateMCPServer(
-    serverId: string,
-    updates: Partial<MCPServer>
-  ): Promise<MCPServer | null> {
-    const updatedServer = await mcpService.updateServer(serverId, updates);
-
-    // Update LLM with new tools if MCP is enabled
-    if (this.mcpToolsEnabled) {
-      await this.updateLLMWithTools();
-    }
-
-    return updatedServer;
-  }
-
-  async removeMCPServer(serverId: string): Promise<boolean> {
-    const removed = await mcpService.removeServer(serverId);
-
-    // Update LLM with new tools if MCP is enabled
-    if (this.mcpToolsEnabled) {
-      await this.updateLLMWithTools();
-    }
-
-    return removed;
-  }
-
-  async testMCPServer(
-    server: Omit<MCPServer, 'id'>
-  ): Promise<{ success: boolean; error?: string; toolCount?: number }> {
-    try {
-      // Use the real MCP service to test the server
-      const result = await mcpService.testServer(server as MCPServer);
-      return result;
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      };
-    }
+  async testMCPConnection(): Promise<{ success: boolean; error?: string }> {
+    return mcpService.testConnection();
   }
 }
 
 // Export types for use in other modules
-export type { LLMMessage, LLMConfig, MCPServer };
+export type { LLMMessage, LLMConfig };
 
 // Default system prompt for Flint
 export const FLINT_SYSTEM_PROMPT = `You are Flint, an AI assistant designed to help with note-taking and knowledge management. You are integrated into a chat-first interface where users can:

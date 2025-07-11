@@ -22,11 +22,9 @@ declare global {
         getTools: () => Promise<unknown>;
         isEnabled: () => Promise<unknown>;
         setEnabled: (enabled: boolean) => Promise<unknown>;
-        getServers: () => Promise<unknown>;
-        addServer: (server: unknown) => Promise<unknown>;
-        updateServer: (serverId: string, updates: unknown) => Promise<unknown>;
-        removeServer: (serverId: string) => Promise<unknown>;
-        testServer: (server: unknown) => Promise<unknown>;
+        getStatus: () => Promise<unknown>;
+        reconnect: () => Promise<unknown>;
+        testConnection: () => Promise<unknown>;
       };
     };
   }
