@@ -18,206 +18,45 @@ import { Workspace } from './core/workspace.js';
 import { NoteManager } from './core/notes.js';
 import { NoteTypeManager } from './core/note-types.js';
 import { HybridSearchManager } from './database/search-manager.js';
-import type { NoteRow } from './database/schema.js';
 
-import { LinkExtractor } from './core/link-extractor.js';
 import { GlobalConfigManager } from './utils/global-config.js';
-import { resolvePath, isPathSafe } from './utils/path.js';
-import type { NoteMetadata } from './types/index.js';
-import type { MetadataSchema, MetadataFieldDefinition } from './core/metadata-schema.js';
-import { MetadataSchemaParser } from './core/metadata-schema.js';
-import {
-  generateContentHash,
-  createNoteTypeHashableContent
-} from './utils/content-hash.js';
-import { filterNoteFields, filterSearchResults } from './utils/field-filter.js';
+import { NoteHandlers } from './server/note-handlers.js';
+import { NoteTypeHandlers } from './server/note-type-handlers.js';
+import { VaultHandlers } from './server/vault-handlers.js';
+import { SearchHandlers } from './server/search-handlers.js';
+import { LinkHandlers } from './server/link-handlers.js';
+import { ResourceHandlers } from './server/resource-handlers.js';
+import { generateNoteIdFromIdentifier, requireWorkspace } from './server/server-utils.js';
+import type {
+  ServerConfig,
+  CreateNoteTypeArgs,
+  CreateNoteArgs,
+  GetNoteArgs,
+  GetNotesArgs,
+  UpdateNoteArgs,
+  SearchNotesArgs,
+  SearchNotesAdvancedArgs,
+  SearchNotesSqlArgs,
+  ListNoteTypesArgs,
+  UpdateNoteTypeArgs,
+  GetNoteTypeInfoArgs,
+  CreateVaultArgs,
+  SwitchVaultArgs,
+  RemoveVaultArgs,
+  UpdateVaultArgs,
+  GetNoteInfoArgs,
+  ListNotesByTypeArgs,
+  DeleteNoteArgs,
+  DeleteNoteTypeArgs,
+  BulkDeleteNotesArgs,
+  RenameNoteArgs,
+  VaultContext
+} from './server/types.js';
 import fs from 'fs/promises';
 import path from 'path';
 
-export interface ServerConfig {
-  workspacePath?: string;
-  throwOnError?: boolean;
-}
-
-interface CreateNoteTypeArgs {
-  type_name: string;
-  description: string;
-  agent_instructions?: string[];
-  metadata_schema?: MetadataSchema;
-  vault_id?: string;
-}
-
-interface CreateNoteArgs {
-  type?: string;
-  title?: string;
-  content?: string;
-  metadata?: Record<string, unknown>;
-  notes?: Array<{
-    type: string;
-    title: string;
-    content: string;
-    metadata?: Record<string, unknown>;
-  }>;
-  vault_id?: string;
-}
-
-interface GetNoteArgs {
-  identifier: string;
-  vault_id?: string;
-  fields?: string[];
-}
-
-interface GetNotesArgs {
-  identifiers: string[];
-  vault_id?: string;
-  fields?: string[];
-}
-
-interface UpdateNoteArgs {
-  identifier?: string;
-  content?: string;
-  metadata?: Record<string, unknown>;
-  content_hash?: string;
-  updates?: Array<{
-    identifier: string;
-    content?: string;
-    metadata?: Record<string, unknown>;
-    content_hash: string;
-  }>;
-  vault_id?: string;
-}
-
-interface SearchNotesArgs {
-  query?: string;
-  type_filter?: string;
-  limit?: number;
-  use_regex?: boolean;
-  vault_id?: string;
-  fields?: string[];
-}
-
-interface SearchNotesAdvancedArgs {
-  type?: string;
-  metadata_filters?: Array<{
-    key: string;
-    value: string;
-    operator?: '=' | '!=' | '>' | '<' | '>=' | '<=' | 'LIKE' | 'IN';
-  }>;
-  updated_within?: string;
-  updated_before?: string;
-  created_within?: string;
-  created_before?: string;
-  content_contains?: string;
-  sort?: Array<{
-    field: 'title' | 'type' | 'created' | 'updated' | 'size';
-    order: 'asc' | 'desc';
-  }>;
-  limit?: number;
-  offset?: number;
-  vault_id?: string;
-  fields?: string[];
-}
-
-interface SearchNotesSqlArgs {
-  query: string;
-  params?: (string | number | boolean | null)[];
-  limit?: number;
-  timeout?: number;
-  vault_id?: string;
-  fields?: string[];
-}
-
-interface ListNoteTypesArgs {
-  vault_id?: string;
-}
-
-interface UpdateNoteTypeArgs {
-  type_name: string;
-  instructions?: string;
-  description?: string;
-  metadata_schema?: MetadataFieldDefinition[];
-  content_hash: string;
-  vault_id?: string;
-}
-
-interface GetNoteTypeInfoArgs {
-  type_name: string;
-  vault_id?: string;
-}
-
-interface CreateVaultArgs {
-  id: string;
-  name: string;
-  path: string;
-  description?: string;
-  initialize?: boolean;
-  switch_to?: boolean;
-}
-
-interface SwitchVaultArgs {
-  id: string;
-}
-
-interface RemoveVaultArgs {
-  id: string;
-}
-
-interface UpdateVaultArgs {
-  id: string;
-  name?: string;
-  description?: string;
-}
-
-interface GetNoteInfoArgs {
-  title_or_filename: string;
-  type?: string;
-  vault_id?: string;
-}
-
-interface ListNotesByTypeArgs {
-  type: string;
-  limit?: number;
-  vault_id?: string;
-}
-
-interface DeleteNoteArgs {
-  identifier: string;
-  confirm?: boolean;
-  vault_id?: string;
-}
-
-interface DeleteNoteTypeArgs {
-  type_name: string;
-  action: 'error' | 'migrate' | 'delete';
-  target_type?: string;
-  confirm?: boolean;
-  vault_id?: string;
-}
-
-interface BulkDeleteNotesArgs {
-  type?: string;
-  tags?: string[];
-  pattern?: string;
-  confirm?: boolean;
-  vault_id?: string;
-}
-
-interface RenameNoteArgs {
-  identifier: string;
-  new_title: string;
-  content_hash: string;
-  vault_id?: string;
-}
-
-/**
- * Vault-specific operation context
- */
-interface VaultContext {
-  workspace: Workspace;
-  noteManager: NoteManager;
-  noteTypeManager: NoteTypeManager;
-  hybridSearchManager: HybridSearchManager;
-}
+// Re-export ServerConfig for external use
+export type { ServerConfig } from './server/types.js';
 
 export class FlintNoteServer {
   #server: Server;
@@ -225,6 +64,12 @@ export class FlintNoteServer {
   #noteManager!: NoteManager;
   #noteTypeManager!: NoteTypeManager;
   #hybridSearchManager!: HybridSearchManager;
+  #noteHandlers!: NoteHandlers;
+  #noteTypeHandlers!: NoteTypeHandlers;
+  #vaultHandlers!: VaultHandlers;
+  #searchHandlers!: SearchHandlers;
+  #linkHandlers!: LinkHandlers;
+  #resourceHandlers!: ResourceHandlers;
 
   #globalConfig: GlobalConfigManager;
   #config: ServerConfig;
@@ -285,6 +130,42 @@ export class FlintNoteServer {
         this.#noteManager = new NoteManager(this.#workspace, this.#hybridSearchManager);
         this.#noteTypeManager = new NoteTypeManager(this.#workspace);
 
+        // Initialize note handlers
+        this.#noteHandlers = new NoteHandlers(
+          this.#resolveVaultContext.bind(this),
+          this.#generateNoteIdFromIdentifier.bind(this),
+          this.#requireWorkspace.bind(this),
+          this.#noteManager
+        );
+
+        // Initialize note type handlers
+        this.#noteTypeHandlers = new NoteTypeHandlers(
+          this.#resolveVaultContext.bind(this),
+          this.#requireWorkspace.bind(this),
+          this.#noteTypeManager
+        );
+
+        // Initialize vault handlers
+        this.#vaultHandlers = new VaultHandlers(
+          this.#globalConfig,
+          this.initialize.bind(this)
+        );
+
+        // Initialize search handlers
+        this.#searchHandlers = new SearchHandlers(this.#resolveVaultContext.bind(this));
+
+        // Initialize link handlers
+        this.#linkHandlers = new LinkHandlers(
+          this.#resolveVaultContext.bind(this),
+          this.#generateNoteIdFromIdentifier.bind(this)
+        );
+
+        // Initialize resource handlers
+        this.#resourceHandlers = new ResourceHandlers(
+          this.#requireWorkspace.bind(this),
+          this.#resolveVaultContext.bind(this)
+        );
+
         // Initialize hybrid search index - only rebuild if necessary
         try {
           const stats = await this.#hybridSearchManager.getStats();
@@ -331,6 +212,42 @@ export class FlintNoteServer {
           await this.#workspace.initialize();
           this.#noteManager = new NoteManager(this.#workspace, this.#hybridSearchManager);
           this.#noteTypeManager = new NoteTypeManager(this.#workspace);
+
+          // Initialize note handlers
+          this.#noteHandlers = new NoteHandlers(
+            this.#resolveVaultContext.bind(this),
+            this.#generateNoteIdFromIdentifier.bind(this),
+            this.#requireWorkspace.bind(this),
+            this.#noteManager
+          );
+
+          // Initialize note type handlers
+          this.#noteTypeHandlers = new NoteTypeHandlers(
+            this.#resolveVaultContext.bind(this),
+            this.#requireWorkspace.bind(this),
+            this.#noteTypeManager
+          );
+
+          // Initialize vault handlers
+          this.#vaultHandlers = new VaultHandlers(
+            this.#globalConfig,
+            this.initialize.bind(this)
+          );
+
+          // Initialize search handlers
+          this.#searchHandlers = new SearchHandlers(this.#resolveVaultContext.bind(this));
+
+          // Initialize link handlers
+          this.#linkHandlers = new LinkHandlers(
+            this.#resolveVaultContext.bind(this),
+            this.#generateNoteIdFromIdentifier.bind(this)
+          );
+
+          // Initialize resource handlers
+          this.#resourceHandlers = new ResourceHandlers(
+            this.#requireWorkspace.bind(this),
+            this.#resolveVaultContext.bind(this)
+          );
 
           // Initialize hybrid search index - only rebuild if necessary
           try {
@@ -1310,88 +1227,112 @@ export class FlintNoteServer {
       try {
         switch (name) {
           case 'create_note_type':
-            return await this.#handleCreateNoteType(
+            return await this.#noteTypeHandlers.handleCreateNoteType(
               args as unknown as CreateNoteTypeArgs
             );
           case 'create_note':
-            return await this.#handleCreateNote(args as unknown as CreateNoteArgs);
+            return await this.#noteHandlers.handleCreateNote(
+              args as unknown as CreateNoteArgs
+            );
           case 'get_note':
-            return await this.#handleGetNote(args as unknown as GetNoteArgs);
+            return await this.#noteHandlers.handleGetNote(args as unknown as GetNoteArgs);
           case 'get_notes':
-            return await this.#handleGetNotes(args as unknown as GetNotesArgs);
+            return await this.#noteHandlers.handleGetNotes(
+              args as unknown as GetNotesArgs
+            );
           case 'update_note':
-            return await this.#handleUpdateNote(args as unknown as UpdateNoteArgs);
+            return await this.#noteHandlers.handleUpdateNote(
+              args as unknown as UpdateNoteArgs
+            );
           case 'search_notes':
-            return await this.#handleSearchNotes(args as unknown as SearchNotesArgs);
+            return await this.#searchHandlers.handleSearchNotes(
+              args as unknown as SearchNotesArgs
+            );
           case 'search_notes_advanced':
-            return await this.#handleSearchNotesAdvanced(
+            return await this.#searchHandlers.handleSearchNotesAdvanced(
               args as unknown as SearchNotesAdvancedArgs
             );
           case 'search_notes_sql':
-            return await this.#handleSearchNotesSQL(
+            return await this.#searchHandlers.handleSearchNotesSQL(
               args as unknown as SearchNotesSqlArgs
             );
           case 'list_note_types':
-            return await this.#handleListNoteTypes(args as unknown as ListNoteTypesArgs);
+            return await this.#noteTypeHandlers.handleListNoteTypes(
+              args as unknown as ListNoteTypesArgs
+            );
 
           case 'update_note_type':
-            return await this.#handleUpdateNoteType(
+            return await this.#noteTypeHandlers.handleUpdateNoteType(
               args as unknown as UpdateNoteTypeArgs
             );
           case 'get_note_type_info':
-            return await this.#handleGetNoteTypeInfo(
+            return await this.#noteTypeHandlers.handleGetNoteTypeInfo(
               args as unknown as GetNoteTypeInfoArgs
             );
           case 'list_vaults':
-            return await this.#handleListVaults();
+            return await this.#vaultHandlers.handleListVaults();
           case 'create_vault':
-            return await this.#handleCreateVault(args as unknown as CreateVaultArgs);
+            return await this.#vaultHandlers.handleCreateVault(
+              args as unknown as CreateVaultArgs
+            );
           case 'switch_vault':
-            return await this.#handleSwitchVault(args as unknown as SwitchVaultArgs);
+            return await this.#vaultHandlers.handleSwitchVault(
+              args as unknown as SwitchVaultArgs
+            );
           case 'remove_vault':
-            return await this.#handleRemoveVault(args as unknown as RemoveVaultArgs);
+            return await this.#vaultHandlers.handleRemoveVault(
+              args as unknown as RemoveVaultArgs
+            );
           case 'get_current_vault':
-            return await this.#handleGetCurrentVault();
+            return await this.#vaultHandlers.handleGetCurrentVault();
           case 'update_vault':
-            return await this.#handleUpdateVault(args as unknown as UpdateVaultArgs);
+            return await this.#vaultHandlers.handleUpdateVault(
+              args as unknown as UpdateVaultArgs
+            );
 
           case 'get_note_info':
-            return await this.#handleGetNoteInfo(args as unknown as GetNoteInfoArgs);
+            return await this.#noteHandlers.handleGetNoteInfo(
+              args as unknown as GetNoteInfoArgs
+            );
           case 'list_notes_by_type':
-            return await this.#handleListNotesByType(
+            return await this.#noteHandlers.handleListNotesByType(
               args as unknown as ListNotesByTypeArgs
             );
 
           case 'delete_note':
-            return await this.#handleDeleteNote(args as unknown as DeleteNoteArgs);
+            return await this.#noteHandlers.handleDeleteNote(
+              args as unknown as DeleteNoteArgs
+            );
           case 'delete_note_type':
-            return await this.#handleDeleteNoteType(
+            return await this.#noteTypeHandlers.handleDeleteNoteType(
               args as unknown as DeleteNoteTypeArgs
             );
           case 'bulk_delete_notes':
-            return await this.#handleBulkDeleteNotes(
+            return await this.#noteHandlers.handleBulkDeleteNotes(
               args as unknown as BulkDeleteNotesArgs
             );
           case 'rename_note':
-            return await this.#handleRenameNote(args as unknown as RenameNoteArgs);
+            return await this.#noteHandlers.handleRenameNote(
+              args as unknown as RenameNoteArgs
+            );
 
           case 'get_note_links':
-            return await this.#handleGetNoteLinks(
+            return await this.#linkHandlers.handleGetNoteLinks(
               args as unknown as { identifier: string; vault_id?: string }
             );
 
           case 'get_backlinks':
-            return await this.#handleGetBacklinks(
+            return await this.#linkHandlers.handleGetBacklinks(
               args as unknown as { identifier: string; vault_id?: string }
             );
 
           case 'find_broken_links':
-            return await this.#handleFindBrokenLinks(
+            return await this.#linkHandlers.handleFindBrokenLinks(
               args as unknown as { vault_id?: string }
             );
 
           case 'search_by_links':
-            return await this.#handleSearchByLinks(
+            return await this.#linkHandlers.handleSearchByLinks(
               args as unknown as {
                 has_links_to?: string[];
                 linked_from?: string[];
@@ -1402,7 +1343,7 @@ export class FlintNoteServer {
             );
 
           case 'migrate_links':
-            return await this.#handleMigrateLinks(
+            return await this.#linkHandlers.handleMigrateLinks(
               args as unknown as { force?: boolean; vault_id?: string }
             );
 
@@ -1472,11 +1413,11 @@ export class FlintNoteServer {
       try {
         switch (uri) {
           case 'flint-note://types':
-            return await this.#handleTypesResource();
+            return await this.#noteTypeHandlers.handleTypesResource();
           case 'flint-note://recent':
-            return await this.#handleRecentResource();
+            return await this.#resourceHandlers.handleRecentResource();
           case 'flint-note://stats':
-            return await this.#handleStatsResource();
+            return await this.#resourceHandlers.handleStatsResource();
           default:
             throw new Error(`Unknown resource: ${uri}`);
         }
@@ -1492,11 +1433,7 @@ export class FlintNoteServer {
    * Throws an error if no workspace is configured
    */
   #requireWorkspace(): void {
-    if (!this.#workspace) {
-      throw new Error(
-        'No vault configured. Use the create_vault tool to create a new vault, or list_vaults and switch_vault to use an existing one.'
-      );
-    }
+    requireWorkspace(this.#workspace);
   }
 
   /**
@@ -1545,944 +1482,6 @@ export class FlintNoteServer {
   }
 
   // Tool handlers
-  #handleCreateNoteType = async (args: CreateNoteTypeArgs) => {
-    const { noteTypeManager } = await this.#resolveVaultContext(args.vault_id);
-
-    await noteTypeManager.createNoteType(
-      args.type_name,
-      args.description,
-      args.agent_instructions,
-      args.metadata_schema
-    );
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(
-            {
-              success: true,
-              message: `Created note type '${args.type_name}' successfully`,
-              type_name: args.type_name
-            },
-            null,
-            2
-          )
-        }
-      ]
-    };
-  };
-
-  #handleCreateNote = async (args: CreateNoteArgs) => {
-    const { noteManager, noteTypeManager } = await this.#resolveVaultContext(
-      args.vault_id
-    );
-
-    // Handle batch creation if notes array is provided
-    if (args.notes) {
-      const result = await noteManager.batchCreateNotes(args.notes);
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(result, null, 2)
-          }
-        ]
-      };
-    }
-
-    // Handle single note creation
-    if (!args.type || !args.title || !args.content) {
-      throw new Error('Single note creation requires type, title, and content');
-    }
-
-    const noteInfo = await noteManager.createNote(
-      args.type,
-      args.title,
-      args.content,
-      args.metadata || {}
-    );
-
-    // Get agent instructions for this note type
-    let agentInstructions: string[] = [];
-    let nextSuggestions = '';
-    try {
-      const typeInfo = await noteTypeManager.getNoteTypeDescription(args.type);
-      agentInstructions = typeInfo.parsed.agentInstructions;
-      if (agentInstructions.length > 0) {
-        nextSuggestions = `Consider following these guidelines for ${args.type} notes: ${agentInstructions.join(', ')}`;
-      }
-    } catch {
-      // Ignore errors getting type info, continue without instructions
-    }
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(
-            {
-              ...noteInfo,
-              agent_instructions: agentInstructions,
-              next_suggestions: nextSuggestions
-            },
-            null,
-            2
-          )
-        }
-      ]
-    };
-  };
-
-  #handleGetNote = async (args: GetNoteArgs) => {
-    const { noteManager } = await this.#resolveVaultContext(args.vault_id);
-
-    const note = await noteManager.getNote(args.identifier);
-
-    // Apply field filtering if specified
-    const filteredNote = note ? filterNoteFields(note, args.fields) : null;
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(filteredNote, null, 2)
-        }
-      ]
-    };
-  };
-
-  #handleGetNotes = async (args: GetNotesArgs) => {
-    const { noteManager } = await this.#resolveVaultContext(args.vault_id);
-
-    // Validate identifiers parameter
-    if (!args.identifiers || !Array.isArray(args.identifiers)) {
-      throw new Error('identifiers parameter is required and must be an array');
-    }
-
-    const results = await Promise.allSettled(
-      args.identifiers.map(async identifier => {
-        try {
-          const note = await noteManager.getNote(identifier);
-          if (!note) {
-            throw new Error(`Note not found: ${identifier}`);
-          }
-
-          // Apply field filtering if specified
-          const filteredNote = filterNoteFields(note, args.fields);
-
-          return { success: true, note: filteredNote };
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          return { success: false, error: errorMessage };
-        }
-      })
-    );
-
-    const processedResults = results.map((result, index) => {
-      if (result.status === 'fulfilled') {
-        return result.value;
-      } else {
-        return {
-          success: false,
-          error: `Failed to retrieve note ${args.identifiers[index]}: ${result.reason}`
-        };
-      }
-    });
-
-    const successful = processedResults.filter(r => r.success).length;
-    const failed = processedResults.filter(r => !r.success).length;
-
-    const responseData = {
-      success: true,
-      results: processedResults,
-      total_requested: args.identifiers.length,
-      successful,
-      failed
-    };
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(responseData, null, 2)
-        }
-      ]
-    };
-  };
-
-  #handleUpdateNote = async (args: UpdateNoteArgs) => {
-    const { noteManager } = await this.#resolveVaultContext(args.vault_id);
-
-    // Handle batch updates if updates array is provided
-    if (args.updates) {
-      const result = await noteManager.batchUpdateNotes(args.updates);
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(result, null, 2)
-          }
-        ]
-      };
-    }
-
-    // Handle single note update
-    if (!args.identifier) {
-      throw new Error('Single note update requires identifier');
-    }
-
-    if (!args.content_hash) {
-      throw new Error('content_hash is required for all update operations');
-    }
-
-    let result;
-    if (args.content !== undefined && args.metadata !== undefined) {
-      // Both content and metadata update
-      result = await noteManager.updateNoteWithMetadata(
-        args.identifier,
-        args.content,
-        args.metadata as NoteMetadata,
-        args.content_hash
-      );
-    } else if (args.content !== undefined) {
-      // Content-only update
-      result = await noteManager.updateNote(
-        args.identifier,
-        args.content,
-        args.content_hash
-      );
-    } else if (args.metadata !== undefined) {
-      // Metadata-only update
-      const currentNote = await noteManager.getNote(args.identifier);
-      if (!currentNote) {
-        throw new Error(`Note '${args.identifier}' not found`);
-      }
-      result = await noteManager.updateNoteWithMetadata(
-        args.identifier,
-        currentNote.content,
-        args.metadata as NoteMetadata,
-        args.content_hash
-      );
-    } else {
-      throw new Error('Either content or metadata must be provided for update');
-    }
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(result, null, 2)
-        }
-      ]
-    };
-  };
-
-  #handleSearchNotes = async (args: SearchNotesArgs) => {
-    const { hybridSearchManager } = await this.#resolveVaultContext(args.vault_id);
-
-    const results = await hybridSearchManager.searchNotes(
-      args.query,
-      args.type_filter,
-      args.limit,
-      args.use_regex
-    );
-
-    // Apply field filtering if specified
-    const filteredResults = args.fields
-      ? results.map(result => filterNoteFields(result, args.fields))
-      : results;
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(filteredResults, null, 2)
-        }
-      ]
-    };
-  };
-
-  #handleSearchNotesAdvanced = async (args: SearchNotesAdvancedArgs) => {
-    const { hybridSearchManager } = await this.#resolveVaultContext(args.vault_id);
-
-    const results = await hybridSearchManager.searchNotesAdvanced(args);
-
-    // Apply field filtering if specified
-    const filteredResults = filterSearchResults(results, args.fields);
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(filteredResults, null, 2)
-        }
-      ]
-    };
-  };
-
-  #handleSearchNotesSQL = async (args: SearchNotesSqlArgs) => {
-    const { hybridSearchManager } = await this.#resolveVaultContext(args.vault_id);
-
-    const results = await hybridSearchManager.searchNotesSQL(args);
-
-    // Apply field filtering if specified
-    const filteredResults = filterSearchResults(results, args.fields);
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(filteredResults, null, 2)
-        }
-      ]
-    };
-  };
-
-  #handleListNoteTypes = async (args: ListNoteTypesArgs) => {
-    const { noteTypeManager } = await this.#resolveVaultContext(args.vault_id);
-
-    const types = await noteTypeManager.listNoteTypes();
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(types, null, 2)
-        }
-      ]
-    };
-  };
-
-  #handleUpdateNoteType = async (args: UpdateNoteTypeArgs) => {
-    const { noteTypeManager, workspace } = await this.#resolveVaultContext(args.vault_id);
-
-    try {
-      if (!args.content_hash) {
-        throw new Error('content_hash is required for all note type update operations');
-      }
-
-      // Validate that at least one field is provided
-      if (
-        args.instructions === undefined &&
-        args.description === undefined &&
-        args.metadata_schema === undefined
-      ) {
-        throw new Error(
-          'At least one field must be provided: instructions, description, or metadata_schema'
-        );
-      }
-
-      // Get current note type info
-      const currentInfo = await noteTypeManager.getNoteTypeDescription(args.type_name);
-
-      // Validate content hash to prevent conflicts
-      const currentHashableContent = createNoteTypeHashableContent({
-        description: currentInfo.description,
-        agent_instructions: currentInfo.parsed.agentInstructions.join('\n'),
-        metadata_schema: currentInfo.metadataSchema
-      });
-      const currentHash = generateContentHash(currentHashableContent);
-
-      if (currentHash !== args.content_hash) {
-        const error = new Error(
-          'Note type definition has been modified since last read. Please fetch the latest version.'
-        ) as Error & {
-          code: string;
-          current_hash: string;
-          provided_hash: string;
-        };
-        error.code = 'content_hash_mismatch';
-        error.current_hash = currentHash;
-        error.provided_hash = args.content_hash;
-        throw error;
-      }
-
-      // Start with current description
-      let updatedDescription = currentInfo.description;
-      const fieldsUpdated: string[] = [];
-
-      // Update instructions if provided
-      if (args.instructions) {
-        // Parse instructions from value (can be newline-separated or bullet points)
-        const instructions = args.instructions
-          .split('\n')
-          .map(line => line.trim())
-          .filter(line => line.length > 0)
-          .map(line => (line.startsWith('-') ? line.substring(1).trim() : line))
-          .map(line => `- ${line}`)
-          .join('\n');
-
-        // Use the current description and replace the agent instructions section
-        updatedDescription = updatedDescription.replace(
-          /## Agent Instructions\n[\s\S]*?(?=\n## |$)/,
-          `## Agent Instructions\n${instructions}\n`
-        );
-        fieldsUpdated.push('instructions');
-      }
-
-      // Update description if provided
-      if (args.description) {
-        updatedDescription = noteTypeManager.formatNoteTypeDescription(
-          args.type_name,
-          args.description
-        );
-        fieldsUpdated.push('description');
-      }
-
-      // Update metadata schema if provided
-      if (args.metadata_schema) {
-        const fields = args.metadata_schema;
-
-        // Validate each field definition
-        for (let i = 0; i < fields.length; i++) {
-          const field = fields[i];
-          if (!field || typeof field !== 'object') {
-            throw new Error(`Field at index ${i} must be an object`);
-          }
-
-          if (!field.name || typeof field.name !== 'string') {
-            throw new Error(`Field at index ${i} must have a valid "name" string`);
-          }
-
-          if (!field.type || typeof field.type !== 'string') {
-            throw new Error(`Field at index ${i} must have a valid "type" string`);
-          }
-
-          // Check for protected fields
-          const protectedFields = new Set(['title', 'filename', 'created', 'updated']);
-          if (protectedFields.has(field.name)) {
-            throw new Error(
-              `Cannot define protected field "${field.name}" in metadata schema. ` +
-                `These fields are automatically managed by the system and cannot be redefined.`
-            );
-          }
-
-          const validTypes = ['string', 'number', 'boolean', 'date', 'array', 'select'];
-          if (!validTypes.includes(field.type)) {
-            throw new Error(
-              `Field "${field.name}" has invalid type "${field.type}". Valid types: ${validTypes.join(', ')}`
-            );
-          }
-
-          // Validate constraints if present
-          if (field.constraints) {
-            if (typeof field.constraints !== 'object') {
-              throw new Error(`Field "${field.name}" constraints must be an object`);
-            }
-
-            // Validate select field options
-            if (field.type === 'select') {
-              if (
-                !field.constraints.options ||
-                !Array.isArray(field.constraints.options)
-              ) {
-                throw new Error(
-                  `Select field "${field.name}" must have constraints.options array`
-                );
-              }
-              if (field.constraints.options.length === 0) {
-                throw new Error(
-                  `Select field "${field.name}" must have at least one option`
-                );
-              }
-            }
-
-            // Validate numeric constraints
-            if (
-              field.constraints.min !== undefined &&
-              typeof field.constraints.min !== 'number'
-            ) {
-              throw new Error(`Field "${field.name}" min constraint must be a number`);
-            }
-            if (
-              field.constraints.max !== undefined &&
-              typeof field.constraints.max !== 'number'
-            ) {
-              throw new Error(`Field "${field.name}" max constraint must be a number`);
-            }
-            if (
-              field.constraints.min !== undefined &&
-              field.constraints.max !== undefined &&
-              field.constraints.min > field.constraints.max
-            ) {
-              throw new Error(
-                `Field "${field.name}" min constraint cannot be greater than max`
-              );
-            }
-
-            // Validate pattern constraint
-            if (field.constraints.pattern !== undefined) {
-              if (typeof field.constraints.pattern !== 'string') {
-                throw new Error(
-                  `Field "${field.name}" pattern constraint must be a string`
-                );
-              }
-              try {
-                new RegExp(field.constraints.pattern);
-              } catch (regexError) {
-                throw new Error(
-                  `Field "${field.name}" pattern constraint is not a valid regex: ${regexError instanceof Error ? regexError.message : 'Unknown regex error'}`
-                );
-              }
-            }
-          }
-
-          // Validate default values if present
-          if (field.default !== undefined) {
-            const validationError = this.#validateDefaultValue(
-              field.name,
-              field.default,
-              field
-            );
-            if (validationError) {
-              throw new Error(validationError);
-            }
-          }
-        }
-
-        // Check for duplicate field names
-        const fieldNames = fields.map(f => f.name);
-        const duplicates = fieldNames.filter(
-          (name, index) => fieldNames.indexOf(name) !== index
-        );
-        if (duplicates.length > 0) {
-          throw new Error(`Duplicate field names found: ${duplicates.join(', ')}`);
-        }
-
-        // Create MetadataSchema object and generate the schema section
-        const parsedSchema = { fields };
-        const schemaSection = MetadataSchemaParser.generateSchemaSection(parsedSchema);
-
-        updatedDescription = updatedDescription.replace(
-          /## Metadata Schema\n[\s\S]*$/,
-          schemaSection
-        );
-        fieldsUpdated.push('metadata_schema');
-      }
-
-      // Write the updated description to the file in note type directory
-      const descriptionPath = path.join(
-        workspace.getNoteTypePath(args.type_name),
-        '_description.md'
-      );
-      await fs.writeFile(descriptionPath, updatedDescription, 'utf-8');
-
-      // Get the updated note type info
-      const result = await noteTypeManager.getNoteTypeDescription(args.type_name);
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(
-              {
-                success: true,
-                type_name: args.type_name,
-                fields_updated: fieldsUpdated,
-                updated_info: {
-                  name: result.name,
-                  purpose: result.parsed.purpose,
-                  agent_instructions: result.parsed.agentInstructions
-                }
-              },
-              null,
-              2
-            )
-          }
-        ]
-      };
-    } catch (error) {
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
-          }
-        ],
-        isError: true
-      };
-    }
-  };
-
-  /**
-   * Helper method to validate default values against field definitions
-   */
-  #validateDefaultValue(
-    fieldName: string,
-    defaultValue: unknown,
-    fieldDef: MetadataFieldDefinition
-  ): string | null {
-    switch (fieldDef.type) {
-      case 'string':
-        if (typeof defaultValue !== 'string') {
-          return `Field "${fieldName}" default value must be a string`;
-        }
-        break;
-
-      case 'number':
-        if (typeof defaultValue !== 'number' || isNaN(defaultValue)) {
-          return `Field "${fieldName}" default value must be a number`;
-        }
-        if (
-          fieldDef.constraints?.min !== undefined &&
-          defaultValue < fieldDef.constraints.min
-        ) {
-          return `Field "${fieldName}" default value must be at least ${fieldDef.constraints.min}`;
-        }
-        if (
-          fieldDef.constraints?.max !== undefined &&
-          defaultValue > fieldDef.constraints.max
-        ) {
-          return `Field "${fieldName}" default value must be at most ${fieldDef.constraints.max}`;
-        }
-        break;
-
-      case 'boolean':
-        if (typeof defaultValue !== 'boolean') {
-          return `Field "${fieldName}" default value must be a boolean`;
-        }
-        break;
-
-      case 'date':
-        if (typeof defaultValue !== 'string' || isNaN(Date.parse(defaultValue))) {
-          return `Field "${fieldName}" default value must be a valid date string`;
-        }
-        break;
-
-      case 'array':
-        if (!Array.isArray(defaultValue)) {
-          return `Field "${fieldName}" default value must be an array`;
-        }
-        if (
-          fieldDef.constraints?.min !== undefined &&
-          defaultValue.length < fieldDef.constraints.min
-        ) {
-          return `Field "${fieldName}" default value array must have at least ${fieldDef.constraints.min} items`;
-        }
-        if (
-          fieldDef.constraints?.max !== undefined &&
-          defaultValue.length > fieldDef.constraints.max
-        ) {
-          return `Field "${fieldName}" default value array must have at most ${fieldDef.constraints.max} items`;
-        }
-        break;
-
-      case 'select':
-        if (!fieldDef.constraints?.options?.includes(String(defaultValue))) {
-          return `Field "${fieldName}" default value must be one of: ${fieldDef.constraints?.options?.join(', ')}`;
-        }
-        break;
-    }
-
-    return null;
-  }
-
-  #handleGetNoteTypeInfo = async (args: GetNoteTypeInfoArgs) => {
-    const { noteTypeManager } = await this.#resolveVaultContext(args.vault_id);
-
-    const info = await noteTypeManager.getNoteTypeDescription(args.type_name);
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(
-            {
-              type_name: info.name,
-              description: info.parsed.purpose,
-              agent_instructions: info.parsed.agentInstructions,
-              metadata_schema: info.parsed.parsedMetadataSchema,
-              content_hash: info.content_hash,
-              path: info.path
-            },
-            null,
-            2
-          )
-        }
-      ]
-    };
-  };
-
-  // Resource handlers
-  #handleTypesResource = async () => {
-    this.#requireWorkspace();
-    if (!this.#noteTypeManager) {
-      throw new Error('Server not initialized');
-    }
-
-    const types = await this.#noteTypeManager.listNoteTypes();
-    return {
-      contents: [
-        {
-          uri: 'flint-note://types',
-          mimeType: 'application/json',
-          text: JSON.stringify(types, null, 2)
-        }
-      ]
-    };
-  };
-
-  #handleRecentResource = async () => {
-    this.#requireWorkspace();
-    if (!this.#noteManager) {
-      throw new Error('Server not initialized');
-    }
-
-    const recentNotes = await this.#noteManager.listNotes(undefined, 20);
-    return {
-      contents: [
-        {
-          uri: 'flint-note://recent',
-          mimeType: 'application/json',
-          text: JSON.stringify(recentNotes, null, 2)
-        }
-      ]
-    };
-  };
-
-  #handleStatsResource = async () => {
-    this.#requireWorkspace();
-    if (!this.#workspace) {
-      throw new Error('Server not initialized');
-    }
-
-    const stats = await this.#workspace.getStats();
-    return {
-      contents: [
-        {
-          uri: 'flint-note://stats',
-          mimeType: 'application/json',
-          text: JSON.stringify(stats, null, 2)
-        }
-      ]
-    };
-  };
-
-  #handleGetNoteInfo = async (args: GetNoteInfoArgs) => {
-    const { noteManager } = await this.#resolveVaultContext(args.vault_id);
-
-    // Try to find the note by title or filename
-    const searchResults = await noteManager.searchNotes({
-      query: args.title_or_filename,
-      type_filter: args.type,
-      limit: 5
-    });
-
-    if (searchResults.length === 0) {
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(
-              {
-                found: false,
-                message: `No note found with title or filename: ${args.title_or_filename}`
-              },
-              null,
-              2
-            )
-          }
-        ]
-      };
-    }
-
-    // Return the best match with filename info
-    const bestMatch = searchResults[0];
-    const filename = bestMatch.filename.replace('.md', '');
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(
-            {
-              found: true,
-              filename: filename,
-              title: bestMatch.title,
-              type: bestMatch.type,
-              path: bestMatch.path,
-              wikilink_format: `${bestMatch.type}/${filename}`,
-              suggested_wikilink: `[[${bestMatch.type}/${filename}|${bestMatch.title}]]`
-            },
-            null,
-            2
-          )
-        }
-      ]
-    };
-  };
-
-  #handleListNotesByType = async (args: ListNotesByTypeArgs) => {
-    const { noteManager } = await this.#resolveVaultContext(args.vault_id);
-
-    const notes = await noteManager.searchNotes({
-      type_filter: args.type,
-      limit: args.limit || 50
-    });
-
-    const notesWithFilenames = notes.map(note => ({
-      filename: note.filename.replace('.md', ''),
-      title: note.title,
-      type: note.type,
-      path: note.path,
-      created: note.created,
-      modified: note.modified,
-      wikilink_format: `${note.type}/${note.filename.replace('.md', '')}`,
-      suggested_wikilink: `[[${note.type}/${note.filename.replace('.md', '')}|${note.title}]]`
-    }));
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(notesWithFilenames, null, 2)
-        }
-      ]
-    };
-  };
-
-  #handleDeleteNote = async (args: DeleteNoteArgs) => {
-    try {
-      const { noteManager } = await this.#resolveVaultContext(args.vault_id);
-      const result = await noteManager.deleteNote(args.identifier, args.confirm);
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(
-              {
-                success: true,
-                message: `Note '${args.identifier}' deleted successfully`,
-                result
-              },
-              null,
-              2
-            )
-          }
-        ]
-      };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(
-              {
-                success: false,
-                error: errorMessage
-              },
-              null,
-              2
-            )
-          }
-        ]
-      };
-    }
-  };
-
-  #handleDeleteNoteType = async (args: DeleteNoteTypeArgs) => {
-    this.#requireWorkspace();
-
-    try {
-      const result = await this.#noteTypeManager.deleteNoteType(
-        args.type_name,
-        args.action,
-        args.target_type,
-        args.confirm
-      );
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(
-              {
-                success: true,
-                message: `Note type '${args.type_name}' deleted successfully`,
-                result
-              },
-              null,
-              2
-            )
-          }
-        ]
-      };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(
-              {
-                success: false,
-                error: errorMessage
-              },
-              null,
-              2
-            )
-          }
-        ]
-      };
-    }
-  };
-
-  #handleBulkDeleteNotes = async (args: BulkDeleteNotesArgs) => {
-    this.#requireWorkspace();
-
-    try {
-      const criteria = {
-        type: args.type,
-        tags: args.tags,
-        pattern: args.pattern
-      };
-
-      const results = await this.#noteManager.bulkDeleteNotes(criteria, args.confirm);
-
-      const successCount = results.filter(r => r.deleted).length;
-      const failureCount = results.length - successCount;
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(
-              {
-                success: true,
-                message: `Bulk delete completed: ${successCount} deleted, ${failureCount} failed`,
-                results,
-                summary: {
-                  total: results.length,
-                  successful: successCount,
-                  failed: failureCount
-                }
-              },
-              null,
-              2
-            )
-          }
-        ]
-      };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(
-              {
-                success: false,
-                error: errorMessage
-              },
-              null,
-              2
-            )
-          }
-        ]
-      };
-    }
-  };
 
   async run(): Promise<void> {
     const transport = new StdioServerTransport();
@@ -2490,765 +1489,10 @@ export class FlintNoteServer {
     console.error('Flint Note MCP server running on stdio');
   }
 
-  // Vault management handlers
-  #handleListVaults = async (): Promise<{
-    content: Array<{ type: string; text: string }>;
-  }> => {
-    try {
-      const vaults = this.#globalConfig.listVaults();
-
-      if (vaults.length === 0) {
-        return {
-          content: [
-            {
-              type: 'text',
-              text: 'No vaults configured. Use create_vault to add your first vault.'
-            }
-          ]
-        };
-      }
-
-      const vaultList = vaults
-        .map(({ id, info, is_current }) => {
-          const indicator = is_current ? '🟢 (current)' : '⚪';
-          return `${indicator} **${id}**: ${info.name}\n   Path: ${info.path}\n   Created: ${new Date(info.created).toLocaleDateString()}\n   Last accessed: ${new Date(info.last_accessed).toLocaleDateString()}${info.description ? `\n   Description: ${info.description}` : ''}`;
-        })
-        .join('\n\n');
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `📁 **Configured Vaults**\n\n${vaultList}`
-          }
-        ]
-      };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `Failed to list vaults: ${errorMessage}`
-          }
-        ]
-      };
-    }
-  };
-
-  #handleCreateVault = async (
-    args: CreateVaultArgs
-  ): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> => {
-    try {
-      // Validate vault ID
-      if (!this.#globalConfig.isValidVaultId(args.id)) {
-        throw new Error(
-          `Invalid vault ID '${args.id}'. Must contain only letters, numbers, hyphens, and underscores.`
-        );
-      }
-
-      // Check if vault already exists
-      if (this.#globalConfig.hasVault(args.id)) {
-        throw new Error(`Vault with ID '${args.id}' already exists`);
-      }
-
-      // Resolve path with tilde expansion
-      const resolvedPath = resolvePath(args.path);
-
-      // Validate path safety
-      if (!isPathSafe(args.path)) {
-        throw new Error(`Invalid or unsafe path: ${args.path}`);
-      }
-
-      // Ensure directory exists
-      await fs.mkdir(resolvedPath, { recursive: true });
-
-      // Add vault to registry
-      await this.#globalConfig.addVault(
-        args.id,
-        args.name,
-        resolvedPath,
-        args.description
-      );
-
-      let initMessage = '';
-      if (args.initialize !== false) {
-        // Initialize the vault with default note types
-        const tempHybridSearchManager = new HybridSearchManager(resolvedPath);
-        const workspace = new Workspace(
-          resolvedPath,
-          tempHybridSearchManager.getDatabaseManager()
-        );
-        await workspace.initializeVault();
-        initMessage =
-          '\n\n✅ Vault initialized with default note types (daily, reading, todos, projects, goals, games, movies)';
-      }
-
-      let switchMessage = '';
-      if (args.switch_to !== false) {
-        // Switch to the new vault
-        await this.#globalConfig.switchVault(args.id);
-
-        // Reinitialize server with new vault
-        await this.initialize();
-
-        switchMessage = '\n\n🔄 Switched to new vault';
-      }
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `✅ Created vault '${args.name}' (${args.id}) at: ${resolvedPath}${initMessage}${switchMessage}`
-          }
-        ]
-      };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `Failed to create vault: ${errorMessage}`
-          }
-        ],
-        isError: true
-      };
-    }
-  };
-
-  #handleSwitchVault = async (
-    args: SwitchVaultArgs
-  ): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> => {
-    try {
-      const vault = this.#globalConfig.getVault(args.id);
-      if (!vault) {
-        throw new Error(`Vault with ID '${args.id}' does not exist`);
-      }
-
-      // Switch to the vault
-      await this.#globalConfig.switchVault(args.id);
-
-      // Reinitialize server with new vault
-      await this.initialize();
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `🔄 Switched to vault: ${vault.name} (${args.id})\nPath: ${vault.path}`
-          }
-        ]
-      };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `Failed to switch vault: ${errorMessage}`
-          }
-        ],
-        isError: true
-      };
-    }
-  };
-
-  #handleRemoveVault = async (
-    args: RemoveVaultArgs
-  ): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> => {
-    try {
-      const vault = this.#globalConfig.getVault(args.id);
-      if (!vault) {
-        throw new Error(`Vault with ID '${args.id}' does not exist`);
-      }
-
-      const wasCurrentVault = this.#globalConfig.getCurrentVault()?.path === vault.path;
-
-      // Remove vault from registry
-      await this.#globalConfig.removeVault(args.id);
-
-      let switchMessage = '';
-      if (wasCurrentVault) {
-        // Reinitialize server if we removed the current vault
-        await this.initialize();
-        const newCurrent = this.#globalConfig.getCurrentVault();
-        if (newCurrent) {
-          switchMessage = `\n\n🔄 Switched to vault: ${newCurrent.name}`;
-        } else {
-          switchMessage =
-            '\n\n⚠️  No vaults remaining. You may want to create a new vault.';
-        }
-      }
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `✅ Removed vault '${vault.name}' (${args.id}) from registry.\n\n⚠️  Note: Vault files at '${vault.path}' were not deleted.${switchMessage}`
-          }
-        ]
-      };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `Failed to remove vault: ${errorMessage}`
-          }
-        ],
-        isError: true
-      };
-    }
-  };
-
-  #handleGetCurrentVault = async (): Promise<{
-    content: Array<{ type: string; text: string }>;
-  }> => {
-    try {
-      const currentVault = this.#globalConfig.getCurrentVault();
-
-      if (!currentVault) {
-        return {
-          content: [
-            {
-              type: 'text',
-              text: '⚠️  No vault is currently selected. Use list_vaults to see available vaults or create_vault to add a new one.'
-            }
-          ]
-        };
-      }
-
-      // Find the vault ID
-      const vaults = this.#globalConfig.listVaults();
-      const currentVaultEntry = vaults.find(v => v.is_current);
-      const vaultId = currentVaultEntry?.id || 'unknown';
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `🟢 **Current Vault**: ${currentVault.name} (${vaultId})
-
-**Path**: ${currentVault.path}
-**Created**: ${new Date(currentVault.created).toLocaleDateString()}
-**Last accessed**: ${new Date(currentVault.last_accessed).toLocaleDateString()}${currentVault.description ? `\n**Description**: ${currentVault.description}` : ''}`
-          }
-        ]
-      };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `Failed to get current vault: ${errorMessage}`
-          }
-        ]
-      };
-    }
-  };
-
-  #handleUpdateVault = async (
-    args: UpdateVaultArgs
-  ): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> => {
-    try {
-      const vault = this.#globalConfig.getVault(args.id);
-      if (!vault) {
-        throw new Error(`Vault with ID '${args.id}' does not exist`);
-      }
-
-      const updates: Partial<Pick<typeof vault, 'name' | 'description'>> = {};
-      if (args.name) updates.name = args.name;
-      if (args.description !== undefined) updates.description = args.description;
-
-      if (Object.keys(updates).length === 0) {
-        throw new Error(
-          'No updates provided. Specify name and/or description to update.'
-        );
-      }
-
-      await this.#globalConfig.updateVault(args.id, updates);
-
-      const updatedVault = this.#globalConfig.getVault(args.id)!;
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `✅ Updated vault '${args.id}':
-**Name**: ${updatedVault.name}
-**Description**: ${updatedVault.description || 'None'}
-**Path**: ${updatedVault.path}`
-          }
-        ]
-      };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `Failed to update vault: ${errorMessage}`
-          }
-        ],
-        isError: true
-      };
-    }
-  };
-
-  #handleRenameNote = async (args: RenameNoteArgs) => {
-    try {
-      const { noteManager, hybridSearchManager } = await this.#resolveVaultContext(
-        args.vault_id
-      );
-
-      // Get the current note to read current metadata
-      const currentNote = await noteManager.getNote(args.identifier);
-      if (!currentNote) {
-        throw new Error(`Note '${args.identifier}' not found`);
-      }
-
-      // Update the title in metadata while preserving all other metadata
-      const updatedMetadata = {
-        ...currentNote.metadata,
-        title: args.new_title
-      };
-
-      // Use the existing updateNoteWithMetadata method with protection bypass for rename
-      const result = await noteManager.updateNoteWithMetadata(
-        args.identifier,
-        currentNote.content, // Keep content unchanged
-        updatedMetadata,
-        args.content_hash,
-        true // Bypass protection for legitimate rename operations
-      );
-
-      let brokenLinksUpdated = 0;
-      let wikilinksResult = { notesUpdated: 0, linksUpdated: 0 };
-
-      // Update links using the vault-specific hybrid search manager
-      const db = await hybridSearchManager.getDatabaseConnection();
-      const noteId = this.#generateNoteIdFromIdentifier(args.identifier);
-
-      // Update broken links that might now be resolved due to the new title
-      brokenLinksUpdated = await LinkExtractor.updateBrokenLinks(
-        noteId,
-        args.new_title,
-        db
-      );
-
-      // Always update wikilinks in other notes
-      wikilinksResult = await LinkExtractor.updateWikilinksForRenamedNote(
-        noteId,
-        currentNote.title,
-        args.new_title,
-        db
-      );
-
-      let wikilinkMessage = '';
-      if (brokenLinksUpdated > 0) {
-        wikilinkMessage = `\n\n🔗 Updated ${brokenLinksUpdated} broken links that now resolve to this note.`;
-      }
-      if (wikilinksResult.notesUpdated > 0) {
-        wikilinkMessage += `\n🔗 Updated ${wikilinksResult.linksUpdated} wikilinks in ${wikilinksResult.notesUpdated} notes that referenced the old title.`;
-      }
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(
-              {
-                success: true,
-                message: `Note renamed successfully${wikilinkMessage}`,
-                old_title: currentNote.title,
-                new_title: args.new_title,
-                identifier: args.identifier,
-                filename_unchanged: true,
-                links_preserved: true,
-                broken_links_resolved: brokenLinksUpdated,
-                wikilinks_updated: true,
-                notes_with_updated_wikilinks: wikilinksResult.notesUpdated,
-                total_wikilinks_updated: wikilinksResult.linksUpdated,
-                result
-              },
-              null,
-              2
-            )
-          }
-        ]
-      };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(
-              {
-                success: false,
-                error: errorMessage
-              },
-              null,
-              2
-            )
-          }
-        ],
-        isError: true
-      };
-    }
-  };
-
-  #handleGetNoteLinks = async (args: { identifier: string; vault_id?: string }) => {
-    try {
-      const { hybridSearchManager } = await this.#resolveVaultContext(args.vault_id);
-      const db = await hybridSearchManager.getDatabaseConnection();
-      const noteId = this.#generateNoteIdFromIdentifier(args.identifier);
-
-      // Check if note exists
-      const note = await db.get('SELECT id FROM notes WHERE id = ?', [noteId]);
-      if (!note) {
-        throw new Error(`Note not found: ${args.identifier}`);
-      }
-
-      const links = await LinkExtractor.getLinksForNote(noteId, db);
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(
-              {
-                success: true,
-                note_id: noteId,
-                links: {
-                  outgoing_internal: links.outgoing_internal,
-                  outgoing_external: links.outgoing_external,
-                  incoming: links.incoming
-                }
-              },
-              null,
-              2
-            )
-          }
-        ]
-      };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(
-              {
-                success: false,
-                error: errorMessage
-              },
-              null,
-              2
-            )
-          }
-        ],
-        isError: true
-      };
-    }
-  };
-
-  #handleGetBacklinks = async (args: { identifier: string; vault_id?: string }) => {
-    try {
-      const { hybridSearchManager } = await this.#resolveVaultContext(args.vault_id);
-      const db = await hybridSearchManager.getDatabaseConnection();
-      const noteId = this.#generateNoteIdFromIdentifier(args.identifier);
-
-      // Check if note exists
-      const note = await db.get('SELECT id FROM notes WHERE id = ?', [noteId]);
-      if (!note) {
-        throw new Error(`Note not found: ${args.identifier}`);
-      }
-
-      const backlinks = await LinkExtractor.getBacklinks(noteId, db);
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(
-              {
-                success: true,
-                note_id: noteId,
-                backlinks: backlinks
-              },
-              null,
-              2
-            )
-          }
-        ]
-      };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(
-              {
-                success: false,
-                error: errorMessage
-              },
-              null,
-              2
-            )
-          }
-        ],
-        isError: true
-      };
-    }
-  };
-
-  #handleFindBrokenLinks = async (args?: { vault_id?: string }) => {
-    try {
-      const { hybridSearchManager } = await this.#resolveVaultContext(args?.vault_id);
-      const db = await hybridSearchManager.getDatabaseConnection();
-      const brokenLinks = await LinkExtractor.findBrokenLinks(db);
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(
-              {
-                success: true,
-                broken_links: brokenLinks,
-                count: brokenLinks.length
-              },
-              null,
-              2
-            )
-          }
-        ]
-      };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(
-              {
-                success: false,
-                error: errorMessage
-              },
-              null,
-              2
-            )
-          }
-        ],
-        isError: true
-      };
-    }
-  };
-
-  #handleSearchByLinks = async (args: {
-    has_links_to?: string[];
-    linked_from?: string[];
-    external_domains?: string[];
-    broken_links?: boolean;
-    vault_id?: string;
-  }) => {
-    try {
-      const { hybridSearchManager } = await this.#resolveVaultContext(args.vault_id);
-      const db = await hybridSearchManager.getDatabaseConnection();
-      let notes: NoteRow[] = [];
-
-      // Handle different search criteria
-      if (args.has_links_to && args.has_links_to.length > 0) {
-        // Find notes that link to any of the specified notes
-        const targetIds = args.has_links_to.map(id =>
-          this.#generateNoteIdFromIdentifier(id)
-        );
-        const placeholders = targetIds.map(() => '?').join(',');
-        notes = await db.all(
-          `SELECT DISTINCT n.* FROM notes n
-           INNER JOIN note_links nl ON n.id = nl.source_note_id
-           WHERE nl.target_note_id IN (${placeholders})`,
-          targetIds
-        );
-      } else if (args.linked_from && args.linked_from.length > 0) {
-        // Find notes that are linked from any of the specified notes
-        const sourceIds = args.linked_from.map(id =>
-          this.#generateNoteIdFromIdentifier(id)
-        );
-        const placeholders = sourceIds.map(() => '?').join(',');
-        notes = await db.all(
-          `SELECT DISTINCT n.* FROM notes n
-           INNER JOIN note_links nl ON n.id = nl.target_note_id
-           WHERE nl.source_note_id IN (${placeholders})`,
-          sourceIds
-        );
-      } else if (args.external_domains && args.external_domains.length > 0) {
-        // Find notes with external links to specified domains
-        const domainConditions = args.external_domains
-          .map(() => 'el.url LIKE ?')
-          .join(' OR ');
-        const domainParams = args.external_domains.map(domain => `%${domain}%`);
-        notes = await db.all(
-          `SELECT DISTINCT n.* FROM notes n
-           INNER JOIN external_links el ON n.id = el.note_id
-           WHERE ${domainConditions}`,
-          domainParams
-        );
-      } else if (args.broken_links) {
-        // Find notes with broken internal links
-        notes = await db.all(
-          `SELECT DISTINCT n.* FROM notes n
-           INNER JOIN note_links nl ON n.id = nl.source_note_id
-           WHERE nl.target_note_id IS NULL`
-        );
-      }
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(
-              {
-                success: true,
-                notes: notes,
-                count: notes.length
-              },
-              null,
-              2
-            )
-          }
-        ]
-      };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(
-              {
-                success: false,
-                error: errorMessage
-              },
-              null,
-              2
-            )
-          }
-        ],
-        isError: true
-      };
-    }
-  };
-
-  #handleMigrateLinks = async (args: { force?: boolean; vault_id?: string }) => {
-    try {
-      const { hybridSearchManager } = await this.#resolveVaultContext(args.vault_id);
-      const db = await hybridSearchManager.getDatabaseConnection();
-
-      // Check if migration is needed
-      if (!args.force) {
-        const existingLinks = await db.get<{ count: number }>(
-          'SELECT COUNT(*) as count FROM note_links'
-        );
-        if (existingLinks && existingLinks.count > 0) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify(
-                  {
-                    success: false,
-                    message:
-                      'Link tables already contain data. Use force=true to migrate anyway.',
-                    existing_links: existingLinks.count
-                  },
-                  null,
-                  2
-                )
-              }
-            ]
-          };
-        }
-      }
-
-      // Get all notes from the database
-      const notes = await db.all<{ id: string; content: string }>(
-        'SELECT id, content FROM notes'
-      );
-      let processedCount = 0;
-      let errorCount = 0;
-      const errors: string[] = [];
-
-      for (const note of notes) {
-        try {
-          // Extract links from note content
-          const extractionResult = LinkExtractor.extractLinks(note.content);
-
-          // Store the extracted links
-          await LinkExtractor.storeLinks(note.id, extractionResult, db);
-          processedCount++;
-        } catch (error) {
-          errorCount++;
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          errors.push(`${note.id}: ${errorMessage}`);
-        }
-      }
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(
-              {
-                success: true,
-                message: 'Link migration completed',
-                total_notes: notes.length,
-                processed: processedCount,
-                errors: errorCount,
-                error_details: errors.length > 0 ? errors.slice(0, 10) : undefined // Limit error details to first 10
-              },
-              null,
-              2
-            )
-          }
-        ]
-      };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(
-              {
-                success: false,
-                error: errorMessage
-              },
-              null,
-              2
-            )
-          }
-        ],
-        isError: true
-      };
-    }
-  };
-
   /**
    * Helper method to generate note ID from identifier
    */
   #generateNoteIdFromIdentifier(identifier: string): string {
-    // Check if identifier is already in type/filename format
-    if (identifier.includes('/')) {
-      return identifier;
-    }
-
-    // If it's just a filename, we need to find the note and get its type
-    // For now, we'll assume it's in the format we expect
-    return identifier;
+    return generateNoteIdFromIdentifier(identifier);
   }
 }
