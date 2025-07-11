@@ -19,6 +19,7 @@ export class LLMService {
   private llm: ChatOpenAI | any;
   private config: LLMConfig;
   private mcpToolsEnabled: boolean = true;
+  private maxToolsLimit: number = 5;
 
   constructor(config: Partial<LLMConfig> = {}) {
     this.config = {
@@ -30,6 +31,14 @@ export class LLMService {
       ...config
     };
 
+    console.log('🔧 LLM Service configuration:', {
+      baseURL: this.config.baseURL,
+      modelName: this.config.modelName,
+      temperature: this.config.temperature,
+      maxTokens: this.config.maxTokens,
+      apiKey: this.config.apiKey ? `${this.config.apiKey.slice(0, 10)}...` : 'not set'
+    });
+
     const baseLLM = new ChatOpenAI({
       openAIApiKey: this.config.apiKey,
       configuration: {
@@ -39,6 +48,8 @@ export class LLMService {
       temperature: this.config.temperature,
       maxTokens: this.config.maxTokens
     });
+
+    console.log('✅ Base LLM created');
 
     this.llm = baseLLM;
 
@@ -85,9 +96,28 @@ export class LLMService {
         }
       };
 
-      const tools = [testTool, ...mcpTools.map(this.convertMCPToolToLangChain)];
+      // Limit tools to prevent overwhelming LM Studio
+      const maxTools = this.maxToolsLimit; // Configurable limit for local LLM servers
+      const prioritizedTools = this.prioritizeTools(mcpTools);
+      const limitedMcpTools = prioritizedTools.slice(0, maxTools - 1); // -1 for test_tool
+
+      console.log(
+        `🔧 Limiting tools: ${mcpTools.length} available, using ${limitedMcpTools.length + 1} (including test_tool)`
+      );
+      console.log(
+        '🔧 Selected tools:',
+        limitedMcpTools.map((t) => t.name)
+      );
+
+      const tools = [testTool, ...limitedMcpTools.map(this.convertMCPToolToLangChain)];
 
       // Recreate LLM with tools
+      console.log('🔧 Creating LLM with tools:', tools.length);
+      console.log(
+        '🔧 Tools being bound:',
+        tools.map((t) => t.function.name)
+      );
+
       const baseLLM = new ChatOpenAI({
         openAIApiKey: this.config.apiKey,
         configuration: {
@@ -98,10 +128,48 @@ export class LLMService {
         maxTokens: this.config.maxTokens
       });
 
+      console.log('✅ Base LLM created for tools');
+
       this.llm = baseLLM.bindTools(tools);
+      console.log('✅ Tools bound to LLM');
     } catch (error) {
       console.error('Failed to update LLM with tools:', error);
     }
+  }
+
+  private prioritizeTools(tools: MCPTool[]): MCPTool[] {
+    // Prioritize commonly used tools
+    const priorityOrder = [
+      'get_current_vault',
+      'search_notes',
+      'create_note',
+      'get_note',
+      'update_note',
+      'list_note_types',
+      'search_notes_advanced',
+      'get_note_info',
+      'list_notes_by_type'
+    ];
+
+    const prioritized: MCPTool[] = [];
+    const remaining: MCPTool[] = [];
+
+    // Add priority tools first
+    for (const priorityName of priorityOrder) {
+      const tool = tools.find((t) => t.name === priorityName);
+      if (tool) {
+        prioritized.push(tool);
+      }
+    }
+
+    // Add remaining tools
+    for (const tool of tools) {
+      if (!prioritized.find((p) => p.name === tool.name)) {
+        remaining.push(tool);
+      }
+    }
+
+    return [...prioritized, ...remaining];
   }
 
   private convertMCPToolToLangChain(mcpTool: MCPTool): any {
@@ -141,8 +209,34 @@ export class LLMService {
     onChunk: (chunk: string) => void
   ): Promise<void> {
     try {
+      console.log('🚀 Starting LLM stream response');
+      console.log('MCP Tools Enabled:', this.mcpToolsEnabled);
+      console.log('MCP Service Ready:', mcpService.isReady());
+
       const langchainMessages = this.convertToLangChainMessages(messages);
-      const stream = await this.llm.stream(langchainMessages);
+      console.log('📝 Converted messages:', langchainMessages.length);
+
+      // Log available tools
+      if (this.mcpToolsEnabled && mcpService.isReady()) {
+        const availableTools = await mcpService.listTools();
+        console.log(
+          '🔧 Available MCP tools:',
+          availableTools.map((t) => t.name)
+        );
+      }
+
+      console.log('📡 Starting LLM stream...');
+
+      // Add timeout to the stream call
+      const streamPromise = this.llm.stream(langchainMessages);
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(
+          () => reject(new Error('Stream request timed out after 30 seconds')),
+          30000
+        );
+      });
+
+      const stream = await Promise.race([streamPromise, timeoutPromise]);
 
       let hasToolCalls = false;
       let toolCalls: any[] = [];
@@ -150,8 +244,18 @@ export class LLMService {
       const toolCallsAccumulator: any = {};
 
       for await (const chunk of stream) {
+        console.log('📦 Stream chunk received:', {
+          hasContent: !!chunk.content,
+          hasToolCalls: !!(chunk.tool_calls && chunk.tool_calls.length > 0),
+          hasToolCallChunks: !!(
+            chunk.tool_call_chunks && chunk.tool_call_chunks.length > 0
+          ),
+          chunkKeys: Object.keys(chunk)
+        });
+
         // Check if this chunk contains tool calls
         if (chunk.tool_calls && chunk.tool_calls.length > 0) {
+          console.log('🔧 Tool calls detected in chunk:', chunk.tool_calls);
           hasToolCalls = true;
           toolCalls = chunk.tool_calls;
           responseMessage = chunk;
@@ -159,6 +263,7 @@ export class LLMService {
 
         // Check for tool call chunks (streaming arguments)
         if (chunk.tool_call_chunks && chunk.tool_call_chunks.length > 0) {
+          console.log('🔧 Tool call chunks detected:', chunk.tool_call_chunks);
           for (const toolChunk of chunk.tool_call_chunks) {
             const chunkIndex = toolChunk.index?.toString() || '0';
 
@@ -190,8 +295,15 @@ export class LLMService {
         }
       }
 
+      console.log('📦 Stream iteration completed successfully');
+
+      console.log('📦 Stream complete. Tool calls accumulator:', toolCallsAccumulator);
+      console.log('🔧 Has tool calls:', hasToolCalls);
+
       // If we have accumulated tool call chunks, use those instead
       if (Object.keys(toolCallsAccumulator).length > 0) {
+        console.log('🔧 Processing accumulated tool calls...');
+
         // Filter out incomplete tool calls and parse JSON args
         const validToolCalls = Object.values(toolCallsAccumulator)
           .filter((call: any) => call.name && call.args)
@@ -201,6 +313,8 @@ export class LLMService {
             args: call.args,
             type: 'tool_call'
           }));
+
+        console.log('✅ Valid tool calls:', validToolCalls);
 
         if (validToolCalls.length > 0) {
           toolCalls = validToolCalls;
@@ -220,14 +334,36 @@ export class LLMService {
 
       // Handle tool calls after streaming is complete
       if (hasToolCalls && toolCalls.length > 0) {
+        console.log('🔧 Handling tool calls:', toolCalls);
         const toolResponse = await this.handleToolCalls(
           responseMessage,
           langchainMessages
         );
         onChunk('\n\n' + toolResponse);
+      } else {
+        console.log('ℹ️ No tool calls to handle');
       }
     } catch (error) {
-      console.error('Error streaming LLM response:', error);
+      console.error('❌ Error streaming LLM response:', error);
+      console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
+
+      // Check if this is a timeout error
+      if (error instanceof Error && error.message.includes('timeout')) {
+        throw new Error(
+          'Stream request timed out - check if LM Studio is running and responsive'
+        );
+      }
+
+      // Check if this is a connection error
+      if (
+        error instanceof Error &&
+        (error.message.includes('ECONNREFUSED') || error.message.includes('fetch failed'))
+      ) {
+        throw new Error(
+          'Cannot connect to LLM server - check if LM Studio is running on the configured port'
+        );
+      }
+
       throw new Error(
         `Failed to stream response: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
@@ -238,7 +374,14 @@ export class LLMService {
     response: any,
     previousMessages: BaseMessage[]
   ): Promise<string> {
+    console.log('🔧 handleToolCalls called with response:', {
+      hasContent: !!response.content,
+      hasToolCalls: !!(response.tool_calls && response.tool_calls.length > 0),
+      toolCallsCount: response.tool_calls?.length || 0
+    });
+
     if (!this.mcpToolsEnabled || !mcpService.isReady()) {
+      console.log('⚠️ MCP tools not enabled or service not ready');
       return response.content as string;
     }
 
@@ -246,24 +389,32 @@ export class LLMService {
       const toolResults: string[] = [];
       const debugInfo: string[] = [];
 
+      console.log('🔧 Processing tool calls:', response.tool_calls);
+
       // Add the assistant's message with tool calls to the conversation
       const assistantMessage = new AIMessage({
         content: response.content || '',
-        tool_calls: response.tool_calls.map((tc: any) => ({
-          name: tc.name,
-          args: typeof tc.args === 'string' ? JSON.parse(tc.args) : tc.args,
-          id: tc.id,
-          type: tc.type
-        }))
+        tool_calls: response.tool_calls.map((tc: any) => {
+          console.log('🔧 Processing tool call:', tc);
+          return {
+            name: tc.name,
+            args: typeof tc.args === 'string' ? JSON.parse(tc.args) : tc.args,
+            id: tc.id,
+            type: tc.type
+          };
+        })
       });
 
       const conversationWithToolCall = [...previousMessages, assistantMessage];
 
       // Execute each tool call
       for (const toolCall of response.tool_calls) {
+        console.log('🔧 Executing tool call:', toolCall);
+
         try {
           // Handle test tool directly
           if (toolCall.name === 'test_tool') {
+            console.log('🧪 Handling test tool');
             const args =
               typeof toolCall.args === 'string'
                 ? JSON.parse(toolCall.args)
@@ -294,6 +445,7 @@ ${testResult}
             continue;
           }
 
+          console.log('🔧 Handling MCP tool:', toolCall.name);
           const mcpToolCall: MCPToolCall = {
             name: toolCall.name,
             arguments:
@@ -311,7 +463,10 @@ ${testResult}
 }
 \`\`\``);
 
+          console.log('📞 Calling MCP service with:', mcpToolCall);
           const toolResult = await mcpService.callTool(mcpToolCall);
+          console.log('📋 MCP tool result:', toolResult);
+
           const toolResultText = toolResult.content.map((c) => c.text).join('\n');
 
           // Add debug info for tool result
@@ -329,7 +484,12 @@ ${toolResultText}
           conversationWithToolCall.push(toolMessage);
           toolResults.push(toolResultText);
         } catch (error) {
-          console.error('Error executing tool call:', error);
+          console.error('❌ Error executing tool call:', error);
+          console.error(
+            'Error stack:',
+            error instanceof Error ? error.stack : 'No stack'
+          );
+
           const errorMessage = new ToolMessage({
             content: `Error executing ${toolCall.name}: ${error instanceof Error ? error.message : 'Unknown error'}`,
             tool_call_id: toolCall.id
@@ -341,12 +501,17 @@ ${toolResultText}
 \`\`\`
 Tool: ${toolCall.name}
 Error: ${error instanceof Error ? error.message : 'Unknown error'}
+Stack: ${error instanceof Error ? error.stack : 'No stack'}
 \`\`\``);
         }
       }
 
+      console.log('🔄 Getting final response from LLM with tool results...');
+      console.log('💬 Conversation length:', conversationWithToolCall.length);
+
       // Get final response from LLM with tool results
       const finalResponse = await this.llm.invoke(conversationWithToolCall);
+      console.log('✅ Final response received:', finalResponse);
 
       // Include debug info in response
       const debugSection =
@@ -354,7 +519,8 @@ Error: ${error instanceof Error ? error.message : 'Unknown error'}
 
       return (finalResponse.content as string) + debugSection;
     } catch (error) {
-      console.error('Error handling tool calls:', error);
+      console.error('❌ Error handling tool calls:', error);
+      console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
       return response.content as string;
     }
   }
@@ -409,10 +575,19 @@ Error: ${error instanceof Error ? error.message : 'Unknown error'}
     }
   }
 
-  updateConfig(newConfig: Partial<LLMConfig>): void {
-    this.config = { ...this.config, ...newConfig };
+  updateConfig(config: Partial<LLMConfig>): void {
+    console.log('🔧 Updating LLM config:', config);
+    this.config = { ...this.config, ...config };
 
-    // Recreate the LLM instance with new config
+    console.log('🔧 New LLM configuration:', {
+      baseURL: this.config.baseURL,
+      modelName: this.config.modelName,
+      temperature: this.config.temperature,
+      maxTokens: this.config.maxTokens,
+      apiKey: this.config.apiKey ? `${this.config.apiKey.slice(0, 10)}...` : 'not set'
+    });
+
+    // Recreate LLM with new config
     const baseLLM = new ChatOpenAI({
       openAIApiKey: this.config.apiKey,
       configuration: {
@@ -423,10 +598,13 @@ Error: ${error instanceof Error ? error.message : 'Unknown error'}
       maxTokens: this.config.maxTokens
     });
 
+    console.log('✅ Base LLM recreated with new config');
+
     this.llm = baseLLM;
 
-    // Update tools if MCP is enabled
+    // Update with tools if enabled
     if (this.mcpToolsEnabled) {
+      console.log('🔧 Updating LLM with tools after config change');
       this.updateLLMWithTools();
     }
   }
@@ -457,6 +635,20 @@ Error: ${error instanceof Error ? error.message : 'Unknown error'}
 
   isMCPEnabled(): boolean {
     return this.mcpToolsEnabled && mcpService.isReady();
+  }
+
+  setMaxToolsLimit(limit: number): void {
+    this.maxToolsLimit = Math.max(1, Math.min(limit, 50)); // Clamp between 1 and 50
+    console.log(`🔧 Tool limit set to: ${this.maxToolsLimit}`);
+
+    // Update LLM with new tool limit if MCP is enabled
+    if (this.mcpToolsEnabled) {
+      this.updateLLMWithTools();
+    }
+  }
+
+  getMaxToolsLimit(): number {
+    return this.maxToolsLimit;
   }
 
   // MCP Server management methods

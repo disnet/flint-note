@@ -255,6 +255,33 @@ app.whenReady().then(() => {
     }
   });
 
+  // Tool limit configuration handlers
+  ipcMain.handle('llm:set-max-tools', async (_, limit: number) => {
+    try {
+      llmService.setMaxToolsLimit(limit);
+      return { success: true };
+    } catch (error) {
+      console.error('Error setting tool limit:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  });
+
+  ipcMain.handle('llm:get-max-tools', async () => {
+    try {
+      const limit = llmService.getMaxToolsLimit();
+      return { success: true, limit };
+    } catch (error) {
+      console.error('Error getting tool limit:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  });
+
   createWindow();
 
   app.on('activate', function () {
