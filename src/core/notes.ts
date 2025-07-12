@@ -40,7 +40,7 @@ interface ParsedNote {
   content: string;
 }
 
-interface NoteInfo {
+export interface NoteInfo {
   id: string;
   type: string;
   title: string;
@@ -49,7 +49,7 @@ interface NoteInfo {
   created: string;
 }
 
-interface Note {
+export interface Note {
   [key: string]: unknown;
   id: string;
   type: string;
@@ -65,13 +65,13 @@ interface Note {
   size: number;
 }
 
-interface UpdateResult {
+export interface UpdateResult {
   id: string;
   updated: boolean;
   timestamp: string;
 }
 
-interface DeleteNoteResult {
+export interface DeleteNoteResult {
   id: string;
   deleted: boolean;
   timestamp: string;
@@ -79,7 +79,7 @@ interface DeleteNoteResult {
   warnings?: string[];
 }
 
-interface NoteListItem {
+export interface NoteListItem {
   id: string;
   type: string;
   filename: string;

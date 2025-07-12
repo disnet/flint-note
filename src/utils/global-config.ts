@@ -11,7 +11,7 @@ import os from 'os';
 import yaml from 'js-yaml';
 import { resolvePath } from './path.js';
 
-interface VaultInfo {
+export interface VaultInfo {
   name: string;
   path: string;
   created: string;

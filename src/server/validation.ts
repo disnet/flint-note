@@ -1,6 +1,10 @@
 /**
  * Argument validation utilities for FlintNote MCP Server tools
+ *
+ * Note: This file intentionally uses 'any' types for runtime validation
+ * of unknown input data, which is the appropriate pattern for validation.
  */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 export interface ValidationResult {
   isValid: boolean;

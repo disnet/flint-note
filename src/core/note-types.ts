@@ -21,20 +21,20 @@ import {
   createNoteTypeHashableContent
 } from '../utils/content-hash.js';
 
-interface NoteTypeInfo {
+export interface NoteTypeInfo {
   name: string;
   path: string;
   created: string;
 }
 
-interface ParsedNoteTypeDescription {
+export interface ParsedNoteTypeDescription {
   purpose: string;
   agentInstructions: string[];
   metadataSchema: string[];
   parsedMetadataSchema: MetadataSchema;
 }
 
-interface NoteTypeDescription {
+export interface NoteTypeDescription {
   name: string;
   path: string;
   description: string;
@@ -43,7 +43,7 @@ interface NoteTypeDescription {
   content_hash: string;
 }
 
-interface NoteTypeListItem {
+export interface NoteTypeListItem {
   name: string;
   path: string;
   purpose: string;
@@ -53,7 +53,7 @@ interface NoteTypeListItem {
   lastModified: string;
 }
 
-interface NoteTypeUpdateRequest {
+export interface NoteTypeUpdateRequest {
   description?: string;
 }
 

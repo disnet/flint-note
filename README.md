@@ -201,22 +201,22 @@ Focus on making note-taking effortless while building a valuable, adaptive knowl
 > You: Show me the status of my three main projects
 >
 > Agent: I'll fetch your main project notes efficiently in a single call...
-> 
+>
 > *[Uses get_notes with identifiers array and fields=["title", "metadata.status", "content_hash"]]*
-> 
+>
 > Here are your three main projects with current status:
 > - **Web Application Redesign**: In Progress (due next month)
-> - **Mobile App Development**: Planning (team assigned)  
+> - **Mobile App Development**: Planning (team assigned)
 > - **API Redesign**: Blocked (waiting for architecture approval)
-> 
+>
 > This targeted field filtering reduced data transfer by 85% while getting exactly what you need. Which project needs attention?
 >
 > You: Update the API project to "In Progress" - architecture was approved
 >
 > Agent: I'll update the API project status safely using the content hash I already have...
-> 
+>
 > *[Uses update_note with content_hash for conflict-free update]*
-> 
+>
 > Updated! Your API Redesign project is now "In Progress". Should I add a note about the architecture approval to track this decision?
 
 ### Cross-Vault Operations
@@ -337,6 +337,91 @@ You can modify how agents work with any note type just by talking to them:
 > Agent: I'll modify your project note instructions to emphasize deadline tracking and proactive blocker identification.
 >
 > [Updates projects/_description.md accordingly]
+
+## Direct API Access
+
+In addition to the MCP server interface, FlintNote provides a direct API for programmatic access without requiring the MCP protocol. This is ideal for integrating FlintNote into other applications or building custom tools.
+
+### Quick Start
+
+```typescript
+import { FlintNoteApi } from '@flint-note/server/api';
+
+const api = new FlintNoteApi({
+  workspacePath: './my-notes'
+});
+
+await api.initialize();
+
+// Create a note
+await api.createSimpleNote('general', 'my-note', 'Hello, world!');
+
+// Get the note
+const note = await api.getNote('my-note');
+console.log(note);
+```
+
+### Common Operations
+
+```typescript
+// Initialize the API
+const api = new FlintNoteApi({ workspacePath: './notes' });
+await api.initialize();
+
+// Create notes
+await api.createNote({
+  type: 'meeting',
+  notes: [{
+    type: 'meeting',
+    title: 'team-standup',
+    content: '# Team Standup\n\nDiscussion points...',
+    metadata: { attendees: ['Alice', 'Bob'], date: '2024-01-15' }
+  }]
+});
+
+// Search and retrieve
+const results = await api.searchNotesByText('important');
+const note = await api.getNote('team-standup');
+
+// Update content
+await api.updateNoteContent('team-standup', 'Updated content');
+
+// Work with vaults
+const vaults = await api.listVaults();
+await api.switchVault({ vault_id: 'work' });
+
+// Get statistics
+const stats = await api.getStatsResource();
+```
+
+### Available Methods
+
+The API provides methods for all core operations:
+
+- **Notes**: `createNote`, `getNote`, `updateNote`, `deleteNote`, `searchNotes`
+- **Note Types**: `createNoteType`, `listNoteTypes`, `updateNoteType`
+- **Vaults**: `listVaults`, `createVault`, `switchVault`, `getCurrentVault`
+- **Search**: `searchNotes`, `searchNotesAdvanced`, `searchNotesSQL`
+- **Links**: `getNoteLinks`, `getBacklinks`, `findBrokenLinks`
+- **Convenience**: `createSimpleNote`, `updateNoteContent`, `searchNotesByText`
+
+### Documentation
+
+- **Full API Reference**: [docs/API.md](./docs/API.md)
+- **Examples**: [examples/api-usage.ts](./examples/api-usage.ts)
+- **Type Definitions**: Exported from `@flint-note/server`
+
+### Migration from MCP
+
+If you're using the MCP interface, the API provides equivalent functionality:
+
+```typescript
+// MCP (old way)
+const response = await client.callTool('get_note', { identifier: 'my-note' });
+
+// Direct API (new way)
+const note = await api.getNote('my-note');
+```
 
 ## Configuration
 

@@ -4,10 +4,12 @@
   "description": "Agent-first note-taking application with MCP server",
   "main": "dist/index.js",
   "module": "dist/index.js",
+  "types": "dist/index.d.ts",
   "bin": "dist/index.js",
   "type": "module",
   "scripts": {
     "build": "tsc && chmod +x dist/cli.js && chmod +x dist/index.js",
+    "build:types": "tsc --emitDeclarationOnly",
     "build:watch": "tsc --watch",
     "clean": "rm -rf dist",
     "start": "npm run build && node dist/index.js",
@@ -37,7 +39,9 @@
     "knowledge-management"
   ],
   "files": [
-    "dist",
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "dist/**/*.d.ts.map",
     "README.md",
     "LICENSE",
     "prompts"

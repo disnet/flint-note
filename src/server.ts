@@ -64,12 +64,12 @@ export class FlintNoteServer {
   #noteManager!: NoteManager;
   #noteTypeManager!: NoteTypeManager;
   #hybridSearchManager!: HybridSearchManager;
-  #noteHandlers!: NoteHandlers;
-  #noteTypeHandlers!: NoteTypeHandlers;
-  #vaultHandlers!: VaultHandlers;
-  #searchHandlers!: SearchHandlers;
-  #linkHandlers!: LinkHandlers;
-  #resourceHandlers!: ResourceHandlers;
+  noteHandlers!: NoteHandlers;
+  noteTypeHandlers!: NoteTypeHandlers;
+  vaultHandlers!: VaultHandlers;
+  searchHandlers!: SearchHandlers;
+  linkHandlers!: LinkHandlers;
+  resourceHandlers!: ResourceHandlers;
 
   #globalConfig: GlobalConfigManager;
   #config: ServerConfig;
@@ -131,7 +131,7 @@ export class FlintNoteServer {
         this.#noteTypeManager = new NoteTypeManager(this.#workspace);
 
         // Initialize note handlers
-        this.#noteHandlers = new NoteHandlers(
+        this.noteHandlers = new NoteHandlers(
           this.#resolveVaultContext.bind(this),
           this.#generateNoteIdFromIdentifier.bind(this),
           this.#requireWorkspace.bind(this),
@@ -139,29 +139,29 @@ export class FlintNoteServer {
         );
 
         // Initialize note type handlers
-        this.#noteTypeHandlers = new NoteTypeHandlers(
+        this.noteTypeHandlers = new NoteTypeHandlers(
           this.#resolveVaultContext.bind(this),
           this.#requireWorkspace.bind(this),
           this.#noteTypeManager
         );
 
         // Initialize vault handlers
-        this.#vaultHandlers = new VaultHandlers(
+        this.vaultHandlers = new VaultHandlers(
           this.#globalConfig,
           this.initialize.bind(this)
         );
 
         // Initialize search handlers
-        this.#searchHandlers = new SearchHandlers(this.#resolveVaultContext.bind(this));
+        this.searchHandlers = new SearchHandlers(this.#resolveVaultContext.bind(this));
 
         // Initialize link handlers
-        this.#linkHandlers = new LinkHandlers(
+        this.linkHandlers = new LinkHandlers(
           this.#resolveVaultContext.bind(this),
           this.#generateNoteIdFromIdentifier.bind(this)
         );
 
         // Initialize resource handlers
-        this.#resourceHandlers = new ResourceHandlers(
+        this.resourceHandlers = new ResourceHandlers(
           this.#requireWorkspace.bind(this),
           this.#resolveVaultContext.bind(this)
         );
@@ -214,7 +214,7 @@ export class FlintNoteServer {
           this.#noteTypeManager = new NoteTypeManager(this.#workspace);
 
           // Initialize note handlers
-          this.#noteHandlers = new NoteHandlers(
+          this.noteHandlers = new NoteHandlers(
             this.#resolveVaultContext.bind(this),
             this.#generateNoteIdFromIdentifier.bind(this),
             this.#requireWorkspace.bind(this),
@@ -222,29 +222,29 @@ export class FlintNoteServer {
           );
 
           // Initialize note type handlers
-          this.#noteTypeHandlers = new NoteTypeHandlers(
+          this.noteTypeHandlers = new NoteTypeHandlers(
             this.#resolveVaultContext.bind(this),
             this.#requireWorkspace.bind(this),
             this.#noteTypeManager
           );
 
           // Initialize vault handlers
-          this.#vaultHandlers = new VaultHandlers(
+          this.vaultHandlers = new VaultHandlers(
             this.#globalConfig,
             this.initialize.bind(this)
           );
 
           // Initialize search handlers
-          this.#searchHandlers = new SearchHandlers(this.#resolveVaultContext.bind(this));
+          this.searchHandlers = new SearchHandlers(this.#resolveVaultContext.bind(this));
 
           // Initialize link handlers
-          this.#linkHandlers = new LinkHandlers(
+          this.linkHandlers = new LinkHandlers(
             this.#resolveVaultContext.bind(this),
             this.#generateNoteIdFromIdentifier.bind(this)
           );
 
           // Initialize resource handlers
-          this.#resourceHandlers = new ResourceHandlers(
+          this.resourceHandlers = new ResourceHandlers(
             this.#requireWorkspace.bind(this),
             this.#resolveVaultContext.bind(this)
           );
@@ -1227,112 +1227,112 @@ export class FlintNoteServer {
       try {
         switch (name) {
           case 'create_note_type':
-            return await this.#noteTypeHandlers.handleCreateNoteType(
+            return await this.noteTypeHandlers.handleCreateNoteType(
               args as unknown as CreateNoteTypeArgs
             );
           case 'create_note':
-            return await this.#noteHandlers.handleCreateNote(
+            return await this.noteHandlers.handleCreateNote(
               args as unknown as CreateNoteArgs
             );
           case 'get_note':
-            return await this.#noteHandlers.handleGetNote(args as unknown as GetNoteArgs);
+            return await this.noteHandlers.handleGetNote(args as unknown as GetNoteArgs);
           case 'get_notes':
-            return await this.#noteHandlers.handleGetNotes(
+            return await this.noteHandlers.handleGetNotes(
               args as unknown as GetNotesArgs
             );
           case 'update_note':
-            return await this.#noteHandlers.handleUpdateNote(
+            return await this.noteHandlers.handleUpdateNote(
               args as unknown as UpdateNoteArgs
             );
           case 'search_notes':
-            return await this.#searchHandlers.handleSearchNotes(
+            return await this.searchHandlers.handleSearchNotes(
               args as unknown as SearchNotesArgs
             );
           case 'search_notes_advanced':
-            return await this.#searchHandlers.handleSearchNotesAdvanced(
+            return await this.searchHandlers.handleSearchNotesAdvanced(
               args as unknown as SearchNotesAdvancedArgs
             );
           case 'search_notes_sql':
-            return await this.#searchHandlers.handleSearchNotesSQL(
+            return await this.searchHandlers.handleSearchNotesSQL(
               args as unknown as SearchNotesSqlArgs
             );
           case 'list_note_types':
-            return await this.#noteTypeHandlers.handleListNoteTypes(
+            return await this.noteTypeHandlers.handleListNoteTypes(
               args as unknown as ListNoteTypesArgs
             );
 
           case 'update_note_type':
-            return await this.#noteTypeHandlers.handleUpdateNoteType(
+            return await this.noteTypeHandlers.handleUpdateNoteType(
               args as unknown as UpdateNoteTypeArgs
             );
           case 'get_note_type_info':
-            return await this.#noteTypeHandlers.handleGetNoteTypeInfo(
+            return await this.noteTypeHandlers.handleGetNoteTypeInfo(
               args as unknown as GetNoteTypeInfoArgs
             );
           case 'list_vaults':
-            return await this.#vaultHandlers.handleListVaults();
+            return await this.vaultHandlers.handleListVaults();
           case 'create_vault':
-            return await this.#vaultHandlers.handleCreateVault(
+            return await this.vaultHandlers.handleCreateVault(
               args as unknown as CreateVaultArgs
             );
           case 'switch_vault':
-            return await this.#vaultHandlers.handleSwitchVault(
+            return await this.vaultHandlers.handleSwitchVault(
               args as unknown as SwitchVaultArgs
             );
           case 'remove_vault':
-            return await this.#vaultHandlers.handleRemoveVault(
+            return await this.vaultHandlers.handleRemoveVault(
               args as unknown as RemoveVaultArgs
             );
           case 'get_current_vault':
-            return await this.#vaultHandlers.handleGetCurrentVault();
+            return await this.vaultHandlers.handleGetCurrentVault();
           case 'update_vault':
-            return await this.#vaultHandlers.handleUpdateVault(
+            return await this.vaultHandlers.handleUpdateVault(
               args as unknown as UpdateVaultArgs
             );
 
           case 'get_note_info':
-            return await this.#noteHandlers.handleGetNoteInfo(
+            return await this.noteHandlers.handleGetNoteInfo(
               args as unknown as GetNoteInfoArgs
             );
           case 'list_notes_by_type':
-            return await this.#noteHandlers.handleListNotesByType(
+            return await this.noteHandlers.handleListNotesByType(
               args as unknown as ListNotesByTypeArgs
             );
 
           case 'delete_note':
-            return await this.#noteHandlers.handleDeleteNote(
+            return await this.noteHandlers.handleDeleteNote(
               args as unknown as DeleteNoteArgs
             );
           case 'delete_note_type':
-            return await this.#noteTypeHandlers.handleDeleteNoteType(
+            return await this.noteTypeHandlers.handleDeleteNoteType(
               args as unknown as DeleteNoteTypeArgs
             );
           case 'bulk_delete_notes':
-            return await this.#noteHandlers.handleBulkDeleteNotes(
+            return await this.noteHandlers.handleBulkDeleteNotes(
               args as unknown as BulkDeleteNotesArgs
             );
           case 'rename_note':
-            return await this.#noteHandlers.handleRenameNote(
+            return await this.noteHandlers.handleRenameNote(
               args as unknown as RenameNoteArgs
             );
 
           case 'get_note_links':
-            return await this.#linkHandlers.handleGetNoteLinks(
+            return await this.linkHandlers.handleGetNoteLinks(
               args as unknown as { identifier: string; vault_id?: string }
             );
 
           case 'get_backlinks':
-            return await this.#linkHandlers.handleGetBacklinks(
+            return await this.linkHandlers.handleGetBacklinks(
               args as unknown as { identifier: string; vault_id?: string }
             );
 
           case 'find_broken_links':
-            return await this.#linkHandlers.handleFindBrokenLinks(
+            return await this.linkHandlers.handleFindBrokenLinks(
               args as unknown as { vault_id?: string }
             );
 
           case 'search_by_links':
-            return await this.#linkHandlers.handleSearchByLinks(
+            return await this.linkHandlers.handleSearchByLinks(
               args as unknown as {
                 has_links_to?: string[];
                 linked_from?: string[];
@@ -1343,7 +1343,7 @@ export class FlintNoteServer {
             );
 
           case 'migrate_links':
-            return await this.#linkHandlers.handleMigrateLinks(
+            return await this.linkHandlers.handleMigrateLinks(
               args as unknown as { force?: boolean; vault_id?: string }
             );
 
@@ -1413,11 +1413,11 @@ export class FlintNoteServer {
       try {
         switch (uri) {
           case 'flint-note://types':
-            return await this.#noteTypeHandlers.handleTypesResource();
+            return await this.noteTypeHandlers.handleTypesResource();
           case 'flint-note://recent':
-            return await this.#resourceHandlers.handleRecentResource();
+            return await this.resourceHandlers.handleRecentResource();
           case 'flint-note://stats':
-            return await this.#resourceHandlers.handleStatsResource();
+            return await this.resourceHandlers.handleStatsResource();
           default:
             throw new Error(`Unknown resource: ${uri}`);
         }

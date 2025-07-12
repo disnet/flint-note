@@ -9,6 +9,12 @@
 
 import { FlintNoteServer } from './server.js';
 
+// Export the server for direct use
+export { FlintNoteServer } from './server.js';
+
+// Export the API for programmatic access
+export * from './api/index.js';
+
 interface ServerConfig {
   workspacePath?: string;
   throwOnError?: boolean;
