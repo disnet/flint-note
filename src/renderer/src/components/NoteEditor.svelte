@@ -32,21 +32,16 @@
     error = null;
 
     try {
-      const response = await window.api.mcp.callTool({
-        name: 'get_note',
-        arguments: {
-          title: note.title
-        }
-      });
+      const response = await window.api.flintApi.getNote(note.title);
 
-      if (response.success && response.result) {
+      if (response.success && response.note) {
         // Handle different possible response formats
-        if (typeof response.result === 'string') {
-          noteContent = response.result;
-        } else if (response.result.content) {
-          noteContent = response.result.content;
-        } else if (response.result.text) {
-          noteContent = response.result.text;
+        if (typeof response.note === 'string') {
+          noteContent = response.note;
+        } else if (response.note.content) {
+          noteContent = response.note.content;
+        } else if (response.note.text) {
+          noteContent = response.note.text;
         } else {
           noteContent = '';
         }
@@ -68,13 +63,10 @@
     error = null;
 
     try {
-      const response = await window.api.mcp.callTool({
-        name: 'update_note',
-        arguments: {
-          title: note.title,
-          content: noteContent
-        }
-      });
+      const response = await window.api.flintApi.updateNoteContent(
+        note.title,
+        noteContent
+      );
 
       if (!response.success) {
         error = response.error || 'Failed to save note';

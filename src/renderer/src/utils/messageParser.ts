@@ -6,12 +6,6 @@ export interface MessagePart {
   note?: NoteReference;
 }
 
-interface MCPResponse {
-  success: boolean;
-  result?: any;
-  error?: string;
-}
-
 // Cache for note references to avoid repeated MCP calls
 const noteCache = new Map<string, NoteReference | null>();
 
@@ -166,32 +160,37 @@ export function parseMessageContentSync(content: string): MessagePart[] {
 /**
  * Find a note by title or path using MCP
  */
-async function findNoteByTitleOrPath(titleOrPath: string): Promise<NoteReference | null> {
+async function findNoteByTitleOrPath(idOrTitle: string): Promise<NoteReference | null> {
   // Check cache first
-  if (noteCache.has(titleOrPath)) {
-    return noteCache.get(titleOrPath)!;
+  if (noteCache.has(idOrTitle)) {
+    return noteCache.get(idOrTitle)!;
   }
 
   try {
-    const searchResponse = (await window.api.mcp.callTool({
-      name: 'search_notes',
-      arguments: {
-        query: titleOrPath,
-        limit: 10
-      }
-    })) as MCPResponse;
+    // First try advanced search with exact matching
+    const searchResponse = await window.api.flintApi.searchNotesAdvanced({
+      metadata_filters: [
+        { key: 'id', value: idOrTitle, operator: '=' },
+        { key: 'title', value: idOrTitle, operator: '=' }
+      ],
+      fields: ['id', 'type', 'title', 'path'],
+      limit: 10
+    });
+    console.log(searchResponse);
 
-    if (searchResponse.success && searchResponse.result) {
-      const notes = Array.isArray(searchResponse.result)
-        ? searchResponse.result
-        : [searchResponse.result];
+    if (
+      searchResponse.success &&
+      searchResponse.result &&
+      (searchResponse.result as any).notes
+    ) {
+      const notes = (searchResponse.result as any).notes;
 
-      // Look for exact title match first
-      let note = notes.find((n: any) => n.title === titleOrPath);
+      // Look for exact id match first
+      let note = notes.find((n: any) => n.id === idOrTitle);
 
       if (!note) {
-        // Try path match
-        note = notes.find((n: any) => n.path === titleOrPath);
+        // Try title match
+        note = notes.find((n: any) => n.title === idOrTitle);
       }
 
       if (!note) {
@@ -199,52 +198,66 @@ async function findNoteByTitleOrPath(titleOrPath: string): Promise<NoteReference
         note = notes.find(
           (n: any) =>
             n.title &&
-            (n.title.toLowerCase().includes(titleOrPath.toLowerCase()) ||
-              titleOrPath.toLowerCase().includes(n.title.toLowerCase()))
+            (n.title.toLowerCase().includes(idOrTitle.toLowerCase()) ||
+              idOrTitle.toLowerCase().includes(n.title.toLowerCase()))
         );
       }
 
       if (note) {
         const noteRef: NoteReference = {
-          id: note.id || note.title,
+          id: note.id,
           title: note.title,
           type: note.type,
           path: note.path
         };
 
         // Cache the result
-        noteCache.set(titleOrPath, noteRef);
+        noteCache.set(idOrTitle, noteRef);
         return noteRef;
       }
     }
 
-    // If search doesn't work, try to get the note directly
-    const getResponse = (await window.api.mcp.callTool({
-      name: 'get_note',
-      arguments: {
-        title: titleOrPath
+    // If advanced search didn't find anything, try a simple text search
+    const fallbackResponse = await window.api.flintApi.searchNotes(idOrTitle, {
+      limit: 10,
+      fields: ['id', 'type', 'title', 'path']
+    });
+
+    if (
+      fallbackResponse.success &&
+      fallbackResponse.result &&
+      (fallbackResponse.result as any).notes
+    ) {
+      const notes = (fallbackResponse.result as any).notes;
+
+      // Look for fuzzy matching on title
+      const note = notes.find(
+        (n: any) =>
+          n.title &&
+          (n.title.toLowerCase().includes(idOrTitle.toLowerCase()) ||
+            idOrTitle.toLowerCase().includes(n.title.toLowerCase()))
+      );
+
+      if (note) {
+        const noteRef: NoteReference = {
+          id: note.id,
+          title: note.title,
+          type: note.type,
+          path: note.path
+        };
+
+        // Cache the result
+        noteCache.set(idOrTitle, noteRef);
+        return noteRef;
       }
-    })) as MCPResponse;
-
-    if (getResponse.success && getResponse.result) {
-      const noteRef: NoteReference = {
-        id: titleOrPath,
-        title: titleOrPath,
-        type: getResponse.result.type,
-        path: getResponse.result.path
-      };
-
-      // Cache the result
-      noteCache.set(titleOrPath, noteRef);
-      return noteRef;
     }
 
     // Cache null result to avoid repeated failed lookups
-    noteCache.set(titleOrPath, null);
+    noteCache.set(idOrTitle, null);
     return null;
   } catch (error) {
     console.error('Error finding note:', error);
-    noteCache.set(titleOrPath, null);
+    noteCache.set(idOrTitle, null);
     return null;
   }
 }
@@ -256,18 +269,18 @@ async function findNoteByTitleOrPath(titleOrPath: string): Promise<NoteReference
 export async function generateMockMessageWithNotes(): Promise<string> {
   try {
     // Try to get some actual notes from the vault
-    const listResponse = (await window.api.mcp.callTool({
-      name: 'search_notes',
-      arguments: {
-        query: '',
-        limit: 5
-      }
-    })) as MCPResponse;
+    const listResponse = await window.api.flintApi.searchNotes('', {
+      limit: 5
+    });
 
-    if (listResponse.success && listResponse.result) {
-      const notes = Array.isArray(listResponse.result)
-        ? listResponse.result
-        : [listResponse.result];
+    if (
+      listResponse.success &&
+      listResponse.result &&
+      (listResponse.result as any).notes
+    ) {
+      const notes = Array.isArray((listResponse.result as any).notes)
+        ? (listResponse.result as any).notes
+        : [(listResponse.result as any).notes];
 
       if (notes.length >= 2) {
         const note1 = notes[0];

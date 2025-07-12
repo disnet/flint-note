@@ -8,7 +8,13 @@ import {
 import { BaseMessage } from '@langchain/core/messages';
 import { mcpService } from './mcpService';
 import { settingsService } from './settingsService';
-import type { LLMMessage, LLMConfig, MCPTool, MCPToolCall } from '../../shared/types';
+import type {
+  LLMMessage,
+  LLMConfig,
+  MCPTool,
+  MCPToolCall,
+  MCPToolResult
+} from '../../shared/types';
 
 export class LLMService {
   private llm: ChatOpenAI | any;
@@ -878,7 +884,7 @@ Stack: ${error instanceof Error ? error.stack : 'No stack'}
 
   async callMCPTool(
     toolCall: MCPToolCall
-  ): Promise<{ success: boolean; result?: any; error?: string }> {
+  ): Promise<{ success: boolean; result?: MCPToolResult; error?: string }> {
     try {
       console.log('🔧 LLM Service callMCPTool called with:', toolCall);
 

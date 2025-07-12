@@ -37,6 +37,59 @@ const api = {
     callTool: (toolCall: { name: string; arguments: Record<string, unknown> }) =>
       ipcRenderer.invoke('mcp:call-tool', toolCall)
   },
+  flintApi: {
+    getNote: (identifier: string, vaultId?: string) =>
+      ipcRenderer.invoke('flint-api:get-note', identifier, vaultId),
+    updateNoteContent: (identifier: string, content: string, vaultId?: string) =>
+      ipcRenderer.invoke('flint-api:update-note-content', identifier, content, vaultId),
+    createSimpleNote: (
+      type: string,
+      identifier: string,
+      content: string,
+      vaultId?: string
+    ) =>
+      ipcRenderer.invoke(
+        'flint-api:create-simple-note',
+        type,
+        identifier,
+        content,
+        vaultId
+      ),
+    searchNotes: (
+      query: string,
+      options?: {
+        type_filter?: string;
+        limit?: number;
+        use_regex?: boolean;
+        vaultId?: string;
+        fields?: string[];
+      }
+    ) => ipcRenderer.invoke('flint-api:search-notes', query, options),
+    searchNotesAdvanced: (options?: {
+      query?: string;
+      type?: string;
+      metadata_filters?: Array<{
+        key: string;
+        value: string;
+        operator?: string;
+      }>;
+      updated_within?: string;
+      updated_before?: string;
+      created_within?: string;
+      created_before?: string;
+      content_contains?: string;
+      sort?: Array<{
+        field: string;
+        order: string;
+      }>;
+      limit?: number;
+      offset?: number;
+      vaultId?: string;
+      fields?: string[];
+    }) => ipcRenderer.invoke('flint-api:search-notes-advanced', options),
+    getStatus: () => ipcRenderer.invoke('flint-api:get-status'),
+    testConnection: () => ipcRenderer.invoke('flint-api:test-connection')
+  },
   settings: {
     getPath: () => ipcRenderer.invoke('settings:get-path')
   },

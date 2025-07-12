@@ -54,26 +54,21 @@
 
     try {
       console.log('Loading note:', $state.snapshot(note));
-      const response = await window.api.mcp.callTool({
-        name: 'get_note',
-        arguments: {
-          title: note.title
-        }
-      });
+      const response = await window.api.flintApi.getNote(note.title);
 
       console.log('Note load response:', response);
 
-      if (response.success && response.result) {
+      if (response.success && response.note) {
         // Handle different possible response formats
-        if (typeof response.result === 'string') {
-          noteContent = response.result;
-        } else if (response.result.content) {
-          noteContent = response.result.content;
-        } else if (response.result.text) {
-          noteContent = response.result.text;
+        if (typeof response.note === 'string') {
+          noteContent = response.note;
+        } else if (response.note.content) {
+          noteContent = response.note.content;
+        } else if (response.note.text) {
+          noteContent = response.note.text;
         } else {
-          console.log('Unexpected response format:', response.result);
-          noteContent = JSON.stringify(response.result, null, 2);
+          console.log('Unexpected response format:', response.note);
+          noteContent = JSON.stringify(response.note, null, 2);
         }
       } else {
         console.error('Failed to load note:', response);
@@ -95,13 +90,10 @@
 
     try {
       console.log('Saving note:', note.title, 'Content length:', noteContent.length);
-      const response = await window.api.mcp.callTool({
-        name: 'update_note',
-        arguments: {
-          title: note.title,
-          content: noteContent
-        }
-      });
+      const response = await window.api.flintApi.updateNoteContent(
+        note.title,
+        noteContent
+      );
 
       console.log('Note save response:', response);
 

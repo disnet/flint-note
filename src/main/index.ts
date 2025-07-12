@@ -6,6 +6,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import icon from '../../resources/icon.png?asset';
 import { LLMService, FLINT_SYSTEM_PROMPT, LLMMessage } from './services/llmService';
 import { settingsService } from './services/settingsService';
+import { flintApiService } from './services/flintApiService';
 // MCP service is initialized within LLMService
 // import { mcpService } from './services/mcpService';
 
@@ -68,6 +69,14 @@ app.whenReady().then(async () => {
     console.log('📁 Settings file location:', settingsService.getSettingsPath());
   } catch (error) {
     console.error('❌ Error initializing settings:', error);
+  }
+
+  // Initialize FlintNote API service
+  try {
+    await flintApiService.initialize();
+    console.log('✅ FlintNote API service initialized');
+  } catch (error) {
+    console.error('❌ Error initializing FlintNote API service:', error);
   }
 
   // Default open or close DevTools by F12 in development
@@ -305,6 +314,157 @@ app.whenReady().then(async () => {
       };
     }
   });
+
+  // FlintNote API handlers
+  ipcMain.handle(
+    'flint-api:get-note',
+    async (_, identifier: string, vaultId?: string) => {
+      try {
+        const note = await flintApiService.getNote(identifier, vaultId);
+        return { success: true, note };
+      } catch (error) {
+        console.error('Error getting note via FlintNote API:', error);
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        };
+      }
+    }
+  );
+
+  ipcMain.handle(
+    'flint-api:update-note-content',
+    async (_, identifier: string, content: string, vaultId?: string) => {
+      try {
+        const result = await flintApiService.updateNoteContent(
+          identifier,
+          content,
+          vaultId
+        );
+        return { success: true, result };
+      } catch (error) {
+        console.error('Error updating note content via FlintNote API:', error);
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        };
+      }
+    }
+  );
+
+  ipcMain.handle(
+    'flint-api:create-simple-note',
+    async (_, type: string, identifier: string, content: string, vaultId?: string) => {
+      try {
+        const result = await flintApiService.createSimpleNote(
+          type,
+          identifier,
+          content,
+          vaultId
+        );
+        return { success: true, result };
+      } catch (error) {
+        console.error('Error creating simple note via FlintNote API:', error);
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        };
+      }
+    }
+  );
+
+  ipcMain.handle(
+    'flint-api:search-notes',
+    async (
+      _,
+      query: string,
+      options: {
+        type_filter?: string;
+        limit?: number;
+        use_regex?: boolean;
+        vaultId?: string;
+        fields?: string[];
+      } = {}
+    ) => {
+      try {
+        const result = await flintApiService.searchNotes(query, options);
+        return { success: true, result };
+      } catch (error) {
+        console.error('Error searching notes via FlintNote API:', error);
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        };
+      }
+    }
+  );
+
+  ipcMain.handle('flint-api:get-status', async () => {
+    try {
+      const isReady = flintApiService.isReady();
+      const config = flintApiService.getConfig();
+      return { success: true, isReady, config };
+    } catch (error) {
+      console.error('Error getting FlintNote API status:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  });
+
+  ipcMain.handle('flint-api:test-connection', async () => {
+    try {
+      const result = await flintApiService.testConnection();
+      return { success: true, result };
+    } catch (error) {
+      console.error('Error testing FlintNote API connection:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  });
+
+  ipcMain.handle(
+    'flint-api:search-notes-advanced',
+    async (
+      _,
+      options: {
+        query?: string;
+        type?: string;
+        metadata_filters?: Array<{
+          key: string;
+          value: string;
+          operator?: string;
+        }>;
+        updated_within?: string;
+        updated_before?: string;
+        created_within?: string;
+        created_before?: string;
+        content_contains?: string;
+        sort?: Array<{
+          field: string;
+          order: string;
+        }>;
+        limit?: number;
+        offset?: number;
+        vaultId?: string;
+        fields?: string[];
+      } = {}
+    ) => {
+      try {
+        const result = await flintApiService.searchNotesAdvanced(options);
+        return { success: true, result };
+      } catch (error) {
+        console.error('Error in advanced search via FlintNote API:', error);
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        };
+      }
+    }
+  );
 
   // File system handlers
   ipcMain.handle('fs:read-file', async (_, filePath: string) => {

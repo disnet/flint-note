@@ -1,6 +1,7 @@
 /// <reference types="svelte" />
 /// <reference types="vite/client" />
 
+import type { FlintApiNote } from '../../preload';
 import type { LLMMessage } from '../../shared/types';
 
 declare global {
@@ -28,7 +29,71 @@ declare global {
         callTool: (toolCall: {
           name: string;
           arguments: Record<string, unknown>;
-        }) => Promise<unknown>;
+        }) => Promise<{ success: boolean; result?: MCPToolResult; error?: string }>;
+      };
+      flintApi: {
+        getNote: (
+          identifier: string,
+          vaultId?: string
+        ) => Promise<{
+          success: boolean;
+          note?: FlintApiNote;
+          error?: string;
+        }>;
+        updateNoteContent: (
+          identifier: string,
+          content: string,
+          vaultId?: string
+        ) => Promise<{ success: boolean; result?: unknown; error?: string }>;
+        createSimpleNote: (
+          type: string,
+          identifier: string,
+          content: string,
+          vaultId?: string
+        ) => Promise<{ success: boolean; result?: unknown; error?: string }>;
+        searchNotes: (
+          query: string,
+          options?: {
+            type_filter?: string;
+            limit?: number;
+            use_regex?: boolean;
+            vaultId?: string;
+            fields?: string[];
+          }
+        ) => Promise<{ success: boolean; result?: unknown; error?: string }>;
+        searchNotesAdvanced: (options?: {
+          query?: string;
+          type?: string;
+          metadata_filters?: Array<{
+            key: string;
+            value: string;
+            operator?: string;
+          }>;
+          updated_within?: string;
+          updated_before?: string;
+          created_within?: string;
+          created_before?: string;
+          content_contains?: string;
+          sort?: Array<{
+            field: string;
+            order: string;
+          }>;
+          limit?: number;
+          offset?: number;
+          vaultId?: string;
+          fields?: string[];
+        }) => Promise<{ success: boolean; result?: unknown; error?: string }>;
+        getStatus: () => Promise<{
+          success: boolean;
+          isReady?: boolean;
+          config?: unknown;
+          error?: string;
+        }>;
+        testConnection: () => Promise<{
+          success: boolean;
+          result?: { success: boolean; error?: string };
+          error?: string;
+        }>;
       };
       fileSystem: {
         readFile: (
