@@ -51,10 +51,13 @@ export class FlintApiService {
       console.log(`📖 Getting note: ${identifier}`);
       const note = await this.api!.getNote(identifier, vaultId);
       console.log(`✅ Note retrieved: ${identifier}`, note ? 'found' : 'not found');
-      return note;
+      return note || null;
     } catch (error) {
       console.error(`❌ Error getting note ${identifier}:`, error);
-      throw error;
+      if (this.config.throwOnError) {
+        throw error;
+      }
+      return null;
     }
   }
 
@@ -65,10 +68,13 @@ export class FlintApiService {
       console.log('📝 Creating note(s):', args);
       const result = await this.api!.createNote(args);
       console.log('✅ Note(s) created successfully:', result);
-      return result;
+      return result || {};
     } catch (error) {
       console.error('❌ Error creating note(s):', error);
-      throw error;
+      if (this.config.throwOnError) {
+        throw error;
+      }
+      return undefined;
     }
   }
 
@@ -84,10 +90,13 @@ export class FlintApiService {
       console.log(`📝 Creating simple note: ${type}/${identifier}`);
       const result = await this.api!.createSimpleNote(type, identifier, content, vaultId);
       console.log(`✅ Simple note created: ${type}/${identifier}`);
-      return result;
+      return result || {};
     } catch (error) {
       console.error(`❌ Error creating simple note ${type}/${identifier}:`, error);
-      throw error;
+      if (this.config.throwOnError) {
+        throw error;
+      }
+      return undefined;
     }
   }
 
@@ -98,10 +107,13 @@ export class FlintApiService {
       console.log(`📝 Updating note: ${args.identifier}`);
       const result = await this.api!.updateNote(args);
       console.log(`✅ Note updated: ${args.identifier}`);
-      return result;
+      return result || {};
     } catch (error) {
       console.error(`❌ Error updating note ${args.identifier}:`, error);
-      throw error;
+      if (this.config.throwOnError) {
+        throw error;
+      }
+      return undefined;
     }
   }
 
@@ -116,10 +128,13 @@ export class FlintApiService {
       console.log(`📝 Updating note content: ${identifier}`);
       const result = await this.api!.updateNoteContent(identifier, content, vaultId);
       console.log(`✅ Note content updated: ${identifier}`);
-      return result;
+      return result || {};
     } catch (error) {
       console.error(`❌ Error updating note content ${identifier}:`, error);
-      throw error;
+      if (this.config.throwOnError) {
+        throw error;
+      }
+      return undefined;
     }
   }
 
@@ -130,10 +145,13 @@ export class FlintApiService {
       console.log(`🗑️ Deleting note: ${args.identifier}`);
       const result = await this.api!.deleteNote(args);
       console.log(`✅ Note deleted: ${args.identifier}`);
-      return result;
+      return result || {};
     } catch (error) {
       console.error(`❌ Error deleting note ${args.identifier}:`, error);
-      throw error;
+      if (this.config.throwOnError) {
+        throw error;
+      }
+      return undefined;
     }
   }
 
@@ -144,10 +162,13 @@ export class FlintApiService {
       console.log(`ℹ️ Getting note info: ${args.identifier}`);
       const info = await this.api!.getNoteInfo(args);
       console.log(`✅ Note info retrieved: ${args.identifier}`);
-      return info;
+      return info || {};
     } catch (error) {
       console.error(`❌ Error getting note info ${args.identifier}:`, error);
-      throw error;
+      if (this.config.throwOnError) {
+        throw error;
+      }
+      return undefined;
     }
   }
 
@@ -174,11 +195,14 @@ export class FlintApiService {
         vault_id: options.vaultId,
         fields: options.fields
       });
-      console.log(`✅ Search completed: found ${result.notes?.length || 0} results`);
-      return result;
+      console.log(`✅ Search completed: found ${result?.notes?.length || 0} results`);
+      return result || { notes: [] };
     } catch (error) {
       console.error(`❌ Error searching notes with query "${query}":`, error);
-      throw error;
+      if (this.config.throwOnError) {
+        throw error;
+      }
+      return { notes: [] };
     }
   }
 
@@ -188,11 +212,16 @@ export class FlintApiService {
     try {
       console.log(`🔍 Text search: "${query}"`);
       const result = await this.api!.searchNotesByText(query, vaultId, limit);
-      console.log(`✅ Text search completed: found ${result.notes?.length || 0} results`);
-      return result;
+      console.log(
+        `✅ Text search completed: found ${result?.notes?.length || 0} results`
+      );
+      return result || { notes: [] };
     } catch (error) {
       console.error(`❌ Error in text search "${query}":`, error);
-      throw error;
+      if (this.config.throwOnError) {
+        throw error;
+      }
+      return { notes: [] };
     }
   }
 
@@ -240,12 +269,15 @@ export class FlintApiService {
         fields: options.fields
       });
       console.log(
-        `✅ Advanced search completed: found ${result.notes?.length || 0} results`
+        `✅ Advanced search completed: found ${result?.notes?.length || 0} results`
       );
-      return result;
+      return result || { notes: [] };
     } catch (error) {
       console.error('❌ Error in advanced search:', error);
-      throw error;
+      if (this.config.throwOnError) {
+        throw error;
+      }
+      return { notes: [] };
     }
   }
 
@@ -256,11 +288,14 @@ export class FlintApiService {
     try {
       console.log('🏛️ Getting current vault info');
       const vault = await this.api!.getCurrentVault();
-      console.log('✅ Current vault info retrieved:', vault.name);
-      return vault;
+      console.log('✅ Current vault info retrieved:', vault?.name || 'unknown');
+      return vault || { name: 'default', id: 'default' };
     } catch (error) {
       console.error('❌ Error getting current vault:', error);
-      throw error;
+      if (this.config.throwOnError) {
+        throw error;
+      }
+      return { name: 'default', id: 'default' };
     }
   }
 
@@ -270,11 +305,14 @@ export class FlintApiService {
     try {
       console.log('🏛️ Listing all vaults');
       const vaults = await this.api!.listVaults();
-      console.log(`✅ Vaults listed: found ${vaults.vaults?.length || 0} vaults`);
-      return vaults;
+      console.log(`✅ Vaults listed: found ${vaults?.vaults?.length || 0} vaults`);
+      return vaults || { vaults: [] };
     } catch (error) {
       console.error('❌ Error listing vaults:', error);
-      throw error;
+      if (this.config.throwOnError) {
+        throw error;
+      }
+      return { vaults: [] };
     }
   }
 
@@ -285,11 +323,14 @@ export class FlintApiService {
     try {
       console.log('📋 Listing note types');
       const types = await this.api!.listNoteTypes({ vault_id: vaultId });
-      console.log(`✅ Note types listed: found ${types.length} types`);
-      return types;
+      console.log(`✅ Note types listed: found ${types?.length || 0} types`);
+      return types || [];
     } catch (error) {
       console.error('❌ Error listing note types:', error);
-      throw error;
+      if (this.config.throwOnError) {
+        throw error;
+      }
+      return [];
     }
   }
 
@@ -312,8 +353,8 @@ export class FlintApiService {
   // Test connection
   async testConnection(): Promise<{ success: boolean; error?: string }> {
     try {
-      await this.getCurrentVault();
-      return { success: true };
+      const vault = await this.getCurrentVault();
+      return { success: vault && vault.name !== undefined };
     } catch (error) {
       return {
         success: false,
