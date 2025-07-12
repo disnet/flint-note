@@ -174,25 +174,18 @@ describe('Get Notes Integration', () => {
     });
 
     test('should handle empty identifiers array', async () => {
-      const result = await client.callTool('get_notes', {
-        identifiers: []
-      });
-
-      const responseData = JSON.parse(result.content[0].text);
-
-      assert.strictEqual(responseData.success, true, 'Should be successful');
-      assert.strictEqual(
-        responseData.total_requested,
-        0,
-        'Should have requested 0 notes'
-      );
-      assert.strictEqual(
-        responseData.successful,
-        0,
-        'Should have 0 successful retrievals'
-      );
-      assert.strictEqual(responseData.failed, 0, 'Should have 0 failed retrievals');
-      assert.strictEqual(responseData.results.length, 0, 'Should have 0 results');
+      try {
+        await client.callTool('get_notes', {
+          identifiers: []
+        });
+        assert.fail('Should have thrown an error for empty identifiers array');
+      } catch (error) {
+        assert.ok(
+          (error as Error).message.includes(
+            "Field 'identifiers' cannot be an empty array"
+          )
+        );
+      }
     });
 
     test('should handle single note retrieval', async () => {
@@ -293,36 +286,43 @@ describe('Get Notes Integration', () => {
     });
 
     test('should handle invalid identifiers', async () => {
+      // Test empty identifier
+      try {
+        await client.callTool('get_notes', {
+          identifiers: ['']
+        });
+        assert.fail('Should have thrown an error for empty identifier');
+      } catch (error) {
+        assert.ok(
+          (error as Error).message.includes(
+            'identifier "" must be in format "type/filename"'
+          )
+        );
+      }
+
+      // Test invalid format identifier
+      try {
+        await client.callTool('get_notes', {
+          identifiers: ['invalid-format']
+        });
+        assert.fail('Should have thrown an error for invalid identifier format');
+      } catch (error) {
+        assert.ok(
+          (error as Error).message.includes(
+            'identifier "invalid-format" must be in format "type/filename"'
+          )
+        );
+      }
+
+      // Test valid format but non-existent notes - these should not throw validation errors
       const getNotesResult = await client.callTool('get_notes', {
-        identifiers: [
-          '',
-          'invalid-format',
-          '../../../etc/passwd',
-          'general/nonexistent.md'
-        ]
+        identifiers: ['general/nonexistent.md']
       });
 
       const responseData = JSON.parse(getNotesResult.content[0].text);
-
       assert.strictEqual(responseData.success, true, 'Should be successful overall');
-      assert.strictEqual(
-        responseData.total_requested,
-        4,
-        'Should have requested 4 notes'
-      );
-      assert.strictEqual(
-        responseData.successful,
-        0,
-        'Should have 0 successful retrievals'
-      );
-      assert.strictEqual(responseData.failed, 4, 'Should have 4 failed retrievals');
-      assert.strictEqual(responseData.results.length, 4, 'Should have 4 results');
-
-      // All should fail
-      responseData.results.forEach((result: any, index: number) => {
-        assert.strictEqual(result.success, false, `Result ${index} should fail`);
-        assert.ok(result.error, `Result ${index} should have error message`);
-      });
+      assert.strictEqual(responseData.failed, 1, 'Should have 1 failed retrieval');
+      assert.ok(responseData.results[0].error.includes('Note not found'));
     });
   });
 

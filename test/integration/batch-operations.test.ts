@@ -314,11 +314,12 @@ describe('Batch Operations Integration', () => {
 
       assert(result, 'Should receive response from server');
 
-      const batchResult = JSON.parse(result.content[0].text);
-      assert.strictEqual(batchResult.total, 0);
-      assert.strictEqual(batchResult.successful, 0);
-      assert.strictEqual(batchResult.failed, 0);
-      assert.strictEqual(batchResult.results.length, 0);
+      assert.strictEqual(result.isError, true);
+      assert.ok(
+        result.content[0].text.includes(
+          'Multiple note creation requires at least one note to create'
+        )
+      );
     });
   });
 

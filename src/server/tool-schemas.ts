@@ -42,14 +42,7 @@ export const TOOL_SCHEMAS = [
                   },
                   type: {
                     type: 'string',
-                    enum: [
-                      'string',
-                      'number',
-                      'boolean',
-                      'date',
-                      'array',
-                      'select'
-                    ],
+                    enum: ['string', 'number', 'boolean', 'date', 'array', 'select'],
                     description: 'Type of the metadata field'
                   },
                   description: {
@@ -62,8 +55,7 @@ export const TOOL_SCHEMAS = [
                   },
                   constraints: {
                     type: 'object',
-                    description:
-                      'Optional field constraints (min, max, options, etc.)'
+                    description: 'Optional field constraints (min, max, options, etc.)'
                   },
                   default: {
                     description: 'Optional default value for the field'
@@ -142,7 +134,8 @@ export const TOOL_SCHEMAS = [
             },
             required: ['type', 'title']
           },
-          description: 'Array of notes to create in batch (alternative to single note creation)'
+          description:
+            'Array of notes to create in batch (alternative to single note creation)'
         }
       },
       oneOf: [
@@ -263,7 +256,8 @@ export const TOOL_SCHEMAS = [
             },
             required: ['identifier']
           },
-          description: 'Array of notes to update in batch (alternative to single note update)'
+          description:
+            'Array of notes to update in batch (alternative to single note update)'
         }
       },
       oneOf: [
@@ -495,14 +489,7 @@ export const TOOL_SCHEMAS = [
                   },
                   type: {
                     type: 'string',
-                    enum: [
-                      'string',
-                      'number',
-                      'boolean',
-                      'date',
-                      'array',
-                      'select'
-                    ],
+                    enum: ['string', 'number', 'boolean', 'date', 'array', 'select'],
                     description: 'Type of the metadata field'
                   },
                   description: {
@@ -515,8 +502,7 @@ export const TOOL_SCHEMAS = [
                   },
                   constraints: {
                     type: 'object',
-                    description:
-                      'Optional field constraints (min, max, options, etc.)'
+                    description: 'Optional field constraints (min, max, options, etc.)'
                   },
                   default: {
                     description: 'Optional default value for the field'
@@ -583,7 +569,8 @@ export const TOOL_SCHEMAS = [
       properties: {
         id: {
           type: 'string',
-          description: 'Unique identifier for the vault (letters, numbers, hyphens, underscores only)'
+          description:
+            'Unique identifier for the vault (letters, numbers, hyphens, underscores only)'
         },
         name: {
           type: 'string',
@@ -760,7 +747,8 @@ export const TOOL_SCHEMAS = [
         },
         target_type: {
           type: 'string',
-          description: 'Target type for migration (required if migration_strategy is migrate_to_type)'
+          description:
+            'Target type for migration (required if migration_strategy is migrate_to_type)'
         },
         confirm: {
           type: 'boolean',

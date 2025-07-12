@@ -5,6 +5,7 @@
 import type { NoteMetadata } from '../types/index.js';
 import { filterNoteFields } from '../utils/field-filter.js';
 import { LinkExtractor } from '../core/link-extractor.js';
+import { validateToolArgs } from './validation.js';
 import type {
   CreateNoteArgs,
   GetNoteArgs,
@@ -42,6 +43,9 @@ export class NoteHandlers {
   }
 
   handleCreateNote = async (args: CreateNoteArgs) => {
+    // Validate arguments
+    validateToolArgs('create_note', args);
+
     const { noteManager, noteTypeManager } = await this.resolveVaultContext(
       args.vault_id
     );
@@ -103,6 +107,9 @@ export class NoteHandlers {
   };
 
   handleGetNote = async (args: GetNoteArgs) => {
+    // Validate arguments
+    validateToolArgs('get_note', args);
+
     const { noteManager } = await this.resolveVaultContext(args.vault_id);
 
     const note = await noteManager.getNote(args.identifier);
@@ -121,12 +128,10 @@ export class NoteHandlers {
   };
 
   handleGetNotes = async (args: GetNotesArgs) => {
-    const { noteManager } = await this.resolveVaultContext(args.vault_id);
+    // Validate arguments
+    validateToolArgs('get_notes', args);
 
-    // Validate identifiers parameter
-    if (!args.identifiers || !Array.isArray(args.identifiers)) {
-      throw new Error('identifiers parameter is required and must be an array');
-    }
+    const { noteManager } = await this.resolveVaultContext(args.vault_id);
 
     const results = await Promise.allSettled(
       args.identifiers.map(async identifier => {
@@ -180,6 +185,9 @@ export class NoteHandlers {
   };
 
   handleUpdateNote = async (args: UpdateNoteArgs) => {
+    // Validate arguments
+    validateToolArgs('update_note', args);
+
     const { noteManager } = await this.resolveVaultContext(args.vault_id);
 
     // Handle batch updates if updates array is provided
@@ -196,41 +204,33 @@ export class NoteHandlers {
     }
 
     // Handle single note update
-    if (!args.identifier) {
-      throw new Error('Single note update requires identifier');
-    }
-
-    if (!args.content_hash) {
-      throw new Error('content_hash is required for all update operations');
-    }
+    // Note: validation already handled by validateToolArgs
+    const identifier = args.identifier!; // Safe after validation
+    const contentHash = args.content_hash!; // Safe after validation
 
     let result;
     if (args.content !== undefined && args.metadata !== undefined) {
       // Both content and metadata update
       result = await noteManager.updateNoteWithMetadata(
-        args.identifier,
+        identifier,
         args.content,
         args.metadata as NoteMetadata,
-        args.content_hash
+        contentHash
       );
     } else if (args.content !== undefined) {
       // Content-only update
-      result = await noteManager.updateNote(
-        args.identifier,
-        args.content,
-        args.content_hash
-      );
+      result = await noteManager.updateNote(identifier, args.content, contentHash);
     } else if (args.metadata !== undefined) {
       // Metadata-only update
-      const currentNote = await noteManager.getNote(args.identifier);
+      const currentNote = await noteManager.getNote(identifier);
       if (!currentNote) {
-        throw new Error(`Note '${args.identifier}' not found`);
+        throw new Error(`Note '${identifier}' not found`);
       }
       result = await noteManager.updateNoteWithMetadata(
-        args.identifier,
+        identifier,
         currentNote.content,
         args.metadata as NoteMetadata,
-        args.content_hash
+        contentHash
       );
     } else {
       throw new Error('Either content or metadata must be provided for update');
@@ -247,6 +247,9 @@ export class NoteHandlers {
   };
 
   handleGetNoteInfo = async (args: GetNoteInfoArgs) => {
+    // Validate arguments
+    validateToolArgs('get_note_info', args);
+
     const { noteManager } = await this.resolveVaultContext(args.vault_id);
 
     // Try to find the note by title or filename
@@ -301,6 +304,9 @@ export class NoteHandlers {
   };
 
   handleListNotesByType = async (args: ListNotesByTypeArgs) => {
+    // Validate arguments
+    validateToolArgs('list_notes_by_type', args);
+
     const { noteManager } = await this.resolveVaultContext(args.vault_id);
 
     const notes = await noteManager.searchNotes({
@@ -340,6 +346,9 @@ export class NoteHandlers {
 
   handleDeleteNote = async (args: DeleteNoteArgs) => {
     try {
+      // Validate arguments
+      validateToolArgs('delete_note', args);
+
       const { noteManager } = await this.resolveVaultContext(args.vault_id);
       const result = await noteManager.deleteNote(args.identifier, args.confirm);
 
@@ -381,6 +390,9 @@ export class NoteHandlers {
   };
 
   handleBulkDeleteNotes = async (args: BulkDeleteNotesArgs) => {
+    // Validate arguments
+    validateToolArgs('bulk_delete_notes', args);
+
     this.requireWorkspace();
 
     try {
@@ -440,14 +452,12 @@ export class NoteHandlers {
 
   handleRenameNote = async (args: RenameNoteArgs) => {
     try {
+      // Validate arguments
+      validateToolArgs('rename_note', args);
+
       const { noteManager, hybridSearchManager } = await this.resolveVaultContext(
         args.vault_id
       );
-
-      // Validate content_hash is provided
-      if (!args.content_hash) {
-        throw new Error('content_hash is required for rename operations');
-      }
 
       // Get the current note to read current metadata
       const currentNote = await noteManager.getNote(args.identifier);

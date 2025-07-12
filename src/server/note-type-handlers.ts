@@ -8,6 +8,7 @@ import {
 } from '../utils/content-hash.js';
 import { MetadataSchemaParser } from '../core/metadata-schema.js';
 import type { MetadataFieldDefinition } from '../core/metadata-schema.js';
+import { validateToolArgs } from './validation.js';
 import type {
   CreateNoteTypeArgs,
   ListNoteTypesArgs,
@@ -40,6 +41,9 @@ export class NoteTypeHandlers {
   }
 
   handleCreateNoteType = async (args: CreateNoteTypeArgs) => {
+    // Validate arguments
+    validateToolArgs('create_note_type', args);
+
     const { noteTypeManager } = await this.resolveVaultContext(args.vault_id);
 
     await noteTypeManager.createNoteType(
@@ -67,6 +71,9 @@ export class NoteTypeHandlers {
   };
 
   handleListNoteTypes = async (args: ListNoteTypesArgs) => {
+    // Validate arguments
+    validateToolArgs('list_note_types', args);
+
     const { noteTypeManager } = await this.resolveVaultContext(args.vault_id);
 
     const types = await noteTypeManager.listNoteTypes();
@@ -81,6 +88,9 @@ export class NoteTypeHandlers {
   };
 
   handleUpdateNoteType = async (args: UpdateNoteTypeArgs) => {
+    // Validate arguments
+    validateToolArgs('update_note_type', args);
+
     const { noteTypeManager, workspace } = await this.resolveVaultContext(args.vault_id);
 
     try {
@@ -332,6 +342,9 @@ export class NoteTypeHandlers {
   };
 
   handleGetNoteTypeInfo = async (args: GetNoteTypeInfoArgs) => {
+    // Validate arguments
+    validateToolArgs('get_note_type_info', args);
+
     const { noteTypeManager } = await this.resolveVaultContext(args.vault_id);
 
     const info = await noteTypeManager.getNoteTypeDescription(args.type_name);
@@ -358,6 +371,9 @@ export class NoteTypeHandlers {
   };
 
   handleDeleteNoteType = async (args: DeleteNoteTypeArgs) => {
+    // Validate arguments
+    validateToolArgs('delete_note_type', args);
+
     this.requireWorkspace();
 
     try {

@@ -6,6 +6,7 @@
  */
 
 import { LinkExtractor } from '../core/link-extractor.js';
+import { validateToolArgs } from './validation.js';
 import type { NoteRow } from '../database/schema.js';
 import type { VaultContext } from './types.js';
 
@@ -20,6 +21,9 @@ export class LinkHandlers {
    */
   handleGetNoteLinks = async (args: { identifier: string; vault_id?: string }) => {
     try {
+      // Validate arguments
+      validateToolArgs('get_note_links', args);
+
       const { hybridSearchManager } = await this.resolveVaultContext(args.vault_id);
       const db = await hybridSearchManager.getDatabaseConnection();
       const noteId = this.generateNoteIdFromIdentifier(args.identifier);
@@ -74,6 +78,9 @@ export class LinkHandlers {
    */
   handleGetBacklinks = async (args: { identifier: string; vault_id?: string }) => {
     try {
+      // Validate arguments
+      validateToolArgs('get_backlinks', args);
+
       const { hybridSearchManager } = await this.resolveVaultContext(args.vault_id);
       const db = await hybridSearchManager.getDatabaseConnection();
       const noteId = this.generateNoteIdFromIdentifier(args.identifier);
@@ -128,6 +135,11 @@ export class LinkHandlers {
    */
   handleFindBrokenLinks = async (args?: { vault_id?: string }) => {
     try {
+      // Validate arguments
+      if (args) {
+        validateToolArgs('find_broken_links', args);
+      }
+
       const { hybridSearchManager } = await this.resolveVaultContext(args?.vault_id);
       const db = await hybridSearchManager.getDatabaseConnection();
       const brokenLinks = await LinkExtractor.findBrokenLinks(db);
@@ -180,6 +192,9 @@ export class LinkHandlers {
     vault_id?: string;
   }) => {
     try {
+      // Validate arguments
+      validateToolArgs('search_by_links', args);
+
       const { hybridSearchManager } = await this.resolveVaultContext(args.vault_id);
       const db = await hybridSearchManager.getDatabaseConnection();
       let notes: NoteRow[] = [];
@@ -272,6 +287,9 @@ export class LinkHandlers {
    */
   handleMigrateLinks = async (args: { force?: boolean; vault_id?: string }) => {
     try {
+      // Validate arguments
+      validateToolArgs('migrate_links', args);
+
       const { hybridSearchManager } = await this.resolveVaultContext(args.vault_id);
       const db = await hybridSearchManager.getDatabaseConnection();
 

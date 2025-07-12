@@ -9,6 +9,7 @@ import { GlobalConfigManager } from '../utils/global-config.js';
 import { Workspace } from '../core/workspace.js';
 import { HybridSearchManager } from '../database/search-manager.js';
 import { resolvePath, isPathSafe } from '../utils/path.js';
+import { validateToolArgs } from './validation.js';
 import type {
   CreateVaultArgs,
   SwitchVaultArgs,
@@ -78,6 +79,8 @@ export class VaultHandlers {
     args: CreateVaultArgs
   ): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> => {
     try {
+      // Validate arguments
+      validateToolArgs('create_vault', args);
       // Validate vault ID
       if (!this.globalConfig.isValidVaultId(args.id)) {
         throw new Error(
@@ -162,6 +165,8 @@ export class VaultHandlers {
     args: SwitchVaultArgs
   ): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> => {
     try {
+      // Validate arguments
+      validateToolArgs('switch_vault', args);
       const vault = this.globalConfig.getVault(args.id);
       if (!vault) {
         throw new Error(`Vault with ID '${args.id}' does not exist`);
@@ -202,6 +207,8 @@ export class VaultHandlers {
     args: RemoveVaultArgs
   ): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> => {
     try {
+      // Validate arguments
+      validateToolArgs('remove_vault', args);
       const vault = this.globalConfig.getVault(args.id);
       if (!vault) {
         throw new Error(`Vault with ID '${args.id}' does not exist`);
@@ -304,6 +311,8 @@ export class VaultHandlers {
     args: UpdateVaultArgs
   ): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> => {
     try {
+      // Validate arguments
+      validateToolArgs('update_vault', args);
       const vault = this.globalConfig.getVault(args.id);
       if (!vault) {
         throw new Error(`Vault with ID '${args.id}' does not exist`);

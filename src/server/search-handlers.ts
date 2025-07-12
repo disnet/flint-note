@@ -6,6 +6,7 @@
  */
 
 import { filterNoteFields, filterSearchResults } from '../utils/field-filter.js';
+import { validateToolArgs } from './validation.js';
 import type {
   SearchNotesArgs,
   SearchNotesAdvancedArgs,
@@ -14,14 +15,15 @@ import type {
 } from './types.js';
 
 export class SearchHandlers {
-  constructor(
-    private resolveVaultContext: (vaultId?: string) => Promise<VaultContext>
-  ) {}
+  constructor(private resolveVaultContext: (vaultId?: string) => Promise<VaultContext>) {}
 
   /**
    * Handles basic note search with optional type filtering and regex support
    */
   handleSearchNotes = async (args: SearchNotesArgs) => {
+    // Validate arguments
+    validateToolArgs('search_notes', args);
+
     const { hybridSearchManager } = await this.resolveVaultContext(args.vault_id);
 
     const results = await hybridSearchManager.searchNotes(
@@ -50,6 +52,9 @@ export class SearchHandlers {
    * Handles advanced search with structured filters for metadata, dates, and content
    */
   handleSearchNotesAdvanced = async (args: SearchNotesAdvancedArgs) => {
+    // Validate arguments
+    validateToolArgs('search_notes_advanced', args);
+
     const { hybridSearchManager } = await this.resolveVaultContext(args.vault_id);
 
     const results = await hybridSearchManager.searchNotesAdvanced(args);
@@ -71,6 +76,9 @@ export class SearchHandlers {
    * Handles direct SQL search against the notes database for maximum flexibility
    */
   handleSearchNotesSQL = async (args: SearchNotesSqlArgs) => {
+    // Validate arguments
+    validateToolArgs('search_notes_sql', args);
+
     const { hybridSearchManager } = await this.resolveVaultContext(args.vault_id);
 
     const results = await hybridSearchManager.searchNotesSQL(args);
