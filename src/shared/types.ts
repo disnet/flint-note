@@ -28,6 +28,22 @@ export interface LLMResponse {
   error?: string;
 }
 
+export interface ToolCallInfo {
+  name: string;
+  arguments: Record<string, any>;
+  result?: string;
+  error?: string;
+  timestamp: Date;
+  duration?: number;
+}
+
+export interface LLMResponseWithToolCalls {
+  success: boolean;
+  content?: string;
+  toolCalls?: ToolCallInfo[];
+  error?: string;
+}
+
 export interface LLMConnectionTest {
   success: boolean;
   connected: boolean;

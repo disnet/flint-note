@@ -9,6 +9,8 @@ const api = {
       ipcRenderer.invoke('llm:generate-response', messages),
     streamResponse: (messages: LLMMessage[]) =>
       ipcRenderer.invoke('llm:stream-response', messages),
+    streamResponseWithTools: (messages: LLMMessage[]) =>
+      ipcRenderer.invoke('llm:stream-response-with-tools', messages),
     testConnection: () => ipcRenderer.invoke('llm:test-connection'),
     updateConfig: (config: unknown) => ipcRenderer.invoke('llm:update-config', config),
     getConfig: () => ipcRenderer.invoke('llm:get-config'),
@@ -18,12 +20,16 @@ const api = {
     onStreamEnd: (callback: (fullResponse: string) => void) => {
       ipcRenderer.on('llm:stream-end', (_, fullResponse) => callback(fullResponse));
     },
+    onStreamEndWithTools: (callback: (response: any) => void) => {
+      ipcRenderer.on('llm:stream-end-with-tools', (_, response) => callback(response));
+    },
     onStreamError: (callback: (error: string) => void) => {
       ipcRenderer.on('llm:stream-error', (_, error) => callback(error));
     },
     removeStreamListeners: () => {
       ipcRenderer.removeAllListeners('llm:stream-chunk');
       ipcRenderer.removeAllListeners('llm:stream-end');
+      ipcRenderer.removeAllListeners('llm:stream-end-with-tools');
       ipcRenderer.removeAllListeners('llm:stream-error');
     }
   },

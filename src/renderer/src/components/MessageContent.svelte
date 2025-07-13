@@ -13,12 +13,21 @@
   }
   let { content, messageType = 'agent', openNote }: Props = $props();
 
-  let messageParts = $derived(parseMessageContentSync(content));
+  // Filter out debug section (starting with ---)
+  let filteredContent = $derived(() => {
+    const debugSeparatorIndex = content.indexOf('\n\n---\n\n');
+    if (debugSeparatorIndex !== -1) {
+      return content.substring(0, debugSeparatorIndex);
+    }
+    return content;
+  });
+
+  let messageParts = $derived(parseMessageContentSync(filteredContent()));
 
   // Preload note references in the background
   $effect(() => {
-    if (content) {
-      preloadNoteReferences(content).catch(console.error);
+    if (filteredContent()) {
+      preloadNoteReferences(filteredContent()).catch(console.error);
     }
   });
 

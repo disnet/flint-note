@@ -13,7 +13,9 @@ import type {
   LLMConfig,
   MCPTool,
   MCPToolCall,
-  MCPToolResult
+  MCPToolResult,
+  LLMResponseWithToolCalls,
+  ToolCallInfo
 } from '../../shared/types';
 
 export class LLMService {
@@ -411,6 +413,185 @@ export class LLMService {
     }
   }
 
+  async streamResponseWithToolCalls(
+    messages: LLMMessage[],
+    onChunk: (chunk: string) => void
+  ): Promise<LLMResponseWithToolCalls> {
+    try {
+      console.log('🚀 Starting LLM stream response with tool call tracking');
+      console.log('MCP Tools Enabled:', this.mcpToolsEnabled);
+      console.log('MCP Service Ready:', mcpService.isReady());
+
+      const langchainMessages = this.convertToLangChainMessages(messages);
+      console.log('📝 Converted messages:', langchainMessages.length);
+
+      // Log available tools
+      if (this.mcpToolsEnabled && mcpService.isReady()) {
+        const availableTools = await mcpService.listTools();
+        console.log(
+          '🔧 Available MCP tools:',
+          availableTools.map((t) => t.name)
+        );
+      }
+
+      console.log('📡 Starting LLM stream...');
+
+      // Add timeout to the stream call
+      const streamPromise = this.llm.stream(langchainMessages);
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(
+          () => reject(new Error('Stream request timed out after 30 seconds')),
+          30000
+        );
+      });
+
+      const stream = await Promise.race([streamPromise, timeoutPromise]);
+
+      let hasToolCalls = false;
+      let toolCalls: any[] = [];
+      let responseMessage: any = null;
+      const toolCallsAccumulator: any = {};
+      let toolCallInfos: ToolCallInfo[] = [];
+
+      for await (const chunk of stream) {
+        console.log('📦 Stream chunk received:', {
+          hasContent: !!chunk.content,
+          hasToolCalls: !!(chunk.tool_calls && chunk.tool_calls.length > 0),
+          hasToolCallChunks: !!(
+            chunk.tool_call_chunks && chunk.tool_call_chunks.length > 0
+          ),
+          chunkKeys: Object.keys(chunk)
+        });
+
+        // Check if this chunk contains tool calls
+        if (chunk.tool_calls && chunk.tool_calls.length > 0) {
+          console.log('🔧 Tool calls detected in chunk:', chunk.tool_calls);
+          hasToolCalls = true;
+          toolCalls = chunk.tool_calls;
+          responseMessage = chunk;
+        }
+
+        // Check for tool call chunks (streaming arguments)
+        if (chunk.tool_call_chunks && chunk.tool_call_chunks.length > 0) {
+          console.log('🔧 Tool call chunks detected:', chunk.tool_call_chunks);
+          for (const toolChunk of chunk.tool_call_chunks) {
+            const chunkIndex = toolChunk.index?.toString() || '0';
+
+            if (!toolCallsAccumulator[chunkIndex]) {
+              toolCallsAccumulator[chunkIndex] = {
+                id: toolChunk.id || chunkIndex,
+                name: toolChunk.name || '',
+                args: ''
+              };
+            }
+
+            if (toolChunk.name && !toolCallsAccumulator[chunkIndex].name) {
+              toolCallsAccumulator[chunkIndex].name = toolChunk.name;
+            }
+
+            if (toolChunk.id && !toolCallsAccumulator[chunkIndex].id) {
+              toolCallsAccumulator[chunkIndex].id = toolChunk.id;
+            }
+
+            if (toolChunk.args) {
+              toolCallsAccumulator[chunkIndex].args += toolChunk.args;
+            }
+          }
+
+          hasToolCalls = true;
+        }
+
+        // Send content chunks to UI
+        if (chunk.content && typeof chunk.content === 'string') {
+          onChunk(chunk.content);
+        }
+      }
+
+      console.log('📦 Stream iteration completed successfully');
+      console.log('📦 Stream complete. Tool calls accumulator:', toolCallsAccumulator);
+      console.log('🔧 Has tool calls:', hasToolCalls);
+
+      // Process tool calls if present
+      if (hasToolCalls) {
+        // If we have accumulated tool call chunks, use those instead
+        if (Object.keys(toolCallsAccumulator).length > 0) {
+          console.log('🔧 Processing accumulated tool calls...');
+
+          const validToolCalls = Object.values(toolCallsAccumulator)
+            .filter((call: any) => call.name)
+            .map((call: any) => {
+              let parsedArgs = {};
+              try {
+                if (call.args === '' || call.args === null || call.args === undefined) {
+                  parsedArgs = {};
+                } else {
+                  parsedArgs = JSON.parse(call.args);
+                }
+              } catch (error) {
+                console.log('❌ Error parsing tool args:', call.args, error);
+                parsedArgs = {};
+              }
+
+              return {
+                id: call.id,
+                name: call.name,
+                args: parsedArgs,
+                type: 'tool_call'
+              };
+            });
+
+          console.log('✅ Valid tool calls:', validToolCalls);
+
+          if (validToolCalls.length > 0) {
+            toolCalls = validToolCalls;
+
+            if (!responseMessage) {
+              responseMessage = {
+                tool_calls: toolCalls,
+                content: ''
+              };
+            } else {
+              responseMessage.tool_calls = toolCalls;
+            }
+          }
+        }
+
+        if (toolCalls.length > 0) {
+          console.log('🔧 Handling tool calls:', toolCalls);
+          toolCallInfos = await this.handleToolCallsWithInfo(
+            responseMessage,
+            langchainMessages
+          );
+
+          // Get final response from LLM after tool execution
+          const finalResponse = await this.getFinalResponseAfterTools(
+            responseMessage,
+            langchainMessages,
+            toolCallInfos
+          );
+
+          return {
+            success: true,
+            content: finalResponse,
+            toolCalls: toolCallInfos
+          };
+        }
+      }
+
+      return {
+        success: true,
+        content: '',
+        toolCalls: toolCallInfos
+      };
+    } catch (error) {
+      console.error('❌ Error in streamResponseWithToolCalls:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  }
+
   private async handleToolCalls(
     response: any,
     previousMessages: BaseMessage[]
@@ -671,6 +852,249 @@ Stack: ${error instanceof Error ? error.stack : 'No stack'}
       console.error('❌ Error handling tool calls:', error);
       console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
       return response.content as string;
+    }
+  }
+
+  private async handleToolCallsWithInfo(
+    response: any,
+    _previousMessages: BaseMessage[]
+  ): Promise<ToolCallInfo[]> {
+    console.log('🔧 handleToolCallsWithInfo called');
+
+    if (!this.mcpToolsEnabled || !mcpService.isReady()) {
+      console.log('⚠️ MCP tools not enabled or service not ready');
+      return [];
+    }
+
+    try {
+      const toolCallInfos: ToolCallInfo[] = [];
+
+      // Combine valid and invalid tool calls
+      const allToolCalls = [
+        ...(response.tool_calls || []),
+        ...(response.invalid_tool_calls || [])
+      ];
+
+      console.log('🔧 Processing tool calls:', JSON.stringify(allToolCalls, null, 2));
+
+      // Generate proper IDs for tool calls that don't have them
+      const toolCallsWithIds = allToolCalls.map((tc: any, index: number) => {
+        const toolCallId = tc.id || `tool_call_${Date.now()}_${index}`;
+
+        let toolName = tc.name || tc.function?.name || 'unknown_tool';
+        let toolArgs = tc.args || tc.function?.arguments || {};
+
+        // Handle invalid tool calls with string args
+        if (typeof toolArgs === 'string') {
+          try {
+            toolArgs = JSON.parse(toolArgs);
+          } catch (error) {
+            console.log('❌ Error parsing tool args as JSON:', toolArgs, error);
+            toolArgs = { raw: toolArgs };
+          }
+        }
+
+        return {
+          ...tc,
+          id: toolCallId,
+          type: tc.type || 'function',
+          name: toolName,
+          args: toolArgs
+        };
+      });
+
+      // Execute each tool call
+      for (const toolCall of toolCallsWithIds) {
+        const startTime = Date.now();
+        const toolCallInfo: ToolCallInfo = {
+          name: toolCall.name,
+          arguments: toolCall.args,
+          timestamp: new Date()
+        };
+
+        console.log('🔧 Executing tool call:', JSON.stringify(toolCall, null, 2));
+
+        try {
+          if (
+            !toolCall.name ||
+            toolCall.name.trim() === '' ||
+            toolCall.name === 'unknown_tool'
+          ) {
+            console.log('❌ Skipping tool call with empty name:', toolCall.name);
+            toolCallInfo.error = `Tool name is empty or invalid (${toolCall.name})`;
+            toolCallInfos.push(toolCallInfo);
+            continue;
+          }
+
+          if (toolCall.name === 'test_tool') {
+            console.log('🧪 Handling test tool');
+            const args =
+              typeof toolCall.args === 'string'
+                ? JSON.parse(toolCall.args)
+                : toolCall.args;
+            const testResult = `Hello! Test tool called with message: "${args.message || 'No message provided'}"`;
+
+            toolCallInfo.result = testResult;
+            toolCallInfo.duration = Date.now() - startTime;
+            toolCallInfos.push(toolCallInfo);
+            continue;
+          }
+
+          // Check if this is a valid MCP tool
+          const availableTools = await mcpService.listTools();
+          const mcpTool = availableTools.find((tool) => tool.name === toolCall.name);
+
+          if (!mcpTool) {
+            console.log('❌ Tool not found in MCP service:', toolCall.name);
+            toolCallInfo.error = `Tool '${toolCall.name}' not found in available MCP tools`;
+            toolCallInfos.push(toolCallInfo);
+            continue;
+          }
+
+          console.log('🔧 Calling MCP tool:', toolCall.name, 'with args:', toolCall.args);
+
+          const toolResult = await mcpService.callTool({
+            name: toolCall.name,
+            arguments: toolCall.args
+          });
+
+          console.log('🔧 Tool result received:', toolResult);
+
+          const toolResultText = toolResult.content.map((c) => c.text).join('\n');
+          toolCallInfo.result = toolResultText;
+          toolCallInfo.duration = Date.now() - startTime;
+        } catch (error) {
+          console.error('❌ Error executing tool:', toolCall.name, error);
+          toolCallInfo.error = error instanceof Error ? error.message : 'Unknown error';
+          toolCallInfo.duration = Date.now() - startTime;
+        }
+
+        toolCallInfos.push(toolCallInfo);
+      }
+
+      return toolCallInfos;
+    } catch (error) {
+      console.error('❌ Error handling tool calls with info:', error);
+      return [];
+    }
+  }
+
+  private async getFinalResponseAfterTools(
+    response: any,
+    previousMessages: BaseMessage[],
+    toolCallInfos: ToolCallInfo[]
+  ): Promise<string> {
+    try {
+      // Combine valid and invalid tool calls
+      const allToolCalls = [
+        ...(response.tool_calls || []),
+        ...(response.invalid_tool_calls || [])
+      ];
+
+      // Generate proper IDs for tool calls that don't have them
+      const toolCallsWithIds = allToolCalls.map((tc: any, index: number) => {
+        const toolCallId = tc.id || `tool_call_${Date.now()}_${index}`;
+        let toolName = tc.name || tc.function?.name || 'unknown_tool';
+        let toolArgs = tc.args || tc.function?.arguments || {};
+
+        if (typeof toolArgs === 'string') {
+          try {
+            toolArgs = JSON.parse(toolArgs);
+          } catch (error) {
+            toolArgs = { raw: toolArgs };
+          }
+        }
+
+        return {
+          ...tc,
+          id: toolCallId,
+          type: tc.type || 'function',
+          name: toolName,
+          args: toolArgs
+        };
+      });
+
+      // Add the assistant's message with tool calls to the conversation
+      const assistantMessage = new AIMessage({
+        content: 'I need to use some tools to help you.',
+        tool_calls: toolCallsWithIds.map((tc: any) => ({
+          name: tc.name || 'unknown_tool',
+          args: typeof tc.args === 'string' ? JSON.parse(tc.args) : tc.args,
+          id: tc.id,
+          type: tc.type
+        }))
+      });
+
+      const conversationWithToolCall = [...previousMessages, assistantMessage];
+
+      // Add tool results to conversation
+      for (let i = 0; i < toolCallsWithIds.length; i++) {
+        const toolCall = toolCallsWithIds[i];
+        const toolInfo = toolCallInfos[i];
+
+        if (toolInfo) {
+          const toolResult = toolInfo.result || toolInfo.error || 'No result';
+          const toolMessage = new ToolMessage({
+            content: toolResult,
+            tool_call_id: toolCall.id
+          });
+          conversationWithToolCall.push(toolMessage);
+        }
+      }
+
+      console.log('🔄 Getting final response from LLM with tool results...');
+      console.log('💬 Conversation length:', conversationWithToolCall.length);
+
+      // Create a fresh conversation for better compatibility
+      const toolResultsText = toolCallInfos
+        .map(info => info.result || `Error: ${info.error}`)
+        .join('\n\n');
+
+      const summaryMessage = toolResultsText
+        ? `Here are the results from the tools I used:\n\n${toolResultsText}`
+        : 'I attempted to use tools to help you, but encountered some issues.';
+
+      // Create a completely new conversation without tool calls
+      const freshConversation = [
+        previousMessages[0], // Keep the original system message
+        new HumanMessage(
+          String(
+            previousMessages[previousMessages.length - 1].content || 'Please help me'
+          )
+        ), // Keep the user's question
+        new AIMessage(summaryMessage) // Add our summary
+      ];
+
+      console.log('🔄 Getting final response from LLM with fresh conversation...');
+
+      // Create a new LLM instance without tools to prevent additional tool calls
+      const baseLLM = new ChatOpenAI({
+        openAIApiKey: this.config.apiKey,
+        configuration: {
+          baseURL: this.config.baseURL,
+          defaultHeaders: this.config.baseURL.includes('openrouter')
+            ? {
+                'HTTP-Referer': 'https://flint-ai.com',
+                'X-Title': 'Flint AI'
+              }
+            : undefined
+        },
+        modelName: this.config.modelName,
+        temperature: this.config.temperature,
+        maxTokens: this.config.maxTokens
+      });
+
+      // Get final response from LLM with clean conversation (no tools)
+      const finalResponse = await baseLLM.invoke(freshConversation);
+      console.log('✅ Final response received:', finalResponse);
+
+      const finalContent = ((finalResponse.content as string) || '').trim();
+      console.log('🔧 Final response content:', finalContent);
+
+      return finalContent;
+    } catch (error) {
+      console.error('❌ Error getting final response after tools:', error);
+      return 'I used some tools to help you, but encountered an error generating the final response.';
     }
   }
 

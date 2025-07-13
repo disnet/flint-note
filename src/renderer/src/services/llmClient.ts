@@ -3,7 +3,8 @@ import type {
   LLMMessage,
   LLMConfig,
   LLMResponse,
-  LLMConnectionTest
+  LLMConnectionTest,
+  LLMResponseWithToolCalls
 } from '../../../shared/types';
 
 export interface LLMClientEvents {
@@ -227,6 +228,47 @@ export class LLMClient {
       if (!response.success) {
         this.setStatus('error');
         onError(response.error || 'Failed to stream response');
+      }
+    } catch (error) {
+      this.setStatus('error');
+      this.emit('error', error as Error);
+      onError(error.message || 'Unknown streaming error');
+    }
+  }
+
+  async streamResponseWithToolCalls(
+    messages: Message[],
+    onChunk: (chunk: string) => void,
+    onComplete: (response: LLMResponseWithToolCalls) => void,
+    onError: (error: string) => void
+  ): Promise<void> {
+    try {
+      const llmMessages = this.convertToLLMMessages(messages);
+
+      // Set up event listeners
+      this.api.onStreamChunk(onChunk);
+      this.api.onStreamEndWithTools((response: LLMResponseWithToolCalls) => {
+        // If streaming succeeds, we're connected
+        if (this.status !== 'connected') {
+          this.setStatus('connected');
+        }
+        onComplete(response);
+      });
+      this.api.onStreamError((error: string) => {
+        this.setStatus('error');
+        this.emit('error', new Error(error));
+        onError(error);
+      });
+
+      const response = (await this.api.streamResponseWithTools(llmMessages)) as {
+        success: boolean;
+        result?: LLMResponseWithToolCalls;
+        error?: string;
+      };
+
+      if (!response.success) {
+        this.setStatus('error');
+        onError(response.error || 'Failed to stream response with tools');
       }
     } catch (error) {
       this.setStatus('error');

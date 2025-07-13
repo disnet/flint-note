@@ -11,11 +11,13 @@ declare global {
       llm: {
         generateResponse: (messages: LLMMessage[]) => Promise<unknown>;
         streamResponse: (messages: LLMMessage[]) => Promise<unknown>;
+        streamResponseWithTools: (messages: LLMMessage[]) => Promise<unknown>;
         testConnection: () => Promise<unknown>;
         updateConfig: (config: unknown) => Promise<unknown>;
         getConfig: () => Promise<unknown>;
         onStreamChunk: (callback: (chunk: string) => void) => void;
         onStreamEnd: (callback: (fullResponse: string) => void) => void;
+        onStreamEndWithTools: (callback: (response: any) => void) => void;
         onStreamError: (callback: (error: string) => void) => void;
         removeStreamListeners: () => void;
       };

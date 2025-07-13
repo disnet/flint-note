@@ -137,6 +137,38 @@ app.whenReady().then(async () => {
     }
   });
 
+  ipcMain.handle(
+    'llm:stream-response-with-tools',
+    async (event, messages: LLMMessage[]) => {
+      try {
+        // Add system prompt if not present
+        const messagesWithSystem = messages.some((msg) => msg.role === 'system')
+          ? messages
+          : [{ role: 'system' as const, content: FLINT_SYSTEM_PROMPT }, ...messages];
+
+        const result = await llmService.streamResponseWithToolCalls(
+          messagesWithSystem,
+          (chunk) => {
+            event.sender.send('llm:stream-chunk', chunk);
+          }
+        );
+
+        event.sender.send('llm:stream-end-with-tools', result);
+        return { success: true, result };
+      } catch (error) {
+        console.error('Error streaming response with tools:', error);
+        event.sender.send(
+          'llm:stream-error',
+          error instanceof Error ? error.message : 'Unknown error'
+        );
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        };
+      }
+    }
+  );
+
   ipcMain.handle('llm:test-connection', async () => {
     try {
       const isConnected = await llmService.testConnection();

@@ -3,6 +3,7 @@
   import type { Message, SlashCommand, NoteReference } from '../types/chat';
   import SlashCommands from './SlashCommands.svelte';
   import MessageContent from './MessageContent.svelte';
+  import ToolCallWidget from './ToolCallWidget.svelte';
   import { llmClient } from '../services/llmClient';
   import { mcpClient } from '../services/mcpClient';
   import { noteEditorStore } from '../stores/noteEditor.svelte';
@@ -81,19 +82,20 @@
       // Create conversation history for context
       const conversationHistory = llmClient.createConversationHistory(messages, 10);
 
-      // Stream the response
-      await llmClient.streamResponse(
+      // Stream the response with tool call support
+      await llmClient.streamResponseWithToolCalls(
         conversationHistory,
         (chunk: string) => {
           streamingResponse += chunk;
         },
-        (fullResponse: string) => {
+        (response) => {
           // Response complete
           const agentResponse: Message = {
             id: Date.now().toString(),
             type: 'agent',
-            content: fullResponse,
-            timestamp: new Date()
+            content: response.content || streamingResponse,
+            timestamp: new Date(),
+            toolCalls: response.toolCalls
           };
           messages = [...messages, agentResponse];
           isTyping = false;
@@ -457,6 +459,9 @@
             openNote={handleNoteOpen}
           />
         </div>
+        {#if message.toolCalls && message.toolCalls.length > 0}
+          <ToolCallWidget toolCalls={message.toolCalls} />
+        {/if}
         <div class="message-timestamp">
           {message.timestamp.toLocaleTimeString([], {
             hour: '2-digit',

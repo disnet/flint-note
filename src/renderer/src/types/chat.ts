@@ -1,10 +1,11 @@
-import type { ToolCall, MCPTool } from '../../../shared/types';
+import type { ToolCall, MCPTool, ToolCallInfo } from '../../../shared/types';
 
 export interface Message {
   id: string;
   type: 'user' | 'agent' | 'system' | 'tool';
   content: string;
   timestamp: Date;
+  toolCalls?: ToolCallInfo[];
   metadata?: {
     noteReferences?: NoteReference[];
     error?: boolean;
