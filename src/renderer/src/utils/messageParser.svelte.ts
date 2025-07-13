@@ -1,5 +1,8 @@
 import type { NoteReference } from '../types/chat';
 
+// Create a reactive cache that can trigger re-renders
+let cacheVersion = $state(0);
+
 export interface MessagePart {
   type: 'text' | 'note';
   content: string;
@@ -86,8 +89,11 @@ export async function parseMessageContent(content: string): Promise<MessagePart[
 
 /**
  * Synchronous version that returns cached results or placeholder
+ * Now reactive to cache updates
  */
 export function parseMessageContentSync(content: string): MessagePart[] {
+  // Access cacheVersion to make this function reactive
+  cacheVersion;
   const parts: MessagePart[] = [];
 
   // Pattern to match note references like [[Note Title]] or [[Note Title|display text]]
@@ -216,8 +222,9 @@ async function findNoteByTitleOrPath(idOrTitle: string): Promise<NoteReference |
           path: note.path
         };
 
-        // Cache the result
+        // Cache the result and trigger reactive update
         noteCache.set(idOrTitle, noteRef);
+        cacheVersion++;
         return noteRef;
       } else {
       }
@@ -225,10 +232,12 @@ async function findNoteByTitleOrPath(idOrTitle: string): Promise<NoteReference |
 
     // Cache null result to avoid repeated failed lookups
     noteCache.set(idOrTitle, null);
+    cacheVersion++;
     return null;
   } catch (error) {
     console.error('Error finding note:', error);
     noteCache.set(idOrTitle, null);
+    cacheVersion++;
     return null;
   }
 }
@@ -326,4 +335,5 @@ export async function preloadNoteReferences(content: string): Promise<void> {
  */
 export function clearNoteCache(): void {
   noteCache.clear();
+  cacheVersion++;
 }

@@ -313,6 +313,8 @@
   };
 
   const handleNoteOpen = (note: NoteReference): void => {
+    console.log('Note clicked:', note);
+
     // Create a system message showing the note click
     const noteMessage: Message = {
       id: Date.now().toString(),
@@ -323,8 +325,20 @@
 
     messages = [...messages, noteMessage];
 
-    // Open the note editor
-    noteEditorStore.openNote(note);
+    try {
+      // Open the note editor
+      console.log('Attempting to open note in editor:', note);
+      noteEditorStore.openNote(note);
+    } catch (error) {
+      console.error('Error opening note:', error);
+      const errorMessage: Message = {
+        id: Date.now().toString(),
+        type: 'system',
+        content: `Error opening note: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        timestamp: new Date()
+      };
+      messages = [...messages, errorMessage];
+    }
   };
 
   // Auto-scroll to bottom when messages or streaming state changes

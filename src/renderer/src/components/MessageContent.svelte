@@ -1,6 +1,9 @@
 <script lang="ts">
   import type { NoteReference } from '../types/chat';
-  import { parseMessageContentSync, preloadNoteReferences } from '../utils/messageParser';
+  import {
+    parseMessageContentSync,
+    preloadNoteReferences
+  } from '../utils/messageParser.svelte';
   import NoteReferenceComponent from './NoteReferenceComponent.svelte';
 
   interface Props {
@@ -160,6 +163,31 @@
     background-color: rgba(108, 117, 125, 0.1);
   }
 
+  /* Note reference styling overrides */
+  .message-content :global(.note-reference) {
+    color: rgb(var(--note-color)) !important;
+    pointer-events: auto !important;
+    cursor: pointer !important;
+  }
+
+  .message-content.user :global(.note-reference) {
+    /* Ensure note references are visible and clickable in user messages */
+    opacity: 1;
+    background-color: rgba(255, 255, 255, 0.2) !important;
+    border-color: rgba(255, 255, 255, 0.4) !important;
+    color: white !important;
+    pointer-events: auto !important;
+    cursor: pointer !important;
+    position: relative;
+    z-index: 10;
+  }
+
+  .message-content.user :global(.note-reference:hover) {
+    background-color: rgba(255, 255, 255, 0.3) !important;
+    border-color: rgba(255, 255, 255, 0.6) !important;
+    transform: translateY(-1px);
+  }
+
   /* Dark mode support */
   @media (prefers-color-scheme: dark) {
     .message-content :global(code) {
@@ -176,6 +204,18 @@
 
     .message-content.system :global(code) {
       background-color: rgba(173, 181, 189, 0.1);
+    }
+
+    .message-content.user :global(.note-reference) {
+      background-color: rgba(255, 255, 255, 0.15) !important;
+      border-color: rgba(255, 255, 255, 0.3) !important;
+      pointer-events: auto !important;
+    }
+
+    .message-content.user :global(.note-reference:hover) {
+      background-color: rgba(255, 255, 255, 0.25) !important;
+      border-color: rgba(255, 255, 255, 0.5) !important;
+      transform: translateY(-1px);
     }
   }
 </style>

@@ -32,21 +32,74 @@
     error = null;
 
     try {
-      const response = await window.api.flintApi.getNote(note.title);
+      console.log('Loading note via MCP:', note);
 
-      if (response.success && response.note) {
-        // Handle different possible response formats
-        if (typeof response.note === 'string') {
-          noteContent = response.note;
-        } else if (response.note.content) {
-          noteContent = response.note.content;
-        } else if (response.note.text) {
-          noteContent = response.note.text;
+      // Try using MCP to get note content - try different tool names
+      let mcpResponse;
+      const toolNames = ['get_note', 'read_note', 'load_note'];
+
+      for (const toolName of toolNames) {
+        try {
+          console.log(`Trying MCP tool: ${toolName}`);
+          mcpResponse = await window.api.mcp.callTool({
+            name: toolName,
+            arguments: { identifier: note.id }
+          });
+          console.log(`${toolName} response:`, mcpResponse);
+
+          if (mcpResponse.success) {
+            console.log(`Success with ${toolName}`);
+            break;
+          }
+        } catch (toolError) {
+          console.log(`${toolName} failed:`, toolError);
+          continue;
+        }
+      }
+
+      if (mcpResponse && mcpResponse.success && mcpResponse.result) {
+        // Handle MCP response format
+        if (mcpResponse.result.content && Array.isArray(mcpResponse.result.content)) {
+          const textContent = mcpResponse.result.content[0]?.text;
+          if (textContent) {
+            try {
+              // Try to parse as JSON first (in case it's structured data)
+              const parsed = JSON.parse(textContent);
+              noteContent = parsed.content || parsed.text || textContent;
+            } catch {
+              // If not JSON, use as plain text
+              noteContent = textContent;
+            }
+          } else {
+            noteContent = '';
+          }
+        } else if (typeof mcpResponse.result === 'string') {
+          noteContent = mcpResponse.result;
         } else {
           noteContent = '';
         }
       } else {
-        error = response.error || 'Failed to load note content';
+        // Fallback to flintApi if MCP fails
+        console.log('MCP failed, trying flintApi as fallback');
+        const fallbackResponse = await window.api.flintApi.getNote(note.id);
+        console.log('FlintApi fallback response:', fallbackResponse);
+
+        if (fallbackResponse.success && fallbackResponse.note) {
+          if (typeof fallbackResponse.note === 'string') {
+            noteContent = fallbackResponse.note;
+          } else if (fallbackResponse.note.content) {
+            noteContent = fallbackResponse.note.content;
+          } else if (fallbackResponse.note.text) {
+            noteContent = fallbackResponse.note.text;
+          } else {
+            noteContent = '';
+          }
+        } else {
+          error =
+            (mcpResponse ? mcpResponse.error : 'No MCP tools worked') ||
+            fallbackResponse.error ||
+            'Failed to load note content';
+        }
       }
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to load note';
@@ -63,10 +116,15 @@
     error = null;
 
     try {
-      const response = await window.api.flintApi.updateNoteContent(
-        note.title,
-        noteContent
-      );
+      // Try the same identifier that worked for loading
+      // For now, try the full id first, then filename as fallback
+      let response = await window.api.flintApi.updateNoteContent(note.id, noteContent);
+
+      if (!response.success && note.id.includes('/')) {
+        // Fallback to filename only
+        const filename = note.id.split('/').pop();
+        response = await window.api.flintApi.updateNoteContent(filename, noteContent);
+      }
 
       if (!response.success) {
         error = response.error || 'Failed to save note';
