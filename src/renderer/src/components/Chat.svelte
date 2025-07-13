@@ -42,7 +42,7 @@
     if (!inputValue.trim()) return;
 
     const newMessage: Message = {
-      id: Date.now().toString(),
+      id: `${Date.now()}-user`,
       type: 'user',
       content: inputValue,
       timestamp: new Date()
@@ -66,7 +66,7 @@
     if (llmStatus !== 'connected') {
       // Fallback to mock response if LLM is not available
       const fallbackResponse: Message = {
-        id: Date.now().toString(),
+        id: `${Date.now()}-fallback`,
         type: 'agent',
         content: `I received your message: "${currentUserInput}". LLM is not available (Status: ${llmStatus}). Please check your LLM connection in settings.`,
         timestamp: new Date()
@@ -92,12 +92,16 @@
         async (response) => {
           // Check if there are tool calls to determine flow
           if (response.toolCalls && response.toolCalls.length > 0) {
-            // Tool calls detected - show initial response, then tool widget, then final response
+            // Tool calls detected - preserve initial response, then show tool widget, then final response
 
-            // 1. Add the initial streaming response as a message
+            // 1. Stop streaming display and add the initial streaming response as a permanent message
+            isTyping = false;
+            isStreaming = false;
+
             if (streamingResponse.trim()) {
+              const baseId = Date.now();
               const initialResponse: Message = {
-                id: Date.now().toString(),
+                id: `${baseId}-initial`,
                 type: 'agent',
                 content: streamingResponse,
                 timestamp: new Date()
@@ -106,8 +110,9 @@
             }
 
             // 2. Add tool call message
+            const toolCallBaseId = Date.now();
             const toolCallMessage: Message = {
-              id: (Date.now() + 1).toString(),
+              id: `${toolCallBaseId}-toolcall`,
               type: 'agent',
               content: '', // Empty content, just showing tool calls
               timestamp: new Date(),
@@ -123,7 +128,7 @@
               const originalConversation = [
                 ...conversationHistory,
                 {
-                  id: Date.now().toString(),
+                  id: `${Date.now()}-user`,
                   type: 'user' as const,
                   content: currentUserInput,
                   timestamp: new Date()
@@ -138,7 +143,7 @@
               // 4. Add final response only when ready
               if (finalResponseContent.trim()) {
                 const finalResponse: Message = {
-                  id: (Date.now() + 2).toString(),
+                  id: `${Date.now()}-final`,
                   type: 'agent',
                   content: finalResponseContent,
                   timestamp: new Date()
@@ -147,14 +152,12 @@
               }
 
               // Done with everything
-              isTyping = false;
-              isStreaming = false;
               isGeneratingFinalResponse = false;
               streamingResponse = '';
             } catch (error) {
               console.error('Error getting final response after tools:', error);
               const errorResponse: Message = {
-                id: (Date.now() + 2).toString(),
+                id: `${Date.now()}-error`,
                 type: 'agent',
                 content: 'I executed the tools successfully, but encountered an error generating the final response.',
                 timestamp: new Date()
@@ -162,8 +165,6 @@
               messages = [...messages, errorResponse];
 
               // Done with error
-              isTyping = false;
-              isStreaming = false;
               isGeneratingFinalResponse = false;
               streamingResponse = '';
             }
@@ -171,7 +172,7 @@
             // No tool calls - just add the streaming response as final message
             if (streamingResponse.trim()) {
               const finalResponse: Message = {
-                id: Date.now().toString(),
+                id: `${Date.now()}-response`,
                 type: 'agent',
                 content: streamingResponse,
                 timestamp: new Date()
@@ -189,7 +190,7 @@
           // Error occurred
           console.error('LLM streaming error:', error);
           const errorResponse: Message = {
-            id: Date.now().toString(),
+            id: `${Date.now()}-stream-error`,
             type: 'agent',
             content: `Sorry, I encountered an error: ${error}`,
             timestamp: new Date()
@@ -203,7 +204,7 @@
     } catch (error) {
       console.error('Error generating LLM response:', error);
       const errorResponse: Message = {
-        id: Date.now().toString(),
+        id: `${Date.now()}-catch-error`,
         type: 'agent',
         content: `Sorry, I encountered an error: ${error.message}`,
         timestamp: new Date()
@@ -327,7 +328,7 @@
   ): Promise<void> => {
     // Create a system message showing the command execution
     const commandMessage: Message = {
-      id: Date.now().toString(),
+      id: `${Date.now()}-command`,
       type: 'system',
       content: `Executed command: /${command.name}${args.length > 0 ? ' ' + args.join(' ') : ''}`,
       timestamp: new Date()
@@ -402,7 +403,7 @@
 
     // Create a system message showing the note click
     const noteMessage: Message = {
-      id: Date.now().toString(),
+      id: `${Date.now()}-note`,
       type: 'system',
       content: `Opening note: ${note.title}${note.type ? ` (${note.type})` : ''}`,
       timestamp: new Date()
@@ -417,7 +418,7 @@
     } catch (error) {
       console.error('Error opening note:', error);
       const errorMessage: Message = {
-        id: Date.now().toString(),
+        id: `${Date.now()}-note-error`,
         type: 'system',
         content: `Error opening note: ${error instanceof Error ? error.message : 'Unknown error'}`,
         timestamp: new Date()
