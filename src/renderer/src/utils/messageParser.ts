@@ -167,34 +167,26 @@ async function findNoteByTitleOrPath(idOrTitle: string): Promise<NoteReference |
   }
 
   try {
-    // First try advanced search with exact matching
-    const searchResponse = await window.api.flintApi.searchNotesAdvanced({
-      metadata_filters: [
-        { key: 'id', value: idOrTitle, operator: '=' },
-        { key: 'title', value: idOrTitle, operator: '=' }
-      ],
-      fields: ['id', 'type', 'title', 'path'],
-      limit: 10
-    });
-    console.log(searchResponse);
+    // Use FlintApi which returns notes directly as an array
+    const response = await window.api.flintApi.searchNotes('', { limit: 1000 });
+    console.log('yoyo');
+    console.log(response);
 
-    if (
-      searchResponse.success &&
-      searchResponse.result &&
-      (searchResponse.result as any).notes
-    ) {
-      const notes = (searchResponse.result as any).notes;
+    if (response.success && response.result && Array.isArray(response.result)) {
+      const notes = response.result;
 
-      // Look for exact id match first
-      let note = notes.find((n: any) => n.id === idOrTitle);
+      // Look for exact title match first (case-insensitive)
+      let note = notes.find(
+        (n: any) => n.title && n.title.toLowerCase() === idOrTitle.toLowerCase()
+      );
 
       if (!note) {
-        // Try title match
-        note = notes.find((n: any) => n.title === idOrTitle);
+        // Look for exact id match
+        note = notes.find((n: any) => n.id === idOrTitle);
       }
 
       if (!note) {
-        // Try fuzzy matching on title
+        // Try fuzzy matching on title - if the title contains the search term or vice versa
         note = notes.find(
           (n: any) =>
             n.title &&
@@ -203,40 +195,18 @@ async function findNoteByTitleOrPath(idOrTitle: string): Promise<NoteReference |
         );
       }
 
-      if (note) {
-        const noteRef: NoteReference = {
-          id: note.id,
-          title: note.title,
-          type: note.type,
-          path: note.path
-        };
-
-        // Cache the result
-        noteCache.set(idOrTitle, noteRef);
-        return noteRef;
+      if (!note) {
+        // Try matching against the filename without extension
+        note = notes.find((n: any) => {
+          if (!n.id) return false;
+          const filename =
+            n.id
+              .split('/')
+              .pop()
+              ?.replace(/\.[^/.]+$/, '') || '';
+          return filename.toLowerCase() === idOrTitle.toLowerCase();
+        });
       }
-    }
-
-    // If advanced search didn't find anything, try a simple text search
-    const fallbackResponse = await window.api.flintApi.searchNotes(idOrTitle, {
-      limit: 10,
-      fields: ['id', 'type', 'title', 'path']
-    });
-
-    if (
-      fallbackResponse.success &&
-      fallbackResponse.result &&
-      (fallbackResponse.result as any).notes
-    ) {
-      const notes = (fallbackResponse.result as any).notes;
-
-      // Look for fuzzy matching on title
-      const note = notes.find(
-        (n: any) =>
-          n.title &&
-          (n.title.toLowerCase().includes(idOrTitle.toLowerCase()) ||
-            idOrTitle.toLowerCase().includes(n.title.toLowerCase()))
-      );
 
       if (note) {
         const noteRef: NoteReference = {
@@ -249,6 +219,7 @@ async function findNoteByTitleOrPath(idOrTitle: string): Promise<NoteReference |
         // Cache the result
         noteCache.set(idOrTitle, noteRef);
         return noteRef;
+      } else {
       }
     }
 
@@ -268,19 +239,11 @@ async function findNoteByTitleOrPath(idOrTitle: string): Promise<NoteReference |
  */
 export async function generateMockMessageWithNotes(): Promise<string> {
   try {
-    // Try to get some actual notes from the vault
-    const listResponse = await window.api.flintApi.searchNotes('', {
-      limit: 5
-    });
+    // Try to get some actual notes from the vault via FlintApi
+    const response = await window.api.flintApi.searchNotes('', { limit: 5 });
 
-    if (
-      listResponse.success &&
-      listResponse.result &&
-      (listResponse.result as any).notes
-    ) {
-      const notes = Array.isArray((listResponse.result as any).notes)
-        ? (listResponse.result as any).notes
-        : [(listResponse.result as any).notes];
+    if (response.success && response.result && Array.isArray(response.result)) {
+      const notes = response.result;
 
       if (notes.length >= 2) {
         const note1 = notes[0];
@@ -297,7 +260,7 @@ export async function generateMockMessageWithNotes(): Promise<string> {
       }
     }
   } catch (error) {
-    console.error('Error generating mock message:', error);
+    console.error('Error generating mock message via FlintApi:', error);
   }
 
   // Fallback to generic templates

@@ -33,21 +33,25 @@
   const getNoteTypeColor = (type?: string): string => {
     switch (type) {
       case 'daily':
-        return '#28a745';
+        return '40, 167, 69';
       case 'project':
-        return '#007bff';
+        return '0, 123, 255';
       case 'meeting':
-        return '#fd7e14';
+        return '253, 126, 20';
       case 'idea':
-        return '#6f42c1';
+        return '111, 66, 193';
       case 'reference':
-        return '#6c757d';
+        return '108, 117, 125';
       case 'loading':
-        return '#ffc107';
+        return '255, 193, 7';
       case 'broken':
-        return '#dc3545';
+        return '220, 53, 69';
+      case 'reading':
+        return '111, 66, 193';
+      case 'todo':
+        return '40, 167, 69';
       default:
-        return '#007bff';
+        return '0, 123, 255';
     }
   };
 </script>
@@ -58,7 +62,7 @@
   class:loading={note.type === 'loading'}
   class:broken={note.type === 'broken'}
   onclick={note.type === 'loading' || note.type === 'broken' ? undefined : onclick}
-  style="--note-color: {getNoteTypeColor(note.type)}"
+  style="--note-color: {getNoteTypeColor(note.type)};"
   title={note.path ? `${note.title} (${note.path})` : note.title}
   disabled={note.type === 'loading' || note.type === 'broken'}
 >
@@ -78,7 +82,7 @@
     background-color: rgba(var(--note-color), 0.1);
     border: 1px solid rgba(var(--note-color), 0.2);
     border-radius: 0.375rem;
-    color: var(--note-color);
+    color: rgb(var(--note-color));
     font-size: 0.875rem;
     font-weight: 500;
     text-decoration: none;

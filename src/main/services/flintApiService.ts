@@ -195,8 +195,16 @@ export class FlintApiService {
         vault_id: options.vaultId,
         fields: options.fields
       });
-      console.log(`✅ Search completed: found ${result?.notes?.length || 0} results`);
-      return result || { notes: [] };
+      if (result && Array.isArray(result)) {
+        console.log(`✅ Search completed: found ${result.length} results`);
+        return result;
+      } else if (result && result.notes) {
+        console.log(`✅ Search completed: found ${result.notes.length} results`);
+        return result;
+      } else {
+        console.log(`✅ Search completed: found 0 results`);
+        return { notes: [] };
+      }
     } catch (error) {
       console.error(`❌ Error searching notes with query "${query}":`, error);
       if (this.config.throwOnError) {
