@@ -277,6 +277,36 @@ export class LLMClient {
     }
   }
 
+  async getFinalResponseAfterTools(
+    originalMessages: Message[],
+    toolCallInfos: any[]
+  ): Promise<string> {
+    try {
+      const llmMessages = this.convertToLLMMessages(originalMessages);
+      const response = (await this.api.getFinalResponseAfterTools(llmMessages, toolCallInfos)) as {
+        success: boolean;
+        response?: string;
+        error?: string;
+      };
+
+      if (!response.success) {
+        this.setStatus('error');
+        throw new Error(response.error || 'Failed to get final response after tools');
+      }
+
+      // If generation succeeds, we're connected
+      if (this.status !== 'connected') {
+        this.setStatus('connected');
+      }
+
+      return response.response || '';
+    } catch (error) {
+      this.setStatus('error');
+      this.emit('error', error as Error);
+      throw error;
+    }
+  }
+
   stopStreaming(): void {
     this.api.removeStreamListeners();
   }

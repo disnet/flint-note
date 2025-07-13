@@ -31,6 +31,7 @@
   );
   let streamingResponse = $state('');
   let isStreaming = $state(false);
+  let isGeneratingFinalResponse = $state(false);
   let mcpEnabled = $state(false);
   let mcpTools: Array<{ name: string; description: string }> = [];
 
@@ -61,13 +62,13 @@
     await generateLLMResponse(userInput);
   };
 
-  const generateLLMResponse = async (userInput: string): Promise<void> => {
+  const generateLLMResponse = async (currentUserInput: string): Promise<void> => {
     if (llmStatus !== 'connected') {
       // Fallback to mock response if LLM is not available
       const fallbackResponse: Message = {
         id: Date.now().toString(),
         type: 'agent',
-        content: `I received your message: "${userInput}". LLM is not available (Status: ${llmStatus}). Please check your LLM connection in settings.`,
+        content: `I received your message: "${currentUserInput}". LLM is not available (Status: ${llmStatus}). Please check your LLM connection in settings.`,
         timestamp: new Date()
       };
       messages = [...messages, fallbackResponse];
@@ -88,19 +89,101 @@
         (chunk: string) => {
           streamingResponse += chunk;
         },
-        (response) => {
-          // Response complete
-          const agentResponse: Message = {
-            id: Date.now().toString(),
-            type: 'agent',
-            content: response.content || streamingResponse,
-            timestamp: new Date(),
-            toolCalls: response.toolCalls
-          };
-          messages = [...messages, agentResponse];
-          isTyping = false;
-          isStreaming = false;
-          streamingResponse = '';
+        async (response) => {
+          // Check if there are tool calls to determine flow
+          if (response.toolCalls && response.toolCalls.length > 0) {
+            // Tool calls detected - show initial response, then tool widget, then final response
+
+            // 1. Add the initial streaming response as a message
+            if (streamingResponse.trim()) {
+              const initialResponse: Message = {
+                id: Date.now().toString(),
+                type: 'agent',
+                content: streamingResponse,
+                timestamp: new Date()
+              };
+              messages = [...messages, initialResponse];
+            }
+
+            // 2. Add tool call message
+            const toolCallMessage: Message = {
+              id: (Date.now() + 1).toString(),
+              type: 'agent',
+              content: '', // Empty content, just showing tool calls
+              timestamp: new Date(),
+              toolCalls: response.toolCalls
+            };
+            messages = [...messages, toolCallMessage];
+
+            // 3. Show loading state and get final response
+            isGeneratingFinalResponse = true;
+
+            try {
+              // Create the original conversation including the current user input
+              const originalConversation = [
+                ...conversationHistory,
+                {
+                  id: Date.now().toString(),
+                  type: 'user' as const,
+                  content: currentUserInput,
+                  timestamp: new Date()
+                }
+              ];
+
+              const finalResponseContent = await llmClient.getFinalResponseAfterTools(
+                originalConversation,
+                response.toolCalls
+              );
+
+              // 4. Add final response only when ready
+              if (finalResponseContent.trim()) {
+                const finalResponse: Message = {
+                  id: (Date.now() + 2).toString(),
+                  type: 'agent',
+                  content: finalResponseContent,
+                  timestamp: new Date()
+                };
+                messages = [...messages, finalResponse];
+              }
+
+              // Done with everything
+              isTyping = false;
+              isStreaming = false;
+              isGeneratingFinalResponse = false;
+              streamingResponse = '';
+            } catch (error) {
+              console.error('Error getting final response after tools:', error);
+              const errorResponse: Message = {
+                id: (Date.now() + 2).toString(),
+                type: 'agent',
+                content: 'I executed the tools successfully, but encountered an error generating the final response.',
+                timestamp: new Date()
+              };
+              messages = [...messages, errorResponse];
+
+              // Done with error
+              isTyping = false;
+              isStreaming = false;
+              isGeneratingFinalResponse = false;
+              streamingResponse = '';
+            }
+          } else {
+            // No tool calls - just add the streaming response as final message
+            if (streamingResponse.trim()) {
+              const finalResponse: Message = {
+                id: Date.now().toString(),
+                type: 'agent',
+                content: streamingResponse,
+                timestamp: new Date()
+              };
+              messages = [...messages, finalResponse];
+            }
+
+            // Done normally
+            isTyping = false;
+            isStreaming = false;
+            streamingResponse = '';
+          }
         },
         (error: string) => {
           // Error occurred
@@ -452,13 +535,15 @@
   <div class="messages-container" bind:this={chatContainer}>
     {#each messages as message (message.id)}
       <div class="message message-{message.type}">
-        <div class="message-content">
-          <MessageContent
-            content={message.content}
-            messageType={message.type}
-            openNote={handleNoteOpen}
-          />
-        </div>
+        {#if message.content}
+          <div class="message-content">
+            <MessageContent
+              content={message.content}
+              messageType={message.type}
+              openNote={handleNoteOpen}
+            />
+          </div>
+        {/if}
         {#if message.toolCalls && message.toolCalls.length > 0}
           <ToolCallWidget toolCalls={message.toolCalls} />
         {/if}
@@ -492,6 +577,21 @@
         </div>
       </div>
     {/if}
+
+    {#if isGeneratingFinalResponse}
+      <div class="message message-agent">
+        <div class="message-content">
+          <div class="generating-response-indicator">
+            <div class="typing-dots">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+            <span class="generating-text">Generating response...</span>
+          </div>
+        </div>
+      </div>
+    {/if}
   </div>
 
   <!-- MCP Status Indicator -->
@@ -517,11 +617,11 @@
         rows="1"
         class="chat-input"
         style="height: auto; min-height: 2.5rem;"
-        disabled={isStreaming}
+        disabled={isStreaming || isGeneratingFinalResponse}
       ></textarea>
       <button
         onclick={handleSendMessage}
-        disabled={!inputValue.trim() || isStreaming}
+        disabled={!inputValue.trim() || isStreaming || isGeneratingFinalResponse}
         class="send-button"
         aria-label="Send message"
       >
@@ -645,6 +745,22 @@
 
   .typing-dots span:nth-child(2) {
     animation-delay: -0.16s;
+  }
+
+  .typing-dots span:nth-child(3) {
+    animation-delay: 0s;
+  }
+
+  .generating-response-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #6c757d;
+    font-style: italic;
+  }
+
+  .generating-text {
+    font-size: 0.875rem;
   }
 
   @keyframes typing {

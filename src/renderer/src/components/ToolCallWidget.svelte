@@ -98,11 +98,12 @@
 
 <style>
   .tool-call-widget {
-    margin: 0.5rem 0;
+    margin: 0.75rem 0;
     border: 1px solid #e1e5e9;
     border-radius: 8px;
     background-color: #f8f9fa;
     overflow: hidden;
+    max-width: 80%;
   }
 
   .tool-call-header {

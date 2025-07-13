@@ -12,6 +12,7 @@ declare global {
         generateResponse: (messages: LLMMessage[]) => Promise<unknown>;
         streamResponse: (messages: LLMMessage[]) => Promise<unknown>;
         streamResponseWithTools: (messages: LLMMessage[]) => Promise<unknown>;
+        getFinalResponseAfterTools: (originalMessages: LLMMessage[], toolCallInfos: any[]) => Promise<unknown>;
         testConnection: () => Promise<unknown>;
         updateConfig: (config: unknown) => Promise<unknown>;
         getConfig: () => Promise<unknown>;

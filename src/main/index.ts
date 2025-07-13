@@ -169,6 +169,25 @@ app.whenReady().then(async () => {
     }
   );
 
+  ipcMain.handle(
+    'llm:get-final-response-after-tools',
+    async (_, originalMessages: LLMMessage[], toolCallInfos: any[]) => {
+      try {
+        const finalResponse = await llmService.getFinalResponseAfterToolExecution(
+          originalMessages,
+          toolCallInfos
+        );
+        return { success: true, response: finalResponse };
+      } catch (error) {
+        console.error('Error getting final response after tools:', error);
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        };
+      }
+    }
+  );
+
   ipcMain.handle('llm:test-connection', async () => {
     try {
       const isConnected = await llmService.testConnection();

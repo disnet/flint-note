@@ -563,16 +563,9 @@ export class LLMService {
             langchainMessages
           );
 
-          // Get final response from LLM after tool execution
-          const finalResponse = await this.getFinalResponseAfterTools(
-            responseMessage,
-            langchainMessages,
-            toolCallInfos
-          );
-
           return {
             success: true,
-            content: finalResponse,
+            content: '', // No final response in streaming method
             toolCalls: toolCallInfos
           };
         }
@@ -1094,6 +1087,61 @@ Stack: ${error instanceof Error ? error.stack : 'No stack'}
       return finalContent;
     } catch (error) {
       console.error('❌ Error getting final response after tools:', error);
+      return 'I used some tools to help you, but encountered an error generating the final response.';
+    }
+  }
+
+  async getFinalResponseAfterToolExecution(
+    originalMessages: LLMMessage[],
+    toolCallInfos: ToolCallInfo[]
+  ): Promise<string> {
+    try {
+      console.log('🔄 Getting final response after tool execution...');
+
+      // Create a fresh conversation with tool results
+      const toolResultsText = toolCallInfos
+        .map(info => info.result || `Error: ${info.error}`)
+        .join('\n\n');
+
+      const summaryMessage = toolResultsText
+        ? `Here are the results from the tools I used:\n\n${toolResultsText}`
+        : 'I attempted to use tools to help you, but encountered some issues.';
+
+      // Create a conversation without tool calls to prevent loops
+      const freshConversation = [
+        originalMessages[0], // Keep system message
+        new HumanMessage(
+          String(
+            originalMessages[originalMessages.length - 1].content || 'Please help me'
+          )
+        ),
+        new AIMessage(summaryMessage)
+      ];
+
+      // Create LLM without tools to prevent additional tool calls
+      const baseLLM = new ChatOpenAI({
+        openAIApiKey: this.config.apiKey,
+        configuration: {
+          baseURL: this.config.baseURL,
+          defaultHeaders: this.config.baseURL.includes('openrouter')
+            ? {
+                'HTTP-Referer': 'https://flint-ai.com',
+                'X-Title': 'Flint AI'
+              }
+            : undefined
+        },
+        modelName: this.config.modelName,
+        temperature: this.config.temperature,
+        maxTokens: this.config.maxTokens
+      });
+
+      const finalResponse = await baseLLM.invoke(freshConversation);
+      const finalContent = ((finalResponse.content as string) || '').trim();
+
+      console.log('✅ Final response after tool execution:', finalContent);
+      return finalContent;
+    } catch (error) {
+      console.error('❌ Error getting final response after tool execution:', error);
       return 'I used some tools to help you, but encountered an error generating the final response.';
     }
   }
