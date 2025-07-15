@@ -1,4 +1,13 @@
-import type { ToolCall, MCPTool, ToolCallInfo } from '../../../shared/types';
+import type {
+  ToolCall,
+  MCPTool,
+  ToolCallInfo,
+  MCPResource,
+  MCPResourceContent,
+  NoteMetadata,
+  Note,
+  NoteType
+} from '../../../shared/types';
 
 export interface Message {
   id: string;
@@ -35,4 +44,12 @@ export interface SlashCommand {
 }
 
 // Re-export shared types for convenience
-export type { MCPTool, ToolCall };
+export type {
+  MCPTool,
+  ToolCall,
+  MCPResource,
+  MCPResourceContent,
+  NoteMetadata,
+  Note,
+  NoteType
+};

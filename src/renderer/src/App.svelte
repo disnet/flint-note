@@ -1,7 +1,7 @@
 <script lang="ts">
   import Chat from './components/Chat.svelte';
   import Header from './components/Header.svelte';
-  import ToolInspector from './components/ToolInspector.svelte';
+  import NotesExplorer from './components/NotesExplorer.svelte';
   import NoteEditorLayout from './components/NoteEditorLayout.svelte';
   import { noteEditorStore } from './stores/noteEditor.svelte';
 
@@ -34,17 +34,17 @@
     </button>
     <button
       class="tab"
-      class:active={activeTab === 'tools'}
-      onclick={() => (activeTab = 'tools')}
+      class:active={activeTab === 'notes'}
+      onclick={() => (activeTab = 'notes')}
     >
-      Tool Inspector
+      Notes
     </button>
   </div>
   <main class="main-content" class:with-sidebar={isDesktopWithSidebar}>
     {#if activeTab === 'chat'}
       <Chat />
-    {:else if activeTab === 'tools'}
-      <ToolInspector />
+    {:else if activeTab === 'notes'}
+      <NotesExplorer />
     {/if}
   </main>
 

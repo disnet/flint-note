@@ -15,7 +15,9 @@ import type {
   MCPToolCall,
   MCPToolResult,
   LLMResponseWithToolCalls,
-  ToolCallInfo
+  ToolCallInfo,
+  MCPResource,
+  MCPResourceContent
 } from '../../shared/types';
 
 export class LLMService {
@@ -1040,7 +1042,7 @@ Stack: ${error instanceof Error ? error.stack : 'No stack'}
 
       // Create a fresh conversation for better compatibility
       const toolResultsText = toolCallInfos
-        .map(info => info.result || `Error: ${info.error}`)
+        .map((info) => info.result || `Error: ${info.error}`)
         .join('\n\n');
 
       const summaryMessage = toolResultsText
@@ -1100,7 +1102,7 @@ Stack: ${error instanceof Error ? error.stack : 'No stack'}
 
       // Create a fresh conversation with tool results
       const toolResultsText = toolCallInfos
-        .map(info => info.result || `Error: ${info.error}`)
+        .map((info) => info.result || `Error: ${info.error}`)
         .join('\n\n');
 
       const summaryMessage = toolResultsText
@@ -1378,6 +1380,37 @@ Stack: ${error instanceof Error ? error.stack : 'No stack'}
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
       };
+    }
+  }
+
+  // MCP Resource methods
+  async getMCPResources(): Promise<MCPResource[]> {
+    if (!this.mcpToolsEnabled || !mcpService.isReady()) {
+      return [];
+    }
+
+    try {
+      return await mcpService.listResources();
+    } catch (error) {
+      console.error('Error getting MCP resources:', error);
+      return [];
+    }
+  }
+
+  async readMCPResource(uri: string): Promise<MCPResourceContent> {
+    if (!this.mcpToolsEnabled) {
+      throw new Error('MCP tools are disabled');
+    }
+
+    if (!mcpService.isReady()) {
+      throw new Error('MCP service is not ready');
+    }
+
+    try {
+      return await mcpService.readResource(uri);
+    } catch (error) {
+      console.error('Error reading MCP resource:', error);
+      throw error;
     }
   }
 }

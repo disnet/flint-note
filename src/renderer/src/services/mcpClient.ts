@@ -1,4 +1,4 @@
-import type { MCPTool } from '../types/chat';
+import type { MCPTool, MCPResource, MCPResourceContent } from '../types/chat';
 
 export interface MCPClientEvents {
   ready: () => void;
@@ -70,6 +70,7 @@ export class MCPClient {
   getConnectionStatus(): 'connecting' | 'connected' | 'disconnected' | 'error' {
     return this.status;
   }
+
   async getTools(): Promise<MCPTool[]> {
     try {
       const response = (await window.api.mcp.getTools()) as any;
@@ -84,6 +85,48 @@ export class MCPClient {
       }
 
       return response.tools || [];
+    } catch (error) {
+      this.setStatus('error');
+      this.emit('error', error as Error);
+      throw error;
+    }
+  }
+
+  async getResources(): Promise<MCPResource[]> {
+    try {
+      const response = (await window.api.mcp.listResources()) as any;
+      if (!response.success) {
+        this.setStatus('error');
+        throw new Error(response.error || 'Failed to get MCP resources');
+      }
+
+      // If we can get resources, we're connected
+      if (this.status !== 'connected') {
+        this.setStatus('connected');
+      }
+
+      return response.resources || [];
+    } catch (error) {
+      this.setStatus('error');
+      this.emit('error', error as Error);
+      throw error;
+    }
+  }
+
+  async readResource(uri: string): Promise<MCPResourceContent> {
+    try {
+      const response = (await window.api.mcp.readResource(uri)) as any;
+      if (!response.success) {
+        this.setStatus('error');
+        throw new Error(response.error || 'Failed to read MCP resource');
+      }
+
+      // If we can read resources, we're connected
+      if (this.status !== 'connected') {
+        this.setStatus('connected');
+      }
+
+      return response.content;
     } catch (error) {
       this.setStatus('error');
       this.emit('error', error as Error);

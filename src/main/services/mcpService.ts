@@ -4,17 +4,26 @@ import {
   ListToolsResultSchema,
   CallToolResultSchema,
   Tool,
-  CallToolRequest
+  CallToolRequest,
+  ListResourcesResultSchema,
+  ReadResourceResultSchema
 } from '@modelcontextprotocol/sdk/types.js';
-import type { MCPTool, MCPToolCall, MCPToolResult } from '../../shared/types';
+import type {
+  MCPTool,
+  MCPToolCall,
+  MCPToolResult,
+  MCPResource,
+  MCPResourceContent
+} from '../../shared/types';
 
 // Export types for use in other modules
-export type { MCPTool, MCPToolCall, MCPToolResult };
+export type { MCPTool, MCPToolCall, MCPToolResult, MCPResource, MCPResourceContent };
 
 interface MCPConnection {
   client: Client;
   transport: StdioClientTransport;
   tools: MCPTool[];
+  resources: MCPResource[];
   connected: boolean;
   lastError?: string;
 }
@@ -23,6 +32,7 @@ export class MCPService {
   private connection: MCPConnection | null = null;
   private isInitialized = false;
   private availableTools: MCPTool[] = [];
+  private availableResources: MCPResource[] = [];
 
   constructor() {
     // Initialize the service
@@ -96,7 +106,8 @@ export class MCPService {
         },
         {
           capabilities: {
-            tools: {}
+            tools: {},
+            resources: {}
           }
         }
       );
@@ -108,6 +119,7 @@ export class MCPService {
         client,
         transport,
         tools: [],
+        resources: [],
         connected: false
       };
 
@@ -146,6 +158,33 @@ export class MCPService {
         connection.tools = [];
       }
 
+      // List available resources from server
+      try {
+        console.log('📋 Requesting resources list from Flint server...');
+        const resourcesResult = await client.request(
+          { method: 'resources/list' },
+          ListResourcesResultSchema
+        );
+
+        console.log('📁 Raw resources response from Flint server:', resourcesResult);
+
+        // Convert MCP resources to our format
+        connection.resources = resourcesResult.resources.map((resource: any) => ({
+          uri: resource.uri,
+          name: resource.name,
+          description: resource.description || '',
+          mimeType: resource.mimeType || 'application/json'
+        }));
+
+        console.log(
+          `✅ Found ${connection.resources.length} resources:`,
+          connection.resources.map((r) => r.uri)
+        );
+      } catch (error) {
+        console.warn('⚠️ Failed to list resources from Flint server:', error);
+        connection.resources = [];
+      }
+
       // Set up error handlers
       transport.onclose = () => {
         console.log('🔌 Flint MCP server connection closed');
@@ -175,18 +214,27 @@ export class MCPService {
   }
 
   private updateAvailableTools(): void {
-    console.log('🔄 Updating available tools...');
+    console.log('🔄 Updating available tools and resources...');
 
     if (this.connection && this.connection.connected) {
       this.availableTools = [...this.connection.tools];
+      this.availableResources = [...this.connection.resources];
       console.log(`✅ Available tools updated: ${this.availableTools.length} tools`);
+      console.log(
+        `✅ Available resources updated: ${this.availableResources.length} resources`
+      );
       console.log(
         '🔧 Tool names:',
         this.availableTools.map((t) => t.name)
       );
+      console.log(
+        '📁 Resource URIs:',
+        this.availableResources.map((r) => r.uri)
+      );
     } else {
       this.availableTools = [];
-      console.log('⚠️ No connected server, tools cleared');
+      this.availableResources = [];
+      console.log('⚠️ No connected server, tools and resources cleared');
     }
   }
 
@@ -310,6 +358,65 @@ export class MCPService {
     await this.connect();
   }
 
+  async listResources(): Promise<MCPResource[]> {
+    if (!this.isInitialized) {
+      await this.initialize();
+    }
+
+    return [...this.availableResources];
+  }
+
+  async readResource(uri: string): Promise<MCPResourceContent> {
+    console.log('📁 MCP Service readResource called with:', uri);
+
+    if (!this.isInitialized) {
+      console.log('⚠️ MCP Service not initialized, initializing...');
+      await this.initialize();
+    }
+
+    try {
+      // Check connection
+      if (!this.connection || !this.connection.connected) {
+        console.error('❌ No connection to Flint server');
+        throw new Error('No connection to Flint server');
+      }
+
+      console.log('📡 Connection status: connected');
+
+      // Read the resource from the server
+      const result = await this.connection.client.request(
+        {
+          method: 'resources/read',
+          params: { uri }
+        },
+        ReadResourceResultSchema
+      );
+
+      console.log('📥 Resource response received:', result);
+
+      // Convert MCP result to our format
+      const content = result.contents[0];
+      const resourceContent: MCPResourceContent = {
+        uri,
+        mimeType: content.mimeType || 'application/json',
+        text: (content as any).text,
+        blob: (content as any).blob
+      };
+
+      console.log('✅ Resource content converted:', resourceContent);
+
+      return resourceContent;
+    } catch (error) {
+      console.error('❌ Error reading MCP resource:', error);
+      console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
+      throw error;
+    }
+  }
+
+  isResourceAvailable(uri: string): boolean {
+    return this.availableResources.some((resource) => resource.uri === uri);
+  }
+
   async testConnection(): Promise<{ success: boolean; error?: string }> {
     try {
       console.log('🧪 Testing Flint MCP server connection...');
@@ -333,7 +440,8 @@ export class MCPService {
         },
         {
           capabilities: {
-            tools: {}
+            tools: {},
+            resources: {}
           }
         }
       );
@@ -349,6 +457,18 @@ export class MCPService {
         ListToolsResultSchema
       );
       console.log('✅ Test successful, found', toolsResult.tools.length, 'tools');
+
+      // Try to list resources
+      console.log('📁 Testing resources list...');
+      const resourcesResult = await client.request(
+        { method: 'resources/list' },
+        ListResourcesResultSchema
+      );
+      console.log(
+        '✅ Test successful, found',
+        resourcesResult.resources.length,
+        'resources'
+      );
 
       // Close test connection
       await transport.close();

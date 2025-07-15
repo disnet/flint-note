@@ -90,3 +90,52 @@ export interface MCPResponse {
   servers?: MCPServer[];
   error?: string;
 }
+
+export interface MCPResource {
+  uri: string;
+  name: string;
+  description?: string;
+  mimeType?: string;
+}
+
+export interface MCPResourceContent {
+  uri: string;
+  mimeType: string;
+  text?: string;
+  blob?: Uint8Array;
+}
+
+export interface NoteMetadata {
+  id: string;
+  type: string;
+  filename: string;
+  title: string;
+  created: string;
+  modified: string;
+  size: number;
+  tags: string[];
+  path: string;
+}
+
+export interface Note extends NoteMetadata {
+  content: string;
+  content_hash: string;
+  metadata: {
+    title: string;
+    type: string;
+    created: string;
+    updated: string;
+    tags: string[];
+  };
+  updated: string;
+}
+
+export interface NoteType {
+  name: string;
+  count?: number;
+  path?: string;
+  purpose?: string;
+  agentInstructions?: string[];
+  hasDescription?: boolean;
+  lastModified?: string;
+}

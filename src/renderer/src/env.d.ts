@@ -12,7 +12,10 @@ declare global {
         generateResponse: (messages: LLMMessage[]) => Promise<unknown>;
         streamResponse: (messages: LLMMessage[]) => Promise<unknown>;
         streamResponseWithTools: (messages: LLMMessage[]) => Promise<unknown>;
-        getFinalResponseAfterTools: (originalMessages: LLMMessage[], toolCallInfos: any[]) => Promise<unknown>;
+        getFinalResponseAfterTools: (
+          originalMessages: LLMMessage[],
+          toolCallInfos: any[]
+        ) => Promise<unknown>;
         testConnection: () => Promise<unknown>;
         updateConfig: (config: unknown) => Promise<unknown>;
         getConfig: () => Promise<unknown>;
@@ -33,6 +36,8 @@ declare global {
           name: string;
           arguments: Record<string, unknown>;
         }) => Promise<{ success: boolean; result?: MCPToolResult; error?: string }>;
+        listResources: () => Promise<unknown>;
+        readResource: (uri: string) => Promise<unknown>;
       };
       flintApi: {
         getNote: (

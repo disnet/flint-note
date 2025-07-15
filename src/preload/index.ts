@@ -12,7 +12,11 @@ const api = {
     streamResponseWithTools: (messages: LLMMessage[]) =>
       ipcRenderer.invoke('llm:stream-response-with-tools', messages),
     getFinalResponseAfterTools: (originalMessages: LLMMessage[], toolCallInfos: any[]) =>
-      ipcRenderer.invoke('llm:get-final-response-after-tools', originalMessages, toolCallInfos),
+      ipcRenderer.invoke(
+        'llm:get-final-response-after-tools',
+        originalMessages,
+        toolCallInfos
+      ),
     testConnection: () => ipcRenderer.invoke('llm:test-connection'),
     updateConfig: (config: unknown) => ipcRenderer.invoke('llm:update-config', config),
     getConfig: () => ipcRenderer.invoke('llm:get-config'),
@@ -43,7 +47,9 @@ const api = {
     reconnect: () => ipcRenderer.invoke('mcp:reconnect'),
     testConnection: () => ipcRenderer.invoke('mcp:test-connection'),
     callTool: (toolCall: { name: string; arguments: Record<string, unknown> }) =>
-      ipcRenderer.invoke('mcp:call-tool', toolCall)
+      ipcRenderer.invoke('mcp:call-tool', toolCall),
+    listResources: () => ipcRenderer.invoke('mcp:list-resources'),
+    readResource: (uri: string) => ipcRenderer.invoke('mcp:read-resource', uri)
   },
   flintApi: {
     getNote: (identifier: string, vaultId?: string) =>

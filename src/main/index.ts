@@ -325,6 +325,33 @@ app.whenReady().then(async () => {
     }
   );
 
+  // MCP Resource handlers
+  ipcMain.handle('mcp:list-resources', async () => {
+    try {
+      const resources = await llmService.getMCPResources();
+      return { success: true, resources };
+    } catch (error) {
+      console.error('Error getting MCP resources:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  });
+
+  ipcMain.handle('mcp:read-resource', async (_, uri: string) => {
+    try {
+      const content = await llmService.readMCPResource(uri);
+      return { success: true, content };
+    } catch (error) {
+      console.error('Error reading MCP resource:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  });
+
   // Tool limit configuration handlers
   ipcMain.handle('llm:set-max-tools', async (_, limit: number) => {
     try {
