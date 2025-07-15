@@ -143,12 +143,24 @@
   }
 
   function openNote(note: NoteMetadata) {
+    console.log('🔍 Opening note:', $state.snapshot(note));
+
     // Extract filename without extension for the note editor
     const filename = note.filename.replace(/\.[^/.]+$/, '');
+    // Use the note's ID which is already in the correct "type/filename" format
+    const identifier = note.id.replace(/\.[^/.]+$/, ''); // Remove extension from ID
+
+    console.log('🔍 Note identifiers:', {
+      filename,
+      identifier,
+      noteId: note.id,
+      noteTitle: note.title
+    });
+
     noteEditorStore.openNote({
       type: note.type,
       filename: filename,
-      title: note.title
+      title: identifier // Use the properly formatted identifier
     });
   }
 

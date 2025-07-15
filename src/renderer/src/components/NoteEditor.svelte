@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { NoteReference } from '../types/chat';
+  import { mcpClient } from '../services/mcpClient';
 
   interface Props {
     note: NoteReference | null;
@@ -32,55 +33,38 @@
     error = null;
 
     try {
-      console.log('Loading note via MCP:', note);
+      console.log('Loading note via MCP resource:', note);
 
-      // Try using MCP to get note content - try different tool names
-      let mcpResponse;
-      const toolNames = ['get_note', 'read_note', 'load_note'];
+      // Construct the MCP resource URI
+      // note.id should be in format "type/filename" (without extension)
+      const noteUri = `flint-note://note/${note.id}`;
+      console.log('Reading MCP resource:', noteUri);
 
-      for (const toolName of toolNames) {
-        try {
-          console.log(`Trying MCP tool: ${toolName}`);
-          mcpResponse = await window.api.mcp.callTool({
-            name: toolName,
-            arguments: { identifier: note.id }
-          });
-          console.log(`${toolName} response:`, mcpResponse);
+      const resourceContent = await mcpClient.readResource(noteUri);
+      console.log('MCP resource response:', resourceContent);
 
-          if (mcpResponse.success) {
-            console.log(`Success with ${toolName}`);
-            break;
+      if (resourceContent) {
+        const content = resourceContent;
+
+        if (content.text) {
+          try {
+            // Parse the JSON response from the resource
+            const noteData = JSON.parse(content.text);
+            console.log('Parsed note data:', noteData);
+
+            // Extract content from the note data
+            noteContent = noteData.content || noteData.text || '';
+          } catch (parseError) {
+            console.error('Failed to parse note data:', parseError);
+            // If parsing fails, use the raw text
+            noteContent = content.text;
           }
-        } catch (toolError) {
-          console.log(`${toolName} failed:`, toolError);
-          continue;
-        }
-      }
-
-      if (mcpResponse && mcpResponse.success && mcpResponse.result) {
-        // Handle MCP response format
-        if (mcpResponse.result.content && Array.isArray(mcpResponse.result.content)) {
-          const textContent = mcpResponse.result.content[0]?.text;
-          if (textContent) {
-            try {
-              // Try to parse as JSON first (in case it's structured data)
-              const parsed = JSON.parse(textContent);
-              noteContent = parsed.content || parsed.text || textContent;
-            } catch {
-              // If not JSON, use as plain text
-              noteContent = textContent;
-            }
-          } else {
-            noteContent = '';
-          }
-        } else if (typeof mcpResponse.result === 'string') {
-          noteContent = mcpResponse.result;
         } else {
           noteContent = '';
         }
       } else {
-        // Fallback to flintApi if MCP fails
-        console.log('MCP failed, trying flintApi as fallback');
+        // Fallback to flintApi if MCP resource fails
+        console.log('MCP resource failed, trying flintApi as fallback');
         const fallbackResponse = await window.api.flintApi.getNote(note.id);
         console.log('FlintApi fallback response:', fallbackResponse);
 
@@ -96,7 +80,7 @@
           }
         } else {
           error =
-            (mcpResponse ? mcpResponse.error : 'No MCP tools worked') ||
+            'Failed to read MCP resource' ||
             fallbackResponse.error ||
             'Failed to load note content';
         }
