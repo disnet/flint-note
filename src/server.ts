@@ -163,7 +163,8 @@ export class FlintNoteServer {
         // Initialize resource handlers
         this.resourceHandlers = new ResourceHandlers(
           this.#requireWorkspace.bind(this),
-          this.#resolveVaultContext.bind(this)
+          this.#resolveVaultContext.bind(this),
+          this.#generateNoteIdFromIdentifier.bind(this)
         );
 
         // Initialize hybrid search index - only rebuild if necessary
@@ -246,7 +247,8 @@ export class FlintNoteServer {
           // Initialize resource handlers
           this.resourceHandlers = new ResourceHandlers(
             this.#requireWorkspace.bind(this),
-            this.#resolveVaultContext.bind(this)
+            this.#resolveVaultContext.bind(this),
+            this.#generateNoteIdFromIdentifier.bind(this)
           );
 
           // Initialize hybrid search index - only rebuild if necessary
@@ -1401,6 +1403,45 @@ export class FlintNoteServer {
             mimeType: 'application/json',
             name: 'Workspace statistics',
             description: 'Statistics about the current workspace'
+          },
+          {
+            uri: 'flint-note://note/{type}/{filename}',
+            mimeType: 'application/json',
+            name: 'Individual note',
+            description:
+              'Access individual notes by type and filename (e.g., flint-note://note/general/my-note)'
+          },
+          {
+            uri: 'flint-note://note/{vault_id}/{type}/{filename}',
+            mimeType: 'application/json',
+            name: 'Individual note in specific vault',
+            description: 'Access individual notes by vault, type and filename'
+          },
+          {
+            uri: 'flint-note://notes/{type}',
+            mimeType: 'application/json',
+            name: 'Notes by type',
+            description:
+              'List all notes of a specific type (e.g., flint-note://notes/general)'
+          },
+          {
+            uri: 'flint-note://notes/{vault_id}/{type}',
+            mimeType: 'application/json',
+            name: 'Notes by type in specific vault',
+            description: 'List all notes of a specific type in a specific vault'
+          },
+          {
+            uri: 'flint-note://notes/tagged/{tag}',
+            mimeType: 'application/json',
+            name: 'Notes by tag',
+            description:
+              'List all notes with a specific tag (e.g., flint-note://notes/tagged/important)'
+          },
+          {
+            uri: 'flint-note://links/incoming/{type}/{filename}',
+            mimeType: 'application/json',
+            name: 'Incoming links to note',
+            description: 'List all notes that link to a specific note'
           }
         ]
       };
@@ -1411,6 +1452,7 @@ export class FlintNoteServer {
       const { uri } = request.params;
 
       try {
+        // Handle static resources
         switch (uri) {
           case 'flint-note://types':
             return await this.noteTypeHandlers.handleTypesResource();
@@ -1418,8 +1460,19 @@ export class FlintNoteServer {
             return await this.resourceHandlers.handleRecentResource();
           case 'flint-note://stats':
             return await this.resourceHandlers.handleStatsResource();
-          default:
-            throw new Error(`Unknown resource: ${uri}`);
+        }
+
+        // Handle dynamic resources with pattern matching
+        if (uri.startsWith('flint-note://note/')) {
+          return await this.resourceHandlers.handleNoteResource(uri);
+        } else if (uri.startsWith('flint-note://notes/tagged/')) {
+          return await this.resourceHandlers.handleTaggedNotesResource(uri);
+        } else if (uri.startsWith('flint-note://notes/')) {
+          return await this.resourceHandlers.handleNotesCollectionResource(uri);
+        } else if (uri.startsWith('flint-note://links/incoming/')) {
+          return await this.resourceHandlers.handleIncomingLinksResource(uri);
+        } else {
+          throw new Error(`Unknown resource: ${uri}`);
         }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
