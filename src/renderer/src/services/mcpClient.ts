@@ -11,8 +11,44 @@ export class MCPClient {
     new Map();
   private status: 'connecting' | 'connected' | 'disconnected' | 'error' = 'disconnected';
 
+  private isInitialized: boolean = false;
+  private initializationPromise: Promise<void> | null = null;
+
   constructor() {
     this.initEventListeners();
+  }
+
+  async initialize(): Promise<void> {
+    if (this.isInitialized) {
+      return;
+    }
+
+    if (this.initializationPromise) {
+      return this.initializationPromise;
+    }
+
+    this.initializationPromise = this.doInitialize();
+    return this.initializationPromise;
+  }
+
+  private async doInitialize(): Promise<void> {
+    try {
+      this.setStatus('connecting');
+      console.log('🔄 Initializing MCP client...');
+
+      const isEnabled = await this.isEnabled();
+      if (isEnabled) {
+        await this.getStatus();
+      }
+
+      this.isInitialized = true;
+      console.log('✅ MCP client initialized');
+    } catch (error) {
+      console.error('❌ Failed to initialize MCP client:', error);
+      this.setStatus('error');
+      this.isInitialized = true;
+      this.emit('error', error as Error);
+    }
   }
 
   private initEventListeners(): void {
