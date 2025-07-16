@@ -50,6 +50,7 @@
 
   onMount(() => {
     if (inputElement) inputElement.focus();
+    conversationManager.initialize();
   });
 </script>
 

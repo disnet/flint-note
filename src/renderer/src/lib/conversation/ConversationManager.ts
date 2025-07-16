@@ -7,10 +7,9 @@ import type { Message } from '../../types/chat';
 import type { LLMMessage } from '../../../../shared/types';
 
 export class ConversationManager {
-  constructor() {
-    // Ensure clients are initialized
-    llmClient.initialize();
-    mcpClient.initialize();
+  async initialize(): Promise<void> {
+    await llmClient.initialize();
+    await mcpClient.initialize();
   }
 
   async sendMessage(userInput: string): Promise<void> {
