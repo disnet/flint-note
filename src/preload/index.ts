@@ -7,37 +7,8 @@ const api = {
   llm: {
     generateResponse: (messages: LLMMessage[]) =>
       ipcRenderer.invoke('llm:generate-response', messages),
-    streamResponse: (messages: LLMMessage[]) =>
-      ipcRenderer.invoke('llm:stream-response', messages),
     streamResponseWithTools: (messages: LLMMessage[]) =>
       ipcRenderer.invoke('llm:stream-response-with-tools', messages),
-    getFinalResponseAfterTools: (originalMessages: LLMMessage[], toolCallInfos: any[]) =>
-      ipcRenderer.invoke(
-        'llm:get-final-response-after-tools',
-        originalMessages,
-        toolCallInfos
-      ),
-    testConnection: () => ipcRenderer.invoke('llm:test-connection'),
-    updateConfig: (config: unknown) => ipcRenderer.invoke('llm:update-config', config),
-    getConfig: () => ipcRenderer.invoke('llm:get-config'),
-    onStreamChunk: (callback: (chunk: string) => void) => {
-      ipcRenderer.on('llm:stream-chunk', (_, chunk) => callback(chunk));
-    },
-    onStreamEnd: (callback: (fullResponse: string) => void) => {
-      ipcRenderer.on('llm:stream-end', (_, fullResponse) => callback(fullResponse));
-    },
-    onStreamEndWithTools: (callback: (response: any) => void) => {
-      ipcRenderer.on('llm:stream-end-with-tools', (_, response) => callback(response));
-    },
-    onStreamError: (callback: (error: string) => void) => {
-      ipcRenderer.on('llm:stream-error', (_, error) => callback(error));
-    },
-    removeStreamListeners: () => {
-      ipcRenderer.removeAllListeners('llm:stream-chunk');
-      ipcRenderer.removeAllListeners('llm:stream-end');
-      ipcRenderer.removeAllListeners('llm:stream-end-with-tools');
-      ipcRenderer.removeAllListeners('llm:stream-error');
-    }
   },
   mcp: {
     getTools: () => ipcRenderer.invoke('mcp:get-tools'),

@@ -199,82 +199,16 @@ export class LLMClient {
     }
   }
 
-  async streamResponse(
-    messages: Message[],
-    onChunk: (chunk: string) => void,
-    onComplete: (fullResponse: string) => void,
-    onError: (error: string) => void
-  ): Promise<void> {
-    try {
-      const llmMessages = this.convertToLLMMessages(messages);
-
-      // Set up event listeners
-      this.api.onStreamChunk(onChunk);
-      this.api.onStreamEnd((fullResponse: string) => {
-        // If streaming succeeds, we're connected
-        if (this.status !== 'connected') {
-          this.setStatus('connected');
-        }
-        onComplete(fullResponse);
-      });
-      this.api.onStreamError((error: string) => {
-        this.setStatus('error');
-        this.emit('error', new Error(error));
-        onError(error);
-      });
-
-      const response = (await this.api.streamResponse(llmMessages)) as LLMResponse;
-
-      if (!response.success) {
-        this.setStatus('error');
-        onError(response.error || 'Failed to stream response');
-      }
-    } catch (error) {
+  async streamResponseWithToolCalls(messages: LLMMessage[]): Promise<any> {
+    // This is a placeholder for the new implementation.
+    // The actual implementation will be more complex and will
+    // involve handling the async generator and the final response.
+    const response = await this.api.streamResponseWithTools(messages);
+    if (!response.success) {
       this.setStatus('error');
-      this.emit('error', error as Error);
-      onError(error.message || 'Unknown streaming error');
+      throw new Error(response.error || 'Failed to stream response with tools');
     }
-  }
-
-  async streamResponseWithToolCalls(
-    messages: Message[],
-    onChunk: (chunk: string) => void,
-    onComplete: (response: LLMResponseWithToolCalls) => void,
-    onError: (error: string) => void
-  ): Promise<void> {
-    try {
-      const llmMessages = this.convertToLLMMessages(messages);
-
-      // Set up event listeners
-      this.api.onStreamChunk(onChunk);
-      this.api.onStreamEndWithTools((response: LLMResponseWithToolCalls) => {
-        // If streaming succeeds, we're connected
-        if (this.status !== 'connected') {
-          this.setStatus('connected');
-        }
-        onComplete(response);
-      });
-      this.api.onStreamError((error: string) => {
-        this.setStatus('error');
-        this.emit('error', new Error(error));
-        onError(error);
-      });
-
-      const response = (await this.api.streamResponseWithTools(llmMessages)) as {
-        success: boolean;
-        result?: LLMResponseWithToolCalls;
-        error?: string;
-      };
-
-      if (!response.success) {
-        this.setStatus('error');
-        onError(response.error || 'Failed to stream response with tools');
-      }
-    } catch (error) {
-      this.setStatus('error');
-      this.emit('error', error as Error);
-      onError(error.message || 'Unknown streaming error');
-    }
+    return response;
   }
 
   async getFinalResponseAfterTools(

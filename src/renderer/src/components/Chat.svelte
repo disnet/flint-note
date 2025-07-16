@@ -1,227 +1,26 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import type { Message, SlashCommand, NoteReference } from '../types/chat';
-  import SlashCommands from './SlashCommands.svelte';
+  import { conversationStore } from '../lib/conversation/stores';
+  import { conversationManager } from '../lib/conversation/ConversationManager';
+  import type { NoteReference } from '../types/chat';
   import MessageContent from './MessageContent.svelte';
   import ToolCallWidget from './ToolCallWidget.svelte';
-  import { llmClient } from '../services/llmClient';
-  import { mcpClient } from '../services/mcpClient';
-  import { noteEditorStore } from '../stores/noteEditor.svelte';
-
-  // Initial welcome message - use regular let for now
-  let messages: Message[] = $state([
-    {
-      id: '1',
-      type: 'system',
-      content: "Welcome to Flint! I'm your AI assistant. How can I help you today?",
-      timestamp: new Date()
-    }
-  ]);
+  import SlashCommands from './SlashCommands.svelte';
 
   let inputValue = $state('');
   let chatContainer: HTMLElement;
-  let isTyping = $state(false);
-  let showSlashCommands = $state(false);
-  let slashCommandQuery = $state('');
-  let slashCommandPosition = $state({ x: 0, y: 0 });
-  let slashCommandMaxHeight = $state(400);
   let inputElement: HTMLTextAreaElement;
-  let llmStatus = $state<'connecting' | 'connected' | 'disconnected' | 'error'>(
-    'disconnected'
-  );
-  let streamingResponse = $state('');
-  let isStreaming = $state(false);
-  let isGeneratingFinalResponse = $state(false);
-  let mcpEnabled = $state(false);
-  let mcpTools: Array<{ name: string; description: string }> = [];
 
-  // Store unsubscribe functions for cleanup
-  let unsubscribeFunctions: (() => void)[] = [];
+  const { messages, status, error, streamingResponse, toolCalls } = $derived(conversationStore);
 
   const handleSendMessage = async (): Promise<void> => {
     if (!inputValue.trim()) return;
-
-    const newMessage: Message = {
-      id: `${Date.now()}-user`,
-      type: 'user',
-      content: inputValue,
-      timestamp: new Date()
-    };
-
-    messages = [...messages, newMessage];
     const userInput = inputValue;
     inputValue = '';
-
-    // Reset textarea height
-    if (inputElement) {
-      inputElement.style.height = 'auto';
-      inputElement.style.height = '2.5rem';
-    }
-
-    // Generate LLM response
-    await generateLLMResponse(userInput);
-  };
-
-  const generateLLMResponse = async (currentUserInput: string): Promise<void> => {
-    if (llmStatus !== 'connected') {
-      // Fallback to mock response if LLM is not available
-      const fallbackResponse: Message = {
-        id: `${Date.now()}-fallback`,
-        type: 'agent',
-        content: `I received your message: "${currentUserInput}". LLM is not available (Status: ${llmStatus}). Please check your LLM connection in settings.`,
-        timestamp: new Date()
-      };
-      messages = [...messages, fallbackResponse];
-      return;
-    }
-
-    try {
-      isTyping = true;
-      isStreaming = true;
-      streamingResponse = '';
-
-      // Create conversation history for context
-      const conversationHistory = llmClient.createConversationHistory(messages, 10);
-
-      // Stream the response with tool call support
-      await llmClient.streamResponseWithToolCalls(
-        conversationHistory,
-        (chunk: string) => {
-          streamingResponse += chunk;
-        },
-        async (response) => {
-          // Check if there are tool calls to determine flow
-          if (response.toolCalls && response.toolCalls.length > 0) {
-            // Tool calls detected - preserve initial response, then show tool widget, then final response
-
-            // 1. Stop streaming display and add the initial streaming response as a permanent message
-            isTyping = false;
-            isStreaming = false;
-
-            if (streamingResponse.trim()) {
-              const baseId = Date.now();
-              const initialResponse: Message = {
-                id: `${baseId}-initial`,
-                type: 'agent',
-                content: streamingResponse,
-                timestamp: new Date()
-              };
-              messages = [...messages, initialResponse];
-            }
-
-            // 2. Add tool call message
-            const toolCallBaseId = Date.now();
-            const toolCallMessage: Message = {
-              id: `${toolCallBaseId}-toolcall`,
-              type: 'agent',
-              content: '', // Empty content, just showing tool calls
-              timestamp: new Date(),
-              toolCalls: response.toolCalls
-            };
-            messages = [...messages, toolCallMessage];
-
-            // 3. Show loading state and get final response
-            isGeneratingFinalResponse = true;
-
-            try {
-              // Create the original conversation including the current user input
-              const originalConversation = [
-                ...conversationHistory,
-                {
-                  id: `${Date.now()}-user`,
-                  type: 'user' as const,
-                  content: currentUserInput,
-                  timestamp: new Date()
-                }
-              ];
-
-              const finalResponseContent = await llmClient.getFinalResponseAfterTools(
-                originalConversation,
-                response.toolCalls
-              );
-
-              // 4. Add final response only when ready
-              if (finalResponseContent.trim()) {
-                const finalResponse: Message = {
-                  id: `${Date.now()}-final`,
-                  type: 'agent',
-                  content: finalResponseContent,
-                  timestamp: new Date()
-                };
-                messages = [...messages, finalResponse];
-              }
-
-              // Done with everything
-              isGeneratingFinalResponse = false;
-              streamingResponse = '';
-            } catch (error) {
-              console.error('Error getting final response after tools:', error);
-              const errorResponse: Message = {
-                id: `${Date.now()}-error`,
-                type: 'agent',
-                content: 'I executed the tools successfully, but encountered an error generating the final response.',
-                timestamp: new Date()
-              };
-              messages = [...messages, errorResponse];
-
-              // Done with error
-              isGeneratingFinalResponse = false;
-              streamingResponse = '';
-            }
-          } else {
-            // No tool calls - just add the streaming response as final message
-            if (streamingResponse.trim()) {
-              const finalResponse: Message = {
-                id: `${Date.now()}-response`,
-                type: 'agent',
-                content: streamingResponse,
-                timestamp: new Date()
-              };
-              messages = [...messages, finalResponse];
-            }
-
-            // Done normally
-            isTyping = false;
-            isStreaming = false;
-            streamingResponse = '';
-          }
-        },
-        (error: string) => {
-          // Error occurred
-          console.error('LLM streaming error:', error);
-          const errorResponse: Message = {
-            id: `${Date.now()}-stream-error`,
-            type: 'agent',
-            content: `Sorry, I encountered an error: ${error}`,
-            timestamp: new Date()
-          };
-          messages = [...messages, errorResponse];
-          isTyping = false;
-          isStreaming = false;
-          streamingResponse = '';
-        }
-      );
-    } catch (error) {
-      console.error('Error generating LLM response:', error);
-      const errorResponse: Message = {
-        id: `${Date.now()}-catch-error`,
-        type: 'agent',
-        content: `Sorry, I encountered an error: ${error.message}`,
-        timestamp: new Date()
-      };
-      messages = [...messages, errorResponse];
-      isTyping = false;
-      isStreaming = false;
-      streamingResponse = '';
-    }
+    await conversationManager.sendMessage(userInput);
   };
 
   const handleKeyDown = (event: KeyboardEvent): void => {
-    if (showSlashCommands) {
-      // Let SlashCommands component handle navigation
-      return;
-    }
-
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
       handleSendMessage();
@@ -231,304 +30,26 @@
   const handleInput = (event: Event): void => {
     const target = event.target as HTMLTextAreaElement;
     inputValue = target.value;
-
-    // Auto-resize textarea
     target.style.height = 'auto';
-    target.style.height = Math.min(target.scrollHeight, 8 * 24) + 'px'; // Max 8 lines
-
-    // Check for slash command trigger
-    const cursorPosition = target.selectionStart;
-    const textBeforeCursor = inputValue.substring(0, cursorPosition);
-    const lastSlashIndex = textBeforeCursor.lastIndexOf('/');
-
-    if (lastSlashIndex !== -1) {
-      const textAfterSlash = textBeforeCursor.substring(lastSlashIndex + 1);
-      // Only show commands if slash is at start or after whitespace
-      const charBeforeSlash =
-        lastSlashIndex === 0 ? ' ' : textBeforeCursor[lastSlashIndex - 1];
-
-      if (charBeforeSlash === ' ' || lastSlashIndex === 0) {
-        if (!textAfterSlash.includes(' ') || textAfterSlash.trim() === '') {
-          showSlashCommands = true;
-          slashCommandQuery = textAfterSlash;
-          updateSlashCommandPosition(target);
-          return;
-        }
-      }
-    }
-
-    // Hide slash commands if not triggered
-    showSlashCommands = false;
-  };
-
-  const updateSlashCommandPosition = (textarea: HTMLTextAreaElement): void => {
-    const rect = textarea.getBoundingClientRect();
-    const viewportHeight = window.innerHeight;
-
-    // Calculate available space above and below the textarea
-    const spaceAbove = rect.top;
-    const spaceBelow = viewportHeight - rect.bottom;
-
-    // Preferred command palette height (from CSS max-height)
-    const preferredHeight = 400;
-    const minHeight = 200;
-    const padding = 20;
-
-    // Check if we have enough space above for the full palette
-    if (spaceAbove >= preferredHeight + padding) {
-      // Position above with full height
-      slashCommandPosition = {
-        x: rect.left,
-        y: rect.top - preferredHeight - padding
-      };
-      slashCommandMaxHeight = preferredHeight;
-    } else if (spaceAbove >= minHeight + padding) {
-      // Position above with reduced height
-      const availableHeight = spaceAbove - padding;
-      slashCommandPosition = {
-        x: rect.left,
-        y: padding
-      };
-      slashCommandMaxHeight = availableHeight;
-    } else {
-      // Not enough space above, position below if there's more space there
-      if (spaceBelow > spaceAbove) {
-        slashCommandPosition = {
-          x: rect.left,
-          y: rect.bottom + 10
-        };
-        slashCommandMaxHeight = Math.min(spaceBelow - 20, preferredHeight);
-      } else {
-        // Position at top of viewport with available height
-        const availableHeight = spaceAbove - padding;
-        slashCommandPosition = {
-          x: rect.left,
-          y: padding
-        };
-        slashCommandMaxHeight = Math.max(availableHeight, minHeight);
-      }
-    }
-  };
-
-  const handleSlashCommand = (command: SlashCommand, args: string[]): void => {
-    // Remove the slash command from input
-    const slashIndex = inputValue.lastIndexOf('/');
-    if (slashIndex !== -1) {
-      inputValue = inputValue.substring(0, slashIndex);
-    }
-
-    // Execute the command
-    executeSlashCommand(command, args);
-    showSlashCommands = false;
-  };
-
-  const executeSlashCommand = async (
-    command: SlashCommand,
-    args: string[]
-  ): Promise<void> => {
-    // Create a system message showing the command execution
-    const commandMessage: Message = {
-      id: `${Date.now()}-command`,
-      type: 'system',
-      content: `Executed command: /${command.name}${args.length > 0 ? ' ' + args.join(' ') : ''}`,
-      timestamp: new Date()
-    };
-
-    messages = [...messages, commandMessage];
-
-    // Generate contextual response using LLM
-    const commandPrompt = `User executed the command: /${command.name}${args.length > 0 ? ' ' + args.join(' ') : ''}. ${command.description}. Please provide a helpful response for this command.`;
-
-    if (llmStatus === 'connected') {
-      await generateLLMResponse(commandPrompt);
-    } else {
-      // Fallback to mock responses
-      setTimeout(() => {
-        const response: Message = {
-          id: (Date.now() + 1).toString(),
-          type: 'agent',
-          content: getCommandResponse(command, args),
-          timestamp: new Date()
-        };
-        messages = [...messages, response];
-      }, 1000);
-    }
-  };
-
-  const getCommandResponse = (command: SlashCommand, args: string[]): string => {
-    const argText = args.length > 0 ? args.join(' ') : '';
-
-    switch (command.name) {
-      case 'create':
-        return `I've created a new note${argText ? ` about "${argText}"` : ''}. The [[${argText || 'New Note'}]] is now available in your vault. Would you like me to add any specific sections or content?`;
-
-      case 'find':
-        return `I found several notes${argText ? ` related to "${argText}"` : ''}:\n\n• [[Project Planning Template]]\n• [[Daily Standup Notes]]\n• [[Meeting with Design Team]]\n\nWhich one would you like to open?`;
-
-      case 'update':
-        return `I've updated the [[${argText || 'selected note'}]] with your recent changes. The modifications have been saved and are ready for review.`;
-
-      case 'switch-vault':
-        return `Switched to vault: ${argText || 'Personal Notes'}. You now have access to all notes in this vault. Current vault contains 47 notes across 8 categories.`;
-
-      case 'list-vaults':
-        return `Available vaults:\n\n• **Personal Notes** (47 notes) - *Current*\n• **Work Projects** (23 notes)\n• **Research** (15 notes)\n• **Archive** (102 notes)\n\nUse \`/switch-vault [name]\` to change vaults.`;
-
-      case 'weekly-review':
-        return `I've generated your weekly review template. Here's what I found:\n\n**This Week's Progress:**\n• Completed 5 tasks from [[Project Planning Template]]\n• Updated [[Daily Standup Notes]] daily\n• Attended [[Meeting with Design Team]]\n\n**Next Week's Goals:**\n• Finalize project timeline\n• Review [[Feature Ideas Brainstorm]]\n• Update [[API Documentation]]`;
-
-      case 'brainstorm':
-        return `Let's start brainstorming${argText ? ` about "${argText}"` : ''}! I'll help you generate ideas and organize them.\n\n**Initial thoughts:**\n• What are the core objectives?\n• Who are the stakeholders?\n• What constraints should we consider?\n\nI can create a [[Feature Ideas Brainstorm]] document to track our session.`;
-
-      case 'weather':
-        return `Getting current weather for ${argText || 'your location'}...\n\nI'll use the weather tool to get real-time weather information. Please wait a moment while I fetch the data.`;
-
-      case 'forecast':
-        return `Getting weather forecast for ${argText || 'your location'}...\n\nI'll use the forecast tool to get the upcoming weather predictions. Please wait a moment while I fetch the data.`;
-
-      case 'help':
-        return `Here are the available commands:\n\n**Note Commands:**\n• \`/create [title]\` - Create a new note\n• \`/find [query]\` - Search for notes\n• \`/update [title]\` - Update existing note\n\n**Vault Commands:**\n• \`/switch-vault [name]\` - Switch vaults\n• \`/list-vaults\` - Show all vaults\n\n**Tool Commands:**\n• \`/weather [location]\` - Get current weather\n• \`/forecast [location]\` - Get weather forecast\n\n**Templates:**\n• \`/weekly-review\` - Generate weekly review\n• \`/brainstorm [topic]\` - Start brainstorming session\n\nType \`/\` to see all commands with autocomplete!`;
-
-      default:
-        return `Command /${command.name} executed successfully. This is a mock response for the ${command.category} command.`;
-    }
-  };
-
-  const closeSlashCommands = (): void => {
-    showSlashCommands = false;
+    target.style.height = Math.min(target.scrollHeight, 8 * 24) + 'px';
   };
 
   const handleNoteOpen = (note: NoteReference): void => {
     console.log('Note clicked:', note);
-
-    // Create a system message showing the note click
-    const noteMessage: Message = {
-      id: `${Date.now()}-note`,
-      type: 'system',
-      content: `Opening note: ${note.title}${note.type ? ` (${note.type})` : ''}`,
-      timestamp: new Date()
-    };
-
-    messages = [...messages, noteMessage];
-
-    try {
-      // Open the note editor
-      console.log('Attempting to open note in editor:', note);
-      noteEditorStore.openNote(note);
-    } catch (error) {
-      console.error('Error opening note:', error);
-      const errorMessage: Message = {
-        id: `${Date.now()}-note-error`,
-        type: 'system',
-        content: `Error opening note: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        timestamp: new Date()
-      };
-      messages = [...messages, errorMessage];
-    }
+    // Implement note opening logic here
   };
 
-  // Auto-scroll to bottom when messages or streaming state changes
-  let previousMessagesLength = 0;
-  let previousStreamingState = false;
-
+  // Auto-scroll to bottom
   $effect(() => {
     if (chatContainer) {
-      const messagesChanged = messages.length !== previousMessagesLength;
-      const streamingChanged = isStreaming !== previousStreamingState;
-
-      if (messagesChanged || streamingChanged) {
-        setTimeout(() => {
-          chatContainer.scrollTop = chatContainer.scrollHeight;
-        }, 100);
-      }
-
-      previousMessagesLength = messages.length;
-      previousStreamingState = isStreaming;
+      setTimeout(() => {
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+      }, 100);
     }
   });
 
-  onMount(async () => {
-    // Focus input on mount
+  onMount(() => {
     if (inputElement) inputElement.focus();
-
-    // Subscribe to LLM client events
-    const unsubscribeReady = llmClient.on('ready', () => {
-      console.log('✅ LLM client ready');
-      llmStatus = 'connected';
-    });
-
-    const unsubscribeError = llmClient.on('error', (error) => {
-      console.error('❌ LLM client error:', error);
-      llmStatus = 'error';
-    });
-
-    const unsubscribeStatusChanged = llmClient.on('statusChanged', (status) => {
-      console.log('🔄 LLM client status changed:', status);
-      llmStatus = status;
-    });
-
-    const unsubscribeConnectionTest = llmClient.on('connectionTest', (connected) => {
-      console.log(`🔍 LLM connection test: ${connected ? 'connected' : 'disconnected'}`);
-      llmStatus = connected ? 'connected' : 'disconnected';
-    });
-
-    // Store unsubscribe functions for cleanup
-    unsubscribeFunctions = [
-      unsubscribeReady,
-      unsubscribeError,
-      unsubscribeStatusChanged,
-      unsubscribeConnectionTest
-    ];
-
-    // Check if already initialized
-    if (llmClient.isReady()) {
-      llmStatus = 'connected';
-    } else {
-      // Initialize LLM client (this will trigger events)
-      try {
-        await llmClient.initialize();
-      } catch (error) {
-        console.error('Failed to initialize LLM client:', error);
-        // Error handling is done through events
-      }
-    }
-
-    // Check MCP status
-    try {
-      mcpEnabled = await mcpClient.isEnabled();
-      if (mcpEnabled) {
-        mcpTools = await mcpClient.getTools();
-        console.log('MCP tools available:', mcpTools.length);
-        console.log(mcpTools);
-      }
-    } catch (error) {
-      console.error('Error checking MCP status:', error);
-      mcpEnabled = false;
-    }
-
-    // Add window resize listener to update slash command position
-    const handleResize = (): void => {
-      if (showSlashCommands && inputElement) {
-        updateSlashCommandPosition(inputElement);
-      }
-    };
-
-    window.addEventListener('resize', handleResize);
-
-    // Cleanup on unmount
-    return () => {
-      window.removeEventListener('resize', handleResize);
-    };
-  });
-
-  onDestroy(() => {
-    // Clean up streaming listeners
-    if (llmClient) {
-      llmClient.stopStreaming();
-    }
-
-    // Clean up event subscriptions
-    unsubscribeFunctions.forEach((unsubscribe) => unsubscribe());
   });
 </script>
 
@@ -557,29 +78,34 @@
       </div>
     {/each}
 
-    {#if isTyping}
+    {#if status === 'streaming' && streamingResponse}
       <div class="message message-agent">
         <div class="message-content">
-          {#if isStreaming && streamingResponse}
-            <MessageContent
-              content={streamingResponse}
-              messageType="agent"
-              openNote={handleNoteOpen}
-            />
-          {:else}
-            <div class="typing-indicator">
-              <div class="typing-dots">
-                <span></span>
-                <span></span>
-                <span></span>
-              </div>
-            </div>
-          {/if}
+          <MessageContent
+            content={streamingResponse}
+            messageType="agent"
+            openNote={handleNoteOpen}
+          />
         </div>
       </div>
     {/if}
 
-    {#if isGeneratingFinalResponse}
+    {#if status === 'awaitingToolResult'}
+      <div class="message message-agent">
+        <div class="message-content">
+          <div class="generating-response-indicator">
+            <div class="typing-dots">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+            <span class="generating-text">Executing tools...</span>
+          </div>
+        </div>
+      </div>
+    {/if}
+
+    {#if status === 'generatingFinalResponse'}
       <div class="message message-agent">
         <div class="message-content">
           <div class="generating-response-indicator">
@@ -593,15 +119,16 @@
         </div>
       </div>
     {/if}
-  </div>
 
-  <!-- MCP Status Indicator -->
-  <!-- {#if mcpEnabled && mcpTools.length > 0}
-    <div class="mcp-status">
-      <span class="mcp-indicator">🔧</span>
-      <span class="mcp-text">MCP Tools: {mcpTools.length} available</span>
-    </div>
-  {/if} -->
+    {#if status === 'error'}
+      <div class="message message-system">
+        <div class="message-content">
+          <p>Sorry, an error occurred:</p>
+          <p>{error}</p>
+        </div>
+      </div>
+    {/if}
+  </div>
 
   <div class="input-area">
     <div class="input-wrapper">
@@ -611,18 +138,15 @@
         bind:value={inputValue}
         onkeydown={handleKeyDown}
         oninput={handleInput}
-        placeholder="Type your message... (Press Enter to send, Shift+Enter for new line, / for commands){llmStatus ===
-        'connected'
-          ? ''
-          : ' - LLM offline'}"
+        placeholder="Type your message..."
         rows="1"
         class="chat-input"
         style="height: auto; min-height: 2.5rem;"
-        disabled={isStreaming || isGeneratingFinalResponse}
+        disabled={status !== 'idle' && status !== 'error'}
       ></textarea>
       <button
         onclick={handleSendMessage}
-        disabled={!inputValue.trim() || isStreaming || isGeneratingFinalResponse}
+        disabled={!inputValue.trim() || (status !== 'idle' && status !== 'error')}
         class="send-button"
         aria-label="Send message"
       >
@@ -641,15 +165,6 @@
     </div>
   </div>
 </div>
-
-<SlashCommands
-  isOpen={showSlashCommands}
-  query={slashCommandQuery}
-  position={slashCommandPosition}
-  maxHeight={slashCommandMaxHeight}
-  command={handleSlashCommand}
-  close={closeSlashCommands}
-/>
 
 <style>
   .chat-container {
