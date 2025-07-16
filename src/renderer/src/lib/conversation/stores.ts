@@ -4,6 +4,7 @@ import type { Message } from '../../types/chat';
 import type { ToolCallInfo } from '../../../../shared/types';
 
 export type ConversationStatus =
+  | 'initializing'
   | 'idle'
   | 'streaming'
   | 'awaitingToolResult'
@@ -27,7 +28,7 @@ export const conversationStore = writable<ConversationState>({
       timestamp: new Date()
     }
   ],
-  status: 'idle',
+  status: 'initializing',
   error: null,
   streamingResponse: '',
   toolCalls: []

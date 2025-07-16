@@ -164,6 +164,16 @@
         </svg>
       </button>
     </div>
+    {#if status === 'initializing'}
+      <div class="initializing-indicator">
+        <div class="typing-dots">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+        <span class="generating-text">Initializing...</span>
+      </div>
+    {/if}
   </div>
 </div>
 

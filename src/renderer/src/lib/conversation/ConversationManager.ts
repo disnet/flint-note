@@ -10,6 +10,7 @@ export class ConversationManager {
   async initialize(): Promise<void> {
     await llmClient.initialize();
     await mcpClient.initialize();
+    conversationStore.update((state) => ({ ...state, status: 'idle' }));
   }
 
   async sendMessage(userInput: string): Promise<void> {
