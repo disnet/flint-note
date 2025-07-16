@@ -11,7 +11,8 @@
   let chatContainer: HTMLElement;
   let inputElement: HTMLTextAreaElement;
 
-  const { messages, status, error, streamingResponse, toolCalls } = $derived(conversationStore);
+  const { messages, status, error, streamingResponse, toolCalls } =
+    $derived(conversationStore);
 
   const handleSendMessage = async (): Promise<void> => {
     if (!inputValue.trim()) return;
@@ -54,7 +55,11 @@
       await conversationManager.initialize();
     } catch (e) {
       console.error('Error during initialization:', e);
-      conversationStore.update(state => ({ ...state, status: 'error', error: e.message }));
+      conversationStore.update((state) => ({
+        ...state,
+        status: 'error',
+        error: e.message
+      }));
     }
   });
 </script>
@@ -195,6 +200,7 @@
     overflow-y: auto;
     padding: 1rem;
     scroll-behavior: smooth;
+    min-height: 0; /* Prevent flexbox overflow */
   }
 
   .message {
