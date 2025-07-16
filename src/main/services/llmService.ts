@@ -19,6 +19,7 @@ import type {
   MCPResource,
   MCPResourceContent
 } from '../../shared/types';
+import { BaseLanguageModelInput } from '@langchain/core/language_models/base';
 
 export class LLMService {
   private llm: ChatOpenAI | any;
@@ -560,10 +561,7 @@ export class LLMService {
 
         if (toolCalls.length > 0) {
           console.log('🔧 Handling tool calls:', toolCalls);
-          toolCallInfos = await this.handleToolCallsWithInfo(
-            responseMessage,
-            langchainMessages
-          );
+          toolCallInfos = await this.handleToolCallsWithInfo(responseMessage);
 
           return {
             success: true,
@@ -628,7 +626,7 @@ export class LLMService {
         console.log('🔧 Full tool call structure:', tc);
 
         // Handle different tool call formats
-        let toolName = tc.name || tc.function?.name || 'unknown_tool';
+        const toolName = tc.name || tc.function?.name || 'unknown_tool';
         let toolArgs = tc.args || tc.function?.arguments || {};
 
         // Handle invalid tool calls with string args
@@ -850,10 +848,7 @@ Stack: ${error instanceof Error ? error.stack : 'No stack'}
     }
   }
 
-  private async handleToolCallsWithInfo(
-    response: any,
-    _previousMessages: BaseMessage[]
-  ): Promise<ToolCallInfo[]> {
+  private async handleToolCallsWithInfo(response: any): Promise<ToolCallInfo[]> {
     console.log('🔧 handleToolCallsWithInfo called');
 
     if (!this.mcpToolsEnabled || !mcpService.isReady()) {
@@ -876,7 +871,7 @@ Stack: ${error instanceof Error ? error.stack : 'No stack'}
       const toolCallsWithIds = allToolCalls.map((tc: any, index: number) => {
         const toolCallId = tc.id || `tool_call_${Date.now()}_${index}`;
 
-        let toolName = tc.name || tc.function?.name || 'unknown_tool';
+        const toolName = tc.name || tc.function?.name || 'unknown_tool';
         let toolArgs = tc.args || tc.function?.arguments || {};
 
         // Handle invalid tool calls with string args
@@ -989,7 +984,7 @@ Stack: ${error instanceof Error ? error.stack : 'No stack'}
       // Generate proper IDs for tool calls that don't have them
       const toolCallsWithIds = allToolCalls.map((tc: any, index: number) => {
         const toolCallId = tc.id || `tool_call_${Date.now()}_${index}`;
-        let toolName = tc.name || tc.function?.name || 'unknown_tool';
+        const toolName = tc.name || tc.function?.name || 'unknown_tool';
         let toolArgs = tc.args || tc.function?.arguments || {};
 
         if (typeof toolArgs === 'string') {
@@ -1110,7 +1105,7 @@ Stack: ${error instanceof Error ? error.stack : 'No stack'}
         : 'I attempted to use tools to help you, but encountered some issues.';
 
       // Create a conversation without tool calls to prevent loops
-      const freshConversation = [
+      const freshConversation: BaseLanguageModelInput = [
         originalMessages[0], // Keep system message
         new HumanMessage(
           String(
