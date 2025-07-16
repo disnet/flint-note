@@ -1,18 +1,16 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount } from 'svelte';
   import { conversationStore } from '../lib/conversation/stores';
   import { conversationManager } from '../lib/conversation/ConversationManager';
   import type { NoteReference } from '../types/chat';
   import MessageContent from './MessageContent.svelte';
   import ToolCallWidget from './ToolCallWidget.svelte';
-  import SlashCommands from './SlashCommands.svelte';
 
   let inputValue = $state('');
   let chatContainer: HTMLElement;
   let inputElement: HTMLTextAreaElement;
 
   const storeValue = $derived($conversationStore);
-  const { messages, status, error, streamingResponse, toolCalls } = storeValue;
 
   const handleSendMessage = async (): Promise<void> => {
     if (!inputValue.trim()) return;
@@ -77,7 +75,7 @@
 
 <div class="chat-container">
   <div class="messages-container" bind:this={chatContainer}>
-    {#each messages as message (message.id)}
+    {#each storeValue.messages as message (message.id)}
       <div class="message message-{message.type}">
         {#if message.content}
           <div class="message-content">
@@ -100,11 +98,11 @@
       </div>
     {/each}
 
-    {#if status === 'streaming' && streamingResponse}
+    {#if storeValue.status === 'streaming' && storeValue.streamingResponse}
       <div class="message message-agent">
         <div class="message-content">
           <MessageContent
-            content={streamingResponse}
+            content={storeValue.streamingResponse}
             messageType="agent"
             openNote={handleNoteOpen}
           />
@@ -112,7 +110,7 @@
       </div>
     {/if}
 
-    {#if status === 'awaitingToolResult'}
+    {#if storeValue.status === 'awaitingToolResult'}
       <div class="message message-agent">
         <div class="message-content">
           <div class="generating-response-indicator">
@@ -127,7 +125,7 @@
       </div>
     {/if}
 
-    {#if status === 'generatingFinalResponse'}
+    {#if storeValue.status === 'generatingFinalResponse'}
       <div class="message message-agent">
         <div class="message-content">
           <div class="generating-response-indicator">
@@ -142,11 +140,11 @@
       </div>
     {/if}
 
-    {#if status === 'error'}
+    {#if storeValue.status === 'error'}
       <div class="message message-system">
         <div class="message-content">
           <p>Sorry, an error occurred:</p>
-          <p>{error}</p>
+          <p>{storeValue.error}</p>
         </div>
       </div>
     {/if}
@@ -164,11 +162,12 @@
         rows="1"
         class="chat-input"
         style="height: auto; min-height: 2.5rem;"
-        disabled={status !== 'idle' && status !== 'error'}
+        disabled={storeValue.status !== 'idle' && storeValue.status !== 'error'}
       ></textarea>
       <button
         onclick={handleSendMessage}
-        disabled={!inputValue.trim() || (status !== 'idle' && status !== 'error')}
+        disabled={!inputValue.trim() ||
+          (storeValue.status !== 'idle' && storeValue.status !== 'error')}
         class="send-button"
         aria-label="Send message"
       >
@@ -185,7 +184,7 @@
         </svg>
       </button>
     </div>
-    {#if status === 'initializing'}
+    {#if storeValue.status === 'initializing'}
       <div class="initializing-indicator">
         <div class="typing-dots">
           <span></span>
