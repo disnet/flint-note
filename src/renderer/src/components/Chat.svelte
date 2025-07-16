@@ -11,14 +11,23 @@
   let chatContainer: HTMLElement;
   let inputElement: HTMLTextAreaElement;
 
-  const { messages, status, error, streamingResponse, toolCalls } =
-    $derived(conversationStore);
+  const storeValue = $derived($conversationStore);
+  const { messages, status, error, streamingResponse, toolCalls } = storeValue;
 
   const handleSendMessage = async (): Promise<void> => {
     if (!inputValue.trim()) return;
     const userInput = inputValue;
     inputValue = '';
-    await conversationManager.sendMessage(userInput);
+    try {
+      await conversationManager.sendMessage(userInput);
+    } catch (error) {
+      console.error('Error sending message:', error);
+      conversationStore.update((state) => ({
+        ...state,
+        status: 'error',
+        error: `Failed to send message: ${error.message || 'Unknown error'}`
+      }));
+    }
   };
 
   const handleKeyDown = (event: KeyboardEvent): void => {
@@ -50,7 +59,9 @@
   });
 
   onMount(async () => {
-    if (inputElement) inputElement.focus();
+    if (inputElement) {
+      inputElement.focus();
+    }
     try {
       await conversationManager.initialize();
     } catch (e) {
@@ -191,7 +202,7 @@
   .chat-container {
     display: flex;
     flex-direction: column;
-    height: 100vh;
+    height: 100%;
     max-width: 100%;
   }
 
@@ -316,6 +327,11 @@
     padding: 1rem;
     border-top: 1px solid #dee2e6;
     background-color: white;
+    color: #333333;
+    min-height: 80px;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 10;
   }
 
   .input-wrapper {
@@ -339,6 +355,8 @@
     overflow-y: auto;
     outline: none;
     transition: border-color 0.2s;
+    background-color: white;
+    color: #333333;
   }
 
   .chat-input:focus {

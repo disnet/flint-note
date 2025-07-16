@@ -1,4 +1,3 @@
-
 import { get } from 'svelte/store';
 import { conversationStore } from './stores';
 import { llmClient } from '../../services/llmClient';
@@ -8,9 +7,37 @@ import type { LLMMessage } from '../../../../shared/types';
 
 export class ConversationManager {
   async initialize(): Promise<void> {
-    await llmClient.initialize();
-    await mcpClient.initialize();
-    conversationStore.update((state) => ({ ...state, status: 'idle' }));
+    try {
+      console.log('🔄 Initializing conversation manager...');
+
+      // Try to initialize LLM client
+      try {
+        await llmClient.initialize();
+        console.log('✅ LLM client initialized');
+      } catch (error) {
+        console.warn('⚠️ LLM client initialization failed:', error);
+      }
+
+      // Try to initialize MCP client
+      try {
+        await mcpClient.initialize();
+        console.log('✅ MCP client initialized');
+      } catch (error) {
+        console.warn('⚠️ MCP client initialization failed:', error);
+      }
+
+      // Always set status to idle to enable the input area
+      conversationStore.update((state) => ({ ...state, status: 'idle' }));
+      console.log('✅ Conversation manager initialized');
+    } catch (error) {
+      console.error('❌ Conversation manager initialization failed:', error);
+      // Still set to idle to allow user interaction
+      conversationStore.update((state) => ({
+        ...state,
+        status: 'idle',
+        error: 'Some services failed to initialize, but chat is still available'
+      }));
+    }
   }
 
   async sendMessage(userInput: string): Promise<void> {
@@ -83,7 +110,8 @@ export class ConversationManager {
       conversationStore.update((state) => ({
         ...state,
         status: 'error',
-        error: 'I executed the tools successfully, but encountered an error generating the final response.'
+        error:
+          'I executed the tools successfully, but encountered an error generating the final response.'
       }));
     }
   }

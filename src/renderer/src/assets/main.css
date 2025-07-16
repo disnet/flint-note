@@ -13,8 +13,8 @@ body {
     'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #ffffff;
-  color: #333333;
+  background-color: #ffffff !important;
+  color: #333333 !important;
   overflow: hidden;
 }
 
@@ -23,6 +23,8 @@ body {
   width: 100vw;
   display: flex;
   flex-direction: column;
+  background-color: #ffffff !important;
+  color: #333333 !important;
 }
 
 /* Button reset */
@@ -36,6 +38,7 @@ button {
   background: none;
   cursor: pointer;
   outline: none;
+  color: inherit;
 }
 
 /* Input reset */
@@ -49,6 +52,7 @@ textarea {
   border: none;
   background: none;
   outline: none;
+  color: inherit;
 }
 
 /* Scrollbar styles */

@@ -49,10 +49,12 @@
   </main>
 
   <!-- Note Editor Layout -->
-  <NoteEditorLayout
-    note={noteEditorStore.activeNote}
-    onClose={() => noteEditorStore.closeNote()}
-  />
+  {#if noteEditorStore.isOpen}
+    <NoteEditorLayout
+      note={noteEditorStore.activeNote}
+      onClose={() => noteEditorStore.closeNote()}
+    />
+  {/if}
 </div>
 
 <style>
@@ -99,6 +101,8 @@
     flex: 1;
     overflow: hidden;
     transition: margin-right 0.3s ease;
+    display: flex;
+    flex-direction: column;
   }
 
   .main-content.with-sidebar {
