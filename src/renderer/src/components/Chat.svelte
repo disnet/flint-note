@@ -48,9 +48,14 @@
     }
   });
 
-  onMount(() => {
+  onMount(async () => {
     if (inputElement) inputElement.focus();
-    conversationManager.initialize();
+    try {
+      await conversationManager.initialize();
+    } catch (e) {
+      console.error('Error during initialization:', e);
+      conversationStore.update(state => ({ ...state, status: 'error', error: e.message }));
+    }
   });
 </script>
 

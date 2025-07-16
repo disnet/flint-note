@@ -48,6 +48,7 @@ export class MCPClient {
       this.setStatus('error');
       this.isInitialized = true;
       this.emit('error', error as Error);
+      throw error; // Re-throw the error to be caught by the caller
     }
   }
 
