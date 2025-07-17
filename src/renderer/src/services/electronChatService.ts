@@ -1,12 +1,24 @@
+import type { ApiCreateResult, ApiNoteResult } from '@flint-note/server';
+import type { ChatService, NoteService } from './types';
 import type {
-  ChatService,
-  NoteService,
-  Note,
-  SearchResult,
-  NoteListItem,
-  NoteType,
-  Vault
-} from './types';
+  ApiBacklinksResponse,
+  ApiBrokenLinksResponse,
+  ApiCreateNoteTypeResult,
+  ApiDeleteNoteResult,
+  ApiNoteLinkResponse,
+  ApiNoteListItem,
+  ApiNoteTypeListItem,
+  ApiRecentResource,
+  ApiRenameNoteResult,
+  ApiSearchResultType,
+  ApiStatsResource,
+  ApiTypesResource,
+  ApiUpdateResult,
+  ApiVaultInfo,
+  ApiVaultListResponse,
+  ApiVaultOperationResult
+} from '@flint-note/server/dist/api/types';
+import type { MetadataSchema } from '@flint-note/server/dist/core/metadata-schema';
 
 export class ElectronChatService implements ChatService, NoteService {
   async sendMessage(text: string): Promise<string> {
@@ -24,7 +36,7 @@ export class ElectronChatService implements ChatService, NoteService {
     identifier: string,
     content: string,
     vaultId?: string
-  ): Promise<any> {
+  ): Promise<ApiCreateResult> {
     try {
       return await window.api.createNote(type, identifier, content, vaultId);
     } catch (error) {
@@ -33,7 +45,7 @@ export class ElectronChatService implements ChatService, NoteService {
     }
   }
 
-  async getNote(identifier: string, vaultId?: string): Promise<Note | null> {
+  async getNote(identifier: string, vaultId?: string): Promise<ApiNoteResult> {
     try {
       return await window.api.getNote(identifier, vaultId);
     } catch (error) {
@@ -42,7 +54,11 @@ export class ElectronChatService implements ChatService, NoteService {
     }
   }
 
-  async updateNote(identifier: string, content: string, vaultId?: string): Promise<any> {
+  async updateNote(
+    identifier: string,
+    content: string,
+    vaultId?: string
+  ): Promise<ApiUpdateResult> {
     try {
       return await window.api.updateNote(identifier, content, vaultId);
     } catch (error) {
@@ -51,7 +67,7 @@ export class ElectronChatService implements ChatService, NoteService {
     }
   }
 
-  async deleteNote(identifier: string, vaultId?: string): Promise<any> {
+  async deleteNote(identifier: string, vaultId?: string): Promise<ApiDeleteNoteResult> {
     try {
       return await window.api.deleteNote(identifier, vaultId);
     } catch (error) {
@@ -64,7 +80,7 @@ export class ElectronChatService implements ChatService, NoteService {
     identifier: string,
     newIdentifier: string,
     vaultId?: string
-  ): Promise<any> {
+  ): Promise<ApiRenameNoteResult> {
     try {
       return await window.api.renameNote(identifier, newIdentifier, vaultId);
     } catch (error) {
@@ -78,7 +94,7 @@ export class ElectronChatService implements ChatService, NoteService {
     query: string,
     vaultId?: string,
     limit?: number
-  ): Promise<SearchResult> {
+  ): Promise<ApiSearchResultType> {
     try {
       return await window.api.searchNotes(query, vaultId, limit);
     } catch (error) {
@@ -95,7 +111,7 @@ export class ElectronChatService implements ChatService, NoteService {
     dateTo?: string;
     limit?: number;
     vaultId?: string;
-  }): Promise<SearchResult> {
+  }): Promise<ApiSearchResultType> {
     try {
       return await window.api.searchNotesAdvanced(params);
     } catch (error) {
@@ -105,7 +121,7 @@ export class ElectronChatService implements ChatService, NoteService {
   }
 
   // Note type operations
-  async listNoteTypes(vaultId?: string): Promise<NoteType[]> {
+  async listNoteTypes(vaultId?: string): Promise<ApiNoteTypeListItem[]> {
     try {
       return await window.api.listNoteTypes(vaultId);
     } catch (error) {
@@ -118,9 +134,9 @@ export class ElectronChatService implements ChatService, NoteService {
     typeName: string;
     description: string;
     agentInstructions?: string[];
-    metadataSchema?: any;
+    metadataSchema?: MetadataSchema;
     vaultId?: string;
-  }): Promise<any> {
+  }): Promise<ApiCreateNoteTypeResult> {
     try {
       return await window.api.createNoteType(params);
     } catch (error) {
@@ -133,7 +149,7 @@ export class ElectronChatService implements ChatService, NoteService {
     type: string,
     vaultId?: string,
     limit?: number
-  ): Promise<NoteListItem[]> {
+  ): Promise<ApiNoteListItem[]> {
     try {
       return await window.api.listNotesByType(type, vaultId, limit);
     } catch (error) {
@@ -143,7 +159,7 @@ export class ElectronChatService implements ChatService, NoteService {
   }
 
   // Vault operations
-  async listVaults(): Promise<Vault[]> {
+  async listVaults(): Promise<ApiVaultListResponse> {
     try {
       return await window.api.listVaults();
     } catch (error) {
@@ -152,7 +168,7 @@ export class ElectronChatService implements ChatService, NoteService {
     }
   }
 
-  async getCurrentVault(): Promise<Vault> {
+  async getCurrentVault(): Promise<ApiVaultInfo> {
     try {
       return await window.api.getCurrentVault();
     } catch (error) {
@@ -161,7 +177,11 @@ export class ElectronChatService implements ChatService, NoteService {
     }
   }
 
-  async createVault(name: string, path: string, description?: string): Promise<any> {
+  async createVault(
+    name: string,
+    path: string,
+    description?: string
+  ): Promise<ApiVaultOperationResult> {
     try {
       return await window.api.createVault(name, path, description);
     } catch (error) {
@@ -170,7 +190,7 @@ export class ElectronChatService implements ChatService, NoteService {
     }
   }
 
-  async switchVault(vaultId: string): Promise<any> {
+  async switchVault(vaultId: string): Promise<ApiVaultOperationResult> {
     try {
       return await window.api.switchVault(vaultId);
     } catch (error) {
@@ -180,7 +200,7 @@ export class ElectronChatService implements ChatService, NoteService {
   }
 
   // Link operations
-  async getNoteLinks(identifier: string, vaultId?: string): Promise<any> {
+  async getNoteLinks(identifier: string, vaultId?: string): Promise<ApiNoteLinkResponse> {
     try {
       return await window.api.getNoteLinks(identifier, vaultId);
     } catch (error) {
@@ -189,7 +209,10 @@ export class ElectronChatService implements ChatService, NoteService {
     }
   }
 
-  async getBacklinks(identifier: string, vaultId?: string): Promise<any> {
+  async getBacklinks(
+    identifier: string,
+    vaultId?: string
+  ): Promise<ApiBacklinksResponse> {
     try {
       return await window.api.getBacklinks(identifier, vaultId);
     } catch (error) {
@@ -198,7 +221,7 @@ export class ElectronChatService implements ChatService, NoteService {
     }
   }
 
-  async findBrokenLinks(vaultId?: string): Promise<any> {
+  async findBrokenLinks(vaultId?: string): Promise<ApiBrokenLinksResponse> {
     try {
       return await window.api.findBrokenLinks(vaultId);
     } catch (error) {
@@ -208,7 +231,7 @@ export class ElectronChatService implements ChatService, NoteService {
   }
 
   // Resource operations (MCP-style)
-  async getTypesResource(): Promise<any> {
+  async getTypesResource(): Promise<ApiTypesResource> {
     try {
       return await window.api.getTypesResource();
     } catch (error) {
@@ -217,7 +240,7 @@ export class ElectronChatService implements ChatService, NoteService {
     }
   }
 
-  async getRecentResource(): Promise<any> {
+  async getRecentResource(): Promise<ApiRecentResource> {
     try {
       return await window.api.getRecentResource();
     } catch (error) {
@@ -226,7 +249,7 @@ export class ElectronChatService implements ChatService, NoteService {
     }
   }
 
-  async getStatsResource(): Promise<any> {
+  async getStatsResource(): Promise<ApiStatsResource> {
     try {
       return await window.api.getStatsResource();
     } catch (error) {

@@ -1,5 +1,6 @@
 import { contextBridge } from 'electron';
 import { electronAPI } from '@electron-toolkit/preload';
+import { MetadataSchema } from '@flint-note/server/dist/core/metadata-schema';
 
 // Custom APIs for renderer
 const api = {
@@ -40,7 +41,7 @@ const api = {
     typeName: string;
     description: string;
     agentInstructions?: string[];
-    metadataSchema?: any;
+    metadataSchema?: MetadataSchema;
     vaultId?: string;
   }) => electronAPI.ipcRenderer.invoke('create-note-type', params),
   listNotesByType: (type: string, vaultId?: string, limit?: number) =>

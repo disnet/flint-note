@@ -4,6 +4,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import icon from '../../resources/icon.png?asset';
 import { AIService } from './ai-service';
 import { NoteService } from './note-service';
+import { MetadataSchema } from '@flint-note/server/dist/core/metadata-schema';
 
 function createWindow(): void {
   // Create the browser window.
@@ -210,7 +211,7 @@ app.whenReady().then(async () => {
         typeName: string;
         description: string;
         agentInstructions?: string[];
-        metadataSchema?: any;
+        metadataSchema?: MetadataSchema;
         vaultId?: string;
       }
     ) => {
