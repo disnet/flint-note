@@ -5,6 +5,7 @@ declare global {
     electron: ElectronAPI;
     api: {
       sendMessage: (message: string) => Promise<string>;
+      clearConversation: () => Promise<{ success: boolean; error?: string }>;
     };
   }
 }

@@ -4,7 +4,8 @@ import { electronAPI } from '@electron-toolkit/preload';
 // Custom APIs for renderer
 const api = {
   sendMessage: (message: string) =>
-    electronAPI.ipcRenderer.invoke('send-message', message)
+    electronAPI.ipcRenderer.invoke('send-message', message),
+  clearConversation: () => electronAPI.ipcRenderer.invoke('clear-conversation')
 };
 
 // Use `contextBridge` APIs to expose Electron APIs to

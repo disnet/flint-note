@@ -2,6 +2,7 @@ import { app, shell, BrowserWindow, ipcMain } from 'electron';
 import { join } from 'path';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import icon from '../../resources/icon.png?asset';
+import { AIService } from './ai-service';
 
 function createWindow(): void {
   // Create the browser window.
@@ -52,22 +53,50 @@ app.whenReady().then(() => {
   // IPC test
   ipcMain.on('ping', () => console.log('pong'));
 
-  // Mock chat handlers
+  // Initialize AI service
+  let aiService: AIService | null = null;
+  try {
+    aiService = new AIService();
+    console.log('AI Service initialized successfully');
+  } catch (error) {
+    console.error('Failed to initialize AI Service:', error);
+    console.log('Falling back to mock responses');
+  }
+
+  // Chat handlers - now with real AI integration
   ipcMain.handle('send-message', async (_event, message: string) => {
-    // Simulate processing time
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    try {
+      if (aiService) {
+        // Use real AI service
+        return await aiService.sendMessage(message);
+      } else {
+        // Fallback to mock responses if AI service failed to initialize
+        await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    // Generate mock response based on the message
-    const responses = [
-      `Thanks for your message: "${message}"! This is a mock response from the main process.`,
-      "I understand what you're saying. Let me help you with that.",
-      "That's an interesting point. Here's what I think about it...",
-      'I can help you with that. What would you like to know more about?',
-      'Let me process that information for you.'
-    ];
+        const responses = [
+          `Thanks for your message: "${message}"! (Note: AI service unavailable, using mock response)`,
+          "I understand what you're saying. Let me help you with that. (Mock response)",
+          "That's an interesting point. Here's what I think about it... (Mock response)",
+          'I can help you with that. What would you like to know more about? (Mock response)',
+          'Let me process that information for you. (Mock response)'
+        ];
 
-    const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-    return randomResponse;
+        const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+        return randomResponse;
+      }
+    } catch (error) {
+      console.error('Error processing message:', error);
+      return "I'm sorry, I encountered an error while processing your message. Please try again.";
+    }
+  });
+
+  // Clear conversation history
+  ipcMain.handle('clear-conversation', async () => {
+    if (aiService) {
+      aiService.clearConversation();
+      return { success: true };
+    }
+    return { success: false, error: 'AI service not available' };
   });
 
   createWindow();
