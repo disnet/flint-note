@@ -55,8 +55,29 @@ export class AIService {
       maxTokens: 1000
     });
 
-    // Initialize MCP servers and bind tools
+    // Initialize MCP servers and bind tools (async)
     this.initializeMcpServers();
+  }
+
+  // Add a method to check if initialization is complete
+  isInitialized(): boolean {
+    return this.modelWithTools !== null;
+  }
+
+  // Add a method to wait for initialization
+  async waitForInitialization(): Promise<void> {
+    let attempts = 0;
+    const maxAttempts = 50; // 5 seconds max
+
+    while (!this.isInitialized() && attempts < maxAttempts) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      attempts++;
+    }
+
+    if (!this.isInitialized()) {
+      console.warn('AI service initialization timeout - using base model without tools');
+      this.modelWithTools = this.model;
+    }
   }
 
   private async initializeMcpServers(): Promise<void> {
@@ -65,11 +86,30 @@ export class AIService {
       const weatherServerPath = join(__dirname, 'weather-mcp-server.js');
       await this.connectMcpServer('weather', weatherServerPath);
 
-      // Create and bind weather tools
-      const weatherTools = this.createWeatherTools();
-      this.modelWithTools = this.model.withConfig({ tools: weatherTools });
+      // Connect to flint-note MCP server
+      try {
+        await this.connectMcpServerNpx('flint-note', '@flint-note/server');
+      } catch (error) {
+        console.error('Failed to connect to flint-note MCP server:', error);
+        // Continue with weather server only
+      }
 
-      console.log('Weather MCP server connected and tools bound successfully');
+      // Add delay to ensure all servers are fully initialized
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Create and bind all available tools
+      const allTools = this.createAllTools();
+
+      if (allTools.length > 0) {
+        try {
+          this.modelWithTools = this.model.bindTools(allTools);
+        } catch (error) {
+          console.error('Error binding tools to model:', error);
+          this.modelWithTools = this.model;
+        }
+      } else {
+        this.modelWithTools = this.model;
+      }
     } catch (error) {
       console.error('Failed to initialize MCP servers:', error);
       // Don't throw error - allow AI service to continue without MCP tools
@@ -128,6 +168,46 @@ export class AIService {
     return [weatherToolDefinition, forecastToolDefinition];
   }
 
+  private createAllTools(): Array<{
+    type: 'function';
+    function: { name: string; description: string; parameters: unknown };
+  }> {
+    const tools: Array<{
+      type: 'function';
+      function: { name: string; description: string; parameters: unknown };
+    }> = [];
+
+    // Add weather tools
+    tools.push(...this.createWeatherTools());
+
+    // Add dynamic tools from all connected MCP servers
+    for (const [toolName, toolInfo] of this.availableTools.entries()) {
+      // Skip weather tools as they're already added above
+      if (toolName === 'get_weather' || toolName === 'get_forecast') {
+        continue;
+      }
+
+      const tool = toolInfo.tool as {
+        name: string;
+        description: string;
+        inputSchema: unknown;
+      };
+
+      const toolDef = {
+        type: 'function' as const,
+        function: {
+          name: tool.name,
+          description: tool.description,
+          parameters: tool.inputSchema
+        }
+      };
+
+      tools.push(toolDef);
+    }
+
+    return tools;
+  }
+
   async sendMessage(userMessage: string): Promise<{
     text: string;
     toolCalls?: Array<{
@@ -154,7 +234,16 @@ export class AIService {
       // Prepare messages for the model
       const systemMessage = `You are an AI assistant for Flint, a note-taking application. You help users manage their notes, answer questions, and provide assistance with organizing their knowledge. Be helpful, concise, and focused on note-taking and knowledge management tasks.
 
-You have access to weather tools that can provide current weather information and forecasts for various locations. Use these tools when users ask weather-related questions.`;
+You have access to comprehensive note management tools including:
+- Creating, reading, updating, and deleting notes
+- Searching through note content and metadata
+- Managing note types and vaults
+- Handling note links and relationships
+- Advanced search capabilities with SQL queries
+
+You also have access to weather tools that can provide current weather information and forecasts for various locations.
+
+Use these tools to help users manage their notes effectively and answer their questions.`;
 
       const messages = [
         new SystemMessage(systemMessage),
@@ -190,7 +279,21 @@ You have access to weather tools that can provide current weather information an
 
       // Get response from the model (tools will be called automatically if needed)
       const modelToUse = this.modelWithTools || this.model;
-      const response = await modelToUse.invoke(messages);
+
+      let response;
+      try {
+        // Use tool_choice when tools are available
+        if (modelToUse === this.modelWithTools) {
+          response = await modelToUse.invoke(messages, {
+            tool_choice: 'auto'
+          });
+        } else {
+          response = await modelToUse.invoke(messages);
+        }
+      } catch (apiError) {
+        console.error('API Error:', apiError);
+        throw apiError;
+      }
 
       // Handle tool calls if present
       if (response.tool_calls && response.tool_calls.length > 0) {
@@ -357,6 +460,51 @@ You have access to weather tools that can provide current weather information an
     }
   }
 
+  async connectMcpServerNpx(serverName: string, packageName: string): Promise<void> {
+    try {
+      const client = new Client(
+        {
+          name: 'flint-ai-service',
+          version: '1.0.0'
+        },
+        {
+          capabilities: {
+            tools: {}
+          }
+        }
+      );
+
+      const transport = new StdioClientTransport({
+        command: 'npx',
+        args: [packageName]
+      });
+
+      await client.connect(transport);
+
+      const toolsResult = await client.listTools();
+      const tools = toolsResult.tools || [];
+
+      this.mcpClients.set(serverName, client);
+
+      tools.forEach((tool) => {
+        this.availableTools.set(tool.name, {
+          serverName,
+          tool
+        });
+      });
+
+      console.log(
+        `Connected to MCP server: ${serverName} (${packageName}) with ${tools.length} tools`
+      );
+    } catch (error) {
+      console.error(
+        `Failed to connect to MCP server ${serverName} (${packageName}):`,
+        error
+      );
+      throw error;
+    }
+  }
+
   async callMcpTool(
     toolName: string,
     arguments_: { [key: string]: unknown } = {}
@@ -384,8 +532,8 @@ You have access to weather tools that can provide current weather information an
   }
 
   getAvailableTools(): string[] {
-    // Return weather tools that are bound to the model
-    return ['get_weather', 'get_forecast'];
+    // Return all available tools from all connected MCP servers
+    return Array.from(this.availableTools.keys());
   }
 
   async disconnectMcpServer(serverName: string): Promise<void> {
