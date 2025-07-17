@@ -24,3 +24,4 @@ This is a Svelte-based electron UI application for Flint (a note taking app).
   - use `onclick` etc. -- avoid `on:click`
   - events should be via props -- do not use `createEventDispatcher`
 - when creating summaries of work being done put them in the `docs/` directory
+- when creating new ts files in the renderer prefer creating .svelte.ts files so they can use runes
