@@ -18,9 +18,11 @@
     <span class="sender">[{message.sender === 'user' ? 'User' : 'Agent'}]</span>
     <span class="timestamp">{formatTime(message.timestamp)}</span>
   </div>
-  <div class="message-content">
-    {message.text}
-  </div>
+  {#if message.text.trim()}
+    <div class="message-content">
+      {message.text}
+    </div>
+  {/if}
 
   {#if message.toolCalls && message.toolCalls.length > 0}
     <div class="tool-calls">

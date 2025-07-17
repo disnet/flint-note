@@ -32,15 +32,27 @@
 
       // If response has tool calls, show both initial and follow-up responses
       if (response.hasToolCalls && response.followUpResponse) {
-        // First message: Initial response with tool calls
-        const initialResponse: Message = {
-          id: (Date.now() + 1).toString(),
-          text: response.text,
-          sender: 'agent',
-          timestamp: new Date(),
-          toolCalls: response.toolCalls
-        };
-        messages.push(initialResponse);
+        // First message: Initial response with tool calls (only if it has meaningful content)
+        if (response.text && response.text.trim()) {
+          const initialResponse: Message = {
+            id: (Date.now() + 1).toString(),
+            text: response.text,
+            sender: 'agent',
+            timestamp: new Date(),
+            toolCalls: response.toolCalls
+          };
+          messages.push(initialResponse);
+        } else {
+          // If no initial text, just show the tool calls without a message
+          const toolCallsOnlyResponse: Message = {
+            id: (Date.now() + 1).toString(),
+            text: '',
+            sender: 'agent',
+            timestamp: new Date(),
+            toolCalls: response.toolCalls
+          };
+          messages.push(toolCallsOnlyResponse);
+        }
 
         // Second message: Follow-up response after tool execution
         const followUpResponse: Message = {

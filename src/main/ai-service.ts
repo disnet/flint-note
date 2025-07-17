@@ -1,5 +1,10 @@
 import { ChatOpenAI } from '@langchain/openai';
-import { HumanMessage, SystemMessage, ToolMessage } from '@langchain/core/messages';
+import {
+  HumanMessage,
+  SystemMessage,
+  ToolMessage,
+  AIMessage
+} from '@langchain/core/messages';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import * as dotenv from 'dotenv';
@@ -12,8 +17,18 @@ export class AIService {
   private model: ChatOpenAI;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private modelWithTools: any = null;
-  private conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }> =
-    [];
+  private conversationHistory: Array<{
+    role: 'user' | 'assistant';
+    content: string;
+    toolCalls?: Array<{
+      id: string;
+      name: string;
+      args: Record<string, unknown>;
+      result?: string;
+      error?: string;
+    }>;
+    toolCallId?: string;
+  }> = [];
   private mcpClients: Map<string, Client> = new Map();
   private availableTools: Map<string, { serverName: string; tool: unknown }> = new Map();
 
@@ -143,11 +158,34 @@ You have access to weather tools that can provide current weather information an
 
       const messages = [
         new SystemMessage(systemMessage),
-        ...this.conversationHistory.map((msg) =>
-          msg.role === 'user'
-            ? new HumanMessage(msg.content)
-            : new SystemMessage(msg.content)
-        )
+        ...this.conversationHistory.flatMap((msg) => {
+          if (msg.role === 'user') {
+            return [new HumanMessage(msg.content)];
+          } else {
+            // Assistant message - create AIMessage with tool calls if present
+            const aiMessage = new AIMessage({
+              content: msg.content,
+              tool_calls:
+                msg.toolCalls?.map((tc) => ({
+                  id: tc.id,
+                  name: tc.name,
+                  args: tc.args
+                })) || []
+            });
+
+            // Add tool result messages if they exist
+            const toolMessages =
+              msg.toolCalls?.map(
+                (tc) =>
+                  new ToolMessage({
+                    content: tc.result || tc.error || '',
+                    tool_call_id: tc.id
+                  })
+              ) || [];
+
+            return [aiMessage, ...toolMessages];
+          }
+        })
       ];
 
       // Get response from the model (tools will be called automatically if needed)
@@ -212,10 +250,17 @@ You have access to weather tools that can provide current weather information an
         const finalResponse = await this.model.invoke(messagesWithTools);
         const assistantMessage = finalResponse.content as string;
 
-        // Add tool call response to conversation history
+        // Add tool call response to conversation history with tool calls
         this.conversationHistory.push({
           role: 'assistant',
-          content: response.content as string
+          content: response.content as string,
+          toolCalls: toolCallsForUI.map((tc) => ({
+            id: tc.id,
+            name: tc.name,
+            args: tc.arguments,
+            result: tc.result,
+            error: tc.error
+          }))
         });
         // Add final response to conversation history
         this.conversationHistory.push({ role: 'assistant', content: assistantMessage });
@@ -257,7 +302,18 @@ You have access to weather tools that can provide current weather information an
     this.conversationHistory = [];
   }
 
-  getConversationHistory(): Array<{ role: 'user' | 'assistant'; content: string }> {
+  getConversationHistory(): Array<{
+    role: 'user' | 'assistant';
+    content: string;
+    toolCalls?: Array<{
+      id: string;
+      name: string;
+      args: Record<string, unknown>;
+      result?: string;
+      error?: string;
+    }>;
+    toolCallId?: string;
+  }> {
     return [...this.conversationHistory];
   }
 
