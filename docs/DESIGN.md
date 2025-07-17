@@ -48,15 +48,74 @@ The project will be developed in phases, allowing for rapid prototyping and iter
 - **Input Area:** A simple text input for typing messages.
 - **Mock Data Pipeline:** The Electron main process will generate and send mock chat messages (e.g., "Hello, how can I help you?") to the Svelte renderer process via IPC to simulate an agent conversation.
 
+**UI Mockup:**
+```
+┌─────────────────────────────────────────┐
+│ Header (Flint)                          │
+├─────────────────────────────────────────┤
+│                                         │
+│  [User] Hello!                          │
+│                                         │
+│  [Agent] Hi there! How can I help?      │
+│                                         │
+│                                         │
+│                                         │
+│                                         │
+├─────────────────────────────────────────┤
+│ > Type your message...                  │
+└─────────────────────────────────────────┘
+```
+
 **Outcome:** A runnable application that displays a fake chat conversation, establishing the core UI and the communication bridge between the Electron backend and the web-based frontend.
 
-### Phase 2: The Note Editor
+### Phase 2: Real Model Integration
+
+**Goal:** Replace the mock data pipeline with a connection to a real language model via OpenRouter and LangChain, enabling actual AI responses.
+
+**Key Components:**
+
+- **OpenRouter Integration:** Set up API calls to OpenRouter for accessing various language models.
+- **LangChain Implementation:** Utilize LangChain to manage conversational chains, prompt engineering, and potentially integrate with other tools (though initial focus is on basic chat).
+- **Electron-to-AI Bridge:** Establish secure and efficient communication between the Electron main process and the AI model, handling API keys and responses.
+
+**Outcome:** The chat application will now interact with a live AI model, providing dynamic and intelligent responses instead of mocked data.
+
+### Phase 3: Tabbed Views and Notes Explorer
+
+**Goal:** Introduce a tabbed interface to switch between the main chat view and a new "Notes" view, which will display a file explorer-style list of all notes.
+
+**Key Components:**
+
+- **Tabbed Navigation:** A tab bar in the header to switch between "Chat" and "Notes" views.
+- **Notes View:** A new view that displays a hierarchical list of notes, similar to a file explorer.
+- **Mock Note Data:** The list of notes will be populated with mock data from the Electron main process.
+
+**UI Mockup:**
+```
+┌─────────────────────────────────────────┐
+│ [Chat] [Notes]                          │
+├─────────────────────────────────────────┤
+│ - Folder 1                              │
+│   - Note A                              │
+│   - Note B                              │
+│ - Folder 2                              │
+│   - Note C                              │
+│ - Note D                                │
+│                                         │
+├─────────────────────────────────────────┤
+│ > Type your message...                  │
+└─────────────────────────────────────────┘
+```
+
+**Outcome:** Users can switch between the chat interface and a structured, browsable view of their notes.
+
+### Phase 4: The Note Editor
 
 **Goal:** Introduce the ability to view and edit notes within the application.
 
 **Key Components:**
 
-- **Interactive Note References:** Mock agent messages will include "links" to notes. Clicking these links will trigger the note editor.
+- **Interactive Note References:** Agent messages (now from a real model) will include "links" to notes. Clicking these links will trigger the note editor.
 - **CodeMirror Integration:** A robust text editor with Markdown syntax highlighting will be integrated as the note editor.
 - **Responsive Positioning:** The note editor's placement will adapt to the window size:
     - **Large Screens (>1200px):** Opens in a sidebar to the right of the chat.
@@ -64,9 +123,25 @@ The project will be developed in phases, allowing for rapid prototyping and iter
     - **Small Screens (<768px):** Takes over the full screen.
 - **Basic Persistence:** Edited notes will be saved in-memory or to local storage for the duration of the session.
 
+**UI Mockup (Large Screen):**
+```
+┌──────────────────────┬──────────────────┐
+│ [Chat] [Notes]       │ Note Editor      │
+├──────────────────────┼──────────────────┤
+│                      │ # My Note        │
+│  [User] Open note    │                  │
+│                      │ ...content...    │
+│  [Agent] Opening...  │                  │
+│                      │                  │
+│                      │                  │
+├──────────────────────┴──────────────────┤
+│ > Type your message...                  │
+└─────────────────────────────────────────┘
+```
+
 **Outcome:** Users can click on note references in the chat to open an editor, make changes, and have those changes persist temporarily.
 
-### Phase 3: Slash Commands
+### Phase 5: Slash Commands
 
 **Goal:** Implement a command palette for efficient, power-user interactions.
 
@@ -74,14 +149,34 @@ The project will be developed in phases, allowing for rapid prototyping and iter
 
 - **Command Palette Trigger:** Typing `/` in the input area will open a command palette.
 - **Fuzzy Search:** The palette will allow users to search through a list of available commands.
-- **Initial Command Set:** Implement a few core commands that interact with the mock data system:
+- **Initial Command Set:** Implement a few core commands that interact with the AI model and mock data system:
     - `/create-note {title}`: Creates a new (mock) note.
     - `/find-note {query}`: Searches through existing (mock) notes.
 - **Command Execution:** Selecting a command will execute the corresponding action, with results displayed in the chat stream.
 
+**UI Mockup:**
+```
+┌─────────────────────────────────────────┐
+│ [Chat] [Notes]                          │
+├─────────────────────────────────────────┤
+│                                         │
+│  [User] /find-note...                   │
+│                                         │
+│                                         │
+│                                         │
+│                                         │
+├─────────────────────────────────────────┤
+│ ┌─────────────────────────────────────┐ │
+│ │ /create-note                        │ │
+│ │ /find-note                          │ │
+│ └─────────────────────────────────────┘ │
+│ > /                                     │
+└─────────────────────────────────────────┘
+```
+
 **Outcome:** Users can perform basic operations using slash commands, laying the groundwork for a more powerful, keyboard-driven workflow.
 
-### Phase 4: Pinning System & State Persistence
+### Phase 6: Pinning System & State Persistence
 
 **Goal:** Add features for quick access to important notes and persist UI state across sessions.
 
@@ -91,15 +186,31 @@ The project will be developed in phases, allowing for rapid prototyping and iter
 - **Pin/Unpin Functionality:** Users can pin notes from the chat or the editor.
 - **Local Storage Integration:** Use the browser's local storage to save the list of pinned notes and other UI preferences (like theme or panel sizes), so they persist when the app is closed and reopened.
 
+**UI Mockup:**
+```
+┌─────────────────────────────────────────┐
+│ [Chat] [Notes]                          │
+├─────────────────────────────────────────┤
+│ Pinned: [Note 1] [Note 2]               │
+├─────────────────────────────────────────┤
+│                                         │
+│  [User] Hello!                          │
+│                                         │
+│  [Agent] Hi there! How can I help?      │
+│                                         │
+├─────────────────────────────────────────┤
+│ > Type your message...                  │
+└─────────────────────────────────────────┘
+```
+
 **Outcome:** The application will feel more like a personalized tool, remembering user-specific configurations and providing quick access to frequently used content.
 
-### Phase 5 & Beyond: Full Integration and Advanced Features
+### Phase 7 & Beyond: Full Integration and Advanced Features
 
 **Goal:** Transition from a mocked application to a fully functional Flint client and begin adding advanced capabilities.
 
 **Key Initiatives:**
 
-- **Live Backend Integration:** Replace the mock data pipeline with a real connection to a Flint MCP server.
 - **Full Feature Implementation:** Flesh out all slash commands, note operations, and settings.
 - **Advanced Search:** Implement a global search feature with filters.
 - **Vault Management:** Add UI for switching between different note vaults.
