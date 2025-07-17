@@ -7,6 +7,7 @@ import icon from '../../resources/icon.png?asset';
 import { LLMService, FLINT_SYSTEM_PROMPT, LLMMessage } from './services/llmService';
 import { settingsService } from './services/settingsService';
 import { flintApiService } from './services/flintApiService';
+import { LLMResponseWithToolCalls } from '../shared/types';
 // MCP service is initialized within LLMService
 // import { mcpService } from './services/mcpService';
 
@@ -139,7 +140,14 @@ app.whenReady().then(async () => {
 
   ipcMain.handle(
     'llm:stream-response-with-tools',
-    async (event, messages: LLMMessage[]) => {
+    async (
+      event,
+      messages: LLMMessage[]
+    ): Promise<{
+      success: boolean;
+      result?: LLMResponseWithToolCalls;
+      error?: Error | string;
+    }> => {
       try {
         // Add system prompt if not present
         const messagesWithSystem = messages.some((msg) => msg.role === 'system')

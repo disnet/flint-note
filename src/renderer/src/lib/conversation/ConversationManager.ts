@@ -61,22 +61,15 @@ export class ConversationManager {
       const llmMessages = this.convertToLLMMessages(conversationHistory);
 
       const response = await llmClient.streamResponseWithToolCalls(llmMessages);
+      conversationStore.update((state) => ({
+        ...state,
+        streamingResponse: state.streamingResponse + response.content
+      }));
 
-      for await (const chunk of response.stream) {
-        if (chunk.content) {
-          conversationStore.update((state) => ({
-            ...state,
-            streamingResponse: state.streamingResponse + chunk.content
-          }));
-        }
-      }
-
-      const finalResponse = await response.finalResponse;
-
-      if (finalResponse.toolCalls && finalResponse.toolCalls.length > 0) {
-        this.handleToolCalls(finalResponse.toolCalls);
+      if (response.toolCalls && response.toolCalls.length > 0) {
+        this.handleToolCalls(response.toolCalls);
       } else {
-        this.addAssistantMessage(finalResponse.content || '');
+        this.addAssistantMessage(response.content || '');
         conversationStore.update((state) => ({ ...state, status: 'idle' }));
       }
     } catch (error) {

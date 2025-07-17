@@ -11,7 +11,11 @@ declare global {
       llm: {
         generateResponse: (messages: LLMMessage[]) => Promise<unknown>;
         streamResponse: (messages: LLMMessage[]) => Promise<unknown>;
-        streamResponseWithTools: (messages: LLMMessage[]) => Promise<unknown>;
+        streamResponseWithTools: (messages: LLMMessage[]) => Promise<{
+          success: boolean;
+          result?: LLMResponseWithToolCalls;
+          error?: Error | string;
+        }>;
         getFinalResponseAfterTools: (
           originalMessages: LLMMessage[],
           toolCallInfos: any[]

@@ -15,11 +15,9 @@ import type {
   MCPToolCall,
   MCPToolResult,
   LLMResponseWithToolCalls,
-  ToolCallInfo,
   MCPResource,
   MCPResourceContent
 } from '../../shared/types';
-import { BaseLanguageModelInput } from '@langchain/core/language_models/base';
 
 export class LLMService {
   private llm: ChatOpenAI | any;
@@ -267,8 +265,6 @@ export class LLMService {
       };
     }
   }
-
-  
 
   private convertToLangChainMessages(messages: LLMMessage[]): BaseMessage[] {
     console.log('🔄 Converting messages to LangChain format:', messages.length);

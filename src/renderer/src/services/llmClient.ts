@@ -200,16 +200,18 @@ export class LLMClient {
     }
   }
 
-  async streamResponseWithToolCalls(messages: LLMMessage[]): Promise<any> {
+  async streamResponseWithToolCalls(
+    messages: LLMMessage[]
+  ): Promise<LLMResponseWithToolCalls> {
     // This is a placeholder for the new implementation.
     // The actual implementation will be more complex and will
     // involve handling the async generator and the final response.
     const response = await this.api.streamResponseWithTools(messages);
     if (!response.success) {
       this.setStatus('error');
-      throw new Error(response.error || 'Failed to stream response with tools');
+      throw response.error;
     }
-    return response;
+    return response.result;
   }
 
   async getFinalResponseAfterTools(
@@ -218,7 +220,10 @@ export class LLMClient {
   ): Promise<string> {
     try {
       const llmMessages = this.convertToLLMMessages(originalMessages);
-      const response = (await this.api.getFinalResponseAfterTools(llmMessages, toolCallInfos)) as {
+      const response = (await this.api.getFinalResponseAfterTools(
+        llmMessages,
+        toolCallInfos
+      )) as {
         success: boolean;
         response?: string;
         error?: string;
