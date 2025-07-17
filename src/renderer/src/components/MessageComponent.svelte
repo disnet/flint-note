@@ -1,10 +1,5 @@
 <script lang="ts">
-  interface Message {
-    id: string;
-    text: string;
-    sender: 'user' | 'agent';
-    timestamp: Date;
-  }
+  import type { Message } from '../services/types';
 
   let { message }: { message: Message } = $props();
 

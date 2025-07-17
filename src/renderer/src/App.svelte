@@ -1,13 +1,8 @@
 <script lang="ts">
   import ChatView from './components/ChatView.svelte';
   import MessageInput from './components/MessageInput.svelte';
-
-  interface Message {
-    id: string;
-    text: string;
-    sender: 'user' | 'agent';
-    timestamp: Date;
-  }
+  import type { Message } from './services/types';
+  import { getChatService } from './services/chatService';
 
   let messages = $state<Message[]>([
     {
@@ -32,8 +27,8 @@
     isLoadingResponse = true;
 
     try {
-      // Get response from main process via IPC
-      const responseText = await window.api.sendMessage(text);
+      const chatService = getChatService();
+      const responseText = await chatService.sendMessage(text);
       const agentResponse: Message = {
         id: (Date.now() + 1).toString(),
         text: responseText,

@@ -1,13 +1,7 @@
 <script lang="ts">
   import MessageComponent from './MessageComponent.svelte';
   import LoadingMessage from './LoadingMessage.svelte';
-
-  interface Message {
-    id: string;
-    text: string;
-    sender: 'user' | 'agent';
-    timestamp: Date;
-  }
+  import type { Message } from '../services/types';
 
   let { messages, isLoading = false }: { messages: Message[]; isLoading?: boolean } =
     $props();
