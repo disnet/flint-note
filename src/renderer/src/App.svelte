@@ -12,17 +12,13 @@
   let messages = $state<Message[]>([
     {
       id: '1',
-      text: 'Hello!',
-      sender: 'user',
-      timestamp: new Date(Date.now() - 120000)
-    },
-    {
-      id: '2',
       text: "Hi there! I'm Flint, your AI assistant. How can I help you today?",
       sender: 'agent',
-      timestamp: new Date(Date.now() - 60000)
+      timestamp: new Date(Date.now())
     }
   ]);
+
+  let isLoadingResponse = $state(false);
 
   async function handleSendMessage(text: string): Promise<void> {
     const newMessage: Message = {
@@ -32,6 +28,8 @@
       timestamp: new Date()
     };
     messages.push(newMessage);
+
+    isLoadingResponse = true;
 
     try {
       // Get response from main process via IPC
@@ -52,6 +50,8 @@
         timestamp: new Date()
       };
       messages.push(errorResponse);
+    } finally {
+      isLoadingResponse = false;
     }
   }
 </script>
@@ -62,7 +62,7 @@
   </header>
 
   <main class="main">
-    <ChatView {messages} />
+    <ChatView {messages} isLoading={isLoadingResponse} />
   </main>
 
   <footer class="footer">

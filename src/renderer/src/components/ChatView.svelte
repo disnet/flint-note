@@ -1,5 +1,6 @@
 <script lang="ts">
   import MessageComponent from './MessageComponent.svelte';
+  import LoadingMessage from './LoadingMessage.svelte';
 
   interface Message {
     id: string;
@@ -8,12 +9,13 @@
     timestamp: Date;
   }
 
-  let { messages }: { messages: Message[] } = $props();
+  let { messages, isLoading = false }: { messages: Message[]; isLoading?: boolean } =
+    $props();
 
   let chatContainer: HTMLDivElement;
 
   $effect(() => {
-    if (chatContainer && messages.length > 0) {
+    if (chatContainer && (messages.length > 0 || isLoading)) {
       chatContainer.scrollTop = chatContainer.scrollHeight;
     }
   });
@@ -24,6 +26,9 @@
     {#each messages as message (message.id)}
       <MessageComponent {message} />
     {/each}
+    {#if isLoading}
+      <LoadingMessage />
+    {/if}
   </div>
 </div>
 
