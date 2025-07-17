@@ -11,7 +11,7 @@ npm install @flint-note/server
 ## Quick Start
 
 ```typescript
-import { FlintNoteApi } from '@flint-note/server/api';
+import { FlintNoteApi } from '@flint-note/server';
 
 const api = new FlintNoteApi({
   workspacePath: './my-notes'
