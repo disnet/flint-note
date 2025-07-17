@@ -3,6 +3,7 @@ import { join } from 'path';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import icon from '../../resources/icon.png?asset';
 import { AIService } from './ai-service';
+import { NoteService } from './note-service';
 
 function createWindow(): void {
   // Create the browser window.
@@ -39,7 +40,7 @@ function createWindow(): void {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron');
 
@@ -61,6 +62,17 @@ app.whenReady().then(() => {
   } catch (error) {
     console.error('Failed to initialize AI Service:', error);
     console.log('Falling back to mock responses');
+  }
+
+  // Initialize Note service
+  let noteService: NoteService | null = null;
+  try {
+    noteService = new NoteService();
+    await noteService.initialize();
+    console.log('Note Service initialized successfully');
+  } catch (error) {
+    console.error('Failed to initialize Note Service:', error);
+    console.log('Note operations will not be available');
   }
 
   // Chat handlers - now with real AI integration
@@ -97,6 +109,213 @@ app.whenReady().then(() => {
       return { success: true };
     }
     return { success: false, error: 'AI service not available' };
+  });
+
+  // Note operations handlers
+  ipcMain.handle(
+    'create-note',
+    async (
+      _event,
+      type: string,
+      identifier: string,
+      content: string,
+      vaultId?: string
+    ) => {
+      if (!noteService) {
+        throw new Error('Note service not available');
+      }
+      return await noteService.createNote(type, identifier, content, vaultId);
+    }
+  );
+
+  ipcMain.handle('get-note', async (_event, identifier: string, vaultId?: string) => {
+    if (!noteService) {
+      throw new Error('Note service not available');
+    }
+    return await noteService.getNote(identifier, vaultId);
+  });
+
+  ipcMain.handle(
+    'update-note',
+    async (_event, identifier: string, content: string, vaultId?: string) => {
+      if (!noteService) {
+        throw new Error('Note service not available');
+      }
+      return await noteService.updateNote(identifier, content, vaultId);
+    }
+  );
+
+  ipcMain.handle('delete-note', async (_event, identifier: string, vaultId?: string) => {
+    if (!noteService) {
+      throw new Error('Note service not available');
+    }
+    return await noteService.deleteNote(identifier, vaultId);
+  });
+
+  ipcMain.handle(
+    'rename-note',
+    async (_event, identifier: string, newIdentifier: string, vaultId?: string) => {
+      if (!noteService) {
+        throw new Error('Note service not available');
+      }
+      return await noteService.renameNote(identifier, newIdentifier, vaultId);
+    }
+  );
+
+  // Search operations
+  ipcMain.handle(
+    'search-notes',
+    async (_event, query: string, vaultId?: string, limit?: number) => {
+      if (!noteService) {
+        throw new Error('Note service not available');
+      }
+      return await noteService.searchNotes(query, vaultId, limit);
+    }
+  );
+
+  ipcMain.handle(
+    'search-notes-advanced',
+    async (
+      _event,
+      params: {
+        query: string;
+        type?: string;
+        tags?: string[];
+        dateFrom?: string;
+        dateTo?: string;
+        limit?: number;
+        vaultId?: string;
+      }
+    ) => {
+      if (!noteService) {
+        throw new Error('Note service not available');
+      }
+      return await noteService.searchNotesAdvanced(params);
+    }
+  );
+
+  // Note type operations
+  ipcMain.handle('list-note-types', async (_event, vaultId?: string) => {
+    if (!noteService) {
+      throw new Error('Note service not available');
+    }
+    return await noteService.listNoteTypes(vaultId);
+  });
+
+  ipcMain.handle(
+    'create-note-type',
+    async (
+      _event,
+      params: {
+        typeName: string;
+        description: string;
+        agentInstructions?: string[];
+        metadataSchema?: any;
+        vaultId?: string;
+      }
+    ) => {
+      if (!noteService) {
+        throw new Error('Note service not available');
+      }
+      return await noteService.createNoteType(params);
+    }
+  );
+
+  ipcMain.handle(
+    'list-notes-by-type',
+    async (_event, type: string, vaultId?: string, limit?: number) => {
+      if (!noteService) {
+        throw new Error('Note service not available');
+      }
+      return await noteService.listNotesByType(type, vaultId, limit);
+    }
+  );
+
+  // Vault operations
+  ipcMain.handle('list-vaults', async () => {
+    if (!noteService) {
+      throw new Error('Note service not available');
+    }
+    return await noteService.listVaults();
+  });
+
+  ipcMain.handle('get-current-vault', async () => {
+    if (!noteService) {
+      throw new Error('Note service not available');
+    }
+    return await noteService.getCurrentVault();
+  });
+
+  ipcMain.handle(
+    'create-vault',
+    async (_event, name: string, path: string, description?: string) => {
+      if (!noteService) {
+        throw new Error('Note service not available');
+      }
+      return await noteService.createVault(name, path, description);
+    }
+  );
+
+  ipcMain.handle('switch-vault', async (_event, vaultId: string) => {
+    if (!noteService) {
+      throw new Error('Note service not available');
+    }
+    return await noteService.switchVault(vaultId);
+  });
+
+  // Link operations
+  ipcMain.handle(
+    'get-note-links',
+    async (_event, identifier: string, vaultId?: string) => {
+      if (!noteService) {
+        throw new Error('Note service not available');
+      }
+      return await noteService.getNoteLinks(identifier, vaultId);
+    }
+  );
+
+  ipcMain.handle(
+    'get-backlinks',
+    async (_event, identifier: string, vaultId?: string) => {
+      if (!noteService) {
+        throw new Error('Note service not available');
+      }
+      return await noteService.getBacklinks(identifier, vaultId);
+    }
+  );
+
+  ipcMain.handle('find-broken-links', async (_event, vaultId?: string) => {
+    if (!noteService) {
+      throw new Error('Note service not available');
+    }
+    return await noteService.findBrokenLinks(vaultId);
+  });
+
+  // Resource operations (MCP-style)
+  ipcMain.handle('get-types-resource', async () => {
+    if (!noteService) {
+      throw new Error('Note service not available');
+    }
+    return await noteService.getTypesResource();
+  });
+
+  ipcMain.handle('get-recent-resource', async () => {
+    if (!noteService) {
+      throw new Error('Note service not available');
+    }
+    return await noteService.getRecentResource();
+  });
+
+  ipcMain.handle('get-stats-resource', async () => {
+    if (!noteService) {
+      throw new Error('Note service not available');
+    }
+    return await noteService.getStatsResource();
+  });
+
+  // Service status
+  ipcMain.handle('note-service-ready', async () => {
+    return noteService?.isReady() || false;
   });
 
   createWindow();
