@@ -52,6 +52,24 @@ app.whenReady().then(() => {
   // IPC test
   ipcMain.on('ping', () => console.log('pong'));
 
+  // Mock chat handlers
+  ipcMain.handle('send-message', async (_event, message: string) => {
+    // Simulate processing time
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    // Generate mock response based on the message
+    const responses = [
+      `Thanks for your message: "${message}"! This is a mock response from the main process.`,
+      "I understand what you're saying. Let me help you with that.",
+      "That's an interesting point. Here's what I think about it...",
+      'I can help you with that. What would you like to know more about?',
+      'Let me process that information for you.'
+    ];
+
+    const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+    return randomResponse;
+  });
+
   createWindow();
 
   app.on('activate', function () {

@@ -49,6 +49,7 @@ The project will be developed in phases, allowing for rapid prototyping and iter
 - **Mock Data Pipeline:** The Electron main process will generate and send mock chat messages (e.g., "Hello, how can I help you?") to the Svelte renderer process via IPC to simulate an agent conversation.
 
 **UI Mockup:**
+
 ```
 ┌─────────────────────────────────────────┐
 │ Header (Flint)                          │
@@ -91,6 +92,7 @@ The project will be developed in phases, allowing for rapid prototyping and iter
 - **Mock Note Data:** The list of notes will be populated with mock data from the Electron main process.
 
 **UI Mockup:**
+
 ```
 ┌─────────────────────────────────────────┐
 │ [Chat] [Notes]                          │
@@ -118,12 +120,13 @@ The project will be developed in phases, allowing for rapid prototyping and iter
 - **Interactive Note References:** Agent messages (now from a real model) will include "links" to notes. Clicking these links will trigger the note editor.
 - **CodeMirror Integration:** A robust text editor with Markdown syntax highlighting will be integrated as the note editor.
 - **Responsive Positioning:** The note editor's placement will adapt to the window size:
-    - **Large Screens (>1200px):** Opens in a sidebar to the right of the chat.
-    - **Medium Screens (768-1200px):** Overlays the chat panel.
-    - **Small Screens (<768px):** Takes over the full screen.
+  - **Large Screens (>1200px):** Opens in a sidebar to the right of the chat.
+  - **Medium Screens (768-1200px):** Overlays the chat panel.
+  - **Small Screens (<768px):** Takes over the full screen.
 - **Basic Persistence:** Edited notes will be saved in-memory or to local storage for the duration of the session.
 
 **UI Mockup (Large Screen):**
+
 ```
 ┌──────────────────────┬──────────────────┐
 │ [Chat] [Notes]       │ Note Editor      │
@@ -150,11 +153,12 @@ The project will be developed in phases, allowing for rapid prototyping and iter
 - **Command Palette Trigger:** Typing `/` in the input area will open a command palette.
 - **Fuzzy Search:** The palette will allow users to search through a list of available commands.
 - **Initial Command Set:** Implement a few core commands that interact with the AI model and mock data system:
-    - `/create-note {title}`: Creates a new (mock) note.
-    - `/find-note {query}`: Searches through existing (mock) notes.
+  - `/create-note {title}`: Creates a new (mock) note.
+  - `/find-note {query}`: Searches through existing (mock) notes.
 - **Command Execution:** Selecting a command will execute the corresponding action, with results displayed in the chat stream.
 
 **UI Mockup:**
+
 ```
 ┌─────────────────────────────────────────┐
 │ [Chat] [Notes]                          │
@@ -187,6 +191,7 @@ The project will be developed in phases, allowing for rapid prototyping and iter
 - **Local Storage Integration:** Use the browser's local storage to save the list of pinned notes and other UI preferences (like theme or panel sizes), so they persist when the app is closed and reopened.
 
 **UI Mockup:**
+
 ```
 ┌─────────────────────────────────────────┐
 │ [Chat] [Notes]                          │

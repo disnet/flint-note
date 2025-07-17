@@ -36,6 +36,7 @@ console.log(note);
 Creates a new FlintNote API instance.
 
 **Parameters:**
+
 - `config`: Configuration object
   - `workspacePath?: string` - Path to the workspace directory
   - `throwOnError?: boolean` - Whether to throw errors or return them in results
@@ -291,7 +292,8 @@ Direct SQL query against the notes database. Returns SQL search response with ra
 
 ```typescript
 const results = await api.searchNotesSQL({
-  query: "SELECT title, type FROM notes WHERE created > '2024-01-01' ORDER BY created DESC"
+  query:
+    "SELECT title, type FROM notes WHERE created > '2024-01-01' ORDER BY created DESC"
 });
 ```
 
@@ -462,6 +464,7 @@ await api.getNote('my-note'); // Now this works
 ## Examples
 
 See the `examples/` directory for complete usage examples:
+
 - `examples/api-usage.js` - JavaScript example
 - `examples/api-usage.ts` - TypeScript example with full type annotations
 
@@ -470,12 +473,14 @@ See the `examples/` directory for complete usage examples:
 If you're currently using the MCP server interface, the API provides equivalent functionality:
 
 **MCP Server (old way):**
+
 ```javascript
 // Via MCP protocol
 const response = await client.callTool('get_note', { identifier: 'my-note' });
 ```
 
 **Direct API (new way):**
+
 ```javascript
 // Direct method call
 const note = await api.getNote('my-note');
