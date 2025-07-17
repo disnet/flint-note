@@ -25,9 +25,12 @@
     "@electron-toolkit/preload": "^3.0.1",
     "@electron-toolkit/utils": "^4.0.0",
     "@flint-note/server": "^0.8.0",
+    "@langchain/core": "^0.3.64",
     "@langchain/openai": "^0.6.1",
+    "@modelcontextprotocol/sdk": "^1.15.1",
     "dotenv": "^17.2.0",
-    "langchain": "^0.3.30"
+    "langchain": "^0.3.30",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@electron-toolkit/eslint-config-prettier": "^3.0.0",

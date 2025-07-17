@@ -28,14 +28,39 @@
 
     try {
       const chatService = getChatService();
-      const responseText = await chatService.sendMessage(text);
-      const agentResponse: Message = {
-        id: (Date.now() + 1).toString(),
-        text: responseText,
-        sender: 'agent',
-        timestamp: new Date()
-      };
-      messages.push(agentResponse);
+      const response = await chatService.sendMessage(text);
+
+      // If response has tool calls, show both initial and follow-up responses
+      if (response.hasToolCalls && response.followUpResponse) {
+        // First message: Initial response with tool calls
+        const initialResponse: Message = {
+          id: (Date.now() + 1).toString(),
+          text: response.text,
+          sender: 'agent',
+          timestamp: new Date(),
+          toolCalls: response.toolCalls
+        };
+        messages.push(initialResponse);
+
+        // Second message: Follow-up response after tool execution
+        const followUpResponse: Message = {
+          id: (Date.now() + 2).toString(),
+          text: response.followUpResponse.text,
+          sender: 'agent',
+          timestamp: new Date()
+        };
+        messages.push(followUpResponse);
+      } else {
+        // Regular response without tool calls
+        const agentResponse: Message = {
+          id: (Date.now() + 1).toString(),
+          text: response.text,
+          sender: 'agent',
+          timestamp: new Date(),
+          toolCalls: response.toolCalls
+        };
+        messages.push(agentResponse);
+      }
     } catch (error) {
       console.error('Failed to send message:', error);
       const errorResponse: Message = {

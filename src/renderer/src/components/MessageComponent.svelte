@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Message } from '../services/types';
+  import ToolCallComponent from './ToolCallComponent.svelte';
 
   let { message }: { message: Message } = $props();
 
@@ -20,6 +21,14 @@
   <div class="message-content">
     {message.text}
   </div>
+
+  {#if message.toolCalls && message.toolCalls.length > 0}
+    <div class="tool-calls">
+      {#each message.toolCalls as toolCall (toolCall.id)}
+        <ToolCallComponent {toolCall} />
+      {/each}
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -98,5 +107,17 @@
 
   .message.agent .message-content {
     border-radius: 1rem 1rem 1rem 0.25rem;
+  }
+
+  .tool-calls {
+    margin-top: 0.75rem;
+  }
+
+  .message.user .tool-calls {
+    margin-right: 0;
+  }
+
+  .message.agent .tool-calls {
+    margin-left: 0;
   }
 </style>

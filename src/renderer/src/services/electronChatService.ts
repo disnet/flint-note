@@ -1,5 +1,5 @@
 import type { ApiCreateResult, ApiNoteResult } from '@flint-note/server';
-import type { ChatService, NoteService } from './types';
+import type { ChatService, NoteService, ChatResponse } from './types';
 import type {
   ApiBacklinksResponse,
   ApiBrokenLinksResponse,
@@ -21,9 +21,16 @@ import type {
 import type { MetadataSchema } from '@flint-note/server/dist/core/metadata-schema';
 
 export class ElectronChatService implements ChatService, NoteService {
-  async sendMessage(text: string): Promise<string> {
+  async sendMessage(text: string): Promise<ChatResponse> {
     try {
-      return await window.api.sendMessage(text);
+      const response = await window.api.sendMessage(text);
+
+      // Handle both old string format and new object format
+      if (typeof response === 'string') {
+        return { text: response };
+      }
+
+      return response;
     } catch (error) {
       console.error('Failed to send message via Electron API:', error);
       throw new Error('Failed to send message. Please try again.');

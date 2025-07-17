@@ -20,15 +20,33 @@ import type {
 } from '@flint-note/server';
 import type { MetadataSchema } from '@flint-note/server/dist/core/metadata-schema';
 
+export interface ToolCall {
+  id: string;
+  name: string;
+  arguments: Record<string, unknown>;
+  result?: string;
+  error?: string;
+}
+
 export interface Message {
   id: string;
   text: string;
   sender: 'user' | 'agent';
   timestamp: Date;
+  toolCalls?: ToolCall[];
+}
+
+export interface ChatResponse {
+  text: string;
+  toolCalls?: ToolCall[];
+  hasToolCalls?: boolean;
+  followUpResponse?: {
+    text: string;
+  };
 }
 
 export interface ChatService {
-  sendMessage(text: string): Promise<string>;
+  sendMessage(text: string): Promise<ChatResponse>;
 }
 
 export interface NoteService {

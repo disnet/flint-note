@@ -3,7 +3,15 @@ import { svelte } from '@sveltejs/vite-plugin-svelte';
 
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin()]
+    plugins: [externalizeDepsPlugin()],
+    build: {
+      rollupOptions: {
+        input: {
+          index: 'src/main/index.ts',
+          'weather-mcp-server': 'src/main/weather-mcp-server.ts'
+        }
+      }
+    }
   },
   preload: {
     plugins: [externalizeDepsPlugin()]

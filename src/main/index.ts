@@ -59,6 +59,8 @@ app.whenReady().then(async () => {
   let aiService: AIService | null = null;
   try {
     aiService = new AIService();
+    // Give some time for MCP servers to initialize
+    await new Promise((resolve) => setTimeout(resolve, 1000));
     console.log('AI Service initialized successfully');
   } catch (error) {
     console.error('Failed to initialize AI Service:', error);
@@ -95,11 +97,13 @@ app.whenReady().then(async () => {
         ];
 
         const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-        return randomResponse;
+        return { text: randomResponse };
       }
     } catch (error) {
       console.error('Error processing message:', error);
-      return "I'm sorry, I encountered an error while processing your message. Please try again.";
+      return {
+        text: "I'm sorry, I encountered an error while processing your message. Please try again."
+      };
     }
   });
 
