@@ -9,26 +9,6 @@
     timestamp: Date;
   }
 
-  // Handle system theme changes
-  let isDarkMode = $state(false);
-
-  $effect(() => {
-    // Check initial system preference
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    isDarkMode = mediaQuery.matches;
-
-    // Listen for changes
-    const handleChange = (e: MediaQueryListEvent): void => {
-      isDarkMode = e.matches;
-    };
-
-    mediaQuery.addEventListener('change', handleChange);
-
-    return () => {
-      mediaQuery.removeEventListener('change', handleChange);
-    };
-  });
-
   let messages = $state<Message[]>([
     {
       id: '1',
@@ -76,7 +56,7 @@
   }
 </script>
 
-<div class="app" data-theme={isDarkMode ? 'dark' : 'light'}>
+<div class="app">
   <header class="header">
     <h1>Flint</h1>
   </header>
