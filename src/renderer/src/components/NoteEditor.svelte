@@ -3,6 +3,7 @@
   import { EditorState } from '@codemirror/state';
   import { markdown } from '@codemirror/lang-markdown';
   import { oneDark } from '@codemirror/theme-one-dark';
+  import { onMount } from 'svelte';
   import type { NoteMetadata } from '../services/noteStore';
   import type { ApiNoteResult } from '@flint-note/server';
   import { getChatService } from '../services/chatService.js';
@@ -15,9 +16,8 @@
 
   let { note, onClose, position }: Props = $props();
 
-  let editorContainer: HTMLDivElement;
+  let editorContainer: Element;
   let editorView: EditorView | null = null;
-  let isLoading = $state(true);
   let noteContent = $state('');
   let hasChanges = $state(false);
   let isSaving = $state(false);
@@ -25,8 +25,7 @@
 
   let noteData = $state<ApiNoteResult | null>(null);
 
-  $effect(() => {
-    loadNote();
+  onMount(() => {
     return () => {
       if (editorView) {
         editorView.destroy();
@@ -34,9 +33,19 @@
     };
   });
 
-  async function loadNote(): Promise<void> {
+  $effect(() => {
+    if (editorContainer && !editorView) {
+      console.log('Creating editor...');
+      createEditor();
+    }
+  });
+
+  $effect(() => {
+    loadNote(note);
+  });
+
+  async function loadNote(note: NoteMetadata): Promise<void> {
     try {
-      isLoading = true;
       error = null;
       const noteService = getChatService();
 
@@ -44,25 +53,23 @@
         const result = await noteService.getNote(note.id);
         noteData = result;
         noteContent = result.content;
-        createEditor();
+        updateEditorContent();
       } else {
         throw new Error('Note service not ready');
       }
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to load note';
       console.error('Error loading note:', err);
-    } finally {
-      isLoading = false;
     }
   }
 
   function createEditor(): void {
-    if (!editorContainer) return;
+    if (!editorContainer || editorView) return;
 
     const isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
 
     const startState = EditorState.create({
-      doc: noteContent,
+      doc: '',
       extensions: [
         basicSetup,
         markdown(),
@@ -80,6 +87,22 @@
       state: startState,
       parent: editorContainer
     });
+  }
+
+  function updateEditorContent(): void {
+    if (editorView && noteContent !== undefined) {
+      const currentDoc = editorView.state.doc.toString();
+      if (currentDoc !== noteContent) {
+        editorView.dispatch({
+          changes: {
+            from: 0,
+            to: currentDoc.length,
+            insert: noteContent
+          }
+        });
+        hasChanges = false;
+      }
+    }
   }
 
   async function saveNote(): Promise<void> {
@@ -146,11 +169,7 @@
   {/if}
 
   <div class="editor-content">
-    {#if isLoading}
-      <div class="loading">Loading note...</div>
-    {:else}
-      <div class="editor-container" bind:this={editorContainer}></div>
-    {/if}
+    <div class="editor-container" bind:this={editorContainer}></div>
   </div>
 
   {#if hasChanges}
