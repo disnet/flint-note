@@ -20,20 +20,17 @@ import type {
   ApiSearchResultType,
   ApiNoteListItem
 } from '@flint-note/server';
-import * as path from 'path';
-import * as os from 'os';
+
 import { MetadataSchema } from '@flint-note/server/dist/core/metadata-schema';
 
 export class NoteService {
   private api: FlintNoteApi;
   private isInitialized = false;
 
-  constructor(workspacePath?: string) {
+  constructor() {
     // Use default workspace path if not provided
-    const defaultWorkspacePath = workspacePath || path.join(os.homedir(), 'flint-notes');
 
     this.api = new FlintNoteApi({
-      workspacePath: defaultWorkspacePath,
       throwOnError: false
     });
   }

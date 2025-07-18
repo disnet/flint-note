@@ -318,6 +318,58 @@ app.whenReady().then(async () => {
     return await noteService.getStatsResource();
   });
 
+  // List MCP resources
+  ipcMain.handle(
+    'list-mcp-resources',
+    async (_event, serverName: string = 'flint-note') => {
+      if (!aiService) {
+        console.error('AI service is not available');
+        throw new Error('AI service not available - initialization may have failed');
+      }
+
+      if (!aiService.isInitialized()) {
+        console.error('AI service is not initialized');
+        throw new Error(
+          'AI service not initialized - please wait for initialization to complete'
+        );
+      }
+
+      try {
+        const result = await aiService.listMcpResources(serverName);
+        return result;
+      } catch (error) {
+        console.error('Error listing MCP resources:', error);
+        console.error('Server was:', serverName);
+        throw error;
+      }
+    }
+  );
+
+  // Generic MCP resource handler
+  ipcMain.handle('fetch-mcp-resource', async (_event, uri: string) => {
+    if (!aiService) {
+      console.error('AI service is not available');
+      throw new Error('AI service not available - initialization may have failed');
+    }
+
+    if (!aiService.isInitialized()) {
+      console.error('AI service is not initialized');
+      throw new Error(
+        'AI service not initialized - please wait for initialization to complete'
+      );
+    }
+
+    try {
+      // Use the AI service to read the resource from the flint-note MCP server
+      const result = await aiService.readMcpResource('flint-note', uri);
+      return result;
+    } catch (error) {
+      console.error('Error fetching MCP resource:', error);
+      console.error('URI was:', uri);
+      throw error;
+    }
+  });
+
   // Service status
   ipcMain.handle('note-service-ready', async () => {
     return noteService?.isReady() || false;

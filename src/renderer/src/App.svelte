@@ -1,7 +1,10 @@
 <script lang="ts">
   import ChatView from './components/ChatView.svelte';
   import MessageInput from './components/MessageInput.svelte';
+  import TabNavigation from './components/TabNavigation.svelte';
+  import NotesView from './components/NotesView.svelte';
   import type { Message } from './services/types';
+  import type { NoteMetadata } from './services/notesService.js';
   import { getChatService } from './services/chatService';
 
   let messages = $state<Message[]>([
@@ -14,6 +17,21 @@
   ]);
 
   let isLoadingResponse = $state(false);
+  let activeTab = $state('chat');
+
+  const tabs = [
+    { id: 'chat', label: 'Chat' },
+    { id: 'notes', label: 'Notes' }
+  ];
+
+  function handleTabChange(tabId: string): void {
+    activeTab = tabId;
+  }
+
+  function handleNoteSelect(note: NoteMetadata): void {
+    // TODO: Implement note editor functionality in future phase
+    console.log('Selected note:', note);
+  }
 
   async function handleSendMessage(text: string): Promise<void> {
     const newMessage: Message = {
@@ -91,10 +109,15 @@
 <div class="app">
   <header class="header">
     <h1>Flint</h1>
+    <TabNavigation {tabs} {activeTab} onTabChange={handleTabChange} />
   </header>
 
   <main class="main">
-    <ChatView {messages} isLoading={isLoadingResponse} />
+    {#if activeTab === 'chat'}
+      <ChatView {messages} isLoading={isLoadingResponse} />
+    {:else if activeTab === 'notes'}
+      <NotesView onNoteSelect={handleNoteSelect} />
+    {/if}
   </main>
 
   <footer class="footer">
@@ -116,8 +139,6 @@
   }
 
   .header {
-    padding: 1.25rem 1.5rem;
-    border-bottom: 1px solid var(--border-light);
     background: var(--bg-primary);
     box-shadow: 0 1px 3px 0 var(--shadow-light);
     transition: all 0.2s ease;
@@ -125,6 +146,7 @@
 
   .header h1 {
     margin: 0;
+    padding: 1.25rem 1.5rem 0.5rem 1.5rem;
     font-size: 1.25rem;
     font-weight: 600;
     color: var(--text-secondary);

@@ -121,6 +121,10 @@ export interface NoteService {
   getRecentResource(): Promise<ApiRecentResource>;
   getStatsResource(): Promise<ApiStatsResource>;
 
+  // MCP resource operations
+  listMcpResources(serverName?: string): Promise<unknown>;
+  fetchMcpResource(uri: string): Promise<unknown>;
+
   // Service status
   isReady(): Promise<boolean>;
 }

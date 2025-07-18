@@ -536,6 +536,36 @@ Use these tools to help users manage their notes effectively and answer their qu
     return Array.from(this.availableTools.keys());
   }
 
+  async listMcpResources(serverName: string): Promise<unknown> {
+    const client = this.mcpClients.get(serverName);
+    if (!client) {
+      throw new Error(`MCP client for server ${serverName} not found`);
+    }
+
+    try {
+      const result = await client.listResources();
+      return result;
+    } catch (error) {
+      console.error(`Error listing MCP resources from ${serverName}:`, error);
+      throw error;
+    }
+  }
+
+  async readMcpResource(serverName: string, uri: string): Promise<unknown> {
+    const client = this.mcpClients.get(serverName);
+    if (!client) {
+      throw new Error(`MCP client for server ${serverName} not found`);
+    }
+
+    try {
+      const result = await client.readResource({ uri });
+      return result;
+    } catch (error) {
+      console.error(`Error reading MCP resource ${uri} from ${serverName}:`, error);
+      throw error;
+    }
+  }
+
   async disconnectMcpServer(serverName: string): Promise<void> {
     const client = this.mcpClients.get(serverName);
     if (client) {

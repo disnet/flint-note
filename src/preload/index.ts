@@ -67,6 +67,10 @@ const api = {
   getTypesResource: () => electronAPI.ipcRenderer.invoke('get-types-resource'),
   getRecentResource: () => electronAPI.ipcRenderer.invoke('get-recent-resource'),
   getStatsResource: () => electronAPI.ipcRenderer.invoke('get-stats-resource'),
+  listMcpResources: (serverName: string = 'flint-note') =>
+    electronAPI.ipcRenderer.invoke('list-mcp-resources', serverName),
+  fetchMcpResource: (uri: string) =>
+    electronAPI.ipcRenderer.invoke('fetch-mcp-resource', uri),
 
   // Service status
   noteServiceReady: () => electronAPI.ipcRenderer.invoke('note-service-ready')

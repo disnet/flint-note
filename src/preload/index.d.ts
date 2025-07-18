@@ -105,6 +105,8 @@ declare global {
       getTypesResource: () => Promise<ApiTypesResource>;
       getRecentResource: () => Promise<ApiRecentResource>;
       getStatsResource: () => Promise<ApiStatsResource>;
+      listMcpResources: (serverName?: string) => Promise<unknown>;
+      fetchMcpResource: (uri: string) => Promise<unknown>;
 
       // Service status
       noteServiceReady: () => Promise<boolean>;

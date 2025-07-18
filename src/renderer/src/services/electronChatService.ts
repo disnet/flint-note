@@ -265,6 +265,25 @@ export class ElectronChatService implements ChatService, NoteService {
     }
   }
 
+  // MCP resource operations
+  async listMcpResources(serverName: string = 'flint-note'): Promise<unknown> {
+    try {
+      return await window.api.listMcpResources(serverName);
+    } catch (error) {
+      console.error('Failed to list MCP resources:', error);
+      throw new Error('Failed to list MCP resources. Please try again.');
+    }
+  }
+
+  async fetchMcpResource(uri: string): Promise<unknown> {
+    try {
+      return await window.api.fetchMcpResource(uri);
+    } catch (error) {
+      console.error('Failed to fetch MCP resource:', error);
+      throw new Error('Failed to fetch MCP resource. Please try again.');
+    }
+  }
+
   // Service status
   async isReady(): Promise<boolean> {
     try {

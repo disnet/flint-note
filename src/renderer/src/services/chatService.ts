@@ -1,13 +1,13 @@
 import { ElectronChatService } from './electronChatService';
-import type { ChatService } from './types';
+import type { ChatService, NoteService } from './types';
 
 // Default to Electron service, but this can be easily swapped out
-let chatService: ChatService = new ElectronChatService();
+let chatService: ChatService & NoteService = new ElectronChatService();
 
-export function setChatService(service: ChatService): void {
+export function setChatService(service: ChatService & NoteService): void {
   chatService = service;
 }
 
-export function getChatService(): ChatService {
+export function getChatService(): ChatService & NoteService {
   return chatService;
 }
