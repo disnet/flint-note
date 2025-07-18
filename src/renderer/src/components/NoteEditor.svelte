@@ -2,7 +2,9 @@
   import { EditorView, basicSetup } from 'codemirror';
   import { EditorState } from '@codemirror/state';
   import { markdown } from '@codemirror/lang-markdown';
-  import { oneDark } from '@codemirror/theme-one-dark';
+  import { githubLight } from '@fsegurai/codemirror-theme-github-light';
+  import { githubDark } from '@fsegurai/codemirror-theme-github-dark';
+
   import { onMount } from 'svelte';
   import type { NoteMetadata } from '../services/noteStore';
   import type { ApiNoteResult } from '@flint-note/server';
@@ -73,7 +75,8 @@
       extensions: [
         basicSetup,
         markdown(),
-        ...(isDarkMode ? [oneDark] : []),
+        EditorView.lineWrapping,
+        ...(isDarkMode ? [githubDark] : [githubLight]),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
             hasChanges = true;
@@ -354,6 +357,32 @@
 
   :global(.cm-line) {
     padding: 0.125rem 0;
+  }
+
+  /* Custom scrollbar styling */
+  :global(.cm-scroller::-webkit-scrollbar) {
+    width: 8px;
+  }
+
+  :global(.cm-scroller::-webkit-scrollbar-track) {
+    background: var(--bg-secondary);
+    border-radius: 4px;
+  }
+
+  :global(.cm-scroller::-webkit-scrollbar-thumb) {
+    background: var(--border-light);
+    border-radius: 4px;
+    transition: background 0.2s ease;
+  }
+
+  :global(.cm-scroller::-webkit-scrollbar-thumb:hover) {
+    background: var(--text-secondary);
+  }
+
+  /* Firefox scrollbar styling */
+  :global(.cm-scroller) {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-light) var(--bg-secondary);
   }
 
   /* Responsive adjustments */
