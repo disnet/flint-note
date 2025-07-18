@@ -18,7 +18,7 @@
     },
     {
       id: '2',
-      text: 'You can click on note references like [[daily/june-27-2025.md]] or [meeting-notes.md] to open them in the editor!',
+      text: 'You can click on note references like [[daily/june-27-2025]] or [meeting-notes.md] to open them in the editor!',
       sender: 'agent',
       timestamp: new Date(Date.now() + 1000)
     }

@@ -41,7 +41,7 @@
       const noteService = getChatService();
 
       if (await noteService.isReady()) {
-        const result = await noteService.getNote(note.filename);
+        const result = await noteService.getNote(note.id);
         noteData = result;
         noteContent = result.content;
         createEditor();
