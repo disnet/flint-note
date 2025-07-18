@@ -3,9 +3,11 @@
   import MessageInput from './components/MessageInput.svelte';
   import TabNavigation from './components/TabNavigation.svelte';
   import NotesView from './components/NotesView.svelte';
+  import NoteEditor from './components/NoteEditor.svelte';
   import type { Message } from './services/types';
   import type { NoteMetadata } from './services/notesService.js';
   import { getChatService } from './services/chatService';
+  import { notesStore } from './services/notesService.js';
 
   let messages = $state<Message[]>([
     {
@@ -13,11 +15,19 @@
       text: "Hi there! I'm Flint, your AI assistant. How can I help you today?",
       sender: 'agent',
       timestamp: new Date(Date.now())
+    },
+    {
+      id: '2',
+      text: 'You can click on note references like [[daily/june-27-2025.md]] or [meeting-notes.md] to open them in the editor!',
+      sender: 'agent',
+      timestamp: new Date(Date.now() + 1000)
     }
   ]);
 
   let isLoadingResponse = $state(false);
   let activeTab = $state('chat');
+  let activeNote = $state<NoteMetadata | null>(null);
+  let noteEditorPosition = $state<'sidebar' | 'overlay' | 'fullscreen'>('sidebar');
 
   const tabs = [
     { id: 'chat', label: 'Chat' },
@@ -29,9 +39,60 @@
   }
 
   function handleNoteSelect(note: NoteMetadata): void {
-    // TODO: Implement note editor functionality in future phase
-    console.log('Selected note:', note);
+    openNoteEditor(note);
   }
+
+  function handleNoteClick(noteId: string): void {
+    // Find the note in the notes store
+    const notes = $notesStore.notes;
+    const note = notes.find(
+      (n) => n.filename === noteId || n.id === noteId || n.title === noteId
+    );
+
+    if (note) {
+      openNoteEditor(note);
+    } else {
+      console.warn('Note not found:', noteId);
+    }
+  }
+
+  function openNoteEditor(note: NoteMetadata): void {
+    activeNote = note;
+    updateNoteEditorPosition();
+
+    // Switch to chat tab if note was opened from notes view
+    if (activeTab === 'notes') {
+      activeTab = 'chat';
+    }
+  }
+
+  function closeNoteEditor(): void {
+    activeNote = null;
+  }
+
+  function updateNoteEditorPosition(): void {
+    const width = window.innerWidth;
+
+    if (width > 1200) {
+      noteEditorPosition = 'sidebar';
+    } else if (width > 768) {
+      noteEditorPosition = 'overlay';
+    } else {
+      noteEditorPosition = 'fullscreen';
+    }
+  }
+
+  // Update editor position on window resize
+  $effect(() => {
+    function handleResize(): void {
+      if (activeNote) {
+        updateNoteEditorPosition();
+      }
+    }
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  });
 
   async function handleSendMessage(text: string): Promise<void> {
     const newMessage: Message = {
@@ -114,7 +175,23 @@
 
   <main class="main">
     {#if activeTab === 'chat'}
-      <ChatView {messages} isLoading={isLoadingResponse} />
+      <div
+        class="chat-layout"
+        class:has-sidebar={activeNote && noteEditorPosition === 'sidebar'}
+      >
+        <ChatView
+          {messages}
+          isLoading={isLoadingResponse}
+          onNoteClick={handleNoteClick}
+        />
+        {#if activeNote}
+          <NoteEditor
+            note={activeNote}
+            position={noteEditorPosition}
+            onClose={closeNoteEditor}
+          />
+        {/if}
+      </div>
     {:else if activeTab === 'notes'}
       <NotesView onNoteSelect={handleNoteSelect} />
     {/if}
@@ -166,5 +243,27 @@
     background: var(--bg-primary);
     box-shadow: 0 -1px 3px 0 var(--shadow-light);
     transition: all 0.2s ease;
+  }
+
+  .chat-layout {
+    display: flex;
+    height: 100%;
+    position: relative;
+  }
+
+  .chat-layout.has-sidebar {
+    padding-right: 400px;
+  }
+
+  .chat-layout > :global(.chat-view) {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* Responsive adjustments */
+  @media (max-width: 1200px) {
+    .chat-layout.has-sidebar {
+      padding-right: 0;
+    }
   }
 </style>

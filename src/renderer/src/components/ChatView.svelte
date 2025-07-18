@@ -3,8 +3,13 @@
   import LoadingMessage from './LoadingMessage.svelte';
   import type { Message } from '../services/types';
 
-  let { messages, isLoading = false }: { messages: Message[]; isLoading?: boolean } =
-    $props();
+  interface Props {
+    messages: Message[];
+    isLoading?: boolean;
+    onNoteClick?: (noteId: string) => void;
+  }
+
+  let { messages, isLoading = false, onNoteClick }: Props = $props();
 
   let chatContainer: HTMLDivElement;
 
@@ -18,7 +23,7 @@
 <div class="chat-view" bind:this={chatContainer}>
   <div class="messages">
     {#each messages as message (message.id)}
-      <MessageComponent {message} />
+      <MessageComponent {message} {onNoteClick} />
     {/each}
     {#if isLoading}
       <LoadingMessage />
