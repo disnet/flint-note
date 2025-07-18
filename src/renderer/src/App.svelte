@@ -5,9 +5,9 @@
   import NotesView from './components/NotesView.svelte';
   import NoteEditor from './components/NoteEditor.svelte';
   import type { Message } from './services/types';
-  import type { NoteMetadata } from './services/notesService.js';
+  import type { NoteMetadata } from './services/noteStore';
   import { getChatService } from './services/chatService';
-  import { notesStore } from './services/notesService.js';
+  import { notesStore } from './services/noteStore';
 
   let messages = $state<Message[]>([
     {

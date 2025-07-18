@@ -3,7 +3,7 @@
   import { EditorState } from '@codemirror/state';
   import { markdown } from '@codemirror/lang-markdown';
   import { oneDark } from '@codemirror/theme-one-dark';
-  import type { NoteMetadata } from '../services/notesService.js';
+  import type { NoteMetadata } from '../services/noteStore';
   import type { ApiNoteResult } from '@flint-note/server';
   import { getChatService } from '../services/chatService.js';
 

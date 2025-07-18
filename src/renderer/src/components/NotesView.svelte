@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { notesStore, type NoteMetadata } from '../services/notesService.js';
+  import { notesStore, type NoteMetadata } from '../services/noteStore';
 
   const { groupedNotes } = notesStore;
 
