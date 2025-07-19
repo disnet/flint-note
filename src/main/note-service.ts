@@ -1,25 +1,19 @@
 import { FlintNoteApi } from '@flint-note/server';
 import type {
-  ApiCreateResult,
-  ApiNoteResult,
-  ApiUpdateResult,
-  ApiDeleteNoteResult,
-  ApiRenameNoteResult,
-  ApiNoteTypeListItem,
-  ApiCreateNoteTypeResult,
-  ApiVaultListResponse,
-  ApiVaultInfo,
-  ApiVaultOperationResult,
-  ApiCreateVaultResult,
-  ApiNoteLinkResponse,
-  ApiBacklinksResponse,
-  ApiBrokenLinksResponse,
-  ApiTypesResource,
-  ApiRecentResource,
-  ApiStatsResource,
-  ApiSearchResultType,
-  ApiNoteListItem
+  NoteInfo,
+  Note,
+  UpdateResult,
+  DeleteNoteResult,
+  NoteListItem,
+  NoteTypeListItem
 } from '@flint-note/server';
+import type { NoteTypeInfo } from '@flint-note/server/dist/core/note-types';
+import type { SearchResult } from '@flint-note/server/dist/database/search-manager';
+import type { VaultInfo } from '@flint-note/server/dist/utils/global-config';
+import type {
+  NoteLinkRow,
+  ExternalLinkRow
+} from '@flint-note/server/dist/database/schema';
 
 import { MetadataSchema } from '@flint-note/server/dist/core/metadata-schema';
 
@@ -62,12 +56,12 @@ export class NoteService {
     identifier: string,
     content: string,
     vaultId?: string
-  ): Promise<ApiCreateResult> {
+  ): Promise<NoteInfo> {
     this.ensureInitialized();
     return await this.api.createSimpleNote(type, identifier, content, vaultId);
   }
 
-  async getNote(identifier: string, vaultId?: string): Promise<ApiNoteResult> {
+  async getNote(identifier: string, vaultId?: string): Promise<Note | null> {
     this.ensureInitialized();
     return await this.api.getNote(identifier, vaultId);
   }
@@ -76,32 +70,32 @@ export class NoteService {
     identifier: string,
     content: string,
     vaultId?: string
-  ): Promise<ApiUpdateResult> {
+  ): Promise<UpdateResult> {
     this.ensureInitialized();
     return await this.api.updateNoteContent(identifier, content, vaultId);
   }
 
-  async deleteNote(identifier: string, vaultId?: string): Promise<ApiDeleteNoteResult> {
+  async deleteNote(identifier: string, vaultId?: string): Promise<DeleteNoteResult> {
     this.ensureInitialized();
-    return await this.api.deleteNote({
-      identifier,
-      vault_id: vaultId,
-      confirm: true
-    });
+    return await this.api.deleteNote(identifier, true, vaultId);
   }
 
   async renameNote(
     identifier: string,
     newIdentifier: string,
     vaultId?: string
-  ): Promise<ApiRenameNoteResult> {
+  ): Promise<{ success: boolean; notesUpdated?: number; linksUpdated?: number }> {
     this.ensureInitialized();
-    // Note: FlintNote API expects new_title, not new_identifier
-    // This is a simplified implementation - in practice you'd need the content_hash
+    // Get the note first to obtain content hash
+    const note = await this.api.getNote(identifier, vaultId);
+    if (!note) {
+      throw new Error('Note not found');
+    }
+
     return await this.api.renameNote({
       identifier,
       new_title: newIdentifier,
-      content_hash: '', // TODO: Get actual content hash
+      content_hash: note.content_hash,
       vault_id: vaultId
     });
   }
@@ -111,9 +105,9 @@ export class NoteService {
     query: string,
     vaultId?: string,
     limit?: number
-  ): Promise<ApiSearchResultType> {
+  ): Promise<SearchResult[]> {
     this.ensureInitialized();
-    return await this.api.searchNotesByText(query, vaultId, limit);
+    return await this.api.searchNotesByText(query, undefined, limit, vaultId);
   }
 
   async searchNotesAdvanced(params: {
@@ -124,20 +118,20 @@ export class NoteService {
     dateTo?: string;
     limit?: number;
     vaultId?: string;
-  }): Promise<ApiSearchResultType> {
+  }): Promise<SearchResult[]> {
     this.ensureInitialized();
     return await this.api.searchNotesAdvanced({
-      type: params.type,
       content_contains: params.query,
-      created_before: params.dateTo,
+      type: params.type,
       created_within: params.dateFrom,
+      created_before: params.dateTo,
       limit: params.limit,
       vault_id: params.vaultId
     });
   }
 
   // Note type operations
-  async listNoteTypes(vaultId?: string): Promise<ApiNoteTypeListItem[]> {
+  async listNoteTypes(vaultId?: string): Promise<NoteTypeListItem[]> {
     this.ensureInitialized();
     return await this.api.listNoteTypes({ vault_id: vaultId });
   }
@@ -148,7 +142,7 @@ export class NoteService {
     agentInstructions?: string[];
     metadataSchema?: MetadataSchema;
     vaultId?: string;
-  }): Promise<ApiCreateNoteTypeResult> {
+  }): Promise<NoteTypeInfo> {
     this.ensureInitialized();
     return await this.api.createNoteType({
       type_name: params.typeName,
@@ -163,22 +157,18 @@ export class NoteService {
     type: string,
     vaultId?: string,
     limit?: number
-  ): Promise<ApiNoteListItem[]> {
+  ): Promise<NoteListItem[]> {
     this.ensureInitialized();
-    return await this.api.listNotesByType({
-      type,
-      vault_id: vaultId,
-      limit
-    });
+    return await this.api.listNotes(type, limit, vaultId);
   }
 
   // Vault operations
-  async listVaults(): Promise<ApiVaultListResponse> {
+  async listVaults(): Promise<VaultInfo[]> {
     this.ensureInitialized();
     return await this.api.listVaults();
   }
 
-  async getCurrentVault(): Promise<ApiVaultInfo> {
+  async getCurrentVault(): Promise<VaultInfo | null> {
     this.ensureInitialized();
     return await this.api.getCurrentVault();
   }
@@ -187,7 +177,7 @@ export class NoteService {
     name: string,
     path: string,
     description?: string
-  ): Promise<ApiCreateVaultResult> {
+  ): Promise<VaultInfo> {
     this.ensureInitialized();
     return await this.api.createVault({
       id: name.toLowerCase().replace(/\s+/g, '-'),
@@ -197,44 +187,38 @@ export class NoteService {
     });
   }
 
-  async switchVault(vaultId: string): Promise<ApiVaultOperationResult> {
+  async switchVault(vaultId: string): Promise<void> {
     this.ensureInitialized();
     return await this.api.switchVault({ id: vaultId });
   }
 
   // Link operations
-  async getNoteLinks(identifier: string, vaultId?: string): Promise<ApiNoteLinkResponse> {
+  async getNoteLinks(
+    identifier: string,
+    vaultId?: string
+  ): Promise<{
+    outgoing_internal: NoteLinkRow[];
+    outgoing_external: ExternalLinkRow[];
+    incoming: NoteLinkRow[];
+  }> {
     this.ensureInitialized();
     return await this.api.getNoteLinks(identifier, vaultId);
   }
 
-  async getBacklinks(
-    identifier: string,
-    vaultId?: string
-  ): Promise<ApiBacklinksResponse> {
+  async getBacklinks(identifier: string, vaultId?: string): Promise<NoteLinkRow[]> {
     this.ensureInitialized();
     return await this.api.getBacklinks(identifier, vaultId);
   }
 
-  async findBrokenLinks(vaultId?: string): Promise<ApiBrokenLinksResponse> {
+  async findBrokenLinks(vaultId?: string): Promise<NoteLinkRow[]> {
     this.ensureInitialized();
     return await this.api.findBrokenLinks(vaultId);
   }
 
-  // Resource operations (MCP-style access)
-  async getTypesResource(): Promise<ApiTypesResource> {
+  // Additional helper methods
+  async getAllNotes(vaultId?: string): Promise<NoteListItem[]> {
     this.ensureInitialized();
-    return await this.api.getTypesResource();
-  }
-
-  async getRecentResource(): Promise<ApiRecentResource> {
-    this.ensureInitialized();
-    return await this.api.getRecentResource();
-  }
-
-  async getStatsResource(): Promise<ApiStatsResource> {
-    this.ensureInitialized();
-    return await this.api.getStatsResource();
+    return await this.api.listNotes(undefined, undefined, vaultId);
   }
 
   // Utility methods

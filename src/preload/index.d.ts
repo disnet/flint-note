@@ -1,24 +1,19 @@
 import { ElectronAPI } from '@electron-toolkit/preload';
 import type {
-  ApiCreateResult,
-  ApiNoteResult,
-  ApiUpdateResult,
-  ApiDeleteNoteResult,
-  ApiRenameNoteResult,
-  ApiNoteTypeListItem,
-  ApiCreateNoteTypeResult,
-  ApiVaultListResponse,
-  ApiVaultInfo,
-  ApiVaultOperationResult,
-  ApiNoteLinkResponse,
-  ApiBacklinksResponse,
-  ApiBrokenLinksResponse,
-  ApiTypesResource,
-  ApiRecentResource,
-  ApiStatsResource,
-  ApiSearchResultType,
-  ApiNoteListItem
-} from '@flint-note/server';
+  NoteInfo,
+  Note,
+  UpdateResult,
+  DeleteNoteResult,
+  NoteListItem,
+  NoteTypeListItem
+} from '@flint-note/server/dist/api';
+import type { NoteTypeInfo } from '@flint-note/server/dist/core/note-types';
+import type { SearchResult } from '@flint-note/server/dist/database/search-manager';
+import type { VaultInfo } from '@flint-note/server/dist/utils/global-config';
+import type {
+  NoteLinkRow,
+  ExternalLinkRow
+} from '@flint-note/server/dist/database/schema';
 import type { MetadataSchema } from '@flint-note/server/dist/core/metadata-schema';
 
 declare global {
@@ -35,26 +30,26 @@ declare global {
         identifier: string,
         content: string,
         vaultId?: string
-      ) => Promise<ApiCreateResult>;
-      getNote: (identifier: string, vaultId?: string) => Promise<ApiNoteResult>;
+      ) => Promise<NoteInfo>;
+      getNote: (identifier: string, vaultId?: string) => Promise<Note | null>;
       updateNote: (
         identifier: string,
         content: string,
         vaultId?: string
-      ) => Promise<ApiUpdateResult>;
-      deleteNote: (identifier: string, vaultId?: string) => Promise<ApiDeleteNoteResult>;
+      ) => Promise<UpdateResult>;
+      deleteNote: (identifier: string, vaultId?: string) => Promise<DeleteNoteResult>;
       renameNote: (
         identifier: string,
         newIdentifier: string,
         vaultId?: string
-      ) => Promise<ApiRenameNoteResult>;
+      ) => Promise<{ success: boolean; notesUpdated?: number; linksUpdated?: number }>;
 
       // Search operations
       searchNotes: (
         query: string,
         vaultId?: string,
         limit?: number
-      ) => Promise<ApiSearchResultType>;
+      ) => Promise<SearchResult[]>;
       searchNotesAdvanced: (params: {
         query: string;
         type?: string;
@@ -63,50 +58,44 @@ declare global {
         dateTo?: string;
         limit?: number;
         vaultId?: string;
-      }) => Promise<ApiSearchResultType>;
+      }) => Promise<SearchResult[]>;
 
       // Note type operations
-      listNoteTypes: (vaultId?: string) => Promise<ApiNoteTypeListItem[]>;
+      listNoteTypes: (vaultId?: string) => Promise<NoteTypeListItem[]>;
       createNoteType: (params: {
         typeName: string;
         description: string;
         agentInstructions?: string[];
         metadataSchema?: MetadataSchema;
         vaultId?: string;
-      }) => Promise<ApiCreateNoteTypeResult>;
+      }) => Promise<NoteTypeInfo>;
       listNotesByType: (
         type: string,
         vaultId?: string,
         limit?: number
-      ) => Promise<ApiNoteListItem[]>;
+      ) => Promise<NoteListItem[]>;
 
       // Vault operations
-      listVaults: () => Promise<ApiVaultListResponse>;
-      getCurrentVault: () => Promise<ApiVaultInfo>;
+      listVaults: () => Promise<VaultInfo[]>;
+      getCurrentVault: () => Promise<VaultInfo | null>;
       createVault: (
         name: string,
         path: string,
         description?: string
-      ) => Promise<ApiVaultOperationResult>;
-      switchVault: (vaultId: string) => Promise<ApiVaultOperationResult>;
+      ) => Promise<VaultInfo>;
+      switchVault: (vaultId: string) => Promise<void>;
 
       // Link operations
       getNoteLinks: (
         identifier: string,
         vaultId?: string
-      ) => Promise<ApiNoteLinkResponse>;
-      getBacklinks: (
-        identifier: string,
-        vaultId?: string
-      ) => Promise<ApiBacklinksResponse>;
-      findBrokenLinks: (vaultId?: string) => Promise<ApiBrokenLinksResponse>;
-
-      // Resource operations (MCP-style)
-      getTypesResource: () => Promise<ApiTypesResource>;
-      getRecentResource: () => Promise<ApiRecentResource>;
-      getStatsResource: () => Promise<ApiStatsResource>;
-      listMcpResources: (serverName?: string) => Promise<unknown>;
-      fetchMcpResource: (uri: string) => Promise<unknown>;
+      ) => Promise<{
+        outgoing_internal: NoteLinkRow[];
+        outgoing_external: ExternalLinkRow[];
+        incoming: NoteLinkRow[];
+      }>;
+      getBacklinks: (identifier: string, vaultId?: string) => Promise<NoteLinkRow[]>;
+      findBrokenLinks: (vaultId?: string) => Promise<NoteLinkRow[]>;
 
       // Service status
       noteServiceReady: () => Promise<boolean>;

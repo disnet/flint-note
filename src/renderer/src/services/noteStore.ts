@@ -84,11 +84,10 @@ async function createNotesStore(): Promise<{
       const result = await noteService.listNotesByType(type);
       if (result && Array.isArray(result)) {
         const notes: NoteMetadata[] = result.map((note, index) => ({
-          // @ts-ignore: TODO: Implement proper ID generation
-          id: note.wikilink_format,
+          id: note.id,
           type: note.type || type,
-          filename: note.filename || `unknown-${index}`,
-          title: note.title || note.filename || `Untitled Note ${index + 1}`,
+          filename: note.title || `unknown-${index}`,
+          title: note.title || `Untitled Note ${index + 1}`,
           created: note.created || new Date().toISOString(),
           modified: note.modified || new Date().toISOString(),
           size: note.size || 0,
