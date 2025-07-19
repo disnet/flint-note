@@ -71,3 +71,13 @@ export type {
 // Re-export core types
 export type { ServerConfig } from '../server/types.js';
 export type { NoteMetadata } from '../types/index.js';
+
+// Re-export core manager types (for direct API users)
+export type {
+  NoteInfo,
+  Note,
+  UpdateResult,
+  DeleteNoteResult,
+  NoteListItem
+} from '../core/notes.js';
+export type { NoteTypeListItem } from '../core/note-types.js';

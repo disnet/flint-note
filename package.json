@@ -22,6 +22,7 @@
     "test:integration": "tsx --test-reporter=./simple-reporter.js --test \"test/integration/**/*.test.ts\"",
     "test:file": "tsx --test-reporter=./simple-reporter.js --test",
     "lint": "eslint src/ test/",
+    "check": "npm run lint && npm run type-check",
     "format": "prettier --write src/**/*.ts test/**/*.ts",
     "type-check": "tsc --project tsconfig.dev.json --noEmit",
     "inspector": "DANGEROUSLY_OMIT_AUTH=true npx @modelcontextprotocol/inspector node dist/index.js",

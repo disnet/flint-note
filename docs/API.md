@@ -1,6 +1,6 @@
 # FlintNote API Documentation
 
-The FlintNote API provides direct programmatic access to FlintNote functionality without requiring the MCP (Model Context Protocol) interface. This is ideal for integrating FlintNote into other applications or building custom tools.
+The FlintNote API provides direct programmatic access to FlintNote functionality. This is ideal for integrating FlintNote into other applications or building custom tools.
 
 ## Installation
 
@@ -20,11 +20,12 @@ const api = new FlintNoteApi({
 await api.initialize();
 
 // Create a note
-await api.createSimpleNote('general', 'my-note', 'Hello, world!');
+const noteInfo = await api.createSimpleNote('general', 'my-note', 'Hello, world!');
+console.log(noteInfo.id, noteInfo.title, noteInfo.path);
 
 // Get the note
-const note = await api.getNote('my-note');
-console.log(note);
+const note = await api.getNote('general/my-note.md');
+console.log(note.content, note.metadata);
 ```
 
 ## API Reference
@@ -50,15 +51,30 @@ Initializes the API. **Must be called before using any other methods.**
 await api.initialize();
 ```
 
-## Note Operations
+## Core Note Operations
 
-### `createNote(args: CreateNoteArgs): Promise<ApiCreateResult>`
+### `createNote(args: CreateNoteArgs): Promise<NoteInfo | NoteInfo[]>`
 
-Create one or more notes. Returns either a single note creation result or batch creation result depending on the input.
+Create one or more notes. Returns `NoteInfo` objects directly.
 
+**Single Note Creation:**
 ```typescript
-await api.createNote({
-  type: 'meeting',
+const noteInfo = await api.createNote({
+  type: 'general',
+  title: 'my-note',
+  content: '# My Note\n\nContent here...',
+  metadata: { priority: 'high' }
+});
+
+// noteInfo: { id, type, title, filename, path, created }
+console.log(noteInfo.id);      // "general/my-note.md"
+console.log(noteInfo.title);   // "my-note"
+console.log(noteInfo.created); // "2024-01-15T10:30:00.000Z"
+```
+
+**Batch Note Creation:**
+```typescript
+const noteInfos = await api.createNote({
   notes: [
     {
       type: 'meeting',
@@ -68,365 +84,689 @@ await api.createNote({
         attendees: ['Alice', 'Bob'],
         date: '2024-01-15'
       }
+    },
+    {
+      type: 'meeting',
+      title: 'project-review',
+      content: '# Project Review\n\nStatus update...'
     }
   ]
 });
+
+// noteInfos is NoteInfo[] - array of NoteInfo objects
+console.log(noteInfos.length);     // 2
+console.log(noteInfos[0].title);   // "team-standup"
 ```
 
-### `createSimpleNote(type: string, identifier: string, content: string, vaultId?: string): Promise<ApiCreateResult>`
+### `createSimpleNote(type: string, identifier: string, content: string, vaultId?: string): Promise<NoteInfo>`
 
 Convenience method to create a simple note with just content.
 
 ```typescript
-await api.createSimpleNote('general', 'my-note', 'Hello, world!');
+const noteInfo = await api.createSimpleNote('general', 'quick-note', 'Hello, world!');
+// Returns: { id: "general/quick-note.md", type: "general", title: "quick-note", ... }
 ```
 
-### `getNote(identifier: string, vaultId?: string): Promise<ApiNote | null>`
+### `getNote(identifier: string, vaultId?: string): Promise<Note | null>`
 
-Get a note by its identifier. Returns the complete note object or null if not found.
+Get a note by its identifier. Returns the `Note` object or `null` if not found.
 
 ```typescript
-const note = await api.getNote('my-note');
+const note = await api.getNote('general/my-note.md');
+
+if (note) {
+  // note object with all fields directly accessible
+  console.log(note.content);      // Full note content
+  console.log(note.metadata);     // Note metadata object
+  console.log(note.content_hash); // Content hash for updates
+  console.log(note.links);        // Array of links in the note
+} else {
+  console.log('Note not found');
+}
 ```
 
-### `getNotes(args: GetNotesArgs): Promise<ApiMultipleNotesResult>`
+### `updateNote(identifier: string, content: string, contentHash: string, vaultId?: string): Promise<UpdateResult>`
 
-Get multiple notes by their identifiers. Returns an array with results for each note, including any errors.
+Update a note's content. Returns `UpdateResult` with update status.
+
+```typescript
+// First, get the note to obtain content hash
+const note = await api.getNote('general/my-note.md');
+if (!note) throw new Error('Note not found');
+
+// Update the note
+const updateResult = await api.updateNote(
+  'general/my-note.md',
+  '# Updated Content\n\nNew content here...',
+  note.content_hash
+);
+
+// updateResult is UpdateResult
+console.log(updateResult.id);        // "general/my-note.md"
+console.log(updateResult.updated);   // true
+console.log(updateResult.timestamp); // "2024-01-15T10:35:00.000Z"
+```
+
+### `deleteNote(identifier: string, confirm?: boolean, vaultId?: string): Promise<DeleteNoteResult>`
+
+Delete a note. Returns `DeleteNoteResult` with deletion status.
+
+```typescript
+const deleteResult = await api.deleteNote('general/my-note.md', true);
+
+// deleteResult is DeleteNoteResult
+console.log(deleteResult.id);           // "general/my-note.md"
+console.log(deleteResult.deleted);      // true
+console.log(deleteResult.timestamp);    // "2024-01-15T10:40:00.000Z"
+console.log(deleteResult.backup_path);  // Path to backup file (if created)
+```
+
+### `listNotes(typeName?: string, limit?: number, vaultId?: string): Promise<NoteListItem[]>`
+
+List notes by type. Returns array of `NoteListItem` objects.
+
+```typescript
+// List all notes of a specific type
+const generalNotes = await api.listNotes('general');
+
+// List with limit
+const recentNotes = await api.listNotes(undefined, 10);
+
+// Each item is NoteListItem
+generalNotes.forEach(item => {
+  console.log(item.id);          // Note identifier
+  console.log(item.title);       // Note title
+  console.log(item.type);        // Note type
+  console.log(item.created);     // Creation timestamp
+  console.log(item.size);        // File size
+});
+```
+
+### `getNotes(args: GetNotesArgs): Promise<(Note | null)[]>`
+
+Get multiple notes by their identifiers. Returns array of `Note` objects.
 
 ```typescript
 const notes = await api.getNotes({
-  identifiers: ['note1', 'note2', 'note3']
+  identifiers: ['general/note1.md', 'meeting/standup.md'],
+  vault_id: 'my-vault'
+});
+
+// notes is (Note | null)[] - null for notes that don't exist
+notes.forEach((note, index) => {
+  if (note) {
+    console.log(`Note ${index}: ${note.title}`);
+  } else {
+    console.log(`Note ${index}: not found`);
+  }
 });
 ```
 
-### `updateNote(args: UpdateNoteArgs): Promise<ApiUpdateResult>`
+### `getNoteInfo(args: GetNoteInfoArgs): Promise<Note | null>`
 
-Update a note's content or metadata. Returns update result with timestamp and success status.
+Get note metadata without full content. Supports flexible identifier resolution.
 
 ```typescript
-await api.updateNote({
-  identifier: 'my-note',
-  content: 'Updated content',
-  metadata: { updated: true }
+// Get by exact identifier
+const note1 = await api.getNoteInfo({ title_or_filename: 'meeting-notes.md' });
+
+// Get by title with type context
+const note2 = await api.getNoteInfo({
+  title_or_filename: 'standup',
+  type: 'meeting'
 });
 ```
 
-### `updateNoteContent(identifier: string, content: string, vaultId?: string): Promise<ApiUpdateResult>`
+### `updateNoteContent(identifier: string, content: string, vaultId?: string): Promise<UpdateResult>`
 
-Convenience method to update just the content of a note.
+Convenience method to update note content without needing to provide content hash.
 
 ```typescript
-await api.updateNoteContent('my-note', 'New content');
+const result = await api.updateNoteContent(
+  'general/my-note.md',
+  '# Updated Content\n\nNew content here...'
+);
+
+console.log(result.updated);   // true
+console.log(result.timestamp); // "2024-01-15T10:35:00.000Z"
 ```
 
-### `deleteNote(args: DeleteNoteArgs): Promise<ApiDeleteNoteResult>`
+### `renameNote(args: RenameNoteArgs): Promise<{success: boolean; notesUpdated?: number; linksUpdated?: number}>`
 
-Delete a note. Returns deletion result with backup information and any warnings.
+Rename a note and update all references to it.
 
 ```typescript
-await api.deleteNote({
-  identifier: 'my-note',
+// First get the note to obtain content hash
+const note = await api.getNote('general/old-name.md');
+if (!note) throw new Error('Note not found');
+
+const result = await api.renameNote({
+  identifier: 'general/old-name.md',
+  new_title: 'new-name',
+  content_hash: note.content_hash
+});
+
+console.log(result.success);       // true
+console.log(result.notesUpdated);  // 1
+console.log(result.linksUpdated);  // 3 (if 3 other notes linked to this one)
+```
+
+### `bulkDeleteNotes(args: BulkDeleteNotesArgs): Promise<DeleteNoteResult[]>`
+
+Delete multiple notes based on criteria.
+
+```typescript
+// Delete all notes of a specific type
+const results = await api.bulkDeleteNotes({
+  type: 'draft',
   confirm: true
 });
-```
 
-### `renameNote(args: RenameNoteArgs): Promise<ApiRenameNoteResult>`
-
-Rename a note. Returns rename result including old/new names and link update count.
-
-```typescript
-await api.renameNote({
-  identifier: 'old-name',
-  new_identifier: 'new-name'
-});
-```
-
-### `getNoteInfo(args: GetNoteInfoArgs): Promise<ApiNoteInfo>`
-
-Get detailed information about a note. Returns basic note metadata without full content.
-
-```typescript
-const info = await api.getNoteInfo({
-  identifier: 'my-note'
-});
-```
-
-### `listNotesByType(args: ListNotesByTypeArgs): Promise<ApiNoteListItem[]>`
-
-List all notes of a specific type. Returns an array of note list items with summary information.
-
-```typescript
-const meetingNotes = await api.listNotesByType({
-  type: 'meeting',
-  limit: 10
-});
-```
-
-### `bulkDeleteNotes(args: BulkDeleteNotesArgs): Promise<ApiBulkDeleteResult>`
-
-Delete multiple notes based on criteria. Returns bulk deletion result with counts and any errors.
-
-```typescript
-await api.bulkDeleteNotes({
-  type: 'temporary',
+// Delete notes matching a pattern
+const results2 = await api.bulkDeleteNotes({
+  pattern: 'temp-*',
   confirm: true
+});
+
+// Delete notes with specific tags
+const results3 = await api.bulkDeleteNotes({
+  tags: ['deprecated', 'old'],
+  confirm: true
+});
+
+results.forEach(result => {
+  console.log(`${result.id}: ${result.deleted ? 'deleted' : 'failed'}`);
 });
 ```
 
 ## Note Type Operations
 
-### `createNoteType(args: CreateNoteTypeArgs): Promise<ApiCreateNoteTypeResult>`
+### `createNoteType(args: CreateNoteTypeArgs): Promise<NoteTypeInfo>`
 
-Create a new note type with metadata schema. Returns creation result with type path and hash.
+Create a new note type with description and optional metadata schema.
 
 ```typescript
-await api.createNoteType({
-  type_name: 'meeting',
-  description: 'Meeting notes and action items',
-  agent_instructions: [
-    'Focus on key decisions and action items',
-    'Include attendees and date'
-  ],
-  metadata_schema: {
-    fields: [
-      {
-        name: 'attendees',
-        type: 'array',
-        description: 'Meeting attendees',
-        required: true
-      },
-      {
-        name: 'date',
-        type: 'date',
-        description: 'Meeting date',
-        required: true
-      }
-    ]
-  }
+const noteTypeInfo = await api.createNoteType({
+  type_name: 'project',
+  description: 'Project documentation and planning notes',
+  agent_instructions: 'Focus on technical details and milestones',
+  metadata_schema: [
+    { name: 'priority', type: 'string', required: true },
+    { name: 'deadline', type: 'date', required: false }
+  ]
 });
+
+console.log(noteTypeInfo.name);        // 'project'
+console.log(noteTypeInfo.filename);    // 'project_description.md'
 ```
 
-### `listNoteTypes(args?: ListNoteTypesArgs): Promise<ApiNoteTypeListItem[]>`
+### `listNoteTypes(args?: ListNoteTypesArgs): Promise<NoteTypeListItem[]>`
 
-List all available note types. Returns an array of note type summaries with usage statistics.
+List all available note types.
 
 ```typescript
 const noteTypes = await api.listNoteTypes();
+
+noteTypes.forEach(type => {
+  console.log(type.name);         // Type name
+  console.log(type.description);  // Type description
+  console.log(type.noteCount);    // Number of notes of this type
+});
 ```
 
-### `updateNoteType(args: UpdateNoteTypeArgs): Promise<ApiUpdateNoteTypeResult>`
+### `getNoteTypeInfo(args: GetNoteTypeInfoArgs): Promise<NoteTypeDescription>`
 
-Update an existing note type. Returns update result with new content hash.
+Get detailed information about a note type.
 
 ```typescript
-await api.updateNoteType({
+const typeInfo = await api.getNoteTypeInfo({ type_name: 'meeting' });
+
+console.log(typeInfo.parsed.description);         // Type description
+console.log(typeInfo.parsed.agentInstructions);   // Agent instructions array
+console.log(typeInfo.parsed.metadataSchema);      // Metadata schema object
+```
+
+### `updateNoteType(args: UpdateNoteTypeArgs): Promise<NoteTypeDescription>`
+
+Update an existing note type.
+
+```typescript
+const updatedType = await api.updateNoteType({
   type_name: 'meeting',
-  description: 'Updated description'
+  description: 'Updated meeting notes template',
+  instructions: 'Include action items and follow-up tasks',
+  metadata_schema: [
+    { name: 'attendees', type: 'array', required: true },
+    { name: 'date', type: 'date', required: true }
+  ]
 });
 ```
 
-### `getNoteTypeInfo(args: GetNoteTypeInfoArgs): Promise<ApiNoteTypeInfo>`
+### `deleteNoteType(args: DeleteNoteTypeArgs): Promise<NoteTypeDeleteResult>`
 
-Get detailed information about a note type. Returns complete type definition including schema and instructions.
-
-```typescript
-const typeInfo = await api.getNoteTypeInfo({
-  type_name: 'meeting'
-});
-```
-
-### `deleteNoteType(args: DeleteNoteTypeArgs): Promise<ApiDeleteNoteTypeResult>`
-
-Delete a note type. Returns deletion result with migration information if applicable.
+Delete a note type with options for handling existing notes.
 
 ```typescript
-await api.deleteNoteType({
-  type_name: 'obsolete-type',
-  action: 'migrate',
+// Delete type and move notes to another type
+const result = await api.deleteNoteType({
+  type_name: 'draft',
+  action: 'move',
   target_type: 'general',
   confirm: true
 });
+
+// Delete type and all its notes
+const result2 = await api.deleteNoteType({
+  type_name: 'temp',
+  action: 'delete',
+  confirm: true
+});
+
+console.log(result.success);      // true
+console.log(result.notesAffected); // Number of notes moved/deleted
 ```
 
 ## Search Operations
 
-### `searchNotes(args: SearchNotesArgs): Promise<ApiSearchResultType>`
+### `searchNotes(args: SearchNotesArgs): Promise<SearchResult[]>`
 
-Basic text search across notes. Returns search response with results, timing, and metadata.
+Basic text search across all notes with optional type filtering.
 
 ```typescript
 const results = await api.searchNotes({
-  query: 'meeting notes',
-  limit: 10
+  query: 'project update',
+  type_filter: 'meeting',
+  limit: 20,
+  use_regex: false
+});
+
+results.forEach(result => {
+  console.log(result.note_id);     // Note identifier
+  console.log(result.title);       // Note title
+  console.log(result.excerpt);     // Relevant excerpt
+  console.log(result.score);       // Relevance score
 });
 ```
 
-### `searchNotesByText(query: string, vaultId?: string, limit?: number): Promise<ApiSearchResultType>`
+### `searchNotesAdvanced(args: SearchNotesAdvancedArgs): Promise<SearchResult[]>`
+
+Advanced search with structured filtering and options.
+
+```typescript
+const results = await api.searchNotesAdvanced({
+  query: 'technical documentation',
+  types: ['project', 'technical'],
+  tags: ['important'],
+  created_after: '2024-01-01',
+  created_before: '2024-12-31',
+  limit: 50
+});
+```
+
+### `searchNotesSQL(args: SearchNotesSqlArgs): Promise<SearchResult[]>`
+
+Execute custom SQL queries against the notes database.
+
+```typescript
+const results = await api.searchNotesSQL({
+  query: `
+    SELECT n.id, n.title, n.type
+    FROM notes n
+    WHERE n.content LIKE '%important%'
+    AND n.created > datetime('2024-01-01')
+    ORDER BY n.created DESC
+    LIMIT 10
+  `
+});
+```
+
+### `searchNotesByText(query: string, typeFilter?: string, limit?: number, vaultId?: string): Promise<SearchResult[]>`
 
 Convenience method for simple text search.
 
 ```typescript
-const results = await api.searchNotesByText('important', undefined, 5);
-```
-
-### `searchNotesAdvanced(args: SearchNotesAdvancedArgs): Promise<ApiSearchResultType>`
-
-Advanced search with filters and options. Returns enhanced search response with applied filters and sorting information.
-
-```typescript
-const results = await api.searchNotesAdvanced({
-  query: 'project',
-  type: 'meeting',
-  tags: ['important'],
-  date_from: '2024-01-01',
-  date_to: '2024-01-31',
-  limit: 20,
-  include_content: true
-});
-```
-
-### `searchNotesSQL(args: SearchNotesSqlArgs): Promise<ApiSearchResultType>`
-
-Direct SQL query against the notes database. Returns SQL search response with raw results and column information.
-
-```typescript
-const results = await api.searchNotesSQL({
-  query: "SELECT title, type FROM notes WHERE created > '2024-01-01' ORDER BY created DESC"
-});
+const results = await api.searchNotesByText('meeting notes', 'meeting', 10);
 ```
 
 ## Vault Operations
 
-### `listVaults(): Promise<ApiVaultListResponse>`
+### `getCurrentVault(): Promise<VaultInfo | null>`
 
-List all available vaults. Returns vault list with current vault indication and statistics.
-
-```typescript
-const vaults = await api.listVaults();
-```
-
-### `createVault(args: CreateVaultArgs): Promise<ApiCreateVaultResult>`
-
-Create a new vault. Returns creation result with initialization and switch status.
-
-```typescript
-await api.createVault({
-  name: 'Project Notes',
-  path: './project-vault',
-  description: 'Notes for the current project'
-});
-```
-
-### `switchVault(args: SwitchVaultArgs): Promise<ApiVaultOperationResult>`
-
-Switch to a different vault. Returns operation result with success status and timing.
-
-```typescript
-await api.switchVault({
-  vault_id: 'project-vault'
-});
-```
-
-### `removeVault(args: RemoveVaultArgs): Promise<ApiVaultOperationResult>`
-
-Remove a vault. Returns operation result with removal confirmation.
-
-```typescript
-await api.removeVault({
-  vault_id: 'old-vault',
-  confirm: true
-});
-```
-
-### `getCurrentVault(): Promise<ApiVaultInfo>`
-
-Get information about the current active vault. Returns detailed vault information including statistics.
+Get information about the currently active vault.
 
 ```typescript
 const currentVault = await api.getCurrentVault();
+
+if (currentVault) {
+  console.log(currentVault.id);          // Vault ID
+  console.log(currentVault.name);        // Display name
+  console.log(currentVault.path);        // File system path
+  console.log(currentVault.description); // Optional description
+}
 ```
 
-### `updateVault(args: UpdateVaultArgs): Promise<ApiVaultOperationResult>`
+### `listVaults(): Promise<VaultInfo[]>`
 
-Update vault information. Returns operation result with update confirmation.
+List all configured vaults.
+
+```typescript
+const vaults = await api.listVaults();
+
+vaults.forEach(vault => {
+  console.log(`${vault.name} (${vault.id}): ${vault.path}`);
+});
+```
+
+### `createVault(args: CreateVaultArgs): Promise<VaultInfo>`
+
+Create a new vault with optional initialization.
+
+```typescript
+const newVault = await api.createVault({
+  id: 'project-notes',
+  name: 'Project Documentation',
+  path: '~/Documents/project-notes',
+  description: 'All project-related documentation',
+  initialize: true,    // Create default note types
+  switch_to: true      // Switch to this vault after creation
+});
+
+console.log(`Created vault: ${newVault.name} at ${newVault.path}`);
+```
+
+### `switchVault(args: SwitchVaultArgs): Promise<void>`
+
+Switch to a different vault.
+
+```typescript
+await api.switchVault({ id: 'project-notes' });
+// API is now working with the project-notes vault
+```
+
+### `updateVault(args: UpdateVaultArgs): Promise<void>`
+
+Update vault metadata (name and/or description).
 
 ```typescript
 await api.updateVault({
-  vault_id: 'my-vault',
-  name: 'Updated Name',
+  id: 'project-notes',
+  name: 'Updated Project Name',
   description: 'Updated description'
 });
 ```
 
+### `removeVault(args: RemoveVaultArgs): Promise<void>`
+
+Remove a vault from the registry (files are not deleted).
+
+```typescript
+await api.removeVault({ id: 'old-vault' });
+// Vault is removed from registry but files remain on disk
+```
+
 ## Link Operations
 
-### `getNoteLinks(identifier: string, vaultId?: string): Promise<ApiNoteLinkResponse>`
+### `getNoteLinks(identifier: string, vaultId?: string): Promise<{outgoing_internal: NoteLinkRow[]; outgoing_external: ExternalLinkRow[]; incoming: NoteLinkRow[]}>`
 
-Get all outbound links from a note. Returns link response with detailed link information and counts.
+Get all links for a specific note (outgoing and incoming).
 
 ```typescript
-const links = await api.getNoteLinks('my-note');
+const links = await api.getNoteLinks('general/my-note.md');
+
+console.log('Outgoing internal links:', links.outgoing_internal.length);
+console.log('Outgoing external links:', links.outgoing_external.length);
+console.log('Incoming links (backlinks):', links.incoming.length);
+
+// Each internal link has: source_note_id, target_note_id, link_text, etc.
+// Each external link has: note_id, url, link_text, etc.
 ```
 
-### `getBacklinks(identifier: string, vaultId?: string): Promise<ApiBacklinksResponse>`
+### `getBacklinks(identifier: string, vaultId?: string): Promise<NoteLinkRow[]>`
 
-Get all inbound links to a note. Returns backlinks response with source note information.
-
-```typescript
-const backlinks = await api.getBacklinks('my-note');
-```
-
-### `findBrokenLinks(vaultId?: string): Promise<ApiBrokenLinksResponse>`
-
-Find all broken links in the vault. Returns broken links response with detailed error information.
+Get all notes that link to the specified note.
 
 ```typescript
-const brokenLinks = await api.findBrokenLinks();
-```
+const backlinks = await api.getBacklinks('general/important-note.md');
 
-### `searchByLinks(args: SearchByLinksArgs): Promise<ApiLinkSearchResponse>`
-
-Search notes based on their link relationships. Returns link search response with matching criteria.
-
-```typescript
-const results = await api.searchByLinks({
-  has_links_to: ['important-note'],
-  linked_from: ['meeting-notes']
+backlinks.forEach(link => {
+  console.log(`${link.source_note_id} links to this note`);
+  console.log(`Link text: "${link.link_text}"`);
 });
 ```
 
-### `migrateLinks(force?: boolean, vaultId?: string): Promise<ApiMigrateLinksResult>`
+### `findBrokenLinks(vaultId?: string): Promise<NoteLinkRow[]>`
 
-Migrate and update link formats. Returns migration result with processing statistics and any errors.
+Find all broken wikilinks (links to non-existent notes).
 
 ```typescript
-await api.migrateLinks(false);
+const brokenLinks = await api.findBrokenLinks();
+
+brokenLinks.forEach(link => {
+  console.log(`Broken link in ${link.source_note_id}`);
+  console.log(`Missing target: ${link.target_note_id}`);
+  console.log(`Link text: "${link.link_text}"`);
+});
 ```
 
-## Resource Operations
+### `searchByLinks(args: SearchByLinksArgs): Promise<NoteRow[]>`
 
-### `getTypesResource(): Promise<ApiTypesResource>`
-
-Get available note types as a resource. Returns types resource with usage statistics.
+Search for notes based on their link relationships.
 
 ```typescript
-const types = await api.getTypesResource();
+// Find notes that link to specific notes
+const notesLinkingTo = await api.searchByLinks({
+  has_links_to: ['general/important.md', 'reference/guide.md']
+});
+
+// Find notes linked from specific notes
+const notesLinkedFrom = await api.searchByLinks({
+  linked_from: ['index.md']
+});
+
+// Find notes with external links to specific domains
+const notesWithExternalLinks = await api.searchByLinks({
+  external_domains: ['github.com', 'stackoverflow.com']
+});
+
+// Find notes with broken links
+const notesWithBrokenLinks = await api.searchByLinks({
+  broken_links: true
+});
 ```
 
-### `getRecentResource(): Promise<ApiRecentResource>`
+### `migrateLinks(force?: boolean, vaultId?: string): Promise<MigrationResult>`
 
-Get recently modified notes. Returns recent resource with note summaries and timestamps.
+Scan all existing notes and populate the link tables (one-time migration).
 
 ```typescript
-const recent = await api.getRecentResource();
+const result = await api.migrateLinks(true); // force = true
+
+console.log(`Processed ${result.processed}/${result.total_notes} notes`);
+console.log(`Errors: ${result.errors}`);
+if (result.error_details) {
+  console.log('Error details:', result.error_details);
+}
 ```
 
-### `getStatsResource(): Promise<ApiStatsResource>`
+## Utility Methods
 
-Get workspace statistics. Returns comprehensive stats resource with counts, sizes, and activity metrics.
+### `getManagers()`
+
+Get direct access to the underlying managers for advanced use cases.
 
 ```typescript
-const stats = await api.getStatsResource();
+const { workspace, noteManager, noteTypeManager, hybridSearchManager } = api.getManagers();
+
+// Direct manager access for advanced operations
+const customResult = await noteManager.searchNotes({
+  query: 'advanced search',
+  typeFilter: 'meeting',
+  limit: 20
+});
+```
+
+### `resolveVaultContext(vaultId?: string): Promise<VaultContext>`
+
+Resolve vault context for multi-vault scenarios.
+
+```typescript
+const context = await api.resolveVaultContext('project-vault');
+// Returns: { workspace, noteManager, noteTypeManager, hybridSearchManager }
+```
+
+## Return Types
+
+The `FlintNoteApi` returns pure TypeScript objects from the core managers:
+
+### `NoteInfo`
+```typescript
+interface NoteInfo {
+  id: string;          // Unique note identifier
+  type: string;        // Note type
+  title: string;       // Note title
+  filename: string;    // File name
+  path: string;        // Full file path
+  created: string;     // ISO timestamp
+}
+```
+
+### `Note`
+```typescript
+interface Note {
+  id: string;              // Unique note identifier
+  title: string;           // Note title
+  content: string;         // Full note content
+  metadata: NoteMetadata;  // Note metadata object
+  content_hash: string;    // Hash for content verification
+  links: NoteLink[];       // Array of links in the note
+  type: string;            // Note type
+  created: string;         // ISO timestamp
+  updated: string;         // ISO timestamp
+  // ... additional fields
+}
+```
+
+### `UpdateResult`
+```typescript
+interface UpdateResult {
+  id: string;           // Note identifier
+  updated: boolean;     // Success status
+  timestamp: string;    // ISO timestamp
+}
+```
+
+### `DeleteNoteResult`
+```typescript
+interface DeleteNoteResult {
+  id: string;            // Note identifier
+  deleted: boolean;      // Success status
+  timestamp: string;     // ISO timestamp
+  backup_path?: string;  // Backup file path (if created)
+  warnings?: string[];   // Any warnings during deletion
+}
+```
+
+### `NoteListItem`
+```typescript
+interface NoteListItem {
+  id: string;          // Note identifier
+  title: string;       // Note title
+  type: string;        // Note type
+  created: string;     // ISO timestamp
+  updated: string;     // ISO timestamp
+  size: number;        // File size in bytes
+  tags: string[];      // Note tags
+  path: string;        // File path
+}
+```
+
+### `SearchResult`
+```typescript
+interface SearchResult {
+  note_id: string;     // Note identifier
+  title: string;       // Note title
+  excerpt: string;     // Relevant text excerpt
+  score: number;       // Relevance score (0-1)
+  type?: string;       // Note type
+  created?: string;    // Creation timestamp
+}
+```
+
+### `VaultInfo`
+```typescript
+interface VaultInfo {
+  id: string;              // Unique vault identifier
+  name: string;            // Display name
+  path: string;            // File system path
+  description?: string;    // Optional description
+  created?: string;        // Creation timestamp
+  active?: boolean;        // Whether this is the current vault
+}
+```
+
+### `NoteTypeInfo`
+```typescript
+interface NoteTypeInfo {
+  name: string;            // Type name
+  filename: string;        // Description file name
+  path: string;            // Full file path
+  created: string;         // Creation timestamp
+}
+```
+
+### `NoteTypeListItem`
+```typescript
+interface NoteTypeListItem {
+  name: string;            // Type name
+  description: string;     // Type description
+  noteCount: number;       // Number of notes of this type
+  filename: string;        // Description file name
+}
+```
+
+### `NoteTypeDescription`
+```typescript
+interface NoteTypeDescription {
+  raw: string;             // Raw markdown content
+  parsed: {
+    description: string;           // Parsed description
+    agentInstructions: string[];   // Agent instructions array
+    metadataSchema?: object;       // Metadata schema
+  };
+}
+```
+
+### `NoteLinkRow`
+```typescript
+interface NoteLinkRow {
+  source_note_id: string;  // Source note identifier
+  target_note_id: string;  // Target note identifier
+  link_text: string;       // Display text of the link
+  link_type: string;       // Type of link (wikilink, etc.)
+}
+```
+
+### `ExternalLinkRow`
+```typescript
+interface ExternalLinkRow {
+  note_id: string;         // Note containing the link
+  url: string;             // External URL
+  link_text: string;       // Display text of the link
+  link_type: string;       // Type of link (markdown, etc.)
+}
+```
+
+### `NoteRow`
+```typescript
+interface NoteRow {
+  id: string;              // Note identifier
+  title: string;           // Note title
+  content: string;         // Note content
+  type: string;            // Note type
+  created: string;         // Creation timestamp
+  updated: string;         // Last update timestamp
+  // ... additional database fields
+}
 ```
 
 ## Error Handling
@@ -436,7 +776,11 @@ All methods can throw errors. It's recommended to wrap API calls in try-catch bl
 ```typescript
 try {
   const note = await api.getNote('my-note');
-  console.log(note);
+  if (note) {
+    console.log('Found note:', note.title);
+  } else {
+    console.log('Note not found');
+  }
 } catch (error) {
   console.error('Failed to get note:', error);
 }
@@ -459,26 +803,89 @@ await api.initialize();
 await api.getNote('my-note'); // Now this works
 ```
 
+## Method Reference
+
+`FlintNoteApi` provides complete FlintNote functionality with 31 methods:
+
+**✅ Core Note Operations (11 methods):**
+- `createNote()`, `createSimpleNote()`, `getNote()`, `getNotes()`, `getNoteInfo()`
+- `updateNote()`, `updateNoteContent()`, `deleteNote()`, `bulkDeleteNotes()`
+- `listNotes()`, `renameNote()`
+
+**✅ Note Type Operations (5 methods):**
+- `createNoteType()`, `listNoteTypes()`, `getNoteTypeInfo()`
+- `updateNoteType()`, `deleteNoteType()`
+
+**✅ Search Operations (4 methods):**
+- `searchNotes()`, `searchNotesAdvanced()`, `searchNotesSQL()`, `searchNotesByText()`
+
+**✅ Vault Operations (6 methods):**
+- `getCurrentVault()`, `listVaults()`, `createVault()`
+- `switchVault()`, `updateVault()`, `removeVault()`
+
+**✅ Link Operations (5 methods):**
+- `getNoteLinks()`, `getBacklinks()`, `findBrokenLinks()`
+- `searchByLinks()`, `migrateLinks()`
+
 ## Examples
 
-See the `examples/` directory for complete usage examples:
-- `examples/api-usage.js` - JavaScript example
-- `examples/api-usage.ts` - TypeScript example with full type annotations
+### Basic Note Management
+```typescript
+import { FlintNoteApi } from '@flint-note/server/api';
 
-## Migration from MCP Server
+const api = new FlintNoteApi({
+  workspacePath: './my-notes'
+});
 
-If you're currently using the MCP server interface, the API provides equivalent functionality:
+await api.initialize();
 
-**MCP Server (old way):**
-```javascript
-// Via MCP protocol
-const response = await client.callTool('get_note', { identifier: 'my-note' });
+// Create a note
+const noteInfo = await api.createSimpleNote(
+  'general',
+  'meeting-notes',
+  '# Team Meeting\n\n- Review progress\n- Plan next sprint'
+);
+
+console.log('Created note:', noteInfo.id);
+
+// Read the note
+const note = await api.getNote(noteInfo.id);
+console.log('Note content:', note.content);
+console.log('Note metadata:', note.metadata);
+
+// Update the note
+const updateResult = await api.updateNote(
+  noteInfo.id,
+  note.content + '\n\n## Action Items\n- Update documentation',
+  note.content_hash
+);
+
+console.log('Updated:', updateResult.updated);
+
+// List notes
+const notes = await api.listNotes('general', 10);
+console.log(`Found ${notes.length} general notes`);
 ```
 
-**Direct API (new way):**
-```javascript
-// Direct method call
-const note = await api.getNote('my-note');
+### Advanced Manager Access
+```typescript
+const api = new FlintNoteApi({ workspacePath: './notes' });
+await api.initialize();
+
+// Get direct manager access for advanced operations
+const { noteManager, hybridSearchManager } = api.getManagers();
+
+// Advanced search using manager directly
+const searchResults = await noteManager.searchNotes({
+  query: 'project update',
+  typeFilter: 'meeting',
+  limit: 20,
+  useRegex: false
+});
+
+// Database stats
+const stats = await hybridSearchManager.getStats();
+console.log('Indexed notes:', stats.noteCount);
 ```
 
-The API methods correspond directly to the MCP tools, but with a more convenient interface and better TypeScript support.
+This API provides the most efficient way to integrate FlintNote into your applications with clean, type-safe interfaces and optimal performance.

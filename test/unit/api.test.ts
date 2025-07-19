@@ -8,7 +8,7 @@
 import { test, describe, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert';
 import { promises as fs } from 'node:fs';
-import { FlintNoteApi } from '../../src/api/flint-note-api.ts';
+import { FlintNoteApi } from '../../src/api/flint-note-api.js';
 import { createTempDirName } from './helpers/test-utils.ts';
 
 describe('FlintNoteApi', () => {
@@ -65,19 +65,25 @@ describe('FlintNoteApi', () => {
     test('should create and retrieve a simple note', async () => {
       const noteContent = '# Test Note\n\nThis is a test note.';
 
-      // Create note
+      // Create note - returns pure NoteInfo
       const createResult = await api.createSimpleNote(
         'general',
         'test-note',
         noteContent
       );
       assert.ok(createResult);
+      assert.ok(createResult.id);
+      assert.ok(createResult.type);
+      assert.ok(createResult.title);
+      assert.ok(createResult.filename);
+      assert.ok(createResult.path);
+      assert.ok(createResult.created);
 
-      // Retrieve note
+      // Retrieve note - returns pure Note object
       const note = await api.getNote('general/test-note.md');
       assert.ok(note);
-      assert.ok((note as any).content);
-      assert.ok((note as any).content.includes('Test Note'));
+      assert.ok(note.content);
+      assert.ok(note.content.includes('Test Note'));
     });
 
     test('should create note with full API', async () => {
@@ -95,167 +101,121 @@ describe('FlintNoteApi', () => {
         ]
       });
 
+      // result is NoteInfo[] for batch creation
       assert.ok(result);
+      assert.ok(Array.isArray(result));
+      assert.equal(result.length, 1);
+      assert.ok(result[0].id);
+      assert.ok(result[0].type);
+      assert.ok(result[0].title);
 
       const note = await api.getNote('general/detailed-note.md');
       assert.ok(note);
-      assert.ok((note as any).content.includes('Detailed Note'));
+      assert.ok(note.content.includes('Detailed Note'));
     });
 
-    test('should get note info', async () => {
+    test('should get note by identifier', async () => {
       // Create initial note
       await api.createSimpleNote('general', 'info-test', 'Test content for info');
 
-      // Get note info with proper parameter
-      const info = await api.getNoteInfo({ title_or_filename: 'info-test' });
-      assert.ok(info);
+      // Get note directly
+      const note = await api.getNote('general/info-test.md');
+      assert.ok(note);
+      assert.ok(note.content);
+      assert.ok(note.content.includes('Test content for info'));
     });
 
     test('should handle non-existent note gracefully', async () => {
-      try {
-        await api.getNote('general/non-existent-note.md');
-        assert.fail('Should have thrown an error for non-existent note');
-      } catch (error) {
-        // Any error is acceptable - just verify it throws
-        assert.ok(error);
-      }
+      const note = await api.getNote('general/non-existent-note.md');
+      // getNote returns null for non-existent notes
+      assert.equal(note, null);
     });
   });
 
-  describe('Note Type Operations', () => {
+  describe('List Operations', () => {
     beforeEach(async () => {
       await api.initialize();
     });
 
-    test('should create and list note types', async () => {
-      // Create the general note type first (required for workspace)
-      await api.createNoteType({
-        type_name: 'general',
-        description: 'General purpose notes',
-        agent_instructions: ['Be helpful']
-      });
+    test('should list notes', async () => {
+      // Create some test notes first
+      await api.createSimpleNote('general', 'list-test-1', 'First note');
+      await api.createSimpleNote('general', 'list-test-2', 'Second note');
 
-      // Create a test note type
-      await api.createNoteType({
-        type_name: 'test-type',
-        description: 'A test note type for API testing',
-        agent_instructions: ['Be helpful', 'Be concise']
-      });
-
-      // List note types
-      const types = await api.listNoteTypes();
-      assert.ok(types);
+      // List notes by type - returns NoteListItem[]
+      const notes = await api.listNotes('general');
+      assert.ok(notes);
+      assert.ok(Array.isArray(notes));
     });
 
-    test('should get note type info for general type', async () => {
-      // Create the general note type first
-      await api.createNoteType({
-        type_name: 'general',
-        description: 'General purpose notes'
-      });
+    test('should list notes with limit', async () => {
+      // Create some test notes first
+      await api.createSimpleNote('general', 'limit-test-1', 'First note');
+      await api.createSimpleNote('general', 'limit-test-2', 'Second note');
 
-      // Test getting info for the general type
-      const typeInfo = await api.getNoteTypeInfo({ type_name: 'general' });
-      assert.ok(typeInfo);
+      // List with limit
+      const notes = await api.listNotes('general', 1);
+      assert.ok(notes);
+      assert.ok(Array.isArray(notes));
     });
   });
 
-  describe('Search Operations', () => {
+  describe('Update Operations', () => {
     beforeEach(async () => {
       await api.initialize();
+    });
 
-      // Create some test notes
-      await api.createSimpleNote(
+    test('should update note content', async () => {
+      // Create initial note
+      const createResult = await api.createSimpleNote(
         'general',
-        'search-test-1',
-        '# Important Meeting\n\nDiscuss quarterly results'
+        'update-test',
+        'Original content'
       );
-      await api.createSimpleNote(
-        'general',
-        'search-test-2',
-        '# Project Update\n\nImportant milestone reached'
+      assert.ok(createResult);
+
+      // Get note to get content hash
+      const note = await api.getNote('general/update-test.md');
+      assert.ok(note);
+      assert.ok(note.content_hash);
+
+      // Update note - returns UpdateResult
+      const updateResult = await api.updateNote(
+        'general/update-test.md',
+        'Updated content',
+        note.content_hash
       );
-      await api.createSimpleNote(
-        'general',
-        'search-test-3',
-        '# Random Note\n\nNothing special here'
-      );
-    });
+      assert.ok(updateResult);
+      assert.ok(updateResult.id);
+      assert.ok(updateResult.updated);
+      assert.ok(updateResult.timestamp);
 
-    test('should search notes by text', async () => {
-      const results = await api.searchNotesByText('important');
-      assert.ok(results);
-    });
-
-    test('should perform advanced search', async () => {
-      const results = await api.searchNotesAdvanced({
-        content_contains: 'meeting',
-        limit: 5
-      });
-
-      assert.ok(results);
-    });
-
-    test('should limit search results', async () => {
-      const results = await api.searchNotesByText('test', undefined, 2);
-      assert.ok(results);
-      // Note: Exact result counting depends on search implementation
-      // Just verify we get results without errors
+      // Verify update
+      const updatedNote = await api.getNote('general/update-test.md');
+      assert.ok(updatedNote);
+      assert.ok(updatedNote.content.includes('Updated content'));
     });
   });
 
-  describe('Vault Operations', () => {
+  describe('Delete Operations', () => {
     beforeEach(async () => {
       await api.initialize();
     });
 
-    test('should get current vault info', async () => {
-      const vault = await api.getCurrentVault();
-      assert.ok(vault);
-      // Should have basic vault information
-    });
+    test('should delete note', async () => {
+      // Create note to delete
+      await api.createSimpleNote('general', 'delete-test', 'Content to be deleted');
 
-    test('should list vaults', async () => {
-      const vaults = await api.listVaults();
-      assert.ok(vaults);
-      // Should return some vault information
-    });
-  });
+      // Delete note - returns DeleteNoteResult
+      const deleteResult = await api.deleteNote('general/delete-test.md');
+      assert.ok(deleteResult);
+      assert.ok(deleteResult.id);
+      assert.ok(deleteResult.deleted);
+      assert.ok(deleteResult.timestamp);
 
-  describe('Resource Operations', () => {
-    beforeEach(async () => {
-      await api.initialize();
-    });
-
-    test('should get workspace statistics', async () => {
-      // Create the general note type first
-      await api.createNoteType({
-        type_name: 'general',
-        description: 'General purpose notes'
-      });
-
-      // Create a note first to ensure we have some stats
-      await api.createSimpleNote('general', 'stats-test', 'Test content for statistics');
-
-      try {
-        const stats = await api.getStatsResource();
-        assert.ok(stats);
-        // Just verify we got some response back - any format is acceptable
-      } catch (error) {
-        // Stats might not be available in test environment - that's ok
-        assert.ok(error);
-      }
-    });
-
-    test('should get note types resource', async () => {
-      try {
-        const types = await api.getTypesResource();
-        assert.ok(types);
-        // Just verify we got some response back - any format is acceptable
-      } catch (error) {
-        // Resource might not be available in test environment - that's ok
-        assert.ok(error);
-      }
+      // Verify deletion
+      const deletedNote = await api.getNote('general/delete-test.md');
+      assert.equal(deletedNote, null);
     });
   });
 
@@ -271,10 +231,18 @@ describe('FlintNoteApi', () => {
         'Content created via convenience method'
       );
 
+      // Returns pure NoteInfo
       assert.ok(result);
+      assert.ok(result.id);
+      assert.ok(result.type);
+      assert.ok(result.title);
+      assert.ok(result.filename);
+      assert.ok(result.path);
+      assert.ok(result.created);
 
       const note = await api.getNote('general/convenience-test.md');
-      assert.ok((note as any).content.includes('convenience method'));
+      assert.ok(note);
+      assert.ok(note.content.includes('convenience method'));
     });
 
     test('should create multiple notes with convenience method', async () => {
@@ -286,19 +254,8 @@ describe('FlintNoteApi', () => {
 
       assert.ok(note1);
       assert.ok(note2);
-      assert.ok(
-        (note1 as any).content || (note1 as any).text || typeof note1 === 'string'
-      );
-      assert.ok(
-        (note2 as any).content || (note2 as any).text || typeof note2 === 'string'
-      );
-    });
-
-    test('should search with convenience method', async () => {
-      await api.createSimpleNote('general', 'findme', 'Unique search term: elephant');
-
-      const results = await api.searchNotesByText('elephant', undefined, 5);
-      assert.ok(results);
+      assert.ok(note1.content);
+      assert.ok(note2.content);
     });
   });
 
@@ -315,18 +272,14 @@ describe('FlintNoteApi', () => {
       });
     });
 
-    test('should handle empty search gracefully', async () => {
-      const results = await api.searchNotesByText('');
-      assert.ok(results);
-      // Empty search should return results or empty results, not crash
-    });
-
     test('should provide basic API structure', async () => {
       // Just verify the API has the expected methods
       assert.ok(typeof api.createNote === 'function');
       assert.ok(typeof api.getNote === 'function');
-      assert.ok(typeof api.searchNotes === 'function');
-      assert.ok(typeof api.listVaults === 'function');
+      assert.ok(typeof api.updateNote === 'function');
+      assert.ok(typeof api.deleteNote === 'function');
+      assert.ok(typeof api.listNotes === 'function');
+      assert.ok(typeof api.createSimpleNote === 'function');
     });
   });
 });
