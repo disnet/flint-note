@@ -4,6 +4,7 @@
   import TabNavigation from './components/TabNavigation.svelte';
   import NotesView from './components/NotesView.svelte';
   import NoteEditor from './components/NoteEditor.svelte';
+  import VaultSwitcher from './components/VaultSwitcher.svelte';
   import type { Message } from './services/types';
   import type { NoteMetadata } from './services/noteStore';
   import { getChatService } from './services/chatService';
@@ -169,7 +170,10 @@
 
 <div class="app">
   <header class="header">
-    <h1>Flint</h1>
+    <div class="header-top">
+      <h1>Flint</h1>
+      <VaultSwitcher />
+    </div>
     <TabNavigation {tabs} {activeTab} onTabChange={handleTabChange} />
   </header>
 
@@ -224,9 +228,15 @@
     transition: all 0.2s ease;
   }
 
+  .header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.25rem 1.5rem 0.5rem 1.5rem;
+  }
+
   .header h1 {
     margin: 0;
-    padding: 1.25rem 1.5rem 0.5rem 1.5rem;
     font-size: 1.25rem;
     font-weight: 600;
     color: var(--text-secondary);
