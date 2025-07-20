@@ -1,9 +1,6 @@
 @import './base.css';
 
 body {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   overflow: hidden;
   background-size: cover;
   user-select: none;

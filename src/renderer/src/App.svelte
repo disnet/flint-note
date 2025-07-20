@@ -207,6 +207,9 @@
     display: flex;
     flex-direction: column;
     height: 100vh;
+    width: 100%;
+    max-width: 70ch;
+    margin: 0 auto;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
     background: var(--bg-primary);
     color: var(--text-primary);
