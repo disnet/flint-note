@@ -241,7 +241,8 @@ You have access to comprehensive note management tools including:
 - Handling note links and relationships
 - Advanced search capabilities with SQL queries
 
-You also have access to weather tools that can provide current weather information and forecasts for various locations.
+When responding be sure to format references to notes in wikilinks syntax. For example, [[Note Title]] or [[daily/2023-09-25|September 25th, 2023]]
+
 
 Use these tools to help users manage their notes effectively and answer their questions.`;
 
