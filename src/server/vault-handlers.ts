@@ -45,9 +45,9 @@ export class VaultHandlers {
       }
 
       const vaultList = vaults
-        .map(({ id, info, is_current }) => {
+        .map(({ info, is_current }) => {
           const indicator = is_current ? '🟢 (current)' : '⚪';
-          return `${indicator} **${id}**: ${info.name}\n   Path: ${info.path}\n   Created: ${new Date(info.created).toLocaleDateString()}\n   Last accessed: ${new Date(info.last_accessed).toLocaleDateString()}${info.description ? `\n   Description: ${info.description}` : ''}`;
+          return `${indicator} **${info.id}**: ${info.name}\n   Path: ${info.path}\n   Created: ${new Date(info.created).toLocaleDateString()}\n   Last accessed: ${new Date(info.last_accessed).toLocaleDateString()}${info.description ? `\n   Description: ${info.description}` : ''}`;
         })
         .join('\n\n');
 
@@ -277,7 +277,7 @@ export class VaultHandlers {
       // Find the vault ID
       const vaults = this.globalConfig.listVaults();
       const currentVaultEntry = vaults.find(v => v.is_current);
-      const vaultId = currentVaultEntry?.id || 'unknown';
+      const vaultId = currentVaultEntry?.info.id || 'unknown';
 
       return {
         content: [

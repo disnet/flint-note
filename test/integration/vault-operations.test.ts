@@ -68,8 +68,8 @@ describe('Vault Operations with vault_id Parameter', () => {
       const vaults = await globalConfig.listVaults();
       assert.strictEqual(vaults.length, 2);
 
-      const vault1 = vaults.find(v => v.id === 'vault1');
-      const vault2 = vaults.find(v => v.id === 'vault2');
+      const vault1 = vaults.find(v => v.info.id === 'vault1');
+      const vault2 = vaults.find(v => v.info.id === 'vault2');
 
       assert(vault1, 'vault1 should exist');
       assert(vault2, 'vault2 should exist');
@@ -80,7 +80,7 @@ describe('Vault Operations with vault_id Parameter', () => {
     it('should have vault1 as the active vault', async () => {
       const vaults = globalConfig.listVaults();
       const currentVault = vaults.find(v => v.is_current);
-      assert.strictEqual(currentVault?.id, 'vault1');
+      assert.strictEqual(currentVault?.info.id, 'vault1');
     });
 
     it('should switch between vaults correctly', async () => {
@@ -88,13 +88,13 @@ describe('Vault Operations with vault_id Parameter', () => {
       await globalConfig.switchVault('vault2');
       let vaults = globalConfig.listVaults();
       let currentVault = vaults.find(v => v.is_current);
-      assert.strictEqual(currentVault?.id, 'vault2');
+      assert.strictEqual(currentVault?.info.id, 'vault2');
 
       // Switch back to vault1
       await globalConfig.switchVault('vault1');
       vaults = globalConfig.listVaults();
       currentVault = vaults.find(v => v.is_current);
-      assert.strictEqual(currentVault?.id, 'vault1');
+      assert.strictEqual(currentVault?.info.id, 'vault1');
     });
   });
 
@@ -150,7 +150,7 @@ describe('Vault Operations with vault_id Parameter', () => {
       assert.strictEqual(vaults.length, 2);
 
       const currentVault = vaults.find(v => v.is_current);
-      assert.strictEqual(currentVault?.id, 'vault1');
+      assert.strictEqual(currentVault?.info.id, 'vault1');
     });
 
     it('should handle vault removal', async () => {
@@ -160,15 +160,15 @@ describe('Vault Operations with vault_id Parameter', () => {
 
       await globalConfig.addVault('temp-vault', 'Temporary Vault', tempVaultPath);
 
-      let vaults = await globalConfig.listVaults();
+      let vaults = globalConfig.listVaults();
       assert.strictEqual(vaults.length, 3);
 
       // Remove the temporary vault
       await globalConfig.removeVault('temp-vault');
 
-      vaults = await globalConfig.listVaults();
+      vaults = globalConfig.listVaults();
       assert.strictEqual(vaults.length, 2);
-      assert(!vaults.some(v => v.id === 'temp-vault'));
+      assert(!vaults.some(v => v.info.id === 'temp-vault'));
     });
   });
 });

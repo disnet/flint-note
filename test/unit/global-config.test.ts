@@ -285,8 +285,8 @@ describe('GlobalConfigManager', () => {
       const vaults = globalConfig.listVaults();
       assert.strictEqual(vaults.length, 2);
 
-      const vault1 = vaults.find(v => v.id === 'list-vault1');
-      const vault2 = vaults.find(v => v.id === 'list-vault2');
+      const vault1 = vaults.find(v => v.info.id === 'list-vault1');
+      const vault2 = vaults.find(v => v.info.id === 'list-vault2');
 
       assert.ok(vault1);
       assert.ok(vault2);
@@ -325,9 +325,9 @@ describe('GlobalConfigManager', () => {
 
       const recentVaults = globalConfig.getRecentVaults();
       assert.strictEqual(recentVaults.length, 3);
-      assert.strictEqual(recentVaults[0].id, 'recent-vault2'); // Most recent
-      assert.strictEqual(recentVaults[1].id, 'recent-vault3');
-      assert.strictEqual(recentVaults[2].id, 'recent-vault1'); // Least recent
+      assert.strictEqual(recentVaults[0].info.id, 'recent-vault2'); // Most recent
+      assert.strictEqual(recentVaults[1].info.id, 'recent-vault3');
+      assert.strictEqual(recentVaults[2].info.id, 'recent-vault1'); // Least recent
     } finally {
       await cleanupTestConfig(tempDir, cleanup);
     }

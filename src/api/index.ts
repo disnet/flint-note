@@ -4,45 +4,6 @@
 
 export { FlintNoteApi, type FlintNoteApiConfig } from './flint-note-api.js';
 
-// Export API response types
-export type {
-  ApiNote,
-  ApiNoteInfo,
-  ApiNoteListItem,
-  ApiCreateResult,
-  ApiUpdateResult,
-  ApiDeleteNoteResult,
-  ApiRenameNoteResult,
-  ApiBulkDeleteResult,
-  ApiNoteTypeInfo,
-  ApiNoteTypeListItem,
-  ApiCreateNoteTypeResult,
-  ApiUpdateNoteTypeResult,
-  ApiDeleteNoteTypeResult,
-  ApiSearchResult,
-  ApiSearchResponse,
-  ApiAdvancedSearchResponse,
-  ApiSqlSearchResponse,
-  ApiSearchResultType,
-  ApiVaultInfo,
-  ApiVaultListResponse,
-  ApiCreateVaultResult,
-  ApiVaultOperationResult,
-  ApiNoteLink,
-  ApiNoteLinkResponse,
-  ApiBacklinksResponse,
-  ApiBrokenLinksResponse,
-  ApiLinkSearchResponse,
-  ApiMigrateLinksResult,
-  ApiTypesResource,
-  ApiRecentResource,
-  ApiStatsResource,
-  ApiError,
-  ApiResponse,
-  ApiNoteResult,
-  ApiMultipleNotesResult
-} from './types.js';
-
 // Re-export commonly used types from server
 export type {
   CreateNoteArgs,

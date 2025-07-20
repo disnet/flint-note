@@ -699,8 +699,8 @@ interface VaultInfo {
   name: string;            // Display name
   path: string;            // File system path
   description?: string;    // Optional description
-  created?: string;        // Creation timestamp
-  active?: boolean;        // Whether this is the current vault
+  last_accessed: string;   // Last accessed timestamp
+  created: string;         // Creation timestamp
 }
 ```
 

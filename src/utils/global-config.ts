@@ -12,6 +12,7 @@ import yaml from 'js-yaml';
 import { resolvePath } from './path.js';
 
 export interface VaultInfo {
+  id: string;
   name: string;
   path: string;
   created: string;
@@ -245,6 +246,7 @@ export class GlobalConfigManager {
 
     const now = new Date().toISOString();
     this.#config!.vaults[id] = {
+      id,
       name,
       path: resolvePath(vaultPath),
       created: now,
@@ -329,7 +331,7 @@ export class GlobalConfigManager {
   /**
    * List all vaults
    */
-  listVaults(): Array<{ id: string; info: VaultInfo; is_current: boolean }> {
+  listVaults(): Array<{ info: VaultInfo; is_current: boolean }> {
     if (!this.#config) {
       return [];
     }
@@ -431,9 +433,7 @@ export class GlobalConfigManager {
   /**
    * Get recent vaults (sorted by last accessed)
    */
-  getRecentVaults(
-    limit?: number
-  ): Array<{ id: string; info: VaultInfo; is_current: boolean }> {
+  getRecentVaults(limit?: number): Array<{ info: VaultInfo; is_current: boolean }> {
     const allVaults = this.listVaults();
     const sorted = allVaults.sort(
       (a, b) =>

@@ -104,12 +104,36 @@ const COMMANDS: CliCommand[] = [
     description: 'Delete notes or note types',
     args: ['<type>', '<target>'],
     options: [
-      { name: '--action', description: 'Action for note type deletion: error, migrate, delete', type: 'string' },
-      { name: '--target-type', description: 'Target note type for migration', type: 'string' },
-      { name: '--confirm', description: 'Confirm deletion without prompting', type: 'boolean' },
-      { name: '--type', description: 'Filter by note type for bulk deletion', type: 'string' },
-      { name: '--tags', description: 'Filter by tags for bulk deletion (comma-separated)', type: 'string' },
-      { name: '--pattern', description: 'Regex pattern for bulk deletion', type: 'string' }
+      {
+        name: '--action',
+        description: 'Action for note type deletion: error, migrate, delete',
+        type: 'string'
+      },
+      {
+        name: '--target-type',
+        description: 'Target note type for migration',
+        type: 'string'
+      },
+      {
+        name: '--confirm',
+        description: 'Confirm deletion without prompting',
+        type: 'boolean'
+      },
+      {
+        name: '--type',
+        description: 'Filter by note type for bulk deletion',
+        type: 'string'
+      },
+      {
+        name: '--tags',
+        description: 'Filter by tags for bulk deletion (comma-separated)',
+        type: 'string'
+      },
+      {
+        name: '--pattern',
+        description: 'Regex pattern for bulk deletion',
+        type: 'string'
+      }
     ]
   }
 ];
@@ -227,9 +251,9 @@ GLOBAL CONFIG:
 
     console.log('📁 Configured Vaults:\n');
 
-    for (const { id, info, is_current } of vaults) {
+    for (const { info, is_current } of vaults) {
       const indicator = is_current ? '🟢' : '⚪';
-      console.log(`${indicator} ${id}: ${info.name}`);
+      console.log(`${indicator} ${info.id}: ${info.name}`);
       console.log(`   Path: ${info.path}`);
       console.log(`   Created: ${new Date(info.created).toLocaleDateString()}`);
       console.log(
@@ -359,7 +383,7 @@ GLOBAL CONFIG:
     // Find the vault ID
     const vaults = this.#globalConfig.listVaults();
     const currentVaultEntry = vaults.find(v => v.is_current);
-    const vaultId = currentVaultEntry?.id || 'unknown';
+    const vaultId = currentVaultEntry?.info.id || 'unknown';
 
     console.log(`🟢 Current Vault: ${currentVault.name} (${vaultId})\n`);
     console.log(`Path: ${currentVault.path}`);
@@ -468,7 +492,7 @@ GLOBAL CONFIG:
       const vaults = this.#globalConfig.listVaults();
       const currentVaultEntry = vaults.find(v => v.is_current);
       console.log(
-        `Current vault: ${currentVault.name} (${currentVaultEntry?.id || 'unknown'})`
+        `Current vault: ${currentVault.name} (${currentVaultEntry?.info.id || 'unknown'})`
       );
     } else {
       console.log('Current vault: None');
@@ -555,12 +579,16 @@ GLOBAL CONFIG:
     }
   }
 
-  async deleteNote(workspace: Workspace, identifier: string, options: Record<string, string | boolean>): Promise<void> {
+  async deleteNote(
+    workspace: Workspace,
+    identifier: string,
+    options: Record<string, string | boolean>
+  ): Promise<void> {
     const { NoteManager } = await import('./core/notes.js');
 
     const noteManager = new NoteManager(workspace);
 
-    const confirm = options.confirm as boolean || false;
+    const confirm = (options.confirm as boolean) || false;
 
     if (!confirm) {
       console.log(`⚠️  About to delete note: ${identifier}`);
@@ -569,7 +597,6 @@ GLOBAL CONFIG:
     }
 
     try {
-
       const result = await noteManager.deleteNote(identifier, confirm);
 
       if (result.deleted) {
@@ -590,13 +617,17 @@ GLOBAL CONFIG:
     }
   }
 
-  async deleteNoteType(workspace: Workspace, typeName: string, options: Record<string, string | boolean>): Promise<void> {
+  async deleteNoteType(
+    workspace: Workspace,
+    typeName: string,
+    options: Record<string, string | boolean>
+  ): Promise<void> {
     const { NoteTypeManager } = await import('./core/note-types.js');
     const noteTypeManager = new NoteTypeManager(workspace);
 
     const action = (options.action as string) || 'error';
     const targetType = options['target-type'] as string;
-    const confirm = options.confirm as boolean || false;
+    const confirm = (options.confirm as boolean) || false;
 
     if (!['error', 'migrate', 'delete'].includes(action)) {
       console.error('❌ Invalid action. Must be: error, migrate, or delete');
@@ -619,7 +650,12 @@ GLOBAL CONFIG:
     }
 
     try {
-      const result = await noteTypeManager.deleteNoteType(typeName, action as 'error' | 'migrate' | 'delete', targetType, confirm);
+      const result = await noteTypeManager.deleteNoteType(
+        typeName,
+        action as 'error' | 'migrate' | 'delete',
+        targetType,
+        confirm
+      );
 
       if (result.deleted) {
         console.log(`✅ Note type '${typeName}' deleted successfully`);
@@ -641,15 +677,20 @@ GLOBAL CONFIG:
     }
   }
 
-  async bulkDeleteNotes(workspace: Workspace, options: Record<string, string | boolean>): Promise<void> {
+  async bulkDeleteNotes(
+    workspace: Workspace,
+    options: Record<string, string | boolean>
+  ): Promise<void> {
     const { NoteManager } = await import('./core/notes.js');
 
     const noteManager = new NoteManager(workspace);
 
     const type = options.type as string;
-    const tags = options.tags ? (options.tags as string).split(',').map(t => t.trim()) : undefined;
+    const tags = options.tags
+      ? (options.tags as string).split(',').map(t => t.trim())
+      : undefined;
     const pattern = options.pattern as string;
-    const confirm = options.confirm as boolean || false;
+    const confirm = (options.confirm as boolean) || false;
 
     if (!type && !tags && !pattern) {
       console.error('❌ At least one filter is required: --type, --tags, or --pattern');
@@ -680,9 +721,11 @@ GLOBAL CONFIG:
 
       if (failureCount > 0) {
         console.log('\n❌ Failed deletions:');
-        results.filter(r => !r.deleted).forEach(result => {
-          console.log(`   - ${result.id}: ${result.warnings?.[0] || 'Unknown error'}`);
-        });
+        results
+          .filter(r => !r.deleted)
+          .forEach(result => {
+            console.log(`   - ${result.id}: ${result.warnings?.[0] || 'Unknown error'}`);
+          });
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';

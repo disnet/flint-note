@@ -79,14 +79,14 @@ describe('Vault Context via MCP Tools', () => {
     // Test that global config has the vaults
     const vaults = await globalConfig.listVaults();
     assert.strictEqual(vaults.length, 2);
-    assert(vaults.some(v => v.id === 'vault1'));
-    assert(vaults.some(v => v.id === 'vault2'));
+    assert(vaults.some(v => v.info.id === 'vault1'));
+    assert(vaults.some(v => v.info.id === 'vault2'));
   });
 
   it('should have vault1 as the active vault', async () => {
     const vaults = globalConfig.listVaults();
     const currentVault = vaults.find(v => v.is_current);
-    assert.strictEqual(currentVault?.id, 'vault1');
+    assert.strictEqual(currentVault?.info.id, 'vault1');
   });
 
   it('should handle vault switching', async () => {
@@ -95,13 +95,13 @@ describe('Vault Context via MCP Tools', () => {
 
     let vaults = globalConfig.listVaults();
     const currentVault = vaults.find(v => v.is_current);
-    assert.strictEqual(currentVault?.id, 'vault2');
+    assert.strictEqual(currentVault?.info.id, 'vault2');
 
     // Switch back to vault1
     await globalConfig.switchVault('vault1');
 
     vaults = globalConfig.listVaults();
     const finalVault = vaults.find(v => v.is_current);
-    assert.strictEqual(finalVault?.id, 'vault1');
+    assert.strictEqual(finalVault?.info.id, 'vault1');
   });
 });
