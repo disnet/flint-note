@@ -140,7 +140,9 @@ updated: "2024-01-01T10:00:00Z"
 ${content}`;
 
     await fs.writeFile(filePath, noteContent, 'utf-8');
-    return `${noteType}/${filename}`;
+    // Return ID without .md extension for consistency with new ID format
+    const baseFilename = filename.replace(/\.md$/, '');
+    return `${noteType}/${baseFilename}`;
   }
 
   describe('Basic migration functionality', () => {
@@ -354,7 +356,7 @@ More wikilinks: [[research/topic-x|Research Topic]] and [[broken-link]].
 
 Embedded image: ![Chart](https://charts.example.com/data.svg)`;
 
-      await createFileSystemNote(
+      const complexNoteId = await createFileSystemNote(
         'general',
         'complex-note.md',
         'Complex Note',
@@ -384,7 +386,7 @@ Embedded image: ![Chart](https://charts.example.com/data.svg)`;
 
       // Verify complex links were extracted correctly
       const linksData = await client.expectSuccess('get_note_links', {
-        identifier: 'general/complex-note.md'
+        identifier: complexNoteId
       });
 
       // Should have at least 5 internal links (3 broken, 2 valid)

@@ -947,8 +947,9 @@ export class HybridSearchManager {
         (typeof metadata.title === 'string' ? metadata.title : null) ||
         filename.replace('.md', '');
 
-      // Generate note ID
-      const id = `${type}/${filename}`;
+      // Generate note ID (remove .md extension for consistency)
+      const baseFilename = filename.replace(/\.md$/, '');
+      const id = `${type}/${baseFilename}`;
 
       return {
         id,

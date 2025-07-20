@@ -142,7 +142,7 @@ describe('Deletion Integration Tests', () => {
       const noteId = noteData.id;
 
       // Verify note exists in file system
-      const notePath = join(context.tempDir, noteId);
+      const notePath = join(context.tempDir, noteId + '.md');
       await fs.access(notePath); // Should not throw
 
       // Delete the note
@@ -190,7 +190,7 @@ describe('Deletion Integration Tests', () => {
       );
 
       // Verify note still exists
-      const notePath = join(context.tempDir, noteId);
+      const notePath = join(context.tempDir, noteId + '.md');
       await fs.access(notePath); // Should not throw
     });
 
@@ -512,7 +512,7 @@ describe('Deletion Integration Tests', () => {
 
       const noteData = JSON.parse((createResult as any).content[0].text);
       const noteId = noteData.id;
-      const notePath = join(context.tempDir, noteId);
+      const notePath = join(context.tempDir, noteId + '.md');
 
       // Verify file exists
       await fs.access(notePath);
@@ -574,7 +574,7 @@ describe('Deletion Integration Tests', () => {
 
       // Verify all files are removed
       for (const noteId of noteIds) {
-        const notePath = join(context.tempDir, noteId);
+        const notePath = join(context.tempDir, noteId + '.md');
         try {
           await fs.access(notePath);
           assert.fail(`File should be deleted: ${noteId}`);

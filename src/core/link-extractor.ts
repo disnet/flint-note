@@ -493,10 +493,11 @@ export class LinkExtractor {
       }
       // Case 2: [[type/filename|Old Title]] -> [[type/filename|New Title]]
       // Only update if the target matches the renamed note ID
+      // Handle both old format (with .md) and new format (without .md)
       else if (
         link.display === oldTitle &&
         link.target !== oldTitle &&
-        link.target === renamedNoteId
+        (link.target === renamedNoteId || link.target === renamedNoteId + '.md')
       ) {
         newWikilink = `[[${link.target}|${newTitle}]]`;
         shouldUpdate = true;

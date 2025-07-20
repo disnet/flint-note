@@ -617,6 +617,166 @@ Backslashes: \\n \\t \\r \\
     });
   });
 
+  describe('Note ID Format Compatibility', () => {
+    test('should retrieve note using ID without .md extension', async () => {
+      // Create a note
+      const noteInfo = await context.noteManager.createNote(
+        TEST_CONSTANTS.NOTE_TYPES.DEFAULT,
+        'ID Format Test',
+        'Testing ID format compatibility.'
+      );
+
+      // Extract the ID without .md extension
+      const idWithoutExtension = noteInfo.id.replace(/\.md$/, '');
+
+      // Retrieve using ID without .md extension
+      const retrievedNote = await context.noteManager.getNote(idWithoutExtension);
+
+      assert.ok(retrievedNote, 'Should retrieve note using ID without .md extension');
+      assert.strictEqual(
+        retrievedNote.id,
+        idWithoutExtension,
+        'Should return ID as provided'
+      );
+      assert.strictEqual(
+        retrievedNote.title,
+        'ID Format Test',
+        'Should have correct title'
+      );
+      assert.ok(
+        retrievedNote.content.includes('Testing ID format compatibility'),
+        'Should have correct content'
+      );
+    });
+
+    test('should retrieve note using ID with .md extension', async () => {
+      // Create a note
+      const noteInfo = await context.noteManager.createNote(
+        TEST_CONSTANTS.NOTE_TYPES.PROJECT,
+        'ID Format With Extension Test',
+        'Testing ID format with extension.'
+      );
+
+      // Retrieve using the full ID (which includes .md extension)
+      const retrievedNote = await context.noteManager.getNote(noteInfo.id);
+
+      assert.ok(retrievedNote, 'Should retrieve note using ID with .md extension');
+      assert.strictEqual(retrievedNote.id, noteInfo.id, 'Should have correct ID');
+      assert.strictEqual(
+        retrievedNote.title,
+        'ID Format With Extension Test',
+        'Should have correct title'
+      );
+      assert.ok(
+        retrievedNote.content.includes('Testing ID format with extension'),
+        'Should have correct content'
+      );
+    });
+
+    test('should handle both ID formats for the same note', async () => {
+      // Create a note in a specific type
+      const noteInfo = await context.noteManager.createNote(
+        TEST_CONSTANTS.NOTE_TYPES.MEETING,
+        'Dual Format Test',
+        'Testing both ID formats for same note.'
+      );
+
+      // Extract ID without extension
+      const idWithoutExtension = noteInfo.id.replace(/\.md$/, '');
+      const idWithExtension = noteInfo.id;
+
+      // Retrieve using both formats
+      const [noteWithoutExt, noteWithExt] = await Promise.all([
+        context.noteManager.getNote(idWithoutExtension),
+        context.noteManager.getNote(idWithExtension)
+      ]);
+
+      // Both should succeed and return the same note content
+      assert.ok(noteWithoutExt, 'Should retrieve note using ID without extension');
+      assert.ok(noteWithExt, 'Should retrieve note using ID with extension');
+
+      // IDs should match what was requested
+      assert.strictEqual(
+        noteWithoutExt.id,
+        idWithoutExtension,
+        'Should return ID without extension as provided'
+      );
+      assert.strictEqual(
+        noteWithExt.id,
+        idWithExtension,
+        'Should return ID with extension as provided'
+      );
+
+      // Content should be identical
+      assert.strictEqual(
+        noteWithoutExt.title,
+        noteWithExt.title,
+        'Both formats should return same title'
+      );
+      assert.strictEqual(
+        noteWithoutExt.content,
+        noteWithExt.content,
+        'Both formats should return same content'
+      );
+      assert.strictEqual(
+        noteWithoutExt.type,
+        noteWithExt.type,
+        'Both formats should return same type'
+      );
+      assert.strictEqual(
+        noteWithoutExt.path,
+        noteWithExt.path,
+        'Both formats should return same path'
+      );
+    });
+
+    test('should handle mixed ID formats in different note types', async () => {
+      const testCases = [
+        { type: TEST_CONSTANTS.NOTE_TYPES.DEFAULT, title: 'Default Type Test' },
+        { type: TEST_CONSTANTS.NOTE_TYPES.PROJECT, title: 'Project Type Test' },
+        { type: TEST_CONSTANTS.NOTE_TYPES.MEETING, title: 'Meeting Type Test' }
+      ];
+
+      const createdNotes = [];
+
+      // Create notes in different types
+      for (const testCase of testCases) {
+        const noteInfo = await context.noteManager.createNote(
+          testCase.type,
+          testCase.title,
+          `Content for ${testCase.type} note.`
+        );
+        createdNotes.push({ ...noteInfo, expectedTitle: testCase.title });
+      }
+
+      // Test each note with both ID formats
+      for (const note of createdNotes) {
+        const idWithoutExtension = note.id.replace(/\.md$/, '');
+        const idWithExtension = note.id;
+
+        // Test both formats
+        const [noteWithoutExt, noteWithExt] = await Promise.all([
+          context.noteManager.getNote(idWithoutExtension),
+          context.noteManager.getNote(idWithExtension)
+        ]);
+
+        assert.ok(noteWithoutExt, `Should retrieve ${note.type} note without extension`);
+        assert.ok(noteWithExt, `Should retrieve ${note.type} note with extension`);
+
+        assert.strictEqual(
+          noteWithoutExt.title,
+          note.expectedTitle,
+          `Should have correct title for ${note.type} without extension`
+        );
+        assert.strictEqual(
+          noteWithExt.title,
+          note.expectedTitle,
+          `Should have correct title for ${note.type} with extension`
+        );
+      }
+    });
+  });
+
   describe('Error Handling and Recovery', () => {
     test('should provide helpful error messages for invalid IDs', async () => {
       const invalidIds = [

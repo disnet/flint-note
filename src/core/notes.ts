@@ -249,7 +249,9 @@ export class NoteManager {
    * Generate a unique note ID
    */
   generateNoteId(typeName: string, filename: string): string {
-    return `${typeName}/${filename}`;
+    // Remove .md extension from filename for the ID
+    const baseFilename = filename.replace(/\.md$/, '');
+    return `${typeName}/${baseFilename}`;
   }
 
   /**
@@ -462,7 +464,7 @@ export class NoteManager {
       filename = identifier;
     }
 
-    // Ensure filename has .md extension
+    // Ensure filename has .md extension (backward compatibility: accept IDs with or without .md)
     if (!filename.endsWith('.md')) {
       filename += '.md';
     }
