@@ -78,7 +78,17 @@ export class GlobalConfigManager {
       await this.ensureConfigDirectory();
       const configContent = await fs.readFile(this.#configPath, 'utf-8');
       this.#config = yaml.load(configContent) as GlobalConfig;
+
+      // Run migrations before validation
+      const needsSave = await this.runMigrations();
+
       this.validateConfig();
+
+      // Save if migrations were applied
+      if (needsSave) {
+        await this.save();
+      }
+
       return this.#config;
     } catch (error) {
       if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
@@ -169,6 +179,11 @@ export class GlobalConfigManager {
         throw new Error(`Incomplete vault info for vault: ${vaultId}`);
       }
 
+      // Validate id field matches vault key (after migration should be consistent)
+      if (vaultInfo.id && vaultInfo.id !== vaultId) {
+        throw new Error(`Vault ID mismatch: key '${vaultId}' vs id '${vaultInfo.id}'`);
+      }
+
       // Validate timestamps
       try {
         new Date(vaultInfo.created);
@@ -177,6 +192,33 @@ export class GlobalConfigManager {
         throw new Error(`Invalid timestamp in vault: ${vaultId}`);
       }
     }
+  }
+
+  /**
+   * Run migrations on loaded configuration
+   * Returns true if the configuration was modified and needs to be saved
+   *
+   * This method handles backward compatibility for configuration files
+   * that were saved before certain fields were added to the schema.
+   */
+  async runMigrations(): Promise<boolean> {
+    if (!this.#config) {
+      return false;
+    }
+
+    let modified = false;
+
+    // Migration: Add missing id fields to VaultInfo objects
+    // Some configs were saved before the 'id' field was added to VaultInfo.
+    // For these, we use the vault key as the id since they should match.
+    for (const [vaultId, vaultInfo] of Object.entries(this.#config.vaults)) {
+      if (!vaultInfo.id) {
+        vaultInfo.id = vaultId;
+        modified = true;
+      }
+    }
+
+    return modified;
   }
 
   /**
