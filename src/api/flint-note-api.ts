@@ -13,7 +13,6 @@ import { GlobalConfigManager } from '../utils/global-config.js';
 import type {
   ServerConfig,
   VaultContext,
-  CreateNoteArgs,
   GetNotesArgs,
   GetNoteInfoArgs,
   RenameNoteArgs,
@@ -38,12 +37,13 @@ import type {
   DeleteNoteResult,
   NoteListItem
 } from '../core/notes.js';
+import type { BatchUpdateResult, BatchUpdateNoteInput } from '../types/index.js';
 import type {
   NoteTypeInfo,
   NoteTypeListItem,
   NoteTypeDescription
 } from '../core/note-types.js';
-import type { NoteTypeDeleteResult } from '../types/index.js';
+import type { NoteMetadata, NoteTypeDeleteResult } from '../types/index.js';
 import type { SearchResult } from '../database/search-manager.js';
 import type { VaultInfo } from '../utils/global-config.js';
 import { resolvePath, isPathSafe } from '../utils/path.js';
@@ -53,6 +53,61 @@ import { generateNoteIdFromIdentifier } from '../server/server-utils.js';
 
 export interface FlintNoteApiConfig extends ServerConfig {
   [key: string]: unknown;
+}
+
+export interface UpdateNoteOptions {
+  identifier: string;
+  content: string;
+  contentHash: string;
+  vaultId?: string;
+  metadata?: NoteMetadata;
+}
+
+export interface DeleteNoteOptions {
+  identifier: string;
+  confirm?: boolean;
+  vaultId?: string;
+}
+
+export interface ListNotesOptions {
+  typeName?: string;
+  limit?: number;
+  vaultId?: string;
+}
+
+export interface SearchNotesByTextOptions {
+  query: string;
+  typeFilter?: string;
+  limit?: number;
+  vaultId?: string;
+}
+
+export interface CreateSingleNoteOptions {
+  type: string;
+  title: string;
+  content: string;
+  metadata?: NoteMetadata;
+  vaultId?: string;
+}
+
+export interface CreateMultipleNotesOptions {
+  notes: Array<{
+    type: string;
+    title: string;
+    content: string;
+    metadata?: NoteMetadata;
+  }>;
+  vaultId?: string;
+}
+
+export interface UpdateMultipleNotesOptions {
+  notes: Array<{
+    identifier: string;
+    content: string;
+    contentHash: string;
+    metadata?: NoteMetadata;
+  }>;
+  vaultId?: string;
 }
 
 export class FlintNoteApi {
@@ -270,49 +325,42 @@ export class FlintNoteApi {
   /**
    * Convenience method for basic text search
    */
-  async searchNotesByText(
-    query: string,
-    typeFilter?: string,
-    limit?: number,
-    vaultId?: string
-  ): Promise<SearchResult[]> {
+  async searchNotesByText(options: SearchNotesByTextOptions): Promise<SearchResult[]> {
     return await this.searchNotes({
-      query,
-      type_filter: typeFilter,
-      limit: limit || 10,
-      vault_id: vaultId
+      query: options.query,
+      type_filter: options.typeFilter,
+      limit: options.limit || 10,
+      vault_id: options.vaultId
     });
   }
 
   // Note Operations
 
   /**
-   * Create a new note - returns pure NoteInfo without MCP protocol concerns
+   * Create a single note - returns NoteInfo
    */
-  async createNote(args: CreateNoteArgs): Promise<NoteInfo | NoteInfo[]> {
+  async createNote(options: CreateSingleNoteOptions): Promise<NoteInfo> {
     this.ensureInitialized();
+    const { noteManager } = await this.resolveVaultContext(options.vaultId);
 
-    const { noteManager } = await this.resolveVaultContext(args.vault_id);
-
-    // Handle batch creation if notes array is provided
-    if (args.notes) {
-      const result = await noteManager.batchCreateNotes(args.notes);
-      // Extract successful note creations and return pure NoteInfo array
-      return result.results.filter(r => r.success && r.result).map(r => r.result!);
-    }
-
-    // Handle single note creation
-    if (!args.type || !args.title || !args.content) {
-      throw new Error('Single note creation requires type, title, and content');
-    }
-
-    // Call manager directly and return pure NoteInfo
     return await noteManager.createNote(
-      args.type,
-      args.title,
-      args.content,
-      args.metadata || {}
+      options.type,
+      options.title,
+      options.content,
+      options.metadata || {}
     );
+  }
+
+  /**
+   * Create multiple notes in batch - returns NoteInfo array
+   */
+  async createNotes(options: CreateMultipleNotesOptions): Promise<NoteInfo[]> {
+    this.ensureInitialized();
+    const { noteManager } = await this.resolveVaultContext(options.vaultId);
+
+    const result = await noteManager.batchCreateNotes(options.notes);
+    // Extract successful note creations and return pure NoteInfo array
+    return result.results.filter(r => r.success && r.result).map(r => r.result!);
   }
 
   /**
@@ -327,41 +375,59 @@ export class FlintNoteApi {
   /**
    * Update a note - returns UpdateResult
    */
-  async updateNote(
-    identifier: string,
-    content: string,
-    contentHash: string,
-    vaultId?: string
-  ): Promise<UpdateResult> {
+  async updateNote(options: UpdateNoteOptions): Promise<UpdateResult> {
     this.ensureInitialized();
-    const { noteManager } = await this.resolveVaultContext(vaultId);
-    return await noteManager.updateNote(identifier, content, contentHash);
+    const { noteManager } = await this.resolveVaultContext(options.vaultId);
+
+    if (options.metadata) {
+      return await noteManager.updateNoteWithMetadata(
+        options.identifier,
+        options.content,
+        options.metadata,
+        options.contentHash
+      );
+    } else {
+      return await noteManager.updateNote(
+        options.identifier,
+        options.content,
+        options.contentHash
+      );
+    }
+  }
+
+  /**
+   * Update multiple notes in batch - returns BatchUpdateResult
+   */
+  async updateNotes(options: UpdateMultipleNotesOptions): Promise<BatchUpdateResult> {
+    this.ensureInitialized();
+    const { noteManager } = await this.resolveVaultContext(options.vaultId);
+
+    const batchUpdates: BatchUpdateNoteInput[] = options.notes.map(note => ({
+      identifier: note.identifier,
+      content: note.content,
+      metadata: note.metadata,
+      content_hash: note.contentHash
+    }));
+
+    return await noteManager.batchUpdateNotes(batchUpdates);
   }
 
   /**
    * Delete a note - returns DeleteNoteResult
    */
-  async deleteNote(
-    identifier: string,
-    confirm: boolean = true,
-    vaultId?: string
-  ): Promise<DeleteNoteResult> {
+  async deleteNote(options: DeleteNoteOptions): Promise<DeleteNoteResult> {
     this.ensureInitialized();
-    const { noteManager } = await this.resolveVaultContext(vaultId);
-    return await noteManager.deleteNote(identifier, confirm);
+    const { noteManager } = await this.resolveVaultContext(options.vaultId);
+    return await noteManager.deleteNote(options.identifier, options.confirm ?? true);
   }
 
   /**
    * List notes by type - returns NoteListItem array
    */
-  async listNotes(
-    typeName?: string,
-    limit?: number,
-    vaultId?: string
-  ): Promise<NoteListItem[]> {
+  async listNotes(options: ListNotesOptions = {}): Promise<NoteListItem[]> {
     this.ensureInitialized();
-    const { noteManager } = await this.resolveVaultContext(vaultId);
-    return await noteManager.listNotes(typeName, limit);
+    const { noteManager } = await this.resolveVaultContext(options.vaultId);
+    return await noteManager.listNotes(options.typeName, options.limit);
   }
 
   /**
@@ -392,26 +458,6 @@ export class FlintNoteApi {
     }
 
     return note;
-  }
-
-  /**
-   * Update note content convenience method
-   */
-  async updateNoteContent(
-    identifier: string,
-    content: string,
-    vaultId?: string
-  ): Promise<UpdateResult> {
-    this.ensureInitialized();
-    const { noteManager } = await this.resolveVaultContext(vaultId);
-
-    // Get current note to obtain content_hash
-    const currentNote = await noteManager.getNote(identifier);
-    if (!currentNote) {
-      throw new Error(`Note not found: ${identifier}`);
-    }
-
-    return await noteManager.updateNote(identifier, content, currentNote.content_hash);
   }
 
   /**
@@ -544,32 +590,6 @@ export class FlintNoteApi {
       args.target_type,
       args.confirm ?? false
     );
-  }
-
-  // Convenience methods
-
-  /**
-   * Create a simple note with just content
-   */
-  async createSimpleNote(
-    type: string,
-    identifier: string,
-    content: string,
-    vaultId?: string
-  ): Promise<NoteInfo> {
-    const result = await this.createNote({
-      notes: [
-        {
-          type,
-          title: identifier,
-          content
-        }
-      ],
-      vault_id: vaultId
-    });
-
-    // Return the first note from the array result
-    return Array.isArray(result) ? result[0] : result;
   }
 
   // Vault Operations

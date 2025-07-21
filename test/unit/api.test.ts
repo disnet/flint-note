@@ -66,11 +66,11 @@ describe('FlintNoteApi', () => {
       const noteContent = '# Test Note\n\nThis is a test note.';
 
       // Create note - returns pure NoteInfo
-      const createResult = await api.createSimpleNote(
-        'general',
-        'test-note',
-        noteContent
-      );
+      const createResult = await api.createNote({
+        type: 'general',
+        title: 'test-note',
+        content: noteContent
+      });
       assert.ok(createResult);
       assert.ok(createResult.id);
       assert.ok(createResult.type);
@@ -86,8 +86,8 @@ describe('FlintNoteApi', () => {
       assert.ok(note.content.includes('Test Note'));
     });
 
-    test('should create note with full API', async () => {
-      const result = await api.createNote({
+    test('should create notes with batch API', async () => {
+      const result = await api.createNotes({
         notes: [
           {
             type: 'general',
@@ -116,7 +116,11 @@ describe('FlintNoteApi', () => {
 
     test('should get note by identifier', async () => {
       // Create initial note
-      await api.createSimpleNote('general', 'info-test', 'Test content for info');
+      await api.createNote({
+        type: 'general',
+        title: 'info-test',
+        content: 'Test content for info'
+      });
 
       // Get note directly
       const note = await api.getNote('general/info-test.md');
@@ -139,22 +143,38 @@ describe('FlintNoteApi', () => {
 
     test('should list notes', async () => {
       // Create some test notes first
-      await api.createSimpleNote('general', 'list-test-1', 'First note');
-      await api.createSimpleNote('general', 'list-test-2', 'Second note');
+      await api.createNote({
+        type: 'general',
+        title: 'list-test-1',
+        content: 'First note'
+      });
+      await api.createNote({
+        type: 'general',
+        title: 'list-test-2',
+        content: 'Second note'
+      });
 
       // List notes by type - returns NoteListItem[]
-      const notes = await api.listNotes('general');
+      const notes = await api.listNotes({ typeName: 'general' });
       assert.ok(notes);
       assert.ok(Array.isArray(notes));
     });
 
     test('should list notes with limit', async () => {
       // Create some test notes first
-      await api.createSimpleNote('general', 'limit-test-1', 'First note');
-      await api.createSimpleNote('general', 'limit-test-2', 'Second note');
+      await api.createNote({
+        type: 'general',
+        title: 'limit-test-1',
+        content: 'First note'
+      });
+      await api.createNote({
+        type: 'general',
+        title: 'limit-test-2',
+        content: 'Second note'
+      });
 
       // List with limit
-      const notes = await api.listNotes('general', 1);
+      const notes = await api.listNotes({ typeName: 'general', limit: 1 });
       assert.ok(notes);
       assert.ok(Array.isArray(notes));
     });
@@ -167,11 +187,11 @@ describe('FlintNoteApi', () => {
 
     test('should update note content', async () => {
       // Create initial note
-      const createResult = await api.createSimpleNote(
-        'general',
-        'update-test',
-        'Original content'
-      );
+      const createResult = await api.createNote({
+        type: 'general',
+        title: 'update-test',
+        content: 'Original content'
+      });
       assert.ok(createResult);
 
       // Get note to get content hash
@@ -180,11 +200,11 @@ describe('FlintNoteApi', () => {
       assert.ok(note.content_hash);
 
       // Update note - returns UpdateResult
-      const updateResult = await api.updateNote(
-        'general/update-test.md',
-        'Updated content',
-        note.content_hash
-      );
+      const updateResult = await api.updateNote({
+        identifier: 'general/update-test.md',
+        content: 'Updated content',
+        contentHash: note.content_hash
+      });
       assert.ok(updateResult);
       assert.ok(updateResult.id);
       assert.ok(updateResult.updated);
@@ -195,6 +215,109 @@ describe('FlintNoteApi', () => {
       assert.ok(updatedNote);
       assert.ok(updatedNote.content.includes('Updated content'));
     });
+
+    test('should update note with metadata', async () => {
+      // Create initial note
+      const createResult = await api.createNote({
+        type: 'general',
+        title: 'metadata-update-test',
+        content: 'Original content'
+      });
+      assert.ok(createResult);
+
+      // Get note to get content hash
+      const note = await api.getNote('general/metadata-update-test.md');
+      assert.ok(note);
+      assert.ok(note.content_hash);
+
+      // Update note with metadata - returns UpdateResult
+      const updateResult = await api.updateNote({
+        identifier: 'general/metadata-update-test.md',
+        content: 'Updated content with metadata',
+        contentHash: note.content_hash,
+        metadata: { priority: 'high', tags: ['updated', 'test'] }
+      });
+      assert.ok(updateResult);
+      assert.ok(updateResult.id);
+      assert.ok(updateResult.updated);
+      assert.ok(updateResult.timestamp);
+
+      // Verify update
+      const updatedNote = await api.getNote('general/metadata-update-test.md');
+      assert.ok(updatedNote);
+      assert.ok(updatedNote.content.includes('Updated content with metadata'));
+      assert.ok(updatedNote.metadata.priority === 'high');
+      assert.ok(Array.isArray(updatedNote.metadata.tags));
+      assert.ok(updatedNote.metadata.tags.includes('updated'));
+      assert.ok(updatedNote.metadata.tags.includes('test'));
+    });
+
+    test('should update multiple notes with batch API', async () => {
+      // Create initial notes
+      const createResult1 = await api.createNote({
+        type: 'general',
+        title: 'batch-update-test-1',
+        content: 'Original content 1'
+      });
+      const createResult2 = await api.createNote({
+        type: 'general',
+        title: 'batch-update-test-2',
+        content: 'Original content 2'
+      });
+      assert.ok(createResult1);
+      assert.ok(createResult2);
+
+      // Get notes to get content hashes
+      const note1 = await api.getNote('general/batch-update-test-1.md');
+      const note2 = await api.getNote('general/batch-update-test-2.md');
+      assert.ok(note1);
+      assert.ok(note2);
+      assert.ok(note1.content_hash);
+      assert.ok(note2.content_hash);
+
+      // Update multiple notes - returns BatchUpdateResult
+      const batchResult = await api.updateNotes({
+        notes: [
+          {
+            identifier: 'general/batch-update-test-1.md',
+            content: 'Updated batch content 1',
+            contentHash: note1.content_hash,
+            metadata: { status: 'updated', priority: 'high' }
+          },
+          {
+            identifier: 'general/batch-update-test-2.md',
+            content: 'Updated batch content 2',
+            contentHash: note2.content_hash,
+            metadata: { status: 'updated', priority: 'medium' }
+          }
+        ]
+      });
+
+      assert.ok(batchResult);
+      assert.equal(batchResult.total, 2);
+      assert.equal(batchResult.successful, 2);
+      assert.equal(batchResult.failed, 0);
+      assert.ok(Array.isArray(batchResult.results));
+      assert.equal(batchResult.results.length, 2);
+
+      // Verify both updates succeeded
+      assert.ok(batchResult.results[0].success);
+      assert.ok(batchResult.results[1].success);
+      assert.ok(batchResult.results[0].result?.updated);
+      assert.ok(batchResult.results[1].result?.updated);
+
+      // Verify updates
+      const updatedNote1 = await api.getNote('general/batch-update-test-1.md');
+      const updatedNote2 = await api.getNote('general/batch-update-test-2.md');
+      assert.ok(updatedNote1);
+      assert.ok(updatedNote2);
+      assert.ok(updatedNote1.content.includes('Updated batch content 1'));
+      assert.ok(updatedNote2.content.includes('Updated batch content 2'));
+      assert.ok(updatedNote1.metadata.status === 'updated');
+      assert.ok(updatedNote2.metadata.status === 'updated');
+      assert.ok(updatedNote1.metadata.priority === 'high');
+      assert.ok(updatedNote2.metadata.priority === 'medium');
+    });
   });
 
   describe('Delete Operations', () => {
@@ -204,10 +327,14 @@ describe('FlintNoteApi', () => {
 
     test('should delete note', async () => {
       // Create note to delete
-      await api.createSimpleNote('general', 'delete-test', 'Content to be deleted');
+      await api.createNote({
+        type: 'general',
+        title: 'delete-test',
+        content: 'Content to be deleted'
+      });
 
       // Delete note - returns DeleteNoteResult
-      const deleteResult = await api.deleteNote('general/delete-test.md');
+      const deleteResult = await api.deleteNote({ identifier: 'general/delete-test.md' });
       assert.ok(deleteResult);
       assert.ok(deleteResult.id);
       assert.ok(deleteResult.deleted);
@@ -225,11 +352,11 @@ describe('FlintNoteApi', () => {
     });
 
     test('should create simple note with convenience method', async () => {
-      const result = await api.createSimpleNote(
-        'general',
-        'convenience-test',
-        'Content created via convenience method'
-      );
+      const result = await api.createNote({
+        type: 'general',
+        title: 'convenience-test',
+        content: 'Content created via convenience method'
+      });
 
       // Returns pure NoteInfo
       assert.ok(result);
@@ -246,8 +373,16 @@ describe('FlintNoteApi', () => {
     });
 
     test('should create multiple notes with convenience method', async () => {
-      await api.createSimpleNote('general', 'convenience-1', 'First note');
-      await api.createSimpleNote('general', 'convenience-2', 'Second note');
+      await api.createNote({
+        type: 'general',
+        title: 'convenience-1',
+        content: 'First note'
+      });
+      await api.createNote({
+        type: 'general',
+        title: 'convenience-2',
+        content: 'Second note'
+      });
 
       const note1 = await api.getNote('general/convenience-1.md');
       const note2 = await api.getNote('general/convenience-2.md');
@@ -268,7 +403,11 @@ describe('FlintNoteApi', () => {
       // Most implementations will create the note type if it doesn't exist
       // or handle it gracefully, so we test that it doesn't crash
       await assert.doesNotReject(async () => {
-        await api.createSimpleNote('nonexistent-type', 'test', 'content');
+        await api.createNote({
+          type: 'nonexistent-type',
+          title: 'test',
+          content: 'content'
+        });
       });
     });
 
@@ -279,7 +418,6 @@ describe('FlintNoteApi', () => {
       assert.ok(typeof api.updateNote === 'function');
       assert.ok(typeof api.deleteNote === 'function');
       assert.ok(typeof api.listNotes === 'function');
-      assert.ok(typeof api.createSimpleNote === 'function');
     });
   });
 });

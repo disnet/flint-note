@@ -1,6 +1,6 @@
 # FlintNote API Documentation
 
-The FlintNote API provides direct programmatic access to FlintNote functionality. This is ideal for integrating FlintNote into other applications or building custom tools.
+The FlintNote API provides direct programmatic access to FlintNote functionality with a clean, type-safe interface. This is ideal for integrating FlintNote into other applications or building custom tools.
 
 ## Installation
 
@@ -20,7 +20,11 @@ const api = new FlintNoteApi({
 await api.initialize();
 
 // Create a note
-const noteInfo = await api.createSimpleNote('general', 'my-note', 'Hello, world!');
+const noteInfo = await api.createNote({
+  type: 'general',
+  title: 'my-note',
+  content: 'Hello, world!'
+});
 console.log(noteInfo.id, noteInfo.title, noteInfo.path);
 
 // Get the note
@@ -53,17 +57,17 @@ await api.initialize();
 
 ## Core Note Operations
 
-### `createNote(args: CreateNoteArgs): Promise<NoteInfo | NoteInfo[]>`
+### `createNote(options: CreateSingleNoteOptions): Promise<NoteInfo>`
 
-Create one or more notes. Returns `NoteInfo` objects directly.
+Create a single note. Returns a `NoteInfo` object.
 
-**Single Note Creation:**
 ```typescript
 const noteInfo = await api.createNote({
   type: 'general',
   title: 'my-note',
   content: '# My Note\n\nContent here...',
-  metadata: { priority: 'high' }
+  metadata: { priority: 'high' }, // optional
+  vaultId: 'my-vault' // optional
 });
 
 // noteInfo: { id, type, title, filename, path, created }
@@ -72,9 +76,19 @@ console.log(noteInfo.title);   // "my-note"
 console.log(noteInfo.created); // "2024-01-15T10:30:00.000Z"
 ```
 
-**Batch Note Creation:**
+**Options:**
+- `type` (string): Note type name
+- `title` (string): Note title
+- `content` (string): Note content
+- `metadata?` (object): Optional metadata
+- `vaultId?` (string): Optional vault ID
+
+### `createNotes(options: CreateMultipleNotesOptions): Promise<NoteInfo[]>`
+
+Create multiple notes in batch. Returns an array of `NoteInfo` objects.
+
 ```typescript
-const noteInfos = await api.createNote({
+const noteInfos = await api.createNotes({
   notes: [
     {
       type: 'meeting',
@@ -90,7 +104,8 @@ const noteInfos = await api.createNote({
       title: 'project-review',
       content: '# Project Review\n\nStatus update...'
     }
-  ]
+  ],
+  vaultId: 'my-vault' // optional
 });
 
 // noteInfos is NoteInfo[] - array of NoteInfo objects
@@ -98,14 +113,9 @@ console.log(noteInfos.length);     // 2
 console.log(noteInfos[0].title);   // "team-standup"
 ```
 
-### `createSimpleNote(type: string, identifier: string, content: string, vaultId?: string): Promise<NoteInfo>`
-
-Convenience method to create a simple note with just content.
-
-```typescript
-const noteInfo = await api.createSimpleNote('general', 'quick-note', 'Hello, world!');
-// Returns: { id: "general/quick-note.md", type: "general", title: "quick-note", ... }
-```
+**Options:**
+- `notes` (array): Array of note objects to create
+- `vaultId?` (string): Optional vault ID
 
 ### `getNote(identifier: string, vaultId?: string): Promise<Note | null>`
 
@@ -125,21 +135,23 @@ if (note) {
 }
 ```
 
-### `updateNote(identifier: string, content: string, contentHash: string, vaultId?: string): Promise<UpdateResult>`
+### `updateNote(options: UpdateNoteOptions): Promise<UpdateResult>`
 
-Update a note's content. Returns `UpdateResult` with update status.
+Update a note's content and optionally its metadata. Returns `UpdateResult` with update status.
 
 ```typescript
 // First, get the note to obtain content hash
 const note = await api.getNote('general/my-note.md');
 if (!note) throw new Error('Note not found');
 
-// Update the note
-const updateResult = await api.updateNote(
-  'general/my-note.md',
-  '# Updated Content\n\nNew content here...',
-  note.content_hash
-);
+// Update the note content and metadata
+const updateResult = await api.updateNote({
+  identifier: 'general/my-note.md',
+  content: '# Updated Content\n\nNew content here...',
+  contentHash: note.content_hash,
+  metadata: { priority: 'high', tags: ['updated'] },
+  vaultId: 'my-vault' // optional
+});
 
 // updateResult is UpdateResult
 console.log(updateResult.id);        // "general/my-note.md"
@@ -147,12 +159,75 @@ console.log(updateResult.updated);   // true
 console.log(updateResult.timestamp); // "2024-01-15T10:35:00.000Z"
 ```
 
-### `deleteNote(identifier: string, confirm?: boolean, vaultId?: string): Promise<DeleteNoteResult>`
+**Options:**
+- `identifier` (string): Note identifier
+- `content` (string): New note content
+- `contentHash` (string): Current content hash for optimistic locking
+- `metadata?` (object): Optional metadata to update
+- `vaultId?` (string): Optional vault ID
+
+### `updateNotes(options: UpdateMultipleNotesOptions): Promise<BatchUpdateResult>`
+
+Update multiple notes in batch. Returns `BatchUpdateResult` with detailed results for each update.
+
+```typescript
+// First, get the notes to obtain content hashes
+const note1 = await api.getNote('general/note1.md');
+const note2 = await api.getNote('general/note2.md');
+if (!note1 || !note2) throw new Error('Notes not found');
+
+// Update multiple notes
+const batchResult = await api.updateNotes({
+  notes: [
+    {
+      identifier: 'general/note1.md',
+      content: '# Updated Note 1\n\nNew content for note 1...',
+      contentHash: note1.content_hash,
+      metadata: { status: 'updated', priority: 'high' }
+    },
+    {
+      identifier: 'general/note2.md',
+      content: '# Updated Note 2\n\nNew content for note 2...',
+      contentHash: note2.content_hash,
+      metadata: { status: 'updated', priority: 'medium' }
+    }
+  ],
+  vaultId: 'my-vault' // optional
+});
+
+// batchResult is BatchUpdateResult
+console.log(`${batchResult.successful}/${batchResult.total} notes updated successfully`);
+console.log(`${batchResult.failed} notes failed to update`);
+
+// Check individual results
+batchResult.results.forEach((result, index) => {
+  if (result.success) {
+    console.log(`Note ${index + 1}: Updated successfully`);
+    console.log(`Updated at: ${result.result?.timestamp}`);
+  } else {
+    console.log(`Note ${index + 1}: Update failed - ${result.error}`);
+  }
+});
+```
+
+**Options:**
+- `notes` (array): Array of note update objects
+  - `identifier` (string): Note identifier
+  - `content` (string): New note content
+  - `contentHash` (string): Current content hash for optimistic locking
+  - `metadata?` (object): Optional metadata to update
+- `vaultId?` (string): Optional vault ID
+
+### `deleteNote(options: DeleteNoteOptions): Promise<DeleteNoteResult>`
 
 Delete a note. Returns `DeleteNoteResult` with deletion status.
 
 ```typescript
-const deleteResult = await api.deleteNote('general/my-note.md', true);
+const deleteResult = await api.deleteNote({
+  identifier: 'general/my-note.md',
+  confirm: true,
+  vaultId: 'my-vault' // optional
+});
 
 // deleteResult is DeleteNoteResult
 console.log(deleteResult.id);           // "general/my-note.md"
@@ -161,16 +236,32 @@ console.log(deleteResult.timestamp);    // "2024-01-15T10:40:00.000Z"
 console.log(deleteResult.backup_path);  // Path to backup file (if created)
 ```
 
-### `listNotes(typeName?: string, limit?: number, vaultId?: string): Promise<NoteListItem[]>`
+**Options:**
+- `identifier` (string): Note identifier
+- `confirm?` (boolean): Confirm deletion (default: true)
+- `vaultId?` (string): Optional vault ID
+
+### `listNotes(options: ListNotesOptions = {}): Promise<NoteListItem[]>`
 
 List notes by type. Returns array of `NoteListItem` objects.
 
 ```typescript
 // List all notes of a specific type
-const generalNotes = await api.listNotes('general');
+const generalNotes = await api.listNotes({
+  typeName: 'general'
+});
 
 // List with limit
-const recentNotes = await api.listNotes(undefined, 10);
+const recentNotes = await api.listNotes({
+  limit: 10
+});
+
+// List with type and limit
+const limitedNotes = await api.listNotes({
+  typeName: 'meeting',
+  limit: 5,
+  vaultId: 'my-vault' // optional
+});
 
 // Each item is NoteListItem
 generalNotes.forEach(item => {
@@ -181,6 +272,11 @@ generalNotes.forEach(item => {
   console.log(item.size);        // File size
 });
 ```
+
+**Options:**
+- `typeName?` (string): Filter by note type
+- `limit?` (number): Maximum number of notes to return
+- `vaultId?` (string): Optional vault ID
 
 ### `getNotes(args: GetNotesArgs): Promise<(Note | null)[]>`
 
@@ -215,20 +311,6 @@ const note2 = await api.getNoteInfo({
   title_or_filename: 'standup',
   type: 'meeting'
 });
-```
-
-### `updateNoteContent(identifier: string, content: string, vaultId?: string): Promise<UpdateResult>`
-
-Convenience method to update note content without needing to provide content hash.
-
-```typescript
-const result = await api.updateNoteContent(
-  'general/my-note.md',
-  '# Updated Content\n\nNew content here...'
-);
-
-console.log(result.updated);   // true
-console.log(result.timestamp); // "2024-01-15T10:35:00.000Z"
 ```
 
 ### `renameNote(args: RenameNoteArgs): Promise<{success: boolean; notesUpdated?: number; linksUpdated?: number}>`
@@ -420,13 +502,24 @@ const results = await api.searchNotesSQL({
 });
 ```
 
-### `searchNotesByText(query: string, typeFilter?: string, limit?: number, vaultId?: string): Promise<SearchResult[]>`
+### `searchNotesByText(options: SearchNotesByTextOptions): Promise<SearchResult[]>`
 
 Convenience method for simple text search.
 
 ```typescript
-const results = await api.searchNotesByText('meeting notes', 'meeting', 10);
+const results = await api.searchNotesByText({
+  query: 'meeting notes',
+  typeFilter: 'meeting',
+  limit: 10,
+  vaultId: 'my-vault' // optional
+});
 ```
+
+**Options:**
+- `query` (string): Search query
+- `typeFilter?` (string): Filter by note type
+- `limit?` (number): Maximum results (default: 10)
+- `vaultId?` (string): Optional vault ID
 
 ## Vault Operations
 
@@ -614,6 +707,96 @@ const context = await api.resolveVaultContext('project-vault');
 // Returns: { workspace, noteManager, noteTypeManager, hybridSearchManager }
 ```
 
+## Interface Types
+
+### Options Interfaces
+
+#### `CreateSingleNoteOptions`
+```typescript
+interface CreateSingleNoteOptions {
+  type: string;              // Note type name
+  title: string;             // Note title
+  content: string;           // Note content
+  metadata?: NoteMetadata;   // Optional metadata
+  vaultId?: string;          // Optional vault ID
+}
+```
+
+#### `CreateMultipleNotesOptions`
+```typescript
+interface CreateMultipleNotesOptions {
+  notes: Array<{             // Array of notes to create
+    type: string;
+    title: string;
+    content: string;
+    metadata?: NoteMetadata;
+  }>;
+  vaultId?: string;          // Optional vault ID
+}
+```
+
+#### `UpdateNoteOptions`
+```typescript
+interface UpdateNoteOptions {
+  identifier: string;        // Note identifier
+  content: string;           // New content
+  contentHash: string;       // Current content hash
+  vaultId?: string;          // Optional vault ID
+  metadata?: NoteMetadata;   // Optional metadata to update
+}
+```
+
+#### `UpdateNoteContentOptions`
+```typescript
+interface UpdateNoteContentOptions {
+  identifier: string;        // Note identifier
+  content: string;           // New content
+  vaultId?: string;          // Optional vault ID
+  metadata?: NoteMetadata;   // Optional metadata to update
+}
+```
+
+#### `UpdateMultipleNotesOptions`
+```typescript
+interface UpdateMultipleNotesOptions {
+  notes: Array<{             // Array of notes to update
+    identifier: string;      // Note identifier
+    content: string;         // New content
+    contentHash: string;     // Current content hash
+    metadata?: NoteMetadata; // Optional metadata to update
+  }>;
+  vaultId?: string;          // Optional vault ID
+}
+```
+
+#### `DeleteNoteOptions`
+```typescript
+interface DeleteNoteOptions {
+  identifier: string;        // Note identifier
+  confirm?: boolean;         // Confirm deletion (default: true)
+  vaultId?: string;          // Optional vault ID
+}
+```
+
+#### `ListNotesOptions`
+```typescript
+interface ListNotesOptions {
+  typeName?: string;         // Filter by note type
+  limit?: number;            // Maximum results
+  vaultId?: string;          // Optional vault ID
+}
+```
+
+#### `SearchNotesByTextOptions`
+```typescript
+interface SearchNotesByTextOptions {
+  query: string;             // Search query
+  typeFilter?: string;       // Filter by note type
+  limit?: number;            // Maximum results (default: 10)
+  vaultId?: string;          // Optional vault ID
+}
+```
+
 ## Return Types
 
 The `FlintNoteApi` returns pure TypeScript objects from the core managers:
@@ -652,6 +835,20 @@ interface UpdateResult {
   id: string;           // Note identifier
   updated: boolean;     // Success status
   timestamp: string;    // ISO timestamp
+}
+```
+
+### `BatchUpdateResult`
+```typescript
+interface BatchUpdateResult {
+  total: number;        // Total number of update attempts
+  successful: number;   // Number of successful updates
+  failed: number;       // Number of failed updates
+  results: Array<{      // Individual results for each update
+    success: boolean;   // Whether this update succeeded
+    result?: UpdateResult;  // Update result if successful
+    error?: string;     // Error message if failed
+  }>;
 }
 ```
 
@@ -805,11 +1002,11 @@ await api.getNote('my-note'); // Now this works
 
 ## Method Reference
 
-`FlintNoteApi` provides complete FlintNote functionality with 31 methods:
+`FlintNoteApi` provides complete FlintNote functionality with 32 methods:
 
-**✅ Core Note Operations (11 methods):**
-- `createNote()`, `createSimpleNote()`, `getNote()`, `getNotes()`, `getNoteInfo()`
-- `updateNote()`, `updateNoteContent()`, `deleteNote()`, `bulkDeleteNotes()`
+**✅ Core Note Operations (12 methods):**
+- `createNote()`, `createNotes()`, `getNote()`, `getNotes()`, `getNoteInfo()`
+- `updateNote()`, `updateNotes()`, `updateNoteContent()`, `deleteNote()`, `bulkDeleteNotes()`
 - `listNotes()`, `renameNote()`
 
 **✅ Note Type Operations (5 methods):**
@@ -840,11 +1037,11 @@ const api = new FlintNoteApi({
 await api.initialize();
 
 // Create a note
-const noteInfo = await api.createSimpleNote(
-  'general',
-  'meeting-notes',
-  '# Team Meeting\n\n- Review progress\n- Plan next sprint'
-);
+const noteInfo = await api.createNote({
+  type: 'general',
+  title: 'meeting-notes',
+  content: '# Team Meeting\n\n- Review progress\n- Plan next sprint'
+});
 
 console.log('Created note:', noteInfo.id);
 
@@ -854,16 +1051,31 @@ console.log('Note content:', note.content);
 console.log('Note metadata:', note.metadata);
 
 // Update the note
-const updateResult = await api.updateNote(
-  noteInfo.id,
-  note.content + '\n\n## Action Items\n- Update documentation',
-  note.content_hash
-);
+const updateResult = await api.updateNote({
+  identifier: noteInfo.id,
+  content: note.content + '\n\n## Action Items\n- Update documentation',
+  contentHash: note.content_hash
+});
 
 console.log('Updated:', updateResult.updated);
 
+// Example of batch updating multiple notes
+const batchResult = await api.updateNotes({
+  notes: [
+    {
+      identifier: noteInfo.id,
+      content: note.content + '\n\n## Status\n- In Progress',
+      contentHash: note.content_hash,
+      metadata: { status: 'in-progress' }
+    }
+    // ... more notes can be added here
+  ]
+});
+
+console.log(`Batch update: ${batchResult.successful}/${batchResult.total} notes updated`);
+
 // List notes
-const notes = await api.listNotes('general', 10);
+const notes = await api.listNotes({ typeName: 'general', limit: 10 });
 console.log(`Found ${notes.length} general notes`);
 ```
 
