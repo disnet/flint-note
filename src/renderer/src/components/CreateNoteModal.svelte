@@ -48,13 +48,13 @@
     try {
       const chatService = getChatService();
       const noteTypeInfos = await chatService.listNoteTypes();
-      
+
       // Extract just the type names from NoteTypeListItem objects
-      noteTypes = noteTypeInfos.map(typeInfo => 
+      noteTypes = noteTypeInfos.map((typeInfo) =>
         typeof typeInfo === 'string' ? typeInfo : typeInfo.name
       );
-      
-      if (noteTypes.length > 0 && !noteType) {
+
+      if (noteTypes.length > 0) {
         noteType = noteTypes[0];
       }
     } catch (err) {
@@ -96,7 +96,7 @@
     titleError = validateTitle(noteTitle);
   }
 
-  async function handleSubmit(event: SubmitEvent): Promise<void> {
+  async function handleSubmit(event: Event): Promise<void> {
     event.preventDefault();
     const validation = validateTitle(noteTitle);
     if (validation) {
@@ -124,21 +124,23 @@
       onClose();
     } catch (err) {
       console.error('Failed to create note:', err);
-      
+
       // Provide more specific error messages
       let errorMessage = 'Failed to create note';
       if (err instanceof Error) {
         if (err.message.includes('cloned')) {
-          errorMessage = 'Note creation failed due to data serialization issue. Please try with simpler content.';
+          errorMessage =
+            'Note creation failed due to data serialization issue. Please try with simpler content.';
         } else if (err.message.includes('vault')) {
           errorMessage = 'No active vault found. Please select a vault first.';
         } else if (err.message.includes('identifier')) {
-          errorMessage = 'Invalid note title. Please use only letters, numbers, and basic punctuation.';
+          errorMessage =
+            'Invalid note title. Please use only letters, numbers, and basic punctuation.';
         } else {
           errorMessage = err.message;
         }
       }
-      
+
       error = errorMessage;
     } finally {
       isLoading = false;
@@ -150,7 +152,7 @@
       onClose();
     } else if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
       event.preventDefault();
-      handleSubmit();
+      handleSubmit(event);
     }
   }
 

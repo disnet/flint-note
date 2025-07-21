@@ -152,11 +152,13 @@ The project will be developed in phases, allowing for rapid prototyping and iter
 **Key Components:**
 
 #### **Create Note Button & UI**
+
 - **Create Button:** Add a prominent "+" or "New Note" button in the Notes tab header for easy note creation.
 - **Keyboard Shortcut:** Support Cmd/Ctrl+N for quick note creation from anywhere in the app.
 - **Context Menu:** Right-click option in notes explorer to create notes within specific folders.
 
 #### **Note Creation Modal**
+
 - **Note Type Selection:** Dropdown populated dynamically using the Flint Note API's `listNoteTypes()` method.
 - **Smart Defaults:** Remember user's last selected note type as default for new notes.
 - **Quick Creation Form:** Streamlined form with fields for:
@@ -166,6 +168,7 @@ The project will be developed in phases, allowing for rapid prototyping and iter
   - Initial content (optional textarea with template support)
 
 #### **Advanced Features**
+
 - **Template System:** Pre-populate content based on note type (e.g., meeting notes get date/attendee fields).
 - **Validation & Error Handling:**
   - Real-time validation of note identifiers
@@ -215,6 +218,7 @@ The project will be developed in phases, allowing for rapid prototyping and iter
 ```
 
 #### **User Experience Flow**
+
 1. **Trigger:** User clicks "+" button, uses Cmd+N, or right-clicks in notes explorer
 2. **Modal Appearance:** Smooth slide-in animation with focus on title field
 3. **Real-time Feedback:** Live validation shows ✓/❌ for title availability
@@ -223,6 +227,7 @@ The project will be developed in phases, allowing for rapid prototyping and iter
 6. **Error Recovery:** Clear error messages with suggested fixes
 
 #### **Technical Implementation**
+
 - **API Integration:** Uses `createNote()` method from Flint Note API
 - **State Management:** Modal state managed via Svelte 5 runes (`$state`)
 - **Validation:** Client-side validation with server-side confirmation
@@ -231,7 +236,7 @@ The project will be developed in phases, allowing for rapid prototyping and iter
 
 **Outcome:** Users can efficiently create new notes with a polished, intuitive interface that integrates seamlessly with the existing note management workflow, supporting both novice and power users.
 
-### Phase 5: Pinned Notes  ✅ COMPLETED
+### Phase 5: Pinned Notes ✅ COMPLETED
 
 **Goal:** Add a dedicated "Pinned" tab for quick access to important notes and provide controls to pin/unpin notes from the editor.
 
@@ -369,12 +374,14 @@ VaultSwitcher.switchVault()
 ```
 
 **Implementation Priority:**
+
 1. **Phase 8.1** (Immediate): Event-driven IPC for vault operations
 2. **Phase 8.2** (Short-term): Reactive store migration using Svelte 5 runes
 3. **Phase 8.3** (Medium-term): External change detection and conflict handling
 4. **Phase 8.4** (Long-term): Real-time API enhancements for collaboration
 
 **Success Metrics:**
+
 - Zero manual refresh calls required for vault switching
 - Automatic UI updates when notes change externally
 - Sub-200ms response time for vault switching
@@ -384,57 +391,55 @@ VaultSwitcher.switchVault()
 
 ### Phase 9: Note Linking & Autocomplete
 
--  **Trigger:** `[[` inside CodeMirror opens a type-ahead list filtered by note titles & aliases.
--  **UI:**
+- **Trigger:** `[[` inside CodeMirror opens a type-ahead list filtered by note titles & aliases.
+- **UI:**
   • Popup below cursor (lightweight Svelte component)
   • Arrow / mouse selection, ↩ inserts `[[Title]]`
--  **Backlinks Pane (optional):** Section in metadata side panel listing inbound links.
--  **Data:** NoteService exposes `searchTitles(query)` with < 50 ms response.
--  **Edge cases:** If note doesn’t exist, offer **Create “New Note”** option.
+- **Backlinks Pane (optional):** Section in metadata side panel listing inbound links.
+- **Data:** NoteService exposes `searchTitles(query)` with < 50 ms response.
+- **Edge cases:** If note doesn’t exist, offer **Create “New Note”** option.
 
 ### Phase 10: `@` Mentions for Context Injection
 
--  **Chat Input Enhancements**
-  • Typing `@` opens the same fuzzy list but shows notes *and* special entities (agents, personas).
+- **Chat Input Enhancements**
+  • Typing `@` opens the same fuzzy list but shows notes _and_ special entities (agents, personas).
   • On selection, a pill (chip) is inserted after the cursor.
--  **Prompt Assembly**
+- **Prompt Assembly**
   • Renderer packages message text + referenced note IDs into IPC payload.
   • Main process loads note contents (trimmed to N tokens) and prepends them to the LLM prompt.
--  **UX:** Hovering a chip shows note preview; Backspace removes.
+- **UX:** Hovering a chip shows note preview; Backspace removes.
 
 ### Phase 11: Navigation History
 
--  **Model:** `historyStack: NoteId[]`, `cursor` index.
--  **Controls:**
+- **Model:** `historyStack: NoteId[]`, `cursor` index.
+- **Controls:**
   • Toolbar ← → buttons in editor header
   • Keyboard: ⌘ [ and ⌘ ] (or Alt+←/→ Win/Linux)
--  **Behavior:** Opening a link pushes the current note onto the stack, navigates to target. Going back pops/advances cursor.
--  **Persist:** Session-only (reset on reload) for now.
+- **Behavior:** Opening a link pushes the current note onto the stack, navigates to target. Going back pops/advances cursor.
+- **Persist:** Session-only (reset on reload) for now.
 
 ### Phase 12: Global Search Bar
 
--  **Placement:** Fixed at header center on desktop, hides behind ⌘ P / Ctrl P hotkey on mobile.
--  **Scope Switcher:** Tabs or `⌥ 1-3` keys to filter **Notes / Commands / Vaults**.
--  **Results:** Virtual list, arrow navigation, ↩ to open.
--  **Tech:** Fuse.js fuzzy index kept in a Svelte `$derived` store that auto-rebuilds on note CRUD events.
+- **Placement:** Fixed at header center on desktop, hides behind ⌘ P / Ctrl P hotkey on mobile.
+- **Scope Switcher:** Tabs or `⌥ 1-3` keys to filter **Notes / Commands / Vaults**.
+- **Results:** Virtual list, arrow navigation, ↩ to open.
+- **Tech:** Fuse.js fuzzy index kept in a Svelte `$derived` store that auto-rebuilds on note CRUD events.
 
 ### Phase 13: Metadata Editor
 
--  **Toggle:** “𝑖” icon in editor header (or `⌘ I`).
--  **Layout:** Slide-over panel on right (desktop) or modal (mobile).
--  **Fields:** Title (readonly), Tags (comma list with chips), Aliases, Created, Updated, Custom key-value.
--  **Sync:**
+- **Toggle:** “𝑖” icon in editor header (or `⌘ I`).
+- **Layout:** Slide-over panel on right (desktop) or modal (mobile).
+- **Fields:** Title (readonly), Tags (comma list with chips), Aliases, Created, Updated, Custom key-value.
+- **Sync:**
   • Edits immediately mutate YAML front-matter in the buffer.
   • Debounced patch (< 300 ms) to NoteService.
--  **Validation:** Inline errors for invalid YAML / dup keys.
-
+- **Validation:** Inline errors for invalid YAML / dup keys.
 
 ## Accessibility
 
--  `@` & `[[` popups are ARIA `listbox` with live region status.
--  Search bar announces number of results.
--  History buttons have tooltips and keyboard shortcuts.
-
+- `@` & `[[` popups are ARIA `listbox` with live region status.
+- Search bar announces number of results.
+- History buttons have tooltips and keyboard shortcuts.
 
 ## Layout Architecture
 

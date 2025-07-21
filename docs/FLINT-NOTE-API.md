@@ -37,6 +37,7 @@ console.log(note.content, note.metadata);
 Creates a new FlintNote API instance.
 
 **Parameters:**
+
 - `config`: Configuration object
   - `workspacePath?: string` - Path to the workspace directory
   - `throwOnError?: boolean` - Whether to throw errors or return them in results
@@ -58,6 +59,7 @@ await api.initialize();
 Create one or more notes. Returns `NoteInfo` objects directly.
 
 **Single Note Creation:**
+
 ```typescript
 const noteInfo = await api.createNote({
   type: 'general',
@@ -67,12 +69,13 @@ const noteInfo = await api.createNote({
 });
 
 // noteInfo: { id, type, title, filename, path, created }
-console.log(noteInfo.id);      // "general/my-note.md"
-console.log(noteInfo.title);   // "my-note"
+console.log(noteInfo.id); // "general/my-note.md"
+console.log(noteInfo.title); // "my-note"
 console.log(noteInfo.created); // "2024-01-15T10:30:00.000Z"
 ```
 
 **Batch Note Creation:**
+
 ```typescript
 const noteInfos = await api.createNote({
   notes: [
@@ -94,8 +97,8 @@ const noteInfos = await api.createNote({
 });
 
 // noteInfos is NoteInfo[] - array of NoteInfo objects
-console.log(noteInfos.length);     // 2
-console.log(noteInfos[0].title);   // "team-standup"
+console.log(noteInfos.length); // 2
+console.log(noteInfos[0].title); // "team-standup"
 ```
 
 ### `createSimpleNote(type: string, identifier: string, content: string, vaultId?: string): Promise<NoteInfo>`
@@ -116,10 +119,10 @@ const note = await api.getNote('general/my-note.md');
 
 if (note) {
   // note object with all fields directly accessible
-  console.log(note.content);      // Full note content
-  console.log(note.metadata);     // Note metadata object
+  console.log(note.content); // Full note content
+  console.log(note.metadata); // Note metadata object
   console.log(note.content_hash); // Content hash for updates
-  console.log(note.links);        // Array of links in the note
+  console.log(note.links); // Array of links in the note
 } else {
   console.log('Note not found');
 }
@@ -142,8 +145,8 @@ const updateResult = await api.updateNote(
 );
 
 // updateResult is UpdateResult
-console.log(updateResult.id);        // "general/my-note.md"
-console.log(updateResult.updated);   // true
+console.log(updateResult.id); // "general/my-note.md"
+console.log(updateResult.updated); // true
 console.log(updateResult.timestamp); // "2024-01-15T10:35:00.000Z"
 ```
 
@@ -155,10 +158,10 @@ Delete a note. Returns `DeleteNoteResult` with deletion status.
 const deleteResult = await api.deleteNote('general/my-note.md', true);
 
 // deleteResult is DeleteNoteResult
-console.log(deleteResult.id);           // "general/my-note.md"
-console.log(deleteResult.deleted);      // true
-console.log(deleteResult.timestamp);    // "2024-01-15T10:40:00.000Z"
-console.log(deleteResult.backup_path);  // Path to backup file (if created)
+console.log(deleteResult.id); // "general/my-note.md"
+console.log(deleteResult.deleted); // true
+console.log(deleteResult.timestamp); // "2024-01-15T10:40:00.000Z"
+console.log(deleteResult.backup_path); // Path to backup file (if created)
 ```
 
 ### `listNotes(typeName?: string, limit?: number, vaultId?: string): Promise<NoteListItem[]>`
@@ -173,12 +176,12 @@ const generalNotes = await api.listNotes('general');
 const recentNotes = await api.listNotes(undefined, 10);
 
 // Each item is NoteListItem
-generalNotes.forEach(item => {
-  console.log(item.id);          // Note identifier
-  console.log(item.title);       // Note title
-  console.log(item.type);        // Note type
-  console.log(item.created);     // Creation timestamp
-  console.log(item.size);        // File size
+generalNotes.forEach((item) => {
+  console.log(item.id); // Note identifier
+  console.log(item.title); // Note title
+  console.log(item.type); // Note type
+  console.log(item.created); // Creation timestamp
+  console.log(item.size); // File size
 });
 ```
 
@@ -227,7 +230,7 @@ const result = await api.updateNoteContent(
   '# Updated Content\n\nNew content here...'
 );
 
-console.log(result.updated);   // true
+console.log(result.updated); // true
 console.log(result.timestamp); // "2024-01-15T10:35:00.000Z"
 ```
 
@@ -246,9 +249,9 @@ const result = await api.renameNote({
   content_hash: note.content_hash
 });
 
-console.log(result.success);       // true
-console.log(result.notesUpdated);  // 1
-console.log(result.linksUpdated);  // 3 (if 3 other notes linked to this one)
+console.log(result.success); // true
+console.log(result.notesUpdated); // 1
+console.log(result.linksUpdated); // 3 (if 3 other notes linked to this one)
 ```
 
 ### `bulkDeleteNotes(args: BulkDeleteNotesArgs): Promise<DeleteNoteResult[]>`
@@ -274,7 +277,7 @@ const results3 = await api.bulkDeleteNotes({
   confirm: true
 });
 
-results.forEach(result => {
+results.forEach((result) => {
   console.log(`${result.id}: ${result.deleted ? 'deleted' : 'failed'}`);
 });
 ```
@@ -296,8 +299,8 @@ const noteTypeInfo = await api.createNoteType({
   ]
 });
 
-console.log(noteTypeInfo.name);        // 'project'
-console.log(noteTypeInfo.filename);    // 'project_description.md'
+console.log(noteTypeInfo.name); // 'project'
+console.log(noteTypeInfo.filename); // 'project_description.md'
 ```
 
 ### `listNoteTypes(args?: ListNoteTypesArgs): Promise<NoteTypeListItem[]>`
@@ -307,10 +310,10 @@ List all available note types.
 ```typescript
 const noteTypes = await api.listNoteTypes();
 
-noteTypes.forEach(type => {
-  console.log(type.name);         // Type name
-  console.log(type.description);  // Type description
-  console.log(type.noteCount);    // Number of notes of this type
+noteTypes.forEach((type) => {
+  console.log(type.name); // Type name
+  console.log(type.description); // Type description
+  console.log(type.noteCount); // Number of notes of this type
 });
 ```
 
@@ -321,9 +324,9 @@ Get detailed information about a note type.
 ```typescript
 const typeInfo = await api.getNoteTypeInfo({ type_name: 'meeting' });
 
-console.log(typeInfo.parsed.description);         // Type description
-console.log(typeInfo.parsed.agentInstructions);   // Agent instructions array
-console.log(typeInfo.parsed.metadataSchema);      // Metadata schema object
+console.log(typeInfo.parsed.description); // Type description
+console.log(typeInfo.parsed.agentInstructions); // Agent instructions array
+console.log(typeInfo.parsed.metadataSchema); // Metadata schema object
 ```
 
 ### `updateNoteType(args: UpdateNoteTypeArgs): Promise<NoteTypeDescription>`
@@ -362,7 +365,7 @@ const result2 = await api.deleteNoteType({
   confirm: true
 });
 
-console.log(result.success);      // true
+console.log(result.success); // true
 console.log(result.notesAffected); // Number of notes moved/deleted
 ```
 
@@ -380,11 +383,11 @@ const results = await api.searchNotes({
   use_regex: false
 });
 
-results.forEach(result => {
-  console.log(result.note_id);     // Note identifier
-  console.log(result.title);       // Note title
-  console.log(result.excerpt);     // Relevant excerpt
-  console.log(result.score);       // Relevance score
+results.forEach((result) => {
+  console.log(result.note_id); // Note identifier
+  console.log(result.title); // Note title
+  console.log(result.excerpt); // Relevant excerpt
+  console.log(result.score); // Relevance score
 });
 ```
 
@@ -438,9 +441,9 @@ Get information about the currently active vault.
 const currentVault = await api.getCurrentVault();
 
 if (currentVault) {
-  console.log(currentVault.id);          // Vault ID
-  console.log(currentVault.name);        // Display name
-  console.log(currentVault.path);        // File system path
+  console.log(currentVault.id); // Vault ID
+  console.log(currentVault.name); // Display name
+  console.log(currentVault.path); // File system path
   console.log(currentVault.description); // Optional description
 }
 ```
@@ -452,7 +455,7 @@ List all configured vaults.
 ```typescript
 const vaults = await api.listVaults();
 
-vaults.forEach(vault => {
+vaults.forEach((vault) => {
   console.log(`${vault.name} (${vault.id}): ${vault.path}`);
 });
 ```
@@ -467,8 +470,8 @@ const newVault = await api.createVault({
   name: 'Project Documentation',
   path: '~/Documents/project-notes',
   description: 'All project-related documentation',
-  initialize: true,    // Create default note types
-  switch_to: true      // Switch to this vault after creation
+  initialize: true, // Create default note types
+  switch_to: true // Switch to this vault after creation
 });
 
 console.log(`Created vault: ${newVault.name} at ${newVault.path}`);
@@ -528,7 +531,7 @@ Get all notes that link to the specified note.
 ```typescript
 const backlinks = await api.getBacklinks('general/important-note.md');
 
-backlinks.forEach(link => {
+backlinks.forEach((link) => {
   console.log(`${link.source_note_id} links to this note`);
   console.log(`Link text: "${link.link_text}"`);
 });
@@ -541,7 +544,7 @@ Find all broken wikilinks (links to non-existent notes).
 ```typescript
 const brokenLinks = await api.findBrokenLinks();
 
-brokenLinks.forEach(link => {
+brokenLinks.forEach((link) => {
   console.log(`Broken link in ${link.source_note_id}`);
   console.log(`Missing target: ${link.target_note_id}`);
   console.log(`Link text: "${link.link_text}"`);
@@ -595,7 +598,8 @@ if (result.error_details) {
 Get direct access to the underlying managers for advanced use cases.
 
 ```typescript
-const { workspace, noteManager, noteTypeManager, hybridSearchManager } = api.getManagers();
+const { workspace, noteManager, noteTypeManager, hybridSearchManager } =
+  api.getManagers();
 
 // Direct manager access for advanced operations
 const customResult = await noteManager.searchNotes({
@@ -619,152 +623,165 @@ const context = await api.resolveVaultContext('project-vault');
 The `FlintNoteApi` returns pure TypeScript objects from the core managers:
 
 ### `NoteInfo`
+
 ```typescript
 interface NoteInfo {
-  id: string;          // Unique note identifier
-  type: string;        // Note type
-  title: string;       // Note title
-  filename: string;    // File name
-  path: string;        // Full file path
-  created: string;     // ISO timestamp
+  id: string; // Unique note identifier
+  type: string; // Note type
+  title: string; // Note title
+  filename: string; // File name
+  path: string; // Full file path
+  created: string; // ISO timestamp
 }
 ```
 
 ### `Note`
+
 ```typescript
 interface Note {
-  id: string;              // Unique note identifier
-  title: string;           // Note title
-  content: string;         // Full note content
-  metadata: NoteMetadata;  // Note metadata object
-  content_hash: string;    // Hash for content verification
-  links: NoteLink[];       // Array of links in the note
-  type: string;            // Note type
-  created: string;         // ISO timestamp
-  updated: string;         // ISO timestamp
+  id: string; // Unique note identifier
+  title: string; // Note title
+  content: string; // Full note content
+  metadata: NoteMetadata; // Note metadata object
+  content_hash: string; // Hash for content verification
+  links: NoteLink[]; // Array of links in the note
+  type: string; // Note type
+  created: string; // ISO timestamp
+  updated: string; // ISO timestamp
   // ... additional fields
 }
 ```
 
 ### `UpdateResult`
+
 ```typescript
 interface UpdateResult {
-  id: string;           // Note identifier
-  updated: boolean;     // Success status
-  timestamp: string;    // ISO timestamp
+  id: string; // Note identifier
+  updated: boolean; // Success status
+  timestamp: string; // ISO timestamp
 }
 ```
 
 ### `DeleteNoteResult`
+
 ```typescript
 interface DeleteNoteResult {
-  id: string;            // Note identifier
-  deleted: boolean;      // Success status
-  timestamp: string;     // ISO timestamp
-  backup_path?: string;  // Backup file path (if created)
-  warnings?: string[];   // Any warnings during deletion
+  id: string; // Note identifier
+  deleted: boolean; // Success status
+  timestamp: string; // ISO timestamp
+  backup_path?: string; // Backup file path (if created)
+  warnings?: string[]; // Any warnings during deletion
 }
 ```
 
 ### `NoteListItem`
+
 ```typescript
 interface NoteListItem {
-  id: string;          // Note identifier
-  title: string;       // Note title
-  type: string;        // Note type
-  created: string;     // ISO timestamp
-  updated: string;     // ISO timestamp
-  size: number;        // File size in bytes
-  tags: string[];      // Note tags
-  path: string;        // File path
+  id: string; // Note identifier
+  title: string; // Note title
+  type: string; // Note type
+  created: string; // ISO timestamp
+  updated: string; // ISO timestamp
+  size: number; // File size in bytes
+  tags: string[]; // Note tags
+  path: string; // File path
 }
 ```
 
 ### `SearchResult`
+
 ```typescript
 interface SearchResult {
-  note_id: string;     // Note identifier
-  title: string;       // Note title
-  excerpt: string;     // Relevant text excerpt
-  score: number;       // Relevance score (0-1)
-  type?: string;       // Note type
-  created?: string;    // Creation timestamp
+  note_id: string; // Note identifier
+  title: string; // Note title
+  excerpt: string; // Relevant text excerpt
+  score: number; // Relevance score (0-1)
+  type?: string; // Note type
+  created?: string; // Creation timestamp
 }
 ```
 
 ### `VaultInfo`
+
 ```typescript
 interface VaultInfo {
-  id: string;              // Unique vault identifier
-  name: string;            // Display name
-  path: string;            // File system path
-  description?: string;    // Optional description
-  last_accessed: string;   // Last accessed timestamp
-  created: string;         // Creation timestamp
+  id: string; // Unique vault identifier
+  name: string; // Display name
+  path: string; // File system path
+  description?: string; // Optional description
+  last_accessed: string; // Last accessed timestamp
+  created: string; // Creation timestamp
 }
 ```
 
 ### `NoteTypeInfo`
+
 ```typescript
 interface NoteTypeInfo {
-  name: string;            // Type name
-  filename: string;        // Description file name
-  path: string;            // Full file path
-  created: string;         // Creation timestamp
+  name: string; // Type name
+  filename: string; // Description file name
+  path: string; // Full file path
+  created: string; // Creation timestamp
 }
 ```
 
 ### `NoteTypeListItem`
+
 ```typescript
 interface NoteTypeListItem {
-  name: string;            // Type name
-  description: string;     // Type description
-  noteCount: number;       // Number of notes of this type
-  filename: string;        // Description file name
+  name: string; // Type name
+  description: string; // Type description
+  noteCount: number; // Number of notes of this type
+  filename: string; // Description file name
 }
 ```
 
 ### `NoteTypeDescription`
+
 ```typescript
 interface NoteTypeDescription {
-  raw: string;             // Raw markdown content
+  raw: string; // Raw markdown content
   parsed: {
-    description: string;           // Parsed description
-    agentInstructions: string[];   // Agent instructions array
-    metadataSchema?: object;       // Metadata schema
+    description: string; // Parsed description
+    agentInstructions: string[]; // Agent instructions array
+    metadataSchema?: object; // Metadata schema
   };
 }
 ```
 
 ### `NoteLinkRow`
+
 ```typescript
 interface NoteLinkRow {
-  source_note_id: string;  // Source note identifier
-  target_note_id: string;  // Target note identifier
-  link_text: string;       // Display text of the link
-  link_type: string;       // Type of link (wikilink, etc.)
+  source_note_id: string; // Source note identifier
+  target_note_id: string; // Target note identifier
+  link_text: string; // Display text of the link
+  link_type: string; // Type of link (wikilink, etc.)
 }
 ```
 
 ### `ExternalLinkRow`
+
 ```typescript
 interface ExternalLinkRow {
-  note_id: string;         // Note containing the link
-  url: string;             // External URL
-  link_text: string;       // Display text of the link
-  link_type: string;       // Type of link (markdown, etc.)
+  note_id: string; // Note containing the link
+  url: string; // External URL
+  link_text: string; // Display text of the link
+  link_type: string; // Type of link (markdown, etc.)
 }
 ```
 
 ### `NoteRow`
+
 ```typescript
 interface NoteRow {
-  id: string;              // Note identifier
-  title: string;           // Note title
-  content: string;         // Note content
-  type: string;            // Note type
-  created: string;         // Creation timestamp
-  updated: string;         // Last update timestamp
+  id: string; // Note identifier
+  title: string; // Note title
+  content: string; // Note content
+  type: string; // Note type
+  created: string; // Creation timestamp
+  updated: string; // Last update timestamp
   // ... additional database fields
 }
 ```
@@ -808,28 +825,34 @@ await api.getNote('my-note'); // Now this works
 `FlintNoteApi` provides complete FlintNote functionality with 31 methods:
 
 **✅ Core Note Operations (11 methods):**
+
 - `createNote()`, `createSimpleNote()`, `getNote()`, `getNotes()`, `getNoteInfo()`
 - `updateNote()`, `updateNoteContent()`, `deleteNote()`, `bulkDeleteNotes()`
 - `listNotes()`, `renameNote()`
 
 **✅ Note Type Operations (5 methods):**
+
 - `createNoteType()`, `listNoteTypes()`, `getNoteTypeInfo()`
 - `updateNoteType()`, `deleteNoteType()`
 
 **✅ Search Operations (4 methods):**
+
 - `searchNotes()`, `searchNotesAdvanced()`, `searchNotesSQL()`, `searchNotesByText()`
 
 **✅ Vault Operations (6 methods):**
+
 - `getCurrentVault()`, `listVaults()`, `createVault()`
 - `switchVault()`, `updateVault()`, `removeVault()`
 
 **✅ Link Operations (5 methods):**
+
 - `getNoteLinks()`, `getBacklinks()`, `findBrokenLinks()`
 - `searchByLinks()`, `migrateLinks()`
 
 ## Examples
 
 ### Basic Note Management
+
 ```typescript
 import { FlintNoteApi } from '@flint-note/server/api';
 
@@ -868,6 +891,7 @@ console.log(`Found ${notes.length} general notes`);
 ```
 
 ### Advanced Manager Access
+
 ```typescript
 const api = new FlintNoteApi({ workspacePath: './notes' });
 await api.initialize();
