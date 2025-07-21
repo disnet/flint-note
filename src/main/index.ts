@@ -5,6 +5,7 @@ import icon from '../../resources/icon.png?asset';
 import { AIService } from './ai-service';
 import { NoteService } from './note-service';
 import type { MetadataSchema } from '@flint-note/server/dist/core/metadata-schema';
+import { NoteMetadata } from '@flint-note/server';
 
 function createWindow(): void {
   // Create the browser window.
@@ -159,6 +160,7 @@ app.whenReady().then(async () => {
         identifier: string;
         content: string;
         vaultId?: string;
+        metadata?: NoteMetadata;
       }
     ) => {
       if (!noteService) {
@@ -167,7 +169,8 @@ app.whenReady().then(async () => {
       return await noteService.updateNote(
         params.identifier,
         params.content,
-        params.vaultId
+        params.vaultId,
+        params.metadata
       );
     }
   );

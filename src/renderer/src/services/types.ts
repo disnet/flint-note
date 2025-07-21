@@ -4,7 +4,8 @@ import type {
   UpdateResult,
   DeleteNoteResult,
   NoteListItem,
-  NoteTypeListItem
+  NoteTypeListItem,
+  NoteMetadata
 } from '@flint-note/server';
 import type { SearchResult } from '@flint-note/server/dist/database/search-manager';
 import type {
@@ -57,6 +58,7 @@ export interface NoteService {
     identifier: string;
     content: string;
     vaultId?: string;
+    metadata?: NoteMetadata;
   }): Promise<UpdateResult>;
   deleteNote(params: { identifier: string; vaultId?: string }): Promise<DeleteNoteResult>;
   renameNote(params: {

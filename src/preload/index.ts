@@ -1,6 +1,7 @@
 import { contextBridge } from 'electron';
 import { electronAPI } from '@electron-toolkit/preload';
 import { MetadataSchema } from '@flint-note/server/dist/core/metadata-schema';
+import { NoteMetadata } from '@flint-note/server';
 
 // Custom APIs for renderer
 const api = {
@@ -18,8 +19,12 @@ const api = {
   }) => electronAPI.ipcRenderer.invoke('create-note', params),
   getNote: (params: { identifier: string; vaultId?: string }) =>
     electronAPI.ipcRenderer.invoke('get-note', params),
-  updateNote: (params: { identifier: string; content: string; vaultId?: string }) =>
-    electronAPI.ipcRenderer.invoke('update-note', params),
+  updateNote: (params: {
+    identifier: string;
+    content: string;
+    vaultId?: string;
+    metadata?: NoteMetadata;
+  }) => electronAPI.ipcRenderer.invoke('update-note', params),
   deleteNote: (params: { identifier: string; vaultId?: string }) =>
     electronAPI.ipcRenderer.invoke('delete-note', params),
   renameNote: (params: { identifier: string; newIdentifier: string; vaultId?: string }) =>

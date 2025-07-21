@@ -5,7 +5,8 @@ import type {
   UpdateResult,
   DeleteNoteResult,
   NoteListItem,
-  NoteTypeListItem
+  NoteTypeListItem,
+  NoteMetadata
 } from '@flint-note/server';
 import type { SearchResult } from '@flint-note/server/dist/database/search-manager';
 import type {
@@ -63,6 +64,7 @@ export class ElectronChatService implements ChatService, NoteService {
     identifier: string;
     content: string;
     vaultId?: string;
+    metadata?: NoteMetadata;
   }): Promise<UpdateResult> {
     const { identifier, content, vaultId } = params;
     try {

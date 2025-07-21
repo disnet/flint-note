@@ -179,42 +179,6 @@
     pinnedNotesStore.togglePin(note.id, note.title, note.filename);
   }
 
-  function updateNoteTypeInContent(content: string, newType: string): string {
-    // Check if content has frontmatter
-    if (content.startsWith('---')) {
-      const frontmatterEndIndex = content.indexOf('---', 3);
-      if (frontmatterEndIndex !== -1) {
-        const frontmatter = content.substring(3, frontmatterEndIndex);
-        const body = content.substring(frontmatterEndIndex + 3);
-
-        // Update or add the type field in frontmatter
-        const lines = frontmatter.split('\n');
-        let typeUpdated = false;
-
-        const updatedLines = lines.map((line) => {
-          if (line.startsWith('type:')) {
-            typeUpdated = true;
-            return `type: ${newType}`;
-          }
-          return line;
-        });
-
-        // If type field wasn't found, add it
-        if (!typeUpdated) {
-          updatedLines.push(`type: ${newType}`);
-        }
-
-        return `---${updatedLines.join('\n')}---${body}`;
-      }
-    }
-
-    // If no frontmatter exists, create it
-    return `---
-type: ${newType}
----
-${content}`;
-  }
-
   async function changeNoteType(): Promise<void> {
     if (!noteData || !currentNoteType) return;
 
@@ -225,16 +189,15 @@ ${content}`;
 
       console.log(`Changing note type to: ${currentNoteType}`);
 
-      // Update the note's content with the new type in frontmatter
-      const updatedContent = updateNoteTypeInContent(noteContent, currentNoteType);
-
-      // Update the note via the API
-      await noteService.updateNote({ identifier: noteData.id, content: updatedContent });
+      // Update the note's metadata with the new type
+      await noteService.updateNote({
+        identifier: noteData.id,
+        content: noteContent,
+        metadata: { type: currentNoteType }
+      });
 
       // Update local state
-      noteContent = updatedContent;
       noteData = { ...noteData, type: currentNoteType };
-      updateEditorContent();
 
       console.log(`Successfully changed note type to: ${currentNoteType}`);
     } catch (err) {
