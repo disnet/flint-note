@@ -1,5 +1,6 @@
 <script lang="ts">
   import { notesStore, type NoteMetadata } from '../services/noteStore';
+  import { pinnedNotesStore } from '../services/pinnedStore';
 
   const { groupedNotes } = notesStore;
 
@@ -97,7 +98,12 @@
                   onclick={() => handleNoteClick(note)}
                   onkeydown={(e) => handleNoteKeyDown(e, note)}
                 >
-                  <div class="note-title">{note.title}</div>
+                  <div class="note-title">
+                    {#if pinnedNotesStore.isPinned(note.id)}
+                      <span class="pin-indicator" title="Pinned note">📌</span>
+                    {/if}
+                    {note.title}
+                  </div>
                   <div class="note-meta">
                     <span class="note-filename">{note.filename}</span>
                     <span class="note-modified"
@@ -281,6 +287,15 @@
     font-weight: 500;
     color: var(--text-primary);
     margin-bottom: 0.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .pin-indicator {
+    font-size: 0.875rem;
+    opacity: 0.8;
+    color: var(--accent-primary);
   }
 
   .note-meta {

@@ -3,6 +3,7 @@
   import MessageInput from './components/MessageInput.svelte';
   import TabNavigation from './components/TabNavigation.svelte';
   import NotesView from './components/NotesView.svelte';
+  import PinnedView from './components/PinnedView.svelte';
   import NoteEditor from './components/NoteEditor.svelte';
   import VaultSwitcher from './components/VaultSwitcher.svelte';
   import type { Message } from './services/types';
@@ -32,7 +33,8 @@
 
   const tabs = [
     { id: 'chat', label: 'Chat' },
-    { id: 'notes', label: 'Notes' }
+    { id: 'notes', label: 'Notes' },
+    { id: 'pinned', label: 'Pinned' }
   ];
 
   function handleTabChange(tabId: string): void {
@@ -60,11 +62,6 @@
   function openNoteEditor(note: NoteMetadata): void {
     activeNote = note;
     updateNoteEditorPosition();
-
-    // Switch to chat tab if note was opened from notes view
-    if (activeTab === 'notes') {
-      activeTab = 'chat';
-    }
   }
 
   function closeNoteEditor(): void {
@@ -178,27 +175,31 @@
   </header>
 
   <main class="main">
-    {#if activeTab === 'chat'}
-      <div
-        class="chat-layout"
-        class:has-sidebar={activeNote && noteEditorPosition === 'sidebar'}
-      >
-        <ChatView
-          {messages}
-          isLoading={isLoadingResponse}
-          onNoteClick={handleNoteClick}
-        />
-        {#if activeNote}
-          <NoteEditor
-            note={activeNote}
-            position={noteEditorPosition}
-            onClose={closeNoteEditor}
+    <div
+      class="tab-layout"
+      class:has-sidebar={activeNote && noteEditorPosition === 'sidebar'}
+    >
+      <div class="tab-content">
+        {#if activeTab === 'chat'}
+          <ChatView
+            {messages}
+            isLoading={isLoadingResponse}
+            onNoteClick={handleNoteClick}
           />
+        {:else if activeTab === 'notes'}
+          <NotesView onNoteSelect={handleNoteSelect} />
+        {:else if activeTab === 'pinned'}
+          <PinnedView onNoteSelect={handleNoteSelect} />
         {/if}
       </div>
-    {:else if activeTab === 'notes'}
-      <NotesView onNoteSelect={handleNoteSelect} />
-    {/if}
+      {#if activeNote}
+        <NoteEditor
+          note={activeNote}
+          position={noteEditorPosition}
+          onClose={closeNoteEditor}
+        />
+      {/if}
+    </div>
   </main>
 
   <footer class="footer">
@@ -258,24 +259,25 @@
     transition: all 0.2s ease;
   }
 
-  .chat-layout {
+  .tab-layout {
     display: flex;
     height: 100%;
     position: relative;
   }
 
-  .chat-layout.has-sidebar {
+  .tab-layout.has-sidebar {
     padding-right: 400px;
   }
 
-  .chat-layout > :global(.chat-view) {
+  .tab-content {
     flex: 1;
     min-width: 0;
+    height: 100%;
   }
 
   /* Responsive adjustments */
   @media (max-width: 1200px) {
-    .chat-layout.has-sidebar {
+    .tab-layout.has-sidebar {
       padding-right: 0;
     }
   }

@@ -9,6 +9,7 @@
   import type { NoteMetadata } from '../services/noteStore';
   import type { ApiNoteResult } from '@flint-note/server';
   import { getChatService } from '../services/chatService.js';
+  import { pinnedNotesStore } from '../services/pinnedStore';
 
   interface Props {
     note: NoteMetadata;
@@ -26,6 +27,20 @@
   let error = $state<string | null>(null);
 
   let noteData = $state<ApiNoteResult | null>(null);
+
+  let isPinned = $state(false);
+
+  // Subscribe to pinned notes store to update isPinned reactively
+  $effect(() => {
+    const unsubscribe = pinnedNotesStore.subscribe(() => {
+      isPinned = pinnedNotesStore.isPinned(note.id);
+    });
+
+    // Initial check
+    isPinned = pinnedNotesStore.isPinned(note.id);
+
+    return unsubscribe;
+  });
 
   onMount(() => {
     return () => {
@@ -126,6 +141,10 @@
     }
   }
 
+  function togglePin(): void {
+    pinnedNotesStore.togglePin(note.id, note.title, note.filename);
+  }
+
   function handleKeyDown(event: KeyboardEvent): void {
     if (event.key === 'Escape') {
       onClose();
@@ -151,6 +170,15 @@
       {note.title}
     </h3>
     <div class="editor-actions">
+      <button
+        class="pin-btn"
+        class:pinned={isPinned}
+        onclick={togglePin}
+        aria-label={isPinned ? 'Unpin note' : 'Pin note'}
+        title={isPinned ? 'Unpin note' : 'Pin note'}
+      >
+        📌
+      </button>
       {#if hasChanges}
         <button
           class="save-btn"
@@ -276,6 +304,30 @@
     background: var(--accent-secondary);
   }
 
+  .pin-btn {
+    padding: 0.5rem;
+    background: none;
+    border: 1px solid var(--border-light);
+    border-radius: 0.25rem;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+    opacity: 0.6;
+  }
+
+  .pin-btn:hover {
+    opacity: 1;
+    border-color: var(--accent-primary);
+    background: var(--bg-hover);
+  }
+
+  .pin-btn.pinned {
+    opacity: 1;
+    background: var(--accent-primary-alpha);
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+  }
+
   .close-btn {
     padding: 0.5rem;
     background: none;
@@ -304,15 +356,6 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
-  }
-
-  .loading {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 200px;
-    color: var(--text-secondary);
-    font-size: 0.875rem;
   }
 
   .editor-container {

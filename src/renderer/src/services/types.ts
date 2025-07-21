@@ -113,3 +113,10 @@ export interface NoteService {
   // Service status
   isReady(): Promise<boolean>;
 }
+
+export interface PinnedNoteInfo {
+  id: string;
+  title: string;
+  filename: string;
+  pinnedAt: string;
+}
