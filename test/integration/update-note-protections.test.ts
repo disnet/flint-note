@@ -530,4 +530,155 @@ This content should be updated successfully.`;
     );
     assert.strictEqual(renamedData.id, noteId, 'ID should remain unchanged');
   });
+
+  test('should prevent type updates via update_note metadata', async () => {
+    // Create a test note
+    const originalTitle = `Test Note ${Date.now()}`;
+    const createResult = await client.callTool('create_note', {
+      type: 'general',
+      title: originalTitle,
+      content: `# ${originalTitle}\n\nThis is a test note.`
+    });
+
+    const createData = JSON.parse(createResult.content[0].text);
+    const noteId = createData.id;
+
+    // Get the note to obtain content_hash
+    const getResult = await client.callTool('get_note', {
+      identifier: noteId
+    });
+    const noteData = JSON.parse(getResult.content[0].text);
+    const contentHash = noteData.content_hash;
+
+    // Try to update type via metadata - should be rejected with error
+    const attemptedNewType = 'projects';
+    const updateResult = await client.callTool('update_note', {
+      identifier: noteId,
+      content_hash: contentHash,
+      metadata: {
+        type: attemptedNewType,
+        custom_field: 'allowed_value'
+      }
+    });
+
+    // Update should be rejected with error
+    assert.ok(
+      updateResult.isError,
+      'Update should be rejected due to protected type field'
+    );
+    const errorText = updateResult.content[0].text;
+    assert.ok(
+      errorText.includes('type') &&
+        (errorText.includes('protected') || errorText.includes('move_note')),
+      'Error should mention type protection and move_note tool'
+    );
+
+    // Verify the note type remains unchanged
+    const getAfterAttempt = await client.callTool('get_note', {
+      identifier: noteId
+    });
+    const afterAttemptData = JSON.parse(getAfterAttempt.content[0].text);
+    assert.strictEqual(
+      afterAttemptData.type,
+      'general',
+      'Note type should remain unchanged after rejected update'
+    );
+  });
+
+  test('should prevent batch type updates via update_note metadata', async () => {
+    // Create two test notes
+    const note1Title = `Test Note 1 ${Date.now()}`;
+    const note2Title = `Test Note 2 ${Date.now()}`;
+
+    const createResult1 = await client.callTool('create_note', {
+      type: 'general',
+      title: note1Title,
+      content: `# ${note1Title}\n\nFirst test note.`
+    });
+    const createResult2 = await client.callTool('create_note', {
+      type: 'general',
+      title: note2Title,
+      content: `# ${note2Title}\n\nSecond test note.`
+    });
+
+    const note1Data = JSON.parse(createResult1.content[0].text);
+    const note2Data = JSON.parse(createResult2.content[0].text);
+
+    // Get content hashes
+    const getResult1 = await client.callTool('get_note', {
+      identifier: note1Data.id
+    });
+    const getResult2 = await client.callTool('get_note', {
+      identifier: note2Data.id
+    });
+
+    const note1Current = JSON.parse(getResult1.content[0].text);
+    const note2Current = JSON.parse(getResult2.content[0].text);
+
+    // Try batch update with type changes - should be rejected
+    const batchUpdateResult = await client.callTool('update_note', {
+      updates: [
+        {
+          identifier: note1Data.id,
+          content_hash: note1Current.content_hash,
+          metadata: {
+            type: 'projects',
+            status: 'published'
+          }
+        },
+        {
+          identifier: note2Data.id,
+          content_hash: note2Current.content_hash,
+          metadata: {
+            type: 'daily',
+            priority: 'high'
+          }
+        }
+      ]
+    });
+
+    // Batch update should be rejected due to protected type fields
+    assert.ok(!batchUpdateResult.isError, 'Batch update should return results object');
+    const batchData = JSON.parse(batchUpdateResult.content[0].text);
+    assert.ok(
+      batchData.failed > 0,
+      'Batch update should have failures due to protected type fields'
+    );
+
+    // Check that error messages mention protected type field and move_note tool
+    const hasProtectedTypeError = batchData.results.some(
+      (result: any) =>
+        !result.success &&
+        result.error &&
+        result.error.includes('type') &&
+        (result.error.includes('protected') || result.error.includes('move_note'))
+    );
+
+    assert.ok(
+      hasProtectedTypeError,
+      'Batch update errors should mention protected type field and move_note tool'
+    );
+
+    // Verify notes remain unchanged
+    const getAfter1 = await client.callTool('get_note', {
+      identifier: note1Data.id
+    });
+    const getAfter2 = await client.callTool('get_note', {
+      identifier: note2Data.id
+    });
+
+    const afterData1 = JSON.parse(getAfter1.content[0].text);
+    const afterData2 = JSON.parse(getAfter2.content[0].text);
+
+    assert.strictEqual(
+      afterData1.type,
+      'general',
+      'First note type should remain unchanged after rejected batch update'
+    );
+    assert.strictEqual(
+      afterData2.type,
+      'general',
+      'Second note type should remain unchanged after rejected batch update'
+    );
+  });
 });

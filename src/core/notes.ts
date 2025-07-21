@@ -1345,7 +1345,7 @@ export class NoteManager {
    * @throws Error with descriptive message directing users to rename_note tool if protected fields are present
    */
   #validateNoProtectedFields(metadata: NoteMetadata): void {
-    const protectedFields = new Set(['title', 'filename', 'created', 'updated']);
+    const protectedFields = new Set(['type', 'title', 'filename', 'created', 'updated']);
     const foundProtectedFields: string[] = [];
 
     for (const [key, value] of Object.entries(metadata)) {
@@ -1356,6 +1356,9 @@ export class NoteManager {
 
     if (foundProtectedFields.length > 0) {
       const fieldList = foundProtectedFields.join(', ');
+      const typeMessage = foundProtectedFields.includes('type')
+        ? `Use the 'move_note' tool to safely move notes between note types with proper file relocation and link updates. `
+        : '';
       const titleMessage = foundProtectedFields.some(field =>
         ['title', 'filename'].includes(field)
       )
@@ -1369,6 +1372,7 @@ export class NoteManager {
 
       throw new Error(
         `Cannot modify protected field(s): ${fieldList}. ` +
+          typeMessage +
           titleMessage +
           timestampMessage
       );
