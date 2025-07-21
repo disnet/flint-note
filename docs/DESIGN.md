@@ -241,7 +241,61 @@ The project will be developed in phases, allowing for rapid prototyping and iter
 
 **Outcome:** The application will feel more like a personalized tool, remembering user-specific configurations and providing a seamless experience across sessions.
 
-### Phase 8 & Beyond: Full Integration and Advanced Features
+### Phase 8: Reactive State Management ⏳
+
+**Goal:** Implement reactive data flow to automatically update the UI when vault or note changes occur, eliminating the need for manual refresh operations.
+
+**Current Problem:** The vault switcher and notes explorer require manual refresh calls when switching vaults. The UI doesn't automatically respond to external changes or operations performed outside the application.
+
+**Key Components:**
+
+#### **Subphase 8.1: Event-Driven IPC Layer**
+
+- **Enhanced NoteService:** Extend the main process `NoteService` to emit events for all CRUD operations (vault switching, note creation, updates, deletions).
+- **IPC Event Channels:** Add `ipcMain.send()` broadcasting to supplement the existing request-response pattern.
+- **Event Types:** Define semantic events like `vault-switched`, `note-created`, `note-updated`, `note-deleted`, `vault-changed`.
+- **Automatic Refresh:** Update `VaultSwitcher` to broadcast events instead of manually calling `notesStore.refresh()`.
+
+#### **Subphase 8.2: Reactive Store Migration**
+
+- **Svelte 5 Runes Integration:** Convert `noteStore.ts` from traditional Svelte stores to modern runes (`$state`, `$derived`, `$effect`).
+- **Global Vault State:** Create a centralized vault state store that components can reactively subscribe to.
+- **Automatic Dependency Tracking:** Use `$effect` to automatically refresh notes when vault changes are detected.
+- **Smart State Management:** Implement granular state updates instead of full store reloads.
+
+#### **Future Enhancements (Phase 8.3+):**
+
+- **File System Watching:** Add `chokidar` or native Node.js `fs.watch` to detect external file changes.
+- **WebSocket Integration:** Extend `@flint-note/server` to support real-time updates for future collaboration features.
+- **Smart Polling:** Implement adaptive polling with debouncing for edge cases.
+- **Conflict Resolution:** Handle conflicts between internal operations and external file changes.
+
+**Technical Architecture:**
+
+```typescript
+// Event flow: VaultSwitcher → NoteService → IPC Events → Store Updates → UI Refresh
+VaultSwitcher.switchVault()
+  → service.switchVault()
+  → broadcastEvent('vault-switched')
+  → notesStore.$effect()
+  → automatic refresh
+```
+
+**Implementation Priority:**
+1. **Phase 8.1** (Immediate): Event-driven IPC for vault operations
+2. **Phase 8.2** (Short-term): Reactive store migration using Svelte 5 runes
+3. **Phase 8.3** (Medium-term): External change detection and conflict handling
+4. **Phase 8.4** (Long-term): Real-time API enhancements for collaboration
+
+**Success Metrics:**
+- Zero manual refresh calls required for vault switching
+- Automatic UI updates when notes change externally
+- Sub-200ms response time for vault switching
+- Consistent state across all UI components
+
+**Outcome:** The application will provide a seamless, reactive user experience where all UI components automatically stay in sync with the underlying data, creating a more polished and responsive note-taking environment.
+
+### Phase 9 & Beyond: Full Integration and Advanced Features
 
 **Goal:** Transition from a mocked application to a fully functional Flint client and begin adding advanced capabilities.
 
