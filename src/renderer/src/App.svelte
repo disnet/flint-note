@@ -6,6 +6,7 @@
   import PinnedView from './components/PinnedView.svelte';
   import NoteEditor from './components/NoteEditor.svelte';
   import VaultSwitcher from './components/VaultSwitcher.svelte';
+  import CreateNoteModal from './components/CreateNoteModal.svelte';
   import type { Message } from './services/types';
   import type { NoteMetadata } from './services/noteStore';
   import { getChatService } from './services/chatService';
@@ -30,6 +31,7 @@
   let activeTab = $state('chat');
   let activeNote = $state<NoteMetadata | null>(null);
   let noteEditorPosition = $state<'sidebar' | 'overlay' | 'fullscreen'>('sidebar');
+  let showCreateNoteModal = $state(false);
 
   const tabs = [
     { id: 'chat', label: 'Chat' },
@@ -43,6 +45,26 @@
 
   function handleNoteSelect(note: NoteMetadata): void {
     openNoteEditor(note);
+  }
+
+  function handleCreateNote(): void {
+    showCreateNoteModal = true;
+  }
+
+  function handleCloseCreateModal(): void {
+    showCreateNoteModal = false;
+  }
+
+  function handleNoteCreated(noteId: string): void {
+    // Find the newly created note and open it in the editor
+    setTimeout(async () => {
+      // Wait for notes to refresh, then find and open the new note
+      const notes = $notesStore.notes;
+      const newNote = notes.find((n) => n.id === noteId);
+      if (newNote) {
+        openNoteEditor(newNote);
+      }
+    }, 100);
   }
 
   function handleNoteClick(noteId: string): void {
@@ -90,6 +112,20 @@
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+  });
+
+  // Global keyboard shortcuts
+  $effect(() => {
+    function handleKeyDown(event: KeyboardEvent): void {
+      // Ctrl/Cmd + N to create new note
+      if (event.key === 'n' && (event.ctrlKey || event.metaKey)) {
+        event.preventDefault();
+        handleCreateNote();
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
   });
 
   async function handleSendMessage(text: string): Promise<void> {
@@ -187,7 +223,7 @@
             onNoteClick={handleNoteClick}
           />
         {:else if activeTab === 'notes'}
-          <NotesView onNoteSelect={handleNoteSelect} />
+          <NotesView onNoteSelect={handleNoteSelect} onCreateNote={handleCreateNote} />
         {:else if activeTab === 'pinned'}
           <PinnedView onNoteSelect={handleNoteSelect} />
         {/if}
@@ -205,6 +241,12 @@
   <footer class="footer">
     <MessageInput onSend={handleSendMessage} />
   </footer>
+
+  <CreateNoteModal
+    isOpen={showCreateNoteModal}
+    onClose={handleCloseCreateModal}
+    onNoteCreated={handleNoteCreated}
+  />
 </div>
 
 <style>

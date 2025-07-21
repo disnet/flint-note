@@ -145,20 +145,35 @@ The project will be developed in phases, allowing for rapid prototyping and iter
 
 **Outcome:** Users can click on note references in the chat to open an editor, make changes, and have those changes persist temporarily.
 
-### Phase 4.5: Create Note Button
+### Phase 4.5: Create Note Feature
 
-**Goal:** Provide users with an intuitive way to create new notes directly from the interface.
+**Goal:** Provide users with an intuitive way to create new notes directly from the interface with full integration into the existing workflow.
 
 **Key Components:**
 
+#### **Create Note Button & UI**
 - **Create Button:** Add a prominent "+" or "New Note" button in the Notes tab header for easy note creation.
-- **Note Type Selection:** When creating a new note, present a dropdown to select the note type (general, meeting, project, etc.) using the Flint Note API's `listNoteTypes()` method.
-- **Quick Creation Form:** A simple form with fields for:
-  - Note type (dropdown)
-  - Note title/identifier (text input)
-  - Initial content (optional textarea)
-- **Integration with Note Editor:** After creation, automatically open the new note in the editor for immediate editing.
-- **Validation:** Ensure note identifiers are valid and don't conflict with existing notes.
+- **Keyboard Shortcut:** Support Cmd/Ctrl+N for quick note creation from anywhere in the app.
+- **Context Menu:** Right-click option in notes explorer to create notes within specific folders.
+
+#### **Note Creation Modal**
+- **Note Type Selection:** Dropdown populated dynamically using the Flint Note API's `listNoteTypes()` method.
+- **Smart Defaults:** Remember user's last selected note type as default for new notes.
+- **Quick Creation Form:** Streamlined form with fields for:
+  - Note type (dropdown with icons/descriptions)
+  - Note title/identifier (text input with real-time validation)
+  - Parent folder selection (optional, defaults to type-based folder)
+  - Initial content (optional textarea with template support)
+
+#### **Advanced Features**
+- **Template System:** Pre-populate content based on note type (e.g., meeting notes get date/attendee fields).
+- **Validation & Error Handling:**
+  - Real-time validation of note identifiers
+  - Conflict detection with existing notes
+  - Invalid character filtering
+  - Duplicate name prevention
+- **Integration with Note Editor:** Seamlessly open newly created notes in the editor for immediate editing.
+- **Undo Creation:** Allow users to quickly delete just-created notes if created by mistake.
 
 **UI Mockup:**
 
@@ -177,23 +192,44 @@ The project will be developed in phases, allowing for rapid prototyping and iter
 └─────────────────────────────────────────┘
 ```
 
-**Create Note Modal:**
+**Enhanced Create Note Modal:**
 
 ```
 ┌─────────────────────────────────────────┐
-│ Create New Note                         │
+│ ✨ Create New Note                      │
 ├─────────────────────────────────────────┤
-│ Type: [general ▼]                       │
-│ Title: [_____________________]          │
-│ Content: [________________________]    │
-│          [________________________]    │
-│          [________________________]    │
+│ Type: [📝 general ▼] [📋 Use Template]  │
+│ Title: [my-awesome-note_________] ✓     │
+│ Folder: [general/ ▼] (auto-selected)   │
 │                                         │
-│        [Cancel] [Create & Edit]         │
+│ Initial Content (optional):             │
+│ ┌─────────────────────────────────────┐ │
+│ │ # My Awesome Note                   │ │
+│ │                                     │ │
+│ │ Content starts here...              │ │
+│ └─────────────────────────────────────┘ │
+│                                         │
+│ 💡 Pro tip: Use Cmd+N for quick access │
+│        [Cancel] [Create & Edit] [⌨️]    │
 └─────────────────────────────────────────┘
 ```
 
-**Outcome:** Users can easily create new notes with proper types without needing to use chat commands or external tools.
+#### **User Experience Flow**
+1. **Trigger:** User clicks "+" button, uses Cmd+N, or right-clicks in notes explorer
+2. **Modal Appearance:** Smooth slide-in animation with focus on title field
+3. **Real-time Feedback:** Live validation shows ✓/❌ for title availability
+4. **Smart Suggestions:** Auto-complete for similar note names or templates
+5. **Quick Creation:** Enter key creates note and opens editor immediately
+6. **Error Recovery:** Clear error messages with suggested fixes
+
+#### **Technical Implementation**
+- **API Integration:** Uses `createNote()` method from Flint Note API
+- **State Management:** Modal state managed via Svelte 5 runes (`$state`)
+- **Validation:** Client-side validation with server-side confirmation
+- **Performance:** Debounced validation checks (300ms delay)
+- **Accessibility:** Full keyboard navigation and screen reader support
+
+**Outcome:** Users can efficiently create new notes with a polished, intuitive interface that integrates seamlessly with the existing note management workflow, supporting both novice and power users.
 
 ### Phase 5: Pinned Notes  ✅ COMPLETED
 

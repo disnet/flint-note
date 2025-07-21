@@ -6,9 +6,10 @@
 
   interface Props {
     onNoteSelect?: (note: NoteMetadata) => void;
+    onCreateNote?: () => void;
   }
 
-  let { onNoteSelect }: Props = $props();
+  let { onNoteSelect, onCreateNote }: Props = $props();
 
   let expandedTypes = $state<Set<string>>(new Set());
 
@@ -52,9 +53,19 @@
 <div class="notes-view">
   <div class="notes-header">
     <h2>Notes</h2>
-    {#if $notesStore.loading}
-      <div class="loading-indicator">Loading...</div>
-    {/if}
+    <div class="header-actions">
+      {#if $notesStore.loading}
+        <div class="loading-indicator">Loading...</div>
+      {/if}
+      <button
+        class="create-note-btn"
+        onclick={() => onCreateNote?.()}
+        title="Create new note (Ctrl+N)"
+      >
+        <span class="create-icon">+</span>
+        <span class="create-text">New</span>
+      </button>
+    </div>
   </div>
 
   {#if $notesStore.error}
@@ -156,9 +167,49 @@
     color: var(--text-primary);
   }
 
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
   .loading-indicator {
     font-size: 0.875rem;
     color: var(--text-secondary);
+  }
+
+  .create-note-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    background: var(--accent-primary);
+    color: var(--accent-text);
+    border: none;
+    border-radius: 0.375rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .create-note-btn:hover {
+    background: var(--accent-primary-hover);
+    transform: translateY(-1px);
+  }
+
+  .create-note-btn:active {
+    transform: translateY(0);
+  }
+
+  .create-icon {
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1;
+  }
+
+  .create-text {
+    line-height: 1;
   }
 
   .error-message {
