@@ -1,6 +1,7 @@
 <script lang="ts">
-  import type { VaultInfo } from '../services/types';
+  import type { VaultInfo } from '@flint-note/server/dist/utils/global-config';
   import { getChatService } from '../services/chatService';
+  import { notesStore } from '../services/noteStore';
 
   let currentVault = $state<VaultInfo | null>(null);
   let allVaults = $state<VaultInfo[]>([]);
@@ -30,6 +31,7 @@
       isLoading = true;
       await service.switchVault(vaultId);
       await loadVaults(); // Refresh vault info
+      await notesStore.refresh(); // Refresh notes for the new vault
       isDropdownOpen = false;
     } catch (error) {
       console.error('Failed to switch vault:', error);
@@ -66,6 +68,7 @@
       }, 10);
       return () => document.removeEventListener('click', handleClickOutside);
     }
+    return () => {};
   });
 </script>
 

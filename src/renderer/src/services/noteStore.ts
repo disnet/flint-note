@@ -28,6 +28,7 @@ interface NotesStoreState {
 async function createNotesStore(): Promise<{
   subscribe: typeof store.subscribe;
   groupedNotes: typeof groupedNotes;
+  refresh: () => Promise<void>;
 }> {
   const noteService = getChatService();
   const store = writable<NotesStoreState>({
@@ -107,35 +108,49 @@ async function createNotesStore(): Promise<{
     }
   }
 
-  try {
-    await loadNoteTypes();
-    const loadedNotes: NoteMetadata[] = [];
+  // Function to load all notes
+  async function loadAllNotes(): Promise<void> {
+    try {
+      await loadNoteTypes();
+      const loadedNotes: NoteMetadata[] = [];
 
-    // Get current note types from store
-    const currentState = get(store);
+      // Get current note types from store
+      const currentState = get(store);
 
-    // Load notes for each type
-    for (const noteType of currentState.noteTypes) {
-      const notesOfType = await loadNotesOfType(noteType.name);
-      loadedNotes.push(...notesOfType);
+      // Load notes for each type
+      for (const noteType of currentState.noteTypes) {
+        const notesOfType = await loadNotesOfType(noteType.name);
+        loadedNotes.push(...notesOfType);
+      }
+
+      // Sort notes by modification date (newest first)
+      const sortedNotes = loadedNotes.sort(
+        (a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime()
+      );
+
+      // Update the store with the loaded notes
+      update((state) => ({ ...state, notes: sortedNotes, loading: false }));
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : 'Failed to load all notes';
+      update((state) => ({ ...state, error: errorMessage, loading: false }));
+      console.error('Error loading all notes:', err);
     }
-
-    // Sort notes by modification date (newest first)
-    const sortedNotes = loadedNotes.sort(
-      (a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime()
-    );
-
-    // Update the store with the loaded notes
-    update((state) => ({ ...state, notes: sortedNotes, loading: false }));
-  } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : 'Failed to load all notes';
-    update((state) => ({ ...state, error: errorMessage, loading: false }));
-    console.error('Error loading all notes:', err);
   }
+
+  // Public refresh function that can be called to reload notes
+  async function refresh(): Promise<void> {
+    update((state) => ({ ...state, loading: true, error: null }));
+    await loadAllNotes();
+  }
+
+  // Initial load
+  await loadAllNotes();
 
   return {
     subscribe,
-    groupedNotes
+    groupedNotes,
+    refresh
   };
 }
 
