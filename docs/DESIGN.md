@@ -119,6 +119,7 @@ The project will be developed in phases, allowing for rapid prototyping and iter
 
 - **Interactive Note References:** Agent messages (now from a real model) will include "links" to notes. Clicking these links will trigger the note editor.
 - **CodeMirror Integration:** A robust text editor with Markdown syntax highlighting will be integrated as the note editor.
+- **Note Type Selection:** A dropdown or selector to change the note type, as all Flint notes have a specific type (e.g., 'general', 'meeting', 'project', etc.).
 - **Responsive Positioning:** The note editor's placement will adapt to the window size:
   - **Large Screens (>1200px):** Opens in a sidebar to the right of the chat.
   - **Medium Screens (768-1200px):** Overlays the chat panel.
@@ -129,7 +130,7 @@ The project will be developed in phases, allowing for rapid prototyping and iter
 
 ```
 ┌──────────────────────┬──────────────────┐
-│ [Chat] [Notes]       │ Note Editor      │
+│ [Chat] [Notes]       │ [general ▼] [💾] │
 ├──────────────────────┼──────────────────┤
 │                      │ # My Note        │
 │  [User] Open note    │                  │
@@ -144,7 +145,57 @@ The project will be developed in phases, allowing for rapid prototyping and iter
 
 **Outcome:** Users can click on note references in the chat to open an editor, make changes, and have those changes persist temporarily.
 
-### Phase 5: Pinned Notes
+### Phase 4.5: Create Note Button
+
+**Goal:** Provide users with an intuitive way to create new notes directly from the interface.
+
+**Key Components:**
+
+- **Create Button:** Add a prominent "+" or "New Note" button in the Notes tab header for easy note creation.
+- **Note Type Selection:** When creating a new note, present a dropdown to select the note type (general, meeting, project, etc.) using the Flint Note API's `listNoteTypes()` method.
+- **Quick Creation Form:** A simple form with fields for:
+  - Note type (dropdown)
+  - Note title/identifier (text input)
+  - Initial content (optional textarea)
+- **Integration with Note Editor:** After creation, automatically open the new note in the editor for immediate editing.
+- **Validation:** Ensure note identifiers are valid and don't conflict with existing notes.
+
+**UI Mockup:**
+
+```
+┌─────────────────────────────────────────┐
+│ [Chat] [Notes] [+New]                   │
+├─────────────────────────────────────────┤
+│ 📁 general/                             │
+│   📄 welcome.md                         │
+│   📄 getting-started.md                 │
+│ 📁 meeting/                             │
+│   📄 team-standup-2024-01-15.md         │
+│                                         │
+├─────────────────────────────────────────┤
+│ > Type your message...                  │
+└─────────────────────────────────────────┘
+```
+
+**Create Note Modal:**
+
+```
+┌─────────────────────────────────────────┐
+│ Create New Note                         │
+├─────────────────────────────────────────┤
+│ Type: [general ▼]                       │
+│ Title: [_____________________]          │
+│ Content: [________________________]    │
+│          [________________________]    │
+│          [________________________]    │
+│                                         │
+│        [Cancel] [Create & Edit]         │
+└─────────────────────────────────────────┘
+```
+
+**Outcome:** Users can easily create new notes with proper types without needing to use chat commands or external tools.
+
+### Phase 5: Pinned Notes  ✅ COMPLETED
 
 **Goal:** Add a dedicated "Pinned" tab for quick access to important notes and provide controls to pin/unpin notes from the editor.
 
@@ -295,17 +346,59 @@ VaultSwitcher.switchVault()
 
 **Outcome:** The application will provide a seamless, reactive user experience where all UI components automatically stay in sync with the underlying data, creating a more polished and responsive note-taking environment.
 
-### Phase 9 & Beyond: Full Integration and Advanced Features
+### Phase 9: Note Linking & Autocomplete
 
-**Goal:** Transition from a mocked application to a fully functional Flint client and begin adding advanced capabilities.
+-  **Trigger:** `[[` inside CodeMirror opens a type-ahead list filtered by note titles & aliases.
+-  **UI:**
+  • Popup below cursor (lightweight Svelte component)
+  • Arrow / mouse selection, ↩ inserts `[[Title]]`
+-  **Backlinks Pane (optional):** Section in metadata side panel listing inbound links.
+-  **Data:** NoteService exposes `searchTitles(query)` with < 50 ms response.
+-  **Edge cases:** If note doesn’t exist, offer **Create “New Note”** option.
 
-**Key Initiatives:**
+### Phase 10: `@` Mentions for Context Injection
 
-- **Full Feature Implementation:** Flesh out all slash commands, note operations, and settings.
-- **Advanced Search:** Implement a global search feature with filters.
-- **Vault Management:** Add UI for switching between different note vaults.
-- **Collaborative Editing:** Explore real-time multi-user support.
-- **Plugin System:** Design an architecture for extending the UI with custom components.
+-  **Chat Input Enhancements**
+  • Typing `@` opens the same fuzzy list but shows notes *and* special entities (agents, personas).
+  • On selection, a pill (chip) is inserted after the cursor.
+-  **Prompt Assembly**
+  • Renderer packages message text + referenced note IDs into IPC payload.
+  • Main process loads note contents (trimmed to N tokens) and prepends them to the LLM prompt.
+-  **UX:** Hovering a chip shows note preview; Backspace removes.
+
+### Phase 11: Navigation History
+
+-  **Model:** `historyStack: NoteId[]`, `cursor` index.
+-  **Controls:**
+  • Toolbar ← → buttons in editor header
+  • Keyboard: ⌘ [ and ⌘ ] (or Alt+←/→ Win/Linux)
+-  **Behavior:** Opening a link pushes the current note onto the stack, navigates to target. Going back pops/advances cursor.
+-  **Persist:** Session-only (reset on reload) for now.
+
+### Phase 12: Global Search Bar
+
+-  **Placement:** Fixed at header center on desktop, hides behind ⌘ P / Ctrl P hotkey on mobile.
+-  **Scope Switcher:** Tabs or `⌥ 1-3` keys to filter **Notes / Commands / Vaults**.
+-  **Results:** Virtual list, arrow navigation, ↩ to open.
+-  **Tech:** Fuse.js fuzzy index kept in a Svelte `$derived` store that auto-rebuilds on note CRUD events.
+
+### Phase 13: Metadata Editor
+
+-  **Toggle:** “𝑖” icon in editor header (or `⌘ I`).
+-  **Layout:** Slide-over panel on right (desktop) or modal (mobile).
+-  **Fields:** Title (readonly), Tags (comma list with chips), Aliases, Created, Updated, Custom key-value.
+-  **Sync:**
+  • Edits immediately mutate YAML front-matter in the buffer.
+  • Debounced patch (< 300 ms) to NoteService.
+-  **Validation:** Inline errors for invalid YAML / dup keys.
+
+
+## Accessibility
+
+-  `@` & `[[` popups are ARIA `listbox` with live region status.
+-  Search bar announces number of results.
+-  History buttons have tooltips and keyboard shortcuts.
+
 
 ## Layout Architecture
 
