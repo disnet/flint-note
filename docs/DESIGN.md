@@ -119,12 +119,12 @@ The project will be developed in phases, allowing for rapid prototyping and iter
 
 - **Interactive Note References:** Agent messages (now from a real model) will include "links" to notes. Clicking these links will trigger the note editor.
 - **CodeMirror Integration:** A robust text editor with Markdown syntax highlighting will be integrated as the note editor.
-- **Note Type Selection:** A dropdown or selector to change the note type, as all Flint notes have a specific type (e.g., 'general', 'meeting', 'project', etc.).
+- **Note Type Selection:** A dropdown or selector to change the note type, as all Flint notes have a specific type (e.g., 'general', 'meeting', 'project', etc.). ✅ COMPLETED
 - **Responsive Positioning:** The note editor's placement will adapt to the window size:
   - **Large Screens (>1200px):** Opens in a sidebar to the right of the chat.
   - **Medium Screens (768-1200px):** Overlays the chat panel.
   - **Small Screens (<768px):** Takes over the full screen.
-- **Basic Persistence:** Edited notes will be saved in-memory or to local storage for the duration of the session.
+- **Auto-Save Functionality:** Notes automatically save on every change with a 500ms debounce delay, removing the need for manual save operations. ✅ COMPLETED
 
 **UI Mockup (Large Screen):**
 

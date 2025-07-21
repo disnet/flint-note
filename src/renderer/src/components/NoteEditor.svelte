@@ -7,7 +7,7 @@
 
   import { onMount } from 'svelte';
   import type { NoteMetadata } from '../services/noteStore';
-  import type { ApiNoteResult } from '@flint-note/server';
+  import type { Note, NoteTypeListItem } from '@flint-note/server';
   import { getChatService } from '../services/chatService.js';
   import { pinnedNotesStore } from '../services/pinnedStore';
 
@@ -25,8 +25,11 @@
   let hasChanges = $state(false);
   let isSaving = $state(false);
   let error = $state<string | null>(null);
+  let saveTimeout: number | null = null;
 
-  let noteData = $state<ApiNoteResult | null>(null);
+  let noteData = $state<Note | null>(null);
+  let noteTypes = $state<NoteTypeListItem[]>([]);
+  let currentNoteType = $state<string>('');
 
   let isPinned = $state(false);
 
@@ -47,18 +50,24 @@
       if (editorView) {
         editorView.destroy();
       }
+      if (saveTimeout) {
+        clearTimeout(saveTimeout);
+      }
     };
   });
 
   $effect(() => {
     if (editorContainer && !editorView) {
-      console.log('Creating editor...');
       createEditor();
     }
   });
 
   $effect(() => {
     loadNote(note);
+  });
+
+  $effect(() => {
+    loadNoteTypes();
   });
 
   async function loadNote(note: NoteMetadata): Promise<void> {
@@ -70,6 +79,7 @@
         const result = await noteService.getNote(note.id);
         noteData = result;
         noteContent = result.content;
+        currentNoteType = result.type || '';
         updateEditorContent();
       } else {
         throw new Error('Note service not ready');
@@ -77,6 +87,17 @@
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to load note';
       console.error('Error loading note:', err);
+    }
+  }
+
+  async function loadNoteTypes(): Promise<void> {
+    try {
+      const noteService = getChatService();
+      if (await noteService.isReady()) {
+        noteTypes = await noteService.listNoteTypes();
+      }
+    } catch (err) {
+      console.error('Error loading note types:', err);
     }
   }
 
@@ -96,6 +117,7 @@
           if (update.docChanged) {
             hasChanges = true;
             noteContent = update.state.doc.toString();
+            debouncedSave();
           }
         })
       ]
@@ -124,14 +146,14 @@
   }
 
   async function saveNote(): Promise<void> {
-    if (!hasChanges || isSaving || !noteData) return;
+    if (isSaving || !noteData) return;
 
     try {
       isSaving = true;
       error = null;
       const noteService = getChatService();
 
-      await noteService.updateNote(note.filename, noteContent);
+      await noteService.updateNote(note.id, noteContent);
       hasChanges = false;
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to save note';
@@ -141,16 +163,93 @@
     }
   }
 
+  function debouncedSave(): void {
+    if (saveTimeout) {
+      clearTimeout(saveTimeout);
+    }
+
+    saveTimeout = window.setTimeout(() => {
+      if (hasChanges) {
+        saveNote();
+      }
+    }, 500); // 500ms delay
+  }
+
   function togglePin(): void {
     pinnedNotesStore.togglePin(note.id, note.title, note.filename);
+  }
+
+  function updateNoteTypeInContent(content: string, newType: string): string {
+    // Check if content has frontmatter
+    if (content.startsWith('---')) {
+      const frontmatterEndIndex = content.indexOf('---', 3);
+      if (frontmatterEndIndex !== -1) {
+        const frontmatter = content.substring(3, frontmatterEndIndex);
+        const body = content.substring(frontmatterEndIndex + 3);
+
+        // Update or add the type field in frontmatter
+        const lines = frontmatter.split('\n');
+        let typeUpdated = false;
+
+        const updatedLines = lines.map((line) => {
+          if (line.startsWith('type:')) {
+            typeUpdated = true;
+            return `type: ${newType}`;
+          }
+          return line;
+        });
+
+        // If type field wasn't found, add it
+        if (!typeUpdated) {
+          updatedLines.push(`type: ${newType}`);
+        }
+
+        return `---${updatedLines.join('\n')}---${body}`;
+      }
+    }
+
+    // If no frontmatter exists, create it
+    return `---
+type: ${newType}
+---
+${content}`;
+  }
+
+  async function changeNoteType(): Promise<void> {
+    if (!noteData || !currentNoteType) return;
+
+    try {
+      error = null;
+      isSaving = true;
+      const noteService = getChatService();
+
+      console.log(`Changing note type to: ${currentNoteType}`);
+
+      // Update the note's content with the new type in frontmatter
+      const updatedContent = updateNoteTypeInContent(noteContent, currentNoteType);
+
+      // Update the note via the API
+      await noteService.updateNote(note.id, updatedContent);
+
+      // Update local state
+      noteContent = updatedContent;
+      noteData = { ...noteData, type: currentNoteType };
+      updateEditorContent();
+
+      console.log(`Successfully changed note type to: ${currentNoteType}`);
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Failed to change note type';
+      console.error('Error changing note type:', err);
+      // Revert the UI state on error
+      currentNoteType = noteData?.type || '';
+    } finally {
+      isSaving = false;
+    }
   }
 
   function handleKeyDown(event: KeyboardEvent): void {
     if (event.key === 'Escape') {
       onClose();
-    } else if (event.key === 's' && (event.ctrlKey || event.metaKey)) {
-      event.preventDefault();
-      saveNote();
     }
   }
 </script>
@@ -166,10 +265,31 @@
   onkeydown={handleKeyDown}
 >
   <div class="editor-header">
-    <h3 id="note-editor-title" class="editor-title">
-      {note.title}
-    </h3>
+    <div class="editor-title-section">
+      <h3 id="note-editor-title" class="editor-title">
+        {note.title}
+      </h3>
+      {#if noteTypes.length > 0}
+        <select
+          class="note-type-selector"
+          class:saving={isSaving}
+          bind:value={currentNoteType}
+          onchange={() => changeNoteType()}
+          disabled={isSaving}
+          aria-label="Note type"
+        >
+          {#each noteTypes as noteType, index (noteType.name || `unknown-${index}`)}
+            <option value={noteType.name || ''}>
+              {noteType.name || 'Unknown Type'}
+            </option>
+          {/each}
+        </select>
+      {/if}
+    </div>
     <div class="editor-actions">
+      {#if isSaving}
+        <span class="saving-indicator" title="Saving...">💾</span>
+      {/if}
       <button
         class="pin-btn"
         class:pinned={isPinned}
@@ -179,16 +299,6 @@
       >
         📌
       </button>
-      {#if hasChanges}
-        <button
-          class="save-btn"
-          class:saving={isSaving}
-          onclick={saveNote}
-          disabled={isSaving}
-        >
-          {isSaving ? 'Saving...' : 'Save'}
-        </button>
-      {/if}
       <button class="close-btn" onclick={onClose} aria-label="Close editor"> × </button>
     </div>
   </div>
@@ -202,13 +312,6 @@
   <div class="editor-content">
     <div class="editor-container" bind:this={editorContainer}></div>
   </div>
-
-  {#if hasChanges}
-    <div class="status-bar">
-      <span class="unsaved-indicator">• Unsaved changes</span>
-      <span class="shortcut-hint">Ctrl+S to save, Esc to close</span>
-    </div>
-  {/if}
 </div>
 
 <style>
@@ -263,6 +366,14 @@
     background: var(--bg-primary);
   }
 
+  .editor-title-section {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex: 1;
+    min-width: 0;
+  }
+
   .editor-title {
     margin: 0;
     font-size: 1.1rem;
@@ -273,35 +384,59 @@
     white-space: nowrap;
   }
 
+  .note-type-selector {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+    border: 1px solid var(--border-light);
+    border-radius: 0.25rem;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 100px;
+  }
+
+  .note-type-selector:hover {
+    border-color: var(--accent-primary);
+    background: var(--bg-hover);
+  }
+
+  .note-type-selector:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 2px var(--accent-primary-alpha);
+  }
+
+  .note-type-selector:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background: var(--bg-secondary);
+  }
+
+  .note-type-selector.saving {
+    background: var(--accent-secondary-alpha);
+  }
+
   .editor-actions {
     display: flex;
     align-items: center;
     gap: 0.5rem;
   }
 
-  .save-btn {
-    padding: 0.5rem 1rem;
-    background: var(--accent-primary);
-    color: white;
-    border: none;
-    border-radius: 0.25rem;
-    cursor: pointer;
-    font-size: 0.875rem;
-    font-weight: 500;
-    transition: all 0.2s ease;
-  }
-
-  .save-btn:hover:not(:disabled) {
-    background: var(--accent-hover);
-  }
-
-  .save-btn:disabled {
+  .saving-indicator {
+    font-size: 1rem;
     opacity: 0.7;
-    cursor: not-allowed;
+    animation: pulse 1.5s ease-in-out infinite;
   }
 
-  .save-btn.saving {
-    background: var(--accent-secondary);
+  @keyframes pulse {
+    0%,
+    100% {
+      opacity: 0.7;
+    }
+    50% {
+      opacity: 1;
+    }
   }
 
   .pin-btn {
@@ -363,25 +498,6 @@
     overflow: auto;
   }
 
-  .status-bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.5rem 1rem;
-    border-top: 1px solid var(--border-light);
-    background: var(--bg-secondary);
-    font-size: 0.75rem;
-  }
-
-  .unsaved-indicator {
-    color: var(--warning-text);
-    font-weight: 500;
-  }
-
-  .shortcut-hint {
-    color: var(--text-secondary);
-  }
-
   /* CodeMirror styling */
   :global(.cm-editor) {
     height: 100%;
@@ -429,6 +545,19 @@
   }
 
   /* Responsive adjustments */
+  @media (max-width: 768px) {
+    .editor-title-section {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+
+    .note-type-selector {
+      align-self: stretch;
+      min-width: auto;
+    }
+  }
+
   @media (max-width: 1200px) {
     .note-editor.sidebar {
       width: 100%;
