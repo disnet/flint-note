@@ -5,14 +5,14 @@ import type {
   DeleteNoteResult,
   NoteListItem,
   NoteTypeListItem
-} from '@flint-note/server/dist/api';
-import type { NoteTypeInfo } from '@flint-note/server/dist/core/note-types';
+} from '@flint-note/server';
 import type { SearchResult } from '@flint-note/server/dist/database/search-manager';
-import type { VaultInfo } from '@flint-note/server/dist/utils/global-config';
 import type {
-  NoteLinkRow,
-  ExternalLinkRow
-} from '@flint-note/server/dist/database/schema';
+  CoreVaultInfo as VaultInfo,
+  CoreNoteLinkRow as NoteLinkRow,
+  CoreNoteTypeInfo as NoteTypeInfo
+} from '@flint-note/server/dist/api/types';
+import type { ExternalLinkRow } from '@flint-note/server/dist/database/schema';
 import type { MetadataSchema } from '@flint-note/server/dist/core/metadata-schema';
 
 export interface ToolCall {
@@ -46,27 +46,31 @@ export interface ChatService {
 
 export interface NoteService {
   // Note operations
-  createNote(
-    type: string,
-    identifier: string,
-    content: string,
-    vaultId?: string
-  ): Promise<NoteInfo>;
-  getNote(identifier: string, vaultId?: string): Promise<Note | null>;
-  updateNote(
-    identifier: string,
-    content: string,
-    vaultId?: string
-  ): Promise<UpdateResult>;
-  deleteNote(identifier: string, vaultId?: string): Promise<DeleteNoteResult>;
-  renameNote(
-    identifier: string,
-    newIdentifier: string,
-    vaultId?: string
-  ): Promise<{ success: boolean; notesUpdated?: number; linksUpdated?: number }>;
+  createNote(params: {
+    type: string;
+    identifier: string;
+    content: string;
+    vaultId?: string;
+  }): Promise<NoteInfo>;
+  getNote(params: { identifier: string; vaultId?: string }): Promise<Note | null>;
+  updateNote(params: {
+    identifier: string;
+    content: string;
+    vaultId?: string;
+  }): Promise<UpdateResult>;
+  deleteNote(params: { identifier: string; vaultId?: string }): Promise<DeleteNoteResult>;
+  renameNote(params: {
+    identifier: string;
+    newIdentifier: string;
+    vaultId?: string;
+  }): Promise<{ success: boolean; notesUpdated?: number; linksUpdated?: number }>;
 
   // Search operations
-  searchNotes(query: string, vaultId?: string, limit?: number): Promise<SearchResult[]>;
+  searchNotes(params: {
+    query: string;
+    vaultId?: string;
+    limit?: number;
+  }): Promise<SearchResult[]>;
   searchNotesAdvanced(params: {
     query: string;
     type?: string;
@@ -78,7 +82,7 @@ export interface NoteService {
   }): Promise<SearchResult[]>;
 
   // Note type operations
-  listNoteTypes(vaultId?: string): Promise<NoteTypeListItem[]>;
+  listNoteTypes(): Promise<NoteTypeListItem[]>;
   createNoteType(params: {
     typeName: string;
     description: string;
@@ -86,29 +90,30 @@ export interface NoteService {
     metadataSchema?: MetadataSchema;
     vaultId?: string;
   }): Promise<NoteTypeInfo>;
-  listNotesByType(
-    type: string,
-    vaultId?: string,
-    limit?: number
-  ): Promise<NoteListItem[]>;
+  listNotesByType(params: {
+    type: string;
+    vaultId?: string;
+    limit?: number;
+  }): Promise<NoteListItem[]>;
 
   // Vault operations
   listVaults(): Promise<VaultInfo[]>;
   getCurrentVault(): Promise<VaultInfo | null>;
-  createVault(name: string, path: string, description?: string): Promise<VaultInfo>;
-  switchVault(vaultId: string): Promise<void>;
+  createVault(params: {
+    name: string;
+    path: string;
+    description?: string;
+  }): Promise<VaultInfo>;
+  switchVault(params: { vaultId: string }): Promise<void>;
 
   // Link operations
-  getNoteLinks(
-    identifier: string,
-    vaultId?: string
-  ): Promise<{
+  getNoteLinks(params: { identifier: string; vaultId?: string }): Promise<{
     outgoing_internal: NoteLinkRow[];
     outgoing_external: ExternalLinkRow[];
     incoming: NoteLinkRow[];
   }>;
-  getBacklinks(identifier: string, vaultId?: string): Promise<NoteLinkRow[]>;
-  findBrokenLinks(vaultId?: string): Promise<NoteLinkRow[]>;
+  getBacklinks(params: { identifier: string; vaultId?: string }): Promise<NoteLinkRow[]>;
+  findBrokenLinks(params: { vaultId?: string }): Promise<NoteLinkRow[]>;
 
   // Service status
   isReady(): Promise<boolean>;

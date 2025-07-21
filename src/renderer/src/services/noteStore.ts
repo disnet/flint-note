@@ -82,7 +82,7 @@ async function createNotesStore(): Promise<{
   async function loadNotesOfType(type: string): Promise<NoteMetadata[]> {
     try {
       // Try to use the note service API first
-      const result = await noteService.listNotesByType(type);
+      const result = await noteService.listNotesByType({ type });
       if (result && Array.isArray(result)) {
         const notes: NoteMetadata[] = result.map((note, index) => ({
           id: note.id,

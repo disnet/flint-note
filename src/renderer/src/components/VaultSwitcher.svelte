@@ -29,7 +29,7 @@
   async function switchVault(vaultId: string): Promise<void> {
     try {
       isLoading = true;
-      await service.switchVault(vaultId);
+      await service.switchVault({ vaultId });
       await loadVaults(); // Refresh vault info
       await notesStore.refresh(); // Refresh notes for the new vault
       isDropdownOpen = false;

@@ -6,14 +6,14 @@ import type {
   DeleteNoteResult,
   NoteListItem,
   NoteTypeListItem
-} from '@flint-note/server/dist/api';
-import type { NoteTypeInfo } from '@flint-note/server/dist/core/note-types';
+} from '@flint-note/server';
 import type { SearchResult } from '@flint-note/server/dist/database/search-manager';
-import type { VaultInfo } from '@flint-note/server/dist/utils/global-config';
 import type {
-  NoteLinkRow,
-  ExternalLinkRow
-} from '@flint-note/server/dist/database/schema';
+  CoreVaultInfo as VaultInfo,
+  CoreNoteLinkRow as NoteLinkRow,
+  CoreNoteTypeInfo as NoteTypeInfo
+} from '@flint-note/server/dist/api/types';
+import type { ExternalLinkRow } from '@flint-note/server/dist/database/schema';
 import type { MetadataSchema } from '@flint-note/server/dist/core/metadata-schema';
 
 export class ElectronChatService implements ChatService, NoteService {
@@ -34,58 +34,66 @@ export class ElectronChatService implements ChatService, NoteService {
   }
 
   // Note operations
-  async createNote(
-    type: string,
-    identifier: string,
-    content: string,
-    vaultId?: string
-  ): Promise<NoteInfo> {
+  async createNote(params: {
+    type: string;
+    identifier: string;
+    content: string;
+    vaultId?: string;
+  }): Promise<NoteInfo> {
+    const { type, identifier, content, vaultId } = params;
     try {
-      return await window.api.createNote(type, identifier, content, vaultId);
+      return await window.api.createNote({ type, identifier, content, vaultId });
     } catch (error) {
       console.error('Failed to create note:', error);
       throw new Error('Failed to create note. Please try again.');
     }
   }
 
-  async getNote(identifier: string, vaultId?: string): Promise<Note | null> {
+  async getNote(params: { identifier: string; vaultId?: string }): Promise<Note | null> {
+    const { identifier, vaultId } = params;
     try {
-      return await window.api.getNote(identifier, vaultId);
+      return await window.api.getNote({ identifier, vaultId });
     } catch (error) {
       console.error('Failed to get note:', error);
       throw new Error('Failed to get note. Please try again.');
     }
   }
 
-  async updateNote(
-    identifier: string,
-    content: string,
-    vaultId?: string
-  ): Promise<UpdateResult> {
+  async updateNote(params: {
+    identifier: string;
+    content: string;
+    vaultId?: string;
+  }): Promise<UpdateResult> {
+    const { identifier, content, vaultId } = params;
     try {
-      return await window.api.updateNote(identifier, content, vaultId);
+      return await window.api.updateNote({ identifier, content, vaultId });
     } catch (error) {
       console.error('Failed to update note:', error);
       throw new Error('Failed to update note. Please try again.');
     }
   }
 
-  async deleteNote(identifier: string, vaultId?: string): Promise<DeleteNoteResult> {
+  async deleteNote(params: {
+    identifier: string;
+    vaultId?: string;
+  }): Promise<DeleteNoteResult> {
+    const { identifier, vaultId } = params;
     try {
-      return await window.api.deleteNote(identifier, vaultId);
+      return await window.api.deleteNote({ identifier, vaultId });
     } catch (error) {
       console.error('Failed to delete note:', error);
       throw new Error('Failed to delete note. Please try again.');
     }
   }
 
-  async renameNote(
-    identifier: string,
-    newIdentifier: string,
-    vaultId?: string
-  ): Promise<{ success: boolean; notesUpdated?: number; linksUpdated?: number }> {
+  async renameNote(params: {
+    identifier: string;
+    newIdentifier: string;
+    vaultId?: string;
+  }): Promise<{ success: boolean; notesUpdated?: number; linksUpdated?: number }> {
+    const { identifier, newIdentifier, vaultId } = params;
     try {
-      return await window.api.renameNote(identifier, newIdentifier, vaultId);
+      return await window.api.renameNote({ identifier, newIdentifier, vaultId });
     } catch (error) {
       console.error('Failed to rename note:', error);
       throw new Error('Failed to rename note. Please try again.');
@@ -93,13 +101,14 @@ export class ElectronChatService implements ChatService, NoteService {
   }
 
   // Search operations
-  async searchNotes(
-    query: string,
-    vaultId?: string,
-    limit?: number
-  ): Promise<SearchResult[]> {
+  async searchNotes(params: {
+    query: string;
+    vaultId?: string;
+    limit?: number;
+  }): Promise<SearchResult[]> {
+    const { query, vaultId, limit } = params;
     try {
-      return await window.api.searchNotes(query, vaultId, limit);
+      return await window.api.searchNotes({ query, vaultId, limit });
     } catch (error) {
       console.error('Failed to search notes:', error);
       throw new Error('Failed to search notes. Please try again.');
@@ -124,9 +133,9 @@ export class ElectronChatService implements ChatService, NoteService {
   }
 
   // Note type operations
-  async listNoteTypes(vaultId?: string): Promise<NoteTypeListItem[]> {
+  async listNoteTypes(): Promise<NoteTypeListItem[]> {
     try {
-      return await window.api.listNoteTypes(vaultId);
+      return await window.api.listNoteTypes();
     } catch (error) {
       console.error('Failed to list note types:', error);
       throw new Error('Failed to list note types. Please try again.');
@@ -148,13 +157,14 @@ export class ElectronChatService implements ChatService, NoteService {
     }
   }
 
-  async listNotesByType(
-    type: string,
-    vaultId?: string,
-    limit?: number
-  ): Promise<NoteListItem[]> {
+  async listNotesByType(params: {
+    type: string;
+    vaultId?: string;
+    limit?: number;
+  }): Promise<NoteListItem[]> {
+    const { type, vaultId, limit } = params;
     try {
-      return await window.api.listNotesByType(type, vaultId, limit);
+      return await window.api.listNotesByType({ type, vaultId, limit });
     } catch (error) {
       console.error('Failed to list notes by type:', error);
       throw new Error('Failed to list notes by type. Please try again.');
@@ -180,22 +190,24 @@ export class ElectronChatService implements ChatService, NoteService {
     }
   }
 
-  async createVault(
-    name: string,
-    path: string,
-    description?: string
-  ): Promise<VaultInfo> {
+  async createVault(params: {
+    name: string;
+    path: string;
+    description?: string;
+  }): Promise<VaultInfo> {
+    const { name, path, description } = params;
     try {
-      return await window.api.createVault(name, path, description);
+      return await window.api.createVault({ name, path, description });
     } catch (error) {
       console.error('Failed to create vault:', error);
       throw new Error('Failed to create vault. Please try again.');
     }
   }
 
-  async switchVault(vaultId: string): Promise<void> {
+  async switchVault(params: { vaultId: string }): Promise<void> {
+    const { vaultId } = params;
     try {
-      return await window.api.switchVault(vaultId);
+      return await window.api.switchVault({ vaultId });
     } catch (error) {
       console.error('Failed to switch vault:', error);
       throw new Error('Failed to switch vault. Please try again.');
@@ -203,34 +215,37 @@ export class ElectronChatService implements ChatService, NoteService {
   }
 
   // Link operations
-  async getNoteLinks(
-    identifier: string,
-    vaultId?: string
-  ): Promise<{
+  async getNoteLinks(params: { identifier: string; vaultId?: string }): Promise<{
     outgoing_internal: NoteLinkRow[];
     outgoing_external: ExternalLinkRow[];
     incoming: NoteLinkRow[];
   }> {
+    const { identifier, vaultId } = params;
     try {
-      return await window.api.getNoteLinks(identifier, vaultId);
+      return await window.api.getNoteLinks({ identifier, vaultId });
     } catch (error) {
       console.error('Failed to get note links:', error);
       throw new Error('Failed to get note links. Please try again.');
     }
   }
 
-  async getBacklinks(identifier: string, vaultId?: string): Promise<NoteLinkRow[]> {
+  async getBacklinks(params: {
+    identifier: string;
+    vaultId?: string;
+  }): Promise<NoteLinkRow[]> {
+    const { identifier, vaultId } = params;
     try {
-      return await window.api.getBacklinks(identifier, vaultId);
+      return await window.api.getBacklinks({ identifier, vaultId });
     } catch (error) {
       console.error('Failed to get backlinks:', error);
       throw new Error('Failed to get backlinks. Please try again.');
     }
   }
 
-  async findBrokenLinks(vaultId?: string): Promise<NoteLinkRow[]> {
+  async findBrokenLinks(params: { vaultId?: string }): Promise<NoteLinkRow[]> {
+    const { vaultId } = params;
     try {
-      return await window.api.findBrokenLinks(vaultId);
+      return await window.api.findBrokenLinks({ vaultId });
     } catch (error) {
       console.error('Failed to find broken links:', error);
       throw new Error('Failed to find broken links. Please try again.');

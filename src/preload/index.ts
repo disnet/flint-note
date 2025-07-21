@@ -10,20 +10,24 @@ const api = {
   clearConversation: () => electronAPI.ipcRenderer.invoke('clear-conversation'),
 
   // Note operations
-  createNote: (type: string, identifier: string, content: string, vaultId?: string) =>
-    electronAPI.ipcRenderer.invoke('create-note', type, identifier, content, vaultId),
-  getNote: (identifier: string, vaultId?: string) =>
-    electronAPI.ipcRenderer.invoke('get-note', identifier, vaultId),
-  updateNote: (identifier: string, content: string, vaultId?: string) =>
-    electronAPI.ipcRenderer.invoke('update-note', identifier, content, vaultId),
-  deleteNote: (identifier: string, vaultId?: string) =>
-    electronAPI.ipcRenderer.invoke('delete-note', identifier, vaultId),
-  renameNote: (identifier: string, newIdentifier: string, vaultId?: string) =>
-    electronAPI.ipcRenderer.invoke('rename-note', identifier, newIdentifier, vaultId),
+  createNote: (params: {
+    type: string;
+    identifier: string;
+    content: string;
+    vaultId?: string;
+  }) => electronAPI.ipcRenderer.invoke('create-note', params),
+  getNote: (params: { identifier: string; vaultId?: string }) =>
+    electronAPI.ipcRenderer.invoke('get-note', params),
+  updateNote: (params: { identifier: string; content: string; vaultId?: string }) =>
+    electronAPI.ipcRenderer.invoke('update-note', params),
+  deleteNote: (params: { identifier: string; vaultId?: string }) =>
+    electronAPI.ipcRenderer.invoke('delete-note', params),
+  renameNote: (params: { identifier: string; newIdentifier: string; vaultId?: string }) =>
+    electronAPI.ipcRenderer.invoke('rename-note', params),
 
   // Search operations
-  searchNotes: (query: string, vaultId?: string, limit?: number) =>
-    electronAPI.ipcRenderer.invoke('search-notes', query, vaultId, limit),
+  searchNotes: (params: { query: string; vaultId?: string; limit?: number }) =>
+    electronAPI.ipcRenderer.invoke('search-notes', params),
   searchNotesAdvanced: (params: {
     query: string;
     type?: string;
@@ -35,8 +39,7 @@ const api = {
   }) => electronAPI.ipcRenderer.invoke('search-notes-advanced', params),
 
   // Note type operations
-  listNoteTypes: (vaultId?: string) =>
-    electronAPI.ipcRenderer.invoke('list-note-types', vaultId),
+  listNoteTypes: () => electronAPI.ipcRenderer.invoke('list-note-types'),
   createNoteType: (params: {
     typeName: string;
     description: string;
@@ -44,24 +47,24 @@ const api = {
     metadataSchema?: MetadataSchema;
     vaultId?: string;
   }) => electronAPI.ipcRenderer.invoke('create-note-type', params),
-  listNotesByType: (type: string, vaultId?: string, limit?: number) =>
-    electronAPI.ipcRenderer.invoke('list-notes-by-type', type, vaultId, limit),
+  listNotesByType: (params: { type: string; vaultId?: string; limit?: number }) =>
+    electronAPI.ipcRenderer.invoke('list-notes-by-type', params),
 
   // Vault operations
   listVaults: () => electronAPI.ipcRenderer.invoke('list-vaults'),
   getCurrentVault: () => electronAPI.ipcRenderer.invoke('get-current-vault'),
-  createVault: (name: string, path: string, description?: string) =>
-    electronAPI.ipcRenderer.invoke('create-vault', name, path, description),
-  switchVault: (vaultId: string) =>
-    electronAPI.ipcRenderer.invoke('switch-vault', vaultId),
+  createVault: (params: { name: string; path: string; description?: string }) =>
+    electronAPI.ipcRenderer.invoke('create-vault', params),
+  switchVault: (params: { vaultId: string }) =>
+    electronAPI.ipcRenderer.invoke('switch-vault', params),
 
   // Link operations
-  getNoteLinks: (identifier: string, vaultId?: string) =>
-    electronAPI.ipcRenderer.invoke('get-note-links', identifier, vaultId),
-  getBacklinks: (identifier: string, vaultId?: string) =>
-    electronAPI.ipcRenderer.invoke('get-backlinks', identifier, vaultId),
-  findBrokenLinks: (vaultId?: string) =>
-    electronAPI.ipcRenderer.invoke('find-broken-links', vaultId),
+  getNoteLinks: (params: { identifier: string; vaultId?: string }) =>
+    electronAPI.ipcRenderer.invoke('get-note-links', params),
+  getBacklinks: (params: { identifier: string; vaultId?: string }) =>
+    electronAPI.ipcRenderer.invoke('get-backlinks', params),
+  findBrokenLinks: (params: { vaultId?: string }) =>
+    electronAPI.ipcRenderer.invoke('find-broken-links', params),
 
   // Service status
   noteServiceReady: () => electronAPI.ipcRenderer.invoke('note-service-ready')

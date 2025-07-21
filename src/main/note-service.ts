@@ -7,15 +7,14 @@ import type {
   NoteListItem,
   NoteTypeListItem
 } from '@flint-note/server';
-import type { NoteTypeInfo } from '@flint-note/server/dist/core/note-types';
 import type { SearchResult } from '@flint-note/server/dist/database/search-manager';
-import type { VaultInfo } from '@flint-note/server/dist/utils/global-config';
 import type {
-  NoteLinkRow,
-  ExternalLinkRow
-} from '@flint-note/server/dist/database/schema';
-
-import { MetadataSchema } from '@flint-note/server/dist/core/metadata-schema';
+  CoreVaultInfo as VaultInfo,
+  CoreNoteLinkRow as NoteLinkRow,
+  CoreNoteTypeInfo as NoteTypeInfo
+} from '@flint-note/server/dist/api/types';
+import type { ExternalLinkRow } from '@flint-note/server/dist/database/schema';
+import type { MetadataSchema } from '@flint-note/server/dist/core/metadata-schema';
 
 export class NoteService {
   private api: FlintNoteApi;
@@ -58,7 +57,12 @@ export class NoteService {
     vaultId?: string
   ): Promise<NoteInfo> {
     this.ensureInitialized();
-    return await this.api.createSimpleNote(type, identifier, content, vaultId);
+    return await this.api.createNote({
+      type,
+      title: identifier,
+      content,
+      vaultId
+    });
   }
 
   async getNote(identifier: string, vaultId?: string): Promise<Note | null> {
@@ -72,12 +76,26 @@ export class NoteService {
     vaultId?: string
   ): Promise<UpdateResult> {
     this.ensureInitialized();
-    return await this.api.updateNoteContent(identifier, content, vaultId);
+    // Get current note to obtain content hash
+    const note = await this.api.getNote(identifier, vaultId);
+    if (!note) {
+      throw new Error('Note not found');
+    }
+    return await this.api.updateNote({
+      identifier,
+      content,
+      contentHash: note.content_hash,
+      vaultId
+    });
   }
 
   async deleteNote(identifier: string, vaultId?: string): Promise<DeleteNoteResult> {
     this.ensureInitialized();
-    return await this.api.deleteNote(identifier, true, vaultId);
+    return await this.api.deleteNote({
+      identifier,
+      confirm: true,
+      vaultId
+    });
   }
 
   async renameNote(
@@ -107,7 +125,11 @@ export class NoteService {
     limit?: number
   ): Promise<SearchResult[]> {
     this.ensureInitialized();
-    return await this.api.searchNotesByText(query, undefined, limit, vaultId);
+    return await this.api.searchNotesByText({
+      query,
+      limit,
+      vaultId
+    });
   }
 
   async searchNotesAdvanced(params: {
@@ -123,6 +145,15 @@ export class NoteService {
     return await this.api.searchNotesAdvanced({
       content_contains: params.query,
       type: params.type,
+      metadata_filters: params.tags
+        ? [
+            {
+              key: 'tags',
+              value: params.tags.join(','),
+              operator: 'IN'
+            }
+          ]
+        : undefined,
       created_within: params.dateFrom,
       created_before: params.dateTo,
       limit: params.limit,
@@ -131,9 +162,9 @@ export class NoteService {
   }
 
   // Note type operations
-  async listNoteTypes(vaultId?: string): Promise<NoteTypeListItem[]> {
+  async listNoteTypes(): Promise<NoteTypeListItem[]> {
     this.ensureInitialized();
-    return await this.api.listNoteTypes({ vault_id: vaultId });
+    return await this.api.listNoteTypes();
   }
 
   async createNoteType(params: {
@@ -148,7 +179,7 @@ export class NoteService {
       type_name: params.typeName,
       description: params.description,
       agent_instructions: params.agentInstructions,
-      metadata_schema: params.metadataSchema as any, // eslint-disable-line @typescript-eslint/no-explicit-any
+      metadata_schema: params.metadataSchema,
       vault_id: params.vaultId
     });
   }
@@ -159,7 +190,11 @@ export class NoteService {
     limit?: number
   ): Promise<NoteListItem[]> {
     this.ensureInitialized();
-    return await this.api.listNotes(type, limit, vaultId);
+    return await this.api.listNotes({
+      typeName: type,
+      limit,
+      vaultId
+    });
   }
 
   // Vault operations
@@ -220,7 +255,9 @@ export class NoteService {
   // Additional helper methods
   async getAllNotes(vaultId?: string): Promise<NoteListItem[]> {
     this.ensureInitialized();
-    return await this.api.listNotes(undefined, undefined, vaultId);
+    return await this.api.listNotes({
+      vaultId
+    });
   }
 
   // Utility methods

@@ -76,7 +76,7 @@
       const noteService = getChatService();
 
       if (await noteService.isReady()) {
-        const result = await noteService.getNote(note.id);
+        const result = await noteService.getNote({ identifier: note.id });
         noteData = result;
         noteContent = result.content;
         currentNoteType = result.type || '';
@@ -153,7 +153,7 @@
       error = null;
       const noteService = getChatService();
 
-      await noteService.updateNote(note.id, noteContent);
+      await noteService.updateNote({ identifier: note.id, content: noteContent });
       hasChanges = false;
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to save note';
@@ -229,7 +229,7 @@ ${content}`;
       const updatedContent = updateNoteTypeInContent(noteContent, currentNoteType);
 
       // Update the note via the API
-      await noteService.updateNote(note.id, updatedContent);
+      await noteService.updateNote({ identifier: noteData.id, content: updatedContent });
 
       // Update local state
       noteContent = updatedContent;

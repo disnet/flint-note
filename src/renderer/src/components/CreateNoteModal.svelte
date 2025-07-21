@@ -112,7 +112,11 @@
       const content = noteContent.trim() || `# ${noteTitle}\n\n`;
 
       const chatService = getChatService();
-      const noteInfo = await chatService.createNote(noteType, identifier, content);
+      const noteInfo = await chatService.createNote({
+        type: noteType,
+        identifier,
+        content
+      });
 
       // Refresh notes store to show new note
       await notesStore.refresh();

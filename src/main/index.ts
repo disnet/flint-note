@@ -4,7 +4,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import icon from '../../resources/icon.png?asset';
 import { AIService } from './ai-service';
 import { NoteService } from './note-service';
-import { MetadataSchema } from '@flint-note/server/dist/core/metadata-schema';
+import type { MetadataSchema } from '@flint-note/server/dist/core/metadata-schema';
 
 function createWindow(): void {
   // Create the browser window.
@@ -122,60 +122,102 @@ app.whenReady().then(async () => {
     'create-note',
     async (
       _event,
-      type: string,
-      identifier: string,
-      content: string,
-      vaultId?: string
+      params: {
+        type: string;
+        identifier: string;
+        content: string;
+        vaultId?: string;
+      }
     ) => {
       if (!noteService) {
         throw new Error('Note service not available');
       }
-      return await noteService.createNote(type, identifier, content, vaultId);
+      return await noteService.createNote(
+        params.type,
+        params.identifier,
+        params.content,
+        params.vaultId
+      );
     }
   );
 
-  ipcMain.handle('get-note', async (_event, identifier: string, vaultId?: string) => {
-    if (!noteService) {
-      throw new Error('Note service not available');
+  ipcMain.handle(
+    'get-note',
+    async (_event, params: { identifier: string; vaultId?: string }) => {
+      if (!noteService) {
+        throw new Error('Note service not available');
+      }
+      return await noteService.getNote(params.identifier, params.vaultId);
     }
-    return await noteService.getNote(identifier, vaultId);
-  });
+  );
 
   ipcMain.handle(
     'update-note',
-    async (_event, identifier: string, content: string, vaultId?: string) => {
+    async (
+      _event,
+      params: {
+        identifier: string;
+        content: string;
+        vaultId?: string;
+      }
+    ) => {
       if (!noteService) {
         throw new Error('Note service not available');
       }
-      return await noteService.updateNote(identifier, content, vaultId);
+      return await noteService.updateNote(
+        params.identifier,
+        params.content,
+        params.vaultId
+      );
     }
   );
 
-  ipcMain.handle('delete-note', async (_event, identifier: string, vaultId?: string) => {
-    if (!noteService) {
-      throw new Error('Note service not available');
-    }
-    return await noteService.deleteNote(identifier, vaultId);
-  });
-
   ipcMain.handle(
-    'rename-note',
-    async (_event, identifier: string, newIdentifier: string, vaultId?: string) => {
+    'delete-note',
+    async (_event, params: { identifier: string; vaultId?: string }) => {
       if (!noteService) {
         throw new Error('Note service not available');
       }
-      return await noteService.renameNote(identifier, newIdentifier, vaultId);
+      return await noteService.deleteNote(params.identifier, params.vaultId);
+    }
+  );
+
+  ipcMain.handle(
+    'rename-note',
+    async (
+      _event,
+      params: {
+        identifier: string;
+        newIdentifier: string;
+        vaultId?: string;
+      }
+    ) => {
+      if (!noteService) {
+        throw new Error('Note service not available');
+      }
+      return await noteService.renameNote(
+        params.identifier,
+        params.newIdentifier,
+        params.vaultId
+      );
     }
   );
 
   // Search operations
   ipcMain.handle(
     'search-notes',
-    async (_event, query: string, vaultId?: string, limit?: number) => {
+    async (
+      _event,
+      params: {
+        query: string;
+        vaultId?: string;
+        limit?: number;
+      }
+    ) => {
       if (!noteService) {
         throw new Error('Note service not available');
       }
-      return await noteService.searchNotes(query, vaultId, limit);
+      return await noteService.searchNotes(params.query, params.vaultId, params.limit);
     }
   );
 
@@ -201,11 +243,11 @@ app.whenReady().then(async () => {
   );
 
   // Note type operations
-  ipcMain.handle('list-note-types', async (_event, vaultId?: string) => {
+  ipcMain.handle('list-note-types', async () => {
     if (!noteService) {
       throw new Error('Note service not available');
     }
-    return await noteService.listNoteTypes(vaultId);
+    return await noteService.listNoteTypes();
   });
 
   ipcMain.handle(
@@ -229,11 +271,18 @@ app.whenReady().then(async () => {
 
   ipcMain.handle(
     'list-notes-by-type',
-    async (_event, type: string, vaultId?: string, limit?: number) => {
+    async (
+      _event,
+      params: {
+        type: string;
+        vaultId?: string;
+        limit?: number;
+      }
+    ) => {
       if (!noteService) {
         throw new Error('Note service not available');
       }
-      return await noteService.listNotesByType(type, vaultId, limit);
+      return await noteService.listNotesByType(params.type, params.vaultId, params.limit);
     }
   );
 
@@ -254,47 +303,54 @@ app.whenReady().then(async () => {
 
   ipcMain.handle(
     'create-vault',
-    async (_event, name: string, path: string, description?: string) => {
+    async (
+      _event,
+      params: {
+        name: string;
+        path: string;
+        description?: string;
+      }
+    ) => {
       if (!noteService) {
         throw new Error('Note service not available');
       }
-      return await noteService.createVault(name, path, description);
+      return await noteService.createVault(params.name, params.path, params.description);
     }
   );
 
-  ipcMain.handle('switch-vault', async (_event, vaultId: string) => {
+  ipcMain.handle('switch-vault', async (_event, params: { vaultId: string }) => {
     if (!noteService) {
       throw new Error('Note service not available');
     }
-    return await noteService.switchVault(vaultId);
+    return await noteService.switchVault(params.vaultId);
   });
 
   // Link operations
   ipcMain.handle(
     'get-note-links',
-    async (_event, identifier: string, vaultId?: string) => {
+    async (_event, params: { identifier: string; vaultId?: string }) => {
       if (!noteService) {
         throw new Error('Note service not available');
       }
-      return await noteService.getNoteLinks(identifier, vaultId);
+      return await noteService.getNoteLinks(params.identifier, params.vaultId);
     }
   );
 
   ipcMain.handle(
     'get-backlinks',
-    async (_event, identifier: string, vaultId?: string) => {
+    async (_event, params: { identifier: string; vaultId?: string }) => {
       if (!noteService) {
         throw new Error('Note service not available');
       }
-      return await noteService.getBacklinks(identifier, vaultId);
+      return await noteService.getBacklinks(params.identifier, params.vaultId);
     }
   );
 
-  ipcMain.handle('find-broken-links', async (_event, vaultId?: string) => {
+  ipcMain.handle('find-broken-links', async (_event, params: { vaultId?: string }) => {
     if (!noteService) {
       throw new Error('Note service not available');
     }
-    return await noteService.findBrokenLinks(vaultId);
+    return await noteService.findBrokenLinks(params.vaultId);
   });
 
   // Service status
