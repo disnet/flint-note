@@ -425,7 +425,80 @@ VaultSwitcher.switchVault()
 - **Results:** Virtual list, arrow navigation, ↩ to open.
 - **Tech:** Fuse.js fuzzy index kept in a Svelte `$derived` store that auto-rebuilds on note CRUD events.
 
-### Phase 13: Metadata Editor
+### Phase 13: LLM Model Provider Selection ✅ COMPLETED
+
+**Goal:** Allow users to switch between different LLM model providers and models directly from the chat interface.
+
+**Key Components:**
+
+#### **Model Provider Dropdown in Chat Interface**
+
+- **Placement:** Integrated into the MessageInput component as a compact dropdown selector
+- **Position:** Left side of the input container, before the text input field
+- **Models Supported:**
+  - OpenAI GPT models (gpt-3.5-turbo, gpt-4, gpt-4-turbo, gpt-4o)
+  - Anthropic Claude models (claude-3-haiku, claude-3-sonnet, claude-3-opus, claude-3.5-sonnet)
+  - Google Gemini models (gemini-pro, gemini-1.5-pro)
+  - Meta Llama models (llama-3.1-8b, llama-3.1-70b, llama-3.1-405b)
+  - Mistral models (mistral-7b, mixtral-8x7b, mixtral-8x22b)
+
+#### **State Management**
+
+- **Global Model State:** Reactive store that tracks the current selected model
+- **Persistence:** Selected model preference saved to localStorage
+- **Real-time Updates:** Model changes apply immediately to new conversations
+- **Session Handling:** Current conversation continues with original model; new messages use selected model
+
+#### **UI/UX Design**
+
+```
+┌─────────────────────────────────────────┐
+│ [Chat] [Notes] [Pinned]                 │
+├─────────────────────────────────────────┤
+│                                         │
+│  [User] Hello!                          │
+│                                         │
+│  [Agent] Hi there! How can I help?      │
+│                                         │
+├─────────────────────────────────────────┤
+│ [GPT-4 ▼] Type your message...    [Send]│
+└─────────────────────────────────────────┘
+```
+
+**Dropdown Design:**
+
+```
+┌─────────────────────────────────────────┐
+│ 🤖 GPT-4                                │
+├─────────────────────────────────────────┤
+│ ✓ 🤖 GPT-4                              │
+│   🤖 GPT-3.5 Turbo                      │
+│   🧠 Claude 3.5 Sonnet                  │
+│   🧠 Claude 3 Opus                      │
+│   💎 Gemini Pro                         │
+│   🦙 Llama 3.1 70B                      │
+│   🌪️  Mixtral 8x7B                       │
+└─────────────────────────────────────────┘
+```
+
+#### **Technical Implementation**
+
+- **Frontend:** New `ModelSelector` Svelte component with provider icons and names
+- **Backend:** Enhanced `AIService` with dynamic model switching capability
+- **API Integration:** Unified interface through OpenRouter for all providers
+- **Configuration:** Model definitions with display names, providers, and capabilities
+- **Error Handling:** Graceful fallback to default model on API errors
+
+#### **Provider-Specific Features**
+
+- **Model Capabilities:** Different context lengths, multimodal support, tool usage
+- **Cost Indication:** Optional cost-per-token display for usage awareness
+- **Performance Hints:** Response time and capability indicators
+- **Smart Defaults:** Remember user preference per vault or use-case
+
+**Outcome:** Users can seamlessly switch between different AI models based on their needs - using cost-effective models for simple queries and powerful models for complex reasoning tasks.
+
+### Phase 14: Metadata Editor
 
 - **Toggle:** “𝑖” icon in editor header (or `⌘ I`).
 - **Layout:** Slide-over panel on right (desktop) or modal (mobile).

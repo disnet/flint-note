@@ -81,33 +81,36 @@ app.whenReady().then(async () => {
   }
 
   // Chat handlers - now with real AI integration
-  ipcMain.handle('send-message', async (_event, message: string) => {
-    try {
-      if (aiService) {
-        // Use real AI service
-        return await aiService.sendMessage(message);
-      } else {
-        // Fallback to mock responses if AI service failed to initialize
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+  ipcMain.handle(
+    'send-message',
+    async (_event, params: { message: string; model?: string }) => {
+      try {
+        if (aiService) {
+          // Use real AI service
+          return await aiService.sendMessage(params.message, params.model);
+        } else {
+          // Fallback to mock responses if AI service failed to initialize
+          await new Promise((resolve) => setTimeout(resolve, 1000));
 
-        const responses = [
-          `Thanks for your message: "${message}"! (Note: AI service unavailable, using mock response)`,
-          "I understand what you're saying. Let me help you with that. (Mock response)",
-          "That's an interesting point. Here's what I think about it... (Mock response)",
-          'I can help you with that. What would you like to know more about? (Mock response)',
-          'Let me process that information for you. (Mock response)'
-        ];
+          const responses = [
+            `Thanks for your message: "${params.message}"! (Note: AI service unavailable, using mock response)`,
+            "I understand what you're saying. Let me help you with that. (Mock response)",
+            "That's an interesting point. Here's what I think about it... (Mock response)",
+            'I can help you with that. What would you like to know more about? (Mock response)',
+            'Let me process that information for you. (Mock response)'
+          ];
 
-        const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-        return { text: randomResponse };
+          const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+          return { text: randomResponse };
+        }
+      } catch (error) {
+        console.error('Error processing message:', error);
+        return {
+          text: "I'm sorry, I encountered an error while processing your message. Please try again."
+        };
       }
-    } catch (error) {
-      console.error('Error processing message:', error);
-      return {
-        text: "I'm sorry, I encountered an error while processing your message. Please try again."
-      };
     }
-  });
+  );
 
   // Clear conversation history
   ipcMain.handle('clear-conversation', async () => {

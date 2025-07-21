@@ -21,7 +21,7 @@ declare global {
     electron: ElectronAPI;
     api: {
       // Chat operations
-      sendMessage: (message: string) => Promise<string>;
+      sendMessage: (message: { message: string; model?: string }) => Promise<string>;
       clearConversation: () => Promise<{ success: boolean; error?: string }>;
 
       // Note operations

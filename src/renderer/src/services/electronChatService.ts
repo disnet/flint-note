@@ -18,9 +18,9 @@ import type { ExternalLinkRow } from '@flint-note/server/dist/database/schema';
 import type { MetadataSchema } from '@flint-note/server/dist/core/metadata-schema';
 
 export class ElectronChatService implements ChatService, NoteService {
-  async sendMessage(text: string): Promise<ChatResponse> {
+  async sendMessage(text: string, model?: string): Promise<ChatResponse> {
     try {
-      const response = await window.api.sendMessage(text);
+      const response = await window.api.sendMessage({ message: text, model });
 
       // Handle both old string format and new object format
       if (typeof response === 'string') {

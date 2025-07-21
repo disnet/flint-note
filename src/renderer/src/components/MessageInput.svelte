@@ -1,4 +1,6 @@
 <script lang="ts">
+  import ModelSelector from './ModelSelector.svelte';
+
   let { onSend }: { onSend: (text: string) => void } = $props();
 
   let inputText = $state('');
@@ -23,6 +25,9 @@
 
 <div class="message-input">
   <div class="input-container">
+    <div class="model-selector-wrapper">
+      <ModelSelector />
+    </div>
     <input
       bind:this={inputElement}
       bind:value={inputText}
@@ -55,6 +60,12 @@
     padding: 0.5rem;
     box-shadow: 0 1px 3px 0 var(--shadow-medium);
     transition: all 0.2s ease;
+  }
+
+  .model-selector-wrapper {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
   }
 
   .input-container:focus-within {

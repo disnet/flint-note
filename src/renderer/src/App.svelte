@@ -11,6 +11,7 @@
   import type { NoteMetadata } from './services/noteStore';
   import { getChatService } from './services/chatService';
   import { notesStore } from './services/noteStore';
+  import { modelStore } from './stores/modelStore.svelte';
 
   let messages = $state<Message[]>([
     {
@@ -141,7 +142,7 @@
 
     try {
       const chatService = getChatService();
-      const response = await chatService.sendMessage(text);
+      const response = await chatService.sendMessage(text, modelStore.selectedModel);
 
       // If response has tool calls, show both initial and follow-up responses
       if (response.hasToolCalls && response.followUpResponse) {

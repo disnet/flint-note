@@ -6,8 +6,8 @@ import { NoteMetadata } from '@flint-note/server';
 // Custom APIs for renderer
 const api = {
   // Chat operations
-  sendMessage: (message: string) =>
-    electronAPI.ipcRenderer.invoke('send-message', message),
+  sendMessage: (params: { message: string; model?: string }) =>
+    electronAPI.ipcRenderer.invoke('send-message', params),
   clearConversation: () => electronAPI.ipcRenderer.invoke('clear-conversation'),
 
   // Note operations

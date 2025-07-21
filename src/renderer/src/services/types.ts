@@ -42,7 +42,7 @@ export interface ChatResponse {
 }
 
 export interface ChatService {
-  sendMessage(text: string): Promise<ChatResponse>;
+  sendMessage(text: string, model?: string): Promise<ChatResponse>;
 }
 
 export interface NoteService {

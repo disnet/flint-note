@@ -15,6 +15,7 @@ dotenv.config();
 
 export class AIService {
   private model: ChatOpenAI;
+  private currentModelName: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private modelWithTools: any = null;
   private conversationHistory: Array<{
@@ -34,14 +35,26 @@ export class AIService {
 
   constructor() {
     const apiKey = process.env.OPENROUTER_API_KEY;
-    const modelName = process.env.OPENROUTER_MODEL || 'openai/gpt-3.5-turbo';
+    this.currentModelName = process.env.OPENROUTER_MODEL || 'openai/gpt-4';
 
     if (!apiKey) {
       throw new Error('OPENROUTER_API_KEY environment variable is required');
     }
 
     // Initialize OpenAI client with OpenRouter configuration
-    this.model = new ChatOpenAI({
+    this.model = this.createModelInstance(this.currentModelName);
+
+    // Initialize MCP servers and bind tools (async)
+    this.initializeMcpServers();
+  }
+
+  private createModelInstance(modelName: string): ChatOpenAI {
+    const apiKey = process.env.OPENROUTER_API_KEY;
+    if (!apiKey) {
+      throw new Error('OPENROUTER_API_KEY environment variable is required');
+    }
+
+    return new ChatOpenAI({
       modelName,
       apiKey,
       configuration: {
@@ -54,9 +67,31 @@ export class AIService {
       temperature: 0.7,
       maxTokens: 1000
     });
+  }
 
-    // Initialize MCP servers and bind tools (async)
-    this.initializeMcpServers();
+  private switchModel(modelName: string): void {
+    if (modelName !== this.currentModelName) {
+      console.log(`Switching model from ${this.currentModelName} to ${modelName}`);
+      this.currentModelName = modelName;
+      this.model = this.createModelInstance(modelName);
+
+      // Rebind tools with new model
+      if (this.availableTools.size > 0) {
+        const allTools = this.createAllTools();
+        if (allTools.length > 0) {
+          try {
+            this.modelWithTools = this.model.bindTools(allTools);
+          } catch (error) {
+            console.error('Error binding tools to new model:', error);
+            this.modelWithTools = this.model;
+          }
+        } else {
+          this.modelWithTools = this.model;
+        }
+      } else {
+        this.modelWithTools = this.model;
+      }
+    }
   }
 
   // Add a method to check if initialization is complete
@@ -208,7 +243,10 @@ export class AIService {
     return tools;
   }
 
-  async sendMessage(userMessage: string): Promise<{
+  async sendMessage(
+    userMessage: string,
+    modelName?: string
+  ): Promise<{
     text: string;
     toolCalls?: Array<{
       id: string;
@@ -223,6 +261,11 @@ export class AIService {
     };
   }> {
     try {
+      // Switch model if specified
+      if (modelName) {
+        this.switchModel(modelName);
+      }
+
       // Add user message to conversation history
       this.conversationHistory.push({ role: 'user', content: userMessage });
 
