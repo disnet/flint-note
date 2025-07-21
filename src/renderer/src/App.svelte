@@ -265,10 +265,6 @@
     position: relative;
   }
 
-  .tab-layout.has-sidebar {
-    padding-right: 400px;
-  }
-
   .tab-content {
     flex: 1;
     min-width: 0;
