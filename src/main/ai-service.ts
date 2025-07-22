@@ -35,7 +35,7 @@ export class AIService {
 
   constructor() {
     const apiKey = process.env.OPENROUTER_API_KEY;
-    this.currentModelName = process.env.OPENROUTER_MODEL || 'openai/gpt-4';
+    this.currentModelName = process.env.OPENROUTER_MODEL || 'openai/gpt-4.1-mini';
 
     if (!apiKey) {
       throw new Error('OPENROUTER_API_KEY environment variable is required');

@@ -1,12 +1,7 @@
-import { DEFAULT_MODEL, getModelById, type ModelInfo } from '../config/models';
+import { DEFAULT_MODEL, getModelById } from '../config/models';
+import type { ModelInfo } from '../config/models';
 
 const STORAGE_KEY = 'flint-selected-model';
-
-// Reactive model state
-let selectedModel = $state(getStoredModel());
-let currentModelInfo = $derived(
-  getModelById(selectedModel) || getModelById(DEFAULT_MODEL)!
-);
 
 function getStoredModel(): string {
   if (typeof window !== 'undefined' && window.localStorage) {
@@ -27,6 +22,12 @@ function setStoredModel(modelId: string): void {
     localStorage.setItem(STORAGE_KEY, modelId);
   }
 }
+
+// Reactive model state using Svelte 5 runes
+let selectedModel = $state(getStoredModel());
+const currentModelInfo = $derived(
+  getModelById(selectedModel) || getModelById(DEFAULT_MODEL)!
+);
 
 export function getSelectedModel(): string {
   return selectedModel;
