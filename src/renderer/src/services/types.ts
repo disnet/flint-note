@@ -19,7 +19,7 @@ import type { MetadataSchema } from '@flint-note/server/dist/core/metadata-schem
 export interface ToolCall {
   id: string;
   name: string;
-  arguments: Record<string, unknown>;
+  arguments: Record<string, unknown> | null | undefined;
   result?: string;
   error?: string;
 }
@@ -48,7 +48,8 @@ export interface ChatService {
     onChunk: (chunk: string) => void,
     onComplete: (fullText: string) => void,
     onError: (error: string) => void,
-    model?: string
+    model?: string,
+    onToolCall?: (toolCall: ToolCall) => void
   ): void;
 }
 

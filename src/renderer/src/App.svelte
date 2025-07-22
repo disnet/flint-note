@@ -146,7 +146,8 @@
       id: agentResponseId,
       text: '',
       sender: 'agent',
-      timestamp: new Date()
+      timestamp: new Date(),
+      toolCalls: []
     };
     messages.push(agentResponse);
 
@@ -182,7 +183,17 @@
             }
             isLoadingResponse = false;
           },
-          modelStore.selectedModel
+          modelStore.selectedModel,
+          // onToolCall: handle individual tool calls as they happen
+          (toolCall: any) => {
+            const messageIndex = messages.findIndex((m) => m.id === agentResponseId);
+            if (messageIndex !== -1) {
+              if (!messages[messageIndex].toolCalls) {
+                messages[messageIndex].toolCalls = [];
+              }
+              messages[messageIndex].toolCalls!.push(toolCall);
+            }
+          }
         );
       } else {
         // Fallback to non-streaming mode

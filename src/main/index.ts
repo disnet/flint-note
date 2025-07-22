@@ -126,15 +126,18 @@ app.whenReady().then(async () => {
           // Add temporary listeners for this stream
           aiService.once('stream-start', forwardEvent.bind(null, 'stream-start'));
           aiService.on('stream-chunk', forwardEvent.bind(null, 'stream-chunk'));
+          aiService.on('stream-tool-call', forwardEvent.bind(null, 'stream-tool-call'));
           aiService.once('stream-end', (data) => {
             forwardEvent('stream-end', data);
-            // Clean up chunk listener after stream ends
+            // Clean up listeners after stream ends
             aiService.removeAllListeners('stream-chunk');
+            aiService.removeAllListeners('stream-tool-call');
           });
           aiService.once('stream-error', (data) => {
             forwardEvent('stream-error', data);
-            // Clean up chunk listener on error
+            // Clean up listeners on error
             aiService.removeAllListeners('stream-chunk');
+            aiService.removeAllListeners('stream-tool-call');
           });
 
           // Start the streaming

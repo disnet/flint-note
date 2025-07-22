@@ -1,9 +1,17 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { openai } from '@ai-sdk/openai';
-import { generateText, streamText, LanguageModel, ModelMessage } from 'ai';
+import {
+  generateText,
+  streamText,
+  tool,
+  LanguageModel,
+  ModelMessage,
+  stepCountIs
+} from 'ai';
 import { EventEmitter } from 'events';
 import * as dotenv from 'dotenv';
+import { z } from 'zod';
 
 // Load environment variables
 dotenv.config();
@@ -199,9 +207,11 @@ You have access to comprehensive note management tools including:
 - Managing note types and vaults
 - Handling note links and relationships
 - Advanced search capabilities with SQL queries
+- Weather information (for demonstration purposes)
 
 When responding be sure to format references to notes in wikilinks syntax. For example, [[Note Title]] or [[daily/2023-09-25|September 25th, 2023]]
 
+When using tools, always provide helpful explanatory text before and after tool calls to give context and summarize results for the user.
 
 Use these tools to help users manage their notes effectively and answer their questions.`;
 
@@ -212,13 +222,60 @@ Use these tools to help users manage their notes effectively and answer their qu
 
       this.emit('stream-start', { requestId });
 
-      const { textStream } = await streamText({
+      const weatherTool = (tool as any)({
+        description: 'Get the weather in a location',
+        inputSchema: z.object({
+          location: z.string().describe('The location to get the weather for')
+        }),
+        execute: async ({ location }: { location: string }) => ({
+          location,
+          temperature: 72 + Math.floor(Math.random() * 21) - 10
+        })
+      });
+
+      const result = streamText({
         model: this.model,
-        messages
+        messages,
+        tools: {
+          weather: weatherTool
+        },
+        stopWhen: stepCountIs(5), // Allow up to 5 steps for multi-turn tool calling
+        onStepFinish: (step) => {
+          // Handle tool calls from step content (AI SDK might put them in different places)
+          const toolCalls =
+            step.toolCalls ||
+            (step.content
+              ? step.content.filter((item) => item.type === 'tool-call')
+              : []);
+
+          if (toolCalls && toolCalls.length > 0) {
+            toolCalls.forEach((toolCall) => {
+              const toolCallData = {
+                id: toolCall.toolCallId,
+                name: toolCall.toolName,
+                // Try both 'args' and 'input' properties, as AI SDK might use different names
+                arguments: toolCall.args || toolCall.input || {},
+                result: step.toolResults?.find(
+                  (r) => r.toolCallId === toolCall.toolCallId
+                )?.output,
+                error: undefined
+              };
+              this.emit('stream-tool-call', { requestId, toolCall: toolCallData });
+            });
+          }
+
+          // Handle text content from each step
+          if (step.text) {
+            console.log('Step text:', step.text);
+            // Note: step text is already included in the main textStream
+          }
+        }
       });
 
       let fullText = '';
-      for await (const textChunk of textStream) {
+
+      // Handle text streaming
+      for await (const textChunk of result.textStream) {
         fullText += textChunk;
         this.emit('stream-chunk', { requestId, chunk: textChunk });
       }

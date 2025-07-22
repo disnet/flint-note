@@ -27,7 +27,8 @@ declare global {
         onStreamStart: (data: { requestId: string }) => void,
         onStreamChunk: (data: { requestId: string; chunk: string }) => void,
         onStreamEnd: (data: { requestId: string; fullText: string }) => void,
-        onStreamError: (data: { requestId: string; error: string }) => void
+        onStreamError: (data: { requestId: string; error: string }) => void,
+        onStreamToolCall?: (data: { requestId: string; toolCall: ToolCallData }) => void
       ) => void;
       clearConversation: () => Promise<{ success: boolean; error?: string }>;
 

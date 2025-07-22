@@ -89,6 +89,14 @@
     <span class="sender">[{message.sender === 'user' ? 'User' : 'Agent'}]</span>
     <span class="timestamp">{formatTime(message.timestamp)}</span>
   </div>
+  {#if message.toolCalls && message.toolCalls.length > 0}
+    <div class="tool-calls">
+      {#each message.toolCalls as toolCall (toolCall.id)}
+        <ToolCallComponent {toolCall} />
+      {/each}
+    </div>
+  {/if}
+
   {#if message.text.trim()}
     <div class="message-content">
       {#each parseMessageText(message.text) as part, index (index)}
@@ -103,14 +111,6 @@
             {part.content}
           </button>
         {/if}
-      {/each}
-    </div>
-  {/if}
-
-  {#if message.toolCalls && message.toolCalls.length > 0}
-    <div class="tool-calls">
-      {#each message.toolCalls as toolCall (toolCall.id)}
-        <ToolCallComponent {toolCall} />
       {/each}
     </div>
   {/if}

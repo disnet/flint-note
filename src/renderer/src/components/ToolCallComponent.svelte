@@ -8,12 +8,15 @@
     isExpanded = !isExpanded;
   }
 
-  function formatArguments(args: Record<string, unknown>): string {
+  function formatArguments(args: Record<string, unknown> | null | undefined): string {
+    if (!args) return 'No arguments';
     return JSON.stringify(args, null, 2);
   }
 
   function getToolIcon(toolName: string): string {
     switch (toolName) {
+      case 'weather':
+        return '🌤️';
       case 'get_weather':
         return '🌤️';
       case 'get_forecast':
@@ -30,9 +33,11 @@
       <span class="tool-icon">{getToolIcon(toolCall.name)}</span>
       <span class="tool-name">{toolCall.name}</span>
       <span class="tool-args">
-        {Object.keys(toolCall.arguments)
-          .map((key) => `${key}: ${toolCall.arguments[key]}`)
-          .join(', ')}
+        {toolCall.arguments
+          ? Object.keys(toolCall.arguments)
+              .map((key) => `${key}: ${toolCall.arguments[key]}`)
+              .join(', ')
+          : ''}
       </span>
     </div>
     <div class="tool-call-status">
@@ -57,7 +62,11 @@
       {#if toolCall.result}
         <div class="details-section">
           <h4>Result</h4>
-          <div class="result-content">{toolCall.result}</div>
+          <div class="result-content">
+            {typeof toolCall.result === 'string'
+              ? toolCall.result
+              : JSON.stringify(toolCall.result, null, 2)}
+          </div>
         </div>
       {/if}
 

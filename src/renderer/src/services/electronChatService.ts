@@ -39,7 +39,8 @@ export class ElectronChatService implements ChatService, NoteService {
     onChunk: (chunk: string) => void,
     onComplete: (fullText: string) => void,
     onError: (error: string) => void,
-    model?: string
+    model?: string,
+    onToolCall?: (toolCall: any) => void
   ): void {
     const requestId = crypto.randomUUID();
 
@@ -66,7 +67,15 @@ export class ElectronChatService implements ChatService, NoteService {
         if (data.requestId === requestId) {
           onError(data.error);
         }
-      }
+      },
+      onToolCall
+        ? (data) => {
+            // Handle tool call
+            if (data.requestId === requestId) {
+              onToolCall(data.toolCall);
+            }
+          }
+        : undefined
     );
   }
 

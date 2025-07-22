@@ -3,6 +3,14 @@ import { electronAPI } from '@electron-toolkit/preload';
 import { MetadataSchema } from '@flint-note/server/dist/core/metadata-schema';
 import { NoteMetadata } from '@flint-note/server';
 
+export type ToolCallData = {
+  toolCallId: string;
+  toolName: string;
+  arguments: unknown;
+  result: string | undefined;
+  error: string | undefined;
+};
+
 // Custom APIs for renderer
 const api = {
   // Chat operations
@@ -13,16 +21,23 @@ const api = {
     onStreamStart: (data: { requestId: string }) => void,
     onStreamChunk: (data: { requestId: string; chunk: string }) => void,
     onStreamEnd: (data: { requestId: string; fullText: string }) => void,
-    onStreamError: (data: { requestId: string; error: string }) => void
+    onStreamError: (data: { requestId: string; error: string }) => void,
+    onStreamToolCall?: (data: { requestId: string; toolCall: ToolCallData }) => void
   ) => {
     // Set up event listeners
     electronAPI.ipcRenderer.on('ai-stream-start', (_event, data) => onStreamStart(data));
     electronAPI.ipcRenderer.on('ai-stream-chunk', (_event, data) => onStreamChunk(data));
+    if (onStreamToolCall) {
+      electronAPI.ipcRenderer.on('ai-stream-tool-call', (_event, data) =>
+        onStreamToolCall(data)
+      );
+    }
     electronAPI.ipcRenderer.on('ai-stream-end', (_event, data) => {
       onStreamEnd(data);
       // Clean up listeners
       electronAPI.ipcRenderer.removeAllListeners('ai-stream-start');
       electronAPI.ipcRenderer.removeAllListeners('ai-stream-chunk');
+      electronAPI.ipcRenderer.removeAllListeners('ai-stream-tool-call');
       electronAPI.ipcRenderer.removeAllListeners('ai-stream-end');
       electronAPI.ipcRenderer.removeAllListeners('ai-stream-error');
     });
@@ -31,6 +46,7 @@ const api = {
       // Clean up listeners
       electronAPI.ipcRenderer.removeAllListeners('ai-stream-start');
       electronAPI.ipcRenderer.removeAllListeners('ai-stream-chunk');
+      electronAPI.ipcRenderer.removeAllListeners('ai-stream-tool-call');
       electronAPI.ipcRenderer.removeAllListeners('ai-stream-end');
       electronAPI.ipcRenderer.removeAllListeners('ai-stream-error');
     });
