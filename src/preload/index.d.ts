@@ -22,6 +22,13 @@ declare global {
     api: {
       // Chat operations
       sendMessage: (message: { message: string; model?: string }) => Promise<string>;
+      sendMessageStream: (
+        params: { message: string; model?: string; requestId: string },
+        onStreamStart: (data: { requestId: string }) => void,
+        onStreamChunk: (data: { requestId: string; chunk: string }) => void,
+        onStreamEnd: (data: { requestId: string; fullText: string }) => void,
+        onStreamError: (data: { requestId: string; error: string }) => void
+      ) => void;
       clearConversation: () => Promise<{ success: boolean; error?: string }>;
 
       // Note operations

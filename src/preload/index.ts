@@ -8,6 +8,36 @@ const api = {
   // Chat operations
   sendMessage: (params: { message: string; model?: string }) =>
     electronAPI.ipcRenderer.invoke('send-message', params),
+  sendMessageStream: (
+    params: { message: string; model?: string; requestId: string },
+    onStreamStart: (data: { requestId: string }) => void,
+    onStreamChunk: (data: { requestId: string; chunk: string }) => void,
+    onStreamEnd: (data: { requestId: string; fullText: string }) => void,
+    onStreamError: (data: { requestId: string; error: string }) => void
+  ) => {
+    // Set up event listeners
+    electronAPI.ipcRenderer.on('ai-stream-start', (_event, data) => onStreamStart(data));
+    electronAPI.ipcRenderer.on('ai-stream-chunk', (_event, data) => onStreamChunk(data));
+    electronAPI.ipcRenderer.on('ai-stream-end', (_event, data) => {
+      onStreamEnd(data);
+      // Clean up listeners
+      electronAPI.ipcRenderer.removeAllListeners('ai-stream-start');
+      electronAPI.ipcRenderer.removeAllListeners('ai-stream-chunk');
+      electronAPI.ipcRenderer.removeAllListeners('ai-stream-end');
+      electronAPI.ipcRenderer.removeAllListeners('ai-stream-error');
+    });
+    electronAPI.ipcRenderer.on('ai-stream-error', (_event, data) => {
+      onStreamError(data);
+      // Clean up listeners
+      electronAPI.ipcRenderer.removeAllListeners('ai-stream-start');
+      electronAPI.ipcRenderer.removeAllListeners('ai-stream-chunk');
+      electronAPI.ipcRenderer.removeAllListeners('ai-stream-end');
+      electronAPI.ipcRenderer.removeAllListeners('ai-stream-error');
+    });
+
+    // Send the streaming request
+    electronAPI.ipcRenderer.send('send-message-stream', params);
+  },
   clearConversation: () => electronAPI.ipcRenderer.invoke('clear-conversation'),
 
   // Note operations

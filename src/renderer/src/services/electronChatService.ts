@@ -34,6 +34,42 @@ export class ElectronChatService implements ChatService, NoteService {
     }
   }
 
+  sendMessageStream(
+    text: string,
+    onChunk: (chunk: string) => void,
+    onComplete: (fullText: string) => void,
+    onError: (error: string) => void,
+    model?: string
+  ): void {
+    const requestId = crypto.randomUUID();
+
+    window.api.sendMessageStream(
+      { message: text, model, requestId },
+      (data) => {
+        // Stream started
+        console.log('Stream started:', data.requestId);
+      },
+      (data) => {
+        // Handle text chunk
+        if (data.requestId === requestId) {
+          onChunk(data.chunk);
+        }
+      },
+      (data) => {
+        // Stream ended
+        if (data.requestId === requestId) {
+          onComplete(data.fullText);
+        }
+      },
+      (data) => {
+        // Stream error
+        if (data.requestId === requestId) {
+          onError(data.error);
+        }
+      }
+    );
+  }
+
   // Note operations
   async createNote(params: {
     type: string;

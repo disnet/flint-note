@@ -112,6 +112,64 @@ app.whenReady().then(async () => {
     }
   );
 
+  // Streaming chat handler
+  ipcMain.on(
+    'send-message-stream',
+    async (event, params: { message: string; model?: string; requestId: string }) => {
+      try {
+        if (aiService) {
+          // Set up event forwarding from AI service to renderer
+          const forwardEvent = (eventName: string, data: unknown): void => {
+            event.sender.send(`ai-${eventName}`, data);
+          };
+
+          // Add temporary listeners for this stream
+          aiService.once('stream-start', forwardEvent.bind(null, 'stream-start'));
+          aiService.on('stream-chunk', forwardEvent.bind(null, 'stream-chunk'));
+          aiService.once('stream-end', (data) => {
+            forwardEvent('stream-end', data);
+            // Clean up chunk listener after stream ends
+            aiService.removeAllListeners('stream-chunk');
+          });
+          aiService.once('stream-error', (data) => {
+            forwardEvent('stream-error', data);
+            // Clean up chunk listener on error
+            aiService.removeAllListeners('stream-chunk');
+          });
+
+          // Start the streaming
+          await aiService.sendMessageStream(
+            params.message,
+            params.requestId,
+            params.model
+          );
+        } else {
+          // Fallback mock streaming
+          event.sender.send('ai-stream-start', { requestId: params.requestId });
+          const mockResponse = `Mock streaming response for: "${params.message}"`;
+
+          // Simulate streaming by sending chunks
+          for (let i = 0; i < mockResponse.length; i += 5) {
+            const chunk = mockResponse.slice(i, i + 5);
+            event.sender.send('ai-stream-chunk', { requestId: params.requestId, chunk });
+            await new Promise((resolve) => setTimeout(resolve, 50));
+          }
+
+          event.sender.send('ai-stream-end', {
+            requestId: params.requestId,
+            fullText: mockResponse
+          });
+        }
+      } catch (error) {
+        console.error('Error processing streaming message:', error);
+        event.sender.send('ai-stream-error', {
+          requestId: params.requestId,
+          error: 'Failed to process streaming message'
+        });
+      }
+    }
+  );
+
   // Clear conversation history
   ipcMain.handle('clear-conversation', async () => {
     if (aiService) {

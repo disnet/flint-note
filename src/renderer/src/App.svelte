@@ -140,63 +140,70 @@
 
     isLoadingResponse = true;
 
+    // Create a placeholder message for streaming response
+    const agentResponseId = (Date.now() + 1).toString();
+    const agentResponse: Message = {
+      id: agentResponseId,
+      text: '',
+      sender: 'agent',
+      timestamp: new Date()
+    };
+    messages.push(agentResponse);
+
     try {
       const chatService = getChatService();
-      const response = await chatService.sendMessage(text, modelStore.selectedModel);
 
-      // If response has tool calls, show both initial and follow-up responses
-      if (response.hasToolCalls && response.followUpResponse) {
-        // First message: Initial response with tool calls (only if it has meaningful content)
-        if (response.text && response.text.trim()) {
-          const initialResponse: Message = {
-            id: (Date.now() + 1).toString(),
-            text: response.text,
-            sender: 'agent',
-            timestamp: new Date(),
-            toolCalls: response.toolCalls
-          };
-          messages.push(initialResponse);
-        } else {
-          // If no initial text, just show the tool calls without a message
-          const toolCallsOnlyResponse: Message = {
-            id: (Date.now() + 1).toString(),
-            text: '',
-            sender: 'agent',
-            timestamp: new Date(),
-            toolCalls: response.toolCalls
-          };
-          messages.push(toolCallsOnlyResponse);
+      // Use streaming if available, otherwise fall back to regular sendMessage
+      if (chatService.sendMessageStream) {
+        chatService.sendMessageStream(
+          text,
+          // onChunk: append text chunks to the message
+          (chunk: string) => {
+            const messageIndex = messages.findIndex((m) => m.id === agentResponseId);
+            if (messageIndex !== -1) {
+              messages[messageIndex].text += chunk;
+            }
+          },
+          // onComplete: streaming finished
+          (fullText: string) => {
+            const messageIndex = messages.findIndex((m) => m.id === agentResponseId);
+            if (messageIndex !== -1) {
+              messages[messageIndex].text = fullText;
+            }
+            isLoadingResponse = false;
+          },
+          // onError: handle streaming errors
+          (error: string) => {
+            console.error('Streaming error:', error);
+            const messageIndex = messages.findIndex((m) => m.id === agentResponseId);
+            if (messageIndex !== -1) {
+              messages[messageIndex].text =
+                'Sorry, I encountered an error while processing your message.';
+            }
+            isLoadingResponse = false;
+          },
+          modelStore.selectedModel
+        );
+      } else {
+        // Fallback to non-streaming mode
+        const response = await chatService.sendMessage(text, modelStore.selectedModel);
+
+        // Update the placeholder message with the complete response
+        const messageIndex = messages.findIndex((m) => m.id === agentResponseId);
+        if (messageIndex !== -1) {
+          messages[messageIndex].text = response.text;
+          messages[messageIndex].toolCalls = response.toolCalls;
         }
 
-        // Second message: Follow-up response after tool execution
-        const followUpResponse: Message = {
-          id: (Date.now() + 2).toString(),
-          text: response.followUpResponse.text,
-          sender: 'agent',
-          timestamp: new Date()
-        };
-        messages.push(followUpResponse);
-      } else {
-        // Regular response without tool calls
-        const agentResponse: Message = {
-          id: (Date.now() + 1).toString(),
-          text: response.text,
-          sender: 'agent',
-          timestamp: new Date(),
-          toolCalls: response.toolCalls
-        };
-        messages.push(agentResponse);
+        isLoadingResponse = false;
       }
     } catch (error) {
       console.error('Failed to send message:', error);
-      const errorResponse: Message = {
-        id: (Date.now() + 1).toString(),
-        text: 'Sorry, I encountered an error while processing your message.',
-        sender: 'agent',
-        timestamp: new Date()
-      };
-      messages.push(errorResponse);
-    } finally {
+      const messageIndex = messages.findIndex((m) => m.id === agentResponseId);
+      if (messageIndex !== -1) {
+        messages[messageIndex].text =
+          'Sorry, I encountered an error while processing your message.';
+      }
       isLoadingResponse = false;
     }
   }
