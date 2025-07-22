@@ -13,6 +13,7 @@ import type {
   UpdateNoteArgs,
   DeleteNoteArgs,
   RenameNoteArgs,
+  MoveNoteArgs,
   GetNoteInfoArgs,
   ListNotesByTypeArgs,
   BulkDeleteNotesArgs,
@@ -527,6 +528,72 @@ export class NoteHandlers {
                 wikilinks_updated: true,
                 notes_with_updated_wikilinks: wikilinksResult.notesUpdated,
                 total_wikilinks_updated: wikilinksResult.linksUpdated,
+                result
+              },
+              null,
+              2
+            )
+          }
+        ]
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(
+              {
+                success: false,
+                error: errorMessage
+              },
+              null,
+              2
+            )
+          }
+        ],
+        isError: true
+      };
+    }
+  };
+
+  handleMoveNote = async (args: MoveNoteArgs) => {
+    try {
+      // Validate arguments
+      validateToolArgs('move_note', args);
+
+      const { noteManager } = await this.resolveVaultContext(args.vault_id);
+
+      const result = await noteManager.moveNote(
+        args.identifier,
+        args.new_type,
+        args.content_hash
+      );
+
+      let linkMessage = '';
+      if (result.links_updated && result.links_updated > 0) {
+        linkMessage = `\n\n🔗 Updated ${result.links_updated} wikilinks in ${result.notes_with_updated_links} notes that referenced the old note identifier.`;
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(
+              {
+                success: true,
+                message: `Note moved successfully from '${result.old_type}' to '${result.new_type}' note type${linkMessage}`,
+                old_identifier: result.old_id,
+                new_identifier: result.new_id,
+                old_type: result.old_type,
+                new_type: result.new_type,
+                filename: result.filename,
+                title: result.title,
+                timestamp: result.timestamp,
+                links_preserved: true,
+                wikilinks_updated: result.links_updated ? result.links_updated > 0 : false,
+                notes_with_updated_wikilinks: result.notes_with_updated_links || 0,
+                total_wikilinks_updated: result.links_updated || 0,
                 result
               },
               null,

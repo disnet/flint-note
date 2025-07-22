@@ -465,6 +465,89 @@ export class LinkExtractor {
   }
 
   /**
+   * Update wikilinks that reference a moved note (identifier change)
+   */
+  static async updateWikilinksForMovedNote(
+    oldNoteId: string,
+    newNoteId: string,
+    noteTitle: string,
+    db: DatabaseConnection
+  ): Promise<{ notesUpdated: number; linksUpdated: number }> {
+    // Find all notes that link to the moved note by ID or title
+    const linkingNotes = await db.all<{ source_note_id: string }>(
+      `SELECT DISTINCT source_note_id
+       FROM note_links
+       WHERE target_note_id = ? OR target_title = ?`,
+      [oldNoteId, noteTitle]
+    );
+
+    let notesUpdated = 0;
+    let totalLinksUpdated = 0;
+
+    for (const linkingNote of linkingNotes) {
+      try {
+        // Get the linking note's content
+        const noteRow = await db.get<{ content: string; content_hash: string }>(
+          'SELECT content, content_hash FROM notes WHERE id = ?',
+          [linkingNote.source_note_id]
+        );
+
+        if (!noteRow) continue;
+
+        // Update wikilinks that reference the old identifier
+        const { updatedContent, linksUpdated } = this.updateWikilinksForMovedNoteInContent(
+          noteRow.content,
+          oldNoteId,
+          newNoteId,
+          noteTitle
+        );
+
+        // Only update if changes were made
+        if (linksUpdated > 0) {
+          // Generate new content hash
+          const crypto = await import('crypto');
+          const newContentHash = crypto
+            .createHash('sha256')
+            .update(updatedContent)
+            .digest('hex');
+
+          // Update the note content and content hash in database
+          await db.run(
+            'UPDATE notes SET content = ?, content_hash = ?, updated = CURRENT_TIMESTAMP WHERE id = ?',
+            [updatedContent, newContentHash, linkingNote.source_note_id]
+          );
+
+          // Write updated content to file system
+          const notePath = await db.get<{ path: string }>(
+            'SELECT path FROM notes WHERE id = ?',
+            [linkingNote.source_note_id]
+          );
+
+          if (notePath?.path) {
+            const fs = await import('fs/promises');
+            await fs.writeFile(notePath.path, updatedContent, 'utf-8');
+          }
+
+          // Re-extract links for the updated note
+          const updatedExtractionResult = this.extractLinks(updatedContent);
+          await this.storeLinks(linkingNote.source_note_id, updatedExtractionResult, db);
+
+          notesUpdated++;
+          totalLinksUpdated += linksUpdated;
+        }
+      } catch (error) {
+        console.error(
+          `Failed to update wikilinks in note ${linkingNote.source_note_id}:`,
+          error
+        );
+        // Continue with other notes even if one fails
+      }
+    }
+
+    return { notesUpdated, linksUpdated: totalLinksUpdated };
+  }
+
+  /**
    * Update wikilinks in content that reference the old title
    */
   private static updateWikilinksInContent(
@@ -505,6 +588,58 @@ export class LinkExtractor {
       // Case 3: [[Old Title|Custom Text]] -> [[New Title|Custom Text]]
       else if (link.target === oldTitle && link.display !== oldTitle) {
         newWikilink = `[[${newTitle}|${link.display}]]`;
+        shouldUpdate = true;
+      }
+
+      if (shouldUpdate) {
+        updatedContent =
+          updatedContent.slice(0, link.position.start) +
+          newWikilink +
+          updatedContent.slice(link.position.end);
+        linksUpdated++;
+      }
+    }
+
+    return { updatedContent, linksUpdated };
+  }
+
+  /**
+   * Update wikilinks in content that reference a moved note identifier
+   */
+  private static updateWikilinksForMovedNoteInContent(
+    content: string,
+    oldNoteId: string,
+    newNoteId: string,
+    noteTitle: string
+  ): { updatedContent: string; linksUpdated: number } {
+    let linksUpdated = 0;
+    let updatedContent = content;
+
+    // Parse existing wikilinks using WikilinkParser
+    const { wikilinks } = WikilinkParser.parseWikilinks(content);
+
+    // Process each wikilink and update if it matches
+    for (const link of wikilinks) {
+      let shouldUpdate = false;
+      let newWikilink = '';
+
+      // Case 1: [[old/type/filename]] -> [[new/type/filename]]
+      if (link.target === oldNoteId || link.target === oldNoteId + '.md') {
+        if (link.display) {
+          newWikilink = `[[${newNoteId}|${link.display}]]`;
+        } else {
+          newWikilink = `[[${newNoteId}]]`;
+        }
+        shouldUpdate = true;
+      }
+      // Case 2: [[Note Title]] where Note Title matches and resolves to old ID
+      else if (link.target === noteTitle && !link.display) {
+        newWikilink = `[[${newNoteId}|${noteTitle}]]`;
+        shouldUpdate = true;
+      }
+      // Case 3: [[Note Title|Custom Display]] where target matches title
+      else if (link.target === noteTitle && link.display) {
+        newWikilink = `[[${newNoteId}|${link.display}]]`;
         shouldUpdate = true;
       }
 

@@ -79,6 +79,19 @@ export interface DeleteNoteResult {
   warnings?: string[];
 }
 
+export interface MoveNoteResult {
+  success: boolean;
+  old_id: string;
+  new_id: string;
+  old_type: string;
+  new_type: string;
+  filename: string;
+  title: string;
+  timestamp: string;
+  links_updated?: number;
+  notes_with_updated_links?: number;
+}
+
 export interface NoteListItem {
   id: string;
   type: string;
@@ -1433,5 +1446,141 @@ export class NoteManager {
       notesUpdated: wikilinksResult.notesUpdated,
       linksUpdated: wikilinksResult.linksUpdated + brokenLinksUpdated
     };
+  }
+
+  /**
+   * Move a note from one note type to another
+   */
+  async moveNote(
+    identifier: string,
+    newType: string,
+    contentHash: string
+  ): Promise<MoveNoteResult> {
+    try {
+      if (!contentHash) {
+        throw new MissingContentHashError('note move operation');
+      }
+
+      // Validate the new note type name format
+      if (!this.#workspace.isValidNoteTypeName(newType)) {
+        throw new Error(`Invalid note type name: ${newType}`);
+      }
+
+      // Get the current note
+      const currentNote = await this.getNote(identifier);
+      if (!currentNote) {
+        throw new Error(`Note '${identifier}' not found`);
+      }
+
+      // Validate content hash to prevent conflicts
+      validateContentHash(currentNote.content, contentHash);
+
+      const {
+        typeName: oldType,
+        filename,
+        notePath: currentPath
+      } = this.parseNoteIdentifier(identifier);
+
+      // Don't move if already in target type
+      if (oldType === newType) {
+        throw new Error(`Note is already in note type '${newType}'`);
+      }
+
+      // Check if target note type exists - don't create it automatically
+      const targetTypePath = this.#workspace.getNoteTypePath(newType);
+      try {
+        await fs.access(targetTypePath);
+      } catch {
+        throw new Error(
+          `Note type '${newType}' does not exist. Create the note type first before moving notes to it.`
+        );
+      }
+      const targetPath = path.join(targetTypePath, filename);
+
+      // Check for conflicts in target directory
+      try {
+        await fs.access(targetPath);
+        // If we reach here, the file exists - throw conflict error
+        throw new Error(
+          `A note with filename '${filename}' already exists in note type '${newType}'. ` +
+            'Move operation would overwrite existing note.'
+        );
+      } catch (error) {
+        // If it's a filesystem error (ENOENT), we can proceed
+        if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+          // File doesn't exist, we can proceed
+        } else {
+          // Re-throw any other error (including our conflict error)
+          throw error;
+        }
+      }
+
+      // Remove from search index at old location
+      await this.removeFromSearchIndex(currentPath);
+
+      // Update the metadata with new type and timestamp
+      const updatedMetadata = {
+        ...currentNote.metadata,
+        type: newType,
+        updated: new Date().toISOString()
+      };
+
+      // Format the content with updated metadata
+      const updatedContent = this.formatUpdatedNoteContent(
+        updatedMetadata,
+        currentNote.content
+      );
+
+      // Move the file to the new location
+      await fs.rename(currentPath, targetPath);
+
+      // Write the updated content with new type
+      await fs.writeFile(targetPath, updatedContent, 'utf-8');
+
+      // Update search index at new location
+      await this.updateSearchIndex(targetPath, updatedContent);
+
+      // Generate new identifier
+      const newId = this.generateNoteId(newType, filename);
+
+      let linksUpdated = 0;
+      let notesWithUpdatedLinks = 0;
+
+      // Update links if search manager is available
+      if (this.#hybridSearchManager) {
+        const db = await this.#hybridSearchManager.getDatabaseConnection();
+
+        // Update all links that reference the old identifier
+        const result = await LinkExtractor.updateWikilinksForMovedNote(
+          identifier,
+          newId,
+          currentNote.title,
+          db
+        );
+
+        linksUpdated = result.linksUpdated;
+        notesWithUpdatedLinks = result.notesUpdated;
+      }
+
+      const timestamp = new Date().toISOString();
+
+      return {
+        success: true,
+        old_id: identifier,
+        new_id: newId,
+        old_type: oldType,
+        new_type: newType,
+        filename,
+        title: currentNote.title,
+        timestamp,
+        links_updated: linksUpdated,
+        notes_with_updated_links: notesWithUpdatedLinks
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      throw new Error(
+        `Failed to move note '${identifier}' to type '${newType}': ${errorMessage}`
+      );
+    }
   }
 }

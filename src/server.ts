@@ -50,6 +50,7 @@ import type {
   DeleteNoteTypeArgs,
   BulkDeleteNotesArgs,
   RenameNoteArgs,
+  MoveNoteArgs,
   VaultContext
 } from './server/types.js';
 import fs from 'fs/promises';
@@ -1316,6 +1317,10 @@ export class FlintNoteServer {
           case 'rename_note':
             return await this.noteHandlers.handleRenameNote(
               args as unknown as RenameNoteArgs
+            );
+          case 'move_note':
+            return await this.noteHandlers.handleMoveNote(
+              args as unknown as MoveNoteArgs
             );
 
           case 'get_note_links':

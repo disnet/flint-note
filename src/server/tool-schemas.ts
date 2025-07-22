@@ -826,10 +826,9 @@ export const TOOL_SCHEMAS = [
           type: 'string',
           description: 'New title for the note'
         },
-        update_links: {
-          type: 'boolean',
-          description: 'Whether to update wikilinks that reference this note',
-          default: true
+        content_hash: {
+          type: 'string',
+          description: 'Content hash for optimistic locking to prevent conflicts'
         },
         vault_id: {
           type: 'string',
@@ -837,7 +836,35 @@ export const TOOL_SCHEMAS = [
             'Optional vault ID to operate on. If not provided, uses the current active vault.'
         }
       },
-      required: ['identifier', 'new_title']
+      required: ['identifier', 'new_title', 'content_hash']
+    }
+  },
+  {
+    name: 'move_note',
+    description:
+      'Move a note from one note type to another while preserving filename, links, and metadata',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        identifier: {
+          type: 'string',
+          description: 'Current note identifier in type/filename format'
+        },
+        new_type: {
+          type: 'string',
+          description: 'Target note type to move the note to'
+        },
+        content_hash: {
+          type: 'string',
+          description: 'Content hash for optimistic locking to prevent conflicts'
+        },
+        vault_id: {
+          type: 'string',
+          description:
+            'Optional vault ID to operate on. If not provided, uses the current active vault.'
+        }
+      },
+      required: ['identifier', 'new_type', 'content_hash']
     }
   },
   {

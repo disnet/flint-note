@@ -433,6 +433,7 @@ The flint-note MCP server exposes the following tools and resources:
 | `get_notes` | Retrieve multiple notes by IDs | `identifiers` (array), `vault_id?`, `fields?` |
 | `update_note` | Update one or more existing notes | Single: `identifier`, `content?`, `metadata?`, `content_hash`, `vault_id?` OR Batch: `updates` (array), `vault_id?` |
 | `rename_note` | Rename note display title while preserving filename/ID | `identifier`, `new_title`, `content_hash`, `vault_id?` |
+| `move_note` | Move note from one note type to another while preserving filename and metadata | `identifier`, `new_type`, `content_hash`, `vault_id?` |
 | `search_notes` | Search notes by content/type | `query`, `type_filter?`, `limit?`, `use_regex?`, `vault_id?`, `fields?` |
 | `search_notes_advanced` | Advanced structured search with filters | `type?`, `metadata_filters?`, `updated_within?`, `content_contains?`, `sort?`, `limit?`, `vault_id?`, `fields?` |
 | `search_notes_sql` | SQL-based search with maximum flexibility | `query`, `limit?`, `vault_id?`, `fields?` |

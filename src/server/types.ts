@@ -183,6 +183,13 @@ export interface RenameNoteArgs {
   vault_id?: string;
 }
 
+export interface MoveNoteArgs {
+  identifier: string;
+  new_type: string;
+  content_hash: string;
+  vault_id?: string;
+}
+
 /**
  * Vault-specific operation context
  */

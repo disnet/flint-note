@@ -996,6 +996,39 @@ export const TOOL_VALIDATION_RULES: Record<string, ValidationRule[]> = {
       type: 'string',
       allowEmpty: false
     }
+  ],
+
+  move_note: [
+    {
+      field: 'identifier',
+      required: true,
+      type: 'string',
+      allowEmpty: false,
+      customValidator: (value: any) => {
+        if (!value.includes('/')) {
+          return 'identifier must be in format "type/filename"';
+        }
+        return null;
+      }
+    },
+    {
+      field: 'new_type',
+      required: true,
+      type: 'string',
+      allowEmpty: false
+    },
+    {
+      field: 'content_hash',
+      required: true,
+      type: 'string',
+      allowEmpty: false
+    },
+    {
+      field: 'vault_id',
+      required: false,
+      type: 'string',
+      allowEmpty: true
+    }
   ]
 };
 
