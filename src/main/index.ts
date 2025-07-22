@@ -62,7 +62,7 @@ app.whenReady().then(async () => {
   try {
     aiService = new AIService();
     // Wait for MCP servers to initialize
-    await aiService.waitForInitialization();
+    // await aiService.waitForInitialization();
     console.log('AI Service initialized successfully');
   } catch (error) {
     console.error('Failed to initialize AI Service:', error);

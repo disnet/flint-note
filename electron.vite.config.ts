@@ -7,8 +7,7 @@ export default defineConfig({
     build: {
       rollupOptions: {
         input: {
-          index: 'src/main/index.ts',
-          'weather-mcp-server': 'src/main/weather-mcp-server.ts'
+          index: 'src/main/index.ts'
         }
       }
     }

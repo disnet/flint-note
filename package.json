@@ -23,6 +23,7 @@
     "build:linux": "npm run build && electron-builder --linux"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^2.0.0-beta.11",
     "@codemirror/lang-markdown": "^6.3.3",
     "@codemirror/state": "^6.5.2",
     "@codemirror/view": "^6.38.1",
@@ -31,13 +32,10 @@
     "@flint-note/server": "^0.9.5",
     "@fsegurai/codemirror-theme-github-dark": "^6.2.0",
     "@fsegurai/codemirror-theme-github-light": "^6.2.0",
-    "@langchain/anthropic": "^0.3.24",
-    "@langchain/core": "^0.3.65",
-    "@langchain/openai": "^0.6.2",
     "@modelcontextprotocol/sdk": "^1.15.1",
+    "ai": "^5.0.0-beta.25",
     "codemirror": "^6.0.2",
     "dotenv": "^17.2.0",
-    "langchain": "^0.3.30",
     "zod": "^3.25.76"
   },
   "devDependencies": {
