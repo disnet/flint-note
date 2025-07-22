@@ -184,7 +184,7 @@
             isLoadingResponse = false;
           },
           modelStore.selectedModel,
-          // onToolCall: handle individual tool calls as they happen
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (toolCall: any) => {
             const messageIndex = messages.findIndex((m) => m.id === agentResponseId);
             if (messageIndex !== -1) {

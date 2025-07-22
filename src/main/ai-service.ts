@@ -222,6 +222,7 @@ Use these tools to help users manage their notes effectively and answer their qu
 
       this.emit('stream-start', { requestId });
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const weatherTool = (tool as any)({
         description: 'Get the weather in a location',
         inputSchema: z.object({
@@ -253,8 +254,7 @@ Use these tools to help users manage their notes effectively and answer their qu
               const toolCallData = {
                 id: toolCall.toolCallId,
                 name: toolCall.toolName,
-                // Try both 'args' and 'input' properties, as AI SDK might use different names
-                arguments: toolCall.args || toolCall.input || {},
+                arguments: toolCall.input || {},
                 result: step.toolResults?.find(
                   (r) => r.toolCallId === toolCall.toolCallId
                 )?.output,

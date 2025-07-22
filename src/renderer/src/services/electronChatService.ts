@@ -40,6 +40,7 @@ export class ElectronChatService implements ChatService, NoteService {
     onComplete: (fullText: string) => void,
     onError: (error: string) => void,
     model?: string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onToolCall?: (toolCall: any) => void
   ): void {
     const requestId = crypto.randomUUID();

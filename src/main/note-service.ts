@@ -204,7 +204,6 @@ export class NoteService {
   async listVaults(): Promise<VaultInfo[]> {
     this.ensureInitialized();
     const vaults = await this.api.listVaults();
-    console.log(vaults);
     return vaults;
   }
 
