@@ -75,6 +75,8 @@ const api = {
     electronAPI.ipcRenderer.invoke('delete-note', params),
   renameNote: (params: { identifier: string; newIdentifier: string; vaultId?: string }) =>
     electronAPI.ipcRenderer.invoke('rename-note', params),
+  moveNote: (params: { identifier: string; newType: string; vaultId?: string }) =>
+    electronAPI.ipcRenderer.invoke('move-note', params),
 
   // Search operations
   searchNotes: (params: { query: string; vaultId?: string; limit?: number }) =>

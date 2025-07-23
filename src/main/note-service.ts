@@ -8,6 +8,7 @@ import type {
   NoteTypeListItem,
   NoteMetadata
 } from '@flint-note/server';
+import type { MoveNoteResult } from '@flint-note/server/dist/core/notes';
 import type { SearchResult } from '@flint-note/server/dist/database/search-manager';
 import type {
   CoreVaultInfo as VaultInfo,
@@ -116,6 +117,26 @@ export class NoteService {
     return await this.api.renameNote({
       identifier,
       new_title: newIdentifier,
+      content_hash: note.content_hash,
+      vault_id: vaultId
+    });
+  }
+
+  async moveNote(
+    identifier: string,
+    newType: string,
+    vaultId?: string
+  ): Promise<MoveNoteResult> {
+    this.ensureInitialized();
+    // Get the note first to obtain content hash
+    const note = await this.api.getNote(identifier, vaultId);
+    if (!note) {
+      throw new Error('Note not found');
+    }
+
+    return await this.api.moveNote({
+      identifier,
+      new_type: newType,
       content_hash: note.content_hash,
       vault_id: vaultId
     });

@@ -7,6 +7,7 @@ import type {
   NoteListItem,
   NoteTypeListItem
 } from '@flint-note/server';
+import type { MoveNoteResult } from '@flint-note/server/dist/core/notes';
 import type { SearchResult } from '@flint-note/server/dist/database/search-manager';
 import type {
   CoreVaultInfo as VaultInfo,
@@ -15,6 +16,14 @@ import type {
 } from '@flint-note/server/dist/api/types';
 import type { ExternalLinkRow } from '@flint-note/server/dist/database/schema';
 import type { MetadataSchema } from '@flint-note/server/dist/core/metadata-schema';
+
+export type ToolCallData = {
+  toolCallId: string;
+  toolName: string;
+  arguments: unknown;
+  result: string | undefined;
+  error: string | undefined;
+};
 
 declare global {
   interface Window {
@@ -54,6 +63,11 @@ declare global {
         newIdentifier: string;
         vaultId?: string;
       }) => Promise<{ success: boolean; notesUpdated?: number; linksUpdated?: number }>;
+      moveNote: (params: {
+        identifier: string;
+        newType: string;
+        vaultId?: string;
+      }) => Promise<MoveNoteResult>;
 
       // Search operations
       searchNotes: (params: {

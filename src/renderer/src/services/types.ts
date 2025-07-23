@@ -7,6 +7,7 @@ import type {
   NoteTypeListItem,
   NoteMetadata
 } from '@flint-note/server';
+import type { MoveNoteResult } from '@flint-note/server/dist/core/notes';
 import type { SearchResult } from '@flint-note/server/dist/database/search-manager';
 import type {
   CoreVaultInfo as VaultInfo,
@@ -74,6 +75,11 @@ export interface NoteService {
     newIdentifier: string;
     vaultId?: string;
   }): Promise<{ success: boolean; notesUpdated?: number; linksUpdated?: number }>;
+  moveNote(params: {
+    identifier: string;
+    newType: string;
+    vaultId?: string;
+  }): Promise<MoveNoteResult>;
 
   // Search operations
   searchNotes(params: {

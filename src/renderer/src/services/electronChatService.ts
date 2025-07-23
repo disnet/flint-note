@@ -8,6 +8,7 @@ import type {
   NoteTypeListItem,
   NoteMetadata
 } from '@flint-note/server';
+import type { MoveNoteResult } from '@flint-note/server/dist/core/notes';
 import type { SearchResult } from '@flint-note/server/dist/database/search-manager';
 import type {
   CoreVaultInfo as VaultInfo,
@@ -145,6 +146,20 @@ export class ElectronChatService implements ChatService, NoteService {
     } catch (error) {
       console.error('Failed to rename note:', error);
       throw new Error('Failed to rename note. Please try again.');
+    }
+  }
+
+  async moveNote(params: {
+    identifier: string;
+    newType: string;
+    vaultId?: string;
+  }): Promise<MoveNoteResult> {
+    const { identifier, newType, vaultId } = params;
+    try {
+      return await window.api.moveNote({ identifier, newType, vaultId });
+    } catch (error) {
+      console.error('Failed to move note:', error);
+      throw new Error('Failed to move note. Please try again.');
     }
   }
 

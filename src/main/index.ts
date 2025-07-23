@@ -270,6 +270,27 @@ app.whenReady().then(async () => {
     }
   );
 
+  ipcMain.handle(
+    'move-note',
+    async (
+      _event,
+      params: {
+        identifier: string;
+        newType: string;
+        vaultId?: string;
+      }
+    ) => {
+      if (!noteService) {
+        throw new Error('Note service not available');
+      }
+      return await noteService.moveNote(
+        params.identifier,
+        params.newType,
+        params.vaultId
+      );
+    }
+  );
+
   // Search operations
   ipcMain.handle(
     'search-notes',

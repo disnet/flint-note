@@ -7,6 +7,7 @@
 
   import { onMount } from 'svelte';
   import type { NoteMetadata } from '../services/noteStore';
+  import { notesStore } from '../services/noteStore';
   import type { Note, NoteTypeListItem } from '@flint-note/server';
   import { getChatService } from '../services/chatService.js';
   import { pinnedNotesStore } from '../services/pinnedStore';
@@ -182,24 +183,55 @@
   async function changeNoteType(): Promise<void> {
     if (!noteData || !currentNoteType) return;
 
+    // Skip if the type hasn't actually changed
+    if (currentNoteType === noteData.type) return;
+
     try {
       error = null;
       isSaving = true;
       const noteService = getChatService();
 
-      console.log(`Changing note type to: ${currentNoteType}`);
+      console.log(`Moving note from type '${noteData.type}' to '${currentNoteType}'`);
 
-      // Update the note's metadata with the new type
-      await noteService.updateNote({
+      // Use moveNote API to properly move the note to a new type
+      const moveResult = await noteService.moveNote({
         identifier: noteData.id,
-        content: noteContent,
-        metadata: { type: currentNoteType }
+        newType: currentNoteType
       });
 
-      // Update local state
-      noteData = { ...noteData, type: currentNoteType };
+      if (moveResult.success) {
+        // Update local state with new note ID and type
+        noteData = {
+          ...noteData,
+          id: moveResult.new_id,
+          type: moveResult.new_type
+        };
 
-      console.log(`Successfully changed note type to: ${currentNoteType}`);
+        // Update the note reference since the ID changed
+        note = {
+          ...note,
+          id: moveResult.new_id
+        };
+
+        if (moveResult.links_updated) {
+          console.log(
+            `Updated ${moveResult.links_updated} links in ${moveResult.notes_with_updated_links} notes`
+          );
+        }
+
+        // Refresh the notes store to update UI components
+        try {
+          await notesStore.refresh();
+        } catch (refreshError) {
+          console.warn(
+            'Failed to refresh notes store after note type change:',
+            refreshError
+          );
+          // Don't throw here as the move was successful, just log the warning
+        }
+      } else {
+        throw new Error('Move operation failed');
+      }
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to change note type';
       console.error('Error changing note type:', err);
