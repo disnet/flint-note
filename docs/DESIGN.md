@@ -391,13 +391,47 @@ VaultSwitcher.switchVault()
 
 ### Phase 9: Note Linking & Autocomplete
 
+**Goal:** Enable seamless note linking with autocomplete functionality and clickable wikilinks for navigation.
+
+**Key Components:**
+
+#### **Wikilink Autocomplete**
+
 - **Trigger:** `[[` inside CodeMirror opens a type-ahead list filtered by note titles & aliases.
 - **UI:**
   • Popup below cursor (lightweight Svelte component)
   • Arrow / mouse selection, ↩ inserts `[[Title]]`
-- **Backlinks Pane (optional):** Section in metadata side panel listing inbound links.
 - **Data:** NoteService exposes `searchTitles(query)` with < 50 ms response.
-- **Edge cases:** If note doesn’t exist, offer **Create “New Note”** option.
+- **Edge cases:** If note doesn't exist, offer **Create "New Note"** option.
+
+#### **Clickable Wikilinks**
+
+- **Visual Treatment:** Wikilinks (`[[Note Title]]`) are rendered as clickable elements with distinct styling:
+  • Blue underlined text for existing notes
+  • Red dotted underline for broken/missing links
+  • Hover effects showing note preview tooltips
+- **Click Behavior:** Clicking a wikilink loads the referenced note in the editor:
+  • **Large screens:** Opens note in the right sidebar editor panel
+  • **Medium screens:** Overlays the current editor content
+  • **Small screens:** Navigates to full-screen note view
+- **Link Resolution:**
+  • Matches note titles exactly or by alias
+  • Case-insensitive matching for user convenience
+  • Handles special characters and spaces in note names
+- **Broken Link Handling:** Clicking a broken wikilink offers to create the referenced note
+
+#### **Navigation Integration**
+
+- **History Stack:** Wikilink navigation integrates with the navigation history system (Phase 11)
+- **Breadcrumbs:** Current note path shows linked note relationships
+- **Back Navigation:** Standard back/forward controls work with wikilink traversal
+
+**Technical Implementation:**
+
+- **CodeMirror Extensions:** Custom extension for wikilink detection and rendering
+- **Link Parser:** Regex-based parser for `[[...]]` patterns with alias support
+- **Click Handlers:** Event delegation for efficient wikilink click handling
+- **State Management:** Track currently linked notes and update UI reactively
 
 ### Phase 10: `@` Mentions for Context Injection
 

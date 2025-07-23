@@ -123,6 +123,20 @@
     return () => document.removeEventListener('keydown', handleKeyDown);
   });
 
+  // Wikilink navigation event listener
+  $effect(() => {
+    function handleWikilinkNavigate(event: CustomEvent): void {
+      const { note } = event.detail;
+      if (note) {
+        openNoteEditor(note);
+      }
+    }
+
+    document.addEventListener('wikilink-navigate', handleWikilinkNavigate);
+    return () =>
+      document.removeEventListener('wikilink-navigate', handleWikilinkNavigate);
+  });
+
   async function handleSendMessage(text: string): Promise<void> {
     const newMessage: Message = {
       id: Date.now().toString(),

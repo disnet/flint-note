@@ -1,9 +1,19 @@
 <script lang="ts">
-  import { EditorView, basicSetup } from 'codemirror';
+  import { EditorView, minimalSetup } from 'codemirror';
   import { EditorState } from '@codemirror/state';
   import { markdown } from '@codemirror/lang-markdown';
   import { githubLight } from '@fsegurai/codemirror-theme-github-light';
   import { githubDark } from '@fsegurai/codemirror-theme-github-dark';
+  import { wikilinksExtension } from '../lib/wikilinks.svelte.js';
+  import { lineNumbers, dropCursor, keymap } from '@codemirror/view';
+  import { foldGutter, indentOnInput } from '@codemirror/language';
+  import {
+    defaultKeymap,
+    history,
+    historyKeymap,
+    indentWithTab
+  } from '@codemirror/commands';
+  import { highlightSelectionMatches, searchKeymap } from '@codemirror/search';
 
   import { onMount } from 'svelte';
   import type { NoteMetadata } from '../services/noteStore';
@@ -110,10 +120,19 @@
     const startState = EditorState.create({
       doc: '',
       extensions: [
-        basicSetup,
+        // Use minimalSetup and add desired features manually (excluding bracket matching)
+        minimalSetup,
+        lineNumbers(),
+        foldGutter(),
+        dropCursor(),
+        indentOnInput(),
+        history(),
+        keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap, indentWithTab]),
+        highlightSelectionMatches(),
         markdown(),
         EditorView.lineWrapping,
         ...(isDarkMode ? [githubDark] : [githubLight]),
+        wikilinksExtension(handleWikilinkClick),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
             hasChanges = true;
@@ -246,6 +265,25 @@
     if (event.key === 'Escape') {
       onClose();
     }
+  }
+
+  function handleWikilinkClick(noteId: string, title: string): void {
+    // Find the note in the notes store
+    const storeState = notesStore.subscribe((state) => {
+      const clickedNote = state.notes.find((n) => n.id === noteId);
+      if (clickedNote) {
+        // Close current editor and open the linked note
+        onClose();
+        // We need to communicate this back to the parent component
+        // For now, we'll dispatch a custom event
+        const event = new CustomEvent('wikilink-navigate', {
+          detail: { note: clickedNote },
+          bubbles: true
+        });
+        document.dispatchEvent(event);
+      }
+    });
+    storeState(); // Unsubscribe immediately
   }
 </script>
 
@@ -537,6 +575,59 @@
   :global(.cm-scroller) {
     scrollbar-width: thin;
     scrollbar-color: var(--border-light) var(--bg-secondary);
+  }
+
+  /* Wikilink styling */
+  :global(.wikilink) {
+    font-weight: 500;
+    text-decoration: underline;
+    transition: all 0.2s ease;
+    border-radius: 2px;
+    padding: 1px 2px;
+  }
+
+  :global(.wikilink-exists) {
+    color: #0366d6;
+    text-decoration-color: #0366d6;
+  }
+
+  :global(.wikilink-exists:hover) {
+    background-color: rgba(3, 102, 214, 0.1);
+    text-decoration-color: #0256cc;
+  }
+
+  :global(.wikilink-broken) {
+    color: #d73a49;
+    text-decoration: underline dotted;
+    text-decoration-color: #d73a49;
+  }
+
+  :global(.wikilink-broken:hover) {
+    background-color: rgba(215, 58, 73, 0.1);
+    text-decoration-color: #cb2431;
+  }
+
+  /* Dark mode wikilink styling */
+  @media (prefers-color-scheme: dark) {
+    :global(.wikilink-exists) {
+      color: #58a6ff;
+      text-decoration-color: #58a6ff;
+    }
+
+    :global(.wikilink-exists:hover) {
+      background-color: rgba(88, 166, 255, 0.15);
+      text-decoration-color: #79b8ff;
+    }
+
+    :global(.wikilink-broken) {
+      color: #f85149;
+      text-decoration-color: #f85149;
+    }
+
+    :global(.wikilink-broken:hover) {
+      background-color: rgba(248, 81, 73, 0.15);
+      text-decoration-color: #ff7b72;
+    }
   }
 
   /* Responsive adjustments */
