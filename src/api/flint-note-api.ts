@@ -16,6 +16,7 @@ import type {
   GetNotesArgs,
   GetNoteInfoArgs,
   RenameNoteArgs,
+  MoveNoteArgs,
   BulkDeleteNotesArgs,
   CreateNoteTypeArgs,
   ListNoteTypesArgs,
@@ -35,7 +36,8 @@ import type {
   Note,
   UpdateResult,
   DeleteNoteResult,
-  NoteListItem
+  NoteListItem,
+  MoveNoteResult
 } from '../core/notes.js';
 import type { BatchUpdateResult, BatchUpdateNoteInput } from '../types/index.js';
 import type {
@@ -473,6 +475,15 @@ export class FlintNoteApi {
       args.new_title,
       args.content_hash
     );
+  }
+
+  /**
+   * Move a note from one note type to another
+   */
+  async moveNote(args: MoveNoteArgs): Promise<MoveNoteResult> {
+    this.ensureInitialized();
+    const { noteManager } = await this.resolveVaultContext(args.vault_id);
+    return await noteManager.moveNote(args.identifier, args.new_type, args.content_hash);
   }
 
   /**

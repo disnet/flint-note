@@ -333,6 +333,34 @@ console.log(result.notesUpdated);  // 1
 console.log(result.linksUpdated);  // 3 (if 3 other notes linked to this one)
 ```
 
+### `moveNote(args: MoveNoteArgs): Promise<MoveNoteResult>`
+
+Move a note from one note type to another.
+
+```typescript
+// First get the note to obtain content hash
+const note = await api.getNote('projects/my-project.md');
+if (!note) throw new Error('Note not found');
+
+const result = await api.moveNote({
+  identifier: 'projects/my-project.md',
+  new_type: 'completed',
+  content_hash: note.content_hash,
+  vault_id: 'my-vault' // optional
+});
+
+console.log(result.success);      // true
+console.log(result.old_id);       // 'projects/my-project.md'
+console.log(result.new_id);       // 'completed/my-project.md'
+console.log(result.old_type);     // 'projects'
+console.log(result.new_type);     // 'completed'
+console.log(result.filename);     // 'my-project.md'
+console.log(result.title);        // 'My Project'
+console.log(result.timestamp);    // '2024-01-15T10:30:00.000Z'
+console.log(result.links_updated); // 2 (if 2 links were updated)
+console.log(result.notes_with_updated_links); // 1 (if 1 note had links updated)
+```
+
 ### `bulkDeleteNotes(args: BulkDeleteNotesArgs): Promise<DeleteNoteResult[]>`
 
 Delete multiple notes based on criteria.
@@ -797,6 +825,16 @@ interface SearchNotesByTextOptions {
 }
 ```
 
+#### `MoveNoteArgs`
+```typescript
+interface MoveNoteArgs {
+  identifier: string;        // Note identifier to move
+  new_type: string;         // Target note type
+  content_hash: string;     // Current content hash for optimistic locking
+  vault_id?: string;        // Optional vault ID
+}
+```
+
 ## Return Types
 
 The `FlintNoteApi` returns pure TypeScript objects from the core managers:
@@ -956,13 +994,29 @@ interface ExternalLinkRow {
 ### `NoteRow`
 ```typescript
 interface NoteRow {
-  id: string;              // Note identifier
+  id: string;               // Note identifier
+  title: string;            // Note title
+  type: string;             // Note type
+  created: string;          // Creation timestamp
+  updated: string;          // Last update timestamp
+  content_hash: string;     // Content hash
+  metadata: NoteMetadata;   // Note metadata
+}
+```
+
+### `MoveNoteResult`
+```typescript
+interface MoveNoteResult {
+  success: boolean;         // Whether the move was successful
+  old_id: string;          // Original note identifier
+  new_id: string;          // New note identifier
+  old_type: string;        // Original note type
+  new_type: string;        // New note type
+  filename: string;        // Note filename
   title: string;           // Note title
-  content: string;         // Note content
-  type: string;            // Note type
-  created: string;         // Creation timestamp
-  updated: string;         // Last update timestamp
-  // ... additional database fields
+  timestamp: string;       // Move timestamp
+  links_updated?: number;  // Number of links updated (optional)
+  notes_with_updated_links?: number; // Number of notes with updated links (optional)
 }
 ```
 
@@ -1002,12 +1056,12 @@ await api.getNote('my-note'); // Now this works
 
 ## Method Reference
 
-`FlintNoteApi` provides complete FlintNote functionality with 32 methods:
+`FlintNoteApi` provides complete FlintNote functionality with 33 methods:
 
-**✅ Core Note Operations (12 methods):**
+**✅ Core Note Operations (13 methods):**
 - `createNote()`, `createNotes()`, `getNote()`, `getNotes()`, `getNoteInfo()`
 - `updateNote()`, `updateNotes()`, `updateNoteContent()`, `deleteNote()`, `bulkDeleteNotes()`
-- `listNotes()`, `renameNote()`
+- `listNotes()`, `renameNote()`, `moveNote()`
 
 **✅ Note Type Operations (5 methods):**
 - `createNoteType()`, `listNoteTypes()`, `getNoteTypeInfo()`
@@ -1077,6 +1131,43 @@ console.log(`Batch update: ${batchResult.successful}/${batchResult.total} notes 
 // List notes
 const notes = await api.listNotes({ typeName: 'general', limit: 10 });
 console.log(`Found ${notes.length} general notes`);
+```
+
+### Note Management Operations
+```typescript
+const api = new FlintNoteApi({ workspacePath: './notes' });
+await api.initialize();
+
+// Create a project note
+const projectNote = await api.createNote({
+  type: 'projects',
+  title: 'Website Redesign',
+  content: '# Website Redesign\n\nPlanning the new website design.',
+  metadata: { priority: 'high', status: 'planning' }
+});
+
+// Rename the note
+const renameResult = await api.renameNote({
+  identifier: projectNote.id,
+  new_title: 'Website Redesign Project',
+  content_hash: projectNote.content_hash
+});
+
+console.log(`Renamed note, updated ${renameResult.linksUpdated} links`);
+
+// Get the updated note info
+const updatedNote = await api.getNote(projectNote.id.replace('website-redesign', 'website-redesign-project'));
+
+// Move the note to completed when done
+const moveResult = await api.moveNote({
+  identifier: updatedNote.id,
+  new_type: 'completed',
+  content_hash: updatedNote.content_hash
+});
+
+console.log(`Moved note from ${moveResult.old_type} to ${moveResult.new_type}`);
+console.log(`New location: ${moveResult.new_id}`);
+console.log(`Updated ${moveResult.links_updated} links in ${moveResult.notes_with_updated_links} notes`);
 ```
 
 ### Advanced Manager Access
