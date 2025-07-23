@@ -1,16 +1,12 @@
 <script lang="ts">
   import type { ToolCall } from '../services/types';
+  import JsonViewer from './JsonViewer.svelte';
 
   let { toolCall }: { toolCall: ToolCall } = $props();
   let isExpanded = $state(false);
 
   function toggleExpanded(): void {
     isExpanded = !isExpanded;
-  }
-
-  function formatArguments(args: Record<string, unknown> | null | undefined): string {
-    if (!args) return 'No arguments';
-    return JSON.stringify(args, null, 2);
   }
 
   function getToolIcon(toolName: string): string {
@@ -56,16 +52,24 @@
     <div class="tool-call-details">
       <div class="details-section">
         <h4>Arguments</h4>
-        <pre class="code-block">{formatArguments(toolCall.arguments)}</pre>
+        <div class="json-container">
+          {#if toolCall.arguments}
+            <JsonViewer value={toolCall.arguments} isRoot={true} />
+          {:else}
+            <span class="no-data">No arguments</span>
+          {/if}
+        </div>
       </div>
 
       {#if toolCall.result}
         <div class="details-section">
           <h4>Result</h4>
-          <div class="result-content">
-            {typeof toolCall.result === 'string'
-              ? toolCall.result
-              : JSON.stringify(toolCall.result, null, 2)}
+          <div class="json-container">
+            {#if typeof toolCall.result === 'string'}
+              <div class="result-content">{toolCall.result}</div>
+            {:else}
+              <JsonViewer value={toolCall.result} isRoot={true} />
+            {/if}
           </div>
         </div>
       {/if}
@@ -236,5 +240,19 @@
     color: var(--error-content-text, #721c24);
     white-space: pre-wrap;
     line-height: 1.5;
+  }
+
+  .json-container {
+    background: var(--code-bg, #f8f9fa);
+    border: 1px solid var(--code-border, #e9ecef);
+    border-radius: 4px;
+    padding: 0.5rem;
+    overflow-x: auto;
+  }
+
+  .no-data {
+    color: var(--code-text, #6c757d);
+    font-style: italic;
+    font-size: 0.8rem;
   }
 </style>
