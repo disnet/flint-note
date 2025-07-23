@@ -4,6 +4,7 @@ import {
   StateField,
   StateEffect,
   Range,
+  RangeSet,
   EditorState,
   type Extension
 } from '@codemirror/state';
@@ -279,6 +280,31 @@ export function wikilinksExtension(clickHandler: WikilinkClickHandler): Extensio
   return [
     wikilinkHandlerField.init(() => clickHandler),
     wikilinkField,
+    // Add atomic ranges for proper cursor movement
+    EditorView.atomicRanges.of((view) => {
+      const decorations = view.state.field(wikilinkField, false);
+      if (!decorations) {
+        return RangeSet.empty;
+      }
+
+      const ranges = [];
+
+      try {
+        decorations.between(0, view.state.doc.length, (from, to, value) => {
+          if (value.spec.widget instanceof WikilinkWidget) {
+            ranges.push({ from, to, value: true });
+          }
+        });
+
+        // Sort ranges by position before creating RangeSet
+        ranges.sort((a, b) => a.from - b.from);
+
+        return ranges.length > 0 ? RangeSet.of(ranges) : RangeSet.empty;
+      } catch (e) {
+        console.warn('Error creating atomic ranges:', e);
+        return RangeSet.empty;
+      }
+    }),
     autocompletion({
       override: [wikilinkCompletion]
     }),
