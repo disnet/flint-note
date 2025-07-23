@@ -1,17 +1,9 @@
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { openai } from '@ai-sdk/openai';
-import {
-  generateText,
-  streamText,
-  tool,
-  LanguageModel,
-  ModelMessage,
-  stepCountIs
-} from 'ai';
+import { generateText, streamText, LanguageModel, ModelMessage, stepCountIs } from 'ai';
+import { experimental_createMCPClient as createMCPClient } from 'ai';
+import { Experimental_StdioMCPTransport as StdioMCPTransport } from 'ai/mcp-stdio';
 import { EventEmitter } from 'events';
 import * as dotenv from 'dotenv';
-import { z } from 'zod';
 
 // Load environment variables
 dotenv.config();
@@ -20,8 +12,7 @@ export class AIService extends EventEmitter {
   private model: LanguageModel;
   private currentModelName: string;
   private conversationHistory: ModelMessage[] = [];
-  private mcpClients: Map<string, Client> = new Map();
-  private availableTools: Map<string, { serverName: string; tool: unknown }> = new Map();
+  private mcpClient: unknown;
 
   constructor() {
     super();
@@ -33,6 +24,7 @@ export class AIService extends EventEmitter {
     }
 
     this.model = this.createModelInstance(this.currentModelName);
+    this.initializeFlintMcpServer();
   }
 
   private createModelInstance(modelName: string): LanguageModel {
@@ -99,11 +91,17 @@ When responding be sure to format references to notes in wikilinks syntax. For e
 
 Use these tools to help users manage their notes effectively and answer their questions.`;
 
-      const messages: ModelMessage[] = [{ role: 'system', content: systemMessage }];
+      const messages: ModelMessage[] = [
+        { role: 'system', content: systemMessage },
+        ...this.conversationHistory
+      ];
 
+      // @ts-ignore: mcpClient types not exported yet
+      const mcpTools = this.mcpClient ? await this.mcpClient.tools() : {};
       const result = await generateText({
         model: this.model,
         messages,
+        tools: mcpTools as any, // eslint-disable-line @typescript-eslint/no-explicit-any
         onStepFinish: (step) => {
           console.log(step);
         }
@@ -134,48 +132,17 @@ Use these tools to help users manage their notes effectively and answer their qu
     return [...this.conversationHistory];
   }
 
-  async connectMcpServerNpx(serverName: string, packageName: string): Promise<void> {
+  private async initializeFlintMcpServer(): Promise<void> {
     try {
-      const client = new Client(
-        {
-          name: 'flint-ai-service',
-          version: '1.0.0'
-        },
-        {
-          capabilities: {
-            tools: {}
-          }
-        }
-      );
-
-      const transport = new StdioClientTransport({
-        command: 'npx',
-        args: [packageName]
+      this.mcpClient = await createMCPClient({
+        transport: new StdioMCPTransport({
+          command: 'npx',
+          args: ['@flint-note/server']
+        })
       });
-
-      await client.connect(transport);
-
-      const toolsResult = await client.listTools();
-      const tools = toolsResult.tools || [];
-
-      this.mcpClients.set(serverName, client);
-
-      tools.forEach((tool) => {
-        this.availableTools.set(tool.name, {
-          serverName,
-          tool
-        });
-      });
-
-      console.log(
-        `Connected to MCP server: ${serverName} (${packageName}) with ${tools.length} tools`
-      );
+      console.log('Flint MCP server initialized successfully');
     } catch (error) {
-      console.error(
-        `Failed to connect to MCP server ${serverName} (${packageName}):`,
-        error
-      );
-      throw error;
+      console.error('Failed to initialize Flint MCP server:', error);
     }
   }
 
@@ -207,7 +174,6 @@ You have access to comprehensive note management tools including:
 - Managing note types and vaults
 - Handling note links and relationships
 - Advanced search capabilities with SQL queries
-- Weather information (for demonstration purposes)
 
 When responding be sure to format references to notes in wikilinks syntax. For example, [[Note Title]] or [[daily/2023-09-25|September 25th, 2023]]
 
@@ -222,24 +188,13 @@ Use these tools to help users manage their notes effectively and answer their qu
 
       this.emit('stream-start', { requestId });
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const weatherTool = (tool as any)({
-        description: 'Get the weather in a location',
-        inputSchema: z.object({
-          location: z.string().describe('The location to get the weather for')
-        }),
-        execute: async ({ location }: { location: string }) => ({
-          location,
-          temperature: 72 + Math.floor(Math.random() * 21) - 10
-        })
-      });
+      // @ts-ignore: mcpClient types not exported yet
+      const mcpTools = this.mcpClient ? await this.mcpClient.tools() : {};
 
       const result = streamText({
         model: this.model,
         messages,
-        tools: {
-          weather: weatherTool
-        },
+        tools: mcpTools as any, // eslint-disable-line @typescript-eslint/no-explicit-any
         stopWhen: stepCountIs(5), // Allow up to 5 steps for multi-turn tool calling
         onStepFinish: (step) => {
           // Handle tool calls from step content (AI SDK might put them in different places)
