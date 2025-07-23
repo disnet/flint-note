@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## Next
+
+## added
+
+- move_note to move notes between note types while preserving filename and metadata (#19)
+
 ## 0.9.5
 
 ### changed
