@@ -19,12 +19,6 @@
       text: "Hi there! I'm Flint, your AI assistant. How can I help you today?",
       sender: 'agent',
       timestamp: new Date(Date.now())
-    },
-    {
-      id: '2',
-      text: 'You can click on note references like [[daily/june-27-2025]] or [meeting-notes.md] to open them in the editor!',
-      sender: 'agent',
-      timestamp: new Date(Date.now() + 1000)
     }
   ]);
 
