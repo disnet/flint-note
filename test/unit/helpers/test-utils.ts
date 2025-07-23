@@ -399,8 +399,10 @@ Expected frontmatter or metadata fields for this note type:
 
 `;
 
-  const bookReviewPath = workspace.getNoteTypePath('book-reviews');
-  const descriptionPath = join(bookReviewPath, '_description.md');
+  const flintNoteDir = workspace.getFlintNoteDir();
+  const descriptionsDir = join(flintNoteDir, 'descriptions');
+  await fs.mkdir(descriptionsDir, { recursive: true });
+  const descriptionPath = join(descriptionsDir, 'book-reviews_description.md');
   await fs.writeFile(descriptionPath, bookReviewDescription, 'utf8');
 }
 

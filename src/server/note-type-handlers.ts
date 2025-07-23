@@ -297,11 +297,10 @@ export class NoteTypeHandlers {
         fieldsUpdated.push('metadata_schema');
       }
 
-      // Write the updated description to the file in note type directory
-      const descriptionPath = path.join(
-        workspace.getNoteTypePath(args.type_name),
-        '_description.md'
-      );
+      // Write the updated description to the file in .flint-note/descriptions directory
+      const descriptionsDir = path.join(workspace.getFlintNoteDir(), 'descriptions');
+      await fs.mkdir(descriptionsDir, { recursive: true });
+      const descriptionPath = path.join(descriptionsDir, `${args.type_name}_description.md`);
       await fs.writeFile(descriptionPath, updatedDescription, 'utf-8');
 
       // Get the updated note type info
@@ -314,6 +313,7 @@ export class NoteTypeHandlers {
             text: JSON.stringify(
               {
                 success: true,
+                message: `Updated note type '${args.type_name}' successfully`,
                 type_name: args.type_name,
                 fields_updated: fieldsUpdated,
                 updated_info: {

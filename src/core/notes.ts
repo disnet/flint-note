@@ -1043,7 +1043,7 @@ export class NoteManager {
         try {
           const typeEntries = await fs.readdir(noteType.path);
           const noteFiles = typeEntries.filter(
-            file => file.endsWith('.md') && !file.startsWith('.')
+            file => file.endsWith('.md') && !file.startsWith('.') && !file.startsWith('_')
           );
 
           for (const filename of noteFiles) {

@@ -730,7 +730,7 @@ export class SearchManager {
             const typeEntries = await fs.readdir(typePath);
 
             for (const filename of typeEntries) {
-              if (filename.endsWith('.md') && !filename.startsWith('.')) {
+              if (filename.endsWith('.md') && !filename.startsWith('.') && !filename.startsWith('_')) {
                 const notePath = path.join(typePath, filename);
 
                 try {

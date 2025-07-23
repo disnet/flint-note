@@ -111,8 +111,10 @@ export class NoteTypeManager {
       // Ensure the note type directory exists
       const typePath = await this.workspace.ensureNoteType(name);
 
-      // Create the description file in the note type directory
-      const descriptionPath = path.join(typePath, '_description.md');
+      // Create the description file in the .flint-note/descriptions directory
+      const descriptionsDir = path.join(this.workspace.getFlintNoteDir(), 'descriptions');
+      await fs.mkdir(descriptionsDir, { recursive: true });
+      const descriptionPath = path.join(descriptionsDir, `${name}_description.md`);
       const descriptionContent = this.formatNoteTypeDescription(
         name,
         description,
@@ -211,7 +213,6 @@ export class NoteTypeManager {
   async getNoteTypeDescription(typeName: string): Promise<NoteTypeDescription> {
     try {
       const typePath = this.workspace.getNoteTypePath(typeName);
-      const descriptionPath = path.join(typePath, '_description.md');
 
       // Check if note type exists
       try {
@@ -220,13 +221,34 @@ export class NoteTypeManager {
         throw new Error(`Note type '${typeName}' does not exist`);
       }
 
-      // Read description file
+      // Try new location first (.flint-note/descriptions/), then fall back to old location
+      const newDescriptionPath = path.join(
+        this.workspace.getFlintNoteDir(),
+        'descriptions',
+        `${typeName}_description.md`
+      );
+      const oldDescriptionPath = path.join(typePath, '_description.md');
+
       let description = '';
+
       try {
-        description = await fs.readFile(descriptionPath, 'utf-8');
+        description = await fs.readFile(newDescriptionPath, 'utf-8');
       } catch (error) {
         if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
-          description = this.workspace.getDefaultNoteTypeDescription(typeName);
+          // Try old location
+          try {
+            description = await fs.readFile(oldDescriptionPath, 'utf-8');
+          } catch (fallbackError) {
+            if (
+              fallbackError instanceof Error &&
+              'code' in fallbackError &&
+              fallbackError.code === 'ENOENT'
+            ) {
+              description = this.workspace.getDefaultNoteTypeDescription(typeName);
+            } else {
+              throw fallbackError;
+            }
+          }
         } else {
           throw error;
         }
@@ -350,7 +372,12 @@ export class NoteTypeManager {
           entry.name !== 'node_modules'
         ) {
           const typePath = path.join(workspaceRoot, entry.name);
-          const descriptionPath = path.join(typePath, '_description.md');
+          const newDescriptionPath = path.join(
+            this.workspace.getFlintNoteDir(),
+            'descriptions',
+            `${entry.name}_description.md`
+          );
+          const oldDescriptionPath = path.join(typePath, '_description.md');
 
           // Check if this is a valid note type (has notes or description)
           const typeEntries = await fs.readdir(typePath);
@@ -358,13 +385,20 @@ export class NoteTypeManager {
             file => file.endsWith('.md') && !file.startsWith('.') && !file.startsWith('_')
           );
 
-          // Check if description exists in note type directory
+          // Check if description exists in new or old location
           let hasDescription = false;
+          let descriptionPath = newDescriptionPath;
           try {
-            await fs.access(descriptionPath);
+            await fs.access(newDescriptionPath);
             hasDescription = true;
           } catch {
-            hasDescription = false;
+            try {
+              await fs.access(oldDescriptionPath);
+              hasDescription = true;
+              descriptionPath = oldDescriptionPath;
+            } catch {
+              hasDescription = false;
+            }
           }
 
           if (hasNotes || hasDescription) {
@@ -425,10 +459,12 @@ export class NoteTypeManager {
 
       // Update description if provided
       if (updates.description) {
-        const descriptionPath = path.join(
-          this.workspace.getNoteTypePath(typeName),
-          '_description.md'
+        const descriptionsDir = path.join(
+          this.workspace.getFlintNoteDir(),
+          'descriptions'
         );
+        await fs.mkdir(descriptionsDir, { recursive: true });
+        const descriptionPath = path.join(descriptionsDir, `${typeName}_description.md`);
         const newDescription = this.formatNoteTypeDescription(
           typeName,
           updates.description
@@ -791,10 +827,9 @@ export class NoteTypeManager {
       );
 
       // Write updated description
-      const descriptionPath = path.join(
-        this.workspace.getNoteTypePath(typeName),
-        '_description.md'
-      );
+      const descriptionsDir = path.join(this.workspace.getFlintNoteDir(), 'descriptions');
+      await fs.mkdir(descriptionsDir, { recursive: true });
+      const descriptionPath = path.join(descriptionsDir, `${typeName}_description.md`);
       await fs.writeFile(descriptionPath, newDescription, 'utf-8');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -836,10 +871,9 @@ export class NoteTypeManager {
         newSchema
       );
 
-      const descriptionPath = path.join(
-        this.workspace.getNoteTypePath(typeName),
-        '_description.md'
-      );
+      const descriptionsDir = path.join(this.workspace.getFlintNoteDir(), 'descriptions');
+      await fs.mkdir(descriptionsDir, { recursive: true });
+      const descriptionPath = path.join(descriptionsDir, `${typeName}_description.md`);
       await fs.writeFile(descriptionPath, newContent, 'utf-8');
 
       return await this.getNoteTypeDescription(typeName);

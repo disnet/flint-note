@@ -99,12 +99,13 @@ my-notes/
 ├── .flint-note/
 │   ├── config.yml              # Configuration
 │   ├── search-index.json       # Search index
-│   └── mcp-server.log         # Server logs
+│   ├── mcp-server.log         # Server logs
+│   └── descriptions/          # Note type definitions
+│       ├── general_description.md      # Default type definition
+│       └── [your-type]_description.md  # Custom type definitions
 ├── general/                    # Default note type
-│   ├── _description.md        # Type definition
 │   └── welcome.md             # Sample note
 └── [your-note-types]/         # Custom note types
-    ├── _description.md
     ├── _template.md           # Optional template
     └── your-notes.md
 ```

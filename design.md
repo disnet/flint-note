@@ -307,7 +307,7 @@ The metadata schema system provides structured data validation and type safety f
 
 ### Schema Definition Format
 
-Metadata schemas are defined in the note type's `_description.md` file:
+Metadata schemas are defined in the note type's description file (`.flint-note/descriptions/<type>_description.md`):
 
 ```markdown
 ## Metadata Schema
@@ -339,22 +339,23 @@ flint-note-workspace/
 ├── .flint-note/
 │   ├── config.yml              # Global configuration
 │   ├── search-index.json       # Search index cache
-│   └── mcp-server.log         # MCP server logs
+│   ├── mcp-server.log         # MCP server logs
+│   └── descriptions/          # Note type definitions
+│       ├── {note-type-1}_description.md  # Type definition, agent instructions, and metadata schema
+│       ├── {note-type-2}_description.md
+│       └── general_description.md
 ├── {note-type-1}/
-│   ├── _description.md        # Type definition, agent instructions, and metadata schema
 │   ├── note-1.md
 │   └── note-2.md
 ├── {note-type-2}/
-│   ├── _description.md
 │   └── another-note.md
 └── general/                   # Default note type
-    ├── _description.md
     └── misc-thoughts.md
 ```
 
 ### Note Type Definition
 
-Each note type directory contains a `_description.md` file that defines:
+Each note type has a description file in `.flint-note/descriptions/` that defines:
 
 ```markdown
 # {Note Type Name}
@@ -378,6 +379,25 @@ Expected frontmatter or metadata fields for this note type:
 - isbn: ISBN number (optional, string, pattern: "^[0-9-]{10,17}$")
 - published_date: Publication date (optional, date)
 ```
+
+#### Description File Organization
+
+Note type description files are centrally organized in `.flint-note/descriptions/` using the naming pattern `<type>_description.md`. This approach provides several benefits:
+
+**Organizational Benefits:**
+- **Centralized Configuration**: All note type definitions are in one location for easy management
+- **Cleaner Note Directories**: Note type directories contain only actual notes, not configuration files
+- **Reduced File Clutter**: Eliminates `_description.md` files from appearing in note listings and search results
+- **Consistent Naming**: Clear naming convention prevents conflicts and makes files easily identifiable
+
+**Technical Benefits:**
+- **Improved Performance**: File operations exclude description files automatically, reducing processing overhead
+- **Better Search Results**: Note searches no longer return configuration files as matches
+- **Easier Backups**: Description files can be backed up separately from note content
+- **Version Control Friendly**: Configuration changes are isolated from content changes
+
+**Migration Support:**
+The system maintains backward compatibility by checking both the new location (`.flint-note/descriptions/<type>_description.md`) and the legacy location (`<type>/_description.md`) when reading description files, ensuring seamless migration from older setups.
 
 ### Note File Structure with Metadata
 
@@ -1423,7 +1443,7 @@ When flint-note initializes a new vault, it automatically creates several defaul
 1. **Create vault structure**: Initialize `.flint-note/` directory with configuration
 2. **Generate default config**: Create `config.yml` with optimal defaults
 3. **Create note type directories**: Set up folders for all default note types
-4. **Generate description files**: Create `_description.md` for each note type with instructions and schemas
+4. **Generate description files**: Create `<type>_description.md` files in `.flint-note/descriptions/` for each note type with instructions and schemas
 5. **Create welcome note**: Generate an introductory note explaining the vault structure and how to get started
 
 ## Technical Specifications
