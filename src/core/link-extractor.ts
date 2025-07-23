@@ -495,12 +495,13 @@ export class LinkExtractor {
         if (!noteRow) continue;
 
         // Update wikilinks that reference the old identifier
-        const { updatedContent, linksUpdated } = this.updateWikilinksForMovedNoteInContent(
-          noteRow.content,
-          oldNoteId,
-          newNoteId,
-          noteTitle
-        );
+        const { updatedContent, linksUpdated } =
+          this.updateWikilinksForMovedNoteInContent(
+            noteRow.content,
+            oldNoteId,
+            newNoteId,
+            noteTitle
+          );
 
         // Only update if changes were made
         if (linksUpdated > 0) {

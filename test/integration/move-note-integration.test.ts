@@ -229,7 +229,7 @@ describe('Move Note Integration Tests', () => {
 
     const moveData = JSON.parse(moveResult.content[0].text);
     assert.ok(moveData.success);
-    
+
     // Verify wikilinks were updated if the system supports it
     if (moveData.wikilinks_updated) {
       assert.ok(moveData.total_wikilinks_updated >= 0);
@@ -297,7 +297,7 @@ describe('Move Note Integration Tests', () => {
     });
 
     const createData = JSON.parse(createResult.content[0].text);
-    
+
     // Get content hash
     const getResult = await client.callTool('get_note', {
       identifier: createData.id
@@ -321,7 +321,7 @@ describe('Move Note Integration Tests', () => {
     });
 
     const createData = JSON.parse(createResult.content[0].text);
-    
+
     // Get content hash
     const getResult = await client.callTool('get_note', {
       identifier: createData.id
@@ -339,7 +339,7 @@ describe('Move Note Integration Tests', () => {
 
   test('should handle filename conflicts', async () => {
     const title = `Conflict Test ${Date.now()}`;
-    
+
     // Create note in projects
     const projectResult = await client.callTool('create_note', {
       type: 'projects',
@@ -387,7 +387,7 @@ describe('Move Note Integration Tests', () => {
     });
 
     const createData = JSON.parse(createResult.content[0].text);
-    
+
     // Get content hash
     const getResult = await client.callTool('get_note', {
       identifier: createData.id
@@ -402,7 +402,7 @@ describe('Move Note Integration Tests', () => {
     });
 
     const moveData = JSON.parse(moveResult.content[0].text);
-    
+
     // Get moved note and verify metadata
     const getMovedResult = await client.callTool('get_note', {
       identifier: moveData.new_identifier

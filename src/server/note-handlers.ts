@@ -591,7 +591,9 @@ export class NoteHandlers {
                 title: result.title,
                 timestamp: result.timestamp,
                 links_preserved: true,
-                wikilinks_updated: result.links_updated ? result.links_updated > 0 : false,
+                wikilinks_updated: result.links_updated
+                  ? result.links_updated > 0
+                  : false,
                 notes_with_updated_wikilinks: result.notes_with_updated_links || 0,
                 total_wikilinks_updated: result.links_updated || 0,
                 result

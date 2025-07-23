@@ -115,9 +115,11 @@ describe('move_note with automatic wikilink updates', () => {
       );
     } finally {
       // Cleanup
+      // @ts-expect-error its a finally
       if (searchManager) {
         await searchManager.close();
       }
+      // @ts-expect-error its a finally
       if (tempDir) {
         await rm(tempDir, { recursive: true, force: true });
       }
@@ -186,9 +188,11 @@ describe('move_note with automatic wikilink updates', () => {
       assert.strictEqual(movedNote.type, 'projects', 'Type should be updated');
     } finally {
       // Cleanup
+      // @ts-expect-error its a finally
       if (searchManager) {
         await searchManager.close();
       }
+      // @ts-expect-error its a finally
       if (tempDir) {
         await rm(tempDir, { recursive: true, force: true });
       }
