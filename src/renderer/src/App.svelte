@@ -33,8 +33,8 @@
   );
 
   // References to NoteEditor components for focusing
-  let threeColumnEditor: any = null;
-  let tabLayoutEditor: any = null;
+  let threeColumnEditor: { focus?: () => void } | null = null;
+  let tabLayoutEditor: { focus?: () => void } | null = null;
 
   const tabs = [
     { id: 'chat', label: 'Chat' },
@@ -104,7 +104,6 @@
 
   function updateLayoutMode(): void {
     const width = window.innerWidth;
-    console.log('Window width:', width);
 
     if (width > 1400) {
       layoutMode = 'three-column';
@@ -120,9 +119,6 @@
         noteEditorPosition = 'fullscreen';
       }
     }
-
-    console.log('Layout mode set to:', layoutMode);
-    console.log('Note editor position:', noteEditorPosition);
   }
 
   function updateNoteEditorPosition(): void {

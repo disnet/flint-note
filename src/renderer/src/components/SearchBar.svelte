@@ -10,8 +10,6 @@
 
   let searchValue = $state('');
   let isSearchFocused = $state(false);
-  let selectedIndex = $state(-1);
-
   const filteredResults = $derived.by(() => {
     if (!searchValue.trim()) {
       return [];
@@ -49,9 +47,13 @@
     return results;
   });
 
+  let selectedIndex = $state(-1);
+
   // Reset selected index when search value changes
   $effect(() => {
-    selectedIndex = -1;
+    if (searchValue) {
+      selectedIndex = -1;
+    }
   });
 
   function handleSearchFocus(): void {
