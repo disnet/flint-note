@@ -9,9 +9,9 @@
   import CreateNoteModal from './components/CreateNoteModal.svelte';
   import SearchBar from './components/SearchBar.svelte';
   import type { Message } from './services/types';
-  import type { NoteMetadata } from './services/noteStore';
+  import type { NoteMetadata } from './services/noteStore.svelte';
   import { getChatService } from './services/chatService';
-  import { notesStore } from './services/noteStore';
+  import { notesStore } from './services/noteStore.svelte';
   import { modelStore } from './stores/modelStore.svelte';
 
   let messages = $state<Message[]>([
@@ -107,7 +107,7 @@
         noteEditorPosition = 'fullscreen';
       }
     }
-    
+
     console.log('Layout mode set to:', layoutMode);
     console.log('Note editor position:', noteEditorPosition);
   }

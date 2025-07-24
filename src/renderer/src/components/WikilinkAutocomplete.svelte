@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { NoteMetadata } from '../services/noteStore';
-  import { notesStore } from '../services/noteStore';
+  import type { NoteMetadata } from '../services/noteStore.svelte';
+  import { notesStore } from '../services/noteStore.svelte';
 
   interface Props {
     query: string;

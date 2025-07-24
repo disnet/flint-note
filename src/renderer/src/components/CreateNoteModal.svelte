@@ -1,6 +1,6 @@
 <script lang="ts">
   import { getChatService } from '../services/chatService';
-  import { notesStore } from '../services/noteStore';
+  import { notesStore } from '../services/noteStore.svelte';
 
   interface Props {
     isOpen: boolean;

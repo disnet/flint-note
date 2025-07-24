@@ -10,8 +10,8 @@ import {
 } from '@codemirror/state';
 import { autocompletion, CompletionContext } from '@codemirror/autocomplete';
 import type { CompletionResult } from '@codemirror/autocomplete';
-import type { NoteMetadata } from '../services/noteStore';
-import { notesStore } from '../services/noteStore';
+import type { NoteMetadata } from '../services/noteStore.svelte';
+import { notesStore } from '../services/noteStore.svelte';
 import { wikilinkTheme } from './wikilink-theme';
 
 // Regular expression to match wikilinks: [[Note Title]] or [[identifier|title]]

@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { notesStore } from '../services/noteStore';
-  import type { NoteMetadata } from '../services/noteStore';
+  import { notesStore } from '../services/noteStore.svelte';
+  import type { NoteMetadata } from '../services/noteStore.svelte';
 
   const { groupedNotes } = notesStore;
 
@@ -13,14 +13,14 @@
   let searchValue = $state('');
   let isSearchFocused = $state(false);
   let selectedIndex = $state(-1);
-  
+
   console.log('SearchBar component mounted');
   console.log('Initial searchValue:', searchValue);
 
   const filteredResults = $derived(() => {
     console.log('filteredResults derived function called');
     console.log('Current searchValue:', searchValue);
-    
+
     if (!searchValue.trim()) {
       console.log('Empty search value, returning empty array');
       return [];
@@ -28,7 +28,7 @@
 
     const query = searchValue.toLowerCase();
     console.log('Search query:', query);
-    
+
     try {
       const grouped = $groupedNotes;
       console.log('Grouped notes:', grouped);
@@ -123,7 +123,7 @@
   // Global keyboard shortcut
   $effect(() => {
     console.log('SearchBar keyboard shortcut effect registered');
-    
+
     function handleGlobalKeyDown(event: KeyboardEvent): void {
       if (event.key === 'k' && (event.ctrlKey || event.metaKey)) {
         console.log('Cmd+K pressed, trying to focus search');

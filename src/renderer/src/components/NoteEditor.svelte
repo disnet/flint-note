@@ -16,8 +16,8 @@
   import { highlightSelectionMatches, searchKeymap } from '@codemirror/search';
 
   import { onMount, onDestroy } from 'svelte';
-  import type { NoteMetadata } from '../services/noteStore';
-  import { notesStore } from '../services/noteStore';
+  import type { NoteMetadata } from '../services/noteStore.svelte';
+  import { notesStore } from '../services/noteStore.svelte';
   import type { Note, NoteTypeListItem } from '@flint-note/server';
   import { getChatService } from '../services/chatService.js';
   import { pinnedNotesStore } from '../services/pinnedStore';

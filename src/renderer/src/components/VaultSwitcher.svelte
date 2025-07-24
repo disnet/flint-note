@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { VaultInfo } from '@flint-note/server/dist/utils/global-config';
   import { getChatService } from '../services/chatService';
-  import { notesStore } from '../services/noteStore';
+  import { notesStore } from '../services/noteStore.svelte';
 
   let currentVault = $state<VaultInfo | null>(null);
   let allVaults = $state<VaultInfo[]>([]);
