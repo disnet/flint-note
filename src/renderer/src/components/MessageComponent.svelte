@@ -207,9 +207,9 @@
   }
 
   .note-link {
-    background: var(--accent-secondary);
-    color: var(--accent-primary);
-    border: 1px solid var(--accent-primary);
+    background: rgba(255, 255, 255, 0.9);
+    color: #1a1a1a;
+    border: 1px solid rgba(255, 255, 255, 0.3);
     border-radius: 0.25rem;
     padding: 0.125rem 0.375rem;
     margin: 0 0.125rem;
@@ -220,17 +220,36 @@
     display: inline-flex;
     align-items: center;
     transition: all 0.2s ease;
-    font-weight: 500;
+    font-weight: 600;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
   }
 
   .note-link:hover {
-    background: var(--accent-primary);
-    color: var(--accent-text);
+    background: rgba(255, 255, 255, 1);
+    color: #0066cc;
     transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    border-color: rgba(255, 255, 255, 0.5);
   }
 
   .note-link:active {
     transform: translateY(0);
+  }
+
+  /* Dark mode note link styling */
+  @media (prefers-color-scheme: dark) {
+    .note-link {
+      background: rgba(255, 255, 255, 0.15);
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    }
+
+    .note-link:hover {
+      background: rgba(255, 255, 255, 0.25);
+      color: #ffffff;
+      border-color: rgba(255, 255, 255, 0.3);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+    }
   }
 </style>
