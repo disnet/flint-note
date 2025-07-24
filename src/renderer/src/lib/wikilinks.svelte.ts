@@ -289,7 +289,7 @@ function decorateWikilinks(state: EditorState): DecorationSet {
   const notes = notesStore.notes; // Immediately unsubscribe since we just want current value
 
   // Get current click handler
-  const clickHandler = state.field(wikilinkHandlerField, false);
+  const clickHandler = state.field(wikilinkHandlerField, false) || null;
 
   const wikilinks = parseWikilinks(text, notes);
 
@@ -329,7 +329,8 @@ export function wikilinksExtension(clickHandler: WikilinkClickHandler): Extensio
         return RangeSet.empty;
       }
 
-      const ranges = [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const ranges: Range<any>[] = [];
 
       try {
         decorations.between(0, view.state.doc.length, (from, to, value) => {
