@@ -25,7 +25,7 @@
   interface Props {
     note: NoteMetadata;
     onClose: () => void;
-    position: 'sidebar' | 'overlay' | 'fullscreen';
+    position: 'sidebar' | 'overlay' | 'fullscreen' | 'nested';
   }
 
   let { note, onClose, position }: Props = $props();
@@ -352,6 +352,7 @@
   class:sidebar={position === 'sidebar'}
   class:overlay={position === 'overlay'}
   class:fullscreen={position === 'fullscreen'}
+  class:nested={position === 'nested'}
   role="dialog"
   aria-labelledby="note-editor-title"
   tabindex="-1"
@@ -419,14 +420,21 @@
   }
 
   .note-editor.sidebar {
-    position: fixed;
-    right: 0;
-    top: 0;
-    width: 60ch;
+    position: relative;
+    width: 100%;
     height: 100%;
-    border-left: 1px solid var(--border-light);
+    border: none;
     border-radius: 0;
-    z-index: 50;
+    box-shadow: none;
+  }
+
+  .note-editor.nested {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
   }
 
   .note-editor.overlay {
@@ -653,13 +661,15 @@
 
   @media (max-width: 1200px) {
     .note-editor.sidebar {
-      width: 100%;
-      height: 100%;
       position: fixed;
       top: 0;
       left: 0;
+      width: 100%;
+      height: 100%;
       z-index: 100;
+      border: 1px solid var(--border-light);
       border-radius: 0;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     }
   }
 </style>

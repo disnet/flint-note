@@ -26,11 +26,11 @@
   let isLoadingResponse = $state(false);
   let activeTab = $state('chat');
   let activeNote = $state<NoteMetadata | null>(null);
-  let noteEditorPosition = $state<'sidebar' | 'overlay' | 'fullscreen'>('sidebar');
-  let showCreateNoteModal = $state(false);
-  let layoutMode = $state<'three-column' | 'two-column' | 'single-column'>(
-    'single-column'
+  let noteEditorPosition = $state<'sidebar' | 'overlay' | 'fullscreen' | 'nested'>(
+    'sidebar'
   );
+  let showCreateNoteModal = $state(false);
+  let layoutMode = $state<'three-column' | 'single-column'>('single-column');
 
   // References to NoteEditor components for focusing
   let threeColumnEditor: { focus?: () => void } | null = null;
@@ -107,10 +107,7 @@
 
     if (width > 1400) {
       layoutMode = 'three-column';
-      noteEditorPosition = 'sidebar';
-    } else if (width > 1000) {
-      layoutMode = 'two-column';
-      noteEditorPosition = 'sidebar';
+      noteEditorPosition = 'nested';
     } else {
       layoutMode = 'single-column';
       if (width > 768) {
@@ -257,11 +254,8 @@
   }
 </script>
 
-<div
-  class="app"
-  class:three-column={layoutMode === 'three-column'}
-  class:two-column={layoutMode === 'two-column'}
->
+<div class="app" class:three-column={layoutMode === 'three-column'}>
+  >
   <header class="header">
     {#if layoutMode === 'three-column'}
       <div class="header-max-width">
@@ -458,7 +452,7 @@
   /* Three column layout */
   .three-column-layout {
     display: grid;
-    grid-template-columns: 300px 1fr 400px;
+    grid-template-columns: 300px 1fr 60ch;
     gap: 1px;
     height: 100%;
     background: var(--border-light);
