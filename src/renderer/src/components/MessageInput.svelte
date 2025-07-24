@@ -1,8 +1,10 @@
 <script lang="ts">
   import ModelSelector from './ModelSelector.svelte';
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { EditorView } from 'codemirror';
-  import { EditorState } from '@codemirror/state';
+  import { EditorState, StateEffect } from '@codemirror/state';
+  import { githubLight } from '@fsegurai/codemirror-theme-github-light';
+  import { githubDark } from '@fsegurai/codemirror-theme-github-dark';
   import {
     keymap,
     placeholder,
@@ -20,6 +22,10 @@
   let inputText = $state('');
   let editorContainer: HTMLDivElement;
   let editorView: EditorView | null = null;
+
+  // Reactive theme state
+  let isDarkMode = $state(false);
+  let mediaQuery: MediaQueryList | null = null;
 
   function handleSubmit(): void {
     const text = inputText.trim();
@@ -41,8 +47,100 @@
     editorView?.focus();
   }
 
+  function handleThemeChange(e: MediaQueryListEvent): void {
+    isDarkMode = e.matches;
+    updateEditorTheme();
+  }
+
+  function updateEditorTheme(): void {
+    if (!editorView) return;
+
+    // Create a new complete extension configuration with the appropriate theme
+    const githubTheme = isDarkMode ? githubDark : githubLight;
+
+    const extensions = [
+      // Put the custom keymap FIRST to ensure it takes precedence over default keymaps
+      keymap.of([
+        {
+          key: 'Enter',
+          run: (view) => {
+            const text = view.state.doc.toString().trim();
+            if (text) {
+              handleSubmit();
+              return true;
+            }
+            return false;
+          }
+        },
+        {
+          key: 'Shift-Enter',
+          run: (view) => {
+            // Allow line breaks with Shift+Enter
+            view.dispatch(view.state.replaceSelection('\n'));
+            return true;
+          }
+        }
+      ]),
+      // Essential editor features
+      highlightSpecialChars(),
+      history(),
+      drawSelection(),
+      rectangularSelection(),
+      crosshairCursor(),
+      highlightSelectionMatches(),
+      // Now add default keymaps AFTER our custom ones
+      keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap]),
+      placeholder('Type your message... Use [[note]] for wikilinks'),
+      // GitHub theme
+      githubTheme,
+      // Custom styling theme
+      EditorView.theme({
+        '&': {
+          fontSize: '0.875rem',
+          fontFamily: 'inherit'
+        },
+        '.cm-editor': {
+          borderRadius: '1rem',
+          background: 'transparent'
+        },
+        '.cm-focused': {
+          outline: 'none'
+        },
+        '.cm-content': {
+          padding: '0.75rem 1rem',
+          minHeight: '1.25rem',
+          maxHeight: '120px',
+          caretColor: 'var(--text-secondary)'
+        },
+        '.cm-line': {
+          lineHeight: '1.4'
+        }
+      }),
+      wikilinksExtension(handleWikilinkClick),
+      EditorView.updateListener.of((update) => {
+        if (update.docChanged) {
+          inputText = update.state.doc.toString();
+        }
+      }),
+      EditorView.lineWrapping
+    ];
+
+    editorView.dispatch({
+      effects: StateEffect.reconfigure.of(extensions)
+    });
+  }
+
   onMount(() => {
     if (!editorContainer) return;
+
+    // Initialize dark mode state
+    mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    isDarkMode = mediaQuery.matches;
+
+    // Listen for theme changes
+    mediaQuery.addEventListener('change', handleThemeChange);
+
+    const githubTheme = isDarkMode ? githubDark : githubLight;
 
     const startState = EditorState.create({
       doc: '',
@@ -69,7 +167,7 @@
             }
           }
         ]),
-        // Essential editor features (similar to minimalSetup but without default keymaps first)
+        // Essential editor features
         highlightSpecialChars(),
         history(),
         drawSelection(),
@@ -79,6 +177,9 @@
         // Now add default keymaps AFTER our custom ones
         keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap]),
         placeholder('Type your message... Use [[note]] for wikilinks'),
+        // GitHub theme
+        githubTheme,
+        // Custom styling theme
         EditorView.theme({
           '&': {
             fontSize: '0.875rem',
@@ -122,6 +223,13 @@
     return () => {
       editorView?.destroy();
     };
+  });
+
+  // Cleanup function
+  onDestroy(() => {
+    if (mediaQuery) {
+      mediaQuery.removeEventListener('change', handleThemeChange);
+    }
   });
 </script>
 

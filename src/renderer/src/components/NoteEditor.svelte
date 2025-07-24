@@ -1,6 +1,6 @@
 <script lang="ts">
   import { EditorView, minimalSetup } from 'codemirror';
-  import { EditorState } from '@codemirror/state';
+  import { EditorState, StateEffect } from '@codemirror/state';
   import { markdown } from '@codemirror/lang-markdown';
   import { githubLight } from '@fsegurai/codemirror-theme-github-light';
   import { githubDark } from '@fsegurai/codemirror-theme-github-dark';
@@ -15,7 +15,7 @@
   } from '@codemirror/commands';
   import { highlightSelectionMatches, searchKeymap } from '@codemirror/search';
 
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import type { NoteMetadata } from '../services/noteStore';
   import { notesStore } from '../services/noteStore';
   import type { Note, NoteTypeListItem } from '@flint-note/server';
@@ -112,10 +112,59 @@
     }
   }
 
+  // Reactive theme state
+  let isDarkMode = $state(false);
+  let mediaQuery: MediaQueryList | null = null;
+
+  function handleThemeChange(e: MediaQueryListEvent): void {
+    isDarkMode = e.matches;
+    updateEditorTheme();
+  }
+
+  function updateEditorTheme(): void {
+    if (!editorView) return;
+
+    // Create a new complete extension configuration with the appropriate theme
+    const newTheme = isDarkMode ? githubDark : githubLight;
+
+    const extensions = [
+      // Core editor extensions
+      minimalSetup,
+      lineNumbers(),
+      foldGutter(),
+      dropCursor(),
+      indentOnInput(),
+      history(),
+      keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap, indentWithTab]),
+      highlightSelectionMatches(),
+      markdown(),
+      EditorView.lineWrapping,
+      // Apply the appropriate theme
+      newTheme,
+      wikilinksExtension(handleWikilinkClick),
+      EditorView.updateListener.of((update) => {
+        if (update.docChanged) {
+          hasChanges = true;
+          noteContent = update.state.doc.toString();
+          debouncedSave();
+        }
+      })
+    ];
+
+    editorView.dispatch({
+      effects: StateEffect.reconfigure.of(extensions)
+    });
+  }
+
   function createEditor(): void {
     if (!editorContainer || editorView) return;
 
-    const isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    // Initialize dark mode state
+    mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    isDarkMode = mediaQuery.matches;
+
+    // Listen for theme changes
+    mediaQuery.addEventListener('change', handleThemeChange);
 
     const startState = EditorState.create({
       doc: '',
@@ -148,6 +197,13 @@
       parent: editorContainer
     });
   }
+
+  // Cleanup function
+  onDestroy(() => {
+    if (mediaQuery) {
+      mediaQuery.removeEventListener('change', handleThemeChange);
+    }
+  });
 
   function updateEditorContent(): void {
     if (editorView && noteContent !== undefined) {
