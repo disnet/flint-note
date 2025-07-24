@@ -171,7 +171,7 @@
       extensions: [
         // Use minimalSetup and add desired features manually (excluding bracket matching)
         minimalSetup,
-        lineNumbers(),
+        // lineNumbers(),
         foldGutter(),
         dropCursor(),
         indentOnInput(),
@@ -422,7 +422,7 @@
     position: fixed;
     right: 0;
     top: 0;
-    width: 400px;
+    width: 60ch;
     height: 100%;
     border-left: 1px solid var(--border-light);
     border-radius: 0;
