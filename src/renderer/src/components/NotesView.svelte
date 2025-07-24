@@ -54,7 +54,7 @@
   <div class="notes-header">
     <h2>📄 Notes</h2>
     <div class="header-actions">
-      {#if $notesStore.loading}
+      {#if notesStore.loading}
         <div class="loading-indicator">...</div>
       {/if}
       <button
@@ -67,10 +67,10 @@
     </div>
   </div>
 
-  {#if $notesStore.error}
+  {#if notesStore.error}
     <div class="error-message">
       <h3>Failed to load notes</h3>
-      <p>{$notesStore.error}</p>
+      <p>{notesStore.error}</p>
       <details>
         <summary>Troubleshooting</summary>
         <ul>
@@ -82,9 +82,9 @@
     </div>
   {/if}
 
-  {#if $notesStore.notes.length > 0 && Object.keys($groupedNotes).length > 0}
+  {#if notesStore.notes.length > 0 && Object.keys(groupedNotes()).length > 0}
     <div class="notes-tree">
-      {#each Object.entries($groupedNotes) as [typeName, notes] (typeName)}
+      {#each Object.entries(groupedNotes()) as [typeName, notes] (typeName)}
         <div class="note-type">
           <button
             class="type-header"
@@ -135,7 +135,7 @@
         </div>
       {/each}
     </div>
-  {:else if !$notesStore.loading}
+  {:else if !notesStore.loading}
     <div style="padding: 20px; text-align: center; color: #666;">No notes found.</div>
   {:else}
     <div style="padding: 20px; text-align: center; color: #666;">Loading notes...</div>

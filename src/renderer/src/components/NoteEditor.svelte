@@ -325,21 +325,18 @@
 
   function handleWikilinkClick(noteId: string, _title: string): void {
     // Find the note in the notes store
-    const storeState = notesStore.subscribe((state) => {
-      const clickedNote = state.notes.find((n) => n.id === noteId);
-      if (clickedNote) {
-        // Close current editor and open the linked note
-        onClose();
-        // We need to communicate this back to the parent component
-        // For now, we'll dispatch a custom event
-        const event = new CustomEvent('wikilink-navigate', {
-          detail: { note: clickedNote },
-          bubbles: true
-        });
-        document.dispatchEvent(event);
-      }
-    });
-    storeState(); // Unsubscribe immediately
+    const clickedNote = notesStore.notes.find((n) => n.id === noteId);
+    if (clickedNote) {
+      // Close current editor and open the linked note
+      onClose();
+      // We need to communicate this back to the parent component
+      // For now, we'll dispatch a custom event
+      const event = new CustomEvent('wikilink-navigate', {
+        detail: { note: clickedNote },
+        bubbles: true
+      });
+      document.dispatchEvent(event);
+    }
   }
 </script>
 

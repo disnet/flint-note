@@ -15,7 +15,7 @@
 
   // Get filtered notes based on query
   const filteredNotes = $derived(() => {
-    const notes = $notesStore.notes;
+    const notes = notesStore.notes;
     if (!query.trim()) return notes.slice(0, 10); // Show first 10 notes if no query
 
     const normalizedQuery = query.toLowerCase().trim();

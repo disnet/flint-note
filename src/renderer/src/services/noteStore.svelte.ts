@@ -1,4 +1,3 @@
-import { writable, derived, get } from 'svelte/store';
 import { getChatService } from './chatService';
 
 export type NoteMetadata = {
@@ -25,25 +24,28 @@ interface NotesStoreState {
   error: string | null;
 }
 
-async function createNotesStore(): Promise<{
-  subscribe: typeof store.subscribe;
-  groupedNotes: typeof groupedNotes;
+function createNotesStore(): {
+  readonly notes: NoteMetadata[];
+  readonly noteTypes: NoteType[];
+  readonly loading: boolean;
+  readonly error: string | null;
+  readonly groupedNotes: () => Record<string, NoteMetadata[]>;
   refresh: () => Promise<void>;
-}> {
+} {
   const noteService = getChatService();
-  const store = writable<NotesStoreState>({
+
+  const state = $state<NotesStoreState>({
     notes: [],
     noteTypes: [],
     loading: true,
     error: null
   });
-  const { subscribe, update } = store;
 
   // Derived store for grouped notes by type
-  const groupedNotes = derived(store, ($state) => {
+  const groupedNotes = $derived(() => {
     const grouped: Record<string, NoteMetadata[]> = {};
 
-    for (const note of $state.notes) {
+    for (const note of state.notes) {
       if (!grouped[note.type]) {
         grouped[note.type] = [];
       }
@@ -55,7 +57,8 @@ async function createNotesStore(): Promise<{
 
   // Load available note types from API
   async function loadNoteTypes(): Promise<void> {
-    update((state) => ({ ...state, loading: true, error: null }));
+    state.loading = true;
+    state.error = null;
 
     try {
       const result = await noteService.listNoteTypes();
@@ -63,17 +66,15 @@ async function createNotesStore(): Promise<{
         name: typeItem.name,
         count: typeItem.noteCount
       }));
-      update((state) => ({ ...state, noteTypes, loading: false }));
+      state.noteTypes = noteTypes;
+      state.loading = false;
       return;
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : 'Failed to load note types';
-      update((state) => ({
-        ...state,
-        error: errorMessage,
-        noteTypes: [],
-        loading: false
-      }));
+      state.error = errorMessage;
+      state.noteTypes = [];
+      state.loading = false;
       console.error('Error loading note types:', err);
     }
   }
@@ -102,7 +103,7 @@ async function createNotesStore(): Promise<{
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : `Failed to load notes for type: ${type}`;
-      update((state) => ({ ...state, error: errorMessage }));
+      state.error = errorMessage;
       console.error('Error loading notes for type', type, ':', err);
       return [];
     }
@@ -114,11 +115,8 @@ async function createNotesStore(): Promise<{
       await loadNoteTypes();
       const loadedNotes: NoteMetadata[] = [];
 
-      // Get current note types from store
-      const currentState = get(store);
-
       // Load notes for each type
-      for (const noteType of currentState.noteTypes) {
+      for (const noteType of state.noteTypes) {
         const notesOfType = await loadNotesOfType(noteType.name);
         loadedNotes.push(...notesOfType);
       }
@@ -128,31 +126,47 @@ async function createNotesStore(): Promise<{
         (a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime()
       );
 
-      // Update the store with the loaded notes
-      update((state) => ({ ...state, notes: sortedNotes, loading: false }));
+      // Update the state with the loaded notes
+      state.notes = sortedNotes;
+      state.loading = false;
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : 'Failed to load all notes';
-      update((state) => ({ ...state, error: errorMessage, loading: false }));
+      state.error = errorMessage;
+      state.loading = false;
       console.error('Error loading all notes:', err);
     }
   }
 
   // Public refresh function that can be called to reload notes
   async function refresh(): Promise<void> {
-    update((state) => ({ ...state, loading: true, error: null }));
+    state.loading = true;
+    state.error = null;
     await loadAllNotes();
   }
 
   // Initial load
-  await loadAllNotes();
+  loadAllNotes();
 
   return {
-    subscribe,
-    groupedNotes,
+    get notes() {
+      return state.notes;
+    },
+    get noteTypes() {
+      return state.noteTypes;
+    },
+    get loading() {
+      return state.loading;
+    },
+    get error() {
+      return state.error;
+    },
+    get groupedNotes() {
+      return groupedNotes;
+    },
     refresh
   };
 }
 
 // Create and export a single instance
-export const notesStore = await createNotesStore();
+export const notesStore = createNotesStore();

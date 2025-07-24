@@ -14,7 +14,7 @@
   // Subscribe to both stores and update pinnedNotes reactively
   $effect(() => {
     const unsubscribePinned = pinnedNotesStore.subscribe((pinnedNotesList) => {
-      const allNotes = $notesStore.notes;
+      const allNotes = notesStore.notes;
 
       // Match pinned note IDs with full note metadata
       const matchedNotes = pinnedNotesList

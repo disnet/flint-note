@@ -134,11 +134,7 @@ function wikilinkCompletion(context: CompletionContext): CompletionResult | null
   const query = match[1];
 
   // Get current notes from store
-  let notes: NoteMetadata[] = [];
-  const unsubscribe = notesStore.subscribe((storeState) => {
-    notes = storeState.notes;
-  });
-  unsubscribe();
+  const notes = notesStore.notes;
 
   // Filter and sort notes based on query
   const filteredNotes = query.trim()
@@ -290,11 +286,7 @@ function decorateWikilinks(state: EditorState): DecorationSet {
   const text = state.doc.toString();
 
   // Get current notes from store
-  let notes: NoteMetadata[] = [];
-  const unsubscribe = notesStore.subscribe((storeState) => {
-    notes = storeState.notes;
-  });
-  unsubscribe(); // Immediately unsubscribe since we just want current value
+  const notes = notesStore.notes; // Immediately unsubscribe since we just want current value
 
   // Get current click handler
   const clickHandler = state.field(wikilinkHandlerField, false);

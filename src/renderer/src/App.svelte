@@ -58,7 +58,7 @@
     // Find the newly created note and open it in the editor
     setTimeout(async () => {
       // Wait for notes to refresh, then find and open the new note
-      const notes = $notesStore.notes;
+      const notes = notesStore.notes;
       const newNote = notes.find((n) => n.id === noteId);
       if (newNote) {
         openNoteEditor(newNote);
@@ -68,7 +68,7 @@
 
   function handleNoteClick(noteId: string): void {
     // Find the note in the notes store
-    const notes = $notesStore.notes;
+    const notes = notesStore.notes;
     const note = notes.find(
       (n) => n.filename === noteId || n.id === noteId || n.title === noteId
     );
