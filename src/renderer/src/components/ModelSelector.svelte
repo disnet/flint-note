@@ -167,16 +167,16 @@
   .selector-button {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 0.75rem;
+    gap: 0.375rem;
+    padding: 0.375rem 0.5rem;
     background: var(--bg-primary);
     border: 1px solid var(--border-light);
-    border-radius: 0.75rem;
-    font-size: 0.875rem;
+    border-radius: 0.5rem;
+    font-size: 0.75rem;
     color: var(--text-primary);
     cursor: pointer;
     transition: all 0.2s ease;
-    min-width: 140px;
+    min-width: 110px;
     justify-content: space-between;
   }
 
@@ -197,7 +197,7 @@
   }
 
   .model-icon {
-    font-size: 1rem;
+    font-size: 0.875rem;
     line-height: 1;
   }
 
@@ -209,7 +209,7 @@
   }
 
   .dropdown-arrow {
-    font-size: 0.75rem;
+    font-size: 0.625rem;
     color: var(--text-secondary);
     transition: transform 0.2s ease;
   }

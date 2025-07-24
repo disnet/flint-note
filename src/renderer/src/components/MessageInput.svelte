@@ -90,7 +90,7 @@
       highlightSelectionMatches(),
       // Now add default keymaps AFTER our custom ones
       keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap]),
-      placeholder('Type your message... Use [[note]] for wikilinks'),
+      placeholder('Ask Flint anything...use [[ to link notes'),
       // GitHub theme
       githubTheme,
       // Custom styling theme
@@ -176,7 +176,7 @@
         highlightSelectionMatches(),
         // Now add default keymaps AFTER our custom ones
         keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap]),
-        placeholder('Type your message... Use [[note]] for wikilinks'),
+        placeholder('Ask Flint anything...use [[ to link notes'),
         // GitHub theme
         githubTheme,
         // Custom styling theme
@@ -193,7 +193,7 @@
             outline: 'none'
           },
           '.cm-content': {
-            padding: '0.75rem 1rem',
+            // padding: '0.75rem 1rem',
             minHeight: '1.25rem',
             maxHeight: '120px',
             caretColor: 'var(--text-secondary)'
@@ -235,19 +235,21 @@
 
 <div class="message-input">
   <div class="input-container">
+    <div bind:this={editorContainer} class="editor-field"></div>
+  </div>
+  <div class="controls-row">
     <div class="model-selector-wrapper">
       <ModelSelector />
     </div>
-    <div bind:this={editorContainer} class="editor-field"></div>
     <button onclick={handleSubmit} disabled={!inputText.trim()} class="send-button">
-      Send
+      submit ↵
     </button>
   </div>
 </div>
 
 <style>
   .message-input {
-    padding: 1.5rem;
+    padding: 1rem;
     max-width: 700px;
     margin: 0 auto;
     width: 100%;
@@ -255,15 +257,20 @@
   }
 
   .input-container {
-    display: flex;
-    gap: 0.75rem;
-    align-items: flex-end;
     background: var(--bg-primary);
     border: 1px solid var(--border-light);
     border-radius: 1.5rem;
     padding: 0.5rem;
     box-shadow: 0 1px 3px 0 var(--shadow-medium);
     transition: all 0.2s ease;
+    margin-bottom: 0.75rem;
+  }
+
+  .controls-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
   }
 
   .model-selector-wrapper {
@@ -278,7 +285,7 @@
   }
 
   .editor-field {
-    flex: 1;
+    width: 100%;
     border: none;
     border-radius: 1rem;
     background: transparent;
@@ -319,16 +326,16 @@
   }
 
   .send-button {
-    padding: 0.75rem 1rem;
+    padding: 0.375rem 0.75rem;
     background: var(--accent-primary);
     color: white;
     border: none;
-    border-radius: 1rem;
-    font-size: 0.875rem;
+    border-radius: 0.5rem;
+    font-size: 0.75rem;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
-    min-width: 60px;
+    min-width: 50px;
     display: flex;
     align-items: center;
     justify-content: center;
