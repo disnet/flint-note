@@ -267,7 +267,7 @@
     }
   }
 
-  function handleWikilinkClick(noteId: string, title: string): void {
+  function handleWikilinkClick(noteId: string, _title: string): void {
     // Find the note in the notes store
     const storeState = notesStore.subscribe((state) => {
       const clickedNote = state.notes.find((n) => n.id === noteId);

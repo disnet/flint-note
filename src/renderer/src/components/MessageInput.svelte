@@ -1,26 +1,128 @@
 <script lang="ts">
   import ModelSelector from './ModelSelector.svelte';
+  import { onMount } from 'svelte';
+  import { EditorView } from 'codemirror';
+  import { EditorState } from '@codemirror/state';
+  import {
+    keymap,
+    placeholder,
+    highlightSpecialChars,
+    drawSelection,
+    rectangularSelection,
+    crosshairCursor
+  } from '@codemirror/view';
+  import { searchKeymap, highlightSelectionMatches } from '@codemirror/search';
+  import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
+  import { wikilinksExtension } from '../lib/wikilinks.svelte.js';
 
   let { onSend }: { onSend: (text: string) => void } = $props();
 
   let inputText = $state('');
-  let inputElement: HTMLInputElement;
+  let editorContainer: HTMLDivElement;
+  let editorView: EditorView | null = null;
 
   function handleSubmit(): void {
     const text = inputText.trim();
     if (text) {
       onSend(text);
       inputText = '';
-      inputElement?.focus();
+      // Clear the editor content
+      if (editorView) {
+        editorView.dispatch({
+          changes: { from: 0, to: editorView.state.doc.length, insert: '' }
+        });
+      }
     }
   }
 
-  function handleKeydown(event: KeyboardEvent): void {
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault();
-      handleSubmit();
-    }
+  function handleWikilinkClick(_noteId: string, _title: string): void {
+    // For message input, we might want to handle this differently
+    // For now, just focus back to the editor
+    editorView?.focus();
   }
+
+  onMount(() => {
+    if (!editorContainer) return;
+
+    const startState = EditorState.create({
+      doc: '',
+      extensions: [
+        // Put the custom keymap FIRST to ensure it takes precedence over default keymaps
+        keymap.of([
+          {
+            key: 'Enter',
+            run: (view) => {
+              const text = view.state.doc.toString().trim();
+              if (text) {
+                handleSubmit();
+                return true;
+              }
+              return false;
+            }
+          },
+          {
+            key: 'Shift-Enter',
+            run: (view) => {
+              // Allow line breaks with Shift+Enter
+              view.dispatch(view.state.replaceSelection('\n'));
+              return true;
+            }
+          }
+        ]),
+        // Essential editor features (similar to minimalSetup but without default keymaps first)
+        highlightSpecialChars(),
+        history(),
+        drawSelection(),
+        rectangularSelection(),
+        crosshairCursor(),
+        highlightSelectionMatches(),
+        // Now add default keymaps AFTER our custom ones
+        keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap]),
+        placeholder('Type your message... Use [[note]] for wikilinks'),
+        EditorView.theme({
+          '&': {
+            fontSize: '0.875rem',
+            fontFamily: 'inherit'
+          },
+          '.cm-editor': {
+            borderRadius: '1rem',
+            background: 'transparent'
+          },
+          '.cm-focused': {
+            outline: 'none'
+          },
+          '.cm-content': {
+            padding: '0.75rem 1rem',
+            minHeight: '1.25rem',
+            maxHeight: '120px',
+            caretColor: 'var(--text-secondary)'
+          },
+          '.cm-line': {
+            lineHeight: '1.4'
+          }
+        }),
+        wikilinksExtension(handleWikilinkClick),
+        EditorView.updateListener.of((update) => {
+          if (update.docChanged) {
+            inputText = update.state.doc.toString();
+          }
+        }),
+        EditorView.lineWrapping
+      ]
+    });
+
+    editorView = new EditorView({
+      state: startState,
+      parent: editorContainer
+    });
+
+    // Focus the editor
+    editorView.focus();
+
+    return () => {
+      editorView?.destroy();
+    };
+  });
 </script>
 
 <div class="message-input">
@@ -28,13 +130,7 @@
     <div class="model-selector-wrapper">
       <ModelSelector />
     </div>
-    <input
-      bind:this={inputElement}
-      bind:value={inputText}
-      onkeydown={handleKeydown}
-      placeholder="Type your message..."
-      class="input-field"
-    />
+    <div bind:this={editorContainer} class="editor-field"></div>
     <button onclick={handleSubmit} disabled={!inputText.trim()} class="send-button">
       Send
     </button>
@@ -73,23 +169,43 @@
     box-shadow: 0 0 0 3px var(--accent-light);
   }
 
-  .input-field {
+  .editor-field {
     flex: 1;
-    padding: 0.75rem 1rem;
     border: none;
     border-radius: 1rem;
-    font-size: 0.875rem;
-    outline: none;
     background: transparent;
     color: var(--text-secondary);
-    font-family: inherit;
-    resize: none;
     min-height: 1.25rem;
     max-height: 120px;
-    transition: color 0.2s ease;
+    overflow: hidden;
   }
 
-  .input-field::placeholder {
+  /* Wikilink styling for message input */
+  .editor-field :global(.wikilink) {
+    font-weight: 500;
+    text-decoration: underline;
+    transition: all 0.2s ease;
+    border-radius: 2px;
+    padding: 1px 2px;
+    cursor: pointer;
+  }
+
+  .editor-field :global(.wikilink-exists) {
+    color: var(--accent-primary);
+    text-decoration-color: var(--accent-primary);
+  }
+
+  .editor-field :global(.wikilink-exists:hover) {
+    background-color: var(--accent-light);
+  }
+
+  .editor-field :global(.wikilink-broken) {
+    color: #d73a49;
+    text-decoration: underline dotted;
+  }
+
+  /* CodeMirror placeholder styling */
+  .editor-field :global(.cm-placeholder) {
     color: var(--text-placeholder);
     transition: color 0.2s ease;
   }
