@@ -452,7 +452,7 @@ VaultSwitcher.switchVault()
 - **Behavior:** Opening a link pushes the current note onto the stack, navigates to target. Going back pops/advances cursor.
 - **Persist:** Session-only (reset on reload) for now.
 
-### Phase 12: Global Search Bar
+### Phase 12: Global Search Bar COMPLETE
 
 - **Placement:** Fixed at header center on desktop, hides behind ⌘ P / Ctrl P hotkey on mobile.
 - **Scope Switcher:** Tabs or `⌥ 1-3` keys to filter **Notes / Commands / Vaults**.
