@@ -255,7 +255,6 @@
 </script>
 
 <div class="app" class:three-column={layoutMode === 'three-column'}>
-  >
   <header class="header">
     {#if layoutMode === 'three-column'}
       <div class="header-max-width">
@@ -293,11 +292,16 @@
           </div>
         </div>
         <div class="chat-panel">
-          <ChatView
-            {messages}
-            isLoading={isLoadingResponse}
-            onNoteClick={handleNoteClick}
-          />
+          <div class="chat-content">
+            <ChatView
+              {messages}
+              isLoading={isLoadingResponse}
+              onNoteClick={handleNoteClick}
+            />
+          </div>
+          <div class="chat-input">
+            <MessageInput onSend={handleSendMessage} />
+          </div>
         </div>
         <div class="editor-panel">
           {#if activeNote}
@@ -347,14 +351,6 @@
   {#if layoutMode !== 'three-column'}
     <footer class="footer">
       <MessageInput onSend={handleSendMessage} />
-    </footer>
-  {:else}
-    <footer class="footer three-column-footer">
-      <div class="footer-spacer"></div>
-      <div class="footer-input">
-        <MessageInput onSend={handleSendMessage} />
-      </div>
-      <div class="footer-spacer"></div>
     </footer>
   {/if}
 
@@ -465,6 +461,22 @@
     overflow: hidden;
   }
 
+  .chat-panel {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .chat-content {
+    flex: 1;
+    overflow: hidden;
+  }
+
+  .chat-input {
+    flex: 0 0 auto;
+    border-top: 1px solid var(--border-light);
+    background: var(--bg-primary);
+  }
+
   .left-panel {
     display: flex;
     flex-direction: column;
@@ -482,10 +494,6 @@
     min-height: 0;
   }
 
-  .editor-panel {
-    border-left: 1px solid var(--border-light);
-  }
-
   .editor-placeholder {
     display: flex;
     align-items: center;
@@ -500,23 +508,6 @@
     background: var(--bg-primary);
     box-shadow: 0 -1px 3px 0 var(--shadow-light);
     transition: all 0.2s ease;
-  }
-
-  /* Three column footer */
-  .three-column-footer {
-    display: grid;
-    grid-template-columns: 300px 1fr 400px;
-    gap: 1rem;
-    padding: 0 1.5rem;
-  }
-
-  .footer-spacer {
-    /* Empty spacers to align with columns */
-  }
-
-  .footer-input {
-    display: flex;
-    align-items: center;
   }
 
   /* Default tab layout */
