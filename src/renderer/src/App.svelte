@@ -32,6 +32,10 @@
     'single-column'
   );
 
+  // References to NoteEditor components for focusing
+  let threeColumnEditor: any = null;
+  let tabLayoutEditor: any = null;
+
   const tabs = [
     { id: 'chat', label: 'Chat' },
     { id: 'notes', label: 'Notes' },
@@ -83,6 +87,14 @@
   function openNoteEditor(note: NoteMetadata): void {
     activeNote = note;
     updateNoteEditorPosition();
+    
+    // Focus the editor after a short delay to ensure it's rendered
+    setTimeout(() => {
+      const activeEditor = layoutMode === 'three-column' ? threeColumnEditor : tabLayoutEditor;
+      if (activeEditor && activeEditor.focus) {
+        activeEditor.focus();
+      }
+    }, 100);
   }
 
   function closeNoteEditor(): void {
@@ -296,6 +308,7 @@
         <div class="editor-panel">
           {#if activeNote}
             <NoteEditor
+              bind:this={threeColumnEditor}
               note={activeNote}
               position={noteEditorPosition}
               onClose={closeNoteEditor}
@@ -327,6 +340,7 @@
         </div>
         {#if activeNote}
           <NoteEditor
+            bind:this={tabLayoutEditor}
             note={activeNote}
             position={noteEditorPosition}
             onClose={closeNoteEditor}

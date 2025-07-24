@@ -338,6 +338,13 @@
       document.dispatchEvent(event);
     }
   }
+
+  // Export focus function to be called from parent components
+  export function focus(): void {
+    if (editorView) {
+      editorView.focus();
+    }
+  }
 </script>
 
 <div
