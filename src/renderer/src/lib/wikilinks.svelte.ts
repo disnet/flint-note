@@ -12,6 +12,7 @@ import { autocompletion, CompletionContext } from '@codemirror/autocomplete';
 import type { CompletionResult } from '@codemirror/autocomplete';
 import type { NoteMetadata } from '../services/noteStore';
 import { notesStore } from '../services/noteStore';
+import { wikilinkTheme } from './wikilink-theme';
 
 // Regular expression to match wikilinks: [[Note Title]] or [[identifier|title]]
 const WIKILINK_REGEX = /\[\[([^\]]+)\]\]/g;
@@ -227,14 +228,12 @@ class WikilinkWidget extends WidgetType {
       ? 'wikilink wikilink-exists'
       : 'wikilink wikilink-broken';
 
-    // Display the title part, which is more user-friendly
-    span.textContent = `[[${this.title}]]`;
+    // Display only the title part (no brackets), which is more user-friendly
+    span.textContent = this.title;
     span.title = this.exists
       ? `Open note: ${this.title} (${this.identifier})`
       : `Note "${this.title}" not found - click to create`;
 
-    // Make it clickable
-    span.style.cursor = 'pointer';
     span.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -328,6 +327,7 @@ function decorateWikilinks(state: EditorState): DecorationSet {
  */
 export function wikilinksExtension(clickHandler: WikilinkClickHandler): Extension {
   return [
+    wikilinkTheme,
     wikilinkHandlerField.init(() => clickHandler),
     wikilinkField,
     // Add atomic ranges for proper cursor movement

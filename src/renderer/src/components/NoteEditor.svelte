@@ -577,63 +577,6 @@
     scrollbar-color: var(--border-light) var(--bg-secondary);
   }
 
-  /* Wikilink styling */
-  :global(.wikilink) {
-    font-weight: 500;
-    text-decoration: underline;
-    transition: all 0.2s ease;
-    border-radius: 2px;
-    padding: 1px 2px;
-  }
-
-  :global(.wikilink-exists) {
-    color: #0366d6;
-    text-decoration-color: #0366d6;
-    background-color: rgba(3, 102, 214, 0.1);
-  }
-
-  :global(.wikilink-exists:hover) {
-    background-color: rgba(3, 102, 214, 0.2);
-    text-decoration-color: #0256cc;
-  }
-
-  :global(.wikilink-broken) {
-    color: #d73a49;
-    text-decoration: underline dotted;
-    text-decoration-color: #d73a49;
-    background-color: rgba(215, 58, 73, 0.1);
-  }
-
-  :global(.wikilink-broken:hover) {
-    background-color: rgba(215, 58, 73, 0.2);
-    text-decoration-color: #cb2431;
-  }
-
-  /* Dark mode wikilink styling */
-  @media (prefers-color-scheme: dark) {
-    :global(.wikilink-exists) {
-      color: #58a6ff;
-      text-decoration-color: #58a6ff;
-      background-color: rgba(88, 166, 255, 0.15);
-    }
-
-    :global(.wikilink-exists:hover) {
-      background-color: rgba(88, 166, 255, 0.25);
-      text-decoration-color: #79b8ff;
-    }
-
-    :global(.wikilink-broken) {
-      color: #f85149;
-      text-decoration-color: #f85149;
-      background-color: rgba(248, 81, 73, 0.15);
-    }
-
-    :global(.wikilink-broken:hover) {
-      background-color: rgba(248, 81, 73, 0.25);
-      text-decoration-color: #ff7b72;
-    }
-  }
-
   /* Responsive adjustments */
   @media (max-width: 768px) {
     .editor-title-section {
