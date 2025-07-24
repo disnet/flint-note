@@ -87,10 +87,11 @@
   function openNoteEditor(note: NoteMetadata): void {
     activeNote = note;
     updateNoteEditorPosition();
-    
+
     // Focus the editor after a short delay to ensure it's rendered
     setTimeout(() => {
-      const activeEditor = layoutMode === 'three-column' ? threeColumnEditor : tabLayoutEditor;
+      const activeEditor =
+        layoutMode === 'three-column' ? threeColumnEditor : tabLayoutEditor;
       if (activeEditor && activeEditor.focus) {
         activeEditor.focus();
       }
@@ -281,7 +282,10 @@
     {:else}
       <div class="header-top">
         <h1>Flint</h1>
-        <VaultSwitcher />
+        <div class="header-top-right">
+          <SearchBar onNoteSelect={handleNoteSelect} />
+          <VaultSwitcher />
+        </div>
       </div>
       <TabNavigation {tabs} {activeTab} onTabChange={handleTabChange} />
     {/if}
@@ -431,6 +435,12 @@
     align-items: center;
     justify-content: space-between;
     padding: 1.25rem 1.5rem 0.5rem 1.5rem;
+  }
+
+  .header-top-right {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
   }
 
   .header h1 {

@@ -1,15 +1,17 @@
 # Max-Width Responsive Layout Implementation Plan
 
 ## Overview
+
 Implement a new max-width responsive layout for Flint that provides better space utilization on larger screens while maintaining the current layout at smaller breakpoints.
 
 ## Current State Analysis
 
 ### Current Layout Structure
+
 - **App container**: `max-width: 70ch` with centered layout
-- **Responsive breakpoints**: 
+- **Responsive breakpoints**:
   - Large screens (>1200px): sidebar note editor
-  - Medium screens (768-1200px): overlay note editor  
+  - Medium screens (768-1200px): overlay note editor
   - Small screens (<768px): fullscreen note editor
 - **Layout components**:
   - Header with tabs and vault switcher
@@ -18,11 +20,13 @@ Implement a new max-width responsive layout for Flint that provides better space
   - Note editor (conditional sidebar)
 
 ### Wireframe Requirements
+
 Based on the provided wireframe, the new max-width layout should include:
+
 1. **Header row**: Flint logo, search bar, vault switcher
 2. **Content row with three columns**:
    - Left: Pinned notes section
-   - Center: Chat messages area  
+   - Center: Chat messages area
    - Right: Note editor section
 
 ## Implementation Plan
@@ -30,6 +34,7 @@ Based on the provided wireframe, the new max-width layout should include:
 ### Phase 1: Layout Structure Changes
 
 #### 1.1 Update App.svelte Layout
+
 - Remove current `max-width: 70ch` constraint for large screens
 - Implement CSS Grid or Flexbox layout for three-column design
 - Add responsive breakpoint logic:
@@ -37,6 +42,7 @@ Based on the provided wireframe, the new max-width layout should include:
   - **Medium/Small screens (<1400px)**: Keep current responsive behavior
 
 #### 1.2 Header Redesign
+
 - **Current**: Simple header with title and vault switcher
 - **New**: Full-width header with three sections:
   - Left: Flint logo/brand
@@ -45,7 +51,9 @@ Based on the provided wireframe, the new max-width layout should include:
 - Maintain current header at smaller breakpoints
 
 #### 1.3 Main Content Grid
+
 Create three-column grid layout:
+
 ```css
 .main-content {
   display: grid;
@@ -64,6 +72,7 @@ Create three-column grid layout:
 ### Phase 2: Component Updates
 
 #### 2.1 Search Bar Component
+
 - **Create new component**: `SearchBar.svelte`
 - **Functionality**:
   - Global search across notes
@@ -73,6 +82,7 @@ Create three-column grid layout:
 - **Integration**: Add to header center position
 
 #### 2.2 Pinned Notes Panel
+
 - **Modify existing**: `PinnedView.svelte`
 - **Changes**:
   - Optimize for narrow left column (300px)
@@ -82,7 +92,8 @@ Create three-column grid layout:
 - **Always visible**: Show pinned notes in left panel instead of tab
 
 #### 2.3 Chat Messages Center Panel
-- **Modify existing**: `ChatView.svelte` 
+
+- **Modify existing**: `ChatView.svelte`
 - **Changes**:
   - Optimize for center column (flexible width)
   - Ensure proper scroll behavior
@@ -90,6 +101,7 @@ Create three-column grid layout:
   - Responsive message bubbles
 
 #### 2.4 Note Editor Right Panel
+
 - **Modify existing**: `NoteEditor.svelte`
 - **Changes**:
   - Fixed right column width (400px)
@@ -100,11 +112,13 @@ Create three-column grid layout:
 ### Phase 3: Responsive Behavior
 
 #### 3.1 Breakpoint Strategy
+
 - **Large (>1400px)**: New three-column layout
 - **Medium (1000-1400px)**: Two-column (chat + note editor, pinned as overlay/modal)
 - **Small (<1000px)**: Current single-column responsive behavior
 
 #### 3.2 Progressive Enhancement
+
 - Graceful degradation to current layout
 - Maintain all existing functionality
 - Smooth transitions between layouts
@@ -113,11 +127,13 @@ Create three-column grid layout:
 ### Phase 4: State Management Updates
 
 #### 4.1 Layout State
+
 - Add layout mode state (`three-column`, `two-column`, `single-column`)
 - Update responsive logic in App.svelte
 - Persist layout preferences
 
 #### 4.2 Panel Visibility
+
 - Track which panels are open/closed
 - Handle panel collapsing/expanding
 - Maintain state across sessions
@@ -125,6 +141,7 @@ Create three-column grid layout:
 ### Phase 5: Styling and Polish
 
 #### 5.1 CSS Grid Implementation
+
 ```css
 .max-width-layout {
   max-width: 1600px;
@@ -132,20 +149,31 @@ Create three-column grid layout:
   height: 100vh;
   display: grid;
   grid-template-rows: auto 1fr auto;
-  grid-template-areas: 
-    "header header header"
-    "pinned chat editor"
-    "footer footer footer";
+  grid-template-areas:
+    'header header header'
+    'pinned chat editor'
+    'footer footer footer';
 }
 
-.header { grid-area: header; }
-.pinned-panel { grid-area: pinned; }
-.chat-panel { grid-area: chat; }
-.editor-panel { grid-area: editor; }
-.footer { grid-area: footer; }
+.header {
+  grid-area: header;
+}
+.pinned-panel {
+  grid-area: pinned;
+}
+.chat-panel {
+  grid-area: chat;
+}
+.editor-panel {
+  grid-area: editor;
+}
+.footer {
+  grid-area: footer;
+}
 ```
 
 #### 5.2 Visual Enhancements
+
 - Panel borders/separators
 - Consistent spacing
 - Smooth transitions
@@ -155,17 +183,20 @@ Create three-column grid layout:
 ## Technical Considerations
 
 ### Performance
+
 - Virtual scrolling for long chat histories in center panel
 - Lazy loading of pinned notes
 - Debounced search functionality
 
 ### Accessibility
+
 - Keyboard navigation between panels
 - Focus management
 - Screen reader support
 - High contrast mode compatibility
 
 ### Browser Compatibility
+
 - CSS Grid fallbacks
 - Modern browser features
 - Mobile touch interactions

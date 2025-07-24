@@ -260,7 +260,18 @@
 
   @media (max-width: 768px) {
     .search-container {
-      display: none;
+      max-width: 200px;
+    }
+
+    .search-input {
+      font-size: 0.8rem;
+      padding: 0.4rem 0.6rem 0.4rem 2rem;
+    }
+
+    .search-icon {
+      left: 0.6rem;
+      width: 0.9rem;
+      height: 0.9rem;
     }
   }
 </style>
