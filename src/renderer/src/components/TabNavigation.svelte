@@ -29,7 +29,6 @@
   .tab-navigation {
     display: flex;
     gap: 0;
-    border-bottom: 1px solid var(--border-light);
   }
 
   .tab {

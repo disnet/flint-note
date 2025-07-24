@@ -391,6 +391,7 @@
     background: var(--bg-primary);
     box-shadow: 0 1px 3px 0 var(--shadow-light);
     transition: all 0.2s ease;
+    border-bottom: 1px solid var(--border-light);
   }
 
   /* Three column header */
@@ -449,9 +450,12 @@
   .three-column-layout {
     display: grid;
     grid-template-columns: 300px 1fr 60ch;
-    gap: 1px;
     height: 100%;
     background: var(--border-light);
+  }
+
+  .editor-panel {
+    border-left: 1px solid var(--border-light);
   }
 
   .left-panel,
