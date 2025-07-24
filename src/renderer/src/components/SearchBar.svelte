@@ -2,8 +2,6 @@
   import { notesStore } from '../services/noteStore.svelte';
   import type { NoteMetadata } from '../services/noteStore.svelte';
 
-  const { groupedNotes } = notesStore;
-
   interface SearchBarProps {
     onNoteSelect?: (note: NoteMetadata) => void;
   }
@@ -14,72 +12,47 @@
   let isSearchFocused = $state(false);
   let selectedIndex = $state(-1);
 
-  console.log('SearchBar component mounted');
-  console.log('Initial searchValue:', searchValue);
-
-  const filteredResults = $derived(() => {
-    console.log('filteredResults derived function called');
-    console.log('Current searchValue:', searchValue);
-
+  const filteredResults = $derived.by(() => {
     if (!searchValue.trim()) {
-      console.log('Empty search value, returning empty array');
       return [];
     }
 
     const query = searchValue.toLowerCase();
-    console.log('Search query:', query);
 
-    try {
-      const grouped = $groupedNotes;
-      console.log('Grouped notes:', grouped);
-      console.log('Grouped notes type:', typeof grouped);
-      console.log('Grouped notes keys:', Object.keys(grouped));
+    // Get all notes directly from the store
+    const allNotes = notesStore.notes;
 
-      // Flatten all notes from all groups
-      const allNotes: NoteMetadata[] = [];
-      for (const [type, notes] of Object.entries(grouped)) {
-        console.log(`Processing type: ${type}, notes:`, notes);
-        allNotes.push(...notes);
-      }
-
-      console.log('All notes flattened:', allNotes);
-      console.log('Total notes count:', allNotes.length);
-
-      if (allNotes.length === 0) {
-        console.log('No notes available for search');
-        return [];
-      }
-
-      const results = allNotes
-        .filter(
-          (note) =>
-            note.title.toLowerCase().includes(query) ||
-            note.filename.toLowerCase().includes(query)
-        )
-        .slice(0, 10);
-
-      console.log('Search results:', results);
-      return results;
-    } catch (error) {
-      console.error('Error in filteredResults:', error);
+    if (allNotes.length === 0) {
       return [];
     }
+
+    // Filter and sort results
+    const results = allNotes
+      .filter(
+        (note) =>
+          note.title.toLowerCase().includes(query) ||
+          note.filename.toLowerCase().includes(query) ||
+          note.tags.some((tag) => tag.toLowerCase().includes(query))
+      )
+      .sort((a, b) => {
+        // Prioritize title matches over filename matches
+        const aTitle = a.title.toLowerCase();
+        const bTitle = b.title.toLowerCase();
+
+        if (aTitle.startsWith(query) && !bTitle.startsWith(query)) return -1;
+        if (bTitle.startsWith(query) && !aTitle.startsWith(query)) return 1;
+
+        return aTitle.localeCompare(bTitle);
+      })
+      .slice(0, 10);
+
+    return results;
   });
 
-  // Track when filteredResults changes
+  // Reset selected index when search value changes
   $effect(() => {
-    const results = filteredResults; // This should trigger the derived function
-    console.log('filteredResults effect triggered, results:', results);
-    console.log('filteredResults length:', results.length);
-  });
-
-  function handleSearchInput(event: Event): void {
-    const target = event.target as HTMLInputElement;
-    console.log('Search input triggered, value:', target.value);
-    searchValue = target.value;
     selectedIndex = -1;
-    console.log('searchValue set to:', searchValue);
-  }
+  });
 
   function handleSearchFocus(): void {
     isSearchFocused = true;
@@ -120,16 +93,12 @@
     onNoteSelect?.(note);
   }
 
-  // Global keyboard shortcut
+  // Global keyboard shortcut for Cmd+K
   $effect(() => {
-    console.log('SearchBar keyboard shortcut effect registered');
-
     function handleGlobalKeyDown(event: KeyboardEvent): void {
       if (event.key === 'k' && (event.ctrlKey || event.metaKey)) {
-        console.log('Cmd+K pressed, trying to focus search');
         event.preventDefault();
         const searchInput = document.getElementById('global-search');
-        console.log('Search input element:', searchInput);
         searchInput?.focus();
       }
     }
@@ -153,7 +122,6 @@
       type="text"
       placeholder="Search notes... (⌘K)"
       bind:value={searchValue}
-      oninput={handleSearchInput}
       onfocus={handleSearchFocus}
       onblur={handleSearchBlur}
       onkeydown={handleKeyDown}
@@ -170,7 +138,12 @@
           onclick={() => selectNote(note)}
         >
           <div class="result-title">{note.title}</div>
-          <div class="result-path">{note.filename}</div>
+          <div class="result-meta">
+            <span class="result-path">{note.filename}</span>
+            {#if note.type}
+              <span class="result-type">{note.type}</span>
+            {/if}
+          </div>
         </button>
       {/each}
     </div>
@@ -262,9 +235,27 @@
     margin-bottom: 0.25rem;
   }
 
+  .result-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
   .result-path {
     font-size: 0.75rem;
     color: var(--text-tertiary);
+    flex: 1;
+  }
+
+  .result-type {
+    font-size: 0.625rem;
+    color: var(--accent-primary);
+    background: var(--accent-secondary-alpha);
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
   }
 
   @media (max-width: 768px) {
