@@ -52,10 +52,10 @@
 
 <div class="notes-view">
   <div class="notes-header">
-    <h2>Notes</h2>
+    <h2>📄 Notes</h2>
     <div class="header-actions">
       {#if $notesStore.loading}
-        <div class="loading-indicator">Loading...</div>
+        <div class="loading-indicator">...</div>
       {/if}
       <button
         class="create-note-btn"
@@ -63,7 +63,6 @@
         title="Create new note (Ctrl+N)"
       >
         <span class="create-icon">+</span>
-        <span class="create-text">New</span>
       </button>
     </div>
   </div>
@@ -147,22 +146,22 @@
   .notes-view {
     height: 100%;
     overflow-y: auto;
-    padding: 1rem;
-    background: var(--bg-secondary);
+    padding: 0.5rem;
+    background: var(--bg-primary);
   }
 
   .notes-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 1rem;
-    padding-bottom: 0.5rem;
+    margin-bottom: 0.75rem;
+    padding: 0.5rem;
     border-bottom: 1px solid var(--border-light);
   }
 
   .notes-header h2 {
     margin: 0;
-    font-size: 1.25rem;
+    font-size: 1rem;
     font-weight: 600;
     color: var(--text-primary);
   }
@@ -181,16 +180,18 @@
   .create-note-btn {
     display: flex;
     align-items: center;
-    gap: 0.375rem;
+    justify-content: center;
     background: var(--accent-primary);
     color: var(--accent-text);
     border: none;
-    border-radius: 0.375rem;
-    padding: 0.5rem 0.75rem;
+    border-radius: 0.25rem;
+    padding: 0.375rem;
     font-size: 0.875rem;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s ease;
+    width: 1.75rem;
+    height: 1.75rem;
   }
 
   .create-note-btn:hover {
@@ -205,10 +206,6 @@
   .create-icon {
     font-size: 1rem;
     font-weight: 600;
-    line-height: 1;
-  }
-
-  .create-text {
     line-height: 1;
   }
 
@@ -273,12 +270,12 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.75rem 1rem;
+    padding: 0.5rem 0.75rem;
     background: none;
     border: none;
     cursor: pointer;
     transition: background-color 0.2s ease;
-    font-size: 0.875rem;
+    font-size: 0.8rem;
     font-weight: 500;
   }
 
@@ -314,7 +311,7 @@
   }
 
   .note-item {
-    padding: 0.75rem 1rem;
+    padding: 0.5rem 0.75rem;
     border-bottom: 1px solid var(--border-light);
     cursor: pointer;
     transition: background-color 0.2s ease;

@@ -7,6 +7,7 @@
   import NoteEditor from './components/NoteEditor.svelte';
   import VaultSwitcher from './components/VaultSwitcher.svelte';
   import CreateNoteModal from './components/CreateNoteModal.svelte';
+  import SearchBar from './components/SearchBar.svelte';
   import type { Message } from './services/types';
   import type { NoteMetadata } from './services/noteStore';
   import { getChatService } from './services/chatService';
@@ -27,6 +28,9 @@
   let activeNote = $state<NoteMetadata | null>(null);
   let noteEditorPosition = $state<'sidebar' | 'overlay' | 'fullscreen'>('sidebar');
   let showCreateNoteModal = $state(false);
+  let layoutMode = $state<'three-column' | 'two-column' | 'single-column'>(
+    'single-column'
+  );
 
   const tabs = [
     { id: 'chat', label: 'Chat' },
@@ -85,25 +89,41 @@
     activeNote = null;
   }
 
-  function updateNoteEditorPosition(): void {
+  function updateLayoutMode(): void {
     const width = window.innerWidth;
+    console.log('Window width:', width);
 
-    if (width > 1200) {
+    if (width > 1400) {
+      layoutMode = 'three-column';
       noteEditorPosition = 'sidebar';
-    } else if (width > 768) {
-      noteEditorPosition = 'overlay';
+    } else if (width > 1000) {
+      layoutMode = 'two-column';
+      noteEditorPosition = 'sidebar';
     } else {
-      noteEditorPosition = 'fullscreen';
-    }
-  }
-
-  // Update editor position on window resize
-  $effect(() => {
-    function handleResize(): void {
-      if (activeNote) {
-        updateNoteEditorPosition();
+      layoutMode = 'single-column';
+      if (width > 768) {
+        noteEditorPosition = 'overlay';
+      } else {
+        noteEditorPosition = 'fullscreen';
       }
     }
+    
+    console.log('Layout mode set to:', layoutMode);
+    console.log('Note editor position:', noteEditorPosition);
+  }
+
+  function updateNoteEditorPosition(): void {
+    updateLayoutMode();
+  }
+
+  // Update layout on window resize and initial load
+  $effect(() => {
+    function handleResize(): void {
+      updateLayoutMode();
+    }
+
+    // Set initial layout mode
+    updateLayoutMode();
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
@@ -228,46 +248,107 @@
   }
 </script>
 
-<div class="app">
+<div
+  class="app"
+  class:three-column={layoutMode === 'three-column'}
+  class:two-column={layoutMode === 'two-column'}
+>
   <header class="header">
-    <div class="header-top">
-      <h1>Flint</h1>
-      <VaultSwitcher />
-    </div>
-    <TabNavigation {tabs} {activeTab} onTabChange={handleTabChange} />
+    {#if layoutMode === 'three-column'}
+      <div class="header-max-width">
+        <div class="header-section">
+          <h1>Flint</h1>
+        </div>
+        <div class="header-section header-center">
+          <SearchBar onNoteSelect={handleNoteSelect} />
+        </div>
+        <div class="header-section">
+          <VaultSwitcher />
+        </div>
+      </div>
+    {:else}
+      <div class="header-top">
+        <h1>Flint</h1>
+        <VaultSwitcher />
+      </div>
+      <TabNavigation {tabs} {activeTab} onTabChange={handleTabChange} />
+    {/if}
   </header>
 
   <main class="main">
-    <div
-      class="tab-layout"
-      class:has-sidebar={activeNote && noteEditorPosition === 'sidebar'}
-    >
-      <div class="tab-content">
-        {#if activeTab === 'chat'}
+    {#if layoutMode === 'three-column'}
+      <div class="three-column-layout">
+        <div class="left-panel">
+          <div class="pinned-section">
+            <PinnedView onNoteSelect={handleNoteSelect} />
+          </div>
+          <div class="notes-section">
+            <NotesView onNoteSelect={handleNoteSelect} onCreateNote={handleCreateNote} />
+          </div>
+        </div>
+        <div class="chat-panel">
           <ChatView
             {messages}
             isLoading={isLoadingResponse}
             onNoteClick={handleNoteClick}
           />
-        {:else if activeTab === 'notes'}
-          <NotesView onNoteSelect={handleNoteSelect} onCreateNote={handleCreateNote} />
-        {:else if activeTab === 'pinned'}
-          <PinnedView onNoteSelect={handleNoteSelect} />
+        </div>
+        <div class="editor-panel">
+          {#if activeNote}
+            <NoteEditor
+              note={activeNote}
+              position={noteEditorPosition}
+              onClose={closeNoteEditor}
+            />
+          {:else}
+            <div class="editor-placeholder">
+              <p>Select a note to start editing</p>
+            </div>
+          {/if}
+        </div>
+      </div>
+    {:else}
+      <div
+        class="tab-layout"
+        class:has-sidebar={activeNote && noteEditorPosition === 'sidebar'}
+      >
+        <div class="tab-content">
+          {#if activeTab === 'chat'}
+            <ChatView
+              {messages}
+              isLoading={isLoadingResponse}
+              onNoteClick={handleNoteClick}
+            />
+          {:else if activeTab === 'notes'}
+            <NotesView onNoteSelect={handleNoteSelect} onCreateNote={handleCreateNote} />
+          {:else if activeTab === 'pinned'}
+            <PinnedView onNoteSelect={handleNoteSelect} />
+          {/if}
+        </div>
+        {#if activeNote}
+          <NoteEditor
+            note={activeNote}
+            position={noteEditorPosition}
+            onClose={closeNoteEditor}
+          />
         {/if}
       </div>
-      {#if activeNote}
-        <NoteEditor
-          note={activeNote}
-          position={noteEditorPosition}
-          onClose={closeNoteEditor}
-        />
-      {/if}
-    </div>
+    {/if}
   </main>
 
-  <footer class="footer">
-    <MessageInput onSend={handleSendMessage} />
-  </footer>
+  {#if layoutMode !== 'three-column'}
+    <footer class="footer">
+      <MessageInput onSend={handleSendMessage} />
+    </footer>
+  {:else}
+    <footer class="footer three-column-footer">
+      <div class="footer-spacer"></div>
+      <div class="footer-input">
+        <MessageInput onSend={handleSendMessage} />
+      </div>
+      <div class="footer-spacer"></div>
+    </footer>
+  {/if}
 
   <CreateNoteModal
     isOpen={showCreateNoteModal}
@@ -282,8 +363,6 @@
     flex-direction: column;
     height: 100vh;
     width: 100%;
-    max-width: 70ch;
-    margin: 0 auto;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
     background: var(--bg-primary);
     color: var(--text-primary);
@@ -292,12 +371,47 @@
       color 0.2s ease;
   }
 
+  /* Default layout (single/two column) */
+  .app:not(.three-column) {
+    max-width: 70ch;
+    margin: 0 auto;
+  }
+
+  /* Three column layout */
+  .app.three-column {
+    max-width: 1600px;
+    margin: 0 auto;
+  }
+
   .header {
     background: var(--bg-primary);
     box-shadow: 0 1px 3px 0 var(--shadow-light);
     transition: all 0.2s ease;
   }
 
+  /* Three column header */
+  .header-max-width {
+    display: grid;
+    grid-template-columns: 300px 1fr 300px;
+    gap: 1rem;
+    padding: 1.25rem 1.5rem;
+    align-items: center;
+  }
+
+  .header-section {
+    display: flex;
+    align-items: center;
+  }
+
+  .header-center {
+    justify-content: center;
+  }
+
+  .header-section:last-child {
+    justify-content: flex-end;
+  }
+
+  /* Default header */
   .header-top {
     display: flex;
     align-items: center;
@@ -321,6 +435,52 @@
     transition: background-color 0.2s ease;
   }
 
+  /* Three column layout */
+  .three-column-layout {
+    display: grid;
+    grid-template-columns: 300px 1fr 400px;
+    gap: 1px;
+    height: 100%;
+    background: var(--border-light);
+  }
+
+  .left-panel,
+  .chat-panel,
+  .editor-panel {
+    background: var(--bg-primary);
+    overflow: hidden;
+  }
+
+  .left-panel {
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border-light);
+  }
+
+  .pinned-section {
+    flex: 0 0 auto;
+    max-height: 40%;
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .notes-section {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .editor-panel {
+    border-left: 1px solid var(--border-light);
+  }
+
+  .editor-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-secondary);
+    font-style: italic;
+  }
+
   .footer {
     border-top: 1px solid var(--border-light);
     background: var(--bg-primary);
@@ -328,6 +488,24 @@
     transition: all 0.2s ease;
   }
 
+  /* Three column footer */
+  .three-column-footer {
+    display: grid;
+    grid-template-columns: 300px 1fr 400px;
+    gap: 1rem;
+    padding: 0 1.5rem;
+  }
+
+  .footer-spacer {
+    /* Empty spacers to align with columns */
+  }
+
+  .footer-input {
+    display: flex;
+    align-items: center;
+  }
+
+  /* Default tab layout */
   .tab-layout {
     display: flex;
     height: 100%;
@@ -341,6 +519,23 @@
   }
 
   /* Responsive adjustments */
+  @media (max-width: 1400px) {
+    .app.three-column {
+      max-width: 70ch;
+      margin: 0 auto;
+    }
+
+    .three-column-layout {
+      display: block;
+    }
+
+    .left-panel,
+    .chat-panel,
+    .editor-panel {
+      display: none;
+    }
+  }
+
   @media (max-width: 1200px) {
     .tab-layout.has-sidebar {
       padding-right: 0;
