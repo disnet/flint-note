@@ -218,12 +218,6 @@ Use these tools to help users manage their notes effectively and answer their qu
               this.emit('stream-tool-call', { requestId, toolCall: toolCallData });
             });
           }
-
-          // Handle text content from each step
-          if (step.text) {
-            console.log('Step text:', step.text);
-            // Note: step text is already included in the main textStream
-          }
         }
       });
 

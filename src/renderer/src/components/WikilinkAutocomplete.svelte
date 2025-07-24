@@ -22,23 +22,34 @@
     const matching = notes.filter(
       (note) =>
         note.title.toLowerCase().includes(normalizedQuery) ||
-        note.filename.toLowerCase().includes(normalizedQuery)
+        note.filename.toLowerCase().includes(normalizedQuery) ||
+        note.id.toLowerCase().includes(normalizedQuery)
     );
 
     // Sort by relevance (exact matches first, then starts with, then contains)
     matching.sort((a, b) => {
       const aTitle = a.title.toLowerCase();
       const bTitle = b.title.toLowerCase();
+      const aId = a.id.toLowerCase();
+      const bId = b.id.toLowerCase();
 
-      // Exact match
+      // Exact title match has highest priority
       if (aTitle === normalizedQuery) return -1;
       if (bTitle === normalizedQuery) return 1;
 
-      // Starts with query
+      // Exact ID match has second priority
+      if (aId === normalizedQuery) return -1;
+      if (bId === normalizedQuery) return 1;
+
+      // Title starts with query
       if (aTitle.startsWith(normalizedQuery) && !bTitle.startsWith(normalizedQuery))
         return -1;
       if (bTitle.startsWith(normalizedQuery) && !aTitle.startsWith(normalizedQuery))
         return 1;
+
+      // ID starts with query
+      if (aId.startsWith(normalizedQuery) && !bId.startsWith(normalizedQuery)) return -1;
+      if (bId.startsWith(normalizedQuery) && !aId.startsWith(normalizedQuery)) return 1;
 
       // Alphabetical for same relevance
       return aTitle.localeCompare(bTitle);
@@ -109,7 +120,8 @@
       if ('isCreateOption' in option && option.isCreateOption) {
         onSelect(option.title); // No noteId for new notes
       } else {
-        onSelect(option.title, option.id);
+        // Use the new format: identifier|title
+        onSelect(`${option.id}|${option.title}`, option.id);
       }
     }
   }
@@ -154,7 +166,10 @@
           </div>
         {:else}
           <div class="option-content">
-            <span class="option-title">{option.title}</span>
+            <div class="option-main">
+              <span class="option-title">{option.title}</span>
+              <span class="option-identifier">{option.id}</span>
+            </div>
             {#if option.type}
               <span class="option-type">{option.type}</span>
             {/if}
@@ -220,11 +235,26 @@
     gap: 0.5rem;
   }
 
+  .option-main {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+    gap: 0.125rem;
+  }
+
   .option-title {
     font-weight: 500;
     color: var(--text-primary);
-    flex: 1;
-    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .option-identifier {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-family: var(--font-mono, 'SF Mono', 'Monaco', 'Inconsolata', monospace);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

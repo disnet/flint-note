@@ -13,15 +13,16 @@ import type { CompletionResult } from '@codemirror/autocomplete';
 import type { NoteMetadata } from '../services/noteStore';
 import { notesStore } from '../services/noteStore';
 
-// Regular expression to match wikilinks: [[Note Title]]
+// Regular expression to match wikilinks: [[Note Title]] or [[identifier|title]]
 const WIKILINK_REGEX = /\[\[([^\]]+)\]\]/g;
 
 export interface WikilinkMatch {
   from: number;
   to: number;
   text: string; // The full [[...]] text
-  title: string; // The note title inside the brackets
-  exists: boolean; // Whether a note with this title exists
+  identifier: string; // The identifier part (before | if present, otherwise same as title)
+  title: string; // The display title (after | if present, otherwise same as identifier)
+  exists: boolean; // Whether a note with this identifier exists
   noteId?: string; // The ID of the matching note if it exists
 }
 
@@ -55,13 +56,30 @@ export function parseWikilinks(text: string, notes: NoteMetadata[]): WikilinkMat
   WIKILINK_REGEX.lastIndex = 0; // Reset regex state
 
   while ((match = WIKILINK_REGEX.exec(text)) !== null) {
-    const title = match[1].trim();
-    const existingNote = findNoteByTitle(title, notes);
+    const content = match[1].trim();
+
+    // Check if it's in the format "identifier|title"
+    const pipeIndex = content.indexOf('|');
+    let identifier: string;
+    let title: string;
+
+    if (pipeIndex !== -1) {
+      // Format: [[identifier|title]]
+      identifier = content.substring(0, pipeIndex).trim();
+      title = content.substring(pipeIndex + 1).trim();
+    } else {
+      // Format: [[title]] - use title as both identifier and title
+      identifier = content;
+      title = content;
+    }
+
+    const existingNote = findNoteByIdentifier(identifier, notes);
 
     matches.push({
       from: match.index,
       to: match.index + match[0].length,
       text: match[0],
+      identifier,
       title,
       exists: !!existingNote,
       noteId: existingNote?.id
@@ -72,18 +90,32 @@ export function parseWikilinks(text: string, notes: NoteMetadata[]): WikilinkMat
 }
 
 /**
- * Find a note by title (case-insensitive, exact match)
+ * Find a note by identifier (which can be note ID, title, or filename)
  */
-function findNoteByTitle(title: string, notes: NoteMetadata[]): NoteMetadata | null {
-  const normalizedTitle = title.toLowerCase().trim();
+function findNoteByIdentifier(
+  identifier: string,
+  notes: NoteMetadata[]
+): NoteMetadata | null {
+  const normalizedIdentifier = identifier.toLowerCase().trim();
 
-  return (
-    notes.find(
-      (note) =>
-        note.title.toLowerCase().trim() === normalizedTitle ||
-        note.filename.toLowerCase().replace(/\.md$/, '').trim() === normalizedTitle
-    ) || null
+  // First, try to match by note ID (exact match)
+  const byId = notes.find((note) => note.id.toLowerCase() === normalizedIdentifier);
+  if (byId) return byId;
+
+  // Then try to match by title (case-insensitive)
+  const byTitle = notes.find(
+    (note) => note.title.toLowerCase().trim() === normalizedIdentifier
   );
+  if (byTitle) return byTitle;
+
+  // Finally, try to match by filename without .md extension
+  const byFilename = notes.find(
+    (note) =>
+      note.filename.toLowerCase().replace(/\.md$/, '').trim() === normalizedIdentifier
+  );
+  if (byFilename) return byFilename;
+
+  return null;
 }
 
 /**
@@ -113,21 +145,34 @@ function wikilinkCompletion(context: CompletionContext): CompletionResult | null
         .filter(
           (note) =>
             note.title.toLowerCase().includes(query.toLowerCase()) ||
-            note.filename.toLowerCase().includes(query.toLowerCase())
+            note.filename.toLowerCase().includes(query.toLowerCase()) ||
+            note.id.toLowerCase().includes(query.toLowerCase())
         )
         .sort((a, b) => {
           const aTitle = a.title.toLowerCase();
           const bTitle = b.title.toLowerCase();
+          const aId = a.id.toLowerCase();
+          const bId = b.id.toLowerCase();
           const normalizedQuery = query.toLowerCase();
 
-          // Exact match first
+          // Exact title match has highest priority
           if (aTitle === normalizedQuery) return -1;
           if (bTitle === normalizedQuery) return 1;
 
-          // Starts with query
+          // Exact ID match has second priority
+          if (aId === normalizedQuery) return -1;
+          if (bId === normalizedQuery) return 1;
+
+          // Title starts with query
           if (aTitle.startsWith(normalizedQuery) && !bTitle.startsWith(normalizedQuery))
             return -1;
           if (bTitle.startsWith(normalizedQuery) && !aTitle.startsWith(normalizedQuery))
+            return 1;
+
+          // ID starts with query
+          if (aId.startsWith(normalizedQuery) && !bId.startsWith(normalizedQuery))
+            return -1;
+          if (bId.startsWith(normalizedQuery) && !aId.startsWith(normalizedQuery))
             return 1;
 
           return aTitle.localeCompare(bTitle);
@@ -135,11 +180,11 @@ function wikilinkCompletion(context: CompletionContext): CompletionResult | null
         .slice(0, 10)
     : notes.slice(0, 10);
 
-  // Create completion options
+  // Create completion options with the new format [[identifier|title]]
   const options = filteredNotes.map((note) => ({
     label: note.title,
-    apply: `${note.title}]]`,
-    info: `Type: ${note.type || 'unknown'}`,
+    apply: `${note.id}|${note.title}]]`,
+    info: `ID: ${note.id} • Type: ${note.type || 'unknown'}`,
     type: 'text'
   }));
 
@@ -150,7 +195,7 @@ function wikilinkCompletion(context: CompletionContext): CompletionResult | null
   ) {
     options.push({
       label: `Create "${query.trim()}"`,
-      apply: `${query.trim()}]]`,
+      apply: `${query.trim()}]]`, // For new notes, just use title format until created
       info: 'Create new note',
       type: 'text'
     });
@@ -167,6 +212,7 @@ function wikilinkCompletion(context: CompletionContext): CompletionResult | null
  */
 class WikilinkWidget extends WidgetType {
   constructor(
+    private identifier: string,
     private title: string,
     private exists: boolean,
     private noteId: string | undefined,
@@ -180,9 +226,11 @@ class WikilinkWidget extends WidgetType {
     span.className = this.exists
       ? 'wikilink wikilink-exists'
       : 'wikilink wikilink-broken';
+
+    // Display the title part, which is more user-friendly
     span.textContent = `[[${this.title}]]`;
     span.title = this.exists
-      ? `Open note: ${this.title}`
+      ? `Open note: ${this.title} (${this.identifier})`
       : `Note "${this.title}" not found - click to create`;
 
     // Make it clickable
@@ -207,6 +255,7 @@ class WikilinkWidget extends WidgetType {
 
   eq(other: WikilinkWidget): boolean {
     return (
+      this.identifier === other.identifier &&
       this.title === other.title &&
       this.exists === other.exists &&
       this.noteId === other.noteId
@@ -255,6 +304,7 @@ function decorateWikilinks(state: EditorState): DecorationSet {
 
   for (const wikilink of wikilinks) {
     const widget = new WikilinkWidget(
+      wikilink.identifier,
       wikilink.title,
       wikilink.exists,
       wikilink.noteId,
