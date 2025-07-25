@@ -12,14 +12,14 @@ export interface ModelInfo {
 
 export const SUPPORTED_MODELS: ModelInfo[] = [
   // OpenAI Models
-  // {
-  //   id: 'openai/gpt-4.1',
-  //   name: 'GPT-4.1',
-  //   provider: 'OpenAI',
-  //   icon: '🤖',
-  //   contextLength: 1047576,
-  //   costPer1kTokens: { input: 0.002, output: 0.008 }
-  // },
+  {
+    id: 'gpt-4.1',
+    name: 'GPT-4.1',
+    provider: 'OpenAI',
+    icon: '🤖',
+    contextLength: 1047576,
+    costPer1kTokens: { input: 0.002, output: 0.008 }
+  },
   {
     id: 'gpt-4.1-mini',
     name: 'GPT-4.1 Mini',

@@ -1,46 +1,66 @@
-import { openai } from '@ai-sdk/openai';
+import { createOpenAI } from '@ai-sdk/openai';
 import { generateText, streamText, LanguageModel, ModelMessage, stepCountIs } from 'ai';
 import { experimental_createMCPClient as createMCPClient } from 'ai';
 import { Experimental_StdioMCPTransport as StdioMCPTransport } from 'ai/mcp-stdio';
 import { EventEmitter } from 'events';
-import * as dotenv from 'dotenv';
-
-// Load environment variables
-dotenv.config();
+import { SecureStorageService } from './secure-storage-service';
 
 export class AIService extends EventEmitter {
-  private model: LanguageModel;
+  private model!: LanguageModel;
   private currentModelName: string;
   private conversationHistory: ModelMessage[] = [];
   private mcpClient: unknown;
+  private secureStorage: SecureStorageService;
 
   constructor() {
     super();
-    const apiKey = process.env.OPENROUTER_API_KEY;
-    this.currentModelName = process.env.OPENAI_MODEL_NAME || 'gpt-4.1-mini';
-
-    if (!apiKey) {
-      throw new Error('OPENROUTER_API_KEY environment variable is required');
-    }
-
-    this.model = this.createModelInstance(this.currentModelName);
-    this.initializeFlintMcpServer();
+    this.secureStorage = new SecureStorageService();
+    this.currentModelName = 'gpt-4.1-mini';
+    this.initializeAsync();
   }
 
-  private createModelInstance(modelName: string): LanguageModel {
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      throw new Error('OPENAI_API_KEY environment variable is required');
+  private async initializeAsync(): Promise<void> {
+    try {
+      this.model = await this.createModelInstance(this.currentModelName);
+      this.initializeFlintMcpServer();
+    } catch (error) {
+      console.error('Failed to initialize AI service:', error);
+      throw error;
     }
-
-    return openai(modelName);
   }
 
-  private switchModel(modelName: string): void {
+  private async createModelInstance(modelName: string): Promise<LanguageModel> {
+    const { key: openaiKey } = await this.secureStorage.getApiKey('openai');
+    const { key: openrouterKey } = await this.secureStorage.getApiKey('openrouter');
+
+    // Prefer OpenRouter key if available, fallback to OpenAI
+    const apiKey = openrouterKey || openaiKey;
+
+    if (!apiKey) {
+      throw new Error(
+        'No API key found in secure storage. Please configure OpenAI or OpenRouter API key.'
+      );
+    }
+
+    if (openrouterKey) {
+      const openrouterProvider = createOpenAI({
+        apiKey,
+        baseURL: 'https://openrouter.ai/api/v1'
+      });
+      return openrouterProvider(modelName);
+    } else {
+      const openaiProvider = createOpenAI({
+        apiKey
+      });
+      return openaiProvider(modelName);
+    }
+  }
+
+  private async switchModel(modelName: string): Promise<void> {
     if (modelName !== this.currentModelName) {
       console.log(`Switching model from ${this.currentModelName} to ${modelName}`);
       this.currentModelName = modelName;
-      this.model = this.createModelInstance(modelName);
+      this.model = await this.createModelInstance(modelName);
     }
   }
 
@@ -63,10 +83,9 @@ export class AIService extends EventEmitter {
   }> {
     try {
       // Switch model if specified
-      console.log(`would switch to ${modelName}`);
-      // if (modelName) {
-      //   this.switchModel(modelName);
-      // }
+      if (modelName) {
+        await this.switchModel(modelName);
+      }
 
       // Add user message to conversation history
       this.conversationHistory.push({ role: 'user', content: userMessage });
@@ -154,7 +173,7 @@ Use these tools to help users manage their notes effectively and answer their qu
     try {
       // Switch model if specified
       if (modelName) {
-        this.switchModel(modelName);
+        await this.switchModel(modelName);
       }
 
       // Add user message to conversation history
