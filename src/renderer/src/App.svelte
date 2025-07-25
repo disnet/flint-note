@@ -31,6 +31,7 @@
     'sidebar'
   );
   let showCreateNoteModal = $state(false);
+  let showSettingsModal = $state(false);
   let layoutMode = $state<'three-column' | 'single-column'>('single-column');
 
   // References to NoteEditor components for focusing
@@ -58,6 +59,10 @@
 
   function handleCloseCreateModal(): void {
     showCreateNoteModal = false;
+  }
+
+  function handleCloseSettingsModal(): void {
+    showSettingsModal = false;
   }
 
   function handleNoteCreated(noteId: string): void {
@@ -149,7 +154,11 @@
       // Ctrl/Cmd + , to open settings
       if (event.key === ',' && (event.ctrlKey || event.metaKey)) {
         event.preventDefault();
-        activeTab = 'settings';
+        if (layoutMode === 'three-column') {
+          showSettingsModal = true;
+        } else {
+          activeTab = 'settings';
+        }
       }
     }
 
@@ -273,6 +282,26 @@
           <SearchBar onNoteSelect={handleNoteSelect} />
         </div>
         <div class="header-section">
+          <button
+            class="settings-button"
+            onclick={() => (showSettingsModal = true)}
+            aria-label="Open settings"
+            title="Settings (⌘,)"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M12 1v6m0 6v6m11-7h-6m-6 0H1m12-6l-3 3 3 3m-6-6l3 3-3 3"></path>
+            </svg>
+          </button>
           <VaultSwitcher />
         </div>
       </div>
@@ -369,6 +398,47 @@
     onClose={handleCloseCreateModal}
     onNoteCreated={handleNoteCreated}
   />
+
+  {#if showSettingsModal}
+    <div
+      class="settings-modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      onclick={handleCloseSettingsModal}
+      onkeydown={(e) => e.key === 'Escape' && handleCloseSettingsModal()}
+    >
+      <div
+        class="settings-modal"
+        role="document"
+        onclick={(e) => e.stopPropagation()}
+        onkeydown={(e) => e.stopPropagation()}
+      >
+        <div class="settings-modal-header">
+          <h2>Settings</h2>
+          <button
+            class="settings-close-button"
+            onclick={handleCloseSettingsModal}
+            aria-label="Close settings"
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <div class="settings-modal-content">
+          <Settings />
+        </div>
+      </div>
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -424,6 +494,34 @@
 
   .header-section:last-child {
     justify-content: flex-end;
+    gap: 0.75rem;
+  }
+
+  .settings-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem;
+    border: 1px solid var(--border-light);
+    border-radius: 0.5rem;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 2px var(--shadow-light);
+  }
+
+  .settings-button:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--border-medium);
+    color: var(--text-primary);
+    box-shadow: 0 2px 4px var(--shadow-medium);
+    transform: translateY(-1px);
+  }
+
+  .settings-button:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 2px var(--shadow-light);
   }
 
   /* Default header */
@@ -558,6 +656,92 @@
   @media (max-width: 1200px) {
     .tab-layout.has-sidebar {
       padding-right: 0;
+    }
+  }
+
+  /* Settings Modal */
+  .settings-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    padding: 2rem;
+  }
+
+  .settings-modal {
+    background: var(--bg-primary);
+    border-radius: 0.75rem;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    max-width: 600px;
+    width: 100%;
+    max-height: 80vh;
+    overflow: hidden;
+    border: 1px solid var(--border-light);
+  }
+
+  .settings-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.5rem 2rem 1rem 2rem;
+    border-bottom: 1px solid var(--border-light);
+    background: var(--bg-secondary);
+  }
+
+  .settings-modal-header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .settings-close-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem;
+    border: none;
+    border-radius: 0.5rem;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .settings-close-button:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+  }
+
+  .settings-modal-content {
+    overflow-y: auto;
+    max-height: calc(80vh - 120px);
+  }
+
+  @media (max-width: 768px) {
+    .settings-modal-overlay {
+      padding: 1rem;
+    }
+
+    .settings-modal {
+      max-width: none;
+      width: 100%;
+      max-height: 90vh;
+    }
+
+    .settings-modal-header {
+      padding: 1rem 1.5rem 0.75rem 1.5rem;
+    }
+
+    .settings-modal-header h2 {
+      font-size: 1.25rem;
     }
   }
 </style>
