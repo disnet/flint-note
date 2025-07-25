@@ -58,18 +58,6 @@ app.whenReady().then(async () => {
   // IPC test
   ipcMain.on('ping', () => console.log('pong'));
 
-  // Initialize AI service
-  let aiService: AIService | null = null;
-  try {
-    aiService = new AIService();
-    // Wait for MCP servers to initialize
-    // await aiService.waitForInitialization();
-    console.log('AI Service initialized successfully');
-  } catch (error) {
-    console.error('Failed to initialize AI Service:', error);
-    console.log('Falling back to mock responses');
-  }
-
   // Initialize Note service
   let noteService: NoteService | null = null;
   try {
@@ -82,13 +70,18 @@ app.whenReady().then(async () => {
   }
 
   // Initialize Secure Storage service
-  let secureStorageService: SecureStorageService | null = null;
+  const secureStorageService = new SecureStorageService();
+
+  // Initialize AI service
+  let aiService: AIService | null = null;
   try {
-    secureStorageService = new SecureStorageService();
-    console.log('Secure Storage Service initialized successfully');
+    aiService = await AIService.of(secureStorageService);
+    // Wait for MCP servers to initialize
+    // await aiService.waitForInitialization();
+    console.log('AI Service initialized successfully');
   } catch (error) {
-    console.error('Failed to initialize Secure Storage Service:', error);
-    console.log('Secure storage will not be available');
+    console.error('Failed to initialize AI Service:', error);
+    console.log('Falling back to mock responses');
   }
 
   // Chat handlers - now with real AI integration
@@ -467,7 +460,7 @@ app.whenReady().then(async () => {
     async (
       _event,
       params: {
-        provider: 'anthropic' | 'openai';
+        provider: 'anthropic' | 'openai' | 'gateway';
         key: string;
         orgId?: string;
       }
@@ -485,7 +478,7 @@ app.whenReady().then(async () => {
 
   ipcMain.handle(
     'get-api-key',
-    async (_event, params: { provider: 'anthropic' | 'openai' }) => {
+    async (_event, params: { provider: 'anthropic' | 'openai' | 'gateway' }) => {
       if (!secureStorageService) {
         throw new Error('Secure storage service not available');
       }
@@ -495,7 +488,7 @@ app.whenReady().then(async () => {
 
   ipcMain.handle(
     'test-api-key',
-    async (_event, params: { provider: 'anthropic' | 'openai' }) => {
+    async (_event, params: { provider: 'anthropic' | 'openai' | 'gateway' }) => {
       if (!secureStorageService) {
         throw new Error('Secure storage service not available');
       }
@@ -511,7 +504,8 @@ app.whenReady().then(async () => {
     return {
       anthropic: secureData.anthropicApiKey || '',
       openai: secureData.openaiApiKey || '',
-      openaiOrgId: secureData.openaiOrgId || ''
+      openaiOrgId: secureData.openaiOrgId || '',
+      gateway: secureData.gatewayApiKey || ''
     };
   });
 

@@ -126,13 +126,13 @@ const api = {
   secureStorageAvailable: () =>
     electronAPI.ipcRenderer.invoke('secure-storage-available'),
   storeApiKey: (params: {
-    provider: 'anthropic' | 'openai';
+    provider: 'anthropic' | 'openai' | 'gateway';
     key: string;
     orgId?: string;
   }) => electronAPI.ipcRenderer.invoke('store-api-key', params),
-  getApiKey: (params: { provider: 'anthropic' | 'openai' }) =>
+  getApiKey: (params: { provider: 'anthropic' | 'openai' | 'gateway' }) =>
     electronAPI.ipcRenderer.invoke('get-api-key', params),
-  testApiKey: (params: { provider: 'anthropic' | 'openai' }) =>
+  testApiKey: (params: { provider: 'anthropic' | 'openai' | 'gateway' }) =>
     electronAPI.ipcRenderer.invoke('test-api-key', params),
   getAllApiKeys: () => electronAPI.ipcRenderer.invoke('get-all-api-keys'),
   clearApiKeys: () => electronAPI.ipcRenderer.invoke('clear-api-keys')

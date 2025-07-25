@@ -86,7 +86,6 @@
   class:agent={message.sender === 'agent'}
 >
   <div class="message-header">
-    <span class="sender">[{message.sender === 'user' ? 'User' : 'Agent'}]</span>
     <span class="timestamp">{formatTime(message.timestamp)}</span>
   </div>
   {#if message.toolCalls && message.toolCalls.length > 0}

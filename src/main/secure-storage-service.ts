@@ -8,6 +8,7 @@ export interface SecureData {
   openaiApiKey?: string;
   openaiOrgId?: string;
   openrouterApiKey?: string;
+  gatewayApiKey?: string;
 }
 
 export class SecureStorageService {
@@ -75,7 +76,7 @@ export class SecureStorageService {
    * Update a specific API key
    */
   async updateApiKey(
-    provider: 'anthropic' | 'openai' | 'openrouter',
+    provider: 'anthropic' | 'openai' | 'openrouter' | 'gateway',
     key: string,
     orgId?: string
   ): Promise<void> {
@@ -92,6 +93,8 @@ export class SecureStorageService {
         }
       } else if (provider === 'openrouter') {
         updatedData.openrouterApiKey = key || undefined;
+      } else if (provider === 'gateway') {
+        updatedData.gatewayApiKey = key || undefined;
       }
 
       await this.storeSecureData(updatedData);
@@ -105,7 +108,7 @@ export class SecureStorageService {
    * Get a specific API key
    */
   async getApiKey(
-    provider: 'anthropic' | 'openai' | 'openrouter'
+    provider: 'anthropic' | 'openai' | 'openrouter' | 'gateway'
   ): Promise<{ key: string; orgId?: string }> {
     try {
       const data = await this.retrieveSecureData();
@@ -123,6 +126,11 @@ export class SecureStorageService {
       } else if (provider === 'openrouter') {
         return {
           key: data.openrouterApiKey || '',
+          orgId: undefined
+        };
+      } else if (provider === 'gateway') {
+        return {
+          key: data.gatewayApiKey || '',
           orgId: undefined
         };
       }
@@ -150,7 +158,9 @@ export class SecureStorageService {
   /**
    * Test if an API key is stored and valid format
    */
-  async testApiKey(provider: 'anthropic' | 'openai' | 'openrouter'): Promise<boolean> {
+  async testApiKey(
+    provider: 'anthropic' | 'openai' | 'openrouter' | 'gateway'
+  ): Promise<boolean> {
     try {
       const { key } = await this.getApiKey(provider);
 
@@ -160,6 +170,8 @@ export class SecureStorageService {
         return key.startsWith('sk-') && key.length > 20;
       } else if (provider === 'openrouter') {
         return key.startsWith('sk-') && key.length > 20;
+      } else if (provider === 'gateway') {
+        return key.length > 10; // Gateway keys may have different formats
       }
 
       return false;

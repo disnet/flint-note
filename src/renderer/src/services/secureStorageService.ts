@@ -19,7 +19,7 @@ export class SecureStorageService {
   }
 
   async storeApiKey(
-    provider: 'anthropic' | 'openai',
+    provider: 'anthropic' | 'openai' | 'gateway',
     key: string,
     orgId?: string
   ): Promise<void> {
@@ -32,7 +32,7 @@ export class SecureStorageService {
   }
 
   async getApiKey(
-    provider: 'anthropic' | 'openai'
+    provider: 'anthropic' | 'openai' | 'gateway'
   ): Promise<{ key: string; orgId?: string }> {
     try {
       return await window.api.getApiKey({ provider });
@@ -46,6 +46,7 @@ export class SecureStorageService {
     anthropic: string;
     openai: string;
     openaiOrgId: string;
+    gateway: string;
   }> {
     try {
       return await window.api.getAllApiKeys();
@@ -54,12 +55,13 @@ export class SecureStorageService {
       return {
         anthropic: '',
         openai: '',
-        openaiOrgId: ''
+        openaiOrgId: '',
+        gateway: ''
       };
     }
   }
 
-  async testApiKey(provider: 'anthropic' | 'openai'): Promise<boolean> {
+  async testApiKey(provider: 'anthropic' | 'openai' | 'gateway'): Promise<boolean> {
     try {
       return await window.api.testApiKey({ provider });
     } catch (error) {
@@ -77,11 +79,13 @@ export class SecureStorageService {
     }
   }
 
-  validateApiKey(provider: 'anthropic' | 'openai', key: string): boolean {
+  validateApiKey(provider: 'anthropic' | 'openai' | 'gateway', key: string): boolean {
     if (provider === 'anthropic') {
       return key.startsWith('sk-ant-') && key.length > 20;
     } else if (provider === 'openai') {
       return key.startsWith('sk-') && key.length > 20;
+    } else if (provider === 'gateway') {
+      return key.length > 10; // Gateway keys may have different formats
     }
     return false;
   }

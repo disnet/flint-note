@@ -128,18 +128,21 @@ declare global {
       // Secure storage operations
       secureStorageAvailable: () => Promise<boolean>;
       storeApiKey: (params: {
-        provider: 'anthropic' | 'openai';
+        provider: 'anthropic' | 'openai' | 'gateway';
         key: string;
         orgId?: string;
       }) => Promise<void>;
       getApiKey: (params: {
-        provider: 'anthropic' | 'openai';
+        provider: 'anthropic' | 'openai' | 'gateway';
       }) => Promise<{ key: string; orgId?: string }>;
-      testApiKey: (params: { provider: 'anthropic' | 'openai' }) => Promise<boolean>;
+      testApiKey: (params: {
+        provider: 'anthropic' | 'openai' | 'gateway';
+      }) => Promise<boolean>;
       getAllApiKeys: () => Promise<{
         anthropic: string;
         openai: string;
         openaiOrgId: string;
+        gateway: string;
       }>;
       clearApiKeys: () => Promise<void>;
     };

@@ -7,10 +7,6 @@
 </script>
 
 <div class="message agent loading-message">
-  <div class="message-header">
-    <span class="sender">[Agent]</span>
-    <span class="timestamp">{formatTime(timestamp)}</span>
-  </div>
   <div class="message-content">
     <div class="loading-dots">
       <span class="dot"></span>

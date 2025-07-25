@@ -1,66 +1,34 @@
-import { createOpenAI } from '@ai-sdk/openai';
-import { generateText, streamText, LanguageModel, ModelMessage, stepCountIs } from 'ai';
+import { createGateway, type GatewayProvider } from '@ai-sdk/gateway';
+import { generateText, streamText, ModelMessage, stepCountIs } from 'ai';
 import { experimental_createMCPClient as createMCPClient } from 'ai';
 import { Experimental_StdioMCPTransport as StdioMCPTransport } from 'ai/mcp-stdio';
 import { EventEmitter } from 'events';
 import { SecureStorageService } from './secure-storage-service';
 
 export class AIService extends EventEmitter {
-  private model!: LanguageModel;
   private currentModelName: string;
   private conversationHistory: ModelMessage[] = [];
   private mcpClient: unknown;
-  private secureStorage: SecureStorageService;
+  private gateway: GatewayProvider;
 
-  constructor() {
+  constructor(gateway: GatewayProvider) {
     super();
-    this.secureStorage = new SecureStorageService();
-    this.currentModelName = 'gpt-4.1-mini';
-    this.initializeAsync();
+    this.currentModelName = 'openai/gpt-4o-mini';
+    this.initializeFlintMcpServer();
+    this.gateway = gateway;
   }
 
-  private async initializeAsync(): Promise<void> {
-    try {
-      this.model = await this.createModelInstance(this.currentModelName);
-      this.initializeFlintMcpServer();
-    } catch (error) {
-      console.error('Failed to initialize AI service:', error);
-      throw error;
-    }
+  static async of(secureStorage: SecureStorageService): Promise<AIService> {
+    const gateway = createGateway({
+      apiKey: (await secureStorage.getApiKey('gateway')).key
+    });
+    return new AIService(gateway);
   }
 
-  private async createModelInstance(modelName: string): Promise<LanguageModel> {
-    const { key: openaiKey } = await this.secureStorage.getApiKey('openai');
-    const { key: openrouterKey } = await this.secureStorage.getApiKey('openrouter');
-
-    // Prefer OpenRouter key if available, fallback to OpenAI
-    const apiKey = openrouterKey || openaiKey;
-
-    if (!apiKey) {
-      throw new Error(
-        'No API key found in secure storage. Please configure OpenAI or OpenRouter API key.'
-      );
-    }
-
-    if (openrouterKey) {
-      const openrouterProvider = createOpenAI({
-        apiKey,
-        baseURL: 'https://openrouter.ai/api/v1'
-      });
-      return openrouterProvider(modelName);
-    } else {
-      const openaiProvider = createOpenAI({
-        apiKey
-      });
-      return openaiProvider(modelName);
-    }
-  }
-
-  private async switchModel(modelName: string): Promise<void> {
+  private switchModel(modelName: string): void {
     if (modelName !== this.currentModelName) {
       console.log(`Switching model from ${this.currentModelName} to ${modelName}`);
       this.currentModelName = modelName;
-      this.model = await this.createModelInstance(modelName);
     }
   }
 
@@ -84,7 +52,7 @@ export class AIService extends EventEmitter {
     try {
       // Switch model if specified
       if (modelName) {
-        await this.switchModel(modelName);
+        this.switchModel(modelName);
       }
 
       // Add user message to conversation history
@@ -118,7 +86,7 @@ Use these tools to help users manage their notes effectively and answer their qu
       // @ts-ignore: mcpClient types not exported yet
       const mcpTools = this.mcpClient ? await this.mcpClient.tools() : {};
       const result = await generateText({
-        model: this.model,
+        model: this.gateway(this.currentModelName),
         messages,
         tools: mcpTools as any, // eslint-disable-line @typescript-eslint/no-explicit-any
         onStepFinish: (step) => {
@@ -173,7 +141,7 @@ Use these tools to help users manage their notes effectively and answer their qu
     try {
       // Switch model if specified
       if (modelName) {
-        await this.switchModel(modelName);
+        this.switchModel(modelName);
       }
 
       // Add user message to conversation history
@@ -211,7 +179,7 @@ Use these tools to help users manage their notes effectively and answer their qu
       const mcpTools = this.mcpClient ? await this.mcpClient.tools() : {};
 
       const result = streamText({
-        model: this.model,
+        model: this.gateway(this.currentModelName),
         messages,
         tools: mcpTools as any, // eslint-disable-line @typescript-eslint/no-explicit-any
         stopWhen: stepCountIs(5), // Allow up to 5 steps for multi-turn tool calling

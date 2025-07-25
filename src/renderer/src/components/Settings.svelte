@@ -12,14 +12,17 @@
   let anthropicKey = $state('');
   let openaiKey = $state('');
   let openaiOrgId = $state('');
+  let gatewayKey = $state('');
 
   // Validation states
   let anthropicKeyValid = $state(false);
   let openaiKeyValid = $state(false);
+  let gatewayKeyValid = $state(false);
 
   // Auto-save debounce timers
   let anthropicSaveTimer;
   let openaiSaveTimer;
+  let gatewaySaveTimer;
 
   // Load API keys on component mount
   $effect(async () => {
@@ -32,10 +35,12 @@
       anthropicKey = keys.anthropic;
       openaiKey = keys.openai;
       openaiOrgId = keys.openaiOrgId;
+      gatewayKey = keys.gateway;
 
       // Update validation
       anthropicKeyValid = secureStorageService.validateApiKey('anthropic', anthropicKey);
       openaiKeyValid = secureStorageService.validateApiKey('openai', openaiKey);
+      gatewayKeyValid = secureStorageService.validateApiKey('gateway', gatewayKey);
     } catch (error) {
       console.error('Failed to load API keys:', error);
     }
@@ -47,6 +52,9 @@
       }
       if (openaiSaveTimer) {
         clearTimeout(openaiSaveTimer);
+      }
+      if (gatewaySaveTimer) {
+        clearTimeout(gatewaySaveTimer);
       }
     };
   });
@@ -76,7 +84,7 @@
   }
 
   async function autoSaveApiKey(
-    provider: 'anthropic' | 'openai',
+    provider: 'anthropic' | 'openai' | 'gateway',
     key: string,
     orgId?: string
   ): Promise<void> {
@@ -128,6 +136,18 @@
     }, 1000); // 1 second debounce
   }
 
+  function debounceGatewaySave(): void {
+    if (gatewaySaveTimer) {
+      clearTimeout(gatewaySaveTimer);
+    }
+
+    gatewaySaveTimer = setTimeout(() => {
+      if (gatewayKey && gatewayKeyValid) {
+        autoSaveApiKey('gateway', gatewayKey);
+      }
+    }, 1000); // 1 second debounce
+  }
+
   function handleDefaultModelChange(event: Event): void {
     const target = event.target as HTMLSelectElement;
     settingsStore.updateDefaultModel(target.value);
@@ -163,14 +183,17 @@
       anthropicKey = '';
       openaiKey = '';
       openaiOrgId = '';
+      gatewayKey = '';
       anthropicKeyValid = false;
       openaiKeyValid = false;
+      gatewayKeyValid = false;
 
       settingsStore.updateSettings({
         apiKeys: {
           anthropic: '',
           openai: '',
-          openaiOrgId: ''
+          openaiOrgId: '',
+          gateway: ''
         }
       });
 
@@ -344,6 +367,35 @@
               href="https://platform.openai.com/api-keys"
               target="_blank">platform.openai.com</a
             ></small
+          >
+        </div>
+
+        <div class="api-key-group">
+          <label for="gateway-key-input">
+            <strong>AI Gateway API Key</strong>
+            <span class="validation-indicator" class:valid={gatewayKeyValid}>
+              {gatewayKeyValid ? '✓' : '❌'}
+            </span>
+          </label>
+          <div class="input-group">
+            <input
+              id="gateway-key-input"
+              type="password"
+              bind:value={gatewayKey}
+              placeholder="Your AI Gateway API key"
+              class="api-key-input"
+              oninput={() => {
+                gatewayKeyValid = secureStorageService.validateApiKey(
+                  'gateway',
+                  gatewayKey
+                );
+                debounceGatewaySave();
+              }}
+            />
+          </div>
+          <small
+            >Configure your AI Gateway to access multiple AI providers through a single
+            interface</small
           >
         </div>
 
