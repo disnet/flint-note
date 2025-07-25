@@ -124,6 +124,24 @@ declare global {
 
       // Service status
       noteServiceReady: () => Promise<boolean>;
+
+      // Secure storage operations
+      secureStorageAvailable: () => Promise<boolean>;
+      storeApiKey: (params: {
+        provider: 'anthropic' | 'openai';
+        key: string;
+        orgId?: string;
+      }) => Promise<void>;
+      getApiKey: (params: {
+        provider: 'anthropic' | 'openai';
+      }) => Promise<{ key: string; orgId?: string }>;
+      testApiKey: (params: { provider: 'anthropic' | 'openai' }) => Promise<boolean>;
+      getAllApiKeys: () => Promise<{
+        anthropic: string;
+        openai: string;
+        openaiOrgId: string;
+      }>;
+      clearApiKeys: () => Promise<void>;
     };
   }
 }

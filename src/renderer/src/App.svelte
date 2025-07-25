@@ -8,6 +8,7 @@
   import VaultSwitcher from './components/VaultSwitcher.svelte';
   import CreateNoteModal from './components/CreateNoteModal.svelte';
   import SearchBar from './components/SearchBar.svelte';
+  import Settings from './components/Settings.svelte';
   import type { Message } from './services/types';
   import type { NoteMetadata } from './services/noteStore.svelte';
   import { getChatService } from './services/chatService';
@@ -39,7 +40,8 @@
   const tabs = [
     { id: 'chat', label: 'Chat' },
     { id: 'notes', label: 'Notes' },
-    { id: 'pinned', label: 'Pinned' }
+    { id: 'pinned', label: 'Pinned' },
+    { id: 'settings', label: 'Settings' }
   ];
 
   function handleTabChange(tabId: string): void {
@@ -142,6 +144,12 @@
       if (event.key === 'n' && (event.ctrlKey || event.metaKey)) {
         event.preventDefault();
         handleCreateNote();
+      }
+
+      // Ctrl/Cmd + , to open settings
+      if (event.key === ',' && (event.ctrlKey || event.metaKey)) {
+        event.preventDefault();
+        activeTab = 'settings';
       }
     }
 
@@ -334,6 +342,8 @@
             <NotesView onNoteSelect={handleNoteSelect} onCreateNote={handleCreateNote} />
           {:else if activeTab === 'pinned'}
             <PinnedView onNoteSelect={handleNoteSelect} />
+          {:else if activeTab === 'settings'}
+            <Settings />
           {/if}
         </div>
         {#if activeNote}

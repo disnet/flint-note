@@ -4,6 +4,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import icon from '../../resources/icon.png?asset';
 import { AIService } from './ai-service';
 import { NoteService } from './note-service';
+import { SecureStorageService } from './secure-storage-service';
 import type { MetadataSchema } from '@flint-note/server/dist/core/metadata-schema';
 import { NoteMetadata } from '@flint-note/server';
 
@@ -78,6 +79,16 @@ app.whenReady().then(async () => {
   } catch (error) {
     console.error('Failed to initialize Note Service:', error);
     console.log('Note operations will not be available');
+  }
+
+  // Initialize Secure Storage service
+  let secureStorageService: SecureStorageService | null = null;
+  try {
+    secureStorageService = new SecureStorageService();
+    console.log('Secure Storage Service initialized successfully');
+  } catch (error) {
+    console.error('Failed to initialize Secure Storage Service:', error);
+    console.log('Secure storage will not be available');
   }
 
   // Chat handlers - now with real AI integration
@@ -444,6 +455,71 @@ app.whenReady().then(async () => {
   // Service status
   ipcMain.handle('note-service-ready', async () => {
     return noteService?.isReady() || false;
+  });
+
+  // Secure storage handlers
+  ipcMain.handle('secure-storage-available', async () => {
+    return secureStorageService?.isAvailable() || false;
+  });
+
+  ipcMain.handle(
+    'store-api-key',
+    async (
+      _event,
+      params: {
+        provider: 'anthropic' | 'openai';
+        key: string;
+        orgId?: string;
+      }
+    ) => {
+      if (!secureStorageService) {
+        throw new Error('Secure storage service not available');
+      }
+      return await secureStorageService.updateApiKey(
+        params.provider,
+        params.key,
+        params.orgId
+      );
+    }
+  );
+
+  ipcMain.handle(
+    'get-api-key',
+    async (_event, params: { provider: 'anthropic' | 'openai' }) => {
+      if (!secureStorageService) {
+        throw new Error('Secure storage service not available');
+      }
+      return await secureStorageService.getApiKey(params.provider);
+    }
+  );
+
+  ipcMain.handle(
+    'test-api-key',
+    async (_event, params: { provider: 'anthropic' | 'openai' }) => {
+      if (!secureStorageService) {
+        throw new Error('Secure storage service not available');
+      }
+      return await secureStorageService.testApiKey(params.provider);
+    }
+  );
+
+  ipcMain.handle('get-all-api-keys', async () => {
+    if (!secureStorageService) {
+      throw new Error('Secure storage service not available');
+    }
+    const secureData = await secureStorageService.retrieveSecureData();
+    return {
+      anthropic: secureData.anthropicApiKey || '',
+      openai: secureData.openaiApiKey || '',
+      openaiOrgId: secureData.openaiOrgId || ''
+    };
+  });
+
+  ipcMain.handle('clear-api-keys', async () => {
+    if (!secureStorageService) {
+      throw new Error('Secure storage service not available');
+    }
+    return await secureStorageService.clearAllKeys();
   });
 
   createWindow();

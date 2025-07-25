@@ -532,9 +532,111 @@ VaultSwitcher.switchVault()
 
 **Outcome:** Users can seamlessly switch between different AI models based on their needs - using cost-effective models for simple queries and powerful models for complex reasoning tasks.
 
-### Phase 14: Metadata Editor
+### Phase 14: Settings Screen
 
-- **Toggle:** “𝑖” icon in editor header (or `⌘ I`).
+**Goal:** Provide a dedicated settings interface for managing API keys and application preferences.
+
+**Key Components:**
+
+#### **Settings Access**
+
+- **Settings Button:** Add a gear/settings icon in the main header or toolbar for easy access
+- **Keyboard Shortcut:** Support Cmd/Ctrl+, (comma) for quick settings access
+- **Settings Tab:** Option to add "Settings" as a fourth tab alongside Chat, Notes, and Pinned
+
+#### **API Key Management**
+
+- **Anthropic API Key:** Secure input field for Claude API configuration
+  - Real-time validation to test key validity
+  - Support for different Claude model access levels
+  - Clear instructions for obtaining API keys
+- **OpenAI API Key:** Input field for GPT model access
+  - Organization ID field (optional)
+  - Model availability verification
+  - Usage monitoring and rate limiting info
+- **Key Security:**
+  - API keys stored securely in encrypted local storage
+  - Option to show/hide key values (masked by default)
+  - Clear warnings about key security and sharing
+
+#### **Model Configuration**
+
+- **Default Model Selection:** Set preferred default model per provider
+- **Model Availability:** Show which models are accessible with current API keys
+- **Cost Preferences:** Optional cost-per-token warnings and budgets
+- **Context Length Settings:** Configure max context per model
+
+#### **Application Preferences**
+
+- **Theme Selection:** Light/Dark/System mode toggle
+- **Auto-save Settings:** Configure debounce timing for note saves
+- **Pinned Notes Limit:** Maximum number of pinned notes allowed
+- **Chat History:** Retention settings and clear history option
+
+**UI Mockup:**
+
+```
+┌─────────────────────────────────────────┐
+│ [Chat] [Notes] [Pinned] [Settings]      │
+├─────────────────────────────────────────┤
+│ ⚙️  Settings                            │
+│                                         │
+│ 🔑 API Keys                             │
+│ ┌─────────────────────────────────────┐ │
+│ │ Anthropic: [sk-ant-***************] │ │
+│ │ OpenAI:    [sk-proj-**************] │ │
+│ └─────────────────────────────────────┘ │
+│                                         │
+│ 🤖 Model Preferences                    │
+│ Default Model: [Claude 3.5 Sonnet ▼]   │
+│ Show Costs: [✓] Warn at $10/month      │
+│                                         │
+│ 🎨 Appearance                           │
+│ Theme: [⚫ Dark] [⚪ Light] [🖥️ System]  │
+│                                         │
+│ 💾 Data & Privacy                       │
+│ Auto-save delay: [500ms ▼]              │
+│ Chat history: [Keep 30 days ▼] [Clear] │
+│                                         │
+│        [Reset to Defaults] [Save]       │
+├─────────────────────────────────────────┤
+│ > Type your message...                  │
+└─────────────────────────────────────────┘
+```
+
+#### **Settings Validation & Feedback**
+
+- **Real-time Validation:** Test API keys immediately on input
+- **Connection Status:** Visual indicators (✓/❌) for each provider
+- **Error Messages:** Clear, actionable error messages for invalid configurations
+- **Success Feedback:** Confirmation when settings are saved successfully
+
+#### **Import/Export Settings**
+
+- **Settings Backup:** Export all preferences to a JSON file (excluding API keys)
+- **Settings Restore:** Import preferences from backup file
+- **Reset Options:** Selective reset by category or complete reset to defaults
+
+#### **Advanced Options**
+
+- **Debug Mode:** Toggle for additional logging and diagnostics
+- **Performance Settings:** Memory usage limits, cache size configuration
+- **Proxy Configuration:** HTTP/HTTPS proxy settings for corporate networks
+- **Custom Endpoints:** Override default API endpoints for self-hosted solutions
+
+**Technical Implementation:**
+
+- **Settings Store:** Dedicated Svelte store for managing all application settings
+- **Secure Storage:** Use Electron's safeStorage API for sensitive data like API keys
+- **Settings Persistence:** JSON configuration file with encrypted sensitive fields
+- **Migration System:** Handle settings schema changes between app versions
+- **Validation Service:** Centralized validation for all settings with async key testing
+
+**Outcome:** Users can securely configure their API keys, customize their experience, and manage application behavior through an intuitive settings interface that prioritizes security and ease of use.
+
+### Phase 15: Metadata Editor
+
+- **Toggle:** "𝑖" icon in editor header (or `⌘ I`).
 - **Layout:** Slide-over panel on right (desktop) or modal (mobile).
 - **Fields:** Title (readonly), Tags (comma list with chips), Aliases, Created, Updated, Custom key-value.
 - **Sync:**

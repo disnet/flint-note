@@ -120,7 +120,22 @@ const api = {
     electronAPI.ipcRenderer.invoke('find-broken-links', params),
 
   // Service status
-  noteServiceReady: () => electronAPI.ipcRenderer.invoke('note-service-ready')
+  noteServiceReady: () => electronAPI.ipcRenderer.invoke('note-service-ready'),
+
+  // Secure storage operations
+  secureStorageAvailable: () =>
+    electronAPI.ipcRenderer.invoke('secure-storage-available'),
+  storeApiKey: (params: {
+    provider: 'anthropic' | 'openai';
+    key: string;
+    orgId?: string;
+  }) => electronAPI.ipcRenderer.invoke('store-api-key', params),
+  getApiKey: (params: { provider: 'anthropic' | 'openai' }) =>
+    electronAPI.ipcRenderer.invoke('get-api-key', params),
+  testApiKey: (params: { provider: 'anthropic' | 'openai' }) =>
+    electronAPI.ipcRenderer.invoke('test-api-key', params),
+  getAllApiKeys: () => electronAPI.ipcRenderer.invoke('get-all-api-keys'),
+  clearApiKeys: () => electronAPI.ipcRenderer.invoke('clear-api-keys')
 };
 
 // Use `contextBridge` APIs to expose Electron APIs to
