@@ -17,6 +17,7 @@ import type {
 } from '@flint-note/server/dist/api/types';
 import type { ExternalLinkRow } from '@flint-note/server/dist/database/schema';
 import type { MetadataSchema } from '@flint-note/server/dist/core/metadata-schema';
+import { logger } from './logger';
 
 export class NoteService {
   private api: FlintNoteApi;
@@ -38,9 +39,9 @@ export class NoteService {
     try {
       await this.api.initialize();
       this.isInitialized = true;
-      console.log('FlintNote API initialized successfully');
+      logger.info('FlintNote API initialized successfully');
     } catch (error) {
-      console.error('Failed to initialize FlintNote API:', error);
+      logger.error('Failed to initialize FlintNote API', { error });
       throw error;
     }
   }

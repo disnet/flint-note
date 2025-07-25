@@ -2,6 +2,7 @@ import { safeStorage } from 'electron';
 import { join } from 'path';
 import { app } from 'electron';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
+import { logger } from './logger';
 
 export interface SecureData {
   anthropicApiKey?: string;
@@ -39,9 +40,12 @@ export class SecureStorageService {
       const encrypted = safeStorage.encryptString(jsonData);
 
       writeFileSync(this.storageFile, encrypted);
-      console.log('Secure data stored successfully');
+      logger.info('Secure data stored successfully', { storageFile: this.storageFile });
     } catch (error) {
-      console.error('Failed to store secure data:', error);
+      logger.error('Failed to store secure data', {
+        error,
+        storageFile: this.storageFile
+      });
       throw error;
     }
   }
@@ -66,7 +70,10 @@ export class SecureStorageService {
 
       return JSON.parse(decrypted) as SecureData;
     } catch (error) {
-      console.error('Failed to retrieve secure data:', error);
+      logger.error('Failed to retrieve secure data', {
+        error,
+        storageFile: this.storageFile
+      });
       // Return empty data on error rather than throwing
       return {};
     }
@@ -99,7 +106,7 @@ export class SecureStorageService {
 
       await this.storeSecureData(updatedData);
     } catch (error) {
-      console.error(`Failed to update ${provider} API key:`, error);
+      logger.error('Failed to update API key', { provider, error });
       throw error;
     }
   }
@@ -137,7 +144,7 @@ export class SecureStorageService {
 
       return { key: '' };
     } catch (error) {
-      console.error(`Failed to get ${provider} API key:`, error);
+      logger.error('Failed to get API key', { provider, error });
       return { key: '' };
     }
   }
@@ -148,9 +155,9 @@ export class SecureStorageService {
   async clearAllKeys(): Promise<void> {
     try {
       await this.storeSecureData({});
-      console.log('All API keys cleared');
+      logger.info('All API keys cleared');
     } catch (error) {
-      console.error('Failed to clear API keys:', error);
+      logger.error('Failed to clear API keys', { error });
       throw error;
     }
   }
@@ -176,7 +183,7 @@ export class SecureStorageService {
 
       return false;
     } catch (error) {
-      console.error(`Failed to test ${provider} API key:`, error);
+      logger.error('Failed to test API key', { provider, error });
       return false;
     }
   }

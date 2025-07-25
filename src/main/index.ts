@@ -7,6 +7,7 @@ import { NoteService } from './note-service';
 import { SecureStorageService } from './secure-storage-service';
 import type { MetadataSchema } from '@flint-note/server/dist/core/metadata-schema';
 import { NoteMetadata } from '@flint-note/server';
+import { logger } from './logger';
 
 function createWindow(): void {
   // Create the browser window.
@@ -45,6 +46,8 @@ function createWindow(): void {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(async () => {
+  logger.info('Application ready, initializing main process');
+
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron');
 
@@ -56,17 +59,17 @@ app.whenReady().then(async () => {
   });
 
   // IPC test
-  ipcMain.on('ping', () => console.log('pong'));
+  ipcMain.on('ping', () => logger.info('Received ping from renderer'));
 
   // Initialize Note service
   let noteService: NoteService | null = null;
   try {
     noteService = new NoteService();
     await noteService.initialize();
-    console.log('Note Service initialized successfully');
+    logger.info('Note Service initialized successfully');
   } catch (error) {
-    console.error('Failed to initialize Note Service:', error);
-    console.log('Note operations will not be available');
+    logger.error('Failed to initialize Note Service', { error });
+    logger.warn('Note operations will not be available');
   }
 
   // Initialize Secure Storage service
@@ -78,10 +81,10 @@ app.whenReady().then(async () => {
     aiService = await AIService.of(secureStorageService);
     // Wait for MCP servers to initialize
     // await aiService.waitForInitialization();
-    console.log('AI Service initialized successfully');
+    logger.info('AI Service initialized successfully');
   } catch (error) {
-    console.error('Failed to initialize AI Service:', error);
-    console.log('Falling back to mock responses');
+    logger.error('Failed to initialize AI Service', { error });
+    logger.warn('Falling back to mock responses');
   }
 
   // Chat handlers - now with real AI integration
@@ -108,7 +111,7 @@ app.whenReady().then(async () => {
           return { text: randomResponse };
         }
       } catch (error) {
-        console.error('Error processing message:', error);
+        logger.error('Error processing message', { error });
         return {
           text: "I'm sorry, I encountered an error while processing your message. Please try again."
         };
@@ -168,7 +171,7 @@ app.whenReady().then(async () => {
           });
         }
       } catch (error) {
-        console.error('Error processing streaming message:', error);
+        logger.error('Error processing streaming message', { error });
         event.sender.send('ai-stream-error', {
           requestId: params.requestId,
           error: 'Failed to process streaming message'
@@ -517,11 +520,15 @@ app.whenReady().then(async () => {
   });
 
   createWindow();
+  logger.info('Main window created and IPC handlers registered');
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    if (BrowserWindow.getAllWindows().length === 0) {
+      logger.info('Reactivating application, creating new window');
+      createWindow();
+    }
   });
 });
 
@@ -529,7 +536,9 @@ app.whenReady().then(async () => {
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
+  logger.info('All windows closed');
   if (process.platform !== 'darwin') {
+    logger.info('Quitting application');
     app.quit();
   }
 });

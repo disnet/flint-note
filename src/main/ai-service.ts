@@ -5,6 +5,7 @@ import { Experimental_StdioMCPTransport as StdioMCPTransport } from 'ai/mcp-stdi
 import { EventEmitter } from 'events';
 import { z } from 'zod';
 import { SecureStorageService } from './secure-storage-service';
+import { logger } from './logger';
 
 export class AIService extends EventEmitter {
   private currentModelName: string;
@@ -15,6 +16,7 @@ export class AIService extends EventEmitter {
   constructor(gateway: GatewayProvider) {
     super();
     this.currentModelName = 'openai/gpt-4o-mini';
+    logger.info('AI Service constructed', { model: this.currentModelName });
     this.initializeFlintMcpServer();
     this.gateway = gateway;
   }
@@ -28,7 +30,10 @@ export class AIService extends EventEmitter {
 
   private switchModel(modelName: string): void {
     if (modelName !== this.currentModelName) {
-      console.log(`Switching model from ${this.currentModelName} to ${modelName}`);
+      logger.info('Switching AI model', {
+        from: this.currentModelName,
+        to: modelName
+      });
       this.currentModelName = modelName;
     }
   }
@@ -398,13 +403,13 @@ Use these tools to help users manage their notes effectively and answer their qu
         messages,
         tools: mcpTools as any, // eslint-disable-line @typescript-eslint/no-explicit-any
         onStepFinish: (step) => {
-          console.log(step);
+          logger.info('AI step finished', { step });
         }
       });
       this.conversationHistory.push(...result.response.messages);
       return { text: result.text };
     } catch (error) {
-      console.error('AI Service Error:', error);
+      logger.error('AI Service Error', { error });
 
       // Fallback to mock response if AI service fails
       const fallbackResponses = [
@@ -435,9 +440,9 @@ Use these tools to help users manage their notes effectively and answer their qu
           args: ['@flint-note/server']
         })
       });
-      console.log('Flint MCP server initialized successfully');
+      logger.info('Flint MCP server initialized successfully');
     } catch (error) {
-      console.error('Failed to initialize Flint MCP server:', error);
+      logger.error('Failed to initialize Flint MCP server', { error });
     }
   }
 
@@ -534,7 +539,7 @@ Use these tools to help users manage their notes effectively and answer their qu
 
       this.emit('stream-end', { requestId, fullText });
     } catch (error) {
-      console.error('AI Service Streaming Error:', error);
+      logger.error('AI Service Streaming Error', { error });
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error occurred';
       this.emit('stream-error', { requestId, error: errorMessage });
