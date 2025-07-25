@@ -81,7 +81,12 @@ function saveStoredSettings(settings: AppSettings): void {
   if (typeof window !== 'undefined' && window.localStorage) {
     try {
       // Create a copy without API keys for localStorage
-      const { apiKeys, ...safeSettings } = settings;
+      const safeSettings = {
+        modelPreferences: settings.modelPreferences,
+        appearance: settings.appearance,
+        dataAndPrivacy: settings.dataAndPrivacy,
+        advanced: settings.advanced
+      };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(safeSettings));
     } catch (error) {
       console.warn('Failed to save settings to localStorage:', error);
@@ -237,7 +242,12 @@ export const settingsStore = {
   // Export/Import functionality
   exportSettings(): string {
     // Export all settings except API keys
-    const { apiKeys, ...exportableSettings } = settings;
+    const exportableSettings = {
+      modelPreferences: settings.modelPreferences,
+      appearance: settings.appearance,
+      dataAndPrivacy: settings.dataAndPrivacy,
+      advanced: settings.advanced
+    };
     return JSON.stringify(exportableSettings, null, 2);
   },
 

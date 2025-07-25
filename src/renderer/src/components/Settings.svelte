@@ -128,28 +128,6 @@
     }, 1000); // 1 second debounce
   }
 
-  async function testApiKey(provider: 'anthropic' | 'openai'): Promise<void> {
-    try {
-      const isValid = await secureStorageService.testApiKey(provider);
-      if (isValid) {
-        showSuccess(`${provider} API key is valid`);
-      } else {
-        showError(`${provider} API key is invalid or not accessible`);
-      }
-    } catch (error) {
-      showError(
-        `Failed to test ${provider} API key: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
-    }
-  }
-
-  function toggleKeyVisibility(provider: 'anthropic' | 'openai'): void {
-    const input = document.getElementById(`${provider}-key-input`) as HTMLInputElement;
-    if (input) {
-      input.type = input.type === 'password' ? 'text' : 'password';
-    }
-  }
-
   function handleDefaultModelChange(event: Event): void {
     const target = event.target as HTMLSelectElement;
     settingsStore.updateDefaultModel(target.value);
