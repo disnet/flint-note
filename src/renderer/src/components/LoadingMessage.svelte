@@ -1,11 +1,3 @@
-<script lang="ts">
-  function formatTime(date: Date): string {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  }
-
-  const timestamp = new Date();
-</script>
-
 <div class="message agent loading-message">
   <div class="message-content">
     <div class="loading-dots">
