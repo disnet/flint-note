@@ -143,6 +143,30 @@ export class AIService extends EventEmitter {
             .describe('Optional vault ID to operate on')
         })
       },
+      rename_note: {
+        inputSchema: z.object({
+          identifier: z.string().describe('Note identifier'),
+          new_title: z.string().describe('New display title for the note'),
+          content_hash: z.string().describe('Content hash for optimistic locking'),
+          vault_id: z
+            .string()
+            .nullable()
+            .optional()
+            .describe('Optional vault ID to operate on')
+        })
+      },
+      move_note: {
+        inputSchema: z.object({
+          identifier: z.string().describe('Current note identifier in type/filename format'),
+          new_type: z.string().describe('Target note type to move the note to'),
+          content_hash: z.string().describe('Content hash for optimistic locking to prevent conflicts'),
+          vault_id: z
+            .string()
+            .nullable()
+            .optional()
+            .describe('Optional vault ID to operate on')
+        })
+      },
       // list_notes_by_type: {
       //   inputSchema: z.object({
       //     type: z.string().describe('Note type to list'),
@@ -277,6 +301,56 @@ export class AIService extends EventEmitter {
       // },
 
       // Note Type Management Tools
+      create_note_type: {
+        inputSchema: z.object({
+          type_name: z.string().describe('Name of the note type (filesystem-safe)'),
+          description: z.string().describe('Description of the note type purpose and usage'),
+          agent_instructions: z
+            .array(z.string())
+            .optional()
+            .describe('Optional custom agent instructions for this note type'),
+          metadata_schema: z
+            .object({
+              fields: z
+                .array(
+                  z.object({
+                    name: z.string().describe('Name of the metadata field'),
+                    type: z
+                      .string()
+                      .describe(
+                        "Type: 'string', 'number', 'boolean', 'date', 'array', 'select'"
+                      ),
+                    description: z
+                      .string()
+                      .optional()
+                      .describe('Optional description of the field'),
+                    required: z
+                      .boolean()
+                      .optional()
+                      .describe('Whether this field is required'),
+                    constraints: z
+                      .record(z.any())
+                      .optional()
+                      .describe('Optional field constraints (min, max, options, etc.)'),
+                    default: z
+                      .any()
+                      .optional()
+                      .describe('Optional default value for the field')
+                  })
+                )
+                .optional()
+                .describe('Array of metadata field definitions'),
+              version: z.string().optional().describe('Optional schema version')
+            })
+            .optional()
+            .describe('Optional metadata schema definition'),
+          vault_id: z
+            .string()
+            .nullable()
+            .optional()
+            .describe('Optional vault ID to operate on')
+        })
+      },
       list_note_types: {
         inputSchema: z.object({
           vault_id: z
