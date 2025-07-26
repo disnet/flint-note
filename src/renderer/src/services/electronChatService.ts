@@ -17,6 +17,7 @@ import type {
 } from '@flint-note/server/dist/api/types';
 import type { ExternalLinkRow } from '@flint-note/server/dist/database/schema';
 import type { MetadataSchema } from '@flint-note/server/dist/core/metadata-schema';
+import { notesStore } from './noteStore.svelte';
 
 export class ElectronChatService implements ChatService, NoteService {
   async sendMessage(text: string, model?: string): Promise<ChatResponse> {
@@ -75,9 +76,16 @@ export class ElectronChatService implements ChatService, NoteService {
             // Handle tool call
             if (data.requestId === requestId) {
               onToolCall(data.toolCall);
+              // Trigger notes store refresh for any tool call
+              notesStore.handleToolCall({ name: data.toolCall.name });
             }
           }
-        : undefined
+        : (data) => {
+            // Even if no onToolCall callback, still handle notes store refresh
+            if (data.requestId === requestId) {
+              notesStore.handleToolCall({ name: data.toolCall.name });
+            }
+          }
     );
   }
 

@@ -5,7 +5,7 @@ import { NoteMetadata } from '@flint-note/server';
 
 export type ToolCallData = {
   toolCallId: string;
-  toolName: string;
+  name: string;
   arguments: unknown;
   result: string | undefined;
   error: string | undefined;

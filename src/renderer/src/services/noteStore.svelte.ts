@@ -31,6 +31,7 @@ function createNotesStore(): {
   readonly error: string | null;
   readonly groupedNotes: () => Record<string, NoteMetadata[]>;
   refresh: () => Promise<void>;
+  handleToolCall: (toolCall: { name: string }) => void;
 } {
   const noteService = getChatService();
 
@@ -140,9 +141,19 @@ function createNotesStore(): {
 
   // Public refresh function that can be called to reload notes
   async function refresh(): Promise<void> {
+    console.log('Notes store: refresh() called - starting refresh...');
     state.loading = true;
     state.error = null;
     await loadAllNotes();
+    console.log('Notes store: refresh() completed');
+  }
+
+  // Handle tool calls and refresh on any tool call
+  function handleToolCall(_toolCall: { name: string }): void {
+    // Use a small delay to ensure the backend operation is complete
+    setTimeout(() => {
+      refresh();
+    }, 100);
   }
 
   // Initial load
@@ -164,7 +175,8 @@ function createNotesStore(): {
     get groupedNotes() {
       return groupedNotes;
     },
-    refresh
+    refresh,
+    handleToolCall
   };
 }
 

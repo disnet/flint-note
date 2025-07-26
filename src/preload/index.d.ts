@@ -19,7 +19,7 @@ import type { MetadataSchema } from '@flint-note/server/dist/core/metadata-schem
 
 export type ToolCallData = {
   toolCallId: string;
-  toolName: string;
+  name: string;
   arguments: unknown;
   result: string | undefined;
   error: string | undefined;
