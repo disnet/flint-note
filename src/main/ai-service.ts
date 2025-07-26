@@ -157,9 +157,13 @@ export class AIService extends EventEmitter {
       },
       move_note: {
         inputSchema: z.object({
-          identifier: z.string().describe('Current note identifier in type/filename format'),
+          identifier: z
+            .string()
+            .describe('Current note identifier in type/filename format'),
           new_type: z.string().describe('Target note type to move the note to'),
-          content_hash: z.string().describe('Content hash for optimistic locking to prevent conflicts'),
+          content_hash: z
+            .string()
+            .describe('Content hash for optimistic locking to prevent conflicts'),
           vault_id: z
             .string()
             .nullable()
@@ -304,7 +308,9 @@ export class AIService extends EventEmitter {
       create_note_type: {
         inputSchema: z.object({
           type_name: z.string().describe('Name of the note type (filesystem-safe)'),
-          description: z.string().describe('Description of the note type purpose and usage'),
+          description: z
+            .string()
+            .describe('Description of the note type purpose and usage'),
           agent_instructions: z
             .array(z.string())
             .optional()
