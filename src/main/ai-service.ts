@@ -79,7 +79,11 @@ export class AIService extends EventEmitter {
             )
             .optional()
             .describe('Array of notes to create - for batch creation'),
-          vault_id: z.string().optional().describe('Optional vault ID to operate on')
+          vault_id: z
+            .string()
+            .nullable()
+            .optional()
+            .describe('Optional vault ID to operate on')
         })
       },
       get_note: {
@@ -87,7 +91,11 @@ export class AIService extends EventEmitter {
           identifier: z
             .string()
             .describe('Note identifier in format "type/filename" or full path'),
-          vault_id: z.string().optional().describe('Optional vault ID to operate on'),
+          vault_id: z
+            .string()
+            .nullable()
+            .optional()
+            .describe('Optional vault ID to operate on'),
           fields: z
             .array(z.string())
             .optional()
@@ -97,7 +105,11 @@ export class AIService extends EventEmitter {
       get_notes: {
         inputSchema: z.object({
           identifiers: z.array(z.string()).describe('Array of note identifiers'),
-          vault_id: z.string().optional().describe('Optional vault ID to operate on'),
+          vault_id: z
+            .string()
+            .nullable()
+            .optional()
+            .describe('Optional vault ID to operate on'),
           fields: z
             .array(z.string())
             .optional()
@@ -110,7 +122,11 @@ export class AIService extends EventEmitter {
           content: z.string().optional().describe('New content for the note'),
           content_hash: z.string().describe('Content hash for optimistic locking'),
           metadata: z.record(z.any()).optional().describe('Metadata fields to update'),
-          vault_id: z.string().optional().describe('Optional vault ID to operate on')
+          vault_id: z
+            .string()
+            .nullable()
+            .optional()
+            .describe('Optional vault ID to operate on')
         })
       },
       delete_note: {
@@ -120,7 +136,11 @@ export class AIService extends EventEmitter {
             .boolean()
             .optional()
             .describe('Explicit confirmation required for deletion'),
-          vault_id: z.string().optional().describe('Optional vault ID to operate on')
+          vault_id: z
+            .string()
+            .nullable()
+            .optional()
+            .describe('Optional vault ID to operate on')
         })
       },
       // list_notes_by_type: {
@@ -157,7 +177,11 @@ export class AIService extends EventEmitter {
             .boolean()
             .optional()
             .describe('Enable regex pattern matching (default: false)'),
-          vault_id: z.string().optional().describe('Optional vault ID to operate on'),
+          vault_id: z
+            .string()
+            .nullable()
+            .optional()
+            .describe('Optional vault ID to operate on'),
           fields: z
             .array(z.string())
             .optional()
@@ -218,7 +242,11 @@ export class AIService extends EventEmitter {
             .number()
             .optional()
             .describe('Number of results to skip (default: 0)'),
-          vault_id: z.string().optional().describe('Optional vault ID to operate on'),
+          vault_id: z
+            .string()
+            .nullable()
+            .optional()
+            .describe('Optional vault ID to operate on'),
           fields: z
             .array(z.string())
             .optional()
@@ -251,13 +279,21 @@ export class AIService extends EventEmitter {
       // Note Type Management Tools
       list_note_types: {
         inputSchema: z.object({
-          vault_id: z.string().optional().describe('Optional vault ID to operate on')
+          vault_id: z
+            .string()
+            .nullable()
+            .optional()
+            .describe('Optional vault ID to operate on')
         })
       },
       get_note_type_info: {
         inputSchema: z.object({
           type_name: z.string().describe('Name of the note type to get information for'),
-          vault_id: z.string().optional().describe('Optional vault ID to operate on')
+          vault_id: z
+            .string()
+            .nullable()
+            .optional()
+            .describe('Optional vault ID to operate on')
         })
       },
       update_note_type: {
@@ -301,7 +337,11 @@ export class AIService extends EventEmitter {
             .optional()
             .describe('Array of metadata field definitions'),
           content_hash: z.string().describe('Content hash for optimistic locking'),
-          vault_id: z.string().optional().describe('Optional vault ID to operate on')
+          vault_id: z
+            .string()
+            .nullable()
+            .optional()
+            .describe('Optional vault ID to operate on')
         })
       },
       delete_note_type: {
@@ -381,7 +421,21 @@ Use these tools to help users manage their notes effectively and answer their qu
   }
 
   private getSystemMessage(): string {
-    return this.systemPrompt;
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+    const dayOfWeek = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+    const currentTime = new Date().toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+
+    const contextualInfo =
+      `\n\n## Current Context\n\n` +
+      `- **Today's Date**: ${today} (${dayOfWeek})\n` +
+      `- **Current Time**: ${currentTime}\n` +
+      `- **Timezone**: ${Intl.DateTimeFormat().resolvedOptions().timeZone}\n`;
+
+    return this.systemPrompt + contextualInfo;
   }
 
   async sendMessage(
@@ -515,48 +569,95 @@ Use these tools to help users manage their notes effectively and answer their qu
           })
         : {};
 
-      const result = streamText({
-        model: this.gateway(this.currentModelName),
-        messages,
-        tools: mcpTools as any, // eslint-disable-line @typescript-eslint/no-explicit-any
-        stopWhen: stepCountIs(5), // Allow up to 5 steps for multi-turn tool calling
-        onStepFinish: (step) => {
-          // Handle tool calls from step content (AI SDK might put them in different places)
-          const toolCalls =
-            step.toolCalls ||
-            (step.content
-              ? step.content.filter((item) => item.type === 'tool-call')
-              : []);
+      try {
+        const result = streamText({
+          model: this.gateway(this.currentModelName),
+          messages,
+          tools: mcpTools as any, // eslint-disable-line @typescript-eslint/no-explicit-any
+          stopWhen: stepCountIs(5), // Allow up to 5 steps for multi-turn tool calling
+          onStepFinish: (step) => {
+            // Handle tool calls from step content (AI SDK might put them in different places)
+            const toolCalls =
+              step.toolCalls ||
+              (step.content
+                ? step.content.filter((item) => item.type === 'tool-call')
+                : []);
 
-          if (toolCalls && toolCalls.length > 0) {
-            toolCalls.forEach((toolCall) => {
-              const toolCallData = {
-                id: toolCall.toolCallId,
-                name: toolCall.toolName,
-                arguments: toolCall.input || {},
-                result: step.toolResults?.find(
+            if (toolCalls && toolCalls.length > 0) {
+              toolCalls.forEach((toolCall) => {
+                const toolResults = step.toolResults || [];
+                const toolResult = toolResults.find(
                   (r) => r.toolCallId === toolCall.toolCallId
-                )?.output,
-                error: undefined
-              };
-              this.emit('stream-tool-call', { requestId, toolCall: toolCallData });
-            });
+                );
+
+                const toolCallData = {
+                  id: toolCall.toolCallId,
+                  name: toolCall.toolName,
+                  arguments: toolCall.input || {},
+                  result: toolResult?.output,
+                  error: undefined
+                };
+                this.emit('stream-tool-call', { requestId, toolCall: toolCallData });
+              });
+            }
           }
+        });
+
+        let fullText = '';
+
+        // Handle text streaming
+        for await (const textChunk of result.textStream) {
+          fullText += textChunk;
+          this.emit('stream-chunk', { requestId, chunk: textChunk });
         }
-      });
 
-      let fullText = '';
+        // Add assistant response to conversation history
+        this.conversationHistory.push({ role: 'assistant', content: fullText });
 
-      // Handle text streaming
-      for await (const textChunk of result.textStream) {
-        fullText += textChunk;
-        this.emit('stream-chunk', { requestId, chunk: textChunk });
+        this.emit('stream-end', { requestId, fullText });
+      } catch (streamError: unknown) {
+        // Handle tool input validation errors specifically
+        if (
+          streamError &&
+          typeof streamError === 'object' &&
+          'name' in streamError &&
+          (streamError.name === 'AI_InvalidToolInputError' ||
+            streamError.name === 'InvalidToolInputError')
+        ) {
+          const errorObj = streamError as {
+            name: string;
+            message: string;
+            toolName?: string;
+            toolInput?: string;
+          };
+
+          logger.error('Tool input validation error', {
+            error: streamError,
+            toolName: errorObj.toolName,
+            toolInput: errorObj.toolInput,
+            requestId
+          });
+
+          // Send error information back to the agent by adding it to conversation and continuing
+          const errorMessage = `I encountered an error with the tool call "${errorObj.toolName}": ${errorObj.message}. Let me correct this and try again.`;
+
+          // Add error as assistant message so the agent can see it and correct
+          this.conversationHistory.push({
+            role: 'assistant',
+            content: errorMessage
+          });
+
+          // Emit the error message as a chunk so it appears in the UI
+          this.emit('stream-chunk', { requestId, chunk: errorMessage });
+          this.emit('stream-end', { requestId, fullText: errorMessage });
+
+          // Don't throw - let the conversation continue
+          return;
+        }
+
+        // Re-throw other types of errors
+        throw streamError;
       }
-
-      // Add assistant response to conversation history
-      this.conversationHistory.push({ role: 'assistant', content: fullText });
-
-      this.emit('stream-end', { requestId, fullText });
     } catch (error) {
       logger.error('AI Service Streaming Error', { error });
       const errorMessage =
