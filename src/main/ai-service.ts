@@ -340,6 +340,21 @@ export class AIService extends EventEmitter {
     };
   }
 
+  private getSystemMessage(): string {
+    const baseMessage = `You are an AI assistant for Flint, a note-taking application. You help users manage their notes, answer questions, and provide assistance with organizing their knowledge. Be helpful, concise, and focused on note-taking and knowledge management tasks.
+
+You have access to comprehensive note management tools including:
+- Creating, reading, updating, and deleting notes
+- Searching through note content and metadata
+- Managing note types and vaults
+- Handling note links and relationships
+- Advanced search capabilities with SQL queries
+
+When responding be sure to format references to notes in wikilinks syntax. For example, [[Note Title]] or [[daily/2023-09-25|September 25th, 2023]]
+`;
+    return baseMessage;
+  }
+
   async sendMessage(
     userMessage: string,
     modelName?: string
@@ -372,19 +387,7 @@ export class AIService extends EventEmitter {
       }
 
       // Prepare messages for the model
-      const systemMessage = `You are an AI assistant for Flint, a note-taking application. You help users manage their notes, answer questions, and provide assistance with organizing their knowledge. Be helpful, concise, and focused on note-taking and knowledge management tasks.
-
-You have access to comprehensive note management tools including:
-- Creating, reading, updating, and deleting notes
-- Searching through note content and metadata
-- Managing note types and vaults
-- Handling note links and relationships
-- Advanced search capabilities with SQL queries
-
-When responding be sure to format references to notes in wikilinks syntax. For example, [[Note Title]] or [[daily/2023-09-25|September 25th, 2023]]
-
-
-Use these tools to help users manage their notes effectively and answer their questions.`;
+      const systemMessage = this.getSystemMessage();
 
       const messages: ModelMessage[] = [
         { role: 'system', content: systemMessage },
@@ -466,20 +469,7 @@ Use these tools to help users manage their notes effectively and answer their qu
       }
 
       // Prepare messages for the model
-      const systemMessage = `You are an AI assistant for Flint, a note-taking application. You help users manage their notes, answer questions, and provide assistance with organizing their knowledge. Be helpful, concise, and focused on note-taking and knowledge management tasks.
-
-You have access to comprehensive note management tools including:
-- Creating, reading, updating, and deleting notes
-- Searching through note content and metadata
-- Managing note types and vaults
-- Handling note links and relationships
-- Advanced search capabilities with SQL queries
-
-When responding be sure to format references to notes in wikilinks syntax. For example, [[daily/2023-09-25]] or [[daily/2023-09-25|September 25th, 2023]]
-
-When using tools, always provide helpful explanatory text before and after tool calls to give context and summarize results for the user.
-
-Use these tools to help users manage their notes effectively and answer their questions.`;
+      const systemMessage = this.getSystemMessage();
 
       const messages: ModelMessage[] = [
         { role: 'system', content: systemMessage },
