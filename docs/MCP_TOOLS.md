@@ -239,6 +239,20 @@ Renames a note by updating its title field (display name). The filename and ID r
 }
 ```
 
+### `move_note`
+
+Moves a note from one note type to another while preserving filename, links, and metadata.
+
+**Input Schema:**
+```json
+{
+  "identifier": "string (required)",     // Current note identifier in type/filename format
+  "new_type": "string (required)",       // Target note type to move the note to
+  "content_hash": "string (required)",   // Content hash for optimistic locking to prevent conflicts
+  "vault_id": "string"                   // Optional vault ID to operate on
+}
+```
+
 ## Search Tools
 
 ### `search_notes`
