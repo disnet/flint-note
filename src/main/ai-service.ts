@@ -4,6 +4,8 @@ import { experimental_createMCPClient as createMCPClient } from 'ai';
 import { Experimental_StdioMCPTransport as StdioMCPTransport } from 'ai/mcp-stdio';
 import { EventEmitter } from 'events';
 import { z } from 'zod';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { SecureStorageService } from './secure-storage-service';
 import { logger } from './logger';
 
@@ -12,10 +14,12 @@ export class AIService extends EventEmitter {
   private conversationHistory: ModelMessage[] = [];
   private mcpClient: unknown;
   private gateway: GatewayProvider;
+  private systemPrompt: string;
 
   constructor(gateway: GatewayProvider) {
     super();
     this.currentModelName = 'openai/gpt-4o-mini';
+    this.systemPrompt = this.loadSystemPrompt();
     logger.info('AI Service constructed', { model: this.currentModelName });
     this.initializeFlintMcpServer();
     this.gateway = gateway;
@@ -340,8 +344,28 @@ export class AIService extends EventEmitter {
     };
   }
 
-  private getSystemMessage(): string {
-    const baseMessage = `You are an AI assistant for Flint, a note-taking application. You help users manage their notes, answer questions, and provide assistance with organizing their knowledge. Be helpful, concise, and focused on note-taking and knowledge management tasks.
+  private loadSystemPrompt(): string {
+    try {
+      // Try multiple possible locations for the prompt file
+      const possiblePaths = [
+        join(__dirname, 'system-prompt.md'),
+        join(__dirname, '..', '..', 'src', 'main', 'system-prompt.md'),
+        join(process.cwd(), 'src', 'main', 'system-prompt.md')
+      ];
+
+      for (const promptPath of possiblePaths) {
+        try {
+          return readFileSync(promptPath, 'utf-8').trim();
+        } catch {
+          // Continue to next path
+        }
+      }
+
+      throw new Error('System prompt file not found in any expected location');
+    } catch (error) {
+      logger.error('Failed to load system prompt file', { error });
+      // Fallback to inline prompt
+      return `You are an AI assistant for Flint, a note-taking application. You help users manage their notes, answer questions, and provide assistance with organizing their knowledge. Be helpful, concise, and focused on note-taking and knowledge management tasks.
 
 You have access to comprehensive note management tools including:
 - Creating, reading, updating, and deleting notes
@@ -351,8 +375,13 @@ You have access to comprehensive note management tools including:
 - Advanced search capabilities with SQL queries
 
 When responding be sure to format references to notes in wikilinks syntax. For example, [[Note Title]] or [[daily/2023-09-25|September 25th, 2023]]
-`;
-    return baseMessage;
+
+Use these tools to help users manage their notes effectively and answer their questions.`;
+    }
+  }
+
+  private getSystemMessage(): string {
+    return this.systemPrompt;
   }
 
   async sendMessage(
