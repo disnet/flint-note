@@ -654,7 +654,7 @@ Use these tools to help users manage their notes effectively and answer their qu
           model: this.gateway(this.currentModelName),
           messages,
           tools: mcpTools as any, // eslint-disable-line @typescript-eslint/no-explicit-any
-          stopWhen: stepCountIs(5), // Allow up to 5 steps for multi-turn tool calling
+          stopWhen: stepCountIs(10), // Allow up to 5 steps for multi-turn tool calling
           onStepFinish: (step) => {
             // Handle tool calls from step content (AI SDK might put them in different places)
             const toolCalls =
