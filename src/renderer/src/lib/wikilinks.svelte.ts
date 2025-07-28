@@ -15,7 +15,7 @@ import { notesStore } from '../services/noteStore.svelte';
 import { wikilinkTheme } from './wikilink-theme';
 
 // Regular expression to match wikilinks: [[Note Title]] or [[identifier|title]]
-const WIKILINK_REGEX = /\[\[([^\]]+)\]\]/g;
+const WIKILINK_REGEX = /\[\[([^[\]]+)\]\]/g;
 
 export interface WikilinkMatch {
   from: number;
