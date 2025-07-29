@@ -257,12 +257,8 @@ describe('Note Type Protected Fields Unit Tests', () => {
     assert.strictEqual(typeof result.created, 'string');
 
     // Verify the note type was actually created
-    const descriptionPath = join(
-      tempDir,
-      '.flint-note',
-      'descriptions',
-      'valid-type_description.md'
-    );
+    const typePath = join(tempDir, 'valid-type');
+    const descriptionPath = join(typePath, '_description.md');
     const descriptionExists = await fs
       .access(descriptionPath)
       .then(() => true)

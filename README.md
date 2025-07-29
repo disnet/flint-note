@@ -281,24 +281,23 @@ flint-note organizes your knowledge using **note types** - each with its own pur
 ```
 my-notes/
 ├── .flint-note/
-│   ├── config.yml
-│   └── descriptions/
-│       ├── reading_description.md     # Defines how agents help with reading notes
-│       ├── projects_description.md    # Defines how agents help with projects
-│       ├── meetings_description.md    # Defines how agents handle meeting notes
-│       └── daily_description.md       # Defines daily note format and prompts
+│   └── config.yml
 ├── reading/
-│   └── the-unaccountability-machine.md
+│   ├── _description.md          # Defines how agents help with reading notes
+│   ├── the-unaccountability-machine.md
 ├── projects/
+│   ├── _description.md          # Defines how agents help with projects
 │   ├── website-redesign.md
 │   └── mobile-app.md
 ├── meetings/
+│   ├── _description.md          # Defines how agents handle meeting notes
 │   └── team-standup-2024-01-15.md
 └── daily/
+    ├── _description.md          # Defines daily note format and prompts
     └── 2024-01-15.md
 ```
 
-Each description file in `.flint-note/descriptions/` tells agents how to behave for that note type:
+Each `_description.md` file tells agents how to behave for that note type:
 
 ```markdown
 # Reading Notes
@@ -331,13 +330,13 @@ You can modify how agents work with any note type just by talking to them:
 >
 > Agent: I'll update your reading note instructions to include asking about publication year.
 >
-> [Updates .flint-note/descriptions/reading_description.md with the new instruction]
+> [Updates reading/_description.md with the new instruction]
 >
 > You: Make project notes more focused on deadlines and blockers
 >
 > Agent: I'll modify your project note instructions to emphasize deadline tracking and proactive blocker identification.
 >
-> [Updates .flint-note/descriptions/projects_description.md accordingly]
+> [Updates projects/_description.md accordingly]
 
 ## Direct API Access
 

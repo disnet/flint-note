@@ -490,11 +490,9 @@ Expected frontmatter fields:
     const typePath = path.join(this.rootPath, typeName);
     await this.ensureDirectory(typePath);
 
-    // Create description file in .flint-note/descriptions directory if required and doesn't exist
+    // Create description file in .flint-note config directory if required and doesn't exist
     if (this.config?.note_types.require_descriptions) {
-      const descriptionsDir = path.join(this.flintNoteDir, 'descriptions');
-      await this.ensureDirectory(descriptionsDir);
-      const descriptionPath = path.join(descriptionsDir, `${typeName}_description.md`);
+      const descriptionPath = path.join(this.flintNoteDir, `${typeName}_description.md`);
       try {
         await fs.access(descriptionPath);
       } catch (error) {
@@ -537,13 +535,6 @@ Expected frontmatter fields:
    */
   getNotePath(typeName: string, filename: string): string {
     return path.join(this.rootPath, typeName, filename);
-  }
-
-  /**
-   * Get the .flint-note directory path
-   */
-  getFlintNoteDir(): string {
-    return this.flintNoteDir;
   }
 
   /**
@@ -1035,10 +1026,8 @@ Expected frontmatter fields:
     const typePath = path.join(this.rootPath, noteType.name);
     await this.ensureDirectory(typePath);
 
-    // Create description file in the .flint-note/descriptions directory
-    const descriptionsDir = path.join(this.flintNoteDir, 'descriptions');
-    await this.ensureDirectory(descriptionsDir);
-    const descriptionPath = path.join(descriptionsDir, `${noteType.name}_description.md`);
+    // Create description file in the note type directory
+    const descriptionPath = path.join(typePath, '_description.md');
     const descriptionContent = this.formatNoteTypeDescription(noteType);
     await fs.writeFile(descriptionPath, descriptionContent, 'utf-8');
   }
