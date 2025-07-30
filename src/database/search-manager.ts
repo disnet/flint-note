@@ -830,7 +830,7 @@ export class HybridSearchManager {
             const dirFiles = await fs.readdir(dirPath);
 
             return dirFiles
-              .filter(file => file.endsWith('.md'))
+              .filter(file => file.endsWith('.md') && file !== '_description.md')
               .map(file => path.join(dirPath, file));
           } catch (error) {
             console.error(`Error scanning directory ${entry.name}:`, error);
