@@ -8,6 +8,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import { SecureStorageService } from './secure-storage-service';
 import { logger } from './logger';
+import { NoteService } from './note-service';
 
 export class AIService extends EventEmitter {
   private currentModelName: string;
@@ -15,21 +16,26 @@ export class AIService extends EventEmitter {
   private mcpClient: unknown;
   private gateway: GatewayProvider;
   private systemPrompt: string;
+  private noteService: NoteService | null;
 
-  constructor(gateway: GatewayProvider) {
+  constructor(gateway: GatewayProvider, noteService: NoteService | null) {
     super();
     this.currentModelName = 'openai/gpt-4o-mini';
     this.systemPrompt = this.loadSystemPrompt();
     logger.info('AI Service constructed', { model: this.currentModelName });
     this.initializeFlintMcpServer();
     this.gateway = gateway;
+    this.noteService = noteService;
   }
 
-  static async of(secureStorage: SecureStorageService): Promise<AIService> {
+  static async of(
+    secureStorage: SecureStorageService,
+    noteService: NoteService | null = null
+  ): Promise<AIService> {
     const gateway = createGateway({
       apiKey: (await secureStorage.getApiKey('gateway')).key
     });
-    return new AIService(gateway);
+    return new AIService(gateway, noteService);
   }
 
   private switchModel(modelName: string): void {
@@ -500,7 +506,7 @@ Use these tools to help users manage their notes effectively and answer their qu
     }
   }
 
-  private getSystemMessage(): string {
+  private async getSystemMessage(): Promise<string> {
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
     const dayOfWeek = new Date().toLocaleDateString('en-US', { weekday: 'long' });
     const currentTime = new Date().toLocaleTimeString('en-US', {
@@ -515,7 +521,23 @@ Use these tools to help users manage their notes effectively and answer their qu
       `- **Current Time**: ${currentTime}\n` +
       `- **Timezone**: ${Intl.DateTimeFormat().resolvedOptions().timeZone}\n`;
 
-    return this.systemPrompt + contextualInfo;
+    let noteTypeInfo = '';
+    if (this.noteService) {
+      const noteTypes = await this.noteService.listNoteTypes();
+      noteTypeInfo = `## User's Current Note Types
+
+  ${noteTypes
+    .map(
+      (nt) => `### ${nt.name}
+
+  #### purpose
+  ${nt.purpose}
+  `
+    )
+    .join('\n')}`;
+    }
+
+    return this.systemPrompt + contextualInfo + noteTypeInfo;
   }
 
   async sendMessage(
@@ -550,7 +572,7 @@ Use these tools to help users manage their notes effectively and answer their qu
       }
 
       // Prepare messages for the model
-      const systemMessage = this.getSystemMessage();
+      const systemMessage = await this.getSystemMessage();
 
       const messages: ModelMessage[] = [
         { role: 'system', content: systemMessage },
@@ -632,7 +654,7 @@ Use these tools to help users manage their notes effectively and answer their qu
       }
 
       // Prepare messages for the model
-      const systemMessage = this.getSystemMessage();
+      const systemMessage = await this.getSystemMessage();
 
       const messages: ModelMessage[] = [
         { role: 'system', content: systemMessage },

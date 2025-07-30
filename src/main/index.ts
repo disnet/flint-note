@@ -78,7 +78,7 @@ app.whenReady().then(async () => {
   // Initialize AI service
   let aiService: AIService | null = null;
   try {
-    aiService = await AIService.of(secureStorageService);
+    aiService = await AIService.of(secureStorageService, noteService);
     // Wait for MCP servers to initialize
     // await aiService.waitForInitialization();
     logger.info('AI Service initialized successfully');
