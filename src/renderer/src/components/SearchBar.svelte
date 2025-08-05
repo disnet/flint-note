@@ -98,7 +98,7 @@
   // Global keyboard shortcut for Cmd+K
   $effect(() => {
     function handleGlobalKeyDown(event: KeyboardEvent): void {
-      if (event.key === 'k' && (event.ctrlKey || event.metaKey)) {
+      if (event.key === 'k' && event.shiftKey && (event.ctrlKey || event.metaKey)) {
         event.preventDefault();
         const searchInput = document.getElementById('global-search');
         searchInput?.focus();

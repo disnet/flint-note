@@ -146,7 +146,7 @@
   $effect(() => {
     function handleKeyDown(event: KeyboardEvent): void {
       // Ctrl/Cmd + N to create new note
-      if (event.key === 'n' && (event.ctrlKey || event.metaKey)) {
+      if (event.key === 'n' && (event.ctrlKey || event.metaKey) && event.shiftKey) {
         event.preventDefault();
         handleCreateNote();
       }
