@@ -257,8 +257,7 @@
       title: note.title,
       filename: note.filename
     });
-    const result = pinnedNotesStore.togglePin(note.id, note.title, note.filename);
-    console.log('NoteEditor: togglePin result:', result);
+    pinnedNotesStore.togglePin(note.id, note.title, note.filename);
   }
 
   async function changeNoteType(): Promise<void> {

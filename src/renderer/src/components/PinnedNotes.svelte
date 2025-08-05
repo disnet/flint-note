@@ -14,29 +14,18 @@
   let pinnedNoteInfos = $state<PinnedNoteInfo[]>([]);
   let pinnedNotes = $state<NoteMetadata[]>([]);
 
-  console.log('PinnedNotes: Component loaded, pinnedNotesStore:', pinnedNotesStore);
-
   // Initialize with current value and subscribe to changes
   pinnedNotesStore.subscribe((pinnedNotesFromStore) => {
-    console.log('PinnedNotes: Store subscription fired with:', pinnedNotesFromStore);
     pinnedNoteInfos = pinnedNotesFromStore;
   });
 
   // Use $effect to update pinnedNotes when pinnedNoteInfos or notesStore changes
   $effect(() => {
-    console.log('PinnedNotes: Effect triggered - deriving notes');
-    console.log('PinnedNotes: pinnedNoteInfos:', pinnedNoteInfos);
-    console.log('PinnedNotes: Available notes in notesStore:', notesStore.notes.length);
-
     const result = pinnedNoteInfos
       .map((pinnedInfo) => {
-        console.log('PinnedNotes: Processing pinned note:', pinnedInfo);
         // Find the corresponding note in notesStore
         const fullNote = notesStore.notes.find((note) => note.id === pinnedInfo.id);
-        console.log(
-          'PinnedNotes: Found full note:',
-          fullNote ? fullNote.title : 'NOT FOUND'
-        );
+
         return (
           fullNote ||
           ({
@@ -55,7 +44,6 @@
       })
       .filter((note) => note !== null);
 
-    console.log('PinnedNotes: Final result:', result);
     pinnedNotes = result;
   });
 

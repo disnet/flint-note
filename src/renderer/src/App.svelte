@@ -213,12 +213,14 @@
           modelStore.selectedModel,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (toolCall: any) => {
+            console.log('App.svelte: Received tool call:', toolCall);
             const messageIndex = messages.findIndex((m) => m.id === agentResponseId);
             if (messageIndex !== -1) {
               if (!messages[messageIndex].toolCalls) {
                 messages[messageIndex].toolCalls = [];
               }
               messages[messageIndex].toolCalls!.push(toolCall);
+              console.log('App.svelte: Added tool call to message, message now has', messages[messageIndex].toolCalls!.length, 'tool calls');
             }
           }
         );

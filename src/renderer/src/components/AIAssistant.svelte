@@ -26,14 +26,37 @@
   let expandedTasks = $state<Set<string>>(new Set());
   let expandedDiscussed = $state<boolean>(true);
 
+  // All note-related tool call names that should create tasks
+  const noteRelatedTools = [
+    'create_note',
+    'get_note',
+    'get_notes',
+    'update_note',
+    'delete_note',
+    'rename_note',
+    'move_note',
+    'search_notes',
+    'search_notes_advanced',
+    'create_note_type',
+    'list_note_types',
+    'get_note_type_info',
+    'update_note_type',
+    'delete_note_type',
+    'get_current_vault',
+    'list_vaults',
+    'get_note_links',
+    'get_backlinks',
+    'find_broken_links'
+  ];
+
   // Extract tasks from messages with tool calls
-  const tasks = $derived<AITask[]>(() => {
+  const tasks = $derived.by<AITask[]>(() => {
     const taskMap = new Map<string, AITask>();
 
     messages.forEach((message) => {
       if (message.sender === 'agent' && message.toolCalls) {
         message.toolCalls.forEach((toolCall) => {
-          if (toolCall.name === 'create_notes' || toolCall.name.includes('note')) {
+          if (noteRelatedTools.includes(toolCall.name)) {
             const taskId = toolCall.id;
             const existingTask = taskMap.get(taskId);
 
@@ -55,15 +78,17 @@
       }
     });
 
-    return Array.from(taskMap.values()).sort((a, b) => {
+    const finalTasks = Array.from(taskMap.values()).sort((a, b) => {
       // Sort by status: in_progress, pending, completed
       const statusOrder = { in_progress: 0, pending: 1, completed: 2 };
       return statusOrder[a.status] - statusOrder[b.status];
     });
+
+    return finalTasks;
   });
 
   // Extract notes discussed from messages
-  const notesDiscussed = $derived<string[]>(() => {
+  const notesDiscussed = $derived.by<string[]>(() => {
     const noteSet = new Set<string>();
     messages.forEach((message) => {
       const wikilinks = extractNotesFromText(message.text);
