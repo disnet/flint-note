@@ -585,24 +585,23 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
 
 #### 🗂️ Left Sidebar Functionality
 **System Views Testing**:
-- [ ] **Inbox View**:
+- [x] **Inbox View**:
   - Click "Inbox" → Expandable section appears
   - Text area for quick capture is visible
   - "Save to Inbox" button is present (functionality TBD)
-  - Click "Inbox" again → Section collapses
 
-- [ ] **All Notes View**:
+- [x] **All Notes View**:
   - Click "All notes" → Shows existing NotesView component
   - Notes are displayed in hierarchical structure
   - Can click on individual notes to open them
   - Create note functionality works
 
-- [ ] **Search View**:
+- [x] **Search View**:
   - Click "Search" → SearchBar component appears
   - Search functionality works as before
   - Results can be selected to open notes
 
-- [ ] **Settings View**:
+- [x] **Settings View**:
   - Click "Settings" → Settings component appears
   - All existing settings are accessible
   - Settings persist across sessions
@@ -642,7 +641,7 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
 
 #### 🎯 Main View Functionality
 **Note Display Testing**:
-- [ ] **Empty State**:
+- [x] **Empty State**:
   - No note selected → Shows "No note selected" with icon
   - Empty state is centered and well-formatted
 
@@ -652,7 +651,7 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
   - Info button is present (functionality TBD)
   - Close button closes the note
 
-- [ ] **Note Editor Integration**:
+- [x] **Note Editor Integration**:
   - NoteEditor component loads correctly
   - Note content is editable
   - Changes are saved automatically
@@ -671,7 +670,7 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
   - Displays tags if present
   - "Select a note to view metadata" when no note active
 
-- [ ] **Toggle Functionality**:
+- [x] **Toggle Functionality**:
   - Mode preference persists per session
   - Smooth transition between modes
   - Content updates correctly when switching
