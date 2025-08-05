@@ -37,7 +37,9 @@
     showCreateNoteModal = true;
   }
 
-  function handleSystemViewSelect(view: 'inbox' | 'notes' | 'search' | 'settings' | null): void {
+  function handleSystemViewSelect(
+    view: 'inbox' | 'notes' | 'search' | 'settings' | null
+  ): void {
     activeSystemView = view;
     // Clear active note when switching to system views (except notes view)
     if (view !== 'notes' && view !== null) {
@@ -84,6 +86,45 @@
     activeNote = null;
   }
 
+  async function handleNoteTypeChange(
+    noteId: string,
+    newType: string
+  ): Promise<void> {
+    if (!activeNote || activeNote.id !== noteId) return;
+
+    try {
+      const chatService = getChatService();
+
+      console.log(`Moving note from type '${activeNote.type}' to '${newType}'`);
+
+      // Use moveNote API to properly move the note to a new type
+      const moveResult = await chatService.moveNote({
+        identifier: noteId,
+        newType: newType
+      });
+
+      if (moveResult.success) {
+        // Update the active note with new ID and type
+        activeNote = {
+          ...activeNote,
+          id: moveResult.new_id,
+          type: moveResult.new_type
+        };
+
+        // Refresh notes store to update the lists
+        await notesStore.refresh();
+
+        console.log(
+          `Successfully moved note to type '${moveResult.new_type}' with new ID '${moveResult.new_id}'`
+        );
+      } else {
+        throw new Error(moveResult.error || 'Failed to move note');
+      }
+    } catch (error) {
+      console.error('Failed to change note type:', error);
+      throw error; // Re-throw so the UI can handle it
+    }
+  }
 
   // Global keyboard shortcuts
   $effect(() => {
@@ -212,23 +253,25 @@
 
 <div class="app" class:three-column={sidebarState.layout === 'three-column'}>
   <div class="app-layout">
-    <LeftSidebar 
-      onNoteSelect={handleNoteSelect} 
+    <LeftSidebar
+      onNoteSelect={handleNoteSelect}
       onCreateNote={handleCreateNote}
       onSystemViewSelect={handleSystemViewSelect}
     />
-    
-    <MainView 
-      {activeNote} 
+
+    <MainView
+      {activeNote}
       {activeSystemView}
-      onClose={closeNoteEditor} 
+      noteTypes={notesStore.noteTypes}
+      onClose={closeNoteEditor}
       onSendMessage={handleSendMessage}
       onNoteSelect={handleNoteSelect}
       onCreateNote={handleCreateNote}
+      onNoteTypeChange={handleNoteTypeChange}
     />
-    
-    <RightSidebar 
-      {messages} 
+
+    <RightSidebar
+      {messages}
       isLoading={isLoadingResponse} 
       {activeNote}
       onNoteClick={handleNoteClick} 

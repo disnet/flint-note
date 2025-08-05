@@ -6,23 +6,47 @@
   import SearchBar from './SearchBar.svelte';
   import Settings from './Settings.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
-  import type { NoteMetadata } from '../services/noteStore.svelte';
+  import type { NoteMetadata, NoteType } from '../services/noteStore.svelte';
+  import { getChatService } from '../services/chatService';
 
   interface Props {
     activeNote: NoteMetadata | null;
     activeSystemView: 'inbox' | 'notes' | 'search' | 'settings' | null;
+    noteTypes: NoteType[];
     onClose: () => void;
     onSendMessage: (text: string) => Promise<void>;
     onNoteSelect: (note: NoteMetadata) => void;
     onCreateNote: () => void;
+    onNoteTypeChange: (noteId: string, newType: string) => Promise<void>;
   }
 
-  let { activeNote, activeSystemView, onClose, onSendMessage, onNoteSelect, onCreateNote }: Props = $props();
+  let { activeNote, activeSystemView, noteTypes, onClose, onSendMessage, onNoteSelect, onCreateNote, onNoteTypeChange }: Props = $props();
 
   let noteEditor = $state<{ focus?: () => void } | null>(null);
+  let isChangingType = $state(false);
 
   function toggleRightSidebar() {
     sidebarState.toggleRightSidebar();
+  }
+
+  async function handleNoteTypeChange(event: Event) {
+    if (!activeNote || isChangingType) return;
+    
+    const target = event.target as HTMLSelectElement;
+    const newType = target.value;
+    
+    if (newType === activeNote.type) return;
+    
+    try {
+      isChangingType = true;
+      await onNoteTypeChange(activeNote.id, newType);
+    } catch (error) {
+      console.error('Failed to change note type:', error);
+      // Reset the dropdown to the original type on error
+      target.value = activeNote.type;
+    } finally {
+      isChangingType = false;
+    }
   }
 
   function focusEditor() {
@@ -74,10 +98,19 @@
   {:else if activeNote}
     <div class="note-header">
       <div class="note-type-selector">
-        <select class="note-type-dropdown">
-          <option value="daily">Daily</option>
-          <option value="project">Project</option>
-          <option value="note">Note</option>
+        <select 
+          class="note-type-dropdown"
+          class:changing={isChangingType}
+          value={activeNote.type}
+          onchange={handleNoteTypeChange}
+          disabled={isChangingType}
+          aria-label="Note type"
+        >
+          {#each noteTypes as noteType (noteType.name)}
+            <option value={noteType.name}>
+              {noteType.name} ({noteType.count})
+            </option>
+          {/each}
         </select>
       </div>
       
@@ -186,6 +219,16 @@
     outline: none;
     border-color: var(--accent-primary);
     box-shadow: 0 0 0 2px var(--accent-primary-alpha);
+  }
+
+  .note-type-dropdown.changing {
+    opacity: 0.6;
+    cursor: wait;
+  }
+
+  .note-type-dropdown:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 
   .note-actions {

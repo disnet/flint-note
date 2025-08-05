@@ -607,34 +607,34 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
   - Settings persist across sessions
 
 **Pinned Notes Testing**:
-- [ ] **Section Header**:
+- lx] **Section Header**:
   - "Pinned" section visible with arrow indicator
   - Click arrow → Section collapses/expands
   - State persists across app restarts
 
-- [ ] **Note Icons**:
+- [x] **Note Icons**:
   - Notes with dates show calendar icon
   - Notes tagged as "project" show folder icon
   - Other notes show document icon
 
-- [ ] **Note Interaction**:
+- [x] **Note Interaction**:
   - Click pinned note → Opens in main view
   - Note is added to temporary tabs
   - Active note is highlighted
 
 **Temporary Tabs Testing**:
-- [ ] **Tab Creation**:
+- [x] **Tab Creation**:
   - Open note from search → Appears in temporary tabs
   - Open note from navigation → Appears in temporary tabs
   - Click wikilink → Appears in temporary tabs (when implemented)
 
-- [ ] **Tab Management**:
+- [x] **Tab Management**:
   - Recent tabs show in chronological order (newest first)
   - Individual close buttons appear on hover
   - Click "close all" → All temporary tabs cleared
   - Tab count displays correctly
 
-- [ ] **Tab Persistence**:
+- [x] **Tab Persistence**:
   - Temporary tabs persist across app restarts
   - Tabs older than 24 hours are auto-cleaned
   - Active tab is remembered
