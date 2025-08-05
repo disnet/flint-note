@@ -252,7 +252,9 @@
   }
 
   function togglePin(): void {
-    pinnedNotesStore.togglePin(note.id, note.title, note.filename);
+    console.log('NoteEditor: togglePin called for:', { id: note.id, title: note.title, filename: note.filename });
+    const result = pinnedNotesStore.togglePin(note.id, note.title, note.filename);
+    console.log('NoteEditor: togglePin result:', result);
   }
 
   async function changeNoteType(): Promise<void> {

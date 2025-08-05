@@ -35,6 +35,7 @@ function createPinnedNotesStore(): {
 
   // Initialize with stored data
   const initialNotes = loadFromStorage();
+  console.log('pinnedNotesStore: Initializing with notes:', initialNotes);
   set(initialNotes);
 
   // Create a derived store for the isPinned function
@@ -71,15 +72,20 @@ function createPinnedNotesStore(): {
     },
     togglePin: (id: string, title: string, filename: string): boolean => {
       const currentNotes = get(store);
+      console.log('pinnedNotesStore: togglePin called with:', { id, title, filename });
+      console.log('pinnedNotesStore: current notes:', currentNotes);
 
       if (currentNotes.some((note) => note.id === id)) {
+        console.log('pinnedNotesStore: Unpinning note');
         update((notes) => {
           const updatedNotes = notes.filter((note) => note.id !== id);
+          console.log('pinnedNotesStore: After unpin:', updatedNotes);
           saveToStorage(updatedNotes);
           return updatedNotes;
         });
         return false;
       } else {
+        console.log('pinnedNotesStore: Pinning note');
         update((notes) => {
           const pinnedNote: PinnedNoteInfo = {
             id,
@@ -88,6 +94,7 @@ function createPinnedNotesStore(): {
             pinnedAt: new Date().toISOString()
           };
           const updatedNotes = [...notes, pinnedNote];
+          console.log('pinnedNotesStore: After pin:', updatedNotes);
           saveToStorage(updatedNotes);
           return updatedNotes;
         });
