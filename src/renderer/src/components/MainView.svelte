@@ -1,16 +1,23 @@
 <script lang="ts">
   import NoteEditor from './NoteEditor.svelte';
   import MessageInput from './MessageInput.svelte';
+  import InboxView from './InboxView.svelte';
+  import NotesView from './NotesView.svelte';
+  import SearchBar from './SearchBar.svelte';
+  import Settings from './Settings.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
   import type { NoteMetadata } from '../services/noteStore.svelte';
 
   interface Props {
     activeNote: NoteMetadata | null;
+    activeSystemView: 'inbox' | 'notes' | 'search' | 'settings' | null;
     onClose: () => void;
     onSendMessage: (text: string) => Promise<void>;
+    onNoteSelect: (note: NoteMetadata) => void;
+    onCreateNote: () => void;
   }
 
-  let { activeNote, onClose, onSendMessage }: Props = $props();
+  let { activeNote, activeSystemView, onClose, onSendMessage, onNoteSelect, onCreateNote }: Props = $props();
 
   let noteEditor = $state<{ focus?: () => void } | null>(null);
 
@@ -33,7 +40,38 @@
 </script>
 
 <div class="main-view">
-  {#if activeNote}
+  {#if activeSystemView === 'inbox'}
+    <InboxView />
+  {:else if activeSystemView === 'notes'}
+    <div class="system-view-container">
+      <div class="system-view-header">
+        <h1>All Notes</h1>
+      </div>
+      <div class="system-view-content">
+        <NotesView {onNoteSelect} {onCreateNote} />
+      </div>
+    </div>
+  {:else if activeSystemView === 'search'}
+    <div class="system-view-container">
+      <div class="system-view-header">
+        <h1>Search</h1>
+      </div>
+      <div class="system-view-content">
+        <div class="search-container">
+          <SearchBar {onNoteSelect} />
+        </div>
+      </div>
+    </div>
+  {:else if activeSystemView === 'settings'}
+    <div class="system-view-container">
+      <div class="system-view-header">
+        <h1>Settings</h1>
+      </div>
+      <div class="system-view-content">
+        <Settings />
+      </div>
+    </div>
+  {:else if activeNote}
     <div class="note-header">
       <div class="note-type-selector">
         <select class="note-type-dropdown">
@@ -219,6 +257,37 @@
     line-height: 1.5;
   }
 
+  .system-view-container {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-primary);
+  }
+
+  .system-view-header {
+    padding: 2rem 2rem 1rem 2rem;
+    border-bottom: 1px solid var(--border-light);
+    background: var(--bg-secondary);
+  }
+
+  .system-view-header h1 {
+    margin: 0;
+    font-size: 2rem;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .system-view-content {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .search-container {
+    padding: 2rem;
+  }
+
   .chat-input {
     border-top: 1px solid var(--border-light);
     background: var(--bg-primary);
@@ -235,6 +304,18 @@
     
     .action-btn {
       padding: 0.375rem;
+    }
+
+    .system-view-header {
+      padding: 1.5rem 1rem 1rem 1rem;
+    }
+
+    .system-view-header h1 {
+      font-size: 1.75rem;
+    }
+
+    .search-container {
+      padding: 1.5rem 1rem;
     }
   }
 </style>

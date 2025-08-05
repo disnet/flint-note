@@ -566,22 +566,22 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
 
 #### 🖥️ Desktop Layout Testing (>1400px)
 **Three-Column Layout Verification**:
-- [ ] **Layout Structure**: Verify three distinct columns are visible:
+- [x] **Layout Structure**: Verify three distinct columns are visible:
   - Left sidebar (300px, navigation)
   - Main view (flexible width, note content)
   - Right sidebar (400px, AI/metadata)
 
 - [ ] **Sidebar Visibility**:
-  - [ ] Left sidebar is visible by default
-  - [ ] Right sidebar is hidden by default
-  - [ ] Hamburger menu in left sidebar header toggles left sidebar visibility
-  - [ ] Close button in right sidebar header toggles right sidebar visibility
+  - [x] Left sidebar is visible by default
+  - [x] Right sidebar is hidden by default
+  - [x] Hamburger menu in left sidebar header toggles left sidebar visibility
+  - [x] Close button in right sidebar header toggles right sidebar visibility
 
 #### 📱 Mobile Layout Testing (<768px)
 **Single-Column Layout Verification**:
-- [ ] **Responsive Behavior**: Only main view is visible by default
-- [ ] **Sidebar Overlays**: Sidebars appear as overlays when opened
-- [ ] **Touch Interaction**: Tap gestures work on mobile devices
+- [x] **Responsive Behavior**: Only main view is visible by default
+- [x] **Sidebar Overlays**: Sidebars appear as overlays when opened
+- [x] **Touch Interaction**: Tap gestures work on mobile devices
 
 #### 🗂️ Left Sidebar Functionality
 **System Views Testing**:

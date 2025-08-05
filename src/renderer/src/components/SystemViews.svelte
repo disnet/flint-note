@@ -1,33 +1,24 @@
 <script lang="ts">
-  import NotesView from './NotesView.svelte';
-  import SearchBar from './SearchBar.svelte';
-  import Settings from './Settings.svelte';
   import type { NoteMetadata } from '../services/noteStore.svelte';
 
   interface Props {
     onNoteSelect: (note: NoteMetadata) => void;
     onCreateNote: () => void;
+    onSystemViewSelect: (view: 'inbox' | 'notes' | 'search' | 'settings' | null) => void;
   }
 
-  let { onNoteSelect, onCreateNote }: Props = $props();
+  let { onNoteSelect, onCreateNote, onSystemViewSelect }: Props = $props();
 
-  let activeView = $state<'inbox' | 'notes' | 'search' | 'settings' | null>(null);
-
-  function setActiveView(view: 'inbox' | 'notes' | 'search' | 'settings' | null) {
-    activeView = activeView === view ? null : view;
+  function setActiveView(view: 'inbox' | 'notes' | 'search' | 'settings') {
+    onSystemViewSelect(view);
   }
 
-  function handleInboxCapture(text: string) {
-    // TODO: Implement inbox capture functionality
-    console.log('Inbox capture:', text);
-  }
 </script>
 
 <div class="system-views">
   <div class="system-nav">
     <button 
       class="nav-item" 
-      class:active={activeView === 'inbox'}
       onclick={() => setActiveView('inbox')}
     >
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -38,7 +29,6 @@
 
     <button 
       class="nav-item" 
-      class:active={activeView === 'notes'}
       onclick={() => setActiveView('notes')}
     >
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -50,7 +40,6 @@
 
     <button 
       class="nav-item" 
-      class:active={activeView === 'search'}
       onclick={() => setActiveView('search')}
     >
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -62,7 +51,6 @@
 
     <button 
       class="nav-item" 
-      class:active={activeView === 'settings'}
       onclick={() => setActiveView('settings')}
     >
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -73,37 +61,6 @@
     </button>
   </div>
 
-  {#if activeView === 'inbox'}
-    <div class="system-content">
-      <div class="inbox-view">
-        <div class="inbox-header">
-          <h3>Quick Capture</h3>
-        </div>
-        <textarea 
-          class="inbox-input" 
-          placeholder="Capture thoughts quickly for later organization..."
-          rows="4"
-        ></textarea>
-        <div class="inbox-actions">
-          <button class="btn-primary">Save to Inbox</button>
-        </div>
-      </div>
-    </div>
-  {:else if activeView === 'notes'}
-    <div class="system-content">
-      <NotesView {onNoteSelect} {onCreateNote} />
-    </div>
-  {:else if activeView === 'search'}
-    <div class="system-content">
-      <div class="search-view">
-        <SearchBar {onNoteSelect} />
-      </div>
-    </div>
-  {:else if activeView === 'settings'}
-    <div class="system-content">
-      <Settings />
-    </div>
-  {/if}
 </div>
 
 <style>
@@ -136,78 +93,7 @@
     color: var(--text-primary);
   }
 
-  .nav-item.active {
-    background: var(--bg-selected);
-    color: var(--accent-primary);
-  }
-
   .nav-item svg {
     flex-shrink: 0;
-  }
-
-  .system-content {
-    max-height: 400px;
-    overflow-y: auto;
-    border-top: 1px solid var(--border-light);
-  }
-
-  .inbox-view {
-    padding: 1rem 1.25rem;
-  }
-
-  .inbox-header {
-    margin-bottom: 0.75rem;
-  }
-
-  .inbox-header h3 {
-    margin: 0;
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--text-secondary);
-  }
-
-  .inbox-input {
-    width: 100%;
-    padding: 0.75rem;
-    border: 1px solid var(--border-light);
-    border-radius: 0.5rem;
-    background: var(--bg-secondary);
-    color: var(--text-primary);
-    font-family: inherit;
-    font-size: 0.875rem;
-    resize: vertical;
-    min-height: 80px;
-    margin-bottom: 0.75rem;
-  }
-
-  .inbox-input:focus {
-    outline: none;
-    border-color: var(--accent-primary);
-    box-shadow: 0 0 0 2px var(--accent-primary-alpha);
-  }
-
-  .inbox-actions {
-    display: flex;
-    justify-content: flex-end;
-  }
-
-  .btn-primary {
-    padding: 0.5rem 1rem;
-    border: none;
-    border-radius: 0.5rem;
-    background: var(--accent-primary);
-    color: white;
-    font-size: 0.875rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-
-  .btn-primary:hover {
-    background: var(--accent-primary-hover);
-  }
-
-  .search-view {
-    padding: 1rem 1.25rem;
   }
 </style>

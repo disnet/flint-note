@@ -23,6 +23,7 @@
   let isLoadingResponse = $state(false);
   let activeNote = $state<NoteMetadata | null>(null);
   let showCreateNoteModal = $state(false);
+  let activeSystemView = $state<'inbox' | 'notes' | 'search' | 'settings' | null>(null);
 
   function handleNoteSelect(note: NoteMetadata): void {
     openNoteEditor(note);
@@ -32,6 +33,14 @@
 
   function handleCreateNote(): void {
     showCreateNoteModal = true;
+  }
+
+  function handleSystemViewSelect(view: 'inbox' | 'notes' | 'search' | 'settings' | null): void {
+    activeSystemView = view;
+    // Clear active note when switching to system views (except notes view)
+    if (view !== 'notes' && view !== null) {
+      activeNote = null;
+    }
   }
 
   function handleCloseCreateModal(): void {
@@ -201,12 +210,19 @@
 
 <div class="app" class:three-column={sidebarState.layout === 'three-column'}>
   <div class="app-layout">
-    <LeftSidebar onNoteSelect={handleNoteSelect} onCreateNote={handleCreateNote} />
+    <LeftSidebar 
+      onNoteSelect={handleNoteSelect} 
+      onCreateNote={handleCreateNote}
+      onSystemViewSelect={handleSystemViewSelect}
+    />
     
     <MainView 
       {activeNote} 
+      {activeSystemView}
       onClose={closeNoteEditor} 
-      onSendMessage={handleSendMessage} 
+      onSendMessage={handleSendMessage}
+      onNoteSelect={handleNoteSelect}
+      onCreateNote={handleCreateNote}
     />
     
     <RightSidebar 
