@@ -249,9 +249,90 @@ The right sidebar serves dual purposes based on user action:
 - **Global Stores**:
   - `sidebarState`: Left/right sidebar visibility and content
   - `temporaryTabs`: Dynamic list of open notes
-  - `pinnedNotes`: User-curated pinned notes
+  - `pinnedNotes`: User-curated pinned notes (existing - localStorage)
   - `aiThreads`: Conversation history and context
   - `currentNote`: Active note and metadata
+  - `notesStore`: Existing note management (already using runes)
+  - `modelStore`: AI model selection (existing)
+  - `settingsStore`: Application settings (existing)
+
+### New Store Implementations Required
+
+#### Temporary Tabs Store (`temporaryTabsStore.svelte.ts`)
+```typescript
+interface TemporaryTab {
+  id: string;
+  noteId: string;
+  title: string;
+  openedAt: Date;
+  lastAccessed: Date;
+  source: 'search' | 'wikilink' | 'navigation';
+}
+
+interface TemporaryTabsState {
+  tabs: TemporaryTab[];
+  activeTabId: string | null;
+  maxTabs: number; // Default: 10
+  autoCleanupHours: number; // Default: 24
+}
+```
+
+**Key Features:**
+- Chronological ordering (most recent first)
+- Automatic cleanup of unused tabs after 24 hours
+- Source tracking for analytics and behavior
+- Persistence across sessions (localStorage)
+- Integration with wikilink navigation and search results
+
+#### AI Threads Store (`aiThreadsStore.svelte.ts`)
+```typescript
+interface AIThread {
+  id: string;
+  title: string;
+  messages: Message[];
+  notesDiscussed: string[]; // Note IDs referenced in conversation
+  createdAt: Date;
+  lastActivity: Date;
+  isActive: boolean;
+}
+
+interface AIThreadsState {
+  threads: AIThread[];
+  activeThreadId: string | null;
+  maxThreads: number; // Default: 50
+}
+```
+
+**Key Features:**
+- Global thread scope (not per-note)
+- Automatic note context tracking via [[wikilink]] syntax
+- Thread persistence across sessions
+- "Notes discussed" tracking and visualization
+- Thread archiving and cleanup
+
+#### Sidebar State Store (`sidebarState.svelte.ts`)
+```typescript
+interface SidebarState {
+  leftSidebar: {
+    visible: boolean;
+    width: number;
+    activeSection: 'system' | 'pinned' | 'tabs';
+  };
+  rightSidebar: {
+    visible: boolean;
+    width: number;
+    mode: 'ai' | 'metadata';
+  };
+  layout: 'single-column' | 'three-column';
+  breakpoint: number;
+}
+```
+
+**Key Features:**
+- Responsive behavior consolidation
+- Sidebar visibility and sizing management
+- Layout mode switching logic
+- Persistence of user preferences
 
 ### Component Structure
 ```
@@ -268,10 +349,77 @@ App.svelte
     └── MetadataEditor.svelte
 ```
 
+### Search Integration Architecture
+
+#### Enhanced Search Workflow
+The existing `SearchBar` component needs integration with the new sidebar architecture:
+
+**Current State:**
+- `SearchBar.svelte` exists with `onNoteSelect` callback
+- Basic search functionality implemented
+
+**Required Enhancements:**
+1. **Search Results → Temporary Tabs**: Search results automatically add notes to temporary tabs
+2. **Search State Management**: Global search state for recent searches, filters, and results
+3. **Search Context Integration**: Search within AI conversations and note content
+4. **Advanced Filtering**: By note type, tags, creation date, modification date
+
+**Implementation Requirements:**
+```typescript
+interface SearchState {
+  query: string;
+  results: NoteMetadata[];
+  filters: {
+    noteTypes: string[];
+    tags: string[];
+    dateRange: { start?: Date; end?: Date };
+  };
+  recentSearches: string[];
+  isSearching: boolean;
+}
+```
+
+### Component Refactoring Requirements
+
+#### Current Components to Modify
+
+**App.svelte (Major Refactor)**
+- Remove existing responsive layout logic (lines 112-143)
+- Replace tab-based navigation with sidebar architecture
+- Integrate new store dependencies
+- Update event handling for sidebar interactions
+
+**TabNavigation.svelte → LeftSidebar.svelte**
+- Convert from horizontal tabs to vertical sidebar sections
+- Add system views (Inbox, All notes, Search, Settings)
+- Integrate pinned notes and temporary tabs sections
+- Add collapsible section headers
+
+**ChatView.svelte → Enhanced with Thread Management**
+- Add thread switching interface
+- Implement "Notes discussed" visualization
+- Add thread history navigation
+- Update message handling for multi-thread context
+
+**New Components Required:**
+- `SystemViews.svelte` - Inbox, All notes, Search interfaces
+- `TemporaryTabs.svelte` - Dynamic tab list with close buttons
+- `RightSidebar.svelte` - Container for AI/Metadata modes
+- `ThreadManager.svelte` - Thread creation and switching
+- `MetadataEditor.svelte` - YAML frontmatter editing
+
+#### Existing Components to Preserve
+- `NoteEditor.svelte` - Works in new right sidebar context
+- `PinnedView.svelte` - Integrates into left sidebar
+- `NotesView.svelte` - Becomes part of "All notes" system view
+- `Settings.svelte` - Moves to system views section
+
 ### Data Flow
-1. **Note Opening**: Search/Navigation → Add to temporary tabs → Update main view
-2. **AI Interaction**: User message → Include current note context → Process [[links]] → Update "Notes discussed"
-3. **Metadata Editing**: Toggle metadata mode → Load note frontmatter → Real-time sync
+1. **Note Opening**: Search/Navigation → Add to temporary tabs → Update main view → Track in temporary tabs store
+2. **AI Interaction**: User message → Include current note context → Process [[links]] → Update "Notes discussed" → Track in AI threads store
+3. **Metadata Editing**: Toggle metadata mode → Load note frontmatter → Real-time sync → Update notes store
+4. **Temporary Tab Management**: Auto-cleanup → Source tracking → Persistence → Integration with wikilinks
+5. **Thread Management**: Thread switching → Context preservation → Note reference tracking → Persistence
 
 ## Success Metrics
 
@@ -289,18 +437,114 @@ App.svelte
 
 ## Migration Strategy
 
-### From Current Design
-1. **Phase 1**: Implement new layout alongside existing tabs
-2. **Phase 2**: Feature flag to toggle between old/new interfaces
-3. **Phase 3**: Migrate user preferences and pinned notes
-4. **Phase 4**: Remove legacy tab-based navigation
-5. **Phase 5**: Full deployment of new sidebar architecture
+### Technical Migration Plan
 
-### Data Preservation
-- Existing pinned notes migrate to new pinned section
-- Chat history preserved in new thread system
-- Note editor preferences and settings maintained
-- Search history and preferences carried forward
+#### Phase 1: Infrastructure Setup
+**Goal**: Prepare foundation without breaking existing functionality
+
+**Technical Tasks:**
+1. Create new store files (`temporaryTabsStore.svelte.ts`, `aiThreadsStore.svelte.ts`, `sidebarState.svelte.ts`)
+2. Implement feature flag in `settingsStore.svelte.ts`:
+   ```typescript
+   interface SettingsState {
+     // ... existing settings
+     enableSidebarLayout: boolean; // Default: false
+   }
+   ```
+3. Add conditional rendering in `App.svelte` to switch between layouts
+4. Create new component files without removing existing ones
+
+#### Phase 2: Parallel Implementation
+**Goal**: Build new sidebar system alongside existing tab system
+
+**Technical Tasks:**
+1. Implement `LeftSidebar.svelte` with system views
+2. Create `RightSidebar.svelte` container
+3. Build new components (`TemporaryTabs.svelte`, `ThreadManager.svelte`, etc.)
+4. Update responsive layout logic in new sidebar context
+5. Feature flag allows users to opt-in to new layout
+
+#### Phase 3: Data Migration & Integration
+**Goal**: Ensure seamless data transition
+
+**Technical Tasks:**
+1. **Pinned Notes Migration**: Existing `pinnedNotesStore` already uses localStorage - no migration needed
+2. **Chat History Migration**: 
+   ```typescript
+   // Migrate existing messages array to thread format
+   function migrateMessagesToThreads(messages: Message[]): AIThread {
+     return {
+       id: 'migrated-thread-' + Date.now(),
+       title: 'Imported Conversation',
+       messages,
+       notesDiscussed: extractNotesFromMessages(messages),
+       createdAt: new Date(messages[0]?.timestamp || Date.now()),
+       lastActivity: new Date(),
+       isActive: true
+     };
+   }
+   ```
+3. **Settings Preservation**: All existing settings in `settingsStore` preserved
+4. **Search History**: Extract from existing search implementations
+
+#### Phase 4: Component Refactoring
+**Goal**: Update existing components to work with new architecture
+
+**Technical Tasks:**
+1. Refactor `App.svelte`:
+   - Remove lines 112-143 (existing responsive logic)
+   - Replace `layoutMode` state with `sidebarState` store
+   - Update event handlers for sidebar interactions
+2. Convert `TabNavigation.svelte` to `LeftSidebar.svelte`
+3. Enhance `ChatView.svelte` with thread management
+4. Update `SearchBar.svelte` integration with temporary tabs
+
+#### Phase 5: Legacy Cleanup
+**Goal**: Remove old tab-based system
+
+**Technical Tasks:**
+1. Remove feature flag and old layout code
+2. Delete `TabNavigation.svelte`
+3. Clean up unused responsive layout logic
+4. Update component imports and references
+5. Remove old state management code
+
+### Data Preservation Strategy
+
+#### Automatic Migrations
+- **Pinned Notes**: Already stored in localStorage with key `flint-pinned-notes` - direct compatibility
+- **Model Settings**: Existing `modelStore` preserved without changes
+- **Application Settings**: Existing `settingsStore` enhanced with new sidebar preferences
+- **Note Data**: Existing `notesStore` unchanged - full compatibility
+
+#### Manual Migration Required
+- **Chat Messages**: Convert single message array to thread-based structure
+- **Search Preferences**: Extract and migrate to new search state management
+- **Layout Preferences**: Convert existing responsive preferences to sidebar state
+
+#### Rollback Strategy
+- Feature flag allows instant rollback to tab-based layout
+- All migrated data preserved in new format
+- Original data structures maintained during transition period
+- Database/storage changes are additive, not destructive
+
+### Feature Flag Implementation
+```typescript
+// In App.svelte
+let useSidebarLayout = $derived(settingsStore.enableSidebarLayout);
+
+// Conditional layout rendering
+{#if useSidebarLayout}
+  <!-- New sidebar layout -->
+  <LeftSidebar />
+  <MainView />
+  <RightSidebar />
+{:else}
+  <!-- Existing tab layout -->
+  <TabNavigation />
+  <!-- ... existing layout -->
+{/if}
+```
 
 ## Conclusion
 
