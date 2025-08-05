@@ -113,11 +113,13 @@
   .right-sidebar {
     width: 400px;
     height: 100%;
+    max-height: 100vh;
     background: var(--bg-primary);
     border-left: 1px solid var(--border-light);
     display: flex;
     flex-direction: column;
     transition: transform 0.3s ease;
+    overflow: hidden;
   }
 
   .right-sidebar:not(.visible) {
@@ -178,6 +180,7 @@
 
   .sidebar-content {
     flex: 1;
+    min-height: 0; /* Critical for proper flexbox height constraint */
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -185,6 +188,7 @@
 
   .ai-mode {
     flex: 1;
+    min-height: 0; /* Critical for proper flexbox height constraint */
     display: flex;
     flex-direction: column;
     overflow: hidden;

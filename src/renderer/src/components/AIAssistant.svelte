@@ -107,7 +107,10 @@
 
   $effect(() => {
     if (chatContainer && (messages.length > 0 || isLoading)) {
-      chatContainer.scrollTop = chatContainer.scrollHeight;
+      // Use requestAnimationFrame to ensure layout is complete
+      requestAnimationFrame(() => {
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+      });
     }
   });
 </script>
@@ -155,14 +158,12 @@
 
   <!-- Chat Messages Section -->
   <div class="chat-section" bind:this={chatContainer}>
-    <div class="messages">
-      {#each messages as message (message.id)}
-        <MessageComponent {message} {onNoteClick} />
-      {/each}
-      {#if isLoading}
-        <LoadingMessage />
-      {/if}
-    </div>
+    {#each messages as message (message.id)}
+      <MessageComponent {message} {onNoteClick} />
+    {/each}
+    {#if isLoading}
+      <LoadingMessage />
+    {/if}
   </div>
 
   <!-- Notes Discussed Section -->
@@ -199,6 +200,8 @@
     display: flex;
     flex-direction: column;
     height: 100%;
+    max-height: 100%;
+    min-height: 0; /* Important for flexbox children to respect parent height */
     overflow: hidden;
   }
 
@@ -303,32 +306,36 @@
   /* Chat Section Styles */
   .chat-section {
     flex: 1;
+    min-height: 0; /* Important for flex item to scroll properly */
+    max-height: 100%; /* Force height constraint */
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 1rem 1.25rem;
-  }
-
-  .messages {
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
   }
 
+  .chat-section > :last-child {
+    margin-bottom: 0.5rem; /* Ensure last message isn't cut off */
+  }
+
   .chat-section::-webkit-scrollbar {
-    width: 6px;
+    width: 8px;
   }
 
   .chat-section::-webkit-scrollbar-track {
-    background: transparent;
+    background: rgba(0, 0, 0, 0.1);
   }
 
   .chat-section::-webkit-scrollbar-thumb {
-    background: var(--scrollbar-thumb);
-    border-radius: 3px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
     transition: background-color 0.2s ease;
   }
 
   .chat-section::-webkit-scrollbar-thumb:hover {
-    background: var(--scrollbar-thumb-hover);
+    background: rgba(0, 0, 0, 0.5);
   }
 
   /* Notes Discussed Styles */
