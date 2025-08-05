@@ -1,0 +1,240 @@
+<script lang="ts">
+  import NoteEditor from './NoteEditor.svelte';
+  import MessageInput from './MessageInput.svelte';
+  import { sidebarState } from '../stores/sidebarState.svelte';
+  import type { NoteMetadata } from '../services/noteStore.svelte';
+
+  interface Props {
+    activeNote: NoteMetadata | null;
+    onClose: () => void;
+    onSendMessage: (text: string) => Promise<void>;
+  }
+
+  let { activeNote, onClose, onSendMessage }: Props = $props();
+
+  let noteEditor = $state<{ focus?: () => void } | null>(null);
+
+  function toggleRightSidebar() {
+    sidebarState.toggleRightSidebar();
+  }
+
+  function focusEditor() {
+    if (noteEditor && noteEditor.focus) {
+      noteEditor.focus();
+    }
+  }
+
+  // Focus editor when note becomes active
+  $effect(() => {
+    if (activeNote) {
+      setTimeout(focusEditor, 100);
+    }
+  });
+</script>
+
+<div class="main-view">
+  {#if activeNote}
+    <div class="note-header">
+      <div class="note-type-selector">
+        <select class="note-type-dropdown">
+          <option value="daily">Daily</option>
+          <option value="project">Project</option>
+          <option value="note">Note</option>
+        </select>
+      </div>
+      
+      <div class="note-actions">
+        <button 
+          class="action-btn" 
+          onclick={toggleRightSidebar}
+          aria-label="Toggle AI assistant"
+          title="Toggle AI assistant"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+          </svg>
+        </button>
+        <button 
+          class="action-btn" 
+          aria-label="Note information"
+          title="Note information"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="16" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+          </svg>
+        </button>
+        <button 
+          class="action-btn delete-btn" 
+          onclick={onClose}
+          aria-label="Close note"
+          title="Close note"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="note-content">
+      <NoteEditor 
+        bind:this={noteEditor}
+        note={activeNote} 
+        position="nested" 
+        {onClose} 
+      />
+    </div>
+  {:else}
+    <div class="empty-state">
+      <div class="empty-content">
+        <div class="empty-icon">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14,2 14,8 20,8"></polyline>
+          </svg>
+        </div>
+        <h2>No note selected</h2>
+        <p>Choose a note from the sidebar or create a new one to start editing</p>
+      </div>
+    </div>
+  {/if}
+
+  {#if sidebarState.layout === 'single-column'}
+    <div class="chat-input">
+      <MessageInput onSend={onSendMessage} />
+    </div>
+  {/if}
+</div>
+
+<style>
+  .main-view {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--bg-primary);
+    overflow: hidden;
+  }
+
+  .note-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border-light);
+    background: var(--bg-secondary);
+  }
+
+  .note-type-selector {
+    display: flex;
+    align-items: center;
+  }
+
+  .note-type-dropdown {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border-light);
+    border-radius: 0.5rem;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .note-type-dropdown:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 2px var(--accent-primary-alpha);
+  }
+
+  .note-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem;
+    border: 1px solid var(--border-light);
+    border-radius: 0.5rem;
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .action-btn:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--border-medium);
+    color: var(--text-primary);
+  }
+
+  .action-btn.delete-btn:hover {
+    background: var(--danger-bg);
+    border-color: var(--danger-border);
+    color: var(--danger-text);
+  }
+
+  .note-content {
+    flex: 1;
+    overflow: hidden;
+  }
+
+  .empty-state {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+  }
+
+  .empty-content {
+    text-align: center;
+    max-width: 400px;
+  }
+
+  .empty-icon {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+    color: var(--text-tertiary);
+  }
+
+  .empty-content h2 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+
+  .empty-content p {
+    margin: 0;
+    color: var(--text-tertiary);
+    line-height: 1.5;
+  }
+
+  .chat-input {
+    border-top: 1px solid var(--border-light);
+    background: var(--bg-primary);
+  }
+
+  @media (max-width: 768px) {
+    .note-header {
+      padding: 0.75rem 1rem;
+    }
+    
+    .note-actions {
+      gap: 0.25rem;
+    }
+    
+    .action-btn {
+      padding: 0.375rem;
+    }
+  }
+</style>
