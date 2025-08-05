@@ -32,215 +32,233 @@ This document outlines a complete redesign of the Flint GUI, moving from a tab-b
 
 ![interface with sidebar open](./figma/agent.png)
 
-### Left Sidebar Structure
+![all notes view](./figma/all-notes.png)
 
-The left sidebar is divided into three main sections:
+![inbox view](./figma/inbox.png)
 
-#### **System Views Section**
-- **Inbox**: Captures new notes and quick thoughts
-- **All notes**: Hierarchical view of the entire note collection
-- **Search**: Global search across all notes and content
-- **Settings**: Application configuration and preferences
+### Actual Design Analysis
 
-#### **Pinned Notes Section**
-- User-curated list of frequently accessed notes
-- Pin/unpin functionality from note editor
-- Persistent across sessions
-- Visual pin indicators
+Based on the Figma mockups, the design features:
 
-#### **Temporary Open Tabs Section**
-- Dynamic list of recently opened notes (similar to Arc browser tabs)
-- Automatically populated when notes are opened via:
-  - Search results
-  - Note links ([[wikilinks]])
-  - Direct navigation
-- Individual close buttons (appear on hover)
-- "Close all" button to clear all temporary tabs
-- Automatic cleanup (future: 24-hour expiration)
+#### **Left Sidebar Structure**
+
+The left sidebar contains:
+
+1. **Header Section**
+   - hamburger menu to show/hide left sidebar
+   - vault switcher dropdown control
+
+2. **System Navigation Section**
+   - **Inbox**: opens in the main view a quick way to capture notes for later saving
+   - **All notes**: opens in the main view a hierarchical browser showing organized note collections with collapsible sections ("Projects (1)", "Daily (3)")
+   - **Search**: Global search functionality
+   - **Settings**: Application configuration
+
+3. **Pinned Notes Section**
+   - Shows "Pinned" header with collapse indicator
+   - Contains user-curated notes like "June 23rd, 2025" and "Flint UI"
+   - Visual indicators for note types (daily note has calendar icon, project note has folder icon)
+
+4. **Temporary Tabs Section**
+   - Shows recently opened notes below a dotted separator line
+   - "close all" link to clear temporary tabs
+   - Individual notes listed with appropriate icons
+   - Notes shown: Arc, JavaScript, 2025-W25, Year in review, "Terseness is not a replacemen..."
 
 ### Main View Design
 
-The main view focuses entirely on note content with minimal UI chrome:
+The main view shows a clean, focused note editing interface:
 
 #### **Header Controls**
-- **Left side**: Note type selector dropdown (general, meeting, project, etc.)
+- **Left side**: Note type selector dropdown (shows "daily" in mockup)
 - **Right side**:
-  - AI assistant toggle button
-  - Metadata view toggle button
+  - Information icon button
+  - Trash/delete button
+  - Additional action button (+ icon)
 
 #### **Content Area**
-- Clean note title display
-- Full-width text editor (CodeMirror)
-- Minimal distractions to focus on writing
-- Auto-save functionality (500ms debounce)
+- Large, prominent note title ("June 23rd, 2025")
+- Full-width text editor with rich content
+- Clean typography and generous spacing
+- The mockup shows a daily journal entry with multiple paragraphs
+- Auto-save functionality (not visible in UI but implied)
+- Content includes inline links (like "GraphQL" which appears as a blue link)
 
 ### Right Sidebar (Contextual)
 
 The right sidebar serves dual purposes based on user action:
 
 #### **AI Assistant Mode**
-- Chat interface for conversing with AI
-- Current note automatically included as context
-- Support for [[wikilink]] syntax to include additional notes
-- "Notes discussed" section showing AI-referenced/modified notes
-- Thread management:
-  - "New thread" button for fresh conversations
-  - "Old threads" button to access conversation history
-  - Global thread scope (not per-note)
+The agent mockup shows a comprehensive AI assistant interface:
+
+- **Header**: Shows current context with expand/collapse controls
+- **Task Management Section**:
+  - Expandable "create_notes" task with completion indicator
+  - Shows completed tasks with checkmarks
+  - Task details: "I've made the notes", followed by linked note references
+- **AI Chat Interface**:
+  - Clean conversation thread
+  - User messages and AI responses
+  - Support for [[wikilink]] syntax (shown in use)
+  - Message input field at bottom: "Ask Flint anything, use [[ to link notes..."
+- **Notes Discussed Section**:
+  - Shows referenced notes with blue link styling
+  - Examples: "Cache optimization", "June 23rd, 2025", "File systems can be used as external memory for agents"
+- **Context Indicators**:
+  - Shows which notes are currently being discussed
+  - Visual connection between AI responses and note references
 
 #### **Metadata Editor Mode**
+- Toggle between AI and metadata modes via header controls
 - Note metadata editing interface
-- YAML frontmatter fields
+- YAML frontmatter fields editing
 - Tags, aliases, creation/modification dates
 - Custom key-value pairs
+- Real-time validation and error handling
 
 ## Responsive Behavior
 
-### Large Screens (>1200px)
+Based on the mockups, the interface shows a three-column layout:
+
+### Desktop Layout (as shown in mockups)
 ```
 ┌─────────────┬─────────────────────┬─────────────┐
 │             │                     │             │
 │ Left        │ Main Note View      │ Right       │
 │ Sidebar     │                     │ Sidebar     │
-│             │                     │ (AI/Meta)   │
+│ (Navigation │ (Note Content)      │ (AI Agent)  │
+│ & Tabs)     │                     │             │
 │             │                     │             │
 └─────────────┴─────────────────────┴─────────────┘
 ```
 
-### Medium Screens (768-1200px)
-```
-┌─────────────┬─────────────────────┐
-│             │                     │
-│ Left        │ Main Note View      │
-│ Sidebar     │                     │
-│             │ (Right sidebar      │
-│             │  overlays when      │
-│             │  activated)         │
-└─────────────┴─────────────────────┘
-```
-
-### Small Screens (<768px)
-```
-┌─────────────────────────────────────┐
-│                                     │
-│ Main Note View                      │
-│ (Full screen)                       │
-│                                     │
-│ (Sidebars slide in from edges      │
-│  when activated)                    │
-└─────────────────────────────────────┘
-```
+### Key Responsive Considerations
+- The mockups show a fixed three-panel layout optimized for larger screens
+- Left sidebar remains consistently sized across mockups
+- Right sidebar toggles between hidden (main.png) and visible (agent.png)
+- Content area adjusts width based on right sidebar visibility
+- Clean separation between navigation, content, and AI assistance
+- Mobile responsiveness would likely collapse sidebars or use overlay patterns
 
 ## Key Features & Interactions
 
-### Note Opening & Tab Management
+### Navigation & Note Access
 
-#### **Opening Notes**
-- **From Search**: Search results open notes in main view and add to temporary tabs
-- **From Wikilinks**: Clicking [[Note Title]] opens note and adds to temporary tabs
-- **From Pinned**: Clicking pinned notes opens in main view (doesn't add to temporary tabs)
-- **From System Views**: Browsing and selecting notes adds them to temporary tabs
+#### **System Views**
+- **Inbox**: Shows as a clean interface with placeholder text for quick note capture
+- **All notes**: Displays hierarchical organization with collapsible sections ("Projects (1)", "Daily (3)")
+- **Search**: Integrated search functionality
+- **Settings**: Configuration access
 
-#### **Tab Behavior**
-- Temporary tabs appear in chronological order (most recent at top)
-- Hover to reveal individual close button (×)
-- "Close all" button clears entire temporary tab section
-- Future: Automatic 24-hour cleanup of unused tabs
-- Visual indication of currently active note
+#### **Note Organization**
+- **Pinned Notes**: Persistent favorites with appropriate icons (calendar for daily, folder for projects)
+- **Temporary Tabs**: Recently accessed notes below dotted separator
+- **Close All**: Link to clear temporary tab section
+- **Visual Hierarchy**: Clear separation between permanent (pinned) and temporary notes
+
+#### **Note Types & Icons**
+- Daily notes: Calendar icon
+- Project notes: Folder icon
+- Regular notes: Document icon
+- Consistent iconography throughout the interface
 
 ### AI Assistant Integration
 
+#### **Task-Oriented Interface**
+- **Task Management**: Expandable task sections with completion status
+- **Progress Tracking**: Visual indicators for completed tasks (checkmarks)
+- **Task Details**: Shows specific actions taken ("I've made the notes")
+- **Linked References**: Tasks connect to specific notes via blue links
+
 #### **Context Management**
-- Current note automatically included in AI conversations
-- Use [[Note Title]] syntax to reference additional notes
-- AI responses can reference and modify notes
-- "Notes discussed" section tracks AI-touched notes
+- **Current Note Context**: Automatically included in conversations
+- **Wikilink Support**: [[Note Title]] syntax for referencing additional notes
+- **Notes Discussed**: Section showing all referenced notes in conversation
+- **Visual Connection**: Clear relationship between AI responses and note references
 
-#### **Thread Management**
-- Global conversation threads (not tied to specific notes)
-- "New thread" creates fresh conversation context
-- "Old threads" provides access to conversation history
-- Thread persistence across sessions
+#### **Chat Interface**
+- **Message Input**: "Ask Flint anything, use [[ to link notes..." prompt
+- **Conversation Flow**: Clean message threading
+- **Note Linking**: Integrated [[wikilink]] syntax in conversations
+- **Context Awareness**: AI responses reference and utilize note content
 
-#### **Responsive AI Sidebar**
-- **Large screens**: Fixed right sidebar
-- **Medium screens**: Overlay on main content
-- **Small screens**: Full-screen takeover
+### Note Type & Interface Controls
 
-### Note Type & Metadata
+#### **Header Controls**
+- **Note Type Dropdown**: Shows "daily" in mockup, located in left sidebar header
+- **Action Buttons**: Information, delete, and additional action controls in main view header
+- **Sidebar Toggle**: Controls to switch between AI assistant and metadata editor modes
+- **Visual Consistency**: Icons and controls follow consistent design language
 
-#### **Note Type Selection**
-- Dropdown in main view header (left side)
-- Dynamic list from Flint Note API
-- Affects note templates and organization
-- Visual indicators for different note types
-
-#### **Metadata Editing**
-- Toggle button in main view header (right side)
-- Replaces AI sidebar when activated
-- YAML frontmatter editing
-- Real-time validation and error handling
+#### **Content Management**
+- **Rich Text Editing**: Support for formatted content with inline links
+- **Auto-linking**: URLs like "GraphQL" automatically become clickable links
+- **Clean Typography**: Clear hierarchy between title and content
+- **Metadata Integration**: YAML frontmatter editing accessible via right sidebar toggle
 
 ## Implementation Phases
 
-### Phase 1: Sidebar Architecture Foundation
-**Goal**: Implement the basic three-panel layout with responsive behavior
+### Phase 1: Core Layout Architecture
+**Goal**: Build the three-panel sidebar-based layout
 
 **Key Components**:
-- Left sidebar with collapsible sections
-- Main view container with header controls
-- Right sidebar with toggle functionality
-- Responsive breakpoint handling
-- Basic navigation between system views
+- Replace existing tab navigation with left sidebar structure
+- Implement main view with updated header controls
+- Create right sidebar container with toggle functionality
+- Build responsive three-column layout system
+- Remove old TabNavigation.svelte and update App.svelte
 
-### Phase 2: System Views Implementation
-**Goal**: Replace tab-based navigation with sidebar system views
-
-**Key Components**:
-- Inbox view for quick note capture
-- All notes hierarchical browser
-- Global search interface
-- Settings panel integration
-- Remove existing tab navigation
-
-### Phase 3: Temporary Tab System
-**Goal**: Implement Arc-style temporary note tabs
+### Phase 2: Left Sidebar Navigation
+**Goal**: Implement complete left sidebar with system views and note organization
 
 **Key Components**:
-- Dynamic tab list in left sidebar
-- Auto-population when notes are opened
-- Individual and bulk close functionality
-- Visual active note indication
-- Tab ordering and management
+- System Views section (Inbox, All notes, Search, Settings)
+- Inbox interface with quick capture placeholder
+- All notes hierarchical browser with collapsible sections
+- Pinned notes section with visual icons
+- Temporary tabs section with "close all" functionality
+- Proper note type iconography (calendar, folder, document icons)
 
-### Phase 4: Enhanced AI Assistant
-**Goal**: Integrate AI assistant into right sidebar with context management
-
-**Key Components**:
-- Chat interface in right sidebar
-- Automatic current note context inclusion
-- [[wikilink]] syntax for additional context
-- "Notes discussed" tracking
-- Thread management system
-
-### Phase 5: Metadata Editor Integration
-**Goal**: Implement metadata editing in right sidebar
+### Phase 3: AI Assistant Integration
+**Goal**: Build task-oriented AI assistant in right sidebar
 
 **Key Components**:
-- Toggle between AI and metadata modes
+- Task management interface with expandable sections
+- Progress tracking with completion indicators
+- Chat interface with [[wikilink]] support
+- "Notes discussed" section with linked references
+- Message input with context-aware prompting
+- Thread management and conversation persistence
+
+### Phase 4: Metadata Editor & Sidebar Modes
+**Goal**: Add metadata editing mode and sidebar switching
+
+**Key Components**:
+- Toggle functionality between AI and metadata modes
 - YAML frontmatter editing interface
-- Real-time validation
-- Custom field support
+- Real-time validation and error handling
+- Custom field support (tags, aliases, dates)
+- Seamless mode switching with state preservation
 
-### Phase 6: Polish & Advanced Features
-**Goal**: Refinement and advanced functionality
+### Phase 5: Enhanced Note Management
+**Goal**: Complete the temporary tab system and note organization
 
 **Key Components**:
-- Keyboard shortcuts for all major actions
-- Drag-and-drop note organization
-- Advanced search filters
-- Performance optimizations
-- Accessibility improvements
+- Arc-style temporary tab behavior
+- Auto-population from search results and wikilinks
+- Individual tab close buttons and bulk actions
+- Active note indication and visual hierarchy
+- Note opening workflow integration
+
+### Phase 6: Polish & Performance
+**Goal**: Refinement and production readiness
+
+**Key Components**:
+- Keyboard shortcuts for major actions
+- Smooth animations and transitions
+- Performance optimizations for large note collections
+- Advanced search filters and functionality
+- Accessibility improvements and testing
 
 ## Technical Architecture
 
@@ -404,9 +422,9 @@ interface SearchState {
 **New Components Required:**
 - `SystemViews.svelte` - Inbox, All notes, Search interfaces
 - `TemporaryTabs.svelte` - Dynamic tab list with close buttons
-- `RightSidebar.svelte` - Container for AI/Metadata modes
+- `RightSidebar.svelte` - Container for AI/Metadata modes with toggle functionality
 - `ThreadManager.svelte` - Thread creation and switching
-- `MetadataEditor.svelte` - YAML frontmatter editing
+- `MetadataEditor.svelte` - YAML frontmatter editing interface
 
 #### Existing Components to Preserve
 - `NoteEditor.svelte` - Works in new right sidebar context
@@ -437,114 +455,43 @@ interface SearchState {
 
 ## Migration Strategy
 
-### Technical Migration Plan
+### Direct Implementation Approach
 
-#### Phase 1: Infrastructure Setup
-**Goal**: Prepare foundation without breaking existing functionality
+Since we're moving to a fundamentally different layout paradigm, the implementation will directly replace the existing tab-based system with the new sidebar architecture.
 
-**Technical Tasks:**
-1. Create new store files (`temporaryTabsStore.svelte.ts`, `aiThreadsStore.svelte.ts`, `sidebarState.svelte.ts`)
-2. Implement feature flag in `settingsStore.svelte.ts`:
-   ```typescript
-   interface SettingsState {
-     // ... existing settings
-     enableSidebarLayout: boolean; // Default: false
-   }
-   ```
-3. Add conditional rendering in `App.svelte` to switch between layouts
-4. Create new component files without removing existing ones
+### Data Migration Plan
 
-#### Phase 2: Parallel Implementation
-**Goal**: Build new sidebar system alongside existing tab system
+#### Automatic Compatibility
+- **Pinned Notes**: Existing `pinnedNotesStore` (localStorage) requires no changes
+- **Model Settings**: `modelStore` preserved without modification
+- **Application Settings**: `settingsStore` enhanced with new sidebar preferences
+- **Note Data**: `notesStore` unchanged - full compatibility maintained
 
-**Technical Tasks:**
-1. Implement `LeftSidebar.svelte` with system views
-2. Create `RightSidebar.svelte` container
-3. Build new components (`TemporaryTabs.svelte`, `ThreadManager.svelte`, etc.)
-4. Update responsive layout logic in new sidebar context
-5. Feature flag allows users to opt-in to new layout
+#### Required Migrations
 
-#### Phase 3: Data Migration & Integration
-**Goal**: Ensure seamless data transition
-
-**Technical Tasks:**
-1. **Pinned Notes Migration**: Existing `pinnedNotesStore` already uses localStorage - no migration needed
-2. **Chat History Migration**: 
-   ```typescript
-   // Migrate existing messages array to thread format
-   function migrateMessagesToThreads(messages: Message[]): AIThread {
-     return {
-       id: 'migrated-thread-' + Date.now(),
-       title: 'Imported Conversation',
-       messages,
-       notesDiscussed: extractNotesFromMessages(messages),
-       createdAt: new Date(messages[0]?.timestamp || Date.now()),
-       lastActivity: new Date(),
-       isActive: true
-     };
-   }
-   ```
-3. **Settings Preservation**: All existing settings in `settingsStore` preserved
-4. **Search History**: Extract from existing search implementations
-
-#### Phase 4: Component Refactoring
-**Goal**: Update existing components to work with new architecture
-
-**Technical Tasks:**
-1. Refactor `App.svelte`:
-   - Remove lines 112-143 (existing responsive logic)
-   - Replace `layoutMode` state with `sidebarState` store
-   - Update event handlers for sidebar interactions
-2. Convert `TabNavigation.svelte` to `LeftSidebar.svelte`
-3. Enhance `ChatView.svelte` with thread management
-4. Update `SearchBar.svelte` integration with temporary tabs
-
-#### Phase 5: Legacy Cleanup
-**Goal**: Remove old tab-based system
-
-**Technical Tasks:**
-1. Remove feature flag and old layout code
-2. Delete `TabNavigation.svelte`
-3. Clean up unused responsive layout logic
-4. Update component imports and references
-5. Remove old state management code
-
-### Data Preservation Strategy
-
-#### Automatic Migrations
-- **Pinned Notes**: Already stored in localStorage with key `flint-pinned-notes` - direct compatibility
-- **Model Settings**: Existing `modelStore` preserved without changes
-- **Application Settings**: Existing `settingsStore` enhanced with new sidebar preferences
-- **Note Data**: Existing `notesStore` unchanged - full compatibility
-
-#### Manual Migration Required
-- **Chat Messages**: Convert single message array to thread-based structure
-- **Search Preferences**: Extract and migrate to new search state management
-- **Layout Preferences**: Convert existing responsive preferences to sidebar state
-
-#### Rollback Strategy
-- Feature flag allows instant rollback to tab-based layout
-- All migrated data preserved in new format
-- Original data structures maintained during transition period
-- Database/storage changes are additive, not destructive
-
-### Feature Flag Implementation
+**Chat History to Threads**:
 ```typescript
-// In App.svelte
-let useSidebarLayout = $derived(settingsStore.enableSidebarLayout);
-
-// Conditional layout rendering
-{#if useSidebarLayout}
-  <!-- New sidebar layout -->
-  <LeftSidebar />
-  <MainView />
-  <RightSidebar />
-{:else}
-  <!-- Existing tab layout -->
-  <TabNavigation />
-  <!-- ... existing layout -->
-{/if}
+// Convert existing messages array to thread-based structure
+function migrateMessagesToThreads(messages: Message[]): AIThread {
+  return {
+    id: 'migrated-thread-' + Date.now(),
+    title: 'Imported Conversation',
+    messages,
+    notesDiscussed: extractNotesFromMessages(messages),
+    createdAt: new Date(messages[0]?.timestamp || Date.now()),
+    lastActivity: new Date(),
+    isActive: true
+  };
+}
 ```
+
+**Component Transition Plan**:
+1. Create new stores (`temporaryTabsStore.svelte.ts`, `aiThreadsStore.svelte.ts`, `sidebarState.svelte.ts`)
+2. Build new components alongside existing ones
+3. Update `App.svelte` to use new three-panel layout
+4. Remove `TabNavigation.svelte` and update all references
+5. Enhance `ChatView.svelte` with task management and threading
+6. Integrate new sidebar components with existing note management
 
 ## Conclusion
 
