@@ -27,28 +27,34 @@
     console.log('PinnedNotes: Effect triggered - deriving notes');
     console.log('PinnedNotes: pinnedNoteInfos:', pinnedNoteInfos);
     console.log('PinnedNotes: Available notes in notesStore:', notesStore.notes.length);
-    
+
     const result = pinnedNoteInfos
-      .map(pinnedInfo => {
+      .map((pinnedInfo) => {
         console.log('PinnedNotes: Processing pinned note:', pinnedInfo);
         // Find the corresponding note in notesStore
-        const fullNote = notesStore.notes.find(note => note.id === pinnedInfo.id);
-        console.log('PinnedNotes: Found full note:', fullNote ? fullNote.title : 'NOT FOUND');
-        return fullNote || {
-          // Fallback using pinned info if note not found in notesStore
-          id: pinnedInfo.id,
-          title: pinnedInfo.title,
-          filename: pinnedInfo.filename,
-          type: 'unknown',
-          created: pinnedInfo.pinnedAt,
-          modified: pinnedInfo.pinnedAt,
-          size: 0,
-          tags: [],
-          path: ''
-        } as NoteMetadata;
+        const fullNote = notesStore.notes.find((note) => note.id === pinnedInfo.id);
+        console.log(
+          'PinnedNotes: Found full note:',
+          fullNote ? fullNote.title : 'NOT FOUND'
+        );
+        return (
+          fullNote ||
+          ({
+            // Fallback using pinned info if note not found in notesStore
+            id: pinnedInfo.id,
+            title: pinnedInfo.title,
+            filename: pinnedInfo.filename,
+            type: 'unknown',
+            created: pinnedInfo.pinnedAt,
+            modified: pinnedInfo.pinnedAt,
+            size: 0,
+            tags: [],
+            path: ''
+          } as NoteMetadata)
+        );
       })
-      .filter(note => note !== null);
-    
+      .filter((note) => note !== null);
+
     console.log('PinnedNotes: Final result:', result);
     pinnedNotes = result;
   });
@@ -96,13 +102,17 @@
 
 <div class="pinned-notes">
   <div class="section-header">
-    <button class="collapse-toggle" onclick={toggleCollapsed} aria-label="Toggle pinned notes section">
-      <svg 
-        width="14" 
-        height="14" 
-        viewBox="0 0 24 24" 
-        fill="none" 
-        stroke="currentColor" 
+    <button
+      class="collapse-toggle"
+      onclick={toggleCollapsed}
+      aria-label="Toggle pinned notes section"
+    >
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
         stroke-width="2"
         class:rotated={!isCollapsed}
       >
@@ -115,8 +125,8 @@
   {#if !isCollapsed}
     <div class="pinned-list">
       {#each pinnedNotes as note (note.id)}
-        <button 
-          class="pinned-item" 
+        <button
+          class="pinned-item"
           onclick={() => handleNoteClick(note)}
           title={note.title}
         >

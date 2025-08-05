@@ -10,7 +10,7 @@
   let { onNoteSelect }: Props = $props();
 
   function handleTabClick(noteId: string) {
-    const note = notesStore.notes.find(n => n.id === noteId);
+    const note = notesStore.notes.find((n) => n.id === noteId);
     if (note) {
       onNoteSelect(note);
       temporaryTabsStore.setActiveTab(noteId);
@@ -54,18 +54,16 @@
 {#if temporaryTabsStore.tabs.length > 0}
   <div class="temporary-tabs">
     <div class="separator"></div>
-    
+
     <div class="tabs-header">
       <span class="tabs-count">{temporaryTabsStore.tabs.length} recent</span>
-      <button class="clear-all" onclick={handleClearAll}>
-        close all
-      </button>
+      <button class="clear-all" onclick={handleClearAll}> close all </button>
     </div>
 
     <div class="tabs-list">
       {#each temporaryTabsStore.tabs as tab (tab.id)}
-        <div 
-          class="tab-item" 
+        <div
+          class="tab-item"
           class:active={tab.id === temporaryTabsStore.activeTabId}
           onclick={() => handleTabClick(tab.noteId)}
           title={tab.title}
@@ -79,12 +77,19 @@
             </div>
             <span class="tab-title">{truncateTitle(tab.title)}</span>
           </div>
-          <button 
-            class="close-tab" 
+          <button
+            class="close-tab"
             onclick={(e) => handleCloseTab(tab.id, e)}
             aria-label="Close tab"
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
               <line x1="18" y1="6" x2="6" y2="18"></line>
               <line x1="6" y1="6" x2="18" y2="18"></line>
             </svg>

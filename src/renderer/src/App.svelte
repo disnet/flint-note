@@ -51,7 +51,6 @@
     showCreateNoteModal = false;
   }
 
-
   function handleNoteCreated(noteId: string): void {
     // Find the newly created note and open it in the editor
     setTimeout(async () => {
@@ -86,10 +85,7 @@
     activeNote = null;
   }
 
-  async function handleNoteTypeChange(
-    noteId: string,
-    newType: string
-  ): Promise<void> {
+  async function handleNoteTypeChange(noteId: string, newType: string): Promise<void> {
     if (!activeNote || activeNote.id !== noteId) return;
 
     try {
@@ -272,9 +268,10 @@
 
     <RightSidebar
       {messages}
-      isLoading={isLoadingResponse} 
+      isLoading={isLoadingResponse}
       {activeNote}
-      onNoteClick={handleNoteClick} 
+      onNoteClick={handleNoteClick}
+      onSendMessage={handleSendMessage}
     />
   </div>
 
@@ -316,7 +313,7 @@
     .app-layout {
       grid-template-columns: 1fr;
     }
-    
+
     .app.three-column .app-layout {
       grid-template-columns: 1fr;
     }

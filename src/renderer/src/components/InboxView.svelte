@@ -29,20 +29,20 @@
 
   <div class="inbox-content">
     <div class="capture-section">
-      <textarea 
+      <textarea
         bind:value={inboxText}
-        class="inbox-input" 
+        class="inbox-input"
         placeholder="Capture thoughts quickly for later organization..."
         rows="8"
         onkeydown={handleKeyDown}
       ></textarea>
-      
+
       <div class="inbox-actions">
         <div class="keyboard-hint">
           <span>⌘↵ to save</span>
         </div>
-        <button 
-          class="btn-primary" 
+        <button
+          class="btn-primary"
           onclick={handleSaveToInbox}
           disabled={!inboxText.trim()}
         >

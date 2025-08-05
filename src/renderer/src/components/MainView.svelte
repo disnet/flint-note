@@ -20,7 +20,16 @@
     onNoteTypeChange: (noteId: string, newType: string) => Promise<void>;
   }
 
-  let { activeNote, activeSystemView, noteTypes, onClose, onSendMessage, onNoteSelect, onCreateNote, onNoteTypeChange }: Props = $props();
+  let {
+    activeNote,
+    activeSystemView,
+    noteTypes,
+    onClose,
+    onSendMessage,
+    onNoteSelect,
+    onCreateNote,
+    onNoteTypeChange
+  }: Props = $props();
 
   let noteEditor = $state<{ focus?: () => void } | null>(null);
   let isChangingType = $state(false);
@@ -31,12 +40,12 @@
 
   async function handleNoteTypeChange(event: Event) {
     if (!activeNote || isChangingType) return;
-    
+
     const target = event.target as HTMLSelectElement;
     const newType = target.value;
-    
+
     if (newType === activeNote.type) return;
-    
+
     try {
       isChangingType = true;
       await onNoteTypeChange(activeNote.id, newType);
@@ -98,7 +107,7 @@
   {:else if activeNote}
     <div class="note-header">
       <div class="note-type-selector">
-        <select 
+        <select
           class="note-type-dropdown"
           class:changing={isChangingType}
           value={activeNote.type}
@@ -113,36 +122,55 @@
           {/each}
         </select>
       </div>
-      
+
       <div class="note-actions">
-        <button 
-          class="action-btn" 
+        <button
+          class="action-btn"
           onclick={toggleRightSidebar}
           aria-label="Toggle AI assistant"
           title="Toggle AI assistant"
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path
+              d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+            ></path>
           </svg>
         </button>
-        <button 
-          class="action-btn" 
-          aria-label="Note information"
-          title="Note information"
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <button class="action-btn" aria-label="Note information" title="Note information">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
             <circle cx="12" cy="12" r="10"></circle>
             <line x1="12" y1="16" x2="12" y2="12"></line>
             <line x1="12" y1="8" x2="12.01" y2="8"></line>
           </svg>
         </button>
-        <button 
-          class="action-btn delete-btn" 
+        <button
+          class="action-btn delete-btn"
           onclick={onClose}
           aria-label="Close note"
           title="Close note"
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
             <line x1="18" y1="6" x2="6" y2="18"></line>
             <line x1="6" y1="6" x2="18" y2="18"></line>
           </svg>
@@ -151,18 +179,20 @@
     </div>
 
     <div class="note-content">
-      <NoteEditor 
-        bind:this={noteEditor}
-        note={activeNote} 
-        position="nested" 
-        {onClose} 
-      />
+      <NoteEditor bind:this={noteEditor} note={activeNote} position="nested" {onClose} />
     </div>
   {:else}
     <div class="empty-state">
       <div class="empty-content">
         <div class="empty-icon">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <svg
+            width="48"
+            height="48"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+          >
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
             <polyline points="14,2 14,8 20,8"></polyline>
           </svg>
@@ -340,11 +370,11 @@
     .note-header {
       padding: 0.75rem 1rem;
     }
-    
+
     .note-actions {
       gap: 0.25rem;
     }
-    
+
     .action-btn {
       padding: 0.375rem;
     }

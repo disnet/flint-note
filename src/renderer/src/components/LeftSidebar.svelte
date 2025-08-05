@@ -22,7 +22,14 @@
 <!-- Floating hamburger button when sidebar is hidden -->
 {#if !sidebarState.leftSidebar.visible}
   <button class="floating-hamburger" onclick={toggleSidebar} aria-label="Open sidebar">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+    >
       <line x1="3" y1="6" x2="21" y2="6"></line>
       <line x1="3" y1="12" x2="21" y2="12"></line>
       <line x1="3" y1="18" x2="21" y2="18"></line>
@@ -33,7 +40,14 @@
 <div class="left-sidebar" class:visible={sidebarState.leftSidebar.visible}>
   <div class="sidebar-header">
     <button class="hamburger" onclick={toggleSidebar} aria-label="Toggle sidebar">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <svg
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
         <line x1="3" y1="6" x2="21" y2="6"></line>
         <line x1="3" y1="12" x2="21" y2="12"></line>
         <line x1="3" y1="18" x2="21" y2="18"></line>

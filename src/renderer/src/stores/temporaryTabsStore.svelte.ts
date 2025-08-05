@@ -42,8 +42,8 @@ class TemporaryTabsStore {
   }
 
   addTab(noteId: string, title: string, source: 'search' | 'wikilink' | 'navigation') {
-    const existingIndex = this.state.tabs.findIndex(tab => tab.noteId === noteId);
-    
+    const existingIndex = this.state.tabs.findIndex((tab) => tab.noteId === noteId);
+
     if (existingIndex !== -1) {
       // Update existing tab
       this.state.tabs[existingIndex].lastAccessed = new Date();
@@ -74,13 +74,14 @@ class TemporaryTabsStore {
   }
 
   removeTab(tabId: string) {
-    const index = this.state.tabs.findIndex(tab => tab.id === tabId);
+    const index = this.state.tabs.findIndex((tab) => tab.id === tabId);
     if (index !== -1) {
       this.state.tabs.splice(index, 1);
-      
+
       // Update active tab if the removed tab was active
       if (this.state.activeTabId === tabId) {
-        this.state.activeTabId = this.state.tabs.length > 0 ? this.state.tabs[0].id : null;
+        this.state.activeTabId =
+          this.state.tabs.length > 0 ? this.state.tabs[0].id : null;
       }
     }
 
@@ -94,13 +95,13 @@ class TemporaryTabsStore {
   }
 
   setActiveTab(tabId: string) {
-    const tab = this.state.tabs.find(t => t.id === tabId);
+    const tab = this.state.tabs.find((t) => t.id === tabId);
     if (tab) {
       this.state.activeTabId = tabId;
       tab.lastAccessed = new Date();
-      
+
       // Move to top of list
-      const index = this.state.tabs.findIndex(t => t.id === tabId);
+      const index = this.state.tabs.findIndex((t) => t.id === tabId);
       if (index > 0) {
         this.moveToTop(index);
       }
@@ -115,14 +116,19 @@ class TemporaryTabsStore {
   }
 
   private cleanupOldTabs() {
-    const cutoffTime = new Date(Date.now() - (this.state.autoCleanupHours * 60 * 60 * 1000));
-    
-    this.state.tabs = this.state.tabs.filter(tab => {
+    const cutoffTime = new Date(
+      Date.now() - this.state.autoCleanupHours * 60 * 60 * 1000
+    );
+
+    this.state.tabs = this.state.tabs.filter((tab) => {
       return tab.lastAccessed > cutoffTime;
     });
 
     // Update active tab if it was cleaned up
-    if (this.state.activeTabId && !this.state.tabs.find(tab => tab.id === this.state.activeTabId)) {
+    if (
+      this.state.activeTabId &&
+      !this.state.tabs.find((tab) => tab.id === this.state.activeTabId)
+    ) {
       this.state.activeTabId = this.state.tabs.length > 0 ? this.state.tabs[0].id : null;
     }
 
@@ -131,19 +137,19 @@ class TemporaryTabsStore {
 
   private loadFromStorage() {
     if (typeof window === 'undefined') return;
-    
+
     try {
       const stored = localStorage.getItem('temporaryTabs');
       if (stored) {
         const parsed = JSON.parse(stored);
-        
+
         // Convert date strings back to Date objects
         parsed.tabs = parsed.tabs.map((tab: any) => ({
           ...tab,
           openedAt: new Date(tab.openedAt),
           lastAccessed: new Date(tab.lastAccessed)
         }));
-        
+
         this.state = { ...defaultState, ...parsed };
       }
     } catch (error) {
@@ -153,7 +159,7 @@ class TemporaryTabsStore {
 
   private saveToStorage() {
     if (typeof window === 'undefined') return;
-    
+
     try {
       localStorage.setItem('temporaryTabs', JSON.stringify(this.state));
     } catch (error) {

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import ChatView from './ChatView.svelte';
+  import AIAssistant from './AIAssistant.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
   import type { Message } from '../services/types';
   import type { NoteMetadata } from '../services/noteStore.svelte';
@@ -9,15 +9,16 @@
     isLoading: boolean;
     activeNote: NoteMetadata | null;
     onNoteClick: (noteId: string) => void;
+    onSendMessage?: (text: string) => void;
   }
 
-  let { messages, isLoading, activeNote, onNoteClick }: Props = $props();
+  let { messages, isLoading, activeNote, onNoteClick, onSendMessage }: Props = $props();
 
-  function toggleSidebar() {
+  function toggleSidebar(): void {
     sidebarState.toggleRightSidebar();
   }
 
-  function setMode(mode: 'ai' | 'metadata') {
+  function setMode(mode: 'ai' | 'metadata'): void {
     sidebarState.setRightSidebarMode(mode);
   }
 </script>
@@ -25,15 +26,15 @@
 <div class="right-sidebar" class:visible={sidebarState.rightSidebar.visible}>
   <div class="sidebar-header">
     <div class="mode-tabs">
-      <button 
-        class="mode-tab" 
+      <button
+        class="mode-tab"
         class:active={sidebarState.rightSidebar.mode === 'ai'}
         onclick={() => setMode('ai')}
       >
         AI Assistant
       </button>
-      <button 
-        class="mode-tab" 
+      <button
+        class="mode-tab"
         class:active={sidebarState.rightSidebar.mode === 'metadata'}
         onclick={() => setMode('metadata')}
       >
@@ -41,7 +42,14 @@
       </button>
     </div>
     <button class="close-sidebar" onclick={toggleSidebar} aria-label="Close sidebar">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
         <line x1="18" y1="6" x2="6" y2="18"></line>
         <line x1="6" y1="6" x2="18" y2="18"></line>
       </svg>
@@ -51,7 +59,7 @@
   <div class="sidebar-content">
     {#if sidebarState.rightSidebar.mode === 'ai'}
       <div class="ai-mode">
-        <ChatView {messages} isLoading={isLoading} {onNoteClick} />
+        <AIAssistant {messages} {isLoading} {onNoteClick} {onSendMessage} />
       </div>
     {:else}
       <div class="metadata-mode">
@@ -64,17 +72,27 @@
             </div>
             <div class="metadata-field">
               <label for="note-created">Created</label>
-              <input id="note-created" type="text" value={activeNote.dateCreated.toLocaleDateString()} readonly />
+              <input
+                id="note-created"
+                type="text"
+                value={activeNote.dateCreated.toLocaleDateString()}
+                readonly
+              />
             </div>
             <div class="metadata-field">
               <label for="note-modified">Modified</label>
-              <input id="note-modified" type="text" value={activeNote.dateModified.toLocaleDateString()} readonly />
+              <input
+                id="note-modified"
+                type="text"
+                value={activeNote.dateModified.toLocaleDateString()}
+                readonly
+              />
             </div>
             {#if activeNote.tags && activeNote.tags.length > 0}
               <div class="metadata-field">
                 <label>Tags</label>
                 <div class="tag-list" role="list" aria-label="Note tags">
-                  {#each activeNote.tags as tag}
+                  {#each activeNote.tags as tag (tag)}
                     <span class="tag">{tag}</span>
                   {/each}
                 </div>

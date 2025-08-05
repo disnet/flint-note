@@ -34,7 +34,7 @@ class SidebarStateStore {
   constructor() {
     this.loadFromStorage();
     this.updateLayoutMode();
-    
+
     if (typeof window !== 'undefined') {
       window.addEventListener('resize', () => this.updateLayoutMode());
     }
@@ -78,14 +78,14 @@ class SidebarStateStore {
 
   private updateLayoutMode() {
     if (typeof window === 'undefined') return;
-    
+
     const width = window.innerWidth;
     this.state.layout = width > this.state.breakpoint ? 'three-column' : 'single-column';
   }
 
   private loadFromStorage() {
     if (typeof window === 'undefined') return;
-    
+
     try {
       const stored = localStorage.getItem('sidebarState');
       if (stored) {
@@ -99,7 +99,7 @@ class SidebarStateStore {
 
   private saveToStorage() {
     if (typeof window === 'undefined') return;
-    
+
     try {
       localStorage.setItem('sidebarState', JSON.stringify(this.state));
     } catch (error) {
