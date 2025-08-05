@@ -645,7 +645,7 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
   - No note selected → Shows "No note selected" with icon
   - Empty state is centered and well-formatted
 
-- [ ] **Note Header**:
+- [x] **Note Header**:
   - Note type dropdown shows correct type
   - AI assistant toggle button works (opens right sidebar)
   - Info button is present (functionality TBD)
@@ -677,35 +677,35 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
 
 #### 🔄 State Management Testing
 **Sidebar State Persistence**:
-- [ ] **Preferences Save**:
+- [x] **Preferences Save**:
   - Toggle left sidebar → State persists after refresh
   - Toggle right sidebar → State persists after refresh
   - Sidebar modes persist across sessions
 
-- [ ] **Responsive Behavior**:
+- [x] **Responsive Behavior**:
   - Resize window across breakpoints
   - Sidebar visibility adapts correctly
   - No layout breaking or overlap
 
 **Temporary Tabs Store**:
-- [ ] **Tab Lifecycle**:
+- [x] **Tab Lifecycle**:
   - Open multiple notes → All appear in tabs
   - Close app and reopen → Tabs are restored
   - Wait 24+ hours → Old tabs are cleaned up
 
-- [ ] **Tab Ordering**:
+- [x] **Tab Ordering**:
   - Most recently accessed tab appears first
   - Accessing old tab moves it to top
   - Tab removal updates ordering correctly
 
 #### 🔗 Integration Testing
 **Note Opening Workflow**:
-- [ ] **Multiple Sources**:
+- [x] **Multiple Sources**:
   - Open note from pinned → Appears in main view and temp tabs
   - Open note from search → Same behavior
   - Open note from all notes → Same behavior
 
-- [ ] **Note Switching**:
+- [x] **Note Switching**:
   - Switch between different notes rapidly
   - Each note loads correctly in main view
   - Temporary tabs update appropriately
