@@ -72,6 +72,8 @@
 
     if (note) {
       openNoteEditor(note);
+      // Add to temporary tabs with 'wikilink' source (since this is typically from AI Assistant wikilinks)
+      temporaryTabsStore.addTab(note.id, note.title, 'wikilink');
     } else {
       console.warn('Note not found:', noteId);
     }
@@ -148,6 +150,8 @@
       const { note } = event.detail;
       if (note) {
         openNoteEditor(note);
+        // Add to temporary tabs with 'wikilink' source
+        temporaryTabsStore.addTab(note.id, note.title, 'wikilink');
       }
     }
 
