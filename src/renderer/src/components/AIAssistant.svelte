@@ -68,7 +68,9 @@
                 : toolCall.error
                   ? 'pending'
                   : 'in_progress',
-              description: toolCall.result || toolCall.error || 'Processing...',
+              description: formatTaskDescription(
+                toolCall.result || toolCall.error || 'Processing...'
+              ),
               toolCalls: [toolCall],
               relatedNotes: extractNotesFromText(toolCall.result || ''),
               ...existingTask
@@ -105,6 +107,47 @@
       matches.push(match[1]);
     }
     return matches;
+  }
+
+  function parseNoteDisplay(noteRef: string): {
+    identifier: string;
+    displayName: string;
+  } {
+    // Check if it's in the format "identifier|title"
+    const pipeIndex = noteRef.indexOf('|');
+    if (pipeIndex !== -1) {
+      return {
+        identifier: noteRef.substring(0, pipeIndex).trim(),
+        displayName: noteRef.substring(pipeIndex + 1).trim()
+      };
+    } else {
+      // Format: just title/identifier - use same for both
+      return {
+        identifier: noteRef.trim(),
+        displayName: noteRef.trim()
+      };
+    }
+  }
+
+  function formatTaskDescription(description: unknown): string {
+    if (typeof description === 'string') {
+      // Check if the string is already JSON, and if so, format it nicely
+      try {
+        const parsed = JSON.parse(description);
+        return JSON.stringify(parsed, null, 2);
+      } catch {
+        // Not JSON, return as-is
+        return description;
+      }
+    }
+    if (typeof description === 'object' && description !== null) {
+      try {
+        return JSON.stringify(description, null, 2);
+      } catch {
+        return String(description);
+      }
+    }
+    return String(description);
   }
 
   function toggleTask(taskId: string): void {
@@ -163,12 +206,16 @@
             </button>
             {#if expandedTasks.has(task.id) && task.description}
               <div class="task-details">
-                <p class="task-description">{task.description}</p>
+                <pre class="task-description">{task.description}</pre>
                 {#if task.relatedNotes && task.relatedNotes.length > 0}
                   <div class="task-notes">
                     {#each task.relatedNotes as note (note)}
-                      <button class="note-link" onclick={() => onNoteClick?.(note)}>
-                        {note}
+                      {@const parsed = parseNoteDisplay(note)}
+                      <button
+                        class="note-link"
+                        onclick={() => onNoteClick?.(parsed.identifier)}
+                      >
+                        {parsed.displayName}
                       </button>
                     {/each}
                   </div>
@@ -205,8 +252,9 @@
       {#if expandedDiscussed}
         <div class="discussed-notes">
           {#each notesDiscussed as note (note)}
-            <button class="note-link" onclick={() => onNoteClick?.(note)}>
-              {note}
+            {@const parsed = parseNoteDisplay(note)}
+            <button class="note-link" onclick={() => onNoteClick?.(parsed.identifier)}>
+              {parsed.displayName}
             </button>
           {/each}
         </div>
@@ -317,9 +365,39 @@
 
   .task-description {
     margin: 0 0 0.5rem 0;
-    font-size: 0.875rem;
+    font-size: 0.8rem;
     color: var(--text-secondary);
     line-height: 1.4;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-light);
+    border-radius: 0.375rem;
+    padding: 0.75rem;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+
+  .task-description::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .task-description::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 3px;
+  }
+
+  .task-description::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 3px;
+    transition: background-color 0.2s ease;
+  }
+
+  .task-description::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.5);
   }
 
   .task-notes {

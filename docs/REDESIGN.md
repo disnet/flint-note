@@ -555,23 +555,23 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
 3. Open the right sidebar (AI Assistant tab should be active by default)
 
 **🎯 Task Management Interface Testing**:
-- [ ] **Task Visibility**: 
+- [x] **Task Visibility**:
   - Send a message that triggers tool calls (e.g., "create a note about testing")
   - Verify tasks appear in expandable "Tasks" section at top of sidebar
   - Tasks should show with appropriate status icons (✓ completed, ⟳ in-progress, ○ pending)
 
-- [ ] **Task Expansion**:
+- [x] **Task Expansion**:
   - Click task headers to expand/collapse task details
   - Verify smooth animation and arrow rotation
   - Expanded tasks should show description and related note links
 
-- [ ] **Task Status Indicators**:
+- [x] **Task Status Indicators**:
   - Completed tasks show green checkmark (✓) and slightly faded appearance
   - In-progress tasks show spinning icon (⟳)
   - Pending tasks show empty circle (○)
   - Tasks sorted by status priority (in-progress, pending, completed)
 
-- [ ] **Related Note Links**:
+- [x] **Related Note Links**:
   - Expanded tasks show clickable note references
   - Click note links to navigate to referenced notes
   - Links styled as blue buttons with hover effects
@@ -582,77 +582,77 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
   - Existing notes should be suggested and highlighted
   - Completed wikilinks appear with blue highlighting and underlines
 
-- [ ] **Message Display Wikilinks**:
+- [x] **Message Display Wikilinks**:
   - Send messages containing `[[Note Title]]` syntax
   - Wikilinks in messages render as clickable blue buttons
   - Click wikilinks to navigate to referenced notes
   - Both user and agent messages support wikilinks
 
-- [ ] **Visual Highlighting**:
+- [x] **Visual Highlighting**:
   - Wikilinks in input show blue text with underline
   - Wikilinks in messages show as elevated button-style links
   - Hover effects provide visual feedback
 
 **📋 Notes Discussed Section Testing**:
-- [ ] **Automatic Detection**:
+- [x] **Automatic Detection**:
   - Send messages containing `[[Note Name]]` references
   - "Notes discussed" section appears with referenced notes
   - Section is expandable/collapsible with smooth animation
 
-- [ ] **Note List Display**:
+- [x] **Note List Display**:
   - All referenced notes from conversation appear in list
   - Each note shown as clickable button with proper styling
   - Notes persist across conversation and session reloads
 
-- [ ] **Navigation Integration**:
+- [x] **Navigation Integration**:
   - Click notes in discussed section to open them in main view
   - Notes are added to temporary tabs when clicked
   - Active note highlighting works correctly
 
 **💬 Enhanced Message Input Testing**:
-- [ ] **Placeholder Text**:
+- [x] **Placeholder Text**:
   - Message input shows "Ask Flint anything, use [[ to link notes..." placeholder
   - Placeholder disappears when typing begins
   - CodeMirror integration provides proper text editing
 
-- [ ] **Wikilink Completion**:
+- [x] **Wikilink Completion**:
   - Type `[[` triggers note completion dropdown
   - Arrow keys navigate completion options
   - Enter/Tab selects completion and inserts `[[Note Title]]`
 
-- [ ] **Message Sending**:
+- [x] **Message Sending**:
   - Enter key sends message (Shift+Enter for line breaks)
   - Messages appear in chat area with proper formatting
   - Input clears after sending message
 
 **🎨 Visual Design Testing**:
-- [ ] **Section Headers**:
+- [x] **Section Headers**:
   - "Tasks" and "Notes discussed" headers properly styled
   - Expand/collapse arrows rotate smoothly
   - Section headers clickable and responsive
 
-- [ ] **Responsive Behavior**:
+- [x] **Responsive Behavior**:
   - Test on desktop (>1400px): all sections visible
   - Test on tablet/mobile: proper responsive behavior
   - Scrolling works in all sections independently
 
-- [ ] **Theme Integration**:
+- [x] **Theme Integration**:
   - Dark/light theme switching works for all new components
   - Colors match existing design system variables
   - Proper contrast and accessibility
 
 **🔄 Integration Testing**:
-- [ ] **Mode Switching**:
+- [x] **Mode Switching**:
   - Toggle between "AI Assistant" and "Metadata" tabs
   - AI Assistant state preserves when switching back
   - No data loss or component errors
 
-- [ ] **Message Flow Integration**:
+- [x] **Message Flow Integration**:
   - Sent messages appear in chat area immediately
   - Loading states show properly during AI responses
   - Tool calls generate tasks automatically
 
-- [ ] **Note Navigation Integration**:
+- [x] **Note Navigation Integration**:
   - Clicking note links opens notes in main view
   - Temporary tabs updated correctly
   - Left sidebar state remains consistent
@@ -665,7 +665,7 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
 
 **🐛 Expected Behaviors**:
 - Tasks only appear when agent uses tool calls
-- Notes discussed only shows notes referenced with `[[]]` syntax  
+- Notes discussed only shows notes referenced with `[[]]` syntax
 - Wikilink completion requires existing notes in vault
 - All animations should be smooth (60fps)
 
