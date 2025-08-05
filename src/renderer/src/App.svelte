@@ -27,6 +27,8 @@
 
   function handleNoteSelect(note: NoteMetadata): void {
     openNoteEditor(note);
+    // Clear active system view when opening a note
+    activeSystemView = null;
     // Add to temporary tabs
     temporaryTabsStore.addTab(note.id, note.title, 'navigation');
   }
