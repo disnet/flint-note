@@ -247,6 +247,16 @@
       isLoadingResponse = false;
     }
   }
+
+  function handleMetadataUpdate(metadata: Partial<NoteMetadata>): void {
+    console.log('Metadata updated:', metadata);
+    // Note: The metadata is already saved by the MetadataEditor component
+    // This callback can be used to refresh the notes store or handle additional logic
+    if (activeNote && Object.keys(metadata).length > 0) {
+      // Refresh the notes store to pick up changes
+      notesStore.refresh();
+    }
+  }
 </script>
 
 <div class="app" class:three-column={sidebarState.layout === 'three-column'}>
@@ -274,6 +284,7 @@
       {activeNote}
       onNoteClick={handleNoteClick}
       onSendMessage={handleSendMessage}
+      onMetadataUpdate={handleMetadataUpdate}
     />
   </div>
 

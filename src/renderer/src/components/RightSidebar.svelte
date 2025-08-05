@@ -1,5 +1,6 @@
 <script lang="ts">
   import AIAssistant from './AIAssistant.svelte';
+  import MetadataEditor from './MetadataEditor.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
   import type { Message } from '../services/types';
   import type { NoteMetadata } from '../services/noteStore.svelte';
@@ -10,9 +11,10 @@
     activeNote: NoteMetadata | null;
     onNoteClick: (noteId: string) => void;
     onSendMessage?: (text: string) => void;
+    onMetadataUpdate?: (metadata: Partial<NoteMetadata>) => void;
   }
 
-  let { messages, isLoading, activeNote, onNoteClick, onSendMessage }: Props = $props();
+  let { messages, isLoading, activeNote, onNoteClick, onSendMessage, onMetadataUpdate }: Props = $props();
 
   // Debug logging
   $effect(() => {
@@ -70,47 +72,7 @@
       </div>
     {:else}
       <div class="metadata-mode">
-        {#if activeNote}
-          <div class="metadata-editor">
-            <h3>Note Metadata</h3>
-            <div class="metadata-field">
-              <label for="note-title">Title</label>
-              <input id="note-title" type="text" value={activeNote.title} readonly />
-            </div>
-            <div class="metadata-field">
-              <label for="note-created">Created</label>
-              <input
-                id="note-created"
-                type="text"
-                value={activeNote.dateCreated.toLocaleDateString()}
-                readonly
-              />
-            </div>
-            <div class="metadata-field">
-              <label for="note-modified">Modified</label>
-              <input
-                id="note-modified"
-                type="text"
-                value={activeNote.dateModified.toLocaleDateString()}
-                readonly
-              />
-            </div>
-            {#if activeNote.tags && activeNote.tags.length > 0}
-              <div class="metadata-field">
-                <label>Tags</label>
-                <div class="tag-list" role="list" aria-label="Note tags">
-                  {#each activeNote.tags as tag (tag)}
-                    <span class="tag">{tag}</span>
-                  {/each}
-                </div>
-              </div>
-            {/if}
-          </div>
-        {:else}
-          <div class="no-note">
-            <p>Select a note to view metadata</p>
-          </div>
-        {/if}
+        <MetadataEditor {activeNote} {onMetadataUpdate} />
       </div>
     {/if}
   </div>
@@ -202,66 +164,11 @@
   }
 
   .metadata-mode {
-    padding: 1rem 1.25rem;
-    overflow-y: auto;
-  }
-
-  .metadata-editor h3 {
-    margin: 0 0 1rem 0;
-    font-size: 1rem;
-    font-weight: 600;
-    color: var(--text-primary);
-  }
-
-  .metadata-field {
-    margin-bottom: 1rem;
-  }
-
-  .metadata-field label {
-    display: block;
-    margin-bottom: 0.5rem;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--text-secondary);
-  }
-
-  .metadata-field input {
-    width: 100%;
-    padding: 0.75rem;
-    border: 1px solid var(--border-light);
-    border-radius: 0.5rem;
-    background: var(--bg-secondary);
-    color: var(--text-primary);
-    font-size: 0.875rem;
-  }
-
-  .metadata-field input[readonly] {
-    background: var(--bg-tertiary);
-    color: var(--text-secondary);
-  }
-
-  .tag-list {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
     display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-  }
-
-  .tag {
-    display: inline-block;
-    padding: 0.25rem 0.5rem;
-    background: var(--bg-tertiary);
-    color: var(--text-secondary);
-    font-size: 0.75rem;
-    border-radius: 0.25rem;
-  }
-
-  .no-note {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 200px;
-    color: var(--text-secondary);
-    font-style: italic;
+    flex-direction: column;
   }
 
   @media (max-width: 1400px) {

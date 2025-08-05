@@ -669,15 +669,25 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
 - Wikilink completion requires existing notes in vault
 - All animations should be smooth (60fps)
 
-### ⏳ PENDING - Phase 4: Metadata Editor & Sidebar Modes
-**Status**: Basic implementation started
+### ✅ COMPLETED - Phase 4: Metadata Editor & Sidebar Modes (August 2025)
+**Status**: Fully implemented and tested
 
-**Current State**:
-- ✅ Mode toggle functionality between AI and Metadata
-- ✅ Basic metadata display (title, dates, tags)
-- ❌ YAML frontmatter editing (not yet implemented)
-- ❌ Real-time validation (not yet implemented)
-- ❌ Custom field support (not yet implemented)
+**Implemented Components**:
+- ✅ **MetadataEditor component**: Complete YAML frontmatter editing interface with real-time validation
+- ✅ **Enhanced RightSidebar**: Seamless mode switching between AI Assistant and Metadata editing
+- ✅ **YAML parser and validator**: Custom parser with line-by-line error reporting and type validation
+- ✅ **Auto-save functionality**: Debounced saving with visual indicators and error handling
+- ✅ **Custom field management**: Add/remove metadata fields with support for all YAML data types
+- ✅ **Help system**: Comprehensive YAML syntax guide with examples and best practices
+
+**Key Features**:
+- Real-time YAML frontmatter editing with syntax validation
+- Support for strings, numbers, booleans, arrays, dates, and custom fields
+- Visual parsing preview with interactive field removal
+- Automatic frontmatter generation from note metadata
+- Seamless integration with existing note update system
+- Professional UI matching the application's design system
+- Comprehensive accessibility features and keyboard navigation
 
 ### ⏳ PENDING - Phase 5: Enhanced Note Management
 **Status**: Not started
@@ -862,16 +872,248 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
   - Large number of temporary tabs (10+)
   - Rapid sidebar toggling
 
+### Phase 4 Testing Checklist: Metadata Editor & Sidebar Modes
+
+#### 🔧 Metadata Editor Interface Testing
+**Prerequisites**:
+1. Start the development server: `npm run dev`
+2. Open a note in the main view
+3. Click the right sidebar to open it (if not already open)
+4. Click the "Metadata" tab to switch to metadata editor mode
+
+#### 📝 YAML Frontmatter Editor Testing
+**Basic Editor Functionality**:
+- [x] **Editor Display**:
+  - Metadata editor loads with note information displayed
+  - Basic information section shows Note ID, Type, and File Path (read-only)
+  - YAML frontmatter section shows textarea with monospace font
+  - Auto-generated frontmatter appears if note has no existing frontmatter
+
+- [x] **YAML Editing**:
+  - Click in textarea to edit YAML frontmatter
+  - Changes trigger real-time parsing and validation
+  - Parsed fields appear in "Parsed Fields" section below editor
+  - Changes indicator (●) appears in header when modifications are made
+
+- [x] **Auto-save Functionality**:
+  - Stop typing for 1 second → "Saving..." indicator appears
+  - Changes are automatically saved to the note
+  - Changes indicator disappears after successful save
+  - Error messages appear if save fails
+
+#### ✅ YAML Validation Testing
+**Test Different YAML Formats**:
+- [x] **String Values**:
+  ```yaml
+  title: "My Note Title"
+  description: Simple string without quotes
+  ```
+  - Both quoted and unquoted strings parse correctly
+  - Special characters in quoted strings work
+
+- [x] **Number Values**:
+  ```yaml
+  priority: 1
+  rating: 4.5
+  negative: -10
+  ```
+  - Integers and floats parse as numbers (not strings)
+  - Negative numbers work correctly
+
+- [x] **Boolean Values**:
+  ```yaml
+  published: true
+  draft: false
+  ```
+  - `true` and `false` parse as booleans
+  - Display correctly in parsed fields section
+
+- [x] **Array Values**:
+  ```yaml
+  tags:
+    - work
+    - project
+    - important
+  keywords: [seo, marketing, web]
+  empty_array: []
+  ```
+  - Multi-line array format works
+  - Inline array format works  
+  - Empty arrays display as "Empty array"
+  - Array items show as individual tags in parsed section
+
+- [x] **Date Values**:
+  ```yaml
+  created: "2025-08-05T12:00:00Z"
+  modified: "2025-08-05T14:30:00.123Z"
+  ```
+  - ISO date strings validate correctly
+  - Invalid date formats show validation errors
+
+#### 🚨 Error Handling & Validation Testing
+**Test Invalid YAML Syntax**:
+- [x] **Syntax Errors**:
+  - Type invalid YAML (missing colons, incorrect indentation)
+  - Validation error appears with line number and description
+  - Parsed fields section is hidden during errors
+  - Auto-save is prevented while validation errors exist
+
+- [x] **Invalid Key Formats**:
+  ```yaml
+  123invalid: "value"  # Keys must start with letter
+  invalid-key!: "value"  # Special characters not allowed
+  ```
+  - Error messages explain key format requirements
+  - Line numbers are provided for errors
+
+- [x] **Invalid Data Types**:
+  ```yaml
+  tags: "should be array"  # Tags field must be array
+  created: "not-a-date"    # Invalid date format
+  ```
+  - Field-specific validation errors appear
+  - Common metadata fields (tags, aliases, created, modified) have special validation
+
+- [x] **Array Without Key**:
+  ```yaml
+  - orphaned item  # Array item without parent key
+  ```
+  - Error message: "Array item found without a key"
+
+#### 🛠️ Custom Field Management Testing
+**Add Custom Fields**:
+- [x] **Add Field Button**:
+  - Click "+" button in metadata editor header
+  - Prompt appears asking for field name
+  - Enter field name and press OK → Second prompt for field value
+  - New field is added to YAML frontmatter
+  - Field appears in parsed fields section
+
+- [x] **Field Name Validation**:
+  - Try invalid field names (starting with numbers, special characters)
+  - Valid names are converted to lowercase with underscores
+  - Spaces are converted to underscores
+
+**Remove Custom Fields**:
+- [x] **Remove Field Button**:
+  - Each parsed field shows an "X" button on hover
+  - Click "X" button → Field is removed from YAML
+  - Parsed fields section updates immediately
+  - Changes are auto-saved
+
+- [x] **Array Field Removal**:
+  - Add array field with multiple items
+  - Remove field → All array items are removed from YAML
+  - Test with both multi-line and inline array formats
+
+#### 🔄 Mode Switching & State Preservation Testing
+**Seamless Mode Switching**:
+- [x] **AI ↔ Metadata Toggle**:
+  - Switch from AI Assistant to Metadata tab
+  - Make changes to YAML frontmatter
+  - Switch back to AI Assistant tab → AI interface preserved
+  - Switch back to Metadata tab → YAML changes preserved
+  - No data loss during mode switching
+
+- [x] **Note Switching with Unsaved Changes**:
+  - Edit YAML metadata in one note
+  - Switch to different note → Changes are auto-saved
+  - Return to original note → Latest changes are loaded
+  - No data loss when switching notes
+
+- [x] **Page Refresh Testing**:
+  - Make YAML changes and wait for auto-save
+  - Refresh the page
+  - Reopen same note in metadata mode
+  - Changes are persisted correctly
+
+#### 📚 Help System Testing
+**YAML Syntax Help**:
+- [x] **Help Expandable Section**:
+  - "YAML Syntax Help & Examples" section is collapsed by default
+  - Click to expand → Comprehensive help content appears
+  - Help includes sections: Basic Types, Arrays, Common Fields, Comments
+
+- [x] **Example Code Blocks**:
+  - Code examples are properly formatted with monospace font
+  - Copy examples into YAML editor → They parse correctly
+  - Examples cover all major YAML features used in note metadata
+
+- [x] **Help Content Quality**:
+  - Examples are accurate and functional
+  - Covers edge cases (empty arrays, complex objects)
+  - Includes real-world metadata examples
+
+#### 🎨 Visual Design & UX Testing
+**Header Controls**:
+- [x] **Visual Indicators**:
+  - Changes indicator (●) appears when YAML is modified
+  - "Saving..." text appears during auto-save
+  - Add field button (+) is easily discoverable
+  - All buttons have proper hover states
+
+**Content Layout**:
+- [x] **Section Organization**:
+  - Basic Information section clearly separated
+  - YAML frontmatter section prominent with good typography
+  - Parsed fields section provides clear visual feedback
+  - Proper spacing and visual hierarchy
+
+- [x] **Error Display**:
+  - Validation errors are prominently displayed in red
+  - Error messages are user-friendly and actionable
+  - Line numbers help locate syntax issues
+
+**Responsive Behavior**:
+- [x] **Desktop (>1400px)**:
+  - Three-column layout with right sidebar visible
+  - Metadata editor has adequate width for YAML editing
+  - All sections fit comfortably without scrolling issues
+
+- [x] **Tablet/Mobile (<1400px)**:
+  - Right sidebar appears as overlay
+  - Metadata editor remains fully functional
+  - Touch interactions work for all buttons
+
+#### 🔗 Integration Testing
+**Note Content Integration**:
+- [x] **Frontmatter Detection**:
+  - Open note with existing YAML frontmatter → Editor loads existing content
+  - Open note without frontmatter → Default frontmatter generated from metadata
+  - Note content body is preserved when editing frontmatter
+
+- [x] **Save Integration**:
+  - YAML changes trigger note update API calls
+  - Full note content (frontmatter + body) is saved correctly
+  - Notes store is refreshed after metadata updates
+  - Other components (note list, etc.) reflect metadata changes
+
+**Multi-User/Concurrent Testing**:
+- [x] **Auto-save Behavior**:
+  - Rapid typing doesn't trigger excessive save requests (debounced)
+  - Save failures are handled gracefully with error messages
+  - Network issues don't cause data loss
+
+#### ❌ Phase 4 Known Limitations
+**Current Limitations**:
+- Basic YAML parser (doesn't support all YAML 1.2 features)
+- No syntax highlighting in YAML editor
+- No autocomplete for common metadata fields
+- No import/export of metadata templates
+- No batch metadata editing for multiple notes
+
+**Expected Behaviors**:
+- Auto-save has 1-second delay (by design)
+- Validation errors prevent saving (by design)
+- Field removal requires confirmation via button click
+- Help section starts collapsed to save space
+
 ### Known Issues & Limitations
 **Current Limitations** (to be addressed in future phases):
-- ❌ No task management in AI interface
-- ❌ No [[wikilink]] support in chat
-- ❌ No "Notes discussed" tracking
-- ❌ No thread management for conversations
-- ❌ Limited metadata editing capabilities
-- ❌ No YAML frontmatter editor
 - ❌ No advanced search filters
 - ❌ No keyboard shortcuts for sidebar actions
+- ❌ No syntax highlighting in YAML editor
+- ❌ No metadata templates or bulk editing
 
 **Reported Issues**:
 - None currently identified
@@ -894,9 +1136,9 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
 
 ## Next Steps
 
-### Immediate Priorities (Phase 4)
-1. **Enhanced Metadata Editor**: Implement YAML frontmatter editing with real-time validation
-2. **Advanced Thread Management**: Multi-conversation support with thread switching
+### Immediate Priorities (Phase 5)
+1. **Enhanced Note Management**: Arc-style temporary tab behavior and auto-population
+2. **Advanced Thread Management**: Multi-conversation support with thread switching  
 3. **Task Editing**: Allow manual task creation and modification
 4. **Performance Optimizations**: Optimize for large note collections and conversation history
 
@@ -908,20 +1150,30 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
 
 ## Conclusion
 
-The Phase 1, Phase 2, and Phase 3 implementation successfully transforms Flint from a tab-based to a modern sidebar-based architecture with advanced AI integration. The new design provides:
+The Phase 1, Phase 2, Phase 3, and Phase 4 implementation successfully transforms Flint from a tab-based to a modern sidebar-based architecture with advanced AI integration and comprehensive metadata editing. The new design provides:
 
 - **Better Organization**: Clear separation between navigation, content, and AI assistance
 - **Enhanced AI Integration**: Task-oriented interface with automatic task extraction and progress tracking
 - **Advanced Note Linking**: Full [[wikilink]] support in conversations with click-to-navigate functionality
+- **Professional Metadata Editing**: YAML frontmatter editor with real-time validation and auto-save
 - **Improved User Experience**: Intuitive navigation with persistent temporary tabs and contextual note references
 - **Modern Technology**: Built with Svelte 5 runes and TypeScript for maintainability
 - **Responsive Design**: Works across all device sizes with smooth animations
 
-**Phase 3 Achievements**:
-- Complete task management interface with visual status indicators
-- Automatic extraction of notes discussed from conversations
-- Enhanced message input with wikilink completion
-- Seamless integration with existing note navigation system
-- Foundation for advanced thread management in Phase 4
+**Phase 4 Achievements**:
+- Complete YAML frontmatter editor with real-time parsing and validation
+- Custom metadata field management with add/remove functionality
+- Automatic frontmatter generation from note metadata
+- Seamless mode switching between AI assistant and metadata editing
+- Professional error handling with line-by-line validation feedback
+- Comprehensive help system with YAML syntax examples
+- Auto-save functionality with visual indicators and change tracking
 
-The architecture now provides a comprehensive agent-first note-taking experience that matches the original Figma mockup design. Phase 4 will focus on advanced metadata editing, enhanced thread management, and performance optimizations.
+**Overall Architecture Benefits**:
+- **Agent-First Design**: AI assistance is central to the workflow with contextual note references
+- **Scalable Information Architecture**: Clean separation of concerns between navigation, editing, and assistance
+- **Professional Note Management**: Enterprise-grade metadata editing capabilities
+- **Developer Experience**: Modern TypeScript implementation with comprehensive error handling
+- **User Experience**: Intuitive interface with smooth animations and responsive design
+
+The architecture now provides a comprehensive, professional-grade note-taking experience that matches the original Figma mockup design. Phase 5 will focus on enhanced note management, advanced thread management, and performance optimizations.
