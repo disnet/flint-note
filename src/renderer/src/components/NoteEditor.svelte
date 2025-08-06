@@ -6,7 +6,7 @@
   import { githubDark } from '@fsegurai/codemirror-theme-github-dark';
   import { wikilinksExtension } from '../lib/wikilinks.svelte.js';
   import { lineNumbers, dropCursor, keymap } from '@codemirror/view';
-  import { foldGutter, indentOnInput } from '@codemirror/language';
+  import { indentOnInput } from '@codemirror/language';
   import {
     defaultKeymap,
     history,
@@ -130,8 +130,6 @@
     const extensions = [
       // Core editor extensions
       minimalSetup,
-      lineNumbers(),
-      // foldGutter(),
       dropCursor(),
       indentOnInput(),
       history(),
@@ -172,7 +170,6 @@
         // Use minimalSetup and add desired features manually (excluding bracket matching)
         minimalSetup,
         // lineNumbers(),
-        foldGutter(),
         dropCursor(),
         indentOnInput(),
         history(),
@@ -368,22 +365,6 @@
       <h3 id="note-editor-title" class="editor-title">
         {note.title}
       </h3>
-      {#if noteTypes.length > 0}
-        <select
-          class="note-type-selector"
-          class:saving={isSaving}
-          bind:value={currentNoteType}
-          onchange={() => changeNoteType()}
-          disabled={isSaving}
-          aria-label="Note type"
-        >
-          {#each noteTypes as noteType, index (noteType.name || `unknown-${index}`)}
-            <option value={noteType.name || ''}>
-              {noteType.name || 'Unknown Type'}
-            </option>
-          {/each}
-        </select>
-      {/if}
     </div>
     <div class="editor-actions">
       {#if isSaving}
@@ -398,7 +379,6 @@
       >
         📌
       </button>
-      <button class="close-btn" onclick={onClose} aria-label="Close editor"> × </button>
     </div>
   </div>
 
