@@ -95,21 +95,30 @@ class TemporaryTabsStore {
     this.saveToStorage();
   }
 
-  removePinnedNotes(pinnedNoteIds: string[]) {
+  /**
+   * Remove tabs by note IDs (used by navigation service for coordination)
+   */
+  removeTabsByNoteIds(noteIds: string[]) {
     const originalLength = this.state.tabs.length;
-    this.state.tabs = this.state.tabs.filter((tab) => !pinnedNoteIds.includes(tab.noteId));
-    
+    this.state.tabs = this.state.tabs.filter((tab) => !noteIds.includes(tab.noteId));
+
     // Update active tab if the removed tab was active
-    if (this.state.activeTabId && !this.state.tabs.find(tab => tab.id === this.state.activeTabId)) {
+    if (
+      this.state.activeTabId &&
+      !this.state.tabs.find((tab) => tab.id === this.state.activeTabId)
+    ) {
       this.state.activeTabId = this.state.tabs.length > 0 ? this.state.tabs[0].id : null;
     }
-    
+
     // Only save if something was actually removed
     if (this.state.tabs.length !== originalLength) {
       this.saveToStorage();
     }
   }
 
+  /**
+   * Clear the active tab highlighting
+   */
   clearActiveTab() {
     this.state.activeTabId = null;
     this.saveToStorage();
@@ -124,11 +133,6 @@ class TemporaryTabsStore {
     }
 
     this.saveToStorage();
-  }
-
-  private moveToTop(index: number) {
-    const [tab] = this.state.tabs.splice(index, 1);
-    this.state.tabs.unshift(tab);
   }
 
   private cleanupOldTabs() {

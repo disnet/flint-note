@@ -9,12 +9,11 @@
   interface Props {
     activeNote: NoteMetadata | null;
     onNoteSelect: (note: NoteMetadata) => void;
-    onPinnedNoteSelect: (note: NoteMetadata) => void;
     onCreateNote: () => void;
     onSystemViewSelect: (view: 'inbox' | 'notes' | 'search' | 'settings' | null) => void;
   }
 
-  let { activeNote, onNoteSelect, onPinnedNoteSelect, onCreateNote, onSystemViewSelect }: Props = $props();
+  let { activeNote, onNoteSelect, onCreateNote, onSystemViewSelect }: Props = $props();
 
   function toggleSidebar() {
     sidebarState.toggleLeftSidebar();
@@ -60,7 +59,7 @@
 
   <div class="sidebar-content">
     <SystemViews {onNoteSelect} {onCreateNote} {onSystemViewSelect} />
-    <PinnedNotes {activeNote} onNoteSelect={onPinnedNoteSelect} />
+    <PinnedNotes {activeNote} {onNoteSelect} />
     <TemporaryTabs {onNoteSelect} />
   </div>
 </div>

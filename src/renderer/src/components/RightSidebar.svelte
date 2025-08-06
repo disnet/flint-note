@@ -14,7 +14,14 @@
     onMetadataUpdate?: (metadata: Partial<NoteMetadata>) => void;
   }
 
-  let { messages, isLoading, activeNote, onNoteClick, onSendMessage, onMetadataUpdate }: Props = $props();
+  let {
+    messages,
+    isLoading,
+    activeNote,
+    onNoteClick,
+    onSendMessage,
+    onMetadataUpdate
+  }: Props = $props();
 
   // Debug logging
   $effect(() => {

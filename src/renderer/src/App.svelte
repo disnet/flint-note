@@ -10,7 +10,7 @@
   import { modelStore } from './stores/modelStore.svelte';
   import { sidebarState } from './stores/sidebarState.svelte';
   import { temporaryTabsStore } from './stores/temporaryTabsStore.svelte';
-  import { pinnedNotesStore } from './services/pinnedStore';
+  import { noteNavigationService } from './services/noteNavigationService.svelte';
 
   let messages = $state<Message[]>([
     {
@@ -27,22 +27,9 @@
   let activeSystemView = $state<'inbox' | 'notes' | 'search' | 'settings' | null>(null);
 
   function handleNoteSelect(note: NoteMetadata): void {
-    openNoteEditor(note);
-    // Clear active system view when opening a note
-    activeSystemView = null;
-    // Add to temporary tabs only if not pinned
-    if (!pinnedNotesStore.isPinned(note.id)) {
-      temporaryTabsStore.addTab(note.id, note.title, 'navigation');
-    }
-  }
-
-  function handlePinnedNoteSelect(note: NoteMetadata): void {
-    openNoteEditor(note);
-    // Clear active system view when opening a note
-    activeSystemView = null;
-    // Clear highlighting from recent notes when opening a pinned note
-    temporaryTabsStore.clearActiveTab();
-    // Don't add pinned notes to temporary tabs
+    noteNavigationService.openNote(note, 'navigation', openNoteEditor, () => {
+      activeSystemView = null;
+    });
   }
 
   function handleCreateNote(): void {
@@ -83,11 +70,7 @@
     );
 
     if (note) {
-      openNoteEditor(note);
-      // Add to temporary tabs with 'wikilink' source only if not pinned
-      if (!pinnedNotesStore.isPinned(note.id)) {
-        temporaryTabsStore.addTab(note.id, note.title, 'wikilink');
-      }
+      noteNavigationService.openNote(note, 'wikilink', openNoteEditor);
     } else {
       console.warn('Note not found:', noteId);
     }
@@ -163,11 +146,7 @@
     function handleWikilinkNavigate(event: CustomEvent): void {
       const { note } = event.detail;
       if (note) {
-        openNoteEditor(note);
-        // Add to temporary tabs with 'wikilink' source only if not pinned
-        if (!pinnedNotesStore.isPinned(note.id)) {
-          temporaryTabsStore.addTab(note.id, note.title, 'wikilink');
-        }
+        noteNavigationService.openNote(note, 'wikilink', openNoteEditor);
       }
     }
 
@@ -176,32 +155,22 @@
       document.removeEventListener('wikilink-navigate', handleWikilinkNavigate);
   });
 
-  // Handle pinned notes changes: remove newly pinned notes from recents, add unpinned notes to recents
+  // Handle unpinned notes event from navigation service
   $effect(() => {
-    let previousPinnedIds: string[] = [];
-    
-    const unsubscribe = pinnedNotesStore.subscribe((pinnedNotes) => {
-      const currentPinnedIds = pinnedNotes.map(note => note.id);
-      
-      // Remove newly pinned notes from temporary tabs
-      temporaryTabsStore.removePinnedNotes(currentPinnedIds);
-      
-      // Find notes that were unpinned (in previous but not in current)
-      const unpinnedIds = previousPinnedIds.filter(id => !currentPinnedIds.includes(id));
-      
+    function handleNotesUnpinned(event: CustomEvent): void {
+      const { noteIds } = event.detail;
+
       // Add unpinned notes to temporary tabs
-      for (const unpinnedId of unpinnedIds) {
-        const note = notesStore.notes.find(n => n.id === unpinnedId);
+      for (const noteId of noteIds) {
+        const note = notesStore.notes.find((n) => n.id === noteId);
         if (note) {
           temporaryTabsStore.addTab(note.id, note.title, 'navigation');
         }
       }
-      
-      // Update previous pinned IDs for next comparison
-      previousPinnedIds = currentPinnedIds;
-    });
-    
-    return unsubscribe;
+    }
+
+    document.addEventListener('notes-unpinned', handleNotesUnpinned);
+    return () => document.removeEventListener('notes-unpinned', handleNotesUnpinned);
   });
 
   async function handleSendMessage(text: string): Promise<void> {
@@ -268,7 +237,11 @@
                 messages[messageIndex].toolCalls = [];
               }
               messages[messageIndex].toolCalls!.push(toolCall);
-              console.log('App.svelte: Added tool call to message, message now has', messages[messageIndex].toolCalls!.length, 'tool calls');
+              console.log(
+                'App.svelte: Added tool call to message, message now has',
+                messages[messageIndex].toolCalls!.length,
+                'tool calls'
+              );
             }
           }
         );
@@ -312,7 +285,6 @@
     <LeftSidebar
       {activeNote}
       onNoteSelect={handleNoteSelect}
-      onPinnedNoteSelect={handlePinnedNoteSelect}
       onCreateNote={handleCreateNote}
       onSystemViewSelect={handleSystemViewSelect}
     />

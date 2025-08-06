@@ -101,21 +101,21 @@
       // Enhanced YAML parsing with better error handling
       const lines = frontmatterText.split('\n');
       const parsed: Record<string, unknown> = {};
-      
+
       let currentKey: string | null = null;
       let currentArray: string[] = [];
       let lineNumber = 0;
-      
+
       for (const line of lines) {
         lineNumber++;
         const trimmed = line.trim();
-        
+
         // Skip empty lines
         if (!trimmed) continue;
-        
+
         // Skip comments
         if (trimmed.startsWith('#')) continue;
-        
+
         // Array item
         if (trimmed.startsWith('- ')) {
           if (!currentKey) {
@@ -127,7 +127,7 @@
           currentArray.push(cleanItem);
           continue;
         }
-        
+
         // Key-value pair
         const colonIndex = trimmed.indexOf(':');
         if (colonIndex > 0) {
@@ -136,15 +136,17 @@
             parsed[currentKey] = [...currentArray];
             currentArray = [];
           }
-          
+
           currentKey = trimmed.substring(0, colonIndex).trim();
           const value = trimmed.substring(colonIndex + 1).trim();
-          
+
           // Validate key format
           if (!currentKey.match(/^[a-zA-Z][a-zA-Z0-9_-]*$/)) {
-            throw new Error(`Line ${lineNumber}: Invalid key format "${currentKey}". Keys must start with a letter and contain only letters, numbers, underscores, or hyphens.`);
+            throw new Error(
+              `Line ${lineNumber}: Invalid key format "${currentKey}". Keys must start with a letter and contain only letters, numbers, underscores, or hyphens.`
+            );
           }
-          
+
           if (value === '[]') {
             parsed[currentKey] = [];
           } else if (value === '') {
@@ -153,7 +155,7 @@
           } else if (value) {
             // Handle different value types
             let cleanValue = value;
-            
+
             // Boolean values
             if (value === 'true') {
               parsed[currentKey] = true;
@@ -167,58 +169,61 @@
             // Numbers
             else if (/^-?\d+$/.test(value)) {
               parsed[currentKey] = parseInt(value, 10);
-            }
-            else if (/^-?\d*\.\d+$/.test(value)) {
+            } else if (/^-?\d*\.\d+$/.test(value)) {
               parsed[currentKey] = parseFloat(value);
             }
             // String values (remove quotes)
             else {
               cleanValue = value.replace(/^["']|["']$/g, '');
-              
+
               // Validate ISO date strings if they look like dates
               if (cleanValue.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?$/)) {
                 const date = new Date(cleanValue);
                 if (isNaN(date.getTime())) {
-                  throw new Error(`Line ${lineNumber}: Invalid date format "${cleanValue}". Use ISO 8601 format (YYYY-MM-DDTHH:mm:ss.sssZ)`);
+                  throw new Error(
+                    `Line ${lineNumber}: Invalid date format "${cleanValue}". Use ISO 8601 format (YYYY-MM-DDTHH:mm:ss.sssZ)`
+                  );
                 }
               }
-              
+
               parsed[currentKey] = cleanValue;
             }
           }
         } else if (colonIndex === -1 && trimmed) {
-          throw new Error(`Line ${lineNumber}: Invalid syntax "${trimmed}". Expected "key: value" format.`);
+          throw new Error(
+            `Line ${lineNumber}: Invalid syntax "${trimmed}". Expected "key: value" format.`
+          );
         }
       }
-      
+
       // Save final array if exists
       if (currentKey && currentArray.length > 0) {
         parsed[currentKey] = [...currentArray];
       }
-      
+
       // Additional validation for common metadata fields
       if (parsed.tags && !Array.isArray(parsed.tags)) {
         throw new Error('Field "tags" must be an array');
       }
-      
+
       if (parsed.aliases && !Array.isArray(parsed.aliases)) {
         throw new Error('Field "aliases" must be an array');
       }
-      
+
       if (parsed.created && typeof parsed.created === 'string') {
         const date = new Date(parsed.created);
         if (isNaN(date.getTime())) {
           throw new Error('Field "created" must be a valid ISO date string');
         }
       }
-      
+
       if (parsed.modified && typeof parsed.modified === 'string') {
         const date = new Date(parsed.modified);
         if (isNaN(date.getTime())) {
           throw new Error('Field "modified" must be a valid ISO date string');
         }
       }
-      
+
       parsedMetadata = parsed;
     } catch (err) {
       validationError = err instanceof Error ? err.message : 'Invalid YAML syntax';
@@ -238,20 +243,20 @@
     try {
       isSaving = true;
       error = null;
-      
+
       // Reconstruct full note content
-      const newContent = frontmatterText.trim() 
+      const newContent = frontmatterText.trim()
         ? `---\n${frontmatterText}\n---\n${bodyContent}`
         : bodyContent;
 
       const noteService = getChatService();
-      await noteService.updateNote({ 
-        identifier: activeNote.id, 
-        content: newContent 
+      await noteService.updateNote({
+        identifier: activeNote.id,
+        content: newContent
       });
-      
+
       hasChanges = false;
-      
+
       // Notify parent of metadata changes
       if (onMetadataUpdate && Object.keys(parsedMetadata).length > 0) {
         onMetadataUpdate(parsedMetadata);
@@ -284,7 +289,7 @@
     hasChanges = false;
     error = null;
     validationError = null;
-    
+
     if (saveTimeout) {
       clearTimeout(saveTimeout);
       saveTimeout = null;
@@ -297,22 +302,27 @@
       const value = prompt('Enter field value:');
       const cleanKey = key.trim().toLowerCase().replace(/\s+/g, '_');
       const cleanValue = value || '';
-      
+
       // Add to frontmatter
       const newLine = `${cleanKey}: "${cleanValue}"`;
-      frontmatterText = frontmatterText.trim() ? `${frontmatterText}\n${newLine}` : newLine;
+      frontmatterText = frontmatterText.trim()
+        ? `${frontmatterText}\n${newLine}`
+        : newLine;
       onFrontmatterChange();
     }
   }
 
   function removeField(fieldKey: string): void {
     const lines = frontmatterText.split('\n');
-    const filteredLines = lines.filter(line => {
+    const filteredLines = lines.filter((line) => {
       const trimmed = line.trim();
-      return !trimmed.startsWith(`${fieldKey}:`) && !trimmed.startsWith(`- `) || 
-             (trimmed.startsWith(`- `) && lines.findIndex(l => l.trim().startsWith(`${fieldKey}:`)) === -1);
+      return (
+        (!trimmed.startsWith(`${fieldKey}:`) && !trimmed.startsWith(`- `)) ||
+        (trimmed.startsWith(`- `) &&
+          lines.findIndex((l) => l.trim().startsWith(`${fieldKey}:`)) === -1)
+      );
     });
-    
+
     frontmatterText = filteredLines.join('\n');
     onFrontmatterChange();
   }
@@ -337,8 +347,20 @@
         {#if isSaving}
           <span class="saving-indicator">Saving...</span>
         {/if}
-        <button class="add-field-btn" onclick={addCustomField} title="Add custom field" aria-label="Add custom field">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <button
+          class="add-field-btn"
+          onclick={addCustomField}
+          title="Add custom field"
+          aria-label="Add custom field"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
             <line x1="12" y1="5" x2="12" y2="19"></line>
             <line x1="5" y1="12" x2="19" y2="12"></line>
           </svg>
@@ -374,7 +396,8 @@
           <h4>YAML Frontmatter</h4>
           {#if validationError}
             <div class="validation-error">
-              <strong>Validation Error:</strong> {validationError}
+              <strong>Validation Error:</strong>
+              {validationError}
             </div>
           {/if}
           <div class="yaml-editor">
@@ -392,23 +415,40 @@
               <summary>YAML Syntax Help & Examples</summary>
               <div class="help-content">
                 <h5>Basic Types</h5>
-                <p><strong>Strings:</strong> <code>title: "My Note"</code> or <code>title: My Note</code></p>
-                <p><strong>Numbers:</strong> <code>priority: 1</code> or <code>rating: 4.5</code></p>
-                <p><strong>Booleans:</strong> <code>published: true</code> or <code>draft: false</code></p>
-                <p><strong>Dates:</strong> <code>created: "2025-08-05T12:00:00Z"</code></p>
-                
+                <p>
+                  <strong>Strings:</strong> <code>title: "My Note"</code> or
+                  <code>title: My Note</code>
+                </p>
+                <p>
+                  <strong>Numbers:</strong> <code>priority: 1</code> or
+                  <code>rating: 4.5</code>
+                </p>
+                <p>
+                  <strong>Booleans:</strong> <code>published: true</code> or
+                  <code>draft: false</code>
+                </p>
+                <p>
+                  <strong>Dates:</strong> <code>created: "2025-08-05T12:00:00Z"</code>
+                </p>
+
                 <h5>Arrays</h5>
                 <p><strong>Tags:</strong></p>
-                <pre><code>tags:
+                <pre><code
+                    >tags:
   - work
   - project
-  - important</code></pre>
+  - important</code
+                  ></pre>
                 <p><strong>Empty array:</strong> <code>tags: []</code></p>
-                <p><strong>Inline array:</strong> <code>keywords: [seo, marketing, web]</code></p>
-                
+                <p>
+                  <strong>Inline array:</strong>
+                  <code>keywords: [seo, marketing, web]</code>
+                </p>
+
                 <h5>Common Fields</h5>
                 <p><strong>Note metadata:</strong></p>
-                <pre><code>title: "My Important Note"
+                <pre><code
+                    >title: "My Important Note"
 tags:
   - project
   - work
@@ -418,8 +458,9 @@ aliases:
 created: "2025-08-05T12:00:00Z"
 modified: "2025-08-05T14:30:00Z"
 priority: 1
-published: false</code></pre>
-                
+published: false</code
+                  ></pre>
+
                 <h5>Comments</h5>
                 <p><code># This is a comment and will be ignored</code></p>
               </div>
@@ -436,13 +477,20 @@ published: false</code></pre>
                 <div class="metadata-field parsed">
                   <div class="field-header">
                     <label>{key}</label>
-                    <button 
-                      class="remove-field" 
+                    <button
+                      class="remove-field"
                       onclick={() => removeField(key)}
                       title="Remove field"
                       aria-label="Remove field {key}"
                     >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                      >
                         <line x1="18" y1="6" x2="6" y2="18"></line>
                         <line x1="6" y1="6" x2="18" y2="18"></line>
                       </svg>
@@ -471,14 +519,22 @@ published: false</code></pre>
 
         {#if error}
           <div class="error-message">
-            <strong>Error:</strong> {error}
+            <strong>Error:</strong>
+            {error}
           </div>
         {/if}
       </div>
     {/if}
   {:else}
     <div class="no-note">
-      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+      <svg
+        width="48"
+        height="48"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1"
+      >
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
         <polyline points="14,2 14,8 20,8"></polyline>
         <line x1="16" y1="13" x2="8" y2="13"></line>
