@@ -6,6 +6,7 @@
   import SearchBar from './SearchBar.svelte';
   import Settings from './Settings.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
+  import { pinnedNotesStore } from '../services/pinnedStore';
   import type { NoteMetadata, NoteType } from '../services/noteStore.svelte';
 
   interface Props {
@@ -32,9 +33,38 @@
 
   let noteEditor = $state<{ focus?: () => void } | null>(null);
   let isChangingType = $state(false);
+  let isPinned = $state(false);
+
+  // Subscribe to pinned notes store to update isPinned reactively
+  $effect(() => {
+    if (!activeNote) {
+      isPinned = false;
+      return;
+    }
+
+    const unsubscribe = pinnedNotesStore.subscribe(() => {
+      isPinned = pinnedNotesStore.isPinned(activeNote.id);
+    });
+
+    // Initial check
+    isPinned = pinnedNotesStore.isPinned(activeNote.id);
+
+    return unsubscribe;
+  });
 
   function toggleRightSidebar(): void {
     sidebarState.toggleRightSidebar();
+  }
+
+  function togglePin(): void {
+    if (!activeNote) return;
+    
+    console.log('MainView: togglePin called for:', {
+      id: activeNote.id,
+      title: activeNote.title,
+      filename: activeNote.filename
+    });
+    pinnedNotesStore.togglePin(activeNote.id, activeNote.title, activeNote.filename);
   }
 
   async function handleNoteTypeChange(event: Event): Promise<void> {
@@ -123,6 +153,15 @@
       </div>
 
       <div class="note-actions">
+        <button
+          class="action-btn pin-btn"
+          class:pinned={isPinned}
+          onclick={togglePin}
+          aria-label={isPinned ? 'Unpin note' : 'Pin note'}
+          title={isPinned ? 'Unpin note' : 'Pin note'}
+        >
+          📌
+        </button>
         <button
           class="action-btn"
           onclick={toggleRightSidebar}
@@ -291,6 +330,21 @@
     background: var(--danger-bg);
     border-color: var(--danger-border);
     color: var(--danger-text);
+  }
+
+  .pin-btn {
+    opacity: 0.6;
+  }
+
+  .pin-btn:hover {
+    opacity: 1;
+  }
+
+  .pin-btn.pinned {
+    opacity: 1;
+    background: var(--accent-primary-alpha);
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
   }
 
   .note-content {

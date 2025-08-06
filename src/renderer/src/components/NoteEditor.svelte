@@ -20,7 +20,6 @@
   import { notesStore } from '../services/noteStore.svelte';
   import type { Note, NoteTypeListItem } from '@flint-note/server';
   import { getChatService } from '../services/chatService.js';
-  import { pinnedNotesStore } from '../services/pinnedStore';
 
   interface Props {
     note: NoteMetadata;
@@ -42,19 +41,6 @@
   let noteTypes = $state<NoteTypeListItem[]>([]);
   let currentNoteType = $state<string>('');
 
-  let isPinned = $state(false);
-
-  // Subscribe to pinned notes store to update isPinned reactively
-  $effect(() => {
-    const unsubscribe = pinnedNotesStore.subscribe(() => {
-      isPinned = pinnedNotesStore.isPinned(note.id);
-    });
-
-    // Initial check
-    isPinned = pinnedNotesStore.isPinned(note.id);
-
-    return unsubscribe;
-  });
 
   onMount(() => {
     return () => {
@@ -248,14 +234,6 @@
     }, 500); // 500ms delay
   }
 
-  function togglePin(): void {
-    console.log('NoteEditor: togglePin called for:', {
-      id: note.id,
-      title: note.title,
-      filename: note.filename
-    });
-    pinnedNotesStore.togglePin(note.id, note.title, note.filename);
-  }
 
   async function changeNoteType(): Promise<void> {
     if (!noteData || !currentNoteType) return;
@@ -370,15 +348,6 @@
       {#if isSaving}
         <span class="saving-indicator" title="Saving...">💾</span>
       {/if}
-      <button
-        class="pin-btn"
-        class:pinned={isPinned}
-        onclick={togglePin}
-        aria-label={isPinned ? 'Unpin note' : 'Pin note'}
-        title={isPinned ? 'Unpin note' : 'Pin note'}
-      >
-        📌
-      </button>
     </div>
   </div>
 
@@ -525,29 +494,6 @@
     }
   }
 
-  .pin-btn {
-    padding: 0.5rem;
-    background: none;
-    border: 1px solid var(--border-light);
-    border-radius: 0.25rem;
-    cursor: pointer;
-    font-size: 1rem;
-    transition: all 0.2s ease;
-    opacity: 0.6;
-  }
-
-  .pin-btn:hover {
-    opacity: 1;
-    border-color: var(--accent-primary);
-    background: var(--bg-hover);
-  }
-
-  .pin-btn.pinned {
-    opacity: 1;
-    background: var(--accent-primary-alpha);
-    border-color: var(--accent-primary);
-    color: var(--accent-primary);
-  }
 
   .close-btn {
     padding: 0.5rem;
