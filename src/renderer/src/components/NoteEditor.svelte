@@ -603,28 +603,51 @@
 
   /* Custom scrollbar styling */
   :global(.cm-scroller::-webkit-scrollbar) {
-    width: 8px;
+    width: 12px;
   }
 
   :global(.cm-scroller::-webkit-scrollbar-track) {
-    background: var(--bg-secondary);
-    border-radius: 4px;
+    background: transparent;
+    border-radius: 6px;
   }
 
   :global(.cm-scroller::-webkit-scrollbar-thumb) {
-    background: var(--border-light);
-    border-radius: 4px;
-    transition: background 0.2s ease;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    transition: all 0.2s ease;
   }
 
   :global(.cm-scroller::-webkit-scrollbar-thumb:hover) {
-    background: var(--text-secondary);
+    background: rgba(0, 0, 0, 0.3);
+    background-clip: padding-box;
+  }
+
+  :global(.cm-scroller::-webkit-scrollbar-corner) {
+    background: transparent;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :global(.cm-scroller::-webkit-scrollbar-thumb) {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    :global(.cm-scroller::-webkit-scrollbar-thumb:hover) {
+      background: rgba(255, 255, 255, 0.3);
+    }
   }
 
   /* Firefox scrollbar styling */
   :global(.cm-scroller) {
     scrollbar-width: thin;
-    scrollbar-color: var(--border-light) var(--bg-secondary);
+    scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :global(.cm-scroller) {
+      scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+    }
   }
 
   /* Responsive adjustments */
