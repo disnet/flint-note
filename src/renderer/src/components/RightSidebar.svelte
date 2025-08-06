@@ -87,12 +87,14 @@
     border-left: 1px solid var(--border-light);
     display: flex;
     flex-direction: column;
-    transition: transform 0.3s ease;
+    transition: all 0.3s ease;
     overflow: hidden;
   }
 
   .right-sidebar:not(.visible) {
-    transform: translateX(100%);
+    width: 0;
+    min-width: 0;
+    border-left: none;
   }
 
   .sidebar-header {

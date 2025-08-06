@@ -333,9 +333,9 @@
     height: 100vh;
   }
 
-  /* Three column layout for desktop */
+  /* Three column layout for desktop - pure CSS responsive to sidebar visibility */
   .app.three-column .app-layout {
-    grid-template-columns: minmax(300px, 300px) 1fr minmax(400px, 400px);
+    grid-template-columns: min-content 1fr min-content;
   }
 
   /* Single column layout for smaller screens */
