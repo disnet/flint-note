@@ -43,7 +43,7 @@
           <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
         </svg>`;
       default:
-        return `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
           <polyline points="14,2 14,8 20,8"></polyline>
         </svg>`;
@@ -53,10 +53,8 @@
 
 {#if temporaryTabsStore.tabs.length > 0}
   <div class="temporary-tabs">
-    <div class="separator"></div>
-
     <div class="tabs-header">
-      <span class="tabs-count">{temporaryTabsStore.tabs.length} recent</span>
+      <div class="separator"></div>
       <button class="clear-all" onclick={handleClearAll}> close all </button>
     </div>
 
@@ -84,8 +82,8 @@
             aria-label="Close tab"
           >
             <svg
-              width="12"
-              height="12"
+              width="14"
+              height="14"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -118,22 +116,17 @@
       transparent 4px,
       transparent 8px
     );
-    margin: 0.75rem 1.25rem;
+    width: 100%;
   }
 
   .tabs-header {
     display: flex;
-    align-items: center;
+    align-items: row;
     justify-content: space-between;
-    padding: 0.5rem 1.25rem;
-  }
-
-  .tabs-count {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.025em;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0;
+    padding: 0.5rem 1.65rem;
   }
 
   .clear-all {
@@ -142,6 +135,7 @@
     color: var(--text-tertiary);
     font-size: 0.75rem;
     cursor: pointer;
+    white-space: nowrap;
     transition: color 0.2s ease;
     text-decoration: underline;
     text-underline-offset: 2px;
@@ -155,6 +149,7 @@
     flex: 1;
     overflow-y: auto;
     min-height: 0;
+    padding: 0 1.25rem;
   }
 
   .tab-item {
@@ -163,7 +158,8 @@
     align-items: center;
     justify-content: space-between;
     gap: 0.5rem;
-    padding: 0.5rem 1.25rem;
+    padding: 0.5rem 0.4rem;
+    border-radius: 0.4rem;
     border: none;
     background: transparent;
     color: var(--text-primary);
@@ -173,19 +169,15 @@
     text-align: left;
   }
 
-  .tab-item:hover {
-    background: var(--bg-hover);
-  }
-
   .tab-item.active {
-    background: var(--bg-selected);
-    color: var(--accent-primary);
+    background: var(--accent-light);
   }
 
   .tab-content {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    border-radius: 0.4rem;
     flex: 1;
     min-width: 0;
   }
@@ -195,7 +187,6 @@
     align-items: center;
     color: var(--text-secondary);
     flex-shrink: 0;
-    opacity: 0.7;
   }
 
   .tab-title {

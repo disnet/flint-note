@@ -108,7 +108,7 @@
         <polyline points="9,18 15,12 9,6"></polyline>
       </svg>
     </button>
-    <h3>Pinned</h3>
+    Pinned
   </div>
 
   {#if !isCollapsed}
@@ -137,25 +137,20 @@
 </div>
 
 <style>
-  .pinned-notes {
-    border-bottom: 1px solid var(--border-light);
-    background: var(--bg-primary);
-  }
-
   .section-header {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.75rem 1.25rem;
+    padding: 0.3rem 1.65rem;
     background: var(--bg-secondary);
-    border-bottom: 1px solid var(--border-light);
+    color: var(--text-muted);
   }
 
   .collapse-toggle {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 0.25rem;
+    padding: 0.25rem 0;
     border: none;
     background: transparent;
     color: var(--text-secondary);
@@ -187,7 +182,10 @@
   }
 
   .pinned-list {
+    display: flex;
+    flex-direction: column;
     max-height: 200px;
+    padding: 0 1.25rem;
     overflow-y: auto;
   }
 
@@ -196,7 +194,8 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    padding: 0.625rem 1.25rem;
+    padding: 0.5rem 0.4rem;
+    border-radius: 0.4rem;
     border: none;
     background: transparent;
     color: var(--text-primary);
@@ -211,8 +210,7 @@
   }
 
   .pinned-item.active {
-    background: var(--bg-selected);
-    color: var(--accent-primary);
+    background: var(--accent-light);
   }
 
   .note-icon {

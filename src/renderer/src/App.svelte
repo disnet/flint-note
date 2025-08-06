@@ -40,8 +40,8 @@
     view: 'inbox' | 'notes' | 'search' | 'settings' | null
   ): void {
     activeSystemView = view;
-    // Clear active note when switching to system views (except notes view)
-    if (view !== 'notes' && view !== null) {
+    // Clear active note when switching to system views
+    if (view !== null) {
       activeNote = null;
     }
   }
@@ -284,6 +284,7 @@
   <div class="app-layout">
     <LeftSidebar
       {activeNote}
+      {activeSystemView}
       onNoteSelect={handleNoteSelect}
       onSystemViewSelect={handleSystemViewSelect}
     />

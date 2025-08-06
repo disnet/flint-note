@@ -1,9 +1,10 @@
 <script lang="ts">
   interface Props {
+    activeSystemView: 'inbox' | 'notes' | 'search' | 'settings' | null;
     onSystemViewSelect: (view: 'inbox' | 'notes' | 'search' | 'settings' | null) => void;
   }
 
-  let { onSystemViewSelect }: Props = $props();
+  let { onSystemViewSelect, activeSystemView }: Props = $props();
 
   function setActiveView(view: 'inbox' | 'notes' | 'search' | 'settings'): void {
     onSystemViewSelect(view);
@@ -12,7 +13,11 @@
 
 <div class="system-views">
   <div class="system-nav">
-    <button class="nav-item" onclick={() => setActiveView('inbox')}>
+    <button
+      class="nav-item"
+      class:active={activeSystemView === 'inbox'}
+      onclick={() => setActiveView('inbox')}
+    >
       <svg
         width="16"
         height="16"
@@ -26,7 +31,11 @@
       Inbox
     </button>
 
-    <button class="nav-item" onclick={() => setActiveView('notes')}>
+    <button
+      class="nav-item"
+      class:active={activeSystemView === 'notes'}
+      onclick={() => setActiveView('notes')}
+    >
       <svg
         width="16"
         height="16"
@@ -41,7 +50,11 @@
       All notes
     </button>
 
-    <button class="nav-item" onclick={() => setActiveView('search')}>
+    <button
+      class="nav-item"
+      class:active={activeSystemView === 'search'}
+      onclick={() => setActiveView('search')}
+    >
       <svg
         width="16"
         height="16"
@@ -56,7 +69,11 @@
       Search
     </button>
 
-    <button class="nav-item" onclick={() => setActiveView('settings')}>
+    <button
+      class="nav-item"
+      class:active={activeSystemView === 'settings'}
+      onclick={() => setActiveView('settings')}
+    >
       <svg
         width="16"
         height="16"
@@ -74,12 +91,10 @@
 </div>
 
 <style>
-  .system-views {
-    border-bottom: 1px solid var(--border-light);
-  }
-
   .system-nav {
-    padding: 0.5rem 0;
+    display: flex;
+    flex-direction: column;
+    padding: 0.5rem 1.25rem;
   }
 
   .nav-item {
@@ -87,7 +102,8 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    padding: 0.75rem 1.25rem;
+    padding: 0.5rem 0.4rem;
+    border-radius: 0.4rem;
     border: none;
     background: transparent;
     color: var(--text-secondary);
@@ -98,9 +114,8 @@
     text-align: left;
   }
 
-  .nav-item:hover {
-    background: var(--bg-hover);
-    color: var(--text-primary);
+  .nav-item.active {
+    background: var(--accent-light);
   }
 
   .nav-item svg {
