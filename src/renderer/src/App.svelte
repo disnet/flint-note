@@ -10,6 +10,7 @@
   import { modelStore } from './stores/modelStore.svelte';
   import { sidebarState } from './stores/sidebarState.svelte';
   import { temporaryTabsStore } from './stores/temporaryTabsStore.svelte';
+  import { pinnedNotesStore } from './services/pinnedStore';
 
   let messages = $state<Message[]>([
     {
@@ -29,8 +30,19 @@
     openNoteEditor(note);
     // Clear active system view when opening a note
     activeSystemView = null;
-    // Add to temporary tabs
-    temporaryTabsStore.addTab(note.id, note.title, 'navigation');
+    // Add to temporary tabs only if not pinned
+    if (!pinnedNotesStore.isPinned(note.id)) {
+      temporaryTabsStore.addTab(note.id, note.title, 'navigation');
+    }
+  }
+
+  function handlePinnedNoteSelect(note: NoteMetadata): void {
+    openNoteEditor(note);
+    // Clear active system view when opening a note
+    activeSystemView = null;
+    // Clear highlighting from recent notes when opening a pinned note
+    temporaryTabsStore.clearActiveTab();
+    // Don't add pinned notes to temporary tabs
   }
 
   function handleCreateNote(): void {
@@ -72,8 +84,10 @@
 
     if (note) {
       openNoteEditor(note);
-      // Add to temporary tabs with 'wikilink' source (since this is typically from AI Assistant wikilinks)
-      temporaryTabsStore.addTab(note.id, note.title, 'wikilink');
+      // Add to temporary tabs with 'wikilink' source only if not pinned
+      if (!pinnedNotesStore.isPinned(note.id)) {
+        temporaryTabsStore.addTab(note.id, note.title, 'wikilink');
+      }
     } else {
       console.warn('Note not found:', noteId);
     }
@@ -150,14 +164,44 @@
       const { note } = event.detail;
       if (note) {
         openNoteEditor(note);
-        // Add to temporary tabs with 'wikilink' source
-        temporaryTabsStore.addTab(note.id, note.title, 'wikilink');
+        // Add to temporary tabs with 'wikilink' source only if not pinned
+        if (!pinnedNotesStore.isPinned(note.id)) {
+          temporaryTabsStore.addTab(note.id, note.title, 'wikilink');
+        }
       }
     }
 
     document.addEventListener('wikilink-navigate', handleWikilinkNavigate);
     return () =>
       document.removeEventListener('wikilink-navigate', handleWikilinkNavigate);
+  });
+
+  // Handle pinned notes changes: remove newly pinned notes from recents, add unpinned notes to recents
+  $effect(() => {
+    let previousPinnedIds: string[] = [];
+    
+    const unsubscribe = pinnedNotesStore.subscribe((pinnedNotes) => {
+      const currentPinnedIds = pinnedNotes.map(note => note.id);
+      
+      // Remove newly pinned notes from temporary tabs
+      temporaryTabsStore.removePinnedNotes(currentPinnedIds);
+      
+      // Find notes that were unpinned (in previous but not in current)
+      const unpinnedIds = previousPinnedIds.filter(id => !currentPinnedIds.includes(id));
+      
+      // Add unpinned notes to temporary tabs
+      for (const unpinnedId of unpinnedIds) {
+        const note = notesStore.notes.find(n => n.id === unpinnedId);
+        if (note) {
+          temporaryTabsStore.addTab(note.id, note.title, 'navigation');
+        }
+      }
+      
+      // Update previous pinned IDs for next comparison
+      previousPinnedIds = currentPinnedIds;
+    });
+    
+    return unsubscribe;
   });
 
   async function handleSendMessage(text: string): Promise<void> {
@@ -266,7 +310,9 @@
 <div class="app" class:three-column={sidebarState.layout === 'three-column'}>
   <div class="app-layout">
     <LeftSidebar
+      {activeNote}
       onNoteSelect={handleNoteSelect}
+      onPinnedNoteSelect={handlePinnedNoteSelect}
       onCreateNote={handleCreateNote}
       onSystemViewSelect={handleSystemViewSelect}
     />

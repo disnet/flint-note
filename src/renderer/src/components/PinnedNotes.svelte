@@ -5,10 +5,11 @@
   import type { PinnedNoteInfo } from '../services/types';
 
   interface Props {
+    activeNote: NoteMetadata | null;
     onNoteSelect: (note: NoteMetadata) => void;
   }
 
-  let { onNoteSelect }: Props = $props();
+  let { activeNote, onNoteSelect }: Props = $props();
 
   let isCollapsed = $state(false);
   let pinnedNoteInfos = $state<PinnedNoteInfo[]>([]);
@@ -115,6 +116,7 @@
       {#each pinnedNotes as note (note.id)}
         <button
           class="pinned-item"
+          class:active={activeNote?.id === note.id}
           onclick={() => handleNoteClick(note)}
           title={note.title}
         >
@@ -205,6 +207,11 @@
 
   .pinned-item:hover {
     background: var(--bg-hover);
+  }
+
+  .pinned-item.active {
+    background: var(--bg-selected);
+    color: var(--accent-primary);
   }
 
   .note-icon {

@@ -45,11 +45,11 @@ class TemporaryTabsStore {
     const existingIndex = this.state.tabs.findIndex((tab) => tab.noteId === noteId);
 
     if (existingIndex !== -1) {
-      // Update existing tab
+      // Update existing tab without moving it
       this.state.tabs[existingIndex].lastAccessed = new Date();
       this.state.tabs[existingIndex].title = title; // Update title in case it changed
       this.state.activeTabId = this.state.tabs[existingIndex].id;
-      this.moveToTop(existingIndex);
+      // Don't move to top - keep existing position
     } else {
       // Create new tab
       const newTab: TemporaryTab = {
@@ -61,12 +61,13 @@ class TemporaryTabsStore {
         source
       };
 
-      this.state.tabs.unshift(newTab);
+      // Add to bottom instead of top
+      this.state.tabs.push(newTab);
       this.state.activeTabId = newTab.id;
 
-      // Enforce max tabs limit
+      // Enforce max tabs limit by removing from the beginning (oldest tabs)
       if (this.state.tabs.length > this.state.maxTabs) {
-        this.state.tabs = this.state.tabs.slice(0, this.state.maxTabs);
+        this.state.tabs = this.state.tabs.slice(-this.state.maxTabs);
       }
     }
 
@@ -94,17 +95,32 @@ class TemporaryTabsStore {
     this.saveToStorage();
   }
 
+  removePinnedNotes(pinnedNoteIds: string[]) {
+    const originalLength = this.state.tabs.length;
+    this.state.tabs = this.state.tabs.filter((tab) => !pinnedNoteIds.includes(tab.noteId));
+    
+    // Update active tab if the removed tab was active
+    if (this.state.activeTabId && !this.state.tabs.find(tab => tab.id === this.state.activeTabId)) {
+      this.state.activeTabId = this.state.tabs.length > 0 ? this.state.tabs[0].id : null;
+    }
+    
+    // Only save if something was actually removed
+    if (this.state.tabs.length !== originalLength) {
+      this.saveToStorage();
+    }
+  }
+
+  clearActiveTab() {
+    this.state.activeTabId = null;
+    this.saveToStorage();
+  }
+
   setActiveTab(tabId: string) {
     const tab = this.state.tabs.find((t) => t.id === tabId);
     if (tab) {
       this.state.activeTabId = tabId;
       tab.lastAccessed = new Date();
-
-      // Move to top of list
-      const index = this.state.tabs.findIndex((t) => t.id === tabId);
-      if (index > 0) {
-        this.moveToTop(index);
-      }
+      // Don't move to top - keep existing position
     }
 
     this.saveToStorage();
