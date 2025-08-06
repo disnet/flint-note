@@ -217,6 +217,7 @@
     height: 100%;
     background: var(--bg-primary);
     overflow: hidden;
+    align-items: center;
   }
 
   .note-header {
@@ -226,6 +227,7 @@
     padding: 1rem 1.5rem;
     border-bottom: 1px solid var(--border-light);
     background: var(--bg-secondary);
+    width: 100%;
   }
 
   .note-type-selector {
@@ -294,6 +296,7 @@
   .note-content {
     flex: 1;
     overflow: hidden;
+    width: 70ch;
   }
 
   .empty-state {

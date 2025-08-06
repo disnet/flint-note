@@ -131,7 +131,7 @@
       // Core editor extensions
       minimalSetup,
       lineNumbers(),
-      foldGutter(),
+      // foldGutter(),
       dropCursor(),
       indentOnInput(),
       history(),
