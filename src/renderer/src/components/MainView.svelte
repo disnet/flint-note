@@ -176,22 +176,8 @@
             ></path>
           </svg>
         </button>
-        <button class="action-btn" aria-label="Note information" title="Note information">
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="12" y1="16" x2="12" y2="12"></line>
-            <line x1="12" y1="8" x2="12.01" y2="8"></line>
-          </svg>
-        </button>
         <button
-          class="action-btn delete-btn"
+          class="action-btn"
           onclick={onClose}
           aria-label="Close note"
           title="Close note"
@@ -258,9 +244,9 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 1rem 1.5rem;
-    border-bottom: 1px solid var(--border-light);
-    background: var(--bg-secondary);
+    padding: 0.5rem 1rem;
+    /*border-bottom: 1px solid var(--border-light);*/
+    /*background: var(--bg-secondary);*/
     width: 100%;
   }
 
@@ -270,14 +256,18 @@
   }
 
   .note-type-dropdown {
-    padding: 0.5rem 0.75rem;
-    border: 1px solid var(--border-light);
+    padding: 0.25rem 0.25rem;
+    border: transparent;
     border-radius: 0.5rem;
     background: var(--bg-primary);
     color: var(--text-primary);
     font-size: 0.875rem;
     cursor: pointer;
     transition: all 0.2s ease;
+  }
+  .note-type-dropdown:hover {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
   }
 
   .note-type-dropdown:focus {
@@ -307,7 +297,7 @@
     align-items: center;
     justify-content: center;
     padding: 0.5rem;
-    border: 1px solid var(--border-light);
+    border: transparent;
     border-radius: 0.5rem;
     background: var(--bg-primary);
     color: var(--text-secondary);
@@ -321,12 +311,6 @@
     color: var(--text-primary);
   }
 
-  .action-btn.delete-btn:hover {
-    background: var(--danger-bg);
-    border-color: var(--danger-border);
-    color: var(--danger-text);
-  }
-
   .pin-btn {
     opacity: 0.6;
   }
@@ -337,7 +321,7 @@
 
   .pin-btn.pinned {
     opacity: 1;
-    background: var(--accent-primary-alpha);
+    background: var(--accent-light);
     border-color: var(--accent-primary);
     color: var(--accent-primary);
   }
