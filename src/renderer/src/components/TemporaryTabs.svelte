@@ -9,7 +9,7 @@
 
   let { onNoteSelect }: Props = $props();
 
-  function handleTabClick(noteId: string) {
+  function handleTabClick(noteId: string): void {
     const note = notesStore.notes.find((n) => n.id === noteId);
     if (note) {
       onNoteSelect(note);
@@ -17,12 +17,12 @@
     }
   }
 
-  function handleCloseTab(tabId: string, event: Event) {
+  function handleCloseTab(tabId: string, event: Event): void {
     event.stopPropagation();
     temporaryTabsStore.removeTab(tabId);
   }
 
-  function handleClearAll() {
+  function handleClearAll(): void {
     temporaryTabsStore.clearAllTabs();
   }
 
@@ -30,7 +30,7 @@
     return title.length > maxLength ? title.substring(0, maxLength) + '...' : title;
   }
 
-  function getSourceIcon(source: string) {
+  function getSourceIcon(source: string): string {
     switch (source) {
       case 'search':
         return `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -73,6 +73,7 @@
         >
           <div class="tab-content">
             <div class="tab-icon">
+              <!-- eslint-disable-next-line svelte/no-at-html-tags -->
               {@html getSourceIcon(tab.source)}
             </div>
             <span class="tab-title">{truncateTitle(tab.title)}</span>

@@ -113,7 +113,7 @@
           `Successfully moved note to type '${moveResult.new_type}' with new ID '${moveResult.new_id}'`
         );
       } else {
-        throw new Error(moveResult.error || 'Failed to move note');
+        throw new Error('Failed to move note');
       }
     } catch (error) {
       console.error('Failed to change note type:', error);
@@ -285,7 +285,6 @@
     <LeftSidebar
       {activeNote}
       onNoteSelect={handleNoteSelect}
-      onCreateNote={handleCreateNote}
       onSystemViewSelect={handleSystemViewSelect}
     />
 

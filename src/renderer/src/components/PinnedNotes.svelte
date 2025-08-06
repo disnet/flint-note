@@ -48,15 +48,15 @@
     pinnedNotes = result;
   });
 
-  function toggleCollapsed() {
+  function toggleCollapsed(): void {
     isCollapsed = !isCollapsed;
   }
 
-  function handleNoteClick(note: NoteMetadata) {
+  function handleNoteClick(note: NoteMetadata): void {
     onNoteSelect(note);
   }
 
-  function getNoteIcon(note: NoteMetadata) {
+  function getNoteIcon(note: NoteMetadata): string {
     // Determine icon based on note type or metadata
     if (note.title.includes('daily') || note.title.match(/\d{4}-\d{2}-\d{2}/)) {
       return 'calendar';
@@ -67,7 +67,7 @@
     return 'document';
   }
 
-  function getIconSvg(iconType: string) {
+  function getIconSvg(iconType: string): string {
     switch (iconType) {
       case 'calendar':
         return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -121,6 +121,7 @@
           title={note.title}
         >
           <div class="note-icon">
+            <!-- eslint-disable-next-line svelte/no-at-html-tags -->
             {@html getIconSvg(getNoteIcon(note))}
           </div>
           <span class="note-title">{note.title}</span>

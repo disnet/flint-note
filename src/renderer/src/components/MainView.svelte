@@ -7,7 +7,6 @@
   import Settings from './Settings.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
   import type { NoteMetadata, NoteType } from '../services/noteStore.svelte';
-  import { getChatService } from '../services/chatService';
 
   interface Props {
     activeNote: NoteMetadata | null;
@@ -34,11 +33,11 @@
   let noteEditor = $state<{ focus?: () => void } | null>(null);
   let isChangingType = $state(false);
 
-  function toggleRightSidebar() {
+  function toggleRightSidebar(): void {
     sidebarState.toggleRightSidebar();
   }
 
-  async function handleNoteTypeChange(event: Event) {
+  async function handleNoteTypeChange(event: Event): Promise<void> {
     if (!activeNote || isChangingType) return;
 
     const target = event.target as HTMLSelectElement;
@@ -58,7 +57,7 @@
     }
   }
 
-  function focusEditor() {
+  function focusEditor(): void {
     if (noteEditor && noteEditor.focus) {
       noteEditor.focus();
     }

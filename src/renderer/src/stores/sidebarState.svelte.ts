@@ -40,50 +40,50 @@ class SidebarStateStore {
     }
   }
 
-  get leftSidebar() {
+  get leftSidebar(): SidebarState['leftSidebar'] {
     return this.state.leftSidebar;
   }
 
-  get rightSidebar() {
+  get rightSidebar(): SidebarState['rightSidebar'] {
     return this.state.rightSidebar;
   }
 
-  get layout() {
+  get layout(): SidebarState['layout'] {
     return this.state.layout;
   }
 
-  get breakpoint() {
+  get breakpoint(): number {
     return this.state.breakpoint;
   }
 
-  toggleLeftSidebar() {
+  toggleLeftSidebar(): void {
     this.state.leftSidebar.visible = !this.state.leftSidebar.visible;
     this.saveToStorage();
   }
 
-  toggleRightSidebar() {
+  toggleRightSidebar(): void {
     this.state.rightSidebar.visible = !this.state.rightSidebar.visible;
     this.saveToStorage();
   }
 
-  setRightSidebarMode(mode: 'ai' | 'metadata') {
+  setRightSidebarMode(mode: 'ai' | 'metadata'): void {
     this.state.rightSidebar.mode = mode;
     this.saveToStorage();
   }
 
-  setActiveSection(section: 'system' | 'pinned' | 'tabs') {
+  setActiveSection(section: 'system' | 'pinned' | 'tabs'): void {
     this.state.leftSidebar.activeSection = section;
     this.saveToStorage();
   }
 
-  private updateLayoutMode() {
+  private updateLayoutMode(): void {
     if (typeof window === 'undefined') return;
 
     const width = window.innerWidth;
     this.state.layout = width > this.state.breakpoint ? 'three-column' : 'single-column';
   }
 
-  private loadFromStorage() {
+  private loadFromStorage(): void {
     if (typeof window === 'undefined') return;
 
     try {
@@ -97,7 +97,7 @@ class SidebarStateStore {
     }
   }
 
-  private saveToStorage() {
+  private saveToStorage(): void {
     if (typeof window === 'undefined') return;
 
     try {

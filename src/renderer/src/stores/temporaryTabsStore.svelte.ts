@@ -29,19 +29,23 @@ class TemporaryTabsStore {
     this.cleanupOldTabs();
   }
 
-  get tabs() {
+  get tabs(): TemporaryTab[] {
     return this.state.tabs;
   }
 
-  get activeTabId() {
+  get activeTabId(): string | null {
     return this.state.activeTabId;
   }
 
-  get maxTabs() {
+  get maxTabs(): number {
     return this.state.maxTabs;
   }
 
-  addTab(noteId: string, title: string, source: 'search' | 'wikilink' | 'navigation') {
+  addTab(
+    noteId: string,
+    title: string,
+    source: 'search' | 'wikilink' | 'navigation'
+  ): void {
     const existingIndex = this.state.tabs.findIndex((tab) => tab.noteId === noteId);
 
     if (existingIndex !== -1) {
@@ -74,7 +78,7 @@ class TemporaryTabsStore {
     this.saveToStorage();
   }
 
-  removeTab(tabId: string) {
+  removeTab(tabId: string): void {
     const index = this.state.tabs.findIndex((tab) => tab.id === tabId);
     if (index !== -1) {
       this.state.tabs.splice(index, 1);
@@ -89,7 +93,7 @@ class TemporaryTabsStore {
     this.saveToStorage();
   }
 
-  clearAllTabs() {
+  clearAllTabs(): void {
     this.state.tabs = [];
     this.state.activeTabId = null;
     this.saveToStorage();
@@ -98,7 +102,7 @@ class TemporaryTabsStore {
   /**
    * Remove tabs by note IDs (used by navigation service for coordination)
    */
-  removeTabsByNoteIds(noteIds: string[]) {
+  removeTabsByNoteIds(noteIds: string[]): void {
     const originalLength = this.state.tabs.length;
     this.state.tabs = this.state.tabs.filter((tab) => !noteIds.includes(tab.noteId));
 
@@ -119,12 +123,12 @@ class TemporaryTabsStore {
   /**
    * Clear the active tab highlighting
    */
-  clearActiveTab() {
+  clearActiveTab(): void {
     this.state.activeTabId = null;
     this.saveToStorage();
   }
 
-  setActiveTab(tabId: string) {
+  setActiveTab(tabId: string): void {
     const tab = this.state.tabs.find((t) => t.id === tabId);
     if (tab) {
       this.state.activeTabId = tabId;
@@ -135,7 +139,7 @@ class TemporaryTabsStore {
     this.saveToStorage();
   }
 
-  private cleanupOldTabs() {
+  private cleanupOldTabs(): void {
     const cutoffTime = new Date(
       Date.now() - this.state.autoCleanupHours * 60 * 60 * 1000
     );
@@ -155,7 +159,7 @@ class TemporaryTabsStore {
     this.saveToStorage();
   }
 
-  private loadFromStorage() {
+  private loadFromStorage(): void {
     if (typeof window === 'undefined') return;
 
     try {
@@ -164,11 +168,13 @@ class TemporaryTabsStore {
         const parsed = JSON.parse(stored);
 
         // Convert date strings back to Date objects
-        parsed.tabs = parsed.tabs.map((tab: any) => ({
-          ...tab,
-          openedAt: new Date(tab.openedAt),
-          lastAccessed: new Date(tab.lastAccessed)
-        }));
+        parsed.tabs = parsed.tabs.map(
+          (tab: TemporaryTab & { openedAt: string; lastAccessed: string }) => ({
+            ...tab,
+            openedAt: new Date(tab.openedAt),
+            lastAccessed: new Date(tab.lastAccessed)
+          })
+        );
 
         this.state = { ...defaultState, ...parsed };
       }
@@ -177,7 +183,7 @@ class TemporaryTabsStore {
     }
   }
 
-  private saveToStorage() {
+  private saveToStorage(): void {
     if (typeof window === 'undefined') return;
 
     try {

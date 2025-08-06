@@ -1,15 +1,11 @@
 <script lang="ts">
-  import type { NoteMetadata } from '../services/noteStore.svelte';
-
   interface Props {
-    onNoteSelect: (note: NoteMetadata) => void;
-    onCreateNote: () => void;
     onSystemViewSelect: (view: 'inbox' | 'notes' | 'search' | 'settings' | null) => void;
   }
 
-  let { onNoteSelect, onCreateNote, onSystemViewSelect }: Props = $props();
+  let { onSystemViewSelect }: Props = $props();
 
-  function setActiveView(view: 'inbox' | 'notes' | 'search' | 'settings') {
+  function setActiveView(view: 'inbox' | 'notes' | 'search' | 'settings'): void {
     onSystemViewSelect(view);
   }
 </script>
