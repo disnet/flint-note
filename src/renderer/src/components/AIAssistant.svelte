@@ -181,6 +181,20 @@
       });
     }
   });
+
+  // Additional effect to handle scrolling during message streaming
+  $effect(() => {
+    if (chatContainer && messages.length > 0) {
+      // Track the last message text content to detect streaming updates
+      const lastMessage = messages[messages.length - 1];
+      const lastMessageText = lastMessage?.text || '';
+
+      // Scroll to bottom when message text changes (streaming)
+      requestAnimationFrame(() => {
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+      });
+    }
+  });
 </script>
 
 <div class="ai-assistant">
