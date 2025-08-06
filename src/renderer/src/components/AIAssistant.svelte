@@ -185,7 +185,7 @@
 
 <div class="ai-assistant">
   <!-- Task Management Section -->
-  {#if tasks.length > 0}
+  <!-- {#if tasks.length > 0}
     <div class="tasks-section">
       <h4 class="section-title">Tasks</h4>
       <div class="task-list">
@@ -226,7 +226,7 @@
         {/each}
       </div>
     </div>
-  {/if}
+  {/if} -->
 
   <!-- Chat Messages Section -->
   <div class="chat-section" bind:this={chatContainer}>
@@ -416,7 +416,7 @@
     padding: 1rem 1.25rem;
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 0.5rem;
   }
 
   .chat-section > :last-child {
@@ -463,12 +463,15 @@
   .discussed-notes {
     margin-top: 0.75rem;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
+    flex-wrap: wrap;
     gap: 0.5rem;
+    max-height: 200px;
+    overflow-y: auto;
   }
 
   .note-link {
-    display: inline-flex;
+    display: inline-block;
     align-items: center;
     padding: 0.5rem 0.75rem;
     background: var(--bg-primary);
@@ -480,6 +483,10 @@
     cursor: pointer;
     transition: all 0.2s ease;
     text-decoration: none;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    max-width: 25ch;
   }
 
   .note-link:hover {

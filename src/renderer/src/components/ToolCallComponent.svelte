@@ -28,13 +28,6 @@
     <div class="tool-call-info">
       <span class="tool-icon">{getToolIcon(toolCall.name)}</span>
       <span class="tool-name">{toolCall.name}</span>
-      <span class="tool-args">
-        {toolCall.arguments
-          ? Object.keys(toolCall.arguments)
-              .map((key) => `${key}: ${toolCall.arguments[key]}`)
-              .join(', ')
-          : ''}
-      </span>
     </div>
     <div class="tool-call-status">
       {#if toolCall.error}
@@ -141,6 +134,10 @@
     font-family:
       'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New',
       monospace;
+    max-width: 10ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-wrap: nowrap;
   }
 
   .tool-call-status {

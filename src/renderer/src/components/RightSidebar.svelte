@@ -80,7 +80,7 @@
 
 <style>
   .right-sidebar {
-    width: 400px;
+    width: 450px;
     height: 100%;
     max-height: 100vh;
     background: var(--bg-primary);
@@ -101,7 +101,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 1rem 1.25rem;
+    padding: 0.25rem 0.5rem;
     border-bottom: 1px solid var(--border-light);
     background: var(--bg-secondary);
   }

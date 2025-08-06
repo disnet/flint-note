@@ -12,14 +12,7 @@
   import { temporaryTabsStore } from './stores/temporaryTabsStore.svelte';
   import { noteNavigationService } from './services/noteNavigationService.svelte';
 
-  let messages = $state<Message[]>([
-    {
-      id: '1',
-      text: "Hi there! I'm Flint, your AI assistant. How can I help you today?",
-      sender: 'agent',
-      timestamp: new Date(Date.now())
-    }
-  ]);
+  let messages = $state<Message[]>([]);
 
   let isLoadingResponse = $state(false);
   let activeNote = $state<NoteMetadata | null>(null);

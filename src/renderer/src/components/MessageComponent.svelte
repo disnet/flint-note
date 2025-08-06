@@ -85,9 +85,6 @@
   class:user={message.sender === 'user'}
   class:agent={message.sender === 'agent'}
 >
-  <div class="message-header">
-    <span class="timestamp">{formatTime(message.timestamp)}</span>
-  </div>
   {#if message.toolCalls && message.toolCalls.length > 0}
     <div class="tool-calls">
       {#each message.toolCalls as toolCall (toolCall.id)}
@@ -117,7 +114,7 @@
 
 <style>
   .message {
-    max-width: 85%;
+    /*max-width: 85%;*/
     padding: 0;
     margin-bottom: 0;
     animation: slideIn 0.3s ease-out;
@@ -134,13 +131,13 @@
     }
   }
 
-  .message.user {
+  /*.message.user {
     align-self: flex-end;
   }
 
   .message.agent {
     align-self: flex-start;
-  }
+  }*/
 
   .message-header {
     display: flex;
@@ -171,26 +168,28 @@
 
   .message-content {
     background: var(--message-agent-bg);
-    padding: 1rem 1.25rem;
-    border-radius: 1rem;
+    padding: 0.5rem 0.6rem;
+    border-radius: 0.5rem;
     line-height: 1.6;
     white-space: pre-wrap;
     font-size: 0.875rem;
     color: var(--message-agent-text);
-    box-shadow: 0 1px 2px 0 var(--shadow-light);
+    /*box-shadow: 0 1px 2px 0 var(--shadow-light);*/
     border: 1px solid var(--message-agent-border);
     transition: all 0.2s ease;
   }
 
   .message.user .message-content {
-    background: var(--message-user-bg);
-    color: var(--message-user-text);
-    border: 1px solid var(--accent-hover);
-    border-radius: 1rem 1rem 0.25rem 1rem;
+    background: var(--bg-secondary);
+    /*color: var(--message-user-text);*/
+    /*border: 1px solid var(--accent-hover);*/
+    /*border-radius: 1rem 1rem 0.25rem 1rem;*/
   }
 
   .message.agent .message-content {
-    border-radius: 1rem 1rem 1rem 0.25rem;
+    border: 0;
+    box-shadow: 0;
+    /*border-radius: 1rem 1rem 1rem 0.25rem;*/
   }
 
   .tool-calls {

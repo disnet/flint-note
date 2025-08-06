@@ -249,7 +249,8 @@
 
 <style>
   .message-input {
-    padding: 1rem;
+    padding: 0.25rem;
+    padding-bottom: 0.5rem;
     max-width: 700px;
     margin: 0 auto;
     width: 100%;
@@ -258,12 +259,10 @@
 
   .input-container {
     background: var(--bg-primary);
-    border: 1px solid var(--border-light);
-    border-radius: 1.5rem;
+    /*border: 1px solid var(--border-light);*/
+    /*border-radius: 1.5rem;*/
     padding: 0.5rem;
-    box-shadow: 0 1px 3px 0 var(--shadow-medium);
     transition: all 0.2s ease;
-    margin-bottom: 0.75rem;
   }
 
   .controls-row {
@@ -279,15 +278,9 @@
     align-items: center;
   }
 
-  .input-container:focus-within {
-    border-color: var(--accent-primary);
-    box-shadow: 0 0 0 3px var(--accent-light);
-  }
-
   .editor-field {
     width: 100%;
     border: none;
-    border-radius: 1rem;
     background: transparent;
     color: var(--text-secondary);
     min-height: 1.25rem;
