@@ -1,3 +1,5 @@
+import { getChatService } from '../services/chatService';
+
 interface TemporaryTab {
   id: string;
   noteId: string;
@@ -23,10 +25,11 @@ const defaultState: TemporaryTabsState = {
 
 class TemporaryTabsStore {
   private state = $state<TemporaryTabsState>(defaultState);
+  private currentVaultId: string | null = null;
+  private isVaultSwitching = false;
 
   constructor() {
-    this.loadFromStorage();
-    this.cleanupOldTabs();
+    this.initializeVault();
   }
 
   get tabs(): TemporaryTab[] {
@@ -46,6 +49,11 @@ class TemporaryTabsStore {
     title: string,
     source: 'search' | 'wikilink' | 'navigation'
   ): void {
+    // Don't add tabs while we're switching vaults
+    if (this.isVaultSwitching) {
+      return;
+    }
+    
     const existingIndex = this.state.tabs.findIndex((tab) => tab.noteId === noteId);
 
     if (existingIndex !== -1) {
@@ -97,6 +105,22 @@ class TemporaryTabsStore {
     this.state.tabs = [];
     this.state.activeTabId = null;
     this.saveToStorage();
+  }
+
+  startVaultSwitch(): void {
+    console.log('🔒 startVaultSwitch: current vault', this.currentVaultId, 'tabs:', this.state.tabs.length);
+    this.isVaultSwitching = true;
+    // Save current tabs to storage before clearing
+    this.saveToStorage();
+    console.log('💾 startVaultSwitch: saved tabs to storage for vault', this.currentVaultId);
+    // Clear the UI but keep vault-specific storage intact
+    this.state.tabs = [];
+    this.state.activeTabId = null;
+    console.log('🧹 startVaultSwitch: cleared UI tabs');
+  }
+
+  endVaultSwitch(): void {
+    this.isVaultSwitching = false;
   }
 
   /**
@@ -159,11 +183,45 @@ class TemporaryTabsStore {
     this.saveToStorage();
   }
 
+  private async initializeVault(): Promise<void> {
+    // Clean up old non-vault-specific data
+    this.migrateOldStorage();
+    
+    try {
+      const service = getChatService();
+      const vault = await service.getCurrentVault();
+      this.currentVaultId = vault?.id || 'default';
+      this.loadFromStorage();
+      this.cleanupOldTabs();
+    } catch (error) {
+      console.warn('Failed to initialize vault for temporary tabs:', error);
+      this.currentVaultId = 'default';
+      this.loadFromStorage();
+      this.cleanupOldTabs();
+    }
+  }
+
+  private migrateOldStorage(): void {
+    if (typeof window === 'undefined') return;
+    
+    try {
+      // Remove old non-vault-specific storage
+      localStorage.removeItem('temporaryTabs');
+    } catch (error) {
+      console.warn('Failed to migrate old temporary tabs storage:', error);
+    }
+  }
+
+  private getStorageKey(): string {
+    const vaultId = this.currentVaultId || 'default';
+    return `temporaryTabs-${vaultId}`;
+  }
+
   private loadFromStorage(): void {
     if (typeof window === 'undefined') return;
 
     try {
-      const stored = localStorage.getItem('temporaryTabs');
+      const stored = localStorage.getItem(this.getStorageKey());
       if (stored) {
         const parsed = JSON.parse(stored);
 
@@ -187,10 +245,46 @@ class TemporaryTabsStore {
     if (typeof window === 'undefined') return;
 
     try {
-      localStorage.setItem('temporaryTabs', JSON.stringify(this.state));
+      localStorage.setItem(this.getStorageKey(), JSON.stringify(this.state));
     } catch (error) {
       console.warn('Failed to save temporary tabs to storage:', error);
     }
+  }
+
+  async refreshForVault(vaultId?: string): Promise<void> {
+    console.log('🔄 refreshForVault: switching to vault', vaultId);
+    // Set vault switching flag to prevent new tabs from being added
+    this.isVaultSwitching = true;
+    
+    if (vaultId) {
+      this.currentVaultId = vaultId;
+    } else {
+      try {
+        const service = getChatService();
+        const vault = await service.getCurrentVault();
+        this.currentVaultId = vault?.id || 'default';
+      } catch (error) {
+        console.warn('Failed to get current vault:', error);
+      }
+    }
+    
+    console.log('🔑 refreshForVault: using storage key', this.getStorageKey());
+    
+    // Reset to completely new state object to force reactivity
+    this.state = {
+      tabs: [],
+      activeTabId: null,
+      maxTabs: 10,
+      autoCleanupHours: 24
+    };
+    
+    // Load from storage for the new vault
+    this.loadFromStorage();
+    console.log('💾 refreshForVault: loaded', this.state.tabs.length, 'tabs for vault', this.currentVaultId);
+    this.cleanupOldTabs();
+    
+    // Clear vault switching flag
+    this.isVaultSwitching = false;
   }
 }
 

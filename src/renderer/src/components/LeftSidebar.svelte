@@ -11,10 +11,16 @@
     activeSystemView: 'inbox' | 'notes' | 'search' | 'settings' | null;
     onNoteSelect: (note: NoteMetadata) => void;
     onSystemViewSelect: (view: 'inbox' | 'notes' | 'search' | 'settings' | null) => void;
+    onNoteClose: () => void;
   }
 
-  let { activeNote, onNoteSelect, onSystemViewSelect, activeSystemView }: Props =
-    $props();
+  let {
+    activeNote,
+    onNoteSelect,
+    onSystemViewSelect,
+    activeSystemView,
+    onNoteClose
+  }: Props = $props();
 
   function toggleSidebar(): void {
     sidebarState.toggleLeftSidebar();
@@ -55,7 +61,7 @@
         <line x1="3" y1="18" x2="21" y2="18"></line>
       </svg>
     </button>
-    <VaultSwitcher />
+    <VaultSwitcher {onNoteClose} />
   </div>
 
   <div class="sidebar-content">

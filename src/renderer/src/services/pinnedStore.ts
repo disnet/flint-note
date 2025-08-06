@@ -1,7 +1,8 @@
 import { writable, get } from 'svelte/store';
 import type { PinnedNoteInfo } from './types';
+import { getChatService } from './chatService';
 
-const PINNED_NOTES_KEY = 'flint-pinned-notes';
+const PINNED_NOTES_KEY_PREFIX = 'flint-pinned-notes';
 
 function createPinnedNotesStore(): {
   subscribe: (run: (value: PinnedNoteInfo[]) => void) => () => void;
@@ -10,12 +11,19 @@ function createPinnedNotesStore(): {
   unpinNote: (noteId: string) => void;
   togglePin: (id: string, title: string, filename: string) => boolean;
   clear: () => void;
+  refreshForVault: (vaultId?: string) => Promise<void>;
 } {
   const { subscribe, set, update } = writable<PinnedNoteInfo[]>([]);
+  let currentVaultId: string | null = null;
 
-  function loadFromStorage(): PinnedNoteInfo[] {
+  function getStorageKey(vaultId?: string): string {
+    const vault = vaultId || currentVaultId || 'default';
+    return `${PINNED_NOTES_KEY_PREFIX}-${vault}`;
+  }
+
+  function loadFromStorage(vaultId?: string): PinnedNoteInfo[] {
     try {
-      const stored = localStorage.getItem(PINNED_NOTES_KEY);
+      const stored = localStorage.getItem(getStorageKey(vaultId));
       if (stored) {
         return JSON.parse(stored);
       }
@@ -25,17 +33,32 @@ function createPinnedNotesStore(): {
     return [];
   }
 
-  function saveToStorage(notes: PinnedNoteInfo[]): void {
+  function saveToStorage(notes: PinnedNoteInfo[], vaultId?: string): void {
     try {
-      localStorage.setItem(PINNED_NOTES_KEY, JSON.stringify(notes));
+      localStorage.setItem(getStorageKey(vaultId), JSON.stringify(notes));
     } catch (error) {
       console.warn('Failed to save pinned notes to storage:', error);
     }
   }
 
-  // Initialize with stored data
-  const initialNotes = loadFromStorage();
-  set(initialNotes);
+  // Initialize current vault and load data
+  async function initializeVault(): Promise<void> {
+    try {
+      const service = getChatService();
+      const vault = await service.getCurrentVault();
+      currentVaultId = vault?.id || 'default';
+      const notes = loadFromStorage();
+      set(notes);
+    } catch (error) {
+      console.warn('Failed to initialize vault for pinned notes:', error);
+      currentVaultId = 'default';
+      const notes = loadFromStorage();
+      set(notes);
+    }
+  }
+
+  // Initialize on creation
+  initializeVault();
 
   // Create a derived store for the isPinned function
   const store = { subscribe };
@@ -97,6 +120,21 @@ function createPinnedNotesStore(): {
     clear: (): void => {
       set([]);
       saveToStorage([]);
+    },
+    refreshForVault: async (vaultId?: string): Promise<void> => {
+      if (vaultId) {
+        currentVaultId = vaultId;
+      } else {
+        try {
+          const service = getChatService();
+          const vault = await service.getCurrentVault();
+          currentVaultId = vault?.id || 'default';
+        } catch (error) {
+          console.warn('Failed to get current vault:', error);
+        }
+      }
+      const notes = loadFromStorage();
+      set(notes);
     }
   };
 }

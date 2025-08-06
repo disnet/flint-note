@@ -2,6 +2,14 @@
   import type { VaultInfo } from '@flint-note/server/dist/utils/global-config';
   import { getChatService } from '../services/chatService';
   import { notesStore } from '../services/noteStore.svelte';
+  import { pinnedNotesStore } from '../services/pinnedStore';
+  import { temporaryTabsStore } from '../stores/temporaryTabsStore.svelte';
+
+  interface Props {
+    onNoteClose: () => void;
+  }
+
+  let { onNoteClose }: Props = $props();
 
   let currentVault = $state<VaultInfo | null>(null);
   let allVaults = $state<VaultInfo[]>([]);
@@ -29,12 +37,29 @@
   async function switchVault(vaultId: string): Promise<void> {
     try {
       isLoading = true;
+      
+      // Start vault switch mode - this clears tabs and blocks new ones
+      temporaryTabsStore.startVaultSwitch();
+      
+      // Close the active note since it's from the previous vault
+      onNoteClose();
+      
       await service.switchVault({ vaultId });
       await loadVaults(); // Refresh vault info
       await notesStore.refresh(); // Refresh notes for the new vault
+
+      // Refresh pinned notes and temporary tabs for the new vault
+      await pinnedNotesStore.refreshForVault(vaultId);
+      await temporaryTabsStore.refreshForVault(vaultId);
+      
+      // End vault switch mode
+      temporaryTabsStore.endVaultSwitch();
+      
       isDropdownOpen = false;
     } catch (error) {
       console.error('Failed to switch vault:', error);
+      // Make sure we end vault switch mode even on error
+      temporaryTabsStore.endVaultSwitch();
     } finally {
       isLoading = false;
     }

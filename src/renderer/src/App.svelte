@@ -280,6 +280,7 @@
       {activeSystemView}
       onNoteSelect={handleNoteSelect}
       onSystemViewSelect={handleSystemViewSelect}
+      onNoteClose={closeNoteEditor}
     />
 
     <MainView
