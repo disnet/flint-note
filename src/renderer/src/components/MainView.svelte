@@ -221,12 +221,6 @@
       </div>
     </div>
   {/if}
-
-  {#if sidebarState.layout === 'single-column'}
-    <div class="chat-input">
-      <MessageInput onSend={onSendMessage} />
-    </div>
-  {/if}
 </div>
 
 <style>
