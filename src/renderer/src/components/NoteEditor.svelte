@@ -36,11 +36,11 @@
   let isSaving = $state(false);
   let error = $state<string | null>(null);
   let saveTimeout: number | null = null;
+  let titleValue = $state('');
 
   let noteData = $state<Note | null>(null);
   let noteTypes = $state<NoteTypeListItem[]>([]);
   let currentNoteType = $state<string>('');
-
 
   onMount(() => {
     return () => {
@@ -65,6 +65,11 @@
 
   $effect(() => {
     loadNoteTypes();
+  });
+
+  $effect(() => {
+    // Update title value when note changes
+    titleValue = note.title;
   });
 
   async function loadNote(note: NoteMetadata): Promise<void> {
@@ -234,6 +239,58 @@
     }, 500); // 500ms delay
   }
 
+  async function handleTitleChange(): Promise<void> {
+    const trimmedTitle = titleValue.trim();
+
+    if (!trimmedTitle || trimmedTitle === note.title) {
+      return;
+    }
+
+    try {
+      error = null;
+      isSaving = true;
+      const noteService = getChatService();
+
+      const result = await noteService.renameNote({
+        identifier: note.id,
+        newIdentifier: trimmedTitle
+      });
+
+      if (result.success) {
+        // Update the local note reference
+        note = {
+          ...note,
+          title: trimmedTitle
+        };
+
+        // Refresh the notes store to update UI components
+        try {
+          await notesStore.refresh();
+        } catch (refreshError) {
+          console.warn('Failed to refresh notes store after rename:', refreshError);
+        }
+      } else {
+        throw new Error('Rename operation failed');
+      }
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Failed to rename note';
+      console.error('Error renaming note:', err);
+      // Reset title value on error
+      titleValue = note.title;
+    } finally {
+      isSaving = false;
+    }
+  }
+
+  function handleTitleKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      handleTitleChange();
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      titleValue = note.title; // Reset to original title
+    }
+  }
 
   async function changeNoteType(): Promise<void> {
     if (!noteData || !currentNoteType) return;
@@ -340,9 +397,14 @@
 >
   <div class="editor-header">
     <div class="editor-title-section">
-      <h3 id="note-editor-title" class="editor-title">
-        {note.title}
-      </h3>
+      <input
+        bind:value={titleValue}
+        class="editor-title-input"
+        type="text"
+        onkeydown={handleTitleKeydown}
+        onblur={handleTitleChange}
+        placeholder="Enter note title..."
+      />
     </div>
     <div class="editor-actions">
       {#if isSaving}
@@ -371,6 +433,7 @@
     border-radius: 0.5rem;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     transition: all 0.2s ease;
+    gap: 0.75rem;
   }
 
   .note-editor.sidebar {
@@ -415,61 +478,43 @@
   .editor-header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 1rem;
-    border-bottom: 1px solid var(--border-light);
+    justify-content: center;
+    padding-top: 1rem;
+    /*padding-bottom: 0.4rem;*/
+    padding-left: 0;
+    /*border-bottom: 1px solid var(--border-light);*/
     background: var(--bg-primary);
+    width: 100%;
   }
 
   .editor-title-section {
     display: flex;
     align-items: center;
     gap: 0.75rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid var(--border-light);
     flex: 1;
-    min-width: 0;
+    max-width: 70ch;
   }
 
-  .editor-title {
+  .editor-title-input {
     margin: 0;
     font-size: 1.1rem;
     font-weight: 600;
+    font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace;
     color: var(--text-primary);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .note-type-selector {
-    padding: 0.25rem 0.5rem;
-    font-size: 0.875rem;
-    border: 1px solid var(--border-light);
+    background: transparent;
+    border: 1px solid transparent;
     border-radius: 0.25rem;
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    min-width: 100px;
-  }
-
-  .note-type-selector:hover {
-    border-color: var(--accent-primary);
-    background: var(--bg-hover);
-  }
-
-  .note-type-selector:focus {
+    padding: 0;
     outline: none;
-    border-color: var(--accent-primary);
-    box-shadow: 0 0 0 2px var(--accent-primary-alpha);
+    width: 100%;
+    min-width: 200px;
   }
 
-  .note-type-selector:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    background: var(--bg-secondary);
-  }
-
-  .note-type-selector.saving {
-    background: var(--accent-secondary-alpha);
+  .editor-title-input:focus {
+    border-color: transparent;
+    background: transparent;
   }
 
   .editor-actions {
@@ -493,7 +538,6 @@
       opacity: 1;
     }
   }
-
 
   .close-btn {
     padding: 0.5rem;
@@ -536,6 +580,10 @@
     font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace;
     font-size: 0.875rem;
     line-height: 1.6;
+    width: 100%;
+  }
+  :global(.cm-scroller) {
+    width: 100%;
   }
 
   :global(.cm-focused) {
@@ -543,11 +591,14 @@
   }
 
   :global(.cm-content) {
+    margin: 0 auto !important;
     padding: 1rem;
+    max-width: 70ch;
   }
 
   :global(.cm-line) {
-    padding: 0.125rem 0;
+    padding: 0 !important;
+    width: 70ch;
   }
 
   /* Custom scrollbar styling */

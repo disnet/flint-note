@@ -58,12 +58,7 @@
 
   function togglePin(): void {
     if (!activeNote) return;
-    
-    console.log('MainView: togglePin called for:', {
-      id: activeNote.id,
-      title: activeNote.title,
-      filename: activeNote.filename
-    });
+
     pinnedNotesStore.togglePin(activeNote.id, activeNote.title, activeNote.filename);
   }
 
@@ -350,7 +345,7 @@
   .note-content {
     flex: 1;
     overflow: hidden;
-    width: 70ch;
+    width: 100%;
   }
 
   .empty-state {
