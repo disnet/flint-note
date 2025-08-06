@@ -225,7 +225,7 @@
   .dropdown {
     position: absolute;
     top: 100%;
-    right: 0;
+    left: 0;
     z-index: 1000;
     margin-top: 0.375rem;
     border: 1px solid var(--border-light);
