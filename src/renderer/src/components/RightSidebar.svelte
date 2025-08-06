@@ -23,13 +23,6 @@
     onMetadataUpdate
   }: Props = $props();
 
-  // Debug logging
-  $effect(() => {
-    console.log('RightSidebar: messages updated, count:', messages.length);
-    console.log('RightSidebar: sidebar visible:', sidebarState.rightSidebar.visible);
-    console.log('RightSidebar: sidebar mode:', sidebarState.rightSidebar.mode);
-  });
-
   function toggleSidebar(): void {
     sidebarState.toggleRightSidebar();
   }

@@ -89,8 +89,8 @@
       if (await noteService.isReady()) {
         const result = await noteService.getNote({ identifier: note.id });
         noteData = result;
-        noteContent = result.content;
-        currentNoteType = result.type || '';
+        noteContent = result?.content ?? '';
+        currentNoteType = result?.type ?? '';
         updateEditorContent();
       } else {
         throw new Error('Note service not ready');
