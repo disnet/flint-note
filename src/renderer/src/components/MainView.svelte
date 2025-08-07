@@ -361,6 +361,7 @@
     display: flex;
     flex-direction: column;
     background: var(--bg-primary);
+    width: 75ch;
   }
 
   .system-view-header {
