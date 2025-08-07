@@ -15,6 +15,67 @@
   } from '@codemirror/commands';
   import { highlightSelectionMatches, searchKeymap } from '@codemirror/search';
 
+  // Create theme extension for editor styling
+  const editorTheme = EditorView.theme({
+    '&': {
+      height: '100%',
+      fontFamily: "'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace",
+      fontSize: '0.875rem',
+      lineHeight: '1.6',
+      width: '100%'
+    },
+    '.cm-scroller': {
+      width: '100%',
+      scrollbarWidth: 'thin',
+      scrollbarColor: 'rgba(0, 0, 0, 0.2) transparent'
+    },
+    '.cm-focused': {
+      outline: 'none'
+    },
+    '.cm-content': {
+      margin: '0 auto !important',
+      maxWidth: '70ch'
+    },
+    '.cm-line': {
+      padding: '0 !important',
+      width: '70ch'
+    },
+    '.cm-scroller::-webkit-scrollbar': {
+      width: '12px'
+    },
+    '.cm-scroller::-webkit-scrollbar-track': {
+      background: 'transparent',
+      borderRadius: '6px'
+    },
+    '.cm-scroller::-webkit-scrollbar-thumb': {
+      background: 'rgba(0, 0, 0, 0.2)',
+      borderRadius: '6px',
+      border: '2px solid transparent',
+      backgroundClip: 'padding-box',
+      transition: 'all 0.2s ease'
+    },
+    '.cm-scroller::-webkit-scrollbar-thumb:hover': {
+      background: 'rgba(0, 0, 0, 0.3)',
+      backgroundClip: 'padding-box'
+    },
+    '.cm-scroller::-webkit-scrollbar-corner': {
+      background: 'transparent'
+    }
+  });
+
+  // Dark mode theme extension
+  const darkEditorTheme = EditorView.theme({
+    '.cm-scroller': {
+      scrollbarColor: 'rgba(255, 255, 255, 0.2) transparent'
+    },
+    '.cm-scroller::-webkit-scrollbar-thumb': {
+      background: 'rgba(255, 255, 255, 0.2)'
+    },
+    '.cm-scroller::-webkit-scrollbar-thumb:hover': {
+      background: 'rgba(255, 255, 255, 0.3)'
+    }
+  });
+
   import { onMount, onDestroy } from 'svelte';
   import type { NoteMetadata } from '../services/noteStore.svelte';
   import { notesStore } from '../services/noteStore.svelte';
@@ -109,6 +170,9 @@
       EditorView.lineWrapping,
       // Apply the appropriate theme
       newTheme,
+      // Apply editor styling theme
+      editorTheme,
+      ...(isDarkMode ? [darkEditorTheme] : []),
       wikilinksExtension(handleWikilinkClick),
       EditorView.updateListener.of((update) => {
         if (update.docChanged) {
@@ -148,6 +212,9 @@
         markdown(),
         EditorView.lineWrapping,
         ...(isDarkMode ? [githubDark] : [githubLight]),
+        // Apply editor styling theme
+        editorTheme,
+        ...(isDarkMode ? [darkEditorTheme] : []),
         wikilinksExtension(handleWikilinkClick),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
@@ -489,82 +556,6 @@
   .editor-container {
     flex: 1;
     overflow: auto;
-  }
-
-  /* CodeMirror styling */
-  :global(.cm-editor) {
-    height: 100%;
-    font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace;
-    font-size: 0.875rem;
-    line-height: 1.6;
-    width: 100%;
-  }
-  :global(.cm-scroller) {
-    width: 100%;
-  }
-
-  :global(.cm-focused) {
-    outline: none;
-  }
-
-  :global(.cm-content) {
-    margin: 0 auto !important;
-    padding: 1rem;
-    max-width: 70ch;
-  }
-
-  :global(.cm-line) {
-    padding: 0 !important;
-    width: 70ch;
-  }
-
-  /* Custom scrollbar styling */
-  :global(.cm-scroller::-webkit-scrollbar) {
-    width: 12px;
-  }
-
-  :global(.cm-scroller::-webkit-scrollbar-track) {
-    background: transparent;
-    border-radius: 6px;
-  }
-
-  :global(.cm-scroller::-webkit-scrollbar-thumb) {
-    background: rgba(0, 0, 0, 0.2);
-    border-radius: 6px;
-    border: 2px solid transparent;
-    background-clip: padding-box;
-    transition: all 0.2s ease;
-  }
-
-  :global(.cm-scroller::-webkit-scrollbar-thumb:hover) {
-    background: rgba(0, 0, 0, 0.3);
-    background-clip: padding-box;
-  }
-
-  :global(.cm-scroller::-webkit-scrollbar-corner) {
-    background: transparent;
-  }
-
-  @media (prefers-color-scheme: dark) {
-    :global(.cm-scroller::-webkit-scrollbar-thumb) {
-      background: rgba(255, 255, 255, 0.2);
-    }
-
-    :global(.cm-scroller::-webkit-scrollbar-thumb:hover) {
-      background: rgba(255, 255, 255, 0.3);
-    }
-  }
-
-  /* Firefox scrollbar styling */
-  :global(.cm-scroller) {
-    scrollbar-width: thin;
-    scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
-  }
-
-  @media (prefers-color-scheme: dark) {
-    :global(.cm-scroller) {
-      scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
-    }
   }
 
   /* Responsive adjustments */
