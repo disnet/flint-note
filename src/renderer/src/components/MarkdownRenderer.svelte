@@ -46,7 +46,8 @@
     noteLinks: NoteLinkPlaceholder[];
   } {
     const noteLinks: NoteLinkPlaceholder[] = [];
-    const noteRegex = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]|\[([^\]]+)\]|(\b[\w-]+\.md\b)|(NOTE_LINK_\d+)|(\b\d{4}-W\d{2}\b)/g;
+    const noteRegex =
+      /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]|\[([^\]]+)\]|(\b[\w-]+\.md\b)|(NOTE_LINK_\d+)|(\b\d{4}-W\d{2}\b)/g;
     let match;
     let result = text;
 
@@ -149,9 +150,7 @@
     return sanitized;
   });
 
-  let markdownContainer: HTMLDivElement;
-
-  function handleClick(event: Event) {
+  function handleClick(event: Event): void {
     const target = event.target as HTMLElement;
     if (target.classList.contains('note-link')) {
       const noteId = target.getAttribute('data-note-id');
@@ -161,16 +160,15 @@
     }
   }
 
-  function handleKeydown(event: KeyboardEvent) {
+  function handleKeydown(event: KeyboardEvent): void {
     if (event.key === 'Enter' || event.key === ' ') {
       handleClick(event);
     }
   }
 </script>
 
-<div 
-  class="markdown-content" 
-  bind:this={markdownContainer} 
+<div
+  class="markdown-content"
   onclick={handleClick}
   onkeydown={handleKeydown}
   role="region"
