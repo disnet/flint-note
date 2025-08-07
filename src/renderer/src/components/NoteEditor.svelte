@@ -35,11 +35,11 @@
     },
     '.cm-content': {
       margin: '0 auto !important',
-      maxWidth: '70ch'
+      maxWidth: '75ch'
     },
     '.cm-line': {
       padding: '0 !important',
-      width: '70ch'
+      width: '75ch'
     },
     '.cm-scroller::-webkit-scrollbar': {
       width: '12px'
@@ -476,7 +476,7 @@
     padding-bottom: 0.4rem;
     border-bottom: 1px solid var(--border-light);
     flex: 1;
-    max-width: 70ch;
+    max-width: 75ch;
   }
 
   .editor-title-input {

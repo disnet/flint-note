@@ -31,7 +31,7 @@
     "@codemirror/view": "^6.38.1",
     "@electron-toolkit/preload": "^3.0.1",
     "@electron-toolkit/utils": "^4.0.0",
-    "@flint-note/server": "^0.9.6",
+    "@flint-note/server": "^0.10.0",
     "@fsegurai/codemirror-theme-github-dark": "^6.2.0",
     "@fsegurai/codemirror-theme-github-light": "^6.2.0",
     "@modelcontextprotocol/sdk": "^1.15.1",
