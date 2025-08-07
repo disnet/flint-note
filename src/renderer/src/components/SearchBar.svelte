@@ -56,7 +56,7 @@
       selectedIndex = 0;
       const firstResult = filteredResults[0];
       const query = searchValue.toLowerCase();
-      
+
       // Show suggestion text if the first result starts with the query
       if (firstResult.title.toLowerCase().startsWith(query)) {
         suggestionText = firstResult.title;
@@ -115,20 +115,6 @@
     isSearchFocused = false;
     onNoteSelect?.(note);
   }
-
-  // Global keyboard shortcut for Cmd+K
-  $effect(() => {
-    function handleGlobalKeyDown(event: KeyboardEvent): void {
-      if (event.key === 'k' && event.shiftKey && (event.ctrlKey || event.metaKey)) {
-        event.preventDefault();
-        const searchInput = document.getElementById('global-search');
-        searchInput?.focus();
-      }
-    }
-
-    document.addEventListener('keydown', handleGlobalKeyDown);
-    return () => document.removeEventListener('keydown', handleGlobalKeyDown);
-  });
 </script>
 
 <div class="search-container">
@@ -142,15 +128,19 @@
     </svg>
     <div class="input-container">
       <!-- Suggestion text background -->
-      {#if suggestionText && searchValue && suggestionText.toLowerCase().startsWith(searchValue.toLowerCase())}
+      {#if suggestionText && searchValue && suggestionText
+          .toLowerCase()
+          .startsWith(searchValue.toLowerCase())}
         <div class="suggestion-text" aria-hidden="true">
-          <span class="suggestion-typed">{searchValue}</span><span class="suggestion-completion">{suggestionText.slice(searchValue.length)}</span>
+          <span class="suggestion-typed">{searchValue}</span><span
+            class="suggestion-completion">{suggestionText.slice(searchValue.length)}</span
+          >
         </div>
       {/if}
       <input
         id="global-search"
         type="text"
-        placeholder="Search notes... (⌘K)"
+        placeholder="Search notes..."
         bind:value={searchValue}
         onfocus={handleSearchFocus}
         onblur={handleSearchBlur}

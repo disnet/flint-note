@@ -125,6 +125,12 @@
         handleCreateNote();
       }
 
+      // Ctrl/Cmd + O to open search
+      if (event.key === 'o' && (event.ctrlKey || event.metaKey)) {
+        event.preventDefault();
+        searchOverlayState.open();
+      }
+
       // Ctrl/Cmd + , to open settings (handled by system views now)
       if (event.key === ',' && (event.ctrlKey || event.metaKey)) {
         event.preventDefault();
