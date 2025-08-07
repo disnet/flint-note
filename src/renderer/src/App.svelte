@@ -31,9 +31,7 @@
     showCreateNoteModal = true;
   }
 
-  function handleSystemViewSelect(
-    view: 'inbox' | 'notes' | 'settings' | null
-  ): void {
+  function handleSystemViewSelect(view: 'inbox' | 'notes' | 'settings' | null): void {
     activeSystemView = view;
     // Clear active note when switching to system views
     if (view !== null) {

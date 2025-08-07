@@ -56,10 +56,7 @@
       All notes
     </button>
 
-    <button
-      class="nav-item"
-      onclick={openSearchOverlay}
-    >
+    <button class="nav-item" onclick={openSearchOverlay}>
       <svg
         width="16"
         height="16"

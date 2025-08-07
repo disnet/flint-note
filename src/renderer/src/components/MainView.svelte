@@ -372,7 +372,6 @@
     flex-direction: column;
   }
 
-
   .chat-input {
     border-top: 1px solid var(--border-light);
     background: var(--bg-primary);
