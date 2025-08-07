@@ -5,7 +5,7 @@
   import { githubLight } from '@fsegurai/codemirror-theme-github-light';
   import { githubDark } from '@fsegurai/codemirror-theme-github-dark';
   import { wikilinksExtension } from '../lib/wikilinks.svelte.js';
-  import { lineNumbers, dropCursor, keymap } from '@codemirror/view';
+  import { dropCursor, keymap } from '@codemirror/view';
   import { indentOnInput } from '@codemirror/language';
   import {
     defaultKeymap,
@@ -18,7 +18,7 @@
   import { onMount, onDestroy } from 'svelte';
   import type { NoteMetadata } from '../services/noteStore.svelte';
   import { notesStore } from '../services/noteStore.svelte';
-  import type { Note, NoteTypeListItem } from '@flint-note/server';
+  import type { Note } from '@flint-note/server';
   import { getChatService } from '../services/chatService.js';
 
   interface Props {
@@ -39,8 +39,6 @@
   let titleValue = $state('');
 
   let noteData = $state<Note | null>(null);
-  let noteTypes = $state<NoteTypeListItem[]>([]);
-  let currentNoteType = $state<string>('');
 
   onMount(() => {
     return () => {
@@ -61,14 +59,7 @@
 
   $effect(() => {
     loadNote(note);
-  });
-
-  $effect(() => {
-    loadNoteTypes();
-  });
-
-  $effect(() => {
-    // Update title value when note changes
+    // Update title when note changes
     titleValue = note.title;
   });
 
@@ -81,7 +72,6 @@
         const result = await noteService.getNote({ identifier: note.id });
         noteData = result;
         noteContent = result?.content ?? '';
-        currentNoteType = result?.type ?? '';
         updateEditorContent();
       } else {
         throw new Error('Note service not ready');
@@ -89,17 +79,6 @@
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to load note';
       console.error('Error loading note:', err);
-    }
-  }
-
-  async function loadNoteTypes(): Promise<void> {
-    try {
-      const noteService = getChatService();
-      if (await noteService.isReady()) {
-        noteTypes = await noteService.listNoteTypes();
-      }
-    } catch (err) {
-      console.error('Error loading note types:', err);
     }
   }
 
@@ -289,68 +268,6 @@
     } else if (event.key === 'Escape') {
       event.preventDefault();
       titleValue = note.title; // Reset to original title
-    }
-  }
-
-  async function changeNoteType(): Promise<void> {
-    if (!noteData || !currentNoteType) return;
-
-    // Skip if the type hasn't actually changed
-    if (currentNoteType === noteData.type) return;
-
-    try {
-      error = null;
-      isSaving = true;
-      const noteService = getChatService();
-
-      console.log(`Moving note from type '${noteData.type}' to '${currentNoteType}'`);
-
-      // Use moveNote API to properly move the note to a new type
-      const moveResult = await noteService.moveNote({
-        identifier: noteData.id,
-        newType: currentNoteType
-      });
-
-      if (moveResult.success) {
-        // Update local state with new note ID and type
-        noteData = {
-          ...noteData,
-          id: moveResult.new_id,
-          type: moveResult.new_type
-        };
-
-        // Update the note reference since the ID changed
-        note = {
-          ...note,
-          id: moveResult.new_id
-        };
-
-        if (moveResult.links_updated) {
-          console.log(
-            `Updated ${moveResult.links_updated} links in ${moveResult.notes_with_updated_links} notes`
-          );
-        }
-
-        // Refresh the notes store to update UI components
-        try {
-          await notesStore.refresh();
-        } catch (refreshError) {
-          console.warn(
-            'Failed to refresh notes store after note type change:',
-            refreshError
-          );
-          // Don't throw here as the move was successful, just log the warning
-        }
-      } else {
-        throw new Error('Move operation failed');
-      }
-    } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to change note type';
-      console.error('Error changing note type:', err);
-      // Revert the UI state on error
-      currentNoteType = noteData?.type || '';
-    } finally {
-      isSaving = false;
     }
   }
 

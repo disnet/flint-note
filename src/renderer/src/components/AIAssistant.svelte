@@ -2,16 +2,7 @@
   import MessageComponent from './MessageComponent.svelte';
   import LoadingMessage from './LoadingMessage.svelte';
   import MessageInput from './MessageInput.svelte';
-  import type { Message, ToolCall } from '../services/types';
-
-  interface AITask {
-    id: string;
-    title: string;
-    status: 'pending' | 'in_progress' | 'completed';
-    description?: string;
-    toolCalls?: ToolCall[];
-    relatedNotes?: string[];
-  }
+  import type { Message } from '../services/types';
 
   interface Props {
     messages: Message[];
@@ -23,71 +14,7 @@
   let { messages, isLoading = false, onNoteClick, onSendMessage }: Props = $props();
 
   let chatContainer: HTMLDivElement;
-  let expandedTasks = $state<Set<string>>(new Set());
   let expandedDiscussed = $state<boolean>(true);
-
-  // All note-related tool call names that should create tasks
-  const noteRelatedTools = [
-    'create_note',
-    'get_note',
-    'get_notes',
-    'update_note',
-    'delete_note',
-    'rename_note',
-    'move_note',
-    'search_notes',
-    'search_notes_advanced',
-    'create_note_type',
-    'list_note_types',
-    'get_note_type_info',
-    'update_note_type',
-    'delete_note_type',
-    'get_current_vault',
-    'list_vaults',
-    'get_note_links',
-    'get_backlinks',
-    'find_broken_links'
-  ];
-
-  // Extract tasks from messages with tool calls
-  const tasks = $derived.by<AITask[]>(() => {
-    const taskMap = new Map<string, AITask>();
-
-    messages.forEach((message) => {
-      if (message.sender === 'agent' && message.toolCalls) {
-        message.toolCalls.forEach((toolCall) => {
-          if (noteRelatedTools.includes(toolCall.name)) {
-            const taskId = toolCall.id;
-            const existingTask = taskMap.get(taskId);
-
-            taskMap.set(taskId, {
-              id: taskId,
-              title: toolCall.name.replace(/_/g, ' '),
-              status: toolCall.result
-                ? 'completed'
-                : toolCall.error
-                  ? 'pending'
-                  : 'in_progress',
-              description: formatTaskDescription(
-                toolCall.result || toolCall.error || 'Processing...'
-              ),
-              toolCalls: [toolCall],
-              relatedNotes: extractNotesFromText(toolCall.result || ''),
-              ...existingTask
-            });
-          }
-        });
-      }
-    });
-
-    const finalTasks = Array.from(taskMap.values()).sort((a, b) => {
-      // Sort by status: in_progress, pending, completed
-      const statusOrder = { in_progress: 0, pending: 1, completed: 2 };
-      return statusOrder[a.status] - statusOrder[b.status];
-    });
-
-    return finalTasks;
-  });
 
   // Extract notes discussed from messages
   const notesDiscussed = $derived.by<string[]>(() => {
@@ -129,50 +56,6 @@
     }
   }
 
-  function formatTaskDescription(description: unknown): string {
-    if (typeof description === 'string') {
-      // Check if the string is already JSON, and if so, format it nicely
-      try {
-        const parsed = JSON.parse(description);
-        return JSON.stringify(parsed, null, 2);
-      } catch {
-        // Not JSON, return as-is
-        return description;
-      }
-    }
-    if (typeof description === 'object' && description !== null) {
-      try {
-        return JSON.stringify(description, null, 2);
-      } catch {
-        return String(description);
-      }
-    }
-    return String(description);
-  }
-
-  function toggleTask(taskId: string): void {
-    const newSet = new Set(expandedTasks);
-    if (newSet.has(taskId)) {
-      newSet.delete(taskId);
-    } else {
-      newSet.add(taskId);
-    }
-    expandedTasks = newSet;
-  }
-
-  function getTaskIcon(status: AITask['status']): string {
-    switch (status) {
-      case 'completed':
-        return '✓';
-      case 'in_progress':
-        return '⟳';
-      case 'pending':
-        return '○';
-      default:
-        return '○';
-    }
-  }
-
   $effect(() => {
     if (chatContainer && (messages.length > 0 || isLoading)) {
       // Use requestAnimationFrame to ensure layout is complete
@@ -185,10 +68,6 @@
   // Additional effect to handle scrolling during message streaming
   $effect(() => {
     if (chatContainer && messages.length > 0) {
-      // Track the last message text content to detect streaming updates
-      const lastMessage = messages[messages.length - 1];
-      const lastMessageText = lastMessage?.text || '';
-
       // Scroll to bottom when message text changes (streaming)
       requestAnimationFrame(() => {
         chatContainer.scrollTop = chatContainer.scrollHeight;

@@ -1,6 +1,5 @@
 <script lang="ts">
   import NoteEditor from './NoteEditor.svelte';
-  import MessageInput from './MessageInput.svelte';
   import InboxView from './InboxView.svelte';
   import NotesView from './NotesView.svelte';
   import SearchBar from './SearchBar.svelte';
@@ -14,7 +13,6 @@
     activeSystemView: 'inbox' | 'notes' | 'search' | 'settings' | null;
     noteTypes: NoteType[];
     onClose: () => void;
-    onSendMessage: (text: string) => Promise<void>;
     onNoteSelect: (note: NoteMetadata) => void;
     onCreateNote: () => void;
     onNoteTypeChange: (noteId: string, newType: string) => Promise<void>;
@@ -25,7 +23,6 @@
     activeSystemView,
     noteTypes,
     onClose,
-    onSendMessage,
     onNoteSelect,
     onCreateNote,
     onNoteTypeChange
