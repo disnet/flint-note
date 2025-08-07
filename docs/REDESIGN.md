@@ -7,21 +7,25 @@ This document outlines a complete redesign of the Flint GUI, moving from a tab-b
 ## Design Principles
 
 ### 1. **Sidebar-First Navigation**
+
 - Left sidebar serves as the primary navigation hub
 - System views (Inbox, All notes, Search, Settings) replace tab-based navigation
 - Persistent access to pinned notes and temporary open tabs
 
 ### 2. **Clean, Minimal Main View**
+
 - Main area dedicated to note content with minimal distractions
 - Title displayed prominently but cleanly
 - Focus on text editing with contextual controls
 
 ### 3. **Contextual Right Sidebar**
+
 - AI assistant integration with conversation history
 - Note metadata editing when needed
 - Responsive behavior based on screen size
 
 ### 4. **Agent-First Interaction**
+
 - AI assistant remains central to the workflow
 - Natural language commands and note linking
 - Contextual note inclusion in conversations
@@ -70,6 +74,7 @@ The left sidebar contains:
 The main view shows a clean, focused note editing interface:
 
 #### **Header Controls**
+
 - **Left side**: Note type selector dropdown (shows "daily" in mockup)
 - **Right side**:
   - Information icon button
@@ -77,6 +82,7 @@ The main view shows a clean, focused note editing interface:
   - Additional action button (+ icon)
 
 #### **Content Area**
+
 - Large, prominent note title ("June 23rd, 2025")
 - Full-width text editor with rich content
 - Clean typography and generous spacing
@@ -89,6 +95,7 @@ The main view shows a clean, focused note editing interface:
 The right sidebar serves dual purposes based on user action:
 
 #### **AI Assistant Mode**
+
 The agent mockup shows a comprehensive AI assistant interface:
 
 - **Header**: Shows current context with expand/collapse controls
@@ -109,6 +116,7 @@ The agent mockup shows a comprehensive AI assistant interface:
   - Visual connection between AI responses and note references
 
 #### **Metadata Editor Mode**
+
 - Toggle between AI and metadata modes via header controls
 - Note metadata editing interface
 - YAML frontmatter fields editing
@@ -121,6 +129,7 @@ The agent mockup shows a comprehensive AI assistant interface:
 Based on the mockups, the interface shows a three-column layout:
 
 ### Desktop Layout (as shown in mockups)
+
 ```
 ┌─────────────┬─────────────────────┬─────────────┐
 │             │                     │             │
@@ -133,6 +142,7 @@ Based on the mockups, the interface shows a three-column layout:
 ```
 
 ### Key Responsive Considerations
+
 - The mockups show a fixed three-panel layout optimized for larger screens
 - Left sidebar remains consistently sized across mockups
 - Right sidebar toggles between hidden (main.png) and visible (agent.png)
@@ -145,18 +155,21 @@ Based on the mockups, the interface shows a three-column layout:
 ### Navigation & Note Access
 
 #### **System Views**
+
 - **Inbox**: Shows as a clean interface with placeholder text for quick note capture
 - **All notes**: Displays hierarchical organization with collapsible sections ("Projects (1)", "Daily (3)")
 - **Search**: Integrated search functionality
 - **Settings**: Configuration access
 
 #### **Note Organization**
+
 - **Pinned Notes**: Persistent favorites with appropriate icons (calendar for daily, folder for projects)
 - **Temporary Tabs**: Recently accessed notes below dotted separator
 - **Close All**: Link to clear temporary tab section
 - **Visual Hierarchy**: Clear separation between permanent (pinned) and temporary notes
 
 #### **Note Types & Icons**
+
 - Daily notes: Calendar icon
 - Project notes: Folder icon
 - Regular notes: Document icon
@@ -165,18 +178,21 @@ Based on the mockups, the interface shows a three-column layout:
 ### AI Assistant Integration
 
 #### **Task-Oriented Interface**
+
 - **Task Management**: Expandable task sections with completion status
 - **Progress Tracking**: Visual indicators for completed tasks (checkmarks)
 - **Task Details**: Shows specific actions taken ("I've made the notes")
 - **Linked References**: Tasks connect to specific notes via blue links
 
 #### **Context Management**
+
 - **Current Note Context**: Automatically included in conversations
 - **Wikilink Support**: [[Note Title]] syntax for referencing additional notes
 - **Notes Discussed**: Section showing all referenced notes in conversation
 - **Visual Connection**: Clear relationship between AI responses and note references
 
 #### **Chat Interface**
+
 - **Message Input**: "Ask Flint anything, use [[ to link notes..." prompt
 - **Conversation Flow**: Clean message threading
 - **Note Linking**: Integrated [[wikilink]] syntax in conversations
@@ -185,12 +201,14 @@ Based on the mockups, the interface shows a three-column layout:
 ### Note Type & Interface Controls
 
 #### **Header Controls**
+
 - **Note Type Dropdown**: Shows "daily" in mockup, located in left sidebar header
 - **Action Buttons**: Information, delete, and additional action controls in main view header
 - **Sidebar Toggle**: Controls to switch between AI assistant and metadata editor modes
 - **Visual Consistency**: Icons and controls follow consistent design language
 
 #### **Content Management**
+
 - **Rich Text Editing**: Support for formatted content with inline links
 - **Auto-linking**: URLs like "GraphQL" automatically become clickable links
 - **Clean Typography**: Clear hierarchy between title and content
@@ -199,9 +217,11 @@ Based on the mockups, the interface shows a three-column layout:
 ## Implementation Phases
 
 ### Phase 1: Core Layout Architecture
+
 **Goal**: Build the three-panel sidebar-based layout
 
 **Key Components**:
+
 - Replace existing tab navigation with left sidebar structure
 - Implement main view with updated header controls
 - Create right sidebar container with toggle functionality
@@ -209,9 +229,11 @@ Based on the mockups, the interface shows a three-column layout:
 - Remove old TabNavigation.svelte and update App.svelte
 
 ### Phase 2: Left Sidebar Navigation
+
 **Goal**: Implement complete left sidebar with system views and note organization
 
 **Key Components**:
+
 - System Views section (Inbox, All notes, Search, Settings)
 - Inbox interface with quick capture placeholder
 - All notes hierarchical browser with collapsible sections
@@ -220,9 +242,11 @@ Based on the mockups, the interface shows a three-column layout:
 - Proper note type iconography (calendar, folder, document icons)
 
 ### Phase 3: AI Assistant Integration
+
 **Goal**: Build task-oriented AI assistant in right sidebar
 
 **Key Components**:
+
 - Task management interface with expandable sections
 - Progress tracking with completion indicators
 - Chat interface with [[wikilink]] support
@@ -231,9 +255,11 @@ Based on the mockups, the interface shows a three-column layout:
 - Thread management and conversation persistence
 
 ### Phase 4: Metadata Editor & Sidebar Modes
+
 **Goal**: Add metadata editing mode and sidebar switching
 
 **Key Components**:
+
 - Toggle functionality between AI and metadata modes
 - YAML frontmatter editing interface
 - Real-time validation and error handling
@@ -241,9 +267,11 @@ Based on the mockups, the interface shows a three-column layout:
 - Seamless mode switching with state preservation
 
 ### Phase 5: Enhanced Note Management
+
 **Goal**: Complete the temporary tab system and note organization
 
 **Key Components**:
+
 - Arc-style temporary tab behavior
 - Auto-population from search results and wikilinks
 - Individual tab close buttons and bulk actions
@@ -251,9 +279,11 @@ Based on the mockups, the interface shows a three-column layout:
 - Note opening workflow integration
 
 ### Phase 6: Polish & Performance
+
 **Goal**: Refinement and production readiness
 
 **Key Components**:
+
 - Keyboard shortcuts for major actions
 - Smooth animations and transitions
 - Performance optimizations for large note collections
@@ -263,6 +293,7 @@ Based on the mockups, the interface shows a three-column layout:
 ## Technical Architecture
 
 ### State Management
+
 - **Svelte 5 Runes**: Reactive state for all UI components
 - **Global Stores**:
   - `sidebarState`: Left/right sidebar visibility and content
@@ -277,6 +308,7 @@ Based on the mockups, the interface shows a three-column layout:
 ### New Store Implementations Required
 
 #### Temporary Tabs Store (`temporaryTabsStore.svelte.ts`)
+
 ```typescript
 interface TemporaryTab {
   id: string;
@@ -296,6 +328,7 @@ interface TemporaryTabsState {
 ```
 
 **Key Features:**
+
 - Chronological ordering (most recent first)
 - Automatic cleanup of unused tabs after 24 hours
 - Source tracking for analytics and behavior
@@ -303,6 +336,7 @@ interface TemporaryTabsState {
 - Integration with wikilink navigation and search results
 
 #### AI Threads Store (`aiThreadsStore.svelte.ts`)
+
 ```typescript
 interface AIThread {
   id: string;
@@ -322,6 +356,7 @@ interface AIThreadsState {
 ```
 
 **Key Features:**
+
 - Global thread scope (not per-note)
 - Automatic note context tracking via [[wikilink]] syntax
 - Thread persistence across sessions
@@ -329,6 +364,7 @@ interface AIThreadsState {
 - Thread archiving and cleanup
 
 #### Sidebar State Store (`sidebarState.svelte.ts`)
+
 ```typescript
 interface SidebarState {
   leftSidebar: {
@@ -347,12 +383,14 @@ interface SidebarState {
 ```
 
 **Key Features:**
+
 - Responsive behavior consolidation
 - Sidebar visibility and sizing management
 - Layout mode switching logic
 - Persistence of user preferences
 
 ### Component Structure
+
 ```
 App.svelte
 ├── LeftSidebar.svelte
@@ -370,19 +408,23 @@ App.svelte
 ### Search Integration Architecture
 
 #### Enhanced Search Workflow
+
 The existing `SearchBar` component needs integration with the new sidebar architecture:
 
 **Current State:**
+
 - `SearchBar.svelte` exists with `onNoteSelect` callback
 - Basic search functionality implemented
 
 **Required Enhancements:**
+
 1. **Search Results → Temporary Tabs**: Search results automatically add notes to temporary tabs
 2. **Search State Management**: Global search state for recent searches, filters, and results
 3. **Search Context Integration**: Search within AI conversations and note content
 4. **Advanced Filtering**: By note type, tags, creation date, modification date
 
 **Implementation Requirements:**
+
 ```typescript
 interface SearchState {
   query: string;
@@ -402,24 +444,28 @@ interface SearchState {
 #### Current Components to Modify
 
 **App.svelte (Major Refactor)**
+
 - Remove existing responsive layout logic (lines 112-143)
 - Replace tab-based navigation with sidebar architecture
 - Integrate new store dependencies
 - Update event handling for sidebar interactions
 
 **TabNavigation.svelte → LeftSidebar.svelte**
+
 - Convert from horizontal tabs to vertical sidebar sections
 - Add system views (Inbox, All notes, Search, Settings)
 - Integrate pinned notes and temporary tabs sections
 - Add collapsible section headers
 
 **ChatView.svelte → Enhanced with Thread Management**
+
 - Add thread switching interface
 - Implement "Notes discussed" visualization
 - Add thread history navigation
 - Update message handling for multi-thread context
 
 **New Components Required:**
+
 - `SystemViews.svelte` - Inbox, All notes, Search interfaces
 - `TemporaryTabs.svelte` - Dynamic tab list with close buttons
 - `RightSidebar.svelte` - Container for AI/Metadata modes with toggle functionality
@@ -427,12 +473,14 @@ interface SearchState {
 - `MetadataEditor.svelte` - YAML frontmatter editing interface
 
 #### Existing Components to Preserve
+
 - `NoteEditor.svelte` - Works in new right sidebar context
 - `PinnedView.svelte` - Integrates into left sidebar
 - `NotesView.svelte` - Becomes part of "All notes" system view
 - `Settings.svelte` - Moves to system views section
 
 ### Data Flow
+
 1. **Note Opening**: Search/Navigation → Add to temporary tabs → Update main view → Track in temporary tabs store
 2. **AI Interaction**: User message → Include current note context → Process [[links]] → Update "Notes discussed" → Track in AI threads store
 3. **Metadata Editing**: Toggle metadata mode → Load note frontmatter → Real-time sync → Update notes store
@@ -442,12 +490,14 @@ interface SearchState {
 ## Success Metrics
 
 ### User Experience
+
 - Reduced clicks to access frequently used notes
 - Faster note navigation and discovery
 - Improved AI conversation context management
 - Seamless responsive behavior across devices
 
 ### Performance
+
 - Sub-200ms note switching
 - Smooth sidebar animations (60fps)
 - Efficient memory usage for temporary tabs
@@ -462,6 +512,7 @@ Since we're moving to a fundamentally different layout paradigm, the implementat
 ### Data Migration Plan
 
 #### Automatic Compatibility
+
 - **Pinned Notes**: Existing `pinnedNotesStore` (localStorage) requires no changes
 - **Model Settings**: `modelStore` preserved without modification
 - **Application Settings**: `settingsStore` enhanced with new sidebar preferences
@@ -470,6 +521,7 @@ Since we're moving to a fundamentally different layout paradigm, the implementat
 #### Required Migrations
 
 **Chat History to Threads**:
+
 ```typescript
 // Convert existing messages array to thread-based structure
 function migrateMessagesToThreads(messages: Message[]): AIThread {
@@ -486,6 +538,7 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
 ```
 
 **Component Transition Plan**:
+
 1. Create new stores (`temporaryTabsStore.svelte.ts`, `aiThreadsStore.svelte.ts`, `sidebarState.svelte.ts`)
 2. Build new components alongside existing ones
 3. Update `App.svelte` to use new three-panel layout
@@ -496,9 +549,11 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
 ## Implementation Status
 
 ### ✅ COMPLETED - Phase 1: Core Layout Architecture
+
 **Status**: Fully implemented and tested
 
 **Implemented Components**:
+
 - ✅ **Three-panel sidebar layout**: Responsive grid system with desktop (three-column) and mobile (single-column) layouts
 - ✅ **App.svelte refactor**: Complete rewrite using new sidebar architecture
 - ✅ **MainView component**: Clean note editing interface with header controls and empty state
@@ -506,15 +561,18 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
 - ✅ **Component removal**: Eliminated TabNavigation.svelte and old responsive layout logic
 
 **Technical Details**:
+
 - Grid-based layout with `minmax(300px, 300px) 1fr minmax(400px, 400px)` for desktop
 - Responsive breakpoints at 1400px and 768px
 - Modern Svelte 5 syntax throughout (`$state`, `$props`, `$effect`)
 - Proper TypeScript interfaces and type safety
 
 ### ✅ COMPLETED - Phase 2: Left Sidebar Navigation (December 2024)
+
 **Status**: Fully implemented and tested
 
 **Implemented Components**:
+
 - ✅ **LeftSidebar component**: Complete navigation hub with hamburger toggle
 - ✅ **SystemViews component**: Inbox, All notes, Search, Settings with expandable interfaces
 - ✅ **PinnedNotes component**: Visual icons (calendar, folder, document) with collapse functionality
@@ -522,6 +580,7 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
 - ✅ **State management**: `sidebarState.svelte.ts` and `temporaryTabsStore.svelte.ts`
 
 **Key Features**:
+
 - Persistent sidebar preferences via localStorage
 - Automatic temporary tab cleanup (24-hour default)
 - Source tracking for tabs (search, wikilink, navigation)
@@ -529,9 +588,11 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
 - Collapsible sections with smooth animations
 
 ### ✅ COMPLETED - Phase 3: AI Assistant Integration (January 2025)
+
 **Status**: Fully implemented and tested
 
 **Implemented Components**:
+
 - ✅ **Enhanced AIAssistant component**: Complete rewrite of chat interface with task management and notes discussed sections
 - ✅ **Task management interface**: Expandable task sections with visual completion indicators (✓, ⟳, ○)
 - ✅ **[[Wikilink]] support**: Full integration with MessageInput component and CodeMirror extensions
@@ -540,6 +601,7 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
 - ✅ **Visual improvements**: Modern styling matching Figma mockup with smooth animations
 
 **Key Features**:
+
 - Automatic task extraction from agent tool calls with smart status detection
 - Real-time wikilink parsing and note reference tracking
 - Expandable sections for both tasks and notes discussed
@@ -550,11 +612,13 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
 #### 🧪 Phase 3 Manual Testing Guide
 
 **Prerequisites**:
+
 1. Start the development server: `npm run dev`
 2. Ensure you have some existing notes in your vault with tool call interactions
 3. Open the right sidebar (AI Assistant tab should be active by default)
 
 **🎯 Task Management Interface Testing**:
+
 - [x] **Task Visibility**:
   - Send a message that triggers tool calls (e.g., "create a note about testing")
   - Verify tasks appear in expandable "Tasks" section at top of sidebar
@@ -577,6 +641,7 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
   - Links styled as blue buttons with hover effects
 
 **🔗 [[Wikilink]] Support Testing**:
+
 - [ ] **Message Input Wikilinks**:
   - Type `[[` in message input to trigger wikilink completion
   - Existing notes should be suggested and highlighted
@@ -594,6 +659,7 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
   - Hover effects provide visual feedback
 
 **📋 Notes Discussed Section Testing**:
+
 - [x] **Automatic Detection**:
   - Send messages containing `[[Note Name]]` references
   - "Notes discussed" section appears with referenced notes
@@ -610,6 +676,7 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
   - Active note highlighting works correctly
 
 **💬 Enhanced Message Input Testing**:
+
 - [x] **Placeholder Text**:
   - Message input shows "Ask Flint anything, use [[ to link notes..." placeholder
   - Placeholder disappears when typing begins
@@ -626,6 +693,7 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
   - Input clears after sending message
 
 **🎨 Visual Design Testing**:
+
 - [x] **Section Headers**:
   - "Tasks" and "Notes discussed" headers properly styled
   - Expand/collapse arrows rotate smoothly
@@ -642,6 +710,7 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
   - Proper contrast and accessibility
 
 **🔄 Integration Testing**:
+
 - [x] **Mode Switching**:
   - Toggle between "AI Assistant" and "Metadata" tabs
   - AI Assistant state preserves when switching back
@@ -658,21 +727,25 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
   - Left sidebar state remains consistent
 
 **❌ Known Limitations**:
+
 - Thread management is basic (full implementation in Phase 4)
 - Task management limited to tool call detection
 - No task editing or manual task creation
 - Notes discussed section doesn't support note removal
 
 **🐛 Expected Behaviors**:
+
 - Tasks only appear when agent uses tool calls
 - Notes discussed only shows notes referenced with `[[]]` syntax
 - Wikilink completion requires existing notes in vault
 - All animations should be smooth (60fps)
 
 ### ✅ COMPLETED - Phase 4: Metadata Editor & Sidebar Modes (August 2025)
+
 **Status**: Fully implemented and tested
 
 **Implemented Components**:
+
 - ✅ **MetadataEditor component**: Complete YAML frontmatter editing interface with real-time validation
 - ✅ **Enhanced RightSidebar**: Seamless mode switching between AI Assistant and Metadata editing
 - ✅ **YAML parser and validator**: Custom parser with line-by-line error reporting and type validation
@@ -681,6 +754,7 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
 - ✅ **Help system**: Comprehensive YAML syntax guide with examples and best practices
 
 **Key Features**:
+
 - Real-time YAML frontmatter editing with syntax validation
 - Support for strings, numbers, booleans, arrays, dates, and custom fields
 - Visual parsing preview with interactive field removal
@@ -690,14 +764,17 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
 - Comprehensive accessibility features and keyboard navigation
 
 ### ⏳ PENDING - Phase 5: Enhanced Note Management
+
 **Status**: Not started
 
 ### ⏳ PENDING - Phase 6: Polish & Performance
+
 **Status**: Not started
 
 ## Manual Testing Guide
 
 ### Prerequisites
+
 1. Start the development server: `npm run dev`
 2. Ensure you have some existing notes in your vault
 3. Test on both desktop (>1400px) and mobile (<768px) screen sizes
@@ -705,7 +782,9 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
 ### Phase 1 & 2 Testing Checklist
 
 #### 🖥️ Desktop Layout Testing (>1400px)
+
 **Three-Column Layout Verification**:
+
 - [x] **Layout Structure**: Verify three distinct columns are visible:
   - Left sidebar (300px, navigation)
   - Main view (flexible width, note content)
@@ -718,13 +797,17 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
   - [x] Close button in right sidebar header toggles right sidebar visibility
 
 #### 📱 Mobile Layout Testing (<768px)
+
 **Single-Column Layout Verification**:
+
 - [x] **Responsive Behavior**: Only main view is visible by default
 - [x] **Sidebar Overlays**: Sidebars appear as overlays when opened
 - [x] **Touch Interaction**: Tap gestures work on mobile devices
 
 #### 🗂️ Left Sidebar Functionality
+
 **System Views Testing**:
+
 - [x] **Inbox View**:
   - Click "Inbox" → Expandable section appears
   - Text area for quick capture is visible
@@ -747,6 +830,7 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
   - Settings persist across sessions
 
 **Pinned Notes Testing**:
+
 - lx] **Section Header**:
   - "Pinned" section visible with arrow indicator
   - Click arrow → Section collapses/expands
@@ -763,6 +847,7 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
   - Active note is highlighted
 
 **Temporary Tabs Testing**:
+
 - [x] **Tab Creation**:
   - Open note from search → Appears in temporary tabs
   - Open note from navigation → Appears in temporary tabs
@@ -780,7 +865,9 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
   - Active tab is remembered
 
 #### 🎯 Main View Functionality
+
 **Note Display Testing**:
+
 - [x] **Empty State**:
   - No note selected → Shows "No note selected" with icon
   - Empty state is centered and well-formatted
@@ -797,7 +884,9 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
   - Changes are saved automatically
 
 #### 🤖 Right Sidebar Functionality
+
 **Mode Toggle Testing**:
+
 - [ ] **AI Mode**:
   - AI tab is active by default
   - ChatView component loads correctly
@@ -816,7 +905,9 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
   - Content updates correctly when switching
 
 #### 🔄 State Management Testing
+
 **Sidebar State Persistence**:
+
 - [x] **Preferences Save**:
   - Toggle left sidebar → State persists after refresh
   - Toggle right sidebar → State persists after refresh
@@ -828,6 +919,7 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
   - No layout breaking or overlap
 
 **Temporary Tabs Store**:
+
 - [x] **Tab Lifecycle**:
   - Open multiple notes → All appear in tabs
   - Close app and reopen → Tabs are restored
@@ -839,7 +931,9 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
   - Tab removal updates ordering correctly
 
 #### 🔗 Integration Testing
+
 **Note Opening Workflow**:
+
 - [x] **Multiple Sources**:
   - Open note from pinned → Appears in main view and temp tabs
   - Open note from search → Same behavior
@@ -852,13 +946,16 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
   - No memory leaks or performance issues
 
 **Keyboard Shortcuts**:
+
 - [ ] **Existing Shortcuts**:
   - Ctrl/Cmd + Shift + N → Opens create note modal
   - Ctrl/Cmd + , → Settings (now via system views)
   - Wikilink navigation works (when implemented)
 
 #### 🐛 Error Handling Testing
+
 **Edge Cases**:
+
 - [ ] **Network Issues**:
   - Offline mode behavior
   - Note loading failures
@@ -875,14 +972,18 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
 ### Phase 4 Testing Checklist: Metadata Editor & Sidebar Modes
 
 #### 🔧 Metadata Editor Interface Testing
+
 **Prerequisites**:
+
 1. Start the development server: `npm run dev`
 2. Open a note in the main view
 3. Click the right sidebar to open it (if not already open)
 4. Click the "Metadata" tab to switch to metadata editor mode
 
 #### 📝 YAML Frontmatter Editor Testing
+
 **Basic Editor Functionality**:
+
 - [x] **Editor Display**:
   - Metadata editor loads with note information displayed
   - Basic information section shows Note ID, Type, and File Path (read-only)
@@ -902,33 +1003,42 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
   - Error messages appear if save fails
 
 #### ✅ YAML Validation Testing
+
 **Test Different YAML Formats**:
+
 - [x] **String Values**:
+
   ```yaml
-  title: "My Note Title"
+  title: 'My Note Title'
   description: Simple string without quotes
   ```
+
   - Both quoted and unquoted strings parse correctly
   - Special characters in quoted strings work
 
 - [x] **Number Values**:
+
   ```yaml
   priority: 1
   rating: 4.5
   negative: -10
   ```
+
   - Integers and floats parse as numbers (not strings)
   - Negative numbers work correctly
 
 - [x] **Boolean Values**:
+
   ```yaml
   published: true
   draft: false
   ```
+
   - `true` and `false` parse as booleans
   - Display correctly in parsed fields section
 
 - [x] **Array Values**:
+
   ```yaml
   tags:
     - work
@@ -937,21 +1047,25 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
   keywords: [seo, marketing, web]
   empty_array: []
   ```
+
   - Multi-line array format works
-  - Inline array format works  
+  - Inline array format works
   - Empty arrays display as "Empty array"
   - Array items show as individual tags in parsed section
 
 - [x] **Date Values**:
   ```yaml
-  created: "2025-08-05T12:00:00Z"
-  modified: "2025-08-05T14:30:00.123Z"
+  created: '2025-08-05T12:00:00Z'
+  modified: '2025-08-05T14:30:00.123Z'
   ```
+
   - ISO date strings validate correctly
   - Invalid date formats show validation errors
 
 #### 🚨 Error Handling & Validation Testing
+
 **Test Invalid YAML Syntax**:
+
 - [x] **Syntax Errors**:
   - Type invalid YAML (missing colons, incorrect indentation)
   - Validation error appears with line number and description
@@ -959,29 +1073,36 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
   - Auto-save is prevented while validation errors exist
 
 - [x] **Invalid Key Formats**:
+
   ```yaml
-  123invalid: "value"  # Keys must start with letter
-  invalid-key!: "value"  # Special characters not allowed
+  123invalid: 'value' # Keys must start with letter
+  invalid-key!: 'value' # Special characters not allowed
   ```
+
   - Error messages explain key format requirements
   - Line numbers are provided for errors
 
 - [x] **Invalid Data Types**:
+
   ```yaml
-  tags: "should be array"  # Tags field must be array
-  created: "not-a-date"    # Invalid date format
+  tags: 'should be array' # Tags field must be array
+  created: 'not-a-date' # Invalid date format
   ```
+
   - Field-specific validation errors appear
   - Common metadata fields (tags, aliases, created, modified) have special validation
 
 - [x] **Array Without Key**:
   ```yaml
-  - orphaned item  # Array item without parent key
+  - orphaned item # Array item without parent key
   ```
+
   - Error message: "Array item found without a key"
 
 #### 🛠️ Custom Field Management Testing
+
 **Add Custom Fields**:
+
 - [x] **Add Field Button**:
   - Click "+" button in metadata editor header
   - Prompt appears asking for field name
@@ -995,6 +1116,7 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
   - Spaces are converted to underscores
 
 **Remove Custom Fields**:
+
 - [x] **Remove Field Button**:
   - Each parsed field shows an "X" button on hover
   - Click "X" button → Field is removed from YAML
@@ -1007,7 +1129,9 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
   - Test with both multi-line and inline array formats
 
 #### 🔄 Mode Switching & State Preservation Testing
+
 **Seamless Mode Switching**:
+
 - [x] **AI ↔ Metadata Toggle**:
   - Switch from AI Assistant to Metadata tab
   - Make changes to YAML frontmatter
@@ -1028,7 +1152,9 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
   - Changes are persisted correctly
 
 #### 📚 Help System Testing
+
 **YAML Syntax Help**:
+
 - [x] **Help Expandable Section**:
   - "YAML Syntax Help & Examples" section is collapsed by default
   - Click to expand → Comprehensive help content appears
@@ -1045,7 +1171,9 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
   - Includes real-world metadata examples
 
 #### 🎨 Visual Design & UX Testing
+
 **Header Controls**:
+
 - [x] **Visual Indicators**:
   - Changes indicator (●) appears when YAML is modified
   - "Saving..." text appears during auto-save
@@ -1053,6 +1181,7 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
   - All buttons have proper hover states
 
 **Content Layout**:
+
 - [x] **Section Organization**:
   - Basic Information section clearly separated
   - YAML frontmatter section prominent with good typography
@@ -1065,6 +1194,7 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
   - Line numbers help locate syntax issues
 
 **Responsive Behavior**:
+
 - [x] **Desktop (>1400px)**:
   - Three-column layout with right sidebar visible
   - Metadata editor has adequate width for YAML editing
@@ -1076,7 +1206,9 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
   - Touch interactions work for all buttons
 
 #### 🔗 Integration Testing
+
 **Note Content Integration**:
+
 - [x] **Frontmatter Detection**:
   - Open note with existing YAML frontmatter → Editor loads existing content
   - Open note without frontmatter → Default frontmatter generated from metadata
@@ -1089,13 +1221,16 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
   - Other components (note list, etc.) reflect metadata changes
 
 **Multi-User/Concurrent Testing**:
+
 - [x] **Auto-save Behavior**:
   - Rapid typing doesn't trigger excessive save requests (debounced)
   - Save failures are handled gracefully with error messages
   - Network issues don't cause data loss
 
 #### ❌ Phase 4 Known Limitations
+
 **Current Limitations**:
+
 - Basic YAML parser (doesn't support all YAML 1.2 features)
 - No syntax highlighting in YAML editor
 - No autocomplete for common metadata fields
@@ -1103,33 +1238,41 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
 - No batch metadata editing for multiple notes
 
 **Expected Behaviors**:
+
 - Auto-save has 1-second delay (by design)
 - Validation errors prevent saving (by design)
 - Field removal requires confirmation via button click
 - Help section starts collapsed to save space
 
 ### Known Issues & Limitations
+
 **Current Limitations** (to be addressed in future phases):
+
 - ❌ No advanced search filters
 - ❌ No keyboard shortcuts for sidebar actions
 - ❌ No syntax highlighting in YAML editor
 - ❌ No metadata templates or bulk editing
 
 **Reported Issues**:
+
 - None currently identified
 
 ### Testing Environment Setup
+
 **Browser Testing**:
+
 - Chrome/Edge (Chromium-based)
 - Firefox
 - Safari (macOS)
 
 **Screen Sizes**:
+
 - Desktop: 1920x1080, 1400x900
 - Tablet: 1024x768, 834x1194
 - Mobile: 375x667, 414x896
 
 **Operating Systems**:
+
 - macOS (primary development)
 - Windows 10/11
 - Linux (Ubuntu/Debian)
@@ -1137,12 +1280,14 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
 ## Next Steps
 
 ### Immediate Priorities (Phase 5)
+
 1. **Enhanced Note Management**: Arc-style temporary tab behavior and auto-population
-2. **Advanced Thread Management**: Multi-conversation support with thread switching  
+2. **Advanced Thread Management**: Multi-conversation support with thread switching
 3. **Task Editing**: Allow manual task creation and modification
 4. **Performance Optimizations**: Optimize for large note collections and conversation history
 
 ### Technical Debt
+
 1. **Accessibility**: Add more ARIA labels and keyboard navigation
 2. **Performance**: Optimize for large note collections
 3. **Error Boundaries**: Add proper error handling for component failures
@@ -1161,6 +1306,7 @@ The Phase 1, Phase 2, Phase 3, and Phase 4 implementation successfully transform
 - **Responsive Design**: Works across all device sizes with smooth animations
 
 **Phase 4 Achievements**:
+
 - Complete YAML frontmatter editor with real-time parsing and validation
 - Custom metadata field management with add/remove functionality
 - Automatic frontmatter generation from note metadata
@@ -1170,6 +1316,7 @@ The Phase 1, Phase 2, Phase 3, and Phase 4 implementation successfully transform
 - Auto-save functionality with visual indicators and change tracking
 
 **Overall Architecture Benefits**:
+
 - **Agent-First Design**: AI assistance is central to the workflow with contextual note references
 - **Scalable Information Architecture**: Clean separation of concerns between navigation, editing, and assistance
 - **Professional Note Management**: Enterprise-grade metadata editing capabilities
