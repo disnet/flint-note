@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron';
+import { app, shell, BrowserWindow, ipcMain, Menu } from 'electron';
 import { join } from 'path';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import icon from '../../resources/icon.png?asset';
@@ -30,6 +30,76 @@ function createWindow(): void {
   mainWindow.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url);
     return { action: 'deny' };
+  });
+
+  // Handle context menu with spellcheck support
+  mainWindow.webContents.on('context-menu', (_event, params) => {
+    const template: Electron.MenuItemConstructorOptions[] = [];
+
+    // Add spellcheck suggestions if available
+    if (params.misspelledWord) {
+      params.dictionarySuggestions.forEach((suggestion) => {
+        template.push({
+          label: suggestion,
+          click: () => {
+            mainWindow.webContents.replaceMisspelling(suggestion);
+          }
+        });
+      });
+
+      // Add separator if we have suggestions
+      if (params.dictionarySuggestions.length > 0) {
+        template.push({ type: 'separator' });
+      }
+
+      // Add "Add to Dictionary" option
+      template.push({
+        label: 'Add to Dictionary',
+        click: () => {
+          mainWindow.webContents.session.addWordToSpellCheckerDictionary(
+            params.misspelledWord
+          );
+        }
+      });
+
+      template.push({ type: 'separator' });
+    }
+
+    // Add standard editing options if text is selected or we're in an editable field
+    if (params.isEditable) {
+      if (params.editFlags.canUndo) {
+        template.push({ role: 'undo' });
+      }
+      if (params.editFlags.canRedo) {
+        template.push({ role: 'redo' });
+      }
+      if (template.length > 0) {
+        template.push({ type: 'separator' });
+      }
+
+      if (params.editFlags.canCut) {
+        template.push({ role: 'cut' });
+      }
+      if (params.editFlags.canCopy) {
+        template.push({ role: 'copy' });
+      }
+      if (params.editFlags.canPaste) {
+        template.push({ role: 'paste' });
+      }
+      if (params.editFlags.canSelectAll) {
+        template.push({ type: 'separator' });
+        template.push({ role: 'selectAll' });
+      }
+    } else if (params.selectionText) {
+      // If text is selected but not in an editable field, just show copy
+      template.push({ role: 'copy' });
+    }
+
+    // Only show menu if we have items
+    if (template.length > 0) {
+      const menu = Menu.buildFromTemplate(template);
+      menu.popup({ window: mainWindow });
+    }
   });
 
   // HMR for renderer base on electron-vite cli.

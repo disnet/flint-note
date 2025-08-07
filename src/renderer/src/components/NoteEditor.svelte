@@ -174,6 +174,7 @@
       editorTheme,
       ...(isDarkMode ? [darkEditorTheme] : []),
       wikilinksExtension(handleWikilinkClick),
+      EditorView.contentAttributes.of({ spellcheck: 'true' }),
       EditorView.updateListener.of((update) => {
         if (update.docChanged) {
           hasChanges = true;
@@ -216,6 +217,7 @@
         editorTheme,
         ...(isDarkMode ? [darkEditorTheme] : []),
         wikilinksExtension(handleWikilinkClick),
+        EditorView.contentAttributes.of({ spellcheck: 'true' }),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
             hasChanges = true;
@@ -389,11 +391,6 @@
         onblur={handleTitleChange}
         placeholder="Enter note title..."
       />
-    </div>
-    <div class="editor-actions">
-      {#if isSaving}
-        <span class="saving-indicator" title="Saving...">💾</span>
-      {/if}
     </div>
   </div>
 

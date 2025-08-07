@@ -21,7 +21,7 @@
 </script>
 
 <div class="simple-message-input">
-  <textarea 
+  <textarea
     bind:this={textarea}
     bind:value={inputText}
     onkeydown={handleKeydown}

@@ -1054,6 +1054,7 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
   - Array items show as individual tags in parsed section
 
 - [x] **Date Values**:
+
   ```yaml
   created: '2025-08-05T12:00:00Z'
   modified: '2025-08-05T14:30:00.123Z'
@@ -1093,6 +1094,7 @@ function migrateMessagesToThreads(messages: Message[]): AIThread {
   - Common metadata fields (tags, aliases, created, modified) have special validation
 
 - [x] **Array Without Key**:
+
   ```yaml
   - orphaned item # Array item without parent key
   ```
