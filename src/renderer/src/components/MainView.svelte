@@ -2,7 +2,6 @@
   import NoteEditor from './NoteEditor.svelte';
   import InboxView from './InboxView.svelte';
   import NotesView from './NotesView.svelte';
-  import SearchBar from './SearchBar.svelte';
   import Settings from './Settings.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
   import { pinnedNotesStore } from '../services/pinnedStore';
@@ -10,7 +9,7 @@
 
   interface Props {
     activeNote: NoteMetadata | null;
-    activeSystemView: 'inbox' | 'notes' | 'search' | 'settings' | null;
+    activeSystemView: 'inbox' | 'notes' | 'settings' | null;
     noteTypes: NoteType[];
     onClose: () => void;
     onNoteSelect: (note: NoteMetadata) => void;
@@ -103,17 +102,6 @@
       </div>
       <div class="system-view-content">
         <NotesView {onNoteSelect} {onCreateNote} />
-      </div>
-    </div>
-  {:else if activeSystemView === 'search'}
-    <div class="system-view-container">
-      <div class="system-view-header">
-        <h1>Search</h1>
-      </div>
-      <div class="system-view-content">
-        <div class="search-container">
-          <SearchBar {onNoteSelect} />
-        </div>
       </div>
     </div>
   {:else if activeSystemView === 'settings'}
@@ -384,9 +372,6 @@
     flex-direction: column;
   }
 
-  .search-container {
-    padding: 2rem;
-  }
 
   .chat-input {
     border-top: 1px solid var(--border-light);

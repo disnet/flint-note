@@ -155,8 +155,8 @@
 <style>
   .search-container {
     position: relative;
-    width: 100%;
-    max-width: 400px;
+    min-width: 50ch;
+    max-width: 75ch;
   }
 
   .search-input-wrapper {
@@ -167,9 +167,9 @@
 
   .search-icon {
     position: absolute;
-    left: 0.75rem;
-    width: 1rem;
-    height: 1rem;
+    left: 1rem;
+    width: 1.25rem;
+    height: 1.25rem;
     color: var(--text-tertiary);
     pointer-events: none;
     z-index: 1;
@@ -177,19 +177,27 @@
 
   .search-input {
     width: 100%;
-    padding: 0.5rem 0.75rem 0.5rem 2.25rem;
+    padding: 1rem 1rem 1rem 3rem;
     border: 1px solid var(--border-light);
-    border-radius: 0.5rem;
+    border-radius: 1rem;
     background: var(--bg-primary);
     color: var(--text-primary);
-    font-size: 0.875rem;
+    font-size: 1.125rem;
     transition: all 0.2s ease;
+    box-shadow:
+      0 20px 40px rgba(0, 0, 0, 0.3),
+      0 10px 20px rgba(0, 0, 0, 0.2),
+      0 4px 8px rgba(0, 0, 0, 0.1);
   }
 
   .search-input:focus {
     outline: none;
     border-color: var(--accent-primary);
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    box-shadow:
+      0 0 0 3px rgba(99, 102, 241, 0.2),
+      0 20px 40px rgba(0, 0, 0, 0.3),
+      0 10px 20px rgba(0, 0, 0, 0.2),
+      0 4px 8px rgba(0, 0, 0, 0.1);
   }
 
   .search-input::placeholder {
@@ -203,17 +211,19 @@
     right: 0;
     background: var(--bg-primary);
     border: 1px solid var(--border-light);
-    border-radius: 0.5rem;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    z-index: 50;
-    max-height: 300px;
+    border-radius: 0.75rem;
+    box-shadow:
+      0 25px 50px rgba(0, 0, 0, 0.25),
+      0 10px 20px rgba(0, 0, 0, 0.15);
+    z-index: 1001;
+    max-height: 400px;
     overflow-y: auto;
-    margin-top: 0.25rem;
+    margin-top: 0.5rem;
   }
 
   .search-result-item {
     width: 100%;
-    padding: 0.75rem;
+    padding: 1rem;
     border: none;
     background: none;
     text-align: left;

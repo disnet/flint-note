@@ -3,12 +3,14 @@
   import MainView from './components/MainView.svelte';
   import RightSidebar from './components/RightSidebar.svelte';
   import CreateNoteModal from './components/CreateNoteModal.svelte';
+  import SearchOverlay from './components/SearchOverlay.svelte';
   import type { Message } from './services/types';
   import type { NoteMetadata } from './services/noteStore.svelte';
   import { getChatService } from './services/chatService';
   import { notesStore } from './services/noteStore.svelte';
   import { modelStore } from './stores/modelStore.svelte';
   import { sidebarState } from './stores/sidebarState.svelte';
+  import { searchOverlayState } from './stores/searchOverlay.svelte';
   import { temporaryTabsStore } from './stores/temporaryTabsStore.svelte';
   import { noteNavigationService } from './services/noteNavigationService.svelte';
 
@@ -17,7 +19,7 @@
   let isLoadingResponse = $state(false);
   let activeNote = $state<NoteMetadata | null>(null);
   let showCreateNoteModal = $state(false);
-  let activeSystemView = $state<'inbox' | 'notes' | 'search' | 'settings' | null>(null);
+  let activeSystemView = $state<'inbox' | 'notes' | 'settings' | null>(null);
 
   function handleNoteSelect(note: NoteMetadata): void {
     noteNavigationService.openNote(note, 'navigation', openNoteEditor, () => {
@@ -30,7 +32,7 @@
   }
 
   function handleSystemViewSelect(
-    view: 'inbox' | 'notes' | 'search' | 'settings' | null
+    view: 'inbox' | 'notes' | 'settings' | null
   ): void {
     activeSystemView = view;
     // Clear active note when switching to system views
@@ -308,6 +310,12 @@
     isOpen={showCreateNoteModal}
     onClose={handleCloseCreateModal}
     onNoteCreated={handleNoteCreated}
+  />
+
+  <SearchOverlay
+    isOpen={searchOverlayState.isOpen}
+    onClose={searchOverlayState.close}
+    onNoteSelect={handleNoteSelect}
   />
 </div>
 

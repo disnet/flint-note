@@ -1,13 +1,19 @@
 <script lang="ts">
+  import { searchOverlayState } from '../stores/searchOverlay.svelte';
+
   interface Props {
-    activeSystemView: 'inbox' | 'notes' | 'search' | 'settings' | null;
-    onSystemViewSelect: (view: 'inbox' | 'notes' | 'search' | 'settings' | null) => void;
+    activeSystemView: 'inbox' | 'notes' | 'settings' | null;
+    onSystemViewSelect: (view: 'inbox' | 'notes' | 'settings' | null) => void;
   }
 
   let { onSystemViewSelect, activeSystemView }: Props = $props();
 
-  function setActiveView(view: 'inbox' | 'notes' | 'search' | 'settings'): void {
+  function setActiveView(view: 'inbox' | 'notes' | 'settings'): void {
     onSystemViewSelect(view);
+  }
+
+  function openSearchOverlay(): void {
+    searchOverlayState.open();
   }
 </script>
 
@@ -52,8 +58,7 @@
 
     <button
       class="nav-item"
-      class:active={activeSystemView === 'search'}
-      onclick={() => setActiveView('search')}
+      onclick={openSearchOverlay}
     >
       <svg
         width="16"

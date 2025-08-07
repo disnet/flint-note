@@ -8,9 +8,9 @@
 
   interface Props {
     activeNote: NoteMetadata | null;
-    activeSystemView: 'inbox' | 'notes' | 'search' | 'settings' | null;
+    activeSystemView: 'inbox' | 'notes' | 'settings' | null;
     onNoteSelect: (note: NoteMetadata) => void;
-    onSystemViewSelect: (view: 'inbox' | 'notes' | 'search' | 'settings' | null) => void;
+    onSystemViewSelect: (view: 'inbox' | 'notes' | 'settings' | null) => void;
     onNoteClose: () => void;
   }
 
