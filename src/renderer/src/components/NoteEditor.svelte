@@ -27,7 +27,8 @@
     '.cm-scroller': {
       width: '100%',
       scrollbarWidth: 'thin',
-      scrollbarColor: 'rgba(0, 0, 0, 0.2) transparent'
+      scrollbarColor: 'rgba(0, 0, 0, 0.2) transparent',
+      paddingBottom: '50vh'
     },
     '.cm-focused': {
       outline: 'none'
