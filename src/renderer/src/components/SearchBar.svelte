@@ -10,6 +10,7 @@
 
   let searchValue = $state('');
   let isSearchFocused = $state(false);
+  let suggestionText = $state('');
   const filteredResults = $derived.by(() => {
     if (!searchValue.trim()) {
       return [];
@@ -49,10 +50,22 @@
 
   let selectedIndex = $state(-1);
 
-  // Reset selected index when search value changes
+  // Auto-select first result and set suggestion text when search value changes
   $effect(() => {
-    if (searchValue) {
+    if (searchValue && filteredResults.length > 0) {
+      selectedIndex = 0;
+      const firstResult = filteredResults[0];
+      const query = searchValue.toLowerCase();
+      
+      // Show suggestion text if the first result starts with the query
+      if (firstResult.title.toLowerCase().startsWith(query)) {
+        suggestionText = firstResult.title;
+      } else {
+        suggestionText = '';
+      }
+    } else {
       selectedIndex = -1;
+      suggestionText = '';
     }
   });
 
@@ -80,10 +93,17 @@
       if (selectedIndex >= 0 && results[selectedIndex]) {
         selectNote(results[selectedIndex]);
       }
+    } else if (event.key === 'Tab' || event.key === 'ArrowRight') {
+      // Accept the suggestion on Tab or Right arrow
+      if (suggestionText && suggestionText !== searchValue) {
+        event.preventDefault();
+        searchValue = suggestionText;
+      }
     } else if (event.key === 'Escape') {
       event.preventDefault();
       searchValue = '';
       selectedIndex = -1;
+      suggestionText = '';
       (event.target as HTMLInputElement).blur();
     }
   }
@@ -91,6 +111,7 @@
   function selectNote(note: NoteMetadata): void {
     searchValue = '';
     selectedIndex = -1;
+    suggestionText = '';
     isSearchFocused = false;
     onNoteSelect?.(note);
   }
@@ -119,16 +140,24 @@
         clip-rule="evenodd"
       />
     </svg>
-    <input
-      id="global-search"
-      type="text"
-      placeholder="Search notes... (⌘K)"
-      bind:value={searchValue}
-      onfocus={handleSearchFocus}
-      onblur={handleSearchBlur}
-      onkeydown={handleKeyDown}
-      class="search-input"
-    />
+    <div class="input-container">
+      <!-- Suggestion text background -->
+      {#if suggestionText && searchValue && suggestionText.toLowerCase().startsWith(searchValue.toLowerCase())}
+        <div class="suggestion-text" aria-hidden="true">
+          <span class="suggestion-typed">{searchValue}</span><span class="suggestion-completion">{suggestionText.slice(searchValue.length)}</span>
+        </div>
+      {/if}
+      <input
+        id="global-search"
+        type="text"
+        placeholder="Search notes... (⌘K)"
+        bind:value={searchValue}
+        onfocus={handleSearchFocus}
+        onblur={handleSearchBlur}
+        onkeydown={handleKeyDown}
+        class="search-input"
+      />
+    </div>
   </div>
 
   {#if isSearchFocused && filteredResults.length > 0}
@@ -165,6 +194,23 @@
     align-items: center;
   }
 
+  .input-container {
+    position: relative;
+    flex: 1;
+  }
+
+  .input-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--bg-primary);
+    border-radius: 1rem;
+    z-index: 0;
+  }
+
   .search-icon {
     position: absolute;
     left: 1rem;
@@ -172,7 +218,7 @@
     height: 1.25rem;
     color: var(--text-tertiary);
     pointer-events: none;
-    z-index: 1;
+    z-index: 3;
   }
 
   .search-input {
@@ -180,7 +226,7 @@
     padding: 1rem 1rem 1rem 3rem;
     border: 1px solid var(--border-light);
     border-radius: 1rem;
-    background: var(--bg-primary);
+    background: transparent !important;
     color: var(--text-primary);
     font-size: 1.125rem;
     transition: all 0.2s ease;
@@ -188,6 +234,8 @@
       0 20px 40px rgba(0, 0, 0, 0.3),
       0 10px 20px rgba(0, 0, 0, 0.2),
       0 4px 8px rgba(0, 0, 0, 0.1);
+    position: relative;
+    z-index: 2;
   }
 
   .search-input:focus {
@@ -202,6 +250,35 @@
 
   .search-input::placeholder {
     color: var(--text-tertiary);
+  }
+
+  .suggestion-text {
+    position: absolute;
+    top: 1px;
+    left: 1px;
+    right: 1px;
+    bottom: 1px;
+    padding: 1rem 1rem 1rem 3rem;
+    border-radius: 1rem;
+    background: transparent;
+    font-size: 1.125rem;
+    pointer-events: none;
+    white-space: nowrap;
+    overflow: hidden;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+  }
+
+  .suggestion-typed {
+    color: transparent;
+    visibility: hidden;
+  }
+
+  .suggestion-completion {
+    color: var(--text-primary);
+    opacity: 0.4;
+    font-weight: normal;
   }
 
   .search-results {
