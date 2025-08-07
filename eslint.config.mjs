@@ -31,5 +31,11 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }]
     }
   },
+  {
+    files: ['**/MarkdownRenderer.svelte'],
+    rules: {
+      'svelte/no-at-html-tags': 'off' // Safe to use {@html} here as we sanitize with DOMPurify
+    }
+  },
   eslintConfigPrettier
 );

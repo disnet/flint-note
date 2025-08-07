@@ -35,9 +35,12 @@
     "@fsegurai/codemirror-theme-github-dark": "^6.2.0",
     "@fsegurai/codemirror-theme-github-light": "^6.2.0",
     "@modelcontextprotocol/sdk": "^1.15.1",
+    "@types/dompurify": "^3.0.5",
     "ai": "^5.0.0-beta.25",
     "codemirror": "^6.0.2",
+    "dompurify": "^3.2.6",
     "dotenv": "^17.2.0",
+    "marked": "^16.1.2",
     "winston": "^3.17.0",
     "zod": "^3.25.76"
   },

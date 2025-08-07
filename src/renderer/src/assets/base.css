@@ -86,10 +86,6 @@ button {
   cursor: pointer;
 }
 
-ul {
-  list-style: none;
-}
-
 :focus-visible {
   outline: 2px solid var(--accent-primary);
   outline-offset: 2px;
