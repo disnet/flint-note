@@ -294,6 +294,29 @@
     margin-top: 0.5rem;
   }
 
+  .search-results::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .search-results::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 4px;
+  }
+
+  .search-results::-webkit-scrollbar-thumb {
+    background: var(--border-light);
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+  }
+
+  .search-results::-webkit-scrollbar-thumb:hover {
+    background: var(--text-tertiary);
+  }
+
+  .search-results::-webkit-scrollbar-thumb:active {
+    background: var(--text-secondary);
+  }
+
   .search-result-item {
     width: 100%;
     padding: 1rem;
@@ -323,6 +346,7 @@
   .result-meta {
     display: flex;
     align-items: center;
+    color: var(--text-muted);
     gap: 0.5rem;
   }
 
