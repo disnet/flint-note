@@ -5,6 +5,7 @@
   import { githubLight } from '@fsegurai/codemirror-theme-github-light';
   import { githubDark } from '@fsegurai/codemirror-theme-github-dark';
   import { wikilinksExtension } from '../lib/wikilinks.svelte.js';
+  import { listFormattingExtension } from '../lib/listFormatting.svelte.js';
   import { dropCursor, keymap } from '@codemirror/view';
   import { indentOnInput } from '@codemirror/language';
   import {
@@ -175,6 +176,7 @@
       editorTheme,
       ...(isDarkMode ? [darkEditorTheme] : []),
       wikilinksExtension(handleWikilinkClick),
+      listFormattingExtension(),
       EditorView.contentAttributes.of({ spellcheck: 'true' }),
       EditorView.updateListener.of((update) => {
         if (update.docChanged) {
@@ -218,6 +220,7 @@
         editorTheme,
         ...(isDarkMode ? [darkEditorTheme] : []),
         wikilinksExtension(handleWikilinkClick),
+        listFormattingExtension(),
         EditorView.contentAttributes.of({ spellcheck: 'true' }),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {

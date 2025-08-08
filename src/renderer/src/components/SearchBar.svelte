@@ -82,10 +82,16 @@
   function handleKeyDown(event: KeyboardEvent): void {
     const results = filteredResults;
 
-    if (event.key === 'ArrowDown' || (event.key === 'n' && (event.ctrlKey || event.metaKey))) {
+    if (
+      event.key === 'ArrowDown' ||
+      (event.key === 'n' && (event.ctrlKey || event.metaKey))
+    ) {
       event.preventDefault();
       selectedIndex = Math.min(selectedIndex + 1, results.length - 1);
-    } else if (event.key === 'ArrowUp' || (event.key === 'p' && (event.ctrlKey || event.metaKey))) {
+    } else if (
+      event.key === 'ArrowUp' ||
+      (event.key === 'p' && (event.ctrlKey || event.metaKey))
+    ) {
       event.preventDefault();
       selectedIndex = Math.max(selectedIndex - 1, -1);
     } else if (event.key === 'Enter') {
