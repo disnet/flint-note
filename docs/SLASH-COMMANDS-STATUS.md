@@ -67,8 +67,9 @@ Users can:
 3. **Navigate** with arrow keys (up/down) through command options
 4. **Select** commands with Enter, Tab, or mouse clicks
 5. **Cancel** autocomplete with Escape key
-6. **Automatic insertion** of full command instructions into the message
+6. **Automatic insertion** with atomic chip display (see Phase 2.5)
 7. **Smart triggering** - only activates at word boundaries (start of line or after spaces)
+8. **Click chips** to reveal/edit full instruction text
 
 ## Next Implementation Phases
 
@@ -101,6 +102,41 @@ Users can:
 - ✅ Real-time filtering from slashCommandsStore with Svelte 5 reactivity
 - ✅ Smooth UX transitions and professional animations
 - ✅ Resolved Svelte 5 reactivity issues with proper `$derived()` patterns
+
+### ✅ Phase 2.5: Atomic Range Decorations (Complete)
+
+**Enhanced User Experience:**
+
+1. **Dual-State Display System**
+   - ✅ **Editor State**: Maintains full instruction text for AI processing
+   - ✅ **Display State**: Shows compact command chips (e.g., `/summarize`)
+   - ✅ **Seamless Integration**: Works with existing autocomplete and insertion logic
+
+2. **SlashCommandWidget Implementation** 
+   - ✅ Custom CodeMirror `WidgetType` for chip rendering
+   - ✅ Professional chip styling with hover effects and click interactions
+   - ✅ Atomic range behavior - cursor jumps over chips as single units
+   - ✅ Click-to-edit functionality for revealing full instruction text
+
+3. **Atomic Range Management**
+   - ✅ `EditorView.atomicRanges` integration following wikilinks pattern
+   - ✅ State field with decoration mapping through document changes
+   - ✅ Proper range tracking with `addSlashCommandEffect` and `removeSlashCommandEffect`
+   - ✅ Error handling and edge case management
+
+**Technical Architecture:**
+- ✅ CodeMirror decoration system with replacing decorations
+- ✅ Atomic range generation for proper cursor navigation
+- ✅ State effects for managing decoration lifecycle
+- ✅ Integration with existing MessageInput extension system
+- ✅ Modeled after proven wikilinks implementation
+
+**User Interface Benefits:**
+- **Clean Visual Design**: Compact `/commandname` chips instead of verbose instruction text
+- **Improved Readability**: Message input remains uncluttered with long commands
+- **Atomic Navigation**: Cursor treats chips as single units for smooth editing
+- **Reversible Editing**: Click any chip to temporarily reveal full text for modification
+- **Professional Appearance**: Styled chips match application design system
 
 ### 🔄 Phase 3: Enhanced Features (Future)
 
@@ -172,10 +208,11 @@ src/renderer/src/
 User → SlashCommands UI → slashCommandsStore → localStorage
 ```
 
-**Command Usage (Phase 2 - Complete):**
+**Command Usage (Phase 2 & 2.5 - Complete):**
 ```
 User types "/" → MessageInput detects → Query slashCommandsStore → 
-Show SlashCommandAutocomplete → User selects → Insert instruction → Send to AI
+Show SlashCommandAutocomplete → User selects → Insert instruction + Create chip decoration → 
+Display shows /commandname chip → Send to AI (full instruction text)
 ```
 
 ## Testing Strategy
@@ -193,6 +230,15 @@ Show SlashCommandAutocomplete → User selects → Insert instruction → Send t
 - ✅ Performance with command filtering and search
 - ✅ Edge case handling (no commands, no matches, empty states)
 - ✅ Svelte 5 reactivity and store integration
+
+### Phase 2.5 Testing Status (Atomic Range Decorations)
+- ✅ Atomic range cursor navigation (cursor jumps over chips as single units)
+- ✅ Chip decoration creation and mapping through document changes
+- ✅ Click-to-edit functionality for revealing full instruction text
+- ✅ Dual-state system (compact display with full underlying text)
+- ✅ Integration with existing CodeMirror extensions
+- ✅ State effects for decoration lifecycle management
+- ✅ Build and TypeScript compilation verification
 
 ### Future Testing Needs
 - [ ] Performance optimization with very large command sets (100+ commands)
@@ -220,13 +266,16 @@ Show SlashCommandAutocomplete → User selects → Insert instruction → Send t
 - ✅ Integration with existing UI patterns
 - ✅ Type-safe implementation
 
-**Phase 2 (Complete):**
+**Phase 2 & 2.5 (Complete):**
 - ✅ Users can trigger autocomplete by typing `/`
 - ✅ Fast, responsive command filtering with real-time search
 - ✅ Smooth text insertion without UI glitches
 - ✅ Intuitive keyboard navigation (arrows, enter, escape, tab)
 - ✅ Professional UI matching application design system
 - ✅ Smart word boundary detection and proper cursor positioning
+- ✅ **Atomic chip decorations** with dual-state display system
+- ✅ **Clean visual interface** - compact chips instead of verbose text
+- ✅ **Click-to-edit** functionality for command modification
 
 **Phase 3+ (Future):**
 - Reduced time to send common prompts
@@ -235,14 +284,16 @@ Show SlashCommandAutocomplete → User selects → Insert instruction → Send t
 
 ## Conclusion
 
-The slash commands feature is now **fully functional and production-ready**! Both Phase 1 (Command Management) and Phase 2 (Agent Panel Integration) have been successfully implemented and tested.
+The slash commands feature is now **fully functional and production-ready** with **enhanced visual design**! Phase 1 (Command Management), Phase 2 (Agent Panel Integration), and Phase 2.5 (Atomic Range Decorations) have all been successfully implemented and tested.
 
 ### Current Capabilities
 **✅ Complete User Workflow:**
 1. **Create commands** via the management interface in the left sidebar
 2. **Use commands** by typing `/` in the agent panel message input
 3. **Real-time search** and autocomplete with professional UI
-4. **Seamless insertion** of command instructions into conversations
+4. **Atomic chip display** - commands appear as compact `/commandname` chips
+5. **Dual-state system** - clean display with full instruction text preserved for AI
+6. **Click-to-edit** - click any chip to reveal/modify the full instruction
 
 ### Key Achievements
 - **Modern Svelte 5 architecture** with proper reactivity patterns
@@ -250,6 +301,16 @@ The slash commands feature is now **fully functional and production-ready**! Bot
 - **Comprehensive keyboard support** for power users
 - **Smart triggering logic** that doesn't interfere with normal typing
 - **Production-ready code quality** with full TypeScript type safety
+- **✨ Atomic range decorations** providing clean, modern chip-based interface
+- **CodeMirror integration** following proven patterns from wikilinks implementation
+- **Seamless cursor navigation** with atomic range behavior
+
+### Enhanced User Experience Benefits
+- **🎨 Clean Visual Design**: Compact command chips eliminate message input clutter
+- **🔧 Reversible Editing**: Click any chip to access full instruction text
+- **⚡ Smooth Navigation**: Cursor treats chips as single atomic units
+- **🔄 Dual-State Architecture**: Display optimization without losing functionality
+- **💼 Professional Appearance**: Styled chips consistent with app design system
 
 ### Ready for Enhancement
 The architecture is designed for extensibility, making it straightforward to add advanced features like:
@@ -258,4 +319,4 @@ The architecture is designed for extensibility, making it straightforward to add
 - **Usage analytics** and smart suggestions
 - **Import/export** functionality for sharing command sets
 
-**The slash commands feature significantly enhances user productivity by providing quick access to custom prompts and instructions directly within the conversation flow.**
+**The slash commands feature significantly enhances user productivity by providing quick access to custom prompts and instructions with a modern, clean interface that keeps the message input uncluttered while preserving full AI functionality.**

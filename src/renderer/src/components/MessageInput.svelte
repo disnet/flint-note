@@ -2,8 +2,15 @@
   import ModelSelector from './ModelSelector.svelte';
   import SlashCommandAutocomplete from './SlashCommandAutocomplete.svelte';
   import { onMount, onDestroy } from 'svelte';
-  import { EditorView } from 'codemirror';
-  import { EditorState, StateEffect, type Extension } from '@codemirror/state';
+  import { EditorView, WidgetType, Decoration } from '@codemirror/view';
+  import {
+    EditorState,
+    StateEffect,
+    StateField,
+    RangeSet,
+    Range,
+    type Extension
+  } from '@codemirror/state';
   import { githubLight } from '@fsegurai/codemirror-theme-github-light';
   import { githubDark } from '@fsegurai/codemirror-theme-github-dark';
   import {
@@ -20,11 +27,126 @@
   import {
     slashCommandsStore,
     type SlashCommand
-  } from '../stores/slashCommandsStore.svelte.ts';
+  } from '../stores/slashCommandsStore.svelte';
 
   let { onSend }: { onSend: (text: string) => void } = $props();
 
   let inputText = $state('');
+
+  // Slash command widget for atomic display
+  class SlashCommandWidget extends WidgetType {
+    commandName: string;
+    isEditing: boolean;
+
+    constructor(commandName: string, isEditing: boolean = false) {
+      super();
+      this.commandName = commandName;
+      this.isEditing = isEditing;
+    }
+
+    toDOM(): HTMLElement {
+      const chip = document.createElement('span');
+      chip.className = 'slash-command-chip';
+      if (this.isEditing) {
+        chip.classList.add('editing');
+      }
+      chip.textContent = `/${this.commandName}`;
+
+      // Make chip clickable to toggle editing
+      chip.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleChipEditing(chip);
+      };
+
+      return chip;
+    }
+
+    eq(other: SlashCommandWidget): boolean {
+      return this.commandName === other.commandName && this.isEditing === other.isEditing;
+    }
+  }
+
+  // State effect for adding slash command decorations
+  const addSlashCommandEffect = StateEffect.define<{
+    from: number;
+    to: number;
+    commandName: string;
+  }>();
+
+  // State effect for removing slash command decorations
+  const removeSlashCommandEffect = StateEffect.define<{
+    from: number;
+    to: number;
+  }>();
+
+  // State field to manage slash command decorations
+  const slashCommandField = StateField.define({
+    create() {
+      return Decoration.none;
+    },
+    update(decorations, transaction) {
+      // Map existing decorations through document changes
+      decorations = decorations.map(transaction.changes);
+
+      // Process effects
+      for (const effect of transaction.effects) {
+        if (effect.is(addSlashCommandEffect)) {
+          const { from, to, commandName } = effect.value;
+          const widget = new SlashCommandWidget(commandName);
+          const decoration = Decoration.replace({
+            widget,
+            inclusive: false,
+            block: false
+          });
+          decorations = decorations.update({
+            add: [decoration.range(from, to)]
+          });
+        } else if (effect.is(removeSlashCommandEffect)) {
+          const { from, to } = effect.value;
+          decorations = decorations.update({
+            filter: (rangeFrom, rangeTo) => {
+              return !(rangeFrom <= from && rangeTo >= to);
+            }
+          });
+        }
+      }
+
+      return decorations;
+    },
+    provide: (field) => EditorView.decorations.from(field)
+  });
+
+  function toggleChipEditing(chipElement: HTMLElement): void {
+    if (!editorView) return;
+
+    // Find the decoration range for this chip
+    const pos = editorView.posAtDOM(chipElement);
+    const decorations = editorView.state.field(slashCommandField);
+
+    // Find the decoration range that contains this position
+    let rangeStart = pos;
+    let rangeEnd = pos + 1;
+
+    decorations.between(pos - 50, pos + 50, (from, to, value) => {
+      if (from <= pos && to > pos && value.spec.widget instanceof SlashCommandWidget) {
+        rangeStart = from;
+        rangeEnd = to;
+        return false; // Stop iteration
+      }
+    });
+
+    // Remove the decoration temporarily to show full text
+    editorView.dispatch({
+      effects: removeSlashCommandEffect.of({ from: rangeStart, to: rangeEnd })
+    });
+
+    // Focus the editor at this position
+    editorView.focus();
+    editorView.dispatch({
+      selection: { anchor: rangeStart }
+    });
+  }
   let editorContainer: HTMLDivElement;
   let editorView: EditorView | null = null;
 
@@ -109,9 +231,19 @@
     const afterCursor = text.substring(cursorPos);
     const newText = beforeSlash + command.instruction + afterCursor;
 
+    const instructionStart = beforeSlash.length;
+    const instructionEnd = beforeSlash.length + command.instruction.length;
+
     editorView.dispatch({
       changes: { from: 0, to: text.length, insert: newText },
-      selection: { anchor: beforeSlash.length + command.instruction.length }
+      selection: { anchor: instructionEnd },
+      effects: [
+        addSlashCommandEffect.of({
+          from: instructionStart,
+          to: instructionEnd,
+          commandName: command.name
+        })
+      ]
     });
 
     hideAutocomplete();
@@ -280,6 +412,32 @@
         }
       }),
       wikilinksExtension(handleWikilinkClick),
+      slashCommandField,
+      // Add atomic ranges for proper cursor movement over slash commands
+      EditorView.atomicRanges.of((view) => {
+        const decorations = view.state.field(slashCommandField, false);
+        if (!decorations) {
+          return RangeSet.empty;
+        }
+
+        const ranges: Range<any>[] = [];
+
+        try {
+          decorations.between(0, view.state.doc.length, (from, to, value) => {
+            if (value.spec.widget instanceof SlashCommandWidget) {
+              ranges.push({ from, to, value: true });
+            }
+          });
+
+          // Sort ranges by position before creating RangeSet
+          ranges.sort((a, b) => a.from - b.from);
+
+          return ranges.length > 0 ? RangeSet.of(ranges) : RangeSet.empty;
+        } catch (e) {
+          console.warn('Error creating slash command atomic ranges:', e);
+          return RangeSet.empty;
+        }
+      }),
       EditorView.updateListener.of((update) => {
         if (update.docChanged || update.selectionSet) {
           const newText = update.state.doc.toString();
@@ -461,5 +619,31 @@
 
   .send-button:active:not(:disabled) {
     transform: translateY(0);
+  }
+
+  /* Slash command chip styling */
+  :global(.slash-command-chip) {
+    display: inline-flex;
+    align-items: center;
+    background: var(--accent-primary);
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+    vertical-align: baseline;
+  }
+
+  :global(.slash-command-chip:hover) {
+    background: var(--accent-hover);
+    transform: translateY(-1px);
+  }
+
+  :global(.slash-command-chip.editing) {
+    background: var(--border-medium);
+    color: var(--text-secondary);
   }
 </style>
