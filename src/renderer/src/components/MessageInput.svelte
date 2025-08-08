@@ -1,6 +1,7 @@
 <script lang="ts">
   import ModelSelector from './ModelSelector.svelte';
   import SlashCommandAutocomplete from './SlashCommandAutocomplete.svelte';
+  type SlashCommandAutocompleteType = SlashCommandAutocomplete;
   import { onMount, onDestroy } from 'svelte';
   import { EditorView, WidgetType, Decoration } from '@codemirror/view';
   import {
@@ -32,6 +33,7 @@
   let { onSend }: { onSend: (text: string) => void } = $props();
 
   let inputText = $state('');
+  let autocompleteComponent: SlashCommandAutocompleteType;
 
   // Slash command widget for atomic display
   class SlashCommandWidget extends WidgetType {
@@ -220,19 +222,39 @@
     slashCommandStart = 0;
   }
 
-  function handleCommandSelect(command: SlashCommand): void {
+  function handleCommandSelect(command: SlashCommand, parameterValues?: Record<string, string>): void {
     if (!editorView) return;
 
     const cursorPos = editorView.state.selection.main.head;
     const text = editorView.state.doc.toString();
 
+    // Get the expanded instruction text (with parameters if provided)
+    let instructionText: string;
+    if (parameterValues) {
+      instructionText = slashCommandsStore.expandCommandWithParameters(command, parameterValues);
+    } else {
+      instructionText = command.instruction;
+    }
+
     // Replace from slash to cursor with the command instruction
     const beforeSlash = text.substring(0, slashCommandStart);
     const afterCursor = text.substring(cursorPos);
-    const newText = beforeSlash + command.instruction + afterCursor;
+    const newText = beforeSlash + instructionText + afterCursor;
 
     const instructionStart = beforeSlash.length;
-    const instructionEnd = beforeSlash.length + command.instruction.length;
+    const instructionEnd = beforeSlash.length + instructionText.length;
+
+    // Create chip name that includes parameter info if present
+    let chipName = command.name;
+    if (parameterValues && Object.keys(parameterValues).some(k => parameterValues[k])) {
+      const filledParams = Object.entries(parameterValues)
+        .filter(([_, value]) => value && value.trim())
+        .map(([key, value]) => `${key}: ${value.length > 10 ? value.substring(0, 10) + '...' : value}`)
+        .join(', ');
+      if (filledParams) {
+        chipName += ` (${filledParams})`;
+      }
+    }
 
     editorView.dispatch({
       changes: { from: 0, to: text.length, insert: newText },
@@ -241,7 +263,7 @@
         addSlashCommandEffect.of({
           from: instructionStart,
           to: instructionEnd,
-          commandName: command.name
+          commandName: chipName
         })
       ]
     });
@@ -282,8 +304,16 @@
       case 'Enter':
       case 'Tab':
         event.preventDefault();
-        if (filteredCommands[selectedCommandIndex]) {
-          handleCommandSelect(filteredCommands[selectedCommandIndex]);
+        if (autocompleteComponent && autocompleteComponent.handleKeyboardSelect) {
+          autocompleteComponent.handleKeyboardSelect();
+        } else {
+          // Fallback to original behavior
+          const filteredCommands = autocompleteQuery
+            ? slashCommandsStore.searchCommands(autocompleteQuery)
+            : slashCommandsStore.allCommands.slice(0, 5);
+          if (filteredCommands[selectedCommandIndex]) {
+            handleCommandSelect(filteredCommands[selectedCommandIndex]);
+          }
         }
         return true;
 
@@ -313,13 +343,9 @@
           run: (view) => {
             // Check if autocomplete is showing and should handle this
             if (showAutocomplete) {
-              const filteredCommands = autocompleteQuery
-                ? slashCommandsStore.searchCommands(autocompleteQuery)
-                : slashCommandsStore.allCommands.slice(0, 5);
-              if (filteredCommands[selectedCommandIndex]) {
-                handleCommandSelect(filteredCommands[selectedCommandIndex]);
-                return true;
-              }
+              return handleAutocompleteKeyDown(
+                new KeyboardEvent('keydown', { key: 'Enter' })
+              );
             }
 
             const text = view.state.doc.toString().trim();
@@ -501,6 +527,7 @@
     <div bind:this={editorContainer} class="editor-field"></div>
     {#if showAutocomplete}
       <SlashCommandAutocomplete
+        bind:this={autocompleteComponent}
         query={autocompleteQuery}
         onSelect={handleCommandSelect}
         onCancel={handleAutocompleteCancel}

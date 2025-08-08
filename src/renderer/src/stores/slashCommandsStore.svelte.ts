@@ -1,9 +1,19 @@
+interface SlashCommandParameter {
+  id: string;
+  name: string;
+  type: 'text' | 'number' | 'selection';
+  required: boolean;
+  defaultValue?: string;
+  description?: string;
+}
+
 interface SlashCommand {
   id: string;
   name: string;
   instruction: string;
   createdAt: Date;
   updatedAt: Date;
+  parameters?: SlashCommandParameter[];
 }
 
 class SlashCommandsStore {
@@ -17,13 +27,14 @@ class SlashCommandsStore {
     return this.commands;
   }
 
-  addCommand(name: string, instruction: string): SlashCommand {
+  addCommand(name: string, instruction: string, parameters?: SlashCommandParameter[]): SlashCommand {
     const command: SlashCommand = {
       id: crypto.randomUUID(),
       name: name.trim(),
       instruction: instruction.trim(),
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
+      parameters: parameters || []
     };
 
     this.commands.push(command);
@@ -31,7 +42,7 @@ class SlashCommandsStore {
     return command;
   }
 
-  updateCommand(id: string, name: string, instruction: string): SlashCommand | null {
+  updateCommand(id: string, name: string, instruction: string, parameters?: SlashCommandParameter[]): SlashCommand | null {
     const commandIndex = this.commands.findIndex((cmd) => cmd.id === id);
     if (commandIndex === -1) return null;
 
@@ -39,7 +50,8 @@ class SlashCommandsStore {
       ...this.commands[commandIndex],
       name: name.trim(),
       instruction: instruction.trim(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
+      parameters: parameters !== undefined ? parameters : this.commands[commandIndex].parameters
     };
 
     this.saveCommands();
@@ -76,6 +88,20 @@ class SlashCommandsStore {
     );
   }
 
+  expandCommandWithParameters(command: SlashCommand, parameterValues: Record<string, string>): string {
+    let expandedText = command.instruction;
+    
+    if (command.parameters) {
+      for (const parameter of command.parameters) {
+        const value = parameterValues[parameter.name] || parameter.defaultValue || '';
+        const placeholder = `{${parameter.name}}`;
+        expandedText = expandedText.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), value);
+      }
+    }
+    
+    return expandedText;
+  }
+
   private loadCommands(): void {
     try {
       const stored = localStorage.getItem('flint-slash-commands');
@@ -85,7 +111,8 @@ class SlashCommandsStore {
           (cmd: SlashCommand & { createdAt: string; updatedAt: string }) => ({
             ...cmd,
             createdAt: new Date(cmd.createdAt),
-            updatedAt: new Date(cmd.updatedAt)
+            updatedAt: new Date(cmd.updatedAt),
+            parameters: cmd.parameters || []
           })
         );
       }
@@ -105,4 +132,4 @@ class SlashCommandsStore {
 }
 
 export const slashCommandsStore = new SlashCommandsStore();
-export type { SlashCommand };
+export type { SlashCommand, SlashCommandParameter };
