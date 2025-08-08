@@ -1,9 +1,8 @@
 <script lang="ts">
   import {
     slashCommandsStore,
-    type SlashCommand,
-    type SlashCommandParameter
-  } from '../stores/slashCommandsStore.svelte.ts';
+    type SlashCommand
+  } from '../stores/slashCommandsStore.svelte';
 
   interface Props {
     query: string;

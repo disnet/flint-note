@@ -172,7 +172,12 @@
                   placeholder="Parameter name"
                   value={parameter.name}
                   oninput={(e) =>
-                    updateParameter(newCommandParameters, index, 'name', e.target.value)}
+                    updateParameter(
+                      newCommandParameters,
+                      index,
+                      'name',
+                      e?.target?.value
+                    )}
                 />
                 <select
                   value={parameter.type}
@@ -461,7 +466,7 @@
             <div class="command-parameters">
               <div class="parameters-label">Parameters:</div>
               <div class="parameters-list">
-                {#each command.parameters as parameter}
+                {#each command.parameters as parameter (parameter.id)}
                   <div class="parameter-item">
                     <span class="parameter-name">{parameter.name}</span>
                     <span class="parameter-type">({parameter.type})</span>
