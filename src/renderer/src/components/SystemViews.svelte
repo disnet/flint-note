@@ -2,13 +2,15 @@
   import { searchOverlayState } from '../stores/searchOverlay.svelte';
 
   interface Props {
-    activeSystemView: 'inbox' | 'notes' | 'settings' | null;
-    onSystemViewSelect: (view: 'inbox' | 'notes' | 'settings' | null) => void;
+    activeSystemView: 'inbox' | 'notes' | 'settings' | 'slash-commands' | null;
+    onSystemViewSelect: (
+      view: 'inbox' | 'notes' | 'settings' | 'slash-commands' | null
+    ) => void;
   }
 
   let { onSystemViewSelect, activeSystemView }: Props = $props();
 
-  function setActiveView(view: 'inbox' | 'notes' | 'settings'): void {
+  function setActiveView(view: 'inbox' | 'notes' | 'settings' | 'slash-commands'): void {
     onSystemViewSelect(view);
   }
 
@@ -69,6 +71,28 @@
         <path d="m21 21-4.35-4.35"></path>
       </svg>
       Search
+    </button>
+
+    <button
+      class="nav-item"
+      class:active={activeSystemView === 'slash-commands'}
+      onclick={() => setActiveView('slash-commands')}
+    >
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <path
+          d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l4.3 4.3c1 1 1 2.5 0 3.4L10.4 21c-1 1-2.5 1-3.4 0Z"
+        ></path>
+        <path d="M12 8 8 4l-8 8 4 4 12-12Z"></path>
+        <path d="m7 17 5-5"></path>
+      </svg>
+      Slash Commands
     </button>
 
     <button

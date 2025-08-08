@@ -2,7 +2,7 @@
   import ModelSelector from './ModelSelector.svelte';
   import { onMount, onDestroy } from 'svelte';
   import { EditorView } from 'codemirror';
-  import { EditorState, StateEffect } from '@codemirror/state';
+  import { EditorState, StateEffect, type Extension } from '@codemirror/state';
   import { githubLight } from '@fsegurai/codemirror-theme-github-light';
   import { githubDark } from '@fsegurai/codemirror-theme-github-dark';
   import {
@@ -52,7 +52,7 @@
     updateEditorTheme();
   }
 
-  function createExtensions() {
+  function createExtensions(): Extension {
     const githubTheme = isDarkMode ? githubDark : githubLight;
 
     return [

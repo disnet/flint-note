@@ -3,13 +3,14 @@
   import InboxView from './InboxView.svelte';
   import NotesView from './NotesView.svelte';
   import Settings from './Settings.svelte';
+  import SlashCommands from './SlashCommands.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
   import { pinnedNotesStore } from '../services/pinnedStore';
   import type { NoteMetadata, NoteType } from '../services/noteStore.svelte';
 
   interface Props {
     activeNote: NoteMetadata | null;
-    activeSystemView: 'inbox' | 'notes' | 'settings' | null;
+    activeSystemView: 'inbox' | 'notes' | 'settings' | 'slash-commands' | null;
     noteTypes: NoteType[];
     onClose: () => void;
     onNoteSelect: (note: NoteMetadata) => void;
@@ -102,6 +103,15 @@
       </div>
       <div class="system-view-content">
         <NotesView {onNoteSelect} {onCreateNote} />
+      </div>
+    </div>
+  {:else if activeSystemView === 'slash-commands'}
+    <div class="system-view-container">
+      <div class="system-view-header">
+        <h1>Slash Commands</h1>
+      </div>
+      <div class="system-view-content">
+        <SlashCommands />
       </div>
     </div>
   {:else if activeSystemView === 'settings'}
