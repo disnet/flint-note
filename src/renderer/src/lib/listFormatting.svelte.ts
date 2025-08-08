@@ -19,12 +19,8 @@ class BulletWidget extends WidgetType {
     bullet.className = 'cm-list-bullet';
     bullet.style.color = 'var(--text-secondary, #666)';
     bullet.style.fontWeight = 'bold';
-    bullet.style.marginRight = '0.5em';
-
-    // Add left margin for nested lists
-    if (this.indentLevel > 0) {
-      bullet.style.marginLeft = `${this.indentLevel * 1.5}em`;
-    }
+    bullet.style.width = '1.5ch';
+    bullet.style.textAlign = 'left';
 
     return bullet;
   }
@@ -54,7 +50,7 @@ function createListDecorations(view: EditorView): DecorationSet {
       // Add line decoration for hanging indent styling
       decorations.push(
         Decoration.line({
-          class: 'cm-list-line'
+          class: `cm-list-line cm-list-indent-${indentLevel}`
         }).range(line.from)
       );
 
@@ -70,7 +66,8 @@ function createListDecorations(view: EditorView): DecorationSet {
       decorations.push(
         Decoration.mark({
           attributes: {
-            style: 'opacity: 0; font-size: 0; width: 0; display: inline-block; overflow: hidden;'
+            style:
+              'opacity: 0; font-size: 0; width: 0; display: inline-block; overflow: hidden;'
           }
         }).range(markerStart, markerEnd)
       );
@@ -87,12 +84,12 @@ function createListDecorations(view: EditorView): DecorationSet {
     const bIsLine = !!b.value.spec.class;
     if (aIsLine && !bIsLine) return -1;
     if (!aIsLine && bIsLine) return 1;
-    
+
     const aIsWidget = !!a.value.spec.widget;
     const bIsWidget = !!b.value.spec.widget;
     if (aIsWidget && !bIsWidget) return -1;
     if (!aIsWidget && bIsWidget) return 1;
-    
+
     return 0;
   });
 
@@ -119,12 +116,31 @@ const listFormattingPlugin = ViewPlugin.fromClass(
   }
 );
 
-// Theme for list formatting  
+// Theme for list formatting
 const listFormattingTheme = EditorView.theme({
   '.cm-list-line': {
-    paddingLeft: '1.5em',
-    textIndent: '-1.5em',
+    paddingLeft: '1.5ch',
+    textIndent: '-1.5ch',
     position: 'relative'
+  },
+  '.cm-list-indent-0': {
+    paddingLeft: '1.5ch',
+    textIndent: '-1.5ch'
+  },
+  '.cm-list-indent-1': {
+    paddingLeft: 'calc(2ch + 1.5ch)',
+    textIndent: 'calc(-2ch - 1.5ch)',
+    marginLeft: '2ch'
+  },
+  '.cm-list-indent-2': {
+    paddingLeft: 'calc(4ch + 1.5ch)',
+    textIndent: 'calc(-4ch - 1.5ch)',
+    marginLeft: '4ch'
+  },
+  '.cm-list-indent-3': {
+    paddingLeft: 'calc(6ch + 1.5ch)',
+    textIndent: 'calc(-6ch - 1.5ch)',
+    marginLeft: '6ch'
   },
   '.cm-list-line .wikilink': {
     textIndent: '0',
