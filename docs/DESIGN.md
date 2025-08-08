@@ -237,6 +237,42 @@ $effect(() => {
 - Clear hierarchy between title and content
 - Monospace font for code and YAML editing
 
+**CSS Variables:**
+The application uses CSS custom properties defined in `src/renderer/src/assets/base.css` for consistent theming:
+
+*Color System:*
+- `--bg-primary`: Primary background color
+- `--bg-secondary`: Secondary background for panels and cards
+- `--bg-tertiary`: Tertiary background for subtle elements
+- `--text-primary`: Primary text color for headings and main content
+- `--text-secondary`: Secondary text color for descriptions
+- `--text-muted`: Muted text color for less important information
+- `--text-placeholder`: Placeholder text color for inputs
+
+*Borders and Shadows:*
+- `--border-light`: Light border color for subtle separations
+- `--border-medium`: Medium border color for defined boundaries
+- `--shadow-light`: Light shadow for subtle depth
+- `--shadow-medium`: Medium shadow for elevated elements
+
+*Interactive Elements:*
+- `--accent-primary`: Primary accent color for buttons and links
+- `--accent-hover`: Darker accent color for hover states
+- `--accent-light`: Light accent color with transparency for backgrounds
+
+*Message Components:*
+- `--message-user-bg`: Background color for user messages
+- `--message-user-text`: Text color for user messages
+- `--message-agent-bg`: Background color for agent messages
+- `--message-agent-text`: Text color for agent messages
+- `--message-agent-border`: Border color for agent messages
+
+*Scrollbar Styling:*
+- `--scrollbar-thumb`: Default scrollbar thumb color
+- `--scrollbar-thumb-hover`: Scrollbar thumb color on hover
+
+The color system automatically adapts between light and dark themes using `@media (prefers-color-scheme: dark)`, providing seamless theme switching based on system preferences.
+
 ## Current Implementation Status
 
 ### ✅ Completed Features
