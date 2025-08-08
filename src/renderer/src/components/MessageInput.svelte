@@ -52,13 +52,10 @@
     updateEditorTheme();
   }
 
-  function updateEditorTheme(): void {
-    if (!editorView) return;
-
-    // Create a new complete extension configuration with the appropriate theme
+  function createExtensions() {
     const githubTheme = isDarkMode ? githubDark : githubLight;
 
-    const extensions = [
+    return [
       // Put the custom keymap FIRST to ensure it takes precedence over default keymaps
       keymap.of([
         {
@@ -99,6 +96,9 @@
           fontSize: '0.875rem',
           fontFamily: 'inherit'
         },
+        '&.cm-editor': {
+          backgroundColor: 'var(--bg-primary)'
+        },
         '.cm-editor': {
           borderRadius: '1rem',
           background: 'transparent'
@@ -107,7 +107,7 @@
           outline: 'none'
         },
         '.cm-content': {
-          padding: '0.75rem 1rem',
+          padding: '0',
           minHeight: '1.25rem',
           maxHeight: '120px',
           caretColor: 'var(--text-secondary)'
@@ -124,9 +124,13 @@
       }),
       EditorView.lineWrapping
     ];
+  }
+
+  function updateEditorTheme(): void {
+    if (!editorView) return;
 
     editorView.dispatch({
-      effects: StateEffect.reconfigure.of(extensions)
+      effects: StateEffect.reconfigure.of(createExtensions())
     });
   }
 
@@ -140,76 +144,9 @@
     // Listen for theme changes
     mediaQuery.addEventListener('change', handleThemeChange);
 
-    const githubTheme = isDarkMode ? githubDark : githubLight;
-
     const startState = EditorState.create({
       doc: '',
-      extensions: [
-        // Put the custom keymap FIRST to ensure it takes precedence over default keymaps
-        keymap.of([
-          {
-            key: 'Enter',
-            run: (view) => {
-              const text = view.state.doc.toString().trim();
-              if (text) {
-                handleSubmit();
-                return true;
-              }
-              return false;
-            }
-          },
-          {
-            key: 'Shift-Enter',
-            run: (view) => {
-              // Allow line breaks with Shift+Enter
-              view.dispatch(view.state.replaceSelection('\n'));
-              return true;
-            }
-          }
-        ]),
-        // Essential editor features
-        highlightSpecialChars(),
-        history(),
-        drawSelection(),
-        rectangularSelection(),
-        crosshairCursor(),
-        highlightSelectionMatches(),
-        // Now add default keymaps AFTER our custom ones
-        keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap]),
-        placeholder('Ask Flint anything...use [[ to link notes'),
-        // GitHub theme
-        githubTheme,
-        // Custom styling theme
-        EditorView.theme({
-          '&': {
-            fontSize: '0.875rem',
-            fontFamily: 'inherit'
-          },
-          '.cm-editor': {
-            borderRadius: '1rem',
-            background: 'transparent'
-          },
-          '.cm-focused': {
-            outline: 'none'
-          },
-          '.cm-content': {
-            // padding: '0.75rem 1rem',
-            minHeight: '1.25rem',
-            maxHeight: '120px',
-            caretColor: 'var(--text-secondary)'
-          },
-          '.cm-line': {
-            lineHeight: '1.4'
-          }
-        }),
-        wikilinksExtension(handleWikilinkClick),
-        EditorView.updateListener.of((update) => {
-          if (update.docChanged) {
-            inputText = update.state.doc.toString();
-          }
-        }),
-        EditorView.lineWrapping
-      ]
+      extensions: createExtensions()
     });
 
     editorView = new EditorView({
@@ -261,7 +198,7 @@
     background: var(--bg-primary);
     /*border: 1px solid var(--border-light);*/
     /*border-radius: 1.5rem;*/
-    padding: 0.5rem;
+    padding: 0.5rem 0;
     transition: all 0.2s ease;
   }
 

@@ -25,6 +25,9 @@
       lineHeight: '1.6',
       width: '100%'
     },
+    '&.cm-editor': {
+      backgroundColor: 'var(--bg-primary)'
+    },
     '.cm-scroller': {
       width: '100%',
       scrollbarWidth: 'thin',
