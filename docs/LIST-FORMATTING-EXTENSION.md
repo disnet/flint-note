@@ -2,7 +2,9 @@
 
 ## Overview
 
-The List Formatting Extension enhances CodeMirror's markdown rendering by replacing dash markers (`-`) with styled bullet points (`•`) and implementing hanging indentation for wrapped text.
+The List Formatting Extension enhances CodeMirror's markdown rendering by replacing list markers with styled versions and implementing hanging indentation for wrapped text:
+- **Unordered lists**: Replaces dash markers (`-`) with styled bullet points (`•`)
+- **Ordered lists**: Styles numbered markers (`1.`, `2.`, etc.) with consistent formatting
 
 ## Implementation
 
@@ -12,28 +14,42 @@ The List Formatting Extension enhances CodeMirror's markdown rendering by replac
 - **Purpose**: Creates bullet point widgets to replace `- ` markers
 - **Features**: 
   - Renders `•` character with custom styling
-  - Supports nested lists with appropriate indentation
+  - Fixed width for consistent alignment
   - Non-interactive (userSelect: none, pointerEvents: none)
 
-#### 2. List Detection
-- **Regex**: `/^(\s*)- (.*)$/` matches lines starting with optional whitespace + `- ` + content
+#### 2. NumberWidget Class
+- **Purpose**: Creates numbered widgets for ordered lists (`1.`, `2.`, etc.)
+- **Features**:
+  - Renders numbers with consistent styling and color
+  - Right-aligned with minimum width for proper alignment
+  - Non-interactive (userSelect: none, pointerEvents: none)
+
+#### 3. List Detection
+- **Unordered Lists**: `/^(\s*)- (.*)$/` matches lines starting with optional whitespace + `- ` + content
+- **Ordered Lists**: `/^(\s*)(\d+)\. (.*)$/` matches lines starting with optional whitespace + number + `. ` + content
 - **Indent Calculation**: `Math.floor(indent.length / 2)` (2 spaces per indent level)
 
-#### 3. Decoration Strategy
+#### 4. Decoration Strategy
 Three types of decorations are applied to each list item:
 
-1. **Line Decoration**: Applies hanging indent styling to the entire line
-2. **Widget Decoration**: Inserts bullet widget at marker position  
-3. **Mark Decoration**: Hides original `- ` marker with `opacity: 0`
+1. **Line Decoration**: Applies hanging indent styling to the entire line with list type classes
+2. **Widget Decoration**: Inserts bullet (`•`) or number widget at marker position  
+3. **Replace Decoration**: Completely removes original markers (`- ` or `1. `) from document flow
 
 ### CSS Implementation
 
 #### Hanging Indentation
 ```css
-'.cm-list-line': {
-  paddingLeft: '1.5em',     // Space for content
-  textIndent: '-1.5em',     // Pull first line back
-  position: 'relative'
+// Unordered lists - compact spacing for bullets
+'.cm-list-unordered': {
+  paddingLeft: '1.5ch',     // Space for bullet + content
+  textIndent: '-1.5ch'      // Pull first line back
+}
+
+// Ordered lists - wider spacing for numbers
+'.cm-list-ordered': {
+  paddingLeft: '2.5ch',     // Space for numbers + content  
+  textIndent: '-2.5ch'      // Pull first line back
 }
 ```
 
@@ -45,25 +61,30 @@ Three types of decorations are applied to each list item:
 }
 ```
 
-#### Bullet Styling
+#### Widget Styling
 ```css
 '.cm-list-bullet': {
   textIndent: '0',          // Reset indent for bullets
+  display: 'inline-block'   // Proper layout behavior
+}
+
+'.cm-list-number': {
+  textIndent: '0',          // Reset indent for numbers
   display: 'inline-block'   // Proper layout behavior
 }
 ```
 
 ## Key Design Decisions
 
-### 1. Non-Destructive Text Replacement
-- Uses `Decoration.mark()` to hide `- ` instead of `Decoration.replace()`
-- Preserves underlying document structure
-- Prevents conflicts with other decorations (wikilinks, search highlighting)
+### 1. Complete Marker Replacement
+- Uses `Decoration.replace()` to completely remove markers (`- ` or `1. `) from the document flow
+- Prevents cursor navigation into hidden marker text
+- Maintains clean cursor movement behavior while preserving document structure
 
-### 2. Selective CSS Reset
-- Line-level `text-indent: -1.5em` creates hanging indent effect
-- Element-level `text-indent: 0` on wikilinks prevents positioning issues
-- Maintains compatibility with existing editor features
+### 2. Differentiated Spacing
+- **Unordered lists**: `1.5ch` spacing optimized for bullet point width
+- **Ordered lists**: `2.5ch` spacing accommodates wider number markers
+- **Character units**: Using `ch` instead of `em` for consistent character-based alignment
 
 ### 3. Decoration Ordering
 - Line decorations first (earliest position)

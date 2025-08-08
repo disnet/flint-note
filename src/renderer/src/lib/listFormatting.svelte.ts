@@ -30,6 +30,32 @@ class BulletWidget extends WidgetType {
   }
 }
 
+class NumberWidget extends WidgetType {
+  constructor(
+    private number: string,
+    private indentLevel: number = 0
+  ) {
+    super();
+  }
+
+  toDOM(): HTMLElement {
+    const numberSpan = document.createElement('span');
+    numberSpan.textContent = this.number;
+    numberSpan.className = 'cm-list-number';
+    numberSpan.style.color = 'var(--text-secondary, #666)';
+    numberSpan.style.fontWeight = 'bold';
+    numberSpan.style.width = '2.5ch';
+    numberSpan.style.textAlign = 'left';
+    numberSpan.style.display = 'inline-block';
+
+    return numberSpan;
+  }
+
+  eq(other: NumberWidget): boolean {
+    return other.number === this.number && other.indentLevel === this.indentLevel;
+  }
+}
+
 function createListDecorations(view: EditorView): DecorationSet {
   const decorations: Range<Decoration>[] = [];
   const doc = view.state.doc;
@@ -38,11 +64,13 @@ function createListDecorations(view: EditorView): DecorationSet {
     const line = doc.line(lineNum);
     const text = line.text;
 
-    // Match list items: optional whitespace, then "- ", then content
-    const listMatch = text.match(/^(\s*)- (.*)$/);
+    // Match unordered list items: optional whitespace, then "- ", then content
+    const unorderedMatch = text.match(/^(\s*)- (.*)$/);
+    // Match ordered list items: optional whitespace, then number+dot+space, then content
+    const orderedMatch = text.match(/^(\s*)(\d+)\. (.*)$/);
 
-    if (listMatch) {
-      const [, indent] = listMatch;
+    if (unorderedMatch) {
+      const [, indent] = unorderedMatch;
       const indentLevel = Math.floor(indent.length / 2); // 2 spaces per indent level
       const markerStart = line.from + indent.length;
       const markerEnd = markerStart + 2; // "- " is 2 characters
@@ -50,25 +78,33 @@ function createListDecorations(view: EditorView): DecorationSet {
       // Add line decoration for hanging indent styling
       decorations.push(
         Decoration.line({
-          class: `cm-list-line cm-list-indent-${indentLevel}`
+          class: `cm-list-line cm-list-unordered cm-list-indent-${indentLevel}`
         }).range(line.from)
       );
 
-      // Add bullet widget before the marker
+      // Replace the original "- " marker with bullet widget
       decorations.push(
-        Decoration.widget({
-          widget: new BulletWidget(indentLevel),
-          side: -1
-        }).range(markerStart)
+        Decoration.replace({
+          widget: new BulletWidget(indentLevel)
+        }).range(markerStart, markerEnd)
+      );
+    } else if (orderedMatch) {
+      const [, indent, number] = orderedMatch;
+      const indentLevel = Math.floor(indent.length / 2); // 2 spaces per indent level
+      const markerStart = line.from + indent.length;
+      const markerEnd = markerStart + number.length + 2; // number + ". "
+
+      // Add line decoration for hanging indent styling
+      decorations.push(
+        Decoration.line({
+          class: `cm-list-line cm-list-ordered cm-list-indent-${indentLevel}`
+        }).range(line.from)
       );
 
-      // Hide the original "- " marker with a mark decoration instead of replace
+      // Replace the original number marker with number widget
       decorations.push(
-        Decoration.mark({
-          attributes: {
-            style:
-              'opacity: 0; font-size: 0; width: 0; display: inline-block; overflow: hidden;'
-          }
+        Decoration.replace({
+          widget: new NumberWidget(`${number}.`, indentLevel)
         }).range(markerStart, markerEnd)
       );
     }
@@ -79,7 +115,7 @@ function createListDecorations(view: EditorView): DecorationSet {
     if (a.from !== b.from) {
       return a.from - b.from;
     }
-    // If same position, put line decorations first, then widgets, then marks
+    // If same position, put line decorations first, then widgets, then replacements
     const aIsLine = !!a.value.spec.class;
     const bIsLine = !!b.value.spec.class;
     if (aIsLine && !bIsLine) return -1;
@@ -118,35 +154,71 @@ const listFormattingPlugin = ViewPlugin.fromClass(
 
 // Theme for list formatting
 const listFormattingTheme = EditorView.theme({
+  // Base list styling
   '.cm-list-line': {
-    paddingLeft: '1.5ch',
-    textIndent: '-1.5ch',
     position: 'relative'
   },
-  '.cm-list-indent-0': {
+  // Unordered lists (bullets) - narrower spacing
+  '.cm-list-unordered': {
     paddingLeft: '1.5ch',
     textIndent: '-1.5ch'
   },
-  '.cm-list-indent-1': {
+  '.cm-list-unordered.cm-list-indent-0': {
+    paddingLeft: '1.5ch',
+    textIndent: '-1.5ch'
+  },
+  '.cm-list-unordered.cm-list-indent-1': {
     paddingLeft: 'calc(2ch + 1.5ch)',
     textIndent: 'calc(-2ch - 1.5ch)',
     marginLeft: '2ch'
   },
-  '.cm-list-indent-2': {
+  '.cm-list-unordered.cm-list-indent-2': {
     paddingLeft: 'calc(4ch + 1.5ch)',
     textIndent: 'calc(-4ch - 1.5ch)',
     marginLeft: '4ch'
   },
-  '.cm-list-indent-3': {
+  '.cm-list-unordered.cm-list-indent-3': {
     paddingLeft: 'calc(6ch + 1.5ch)',
     textIndent: 'calc(-6ch - 1.5ch)',
     marginLeft: '6ch'
   },
+  // Ordered lists (numbers) - wider spacing for numbers
+  '.cm-list-ordered': {
+    paddingLeft: '2.5ch',
+    textIndent: '-2.5ch'
+  },
+  '.cm-list-ordered.cm-list-indent-0': {
+    paddingLeft: '2.5ch',
+    textIndent: '-2.5ch'
+  },
+  '.cm-list-ordered.cm-list-indent-1': {
+    paddingLeft: 'calc(2ch + 2.5ch)',
+    textIndent: 'calc(-2ch - 2.5ch)',
+    marginLeft: '2ch'
+  },
+  '.cm-list-ordered.cm-list-indent-2': {
+    paddingLeft: 'calc(4ch + 2.5ch)',
+    textIndent: 'calc(-4ch - 2.5ch)',
+    marginLeft: '4ch'
+  },
+  '.cm-list-ordered.cm-list-indent-3': {
+    paddingLeft: 'calc(6ch + 2.5ch)',
+    textIndent: 'calc(-6ch - 2.5ch)',
+    marginLeft: '6ch'
+  },
+  // Wikilink compatibility
   '.cm-list-line .wikilink': {
     textIndent: '0',
     position: 'relative'
   },
+  // Widget styling
   '.cm-list-bullet': {
+    userSelect: 'none',
+    pointerEvents: 'none',
+    textIndent: '0',
+    display: 'inline-block'
+  },
+  '.cm-list-number': {
     userSelect: 'none',
     pointerEvents: 'none',
     textIndent: '0',
