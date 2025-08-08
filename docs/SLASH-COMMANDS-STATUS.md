@@ -35,9 +35,19 @@ Slash commands are a user productivity feature that allows users to define custo
 interface SlashCommand {
   id: string;           // Unique identifier
   name: string;         // Command name (e.g., "summarize")
-  instruction: string;  // The prompt text to insert
+  instruction: string;  // The prompt text to insert (may contain parameter placeholders)
   createdAt: Date;      // Creation timestamp
   updatedAt: Date;      // Last modification timestamp
+  parameters?: SlashCommandParameter[]; // Optional parameters (Phase 3)
+}
+
+interface SlashCommandParameter {
+  id: string;           // Parameter identifier
+  name: string;         // Parameter name (e.g., "topic", "length")
+  type: 'text' | 'number' | 'selection'; // Parameter type
+  required: boolean;    // Whether parameter is required
+  defaultValue?: string; // Default value for optional parameters
+  description?: string;  // Help text for the parameter
 }
 ```
 
@@ -138,28 +148,41 @@ Users can:
 - **Reversible Editing**: Click any chip to temporarily reveal full text for modification
 - **Professional Appearance**: Styled chips match application design system
 
-### 🔄 Phase 3: Enhanced Features (Future)
+### 🔄 Phase 3: Command Parameters (Future)
 
-**Advanced Functionality:**
-1. **Command Variables**
-   - Support for placeholders in instructions (e.g., `{{selection}}`, `{{date}}`)
-   - Dynamic variable replacement at insertion time
-   - Context-aware variables (current note, selected text)
+**Parameterized Slash Commands:**
 
-2. **Command Categories**
-   - Organize commands into categories
-   - Category-based filtering in autocomplete
-   - Visual grouping in management interface
+1. **Parameter Definition**
+   - Users can define parameters when creating slash commands
+   - Parameters have names, types, and optional descriptions
+   - Support for different parameter types (text, number, selection, etc.)
+   - Optional vs required parameter specification
 
-3. **Import/Export**
-   - Export command sets for sharing
-   - Import community command packs
-   - Backup/restore functionality
+2. **Enhanced Command Creation UI**
+   - Parameter configuration interface in SlashCommands.svelte
+   - Add/remove parameters dynamically
+   - Parameter validation and type selection
+   - Preview of parameterized command structure
 
-4. **Usage Analytics**
-   - Track command usage frequency
-   - Sort by most-used commands
-   - Usage statistics in management interface
+3. **Interactive Parameter Input**
+   - When selecting a parameterized command, display parameter input chips
+   - Tab-through separate text boxes for each parameter
+   - Real-time preview of expanded instruction with parameter values
+   - Parameter validation before command insertion
+
+4. **Command Expansion Logic**
+   - Template string replacement with user-provided parameter values
+   - Support for parameter placeholders in instructions (e.g., `{topic}`, `{format}`)
+   - Fallback handling for missing optional parameters
+   - Type conversion and validation for different parameter types
+
+**Example Workflow:**
+1. User creates command: `/summarize` with parameters: `topic` (required), `length` (optional, default: "brief")
+2. User types `/summarize` in chat input
+3. Autocomplete shows parameterized command with input fields
+4. User tabs through parameter inputs: topic="AI research", length="detailed" 
+5. Command expands to full instruction with parameter values substituted
+6. Display shows compact chip with parameter summary
 
 ### 🔄 Phase 4: Integration Enhancements (Future)
 
@@ -313,10 +336,15 @@ The slash commands feature is now **fully functional and production-ready** with
 - **💼 Professional Appearance**: Styled chips consistent with app design system
 
 ### Ready for Enhancement
-The architecture is designed for extensibility, making it straightforward to add advanced features like:
-- **Variables and placeholders** in command instructions
+The architecture is designed for extensibility, making Phase 3 (Command Parameters) straightforward to implement by:
+- **Extending the data model** to include parameter definitions
+- **Enhancing the autocomplete UI** to show parameter input fields  
+- **Adding template expansion logic** for parameter substitution
+- **Updating the management interface** for parameter configuration
+
+Future phases could include:
 - **Command categories** for better organization
-- **Usage analytics** and smart suggestions
+- **Usage analytics** and smart suggestions  
 - **Import/export** functionality for sharing command sets
 
 **The slash commands feature significantly enhances user productivity by providing quick access to custom prompts and instructions with a modern, clean interface that keeps the message input uncluttered while preserving full AI functionality.**
