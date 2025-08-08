@@ -27,7 +27,11 @@ class SlashCommandsStore {
     return this.commands;
   }
 
-  addCommand(name: string, instruction: string, parameters?: SlashCommandParameter[]): SlashCommand {
+  addCommand(
+    name: string,
+    instruction: string,
+    parameters?: SlashCommandParameter[]
+  ): SlashCommand {
     const command: SlashCommand = {
       id: crypto.randomUUID(),
       name: name.trim(),
@@ -42,7 +46,12 @@ class SlashCommandsStore {
     return command;
   }
 
-  updateCommand(id: string, name: string, instruction: string, parameters?: SlashCommandParameter[]): SlashCommand | null {
+  updateCommand(
+    id: string,
+    name: string,
+    instruction: string,
+    parameters?: SlashCommandParameter[]
+  ): SlashCommand | null {
     const commandIndex = this.commands.findIndex((cmd) => cmd.id === id);
     if (commandIndex === -1) return null;
 
@@ -51,7 +60,8 @@ class SlashCommandsStore {
       name: name.trim(),
       instruction: instruction.trim(),
       updatedAt: new Date(),
-      parameters: parameters !== undefined ? parameters : this.commands[commandIndex].parameters
+      parameters:
+        parameters !== undefined ? parameters : this.commands[commandIndex].parameters
     };
 
     this.saveCommands();
@@ -88,17 +98,23 @@ class SlashCommandsStore {
     );
   }
 
-  expandCommandWithParameters(command: SlashCommand, parameterValues: Record<string, string>): string {
+  expandCommandWithParameters(
+    command: SlashCommand,
+    parameterValues: Record<string, string>
+  ): string {
     let expandedText = command.instruction;
-    
+
     if (command.parameters) {
       for (const parameter of command.parameters) {
         const value = parameterValues[parameter.name] || parameter.defaultValue || '';
         const placeholder = `{${parameter.name}}`;
-        expandedText = expandedText.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), value);
+        expandedText = expandedText.replace(
+          new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'),
+          value
+        );
       }
     }
-    
+
     return expandedText;
   }
 

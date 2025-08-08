@@ -222,7 +222,10 @@
     slashCommandStart = 0;
   }
 
-  function handleCommandSelect(command: SlashCommand, parameterValues?: Record<string, string>): void {
+  function handleCommandSelect(
+    command: SlashCommand,
+    parameterValues?: Record<string, string>
+  ): void {
     if (!editorView) return;
 
     const cursorPos = editorView.state.selection.main.head;
@@ -231,7 +234,10 @@
     // Get the expanded instruction text (with parameters if provided)
     let instructionText: string;
     if (parameterValues) {
-      instructionText = slashCommandsStore.expandCommandWithParameters(command, parameterValues);
+      instructionText = slashCommandsStore.expandCommandWithParameters(
+        command,
+        parameterValues
+      );
     } else {
       instructionText = command.instruction;
     }
@@ -246,10 +252,13 @@
 
     // Create chip name that includes parameter info if present
     let chipName = command.name;
-    if (parameterValues && Object.keys(parameterValues).some(k => parameterValues[k])) {
+    if (parameterValues && Object.keys(parameterValues).some((k) => parameterValues[k])) {
       const filledParams = Object.entries(parameterValues)
         .filter(([_, value]) => value && value.trim())
-        .map(([key, value]) => `${key}: ${value.length > 10 ? value.substring(0, 10) + '...' : value}`)
+        .map(
+          ([key, value]) =>
+            `${key}: ${value.length > 10 ? value.substring(0, 10) + '...' : value}`
+        )
         .join(', ');
       if (filledParams) {
         chipName += ` (${filledParams})`;

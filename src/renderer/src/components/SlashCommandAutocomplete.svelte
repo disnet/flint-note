@@ -13,7 +13,7 @@
   }
 
   let { query, onSelect, selectedIndex }: Props = $props();
-  
+
   let selectedCommand = $state<SlashCommand | null>(null);
   let parameterValues = $state<Record<string, string>>({});
   let currentParameterIndex = $state(0);
@@ -37,7 +37,7 @@
       selectedCommand = command;
       parameterValues = {};
       // Initialize with default values
-      command.parameters.forEach(param => {
+      command.parameters.forEach((param) => {
         parameterValues[param.name] = param.defaultValue || '';
       });
       currentParameterIndex = 0;
@@ -64,9 +64,9 @@
 
   function canConfirmParameters(): boolean {
     if (!selectedCommand?.parameters) return false;
-    
+
     // Check that all required parameters have values
-    return selectedCommand.parameters.every(param => {
+    return selectedCommand.parameters.every((param) => {
       if (param.required) {
         const value = parameterValues[param.name];
         return value && value.trim().length > 0;
@@ -77,7 +77,10 @@
 
   function getPreviewText(): string {
     if (!selectedCommand) return '';
-    return slashCommandsStore.expandCommandWithParameters(selectedCommand, parameterValues);
+    return slashCommandsStore.expandCommandWithParameters(
+      selectedCommand,
+      parameterValues
+    );
   }
 
   export function handleKeyboardSelect(): void {
@@ -100,13 +103,20 @@
       <div class="dropdown-header">
         <span class="dropdown-title">Configure /{selectedCommand.name}</span>
         <button class="cancel-button" onclick={handleParameterCancel}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
             <line x1="18" y1="6" x2="6" y2="18"></line>
             <line x1="6" y1="6" x2="18" y2="18"></line>
           </svg>
         </button>
       </div>
-      
+
       <div class="parameters-form">
         {#each selectedCommand.parameters || [] as parameter, index (parameter.id)}
           <div class="parameter-group">
@@ -119,7 +129,7 @@
                 <span class="parameter-description">- {parameter.description}</span>
               {/if}
             </label>
-            
+
             {#if parameter.type === 'number'}
               <input
                 type="number"
@@ -159,7 +169,7 @@
 
       <div class="dropdown-footer">
         <div class="parameter-actions">
-          <button 
+          <button
             class="confirm-button"
             onclick={handleParameterConfirm}
             disabled={!canConfirmParameters()}
@@ -170,7 +180,9 @@
             Cancel
           </button>
         </div>
-        <div class="dropdown-hint">Tab through fields • Enter to insert • Escape to cancel</div>
+        <div class="dropdown-hint">
+          Tab through fields • Enter to insert • Escape to cancel
+        </div>
       </div>
     </div>
   {:else if slashCommandsStore.allCommands.length === 0}
@@ -200,7 +212,9 @@
               <div class="command-name">
                 /{command.name}
                 {#if command.parameters && command.parameters.length > 0}
-                  <span class="parameters-indicator">({command.parameters.length} params)</span>
+                  <span class="parameters-indicator"
+                    >({command.parameters.length} params)</span
+                  >
                 {/if}
               </div>
               <div class="command-instruction">

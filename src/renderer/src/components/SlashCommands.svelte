@@ -30,7 +30,11 @@
 
   function saveNewCommand(): void {
     if (newCommandName.trim() && newCommandInstruction.trim()) {
-      slashCommandsStore.addCommand(newCommandName, newCommandInstruction, newCommandParameters);
+      slashCommandsStore.addCommand(
+        newCommandName,
+        newCommandInstruction,
+        newCommandParameters
+      );
       cancelCreating();
     }
   }
@@ -132,27 +136,34 @@
           <textarea
             id="new-instruction"
             bind:value={newCommandInstruction}
-            placeholder="Enter the prompt/instruction for this command... Use {"{parameterName}"} for parameters."
+            placeholder="Enter the prompt/instruction for this command... Use {'{parameterName}'} for parameters."
             rows="3"
           ></textarea>
         </div>
-        
+
         <div class="form-group">
           <div class="parameters-header">
             <label>Parameters</label>
-            <button 
-              type="button" 
-              class="add-parameter-button" 
+            <button
+              type="button"
+              class="add-parameter-button"
               onclick={() => addParameter(newCommandParameters)}
             >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
                 <line x1="12" y1="5" x2="12" y2="19"></line>
                 <line x1="5" y1="12" x2="19" y2="12"></line>
               </svg>
               Add Parameter
             </button>
           </div>
-          
+
           {#each newCommandParameters as parameter, index (parameter.id)}
             <div class="parameter-config">
               <div class="parameter-row">
@@ -160,11 +171,13 @@
                   type="text"
                   placeholder="Parameter name"
                   value={parameter.name}
-                  oninput={(e) => updateParameter(newCommandParameters, index, 'name', e.target.value)}
+                  oninput={(e) =>
+                    updateParameter(newCommandParameters, index, 'name', e.target.value)}
                 />
-                <select 
+                <select
                   value={parameter.type}
-                  onchange={(e) => updateParameter(newCommandParameters, index, 'type', e.target.value)}
+                  onchange={(e) =>
+                    updateParameter(newCommandParameters, index, 'type', e.target.value)}
                 >
                   <option value="text">Text</option>
                   <option value="number">Number</option>
@@ -174,38 +187,63 @@
                   <input
                     type="checkbox"
                     checked={parameter.required}
-                    onchange={(e) => updateParameter(newCommandParameters, index, 'required', e.target.checked)}
+                    onchange={(e) =>
+                      updateParameter(
+                        newCommandParameters,
+                        index,
+                        'required',
+                        e.target.checked
+                      )}
                   />
                   Required
                 </label>
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   class="remove-parameter-button"
                   onclick={() => removeParameter(newCommandParameters, index)}
                   title="Remove parameter"
                 >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
                     <line x1="18" y1="6" x2="6" y2="18"></line>
                     <line x1="6" y1="6" x2="18" y2="18"></line>
                   </svg>
                 </button>
               </div>
-              
+
               {#if !parameter.required}
                 <input
                   type="text"
                   placeholder="Default value (optional)"
                   value={parameter.defaultValue || ''}
-                  oninput={(e) => updateParameter(newCommandParameters, index, 'defaultValue', e.target.value)}
+                  oninput={(e) =>
+                    updateParameter(
+                      newCommandParameters,
+                      index,
+                      'defaultValue',
+                      e.target.value
+                    )}
                   class="parameter-default"
                 />
               {/if}
-              
+
               <input
                 type="text"
                 placeholder="Description (optional)"
                 value={parameter.description || ''}
-                oninput={(e) => updateParameter(newCommandParameters, index, 'description', e.target.value)}
+                oninput={(e) =>
+                  updateParameter(
+                    newCommandParameters,
+                    index,
+                    'description',
+                    e.target.value
+                  )}
                 class="parameter-description"
               />
             </div>
@@ -239,30 +277,37 @@
             </div>
             <div class="form-group">
               <label for="edit-instruction">Instruction</label>
-              <textarea 
-                id="edit-instruction" 
-                bind:value={editCommandInstruction} 
+              <textarea
+                id="edit-instruction"
+                bind:value={editCommandInstruction}
                 rows="3"
-                placeholder="Use {"{parameterName}"} for parameters."
+                placeholder="Use {'{parameterName}'} for parameters."
               ></textarea>
             </div>
-            
+
             <div class="form-group">
               <div class="parameters-header">
                 <label>Parameters</label>
-                <button 
-                  type="button" 
-                  class="add-parameter-button" 
+                <button
+                  type="button"
+                  class="add-parameter-button"
                   onclick={() => addParameter(editCommandParameters)}
                 >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
                     <line x1="12" y1="5" x2="12" y2="19"></line>
                     <line x1="5" y1="12" x2="19" y2="12"></line>
                   </svg>
                   Add Parameter
                 </button>
               </div>
-              
+
               {#each editCommandParameters as parameter, index (parameter.id)}
                 <div class="parameter-config">
                   <div class="parameter-row">
@@ -270,11 +315,23 @@
                       type="text"
                       placeholder="Parameter name"
                       value={parameter.name}
-                      oninput={(e) => updateParameter(editCommandParameters, index, 'name', e.target.value)}
+                      oninput={(e) =>
+                        updateParameter(
+                          editCommandParameters,
+                          index,
+                          'name',
+                          e.target.value
+                        )}
                     />
-                    <select 
+                    <select
                       value={parameter.type}
-                      onchange={(e) => updateParameter(editCommandParameters, index, 'type', e.target.value)}
+                      onchange={(e) =>
+                        updateParameter(
+                          editCommandParameters,
+                          index,
+                          'type',
+                          e.target.value
+                        )}
                     >
                       <option value="text">Text</option>
                       <option value="number">Number</option>
@@ -284,38 +341,63 @@
                       <input
                         type="checkbox"
                         checked={parameter.required}
-                        onchange={(e) => updateParameter(editCommandParameters, index, 'required', e.target.checked)}
+                        onchange={(e) =>
+                          updateParameter(
+                            editCommandParameters,
+                            index,
+                            'required',
+                            e.target.checked
+                          )}
                       />
                       Required
                     </label>
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       class="remove-parameter-button"
                       onclick={() => removeParameter(editCommandParameters, index)}
                       title="Remove parameter"
                     >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                      >
                         <line x1="18" y1="6" x2="6" y2="18"></line>
                         <line x1="6" y1="6" x2="18" y2="18"></line>
                       </svg>
                     </button>
                   </div>
-                  
+
                   {#if !parameter.required}
                     <input
                       type="text"
                       placeholder="Default value (optional)"
                       value={parameter.defaultValue || ''}
-                      oninput={(e) => updateParameter(editCommandParameters, index, 'defaultValue', e.target.value)}
+                      oninput={(e) =>
+                        updateParameter(
+                          editCommandParameters,
+                          index,
+                          'defaultValue',
+                          e.target.value
+                        )}
                       class="parameter-default"
                     />
                   {/if}
-                  
+
                   <input
                     type="text"
                     placeholder="Description (optional)"
                     value={parameter.description || ''}
-                    oninput={(e) => updateParameter(editCommandParameters, index, 'description', e.target.value)}
+                    oninput={(e) =>
+                      updateParameter(
+                        editCommandParameters,
+                        index,
+                        'description',
+                        e.target.value
+                      )}
                     class="parameter-description"
                   />
                 </div>
@@ -389,7 +471,9 @@
                       <span class="parameter-optional">optional</span>
                     {/if}
                     {#if parameter.defaultValue}
-                      <span class="parameter-default">default: "{parameter.defaultValue}"</span>
+                      <span class="parameter-default"
+                        >default: "{parameter.defaultValue}"</span
+                      >
                     {/if}
                     {#if parameter.description}
                       <span class="parameter-description">- {parameter.description}</span>
@@ -689,7 +773,7 @@
     white-space: nowrap;
   }
 
-  .checkbox-label input[type="checkbox"] {
+  .checkbox-label input[type='checkbox'] {
     margin: 0;
     width: auto;
     padding: 0;

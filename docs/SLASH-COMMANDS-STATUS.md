@@ -9,6 +9,7 @@ Slash commands are a user productivity feature that allows users to define custo
 ### ✅ Phase 1: Command Management Interface (Complete)
 
 **Implemented Components:**
+
 - `SlashCommandsStore` (`src/renderer/src/stores/slashCommandsStore.svelte.ts`)
   - Reactive Svelte 5 store with `$state` runes
   - Full CRUD operations (Create, Read, Update, Delete)
@@ -31,27 +32,29 @@ Slash commands are a user productivity feature that allows users to define custo
   - Proper navigation and state management
 
 **Data Model:**
+
 ```typescript
 interface SlashCommand {
-  id: string;           // Unique identifier
-  name: string;         // Command name (e.g., "summarize")
-  instruction: string;  // The prompt text to insert (may contain parameter placeholders)
-  createdAt: Date;      // Creation timestamp
-  updatedAt: Date;      // Last modification timestamp
+  id: string; // Unique identifier
+  name: string; // Command name (e.g., "summarize")
+  instruction: string; // The prompt text to insert (may contain parameter placeholders)
+  createdAt: Date; // Creation timestamp
+  updatedAt: Date; // Last modification timestamp
   parameters?: SlashCommandParameter[]; // Optional parameters (Phase 3)
 }
 
 interface SlashCommandParameter {
-  id: string;           // Parameter identifier
-  name: string;         // Parameter name (e.g., "topic", "length")
+  id: string; // Parameter identifier
+  name: string; // Parameter name (e.g., "topic", "length")
   type: 'text' | 'number' | 'selection'; // Parameter type
-  required: boolean;    // Whether parameter is required
+  required: boolean; // Whether parameter is required
   defaultValue?: string; // Default value for optional parameters
-  description?: string;  // Help text for the parameter
+  description?: string; // Help text for the parameter
 }
 ```
 
 **Key Features:**
+
 - Persistent storage across app sessions
 - Real-time reactive updates
 - Search and filter commands
@@ -63,6 +66,7 @@ interface SlashCommandParameter {
 
 **Command Management:**
 Users can:
+
 1. Navigate to "Slash Commands" in the left sidebar
 2. View all existing slash commands
 3. Create new commands with custom names and instructions
@@ -72,6 +76,7 @@ Users can:
 
 **Agent Panel Usage:**
 Users can:
+
 1. **Type `/`** in the message input to trigger autocomplete
 2. **Start typing** command names to filter results in real-time
 3. **Navigate** with arrow keys (up/down) through command options
@@ -107,6 +112,7 @@ Users can:
    - ✅ Smart word boundary detection
 
 **Technical Implementation:**
+
 - ✅ Full integration with existing chat input system
 - ✅ Comprehensive keyboard event handling (arrows, enter, tab, escape)
 - ✅ Real-time filtering from slashCommandsStore with Svelte 5 reactivity
@@ -122,7 +128,7 @@ Users can:
    - ✅ **Display State**: Shows compact command chips (e.g., `/summarize`)
    - ✅ **Seamless Integration**: Works with existing autocomplete and insertion logic
 
-2. **SlashCommandWidget Implementation** 
+2. **SlashCommandWidget Implementation**
    - ✅ Custom CodeMirror `WidgetType` for chip rendering
    - ✅ Professional chip styling with hover effects and click interactions
    - ✅ Atomic range behavior - cursor jumps over chips as single units
@@ -135,6 +141,7 @@ Users can:
    - ✅ Error handling and edge case management
 
 **Technical Architecture:**
+
 - ✅ CodeMirror decoration system with replacing decorations
 - ✅ Atomic range generation for proper cursor navigation
 - ✅ State effects for managing decoration lifecycle
@@ -142,6 +149,7 @@ Users can:
 - ✅ Modeled after proven wikilinks implementation
 
 **User Interface Benefits:**
+
 - **Clean Visual Design**: Compact `/commandname` chips instead of verbose instruction text
 - **Improved Readability**: Message input remains uncluttered with long commands
 - **Atomic Navigation**: Cursor treats chips as single units for smooth editing
@@ -177,10 +185,11 @@ Users can:
    - Type conversion and validation for different parameter types
 
 **Example Workflow:**
+
 1. User creates command: `/summarize` with parameters: `topic` (required), `length` (optional, default: "brief")
 2. User types `/summarize` in chat input
 3. Autocomplete shows parameterized command with input fields
-4. User tabs through parameter inputs: topic="AI research", length="detailed" 
+4. User tabs through parameter inputs: topic="AI research", length="detailed"
 5. Command expands to full instruction with parameter values substituted
 6. Display shows compact chip with parameter summary
 
@@ -214,6 +223,7 @@ Users can:
    - ✅ Fixed keyboard navigation (both Enter and Tab keys work consistently)
 
 **Technical Implementation:**
+
 - ✅ Full TypeScript support with proper interfaces and type checking
 - ✅ Modern Svelte 5 architecture with `$state`, `$derived`, and runes
 - ✅ Backwards compatibility with existing commands
@@ -225,6 +235,7 @@ Users can:
 ### 🔄 Phase 4: Integration Enhancements (Future)
 
 **System-Wide Integration:**
+
 1. **Global Shortcuts**
    - Keyboard shortcuts for specific commands
    - Quick access without typing slash
@@ -240,6 +251,7 @@ Users can:
 ## Technical Architecture
 
 ### Current File Structure
+
 ```
 src/renderer/src/
 ├── stores/
@@ -257,6 +269,7 @@ src/renderer/src/
 ### Integration Points
 
 **Completed Integrations:**
+
 - ✅ `MessageInput.svelte` - Enhanced with slash command detection and autocomplete
 - ✅ `SlashCommandAutocomplete.svelte` - Professional dropdown component created
 - ✅ `slashCommandsStore.svelte.ts` - Provides search functionality with Svelte 5 reactivity
@@ -265,28 +278,32 @@ src/renderer/src/
 ### Data Flow
 
 **Command Management (Phase 1):**
+
 ```
 User → SlashCommands UI → slashCommandsStore → localStorage
 ```
 
 **Command Usage (Phase 2, 2.5 & 3 - Complete):**
+
 ```
-User types "/" → MessageInput detects → Query slashCommandsStore → 
-Show SlashCommandAutocomplete → User selects command → 
+User types "/" → MessageInput detects → Query slashCommandsStore →
+Show SlashCommandAutocomplete → User selects command →
 [If parameterized: Show parameter input interface → User fills parameters → Confirm] →
-Insert expanded instruction + Create chip decoration with parameter summary → 
+Insert expanded instruction + Create chip decoration with parameter summary →
 Display shows /commandname chip → Send to AI (full expanded instruction text)
 ```
 
 ## Testing Strategy
 
 ### Phase 1 Testing Status
+
 - ✅ Store persistence across app restarts
-- ✅ CRUD operations validation  
+- ✅ CRUD operations validation
 - ✅ UI form validation
 - ✅ Integration with system views navigation
 
 ### Phase 2 Testing Status
+
 - ✅ Autocomplete trigger detection
 - ✅ Keyboard navigation in dropdown (arrow keys, enter, escape, tab)
 - ✅ Text insertion and cursor positioning
@@ -295,6 +312,7 @@ Display shows /commandname chip → Send to AI (full expanded instruction text)
 - ✅ Svelte 5 reactivity and store integration
 
 ### Phase 2.5 Testing Status (Atomic Range Decorations)
+
 - ✅ Atomic range cursor navigation (cursor jumps over chips as single units)
 - ✅ Chip decoration creation and mapping through document changes
 - ✅ Click-to-edit functionality for revealing full instruction text
@@ -304,6 +322,7 @@ Display shows /commandname chip → Send to AI (full expanded instruction text)
 - ✅ Build and TypeScript compilation verification
 
 ### Phase 3 Testing Status (Command Parameters)
+
 - ✅ Parameter definition and configuration in management UI
 - ✅ Parameter validation (required vs optional, type checking)
 - ✅ Parameter input interface display for parameterized commands
@@ -318,6 +337,7 @@ Display shows /commandname chip → Send to AI (full expanded instruction text)
 - ✅ End-to-end workflow testing (create → configure → use → expand)
 
 ### Future Testing Needs
+
 - [ ] Performance optimization with very large command sets (100+ commands)
 - [ ] Cross-browser compatibility testing
 - [ ] Accessibility compliance (screen readers, keyboard-only navigation)
@@ -326,11 +346,13 @@ Display shows /commandname chip → Send to AI (full expanded instruction text)
 ## Known Limitations
 
 **Current:**
+
 - Commands are stored locally only (no sync across devices)
 - No command validation beyond empty checks
 - Static instructions only (no variables or dynamic content)
 
 **Design Considerations:**
+
 - Command names should be unique (currently not enforced)
 - No character limits on instruction length
 - No built-in command templates or suggestions
@@ -338,12 +360,14 @@ Display shows /commandname chip → Send to AI (full expanded instruction text)
 ## Success Metrics
 
 **Phase 1 (Complete):**
+
 - ✅ Users can create and manage slash commands
 - ✅ Commands persist across sessions
 - ✅ Integration with existing UI patterns
 - ✅ Type-safe implementation
 
 **Phase 2 & 2.5 (Complete):**
+
 - ✅ Users can trigger autocomplete by typing `/`
 - ✅ Fast, responsive command filtering with real-time search
 - ✅ Smooth text insertion without UI glitches
@@ -355,6 +379,7 @@ Display shows /commandname chip → Send to AI (full expanded instruction text)
 - ✅ **Click-to-edit** functionality for command modification
 
 **Phase 3 (Complete):**
+
 - ✅ Users can create parameterized commands with different parameter types
 - ✅ Commands support template placeholders with parameter substitution
 - ✅ Interactive parameter input interface with validation
@@ -364,6 +389,7 @@ Display shows /commandname chip → Send to AI (full expanded instruction text)
 - ✅ Backwards compatibility with existing non-parameterized commands
 
 **Phase 4+ (Future):**
+
 - Reduced time to send common prompts with dynamic content
 - User adoption of parameterized command templates
 - Advanced parameter types (selections with predefined options)
@@ -374,7 +400,9 @@ Display shows /commandname chip → Send to AI (full expanded instruction text)
 The slash commands feature is now **fully functional and production-ready** with **comprehensive parameterization support**! Phase 1 (Command Management), Phase 2 (Agent Panel Integration), Phase 2.5 (Atomic Range Decorations), and Phase 3 (Command Parameters) have all been successfully implemented and tested.
 
 ### Current Capabilities
+
 **✅ Complete User Workflow:**
+
 1. **Create commands** via the management interface in the left sidebar
 2. **Configure parameters** with types, required/optional settings, defaults, and descriptions
 3. **Use commands** by typing `/` in the agent panel message input
@@ -386,6 +414,7 @@ The slash commands feature is now **fully functional and production-ready** with
 9. **Click-to-edit** - click any chip to reveal/modify the full instruction
 
 ### Key Achievements
+
 - **Modern Svelte 5 architecture** with proper reactivity patterns
 - **Professional user experience** matching the application's design system
 - **Comprehensive keyboard support** for power users
@@ -396,6 +425,7 @@ The slash commands feature is now **fully functional and production-ready** with
 - **Seamless cursor navigation** with atomic range behavior
 
 ### Enhanced User Experience Benefits
+
 - **🎨 Clean Visual Design**: Compact command chips eliminate message input clutter
 - **🔧 Reversible Editing**: Click any chip to access full instruction text
 - **⚡ Smooth Navigation**: Cursor treats chips as single atomic units
@@ -406,15 +436,18 @@ The slash commands feature is now **fully functional and production-ready** with
 - **⌨️ Consistent Interaction**: Both Enter and Tab keys work identically for command selection
 
 ### Ready for Further Enhancement
+
 The architecture is designed for extensibility, making future phases straightforward to implement:
 
 **Completed Enhancements (Phase 3):**
+
 - ✅ **Extended data model** with parameter definitions and type support
-- ✅ **Enhanced autocomplete UI** with interactive parameter input fields  
+- ✅ **Enhanced autocomplete UI** with interactive parameter input fields
 - ✅ **Template expansion logic** for parameter value substitution
 - ✅ **Updated management interface** with comprehensive parameter configuration
 
 **Future Enhancement Opportunities:**
+
 - **Advanced parameter types** (selections with predefined options, date pickers)
 - **Command categories** for better organization and filtering
 - **Usage analytics** and smart suggestions based on command frequency

@@ -34,24 +34,28 @@ Mobile Layout (<768px):
 ### Primary Components
 
 **App.svelte** - Root application component with state management and event handling
+
 - Three-column responsive grid layout
 - Global keyboard shortcuts (Ctrl+N, Ctrl+O)
 - Message passing between AI service and UI
 - Note navigation and temporary tab management
 
 **LeftSidebar.svelte** - Primary navigation hub
+
 - `VaultSwitcher` component for vault selection
 - `SystemViews` component (Inbox, All notes, Search, Settings)
 - `PinnedNotes` component with visual note type indicators
 - `TemporaryTabs` component with Arc-style tab management
 
 **MainView.svelte** - Central note editing interface
+
 - Note type selector dropdown
 - Full-width markdown editor using CodeMirror
 - Clean typography and responsive design
 - Empty state with helpful prompts
 
 **RightSidebar.svelte** - Contextual assistance panel
+
 - Tabbed interface: AI Assistant / Metadata
 - `AIAssistant` component with task management
 - `MetadataEditor` component with YAML frontmatter editing
@@ -61,6 +65,7 @@ Mobile Layout (<768px):
 The application uses modern Svelte 5 runes for reactive state management:
 
 **Core Stores:**
+
 - `sidebarState.svelte.ts` - Left/right sidebar visibility and modes
 - `temporaryTabsStore.svelte.ts` - Arc-style temporary note tabs
 - `notesStore.svelte.ts` - Note data and vault management (existing)
@@ -68,6 +73,7 @@ The application uses modern Svelte 5 runes for reactive state management:
 - `settingsStore.svelte.ts` - Application preferences (existing)
 
 **Additional Stores:**
+
 - `searchOverlay.svelte.ts` - Global search overlay state
 
 ## Key Features
@@ -75,6 +81,7 @@ The application uses modern Svelte 5 runes for reactive state management:
 ### 1. Sidebar-Based Navigation
 
 **Left Sidebar Structure:**
+
 - **Header**: Hamburger menu toggle and vault switcher
 - **System Views**:
   - Inbox for quick note capture
@@ -87,6 +94,7 @@ The application uses modern Svelte 5 runes for reactive state management:
 ### 2. Advanced AI Integration
 
 **AI Assistant Features:**
+
 - Task management with expandable sections
 - Visual progress indicators (✓ completed, ⟳ in-progress, ○ pending)
 - [[Wikilink]] support in conversations
@@ -95,6 +103,7 @@ The application uses modern Svelte 5 runes for reactive state management:
 - Streaming response support with real-time updates
 
 **Task Management:**
+
 - Automatic task extraction from tool calls
 - Expandable task details with related note links
 - Status-based visual organization
@@ -103,6 +112,7 @@ The application uses modern Svelte 5 runes for reactive state management:
 ### 3. Professional Metadata Editing
 
 **YAML Frontmatter Editor:**
+
 - Real-time validation with line-specific error reporting
 - Support for all YAML data types (strings, numbers, booleans, arrays, dates)
 - Custom field management with add/remove functionality
@@ -110,6 +120,7 @@ The application uses modern Svelte 5 runes for reactive state management:
 - Comprehensive help system with examples
 
 **Metadata Features:**
+
 - Automatic frontmatter generation from note properties
 - Field-specific validation for common metadata
 - Visual parsing preview with interactive editing
@@ -118,6 +129,7 @@ The application uses modern Svelte 5 runes for reactive state management:
 ### 4. Note Management System
 
 **Temporary Tabs:**
+
 - Arc-style tab behavior with automatic population
 - Source tracking (search, wikilink, navigation)
 - 24-hour automatic cleanup
@@ -125,6 +137,7 @@ The application uses modern Svelte 5 runes for reactive state management:
 - Persistence across application sessions
 
 **Note Navigation:**
+
 - Wikilink support with click-to-navigate
 - Multiple note opening sources (search, pinned, navigation)
 - Active note highlighting and state management
@@ -133,12 +146,14 @@ The application uses modern Svelte 5 runes for reactive state management:
 ### 5. Advanced Search and Discovery
 
 **Global Search:**
+
 - Keyboard shortcut activation (Ctrl+O)
 - Full-text search with fuzzy matching
 - Search result integration with temporary tabs
 - Overlay interface that doesn't disrupt workflow
 
 **Note Organization:**
+
 - Visual note type indicators (calendar, folder, document icons)
 - Hierarchical note display in system views
 - Pinned notes for quick access to favorites
@@ -149,6 +164,7 @@ The application uses modern Svelte 5 runes for reactive state management:
 ### Modern Svelte 5 Architecture
 
 **Reactive State with Runes:**
+
 ```typescript
 let activeNote = $state<NoteMetadata | null>(null);
 let messages = $state<Message[]>([]);
@@ -156,11 +172,13 @@ let isLoadingResponse = $state(false);
 ```
 
 **Props and Component Communication:**
+
 ```typescript
 let { activeNote, onNoteSelect, onSystemViewSelect }: Props = $props();
 ```
 
 **Effects for Event Handling:**
+
 ```typescript
 $effect(() => {
   function handleKeyDown(event: KeyboardEvent) {
@@ -174,6 +192,7 @@ $effect(() => {
 ### CSS Grid Layout System
 
 **Responsive Grid:**
+
 ```css
 .app.three-column .app-layout {
   grid-template-columns: min-content 1fr min-content;
@@ -187,12 +206,14 @@ $effect(() => {
 ### Service Layer Architecture
 
 **Chat Service Integration:**
+
 - Streaming message support with real-time updates
 - Tool call handling for task management
 - Model selection integration via `modelStore`
 - Error handling with graceful fallbacks
 
 **Note Service Integration:**
+
 - CRUD operations for note management
 - Vault switching and note type changes
 - Metadata updates with frontmatter synchronization
@@ -203,11 +224,13 @@ $effect(() => {
 ### Responsive Design
 
 **Desktop (>1400px):**
+
 - Full three-column layout with all features visible
 - Sidebar toggle capabilities for focus modes
 - Optimal spacing for note editing and AI interaction
 
 **Mobile (<768px):**
+
 - Single-column layout with overlay sidebars
 - Touch-optimized interactions
 - Preserved functionality across device types
@@ -215,11 +238,13 @@ $effect(() => {
 ### Keyboard Shortcuts
 
 **Global Shortcuts:**
+
 - `Ctrl+Shift+N` - Create new note
 - `Ctrl+O` - Open global search
 - `Ctrl+,` - Access settings (via system views)
 
 **Navigation:**
+
 - Wikilink navigation with [[Note Title]] syntax
 - Click-to-navigate for all note references
 - Tab management for recently accessed notes
@@ -227,12 +252,14 @@ $effect(() => {
 ### Visual Design
 
 **Design System:**
+
 - CSS custom properties for theming support
 - Consistent spacing using logical units
 - Smooth animations and transitions (60fps)
 - Semantic color palette for different note types
 
 **Typography:**
+
 - System font stack for optimal readability
 - Clear hierarchy between title and content
 - Monospace font for code and YAML editing
@@ -240,7 +267,8 @@ $effect(() => {
 **CSS Variables:**
 The application uses CSS custom properties defined in `src/renderer/src/assets/base.css` for consistent theming:
 
-*Color System:*
+_Color System:_
+
 - `--bg-primary`: Primary background color
 - `--bg-secondary`: Secondary background for panels and cards
 - `--bg-tertiary`: Tertiary background for subtle elements
@@ -249,25 +277,29 @@ The application uses CSS custom properties defined in `src/renderer/src/assets/b
 - `--text-muted`: Muted text color for less important information
 - `--text-placeholder`: Placeholder text color for inputs
 
-*Borders and Shadows:*
+_Borders and Shadows:_
+
 - `--border-light`: Light border color for subtle separations
 - `--border-medium`: Medium border color for defined boundaries
 - `--shadow-light`: Light shadow for subtle depth
 - `--shadow-medium`: Medium shadow for elevated elements
 
-*Interactive Elements:*
+_Interactive Elements:_
+
 - `--accent-primary`: Primary accent color for buttons and links
 - `--accent-hover`: Darker accent color for hover states
 - `--accent-light`: Light accent color with transparency for backgrounds
 
-*Message Components:*
+_Message Components:_
+
 - `--message-user-bg`: Background color for user messages
 - `--message-user-text`: Text color for user messages
 - `--message-agent-bg`: Background color for agent messages
 - `--message-agent-text`: Text color for agent messages
 - `--message-agent-border`: Border color for agent messages
 
-*Scrollbar Styling:*
+_Scrollbar Styling:_
+
 - `--scrollbar-thumb`: Default scrollbar thumb color
 - `--scrollbar-thumb-hover`: Scrollbar thumb color on hover
 
@@ -278,6 +310,7 @@ The color system automatically adapts between light and dark themes using `@medi
 ### ✅ Completed Features
 
 **Phase 1-4 Implementation (Current State):**
+
 - ✅ Three-column sidebar-based layout
 - ✅ Complete left sidebar navigation system
 - ✅ AI Assistant with task management and wikilink support
@@ -289,6 +322,7 @@ The color system automatically adapts between light and dark themes using `@medi
 - ✅ Professional UI with smooth animations
 
 **Advanced Features:**
+
 - ✅ Real-time AI streaming with tool call support
 - ✅ Contextual note inclusion in AI conversations
 - ✅ Advanced metadata editing with validation
@@ -298,12 +332,14 @@ The color system automatically adapts between light and dark themes using `@medi
 ### 🔄 Ongoing Enhancements
 
 **Performance Optimizations:**
+
 - Virtual scrolling for large note collections
 - Debounced auto-save functionality
 - Efficient memory usage for temporary tabs
 - Optimized search indexing
 
 **User Experience:**
+
 - Comprehensive keyboard navigation
 - Advanced accessibility features
 - Theme customization options
@@ -312,24 +348,28 @@ The color system automatically adapts between light and dark themes using `@medi
 ## Design Principles
 
 ### 1. Agent-First Philosophy
+
 - AI assistant remains central to the workflow
 - Natural language commands drive operations
 - Contextual note inclusion enhances AI responses
 - Task-oriented interface for productivity
 
 ### 2. Clean, Focused Interface
+
 - Minimal cognitive load with contextual UI
 - Distraction-free editing environment
 - Information hierarchy that guides attention
 - Progressive disclosure of advanced features
 
 ### 3. Responsive and Accessible
+
 - Mobile-first design approach
 - Full keyboard navigation support
 - Screen reader compatibility
 - High contrast mode support
 
 ### 4. Professional Note Management
+
 - Enterprise-grade metadata capabilities
 - Robust search and discovery features
 - Reliable auto-save and data persistence
@@ -338,18 +378,21 @@ The color system automatically adapts between light and dark themes using `@medi
 ## Technical Architecture Benefits
 
 ### Modern Technology Stack
+
 - Svelte 5 with runes for optimal performance
 - TypeScript for type safety and maintainability
 - CSS Grid for flexible layout management
 - Electron for cross-platform desktop deployment
 
 ### Scalable Component Design
+
 - Modular component architecture
 - Clear separation of concerns
 - Reusable UI components and patterns
 - Comprehensive state management
 
 ### Performance and Reliability
+
 - Efficient memory usage and cleanup
 - Debounced operations to prevent excessive API calls
 - Graceful error handling and user feedback
@@ -362,6 +405,7 @@ The current Flint GUI successfully implements a modern, professional note-taking
 The implementation represents a significant evolution from the original tab-based design, offering improved scalability, better information architecture, and enhanced user experience. The combination of advanced AI integration, professional metadata management, and responsive design creates a comprehensive note-taking solution suitable for both casual and professional use cases.
 
 Key achievements include:
+
 - Modern three-column layout with responsive behavior
 - Advanced AI assistant with task management and contextual note integration
 - Professional metadata editing with YAML frontmatter support
