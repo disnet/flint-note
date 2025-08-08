@@ -1,5 +1,6 @@
 <script lang="ts">
   import ModelSelector from './ModelSelector.svelte';
+  import SlashCommandAutocomplete from './SlashCommandAutocomplete.svelte';
   import { onMount, onDestroy } from 'svelte';
   import { EditorView } from 'codemirror';
   import { EditorState, StateEffect, type Extension } from '@codemirror/state';
@@ -16,6 +17,10 @@
   import { searchKeymap, highlightSelectionMatches } from '@codemirror/search';
   import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
   import { wikilinksExtension } from '../lib/wikilinks.svelte.js';
+  import {
+    slashCommandsStore,
+    type SlashCommand
+  } from '../stores/slashCommandsStore.svelte.ts';
 
   let { onSend }: { onSend: (text: string) => void } = $props();
 
@@ -26,6 +31,12 @@
   // Reactive theme state
   let isDarkMode = $state(false);
   let mediaQuery: MediaQueryList | null = null;
+
+  // Slash command autocomplete state
+  let showAutocomplete = $state(false);
+  let autocompleteQuery = $state('');
+  let selectedCommandIndex = $state(0);
+  let slashCommandStart = $state(0);
 
   function handleSubmit(): void {
     const text = inputText.trim();
@@ -47,6 +58,113 @@
     editorView?.focus();
   }
 
+  function detectSlashCommand(text: string, cursorPos: number): void {
+    // Find the last slash before the cursor
+    const beforeCursor = text.substring(0, cursorPos);
+    const lastSlashIndex = beforeCursor.lastIndexOf('/');
+
+    if (lastSlashIndex === -1) {
+      hideAutocomplete();
+      return;
+    }
+
+    // Check if there's a word boundary before the slash (start of line or whitespace)
+    const charBeforeSlash = lastSlashIndex > 0 ? beforeCursor[lastSlashIndex - 1] : null;
+    if (charBeforeSlash !== null && charBeforeSlash !== ' ' && charBeforeSlash !== '\n') {
+      hideAutocomplete();
+      return;
+    }
+
+    // Get text after slash up to cursor
+    const afterSlash = beforeCursor.substring(lastSlashIndex + 1);
+
+    // Check if there are any spaces after the slash (which would end the command)
+    if (afterSlash.includes(' ') || afterSlash.includes('\n')) {
+      hideAutocomplete();
+      return;
+    }
+
+    // Show autocomplete with the query
+    slashCommandStart = lastSlashIndex;
+    autocompleteQuery = afterSlash;
+    showAutocomplete = true;
+    selectedCommandIndex = 0;
+  }
+
+  function hideAutocomplete(): void {
+    showAutocomplete = false;
+    autocompleteQuery = '';
+    selectedCommandIndex = 0;
+    slashCommandStart = 0;
+  }
+
+  function handleCommandSelect(command: SlashCommand): void {
+    if (!editorView) return;
+
+    const cursorPos = editorView.state.selection.main.head;
+    const text = editorView.state.doc.toString();
+
+    // Replace from slash to cursor with the command instruction
+    const beforeSlash = text.substring(0, slashCommandStart);
+    const afterCursor = text.substring(cursorPos);
+    const newText = beforeSlash + command.instruction + afterCursor;
+
+    editorView.dispatch({
+      changes: { from: 0, to: text.length, insert: newText },
+      selection: { anchor: beforeSlash.length + command.instruction.length }
+    });
+
+    hideAutocomplete();
+    editorView.focus();
+  }
+
+  function handleAutocompleteCancel(): void {
+    hideAutocomplete();
+    editorView?.focus();
+  }
+
+  function handleAutocompleteKeyDown(event: KeyboardEvent): boolean {
+    if (!showAutocomplete) return false;
+
+    const filteredCommands = autocompleteQuery
+      ? slashCommandsStore.searchCommands(autocompleteQuery)
+      : slashCommandsStore.allCommands.slice(0, 5);
+
+    switch (event.key) {
+      case 'ArrowUp':
+        event.preventDefault();
+        selectedCommandIndex =
+          selectedCommandIndex > 0
+            ? selectedCommandIndex - 1
+            : filteredCommands.length - 1;
+        return true;
+
+      case 'ArrowDown':
+        event.preventDefault();
+        selectedCommandIndex =
+          selectedCommandIndex < filteredCommands.length - 1
+            ? selectedCommandIndex + 1
+            : 0;
+        return true;
+
+      case 'Enter':
+      case 'Tab':
+        event.preventDefault();
+        if (filteredCommands[selectedCommandIndex]) {
+          handleCommandSelect(filteredCommands[selectedCommandIndex]);
+        }
+        return true;
+
+      case 'Escape':
+        event.preventDefault();
+        hideAutocomplete();
+        return true;
+
+      default:
+        return false;
+    }
+  }
+
   function handleThemeChange(e: MediaQueryListEvent): void {
     isDarkMode = e.matches;
     updateEditorTheme();
@@ -61,6 +179,17 @@
         {
           key: 'Enter',
           run: (view) => {
+            // Check if autocomplete is showing and should handle this
+            if (showAutocomplete) {
+              const filteredCommands = autocompleteQuery
+                ? slashCommandsStore.searchCommands(autocompleteQuery)
+                : slashCommandsStore.allCommands.slice(0, 5);
+              if (filteredCommands[selectedCommandIndex]) {
+                handleCommandSelect(filteredCommands[selectedCommandIndex]);
+                return true;
+              }
+            }
+
             const text = view.state.doc.toString().trim();
             if (text) {
               handleSubmit();
@@ -75,6 +204,40 @@
             // Allow line breaks with Shift+Enter
             view.dispatch(view.state.replaceSelection('\n'));
             return true;
+          }
+        },
+        {
+          key: 'Escape',
+          run: (_view) => {
+            if (showAutocomplete) {
+              hideAutocomplete();
+              return true;
+            }
+            return false;
+          }
+        },
+        {
+          key: 'ArrowUp',
+          run: (_view) => {
+            return handleAutocompleteKeyDown(
+              new KeyboardEvent('keydown', { key: 'ArrowUp' })
+            );
+          }
+        },
+        {
+          key: 'ArrowDown',
+          run: (_view) => {
+            return handleAutocompleteKeyDown(
+              new KeyboardEvent('keydown', { key: 'ArrowDown' })
+            );
+          }
+        },
+        {
+          key: 'Tab',
+          run: (_view) => {
+            return handleAutocompleteKeyDown(
+              new KeyboardEvent('keydown', { key: 'Tab' })
+            );
           }
         }
       ]),
@@ -118,8 +281,13 @@
       }),
       wikilinksExtension(handleWikilinkClick),
       EditorView.updateListener.of((update) => {
-        if (update.docChanged) {
-          inputText = update.state.doc.toString();
+        if (update.docChanged || update.selectionSet) {
+          const newText = update.state.doc.toString();
+          inputText = newText;
+
+          // Detect slash commands on text change or cursor movement
+          const cursorPos = update.state.selection.main.head;
+          detectSlashCommand(newText, cursorPos);
         }
       }),
       EditorView.lineWrapping
@@ -173,6 +341,14 @@
 <div class="message-input">
   <div class="input-container">
     <div bind:this={editorContainer} class="editor-field"></div>
+    {#if showAutocomplete}
+      <SlashCommandAutocomplete
+        query={autocompleteQuery}
+        onSelect={handleCommandSelect}
+        onCancel={handleAutocompleteCancel}
+        selectedIndex={selectedCommandIndex}
+      />
+    {/if}
   </div>
   <div class="controls-row">
     <div class="model-selector-wrapper">
@@ -195,6 +371,7 @@
   }
 
   .input-container {
+    position: relative;
     background: var(--bg-primary);
     /*border: 1px solid var(--border-light);*/
     /*border-radius: 1.5rem;*/
