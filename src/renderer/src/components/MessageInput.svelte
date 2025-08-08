@@ -33,7 +33,7 @@
   let { onSend }: { onSend: (text: string) => void } = $props();
 
   let inputText = $state('');
-  let autocompleteComponent: SlashCommandAutocompleteType;
+  let autocompleteComponent = $state<SlashCommandAutocompleteType | null>(null);
 
   // Slash command widget for atomic display
   class SlashCommandWidget extends WidgetType {
@@ -161,6 +161,7 @@
   let autocompleteQuery = $state('');
   let selectedCommandIndex = $state(0);
   let slashCommandStart = $state(0);
+  let isInParameterMode = $state(false);
 
   function handleSubmit(): void {
     const text = inputText.trim();
@@ -183,6 +184,11 @@
   }
 
   function detectSlashCommand(text: string, cursorPos: number): void {
+    // Don't detect slash commands if we're in parameter input mode
+    if (isInParameterMode) {
+      return;
+    }
+
     // Find the last slash before the cursor
     const beforeCursor = text.substring(0, cursorPos);
     const lastSlashIndex = beforeCursor.lastIndexOf('/');
@@ -220,6 +226,40 @@
     autocompleteQuery = '';
     selectedCommandIndex = 0;
     slashCommandStart = 0;
+    isInParameterMode = false;
+  }
+
+  function handleParameterModeEnter(command: SlashCommand): void {
+    if (!editorView) return;
+
+    const cursorPos = editorView.state.selection.main.head;
+    const text = editorView.state.doc.toString();
+
+    // Replace /command with chip immediately when entering parameter mode
+    const beforeSlash = text.substring(0, slashCommandStart);
+    const afterCursor = text.substring(cursorPos);
+    const chipText = command.instruction; // Use full instruction initially
+    const newText = beforeSlash + chipText + afterCursor;
+
+    const chipStart = beforeSlash.length;
+    const chipEnd = beforeSlash.length + chipText.length;
+
+    // Enter parameter mode to prevent slash command detection from hiding autocomplete
+    isInParameterMode = true;
+
+    editorView.dispatch({
+      changes: { from: 0, to: text.length, insert: newText },
+      selection: { anchor: chipEnd },
+      effects: [
+        addSlashCommandEffect.of({
+          from: chipStart,
+          to: chipEnd,
+          commandName: command.name
+        })
+      ]
+    });
+
+    // Keep autocomplete open - it will show parameter input interface
   }
 
   function handleCommandSelect(
@@ -228,31 +268,30 @@
   ): void {
     if (!editorView) return;
 
-    const cursorPos = editorView.state.selection.main.head;
-    const text = editorView.state.doc.toString();
-
-    // Get the expanded instruction text (with parameters if provided)
-    let instructionText: string;
+    // If this is a parameterized command completion, update the existing chip
     if (parameterValues) {
-      instructionText = slashCommandsStore.expandCommandWithParameters(
+      const text = editorView.state.doc.toString();
+      const instructionText = slashCommandsStore.expandCommandWithParameters(
         command,
         parameterValues
       );
-    } else {
-      instructionText = command.instruction;
-    }
 
-    // Replace from slash to cursor with the command instruction
-    const beforeSlash = text.substring(0, slashCommandStart);
-    const afterCursor = text.substring(cursorPos);
-    const newText = beforeSlash + instructionText + afterCursor;
+      // Find and replace the chip content with expanded instruction
+      const decorations = editorView.state.field(slashCommandField);
+      let chipStart = 0;
+      let chipEnd = text.length;
 
-    const instructionStart = beforeSlash.length;
-    const instructionEnd = beforeSlash.length + instructionText.length;
+      // Find the current chip range
+      decorations.between(0, text.length, (from, to, value) => {
+        if (value.spec.widget instanceof SlashCommandWidget) {
+          chipStart = from;
+          chipEnd = to;
+          return false; // Stop iteration
+        }
+      });
 
-    // Create chip name that includes parameter info if present
-    let chipName = command.name;
-    if (parameterValues && Object.keys(parameterValues).some((k) => parameterValues[k])) {
+      // Create chip name that includes parameter info
+      let chipName = command.name;
       const filledParams = Object.entries(parameterValues)
         .filter(([_, value]) => value && value.trim())
         .map(
@@ -263,21 +302,59 @@
       if (filledParams) {
         chipName += ` (${filledParams})`;
       }
+
+      // Replace chip content with expanded instruction and update chip name
+      const beforeChip = text.substring(0, chipStart);
+      const afterChip = text.substring(chipEnd);
+      const newText = beforeChip + instructionText + afterChip;
+
+      const newChipEnd = chipStart + instructionText.length;
+
+      editorView.dispatch({
+        changes: { from: 0, to: text.length, insert: newText },
+        selection: { anchor: newChipEnd },
+        effects: [
+          removeSlashCommandEffect.of({ from: chipStart, to: chipEnd }),
+          addSlashCommandEffect.of({
+            from: chipStart,
+            to: newChipEnd,
+            commandName: chipName
+          })
+        ]
+      });
+    } else {
+      // Non-parameterized command - handle as before
+      const cursorPos = editorView.state.selection.main.head;
+      const text = editorView.state.doc.toString();
+      const instructionText = command.instruction;
+
+      const beforeSlash = text.substring(0, slashCommandStart);
+      const afterCursor = text.substring(cursorPos);
+      const newText = beforeSlash + instructionText + afterCursor;
+
+      const instructionStart = beforeSlash.length;
+      const instructionEnd = beforeSlash.length + instructionText.length;
+
+      editorView.dispatch({
+        changes: { from: 0, to: text.length, insert: newText },
+        selection: { anchor: instructionEnd },
+        effects: [
+          addSlashCommandEffect.of({
+            from: instructionStart,
+            to: instructionEnd,
+            commandName: command.name
+          })
+        ]
+      });
     }
 
-    editorView.dispatch({
-      changes: { from: 0, to: text.length, insert: newText },
-      selection: { anchor: instructionEnd },
-      effects: [
-        addSlashCommandEffect.of({
-          from: instructionStart,
-          to: instructionEnd,
-          commandName: chipName
-        })
-      ]
-    });
+    // Hide autocomplete when:
+    // 1. We're completing a parameterized command (parameterValues provided)
+    // 2. The command has no parameters (immediate completion)
+    if (parameterValues || !command.parameters || command.parameters.length === 0) {
+      hideAutocomplete();
+    }
 
-    hideAutocomplete();
     editorView.focus();
   }
 
@@ -288,6 +365,9 @@
 
   function handleAutocompleteKeyDown(event: KeyboardEvent): boolean {
     if (!showAutocomplete) return false;
+
+    // If we're in parameter mode, don't handle keys here - let the autocomplete component handle them
+    if (isInParameterMode) return false;
 
     const filteredCommands = autocompleteQuery
       ? slashCommandsStore.searchCommands(autocompleteQuery)
@@ -542,6 +622,7 @@
         onSelect={handleCommandSelect}
         onCancel={handleAutocompleteCancel}
         selectedIndex={selectedCommandIndex}
+        onParameterModeEnter={handleParameterModeEnter}
       />
     {/if}
   </div>

@@ -9,13 +9,55 @@
     onSelect: (command: SlashCommand, parameterValues?: Record<string, string>) => void;
     onCancel: () => void;
     selectedIndex: number;
+    onParameterModeEnter?: (command: SlashCommand) => void;
   }
 
-  let { query, onSelect, selectedIndex }: Props = $props();
+  let { query, onSelect, selectedIndex, onParameterModeEnter }: Props = $props();
 
   let selectedCommand = $state<SlashCommand | null>(null);
   let parameterValues = $state<Record<string, string>>({});
   let currentParameterIndex = $state(0);
+  let firstParameterInput: HTMLInputElement | HTMLSelectElement | null = null;
+
+  // Action to capture first parameter input for focus
+  function focusFirstParameter(
+    node: HTMLInputElement | HTMLSelectElement,
+    isFirst: boolean
+  ): void {
+    if (isFirst) {
+      firstParameterInput = node;
+    }
+  }
+
+  function handleParameterKeyDown(event: KeyboardEvent): void {
+    switch (event.key) {
+      case 'Enter':
+        event.preventDefault();
+        if (canConfirmParameters()) {
+          handleParameterConfirm();
+        } else {
+          // Provide visual feedback - briefly highlight required fields that are empty
+          const firstEmptyRequired = selectedCommand?.parameters?.find((param) => {
+            if (param.required) {
+              const value = parameterValues[param.name];
+              return !value || value.trim().length === 0;
+            }
+            return false;
+          });
+          if (firstEmptyRequired) {
+            // Find the input field and briefly highlight it
+            // For now, just ensure it exists - could add visual feedback later
+            console.log(`Please fill required parameter: ${firstEmptyRequired.name}`);
+          }
+        }
+        break;
+      case 'Escape':
+        event.preventDefault();
+        handleParameterCancel();
+        break;
+      // Let Tab handle normal field navigation
+    }
+  }
 
   // Filter commands based on the query
   function getFilteredCommands(): SlashCommand[] {
@@ -32,6 +74,11 @@
 
   function handleCommandClick(command: SlashCommand): void {
     if (command.parameters && command.parameters.length > 0) {
+      // Notify parent to replace /command with chip immediately
+      if (onParameterModeEnter) {
+        onParameterModeEnter(command);
+      }
+
       // Show parameter input interface
       selectedCommand = command;
       parameterValues = {};
@@ -40,6 +87,13 @@
         parameterValues[param.name] = param.defaultValue || '';
       });
       currentParameterIndex = 0;
+
+      // Auto-focus first parameter in next tick
+      setTimeout(() => {
+        if (firstParameterInput) {
+          firstParameterInput.focus();
+        }
+      }, 0);
     } else {
       // Command has no parameters, select immediately
       onSelect(command);
@@ -136,12 +190,16 @@
                 class:focused={index === currentParameterIndex}
                 bind:value={parameterValues[parameter.name]}
                 placeholder={parameter.defaultValue || `Enter ${parameter.name}...`}
+                use:focusFirstParameter={index === 0}
+                onkeydown={handleParameterKeyDown}
               />
             {:else if parameter.type === 'selection'}
               <select
                 class="parameter-input"
                 class:focused={index === currentParameterIndex}
                 bind:value={parameterValues[parameter.name]}
+                use:focusFirstParameter={index === 0}
+                onkeydown={handleParameterKeyDown}
               >
                 <option value="">Select {parameter.name}...</option>
                 <!-- TODO: Add selection options based on parameter configuration -->
@@ -153,6 +211,8 @@
                 class:focused={index === currentParameterIndex}
                 bind:value={parameterValues[parameter.name]}
                 placeholder={parameter.defaultValue || `Enter ${parameter.name}...`}
+                use:focusFirstParameter={index === 0}
+                onkeydown={handleParameterKeyDown}
               />
             {/if}
           </div>

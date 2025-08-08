@@ -91,7 +91,7 @@
     parametersList: SlashCommandParameter[],
     index: number,
     field: keyof SlashCommandParameter,
-    value: any
+    value: string | boolean
   ): void {
     if (parametersList[index]) {
       parametersList[index] = { ...parametersList[index], [field]: value };
