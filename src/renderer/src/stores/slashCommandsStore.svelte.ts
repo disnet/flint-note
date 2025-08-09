@@ -1,7 +1,7 @@
 interface SlashCommandParameter {
   id: string;
   name: string;
-  type: 'text' | 'number' | 'selection';
+  type: 'text' | 'number' | 'selection' | 'textblock';
   required: boolean;
   defaultValue?: string;
   description?: string;

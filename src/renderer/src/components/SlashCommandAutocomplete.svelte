@@ -3,6 +3,7 @@
     slashCommandsStore,
     type SlashCommand
   } from '../stores/slashCommandsStore.svelte';
+  import TextBlockEditor from './TextBlockEditor.svelte';
 
   interface Props {
     query: string;
@@ -18,6 +19,7 @@
   let parameterValues = $state<Record<string, string>>({});
   let currentParameterIndex = $state(0);
   let firstParameterInput: HTMLInputElement | HTMLSelectElement | null = null;
+  let textBlockEditors = $state<Record<string, { focus: () => void }>>({});
 
   // Action to capture first parameter input for focus
   function focusFirstParameter(
@@ -32,22 +34,25 @@
   function handleParameterKeyDown(event: KeyboardEvent): void {
     switch (event.key) {
       case 'Enter':
-        event.preventDefault();
-        if (canConfirmParameters()) {
-          handleParameterConfirm();
-        } else {
-          // Provide visual feedback - briefly highlight required fields that are empty
-          const firstEmptyRequired = selectedCommand?.parameters?.find((param) => {
-            if (param.required) {
-              const value = parameterValues[param.name];
-              return !value || value.trim().length === 0;
+        // For Ctrl+Enter or Meta+Enter (from textblock), always confirm if possible
+        if (event.ctrlKey || event.metaKey || !isTextBlockFocused()) {
+          event.preventDefault();
+          if (canConfirmParameters()) {
+            handleParameterConfirm();
+          } else {
+            // Provide visual feedback - briefly highlight required fields that are empty
+            const firstEmptyRequired = selectedCommand?.parameters?.find((param) => {
+              if (param.required) {
+                const value = parameterValues[param.name];
+                return !value || value.trim().length === 0;
+              }
+              return false;
+            });
+            if (firstEmptyRequired) {
+              // Find the input field and briefly highlight it
+              // For now, just ensure it exists - could add visual feedback later
+              console.log(`Please fill required parameter: ${firstEmptyRequired.name}`);
             }
-            return false;
-          });
-          if (firstEmptyRequired) {
-            // Find the input field and briefly highlight it
-            // For now, just ensure it exists - could add visual feedback later
-            console.log(`Please fill required parameter: ${firstEmptyRequired.name}`);
           }
         }
         break;
@@ -57,6 +62,19 @@
         break;
       // Let Tab handle normal field navigation
     }
+  }
+
+  function handleTextBlockKeyDown(parameterName: string, event: KeyboardEvent): void {
+    if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+      handleParameterKeyDown(event);
+    } else if (event.key === 'Escape') {
+      handleParameterKeyDown(event);
+    }
+  }
+
+  function isTextBlockFocused(): boolean {
+    const activeElement = document.activeElement;
+    return activeElement && activeElement.closest('.textblock-editor') !== null;
   }
 
   // Filter commands based on the query
@@ -82,6 +100,7 @@
       // Show parameter input interface
       selectedCommand = command;
       parameterValues = {};
+      textBlockEditors = {};
       // Initialize with default values
       command.parameters.forEach((param) => {
         parameterValues[param.name] = param.defaultValue || '';
@@ -92,6 +111,12 @@
       setTimeout(() => {
         if (firstParameterInput) {
           firstParameterInput.focus();
+        } else {
+          // Try to focus first textblock editor
+          const firstTextBlock = Object.values(textBlockEditors)[0];
+          if (firstTextBlock && firstTextBlock.focus) {
+            firstTextBlock.focus();
+          }
         }
       }, 0);
     } else {
@@ -105,6 +130,7 @@
       onSelect(selectedCommand, parameterValues);
       selectedCommand = null;
       parameterValues = {};
+      textBlockEditors = {};
       currentParameterIndex = 0;
     }
   }
@@ -112,6 +138,7 @@
   function handleParameterCancel(): void {
     selectedCommand = null;
     parameterValues = {};
+    textBlockEditors = {};
     currentParameterIndex = 0;
   }
 
@@ -204,6 +231,17 @@
                 <option value="">Select {parameter.name}...</option>
                 <!-- TODO: Add selection options based on parameter configuration -->
               </select>
+            {:else if parameter.type === 'textblock'}
+              <TextBlockEditor
+                bind:this={textBlockEditors[parameter.name]}
+                value={parameterValues[parameter.name]}
+                placeholder={parameter.description || `Enter ${parameter.name}...`}
+                onValueChange={(value) => {
+                  parameterValues[parameter.name] = value;
+                }}
+                onKeyDown={(event) => handleTextBlockKeyDown(parameter.name, event)}
+                minHeight="120px"
+              />
             {:else}
               <input
                 type="text"
@@ -440,7 +478,7 @@
 
   /* Parameter input interface styles */
   .parameter-input-mode {
-    max-height: 500px;
+    max-height: 600px;
   }
 
   .parameters-form {
@@ -448,7 +486,7 @@
     display: flex;
     flex-direction: column;
     gap: 1rem;
-    max-height: 300px;
+    max-height: 400px;
     overflow-y: auto;
   }
 
@@ -456,6 +494,11 @@
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+  }
+
+  /* Special handling for textblock parameters */
+  .parameter-group :global(.textblock-editor) {
+    flex: 1;
   }
 
   .parameter-label {

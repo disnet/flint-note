@@ -187,6 +187,7 @@
                   <option value="text">Text</option>
                   <option value="number">Number</option>
                   <option value="selection">Selection</option>
+                  <option value="textblock">Text Block</option>
                 </select>
                 <label class="checkbox-label">
                   <input
@@ -341,6 +342,7 @@
                       <option value="text">Text</option>
                       <option value="number">Number</option>
                       <option value="selection">Selection</option>
+                      <option value="textblock">Text Block</option>
                     </select>
                     <label class="checkbox-label">
                       <input
