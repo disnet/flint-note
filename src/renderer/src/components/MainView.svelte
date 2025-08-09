@@ -6,7 +6,10 @@
   import SlashCommands from './SlashCommands.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
   import { pinnedNotesStore } from '../services/pinnedStore';
+  import { ViewRegistry } from '../lib/views';
+  import { getChatService } from '../services/chatService.js';
   import type { NoteMetadata, NoteType } from '../services/noteStore.svelte';
+  import type { Note } from '../services/types';
 
   interface Props {
     activeNote: NoteMetadata | null;
@@ -31,6 +34,11 @@
   let noteEditor = $state<{ focus?: () => void } | null>(null);
   let isChangingType = $state(false);
   let isPinned = $state(false);
+  let customView = $state<{ component: any } | null>(null);
+  let useCustomView = $state(false);
+  let noteContent = $state('');
+  let noteData = $state<Note | null>(null);
+  let isLoadingNote = $state(false);
 
   // Subscribe to pinned notes store to update isPinned reactively
   $effect(() => {
@@ -91,6 +99,82 @@
       setTimeout(focusEditor, 100);
     }
   });
+
+  // Load custom view and note content when active note changes
+  $effect(() => {
+    if (activeNote) {
+      loadNoteAndView(activeNote);
+    } else {
+      customView = null;
+      useCustomView = false;
+      noteContent = '';
+      noteData = null;
+    }
+  });
+
+  async function loadNoteAndView(note: NoteMetadata): Promise<void> {
+    try {
+      isLoadingNote = true;
+
+      // Check for custom view
+      const view = ViewRegistry.getView(note.type, 'hybrid');
+      customView = view;
+      useCustomView = !!view;
+
+      // Load note content
+      const noteService = getChatService();
+      if (await noteService.isReady()) {
+        const result = await noteService.getNote({ identifier: note.id });
+        noteData = result;
+        noteContent = result?.content ?? '';
+      }
+    } catch (error) {
+      console.error('Error loading note and view:', error);
+      customView = null;
+      useCustomView = false;
+      noteContent = '';
+      noteData = null;
+    } finally {
+      isLoadingNote = false;
+    }
+  }
+
+  async function handleContentChange(newContent: string): Promise<void> {
+    noteContent = newContent;
+    await saveNote();
+  }
+
+  async function handleMetadataChange(newMetadata: NoteMetadata): Promise<void> {
+    if (!activeNote || !noteData) return;
+
+    try {
+      const noteService = getChatService();
+      await noteService.updateNote({
+        identifier: activeNote.id,
+        content: noteContent,
+        metadata: newMetadata
+      });
+
+      // Update local noteData
+      noteData = { ...noteData, ...newMetadata };
+    } catch (error) {
+      console.error('Error updating metadata:', error);
+    }
+  }
+
+  async function saveNote(): Promise<void> {
+    if (!activeNote || !noteData) return;
+
+    try {
+      const noteService = getChatService();
+      await noteService.updateNote({
+        identifier: activeNote.id,
+        content: noteContent
+      });
+    } catch (error) {
+      console.error('Error saving note:', error);
+    }
+  }
 </script>
 
 <div class="main-view">
@@ -193,7 +277,29 @@
     </div>
 
     <div class="note-content">
-      <NoteEditor bind:this={noteEditor} note={activeNote} position="nested" {onClose} />
+      {#if isLoadingNote}
+        <div class="loading-state">
+          <div class="loading-spinner"></div>
+          <p>Loading note...</p>
+        </div>
+      {:else if useCustomView && customView && noteData}
+        {@const CustomComponent = customView.component}
+        <CustomComponent
+          {activeNote}
+          {noteContent}
+          metadata={noteData}
+          onContentChange={handleContentChange}
+          onMetadataChange={handleMetadataChange}
+          onSave={saveNote}
+        />
+      {:else}
+        <NoteEditor
+          bind:this={noteEditor}
+          note={activeNote}
+          position="nested"
+          {onClose}
+        />
+      {/if}
     </div>
   {:else}
     <div class="empty-state">
@@ -321,6 +427,34 @@
     width: 100%;
   }
 
+  .loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 1rem;
+    color: var(--text-secondary);
+  }
+
+  .loading-spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid var(--border-light);
+    border-top: 3px solid var(--accent-primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+
   .empty-state {
     flex: 1;
     display: flex;
@@ -382,11 +516,6 @@
     flex-direction: column;
   }
 
-  .chat-input {
-    border-top: 1px solid var(--border-light);
-    background: var(--bg-primary);
-  }
-
   @media (max-width: 768px) {
     .note-header {
       padding: 0.75rem 1rem;
@@ -406,10 +535,6 @@
 
     .system-view-header h1 {
       font-size: 1.75rem;
-    }
-
-    .search-container {
-      padding: 1.5rem 1rem;
     }
   }
 </style>

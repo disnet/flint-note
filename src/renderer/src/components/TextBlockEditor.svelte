@@ -113,41 +113,43 @@
       // Use minimalSetup instead of basicSetup (excludes line numbers)
       minimalSetup,
       // Custom keymap with highest precedence
-      Prec.highest(keymap.of([
-        {
-          key: 'Escape',
-          run: () => {
-            if (onKeyDown) {
-              const event = new KeyboardEvent('keydown', { 
-                key: 'Escape',
-                bubbles: true,
-                cancelable: true
-              });
-              onKeyDown(event);
+      Prec.highest(
+        keymap.of([
+          {
+            key: 'Escape',
+            run: () => {
+              if (onKeyDown) {
+                const event = new KeyboardEvent('keydown', {
+                  key: 'Escape',
+                  bubbles: true,
+                  cancelable: true
+                });
+                onKeyDown(event);
+              }
+              return true;
             }
-            return true;
-          }
-        },
-        {
-          key: 'Mod-Enter',
-          run: (view) => {
-            if (onKeyDown) {
-              // Determine if we're on Mac (Cmd) or PC (Ctrl)
-              const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-              const event = new KeyboardEvent('keydown', {
-                key: 'Enter',
-                ctrlKey: !isMac,
-                metaKey: isMac,
-                bubbles: true,
-                cancelable: true
-              });
-              onKeyDown(event);
-              return true; // Prevent default CodeMirror behavior
+          },
+          {
+            key: 'Mod-Enter',
+            run: (view) => {
+              if (onKeyDown) {
+                // Determine if we're on Mac (Cmd) or PC (Ctrl)
+                const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+                const event = new KeyboardEvent('keydown', {
+                  key: 'Enter',
+                  ctrlKey: !isMac,
+                  metaKey: isMac,
+                  bubbles: true,
+                  cancelable: true
+                });
+                onKeyDown(event);
+                return true; // Prevent default CodeMirror behavior
+              }
+              return false;
             }
-            return false;
           }
-        }
-      ])),
+        ])
+      ),
       // Apply the appropriate theme
       theme,
       // Apply editor styling theme
