@@ -131,7 +131,7 @@
           },
           {
             key: 'Mod-Enter',
-            run: (view) => {
+            run: (_view) => {
               if (onKeyDown) {
                 // Determine if we're on Mac (Cmd) or PC (Ctrl)
                 const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;

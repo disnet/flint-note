@@ -16,17 +16,11 @@
 
   // Extract image URL from metadata or content
   $effect(() => {
-    // Check both top-level and nested metadata locations
+    // Check direct metadata for image_url first
     if (metadata.image_url) {
       imageUrl = metadata.image_url;
-    } else if (metadata.metadata && metadata.metadata.image_url) {
-      imageUrl = metadata.metadata.image_url;
-    } else if (metadata.image_data && metadata.image_data.startsWith('data:')) {
-      imageUrl = metadata.image_data;
-    } else if (metadata.metadata && metadata.metadata.image_data && metadata.metadata.image_data.startsWith('data:')) {
-      imageUrl = metadata.metadata.image_data;
     } else {
-      // Look for images in markdown content
+      // Look for images in markdown content as fallback
       const imageMatch = noteContent.match(/!\[.*?\]\((.*?)\)/);
       imageUrl = imageMatch ? imageMatch[1] : '';
     }
@@ -36,14 +30,12 @@
     const target = event.target as HTMLInputElement;
     const newUrl = target.value;
 
-    // Update nested metadata structure
-    const updatedMetadata = { 
-      ...metadata, 
-      metadata: { 
-        ...metadata.metadata, 
-        image_url: newUrl 
-      } 
+    // Update metadata with new image URL
+    const updatedMetadata = {
+      ...metadata,
+      image_url: newUrl
     };
+
     onMetadataChange(updatedMetadata);
   }
 
@@ -55,13 +47,13 @@
       const reader = new FileReader();
       reader.onload = (e) => {
         const dataUrl = e.target?.result as string;
-        const updatedMetadata = { 
-          ...metadata, 
-          metadata: { 
-            ...metadata.metadata, 
-            image_url: dataUrl 
-          } 
+        
+        // Update metadata with uploaded image data
+        const updatedMetadata = {
+          ...metadata,
+          image_url: dataUrl
         };
+
         onMetadataChange(updatedMetadata);
       };
       reader.readAsDataURL(file);
@@ -90,7 +82,7 @@
         <input
           id="image-url"
           type="url"
-          value={metadata.metadata?.image_url || metadata.image_url || ''}
+          value={metadata.image_url || ''}
           oninput={handleImageUrlChange}
           placeholder="Enter image URL or upload below"
         />
@@ -120,7 +112,9 @@
               <h3>{metadata.title || metadata.metadata?.title}</h3>
             {/if}
             {#if metadata.description || metadata.metadata?.description}
-              <p class="description">{metadata.description || metadata.metadata?.description}</p>
+              <p class="description">
+                {metadata.description || metadata.metadata?.description}
+              </p>
             {/if}
           </div>
         </div>

@@ -10,6 +10,7 @@
   import { getChatService } from '../services/chatService.js';
   import type { NoteMetadata, NoteType } from '../services/noteStore.svelte';
   import type { Note } from '../services/types';
+  import type { ComponentType } from 'svelte';
 
   interface Props {
     activeNote: NoteMetadata | null;
@@ -34,7 +35,7 @@
   let noteEditor = $state<{ focus?: () => void } | null>(null);
   let isChangingType = $state(false);
   let isPinned = $state(false);
-  let customView = $state<{ component: any } | null>(null);
+  let customView = $state<{ component: ComponentType } | null>(null);
   let useCustomView = $state(false);
   let noteContent = $state('');
   let noteData = $state<Note | null>(null);
@@ -144,19 +145,23 @@
     await saveNote();
   }
 
-  async function handleMetadataChange(newMetadata: NoteMetadata): Promise<void> {
+  async function handleMetadataChange(
+    newMetadata: Record<string, unknown>
+  ): Promise<void> {
     if (!activeNote || !noteData) return;
 
     try {
       const noteService = getChatService();
+      
       await noteService.updateNote({
         identifier: activeNote.id,
         content: noteContent,
+        contentHash: noteData?.content_hash,
         metadata: newMetadata
       });
 
-      // Update local noteData
-      noteData = { ...noteData, ...newMetadata };
+      // Update local noteData - merge the new metadata into noteData.metadata
+      noteData = { ...noteData, metadata: newMetadata };
     } catch (error) {
       console.error('Error updating metadata:', error);
     }
@@ -287,7 +292,7 @@
         <CustomComponent
           {activeNote}
           {noteContent}
-          metadata={noteData}
+          metadata={noteData?.metadata || {}}
           onContentChange={handleContentChange}
           onMetadataChange={handleMetadataChange}
           onSave={saveNote}
