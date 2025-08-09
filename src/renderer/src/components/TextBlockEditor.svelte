@@ -2,7 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { EditorView, minimalSetup } from 'codemirror';
   import { keymap } from '@codemirror/view';
-  import { EditorState, StateEffect, type Extension } from '@codemirror/state';
+  import { EditorState, StateEffect, type Extension, Prec } from '@codemirror/state';
   import { githubLight } from '@fsegurai/codemirror-theme-github-light';
   import { githubDark } from '@fsegurai/codemirror-theme-github-dark';
 
@@ -26,6 +26,27 @@
 
   let editorContainer: HTMLDivElement;
   let editorView: EditorView | null = null;
+
+  // DOM event handler for key events
+  function handleDOMKeyDown(event: KeyboardEvent): void {
+    if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (onKeyDown) {
+        onKeyDown(event);
+      }
+      return;
+    }
+
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      if (onKeyDown) {
+        onKeyDown(event);
+      }
+      return;
+    }
+  }
 
   // Reactive theme state
   let isDarkMode = $state(false);
@@ -91,8 +112,8 @@
     return [
       // Use minimalSetup instead of basicSetup (excludes line numbers)
       minimalSetup,
-      // Custom keymap should come early to take precedence
-      keymap.of([
+      // Custom keymap with highest precedence
+      Prec.highest(keymap.of([
         {
           key: 'Escape',
           run: () => {
@@ -126,7 +147,7 @@
             return false;
           }
         }
-      ]),
+      ])),
       // Apply the appropriate theme
       theme,
       // Apply editor styling theme
@@ -162,6 +183,9 @@
       state: startState,
       parent: editorContainer
     });
+
+    // Add DOM event listener for key events
+    editorContainer.addEventListener('keydown', handleDOMKeyDown, true);
   });
 
   onDestroy(() => {
@@ -170,6 +194,9 @@
     }
     if (mediaQuery) {
       mediaQuery.removeEventListener('change', handleThemeChange);
+    }
+    if (editorContainer) {
+      editorContainer.removeEventListener('keydown', handleDOMKeyDown, true);
     }
   });
 
