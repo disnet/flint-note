@@ -43,9 +43,10 @@ export interface ChatResponse {
 }
 
 export interface ChatService {
-  sendMessage(text: string, model?: string): Promise<ChatResponse>;
+  sendMessage(text: string, conversationId?: string, model?: string): Promise<ChatResponse>;
   sendMessageStream?(
     text: string,
+    conversationId: string | undefined,
     onChunk: (chunk: string) => void,
     onComplete: (fullText: string) => void,
     onError: (error: string) => void,

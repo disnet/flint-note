@@ -50,7 +50,7 @@ class ConversationStore {
   /**
    * Start a new conversation
    */
-  startNewConversation(): string {
+  async startNewConversation(): Promise<string> {
     if (this.isVaultSwitching) return this.state.activeConversationId || '';
 
     const conversationId = `conv-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -67,6 +67,16 @@ class ConversationStore {
     this.state.conversations.unshift(newConversation);
     this.state.activeConversationId = conversationId;
 
+    // Sync new conversation with backend
+    try {
+      const chatService = getChatService();
+      if ('setActiveConversation' in chatService) {
+        await (chatService as any).setActiveConversation(conversationId, []);
+      }
+    } catch (error) {
+      console.warn('Failed to sync new conversation with backend:', error);
+    }
+
     // Enforce conversation limit
     this.enforceConversationLimit();
     this.saveToStorage();
@@ -77,13 +87,13 @@ class ConversationStore {
   /**
    * Add a message to the active conversation
    */
-  addMessage(message: Message): void {
+  async addMessage(message: Message): Promise<void> {
     if (this.isVaultSwitching) return;
 
     let conversation = this.activeConversation;
     if (!conversation) {
       // Start a new conversation if none exists
-      this.startNewConversation();
+      await this.startNewConversation();
       conversation = this.activeConversation;
       if (!conversation) return;
     }
@@ -119,10 +129,26 @@ class ConversationStore {
   /**
    * Switch to an existing conversation
    */
-  switchToConversation(conversationId: string): boolean {
+  async switchToConversation(conversationId: string): Promise<boolean> {
     const conversation = this.state.conversations.find((c) => c.id === conversationId);
     if (conversation) {
       this.state.activeConversationId = conversationId;
+      
+      // Sync conversation history with backend
+      try {
+        const chatService = getChatService();
+        if ('setActiveConversation' in chatService) {
+          // Serialize messages for IPC transfer
+          const serializableMessages = conversation.messages.map(msg => this.serializeMessage(msg));
+          
+          // Send as JSON string to avoid IPC cloning issues
+          const messagesAsString = JSON.stringify(serializableMessages);
+          await (chatService as any).setActiveConversation(conversationId, messagesAsString);
+        }
+      } catch (error) {
+        console.warn('Failed to sync conversation with backend:', error);
+      }
+      
       this.saveToStorage();
       return true;
     }
@@ -168,12 +194,12 @@ class ConversationStore {
   /**
    * Set messages for the active conversation (for backwards compatibility)
    */
-  setCurrentMessages(messages: Message[]): void {
+  async setCurrentMessages(messages: Message[]): Promise<void> {
     if (this.isVaultSwitching) return;
 
     let conversation = this.activeConversation;
     if (!conversation) {
-      this.startNewConversation();
+      await this.startNewConversation();
       conversation = this.activeConversation;
       if (!conversation) return;
     }
@@ -236,6 +262,9 @@ class ConversationStore {
       const vault = await service.getCurrentVault();
       this.currentVaultId = vault?.id || 'default';
       this.loadFromStorage();
+      
+      // Sync active conversation with backend on app startup
+      await this.syncActiveConversationWithBackend();
     } catch (error) {
       console.warn('Failed to initialize vault for conversations:', error);
       this.currentVaultId = 'default';
@@ -332,7 +361,141 @@ class ConversationStore {
       this.currentVaultId
     );
 
+    // Sync active conversation with backend after loading
+    await this.syncActiveConversationWithBackend();
+
     this.isVaultSwitching = false;
+  }
+
+  /**
+   * Serialize a message for IPC transfer
+   */
+  private serializeMessage(message: Message): any {
+    const serialized: any = {
+      id: message.id,
+      text: message.text,
+      sender: message.sender,
+      timestamp: message.timestamp.toISOString() // Convert Date to string
+    };
+
+    // Safely serialize toolCalls if they exist
+    if (message.toolCalls && message.toolCalls.length > 0) {
+      serialized.toolCalls = message.toolCalls.map(toolCall => ({
+        id: toolCall.id,
+        name: toolCall.name,
+        arguments: this.safeStringify(toolCall.arguments), // Safely stringify arguments
+        result: toolCall.result,
+        error: toolCall.error
+      }));
+    }
+
+    return serialized;
+  }
+
+  /**
+   * Safely stringify any object, handling circular references and non-serializable values
+   */
+  private safeStringify(obj: any): any {
+    if (obj === null || obj === undefined) {
+      return obj;
+    }
+    
+    try {
+      // First, try the simple approach
+      return JSON.parse(JSON.stringify(obj));
+    } catch (error) {
+      try {
+        // More aggressive cleaning for complex objects
+        return this.deepCleanObject(obj);
+      } catch (deepError) {
+        // If all else fails, convert to string representation
+        return String(obj);
+      }
+    }
+  }
+
+  /**
+   * Deep clean an object by removing all non-serializable properties
+   */
+  private deepCleanObject(obj: any): any {
+    if (obj === null || obj === undefined) {
+      return obj;
+    }
+    
+    // Handle primitive types
+    if (typeof obj !== 'object') {
+      return obj;
+    }
+    
+    // Handle arrays
+    if (Array.isArray(obj)) {
+      return obj.map(item => this.deepCleanObject(item)).filter(item => item !== undefined);
+    }
+    
+    // Handle objects
+    const cleaned: any = {};
+    for (const key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        const value = obj[key];
+        
+        // Skip functions, symbols, and other non-serializable types
+        if (typeof value === 'function' || typeof value === 'symbol' || typeof value === 'undefined') {
+          continue;
+        }
+        
+        // Handle Date objects
+        if (value instanceof Date) {
+          cleaned[key] = value.toISOString();
+          continue;
+        }
+        
+        try {
+          // Test if this property can be serialized
+          JSON.stringify(value);
+          cleaned[key] = this.deepCleanObject(value);
+        } catch (error) {
+          // If it can't be serialized, convert to string or skip
+          cleaned[key] = String(value);
+        }
+      }
+    }
+    
+    return cleaned;
+  }
+
+  /**
+   * Sync the active conversation with the backend (for app startup and vault switching)
+   */
+  private async syncActiveConversationWithBackend(): Promise<void> {
+    if (this.state.activeConversationId && !this.isVaultSwitching) {
+      const activeConversation = this.activeConversation;
+      if (activeConversation) {
+        try {
+          const chatService = getChatService();
+          if ('setActiveConversation' in chatService) {
+            // Serialize messages for IPC transfer
+            const serializableMessages = activeConversation.messages.map(msg => this.serializeMessage(msg));
+            
+            // Send as JSON string to avoid IPC cloning issues
+            try {
+              const messagesAsString = JSON.stringify(serializableMessages);
+              await (chatService as any).setActiveConversation(
+                this.state.activeConversationId, 
+                messagesAsString
+              );
+            } catch (stringError) {
+              // Fallback to empty conversation if serialization fails
+              await (chatService as any).setActiveConversation(
+                this.state.activeConversationId, 
+                []
+              );
+            }
+          }
+        } catch (error) {
+          console.warn('Failed to sync active conversation with backend:', error);
+        }
+      }
+    }
   }
 }
 

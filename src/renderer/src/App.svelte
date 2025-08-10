@@ -185,7 +185,7 @@
       sender: 'user',
       timestamp: new Date()
     };
-    conversationStore.addMessage(newMessage);
+    await conversationStore.addMessage(newMessage);
 
     isLoadingResponse = true;
 
@@ -198,7 +198,7 @@
       timestamp: new Date(),
       toolCalls: []
     };
-    conversationStore.addMessage(agentResponse);
+    await conversationStore.addMessage(agentResponse);
 
     try {
       const chatService = getChatService();
@@ -207,6 +207,7 @@
       if (chatService.sendMessageStream) {
         chatService.sendMessageStream(
           text,
+          conversationStore.activeConversationId || undefined,
           // onChunk: append text chunks to the message
           (chunk: string) => {
             const currentMessage = conversationStore.currentMessages.find(
@@ -253,7 +254,7 @@
         );
       } else {
         // Fallback to non-streaming mode
-        const response = await chatService.sendMessage(text, modelStore.selectedModel);
+        const response = await chatService.sendMessage(text, conversationStore.activeConversationId || undefined, modelStore.selectedModel);
 
         // Update the placeholder message with the complete response
         conversationStore.updateMessage(agentResponseId, {

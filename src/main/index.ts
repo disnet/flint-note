@@ -160,11 +160,11 @@ app.whenReady().then(async () => {
   // Chat handlers - now with real AI integration
   ipcMain.handle(
     'send-message',
-    async (_event, params: { message: string; model?: string }) => {
+    async (_event, params: { message: string; conversationId?: string; model?: string }) => {
       try {
         if (aiService) {
           // Use real AI service
-          return await aiService.sendMessage(params.message, params.model);
+          return await aiService.sendMessage(params.message, params.conversationId, params.model);
         } else {
           // Fallback to mock responses if AI service failed to initialize
           await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -192,7 +192,7 @@ app.whenReady().then(async () => {
   // Streaming chat handler
   ipcMain.on(
     'send-message-stream',
-    async (event, params: { message: string; model?: string; requestId: string }) => {
+    async (event, params: { message: string; conversationId?: string; model?: string; requestId: string }) => {
       try {
         if (aiService) {
           // Set up event forwarding from AI service to renderer
@@ -221,6 +221,7 @@ app.whenReady().then(async () => {
           await aiService.sendMessageStream(
             params.message,
             params.requestId,
+            params.conversationId,
             params.model
           );
         } else {
@@ -254,6 +255,30 @@ app.whenReady().then(async () => {
   ipcMain.handle('clear-conversation', async () => {
     if (aiService) {
       aiService.clearConversation();
+      return { success: true };
+    }
+    return { success: false, error: 'AI service not available' };
+  });
+
+  // Sync conversation from frontend
+  ipcMain.handle('sync-conversation', async (_event, params: {
+    conversationId: string;
+    messages: any[];
+  }) => {
+    if (aiService) {
+      aiService.syncConversationFromFrontend(params.conversationId, params.messages);
+      return { success: true };
+    }
+    return { success: false, error: 'AI service not available' };
+  });
+
+  // Set active conversation with sync
+  ipcMain.handle('set-active-conversation', async (_event, params: {
+    conversationId: string;
+    messages?: any[] | string;
+  }) => {
+    if (aiService) {
+      aiService.setActiveConversationWithSync(params.conversationId, params.messages);
       return { success: true };
     }
     return { success: false, error: 'AI service not available' };

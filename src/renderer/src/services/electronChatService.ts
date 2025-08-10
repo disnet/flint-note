@@ -20,9 +20,9 @@ import type { MetadataSchema } from '@flint-note/server/dist/core/metadata-schem
 import { notesStore } from './noteStore.svelte';
 
 export class ElectronChatService implements ChatService, NoteService {
-  async sendMessage(text: string, model?: string): Promise<ChatResponse> {
+  async sendMessage(text: string, conversationId?: string, model?: string): Promise<ChatResponse> {
     try {
-      const response = await window.api.sendMessage({ message: text, model });
+      const response = await window.api.sendMessage({ message: text, conversationId, model });
 
       // Handle both old string format and new object format
       if (typeof response === 'string') {
@@ -38,6 +38,7 @@ export class ElectronChatService implements ChatService, NoteService {
 
   sendMessageStream(
     text: string,
+    conversationId: string | undefined,
     onChunk: (chunk: string) => void,
     onComplete: (fullText: string) => void,
     onError: (error: string) => void,
@@ -48,7 +49,7 @@ export class ElectronChatService implements ChatService, NoteService {
     const requestId = crypto.randomUUID();
 
     window.api.sendMessageStream(
-      { message: text, model, requestId },
+      { message: text, conversationId, model, requestId },
       (data) => {
         // Stream started
         console.log('Stream started:', data.requestId);
@@ -87,6 +88,35 @@ export class ElectronChatService implements ChatService, NoteService {
             }
           }
     );
+  }
+
+  // Conversation sync operations
+  async syncConversation(conversationId: string, messages: any[]): Promise<{ success: boolean; error?: string }> {
+    try {
+      return await window.api.syncConversation({ conversationId, messages });
+    } catch (error) {
+      console.error('Failed to sync conversation:', error);
+      return { success: false, error: 'Failed to sync conversation' };
+    }
+  }
+
+  async setActiveConversation(conversationId: string, messages?: any[] | string): Promise<{ success: boolean; error?: string }> {
+    try {
+      // First attempt with messages
+      if (messages && messages.length > 0) {
+        try {
+          return await window.api.setActiveConversation({ conversationId, messages });
+        } catch (serializationError) {
+          // Fallback: try with empty messages array
+          return await window.api.setActiveConversation({ conversationId, messages: [] });
+        }
+      } else {
+        return await window.api.setActiveConversation({ conversationId, messages: messages || [] });
+      }
+    } catch (error) {
+      console.error('Failed to set active conversation:', error);
+      return { success: false, error: 'Failed to set active conversation' };
+    }
   }
 
   // Note operations

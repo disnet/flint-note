@@ -12,11 +12,14 @@ import { NoteService } from './note-service';
 
 export class AIService extends EventEmitter {
   private currentModelName: string;
-  private conversationHistory: ModelMessage[] = [];
+  private conversationHistories: Map<string, ModelMessage[]> = new Map();
+  private currentConversationId: string | null = null;
   private mcpClient: unknown;
   private gateway: GatewayProvider;
   private systemPrompt: string;
   private noteService: NoteService | null;
+  private readonly maxConversationHistory = 20;
+  private readonly maxConversations = 100;
 
   constructor(gateway: GatewayProvider, noteService: NoteService | null) {
     super();
@@ -534,8 +537,155 @@ Use these tools to help users manage their notes effectively and answer their qu
     return this.systemPrompt + contextualInfo + noteTypeInfo;
   }
 
+  private getConversationMessages(conversationId: string): ModelMessage[] {
+    return this.conversationHistories.get(conversationId) || [];
+  }
+
+  private setConversationHistory(conversationId: string, history: ModelMessage[]): void {
+    // Keep conversation history manageable
+    if (history.length > this.maxConversationHistory) {
+      history = history.slice(-this.maxConversationHistory);
+    }
+    this.conversationHistories.set(conversationId, history);
+  }
+
+  setActiveConversation(conversationId: string): void {
+    this.currentConversationId = conversationId;
+    
+    // Create conversation if it doesn't exist
+    if (!this.conversationHistories.has(conversationId)) {
+      this.conversationHistories.set(conversationId, []);
+      logger.info('Created new conversation', { conversationId });
+    }
+    
+    logger.info('Switched active conversation', { conversationId });
+  }
+
+  setActiveConversationWithSync(conversationId: string, frontendMessages?: any[] | string): void {
+    this.currentConversationId = conversationId;
+    
+    // Handle messages that might be sent as JSON string or array
+    let messagesArray: any[] = [];
+    
+    if (frontendMessages) {
+      if (typeof frontendMessages === 'string') {
+        try {
+          messagesArray = JSON.parse(frontendMessages);
+        } catch (parseError) {
+          logger.warn('Failed to parse messages JSON string', { error: parseError });
+          messagesArray = [];
+        }
+      } else if (Array.isArray(frontendMessages)) {
+        messagesArray = frontendMessages;
+      }
+    }
+    
+    // If we have messages and no backend history, sync them
+    if (messagesArray.length > 0 && !this.conversationHistories.has(conversationId)) {
+      this.syncConversationFromFrontend(conversationId, messagesArray);
+    } else if (!this.conversationHistories.has(conversationId)) {
+      // Create empty conversation if it doesn't exist
+      this.conversationHistories.set(conversationId, []);
+      logger.info('Created new conversation', { conversationId });
+    }
+    
+    logger.info('Switched active conversation with sync', { 
+      conversationId, 
+      syncedMessages: messagesArray.length 
+    });
+  }
+
+  createConversation(conversationId?: string): string {
+    const id = conversationId || this.generateConversationId();
+    
+    // Clean up old conversations if we have too many
+    if (this.conversationHistories.size >= this.maxConversations) {
+      this.pruneOldConversations();
+    }
+    
+    this.conversationHistories.set(id, []);
+    this.currentConversationId = id;
+    
+    logger.info('Created new conversation', { conversationId: id });
+    return id;
+  }
+
+  deleteConversation(conversationId: string): boolean {
+    const existed = this.conversationHistories.delete(conversationId);
+    
+    if (this.currentConversationId === conversationId) {
+      this.currentConversationId = null;
+    }
+    
+    if (existed) {
+      logger.info('Deleted conversation', { conversationId });
+    }
+    
+    return existed;
+  }
+
+  getActiveConversationHistory(): ModelMessage[] {
+    if (!this.currentConversationId) {
+      return [];
+    }
+    return this.getConversationMessages(this.currentConversationId);
+  }
+
+  clearAllConversations(): void {
+    this.conversationHistories.clear();
+    this.currentConversationId = null;
+    logger.info('Cleared all conversations');
+  }
+
+  restoreConversationHistory(conversationId: string, messages: ModelMessage[]): void {
+    // Filter out system messages if they exist in the stored conversation
+    const filteredMessages = messages.filter(msg => msg.role !== 'system');
+    
+    // Apply length management
+    let managedMessages = filteredMessages;
+    if (managedMessages.length > this.maxConversationHistory) {
+      managedMessages = managedMessages.slice(-this.maxConversationHistory);
+    }
+    
+    this.conversationHistories.set(conversationId, managedMessages);
+    logger.info('Restored conversation history', { 
+      conversationId, 
+      messageCount: managedMessages.length 
+    });
+  }
+
+  syncConversationFromFrontend(conversationId: string, frontendMessages: any[]): void {
+    // Convert frontend message format to AI service format
+    const aiMessages: ModelMessage[] = frontendMessages
+      .filter(msg => msg.sender === 'user' || msg.sender === 'agent')
+      .map(msg => ({
+        role: msg.sender === 'user' ? 'user' as const : 'assistant' as const,
+        content: msg.text || ''
+      }))
+      .filter(msg => msg.content.trim() !== ''); // Remove empty messages
+
+    this.restoreConversationHistory(conversationId, aiMessages);
+  }
+
+  private generateConversationId(): string {
+    return `conv-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  private pruneOldConversations(): void {
+    // Remove oldest conversations if we exceed the limit
+    // Since Map maintains insertion order, we can remove the first entries
+    const entries = Array.from(this.conversationHistories.entries());
+    const toRemove = entries.slice(0, entries.length - this.maxConversations + 10); // Remove more than needed to avoid frequent pruning
+    
+    for (const [conversationId] of toRemove) {
+      this.conversationHistories.delete(conversationId);
+      logger.info('Pruned old conversation', { conversationId });
+    }
+  }
+
   async sendMessage(
     userMessage: string,
+    conversationId?: string,
     modelName?: string
   ): Promise<{
     text: string;
@@ -557,20 +707,28 @@ Use these tools to help users manage their notes effectively and answer their qu
         this.switchModel(modelName);
       }
 
-      // Add user message to conversation history
-      this.conversationHistory.push({ role: 'user', content: userMessage });
-
-      // Keep conversation history manageable (last 10 exchanges)
-      if (this.conversationHistory.length > 20) {
-        this.conversationHistory = this.conversationHistory.slice(-20);
+      // Ensure we have an active conversation
+      if (conversationId) {
+        this.setActiveConversation(conversationId);
+      } else if (!this.currentConversationId) {
+        this.createConversation();
       }
+
+      // Get conversation history
+      const currentHistory = this.getConversationMessages(this.currentConversationId!);
+      
+      // Add user message to conversation history
+      currentHistory.push({ role: 'user', content: userMessage });
+
+      // Update conversation history with length management
+      this.setConversationHistory(this.currentConversationId!, currentHistory);
 
       // Prepare messages for the model
       const systemMessage = await this.getSystemMessage();
 
       const messages: ModelMessage[] = [
         { role: 'system', content: systemMessage },
-        ...this.conversationHistory
+        ...this.getConversationMessages(this.currentConversationId!)
       ];
 
       // @ts-ignore: mcpClient types not exported yet
@@ -588,7 +746,12 @@ Use these tools to help users manage their notes effectively and answer their qu
           logger.info('AI step finished', { step });
         }
       });
-      this.conversationHistory.push(...result.response.messages);
+      
+      // Add assistant response to conversation history
+      const updatedHistory = this.getConversationMessages(this.currentConversationId!);
+      updatedHistory.push(...result.response.messages);
+      this.setConversationHistory(this.currentConversationId!, updatedHistory);
+      
       return { text: result.text };
     } catch (error) {
       logger.error('AI Service Error', { error });
@@ -607,11 +770,14 @@ Use these tools to help users manage their notes effectively and answer their qu
   }
 
   clearConversation(): void {
-    this.conversationHistory = [];
+    if (this.currentConversationId) {
+      this.conversationHistories.set(this.currentConversationId, []);
+      logger.info('Cleared current conversation', { conversationId: this.currentConversationId });
+    }
   }
 
   getConversationHistory(): Array<ModelMessage> {
-    return [...this.conversationHistory];
+    return [...this.getActiveConversationHistory()];
   }
 
   private async initializeFlintMcpServer(): Promise<void> {
@@ -631,6 +797,7 @@ Use these tools to help users manage their notes effectively and answer their qu
   async sendMessageStream(
     userMessage: string,
     requestId: string,
+    conversationId?: string,
     modelName?: string
   ): Promise<void> {
     try {
@@ -639,20 +806,28 @@ Use these tools to help users manage their notes effectively and answer their qu
         this.switchModel(modelName);
       }
 
-      // Add user message to conversation history
-      this.conversationHistory.push({ role: 'user', content: userMessage });
-
-      // Keep conversation history manageable (last 10 exchanges)
-      if (this.conversationHistory.length > 20) {
-        this.conversationHistory = this.conversationHistory.slice(-20);
+      // Ensure we have an active conversation
+      if (conversationId) {
+        this.setActiveConversation(conversationId);
+      } else if (!this.currentConversationId) {
+        this.createConversation();
       }
+
+      // Get conversation history
+      const currentHistory = this.getConversationMessages(this.currentConversationId!);
+      
+      // Add user message to conversation history
+      currentHistory.push({ role: 'user', content: userMessage });
+
+      // Update conversation history with length management
+      this.setConversationHistory(this.currentConversationId!, currentHistory);
 
       // Prepare messages for the model
       const systemMessage = await this.getSystemMessage();
 
       const messages: ModelMessage[] = [
         { role: 'system', content: systemMessage },
-        ...this.conversationHistory
+        ...this.getConversationMessages(this.currentConversationId!)
       ];
 
       this.emit('stream-start', { requestId });
@@ -708,7 +883,9 @@ Use these tools to help users manage their notes effectively and answer their qu
         }
 
         // Add assistant response to conversation history
-        this.conversationHistory.push({ role: 'assistant', content: fullText });
+        const finalHistory = this.getConversationMessages(this.currentConversationId!);
+        finalHistory.push({ role: 'assistant', content: fullText });
+        this.setConversationHistory(this.currentConversationId!, finalHistory);
 
         this.emit('stream-end', { requestId, fullText });
       } catch (streamError: unknown) {
@@ -738,10 +915,12 @@ Use these tools to help users manage their notes effectively and answer their qu
           const errorMessage = `I encountered an error with the tool call "${errorObj.toolName}": ${errorObj.message}. Let me correct this and try again.`;
 
           // Add error as assistant message so the agent can see it and correct
-          this.conversationHistory.push({
+          const errorHistory = this.getConversationMessages(this.currentConversationId!);
+          errorHistory.push({
             role: 'assistant',
             content: errorMessage
           });
+          this.setConversationHistory(this.currentConversationId!, errorHistory);
 
           // Emit the error message as a chunk so it appears in the UI
           this.emit('stream-chunk', { requestId, chunk: errorMessage });

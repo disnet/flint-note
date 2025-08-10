@@ -23,13 +23,13 @@
     showHistory = !showHistory;
   }
 
-  function handleConversationSelect(conversationId: string): void {
-    conversationStore.switchToConversation(conversationId);
+  async function handleConversationSelect(conversationId: string): Promise<void> {
+    await conversationStore.switchToConversation(conversationId);
     showHistory = false; // Close history after selection
   }
 
-  function handleNewConversation(): void {
-    conversationStore.startNewConversation();
+  async function handleNewConversation(): Promise<void> {
+    await conversationStore.startNewConversation();
     showHistory = false; // Close history after creating new conversation
   }
 
