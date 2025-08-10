@@ -4,6 +4,7 @@
   import { notesStore } from '../services/noteStore.svelte';
   import { pinnedNotesStore } from '../services/pinnedStore';
   import { temporaryTabsStore } from '../stores/temporaryTabsStore.svelte';
+  import { conversationStore } from '../stores/conversationStore.svelte';
 
   interface Props {
     onNoteClose: () => void;
@@ -48,9 +49,10 @@
       await loadVaults(); // Refresh vault info
       await notesStore.refresh(); // Refresh notes for the new vault
 
-      // Refresh pinned notes and temporary tabs for the new vault
+      // Refresh pinned notes, temporary tabs, and conversations for the new vault
       await pinnedNotesStore.refreshForVault(vaultId);
       await temporaryTabsStore.refreshForVault(vaultId);
+      await conversationStore.refreshForVault(vaultId);
 
       // End vault switch mode
       temporaryTabsStore.endVaultSwitch();

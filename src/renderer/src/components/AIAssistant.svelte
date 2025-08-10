@@ -2,6 +2,8 @@
   import MessageComponent from './MessageComponent.svelte';
   import LoadingMessage from './LoadingMessage.svelte';
   import MessageInput from './MessageInput.svelte';
+  import ConversationHistory from './ConversationHistory.svelte';
+  import { conversationStore } from '../stores/conversationStore.svelte';
   import type { Message } from '../services/types';
 
   interface Props {
@@ -15,6 +17,21 @@
 
   let chatContainer: HTMLDivElement;
   let expandedDiscussed = $state<boolean>(true);
+  let showHistory = $state<boolean>(false);
+
+  function toggleHistory(): void {
+    showHistory = !showHistory;
+  }
+
+  function handleConversationSelect(conversationId: string): void {
+    conversationStore.switchToConversation(conversationId);
+    showHistory = false; // Close history after selection
+  }
+
+  function handleNewConversation(): void {
+    conversationStore.startNewConversation();
+    showHistory = false; // Close history after creating new conversation
+  }
 
   // Extract notes discussed from messages
   const notesDiscussed = $derived.by<string[]>(() => {
@@ -77,8 +94,65 @@
 </script>
 
 <div class="ai-assistant">
-  <!-- Task Management Section -->
-  <!-- {#if tasks.length > 0}
+  <div class="assistant-header">
+    <div class="assistant-title">
+      <h3>AI Assistant</h3>
+      {#if conversationStore.activeConversation}
+        <span class="conversation-indicator"
+          >{conversationStore.activeConversation.title}</span
+        >
+      {/if}
+    </div>
+    <div class="header-actions">
+      <button
+        class="history-btn"
+        class:active={showHistory}
+        onclick={toggleHistory}
+        title="Conversation history"
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M3 3v18h18" />
+          <path d="M3 9h18" />
+          <path d="M9 3v18" />
+        </svg>
+      </button>
+      <button
+        class="new-conversation-btn"
+        onclick={handleNewConversation}
+        title="Start new conversation"
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  {#if showHistory}
+    <div class="history-panel">
+      <ConversationHistory
+        onConversationSelect={handleConversationSelect}
+        onNewConversation={handleNewConversation}
+      />
+    </div>
+  {:else}
+    <!-- Task Management Section -->
+    <!-- {#if tasks.length > 0}
     <div class="tasks-section">
       <h4 class="section-title">Tasks</h4>
       <div class="task-list">
@@ -121,44 +195,45 @@
     </div>
   {/if} -->
 
-  <!-- Chat Messages Section -->
-  <div class="chat-section" bind:this={chatContainer}>
-    {#each messages as message (message.id)}
-      <MessageComponent {message} {onNoteClick} />
-    {/each}
-    {#if isLoading}
-      <LoadingMessage />
-    {/if}
-  </div>
-
-  <!-- Notes Discussed Section -->
-  {#if notesDiscussed.length > 0}
-    <div class="discussed-section">
-      <button
-        class="section-header"
-        onclick={() => (expandedDiscussed = !expandedDiscussed)}
-        aria-expanded={expandedDiscussed}
-      >
-        <h4 class="section-title">Notes discussed</h4>
-        <span class="expand-icon" class:expanded={expandedDiscussed}>▼</span>
-      </button>
-      {#if expandedDiscussed}
-        <div class="discussed-notes">
-          {#each notesDiscussed as note (note)}
-            {@const parsed = parseNoteDisplay(note)}
-            <button class="note-link" onclick={() => onNoteClick?.(parsed.identifier)}>
-              {parsed.displayName}
-            </button>
-          {/each}
-        </div>
+    <!-- Chat Messages Section -->
+    <div class="chat-section" bind:this={chatContainer}>
+      {#each messages as message (message.id)}
+        <MessageComponent {message} {onNoteClick} />
+      {/each}
+      {#if isLoading}
+        <LoadingMessage />
       {/if}
     </div>
-  {/if}
 
-  <!-- Message Input Area -->
-  <div class="input-section">
-    <MessageInput onSend={onSendMessage || (() => {})} />
-  </div>
+    <!-- Notes Discussed Section -->
+    {#if notesDiscussed.length > 0}
+      <div class="discussed-section">
+        <button
+          class="section-header"
+          onclick={() => (expandedDiscussed = !expandedDiscussed)}
+          aria-expanded={expandedDiscussed}
+        >
+          <h4 class="section-title">Notes discussed</h4>
+          <span class="expand-icon" class:expanded={expandedDiscussed}>▼</span>
+        </button>
+        {#if expandedDiscussed}
+          <div class="discussed-notes">
+            {#each notesDiscussed as note (note)}
+              {@const parsed = parseNoteDisplay(note)}
+              <button class="note-link" onclick={() => onNoteClick?.(parsed.identifier)}>
+                {parsed.displayName}
+              </button>
+            {/each}
+          </div>
+        {/if}
+      </div>
+    {/if}
+
+    <!-- Message Input Area -->
+    <div class="input-section">
+      <MessageInput onSend={onSendMessage || (() => {})} />
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -168,6 +243,87 @@
     height: 100%;
     max-height: 100%;
     min-height: 0; /* Important for flexbox children to respect parent height */
+    overflow: hidden;
+  }
+
+  .assistant-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border-light);
+    background: var(--bg-secondary);
+  }
+
+  .assistant-title {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .assistant-title h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .conversation-indicator {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .history-btn,
+  .new-conversation-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border: none;
+    border-radius: 0.375rem;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .history-btn:hover,
+  .new-conversation-btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+  }
+
+  .history-btn.active {
+    background: var(--accent-light);
+    color: var(--accent-primary);
+  }
+
+  .new-conversation-btn {
+    background: var(--accent-primary);
+    color: white;
+  }
+
+  .new-conversation-btn:hover {
+    background: var(--accent-hover);
+    color: white;
+  }
+
+  .history-panel {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
     overflow: hidden;
   }
 

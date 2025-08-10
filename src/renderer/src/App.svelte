@@ -12,9 +12,11 @@
   import { sidebarState } from './stores/sidebarState.svelte';
   import { searchOverlayState } from './stores/searchOverlay.svelte';
   import { temporaryTabsStore } from './stores/temporaryTabsStore.svelte';
+  import { conversationStore } from './stores/conversationStore.svelte';
   import { noteNavigationService } from './services/noteNavigationService.svelte';
 
-  let messages = $state<Message[]>([]);
+  // Messages are now managed by conversationStore
+  const messages = $derived(conversationStore.currentMessages);
 
   let isLoadingResponse = $state(false);
   let activeNote = $state<NoteMetadata | null>(null);
@@ -183,7 +185,7 @@
       sender: 'user',
       timestamp: new Date()
     };
-    messages.push(newMessage);
+    conversationStore.addMessage(newMessage);
 
     isLoadingResponse = true;
 
@@ -196,7 +198,7 @@
       timestamp: new Date(),
       toolCalls: []
     };
-    messages.push(agentResponse);
+    conversationStore.addMessage(agentResponse);
 
     try {
       const chatService = getChatService();
@@ -207,42 +209,43 @@
           text,
           // onChunk: append text chunks to the message
           (chunk: string) => {
-            const messageIndex = messages.findIndex((m) => m.id === agentResponseId);
-            if (messageIndex !== -1) {
-              messages[messageIndex].text += chunk;
+            const currentMessage = conversationStore.currentMessages.find(
+              (m) => m.id === agentResponseId
+            );
+            if (currentMessage) {
+              conversationStore.updateMessage(agentResponseId, {
+                text: currentMessage.text + chunk
+              });
             }
           },
           // onComplete: streaming finished
           (fullText: string) => {
-            const messageIndex = messages.findIndex((m) => m.id === agentResponseId);
-            if (messageIndex !== -1) {
-              messages[messageIndex].text = fullText;
-            }
+            conversationStore.updateMessage(agentResponseId, { text: fullText });
             isLoadingResponse = false;
           },
           // onError: handle streaming errors
           (error: string) => {
             console.error('Streaming error:', error);
-            const messageIndex = messages.findIndex((m) => m.id === agentResponseId);
-            if (messageIndex !== -1) {
-              messages[messageIndex].text =
-                'Sorry, I encountered an error while processing your message.';
-            }
+            conversationStore.updateMessage(agentResponseId, {
+              text: 'Sorry, I encountered an error while processing your message.'
+            });
             isLoadingResponse = false;
           },
           modelStore.selectedModel,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (toolCall: any) => {
             console.log('App.svelte: Received tool call:', toolCall);
-            const messageIndex = messages.findIndex((m) => m.id === agentResponseId);
-            if (messageIndex !== -1) {
-              if (!messages[messageIndex].toolCalls) {
-                messages[messageIndex].toolCalls = [];
-              }
-              messages[messageIndex].toolCalls!.push(toolCall);
+            const currentMessage = conversationStore.currentMessages.find(
+              (m) => m.id === agentResponseId
+            );
+            if (currentMessage) {
+              const updatedToolCalls = [...(currentMessage.toolCalls || []), toolCall];
+              conversationStore.updateMessage(agentResponseId, {
+                toolCalls: updatedToolCalls
+              });
               console.log(
                 'App.svelte: Added tool call to message, message now has',
-                messages[messageIndex].toolCalls!.length,
+                updatedToolCalls.length,
                 'tool calls'
               );
             }
@@ -253,21 +256,18 @@
         const response = await chatService.sendMessage(text, modelStore.selectedModel);
 
         // Update the placeholder message with the complete response
-        const messageIndex = messages.findIndex((m) => m.id === agentResponseId);
-        if (messageIndex !== -1) {
-          messages[messageIndex].text = response.text;
-          messages[messageIndex].toolCalls = response.toolCalls;
-        }
+        conversationStore.updateMessage(agentResponseId, {
+          text: response.text,
+          toolCalls: response.toolCalls
+        });
 
         isLoadingResponse = false;
       }
     } catch (error) {
       console.error('Failed to send message:', error);
-      const messageIndex = messages.findIndex((m) => m.id === agentResponseId);
-      if (messageIndex !== -1) {
-        messages[messageIndex].text =
-          'Sorry, I encountered an error while processing your message.';
-      }
+      conversationStore.updateMessage(agentResponseId, {
+        text: 'Sorry, I encountered an error while processing your message.'
+      });
       isLoadingResponse = false;
     }
   }

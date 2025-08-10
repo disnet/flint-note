@@ -47,7 +47,7 @@
       const reader = new FileReader();
       reader.onload = (e) => {
         const dataUrl = e.target?.result as string;
-        
+
         // Update metadata with uploaded image data
         const updatedMetadata = {
           ...metadata,

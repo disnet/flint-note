@@ -152,7 +152,7 @@
 
     try {
       const noteService = getChatService();
-      
+
       await noteService.updateNote({
         identifier: activeNote.id,
         content: noteContent,

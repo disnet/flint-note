@@ -9,15 +9,18 @@ The Custom Note Views system allows developers to create specialized UI componen
 ### Core Components
 
 #### ViewRegistry (`src/renderer/src/lib/views/ViewRegistry.ts`)
+
 The central registry that manages custom view components for note types.
 
 **Key Features:**
+
 - Priority-based view selection
 - Multiple view modes (edit, view, hybrid)
 - Type-safe component registration
 - Dynamic view resolution
 
 **Interface:**
+
 ```typescript
 interface NoteView {
   component: ComponentType;
@@ -37,9 +40,11 @@ interface NoteViewProps {
 ```
 
 #### BaseNoteView (`src/renderer/src/lib/views/BaseNoteView.svelte`)
+
 Optional base component providing common functionality for custom views.
 
 #### MainView Integration
+
 Modified to check for and load custom views dynamically, falling back to the default markdown editor when no custom view is available.
 
 ### View Registration
@@ -78,12 +83,12 @@ Create a new Svelte component in `src/renderer/src/lib/views/`:
   // Your custom logic here
 </script>
 
-<BaseNoteView 
-  {activeNote} 
-  {noteContent} 
-  {metadata} 
-  {onContentChange} 
-  {onMetadataChange} 
+<BaseNoteView
+  {activeNote}
+  {noteContent}
+  {metadata}
+  {onContentChange}
+  {onMetadataChange}
   {onSave}
   let:handleContentChange
   let:handleMetadataChange
@@ -117,6 +122,7 @@ Create notes with `type: "my-note-type"` and they will automatically use your cu
 The ImageNoteView demonstrates a complete custom view implementation:
 
 ### Features
+
 - **Dual-pane layout**: Image preview alongside markdown editor
 - **Multiple input methods**: URL input and file upload
 - **Responsive design**: Adapts to mobile screens
@@ -125,6 +131,7 @@ The ImageNoteView demonstrates a complete custom view implementation:
 - **Auto-save**: Changes are automatically persisted
 
 ### Layout Structure
+
 ```
 ┌─────────────────────────────────────────┐
 │ Image Controls (URL, Upload, Toggle)   │
@@ -138,6 +145,7 @@ The ImageNoteView demonstrates a complete custom view implementation:
 ### Key Implementation Details
 
 **Image URL Handling:**
+
 ```svelte
 function handleImageUrlChange(event: Event): void {
   const target = event.target as HTMLInputElement;
@@ -147,11 +155,12 @@ function handleImageUrlChange(event: Event): void {
 ```
 
 **File Upload:**
+
 ```svelte
 function handleImageUpload(event: Event): void {
   const target = event.target as HTMLInputElement;
   const file = target.files?.[0];
-  
+
   if (file && file.type.startsWith('image/')) {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -169,50 +178,59 @@ function handleImageUpload(event: Event): void {
 ### Manual Testing
 
 #### Setup Test Environment
+
 1. Build the application: `npm run build`
 2. Start the development server: `npm run dev` (if available)
 3. Ensure you have access to the Flint note-taking interface
 
 #### Test Case 1: Basic Custom View Loading
+
 1. Create a new note with type "image"
 2. **Expected Result**: The ImageNoteView should load instead of the default markdown editor
 3. **Verify**: You should see image upload controls and a split-pane layout
 
 #### Test Case 2: Image URL Input
+
 1. In an image-type note, enter an image URL in the "Image URL" field
 2. Use a test URL like: `https://via.placeholder.com/300x200`
 3. **Expected Result**: The image should display in the preview pane
 4. **Verify**: The image appears and the metadata is saved
 
 #### Test Case 3: File Upload
+
 1. Click the "Upload Image" button
 2. Select a local image file (PNG, JPG, etc.)
 3. **Expected Result**: The image should display as a data URL
 4. **Verify**: The image appears and the base64 data is saved to metadata
 
 #### Test Case 4: Content Editing
+
 1. With an image displayed, use the markdown editor on the right
 2. Add some text content about the image
 3. **Expected Result**: Content should save automatically
 4. **Verify**: Refresh the note and confirm content persists
 
 #### Test Case 5: Editor Toggle
+
 1. Click the "Hide Editor" button
 2. **Expected Result**: The markdown editor should disappear, image takes full width
-3. Click "Show Editor" 
+3. Click "Show Editor"
 4. **Expected Result**: Editor reappears in split view
 
 #### Test Case 6: Responsive Behavior
+
 1. Resize the browser window to mobile width (<768px)
 2. **Expected Result**: Layout should stack vertically
 3. **Verify**: Controls remain accessible and usable
 
 #### Test Case 7: Fallback Behavior
+
 1. Create a note with a type other than "image" (e.g., "general")
 2. **Expected Result**: Should use the default markdown editor
 3. **Verify**: No custom view loads, standard editor appears
 
 #### Test Case 8: Error Handling
+
 1. Try uploading a non-image file
 2. **Expected Result**: File should be ignored gracefully
 3. Enter an invalid image URL
@@ -246,21 +264,25 @@ describe('ImageNoteView', () => {
 ### Common Issues
 
 **Custom view not loading:**
+
 - Check that the note type exactly matches the registered type
 - Verify the view is properly registered in `index.ts`
 - Check browser console for import errors
 
 **Images not displaying:**
+
 - Verify image URLs are accessible
 - Check CORS policies for external images
 - Ensure uploaded files are valid image formats
 
 **Metadata not saving:**
+
 - Check that `onMetadataChange` is being called correctly
 - Verify the metadata format matches expected structure
 - Check network tab for save requests
 
 **Layout issues:**
+
 - Test responsive breakpoints
 - Verify CSS variables are properly defined
 - Check for conflicting styles
@@ -268,6 +290,7 @@ describe('ImageNoteView', () => {
 ### Debug Tools
 
 **View Registry Inspection:**
+
 ```typescript
 // In browser console
 console.log(ViewRegistry.getAllViews());
@@ -276,6 +299,7 @@ console.log(ViewRegistry.getView('image', 'hybrid'));
 
 **Component Props Debugging:**
 Add logging to your custom view components:
+
 ```typescript
 $effect(() => {
   console.log('View props:', { activeNote, noteContent, metadata });
@@ -289,26 +313,31 @@ $effect(() => {
 The system is designed for easy extension. Consider implementing:
 
 **PDF Viewer:**
+
 - Embedded PDF display with annotation tools
 - Metadata for page numbers, highlights
 
 **Form Builder:**
+
 - Structured data input with validation
 - Dynamic field generation based on schema
 
 **Kanban Board:**
+
 - Task management with drag-and-drop
 - Status tracking and progress visualization
 
 **Timeline View:**
+
 - Chronological event display
 - Date-based navigation and filtering
 
 ### View Modes
 
 Each view can support different modes:
+
 - **Edit**: Full editing capabilities
-- **View**: Read-only display optimized for consumption  
+- **View**: Read-only display optimized for consumption
 - **Hybrid**: Combined editing and preview (default)
 
 ### Advanced Features
