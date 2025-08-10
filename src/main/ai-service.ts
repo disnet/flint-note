@@ -507,18 +507,12 @@ Use these tools to help users manage their notes effectively and answer their qu
   }
 
   private async getSystemMessage(): Promise<string> {
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+    const today = new Date().toLocaleDateString();
     const dayOfWeek = new Date().toLocaleDateString('en-US', { weekday: 'long' });
-    const currentTime = new Date().toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    });
 
     const contextualInfo =
       `\n\n## Current Context\n\n` +
       `- **Today's Date**: ${today} (${dayOfWeek})\n` +
-      `- **Current Time**: ${currentTime}\n` +
       `- **Timezone**: ${Intl.DateTimeFormat().resolvedOptions().timeZone}\n`;
 
     let noteTypeInfo = '';
