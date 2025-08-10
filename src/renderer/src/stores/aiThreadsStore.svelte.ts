@@ -141,7 +141,7 @@ const archivedThreads = $derived<AIThread[]>(
 // Auto-save and cleanup effects - these need to be initialized from a component
 let effectsInitialized = false;
 
-function initializeEffects() {
+function initializeEffects(): void {
   if (effectsInitialized) return;
   effectsInitialized = true;
 
