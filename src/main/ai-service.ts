@@ -518,7 +518,11 @@ Use these tools to help users manage their notes effectively and answer their qu
   }
 
   private async getSystemMessage(): Promise<string> {
-    const today = new Date().toLocaleDateString();
+    const today = new Date().toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric'
+    });
     const dayOfWeek = new Date().toLocaleDateString('en-US', { weekday: 'long' });
 
     const contextualInfo =
