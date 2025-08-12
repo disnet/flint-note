@@ -1,4 +1,11 @@
-import type { Message } from '../services/types';
+import type { Message, ChatService } from '../services/types';
+
+interface ExtendedChatService extends ChatService {
+  setActiveConversation(
+    conversationId: string,
+    messages: Message[] | string
+  ): Promise<{ success: boolean; error?: string }>;
+}
 import { getChatService } from '../services/chatService';
 
 export interface Conversation {
@@ -71,7 +78,10 @@ class ConversationStore {
     try {
       const chatService = getChatService();
       if ('setActiveConversation' in chatService) {
-        await (chatService as any).setActiveConversation(conversationId, []);
+        await (chatService as ExtendedChatService).setActiveConversation(
+          conversationId,
+          []
+        );
       }
     } catch (error) {
       console.warn('Failed to sync new conversation with backend:', error);
@@ -145,7 +155,7 @@ class ConversationStore {
 
           // Send as JSON string to avoid IPC cloning issues
           const messagesAsString = JSON.stringify(serializableMessages);
-          await (chatService as any).setActiveConversation(
+          await (chatService as ExtendedChatService).setActiveConversation(
             conversationId,
             messagesAsString
           );
@@ -375,8 +385,8 @@ class ConversationStore {
   /**
    * Serialize a message for IPC transfer
    */
-  private serializeMessage(message: Message): any {
-    const serialized: any = {
+  private serializeMessage(message: Message): Record<string, unknown> {
+    const serialized: Record<string, unknown> = {
       id: message.id,
       text: message.text,
       sender: message.sender,
@@ -400,7 +410,7 @@ class ConversationStore {
   /**
    * Safely stringify any object, handling circular references and non-serializable values
    */
-  private safeStringify(obj: any): any {
+  private safeStringify(obj: unknown): unknown {
     if (obj === null || obj === undefined) {
       return obj;
     }
@@ -408,11 +418,11 @@ class ConversationStore {
     try {
       // First, try the simple approach
       return JSON.parse(JSON.stringify(obj));
-    } catch (error) {
+    } catch {
       try {
         // More aggressive cleaning for complex objects
         return this.deepCleanObject(obj);
-      } catch (deepError) {
+      } catch {
         // If all else fails, convert to string representation
         return String(obj);
       }
@@ -422,7 +432,7 @@ class ConversationStore {
   /**
    * Deep clean an object by removing all non-serializable properties
    */
-  private deepCleanObject(obj: any): any {
+  private deepCleanObject(obj: unknown): unknown {
     if (obj === null || obj === undefined) {
       return obj;
     }
@@ -440,9 +450,9 @@ class ConversationStore {
     }
 
     // Handle objects
-    const cleaned: any = {};
+    const cleaned: Record<string, unknown> = {};
     for (const key in obj) {
-      if (obj.hasOwnProperty(key)) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
         const value = obj[key];
 
         // Skip functions, symbols, and other non-serializable types
@@ -464,7 +474,7 @@ class ConversationStore {
           // Test if this property can be serialized
           JSON.stringify(value);
           cleaned[key] = this.deepCleanObject(value);
-        } catch (error) {
+        } catch {
           // If it can't be serialized, convert to string or skip
           cleaned[key] = String(value);
         }
@@ -492,13 +502,13 @@ class ConversationStore {
             // Send as JSON string to avoid IPC cloning issues
             try {
               const messagesAsString = JSON.stringify(serializableMessages);
-              await (chatService as any).setActiveConversation(
+              await (chatService as ExtendedChatService).setActiveConversation(
                 this.state.activeConversationId,
                 messagesAsString
               );
-            } catch (stringError) {
+            } catch {
               // Fallback to empty conversation if serialization fails
-              await (chatService as any).setActiveConversation(
+              await (chatService as ExtendedChatService).setActiveConversation(
                 this.state.activeConversationId,
                 []
               );

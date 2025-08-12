@@ -10,6 +10,14 @@ import { SecureStorageService } from './secure-storage-service';
 import { logger } from './logger';
 import { NoteService } from './note-service';
 
+interface FrontendMessage {
+  id: string;
+  text: string;
+  sender: 'user' | 'agent';
+  timestamp: Date | string;
+  toolCalls?: unknown[];
+}
+
 export class AIService extends EventEmitter {
   private currentModelName: string;
   private conversationHistories: Map<string, ModelMessage[]> = new Map();
@@ -563,12 +571,12 @@ Use these tools to help users manage their notes effectively and answer their qu
 
   setActiveConversationWithSync(
     conversationId: string,
-    frontendMessages?: any[] | string
+    frontendMessages?: FrontendMessage[] | string
   ): void {
     this.currentConversationId = conversationId;
 
     // Handle messages that might be sent as JSON string or array
-    let messagesArray: any[] = [];
+    let messagesArray: FrontendMessage[] = [];
 
     if (frontendMessages) {
       if (typeof frontendMessages === 'string') {
@@ -657,7 +665,10 @@ Use these tools to help users manage their notes effectively and answer their qu
     });
   }
 
-  syncConversationFromFrontend(conversationId: string, frontendMessages: any[]): void {
+  syncConversationFromFrontend(
+    conversationId: string,
+    frontendMessages: FrontendMessage[]
+  ): void {
     // Convert frontend message format to AI service format
     const aiMessages: ModelMessage[] = frontendMessages
       .filter((msg) => msg.sender === 'user' || msg.sender === 'agent')

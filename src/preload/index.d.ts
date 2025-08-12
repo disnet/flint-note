@@ -17,6 +17,14 @@ import type {
 import type { ExternalLinkRow } from '@flint-note/server/dist/database/schema';
 import type { MetadataSchema } from '@flint-note/server/dist/core/metadata-schema';
 
+interface FrontendMessage {
+  id: string;
+  text: string;
+  sender: 'user' | 'agent';
+  timestamp: Date | string;
+  toolCalls?: unknown[];
+}
+
 export type ToolCallData = {
   toolCallId: string;
   name: string;
@@ -51,11 +59,11 @@ declare global {
       clearConversation: () => Promise<{ success: boolean; error?: string }>;
       syncConversation: (params: {
         conversationId: string;
-        messages: any[];
+        messages: FrontendMessage[];
       }) => Promise<{ success: boolean; error?: string }>;
       setActiveConversation: (params: {
         conversationId: string;
-        messages?: any[] | string;
+        messages?: FrontendMessage[] | string;
       }) => Promise<{ success: boolean; error?: string }>;
 
       // Note operations

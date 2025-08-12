@@ -9,6 +9,14 @@ import type { MetadataSchema } from '@flint-note/server/dist/core/metadata-schem
 import { NoteMetadata } from '@flint-note/server';
 import { logger } from './logger';
 
+interface FrontendMessage {
+  id: string;
+  text: string;
+  sender: 'user' | 'agent';
+  timestamp: Date | string;
+  toolCalls?: unknown[];
+}
+
 function createWindow(): void {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
@@ -282,7 +290,7 @@ app.whenReady().then(async () => {
       _event,
       params: {
         conversationId: string;
-        messages: any[];
+        messages: FrontendMessage[];
       }
     ) => {
       if (aiService) {
@@ -300,7 +308,7 @@ app.whenReady().then(async () => {
       _event,
       params: {
         conversationId: string;
-        messages?: any[] | string;
+        messages?: FrontendMessage[] | string;
       }
     ) => {
       if (aiService) {

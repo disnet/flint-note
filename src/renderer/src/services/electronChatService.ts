@@ -1,4 +1,4 @@
-import type { ChatService, NoteService, ChatResponse } from './types';
+import type { ChatService, NoteService, ChatResponse, Message } from './types';
 import type {
   NoteInfo,
   Note,
@@ -101,7 +101,7 @@ export class ElectronChatService implements ChatService, NoteService {
   // Conversation sync operations
   async syncConversation(
     conversationId: string,
-    messages: any[]
+    messages: Message[]
   ): Promise<{ success: boolean; error?: string }> {
     try {
       return await window.api.syncConversation({ conversationId, messages });
@@ -113,14 +113,14 @@ export class ElectronChatService implements ChatService, NoteService {
 
   async setActiveConversation(
     conversationId: string,
-    messages?: any[] | string
+    messages?: Message[] | string
   ): Promise<{ success: boolean; error?: string }> {
     try {
       // First attempt with messages
       if (messages && messages.length > 0) {
         try {
           return await window.api.setActiveConversation({ conversationId, messages });
-        } catch (serializationError) {
+        } catch {
           // Fallback: try with empty messages array
           return await window.api.setActiveConversation({ conversationId, messages: [] });
         }

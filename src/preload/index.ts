@@ -1,6 +1,14 @@
 import { contextBridge } from 'electron';
 import { electronAPI } from '@electron-toolkit/preload';
 import { MetadataSchema } from '@flint-note/server/dist/core/metadata-schema';
+
+interface FrontendMessage {
+  id: string;
+  text: string;
+  sender: 'user' | 'agent';
+  timestamp: Date | string;
+  toolCalls?: unknown[];
+}
 import { NoteMetadata } from '@flint-note/server';
 
 export type ToolCallData = {
@@ -60,11 +68,11 @@ const api = {
     electronAPI.ipcRenderer.send('send-message-stream', params);
   },
   clearConversation: () => electronAPI.ipcRenderer.invoke('clear-conversation'),
-  syncConversation: (params: { conversationId: string; messages: any[] }) =>
+  syncConversation: (params: { conversationId: string; messages: FrontendMessage[] }) =>
     electronAPI.ipcRenderer.invoke('sync-conversation', params),
   setActiveConversation: (params: {
     conversationId: string;
-    messages?: any[] | string;
+    messages?: FrontendMessage[] | string;
   }) => electronAPI.ipcRenderer.invoke('set-active-conversation', params),
 
   // Note operations
