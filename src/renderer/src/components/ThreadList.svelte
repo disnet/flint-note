@@ -18,7 +18,7 @@
   const { activeThread, sortedThreads, archivedThreads } = aiThreadsStore;
 
   // Filtered threads based on search and archive status
-  const filteredThreads = $derived<AIThread[]>(() => {
+  const filteredThreads = $derived.by<AIThread[]>(() => {
     const threads = showArchived ? archivedThreads : sortedThreads;
 
     if (!searchQuery.trim()) {

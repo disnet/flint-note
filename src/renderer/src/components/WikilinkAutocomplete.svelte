@@ -14,7 +14,7 @@
   let selectedIndex = $state(0);
 
   // Get filtered notes based on query
-  const filteredNotes = $derived(() => {
+  const filteredNotes = $derived.by(() => {
     const notes = notesStore.notes;
     if (!query.trim()) return notes.slice(0, 10); // Show first 10 notes if no query
 
@@ -59,7 +59,7 @@
   });
 
   // Add option to create new note if query doesn't match exactly
-  const options = $derived(() => {
+  const options = $derived.by(() => {
     const notes = filteredNotes;
     const hasExactMatch = notes.some(
       (note) => note.title.toLowerCase() === query.toLowerCase().trim()

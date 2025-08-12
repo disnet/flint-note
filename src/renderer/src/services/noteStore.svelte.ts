@@ -29,7 +29,7 @@ function createNotesStore(): {
   readonly noteTypes: NoteType[];
   readonly loading: boolean;
   readonly error: string | null;
-  readonly groupedNotes: () => Record<string, NoteMetadata[]>;
+  readonly groupedNotes: Record<string, NoteMetadata[]>;
   refresh: () => Promise<void>;
   handleToolCall: (toolCall: { name: string }) => void;
 } {
@@ -43,7 +43,7 @@ function createNotesStore(): {
   });
 
   // Derived store for grouped notes by type
-  const groupedNotes = $derived(() => {
+  const groupedNotes = $derived.by(() => {
     const grouped: Record<string, NoteMetadata[]> = {};
 
     for (const note of state.notes) {

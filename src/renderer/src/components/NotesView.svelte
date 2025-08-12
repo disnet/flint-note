@@ -82,9 +82,9 @@
     </div>
   {/if}
 
-  {#if notesStore.notes.length > 0 && Object.keys(groupedNotes()).length > 0}
+  {#if notesStore.notes.length > 0 && Object.keys(groupedNotes).length > 0}
     <div class="notes-tree">
-      {#each Object.entries(groupedNotes()) as [typeName, notes] (typeName)}
+      {#each Object.entries(groupedNotes) as [typeName, notes] (typeName)}
         <div class="note-type">
           <button
             class="type-header"
