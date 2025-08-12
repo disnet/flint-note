@@ -133,22 +133,27 @@ class ConversationStore {
     const conversation = this.state.conversations.find((c) => c.id === conversationId);
     if (conversation) {
       this.state.activeConversationId = conversationId;
-      
+
       // Sync conversation history with backend
       try {
         const chatService = getChatService();
         if ('setActiveConversation' in chatService) {
           // Serialize messages for IPC transfer
-          const serializableMessages = conversation.messages.map(msg => this.serializeMessage(msg));
-          
+          const serializableMessages = conversation.messages.map((msg) =>
+            this.serializeMessage(msg)
+          );
+
           // Send as JSON string to avoid IPC cloning issues
           const messagesAsString = JSON.stringify(serializableMessages);
-          await (chatService as any).setActiveConversation(conversationId, messagesAsString);
+          await (chatService as any).setActiveConversation(
+            conversationId,
+            messagesAsString
+          );
         }
       } catch (error) {
         console.warn('Failed to sync conversation with backend:', error);
       }
-      
+
       this.saveToStorage();
       return true;
     }
@@ -262,7 +267,7 @@ class ConversationStore {
       const vault = await service.getCurrentVault();
       this.currentVaultId = vault?.id || 'default';
       this.loadFromStorage();
-      
+
       // Sync active conversation with backend on app startup
       await this.syncActiveConversationWithBackend();
     } catch (error) {
@@ -380,7 +385,7 @@ class ConversationStore {
 
     // Safely serialize toolCalls if they exist
     if (message.toolCalls && message.toolCalls.length > 0) {
-      serialized.toolCalls = message.toolCalls.map(toolCall => ({
+      serialized.toolCalls = message.toolCalls.map((toolCall) => ({
         id: toolCall.id,
         name: toolCall.name,
         arguments: this.safeStringify(toolCall.arguments), // Safely stringify arguments
@@ -399,7 +404,7 @@ class ConversationStore {
     if (obj === null || obj === undefined) {
       return obj;
     }
-    
+
     try {
       // First, try the simple approach
       return JSON.parse(JSON.stringify(obj));
@@ -421,34 +426,40 @@ class ConversationStore {
     if (obj === null || obj === undefined) {
       return obj;
     }
-    
+
     // Handle primitive types
     if (typeof obj !== 'object') {
       return obj;
     }
-    
+
     // Handle arrays
     if (Array.isArray(obj)) {
-      return obj.map(item => this.deepCleanObject(item)).filter(item => item !== undefined);
+      return obj
+        .map((item) => this.deepCleanObject(item))
+        .filter((item) => item !== undefined);
     }
-    
+
     // Handle objects
     const cleaned: any = {};
     for (const key in obj) {
       if (obj.hasOwnProperty(key)) {
         const value = obj[key];
-        
+
         // Skip functions, symbols, and other non-serializable types
-        if (typeof value === 'function' || typeof value === 'symbol' || typeof value === 'undefined') {
+        if (
+          typeof value === 'function' ||
+          typeof value === 'symbol' ||
+          typeof value === 'undefined'
+        ) {
           continue;
         }
-        
+
         // Handle Date objects
         if (value instanceof Date) {
           cleaned[key] = value.toISOString();
           continue;
         }
-        
+
         try {
           // Test if this property can be serialized
           JSON.stringify(value);
@@ -459,7 +470,7 @@ class ConversationStore {
         }
       }
     }
-    
+
     return cleaned;
   }
 
@@ -474,19 +485,21 @@ class ConversationStore {
           const chatService = getChatService();
           if ('setActiveConversation' in chatService) {
             // Serialize messages for IPC transfer
-            const serializableMessages = activeConversation.messages.map(msg => this.serializeMessage(msg));
-            
+            const serializableMessages = activeConversation.messages.map((msg) =>
+              this.serializeMessage(msg)
+            );
+
             // Send as JSON string to avoid IPC cloning issues
             try {
               const messagesAsString = JSON.stringify(serializableMessages);
               await (chatService as any).setActiveConversation(
-                this.state.activeConversationId, 
+                this.state.activeConversationId,
                 messagesAsString
               );
             } catch (stringError) {
               // Fallback to empty conversation if serialization fails
               await (chatService as any).setActiveConversation(
-                this.state.activeConversationId, 
+                this.state.activeConversationId,
                 []
               );
             }

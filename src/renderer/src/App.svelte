@@ -254,7 +254,11 @@
         );
       } else {
         // Fallback to non-streaming mode
-        const response = await chatService.sendMessage(text, conversationStore.activeConversationId || undefined, modelStore.selectedModel);
+        const response = await chatService.sendMessage(
+          text,
+          conversationStore.activeConversationId || undefined,
+          modelStore.selectedModel
+        );
 
         // Update the placeholder message with the complete response
         conversationStore.updateMessage(agentResponseId, {

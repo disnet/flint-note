@@ -30,9 +30,18 @@ declare global {
     electron: ElectronAPI;
     api: {
       // Chat operations
-      sendMessage: (message: { message: string; conversationId?: string; model?: string }) => Promise<string>;
+      sendMessage: (message: {
+        message: string;
+        conversationId?: string;
+        model?: string;
+      }) => Promise<string>;
       sendMessageStream: (
-        params: { message: string; conversationId?: string; model?: string; requestId: string },
+        params: {
+          message: string;
+          conversationId?: string;
+          model?: string;
+          requestId: string;
+        },
         onStreamStart: (data: { requestId: string }) => void,
         onStreamChunk: (data: { requestId: string; chunk: string }) => void,
         onStreamEnd: (data: { requestId: string; fullText: string }) => void,
@@ -40,13 +49,13 @@ declare global {
         onStreamToolCall?: (data: { requestId: string; toolCall: ToolCallData }) => void
       ) => void;
       clearConversation: () => Promise<{ success: boolean; error?: string }>;
-      syncConversation: (params: { 
-        conversationId: string; 
-        messages: any[] 
+      syncConversation: (params: {
+        conversationId: string;
+        messages: any[];
       }) => Promise<{ success: boolean; error?: string }>;
-      setActiveConversation: (params: { 
-        conversationId: string; 
-        messages?: any[] | string 
+      setActiveConversation: (params: {
+        conversationId: string;
+        messages?: any[] | string;
       }) => Promise<{ success: boolean; error?: string }>;
 
       // Note operations

@@ -20,9 +20,17 @@ import type { MetadataSchema } from '@flint-note/server/dist/core/metadata-schem
 import { notesStore } from './noteStore.svelte';
 
 export class ElectronChatService implements ChatService, NoteService {
-  async sendMessage(text: string, conversationId?: string, model?: string): Promise<ChatResponse> {
+  async sendMessage(
+    text: string,
+    conversationId?: string,
+    model?: string
+  ): Promise<ChatResponse> {
     try {
-      const response = await window.api.sendMessage({ message: text, conversationId, model });
+      const response = await window.api.sendMessage({
+        message: text,
+        conversationId,
+        model
+      });
 
       // Handle both old string format and new object format
       if (typeof response === 'string') {
@@ -91,7 +99,10 @@ export class ElectronChatService implements ChatService, NoteService {
   }
 
   // Conversation sync operations
-  async syncConversation(conversationId: string, messages: any[]): Promise<{ success: boolean; error?: string }> {
+  async syncConversation(
+    conversationId: string,
+    messages: any[]
+  ): Promise<{ success: boolean; error?: string }> {
     try {
       return await window.api.syncConversation({ conversationId, messages });
     } catch (error) {
@@ -100,7 +111,10 @@ export class ElectronChatService implements ChatService, NoteService {
     }
   }
 
-  async setActiveConversation(conversationId: string, messages?: any[] | string): Promise<{ success: boolean; error?: string }> {
+  async setActiveConversation(
+    conversationId: string,
+    messages?: any[] | string
+  ): Promise<{ success: boolean; error?: string }> {
     try {
       // First attempt with messages
       if (messages && messages.length > 0) {
@@ -111,7 +125,10 @@ export class ElectronChatService implements ChatService, NoteService {
           return await window.api.setActiveConversation({ conversationId, messages: [] });
         }
       } else {
-        return await window.api.setActiveConversation({ conversationId, messages: messages || [] });
+        return await window.api.setActiveConversation({
+          conversationId,
+          messages: messages || []
+        });
       }
     } catch (error) {
       console.error('Failed to set active conversation:', error);

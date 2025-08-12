@@ -17,7 +17,12 @@ const api = {
   sendMessage: (params: { message: string; conversationId?: string; model?: string }) =>
     electronAPI.ipcRenderer.invoke('send-message', params),
   sendMessageStream: (
-    params: { message: string; conversationId?: string; model?: string; requestId: string },
+    params: {
+      message: string;
+      conversationId?: string;
+      model?: string;
+      requestId: string;
+    },
     onStreamStart: (data: { requestId: string }) => void,
     onStreamChunk: (data: { requestId: string; chunk: string }) => void,
     onStreamEnd: (data: { requestId: string; fullText: string }) => void,
@@ -57,8 +62,10 @@ const api = {
   clearConversation: () => electronAPI.ipcRenderer.invoke('clear-conversation'),
   syncConversation: (params: { conversationId: string; messages: any[] }) =>
     electronAPI.ipcRenderer.invoke('sync-conversation', params),
-  setActiveConversation: (params: { conversationId: string; messages?: any[] | string }) =>
-    electronAPI.ipcRenderer.invoke('set-active-conversation', params),
+  setActiveConversation: (params: {
+    conversationId: string;
+    messages?: any[] | string;
+  }) => electronAPI.ipcRenderer.invoke('set-active-conversation', params),
 
   // Note operations
   createNote: (params: {

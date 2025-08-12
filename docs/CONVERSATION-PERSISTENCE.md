@@ -13,6 +13,7 @@ The conversation persistence system transforms the previously ephemeral AI conve
 ### Core Components
 
 **ConversationStore** (`src/renderer/src/stores/conversationStore.svelte.ts`)
+
 - Central state management for all conversation data
 - Handles persistence to localStorage with vault-specific keys
 - Manages conversation lifecycle (create, update, delete, switch)
@@ -21,12 +22,14 @@ The conversation persistence system transforms the previously ephemeral AI conve
 - **New**: Handles message serialization for IPC transfer to backend
 
 **ConversationHistory Component** (`src/renderer/src/components/ConversationHistory.svelte`)
+
 - UI component for browsing and managing conversation history
 - Displays conversation metadata (title, preview, message count, date)
 - Enables conversation switching and deletion
 - Shows empty state when no conversations exist
 
 **Enhanced AIAssistant** (`src/renderer/src/components/AIAssistant.svelte`)
+
 - Integrates conversation history panel toggle
 - Shows current conversation indicator
 - Provides new conversation creation
@@ -34,6 +37,7 @@ The conversation persistence system transforms the previously ephemeral AI conve
 - **New**: Handles async conversation operations for backend sync
 
 **AI Service Backend** (`src/main/ai-service.ts`)
+
 - **New**: Maintains separate conversation histories per conversation ID
 - **New**: Provides conversation management API for frontend sync
 - **New**: Handles message format conversion from frontend to AI service format
@@ -43,12 +47,12 @@ The conversation persistence system transforms the previously ephemeral AI conve
 
 ```typescript
 interface Conversation {
-  id: string;              // Unique conversation identifier
-  title: string;           // Auto-generated from first user message
-  messages: Message[];     // Array of conversation messages
-  createdAt: Date;        // Conversation creation timestamp
-  updatedAt: Date;        // Last activity timestamp
-  vaultId: string;        // Associated vault for organization
+  id: string; // Unique conversation identifier
+  title: string; // Auto-generated from first user message
+  messages: Message[]; // Array of conversation messages
+  createdAt: Date; // Conversation creation timestamp
+  updatedAt: Date; // Last activity timestamp
+  vaultId: string; // Associated vault for organization
 }
 ```
 
@@ -160,10 +164,12 @@ await conversationStore.refreshForVault(vaultId); // New integration
 New IPC handlers and AI service methods for conversation synchronization:
 
 **IPC Handlers** (`src/main/index.ts`):
+
 - `sync-conversation`: Syncs conversation history from frontend
 - `set-active-conversation`: Sets active conversation with optional message sync
 
 **AI Service Methods** (`src/main/ai-service.ts`):
+
 - `setActiveConversationWithSync()`: Sets active conversation with optional sync
 - `syncConversationFromFrontend()`: Converts and stores frontend messages
 - `restoreConversationHistory()`: Restores conversation context from messages
@@ -175,6 +181,7 @@ New IPC handlers and AI service methods for conversation synchronization:
 ### ConversationStore Methods
 
 **Core Operations**:
+
 - `startNewConversation()`: Creates and activates a new conversation (async, syncs with backend)
 - `addMessage(message)`: Adds a message to the active conversation (async)
 - `updateMessage(messageId, updates)`: Updates a specific message (for streaming)
@@ -182,23 +189,27 @@ New IPC handlers and AI service methods for conversation synchronization:
 - `deleteConversation(conversationId)`: Removes a conversation permanently
 
 **Message Serialization**:
+
 - `serializeMessage(message)`: Converts Message objects for IPC transfer
 - `safeStringify(obj)`: Safely serializes complex objects with circular reference handling
 - `deepCleanObject(obj)`: Deep cleans objects by removing non-serializable properties
 
 **State Access**:
+
 - `conversations`: Array of all conversations for current vault
 - `activeConversation`: Current conversation object or null
 - `activeConversationId`: ID of current conversation or null
 - `currentMessages`: Messages array for backward compatibility
 
 **Vault Management**:
+
 - `refreshForVault(vaultId)`: Switches conversation context to specified vault (async, syncs with backend)
 - `clearAllConversations()`: Removes all conversations for current vault
 
 ### AI Service Methods (Backend)
 
 **Conversation Management**:
+
 - `setActiveConversation(conversationId)`: Sets active conversation (basic)
 - `setActiveConversationWithSync(conversationId, messages)`: Sets active conversation with optional message sync
 - `createConversation(conversationId?)`: Creates new conversation with optional ID
@@ -206,6 +217,7 @@ New IPC handlers and AI service methods for conversation synchronization:
 - `getActiveConversationHistory()`: Gets current conversation messages
 
 **Message Operations**:
+
 - `syncConversationFromFrontend(conversationId, frontendMessages)`: Syncs conversation from frontend format
 - `restoreConversationHistory(conversationId, messages)`: Restores conversation with AI service messages
 
