@@ -2,7 +2,6 @@
   let { onSend }: { onSend: (text: string) => void } = $props();
 
   let inputText = $state('');
-  let textarea: HTMLTextAreaElement;
 
   function handleSubmit(): void {
     const text = inputText.trim();
@@ -22,7 +21,6 @@
 
 <div class="simple-message-input">
   <textarea
-    bind:this={textarea}
     bind:value={inputText}
     onkeydown={handleKeydown}
     placeholder="Type your message..."

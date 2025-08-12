@@ -155,9 +155,15 @@
       }
     }
 
-    document.addEventListener('wikilink-navigate', handleWikilinkNavigate);
+    document.addEventListener(
+      'wikilink-navigate',
+      handleWikilinkNavigate as (event: Event) => void
+    );
     return () =>
-      document.removeEventListener('wikilink-navigate', handleWikilinkNavigate);
+      document.removeEventListener(
+        'wikilink-navigate',
+        handleWikilinkNavigate as (event: Event) => void
+      );
   });
 
   // Handle unpinned notes event from navigation service
@@ -174,8 +180,15 @@
       }
     }
 
-    document.addEventListener('notes-unpinned', handleNotesUnpinned);
-    return () => document.removeEventListener('notes-unpinned', handleNotesUnpinned);
+    document.addEventListener(
+      'notes-unpinned',
+      handleNotesUnpinned as (event: Event) => void
+    );
+    return () =>
+      document.removeEventListener(
+        'notes-unpinned',
+        handleNotesUnpinned as (event: Event) => void
+      );
   });
 
   async function handleSendMessage(text: string): Promise<void> {
@@ -303,7 +316,6 @@
       {activeSystemView}
       noteTypes={notesStore.noteTypes}
       onClose={closeNoteEditor}
-      onSendMessage={handleSendMessage}
       onNoteSelect={handleNoteSelect}
       onCreateNote={handleCreateNote}
       onNoteTypeChange={handleNoteTypeChange}
