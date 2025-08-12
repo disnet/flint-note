@@ -58,6 +58,7 @@
       class="new-conversation-btn"
       onclick={startNewConversation}
       title="Start new conversation"
+      aria-label="Start new conversation"
     >
       <svg
         width="16"
@@ -85,6 +86,7 @@
           class="conversation-item"
           class:active={conversation.id === conversationStore.activeConversationId}
           onclick={() => selectConversation(conversation.id)}
+          onkeydown={(e) => e.key === 'Enter' && selectConversation(conversation.id)}
           role="button"
           tabindex="0"
         >
@@ -95,6 +97,7 @@
                 class="delete-btn"
                 onclick={(e) => deleteConversation(e, conversation.id)}
                 title="Delete conversation"
+                aria-label="Delete conversation"
               >
                 <svg
                   width="12"

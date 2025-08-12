@@ -505,43 +505,6 @@
     background: transparent;
   }
 
-  .editor-actions {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .saving-indicator {
-    font-size: 1rem;
-    opacity: 0.7;
-    animation: pulse 1.5s ease-in-out infinite;
-  }
-
-  @keyframes pulse {
-    0%,
-    100% {
-      opacity: 0.7;
-    }
-    50% {
-      opacity: 1;
-    }
-  }
-
-  .close-btn {
-    padding: 0.5rem;
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 1.5rem;
-    color: var(--text-secondary);
-    transition: color 0.2s ease;
-    line-height: 1;
-  }
-
-  .close-btn:hover {
-    color: var(--text-primary);
-  }
-
   .error-message {
     padding: 1rem;
     background: var(--error-bg);
@@ -568,11 +531,6 @@
       flex-direction: column;
       align-items: flex-start;
       gap: 0.5rem;
-    }
-
-    .note-type-selector {
-      align-self: stretch;
-      min-width: auto;
     }
   }
 

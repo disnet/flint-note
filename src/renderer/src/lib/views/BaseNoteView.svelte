@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { NoteViewProps } from './ViewRegistry';
+  import type { Snippet } from 'svelte';
 
   let {
     activeNote,
@@ -7,8 +8,22 @@
     metadata,
     onContentChange,
     onMetadataChange,
-    onSave
-  }: NoteViewProps = $props();
+    onSave,
+    children
+  }: NoteViewProps & {
+    children: Snippet<
+      [
+        {
+          activeNote: Record<string, unknown>;
+          noteContent: string;
+          metadata: Record<string, unknown>;
+          handleContentChange: (content: string) => void;
+          handleMetadataChange: (metadata: Record<string, unknown>) => void;
+          handleSave: () => void;
+        }
+      ]
+    >;
+  } = $props();
 
   // Default implementation - override in child components
   function handleContentChange(newContent: string): void {
@@ -25,14 +40,14 @@
 </script>
 
 <div class="base-note-view">
-  <slot
-    {activeNote}
-    {noteContent}
-    {metadata}
-    {handleContentChange}
-    {handleMetadataChange}
-    {handleSave}
-  />
+  {@render children({
+    activeNote,
+    noteContent,
+    metadata,
+    handleContentChange,
+    handleMetadataChange,
+    handleSave
+  })}
 </div>
 
 <style>

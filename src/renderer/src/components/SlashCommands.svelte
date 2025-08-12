@@ -143,7 +143,7 @@
 
         <div class="form-group">
           <div class="parameters-header">
-            <label>Parameters</label>
+            <h4>Parameters</h4>
             <button
               type="button"
               class="add-parameter-button"
@@ -213,6 +213,7 @@
                   class="remove-parameter-button"
                   onclick={() => removeParameter(newCommandParameters, index)}
                   title="Remove parameter"
+                  aria-label="Remove parameter"
                 >
                   <svg
                     width="12"
@@ -298,7 +299,7 @@
 
             <div class="form-group">
               <div class="parameters-header">
-                <label>Parameters</label>
+                <h4>Parameters</h4>
                 <button
                   type="button"
                   class="add-parameter-button"
@@ -368,6 +369,7 @@
                       class="remove-parameter-button"
                       onclick={() => removeParameter(editCommandParameters, index)}
                       title="Remove parameter"
+                      aria-label="Remove parameter"
                     >
                       <svg
                         width="12"
@@ -434,6 +436,7 @@
                 class="edit-button"
                 onclick={() => startEditing(command)}
                 title="Edit command"
+                aria-label="Edit command"
               >
                 <svg
                   width="14"
@@ -451,6 +454,7 @@
                 class="delete-button"
                 onclick={() => deleteCommand(command.id)}
                 title="Delete command"
+                aria-label="Delete command"
               >
                 <svg
                   width="14"

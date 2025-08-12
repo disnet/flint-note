@@ -172,15 +172,6 @@
     transform: rotate(90deg);
   }
 
-  .section-header h3 {
-    margin: 0;
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.025em;
-  }
-
   .pinned-list {
     display: flex;
     flex-direction: column;

@@ -182,7 +182,11 @@
     <div class="autocomplete-dropdown parameter-input-mode">
       <div class="dropdown-header">
         <span class="dropdown-title">Configure /{selectedCommand.name}</span>
-        <button class="cancel-button" onclick={handleParameterCancel}>
+        <button
+          class="cancel-button"
+          onclick={handleParameterCancel}
+          aria-label="Cancel parameter configuration"
+        >
           <svg
             width="12"
             height="12"
@@ -200,7 +204,7 @@
       <div class="parameters-form">
         {#each selectedCommand.parameters || [] as parameter, index (parameter.id)}
           <div class="parameter-group">
-            <label class="parameter-label">
+            <label class="parameter-label" for="param-{parameter.id}">
               {parameter.name}
               {#if parameter.required}
                 <span class="required-indicator">*</span>
@@ -212,6 +216,7 @@
 
             {#if parameter.type === 'number'}
               <input
+                id="param-{parameter.id}"
                 type="number"
                 class="parameter-input"
                 class:focused={index === currentParameterIndex}
@@ -222,6 +227,7 @@
               />
             {:else if parameter.type === 'selection'}
               <select
+                id="param-{parameter.id}"
                 class="parameter-input"
                 class:focused={index === currentParameterIndex}
                 bind:value={parameterValues[parameter.name]}
@@ -423,6 +429,7 @@
     line-height: 1.4;
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
   }

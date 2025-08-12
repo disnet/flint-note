@@ -377,16 +377,16 @@
         <div class="metadata-section">
           <h4>Basic Information</h4>
           <div class="metadata-field">
-            <label>Note ID</label>
-            <input type="text" value={activeNote.id} readonly />
+            <label for="note-id">Note ID</label>
+            <input id="note-id" type="text" value={activeNote.id} readonly />
           </div>
           <div class="metadata-field">
-            <label>Type</label>
-            <input type="text" value={activeNote.type} readonly />
+            <label for="note-type">Type</label>
+            <input id="note-type" type="text" value={activeNote.type} readonly />
           </div>
           <div class="metadata-field">
-            <label>File Path</label>
-            <input type="text" value={activeNote.path} readonly />
+            <label for="note-path">File Path</label>
+            <input id="note-path" type="text" value={activeNote.path} readonly />
           </div>
         </div>
 
@@ -474,7 +474,7 @@ published: false</code
               {#each Object.entries(parsedMetadata) as [key, value] (key)}
                 <div class="metadata-field parsed">
                   <div class="field-header">
-                    <label>{key}</label>
+                    <h4>{key}</h4>
                     <button
                       class="remove-field"
                       onclick={() => removeField(key)}
@@ -770,12 +770,6 @@ published: false</code
     align-items: center;
     justify-content: space-between;
     margin-bottom: 0.5rem;
-  }
-
-  .field-header label {
-    margin: 0;
-    font-weight: 600;
-    color: var(--text-primary);
   }
 
   .remove-field {

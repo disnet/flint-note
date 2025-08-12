@@ -31,28 +31,6 @@
     align-self: flex-start;
   }
 
-  .message-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 0.375rem;
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    font-weight: 500;
-    transition: color 0.2s ease;
-  }
-
-  .sender {
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  .timestamp {
-    font-size: 0.75rem;
-    font-weight: 400;
-  }
-
   .message-content {
     background: var(--message-agent-bg);
     padding: 1rem 1.25rem;

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import JsonViewer from './JsonViewer.svelte';
+
   interface JsonViewerProps {
     value: unknown;
     key?: string;
@@ -73,11 +75,11 @@
         <div class="json-children">
           {#if isArray(value)}
             {#each value as item, index (index)}
-              <svelte:self value={item} key={String(index)} depth={depth + 1} />
+              <JsonViewer value={item} key={String(index)} depth={depth + 1} />
             {/each}
           {:else if isObject(value)}
             {#each Object.entries(value) as [k, v] (k)}
-              <svelte:self value={v} key={k} depth={depth + 1} />
+              <JsonViewer value={v} key={k} depth={depth + 1} />
             {/each}
           {/if}
         </div>

@@ -46,6 +46,7 @@
     role="dialog"
     aria-modal="true"
     aria-label="Search notes"
+    tabindex="0"
   >
     <div class="search-overlay-content">
       <SearchBar onNoteSelect={handleNoteSelect} />

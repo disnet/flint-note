@@ -72,80 +72,82 @@
   {onContentChange}
   {onMetadataChange}
   {onSave}
-  let:handleContentChange
-  let:handleSave
 >
-  <div class="image-note-view">
-    <div class="image-controls">
-      <div class="control-group">
-        <label for="image-url">Image URL:</label>
-        <input
-          id="image-url"
-          type="url"
-          value={(metadata.image_url as string) || ''}
-          oninput={handleImageUrlChange}
-          placeholder="Enter image URL or upload below"
-        />
+  {#snippet children({ handleContentChange, handleSave })}
+    <div class="image-note-view">
+      <div class="image-controls">
+        <div class="control-group">
+          <label for="image-url">Image URL:</label>
+          <input
+            id="image-url"
+            type="url"
+            value={(metadata.image_url as string) || ''}
+            oninput={handleImageUrlChange}
+            placeholder="Enter image URL or upload below"
+          />
+        </div>
+
+        <div class="control-group">
+          <label for="image-upload">Upload Image:</label>
+          <input
+            id="image-upload"
+            type="file"
+            accept="image/*"
+            onchange={handleImageUpload}
+          />
+        </div>
+
+        <button onclick={toggleEditor} class="toggle-editor">
+          {showEditor ? 'Hide' : 'Show'} Editor
+        </button>
       </div>
 
-      <div class="control-group">
-        <label for="image-upload">Upload Image:</label>
-        <input
-          id="image-upload"
-          type="file"
-          accept="image/*"
-          onchange={handleImageUpload}
-        />
-      </div>
-
-      <button onclick={toggleEditor} class="toggle-editor">
-        {showEditor ? 'Hide' : 'Show'} Editor
-      </button>
-    </div>
-
-    <div class="content-area" class:editor-hidden={!showEditor}>
-      {#if imageUrl}
-        <div class="image-preview">
-          <img src={imageUrl} alt={(metadata.title as string) || 'Image'} />
-          <div class="image-metadata">
-            {#if metadata.title || (metadata.metadata as Record<string, unknown>)?.title}
-              <h3>
-                {(metadata.title as string) ||
-                  ((metadata.metadata as Record<string, unknown>)?.title as string)}
-              </h3>
-            {/if}
-            {#if metadata.description || (metadata.metadata as Record<string, unknown>)?.description}
-              <p class="description">
-                {(metadata.description as string) ||
-                  ((metadata.metadata as Record<string, unknown>)?.description as string)}
-              </p>
-            {/if}
+      <div class="content-area" class:editor-hidden={!showEditor}>
+        {#if imageUrl}
+          <div class="image-preview">
+            <img src={imageUrl} alt={(metadata.title as string) || 'Image'} />
+            <div class="image-metadata">
+              {#if metadata.title || (metadata.metadata as Record<string, unknown>)?.title}
+                <h3>
+                  {(metadata.title as string) ||
+                    ((metadata.metadata as Record<string, unknown>)?.title as string)}
+                </h3>
+              {/if}
+              {#if metadata.description || (metadata.metadata as Record<string, unknown>)?.description}
+                <p class="description">
+                  {(metadata.description as string) ||
+                    ((metadata.metadata as Record<string, unknown>)
+                      ?.description as string)}
+                </p>
+              {/if}
+            </div>
           </div>
-        </div>
-      {:else}
-        <div class="image-placeholder">
-          <div class="placeholder-icon">🖼️</div>
-          <p>No image specified. Add an image URL or upload a file above.</p>
-        </div>
-      {/if}
+        {:else}
+          <div class="image-placeholder">
+            <div class="placeholder-icon">🖼️</div>
+            <p>No image specified. Add an image URL or upload a file above.</p>
+          </div>
+        {/if}
 
-      {#if showEditor}
-        <div class="editor-section">
-          <h4>Content</h4>
-          <textarea
-            class="content-editor"
-            value={noteContent}
-            oninput={(e) => handleContentChange((e.target as HTMLTextAreaElement).value)}
-            placeholder="Add notes about this image..."
-          ></textarea>
-        </div>
-      {/if}
-    </div>
+        {#if showEditor}
+          <div class="editor-section">
+            <h4>Content</h4>
+            <textarea
+              class="content-editor"
+              value={noteContent}
+              oninput={(e) =>
+                handleContentChange((e.target as HTMLTextAreaElement).value)}
+              placeholder="Add notes about this image..."
+            ></textarea>
+          </div>
+        {/if}
+      </div>
 
-    <div class="action-bar">
-      <button onclick={handleSave} class="save-button">Save</button>
+      <div class="action-bar">
+        <button onclick={handleSave} class="save-button">Save</button>
+      </div>
     </div>
-  </div>
+  {/snippet}
 </BaseNoteView>
 
 <style>

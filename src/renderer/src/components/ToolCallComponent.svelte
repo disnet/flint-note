@@ -128,18 +128,6 @@
       monospace;
   }
 
-  .tool-args {
-    color: var(--tool-args-color, #6c757d);
-    font-size: 0.875rem;
-    font-family:
-      'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New',
-      monospace;
-    max-width: 10ch;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    text-wrap: nowrap;
-  }
-
   .tool-call-status {
     display: flex;
     align-items: center;
@@ -201,20 +189,6 @@
     color: var(--details-heading-color, #495057);
     text-transform: uppercase;
     letter-spacing: 0.05em;
-  }
-
-  .code-block {
-    background: var(--code-bg, #f8f9fa);
-    border: 1px solid var(--code-border, #e9ecef);
-    border-radius: 4px;
-    padding: 0.75rem;
-    font-family:
-      'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New',
-      monospace;
-    font-size: 0.8rem;
-    color: var(--code-text, #495057);
-    overflow-x: auto;
-    margin: 0;
   }
 
   .result-content {

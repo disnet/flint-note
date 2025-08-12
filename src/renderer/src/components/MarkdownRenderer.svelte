@@ -179,8 +179,9 @@
   class="markdown-content"
   onclick={handleClick}
   onkeydown={handleKeydown}
-  role="region"
+  role="button"
   aria-label="Rendered markdown with clickable note links"
+  tabindex="0"
 >
   {@html renderedHtml}
 </div>
