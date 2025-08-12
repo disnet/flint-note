@@ -45,7 +45,7 @@
 
   function extractNotesFromText(text: string): string[] {
     const wikiLinkRegex = /\[\[([^\]]+)\]\]/g;
-    const matches = [];
+    const matches: string[] = [];
     let match;
     while ((match = wikiLinkRegex.exec(text)) !== null) {
       matches.push(match[1]);

@@ -176,13 +176,18 @@
                       newCommandParameters,
                       index,
                       'name',
-                      e?.target?.value
+                      (e.target as HTMLInputElement)?.value
                     )}
                 />
                 <select
                   value={parameter.type}
                   onchange={(e) =>
-                    updateParameter(newCommandParameters, index, 'type', e.target.value)}
+                    updateParameter(
+                      newCommandParameters,
+                      index,
+                      'type',
+                      (e.target as HTMLSelectElement).value
+                    )}
                 >
                   <option value="text">Text</option>
                   <option value="number">Number</option>
@@ -198,7 +203,7 @@
                         newCommandParameters,
                         index,
                         'required',
-                        e.target.checked
+                        (e.target as HTMLInputElement).checked
                       )}
                   />
                   Required
@@ -233,7 +238,7 @@
                       newCommandParameters,
                       index,
                       'defaultValue',
-                      e.target.value
+                      (e.target as HTMLInputElement).value
                     )}
                   class="parameter-default"
                 />
@@ -248,7 +253,7 @@
                     newCommandParameters,
                     index,
                     'description',
-                    e.target.value
+                    (e.target as HTMLInputElement).value
                   )}
                 class="parameter-description"
               />
@@ -326,7 +331,7 @@
                           editCommandParameters,
                           index,
                           'name',
-                          e.target.value
+                          (e.target as HTMLInputElement).value
                         )}
                     />
                     <select
@@ -336,7 +341,7 @@
                           editCommandParameters,
                           index,
                           'type',
-                          e.target.value
+                          (e.target as HTMLSelectElement).value
                         )}
                     >
                       <option value="text">Text</option>
@@ -353,7 +358,7 @@
                             editCommandParameters,
                             index,
                             'required',
-                            e.target.checked
+                            (e.target as HTMLInputElement).checked
                           )}
                       />
                       Required
@@ -388,7 +393,7 @@
                           editCommandParameters,
                           index,
                           'defaultValue',
-                          e.target.value
+                          (e.target as HTMLInputElement).value
                         )}
                       class="parameter-default"
                     />
@@ -403,7 +408,7 @@
                         editCommandParameters,
                         index,
                         'description',
-                        e.target.value
+                        (e.target as HTMLInputElement).value
                       )}
                     class="parameter-description"
                   />

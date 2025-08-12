@@ -20,7 +20,6 @@
   let saveTimeout: number | null = null;
 
   // Editor state
-  let frontmatterEditor: HTMLTextAreaElement;
   let parsedMetadata = $state<Record<string, unknown>>({});
   let validationError = $state<string | null>(null);
 
@@ -402,7 +401,6 @@
           {/if}
           <div class="yaml-editor">
             <textarea
-              bind:this={frontmatterEditor}
               bind:value={frontmatterText}
               oninput={onFrontmatterChange}
               placeholder="Enter YAML frontmatter..."

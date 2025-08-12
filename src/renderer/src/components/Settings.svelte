@@ -25,25 +25,30 @@
   let gatewaySaveTimer;
 
   // Load API keys on component mount
-  $effect(async () => {
-    try {
-      // Load API keys into the store first
-      await settingsStore.loadApiKeys();
+  $effect(() => {
+    (async () => {
+      try {
+        // Load API keys into the store first
+        await settingsStore.loadApiKeys();
 
-      // Then populate the local form state
-      const keys = await secureStorageService.getAllApiKeys();
-      anthropicKey = keys.anthropic;
-      openaiKey = keys.openai;
-      openaiOrgId = keys.openaiOrgId;
-      gatewayKey = keys.gateway;
+        // Then populate the local form state
+        const keys = await secureStorageService.getAllApiKeys();
+        anthropicKey = keys.anthropic;
+        openaiKey = keys.openai;
+        openaiOrgId = keys.openaiOrgId;
+        gatewayKey = keys.gateway;
 
-      // Update validation
-      anthropicKeyValid = secureStorageService.validateApiKey('anthropic', anthropicKey);
-      openaiKeyValid = secureStorageService.validateApiKey('openai', openaiKey);
-      gatewayKeyValid = secureStorageService.validateApiKey('gateway', gatewayKey);
-    } catch (error) {
-      console.error('Failed to load API keys:', error);
-    }
+        // Update validation
+        anthropicKeyValid = secureStorageService.validateApiKey(
+          'anthropic',
+          anthropicKey
+        );
+        openaiKeyValid = secureStorageService.validateApiKey('openai', openaiKey);
+        gatewayKeyValid = secureStorageService.validateApiKey('gateway', gatewayKey);
+      } catch (error) {
+        console.error('Failed to load API keys:', error);
+      }
+    })();
 
     // Cleanup function
     return () => {
