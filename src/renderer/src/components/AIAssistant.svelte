@@ -15,7 +15,7 @@
 
   let { messages, isLoading = false, onNoteClick, onSendMessage }: Props = $props();
 
-  let chatContainer: HTMLDivElement;
+  let chatContainer = $state<HTMLDivElement>();
   let expandedDiscussed = $state<boolean>(true);
   let showHistory = $state<boolean>(false);
 
@@ -77,7 +77,9 @@
     if (chatContainer && (messages.length > 0 || isLoading)) {
       // Use requestAnimationFrame to ensure layout is complete
       requestAnimationFrame(() => {
-        chatContainer.scrollTop = chatContainer.scrollHeight;
+        if (chatContainer) {
+          chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
       });
     }
   });
@@ -87,7 +89,9 @@
     if (chatContainer && messages.length > 0) {
       // Scroll to bottom when message text changes (streaming)
       requestAnimationFrame(() => {
-        chatContainer.scrollTop = chatContainer.scrollHeight;
+        if (chatContainer) {
+          chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
       });
     }
   });
@@ -109,6 +113,7 @@
         class:active={showHistory}
         onclick={toggleHistory}
         title="Conversation history"
+        aria-label="Toggle conversation history"
       >
         <svg
           width="16"
@@ -127,6 +132,7 @@
         class="new-conversation-btn"
         onclick={handleNewConversation}
         title="Start new conversation"
+        aria-label="Start new conversation"
       >
         <svg
           width="16"
@@ -334,127 +340,6 @@
     color: var(--text-primary);
   }
 
-  /* Task Management Styles */
-  .tasks-section {
-    padding: 1rem 1.25rem;
-    border-bottom: 1px solid var(--border-light);
-    background: var(--bg-secondary);
-  }
-
-  .task-list {
-    margin-top: 0.75rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .task-item {
-    border: 1px solid var(--border-light);
-    border-radius: 0.5rem;
-    background: var(--bg-primary);
-    overflow: hidden;
-  }
-
-  .task-item.completed {
-    background: var(--bg-tertiary);
-    opacity: 0.8;
-  }
-
-  .task-header {
-    display: flex;
-    align-items: center;
-    width: 100%;
-    padding: 0.75rem;
-    border: none;
-    background: transparent;
-    color: var(--text-primary);
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-  }
-
-  .task-header:hover {
-    background: var(--bg-tertiary);
-  }
-
-  .task-icon {
-    margin-right: 0.75rem;
-    font-size: 1rem;
-    font-weight: bold;
-    color: var(--text-secondary);
-  }
-
-  .task-icon.completed {
-    color: var(--accent-primary);
-  }
-
-  .task-title {
-    flex: 1;
-    text-align: left;
-    font-size: 0.875rem;
-    font-weight: 500;
-    text-transform: capitalize;
-  }
-
-  .expand-icon {
-    margin-left: 0.5rem;
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-    transform: rotate(-90deg);
-    transition: transform 0.2s ease;
-  }
-
-  .expand-icon.expanded {
-    transform: rotate(0deg);
-  }
-
-  .task-details {
-    padding: 0 0.75rem 0.75rem;
-    border-top: 1px solid var(--border-light);
-  }
-
-  .task-description {
-    margin: 0 0 0.5rem 0;
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-    line-height: 1.4;
-    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border-light);
-    border-radius: 0.375rem;
-    padding: 0.75rem;
-    overflow-x: auto;
-    white-space: pre-wrap;
-    word-break: break-word;
-    max-height: 200px;
-    overflow-y: auto;
-  }
-
-  .task-description::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-
-  .task-description::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.1);
-    border-radius: 3px;
-  }
-
-  .task-description::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.3);
-    border-radius: 3px;
-    transition: background-color 0.2s ease;
-  }
-
-  .task-description::-webkit-scrollbar-thumb:hover {
-    background: rgba(0, 0, 0, 0.5);
-  }
-
-  .task-notes {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-  }
-
   /* Chat Section Styles */
   .chat-section {
     flex: 1;
@@ -466,10 +351,6 @@
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
-  }
-
-  .chat-section > :last-child {
-    margin-bottom: 0.5rem; /* Ensure last message isn't cut off */
   }
 
   .chat-section::-webkit-scrollbar {
