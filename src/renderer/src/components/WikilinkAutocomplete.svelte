@@ -147,6 +147,8 @@
   style="left: {position.x}px; top: {position.y}px;"
   tabindex="-1"
   onkeydown={handleKeyDown}
+  role="listbox"
+  aria-label="Wikilink autocomplete suggestions"
 >
   {#if options.length === 0}
     <div class="no-results">No notes found</div>
@@ -158,6 +160,9 @@
         class:create-option={'isCreateOption' in option && option.isCreateOption}
         onmousedown={(e) => handleMouseDown(e, index)}
         onmouseenter={() => (selectedIndex = index)}
+        role="option"
+        aria-selected={index === selectedIndex}
+        tabindex="-1"
       >
         {#if 'isCreateOption' in option && option.isCreateOption}
           <div class="option-content">

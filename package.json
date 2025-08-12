@@ -10,7 +10,7 @@
     "lint": "eslint --cache .",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
-    "svelte-check": "svelte-check --threshold error --tsconfig ./tsconfig.web.json",
+    "svelte-check": "svelte-check --tsconfig ./tsconfig.web.json",
     "typecheck": "npm run typecheck:node && npm run typecheck:web && npm run svelte-check",
     "start": "electron-vite preview",
     "check": "npm run lint && npm run typecheck",
