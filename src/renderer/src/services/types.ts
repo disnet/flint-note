@@ -146,3 +146,18 @@ export interface PinnedNoteInfo {
   filename: string;
   pinnedAt: string;
 }
+
+// Re-export types from @flint-note/server
+export type {
+  Note,
+  NoteInfo,
+  UpdateResult,
+  DeleteNoteResult,
+  NoteListItem,
+  NoteTypeListItem,
+  NoteMetadata,
+  VaultInfo,
+  NoteLinkRow,
+  NoteTypeInfo,
+  MetadataSchema
+};

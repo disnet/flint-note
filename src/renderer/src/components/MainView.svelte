@@ -10,7 +10,8 @@
   import { getChatService } from '../services/chatService.js';
   import type { NoteMetadata, NoteType } from '../services/noteStore.svelte';
   import type { Note } from '../services/types';
-  import type { ComponentType } from 'svelte';
+  import type { Component } from 'svelte';
+  import type { NoteViewProps } from '../lib/views/ViewRegistry';
 
   interface Props {
     activeNote: NoteMetadata | null;
@@ -35,7 +36,7 @@
   let noteEditor = $state<{ focus?: () => void } | null>(null);
   let isChangingType = $state(false);
   let isPinned = $state(false);
-  let customView = $state<{ component: ComponentType } | null>(null);
+  let customView = $state<{ component: Component<NoteViewProps> } | null>(null);
   let useCustomView = $state(false);
   let noteContent = $state('');
   let noteData = $state<Note | null>(null);
@@ -156,12 +157,11 @@
       await noteService.updateNote({
         identifier: activeNote.id,
         content: noteContent,
-        contentHash: noteData?.content_hash,
-        metadata: newMetadata
+        metadata: newMetadata as NoteMetadata
       });
 
       // Update local noteData - merge the new metadata into noteData.metadata
-      noteData = { ...noteData, metadata: newMetadata };
+      noteData = { ...noteData, metadata: newMetadata as NoteMetadata };
     } catch (error) {
       console.error('Error updating metadata:', error);
     }

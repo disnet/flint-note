@@ -136,6 +136,7 @@
         rangeEnd = to;
         return false; // Stop iteration
       }
+      return; // Continue iteration by returning void (undefined)
     });
 
     // Remove the decoration temporarily to show full text
@@ -288,6 +289,7 @@
           chipEnd = to;
           return false; // Stop iteration
         }
+        return; // Continue iteration by returning void (undefined)
       });
 
       // Create chip name that includes parameter info

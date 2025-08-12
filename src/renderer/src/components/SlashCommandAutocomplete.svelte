@@ -64,7 +64,7 @@
     }
   }
 
-  function handleTextBlockKeyDown(parameterName: string, event: KeyboardEvent): void {
+  function handleTextBlockKeyDown(_parameterName: string, event: KeyboardEvent): void {
     if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
       handleParameterKeyDown(event);
     } else if (event.key === 'Escape') {
@@ -74,7 +74,7 @@
 
   function isTextBlockFocused(): boolean {
     const activeElement = document.activeElement;
-    return activeElement && activeElement.closest('.textblock-editor') !== null;
+    return !!(activeElement && activeElement.closest('.textblock-editor'));
   }
 
   // Filter commands based on the query

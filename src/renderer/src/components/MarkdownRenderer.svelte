@@ -114,7 +114,15 @@
     const textWithRestoredCode = restoreCodeSpans(textWithoutNotes, codeSpans);
 
     // Step 4: Parse markdown
-    let html = marked.parse(textWithRestoredCode);
+    let html: string;
+    const parsedResult = marked.parse(textWithRestoredCode);
+    if (typeof parsedResult === 'string') {
+      html = parsedResult;
+    } else {
+      // If it's a promise, we need to handle this differently
+      // For now, return a placeholder until we can make this async
+      return '<div>Loading...</div>';
+    }
 
     // Step 5: Restore note links as HTML buttons
     html = restoreNoteLinks(html, noteLinks);

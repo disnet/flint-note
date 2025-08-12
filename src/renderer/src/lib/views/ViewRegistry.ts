@@ -1,4 +1,4 @@
-import type { ComponentType } from 'svelte';
+import type { Component } from 'svelte';
 
 export interface NoteViewProps {
   activeNote: Record<string, unknown>;
@@ -12,7 +12,7 @@ export interface NoteViewProps {
 export type ViewMode = 'edit' | 'view' | 'hybrid';
 
 export interface NoteView {
-  component: ComponentType;
+  component: Component<NoteViewProps>;
   modes: ViewMode[];
   supportedTypes: string[];
   priority: number; // Higher priority views take precedence
@@ -51,7 +51,7 @@ class ViewRegistryClass {
     return new Map(this.views);
   }
 
-  unregisterView(noteType: string, component: ComponentType): void {
+  unregisterView(noteType: string, component: Component<NoteViewProps>): void {
     const typeViews = this.views.get(noteType);
     if (!typeViews) return;
 

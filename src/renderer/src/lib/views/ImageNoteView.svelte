@@ -18,7 +18,7 @@
   $effect(() => {
     // Check direct metadata for image_url first
     if (metadata.image_url) {
-      imageUrl = metadata.image_url;
+      imageUrl = metadata.image_url as string;
     } else {
       // Look for images in markdown content as fallback
       const imageMatch = noteContent.match(/!\[.*?\]\((.*?)\)/);
@@ -82,7 +82,7 @@
         <input
           id="image-url"
           type="url"
-          value={metadata.image_url || ''}
+          value={(metadata.image_url as string) || ''}
           oninput={handleImageUrlChange}
           placeholder="Enter image URL or upload below"
         />
@@ -106,14 +106,18 @@
     <div class="content-area" class:editor-hidden={!showEditor}>
       {#if imageUrl}
         <div class="image-preview">
-          <img src={imageUrl} alt={metadata.title || 'Image'} />
+          <img src={imageUrl} alt={(metadata.title as string) || 'Image'} />
           <div class="image-metadata">
-            {#if metadata.title || metadata.metadata?.title}
-              <h3>{metadata.title || metadata.metadata?.title}</h3>
+            {#if metadata.title || (metadata.metadata as Record<string, unknown>)?.title}
+              <h3>
+                {(metadata.title as string) ||
+                  ((metadata.metadata as Record<string, unknown>)?.title as string)}
+              </h3>
             {/if}
-            {#if metadata.description || metadata.metadata?.description}
+            {#if metadata.description || (metadata.metadata as Record<string, unknown>)?.description}
               <p class="description">
-                {metadata.description || metadata.metadata?.description}
+                {(metadata.description as string) ||
+                  ((metadata.metadata as Record<string, unknown>)?.description as string)}
               </p>
             {/if}
           </div>
