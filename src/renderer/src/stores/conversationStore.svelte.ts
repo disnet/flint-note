@@ -8,6 +8,24 @@ interface ExtendedChatService extends ChatService {
 }
 import { getChatService } from '../services/chatService';
 
+export interface ModelUsageBreakdown {
+  model: string; // e.g., "anthropic/claude-3-5-sonnet-20241022"
+  inputTokens: number;
+  outputTokens: number;
+  cachedTokens: number;
+  cost: number; // in USD cents
+}
+
+export interface ConversationCostInfo {
+  totalCost: number; // in USD cents to avoid floating point precision issues
+  inputTokens: number;
+  outputTokens: number;
+  cachedTokens: number;
+  requestCount: number;
+  modelUsage: ModelUsageBreakdown[];
+  lastUpdated: Date;
+}
+
 export interface Conversation {
   id: string;
   title: string;
@@ -15,6 +33,7 @@ export interface Conversation {
   createdAt: Date;
   updatedAt: Date;
   vaultId: string;
+  costInfo: ConversationCostInfo;
 }
 
 interface ConversationState {
@@ -61,13 +80,23 @@ class ConversationStore {
     if (this.isVaultSwitching) return this.state.activeConversationId || '';
 
     const conversationId = `conv-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const now = new Date();
     const newConversation: Conversation = {
       id: conversationId,
       title: 'New Conversation',
       messages: [],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      vaultId: this.currentVaultId || 'default'
+      createdAt: now,
+      updatedAt: now,
+      vaultId: this.currentVaultId || 'default',
+      costInfo: {
+        totalCost: 0,
+        inputTokens: 0,
+        outputTokens: 0,
+        cachedTokens: 0,
+        requestCount: 0,
+        modelUsage: [],
+        lastUpdated: now
+      }
     };
 
     // Add to the beginning of the list (most recent first)
@@ -308,11 +337,27 @@ class ConversationStore {
                 createdAt: string;
                 updatedAt: string;
                 messages: Array<Message & { timestamp: string }>;
+                costInfo?: ConversationCostInfo & { lastUpdated: string };
               }
             ) => ({
               ...conv,
               createdAt: new Date(conv.createdAt),
               updatedAt: new Date(conv.updatedAt),
+              // Initialize costInfo for legacy conversations that don't have it
+              costInfo: conv.costInfo
+                ? {
+                    ...conv.costInfo,
+                    lastUpdated: new Date(conv.costInfo.lastUpdated)
+                  }
+                : {
+                    totalCost: 0,
+                    inputTokens: 0,
+                    outputTokens: 0,
+                    cachedTokens: 0,
+                    requestCount: 0,
+                    modelUsage: [],
+                    lastUpdated: new Date()
+                  },
               messages: conv.messages.map((msg) => ({
                 ...msg,
                 timestamp: new Date(msg.timestamp)
@@ -519,6 +564,66 @@ class ConversationStore {
         }
       }
     }
+  }
+
+  /**
+   * Record usage and cost data for a conversation
+   */
+  recordConversationUsage(
+    conversationId: string,
+    usageData: {
+      modelName: string;
+      inputTokens: number;
+      outputTokens: number;
+      cachedTokens: number;
+      cost: number;
+      timestamp: Date;
+    }
+  ): boolean {
+    const conversation = this.state.conversations.find((c) => c.id === conversationId);
+    if (!conversation) return false;
+
+    // Update cost info
+    conversation.costInfo.totalCost += usageData.cost;
+    conversation.costInfo.inputTokens += usageData.inputTokens;
+    conversation.costInfo.outputTokens += usageData.outputTokens;
+    conversation.costInfo.cachedTokens += usageData.cachedTokens;
+    conversation.costInfo.requestCount += 1;
+    conversation.costInfo.lastUpdated = usageData.timestamp;
+
+    // Update or add model breakdown
+    const existingModelIndex = conversation.costInfo.modelUsage.findIndex(
+      (m) => m.model === usageData.modelName
+    );
+
+    if (existingModelIndex !== -1) {
+      const existingModel = conversation.costInfo.modelUsage[existingModelIndex];
+      existingModel.inputTokens += usageData.inputTokens;
+      existingModel.outputTokens += usageData.outputTokens;
+      existingModel.cachedTokens += usageData.cachedTokens;
+      existingModel.cost += usageData.cost;
+    } else {
+      conversation.costInfo.modelUsage.push({
+        model: usageData.modelName,
+        inputTokens: usageData.inputTokens,
+        outputTokens: usageData.outputTokens,
+        cachedTokens: usageData.cachedTokens,
+        cost: usageData.cost
+      });
+    }
+
+    this.saveToStorage();
+    return true;
+  }
+
+  /**
+   * Get total cost across all conversations
+   */
+  getTotalCost(): number {
+    return this.state.conversations.reduce(
+      (total, conversation) => total + conversation.costInfo.totalCost,
+      0
+    );
   }
 }
 

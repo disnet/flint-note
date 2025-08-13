@@ -18,6 +18,7 @@ import type {
 import type { ExternalLinkRow } from '@flint-note/server/dist/database/schema';
 import type { MetadataSchema } from '@flint-note/server/dist/core/metadata-schema';
 import { notesStore } from './noteStore.svelte';
+import { conversationStore } from '../stores/conversationStore.svelte';
 
 // Cache monitoring interfaces
 interface CacheConfig {
@@ -55,6 +56,50 @@ interface CacheHealthCheck {
 }
 
 export class ElectronChatService implements ChatService, NoteService {
+  constructor() {
+    // Set up usage tracking
+    this.initializeUsageTracking();
+  }
+
+  private initializeUsageTracking(): void {
+    // Set up listener for usage data
+    if (window.api?.onUsageRecorded) {
+      window.api.onUsageRecorded((usageData: unknown) => {
+        // Type guard to ensure usageData has the expected shape
+        if (
+          typeof usageData === 'object' &&
+          usageData !== null &&
+          'conversationId' in usageData &&
+          'modelName' in usageData &&
+          'inputTokens' in usageData &&
+          'outputTokens' in usageData &&
+          'cachedTokens' in usageData &&
+          'cost' in usageData &&
+          'timestamp' in usageData
+        ) {
+          const data = usageData as {
+            conversationId: string;
+            modelName: string;
+            inputTokens: number;
+            outputTokens: number;
+            cachedTokens: number;
+            cost: number;
+            timestamp: string;
+          };
+
+          // Record usage in the conversation store
+          conversationStore.recordConversationUsage(data.conversationId, {
+            modelName: data.modelName,
+            inputTokens: data.inputTokens,
+            outputTokens: data.outputTokens,
+            cachedTokens: data.cachedTokens,
+            cost: data.cost,
+            timestamp: new Date(data.timestamp)
+          });
+        }
+      });
+    }
+  }
   async sendMessage(
     text: string,
     conversationId?: string,

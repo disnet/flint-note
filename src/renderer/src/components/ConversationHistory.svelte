@@ -117,6 +117,9 @@
             <p class="conversation-preview">{getLastMessagePreview(conversation)}</p>
             <div class="conversation-meta">
               <span class="message-count">{getMessageCount(conversation)} messages</span>
+              {#if conversation.costInfo?.totalCost > 0}
+                <span class="cost-info">${(conversation.costInfo.totalCost / 100).toFixed(3)}</span>
+              {/if}
               <span class="conversation-date">{formatDate(conversation.updatedAt)}</span>
             </div>
           </div>
@@ -306,6 +309,11 @@
   }
 
   .message-count {
+    font-weight: 500;
+  }
+
+  .cost-info {
+    color: var(--accent-primary);
     font-weight: 500;
   }
 

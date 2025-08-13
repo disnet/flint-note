@@ -157,6 +157,15 @@ app.whenReady().then(async () => {
   let aiService: AIService | null = null;
   try {
     aiService = await AIService.of(secureStorageService, noteService);
+
+    // Set up global usage tracking listener
+    aiService.on('usage-recorded', (usageData) => {
+      // Forward usage data to all renderer processes
+      BrowserWindow.getAllWindows().forEach((window) => {
+        window.webContents.send('ai-usage-recorded', usageData);
+      });
+    });
+
     // Wait for MCP servers to initialize
     // await aiService.waitForInitialization();
     logger.info('AI Service initialized successfully');

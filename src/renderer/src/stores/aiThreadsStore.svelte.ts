@@ -1,5 +1,23 @@
 import type { Message } from '../services/types';
 
+export interface ModelUsageBreakdown {
+  model: string; // e.g., "anthropic/claude-3-5-sonnet-20241022"
+  inputTokens: number;
+  outputTokens: number;
+  cachedTokens: number;
+  cost: number; // in USD cents
+}
+
+export interface ThreadCostInfo {
+  totalCost: number; // in USD cents to avoid floating point precision issues
+  inputTokens: number;
+  outputTokens: number;
+  cachedTokens: number;
+  requestCount: number;
+  modelUsage: ModelUsageBreakdown[];
+  lastUpdated: Date;
+}
+
 export interface AIThread {
   id: string;
   title: string; // Auto-generated or user-set
@@ -10,6 +28,7 @@ export interface AIThread {
   lastActivity: Date;
   tags?: string[];
   isArchived?: boolean;
+  costInfo: ThreadCostInfo;
 }
 
 interface AIThreadsState {
@@ -69,6 +88,25 @@ function loadInitialState(): AIThreadsState {
           ...thread,
           createdAt: new Date(thread.createdAt as string),
           lastActivity: new Date(thread.lastActivity as string),
+          // Initialize costInfo for legacy threads that don't have it
+          costInfo: thread.costInfo
+            ? {
+                ...(thread.costInfo as ThreadCostInfo),
+                lastUpdated: new Date(
+                  (
+                    thread.costInfo as ThreadCostInfo & { lastUpdated: string }
+                  ).lastUpdated
+                )
+              }
+            : {
+                totalCost: 0,
+                inputTokens: 0,
+                outputTokens: 0,
+                cachedTokens: 0,
+                requestCount: 0,
+                modelUsage: [],
+                lastUpdated: new Date()
+              },
           messages: Array.isArray(thread.messages)
             ? (thread.messages as Record<string, unknown>[]).map(
                 (msg: Record<string, unknown>) => ({
@@ -198,7 +236,16 @@ export const aiThreadsStore = {
       isActive: true,
       createdAt: now,
       lastActivity: now,
-      isArchived: false
+      isArchived: false,
+      costInfo: {
+        totalCost: 0,
+        inputTokens: 0,
+        outputTokens: 0,
+        cachedTokens: 0,
+        requestCount: 0,
+        modelUsage: [],
+        lastUpdated: now
+      }
     };
 
     threads = [newThread, ...threads];
@@ -329,7 +376,16 @@ export const aiThreadsStore = {
       createdAt: threadData.createdAt || now,
       lastActivity: threadData.lastActivity || now,
       tags: threadData.tags || [],
-      isArchived: threadData.isArchived || false
+      isArchived: threadData.isArchived || false,
+      costInfo: threadData.costInfo || {
+        totalCost: 0,
+        inputTokens: 0,
+        outputTokens: 0,
+        cachedTokens: 0,
+        requestCount: 0,
+        modelUsage: [],
+        lastUpdated: now
+      }
     };
 
     threads = [thread, ...threads];
@@ -374,6 +430,92 @@ export const aiThreadsStore = {
 
   getThreadsWithNote(noteId: string): AIThread[] {
     return threads.filter((thread) => thread.notesDiscussed.includes(noteId));
+  },
+
+  // Cost tracking methods
+  recordThreadUsage(
+    threadId: string,
+    usageData: {
+      modelName: string;
+      inputTokens: number;
+      outputTokens: number;
+      cachedTokens: number;
+      cost: number;
+      timestamp: Date;
+    }
+  ): boolean {
+    const threadIndex = threads.findIndex((t) => t.id === threadId);
+    if (threadIndex === -1) return false;
+
+    const thread = threads[threadIndex];
+
+    // Update cost info
+    thread.costInfo.totalCost += usageData.cost;
+    thread.costInfo.inputTokens += usageData.inputTokens;
+    thread.costInfo.outputTokens += usageData.outputTokens;
+    thread.costInfo.cachedTokens += usageData.cachedTokens;
+    thread.costInfo.requestCount += 1;
+    thread.costInfo.lastUpdated = usageData.timestamp;
+
+    // Update or add model breakdown
+    const existingModelIndex = thread.costInfo.modelUsage.findIndex(
+      (m) => m.model === usageData.modelName
+    );
+
+    if (existingModelIndex !== -1) {
+      const existingModel = thread.costInfo.modelUsage[existingModelIndex];
+      existingModel.inputTokens += usageData.inputTokens;
+      existingModel.outputTokens += usageData.outputTokens;
+      existingModel.cachedTokens += usageData.cachedTokens;
+      existingModel.cost += usageData.cost;
+    } else {
+      thread.costInfo.modelUsage.push({
+        model: usageData.modelName,
+        inputTokens: usageData.inputTokens,
+        outputTokens: usageData.outputTokens,
+        cachedTokens: usageData.cachedTokens,
+        cost: usageData.cost
+      });
+    }
+
+    // Update the threads array to trigger reactivity
+    threads = [
+      ...threads.slice(0, threadIndex),
+      thread,
+      ...threads.slice(threadIndex + 1)
+    ];
+
+    if (!effectsInitialized) this.save();
+    return true;
+  },
+
+  // Get total cost across all threads
+  getTotalCost(): number {
+    return threads.reduce((total, thread) => total + thread.costInfo.totalCost, 0);
+  },
+
+  // Get cost summary for all threads
+  getCostSummary(): {
+    totalCost: number;
+    totalTokens: number;
+    averageCostPerThread: number;
+    threadsWithCost: number;
+  } {
+    const threadsWithCost = threads.filter((t) => t.costInfo.totalCost > 0);
+    const totalCost = this.getTotalCost();
+    const totalTokens = threads.reduce(
+      (total, thread) =>
+        total + thread.costInfo.inputTokens + thread.costInfo.outputTokens,
+      0
+    );
+
+    return {
+      totalCost,
+      totalTokens,
+      averageCostPerThread:
+        threadsWithCost.length > 0 ? totalCost / threadsWithCost.length : 0,
+      threadsWithCost: threadsWithCost.length
+    };
   },
 
   // Manual save function for when effects aren't available

@@ -188,6 +188,11 @@
                     : 's'}
                 </span>
               {/if}
+              {#if thread.costInfo?.totalCost > 0}
+                <span class="cost-info" title="Total conversation cost">
+                  • ${(thread.costInfo.totalCost / 100).toFixed(3)}
+                </span>
+              {/if}
               {#if thread.isArchived}
                 <span class="archived-badge">Archived</span>
               {/if}
@@ -405,8 +410,14 @@
   }
 
   .message-count,
-  .notes-count {
+  .notes-count,
+  .cost-info {
     margin-right: 0.5rem;
+  }
+
+  .cost-info {
+    color: var(--accent-primary);
+    font-weight: 500;
   }
 
   .archived-badge {

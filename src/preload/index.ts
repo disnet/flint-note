@@ -180,7 +180,16 @@ const api = {
     electronAPI.ipcRenderer.invoke('start-performance-monitoring', intervalMinutes),
   stopPerformanceMonitoring: () =>
     electronAPI.ipcRenderer.invoke('stop-performance-monitoring'),
-  warmupSystemCache: () => electronAPI.ipcRenderer.invoke('warmup-system-cache')
+  warmupSystemCache: () => electronAPI.ipcRenderer.invoke('warmup-system-cache'),
+
+  // Usage tracking
+  onUsageRecorded: (callback: (usageData: unknown) => void) => {
+    electronAPI.ipcRenderer.on('ai-usage-recorded', (_event, data) => callback(data));
+  },
+
+  removeUsageListener: () => {
+    electronAPI.ipcRenderer.removeAllListeners('ai-usage-recorded');
+  }
 };
 
 // Use `contextBridge` APIs to expose Electron APIs to

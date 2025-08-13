@@ -220,6 +220,10 @@ declare global {
       ) => Promise<{ success: boolean }>;
       stopPerformanceMonitoring: () => Promise<{ success: boolean }>;
       warmupSystemCache: () => Promise<{ success: boolean }>;
+
+      // Usage tracking
+      onUsageRecorded: (callback: (usageData: unknown) => void) => void;
+      removeUsageListener: () => void;
     };
   }
 }

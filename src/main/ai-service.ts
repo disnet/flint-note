@@ -37,6 +37,23 @@ interface CachePerformanceSnapshot {
   recommendedOptimizations: string[];
 }
 
+interface UsageMetadata {
+  inputTokens: number;
+  outputTokens: number;
+  cacheCreationInputTokens?: number;
+  cacheReadInputTokens?: number;
+}
+
+interface ThreadUsageData {
+  conversationId: string;
+  modelName: string;
+  inputTokens: number;
+  outputTokens: number;
+  cachedTokens: number;
+  cost: number;
+  timestamp: Date;
+}
+
 interface FrontendMessage {
   id: string;
   text: string;
@@ -835,6 +852,59 @@ Use these tools to help users manage their notes effectively and answer their qu
   }
 
   /**
+   * Calculate cost for a model based on usage
+   */
+  private calculateModelCost(model: string, usage: UsageMetadata): number {
+    // Define pricing per model (in USD cents per 1K tokens)
+    const pricing: Record<string, { input: number; output: number; cached: number }> = {
+      'anthropic/claude-3-5-sonnet-20241022': { input: 0.3, output: 1.5, cached: 0.03 },
+      'anthropic/claude-3-5-haiku-20241022': { input: 0.1, output: 0.8, cached: 0.01 },
+      'anthropic/claude-3-opus-20240229': { input: 1.5, output: 7.5, cached: 0.15 },
+      'anthropic/claude-sonnet-4-20250109': { input: 0.3, output: 1.5, cached: 0.03 },
+      'anthropic/claude-opus-4-20250201': { input: 1.5, output: 7.5, cached: 0.15 },
+      // Fallback for unknown models - use Sonnet pricing
+      default: { input: 0.3, output: 1.5, cached: 0.03 }
+    };
+
+    const rates = pricing[model] || pricing['default'];
+
+    const inputCost = (usage.inputTokens * rates.input) / 1000;
+    const outputCost = (usage.outputTokens * rates.output) / 1000;
+    const cachedCost =
+      (((usage.cacheCreationInputTokens || 0) + (usage.cacheReadInputTokens || 0)) *
+        rates.cached) /
+      1000;
+
+    // Return cost in cents to avoid floating point precision issues
+    return Math.round((inputCost + outputCost + cachedCost) * 100);
+  }
+
+  /**
+   * Record usage and cost data for a conversation
+   */
+  private recordUsageAndCost(
+    result: { providerMetadata?: { anthropic?: { usage?: UsageMetadata } } },
+    conversationId: string,
+    modelName: string
+  ): ThreadUsageData | null {
+    const usage = result.providerMetadata?.anthropic?.usage as UsageMetadata;
+    if (!usage) return null;
+
+    const cost = this.calculateModelCost(modelName, usage);
+
+    return {
+      conversationId,
+      modelName,
+      inputTokens: usage.inputTokens || 0,
+      outputTokens: usage.outputTokens || 0,
+      cachedTokens:
+        (usage.cacheCreationInputTokens || 0) + (usage.cacheReadInputTokens || 0),
+      cost,
+      timestamp: new Date()
+    };
+  }
+
+  /**
    * Gets current cache performance metrics
    */
   getCacheMetrics(): CacheMetrics {
@@ -1459,6 +1529,18 @@ ${
         result.providerMetadata
       );
 
+      // Record usage and cost data
+      const usageData = this.recordUsageAndCost(
+        result,
+        this.currentConversationId!,
+        this.currentModelName
+      );
+
+      if (usageData) {
+        // Emit usage data for the frontend
+        this.emit('usage-recorded', usageData);
+      }
+
       // Add assistant response to conversation history
       const updatedHistory = this.getConversationMessages(this.currentConversationId!);
       updatedHistory.push(...result.response.messages);
@@ -1646,6 +1728,35 @@ ${
           totalTokens,
           undefined // Streaming doesn't provide providerMetadata in the same way
         );
+
+        // For streaming, we'll estimate usage since providerMetadata isn't available
+        // This is less accurate but provides some cost tracking
+        const estimatedInputTokens = this.estimateTokens(
+          messages
+            .map((msg) =>
+              typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content)
+            )
+            .join(' ')
+        );
+        const estimatedOutputTokens = this.estimateTokens(fullText);
+
+        const streamingUsageData: ThreadUsageData = {
+          conversationId: this.currentConversationId!,
+          modelName: this.currentModelName,
+          inputTokens: estimatedInputTokens,
+          outputTokens: estimatedOutputTokens,
+          cachedTokens: estimatedTokensSaved,
+          cost: this.calculateModelCost(this.currentModelName, {
+            inputTokens: estimatedInputTokens,
+            outputTokens: estimatedOutputTokens,
+            cacheCreationInputTokens: systemCacheUsed ? estimatedSystemTokens : 0,
+            cacheReadInputTokens: historyCacheUsed ? estimatedHistoryTokens : 0
+          }),
+          timestamp: new Date()
+        };
+
+        // Emit estimated usage data for streaming
+        this.emit('usage-recorded', streamingUsageData);
 
         this.emit('stream-end', { requestId, fullText });
       } catch (streamError: unknown) {
