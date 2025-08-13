@@ -19,6 +19,41 @@ import type { ExternalLinkRow } from '@flint-note/server/dist/database/schema';
 import type { MetadataSchema } from '@flint-note/server/dist/core/metadata-schema';
 import { notesStore } from './noteStore.svelte';
 
+// Cache monitoring interfaces
+interface CacheConfig {
+  enableSystemMessageCaching: boolean;
+  enableHistoryCaching: boolean;
+  minimumCacheTokens: number;
+  historySegmentSize: number;
+}
+
+interface CacheMetrics {
+  totalRequests: number;
+  systemMessageCacheHits: number;
+  systemMessageCacheMisses: number;
+  historyCacheHits: number;
+  historyCacheMisses: number;
+  totalTokensSaved: number;
+  totalCacheableTokens: number;
+  averageConversationLength: number;
+  lastResetTime: Date;
+}
+
+interface CachePerformanceSnapshot {
+  systemMessageCacheHitRate: number;
+  historyCacheHitRate: number;
+  overallCacheEfficiency: number;
+  tokenSavingsRate: number;
+  recommendedOptimizations: string[];
+}
+
+interface CacheHealthCheck {
+  status: 'healthy' | 'warning' | 'critical';
+  issues: string[];
+  recommendations: string[];
+  score: number;
+}
+
 export class ElectronChatService implements ChatService, NoteService {
   async sendMessage(
     text: string,
@@ -377,6 +412,108 @@ export class ElectronChatService implements ChatService, NoteService {
     } catch (error) {
       console.error('Failed to check note service status:', error);
       return false;
+    }
+  }
+
+  // Cache monitoring methods
+  async getCacheMetrics(): Promise<CacheMetrics> {
+    try {
+      return await window.api.getCacheMetrics();
+    } catch (error) {
+      console.error('Failed to get cache metrics:', error);
+      throw new Error('Failed to get cache metrics. Please try again.');
+    }
+  }
+
+  async getCachePerformanceSnapshot(): Promise<CachePerformanceSnapshot> {
+    try {
+      return await window.api.getCachePerformanceSnapshot();
+    } catch (error) {
+      console.error('Failed to get cache performance snapshot:', error);
+      throw new Error('Failed to get cache performance snapshot. Please try again.');
+    }
+  }
+
+  async getCacheConfig(): Promise<CacheConfig> {
+    try {
+      return await window.api.getCacheConfig();
+    } catch (error) {
+      console.error('Failed to get cache configuration:', error);
+      throw new Error('Failed to get cache configuration. Please try again.');
+    }
+  }
+
+  async setCacheConfig(config: Partial<CacheConfig>): Promise<CacheConfig> {
+    try {
+      return await window.api.setCacheConfig(config);
+    } catch (error) {
+      console.error('Failed to set cache configuration:', error);
+      throw new Error('Failed to set cache configuration. Please try again.');
+    }
+  }
+
+  async getCachePerformanceReport(): Promise<string> {
+    try {
+      return await window.api.getCachePerformanceReport();
+    } catch (error) {
+      console.error('Failed to get cache performance report:', error);
+      throw new Error('Failed to get cache performance report. Please try again.');
+    }
+  }
+
+  async getCacheHealthCheck(): Promise<CacheHealthCheck> {
+    try {
+      return await window.api.getCacheHealthCheck();
+    } catch (error) {
+      console.error('Failed to get cache health check:', error);
+      throw new Error('Failed to get cache health check. Please try again.');
+    }
+  }
+
+  async optimizeCacheConfig(): Promise<CacheConfig> {
+    try {
+      return await window.api.optimizeCacheConfig();
+    } catch (error) {
+      console.error('Failed to optimize cache configuration:', error);
+      throw new Error('Failed to optimize cache configuration. Please try again.');
+    }
+  }
+
+  async resetCacheMetrics(): Promise<{ success: boolean }> {
+    try {
+      return await window.api.resetCacheMetrics();
+    } catch (error) {
+      console.error('Failed to reset cache metrics:', error);
+      throw new Error('Failed to reset cache metrics. Please try again.');
+    }
+  }
+
+  async startPerformanceMonitoring(
+    intervalMinutes: number = 30
+  ): Promise<{ success: boolean }> {
+    try {
+      return await window.api.startPerformanceMonitoring(intervalMinutes);
+    } catch (error) {
+      console.error('Failed to start performance monitoring:', error);
+      throw new Error('Failed to start performance monitoring. Please try again.');
+    }
+  }
+
+  async stopPerformanceMonitoring(): Promise<{ success: boolean }> {
+    try {
+      return await window.api.stopPerformanceMonitoring();
+    } catch (error) {
+      console.error('Failed to stop performance monitoring:', error);
+      throw new Error('Failed to stop performance monitoring. Please try again.');
+    }
+  }
+
+  async warmupSystemCache(): Promise<{ success: boolean }> {
+    try {
+      return await window.api.warmupSystemCache();
+    } catch (error) {
+      console.error('Failed to warmup system cache:', error);
+      throw new Error('Failed to warmup system cache. Please try again.');
     }
   }
 }

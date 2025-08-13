@@ -3,6 +3,7 @@
   import { secureStorageService } from '../services/secureStorageService';
   import { modelStore } from '../stores/modelStore.svelte';
   import { SUPPORTED_MODELS } from '../config/models';
+  import { ElectronChatService } from '../services/electronChatService';
 
   let errorMessage = $state('');
   let successMessage = $state('');
@@ -23,6 +24,53 @@
   let anthropicSaveTimer;
   let openaiSaveTimer;
   let gatewaySaveTimer;
+
+  // Cache monitoring state
+  let cacheMetrics = $state<CacheMetrics | null>(null);
+  let cachePerformance = $state<CachePerformanceSnapshot | null>(null);
+  let cacheConfig = $state<CacheConfig | null>(null);
+  let cacheHealthCheck = $state<CacheHealthCheck | null>(null);
+  let cacheReport = $state('');
+  let performanceMonitoringActive = $state(false);
+  let loadingCache = $state(false);
+
+  // Initialize chat service for cache monitoring
+  const chatService = new ElectronChatService();
+
+  // Cache monitoring types
+  interface CacheConfig {
+    enableSystemMessageCaching: boolean;
+    enableHistoryCaching: boolean;
+    minimumCacheTokens: number;
+    historySegmentSize: number;
+  }
+
+  interface CacheMetrics {
+    totalRequests: number;
+    systemMessageCacheHits: number;
+    systemMessageCacheMisses: number;
+    historyCacheHits: number;
+    historyCacheMisses: number;
+    totalTokensSaved: number;
+    totalCacheableTokens: number;
+    averageConversationLength: number;
+    lastResetTime: Date;
+  }
+
+  interface CachePerformanceSnapshot {
+    systemMessageCacheHitRate: number;
+    historyCacheHitRate: number;
+    overallCacheEfficiency: number;
+    tokenSavingsRate: number;
+    recommendedOptimizations: string[];
+  }
+
+  interface CacheHealthCheck {
+    status: 'healthy' | 'warning' | 'critical';
+    issues: string[];
+    recommendations: string[];
+    score: number;
+  }
 
   // Load API keys on component mount
   $effect(() => {
@@ -67,6 +115,7 @@
   const sections = [
     { id: 'api-keys', label: '🔑 API Keys', icon: '🔑' },
     { id: 'model-preferences', label: '🤖 Model Preferences', icon: '🤖' },
+    { id: 'cache-performance', label: '⚡ Cache Performance', icon: '⚡' },
     { id: 'appearance', label: '🎨 Appearance', icon: '🎨' },
     { id: 'data-privacy', label: '💾 Data & Privacy', icon: '💾' },
     { id: 'advanced', label: '⚙️ Advanced', icon: '⚙️' }
@@ -267,6 +316,123 @@
     };
     input.click();
   }
+
+  // Cache monitoring functions
+  async function loadCacheData(): Promise<void> {
+    if (loadingCache) return;
+    loadingCache = true;
+
+    try {
+      const [metrics, performance, config, health] = await Promise.all([
+        chatService.getCacheMetrics(),
+        chatService.getCachePerformanceSnapshot(),
+        chatService.getCacheConfig(),
+        chatService.getCacheHealthCheck()
+      ]);
+
+      cacheMetrics = metrics;
+      cachePerformance = performance;
+      cacheConfig = config;
+      cacheHealthCheck = health;
+    } catch (error) {
+      showError(
+        'Failed to load cache data: ' +
+          (error instanceof Error ? error.message : 'Unknown error')
+      );
+    } finally {
+      loadingCache = false;
+    }
+  }
+
+  async function generateCacheReport(): Promise<void> {
+    try {
+      cacheReport = await chatService.getCachePerformanceReport();
+    } catch (error) {
+      showError(
+        'Failed to generate cache report: ' +
+          (error instanceof Error ? error.message : 'Unknown error')
+      );
+    }
+  }
+
+  async function optimizeCache(): Promise<void> {
+    try {
+      const optimizedConfig = await chatService.optimizeCacheConfig();
+      cacheConfig = optimizedConfig;
+      showSuccess('Cache configuration optimized successfully');
+      await loadCacheData(); // Refresh data
+    } catch (error) {
+      showError(
+        'Failed to optimize cache: ' +
+          (error instanceof Error ? error.message : 'Unknown error')
+      );
+    }
+  }
+
+  async function resetCacheMetrics(): Promise<void> {
+    try {
+      await chatService.resetCacheMetrics();
+      showSuccess('Cache metrics reset successfully');
+      await loadCacheData(); // Refresh data
+    } catch (error) {
+      showError(
+        'Failed to reset cache metrics: ' +
+          (error instanceof Error ? error.message : 'Unknown error')
+      );
+    }
+  }
+
+  async function togglePerformanceMonitoring(): Promise<void> {
+    try {
+      if (performanceMonitoringActive) {
+        await chatService.stopPerformanceMonitoring();
+        performanceMonitoringActive = false;
+        showSuccess('Performance monitoring stopped');
+      } else {
+        await chatService.startPerformanceMonitoring(30);
+        performanceMonitoringActive = true;
+        showSuccess('Performance monitoring started (30-minute intervals)');
+      }
+    } catch (error) {
+      showError(
+        'Failed to toggle performance monitoring: ' +
+          (error instanceof Error ? error.message : 'Unknown error')
+      );
+    }
+  }
+
+  async function warmupCache(): Promise<void> {
+    try {
+      await chatService.warmupSystemCache();
+      showSuccess('System cache warmed up successfully');
+      await loadCacheData(); // Refresh data
+    } catch (error) {
+      showError(
+        'Failed to warmup cache: ' +
+          (error instanceof Error ? error.message : 'Unknown error')
+      );
+    }
+  }
+
+  async function updateCacheConfig(updates: Partial<CacheConfig>): Promise<void> {
+    try {
+      const updatedConfig = await chatService.setCacheConfig(updates);
+      cacheConfig = updatedConfig;
+      showSuccess('Cache configuration updated');
+    } catch (error) {
+      showError(
+        'Failed to update cache configuration: ' +
+          (error instanceof Error ? error.message : 'Unknown error')
+      );
+    }
+  }
+
+  // Load cache data when cache performance section is active
+  $effect(() => {
+    if (activeSection === 'cache-performance') {
+      loadCacheData();
+    }
+  });
 </script>
 
 <div class="settings">
@@ -562,6 +728,210 @@
           </select>
           <small>How long to keep chat history</small>
         </div>
+      </section>
+    {/if}
+
+    {#if activeSection === 'cache-performance'}
+      <section class="settings-section">
+        <h3>⚡ Cache Performance</h3>
+        <p class="section-description">
+          Monitor and optimize AI model caching for better performance and cost
+          efficiency.
+        </p>
+
+        {#if loadingCache}
+          <div class="loading-indicator">Loading cache data...</div>
+        {:else}
+          <!-- Cache Health Status -->
+          {#if cacheHealthCheck}
+            <div
+              class="cache-health"
+              class:healthy={cacheHealthCheck.status === 'healthy'}
+              class:warning={cacheHealthCheck.status === 'warning'}
+              class:critical={cacheHealthCheck.status === 'critical'}
+            >
+              <h4>
+                {#if cacheHealthCheck.status === 'healthy'}✅{:else if cacheHealthCheck.status === 'warning'}⚠️{:else}❌{/if}
+                Cache Health: {cacheHealthCheck.status.toUpperCase()} ({cacheHealthCheck.score}/100)
+              </h4>
+              {#if cacheHealthCheck.issues.length > 0}
+                <div class="health-issues">
+                  <strong>Issues:</strong>
+                  <ul>
+                    {#each cacheHealthCheck.issues as issue, index (index)}
+                      <li>{issue}</li>
+                    {/each}
+                  </ul>
+                </div>
+              {/if}
+              {#if cacheHealthCheck.recommendations.length > 0}
+                <div class="health-recommendations">
+                  <strong>Recommendations:</strong>
+                  <ul>
+                    {#each cacheHealthCheck.recommendations as rec, index (index)}
+                      <li>{rec}</li>
+                    {/each}
+                  </ul>
+                </div>
+              {/if}
+            </div>
+          {/if}
+
+          <!-- Cache Configuration -->
+          {#if cacheConfig}
+            <div class="cache-config">
+              <h4>Configuration</h4>
+              <div class="config-grid">
+                <label class="checkbox-option">
+                  <input
+                    type="checkbox"
+                    checked={cacheConfig.enableSystemMessageCaching}
+                    onchange={async (e) =>
+                      await updateCacheConfig({
+                        enableSystemMessageCaching: (e.target as HTMLInputElement).checked
+                      })}
+                  />
+                  <span>System Message Caching</span>
+                </label>
+
+                <label class="checkbox-option">
+                  <input
+                    type="checkbox"
+                    checked={cacheConfig.enableHistoryCaching}
+                    onchange={async (e) =>
+                      await updateCacheConfig({
+                        enableHistoryCaching: (e.target as HTMLInputElement).checked
+                      })}
+                  />
+                  <span>History Caching</span>
+                </label>
+
+                <div class="form-group">
+                  <label for="min-cache-tokens">Minimum Cache Tokens</label>
+                  <input
+                    id="min-cache-tokens"
+                    type="number"
+                    min="256"
+                    max="4096"
+                    step="256"
+                    value={cacheConfig.minimumCacheTokens}
+                    onchange={async (e) =>
+                      await updateCacheConfig({
+                        minimumCacheTokens: parseInt((e.target as HTMLInputElement).value)
+                      })}
+                  />
+                  <small>Minimum tokens required to cache a segment</small>
+                </div>
+
+                <div class="form-group">
+                  <label for="history-segment-size">History Segment Size</label>
+                  <input
+                    id="history-segment-size"
+                    type="number"
+                    min="2"
+                    max="8"
+                    value={cacheConfig.historySegmentSize}
+                    onchange={async (e) =>
+                      await updateCacheConfig({
+                        historySegmentSize: parseInt((e.target as HTMLInputElement).value)
+                      })}
+                  />
+                  <small>Number of recent messages to keep uncached</small>
+                </div>
+              </div>
+            </div>
+          {/if}
+
+          <!-- Performance Metrics -->
+          {#if cacheMetrics && cachePerformance}
+            <div class="cache-metrics">
+              <h4>Performance Metrics</h4>
+              <div class="metrics-grid">
+                <div class="metric-card">
+                  <div class="metric-value">{cacheMetrics.totalRequests}</div>
+                  <div class="metric-label">Total Requests</div>
+                </div>
+
+                <div class="metric-card">
+                  <div class="metric-value">
+                    {(cachePerformance.systemMessageCacheHitRate * 100).toFixed(1)}%
+                  </div>
+                  <div class="metric-label">System Cache Hit Rate</div>
+                </div>
+
+                <div class="metric-card">
+                  <div class="metric-value">
+                    {(cachePerformance.historyCacheHitRate * 100).toFixed(1)}%
+                  </div>
+                  <div class="metric-label">History Cache Hit Rate</div>
+                </div>
+
+                <div class="metric-card">
+                  <div class="metric-value">
+                    {(cachePerformance.overallCacheEfficiency * 100).toFixed(1)}%
+                  </div>
+                  <div class="metric-label">Overall Efficiency</div>
+                </div>
+
+                <div class="metric-card">
+                  <div class="metric-value">
+                    {cacheMetrics.totalTokensSaved.toLocaleString()}
+                  </div>
+                  <div class="metric-label">Tokens Saved</div>
+                </div>
+
+                <div class="metric-card">
+                  <div class="metric-value">
+                    {cacheMetrics.averageConversationLength.toFixed(1)}
+                  </div>
+                  <div class="metric-label">Avg Conversation Length</div>
+                </div>
+              </div>
+            </div>
+          {/if}
+
+          <!-- Actions -->
+          <div class="cache-actions">
+            <h4>Actions</h4>
+            <div class="action-group">
+              <button class="btn-secondary" onclick={loadCacheData}>
+                🔄 Refresh Data
+              </button>
+
+              <button class="btn-secondary" onclick={optimizeCache}>
+                🚀 Optimize Configuration
+              </button>
+
+              <button class="btn-secondary" onclick={warmupCache}>
+                🔥 Warmup Cache
+              </button>
+
+              <button
+                class="btn-secondary"
+                class:active={performanceMonitoringActive}
+                onclick={togglePerformanceMonitoring}
+              >
+                {performanceMonitoringActive ? '⏹️ Stop' : '▶️ Start'} Monitoring
+              </button>
+
+              <button class="btn-secondary" onclick={generateCacheReport}>
+                📊 Generate Report
+              </button>
+
+              <button class="btn-danger" onclick={resetCacheMetrics}>
+                🗑️ Reset Metrics
+              </button>
+            </div>
+          </div>
+
+          <!-- Performance Report -->
+          {#if cacheReport}
+            <div class="cache-report">
+              <h4>Performance Report</h4>
+              <pre>{cacheReport}</pre>
+            </div>
+          {/if}
+        {/if}
       </section>
     {/if}
 
@@ -912,5 +1282,145 @@
 
   a:hover {
     text-decoration: underline;
+  }
+
+  /* Cache Performance Styles */
+  .loading-indicator {
+    padding: 20px;
+    text-align: center;
+    color: var(--text-muted);
+    font-style: italic;
+  }
+
+  .cache-health {
+    padding: 16px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border: 2px solid;
+  }
+
+  .cache-health.healthy {
+    border-color: #22c55e;
+    background-color: rgba(34, 197, 94, 0.1);
+  }
+
+  .cache-health.warning {
+    border-color: #f59e0b;
+    background-color: rgba(245, 158, 11, 0.1);
+  }
+
+  .cache-health.critical {
+    border-color: #ef4444;
+    background-color: rgba(239, 68, 68, 0.1);
+  }
+
+  .cache-health h4 {
+    margin: 0 0 12px 0;
+    font-size: 1.1em;
+  }
+
+  .health-issues,
+  .health-recommendations {
+    margin-top: 12px;
+  }
+
+  .health-issues ul,
+  .health-recommendations ul {
+    margin: 8px 0 0 20px;
+    padding: 0;
+  }
+
+  .health-issues li,
+  .health-recommendations li {
+    margin-bottom: 4px;
+    font-size: 0.9em;
+  }
+
+  .cache-config,
+  .cache-metrics,
+  .cache-actions,
+  .cache-report {
+    margin-bottom: 24px;
+    padding: 16px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background-color: var(--bg-secondary);
+  }
+
+  .cache-config h4,
+  .cache-metrics h4,
+  .cache-actions h4,
+  .cache-report h4 {
+    margin: 0 0 16px 0;
+    font-size: 1.1em;
+    color: var(--text-primary);
+  }
+
+  .config-grid {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  }
+
+  .checkbox-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+  }
+
+  .checkbox-option input[type='checkbox'] {
+    margin: 0;
+  }
+
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 16px;
+  }
+
+  .metric-card {
+    padding: 16px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    text-align: center;
+    background-color: var(--bg-primary);
+  }
+
+  .metric-value {
+    font-size: 1.5em;
+    font-weight: bold;
+    color: var(--primary-color);
+    margin-bottom: 4px;
+  }
+
+  .metric-label {
+    font-size: 0.9em;
+    color: var(--text-muted);
+  }
+
+  .action-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .btn-secondary.active {
+    background-color: var(--primary-color);
+    color: white;
+  }
+
+  .cache-report pre {
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 16px;
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+    font-size: 0.85em;
+    line-height: 1.4;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    margin: 0;
   }
 </style>

@@ -649,6 +649,89 @@ app.whenReady().then(async () => {
     return await secureStorageService.clearAllKeys();
   });
 
+  // Cache performance monitoring handlers
+  ipcMain.handle('get-cache-metrics', async () => {
+    if (!aiService) {
+      throw new Error('AI service not available');
+    }
+    return aiService.getCacheMetrics();
+  });
+
+  ipcMain.handle('get-cache-performance-snapshot', async () => {
+    if (!aiService) {
+      throw new Error('AI service not available');
+    }
+    return aiService.getCachePerformanceSnapshot();
+  });
+
+  ipcMain.handle('get-cache-config', async () => {
+    if (!aiService) {
+      throw new Error('AI service not available');
+    }
+    return aiService.getCacheConfig();
+  });
+
+  ipcMain.handle('set-cache-config', async (_event, config) => {
+    if (!aiService) {
+      throw new Error('AI service not available');
+    }
+    aiService.setCacheConfig(config);
+    return aiService.getCacheConfig();
+  });
+
+  ipcMain.handle('get-cache-performance-report', async () => {
+    if (!aiService) {
+      throw new Error('AI service not available');
+    }
+    return aiService.getCachePerformanceReport();
+  });
+
+  ipcMain.handle('get-cache-health-check', async () => {
+    if (!aiService) {
+      throw new Error('AI service not available');
+    }
+    return aiService.getCacheHealthCheck();
+  });
+
+  ipcMain.handle('optimize-cache-config', async () => {
+    if (!aiService) {
+      throw new Error('AI service not available');
+    }
+    return aiService.optimizeCacheConfig();
+  });
+
+  ipcMain.handle('reset-cache-metrics', async () => {
+    if (!aiService) {
+      throw new Error('AI service not available');
+    }
+    aiService.resetCacheMetrics();
+    return { success: true };
+  });
+
+  ipcMain.handle('start-performance-monitoring', async (_event, intervalMinutes = 30) => {
+    if (!aiService) {
+      throw new Error('AI service not available');
+    }
+    aiService.startPerformanceMonitoring(intervalMinutes);
+    return { success: true };
+  });
+
+  ipcMain.handle('stop-performance-monitoring', async () => {
+    if (!aiService) {
+      throw new Error('AI service not available');
+    }
+    aiService.stopPerformanceMonitoring();
+    return { success: true };
+  });
+
+  ipcMain.handle('warmup-system-cache', async () => {
+    if (!aiService) {
+      throw new Error('AI service not available');
+    }
+    await aiService.warmupSystemMessageCache();
+    return { success: true };
+  });
+
   createWindow();
   logger.info('Main window created and IPC handlers registered');
 

@@ -17,6 +17,41 @@ import type {
 import type { ExternalLinkRow } from '@flint-note/server/dist/database/schema';
 import type { MetadataSchema } from '@flint-note/server/dist/core/metadata-schema';
 
+// Cache monitoring types
+interface CacheConfig {
+  enableSystemMessageCaching: boolean;
+  enableHistoryCaching: boolean;
+  minimumCacheTokens: number;
+  historySegmentSize: number;
+}
+
+interface CacheMetrics {
+  totalRequests: number;
+  systemMessageCacheHits: number;
+  systemMessageCacheMisses: number;
+  historyCacheHits: number;
+  historyCacheMisses: number;
+  totalTokensSaved: number;
+  totalCacheableTokens: number;
+  averageConversationLength: number;
+  lastResetTime: Date;
+}
+
+interface CachePerformanceSnapshot {
+  systemMessageCacheHitRate: number;
+  historyCacheHitRate: number;
+  overallCacheEfficiency: number;
+  tokenSavingsRate: number;
+  recommendedOptimizations: string[];
+}
+
+interface CacheHealthCheck {
+  status: 'healthy' | 'warning' | 'critical';
+  issues: string[];
+  recommendations: string[];
+  score: number;
+}
+
 interface FrontendMessage {
   id: string;
   text: string;
@@ -170,6 +205,21 @@ declare global {
         gateway: string;
       }>;
       clearApiKeys: () => Promise<void>;
+
+      // Cache monitoring operations
+      getCacheMetrics: () => Promise<CacheMetrics>;
+      getCachePerformanceSnapshot: () => Promise<CachePerformanceSnapshot>;
+      getCacheConfig: () => Promise<CacheConfig>;
+      setCacheConfig: (config: Partial<CacheConfig>) => Promise<CacheConfig>;
+      getCachePerformanceReport: () => Promise<string>;
+      getCacheHealthCheck: () => Promise<CacheHealthCheck>;
+      optimizeCacheConfig: () => Promise<CacheConfig>;
+      resetCacheMetrics: () => Promise<{ success: boolean }>;
+      startPerformanceMonitoring: (
+        intervalMinutes?: number
+      ) => Promise<{ success: boolean }>;
+      stopPerformanceMonitoring: () => Promise<{ success: boolean }>;
+      warmupSystemCache: () => Promise<{ success: boolean }>;
     };
   }
 }

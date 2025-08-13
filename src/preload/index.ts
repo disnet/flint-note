@@ -9,6 +9,14 @@ interface FrontendMessage {
   timestamp: Date | string;
   toolCalls?: unknown[];
 }
+
+interface CacheConfig {
+  enableSystemMessageCaching: boolean;
+  enableHistoryCaching: boolean;
+  minimumCacheTokens: number;
+  historySegmentSize: number;
+}
+
 import { NoteMetadata } from '@flint-note/server';
 
 export type ToolCallData = {
@@ -154,7 +162,25 @@ const api = {
   testApiKey: (params: { provider: 'anthropic' | 'openai' | 'gateway' }) =>
     electronAPI.ipcRenderer.invoke('test-api-key', params),
   getAllApiKeys: () => electronAPI.ipcRenderer.invoke('get-all-api-keys'),
-  clearApiKeys: () => electronAPI.ipcRenderer.invoke('clear-api-keys')
+  clearApiKeys: () => electronAPI.ipcRenderer.invoke('clear-api-keys'),
+
+  // Cache monitoring operations
+  getCacheMetrics: () => electronAPI.ipcRenderer.invoke('get-cache-metrics'),
+  getCachePerformanceSnapshot: () =>
+    electronAPI.ipcRenderer.invoke('get-cache-performance-snapshot'),
+  getCacheConfig: () => electronAPI.ipcRenderer.invoke('get-cache-config'),
+  setCacheConfig: (config: Partial<CacheConfig>) =>
+    electronAPI.ipcRenderer.invoke('set-cache-config', config),
+  getCachePerformanceReport: () =>
+    electronAPI.ipcRenderer.invoke('get-cache-performance-report'),
+  getCacheHealthCheck: () => electronAPI.ipcRenderer.invoke('get-cache-health-check'),
+  optimizeCacheConfig: () => electronAPI.ipcRenderer.invoke('optimize-cache-config'),
+  resetCacheMetrics: () => electronAPI.ipcRenderer.invoke('reset-cache-metrics'),
+  startPerformanceMonitoring: (intervalMinutes?: number) =>
+    electronAPI.ipcRenderer.invoke('start-performance-monitoring', intervalMinutes),
+  stopPerformanceMonitoring: () =>
+    electronAPI.ipcRenderer.invoke('stop-performance-monitoring'),
+  warmupSystemCache: () => electronAPI.ipcRenderer.invoke('warmup-system-cache')
 };
 
 // Use `contextBridge` APIs to expose Electron APIs to
