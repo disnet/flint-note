@@ -10,6 +10,33 @@ import { SecureStorageService } from './secure-storage-service';
 import { logger } from './logger';
 import { NoteService } from './note-service';
 
+interface CacheConfig {
+  enableSystemMessageCaching: boolean;
+  enableHistoryCaching: boolean;
+  minimumCacheTokens: number;
+  historySegmentSize: number;
+}
+
+interface CacheMetrics {
+  totalRequests: number;
+  systemMessageCacheHits: number;
+  systemMessageCacheMisses: number;
+  historyCacheHits: number;
+  historyCacheMisses: number;
+  totalTokensSaved: number;
+  totalCacheableTokens: number;
+  averageConversationLength: number;
+  lastResetTime: Date;
+}
+
+interface CachePerformanceSnapshot {
+  systemMessageCacheHitRate: number;
+  historyCacheHitRate: number;
+  overallCacheEfficiency: number;
+  tokenSavingsRate: number;
+  recommendedOptimizations: string[];
+}
+
 interface FrontendMessage {
   id: string;
   text: string;
@@ -28,6 +55,24 @@ export class AIService extends EventEmitter {
   private noteService: NoteService | null;
   private readonly maxConversationHistory = 20;
   private readonly maxConversations = 100;
+  private cacheConfig: CacheConfig = {
+    enableSystemMessageCaching: true,
+    enableHistoryCaching: false, // Start with system message caching only
+    minimumCacheTokens: 1024,
+    historySegmentSize: 4
+  };
+  private cacheMetrics: CacheMetrics = {
+    totalRequests: 0,
+    systemMessageCacheHits: 0,
+    systemMessageCacheMisses: 0,
+    historyCacheHits: 0,
+    historyCacheMisses: 0,
+    totalTokensSaved: 0,
+    totalCacheableTokens: 0,
+    averageConversationLength: 0,
+    lastResetTime: new Date()
+  };
+  private performanceMonitoringInterval?: NodeJS.Timeout;
 
   constructor(gateway: GatewayProvider, noteService: NoteService | null) {
     super();
@@ -517,6 +562,32 @@ Use these tools to help users manage their notes effectively and answer their qu
     }
   }
 
+  private estimateTokens(content: string | ModelMessage[]): number {
+    if (typeof content === 'string') {
+      // Rough estimate: 1 token ≈ 3-4 characters
+      return Math.ceil(content.length / 3.5);
+    }
+
+    // For message arrays, estimate tokens for all content
+    let totalLength = 0;
+    for (const msg of content) {
+      if (typeof msg.content === 'string') {
+        totalLength += msg.content.length;
+      } else if (Array.isArray(msg.content)) {
+        for (const part of msg.content) {
+          if (part.type === 'text') {
+            totalLength += part.text.length;
+          }
+        }
+      }
+    }
+    return Math.ceil(totalLength / 3.5);
+  }
+
+  private isAnthropicModel(): boolean {
+    return this.currentModelName.startsWith('anthropic/');
+  }
+
   private async getSystemMessage(): Promise<string> {
     const today = new Date().toLocaleDateString('en-US', {
       month: 'long',
@@ -549,6 +620,31 @@ Use these tools to help users manage their notes effectively and answer their qu
     return this.systemPrompt + contextualInfo + noteTypeInfo;
   }
 
+  private async getSystemMessageWithCaching(): Promise<ModelMessage> {
+    const content = await this.getSystemMessage();
+
+    // Only apply caching for Anthropic models and if caching is enabled
+    if (
+      this.cacheConfig.enableSystemMessageCaching &&
+      this.isAnthropicModel() &&
+      this.estimateTokens(content) >= this.cacheConfig.minimumCacheTokens
+    ) {
+      // For AI SDK, we need to use the proper format for cache control
+      return {
+        role: 'system',
+        content,
+        providerOptions: {
+          anthropic: {
+            cacheControl: { type: 'ephemeral' }
+          }
+        }
+      } as ModelMessage;
+    }
+
+    // Fallback to regular system message for non-Anthropic models or when caching is disabled
+    return { role: 'system', content };
+  }
+
   private getConversationMessages(conversationId: string): ModelMessage[] {
     return this.conversationHistories.get(conversationId) || [];
   }
@@ -559,6 +655,558 @@ Use these tools to help users manage their notes effectively and answer their qu
       history = history.slice(-this.maxConversationHistory);
     }
     this.conversationHistories.set(conversationId, history);
+  }
+
+  /**
+   * Creates a cached message segment from multiple messages.
+   * Combines messages into a single cached message for token efficiency.
+   */
+  private createCachedMessageSegment(messages: ModelMessage[]): ModelMessage {
+    // Combine all messages into a single text content for caching
+    const combinedContent = messages
+      .map((msg) => {
+        const role = msg.role === 'user' ? 'User' : 'Assistant';
+        const content =
+          typeof msg.content === 'string'
+            ? msg.content
+            : Array.isArray(msg.content)
+              ? msg.content
+                  .map((part) =>
+                    typeof part === 'string'
+                      ? part
+                      : part.type === 'text'
+                        ? part.text
+                        : '[non-text content]'
+                  )
+                  .join('')
+              : '[complex content]';
+        return `${role}: ${content}`;
+      })
+      .join('\n\n');
+
+    return {
+      role: 'user', // Use 'user' role for the cached segment
+      content: combinedContent,
+      providerOptions: {
+        anthropic: {
+          cacheControl: { type: 'ephemeral' }
+        }
+      }
+    };
+  }
+
+  /**
+   * Prepares conversation messages with caching applied to stable segments.
+   * Caches older messages while keeping recent messages uncached for flexibility.
+   */
+  private prepareCachedMessages(history: ModelMessage[]): ModelMessage[] {
+    // Only apply caching if enabled and using Anthropic models
+    if (!this.cacheConfig.enableHistoryCaching || !this.isAnthropicModel()) {
+      return history;
+    }
+
+    // Need sufficient messages to benefit from caching (more than segment size * 1.5)
+    const minMessagesForCaching = Math.ceil(this.cacheConfig.historySegmentSize * 1.5);
+    if (history.length <= minMessagesForCaching) {
+      return history;
+    }
+
+    // Split into stable (older) and recent messages
+    const stableMessageCount = history.length - this.cacheConfig.historySegmentSize;
+    const stableMessages = history.slice(0, stableMessageCount);
+    const recentMessages = history.slice(stableMessageCount);
+
+    // Only cache stable portion if it meets minimum token requirements
+    const stableTokens = this.estimateTokens(
+      stableMessages
+        .map((msg) =>
+          typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content)
+        )
+        .join(' ')
+    );
+
+    if (stableTokens >= this.cacheConfig.minimumCacheTokens) {
+      const cachedSegment = this.createCachedMessageSegment(stableMessages);
+      return [cachedSegment, ...recentMessages];
+    }
+
+    // Return original history if stable portion doesn't meet caching requirements
+    return history;
+  }
+
+  setCacheConfig(config: Partial<CacheConfig>): void {
+    // Validate configuration
+    const validatedConfig = this.validateCacheConfig({ ...this.cacheConfig, ...config });
+    this.cacheConfig = validatedConfig;
+    logger.info('Updated cache configuration', {
+      config: this.cacheConfig,
+      validationApplied: JSON.stringify(config) !== JSON.stringify(validatedConfig)
+    });
+  }
+
+  getCacheConfig(): CacheConfig {
+    return { ...this.cacheConfig };
+  }
+
+  /**
+   * Validates and optimizes cache configuration settings
+   */
+  private validateCacheConfig(config: CacheConfig): CacheConfig {
+    const optimized = { ...config };
+
+    // Ensure minimum cache tokens is reasonable
+    if (optimized.minimumCacheTokens < 256) {
+      logger.warn('Minimum cache tokens too low, adjusting to 256');
+      optimized.minimumCacheTokens = 256;
+    }
+    if (optimized.minimumCacheTokens > 4096) {
+      logger.warn(
+        'Minimum cache tokens very high, consider lowering for better hit rates'
+      );
+    }
+
+    // Ensure history segment size is reasonable
+    if (optimized.historySegmentSize < 2) {
+      logger.warn('History segment size too small, adjusting to 2');
+      optimized.historySegmentSize = 2;
+    }
+    if (optimized.historySegmentSize > 8) {
+      logger.warn('History segment size large, may reduce caching efficiency');
+    }
+
+    return optimized;
+  }
+
+  /**
+   * Records cache performance metrics for monitoring
+   */
+  private recordCacheMetrics(
+    systemCacheUsed: boolean,
+    historyCacheUsed: boolean,
+    conversationLength: number,
+    estimatedTokensSaved: number,
+    totalTokens: number,
+    providerMetadata?: { anthropic?: Record<string, unknown> }
+  ): void {
+    this.cacheMetrics.totalRequests++;
+
+    // Update conversation length average
+    this.cacheMetrics.averageConversationLength =
+      (this.cacheMetrics.averageConversationLength *
+        (this.cacheMetrics.totalRequests - 1) +
+        conversationLength) /
+      this.cacheMetrics.totalRequests;
+
+    // Record system message cache performance
+    if (this.cacheConfig.enableSystemMessageCaching) {
+      if (systemCacheUsed) {
+        this.cacheMetrics.systemMessageCacheHits++;
+      } else {
+        this.cacheMetrics.systemMessageCacheMisses++;
+      }
+    }
+
+    // Record history cache performance
+    if (this.cacheConfig.enableHistoryCaching) {
+      if (historyCacheUsed) {
+        this.cacheMetrics.historyCacheHits++;
+      } else {
+        this.cacheMetrics.historyCacheMisses++;
+      }
+    }
+
+    // Update token savings
+    this.cacheMetrics.totalTokensSaved += estimatedTokensSaved;
+    this.cacheMetrics.totalCacheableTokens += totalTokens;
+
+    // Log detailed metrics if provider metadata available
+    if (providerMetadata?.anthropic) {
+      logger.info('Detailed cache performance', {
+        conversationId: this.currentConversationId,
+        systemCacheUsed,
+        historyCacheUsed,
+        conversationLength,
+        estimatedTokensSaved,
+        totalTokens,
+        cacheMetrics: this.cacheMetrics,
+        providerMetadata: providerMetadata.anthropic
+      });
+    }
+  }
+
+  /**
+   * Gets current cache performance metrics
+   */
+  getCacheMetrics(): CacheMetrics {
+    return { ...this.cacheMetrics };
+  }
+
+  /**
+   * Gets cache performance snapshot with calculated rates and recommendations
+   */
+  getCachePerformanceSnapshot(): CachePerformanceSnapshot {
+    const metrics = this.cacheMetrics;
+    const recommendations: string[] = [];
+
+    // Calculate hit rates
+    const totalSystemRequests =
+      metrics.systemMessageCacheHits + metrics.systemMessageCacheMisses;
+    const systemHitRate =
+      totalSystemRequests > 0 ? metrics.systemMessageCacheHits / totalSystemRequests : 0;
+
+    const totalHistoryRequests = metrics.historyCacheHits + metrics.historyCacheMisses;
+    const historyHitRate =
+      totalHistoryRequests > 0 ? metrics.historyCacheHits / totalHistoryRequests : 0;
+
+    // Calculate overall efficiency
+    const totalCacheableRequests = totalSystemRequests + totalHistoryRequests;
+    const totalCacheHits = metrics.systemMessageCacheHits + metrics.historyCacheHits;
+    const overallEfficiency =
+      totalCacheableRequests > 0 ? totalCacheHits / totalCacheableRequests : 0;
+
+    // Calculate token savings rate
+    const tokenSavingsRate =
+      metrics.totalCacheableTokens > 0
+        ? metrics.totalTokensSaved / metrics.totalCacheableTokens
+        : 0;
+
+    // Generate recommendations
+    if (systemHitRate < 0.6 && this.cacheConfig.enableSystemMessageCaching) {
+      recommendations.push(
+        'System message cache hit rate is low. Consider reviewing system message content or token threshold.'
+      );
+    }
+
+    if (historyHitRate < 0.4 && this.cacheConfig.enableHistoryCaching) {
+      recommendations.push(
+        'History cache hit rate is low. Consider lowering minimumCacheTokens or reducing historySegmentSize.'
+      );
+    }
+
+    if (!this.cacheConfig.enableHistoryCaching && metrics.averageConversationLength > 8) {
+      recommendations.push(
+        'Average conversation length suggests enabling history caching could provide significant benefits.'
+      );
+    }
+
+    if (
+      tokenSavingsRate < 0.2 &&
+      (this.cacheConfig.enableSystemMessageCaching ||
+        this.cacheConfig.enableHistoryCaching)
+    ) {
+      recommendations.push(
+        'Token savings rate is low. Consider optimizing cache thresholds or reviewing conversation patterns.'
+      );
+    }
+
+    if (this.cacheConfig.minimumCacheTokens > 2048 && historyHitRate < 0.3) {
+      recommendations.push(
+        'Consider lowering minimumCacheTokens to increase history cache hit rate.'
+      );
+    }
+
+    return {
+      systemMessageCacheHitRate: systemHitRate,
+      historyCacheHitRate: historyHitRate,
+      overallCacheEfficiency: overallEfficiency,
+      tokenSavingsRate: tokenSavingsRate,
+      recommendedOptimizations: recommendations
+    };
+  }
+
+  /**
+   * Resets cache metrics for fresh tracking period
+   */
+  resetCacheMetrics(): void {
+    this.cacheMetrics = {
+      totalRequests: 0,
+      systemMessageCacheHits: 0,
+      systemMessageCacheMisses: 0,
+      historyCacheHits: 0,
+      historyCacheMisses: 0,
+      totalTokensSaved: 0,
+      totalCacheableTokens: 0,
+      averageConversationLength: 0,
+      lastResetTime: new Date()
+    };
+    logger.info('Cache metrics reset');
+  }
+
+  /**
+   * Automatically optimizes cache configuration based on current metrics
+   */
+  optimizeCacheConfig(): CacheConfig {
+    const performance = this.getCachePerformanceSnapshot();
+    const currentConfig = { ...this.cacheConfig };
+    let optimized = false;
+
+    // Optimize based on conversation patterns
+    if (
+      this.cacheMetrics.averageConversationLength > 10 &&
+      !currentConfig.enableHistoryCaching
+    ) {
+      currentConfig.enableHistoryCaching = true;
+      optimized = true;
+      logger.info('Auto-enabled history caching based on conversation length patterns');
+    }
+
+    // Optimize token threshold based on hit rates
+    if (
+      performance.historyCacheHitRate < 0.3 &&
+      currentConfig.minimumCacheTokens > 1024
+    ) {
+      currentConfig.minimumCacheTokens = Math.max(
+        512,
+        currentConfig.minimumCacheTokens * 0.75
+      );
+      optimized = true;
+      logger.info('Lowered minimum cache tokens to improve hit rate', {
+        newThreshold: currentConfig.minimumCacheTokens
+      });
+    }
+
+    // Optimize history segment size based on efficiency
+    if (performance.historyCacheHitRate > 0.8 && currentConfig.historySegmentSize > 2) {
+      currentConfig.historySegmentSize = Math.max(
+        2,
+        currentConfig.historySegmentSize - 1
+      );
+      optimized = true;
+      logger.info('Reduced history segment size for more aggressive caching', {
+        newSegmentSize: currentConfig.historySegmentSize
+      });
+    }
+
+    if (optimized) {
+      this.setCacheConfig(currentConfig);
+      logger.info('Cache configuration automatically optimized', {
+        before: this.cacheConfig,
+        after: currentConfig,
+        performance
+      });
+    } else {
+      logger.info('Cache configuration already optimal', { performance });
+    }
+
+    return currentConfig;
+  }
+
+  /**
+   * Generates a comprehensive cache performance report
+   */
+  getCachePerformanceReport(): string {
+    const performance = this.getCachePerformanceSnapshot();
+    const metrics = this.getCacheMetrics();
+    const config = this.getCacheConfig();
+
+    const report = `
+=== AI Service Cache Performance Report ===
+Generated: ${new Date().toISOString()}
+Tracking Period: ${metrics.lastResetTime.toISOString()} - ${new Date().toISOString()}
+
+--- Configuration ---
+System Message Caching: ${config.enableSystemMessageCaching ? 'ENABLED' : 'DISABLED'}
+History Caching: ${config.enableHistoryCaching ? 'ENABLED' : 'DISABLED'}
+Minimum Cache Tokens: ${config.minimumCacheTokens}
+History Segment Size: ${config.historySegmentSize}
+
+--- Performance Metrics ---
+Total Requests: ${metrics.totalRequests}
+Average Conversation Length: ${metrics.averageConversationLength.toFixed(1)} messages
+
+System Message Caching:
+  - Hit Rate: ${(performance.systemMessageCacheHitRate * 100).toFixed(1)}%
+  - Hits: ${metrics.systemMessageCacheHits}
+  - Misses: ${metrics.systemMessageCacheMisses}
+
+History Caching:
+  - Hit Rate: ${(performance.historyCacheHitRate * 100).toFixed(1)}%
+  - Hits: ${metrics.historyCacheHits}
+  - Misses: ${metrics.historyCacheMisses}
+
+Token Efficiency:
+  - Overall Cache Efficiency: ${(performance.overallCacheEfficiency * 100).toFixed(1)}%
+  - Token Savings Rate: ${(performance.tokenSavingsRate * 100).toFixed(1)}%
+  - Total Tokens Saved: ${metrics.totalTokensSaved.toLocaleString()}
+  - Total Cacheable Tokens: ${metrics.totalCacheableTokens.toLocaleString()}
+
+--- Optimization Recommendations ---
+${
+  performance.recommendedOptimizations.length > 0
+    ? performance.recommendedOptimizations.map((rec) => `• ${rec}`).join('\n')
+    : '• Configuration appears optimal for current usage patterns'
+}
+
+--- Status ---
+${
+  performance.overallCacheEfficiency > 0.7
+    ? '✅ Excellent cache performance'
+    : performance.overallCacheEfficiency > 0.5
+      ? '⚠️  Good cache performance, room for improvement'
+      : performance.overallCacheEfficiency > 0.3
+        ? '🔧 Moderate cache performance, optimization recommended'
+        : '❌ Poor cache performance, review configuration'
+}
+`;
+
+    return report.trim();
+  }
+
+  /**
+   * Logs a summary of cache performance at INFO level
+   */
+  logCachePerformanceSummary(): void {
+    const performance = this.getCachePerformanceSnapshot();
+    const metrics = this.getCacheMetrics();
+
+    logger.info('Cache Performance Summary', {
+      totalRequests: metrics.totalRequests,
+      systemCacheHitRate: `${(performance.systemMessageCacheHitRate * 100).toFixed(1)}%`,
+      historyCacheHitRate: `${(performance.historyCacheHitRate * 100).toFixed(1)}%`,
+      overallEfficiency: `${(performance.overallCacheEfficiency * 100).toFixed(1)}%`,
+      tokenSavingsRate: `${(performance.tokenSavingsRate * 100).toFixed(1)}%`,
+      totalTokensSaved: metrics.totalTokensSaved,
+      averageConversationLength: metrics.averageConversationLength.toFixed(1),
+      recommendationsCount: performance.recommendedOptimizations.length,
+      config: this.cacheConfig
+    });
+  }
+
+  /**
+   * Starts periodic cache performance monitoring
+   */
+  startPerformanceMonitoring(intervalMinutes: number = 30): void {
+    if (this.performanceMonitoringInterval) {
+      clearInterval(this.performanceMonitoringInterval);
+    }
+
+    this.performanceMonitoringInterval = setInterval(
+      () => {
+        this.logCachePerformanceSummary();
+
+        // Auto-optimize if performance is poor
+        const performance = this.getCachePerformanceSnapshot();
+        if (
+          performance.overallCacheEfficiency < 0.3 &&
+          this.cacheMetrics.totalRequests > 10
+        ) {
+          logger.info('Auto-optimizing cache configuration due to poor performance');
+          this.optimizeCacheConfig();
+        }
+      },
+      intervalMinutes * 60 * 1000
+    );
+
+    logger.info('Started cache performance monitoring', { intervalMinutes });
+  }
+
+  /**
+   * Stops periodic cache performance monitoring
+   */
+  stopPerformanceMonitoring(): void {
+    if (this.performanceMonitoringInterval) {
+      clearInterval(this.performanceMonitoringInterval);
+      this.performanceMonitoringInterval = undefined;
+      logger.info('Stopped cache performance monitoring');
+    }
+  }
+
+  /**
+   * Warms up the system message cache by pre-loading it
+   */
+  async warmupSystemMessageCache(): Promise<void> {
+    if (!this.cacheConfig.enableSystemMessageCaching || !this.isAnthropicModel()) {
+      logger.info(
+        'System message cache warmup skipped - not enabled or not Anthropic model'
+      );
+      return;
+    }
+
+    try {
+      // Pre-load system message to warm cache
+      await this.getSystemMessageWithCaching();
+      logger.info('System message cache warmed up successfully');
+    } catch (error) {
+      logger.error('Failed to warm up system message cache', { error });
+    }
+  }
+
+  /**
+   * Provides cache health check with actionable insights
+   */
+  getCacheHealthCheck(): {
+    status: 'healthy' | 'warning' | 'critical';
+    issues: string[];
+    recommendations: string[];
+    score: number;
+  } {
+    const performance = this.getCachePerformanceSnapshot();
+    const metrics = this.getCacheMetrics();
+    const issues: string[] = [];
+    const recommendations: string[] = [];
+    let score = 100;
+
+    // Check if caching is being used at all
+    if (
+      !this.cacheConfig.enableSystemMessageCaching &&
+      !this.cacheConfig.enableHistoryCaching
+    ) {
+      issues.push('No caching enabled');
+      recommendations.push('Enable system message caching for immediate benefits');
+      score -= 50;
+    }
+
+    // Check system message cache performance
+    if (this.cacheConfig.enableSystemMessageCaching) {
+      if (performance.systemMessageCacheHitRate < 0.5) {
+        issues.push('Low system message cache hit rate');
+        recommendations.push('Review system message content stability');
+        score -= 20;
+      }
+    }
+
+    // Check history cache performance
+    if (this.cacheConfig.enableHistoryCaching) {
+      if (performance.historyCacheHitRate < 0.3) {
+        issues.push('Low history cache hit rate');
+        recommendations.push('Consider lowering minimumCacheTokens threshold');
+        score -= 15;
+      }
+    } else if (metrics.averageConversationLength > 8) {
+      issues.push('Long conversations without history caching');
+      recommendations.push('Enable history caching for better token efficiency');
+      score -= 25;
+    }
+
+    // Check token efficiency
+    if (performance.tokenSavingsRate < 0.15) {
+      issues.push('Low token savings rate');
+      recommendations.push('Optimize cache configuration for better efficiency');
+      score -= 10;
+    }
+
+    // Check configuration sanity
+    if (this.cacheConfig.minimumCacheTokens > 3000) {
+      issues.push('Very high minimum cache token threshold');
+      recommendations.push('Consider lowering minimumCacheTokens for better hit rates');
+      score -= 5;
+    }
+
+    if (this.cacheConfig.historySegmentSize > 6) {
+      issues.push('Large history segment size reducing cache efficiency');
+      recommendations.push('Consider reducing historySegmentSize for more caching');
+      score -= 5;
+    }
+
+    const status: 'healthy' | 'warning' | 'critical' =
+      score >= 80 ? 'healthy' : score >= 60 ? 'warning' : 'critical';
+
+    return {
+      status,
+      issues,
+      recommendations,
+      score: Math.max(0, score)
+    };
   }
 
   setActiveConversation(conversationId: string): void {
@@ -742,12 +1390,13 @@ Use these tools to help users manage their notes effectively and answer their qu
       this.setConversationHistory(this.currentConversationId!, currentHistory);
 
       // Prepare messages for the model
-      const systemMessage = await this.getSystemMessage();
+      const systemMessage = await this.getSystemMessageWithCaching();
+      const conversationHistory = this.getConversationMessages(
+        this.currentConversationId!
+      );
+      const cachedHistory = this.prepareCachedMessages(conversationHistory);
 
-      const messages: ModelMessage[] = [
-        { role: 'system', content: systemMessage },
-        ...this.getConversationMessages(this.currentConversationId!)
-      ];
+      const messages: ModelMessage[] = [systemMessage, ...cachedHistory];
 
       // @ts-ignore: mcpClient types not exported yet
       const mcpTools = this.mcpClient
@@ -764,6 +1413,51 @@ Use these tools to help users manage their notes effectively and answer their qu
           logger.info('AI step finished', { step });
         }
       });
+
+      // Record and log cache performance metrics
+      const conversationLength = this.getConversationMessages(
+        this.currentConversationId!
+      ).length;
+      const systemCacheUsed =
+        this.cacheConfig.enableSystemMessageCaching && this.isAnthropicModel();
+      const historyCacheUsed =
+        this.cacheConfig.enableHistoryCaching &&
+        this.isAnthropicModel() &&
+        conversationLength > Math.ceil(this.cacheConfig.historySegmentSize * 1.5);
+
+      // Estimate token savings (rough calculation)
+      const estimatedSystemTokens = systemCacheUsed
+        ? this.estimateTokens(await this.getSystemMessage())
+        : 0;
+      const estimatedHistoryTokens = historyCacheUsed
+        ? this.estimateTokens(
+            cachedHistory
+              .slice(0, -this.cacheConfig.historySegmentSize)
+              .map((msg) =>
+                typeof msg.content === 'string'
+                  ? msg.content
+                  : JSON.stringify(msg.content)
+              )
+              .join(' ')
+          )
+        : 0;
+      const estimatedTokensSaved = estimatedSystemTokens + estimatedHistoryTokens;
+      const totalTokens = this.estimateTokens(
+        messages
+          .map((msg) =>
+            typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content)
+          )
+          .join(' ')
+      );
+
+      this.recordCacheMetrics(
+        systemCacheUsed,
+        historyCacheUsed,
+        conversationLength,
+        estimatedTokensSaved,
+        totalTokens,
+        result.providerMetadata
+      );
 
       // Add assistant response to conversation history
       const updatedHistory = this.getConversationMessages(this.currentConversationId!);
@@ -843,12 +1537,13 @@ Use these tools to help users manage their notes effectively and answer their qu
       this.setConversationHistory(this.currentConversationId!, currentHistory);
 
       // Prepare messages for the model
-      const systemMessage = await this.getSystemMessage();
+      const systemMessage = await this.getSystemMessageWithCaching();
+      const conversationHistory = this.getConversationMessages(
+        this.currentConversationId!
+      );
+      const cachedHistory = this.prepareCachedMessages(conversationHistory);
 
-      const messages: ModelMessage[] = [
-        { role: 'system', content: systemMessage },
-        ...this.getConversationMessages(this.currentConversationId!)
-      ];
+      const messages: ModelMessage[] = [systemMessage, ...cachedHistory];
 
       this.emit('stream-start', { requestId });
 
@@ -906,6 +1601,51 @@ Use these tools to help users manage their notes effectively and answer their qu
         const finalHistory = this.getConversationMessages(this.currentConversationId!);
         finalHistory.push({ role: 'assistant', content: fullText });
         this.setConversationHistory(this.currentConversationId!, finalHistory);
+
+        // Record and log cache performance metrics for streaming
+        const conversationLength = this.getConversationMessages(
+          this.currentConversationId!
+        ).length;
+        const systemCacheUsed =
+          this.cacheConfig.enableSystemMessageCaching && this.isAnthropicModel();
+        const historyCacheUsed =
+          this.cacheConfig.enableHistoryCaching &&
+          this.isAnthropicModel() &&
+          conversationLength > Math.ceil(this.cacheConfig.historySegmentSize * 1.5);
+
+        // Estimate token savings for streaming (rough calculation)
+        const estimatedSystemTokens = systemCacheUsed
+          ? this.estimateTokens(await this.getSystemMessage())
+          : 0;
+        const estimatedHistoryTokens = historyCacheUsed
+          ? this.estimateTokens(
+              cachedHistory
+                .slice(0, -this.cacheConfig.historySegmentSize)
+                .map((msg) =>
+                  typeof msg.content === 'string'
+                    ? msg.content
+                    : JSON.stringify(msg.content)
+                )
+                .join(' ')
+            )
+          : 0;
+        const estimatedTokensSaved = estimatedSystemTokens + estimatedHistoryTokens;
+        const totalTokens = this.estimateTokens(
+          messages
+            .map((msg) =>
+              typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content)
+            )
+            .join(' ')
+        );
+
+        this.recordCacheMetrics(
+          systemCacheUsed,
+          historyCacheUsed,
+          conversationLength,
+          estimatedTokensSaved,
+          totalTokens,
+          undefined // Streaming doesn't provide providerMetadata in the same way
+        );
 
         this.emit('stream-end', { requestId, fullText });
       } catch (streamError: unknown) {
