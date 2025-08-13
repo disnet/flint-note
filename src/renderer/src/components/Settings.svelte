@@ -324,34 +324,21 @@
 
     try {
       loadingCache = true;
-      console.log('Loading cache data...');
 
-      // Load cache data individually to better identify which call might be failing
-      console.log('Getting cache metrics...');
-      const metrics = await chatService.getCacheMetrics();
-      console.log('Cache metrics loaded:', metrics);
-
-      console.log('Getting cache performance snapshot...');
-      const performance = await chatService.getCachePerformanceSnapshot();
-      console.log('Cache performance loaded:', performance);
-
-      console.log('Getting cache config...');
-      const config = await chatService.getCacheConfig();
-      console.log('Cache config loaded:', config);
-
-      console.log('Getting cache health check...');
-      const health = await chatService.getCacheHealthCheck();
-      console.log('Cache health loaded:', health);
+      const [metrics, performance, config, health] = await Promise.all([
+        chatService.getCacheMetrics(),
+        chatService.getCachePerformanceSnapshot(),
+        chatService.getCacheConfig(),
+        chatService.getCacheHealthCheck()
+      ]);
 
       cacheMetrics = metrics;
       cachePerformance = performance;
       cacheConfig = config;
       cacheHealthCheck = health;
 
-      console.log('All cache data loaded successfully');
       cacheDataLoaded = true;
     } catch (error) {
-      console.error('Error loading cache data:', error);
       cacheDataLoaded = false;
       showError(
         'Failed to load cache data: ' +
@@ -447,9 +434,7 @@
 
   // Load cache data when cache performance section is active
   $effect(() => {
-    console.log('Effect triggered:', { activeSection, cacheDataLoaded, loadingCache });
     if (activeSection === 'cache-performance' && !cacheDataLoaded && !loadingCache) {
-      console.log('Starting cache data load...');
       loadCacheData().catch((error) => {
         console.error('Failed to load cache data in effect:', error);
         showError(
@@ -460,7 +445,6 @@
       });
     } else if (activeSection !== 'cache-performance') {
       // Reset cache data loaded flag when switching away from cache performance section
-      console.log('Resetting cache data loaded flag');
       cacheDataLoaded = false;
     }
   });

@@ -651,51 +651,24 @@ app.whenReady().then(async () => {
 
   // Cache performance monitoring handlers
   ipcMain.handle('get-cache-metrics', async () => {
-    console.log('IPC: get-cache-metrics called');
     if (!aiService) {
-      console.error('IPC: AI service not available for get-cache-metrics');
       throw new Error('AI service not available');
     }
-    try {
-      const metrics = aiService.getCacheMetrics();
-      console.log('IPC: get-cache-metrics success:', metrics);
-      return metrics;
-    } catch (error) {
-      console.error('IPC: get-cache-metrics error:', error);
-      throw error;
-    }
+    return aiService.getCacheMetrics();
   });
 
   ipcMain.handle('get-cache-performance-snapshot', async () => {
-    console.log('IPC: get-cache-performance-snapshot called');
     if (!aiService) {
-      console.error('IPC: AI service not available for get-cache-performance-snapshot');
       throw new Error('AI service not available');
     }
-    try {
-      const snapshot = aiService.getCachePerformanceSnapshot();
-      console.log('IPC: get-cache-performance-snapshot success:', snapshot);
-      return snapshot;
-    } catch (error) {
-      console.error('IPC: get-cache-performance-snapshot error:', error);
-      throw error;
-    }
+    return aiService.getCachePerformanceSnapshot();
   });
 
   ipcMain.handle('get-cache-config', async () => {
-    console.log('IPC: get-cache-config called');
     if (!aiService) {
-      console.error('IPC: AI service not available for get-cache-config');
       throw new Error('AI service not available');
     }
-    try {
-      const config = aiService.getCacheConfig();
-      console.log('IPC: get-cache-config success:', config);
-      return config;
-    } catch (error) {
-      console.error('IPC: get-cache-config error:', error);
-      throw error;
-    }
+    return aiService.getCacheConfig();
   });
 
   ipcMain.handle('set-cache-config', async (_event, config) => {
@@ -714,19 +687,10 @@ app.whenReady().then(async () => {
   });
 
   ipcMain.handle('get-cache-health-check', async () => {
-    console.log('IPC: get-cache-health-check called');
     if (!aiService) {
-      console.error('IPC: AI service not available for get-cache-health-check');
       throw new Error('AI service not available');
     }
-    try {
-      const health = aiService.getCacheHealthCheck();
-      console.log('IPC: get-cache-health-check success:', health);
-      return health;
-    } catch (error) {
-      console.error('IPC: get-cache-health-check error:', error);
-      throw error;
-    }
+    return aiService.getCacheHealthCheck();
   });
 
   ipcMain.handle('optimize-cache-config', async () => {
