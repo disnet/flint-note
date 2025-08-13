@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { conversationStore } from '../stores/conversationStore.svelte';
-  import type { Conversation } from '../stores/conversationStore.svelte';
+  import { unifiedChatStore } from '../stores/unifiedChatStore.svelte';
+  import type { UnifiedThread } from '../stores/unifiedChatStore.svelte';
 
   interface Props {
     onConversationSelect: (conversationId: string) => void;
@@ -20,7 +20,7 @@
   function deleteConversation(event: Event, conversationId: string): void {
     event.stopPropagation();
     if (confirm('Delete this conversation? This action cannot be undone.')) {
-      conversationStore.deleteConversation(conversationId);
+      unifiedChatStore.deleteThread(conversationId);
     }
   }
 
@@ -38,11 +38,11 @@
     }
   }
 
-  function getMessageCount(conversation: Conversation): number {
+  function getMessageCount(conversation: UnifiedThread): number {
     return conversation.messages.length;
   }
 
-  function getLastMessagePreview(conversation: Conversation): string {
+  function getLastMessagePreview(conversation: UnifiedThread): string {
     if (conversation.messages.length === 0) return 'No messages';
 
     const lastMessage = conversation.messages[conversation.messages.length - 1];
@@ -75,16 +75,16 @@
   </div>
 
   <div class="conversation-list">
-    {#if conversationStore.conversations.length === 0}
+    {#if unifiedChatStore.conversations.length === 0}
       <div class="empty-state">
         <p class="empty-message">No conversations yet</p>
         <p class="empty-hint">Start a new conversation to get started</p>
       </div>
     {:else}
-      {#each conversationStore.conversations as conversation (conversation.id)}
+      {#each unifiedChatStore.conversations as conversation (conversation.id)}
         <div
           class="conversation-item"
-          class:active={conversation.id === conversationStore.activeConversationId}
+          class:active={conversation.id === unifiedChatStore.activeConversationId}
           onclick={() => selectConversation(conversation.id)}
           onkeydown={(e) => e.key === 'Enter' && selectConversation(conversation.id)}
           role="button"
@@ -122,7 +122,9 @@
                   >${(conversation.costInfo.totalCost / 100).toFixed(3)}</span
                 >
               {/if}
-              <span class="conversation-date">{formatDate(conversation.updatedAt)}</span>
+              <span class="conversation-date"
+                >{formatDate(conversation.lastActivity)}</span
+              >
             </div>
           </div>
         </div>

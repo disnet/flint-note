@@ -12,11 +12,14 @@
   import { sidebarState } from './stores/sidebarState.svelte';
   import { searchOverlayState } from './stores/searchOverlay.svelte';
   import { temporaryTabsStore } from './stores/temporaryTabsStore.svelte';
-  import { conversationStore } from './stores/conversationStore.svelte';
+  import { unifiedChatStore } from './stores/unifiedChatStore.svelte';
   import { noteNavigationService } from './services/noteNavigationService.svelte';
 
-  // Messages are now managed by conversationStore
-  const messages = $derived(conversationStore.currentMessages);
+  // Initialize unified chat store effects
+  unifiedChatStore.initializeEffects();
+
+  // Messages are now managed by unifiedChatStore (with backward compatibility)
+  const messages = $derived(unifiedChatStore.currentMessages);
 
   let isLoadingResponse = $state(false);
   let activeNote = $state<NoteMetadata | null>(null);
@@ -198,7 +201,7 @@
       sender: 'user',
       timestamp: new Date()
     };
-    await conversationStore.addMessage(newMessage);
+    await unifiedChatStore.addMessage(newMessage);
 
     isLoadingResponse = true;
 
@@ -211,7 +214,7 @@
       timestamp: new Date(),
       toolCalls: []
     };
-    await conversationStore.addMessage(agentResponse);
+    await unifiedChatStore.addMessage(agentResponse);
 
     try {
       const chatService = getChatService();
@@ -220,27 +223,27 @@
       if (chatService.sendMessageStream) {
         chatService.sendMessageStream(
           text,
-          conversationStore.activeConversationId || undefined,
+          unifiedChatStore.activeConversationId || undefined,
           // onChunk: append text chunks to the message
           (chunk: string) => {
-            const currentMessage = conversationStore.currentMessages.find(
+            const currentMessage = unifiedChatStore.currentMessages.find(
               (m) => m.id === agentResponseId
             );
             if (currentMessage) {
-              conversationStore.updateMessage(agentResponseId, {
+              unifiedChatStore.updateMessage(agentResponseId, {
                 text: currentMessage.text + chunk
               });
             }
           },
           // onComplete: streaming finished
           (fullText: string) => {
-            conversationStore.updateMessage(agentResponseId, { text: fullText });
+            unifiedChatStore.updateMessage(agentResponseId, { text: fullText });
             isLoadingResponse = false;
           },
           // onError: handle streaming errors
           (error: string) => {
             console.error('Streaming error:', error);
-            conversationStore.updateMessage(agentResponseId, {
+            unifiedChatStore.updateMessage(agentResponseId, {
               text: 'Sorry, I encountered an error while processing your message.'
             });
             isLoadingResponse = false;
@@ -249,12 +252,12 @@
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (toolCall: any) => {
             console.log('App.svelte: Received tool call:', toolCall);
-            const currentMessage = conversationStore.currentMessages.find(
+            const currentMessage = unifiedChatStore.currentMessages.find(
               (m) => m.id === agentResponseId
             );
             if (currentMessage) {
               const updatedToolCalls = [...(currentMessage.toolCalls || []), toolCall];
-              conversationStore.updateMessage(agentResponseId, {
+              unifiedChatStore.updateMessage(agentResponseId, {
                 toolCalls: updatedToolCalls
               });
               console.log(
@@ -269,12 +272,12 @@
         // Fallback to non-streaming mode
         const response = await chatService.sendMessage(
           text,
-          conversationStore.activeConversationId || undefined,
+          unifiedChatStore.activeConversationId || undefined,
           modelStore.selectedModel
         );
 
         // Update the placeholder message with the complete response
-        conversationStore.updateMessage(agentResponseId, {
+        unifiedChatStore.updateMessage(agentResponseId, {
           text: response.text,
           toolCalls: response.toolCalls
         });
@@ -283,7 +286,7 @@
       }
     } catch (error) {
       console.error('Failed to send message:', error);
-      conversationStore.updateMessage(agentResponseId, {
+      unifiedChatStore.updateMessage(agentResponseId, {
         text: 'Sorry, I encountered an error while processing your message.'
       });
       isLoadingResponse = false;

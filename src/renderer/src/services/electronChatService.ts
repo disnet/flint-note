@@ -18,7 +18,7 @@ import type {
 import type { ExternalLinkRow } from '@flint-note/server/dist/database/schema';
 import type { MetadataSchema } from '@flint-note/server/dist/core/metadata-schema';
 import { notesStore } from './noteStore.svelte';
-import { conversationStore } from '../stores/conversationStore.svelte';
+import { unifiedChatStore } from '../stores/unifiedChatStore.svelte';
 
 // Cache monitoring interfaces
 interface CacheConfig {
@@ -87,8 +87,8 @@ export class ElectronChatService implements ChatService, NoteService {
             timestamp: string;
           };
 
-          // Record usage in the conversation store
-          conversationStore.recordConversationUsage(data.conversationId, {
+          // Record usage in the unified chat store (using backward compatibility)
+          unifiedChatStore.recordConversationUsage(data.conversationId, {
             modelName: data.modelName,
             inputTokens: data.inputTokens,
             outputTokens: data.outputTokens,

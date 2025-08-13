@@ -3,7 +3,7 @@
   import LoadingMessage from './LoadingMessage.svelte';
   import MessageInput from './MessageInput.svelte';
   import ConversationHistory from './ConversationHistory.svelte';
-  import { conversationStore } from '../stores/conversationStore.svelte';
+  import { unifiedChatStore } from '../stores/unifiedChatStore.svelte';
   import type { Message } from '../services/types';
 
   interface Props {
@@ -20,20 +20,20 @@
   let expandedCost = $state<boolean>(false);
   let showHistory = $state<boolean>(false);
 
-  // Get active conversation for cost information
-  const activeConversation = $derived(conversationStore.activeConversation);
+  // Get active conversation for cost information (using backward compatibility)
+  const activeConversation = $derived(unifiedChatStore.activeConversation);
 
   function toggleHistory(): void {
     showHistory = !showHistory;
   }
 
   async function handleConversationSelect(conversationId: string): Promise<void> {
-    await conversationStore.switchToConversation(conversationId);
+    await unifiedChatStore.switchToConversation(conversationId);
     showHistory = false; // Close history after selection
   }
 
   async function handleNewConversation(): Promise<void> {
-    await conversationStore.startNewConversation();
+    await unifiedChatStore.startNewConversation();
     showHistory = false; // Close history after creating new conversation
   }
 
@@ -105,9 +105,9 @@
   <div class="assistant-header">
     <div class="assistant-title">
       <h3>AI Assistant</h3>
-      {#if conversationStore.activeConversation}
+      {#if unifiedChatStore.activeConversation}
         <span class="conversation-indicator"
-          >{conversationStore.activeConversation.title}</span
+          >{unifiedChatStore.activeConversation.title}</span
         >
       {/if}
     </div>

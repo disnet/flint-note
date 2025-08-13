@@ -107,15 +107,21 @@ class UnifiedChatStore {
   private state = $state<UnifiedChatState>(defaultState);
   private isVaultSwitching = false;
   private effectsInitialized = false;
+  private vaultInitialized = false;
 
   constructor() {
-    this.initializeVault();
+    // Don't initialize vault in constructor to avoid circular dependencies
+    // Vault will be initialized lazily when needed
+    this.loadFromStorage();
   }
 
   // Initialize reactive effects
   initializeEffects(): void {
     if (this.effectsInitialized) return;
     this.effectsInitialized = true;
+
+    // Initialize vault when effects are set up
+    this.ensureVaultInitialized();
 
     // Auto-save effect
     $effect(() => {
@@ -130,9 +136,32 @@ class UnifiedChatStore {
           (a, b) => b.lastActivity.getTime() - a.lastActivity.getTime()
         );
         const threadsToKeep = sortedByActivity.slice(0, this.state.maxThreadsPerVault);
-        this.state.threadsByVault.set(this.currentVaultId || 'default', threadsToKeep);
+        
+        // Create a new Map to trigger Svelte reactivity
+        const newMap = new Map(this.state.threadsByVault);
+        newMap.set(this.currentVaultId || 'default', threadsToKeep);
+        this.state.threadsByVault = newMap;
       }
     });
+  }
+
+  // Ensure vault is initialized - call this before operations that need vault info
+  private async ensureVaultInitialized(): Promise<void> {
+    if (this.vaultInitialized) return;
+    
+    try {
+      const service = getChatService();
+      const vault = await service.getCurrentVault();
+      this.state.currentVaultId = vault?.id || 'default';
+      this.vaultInitialized = true;
+      
+      // Sync active thread with backend after initialization
+      await this.syncActiveThreadWithBackend();
+    } catch (error) {
+      console.warn('Failed to initialize vault for threads:', error);
+      this.state.currentVaultId = 'default';
+      this.vaultInitialized = true; // Mark as initialized even on error to avoid repeated attempts
+    }
   }
 
   // Core getters
@@ -196,6 +225,9 @@ class UnifiedChatStore {
   async createThread(initialMessage?: Message): Promise<string> {
     if (this.isVaultSwitching) return this.state.activeThreadId || '';
 
+    // Ensure vault is initialized before creating threads
+    await this.ensureVaultInitialized();
+
     const threadId = `thread-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const now = new Date();
     const vaultId = this.state.currentVaultId || 'default';
@@ -223,7 +255,11 @@ class UnifiedChatStore {
     // Add to current vault's threads
     const currentThreads = this.getThreadsForCurrentVault();
     const updatedThreads = [newThread, ...currentThreads];
-    this.state.threadsByVault.set(vaultId, updatedThreads);
+    
+    // Create a new Map to trigger Svelte reactivity
+    const newMap = new Map(this.state.threadsByVault);
+    newMap.set(vaultId, updatedThreads);
+    this.state.threadsByVault = newMap;
     this.state.activeThreadId = threadId;
 
     // Sync new thread with backend
@@ -280,7 +316,11 @@ class UnifiedChatStore {
       updatedThread,
       ...threads.slice(threadIndex + 1)
     ];
-    this.state.threadsByVault.set(vaultId, updatedThreads);
+    
+    // Create a new Map to trigger Svelte reactivity
+    const newMap = new Map(this.state.threadsByVault);
+    newMap.set(vaultId, updatedThreads);
+    this.state.threadsByVault = newMap;
 
     if (!this.effectsInitialized) this.saveToStorage();
     return true;
@@ -292,7 +332,11 @@ class UnifiedChatStore {
 
     const threads = this.getThreadsForVault(vaultId);
     const filteredThreads = threads.filter((t) => t.id !== threadId);
-    this.state.threadsByVault.set(vaultId, filteredThreads);
+    
+    // Create a new Map to trigger Svelte reactivity
+    const newMap = new Map(this.state.threadsByVault);
+    newMap.set(vaultId, filteredThreads);
+    this.state.threadsByVault = newMap;
 
     // If we deleted the active thread, switch to the most recent one
     if (this.state.activeThreadId === threadId) {
@@ -354,6 +398,9 @@ class UnifiedChatStore {
   async addMessage(message: Message): Promise<void> {
     if (this.isVaultSwitching) return;
 
+    // Ensure vault is initialized
+    await this.ensureVaultInitialized();
+
     let thread = this.activeThread;
     if (!thread) {
       // Create a new thread if none exists
@@ -401,14 +448,17 @@ class UnifiedChatStore {
 
     if (vaultId) {
       this.state.currentVaultId = vaultId;
+      this.vaultInitialized = true; // Mark as initialized since we have the vault ID
     } else {
       try {
         const service = getChatService();
         const vault = await service.getCurrentVault();
         this.state.currentVaultId = vault?.id || 'default';
+        this.vaultInitialized = true;
       } catch (error) {
         console.warn('Failed to get current vault for threads:', error);
         this.state.currentVaultId = 'default';
+        this.vaultInitialized = true;
       }
     }
 
@@ -451,7 +501,11 @@ class UnifiedChatStore {
 
   clearAllThreads(): void {
     const vaultId = this.state.currentVaultId || 'default';
-    this.state.threadsByVault.set(vaultId, []);
+    
+    // Create a new Map to trigger Svelte reactivity
+    const newMap = new Map(this.state.threadsByVault);
+    newMap.set(vaultId, []);
+    this.state.threadsByVault = newMap;
     this.state.activeThreadId = null;
     if (!this.effectsInitialized) this.saveToStorage();
   }
@@ -607,7 +661,11 @@ class UnifiedChatStore {
     // Add to current vault's threads
     const currentThreads = this.getThreadsForCurrentVault();
     const updatedThreads = [newThread, ...currentThreads];
-    this.state.threadsByVault.set(vaultId, updatedThreads);
+    
+    // Create a new Map to trigger Svelte reactivity
+    const newMap = new Map(this.state.threadsByVault);
+    newMap.set(vaultId, updatedThreads);
+    this.state.threadsByVault = newMap;
     this.state.activeThreadId = threadId;
 
     if (!this.effectsInitialized) this.saveToStorage();
@@ -712,28 +770,14 @@ class UnifiedChatStore {
       const sortedThreads = threads.sort(
         (a, b) => b.lastActivity.getTime() - a.lastActivity.getTime()
       );
-      this.state.threadsByVault.set(
-        vaultId,
-        sortedThreads.slice(0, this.state.maxThreadsPerVault)
-      );
+      
+      // Create a new Map to trigger Svelte reactivity
+      const newMap = new Map(this.state.threadsByVault);
+      newMap.set(vaultId, sortedThreads.slice(0, this.state.maxThreadsPerVault));
+      this.state.threadsByVault = newMap;
     }
   }
 
-  private async initializeVault(): Promise<void> {
-    try {
-      const service = getChatService();
-      const vault = await service.getCurrentVault();
-      this.state.currentVaultId = vault?.id || 'default';
-      this.loadFromStorage();
-
-      // Sync active thread with backend on app startup
-      await this.syncActiveThreadWithBackend();
-    } catch (error) {
-      console.warn('Failed to initialize vault for threads:', error);
-      this.state.currentVaultId = 'default';
-      this.loadFromStorage();
-    }
-  }
 
   private getStorageKey(): string {
     return 'flint-unified-chat-store';
