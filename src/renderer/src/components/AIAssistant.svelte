@@ -21,20 +21,20 @@
   let expandedCost = $state<boolean>(false);
   let showHistory = $state<boolean>(false);
 
-  // Get active conversation for cost information (using backward compatibility)
-  const activeConversation = $derived(unifiedChatStore.activeConversation);
+  // Get active thread for cost information
+  const activeConversation = $derived(unifiedChatStore.activeThread);
 
   function toggleHistory(): void {
     showHistory = !showHistory;
   }
 
   async function handleConversationSelect(conversationId: string): Promise<void> {
-    await unifiedChatStore.switchToConversation(conversationId);
+    await unifiedChatStore.switchToThread(conversationId);
     showHistory = false; // Close history after selection
   }
 
   async function handleNewConversation(): Promise<void> {
-    await unifiedChatStore.startNewConversation();
+    await unifiedChatStore.createThread();
     showHistory = false; // Close history after creating new conversation
   }
 

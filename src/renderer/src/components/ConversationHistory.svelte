@@ -75,16 +75,16 @@
   </div>
 
   <div class="conversation-list">
-    {#if unifiedChatStore.conversations.length === 0}
+    {#if unifiedChatStore.getThreadsForCurrentVault().length === 0}
       <div class="empty-state">
         <p class="empty-message">No conversations yet</p>
         <p class="empty-hint">Start a new conversation to get started</p>
       </div>
     {:else}
-      {#each unifiedChatStore.conversations as conversation (conversation.id)}
+      {#each unifiedChatStore.getThreadsForCurrentVault() as conversation (conversation.id)}
         <div
           class="conversation-item"
-          class:active={conversation.id === unifiedChatStore.activeConversationId}
+          class:active={conversation.id === unifiedChatStore.activeThreadId}
           onclick={() => selectConversation(conversation.id)}
           onkeydown={(e) => e.key === 'Enter' && selectConversation(conversation.id)}
           role="button"

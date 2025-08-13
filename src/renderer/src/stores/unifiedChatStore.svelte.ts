@@ -31,13 +31,13 @@ export interface UnifiedThread {
   id: string;
   title: string;
 
-  // Vault integration (from conversationStore)
+  // Vault integration
   vaultId: string;
 
   // Messages and conversation
   messages: Message[];
 
-  // Threading features (from aiThreadsStore)
+  // Threading features
   notesDiscussed: string[];
   tags?: string[];
   isArchived?: boolean;
@@ -564,186 +564,6 @@ class UnifiedChatStore {
       (total, thread) => total + thread.costInfo.totalCost,
       0
     );
-  }
-
-  // Backward compatibility methods for conversationStore
-  get conversations(): UnifiedThread[] {
-    return this.getThreadsForCurrentVault();
-  }
-
-  get activeConversation(): UnifiedThread | null {
-    return this.activeThread;
-  }
-
-  get activeConversationId(): string | null {
-    return this.activeThreadId;
-  }
-
-  get currentMessages(): Message[] {
-    return this.activeThread?.messages || [];
-  }
-
-  async startNewConversation(): Promise<string> {
-    return this.createThread();
-  }
-
-  async switchToConversation(conversationId: string): Promise<boolean> {
-    return this.switchToThread(conversationId);
-  }
-
-  deleteConversation(conversationId: string): void {
-    this.deleteThread(conversationId);
-  }
-
-  clearAllConversations(): void {
-    this.clearAllThreads();
-  }
-
-  async setCurrentMessages(messages: Message[]): Promise<void> {
-    if (this.isVaultSwitching) return;
-
-    let thread = this.activeThread;
-    if (!thread) {
-      await this.createThread();
-      thread = this.activeThread;
-      if (!thread) return;
-    }
-
-    this.updateThread(thread.id, { messages });
-  }
-
-  recordConversationUsage(
-    conversationId: string,
-    usageData: {
-      modelName: string;
-      inputTokens: number;
-      outputTokens: number;
-      cachedTokens: number;
-      cost: number;
-      timestamp: Date;
-    }
-  ): boolean {
-    return this.recordThreadUsage(conversationId, usageData);
-  }
-
-  // Backward compatibility methods for aiThreadsStore
-  get threads(): UnifiedThread[] {
-    return this.getThreadsForCurrentVault();
-  }
-
-  createThreadWithMessage(initialMessage?: Message): UnifiedThread | null {
-    // This is synchronous in aiThreadsStore, but async in unified store
-    // We'll create the thread and return it, but the backend sync will be async
-    const threadId = `thread-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    const now = new Date();
-    const vaultId = this.state.currentVaultId || 'default';
-
-    const newThread: UnifiedThread = {
-      id: threadId,
-      title: initialMessage ? generateThreadTitle([initialMessage]) : 'New Thread',
-      vaultId,
-      messages: initialMessage ? [initialMessage] : [],
-      notesDiscussed: initialMessage ? extractNotesDiscussed([initialMessage]) : [],
-      isArchived: false,
-      createdAt: now,
-      lastActivity: now,
-      costInfo: {
-        totalCost: 0,
-        inputTokens: 0,
-        outputTokens: 0,
-        cachedTokens: 0,
-        requestCount: 0,
-        modelUsage: [],
-        lastUpdated: now
-      }
-    };
-
-    // Add to current vault's threads
-    const currentThreads = this.getThreadsForCurrentVault();
-    const updatedThreads = [newThread, ...currentThreads];
-
-    // Create a new Map to trigger Svelte reactivity
-    const newMap = new Map(this.state.threadsByVault);
-    newMap.set(vaultId, updatedThreads);
-    this.state.threadsByVault = newMap;
-    this.state.activeThreadId = threadId;
-
-    if (!this.effectsInitialized) this.saveToStorage();
-    return newThread;
-  }
-
-  switchThread(threadId: string): boolean {
-    // Synchronous version for compatibility
-    const thread = this.findThread(threadId);
-    if (!thread) return false;
-
-    this.state.activeThreadId = threadId;
-    this.updateThread(threadId, { lastActivity: new Date() });
-    if (!this.effectsInitialized) this.saveToStorage();
-    return true;
-  }
-
-  addMessageToActiveThread(message: Message): boolean {
-    if (!this.state.activeThreadId) {
-      // Create a new thread if none exists
-      this.createThreadWithMessage(message);
-      return true;
-    }
-    return this.addMessageToThread(this.state.activeThreadId, message);
-  }
-
-  updateMessageInThread(
-    threadId: string,
-    messageId: string,
-    updates: Partial<Message>
-  ): boolean {
-    const thread = this.findThread(threadId);
-    if (!thread) return false;
-
-    const messageIndex = thread.messages.findIndex((m) => m.id === messageId);
-    if (messageIndex === -1) return false;
-
-    const updatedMessages = [...thread.messages];
-    updatedMessages[messageIndex] = { ...updatedMessages[messageIndex], ...updates };
-
-    return this.updateThread(threadId, { messages: updatedMessages });
-  }
-
-  searchThreads(query: string): UnifiedThread[] {
-    return this.searchThreadsInVault(query);
-  }
-
-  setMaxThreads(max: number): void {
-    this.state.maxThreadsPerVault = Math.max(1, max);
-    if (!this.effectsInitialized) this.saveToStorage();
-  }
-
-  getCostSummary(): {
-    totalCost: number;
-    totalTokens: number;
-    averageCostPerThread: number;
-    threadsWithCost: number;
-  } {
-    const allThreads = this.allThreads;
-    const threadsWithCost = allThreads.filter((t) => t.costInfo.totalCost > 0);
-    const totalCost = this.getTotalCost();
-    const totalTokens = allThreads.reduce(
-      (total, thread) =>
-        total + thread.costInfo.inputTokens + thread.costInfo.outputTokens,
-      0
-    );
-
-    return {
-      totalCost,
-      totalTokens,
-      averageCostPerThread:
-        threadsWithCost.length > 0 ? totalCost / threadsWithCost.length : 0,
-      threadsWithCost: threadsWithCost.length
-    };
-  }
-
-  save(): void {
-    this.saveToStorage();
   }
 
   // Private helper methods

@@ -87,8 +87,8 @@ export class ElectronChatService implements ChatService, NoteService {
             timestamp: string;
           };
 
-          // Record usage in the unified chat store (using backward compatibility)
-          unifiedChatStore.recordConversationUsage(data.conversationId, {
+          // Record usage in the unified chat store
+          unifiedChatStore.recordThreadUsage(data.conversationId, {
             modelName: data.modelName,
             inputTokens: data.inputTokens,
             outputTokens: data.outputTokens,

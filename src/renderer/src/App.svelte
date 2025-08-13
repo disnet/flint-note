@@ -18,8 +18,8 @@
   // Initialize unified chat store effects
   unifiedChatStore.initializeEffects();
 
-  // Messages are now managed by unifiedChatStore (with backward compatibility)
-  const messages = $derived(unifiedChatStore.currentMessages);
+  // Messages are now managed by unifiedChatStore
+  const messages = $derived(unifiedChatStore.activeThread?.messages || []);
 
   let isLoadingResponse = $state(false);
   let activeNote = $state<NoteMetadata | null>(null);
@@ -223,10 +223,10 @@
       if (chatService.sendMessageStream) {
         chatService.sendMessageStream(
           text,
-          unifiedChatStore.activeConversationId || undefined,
+          unifiedChatStore.activeThreadId || undefined,
           // onChunk: append text chunks to the message
           (chunk: string) => {
-            const currentMessage = unifiedChatStore.currentMessages.find(
+            const currentMessage = unifiedChatStore.activeThread?.messages?.find(
               (m) => m.id === agentResponseId
             );
             if (currentMessage) {
@@ -252,7 +252,7 @@
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (toolCall: any) => {
             console.log('App.svelte: Received tool call:', toolCall);
-            const currentMessage = unifiedChatStore.currentMessages.find(
+            const currentMessage = unifiedChatStore.activeThread?.messages?.find(
               (m) => m.id === agentResponseId
             );
             if (currentMessage) {
@@ -272,7 +272,7 @@
         // Fallback to non-streaming mode
         const response = await chatService.sendMessage(
           text,
-          unifiedChatStore.activeConversationId || undefined,
+          unifiedChatStore.activeThreadId || undefined,
           modelStore.selectedModel
         );
 
