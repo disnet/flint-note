@@ -118,7 +118,9 @@
             <div class="conversation-meta">
               <span class="message-count">{getMessageCount(conversation)} messages</span>
               {#if conversation.costInfo?.totalCost > 0}
-                <span class="cost-info">${(conversation.costInfo.totalCost / 100).toFixed(3)}</span>
+                <span class="cost-info"
+                  >${(conversation.costInfo.totalCost / 100).toFixed(3)}</span
+                >
               {/if}
               <span class="conversation-date">{formatDate(conversation.updatedAt)}</span>
             </div>
