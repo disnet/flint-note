@@ -867,7 +867,7 @@ Use these tools to help users manage their notes effectively and answer their qu
         cacheRead: 0.3,
         cacheWrite: 3.75
       },
-      'anthropic/claude-3-5-haiku': {
+      'anthropic/claude-3.5-haiku': {
         input: 0.8,
         output: 4.0,
         cacheRead: 0.08,
@@ -886,11 +886,33 @@ Use these tools to help users manage their notes effectively and answer their qu
     const cacheWriteCost =
       ((usage.cacheCreationInputTokens || 0) * rates.cacheWrite) / 1_000_000;
 
+    const totalCostDollars = inputCost + outputCost + cacheReadCost + cacheWriteCost;
+    const totalCostMicroCents = Math.round(totalCostDollars * 1_000_000);
+
+    // Log cost breakdown for debugging
+    logger.info('Cost calculation breakdown', {
+      model,
+      originalUsage: usage,
+      usage: {
+        inputTokens: usage.inputTokens,
+        outputTokens: usage.outputTokens,
+        cacheReadInputTokens: usage.cacheReadInputTokens,
+        cacheCreationInputTokens: usage.cacheCreationInputTokens
+      },
+      costs: {
+        inputCost: inputCost,
+        outputCost: outputCost,
+        cacheReadCost: cacheReadCost,
+        cacheWriteCost: cacheWriteCost,
+        totalCostDollars: totalCostDollars,
+        totalCostMicroCents: totalCostMicroCents,
+        displayCost: `$${totalCostDollars.toFixed(6)}`
+      }
+    });
+
     // Return cost in micro-cents (millionths of a dollar) for better precision
     // This gives us 6 decimal places while maintaining integer arithmetic
-    return Math.round(
-      (inputCost + outputCost + cacheReadCost + cacheWriteCost) * 1_000_000
-    );
+    return totalCostMicroCents;
   }
 
   /**
@@ -906,10 +928,17 @@ Use these tools to help users manage their notes effectively and answer their qu
 
     const cost = this.calculateModelCost(modelName, usage);
 
+    // For display purposes, show total input tokens (non-cached + cached)
+    // but the cost calculation handles them separately
+    const totalInputTokens =
+      (usage.inputTokens || 0) +
+      (usage.cacheCreationInputTokens || 0) +
+      (usage.cacheReadInputTokens || 0);
+
     return {
       conversationId,
       modelName,
-      inputTokens: usage.inputTokens || 0,
+      inputTokens: totalInputTokens,
       outputTokens: usage.outputTokens || 0,
       cachedTokens:
         (usage.cacheCreationInputTokens || 0) + (usage.cacheReadInputTokens || 0),
