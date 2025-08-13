@@ -853,30 +853,44 @@ Use these tools to help users manage their notes effectively and answer their qu
 
   /**
    * Calculate cost for a model based on usage
+   * @returns Cost in micro-cents (millionths of a dollar) for precise arithmetic
    */
   private calculateModelCost(model: string, usage: UsageMetadata): number {
-    // Define pricing per model (in USD cents per 1K tokens)
-    const pricing: Record<string, { input: number; output: number; cached: number }> = {
-      'anthropic/claude-3-5-sonnet-20241022': { input: 0.3, output: 1.5, cached: 0.03 },
-      'anthropic/claude-3-5-haiku-20241022': { input: 0.1, output: 0.8, cached: 0.01 },
-      'anthropic/claude-3-opus-20240229': { input: 1.5, output: 7.5, cached: 0.15 },
-      'anthropic/claude-sonnet-4-20250109': { input: 0.3, output: 1.5, cached: 0.03 },
-      'anthropic/claude-opus-4-20250201': { input: 1.5, output: 7.5, cached: 0.15 },
-      // Fallback for unknown models - use Sonnet pricing
-      default: { input: 0.3, output: 1.5, cached: 0.03 }
+    // Define pricing per model (in USD per 1M tokens)
+    const pricing: Record<
+      string,
+      { input: number; output: number; cacheRead: number; cacheWrite: number }
+    > = {
+      'anthropic/claude-sonnet-4': {
+        input: 3.0,
+        output: 15.0,
+        cacheRead: 0.3,
+        cacheWrite: 3.75
+      },
+      'anthropic/claude-3-5-haiku': {
+        input: 0.8,
+        output: 4.0,
+        cacheRead: 0.08,
+        cacheWrite: 1.0
+      },
+      // Fallback for unknown models - use Sonnet 4 pricing
+      default: { input: 3.0, output: 15.0, cacheRead: 0.3, cacheWrite: 3.75 }
     };
 
     const rates = pricing[model] || pricing['default'];
 
-    const inputCost = (usage.inputTokens * rates.input) / 1000;
-    const outputCost = (usage.outputTokens * rates.output) / 1000;
-    const cachedCost =
-      (((usage.cacheCreationInputTokens || 0) + (usage.cacheReadInputTokens || 0)) *
-        rates.cached) /
-      1000;
+    const inputCost = (usage.inputTokens * rates.input) / 1_000_000;
+    const outputCost = (usage.outputTokens * rates.output) / 1_000_000;
+    const cacheReadCost =
+      ((usage.cacheReadInputTokens || 0) * rates.cacheRead) / 1_000_000;
+    const cacheWriteCost =
+      ((usage.cacheCreationInputTokens || 0) * rates.cacheWrite) / 1_000_000;
 
-    // Return cost in cents to avoid floating point precision issues
-    return Math.round((inputCost + outputCost + cachedCost) * 100);
+    // Return cost in micro-cents (millionths of a dollar) for better precision
+    // This gives us 6 decimal places while maintaining integer arithmetic
+    return Math.round(
+      (inputCost + outputCost + cacheReadCost + cacheWriteCost) * 1_000_000
+    );
   }
 
   /**

@@ -13,11 +13,11 @@ export interface ModelUsageBreakdown {
   inputTokens: number;
   outputTokens: number;
   cachedTokens: number;
-  cost: number; // in USD cents
+  cost: number; // in micro-cents (millionths of a dollar) for precise arithmetic
 }
 
 export interface ThreadCostInfo {
-  totalCost: number; // in USD cents to avoid floating point precision issues
+  totalCost: number; // in micro-cents (millionths of a dollar) for precise arithmetic
   inputTokens: number;
   outputTokens: number;
   cachedTokens: number;

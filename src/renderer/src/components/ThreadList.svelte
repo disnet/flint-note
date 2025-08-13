@@ -1,6 +1,7 @@
 <script lang="ts">
   import { unifiedChatStore } from '../stores/unifiedChatStore.svelte';
   import type { UnifiedThread } from '../stores/unifiedChatStore.svelte';
+  import { formatCostFromMicroCents } from '../lib/costUtils.svelte';
 
   interface Props {
     onThreadSelect?: (threadId: string) => void;
@@ -243,7 +244,7 @@
               {/if}
               {#if thread.costInfo?.totalCost > 0}
                 <span class="cost-info" title="Total conversation cost">
-                  • ${(thread.costInfo.totalCost / 100).toFixed(3)}
+                  • {formatCostFromMicroCents(thread.costInfo.totalCost, 3)}
                 </span>
               {/if}
               {#if thread.isArchived}

@@ -28,7 +28,7 @@ AI Service (Backend) → Main Process → Renderer Process → UI Components
 
 ```typescript
 interface ConversationCostInfo {
-  totalCost: number;        // in USD cents (precision)
+  totalCost: number;        // in micro-cents (millionths of a dollar) for precise arithmetic
   inputTokens: number;      // total input tokens used
   outputTokens: number;     // total output tokens generated
   cachedTokens: number;     // tokens saved via prompt caching
@@ -38,15 +38,37 @@ interface ConversationCostInfo {
 }
 
 interface ModelUsageBreakdown {
-  model: string;           // e.g., "anthropic/claude-3-5-sonnet-20241022"
+  model: string;           // e.g., "anthropic/claude-sonnet-4"
   inputTokens: number;
   outputTokens: number;
   cachedTokens: number;
-  cost: number;           // in USD cents
+  cost: number;           // in micro-cents (millionths of a dollar) for precise arithmetic
 }
 ```
 
-#### 3. **Event System** (`src/main/index.ts`, `src/preload/index.ts`)
+##### Cost Precision
+
+The system uses **micro-cents** (millionths of a dollar) for cost storage to provide precise arithmetic while avoiding floating-point precision issues. This allows accurate tracking of very small costs, especially important for cached token reads.
+
+**Utility Functions** (`src/main/ai-service.ts`):
+- `microCentsToDollars(microCents: number): number` - Convert to dollars for calculations
+- `formatCostFromMicroCents(microCents: number): string` - Format as currency string
+- `dollarsToMicroCents(dollars: number): number` - Convert from dollars to micro-cents
+
+**Examples**:
+- Cache read cost for 1000 Haiku tokens: `80` micro-cents = `$0.000080`
+- Sonnet 4 input cost for 10K tokens: `30000` micro-cents = `$0.030000`
+
+#### 3. **Model Pricing** (`src/main/ai-service.ts`)
+
+The system supports the following models with pricing per 1M tokens:
+
+| Model | Input | Output | Cache Read | Cache Write |
+|-------|-------|--------|------------|-------------|
+| `anthropic/claude-sonnet-4` | $3.00 | $15.00 | $0.30 | $3.75 |
+| `anthropic/claude-3-5-haiku` | $0.80 | $4.00 | $0.08 | $1.00 |
+
+#### 4. **Event System** (`src/main/index.ts`, `src/preload/index.ts`)
 - IPC-based event forwarding from main to renderer process
 - Type-safe event handling with proper data validation
 - Automatic cleanup and error handling

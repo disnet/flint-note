@@ -6,6 +6,7 @@
   import ThreadSwitcher from './ThreadSwitcher.svelte';
   import { unifiedChatStore } from '../stores/unifiedChatStore.svelte';
   import type { Message } from '../services/types';
+  import { formatCostFromMicroCents } from '../lib/costUtils.svelte';
 
   interface Props {
     messages: Message[];
@@ -234,7 +235,7 @@
         {#if expandedCost}
           <div class="cost-details">
             <div class="cost-total">
-              Total: ${(activeConversation.costInfo.totalCost / 100).toFixed(4)}
+              Total: {formatCostFromMicroCents(activeConversation.costInfo.totalCost, 4)}
             </div>
             <div class="cost-breakdown">
               <div class="token-stats">
@@ -275,7 +276,9 @@
                 {#each activeConversation.costInfo.modelUsage as model (model.model)}
                   <div class="model-cost-row">
                     <span class="model-name">{model.model.split('/').pop()}</span>
-                    <span class="model-cost-value">${(model.cost / 100).toFixed(4)}</span>
+                    <span class="model-cost-value"
+                      >{formatCostFromMicroCents(model.cost, 4)}</span
+                    >
                   </div>
                 {/each}
               </div>
