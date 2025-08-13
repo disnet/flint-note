@@ -26,14 +26,17 @@ Frontend (Svelte) → ElectronChatService → IPC → Main Process → AIService
 ## Files Modified/Created
 
 ### Main Process (`src/main/index.ts`)
+
 - Added 11 new IPC handlers for cache monitoring operations
 - Integrated with existing AI Service cache methods from Phase 3
 
 ### Preload Layer (`src/preload/`)
+
 - **`index.ts`**: Added cache monitoring API methods
 - **`index.d.ts`**: Added comprehensive type definitions for cache interfaces
 
 ### Renderer (`src/renderer/src/`)
+
 - **`services/electronChatService.ts`**: Added 11 cache monitoring methods
 - **`components/Settings.svelte`**: Added complete cache performance monitoring section
 
@@ -41,21 +44,21 @@ Frontend (Svelte) → ElectronChatService → IPC → Main Process → AIService
 
 ```typescript
 // Cache data retrieval
-'get-cache-metrics'
-'get-cache-performance-snapshot'
-'get-cache-config'
-'get-cache-performance-report'
-'get-cache-health-check'
+'get-cache-metrics';
+'get-cache-performance-snapshot';
+'get-cache-config';
+'get-cache-performance-report';
+'get-cache-health-check';
 
 // Cache configuration
-'set-cache-config'
-'optimize-cache-config'
+'set-cache-config';
+'optimize-cache-config';
 
 // Cache operations
-'reset-cache-metrics'
-'start-performance-monitoring'
-'stop-performance-monitoring'
-'warmup-system-cache'
+'reset-cache-metrics';
+'start-performance-monitoring';
+'stop-performance-monitoring';
+'warmup-system-cache';
 ```
 
 ## UI Features
@@ -63,11 +66,13 @@ Frontend (Svelte) → ElectronChatService → IPC → Main Process → AIService
 ### 1. Cache Health Dashboard
 
 **Visual Health Indicator**:
+
 - 🟢 **Healthy** (80-100 score): Green border, optimal performance
 - 🟡 **Warning** (60-79 score): Yellow border, room for improvement
 - 🔴 **Critical** (0-59 score): Red border, needs immediate attention
 
 **Health Components**:
+
 - Real-time health score (0-100)
 - Issue detection and listing
 - Actionable recommendations
@@ -76,15 +81,18 @@ Frontend (Svelte) → ElectronChatService → IPC → Main Process → AIService
 ### 2. Configuration Controls
 
 **System Message Caching**:
+
 - Toggle enable/disable
 - Immediate effect on new requests
 
 **History Caching**:
+
 - Toggle enable/disable
 - Configurable token thresholds
 - Adjustable segment sizes
 
 **Advanced Settings**:
+
 - Minimum cache tokens (256-4096)
 - History segment size (2-8 messages)
 - Real-time validation and optimization
@@ -92,6 +100,7 @@ Frontend (Svelte) → ElectronChatService → IPC → Main Process → AIService
 ### 3. Performance Metrics Grid
 
 **Core Metrics Display**:
+
 - Total requests processed
 - System cache hit rate (%)
 - History cache hit rate (%)
@@ -100,6 +109,7 @@ Frontend (Svelte) → ElectronChatService → IPC → Main Process → AIService
 - Average conversation length
 
 **Visual Design**:
+
 - Card-based metric display
 - Color-coded performance indicators
 - Real-time updates
@@ -108,14 +118,17 @@ Frontend (Svelte) → ElectronChatService → IPC → Main Process → AIService
 ### 4. Action Controls
 
 **Data Management**:
+
 - 🔄 **Refresh Data**: Reload all cache metrics
 - 🗑️ **Reset Metrics**: Clear performance tracking data
 
 **Optimization**:
+
 - 🚀 **Optimize Configuration**: Auto-tune settings based on usage
 - 🔥 **Warmup Cache**: Pre-load system message cache
 
 **Monitoring**:
+
 - ▶️ **Start Monitoring**: Enable periodic performance tracking
 - ⏹️ **Stop Monitoring**: Disable automatic monitoring
 - 📊 **Generate Report**: Create detailed performance report
@@ -123,6 +136,7 @@ Frontend (Svelte) → ElectronChatService → IPC → Main Process → AIService
 ### 5. Performance Reports
 
 **Comprehensive Reporting**:
+
 - Detailed performance analysis
 - Configuration summary
 - Optimization recommendations
@@ -208,11 +222,13 @@ const optimized = await chatService.optimizeCacheConfig();
 ### CSS Architecture
 
 **Theme Integration**:
+
 - Uses existing CSS custom properties
 - Consistent with application design system
 - Dark/light mode compatible
 
 **Component Styling**:
+
 - **`.cache-health`**: Status-based color coding
 - **`.metrics-grid`**: Responsive metric card layout
 - **`.cache-config`**: Form controls with proper spacing
@@ -220,6 +236,7 @@ const optimized = await chatService.optimizeCacheConfig();
 - **`.cache-report`**: Monospace report display
 
 **Responsive Design**:
+
 - Grid layouts adapt to screen size
 - Mobile-friendly metric cards
 - Scalable action buttons
@@ -229,16 +246,19 @@ const optimized = await chatService.optimizeCacheConfig();
 ### Efficient Data Loading
 
 **Lazy Loading**:
+
 - Cache data only loaded when section is active
 - Automatic refresh on section activation
 - Minimal performance impact
 
 **Error Handling**:
+
 - Graceful degradation for API failures
 - User-friendly error messages
 - Comprehensive fallback mechanisms
 
 **Real-time Updates**:
+
 - Manual refresh prevents excessive API calls
 - Periodic monitoring with configurable intervals
 - Efficient state management with Svelte 5 runes
@@ -248,16 +268,19 @@ const optimized = await chatService.optimizeCacheConfig();
 ### Seamless Workflow
 
 **Developer Experience**:
+
 - No additional dependencies required
 - Integrates with existing settings UI
 - Follows established patterns
 
 **User Experience**:
+
 - Intuitive interface design
 - Clear performance indicators
 - Actionable optimization suggestions
 
 **Operational Benefits**:
+
 - Real-time performance monitoring
 - Automated optimization recommendations
 - Comprehensive reporting for analysis
@@ -275,6 +298,7 @@ const optimized = await chatService.optimizeCacheConfig();
 ### Extensibility
 
 The implementation is designed for easy extension:
+
 - Modular component structure
 - Type-safe API interfaces
 - Consistent error handling patterns
@@ -285,16 +309,19 @@ The implementation is designed for easy extension:
 ### Common Issues
 
 **Cache Data Not Loading**:
+
 - Verify AI service is initialized
 - Check IPC handler registration
 - Review browser console for errors
 
 **Configuration Changes Not Applied**:
+
 - Ensure proper type casting in event handlers
 - Verify IPC communication
 - Check main process logs
 
 **Performance Monitoring Not Working**:
+
 - Confirm monitoring is started
 - Check interval configuration
 - Verify AI service is running
