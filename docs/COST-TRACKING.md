@@ -19,6 +19,7 @@ AI Service (Backend) → Main Process → Renderer Process → UI Components
 ### Core Components
 
 #### 1. **AI Service** (`src/main/ai-service.ts`)
+
 - Extracts usage metadata from Anthropic API responses
 - Calculates costs using current pricing models
 - Emits `usage-recorded` events with detailed cost data
@@ -28,21 +29,21 @@ AI Service (Backend) → Main Process → Renderer Process → UI Components
 
 ```typescript
 interface ConversationCostInfo {
-  totalCost: number;        // in micro-cents (millionths of a dollar) for precise arithmetic
-  inputTokens: number;      // total input tokens used
-  outputTokens: number;     // total output tokens generated
-  cachedTokens: number;     // tokens saved via prompt caching
-  requestCount: number;     // number of API requests made
-  modelUsage: ModelUsageBreakdown[];  // per-model breakdown
-  lastUpdated: Date;        // timestamp of last update
+  totalCost: number; // in micro-cents (millionths of a dollar) for precise arithmetic
+  inputTokens: number; // total input tokens used
+  outputTokens: number; // total output tokens generated
+  cachedTokens: number; // tokens saved via prompt caching
+  requestCount: number; // number of API requests made
+  modelUsage: ModelUsageBreakdown[]; // per-model breakdown
+  lastUpdated: Date; // timestamp of last update
 }
 
 interface ModelUsageBreakdown {
-  model: string;           // e.g., "anthropic/claude-sonnet-4"
+  model: string; // e.g., "anthropic/claude-sonnet-4"
   inputTokens: number;
   outputTokens: number;
   cachedTokens: number;
-  cost: number;           // in micro-cents (millionths of a dollar) for precise arithmetic
+  cost: number; // in micro-cents (millionths of a dollar) for precise arithmetic
 }
 ```
 
@@ -51,11 +52,13 @@ interface ModelUsageBreakdown {
 The system uses **micro-cents** (millionths of a dollar) for cost storage to provide precise arithmetic while avoiding floating-point precision issues. This allows accurate tracking of very small costs, especially important for cached token reads.
 
 **Utility Functions** (`src/main/ai-service.ts`):
+
 - `microCentsToDollars(microCents: number): number` - Convert to dollars for calculations
 - `formatCostFromMicroCents(microCents: number): string` - Format as currency string
 - `dollarsToMicroCents(dollars: number): number` - Convert from dollars to micro-cents
 
 **Examples**:
+
 - Cache read cost for 1000 Haiku tokens: `80` micro-cents = `$0.000080`
 - Sonnet 4 input cost for 10K tokens: `30000` micro-cents = `$0.030000`
 
@@ -63,17 +66,19 @@ The system uses **micro-cents** (millionths of a dollar) for cost storage to pro
 
 The system supports the following models with pricing per 1M tokens:
 
-| Model | Input | Output | Cache Read | Cache Write |
-|-------|-------|--------|------------|-------------|
-| `anthropic/claude-sonnet-4` | $3.00 | $15.00 | $0.30 | $3.75 |
-| `anthropic/claude-3-5-haiku` | $0.80 | $4.00 | $0.08 | $1.00 |
+| Model                        | Input | Output | Cache Read | Cache Write |
+| ---------------------------- | ----- | ------ | ---------- | ----------- |
+| `anthropic/claude-sonnet-4`  | $3.00 | $15.00 | $0.30      | $3.75       |
+| `anthropic/claude-3-5-haiku` | $0.80 | $4.00  | $0.08      | $1.00       |
 
 #### 4. **Event System** (`src/main/index.ts`, `src/preload/index.ts`)
+
 - IPC-based event forwarding from main to renderer process
 - Type-safe event handling with proper data validation
 - Automatic cleanup and error handling
 
 #### 4. **UI Integration**
+
 - **Conversation List**: Shows running total next to message count
 - **AI Assistant Panel**: Detailed expandable cost breakdown
 - **Real-time Updates**: Costs update immediately after each AI interaction
@@ -104,11 +109,12 @@ const pricing = {
 ### Cost Calculation
 
 ```typescript
-const cost = Math.round(
-  (inputTokens * rates.input / 1000) +
-  (outputTokens * rates.output / 1000) +
-  (cachedTokens * rates.cached / 1000)
-) * 100; // Convert to cents for precision
+const cost =
+  Math.round(
+    (inputTokens * rates.input) / 1000 +
+      (outputTokens * rates.output) / 1000 +
+      (cachedTokens * rates.cached) / 1000
+  ) * 100; // Convert to cents for precision
 ```
 
 ## Usage Data Collection
@@ -161,7 +167,7 @@ interface Conversation {
   createdAt: Date;
   updatedAt: Date;
   vaultId: string;
-  costInfo: ConversationCostInfo;  // Cost tracking data
+  costInfo: ConversationCostInfo; // Cost tracking data
 }
 ```
 
@@ -184,7 +190,7 @@ costInfo: conv.costInfo || {
   requestCount: 0,
   modelUsage: [],
   lastUpdated: new Date()
-}
+};
 ```
 
 ## User Interface
@@ -208,7 +214,7 @@ costInfo: conv.costInfo || {
 Expandable "Conversation Cost" section showing:
 
 - **Total Cost**: Running total for the conversation
-- **Token Statistics**: 
+- **Token Statistics**:
   - Input tokens used
   - Output tokens generated
   - Cached tokens (with savings indicator)
@@ -220,8 +226,8 @@ Expandable "Conversation Cost" section showing:
 
 ```css
 .cost-info {
-  color: var(--accent-primary);  /* Distinctive accent color */
-  font-weight: 500;              /* Slightly bold for visibility */
+  color: var(--accent-primary); /* Distinctive accent color */
+  font-weight: 500; /* Slightly bold for visibility */
 }
 ```
 
@@ -347,14 +353,17 @@ The system provides several ways to verify cost tracking:
 ### Common Issues
 
 **Issue**: Costs not appearing
+
 - **Solution**: Check that conversation IDs match between AI service and store
 - **Debug**: Look for `usage-recorded` events in console
 
 **Issue**: Inaccurate costs for streaming
+
 - **Solution**: Costs are estimated for streaming; exact costs only for non-streaming
 - **Note**: This is expected behavior due to API limitations
 
 **Issue**: Legacy conversations missing costs
+
 - **Solution**: Cost tracking starts from when feature was added; legacy messages won't have costs
 
 ## API Reference

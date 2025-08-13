@@ -89,10 +89,7 @@
 
   function formatCost(cost: { input: number; output: number }): string {
     const avgCost = (cost.input + cost.output) / 2;
-    if (avgCost < 0.001) {
-      return `$${(avgCost * 1000).toFixed(2)}/1K`;
-    }
-    return `$${avgCost.toFixed(3)}/1K`;
+    return `$${avgCost.toFixed(2)}/M`;
   }
 </script>
 
@@ -138,9 +135,9 @@
                       <span class="checkmark">✓</span>
                     {/if}
                   </div>
-                  {#if model.costPer1kTokens}
+                  {#if model.costPerMTokens}
                     <div class="model-meta">
-                      <span class="cost">{formatCost(model.costPer1kTokens)}</span>
+                      <span class="cost">{formatCost(model.costPerMTokens)}</span>
                       {#if model.contextLength}
                         <span class="context"
                           >{(model.contextLength / 1000).toFixed(0)}K ctx</span

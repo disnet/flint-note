@@ -4,9 +4,10 @@ export interface ModelInfo {
   provider: string;
   icon: string;
   contextLength?: number;
-  costPer1kTokens?: {
+  costPerMTokens?: {
     input: number;
     output: number;
+    cached?: number;
   };
 }
 
@@ -17,24 +18,8 @@ export const SUPPORTED_MODELS: ModelInfo[] = [
     name: 'GPT-5',
     provider: 'OpenAI',
     icon: '🤖',
-    contextLength: 1047576,
-    costPer1kTokens: { input: 0.002, output: 0.008 }
-  },
-  {
-    id: 'openai/gpt-4.1',
-    name: 'GPT-4.1',
-    provider: 'OpenAI',
-    icon: '🤖',
-    contextLength: 1047576,
-    costPer1kTokens: { input: 0.002, output: 0.008 }
-  },
-  {
-    id: 'openai/gpt-4.1-mini',
-    name: 'GPT-4.1 Mini',
-    provider: 'OpenAI',
-    icon: '🤖',
-    contextLength: 1047576,
-    costPer1kTokens: { input: 0.0004, output: 0.0016 }
+    contextLength: 400000,
+    costPerMTokens: { input: 1.25, output: 10.0, cached: 0.13 }
   },
 
   // Anthropic Claude Models
@@ -44,7 +29,7 @@ export const SUPPORTED_MODELS: ModelInfo[] = [
     provider: 'Anthropic',
     icon: '🧠',
     contextLength: 200000,
-    costPer1kTokens: { input: 0.003, output: 0.015 }
+    costPerMTokens: { input: 3.0, output: 15.0, cached: 0.3 }
   },
   {
     id: 'anthropic/claude-3.5-haiku',
@@ -52,11 +37,11 @@ export const SUPPORTED_MODELS: ModelInfo[] = [
     provider: 'Anthropic',
     icon: '🧠',
     contextLength: 200000,
-    costPer1kTokens: { input: 0.0008, output: 0.004 }
+    costPerMTokens: { input: 0.8, output: 4.0, cached: 0.08 }
   }
 ];
 
-export const DEFAULT_MODEL = 'openai/gpt-4.1-mini';
+export const DEFAULT_MODEL = 'openai/gpt-5';
 
 export function getModelById(id: string): ModelInfo | undefined {
   return SUPPORTED_MODELS.find((model) => model.id === id);
