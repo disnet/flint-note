@@ -1,6 +1,7 @@
 <script lang="ts">
   import AIAssistant from './AIAssistant.svelte';
   import MetadataEditor from './MetadataEditor.svelte';
+  import ThreadList from './ThreadList.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
   import type { Message } from '../services/types';
   import type { NoteMetadata } from '../services/noteStore.svelte';
@@ -27,7 +28,7 @@
     sidebarState.toggleRightSidebar();
   }
 
-  function setMode(mode: 'ai' | 'metadata'): void {
+  function setMode(mode: 'ai' | 'metadata' | 'threads'): void {
     sidebarState.setRightSidebarMode(mode);
   }
 </script>
@@ -41,6 +42,13 @@
         onclick={() => setMode('ai')}
       >
         AI Assistant
+      </button>
+      <button
+        class="mode-tab"
+        class:active={sidebarState.rightSidebar.mode === 'threads'}
+        onclick={() => setMode('threads')}
+      >
+        Threads
       </button>
       <button
         class="mode-tab"
@@ -69,6 +77,15 @@
     {#if sidebarState.rightSidebar.mode === 'ai'}
       <div class="ai-mode">
         <AIAssistant {messages} {isLoading} {onNoteClick} {onSendMessage} />
+      </div>
+    {:else if sidebarState.rightSidebar.mode === 'threads'}
+      <div class="threads-mode">
+        <ThreadList
+          onThreadSelect={(_threadId) => {
+            // Switch to AI mode when thread is selected to show conversation
+            setMode('ai');
+          }}
+        />
       </div>
     {:else}
       <div class="metadata-mode">
@@ -165,7 +182,8 @@
     overflow: hidden;
   }
 
-  .metadata-mode {
+  .metadata-mode,
+  .threads-mode {
     flex: 1;
     min-height: 0;
     overflow: hidden;

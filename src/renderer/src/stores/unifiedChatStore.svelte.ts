@@ -136,7 +136,7 @@ class UnifiedChatStore {
           (a, b) => b.lastActivity.getTime() - a.lastActivity.getTime()
         );
         const threadsToKeep = sortedByActivity.slice(0, this.state.maxThreadsPerVault);
-        
+
         // Create a new Map to trigger Svelte reactivity
         const newMap = new Map(this.state.threadsByVault);
         newMap.set(this.currentVaultId || 'default', threadsToKeep);
@@ -148,13 +148,13 @@ class UnifiedChatStore {
   // Ensure vault is initialized - call this before operations that need vault info
   private async ensureVaultInitialized(): Promise<void> {
     if (this.vaultInitialized) return;
-    
+
     try {
       const service = getChatService();
       const vault = await service.getCurrentVault();
       this.state.currentVaultId = vault?.id || 'default';
       this.vaultInitialized = true;
-      
+
       // Sync active thread with backend after initialization
       await this.syncActiveThreadWithBackend();
     } catch (error) {
@@ -255,7 +255,7 @@ class UnifiedChatStore {
     // Add to current vault's threads
     const currentThreads = this.getThreadsForCurrentVault();
     const updatedThreads = [newThread, ...currentThreads];
-    
+
     // Create a new Map to trigger Svelte reactivity
     const newMap = new Map(this.state.threadsByVault);
     newMap.set(vaultId, updatedThreads);
@@ -316,7 +316,7 @@ class UnifiedChatStore {
       updatedThread,
       ...threads.slice(threadIndex + 1)
     ];
-    
+
     // Create a new Map to trigger Svelte reactivity
     const newMap = new Map(this.state.threadsByVault);
     newMap.set(vaultId, updatedThreads);
@@ -332,7 +332,7 @@ class UnifiedChatStore {
 
     const threads = this.getThreadsForVault(vaultId);
     const filteredThreads = threads.filter((t) => t.id !== threadId);
-    
+
     // Create a new Map to trigger Svelte reactivity
     const newMap = new Map(this.state.threadsByVault);
     newMap.set(vaultId, filteredThreads);
@@ -501,7 +501,7 @@ class UnifiedChatStore {
 
   clearAllThreads(): void {
     const vaultId = this.state.currentVaultId || 'default';
-    
+
     // Create a new Map to trigger Svelte reactivity
     const newMap = new Map(this.state.threadsByVault);
     newMap.set(vaultId, []);
@@ -661,7 +661,7 @@ class UnifiedChatStore {
     // Add to current vault's threads
     const currentThreads = this.getThreadsForCurrentVault();
     const updatedThreads = [newThread, ...currentThreads];
-    
+
     // Create a new Map to trigger Svelte reactivity
     const newMap = new Map(this.state.threadsByVault);
     newMap.set(vaultId, updatedThreads);
@@ -770,14 +770,13 @@ class UnifiedChatStore {
       const sortedThreads = threads.sort(
         (a, b) => b.lastActivity.getTime() - a.lastActivity.getTime()
       );
-      
+
       // Create a new Map to trigger Svelte reactivity
       const newMap = new Map(this.state.threadsByVault);
       newMap.set(vaultId, sortedThreads.slice(0, this.state.maxThreadsPerVault));
       this.state.threadsByVault = newMap;
     }
   }
-
 
   private getStorageKey(): string {
     return 'flint-unified-chat-store';

@@ -1,58 +1,67 @@
 <script lang="ts">
-  import { aiThreadsStore } from '../stores/aiThreadsStore.svelte';
-  import type { AIThread } from '../stores/aiThreadsStore.svelte';
+  import { unifiedChatStore } from '../stores/unifiedChatStore.svelte';
+  import type { UnifiedThread } from '../stores/unifiedChatStore.svelte';
 
   interface Props {
     onThreadSelect?: (threadId: string) => void;
     onThreadDelete?: (threadId: string) => void;
-    showArchived?: boolean;
   }
 
-  let { onThreadSelect, onThreadDelete, showArchived = false }: Props = $props();
+  let { onThreadSelect, onThreadDelete }: Props = $props();
 
   let searchQuery = $state<string>('');
   let selectedThreadId = $state<string | null>(null);
   let showDeleteConfirm = $state<string | null>(null);
+  let showArchived = $state<boolean>(false);
+  let editingTags = $state<string | null>(null);
+  let tagInput = $state<string>('');
 
   // Get thread data from store
-  const { activeThread, sortedThreads, archivedThreads } = aiThreadsStore;
+  const activeThread = $derived(unifiedChatStore.activeThread);
+  const allThreads = $derived(unifiedChatStore.getThreadsForCurrentVault());
+  const archivedThreads = $derived(allThreads.filter((t) => t.isArchived));
+  const sortedThreads = $derived(
+    allThreads
+      .filter((t) => !t.isArchived)
+      .sort((a, b) => b.lastActivity.getTime() - a.lastActivity.getTime())
+  );
 
   // Filtered threads based on search and archive status
-  const filteredThreads = $derived.by<AIThread[]>(() => {
+  const filteredThreads = $derived.by<UnifiedThread[]>(() => {
     const threads = showArchived ? archivedThreads : sortedThreads;
 
     if (!searchQuery.trim()) {
       return threads;
     }
 
-    return aiThreadsStore.searchThreads(searchQuery.trim());
+    return unifiedChatStore.searchThreadsInVault(searchQuery.trim());
   });
 
   function handleThreadSelect(threadId: string): void {
-    aiThreadsStore.switchThread(threadId);
+    unifiedChatStore.switchToThread(threadId);
     selectedThreadId = threadId;
     onThreadSelect?.(threadId);
   }
 
-  function handleNewThread(): void {
-    const newThread = aiThreadsStore.createThread();
-    selectedThreadId = newThread.id;
-    onThreadSelect?.(newThread.id);
+  async function handleNewThread(): Promise<void> {
+    const newThreadId = await unifiedChatStore.createThread();
+    selectedThreadId = newThreadId;
+    onThreadSelect?.(newThreadId);
   }
 
   function handleArchiveThread(threadId: string, event: Event): void {
     event.stopPropagation();
     if (showArchived) {
-      aiThreadsStore.unarchiveThread(threadId);
+      unifiedChatStore.unarchiveThread(threadId);
     } else {
-      aiThreadsStore.archiveThread(threadId);
+      unifiedChatStore.archiveThread(threadId);
     }
   }
 
   function handleDeleteThread(threadId: string, event: Event): void {
     event.stopPropagation();
     if (showDeleteConfirm === threadId) {
-      aiThreadsStore.deleteThread(threadId);
+      unifiedChatStore.deleteThread(threadId);
       showDeleteConfirm = null;
       onThreadDelete?.(threadId);
     } else {
@@ -69,6 +78,40 @@
   function cancelDelete(event: Event): void {
     event.stopPropagation();
     showDeleteConfirm = null;
+  }
+
+  function handleTagEdit(threadId: string, event: Event): void {
+    event.stopPropagation();
+    const thread = allThreads.find((t) => t.id === threadId);
+    if (thread) {
+      editingTags = threadId;
+      tagInput = (thread.tags || []).join(', ');
+    }
+  }
+
+  function saveTagsForThread(threadId: string): void {
+    const tags = tagInput
+      .split(',')
+      .map((tag) => tag.trim())
+      .filter((tag) => tag.length > 0);
+    unifiedChatStore.updateThread(threadId, { tags });
+    editingTags = null;
+    tagInput = '';
+  }
+
+  function cancelTagEdit(): void {
+    editingTags = null;
+    tagInput = '';
+  }
+
+  function handleTagKeydown(event: KeyboardEvent, threadId: string): void {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      saveTagsForThread(threadId);
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      cancelTagEdit();
+    }
   }
 
   function formatDate(date: Date): string {
@@ -92,7 +135,7 @@
     return title.length > maxLength ? title.slice(0, maxLength) + '...' : title;
   }
 
-  function getFirstUserMessage(thread: AIThread): string {
+  function getFirstUserMessage(thread: UnifiedThread): string {
     const firstUserMsg = thread.messages.find((msg) => msg.sender === 'user');
     if (!firstUserMsg) return 'No messages yet';
 
@@ -108,16 +151,26 @@
       <h3 class="list-title">
         {showArchived ? 'Archived Threads' : 'Conversation Threads'}
       </h3>
-      {#if !showArchived}
+      <div class="header-actions">
         <button
-          class="new-thread-btn"
-          onclick={handleNewThread}
-          title="Start new conversation"
+          class="archive-toggle-btn"
+          class:active={showArchived}
+          onclick={() => (showArchived = !showArchived)}
+          title={showArchived ? 'Show active threads' : 'Show archived threads'}
         >
-          <span class="btn-icon">+</span>
-          New
+          {showArchived ? '📤' : '📁'}
         </button>
-      {/if}
+        {#if !showArchived}
+          <button
+            class="new-thread-btn"
+            onclick={handleNewThread}
+            title="Start new conversation"
+          >
+            <span class="btn-icon">+</span>
+            New
+          </button>
+        {/if}
+      </div>
     </div>
 
     <!-- Search -->
@@ -197,6 +250,46 @@
                 <span class="archived-badge">Archived</span>
               {/if}
             </div>
+
+            <!-- Tags section -->
+            {#if editingTags === thread.id}
+              <div class="tag-edit-section">
+                <input
+                  type="text"
+                  placeholder="Add tags (comma separated)"
+                  bind:value={tagInput}
+                  class="tag-input"
+                  onkeydown={(e) => handleTagKeydown(e, thread.id)}
+                  onclick={(e) => e.stopPropagation()}
+                />
+                <div class="tag-edit-actions">
+                  <button
+                    class="tag-save-btn"
+                    onclick={(e) => {
+                      e.stopPropagation();
+                      saveTagsForThread(thread.id);
+                    }}
+                  >
+                    ✓
+                  </button>
+                  <button
+                    class="tag-cancel-btn"
+                    onclick={(e) => {
+                      e.stopPropagation();
+                      cancelTagEdit();
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            {:else if thread.tags && thread.tags.length > 0}
+              <div class="thread-tags">
+                {#each thread.tags as tag (tag)}
+                  <span class="tag">{tag}</span>
+                {/each}
+              </div>
+            {/if}
           </div>
 
           <!-- Thread Actions -->
@@ -219,6 +312,13 @@
                 </button>
               </div>
             {:else}
+              <button
+                class="action-btn tag-btn"
+                onclick={(e) => handleTagEdit(thread.id, e)}
+                title="Edit tags"
+              >
+                🏷️
+              </button>
               <button
                 class="action-btn archive-btn"
                 onclick={(e) => handleArchiveThread(thread.id, e)}
@@ -262,6 +362,12 @@
     margin-bottom: 1rem;
   }
 
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
   .list-title {
     margin: 0;
     font-size: 1.1rem;
@@ -286,6 +392,31 @@
 
   .new-thread-btn:hover {
     background: var(--accent-hover);
+  }
+
+  .archive-toggle-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border: none;
+    border-radius: 0.375rem;
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.875rem;
+  }
+
+  .archive-toggle-btn:hover {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+  }
+
+  .archive-toggle-btn.active {
+    background: var(--accent-light);
+    color: var(--accent-primary);
   }
 
   .btn-icon {
@@ -525,6 +656,84 @@
 
   .start-thread-btn:hover {
     background: var(--accent-hover);
+  }
+
+  /* Tag-related styles */
+  .tag-edit-section {
+    margin-top: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .tag-input {
+    flex: 1;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid var(--border-light);
+    border-radius: 0.25rem;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 0.75rem;
+  }
+
+  .tag-input:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+  }
+
+  .tag-edit-actions {
+    display: flex;
+    gap: 0.25rem;
+  }
+
+  .tag-save-btn,
+  .tag-cancel-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    border: none;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-weight: bold;
+  }
+
+  .tag-save-btn {
+    background: var(--accent-primary);
+    color: white;
+  }
+
+  .tag-save-btn:hover {
+    background: var(--accent-hover);
+  }
+
+  .tag-cancel-btn {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+  }
+
+  .tag-cancel-btn:hover {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+  }
+
+  .thread-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    margin-top: 0.5rem;
+  }
+
+  .tag {
+    display: inline-block;
+    padding: 0.125rem 0.375rem;
+    background: var(--accent-light);
+    color: var(--accent-primary);
+    border-radius: 0.25rem;
+    font-size: 0.7rem;
+    font-weight: 500;
   }
 
   /* Scrollbar styling */

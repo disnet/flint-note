@@ -7,7 +7,7 @@ interface SidebarState {
   rightSidebar: {
     visible: boolean;
     width: number;
-    mode: 'ai' | 'metadata';
+    mode: 'ai' | 'metadata' | 'threads';
   };
   layout: 'single-column' | 'three-column';
   breakpoint: number;
@@ -66,7 +66,7 @@ class SidebarStateStore {
     this.saveToStorage();
   }
 
-  setRightSidebarMode(mode: 'ai' | 'metadata'): void {
+  setRightSidebarMode(mode: 'ai' | 'metadata' | 'threads'): void {
     this.state.rightSidebar.mode = mode;
     this.saveToStorage();
   }

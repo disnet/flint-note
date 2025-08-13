@@ -1,6 +1,5 @@
 <script lang="ts">
-  import { aiThreadsStore } from '../stores/aiThreadsStore.svelte';
-  // import type { AIThread } from '../stores/aiThreadsStore.svelte';
+  import { unifiedChatStore } from '../stores/unifiedChatStore.svelte';
 
   interface Props {
     onNewThread?: () => void;
@@ -13,17 +12,17 @@
   let dropdownButton: HTMLButtonElement;
 
   // Get thread data from store - don't destructure to preserve reactivity
-  const activeThread = $derived(aiThreadsStore.activeThread);
-  const sortedThreads = $derived(aiThreadsStore.sortedThreads);
+  const activeThread = $derived(unifiedChatStore.activeThread);
+  const sortedThreads = $derived(unifiedChatStore.getThreadsForCurrentVault());
 
   function handleNewThread(): void {
-    aiThreadsStore.createThread();
+    unifiedChatStore.createThread();
     isDropdownOpen = false;
     onNewThread?.();
   }
 
   function handleThreadSelect(threadId: string): void {
-    aiThreadsStore.switchThread(threadId);
+    unifiedChatStore.switchToThread(threadId);
     isDropdownOpen = false;
     onThreadSwitch?.(threadId);
   }

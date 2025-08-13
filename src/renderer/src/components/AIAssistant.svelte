@@ -3,6 +3,7 @@
   import LoadingMessage from './LoadingMessage.svelte';
   import MessageInput from './MessageInput.svelte';
   import ConversationHistory from './ConversationHistory.svelte';
+  import ThreadSwitcher from './ThreadSwitcher.svelte';
   import { unifiedChatStore } from '../stores/unifiedChatStore.svelte';
   import type { Message } from '../services/types';
 
@@ -103,13 +104,11 @@
 
 <div class="ai-assistant">
   <div class="assistant-header">
-    <div class="assistant-title">
-      <h3>AI Assistant</h3>
-      {#if unifiedChatStore.activeConversation}
-        <span class="conversation-indicator"
-          >{unifiedChatStore.activeConversation.title}</span
-        >
-      {/if}
+    <div class="thread-switcher-container">
+      <ThreadSwitcher
+        onNewThread={handleNewConversation}
+        onThreadSwitch={(threadId) => handleConversationSelect(threadId)}
+      />
     </div>
     <div class="header-actions">
       <button
@@ -130,24 +129,6 @@
           <path d="M3 3v18h18" />
           <path d="M3 9h18" />
           <path d="M9 3v18" />
-        </svg>
-      </button>
-      <button
-        class="new-conversation-btn"
-        onclick={handleNewConversation}
-        title="Start new conversation"
-        aria-label="Start new conversation"
-      >
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <line x1="12" y1="5" x2="12" y2="19"></line>
-          <line x1="5" y1="12" x2="19" y2="12"></line>
         </svg>
       </button>
     </div>
@@ -330,26 +311,9 @@
     background: var(--bg-secondary);
   }
 
-  .assistant-title {
+  .thread-switcher-container {
     flex: 1;
     min-width: 0;
-  }
-
-  .assistant-title h3 {
-    margin: 0;
-    font-size: 1rem;
-    font-weight: 600;
-    color: var(--text-primary);
-  }
-
-  .conversation-indicator {
-    display: block;
-    margin-top: 0.25rem;
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 
   .header-actions {
@@ -358,8 +322,7 @@
     gap: 0.5rem;
   }
 
-  .history-btn,
-  .new-conversation-btn {
+  .history-btn {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -373,8 +336,7 @@
     transition: all 0.2s ease;
   }
 
-  .history-btn:hover,
-  .new-conversation-btn:hover {
+  .history-btn:hover {
     background: var(--bg-tertiary);
     color: var(--text-primary);
   }
@@ -382,16 +344,6 @@
   .history-btn.active {
     background: var(--accent-light);
     color: var(--accent-primary);
-  }
-
-  .new-conversation-btn {
-    background: var(--accent-primary);
-    color: white;
-  }
-
-  .new-conversation-btn:hover {
-    background: var(--accent-hover);
-    color: white;
   }
 
   .history-panel {
