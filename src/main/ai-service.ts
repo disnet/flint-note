@@ -1621,10 +1621,15 @@ ${
 
   private async initializeFlintMcpServer(): Promise<void> {
     try {
+      // Use node directly instead of npx for better reliability in built apps
+      const serverPath = join(
+        __dirname,
+        '../../node_modules/@flint-note/server/dist/index.js'
+      );
       this.mcpClient = await createMCPClient({
         transport: new StdioMCPTransport({
-          command: 'npx',
-          args: ['@flint-note/server']
+          command: 'node',
+          args: [serverPath]
         })
       });
       logger.info('Flint MCP server initialized successfully');
