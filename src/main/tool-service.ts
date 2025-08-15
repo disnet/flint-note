@@ -2,6 +2,8 @@ import { tool } from 'ai';
 import { z } from 'zod';
 import { NoteService } from './note-service';
 import { logger } from './logger';
+import type { Note, NoteMetadata } from '@flint-note/server';
+import type { MetadataSchema } from '@flint-note/server/dist/core/metadata-schema';
 
 interface ToolResponse {
   success: boolean;
@@ -92,7 +94,13 @@ export class ToolService {
 
         // Handle batch creation
         if (notes && notes.length > 0) {
-          const results = [];
+          const results: Array<{
+            success: boolean;
+            noteId?: string;
+            title: string;
+            type: string;
+            error?: string;
+          }> = [];
           for (const note of notes) {
             try {
               const result = await this.noteService.createNote(
@@ -194,7 +202,7 @@ export class ToolService {
         }
 
         // Filter fields if specified
-        let responseData = note;
+        let responseData: Note | Record<string, unknown> = note;
         if (fields && fields.length > 0) {
           responseData = {} as Record<string, unknown>;
           for (const field of fields) {
@@ -257,7 +265,12 @@ export class ToolService {
           } as ToolResponse;
         }
 
-        const results = [];
+        const results: Array<{
+          identifier: string;
+          success: boolean;
+          data?: Note | Record<string, unknown>;
+          error?: string;
+        }> = [];
         for (const identifier of identifiers) {
           try {
             const note = await this.noteService.getNote(
@@ -266,7 +279,7 @@ export class ToolService {
             );
             if (note) {
               // Filter fields if specified
-              let noteData = note;
+              let noteData: Note | Record<string, unknown> = note;
               if (fields && fields.length > 0) {
                 noteData = {} as Record<string, unknown>;
                 for (const field of fields) {
@@ -343,7 +356,7 @@ export class ToolService {
           identifier,
           content || '',
           vault_id || undefined,
-          metadata
+          metadata as NoteMetadata
         );
 
         return {
@@ -764,7 +777,7 @@ export class ToolService {
           typeName: type_name,
           description,
           agentInstructions: agent_instructions,
-          metadataSchema: metadata_schema,
+          metadataSchema: metadata_schema as MetadataSchema,
           vaultId: vault_id || undefined
         });
 
