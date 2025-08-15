@@ -846,7 +846,7 @@ export class ToolService {
         .optional()
         .describe('Optional vault ID to operate on')
     }),
-    execute: async ({ type_name }) => {
+    execute: async ({ type_name, vault_id }) => {
       try {
         if (!this.noteService) {
           return {
@@ -856,8 +856,10 @@ export class ToolService {
           } as ToolResponse;
         }
 
-        const noteTypes = await this.noteService.listNoteTypes();
-        const noteType = noteTypes.find((nt) => nt.name === type_name);
+        const noteType = await this.noteService.getNoteTypeInfo({
+          type_name,
+          vault_id: vault_id || undefined
+        });
 
         if (!noteType) {
           return {

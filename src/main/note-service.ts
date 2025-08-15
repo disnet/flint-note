@@ -6,7 +6,8 @@ import type {
   DeleteNoteResult,
   NoteListItem,
   NoteTypeListItem,
-  NoteMetadata
+  NoteMetadata,
+  GetNoteTypeInfoArgs
 } from '@flint-note/server';
 import type { MoveNoteResult } from '@flint-note/server/dist/core/notes';
 import type { SearchResult } from '@flint-note/server/dist/database/search-manager';
@@ -18,6 +19,7 @@ import type {
 import type { ExternalLinkRow } from '@flint-note/server/dist/database/schema';
 import type { MetadataSchema } from '@flint-note/server/dist/core/metadata-schema';
 import { logger } from './logger';
+import { GetNoteTypeInfoResult } from '@flint-note/server/dist/server/types';
 
 export class NoteService {
   private api: FlintNoteApi;
@@ -209,6 +211,11 @@ export class NoteService {
       metadata_schema: params.metadataSchema,
       vault_id: params.vaultId
     });
+  }
+
+  async getNoteTypeInfo(args: GetNoteTypeInfoArgs): Promise<GetNoteTypeInfoResult> {
+    this.ensureInitialized();
+    return await this.api.getNoteTypeInfo(args);
   }
 
   async listNotesByType(
