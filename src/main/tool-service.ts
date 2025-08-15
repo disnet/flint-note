@@ -82,7 +82,7 @@ export class ToolService {
         .optional()
         .describe('Optional vault ID to operate on')
     }),
-    execute: async ({ type, title, content, notes, vault_id }) => {
+    execute: async ({ type, title, content, notes, vault_id, metadata }) => {
       try {
         if (!this.noteService) {
           return {
@@ -107,7 +107,8 @@ export class ToolService {
                 note.type,
                 note.title,
                 note.content,
-                vault_id || undefined
+                vault_id || undefined,
+                note.metadata as NoteMetadata
               );
               results.push({
                 success: true,
@@ -146,7 +147,8 @@ export class ToolService {
           type,
           title,
           content,
-          vault_id || undefined
+          vault_id || undefined,
+          metadata as NoteMetadata
         );
 
         return {

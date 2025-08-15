@@ -57,14 +57,16 @@ export class NoteService {
     type: string,
     identifier: string,
     content: string,
-    vaultId?: string
+    vaultId?: string,
+    metadata?: NoteMetadata
   ): Promise<NoteInfo> {
     this.ensureInitialized();
     return await this.api.createNote({
       type,
       title: identifier,
       content,
-      vaultId
+      vaultId,
+      metadata
     });
   }
 
