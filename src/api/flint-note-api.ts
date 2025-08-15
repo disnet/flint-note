@@ -22,6 +22,7 @@ import type {
   ListNoteTypesArgs,
   UpdateNoteTypeArgs,
   GetNoteTypeInfoArgs,
+  GetNoteTypeInfoResult,
   DeleteNoteTypeArgs,
   SearchNotesArgs,
   SearchNotesAdvancedArgs,
@@ -559,10 +560,18 @@ export class FlintNoteApi {
   /**
    * Get note type information
    */
-  async getNoteTypeInfo(args: GetNoteTypeInfoArgs): Promise<NoteTypeDescription> {
+  async getNoteTypeInfo(args: GetNoteTypeInfoArgs): Promise<GetNoteTypeInfoResult> {
     this.ensureInitialized();
     const { noteTypeManager } = await this.resolveVaultContext(args.vault_id);
-    return await noteTypeManager.getNoteTypeDescription(args.type_name);
+    const desc = await noteTypeManager.getNoteTypeDescription(args.type_name);
+    return {
+      name: desc.name,
+      purpose: desc.parsed.purpose,
+      path: desc.path,
+      instructions: desc.parsed.agentInstructions,
+      metadata_schema: desc.metadataSchema,
+      content_hash: desc.content_hash
+    };
   }
 
   /**

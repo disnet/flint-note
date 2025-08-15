@@ -119,6 +119,15 @@ export interface GetNoteTypeInfoArgs {
   vault_id?: string;
 }
 
+export interface GetNoteTypeInfoResult {
+  name: string;
+  purpose: string;
+  path: string;
+  instructions: string[];
+  metadata_schema: MetadataSchema;
+  content_hash: string;
+}
+
 export interface CreateVaultArgs {
   id: string;
   name: string;
