@@ -57,7 +57,7 @@ export class ToolService {
         .optional()
         .describe('Content of the note in markdown format - for single note creation'),
       metadata: z
-        .record(z.unknown())
+        .record(z.string(), z.unknown())
         .optional()
         .describe('Additional metadata fields for the note'),
       notes: z
@@ -67,7 +67,7 @@ export class ToolService {
             title: z.string().describe('Title of the note'),
             content: z.string().describe('Content of the note in markdown format'),
             metadata: z
-              .record(z.unknown())
+              .record(z.string(), z.unknown())
               .optional()
               .describe('Additional metadata fields for the note')
           })
@@ -311,7 +311,10 @@ export class ToolService {
       identifier: z.string().describe('Note identifier'),
       content: z.string().optional().describe('New content for the note'),
       content_hash: z.string().describe('Content hash for optimistic locking'),
-      metadata: z.record(z.unknown()).optional().describe('Metadata fields to update'),
+      metadata: z
+        .record(z.string(), z.unknown())
+        .optional()
+        .describe('Metadata fields to update'),
       vault_id: z
         .string()
         .nullable()
@@ -720,11 +723,11 @@ export class ToolService {
                   .optional()
                   .describe('Whether this field is required'),
                 constraints: z
-                  .record(z.unknown())
+                  .record(z.string(), z.unknown())
                   .optional()
                   .describe('Optional field constraints (min, max, options, etc.)'),
                 default: z
-                  .any()
+                  .unknown()
                   .optional()
                   .describe('Optional default value for the field')
               })
@@ -887,7 +890,7 @@ export class ToolService {
               .describe('Optional description of the field'),
             required: z.boolean().optional().describe('Whether this field is required'),
             constraints: z
-              .record(z.unknown())
+              .record(z.string(), z.unknown())
               .optional()
               .describe('Optional field constraints (min, max, options, etc.)'),
             default: z

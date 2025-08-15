@@ -74,7 +74,7 @@ const createNoteTool = tool({
     type: z.string().describe('Note type (must exist)'),
     title: z.string().describe('Title of the note'),
     content: z.string().describe('Content of the note in markdown format'),
-    metadata: z.record(z.any()).optional().describe('Additional metadata fields'),
+    metadata: z.record(z.string(), z.unknown()).optional().describe('Additional metadata fields'),
     vault_id: z.string().nullable().optional().describe('Optional vault ID')
   }),
   execute: async ({ type, title, content, metadata, vault_id }) => {

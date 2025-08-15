@@ -141,7 +141,7 @@ export class AIService extends EventEmitter {
               'Content of the note in markdown format - for single note creation'
             ),
           metadata: z
-            .record(z.any())
+            .record(z.string(), z.unknown())
             .optional()
             .describe('Additional metadata fields for the note'),
           notes: z
@@ -151,7 +151,7 @@ export class AIService extends EventEmitter {
                 title: z.string().describe('Title of the note'),
                 content: z.string().describe('Content of the note in markdown format'),
                 metadata: z
-                  .record(z.any())
+                  .record(z.string(), z.unknown())
                   .optional()
                   .describe('Additional metadata fields for the note')
               })
@@ -200,7 +200,10 @@ export class AIService extends EventEmitter {
           identifier: z.string().describe('Note identifier'),
           content: z.string().optional().describe('New content for the note'),
           content_hash: z.string().describe('Content hash for optimistic locking'),
-          metadata: z.record(z.any()).optional().describe('Metadata fields to update'),
+          metadata: z
+            .record(z.string(), z.unknown())
+            .optional()
+            .describe('Metadata fields to update'),
           vault_id: z
             .string()
             .nullable()
@@ -414,11 +417,11 @@ export class AIService extends EventEmitter {
                       .optional()
                       .describe('Whether this field is required'),
                     constraints: z
-                      .record(z.any())
+                      .record(z.string(), z.unknown())
                       .optional()
                       .describe('Optional field constraints (min, max, options, etc.)'),
                     default: z
-                      .any()
+                      .unknown()
                       .optional()
                       .describe('Optional default value for the field')
                   })
@@ -484,11 +487,11 @@ export class AIService extends EventEmitter {
                   .optional()
                   .describe('Whether this field is required'),
                 constraints: z
-                  .record(z.any())
+                  .record(z.string(), z.unknown())
                   .optional()
                   .describe('Optional field constraints (min, max, options, etc.)'),
                 default: z
-                  .any()
+                  .unknown()
                   .optional()
                   .describe('Optional default value for the field')
               })

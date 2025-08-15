@@ -42,7 +42,7 @@
     "dotenv": "^17.2.0",
     "marked": "^16.1.2",
     "winston": "^3.17.0",
-    "zod": "^3.25.76"
+    "zod": "^4.0.0"
   },
   "devDependencies": {
     "@electron-toolkit/eslint-config-prettier": "^3.0.0",
