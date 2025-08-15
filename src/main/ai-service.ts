@@ -1,14 +1,12 @@
 import { createGateway, type GatewayProvider } from '@ai-sdk/gateway';
 import { generateText, streamText, ModelMessage, stepCountIs } from 'ai';
-import { experimental_createMCPClient as createMCPClient } from 'ai';
-import { Experimental_StdioMCPTransport as StdioMCPTransport } from 'ai/mcp-stdio';
 import { EventEmitter } from 'events';
-import { z } from 'zod';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { SecureStorageService } from './secure-storage-service';
 import { logger } from './logger';
 import { NoteService } from './note-service';
+import { ToolService } from './tool-service';
 
 interface CacheConfig {
   enableSystemMessageCaching: boolean;
@@ -66,10 +64,10 @@ export class AIService extends EventEmitter {
   private currentModelName: string;
   private conversationHistories: Map<string, ModelMessage[]> = new Map();
   private currentConversationId: string | null = null;
-  private mcpClient: unknown;
   private gateway: GatewayProvider;
   private systemPrompt: string;
   private noteService: NoteService | null;
+  private toolService: ToolService;
   private readonly maxConversationHistory = 20;
   private readonly maxConversations = 100;
   private cacheConfig: CacheConfig = {
@@ -96,9 +94,9 @@ export class AIService extends EventEmitter {
     this.currentModelName = 'openai/gpt-4o-mini';
     this.systemPrompt = this.loadSystemPrompt();
     logger.info('AI Service constructed', { model: this.currentModelName });
-    this.initializeFlintMcpServer();
     this.gateway = gateway;
     this.noteService = noteService;
+    this.toolService = new ToolService(noteService);
   }
 
   static async of(
@@ -119,431 +117,6 @@ export class AIService extends EventEmitter {
       });
       this.currentModelName = modelName;
     }
-  }
-
-  private getFlintToolSchemas(): Record<string, { inputSchema: z.ZodTypeAny }> {
-    return {
-      // Note Management Tools
-      create_note: {
-        inputSchema: z.object({
-          type: z
-            .string()
-            .optional()
-            .describe('Note type (must exist) - for single note creation'),
-          title: z
-            .string()
-            .optional()
-            .describe('Title of the note - for single note creation'),
-          content: z
-            .string()
-            .optional()
-            .describe(
-              'Content of the note in markdown format - for single note creation'
-            ),
-          metadata: z
-            .record(z.string(), z.unknown())
-            .optional()
-            .describe('Additional metadata fields for the note'),
-          notes: z
-            .array(
-              z.object({
-                type: z.string().describe('Note type (must exist)'),
-                title: z.string().describe('Title of the note'),
-                content: z.string().describe('Content of the note in markdown format'),
-                metadata: z
-                  .record(z.string(), z.unknown())
-                  .optional()
-                  .describe('Additional metadata fields for the note')
-              })
-            )
-            .optional()
-            .describe('Array of notes to create - for batch creation'),
-          vault_id: z
-            .string()
-            .nullable()
-            .optional()
-            .describe('Optional vault ID to operate on')
-        })
-      },
-      get_note: {
-        inputSchema: z.object({
-          identifier: z
-            .string()
-            .describe('Note identifier in format "type/filename" or full path'),
-          vault_id: z
-            .string()
-            .nullable()
-            .optional()
-            .describe('Optional vault ID to operate on'),
-          fields: z
-            .array(z.string())
-            .optional()
-            .describe('Optional array of field names to include (supports dot notation)')
-        })
-      },
-      get_notes: {
-        inputSchema: z.object({
-          identifiers: z.array(z.string()).describe('Array of note identifiers'),
-          vault_id: z
-            .string()
-            .nullable()
-            .optional()
-            .describe('Optional vault ID to operate on'),
-          fields: z
-            .array(z.string())
-            .optional()
-            .describe('Optional array of field names to include')
-        })
-      },
-      update_note: {
-        inputSchema: z.object({
-          identifier: z.string().describe('Note identifier'),
-          content: z.string().optional().describe('New content for the note'),
-          content_hash: z.string().describe('Content hash for optimistic locking'),
-          metadata: z
-            .record(z.string(), z.unknown())
-            .optional()
-            .describe('Metadata fields to update'),
-          vault_id: z
-            .string()
-            .nullable()
-            .optional()
-            .describe('Optional vault ID to operate on')
-        })
-      },
-      delete_note: {
-        inputSchema: z.object({
-          identifier: z.string().describe('Note identifier (type/filename format)'),
-          confirm: z
-            .boolean()
-            .optional()
-            .describe('Explicit confirmation required for deletion'),
-          vault_id: z
-            .string()
-            .nullable()
-            .optional()
-            .describe('Optional vault ID to operate on')
-        })
-      },
-      rename_note: {
-        inputSchema: z.object({
-          identifier: z.string().describe('Note identifier'),
-          new_title: z.string().describe('New display title for the note'),
-          content_hash: z.string().describe('Content hash for optimistic locking'),
-          vault_id: z
-            .string()
-            .nullable()
-            .optional()
-            .describe('Optional vault ID to operate on')
-        })
-      },
-      move_note: {
-        inputSchema: z.object({
-          identifier: z
-            .string()
-            .describe('Current note identifier in type/filename format'),
-          new_type: z.string().describe('Target note type to move the note to'),
-          content_hash: z
-            .string()
-            .describe('Content hash for optimistic locking to prevent conflicts'),
-          vault_id: z
-            .string()
-            .nullable()
-            .optional()
-            .describe('Optional vault ID to operate on')
-        })
-      },
-      // list_notes_by_type: {
-      //   inputSchema: z.object({
-      //     type: z.string().describe('Note type to list'),
-      //     limit: z
-      //       .number()
-      //       .optional()
-      //       .describe('Maximum number of results (default: 50)'),
-      //     vault_id: z.string().optional().describe('Optional vault ID to operate on')
-      //   })
-      // },
-      // get_note_info: {
-      //   inputSchema: z.object({
-      //     title_or_filename: z.string().describe('Note title or filename to look up'),
-      //     type: z.string().optional().describe('Optional: note type to narrow search'),
-      //     vault_id: z.string().optional().describe('Optional vault ID to operate on')
-      //   })
-      // },
-
-      // Search Tools
-      search_notes: {
-        inputSchema: z.object({
-          query: z
-            .string()
-            .optional()
-            .describe('Search query or regex pattern (empty returns all notes)'),
-          type_filter: z.string().optional().describe('Optional filter by note type'),
-          limit: z
-            .number()
-            .optional()
-            .describe('Maximum number of results (default: 10)'),
-          use_regex: z
-            .boolean()
-            .optional()
-            .describe('Enable regex pattern matching (default: false)'),
-          vault_id: z
-            .string()
-            .nullable()
-            .optional()
-            .describe('Optional vault ID to operate on'),
-          fields: z
-            .array(z.string())
-            .optional()
-            .describe('Optional array of field names to include')
-        })
-      },
-      search_notes_advanced: {
-        inputSchema: z.object({
-          type: z.string().optional().describe('Filter by note type'),
-          metadata_filters: z
-            .array(
-              z.object({
-                key: z.string().describe('Metadata key to filter on'),
-                value: z.string().describe('Value to match'),
-                operator: z
-                  .string()
-                  .optional()
-                  .describe(
-                    "Comparison operator: '=', '!=', '>', '<', '>=', '<=', 'LIKE', 'IN'"
-                  )
-              })
-            )
-            .optional()
-            .describe('Array of metadata filters'),
-          updated_within: z
-            .string()
-            .optional()
-            .describe('Find notes updated within time period (e.g., "7d", "1w", "2m")'),
-          updated_before: z
-            .string()
-            .optional()
-            .describe('Find notes updated before time period'),
-          created_within: z
-            .string()
-            .optional()
-            .describe('Find notes created within time period'),
-          created_before: z
-            .string()
-            .optional()
-            .describe('Find notes created before time period'),
-          content_contains: z.string().optional().describe('Search within note content'),
-          sort: z
-            .array(
-              z.object({
-                field: z
-                  .string()
-                  .describe("Field: 'title', 'type', 'created', 'updated', 'size'"),
-                order: z.string().describe("Order: 'asc', 'desc'")
-              })
-            )
-            .optional()
-            .describe('Sort order for results'),
-          limit: z
-            .number()
-            .optional()
-            .describe('Maximum number of results (default: 50)'),
-          offset: z
-            .number()
-            .optional()
-            .describe('Number of results to skip (default: 0)'),
-          vault_id: z
-            .string()
-            .nullable()
-            .optional()
-            .describe('Optional vault ID to operate on'),
-          fields: z
-            .array(z.string())
-            .optional()
-            .describe('Optional array of field names to include')
-        })
-      },
-      // search_notes_sql: {
-      //   inputSchema: z.object({
-      //     query: z.string().describe('SQL SELECT query (only SELECT queries allowed)'),
-      //     params: z
-      //       .array(z.union([z.string(), z.number(), z.boolean(), z.null()]))
-      //       .optional()
-      //       .describe('Optional parameters for parameterized queries'),
-      //     limit: z
-      //       .number()
-      //       .optional()
-      //       .describe('Maximum number of results (default: 1000)'),
-      //     timeout: z
-      //       .number()
-      //       .optional()
-      //       .describe('Query timeout in milliseconds (default: 30000)'),
-      //     vault_id: z.string().optional().describe('Optional vault ID to operate on'),
-      //     fields: z
-      //       .array(z.string())
-      //       .optional()
-      //       .describe('Optional array of field names to include')
-      //   })
-      // },
-
-      // Note Type Management Tools
-      create_note_type: {
-        inputSchema: z.object({
-          type_name: z.string().describe('Name of the note type (filesystem-safe)'),
-          description: z
-            .string()
-            .describe('Description of the note type purpose and usage'),
-          agent_instructions: z
-            .array(z.string())
-            .optional()
-            .describe('Optional custom agent instructions for this note type'),
-          metadata_schema: z
-            .object({
-              fields: z
-                .array(
-                  z.object({
-                    name: z.string().describe('Name of the metadata field'),
-                    type: z
-                      .string()
-                      .describe(
-                        "Type: 'string', 'number', 'boolean', 'date', 'array', 'select'"
-                      ),
-                    description: z
-                      .string()
-                      .optional()
-                      .describe('Optional description of the field'),
-                    required: z
-                      .boolean()
-                      .optional()
-                      .describe('Whether this field is required'),
-                    constraints: z
-                      .record(z.string(), z.unknown())
-                      .optional()
-                      .describe('Optional field constraints (min, max, options, etc.)'),
-                    default: z
-                      .unknown()
-                      .optional()
-                      .describe('Optional default value for the field')
-                  })
-                )
-                .optional()
-                .describe('Array of metadata field definitions'),
-              version: z.string().optional().describe('Optional schema version')
-            })
-            .optional()
-            .describe('Optional metadata schema definition'),
-          vault_id: z
-            .string()
-            .nullable()
-            .optional()
-            .describe('Optional vault ID to operate on')
-        })
-      },
-      list_note_types: {
-        inputSchema: z.object({
-          vault_id: z
-            .string()
-            .nullable()
-            .optional()
-            .describe('Optional vault ID to operate on')
-        })
-      },
-      get_note_type_info: {
-        inputSchema: z.object({
-          type_name: z.string().describe('Name of the note type to get information for'),
-          vault_id: z
-            .string()
-            .nullable()
-            .optional()
-            .describe('Optional vault ID to operate on')
-        })
-      },
-      update_note_type: {
-        inputSchema: z.object({
-          type_name: z.string().describe('Name of the note type to update'),
-          instructions: z
-            .string()
-            .optional()
-            .describe('New agent instructions for the note type'),
-          description: z
-            .string()
-            .optional()
-            .describe('New description for the note type'),
-          metadata_schema: z
-            .array(
-              z.object({
-                name: z.string().describe('Name of the metadata field'),
-                type: z
-                  .string()
-                  .describe(
-                    "Type: 'string', 'number', 'boolean', 'date', 'array', 'select'"
-                  ),
-                description: z
-                  .string()
-                  .optional()
-                  .describe('Optional description of the field'),
-                required: z
-                  .boolean()
-                  .optional()
-                  .describe('Whether this field is required'),
-                constraints: z
-                  .record(z.string(), z.unknown())
-                  .optional()
-                  .describe('Optional field constraints (min, max, options, etc.)'),
-                default: z
-                  .unknown()
-                  .optional()
-                  .describe('Optional default value for the field')
-              })
-            )
-            .optional()
-            .describe('Array of metadata field definitions'),
-          content_hash: z.string().describe('Content hash for optimistic locking'),
-          vault_id: z
-            .string()
-            .nullable()
-            .optional()
-            .describe('Optional vault ID to operate on')
-        })
-      },
-      delete_note_type: {
-        inputSchema: z.object({
-          type_name: z.string().describe('Name of the note type to delete'),
-          action: z.string().describe("Action: 'error', 'migrate', or 'delete'"),
-          target_type: z
-            .string()
-            .optional()
-            .describe('Target note type for migration (required when action is migrate)'),
-          confirm: z
-            .boolean()
-            .optional()
-            .describe('Explicit confirmation required for deletion')
-        })
-      },
-
-      // Vault Management Tools
-      get_current_vault: {
-        inputSchema: z.object({})
-      },
-      list_vaults: {
-        inputSchema: z.object({})
-      },
-
-      // Link Management Tools
-      get_note_links: {
-        inputSchema: z.object({
-          identifier: z.string().describe('Note identifier (type/filename format)')
-        })
-      },
-      get_backlinks: {
-        inputSchema: z.object({
-          identifier: z.string().describe('Note identifier (type/filename format)')
-        })
-      },
-      find_broken_links: {
-        inputSchema: z.object({})
-      }
-    };
   }
 
   private loadSystemPrompt(): string {
@@ -1514,17 +1087,11 @@ ${
 
       const messages: ModelMessage[] = [systemMessage, ...cachedHistory];
 
-      // @ts-ignore: mcpClient types not exported yet
-      const mcpTools = this.mcpClient
-        ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await (this.mcpClient as any).tools({
-            schemas: this.getFlintToolSchemas()
-          })
-        : {};
+      const tools = this.toolService.getTools();
       const result = await generateText({
         model: this.gateway(this.currentModelName),
         messages,
-        tools: mcpTools as any, // eslint-disable-line @typescript-eslint/no-explicit-any
+        tools,
         onStepFinish: (step) => {
           logger.info('AI step finished', { step });
         }
@@ -1622,25 +1189,6 @@ ${
     return [...this.getActiveConversationHistory()];
   }
 
-  private async initializeFlintMcpServer(): Promise<void> {
-    try {
-      // Use node directly instead of npx for better reliability in built apps
-      const serverPath = join(
-        __dirname,
-        '../../node_modules/@flint-note/server/dist/index.js'
-      );
-      this.mcpClient = await createMCPClient({
-        transport: new StdioMCPTransport({
-          command: 'node',
-          args: [serverPath]
-        })
-      });
-      logger.info('Flint MCP server initialized successfully');
-    } catch (error) {
-      logger.error('Failed to initialize Flint MCP server', { error });
-    }
-  }
-
   async sendMessageStream(
     userMessage: string,
     requestId: string,
@@ -1680,19 +1228,13 @@ ${
 
       this.emit('stream-start', { requestId });
 
-      // @ts-ignore: mcpClient types not exported yet
-      const mcpTools = this.mcpClient
-        ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await (this.mcpClient as any).tools({
-            schemas: this.getFlintToolSchemas()
-          })
-        : {};
+      const tools = this.toolService.getTools();
 
       try {
         const result = streamText({
           model: this.gateway(this.currentModelName),
           messages,
-          tools: mcpTools as any, // eslint-disable-line @typescript-eslint/no-explicit-any
+          tools,
           stopWhen: stepCountIs(10), // Allow up to 5 steps for multi-turn tool calling
           onStepFinish: (step) => {
             // Handle tool calls from step content (AI SDK might put them in different places)

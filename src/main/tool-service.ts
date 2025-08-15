@@ -1,4 +1,4 @@
-import { tool } from 'ai';
+import { Tool, tool } from 'ai';
 import { z } from 'zod';
 import { NoteService } from './note-service';
 import { logger } from './logger';
@@ -15,9 +15,9 @@ interface ToolResponse {
 export class ToolService {
   constructor(private noteService: NoteService | null) {}
 
-  getTools(): Record<string, unknown> {
+  getTools(): Record<string, Tool> | undefined {
     if (!this.noteService) {
-      return {};
+      return undefined;
     }
 
     return {
