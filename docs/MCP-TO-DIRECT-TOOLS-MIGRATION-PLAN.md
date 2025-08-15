@@ -101,12 +101,14 @@ const createNoteTool = tool({
 #### Current MCP Integration Points to Replace
 
 1. **MCP Client Initialization** (`src/main/ai-service.ts:99`)
+
    ```typescript
    // REMOVE: initializeFlintMcpServer()
    // REMOVE: mcpClient property and related code
    ```
 
 2. **Tool Schema Definition** (`src/main/ai-service.ts:124-544`)
+
    ```typescript
    // REMOVE: getFlintToolSchemas() method
    // REPLACE WITH: Direct tool definitions
@@ -121,6 +123,7 @@ const createNoteTool = tool({
 #### New Tool Service Architecture
 
 Create a new `ToolService` class that:
+
 1. Contains all tool definitions
 2. Provides a `getTools()` method that returns AI SDK tool objects
 3. Handles error mapping and response formatting consistently
@@ -129,16 +132,18 @@ Create a new `ToolService` class that:
 ```typescript
 class ToolService {
   constructor(private noteService: NoteService) {}
-  
+
   getTools() {
     return {
       create_note: this.createNoteTool,
-      get_note: this.getNoteTool,
+      get_note: this.getNoteTool
       // ... all other tools
     };
   }
-  
-  private createNoteTool = tool({ /* definition */ });
+
+  private createNoteTool = tool({
+    /* definition */
+  });
   // ... other tool definitions
 }
 ```
@@ -151,7 +156,7 @@ Replace MCP tool integration:
 
 ```typescript
 // BEFORE (MCP):
-const mcpTools = this.mcpClient 
+const mcpTools = this.mcpClient
   ? await (this.mcpClient as any).tools({
       schemas: this.getFlintToolSchemas()
     })
@@ -160,7 +165,7 @@ const mcpTools = this.mcpClient
 const result = await generateText({
   model: this.gateway(this.currentModelName),
   messages,
-  tools: mcpTools as any,
+  tools: mcpTools as any
   // ...
 });
 
@@ -170,7 +175,7 @@ const tools = this.toolService.getTools();
 const result = await generateText({
   model: this.gateway(this.currentModelName),
   messages,
-  tools,
+  tools
   // ...
 });
 ```
@@ -218,16 +223,19 @@ interface ToolResponse {
 ### Phase 5: Testing Strategy
 
 #### Unit Tests
+
 - Test each tool individually with mock Note Service
 - Test error conditions and edge cases
 - Validate tool input schemas
 
 #### Integration Tests
+
 - Test tool execution through AI Service
 - Test conversation flows with tool calls
 - Test error propagation and recovery
 
 #### Manual Testing
+
 - Create notes through AI assistant
 - Search and retrieve notes
 - Update and delete operations
@@ -236,16 +244,19 @@ interface ToolResponse {
 ### Phase 6: Cleanup and Documentation
 
 #### Code Removal
+
 1. Remove MCP client imports and dependencies
 2. Remove `initializeFlintMcpServer()` method
 3. Remove `getFlintToolSchemas()` method
 4. Clean up unused MCP-related properties
 
 #### Package Dependencies
+
 - Remove MCP-related dependencies from package.json
 - Update dependency tree
 
 #### Documentation Updates
+
 - Update ARCHITECTURE.md to reflect new tool architecture
 - Add tool documentation with examples
 - Update development guides
@@ -253,6 +264,7 @@ interface ToolResponse {
 ## Implementation Checklist
 
 ### Core Implementation
+
 - [ ] Create ToolService class with all tool definitions
 - [ ] Update AI Service constructor to use ToolService
 - [ ] Replace MCP tool usage in sendMessage()
@@ -261,6 +273,7 @@ interface ToolResponse {
 - [ ] Update error handling for direct tool calls
 
 ### Tool Implementations (19 tools total)
+
 - [ ] create_note (handles both single and batch creation)
 - [ ] get_note
 - [ ] get_notes
@@ -282,6 +295,7 @@ interface ToolResponse {
 - [ ] find_broken_links
 
 ### Testing & Validation
+
 - [ ] Unit tests for all tools
 - [ ] Integration tests for AI Service
 - [ ] Manual testing of core workflows
@@ -289,6 +303,7 @@ interface ToolResponse {
 - [ ] Error handling validation
 
 ### Cleanup & Documentation
+
 - [ ] Remove MCP dependencies and code
 - [ ] Update architecture documentation
 - [ ] Update CLAUDE.md with new development info
@@ -297,11 +312,13 @@ interface ToolResponse {
 ## Risk Mitigation
 
 ### Potential Issues
+
 1. **Tool Schema Mismatches**: Current MCP schemas might not translate exactly to AI SDK format
 2. **Error Handling Changes**: Different error propagation patterns between MCP and direct calls
 3. **Performance Differences**: Direct calls might have different performance characteristics
 
 ### Mitigation Strategies
+
 1. **Gradual Migration**: Implement and test tools incrementally
 2. **Feature Flags**: Add configuration to switch between MCP and direct tools during testing
 3. **Comprehensive Testing**: Test all tool combinations and edge cases
@@ -318,7 +335,7 @@ interface ToolResponse {
 ## Timeline Estimate
 
 - **Phase 1-2 (Core Implementation)**: 2-3 days
-- **Phase 3-4 (Integration & Testing)**: 2-3 days  
+- **Phase 3-4 (Integration & Testing)**: 2-3 days
 - **Phase 5-6 (Testing & Cleanup)**: 1-2 days
 
 **Total Estimated Time**: 5-8 days
