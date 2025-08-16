@@ -93,6 +93,7 @@ The application uses modern Svelte 5 runes for reactive state management:
 - Draggable area for window management
 - Platform detection for appropriate styling
 - Integrated hamburger menu and vault switcher in title bar
+- AI assistant toggle button positioned on the right side for easy access with visual indicator for active state
 
 **Cross-Platform Compatibility:**
 
