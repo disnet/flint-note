@@ -20,7 +20,7 @@ interface FrontendMessage {
 function createWindow(): void {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
-    width: 1800,
+    width: 1500,
     height: 900,
     show: false,
     autoHideMenuBar: true,
