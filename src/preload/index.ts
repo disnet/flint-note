@@ -17,7 +17,7 @@ interface CacheConfig {
   historySegmentSize: number;
 }
 
-import { NoteMetadata } from '@flint-note/server';
+import type { NoteMetadata } from '@flint-note/server';
 
 export type ToolCallData = {
   toolCallId: string;

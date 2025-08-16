@@ -6,7 +6,7 @@ import { AIService } from './ai-service';
 import { NoteService } from './note-service';
 import { SecureStorageService } from './secure-storage-service';
 import type { MetadataSchema } from '@flint-note/server/dist/core/metadata-schema';
-import { NoteMetadata } from '@flint-note/server';
+import type { NoteMetadata } from '@flint-note/server';
 import { logger } from './logger';
 
 interface FrontendMessage {

@@ -1,4 +1,4 @@
-import { FlintNoteApi } from '@flint-note/server';
+import { FlintNoteApi } from '@flint-note/server/dist/api';
 import type {
   NoteInfo,
   Note,
