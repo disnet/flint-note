@@ -4,6 +4,7 @@
   import RightSidebar from './components/RightSidebar.svelte';
   import CreateNoteModal from './components/CreateNoteModal.svelte';
   import SearchOverlay from './components/SearchOverlay.svelte';
+  import VaultSwitcher from './components/VaultSwitcher.svelte';
   import type { Message } from './services/types';
   import type { NoteMetadata } from './services/noteStore.svelte';
   import { getChatService } from './services/chatService';
@@ -122,6 +123,13 @@
       throw error; // Re-throw so the UI can handle it
     }
   }
+
+  // Platform detection setup
+  $effect(() => {
+    // Set data attribute for platform detection
+    const isMacOS = navigator.platform.includes('Mac');
+    document.documentElement.setAttribute('data-platform', isMacOS ? 'macos' : 'other');
+  });
 
   // Global keyboard shortcuts
   $effect(() => {
@@ -302,16 +310,50 @@
       notesStore.refresh();
     }
   }
+
+  function toggleLeftSidebar(): void {
+    sidebarState.toggleLeftSidebar();
+  }
 </script>
 
 <div class="app" class:three-column={sidebarState.layout === 'three-column'}>
+  <!-- Custom title bar with drag region -->
+  <div class="title-bar">
+    <div class="title-bar-content">
+      <!-- Traffic light spacing for macOS -->
+      <div class="traffic-light-spacer"></div>
+      <div class="title-bar-left">
+        <button
+          class="hamburger-button"
+          onclick={toggleLeftSidebar}
+          aria-label="Toggle sidebar"
+        >
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+        </button>
+        <VaultSwitcher onNoteClose={closeNoteEditor} />
+      </div>
+      <div class="title-bar-center"></div>
+      <div class="title-bar-controls"></div>
+    </div>
+  </div>
+
   <div class="app-layout">
     <LeftSidebar
       {activeNote}
       {activeSystemView}
       onNoteSelect={handleNoteSelect}
       onSystemViewSelect={handleSystemViewSelect}
-      onNoteClose={closeNoteEditor}
     />
 
     <MainView
@@ -357,11 +399,77 @@
     transition:
       background-color 0.2s ease,
       color 0.2s ease;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .title-bar {
+    height: 38px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-light);
+    -webkit-app-region: drag;
+    user-select: none;
+    flex-shrink: 0;
+  }
+
+  .title-bar-content {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    padding: 0;
+  }
+
+  .traffic-light-spacer {
+    width: 80px;
+    height: 100%;
+    flex-shrink: 0;
+    -webkit-app-region: no-drag;
+  }
+
+  .title-bar-left {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-shrink: 0;
+    -webkit-app-region: no-drag;
+  }
+
+  .hamburger-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.25rem;
+    border: none;
+    border-radius: 0.375rem;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .hamburger-button:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+  }
+
+  .title-bar-center {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .title-bar-controls {
+    width: 80px;
+    height: 100%;
+    flex-shrink: 0;
+    -webkit-app-region: no-drag;
   }
 
   .app-layout {
     display: grid;
-    height: 100vh;
+    flex: 1;
+    min-height: 0;
   }
 
   /* Three column layout for desktop - pure CSS responsive to sidebar visibility */
@@ -382,5 +490,15 @@
     .app.three-column .app-layout {
       grid-template-columns: 1fr;
     }
+  }
+
+  /* By default hide the title bar, will be shown by JS on macOS */
+  .title-bar {
+    display: none;
+  }
+
+  /* Show title bar on macOS when the CSS variable is set */
+  :global(html[data-platform='macos']) .title-bar {
+    display: block;
   }
 </style>

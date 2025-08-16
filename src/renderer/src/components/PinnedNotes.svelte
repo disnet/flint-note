@@ -137,7 +137,13 @@
 </script>
 
 <div class="pinned-notes">
-  <div class="section-header">
+  <div
+    class="section-header"
+    onclick={toggleCollapsed}
+    onkeydown={(e) => e.key === 'Enter' && toggleCollapsed()}
+    role="button"
+    tabindex="0"
+  >
     <button
       class="collapse-toggle"
       onclick={toggleCollapsed}
@@ -231,8 +237,8 @@
   .section-header {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.3rem 1.65rem;
+    gap: 0.1rem;
+    padding: 0.3rem 0.25rem;
     background: var(--bg-secondary);
     color: var(--text-muted);
   }
@@ -266,7 +272,7 @@
   .pinned-list {
     display: flex;
     flex-direction: column;
-    padding: 0 1.25rem;
+    padding: 0 0.75rem;
   }
 
   .pinned-item {

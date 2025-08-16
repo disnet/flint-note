@@ -196,12 +196,10 @@
 
   .tabs-header {
     display: flex;
-    align-items: row;
     justify-content: space-between;
     align-items: center;
     gap: 0.4rem;
-    padding: 0;
-    padding: 0.5rem 1.65rem;
+    padding: 0.5rem 0.75rem;
   }
 
   .clear-all {
@@ -221,7 +219,7 @@
   }
 
   .tabs-list {
-    padding: 0 1.25rem;
+    padding: 0 0.75rem;
   }
 
   .tab-item {

@@ -120,7 +120,7 @@
   .system-nav {
     display: flex;
     flex-direction: column;
-    padding: 0.5rem 1.25rem;
+    padding: 0.5rem 0.75rem;
   }
 
   .nav-item {

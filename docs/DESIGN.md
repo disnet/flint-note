@@ -8,11 +8,13 @@ This document describes the current architecture and design of the Flint GUI, a 
 
 ### Core Layout System
 
-The application uses a responsive three-column grid layout:
+The application uses a responsive three-column grid layout with a custom title bar on macOS for a native feel:
 
 ```
-Desktop Layout (>1400px):
+Desktop Layout (>1400px) with Custom Title Bar:
 ┌─────────────────────────────────────────┐
+│ Custom Title Bar (macOS traffic lights) │
+├─────────────────────────────────────────┤
 │ Left Sidebar │ Main View │ Right Sidebar │
 │ (Navigation) │ (Editor)  │ (AI/Metadata) │
 │             │           │               │
@@ -24,6 +26,8 @@ Desktop Layout (>1400px):
 
 Mobile Layout (<768px):
 ┌─────────────────────────┐
+│ Custom Title Bar        │
+├─────────────────────────┤
 │ Main View (Full Width)  │
 │ Sidebars as overlays    │
 └─────────────────────────┘
@@ -35,17 +39,19 @@ Mobile Layout (<768px):
 
 **App.svelte** - Root application component with state management and event handling
 
+- Custom title bar with macOS traffic light integration
 - Three-column responsive grid layout
+- Platform-specific styling and behavior
 - Global keyboard shortcuts (Ctrl+N, Ctrl+O)
 - Message passing between AI service and UI
 - Note navigation and temporary tab management
 
 **LeftSidebar.svelte** - Primary navigation hub
 
-- `VaultSwitcher` component for vault selection
 - `SystemViews` component (Inbox, All notes, Search, Settings)
 - `PinnedNotes` component with visual note type indicators
 - `TemporaryTabs` component with Arc-style tab management
+- Clean, minimal layout focused purely on content sections
 
 **MainView.svelte** - Central note editing interface
 
@@ -78,11 +84,27 @@ The application uses modern Svelte 5 runes for reactive state management:
 
 ## Key Features
 
-### 1. Sidebar-Based Navigation
+### 1. Custom Title Bar Integration
+
+**Native macOS Experience:**
+
+- Hidden Electron title bar with custom implementation
+- Proper traffic light button positioning and spacing
+- Draggable area for window management
+- Platform detection for appropriate styling
+- Integrated hamburger menu and vault switcher in title bar
+
+**Cross-Platform Compatibility:**
+
+- Automatic detection of macOS vs other platforms
+- Platform-specific CSS styling via data attributes
+- Fallback behavior for non-macOS systems
+- Consistent interface regardless of platform
+
+### 2. Sidebar-Based Navigation
 
 **Left Sidebar Structure:**
 
-- **Header**: Hamburger menu toggle and vault switcher
 - **System Views**:
   - Inbox for quick note capture
   - All notes with hierarchical organization

@@ -175,24 +175,22 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.5rem 0.75rem;
+    padding: 0.25rem 0.5rem;
     border: 1px solid var(--border-light);
-    border-radius: 0.5rem;
+    border-radius: 0.375rem;
     background: var(--bg-secondary);
     color: var(--text-primary);
-    font-size: 0.875rem;
+    font-size: 0.8125rem;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s ease;
-    min-width: 140px;
-    box-shadow: 0 1px 2px var(--shadow-light);
+    min-width: 120px;
+    height: 24px;
   }
 
   .vault-button:hover:not(:disabled) {
     background: var(--bg-tertiary);
     border-color: var(--border-medium);
-    box-shadow: 0 2px 4px var(--shadow-medium);
-    transform: translateY(-1px);
   }
 
   .vault-button:disabled {
@@ -201,7 +199,7 @@
   }
 
   .vault-icon {
-    font-size: 1rem;
+    font-size: 0.875rem;
     opacity: 0.8;
     filter: grayscale(0.2);
   }
@@ -215,7 +213,7 @@
   }
 
   .dropdown-arrow {
-    font-size: 0.75rem;
+    font-size: 0.6875rem;
     transition: transform 0.2s ease;
     opacity: 0.7;
   }
