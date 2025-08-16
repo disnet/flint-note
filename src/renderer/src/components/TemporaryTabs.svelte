@@ -143,23 +143,6 @@
           onkeydown={(e) => e.key === 'Enter' && handleTabClick(tab.noteId)}
         >
           <div class="tab-content">
-            <div class="drag-handle">
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <circle cx="9" cy="12" r="1"></circle>
-                <circle cx="15" cy="12" r="1"></circle>
-                <circle cx="9" cy="5" r="1"></circle>
-                <circle cx="15" cy="5" r="1"></circle>
-                <circle cx="9" cy="19" r="1"></circle>
-                <circle cx="15" cy="19" r="1"></circle>
-              </svg>
-            </div>
             <div class="tab-icon">
               <!-- eslint-disable-next-line svelte/no-at-html-tags -->
               {@html getSourceIcon(tab.source)}

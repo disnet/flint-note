@@ -336,16 +336,6 @@ export function handleCrossSectionDrop(
       onclick={() => handleNoteClick(note)}
       title={note.title}
     >
-      <div class="drag-handle">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="9" cy="12" r="1"></circle>
-          <circle cx="15" cy="12" r="1"></circle>
-          <circle cx="9" cy="5" r="1"></circle>
-          <circle cx="15" cy="5" r="1"></circle>
-          <circle cx="9" cy="19" r="1"></circle>
-          <circle cx="15" cy="19" r="1"></circle>
-        </svg>
-      </div>
       <div class="note-icon">
         {@html getIconSvg(getNoteIcon(note))}
       </div>
@@ -413,9 +403,6 @@ export function handleCrossSectionDrop(
     ondragend={onDragEnd}
     onclick={() => handleTabClick(tab.noteId)}
   >
-    <div class="drag-handle">
-      <!-- Drag handle icon -->
-    </div>
     <!-- ... existing tab content -->
   </div>
 {/each}
