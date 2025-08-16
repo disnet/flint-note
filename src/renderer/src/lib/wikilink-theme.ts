@@ -8,7 +8,7 @@ export const wikilinkTheme = EditorView.theme({
     cursor: 'pointer',
     display: 'inline-flex',
     alignItems: 'center',
-    padding: '0.125rem 0.375rem',
+    padding: '0 0.175rem',
     margin: '0 0.125rem',
     borderRadius: '0.25rem',
     fontSize: 'inherit',
