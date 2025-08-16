@@ -117,6 +117,7 @@
           class:drag-over-bottom={dragState.dragOverIndex === index &&
             dragState.dragOverSection === 'temporary' &&
             dragState.dragOverPosition === 'bottom'}
+          data-id={tab.id}
           draggable="true"
           ondragstart={(e) => onDragStart(e, tab)}
           ondragover={(e) => onDragOver(e, index, e.currentTarget)}

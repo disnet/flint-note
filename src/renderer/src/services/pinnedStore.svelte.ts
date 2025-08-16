@@ -113,6 +113,7 @@ class PinnedNotesStore {
 
   reorderNotes(sourceIndex: number, targetIndex: number): void {
     const notes = [...this.state.notes].sort((a, b) => a.order - b.order);
+    const movedNote = notes[sourceIndex];
     const [removed] = notes.splice(sourceIndex, 1);
     notes.splice(targetIndex, 0, removed);
 
@@ -123,6 +124,19 @@ class PinnedNotesStore {
 
     this.state.notes = notes;
     this.saveToStorage();
+
+    // Trigger animation after DOM update
+    if (movedNote && typeof window !== 'undefined') {
+      import('../utils/dragDrop.svelte.js')
+        .then(({ animateReorder }) => {
+          setTimeout(() => {
+            animateReorder('.pinned-list', sourceIndex, targetIndex, movedNote.id);
+          }, 10);
+        })
+        .catch(() => {
+          // Silently fail if animation utilities aren't available
+        });
+    }
   }
 
   addNoteAtPosition(note: PinnedNoteInfo, targetIndex?: number): void {
@@ -138,6 +152,17 @@ class PinnedNotesStore {
 
     this.state.notes = notes;
     this.saveToStorage();
+
+    // Trigger animation for newly added note
+    if (typeof window !== 'undefined') {
+      import('../utils/dragDrop.svelte.js')
+        .then(({ animateItemAdd }) => {
+          animateItemAdd(note.id, '.pinned-list');
+        })
+        .catch(() => {
+          // Silently fail if animation utilities aren't available
+        });
+    }
   }
 
   clear(): void {

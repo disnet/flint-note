@@ -171,6 +171,7 @@
           class:drag-over-bottom={dragState.dragOverIndex === index &&
             dragState.dragOverSection === 'pinned' &&
             dragState.dragOverPosition === 'bottom'}
+          data-id={note.id}
           draggable="true"
           ondragstart={(e) => onDragStart(e, note)}
           ondragover={(e) => onDragOver(e, index, e.currentTarget)}

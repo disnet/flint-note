@@ -88,3 +88,69 @@ export function calculateDropIndex(
 
   return dropIndex;
 }
+
+/**
+ * Add animation classes to elements that moved during reordering
+ */
+export function animateReorder(
+  containerSelector: string,
+  sourceIndex: number,
+  targetIndex: number,
+  movedItemId: string
+): void {
+  const container = document.querySelector(containerSelector);
+  if (!container) return;
+
+  const items = container.querySelectorAll('.pinned-item, .tab-item');
+
+  // Determine animation direction
+  const movingUp = sourceIndex > targetIndex;
+
+  // Add animation to the moved item
+  const movedItem = container.querySelector(`[data-id="${movedItemId}"]`);
+  if (movedItem) {
+    movedItem.classList.add('fade-in');
+    setTimeout(() => {
+      movedItem.classList.remove('fade-in');
+    }, 300);
+  }
+
+  // Add animation to affected items
+  items.forEach((item, index) => {
+    const element = item as HTMLElement;
+
+    // Skip the moved item itself
+    if (element.dataset.id === movedItemId) return;
+
+    // Animate items that were displaced
+    if (movingUp && index >= targetIndex && index < sourceIndex) {
+      element.classList.add('moving-down');
+      setTimeout(() => {
+        element.classList.remove('moving-down');
+      }, 300);
+    } else if (!movingUp && index > sourceIndex && index <= targetIndex) {
+      element.classList.add('moving-up');
+      setTimeout(() => {
+        element.classList.remove('moving-up');
+      }, 300);
+    }
+  });
+}
+
+/**
+ * Add a subtle pulse animation to newly added items
+ */
+export function animateItemAdd(itemId: string, containerSelector: string): void {
+  setTimeout(() => {
+    const container = document.querySelector(containerSelector);
+    if (!container) return;
+
+    const item = container.querySelector(`[data-id="${itemId}"]`);
+    if (item) {
+      item.classList.add('fade-in');
+      setTimeout(() => {
+        item.classList.remove('fade-in');
+      }, 300);
+    }
+  }, 50); // Small delay to ensure DOM is updated
+}

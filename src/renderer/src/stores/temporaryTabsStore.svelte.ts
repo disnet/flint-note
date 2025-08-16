@@ -180,6 +180,7 @@ class TemporaryTabsStore {
 
   reorderTabs(sourceIndex: number, targetIndex: number): void {
     const tabs = [...this.state.tabs].sort((a, b) => a.order - b.order);
+    const movedTab = tabs[sourceIndex];
     const [removed] = tabs.splice(sourceIndex, 1);
     tabs.splice(targetIndex, 0, removed);
 
@@ -190,6 +191,19 @@ class TemporaryTabsStore {
 
     this.state.tabs = tabs;
     this.saveToStorage();
+
+    // Trigger animation after DOM update
+    if (movedTab && typeof window !== 'undefined') {
+      import('../utils/dragDrop.svelte.js')
+        .then(({ animateReorder }) => {
+          setTimeout(() => {
+            animateReorder('.tabs-list', sourceIndex, targetIndex, movedTab.id);
+          }, 10);
+        })
+        .catch(() => {
+          // Silently fail if animation utilities aren't available
+        });
+    }
   }
 
   private migrateTabsWithoutOrder(tabs: TemporaryTab[]): TemporaryTab[] {
