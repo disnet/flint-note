@@ -16,10 +16,14 @@ import type {
   CoreNoteTypeInfo as NoteTypeInfo
 } from '@flint-note/server/dist/api/types';
 import type { ExternalLinkRow } from '@flint-note/server/dist/database/schema';
-import type { MetadataSchema } from '@flint-note/server/dist/core/metadata-schema';
+import type {
+  MetadataFieldDefinition,
+  MetadataSchema
+} from '@flint-note/server/dist/core/metadata-schema';
 import { notesStore } from './noteStore.svelte';
 import { unifiedChatStore } from '../stores/unifiedChatStore.svelte';
 import type { GetNoteTypeInfoResult } from '@flint-note/server/dist/server/types';
+import type { NoteTypeDescription } from '@flint-note/server/dist/core/note-types';
 
 // Cache monitoring interfaces
 interface CacheConfig {
@@ -365,6 +369,21 @@ export class ElectronChatService implements ChatService, NoteService {
     } catch (error) {
       console.error('Failed to get note type info:', error);
       throw new Error('Failed to get note type info. Please try again.');
+    }
+  }
+
+  async updateNoteType(params: {
+    typeName: string;
+    description?: string;
+    instructions?: string;
+    metadataSchema?: MetadataFieldDefinition[];
+    vaultId?: string;
+  }): Promise<NoteTypeDescription> {
+    try {
+      return await window.api.updateNoteType(params);
+    } catch (error) {
+      console.error('Failed to update note type:', error);
+      throw new Error('Failed to update note type. Please try again.');
     }
   }
 

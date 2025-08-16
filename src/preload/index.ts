@@ -1,6 +1,9 @@
 import { contextBridge } from 'electron';
 import { electronAPI } from '@electron-toolkit/preload';
-import { MetadataSchema } from '@flint-note/server/dist/core/metadata-schema';
+import {
+  MetadataFieldDefinition,
+  MetadataSchema
+} from '@flint-note/server/dist/core/metadata-schema';
 
 interface FrontendMessage {
   id: string;
@@ -129,6 +132,13 @@ const api = {
   }) => electronAPI.ipcRenderer.invoke('create-note-type', params),
   getNoteTypeInfo: (params: { typeName: string; vaultId?: string }) =>
     electronAPI.ipcRenderer.invoke('get-note-type-info', params),
+  updateNoteType: (params: {
+    typeName: string;
+    description?: string;
+    instructions?: string;
+    metadataSchema?: MetadataFieldDefinition[];
+    vaultId?: string;
+  }) => electronAPI.ipcRenderer.invoke('update-note-type', params),
   listNotesByType: (params: { type: string; vaultId?: string; limit?: number }) =>
     electronAPI.ipcRenderer.invoke('list-notes-by-type', params),
 

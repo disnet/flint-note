@@ -15,8 +15,12 @@ import type {
   CoreNoteTypeInfo as NoteTypeInfo
 } from '@flint-note/server/dist/api/types';
 import type { ExternalLinkRow } from '@flint-note/server/dist/database/schema';
-import type { MetadataSchema } from '@flint-note/server/dist/core/metadata-schema';
+import type {
+  MetadataFieldDefinition,
+  MetadataSchema
+} from '@flint-note/server/dist/core/metadata-schema';
 import type { GetNoteTypeInfoResult } from '@flint-note/server/dist/server/types';
+import type { NoteTypeDescription } from '@flint-note/server/dist/core/note-types';
 
 export interface ToolCall {
   id: string;
@@ -116,6 +120,13 @@ export interface NoteService {
     typeName: string;
     vaultId?: string;
   }): Promise<GetNoteTypeInfoResult>;
+  updateNoteType(params: {
+    typeName: string;
+    description?: string;
+    instructions?: string;
+    metadataSchema?: MetadataFieldDefinition[];
+    vaultId?: string;
+  }): Promise<NoteTypeDescription>;
   listNotesByType(params: {
     type: string;
     vaultId?: string;

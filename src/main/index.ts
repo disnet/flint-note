@@ -5,7 +5,10 @@ import icon from '../../resources/icon.png?asset';
 import { AIService } from './ai-service';
 import { NoteService } from './note-service';
 import { SecureStorageService } from './secure-storage-service';
-import type { MetadataSchema } from '@flint-note/server/dist/core/metadata-schema';
+import type {
+  MetadataFieldDefinition,
+  MetadataSchema
+} from '@flint-note/server/dist/core/metadata-schema';
 import type { NoteMetadata } from '@flint-note/server';
 import { logger } from './logger';
 
@@ -514,6 +517,25 @@ app.whenReady().then(async () => {
         type_name: params.typeName,
         vault_id: params.vaultId
       });
+    }
+  );
+
+  ipcMain.handle(
+    'update-note-type',
+    async (
+      _event,
+      params: {
+        typeName: string;
+        description?: string;
+        instructions?: string;
+        metadataSchema?: MetadataFieldDefinition[];
+        vaultId?: string;
+      }
+    ) => {
+      if (!noteService) {
+        throw new Error('Note service not available');
+      }
+      return await noteService.updateNoteType(params);
     }
   );
 

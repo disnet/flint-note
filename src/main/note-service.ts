@@ -17,9 +17,13 @@ import type {
   CoreNoteTypeInfo as NoteTypeInfo
 } from '@flint-note/server/dist/api/types';
 import type { ExternalLinkRow } from '@flint-note/server/dist/database/schema';
-import type { MetadataSchema } from '@flint-note/server/dist/core/metadata-schema';
+import type {
+  MetadataFieldDefinition,
+  MetadataSchema
+} from '@flint-note/server/dist/core/metadata-schema';
 import { logger } from './logger';
 import { GetNoteTypeInfoResult } from '@flint-note/server/dist/server/types';
+import { NoteTypeDescription } from '@flint-note/server/dist/core/note-types';
 
 export class NoteService {
   private api: FlintNoteApi;
@@ -216,6 +220,29 @@ export class NoteService {
   async getNoteTypeInfo(args: GetNoteTypeInfoArgs): Promise<GetNoteTypeInfoResult> {
     this.ensureInitialized();
     return await this.api.getNoteTypeInfo(args);
+  }
+
+  async updateNoteType(params: {
+    typeName: string;
+    description?: string;
+    instructions?: string;
+    metadataSchema?: MetadataFieldDefinition[];
+    vaultId?: string;
+  }): Promise<NoteTypeDescription> {
+    this.ensureInitialized();
+    const existingNoteType = await this.getNoteTypeInfo({
+      type_name: params.typeName,
+      vault_id: params.vaultId
+    });
+    // For now, just return what the API gives us
+    return await this.api.updateNoteType({
+      type_name: params.typeName,
+      content_hash: existingNoteType.content_hash,
+      description: params.description,
+      instructions: params.instructions,
+      metadata_schema: params.metadataSchema,
+      vault_id: params.vaultId
+    });
   }
 
   async listNotesByType(
