@@ -31,7 +31,8 @@
         (note) =>
           note.title.toLowerCase().includes(query) ||
           note.filename.toLowerCase().includes(query) ||
-          note.tags.some((tag) => tag.toLowerCase().includes(query))
+          (Array.isArray(note.tags) &&
+            note.tags.some((tag) => tag.toLowerCase().includes(query)))
       )
       .sort((a, b) => {
         // Prioritize title matches over filename matches
