@@ -122,7 +122,7 @@ function findNoteByIdentifier(
 /**
  * Autocomplete function for wikilinks
  */
-function wikilinkCompletion(context: CompletionContext): CompletionResult | null {
+export function wikilinkCompletion(context: CompletionContext): CompletionResult | null {
   const word = context.matchBefore(/\[\[([^\]]*)/);
 
   if (!word) return null;
@@ -317,7 +317,12 @@ function decorateWikilinks(state: EditorState): DecorationSet {
 /**
  * Extension that adds wikilink support to CodeMirror
  */
-export function wikilinksExtension(clickHandler: WikilinkClickHandler): Extension {
+/**
+ * Wikilinks extension without autocomplete (for use when combining with other autocomplete sources)
+ */
+export function wikilinksWithoutAutocomplete(
+  clickHandler: WikilinkClickHandler
+): Extension {
   return [
     wikilinkTheme,
     wikilinkHandlerField.init(() => clickHandler),
@@ -348,15 +353,22 @@ export function wikilinksExtension(clickHandler: WikilinkClickHandler): Extensio
         return RangeSet.empty;
       }
     }),
-    autocompletion({
-      override: [wikilinkCompletion]
-    }),
     EditorView.updateListener.of((update) => {
       if (update.view.state.field(wikilinkHandlerField) !== clickHandler) {
         update.view.dispatch({
           effects: setWikilinkHandler.of(clickHandler)
         });
       }
+    })
+  ];
+}
+
+export function wikilinksExtension(clickHandler: WikilinkClickHandler): Extension {
+  const baseExtensions = wikilinksWithoutAutocomplete(clickHandler);
+  return [
+    ...(Array.isArray(baseExtensions) ? baseExtensions : [baseExtensions]),
+    autocompletion({
+      override: [wikilinkCompletion]
     })
   ];
 }

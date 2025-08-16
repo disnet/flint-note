@@ -4,6 +4,9 @@
     type SlashCommand,
     type SlashCommandParameter
   } from '../stores/slashCommandsStore.svelte';
+  import TemplateParameterInput from './TemplateParameterInput.svelte';
+  import { validateTemplate } from '../lib/templateParameters.svelte';
+  import { notesStore } from '../services/noteStore.svelte';
 
   let editingCommand = $state<SlashCommand | null>(null);
   let isCreatingNew = $state(false);
@@ -97,6 +100,43 @@
       parametersList[index] = { ...parametersList[index], [field]: value };
     }
   }
+
+  function handleParameterSuggestion(
+    parametersList: SlashCommandParameter[],
+    parameterName: string,
+    suggestedType: string
+  ): void {
+    const newParameter: SlashCommandParameter = {
+      id: crypto.randomUUID(),
+      name: parameterName,
+      type: suggestedType as 'text' | 'number' | 'selection' | 'textblock',
+      required: false,
+      defaultValue: '',
+      description: ''
+    };
+    parametersList.push(newParameter);
+  }
+
+  // Reactive validation for both forms
+  let newCommandValidation = $derived(
+    validateTemplate(newCommandInstruction, newCommandParameters)
+  );
+  let editCommandValidation = $derived(
+    validateTemplate(editCommandInstruction, editCommandParameters)
+  );
+
+  function handleWikilinkClick(noteId: string, _title: string): void {
+    // Find the note in the notes store
+    const clickedNote = notesStore.notes.find((n) => n.id === noteId);
+    if (clickedNote) {
+      // Dispatch a custom event to navigate to the linked note
+      const event = new CustomEvent('wikilink-navigate', {
+        detail: { note: clickedNote },
+        bubbles: true
+      });
+      document.dispatchEvent(event);
+    }
+  }
 </script>
 
 <div class="slash-commands">
@@ -133,12 +173,16 @@
         </div>
         <div class="form-group">
           <label for="new-instruction">Instruction</label>
-          <textarea
-            id="new-instruction"
+          <TemplateParameterInput
             bind:value={newCommandInstruction}
+            parameters={newCommandParameters}
             placeholder="Enter the prompt/instruction for this command... Use {'{parameterName}'} for parameters."
-            rows="3"
-          ></textarea>
+            rows={3}
+            onValueChange={(value) => (newCommandInstruction = value)}
+            onParameterSuggestion={(name, type) =>
+              handleParameterSuggestion(newCommandParameters, name, type)}
+            onWikilinkClick={handleWikilinkClick}
+          />
         </div>
 
         <div class="form-group">
@@ -165,7 +209,43 @@
           </div>
 
           {#each newCommandParameters as parameter, index (parameter.id)}
-            <div class="parameter-config">
+            <div
+              class="parameter-config"
+              class:unused={!newCommandValidation.usedParameters.includes(parameter.name)}
+            >
+              <div class="parameter-usage-indicator">
+                {#if newCommandValidation.usedParameters.includes(parameter.name)}
+                  <span class="used-indicator">
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <polyline points="20,6 9,17 4,12"></polyline>
+                    </svg>
+                    Used in template
+                  </span>
+                {:else}
+                  <span class="unused-indicator">
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <line x1="15" y1="9" x2="9" y2="15"></line>
+                      <line x1="9" y1="9" x2="15" y2="15"></line>
+                    </svg>
+                    Not used in template
+                  </span>
+                {/if}
+              </div>
               <div class="parameter-row">
                 <input
                   type="text"
@@ -289,12 +369,16 @@
             </div>
             <div class="form-group">
               <label for="edit-instruction">Instruction</label>
-              <textarea
-                id="edit-instruction"
+              <TemplateParameterInput
                 bind:value={editCommandInstruction}
-                rows="3"
+                parameters={editCommandParameters}
                 placeholder="Use {'{parameterName}'} for parameters."
-              ></textarea>
+                rows={3}
+                onValueChange={(value) => (editCommandInstruction = value)}
+                onParameterSuggestion={(name, type) =>
+                  handleParameterSuggestion(editCommandParameters, name, type)}
+                onWikilinkClick={handleWikilinkClick}
+              />
             </div>
 
             <div class="form-group">
@@ -321,7 +405,45 @@
               </div>
 
               {#each editCommandParameters as parameter, index (parameter.id)}
-                <div class="parameter-config">
+                <div
+                  class="parameter-config"
+                  class:unused={!editCommandValidation.usedParameters.includes(
+                    parameter.name
+                  )}
+                >
+                  <div class="parameter-usage-indicator">
+                    {#if editCommandValidation.usedParameters.includes(parameter.name)}
+                      <span class="used-indicator">
+                        <svg
+                          width="12"
+                          height="12"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                        >
+                          <polyline points="20,6 9,17 4,12"></polyline>
+                        </svg>
+                        Used in template
+                      </span>
+                    {:else}
+                      <span class="unused-indicator">
+                        <svg
+                          width="12"
+                          height="12"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                        >
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <line x1="15" y1="9" x2="9" y2="15"></line>
+                          <line x1="9" y1="9" x2="15" y2="15"></line>
+                        </svg>
+                        Not used in template
+                      </span>
+                    {/if}
+                  </div>
                   <div class="parameter-row">
                     <input
                       type="text"
@@ -638,8 +760,7 @@
     color: var(--text-primary);
   }
 
-  .form-group input,
-  .form-group textarea {
+  .form-group input {
     width: 100%;
     padding: 0.5rem 0.75rem;
     border: 1px solid var(--border-light);
@@ -651,16 +772,9 @@
     transition: border-color 0.2s ease;
   }
 
-  .form-group input:focus,
-  .form-group textarea:focus {
+  .form-group input:focus {
     outline: none;
     border-color: var(--accent);
-  }
-
-  .form-group textarea {
-    resize: vertical;
-    min-height: 80px;
-    font-family: inherit;
   }
 
   .form-actions {
@@ -753,6 +867,37 @@
     border: 1px solid var(--border-light);
     border-radius: 0.375rem;
     background: var(--bg-tertiary);
+  }
+
+  .parameter-config.unused {
+    border-color: var(--warning);
+    background: var(--warning-light);
+  }
+
+  .parameter-usage-indicator {
+    margin-bottom: 0.5rem;
+    font-size: 0.75rem;
+  }
+
+  .used-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    color: var(--success);
+    font-weight: 500;
+  }
+
+  .unused-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    color: var(--warning);
+    font-weight: 500;
+  }
+
+  .used-indicator svg,
+  .unused-indicator svg {
+    flex-shrink: 0;
   }
 
   .parameter-row {

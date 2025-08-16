@@ -4,6 +4,8 @@
     type SlashCommand
   } from '../stores/slashCommandsStore.svelte';
   import TextBlockEditor from './TextBlockEditor.svelte';
+  import WikilinkTextInput from './WikilinkTextInput.svelte';
+  import { notesStore } from '../services/noteStore.svelte';
 
   interface Props {
     query: string;
@@ -20,6 +22,7 @@
   let currentParameterIndex = $state(0);
   let firstParameterInput: HTMLInputElement | HTMLSelectElement | null = null;
   let textBlockEditors = $state<Record<string, { focus: () => void }>>({});
+  let wikilinkTextInputs = $state<Record<string, { focus: () => void }>>({});
 
   // Action to capture first parameter input for focus
   function focusFirstParameter(
@@ -116,6 +119,12 @@
           const firstTextBlock = Object.values(textBlockEditors)[0];
           if (firstTextBlock && firstTextBlock.focus) {
             firstTextBlock.focus();
+          } else {
+            // Try to focus first wikilink text input
+            const firstWikilinkInput = Object.values(wikilinkTextInputs)[0];
+            if (firstWikilinkInput && firstWikilinkInput.focus) {
+              firstWikilinkInput.focus();
+            }
           }
         }
       }, 0);
@@ -161,6 +170,19 @@
       selectedCommand,
       parameterValues
     );
+  }
+
+  function handleWikilinkClick(noteId: string, _title: string): void {
+    // Find the note in the notes store
+    const clickedNote = notesStore.notes.find((n) => n.id === noteId);
+    if (clickedNote) {
+      // Dispatch a custom event to navigate to the linked note
+      const event = new CustomEvent('wikilink-navigate', {
+        detail: { note: clickedNote },
+        bubbles: true
+      });
+      document.dispatchEvent(event);
+    }
   }
 
   export function handleKeyboardSelect(): void {
@@ -247,6 +269,19 @@
                 }}
                 onKeyDown={(event) => handleTextBlockKeyDown(parameter.name, event)}
                 minHeight="120px"
+                onWikilinkClick={handleWikilinkClick}
+              />
+            {:else if parameter.type === 'text'}
+              <WikilinkTextInput
+                bind:this={wikilinkTextInputs[parameter.name]}
+                value={parameterValues[parameter.name]}
+                placeholder={parameter.description || `Enter ${parameter.name}...`}
+                onValueChange={(value) => {
+                  parameterValues[parameter.name] = value;
+                }}
+                onKeyDown={handleParameterKeyDown}
+                onWikilinkClick={handleWikilinkClick}
+                class="parameter-input"
               />
             {:else}
               <input

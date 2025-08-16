@@ -1,8 +1,9 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { EditorView, minimalSetup } from 'codemirror';
-  import { keymap } from '@codemirror/view';
-  import { EditorState, StateEffect, type Extension, Prec } from '@codemirror/state';
+  import { placeholder } from '@codemirror/view';
+  import { EditorState, StateEffect, type Extension } from '@codemirror/state';
+  import { completionStatus } from '@codemirror/autocomplete';
   import { githubLight } from '@fsegurai/codemirror-theme-github-light';
   import { githubDark } from '@fsegurai/codemirror-theme-github-dark';
   import { wikilinksExtension, type WikilinkClickHandler } from '../lib/wikilinks.svelte';
@@ -13,18 +14,18 @@
     disabled?: boolean;
     onValueChange?: (value: string) => void;
     onKeyDown?: (event: KeyboardEvent) => void;
-    minHeight?: string;
     onWikilinkClick?: WikilinkClickHandler;
+    class?: string;
   }
 
   let {
     value = '',
-    placeholder = 'Enter text...',
+    placeholder: placeholderText,
     disabled = false,
     onValueChange,
     onKeyDown,
-    minHeight = '120px',
-    onWikilinkClick
+    onWikilinkClick,
+    class: className
   }: Props = $props();
 
   let editorContainer: HTMLDivElement;
@@ -32,7 +33,16 @@
 
   // DOM event handler for key events
   function handleDOMKeyDown(event: KeyboardEvent): void {
-    if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+    // For Enter key, check if autocompletion is active first
+    if (event.key === 'Enter') {
+      if (editorView) {
+        const completion = completionStatus(editorView.state);
+        if (completion === 'active') {
+          // Let CodeMirror handle Enter for autocompletion
+          return;
+        }
+      }
+      // Handle Enter for parameter navigation only when completion is not active
       event.preventDefault();
       event.stopPropagation();
       if (onKeyDown) {
@@ -41,6 +51,25 @@
       return;
     }
 
+    // For Tab key, check if autocompletion is active first
+    if (event.key === 'Tab') {
+      if (editorView) {
+        const completion = completionStatus(editorView.state);
+        if (completion === 'active') {
+          // Let CodeMirror handle Tab for autocompletion
+          return;
+        }
+      }
+      // Handle Tab for parameter navigation only when completion is not active
+      event.preventDefault();
+      event.stopPropagation();
+      if (onKeyDown) {
+        onKeyDown(event);
+      }
+      return;
+    }
+
+    // For Escape, always handle for parameter navigation
     if (event.key === 'Escape') {
       event.preventDefault();
       event.stopPropagation();
@@ -55,15 +84,16 @@
   let isDarkMode = $state(false);
   let mediaQuery: MediaQueryList | null = null;
 
-  // Create theme extension for editor styling
+  // Create theme extension for single-line editor styling
   const editorTheme = EditorView.theme({
     '&': {
       fontSize: '0.875rem',
       fontFamily: 'inherit'
     },
     '.cm-content': {
-      padding: '0.75rem',
-      minHeight: minHeight,
+      padding: '0.5rem 0.75rem',
+      minHeight: '2.5rem',
+      maxHeight: '2.5rem',
       lineHeight: '1.5'
     },
     '.cm-focused': {
@@ -80,6 +110,9 @@
     },
     '&.cm-editor.cm-focused': {
       outline: 'none'
+    },
+    '.cm-scroller': {
+      overflow: 'hidden' // Prevent scrolling for single line
     }
   });
 
@@ -115,44 +148,8 @@
     const extensions: Extension[] = [
       // Use minimalSetup instead of basicSetup (excludes line numbers)
       minimalSetup,
-      // Custom keymap with highest precedence
-      Prec.highest(
-        keymap.of([
-          {
-            key: 'Escape',
-            run: () => {
-              if (onKeyDown) {
-                const event = new KeyboardEvent('keydown', {
-                  key: 'Escape',
-                  bubbles: true,
-                  cancelable: true
-                });
-                onKeyDown(event);
-              }
-              return true;
-            }
-          },
-          {
-            key: 'Mod-Enter',
-            run: (_view) => {
-              if (onKeyDown) {
-                // Determine if we're on Mac (Cmd) or PC (Ctrl)
-                const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-                const event = new KeyboardEvent('keydown', {
-                  key: 'Enter',
-                  ctrlKey: !isMac,
-                  metaKey: isMac,
-                  bubbles: true,
-                  cancelable: true
-                });
-                onKeyDown(event);
-                return true; // Prevent default CodeMirror behavior
-              }
-              return false;
-            }
-          }
-        ])
-      ),
+      // Placeholder extension
+      placeholder(placeholderText || 'Enter text...'),
       // Apply the appropriate theme
       theme,
       // Apply editor styling theme
@@ -166,7 +163,7 @@
           }
         }
       }),
-      EditorView.lineWrapping,
+      // Disable line wrapping for single line input
       EditorState.readOnly.of(disabled)
     ];
 
@@ -228,21 +225,17 @@
   }
 </script>
 
-<div class="textblock-editor" class:disabled>
+<div class="wikilink-text-input {className || ''}" class:disabled>
   <div bind:this={editorContainer} class="editor-container"></div>
-  <div class="editor-hint">
-    {placeholder} • Cmd/Ctrl+Enter to confirm • Escape to cancel
-  </div>
 </div>
 
 <style>
-  .textblock-editor {
+  .wikilink-text-input {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
   }
 
-  .textblock-editor.disabled {
+  .wikilink-text-input.disabled {
     opacity: 0.6;
     pointer-events: none;
   }
@@ -251,32 +244,27 @@
     position: relative;
   }
 
-  .editor-hint {
-    font-size: 0.75rem;
-    color: var(--text-tertiary);
-    font-style: italic;
-    text-align: right;
-  }
-
   /* Global CodeMirror overrides for this component */
-  .textblock-editor :global(.cm-editor) {
+  .wikilink-text-input :global(.cm-editor) {
     border: 1px solid var(--border-light);
     border-radius: 0.375rem;
     background: var(--bg-primary);
   }
 
-  .textblock-editor :global(.cm-focused) {
+  .wikilink-text-input :global(.cm-focused) {
     outline: none;
     border-color: var(--accent) !important;
     background: var(--bg-secondary) !important;
   }
 
-  .textblock-editor :global(.cm-content) {
-    padding: 0.75rem;
-    min-height: 120px;
+  .wikilink-text-input :global(.cm-content) {
+    padding: 0.5rem 0.75rem;
+    min-height: 2.5rem;
+    max-height: 2.5rem;
+    overflow: hidden;
   }
 
-  .textblock-editor :global(.cm-placeholder) {
+  .wikilink-text-input :global(.cm-placeholder) {
     color: var(--text-placeholder);
   }
 </style>
