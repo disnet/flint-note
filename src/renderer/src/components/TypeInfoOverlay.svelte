@@ -58,13 +58,33 @@
     editedInstructions[index] = value;
   }
 
-  function saveChanges(): void {
-    // TODO: Implement save functionality when API supports it
-    console.log('Saving changes:', {
-      purpose: editedPurpose,
-      instructions: editedInstructions
-    });
-    isEditing = false;
+  async function saveChanges(): Promise<void> {
+    if (!typeInfo) return;
+
+    try {
+      loading = true;
+      error = null;
+      const noteService = getChatService();
+
+      if (await noteService.isReady()) {
+        await noteService.updateNoteType({
+          typeName: typeName,
+          description: editedPurpose,
+          instructions: editedInstructions.join('\n')
+        });
+
+        // Update local state with saved changes
+        typeInfo.purpose = editedPurpose;
+        typeInfo.instructions = [...editedInstructions];
+
+        isEditing = false;
+      }
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Failed to save note type changes';
+      console.error('Error saving note type changes:', err);
+    } finally {
+      loading = false;
+    }
   }
 
   function cancelEdit(): void {
