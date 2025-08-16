@@ -416,6 +416,23 @@
       }
     }
   }
+
+  // Handle keyboard events on the editor content area
+  function handleEditorAreaKeydown(event: KeyboardEvent): void {
+    if (!editorView) return;
+
+    if (event.key === 'Enter' || event.key === ' ') {
+      const target = event.target as Element;
+      const editorDom = editorView.dom;
+      const scrollerDom = editorDom.querySelector('.cm-scroller');
+
+      // If the keydown is on the editor area but not on actual text content, focus at end
+      if (scrollerDom && (target === scrollerDom || target === editorContainer)) {
+        focusAtEnd();
+        event.preventDefault();
+      }
+    }
+  }
 </script>
 
 <div
@@ -453,9 +470,7 @@
     role="textbox"
     tabindex="-1"
     onclick={handleEditorAreaClick}
-    onkeydown={(e) => {
-      if (e.key === 'Enter' || e.key === ' ') handleEditorAreaClick(e as any);
-    }}
+    onkeydown={handleEditorAreaKeydown}
   >
     <div class="editor-container" bind:this={editorContainer}></div>
   </div>
