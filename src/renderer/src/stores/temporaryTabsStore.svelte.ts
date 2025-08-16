@@ -238,6 +238,17 @@ class TemporaryTabsStore {
     this.state.tabs = tabs;
     this.state.activeTabId = newTab.id;
     this.saveToStorage();
+
+    // Trigger animation for newly added tab
+    if (typeof window !== 'undefined') {
+      import('../utils/dragDrop.svelte.js')
+        .then(({ animateItemAdd }) => {
+          animateItemAdd(newTab.id, '.tabs-list');
+        })
+        .catch(() => {
+          // Silently fail if animation utilities aren't available
+        });
+    }
   }
 
   private migrateTabsWithoutOrder(tabs: TemporaryTab[]): TemporaryTab[] {

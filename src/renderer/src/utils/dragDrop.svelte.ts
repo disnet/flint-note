@@ -154,3 +154,32 @@ export function animateItemAdd(itemId: string, containerSelector: string): void 
     }
   }, 50); // Small delay to ensure DOM is updated
 }
+
+/**
+ * Add a fade-out animation before removing an item
+ */
+export function animateItemRemove(
+  itemId: string, 
+  containerSelector: string, 
+  callback: () => void
+): void {
+  const container = document.querySelector(containerSelector);
+  if (!container) {
+    callback();
+    return;
+  }
+
+  const item = container.querySelector(`[data-id="${itemId}"]`);
+  if (!item) {
+    callback();
+    return;
+  }
+
+  // Add fade-out class
+  item.classList.add('fade-out');
+  
+  // Remove the item after animation completes
+  setTimeout(() => {
+    callback();
+  }, 250); // Slightly shorter than fade-in for snappier feel
+}

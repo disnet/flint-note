@@ -22,11 +22,24 @@ export function handleCrossSectionDrop(
       order: targetIndex
     };
 
-    // Add to pinned notes at specific position
+    // Add to pinned notes at specific position (this triggers fade-in animation)
     pinnedNotesStore.addNoteAtPosition(pinnedNote, targetIndex);
 
-    // Remove from temporary tabs
-    temporaryTabsStore.removeTab(tab.id);
+    // Animate removal from temporary tabs
+    if (typeof window !== 'undefined') {
+      import('./dragDrop.svelte.js')
+        .then(({ animateItemRemove }) => {
+          animateItemRemove(tab.id, '.tabs-list', () => {
+            temporaryTabsStore.removeTab(tab.id);
+          });
+        })
+        .catch(() => {
+          // Fallback to immediate removal
+          temporaryTabsStore.removeTab(tab.id);
+        });
+    } else {
+      temporaryTabsStore.removeTab(tab.id);
+    }
 
     return true;
   }
@@ -44,11 +57,24 @@ export function handleCrossSectionDrop(
       order: targetIndex
     };
 
-    // Add to temporary tabs at specific position
+    // Add to temporary tabs at specific position (this triggers fade-in animation)
     temporaryTabsStore.addTabAtPosition(tempTab, targetIndex);
 
-    // Remove from pinned notes
-    pinnedNotesStore.unpinNote(pinnedNote.id);
+    // Animate removal from pinned notes
+    if (typeof window !== 'undefined') {
+      import('./dragDrop.svelte.js')
+        .then(({ animateItemRemove }) => {
+          animateItemRemove(pinnedNote.id, '.pinned-list', () => {
+            pinnedNotesStore.unpinNote(pinnedNote.id);
+          });
+        })
+        .catch(() => {
+          // Fallback to immediate removal
+          pinnedNotesStore.unpinNote(pinnedNote.id);
+        });
+    } else {
+      pinnedNotesStore.unpinNote(pinnedNote.id);
+    }
 
     return true;
   }
