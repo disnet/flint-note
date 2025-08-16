@@ -25,6 +25,7 @@
   let isLoadingResponse = $state(false);
   let activeNote = $state<NoteMetadata | null>(null);
   let showCreateNoteModal = $state(false);
+  let createNotePreselectedType = $state<string | undefined>(undefined);
   let activeSystemView = $state<'inbox' | 'notes' | 'settings' | 'slash-commands' | null>(
     null
   );
@@ -35,7 +36,8 @@
     });
   }
 
-  function handleCreateNote(): void {
+  function handleCreateNote(noteType?: string): void {
+    createNotePreselectedType = noteType;
     showCreateNoteModal = true;
   }
 
@@ -51,6 +53,7 @@
 
   function handleCloseCreateModal(): void {
     showCreateNoteModal = false;
+    createNotePreselectedType = undefined;
   }
 
   function handleNoteCreated(noteId: string): void {
@@ -405,6 +408,7 @@
     isOpen={showCreateNoteModal}
     onClose={handleCloseCreateModal}
     onNoteCreated={handleNoteCreated}
+    preselectedType={createNotePreselectedType}
   />
 
   <SearchOverlay

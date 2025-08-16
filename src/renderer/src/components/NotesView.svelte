@@ -1,12 +1,13 @@
 <script lang="ts">
   import { notesStore, type NoteMetadata } from '../services/noteStore.svelte';
   import { pinnedNotesStore } from '../services/pinnedStore.svelte';
+  import NoteTypeActions from './NoteTypeActions.svelte';
 
   const { groupedNotes } = notesStore;
 
   interface Props {
     onNoteSelect?: (note: NoteMetadata) => void;
-    onCreateNote?: () => void;
+    onCreateNote?: (noteType?: string) => void;
   }
 
   let { onNoteSelect, onCreateNote }: Props = $props();
@@ -34,19 +35,8 @@
     }
   }
 
-  function formatDate(dateString: string): string {
-    const date = new Date(dateString);
-    return (
-      date.toLocaleDateString() +
-      ' ' +
-      date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    );
-  }
-
-  function formatFileSize(bytes: number): string {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + ' KB';
-    return Math.round(bytes / (1024 * 1024)) + ' MB';
+  function handleCreateNoteWithType(noteType: string): void {
+    onCreateNote?.(noteType);
   }
 </script>
 
@@ -86,17 +76,22 @@
     <div class="notes-tree">
       {#each Object.entries(groupedNotes) as [typeName, notes] (typeName)}
         <div class="note-type">
-          <button
-            class="type-header"
-            class:expanded={expandedTypes.has(typeName)}
-            onclick={() => toggleType(typeName)}
-          >
-            <span class="type-icon">
-              {expandedTypes.has(typeName) ? '▼' : '▶'}
-            </span>
-            <span class="type-name">{typeName}</span>
-            <span class="note-count">({notes.length})</span>
-          </button>
+          <div class="type-header-container">
+            <button
+              class="type-header"
+              class:expanded={expandedTypes.has(typeName)}
+              onclick={() => toggleType(typeName)}
+            >
+              <span class="type-icon">
+                {expandedTypes.has(typeName) ? '▼' : '▶'}
+              </span>
+              <span class="type-name">{typeName}</span>
+              <span class="note-count">({notes.length})</span>
+            </button>
+            <div class="type-actions">
+              <NoteTypeActions {typeName} onCreateNote={handleCreateNoteWithType} />
+            </div>
+          </div>
 
           {#if expandedTypes.has(typeName)}
             <div class="notes-list">
@@ -114,18 +109,9 @@
                     {/if}
                     {note.title}
                   </div>
-                  <div class="note-meta">
-                    <span class="note-filename">{note.filename}</span>
-                    <span class="note-modified"
-                      >Modified: {formatDate(note.modified)}</span
-                    >
-                    <span class="note-size">{formatFileSize(note.size)}</span>
-                  </div>
-                  {#if note.tags.length > 0}
-                    <div class="note-tags">
-                      {#each note.tags as tag, tagIndex (`${note.id || index}-tag-${tagIndex}`)}
-                        <span class="tag">{tag}</span>
-                      {/each}
+                  {#if note.snippet}
+                    <div class="note-snippet">
+                      {note.snippet}
                     </div>
                   {/if}
                 </div>
@@ -255,43 +241,54 @@
   .notes-tree {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 1.5rem;
   }
 
   .note-type {
-    border: 1px solid var(--border-light);
-    border-radius: 0.5rem;
-    overflow: hidden;
-    background: var(--bg-primary);
+    background: transparent;
+    position: relative;
+  }
+
+  .type-header-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
   }
 
   .type-header {
-    width: 100%;
+    flex: 1;
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 0.75rem;
+    gap: 0.75rem;
+    padding: 0.75rem 0;
     background: none;
     border: none;
     cursor: pointer;
-    transition: background-color 0.2s ease;
-    font-size: 0.8rem;
-    font-weight: 500;
+    transition: all 0.2s ease;
+    font-size: 1.2rem;
+    font-weight: 600;
+    text-align: left;
+  }
+
+  .type-actions {
+    position: relative;
   }
 
   .type-header:hover {
-    background: var(--bg-hover);
+    color: var(--accent-primary);
   }
 
-  .type-header.expanded {
-    background: var(--bg-hover);
+  .type-header:hover .type-icon {
+    color: var(--accent-primary);
   }
 
   .type-icon {
-    font-size: 0.75rem;
+    font-size: 1rem;
     color: var(--text-secondary);
-    width: 1rem;
+    width: 1.2rem;
     text-align: center;
+    transition: color 0.2s ease;
   }
 
   .type-name {
@@ -303,38 +300,52 @@
 
   .note-count {
     color: var(--text-secondary);
-    font-size: 0.75rem;
+    font-size: 0.9rem;
+    font-weight: 400;
   }
 
   .notes-list {
-    border-top: 1px solid var(--border-light);
+    margin-left: 2rem;
+    margin-top: 0.5rem;
+    animation: slideDown 0.3s ease-out;
+  }
+
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   .note-item {
-    padding: 0.5rem 0.75rem;
-    border-bottom: 1px solid var(--border-light);
+    padding: 0.5rem 0;
     cursor: pointer;
-    transition: background-color 0.2s ease;
+    transition: all 0.2s ease;
+    border-radius: 0.25rem;
+    margin-bottom: 0.25rem;
   }
 
   .note-item:hover {
-    background: var(--bg-hover);
+    background: var(--bg-secondary);
+    padding-left: 0.5rem;
+    margin-left: -0.5rem;
   }
 
   .note-item:focus {
-    background: var(--bg-hover);
+    background: var(--bg-secondary);
     outline: 2px solid var(--accent-primary);
     outline-offset: -2px;
-  }
-
-  .note-item:last-child {
-    border-bottom: none;
+    border-radius: 0.25rem;
   }
 
   .note-title {
     font-weight: 500;
     color: var(--text-primary);
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.375rem;
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -346,26 +357,10 @@
     color: var(--accent-primary);
   }
 
-  .note-meta {
-    display: flex;
-    gap: 1rem;
-    font-size: 0.75rem;
+  .note-snippet {
+    font-size: 0.8rem;
     color: var(--text-secondary);
+    line-height: 1.4;
     margin-bottom: 0.25rem;
-  }
-
-  .note-tags {
-    display: flex;
-    gap: 0.25rem;
-    flex-wrap: wrap;
-  }
-
-  .tag {
-    background: var(--accent-secondary);
-    color: var(--accent-text);
-    padding: 0.125rem 0.375rem;
-    border-radius: 0.25rem;
-    font-size: 0.65rem;
-    font-weight: 500;
   }
 </style>

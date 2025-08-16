@@ -505,6 +505,19 @@ app.whenReady().then(async () => {
   );
 
   ipcMain.handle(
+    'get-note-type-info',
+    async (_event, params: { typeName: string; vaultId?: string }) => {
+      if (!noteService) {
+        throw new Error('Note service not available');
+      }
+      return await noteService.getNoteTypeInfo({
+        type_name: params.typeName,
+        vault_id: params.vaultId
+      });
+    }
+  );
+
+  ipcMain.handle(
     'list-notes-by-type',
     async (
       _event,

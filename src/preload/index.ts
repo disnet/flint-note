@@ -127,6 +127,8 @@ const api = {
     metadataSchema?: MetadataSchema;
     vaultId?: string;
   }) => electronAPI.ipcRenderer.invoke('create-note-type', params),
+  getNoteTypeInfo: (params: { typeName: string; vaultId?: string }) =>
+    electronAPI.ipcRenderer.invoke('get-note-type-info', params),
   listNotesByType: (params: { type: string; vaultId?: string; limit?: number }) =>
     electronAPI.ipcRenderer.invoke('list-notes-by-type', params),
 

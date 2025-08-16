@@ -16,6 +16,7 @@ import type {
 } from '@flint-note/server/dist/api/types';
 import type { ExternalLinkRow } from '@flint-note/server/dist/database/schema';
 import type { MetadataSchema } from '@flint-note/server/dist/core/metadata-schema';
+import type { GetNoteTypeInfoResult } from '@flint-note/server/dist/server/types';
 
 // Cache monitoring types
 interface CacheConfig {
@@ -154,6 +155,10 @@ declare global {
         metadataSchema?: MetadataSchema;
         vaultId?: string;
       }) => Promise<NoteTypeInfo>;
+      getNoteTypeInfo: (params: {
+        typeName: string;
+        vaultId?: string;
+      }) => Promise<GetNoteTypeInfoResult>;
       listNotesByType: (params: {
         type: string;
         vaultId?: string;

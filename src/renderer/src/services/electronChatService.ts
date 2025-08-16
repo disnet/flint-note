@@ -19,6 +19,7 @@ import type { ExternalLinkRow } from '@flint-note/server/dist/database/schema';
 import type { MetadataSchema } from '@flint-note/server/dist/core/metadata-schema';
 import { notesStore } from './noteStore.svelte';
 import { unifiedChatStore } from '../stores/unifiedChatStore.svelte';
+import type { GetNoteTypeInfoResult } from '@flint-note/server/dist/server/types';
 
 // Cache monitoring interfaces
 interface CacheConfig {
@@ -352,6 +353,18 @@ export class ElectronChatService implements ChatService, NoteService {
     } catch (error) {
       console.error('Failed to create note type:', error);
       throw new Error('Failed to create note type. Please try again.');
+    }
+  }
+
+  async getNoteTypeInfo(params: {
+    typeName: string;
+    vaultId?: string;
+  }): Promise<GetNoteTypeInfoResult> {
+    try {
+      return await window.api.getNoteTypeInfo(params);
+    } catch (error) {
+      console.error('Failed to get note type info:', error);
+      throw new Error('Failed to get note type info. Please try again.');
     }
   }
 

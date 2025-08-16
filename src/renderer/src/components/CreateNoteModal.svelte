@@ -6,9 +6,10 @@
     isOpen: boolean;
     onClose: () => void;
     onNoteCreated?: (noteId: string) => void;
+    preselectedType?: string;
   }
 
-  let { isOpen, onClose, onNoteCreated }: Props = $props();
+  let { isOpen, onClose, onNoteCreated, preselectedType }: Props = $props();
 
   let noteType = $state('general');
   let noteTitle = $state('');
@@ -22,6 +23,13 @@
   $effect(() => {
     if (isOpen && noteTypes.length === 0) {
       loadNoteTypes();
+    }
+  });
+
+  // Set preselected type when provided
+  $effect(() => {
+    if (isOpen && preselectedType) {
+      noteType = preselectedType;
     }
   });
 

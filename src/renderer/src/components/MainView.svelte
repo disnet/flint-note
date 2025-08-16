@@ -18,7 +18,7 @@
     noteTypes: NoteType[];
     onClose: () => void;
     onNoteSelect: (note: NoteMetadata) => void;
-    onCreateNote: () => void;
+    onCreateNote: (noteType?: string) => void;
     onNoteTypeChange: (noteId: string, newType: string) => Promise<void>;
   }
 
@@ -176,9 +176,6 @@
     <InboxView />
   {:else if activeSystemView === 'notes'}
     <div class="system-view-container">
-      <div class="system-view-header">
-        <h1>All Notes</h1>
-      </div>
       <div class="system-view-content">
         <NotesView {onNoteSelect} {onCreateNote} />
       </div>
