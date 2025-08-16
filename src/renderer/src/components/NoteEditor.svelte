@@ -375,6 +375,47 @@
       editorView.focus();
     }
   }
+
+  // Focus editor and place cursor at end
+  function focusAtEnd(): void {
+    if (editorView) {
+      const doc = editorView.state.doc;
+      const endPos = doc.length;
+      editorView.focus();
+      editorView.dispatch({
+        selection: { anchor: endPos, head: endPos },
+        scrollIntoView: true
+      });
+    }
+  }
+
+  // Handle clicks on the editor content area
+  function handleEditorAreaClick(event: MouseEvent): void {
+    if (!editorView) return;
+
+    const target = event.target as Element;
+    const editorDom = editorView.dom;
+    const scrollerDom = editorDom.querySelector('.cm-scroller');
+
+    // Check if the click is in the editor area but not on actual text content
+    if (scrollerDom && (target === scrollerDom || target === editorContainer)) {
+      // Get the position of the last line
+      const doc = editorView.state.doc;
+      const lastLineStart = doc.lineAt(doc.length).from;
+      const lastLineCoords = editorView.coordsAtPos(lastLineStart);
+
+      if (lastLineCoords) {
+        const clickY = event.clientY;
+        const scrollerRect = scrollerDom.getBoundingClientRect();
+
+        // If click is below the last line of content, focus at end
+        if (clickY > lastLineCoords.bottom && clickY < scrollerRect.bottom) {
+          focusAtEnd();
+          event.preventDefault();
+        }
+      }
+    }
+  }
 </script>
 
 <div
@@ -407,7 +448,15 @@
     </div>
   {/if}
 
-  <div class="editor-content">
+  <div
+    class="editor-content"
+    role="textbox"
+    tabindex="-1"
+    onclick={handleEditorAreaClick}
+    onkeydown={(e) => {
+      if (e.key === 'Enter' || e.key === ' ') handleEditorAreaClick(e as any);
+    }}
+  >
     <div class="editor-container" bind:this={editorContainer}></div>
   </div>
 </div>
