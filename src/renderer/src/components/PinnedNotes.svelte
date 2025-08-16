@@ -3,13 +3,13 @@
   import { pinnedNotesStore } from '../services/pinnedStore.svelte';
   import type { NoteMetadata } from '../services/noteStore.svelte';
   import {
-    createDragState,
     handleDragStart,
     handleDragOver,
     handleDragEnd,
     calculateDropIndex
   } from '../utils/dragDrop.svelte';
   import { handleCrossSectionDrop } from '../utils/crossSectionDrag.svelte';
+  import { globalDragState } from '../stores/dragState.svelte';
 
   interface Props {
     activeNote: NoteMetadata | null;
@@ -21,7 +21,7 @@
   let isCollapsed = $state(false);
   let pinnedNotes = $state<NoteMetadata[]>([]);
 
-  const dragState = createDragState();
+  const dragState = globalDragState;
 
   // Use $effect to update pinnedNotes when pinnedNotesStore or notesStore changes
   $effect(() => {
@@ -187,9 +187,40 @@
           <span class="note-title">{note.title}</span>
         </button>
       {:else}
-        <div class="empty-state">
+        <div
+          class="empty-state"
+          class:drag-target={dragState.isDragging &&
+            dragState.draggedType === 'temporary' &&
+            dragState.dragOverSection === 'pinned'}
+          role="button"
+          tabindex="-1"
+          ondragover={(e) => {
+            e.preventDefault();
+            if (dragState.draggedType === 'temporary') {
+              dragState.dragOverSection = 'pinned';
+              dragState.dragOverIndex = 0;
+            }
+          }}
+          ondragleave={(e) => {
+            // Only clear if we're actually leaving the empty state area
+            const rect = e.currentTarget.getBoundingClientRect();
+            const x = e.clientX;
+            const y = e.clientY;
+            if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+              dragState.dragOverSection = null;
+              dragState.dragOverIndex = null;
+            }
+          }}
+          ondrop={(e) => onDrop(e, 0)}
+        >
           <p>No pinned notes</p>
-          <p class="empty-hint">Pin notes to keep them handy</p>
+          <p class="empty-hint">
+            {#if dragState.isDragging && dragState.draggedType === 'temporary'}
+              Drop here to pin note
+            {:else}
+              Pin notes to keep them handy
+            {/if}
+          </p>
         </div>
       {/each}
     </div>
@@ -280,17 +311,61 @@
   .empty-state {
     padding: 1.5rem 1.25rem;
     text-align: center;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 0.75rem;
+    min-height: 4rem;
+    border: 2px solid transparent;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .empty-state::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, var(--accent-light), transparent);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+  }
+
+  .empty-state.drag-target {
+    background: var(--accent-light);
+    border-color: var(--accent-primary);
+    border-style: dashed;
+    box-shadow: 0 2px 12px rgba(0, 123, 255, 0.15);
+  }
+
+  .empty-state.drag-target::before {
+    opacity: 0.1;
   }
 
   .empty-state p {
     margin: 0;
-    font-size: 0.875rem;
     color: var(--text-secondary);
+    transition: all 0.3s ease;
+    position: relative;
+    z-index: 1;
+  }
+
+  .empty-state.drag-target p {
+    color: var(--accent-primary);
   }
 
   .empty-hint {
     font-size: 0.75rem !important;
-    margin-top: 0.25rem !important;
+    margin-top: 0.5rem !important;
     opacity: 0.7;
+    transition: all 0.3s ease;
+    position: relative;
+    z-index: 1;
+  }
+
+  .empty-state.drag-target .empty-hint {
+    opacity: 1;
+    color: var(--accent-primary) !important;
   }
 </style>

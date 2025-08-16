@@ -510,7 +510,7 @@ export function handleCrossSectionDrop(
 
 #### 5.3 Edge Cases
 
-- **Empty lists**: Dropping into empty pinned notes section
+- **Empty lists**: ✅ Dropping into empty pinned notes section (implemented)
 - **Single items**: Dragging when only one item exists
 - **Rapid interactions**: Multiple drags in quick succession
 - **Error recovery**: Invalid drag operations fail gracefully
@@ -606,7 +606,7 @@ All phases of the drag and drop implementation have been successfully completed 
 
 ✅ Users can reorder pinned notes via drag and drop
 ✅ Users can reorder temporary tabs via drag and drop
-✅ Users can drag temporary tabs to pinned section to convert them
+✅ Users can drag temporary tabs to pinned section (including empty state) to convert them
 ✅ Order is preserved across app restarts and vault switches
 ✅ Pinned notes store uses modern Svelte 5 runes
 
@@ -643,7 +643,7 @@ All phases of the drag and drop implementation have been successfully completed 
 ### **Converting Temporary Tabs to Pinned Notes:**
 
 1. Drag a temporary tab from the temporary section
-2. Drop it in the pinned notes section
+2. Drop it in the pinned notes section (or empty pinned notes area)
 3. The tab is automatically converted to a pinned note and removed from temporary tabs
 
 ### **Visual Feedback:**

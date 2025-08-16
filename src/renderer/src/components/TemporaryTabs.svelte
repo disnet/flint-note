@@ -3,13 +3,13 @@
   import { notesStore } from '../services/noteStore.svelte';
   import type { NoteMetadata } from '../services/noteStore.svelte';
   import {
-    createDragState,
     handleDragStart,
     handleDragOver,
     handleDragEnd,
     calculateDropIndex
   } from '../utils/dragDrop.svelte';
   import { handleCrossSectionDrop } from '../utils/crossSectionDrag.svelte';
+  import { globalDragState } from '../stores/dragState.svelte';
 
   interface Props {
     onNoteSelect: (note: NoteMetadata) => void;
@@ -17,7 +17,7 @@
 
   let { onNoteSelect }: Props = $props();
 
-  const dragState = createDragState();
+  const dragState = globalDragState;
 
   function handleTabClick(noteId: string): void {
     const note = notesStore.notes.find((n) => n.id === noteId);

@@ -151,7 +151,8 @@ class TemporaryTabsStore {
       !this.state.tabs.find((tab) => tab.id === this.state.activeTabId)
     ) {
       // Only auto-select the next tab if explicitly requested
-      this.state.activeTabId = autoSelectNext && this.state.tabs.length > 0 ? this.state.tabs[0].id : null;
+      this.state.activeTabId =
+        autoSelectNext && this.state.tabs.length > 0 ? this.state.tabs[0].id : null;
     }
 
     // Only save if something was actually removed
