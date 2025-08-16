@@ -245,7 +245,6 @@
     background: var(--accent-light);
   }
 
-
   .tab-content {
     display: flex;
     align-items: center;

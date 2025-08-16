@@ -1,5 +1,6 @@
 import { getChatService } from './chatService';
 import type { PinnedNoteInfo } from './types';
+import { temporaryTabsStore } from '../stores/temporaryTabsStore.svelte';
 
 interface PinnedNotesState {
   notes: PinnedNoteInfo[];
@@ -90,15 +91,26 @@ class PinnedNotesStore {
 
     this.state.notes = [...this.state.notes, pinnedNote];
     this.saveToStorage();
+
+    // Remove from temporary tabs when pinned
+    temporaryTabsStore.removeTabsByNoteIds([id]);
   }
 
   unpinNote(noteId: string): void {
+    // Get note info before removing it
+    const noteToUnpin = this.state.notes.find((note) => note.id === noteId);
+
     this.state.notes = this.state.notes.filter((note) => note.id !== noteId);
     // Reassign order values to maintain sequence
     this.state.notes.forEach((note, index) => {
       note.order = index;
     });
     this.saveToStorage();
+
+    // Add to temporary tabs when unpinned
+    if (noteToUnpin) {
+      temporaryTabsStore.addTab(noteToUnpin.id, noteToUnpin.title, 'navigation');
+    }
   }
 
   togglePin(id: string, title: string, filename: string): boolean {

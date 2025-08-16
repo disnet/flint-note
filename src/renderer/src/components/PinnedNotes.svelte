@@ -262,7 +262,6 @@
     background: var(--accent-light);
   }
 
-
   .note-icon {
     display: flex;
     align-items: center;

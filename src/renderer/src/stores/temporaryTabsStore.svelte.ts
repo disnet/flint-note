@@ -141,7 +141,7 @@ class TemporaryTabsStore {
   /**
    * Remove tabs by note IDs (used by navigation service for coordination)
    */
-  removeTabsByNoteIds(noteIds: string[]): void {
+  removeTabsByNoteIds(noteIds: string[], autoSelectNext: boolean = false): void {
     const originalLength = this.state.tabs.length;
     this.state.tabs = this.state.tabs.filter((tab) => !noteIds.includes(tab.noteId));
 
@@ -150,7 +150,8 @@ class TemporaryTabsStore {
       this.state.activeTabId &&
       !this.state.tabs.find((tab) => tab.id === this.state.activeTabId)
     ) {
-      this.state.activeTabId = this.state.tabs.length > 0 ? this.state.tabs[0].id : null;
+      // Only auto-select the next tab if explicitly requested
+      this.state.activeTabId = autoSelectNext && this.state.tabs.length > 0 ? this.state.tabs[0].id : null;
     }
 
     // Only save if something was actually removed

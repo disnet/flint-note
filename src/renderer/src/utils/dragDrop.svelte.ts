@@ -159,8 +159,8 @@ export function animateItemAdd(itemId: string, containerSelector: string): void 
  * Add a fade-out animation before removing an item
  */
 export function animateItemRemove(
-  itemId: string, 
-  containerSelector: string, 
+  itemId: string,
+  containerSelector: string,
   callback: () => void
 ): void {
   const container = document.querySelector(containerSelector);
@@ -177,7 +177,7 @@ export function animateItemRemove(
 
   // Add fade-out class
   item.classList.add('fade-out');
-  
+
   // Remove the item after animation completes
   setTimeout(() => {
     callback();
