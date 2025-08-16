@@ -101,10 +101,8 @@
 
 <style>
   .temporary-tabs {
-    flex: 1;
     display: flex;
     flex-direction: column;
-    min-height: 0;
   }
 
   .separator {
@@ -146,9 +144,6 @@
   }
 
   .tabs-list {
-    flex: 1;
-    overflow-y: auto;
-    min-height: 0;
     padding: 0 1.25rem;
   }
 

@@ -175,9 +175,7 @@
   .pinned-list {
     display: flex;
     flex-direction: column;
-    max-height: 200px;
     padding: 0 1.25rem;
-    overflow-y: auto;
   }
 
   .pinned-item {
