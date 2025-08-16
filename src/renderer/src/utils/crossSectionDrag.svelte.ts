@@ -25,6 +25,11 @@ export function handleCrossSectionDrop(
     // Add to pinned notes at specific position (this triggers fade-in animation)
     pinnedNotesStore.addNoteAtPosition(pinnedNote, targetIndex);
 
+    // Clear active tab if this tab was active (to prevent auto-selecting another tab)
+    if (temporaryTabsStore.activeTabId === tab.id) {
+      temporaryTabsStore.clearActiveTab();
+    }
+
     // Animate removal from temporary tabs
     if (typeof window !== 'undefined') {
       import('./dragDrop.svelte.js')

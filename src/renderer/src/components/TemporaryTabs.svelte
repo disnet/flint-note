@@ -23,7 +23,11 @@
     const note = notesStore.notes.find((n) => n.id === noteId);
     if (note) {
       onNoteSelect(note);
-      temporaryTabsStore.setActiveTab(noteId);
+      // Find the tab ID that corresponds to this note ID
+      const tab = temporaryTabsStore.tabs.find((t) => t.noteId === noteId);
+      if (tab) {
+        temporaryTabsStore.setActiveTab(tab.id);
+      }
     }
   }
 
@@ -240,6 +244,7 @@
   .tab-item.active {
     background: var(--accent-light);
   }
+
 
   .tab-content {
     display: flex;
