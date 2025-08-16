@@ -2,6 +2,7 @@
   import { notesStore, type NoteMetadata } from '../services/noteStore.svelte';
   import { pinnedNotesStore } from '../services/pinnedStore.svelte';
   import NoteTypeActions from './NoteTypeActions.svelte';
+  import TypeInfoOverlay from './TypeInfoOverlay.svelte';
 
   const { groupedNotes } = notesStore;
 
@@ -13,6 +14,7 @@
   let { onNoteSelect, onCreateNote }: Props = $props();
 
   let expandedTypes = $state<Set<string>>(new Set());
+  let showTypeInfoOverlay = $state<string | null>(null);
 
   function toggleType(typeName: string): void {
     const newExpandedTypes = new Set(expandedTypes);
@@ -37,6 +39,10 @@
 
   function handleCreateNoteWithType(noteType: string): void {
     onCreateNote?.(noteType);
+  }
+
+  function handleShowTypeInfo(typeName: string): void {
+    showTypeInfoOverlay = showTypeInfoOverlay === typeName ? null : typeName;
   }
 </script>
 
@@ -89,9 +95,19 @@
               <span class="note-count">({notes.length})</span>
             </button>
             <div class="type-actions">
-              <NoteTypeActions {typeName} onCreateNote={handleCreateNoteWithType} />
+              <NoteTypeActions
+                {typeName}
+                onCreateNote={handleCreateNoteWithType}
+                onShowTypeInfo={handleShowTypeInfo}
+              />
             </div>
           </div>
+
+          {#if showTypeInfoOverlay === typeName}
+            <div class="full-width-overlay">
+              <TypeInfoOverlay {typeName} onClose={() => (showTypeInfoOverlay = null)} />
+            </div>
+          {/if}
 
           {#if expandedTypes.has(typeName)}
             <div class="notes-list">
@@ -362,5 +378,11 @@
     color: var(--text-secondary);
     line-height: 1.4;
     margin-bottom: 0.25rem;
+  }
+
+  .full-width-overlay {
+    width: 100%;
+    margin-top: 0.5rem;
+    margin-bottom: 1rem;
   }
 </style>
