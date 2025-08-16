@@ -1,8 +1,15 @@
 <script lang="ts">
   import { notesStore } from '../services/noteStore.svelte';
-  import { pinnedNotesStore } from '../services/pinnedStore';
+  import { pinnedNotesStore } from '../services/pinnedStore.svelte';
   import type { NoteMetadata } from '../services/noteStore.svelte';
-  import type { PinnedNoteInfo } from '../services/types';
+  import {
+    createDragState,
+    handleDragStart,
+    handleDragOver,
+    handleDragEnd,
+    calculateDropIndex
+  } from '../utils/dragDrop.svelte';
+  import { handleCrossSectionDrop } from '../utils/crossSectionDrag.svelte';
 
   interface Props {
     activeNote: NoteMetadata | null;
@@ -12,17 +19,13 @@
   let { activeNote, onNoteSelect }: Props = $props();
 
   let isCollapsed = $state(false);
-  let pinnedNoteInfos = $state<PinnedNoteInfo[]>([]);
   let pinnedNotes = $state<NoteMetadata[]>([]);
 
-  // Initialize with current value and subscribe to changes
-  pinnedNotesStore.subscribe((pinnedNotesFromStore) => {
-    pinnedNoteInfos = pinnedNotesFromStore;
-  });
+  const dragState = createDragState();
 
-  // Use $effect to update pinnedNotes when pinnedNoteInfos or notesStore changes
+  // Use $effect to update pinnedNotes when pinnedNotesStore or notesStore changes
   $effect(() => {
-    const result = pinnedNoteInfos
+    const result = pinnedNotesStore.notes
       .map((pinnedInfo) => {
         // Find the corresponding note in notesStore
         const fullNote = notesStore.notes.find((note) => note.id === pinnedInfo.id);
@@ -87,6 +90,50 @@
         </svg>`;
     }
   }
+
+  function onDragStart(event: DragEvent, note: NoteMetadata): void {
+    handleDragStart(event, note.id, 'pinned', dragState);
+  }
+
+  function onDragOver(event: DragEvent, index: number, element: HTMLElement): void {
+    handleDragOver(event, index, 'pinned', dragState, element);
+  }
+
+  function onDrop(event: DragEvent, targetIndex: number): void {
+    event.preventDefault();
+
+    const data = event.dataTransfer?.getData('text/plain');
+    if (!data) return;
+
+    const { id, type } = JSON.parse(data);
+    const position = dragState.dragOverPosition || 'bottom';
+
+    // Calculate the actual drop index based on position
+    const sourceIndex =
+      type === 'pinned'
+        ? pinnedNotesStore.notes.findIndex((n) => n.id === id)
+        : undefined;
+    const dropIndex = calculateDropIndex(targetIndex, position, sourceIndex);
+
+    // Handle cross-section drag
+    if (handleCrossSectionDrop(id, type, 'pinned', dropIndex)) {
+      handleDragEnd(dragState);
+      return;
+    }
+
+    // Handle same-section reorder
+    if (type === 'pinned' && sourceIndex !== undefined) {
+      if (sourceIndex !== dropIndex) {
+        pinnedNotesStore.reorderNotes(sourceIndex, dropIndex);
+      }
+    }
+
+    handleDragEnd(dragState);
+  }
+
+  function onDragEnd(): void {
+    handleDragEnd(dragState);
+  }
 </script>
 
 <div class="pinned-notes">
@@ -113,13 +160,42 @@
 
   {#if !isCollapsed}
     <div class="pinned-list">
-      {#each pinnedNotes as note (note.id)}
+      {#each pinnedNotes as note, index (note.id)}
         <button
           class="pinned-item"
           class:active={activeNote?.id === note.id}
+          class:dragging={dragState.draggedId === note.id}
+          class:drag-over-top={dragState.dragOverIndex === index &&
+            dragState.dragOverSection === 'pinned' &&
+            dragState.dragOverPosition === 'top'}
+          class:drag-over-bottom={dragState.dragOverIndex === index &&
+            dragState.dragOverSection === 'pinned' &&
+            dragState.dragOverPosition === 'bottom'}
+          draggable="true"
+          ondragstart={(e) => onDragStart(e, note)}
+          ondragover={(e) => onDragOver(e, index, e.currentTarget)}
+          ondrop={(e) => onDrop(e, index)}
+          ondragend={onDragEnd}
           onclick={() => handleNoteClick(note)}
           title={note.title}
         >
+          <div class="drag-handle">
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <circle cx="9" cy="12" r="1"></circle>
+              <circle cx="15" cy="12" r="1"></circle>
+              <circle cx="9" cy="5" r="1"></circle>
+              <circle cx="15" cy="5" r="1"></circle>
+              <circle cx="9" cy="19" r="1"></circle>
+              <circle cx="15" cy="19" r="1"></circle>
+            </svg>
+          </div>
           <div class="note-icon">
             <!-- eslint-disable-next-line svelte/no-at-html-tags -->
             {@html getIconSvg(getNoteIcon(note))}

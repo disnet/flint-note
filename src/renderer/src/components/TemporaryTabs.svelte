@@ -2,12 +2,21 @@
   import { temporaryTabsStore } from '../stores/temporaryTabsStore.svelte';
   import { notesStore } from '../services/noteStore.svelte';
   import type { NoteMetadata } from '../services/noteStore.svelte';
+  import {
+    createDragState,
+    handleDragStart,
+    handleDragOver,
+    handleDragEnd,
+    calculateDropIndex
+  } from '../utils/dragDrop.svelte';
 
   interface Props {
     onNoteSelect: (note: NoteMetadata) => void;
   }
 
   let { onNoteSelect }: Props = $props();
+
+  const dragState = createDragState();
 
   function handleTabClick(noteId: string): void {
     const note = notesStore.notes.find((n) => n.id === noteId);
@@ -49,6 +58,44 @@
         </svg>`;
     }
   }
+
+  function onDragStart(
+    event: DragEvent,
+    tab: { id: string; noteId: string; title: string; source: string }
+  ): void {
+    handleDragStart(event, tab.id, 'temporary', dragState);
+  }
+
+  function onDragOver(event: DragEvent, index: number, element: HTMLElement): void {
+    handleDragOver(event, index, 'temporary', dragState, element);
+  }
+
+  function onDrop(event: DragEvent, targetIndex: number): void {
+    event.preventDefault();
+
+    const data = event.dataTransfer?.getData('text/plain');
+    if (!data) return;
+
+    const { id, type } = JSON.parse(data);
+    const position = dragState.dragOverPosition || 'bottom';
+
+    // Only handle same-section reorder for temporary tabs
+    if (type === 'temporary') {
+      const sourceIndex = temporaryTabsStore.tabs.findIndex((t) => t.id === id);
+      if (sourceIndex !== -1) {
+        const dropIndex = calculateDropIndex(targetIndex, position, sourceIndex);
+        if (sourceIndex !== dropIndex) {
+          temporaryTabsStore.reorderTabs(sourceIndex, dropIndex);
+        }
+      }
+    }
+
+    handleDragEnd(dragState);
+  }
+
+  function onDragEnd(): void {
+    handleDragEnd(dragState);
+  }
 </script>
 
 {#if temporaryTabsStore.tabs.length > 0}
@@ -59,10 +106,22 @@
     </div>
 
     <div class="tabs-list">
-      {#each temporaryTabsStore.tabs as tab (tab.id)}
+      {#each temporaryTabsStore.tabs as tab, index (tab.id)}
         <div
           class="tab-item"
           class:active={tab.id === temporaryTabsStore.activeTabId}
+          class:dragging={dragState.draggedId === tab.id}
+          class:drag-over-top={dragState.dragOverIndex === index &&
+            dragState.dragOverSection === 'temporary' &&
+            dragState.dragOverPosition === 'top'}
+          class:drag-over-bottom={dragState.dragOverIndex === index &&
+            dragState.dragOverSection === 'temporary' &&
+            dragState.dragOverPosition === 'bottom'}
+          draggable="true"
+          ondragstart={(e) => onDragStart(e, tab)}
+          ondragover={(e) => onDragOver(e, index, e.currentTarget)}
+          ondrop={(e) => onDrop(e, index)}
+          ondragend={onDragEnd}
           onclick={() => handleTabClick(tab.noteId)}
           title={tab.title}
           role="button"
@@ -70,6 +129,23 @@
           onkeydown={(e) => e.key === 'Enter' && handleTabClick(tab.noteId)}
         >
           <div class="tab-content">
+            <div class="drag-handle">
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <circle cx="9" cy="12" r="1"></circle>
+                <circle cx="15" cy="12" r="1"></circle>
+                <circle cx="9" cy="5" r="1"></circle>
+                <circle cx="15" cy="5" r="1"></circle>
+                <circle cx="9" cy="19" r="1"></circle>
+                <circle cx="15" cy="19" r="1"></circle>
+              </svg>
+            </div>
             <div class="tab-icon">
               <!-- eslint-disable-next-line svelte/no-at-html-tags -->
               {@html getSourceIcon(tab.source)}

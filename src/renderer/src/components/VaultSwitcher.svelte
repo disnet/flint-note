@@ -2,7 +2,7 @@
   import type { VaultInfo } from '@flint-note/server/dist/utils/global-config';
   import { getChatService } from '../services/chatService';
   import { notesStore } from '../services/noteStore.svelte';
-  import { pinnedNotesStore } from '../services/pinnedStore';
+  import { pinnedNotesStore } from '../services/pinnedStore.svelte';
   import { temporaryTabsStore } from '../stores/temporaryTabsStore.svelte';
   import { unifiedChatStore } from '../stores/unifiedChatStore.svelte';
 

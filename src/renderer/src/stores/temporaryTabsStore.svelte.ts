@@ -7,6 +7,7 @@ interface TemporaryTab {
   openedAt: Date;
   lastAccessed: Date;
   source: 'search' | 'wikilink' | 'navigation';
+  order: number;
 }
 
 interface TemporaryTabsState {
@@ -33,7 +34,7 @@ class TemporaryTabsStore {
   }
 
   get tabs(): TemporaryTab[] {
-    return this.state.tabs;
+    return [...this.state.tabs].sort((a, b) => a.order - b.order);
   }
 
   get activeTabId(): string | null {
@@ -70,7 +71,8 @@ class TemporaryTabsStore {
         title,
         openedAt: new Date(),
         lastAccessed: new Date(),
-        source
+        source,
+        order: this.state.tabs.length
       };
 
       // Add to bottom instead of top
@@ -90,6 +92,11 @@ class TemporaryTabsStore {
     const index = this.state.tabs.findIndex((tab) => tab.id === tabId);
     if (index !== -1) {
       this.state.tabs.splice(index, 1);
+
+      // Reassign order values to maintain sequence
+      this.state.tabs.forEach((tab, index) => {
+        tab.order = index;
+      });
 
       // Update active tab if the removed tab was active
       if (this.state.activeTabId === tabId) {
@@ -171,6 +178,27 @@ class TemporaryTabsStore {
     this.saveToStorage();
   }
 
+  reorderTabs(sourceIndex: number, targetIndex: number): void {
+    const tabs = [...this.state.tabs].sort((a, b) => a.order - b.order);
+    const [removed] = tabs.splice(sourceIndex, 1);
+    tabs.splice(targetIndex, 0, removed);
+
+    // Reassign order values
+    tabs.forEach((tab, index) => {
+      tab.order = index;
+    });
+
+    this.state.tabs = tabs;
+    this.saveToStorage();
+  }
+
+  private migrateTabsWithoutOrder(tabs: TemporaryTab[]): TemporaryTab[] {
+    return tabs.map((tab, index) => ({
+      ...tab,
+      order: tab.order ?? index
+    }));
+  }
+
   private cleanupOldTabs(): void {
     const cutoffTime = new Date(
       Date.now() - this.state.autoCleanupHours * 60 * 60 * 1000
@@ -233,13 +261,15 @@ class TemporaryTabsStore {
       if (stored) {
         const parsed = JSON.parse(stored);
 
-        // Convert date strings back to Date objects
-        parsed.tabs = parsed.tabs.map(
-          (tab: TemporaryTab & { openedAt: string; lastAccessed: string }) => ({
-            ...tab,
-            openedAt: new Date(tab.openedAt),
-            lastAccessed: new Date(tab.lastAccessed)
-          })
+        // Convert date strings back to Date objects and migrate order field
+        parsed.tabs = this.migrateTabsWithoutOrder(
+          parsed.tabs.map(
+            (tab: TemporaryTab & { openedAt: string; lastAccessed: string }) => ({
+              ...tab,
+              openedAt: new Date(tab.openedAt),
+              lastAccessed: new Date(tab.lastAccessed)
+            })
+          )
         );
 
         this.state = { ...defaultState, ...parsed };

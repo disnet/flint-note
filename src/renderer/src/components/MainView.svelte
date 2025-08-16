@@ -5,7 +5,7 @@
   import Settings from './Settings.svelte';
   import SlashCommands from './SlashCommands.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
-  import { pinnedNotesStore } from '../services/pinnedStore';
+  import { pinnedNotesStore } from '../services/pinnedStore.svelte';
   import { ViewRegistry } from '../lib/views';
   import { getChatService } from '../services/chatService.js';
   import type { NoteMetadata, NoteType } from '../services/noteStore.svelte';
@@ -49,14 +49,8 @@
       return;
     }
 
-    const unsubscribe = pinnedNotesStore.subscribe(() => {
-      isPinned = pinnedNotesStore.isPinned(activeNote.id);
-    });
-
-    // Initial check
+    // Reactive check using pinnedNotesStore.notes
     isPinned = pinnedNotesStore.isPinned(activeNote.id);
-
-    return unsubscribe;
   });
 
   function toggleRightSidebar(): void {

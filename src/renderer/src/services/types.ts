@@ -145,6 +145,7 @@ export interface PinnedNoteInfo {
   title: string;
   filename: string;
   pinnedAt: string;
+  order: number;
 }
 
 // Re-export types from @flint-note/server

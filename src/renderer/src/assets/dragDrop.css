@@ -1,0 +1,89 @@
+/* Drag Handle */
+.drag-handle {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  color: var(--text-secondary);
+  cursor: grab;
+  padding: 0.25rem;
+  margin-right: 0.25rem;
+  border-radius: 0.25rem;
+}
+
+.pinned-item:hover .drag-handle,
+.tab-item:hover .drag-handle {
+  opacity: 1;
+}
+
+.drag-handle:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+/* Dragging States */
+.pinned-item[draggable='true'],
+.tab-item[draggable='true'] {
+  cursor: grab;
+}
+
+.pinned-item.dragging,
+.tab-item.dragging {
+  opacity: 0.5;
+  transform: scale(0.98);
+  cursor: grabbing;
+  z-index: 1000;
+}
+
+/* Drop Zone Indicators */
+.pinned-item.drag-over-top::before,
+.tab-item.drag-over-top::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 0.5rem;
+  right: 0.5rem;
+  height: 2px;
+  background: var(--accent-primary);
+  border-radius: 1px;
+}
+
+.pinned-item.drag-over-bottom::after,
+.tab-item.drag-over-bottom::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0.5rem;
+  right: 0.5rem;
+  height: 2px;
+  background: var(--accent-primary);
+  border-radius: 1px;
+}
+
+/* Cross-section drop hints */
+.pinned-list.drag-target {
+  background: var(--accent-light);
+  border: 1px dashed var(--accent-primary);
+  border-radius: 0.5rem;
+  min-height: 3rem;
+}
+
+.pinned-list.drag-target::after {
+  content: 'Drop here to pin note';
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  height: 3rem;
+}
+
+/* Animations */
+.pinned-item,
+.tab-item {
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.pinned-item:not(.dragging),
+.tab-item:not(.dragging) {
+  transform: translateY(0);
+}

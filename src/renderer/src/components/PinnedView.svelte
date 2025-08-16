@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { NoteMetadata } from '../services/noteStore.svelte';
-  import { pinnedNotesStore } from '../services/pinnedStore';
+  import { pinnedNotesStore } from '../services/pinnedStore.svelte';
   import { notesStore } from '../services/noteStore.svelte';
 
   interface Props {
@@ -11,23 +11,20 @@
 
   let pinnedNotes = $state<NoteMetadata[]>([]);
 
-  // Subscribe to both stores and update pinnedNotes reactively
+  // Update pinnedNotes reactively based on both stores
   $effect(() => {
-    const unsubscribePinned = pinnedNotesStore.subscribe((pinnedNotesList) => {
-      const allNotes = notesStore.notes;
+    const allNotes = notesStore.notes;
+    const pinnedNotesList = pinnedNotesStore.notes;
 
-      // Match pinned note IDs with full note metadata
-      const matchedNotes = pinnedNotesList
-        .map((pinnedNote) => {
-          const fullNote = allNotes.find((note) => note.id === pinnedNote.id);
-          return fullNote;
-        })
-        .filter((note) => note !== undefined) as NoteMetadata[];
+    // Match pinned note IDs with full note metadata
+    const matchedNotes = pinnedNotesList
+      .map((pinnedNote) => {
+        const fullNote = allNotes.find((note) => note.id === pinnedNote.id);
+        return fullNote;
+      })
+      .filter((note) => note !== undefined) as NoteMetadata[];
 
-      pinnedNotes = matchedNotes;
-    });
-
-    return unsubscribePinned;
+    pinnedNotes = matchedNotes;
   });
 
   function handleNoteClick(note: NoteMetadata): void {

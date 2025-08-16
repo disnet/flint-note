@@ -1,5 +1,5 @@
 import type { NoteMetadata } from './noteStore.svelte';
-import { pinnedNotesStore } from './pinnedStore';
+import { pinnedNotesStore } from './pinnedStore.svelte';
 import { temporaryTabsStore } from '../stores/temporaryTabsStore.svelte';
 
 /**
@@ -16,10 +16,8 @@ class NoteNavigationService {
   private previousPinnedIds: string[] = [];
 
   constructor() {
-    // Subscribe to pinned notes changes to handle pin/unpin operations
-    pinnedNotesStore.subscribe((pinnedNotes) => {
-      this.handlePinnedNotesChange(pinnedNotes);
-    });
+    // Initialize with current pinned notes
+    this.previousPinnedIds = pinnedNotesStore.notes.map((note) => note.id);
   }
 
   /**
@@ -31,6 +29,9 @@ class NoteNavigationService {
     onNoteOpen: (note: NoteMetadata) => void,
     onSystemViewClear?: () => void
   ): void {
+    // Check for pinned notes changes before proceeding
+    this.checkPinnedNotesChanges();
+
     // Always open the note in the editor
     onNoteOpen(note);
 
@@ -46,6 +47,13 @@ class NoteNavigationService {
       // Regular note: add to recent list
       temporaryTabsStore.addTab(note.id, note.title, source);
     }
+  }
+
+  /**
+   * Manually check for pinned notes changes (to be called periodically)
+   */
+  checkPinnedNotesChanges(): void {
+    this.handlePinnedNotesChange(pinnedNotesStore.notes);
   }
 
   /**

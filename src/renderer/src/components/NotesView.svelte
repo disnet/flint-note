@@ -1,6 +1,6 @@
 <script lang="ts">
   import { notesStore, type NoteMetadata } from '../services/noteStore.svelte';
-  import { pinnedNotesStore } from '../services/pinnedStore';
+  import { pinnedNotesStore } from '../services/pinnedStore.svelte';
 
   const { groupedNotes } = notesStore;
 
