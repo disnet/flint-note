@@ -206,6 +206,40 @@ class TemporaryTabsStore {
     }
   }
 
+  addTabAtPosition(
+    tab: {
+      noteId: string;
+      title: string;
+      source: 'search' | 'wikilink' | 'navigation';
+      order?: number;
+    },
+    targetIndex?: number
+  ): void {
+    const tabs = [...this.state.tabs].sort((a, b) => a.order - b.order);
+    const position = targetIndex ?? tabs.length;
+
+    const newTab: TemporaryTab = {
+      id: crypto.randomUUID(),
+      noteId: tab.noteId,
+      title: tab.title,
+      openedAt: new Date(),
+      lastAccessed: new Date(),
+      source: tab.source,
+      order: position
+    };
+
+    tabs.splice(position, 0, newTab);
+
+    // Reassign order values
+    tabs.forEach((t, index) => {
+      t.order = index;
+    });
+
+    this.state.tabs = tabs;
+    this.state.activeTabId = newTab.id;
+    this.saveToStorage();
+  }
+
   private migrateTabsWithoutOrder(tabs: TemporaryTab[]): TemporaryTab[] {
     return tabs.map((tab, index) => ({
       ...tab,

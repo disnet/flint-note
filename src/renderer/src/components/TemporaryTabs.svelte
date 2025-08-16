@@ -9,6 +9,7 @@
     handleDragEnd,
     calculateDropIndex
   } from '../utils/dragDrop.svelte';
+  import { handleCrossSectionDrop } from '../utils/crossSectionDrag.svelte';
 
   interface Props {
     onNoteSelect: (note: NoteMetadata) => void;
@@ -79,13 +80,25 @@
     const { id, type } = JSON.parse(data);
     const position = dragState.dragOverPosition || 'bottom';
 
-    // Only handle same-section reorder for temporary tabs
+    // Handle cross-section drag (no source index adjustment needed)
+    if (type !== 'temporary') {
+      let dropIndex = targetIndex;
+      if (position === 'bottom') {
+        dropIndex = targetIndex + 1;
+      }
+      if (handleCrossSectionDrop(id, type, 'temporary', dropIndex)) {
+        handleDragEnd(dragState);
+        return;
+      }
+    }
+
+    // Handle same-section reorder for temporary tabs
     if (type === 'temporary') {
       const sourceIndex = temporaryTabsStore.tabs.findIndex((t) => t.id === id);
       if (sourceIndex !== -1) {
-        const dropIndex = calculateDropIndex(targetIndex, position, sourceIndex);
-        if (sourceIndex !== dropIndex) {
-          temporaryTabsStore.reorderTabs(sourceIndex, dropIndex);
+        const finalDropIndex = calculateDropIndex(targetIndex, position, sourceIndex);
+        if (sourceIndex !== finalDropIndex) {
+          temporaryTabsStore.reorderTabs(sourceIndex, finalDropIndex);
         }
       }
     }
