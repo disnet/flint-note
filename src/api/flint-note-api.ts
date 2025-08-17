@@ -20,7 +20,6 @@ import type {
   BulkDeleteNotesArgs,
   CreateNoteTypeArgs,
   ListNoteTypesArgs,
-  UpdateNoteTypeArgs,
   GetNoteTypeInfoArgs,
   GetNoteTypeInfoResult,
   DeleteNoteTypeArgs,
@@ -53,6 +52,7 @@ import { resolvePath, isPathSafe } from '../utils/path.js';
 import { LinkExtractor } from '../core/link-extractor.js';
 import type { NoteLinkRow, ExternalLinkRow, NoteRow } from '../database/schema.js';
 import { generateNoteIdFromIdentifier } from '../server/server-utils.js';
+import { MetadataFieldDefinition } from '../core/metadata-schema.js';
 
 export interface FlintNoteApiConfig extends ServerConfig {
   [key: string]: unknown;
@@ -577,7 +577,13 @@ export class FlintNoteApi {
   /**
    * Update a note type
    */
-  async updateNoteType(args: UpdateNoteTypeArgs): Promise<NoteTypeDescription> {
+  async updateNoteType(args: {
+    type_name: string;
+    description?: string;
+    instructions?: string[];
+    metadata_schema?: MetadataFieldDefinition[];
+    vault_id?: string;
+  }): Promise<NoteTypeDescription> {
     this.ensureInitialized();
     const { noteTypeManager } = await this.resolveVaultContext(args.vault_id);
 
@@ -586,8 +592,7 @@ export class FlintNoteApi {
       updates.description = args.description;
     }
     if (args.instructions) {
-      // Convert string to array - args has string, manager expects string[]
-      updates.instructions = [args.instructions];
+      updates.instructions = args.instructions;
     }
     if (args.metadata_schema) {
       // Convert array to MetadataSchema object
