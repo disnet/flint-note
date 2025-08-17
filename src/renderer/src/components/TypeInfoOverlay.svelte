@@ -1,5 +1,9 @@
 <script lang="ts">
   import type { GetNoteTypeInfoResult } from '@flint-note/server/dist/server/types';
+  import type {
+    MetadataSchema,
+    MetadataFieldType
+  } from '@flint-note/server/dist/core/metadata-schema';
   import { getChatService } from '../services/chatService';
 
   interface Props {
@@ -15,7 +19,7 @@
   let isEditing = $state(false);
   let editedPurpose = $state('');
   let editedInstructions = $state<string[]>([]);
-  let editedMetadataSchema = $state<{fields: Record<string, {name: string, type: string, description?: string, required?: boolean}>} | null>(null);
+  let editedMetadataSchema = $state<MetadataSchema | null>(null);
 
   async function loadTypeInfo(): Promise<void> {
     if (typeInfo || loading) return;
@@ -29,9 +33,11 @@
         if (typeInfo) {
           editedPurpose = typeInfo.purpose || '';
           editedInstructions = [...(typeInfo.instructions || [])];
-          editedMetadataSchema = typeInfo.metadata_schema ? {
-            fields: { ...typeInfo.metadata_schema.fields }
-          } : { fields: {} };
+          editedMetadataSchema = typeInfo.metadata_schema
+            ? {
+                fields: [...typeInfo.metadata_schema.fields]
+              }
+            : { fields: [] };
         }
       }
     } catch (err) {
@@ -46,9 +52,11 @@
     if (!isEditing) {
       editedPurpose = typeInfo?.purpose || '';
       editedInstructions = [...(typeInfo?.instructions || [])];
-      editedMetadataSchema = typeInfo?.metadata_schema ? {
-        fields: { ...typeInfo.metadata_schema.fields }
-      } : { fields: {} };
+      editedMetadataSchema = typeInfo?.metadata_schema
+        ? {
+            fields: [...typeInfo.metadata_schema.fields]
+          }
+        : { fields: [] };
     }
     isEditing = !isEditing;
   }
@@ -63,28 +71,31 @@
 
   function addSchemaField(): void {
     if (!editedMetadataSchema) {
-      editedMetadataSchema = { fields: {} };
+      editedMetadataSchema = { fields: [] };
     }
-    const fieldId = `field_${Date.now()}`;
-    editedMetadataSchema.fields[fieldId] = {
+    editedMetadataSchema.fields.push({
       name: '',
       type: 'string',
       description: '',
       required: false
-    };
+    });
     editedMetadataSchema = { ...editedMetadataSchema };
   }
 
-  function removeSchemaField(fieldId: string): void {
+  function removeSchemaField(index: number): void {
     if (!editedMetadataSchema) return;
-    const { [fieldId]: removed, ...remaining } = editedMetadataSchema.fields;
-    editedMetadataSchema = { fields: remaining };
+    editedMetadataSchema.fields.splice(index, 1);
+    editedMetadataSchema = { ...editedMetadataSchema };
   }
 
-  function updateSchemaField(fieldId: string, field: 'name' | 'type' | 'description' | 'required', value: string | boolean): void {
+  function updateSchemaField(
+    index: number,
+    field: 'name' | 'type' | 'description' | 'required',
+    value: string | boolean
+  ): void {
     if (!editedMetadataSchema) return;
-    editedMetadataSchema.fields[fieldId] = {
-      ...editedMetadataSchema.fields[fieldId],
+    editedMetadataSchema.fields[index] = {
+      ...editedMetadataSchema.fields[index],
       [field]: value
     };
     editedMetadataSchema = { ...editedMetadataSchema };
@@ -99,17 +110,18 @@
       const noteService = getChatService();
 
       if (await noteService.isReady()) {
-        // Convert editedMetadataSchema fields to MetadataFieldDefinition array
-        const metadataSchema = editedMetadataSchema && editedMetadataSchema.fields
-          ? Object.values(editedMetadataSchema.fields)
-              .filter(field => field.name.trim() !== '')
-              .map(field => ({
-                name: field.name,
-                type: field.type,
-                description: field.description || undefined,
-                required: field.required || false
-              }))
-          : undefined;
+        // Filter out empty field names from metadata schema
+        const metadataSchema =
+          editedMetadataSchema && editedMetadataSchema.fields
+            ? editedMetadataSchema.fields
+                .filter((field) => field.name.trim() !== '')
+                .map((field) => ({
+                  name: field.name,
+                  type: field.type as MetadataFieldType,
+                  description: field.description || undefined,
+                  required: field.required || false
+                }))
+            : undefined;
 
         await noteService.updateNoteType({
           typeName: typeName,
@@ -138,9 +150,11 @@
   function cancelEdit(): void {
     editedPurpose = typeInfo?.purpose || '';
     editedInstructions = [...(typeInfo?.instructions || [])];
-    editedMetadataSchema = typeInfo?.metadata_schema ? {
-      fields: { ...typeInfo.metadata_schema.fields }
-    } : { fields: {} };
+    editedMetadataSchema = typeInfo?.metadata_schema
+      ? {
+          fields: [...typeInfo.metadata_schema.fields]
+        }
+      : { fields: [] };
     isEditing = false;
   }
 
@@ -245,9 +259,9 @@
           </div>
 
           {#if isEditing}
-            {#if editedMetadataSchema && editedMetadataSchema.fields && Object.keys(editedMetadataSchema.fields).length > 0}
+            {#if editedMetadataSchema && editedMetadataSchema.fields && editedMetadataSchema.fields.length > 0}
               <div class="schema-edit">
-                {#each Object.entries(editedMetadataSchema.fields) as [fieldId, fieldInfo] (fieldId)}
+                {#each editedMetadataSchema.fields as fieldInfo, index (index)}
                   <div class="schema-field-edit">
                     <div class="field-edit-row">
                       <input
@@ -255,12 +269,22 @@
                         bind:value={fieldInfo.name}
                         placeholder="Field name"
                         class="edit-input field-name-input"
-                        oninput={(e) => updateSchemaField(fieldId, 'name', e.target.value)}
+                        oninput={(e) =>
+                          updateSchemaField(
+                            index,
+                            'name',
+                            (e.target as HTMLInputElement).value
+                          )}
                       />
                       <select
                         bind:value={fieldInfo.type}
                         class="edit-select field-type-select"
-                        onchange={(e) => updateSchemaField(fieldId, 'type', e.target.value)}
+                        onchange={(e) =>
+                          updateSchemaField(
+                            index,
+                            'type',
+                            (e.target as HTMLSelectElement).value
+                          )}
                       >
                         <option value="string">string</option>
                         <option value="number">number</option>
@@ -271,13 +295,18 @@
                         <input
                           type="checkbox"
                           bind:checked={fieldInfo.required}
-                          onchange={(e) => updateSchemaField(fieldId, 'required', e.target.checked)}
+                          onchange={(e) =>
+                            updateSchemaField(
+                              index,
+                              'required',
+                              (e.target as HTMLInputElement).checked
+                            )}
                         />
                         <span class="checkbox-label">Required</span>
                       </label>
                       <button
                         class="remove-btn"
-                        onclick={() => removeSchemaField(fieldId)}
+                        onclick={() => removeSchemaField(index)}
                         title="Remove field"
                       >
                         ✕
@@ -288,7 +317,12 @@
                       bind:value={fieldInfo.description}
                       placeholder="Field description (optional)"
                       class="edit-input field-description-input"
-                      oninput={(e) => updateSchemaField(fieldId, 'description', e.target.value)}
+                      oninput={(e) =>
+                        updateSchemaField(
+                          index,
+                          'description',
+                          (e.target as HTMLInputElement).value
+                        )}
                     />
                   </div>
                 {/each}
@@ -298,8 +332,8 @@
             {/if}
           {:else if typeInfo.metadata_schema}
             <div class="schema-info">
-              {#if typeInfo.metadata_schema.fields && Object.keys(typeInfo.metadata_schema.fields).length > 0}
-                {#each Object.entries(typeInfo.metadata_schema.fields) as [_, fieldInfo] (`${typeName}-field-${fieldInfo.name}`)}
+              {#if typeInfo.metadata_schema.fields && typeInfo.metadata_schema.fields.length > 0}
+                {#each typeInfo.metadata_schema.fields as fieldInfo, index (`${typeName}-field-${fieldInfo.name}-${index}`)}
                   <div class="schema-field">
                     <span class="field-name">{fieldInfo.name}</span>
                     {#if fieldInfo.required}
@@ -688,7 +722,7 @@
     cursor: pointer;
   }
 
-  .required-checkbox input[type="checkbox"] {
+  .required-checkbox input[type='checkbox'] {
     margin: 0;
     cursor: pointer;
   }
