@@ -527,7 +527,7 @@ app.whenReady().then(async () => {
       params: {
         typeName: string;
         description?: string;
-        instructions?: string;
+        instructions?: string[];
         metadataSchema?: MetadataFieldDefinition[];
         vaultId?: string;
       }

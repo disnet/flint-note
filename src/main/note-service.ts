@@ -225,19 +225,14 @@ export class NoteService {
   async updateNoteType(params: {
     typeName: string;
     description?: string;
-    instructions?: string;
+    instructions?: string[];
     metadataSchema?: MetadataFieldDefinition[];
     vaultId?: string;
   }): Promise<NoteTypeDescription> {
     this.ensureInitialized();
-    const existingNoteType = await this.getNoteTypeInfo({
-      type_name: params.typeName,
-      vault_id: params.vaultId
-    });
     // For now, just return what the API gives us
     return await this.api.updateNoteType({
       type_name: params.typeName,
-      content_hash: existingNoteType.content_hash,
       description: params.description,
       instructions: params.instructions,
       metadata_schema: params.metadataSchema,

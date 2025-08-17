@@ -375,7 +375,7 @@ export class ElectronChatService implements ChatService, NoteService {
   async updateNoteType(params: {
     typeName: string;
     description?: string;
-    instructions?: string;
+    instructions?: string[];
     metadataSchema?: MetadataFieldDefinition[];
     vaultId?: string;
   }): Promise<NoteTypeDescription> {

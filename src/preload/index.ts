@@ -135,7 +135,7 @@ const api = {
   updateNoteType: (params: {
     typeName: string;
     description?: string;
-    instructions?: string;
+    instructions?: string[];
     metadataSchema?: MetadataFieldDefinition[];
     vaultId?: string;
   }) => electronAPI.ipcRenderer.invoke('update-note-type', params),
