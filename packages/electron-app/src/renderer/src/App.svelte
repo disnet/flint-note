@@ -125,6 +125,14 @@
     }
   }
 
+  function handleNavigationBack(): void {
+    noteNavigationService.goBack();
+  }
+
+  function handleNavigationForward(): void {
+    noteNavigationService.goForward();
+  }
+
   // Platform detection setup
   $effect(() => {
     // Set data attribute for platform detection
@@ -145,6 +153,18 @@
       if (event.key === 'o' && (event.ctrlKey || event.metaKey)) {
         event.preventDefault();
         searchOverlayState.open();
+      }
+
+      // Alt + Left Arrow to go back
+      if (event.key === 'ArrowLeft' && event.altKey) {
+        event.preventDefault();
+        handleNavigationBack();
+      }
+
+      // Alt + Right Arrow to go forward
+      if (event.key === 'ArrowRight' && event.altKey) {
+        event.preventDefault();
+        handleNavigationForward();
       }
 
       // Ctrl/Cmd + , to open settings (handled by system views now)
@@ -200,6 +220,50 @@
       document.removeEventListener(
         'notes-unpinned',
         handleNotesUnpinned as (event: Event) => void
+      );
+  });
+
+  // Handle browser navigation (back/forward buttons)
+  $effect(() => {
+    function handlePopState(event: PopStateEvent): void {
+      noteNavigationService.handlePopState(event);
+    }
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  });
+
+  // Handle history navigation events from navigation service
+  $effect(() => {
+    function handleHistoryNavigate(event: CustomEvent): void {
+      const { noteId, title, scrollPosition } = event.detail;
+
+      // Find the note and open it
+      const note = notesStore.notes.find((n) => n.id === noteId);
+      if (note) {
+        noteNavigationService.openNote(note, 'history', openNoteEditor, () => {
+          activeSystemView = null;
+        });
+
+        // Restore scroll position if available
+        if (scrollPosition && typeof scrollPosition === 'number') {
+          setTimeout(() => {
+            window.scrollTo(0, scrollPosition);
+          }, 100);
+        }
+      } else {
+        console.warn('Note not found for history navigation:', noteId, title);
+      }
+    }
+
+    document.addEventListener(
+      'history-navigate',
+      handleHistoryNavigate as (event: Event) => void
+    );
+    return () =>
+      document.removeEventListener(
+        'history-navigate',
+        handleHistoryNavigate as (event: Event) => void
       );
   });
 
@@ -351,6 +415,46 @@
           </svg>
         </button>
         <VaultSwitcher onNoteClose={closeNoteEditor} />
+        <div class="navigation-controls">
+          <button
+            class="nav-btn"
+            class:disabled={!noteNavigationService.canGoBack}
+            onclick={handleNavigationBack}
+            disabled={!noteNavigationService.canGoBack}
+            aria-label="Go back"
+            title="Go back (Alt + Left Arrow)"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="m15 18-6-6 6-6" />
+            </svg>
+          </button>
+          <button
+            class="nav-btn"
+            class:disabled={!noteNavigationService.canGoForward}
+            onclick={handleNavigationForward}
+            disabled={!noteNavigationService.canGoForward}
+            aria-label="Go forward"
+            title="Go forward (Alt + Right Arrow)"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="m9 18 6-6-6-6" />
+            </svg>
+          </button>
+        </div>
       </div>
       <div class="title-bar-center"></div>
       <div class="title-bar-controls">
@@ -488,6 +592,38 @@
     display: flex;
     justify-content: center;
     align-items: center;
+  }
+
+  .navigation-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-left: 0.5rem;
+    -webkit-app-region: no-drag;
+  }
+
+  .nav-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.25rem;
+    border: none;
+    border-radius: 0.25rem;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .nav-btn:hover:not(.disabled) {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+  }
+
+  .nav-btn.disabled {
+    color: var(--text-tertiary);
+    cursor: not-allowed;
+    opacity: 0.5;
   }
 
   .title-bar-controls {

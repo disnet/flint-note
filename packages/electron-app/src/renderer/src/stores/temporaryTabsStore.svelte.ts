@@ -6,7 +6,7 @@ interface TemporaryTab {
   title: string;
   openedAt: Date;
   lastAccessed: Date;
-  source: 'search' | 'wikilink' | 'navigation';
+  source: 'search' | 'wikilink' | 'navigation' | 'history';
   order: number;
 }
 
@@ -48,7 +48,7 @@ class TemporaryTabsStore {
   addTab(
     noteId: string,
     title: string,
-    source: 'search' | 'wikilink' | 'navigation'
+    source: 'search' | 'wikilink' | 'navigation' | 'history'
   ): void {
     // Don't add tabs while we're switching vaults
     if (this.isVaultSwitching) {
@@ -212,7 +212,7 @@ class TemporaryTabsStore {
     tab: {
       noteId: string;
       title: string;
-      source: 'search' | 'wikilink' | 'navigation';
+      source: 'search' | 'wikilink' | 'navigation' | 'history';
       order?: number;
     },
     targetIndex?: number

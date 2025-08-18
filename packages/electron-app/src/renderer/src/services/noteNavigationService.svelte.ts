@@ -1,16 +1,18 @@
 import type { NoteMetadata } from './noteStore.svelte';
 import { pinnedNotesStore } from './pinnedStore.svelte';
 import { temporaryTabsStore } from '../stores/temporaryTabsStore.svelte';
+import { navigationHistoryStore } from '../stores/navigationHistoryStore.svelte';
 
 /**
  * Centralized service for handling note navigation and coordination between
- * pinned notes and temporary tabs (recent notes list).
+ * pinned notes, temporary tabs (recent notes list), and navigation history.
  *
  * Business Rules:
  * - Pinned notes don't appear in recent list when opened
  * - Opening a pinned note clears recent list highlighting
  * - Unpinned notes are added to the end of recent list
  * - Opening regular notes adds them to recent list (unless already pinned)
+ * - All note navigation is tracked in navigation history for back/forward
  */
 class NoteNavigationService {
   private previousPinnedIds: string[] = [];
@@ -21,11 +23,11 @@ class NoteNavigationService {
   }
 
   /**
-   * Opens a note and handles all coordination between pinned and recent lists
+   * Opens a note and handles all coordination between pinned notes, recent tabs, and navigation history
    */
   openNote(
     note: NoteMetadata,
-    source: 'search' | 'wikilink' | 'navigation',
+    source: 'search' | 'wikilink' | 'navigation' | 'history',
     onNoteOpen: (note: NoteMetadata) => void,
     onSystemViewClear?: () => void
   ): void {
@@ -47,6 +49,100 @@ class NoteNavigationService {
       // Regular note: add to recent list
       temporaryTabsStore.addTab(note.id, note.title, source);
     }
+
+    // Add to navigation history (unless this is already a history navigation)
+    if (source !== 'history') {
+      navigationHistoryStore.addEntry(note.id, note.title, source);
+    }
+  }
+
+  /**
+   * Navigate backwards in history
+   */
+  goBack(): boolean {
+    const entry = navigationHistoryStore.goBack();
+    if (entry) {
+      // Find the note and open it
+      this.openNoteFromHistory(entry);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Navigate forwards in history
+   */
+  goForward(): boolean {
+    const entry = navigationHistoryStore.goForward();
+    if (entry) {
+      // Find the note and open it
+      this.openNoteFromHistory(entry);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Handle browser popstate events
+   */
+  handlePopState(event: PopStateEvent): boolean {
+    const entry = navigationHistoryStore.handlePopState(event);
+    if (entry) {
+      this.openNoteFromHistory(entry);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Get navigation state for UI
+   */
+  get canGoBack(): boolean {
+    return navigationHistoryStore.canGoBack;
+  }
+
+  get canGoForward(): boolean {
+    return navigationHistoryStore.canGoForward;
+  }
+
+  /**
+   * Update scroll position for current navigation entry
+   */
+  updateScrollPosition(scrollPosition: number): void {
+    navigationHistoryStore.updateScrollPosition(scrollPosition);
+  }
+
+  /**
+   * Start vault switch - notify all stores
+   */
+  startVaultSwitch(): void {
+    navigationHistoryStore.startVaultSwitch();
+  }
+
+  /**
+   * End vault switch - refresh all stores for new vault
+   */
+  async endVaultSwitch(): Promise<void> {
+    await navigationHistoryStore.endVaultSwitch();
+  }
+
+  /**
+   * Open a note from navigation history
+   */
+  private openNoteFromHistory(entry: {
+    noteId: string;
+    title: string;
+    scrollPosition?: number;
+  }): void {
+    // Emit event to find and open the note
+    const event = new CustomEvent('history-navigate', {
+      detail: {
+        noteId: entry.noteId,
+        title: entry.title,
+        scrollPosition: entry.scrollPosition
+      }
+    });
+    document.dispatchEvent(event);
   }
 
   /**
