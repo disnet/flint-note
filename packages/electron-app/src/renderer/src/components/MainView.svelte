@@ -1,6 +1,5 @@
 <script lang="ts">
   import NoteEditor from './NoteEditor.svelte';
-  import InboxView from './InboxView.svelte';
   import NotesView from './NotesView.svelte';
   import Settings from './Settings.svelte';
   import SlashCommands from './SlashCommands.svelte';
@@ -14,7 +13,7 @@
 
   interface Props {
     activeNote: NoteMetadata | null;
-    activeSystemView: 'inbox' | 'notes' | 'settings' | 'slash-commands' | null;
+    activeSystemView: 'notes' | 'settings' | 'slash-commands' | null;
     noteTypes: NoteType[];
     onClose: () => void;
     onNoteSelect: (note: NoteMetadata) => void;
@@ -172,9 +171,7 @@
 </script>
 
 <div class="main-view">
-  {#if activeSystemView === 'inbox'}
-    <InboxView />
-  {:else if activeSystemView === 'notes'}
+  {#if activeSystemView === 'notes'}
     <div class="system-view-container">
       <div class="system-view-content">
         <NotesView {onNoteSelect} {onCreateNote} />

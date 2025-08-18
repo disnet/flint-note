@@ -26,9 +26,7 @@
   let activeNote = $state<NoteMetadata | null>(null);
   let showCreateNoteModal = $state(false);
   let createNotePreselectedType = $state<string | undefined>(undefined);
-  let activeSystemView = $state<'inbox' | 'notes' | 'settings' | 'slash-commands' | null>(
-    null
-  );
+  let activeSystemView = $state<'notes' | 'settings' | 'slash-commands' | null>(null);
 
   function handleNoteSelect(note: NoteMetadata): void {
     noteNavigationService.openNote(note, 'navigation', openNoteEditor, () => {
@@ -42,7 +40,7 @@
   }
 
   function handleSystemViewSelect(
-    view: 'inbox' | 'notes' | 'settings' | 'slash-commands' | null
+    view: 'notes' | 'settings' | 'slash-commands' | null
   ): void {
     activeSystemView = view;
     // Clear active note when switching to system views

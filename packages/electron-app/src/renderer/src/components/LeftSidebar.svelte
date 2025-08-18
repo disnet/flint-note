@@ -7,11 +7,9 @@
 
   interface Props {
     activeNote: NoteMetadata | null;
-    activeSystemView: 'inbox' | 'notes' | 'settings' | 'slash-commands' | null;
+    activeSystemView: 'notes' | 'settings' | 'slash-commands' | null;
     onNoteSelect: (note: NoteMetadata) => void;
-    onSystemViewSelect: (
-      view: 'inbox' | 'notes' | 'settings' | 'slash-commands' | null
-    ) => void;
+    onSystemViewSelect: (view: 'notes' | 'settings' | 'slash-commands' | null) => void;
   }
 
   let { activeNote, onNoteSelect, onSystemViewSelect, activeSystemView }: Props =

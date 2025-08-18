@@ -2,15 +2,13 @@
   import { searchOverlayState } from '../stores/searchOverlay.svelte';
 
   interface Props {
-    activeSystemView: 'inbox' | 'notes' | 'settings' | 'slash-commands' | null;
-    onSystemViewSelect: (
-      view: 'inbox' | 'notes' | 'settings' | 'slash-commands' | null
-    ) => void;
+    activeSystemView: 'notes' | 'settings' | 'slash-commands' | null;
+    onSystemViewSelect: (view: 'notes' | 'settings' | 'slash-commands' | null) => void;
   }
 
   let { onSystemViewSelect, activeSystemView }: Props = $props();
 
-  function setActiveView(view: 'inbox' | 'notes' | 'settings' | 'slash-commands'): void {
+  function setActiveView(view: 'notes' | 'settings' | 'slash-commands'): void {
     onSystemViewSelect(view);
   }
 
@@ -21,24 +19,6 @@
 
 <div class="system-views">
   <div class="system-nav">
-    <button
-      class="nav-item"
-      class:active={activeSystemView === 'inbox'}
-      onclick={() => setActiveView('inbox')}
-    >
-      <svg
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-      >
-        <polyline points="22,12 18,12 15,21 9,3 6,12 2,12"></polyline>
-      </svg>
-      Inbox
-    </button>
-
     <button
       class="nav-item"
       class:active={activeSystemView === 'notes'}
