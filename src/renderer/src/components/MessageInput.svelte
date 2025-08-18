@@ -178,9 +178,14 @@
     }
   }
 
-  function handleWikilinkClick(_noteId: string, _title: string): void {
+  function handleWikilinkClick(
+    _noteId: string,
+    _title: string,
+    _shouldCreate?: boolean
+  ): void {
     // For message input, we might want to handle this differently
     // For now, just focus back to the editor
+    // Note: We don't implement note creation in the message input context
     editorView?.focus();
   }
 

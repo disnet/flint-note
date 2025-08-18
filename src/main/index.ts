@@ -149,6 +149,9 @@ app.whenReady().then(async () => {
     noteService = new NoteService();
     await noteService.initialize();
     logger.info('Note Service initialized successfully');
+
+    // Ensure default 'note' type exists in all vaults
+    await noteService.ensureDefaultNoteType();
   } catch (error) {
     logger.error('Failed to initialize Note Service', { error });
     logger.warn('Note operations will not be available');

@@ -315,6 +315,80 @@ export class NoteService {
     });
   }
 
+  // Ensure default note type exists across all vaults
+  async ensureDefaultNoteType(): Promise<void> {
+    this.ensureInitialized();
+
+    try {
+      // Get all vaults
+      const vaults = await this.api.listVaults();
+      const currentVault = await this.api.getCurrentVault();
+
+      logger.info(`Ensuring default 'note' type exists across ${vaults.length} vaults`);
+
+      for (const vault of vaults) {
+        try {
+          // Switch to this vault if it's not the current one
+          if (!currentVault || vault.id !== currentVault.id) {
+            await this.api.switchVault({ id: vault.id });
+          }
+
+          // Check if 'note' type already exists
+          const noteTypes = await this.api.listNoteTypes();
+          const hasNoteType = noteTypes.some((type) => type.name === 'note');
+
+          if (!hasNoteType) {
+            // Create the default 'note' type
+            await this.api.createNoteType({
+              type_name: 'note',
+              description: 'General purpose note for unspecified content',
+              agent_instructions: [
+                'This is a general purpose note with no specific structure requirements.',
+                "Use for any content that doesn't fit into other specific note types."
+              ],
+              metadata_schema: {
+                fields: [
+                  {
+                    name: 'tags',
+                    type: 'array',
+                    required: false,
+                    description: 'Optional tags for categorizing the note'
+                  },
+                  {
+                    name: 'created_by',
+                    type: 'string',
+                    required: false,
+                    description: 'Optional field indicating who created the note'
+                  }
+                ]
+              }
+            });
+            logger.info(`Created default 'note' type in vault: ${vault.name}`);
+          } else {
+            logger.debug(`Default 'note' type already exists in vault: ${vault.name}`);
+          }
+        } catch (error) {
+          logger.warn(`Failed to ensure default note type in vault ${vault.name}:`, {
+            error
+          });
+        }
+      }
+
+      // Restore original vault if we switched
+      if (currentVault && vaults.length > 1) {
+        try {
+          await this.api.switchVault({ id: currentVault.id });
+        } catch (error) {
+          logger.warn('Failed to restore original vault:', { error });
+        }
+      }
+
+      logger.info('Finished ensuring default note type across all vaults');
+    } catch (error) {
+      logger.error('Failed to ensure default note type:', { error });
+    }
+  }
+
   // Utility methods
   isReady(): boolean {
     return this.isInitialized;

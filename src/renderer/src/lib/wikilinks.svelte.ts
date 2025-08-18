@@ -28,7 +28,7 @@ export interface WikilinkMatch {
 }
 
 export interface WikilinkClickHandler {
-  (noteId: string, title: string): void;
+  (noteId: string, title: string, shouldCreate?: boolean): void;
 }
 
 // Effect to update wikilink click handler
@@ -238,9 +238,9 @@ class WikilinkWidget extends WidgetType {
         if (this.exists && this.noteId) {
           this.clickHandler(this.noteId, this.title);
         } else {
-          // Handle broken link - for now just log, later we can add create note functionality
-          console.log('Broken wikilink clicked:', this.title);
-          // TODO: Implement create note functionality
+          // Handle broken link - create new note with this title
+          console.log('Creating new note for broken wikilink:', this.title);
+          this.clickHandler(this.identifier, this.title, true);
         }
       }
     });
