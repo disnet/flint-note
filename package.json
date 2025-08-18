@@ -10,9 +10,12 @@
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
+    "build:tsc": "tsc --build",
+    "build:clean": "tsc --build --clean",
     "dev": "npm run dev --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspace=@flint-note/electron-app && npm run type-check --workspace=@flint-note/server",
+    "typecheck:incremental": "tsc --build --dry",
     "check": "npm run lint && npm run typecheck",
     "clean": "npm run clean --workspaces --if-present",
     "format": "prettier --plugin prettier-plugin-svelte --write ."
