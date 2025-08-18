@@ -1038,6 +1038,47 @@ ${
     }
   }
 
+  private isApiKeyError(error: unknown): boolean {
+    if (!error || typeof error !== 'object') {
+      return false;
+    }
+
+    const errorObj = error as Record<string, unknown>;
+
+    // Check for Vercel AI Gateway authentication errors
+    if (
+      errorObj.name === 'AI_GatewayAuthenticationError' ||
+      errorObj.name === '_GatewayAuthenticationError' ||
+      errorObj.name === 'GatewayAuthenticationError'
+    ) {
+      return true;
+    }
+
+    // Check error message for authentication-related text
+    const errorMessage = typeof errorObj.message === 'string' ? errorObj.message : '';
+    const authErrorKeywords = [
+      'No authentication provided',
+      'AI Gateway authentication failed',
+      'authentication failed',
+      'API key',
+      'OIDC token',
+      'gateway authentication'
+    ];
+
+    for (const keyword of authErrorKeywords) {
+      if (errorMessage.includes(keyword)) {
+        return true;
+      }
+    }
+
+    // Check for nested cause errors (like in the error you provided)
+    if (errorObj.cause && typeof errorObj.cause === 'object') {
+      return this.isApiKeyError(errorObj.cause);
+    }
+
+    return false;
+  }
+
   async sendMessage(
     userMessage: string,
     conversationId?: string,
@@ -1162,6 +1203,13 @@ ${
       return { text: result.text };
     } catch (error) {
       logger.error('AI Service Error', { error });
+
+      // Check if this is an API key authentication error
+      if (this.isApiKeyError(error)) {
+        return {
+          text: "⚠️ **API Key Required**\n\nIt looks like you haven't set up your AI Gateway API key yet. To use the AI assistant:\n\n1. Click the **Settings** button (⚙️) in the sidebar\n2. Go to **🔑 API Keys** section\n3. Add your AI Gateway API key\n\nOnce configured, you'll be able to chat with the AI assistant!"
+        };
+      }
 
       // Fallback to mock response if AI service fails
       const fallbackResponses = [
@@ -1399,6 +1447,16 @@ ${
       }
     } catch (error) {
       logger.error('AI Service Streaming Error', { error });
+
+      // Check if this is an API key authentication error
+      if (this.isApiKeyError(error)) {
+        const apiKeyErrorMessage =
+          "⚠️ **API Key Required**\n\nIt looks like you haven't set up your AI Gateway API key yet. To use the AI assistant:\n\n1. Click the **Settings** button (⚙️) in the sidebar\n2. Go to **🔑 API Keys** section\n3. Add your AI Gateway API key\n\nOnce configured, you'll be able to chat with the AI assistant!";
+        this.emit('stream-chunk', { requestId, chunk: apiKeyErrorMessage });
+        this.emit('stream-end', { requestId, fullText: apiKeyErrorMessage });
+        return;
+      }
+
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error occurred';
       this.emit('stream-error', { requestId, error: errorMessage });

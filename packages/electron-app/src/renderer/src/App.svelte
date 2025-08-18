@@ -205,9 +205,13 @@
       );
   });
 
+  function generateUniqueId(): string {
+    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  }
+
   async function handleSendMessage(text: string): Promise<void> {
     const newMessage: Message = {
-      id: Date.now().toString(),
+      id: generateUniqueId(),
       text,
       sender: 'user',
       timestamp: new Date()
@@ -217,7 +221,7 @@
     isLoadingResponse = true;
 
     // Create a placeholder message for streaming response
-    const agentResponseId = (Date.now() + 1).toString();
+    const agentResponseId = generateUniqueId();
     const agentResponse: Message = {
       id: agentResponseId,
       text: '',

@@ -409,6 +409,12 @@ class UnifiedChatStore {
       if (!thread) return;
     }
 
+    // Check for duplicate message ID and skip if it already exists
+    if (thread.messages.some((m) => m.id === message.id)) {
+      console.warn(`Message with ID ${message.id} already exists, skipping duplicate`);
+      return;
+    }
+
     const updatedMessages = [...thread.messages, message];
     this.updateThread(thread.id, { messages: updatedMessages });
   }
@@ -416,6 +422,14 @@ class UnifiedChatStore {
   addMessageToThread(threadId: string, message: Message): boolean {
     const thread = this.findThread(threadId);
     if (!thread) return false;
+
+    // Check for duplicate message ID and skip if it already exists
+    if (thread.messages.some((m) => m.id === message.id)) {
+      console.warn(
+        `Message with ID ${message.id} already exists in thread ${threadId}, skipping duplicate`
+      );
+      return false;
+    }
 
     const updatedMessages = [...thread.messages, message];
     return this.updateThread(threadId, { messages: updatedMessages });
@@ -602,6 +616,22 @@ class UnifiedChatStore {
     return 'flint-unified-chat-store';
   }
 
+  private deduplicateMessages(messages: Message[]): Message[] {
+    const seen = new Set<string>();
+    const deduplicated: Message[] = [];
+
+    for (const message of messages) {
+      if (!seen.has(message.id)) {
+        seen.add(message.id);
+        deduplicated.push(message);
+      } else {
+        console.warn(`Removing duplicate message with ID: ${message.id}`);
+      }
+    }
+
+    return deduplicated;
+  }
+
   private loadFromStorage(): void {
     if (typeof window === 'undefined') return;
 
@@ -622,10 +652,12 @@ class UnifiedChatStore {
                 ...thread.costInfo,
                 lastUpdated: new Date(thread.costInfo.lastUpdated)
               },
-              messages: thread.messages.map((msg: Message) => ({
-                ...msg,
-                timestamp: new Date(msg.timestamp)
-              }))
+              messages: this.deduplicateMessages(
+                thread.messages.map((msg: Message) => ({
+                  ...msg,
+                  timestamp: new Date(msg.timestamp)
+                }))
+              )
             }));
             this.state.threadsByVault.set(vaultId, restoredThreads);
           }
@@ -635,6 +667,9 @@ class UnifiedChatStore {
         this.state.activeThreadId = parsed.activeThreadId || null;
         this.state.currentVaultId = parsed.currentVaultId || 'default';
         this.state.maxThreadsPerVault = parsed.maxThreadsPerVault || 50;
+
+        // Save the cleaned up data back to storage to prevent future issues
+        this.saveToStorage();
       }
     } catch (error) {
       console.warn('Failed to load unified chat store from storage:', error);

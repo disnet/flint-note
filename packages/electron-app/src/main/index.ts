@@ -190,6 +190,14 @@ app.whenReady().then(async () => {
     ) => {
       try {
         if (aiService) {
+          // Check if API key is available before attempting to send
+          const gatewayApiKey = (await secureStorageService.getApiKey('gateway')).key;
+          if (!gatewayApiKey || gatewayApiKey.trim() === '') {
+            return {
+              text: "⚠️ **API Key Required**\n\nIt looks like you haven't set up your AI Gateway API key yet. To use the AI assistant:\n\n1. Click the **Settings** button (⚙️) in the sidebar\n2. Go to **🔑 API Keys** section\n3. Add your AI Gateway API key\n\nOnce configured, you'll be able to chat with the AI assistant!"
+            };
+          }
+
           // Use real AI service
           return await aiService.sendMessage(
             params.message,
@@ -234,6 +242,25 @@ app.whenReady().then(async () => {
     ) => {
       try {
         if (aiService) {
+          // Check if API key is available before attempting to stream
+          const gatewayApiKey = (await secureStorageService.getApiKey('gateway')).key;
+          if (!gatewayApiKey || gatewayApiKey.trim() === '') {
+            const apiKeyErrorMessage =
+              "⚠️ **API Key Required**\n\nIt looks like you haven't set up your AI Gateway API key yet. To use the AI assistant:\n\n1. Click the **Settings** button (⚙️) in the sidebar\n2. Go to **🔑 API Keys** section\n3. Add your AI Gateway API key\n\nOnce configured, you'll be able to chat with the AI assistant!";
+
+            // Send as streaming response
+            event.sender.send('ai-stream-start', { requestId: params.requestId });
+            event.sender.send('ai-stream-chunk', {
+              requestId: params.requestId,
+              chunk: apiKeyErrorMessage
+            });
+            event.sender.send('ai-stream-end', {
+              requestId: params.requestId,
+              fullText: apiKeyErrorMessage
+            });
+            return;
+          }
+
           // Set up event forwarding from AI service to renderer
           const forwardEvent = (eventName: string, data: unknown): void => {
             event.sender.send(`ai-${eventName}`, data);
