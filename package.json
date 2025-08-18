@@ -12,7 +12,7 @@
     "build": "npm run build --workspaces --if-present",
     "dev": "npm run dev --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
-    "typecheck": "tsc --build",
+    "typecheck": "npm run typecheck --workspace=@flint-note/electron-app && npm run type-check --workspace=@flint-note/server",
     "check": "npm run lint && npm run typecheck",
     "clean": "npm run clean --workspaces --if-present",
     "format": "prettier --plugin prettier-plugin-svelte --write ."

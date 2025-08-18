@@ -1,0 +1,72 @@
+{
+  "name": "@flint-note/server",
+  "version": "0.10.2",
+  "description": "Agent-first note-taking application with MCP server",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": "dist/index.js",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "tsc && chmod +x dist/cli.js && chmod +x dist/index.js",
+    "build:types": "tsc --emitDeclarationOnly",
+    "build:watch": "tsc --watch",
+    "clean": "rm -rf dist",
+    "start": "npm run build && node dist/index.js",
+    "start:prod": "node dist/index.js",
+    "dev": "tsx --watch src/index.ts",
+    "cli": "tsx src/cli.ts",
+    "cli:prod": "node dist/cli.js",
+    "test": "tsx --test-reporter=./simple-reporter.js --test \"test/**/*.test.ts\"",
+    "test:unit": "tsx --test-reporter=./simple-reporter.js --test \"test/unit/**/*.test.ts\"",
+    "test:integration": "tsx --test-reporter=./simple-reporter.js --test \"test/integration/**/*.test.ts\"",
+    "test:file": "tsx --test-reporter=./simple-reporter.js --test",
+    "lint": "eslint src/ test/",
+    "check": "npm run lint && npm run type-check",
+    "format": "prettier --write src/**/*.ts test/**/*.ts",
+    "type-check": "tsc --project tsconfig.dev.json --noEmit",
+    "inspector": "DANGEROUSLY_OMIT_AUTH=true npx @modelcontextprotocol/inspector node dist/index.js",
+    "prepublish": "npm run build",
+    "prepublishOnly": "npm run build"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "notes",
+    "mcp",
+    "ai",
+    "agent",
+    "knowledge-management"
+  ],
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "dist/**/*.d.ts.map",
+    "README.md",
+    "LICENSE",
+    "prompts"
+  ],
+  "author": "Tim Disney",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "js-yaml": "^4.1.0",
+    "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.0",
+    "@types/node": "^20.0.0",
+    "@types/sqlite3": "^3.1.11",
+    "@typescript-eslint/eslint-plugin": "^8.34.1",
+    "@typescript-eslint/parser": "^8.34.1",
+    "eslint": "^9.29.0",
+    "prettier": "^3.0.0",
+    "tsx": "^4.20.3",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
