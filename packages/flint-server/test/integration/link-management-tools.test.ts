@@ -120,7 +120,7 @@ describe('Link Management Tools Integration', () => {
     client = new MCPClient(context.serverProcess);
 
     // Wait for server initialization
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 500));
   });
 
   afterEach(async () => {
@@ -160,7 +160,7 @@ Broken link: [[non-existent-note]]`;
       });
 
       // Wait a moment for link extraction to complete
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Get links for the source note
       const linksData = await client.expectSuccess('get_note_links', {
@@ -222,7 +222,7 @@ Broken link: [[non-existent-note]]`;
       });
 
       // Wait for link extraction
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Get links for the target note
       const linksData = await client.expectSuccess('get_note_links', {
@@ -283,7 +283,7 @@ Broken link: [[non-existent-note]]`;
       });
 
       // Wait for link extraction
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       const backlinksData = await client.expectSuccess('get_backlinks', {
         identifier: targetResult.id
@@ -344,7 +344,7 @@ Broken link: [[non-existent-note]]`;
       });
 
       // Wait for link extraction
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       const brokenData = await client.expectSuccess('find_broken_links', {});
 
@@ -373,7 +373,7 @@ Broken link: [[non-existent-note]]`;
       });
 
       // Wait for link extraction
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       const brokenData = await client.expectSuccess('find_broken_links', {});
 
@@ -422,7 +422,7 @@ Broken link: [[non-existent-note]]`;
       });
 
       // Wait for link extraction
-      await new Promise(resolve => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 200));
     });
 
     test('should find notes that link to specific targets', async () => {

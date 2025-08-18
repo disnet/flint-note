@@ -173,7 +173,7 @@ export class ResourceHandlers {
 
     // Get all notes and filter by tag
     const allNotes = await noteManager.listNotes();
-    const taggedNotes = allNotes.filter(note => note.tags && note.tags.includes(tag));
+    const taggedNotes = allNotes.filter((note) => note.tags && note.tags.includes(tag));
 
     return {
       contents: [

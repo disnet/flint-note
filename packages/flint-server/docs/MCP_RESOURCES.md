@@ -12,11 +12,11 @@ flint-note exposes notes and collections as MCP resources, allowing AI agents an
 
 These resources provide system-level information:
 
-| URI | MIME Type | Description |
-|-----|-----------|-------------|
-| `flint-note://types` | `application/json` | List of all available note types |
+| URI                   | MIME Type          | Description                       |
+| --------------------- | ------------------ | --------------------------------- |
+| `flint-note://types`  | `application/json` | List of all available note types  |
 | `flint-note://recent` | `application/json` | Recently modified notes (last 20) |
-| `flint-note://stats` | `application/json` | Workspace statistics |
+| `flint-note://stats`  | `application/json` | Workspace statistics              |
 
 ### Dynamic Resources
 
@@ -181,11 +181,11 @@ console.log(`Found ${urgentNotes.length} urgent notes`);
 
 Resources return appropriate errors for common failure cases:
 
-| Error | Cause | Example |
-|-------|-------|---------|
-| `Note not found` | Invalid note identifier | Non-existent note |
-| `Note type 'xyz' does not exist` | Invalid note type | Non-existent type directory |
-| `Unknown resource` | Invalid URI pattern | Malformed URI |
+| Error                            | Cause                   | Example                     |
+| -------------------------------- | ----------------------- | --------------------------- |
+| `Note not found`                 | Invalid note identifier | Non-existent note           |
+| `Note type 'xyz' does not exist` | Invalid note type       | Non-existent type directory |
+| `Unknown resource`               | Invalid URI pattern     | Malformed URI               |
 
 ## Performance Considerations
 

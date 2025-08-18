@@ -83,7 +83,7 @@ describe('Regex Search', () => {
       assert.ok(Array.isArray(results), 'Should return array of results');
       assert.ok(results.length > 0, 'Should find notes with email addresses');
 
-      const emailNote = results.find(r => r.title === 'Email Addresses Test');
+      const emailNote = results.find((r) => r.title === 'Email Addresses Test');
       assert.ok(emailNote, 'Should find the email test note');
       assert.ok(
         emailNote.snippet.includes('john.doe@example.com'),
@@ -102,7 +102,7 @@ describe('Regex Search', () => {
 
       assert.ok(results.length > 0, 'Should find notes with phone numbers');
 
-      const phoneNote = results.find(r => r.title === 'Phone Numbers Test');
+      const phoneNote = results.find((r) => r.title === 'Phone Numbers Test');
       assert.ok(phoneNote, 'Should find the phone test note');
       assert.ok(
         phoneNote.snippet.includes('555') || phoneNote.snippet.includes('123-4567'),
@@ -125,7 +125,7 @@ describe('Regex Search', () => {
       assert.ok(results.length > 0, 'Should find notes with date patterns');
 
       // If we find the specific note, verify it has some date-related content
-      const dateNote = results.find(r => r.title === 'Dates and Times');
+      const dateNote = results.find((r) => r.title === 'Dates and Times');
       if (dateNote) {
         assert.ok(dateNote.snippet.length > 0, 'Should have some snippet content');
       }
@@ -142,7 +142,7 @@ describe('Regex Search', () => {
 
       assert.ok(results.length > 0, 'Should find notes with URLs');
 
-      const urlNote = results.find(r => r.title === 'URLs and Links');
+      const urlNote = results.find((r) => r.title === 'URLs and Links');
       assert.ok(urlNote, 'Should find the URL test note');
       assert.ok(
         urlNote.snippet.includes('https://example.com'),
@@ -163,7 +163,7 @@ describe('Regex Search', () => {
 
       assert.ok(results.length > 0, 'Should find matches ignoring case');
 
-      const codeNote = results.find(r => r.title === 'Code Patterns');
+      const codeNote = results.find((r) => r.title === 'Code Patterns');
       assert.ok(codeNote, 'Should find code note with case-insensitive match');
     });
 
@@ -193,7 +193,7 @@ describe('Regex Search', () => {
 
       // Should match "test" but not "testing" or "retest"
       const _foundExactWord = results.some(
-        r => r.snippet.match(/\btest\b/) && !r.snippet.includes('testing')
+        (r) => r.snippet.match(/\btest\b/) && !r.snippet.includes('testing')
       );
       // This test is challenging since we might not have exact control over content
       assert.ok(Array.isArray(results), 'Should handle word boundary patterns');
@@ -211,7 +211,7 @@ describe('Regex Search', () => {
 
       assert.ok(results.length > 0, 'Should find version number patterns');
 
-      const versionNote = results.find(r => r.title === 'Version Numbers');
+      const versionNote = results.find((r) => r.title === 'Version Numbers');
       assert.ok(versionNote, 'Should find version numbers note');
       assert.ok(
         versionNote.snippet.includes('1.2.3') ||
@@ -233,7 +233,7 @@ describe('Regex Search', () => {
 
       if (results.length > 0) {
         const allProjectType = results.every(
-          r => r.type === TEST_CONSTANTS.NOTE_TYPES.PROJECT
+          (r) => r.type === TEST_CONSTANTS.NOTE_TYPES.PROJECT
         );
         assert.ok(allProjectType, 'All results should be from project type');
       }
@@ -369,7 +369,7 @@ describe('Regex Search', () => {
         /\s+/g // Whitespace
       ];
 
-      const promises = patterns.map(pattern =>
+      const promises = patterns.map((pattern) =>
         context.searchManager.searchNotes(pattern.source, null, 10, true)
       );
 
@@ -406,8 +406,8 @@ describe('Regex Search', () => {
       const endTime2 = Date.now();
 
       assert.deepStrictEqual(
-        results1.map(r => r.id),
-        results2.map(r => r.id),
+        results1.map((r) => r.id),
+        results2.map((r) => r.id),
         'Same pattern should return identical results'
       );
 
@@ -438,8 +438,8 @@ describe('Regex Search', () => {
       assert.ok(Array.isArray(textResults), 'Text search should work');
 
       // Both might find the same notes if they contain both patterns
-      const commonNotes = emailResults.filter(emailNote =>
-        textResults.some(textNote => textNote.id === emailNote.id)
+      const commonNotes = emailResults.filter((emailNote) =>
+        textResults.some((textNote) => textNote.id === emailNote.id)
       );
 
       if (commonNotes.length > 0) {
@@ -499,7 +499,7 @@ describe('Regex Search', () => {
 
       assert.ok(results.length > 0, 'Should find TODO items');
 
-      const todoNote = results.find(r => r.title === 'TODO List');
+      const todoNote = results.find((r) => r.title === 'TODO List');
       assert.ok(todoNote, 'Should find the TODO note');
     });
 
@@ -522,7 +522,7 @@ describe('Regex Search', () => {
 
       assert.ok(results.length > 0, 'Should find markdown links');
 
-      const linkNote = results.find(r => r.title === 'Markdown Links Test');
+      const linkNote = results.find((r) => r.title === 'Markdown Links Test');
       assert.ok(linkNote, 'Should find the markdown links note');
     });
 
@@ -545,7 +545,7 @@ describe('Regex Search', () => {
 
       assert.ok(results.length > 0, 'Should find code blocks');
 
-      const codeNote = results.find(r => r.title === 'Code Examples');
+      const codeNote = results.find((r) => r.title === 'Code Examples');
       assert.ok(codeNote, 'Should find the code examples note');
     });
 
@@ -568,7 +568,7 @@ describe('Regex Search', () => {
 
       assert.ok(results.length > 0, 'Should find hashtags');
 
-      const socialNote = results.find(r => r.title === 'Social Media Post');
+      const socialNote = results.find((r) => r.title === 'Social Media Post');
       assert.ok(socialNote, 'Should find the social media note');
     });
   });

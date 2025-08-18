@@ -41,7 +41,7 @@ This document provides practical examples of using flint-note's unified note ope
         }
       },
       {
-        "type": "projects", 
+        "type": "projects",
         "title": "API Documentation",
         "content": "# API Documentation Project\n\n## Goals\n- Create comprehensive API docs\n- Add interactive examples\n- Improve developer onboarding\n\n## Deliverables\n- OpenAPI spec\n- Developer portal\n- Code samples",
         "metadata": {
@@ -183,7 +183,7 @@ Successful batch creation returns:
         }
       },
       {
-        "identifier": "projects/api-documentation.md", 
+        "identifier": "projects/api-documentation.md",
         "metadata": {
           "status": "completed",
           "completion_date": "2024-01-18",
@@ -266,7 +266,11 @@ Response with partial failures:
   "failed": 2,
   "results": [
     {
-      "input": { "type": "general", "title": "Valid Note", "content": "This will succeed" },
+      "input": {
+        "type": "general",
+        "title": "Valid Note",
+        "content": "This will succeed"
+      },
       "success": true,
       "result": {
         "id": "general/valid-note.md",
@@ -278,12 +282,20 @@ Response with partial failures:
       }
     },
     {
-      "input": { "type": "invalid/type", "title": "Invalid Note", "content": "This will fail due to invalid type" },
+      "input": {
+        "type": "invalid/type",
+        "title": "Invalid Note",
+        "content": "This will fail due to invalid type"
+      },
       "success": false,
       "error": "Failed to create note 'Invalid Note': Invalid note type name: invalid/type"
     },
     {
-      "input": { "type": "book-reviews", "title": "Missing Required Fields", "content": "This will fail due to missing required metadata" },
+      "input": {
+        "type": "book-reviews",
+        "title": "Missing Required Fields",
+        "content": "This will fail due to missing required metadata"
+      },
       "success": false,
       "error": "Failed to create note 'Missing Required Fields': Metadata validation failed: Required field 'author' is missing, Required field 'rating' is missing, Required field 'status' is missing"
     }
@@ -294,48 +306,57 @@ Response with partial failures:
 ## API Design Benefits
 
 ### Unified Interface
+
 - Single tools (`create_note`, `update_note`) handle both individual and batch operations
 - Cleaner API with fewer tools to learn
 - Consistent parameter patterns across operations
 
 ### Flexible Usage
+
 - Pass individual parameters for single operations
 - Pass arrays (`notes`, `updates`) for batch operations
 - Mix and match as needed for different workflows
 
 ### Backward Compatibility
+
 - Existing single note operations continue to work unchanged
 - New batch capabilities are additive enhancements
 
 ## Best Practices
 
 ### 1. Choosing Single vs Batch Operations
+
 - **Single operations**: Interactive use, immediate feedback, simple workflows
 - **Batch operations**: Bulk imports, migrations, automated systems, efficiency
 
 ### 2. Batch Size Recommendations
+
 - **Small batches (1-10 notes)**: Interactive use, quick feedback
 - **Medium batches (10-50 notes)**: Bulk imports, data migration
 - **Large batches (50+ notes)**: Automated systems, consider chunking
 
 ### 3. Error Handling Strategy
+
 - Always check the `successful` and `failed` counts in batch responses
 - Review failed operations and fix issues before retrying
 - Use detailed error messages to identify and resolve problems
 - Single operations throw errors directly for immediate handling
 
 ### 4. Metadata Validation
+
 - Ensure all required metadata fields are provided
 - Validate metadata against note type schemas before operations
 - Use consistent metadata formats across similar notes
 
 ### 5. Performance Optimization
+
 - Use batch operations for multiple related changes
 - Group similar operations together
 - Consider processing time for very large batches
 - Single operations are optimal for immediate, interactive use
 
 ### 6. Data Integrity
+
 - Validate note content before operations
 - Use meaningful titles and consistent naming conventions
 - Ensure file paths and identifiers are correctly formatted
@@ -343,11 +364,13 @@ Response with partial failures:
 ## Common Use Cases
 
 ### Single Note Operations
+
 1. **Interactive Note Taking**: Creating notes during meetings or research
 2. **Quick Updates**: Fixing typos, adding quick thoughts
 3. **Real-time Editing**: Live note modification during conversations
 
 ### Batch Operations
+
 1. **Project Migration**: Moving notes from other systems
 2. **Bulk Updates**: Updating metadata across multiple notes
 3. **Template Generation**: Creating multiple notes from templates

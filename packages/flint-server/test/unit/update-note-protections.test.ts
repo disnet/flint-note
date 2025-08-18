@@ -314,7 +314,7 @@ describe('NoteManager Update Protections Unit Tests', () => {
 
     // Check that error messages mention protected fields
     const hasProtectedFieldError = batchResult.results.some(
-      result =>
+      (result) =>
         !result.success &&
         result.error &&
         (result.error.includes('title') || result.error.includes('filename')) &&
@@ -490,7 +490,7 @@ describe('NoteManager Update Protections Unit Tests', () => {
 
     // Check that error messages mention protected fields
     const hasProtectedFieldError = batchResult.results.some(
-      result =>
+      (result) =>
         !result.success &&
         result.error &&
         (result.error.includes('title') || result.error.includes('filename')) &&

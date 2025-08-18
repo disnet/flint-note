@@ -82,9 +82,9 @@ describe('Cross-Vault Scenarios', () => {
       const vaults = await globalConfig.listVaults();
       assert.strictEqual(vaults.length, 3);
 
-      const work = vaults.find(v => v.info.id === 'work');
-      const personal = vaults.find(v => v.info.id === 'personal');
-      const research = vaults.find(v => v.info.id === 'research');
+      const work = vaults.find((v) => v.info.id === 'work');
+      const personal = vaults.find((v) => v.info.id === 'personal');
+      const research = vaults.find((v) => v.info.id === 'research');
 
       assert(work, 'work vault should exist');
       assert(personal, 'personal vault should exist');
@@ -97,7 +97,7 @@ describe('Cross-Vault Scenarios', () => {
 
     it('should have work vault as active', async () => {
       const vaults = globalConfig.listVaults();
-      const currentVault = vaults.find(v => v.is_current);
+      const currentVault = vaults.find((v) => v.is_current);
       assert.strictEqual(currentVault?.info.id, 'work');
     });
 
@@ -105,19 +105,19 @@ describe('Cross-Vault Scenarios', () => {
       // Switch to personal vault
       await globalConfig.switchVault('personal');
       let vaults = globalConfig.listVaults();
-      let currentVault = vaults.find(v => v.is_current);
+      let currentVault = vaults.find((v) => v.is_current);
       assert.strictEqual(currentVault?.info.id, 'personal');
 
       // Switch to research vault
       await globalConfig.switchVault('research');
       vaults = globalConfig.listVaults();
-      currentVault = vaults.find(v => v.is_current);
+      currentVault = vaults.find((v) => v.is_current);
       assert.strictEqual(currentVault?.info.id, 'research');
 
       // Switch back to work vault
       await globalConfig.switchVault('work');
       vaults = globalConfig.listVaults();
-      currentVault = vaults.find(v => v.is_current);
+      currentVault = vaults.find((v) => v.is_current);
       assert.strictEqual(currentVault?.info.id, 'work');
     });
   });
@@ -240,9 +240,9 @@ describe('Cross-Vault Scenarios', () => {
     it('should store vault metadata correctly', async () => {
       const vaults = await globalConfig.listVaults();
 
-      const work = vaults.find(v => v.info.id === 'work');
-      const personal = vaults.find(v => v.info.id === 'personal');
-      const research = vaults.find(v => v.info.id === 'research');
+      const work = vaults.find((v) => v.info.id === 'work');
+      const personal = vaults.find((v) => v.info.id === 'personal');
+      const research = vaults.find((v) => v.info.id === 'research');
 
       assert.strictEqual(work?.info.description, 'Professional projects and meetings');
       assert.strictEqual(personal?.info.description, 'Personal notes and journaling');

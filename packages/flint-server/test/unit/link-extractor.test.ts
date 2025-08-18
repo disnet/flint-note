@@ -121,12 +121,12 @@ Also see this [local link](file://test.txt).`;
       assert.ok(result.external_links.length >= 2);
 
       // Find the image links by URL
-      const imageUrls = result.external_links.map(link => link.url);
+      const imageUrls = result.external_links.map((link) => link.url);
       assert.ok(imageUrls.includes('https://example.com/image.png'));
       assert.ok(imageUrls.includes('http://test.com/photo.jpg'));
 
       // Check that at least one has image type
-      const imageTypes = result.external_links.map(link => link.link_type);
+      const imageTypes = result.external_links.map((link) => link.link_type);
       assert.ok(imageTypes.includes('image'));
     });
 
@@ -167,7 +167,7 @@ Another [[wiki-link|Display Text]].`;
       assert.ok(result.external_links.length >= 3); // At least 3 unique URLs
 
       // Verify the expected URLs are present
-      const urls = result.external_links.map(link => link.url);
+      const urls = result.external_links.map((link) => link.url);
       assert.ok(urls.includes('https://example.com'));
       assert.ok(urls.includes('http://test.com/img.png'));
       assert.ok(urls.includes('https://direct.com'));
@@ -186,12 +186,12 @@ Also plain: https://example.com`;
       assert.ok(result.external_links.length >= 1);
 
       // Should contain the URL
-      const urls = result.external_links.map(link => link.url);
+      const urls = result.external_links.map((link) => link.url);
       assert.ok(urls.includes('https://example.com'));
 
       // First occurrence should have title
       const firstOccurrence = result.external_links.find(
-        link => link.url === 'https://example.com'
+        (link) => link.url === 'https://example.com'
       );
       assert.ok(firstOccurrence);
     });

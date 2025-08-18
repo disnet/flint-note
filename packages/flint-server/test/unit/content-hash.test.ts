@@ -452,7 +452,7 @@ describe('Content Hash Unit Tests', () => {
       assert.strictEqual(result.successful, 1, 'Should have one successful update');
       assert.strictEqual(result.failed, 1, 'Should have one failed update');
 
-      const failedResult = result.results.find(r => !r.success);
+      const failedResult = result.results.find((r) => !r.success);
       assert.ok(failedResult, 'Should have failed result');
       if (failedResult && failedResult.hash_mismatch) {
         assert.ok(failedResult.hash_mismatch, 'Should include hash mismatch details');
@@ -551,7 +551,7 @@ describe('Content Hash Unit Tests', () => {
       // All hashes should be identical
       const firstHash = hashes[0];
       assert.ok(
-        hashes.every(hash => hash === firstHash),
+        hashes.every((hash) => hash === firstHash),
         'All concurrent hashes should be identical'
       );
     });

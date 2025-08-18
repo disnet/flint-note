@@ -7,6 +7,7 @@
 ## Vision
 
 Create a note-taking system where:
+
 - Users interact primarily through natural language with AI agents
 - Notes are organized by user-defined "types" with semantic meaning
 - The system understands the purpose and context of different note categories
@@ -37,6 +38,7 @@ flint-note supports multiple vaults, allowing you to organize different collecti
 You can manage vaults through both the MCP server tools and the command-line interface:
 
 #### MCP Tools
+
 - `list_vaults` - List all configured vaults
 - `create_vault` - Create a new vault
 - `switch_vault` - Switch to a different vault
@@ -45,6 +47,7 @@ You can manage vaults through both the MCP server tools and the command-line int
 - `remove_vault` - Remove vault from registry (files preserved)
 
 #### Command Line Interface
+
 ```bash
 # List all vaults
 flint-note list
@@ -105,6 +108,7 @@ All note-related MCP tools support an optional `vault_id` parameter that allows 
 The following tools support the optional `vault_id` parameter:
 
 **Note Management:**
+
 - `create_note_type`
 - `create_note`
 - `get_note`
@@ -114,17 +118,20 @@ The following tools support the optional `vault_id` parameter:
 - `delete_note`
 
 **Note Type Management:**
+
 - `list_note_types`
 - `update_note_type`
 - `get_note_type_info`
 - `delete_note_type`
 
 **Search Operations:**
+
 - `search_notes`
 - `search_notes_advanced`
 - `search_notes_sql`
 
 **Link Management:**
+
 - `get_note_links`
 - `get_backlinks`
 - `find_broken_links`
@@ -132,6 +139,7 @@ The following tools support the optional `vault_id` parameter:
 - `migrate_links`
 
 **Utility Operations:**
+
 - `get_note_info`
 - `list_notes_by_type`
 - `bulk_delete_notes`
@@ -220,20 +228,23 @@ The agent instructions system is a core feature that enables users to define spe
 
 ### Example Agent Instructions
 
-```markdown
+````markdown
 ## Reading Notes
+
 - Always ask about the author's background and credentials
 - Extract key insights and actionable takeaways
 - Ask for the user's personal rating and recommendation
 - Suggest connections to previously read books
 
 ## Project Notes
+
 - Always ask about project goals and success criteria
 - Extract and track action items with owners and deadlines
 - Suggest next steps and potential blockers
 - Link to related project documentation
 
 ## Meeting Notes
+
 - Extract attendees, decisions made, and action items
 - Identify follow-up meetings or deadlines
 - Suggest creating linked notes for action items
@@ -242,6 +253,7 @@ The agent instructions system is a core feature that enables users to define spe
 ## Note and Note Type Deletion
 
 ### Note Deletion
+
 The system supports safe deletion of individual notes with the following features:
 
 - **Soft deletion option**: Notes can be marked as deleted but preserved on filesystem
@@ -251,6 +263,7 @@ The system supports safe deletion of individual notes with the following feature
 - **Backup creation**: Automatic backup before deletion (configurable)
 
 #### Deletion Process
+
 1. Validate note exists and is accessible
 2. Check for incoming links from other notes
 3. Warn user about potential orphaned links
@@ -259,14 +272,17 @@ The system supports safe deletion of individual notes with the following feature
 6. Remove note file and update any indexes
 
 ### Note Type Deletion
+
 Deleting note types is more complex due to potential existing notes of that type:
 
 #### Deletion Strategies
+
 - **Error mode**: Prevent deletion if notes of this type exist
 - **Migrate mode**: Convert existing notes to a different specified type
 - **Delete mode**: Delete all notes of this type along with the type definition
 
 #### Note Type Deletion Process
+
 1. Validate note type exists
 2. Count existing notes of this type
 3. Based on selected action:
@@ -278,11 +294,11 @@ Deleting note types is more complex due to potential existing notes of that type
 6. Update search indexes
 
 #### Safety Measures
+
 - Mandatory confirmation for note type deletion
 - Automatic backup creation before bulk operations
 - Rollback capability for failed migrations
 - Detailed logging of all deletion operations
-
 
 ## Metadata Schema System
 
@@ -311,7 +327,9 @@ Metadata schemas are defined in the note type's `_description.md` file:
 
 ```markdown
 ## Metadata Schema
+
 Expected frontmatter or metadata fields for this note type:
+
 - title: Book title (required, string)
 - author: Author name (required, string)
 - rating: Personal rating (required, number, min: 1, max: 5)
@@ -321,6 +339,7 @@ Expected frontmatter or metadata fields for this note type:
 - tags: Topic tags (optional, array)
 - finished_date: Date completed (optional, date)
 ```
+````
 
 ### Validation and Error Handling
 
@@ -360,16 +379,20 @@ Each note type directory contains a `_description.md` file that defines:
 # {Note Type Name}
 
 ## Purpose
+
 Brief description of what this note type is for.
 
 ## Agent Instructions
+
 - Specific behaviors agents should exhibit for this note type
 - Auto-extraction rules (e.g., "extract action items from meeting notes")
 - Linking suggestions (e.g., "link to related project notes")
 - Content enhancement suggestions
 
 ## Metadata Schema
+
 Expected frontmatter or metadata fields for this note type:
+
 - title: Note title (required, string)
 - author: Author name (optional, string)
 - rating: Personal rating (optional, number, min: 1, max: 5)
@@ -385,29 +408,32 @@ Individual notes are stored as Markdown files with YAML frontmatter containing s
 
 ```markdown
 ---
-title: "Atomic Habits"
-author: "James Clear"
+title: 'Atomic Habits'
+author: 'James Clear'
 rating: 5
-status: "completed"
-tags: ["productivity", "habits", "self-improvement"]
-isbn: "978-0735211292"
-published_date: "2024-01-15T00:00:00Z"
-type: "book-reviews"
-created: "2024-01-15T10:30:00Z"
-updated: "2024-01-15T10:30:00Z"
+status: 'completed'
+tags: ['productivity', 'habits', 'self-improvement']
+isbn: '978-0735211292'
+published_date: '2024-01-15T00:00:00Z'
+type: 'book-reviews'
+created: '2024-01-15T10:30:00Z'
+updated: '2024-01-15T10:30:00Z'
 ---
 
 # Atomic Habits
 
 ## Summary
+
 Excellent book about building good habits and breaking bad ones...
 
 ## Key Insights
+
 - Small changes compound over time
 - Focus on systems, not goals
 - Environment design is crucial
 
 ## My Rating: 5/5
+
 Would definitely recommend to anyone interested in personal development.
 ```
 
@@ -417,42 +443,42 @@ The flint-note MCP server exposes the following tools and resources:
 
 #### Tools
 
-| Tool Name | Purpose | Parameters |
-|:----------|:--------|:-----------|
-| **Vault Management** | | |
-| `list_vaults` | List all configured vaults | none |
-| `create_vault` | Create a new vault | `vault_id`, `name`, `path`, `description?` |
-| `switch_vault` | Switch to a different vault | `vault_id` |
-| `get_current_vault` | Show current vault information | none |
-| `update_vault` | Update vault name or description | `vault_id`, `name?`, `description?` |
-| `remove_vault` | Remove vault from registry (files preserved) | `vault_id` |
-| **Note Management** | | |
-| `create_note_type` | Create new note type with description | `type_name`, `description`, `agent_instructions?`, `metadata_schema?`, `vault_id?` |
-| `create_note` | Create one or more notes | Single: `type`, `title`, `content`, `metadata?`, `vault_id?` OR Batch: `notes` (array), `vault_id?` |
-| `get_note` | Retrieve specific note | `identifier`, `vault_id?`, `fields?` |
-| `get_notes` | Retrieve multiple notes by IDs | `identifiers` (array), `vault_id?`, `fields?` |
-| `update_note` | Update one or more existing notes | Single: `identifier`, `content?`, `metadata?`, `content_hash`, `vault_id?` OR Batch: `updates` (array), `vault_id?` |
-| `rename_note` | Rename note display title while preserving filename/ID | `identifier`, `new_title`, `content_hash`, `vault_id?` |
-| `move_note` | Move note from one note type to another while preserving filename and metadata | `identifier`, `new_type`, `content_hash`, `vault_id?` |
-| `search_notes` | Search notes by content/type | `query`, `type_filter?`, `limit?`, `use_regex?`, `vault_id?`, `fields?` |
-| `search_notes_advanced` | Advanced structured search with filters | `type?`, `metadata_filters?`, `updated_within?`, `content_contains?`, `sort?`, `limit?`, `vault_id?`, `fields?` |
-| `search_notes_sql` | SQL-based search with maximum flexibility | `query`, `limit?`, `vault_id?`, `fields?` |
-| `list_note_types` | List all available note types | `vault_id?` |
-| `update_note_type` | Update specific field of existing note type | `type_name`, `field` (instructions\|description\|metadata_schema), `value`, `content_hash`, `vault_id?` |
-| `get_note_type_info` | Get comprehensive note type information including agent instructions | `type_name`, `vault_id?` |
-| `analyze_note` | Get AI analysis/suggestions for a note | `identifier`, `vault_id?` |
-| `delete_note` | Delete an existing note permanently | `identifier`, `confirm?`, `vault_id?` |
-| `delete_note_type` | Delete a note type and optionally handle existing notes | `type_name`, `action` (error\|migrate\|delete), `target_type?`, `confirm?`, `vault_id?` |
+| Tool Name               | Purpose                                                                        | Parameters                                                                                                          |
+| :---------------------- | :----------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------ |
+| **Vault Management**    |                                                                                |                                                                                                                     |
+| `list_vaults`           | List all configured vaults                                                     | none                                                                                                                |
+| `create_vault`          | Create a new vault                                                             | `vault_id`, `name`, `path`, `description?`                                                                          |
+| `switch_vault`          | Switch to a different vault                                                    | `vault_id`                                                                                                          |
+| `get_current_vault`     | Show current vault information                                                 | none                                                                                                                |
+| `update_vault`          | Update vault name or description                                               | `vault_id`, `name?`, `description?`                                                                                 |
+| `remove_vault`          | Remove vault from registry (files preserved)                                   | `vault_id`                                                                                                          |
+| **Note Management**     |                                                                                |                                                                                                                     |
+| `create_note_type`      | Create new note type with description                                          | `type_name`, `description`, `agent_instructions?`, `metadata_schema?`, `vault_id?`                                  |
+| `create_note`           | Create one or more notes                                                       | Single: `type`, `title`, `content`, `metadata?`, `vault_id?` OR Batch: `notes` (array), `vault_id?`                 |
+| `get_note`              | Retrieve specific note                                                         | `identifier`, `vault_id?`, `fields?`                                                                                |
+| `get_notes`             | Retrieve multiple notes by IDs                                                 | `identifiers` (array), `vault_id?`, `fields?`                                                                       |
+| `update_note`           | Update one or more existing notes                                              | Single: `identifier`, `content?`, `metadata?`, `content_hash`, `vault_id?` OR Batch: `updates` (array), `vault_id?` |
+| `rename_note`           | Rename note display title while preserving filename/ID                         | `identifier`, `new_title`, `content_hash`, `vault_id?`                                                              |
+| `move_note`             | Move note from one note type to another while preserving filename and metadata | `identifier`, `new_type`, `content_hash`, `vault_id?`                                                               |
+| `search_notes`          | Search notes by content/type                                                   | `query`, `type_filter?`, `limit?`, `use_regex?`, `vault_id?`, `fields?`                                             |
+| `search_notes_advanced` | Advanced structured search with filters                                        | `type?`, `metadata_filters?`, `updated_within?`, `content_contains?`, `sort?`, `limit?`, `vault_id?`, `fields?`     |
+| `search_notes_sql`      | SQL-based search with maximum flexibility                                      | `query`, `limit?`, `vault_id?`, `fields?`                                                                           |
+| `list_note_types`       | List all available note types                                                  | `vault_id?`                                                                                                         |
+| `update_note_type`      | Update specific field of existing note type                                    | `type_name`, `field` (instructions\|description\|metadata_schema), `value`, `content_hash`, `vault_id?`             |
+| `get_note_type_info`    | Get comprehensive note type information including agent instructions           | `type_name`, `vault_id?`                                                                                            |
+| `analyze_note`          | Get AI analysis/suggestions for a note                                         | `identifier`, `vault_id?`                                                                                           |
+| `delete_note`           | Delete an existing note permanently                                            | `identifier`, `confirm?`, `vault_id?`                                                                               |
+| `delete_note_type`      | Delete a note type and optionally handle existing notes                        | `type_name`, `action` (error\|migrate\|delete), `target_type?`, `confirm?`, `vault_id?`                             |
 
 #### Resources
 
-| Resource URI | Description | Content |
-|:-------------|:------------|:--------|
-| `flint-note://vaults` | All configured vaults | JSON list of vault configurations |
-| `flint-note://current-vault` | Current active vault information | JSON with vault details and stats |
-| `flint-note://types` | Available note types and descriptions | JSON list of types |
-| `flint-note://recent` | Recently modified notes | JSON list of recent notes |
-| `flint-note://stats` | Workspace statistics | JSON with counts, types, etc. |
+| Resource URI                 | Description                           | Content                           |
+| :--------------------------- | :------------------------------------ | :-------------------------------- |
+| `flint-note://vaults`        | All configured vaults                 | JSON list of vault configurations |
+| `flint-note://current-vault` | Current active vault information      | JSON with vault details and stats |
+| `flint-note://types`         | Available note types and descriptions | JSON list of types                |
+| `flint-note://recent`        | Recently modified notes               | JSON list of recent notes         |
+| `flint-note://stats`         | Workspace statistics                  | JSON with counts, types, etc.     |
 
 ### Search Functionality
 
@@ -461,11 +487,13 @@ The search system uses a hybrid approach combining file-based storage with SQLit
 #### Architecture: Hybrid File + SQLite Index
 
 **File Storage:**
+
 - Notes remain as human-readable markdown files
 - Maintains existing file structure and compatibility
 - Direct file access for simple operations
 
 **SQLite Index:**
+
 - Comprehensive database index for complex queries
 - Real-time synchronization with file changes
 - Supports full-text search and complex metadata queries
@@ -512,6 +540,7 @@ CREATE INDEX idx_metadata_key_value ON note_metadata(key, value);
 The system provides multiple search interfaces for different use cases:
 
 **1. Simple Text Search (Backward Compatible)**
+
 ```json
 {
   "name": "search_notes",
@@ -525,18 +554,19 @@ The system provides multiple search interfaces for different use cases:
 ```
 
 **2. Advanced Structured Search**
+
 ```json
 {
   "name": "search_notes_advanced",
   "arguments": {
     "type": "todo",
     "metadata_filters": [
-      {"key": "status", "value": "in_progress"},
-      {"key": "priority", "operator": ">=", "value": "3"}
+      { "key": "status", "value": "in_progress" },
+      { "key": "priority", "operator": ">=", "value": "3" }
     ],
     "updated_within": "7d",
     "content_contains": "review",
-    "sort": [{"field": "updated", "order": "desc"}],
+    "sort": [{ "field": "updated", "order": "desc" }],
     "limit": 50,
     "fields": ["id", "title", "type", "updated", "metadata.status", "metadata.priority"]
   }
@@ -544,6 +574,7 @@ The system provides multiple search interfaces for different use cases:
 ```
 
 **3. SQL Search (Maximum Flexibility)**
+
 ```json
 {
   "name": "search_notes_sql",
@@ -618,6 +649,7 @@ When a `fields` parameter is provided, search results respect the filtering:
 #### SQL Search Safety Measures
 
 To ensure secure SQL execution:
+
 - **Parameterized Queries**: All user input is properly parameterized
 - **Read-Only Access**: Only SELECT statements are allowed
 - **Query Timeout**: Queries are limited to 30 seconds execution time
@@ -627,6 +659,7 @@ To ensure secure SQL execution:
 #### Common Query Patterns
 
 **Find todos by status and priority:**
+
 ```sql
 SELECT n.* FROM notes n
 JOIN note_metadata m1 ON n.id = m1.note_id AND m1.key = 'status' AND m1.value = 'in_progress'
@@ -636,6 +669,7 @@ ORDER BY n.updated DESC
 ```
 
 **Find reading notes with high ratings from this year:**
+
 ```sql
 SELECT n.* FROM notes n
 JOIN note_metadata m ON n.id = m.note_id AND m.key = 'rating' AND CAST(m.value AS INTEGER) > 4
@@ -644,6 +678,7 @@ ORDER BY CAST(m.value AS INTEGER) DESC
 ```
 
 **Group meeting notes by attendees:**
+
 ```sql
 SELECT m.value as attendee, COUNT(*) as meeting_count
 FROM notes n
@@ -656,6 +691,7 @@ ORDER BY meeting_count DESC
 #### Synchronization
 
 The SQLite index is kept in sync with file changes through:
+
 - **File Watcher**: Monitors note directories for changes
 - **Batch Updates**: Processes multiple file changes efficiently
 - **Conflict Resolution**: Handles concurrent file and database modifications
@@ -686,6 +722,7 @@ Flint-note implements a clear hierarchy for note naming that eliminates confusio
 The `rename_note` tool provides safe title updates and automatically updates wikilinks in other notes:
 
 **Key Features:**
+
 - Updates only the `title` field in note metadata
 - Preserves the original filename and stable ID
 - Maintains all existing wikilinks and references
@@ -693,12 +730,14 @@ The `rename_note` tool provides safe title updates and automatically updates wik
 - Optional wikilink display text updates (future enhancement)
 
 **Safety Guarantees:**
+
 - All existing links continue to work after renaming
 - Search and discovery systems automatically pick up new titles
 - No risk of breaking knowledge graph connections
 - Content hash prevents concurrent edit conflicts
 
 **Usage Pattern:**
+
 ```json
 {
   "name": "rename_note",
@@ -755,6 +794,7 @@ Both `get_note` and `get_notes` support an optional `fields` parameter to contro
 ```
 
 **Response with field filtering:**
+
 ```json
 {
   "id": "general/my-note.md",
@@ -768,6 +808,7 @@ Both `get_note` and `get_notes` support an optional `fields` parameter to contro
 ```
 
 **Field Specification:**
+
 - **Core fields**: `id`, `type`, `title`, `content`, `content_hash`, `created`, `updated`
 - **Metadata fields**: Use dot notation like `metadata.tags`, `metadata.status`, `metadata.priority`
 - **Wildcard support**: Use `metadata.*` to include all metadata fields
@@ -775,6 +816,7 @@ Both `get_note` and `get_notes` support an optional `fields` parameter to contro
 - **Invalid fields**: Silently ignored (no error thrown)
 
 **Common field filtering patterns:**
+
 ```json
 // Get only title and content hash for validation
 {"fields": ["title", "content_hash"]}
@@ -821,13 +863,15 @@ Both `get_note` and `get_notes` support an optional `fields` parameter to contro
 The `fields` parameter is supported across all note retrieval operations:
 
 **Supported Tools:**
+
 - `get_note` - Single note retrieval with field filtering
-- `get_notes` - Batch note retrieval with field filtering  
+- `get_notes` - Batch note retrieval with field filtering
 - `search_notes` - Simple search with field filtering
 - `search_notes_advanced` - Advanced search with field filtering
 - `search_notes_sql` - SQL search with field filtering
 
 **Implementation Notes:**
+
 - **Consistent behavior**: Field filtering works identically across all tools
 - **Case sensitivity**: Field names are case-sensitive (`metadata.Tags` ≠ `metadata.tags`)
 - **Error handling**: Invalid field names are silently ignored (no errors thrown)
@@ -836,11 +880,13 @@ The `fields` parameter is supported across all note retrieval operations:
 - **Search integration**: Search-specific fields (`score`, `snippet`, `filename`, `path`) are always included in search results
 
 **Security Considerations:**
+
 - Field filtering does not bypass access controls - users can only filter fields they already have access to
 - Metadata field access respects the same permissions as full metadata access
 - No additional authentication required for field filtering
 
 **Content Hash Workflow Integration:**
+
 - **Efficient updates**: Use `{"fields": ["content", "content_hash"]}` when retrieving notes for modification
 - **Validation-only**: Use `{"fields": ["content_hash"]}` when only validating current state
 - **Bulk validation**: Use `{"fields": ["id", "content_hash"]}` with `get_notes` for bulk optimistic locking checks
@@ -896,6 +942,7 @@ Note types also include content hashes to prevent conflicts when updating note t
 The `update_note_type` tool allows updating one or more fields of a note type in a single operation:
 
 **Parameters:**
+
 - `type_name` (string): Name of the note type to update
 - `instructions` (string, optional): New agent instructions
 - `description` (string, optional): New description for the note type
@@ -906,6 +953,7 @@ At least one of the optional fields (`instructions`, `description`, or `metadata
 
 **Metadata Field Object Structure:**
 Each metadata field object in the `metadata_schema` array contains:
+
 - `name` (string): Field name
 - `type` (string): Field type ("string", "number", "boolean", "date", "array", "select")
 - `required` (boolean): Whether the field is required
@@ -918,6 +966,7 @@ Each metadata field object in the `metadata_schema` array contains:
 - `default` (any, optional): Default value for the field
 
 **Example - Updating agent instructions:**
+
 ```json
 {
   "name": "update_note_type",
@@ -930,6 +979,7 @@ Each metadata field object in the `metadata_schema` array contains:
 ```
 
 **Example - Updating metadata schema:**
+
 ```json
 {
   "name": "update_note_type",
@@ -980,6 +1030,7 @@ Each metadata field object in the `metadata_schema` array contains:
 ```
 
 **Example - Updating multiple fields:**
+
 ```json
 {
   "name": "update_note_type",
@@ -1050,6 +1101,7 @@ The `create_note` tool can create multiple notes by passing a `notes` array:
 ```
 
 **Features:**
+
 - Creates notes atomically - each note creation is independent
 - Supports metadata validation per note type
 - Returns detailed results with success/failure status for each note
@@ -1057,6 +1109,7 @@ The `create_note` tool can create multiple notes by passing a `notes` array:
 - Updates search index for all successfully created notes
 
 **Response Format:**
+
 ```json
 {
   "total": 2,
@@ -1064,7 +1117,9 @@ The `create_note` tool can create multiple notes by passing a `notes` array:
   "failed": 0,
   "results": [
     {
-      "input": { /* original note input */ },
+      "input": {
+        /* original note input */
+      },
       "success": true,
       "result": {
         "id": "general/first-note.md",
@@ -1115,6 +1170,7 @@ The `update_note` tool can update multiple notes by passing an `updates` array. 
 ```
 
 **Features:**
+
 - Supports content-only, metadata-only, or combined updates (all require content hash)
 - Validates metadata against note type schemas
 - Preserves existing metadata when updating content only
@@ -1122,6 +1178,7 @@ The `update_note` tool can update multiple notes by passing an `updates` array. 
 - Updates search index for all successfully modified notes
 
 **Update Types:**
+
 - **Content Only**: Preserves existing metadata, updates content
 - **Metadata Only**: Preserves existing content, updates metadata
 - **Combined**: Updates both content and metadata
@@ -1131,6 +1188,7 @@ The `update_note` tool can update multiple notes by passing an `updates` array. 
 Both tools also support single note operations using the same API:
 
 **Single Note Creation:**
+
 ```json
 {
   "name": "create_note",
@@ -1144,6 +1202,7 @@ Both tools also support single note operations using the same API:
 ```
 
 **Single Note Update:**
+
 ```json
 {
   "name": "update_note",
@@ -1161,6 +1220,7 @@ Both tools also support single note operations using the same API:
 The `get_notes` tool allows retrieving multiple notes by their identifiers in a single operation:
 
 **Get Multiple Notes:**
+
 ```json
 {
   "name": "get_notes",
@@ -1172,6 +1232,7 @@ The `get_notes` tool allows retrieving multiple notes by their identifiers in a 
 ```
 
 **Get Multiple Notes with Field Filtering:**
+
 ```json
 {
   "name": "get_notes",
@@ -1184,6 +1245,7 @@ The `get_notes` tool allows retrieving multiple notes by their identifiers in a 
 ```
 
 **Response Format:**
+
 ```json
 {
   "success": true,
@@ -1230,6 +1292,7 @@ The `get_notes` tool allows retrieving multiple notes by their identifiers in a 
 ```
 
 **Response Format with Field Filtering:**
+
 ```json
 {
   "success": true,
@@ -1266,6 +1329,7 @@ The `get_notes` tool allows retrieving multiple notes by their identifiers in a 
 ```
 
 **Key Features:**
+
 - **Batch retrieval**: Get multiple notes in a single API call
 - **Individual error handling**: Each note request is processed independently
 - **Content hash included**: Each retrieved note includes its content hash for subsequent updates
@@ -1274,6 +1338,7 @@ The `get_notes` tool allows retrieving multiple notes by their identifiers in a 
 - **Field filtering**: Optional `fields` parameter reduces data transfer and improves performance
 
 **Use Cases:**
+
 - Retrieving related notes for analysis
 - Bulk content operations
 - Dashboard views showing multiple notes
@@ -1282,12 +1347,14 @@ The `get_notes` tool allows retrieving multiple notes by their identifiers in a 
 ### Error Handling
 
 Batch operations use a "fail-fast per item" approach:
+
 - Each note/update operation is independent
 - If one item fails, others continue processing
 - Detailed error messages are provided for failed items
 - Successful operations are completed even if others fail
 
 **Common Error Scenarios:**
+
 - Invalid note type names
 - Missing required metadata fields
 - Note identifier not found (for updates)
@@ -1297,6 +1364,7 @@ Batch operations use a "fail-fast per item" approach:
 - Content hash mismatches (optimistic locking conflicts for notes and note types)
 
 **Content Hash Error Details:**
+
 - Missing content hash: Entire operation fails immediately (batch operations are rejected if any update lacks content hash)
 - Hash mismatches: Batch operations continue processing remaining items
 - Each failed update includes current and provided hash values
@@ -1326,24 +1394,29 @@ When flint-note initializes a new vault, it automatically creates several defaul
 ### Default Note Types
 
 #### Daily Notes
+
 **Purpose**: Track daily events, reflections, and activities
 **Directory**: `daily/`
 **Agent Instructions**:
+
 - Ask about key events and accomplishments from the day
 - Encourage reflection on lessons learned or insights gained
 - Help identify priorities for the next day
 - Suggest connections to previous daily entries when relevant
 
 **Metadata Schema**:
+
 - `date`: Date of entry (required, date, format: YYYY-MM-DD)
 - `mood`: Daily mood rating (optional, select, options: ["excellent", "good", "neutral", "challenging", "difficult"])
 - `energy_level`: Energy level (optional, number, min: 1, max: 10)
 - `tags`: Topics or themes (optional, array)
 
 #### Reading Notes
+
 **Purpose**: Track articles, papers, books, and other reading material
 **Directory**: `reading/`
 **Agent Instructions**:
+
 - Always ask for author information and publication context
 - Extract and organize key insights and takeaways
 - Request a personal rating and ask what made it memorable
@@ -1351,6 +1424,7 @@ When flint-note initializes a new vault, it automatically creates several defaul
 - Encourage noting specific quotes with page/section references
 
 **Metadata Schema**:
+
 - `title`: Title of the material (required, string)
 - `author`: Author or creator (required, string)
 - `type`: Type of reading (required, select, options: ["book", "article", "paper", "blog_post", "documentation"])
@@ -1362,9 +1436,11 @@ When flint-note initializes a new vault, it automatically creates several defaul
 - `published_date`: Publication date (optional, date)
 
 #### Todo Lists
+
 **Purpose**: Track tasks, action items, and things that need to be done
 **Directory**: `todos/`
 **Agent Instructions**:
+
 - Help break down large tasks into smaller, actionable items
 - Ask about priorities and deadlines
 - Suggest realistic timeframes and dependencies
@@ -1372,6 +1448,7 @@ When flint-note initializes a new vault, it automatically creates several defaul
 - Connect related todos and identify recurring patterns
 
 **Metadata Schema**:
+
 - `title`: Task or todo list name (required, string)
 - `priority`: Priority level (required, select, options: ["low", "medium", "high", "urgent"])
 - `status`: Current status (required, select, options: ["not_started", "in_progress", "completed", "on_hold", "cancelled"])
@@ -1380,9 +1457,11 @@ When flint-note initializes a new vault, it automatically creates several defaul
 - `estimated_time`: Time estimate in minutes (optional, number, min: 1)
 
 #### Project Tracking
+
 **Purpose**: Track ongoing projects, goals, and long-term initiatives
 **Directory**: `projects/`
 **Agent Instructions**:
+
 - Ask about project scope, goals, and success criteria
 - Help identify key milestones and deadlines
 - Encourage breaking projects into manageable phases
@@ -1390,6 +1469,7 @@ When flint-note initializes a new vault, it automatically creates several defaul
 - Track progress and help identify blockers or risks
 
 **Metadata Schema**:
+
 - `title`: Project name (required, string)
 - `status`: Current status (required, select, options: ["planning", "active", "on_hold", "completed", "cancelled"])
 - `priority`: Priority level (optional, select, options: ["low", "medium", "high"])
@@ -1399,9 +1479,11 @@ When flint-note initializes a new vault, it automatically creates several defaul
 - `tags`: Project categories or skills (optional, array)
 
 #### Goals Tracking
+
 **Purpose**: Track long-term personal and professional goals
 **Directory**: `goals/`
 **Agent Instructions**:
+
 - Help define specific, measurable, achievable goals
 - Ask about motivation and personal significance
 - Encourage breaking goals into smaller milestones
@@ -1410,6 +1492,7 @@ When flint-note initializes a new vault, it automatically creates several defaul
 - Connect goals to daily actions and habits
 
 **Metadata Schema**:
+
 - `title`: Goal name (required, string)
 - `category`: Goal category (required, select, options: ["personal", "professional", "health", "financial", "learning", "relationships"])
 - `timeline`: Target timeframe (required, select, options: ["short_term", "medium_term", "long_term"])
@@ -1429,6 +1512,7 @@ When flint-note initializes a new vault, it automatically creates several defaul
 ## Technical Specifications
 
 ### Dependencies
+
 - **Runtime**: Node.js 18+
 - **MCP SDK**: @modelcontextprotocol/sdk
 - **File Operations**: Node.js fs/promises
@@ -1439,50 +1523,52 @@ When flint-note initializes a new vault, it automatically creates several defaul
 ### Configuration Schema
 
 #### Global Configuration (~/.flint-note/config.yml)
+
 ```yaml
 # Global vault registry
 vaults:
   work:
-    name: "Work Notes"
-    path: "~/work-notes"
-    description: "Professional projects and meeting notes"
-    last_used: "2024-01-15T10:30:00Z"
+    name: 'Work Notes'
+    path: '~/work-notes'
+    description: 'Professional projects and meeting notes'
+    last_used: '2024-01-15T10:30:00Z'
   personal:
-    name: "Personal Journal"
-    path: "~/personal-notes"
-    description: "Personal thoughts, goals, and interests"
-    last_used: "2024-01-14T20:15:00Z"
+    name: 'Personal Journal'
+    path: '~/personal-notes'
+    description: 'Personal thoughts, goals, and interests'
+    last_used: '2024-01-14T20:15:00Z'
 
-current_vault: "work"  # Currently active vault
+current_vault: 'work' # Currently active vault
 
 mcp_server:
   port: 3000
-  log_level: "info"
-  auto_switch_vault: true  # Switch vault context based on MCP client requests
+  log_level: 'info'
+  auto_switch_vault: true # Switch vault context based on MCP client requests
 ```
 
 #### Per-Vault Configuration (.flint-note/config.yml in each vault)
+
 ```yaml
 # Individual vault configuration
-vault_id: "work"
-workspace_root: "."
-default_note_type: "general"
+vault_id: 'work'
+workspace_root: '.'
+default_note_type: 'general'
 search:
   index_enabled: true
-  index_path: ".jade-note/search-index.json"
+  index_path: '.jade-note/search-index.json'
 note_types:
   auto_create_directories: true
   require_descriptions: true
 metadata:
   validate_on_create: true
   validate_on_update: true
-  strict_validation: false  # If true, unknown fields cause errors instead of warnings
+  strict_validation: false # If true, unknown fields cause errors instead of warnings
 deletion:
-  require_confirmation: true  # Require explicit confirmation for all deletions
-  create_backups: true  # Automatically backup notes before deletion
-  backup_path: ".flint-note/backups"  # Where to store deletion backups
-  allow_note_type_deletion: true  # Allow deletion of custom note types
-  max_bulk_delete: 10  # Maximum notes to delete in single note type deletion
+  require_confirmation: true # Require explicit confirmation for all deletions
+  create_backups: true # Automatically backup notes before deletion
+  backup_path: '.flint-note/backups' # Where to store deletion backups
+  allow_note_type_deletion: true # Allow deletion of custom note types
+  max_bulk_delete: 10 # Maximum notes to delete in single note type deletion
 ```
 
 ### Field Filtering Implementation
@@ -1490,24 +1576,28 @@ deletion:
 The field filtering system operates at the serialization layer to ensure consistent behavior across all tools:
 
 **Core Implementation:**
+
 - **Filter engine**: Processes field specifications before JSON serialization
 - **Dot notation parser**: Handles nested metadata field access (e.g., `metadata.tags`)
 - **Wildcard support**: Implements `metadata.*` expansion for all metadata fields
 - **Performance optimization**: Reduces serialization overhead by filtering before JSON encoding
 
 **Technical Details:**
+
 - **Memory efficiency**: Filtered fields are removed from response objects before transmission
 - **Validation**: Field names are validated against the note schema but invalid fields are silently ignored
 - **Metadata handling**: Special handling for metadata object to support both specific and wildcard selections
 - **Search integration**: Search-specific fields are always preserved regardless of field filtering
 
 **Error Handling:**
+
 - Invalid field specifications are ignored without throwing errors
 - Malformed dot notation (e.g., `metadata.`) is treated as requesting no fields
 - Empty field arrays return minimal response with only `id` field
 - Type mismatches in field specifications are handled gracefully
 
 ### Error Handling
+
 - Graceful handling of missing directories
 - Validation of note type names (filesystem-safe)
 - Concurrent file access protection
@@ -1528,11 +1618,13 @@ The field filtering system operates at the serialization layer to ensure consist
 ## Development Roadmap
 
 ### Current Status
+
 The project has a comprehensive design document and core implementation with MCP server, note management, and metadata systems.
 
 ### Immediate Priorities (Fix Foundation)
 
 #### **1. Verify Core Functionality**
+
 - **Action**: Manual testing of all MVP features through MCP interface
 - **Verify**: Note CRUD operations, note type management, search, metadata validation
 - **Timeline**: 1 week
@@ -1541,6 +1633,7 @@ The project has a comprehensive design document and core implementation with MCP
 ### Short-term Development (Next 2-4 weeks)
 
 #### **2. Complete Phase 1 MVP Features**
+
 - ✅ Basic note creation/reading/updating (implemented)
 - ✅ Note type system (implemented)
 - ✅ File-based storage (implemented)
@@ -1551,12 +1644,14 @@ The project has a comprehensive design document and core implementation with MCP
 - 🔄 Note and note type deletion with safety checks
 
 #### **3. Improve Documentation with Real Examples**
+
 - Add working copy-paste example commands
 - Create troubleshooting guide with actual error messages
 - Include screenshots/GIFs of system in action
 - Test setup guide with fresh user
 
 #### **4. Add Error Handling & Validation**
+
 - Implement robust error messages for common mistakes
 - Add validation for note type schemas
 - Ensure graceful handling of malformed files
@@ -1567,18 +1662,21 @@ The project has a comprehensive design document and core implementation with MCP
 ### Medium-term Goals (1-2 months)
 
 #### **5. Agent Instructions System Enhancement**
+
 - Implement dynamic agent instruction loading
 - Create instruction library for common note types (meetings, books, projects)
 - Test agent instruction effectiveness with multiple AI assistants
 - Add instruction versioning and rollback
 
 #### **6. Search & Discovery Improvements**
+
 - Implement full-text search with relevance ranking
 - Add tag-based filtering and faceted search
 - Create smart suggestions for note connections
 - Optimize search index performance
 
 #### **7. User Experience Polish**
+
 - Add progress feedback for long operations
 - Improve error messages with actionable suggestions
 - Create guided onboarding flow for new users
@@ -1587,6 +1685,7 @@ The project has a comprehensive design document and core implementation with MCP
 ### Long-term Vision (3+ months)
 
 #### **8. Advanced Features**
+
 - Full-text search with semantic similarity
 - Note relationship visualization
 - Batch operations on note collections
@@ -1594,6 +1693,7 @@ The project has a comprehensive design document and core implementation with MCP
 - Plugin system for custom note types
 
 #### **9. Community & Adoption**
+
 - Create example workspaces for different use cases
 - Build integrations with popular AI tools beyond MCP
 - Develop community instruction and schema library
@@ -1602,6 +1702,7 @@ The project has a comprehensive design document and core implementation with MCP
 ## Success Metrics
 
 ### MVP Success Criteria
+
 - [x] Successfully create and manage note types through MCP
 - [x] Agent instruction management and contextual guidance
 - [x] Seamless integration with at least one MCP client
@@ -1609,6 +1710,7 @@ The project has a comprehensive design document and core implementation with MCP
 - [x] File system remains clean and portable
 
 ### Long-term Success Indicators
+
 - User retention and daily active usage
 - Quality of agent suggestions and automations
 - Speed and accuracy of search functionality
@@ -1709,13 +1811,13 @@ The `LinkExtractor` class handles automatic link extraction during all note oper
 The following MCP tools are available for link management:
 
 **Core Link Tools:**
+
 - `get_note_links(identifier)` - Get all links for a note (incoming, outgoing internal, and external)
 - `get_backlinks(identifier)` - Get all notes that link to the specified note
 - `find_broken_links()` - Find all broken wikilinks (links to non-existent notes)
 
-
-
 **Advanced Link Search:**
+
 - `search_by_links(criteria)` - Search notes by link relationships:
   - `has_links_to: string[]` - Find notes linking to specified targets
   - `linked_from: string[]` - Find notes linked from specified sources
@@ -1723,6 +1825,7 @@ The following MCP tools are available for link management:
   - `broken_links: boolean` - Find notes with broken internal links
 
 **Link Migration:**
+
 - `migrate_links(force?)` - One-time migration to populate link tables from existing notes
 
 **Response Formats:**
@@ -1763,17 +1866,20 @@ The following MCP tools are available for link management:
 #### Integration with Note Operations
 
 **Automatic Link Processing:**
+
 - `create_note`: Automatically extracts and stores links during note creation
 - `update_note`: Re-extracts links when content changes, maintains link integrity
 - `rename_note`: Updates broken links that now resolve to the renamed note and automatically updates wikilinks in other notes that reference the old title
 - `delete_note`: Cleans up all link references (sets target_note_id to NULL for incoming links)
 
 **Search Integration:**
+
 - `search_by_links` tool enables complex link relationship queries
 - Advanced search includes link-based filtering capabilities
 - Support for finding orphaned notes, broken links, and external link analysis
 
 **Migration Support:**
+
 - `migrate_links` tool available for populating link tables from existing notes
 - Automatic link extraction runs during normal note operations
 - Backward compatibility maintained with existing YAML frontmatter
@@ -1782,17 +1888,20 @@ The following MCP tools are available for link management:
 
 **Link Extraction Algorithm:**
 The `LinkExtractor` class uses specialized parsers:
+
 - `WikilinkParser` for `[[wikilink]]` pattern matching with display text support
 - Regex patterns for markdown links, image embeds, and plain URLs
 - Line-by-line processing to maintain accurate line number tracking
 
 **Wikilink Resolution:**
+
 - Primary matching against note `title` field in metadata
 - Fallback matching against filename (without extension)
 - Case-insensitive matching with target normalization
 - Automatic resolution of broken links when target notes are created/renamed
 
 **Database Performance:**
+
 - Proper indexing on source_note_id, target_note_id, and target_title
 - Efficient batch operations for link updates
 - Referential integrity maintained with foreign key constraints
@@ -1809,6 +1918,7 @@ The `LinkExtractor` class uses specialized parsers:
 ✅ Integration with note operations
 
 **Key Benefits Achieved:**
+
 1. **Zero-Maintenance Linking**: Links are automatically extracted and maintained
 2. **Obsidian Compatibility**: Full support for `[[wikilink]]` syntax
 3. **Powerful Queries**: SQL-based link relationship analysis
@@ -1820,4 +1930,4 @@ The link management system is production-ready and provides a robust foundation 
 
 ---
 
-*This design document is a living document that evolves as the project develops.*
+_This design document is a living document that evolves as the project develops._

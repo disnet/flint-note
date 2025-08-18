@@ -135,7 +135,7 @@ export class LinkExtractor {
     }
 
     // Finally, extract plain URLs (but skip ones already captured)
-    const capturedUrls = new Set(links.map(link => link.url));
+    const capturedUrls = new Set(links.map((link) => link.url));
     this.URL_REGEX.lastIndex = 0;
     while ((match = this.URL_REGEX.exec(line)) !== null) {
       const url = match[0].trim();

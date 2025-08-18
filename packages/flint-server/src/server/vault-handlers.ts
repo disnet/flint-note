@@ -276,7 +276,7 @@ export class VaultHandlers {
 
       // Find the vault ID
       const vaults = this.globalConfig.listVaults();
-      const currentVaultEntry = vaults.find(v => v.is_current);
+      const currentVaultEntry = vaults.find((v) => v.is_current);
       const vaultId = currentVaultEntry?.info.id || 'unknown';
 
       return {

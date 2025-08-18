@@ -202,7 +202,7 @@ export class LinkHandlers {
       // Handle different search criteria
       if (args.has_links_to && args.has_links_to.length > 0) {
         // Find notes that link to any of the specified notes
-        const targetIds = args.has_links_to.map(id =>
+        const targetIds = args.has_links_to.map((id) =>
           this.generateNoteIdFromIdentifier(id)
         );
         const placeholders = targetIds.map(() => '?').join(',');
@@ -214,7 +214,7 @@ export class LinkHandlers {
         );
       } else if (args.linked_from && args.linked_from.length > 0) {
         // Find notes that are linked from any of the specified notes
-        const sourceIds = args.linked_from.map(id =>
+        const sourceIds = args.linked_from.map((id) =>
           this.generateNoteIdFromIdentifier(id)
         );
         const placeholders = sourceIds.map(() => '?').join(',');
@@ -229,7 +229,7 @@ export class LinkHandlers {
         const domainConditions = args.external_domains
           .map(() => 'el.url LIKE ?')
           .join(' OR ');
-        const domainParams = args.external_domains.map(domain => `%${domain}%`);
+        const domainParams = args.external_domains.map((domain) => `%${domain}%`);
         notes = await db.all(
           `SELECT DISTINCT n.* FROM notes n
            INNER JOIN external_links el ON n.id = el.note_id

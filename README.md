@@ -5,6 +5,7 @@ A monorepo containing the Flint note-taking application built with Electron and 
 ## Overview
 
 This repository contains:
+
 - **@flint-note/electron-app**: Svelte-based Electron UI application
 - **@flint-note/server**: Core note server with API, database, and business logic
 
@@ -37,6 +38,7 @@ flint-ui/
 ## Development Commands
 
 ### Root Level Commands
+
 - `npm run build` - Build server, then electron app (sequential)
 - `npm run build:parallel` - Build both packages concurrently
 - `npm run dev` - Build server, then start app development server
@@ -47,6 +49,7 @@ flint-ui/
 - `npm run clean:all` - Clean all build artifacts
 
 ### Individual Package Commands
+
 - `npm run build:server` - Build @flint-note/server only
 - `npm run build:app` - Build server, then electron app
 - `npm run dev:server` - Run server in watch mode

@@ -49,19 +49,19 @@ describe('Server Search Index Rebuild on Startup', () => {
     await server.initialize();
 
     // Verify that hybrid search index rebuild was triggered
-    const rebuildMessages = consoleOutput.filter(msg =>
+    const rebuildMessages = consoleOutput.filter((msg) =>
       msg.includes('Rebuilding hybrid search index on startup')
     );
     assert.ok(rebuildMessages.length >= 1, 'Should have hybrid search rebuild message');
 
     // Verify that hybrid search index was rebuilt successfully
-    const indexedMessages = consoleOutput.filter(msg =>
+    const indexedMessages = consoleOutput.filter((msg) =>
       msg.includes('Hybrid search index rebuilt successfully')
     );
     assert.ok(indexedMessages.length >= 1, 'Should have hybrid search success message');
 
     // Verify success message
-    const successMessages = consoleOutput.filter(msg =>
+    const successMessages = consoleOutput.filter((msg) =>
       msg.includes('flint-note server initialized successfully with workspace')
     );
     assert.ok(successMessages.length >= 1, 'Should have success message');
@@ -83,13 +83,13 @@ describe('Server Search Index Rebuild on Startup', () => {
     await server.initialize();
 
     // Verify that hybrid search index rebuild was triggered
-    const rebuildMessages = consoleOutput.filter(msg =>
+    const rebuildMessages = consoleOutput.filter((msg) =>
       msg.includes('Rebuilding hybrid search index on startup')
     );
     assert.ok(rebuildMessages.length >= 1, 'Should have hybrid search rebuild message');
 
     // Verify that hybrid search index was rebuilt successfully
-    const indexedMessages = consoleOutput.filter(msg =>
+    const indexedMessages = consoleOutput.filter((msg) =>
       msg.includes('Hybrid search index rebuilt successfully')
     );
     assert.ok(indexedMessages.length >= 1, 'Should have hybrid search success message');
@@ -104,7 +104,7 @@ describe('Server Search Index Rebuild on Startup', () => {
     await server.initialize();
 
     // The server should still initialize successfully even if there are potential search index issues
-    const successMessages = consoleOutput.filter(msg =>
+    const successMessages = consoleOutput.filter((msg) =>
       msg.includes('flint-note server initialized successfully')
     );
     assert.ok(
@@ -113,7 +113,7 @@ describe('Server Search Index Rebuild on Startup', () => {
     );
 
     // Should still attempt to rebuild hybrid search index
-    const rebuildMessages = consoleOutput.filter(msg =>
+    const rebuildMessages = consoleOutput.filter((msg) =>
       msg.includes('Rebuilding hybrid search index on startup')
     );
     assert.ok(
@@ -142,7 +142,7 @@ describe('Server Search Index Rebuild on Startup', () => {
     delete process.env.FORCE_INDEX_REBUILD;
 
     // Verify that hybrid search index was rebuilt again
-    const rebuildMessages = consoleOutput.filter(msg =>
+    const rebuildMessages = consoleOutput.filter((msg) =>
       msg.includes('Rebuilding hybrid search index on startup')
     );
     assert.ok(
@@ -151,7 +151,7 @@ describe('Server Search Index Rebuild on Startup', () => {
     );
 
     // Verify that hybrid search index was rebuilt successfully
-    const indexedMessages = consoleOutput.filter(msg =>
+    const indexedMessages = consoleOutput.filter((msg) =>
       msg.includes('Hybrid search index rebuilt successfully')
     );
     assert.ok(indexedMessages.length >= 1, 'Should have hybrid search success message');
@@ -164,7 +164,7 @@ describe('Server Search Index Rebuild on Startup', () => {
 
     // If we're getting rebuild messages when we shouldn't, this means there's a vault configured
     // Let's be more lenient for now and just check that the server starts successfully
-    const successMessages = consoleOutput.filter(msg =>
+    const successMessages = consoleOutput.filter((msg) =>
       msg.includes('flint-note server initialized successfully')
     );
     assert.ok(successMessages.length > 0, 'Server should initialize successfully');
@@ -186,13 +186,13 @@ describe('Server Search Index Rebuild on Startup', () => {
     await server.initialize();
 
     // Verify that hybrid search index was NOT rebuilt
-    const rebuildMessages = consoleOutput.filter(msg =>
+    const rebuildMessages = consoleOutput.filter((msg) =>
       msg.includes('Rebuilding hybrid search index on startup')
     );
     assert.strictEqual(rebuildMessages.length, 0, 'Should not rebuild when index exists');
 
     // Should see ready message instead
-    const readyMessages = consoleOutput.filter(msg =>
+    const readyMessages = consoleOutput.filter((msg) =>
       msg.includes('Hybrid search index ready')
     );
     assert.ok(readyMessages.length >= 1, 'Should show index ready message');
@@ -210,16 +210,16 @@ describe('Server Search Index Rebuild on Startup', () => {
     const endTime = Date.now();
 
     // Verify hybrid search rebuild happened
-    const rebuildMessages = consoleOutput.filter(msg =>
+    const rebuildMessages = consoleOutput.filter((msg) =>
       msg.includes('Rebuilding hybrid search index on startup')
     );
     assert.ok(rebuildMessages.length >= 1, 'Should have hybrid search rebuild message');
 
     // Verify the rebuild messages appear in correct order
-    const rebuildIndex = consoleOutput.findIndex(msg =>
+    const rebuildIndex = consoleOutput.findIndex((msg) =>
       msg.includes('Rebuilding hybrid search index on startup')
     );
-    const successIndex = consoleOutput.findIndex(msg =>
+    const successIndex = consoleOutput.findIndex((msg) =>
       msg.includes('flint-note server initialized successfully')
     );
 

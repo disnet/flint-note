@@ -54,7 +54,7 @@ describe('Search Index Rebuild Integration', () => {
         reject(new Error('Timeout waiting for server startup and search index rebuild'));
       }, INTEGRATION_CONSTANTS.SERVER_STARTUP_TIMEOUT);
 
-      serverProcess.stderr?.on('data', data => {
+      serverProcess.stderr?.on('data', (data) => {
         const output = data.toString();
 
         if (output.includes('Rebuilding hybrid search index on startup')) {
@@ -94,7 +94,7 @@ describe('Search Index Rebuild Integration', () => {
         }
       });
 
-      serverProcess.on('error', error => {
+      serverProcess.on('error', (error) => {
         clearTimeout(timeout);
         reject(new Error(`Server process error: ${error.message}`));
       });
@@ -152,7 +152,7 @@ describe('Search Index Rebuild Integration', () => {
         reject(new Error('Timeout waiting for server startup'));
       }, INTEGRATION_CONSTANTS.SERVER_STARTUP_TIMEOUT);
 
-      serverProcess.stderr?.on('data', data => {
+      serverProcess.stderr?.on('data', (data) => {
         const output = data.toString();
 
         if (output.includes('Hybrid search index:')) {
@@ -187,7 +187,7 @@ describe('Search Index Rebuild Integration', () => {
         }
       });
 
-      serverProcess.on('error', error => {
+      serverProcess.on('error', (error) => {
         clearTimeout(timeout);
         reject(error);
       });
@@ -214,7 +214,7 @@ describe('Search Index Rebuild Integration', () => {
         reject(new Error('Timeout on first server startup'));
       }, INTEGRATION_CONSTANTS.SERVER_STARTUP_TIMEOUT);
 
-      firstServerProcess.stderr?.on('data', data => {
+      firstServerProcess.stderr?.on('data', (data) => {
         const output = data.toString();
 
         if (output.includes('Flint Note MCP server running on stdio')) {
@@ -255,7 +255,7 @@ describe('Search Index Rebuild Integration', () => {
         reject(new Error('Timeout on second server startup'));
       }, INTEGRATION_CONSTANTS.SERVER_STARTUP_TIMEOUT);
 
-      secondServerProcess.stderr?.on('data', data => {
+      secondServerProcess.stderr?.on('data', (data) => {
         const output = data.toString();
 
         if (output.includes('Rebuilding hybrid search index on startup')) {
@@ -280,7 +280,7 @@ describe('Search Index Rebuild Integration', () => {
         }
       });
 
-      secondServerProcess.on('error', error => {
+      secondServerProcess.on('error', (error) => {
         clearTimeout(timeout);
         reject(error);
       });
@@ -310,7 +310,7 @@ describe('Search Index Rebuild Integration', () => {
         reject(new Error('Timeout waiting for server startup'));
       }, INTEGRATION_CONSTANTS.SERVER_STARTUP_TIMEOUT);
 
-      serverProcess.stderr?.on('data', data => {
+      serverProcess.stderr?.on('data', (data) => {
         const output = data.toString();
 
         if (output.includes('Rebuilding hybrid search index on startup')) {
@@ -338,7 +338,7 @@ describe('Search Index Rebuild Integration', () => {
         }
       });
 
-      serverProcess.on('error', error => {
+      serverProcess.on('error', (error) => {
         clearTimeout(timeout);
         reject(error);
       });
@@ -378,7 +378,7 @@ describe('Search Index Rebuild Integration', () => {
         reject(new Error('Timeout waiting for vault server startup'));
       }, INTEGRATION_CONSTANTS.SERVER_STARTUP_TIMEOUT);
 
-      serverProcess.stderr?.on('data', data => {
+      serverProcess.stderr?.on('data', (data) => {
         const output = data.toString();
 
         if (output.includes('Rebuilding hybrid search index on startup')) {
@@ -414,7 +414,7 @@ describe('Search Index Rebuild Integration', () => {
         }
       });
 
-      serverProcess.on('error', error => {
+      serverProcess.on('error', (error) => {
         clearTimeout(timeout);
         reject(error);
       });
@@ -453,7 +453,7 @@ describe('Search Index Rebuild Integration', () => {
         reject(new Error('Timeout waiting for server with many notes'));
       }, INTEGRATION_CONSTANTS.SERVER_STARTUP_TIMEOUT);
 
-      serverProcess.stderr?.on('data', data => {
+      serverProcess.stderr?.on('data', (data) => {
         const output = data.toString();
 
         if (output.includes('Rebuilding hybrid search index on startup')) {
@@ -487,7 +487,7 @@ describe('Search Index Rebuild Integration', () => {
         }
       });
 
-      serverProcess.on('error', error => {
+      serverProcess.on('error', (error) => {
         clearTimeout(timeout);
         reject(error);
       });

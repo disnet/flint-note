@@ -35,7 +35,7 @@ export class SearchHandlers {
 
     // Apply field filtering if specified
     const filteredResults = args.fields
-      ? results.map(result => filterNoteFields(result, args.fields))
+      ? results.map((result) => filterNoteFields(result, args.fields))
       : results;
 
     return {

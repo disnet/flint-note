@@ -112,7 +112,7 @@ function formatValue(value) {
     try {
       return JSON.stringify(value, null, 2)
         .split('\n')
-        .map(line => '     ' + line)
+        .map((line) => '     ' + line)
         .join('\n');
     } catch {
       return String(value);

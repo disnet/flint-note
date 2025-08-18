@@ -105,7 +105,7 @@ describe('Hybrid Search Integration Tests', () => {
     client = new MCPClient(serverProcess);
 
     // Wait for server to be fully ready
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise((resolve) => setTimeout(resolve, 2000));
   });
 
   afterEach(async () => {
@@ -813,7 +813,7 @@ Routine update of project documentation.
 
       // Should find the database research note
       const hasResearchNote = (results: any[]) =>
-        results.some(note => note.title.includes('Research Notes on Database Design'));
+        results.some((note) => note.title.includes('Research Notes on Database Design'));
 
       assert(hasResearchNote(basicResults), 'Basic search should find research note');
       assert(

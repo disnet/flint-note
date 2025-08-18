@@ -184,13 +184,13 @@ describe('Note Operations (Single and Batch)', () => {
       assert.strictEqual(result.failed, 2);
 
       // Check successful notes
-      const successfulResults = result.results.filter(r => r.success);
+      const successfulResults = result.results.filter((r) => r.success);
       assert.strictEqual(successfulResults.length, 2);
       assert.strictEqual(successfulResults[0].input.title, 'Valid Note');
       assert.strictEqual(successfulResults[1].input.title, 'Another Valid Note');
 
       // Check failed notes
-      const failedResults = result.results.filter(r => !r.success);
+      const failedResults = result.results.filter((r) => !r.success);
       assert.strictEqual(failedResults.length, 2);
       assert(failedResults[0].error);
       assert(failedResults[1].error);
@@ -234,7 +234,7 @@ describe('Note Operations (Single and Batch)', () => {
       assert.strictEqual(result.successful, 1);
       assert.strictEqual(result.failed, 1);
 
-      const failedResult = result.results.find(r => !r.success);
+      const failedResult = result.results.find((r) => !r.success);
       assert(failedResult);
       assert(failedResult.error);
       assert(failedResult.error.includes('already exists'));
@@ -509,12 +509,12 @@ describe('Note Operations (Single and Batch)', () => {
       assert.strictEqual(result.failed, 2);
 
       // Check successful update
-      const successfulResult = result.results.find(r => r.success);
+      const successfulResult = result.results.find((r) => r.success);
       assert(successfulResult);
       assert.strictEqual(successfulResult.input.identifier, validNote.id);
 
       // Check failed updates
-      const failedResults = result.results.filter(r => !r.success);
+      const failedResults = result.results.filter((r) => !r.success);
       assert.strictEqual(failedResults.length, 2);
       for (const failedResult of failedResults) {
         assert(failedResult.error);
@@ -639,7 +639,7 @@ describe('Note Operations (Single and Batch)', () => {
       assert.strictEqual(result.failed, 1);
 
       // Verify the successful notes actually exist
-      const successfulResults = result.results.filter(r => r.success);
+      const successfulResults = result.results.filter((r) => r.success);
       for (const successResult of successfulResults) {
         const note = await context.noteManager.getNote(successResult.result!.id);
         assert(note);

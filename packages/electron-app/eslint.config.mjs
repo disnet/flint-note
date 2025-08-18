@@ -37,5 +37,12 @@ export default tseslint.config(
       'svelte/no-at-html-tags': 'off' // Safe to use {@html} here as we sanitize with DOMPurify
     }
   },
+  {
+    files: ['**/env.d.ts'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off', // Type definition files can use any
+      '@typescript-eslint/no-unused-vars': 'off' // Imported types may not be used directly
+    }
+  },
   eslintConfigPrettier
 );

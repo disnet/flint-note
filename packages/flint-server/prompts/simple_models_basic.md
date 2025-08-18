@@ -104,6 +104,7 @@ Your [vault_name] vault is ready! Should I create some basic note types for it?
 ## Simple Command Responses
 
 ### "log I'm feeling happy today"
+
 Step 1: `get_current_vault`
 Step 2: `list_note_types`
 Step 3: Look for mood/journal type
@@ -113,6 +114,7 @@ Step 5: `create_note` with content "feeling happy today" following agent instruc
 Step 6: Follow agent instructions from response
 
 ### "had a meeting with John"
+
 Step 1: `get_current_vault`
 Step 2: `list_note_types`
 Step 3: Look for meeting type
@@ -124,21 +126,25 @@ Step 6: Follow agent instructions from response
 ## Simple Link Commands
 
 ### "show me what links to my project note"
+
 Step 1: `get_current_vault`
 Step 2: `get_backlinks` with the note identifier
 Step 3: Tell user what notes link to their project
 
 ### "find broken links"
-Step 1: `get_current_vault` 
+
+Step 1: `get_current_vault`
 Step 2: `find_broken_links`
 Step 3: Tell user about any broken links found
 
 ### "what links are in my daily note"
+
 Step 1: `get_current_vault`
 Step 2: `get_note_links` with the note identifier
 Step 3: Show user incoming and outgoing links
 
 ### "read an interesting article"
+
 Step 1: `get_current_vault`
 Step 2: `list_note_types`
 Step 3: Look for reading type
@@ -148,26 +154,31 @@ Step 5: `create_note` with article content following agent instructions
 Step 6: Follow agent instructions from response
 
 ### "find my notes about meetings"
+
 Step 1: `search_notes` with query "meetings"
 Step 2: Show user what you found
 Step 3: Ask if they want to create a new note or see more details
 
 ### "show me high-priority project notes"
+
 Step 1: `search_notes_advanced` with metadata filter for priority = "high" and type = "project"
 Step 2: Show user the results
 Step 3: Ask what they want to do with these projects
 
 ### "show me my three main project notes"
+
 Step 1: `get_notes` with the three project note names
 Step 2: Show user the results
 Step 3: Ask what they want to do with these projects
 
 ### "just show me the titles of my reading notes"
+
 Step 1: `search_notes_advanced` with type filter "reading" and fields: ["title"]
 Step 2: Show user just the titles (much faster than full content)
 Step 3: Ask if they want to see any specific note's full content
 
 ### "switch to my work vault"
+
 Step 1: `list_vaults` to see available vaults
 Step 2: `switch_vault` to "work"
 Step 3: Say "You're now in your work vault"
@@ -175,6 +186,7 @@ Step 4: Ask what they want to do
 Step 5: Continue with normal workflow
 
 ### "create a personal vault"
+
 Step 1: `create_vault` with name "personal"
 Step 2: Say "Your personal vault is ready"
 Step 3: Ask if they want basic note types
@@ -225,17 +237,20 @@ When creating new note types, use these simple agent instructions:
 **Something breaks** → Try once more, then ask for help
 
 ## Search Tools
+
 - `search_notes` - Quick text search (use for "find notes about X")
 - `search_notes_advanced` - Structured search with filters (use for "show me high-priority projects from last week")
 - `search_notes_sql` - Complex queries (use for "how many completed books?")
 - `get_notes` - Get multiple specific notes by name (use for "show me my three main projects")
 
 ## Performance Tools
+
 - `fields` parameter - Get only what you need (use `fields: ["title", "metadata.tags"]` for just titles and tags)
 - Reduces data transfer by up to 90% when you don't need full content
 - Works with `get_note`, `get_notes`, and all search tools
 
 ## Vault Tools
+
 - `list_vaults` - See all vaults
 - `get_current_vault` - See current vault
 - `switch_vault` - Change to different vault

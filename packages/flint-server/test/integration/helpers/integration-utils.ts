@@ -66,7 +66,7 @@ export async function cleanupIntegrationWorkspace(
     context.serverProcess.kill('SIGTERM');
 
     // Wait a bit for graceful shutdown
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     // Force kill if still running
     if (!context.serverProcess.killed) {
@@ -178,12 +178,12 @@ export async function startServer(options: ServerStartupOptions): Promise<ChildP
     }, timeout);
 
     // Listen for server output
-    serverProcess.stdout?.on('data', data => {
+    serverProcess.stdout?.on('data', (data) => {
       startupOutput += data.toString();
     });
 
     // Listen for server startup message
-    serverProcess.stderr?.on('data', data => {
+    serverProcess.stderr?.on('data', (data) => {
       const output = data.toString();
       errorOutput += output;
 
@@ -195,7 +195,7 @@ export async function startServer(options: ServerStartupOptions): Promise<ChildP
     });
 
     // Handle server errors
-    serverProcess.on('error', error => {
+    serverProcess.on('error', (error) => {
       clearTimeout(startupTimeout);
       const errorMessage = `Failed to start server: ${error.message}. Command: ${command} ${fullArgs.join(' ')}. Platform: ${platform()}. Errno: ${(error as any).errno || 'unknown'}. Code: ${(error as any).code || 'unknown'}`;
       reject(new Error(errorMessage));
@@ -364,7 +364,7 @@ export async function waitFor(
     if (await condition()) {
       return;
     }
-    await new Promise(resolve => setTimeout(resolve, interval));
+    await new Promise((resolve) => setTimeout(resolve, interval));
   }
 
   throw new Error(`Condition not met within ${timeout}ms timeout`);

@@ -218,7 +218,9 @@ export function filterSearchResults<T extends Record<string, unknown>>(
 
   return {
     ...results,
-    results: results.results.map(result => filterFields(result, enhancedFields, options))
+    results: results.results.map((result) =>
+      filterFields(result, enhancedFields, options)
+    )
   };
 }
 

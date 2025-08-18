@@ -143,10 +143,10 @@ export class NoteTypeHandlers {
         // Parse instructions from value (can be newline-separated or bullet points)
         const instructions = args.instructions
           .split('\n')
-          .map(line => line.trim())
-          .filter(line => line.length > 0)
-          .map(line => (line.startsWith('-') ? line.substring(1).trim() : line))
-          .map(line => `- ${line}`)
+          .map((line) => line.trim())
+          .filter((line) => line.length > 0)
+          .map((line) => (line.startsWith('-') ? line.substring(1).trim() : line))
+          .map((line) => `- ${line}`)
           .join('\n');
 
         // Use the current description and replace the agent instructions section
@@ -278,7 +278,7 @@ export class NoteTypeHandlers {
         }
 
         // Check for duplicate field names
-        const fieldNames = fields.map(f => f.name);
+        const fieldNames = fields.map((f) => f.name);
         const duplicates = fieldNames.filter(
           (name, index) => fieldNames.indexOf(name) !== index
         );

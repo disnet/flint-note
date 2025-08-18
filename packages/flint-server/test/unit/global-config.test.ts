@@ -285,14 +285,14 @@ describe('GlobalConfigManager', () => {
       const vaults = globalConfig.listVaults();
       assert.strictEqual(vaults.length, 2);
 
-      const vault1 = vaults.find(v => v.info.id === 'list-vault1');
-      const vault2 = vaults.find(v => v.info.id === 'list-vault2');
+      const vault1 = vaults.find((v) => v.info.id === 'list-vault1');
+      const vault2 = vaults.find((v) => v.info.id === 'list-vault2');
 
       assert.ok(vault1);
       assert.ok(vault2);
 
       // One should be current (the last one added due to auto_switch_on_create default)
-      const currentVaults = vaults.filter(v => v.is_current);
+      const currentVaults = vaults.filter((v) => v.is_current);
       assert.strictEqual(currentVaults.length, 1);
     } finally {
       await cleanupTestConfig(tempDir, cleanup);
@@ -318,9 +318,9 @@ describe('GlobalConfigManager', () => {
 
       // Access vaults in specific order with delays to ensure timestamp differences
       await globalConfig.switchVault('recent-vault1');
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await new Promise((resolve) => setTimeout(resolve, 10));
       await globalConfig.switchVault('recent-vault3');
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await new Promise((resolve) => setTimeout(resolve, 10));
       await globalConfig.switchVault('recent-vault2');
 
       const recentVaults = globalConfig.getRecentVaults();

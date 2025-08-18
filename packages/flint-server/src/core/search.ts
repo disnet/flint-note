@@ -107,7 +107,7 @@ export class SearchManager {
       const searchTerms = safeQuery
         .toLowerCase()
         .split(/\s+/)
-        .filter(term => term.length > 0);
+        .filter((term) => term.length > 0);
 
       // If no search terms, return all notes (matching everything)
       if (searchTerms.length === 0) {
@@ -258,7 +258,7 @@ export class SearchManager {
         // Test regex against content, title, and tags
         const contentMatches = regex.test(noteData.content);
         const titleMatches = regex.test(noteData.title);
-        const tagMatches = noteData.tags.some(tag => regex.test(tag));
+        const tagMatches = noteData.tags.some((tag) => regex.test(tag));
 
         if (contentMatches || titleMatches || tagMatches) {
           // Reset regex for snippet generation
@@ -381,7 +381,7 @@ export class SearchManager {
     let score = 0;
     const content = noteData.content.toLowerCase();
     const title = noteData.title.toLowerCase();
-    const tags = noteData.tags.map(tag => tag.toLowerCase());
+    const tags = noteData.tags.map((tag) => tag.toLowerCase());
 
     for (const term of searchTerms) {
       // Title matches are weighted more heavily
@@ -524,18 +524,18 @@ export class SearchManager {
     try {
       const searchIndex = await this.loadSearchIndex();
       const results: TagSearchResult[] = [];
-      const searchTags = tags.map(tag => tag.toLowerCase());
+      const searchTags = tags.map((tag) => tag.toLowerCase());
 
       for (const [notePath, noteData] of Object.entries(searchIndex.notes)) {
-        const noteTags = noteData.tags.map(tag => tag.toLowerCase());
+        const noteTags = noteData.tags.map((tag) => tag.toLowerCase());
 
         let matches = false;
         if (matchAll) {
           // All tags must be present
-          matches = searchTags.every(tag => noteTags.includes(tag));
+          matches = searchTags.every((tag) => noteTags.includes(tag));
         } else {
           // At least one tag must be present
-          matches = searchTags.some(tag => noteTags.includes(tag));
+          matches = searchTags.some((tag) => noteTags.includes(tag));
         }
 
         if (matches) {
@@ -648,7 +648,7 @@ export class SearchManager {
       .toLowerCase()
       .replace(/[^\w\s]/g, ' ')
       .split(/\s+/)
-      .filter(word => word.length > 2)
+      .filter((word) => word.length > 2)
       .reduce(
         (acc, word) => {
           acc[word] = (acc[word] || 0) + 1;
@@ -797,7 +797,7 @@ export class SearchManager {
         }
 
         // Wait a bit before retrying
-        await new Promise(resolve => setTimeout(resolve, 10 * (attempt + 1)));
+        await new Promise((resolve) => setTimeout(resolve, 10 * (attempt + 1)));
       }
     }
 
@@ -837,7 +837,7 @@ export class SearchManager {
   async #withIndexLock<T>(fn: () => Promise<T>): Promise<T> {
     const currentLock = SearchManager.#globalIndexLock;
     let resolve: () => void;
-    SearchManager.#globalIndexLock = new Promise<void>(r => (resolve = r));
+    SearchManager.#globalIndexLock = new Promise<void>((r) => (resolve = r));
 
     try {
       await currentLock;
@@ -964,6 +964,6 @@ export class SearchManager {
     return filename
       .replace(/\.md$/, '')
       .replace(/-/g, ' ')
-      .replace(/\b\w/g, letter => letter.toUpperCase());
+      .replace(/\b\w/g, (letter) => letter.toUpperCase());
   }
 }

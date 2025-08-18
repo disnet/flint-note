@@ -150,7 +150,7 @@ export class NoteTypeManager {
     if (agentInstructions && agentInstructions.length > 0) {
       // Use custom agent instructions, filtering out empty strings
       const validInstructions = agentInstructions.filter(
-        instruction => instruction && instruction.trim().length > 0
+        (instruction) => instruction && instruction.trim().length > 0
       );
 
       if (validInstructions.length > 0) {
@@ -324,11 +324,11 @@ export class NoteTypeManager {
         break;
       case 'agentInstructions':
         sections.agentInstructions = content
-          .filter(line => line.trim().startsWith('-'))
-          .map(line => line.trim().substring(1).trim());
+          .filter((line) => line.trim().startsWith('-'))
+          .map((line) => line.trim().substring(1).trim());
         break;
       case 'metadataSchema':
-        sections.metadataSchema = content.filter(line => line.trim().length > 0);
+        sections.metadataSchema = content.filter((line) => line.trim().length > 0);
         break;
     }
   }
@@ -355,7 +355,8 @@ export class NoteTypeManager {
           // Check if this is a valid note type (has notes or description)
           const typeEntries = await fs.readdir(typePath);
           const hasNotes = typeEntries.some(
-            file => file.endsWith('.md') && !file.startsWith('.') && !file.startsWith('_')
+            (file) =>
+              file.endsWith('.md') && !file.startsWith('.') && !file.startsWith('_')
           );
 
           // Check if description exists in note type directory
@@ -383,7 +384,7 @@ export class NoteTypeManager {
               }
 
               noteCount = typeEntries.filter(
-                file =>
+                (file) =>
                   file.endsWith('.md') && !file.startsWith('_') && !file.startsWith('.')
               ).length;
             } catch {
@@ -564,7 +565,7 @@ export class NoteTypeManager {
       // Get notes in this type
       const notes = await this.getNotesInType(typeName);
       validation.note_count = notes.length;
-      validation.affected_notes = notes.map(note => note.filename);
+      validation.affected_notes = notes.map((note) => note.filename);
 
       // Validate based on action
       switch (action) {
@@ -618,9 +619,9 @@ export class NoteTypeManager {
       const entries = await fs.readdir(typePath);
       const notes = entries
         .filter(
-          file => file.endsWith('.md') && !file.startsWith('.') && !file.startsWith('_')
+          (file) => file.endsWith('.md') && !file.startsWith('.') && !file.startsWith('_')
         )
-        .map(filename => ({
+        .map((filename) => ({
           filename,
           path: path.join(typePath, filename)
         }));
@@ -670,7 +671,7 @@ export class NoteTypeManager {
       const manifest = {
         type: typeName,
         timestamp: new Date().toISOString(),
-        notes: notes.map(n => n.filename),
+        notes: notes.map((n) => n.filename),
         total_size: totalSize
       };
 

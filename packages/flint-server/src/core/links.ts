@@ -246,7 +246,7 @@ export class LinkManager implements NoteLinkingManager {
       const links = currentNote.metadata?.links?.outbound || [];
 
       return links.some(
-        link => link.target === targetIdentifier && link.relationship === relationship
+        (link) => link.target === targetIdentifier && link.relationship === relationship
       );
     } catch {
       return false;
@@ -323,7 +323,7 @@ export class LinkManager implements NoteLinkingManager {
     const outboundLinks = links.outbound || [];
 
     const linkIndex = outboundLinks.findIndex(
-      link => link.target === target && link.relationship === relationship
+      (link) => link.target === target && link.relationship === relationship
     );
 
     if (linkIndex === -1) {
@@ -412,14 +412,14 @@ export class LinkManager implements NoteLinkingManager {
     });
 
     return searchResults
-      .map(result => ({
+      .map((result) => ({
         filename: path.basename(result.filename, '.md'),
         title: result.title,
         type: result.type,
         path: result.path,
         exists: true
       }))
-      .filter(note => !excludeType || note.type !== excludeType);
+      .filter((note) => !excludeType || note.type !== excludeType);
   }
 
   /**
@@ -432,7 +432,7 @@ export class LinkManager implements NoteLinkingManager {
     const notes = await this.searchLinkableNotes(query, contextType);
 
     return notes
-      .map(note => ({
+      .map((note) => ({
         target: `${note.type}/${note.filename}`,
         display: note.title,
         type: note.type,
@@ -461,7 +461,7 @@ export class LinkManager implements NoteLinkingManager {
 
     // Fuzzy match gets lower score
     const words = queryLower.split(/\s+/);
-    const matchingWords = words.filter(word => titleLower.includes(word));
+    const matchingWords = words.filter((word) => titleLower.includes(word));
     return (matchingWords.length / words.length) * 0.4;
   }
 

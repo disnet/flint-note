@@ -36,14 +36,14 @@ Expected frontmatter or metadata fields for this note type:
 
       assert.strictEqual(schema.fields.length, 6);
 
-      const titleField = schema.fields.find(f => f.name === 'title');
+      const titleField = schema.fields.find((f) => f.name === 'title');
       assert.ok(titleField);
       assert.strictEqual(titleField.name, 'title');
       assert.strictEqual(titleField.type, 'string');
       assert.strictEqual(titleField.required, true);
       assert.strictEqual(titleField.description, 'Book title');
 
-      const ratingField = schema.fields.find(f => f.name === 'rating');
+      const ratingField = schema.fields.find((f) => f.name === 'rating');
       assert.ok(ratingField);
       assert.strictEqual(ratingField.name, 'rating');
       assert.strictEqual(ratingField.type, 'number');
@@ -53,7 +53,7 @@ Expected frontmatter or metadata fields for this note type:
       assert.strictEqual(ratingField.constraints.min, 1);
       assert.strictEqual(ratingField.constraints.max, 5);
 
-      const isbnField = schema.fields.find(f => f.name === 'isbn');
+      const isbnField = schema.fields.find((f) => f.name === 'isbn');
       assert.ok(isbnField);
       assert.strictEqual(isbnField.name, 'isbn');
       assert.strictEqual(isbnField.type, 'string');
@@ -62,7 +62,7 @@ Expected frontmatter or metadata fields for this note type:
       assert.ok(isbnField.constraints);
       assert.strictEqual(isbnField.constraints.pattern, '^[0-9-]{10,17}$');
 
-      const tagsField = schema.fields.find(f => f.name === 'tags');
+      const tagsField = schema.fields.find((f) => f.name === 'tags');
       assert.ok(tagsField);
       assert.strictEqual(tagsField.name, 'tags');
       assert.strictEqual(tagsField.type, 'array');
@@ -81,7 +81,7 @@ Expected frontmatter or metadata fields for this note type:
 
       const schema = MetadataSchemaParser.parseFromDescription(description);
 
-      const statusField = schema.fields.find(f => f.name === 'status');
+      const statusField = schema.fields.find((f) => f.name === 'status');
       assert.ok(statusField);
       assert.strictEqual(statusField.name, 'status');
       assert.strictEqual(statusField.type, 'select');
@@ -93,7 +93,7 @@ Expected frontmatter or metadata fields for this note type:
         'cancelled'
       ]);
 
-      const priorityField = schema.fields.find(f => f.name === 'priority');
+      const priorityField = schema.fields.find((f) => f.name === 'priority');
       assert.ok(priorityField);
       assert.strictEqual(priorityField.name, 'priority');
       assert.strictEqual(priorityField.type, 'select');
@@ -247,11 +247,11 @@ describe('MetadataValidator', () => {
       assert.strictEqual(result.valid, false);
       assert.strictEqual(result.errors.length, 2);
 
-      const ratingError = result.errors.find(e => e.field === 'rating');
+      const ratingError = result.errors.find((e) => e.field === 'rating');
       assert.ok(ratingError);
       assert.ok(ratingError.message.includes('must be a number'));
 
-      const tagsError = result.errors.find(e => e.field === 'tags');
+      const tagsError = result.errors.find((e) => e.field === 'tags');
       assert.ok(tagsError);
       assert.ok(tagsError.message.includes('must be an array'));
     });

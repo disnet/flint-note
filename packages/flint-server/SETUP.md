@@ -13,12 +13,14 @@ flint-note is an agent-first note-taking application that uses the Model Context
 ## Installation
 
 1. **Clone or download the project:**
+
    ```bash
    git clone <repository-url>
    cd flint-note
    ```
 
 2. **Install dependencies:**
+
    ```bash
    npm install
    ```
@@ -41,14 +43,11 @@ cd my-notes
 
 ### 2. Set the Command-line Argument
 
-
 When starting the server, use the `--workspace` argument to specify your notes directory:
 
 ```bash
 node src/server.ts --workspace /path/to/your/notes-directory
 ```
-
-
 
 ### 3. Start the MCP Server
 
@@ -73,7 +72,11 @@ Add flint-note to your MCP client configuration. For Claude Desktop, add this to
   "mcpServers": {
     "flint-note": {
       "command": "node",
-      "args": ["/path/to/flint-note/src/server.js", "--workspace", "/path/to/your/notes-directory"]
+      "args": [
+        "/path/to/flint-note/src/server.js",
+        "--workspace",
+        "/path/to/your/notes-directory"
+      ]
     }
   }
 }
@@ -114,18 +117,18 @@ my-notes/
 The configuration file (`.flint-note/config.yml`) contains:
 
 ```yaml
-version: "1.0.0"
-workspace_root: "."
-default_note_type: "general"
+version: '1.0.0'
+workspace_root: '.'
+default_note_type: 'general'
 mcp_server:
-  name: "flint-note"
-  version: "0.1.0"
+  name: 'flint-note'
+  version: '0.1.0'
   port: 3000
-  log_level: "info"
-  log_file: ".flint-note/mcp-server.log"
+  log_level: 'info'
+  log_file: '.flint-note/mcp-server.log'
 search:
   index_enabled: true
-  index_path: ".flint-note/search-index.json"
+  index_path: '.flint-note/search-index.json'
   rebuild_on_startup: false
   max_results: 50
 note_types:
@@ -139,16 +142,19 @@ note_types:
 flint-note exposes these tools to AI agents:
 
 ### Note Management
+
 - `create_note` - Create one or more notes (supports batch operations)
 - `get_note` - Retrieve a note by identifier
 - `update_note` - Update one or more existing notes (supports batch operations)
 - `search_notes` - Search notes by content/type
 
 ### Note Type Management
+
 - `create_note_type` - Create a new note type with description
 - `list_note_types` - List all available note types
 
 ### Resources
+
 - `flint-note://types` - Available note types
 - `flint-note://recent` - Recently modified notes
 - `flint-note://stats` - Workspace statistics
@@ -264,10 +270,11 @@ MIT License - see LICENSE file for details
 ## Support
 
 For issues and questions:
+
 - Check the troubleshooting section above
 - Review the logs in `.flint-note/mcp-server.log`
 - Open an issue on the project repository
 
 ---
 
-*flint-note: Agent-first note-taking for the modern knowledge worker*
+_flint-note: Agent-first note-taking for the modern knowledge worker_

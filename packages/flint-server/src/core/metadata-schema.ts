@@ -133,7 +133,7 @@ export class MetadataSchemaParser {
     if (optionsMatch) {
       constraints.options = optionsMatch[1]
         .split(',')
-        .map(opt => opt.trim().replace(/['|"]/g, ''));
+        .map((opt) => opt.trim().replace(/['|"]/g, ''));
     }
 
     if (Object.keys(constraints).length > 0) {
@@ -179,7 +179,7 @@ Expected frontmatter or metadata fields for this note type:
           constraintTexts.push(`pattern: "${field.constraints.pattern}"`);
         if (field.constraints.options)
           constraintTexts.push(
-            `options: [${field.constraints.options.map(o => `"${o}"`).join(', ')}]`
+            `options: [${field.constraints.options.map((o) => `"${o}"`).join(', ')}]`
           );
       }
 
@@ -221,7 +221,7 @@ export class MetadataValidator {
 
     // Validate field types and constraints
     for (const [fieldName, value] of Object.entries(metadata)) {
-      const fieldDef = schema.fields.find(f => f.name === fieldName);
+      const fieldDef = schema.fields.find((f) => f.name === fieldName);
       if (!fieldDef) {
         // Unknown field - just warn
         warnings.push({

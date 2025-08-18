@@ -257,7 +257,7 @@ describe('move_note unit tests', () => {
       type_filter: 'general'
     });
     assert.ok(searchBefore.length >= 1);
-    assert.ok(searchBefore.some(result => result.id === note.id));
+    assert.ok(searchBefore.some((result) => result.id === note.id));
 
     // Move the note
     const moveResult = await noteManager.moveNote(
@@ -271,7 +271,7 @@ describe('move_note unit tests', () => {
       query: 'Searchable content',
       type_filter: 'general'
     });
-    assert.ok(!searchOldType.some(result => result.id === note.id));
+    assert.ok(!searchOldType.some((result) => result.id === note.id));
 
     // Verify note is found under new type
     const searchNewType = await noteManager.searchNotes({
@@ -279,6 +279,6 @@ describe('move_note unit tests', () => {
       type_filter: 'projects'
     });
     assert.ok(searchNewType.length >= 1);
-    assert.ok(searchNewType.some(result => result.id === moveResult.new_id));
+    assert.ok(searchNewType.some((result) => result.id === moveResult.new_id));
   });
 });

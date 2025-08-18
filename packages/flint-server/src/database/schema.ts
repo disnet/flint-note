@@ -42,7 +42,7 @@ export class DatabaseManager {
       this.db = new sqlite3.Database(
         this.dbPath,
         sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE,
-        err => {
+        (err) => {
           if (err) {
             reject(new Error(`Failed to connect to database: ${err.message}`));
             return;
@@ -67,14 +67,18 @@ export class DatabaseManager {
     }
 
     return new Promise((resolve, reject) => {
-      this.readOnlyDb = new sqlite3.Database(this.dbPath, sqlite3.OPEN_READONLY, err => {
-        if (err) {
-          reject(new Error(`Failed to connect to read-only database: ${err.message}`));
-          return;
-        }
+      this.readOnlyDb = new sqlite3.Database(
+        this.dbPath,
+        sqlite3.OPEN_READONLY,
+        (err) => {
+          if (err) {
+            reject(new Error(`Failed to connect to read-only database: ${err.message}`));
+            return;
+          }
 
-        resolve(this.createConnection(this.readOnlyDb!));
-      });
+          resolve(this.createConnection(this.readOnlyDb!));
+        }
+      );
     });
   }
 

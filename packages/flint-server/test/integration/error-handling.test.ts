@@ -684,13 +684,13 @@ describe('Error Handling Integration', () => {
             identifier: 'general/concurrent-update-test',
             content: `Updated content ${i + 1}`
           })
-          .catch(error => error)
+          .catch((error) => error)
       );
 
       const results = await Promise.all(promises);
 
       // All updates should succeed (last one wins)
-      const successes = results.filter(result => !(result instanceof Error));
+      const successes = results.filter((result) => !(result instanceof Error));
       assert.ok(successes.length > 0, 'At least one concurrent update should succeed');
     });
   });

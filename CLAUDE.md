@@ -25,6 +25,7 @@ flint-ui/
 ## Development Commands
 
 ### Root Level (builds both packages)
+
 - `npm run build` - Build server, then electron app (sequential)
 - `npm run build:parallel` - Build both packages concurrently
 - `npm run dev` - Build server, then start app development server
@@ -35,6 +36,7 @@ flint-ui/
 - `npm run clean:all` - Clean all build artifacts
 
 ### Individual Package Commands
+
 - `npm run build:server` - Build @flint-note/server only
 - `npm run build:app` - Build server, then electron app
 - `npm run dev:server` - Run server in watch mode
@@ -43,11 +45,13 @@ flint-ui/
 ## System Layout
 
 ### Documentation
+
 - `docs/DESIGN.md` - UI design documentation
 - `docs/ARCHITECTURE.md` - Electron system architecture documentation
 - `docs/FLINT-NOTE-API.md` - Server API documentation
 
 ### Packages
+
 - `packages/electron-app/` - Main Svelte + Electron application
 - `packages/flint-server/` - Note server with API, database, and core logic
 

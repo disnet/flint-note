@@ -202,7 +202,7 @@ describe('Hybrid Search Unit Tests', () => {
       const results = await hybridSearch.searchNotes('', 'book-review');
 
       assert(results.length > 0, 'Should find notes of specified type');
-      results.forEach(result => {
+      results.forEach((result) => {
         assert(
           result.metadata?.type === 'book-review',
           'Should only return book-review notes'
@@ -279,7 +279,7 @@ describe('Hybrid Search Unit Tests', () => {
       });
 
       assert(results.results.length > 0, 'Should find book-review notes');
-      results.results.forEach(result => {
+      results.results.forEach((result) => {
         assert(
           result.metadata?.type === 'book-review',
           'Should only return book-review notes'
@@ -293,7 +293,7 @@ describe('Hybrid Search Unit Tests', () => {
       });
 
       assert(results.results.length > 0, 'Should find notes with completed status');
-      results.results.forEach(result => {
+      results.results.forEach((result) => {
         assert(
           result.metadata?.status === 'completed',
           'Should only return completed notes'
@@ -307,7 +307,7 @@ describe('Hybrid Search Unit Tests', () => {
       });
 
       assert(results.results.length > 0, 'Should find highly rated notes');
-      results.results.forEach(result => {
+      results.results.forEach((result) => {
         if (result.metadata?.rating !== undefined) {
           assert(
             Number(result.metadata.rating) >= 4,
@@ -325,7 +325,7 @@ describe('Hybrid Search Unit Tests', () => {
         ]
       });
 
-      results.results.forEach(result => {
+      results.results.forEach((result) => {
         assert(result.metadata?.type === 'book-review', 'Should match type filter');
         assert(result.metadata?.status === 'completed', 'Should match status filter');
       });
@@ -339,7 +339,7 @@ describe('Hybrid Search Unit Tests', () => {
       assert(results.results.length >= 0, 'Should handle date filtering');
       // All test notes should be recent
       if (results.results.length > 0) {
-        results.results.forEach(result => {
+        results.results.forEach((result) => {
           const updatedDate = new Date(result.lastUpdated);
           const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
           assert(
@@ -356,7 +356,7 @@ describe('Hybrid Search Unit Tests', () => {
         metadata_filters: [{ key: 'type', value: 'book-review' }]
       });
 
-      results.results.forEach(result => {
+      results.results.forEach((result) => {
         assert(result.metadata?.type === 'book-review', 'Should match type filter');
         assert(
           result.title.toLowerCase().includes('habits') ||
@@ -386,7 +386,7 @@ describe('Hybrid Search Unit Tests', () => {
         metadata_filters: [{ key: 'author', operator: 'LIKE', value: '%James%' }]
       });
 
-      results.results.forEach(result => {
+      results.results.forEach((result) => {
         if (result.metadata?.author) {
           assert(
             result.metadata.author.toString().includes('James'),
@@ -403,7 +403,7 @@ describe('Hybrid Search Unit Tests', () => {
         ]
       });
 
-      results.results.forEach(result => {
+      results.results.forEach((result) => {
         if (result.metadata?.status) {
           assert(
             ['completed', 'in-progress'].includes(result.metadata.status.toString()),
@@ -434,7 +434,7 @@ describe('Hybrid Search Unit Tests', () => {
       });
 
       assert(results.results.length > 0, 'Should return matching notes');
-      results.results.forEach(result => {
+      results.results.forEach((result) => {
         assert(result.metadata?.type === 'book-review', 'Should match WHERE condition');
       });
     });
@@ -449,7 +449,7 @@ describe('Hybrid Search Unit Tests', () => {
         `
       });
 
-      results.results.forEach(result => {
+      results.results.forEach((result) => {
         if (result.metadata?.rating !== undefined) {
           assert(Number(result.metadata.rating) >= 4, 'Should match JOIN condition');
         }
@@ -509,7 +509,7 @@ describe('Hybrid Search Unit Tests', () => {
         params: ['%Atomic%', 'book-review']
       });
 
-      results.results.forEach(result => {
+      results.results.forEach((result) => {
         assert(result.title.includes('Atomic'), 'Should match title parameter');
         assert(result.metadata?.type === 'book-review', 'Should match type parameter');
       });

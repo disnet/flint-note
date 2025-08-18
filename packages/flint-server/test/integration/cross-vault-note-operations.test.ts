@@ -186,7 +186,7 @@ describe('Cross-Vault Note Operations', () => {
     // Kill server process
     if (context.serverProcess && !context.serverProcess.killed) {
       context.serverProcess.kill('SIGTERM');
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
       if (!context.serverProcess.killed) {
         context.serverProcess.kill('SIGKILL');
       }
@@ -586,7 +586,7 @@ describe('Cross-Vault Note Operations', () => {
 
       // Check that results are from work vault
       const foundProjects = searchData.filter(
-        note =>
+        (note) =>
           (note.title && note.title.toLowerCase().includes('project')) ||
           (note.title && note.title.toLowerCase().includes('api')) ||
           (note.snippet && note.snippet.toLowerCase().includes('project'))
@@ -622,7 +622,7 @@ describe('Cross-Vault Note Operations', () => {
 
       // Check that results are from personal vault
       const foundLearning = searchData.filter(
-        note => note.title.includes('Learning') || note.title.includes('Growth')
+        (note) => note.title.includes('Learning') || note.title.includes('Growth')
       );
       assert.ok(foundLearning.length > 0, 'Should find personal learning notes');
     });

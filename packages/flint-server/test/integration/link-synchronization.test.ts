@@ -117,7 +117,7 @@ describe('Link Synchronization Integration', () => {
     client = new MCPClient(context.serverProcess);
 
     // Wait for server initialization
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 500));
   });
 
   afterEach(async () => {
@@ -151,7 +151,7 @@ Broken link: [[non-existent-note]]`;
       });
 
       // Wait for link extraction to complete
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Verify links were extracted
       const linksData = await client.expectSuccess('get_note_links', {
@@ -209,7 +209,7 @@ Links to [[non-existent]] and external: https://old-site.com`;
       });
 
       // Wait for initial link extraction
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Verify initial links
       let linksData = await client.expectSuccess('get_note_links', {
@@ -252,7 +252,7 @@ Also: [Documentation](https://docs.new-site.com)`;
       });
 
       // Wait for link re-extraction
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Verify updated links
       linksData = await client.expectSuccess('get_note_links', {
@@ -289,7 +289,7 @@ Also: [Documentation](https://docs.new-site.com)`;
       });
 
       // Wait for link extraction
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Verify broken link exists
       let brokenLinksData = await client.expectSuccess('find_broken_links', {});
@@ -357,7 +357,7 @@ Also: [Documentation](https://docs.new-site.com)`;
       });
 
       // Wait for link extraction
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Verify initial valid link
       let sourceLinksData = await client.expectSuccess('get_note_links', {
@@ -430,7 +430,7 @@ External: https://example.com`;
       });
 
       // Wait for link extraction
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Verify initial link state
       const sourceLinksData = await client.expectSuccess('get_note_links', {
@@ -448,7 +448,7 @@ External: https://example.com`;
       });
 
       // Wait for cleanup
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Verify outgoing links are gone
       try {
@@ -490,7 +490,7 @@ External: https://example.com`;
       });
 
       // Wait for link extraction
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Verify link points to correct note
       const linksData = await client.expectSuccess('get_note_links', {
@@ -530,7 +530,7 @@ External: https://example.com`;
       });
 
       // Wait for link extraction
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Verify both notes have correct links
       const note1LinksData = await client.expectSuccess('get_note_links', {
@@ -576,7 +576,7 @@ External: https://example.com`;
       });
 
       // Wait for initial extraction
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Perform rapid updates
       for (let i = 1; i <= 3; i++) {
@@ -597,11 +597,11 @@ External: https://example${i}.com`;
         });
 
         // Small delay between updates
-        await new Promise(resolve => setTimeout(resolve, 50));
+        await new Promise((resolve) => setTimeout(resolve, 50));
       }
 
       // Wait for final extraction
-      await new Promise(resolve => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 200));
 
       // Verify final state is correct
       const finalLinksData = await client.expectSuccess('get_note_links', {

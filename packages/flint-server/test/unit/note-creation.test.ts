@@ -454,11 +454,11 @@ This has malformed frontmatter.`;
       // Verify all notes were created successfully
       assert.strictEqual(results.length, noteCount, 'Should create all notes');
 
-      const ids = results.map(r => r.id);
+      const ids = results.map((r) => r.id);
       const uniqueIds = new Set(ids);
       assert.strictEqual(uniqueIds.size, noteCount, 'Should generate unique IDs');
 
-      const paths = results.map(r => r.path);
+      const paths = results.map((r) => r.path);
       const uniquePaths = new Set(paths);
       assert.strictEqual(uniquePaths.size, noteCount, 'Should generate unique paths');
     });

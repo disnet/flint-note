@@ -105,7 +105,7 @@ describe('LinkManager', () => {
       const links = sourceNote.metadata.links || { outbound: [], inbound: [] };
 
       assert.ok(links.outbound && links.outbound.length > 0, 'Links should exist');
-      const link = links.outbound.find(l => l.target === 'general/target-note.md');
+      const link = links.outbound.find((l) => l.target === 'general/target-note.md');
       assert.ok(link, 'Specific link should exist');
       assert.strictEqual(link.context, context, 'Context should be preserved');
     });
@@ -143,7 +143,7 @@ describe('LinkManager', () => {
         assert.ok(sourceNote, 'Source note should exist');
         const sourceLinks = sourceNote.metadata.links || { outbound: [], inbound: [] };
         const forwardLink = sourceLinks.outbound?.find(
-          l => l.target === 'general/target-note.md'
+          (l) => l.target === 'general/target-note.md'
         );
         assert.ok(forwardLink, 'Forward link should exist');
         assert.strictEqual(forwardLink.relationship, relationship);
@@ -153,7 +153,7 @@ describe('LinkManager', () => {
         assert.ok(targetNote, 'Target note should exist');
         const targetLinks = targetNote.metadata.links || { outbound: [], inbound: [] };
         const reverseLink = targetLinks.outbound?.find(
-          l => l.target === 'general/source-note.md'
+          (l) => l.target === 'general/source-note.md'
         );
         assert.ok(reverseLink, 'Reverse link should exist');
         assert.strictEqual(reverseLink.relationship, expectedReverse);
@@ -321,8 +321,8 @@ This is a note with custom metadata.`;
       const links = sourceNote.metadata.links || { outbound: [], inbound: [] };
 
       assert.strictEqual(links.outbound?.length || 0, 2, 'Should have two links');
-      assert.ok(links.outbound?.some(l => l.relationship === 'references'));
-      assert.ok(links.outbound?.some(l => l.relationship === 'supports'));
+      assert.ok(links.outbound?.some((l) => l.relationship === 'references'));
+      assert.ok(links.outbound?.some((l) => l.relationship === 'supports'));
     });
   });
 
@@ -391,8 +391,8 @@ This is a note with custom metadata.`;
 
       const links = await linkManager.getLinksForNote('general/source-note.md');
       assert.strictEqual(links.outbound?.length || 0, 2, 'Should have two links');
-      assert.ok(links.outbound.some(l => l.target === 'general/target-note.md'));
-      assert.ok(links.outbound.some(l => l.target === 'general/another-note.md'));
+      assert.ok(links.outbound.some((l) => l.target === 'general/target-note.md'));
+      assert.ok(links.outbound.some((l) => l.target === 'general/another-note.md'));
     });
 
     test('should remove specific links', async () => {

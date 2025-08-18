@@ -85,6 +85,7 @@ To add a new migration:
 1. **Update Current Version**: Modify `CURRENT_SCHEMA_VERSION` in `DatabaseMigrationManager`
 
 2. **Add Migration Definition**:
+
    ```typescript
    {
      version: '1.2.0',
@@ -150,6 +151,7 @@ await DatabaseMigrationManager.runSpecificMigration(
 ## Migration History
 
 ### 1.0.0 → 1.1.0
+
 - Added `note_links` table for wikilink storage
 - Added `external_links` table for URL storage
 - Implemented automatic link extraction for existing notes

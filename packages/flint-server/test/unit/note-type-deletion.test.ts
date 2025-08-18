@@ -556,8 +556,8 @@ Created: {{date}}
       const results = await Promise.allSettled(deletionPromises);
 
       // At least one should succeed, others should fail gracefully
-      const successes = results.filter(r => r.status === 'fulfilled').length;
-      const failures = results.filter(r => r.status === 'rejected').length;
+      const successes = results.filter((r) => r.status === 'fulfilled').length;
+      const failures = results.filter((r) => r.status === 'rejected').length;
 
       assert.ok(successes >= 1, 'At least one deletion should succeed');
       assert.ok(failures >= 0, 'Failed deletions should be handled gracefully');

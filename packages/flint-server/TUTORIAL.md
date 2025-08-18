@@ -5,6 +5,7 @@ Welcome to flint-note! This tutorial will guide you through using flint-note, an
 ## What Makes flint-note Different?
 
 flint-note flips the script on note-taking:
+
 - **Agent-First**: Talk to your AI assistant to manage notes, don't click through menus
 - **Multi-Vault Architecture**: Separate your work, personal, and project contexts completely
 - **Semantic Organization**: Your note types have meaning that AI agents understand
@@ -18,6 +19,7 @@ flint-note flips the script on note-taking:
 ### Prerequisites
 
 Before you begin, make sure you have:
+
 - Node.js 18.0.0 or higher installed
 - An MCP-compatible AI client (like Claude Desktop, Cody, or Cursor)
 - Basic familiarity with AI chat interfaces
@@ -31,7 +33,7 @@ Add flint-note to your client's MCP config:
   "mcpServers": {
     "flint-note": {
       "command": "npx",
-      "args": ["@flint-note/server"],
+      "args": ["@flint-note/server"]
     }
   }
 }
@@ -154,18 +156,21 @@ Let's start by creating a comprehensive vault system:
 **AI:** "I'll help you create a multi-vault system. Let me set up three separate vaults:
 
 **work-vault** for professional activities:
+
 - Meeting notes with action item tracking
 - Project management with milestone tracking
 - 1-on-1 notes with team member development
 - Decision logs with reasoning and outcomes
 
 **personal-vault** for life management:
+
 - Goal tracking with progress monitoring
 - Reading notes with insights and ratings
 - Daily reflections with mood and gratitude
 - Health and fitness tracking
 
 **research-vault** for learning and exploration:
+
 - Academic paper notes with citation tracking
 - Experiment logs with hypothesis and results
 - Idea development with connection mapping
@@ -188,10 +193,12 @@ Each vault will have specialized agent instructions tailored to its context. Wou
 **AI:** "I found several interesting connections across your vaults:
 
 **From personal-vault**:
+
 - 'Don't Make Me Think' (reading-notes) - UX principles that apply to your dashboard project
 - 'The Design of Everyday Things' (reading-notes) - User psychology insights relevant to your current work
 
 **From work-vault**:
+
 - 'UX Research Meeting' (meetings) - Discussion of user testing that connects to principles from your reading
 
 I can create explicit links between these notes, or would you like me to create a cross-vault summary note that brings these insights together for your current project?"
@@ -207,6 +214,7 @@ I can create explicit links between these notes, or would you like me to create 
 **AI:** "I'll create a meeting note for your product strategy discussion. Based on your previous meetings with Sarah and Mike, I notice this is part of your quarterly planning cycle. I've pre-filled attendees and linked to your Q3 retrospective notes.
 
 Given the topics (Q4 priorities, budget, resources), I've also suggested linking to:
+
 - Your Q4 OKR notes (work-vault)
 - Budget planning spreadsheet (if you have file access)
 - Team capacity notes from recent 1-on-1s
@@ -220,11 +228,13 @@ I've set up the meeting template with agent instructions to extract specific act
 **AI:** "I've captured those decisions and automatically created action items:
 
 **Decisions Made:**
+
 - Mobile app redesign prioritized for Q4
 - Budget allocated: $50k for mobile project
 - Team leads assigned: Sarah (mobile), Mike (backend)
 
 **Action Items Created:**
+
 - [ ] Sarah: Create mobile app project plan (Due: Next week)
 - [ ] Mike: Scope backend API updates (Due: This Friday)
 - [ ] HR/Management: Hire 2 developers (Due: End of October)
@@ -233,6 +243,7 @@ I've set up the meeting template with agent instructions to extract specific act
 I've linked this to your personal reading notes on 'Inspired' and 'The Lean Startup' which have relevant product strategy insights. I've also connected it to your team capacity tracking notes.
 
 **Suggested Follow-ups:**
+
 - Schedule project kickoff meeting with Sarah
 - Review developer job descriptions with HR
 - Update Q4 OKR tracking with new priorities
@@ -248,11 +259,13 @@ Would you like me to automatically create calendar invites or follow-up notes fo
 **AI:** "Perfect! I'll create a reading note in your personal-vault for 'Atomic Habits' with enhanced cross-vault intelligence. Let me set this up with connections to both personal and work contexts.
 
 **Personal Applications:**
+
 - Link to your daily-logs for habit tracking
 - Connect to your goals tracking for implementation
 - Reference your health-tracking notes for wellness habits
 
 **Work Applications:**
+
 - Link to team development notes in work-vault
 - Connect to process improvement discussions from recent meetings
 - Reference any existing notes about team productivity
@@ -264,11 +277,13 @@ I've also set up agent instructions to ask about both personal and professional 
 **AI:** "Excellent insight! I've captured the 4-step habit loop and I can see powerful applications in both contexts:
 
 **Personal Application (personal-vault):**
+
 - Your morning routine could benefit from better cue design
 - I noticed in your daily-logs that you struggle with consistent exercise - we could design better rewards
 - Your goal of reading more could use the habit stacking principle
 
 **Work Application (work-vault):**
+
 - This connects to our product's user engagement challenges from the UX meeting
 - The habit loop could inform our notification strategy (cue → craving → response → reward)
 - Team processes could be improved using habit design principles
@@ -283,6 +298,7 @@ I've found connections to your reading notes on 'Hooked' (user behavior design) 
 **AI:** "I'll create an intelligent project tracking system that leverages your entire knowledge base:
 
 **Core Project Note (work-vault):**
+
 - Timeline: 12 weeks, 3 phases
 - Budget: $50k allocated
 - Team: Sarah (lead), Mike (backend), 2 new hires
@@ -291,22 +307,26 @@ I've found connections to your reading notes on 'Hooked' (user behavior design) 
 **Cross-Vault Intelligence Integration:**
 
 **From personal-vault:**
+
 - Your reading notes on 'Don't Make Me Think' - UX principles
 - 'The Design of Everyday Things' - User psychology insights
 - Your goal tracking shows you want to learn more about mobile UX
 
 **From research-vault:**
+
 - Mobile app best practices research
 - User behavior studies you've collected
 - Design pattern documentation
 
 **Intelligent Project Features:**
+
 - **Milestone Tracking**: AI will automatically check for progress and suggest adjustments
 - **Risk Assessment**: Cross-reference with past project challenges in your notes
 - **Resource Optimization**: Connect to team capacity and skill assessments
 - **Learning Integration**: Surface relevant insights from your reading as needed
 
 **Agent Instructions for this Project:**
+
 - Weekly progress check-ins with specific milestone questions
 - Automatic linking to relevant research and insights
 - Risk identification based on past project patterns
@@ -333,26 +353,30 @@ flint-note's true power emerges when combined with other MCP servers. Here are s
 
 Let me start by searching for current sustainable architecture innovations..."
 
-*[AI searches web, finds relevant articles, creates structured notes with automatic citation, downloads relevant PDFs to organized folders, and creates links to existing notes]*
+_[AI searches web, finds relevant articles, creates structured notes with automatic citation, downloads relevant PDFs to organized folders, and creates links to existing notes]_
 
 **AI:** "I've created a comprehensive research note 'Sustainable Architecture Trends 2024' with:
 
 **Web Research Results:**
+
 - 15 recent articles on biophilic design, green building materials, and energy efficiency
 - 3 case studies of award-winning sustainable buildings
 - Current building codes and certification standards
 
 **Organized Files:**
+
 - Downloaded 8 relevant PDFs to `/research/architecture/sustainable/`
 - Saved 12 reference images to organized folders
 - Created bibliography with proper citations
 
 **Cross-Vault Connections:**
+
 - Linked to your project planning notes in work-vault
 - Connected to your reading notes on environmental design
 - Referenced your goals around sustainable living
 
 **AI-Enhanced Insights:**
+
 - Identified 5 key trends that directly apply to your project
 - Extracted cost-benefit data for different approaches
 - Suggested 3 experts to potentially interview
@@ -368,12 +392,14 @@ Would you like me to continue researching specific aspects, or shall we start sy
 **AI:** "I'll create a comprehensive meeting preparation system:
 
 **Meeting Context (from Calendar MCP):**
+
 - Meeting: "E-commerce Platform Discussion"
 - Attendees: John Smith (CTO), Lisa Chen (Product Manager)
 - Duration: 2 hours
 - Previous meetings: 3 related meetings in the past month
 
 **Background Research (Web Search + Email):**
+
 - Researched their company's recent product launches
 - Found their current tech stack from job postings
 - Reviewed email thread history for context
@@ -381,6 +407,7 @@ Would you like me to continue researching specific aspects, or shall we start sy
 
 **Intelligent Meeting Preparation:**
 I've created a meeting note pre-populated with:
+
 - Attendee backgrounds and roles
 - Previous conversation history and action items
 - Research on their industry and competitors
@@ -388,6 +415,7 @@ I've created a meeting note pre-populated with:
 - Questions to ask based on their stated challenges
 
 **Agent Instructions for this Meeting:**
+
 - Track technical requirements and specifications
 - Extract budget and timeline information
 - Identify decision makers and approval processes
@@ -406,26 +434,31 @@ I'll help you capture decisions, extract action items, and suggest relevant solu
 **AI:** "I'll create an accelerated learning system that combines multiple knowledge sources:
 
 **Dynamic Learning Notes (flint-note):**
+
 - Created 'ML Model Deployment' in your research-vault
 - Set up agent instructions to extract practical insights, code examples, and implementation patterns
 - Connected to your existing programming and AI notes
 
 **Real-Time Research Enhancement (Web Search):**
+
 - Monitoring latest deployment best practices and tools
 - Finding current industry case studies and benchmarks
 - Tracking new frameworks and platforms as they emerge
 
 **Practical Code Integration (Code Repository MCP):**
+
 - Analyzing deployment code patterns from top GitHub repositories
 - Extracting practical examples and common solutions
 - Creating code snippet library linked to your notes
 
 **Document Intelligence (PDF Analysis):**
+
 - Processing academic papers on model deployment
 - Extracting key insights from technical documentation
 - Summarizing best practices from industry reports
 
 **Intelligent Learning Features:**
+
 - **Adaptive Questioning**: AI asks progressively deeper questions as your knowledge grows
 - **Practical Application**: Suggests hands-on projects based on your learning progress
 - **Connection Discovery**: Links new concepts to your existing knowledge base
@@ -438,21 +471,25 @@ I'll help you capture decisions, extract action items, and suggest relevant solu
 **AI:** "I'll research model versioning comprehensively:
 
 **From Web Research:**
+
 - Found 12 current articles on ML model versioning
 - Identified 5 popular tools: MLflow, DVC, Weights & Biases, Neptune, Kubeflow
 
 **From Code Analysis:**
+
 - Analyzed 25 GitHub repositories showing versioning patterns
 - Extracted 8 common implementation approaches
 - Found 15 code examples demonstrating best practices
 
 **From Your Knowledge Base:**
+
 - Connected to your existing notes on version control (git workflows)
 - Linked to your project management notes about release processes
 - Referenced your reading notes on software engineering practices
 
 **Synthesized Learning Note Created:**
 I've created a comprehensive note combining all sources with:
+
 - Conceptual overview with clear explanations
 - Practical code examples you can try
 - Tool comparisons with pros/cons
@@ -460,6 +497,7 @@ I've created a comprehensive note combining all sources with:
 - Links to related concepts in your knowledge base
 
 **Next Learning Steps Suggested:**
+
 1. Hands-on tutorial with MLflow (I found a great tutorial and can guide you)
 2. Connect this to your current project deployment needs
 3. Explore integration with your existing CI/CD knowledge
@@ -475,16 +513,19 @@ Would you like me to continue with hands-on implementation, or explore a differe
 **AI:** "I'll create a comprehensive content creation system:
 
 **Research Foundation:**
+
 - **Web Search**: Latest remote work studies, trends, and statistics
 - **Social Media Monitoring**: Current conversations and pain points
 - **Email Newsletter Analysis**: What topics are resonating with audiences
 
 **Content Strategy (flint-note):**
+
 - Created 'Remote Work Future' article note with structured sections
 - Set up agent instructions for engaging writing and fact-checking
 - Connected to your existing notes on workplace culture and productivity
 
 **Real-Time Intelligence:**
+
 - Monitoring trending remote work topics and discussions
 - Finding current statistics and research data
 - Identifying key influencers and thought leaders to potentially reference
@@ -492,17 +533,20 @@ Would you like me to continue with hands-on implementation, or explore a differe
 **Content Development Process:**
 
 **Research Phase:**
+
 - Found 23 recent studies on remote work effectiveness
 - Identified 8 major trends: hybrid models, digital nomadism, async work, AI integration
 - Gathered current statistics on productivity, employee satisfaction, and company policies
 
 **Audience Intelligence:**
+
 - Analyzed 100+ social media discussions about remote work challenges
 - Identified top pain points: communication, collaboration, work-life balance, career growth
 - Found language patterns and terminology that resonate with your audience
 
 **Content Creation:**
 I've created a structured article outline with:
+
 - Hook: Surprising statistic about remote work adoption
 - 5 key sections addressing main audience concerns
 - Data-backed insights and actionable advice
@@ -510,6 +554,7 @@ I've created a structured article outline with:
 - Call-to-action aligned with your goals
 
 **AI-Enhanced Writing:**
+
 - Fact-checking all claims against current research
 - Suggesting engaging headlines and subheadings
 - Optimizing readability and flow
@@ -517,6 +562,7 @@ I've created a structured article outline with:
 - Creating social media snippets for promotion
 
 **Cross-Platform Strategy:**
+
 - Email newsletter version for your subscribers
 - LinkedIn article for professional network
 - Twitter thread for broader reach
@@ -529,18 +575,21 @@ Would you like me to start with the full article draft, or focus on a specific s
 ### Multi-Vault Organization Patterns
 
 #### By Life Context
+
 - **professional**: Work projects, meetings, team management
 - **personal**: Goals, health, relationships, hobbies
 - **learning**: Courses, books, research, skill development
 - **creative**: Writing projects, art, music, ideas
 
 #### By Collaboration Level
+
 - **private**: Personal thoughts, sensitive information
 - **team**: Shared with specific work groups
 - **public**: Open source projects, public writing
 - **client**: Dedicated vaults for client work
 
 #### By Time Horizon
+
 - **daily**: Current tasks, immediate concerns
 - **quarterly**: Medium-term projects and goals
 - **annual**: Long-term vision and planning
@@ -555,6 +604,7 @@ Let AI help organize your knowledge:
 **AI:** "I'll analyze your current notes and suggest an improved organization:
 
 **Current Analysis:**
+
 - 156 notes across 8 note types
 - 23% are meeting notes (mostly work-related)
 - 31% are project notes (mix of work and personal)
@@ -563,11 +613,13 @@ Let AI help organize your knowledge:
 **Suggested Reorganization:**
 
 **Split into 3 Vaults:**
+
 1. **work-vault**: 89 notes (meetings, work projects, team notes)
 2. **personal-vault**: 45 notes (goals, reading, personal projects)
 3. **learning-vault**: 22 notes (courses, research, skill development)
 
 **Benefits:**
+
 - Cleaner context switching
 - Better collaboration possibilities
 - Specialized agent instructions for each context
@@ -597,6 +649,7 @@ flint-note becomes exponentially more powerful when combined with other MCP serv
 ### Use Natural Language
 
 Talk to your AI assistant like a knowledgeable colleague:
+
 - "What patterns do you see in my project notes?"
 - "Help me prepare for next week's strategy meeting"
 - "Find connections between my reading and current work challenges"
@@ -611,6 +664,7 @@ Let AI handle the heavy lifting of organization, linking, and discovery. Focus o
 ### The Research Accelerator
 
 Combine flint-note with web search, PDF analysis, and code repositories to create a research system that:
+
 - Automatically discovers relevant sources
 - Extracts and synthesizes key insights
 - Creates comprehensive, linked notes
@@ -620,6 +674,7 @@ Combine flint-note with web search, PDF analysis, and code repositories to creat
 ### The Meeting Intelligence Engine
 
 Use flint-note with calendar, email, and web search to:
+
 - Automatically prepare meeting contexts
 - Research attendees and relevant topics
 - Extract structured action items and decisions
@@ -629,6 +684,7 @@ Use flint-note with calendar, email, and web search to:
 ### The Content Creation Platform
 
 Combine flint-note with web search, social media monitoring, and email analysis to:
+
 - Research trending topics and audience interests
 - Create data-backed content outlines
 - Generate multiple format versions
@@ -638,6 +694,7 @@ Combine flint-note with web search, social media monitoring, and email analysis 
 ### The Project Intelligence System
 
 Use flint-note with file systems, calendar, and web search to:
+
 - Automatically track project progress
 - Identify risks and blockers early
 - Connect to relevant research and insights
@@ -657,6 +714,7 @@ Your flint-note system will evolve with your needs:
 ### Future Possibilities
 
 As the MCP ecosystem grows, flint-note will integrate with:
+
 - **Database connections** for structured data integration
 - **API integrations** with your favorite tools and services
 - **Collaboration platforms** for team knowledge sharing
@@ -679,4 +737,4 @@ This creates a living, breathing knowledge ecosystem that actively helps you thi
 
 **Ready to start?** Begin with: "Help me set up a multi-vault system for my work and personal life" and let your AI assistant guide you into the future of intelligent knowledge management.
 
-*flint-note: Where your knowledge and AI evolve together.*
+_flint-note: Where your knowledge and AI evolve together._

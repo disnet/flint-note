@@ -169,7 +169,7 @@ export class WikilinkParser {
           continue;
         }
 
-        const suggestions: LinkSuggestion[] = notes.map(note => ({
+        const suggestions: LinkSuggestion[] = notes.map((note) => ({
           target: `${note.type}/${note.filename}`,
           display: note.title,
           type: note.type,
@@ -199,7 +199,7 @@ export class WikilinkParser {
     const parseResult = this.parseWikilinks(content);
 
     return parseResult.wikilinks.some(
-      link => start >= link.position.start && end <= link.position.end
+      (link) => start >= link.position.start && end <= link.position.end
     );
   }
 
@@ -245,7 +245,7 @@ export class WikilinkParser {
   }> {
     const parseResult = this.parseWikilinks(content);
 
-    return parseResult.wikilinks.map(link => ({
+    return parseResult.wikilinks.map((link) => ({
       target: link.target,
       display: link.display,
       type: link.type
@@ -258,7 +258,7 @@ export class WikilinkParser {
   static containsLinkToTarget(content: string, target: string): boolean {
     const parseResult = this.parseWikilinks(content);
     return parseResult.wikilinks.some(
-      link =>
+      (link) =>
         link.target === target ||
         this.normalizeTarget(link.target) === this.normalizeTarget(target)
     );

@@ -887,7 +887,7 @@ Random words: optimization, algorithm, efficiency, scalability, throughput.`
 
       // Create all additional notes
       await Promise.all(
-        additionalNotes.map(note => client.callTool('create_note', note))
+        additionalNotes.map((note) => client.callTool('create_note', note))
       );
 
       const startTime = Date.now();

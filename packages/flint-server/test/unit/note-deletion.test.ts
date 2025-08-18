@@ -198,7 +198,7 @@ describe('Note Deletion Unit Tests', () => {
 
       assert.strictEqual(results.length, 3, 'Should delete all project notes');
       assert.ok(
-        results.every(r => r.deleted),
+        results.every((r) => r.deleted),
         'All deletions should succeed'
       );
     });
@@ -240,7 +240,7 @@ Different content.`
       // Get all notes first to verify they were created
       const allNotes = await noteManager.listNotes();
       const taggedNotes = allNotes.filter(
-        note => note.tags && note.tags.includes('bulk-delete')
+        (note) => note.tags && note.tags.includes('bulk-delete')
       );
 
       // Skip test if tag filtering isn't working in listNotes
@@ -262,7 +262,7 @@ Different content.`
 
       assert.strictEqual(results.length, 2, 'Should delete 2 notes with bulk-delete tag');
       assert.ok(
-        results.every(r => r.deleted),
+        results.every((r) => r.deleted),
         'All tagged deletions should succeed'
       );
     });
@@ -289,7 +289,7 @@ Different content.`
 
       // Get all notes to check pattern matching
       const allNotes = await noteManager.listNotes();
-      const tempNotes = allNotes.filter(note => /temp-/.test(note.title));
+      const tempNotes = allNotes.filter((note) => /temp-/.test(note.title));
 
       // Delete notes matching temp-* pattern
       const results = await noteManager.bulkDeleteNotes({ pattern: 'temp-.*' }, true);
@@ -302,7 +302,7 @@ Different content.`
 
       assert.ok(results.length >= 0, 'Should process pattern deletion request');
       assert.ok(
-        results.every(r => r.deleted),
+        results.every((r) => r.deleted),
         'All pattern deletions should succeed'
       );
     });
@@ -404,8 +404,8 @@ Different content.`
 
         assert.strictEqual(results.length, 2, 'Should process both notes');
 
-        const successResults = results.filter(r => r.deleted);
-        const failureResults = results.filter(r => !r.deleted);
+        const successResults = results.filter((r) => r.deleted);
+        const failureResults = results.filter((r) => !r.deleted);
 
         assert.strictEqual(successResults.length, 1, 'Should have 1 success');
         assert.strictEqual(failureResults.length, 1, 'Should have 1 failure');
@@ -475,22 +475,22 @@ Different content.`
       );
 
       // Give the hybrid search a moment to index the note
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Verify note is in search index
       const beforeResults = await searchManager.searchNotes('searchable content');
-      const foundBefore = beforeResults.some(r => r.id === note.id);
+      const foundBefore = beforeResults.some((r) => r.id === note.id);
       assert.ok(foundBefore, 'Note should be in search index before deletion');
 
       // Delete the note
       await noteManager.deleteNote(note.id, true);
 
       // Give the hybrid search a moment to remove the note from index
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Verify note is removed from search index
       const afterResults = await searchManager.searchNotes('searchable content');
-      const foundAfter = afterResults.some(r => r.id === note.id);
+      const foundAfter = afterResults.some((r) => r.id === note.id);
       assert.ok(!foundAfter, 'Note should be removed from search index after deletion');
     });
   });

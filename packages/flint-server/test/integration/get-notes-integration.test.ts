@@ -47,7 +47,7 @@ class MCPClient {
         const lines = data
           .toString()
           .split('\n')
-          .filter(line => line.trim());
+          .filter((line) => line.trim());
         for (const line of lines) {
           try {
             const response = JSON.parse(line);

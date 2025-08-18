@@ -110,8 +110,8 @@ export class NoteLinkingUtils {
     const notes = await this.manager.searchNotes(searchQuery, contextType, 5);
 
     return notes
-      .filter(note => note.exists)
-      .map(note => ({
+      .filter((note) => note.exists)
+      .map((note) => ({
         target: `${note.type}/${note.filename}`,
         display: displayText || note.title,
         type: note.type,
@@ -162,8 +162,8 @@ export class NoteLinkingUtils {
     // Word matches get lower score
     const queryWords = queryLower.split(/\s+/);
     const titleWords = titleLower.split(/\s+/);
-    const matchingWords = queryWords.filter(word =>
-      titleWords.some(titleWord => titleWord.includes(word))
+    const matchingWords = queryWords.filter((word) =>
+      titleWords.some((titleWord) => titleWord.includes(word))
     );
 
     return (matchingWords.length / queryWords.length) * 0.4;
@@ -261,7 +261,7 @@ export class NoteLinkingUtils {
       aggressive: 0.4
     }[aggressiveness];
 
-    return opportunities.filter(opp => {
+    return opportunities.filter((opp) => {
       const bestSuggestion = opp.suggestions[0];
       return bestSuggestion && (bestSuggestion.relevance || 0) >= minRelevance;
     });
@@ -337,8 +337,8 @@ export class NoteLinkingUtils {
     const notes = await this.manager.searchNotes(partialQuery, contextType, limit * 2);
 
     let suggestions = notes
-      .filter(note => note.exists)
-      .map(note => ({
+      .filter((note) => note.exists)
+      .map((note) => ({
         target: `${note.type}/${note.filename}`,
         display: note.title,
         type: note.type,
@@ -354,7 +354,7 @@ export class NoteLinkingUtils {
     // Boost relevance based on context if available
     if (contextContent) {
       // Ensure all suggestions have defined relevance before boosting
-      const suggestionsWithRelevance = suggestions.map(s => ({
+      const suggestionsWithRelevance = suggestions.map((s) => ({
         ...s,
         relevance: s.relevance ?? 0
       }));
@@ -379,13 +379,13 @@ export class NoteLinkingUtils {
     const contextWords = contextContent
       .toLowerCase()
       .split(/\W+/)
-      .filter(word => word.length > 2);
+      .filter((word) => word.length > 2);
 
-    return suggestions.map(suggestion => {
+    return suggestions.map((suggestion) => {
       const titleWords = suggestion.title.toLowerCase().split(/\W+/);
       const filenameWords = suggestion.filename.toLowerCase().split(/\W+/);
 
-      const contextMatches = [...titleWords, ...filenameWords].filter(word =>
+      const contextMatches = [...titleWords, ...filenameWords].filter((word) =>
         contextWords.includes(word)
       ).length;
 

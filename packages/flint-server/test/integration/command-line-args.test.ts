@@ -51,11 +51,11 @@ describe('Command Line Arguments Integration', () => {
 
     try {
       await new Promise<void>((resolve, reject) => {
-        serverProcess.stdout?.on('data', data => {
+        serverProcess.stdout?.on('data', (data) => {
           startupOutput += data.toString();
         });
 
-        serverProcess.stderr?.on('data', data => {
+        serverProcess.stderr?.on('data', (data) => {
           const output = data.toString();
           errorOutput += output;
 
@@ -66,7 +66,7 @@ describe('Command Line Arguments Integration', () => {
           }
         });
 
-        serverProcess.on('error', error => {
+        serverProcess.on('error', (error) => {
           clearTimeout(startupTimeout);
           reject(new Error(`Failed to start server: ${error.message}`));
         });
@@ -119,7 +119,7 @@ describe('Command Line Arguments Integration', () => {
 
     try {
       await new Promise<void>((resolve, reject) => {
-        serverProcess.stderr?.on('data', data => {
+        serverProcess.stderr?.on('data', (data) => {
           const output = data.toString();
           errorOutput += output;
 
@@ -130,7 +130,7 @@ describe('Command Line Arguments Integration', () => {
           }
         });
 
-        serverProcess.on('error', error => {
+        serverProcess.on('error', (error) => {
           clearTimeout(startupTimeout);
           reject(new Error(`Failed to start server: ${error.message}`));
         });
@@ -174,11 +174,11 @@ describe('Command Line Arguments Integration', () => {
 
     try {
       await new Promise<void>((resolve, reject) => {
-        serverProcess.stdout?.on('data', data => {
+        serverProcess.stdout?.on('data', (data) => {
           stdout += data.toString();
         });
 
-        serverProcess.on('exit', code => {
+        serverProcess.on('exit', (code) => {
           hasExited = true;
           clearTimeout(helpTimeout);
           if (code === 0) {
@@ -188,7 +188,7 @@ describe('Command Line Arguments Integration', () => {
           }
         });
 
-        serverProcess.on('error', error => {
+        serverProcess.on('error', (error) => {
           clearTimeout(helpTimeout);
           reject(new Error(`Failed to run help command: ${error.message}`));
         });
@@ -225,11 +225,11 @@ describe('Command Line Arguments Integration', () => {
 
     try {
       await new Promise<void>((resolve, reject) => {
-        serverProcess.stdout?.on('data', data => {
+        serverProcess.stdout?.on('data', (data) => {
           stdout += data.toString();
         });
 
-        serverProcess.on('exit', code => {
+        serverProcess.on('exit', (code) => {
           hasExited = true;
           clearTimeout(helpTimeout);
           if (code === 0) {
@@ -239,7 +239,7 @@ describe('Command Line Arguments Integration', () => {
           }
         });
 
-        serverProcess.on('error', error => {
+        serverProcess.on('error', (error) => {
           clearTimeout(helpTimeout);
           reject(new Error(`Failed to run help command: ${error.message}`));
         });
@@ -287,7 +287,7 @@ describe('Command Line Arguments Integration', () => {
 
     try {
       await new Promise<void>((resolve, reject) => {
-        serverProcess.stderr?.on('data', data => {
+        serverProcess.stderr?.on('data', (data) => {
           errorOutput += data.toString();
           // Check for immediate error indicators
           if (
@@ -302,7 +302,7 @@ describe('Command Line Arguments Integration', () => {
           }
         });
 
-        serverProcess.on('exit', code => {
+        serverProcess.on('exit', (code) => {
           hasExited = true;
           clearTimeout(errorTimeout);
           if (code !== 0) {
@@ -361,11 +361,11 @@ describe('Command Line Arguments Integration', () => {
 
     try {
       await new Promise<void>((resolve, reject) => {
-        serverProcess.stderr?.on('data', data => {
+        serverProcess.stderr?.on('data', (data) => {
           errorOutput += data.toString();
         });
 
-        serverProcess.on('exit', code => {
+        serverProcess.on('exit', (code) => {
           hasExited = true;
           clearTimeout(errorTimeout);
           if (code !== 0) {
@@ -379,7 +379,7 @@ describe('Command Line Arguments Integration', () => {
           }
         });
 
-        serverProcess.on('error', error => {
+        serverProcess.on('error', (error) => {
           clearTimeout(errorTimeout);
           reject(new Error(`Failed to run server: ${error.message}`));
         });
@@ -423,7 +423,7 @@ describe('Command Line Arguments Integration', () => {
 
     try {
       await new Promise<void>((resolve, reject) => {
-        serverProcess.stderr?.on('data', data => {
+        serverProcess.stderr?.on('data', (data) => {
           const output = data.toString();
           errorOutput += output;
 
@@ -434,7 +434,7 @@ describe('Command Line Arguments Integration', () => {
           }
         });
 
-        serverProcess.on('error', error => {
+        serverProcess.on('error', (error) => {
           clearTimeout(startupTimeout);
           reject(new Error(`Failed to start server: ${error.message}`));
         });

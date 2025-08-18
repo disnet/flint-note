@@ -114,7 +114,7 @@ export class FlintNoteServer {
 
         try {
           const files = await fs.readdir(flintNoteDir);
-          hasDescriptions = files.some(entry => entry.endsWith('_description.md'));
+          hasDescriptions = files.some((entry) => entry.endsWith('_description.md'));
         } catch {
           // .flint-note directory doesn't exist or is empty
           hasDescriptions = false;
@@ -1224,7 +1224,7 @@ export class FlintNoteServer {
     });
 
     // Handle tool calls
-    this.#server.setRequestHandler(CallToolRequestSchema, async request => {
+    this.#server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const { name, arguments: args } = request.params;
 
       try {
@@ -1453,7 +1453,7 @@ export class FlintNoteServer {
     });
 
     // Handle resource requests
-    this.#server.setRequestHandler(ReadResourceRequestSchema, async request => {
+    this.#server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
       const { uri } = request.params;
 
       try {

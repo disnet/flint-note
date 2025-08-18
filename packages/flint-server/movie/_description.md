@@ -1,9 +1,11 @@
 # Movie
 
 ## Purpose
+
 movies
 
 ## Agent Instructions
+
 - Ask clarifying questions to understand the context and purpose of this note
 - Suggest relevant tags and connections to existing notes in the knowledge base
 - Help organize content with clear headings and logical structure
@@ -14,5 +16,7 @@ movies
 - Help maintain consistency with similar notes of this type
 
 ## Metadata Schema
+
 Expected frontmatter or metadata fields for this note type:
+
 - rating: Field description (optional, number)

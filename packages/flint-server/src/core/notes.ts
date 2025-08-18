@@ -164,7 +164,7 @@ export class NoteManager {
       const validationResult = await this.validateMetadata(typeName, metadataWithTitle);
       if (!validationResult.valid) {
         throw new Error(
-          `Metadata validation failed: ${validationResult.errors.map(e => e.message).join(', ')}`
+          `Metadata validation failed: ${validationResult.errors.map((e) => e.message).join(', ')}`
         );
       }
 
@@ -297,7 +297,7 @@ export class NoteManager {
         key !== 'updated'
       ) {
         if (Array.isArray(value)) {
-          const escapedArray = value.map(v => {
+          const escapedArray = value.map((v) => {
             if (typeof v === 'string') {
               const escapedValue = v.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
               return `"${escapedValue}"`;
@@ -378,7 +378,7 @@ export class NoteManager {
     identifiers: string[]
   ): Promise<Array<{ success: boolean; note?: Note; error?: string }>> {
     const results = await Promise.allSettled(
-      identifiers.map(async identifier => {
+      identifiers.map(async (identifier) => {
         try {
           const note = await this.getNote(identifier);
           if (!note) {
@@ -508,7 +508,7 @@ export class NoteManager {
     return filename
       .replace(/\.md$/, '')
       .replace(/-/g, ' ')
-      .replace(/\b\w/g, letter => letter.toUpperCase());
+      .replace(/\b\w/g, (letter) => letter.toUpperCase());
   }
 
   /**
@@ -624,7 +624,7 @@ export class NoteManager {
       } else if (Array.isArray(value)) {
         // Handle other arrays (like tags)
         if (value.length > 0) {
-          const escapedArray = value.map(v => {
+          const escapedArray = value.map((v) => {
             if (typeof v === 'string') {
               const escapedValue = v.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
               return `"${escapedValue}"`;
@@ -970,7 +970,7 @@ export class NoteManager {
         // Check tags filter
         if (criteria.tags && criteria.tags.length > 0) {
           const noteTags = note.tags || [];
-          const hasAllTags = criteria.tags.every(tag => noteTags.includes(tag));
+          const hasAllTags = criteria.tags.every((tag) => noteTags.includes(tag));
           if (!hasAllTags) {
             matches = false;
           }
@@ -1043,7 +1043,7 @@ export class NoteManager {
         try {
           const typeEntries = await fs.readdir(noteType.path);
           const noteFiles = typeEntries.filter(
-            file =>
+            (file) =>
               file.endsWith('.md') && !file.startsWith('.') && file !== '_description.md'
           );
 
@@ -1373,12 +1373,12 @@ export class NoteManager {
       const typeMessage = foundProtectedFields.includes('type')
         ? `Use the 'move_note' tool to safely move notes between note types with proper file relocation and link updates. `
         : '';
-      const titleMessage = foundProtectedFields.some(field =>
+      const titleMessage = foundProtectedFields.some((field) =>
         ['title', 'filename'].includes(field)
       )
         ? `Use the 'rename_note' tool to safely update note titles and preserve links. `
         : '';
-      const timestampMessage = foundProtectedFields.some(field =>
+      const timestampMessage = foundProtectedFields.some((field) =>
         ['created', 'updated'].includes(field)
       )
         ? `The 'created' and 'updated' fields are handled automatically and cannot be modified manually.`

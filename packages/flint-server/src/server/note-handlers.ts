@@ -135,7 +135,7 @@ export class NoteHandlers {
     const { noteManager } = await this.resolveVaultContext(args.vault_id);
 
     const results = await Promise.allSettled(
-      args.identifiers.map(async identifier => {
+      args.identifiers.map(async (identifier) => {
         try {
           const note = await noteManager.getNote(identifier);
           if (!note) {
@@ -164,8 +164,8 @@ export class NoteHandlers {
       }
     });
 
-    const successful = processedResults.filter(r => r.success).length;
-    const failed = processedResults.filter(r => !r.success).length;
+    const successful = processedResults.filter((r) => r.success).length;
+    const failed = processedResults.filter((r) => !r.success).length;
 
     const responseData = {
       success: true,
@@ -324,7 +324,7 @@ export class NoteHandlers {
         created: string;
         modified: string;
       }>
-    ).map(note => ({
+    ).map((note) => ({
       filename: note.filename.replace('.md', ''),
       title: note.title,
       type: note.type,
@@ -406,7 +406,7 @@ export class NoteHandlers {
       const results = await this.noteManager.bulkDeleteNotes(criteria, args.confirm);
 
       const resultsArray = results as Array<{ deleted: boolean }>;
-      const successCount = resultsArray.filter(r => r.deleted).length;
+      const successCount = resultsArray.filter((r) => r.deleted).length;
       const failureCount = resultsArray.length - successCount;
 
       return {

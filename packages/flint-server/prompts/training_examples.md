@@ -10,9 +10,11 @@ This document provides specific training examples and test scenarios for AI mode
 **Expected Workflow**: Check vault → Check note types → Check agent instructions → Use/create mood type → Create note → Follow agent instructions
 
 #### Example 1A: First time mood logging
+
 **User Input**: "log I'm feeling happy today"
 
 **Expected Model Response**:
+
 ```
 Let me check your current vault and note types to see how you track feelings...
 [Calls: get_current_vault]
@@ -30,9 +32,11 @@ What triggered this happy feeling today? And on a scale of 1-10, how intense is 
 ```
 
 #### Example 1B: Subsequent mood logging
+
 **User Input**: "feeling stressed about work"
 
 **Expected Model Response** (assuming mood type exists):
+
 ```
 Let me add this to your mood tracking...
 [Calls: get_current_vault]
@@ -51,9 +55,11 @@ What specifically about work is causing this stress? On a scale of 1-10, how int
 **Expected Workflow**: Check vault → Check note types → Check agent instructions → Use/create meeting type → Extract attendees/topics → Follow agent instructions
 
 #### Example 2A: Basic meeting mention
+
 **User Input**: "had a standup with the team today"
 
 **Expected Model Response**:
+
 ```
 I'll document that team standup for you.
 [Calls: get_current_vault]
@@ -73,9 +79,11 @@ Who attended the standup? What were the key updates and any blockers discussed?
 **Expected Workflow**: Create vaults → Switch contexts → Adapt behavior per vault
 
 #### Example 3A: Initial vault setup
+
 **User Input**: "I want to separate my work and personal notes"
 
 **Expected Model Response**:
+
 ```
 That's a great way to organize! I'll help you set up separate vaults for better organization.
 [Calls: list_vaults to see current setup]
@@ -90,9 +98,11 @@ Which vault would you like to start with?
 ```
 
 #### Example 3B: Vault switching
+
 **User Input**: "switch to my work vault and create a project note"
 
 **Expected Model Response**:
+
 ```
 I'll switch you to your work vault now.
 [Calls: switch_vault with vault_id="work"]
@@ -105,11 +115,13 @@ What's the project name and main objectives? I'll structure this according to yo
 ```
 
 #### Example 3C: Vault-aware behavior
+
 **User Input**: "I'm feeling stressed"
 
 **Context**: Currently in work vault
 
 **Expected Model Response**:
+
 ```
 [Calls: get_current_vault - sees "work" vault]
 Since you're in your work vault, this might be work-related stress. Would you like me to create a mood note here, or would you prefer to switch to your personal vault for this type of reflection?
@@ -123,9 +135,11 @@ Since you're in your work vault, this might be work-related stress. Would you li
 **Expected Workflow**: Understand context → Search appropriately → Respect vault boundaries
 
 #### Example 4A: Context-aware search
+
 **User Input**: "What did we decide about the authentication system?"
 
 **Expected Model Response**:
+
 ```
 [Calls: get_current_vault - confirms work context]
 [Calls: search_notes with query="authentication" scoped to current vault]
@@ -133,9 +147,11 @@ I found 3 relevant decisions connected through your note links: [[meeting-notes/
 ```
 
 #### Example 4B: Vault boundary respect
+
 **User Input**: "Show me all my meeting notes"
 
 **Expected Model Response**:
+
 ```
 [Calls: get_current_vault]
 I'll show you meeting notes from your current work vault. I can see you have other vaults (personal, research) - would you like me to search those as well, or focus on work meetings?
@@ -148,9 +164,11 @@ I'll show you meeting notes from your current work vault. I can see you have oth
 **Expected Workflow**: Use get_notes → Apply field filtering → Optimize performance
 
 #### Example 5A: Fetching multiple specific notes
+
 **User Input**: "Show me my three main project notes"
 
 **Expected Model Response**:
+
 ```
 I'll fetch your main project notes efficiently in a single call.
 [Calls: get_notes with identifiers=["project/web-app.md", "project/mobile-app.md", "project/api-redesign.md"]]
@@ -163,9 +181,11 @@ Which project would you like to focus on?
 ```
 
 #### Example 5B: Performance optimization with field filtering
+
 **User Input**: "Just show me the titles and status of all my project notes"
 
 **Expected Model Response**:
+
 ```
 I'll get just the titles and status to keep this fast and focused.
 [Calls: search_notes_advanced with type_filter="project" and fields=["title", "metadata.status"]]
@@ -183,9 +203,11 @@ This targeted approach loaded only essential data. Which projects need attention
 ```
 
 #### Example 5C: Bulk editing preparation
+
 **User Input**: "I need to update the status on several project notes"
 
 **Expected Model Response**:
+
 ```
 I'll prepare those projects for bulk status updates.
 [Calls: search_notes_advanced with type_filter="project" and fields=["id", "title", "content_hash", "metadata.status"]]
@@ -199,9 +221,11 @@ All content hashes are captured for conflict-free updates. Which projects need s
 ```
 
 #### Example 5D: Efficient note linking analysis
+
 **User Input**: "Check what my reading notes link to"
 
 **Expected Model Response**:
+
 ```
 I'll analyze your reading notes' connections efficiently.
 [Calls: search_notes_advanced with type_filter="reading" and fields=["id", "title"]]
@@ -210,7 +234,7 @@ Found 12 reading notes. Now checking their link patterns...
 [Calls: get_note_links for each reading note]
 Your reading notes show strong connection patterns:
 - _Atomic Habits_ links to 5 productivity notes
-- _Deep Work_ connects to 3 focus technique notes  
+- _Deep Work_ connects to 3 focus technique notes
 - _Thinking Fast and Slow_ links to 4 decision-making notes
 
 The link analysis shows you're building a knowledge network around productivity and decision-making. Would you like me to suggest additional connections?
@@ -222,9 +246,11 @@ The link analysis shows you're building a knowledge network around productivity 
 **Expected Workflow**: Use appropriate link tools → Explain relationships → Suggest actions
 
 #### Example 6A: Basic link analysis
+
 **User Input**: "show me what's connected to my project note"
 
 **Expected Model Response**:
+
 ```
 Let me analyze all the connections to your project note.
 [Calls: get_note_links with identifier="projects/website-redesign"]
@@ -237,9 +263,11 @@ The link analysis shows this is a well-connected project with clear relationship
 ```
 
 #### Example 5B: Broken link maintenance
+
 **User Input**: "check for broken links"
 
 **Expected Model Response**:
+
 ```
 I'll scan your vault for broken wikilinks.
 [Calls: find_broken_links]
@@ -251,9 +279,11 @@ Would you like me to help fix these? I can suggest existing notes that might mat
 ```
 
 #### Example 5C: Link relationship search
+
 **User Input**: "find all notes that link to my Atomic Habits reading"
 
 **Expected Model Response**:
+
 ```
 Let me find everything connected to your Atomic Habits note.
 [Calls: get_backlinks with identifier="reading-notes/atomic-habits"]
@@ -268,9 +298,11 @@ This shows _Atomic Habits_ is a key reference in your habit formation thinking. 
 ```
 
 #### Example 5D: Advanced link search
+
 **User Input**: "show me notes that link to external GitHub repos"
 
 **Expected Model Response**:
+
 ```
 I'll search for notes with GitHub links.
 [Calls: search_by_links with external_domains=["github.com"]]
@@ -284,9 +316,11 @@ The link extraction system automatically categorized these as external links and
 ```
 
 #### Example 5E: Automatic link extraction in action
+
 **User Input**: "Create a project note about building a mobile app, and mention it connects to my React learning and UI design research"
 
 **Expected Model Response**:
+
 ```
 I'll create a project note and establish those connections.
 [Calls: get_current_vault]
@@ -307,10 +341,12 @@ The link system will continue tracking connections as you add more content to an
 **Expected Workflow**: Check vault → Apply vault-specific agent instructions → Adapt behavior
 
 #### Example 5A: Work vault meeting notes
+
 **User Input**: "document today's client meeting"
 **Context**: In work vault
 
 **Expected Model Response**:
+
 ```
 [Calls: get_current_vault - confirms work vault]
 [Calls: get_note_type_info for "meeting" in work vault]
@@ -321,15 +357,17 @@ I found related client and project notes - I've linked to [[client-notes/acme-co
 Based on your work meeting guidelines, I should capture: client objectives, key decisions, action items with owners, and next steps. What was the main purpose of today's meeting?
 ```
 
-#### Example 5B: Personal vault meeting notes  
+#### Example 5B: Personal vault meeting notes
+
 **User Input**: "had coffee with Sarah"
 **Context**: In personal vault
 
 **Expected Model Response**:
+
 ```
 [Calls: get_current_vault - confirms personal vault]
 [Calls: get_note_type_info for social/meeting equivalent in personal vault]
-I'll create a note about your time with Sarah. 
+I'll create a note about your time with Sarah.
 [Calls: create_note]
 [Calls: search_notes with query="Sarah friend social"]
 I found previous notes about Sarah - I've linked to [[people-notes/sarah|Sarah's Profile]] and [[social-notes/2024-01-05-sarah-birthday|Sarah's Birthday Celebration]] to maintain your social connection history.
@@ -339,9 +377,11 @@ Since this is in your personal vault, I'll focus on the social connection rather
 ### Example Set 6: Vault Creation Patterns
 
 #### Example 6A: Professional consultant setup
+
 **User Input**: "I'm a consultant and need to keep client work separate"
 
 **Expected Model Response**:
+
 ```
 Perfect - client confidentiality is crucial for consultants. I'll help you create a vault structure that maintains clear boundaries.
 [Calls: create_vault for each client and business functions]
@@ -355,9 +395,11 @@ Each client vault will have completely separate note types and agent instruction
 ```
 
 #### Example 6B: Academic researcher setup
+
 **User Input**: "I'm a PhD student and need to organize research, coursework, and personal stuff"
 
 **Expected Model Response**:
+
 ```
 Great! Academic work benefits from clear organization across different contexts.
 [Calls: create_vault for academic contexts]
@@ -376,9 +418,11 @@ Each vault will have note types optimized for that academic context. Your disser
 **Expected Workflow**: Create note → Find linkable content → Add wikilinks → Sync metadata
 
 #### Example 7A: Automatic link discovery
+
 **User Input**: "I'm reading Atomic Habits and applying it to my productivity system"
 
 **Expected Model Response**:
+
 ```
 [Calls: get_current_vault]
 [Calls: create_note with type="reading" or appropriate type]
@@ -388,9 +432,11 @@ The content now includes intelligent links to your related notes. What specific 
 ```
 
 #### Example 7B: Link validation and repair
+
 **User Input**: "Update my project note with current status"
 
 **Expected Model Response**:
+
 ```
 [Calls: get_note with project identifier]
 [Calls: find_broken_links]
@@ -402,20 +448,24 @@ Your project note is now updated with current information and working links.
 ```
 
 #### Example 7C: Smart link suggestions
+
 **User Input**: "Create a note about my morning routine"
 
 **Expected Model Response**:
+
 ```
 [Calls: create_note with type="daily" or "habits"]
 [Calls: search_notes with query="morning routine habits"]
-I've created your morning routine note. I noticed you have related notes about [[habits/meditation-practice|Meditation Practice]], [[health/exercise-routine|Exercise Routine]], and [[productivity/morning-planning|Morning Planning]]. 
+I've created your morning routine note. I noticed you have related notes about [[habits/meditation-practice|Meditation Practice]], [[health/exercise-routine|Exercise Routine]], and [[productivity/morning-planning|Morning Planning]].
 Should I connect this routine note to these existing habits and practices? This will help you see how your morning routine connects to your broader life systems.
 ```
 
 #### Example 7D: Link report analysis
+
 **User Input**: "How well connected are my project notes?"
 
 **Expected Model Response**:
+
 ```
 [Calls: search_notes with type_filter="project"]
 Let me analyze the connectivity of your project notes...
@@ -441,44 +491,54 @@ Would you like me to help strengthen these connections?
 Test these scenarios to ensure proper automatic link extraction functionality:
 
 #### Test 1: Automatic Link Extraction
+
 **Input**: Create note with wikilinks in content
 **Expected**: All links automatically extracted and indexed
-**Validation**: 
+**Validation**:
+
 - ✅ Wikilinks use `[[type/filename|Display]]` format in content
 - ✅ System automatically extracts links during create/update operations
 - ✅ Links stored in SQLite database with line numbers
 - ✅ Both internal wikilinks and external URLs extracted
 
 #### Test 2: Link Analysis Workflow
+
 **Input**: User asks about note connections
 **Expected**: System uses link management tools effectively
 **Validation**:
+
 - ✅ Uses `get_note_links` for comprehensive link analysis
 - ✅ Uses `get_backlinks` to find incoming references
 - ✅ Uses `find_broken_links` for maintenance needs
 - ✅ Uses `search_by_links` for relationship queries
 
 #### Test 3: Automatic Link Resolution
+
 **Input**: Note with wikilinks created or updated
 **Expected**: Links automatically resolved to note IDs
 **Validation**:
+
 - ✅ Wikilinks resolved to actual note IDs in database
 - ✅ Broken links tracked with target_note_id = NULL
 - ✅ Automatic resolution when target notes are created/renamed
 - ✅ Link relationships updated in real-time
 
 #### Test 4: Link Validation and Repair
+
 **Input**: Content with broken or invalid wikilinks
 **Expected**: System identifies issues and suggests fixes
 **Validation**:
+
 - ✅ Calls `find_broken_links`
 - ✅ Identifies broken links
 - ✅ Provides repair suggestions
 
 #### Test 5: Auto-Enhancement
+
 **Input**: Plain text mentioning existing topics
 **Expected**: System suggests wikilink additions
 **Validation**:
+
 - ✅ Searches for relevant connections
 - ✅ Suggests intelligent links
 - ✅ Maintains proper format
@@ -486,6 +546,7 @@ Test these scenarios to ensure proper automatic link extraction functionality:
 ### Standard Validation Checkpoints
 
 **Model MUST demonstrate**:
+
 1. ✅ Always calls `get_current_vault` to understand context
 2. ✅ Always calls `list_note_types` before creating notes
 3. ✅ Always asks user permission before creating new note types
@@ -498,6 +559,7 @@ Test these scenarios to ensure proper automatic link extraction functionality:
 10. ✅ Maintains vault-aware behavior across all operations
 
 **Enhanced Linking Requirements**:
+
 - ✅ Searches for linkable content before creating connections
 - ✅ Uses proper wikilink format consistently
 - ✅ Syncs wikilinks to frontmatter metadata
@@ -508,6 +570,7 @@ Test these scenarios to ensure proper automatic link extraction functionality:
 - ✅ Considers context when suggesting connections
 
 **Conversation Quality**:
+
 - ✅ Maintains natural, helpful tone
 - ✅ Explains actions clearly to users
 - ✅ Asks clarifying questions when needed
@@ -516,6 +579,7 @@ Test these scenarios to ensure proper automatic link extraction functionality:
 - ✅ Shows understanding of user workflows
 
 **Error Handling**:
+
 - ✅ Gracefully handles missing notes
 - ✅ Provides helpful error messages
 - ✅ Suggests alternatives when operations fail
@@ -523,6 +587,7 @@ Test these scenarios to ensure proper automatic link extraction functionality:
 - ✅ Offers repair suggestions for broken links
 
 **Success Metrics for Deployment**:
+
 - 95%+ success rate on vault context awareness
 - 95%+ success rate on note type checking
 - 100% user permission requests for new note types
@@ -535,6 +600,7 @@ Test these scenarios to ensure proper automatic link extraction functionality:
 Use these validation scenarios to test any flint-note AI integration before deployment. Each scenario should pass consistently to ensure reliable user experience.
 
 **Additional Vault Requirements**:
+
 - ✅ Adapts note creation based on vault purpose
 - ✅ Respects vault boundaries in search operations
 - ✅ Suggests appropriate vault switches when needed
@@ -543,6 +609,7 @@ Use these validation scenarios to test any flint-note AI integration before depl
 - ✅ Maintains conversational tone while being vault-aware
 
 **Model MUST NOT**:
+
 - ❌ Create notes without checking vault context
 - ❌ Mix vault contexts inappropriately
 - ❌ Ignore vault boundaries in suggestions
@@ -555,9 +622,11 @@ Use these validation scenarios to test any flint-note AI integration before depl
 ### Advanced Vault Scenarios
 
 #### Scenario A: Cross-vault project
+
 **User Input**: "This work project relates to my research - should I link them?"
 
 **Expected Model Response**:
+
 ```
 Interesting connection! Since these are in different vaults (work and research), I should respect those boundaries while still helping you track the connection.
 
@@ -570,9 +639,11 @@ What type of connection exists between your work project and research?
 ```
 
 #### Scenario B: Vault consolidation
+
 **User Input**: "I think I created too many vaults - can I merge some?"
 
 **Expected Model Response**:
+
 ```
 Let me show you your current vault structure...
 [Calls: list_vaults]
@@ -586,10 +657,12 @@ Would you like me to help move notes between vaults and clean up the structure?
 ### Error Handling Examples
 
 #### Example E1: Vault switching failure
+
 **User Input**: "switch to my school vault"
 **Context**: Vault doesn't exist
 
 **Expected Model Response**:
+
 ```
 [Calls: switch_vault with vault_id="school" - fails]
 I don't see a 'school' vault in your configuration. You currently have: work, personal, research.
@@ -601,13 +674,15 @@ Would you like me to:
 ```
 
 #### Example E2: Ambiguous vault context
+
 **User Input**: "create a meeting note"
 **Context**: Multiple vaults have meeting types
 
 **Expected Model Response**:
+
 ```
 [Calls: get_current_vault]
-You're currently in your personal vault, but I notice you also have meeting note types in your work vault. 
+You're currently in your personal vault, but I notice you also have meeting note types in your work vault.
 
 Is this for a:
 - Personal meeting (social, family, personal appointments)
@@ -623,9 +698,11 @@ Let me know and I'll create the note in the right vault with appropriate formatt
 **Expected Workflow**: Identify batch opportunity → Use batch operations → Handle results → Follow agent instructions
 
 #### Example 8A: Multiple project creation
+
 **User Input**: "Create project notes for Q1: Website Redesign, Mobile App, API Refactor - all due March 31st"
 
 **Expected Model Response**:
+
 ```
 I'll create all three Q1 project notes at once for you...
 [Calls: get_current_vault]
@@ -637,9 +714,11 @@ I've successfully created 3 project notes with March 31st deadlines: Website Red
 ```
 
 #### Example 8B: Bulk status updates
+
 **User Input**: "Mark all my December projects as completed"
 
 **Expected Model Response**:
+
 ```
 I'll find and update all your December project notes to completed status...
 [Calls: search_notes with date filter for December and type filter for projects]
@@ -648,9 +727,11 @@ I successfully updated 4 out of 5 December projects to completed status. The Mob
 ```
 
 #### Example 8C: Batch import with failures
+
 **User Input**: "Import these meeting notes from my old system: [provides structured data for 5 meetings]"
 
 **Expected Model Response**:
+
 ```
 I'll batch import these meeting notes and format them according to your meeting preferences...
 [Calls: get_note_type_info for meeting type to check agent instructions]
@@ -663,6 +744,7 @@ I've imported 3 out of 5 meeting notes successfully. 2 failed due to missing att
 **User Input**: "I just started a new job and need to reorganize everything"
 
 **Expected Model Response**:
+
 ```
 Congratulations on the new job! A fresh start is perfect for reorganizing your knowledge system.
 
@@ -688,6 +770,7 @@ Perfect! I'll set up meeting tracking for you.
 [Calls: create_note_type with name="meeting" and agent_instructions="For meeting notes, extract attendees, key topics, decisions made, and action items. Always ask for missing information about outcomes and next steps."]
 [Calls: create_note with type="meeting" and content about standup]
 Who attended this standup? What were the main topics discussed? Were there any decisions made or action items assigned?
+
 ```
 
 #### Example 2B: Detailed meeting info
@@ -695,10 +778,12 @@ Who attended this standup? What were the main topics discussed? Were there any d
 
 **Expected Model Response**:
 ```
+
 I'll document this API project meeting...
 [Calls: list_note_types - finds meeting type]
 [Calls: create_note with extracted information: attendees=Sarah,John; topic=API project; decision=use GraphQL; action_item=John research options by Friday]
 I've logged the meeting with Sarah and John about the API project. I noted the GraphQL decision and John's research task due Friday. Are there any other outcomes or follow-up actions from this meeting?
+
 ```
 
 ### Example Set 3: Learning and Knowledge Capture
@@ -711,6 +796,7 @@ I've logged the meeting with Sarah and John about the API project. I noted the G
 
 **Expected Model Response**:
 ```
+
 Let me help you capture what you learned...
 [Calls: list_note_types]
 I don't see a reading/learning note type. Should I create one that will capture sources, insights, and connections?
@@ -719,6 +805,7 @@ Excellent! I'll create a reading notes system for you.
 [Calls: create_note_type with name="reading" and agent_instructions="For reading notes, capture the source, key insights, personal thoughts, and connections to other knowledge. Ask about practical applications."]
 [Calls: create_note with type="reading"]
 What was the article title or source? What were the key insights about machine learning that interested you? How might you apply this knowledge?
+
 ```
 
 #### Example 3B: Learning insight
@@ -726,10 +813,12 @@ What was the article title or source? What were the key insights about machine l
 
 **Expected Model Response**:
 ```
+
 [Calls: list_note_types - finds reading/learning type]
 I'll save this insight about compound interest...
 [Calls: create_note with type="learning" and content about compound interest insight]
 That's a powerful realization about compound interest! Where did you learn this - was it from a book, article, or conversation? What specific aspect of the math impressed you most? Are you thinking about applying this insight to any personal financial decisions?
+
 ```
 
 ### Example Set 4: Project and Work Tracking
@@ -742,6 +831,7 @@ That's a powerful realization about compound interest! Where did you learn this 
 
 **Expected Model Response**:
 ```
+
 Let me track this project progress...
 [Calls: list_note_types]
 I don't see a project tracking system. Should I create a 'project' note type that will track status, milestones, and deadlines?
@@ -750,6 +840,7 @@ Great! I'll set up project tracking for you.
 [Calls: create_note_type with name="project" and agent_instructions="For project notes, track current status, recent progress, next steps, blockers, and timeline. Always ask about deadlines and dependencies."]
 [Calls: create_note with type="project" about website redesign progress]
 What specific progress have you made on the website redesign? What are your next steps? Are there any blockers or dependencies I should note? What's your target completion date?
+
 ```
 
 ### Batch Operations Validation Tests
@@ -758,7 +849,7 @@ What specific progress have you made on the website redesign? What are your next
 **Input**: "Create project notes for Website, Mobile App, and API work"
 **Expected**: Should recognize batch opportunity and use create_note with notes array, not 3 separate calls
 
-#### Test 2: Batch Update Recognition  
+#### Test 2: Batch Update Recognition
 **Input**: "Update all my Q1 projects to completed status"
 **Expected**: Should search for Q1 projects, then use update_note with updates array
 
@@ -775,69 +866,89 @@ What specific progress have you made on the website redesign? What are your next
 ### Failure Pattern 1: Skipping Note Type Check
 **Wrong Approach**:
 ```
+
 User: "log I'm feeling happy"
 Bad Model: [Immediately calls create_note without checking note types]
+
 ```
 
 **Correct Approach**:
 ```
+
 User: "log I'm feeling happy"
 Good Model: [Always calls list_note_types first, then proceeds based on what exists]
+
 ```
 
 ### Failure Pattern 2: Ignoring Agent Instructions
 **Wrong Approach**:
 ```
+
 Model creates note, gets agent_instructions in response, then ignores them and just says "Note created successfully"
+
 ```
 
 **Correct Approach**:
 ```
+
 Model creates note, reads agent_instructions in response, then follows them exactly by asking the specified questions or taking the specified actions
+
 ```
 
 ### Failure Pattern 3: Not Extracting Information
 **Wrong Approach**:
 ```
+
 User: "Met with Sarah about the budget. She approved the $10k request."
 Bad Model: Creates note with just "met with Sarah about budget"
+
 ```
 
 **Correct Approach**:
 ```
+
 User: "Met with Sarah about the budget. She approved the $10k request."
 Good Model: Extracts attendees=Sarah, topic=budget, decision=$10k approved, and includes all details in note
+
 ```
 
 ### Failure Pattern 4: Missing Batch Opportunities
 **Wrong Approach**:
 ```
+
 User: "Create project notes for Website, Mobile App, and API work"
 Bad Model: Makes 3 separate create_note calls
+
 ```
 
 **Correct Approach**:
 ```
+
 User: "Create project notes for Website, Mobile App, and API work"
 Good Model: Uses single create_note call with notes array containing all 3 projects
+
 ```
 
 ### Failure Pattern 5: Poor Batch Error Handling
 **Wrong Approach**:
 ```
+
 Batch operation fails partially, model just says "Some notes failed to create"
+
 ```
 
 **Correct Approach**:
 ```
+
 Batch operation fails partially, model reports: "Created 2 out of 3 notes successfully. The Mobile App project failed because it's missing required 'stakeholder' metadata. Should I help fix that so I can complete the creation?"
+
 ```
 
 ## Validation Test Scenarios
 
 ### Test Set A: Cold Start (No Note Types Exist)
 1. "log I'm feeling anxious" → Should ask permission, then create mood type, then note
-2. "had a call with client" → Should ask permission, then create meeting type, then note  
+2. "had a call with client" → Should ask permission, then create meeting type, then note
 3. "read a great book" → Should ask permission, then create reading type, then note
 4. "working on new feature" → Should ask permission, then create project type, then note
 
@@ -896,7 +1007,7 @@ Use these prompts to test model understanding:
 "When a user says 'log I'm feeling happy today', what is the first thing you should do?"
 **Expected Answer**: "Check what note types exist using list_note_types"
 
-### Prompt 2: Workflow Understanding  
+### Prompt 2: Workflow Understanding
 "What are the 4 mandatory steps for every user request?"
 **Expected Answer**: "1. Check note types, 2. Read agent instructions, 3. Create/use appropriate note type, 4. Follow agent instructions from response"
 
@@ -942,3 +1053,4 @@ Use these prompts to test model understanding:
 - Adapt agent instructions based on usage
 
 Remember: These examples should be used to train models to be consistent, thorough, and helpful while maintaining the conversational, intelligent assistance that makes flint-note unique.
+```

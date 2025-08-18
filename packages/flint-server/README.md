@@ -181,10 +181,10 @@ Focus on making note-taking effortless while building a valuable, adaptive knowl
 
 ### Agent-Guided Note Creation
 
-
 > You: I just finished reading "The Psychology of Money" - add it to my personal vault
 >
 > Agent: I'll create a reading note in your personal vault. Based on your reading note schema, I need:
+>
 > - Your rating (1-5 stars)
 > - Key insights that stuck with you
 > - The author's name
@@ -195,16 +195,16 @@ Focus on making note-taking effortless while building a valuable, adaptive knowl
 >
 > Agent: Perfect! I'm creating your reading note with Morgan Housel as author, 4/5 rating, and that key insight. Using vault_id="personal" to save it as reading/psychology-of-money.md in your personal vault without switching your active work vault.
 
-
 ### Efficient Multi-Note Operations
 
 > You: Show me the status of my three main projects
 >
 > Agent: I'll fetch your main project notes efficiently in a single call...
 >
-> *[Uses get_notes with identifiers array and fields=["title", "metadata.status", "content_hash"]]*
+> _[Uses get_notes with identifiers array and fields=["title", "metadata.status", "content_hash"]]_
 >
 > Here are your three main projects with current status:
+>
 > - **Web Application Redesign**: In Progress (due next month)
 > - **Mobile App Development**: Planning (team assigned)
 > - **API Redesign**: Blocked (waiting for architecture approval)
@@ -215,7 +215,7 @@ Focus on making note-taking effortless while building a valuable, adaptive knowl
 >
 > Agent: I'll update the API project status safely using the content hash I already have...
 >
-> *[Uses update_note with content_hash for conflict-free update]*
+> _[Uses update_note with content_hash for conflict-free update]_
 >
 > Updated! Your API Redesign project is now "In Progress". Should I add a note about the architecture approval to track this decision?
 
@@ -224,6 +224,7 @@ Focus on making note-taking effortless while building a valuable, adaptive knowl
 > You: Create a project note for our website redesign in the work vault, but also check if there are any related design ideas in my personal vault
 >
 > Agent: I'll set up a project note in your work vault and search across vaults for related content. Based on your project schema, I should include:
+>
 > - Project goals and success criteria
 > - Key milestones and deadlines
 > - Team members and stakeholders
@@ -240,6 +241,7 @@ Focus on making note-taking effortless while building a valuable, adaptive knowl
 > You: Add a meeting note for today's standup to my work vault
 >
 > Agent: Creating your meeting note in the work vault. I see you have a standup template that includes:
+>
 > - Attendees
 > - What did we accomplish yesterday?
 > - What are we working on today?
@@ -250,7 +252,6 @@ Focus on making note-taking effortless while building a valuable, adaptive knowl
 > You: The whole team - Sarah, Mike, Alex, and me
 >
 > Agent: Got it! I'll create meetings/standup-2024-01-15.md in your work vault with those attendees and the standup template. Using vault_id="work" to ensure it goes to the right context. The metadata will automatically tag this as a "standup" meeting for easy filtering later.
-
 
 ### Safe Concurrent Updates
 
@@ -303,9 +304,11 @@ Each `_description.md` file tells agents how to behave for that note type:
 # Reading Notes
 
 ## Purpose
+
 Track books, articles, and papers with structured insights and ratings.
 
 ## Agent Instructions
+
 - Always ask for the author's background and credentials
 - Extract key insights and actionable takeaways
 - Request a personal rating (1-5 stars) and what made it memorable
@@ -313,6 +316,7 @@ Track books, articles, and papers with structured insights and ratings.
 - Encourage specific quotes with page references
 
 ## Metadata Schema
+
 - title: Book/article title (required, string)
 - author: Author name (required, string)
 - rating: Personal rating (required, number, min: 1, max: 5)
@@ -324,7 +328,6 @@ Track books, articles, and papers with structured insights and ratings.
 ### Customizing Agent Behavior
 
 You can modify how agents work with any note type just by talking to them:
-
 
 > You: Update my reading notes so agents always ask about the book's publication year
 >
@@ -371,12 +374,14 @@ await api.initialize();
 // Create notes
 await api.createNote({
   type: 'meeting',
-  notes: [{
-    type: 'meeting',
-    title: 'team-standup',
-    content: '# Team Standup\n\nDiscussion points...',
-    metadata: { attendees: ['Alice', 'Bob'], date: '2024-01-15' }
-  }]
+  notes: [
+    {
+      type: 'meeting',
+      title: 'team-standup',
+      content: '# Team Standup\n\nDiscussion points...',
+      metadata: { attendees: ['Alice', 'Bob'], date: '2024-01-15' }
+    }
+  ]
 });
 
 // Search and retrieve
@@ -426,7 +431,6 @@ const note = await api.getNote('my-note');
 ## Configuration
 
 Flint Note automatically manages its configuration and will upgrade older vaults seamlessly. The configuration is stored in `.flint-note/config.yml` in each vault.
-
 
 ### Configuration Settings
 

@@ -64,7 +64,7 @@ export class DatabaseMigrationManager {
     }
 
     // Find pending migrations
-    const pendingMigrations = this.MIGRATIONS.filter(migration =>
+    const pendingMigrations = this.MIGRATIONS.filter((migration) =>
       this.isVersionNewer(migration.version, fromVersion)
     );
 
@@ -281,7 +281,7 @@ export class DatabaseMigrationManager {
     dbManager: DatabaseManager,
     workspacePath: string
   ): Promise<void> {
-    const migration = this.MIGRATIONS.find(m => m.version === migrationVersion);
+    const migration = this.MIGRATIONS.find((m) => m.version === migrationVersion);
     if (!migration) {
       throw new Error(`Migration not found for version: ${migrationVersion}`);
     }

@@ -143,7 +143,7 @@ function validateType(value: any, expectedType: string, arrayItemType?: string):
     case 'array':
       if (!Array.isArray(value)) return false;
       if (arrayItemType) {
-        return value.every(item => validateType(item, arrayItemType));
+        return value.every((item) => validateType(item, arrayItemType));
       }
       return true;
     default:
@@ -162,7 +162,7 @@ export function createValidationError(toolName: string, errors: string[]): Error
 
   const errorMessage = [
     `Invalid arguments for tool '${toolName}':`,
-    ...errors.map(error => `  - ${error}`),
+    ...errors.map((error) => `  - ${error}`),
     '',
     'Please check the tool documentation for correct usage.'
   ].join('\n');

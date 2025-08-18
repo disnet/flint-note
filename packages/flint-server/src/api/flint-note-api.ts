@@ -151,7 +151,7 @@ export class FlintNoteApi {
 
         try {
           const files = await fs.readdir(flintNoteDir);
-          hasDescriptions = files.some(entry => entry.endsWith('_description.md'));
+          hasDescriptions = files.some((entry) => entry.endsWith('_description.md'));
         } catch {
           // .flint-note directory doesn't exist or is empty
           hasDescriptions = false;
@@ -363,7 +363,7 @@ export class FlintNoteApi {
 
     const result = await noteManager.batchCreateNotes(options.notes);
     // Extract successful note creations and return pure NoteInfo array
-    return result.results.filter(r => r.success && r.result).map(r => r.result!);
+    return result.results.filter((r) => r.success && r.result).map((r) => r.result!);
   }
 
   /**
@@ -405,7 +405,7 @@ export class FlintNoteApi {
     this.ensureInitialized();
     const { noteManager } = await this.resolveVaultContext(options.vaultId);
 
-    const batchUpdates: BatchUpdateNoteInput[] = options.notes.map(note => ({
+    const batchUpdates: BatchUpdateNoteInput[] = options.notes.map((note) => ({
       identifier: note.identifier,
       content: note.content,
       metadata: note.metadata,
@@ -441,7 +441,7 @@ export class FlintNoteApi {
     const { noteManager } = await this.resolveVaultContext(args.vault_id);
     const results = await noteManager.getNotes(args.identifiers);
     // Extract notes from the success/error result structure
-    return results.map(result => (result.success && result.note ? result.note : null));
+    return results.map((result) => (result.success && result.note ? result.note : null));
   }
 
   /**
@@ -841,7 +841,7 @@ export class FlintNoteApi {
     // Handle different search criteria
     if (args.has_links_to && args.has_links_to.length > 0) {
       // Find notes that link to any of the specified notes
-      const targetIds = args.has_links_to.map(id => generateNoteIdFromIdentifier(id));
+      const targetIds = args.has_links_to.map((id) => generateNoteIdFromIdentifier(id));
       const placeholders = targetIds.map(() => '?').join(',');
       notes = await db.all(
         `SELECT DISTINCT n.* FROM notes n
@@ -851,7 +851,7 @@ export class FlintNoteApi {
       );
     } else if (args.linked_from && args.linked_from.length > 0) {
       // Find notes that are linked from any of the specified notes
-      const sourceIds = args.linked_from.map(id => generateNoteIdFromIdentifier(id));
+      const sourceIds = args.linked_from.map((id) => generateNoteIdFromIdentifier(id));
       const placeholders = sourceIds.map(() => '?').join(',');
       notes = await db.all(
         `SELECT DISTINCT n.* FROM notes n
@@ -864,7 +864,7 @@ export class FlintNoteApi {
       const domainConditions = args.external_domains
         .map(() => 'el.url LIKE ?')
         .join(' OR ');
-      const domainParams = args.external_domains.map(domain => `%${domain}%`);
+      const domainParams = args.external_domains.map((domain) => `%${domain}%`);
       notes = await db.all(
         `SELECT DISTINCT n.* FROM notes n
          INNER JOIN external_links el ON n.id = el.note_id

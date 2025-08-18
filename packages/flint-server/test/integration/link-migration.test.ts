@@ -187,7 +187,7 @@ External research: https://arxiv.org/paper123`
       client = new MCPClient(context.serverProcess);
 
       // Wait for server initialization
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       // At this point, link tables should be empty (no auto-extraction for existing files)
       const _initialBrokenLinks = await client.expectSuccess('find_broken_links', {});
@@ -282,7 +282,7 @@ External research: https://arxiv.org/paper123`
         timeout: INTEGRATION_CONSTANTS.SERVER_STARTUP_TIMEOUT
       });
       client = new MCPClient(context.serverProcess);
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Run first migration
       const firstMigration = await client.expectSuccess('migrate_links', {});
@@ -320,7 +320,7 @@ External research: https://arxiv.org/paper123`
         timeout: INTEGRATION_CONSTANTS.SERVER_STARTUP_TIMEOUT
       });
       client = new MCPClient(context.serverProcess);
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Run first migration
       const firstMigration = await client.expectSuccess('migrate_links', {});
@@ -379,7 +379,7 @@ Embedded image: ![Chart](https://charts.example.com/data.svg)`;
         timeout: INTEGRATION_CONSTANTS.SERVER_STARTUP_TIMEOUT
       });
       client = new MCPClient(context.serverProcess);
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       const migrationResult = await client.expectSuccess('migrate_links', {});
       assert.ok(migrationResult.success);
@@ -448,7 +448,7 @@ Some content here.`,
         timeout: INTEGRATION_CONSTANTS.SERVER_STARTUP_TIMEOUT
       });
       client = new MCPClient(context.serverProcess);
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       const migrationResult = await client.expectSuccess('migrate_links', {});
 
@@ -470,7 +470,7 @@ Some content here.`,
         timeout: INTEGRATION_CONSTANTS.SERVER_STARTUP_TIMEOUT
       });
       client = new MCPClient(context.serverProcess);
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       const migrationResult = await client.expectSuccess('migrate_links', {});
 
@@ -489,7 +489,7 @@ Some content here.`,
         timeout: INTEGRATION_CONSTANTS.SERVER_STARTUP_TIMEOUT
       });
       client = new MCPClient(context.serverProcess);
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Create a note normally (which will auto-extract links)
       const noteResult = await client.expectSuccess('create_note', {
@@ -499,7 +499,7 @@ Some content here.`,
       });
 
       // Wait for auto-extraction
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Verify link was auto-extracted
       const linksData = await client.expectSuccess('get_note_links', {
@@ -531,7 +531,7 @@ Some content here.`,
         timeout: INTEGRATION_CONSTANTS.SERVER_STARTUP_TIMEOUT
       });
       client = new MCPClient(context.serverProcess);
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Create new note (will auto-extract)
       await client.expectSuccess('create_note', {
@@ -541,7 +541,7 @@ Some content here.`,
       });
 
       // Wait for auto-extraction
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Force migration to handle the old note
       const migrationResult = await client.expectSuccess('migrate_links', {

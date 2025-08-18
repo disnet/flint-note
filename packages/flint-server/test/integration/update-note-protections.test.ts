@@ -112,7 +112,7 @@ describe('Update Note Protections Integration', () => {
     client = new MCPClient(context.serverProcess);
 
     // Wait for server initialization
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 500));
   });
 
   afterEach(async () => {

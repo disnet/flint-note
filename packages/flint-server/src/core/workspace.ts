@@ -553,7 +553,7 @@ Expected frontmatter fields:
     try {
       const entries = await fs.readdir(this.rootPath, { withFileTypes: true });
       const noteTypes = entries.filter(
-        entry =>
+        (entry) =>
           entry.isDirectory() &&
           !entry.name.startsWith('.') &&
           entry.name !== 'node_modules'
@@ -564,7 +564,7 @@ Expected frontmatter fields:
         const typePath = path.join(this.rootPath, noteType.name);
         const typeEntries = await fs.readdir(typePath);
         const notes = typeEntries.filter(
-          file => file.endsWith('.md') && !file.startsWith('.') && !file.startsWith('_')
+          (file) => file.endsWith('.md') && !file.startsWith('.') && !file.startsWith('_')
         );
         totalNotes += notes.length;
       }
@@ -1060,7 +1060,7 @@ Expected frontmatter fields:
           constraints.push(`max: ${field.constraints.max}`);
         if (field.constraints.options)
           constraints.push(
-            `options: [${field.constraints.options.map(o => `"${o}"`).join(', ')}]`
+            `options: [${field.constraints.options.map((o) => `"${o}"`).join(', ')}]`
           );
         if (field.constraints.format)
           constraints.push(`format: ${field.constraints.format}`);

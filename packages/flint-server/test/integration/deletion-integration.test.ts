@@ -286,7 +286,7 @@ describe('Deletion Integration Tests', () => {
       const archiveFiles = await fs.readdir(archiveDir);
 
       const migratedFiles = archiveFiles.filter(
-        file => file.includes('migrate-me-1') || file.includes('migrate-me-2')
+        (file) => file.includes('migrate-me-1') || file.includes('migrate-me-2')
       );
       assert.strictEqual(migratedFiles.length, 2, 'Both notes should be migrated');
 
@@ -378,7 +378,7 @@ describe('Deletion Integration Tests', () => {
       const tempDir = join(context.tempDir, 'temporary');
       try {
         const files = await fs.readdir(tempDir);
-        const markdownFiles = files.filter(f => f.endsWith('.md'));
+        const markdownFiles = files.filter((f) => f.endsWith('.md'));
         assert.strictEqual(markdownFiles.length, 0, 'No markdown files should remain');
       } catch {
         // Directory might be completely removed, which is also acceptable
@@ -417,10 +417,10 @@ describe('Deletion Integration Tests', () => {
       // Verify only temp files are deleted, important file remains
       const generalDir = join(context.tempDir, 'general');
       const files = await fs.readdir(generalDir);
-      const importantFile = files.find(f => f.includes('important-file'));
+      const importantFile = files.find((f) => f.includes('important-file'));
       assert.ok(importantFile, 'Important file should remain');
 
-      const tempFiles = files.filter(f => f.includes('temp-file'));
+      const tempFiles = files.filter((f) => f.includes('temp-file'));
       assert.strictEqual(tempFiles.length, 0, 'Temp files should be deleted');
     });
 
@@ -551,13 +551,13 @@ describe('Deletion Integration Tests', () => {
       }
 
       const createResults = await Promise.all(notePromises);
-      const noteIds = createResults.map(result => {
+      const noteIds = createResults.map((result) => {
         const data = JSON.parse((result as any).content[0].text);
         return data.id;
       });
 
       // Attempt concurrent deletions
-      const deletePromises = noteIds.map(id =>
+      const deletePromises = noteIds.map((id) =>
         client.callTool('delete_note', {
           identifier: id,
           confirm: true

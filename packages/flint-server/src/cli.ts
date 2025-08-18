@@ -382,7 +382,7 @@ GLOBAL CONFIG:
 
     // Find the vault ID
     const vaults = this.#globalConfig.listVaults();
-    const currentVaultEntry = vaults.find(v => v.is_current);
+    const currentVaultEntry = vaults.find((v) => v.is_current);
     const vaultId = currentVaultEntry?.info.id || 'unknown';
 
     console.log(`🟢 Current Vault: ${currentVault.name} (${vaultId})\n`);
@@ -490,7 +490,7 @@ GLOBAL CONFIG:
     const currentVault = this.#globalConfig.getCurrentVault();
     if (currentVault) {
       const vaults = this.#globalConfig.listVaults();
-      const currentVaultEntry = vaults.find(v => v.is_current);
+      const currentVaultEntry = vaults.find((v) => v.is_current);
       console.log(
         `Current vault: ${currentVault.name} (${currentVaultEntry?.info.id || 'unknown'})`
       );
@@ -606,7 +606,7 @@ GLOBAL CONFIG:
         }
         if (result.warnings && result.warnings.length > 0) {
           console.log('⚠️  Warnings:');
-          result.warnings.forEach(warning => console.log(`   - ${warning}`));
+          result.warnings.forEach((warning) => console.log(`   - ${warning}`));
         }
       } else {
         console.error('❌ Failed to delete note');
@@ -687,7 +687,7 @@ GLOBAL CONFIG:
 
     const type = options.type as string;
     const tags = options.tags
-      ? (options.tags as string).split(',').map(t => t.trim())
+      ? (options.tags as string).split(',').map((t) => t.trim())
       : undefined;
     const pattern = options.pattern as string;
     const confirm = (options.confirm as boolean) || false;
@@ -711,7 +711,7 @@ GLOBAL CONFIG:
     try {
       const results = await noteManager.bulkDeleteNotes(criteria, confirm);
 
-      const successCount = results.filter(r => r.deleted).length;
+      const successCount = results.filter((r) => r.deleted).length;
       const failureCount = results.length - successCount;
 
       console.log(`✅ Bulk deletion completed:`);
@@ -722,8 +722,8 @@ GLOBAL CONFIG:
       if (failureCount > 0) {
         console.log('\n❌ Failed deletions:');
         results
-          .filter(r => !r.deleted)
-          .forEach(result => {
+          .filter((r) => !r.deleted)
+          .forEach((result) => {
             console.log(`   - ${result.id}: ${result.warnings?.[0] || 'Unknown error'}`);
           });
       }

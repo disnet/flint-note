@@ -59,7 +59,7 @@ describe('Search Unit Tests', () => {
       assert.ok(Array.isArray(results), 'Should return array of results');
       assert.ok(results.length > 0, 'Should find matching notes');
 
-      const jsNote = results.find(r => r.title === 'JavaScript Programming');
+      const jsNote = results.find((r) => r.title === 'JavaScript Programming');
       assert.ok(jsNote, 'Should find JavaScript Programming note');
       assert.ok(
         jsNote.snippet.includes('JavaScript'),
@@ -74,10 +74,10 @@ describe('Search Unit Tests', () => {
       assert.ok(titleResults.length > 0, 'Should find notes by title');
       assert.ok(contentResults.length > 0, 'Should find notes by content');
 
-      const titleNote = titleResults.find(r => r.title.includes('Programming'));
+      const titleNote = titleResults.find((r) => r.title.includes('Programming'));
       assert.ok(titleNote, 'Should find note with Programming in title');
 
-      const contentNote = contentResults.find(r => r.snippet.includes('versatile'));
+      const contentNote = contentResults.find((r) => r.snippet.includes('versatile'));
       assert.ok(contentNote, 'Should find note with versatile in content');
     });
 
@@ -109,7 +109,7 @@ describe('Search Unit Tests', () => {
       assert.ok(results.length > 0, 'Should find partial matches');
 
       const foundProgramming = results.some(
-        r =>
+        (r) =>
           r.title.toLowerCase().includes('programming') ||
           r.snippet.toLowerCase().includes('programming')
       );
@@ -136,7 +136,7 @@ describe('Search Unit Tests', () => {
       assert.ok(projectResults.length > 0, 'Should find project notes');
 
       const allProject = projectResults.every(
-        r => r.type === TEST_CONSTANTS.NOTE_TYPES.PROJECT
+        (r) => r.type === TEST_CONSTANTS.NOTE_TYPES.PROJECT
       );
       assert.ok(allProject, 'All results should be project type');
     });
@@ -152,7 +152,7 @@ describe('Search Unit Tests', () => {
       assert.ok(results.length > 0, 'Should find filtered results');
 
       const reactProject = results.find(
-        r => r.title.includes('React') && r.type === TEST_CONSTANTS.NOTE_TYPES.PROJECT
+        (r) => r.title.includes('React') && r.type === TEST_CONSTANTS.NOTE_TYPES.PROJECT
       );
       assert.ok(reactProject, 'Should find React project note');
     });
@@ -164,7 +164,7 @@ describe('Search Unit Tests', () => {
       });
 
       if (results.results.length > 0) {
-        const hasProductivityTag = results.results.some(r =>
+        const hasProductivityTag = results.results.some((r) =>
           r.metadata?.tags?.includes('productivity')
         );
         assert.ok(hasProductivityTag, 'Should find notes with productivity tag');
@@ -180,7 +180,7 @@ describe('Search Unit Tests', () => {
       assert.ok(Array.isArray(results), 'Should return array for date range search');
 
       if (results.length > 0) {
-        const recentNote = results.some(r => {
+        const recentNote = results.some((r) => {
           const noteDate = new Date(r.lastUpdated);
           return noteDate >= yesterday && noteDate <= today;
         });
@@ -209,8 +209,8 @@ describe('Search Unit Tests', () => {
       assert.ok(results.length >= 2, 'Should find both notes');
 
       // Note with title match should rank higher
-      const titleMatchIndex = results.findIndex(r => r.title === 'Test Ranking');
-      const contentMatchIndex = results.findIndex(r => r.title === 'Content Note');
+      const titleMatchIndex = results.findIndex((r) => r.title === 'Test Ranking');
+      const contentMatchIndex = results.findIndex((r) => r.title === 'Content Note');
 
       if (titleMatchIndex !== -1 && contentMatchIndex !== -1) {
         assert.ok(
@@ -239,8 +239,8 @@ describe('Search Unit Tests', () => {
       assert.ok(results.length >= 2, 'Should find both notes');
 
       // Note with more matches should generally rank higher
-      const multipleMatchNote = results.find(r => r.title === 'Multiple Matches');
-      const singleMatchNote = results.find(r => r.title === 'Single Match');
+      const multipleMatchNote = results.find((r) => r.title === 'Multiple Matches');
+      const singleMatchNote = results.find((r) => r.title === 'Single Match');
 
       assert.ok(multipleMatchNote, 'Should find multiple match note');
       assert.ok(singleMatchNote, 'Should find single match note');
@@ -274,7 +274,7 @@ describe('Search Unit Tests', () => {
       const results = await context.searchManager.searchNotes('New Indexed Note');
 
       assert.ok(results.length > 0, 'Should find newly created note');
-      const foundNote = results.find(r => r.id === newNote.id);
+      const foundNote = results.find((r) => r.id === newNote.id);
       assert.ok(foundNote, 'Should find the specific new note');
     });
 
@@ -397,8 +397,8 @@ describe('Search Unit Tests', () => {
       const secondTime = Date.now();
 
       assert.deepStrictEqual(
-        firstResults.map(r => r.id),
-        secondResults.map(r => r.id),
+        firstResults.map((r) => r.id),
+        secondResults.map((r) => r.id),
         'Identical searches should return same results'
       );
 
@@ -508,7 +508,7 @@ ${updatedContent}`;
 
         // Original content should no longer be found
         const oldResults = await context.searchManager.searchNotes('Original content');
-        const hasOldNote = oldResults.some(r => r.id === note.id);
+        const hasOldNote = oldResults.some((r) => r.id === note.id);
         assert.ok(!hasOldNote, 'Should not find note with old content');
       } catch (_error) {
         // Update functionality might not be implemented yet
@@ -527,7 +527,7 @@ ${updatedContent}`;
 
       // Verify note is searchable
       const beforeResults = await context.searchManager.searchNotes('Deletion Test Note');
-      const foundBefore = beforeResults.some(r => r.id === note.id);
+      const foundBefore = beforeResults.some((r) => r.id === note.id);
       assert.ok(foundBefore, 'Should find note before deletion');
 
       // Delete the note file
@@ -536,7 +536,7 @@ ${updatedContent}`;
 
       // Should not find deleted note
       const afterResults = await context.searchManager.searchNotes('Deletion Test Note');
-      const foundAfter = afterResults.some(r => r.id === note.id);
+      const foundAfter = afterResults.some((r) => r.id === note.id);
       assert.ok(!foundAfter, 'Should not find deleted note');
     });
   });

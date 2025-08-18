@@ -272,7 +272,7 @@ export class HybridSearchManager {
 
           const operator = filter.operator || '=';
           if (operator === 'IN') {
-            const values = filter.value.split(',').map(v => v.trim());
+            const values = filter.value.split(',').map((v) => v.trim());
             const placeholders = values.map(() => '?').join(',');
             whereConditions.push(`${alias}.value IN (${placeholders})`);
             params.push(...values);
@@ -326,7 +326,7 @@ export class HybridSearchManager {
       let orderClause = '';
       if (options.sort && options.sort.length > 0) {
         const sortTerms = options.sort.map(
-          sort => `n.${sort.field} ${sort.order.toUpperCase()}`
+          (sort) => `n.${sort.field} ${sort.order.toUpperCase()}`
         );
         orderClause = ' ORDER BY ' + sortTerms.join(', ');
       } else {
@@ -392,7 +392,7 @@ export class HybridSearchManager {
       let results: SearchResult[];
       if (isAggregationQuery) {
         // For aggregation queries, return raw results with custom columns preserved
-        results = rows.map(row => ({
+        results = rows.map((row) => ({
           ...row, // Preserve all custom aggregation columns first
           id: String(row.id || ''),
           title: String(row.title || ''),
@@ -447,7 +447,7 @@ export class HybridSearchManager {
       'max(',
       'group_concat('
     ];
-    const hasAggregation = aggregationFunctions.some(func => lowerSql.includes(func));
+    const hasAggregation = aggregationFunctions.some((func) => lowerSql.includes(func));
 
     // Check for GROUP BY clause
     const hasGroupBy = lowerSql.includes('group by');
@@ -797,7 +797,7 @@ export class HybridSearchManager {
 
       // Process batch in parallel
       await Promise.allSettled(
-        batch.map(async filePath => {
+        batch.map(async (filePath) => {
           try {
             await this.indexNoteFile(filePath);
           } catch (error) {
@@ -823,15 +823,15 @@ export class HybridSearchManager {
 
       // Process directories in parallel
       const dirPromises = entries
-        .filter(entry => entry.isDirectory() && !entry.name.startsWith('.'))
-        .map(async entry => {
+        .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.'))
+        .map(async (entry) => {
           try {
             const dirPath = path.join(this.workspacePath, entry.name);
             const dirFiles = await fs.readdir(dirPath);
 
             return dirFiles
-              .filter(file => file.endsWith('.md') && file !== '_description.md')
-              .map(file => path.join(dirPath, file));
+              .filter((file) => file.endsWith('.md') && file !== '_description.md')
+              .map((file) => path.join(dirPath, file));
           } catch (error) {
             console.error(`Error scanning directory ${entry.name}:`, error);
             return [];
@@ -910,7 +910,7 @@ export class HybridSearchManager {
                   metadata[key] = cleanValue
                     .slice(1, -1)
                     .split(',')
-                    .map(v => v.trim().replace(/^["']|["']$/g, ''));
+                    .map((v) => v.trim().replace(/^["']|["']$/g, ''));
                 } else {
                   // Handle numbers
                   if (/^\d+(\.\d+)?$/.test(cleanValue)) {

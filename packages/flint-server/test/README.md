@@ -22,6 +22,7 @@ Unit tests focus on testing individual classes and functions in isolation. They:
 - Import and test classes directly from `../../src/`
 
 **Files:**
+
 - `basic.test.ts` - Basic import, configuration, and workspace tests
 - `batch-operations.test.ts` - Batch note creation and update operations
 - `links.test.ts` - Link management functionality
@@ -37,6 +38,7 @@ Unit tests focus on testing individual classes and functions in isolation. They:
 - `hybrid-search-unit.test.ts` - Hybrid search functionality (SQLite + file storage)
 
 **Shared Helpers:**
+
 - `helpers/test-utils.ts` - Common test setup, teardown, and utility functions
 
 ## End to end integration Tests (`test/integration/`)
@@ -49,6 +51,7 @@ E2E integration tests focus on testing complete workflows and system interaction
 - Test the full stack including MCP protocol communication
 
 **Files:**
+
 - `batch-operations.test.ts` - Batch note operations through MCP server
 - `command-line-args.test.ts` - Command line argument parsing and workspace setup
 - `deletion-integration.test.ts` - Note and note type deletion through MCP server
@@ -60,6 +63,7 @@ E2E integration tests focus on testing complete workflows and system interaction
 - `hybrid-search-integration.test.ts` - Hybrid search MCP tools (search_notes_advanced, search_notes_sql)
 
 **Shared Helpers:**
+
 - `helpers/integration-utils.ts` - Common integration test utilities for server management
 
 ## Running Tests
@@ -116,6 +120,7 @@ Following the project's style guide (`STYLE.md`):
 ## Shared Test Utilities
 
 ### Unit Test Helpers (`helpers/test-utils.ts`)
+
 - `createTestWorkspace()` - Creates a temporary workspace with all managers
 - `cleanupTestWorkspace()` - Cleans up temporary directories
 - `createTestNotes()` - Creates standard test notes
@@ -125,6 +130,7 @@ Following the project's style guide (`STYLE.md`):
 - `TEST_CONSTANTS` - Shared test constants and data
 
 ### Integration Test Helpers (`helpers/integration-utils.ts`)
+
 - `createIntegrationWorkspace()` - Creates temporary workspace for integration tests
 - `cleanupIntegrationWorkspace()` - Cleans up workspace and server processes
 - `startServer()` - Spawns MCP server process with proper configuration
@@ -135,7 +141,9 @@ Following the project's style guide (`STYLE.md`):
 - `INTEGRATION_CONSTANTS` - Integration test constants and timeouts
 
 ### Hybrid Search Test Helpers
+
 Additional helpers in unit test utilities for hybrid search testing:
+
 - `createHybridSearchManager()` - Creates and initializes hybrid search manager
 - `createTestNotesForHybridSearch()` - Creates notes optimized for advanced search testing
 - `TEST_CONSTANTS.HYBRID_SEARCH` - Metadata filters, SQL queries, and search patterns
@@ -145,6 +153,7 @@ Additional helpers in unit test utilities for hybrid search testing:
 The hybrid search system (SQLite + file storage) has dedicated test coverage:
 
 ### Unit Tests (`hybrid-search-unit.test.ts`)
+
 - **DatabaseManager Tests**: Connection, schema initialization, rebuild operations
 - **HybridSearchManager Core**: Initialization, statistics, index management
 - **Simple Search**: Text search, type filtering, regex support, content snippets
@@ -157,6 +166,7 @@ The hybrid search system (SQLite + file storage) has dedicated test coverage:
 - **Security**: SQL injection prevention, dangerous operation blocking
 
 ### Integration Tests (`hybrid-search-integration.test.ts`)
+
 - **Basic Search Tool**: `search_notes` with text queries, type filters, regex
 - **Advanced Search Tool**: `search_notes_advanced` with metadata filters, sorting
 - **SQL Search Tool**: `search_notes_sql` with complex queries, security validation
@@ -166,7 +176,9 @@ The hybrid search system (SQLite + file storage) has dedicated test coverage:
 - **Error Recovery**: Malformed requests, Unicode handling, edge cases
 
 ### Test Data Structure
+
 Hybrid search tests use comprehensive test datasets including:
+
 - **Book Reviews**: With ratings, status, genre, tags metadata
 - **Project Notes**: With priority, assignee, deadline, status tracking
 - **Meeting Notes**: With attendees, duration, action items

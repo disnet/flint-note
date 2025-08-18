@@ -69,12 +69,12 @@ describe('Get Notes', () => {
       });
 
       // Check specific note properties
-      const firstResult = results.find(r => r.note?.id === note1.id);
+      const firstResult = results.find((r) => r.note?.id === note1.id);
       assert.ok(firstResult, 'Should find first note in results');
       assert.strictEqual(firstResult.note!.title, 'First Note');
       assert.strictEqual(firstResult.note!.content, 'Content of first note');
 
-      const projectResult = results.find(r => r.note?.id === note3.id);
+      const projectResult = results.find((r) => r.note?.id === note3.id);
       assert.ok(projectResult, 'Should find project note in results');
       assert.strictEqual(projectResult.note!.type, 'project');
     });
@@ -260,12 +260,12 @@ This note has extensive metadata.`;
 
       assert.strictEqual(results.length, 3, 'Should return all notes');
 
-      results.forEach(result => {
+      results.forEach((result) => {
         assert.strictEqual(result.success, true, 'All should be successful');
       });
 
       // Check types are preserved
-      const types = results.map(r => r.note!.type);
+      const types = results.map((r) => r.note!.type);
       assert.ok(types.includes('daily'), 'Should include daily note');
       assert.ok(types.includes('project'), 'Should include project note');
       assert.ok(
@@ -378,7 +378,7 @@ This note has extensive metadata.`;
 
       // Create a long list with mostly invalid identifiers
       const longList = [
-        ...validNotes.map(n => n.id),
+        ...validNotes.map((n) => n.id),
         ...Array.from({ length: 100 }, (_, i) => `invalid/note-${i}.md`)
       ];
 
