@@ -5,8 +5,7 @@
   } from '../stores/slashCommandsStore.svelte';
   import TextBlockEditor from './TextBlockEditor.svelte';
   import WikilinkTextInput from './WikilinkTextInput.svelte';
-  import { notesStore } from '../services/noteStore.svelte';
-  import { getChatService } from '../services/chatService.js';
+  import { wikilinkService } from '../services/wikilinkService.svelte.js';
 
   interface Props {
     query: string;
@@ -178,44 +177,8 @@
     title: string,
     shouldCreate?: boolean
   ): Promise<void> {
-    if (shouldCreate) {
-      // Create a new note with the default 'note' type
-      try {
-        const chatService = getChatService();
-        const newNote = await chatService.createNote({
-          type: 'note',
-          identifier: title,
-          content: ``
-        });
-
-        // Refresh the notes store to include the new note
-        await notesStore.refresh();
-
-        // Find the full note data from the store
-        const fullNote = notesStore.notes.find((n) => n.id === newNote.id);
-        if (fullNote) {
-          // Navigate to the newly created note
-          const event = new CustomEvent('wikilink-navigate', {
-            detail: { note: fullNote },
-            bubbles: true
-          });
-          document.dispatchEvent(event);
-        }
-      } catch (error) {
-        console.error('Failed to create note from wikilink:', error);
-      }
-    } else {
-      // Find the note in the notes store
-      const clickedNote = notesStore.notes.find((n) => n.id === noteId);
-      if (clickedNote) {
-        // Dispatch a custom event to navigate to the linked note
-        const event = new CustomEvent('wikilink-navigate', {
-          detail: { note: clickedNote },
-          bubbles: true
-        });
-        document.dispatchEvent(event);
-      }
-    }
+    // Use centralized wikilink service
+    await wikilinkService.handleWikilinkClick(noteId, title, shouldCreate);
   }
 
   export function handleKeyboardSelect(): void {

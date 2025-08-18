@@ -25,6 +25,7 @@
   import { searchKeymap, highlightSelectionMatches } from '@codemirror/search';
   import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
   import { wikilinksExtension } from '../lib/wikilinks.svelte.js';
+  import { wikilinkService } from '../services/wikilinkService.svelte.js';
   import {
     slashCommandsStore,
     type SlashCommand
@@ -179,13 +180,13 @@
   }
 
   function handleWikilinkClick(
-    _noteId: string,
-    _title: string,
-    _shouldCreate?: boolean
+    noteId: string,
+    title: string,
+    shouldCreate?: boolean
   ): void {
-    // For message input, we might want to handle this differently
-    // For now, just focus back to the editor
-    // Note: We don't implement note creation in the message input context
+    // For message input, use stub implementation that doesn't navigate
+    wikilinkService.handleWikilinkClickStub(noteId, title, shouldCreate);
+    // Keep focus on the editor
     editorView?.focus();
   }
 

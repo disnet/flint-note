@@ -86,6 +86,7 @@
   import { notesStore } from '../services/noteStore.svelte';
   import type { Note } from '@flint-note/server';
   import { getChatService } from '../services/chatService.js';
+  import { wikilinkService } from '../services/wikilinkService.svelte.js';
 
   interface Props {
     note: NoteMetadata;
@@ -358,53 +359,13 @@
     title: string,
     shouldCreate?: boolean
   ): Promise<void> {
-    if (shouldCreate) {
-      // Create a new note with the default 'note' type
-      try {
-        const chatService = getChatService();
-        const newNote = await chatService.createNote({
-          type: 'note',
-          identifier: title,
-          content: ``
-        });
-
-        // Refresh the notes store to include the new note
-        await notesStore.refresh();
-
-        // Find the full note data from the store
-        const fullNote = notesStore.notes.find((n) => n.id === newNote.id);
-
-        if (fullNote) {
-          // Navigate to the newly created note
-          const event = new CustomEvent('wikilink-navigate', {
-            detail: { note: fullNote },
-            bubbles: true
-          });
-          document.dispatchEvent(event);
-        } else {
-          console.error('Could not find created note in store after refresh');
-        }
-        // Don't close the editor when creating a new note - we want to navigate to it
-        // onClose();
-      } catch (error) {
-        console.error('Failed to create note from wikilink:', error);
-        // You could show an error message to the user here
-      }
-    } else {
-      // Find the note in the notes store
-      const clickedNote = notesStore.notes.find((n) => n.id === noteId);
-      if (clickedNote) {
-        // Close current editor and open the linked note
-        onClose();
-        // We need to communicate this back to the parent component
-        // For now, we'll dispatch a custom event
-        const event = new CustomEvent('wikilink-navigate', {
-          detail: { note: clickedNote },
-          bubbles: true
-        });
-        document.dispatchEvent(event);
-      }
+    // Close current editor before navigating (for existing notes)
+    if (!shouldCreate) {
+      onClose();
     }
+
+    // Use centralized wikilink service
+    await wikilinkService.handleWikilinkClick(noteId, title, shouldCreate);
   }
 
   // Export focus function to be called from parent components
