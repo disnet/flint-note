@@ -7,6 +7,36 @@
   "types": "dist/index.d.ts",
   "bin": "dist/index.js",
   "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./dist/api": {
+      "import": "./dist/api/index.js",
+      "types": "./dist/api/index.d.ts"
+    },
+    "./dist/api/*": {
+      "import": "./dist/api/*.js",
+      "types": "./dist/api/*.d.ts"
+    },
+    "./dist/core/*": {
+      "import": "./dist/core/*.js",
+      "types": "./dist/core/*.d.ts"
+    },
+    "./dist/database/*": {
+      "import": "./dist/database/*.js",
+      "types": "./dist/database/*.d.ts"
+    },
+    "./dist/server/*": {
+      "import": "./dist/server/*.js",
+      "types": "./dist/server/*.d.ts"
+    },
+    "./dist/utils/*": {
+      "import": "./dist/utils/*.js",
+      "types": "./dist/utils/*.d.ts"
+    }
+  },
   "private": true,
   "scripts": {
     "build": "tsc && chmod +x dist/cli.js && chmod +x dist/index.js",
