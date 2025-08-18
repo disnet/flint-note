@@ -34,6 +34,9 @@ export interface WikilinkClickHandler {
 // Effect to update wikilink click handler
 const setWikilinkHandler = StateEffect.define<WikilinkClickHandler>();
 
+// Effect to force wikilink re-rendering (when notes store updates)
+const forceWikilinkUpdate = StateEffect.define<boolean>();
+
 // State field to store the current click handler
 const wikilinkHandlerField = StateField.define<WikilinkClickHandler | null>({
   create: () => null,
@@ -273,6 +276,14 @@ const wikilinkField = StateField.define<DecorationSet>({
     if (tr.docChanged) {
       return decorateWikilinks(tr.state);
     }
+
+    // Check if there's a force update effect
+    for (const effect of tr.effects) {
+      if (effect.is(forceWikilinkUpdate)) {
+        return decorateWikilinks(tr.state);
+      }
+    }
+
     return decorations.map(tr.changes);
   },
   provide: (f) => EditorView.decorations.from(f)
@@ -382,5 +393,14 @@ export function updateWikilinkHandler(
 ): void {
   view.dispatch({
     effects: setWikilinkHandler.of(clickHandler)
+  });
+}
+
+/**
+ * Function to force wikilink re-rendering (when notes store updates)
+ */
+export function forceWikilinkRefresh(view: EditorView): void {
+  view.dispatch({
+    effects: forceWikilinkUpdate.of(true)
   });
 }

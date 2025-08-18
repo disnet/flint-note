@@ -2,6 +2,7 @@ import type { NoteMetadata } from './noteStore.svelte';
 import { pinnedNotesStore } from './pinnedStore.svelte';
 import { temporaryTabsStore } from '../stores/temporaryTabsStore.svelte';
 import { navigationHistoryStore } from '../stores/navigationHistoryStore.svelte';
+import { activeNoteStore } from '../stores/activeNoteStore.svelte';
 
 /**
  * Centralized service for handling note navigation and coordination between
@@ -117,6 +118,7 @@ class NoteNavigationService {
    */
   startVaultSwitch(): void {
     navigationHistoryStore.startVaultSwitch();
+    activeNoteStore.startVaultSwitch();
   }
 
   /**
@@ -124,6 +126,7 @@ class NoteNavigationService {
    */
   async endVaultSwitch(): Promise<void> {
     await navigationHistoryStore.endVaultSwitch();
+    await activeNoteStore.endVaultSwitch();
   }
 
   /**

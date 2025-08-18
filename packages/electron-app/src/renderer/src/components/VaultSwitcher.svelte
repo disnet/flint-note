@@ -5,6 +5,7 @@
   import { pinnedNotesStore } from '../services/pinnedStore.svelte';
   import { temporaryTabsStore } from '../stores/temporaryTabsStore.svelte';
   import { unifiedChatStore } from '../stores/unifiedChatStore.svelte';
+  import { activeNoteStore } from '../stores/activeNoteStore.svelte';
 
   interface Props {
     onNoteClose: () => void;
@@ -41,6 +42,7 @@
 
       // Start vault switch mode - this clears tabs and blocks new ones
       temporaryTabsStore.startVaultSwitch();
+      activeNoteStore.startVaultSwitch();
 
       // Close the active note since it's from the previous vault
       onNoteClose();
@@ -53,6 +55,7 @@
       await pinnedNotesStore.refreshForVault(vaultId);
       await temporaryTabsStore.refreshForVault(vaultId);
       await unifiedChatStore.refreshForVault(vaultId);
+      await activeNoteStore.endVaultSwitch();
 
       // End vault switch mode
       temporaryTabsStore.endVaultSwitch();

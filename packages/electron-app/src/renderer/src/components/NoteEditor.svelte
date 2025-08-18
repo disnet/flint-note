@@ -4,7 +4,7 @@
   import { markdown } from '@codemirror/lang-markdown';
   import { githubLight } from '@fsegurai/codemirror-theme-github-light';
   import { githubDark } from '@fsegurai/codemirror-theme-github-dark';
-  import { wikilinksExtension } from '../lib/wikilinks.svelte.js';
+  import { wikilinksExtension, forceWikilinkRefresh } from '../lib/wikilinks.svelte.js';
   import { listFormattingExtension } from '../lib/listFormatting.svelte.js';
   import { dropCursor, keymap } from '@codemirror/view';
   import { indentOnInput } from '@codemirror/language';
@@ -128,6 +128,23 @@
     loadNote(note);
     // Update title when note changes
     titleValue = note.title;
+  });
+
+  // Watch for changes in notes store and refresh wikilinks
+  $effect(() => {
+    // Access the notes store to create a dependency
+    const notes = notesStore.notes;
+    const loading = notesStore.loading;
+
+    // Only refresh if we have an editor, notes are loaded, and we're not currently loading
+    if (editorView && !loading && notes.length >= 0) {
+      // Small delay to ensure the store update is complete
+      setTimeout(() => {
+        if (editorView) {
+          forceWikilinkRefresh(editorView);
+        }
+      }, 50);
+    }
   });
 
   async function loadNote(note: NoteMetadata): Promise<void> {

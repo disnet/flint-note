@@ -15,6 +15,7 @@
   import { temporaryTabsStore } from './stores/temporaryTabsStore.svelte';
   import { unifiedChatStore } from './stores/unifiedChatStore.svelte';
   import { noteNavigationService } from './services/noteNavigationService.svelte';
+  import { activeNoteStore } from './stores/activeNoteStore.svelte';
 
   // Initialize unified chat store effects
   unifiedChatStore.initializeEffects();
@@ -23,7 +24,6 @@
   const messages = $derived(unifiedChatStore.activeThread?.messages || []);
 
   let isLoadingResponse = $state(false);
-  let activeNote = $state<NoteMetadata | null>(null);
   let showCreateNoteModal = $state(false);
   let createNotePreselectedType = $state<string | undefined>(undefined);
   let activeSystemView = $state<'notes' | 'settings' | 'slash-commands' | null>(null);
@@ -45,7 +45,7 @@
     activeSystemView = view;
     // Clear active note when switching to system views
     if (view !== null) {
-      activeNote = null;
+      activeNoteStore.clearActiveNote();
     }
   }
 
@@ -81,14 +81,15 @@
   }
 
   function openNoteEditor(note: NoteMetadata): void {
-    activeNote = note;
+    activeNoteStore.setActiveNote(note);
   }
 
   function closeNoteEditor(): void {
-    activeNote = null;
+    activeNoteStore.clearActiveNote();
   }
 
   async function handleNoteTypeChange(noteId: string, newType: string): Promise<void> {
+    const activeNote = activeNoteStore.activeNote;
     if (!activeNote || activeNote.id !== noteId) return;
 
     try {
@@ -104,11 +105,12 @@
 
       if (moveResult.success) {
         // Update the active note with new ID and type
-        activeNote = {
+        const updatedNote = {
           ...activeNote,
           id: moveResult.new_id,
           type: moveResult.new_type
         };
+        activeNoteStore.setActiveNote(updatedNote);
 
         // Refresh notes store to update the lists
         await notesStore.refresh();
@@ -138,6 +140,54 @@
     // Set data attribute for platform detection
     const isMacOS = navigator.platform.includes('Mac');
     document.documentElement.setAttribute('data-platform', isMacOS ? 'macos' : 'other');
+  });
+
+  // Restore active note on app startup
+  $effect(() => {
+    async function restoreNote(): Promise<void> {
+      try {
+        // Wait for the notes store to finish loading before restoring the active note
+        // This ensures wikilinks have the complete note data for proper resolution
+        const checkNotesLoaded = (): Promise<void> => {
+          return new Promise((resolve) => {
+            const checkInterval = setInterval(() => {
+              if (!notesStore.loading && notesStore.notes.length >= 0) {
+                clearInterval(checkInterval);
+                resolve();
+              }
+            }, 50);
+          });
+        };
+
+        await checkNotesLoaded();
+
+        const restoredNote = await activeNoteStore.restoreActiveNote();
+        if (restoredNote) {
+          console.log('Restored active note:', restoredNote.title);
+
+          // If we have a restored note and no system view is active,
+          // we don't need to call openNoteEditor since the store already has it
+          if (activeSystemView === null) {
+            // The note is already set in the store, we just need to ensure
+            // the navigation service is informed
+            noteNavigationService.openNote(
+              restoredNote,
+              'navigation',
+              () => {
+                // Note is already set in store, no need to set again
+              },
+              () => {
+                activeSystemView = null;
+              }
+            );
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to restore active note:', error);
+      }
+    }
+
+    restoreNote();
   });
 
   // Global keyboard shortcuts
@@ -374,7 +424,12 @@
     console.log('Metadata updated:', metadata);
     // Note: The metadata is already saved by the MetadataEditor component
     // This callback can be used to refresh the notes store or handle additional logic
+    const activeNote = activeNoteStore.activeNote;
     if (activeNote && Object.keys(metadata).length > 0) {
+      // Update the active note with new metadata
+      const updatedNote = { ...activeNote, ...metadata };
+      activeNoteStore.setActiveNote(updatedNote);
+
       // Refresh the notes store to pick up changes
       notesStore.refresh();
     }
@@ -484,14 +539,14 @@
 
   <div class="app-layout">
     <LeftSidebar
-      {activeNote}
+      activeNote={activeNoteStore.activeNote}
       {activeSystemView}
       onNoteSelect={handleNoteSelect}
       onSystemViewSelect={handleSystemViewSelect}
     />
 
     <MainView
-      {activeNote}
+      activeNote={activeNoteStore.activeNote}
       {activeSystemView}
       noteTypes={notesStore.noteTypes}
       onClose={closeNoteEditor}
@@ -503,7 +558,7 @@
     <RightSidebar
       {messages}
       isLoading={isLoadingResponse}
-      {activeNote}
+      activeNote={activeNoteStore.activeNote}
       onNoteClick={handleNoteClick}
       onSendMessage={handleSendMessage}
       onMetadataUpdate={handleMetadataUpdate}
