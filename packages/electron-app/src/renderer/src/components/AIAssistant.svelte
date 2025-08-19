@@ -6,7 +6,6 @@
   import ThreadSwitcher from './ThreadSwitcher.svelte';
   import { unifiedChatStore } from '../stores/unifiedChatStore.svelte';
   import type { Message } from '../services/types';
-  import { formatCostFromMicroCents } from '../lib/costUtils.svelte';
 
   interface Props {
     messages: Message[];
@@ -19,11 +18,7 @@
 
   let chatContainer = $state<HTMLDivElement>();
   let expandedDiscussed = $state<boolean>(true);
-  let expandedCost = $state<boolean>(false);
   let showHistory = $state<boolean>(false);
-
-  // Get active thread for cost information
-  const activeConversation = $derived(unifiedChatStore.activeThread);
 
   function toggleHistory(): void {
     showHistory = !showHistory;
@@ -221,73 +216,6 @@
       </div>
     {/if}
 
-    <!-- Cost Summary Section -->
-    {#if activeConversation?.costInfo && activeConversation.costInfo.totalCost > 0}
-      <div class="cost-section">
-        <button
-          class="section-header"
-          onclick={() => (expandedCost = !expandedCost)}
-          aria-expanded={expandedCost}
-        >
-          <h4 class="section-title">Conversation Cost</h4>
-          <span class="expand-icon" class:expanded={expandedCost}>▼</span>
-        </button>
-        {#if expandedCost}
-          <div class="cost-details">
-            <div class="cost-total">
-              Total: {formatCostFromMicroCents(activeConversation.costInfo.totalCost, 4)}
-            </div>
-            <div class="cost-breakdown">
-              <div class="token-stats">
-                <div class="token-row">
-                  <span>Input tokens:</span>
-                  <span>{activeConversation.costInfo.inputTokens.toLocaleString()}</span>
-                </div>
-                <div class="token-row">
-                  <span>Output tokens:</span>
-                  <span>{activeConversation.costInfo.outputTokens.toLocaleString()}</span>
-                </div>
-                {#if activeConversation.costInfo.cachedTokens > 0}
-                  <div class="token-row">
-                    <span>Cached tokens:</span>
-                    <span
-                      >{activeConversation.costInfo.cachedTokens.toLocaleString()}</span
-                    >
-                  </div>
-                {/if}
-              </div>
-              <div class="request-stats">
-                <div class="stat-row">
-                  <span>Requests:</span>
-                  <span>{activeConversation.costInfo.requestCount}</span>
-                </div>
-                <div class="stat-row">
-                  <span>Last updated:</span>
-                  <span
-                    >{activeConversation.costInfo.lastUpdated.toLocaleTimeString()}</span
-                  >
-                </div>
-              </div>
-            </div>
-
-            {#if activeConversation.costInfo.modelUsage.length > 1}
-              <div class="model-breakdown">
-                <h5>Cost by Model:</h5>
-                {#each activeConversation.costInfo.modelUsage as model (model.model)}
-                  <div class="model-cost-row">
-                    <span class="model-name">{model.model.split('/').pop()}</span>
-                    <span class="model-cost-value"
-                      >{formatCostFromMicroCents(model.cost, 4)}</span
-                    >
-                  </div>
-                {/each}
-              </div>
-            {/if}
-          </div>
-        {/if}
-      </div>
-    {/if}
-
     <!-- Message Input Area -->
     <div class="input-section">
       <MessageInput onSend={onSendMessage || (() => {})} />
@@ -446,90 +374,6 @@
   .note-link:hover {
     background: var(--bg-tertiary);
     border-color: var(--accent-primary);
-  }
-
-  /* Cost Section Styles */
-  .cost-section {
-    padding: 1rem 1.25rem;
-    border-top: 1px solid var(--border-light);
-    background: var(--bg-secondary);
-  }
-
-  .cost-details {
-    margin-top: 0.75rem;
-  }
-
-  .cost-total {
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: var(--accent-primary);
-    margin-bottom: 0.75rem;
-  }
-
-  .cost-breakdown {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    font-size: 0.875rem;
-    color: var(--text-secondary);
-  }
-
-  .token-stats,
-  .request-stats {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-  }
-
-  .token-row,
-  .stat-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.25rem 0;
-  }
-
-  .token-row span:first-child,
-  .stat-row span:first-child {
-    color: var(--text-secondary);
-  }
-
-  .token-row span:last-child,
-  .stat-row span:last-child {
-    font-weight: 500;
-    color: var(--text-primary);
-  }
-
-  .model-breakdown {
-    margin-top: 0.75rem;
-    padding-top: 0.75rem;
-    border-top: 1px solid var(--border-light);
-  }
-
-  .model-breakdown h5 {
-    margin: 0 0 0.5rem 0;
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--text-primary);
-  }
-
-  .model-cost-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.25rem 0;
-  }
-
-  .model-name {
-    color: var(--text-secondary);
-    font-size: 0.8rem;
-    text-transform: capitalize;
-  }
-
-  .model-cost-value {
-    font-weight: 500;
-    color: var(--accent-primary);
-    font-size: 0.875rem;
   }
 
   /* Input Section Styles */
