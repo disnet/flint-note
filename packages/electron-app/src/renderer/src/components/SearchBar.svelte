@@ -186,8 +186,8 @@
 <style>
   .search-container {
     position: relative;
-    min-width: 30ch;
-    max-width: 50ch;
+    min-width: 50ch;
+    max-width: 80ch;
     width: 100%;
   }
 

@@ -550,10 +550,9 @@
             </svg>
           </button>
         </div>
-      </div>
-      <div class="title-bar-center">
         <SearchBar onNoteSelect={handleNoteSelect} />
       </div>
+      <div class="title-bar-drag-center"></div>
       <div class="title-bar-controls">
         <button
           class="ai-assistant-btn"
@@ -678,13 +677,10 @@
     color: var(--text-primary);
   }
 
-  .title-bar-center {
+  .title-bar-drag-center {
     flex: 1;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 0 1rem;
-    -webkit-app-region: no-drag;
+    height: 100%;
+    -webkit-app-region: drag;
   }
 
   .navigation-controls {
