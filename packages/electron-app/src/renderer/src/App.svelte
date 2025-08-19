@@ -3,7 +3,7 @@
   import MainView from './components/MainView.svelte';
   import RightSidebar from './components/RightSidebar.svelte';
   import CreateNoteModal from './components/CreateNoteModal.svelte';
-  import SearchOverlay from './components/SearchOverlay.svelte';
+  import SearchBar from './components/SearchBar.svelte';
   import VaultSwitcher from './components/VaultSwitcher.svelte';
   import type { Message } from './services/types';
   import type { NoteMetadata } from './services/noteStore.svelte';
@@ -11,7 +11,6 @@
   import { notesStore } from './services/noteStore.svelte';
   import { modelStore } from './stores/modelStore.svelte';
   import { sidebarState } from './stores/sidebarState.svelte';
-  import { searchOverlayState } from './stores/searchOverlay.svelte';
   import { temporaryTabsStore } from './stores/temporaryTabsStore.svelte';
   import { unifiedChatStore } from './stores/unifiedChatStore.svelte';
   import { noteNavigationService } from './services/noteNavigationService.svelte';
@@ -239,10 +238,11 @@
         handleCreateNote(undefined, true);
       }
 
-      // Ctrl/Cmd + O to open search
+      // Ctrl/Cmd + O to focus search
       if (event.key === 'o' && (event.ctrlKey || event.metaKey)) {
         event.preventDefault();
-        searchOverlayState.open();
+        const searchInput = document.getElementById('global-search');
+        searchInput?.focus();
       }
 
       // Alt + Left Arrow to go back
@@ -551,7 +551,9 @@
           </button>
         </div>
       </div>
-      <div class="title-bar-center"></div>
+      <div class="title-bar-center">
+        <SearchBar onNoteSelect={handleNoteSelect} />
+      </div>
       <div class="title-bar-controls">
         <button
           class="ai-assistant-btn"
@@ -610,12 +612,6 @@
     onClose={handleCloseCreateModal}
     onNoteCreated={handleNoteCreated}
     preselectedType={createNotePreselectedType}
-  />
-
-  <SearchOverlay
-    isOpen={searchOverlayState.isOpen}
-    onClose={searchOverlayState.close}
-    onNoteSelect={handleNoteSelect}
   />
 </div>
 
@@ -687,6 +683,8 @@
     display: flex;
     justify-content: center;
     align-items: center;
+    padding: 0 1rem;
+    -webkit-app-region: no-drag;
   }
 
   .navigation-controls {

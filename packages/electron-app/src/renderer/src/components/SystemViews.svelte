@@ -1,6 +1,4 @@
 <script lang="ts">
-  import { searchOverlayState } from '../stores/searchOverlay.svelte';
-
   interface Props {
     activeSystemView: 'notes' | 'settings' | 'slash-commands' | null;
     onSystemViewSelect: (view: 'notes' | 'settings' | 'slash-commands' | null) => void;
@@ -10,10 +8,6 @@
 
   function setActiveView(view: 'notes' | 'settings' | 'slash-commands'): void {
     onSystemViewSelect(view);
-  }
-
-  function openSearchOverlay(): void {
-    searchOverlayState.open();
   }
 </script>
 
@@ -36,21 +30,6 @@
         <polyline points="14,2 14,8 20,8"></polyline>
       </svg>
       All notes
-    </button>
-
-    <button class="nav-item" onclick={openSearchOverlay}>
-      <svg
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-      >
-        <circle cx="11" cy="11" r="8"></circle>
-        <path d="m21 21-4.35-4.35"></path>
-      </svg>
-      Search
     </button>
 
     <button

@@ -11,6 +11,11 @@
   let searchValue = $state('');
   let isSearchFocused = $state(false);
   let suggestionText = $state('');
+
+  // Platform-specific keyboard shortcut display
+  const isMacOS = $derived(navigator.platform.includes('Mac'));
+  const shortcutKey = $derived(isMacOS ? '⌘O' : 'Ctrl+O');
+  const placeholder = $derived(`Search notes... (${shortcutKey})`);
   const filteredResults = $derived.by(() => {
     if (!searchValue.trim()) {
       return [];
@@ -147,7 +152,7 @@
       <input
         id="global-search"
         type="text"
-        placeholder="Search notes..."
+        {placeholder}
         bind:value={searchValue}
         onfocus={handleSearchFocus}
         onblur={handleSearchBlur}
@@ -181,8 +186,9 @@
 <style>
   .search-container {
     position: relative;
-    min-width: 50ch;
-    max-width: 75ch;
+    min-width: 30ch;
+    max-width: 50ch;
+    width: 100%;
   }
 
   .search-input-wrapper {
@@ -196,23 +202,11 @@
     flex: 1;
   }
 
-  .input-container::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: var(--bg-primary);
-    border-radius: 1rem;
-    z-index: 0;
-  }
-
   .search-icon {
     position: absolute;
-    left: 1rem;
-    width: 1.25rem;
-    height: 1.25rem;
+    left: 0.5rem;
+    width: 1rem;
+    height: 1rem;
     color: var(--text-tertiary);
     pointer-events: none;
     z-index: 3;
@@ -220,33 +214,29 @@
 
   .search-input {
     width: 100%;
-    padding: 1rem 1rem 1rem 3rem;
+    padding: 0.5rem 0.75rem 0.5rem 2rem;
     border: 1px solid var(--border-light);
-    border-radius: 1rem;
-    background: transparent !important;
+    border-radius: 0.5rem;
+    background: var(--bg-primary) !important;
     color: var(--text-primary);
-    font-size: 1.125rem;
+    font-size: 0.875rem;
     transition: all 0.2s ease;
-    box-shadow:
-      0 20px 40px rgba(0, 0, 0, 0.3),
-      0 10px 20px rgba(0, 0, 0, 0.2),
-      0 4px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     position: relative;
     z-index: 2;
+    height: 28px;
   }
 
   .search-input:focus {
     outline: none;
     border-color: var(--accent-primary);
     box-shadow:
-      0 0 0 3px rgba(99, 102, 241, 0.2),
-      0 20px 40px rgba(0, 0, 0, 0.3),
-      0 10px 20px rgba(0, 0, 0, 0.2),
-      0 4px 8px rgba(0, 0, 0, 0.1);
+      0 0 0 2px rgba(99, 102, 241, 0.2),
+      0 1px 3px rgba(0, 0, 0, 0.1);
   }
 
   .search-input::placeholder {
-    color: var(--text-tertiary);
+    color: var(--text-placeholder);
   }
 
   .suggestion-text {
@@ -255,16 +245,17 @@
     left: 1px;
     right: 1px;
     bottom: 1px;
-    padding: 1rem 1rem 1rem 3rem;
-    border-radius: 1rem;
+    padding: 0.5rem 0.75rem 0.5rem 2rem;
+    border-radius: 0.5rem;
     background: transparent;
-    font-size: 1.125rem;
+    font-size: 0.875rem;
     pointer-events: none;
     white-space: nowrap;
     overflow: hidden;
     z-index: 1;
     display: flex;
     align-items: center;
+    height: 28px;
   }
 
   .suggestion-typed {
@@ -285,14 +276,14 @@
     right: 0;
     background: var(--bg-primary);
     border: 1px solid var(--border-light);
-    border-radius: 0.75rem;
+    border-radius: 0.5rem;
     box-shadow:
-      0 25px 50px rgba(0, 0, 0, 0.25),
-      0 10px 20px rgba(0, 0, 0, 0.15);
+      0 10px 25px rgba(0, 0, 0, 0.2),
+      0 4px 10px rgba(0, 0, 0, 0.1);
     z-index: 1001;
-    max-height: 400px;
+    max-height: 300px;
     overflow-y: auto;
-    margin-top: 0.5rem;
+    margin-top: 0.25rem;
   }
 
   .search-results::-webkit-scrollbar {
@@ -320,7 +311,7 @@
 
   .search-result-item {
     width: 100%;
-    padding: 1rem;
+    padding: 0.75rem;
     border: none;
     background: none;
     text-align: left;
