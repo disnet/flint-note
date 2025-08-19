@@ -16,6 +16,7 @@
   import { unifiedChatStore } from './stores/unifiedChatStore.svelte';
   import { noteNavigationService } from './services/noteNavigationService.svelte';
   import { activeNoteStore } from './stores/activeNoteStore.svelte';
+  import { generateSafeNoteIdentifier } from './utils/noteUtils.svelte';
 
   // Initialize unified chat store effects
   unifiedChatStore.initializeEffects();
@@ -34,9 +35,48 @@
     });
   }
 
-  function handleCreateNote(noteType?: string): void {
-    createNotePreselectedType = noteType;
-    showCreateNoteModal = true;
+  async function handleCreateNote(
+    noteType?: string,
+    fromKeyboard: boolean = false
+  ): Promise<void> {
+    // For keyboard shortcuts, create note directly
+    if (fromKeyboard) {
+      try {
+        // Generate a safe, unique title and identifier
+        const type = noteType || 'note'; // Default to 'note' type
+        const { title, identifier } = generateSafeNoteIdentifier('Untitled Note', type);
+        const content = `# ${title}\n\n`;
+
+        // Create the note via the chat service
+        const chatService = getChatService();
+        const noteInfo = await chatService.createNote({
+          type,
+          identifier,
+          content
+        });
+
+        // Refresh notes store to show new note
+        await notesStore.refresh();
+
+        // Find the newly created note and open it through navigation service
+        const notes = notesStore.notes;
+        const newNote = notes.find((n) => n.id === noteInfo.id);
+        if (newNote) {
+          noteNavigationService.openNote(newNote, 'navigation', openNoteEditor, () => {
+            activeSystemView = null;
+          });
+        }
+      } catch (error) {
+        console.error('Failed to create note:', error);
+        // Fallback to modal on error
+        createNotePreselectedType = noteType;
+        showCreateNoteModal = true;
+      }
+    } else {
+      // For UI clicks, show the modal
+      createNotePreselectedType = noteType;
+      showCreateNoteModal = true;
+    }
   }
 
   function handleSystemViewSelect(
@@ -193,10 +233,10 @@
   // Global keyboard shortcuts
   $effect(() => {
     function handleKeyDown(event: KeyboardEvent): void {
-      // Ctrl/Cmd + N to create new note
+      // Ctrl/Cmd + Shift + N to create new note
       if (event.key === 'n' && (event.ctrlKey || event.metaKey) && event.shiftKey) {
         event.preventDefault();
-        handleCreateNote();
+        handleCreateNote(undefined, true);
       }
 
       // Ctrl/Cmd + O to open search
