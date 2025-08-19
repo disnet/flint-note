@@ -5,7 +5,8 @@
     "src/renderer/src/**/*",
     "src/renderer/src/**/*.svelte",
     "src/renderer/src/**/*.svelte.ts",
-    "src/preload/*.d.ts"
+    "src/preload/*.d.ts",
+    "src/server/**/*"
   ],
   "compilerOptions": {
     "verbatimModuleSyntax": true,
@@ -15,6 +16,10 @@
     "checkJs": true,
     "composite": false,
     "noEmit": true,
-    "lib": ["ESNext", "DOM", "DOM.Iterable"]
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    }
   }
 }

@@ -292,7 +292,7 @@ export class WikilinkParser {
    * Remove all wikilinks from content, leaving only display text
    */
   static removeWikilinks(content: string): string {
-    return content.replace(this.WIKILINK_REGEX, (match, target, pipe, display) => {
+    return content.replace(this.WIKILINK_REGEX, (_match, target, _pipe, display) => {
       return display || target;
     });
   }

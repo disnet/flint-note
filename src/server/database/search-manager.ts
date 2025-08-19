@@ -1,13 +1,10 @@
 import {
   DatabaseManager,
-  DatabaseConnection,
-  NoteRow,
-  MetadataRow,
-  SearchRow,
   serializeMetadataValue,
   deserializeMetadataValue as _deserializeMetadataValue
 } from './schema.js';
-import { NoteMetadata, NoteLink as _NoteLink } from '../types/index.js';
+import type { DatabaseConnection, NoteRow, MetadataRow, SearchRow } from './schema.js';
+import type { NoteMetadata, NoteLink as _NoteLink } from '../types/index.js';
 import fs from 'fs/promises';
 import path from 'path';
 import { createHash } from 'crypto';
@@ -763,8 +760,6 @@ export class HybridSearchManager {
   async rebuildIndex(
     progressCallback?: (processed: number, total: number) => void
   ): Promise<void> {
-    const _connection = await this.getConnection();
-
     try {
       // Clear existing data
       await this.dbManager.rebuild();

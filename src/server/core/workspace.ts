@@ -1053,7 +1053,7 @@ Expected frontmatter fields:
       let constraintText = '';
 
       if (field.constraints) {
-        const constraints = [];
+        const constraints: string[] = [];
         if (field.constraints.min !== undefined)
           constraints.push(`min: ${field.constraints.min}`);
         if (field.constraints.max !== undefined)

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { VaultInfo } from '../../server/utils/global-config';
+  import type { VaultInfo } from '@/server/utils/global-config';
   import { getChatService } from '../services/chatService';
   import { notesStore } from '../services/noteStore.svelte';
   import { pinnedNotesStore } from '../services/pinnedStore.svelte';

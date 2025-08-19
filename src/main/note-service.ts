@@ -6,9 +6,7 @@ import type {
   DeleteNoteResult,
   NoteListItem
 } from '../server/core/notes';
-import type {
-  NoteTypeListItem
-} from '../server/core/note-types';
+import type { NoteTypeListItem } from '../server/core/note-types';
 import type { NoteMetadata } from '../server/types';
 import type { GetNoteTypeInfoArgs } from '../server/server/types';
 import type { MoveNoteResult } from '../server/core/notes';

@@ -84,7 +84,7 @@
   import { onMount, onDestroy } from 'svelte';
   import type { NoteMetadata } from '../services/noteStore.svelte';
   import { notesStore } from '../services/noteStore.svelte';
-  import type { Note } from '../../server/core/notes';
+  import type { Note } from '@/server/core/notes';
   import { getChatService } from '../services/chatService.js';
   import { wikilinkService } from '../services/wikilinkService.svelte.js';
 

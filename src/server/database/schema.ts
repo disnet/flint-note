@@ -83,9 +83,6 @@ export class DatabaseManager {
   }
 
   private createConnection(db: sqlite3.Database): DatabaseConnection {
-    const _run = promisify(db.run.bind(db));
-    const _get = promisify(db.get.bind(db));
-    const _all = promisify(db.all.bind(db));
     const close = promisify(db.close.bind(db));
 
     return {

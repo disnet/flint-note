@@ -422,7 +422,8 @@ export class NoteTypeManager {
     updates: NoteTypeUpdateRequest
   ): Promise<NoteTypeDescription> {
     try {
-      const _noteType = await this.getNoteTypeDescription(typeName);
+      // Validate note type exists (throws if not found)
+      await this.getNoteTypeDescription(typeName);
 
       // Update description if provided
       if (updates.description) {

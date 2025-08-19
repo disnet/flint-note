@@ -4,25 +4,23 @@ import type {
   UpdateResult,
   DeleteNoteResult,
   NoteListItem
-} from '../../server/core/notes';
-import type {
-  NoteTypeListItem
-} from '../../server/core/note-types';
-import type { NoteMetadata } from '../../server/types';
-import type { MoveNoteResult } from '../../server/core/notes';
-import type { SearchResult } from '../../server/database/search-manager';
+} from '@/server/core/notes';
+import type { NoteTypeListItem } from '@/server/core/note-types';
+import type { NoteMetadata } from '@/server/types';
+import type { MoveNoteResult } from '@/server/core/notes';
+import type { SearchResult } from '@/server/database/search-manager';
 import type {
   CoreVaultInfo as VaultInfo,
   CoreNoteLinkRow as NoteLinkRow,
   CoreNoteTypeInfo as NoteTypeInfo
-} from '../../server/api/types';
-import type { ExternalLinkRow } from '../../server/database/schema';
+} from '@/server/api/types';
+import type { ExternalLinkRow } from '@/server/database/schema';
 import type {
   MetadataFieldDefinition,
   MetadataSchema
-} from '../../server/core/metadata-schema';
-import type { GetNoteTypeInfoResult } from '../../server/server/types';
-import type { NoteTypeDescription } from '../../server/core/note-types';
+} from '@/server/core/metadata-schema';
+import type { GetNoteTypeInfoResult } from '@/server/server/types';
+import type { NoteTypeDescription } from '@/server/core/note-types';
 
 export interface ToolCall {
   id: string;

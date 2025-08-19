@@ -10,8 +10,7 @@ import type { VaultContext } from './types.js';
 export class ResourceHandlers {
   constructor(
     private requireWorkspace: () => void,
-    private resolveVaultContext: (vaultId?: string) => Promise<VaultContext>,
-    private generateNoteIdFromIdentifier: (identifier: string) => string
+    private resolveVaultContext: (vaultId?: string) => Promise<VaultContext>
   ) {}
 
   /**

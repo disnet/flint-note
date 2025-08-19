@@ -164,8 +164,7 @@ export class FlintNoteServer {
         // Initialize resource handlers
         this.resourceHandlers = new ResourceHandlers(
           this.#requireWorkspace.bind(this),
-          this.#resolveVaultContext.bind(this),
-          this.#generateNoteIdFromIdentifier.bind(this)
+          this.#resolveVaultContext.bind(this)
         );
 
         // Initialize hybrid search index - only rebuild if necessary
@@ -248,8 +247,7 @@ export class FlintNoteServer {
           // Initialize resource handlers
           this.resourceHandlers = new ResourceHandlers(
             this.#requireWorkspace.bind(this),
-            this.#resolveVaultContext.bind(this),
-            this.#generateNoteIdFromIdentifier.bind(this)
+            this.#resolveVaultContext.bind(this)
           );
 
           // Initialize hybrid search index - only rebuild if necessary

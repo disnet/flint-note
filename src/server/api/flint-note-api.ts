@@ -52,7 +52,7 @@ import { resolvePath, isPathSafe } from '../utils/path.js';
 import { LinkExtractor } from '../core/link-extractor.js';
 import type { NoteLinkRow, ExternalLinkRow, NoteRow } from '../database/schema.js';
 import { generateNoteIdFromIdentifier } from '../server/server-utils.js';
-import { MetadataFieldDefinition } from '../core/metadata-schema.js';
+import type { MetadataFieldDefinition } from '../core/metadata-schema.js';
 
 export interface FlintNoteApiConfig extends ServerConfig {
   [key: string]: unknown;

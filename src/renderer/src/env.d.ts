@@ -11,9 +11,7 @@ import type {
   DeleteNoteResult,
   NoteListItem
 } from '../server/core/notes';
-import type {
-  NoteTypeListItem
-} from '../server/core/note-types';
+import type { NoteTypeListItem } from '../server/core/note-types';
 import type { NoteMetadata } from '../server/types';
 import type { MoveNoteResult } from '../server/core/notes';
 import type { SearchResult } from '../server/database/search-manager';

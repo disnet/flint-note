@@ -157,18 +157,6 @@ export class LinkManager implements NoteLinkingManager {
   }
 
   /**
-   * Format note content with updated frontmatter including links
-   * @deprecated Use NoteManager.formatUpdatedNoteContent instead
-   */
-  private formatNoteWithLinks(
-    content: string,
-    _metadata: Record<string, unknown>
-  ): string {
-    // This method is deprecated - NoteManager handles frontmatter formatting
-    return content;
-  }
-
-  /**
    * Add inline wikilinks to note content where appropriate
    */
   private async addInlineLinks(
