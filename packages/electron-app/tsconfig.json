@@ -1,9 +1,0 @@
-{
-  "extends": "../../tsconfig.json",
-  "files": [],
-  "references": [
-    { "path": "../flint-server" },
-    { "path": "./tsconfig.node.json" },
-    { "path": "./tsconfig.web.json" }
-  ]
-}
