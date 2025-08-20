@@ -729,6 +729,11 @@
     color: var(--text-primary);
   }
 
+  /* Add padding around hamburger menu on Windows */
+  :global(html[data-platform='other']) .hamburger-button {
+    margin-left: 0.5rem;
+  }
+
   .title-bar-drag-center {
     flex: 1;
     height: 100%;
