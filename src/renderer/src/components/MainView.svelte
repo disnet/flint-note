@@ -179,18 +179,12 @@
     </div>
   {:else if activeSystemView === 'slash-commands'}
     <div class="system-view-container">
-      <div class="system-view-header">
-        <h1>Slash Commands</h1>
-      </div>
       <div class="system-view-content">
         <SlashCommands />
       </div>
     </div>
   {:else if activeSystemView === 'settings'}
     <div class="system-view-container">
-      <div class="system-view-header">
-        <h1>Settings</h1>
-      </div>
       <div class="system-view-content">
         <Settings />
       </div>
