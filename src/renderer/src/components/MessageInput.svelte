@@ -646,7 +646,7 @@
 
 <div class="message-input">
   <div class="input-container">
-    <div bind:this={editorContainer} class="editor-field"></div>
+    <div bind:this={editorContainer} class="editor-field editor-font"></div>
     {#if showAutocomplete}
       <SlashCommandAutocomplete
         bind:this={autocompleteComponent}

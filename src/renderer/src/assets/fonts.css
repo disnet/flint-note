@@ -1,0 +1,36 @@
+@font-face {
+  font-family: 'iA Writer Quattro';
+  src: url('./fonts/iAWriterQuattroV.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'iA Writer Quattro';
+  src: url('./fonts/iAWriterQuattroV-Italic.ttf') format('truetype');
+  font-weight: normal;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* CSS custom properties for easy reuse */
+:root {
+  --font-editor:
+    'iA Writer Quattro', 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas,
+    'Courier New', monospace;
+  --font-editor-size: 14px;
+  --font-editor-line-height: 1.5;
+}
+
+/* Base editor font styles */
+.editor-font {
+  font-family: var(--font-editor);
+  font-size: var(--font-editor-size);
+  line-height: var(--font-editor-line-height);
+  font-feature-settings:
+    'liga' 1,
+    'calt' 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

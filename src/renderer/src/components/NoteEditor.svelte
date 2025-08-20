@@ -20,30 +20,39 @@
   const editorTheme = EditorView.theme({
     '&': {
       height: '100%',
-      fontFamily: "'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace",
-      fontSize: '0.875rem',
+      fontFamily:
+        "'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace !important",
+      fontSize: '16px !important',
       lineHeight: '1.6',
       width: '100%'
     },
     '&.cm-editor': {
-      backgroundColor: 'var(--bg-primary)'
+      backgroundColor: 'var(--bg-primary)',
+      fontFamily:
+        "'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace !important"
     },
     '.cm-scroller': {
       width: '100%',
       scrollbarWidth: 'thin',
       scrollbarColor: 'rgba(0, 0, 0, 0.2) transparent',
-      paddingBottom: '50vh'
+      paddingBottom: '50vh',
+      fontFamily:
+        "'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace !important"
     },
     '.cm-focused': {
       outline: 'none'
     },
     '.cm-content': {
       margin: '0 auto !important',
-      maxWidth: '75ch'
+      maxWidth: '75ch',
+      fontFamily:
+        "'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace !important"
     },
     '.cm-line': {
       padding: '0 !important',
-      width: '75ch'
+      width: '75ch',
+      fontFamily:
+        "'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace !important"
     },
     '.cm-scroller::-webkit-scrollbar': {
       width: '12px'
@@ -195,9 +204,9 @@
       EditorView.lineWrapping,
       // Apply the appropriate theme
       newTheme,
-      // Apply editor styling theme
-      editorTheme,
       ...(isDarkMode ? [darkEditorTheme] : []),
+      // Apply editor styling theme AFTER GitHub themes to override font settings
+      editorTheme,
       wikilinksExtension(handleWikilinkClick),
       listFormattingExtension(),
       EditorView.contentAttributes.of({ spellcheck: 'true' }),
@@ -239,9 +248,9 @@
         markdown(),
         EditorView.lineWrapping,
         ...(isDarkMode ? [githubDark] : [githubLight]),
-        // Apply editor styling theme
-        editorTheme,
         ...(isDarkMode ? [darkEditorTheme] : []),
+        // Apply editor styling theme AFTER GitHub themes to override font settings
+        editorTheme,
         wikilinksExtension(handleWikilinkClick),
         listFormattingExtension(),
         EditorView.contentAttributes.of({ spellcheck: 'true' }),
@@ -546,7 +555,7 @@
     onclick={handleEditorAreaClick}
     onkeydown={handleEditorAreaKeydown}
   >
-    <div class="editor-container" bind:this={editorContainer}></div>
+    <div class="editor-container editor-font" bind:this={editorContainer}></div>
   </div>
 </div>
 
@@ -627,7 +636,8 @@
     margin: 0;
     font-size: 1.1rem;
     font-weight: 600;
-    font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace;
+    font-family:
+      'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace;
     color: var(--text-primary);
     background: transparent;
     border: 1px solid transparent;
