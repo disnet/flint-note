@@ -655,7 +655,7 @@ app.whenReady().then(async () => {
   });
 
   // Directory picker for vault creation
-  ipcMain.handle('show-directory-picker', async (_event) => {
+  ipcMain.handle('show-directory-picker', async () => {
     const result = await dialog.showOpenDialog({
       properties: ['openDirectory', 'createDirectory'],
       title: 'Select Vault Directory'

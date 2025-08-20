@@ -1,10 +1,11 @@
 <script lang="ts">
   import { getChatService } from '../services/chatService';
+  import type { VaultInfo } from '@/server/utils/global-config';
 
   interface Props {
     isOpen: boolean;
     onClose: () => void;
-    onVaultCreated?: (vaultInfo: any) => void;
+    onVaultCreated?: (vaultInfo: VaultInfo) => void;
   }
 
   let { isOpen, onClose, onVaultCreated }: Props = $props();

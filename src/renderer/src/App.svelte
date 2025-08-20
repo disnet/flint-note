@@ -479,10 +479,6 @@
     sidebarState.toggleLeftSidebar();
   }
 
-  function toggleRightSidebar(): void {
-    sidebarState.toggleRightSidebar();
-  }
-
   function setRightSidebarMode(mode: 'ai' | 'metadata' | 'threads'): void {
     // If sidebar is closed, open it first
     if (!sidebarState.rightSidebar.visible) {

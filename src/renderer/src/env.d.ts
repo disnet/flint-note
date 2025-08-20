@@ -153,6 +153,10 @@ declare global {
         description?: string;
       }) => Promise<any>;
       switchVault: (params: { vaultId: string }) => Promise<any>;
+      removeVault: (params: { vaultId: string }) => Promise<any>;
+
+      // File system operations
+      showDirectoryPicker: () => Promise<any>;
 
       // Link operations
       getNoteLinks: (params: { identifier: string; vaultId?: string }) => Promise<any>;
