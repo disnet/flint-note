@@ -7,7 +7,6 @@
 
   let errorMessage = $state('');
   let successMessage = $state('');
-  let activeSection = $state('api-keys');
 
   // Local form state for API keys
   let anthropicKey = $state('');
@@ -113,15 +112,6 @@
     };
   });
 
-  const sections = [
-    { id: 'api-keys', label: '🔑 API Keys', icon: '🔑' },
-    { id: 'model-preferences', label: '🤖 Model Preferences', icon: '🤖' },
-    { id: 'cache-performance', label: '⚡ Cache Performance', icon: '⚡' },
-    { id: 'appearance', label: '🎨 Appearance', icon: '🎨' },
-    { id: 'data-privacy', label: '💾 Data & Privacy', icon: '💾' },
-    { id: 'advanced', label: '⚙️ Advanced', icon: '⚙️' }
-  ];
-
   function showError(message: string): void {
     errorMessage = message;
     successMessage = '';
@@ -209,21 +199,6 @@
     modelStore.setSelectedModel(target.value);
   }
 
-  function handleThemeChange(event: Event): void {
-    const target = event.target as HTMLInputElement;
-    settingsStore.updateTheme(target.value as 'light' | 'dark' | 'system');
-  }
-
-  function handleAutoSaveDelayChange(event: Event): void {
-    const target = event.target as HTMLSelectElement;
-    settingsStore.updateSettings({
-      dataAndPrivacy: {
-        ...settingsStore.settings.dataAndPrivacy,
-        autoSaveDelay: parseInt(target.value)
-      }
-    });
-  }
-
   async function clearAllApiKeys(): Promise<void> {
     if (
       !confirm(
@@ -258,64 +233,6 @@
         `Failed to clear API keys: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
     }
-  }
-
-  function resetToDefaults(): void {
-    if (
-      !confirm(
-        'Are you sure you want to reset all settings to defaults? This will not affect your API keys.'
-      )
-    ) {
-      return;
-    }
-
-    settingsStore.resetToDefaults();
-    showSuccess('Settings reset to defaults');
-  }
-
-  function exportSettings(): void {
-    try {
-      const settingsJson = settingsStore.exportSettings();
-      const blob = new Blob([settingsJson], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'flint-settings.json';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      showSuccess('Settings exported successfully');
-    } catch {
-      showError('Failed to export settings');
-    }
-  }
-
-  function importSettings(): void {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-    input.onchange = (event) => {
-      const file = (event.target as HTMLInputElement).files?.[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          try {
-            const content = e.target?.result as string;
-            const success = settingsStore.importSettings(content);
-            if (success) {
-              showSuccess('Settings imported successfully');
-            } else {
-              showError('Failed to import settings: Invalid file format');
-            }
-          } catch {
-            showError('Failed to import settings: Invalid file');
-          }
-        };
-        reader.readAsText(file);
-      }
-    };
-    input.click();
   }
 
   // Cache monitoring functions
@@ -432,9 +349,9 @@
     }
   }
 
-  // Load cache data when cache performance section is active
+  // Load cache data on component mount
   $effect(() => {
-    if (activeSection === 'cache-performance' && !cacheDataLoaded && !loadingCache) {
+    if (!cacheDataLoaded && !loadingCache) {
       loadCacheData().catch((error) => {
         console.error('Failed to load cache data in effect:', error);
         showError(
@@ -443,31 +360,14 @@
         );
         loadingCache = false;
       });
-    } else if (activeSection !== 'cache-performance') {
-      // Reset cache data loaded flag when switching away from cache performance section
-      cacheDataLoaded = false;
     }
   });
 </script>
 
 <div class="settings">
-  <div class="settings-sidebar">
-    <h2>Settings</h2>
-    <nav class="settings-nav">
-      {#each sections as section (section.id)}
-        <button
-          class="nav-item"
-          class:active={activeSection === section.id}
-          onclick={() => (activeSection = section.id)}
-        >
-          <span class="nav-icon">{section.icon}</span>
-          <span class="nav-label">{section.label.split(' ').slice(1).join(' ')}</span>
-        </button>
-      {/each}
-    </nav>
-  </div>
-
   <div class="settings-content">
+    <h2>Settings</h2>
+
     {#if errorMessage}
       <div class="message error">
         {errorMessage}
@@ -480,613 +380,403 @@
       </div>
     {/if}
 
-    {#if activeSection === 'api-keys'}
-      <section class="settings-section">
-        <h3>🔑 API Keys</h3>
-        <p class="section-description">
-          Configure your API keys for different AI providers. Keys are stored securely and
-          encrypted on your device.
-        </p>
+    <section class="settings-section">
+      <h3>🔑 API Keys</h3>
+      <p class="section-description">
+        Configure your API keys for different AI providers. Keys are stored securely and
+        encrypted on your device.
+      </p>
 
-        <div class="api-key-group">
-          <label for="anthropic-key-input">
-            <strong>Anthropic API Key</strong>
-            <span class="validation-indicator" class:valid={anthropicKeyValid}>
-              {anthropicKeyValid ? '✓' : '❌'}
-            </span>
-          </label>
-          <div class="input-group">
-            <input
-              id="anthropic-key-input"
-              type="password"
-              bind:value={anthropicKey}
-              placeholder="sk-ant-..."
-              class="api-key-input"
-              oninput={() => {
-                anthropicKeyValid = secureStorageService.validateApiKey(
-                  'anthropic',
-                  anthropicKey
-                );
-                debounceAnthropicSave();
-              }}
-            />
-          </div>
-          <small
-            >Get your API key from <a
-              href="https://console.anthropic.com/"
-              target="_blank">console.anthropic.com</a
-            ></small
-          >
-        </div>
-
-        <div class="api-key-group">
-          <label for="openai-key-input">
-            <strong>OpenAI API Key</strong>
-            <span class="validation-indicator" class:valid={openaiKeyValid}>
-              {openaiKeyValid ? '✓' : '❌'}
-            </span>
-          </label>
-          <div class="input-group">
-            <input
-              id="openai-key-input"
-              type="password"
-              bind:value={openaiKey}
-              placeholder="sk-..."
-              class="api-key-input"
-              oninput={() => {
-                openaiKeyValid = secureStorageService.validateApiKey('openai', openaiKey);
-                debounceOpenaiSave();
-              }}
-            />
-          </div>
-          <div class="input-group">
-            <input
-              type="text"
-              bind:value={openaiOrgId}
-              placeholder="Organization ID (optional)"
-              class="org-id-input"
-              oninput={() => debounceOpenaiSave()}
-            />
-          </div>
-          <small
-            >Get your API key from <a
-              href="https://platform.openai.com/api-keys"
-              target="_blank">platform.openai.com</a
-            ></small
-          >
-        </div>
-
-        <div class="api-key-group">
-          <label for="gateway-key-input">
-            <strong>AI Gateway API Key</strong>
-            <span class="validation-indicator" class:valid={gatewayKeyValid}>
-              {gatewayKeyValid ? '✓' : '❌'}
-            </span>
-          </label>
-          <div class="input-group">
-            <input
-              id="gateway-key-input"
-              type="password"
-              bind:value={gatewayKey}
-              placeholder="Your AI Gateway API key"
-              class="api-key-input"
-              oninput={() => {
-                gatewayKeyValid = secureStorageService.validateApiKey(
-                  'gateway',
-                  gatewayKey
-                );
-                debounceGatewaySave();
-              }}
-            />
-          </div>
-          <small
-            >Configure your AI Gateway to access multiple AI providers through a single
-            interface</small
-          >
-        </div>
-
-        <div class="danger-zone">
-          <h4>Danger Zone</h4>
-          <button class="btn-danger" onclick={clearAllApiKeys}>
-            Clear All API Keys
-          </button>
-        </div>
-      </section>
-    {/if}
-
-    {#if activeSection === 'model-preferences'}
-      <section class="settings-section">
-        <h3>🤖 Model Preferences</h3>
-        <p class="section-description">
-          Configure your preferred AI models and cost settings.
-        </p>
-
-        <div class="form-group">
-          <label for="default-model">Default Model</label>
-          <select
-            id="default-model"
-            value={settingsStore.settings.modelPreferences.defaultModel}
-            onchange={handleDefaultModelChange}
-          >
-            {#each SUPPORTED_MODELS as model (model.id)}
-              <option value={model.id}>
-                {model.name} ({model.provider})
-              </option>
-            {/each}
-          </select>
-          <small>This model will be selected by default for new conversations</small>
-        </div>
-
-        <div class="form-group">
-          <label>
-            <input
-              type="checkbox"
-              checked={settingsStore.settings.modelPreferences.showCosts}
-              onchange={(e) =>
-                settingsStore.updateSettings({
-                  modelPreferences: {
-                    ...settingsStore.settings.modelPreferences,
-                    showCosts: (e.target as HTMLInputElement).checked
-                  }
-                })}
-            />
-            Show cost information
-          </label>
-          <small>Display estimated costs per request when available</small>
-        </div>
-
-        <div class="form-group">
-          <label for="cost-warning">Cost warning threshold ($/month)</label>
+      <div class="api-key-group">
+        <label for="anthropic-key-input">
+          <strong>Anthropic API Key</strong>
+          <span class="validation-indicator" class:valid={anthropicKeyValid}>
+            {anthropicKeyValid ? '✓' : '❌'}
+          </span>
+        </label>
+        <div class="input-group">
           <input
-            id="cost-warning"
-            type="number"
-            min="1"
-            max="1000"
-            value={settingsStore.settings.modelPreferences.costWarningThreshold}
+            id="anthropic-key-input"
+            type="password"
+            bind:value={anthropicKey}
+            placeholder="sk-ant-..."
+            class="api-key-input"
+            oninput={() => {
+              anthropicKeyValid = secureStorageService.validateApiKey(
+                'anthropic',
+                anthropicKey
+              );
+              debounceAnthropicSave();
+            }}
+          />
+        </div>
+        <small
+          >Get your API key from <a href="https://console.anthropic.com/" target="_blank"
+            >console.anthropic.com</a
+          ></small
+        >
+      </div>
+
+      <div class="api-key-group">
+        <label for="openai-key-input">
+          <strong>OpenAI API Key</strong>
+          <span class="validation-indicator" class:valid={openaiKeyValid}>
+            {openaiKeyValid ? '✓' : '❌'}
+          </span>
+        </label>
+        <div class="input-group">
+          <input
+            id="openai-key-input"
+            type="password"
+            bind:value={openaiKey}
+            placeholder="sk-..."
+            class="api-key-input"
+            oninput={() => {
+              openaiKeyValid = secureStorageService.validateApiKey('openai', openaiKey);
+              debounceOpenaiSave();
+            }}
+          />
+        </div>
+        <div class="input-group">
+          <input
+            type="text"
+            bind:value={openaiOrgId}
+            placeholder="Organization ID (optional)"
+            class="org-id-input"
+            oninput={() => debounceOpenaiSave()}
+          />
+        </div>
+        <small
+          >Get your API key from <a
+            href="https://platform.openai.com/api-keys"
+            target="_blank">platform.openai.com</a
+          ></small
+        >
+      </div>
+
+      <div class="api-key-group">
+        <label for="gateway-key-input">
+          <strong>AI Gateway API Key</strong>
+          <span class="validation-indicator" class:valid={gatewayKeyValid}>
+            {gatewayKeyValid ? '✓' : '❌'}
+          </span>
+        </label>
+        <div class="input-group">
+          <input
+            id="gateway-key-input"
+            type="password"
+            bind:value={gatewayKey}
+            placeholder="Your AI Gateway API key"
+            class="api-key-input"
+            oninput={() => {
+              gatewayKeyValid = secureStorageService.validateApiKey(
+                'gateway',
+                gatewayKey
+              );
+              debounceGatewaySave();
+            }}
+          />
+        </div>
+        <small
+          >Configure your AI Gateway to access multiple AI providers through a single
+          interface</small
+        >
+      </div>
+
+      <div class="danger-zone">
+        <h4>Danger Zone</h4>
+        <button class="btn-danger" onclick={clearAllApiKeys}> Clear All API Keys </button>
+      </div>
+    </section>
+
+    <section class="settings-section">
+      <h3>🤖 Model Preferences</h3>
+      <p class="section-description">
+        Configure your preferred AI models and cost settings.
+      </p>
+
+      <div class="form-group">
+        <label for="default-model">Default Model</label>
+        <select
+          id="default-model"
+          value={settingsStore.settings.modelPreferences.defaultModel}
+          onchange={handleDefaultModelChange}
+        >
+          {#each SUPPORTED_MODELS as model (model.id)}
+            <option value={model.id}>
+              {model.name} ({model.provider})
+            </option>
+          {/each}
+        </select>
+        <small>This model will be selected by default for new conversations</small>
+      </div>
+
+      <div class="form-group">
+        <label>
+          <input
+            type="checkbox"
+            checked={settingsStore.settings.modelPreferences.showCosts}
             onchange={(e) =>
               settingsStore.updateSettings({
                 modelPreferences: {
                   ...settingsStore.settings.modelPreferences,
-                  costWarningThreshold: parseInt((e.target as HTMLInputElement).value)
+                  showCosts: (e.target as HTMLInputElement).checked
                 }
               })}
           />
-          <small>Show warning when monthly costs exceed this amount</small>
-        </div>
-      </section>
-    {/if}
+          Show cost information
+        </label>
+        <small>Display estimated costs per request when available</small>
+      </div>
 
-    {#if activeSection === 'appearance'}
-      <section class="settings-section">
-        <h3>🎨 Appearance</h3>
-        <p class="section-description">Customize the look and feel of the application.</p>
+      <div class="form-group">
+        <label for="cost-warning">Cost warning threshold ($/month)</label>
+        <input
+          id="cost-warning"
+          type="number"
+          min="1"
+          max="1000"
+          value={settingsStore.settings.modelPreferences.costWarningThreshold}
+          onchange={(e) =>
+            settingsStore.updateSettings({
+              modelPreferences: {
+                ...settingsStore.settings.modelPreferences,
+                costWarningThreshold: parseInt((e.target as HTMLInputElement).value)
+              }
+            })}
+        />
+        <small>Show warning when monthly costs exceed this amount</small>
+      </div>
+    </section>
 
-        <div class="form-group">
-          <label for="theme-group">Theme</label>
-          <div class="radio-group" id="theme-group">
-            <label class="radio-option">
-              <input
-                type="radio"
-                name="theme"
-                value="light"
-                checked={settingsStore.settings.appearance.theme === 'light'}
-                onchange={handleThemeChange}
-              />
-              <span class="radio-label">☀️ Light</span>
-            </label>
-            <label class="radio-option">
-              <input
-                type="radio"
-                name="theme"
-                value="dark"
-                checked={settingsStore.settings.appearance.theme === 'dark'}
-                onchange={handleThemeChange}
-              />
-              <span class="radio-label">🌙 Dark</span>
-            </label>
-            <label class="radio-option">
-              <input
-                type="radio"
-                name="theme"
-                value="system"
-                checked={settingsStore.settings.appearance.theme === 'system'}
-                onchange={handleThemeChange}
-              />
-              <span class="radio-label">🖥️ System</span>
-            </label>
-          </div>
-        </div>
-      </section>
-    {/if}
+    <section class="settings-section">
+      <h3>⚡ Cache Performance</h3>
+      <p class="section-description">
+        Monitor and optimize AI model caching for better performance and cost efficiency.
+      </p>
 
-    {#if activeSection === 'data-privacy'}
-      <section class="settings-section">
-        <h3>💾 Data & Privacy</h3>
-        <p class="section-description">Control how your data is stored and managed.</p>
-
-        <div class="form-group">
-          <label for="auto-save-delay">Auto-save delay</label>
-          <select
-            id="auto-save-delay"
-            value={settingsStore.settings.dataAndPrivacy.autoSaveDelay}
-            onchange={handleAutoSaveDelayChange}
+      {#if loadingCache}
+        <div class="loading-indicator">Loading cache data...</div>
+      {:else}
+        <!-- Cache Health Status -->
+        {#if cacheHealthCheck}
+          <div
+            class="cache-health"
+            class:healthy={cacheHealthCheck.status === 'healthy'}
+            class:warning={cacheHealthCheck.status === 'warning'}
+            class:critical={cacheHealthCheck.status === 'critical'}
           >
-            <option value={100}>100ms (Fast)</option>
-            <option value={300}>300ms</option>
-            <option value={500}>500ms (Recommended)</option>
-            <option value={1000}>1000ms</option>
-            <option value={2000}>2000ms (Slow)</option>
-          </select>
-          <small>How long to wait before auto-saving note changes</small>
-        </div>
-
-        <div class="form-group">
-          <label for="chat-history">Chat history retention</label>
-          <select
-            id="chat-history"
-            value={settingsStore.settings.dataAndPrivacy.chatHistoryRetentionDays}
-            onchange={(e) =>
-              settingsStore.updateSettings({
-                dataAndPrivacy: {
-                  ...settingsStore.settings.dataAndPrivacy,
-                  chatHistoryRetentionDays: parseInt(
-                    (e.target as HTMLSelectElement).value
-                  )
-                }
-              })}
-          >
-            <option value={7}>7 days</option>
-            <option value={30}>30 days</option>
-            <option value={90}>90 days</option>
-            <option value={365}>1 year</option>
-            <option value={-1}>Forever</option>
-          </select>
-          <small>How long to keep chat history</small>
-        </div>
-      </section>
-    {/if}
-
-    {#if activeSection === 'cache-performance'}
-      <section class="settings-section">
-        <h3>⚡ Cache Performance</h3>
-        <p class="section-description">
-          Monitor and optimize AI model caching for better performance and cost
-          efficiency.
-        </p>
-
-        {#if loadingCache}
-          <div class="loading-indicator">Loading cache data...</div>
-        {:else}
-          <!-- Cache Health Status -->
-          {#if cacheHealthCheck}
-            <div
-              class="cache-health"
-              class:healthy={cacheHealthCheck.status === 'healthy'}
-              class:warning={cacheHealthCheck.status === 'warning'}
-              class:critical={cacheHealthCheck.status === 'critical'}
-            >
-              <h4>
-                {#if cacheHealthCheck.status === 'healthy'}✅{:else if cacheHealthCheck.status === 'warning'}⚠️{:else}❌{/if}
-                Cache Health: {cacheHealthCheck.status.toUpperCase()} ({cacheHealthCheck.score}/100)
-              </h4>
-              {#if cacheHealthCheck.issues.length > 0}
-                <div class="health-issues">
-                  <strong>Issues:</strong>
-                  <ul>
-                    {#each cacheHealthCheck.issues as issue, index (index)}
-                      <li>{issue}</li>
-                    {/each}
-                  </ul>
-                </div>
-              {/if}
-              {#if cacheHealthCheck.recommendations.length > 0}
-                <div class="health-recommendations">
-                  <strong>Recommendations:</strong>
-                  <ul>
-                    {#each cacheHealthCheck.recommendations as rec, index (index)}
-                      <li>{rec}</li>
-                    {/each}
-                  </ul>
-                </div>
-              {/if}
-            </div>
-          {/if}
-
-          <!-- Cache Configuration -->
-          {#if cacheConfig}
-            <div class="cache-config">
-              <h4>Configuration</h4>
-              <div class="config-grid">
-                <label class="checkbox-option">
-                  <input
-                    type="checkbox"
-                    checked={cacheConfig.enableSystemMessageCaching}
-                    onchange={async (e) =>
-                      await updateCacheConfig({
-                        enableSystemMessageCaching: (e.target as HTMLInputElement).checked
-                      })}
-                  />
-                  <span>System Message Caching</span>
-                </label>
-
-                <label class="checkbox-option">
-                  <input
-                    type="checkbox"
-                    checked={cacheConfig.enableHistoryCaching}
-                    onchange={async (e) =>
-                      await updateCacheConfig({
-                        enableHistoryCaching: (e.target as HTMLInputElement).checked
-                      })}
-                  />
-                  <span>History Caching</span>
-                </label>
-
-                <div class="form-group">
-                  <label for="min-cache-tokens">Minimum Cache Tokens</label>
-                  <input
-                    id="min-cache-tokens"
-                    type="number"
-                    min="256"
-                    max="4096"
-                    step="256"
-                    value={cacheConfig.minimumCacheTokens}
-                    onchange={async (e) =>
-                      await updateCacheConfig({
-                        minimumCacheTokens: parseInt((e.target as HTMLInputElement).value)
-                      })}
-                  />
-                  <small>Minimum tokens required to cache a segment</small>
-                </div>
-
-                <div class="form-group">
-                  <label for="history-segment-size">History Segment Size</label>
-                  <input
-                    id="history-segment-size"
-                    type="number"
-                    min="2"
-                    max="8"
-                    value={cacheConfig.historySegmentSize}
-                    onchange={async (e) =>
-                      await updateCacheConfig({
-                        historySegmentSize: parseInt((e.target as HTMLInputElement).value)
-                      })}
-                  />
-                  <small>Number of recent messages to keep uncached</small>
-                </div>
+            <h4>
+              {#if cacheHealthCheck.status === 'healthy'}✅{:else if cacheHealthCheck.status === 'warning'}⚠️{:else}❌{/if}
+              Cache Health: {cacheHealthCheck.status.toUpperCase()} ({cacheHealthCheck.score}/100)
+            </h4>
+            {#if cacheHealthCheck.issues.length > 0}
+              <div class="health-issues">
+                <strong>Issues:</strong>
+                <ul>
+                  {#each cacheHealthCheck.issues as issue, index (index)}
+                    <li>{issue}</li>
+                  {/each}
+                </ul>
               </div>
-            </div>
-          {/if}
-
-          <!-- Performance Metrics -->
-          {#if cacheMetrics && cachePerformance}
-            <div class="cache-metrics">
-              <h4>Performance Metrics</h4>
-              <div class="metrics-grid">
-                <div class="metric-card">
-                  <div class="metric-value">{cacheMetrics.totalRequests}</div>
-                  <div class="metric-label">Total Requests</div>
-                </div>
-
-                <div class="metric-card">
-                  <div class="metric-value">
-                    {(cachePerformance.systemMessageCacheHitRate * 100).toFixed(1)}%
-                  </div>
-                  <div class="metric-label">System Cache Hit Rate</div>
-                </div>
-
-                <div class="metric-card">
-                  <div class="metric-value">
-                    {(cachePerformance.historyCacheHitRate * 100).toFixed(1)}%
-                  </div>
-                  <div class="metric-label">History Cache Hit Rate</div>
-                </div>
-
-                <div class="metric-card">
-                  <div class="metric-value">
-                    {(cachePerformance.overallCacheEfficiency * 100).toFixed(1)}%
-                  </div>
-                  <div class="metric-label">Overall Efficiency</div>
-                </div>
-
-                <div class="metric-card">
-                  <div class="metric-value">
-                    {cacheMetrics.totalTokensSaved.toLocaleString()}
-                  </div>
-                  <div class="metric-label">Tokens Saved</div>
-                </div>
-
-                <div class="metric-card">
-                  <div class="metric-value">
-                    {cacheMetrics.averageConversationLength.toFixed(1)}
-                  </div>
-                  <div class="metric-label">Avg Conversation Length</div>
-                </div>
+            {/if}
+            {#if cacheHealthCheck.recommendations.length > 0}
+              <div class="health-recommendations">
+                <strong>Recommendations:</strong>
+                <ul>
+                  {#each cacheHealthCheck.recommendations as rec, index (index)}
+                    <li>{rec}</li>
+                  {/each}
+                </ul>
               </div>
-            </div>
-          {/if}
-
-          <!-- Actions -->
-          <div class="cache-actions">
-            <h4>Actions</h4>
-            <div class="action-group">
-              <button
-                class="btn-secondary"
-                onclick={() => {
-                  cacheDataLoaded = false;
-                  loadCacheData();
-                }}
-              >
-                🔄 Refresh Data
-              </button>
-
-              <button class="btn-secondary" onclick={optimizeCache}>
-                🚀 Optimize Configuration
-              </button>
-
-              <button class="btn-secondary" onclick={warmupCache}>
-                🔥 Warmup Cache
-              </button>
-
-              <button
-                class="btn-secondary"
-                class:active={performanceMonitoringActive}
-                onclick={togglePerformanceMonitoring}
-              >
-                {performanceMonitoringActive ? '⏹️ Stop' : '▶️ Start'} Monitoring
-              </button>
-
-              <button class="btn-secondary" onclick={generateCacheReport}>
-                📊 Generate Report
-              </button>
-
-              <button class="btn-danger" onclick={resetCacheMetrics}>
-                🗑️ Reset Metrics
-              </button>
-            </div>
+            {/if}
           </div>
-
-          <!-- Performance Report -->
-          {#if cacheReport}
-            <div class="cache-report">
-              <h4>Performance Report</h4>
-              <pre>{cacheReport}</pre>
-            </div>
-          {/if}
         {/if}
-      </section>
-    {/if}
 
-    {#if activeSection === 'advanced'}
-      <section class="settings-section">
-        <h3>⚙️ Advanced</h3>
-        <p class="section-description">
-          Advanced settings for power users and troubleshooting.
-        </p>
+        <!-- Cache Configuration -->
+        {#if cacheConfig}
+          <div class="cache-config">
+            <h4>Configuration</h4>
+            <div class="config-grid">
+              <label class="checkbox-option">
+                <input
+                  type="checkbox"
+                  checked={cacheConfig.enableSystemMessageCaching}
+                  onchange={async (e) =>
+                    await updateCacheConfig({
+                      enableSystemMessageCaching: (e.target as HTMLInputElement).checked
+                    })}
+                />
+                <span>System Message Caching</span>
+              </label>
 
-        <div class="form-group">
-          <label>
-            <input
-              type="checkbox"
-              checked={settingsStore.settings.advanced.debugMode}
-              onchange={(e) =>
-                settingsStore.updateSettings({
-                  advanced: {
-                    ...settingsStore.settings.advanced,
-                    debugMode: (e.target as HTMLInputElement).checked
-                  }
-                })}
-            />
-            Enable debug mode
-          </label>
-          <small>Show additional logging and diagnostic information</small>
-        </div>
+              <label class="checkbox-option">
+                <input
+                  type="checkbox"
+                  checked={cacheConfig.enableHistoryCaching}
+                  onchange={async (e) =>
+                    await updateCacheConfig({
+                      enableHistoryCaching: (e.target as HTMLInputElement).checked
+                    })}
+                />
+                <span>History Caching</span>
+              </label>
 
-        <div class="form-group">
-          <label for="proxy-url">Proxy URL</label>
-          <input
-            id="proxy-url"
-            type="text"
-            placeholder="http://proxy.example.com:8080"
-            value={settingsStore.settings.advanced.proxyUrl || ''}
-            oninput={(e) =>
-              settingsStore.updateSettings({
-                advanced: {
-                  ...settingsStore.settings.advanced,
-                  proxyUrl: (e.target as HTMLInputElement).value
-                }
-              })}
-          />
-          <small>HTTP/HTTPS proxy for API requests (leave empty to disable)</small>
-        </div>
+              <div class="form-group">
+                <label for="min-cache-tokens">Minimum Cache Tokens</label>
+                <input
+                  id="min-cache-tokens"
+                  type="number"
+                  min="256"
+                  max="4096"
+                  step="256"
+                  value={cacheConfig.minimumCacheTokens}
+                  onchange={async (e) =>
+                    await updateCacheConfig({
+                      minimumCacheTokens: parseInt((e.target as HTMLInputElement).value)
+                    })}
+                />
+                <small>Minimum tokens required to cache a segment</small>
+              </div>
 
-        <div class="settings-actions">
-          <h4>Settings Management</h4>
+              <div class="form-group">
+                <label for="history-segment-size">History Segment Size</label>
+                <input
+                  id="history-segment-size"
+                  type="number"
+                  min="2"
+                  max="8"
+                  value={cacheConfig.historySegmentSize}
+                  onchange={async (e) =>
+                    await updateCacheConfig({
+                      historySegmentSize: parseInt((e.target as HTMLInputElement).value)
+                    })}
+                />
+                <small>Number of recent messages to keep uncached</small>
+              </div>
+            </div>
+          </div>
+        {/if}
+
+        <!-- Performance Metrics -->
+        {#if cacheMetrics && cachePerformance}
+          <div class="cache-metrics">
+            <h4>Performance Metrics</h4>
+            <div class="metrics-grid">
+              <div class="metric-card">
+                <div class="metric-value">{cacheMetrics.totalRequests}</div>
+                <div class="metric-label">Total Requests</div>
+              </div>
+
+              <div class="metric-card">
+                <div class="metric-value">
+                  {(cachePerformance.systemMessageCacheHitRate * 100).toFixed(1)}%
+                </div>
+                <div class="metric-label">System Cache Hit Rate</div>
+              </div>
+
+              <div class="metric-card">
+                <div class="metric-value">
+                  {(cachePerformance.historyCacheHitRate * 100).toFixed(1)}%
+                </div>
+                <div class="metric-label">History Cache Hit Rate</div>
+              </div>
+
+              <div class="metric-card">
+                <div class="metric-value">
+                  {(cachePerformance.overallCacheEfficiency * 100).toFixed(1)}%
+                </div>
+                <div class="metric-label">Overall Efficiency</div>
+              </div>
+
+              <div class="metric-card">
+                <div class="metric-value">
+                  {cacheMetrics.totalTokensSaved.toLocaleString()}
+                </div>
+                <div class="metric-label">Tokens Saved</div>
+              </div>
+
+              <div class="metric-card">
+                <div class="metric-value">
+                  {cacheMetrics.averageConversationLength.toFixed(1)}
+                </div>
+                <div class="metric-label">Avg Conversation Length</div>
+              </div>
+            </div>
+          </div>
+        {/if}
+
+        <!-- Actions -->
+        <div class="cache-actions">
+          <h4>Actions</h4>
           <div class="action-group">
-            <button class="btn-secondary" onclick={exportSettings}>
-              Export Settings
+            <button
+              class="btn-secondary"
+              onclick={() => {
+                cacheDataLoaded = false;
+                loadCacheData();
+              }}
+            >
+              🔄 Refresh Data
             </button>
-            <button class="btn-secondary" onclick={importSettings}>
-              Import Settings
+
+            <button class="btn-secondary" onclick={optimizeCache}>
+              🚀 Optimize Configuration
             </button>
-            <button class="btn-secondary" onclick={resetToDefaults}>
-              Reset to Defaults
+
+            <button class="btn-secondary" onclick={warmupCache}> 🔥 Warmup Cache </button>
+
+            <button
+              class="btn-secondary"
+              class:active={performanceMonitoringActive}
+              onclick={togglePerformanceMonitoring}
+            >
+              {performanceMonitoringActive ? '⏹️ Stop' : '▶️ Start'} Monitoring
+            </button>
+
+            <button class="btn-secondary" onclick={generateCacheReport}>
+              📊 Generate Report
+            </button>
+
+            <button class="btn-danger" onclick={resetCacheMetrics}>
+              🗑️ Reset Metrics
             </button>
           </div>
         </div>
-      </section>
-    {/if}
+
+        <!-- Performance Report -->
+        {#if cacheReport}
+          <div class="cache-report">
+            <h4>Performance Report</h4>
+            <pre>{cacheReport}</pre>
+          </div>
+        {/if}
+      {/if}
+    </section>
   </div>
 </div>
 
 <style>
   .settings {
-    display: flex;
     height: 100%;
     max-height: 100vh;
     background: var(--bg-primary);
     overflow: hidden;
   }
 
-  .settings-sidebar {
-    width: 250px;
-    background: var(--bg-secondary);
-    border-right: 1px solid var(--border-light);
-    padding: 1.5rem;
-  }
-
-  .settings-sidebar h2 {
-    margin: 0 0 1.5rem 0;
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: var(--text-primary);
-  }
-
-  .settings-nav {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-  }
-
-  .nav-item {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.75rem 1rem;
-    background: none;
-    border: none;
-    border-radius: 0.5rem;
-    color: var(--text-secondary);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    text-align: left;
-    font-size: 0.875rem;
-  }
-
-  .nav-item:hover {
-    background: var(--bg-hover);
-    color: var(--text-primary);
-  }
-
-  .nav-item.active {
-    background: var(--accent-primary);
-    color: white;
-  }
-
-  .nav-icon {
-    font-size: 1rem;
-  }
-
-  .nav-label {
-    font-weight: 500;
-  }
-
   .settings-content {
-    flex: 1;
     padding: 2rem;
     padding-bottom: 4rem;
     overflow-y: auto;
-    max-height: 100%;
+    max-height: 100vh;
     min-height: 0;
+  }
+
+  .settings-content h2 {
+    margin: 0 0 2rem 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-primary);
   }
 
   .message {
@@ -1108,11 +798,21 @@
     border: 1px solid #9ae6b4;
   }
 
+  .settings-section {
+    margin-bottom: 3rem;
+  }
+
+  .settings-section:last-child {
+    margin-bottom: 0;
+  }
+
   .settings-section h3 {
     margin: 0 0 0.5rem 0;
-    font-size: 1.5rem;
+    font-size: 1.25rem;
     font-weight: 600;
     color: var(--text-primary);
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--border-light);
   }
 
   .section-description {
@@ -1252,42 +952,6 @@
     color: var(--text-secondary);
     font-size: 0.75rem;
     line-height: 1.4;
-  }
-
-  .radio-group {
-    display: flex;
-    gap: 1rem;
-    margin-top: 0.5rem;
-  }
-
-  .radio-option {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    cursor: pointer;
-  }
-
-  .radio-option input[type='radio'] {
-    margin: 0;
-    width: auto;
-  }
-
-  .radio-label {
-    font-weight: 500;
-  }
-
-  .settings-actions {
-    margin-top: 2rem;
-    padding: 1.5rem;
-    background: var(--bg-secondary);
-    border-radius: 0.75rem;
-    border: 1px solid var(--border-light);
-  }
-
-  .settings-actions h4 {
-    margin: 0 0 1rem 0;
-    font-weight: 600;
-    color: var(--text-primary);
   }
 
   .action-group {

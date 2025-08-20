@@ -587,7 +587,7 @@
             ></path>
           </svg>
         </button>
-        
+
         <!-- Window controls for non-macOS platforms -->
         <div class="window-controls">
           <button
@@ -607,7 +607,12 @@
             title="Maximize"
           >
             <svg width="12" height="12" viewBox="0 0 12 12">
-              <path d="M 2,2 2,10 10,10 10,2 Z" stroke="currentColor" stroke-width="1" fill="none" />
+              <path
+                d="M 2,2 2,10 10,10 10,2 Z"
+                stroke="currentColor"
+                stroke-width="1"
+                fill="none"
+              />
             </svg>
           </button>
           <button
