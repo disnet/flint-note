@@ -18,11 +18,7 @@ export class SecureStorageService {
     }
   }
 
-  async storeApiKey(
-    provider: 'anthropic' | 'openai' | 'gateway',
-    key: string,
-    orgId?: string
-  ): Promise<void> {
+  async storeApiKey(provider: 'gateway', key: string, orgId?: string): Promise<void> {
     try {
       await window.api.storeApiKey({ provider, key, orgId });
     } catch (error) {
@@ -31,9 +27,7 @@ export class SecureStorageService {
     }
   }
 
-  async getApiKey(
-    provider: 'anthropic' | 'openai' | 'gateway'
-  ): Promise<{ key: string; orgId?: string }> {
+  async getApiKey(provider: 'gateway'): Promise<{ key: string; orgId?: string }> {
     try {
       return await window.api.getApiKey({ provider });
     } catch (error) {
@@ -43,9 +37,6 @@ export class SecureStorageService {
   }
 
   async getAllApiKeys(): Promise<{
-    anthropic: string;
-    openai: string;
-    openaiOrgId: string;
     gateway: string;
   }> {
     try {
@@ -53,15 +44,12 @@ export class SecureStorageService {
     } catch (error) {
       console.error('Failed to get all API keys:', error);
       return {
-        anthropic: '',
-        openai: '',
-        openaiOrgId: '',
         gateway: ''
       };
     }
   }
 
-  async testApiKey(provider: 'anthropic' | 'openai' | 'gateway'): Promise<boolean> {
+  async testApiKey(provider: 'gateway'): Promise<boolean> {
     try {
       return await window.api.testApiKey({ provider });
     } catch (error) {
@@ -79,12 +67,8 @@ export class SecureStorageService {
     }
   }
 
-  validateApiKey(provider: 'anthropic' | 'openai' | 'gateway', key: string): boolean {
-    if (provider === 'anthropic') {
-      return key.startsWith('sk-ant-') && key.length > 20;
-    } else if (provider === 'openai') {
-      return key.startsWith('sk-') && key.length > 20;
-    } else if (provider === 'gateway') {
+  validateApiKey(provider: 'gateway', key: string): boolean {
+    if (provider === 'gateway') {
       return key.length > 10; // Gateway keys may have different formats
     }
     return false;

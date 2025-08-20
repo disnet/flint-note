@@ -9,19 +9,12 @@
   let successMessage = $state('');
 
   // Local form state for API keys
-  let anthropicKey = $state('');
-  let openaiKey = $state('');
-  let openaiOrgId = $state('');
   let gatewayKey = $state('');
 
   // Validation states
-  let anthropicKeyValid = $state(false);
-  let openaiKeyValid = $state(false);
   let gatewayKeyValid = $state(false);
 
   // Auto-save debounce timers
-  let anthropicSaveTimer;
-  let openaiSaveTimer;
   let gatewaySaveTimer;
 
   // Cache monitoring state
@@ -81,17 +74,9 @@
 
         // Then populate the local form state
         const keys = await secureStorageService.getAllApiKeys();
-        anthropicKey = keys.anthropic;
-        openaiKey = keys.openai;
-        openaiOrgId = keys.openaiOrgId;
         gatewayKey = keys.gateway;
 
         // Update validation
-        anthropicKeyValid = secureStorageService.validateApiKey(
-          'anthropic',
-          anthropicKey
-        );
-        openaiKeyValid = secureStorageService.validateApiKey('openai', openaiKey);
         gatewayKeyValid = secureStorageService.validateApiKey('gateway', gatewayKey);
       } catch (error) {
         console.error('Failed to load API keys:', error);
@@ -100,12 +85,6 @@
 
     // Cleanup function
     return () => {
-      if (anthropicSaveTimer) {
-        clearTimeout(anthropicSaveTimer);
-      }
-      if (openaiSaveTimer) {
-        clearTimeout(openaiSaveTimer);
-      }
       if (gatewaySaveTimer) {
         clearTimeout(gatewaySaveTimer);
       }
@@ -129,7 +108,7 @@
   }
 
   async function autoSaveApiKey(
-    provider: 'anthropic' | 'openai' | 'gateway',
+    provider: 'gateway',
     key: string,
     orgId?: string
   ): Promise<void> {
@@ -155,30 +134,6 @@
       console.error(`Failed to auto-save ${provider} API key:`, error);
       showError(`Failed to save ${provider} API key`);
     }
-  }
-
-  function debounceAnthropicSave(): void {
-    if (anthropicSaveTimer) {
-      clearTimeout(anthropicSaveTimer);
-    }
-
-    anthropicSaveTimer = setTimeout(() => {
-      if (anthropicKey && anthropicKeyValid) {
-        autoSaveApiKey('anthropic', anthropicKey);
-      }
-    }, 1000); // 1 second debounce
-  }
-
-  function debounceOpenaiSave(): void {
-    if (openaiSaveTimer) {
-      clearTimeout(openaiSaveTimer);
-    }
-
-    openaiSaveTimer = setTimeout(() => {
-      if (openaiKey && openaiKeyValid) {
-        autoSaveApiKey('openai', openaiKey, openaiOrgId);
-      }
-    }, 1000); // 1 second debounce
   }
 
   function debounceGatewaySave(): void {
@@ -210,19 +165,11 @@
 
     try {
       await secureStorageService.clearAllApiKeys();
-      anthropicKey = '';
-      openaiKey = '';
-      openaiOrgId = '';
       gatewayKey = '';
-      anthropicKeyValid = false;
-      openaiKeyValid = false;
       gatewayKeyValid = false;
 
       settingsStore.updateSettings({
         apiKeys: {
-          anthropic: '',
-          openai: '',
-          openaiOrgId: '',
           gateway: ''
         }
       });
@@ -386,73 +333,6 @@
         Configure your API keys for different AI providers. Keys are stored securely and
         encrypted on your device.
       </p>
-
-      <div class="api-key-group">
-        <label for="anthropic-key-input">
-          <strong>Anthropic API Key</strong>
-          <span class="validation-indicator" class:valid={anthropicKeyValid}>
-            {anthropicKeyValid ? '✓' : '❌'}
-          </span>
-        </label>
-        <div class="input-group">
-          <input
-            id="anthropic-key-input"
-            type="password"
-            bind:value={anthropicKey}
-            placeholder="sk-ant-..."
-            class="api-key-input"
-            oninput={() => {
-              anthropicKeyValid = secureStorageService.validateApiKey(
-                'anthropic',
-                anthropicKey
-              );
-              debounceAnthropicSave();
-            }}
-          />
-        </div>
-        <small
-          >Get your API key from <a href="https://console.anthropic.com/" target="_blank"
-            >console.anthropic.com</a
-          ></small
-        >
-      </div>
-
-      <div class="api-key-group">
-        <label for="openai-key-input">
-          <strong>OpenAI API Key</strong>
-          <span class="validation-indicator" class:valid={openaiKeyValid}>
-            {openaiKeyValid ? '✓' : '❌'}
-          </span>
-        </label>
-        <div class="input-group">
-          <input
-            id="openai-key-input"
-            type="password"
-            bind:value={openaiKey}
-            placeholder="sk-..."
-            class="api-key-input"
-            oninput={() => {
-              openaiKeyValid = secureStorageService.validateApiKey('openai', openaiKey);
-              debounceOpenaiSave();
-            }}
-          />
-        </div>
-        <div class="input-group">
-          <input
-            type="text"
-            bind:value={openaiOrgId}
-            placeholder="Organization ID (optional)"
-            class="org-id-input"
-            oninput={() => debounceOpenaiSave()}
-          />
-        </div>
-        <small
-          >Get your API key from <a
-            href="https://platform.openai.com/api-keys"
-            target="_blank">platform.openai.com</a
-          ></small
-        >
-      </div>
 
       <div class="api-key-group">
         <label for="gateway-key-input">
@@ -863,15 +743,6 @@
     font-size: 0.875rem;
   }
 
-  .org-id-input {
-    flex: 1;
-    padding: 0.5rem 0.75rem;
-    border: 1px solid var(--border-light);
-    border-radius: 0.5rem;
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    font-size: 0.875rem;
-  }
 
   .btn-secondary,
   .btn-danger {
@@ -960,14 +831,6 @@
     flex-wrap: wrap;
   }
 
-  a {
-    color: var(--accent-primary);
-    text-decoration: none;
-  }
-
-  a:hover {
-    text-decoration: underline;
-  }
 
   /* Cache Performance Styles */
   .loading-indicator {

@@ -4,9 +4,6 @@ import { secureStorageService } from '../services/secureStorageService';
 // Settings interface
 export interface AppSettings {
   apiKeys: {
-    anthropic: string;
-    openai: string;
-    openaiOrgId?: string;
     gateway: string;
   };
   modelPreferences: {
@@ -24,19 +21,13 @@ export interface AppSettings {
   advanced: {
     debugMode: boolean;
     proxyUrl?: string;
-    customEndpoints: {
-      anthropic?: string;
-      openai?: string;
-    };
+    customEndpoints: Record<string, never>;
   };
 }
 
 // Default settings
 const DEFAULT_SETTINGS: AppSettings = {
   apiKeys: {
-    anthropic: '',
-    openai: '',
-    openaiOrgId: '',
     gateway: ''
   },
   modelPreferences: {
@@ -105,16 +96,6 @@ let settings = $state<AppSettings>({
   apiKeys: DEFAULT_SETTINGS.apiKeys
 });
 
-// Derived state for validation
-const isAnthropicKeyValid = $derived(
-  settings.apiKeys.anthropic.startsWith('sk-ant-') &&
-    settings.apiKeys.anthropic.length > 20
-);
-
-const isOpenAIKeyValid = $derived(
-  settings.apiKeys.openai.startsWith('sk-') && settings.apiKeys.openai.length > 20
-);
-
 const currentModelInfo = $derived(
   getModelById(settings.modelPreferences.defaultModel) || getModelById(DEFAULT_MODEL)!
 );
@@ -126,9 +107,6 @@ async function loadApiKeysFromSecureStorage(): Promise<void> {
     settings = {
       ...settings,
       apiKeys: {
-        anthropic: keys.anthropic,
-        openai: keys.openai,
-        openaiOrgId: keys.openaiOrgId,
         gateway: keys.gateway
       }
     };
@@ -144,12 +122,6 @@ export const settingsStore = {
   // Reactive getters
   get settings() {
     return settings;
-  },
-  get isAnthropicKeyValid() {
-    return isAnthropicKeyValid;
-  },
-  get isOpenAIKeyValid() {
-    return isOpenAIKeyValid;
   },
   get currentModelInfo() {
     return currentModelInfo;
@@ -193,21 +165,10 @@ export const settingsStore = {
     saveStoredSettings(settings);
   },
 
-  updateApiKey(
-    provider: 'anthropic' | 'openai' | 'gateway',
-    key: string,
-    orgId?: string
-  ): void {
+  updateApiKey(provider: 'gateway', key: string, _orgId?: string): void {
     const apiKeys = { ...settings.apiKeys };
 
-    if (provider === 'anthropic') {
-      apiKeys.anthropic = key;
-    } else if (provider === 'openai') {
-      apiKeys.openai = key;
-      if (orgId !== undefined) {
-        apiKeys.openaiOrgId = orgId;
-      }
-    } else if (provider === 'gateway') {
+    if (provider === 'gateway') {
       apiKeys.gateway = key;
     }
 
@@ -275,12 +236,8 @@ export const settingsStore = {
   },
 
   // Validation helpers
-  validateApiKey(provider: 'anthropic' | 'openai' | 'gateway', key: string): boolean {
-    if (provider === 'anthropic') {
-      return key.startsWith('sk-ant-') && key.length > 20;
-    } else if (provider === 'openai') {
-      return key.startsWith('sk-') && key.length > 20;
-    } else if (provider === 'gateway') {
+  validateApiKey(provider: 'gateway', key: string): boolean {
+    if (provider === 'gateway') {
       return key.length > 10; // Gateway keys may have different formats
     }
     return false;
