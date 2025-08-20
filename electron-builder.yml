@@ -1,5 +1,5 @@
 appId: com.electron.app
-productName: flint-electron
+productName: flint
 directories:
   buildResources: build
 files:
@@ -13,7 +13,7 @@ files:
 asarUnpack:
   - resources/**
 win:
-  executableName: flint-electron
+  executableName: flint
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}
