@@ -863,7 +863,7 @@
     cursor: pointer;
     transition: all 0.2s ease;
     width: 32px;
-    height: 24px;
+    height: 28px;
   }
 
   .pillbox-btn:hover {

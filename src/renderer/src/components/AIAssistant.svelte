@@ -2,9 +2,6 @@
   import MessageComponent from './MessageComponent.svelte';
   import LoadingMessage from './LoadingMessage.svelte';
   import MessageInput from './MessageInput.svelte';
-  import ConversationHistory from './ConversationHistory.svelte';
-  import ThreadSwitcher from './ThreadSwitcher.svelte';
-  import { unifiedChatStore } from '../stores/unifiedChatStore.svelte';
   import type { Message } from '../services/types';
 
   interface Props {
@@ -18,21 +15,6 @@
 
   let chatContainer = $state<HTMLDivElement>();
   let expandedDiscussed = $state<boolean>(true);
-  let showHistory = $state<boolean>(false);
-
-  function toggleHistory(): void {
-    showHistory = !showHistory;
-  }
-
-  async function handleConversationSelect(conversationId: string): Promise<void> {
-    await unifiedChatStore.switchToThread(conversationId);
-    showHistory = false; // Close history after selection
-  }
-
-  async function handleNewConversation(): Promise<void> {
-    await unifiedChatStore.createThread();
-    showHistory = false; // Close history after creating new conversation
-  }
 
   // Extract notes discussed from messages
   const notesDiscussed = $derived.by<string[]>(() => {
@@ -99,47 +81,9 @@
 </script>
 
 <div class="ai-assistant">
-  <div class="assistant-header">
-    <div class="thread-switcher-container">
-      <ThreadSwitcher
-        onNewThread={handleNewConversation}
-        onThreadSwitch={(threadId) => handleConversationSelect(threadId)}
-      />
-    </div>
-    <div class="header-actions">
-      <button
-        class="history-btn"
-        class:active={showHistory}
-        onclick={toggleHistory}
-        title="Conversation history"
-        aria-label="Toggle conversation history"
-      >
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <path d="M3 3v18h18" />
-          <path d="M3 9h18" />
-          <path d="M9 3v18" />
-        </svg>
-      </button>
-    </div>
-  </div>
-
-  {#if showHistory}
-    <div class="history-panel">
-      <ConversationHistory
-        onConversationSelect={handleConversationSelect}
-        onNewConversation={handleNewConversation}
-      />
-    </div>
-  {:else}
-    <!-- Task Management Section -->
-    <!-- {#if tasks.length > 0}
+  <!-- Removed header section as requested -->
+  <!-- Task Management Section -->
+  <!-- {#if tasks.length > 0}
     <div class="tasks-section">
       <h4 class="section-title">Tasks</h4>
       <div class="task-list">
@@ -182,45 +126,44 @@
     </div>
   {/if} -->
 
-    <!-- Chat Messages Section -->
-    <div class="chat-section" bind:this={chatContainer}>
-      {#each messages as message (message.id)}
-        <MessageComponent {message} {onNoteClick} />
-      {/each}
-      {#if isLoading}
-        <LoadingMessage />
+  <!-- Chat Messages Section -->
+  <div class="chat-section" bind:this={chatContainer}>
+    {#each messages as message (message.id)}
+      <MessageComponent {message} {onNoteClick} />
+    {/each}
+    {#if isLoading}
+      <LoadingMessage />
+    {/if}
+  </div>
+
+  <!-- Notes Discussed Section -->
+  {#if notesDiscussed.length > 0}
+    <div class="discussed-section">
+      <button
+        class="section-header"
+        onclick={() => (expandedDiscussed = !expandedDiscussed)}
+        aria-expanded={expandedDiscussed}
+      >
+        <h4 class="section-title">Notes discussed</h4>
+        <span class="expand-icon" class:expanded={expandedDiscussed}>▼</span>
+      </button>
+      {#if expandedDiscussed}
+        <div class="discussed-notes">
+          {#each notesDiscussed as note (note)}
+            {@const parsed = parseNoteDisplay(note)}
+            <button class="note-link" onclick={() => onNoteClick?.(parsed.identifier)}>
+              {parsed.displayName}
+            </button>
+          {/each}
+        </div>
       {/if}
     </div>
-
-    <!-- Notes Discussed Section -->
-    {#if notesDiscussed.length > 0}
-      <div class="discussed-section">
-        <button
-          class="section-header"
-          onclick={() => (expandedDiscussed = !expandedDiscussed)}
-          aria-expanded={expandedDiscussed}
-        >
-          <h4 class="section-title">Notes discussed</h4>
-          <span class="expand-icon" class:expanded={expandedDiscussed}>▼</span>
-        </button>
-        {#if expandedDiscussed}
-          <div class="discussed-notes">
-            {#each notesDiscussed as note (note)}
-              {@const parsed = parseNoteDisplay(note)}
-              <button class="note-link" onclick={() => onNoteClick?.(parsed.identifier)}>
-                {parsed.displayName}
-              </button>
-            {/each}
-          </div>
-        {/if}
-      </div>
-    {/if}
-
-    <!-- Message Input Area -->
-    <div class="input-section">
-      <MessageInput onSend={onSendMessage || (() => {})} />
-    </div>
   {/if}
+
+  <!-- Message Input Area -->
+  <div class="input-section">
+    <MessageInput onSend={onSendMessage || (() => {})} />
+  </div>
 </div>
 
 <style>
@@ -233,57 +176,7 @@
     overflow: hidden;
   }
 
-  .assistant-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1rem 1.25rem;
-    border-bottom: 1px solid var(--border-light);
-    background: var(--bg-secondary);
-  }
-
-  .thread-switcher-container {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .header-actions {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .history-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 2rem;
-    height: 2rem;
-    border: none;
-    border-radius: 0.375rem;
-    background: transparent;
-    color: var(--text-secondary);
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-
-  .history-btn:hover {
-    background: var(--bg-tertiary);
-    color: var(--text-primary);
-  }
-
-  .history-btn.active {
-    background: var(--accent-light);
-    color: var(--accent-primary);
-  }
-
-  .history-panel {
-    flex: 1;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
+  /* Removed header styles as requested */
 
   .section-title {
     margin: 0;
