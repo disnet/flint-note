@@ -483,6 +483,14 @@
     sidebarState.toggleRightSidebar();
   }
 
+  function setRightSidebarMode(mode: 'ai' | 'metadata' | 'threads'): void {
+    // If sidebar is closed, open it first
+    if (!sidebarState.rightSidebar.visible) {
+      sidebarState.toggleRightSidebar();
+    }
+    sidebarState.setRightSidebarMode(mode);
+  }
+
   // Window control functions
   function minimizeWindow(): void {
     window.electron?.ipcRenderer.send('window-minimize');
@@ -567,26 +575,73 @@
       </div>
       <div class="title-bar-drag-center"></div>
       <div class="title-bar-controls">
-        <button
-          class="ai-assistant-btn"
-          class:active={sidebarState.rightSidebar.visible}
-          onclick={toggleRightSidebar}
-          aria-label="Toggle AI assistant"
-          title="Toggle AI assistant"
-        >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
+        <div class="pillbox-controls">
+          <button
+            class="pillbox-btn pillbox-btn-left"
+            class:active={sidebarState.rightSidebar.visible &&
+              sidebarState.rightSidebar.mode === 'ai'}
+            onclick={() => setRightSidebarMode('ai')}
+            aria-label="AI Assistant"
+            title="AI Assistant"
           >
-            <path
-              d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
-            ></path>
-          </svg>
-        </button>
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+              ></path>
+            </svg>
+          </button>
+          <button
+            class="pillbox-btn pillbox-btn-middle"
+            class:active={sidebarState.rightSidebar.visible &&
+              sidebarState.rightSidebar.mode === 'threads'}
+            onclick={() => setRightSidebarMode('threads')}
+            aria-label="Agent Threads"
+            title="Agent Threads"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+              ></path>
+              <path d="M13 8l-2 2-2-2"></path>
+            </svg>
+          </button>
+          <button
+            class="pillbox-btn pillbox-btn-right"
+            class:active={sidebarState.rightSidebar.visible &&
+              sidebarState.rightSidebar.mode === 'metadata'}
+            onclick={() => setRightSidebarMode('metadata')}
+            aria-label="Note Metadata"
+            title="Note Metadata"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14,2 14,8 20,8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+              <polyline points="10,9 9,9 8,9"></polyline>
+            </svg>
+          </button>
+        </div>
 
         <!-- Window controls for non-macOS platforms -->
         <div class="window-controls">
@@ -788,33 +843,57 @@
     -webkit-app-region: no-drag;
   }
 
-  .ai-assistant-btn {
+  .pillbox-controls {
+    display: flex;
+    align-items: center;
+    border: 1px solid var(--border-light);
+    border-radius: 0.5rem;
+    background: var(--bg-primary);
+    overflow: hidden;
+  }
+
+  .pillbox-btn {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 0.25rem;
+    padding: 0.5rem;
     border: none;
-    border-radius: 0.375rem;
     background: transparent;
     color: var(--text-secondary);
     cursor: pointer;
     transition: all 0.2s ease;
+    width: 40px;
+    height: 32px;
   }
 
-  .ai-assistant-btn:hover {
+  .pillbox-btn:hover {
     background: var(--bg-tertiary);
     color: var(--text-primary);
   }
 
-  .ai-assistant-btn.active {
-    background: var(--accent-light);
-    color: var(--accent-primary);
-    border: 1px solid var(--accent-primary);
-  }
-
-  .ai-assistant-btn.active:hover {
+  .pillbox-btn.active {
     background: var(--accent-primary);
     color: var(--bg-primary);
+  }
+
+  .pillbox-btn-left {
+    border-top-left-radius: 0.375rem;
+    border-bottom-left-radius: 0.375rem;
+  }
+
+  .pillbox-btn-middle {
+    border-left: 1px solid var(--border-light);
+    border-right: 1px solid var(--border-light);
+  }
+
+  .pillbox-btn-right {
+    border-top-right-radius: 0.375rem;
+    border-bottom-right-radius: 0.375rem;
+  }
+
+  .pillbox-btn.active + .pillbox-btn,
+  .pillbox-btn + .pillbox-btn.active {
+    border-left-color: transparent;
   }
 
   /* Window controls */

@@ -72,3 +72,5 @@ flint-ui/
 - avoid `any` type
 
 - before running linting and typechecking after editing a bunch of files run `npm run format` to fix up formatting
+
+- don't run the development server
