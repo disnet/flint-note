@@ -40,17 +40,18 @@
     "@electron-toolkit/utils": "^4.0.0",
     "@fsegurai/codemirror-theme-github-dark": "^6.2.0",
     "@fsegurai/codemirror-theme-github-light": "^6.2.0",
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@openrouter/ai-sdk-provider": "^1.1.2",
     "@types/dompurify": "^3.0.5",
     "ai": "^5.0.0",
     "codemirror": "^6.0.2",
     "dompurify": "^3.2.6",
     "dotenv": "^17.2.0",
-    "marked": "^16.1.2",
-    "winston": "^3.17.0",
-    "zod": "^4.0.0",
-    "@modelcontextprotocol/sdk": "^1.0.0",
     "js-yaml": "^4.1.0",
-    "sqlite3": "^5.1.7"
+    "marked": "^16.1.2",
+    "sqlite3": "^5.1.7",
+    "winston": "^3.17.0",
+    "zod": "^4.0.0"
   },
   "devDependencies": {
     "@electron-toolkit/eslint-config-prettier": "^3.0.0",
@@ -58,7 +59,9 @@
     "@electron-toolkit/tsconfig": "^1.0.1",
     "@sveltejs/vite-plugin-svelte": "^5.0.3",
     "@testing-library/svelte": "^5.2.8",
+    "@types/js-yaml": "^4.0.0",
     "@types/node": "^22.14.1",
+    "@types/sqlite3": "^3.1.11",
     "@vitest/ui": "^3.2.4",
     "electron": "^35.1.5",
     "electron-builder": "^25.1.8",
@@ -71,11 +74,9 @@
     "prettier-plugin-svelte": "^3.3.3",
     "svelte": "^5.26.1",
     "svelte-check": "^4.1.5",
+    "tsx": "^4.20.3",
     "typescript": "^5.8.3",
     "vite": "^6.2.6",
-    "vitest": "^3.2.4",
-    "@types/js-yaml": "^4.0.0",
-    "@types/sqlite3": "^3.1.11",
-    "tsx": "^4.20.3"
+    "vitest": "^3.2.4"
   }
 }

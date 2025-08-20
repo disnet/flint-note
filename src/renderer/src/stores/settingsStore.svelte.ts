@@ -4,7 +4,7 @@ import { secureStorageService } from '../services/secureStorageService';
 // Settings interface
 export interface AppSettings {
   apiKeys: {
-    gateway: string;
+    openrouter: string;
   };
   modelPreferences: {
     defaultModel: string;
@@ -28,7 +28,7 @@ export interface AppSettings {
 // Default settings
 const DEFAULT_SETTINGS: AppSettings = {
   apiKeys: {
-    gateway: ''
+    openrouter: ''
   },
   modelPreferences: {
     defaultModel: DEFAULT_MODEL,
@@ -107,7 +107,7 @@ async function loadApiKeysFromSecureStorage(): Promise<void> {
     settings = {
       ...settings,
       apiKeys: {
-        gateway: keys.gateway
+        openrouter: keys.openrouter
       }
     };
   } catch (error) {
@@ -165,11 +165,11 @@ export const settingsStore = {
     saveStoredSettings(settings);
   },
 
-  updateApiKey(provider: 'gateway', key: string, _orgId?: string): void {
+  updateApiKey(provider: 'openrouter', key: string, _orgId?: string): void {
     const apiKeys = { ...settings.apiKeys };
 
-    if (provider === 'gateway') {
-      apiKeys.gateway = key;
+    if (provider === 'openrouter') {
+      apiKeys.openrouter = key;
     }
 
     this.updateSettings({ apiKeys });
@@ -236,9 +236,9 @@ export const settingsStore = {
   },
 
   // Validation helpers
-  validateApiKey(provider: 'gateway', key: string): boolean {
-    if (provider === 'gateway') {
-      return key.length > 10; // Gateway keys may have different formats
+  validateApiKey(provider: 'openrouter', key: string): boolean {
+    if (provider === 'openrouter') {
+      return key.startsWith('sk-') && key.length > 20; // OpenRouter keys start with sk-
     }
     return false;
   }

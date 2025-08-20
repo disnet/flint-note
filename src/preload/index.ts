@@ -162,13 +162,13 @@ const api = {
   secureStorageAvailable: () =>
     electronAPI.ipcRenderer.invoke('secure-storage-available'),
   storeApiKey: (params: {
-    provider: 'anthropic' | 'openai' | 'gateway';
+    provider: 'anthropic' | 'openai' | 'openrouter';
     key: string;
     orgId?: string;
   }) => electronAPI.ipcRenderer.invoke('store-api-key', params),
-  getApiKey: (params: { provider: 'anthropic' | 'openai' | 'gateway' }) =>
+  getApiKey: (params: { provider: 'anthropic' | 'openai' | 'openrouter' }) =>
     electronAPI.ipcRenderer.invoke('get-api-key', params),
-  testApiKey: (params: { provider: 'anthropic' | 'openai' | 'gateway' }) =>
+  testApiKey: (params: { provider: 'anthropic' | 'openai' | 'openrouter' }) =>
     electronAPI.ipcRenderer.invoke('test-api-key', params),
   getAllApiKeys: () => electronAPI.ipcRenderer.invoke('get-all-api-keys'),
   clearApiKeys: () => electronAPI.ipcRenderer.invoke('clear-api-keys'),

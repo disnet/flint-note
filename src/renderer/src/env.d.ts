@@ -165,15 +165,15 @@ declare global {
       // Secure storage operations
       secureStorageAvailable: () => Promise<any>;
       storeApiKey: (params: {
-        provider: 'anthropic' | 'openai' | 'gateway';
+        provider: 'anthropic' | 'openai' | 'openrouter';
         key: string;
         orgId?: string;
       }) => Promise<any>;
       getApiKey: (params: {
-        provider: 'anthropic' | 'openai' | 'gateway';
+        provider: 'anthropic' | 'openai' | 'openrouter';
       }) => Promise<any>;
       testApiKey: (params: {
-        provider: 'anthropic' | 'openai' | 'gateway';
+        provider: 'anthropic' | 'openai' | 'openrouter';
       }) => Promise<any>;
       getAllApiKeys: () => Promise<any>;
       clearApiKeys: () => Promise<any>;

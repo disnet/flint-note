@@ -1,4 +1,4 @@
-import { createGateway, type GatewayProvider } from '@ai-sdk/gateway';
+import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { generateText, streamText, ModelMessage, stepCountIs } from 'ai';
 import { EventEmitter } from 'events';
 import { readFileSync } from 'fs';
@@ -64,7 +64,7 @@ export class AIService extends EventEmitter {
   private currentModelName: string;
   private conversationHistories: Map<string, ModelMessage[]> = new Map();
   private currentConversationId: string | null = null;
-  private gateway: GatewayProvider;
+  private openrouter: ReturnType<typeof createOpenRouter>;
   private systemPrompt: string;
   private noteService: NoteService | null;
   private toolService: ToolService;
@@ -89,12 +89,15 @@ export class AIService extends EventEmitter {
   };
   private performanceMonitoringInterval?: NodeJS.Timeout;
 
-  constructor(gateway: GatewayProvider, noteService: NoteService | null) {
+  constructor(
+    openrouter: ReturnType<typeof createOpenRouter>,
+    noteService: NoteService | null
+  ) {
     super();
     this.currentModelName = 'openai/gpt-4o-mini';
     this.systemPrompt = this.loadSystemPrompt();
     logger.info('AI Service constructed', { model: this.currentModelName });
-    this.gateway = gateway;
+    this.openrouter = openrouter;
     this.noteService = noteService;
     this.toolService = new ToolService(noteService);
   }
@@ -103,10 +106,10 @@ export class AIService extends EventEmitter {
     secureStorage: SecureStorageService,
     noteService: NoteService | null = null
   ): Promise<AIService> {
-    const gateway = createGateway({
-      apiKey: (await secureStorage.getApiKey('gateway')).key
+    const openrouter = createOpenRouter({
+      apiKey: (await secureStorage.getApiKey('openrouter')).key
     });
-    return new AIService(gateway, noteService);
+    return new AIService(openrouter, noteService);
   }
 
   private switchModel(modelName: string): void {
@@ -1045,11 +1048,11 @@ ${
 
     const errorObj = error as Record<string, unknown>;
 
-    // Check for Vercel AI Gateway authentication errors
+    // Check for OpenRouter authentication errors
     if (
-      errorObj.name === 'AI_GatewayAuthenticationError' ||
-      errorObj.name === '_GatewayAuthenticationError' ||
-      errorObj.name === 'GatewayAuthenticationError'
+      errorObj.name === 'AI_APIKeyError' ||
+      errorObj.name === 'APIKeyError' ||
+      errorObj.name === 'OpenRouterError'
     ) {
       return true;
     }
@@ -1058,11 +1061,11 @@ ${
     const errorMessage = typeof errorObj.message === 'string' ? errorObj.message : '';
     const authErrorKeywords = [
       'No authentication provided',
-      'AI Gateway authentication failed',
+      'OpenRouter authentication failed',
       'authentication failed',
       'API key',
-      'OIDC token',
-      'gateway authentication'
+      'Invalid API key',
+      'openrouter authentication'
     ];
 
     for (const keyword of authErrorKeywords) {
@@ -1130,7 +1133,7 @@ ${
 
       const tools = this.toolService.getTools();
       const result = await generateText({
-        model: this.gateway(this.currentModelName),
+        model: this.openrouter(this.currentModelName),
         messages,
         tools,
         onStepFinish: (step) => {
@@ -1207,7 +1210,7 @@ ${
       // Check if this is an API key authentication error
       if (this.isApiKeyError(error)) {
         return {
-          text: "⚠️ **API Key Required**\n\nIt looks like you haven't set up your AI Gateway API key yet. To use the AI assistant:\n\n1. Click the **Settings** button (⚙️) in the sidebar\n2. Go to **🔑 API Keys** section\n3. Add your AI Gateway API key\n\nOnce configured, you'll be able to chat with the AI assistant!"
+          text: "⚠️ **API Key Required**\n\nIt looks like you haven't set up your OpenRouter API key yet. To use the AI assistant:\n\n1. Click the **Settings** button (⚙️) in the sidebar\n2. Go to **🔑 API Keys** section\n3. Add your OpenRouter API key\n\nOnce configured, you'll be able to chat with the AI assistant!"
         };
       }
 
@@ -1280,7 +1283,7 @@ ${
 
       try {
         const result = streamText({
-          model: this.gateway(this.currentModelName),
+          model: this.openrouter(this.currentModelName),
           messages,
           tools,
           stopWhen: stepCountIs(10), // Allow up to 5 steps for multi-turn tool calling
@@ -1451,7 +1454,7 @@ ${
       // Check if this is an API key authentication error
       if (this.isApiKeyError(error)) {
         const apiKeyErrorMessage =
-          "⚠️ **API Key Required**\n\nIt looks like you haven't set up your AI Gateway API key yet. To use the AI assistant:\n\n1. Click the **Settings** button (⚙️) in the sidebar\n2. Go to **🔑 API Keys** section\n3. Add your AI Gateway API key\n\nOnce configured, you'll be able to chat with the AI assistant!";
+          "⚠️ **API Key Required**\n\nIt looks like you haven't set up your OpenRouter API key yet. To use the AI assistant:\n\n1. Click the **Settings** button (⚙️) in the sidebar\n2. Go to **🔑 API Keys** section\n3. Add your OpenRouter API key\n\nOnce configured, you'll be able to chat with the AI assistant!";
         this.emit('stream-chunk', { requestId, chunk: apiKeyErrorMessage });
         this.emit('stream-end', { requestId, fullText: apiKeyErrorMessage });
         return;

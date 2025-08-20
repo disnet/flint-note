@@ -18,7 +18,7 @@ export class SecureStorageService {
     }
   }
 
-  async storeApiKey(provider: 'gateway', key: string, orgId?: string): Promise<void> {
+  async storeApiKey(provider: 'openrouter', key: string, orgId?: string): Promise<void> {
     try {
       await window.api.storeApiKey({ provider, key, orgId });
     } catch (error) {
@@ -27,7 +27,7 @@ export class SecureStorageService {
     }
   }
 
-  async getApiKey(provider: 'gateway'): Promise<{ key: string; orgId?: string }> {
+  async getApiKey(provider: 'openrouter'): Promise<{ key: string; orgId?: string }> {
     try {
       return await window.api.getApiKey({ provider });
     } catch (error) {
@@ -37,19 +37,19 @@ export class SecureStorageService {
   }
 
   async getAllApiKeys(): Promise<{
-    gateway: string;
+    openrouter: string;
   }> {
     try {
       return await window.api.getAllApiKeys();
     } catch (error) {
       console.error('Failed to get all API keys:', error);
       return {
-        gateway: ''
+        openrouter: ''
       };
     }
   }
 
-  async testApiKey(provider: 'gateway'): Promise<boolean> {
+  async testApiKey(provider: 'openrouter'): Promise<boolean> {
     try {
       return await window.api.testApiKey({ provider });
     } catch (error) {
@@ -67,9 +67,9 @@ export class SecureStorageService {
     }
   }
 
-  validateApiKey(provider: 'gateway', key: string): boolean {
-    if (provider === 'gateway') {
-      return key.length > 10; // Gateway keys may have different formats
+  validateApiKey(provider: 'openrouter', key: string): boolean {
+    if (provider === 'openrouter') {
+      return key.startsWith('sk-') && key.length > 20; // OpenRouter keys start with sk-
     }
     return false;
   }

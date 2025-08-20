@@ -218,10 +218,11 @@ app.whenReady().then(async () => {
       try {
         if (aiService) {
           // Check if API key is available before attempting to send
-          const gatewayApiKey = (await secureStorageService.getApiKey('gateway')).key;
-          if (!gatewayApiKey || gatewayApiKey.trim() === '') {
+          const openrouterApiKey = (await secureStorageService.getApiKey('openrouter'))
+            .key;
+          if (!openrouterApiKey || openrouterApiKey.trim() === '') {
             return {
-              text: "⚠️ **API Key Required**\n\nIt looks like you haven't set up your AI Gateway API key yet. To use the AI assistant:\n\n1. Click the **Settings** button (⚙️) in the sidebar\n2. Go to **🔑 API Keys** section\n3. Add your AI Gateway API key\n\nOnce configured, you'll be able to chat with the AI assistant!"
+              text: "⚠️ **API Key Required**\n\nIt looks like you haven't set up your OpenRouter API key yet. To use the AI assistant:\n\n1. Click the **Settings** button (⚙️) in the sidebar\n2. Go to **🔑 API Keys** section\n3. Add your OpenRouter API key\n\nOnce configured, you'll be able to chat with the AI assistant!"
             };
           }
 
@@ -270,10 +271,11 @@ app.whenReady().then(async () => {
       try {
         if (aiService) {
           // Check if API key is available before attempting to stream
-          const gatewayApiKey = (await secureStorageService.getApiKey('gateway')).key;
-          if (!gatewayApiKey || gatewayApiKey.trim() === '') {
+          const openrouterApiKey = (await secureStorageService.getApiKey('openrouter'))
+            .key;
+          if (!openrouterApiKey || openrouterApiKey.trim() === '') {
             const apiKeyErrorMessage =
-              "⚠️ **API Key Required**\n\nIt looks like you haven't set up your AI Gateway API key yet. To use the AI assistant:\n\n1. Click the **Settings** button (⚙️) in the sidebar\n2. Go to **🔑 API Keys** section\n3. Add your AI Gateway API key\n\nOnce configured, you'll be able to chat with the AI assistant!";
+              "⚠️ **API Key Required**\n\nIt looks like you haven't set up your OpenRouter API key yet. To use the AI assistant:\n\n1. Click the **Settings** button (⚙️) in the sidebar\n2. Go to **🔑 API Keys** section\n3. Add your OpenRouter API key\n\nOnce configured, you'll be able to chat with the AI assistant!";
 
             // Send as streaming response
             event.sender.send('ai-stream-start', { requestId: params.requestId });
@@ -695,7 +697,7 @@ app.whenReady().then(async () => {
     async (
       _event,
       params: {
-        provider: 'anthropic' | 'openai' | 'gateway';
+        provider: 'anthropic' | 'openai' | 'openrouter';
         key: string;
         orgId?: string;
       }
@@ -713,7 +715,7 @@ app.whenReady().then(async () => {
 
   ipcMain.handle(
     'get-api-key',
-    async (_event, params: { provider: 'anthropic' | 'openai' | 'gateway' }) => {
+    async (_event, params: { provider: 'anthropic' | 'openai' | 'openrouter' }) => {
       if (!secureStorageService) {
         throw new Error('Secure storage service not available');
       }
@@ -723,7 +725,7 @@ app.whenReady().then(async () => {
 
   ipcMain.handle(
     'test-api-key',
-    async (_event, params: { provider: 'anthropic' | 'openai' | 'gateway' }) => {
+    async (_event, params: { provider: 'anthropic' | 'openai' | 'openrouter' }) => {
       if (!secureStorageService) {
         throw new Error('Secure storage service not available');
       }
@@ -740,7 +742,7 @@ app.whenReady().then(async () => {
       anthropic: secureData.anthropicApiKey || '',
       openai: secureData.openaiApiKey || '',
       openaiOrgId: secureData.openaiOrgId || '',
-      gateway: secureData.gatewayApiKey || ''
+      openrouter: secureData.openrouterApiKey || ''
     };
   });
 

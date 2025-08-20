@@ -9,13 +9,13 @@
   let successMessage = $state('');
 
   // Local form state for API keys
-  let gatewayKey = $state('');
+  let openrouterKey = $state('');
 
   // Validation states
-  let gatewayKeyValid = $state(false);
+  let openrouterKeyValid = $state(false);
 
   // Auto-save debounce timers
-  let gatewaySaveTimer;
+  let openrouterSaveTimer;
 
   // Cache monitoring state
   let cacheMetrics = $state<CacheMetrics | null>(null);
@@ -74,10 +74,13 @@
 
         // Then populate the local form state
         const keys = await secureStorageService.getAllApiKeys();
-        gatewayKey = keys.gateway;
+        openrouterKey = keys.openrouter;
 
         // Update validation
-        gatewayKeyValid = secureStorageService.validateApiKey('gateway', gatewayKey);
+        openrouterKeyValid = secureStorageService.validateApiKey(
+          'openrouter',
+          openrouterKey
+        );
       } catch (error) {
         console.error('Failed to load API keys:', error);
       }
@@ -85,8 +88,8 @@
 
     // Cleanup function
     return () => {
-      if (gatewaySaveTimer) {
-        clearTimeout(gatewaySaveTimer);
+      if (openrouterSaveTimer) {
+        clearTimeout(openrouterSaveTimer);
       }
     };
   });
@@ -108,7 +111,7 @@
   }
 
   async function autoSaveApiKey(
-    provider: 'gateway',
+    provider: 'openrouter',
     key: string,
     orgId?: string
   ): Promise<void> {
@@ -136,14 +139,14 @@
     }
   }
 
-  function debounceGatewaySave(): void {
-    if (gatewaySaveTimer) {
-      clearTimeout(gatewaySaveTimer);
+  function debounceOpenrouterSave(): void {
+    if (openrouterSaveTimer) {
+      clearTimeout(openrouterSaveTimer);
     }
 
-    gatewaySaveTimer = setTimeout(() => {
-      if (gatewayKey && gatewayKeyValid) {
-        autoSaveApiKey('gateway', gatewayKey);
+    openrouterSaveTimer = setTimeout(() => {
+      if (openrouterKey && openrouterKeyValid) {
+        autoSaveApiKey('openrouter', openrouterKey);
       }
     }, 1000); // 1 second debounce
   }
@@ -165,12 +168,12 @@
 
     try {
       await secureStorageService.clearAllApiKeys();
-      gatewayKey = '';
-      gatewayKeyValid = false;
+      openrouterKey = '';
+      openrouterKeyValid = false;
 
       settingsStore.updateSettings({
         apiKeys: {
-          gateway: ''
+          openrouter: ''
         }
       });
 
@@ -335,31 +338,33 @@
       </p>
 
       <div class="api-key-group">
-        <label for="gateway-key-input">
-          <strong>AI Gateway API Key</strong>
-          <span class="validation-indicator" class:valid={gatewayKeyValid}>
-            {gatewayKeyValid ? '✓' : '❌'}
+        <label for="openrouter-key-input">
+          <strong>OpenRouter API Key</strong>
+          <span class="validation-indicator" class:valid={openrouterKeyValid}>
+            {openrouterKeyValid ? '✓' : '❌'}
           </span>
         </label>
         <div class="input-group">
           <input
-            id="gateway-key-input"
+            id="openrouter-key-input"
             type="password"
-            bind:value={gatewayKey}
-            placeholder="Your AI Gateway API key"
+            bind:value={openrouterKey}
+            placeholder="Your OpenRouter API key"
             class="api-key-input"
             oninput={() => {
-              gatewayKeyValid = secureStorageService.validateApiKey(
-                'gateway',
-                gatewayKey
+              openrouterKeyValid = secureStorageService.validateApiKey(
+                'openrouter',
+                openrouterKey
               );
-              debounceGatewaySave();
+              debounceOpenrouterSave();
             }}
           />
         </div>
         <small
-          >Configure your AI Gateway to access multiple AI providers through a single
-          interface</small
+          >Get your OpenRouter API key from <a
+            target="_blank"
+            href="https://openrouter.ai">openrouter.ai</a
+          >.</small
         >
       </div>
 
@@ -743,7 +748,6 @@
     font-size: 0.875rem;
   }
 
-
   .btn-secondary,
   .btn-danger {
     padding: 0.75rem 1rem;
@@ -830,7 +834,6 @@
     gap: 0.75rem;
     flex-wrap: wrap;
   }
-
 
   /* Cache Performance Styles */
   .loading-indicator {
