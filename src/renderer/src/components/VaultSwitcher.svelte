@@ -201,7 +201,22 @@
     aria-expanded={isDropdownOpen}
   >
     <span class="vault-display">
-      <span class="vault-icon">📁</span>
+      <span class="vault-icon">
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path
+            d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2l5 0 2 3h9a2 2 0 0 1 2 2z"
+          />
+        </svg>
+      </span>
       <span class="vault-name">
         {#if isLoading}
           Loading...
@@ -212,7 +227,20 @@
         {/if}
       </span>
     </span>
-    <span class="dropdown-arrow" class:rotated={isDropdownOpen}>▼</span>
+    <span class="dropdown-arrow" class:rotated={isDropdownOpen}>
+      <svg
+        width="10"
+        height="10"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="m6 9 6 6 6-6" />
+      </svg>
+    </span>
   </button>
 
   {#if isDropdownOpen}
@@ -234,7 +262,22 @@
                 }
               }}
             >
-              <span class="vault-icon">📁</span>
+              <span class="vault-icon">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path
+                    d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2l5 0 2 3h9a2 2 0 0 1 2 2z"
+                  />
+                </svg>
+              </span>
               <div class="vault-details">
                 <div class="vault-name">{vault.name}</div>
                 {#if vault.description}
@@ -242,7 +285,20 @@
                 {/if}
               </div>
               {#if currentVault?.id === vault.id}
-                <span class="active-indicator">✓</span>
+                <span class="active-indicator">
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="m9 12 2 2 4-4" />
+                  </svg>
+                </span>
               {/if}
             </button>
             <button
@@ -257,7 +313,20 @@
               title="Archive vault"
               aria-label="Archive vault"
             >
-              🗃️
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <rect width="20" height="5" x="2" y="3" rx="1" />
+                <path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8" />
+                <path d="m9.5 11 5 0" />
+              </svg>
             </button>
           </div>
         {/each}
@@ -270,7 +339,21 @@
         onclick={openCreateModal}
         disabled={isLoading}
       >
-        <span class="vault-icon new-vault-icon">✨</span>
+        <span class="vault-icon new-vault-icon">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M12 5v14" />
+            <path d="m5 12 14 0" />
+          </svg>
+        </span>
         <div class="vault-details">
           <div class="vault-name">New Vault</div>
           <div class="vault-description">Create a new vault</div>
@@ -298,7 +381,24 @@
   >
     <div class="confirmation-modal">
       <div class="confirmation-header">
-        <h3>🗃️ Archive Vault</h3>
+        <h3>
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            style="display: inline; vertical-align: middle; margin-right: 0.5rem;"
+          >
+            <rect width="20" height="5" x="2" y="3" rx="1" />
+            <path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8" />
+            <path d="m9.5 11 5 0" />
+          </svg>
+          Archive Vault
+        </h3>
       </div>
       <div class="confirmation-content">
         <p>
@@ -374,6 +474,14 @@
   .vault-icon {
     font-size: 0.875rem;
     line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .vault-icon svg {
+    color: inherit;
+    stroke: currentColor;
   }
 
   .vault-name {
@@ -387,6 +495,14 @@
     font-size: 0.625rem;
     color: var(--text-secondary);
     transition: transform 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .dropdown-arrow svg {
+    color: inherit;
+    stroke: currentColor;
   }
 
   .dropdown-arrow.rotated {
@@ -521,6 +637,14 @@
     margin-left: auto;
     color: var(--accent-primary);
     font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .active-indicator svg {
+    color: inherit;
+    stroke: currentColor;
   }
 
   .dropdown-separator {
@@ -585,6 +709,11 @@
     align-items: center;
     justify-content: center;
     margin-left: 0; /* Ensure no gap */
+  }
+
+  .archive-button svg {
+    color: inherit;
+    stroke: currentColor;
   }
 
   /* Individual archive button hover removed - handled by container hover */
