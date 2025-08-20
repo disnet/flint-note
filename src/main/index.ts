@@ -27,7 +27,8 @@ function createWindow(): void {
     height: 900,
     show: false,
     autoHideMenuBar: true,
-    titleBarStyle: 'hiddenInset',
+    frame: false,
+    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : undefined,
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.mjs'),
@@ -142,6 +143,32 @@ app.whenReady().then(async () => {
 
   // IPC test
   ipcMain.on('ping', () => logger.info('Received ping from renderer'));
+
+  // Window control handlers
+  ipcMain.on('window-minimize', () => {
+    const focusedWindow = BrowserWindow.getFocusedWindow();
+    if (focusedWindow) {
+      focusedWindow.minimize();
+    }
+  });
+
+  ipcMain.on('window-maximize', () => {
+    const focusedWindow = BrowserWindow.getFocusedWindow();
+    if (focusedWindow) {
+      if (focusedWindow.isMaximized()) {
+        focusedWindow.unmaximize();
+      } else {
+        focusedWindow.maximize();
+      }
+    }
+  });
+
+  ipcMain.on('window-close', () => {
+    const focusedWindow = BrowserWindow.getFocusedWindow();
+    if (focusedWindow) {
+      focusedWindow.close();
+    }
+  });
 
   // Initialize Note service
   let noteService: NoteService | null = null;

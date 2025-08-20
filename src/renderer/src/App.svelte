@@ -482,6 +482,19 @@
   function toggleRightSidebar(): void {
     sidebarState.toggleRightSidebar();
   }
+
+  // Window control functions
+  function minimizeWindow(): void {
+    window.electron?.ipcRenderer.send('window-minimize');
+  }
+
+  function maximizeWindow(): void {
+    window.electron?.ipcRenderer.send('window-maximize');
+  }
+
+  function closeWindow(): void {
+    window.electron?.ipcRenderer.send('window-close');
+  }
 </script>
 
 <div class="app" class:three-column={sidebarState.layout === 'three-column'}>
@@ -574,6 +587,40 @@
             ></path>
           </svg>
         </button>
+        
+        <!-- Window controls for non-macOS platforms -->
+        <div class="window-controls">
+          <button
+            class="window-control-btn minimize-btn"
+            onclick={minimizeWindow}
+            aria-label="Minimize window"
+            title="Minimize"
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12">
+              <path d="M 2,6 10,6" stroke="currentColor" stroke-width="1" />
+            </svg>
+          </button>
+          <button
+            class="window-control-btn maximize-btn"
+            onclick={maximizeWindow}
+            aria-label="Maximize window"
+            title="Maximize"
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12">
+              <path d="M 2,2 2,10 10,10 10,2 Z" stroke="currentColor" stroke-width="1" fill="none" />
+            </svg>
+          </button>
+          <button
+            class="window-control-btn close-btn"
+            onclick={closeWindow}
+            aria-label="Close window"
+            title="Close"
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12">
+              <path d="M 3,3 9,9 M 9,3 3,9" stroke="currentColor" stroke-width="1" />
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -651,6 +698,11 @@
     -webkit-app-region: no-drag;
   }
 
+  /* Windows: hide traffic light spacer */
+  :global(html[data-platform='other']) .traffic-light-spacer {
+    display: none;
+  }
+
   .title-bar-left {
     display: flex;
     align-items: center;
@@ -716,14 +768,14 @@
   }
 
   .title-bar-controls {
-    width: 80px;
     height: 100%;
     flex-shrink: 0;
-    -webkit-app-region: no-drag;
     display: flex;
     align-items: center;
     justify-content: flex-end;
+    gap: 0.75rem;
     padding-right: 0.75rem;
+    -webkit-app-region: no-drag;
   }
 
   .ai-assistant-btn {
@@ -755,6 +807,45 @@
     color: var(--bg-primary);
   }
 
+  /* Window controls */
+  .window-controls {
+    display: flex;
+    align-items: center;
+    gap: 0;
+  }
+
+  /* Hide window controls on macOS */
+  :global(html[data-platform='macos']) .window-controls {
+    display: none;
+  }
+
+  .window-control-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 46px;
+    height: 30px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    font-size: 12px;
+  }
+
+  .window-control-btn:hover {
+    background: var(--bg-tertiary);
+  }
+
+  .window-control-btn.close-btn:hover {
+    background: #e81123;
+    color: white;
+  }
+
+  .window-control-btn svg {
+    pointer-events: none;
+  }
+
   .app-layout {
     display: grid;
     flex: 1;
@@ -781,13 +872,8 @@
     }
   }
 
-  /* By default hide the title bar, will be shown by JS on macOS */
+  /* Show title bar on all platforms when using custom frame */
   .title-bar {
-    display: none;
-  }
-
-  /* Show title bar on macOS when the CSS variable is set */
-  :global(html[data-platform='macos']) .title-bar {
     display: block;
   }
 </style>
