@@ -39,7 +39,6 @@ export interface UnifiedThread {
 
   // Threading features
   notesDiscussed: string[];
-  tags?: string[];
   isArchived?: boolean;
 
   // Timestamps
