@@ -105,48 +105,45 @@
 <div class="vault-switcher">
   <button
     class="vault-button"
+    class:open={isDropdownOpen}
     onclick={toggleDropdown}
     disabled={isLoading}
     aria-label="Switch vault"
+    aria-haspopup="listbox"
+    aria-expanded={isDropdownOpen}
   >
-    <span class="vault-icon">📁</span>
-    <span class="vault-name">
-      {#if isLoading}
-        Loading...
-      {:else if currentVault}
-        {currentVault.name}
-      {:else}
-        No Vault
-      {/if}
+    <span class="vault-display">
+      <span class="vault-icon">📁</span>
+      <span class="vault-name">
+        {#if isLoading}
+          Loading...
+        {:else if currentVault}
+          {currentVault.name}
+        {:else}
+          No Vault
+        {/if}
+      </span>
     </span>
-    <span class="dropdown-arrow" class:open={isDropdownOpen}>▼</span>
+    <span class="dropdown-arrow" class:rotated={isDropdownOpen}>▼</span>
   </button>
 
   {#if isDropdownOpen}
-    <div class="dropdown">
+    <div
+      class="dropdown"
+      role="listbox"
+    >
       {#if allVaults.length === 0}
         <div class="dropdown-item disabled">No vaults available</div>
       {:else}
         {#each allVaults as vault (vault.id)}
-          <div
+          <button
             class="dropdown-item"
             class:active={currentVault?.id === vault.id}
             class:disabled={isLoading || currentVault?.id === vault.id || !vault.id}
-            role="button"
-            tabindex="0"
+            role="option"
+            aria-selected={currentVault?.id === vault.id}
             onclick={() => {
               if (vault.id && !isLoading && currentVault?.id !== vault.id) {
-                switchVault(vault.id);
-              }
-            }}
-            onkeydown={(e) => {
-              if (
-                (e.key === 'Enter' || e.key === ' ') &&
-                vault.id &&
-                !isLoading &&
-                currentVault?.id !== vault.id
-              ) {
-                e.preventDefault();
                 switchVault(vault.id);
               }
             }}
@@ -161,7 +158,7 @@
             {#if currentVault?.id === vault.id}
               <span class="active-indicator">✓</span>
             {/if}
-          </div>
+          </button>
         {/each}
       {/if}
     </div>
@@ -177,23 +174,27 @@
   .vault-button {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.25rem 0.5rem;
+    gap: 0.375rem;
+    padding: 0.375rem 0.5rem;
+    background: var(--bg-primary);
     border: 1px solid var(--border-light);
-    border-radius: 0.375rem;
-    background: var(--bg-secondary);
+    border-radius: 0.5rem;
+    font-size: 0.75rem;
     color: var(--text-primary);
-    font-size: 0.8125rem;
-    font-weight: 500;
     cursor: pointer;
     transition: all 0.2s ease;
-    min-width: 120px;
-    height: 24px;
+    min-width: 110px;
+    justify-content: space-between;
   }
 
   .vault-button:hover:not(:disabled) {
-    background: var(--bg-tertiary);
-    border-color: var(--border-medium);
+    border-color: var(--accent-primary);
+    background: var(--bg-secondary);
+  }
+
+  .vault-button.open {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 2px var(--accent-light);
   }
 
   .vault-button:disabled {
@@ -201,27 +202,31 @@
     cursor: not-allowed;
   }
 
+  .vault-display {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+  }
+
   .vault-icon {
     font-size: 0.875rem;
-    opacity: 0.8;
-    filter: grayscale(0.2);
+    line-height: 1;
   }
 
   .vault-name {
-    flex: 1;
-    text-align: left;
+    font-weight: 500;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
   .dropdown-arrow {
-    font-size: 0.6875rem;
+    font-size: 0.625rem;
+    color: var(--text-secondary);
     transition: transform 0.2s ease;
-    opacity: 0.7;
   }
 
-  .dropdown-arrow.open {
+  .dropdown-arrow.rotated {
     transform: rotate(180deg);
   }
 
@@ -229,18 +234,16 @@
     position: absolute;
     top: 100%;
     left: 0;
-    z-index: 1000;
-    margin-top: 0.375rem;
-    border: 1px solid var(--border-light);
-    border-radius: 0.5rem;
+    right: 0;
+    z-index: 100;
     background: var(--bg-primary);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-    max-height: 280px;
+    border: 1px solid var(--border-medium);
+    border-radius: 0.75rem;
+    box-shadow: 0 4px 12px var(--shadow-medium);
+    margin-top: 0.25rem;
+    max-height: 400px;
     overflow-y: auto;
-    backdrop-filter: blur(8px);
-    min-width: 200px;
-    width: max-content;
-    max-width: 280px;
+    min-width: 280px;
   }
 
   .dropdown::-webkit-scrollbar {
@@ -269,48 +272,32 @@
   }
 
   .dropdown-item {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background: transparent;
+    border: none;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    color: var(--text-primary);
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    padding: 0.625rem 1rem;
-    border: none;
-    background: none;
-    color: var(--text-primary);
-    text-align: left;
-    cursor: pointer !important;
-    transition: all 0.2s ease;
-    margin: 0 0.25rem;
-    border-radius: 0.375rem;
-    width: calc(100% - 0.5rem);
-  }
-
-  .dropdown-item:first-child {
-    margin-top: 0.25rem;
-  }
-
-  .dropdown-item:last-child {
-    margin-bottom: 0.25rem;
-  }
-
-  .dropdown-item + .dropdown-item {
-    margin-top: 0.125rem;
   }
 
   .dropdown-item:hover:not(.disabled) {
     background: var(--bg-secondary);
-    transform: translateX(2px);
   }
 
   .dropdown-item.disabled {
     opacity: 0.6;
-    cursor: not-allowed !important;
+    cursor: not-allowed;
     pointer-events: none;
   }
 
   .dropdown-item.active {
-    background: var(--bg-tertiary);
-    border-left: 2px solid var(--accent-primary);
-    padding-left: calc(1rem - 2px);
+    background: var(--accent-light);
+    color: var(--accent-primary);
   }
 
   .vault-details {
@@ -319,7 +306,7 @@
   }
 
   .vault-details .vault-name {
-    font-weight: 600;
+    font-weight: 500;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -328,19 +315,17 @@
 
   .vault-description {
     font-size: 0.75rem;
-    color: var(--text-muted);
+    color: var(--text-secondary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    margin-top: 0.125rem;
-    opacity: 0.8;
+    margin-top: 0.25rem;
     line-height: 1.2;
   }
 
   .active-indicator {
+    margin-left: auto;
     color: var(--accent-primary);
     font-weight: bold;
-    font-size: 0.875rem;
-    opacity: 0.9;
   }
 </style>
