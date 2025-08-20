@@ -13,14 +13,14 @@ export interface ModelInfo {
 
 export const SUPPORTED_MODELS: ModelInfo[] = [
   // OpenAI Models
-  {
-    id: 'openai/gpt-5',
-    name: 'GPT-5',
-    provider: 'OpenAI',
-    icon: '🤖',
-    contextLength: 400000,
-    costPerMTokens: { input: 1.25, output: 10.0, cached: 0.13 }
-  },
+  // {
+  //   id: 'openai/gpt-5',
+  //   name: 'GPT-5 Chat',
+  //   provider: 'OpenAI',
+  //   icon: '🤖',
+  //   contextLength: 400000,
+  //   costPerMTokens: { input: 1.25, output: 10.0, cached: 0.13 }
+  // },
 
   // Anthropic Claude Models
   {
@@ -41,7 +41,7 @@ export const SUPPORTED_MODELS: ModelInfo[] = [
   }
 ];
 
-export const DEFAULT_MODEL = 'openai/gpt-5';
+export const DEFAULT_MODEL = 'anthropic/claude-sonnet-4';
 
 export function getModelById(id: string): ModelInfo | undefined {
   return SUPPORTED_MODELS.find((model) => model.id === id);
