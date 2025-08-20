@@ -284,6 +284,11 @@ export class NoteService {
     return await this.api.switchVault({ id: vaultId });
   }
 
+  async removeVault(vaultId: string): Promise<void> {
+    this.ensureInitialized();
+    return await this.api.removeVault({ id: vaultId });
+  }
+
   // Link operations
   async getNoteLinks(
     identifier: string,

@@ -664,6 +664,13 @@ app.whenReady().then(async () => {
     return result.canceled ? null : result.filePaths[0];
   });
 
+  ipcMain.handle('remove-vault', async (_event, params: { vaultId: string }) => {
+    if (!noteService) {
+      throw new Error('Note service not available');
+    }
+    return await noteService.removeVault(params.vaultId);
+  });
+
   // Link operations
   ipcMain.handle(
     'get-note-links',

@@ -142,6 +142,7 @@ export interface NoteService {
     description?: string;
   }): Promise<VaultInfo>;
   switchVault(params: { vaultId: string }): Promise<void>;
+  removeVault(params: { vaultId: string }): Promise<void>;
 
   // Link operations
   getNoteLinks(params: { identifier: string; vaultId?: string }): Promise<{

@@ -444,6 +444,16 @@ export class ElectronChatService implements ChatService, NoteService {
     }
   }
 
+  async removeVault(params: { vaultId: string }): Promise<void> {
+    const { vaultId } = params;
+    try {
+      return await window.api.removeVault({ vaultId });
+    } catch (error) {
+      console.error('Failed to remove vault:', error);
+      throw new Error('Failed to remove vault. Please try again.');
+    }
+  }
+
   // Link operations
   async getNoteLinks(params: { identifier: string; vaultId?: string }): Promise<{
     outgoing_internal: NoteLinkRow[];

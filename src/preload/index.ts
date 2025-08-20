@@ -146,6 +146,8 @@ const api = {
     electronAPI.ipcRenderer.invoke('create-vault', params),
   switchVault: (params: { vaultId: string }) =>
     electronAPI.ipcRenderer.invoke('switch-vault', params),
+  removeVault: (params: { vaultId: string }) =>
+    electronAPI.ipcRenderer.invoke('remove-vault', params),
 
   // File system operations
   showDirectoryPicker: () => electronAPI.ipcRenderer.invoke('show-directory-picker'),
