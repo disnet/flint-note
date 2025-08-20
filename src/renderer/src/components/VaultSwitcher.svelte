@@ -94,7 +94,7 @@
     try {
       // Refresh vault list to include the new vault
       await loadVaults();
-      
+
       // Optionally switch to the newly created vault
       if (vaultInfo.id) {
         await switchVault(vaultInfo.id);
@@ -120,12 +120,12 @@
       isLoading = true;
       const vaultToArchive = confirmingArchive;
       const isArchivingCurrentVault = currentVault?.id === vaultToArchive.id;
-      
+
       // If we're archiving the current vault, find another vault to switch to
       let nextVault: VaultInfo | null = null;
       if (isArchivingCurrentVault) {
-        nextVault = allVaults.find(vault => vault.id !== vaultToArchive.id) || null;
-        
+        nextVault = allVaults.find((vault) => vault.id !== vaultToArchive.id) || null;
+
         // If there's another vault available, switch to it first
         if (nextVault?.id) {
           // Start vault switch mode - this clears tabs and blocks new ones
@@ -136,7 +136,7 @@
           onNoteClose();
 
           await service.switchVault({ vaultId: nextVault.id });
-          
+
           // Refresh stores for the new vault
           await notesStore.refresh();
           await pinnedNotesStore.refreshForVault(nextVault.id);
@@ -148,13 +148,13 @@
           temporaryTabsStore.endVaultSwitch();
         }
       }
-      
+
       // Remove the vault
       await service.removeVault({ vaultId: vaultToArchive.id });
-      
+
       // Refresh vault list
       await loadVaults();
-      
+
       confirmingArchive = null;
     } catch (error) {
       console.error('Failed to archive vault:', error);
@@ -216,10 +216,7 @@
   </button>
 
   {#if isDropdownOpen}
-    <div
-      class="dropdown"
-      role="listbox"
-    >
+    <div class="dropdown" role="listbox">
       {#if allVaults.length === 0}
         <div class="dropdown-item disabled">No vaults available</div>
       {:else}
@@ -265,9 +262,9 @@
           </div>
         {/each}
       {/if}
-      
+
       <div class="dropdown-separator"></div>
-      
+
       <button
         class="dropdown-item new-vault-item"
         onclick={openCreateModal}
@@ -283,8 +280,8 @@
   {/if}
 </div>
 
-<CreateVaultModal 
-  isOpen={isCreateModalOpen} 
+<CreateVaultModal
+  isOpen={isCreateModalOpen}
   onClose={closeCreateModal}
   onVaultCreated={handleVaultCreated}
 />
@@ -297,11 +294,20 @@
         <h3>🗃️ Archive Vault</h3>
       </div>
       <div class="confirmation-content">
-        <p>Are you sure you want to archive the vault <strong>"{confirmingArchive.name}"</strong>?</p>
+        <p>
+          Are you sure you want to archive the vault <strong
+            >"{confirmingArchive.name}"</strong
+          >?
+        </p>
         {#if currentVault?.id === confirmingArchive.id}
-          <p class="warning-text current-vault-warning">This is your current vault. If you proceed, you'll be switched to another vault automatically.</p>
+          <p class="warning-text current-vault-warning">
+            This is your current vault. If you proceed, you'll be switched to another
+            vault automatically.
+          </p>
         {/if}
-        <p class="warning-text">This will remove the vault from your list, but the files will remain on disk at:</p>
+        <p class="warning-text">
+          This will remove the vault from your list, but the files will remain on disk at:
+        </p>
         <code class="vault-path">{confirmingArchive.path}</code>
         <p class="warning-text">You can add it back later if needed.</p>
       </div>

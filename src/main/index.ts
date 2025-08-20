@@ -660,7 +660,7 @@ app.whenReady().then(async () => {
       properties: ['openDirectory', 'createDirectory'],
       title: 'Select Vault Directory'
     });
-    
+
     return result.canceled ? null : result.filePaths[0];
   });
 

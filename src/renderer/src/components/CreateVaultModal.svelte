@@ -21,9 +21,7 @@
   $effect(() => {
     if (isOpen) {
       setTimeout(() => {
-        const nameInput = document.querySelector(
-          '.vault-name-input'
-        ) as HTMLInputElement;
+        const nameInput = document.querySelector('.vault-name-input') as HTMLInputElement;
         nameInput?.focus();
       }, 100);
     }
@@ -100,10 +98,10 @@
 
   async function handleSubmit(event: Event): Promise<void> {
     event.preventDefault();
-    
+
     const nameValidation = validateName(vaultName);
     const pathValidation = validatePath(vaultPath);
-    
+
     if (nameValidation) {
       nameError = nameValidation;
       return;
@@ -139,7 +137,8 @@
         } else if (err.message.includes('permission')) {
           errorMessage = 'Permission denied. Please check the path permissions.';
         } else if (err.message.includes('path')) {
-          errorMessage = 'Invalid path. Please check the directory exists or can be created.';
+          errorMessage =
+            'Invalid path. Please check the directory exists or can be created.';
         } else {
           errorMessage = err.message;
         }
@@ -268,7 +267,11 @@
             <button
               type="submit"
               class="create-btn"
-              disabled={isLoading || !!nameError || !!pathError || !vaultName.trim() || !vaultPath.trim()}
+              disabled={isLoading ||
+                !!nameError ||
+                !!pathError ||
+                !vaultName.trim() ||
+                !vaultPath.trim()}
             >
               {isLoading ? 'Creating...' : 'Create Vault'}
             </button>

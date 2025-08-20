@@ -331,7 +331,22 @@
     {/if}
 
     <section class="settings-section">
-      <h3>🔑 API Keys</h3>
+      <h3>
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          class="section-icon"
+        >
+          <path
+            d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"
+          ></path>
+        </svg>
+        API Keys
+      </h3>
       <p class="section-description">
         Configure your API keys for different AI providers. Keys are stored securely and
         encrypted on your device.
@@ -375,7 +390,24 @@
     </section>
 
     <section class="settings-section">
-      <h3>🤖 Model Preferences</h3>
+      <h3>
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          class="section-icon"
+        >
+          <path
+            d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a3 3 0 0 1 3 3 3 3 0 0 1-3 3v1a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-1a3 3 0 0 1-3-3 3 3 0 0 1 3-3h1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2z"
+          ></path>
+          <circle cx="9" cy="12" r="1"></circle>
+          <circle cx="15" cy="12" r="1"></circle>
+        </svg>
+        Model Preferences
+      </h3>
       <p class="section-description">
         Configure your preferred AI models and cost settings.
       </p>
@@ -435,7 +467,20 @@
     </section>
 
     <section class="settings-section">
-      <h3>⚡ Cache Performance</h3>
+      <h3>
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          class="section-icon"
+        >
+          <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+        </svg>
+        Cache Performance
+      </h3>
       <p class="section-description">
         Monitor and optimize AI model caching for better performance and cost efficiency.
       </p>
@@ -602,29 +647,121 @@
                 loadCacheData();
               }}
             >
-              🔄 Refresh Data
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path>
+                <path d="M21 3v5h-5"></path>
+                <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path>
+                <path d="M3 21v-5h5"></path>
+              </svg>
+              Refresh Data
             </button>
 
             <button class="btn-secondary" onclick={optimizeCache}>
-              🚀 Optimize Configuration
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M12 19l7-7 3 3-7 7-3-3z"></path>
+                <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path>
+                <path d="M2 2l7.586 7.586"></path>
+                <circle cx="11" cy="11" r="2"></circle>
+              </svg>
+              Optimize Configuration
             </button>
 
-            <button class="btn-secondary" onclick={warmupCache}> 🔥 Warmup Cache </button>
+            <button class="btn-secondary" onclick={warmupCache}>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"
+                ></path>
+              </svg>
+              Warmup Cache
+            </button>
 
             <button
               class="btn-secondary"
               class:active={performanceMonitoringActive}
               onclick={togglePerformanceMonitoring}
             >
-              {performanceMonitoringActive ? '⏹️ Stop' : '▶️ Start'} Monitoring
+              {#if performanceMonitoringActive}
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <rect x="6" y="4" width="4" height="16"></rect>
+                  <rect x="14" y="4" width="4" height="16"></rect>
+                </svg>
+                Stop
+              {:else}
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <polygon points="5,3 19,12 5,21"></polygon>
+                </svg>
+                Start
+              {/if}
+              Monitoring
             </button>
 
             <button class="btn-secondary" onclick={generateCacheReport}>
-              📊 Generate Report
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M3 3v18h18"></path>
+                <path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"></path>
+              </svg>
+              Generate Report
             </button>
 
             <button class="btn-danger" onclick={resetCacheMetrics}>
-              🗑️ Reset Metrics
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <polyline points="3,6 5,6 21,6"></polyline>
+                <path
+                  d="m19,6v14a2,2 0 0,1-2,2H7a2,2 0 0,1-2-2V6m3,0V4a2,2 0 0,1,2-2h4a2,2 0 0,1,2,2v2"
+                ></path>
+                <line x1="10" y1="11" x2="10" y2="17"></line>
+                <line x1="14" y1="11" x2="14" y2="17"></line>
+              </svg>
+              Reset Metrics
             </button>
           </div>
         </div>
@@ -692,12 +829,20 @@
   }
 
   .settings-section h3 {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     margin: 0 0 0.5rem 0;
     font-size: 1.25rem;
     font-weight: 600;
     color: var(--text-primary);
     padding-bottom: 0.5rem;
     border-bottom: 2px solid var(--border-light);
+  }
+
+  .section-icon {
+    flex-shrink: 0;
+    color: var(--accent);
   }
 
   .section-description {
@@ -750,6 +895,9 @@
 
   .btn-secondary,
   .btn-danger {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     padding: 0.75rem 1rem;
     border: none;
     border-radius: 0.5rem;
@@ -757,6 +905,11 @@
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s ease;
+  }
+
+  .btn-secondary svg,
+  .btn-danger svg {
+    flex-shrink: 0;
   }
 
   .btn-secondary {
