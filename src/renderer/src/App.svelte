@@ -585,8 +585,8 @@
             title="AI Assistant"
           >
             <svg
-              width="16"
-              height="16"
+              width="14"
+              height="14"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -606,8 +606,8 @@
             title="Agent Threads"
           >
             <svg
-              width="16"
-              height="16"
+              width="14"
+              height="14"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -627,8 +627,8 @@
             title="Note Metadata"
           >
             <svg
-              width="16"
-              height="16"
+              width="14"
+              height="14"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -856,14 +856,14 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 0.5rem;
+    padding: 0.25rem;
     border: none;
     background: transparent;
     color: var(--text-secondary);
     cursor: pointer;
     transition: all 0.2s ease;
-    width: 40px;
-    height: 32px;
+    width: 32px;
+    height: 24px;
   }
 
   .pillbox-btn:hover {
