@@ -6,6 +6,7 @@
   import { temporaryTabsStore } from '../stores/temporaryTabsStore.svelte';
   import { unifiedChatStore } from '../stores/unifiedChatStore.svelte';
   import { activeNoteStore } from '../stores/activeNoteStore.svelte';
+  import CreateVaultModal from './CreateVaultModal.svelte';
 
   interface Props {
     onNoteClose: () => void;
@@ -17,6 +18,7 @@
   let allVaults = $state<VaultInfo[]>([]);
   let isLoading = $state(false);
   let isDropdownOpen = $state(false);
+  let isCreateModalOpen = $state(false);
 
   const service = getChatService();
 
@@ -76,6 +78,29 @@
 
   function closeDropdown(): void {
     isDropdownOpen = false;
+  }
+
+  function openCreateModal(): void {
+    isCreateModalOpen = true;
+    closeDropdown();
+  }
+
+  function closeCreateModal(): void {
+    isCreateModalOpen = false;
+  }
+
+  async function handleVaultCreated(vaultInfo: VaultInfo): Promise<void> {
+    try {
+      // Refresh vault list to include the new vault
+      await loadVaults();
+      
+      // Optionally switch to the newly created vault
+      if (vaultInfo.id) {
+        await switchVault(vaultInfo.id);
+      }
+    } catch (error) {
+      console.error('Failed to handle vault creation:', error);
+    }
   }
 
   // Load vaults on mount
@@ -161,9 +186,29 @@
           </button>
         {/each}
       {/if}
+      
+      <div class="dropdown-separator"></div>
+      
+      <button
+        class="dropdown-item new-vault-item"
+        onclick={openCreateModal}
+        disabled={isLoading}
+      >
+        <span class="vault-icon new-vault-icon">✨</span>
+        <div class="vault-details">
+          <div class="vault-name">New Vault</div>
+          <div class="vault-description">Create a new vault</div>
+        </div>
+      </button>
     </div>
   {/if}
 </div>
+
+<CreateVaultModal 
+  isOpen={isCreateModalOpen} 
+  onClose={closeCreateModal}
+  onVaultCreated={handleVaultCreated}
+/>
 
 <style>
   .vault-switcher {
@@ -327,5 +372,31 @@
     margin-left: auto;
     color: var(--accent-primary);
     font-weight: bold;
+  }
+
+  .dropdown-separator {
+    margin: 0.25rem 0;
+    border-top: 1px solid var(--border-light);
+  }
+
+  .new-vault-item {
+    background: transparent !important;
+  }
+
+  .new-vault-item:hover:not(:disabled) {
+    background: var(--bg-secondary) !important;
+  }
+
+  .new-vault-icon {
+    opacity: 0.8;
+  }
+
+  .new-vault-item .vault-name {
+    color: var(--accent-primary);
+    font-weight: 500;
+  }
+
+  .new-vault-item .vault-description {
+    color: var(--text-secondary);
   }
 </style>

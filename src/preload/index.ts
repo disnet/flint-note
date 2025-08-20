@@ -147,6 +147,9 @@ const api = {
   switchVault: (params: { vaultId: string }) =>
     electronAPI.ipcRenderer.invoke('switch-vault', params),
 
+  // File system operations
+  showDirectoryPicker: () => electronAPI.ipcRenderer.invoke('show-directory-picker'),
+
   // Link operations
   getNoteLinks: (params: { identifier: string; vaultId?: string }) =>
     electronAPI.ipcRenderer.invoke('get-note-links', params),

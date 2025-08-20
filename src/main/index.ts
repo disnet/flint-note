@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, Menu } from 'electron';
+import { app, shell, BrowserWindow, ipcMain, Menu, dialog } from 'electron';
 import { join } from 'path';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import icon from '../../resources/icon.png?asset';
@@ -652,6 +652,16 @@ app.whenReady().then(async () => {
       throw new Error('Note service not available');
     }
     return await noteService.switchVault(params.vaultId);
+  });
+
+  // Directory picker for vault creation
+  ipcMain.handle('show-directory-picker', async (_event) => {
+    const result = await dialog.showOpenDialog({
+      properties: ['openDirectory', 'createDirectory'],
+      title: 'Select Vault Directory'
+    });
+    
+    return result.canceled ? null : result.filePaths[0];
   });
 
   // Link operations
