@@ -87,6 +87,7 @@
   import type { Note } from '@/server/core/notes';
   import { getChatService } from '../services/chatService.js';
   import { wikilinkService } from '../services/wikilinkService.svelte.js';
+  import MetadataView from './MetadataView.svelte';
 
   interface Props {
     note: NoteMetadata;
@@ -106,6 +107,7 @@
   let titleValue = $state('');
 
   let noteData = $state<Note | null>(null);
+  let metadataExpanded = $state(false);
 
   onMount(() => {
     return () => {
@@ -449,6 +451,10 @@
       }
     }
   }
+
+  function toggleMetadata(): void {
+    metadataExpanded = !metadataExpanded;
+  }
 </script>
 
 <div
@@ -480,6 +486,10 @@
       {error}
     </div>
   {/if}
+
+  <div class="metadata-section-container">
+    <MetadataView note={noteData} expanded={metadataExpanded} onToggle={toggleMetadata} />
+  </div>
 
   <div
     class="editor-content"
@@ -603,6 +613,13 @@
   .editor-container {
     flex: 1;
     overflow: auto;
+  }
+
+  .metadata-section-container {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    padding: 0 1rem;
   }
 
   /* Responsive adjustments */
