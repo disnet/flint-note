@@ -455,6 +455,48 @@
   function toggleMetadata(): void {
     metadataExpanded = !metadataExpanded;
   }
+
+  async function handleMetadataUpdate(metadata: Record<string, unknown>): Promise<void> {
+    if (!noteData) return;
+
+    try {
+      const noteService = getChatService();
+      await noteService.updateNote({
+        identifier: note.id,
+        content: noteContent,
+        metadata: metadata as import('@/server/types').NoteMetadata
+      });
+
+      // Refresh the note data to reflect changes
+      const result = await noteService.getNote({ identifier: note.id });
+      noteData = result;
+    } catch (err) {
+      console.error('Error updating metadata:', err);
+      throw err;
+    }
+  }
+
+  async function handleTypeChange(newType: string): Promise<void> {
+    if (!noteData) return;
+
+    try {
+      const noteService = getChatService();
+      await noteService.moveNote({
+        identifier: note.id,
+        newType: newType
+      });
+
+      // Refresh the note data to reflect the type change
+      const result = await noteService.getNote({ identifier: note.id });
+      noteData = result;
+
+      // Also refresh the notes store to update the sidebar
+      await notesStore.refresh();
+    } catch (err) {
+      console.error('Error changing note type:', err);
+      throw err;
+    }
+  }
 </script>
 
 <div
@@ -488,7 +530,13 @@
   {/if}
 
   <div class="metadata-section-container">
-    <MetadataView note={noteData} expanded={metadataExpanded} onToggle={toggleMetadata} />
+    <MetadataView
+      note={noteData}
+      expanded={metadataExpanded}
+      onToggle={toggleMetadata}
+      onMetadataUpdate={handleMetadataUpdate}
+      onTypeChange={handleTypeChange}
+    />
   </div>
 
   <div
