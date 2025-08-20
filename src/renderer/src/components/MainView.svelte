@@ -459,19 +459,6 @@
     width: 75ch;
   }
 
-  .system-view-header {
-    padding: 2rem 2rem 1rem 2rem;
-    border-bottom: 1px solid var(--border-light);
-    background: var(--bg-secondary);
-  }
-
-  .system-view-header h1 {
-    margin: 0;
-    font-size: 2rem;
-    font-weight: 600;
-    color: var(--text-primary);
-  }
-
   .system-view-content {
     flex: 1;
     overflow: hidden;
@@ -490,14 +477,6 @@
 
     .action-btn {
       padding: 0.375rem;
-    }
-
-    .system-view-header {
-      padding: 1.5rem 1rem 1rem 1rem;
-    }
-
-    .system-view-header h1 {
-      font-size: 1.75rem;
     }
   }
 </style>

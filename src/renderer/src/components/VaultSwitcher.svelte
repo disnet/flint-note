@@ -288,8 +288,15 @@
 
 <!-- Archive Confirmation Dialog -->
 {#if confirmingArchive}
-  <div class="modal-overlay" onclick={cancelArchive}>
-    <div class="confirmation-modal" onclick={(e) => e.stopPropagation()}>
+  <div
+    class="modal-overlay"
+    onclick={cancelArchive}
+    onkeydown={(e) => e.key === 'Escape' && cancelArchive()}
+    role="dialog"
+    aria-modal="true"
+    tabindex="-1"
+  >
+    <div class="confirmation-modal">
       <div class="confirmation-header">
         <h3>🗃️ Archive Vault</h3>
       </div>
