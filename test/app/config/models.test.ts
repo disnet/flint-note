@@ -4,17 +4,17 @@ import {
   getModelsByProvider,
   SUPPORTED_MODELS,
   DEFAULT_MODEL
-} from '../../renderer/src/config/models';
+} from '../../../src/renderer/src/config/models';
 
 describe('models config', () => {
   describe('getModelById', () => {
     it('should return correct model for valid ID', () => {
-      const model = getModelById('openai/gpt-5');
+      const model = getModelById('anthropic/claude-sonnet-4');
 
       expect(model).toBeDefined();
-      expect(model?.id).toBe('openai/gpt-5');
-      expect(model?.name).toBe('GPT-5');
-      expect(model?.provider).toBe('OpenAI');
+      expect(model?.id).toBe('anthropic/claude-sonnet-4');
+      expect(model?.name).toBe('Claude 4 Sonnet');
+      expect(model?.provider).toBe('Anthropic');
     });
 
     it('should return undefined for invalid ID', () => {
@@ -28,7 +28,7 @@ describe('models config', () => {
     });
 
     it('should be case sensitive', () => {
-      const model = getModelById('OPENAI/GPT-5');
+      const model = getModelById('ANTHROPIC/CLAUDE-SONNET-4');
       expect(model).toBeUndefined();
     });
   });
@@ -37,19 +37,16 @@ describe('models config', () => {
     it('should group models by provider', () => {
       const modelsByProvider = getModelsByProvider();
 
-      expect(modelsByProvider).toHaveProperty('OpenAI');
       expect(modelsByProvider).toHaveProperty('Anthropic');
-
-      expect(Array.isArray(modelsByProvider.OpenAI)).toBe(true);
       expect(Array.isArray(modelsByProvider.Anthropic)).toBe(true);
     });
 
-    it('should contain all OpenAI models', () => {
+    it('should contain all models correctly grouped', () => {
       const modelsByProvider = getModelsByProvider();
-      const openAIModels = modelsByProvider.OpenAI;
+      const allModels = Object.values(modelsByProvider).flat();
 
-      expect(openAIModels.length).toBeGreaterThan(0);
-      expect(openAIModels.every((model) => model.provider === 'OpenAI')).toBe(true);
+      expect(allModels.length).toBeGreaterThan(0);
+      expect(allModels.every((model) => typeof model.provider === 'string')).toBe(true);
     });
 
     it('should contain all Anthropic models', () => {

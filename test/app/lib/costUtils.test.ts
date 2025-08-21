@@ -3,7 +3,7 @@ import {
   microCentsToDollars,
   formatCostFromMicroCents,
   dollarsToMicroCents
-} from '../../renderer/src/lib/costUtils.svelte';
+} from '../../../src/renderer/src/lib/costUtils.svelte';
 
 describe('costUtils', () => {
   describe('microCentsToDollars', () => {

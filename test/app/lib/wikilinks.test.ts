@@ -1,14 +1,14 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // Mock the note store to avoid Svelte runes
-vi.mock('../../renderer/src/services/noteStore.svelte', () => ({
+vi.mock('../../../src/renderer/src/services/noteStore.svelte', () => ({
   notesStore: {
     notes: []
   }
 }));
 
 // Import after mocking
-import { parseWikilinks } from '../../renderer/src/lib/wikilinks.svelte';
+import { parseWikilinks } from '../../../src/renderer/src/lib/wikilinks.svelte';
 
 type NoteMetadata = {
   id: string;
