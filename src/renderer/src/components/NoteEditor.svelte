@@ -95,6 +95,7 @@
   import type { Note } from '@/server/core/notes';
   import { getChatService } from '../services/chatService.js';
   import { wikilinkService } from '../services/wikilinkService.svelte.js';
+  import { pinnedNotesStore } from '../services/pinnedStore.svelte.js';
   import MetadataView from './MetadataView.svelte';
 
   interface Props {
@@ -116,6 +117,7 @@
 
   let noteData = $state<Note | null>(null);
   let metadataExpanded = $state(false);
+  let showPinControl = $state(false);
 
   onMount(() => {
     return () => {
@@ -505,6 +507,10 @@
       throw err;
     }
   }
+
+  function togglePin(): void {
+    pinnedNotesStore.togglePin(note.id, note.title, note.filename || note.title);
+  }
 </script>
 
 <div
@@ -519,7 +525,24 @@
   onkeydown={handleKeyDown}
 >
   <div class="editor-header">
-    <div class="editor-title-section">
+    <div
+      class="editor-title-section"
+      role="group"
+      aria-label="Note title with pin control"
+      onmouseenter={() => (showPinControl = true)}
+      onmouseleave={() => (showPinControl = false)}
+    >
+      {#if showPinControl || pinnedNotesStore.isPinned(note.id)}
+        <button
+          class="pin-control"
+          class:pinned={pinnedNotesStore.isPinned(note.id)}
+          onclick={togglePin}
+          aria-label={pinnedNotesStore.isPinned(note.id) ? 'Unpin note' : 'Pin note'}
+          title={pinnedNotesStore.isPinned(note.id) ? 'Unpin note' : 'Pin note'}
+        >
+          📌
+        </button>
+      {/if}
       <input
         bind:value={titleValue}
         class="editor-title-input"
@@ -629,6 +652,73 @@
     align-items: center;
     gap: 0.75rem;
     flex: 1;
+    position: relative;
+    min-height: 2rem;
+  }
+
+  .editor-title-section::before {
+    content: '';
+    position: absolute;
+    left: -3rem;
+    top: 0;
+    bottom: 0;
+    width: 3rem;
+    z-index: 1;
+  }
+
+  .pin-control {
+    position: absolute;
+    left: -2rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    border-radius: 0.25rem;
+    width: 1.5rem;
+    height: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: rgba(0, 0, 0, 0.6);
+    z-index: 10;
+  }
+
+  .pin-control:hover {
+    background: rgba(0, 0, 0, 0.1);
+    color: rgba(0, 0, 0, 0.8);
+    border-color: rgba(0, 0, 0, 0.25);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  .pin-control.pinned {
+    background: var(--accent-light);
+    /*background: #3b82f6;*/
+    color: var(--text-primary);
+    border-color: #3b82f6;
+  }
+
+  .pin-control.pinned:hover {
+    background: var(--accent-hover);
+    color: white;
+    border-color: #2563eb;
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .pin-control {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    .pin-control:hover {
+      background: rgba(255, 255, 255, 0.15);
+      color: rgba(255, 255, 255, 0.9);
+      border-color: rgba(255, 255, 255, 0.3);
+      box-shadow: 0 2px 4px rgba(255, 255, 255, 0.1);
+    }
   }
 
   .editor-title-input {
