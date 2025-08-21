@@ -296,7 +296,7 @@
     width: 100%;
     background: var(--bg-primary);
     overflow: hidden;
-    padding: 0 0.75rem;
+    padding: 0;
   }
 
   .note-header {
@@ -391,6 +391,7 @@
     width: 100%;
     display: flex;
     justify-content: center;
+    padding: 0 2.5rem;
   }
 
   .loading-state {
