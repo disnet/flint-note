@@ -35,7 +35,6 @@
       width: '100%',
       scrollbarWidth: 'thin',
       scrollbarColor: 'rgba(0, 0, 0, 0.2) transparent',
-      paddingBottom: '50vh',
       fontFamily:
         "'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace !important"
     },

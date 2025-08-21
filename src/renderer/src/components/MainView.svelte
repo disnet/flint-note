@@ -206,11 +206,30 @@
   .note-content {
     flex: 1;
     overflow: auto;
+    scrollbar-gutter: stable;
     width: 100%;
     display: flex;
     justify-content: center;
     padding: 0 2.5rem;
     padding-top: 1.5rem;
+  }
+
+  .note-content::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .note-content::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+  }
+
+  .note-content::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+  }
+
+  .note-content::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.5);
   }
 
   .loading-state {
