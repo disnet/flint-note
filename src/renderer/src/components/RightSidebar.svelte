@@ -91,14 +91,4 @@
     display: flex;
     flex-direction: column;
   }
-
-  @media (max-width: 1400px) {
-    .right-sidebar {
-      position: absolute;
-      top: 0;
-      right: 0;
-      z-index: 100;
-      box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
-    }
-  }
 </style>

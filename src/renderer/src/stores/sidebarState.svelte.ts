@@ -9,8 +9,6 @@ interface SidebarState {
     width: number;
     mode: 'ai' | 'metadata' | 'threads';
   };
-  layout: 'single-column' | 'three-column';
-  breakpoint: number;
 }
 
 const defaultState: SidebarState = {
@@ -23,9 +21,7 @@ const defaultState: SidebarState = {
     visible: false,
     width: 400,
     mode: 'ai'
-  },
-  layout: 'single-column',
-  breakpoint: 1400
+  }
 };
 
 class SidebarStateStore {
@@ -33,11 +29,6 @@ class SidebarStateStore {
 
   constructor() {
     this.loadFromStorage();
-    this.updateLayoutMode();
-
-    if (typeof window !== 'undefined') {
-      window.addEventListener('resize', () => this.updateLayoutMode());
-    }
   }
 
   get leftSidebar(): SidebarState['leftSidebar'] {
@@ -48,12 +39,11 @@ class SidebarStateStore {
     return this.state.rightSidebar;
   }
 
-  get layout(): SidebarState['layout'] {
-    return this.state.layout;
-  }
-
-  get breakpoint(): number {
-    return this.state.breakpoint;
+  get layout(): 'single-column' | 'three-column' {
+    // Always use three-column when any sidebar is visible
+    return this.state.leftSidebar.visible || this.state.rightSidebar.visible
+      ? 'three-column'
+      : 'single-column';
   }
 
   toggleLeftSidebar(): void {
@@ -74,13 +64,6 @@ class SidebarStateStore {
   setActiveSection(section: 'system' | 'pinned' | 'tabs'): void {
     this.state.leftSidebar.activeSection = section;
     this.saveToStorage();
-  }
-
-  private updateLayoutMode(): void {
-    if (typeof window === 'undefined') return;
-
-    const width = window.innerWidth;
-    this.state.layout = width > this.state.breakpoint ? 'three-column' : 'single-column';
   }
 
   private loadFromStorage(): void {

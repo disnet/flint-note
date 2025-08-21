@@ -961,16 +961,6 @@
     grid-template-columns: 1fr;
   }
 
-  @media (max-width: 768px) {
-    .app-layout {
-      grid-template-columns: 1fr;
-    }
-
-    .app.three-column .app-layout {
-      grid-template-columns: 1fr;
-    }
-  }
-
   /* Show title bar on all platforms when using custom frame */
   .title-bar {
     display: block;
