@@ -31,7 +31,7 @@
     border-right: 1px solid var(--border-light);
     display: flex;
     flex-direction: column;
-    transition: width 0.3s ease;
+    transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     width: 300px;
     min-width: 300px;
     flex-shrink: 0;
@@ -49,6 +49,9 @@
     overflow-y: auto;
     display: flex;
     flex-direction: column;
+    width: 300px;
+    min-width: 300px;
+    will-change: transform;
   }
 
   /* Custom scrollbar styling */

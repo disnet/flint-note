@@ -39,7 +39,6 @@ class SidebarStateStore {
     return this.state.rightSidebar;
   }
 
-
   toggleLeftSidebar(): void {
     this.state.leftSidebar.visible = !this.state.leftSidebar.visible;
     this.saveToStorage();

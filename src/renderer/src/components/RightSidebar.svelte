@@ -56,7 +56,7 @@
     border-left: 1px solid var(--border-light);
     display: flex;
     flex-direction: column;
-    transition: width 0.3s ease;
+    transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     width: 450px;
     min-width: 450px;
     flex-shrink: 0;
@@ -75,6 +75,9 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    width: 450px;
+    min-width: 450px;
+    will-change: transform;
   }
 
   .ai-mode {
