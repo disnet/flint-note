@@ -569,6 +569,7 @@
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     transition: all 0.2s ease;
     gap: 0.75rem;
+    overflow: auto;
   }
 
   .note-editor.sidebar {
@@ -663,14 +664,12 @@
 
   .editor-content {
     flex: 1;
-    overflow: hidden;
     display: flex;
     flex-direction: column;
   }
 
   .editor-container {
     flex: 1;
-    overflow: auto;
   }
 
   .metadata-section-container {
