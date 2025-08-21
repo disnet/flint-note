@@ -58,6 +58,12 @@
   padding: 0;
 }
 
+html {
+  background: var(--bg-primary);
+  color-scheme: light dark;
+  transition: background-color 0.2s ease;
+}
+
 body {
   min-height: 100vh;
   color: var(--text-primary);

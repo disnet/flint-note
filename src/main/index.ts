@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, Menu, dialog } from 'electron';
+import { app, shell, BrowserWindow, ipcMain, Menu, dialog, nativeTheme } from 'electron';
 import { join } from 'path';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import icon from '../../resources/icon.png?asset';
@@ -20,6 +20,11 @@ interface FrontendMessage {
   toolCalls?: unknown[];
 }
 
+function getThemeBackgroundColor(): string {
+  // Return appropriate background color based on system theme
+  return nativeTheme.shouldUseDarkColors ? '#1a1a1a' : '#ffffff';
+}
+
 function createWindow(): void {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
@@ -29,6 +34,7 @@ function createWindow(): void {
     autoHideMenuBar: true,
     frame: false,
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : undefined,
+    backgroundColor: getThemeBackgroundColor(), // Dynamic theme background to prevent flash
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.mjs'),
@@ -855,6 +861,16 @@ app.whenReady().then(async () => {
 
   createWindow();
   logger.info('Main window created and IPC handlers registered');
+
+  // Listen for system theme changes and update window background
+  nativeTheme.on('updated', () => {
+    const newBackgroundColor = getThemeBackgroundColor();
+    const allWindows = BrowserWindow.getAllWindows();
+    allWindows.forEach((window) => {
+      window.setBackgroundColor(newBackgroundColor);
+    });
+    logger.info(`Theme changed, updated window background to: ${newBackgroundColor}`);
+  });
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the
