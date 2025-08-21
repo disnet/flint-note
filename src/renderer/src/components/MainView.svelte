@@ -388,6 +388,9 @@
     flex: 1;
     overflow: hidden;
     width: 100%;
+    display: flex;
+    justify-content: center;
+    overflow: auto;
   }
 
   .loading-state {

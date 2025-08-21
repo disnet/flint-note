@@ -39,18 +39,17 @@
       fontFamily:
         "'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace !important"
     },
-    '.cm-focused': {
-      outline: 'none'
+    '&.cm-focused': {
+      outline: 'none',
+      boxShadow: 'none !important'
     },
     '.cm-content': {
-      margin: '0 auto !important',
-      maxWidth: '75ch',
       fontFamily:
         "'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace !important"
     },
     '.cm-line': {
       padding: '0 !important',
-      width: '75ch',
+      // width: '75ch',
       fontFamily:
         "'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace !important"
     },
@@ -569,7 +568,7 @@
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     transition: all 0.2s ease;
     gap: 0.75rem;
-    overflow: auto;
+    padding: 0;
   }
 
   .note-editor.sidebar {
@@ -588,6 +587,10 @@
     border: none;
     border-radius: 0;
     box-shadow: none;
+    font-family:
+      'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace;
+    font-size: 1rem;
+    width: 75ch;
   }
 
   .note-editor.overlay {
@@ -613,12 +616,10 @@
 
   .editor-header {
     display: flex;
-    align-items: center;
-    justify-content: center;
+    align-items: flex-start;
+    justify-content: flex-start;
     padding-top: 1rem;
-    /*padding-bottom: 0.4rem;*/
-    padding-left: 0;
-    /*border-bottom: 1px solid var(--border-light);*/
+    /*padding-left: 1rem;*/
     background: var(--bg-primary);
     width: 100%;
   }
@@ -627,10 +628,7 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    padding-bottom: 0.4rem;
-    border-bottom: 1px solid var(--border-light);
     flex: 1;
-    max-width: 75ch;
   }
 
   .editor-title-input {
@@ -674,9 +672,9 @@
 
   .metadata-section-container {
     display: flex;
-    justify-content: center;
+    justify-content: flex-start;
     width: 100%;
-    padding: 0 1rem;
+    padding: 0;
   }
 
   /* Responsive adjustments */

@@ -533,8 +533,6 @@
 <style>
   .metadata-section {
     width: 100%;
-    max-width: 75ch;
-    margin: 0 auto;
   }
 
   .metadata-header-container {
