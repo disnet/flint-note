@@ -515,7 +515,7 @@
   }
 </script>
 
-<div class="app" class:three-column={sidebarState.layout === 'three-column'}>
+<div class="app">
   <!-- Custom title bar with drag region -->
   <div class="title-bar">
     <div class="title-bar-content">
@@ -946,19 +946,9 @@
   }
 
   .app-layout {
-    display: grid;
+    display: flex;
     flex: 1;
     min-height: 0;
-  }
-
-  /* Three column layout for desktop - pure CSS responsive to sidebar visibility */
-  .app.three-column .app-layout {
-    grid-template-columns: min-content 1fr min-content;
-  }
-
-  /* Single column layout for smaller screens */
-  .app:not(.three-column) .app-layout {
-    grid-template-columns: 1fr;
   }
 
   /* Show title bar on all platforms when using custom frame */

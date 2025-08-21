@@ -293,9 +293,9 @@
     display: flex;
     flex-direction: column;
     height: 100%;
+    width: 100%;
     background: var(--bg-primary);
     overflow: hidden;
-    align-items: center;
   }
 
   .note-header {
@@ -386,11 +386,10 @@
 
   .note-content {
     flex: 1;
-    overflow: hidden;
+    overflow: auto;
     width: 100%;
     display: flex;
     justify-content: center;
-    overflow: auto;
   }
 
   .loading-state {
@@ -459,7 +458,9 @@
     display: flex;
     flex-direction: column;
     background: var(--bg-primary);
-    width: 75ch;
+    width: 100%;
+    max-width: 75ch;
+    margin: 0 auto;
   }
 
   .system-view-content {

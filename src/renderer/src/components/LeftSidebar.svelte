@@ -26,19 +26,21 @@
 
 <style>
   .left-sidebar {
-    width: 300px;
     height: 100%;
     background: var(--bg-secondary);
     border-right: 1px solid var(--border-light);
     display: flex;
     flex-direction: column;
-    transition: all 0.3s ease;
+    transition: width 0.3s ease;
+    width: 300px;
+    min-width: 300px;
+    flex-shrink: 0;
+    overflow: hidden;
   }
 
   .left-sidebar:not(.visible) {
     width: 0;
     min-width: 0;
-    overflow: hidden;
     border-right: none;
   }
 

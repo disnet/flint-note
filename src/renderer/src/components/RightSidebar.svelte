@@ -50,14 +50,16 @@
 
 <style>
   .right-sidebar {
-    width: 450px;
     height: 100%;
     max-height: 100vh;
     background: var(--bg-primary);
     border-left: 1px solid var(--border-light);
     display: flex;
     flex-direction: column;
-    transition: all 0.3s ease;
+    transition: width 0.3s ease;
+    width: 450px;
+    min-width: 450px;
+    flex-shrink: 0;
     overflow: hidden;
   }
 

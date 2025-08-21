@@ -39,12 +39,6 @@ class SidebarStateStore {
     return this.state.rightSidebar;
   }
 
-  get layout(): 'single-column' | 'three-column' {
-    // Always use three-column when any sidebar is visible
-    return this.state.leftSidebar.visible || this.state.rightSidebar.visible
-      ? 'three-column'
-      : 'single-column';
-  }
 
   toggleLeftSidebar(): void {
     this.state.leftSidebar.visible = !this.state.leftSidebar.visible;
