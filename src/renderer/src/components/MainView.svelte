@@ -3,7 +3,6 @@
   import NotesView from './NotesView.svelte';
   import Settings from './Settings.svelte';
   import SlashCommands from './SlashCommands.svelte';
-  import { pinnedNotesStore } from '../services/pinnedStore.svelte';
   import { ViewRegistry } from '../lib/views';
   import { getChatService } from '../services/chatService.js';
   import type { NoteMetadata, NoteType } from '../services/noteStore.svelte';
@@ -21,61 +20,15 @@
     onNoteTypeChange: (noteId: string, newType: string) => Promise<void>;
   }
 
-  let {
-    activeNote,
-    activeSystemView,
-    noteTypes,
-    onClose,
-    onNoteSelect,
-    onCreateNote,
-    onNoteTypeChange
-  }: Props = $props();
+  let { activeNote, activeSystemView, onClose, onNoteSelect, onCreateNote }: Props =
+    $props();
 
   let noteEditor = $state<{ focus?: () => void } | null>(null);
-  let isChangingType = $state(false);
-  let isPinned = $state(false);
   let customView = $state<{ component: Component<NoteViewProps> } | null>(null);
   let useCustomView = $state(false);
   let noteContent = $state('');
   let noteData = $state<Note | null>(null);
   let isLoadingNote = $state(false);
-
-  // Subscribe to pinned notes store to update isPinned reactively
-  $effect(() => {
-    if (!activeNote) {
-      isPinned = false;
-      return;
-    }
-
-    // Reactive check using pinnedNotesStore.notes
-    isPinned = pinnedNotesStore.isPinned(activeNote.id);
-  });
-
-  function togglePin(): void {
-    if (!activeNote) return;
-
-    pinnedNotesStore.togglePin(activeNote.id, activeNote.title, activeNote.filename);
-  }
-
-  async function handleNoteTypeChange(event: Event): Promise<void> {
-    if (!activeNote || isChangingType) return;
-
-    const target = event.target as HTMLSelectElement;
-    const newType = target.value;
-
-    if (newType === activeNote.type) return;
-
-    try {
-      isChangingType = true;
-      await onNoteTypeChange(activeNote.id, newType);
-    } catch (error) {
-      console.error('Failed to change note type:', error);
-      // Reset the dropdown to the original type on error
-      target.value = activeNote.type;
-    } finally {
-      isChangingType = false;
-    }
-  }
 
   function focusEditor(): void {
     if (noteEditor && noteEditor.focus) {
@@ -190,55 +143,6 @@
       </div>
     </div>
   {:else if activeNote}
-    <div class="note-header">
-      <div class="note-type-selector">
-        <select
-          class="note-type-dropdown"
-          class:changing={isChangingType}
-          value={activeNote.type}
-          onchange={handleNoteTypeChange}
-          disabled={isChangingType}
-          aria-label="Note type"
-        >
-          {#each noteTypes as noteType (noteType.name)}
-            <option value={noteType.name}>
-              {noteType.name} ({noteType.count})
-            </option>
-          {/each}
-        </select>
-      </div>
-
-      <div class="note-actions">
-        <button
-          class="action-btn pin-btn"
-          class:pinned={isPinned}
-          onclick={togglePin}
-          aria-label={isPinned ? 'Unpin note' : 'Pin note'}
-          title={isPinned ? 'Unpin note' : 'Pin note'}
-        >
-          📌
-        </button>
-        <button
-          class="action-btn"
-          onclick={onClose}
-          aria-label="Close note"
-          title="Close note"
-        >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>
-      </div>
-    </div>
-
     <div class="note-content">
       {#if isLoadingNote}
         <div class="loading-state">
@@ -299,92 +203,6 @@
     padding: 0;
   }
 
-  .note-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.5rem 1rem;
-    /*border-bottom: 1px solid var(--border-light);*/
-    /*background: var(--bg-secondary);*/
-    width: 100%;
-  }
-
-  .note-type-selector {
-    display: flex;
-    align-items: center;
-  }
-
-  .note-type-dropdown {
-    padding: 0.25rem 0.25rem;
-    border: transparent;
-    border-radius: 0.5rem;
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    font-size: 0.875rem;
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-  .note-type-dropdown:hover {
-    background: var(--bg-secondary);
-    color: var(--text-primary);
-  }
-
-  .note-type-dropdown:focus {
-    outline: none;
-    border-color: var(--accent-primary);
-    box-shadow: 0 0 0 2px var(--accent-primary-alpha);
-  }
-
-  .note-type-dropdown.changing {
-    opacity: 0.6;
-    cursor: wait;
-  }
-
-  .note-type-dropdown:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-
-  .note-actions {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .action-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0.5rem;
-    border: transparent;
-    border-radius: 0.5rem;
-    background: var(--bg-primary);
-    color: var(--text-secondary);
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-
-  .action-btn:hover {
-    background: var(--bg-tertiary);
-    border-color: var(--border-medium);
-    color: var(--text-primary);
-  }
-
-  .pin-btn {
-    opacity: 0.6;
-  }
-
-  .pin-btn:hover {
-    opacity: 1;
-  }
-
-  .pin-btn.pinned {
-    opacity: 1;
-    background: var(--accent-light);
-    border-color: var(--accent-primary);
-    color: var(--accent-primary);
-  }
-
   .note-content {
     flex: 1;
     overflow: auto;
@@ -392,6 +210,7 @@
     display: flex;
     justify-content: center;
     padding: 0 2.5rem;
+    padding-top: 1.5rem;
   }
 
   .loading-state {
@@ -470,19 +289,5 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
-  }
-
-  @media (max-width: 768px) {
-    .note-header {
-      padding: 0.75rem 1rem;
-    }
-
-    .note-actions {
-      gap: 0.25rem;
-    }
-
-    .action-btn {
-      padding: 0.375rem;
-    }
   }
 </style>

@@ -590,7 +590,7 @@
     border-radius: 0.5rem;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     transition: all 0.2s ease;
-    gap: 0.75rem;
+    gap: 0.25rem;
     padding: 0;
   }
 
@@ -641,7 +641,6 @@
     display: flex;
     align-items: flex-start;
     justify-content: flex-start;
-    padding-top: 1rem;
     /*padding-left: 1rem;*/
     background: var(--bg-primary);
     width: 100%;
@@ -723,8 +722,8 @@
 
   .editor-title-input {
     margin: 0;
-    font-size: 1.1rem;
-    font-weight: 600;
+    font-size: 1.5rem;
+    font-weight: 800;
     font-family:
       'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace;
     color: var(--text-primary);

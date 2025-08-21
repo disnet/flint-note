@@ -144,11 +144,8 @@
     role="button"
     tabindex="0"
   >
-    <button
-      class="collapse-toggle"
-      onclick={toggleCollapsed}
-      aria-label="Toggle pinned notes section"
-    >
+    Pinned
+    <button class="collapse-toggle" aria-label="Toggle pinned notes section">
       <svg
         width="14"
         height="14"
@@ -161,7 +158,6 @@
         <polyline points="9,18 15,12 9,6"></polyline>
       </svg>
     </button>
-    Pinned
   </div>
 
   {#if !isCollapsed}
@@ -238,7 +234,7 @@
     display: flex;
     align-items: center;
     gap: 0.1rem;
-    padding: 0.3rem 0.25rem;
+    padding: 0.3rem 1rem;
     background: var(--bg-secondary);
     color: var(--text-muted);
   }
