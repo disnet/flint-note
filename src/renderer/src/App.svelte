@@ -81,10 +81,19 @@
   function handleSystemViewSelect(
     view: 'notes' | 'settings' | 'slash-commands' | null
   ): void {
-    activeSystemView = view;
-    // Clear active note when switching to system views
-    if (view !== null) {
-      activeNoteStore.clearActiveNote();
+    // If clicking the same view that's already active and sidebar is visible, toggle the sidebar
+    if (sidebarState.leftSidebar.visible && activeSystemView === view && view !== null) {
+      sidebarState.toggleLeftSidebar();
+    } else {
+      activeSystemView = view;
+      // Clear active note when switching to system views
+      if (view !== null) {
+        activeNoteStore.clearActiveNote();
+      }
+      // If sidebar is closed, open it when selecting a view
+      if (!sidebarState.leftSidebar.visible && view !== null) {
+        sidebarState.toggleLeftSidebar();
+      }
     }
   }
 
@@ -480,11 +489,16 @@
   }
 
   function setRightSidebarMode(mode: 'ai' | 'metadata' | 'threads'): void {
-    // If sidebar is closed, open it first
-    if (!sidebarState.rightSidebar.visible) {
+    // If clicking the same mode that's already active and sidebar is visible, toggle the sidebar
+    if (sidebarState.rightSidebar.visible && sidebarState.rightSidebar.mode === mode) {
       sidebarState.toggleRightSidebar();
+    } else {
+      // If sidebar is closed, open it first
+      if (!sidebarState.rightSidebar.visible) {
+        sidebarState.toggleRightSidebar();
+      }
+      sidebarState.setRightSidebarMode(mode);
     }
-    sidebarState.setRightSidebarMode(mode);
   }
 
   // Window control functions
