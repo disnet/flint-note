@@ -338,9 +338,6 @@
         {expanded ? '▼' : '▶'}
       </span>
       <span class="metadata-title">Metadata</span>
-      {#if hasMetadata}
-        <span class="metadata-count">({formattedMetadata.length})</span>
-      {/if}
     </button>
     {#if expanded && hasMetadata && onMetadataUpdate && !isEditing}
       <button
@@ -576,11 +573,6 @@
     flex: 1;
   }
 
-  .metadata-count {
-    font-size: 0.75rem;
-    opacity: 0.7;
-  }
-
   .edit-button {
     padding: 0.25rem 0.5rem;
     background: none;
@@ -777,16 +769,6 @@
 
   .type-selector:hover {
     border-color: var(--border-medium);
-  }
-
-  .readonly-field {
-    color: var(--text-secondary);
-    font-style: italic;
-  }
-
-  .readonly-field[data-type='date'] {
-    font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace;
-    font-size: 0.8rem;
   }
 
   /* Tag editing styles */

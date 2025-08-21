@@ -296,6 +296,7 @@
     width: 100%;
     background: var(--bg-primary);
     overflow: hidden;
+    padding: 0 0.75rem;
   }
 
   .note-header {
