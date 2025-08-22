@@ -2,6 +2,7 @@
   import MessageComponent from './MessageComponent.svelte';
   import LoadingMessage from './LoadingMessage.svelte';
   import MessageInput from './MessageInput.svelte';
+  import AgentControlBar from './AgentControlBar.svelte';
   import type { Message } from '../services/types';
 
   interface Props {
@@ -81,6 +82,9 @@
 </script>
 
 <div class="ai-assistant">
+  <!-- Agent Control Bar -->
+  <AgentControlBar />
+
   <!-- Removed header section as requested -->
   <!-- Task Management Section -->
   <!-- {#if tasks.length > 0}
