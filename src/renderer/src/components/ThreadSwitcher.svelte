@@ -356,15 +356,16 @@
   }
 
   .dropdown-menu::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.1);
+    background: transparent;
   }
 
   .dropdown-menu::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.3);
+    background: var(--scrollbar-thumb);
     border-radius: 3px;
+    transition: background-color 0.2s ease;
   }
 
   .dropdown-menu::-webkit-scrollbar-thumb:hover {
-    background: rgba(0, 0, 0, 0.5);
+    background: var(--scrollbar-thumb-hover);
   }
 </style>
