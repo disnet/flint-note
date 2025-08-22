@@ -1,28 +1,17 @@
 <script lang="ts">
   import AIAssistant from './AIAssistant.svelte';
-  import MetadataEditor from './MetadataEditor.svelte';
   import ThreadList from './ThreadList.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
   import type { Message } from '../services/types';
-  import type { NoteMetadata } from '../services/noteStore.svelte';
 
   interface Props {
     messages: Message[];
     isLoading: boolean;
-    activeNote: NoteMetadata | null;
     onNoteClick: (noteId: string) => void;
     onSendMessage?: (text: string) => void;
-    onMetadataUpdate?: (metadata: Partial<NoteMetadata>) => void;
   }
 
-  let {
-    messages,
-    isLoading,
-    activeNote,
-    onNoteClick,
-    onSendMessage,
-    onMetadataUpdate
-  }: Props = $props();
+  let { messages, isLoading, onNoteClick, onSendMessage }: Props = $props();
 </script>
 
 <div class="right-sidebar" class:visible={sidebarState.rightSidebar.visible}>
@@ -39,10 +28,6 @@
             sidebarState.setRightSidebarMode('ai');
           }}
         />
-      </div>
-    {:else}
-      <div class="metadata-mode">
-        <MetadataEditor {activeNote} {onMetadataUpdate} />
       </div>
     {/if}
   </div>
@@ -88,7 +73,6 @@
     overflow: hidden;
   }
 
-  .metadata-mode,
   .threads-mode {
     flex: 1;
     min-height: 0;

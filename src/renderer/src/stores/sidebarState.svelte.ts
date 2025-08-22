@@ -7,7 +7,7 @@ interface SidebarState {
   rightSidebar: {
     visible: boolean;
     width: number;
-    mode: 'ai' | 'metadata' | 'threads';
+    mode: 'ai' | 'threads';
   };
 }
 
@@ -49,7 +49,7 @@ class SidebarStateStore {
     this.saveToStorage();
   }
 
-  setRightSidebarMode(mode: 'ai' | 'metadata' | 'threads'): void {
+  setRightSidebarMode(mode: 'ai' | 'threads'): void {
     this.state.rightSidebar.mode = mode;
     this.saveToStorage();
   }
@@ -67,6 +67,10 @@ class SidebarStateStore {
       if (stored) {
         const parsed = JSON.parse(stored);
         this.state = { ...defaultState, ...parsed };
+        // Handle legacy metadata mode by defaulting to AI
+        if ((this.state.rightSidebar.mode as string) === 'metadata') {
+          this.state.rightSidebar.mode = 'ai';
+        }
       }
     } catch (error) {
       console.warn('Failed to load sidebar state from storage:', error);

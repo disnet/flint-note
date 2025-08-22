@@ -469,26 +469,11 @@
     }
   }
 
-  function handleMetadataUpdate(metadata: Partial<NoteMetadata>): void {
-    console.log('Metadata updated:', metadata);
-    // Note: The metadata is already saved by the MetadataEditor component
-    // This callback can be used to refresh the notes store or handle additional logic
-    const activeNote = activeNoteStore.activeNote;
-    if (activeNote && Object.keys(metadata).length > 0) {
-      // Update the active note with new metadata
-      const updatedNote = { ...activeNote, ...metadata };
-      activeNoteStore.setActiveNote(updatedNote);
-
-      // Refresh the notes store to pick up changes
-      notesStore.refresh();
-    }
-  }
-
   function toggleLeftSidebar(): void {
     sidebarState.toggleLeftSidebar();
   }
 
-  function setRightSidebarMode(mode: 'ai' | 'metadata' | 'threads'): void {
+  function setRightSidebarMode(mode: 'ai' | 'threads'): void {
     // If clicking the same mode that's already active and sidebar is visible, toggle the sidebar
     if (sidebarState.rightSidebar.visible && sidebarState.rightSidebar.mode === mode) {
       sidebarState.toggleRightSidebar();
@@ -608,7 +593,7 @@
             </svg>
           </button>
           <button
-            class="pillbox-btn pillbox-btn-middle"
+            class="pillbox-btn pillbox-btn-right"
             class:active={sidebarState.rightSidebar.visible &&
               sidebarState.rightSidebar.mode === 'threads'}
             onclick={() => setRightSidebarMode('threads')}
@@ -626,29 +611,6 @@
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
               ></path>
               <path d="M13 8l-2 2-2-2"></path>
-            </svg>
-          </button>
-          <button
-            class="pillbox-btn pillbox-btn-right"
-            class:active={sidebarState.rightSidebar.visible &&
-              sidebarState.rightSidebar.mode === 'metadata'}
-            onclick={() => setRightSidebarMode('metadata')}
-            aria-label="Note Metadata"
-            title="Note Metadata"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-              <polyline points="14,2 14,8 20,8"></polyline>
-              <line x1="16" y1="13" x2="8" y2="13"></line>
-              <line x1="16" y1="17" x2="8" y2="17"></line>
-              <polyline points="10,9 9,9 8,9"></polyline>
             </svg>
           </button>
         </div>
@@ -716,10 +678,8 @@
     <RightSidebar
       {messages}
       isLoading={isLoadingResponse}
-      activeNote={activeNoteStore.activeNote}
       onNoteClick={handleNoteClick}
       onSendMessage={handleSendMessage}
-      onMetadataUpdate={handleMetadataUpdate}
     />
   </div>
 
@@ -891,11 +851,6 @@
   .pillbox-btn-left {
     border-top-left-radius: 0.375rem;
     border-bottom-left-radius: 0.375rem;
-  }
-
-  .pillbox-btn-middle {
-    border-left: 1px solid var(--border-light);
-    border-right: 1px solid var(--border-light);
   }
 
   .pillbox-btn-right {
