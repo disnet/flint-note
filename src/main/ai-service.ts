@@ -206,13 +206,17 @@ Use these tools to help users manage their notes effectively and answer their qu
     .map(
       (nt) => `### ${nt.name}
 
-  #### purpose
-  ${nt.purpose}
+#### purpose
+${nt.purpose}
+
+#### instructions
+${nt.agentInstructions.map((instruction) => `- ${instruction}`).join('\n')}
   `
     )
     .join('\n')}`;
     }
 
+    console.log('System message generated:', contextualInfo + noteTypeInfo);
     return this.systemPrompt + contextualInfo + noteTypeInfo;
   }
 
