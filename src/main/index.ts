@@ -28,7 +28,7 @@ function getThemeBackgroundColor(): string {
 function createWindow(): void {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
-    width: 1500,
+    width: 1600,
     height: 900,
     show: false,
     autoHideMenuBar: true,
