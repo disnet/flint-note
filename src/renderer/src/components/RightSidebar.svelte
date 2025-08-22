@@ -62,7 +62,6 @@
     flex-direction: column;
     width: 450px;
     min-width: 450px;
-    will-change: transform;
   }
 
   .ai-mode {

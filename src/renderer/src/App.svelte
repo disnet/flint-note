@@ -703,8 +703,6 @@
       color 0.2s ease;
     display: flex;
     flex-direction: column;
-    will-change: background-color;
-    contain: layout style;
   }
 
   .title-bar {
@@ -906,8 +904,6 @@
     display: flex;
     flex: 1;
     min-height: 0;
-    will-change: transform;
-    contain: layout style;
   }
 
   /* Show title bar on all platforms when using custom frame */

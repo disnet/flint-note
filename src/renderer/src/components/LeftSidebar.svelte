@@ -51,7 +51,6 @@
     flex-direction: column;
     width: 300px;
     min-width: 300px;
-    will-change: transform;
   }
 
   /* Custom scrollbar styling */
