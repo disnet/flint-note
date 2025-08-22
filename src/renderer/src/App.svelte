@@ -254,14 +254,14 @@
         searchInput?.focus();
       }
 
-      // Alt + Left Arrow to go back
-      if (event.key === 'ArrowLeft' && event.altKey) {
+      // Ctrl/Cmd + Shift + [ to go back
+      if (event.key === '[' && (event.ctrlKey || event.metaKey) && event.shiftKey) {
         event.preventDefault();
         handleNavigationBack();
       }
 
-      // Alt + Right Arrow to go forward
-      if (event.key === 'ArrowRight' && event.altKey) {
+      // Ctrl/Cmd + Shift + ] to go forward
+      if (event.key === ']' && (event.ctrlKey || event.metaKey) && event.shiftKey) {
         event.preventDefault();
         handleNavigationForward();
       }
@@ -533,7 +533,7 @@
             onclick={handleNavigationBack}
             disabled={!noteNavigationService.canGoBack}
             aria-label="Go back"
-            title="Go back (Alt + Left Arrow)"
+            title="Go back (Cmd/Ctrl + Shift + [)"
           >
             <svg
               width="14"
@@ -552,7 +552,7 @@
             onclick={handleNavigationForward}
             disabled={!noteNavigationService.canGoForward}
             aria-label="Go forward"
-            title="Go forward (Alt + Right Arrow)"
+            title="Go forward (Cmd/Ctrl + Shift + ])"
           >
             <svg
               width="14"
