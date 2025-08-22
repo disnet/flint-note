@@ -552,7 +552,21 @@
           padding: '0',
           minHeight: '1.25rem',
           maxHeight: '120px',
-          caretColor: 'var(--text-secondary)'
+          caretColor: 'var(--text-secondary)',
+          fontFamily:
+            "'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace !important"
+        },
+        '.cm-tooltip': {
+          fontFamily:
+            "'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace !important"
+        },
+        '.cm-tooltip-autocomplete': {
+          fontFamily:
+            "'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace !important"
+        },
+        '.cm-completionLabel': {
+          fontFamily:
+            "'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace !important"
         },
         '.cm-line': {
           lineHeight: '1.4'

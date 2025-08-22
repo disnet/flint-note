@@ -46,6 +46,18 @@
       fontFamily:
         "'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace !important"
     },
+    '.cm-tooltip': {
+      fontFamily:
+        "'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace !important"
+    },
+    '.cm-tooltip-autocomplete': {
+      fontFamily:
+        "'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace !important"
+    },
+    '.cm-completionLabel': {
+      fontFamily:
+        "'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace !important"
+    },
     '.cm-line': {
       padding: '0 !important',
       // width: '75ch',
