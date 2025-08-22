@@ -203,17 +203,17 @@
   }
 
   .chat-section::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.1);
+    background: transparent;
   }
 
   .chat-section::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.3);
+    background: var(--scrollbar-thumb);
     border-radius: 4px;
     transition: background-color 0.2s ease;
   }
 
   .chat-section::-webkit-scrollbar-thumb:hover {
-    background: rgba(0, 0, 0, 0.5);
+    background: var(--scrollbar-thumb-hover);
   }
 
   /* Notes Discussed Styles */
@@ -243,6 +243,24 @@
     gap: 0.5rem;
     max-height: 200px;
     overflow-y: auto;
+  }
+
+  .discussed-notes::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .discussed-notes::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .discussed-notes::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 3px;
+    transition: background-color 0.2s ease;
+  }
+
+  .discussed-notes::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
   }
 
   .note-link {
