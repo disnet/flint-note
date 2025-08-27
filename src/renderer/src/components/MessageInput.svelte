@@ -549,7 +549,7 @@
           outline: 'none'
         },
         '.cm-content': {
-          padding: '0',
+          padding: '6px 0',
           minHeight: '1.25rem',
           maxHeight: '120px',
           caretColor: 'var(--text-secondary)',
@@ -742,30 +742,6 @@
     min-height: 1.25rem;
     max-height: 120px;
     overflow: hidden;
-  }
-
-  /* Wikilink styling for message input */
-  .editor-field :global(.wikilink) {
-    font-weight: 500;
-    text-decoration: underline;
-    transition: all 0.2s ease;
-    border-radius: 2px;
-    padding: 1px 2px;
-    cursor: pointer;
-  }
-
-  .editor-field :global(.wikilink-exists) {
-    color: var(--accent-primary);
-    text-decoration-color: var(--accent-primary);
-  }
-
-  .editor-field :global(.wikilink-exists:hover) {
-    background-color: var(--accent-light);
-  }
-
-  .editor-field :global(.wikilink-broken) {
-    color: #d73a49;
-    text-decoration: underline dotted;
   }
 
   /* CodeMirror placeholder styling */

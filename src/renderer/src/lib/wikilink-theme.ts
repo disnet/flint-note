@@ -16,7 +16,6 @@ export const wikilinkTheme = EditorView.theme({
     fontWeight: '600',
     textDecoration: 'none',
     transition: 'all 0.2s ease',
-    border: '1px solid',
     boxShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
   },
 
