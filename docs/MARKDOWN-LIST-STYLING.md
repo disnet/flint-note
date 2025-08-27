@@ -7,6 +7,7 @@ This document outlines the implementation plan for improving markdown list text 
 ## Current Setup Analysis
 
 The NoteEditor uses:
+
 - CodeMirror 6 with `@codemirror/lang-markdown`
 - `EditorView.lineWrapping` enabled
 - Custom light/dark themes
@@ -48,6 +49,7 @@ a normal paragraph
 ### 1. Custom CodeMirror Extension
 
 Create a decoration extension that:
+
 - Identifies markdown list lines using regex patterns
 - Detects list markers: `- `, `* `, `+ `, `1. `, `2. `, etc.
 - Calculates nesting levels based on leading whitespace
@@ -69,11 +71,11 @@ The core challenge is that CSS `ch` units don't precisely match actual character
 
 ```css
 :root {
-  --list-marker-dash-width: 0px;     /* "- " width */
-  --list-marker-num1-width: 0px;     /* "1. " width */
-  --list-marker-num2-width: 0px;     /* "10. " width */
-  --list-marker-num3-width: 0px;     /* "100. " width */
-  --list-base-indent: 0px;           /* 2-space indent width */
+  --list-marker-dash-width: 0px; /* "- " width */
+  --list-marker-num1-width: 0px; /* "1. " width */
+  --list-marker-num2-width: 0px; /* "10. " width */
+  --list-marker-num3-width: 0px; /* "100. " width */
+  --list-base-indent: 0px; /* 2-space indent width */
 }
 
 /* Level 0: no negative indent, continuation aligns with text */
@@ -90,7 +92,7 @@ The core challenge is that CSS `ch` units don't precisely match actual character
   padding-left: var(--list-marker-num1-width);
 }
 
-/* Level 1: indented, continuation aligns with nested text */  
+/* Level 1: indented, continuation aligns with nested text */
 .cm-list-level-1 {
   padding-left: var(--list-base-indent);
 }
@@ -106,12 +108,12 @@ The core challenge is that CSS `ch` units don't precisely match actual character
 
 ```typescript
 interface MarkerWidths {
-  dash: number;      // "- "
-  star: number;      // "* " 
-  plus: number;      // "+ "
-  num1: number;      // "1. "
-  num2: number;      // "10. "
-  num3: number;      // "100. "
+  dash: number; // "- "
+  star: number; // "* "
+  plus: number; // "+ "
+  num1: number; // "1. "
+  num2: number; // "10. "
+  num3: number; // "100. "
   baseIndent: number; // "  " (2 spaces)
 }
 
@@ -126,9 +128,9 @@ function measureMarkerWidths(editorElement: Element): MarkerWidths {
     font-weight: inherit;
     line-height: inherit;
   `;
-  
+
   editorElement.appendChild(measurer);
-  
+
   const widths = {
     dash: measureText(measurer, '- '),
     star: measureText(measurer, '* '),
@@ -138,7 +140,7 @@ function measureMarkerWidths(editorElement: Element): MarkerWidths {
     num3: measureText(measurer, '100. '),
     baseIndent: measureText(measurer, '  ')
   };
-  
+
   editorElement.removeChild(measurer);
   return widths;
 }
@@ -152,17 +154,21 @@ function measureText(element: HTMLElement, text: string): number {
 ### 3. Extension Architecture
 
 #### Line Classification
+
 - **Marker Line**: Contains a list marker (`- text`, `1. text`)
 - **Continuation Line**: Wrapped text from a list item
 - **Normal Line**: Not part of a list structure
 
 #### Nesting Level Detection
+
 - Count leading spaces/tabs to determine indentation
 - Convert tabs to equivalent spaces (typically 2 or 4 spaces)
 - Calculate level: `level = Math.floor(leadingSpaces / indentSize)`
 
 #### Dynamic Marker Width System
+
 Instead of assuming character counts, markers are measured dynamically:
+
 - Measure actual pixel width of each marker type in the current font
 - Store measurements in CSS custom properties
 - Apply marker-specific CSS classes for precise continuation alignment
@@ -171,18 +177,21 @@ Instead of assuming character counts, markers are measured dynamically:
 ### 4. Integration Points
 
 #### NoteEditor.svelte Changes
+
 - Import the new list styling extension and measurement utility
 - Add to the extensions array in `createEditor()` and `updateEditorTheme()`
 - Call measurement function when editor is created or theme changes
 - Update CSS custom properties with measured values
 
 #### CSS Integration
+
 - Add list styling rules to the existing `editorTheme` using CSS custom properties
 - Ensure compatibility with light/dark theme switching
 - Re-measure and update custom properties when font or theme changes
 - Maintain consistency with the iA Writer Quattro font metrics through dynamic measurement
 
 #### Measurement Triggers
+
 - Initial editor creation
 - Theme changes (light/dark mode switching)
 - Font size changes (if implemented)
@@ -191,11 +200,13 @@ Instead of assuming character counts, markers are measured dynamically:
 ### 5. Technical Challenges
 
 #### Dynamic Content Updates
+
 - Efficiently re-parse and re-decorate lines as content changes
 - Handle insertions, deletions, and modifications
 - Minimize performance impact during rapid typing
 
 #### Edge Cases
+
 - Empty list items: `- \n- item`
 - Mixed marker types within the same list
 - Deeply nested lists (6+ levels)
@@ -203,6 +214,7 @@ Instead of assuming character counts, markers are measured dynamically:
 - Lists at the beginning/end of the document
 
 #### Performance Considerations
+
 - Use efficient regex patterns for line parsing
 - Implement incremental updates rather than full re-parsing
 - Cache decoration results where possible
@@ -210,6 +222,7 @@ Instead of assuming character counts, markers are measured dynamically:
 - Throttle measurement updates during rapid theme changes
 
 #### Measurement Accuracy Challenges
+
 - Ensure measurement element inherits exact font properties from editor
 - Handle potential subpixel rendering differences across browsers
 - Account for potential font loading delays
@@ -218,16 +231,19 @@ Instead of assuming character counts, markers are measured dynamically:
 ### 6. Implementation Files
 
 #### New Files
+
 - `src/renderer/src/lib/markdownListStyling.ts` - Main CodeMirror extension implementation
-- `src/renderer/src/lib/markdownListParser.ts` - Line parsing and classification logic  
+- `src/renderer/src/lib/markdownListParser.ts` - Line parsing and classification logic
 - `src/renderer/src/lib/textMeasurement.ts` - Dynamic text width measurement utility
 
 #### Modified Files
+
 - `src/renderer/src/components/NoteEditor.svelte` - Integration, measurement calls, CSS custom property updates
 
 ### 7. Testing Strategy
 
 #### Manual Testing
+
 - Various list nesting scenarios
 - Mixed content (paragraphs, lists, code blocks)
 - Real-time editing behavior
@@ -237,6 +253,7 @@ Instead of assuming character counts, markers are measured dynamically:
 - Font rendering consistency across browsers
 
 #### Edge Case Testing
+
 - Empty list items
 - Very long list items that wrap multiple times
 - Lists with varying marker types
@@ -246,6 +263,7 @@ Instead of assuming character counts, markers are measured dynamically:
 ## Expected Outcome
 
 The implementation will provide visually consistent markdown list formatting that:
+
 - Maintains pixel-perfect text alignment for continuation lines through dynamic measurement
 - Respects the actual character widths in iA Writer Quattro font
 - Updates dynamically as the user types and when themes change

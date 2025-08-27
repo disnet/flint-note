@@ -14,6 +14,8 @@
     indentWithTab
   } from '@codemirror/commands';
   import { highlightSelectionMatches, searchKeymap } from '@codemirror/search';
+  import { markdownListStyling, listStylingTheme } from '../lib/markdownListStyling';
+  import { measureMarkerWidths, updateCSSCustomProperties } from '../lib/textMeasurement';
 
   // Create theme extension for editor styling
   const editorTheme = EditorView.theme({
@@ -217,6 +219,9 @@
       ...(isDarkMode ? [darkEditorTheme] : []),
       // Apply editor styling theme AFTER GitHub themes to override font settings
       editorTheme,
+      // List styling extensions
+      markdownListStyling,
+      listStylingTheme,
       wikilinksExtension(handleWikilinkClick),
       EditorView.contentAttributes.of({ spellcheck: 'true' }),
       EditorView.updateListener.of((update) => {
@@ -231,6 +236,9 @@
     editorView.dispatch({
       effects: StateEffect.reconfigure.of(extensions)
     });
+
+    // Re-measure marker widths when theme changes
+    measureAndUpdateMarkerWidths();
   }
 
   function createEditor(): void {
@@ -260,6 +268,9 @@
         ...(isDarkMode ? [darkEditorTheme] : []),
         // Apply editor styling theme AFTER GitHub themes to override font settings
         editorTheme,
+        // List styling extensions
+        markdownListStyling,
+        listStylingTheme,
         wikilinksExtension(handleWikilinkClick),
         EditorView.contentAttributes.of({ spellcheck: 'true' }),
         EditorView.updateListener.of((update) => {
@@ -276,6 +287,22 @@
       state: startState,
       parent: editorContainer
     });
+
+    // Measure marker widths and update CSS custom properties
+    measureAndUpdateMarkerWidths();
+  }
+
+  // Measure marker widths and update CSS custom properties
+  function measureAndUpdateMarkerWidths(): void {
+    if (!editorView) return;
+
+    // Small delay to ensure the editor DOM is fully rendered
+    setTimeout(() => {
+      if (editorView) {
+        const widths = measureMarkerWidths(editorView.dom);
+        updateCSSCustomProperties(widths);
+      }
+    }, 10);
   }
 
   // Cleanup function
