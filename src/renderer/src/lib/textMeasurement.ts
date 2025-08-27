@@ -6,6 +6,7 @@ export interface MarkerWidths {
   num2: number; // "10. "
   num3: number; // "100. "
   baseIndent: number; // "  " (2 spaces)
+  cmLinePadding: number; // CodeMirror's actual line padding
 }
 
 export function measureMarkerWidths(editorElement: Element): MarkerWidths {
@@ -23,6 +24,9 @@ export function measureMarkerWidths(editorElement: Element): MarkerWidths {
 
   editorElement.appendChild(measurer);
 
+  // Measure CodeMirror's actual line padding
+  const cmLinePadding = measureCodeMirrorLinePadding(editorElement);
+
   const widths = {
     dash: measureText(measurer, '- '),
     star: measureText(measurer, '* '),
@@ -30,11 +34,41 @@ export function measureMarkerWidths(editorElement: Element): MarkerWidths {
     num1: measureText(measurer, '1. '),
     num2: measureText(measurer, '10. '),
     num3: measureText(measurer, '100. '),
-    baseIndent: measureText(measurer, '  ')
+    baseIndent: measureText(measurer, '  '),
+    cmLinePadding
   };
 
   editorElement.removeChild(measurer);
   return widths;
+}
+
+function measureCodeMirrorLinePadding(editorElement: Element): number {
+  // Look for existing .cm-line element to measure its actual padding
+  const cmLine = editorElement.querySelector('.cm-line');
+  
+  if (cmLine) {
+    const computedStyle = window.getComputedStyle(cmLine);
+    const paddingLeft = computedStyle.getPropertyValue('padding-left');
+    return parseFloat(paddingLeft) || 0;
+  }
+  
+  // Fallback: create a temporary .cm-line element to measure
+  const tempLine = document.createElement('div');
+  tempLine.className = 'cm-line';
+  tempLine.style.cssText = `
+    position: absolute;
+    visibility: hidden;
+    pointer-events: none;
+  `;
+  
+  editorElement.appendChild(tempLine);
+  
+  const computedStyle = window.getComputedStyle(tempLine);
+  const paddingLeft = computedStyle.getPropertyValue('padding-left');
+  const padding = parseFloat(paddingLeft) || 0;
+  
+  editorElement.removeChild(tempLine);
+  return padding;
 }
 
 function measureText(element: HTMLElement, text: string): number {
@@ -56,4 +90,5 @@ export function updateCSSCustomProperties(widths: MarkerWidths): void {
   root.style.setProperty('--list-marker-num2-width', `${widths.num2}px`);
   root.style.setProperty('--list-marker-num3-width', `${widths.num3}px`);
   root.style.setProperty('--list-base-indent', `${widths.baseIndent}px`);
+  root.style.setProperty('--cm-line-padding', `${widths.cmLinePadding}px`);
 }

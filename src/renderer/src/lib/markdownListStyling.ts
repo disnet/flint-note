@@ -63,38 +63,37 @@ export const markdownListStyling = ViewPlugin.fromClass(ListStylePlugin, {
 });
 
 // CSS theme for list styling with custom properties using hanging indent
-// Note: CodeMirror lines have default padding that we need to work with
+// Note: CodeMirror lines have default padding that we dynamically measure
 export const listStylingTheme = EditorView.theme({
   // Level 0 list items - marker flush with normal text, wrapped text indented to align with content
-  // We need to account for cm-line's existing padding
   '.cm-line.cm-list-level-0.cm-list-marker-line.cm-list-marker-dash': {
     textIndent: 'calc(-1 * var(--list-marker-dash-width, 1.5ch))',
-    paddingLeft: 'calc(6px + var(--list-marker-dash-width, 1.5ch))'
+    paddingLeft: 'calc(var(--cm-line-padding, 6px) + var(--list-marker-dash-width, 1.5ch))'
   },
 
   '.cm-line.cm-list-level-0.cm-list-marker-line.cm-list-marker-star': {
     textIndent: 'calc(-1 * var(--list-marker-star-width, 1.5ch))',
-    paddingLeft: 'calc(6px + var(--list-marker-star-width, 1.5ch))'
+    paddingLeft: 'calc(var(--cm-line-padding, 6px) + var(--list-marker-star-width, 1.5ch))'
   },
 
   '.cm-line.cm-list-level-0.cm-list-marker-line.cm-list-marker-plus': {
     textIndent: 'calc(-1 * var(--list-marker-plus-width, 1.5ch))',
-    paddingLeft: 'calc(6px + var(--list-marker-plus-width, 1.5ch))'
+    paddingLeft: 'calc(var(--cm-line-padding, 6px) + var(--list-marker-plus-width, 1.5ch))'
   },
 
   '.cm-line.cm-list-level-0.cm-list-marker-line.cm-list-marker-num1': {
     textIndent: 'calc(-1 * var(--list-marker-num1-width, 2ch))',
-    paddingLeft: 'calc(6px + var(--list-marker-num1-width, 2ch))'
+    paddingLeft: 'calc(var(--cm-line-padding, 6px) + var(--list-marker-num1-width, 2ch))'
   },
 
   '.cm-line.cm-list-level-0.cm-list-marker-line.cm-list-marker-num2': {
     textIndent: 'calc(-1 * var(--list-marker-num2-width, 3ch))',
-    paddingLeft: 'calc(6px + var(--list-marker-num2-width, 3ch))'
+    paddingLeft: 'calc(var(--cm-line-padding, 6px) + var(--list-marker-num2-width, 3ch))'
   },
 
   '.cm-line.cm-list-level-0.cm-list-marker-line.cm-list-marker-num3': {
     textIndent: 'calc(-1 * var(--list-marker-num3-width, 4ch))',
-    paddingLeft: 'calc(6px + var(--list-marker-num3-width, 4ch))'
+    paddingLeft: 'calc(var(--cm-line-padding, 6px) + var(--list-marker-num3-width, 4ch))'
   },
 
   // Level 1 list items - base indent plus hanging indent
@@ -102,42 +101,42 @@ export const listStylingTheme = EditorView.theme({
     textIndent:
       'calc((var(--list-base-indent, 2ch) * -1) - var(--list-marker-dash-width, 1.5ch))',
     paddingLeft:
-      'calc(6px + var(--list-base-indent, 2ch) + var(--list-marker-dash-width, 1.5ch))'
+      'calc(var(--cm-line-padding, 6px) + var(--list-base-indent, 2ch) + var(--list-marker-dash-width, 1.5ch))'
   },
 
   '.cm-line.cm-list-level-1.cm-list-marker-line.cm-list-marker-star': {
     textIndent:
       'calc((var(--list-base-indent, 2ch) * -1) - var(--list-marker-star-width, 1.5ch))',
     paddingLeft:
-      'calc(6px + var(--list-base-indent, 2ch) + var(--list-marker-star-width, 1.5ch))'
+      'calc(var(--cm-line-padding, 6px) + var(--list-base-indent, 2ch) + var(--list-marker-star-width, 1.5ch))'
   },
 
   '.cm-line.cm-list-level-1.cm-list-marker-line.cm-list-marker-plus': {
     textIndent:
       'calc((var(--list-base-indent, 2ch) * -1) - var(--list-marker-plus-width, 1.5ch))',
     paddingLeft:
-      'calc(6px + var(--list-base-indent, 2ch) + var(--list-marker-plus-width, 1.5ch))'
+      'calc(var(--cm-line-padding, 6px) + var(--list-base-indent, 2ch) + var(--list-marker-plus-width, 1.5ch))'
   },
 
   '.cm-line.cm-list-level-1.cm-list-marker-line.cm-list-marker-num1': {
     textIndent:
       'calc((var(--list-base-indent, 2ch) * -1) - var(--list-marker-num1-width, 2ch))',
     paddingLeft:
-      'calc(6px + var(--list-base-indent, 2ch) + var(--list-marker-num1-width, 2ch))'
+      'calc(var(--cm-line-padding, 6px) + var(--list-base-indent, 2ch) + var(--list-marker-num1-width, 2ch))'
   },
 
   '.cm-line.cm-list-level-1.cm-list-marker-line.cm-list-marker-num2': {
     textIndent:
       'calc((var(--list-base-indent, 2ch) * -1) - var(--list-marker-num2-width, 3ch))',
     paddingLeft:
-      'calc(6px + var(--list-base-indent, 2ch) + var(--list-marker-num2-width, 3ch))'
+      'calc(var(--cm-line-padding, 6px) + var(--list-base-indent, 2ch) + var(--list-marker-num2-width, 3ch))'
   },
 
   '.cm-line.cm-list-level-1.cm-list-marker-line.cm-list-marker-num3': {
     textIndent:
       'calc((var(--list-base-indent, 2ch) * -1) - var(--list-marker-num3-width, 4ch))',
     paddingLeft:
-      'calc(6px + var(--list-base-indent, 2ch) + var(--list-marker-num3-width, 4ch))'
+      'calc(var(--cm-line-padding, 6px) + var(--list-base-indent, 2ch) + var(--list-marker-num3-width, 4ch))'
   },
 
   // Level 2 list items
@@ -145,42 +144,42 @@ export const listStylingTheme = EditorView.theme({
     textIndent:
       'calc((var(--list-base-indent, 2ch) * -2) - var(--list-marker-dash-width, 1.5ch))',
     paddingLeft:
-      'calc(6px + (var(--list-base-indent, 2ch) * 2) + var(--list-marker-dash-width, 1.5ch))'
+      'calc(var(--cm-line-padding, 6px) + (var(--list-base-indent, 2ch) * 2) + var(--list-marker-dash-width, 1.5ch))'
   },
 
   '.cm-line.cm-list-level-2.cm-list-marker-line.cm-list-marker-star': {
     textIndent:
       'calc((var(--list-base-indent, 2ch) * -2) - var(--list-marker-star-width, 1.5ch))',
     paddingLeft:
-      'calc(6px + (var(--list-base-indent, 2ch) * 2) + var(--list-marker-star-width, 1.5ch))'
+      'calc(var(--cm-line-padding, 6px) + (var(--list-base-indent, 2ch) * 2) + var(--list-marker-star-width, 1.5ch))'
   },
 
   '.cm-line.cm-list-level-2.cm-list-marker-line.cm-list-marker-plus': {
     textIndent:
       'calc((var(--list-base-indent, 2ch) * -2) - var(--list-marker-plus-width, 1.5ch))',
     paddingLeft:
-      'calc(6px + (var(--list-base-indent, 2ch) * 2) + var(--list-marker-plus-width, 1.5ch))'
+      'calc(var(--cm-line-padding, 6px) + (var(--list-base-indent, 2ch) * 2) + var(--list-marker-plus-width, 1.5ch))'
   },
 
   '.cm-line.cm-list-level-2.cm-list-marker-line.cm-list-marker-num1': {
     textIndent:
       'calc((var(--list-base-indent, 2ch) * -2) - var(--list-marker-num1-width, 2ch))',
     paddingLeft:
-      'calc(6px + (var(--list-base-indent, 2ch) * 2) + var(--list-marker-num1-width, 2ch))'
+      'calc(var(--cm-line-padding, 6px) + (var(--list-base-indent, 2ch) * 2) + var(--list-marker-num1-width, 2ch))'
   },
 
   '.cm-line.cm-list-level-2.cm-list-marker-line.cm-list-marker-num2': {
     textIndent:
       'calc((var(--list-base-indent, 2ch) * -2) - var(--list-marker-num2-width, 3ch))',
     paddingLeft:
-      'calc(6px + (var(--list-base-indent, 2ch) * 2) + var(--list-marker-num2-width, 3ch))'
+      'calc(var(--cm-line-padding, 6px) + (var(--list-base-indent, 2ch) * 2) + var(--list-marker-num2-width, 3ch))'
   },
 
   '.cm-line.cm-list-level-2.cm-list-marker-line.cm-list-marker-num3': {
     textIndent:
       'calc((var(--list-base-indent, 2ch) * -2) - var(--list-marker-num3-width, 4ch))',
     paddingLeft:
-      'calc(6px + (var(--list-base-indent, 2ch) * 2) + var(--list-marker-num3-width, 4ch))'
+      'calc(var(--cm-line-padding, 6px) + (var(--list-base-indent, 2ch) * 2) + var(--list-marker-num3-width, 4ch))'
   },
 
   // Level 3 list items
@@ -188,41 +187,41 @@ export const listStylingTheme = EditorView.theme({
     textIndent:
       'calc((var(--list-base-indent, 2ch) * -3) - var(--list-marker-dash-width, 1.5ch))',
     paddingLeft:
-      'calc(6px + (var(--list-base-indent, 2ch) * 3) + var(--list-marker-dash-width, 1.5ch))'
+      'calc(var(--cm-line-padding, 6px) + (var(--list-base-indent, 2ch) * 3) + var(--list-marker-dash-width, 1.5ch))'
   },
 
   '.cm-line.cm-list-level-3.cm-list-marker-line.cm-list-marker-star': {
     textIndent:
       'calc((var(--list-base-indent, 2ch) * -3) - var(--list-marker-star-width, 1.5ch))',
     paddingLeft:
-      'calc(6px + (var(--list-base-indent, 2ch) * 3) + var(--list-marker-star-width, 1.5ch))'
+      'calc(var(--cm-line-padding, 6px) + (var(--list-base-indent, 2ch) * 3) + var(--list-marker-star-width, 1.5ch))'
   },
 
   '.cm-line.cm-list-level-3.cm-list-marker-line.cm-list-marker-plus': {
     textIndent:
       'calc((var(--list-base-indent, 2ch) * -3) - var(--list-marker-plus-width, 1.5ch))',
     paddingLeft:
-      'calc(6px + (var(--list-base-indent, 2ch) * 3) + var(--list-marker-plus-width, 1.5ch))'
+      'calc(var(--cm-line-padding, 6px) + (var(--list-base-indent, 2ch) * 3) + var(--list-marker-plus-width, 1.5ch))'
   },
 
   '.cm-line.cm-list-level-3.cm-list-marker-line.cm-list-marker-num1': {
     textIndent:
       'calc((var(--list-base-indent, 2ch) * -3) - var(--list-marker-num1-width, 2ch))',
     paddingLeft:
-      'calc(6px + (var(--list-base-indent, 2ch) * 3) + var(--list-marker-num1-width, 2ch))'
+      'calc(var(--cm-line-padding, 6px) + (var(--list-base-indent, 2ch) * 3) + var(--list-marker-num1-width, 2ch))'
   },
 
   '.cm-line.cm-list-level-3.cm-list-marker-line.cm-list-marker-num2': {
     textIndent:
       'calc((var(--list-base-indent, 2ch) * -3) - var(--list-marker-num2-width, 3ch))',
     paddingLeft:
-      'calc(6px + (var(--list-base-indent, 2ch) * 3) + var(--list-marker-num2-width, 3ch))'
+      'calc(var(--cm-line-padding, 6px) + (var(--list-base-indent, 2ch) * 3) + var(--list-marker-num2-width, 3ch))'
   },
 
   '.cm-line.cm-list-level-3.cm-list-marker-line.cm-list-marker-num3': {
     textIndent:
       'calc((var(--list-base-indent, 2ch) * -3) - var(--list-marker-num3-width, 4ch))',
     paddingLeft:
-      'calc(6px + (var(--list-base-indent, 2ch) * 3) + var(--list-marker-num3-width, 4ch))'
+      'calc(var(--cm-line-padding, 6px) + (var(--list-base-indent, 2ch) * 3) + var(--list-marker-num3-width, 4ch))'
   }
 });
