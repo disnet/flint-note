@@ -207,8 +207,7 @@ App.svelte (Root)
 │   ├── PinnedNotes.svelte
 │   └── TemporaryTabs.svelte
 ├── MainView.svelte
-│   ├── NoteEditor.svelte
-│   └── CreateNoteModal.svelte
+│   └── NoteEditor.svelte
 └── RightSidebar.svelte
     ├── AIAssistant.svelte
     │   ├── MessageComponent.svelte

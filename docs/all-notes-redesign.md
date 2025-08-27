@@ -80,8 +80,8 @@ preselectedType?: string;
 1. User clicks type-specific create button in NotesView
 2. NotesView passes note type to MainView
 3. MainView forwards to App component
-4. App opens CreateNoteModal with preselectedType
-5. Modal automatically selects the specified note type
+4. App creates note directly without modal
+5. Note is created and opened directly in the editor
 
 ### 4. API Integration
 
@@ -156,7 +156,7 @@ getNoteTypeInfo(params: { typeName: string; vaultId?: string }): Promise<NoteTyp
 
 - `src/renderer/src/components/NotesView.svelte` - Main redesign
 - `src/renderer/src/components/MainView.svelte` - Updated interfaces
-- `src/renderer/src/components/CreateNoteModal.svelte` - Pre-selection support
+- Removed CreateNoteModal.svelte component (direct note creation)
 - `src/renderer/src/App.svelte` - Note type parameter handling
 
 ### New Components

@@ -2,7 +2,6 @@
   import LeftSidebar from './components/LeftSidebar.svelte';
   import MainView from './components/MainView.svelte';
   import RightSidebar from './components/RightSidebar.svelte';
-  import CreateNoteModal from './components/CreateNoteModal.svelte';
   import SearchBar from './components/SearchBar.svelte';
   import VaultSwitcher from './components/VaultSwitcher.svelte';
   import type { Message } from './services/types';
@@ -24,8 +23,6 @@
   const messages = $derived(unifiedChatStore.activeThread?.messages || []);
 
   let isLoadingResponse = $state(false);
-  let showCreateNoteModal = $state(false);
-  let createNotePreselectedType = $state<string | undefined>(undefined);
   let activeSystemView = $state<'notes' | 'settings' | 'slash-commands' | null>(null);
 
   function handleNoteSelect(note: NoteMetadata): void {
@@ -67,14 +64,12 @@
         }
       } catch (error) {
         console.error('Failed to create note:', error);
-        // Fallback to modal on error
-        createNotePreselectedType = noteType;
-        showCreateNoteModal = true;
+        // Log error for debugging
+        console.error('Note creation failed, but no fallback modal available');
       }
     } else {
-      // For UI clicks, show the modal
-      createNotePreselectedType = noteType;
-      showCreateNoteModal = true;
+      // For UI clicks, create note directly (no modal)
+      await handleCreateNote(noteType, true);
     }
   }
 
@@ -95,23 +90,6 @@
         sidebarState.toggleLeftSidebar();
       }
     }
-  }
-
-  function handleCloseCreateModal(): void {
-    showCreateNoteModal = false;
-    createNotePreselectedType = undefined;
-  }
-
-  function handleNoteCreated(noteId: string): void {
-    // Find the newly created note and open it in the editor
-    setTimeout(async () => {
-      // Wait for notes to refresh, then find and open the new note
-      const notes = notesStore.notes;
-      const newNote = notes.find((n) => n.id === noteId);
-      if (newNote) {
-        openNoteEditor(newNote);
-      }
-    }, 100);
   }
 
   function handleNoteClick(noteId: string): void {
@@ -682,13 +660,6 @@
       onSendMessage={handleSendMessage}
     />
   </div>
-
-  <CreateNoteModal
-    isOpen={showCreateNoteModal}
-    onClose={handleCloseCreateModal}
-    onNoteCreated={handleNoteCreated}
-    preselectedType={createNotePreselectedType}
-  />
 </div>
 
 <style>

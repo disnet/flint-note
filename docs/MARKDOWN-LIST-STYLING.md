@@ -426,6 +426,7 @@ The original implementation used hardcoded CSS classes for specific levels (0-3)
 ```
 
 This approach had significant limitations:
+
 - Only supported 4 levels of nesting (0-3)
 - Required 150+ lines of repetitive CSS rules
 - Would break with deeply nested lists (level 4+)
@@ -446,15 +447,17 @@ if (markerType) {
   const markerVar = `--list-marker-${markerType}-width`;
   const baseIndentVar = '--list-base-indent';
   const linePaddingVar = '--cm-line-padding';
-  
+
   // Calculate dynamic padding and text-indent using CSS calc
-  const paddingLeft = level === 0 
-    ? `calc(var(${linePaddingVar}, 6px) + var(${markerVar}, 1.5ch))`
-    : `calc(var(${linePaddingVar}, 6px) + (var(${baseIndentVar}, 2ch) * ${level}) + var(${markerVar}, 1.5ch))`;
-    
-  const textIndent = level === 0
-    ? `calc(-1 * var(${markerVar}, 1.5ch))`
-    : `calc((var(${baseIndentVar}, 2ch) * -${level}) - var(${markerVar}, 1.5ch))`;
+  const paddingLeft =
+    level === 0
+      ? `calc(var(${linePaddingVar}, 6px) + var(${markerVar}, 1.5ch))`
+      : `calc(var(${linePaddingVar}, 6px) + (var(${baseIndentVar}, 2ch) * ${level}) + var(${markerVar}, 1.5ch))`;
+
+  const textIndent =
+    level === 0
+      ? `calc(-1 * var(${markerVar}, 1.5ch))`
+      : `calc((var(${baseIndentVar}, 2ch) * -${level}) - var(${markerVar}, 1.5ch))`;
 
   decorations.push(
     Decoration.line({
@@ -472,14 +475,17 @@ if (markerType) {
 The generic approach uses a simple mathematical pattern that works for any nesting level:
 
 **Padding Left Formula:**
+
 - **Level 0**: `cm-line-padding + marker-width`
 - **Level N**: `cm-line-padding + (base-indent × N) + marker-width`
 
 **Text Indent Formula:**
-- **Level 0**: `-marker-width`  
+
+- **Level 0**: `-marker-width`
 - **Level N**: `-(base-indent × N) - marker-width`
 
 This creates the proper hanging indent where:
+
 1. The marker appears at the correct position for any nesting level
 2. Wrapped content aligns with the text after the marker
 3. Each level has progressively more indentation
@@ -513,9 +519,11 @@ All styling is now applied dynamically via the `style` attribute, eliminating th
 For a level 7 dash marker, the system now generates:
 
 ```html
-<div class="cm-line cm-list-marker-line" 
-     style="text-indent: calc((var(--list-base-indent, 2ch) * -7) - var(--list-marker-dash-width, 1.5ch)); 
-            padding-left: calc(var(--cm-line-padding, 6px) + (var(--list-base-indent, 2ch) * 7) + var(--list-marker-dash-width, 1.5ch));">
+<div
+  class="cm-line cm-list-marker-line"
+  style="text-indent: calc((var(--list-base-indent, 2ch) * -7) - var(--list-marker-dash-width, 1.5ch)); 
+            padding-left: calc(var(--cm-line-padding, 6px) + (var(--list-base-indent, 2ch) * 7) + var(--list-marker-dash-width, 1.5ch));"
+>
   - Level 7 deeply nested item
 </div>
 ```
