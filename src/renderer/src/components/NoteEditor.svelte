@@ -432,26 +432,22 @@
 
     const target = event.target as Element;
     const editorDom = editorView.dom;
-    const scrollerDom = editorDom.querySelector('.cm-scroller');
 
-    // Check if the click is in the editor area but not on actual text content
-    if (scrollerDom && (target === scrollerDom || target === editorContainer)) {
-      // Get the position of the last line
-      const doc = editorView.state.doc;
-      const lastLineStart = doc.lineAt(doc.length).from;
-      const lastLineCoords = editorView.coordsAtPos(lastLineStart);
-
-      if (lastLineCoords) {
-        const clickY = event.clientY;
-        const scrollerRect = scrollerDom.getBoundingClientRect();
-
-        // If click is below the last line of content, focus at end
-        if (clickY > lastLineCoords.bottom && clickY < scrollerRect.bottom) {
-          focusAtEnd();
-          event.preventDefault();
-        }
-      }
+    // Simple check: if we clicked outside the CodeMirror editor DOM,
+    // focus at the end
+    if (!editorDom.contains(target)) {
+      focusAtEnd();
+      event.preventDefault();
+      return;
     }
+
+    // If we clicked inside the editor but CodeMirror didn't handle it
+    // (meaning we clicked in empty space), focus at the end after a small delay
+    setTimeout(() => {
+      if (editorView && !editorView.hasFocus) {
+        focusAtEnd();
+      }
+    }, 10);
   }
 
   // Handle keyboard events on the editor content area
