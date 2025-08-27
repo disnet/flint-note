@@ -54,37 +54,98 @@ Create a decoration extension that:
 - Distinguishes between marker lines and continuation lines
 - Applies appropriate CSS classes for styling
 
-### 2. CSS-Based Indentation System
+### 2. Dynamic Measurement System
 
-Use CSS `text-indent` and `padding-left` properties:
+The core challenge is that CSS `ch` units don't precisely match actual character widths, even in monospace fonts. We need to dynamically measure the pixel width of list markers.
+
+#### Measurement Approach
+
+1. **Text Width Measurement Utility**
+   - Create a hidden measurement element with identical font properties
+   - Measure actual pixel widths of common markers: `"- "`, `"* "`, `"+ "`, `"1. "`, `"10. "`, etc.
+   - Update CSS custom properties with these measured values
+
+2. **CSS Custom Properties Integration**
 
 ```css
+:root {
+  --list-marker-dash-width: 0px;     /* "- " width */
+  --list-marker-num1-width: 0px;     /* "1. " width */
+  --list-marker-num2-width: 0px;     /* "10. " width */
+  --list-marker-num3-width: 0px;     /* "100. " width */
+  --list-base-indent: 0px;           /* 2-space indent width */
+}
+
 /* Level 0: no negative indent, continuation aligns with text */
 .cm-list-level-0 {
   text-indent: 0;
   padding-left: 0;
 }
 
-.cm-list-level-0.cm-list-continuation {
-  padding-left: 2ch; /* width of "- " marker */
+.cm-list-level-0.cm-list-continuation.cm-list-marker-dash {
+  padding-left: var(--list-marker-dash-width);
+}
+
+.cm-list-level-0.cm-list-continuation.cm-list-marker-num1 {
+  padding-left: var(--list-marker-num1-width);
 }
 
 /* Level 1: indented, continuation aligns with nested text */  
 .cm-list-level-1 {
-  padding-left: 2ch;
+  padding-left: var(--list-base-indent);
 }
 
-.cm-list-level-1.cm-list-continuation {
-  padding-left: 4ch; /* base indent + marker width */
+.cm-list-level-1.cm-list-continuation.cm-list-marker-dash {
+  padding-left: calc(var(--list-base-indent) + var(--list-marker-dash-width));
 }
 
-/* Level 2 and beyond follow the same pattern */
-.cm-list-level-2 {
-  padding-left: 4ch;
+/* Dynamic marker-specific styling for each level/marker combination */
+```
+
+3. **Measurement Implementation**
+
+```typescript
+interface MarkerWidths {
+  dash: number;      // "- "
+  star: number;      // "* " 
+  plus: number;      // "+ "
+  num1: number;      // "1. "
+  num2: number;      // "10. "
+  num3: number;      // "100. "
+  baseIndent: number; // "  " (2 spaces)
 }
 
-.cm-list-level-2.cm-list-continuation {
-  padding-left: 6ch;
+function measureMarkerWidths(editorElement: Element): MarkerWidths {
+  const measurer = document.createElement('div');
+  measurer.style.cssText = `
+    position: absolute;
+    visibility: hidden;
+    white-space: nowrap;
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+    line-height: inherit;
+  `;
+  
+  editorElement.appendChild(measurer);
+  
+  const widths = {
+    dash: measureText(measurer, '- '),
+    star: measureText(measurer, '* '),
+    plus: measureText(measurer, '+ '),
+    num1: measureText(measurer, '1. '),
+    num2: measureText(measurer, '10. '),
+    num3: measureText(measurer, '100. '),
+    baseIndent: measureText(measurer, '  ')
+  };
+  
+  editorElement.removeChild(measurer);
+  return widths;
+}
+
+function measureText(element: HTMLElement, text: string): number {
+  element.textContent = text;
+  return element.getBoundingClientRect().width;
 }
 ```
 
@@ -100,24 +161,32 @@ Use CSS `text-indent` and `padding-left` properties:
 - Convert tabs to equivalent spaces (typically 2 or 4 spaces)
 - Calculate level: `level = Math.floor(leadingSpaces / indentSize)`
 
-#### Marker Width Calculation
-Different markers require different continuation indents:
-- `- `, `* `, `+ `: 2 characters
-- `1. `: 3 characters  
-- `10. `: 4 characters
-- `100. `: 5 characters
+#### Dynamic Marker Width System
+Instead of assuming character counts, markers are measured dynamically:
+- Measure actual pixel width of each marker type in the current font
+- Store measurements in CSS custom properties
+- Apply marker-specific CSS classes for precise continuation alignment
+- Re-measure when font or theme changes
 
 ### 4. Integration Points
 
 #### NoteEditor.svelte Changes
-- Import the new list styling extension
+- Import the new list styling extension and measurement utility
 - Add to the extensions array in `createEditor()` and `updateEditorTheme()`
-- Include CSS classes in the `editorTheme` object
+- Call measurement function when editor is created or theme changes
+- Update CSS custom properties with measured values
 
 #### CSS Integration
-- Add list styling rules to the existing `editorTheme`
+- Add list styling rules to the existing `editorTheme` using CSS custom properties
 - Ensure compatibility with light/dark theme switching
-- Maintain consistency with the iA Writer Quattro font metrics
+- Re-measure and update custom properties when font or theme changes
+- Maintain consistency with the iA Writer Quattro font metrics through dynamic measurement
+
+#### Measurement Triggers
+- Initial editor creation
+- Theme changes (light/dark mode switching)
+- Font size changes (if implemented)
+- Editor element resize (potential font scaling)
 
 ### 5. Technical Challenges
 
@@ -137,16 +206,24 @@ Different markers require different continuation indents:
 - Use efficient regex patterns for line parsing
 - Implement incremental updates rather than full re-parsing
 - Cache decoration results where possible
+- Cache measurement results to avoid repeated DOM measurements
+- Throttle measurement updates during rapid theme changes
+
+#### Measurement Accuracy Challenges
+- Ensure measurement element inherits exact font properties from editor
+- Handle potential subpixel rendering differences across browsers
+- Account for potential font loading delays
+- Validate measurements across different zoom levels
 
 ### 6. Implementation Files
 
 #### New Files
-- `src/renderer/src/lib/markdownListStyling.ts` - Main extension implementation
-- `src/renderer/src/lib/markdownListParser.ts` - Line parsing logic
+- `src/renderer/src/lib/markdownListStyling.ts` - Main CodeMirror extension implementation
+- `src/renderer/src/lib/markdownListParser.ts` - Line parsing and classification logic  
+- `src/renderer/src/lib/textMeasurement.ts` - Dynamic text width measurement utility
 
 #### Modified Files
-- `src/renderer/src/components/NoteEditor.svelte` - Integration
-- Potentially `src/renderer/src/assets/fonts.css` - Additional CSS if needed
+- `src/renderer/src/components/NoteEditor.svelte` - Integration, measurement calls, CSS custom property updates
 
 ### 7. Testing Strategy
 
@@ -154,8 +231,10 @@ Different markers require different continuation indents:
 - Various list nesting scenarios
 - Mixed content (paragraphs, lists, code blocks)
 - Real-time editing behavior
-- Theme switching
+- Theme switching (light/dark mode)
 - Long lists with scrolling
+- Measurement accuracy across different marker types
+- Font rendering consistency across browsers
 
 #### Edge Case Testing
 - Empty list items
@@ -167,10 +246,11 @@ Different markers require different continuation indents:
 ## Expected Outcome
 
 The implementation will provide visually consistent markdown list formatting that:
-- Maintains proper text alignment for continuation lines
-- Respects the monospace font characteristics
-- Updates dynamically as the user types
+- Maintains pixel-perfect text alignment for continuation lines through dynamic measurement
+- Respects the actual character widths in iA Writer Quattro font
+- Updates dynamically as the user types and when themes change
 - Works seamlessly with existing CodeMirror features
-- Supports both light and dark themes
+- Supports both light and dark themes with automatic re-measurement
+- Provides accurate indentation regardless of browser rendering differences
 
-This enhancement will significantly improve the writing experience for users creating structured content with nested lists in the note editor.
+This enhancement will significantly improve the writing experience for users creating structured content with nested lists in the note editor, ensuring perfect visual alignment that matches the user's expectations for professional text editing.
