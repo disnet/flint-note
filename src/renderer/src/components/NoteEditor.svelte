@@ -60,8 +60,6 @@
         "'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace !important"
     },
     '.cm-line': {
-      padding: '0 !important',
-      // width: '75ch',
       fontFamily:
         "'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace !important"
     },
