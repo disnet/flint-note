@@ -34,20 +34,33 @@ class ListStylePlugin {
       const lineText = line.text;
       const lineInfo = parseListLine(lineText);
 
-      const cssClasses: string[] = [];
-
       if (lineInfo.isMarkerLine) {
-        // This is a marker line
-        cssClasses.push('cm-list-marker-line');
-        cssClasses.push(`cm-list-level-${lineInfo.level}`);
-        if (lineInfo.markerType) {
-          cssClasses.push(`cm-list-marker-${lineInfo.markerType}`);
-        }
+        // Generate dynamic styles based on level and marker type
+        const level = lineInfo.level;
+        const markerType = lineInfo.markerType;
 
-        if (cssClasses.length > 0) {
+        if (markerType) {
+          const markerVar = `--list-marker-${markerType}-width`;
+          const baseIndentVar = '--list-base-indent';
+          const linePaddingVar = '--cm-line-padding';
+
+          // Calculate dynamic padding and text-indent using CSS calc
+          const paddingLeft =
+            level === 0
+              ? `calc(var(${linePaddingVar}, 6px) + var(${markerVar}, 1.5ch))`
+              : `calc(var(${linePaddingVar}, 6px) + (var(${baseIndentVar}, 2ch) * ${level}) + var(${markerVar}, 1.5ch))`;
+
+          const textIndent =
+            level === 0
+              ? `calc(-1 * var(${markerVar}, 1.5ch))`
+              : `calc((var(${baseIndentVar}, 2ch) * -${level}) - var(${markerVar}, 1.5ch))`;
+
           decorations.push(
             Decoration.line({
-              class: cssClasses.join(' ')
+              class: 'cm-list-marker-line',
+              attributes: {
+                style: `text-indent: ${textIndent}; padding-left: ${paddingLeft};`
+              }
             }).range(line.from)
           );
         }
@@ -62,166 +75,9 @@ export const markdownListStyling = ViewPlugin.fromClass(ListStylePlugin, {
   decorations: (plugin) => plugin.decorations
 });
 
-// CSS theme for list styling with custom properties using hanging indent
-// Note: CodeMirror lines have default padding that we dynamically measure
+// Simplified CSS theme - styles are now applied dynamically via inline styles
 export const listStylingTheme = EditorView.theme({
-  // Level 0 list items - marker flush with normal text, wrapped text indented to align with content
-  '.cm-line.cm-list-level-0.cm-list-marker-line.cm-list-marker-dash': {
-    textIndent: 'calc(-1 * var(--list-marker-dash-width, 1.5ch))',
-    paddingLeft: 'calc(var(--cm-line-padding, 6px) + var(--list-marker-dash-width, 1.5ch))'
-  },
-
-  '.cm-line.cm-list-level-0.cm-list-marker-line.cm-list-marker-star': {
-    textIndent: 'calc(-1 * var(--list-marker-star-width, 1.5ch))',
-    paddingLeft: 'calc(var(--cm-line-padding, 6px) + var(--list-marker-star-width, 1.5ch))'
-  },
-
-  '.cm-line.cm-list-level-0.cm-list-marker-line.cm-list-marker-plus': {
-    textIndent: 'calc(-1 * var(--list-marker-plus-width, 1.5ch))',
-    paddingLeft: 'calc(var(--cm-line-padding, 6px) + var(--list-marker-plus-width, 1.5ch))'
-  },
-
-  '.cm-line.cm-list-level-0.cm-list-marker-line.cm-list-marker-num1': {
-    textIndent: 'calc(-1 * var(--list-marker-num1-width, 2ch))',
-    paddingLeft: 'calc(var(--cm-line-padding, 6px) + var(--list-marker-num1-width, 2ch))'
-  },
-
-  '.cm-line.cm-list-level-0.cm-list-marker-line.cm-list-marker-num2': {
-    textIndent: 'calc(-1 * var(--list-marker-num2-width, 3ch))',
-    paddingLeft: 'calc(var(--cm-line-padding, 6px) + var(--list-marker-num2-width, 3ch))'
-  },
-
-  '.cm-line.cm-list-level-0.cm-list-marker-line.cm-list-marker-num3': {
-    textIndent: 'calc(-1 * var(--list-marker-num3-width, 4ch))',
-    paddingLeft: 'calc(var(--cm-line-padding, 6px) + var(--list-marker-num3-width, 4ch))'
-  },
-
-  // Level 1 list items - base indent plus hanging indent
-  '.cm-line.cm-list-level-1.cm-list-marker-line.cm-list-marker-dash': {
-    textIndent:
-      'calc((var(--list-base-indent, 2ch) * -1) - var(--list-marker-dash-width, 1.5ch))',
-    paddingLeft:
-      'calc(var(--cm-line-padding, 6px) + var(--list-base-indent, 2ch) + var(--list-marker-dash-width, 1.5ch))'
-  },
-
-  '.cm-line.cm-list-level-1.cm-list-marker-line.cm-list-marker-star': {
-    textIndent:
-      'calc((var(--list-base-indent, 2ch) * -1) - var(--list-marker-star-width, 1.5ch))',
-    paddingLeft:
-      'calc(var(--cm-line-padding, 6px) + var(--list-base-indent, 2ch) + var(--list-marker-star-width, 1.5ch))'
-  },
-
-  '.cm-line.cm-list-level-1.cm-list-marker-line.cm-list-marker-plus': {
-    textIndent:
-      'calc((var(--list-base-indent, 2ch) * -1) - var(--list-marker-plus-width, 1.5ch))',
-    paddingLeft:
-      'calc(var(--cm-line-padding, 6px) + var(--list-base-indent, 2ch) + var(--list-marker-plus-width, 1.5ch))'
-  },
-
-  '.cm-line.cm-list-level-1.cm-list-marker-line.cm-list-marker-num1': {
-    textIndent:
-      'calc((var(--list-base-indent, 2ch) * -1) - var(--list-marker-num1-width, 2ch))',
-    paddingLeft:
-      'calc(var(--cm-line-padding, 6px) + var(--list-base-indent, 2ch) + var(--list-marker-num1-width, 2ch))'
-  },
-
-  '.cm-line.cm-list-level-1.cm-list-marker-line.cm-list-marker-num2': {
-    textIndent:
-      'calc((var(--list-base-indent, 2ch) * -1) - var(--list-marker-num2-width, 3ch))',
-    paddingLeft:
-      'calc(var(--cm-line-padding, 6px) + var(--list-base-indent, 2ch) + var(--list-marker-num2-width, 3ch))'
-  },
-
-  '.cm-line.cm-list-level-1.cm-list-marker-line.cm-list-marker-num3': {
-    textIndent:
-      'calc((var(--list-base-indent, 2ch) * -1) - var(--list-marker-num3-width, 4ch))',
-    paddingLeft:
-      'calc(var(--cm-line-padding, 6px) + var(--list-base-indent, 2ch) + var(--list-marker-num3-width, 4ch))'
-  },
-
-  // Level 2 list items
-  '.cm-line.cm-list-level-2.cm-list-marker-line.cm-list-marker-dash': {
-    textIndent:
-      'calc((var(--list-base-indent, 2ch) * -2) - var(--list-marker-dash-width, 1.5ch))',
-    paddingLeft:
-      'calc(var(--cm-line-padding, 6px) + (var(--list-base-indent, 2ch) * 2) + var(--list-marker-dash-width, 1.5ch))'
-  },
-
-  '.cm-line.cm-list-level-2.cm-list-marker-line.cm-list-marker-star': {
-    textIndent:
-      'calc((var(--list-base-indent, 2ch) * -2) - var(--list-marker-star-width, 1.5ch))',
-    paddingLeft:
-      'calc(var(--cm-line-padding, 6px) + (var(--list-base-indent, 2ch) * 2) + var(--list-marker-star-width, 1.5ch))'
-  },
-
-  '.cm-line.cm-list-level-2.cm-list-marker-line.cm-list-marker-plus': {
-    textIndent:
-      'calc((var(--list-base-indent, 2ch) * -2) - var(--list-marker-plus-width, 1.5ch))',
-    paddingLeft:
-      'calc(var(--cm-line-padding, 6px) + (var(--list-base-indent, 2ch) * 2) + var(--list-marker-plus-width, 1.5ch))'
-  },
-
-  '.cm-line.cm-list-level-2.cm-list-marker-line.cm-list-marker-num1': {
-    textIndent:
-      'calc((var(--list-base-indent, 2ch) * -2) - var(--list-marker-num1-width, 2ch))',
-    paddingLeft:
-      'calc(var(--cm-line-padding, 6px) + (var(--list-base-indent, 2ch) * 2) + var(--list-marker-num1-width, 2ch))'
-  },
-
-  '.cm-line.cm-list-level-2.cm-list-marker-line.cm-list-marker-num2': {
-    textIndent:
-      'calc((var(--list-base-indent, 2ch) * -2) - var(--list-marker-num2-width, 3ch))',
-    paddingLeft:
-      'calc(var(--cm-line-padding, 6px) + (var(--list-base-indent, 2ch) * 2) + var(--list-marker-num2-width, 3ch))'
-  },
-
-  '.cm-line.cm-list-level-2.cm-list-marker-line.cm-list-marker-num3': {
-    textIndent:
-      'calc((var(--list-base-indent, 2ch) * -2) - var(--list-marker-num3-width, 4ch))',
-    paddingLeft:
-      'calc(var(--cm-line-padding, 6px) + (var(--list-base-indent, 2ch) * 2) + var(--list-marker-num3-width, 4ch))'
-  },
-
-  // Level 3 list items
-  '.cm-line.cm-list-level-3.cm-list-marker-line.cm-list-marker-dash': {
-    textIndent:
-      'calc((var(--list-base-indent, 2ch) * -3) - var(--list-marker-dash-width, 1.5ch))',
-    paddingLeft:
-      'calc(var(--cm-line-padding, 6px) + (var(--list-base-indent, 2ch) * 3) + var(--list-marker-dash-width, 1.5ch))'
-  },
-
-  '.cm-line.cm-list-level-3.cm-list-marker-line.cm-list-marker-star': {
-    textIndent:
-      'calc((var(--list-base-indent, 2ch) * -3) - var(--list-marker-star-width, 1.5ch))',
-    paddingLeft:
-      'calc(var(--cm-line-padding, 6px) + (var(--list-base-indent, 2ch) * 3) + var(--list-marker-star-width, 1.5ch))'
-  },
-
-  '.cm-line.cm-list-level-3.cm-list-marker-line.cm-list-marker-plus': {
-    textIndent:
-      'calc((var(--list-base-indent, 2ch) * -3) - var(--list-marker-plus-width, 1.5ch))',
-    paddingLeft:
-      'calc(var(--cm-line-padding, 6px) + (var(--list-base-indent, 2ch) * 3) + var(--list-marker-plus-width, 1.5ch))'
-  },
-
-  '.cm-line.cm-list-level-3.cm-list-marker-line.cm-list-marker-num1': {
-    textIndent:
-      'calc((var(--list-base-indent, 2ch) * -3) - var(--list-marker-num1-width, 2ch))',
-    paddingLeft:
-      'calc(var(--cm-line-padding, 6px) + (var(--list-base-indent, 2ch) * 3) + var(--list-marker-num1-width, 2ch))'
-  },
-
-  '.cm-line.cm-list-level-3.cm-list-marker-line.cm-list-marker-num2': {
-    textIndent:
-      'calc((var(--list-base-indent, 2ch) * -3) - var(--list-marker-num2-width, 3ch))',
-    paddingLeft:
-      'calc(var(--cm-line-padding, 6px) + (var(--list-base-indent, 2ch) * 3) + var(--list-marker-num2-width, 3ch))'
-  },
-
-  '.cm-line.cm-list-level-3.cm-list-marker-line.cm-list-marker-num3': {
-    textIndent:
-      'calc((var(--list-base-indent, 2ch) * -3) - var(--list-marker-num3-width, 4ch))',
-    paddingLeft:
-      'calc(var(--cm-line-padding, 6px) + (var(--list-base-indent, 2ch) * 3) + var(--list-marker-num3-width, 4ch))'
+  '.cm-list-marker-line': {
+    // Base class for all list marker lines - individual styles applied via attributes
   }
 });

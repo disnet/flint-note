@@ -45,13 +45,13 @@ export function measureMarkerWidths(editorElement: Element): MarkerWidths {
 function measureCodeMirrorLinePadding(editorElement: Element): number {
   // Look for existing .cm-line element to measure its actual padding
   const cmLine = editorElement.querySelector('.cm-line');
-  
+
   if (cmLine) {
     const computedStyle = window.getComputedStyle(cmLine);
     const paddingLeft = computedStyle.getPropertyValue('padding-left');
     return parseFloat(paddingLeft) || 0;
   }
-  
+
   // Fallback: create a temporary .cm-line element to measure
   const tempLine = document.createElement('div');
   tempLine.className = 'cm-line';
@@ -60,13 +60,13 @@ function measureCodeMirrorLinePadding(editorElement: Element): number {
     visibility: hidden;
     pointer-events: none;
   `;
-  
+
   editorElement.appendChild(tempLine);
-  
+
   const computedStyle = window.getComputedStyle(tempLine);
   const paddingLeft = computedStyle.getPropertyValue('padding-left');
   const padding = parseFloat(paddingLeft) || 0;
-  
+
   editorElement.removeChild(tempLine);
   return padding;
 }

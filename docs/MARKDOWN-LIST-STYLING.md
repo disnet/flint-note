@@ -275,11 +275,11 @@ This enhancement will significantly improve the writing experience for users cre
 
 ---
 
-# IMPLEMENTATION COMPLETED ✅
+# IMPLEMENTATION COMPLETED ✅ - UPDATED WITH GENERIC APPROACH
 
 ## Final Working Implementation
 
-The markdown list styling enhancement has been successfully implemented with the following components:
+The markdown list styling enhancement has been successfully implemented and **updated with a generic approach** that supports unlimited nesting levels. The implementation includes the following components:
 
 ### Created Files
 
@@ -295,7 +295,8 @@ The markdown list styling enhancement has been successfully implemented with the
 
 3. **`src/renderer/src/lib/markdownListStyling.ts`**
    - Main CodeMirror extension for real-time decoration of list lines
-   - CSS theme with hanging indent implementation
+   - **NEW: Dynamic inline style generation** instead of static CSS classes
+   - **Supports unlimited nesting levels** using calculated CSS expressions
    - Performance-optimized incremental updates
 
 ### Integration
@@ -342,8 +343,9 @@ function measureCodeMirrorLinePadding(editorElement: Element): number {
 ```
 
 Then use in CSS:
+
 ```css
-paddingLeft: calc(var(--cm-line-padding, 6px) + var(--list-marker-dash-width))
+paddingleft: calc(var(--cm-line-padding, 6px) + var(--list-marker-dash-width));
 ```
 
 ### 3. **Hanging Indent Mathematics**
@@ -351,29 +353,32 @@ paddingLeft: calc(var(--cm-line-padding, 6px) + var(--list-marker-dash-width))
 **Problem**: Getting the precise negative `textIndent` values to create proper hanging indents.
 
 **Final Working Formula**:
-- **Level 0**: 
+
+- **Level 0**:
   - `paddingLeft: var(--cm-line-padding) + marker-width`
   - `textIndent: -1 × marker-width` (no base indent multiplier)
 
-- **Level 1**: 
+- **Level 1**:
   - `paddingLeft: var(--cm-line-padding) + base-indent + marker-width`
   - `textIndent: -1 × base-indent - marker-width` (1× base indent)
 
-- **Level 2**: 
+- **Level 2**:
   - `paddingLeft: var(--cm-line-padding) + (base-indent × 2) + marker-width`
   - `textIndent: -2 × base-indent - marker-width` (2× base indent)
 
-- **Level 3**: 
+- **Level 3**:
   - `paddingLeft: var(--cm-line-padding) + (base-indent × 3) + marker-width`
   - `textIndent: -3 × base-indent - marker-width` (3× base indent)
 
 ### 4. **Key Insight - Level Multiplier Pattern**
 
 The working pattern is:
+
 - **Padding multiplier**: Matches the nesting level (0, 1, 2, 3)
 - **TextIndent multiplier**: Also matches the nesting level (0, 1, 2, 3)
 
 This creates the proper hanging indent where:
+
 1. The marker appears at the correct position for the nesting level
 2. Wrapped content aligns with the text after the marker
 3. Each list level has progressively more indentation
@@ -381,18 +386,21 @@ This creates the proper hanging indent where:
 ### 5. **Why This Works**
 
 The `textIndent` property affects only the first line of a block element, while `paddingLeft` affects all lines. This creates the hanging indent effect:
+
 - **First line**: Gets both padding and negative text-indent (marker positioned correctly)
 - **Wrapped lines**: Get only the padding (content aligned properly)
 
 ## Result
 
 The implementation now provides:
+
 - ✅ Level 0 lists flush with normal text
 - ✅ Perfect hanging indents for all nesting levels
 - ✅ Pixel-perfect alignment using measured font metrics
 - ✅ Dynamic updates on theme changes
 - ✅ Real-time decoration as user types
-- ✅ Support for all common list markers (-, *, +, 1., 10., 100.)
+- ✅ Support for all common list markers (-, \*, +, 1., 10., 100.)
+- ✅ **NEW: Unlimited nesting depth** (supports level 10, 50, 100+)
 
 ## Performance Notes
 
@@ -400,3 +408,116 @@ The implementation now provides:
 - List line parsing is efficient using regex patterns
 - Decorations update incrementally during typing
 - CSS custom properties provide performant dynamic styling
+- **NEW: No CSS bloat** - styles only generated for lines that actually exist
+
+---
+
+# GENERIC APPROACH UPDATE (Latest Enhancement)
+
+## Problem with Original Implementation
+
+The original implementation used hardcoded CSS classes for specific levels (0-3):
+
+```css
+.cm-line.cm-list-level-0.cm-list-marker-line.cm-list-marker-dash { ... }
+.cm-line.cm-list-level-1.cm-list-marker-line.cm-list-marker-dash { ... }
+.cm-line.cm-list-level-2.cm-list-marker-line.cm-list-marker-dash { ... }
+.cm-line.cm-list-level-3.cm-list-marker-line.cm-list-marker-dash { ... }
+```
+
+This approach had significant limitations:
+- Only supported 4 levels of nesting (0-3)
+- Required 150+ lines of repetitive CSS rules
+- Would break with deeply nested lists (level 4+)
+- Difficult to maintain and extend
+
+## Generic Solution Architecture
+
+### 1. Dynamic Inline Style Generation
+
+Instead of relying on predefined CSS classes, the new approach generates inline styles dynamically based on the calculated nesting level:
+
+```typescript
+// Generate dynamic styles based on level and marker type
+const level = lineInfo.level; // Can be any number: 0, 1, 2, 10, 50, 100+
+const markerType = lineInfo.markerType;
+
+if (markerType) {
+  const markerVar = `--list-marker-${markerType}-width`;
+  const baseIndentVar = '--list-base-indent';
+  const linePaddingVar = '--cm-line-padding';
+  
+  // Calculate dynamic padding and text-indent using CSS calc
+  const paddingLeft = level === 0 
+    ? `calc(var(${linePaddingVar}, 6px) + var(${markerVar}, 1.5ch))`
+    : `calc(var(${linePaddingVar}, 6px) + (var(${baseIndentVar}, 2ch) * ${level}) + var(${markerVar}, 1.5ch))`;
+    
+  const textIndent = level === 0
+    ? `calc(-1 * var(${markerVar}, 1.5ch))`
+    : `calc((var(${baseIndentVar}, 2ch) * -${level}) - var(${markerVar}, 1.5ch))`;
+
+  decorations.push(
+    Decoration.line({
+      class: 'cm-list-marker-line',
+      attributes: {
+        style: `text-indent: ${textIndent}; padding-left: ${paddingLeft};`
+      }
+    }).range(line.from)
+  );
+}
+```
+
+### 2. Mathematical Formula for Any Level
+
+The generic approach uses a simple mathematical pattern that works for any nesting level:
+
+**Padding Left Formula:**
+- **Level 0**: `cm-line-padding + marker-width`
+- **Level N**: `cm-line-padding + (base-indent × N) + marker-width`
+
+**Text Indent Formula:**
+- **Level 0**: `-marker-width`  
+- **Level N**: `-(base-indent × N) - marker-width`
+
+This creates the proper hanging indent where:
+1. The marker appears at the correct position for any nesting level
+2. Wrapped content aligns with the text after the marker
+3. Each level has progressively more indentation
+
+### 3. Simplified CSS Theme
+
+The CSS theme was dramatically simplified from 150+ lines to just:
+
+```typescript
+export const listStylingTheme = EditorView.theme({
+  '.cm-list-marker-line': {
+    // Base class for all list marker lines - individual styles applied via attributes
+  }
+});
+```
+
+All styling is now applied dynamically via the `style` attribute, eliminating the need for level-specific CSS classes.
+
+### 4. Benefits of the Generic Approach
+
+✅ **Unlimited Nesting Levels**: Works with level 10, 50, 100, or any depth  
+✅ **No Performance Overhead**: Only calculates styles for lines that actually exist  
+✅ **Maintainable**: Single formula handles all levels instead of repetitive CSS  
+✅ **Dynamic**: Still uses CSS custom properties for precise font measurements  
+✅ **Future-proof**: Automatically handles any new marker types  
+✅ **Memory Efficient**: No CSS bloat from unused level classes  
+✅ **Real-time**: Generates correct styles as user types deeply nested content
+
+### 5. Example Output
+
+For a level 7 dash marker, the system now generates:
+
+```html
+<div class="cm-line cm-list-marker-line" 
+     style="text-indent: calc((var(--list-base-indent, 2ch) * -7) - var(--list-marker-dash-width, 1.5ch)); 
+            padding-left: calc(var(--cm-line-padding, 6px) + (var(--list-base-indent, 2ch) * 7) + var(--list-marker-dash-width, 1.5ch));">
+  - Level 7 deeply nested item
+</div>
+```
+
+This approach maintains all the pixel-perfect alignment benefits while supporting truly unlimited nesting depth.
