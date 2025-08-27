@@ -160,12 +160,7 @@
           onSave={saveNote}
         />
       {:else}
-        <NoteEditor
-          bind:this={noteEditor}
-          note={activeNote}
-          position="nested"
-          {onClose}
-        />
+        <NoteEditor bind:this={noteEditor} note={activeNote} {onClose} />
       {/if}
     </div>
   {:else}

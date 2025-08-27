@@ -21,7 +21,7 @@
       height: '100%',
       fontFamily:
         "'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace !important",
-      fontSize: '16px !important',
+      fontSize: 'var(--font-editor-size) !important',
       lineHeight: '1.6',
       width: '100%'
     },
@@ -35,6 +35,7 @@
       scrollbarWidth: 'thin',
       scrollbarColor: 'rgba(0, 0, 0, 0.2) transparent',
       marginBottom: '25vh',
+      overflow: 'visible',
       fontFamily:
         "'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace !important"
     },
@@ -112,10 +113,9 @@
   interface Props {
     note: NoteMetadata;
     onClose: () => void;
-    position: 'sidebar' | 'overlay' | 'fullscreen' | 'nested';
   }
 
-  let { note, onClose, position }: Props = $props();
+  let { note, onClose }: Props = $props();
 
   let editorContainer: Element;
   let editorView: EditorView | null = null;
@@ -524,10 +524,6 @@
 
 <div
   class="note-editor"
-  class:sidebar={position === 'sidebar'}
-  class:overlay={position === 'overlay'}
-  class:fullscreen={position === 'fullscreen'}
-  class:nested={position === 'nested'}
   role="dialog"
   aria-labelledby="note-editor-title"
   tabindex="-1"
@@ -594,56 +590,11 @@
   .note-editor {
     display: flex;
     flex-direction: column;
-    background: var(--bg-primary);
-    border: 1px solid var(--border-light);
-    border-radius: 0.5rem;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    transition: all 0.2s ease;
     gap: 0.25rem;
+    min-width: 30ch;
+    max-width: 75ch;
+    width: 100%;
     padding: 0;
-  }
-
-  .note-editor.sidebar {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    border: none;
-    border-radius: 0;
-    box-shadow: none;
-  }
-
-  .note-editor.nested {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    border: none;
-    border-radius: 0;
-    box-shadow: none;
-    font-family:
-      'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace;
-    font-size: 1rem;
-    width: 75ch;
-  }
-
-  .note-editor.overlay {
-    position: absolute;
-    top: 2rem;
-    left: 2rem;
-    right: 2rem;
-    bottom: 2rem;
-    z-index: 100;
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.25);
-  }
-
-  .note-editor.fullscreen {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 200;
-    border: none;
-    border-radius: 0;
   }
 
   .editor-header {
@@ -781,20 +732,6 @@
       flex-direction: column;
       align-items: flex-start;
       gap: 0.5rem;
-    }
-  }
-
-  @media (max-width: 1200px) {
-    .note-editor.sidebar {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      z-index: 100;
-      border: 1px solid var(--border-light);
-      border-radius: 0;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     }
   }
 </style>
