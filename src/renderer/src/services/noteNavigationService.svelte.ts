@@ -26,17 +26,17 @@ class NoteNavigationService {
   /**
    * Opens a note and handles all coordination between pinned notes, recent tabs, and navigation history
    */
-  openNote(
+  async openNote(
     note: NoteMetadata,
     source: 'search' | 'wikilink' | 'navigation' | 'history',
-    onNoteOpen: (note: NoteMetadata) => void,
+    onNoteOpen: (note: NoteMetadata) => Promise<void> | void,
     onSystemViewClear?: () => void
-  ): void {
+  ): Promise<void> {
     // Check for pinned notes changes before proceeding
     this.checkPinnedNotesChanges();
 
     // Always open the note in the editor
-    onNoteOpen(note);
+    await onNoteOpen(note);
 
     // Clear system views if requested
     onSystemViewClear?.();
@@ -53,7 +53,7 @@ class NoteNavigationService {
 
     // Add to navigation history (unless this is already a history navigation)
     if (source !== 'history') {
-      navigationHistoryStore.addEntry(note.id, note.title, source);
+      await navigationHistoryStore.addEntry(note.id, note.title, source);
     }
   }
 
@@ -109,16 +109,16 @@ class NoteNavigationService {
   /**
    * Update scroll position for current navigation entry
    */
-  updateScrollPosition(scrollPosition: number): void {
-    navigationHistoryStore.updateScrollPosition(scrollPosition);
+  async updateScrollPosition(scrollPosition: number): Promise<void> {
+    await navigationHistoryStore.updateScrollPosition(scrollPosition);
   }
 
   /**
    * Start vault switch - notify all stores
    */
-  startVaultSwitch(): void {
-    navigationHistoryStore.startVaultSwitch();
-    activeNoteStore.startVaultSwitch();
+  async startVaultSwitch(): Promise<void> {
+    await navigationHistoryStore.startVaultSwitch();
+    await activeNoteStore.startVaultSwitch();
   }
 
   /**

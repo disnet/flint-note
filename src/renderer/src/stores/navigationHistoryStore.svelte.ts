@@ -28,9 +28,26 @@ class NavigationHistoryStore {
   private useWebHistory = true;
   private isNavigating = false;
   private isVaultSwitching = false;
+  private isLoading = $state(true);
+  private isInitialized = $state(false);
+  private initializationPromise: Promise<void> | null = null;
 
   constructor() {
-    this.initializeVault();
+    this.initializationPromise = this.initializeVault();
+  }
+
+  get loading(): boolean {
+    return this.isLoading;
+  }
+
+  get initialized(): boolean {
+    return this.isInitialized;
+  }
+
+  async ensureInitialized(): Promise<void> {
+    if (this.initializationPromise) {
+      await this.initializationPromise;
+    }
   }
 
   get canGoBack(): boolean {
@@ -56,11 +73,12 @@ class NavigationHistoryStore {
   /**
    * Add a new navigation entry
    */
-  addEntry(
+  async addEntry(
     noteId: string,
     title: string,
     source: 'search' | 'wikilink' | 'navigation' | 'history'
-  ): void {
+  ): Promise<void> {
+    await this.ensureInitialized();
     // Don't add entries while navigating or switching vaults
     if (this.isNavigating || this.isVaultSwitching) {
       return;
@@ -107,7 +125,7 @@ class NavigationHistoryStore {
       }
     }
 
-    this.saveToStorage();
+    await this.saveToStorage();
   }
 
   /**
@@ -232,31 +250,34 @@ class NavigationHistoryStore {
   /**
    * Update scroll position for current entry
    */
-  updateScrollPosition(scrollPosition: number): void {
+  async updateScrollPosition(scrollPosition: number): Promise<void> {
+    await this.ensureInitialized();
     if (
       this.state.currentIndex >= 0 &&
       this.state.currentIndex < this.state.customHistory.length
     ) {
       this.state.customHistory[this.state.currentIndex].scrollPosition = scrollPosition;
-      this.saveToStorage();
+      await this.saveToStorage();
     }
   }
 
   /**
    * Clear navigation history
    */
-  clearHistory(): void {
+  async clearHistory(): Promise<void> {
+    await this.ensureInitialized();
     this.state.customHistory = [];
     this.state.currentIndex = -1;
-    this.saveToStorage();
+    await this.saveToStorage();
   }
 
   /**
    * Start vault switch - prevent new entries
    */
-  startVaultSwitch(): void {
+  async startVaultSwitch(): Promise<void> {
+    await this.ensureInitialized();
     this.isVaultSwitching = true;
-    this.saveToStorage();
+    await this.saveToStorage();
   }
 
   /**
@@ -272,7 +293,7 @@ class NavigationHistoryStore {
       this.state.customHistory = [];
       this.state.currentIndex = -1;
 
-      this.loadFromStorage();
+      await this.loadFromStorage();
     } catch (error) {
       console.warn('Failed to switch vault for navigation history:', error);
       this.state.currentVaultId = 'default';
@@ -282,55 +303,71 @@ class NavigationHistoryStore {
   }
 
   private async initializeVault(): Promise<void> {
+    this.isLoading = true;
     try {
       const service = getChatService();
       const vault = await service.getCurrentVault();
       this.state.currentVaultId = vault?.id || 'default';
-      this.loadFromStorage();
+      await this.loadFromStorage();
     } catch (error) {
       console.warn('Failed to initialize vault for navigation history:', error);
       this.state.currentVaultId = 'default';
-      this.loadFromStorage();
+    } finally {
+      this.isLoading = false;
+      this.isInitialized = true;
+      this.initializationPromise = null;
     }
   }
 
-  private getStorageKey(): string {
-    const vaultId = this.state.currentVaultId || 'default';
-    return `navigationHistory-${vaultId}`;
-  }
-
-  private loadFromStorage(): void {
+  private async loadFromStorage(): Promise<void> {
     if (typeof window === 'undefined') return;
 
     try {
-      const stored = localStorage.getItem(this.getStorageKey());
-      if (stored) {
-        const parsed = JSON.parse(stored);
+      const vaultId = this.state.currentVaultId || 'default';
+      const stored = await window.api?.loadNavigationHistory({ vaultId });
 
+      if (stored) {
         // Validate and restore state
-        if (parsed.customHistory && Array.isArray(parsed.customHistory)) {
-          this.state.customHistory = parsed.customHistory;
-          this.state.currentIndex = parsed.currentIndex || -1;
-          this.state.maxHistorySize = parsed.maxHistorySize || 50;
+        if (
+          stored &&
+          typeof stored === 'object' &&
+          'customHistory' in stored &&
+          Array.isArray(stored.customHistory)
+        ) {
+          this.state.customHistory = stored.customHistory;
+          this.state.currentIndex =
+            'currentIndex' in stored && typeof stored.currentIndex === 'number'
+              ? stored.currentIndex
+              : -1;
+          this.state.maxHistorySize =
+            'maxHistorySize' in stored && typeof stored.maxHistorySize === 'number'
+              ? stored.maxHistorySize
+              : 50;
         }
       }
     } catch (error) {
       console.warn('Failed to load navigation history from storage:', error);
+      // Use default state on error
+      this.state.customHistory = [];
+      this.state.currentIndex = -1;
+      this.state.maxHistorySize = 50;
     }
   }
 
-  private saveToStorage(): void {
+  private async saveToStorage(): Promise<void> {
     if (typeof window === 'undefined') return;
 
     try {
+      const vaultId = this.state.currentVaultId || 'default';
       const dataToSave = {
-        customHistory: this.state.customHistory,
+        customHistory: $state.snapshot(this.state.customHistory),
         currentIndex: this.state.currentIndex,
         maxHistorySize: this.state.maxHistorySize
       };
-      localStorage.setItem(this.getStorageKey(), JSON.stringify(dataToSave));
+      await window.api?.saveNavigationHistory({ vaultId, history: dataToSave });
     } catch (error) {
       console.warn('Failed to save navigation history to storage:', error);
+      throw error; // Re-throw to let calling code handle
     }
   }
 }

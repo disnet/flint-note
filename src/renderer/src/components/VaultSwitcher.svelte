@@ -45,7 +45,7 @@
 
       // Start vault switch mode - this clears tabs and blocks new ones
       temporaryTabsStore.startVaultSwitch();
-      activeNoteStore.startVaultSwitch();
+      await activeNoteStore.startVaultSwitch();
 
       // Close the active note since it's from the previous vault
       onNoteClose();
@@ -130,7 +130,7 @@
         if (nextVault?.id) {
           // Start vault switch mode - this clears tabs and blocks new ones
           temporaryTabsStore.startVaultSwitch();
-          activeNoteStore.startVaultSwitch();
+          await activeNoteStore.startVaultSwitch();
 
           // Close the active note since it's from the vault being archived
           onNoteClose();

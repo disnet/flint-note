@@ -1,5 +1,6 @@
 import type { NoteMetadata } from '../services/noteStore.svelte';
 import { getChatService } from '../services/chatService';
+import { notesStore } from '../services/noteStore.svelte';
 
 interface ActiveNoteState {
   currentVaultId: string | null;
@@ -13,38 +14,57 @@ const defaultState: ActiveNoteState = {
 
 class ActiveNoteStore {
   private state = $state<ActiveNoteState>(defaultState);
-  private isInitialized = false;
+  private isLoading = $state(true);
+  private isInitialized = $state(false);
+  private initializationPromise: Promise<void> | null = null;
 
   constructor() {
-    this.initializeVault();
+    this.initializationPromise = this.initializeVault();
   }
 
   get activeNote(): NoteMetadata | null {
     return this.state.activeNote;
   }
 
+  get loading(): boolean {
+    return this.isLoading;
+  }
+
+  get initialized(): boolean {
+    return this.isInitialized;
+  }
+
+  async ensureInitialized(): Promise<void> {
+    if (this.initializationPromise) {
+      await this.initializationPromise;
+    }
+  }
+
   /**
    * Set the active note and persist it
    */
-  setActiveNote(note: NoteMetadata | null): void {
+  async setActiveNote(note: NoteMetadata | null): Promise<void> {
+    await this.ensureInitialized();
     this.state.activeNote = note;
-    this.saveToStorage();
+    await this.saveToStorage();
   }
 
   /**
    * Clear the active note
    */
-  clearActiveNote(): void {
+  async clearActiveNote(): Promise<void> {
+    await this.ensureInitialized();
     this.state.activeNote = null;
-    this.saveToStorage();
+    await this.saveToStorage();
   }
 
   /**
    * Start vault switch - clear active note for vault transition
    */
-  startVaultSwitch(): void {
+  async startVaultSwitch(): Promise<void> {
+    await this.ensureInitialized();
     this.state.activeNote = null;
-    this.saveToStorage();
+    await this.saveToStorage();
   }
 
   /**
@@ -59,7 +79,7 @@ class ActiveNoteStore {
       // Clear active note when switching vaults
       this.state.activeNote = null;
 
-      this.loadFromStorage();
+      await this.loadFromStorage();
     } catch (error) {
       console.warn('Failed to switch vault for active note:', error);
       this.state.currentVaultId = 'default';
@@ -90,66 +110,86 @@ class ActiveNoteStore {
         return stored;
       } else {
         // Note doesn't exist anymore, clear it
-        this.clearActiveNote();
+        await this.clearActiveNote();
         return null;
       }
     } catch (error) {
       console.warn('Failed to verify stored active note:', error);
       // Clear the invalid note
-      this.clearActiveNote();
+      await this.clearActiveNote();
       return null;
     }
   }
 
   private async initializeVault(): Promise<void> {
+    this.isLoading = true;
     try {
       const service = getChatService();
       const vault = await service.getCurrentVault();
       this.state.currentVaultId = vault?.id || 'default';
-      this.loadFromStorage();
-      this.isInitialized = true;
+      await this.loadFromStorage();
     } catch (error) {
       console.warn('Failed to initialize vault for active note:', error);
       this.state.currentVaultId = 'default';
-      this.loadFromStorage();
+    } finally {
+      this.isLoading = false;
       this.isInitialized = true;
+      this.initializationPromise = null;
     }
   }
 
-  private getStorageKey(): string {
-    const vaultId = this.state.currentVaultId || 'default';
-    return `activeNote-${vaultId}`;
-  }
-
-  private loadFromStorage(): void {
+  private async loadFromStorage(): Promise<void> {
     if (typeof window === 'undefined') return;
 
     try {
-      const stored = localStorage.getItem(this.getStorageKey());
-      if (stored) {
-        const parsed = JSON.parse(stored);
+      const vaultId = this.state.currentVaultId || 'default';
+      const activeNoteId = await window.api?.loadActiveNote({ vaultId });
 
-        // Validate the stored note has required fields
-        if (parsed && typeof parsed === 'object' && parsed.id && parsed.title) {
-          this.state.activeNote = parsed;
+      if (activeNoteId && typeof activeNoteId === 'string') {
+        // We have a note ID, now we need to find the full metadata in the notes store
+        // First ensure notes store is loaded
+        if (notesStore.loading || notesStore.notes.length === 0) {
+          await notesStore.refresh();
         }
+
+        // Find the note in the notes store (try multiple fields like in handleNoteClick)
+        const noteMetadata = notesStore.notes.find(
+          (note) =>
+            note.filename === activeNoteId ||
+            note.id === activeNoteId ||
+            note.title === activeNoteId
+        );
+
+        if (noteMetadata) {
+          this.state.activeNote = noteMetadata;
+        } else {
+          // Note ID exists in storage but note doesn't exist anymore - clear it
+          console.warn('Active note ID found but note no longer exists:', activeNoteId);
+          this.state.activeNote = null;
+          // Clear the invalid ID from storage
+          await this.saveToStorage();
+        }
+      } else {
+        this.state.activeNote = null;
       }
     } catch (error) {
       console.warn('Failed to load active note from storage:', error);
+      this.state.activeNote = null;
     }
   }
 
-  private saveToStorage(): void {
+  private async saveToStorage(): Promise<void> {
     if (typeof window === 'undefined') return;
 
     try {
-      if (this.state.activeNote) {
-        localStorage.setItem(this.getStorageKey(), JSON.stringify(this.state.activeNote));
-      } else {
-        localStorage.removeItem(this.getStorageKey());
-      }
+      const vaultId = this.state.currentVaultId || 'default';
+      await window.api?.saveActiveNote({
+        vaultId,
+        noteId: this.state.activeNote?.id || null
+      });
     } catch (error) {
       console.warn('Failed to save active note to storage:', error);
+      throw error; // Re-throw to let calling code handle
     }
   }
 }

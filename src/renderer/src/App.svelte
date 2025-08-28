@@ -25,8 +25,8 @@
   let isLoadingResponse = $state(false);
   let activeSystemView = $state<'notes' | 'settings' | 'slash-commands' | null>(null);
 
-  function handleNoteSelect(note: NoteMetadata): void {
-    noteNavigationService.openNote(note, 'navigation', openNoteEditor, () => {
+  async function handleNoteSelect(note: NoteMetadata): Promise<void> {
+    await noteNavigationService.openNote(note, 'navigation', openNoteEditor, () => {
       activeSystemView = null;
     });
   }
@@ -58,9 +58,14 @@
         const notes = notesStore.notes;
         const newNote = notes.find((n) => n.id === noteInfo.id);
         if (newNote) {
-          noteNavigationService.openNote(newNote, 'navigation', openNoteEditor, () => {
-            activeSystemView = null;
-          });
+          await noteNavigationService.openNote(
+            newNote,
+            'navigation',
+            openNoteEditor,
+            () => {
+              activeSystemView = null;
+            }
+          );
         }
       } catch (error) {
         console.error('Failed to create note:', error);
@@ -73,9 +78,9 @@
     }
   }
 
-  function handleSystemViewSelect(
+  async function handleSystemViewSelect(
     view: 'notes' | 'settings' | 'slash-commands' | null
-  ): void {
+  ): Promise<void> {
     // If clicking the same view that's already active and sidebar is visible, toggle the sidebar
     if (sidebarState.leftSidebar.visible && activeSystemView === view && view !== null) {
       sidebarState.toggleLeftSidebar();
@@ -83,7 +88,7 @@
       activeSystemView = view;
       // Clear active note when switching to system views
       if (view !== null) {
-        activeNoteStore.clearActiveNote();
+        await activeNoteStore.clearActiveNote();
       }
       // If sidebar is closed, open it when selecting a view
       if (!sidebarState.leftSidebar.visible && view !== null) {
@@ -92,7 +97,7 @@
     }
   }
 
-  function handleNoteClick(noteId: string): void {
+  async function handleNoteClick(noteId: string): Promise<void> {
     // Find the note in the notes store
     const notes = notesStore.notes;
     const note = notes.find(
@@ -100,18 +105,18 @@
     );
 
     if (note) {
-      noteNavigationService.openNote(note, 'wikilink', openNoteEditor);
+      await noteNavigationService.openNote(note, 'wikilink', openNoteEditor);
     } else {
       console.warn('Note not found:', noteId);
     }
   }
 
-  function openNoteEditor(note: NoteMetadata): void {
-    activeNoteStore.setActiveNote(note);
+  async function openNoteEditor(note: NoteMetadata): Promise<void> {
+    await activeNoteStore.setActiveNote(note);
   }
 
-  function closeNoteEditor(): void {
-    activeNoteStore.clearActiveNote();
+  async function closeNoteEditor(): Promise<void> {
+    await activeNoteStore.clearActiveNote();
   }
 
   async function handleNoteTypeChange(noteId: string, newType: string): Promise<void> {
@@ -136,7 +141,7 @@
           id: moveResult.new_id,
           type: moveResult.new_type
         };
-        activeNoteStore.setActiveNote(updatedNote);
+        await activeNoteStore.setActiveNote(updatedNote);
 
         // Refresh notes store to update the lists
         await notesStore.refresh();
@@ -196,7 +201,7 @@
           if (activeSystemView === null) {
             // The note is already set in the store, we just need to ensure
             // the navigation service is informed
-            noteNavigationService.openNote(
+            await noteNavigationService.openNote(
               restoredNote,
               'navigation',
               () => {
@@ -257,21 +262,21 @@
 
   // Wikilink navigation event listener
   $effect(() => {
-    function handleWikilinkNavigate(event: CustomEvent): void {
+    async function handleWikilinkNavigate(event: CustomEvent): Promise<void> {
       const { note } = event.detail;
       if (note) {
-        noteNavigationService.openNote(note, 'wikilink', openNoteEditor);
+        await noteNavigationService.openNote(note, 'wikilink', openNoteEditor);
       }
     }
 
     document.addEventListener(
       'wikilink-navigate',
-      handleWikilinkNavigate as (event: Event) => void
+      handleWikilinkNavigate as unknown as (event: Event) => void
     );
     return () =>
       document.removeEventListener(
         'wikilink-navigate',
-        handleWikilinkNavigate as (event: Event) => void
+        handleWikilinkNavigate as unknown as (event: Event) => void
       );
   });
 
@@ -312,13 +317,13 @@
 
   // Handle history navigation events from navigation service
   $effect(() => {
-    function handleHistoryNavigate(event: CustomEvent): void {
+    async function handleHistoryNavigate(event: CustomEvent): Promise<void> {
       const { noteId, title, scrollPosition } = event.detail;
 
       // Find the note and open it
       const note = notesStore.notes.find((n) => n.id === noteId);
       if (note) {
-        noteNavigationService.openNote(note, 'history', openNoteEditor, () => {
+        await noteNavigationService.openNote(note, 'history', openNoteEditor, () => {
           activeSystemView = null;
         });
 
@@ -335,12 +340,12 @@
 
     document.addEventListener(
       'history-navigate',
-      handleHistoryNavigate as (event: Event) => void
+      handleHistoryNavigate as unknown as (event: Event) => void
     );
     return () =>
       document.removeEventListener(
         'history-navigate',
-        handleHistoryNavigate as (event: Event) => void
+        handleHistoryNavigate as unknown as (event: Event) => void
       );
   });
 

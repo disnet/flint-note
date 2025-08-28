@@ -86,10 +86,11 @@ flint-ui/
 - This applies to: stores, reactive variables, derived values, any Svelte runes
 - **Error symptoms**: "An object could not be cloned" when calling IPC methods
 - **Standard pattern**:
+
   ```typescript
   // ❌ WRONG - Direct state serialization fails
   await window.api?.saveData(this.reactiveState);
-  
+
   // ✅ CORRECT - Use $state.snapshot for IPC
   const serializable = $state.snapshot(this.reactiveState);
   await window.api?.saveData(serializable);
