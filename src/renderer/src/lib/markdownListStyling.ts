@@ -79,5 +79,10 @@ export const markdownListStyling = ViewPlugin.fromClass(ListStylePlugin, {
 export const listStylingTheme = EditorView.theme({
   '.cm-list-marker-line': {
     // Base class for all list marker lines - individual styles applied via attributes
+  },
+  // Fix for wikilinks being affected by the text-indent on list lines
+  '.cm-list-marker-line .wikilink': {
+    position: 'relative',
+    textIndent: '0 !important'
   }
 });
