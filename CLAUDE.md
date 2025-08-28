@@ -77,4 +77,20 @@ flint-ui/
 
 - we currently have no users to unless told otherwise assume we can and should ignore backward compatibility or migration concerns
 
-- remember to use $state.snapshot() when sending svelte objects to APIs that serialize objects (e.g. our electron API)
+## Svelte + Electron IPC Guidelines
+
+**CRITICAL: Always use `$state.snapshot()` when sending Svelte reactive objects through IPC**
+
+- Svelte's `$state` objects contain internal reactivity metadata that breaks structured cloning
+- Before any `window.api?.someMethod(data)` call, wrap reactive data: `$state.snapshot(data)`
+- This applies to: stores, reactive variables, derived values, any Svelte runes
+- **Error symptoms**: "An object could not be cloned" when calling IPC methods
+- **Standard pattern**:
+  ```typescript
+  // ❌ WRONG - Direct state serialization fails
+  await window.api?.saveData(this.reactiveState);
+  
+  // ✅ CORRECT - Use $state.snapshot for IPC
+  const serializable = $state.snapshot(this.reactiveState);
+  await window.api?.saveData(serializable);
+  ```

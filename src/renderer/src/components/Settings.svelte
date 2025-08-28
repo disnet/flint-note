@@ -129,7 +129,7 @@
       await secureStorageService.storeApiKey(provider, key, orgId);
 
       // Update settings store
-      settingsStore.updateApiKey(provider, key, orgId);
+      await settingsStore.updateApiKey(provider, key, orgId);
 
       // Show subtle success indication
       showSuccess(`${provider} API key saved`);
@@ -151,10 +151,10 @@
     }, 1000); // 1 second debounce
   }
 
-  function handleDefaultModelChange(event: Event): void {
+  async function handleDefaultModelChange(event: Event): Promise<void> {
     const target = event.target as HTMLSelectElement;
-    settingsStore.updateDefaultModel(target.value);
-    modelStore.setSelectedModel(target.value);
+    await settingsStore.updateDefaultModel(target.value);
+    await modelStore.setSelectedModel(target.value);
   }
 
   async function clearAllApiKeys(): Promise<void> {
@@ -171,7 +171,7 @@
       openrouterKey = '';
       openrouterKeyValid = false;
 
-      settingsStore.updateSettings({
+      await settingsStore.updateSettings({
         apiKeys: {
           openrouter: ''
         }
@@ -433,8 +433,8 @@
           <input
             type="checkbox"
             checked={settingsStore.settings.modelPreferences.showCosts}
-            onchange={(e) =>
-              settingsStore.updateSettings({
+            onchange={async (e) =>
+              await settingsStore.updateSettings({
                 modelPreferences: {
                   ...settingsStore.settings.modelPreferences,
                   showCosts: (e.target as HTMLInputElement).checked
@@ -454,8 +454,8 @@
           min="1"
           max="1000"
           value={settingsStore.settings.modelPreferences.costWarningThreshold}
-          onchange={(e) =>
-            settingsStore.updateSettings({
+          onchange={async (e) =>
+            await settingsStore.updateSettings({
               modelPreferences: {
                 ...settingsStore.settings.modelPreferences,
                 costWarningThreshold: parseInt((e.target as HTMLInputElement).value)

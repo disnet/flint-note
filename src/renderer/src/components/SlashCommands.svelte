@@ -31,9 +31,9 @@
     newCommandParameters = [];
   }
 
-  function saveNewCommand(): void {
+  async function saveNewCommand(): Promise<void> {
     if (newCommandName.trim() && newCommandInstruction.trim()) {
-      slashCommandsStore.addCommand(
+      await slashCommandsStore.addCommand(
         newCommandName,
         newCommandInstruction,
         newCommandParameters
@@ -56,9 +56,9 @@
     editCommandParameters = [];
   }
 
-  function saveEditedCommand(): void {
+  async function saveEditedCommand(): Promise<void> {
     if (editingCommand && editCommandName.trim() && editCommandInstruction.trim()) {
-      slashCommandsStore.updateCommand(
+      await slashCommandsStore.updateCommand(
         editingCommand.id,
         editCommandName,
         editCommandInstruction,
@@ -68,9 +68,9 @@
     }
   }
 
-  function deleteCommand(id: string): void {
+  async function deleteCommand(id: string): Promise<void> {
     if (confirm('Are you sure you want to delete this slash command?')) {
-      slashCommandsStore.deleteCommand(id);
+      await slashCommandsStore.deleteCommand(id);
     }
   }
 

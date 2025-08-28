@@ -18,20 +18,53 @@ interface SlashCommand {
 
 class SlashCommandsStore {
   private commands = $state<SlashCommand[]>([]);
+  private isLoading = $state(true);
+  private isInitialized = $state(false);
+  private initializationPromise: Promise<void> | null = null;
 
   constructor() {
-    this.loadCommands();
+    this.initializationPromise = this.initialize();
+  }
+
+  private async initialize(): Promise<void> {
+    this.isLoading = true;
+    try {
+      await this.loadCommands();
+    } catch (error) {
+      console.warn('Slash commands initialization failed:', error);
+      this.commands = [];
+    } finally {
+      this.isLoading = false;
+      this.isInitialized = true;
+      this.initializationPromise = null;
+    }
+  }
+
+  async ensureInitialized(): Promise<void> {
+    if (this.initializationPromise) {
+      await this.initializationPromise;
+    }
+  }
+
+  get loading(): boolean {
+    return this.isLoading;
+  }
+
+  get initialized(): boolean {
+    return this.isInitialized;
   }
 
   get allCommands(): SlashCommand[] {
     return this.commands;
   }
 
-  addCommand(
+  async addCommand(
     name: string,
     instruction: string,
     parameters?: SlashCommandParameter[]
-  ): SlashCommand {
+  ): Promise<SlashCommand> {
+    await this.ensureInitialized();
+
     const command: SlashCommand = {
       id: crypto.randomUUID(),
       name: name.trim(),
@@ -42,16 +75,18 @@ class SlashCommandsStore {
     };
 
     this.commands.push(command);
-    this.saveCommands();
+    await this.saveCommands();
     return command;
   }
 
-  updateCommand(
+  async updateCommand(
     id: string,
     name: string,
     instruction: string,
     parameters?: SlashCommandParameter[]
-  ): SlashCommand | null {
+  ): Promise<SlashCommand | null> {
+    await this.ensureInitialized();
+
     const commandIndex = this.commands.findIndex((cmd) => cmd.id === id);
     if (commandIndex === -1) return null;
 
@@ -64,16 +99,18 @@ class SlashCommandsStore {
         parameters !== undefined ? parameters : this.commands[commandIndex].parameters
     };
 
-    this.saveCommands();
+    await this.saveCommands();
     return this.commands[commandIndex];
   }
 
-  deleteCommand(id: string): boolean {
+  async deleteCommand(id: string): Promise<boolean> {
+    await this.ensureInitialized();
+
     const originalLength = this.commands.length;
     this.commands = this.commands.filter((cmd) => cmd.id !== id);
 
     if (this.commands.length < originalLength) {
-      this.saveCommands();
+      await this.saveCommands();
       return true;
     }
     return false;
@@ -118,12 +155,11 @@ class SlashCommandsStore {
     return expandedText;
   }
 
-  private loadCommands(): void {
+  private async loadCommands(): Promise<void> {
     try {
-      const stored = localStorage.getItem('flint-slash-commands');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        this.commands = parsed.map(
+      const stored = await window.api?.loadSlashCommands();
+      if (stored && Array.isArray(stored)) {
+        this.commands = stored.map(
           (cmd: SlashCommand & { createdAt: string; updatedAt: string }) => ({
             ...cmd,
             createdAt: new Date(cmd.createdAt),
@@ -131,6 +167,8 @@ class SlashCommandsStore {
             parameters: cmd.parameters || []
           })
         );
+      } else {
+        this.commands = [];
       }
     } catch (error) {
       console.error('Failed to load slash commands:', error);
@@ -138,9 +176,11 @@ class SlashCommandsStore {
     }
   }
 
-  private saveCommands(): void {
+  private async saveCommands(): Promise<void> {
     try {
-      localStorage.setItem('flint-slash-commands', JSON.stringify(this.commands));
+      // Use $state.snapshot to get a serializable copy
+      const serializableCommands = $state.snapshot(this.commands);
+      await window.api?.saveSlashCommands(serializableCommands);
     } catch (error) {
       console.error('Failed to save slash commands:', error);
     }

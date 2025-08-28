@@ -49,52 +49,68 @@ const DEFAULT_SETTINGS: AppSettings = {
   }
 };
 
-const STORAGE_KEY = 'flint-settings';
+// Settings store state
+let settings = $state<AppSettings>(DEFAULT_SETTINGS);
+let isLoading = $state(true);
+let isInitialized = $state(false);
+let initializationPromise: Promise<void> | null = null;
 
-// Load settings from localStorage (non-sensitive data only)
-function loadStoredSettings(): Partial<AppSettings> {
-  if (typeof window !== 'undefined' && window.localStorage) {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        // Don't load API keys from localStorage - these should come from secure storage
-        delete parsed.apiKeys;
-        return parsed;
-      }
-    } catch (error) {
-      console.warn('Failed to load settings from localStorage:', error);
+// Load settings from file system (non-sensitive data only)
+async function loadStoredSettings(): Promise<Partial<AppSettings>> {
+  try {
+    const stored = await window.api?.loadAppSettings();
+    if (stored) {
+      // Don't load API keys from file system - these should come from secure storage
+      delete (stored as Partial<AppSettings>).apiKeys;
+      return stored;
     }
+  } catch (error) {
+    console.warn('Failed to load settings from file system:', error);
   }
   return {};
 }
 
-// Save settings to localStorage (non-sensitive data only)
-function saveStoredSettings(settings: AppSettings): void {
-  if (typeof window !== 'undefined' && window.localStorage) {
-    try {
-      // Create a copy without API keys for localStorage
-      const safeSettings = {
-        modelPreferences: settings.modelPreferences,
-        appearance: settings.appearance,
-        dataAndPrivacy: settings.dataAndPrivacy,
-        advanced: settings.advanced
-      };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(safeSettings));
-    } catch (error) {
-      console.warn('Failed to save settings to localStorage:', error);
-    }
+// Save settings to file system (non-sensitive data only)
+async function saveStoredSettings(settingsToSave: AppSettings): Promise<void> {
+  try {
+    // Create a copy without API keys for file storage
+    const safeSettings = {
+      modelPreferences: settingsToSave.modelPreferences,
+      appearance: settingsToSave.appearance,
+      dataAndPrivacy: settingsToSave.dataAndPrivacy,
+      advanced: settingsToSave.advanced
+    };
+    // Use $state.snapshot to get a serializable copy
+    const serializableSettings = $state.snapshot(safeSettings);
+    await window.api?.saveAppSettings(serializableSettings);
+  } catch (error) {
+    console.warn('Failed to save settings to file system:', error);
   }
 }
 
 // Initialize settings with defaults and stored values
-const storedSettings = loadStoredSettings();
-let settings = $state<AppSettings>({
-  ...DEFAULT_SETTINGS,
-  ...storedSettings,
-  // Ensure API keys are always initialized as empty (will be loaded from secure storage)
-  apiKeys: DEFAULT_SETTINGS.apiKeys
-});
+async function initializeSettings(): Promise<void> {
+  isLoading = true;
+  try {
+    const storedSettings = await loadStoredSettings();
+    settings = {
+      ...DEFAULT_SETTINGS,
+      ...storedSettings,
+      // Ensure API keys are always initialized as empty (will be loaded from secure storage)
+      apiKeys: DEFAULT_SETTINGS.apiKeys
+    };
+  } catch (error) {
+    console.warn('Settings initialization failed:', error);
+    settings = DEFAULT_SETTINGS;
+  } finally {
+    isLoading = false;
+    isInitialized = true;
+    initializationPromise = null;
+  }
+}
+
+// Start initialization
+initializationPromise = initializeSettings();
 
 const currentModelInfo = $derived(
   getModelById(settings.modelPreferences.defaultModel) || getModelById(DEFAULT_MODEL)!
@@ -126,13 +142,28 @@ export const settingsStore = {
   get currentModelInfo() {
     return currentModelInfo;
   },
+  get loading() {
+    return isLoading;
+  },
+  get initialized() {
+    return isInitialized;
+  },
+
+  // Ensure initialization is complete before operations
+  async ensureInitialized(): Promise<void> {
+    if (initializationPromise) {
+      await initializationPromise;
+    }
+  },
 
   async loadApiKeys(): Promise<void> {
     return loadApiKeysFromSecureStorage();
   },
 
   // Settings operations
-  updateSettings(newSettings: Partial<AppSettings>): void {
+  async updateSettings(newSettings: Partial<AppSettings>): Promise<void> {
+    await this.ensureInitialized();
+
     const updatedSettings = {
       ...settings,
       ...newSettings
@@ -162,23 +193,27 @@ export const settingsStore = {
     }
 
     settings = updatedSettings;
-    saveStoredSettings(settings);
+    await saveStoredSettings(settings);
   },
 
-  updateApiKey(provider: 'openrouter', key: string, _orgId?: string): void {
+  async updateApiKey(
+    provider: 'openrouter',
+    key: string,
+    _orgId?: string
+  ): Promise<void> {
     const apiKeys = { ...settings.apiKeys };
 
     if (provider === 'openrouter') {
       apiKeys.openrouter = key;
     }
 
-    this.updateSettings({ apiKeys });
+    await this.updateSettings({ apiKeys });
   },
 
-  updateDefaultModel(modelId: string): void {
+  async updateDefaultModel(modelId: string): Promise<void> {
     const modelInfo = getModelById(modelId);
     if (modelInfo) {
-      this.updateSettings({
+      await this.updateSettings({
         modelPreferences: {
           ...settings.modelPreferences,
           defaultModel: modelId
@@ -187,8 +222,8 @@ export const settingsStore = {
     }
   },
 
-  updateTheme(theme: 'light' | 'dark' | 'system'): void {
-    this.updateSettings({
+  async updateTheme(theme: 'light' | 'dark' | 'system'): Promise<void> {
+    await this.updateSettings({
       appearance: {
         ...settings.appearance,
         theme
@@ -196,17 +231,19 @@ export const settingsStore = {
     });
   },
 
-  resetToDefaults(): void {
+  async resetToDefaults(): Promise<void> {
+    await this.ensureInitialized();
     settings = { ...DEFAULT_SETTINGS };
-    saveStoredSettings(settings);
+    await saveStoredSettings(settings);
   },
 
-  resetSection(section: keyof AppSettings): void {
+  async resetSection(section: keyof AppSettings): Promise<void> {
+    await this.ensureInitialized();
     settings = {
       ...settings,
       [section]: { ...DEFAULT_SETTINGS[section] }
     };
-    saveStoredSettings(settings);
+    await saveStoredSettings(settings);
   },
 
   // Export/Import functionality
@@ -221,13 +258,13 @@ export const settingsStore = {
     return JSON.stringify(exportableSettings, null, 2);
   },
 
-  importSettings(settingsJson: string): boolean {
+  async importSettings(settingsJson: string): Promise<boolean> {
     try {
       const importedSettings = JSON.parse(settingsJson);
       // Don't import API keys for security
       delete importedSettings.apiKeys;
 
-      this.updateSettings(importedSettings);
+      await this.updateSettings(importedSettings);
       return true;
     } catch (error) {
       console.error('Failed to import settings:', error);
