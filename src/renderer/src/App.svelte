@@ -282,8 +282,9 @@
 
   // Handle unpinned notes event from navigation service
   $effect(() => {
-    async function handleNotesUnpinned(event: CustomEvent): Promise<void> {
-      const { noteIds } = event.detail;
+    const handleNotesUnpinned: (event: Event) => void = async (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const { noteIds } = customEvent.detail;
 
       // Add unpinned notes to temporary tabs
       for (const noteId of noteIds) {
@@ -292,11 +293,10 @@
           await temporaryTabsStore.addTab(note.id, note.title, 'navigation');
         }
       }
-    }
+    };
 
-    document.addEventListener('notes-unpinned', handleNotesUnpinned as any);
-    return () =>
-      document.removeEventListener('notes-unpinned', handleNotesUnpinned as any);
+    document.addEventListener('notes-unpinned', handleNotesUnpinned);
+    return () => document.removeEventListener('notes-unpinned', handleNotesUnpinned);
   });
 
   // Handle browser navigation (back/forward buttons)

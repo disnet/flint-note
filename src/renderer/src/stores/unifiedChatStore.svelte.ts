@@ -1,4 +1,4 @@
-import type { Message, ChatService } from '../services/types';
+import type { Message, ChatService, ToolCall } from '../services/types';
 import { getChatService } from '../services/chatService';
 
 interface ExtendedChatService extends ChatService {
@@ -47,6 +47,37 @@ export interface UnifiedThread {
 
   // Cost tracking (enhanced from both)
   costInfo: ThreadCostInfo;
+}
+
+// Serialized data types for deserialization
+interface SerializedThreadCostInfo {
+  totalCost: number;
+  inputTokens: number;
+  outputTokens: number;
+  cachedTokens: number;
+  requestCount: number;
+  modelUsage: ModelUsageBreakdown[];
+  lastUpdated?: string | Date;
+}
+
+interface SerializedMessage {
+  id: string;
+  text: string;
+  sender: 'user' | 'agent';
+  timestamp: string | Date;
+  toolCalls?: ToolCall[];
+}
+
+interface SerializedThread {
+  id: string;
+  title: string;
+  vaultId: string;
+  messages: SerializedMessage[];
+  notesDiscussed: string[];
+  isArchived?: boolean;
+  createdAt: string | Date;
+  lastActivity: string | Date;
+  costInfo: SerializedThreadCostInfo;
 }
 
 interface UnifiedChatState {
@@ -660,14 +691,14 @@ class UnifiedChatStore {
         // Convert threadsByVault from object to Map and restore dates
         if (parsed.threadsByVault) {
           for (const [vaultId, threads] of Object.entries(parsed.threadsByVault)) {
-            const threadArray = threads as any[];
-            const processedThreads = threadArray.map((thread: any) => ({
+            const threadArray = threads as SerializedThread[];
+            const processedThreads = threadArray.map((thread: SerializedThread) => ({
               ...thread,
               createdAt: new Date(thread.createdAt),
               lastActivity: new Date(thread.lastActivity),
               costInfo: {
                 ...thread.costInfo,
-                lastUpdated: new Date(thread.costInfo?.lastUpdated || thread.createdAt)
+                lastUpdated: new Date(thread.costInfo.lastUpdated || thread.createdAt)
               }
             }));
 
@@ -731,16 +762,16 @@ class UnifiedChatStore {
         Array.isArray(stored.threads)
       ) {
         // Process threads with proper date conversion
-        const processedThreads = stored.threads.map((thread: any) => ({
+        const processedThreads = stored.threads.map((thread: SerializedThread) => ({
           ...thread,
           createdAt: new Date(thread.createdAt),
           lastActivity: new Date(thread.lastActivity),
           costInfo: {
             ...thread.costInfo,
-            lastUpdated: new Date(thread.costInfo?.lastUpdated || thread.createdAt)
+            lastUpdated: new Date(thread.costInfo.lastUpdated || thread.createdAt)
           },
           messages: this.deduplicateMessages(
-            thread.messages.map((msg: any) => ({
+            thread.messages.map((msg: SerializedMessage) => ({
               ...msg,
               timestamp: new Date(msg.timestamp)
             }))
@@ -756,7 +787,7 @@ class UnifiedChatStore {
         if (
           'activeThreadId' in stored &&
           typeof stored.activeThreadId === 'string' &&
-          processedThreads.some((t: any) => t.id === stored.activeThreadId)
+          processedThreads.some((t: UnifiedThread) => t.id === stored.activeThreadId)
         ) {
           this.state.activeThreadId = stored.activeThreadId;
         }
