@@ -184,6 +184,79 @@ class NoteService {
 
 ### Storage Services
 
+#### File System Storage Architecture
+
+Flint uses a comprehensive file system storage architecture. All application state is persisted to the file system through dedicated storage services.
+
+**File System Structure**:
+
+```
+{userData}/
+├── secure/                          # OS-level secure storage
+│   └── encrypted-data.bin          # API keys and sensitive data
+├── pinned-notes/                    # Pinned note preferences
+│   ├── default.json
+│   └── vault-{id}.json
+├── settings/                        # Global application settings
+│   ├── app-settings.json           # Main app preferences (includes sidebar state)
+│   ├── model-preferences.json      # AI model selection
+│   └── slash-commands.json         # Custom slash commands
+├── vault-data/                      # Vault-specific data
+│   ├── default/                    # Default vault data
+│   │   ├── conversations.json      # AI chat history
+│   │   ├── temporary-tabs.json     # Arc-style tab management
+│   │   ├── navigation-history.json # Navigation history
+│   │   └── active-note.json        # Currently active note
+│   ├── vault-{id}/                 # Specific vault data
+│   │   ├── conversations.json
+│   │   ├── temporary-tabs.json
+│   │   ├── navigation-history.json
+│   │   └── active-note.json
+│   └── ...
+```
+
+#### Base Storage Service (`src/main/storage-service.ts`)
+
+Provides common file operations that specialized services extend:
+
+**Core Features**:
+
+- **File Operations**: JSON serialization, directory management, error handling
+- **Type Safety**: Generic methods with TypeScript support
+- **Error Recovery**: Graceful fallbacks to default values on read failures
+- **Atomic Operations**: Safe file writes with temporary file strategy
+
+```typescript
+export class BaseStorageService {
+  protected async ensureDirectory(dirPath: string): Promise<void>;
+  protected async readJsonFile<T>(filePath: string, defaultValue: T): Promise<T>;
+  protected async writeJsonFile<T>(filePath: string, data: T): Promise<void>;
+  protected async deleteFile(filePath: string): Promise<void>;
+  protected async listFiles(dirPath: string): Promise<string[]>;
+}
+```
+
+#### Settings Storage Service (`src/main/settings-storage-service.ts`)
+
+Manages global application settings:
+
+**Responsibilities**:
+
+- **Global Preferences**: App settings, model selection, slash commands
+- **UI State**: Sidebar configuration and layout preferences
+- **Non-Vault Data**: Settings that persist across all vaults
+
+#### Vault Data Storage Service (`src/main/vault-data-storage-service.ts`)
+
+Manages vault-specific data with automatic isolation:
+
+**Features**:
+
+- **Vault Isolation**: Automatic data separation per vault ID
+- **Chat History**: Conversation management with cost tracking
+- **Navigation State**: Tab management and navigation history
+- **Active State**: Currently selected notes per vault
+
 #### Secure Storage Service (`src/main/secure-storage-service.ts`)
 
 Manages sensitive data like API keys:
@@ -219,47 +292,86 @@ App.svelte (Root)
 
 ### State Management
 
-#### Distributed Store Architecture
+#### Distributed Store Architecture with File System Persistence
 
-Each major feature area has its own state store:
+Each major feature area has its own state store that automatically persists to the file system. All stores use async initialization patterns with loading states to handle file system operations.
 
 **Core Stores**:
 
-- `notesStore.svelte.ts` - Note data and active note management
-- `modelStore.svelte.ts` - AI model selection and configuration
-- `settingsStore.svelte.ts` - Application preferences and configuration
-- `sidebarState.svelte.ts` - UI layout and sidebar visibility
-- `temporaryTabsStore.svelte.ts` - Arc-style tab management
-- `unifiedChatStore.svelte.ts` - AI conversation state and message handling
+- `notesStore.svelte.ts` - Note data and active note management (ephemeral, not persisted)
+- `modelStore.svelte.ts` - AI model selection → `settings/model-preferences.json`
+- `settingsStore.svelte.ts` - Application preferences → `settings/app-settings.json`
+- `sidebarState.svelte.ts` - UI layout and sidebar visibility → `settings/app-settings.json`
+- `temporaryTabsStore.svelte.ts` - Arc-style tab management → `vault-data/{vaultId}/temporary-tabs.json`
+- `unifiedChatStore.svelte.ts` - AI conversation state → `vault-data/{vaultId}/conversations.json`
+- `activeNoteStore.svelte.ts` - Active note per vault → `vault-data/{vaultId}/active-note.json`
+- `navigationHistoryStore.svelte.ts` - Navigation history → `vault-data/{vaultId}/navigation-history.json`
+- `slashCommandsStore.svelte.ts` - Custom slash commands → `settings/slash-commands.json`
 
-**Store Pattern**:
+**Store Pattern with File System Persistence**:
 
 ```typescript
-// Example store structure using Svelte 5 runes
-let activeNote = $state<NoteMetadata | null>(null);
-let notes = $state<NoteMetadata[]>([]);
-let isLoading = $state(false);
+// Modern store pattern with async file system operations
+class MigratedStore {
+  private data = $state(defaultData);
+  private isLoading = $state(true);
+  private isInitialized = $state(false);
+  private initializationPromise: Promise<void> | null = null;
 
-export const notesStore = {
-  get activeNote() {
-    return activeNote;
-  },
-  get notes() {
-    return notes;
-  },
-  get isLoading() {
-    return isLoading;
-  },
-
-  setActiveNote(note: NoteMetadata | null) {
-    activeNote = note;
-  },
-
-  addNote(note: NoteMetadata) {
-    notes = [...notes, note];
+  constructor() {
+    this.initializationPromise = this.initialize();
   }
-};
+
+  get loading(): boolean {
+    return this.isLoading;
+  }
+
+  get initialized(): boolean {
+    return this.isInitialized;
+  }
+
+  // Ensure initialization is complete before operations
+  async ensureInitialized(): Promise<void> {
+    if (this.initializationPromise) {
+      await this.initializationPromise;
+    }
+  }
+
+  private async initialize(): Promise<void> {
+    this.isLoading = true;
+    try {
+      // Load data from file system via IPC
+      const stored = await window.api?.loadYourData(/* params */);
+      if (stored) {
+        this.data = { ...defaultData, ...stored };
+      }
+    } catch (error) {
+      console.warn('Store initialization failed:', error);
+      // Use default state
+    } finally {
+      this.isLoading = false;
+      this.isInitialized = true;
+      this.initializationPromise = null;
+    }
+  }
+
+  // All mutation methods are async and persist to file system
+  async updateData(newData: DataType): Promise<void> {
+    await this.ensureInitialized();
+    this.data = newData;
+    // Persist to file system via IPC using snapshot for serialization
+    await window.api?.saveYourData($state.snapshot(newData));
+  }
+}
 ```
+
+**Key Architecture Benefits**:
+
+- **Reliability**: Data survives browser cache clearing and storage limitations
+- **Vault Isolation**: Automatic data separation between different vaults
+- **Performance**: Async operations with proper loading states
+- **Type Safety**: Full TypeScript support with IPC communication
+- **Error Recovery**: Graceful fallbacks to default values on failures
 
 ### Service Layer (Frontend)
 
@@ -299,7 +411,30 @@ Manages note discovery and navigation:
 
 - **Note Operations**: All CRUD operations go through IPC handlers
 - **AI Requests**: Message sending and conversation management
+- **Storage Operations**: File system persistence for all app state
 - **Configuration**: Settings and API key management
+
+**Storage IPC Handlers**:
+
+```typescript
+// Global Settings
+ipcMain.handle('load-app-settings', async () => { ... });
+ipcMain.handle('save-app-settings', async (_event, settings) => { ... });
+ipcMain.handle('load-model-preference', async () => { ... });
+ipcMain.handle('save-model-preference', async (_event, modelId) => { ... });
+ipcMain.handle('load-slash-commands', async () => { ... });
+ipcMain.handle('save-slash-commands', async (_event, commands) => { ... });
+
+// Vault-Specific Data
+ipcMain.handle('load-conversations', async (_event, { vaultId }) => { ... });
+ipcMain.handle('save-conversations', async (_event, { vaultId, conversations }) => { ... });
+ipcMain.handle('load-temporary-tabs', async (_event, { vaultId }) => { ... });
+ipcMain.handle('save-temporary-tabs', async (_event, { vaultId, tabs }) => { ... });
+ipcMain.handle('load-active-note', async (_event, { vaultId }) => { ... });
+ipcMain.handle('save-active-note', async (_event, { vaultId, noteId }) => { ... });
+ipcMain.handle('load-navigation-history', async (_event, { vaultId }) => { ... });
+ipcMain.handle('save-navigation-history', async (_event, { vaultId, history }) => { ... });
+```
 
 #### Event Flow Example (AI Streaming)
 
@@ -369,10 +504,29 @@ const result = await generateText({ model, messages, tools });
 
 #### Data Persistence
 
+Flint employs a multi-layered data persistence strategy:
+
+**Note Data** (via Flint Note API):
+
 - **SQLite Database**: Note metadata, search indexes, and link graphs
 - **Markdown Files**: Note content stored as standard markdown
-- **Configuration Files**: Application settings and vault configuration
-- **Cache Storage**: AI response caching and performance data
+
+**Application State** (file system storage):
+
+- **JSON Configuration**: All app state persisted as structured JSON files
+- **Hierarchical Organization**: Separate directories for settings vs vault-specific data
+- **Atomic Operations**: Safe file writes with error recovery
+- **Vault Isolation**: Automatic data separation between different workspaces
+
+**Sensitive Data**:
+
+- **OS Secure Storage**: API keys and credentials via platform keychain/credential manager
+- **Encrypted Storage**: Fallback encrypted storage for systems without OS integration
+
+**Performance Data**:
+
+- **Cache Storage**: AI response caching and performance metrics
+- **Usage Analytics**: Token consumption and cost tracking data
 
 ## Performance Architecture
 
