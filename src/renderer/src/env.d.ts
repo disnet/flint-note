@@ -203,6 +203,35 @@ declare global {
       // Usage tracking
       onUsageRecorded: (callback: (usageData: unknown) => void) => void;
       removeUsageListener: () => void;
+
+      // Global settings storage operations
+      loadAppSettings: () => Promise<unknown>;
+      saveAppSettings: (settings: unknown) => Promise<unknown>;
+      loadModelPreference: () => Promise<string | null>;
+      saveModelPreference: (modelId: string) => Promise<void>;
+      loadSidebarState: () => Promise<boolean>;
+      saveSidebarState: (collapsed: boolean) => Promise<void>;
+      loadSlashCommands: () => Promise<unknown>;
+      saveSlashCommands: (commands: unknown) => Promise<void>;
+
+      // Vault-specific data storage operations
+      loadConversations: (params: { vaultId: string }) => Promise<unknown>;
+      saveConversations: (params: {
+        vaultId: string;
+        conversations: unknown;
+      }) => Promise<void>;
+      loadTemporaryTabs: (params: { vaultId: string }) => Promise<unknown>;
+      saveTemporaryTabs: (params: { vaultId: string; tabs: unknown }) => Promise<void>;
+      loadNavigationHistory: (params: { vaultId: string }) => Promise<unknown>;
+      saveNavigationHistory: (params: {
+        vaultId: string;
+        history: unknown;
+      }) => Promise<void>;
+      loadActiveNote: (params: { vaultId: string }) => Promise<string | null>;
+      saveActiveNote: (params: {
+        vaultId: string;
+        noteId: string | null;
+      }) => Promise<void>;
     };
   }
 }

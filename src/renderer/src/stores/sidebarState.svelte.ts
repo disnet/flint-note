@@ -26,9 +26,12 @@ const defaultState: SidebarState = {
 
 class SidebarStateStore {
   private state = $state<SidebarState>(defaultState);
+  private isLoading = $state(true);
+  private isInitialized = $state(false);
+  private initializationPromise: Promise<void> | null = null;
 
   constructor() {
-    this.loadFromStorage();
+    this.initializationPromise = this.initialize();
   }
 
   get leftSidebar(): SidebarState['leftSidebar'] {
@@ -39,34 +42,34 @@ class SidebarStateStore {
     return this.state.rightSidebar;
   }
 
-  toggleLeftSidebar(): void {
-    this.state.leftSidebar.visible = !this.state.leftSidebar.visible;
-    this.saveToStorage();
+  get loading(): boolean {
+    return this.isLoading;
   }
 
-  toggleRightSidebar(): void {
-    this.state.rightSidebar.visible = !this.state.rightSidebar.visible;
-    this.saveToStorage();
+  get initialized(): boolean {
+    return this.isInitialized;
   }
 
-  setRightSidebarMode(mode: 'ai' | 'threads'): void {
-    this.state.rightSidebar.mode = mode;
-    this.saveToStorage();
+  /**
+   * Ensure initialization is complete before operations
+   */
+  async ensureInitialized(): Promise<void> {
+    if (this.initializationPromise) {
+      await this.initializationPromise;
+    }
   }
 
-  setActiveSection(section: 'system' | 'pinned' | 'tabs'): void {
-    this.state.leftSidebar.activeSection = section;
-    this.saveToStorage();
-  }
-
-  private loadFromStorage(): void {
-    if (typeof window === 'undefined') return;
-
+  /**
+   * Initialize the store by loading data from file system
+   */
+  private async initialize(): Promise<void> {
+    this.isLoading = true;
     try {
-      const stored = localStorage.getItem('sidebarState');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        this.state = { ...defaultState, ...parsed };
+      const storedState = (await window.api?.loadAppSettings()) as
+        | { sidebarState?: SidebarState }
+        | undefined;
+      if (storedState?.sidebarState) {
+        this.state = { ...defaultState, ...storedState.sidebarState };
         // Handle legacy metadata mode by defaulting to AI
         if ((this.state.rightSidebar.mode as string) === 'metadata') {
           this.state.rightSidebar.mode = 'ai';
@@ -74,17 +77,56 @@ class SidebarStateStore {
       }
     } catch (error) {
       console.warn('Failed to load sidebar state from storage:', error);
+      // Keep default state on error
+    } finally {
+      this.isLoading = false;
+      this.isInitialized = true;
+      this.initializationPromise = null;
     }
   }
 
-  private saveToStorage(): void {
-    if (typeof window === 'undefined') return;
+  /**
+   * Save current state to file system
+   */
+  private async saveToStorage(): Promise<void> {
+    await this.ensureInitialized();
 
     try {
-      localStorage.setItem('sidebarState', JSON.stringify(this.state));
+      // Load existing settings and update the sidebar state portion
+      const currentSettings =
+        ((await window.api?.loadAppSettings()) as Record<string, unknown>) || {};
+      const updatedSettings = {
+        ...currentSettings,
+        sidebarState: this.state
+      };
+      await window.api?.saveAppSettings(updatedSettings);
     } catch (error) {
-      console.warn('Failed to save sidebar state to storage:', error);
+      console.error('Failed to save sidebar state to storage:', error);
     }
+  }
+
+  async toggleLeftSidebar(): Promise<void> {
+    await this.ensureInitialized();
+    this.state.leftSidebar.visible = !this.state.leftSidebar.visible;
+    await this.saveToStorage();
+  }
+
+  async toggleRightSidebar(): Promise<void> {
+    await this.ensureInitialized();
+    this.state.rightSidebar.visible = !this.state.rightSidebar.visible;
+    await this.saveToStorage();
+  }
+
+  async setRightSidebarMode(mode: 'ai' | 'threads'): Promise<void> {
+    await this.ensureInitialized();
+    this.state.rightSidebar.mode = mode;
+    await this.saveToStorage();
+  }
+
+  async setActiveSection(section: 'system' | 'pinned' | 'tabs'): Promise<void> {
+    await this.ensureInitialized();
+    this.state.leftSidebar.activeSection = section;
+    await this.saveToStorage();
   }
 }
 

@@ -6,6 +6,8 @@ import { AIService } from './ai-service';
 import { NoteService } from './note-service';
 import { SecureStorageService } from './secure-storage-service';
 import { PinnedNotesStorageService } from './pinned-notes-storage-service';
+import { SettingsStorageService } from './settings-storage-service';
+import { VaultDataStorageService } from './vault-data-storage-service';
 import type {
   MetadataFieldDefinition,
   MetadataSchema
@@ -196,6 +198,14 @@ app.whenReady().then(async () => {
 
   // Initialize Pinned Notes Storage service
   const pinnedNotesStorageService = new PinnedNotesStorageService();
+
+  // Initialize Settings Storage service
+  const settingsStorageService = new SettingsStorageService();
+  await settingsStorageService.initialize();
+
+  // Initialize Vault Data Storage service
+  const vaultDataStorageService = new VaultDataStorageService();
+  await vaultDataStorageService.initialize();
 
   // Initialize AI service
   let aiService: AIService | null = null;
@@ -896,6 +906,141 @@ app.whenReady().then(async () => {
     await aiService.warmupSystemMessageCache();
     return { success: true };
   });
+
+  // Global settings storage handlers
+  ipcMain.handle('load-app-settings', async () => {
+    if (!settingsStorageService) {
+      throw new Error('Settings storage service not available');
+    }
+    return await settingsStorageService.loadAppSettings({});
+  });
+
+  ipcMain.handle('save-app-settings', async (_event, settings: unknown) => {
+    if (!settingsStorageService) {
+      throw new Error('Settings storage service not available');
+    }
+    return await settingsStorageService.saveAppSettings(settings);
+  });
+
+  ipcMain.handle('load-model-preference', async () => {
+    if (!settingsStorageService) {
+      throw new Error('Settings storage service not available');
+    }
+    return await settingsStorageService.loadModelPreference();
+  });
+
+  ipcMain.handle('save-model-preference', async (_event, modelId: string) => {
+    if (!settingsStorageService) {
+      throw new Error('Settings storage service not available');
+    }
+    return await settingsStorageService.saveModelPreference(modelId);
+  });
+
+  ipcMain.handle('load-sidebar-state', async () => {
+    if (!settingsStorageService) {
+      throw new Error('Settings storage service not available');
+    }
+    return await settingsStorageService.loadSidebarState();
+  });
+
+  ipcMain.handle('save-sidebar-state', async (_event, collapsed: boolean) => {
+    if (!settingsStorageService) {
+      throw new Error('Settings storage service not available');
+    }
+    return await settingsStorageService.saveSidebarState(collapsed);
+  });
+
+  ipcMain.handle('load-slash-commands', async () => {
+    if (!settingsStorageService) {
+      throw new Error('Settings storage service not available');
+    }
+    return await settingsStorageService.loadSlashCommands([]);
+  });
+
+  ipcMain.handle('save-slash-commands', async (_event, commands: unknown) => {
+    if (!settingsStorageService) {
+      throw new Error('Settings storage service not available');
+    }
+    return await settingsStorageService.saveSlashCommands(commands);
+  });
+
+  // Vault-specific data storage handlers
+  ipcMain.handle('load-conversations', async (_event, params: { vaultId: string }) => {
+    if (!vaultDataStorageService) {
+      throw new Error('Vault data storage service not available');
+    }
+    return await vaultDataStorageService.loadConversations(params.vaultId, {});
+  });
+
+  ipcMain.handle(
+    'save-conversations',
+    async (_event, params: { vaultId: string; conversations: unknown }) => {
+      if (!vaultDataStorageService) {
+        throw new Error('Vault data storage service not available');
+      }
+      return await vaultDataStorageService.saveConversations(
+        params.vaultId,
+        params.conversations
+      );
+    }
+  );
+
+  ipcMain.handle('load-temporary-tabs', async (_event, params: { vaultId: string }) => {
+    if (!vaultDataStorageService) {
+      throw new Error('Vault data storage service not available');
+    }
+    return await vaultDataStorageService.loadTemporaryTabs(params.vaultId, []);
+  });
+
+  ipcMain.handle(
+    'save-temporary-tabs',
+    async (_event, params: { vaultId: string; tabs: unknown }) => {
+      if (!vaultDataStorageService) {
+        throw new Error('Vault data storage service not available');
+      }
+      return await vaultDataStorageService.saveTemporaryTabs(params.vaultId, params.tabs);
+    }
+  );
+
+  ipcMain.handle(
+    'load-navigation-history',
+    async (_event, params: { vaultId: string }) => {
+      if (!vaultDataStorageService) {
+        throw new Error('Vault data storage service not available');
+      }
+      return await vaultDataStorageService.loadNavigationHistory(params.vaultId, []);
+    }
+  );
+
+  ipcMain.handle(
+    'save-navigation-history',
+    async (_event, params: { vaultId: string; history: unknown }) => {
+      if (!vaultDataStorageService) {
+        throw new Error('Vault data storage service not available');
+      }
+      return await vaultDataStorageService.saveNavigationHistory(
+        params.vaultId,
+        params.history
+      );
+    }
+  );
+
+  ipcMain.handle('load-active-note', async (_event, params: { vaultId: string }) => {
+    if (!vaultDataStorageService) {
+      throw new Error('Vault data storage service not available');
+    }
+    return await vaultDataStorageService.loadActiveNote(params.vaultId);
+  });
+
+  ipcMain.handle(
+    'save-active-note',
+    async (_event, params: { vaultId: string; noteId: string | null }) => {
+      if (!vaultDataStorageService) {
+        throw new Error('Vault data storage service not available');
+      }
+      return await vaultDataStorageService.saveActiveNote(params.vaultId, params.noteId);
+    }
+  );
 
   createWindow();
   logger.info('Main window created and IPC handlers registered');

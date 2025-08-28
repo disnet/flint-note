@@ -204,6 +204,38 @@ const api = {
     electronAPI.ipcRenderer.invoke('stop-performance-monitoring'),
   warmupSystemCache: () => electronAPI.ipcRenderer.invoke('warmup-system-cache'),
 
+  // Global settings storage operations
+  loadAppSettings: () => electronAPI.ipcRenderer.invoke('load-app-settings'),
+  saveAppSettings: (settings: unknown) =>
+    electronAPI.ipcRenderer.invoke('save-app-settings', settings),
+  loadModelPreference: () => electronAPI.ipcRenderer.invoke('load-model-preference'),
+  saveModelPreference: (modelId: string) =>
+    electronAPI.ipcRenderer.invoke('save-model-preference', modelId),
+  loadSidebarState: () => electronAPI.ipcRenderer.invoke('load-sidebar-state'),
+  saveSidebarState: (collapsed: boolean) =>
+    electronAPI.ipcRenderer.invoke('save-sidebar-state', collapsed),
+  loadSlashCommands: () => electronAPI.ipcRenderer.invoke('load-slash-commands'),
+  saveSlashCommands: (commands: unknown) =>
+    electronAPI.ipcRenderer.invoke('save-slash-commands', commands),
+
+  // Vault-specific data storage operations
+  loadConversations: (params: { vaultId: string }) =>
+    electronAPI.ipcRenderer.invoke('load-conversations', params),
+  saveConversations: (params: { vaultId: string; conversations: unknown }) =>
+    electronAPI.ipcRenderer.invoke('save-conversations', params),
+  loadTemporaryTabs: (params: { vaultId: string }) =>
+    electronAPI.ipcRenderer.invoke('load-temporary-tabs', params),
+  saveTemporaryTabs: (params: { vaultId: string; tabs: unknown }) =>
+    electronAPI.ipcRenderer.invoke('save-temporary-tabs', params),
+  loadNavigationHistory: (params: { vaultId: string }) =>
+    electronAPI.ipcRenderer.invoke('load-navigation-history', params),
+  saveNavigationHistory: (params: { vaultId: string; history: unknown }) =>
+    electronAPI.ipcRenderer.invoke('save-navigation-history', params),
+  loadActiveNote: (params: { vaultId: string }) =>
+    electronAPI.ipcRenderer.invoke('load-active-note', params),
+  saveActiveNote: (params: { vaultId: string; noteId: string | null }) =>
+    electronAPI.ipcRenderer.invoke('save-active-note', params),
+
   // Usage tracking
   onUsageRecorded: (callback: (usageData: unknown) => void) => {
     electronAPI.ipcRenderer.on('ai-usage-recorded', (_event, data) => callback(data));
