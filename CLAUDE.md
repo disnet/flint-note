@@ -76,3 +76,5 @@ flint-ui/
 - don't run the development server
 
 - we currently have no users to unless told otherwise assume we can and should ignore backward compatibility or migration concerns
+
+- remember to use $state.snapshot() when sending svelte objects to APIs that serialize objects (e.g. our electron API)

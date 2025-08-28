@@ -68,6 +68,7 @@ class SidebarStateStore {
       const storedState = (await window.api?.loadAppSettings()) as
         | { sidebarState?: SidebarState }
         | undefined;
+      
       if (storedState?.sidebarState) {
         this.state = { ...defaultState, ...storedState.sidebarState };
         // Handle legacy metadata mode by defaulting to AI
@@ -92,12 +93,15 @@ class SidebarStateStore {
     await this.ensureInitialized();
 
     try {
+      // Snapshot the state to make it serializable for IPC
+      const stateSnapshot = $state.snapshot(this.state);
+      
       // Load existing settings and update the sidebar state portion
       const currentSettings =
         ((await window.api?.loadAppSettings()) as Record<string, unknown>) || {};
       const updatedSettings = {
         ...currentSettings,
-        sidebarState: this.state
+        sidebarState: stateSnapshot
       };
       await window.api?.saveAppSettings(updatedSettings);
     } catch (error) {
