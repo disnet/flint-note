@@ -267,11 +267,14 @@
   async function saveChanges(): Promise<void> {
     if (!note || isSaving) return;
 
+    // Capture note reference to prevent race conditions
+    const currentNote = note;
+    
     try {
       isSaving = true;
 
       // Handle type change if needed
-      if (editedType !== note.type && onTypeChange) {
+      if (editedType !== currentNote.type && onTypeChange) {
         await onTypeChange(editedType);
       }
 
@@ -279,7 +282,7 @@
       if (onMetadataUpdate) {
         // Prepare metadata update - only include editable fields
         const updatedMetadata = {
-          ...note.metadata,
+          ...currentNote.metadata,
           tags: editedMetadata.tags,
           // Add other custom metadata fields
           ...Object.fromEntries(
