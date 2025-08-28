@@ -18,10 +18,10 @@
     onNewConversation();
   }
 
-  function deleteConversation(event: Event, conversationId: string): void {
+  async function deleteConversation(event: Event, conversationId: string): Promise<void> {
     event.stopPropagation();
     if (confirm('Delete this conversation? This action cannot be undone.')) {
-      unifiedChatStore.deleteThread(conversationId);
+      await unifiedChatStore.deleteThread(conversationId);
     }
   }
 

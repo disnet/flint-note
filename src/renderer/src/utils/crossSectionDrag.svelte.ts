@@ -28,23 +28,23 @@ export async function handleCrossSectionDrop(
 
       // Clear active tab if this tab was active (to prevent auto-selecting another tab)
       if (temporaryTabsStore.activeTabId === tab.id) {
-        temporaryTabsStore.clearActiveTab();
+        await temporaryTabsStore.clearActiveTab();
       }
 
       // Animate removal from temporary tabs
       if (typeof window !== 'undefined') {
         import('./dragDrop.svelte.js')
           .then(({ animateItemRemove }) => {
-            animateItemRemove(tab.id, '.tabs-list', () => {
-              temporaryTabsStore.removeTab(tab.id);
+            animateItemRemove(tab.id, '.tabs-list', async () => {
+              await temporaryTabsStore.removeTab(tab.id);
             });
           })
-          .catch(() => {
+          .catch(async () => {
             // Fallback to immediate removal
-            temporaryTabsStore.removeTab(tab.id);
+            await temporaryTabsStore.removeTab(tab.id);
           });
       } else {
-        temporaryTabsStore.removeTab(tab.id);
+        await temporaryTabsStore.removeTab(tab.id);
       }
 
       return true;
@@ -68,7 +68,7 @@ export async function handleCrossSectionDrop(
     };
 
     // Add to temporary tabs at specific position (this triggers fade-in animation)
-    temporaryTabsStore.addTabAtPosition(tempTab, targetIndex);
+    await temporaryTabsStore.addTabAtPosition(tempTab, targetIndex);
 
     // Animate removal from pinned notes
     if (typeof window !== 'undefined') {

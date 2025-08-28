@@ -48,19 +48,19 @@
     onThreadSelect?.(newThreadId);
   }
 
-  function handleArchiveThread(threadId: string, event: Event): void {
+  async function handleArchiveThread(threadId: string, event: Event): Promise<void> {
     event.stopPropagation();
     if (showArchived) {
-      unifiedChatStore.unarchiveThread(threadId);
+      await unifiedChatStore.unarchiveThread(threadId);
     } else {
-      unifiedChatStore.archiveThread(threadId);
+      await unifiedChatStore.archiveThread(threadId);
     }
   }
 
-  function handleDeleteThread(threadId: string, event: Event): void {
+  async function handleDeleteThread(threadId: string, event: Event): Promise<void> {
     event.stopPropagation();
     if (showDeleteConfirm === threadId) {
-      unifiedChatStore.deleteThread(threadId);
+      await unifiedChatStore.deleteThread(threadId);
       showDeleteConfirm = null;
       onThreadDelete?.(threadId);
     } else {

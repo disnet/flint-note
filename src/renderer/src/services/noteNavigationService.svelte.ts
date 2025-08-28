@@ -33,7 +33,7 @@ class NoteNavigationService {
     onSystemViewClear?: () => void
   ): Promise<void> {
     // Check for pinned notes changes before proceeding
-    this.checkPinnedNotesChanges();
+    await this.checkPinnedNotesChanges();
 
     // Always open the note in the editor
     await onNoteOpen(note);
@@ -45,10 +45,10 @@ class NoteNavigationService {
 
     if (isPinned) {
       // Pinned note: clear recent list highlighting, don't add to recent list
-      temporaryTabsStore.clearActiveTab();
+      await temporaryTabsStore.clearActiveTab();
     } else {
       // Regular note: add to recent list
-      temporaryTabsStore.addTab(note.id, note.title, source);
+      await temporaryTabsStore.addTab(note.id, note.title, source);
     }
 
     // Add to navigation history (unless this is already a history navigation)
@@ -151,20 +151,20 @@ class NoteNavigationService {
   /**
    * Manually check for pinned notes changes (to be called periodically)
    */
-  checkPinnedNotesChanges(): void {
-    this.handlePinnedNotesChange(pinnedNotesStore.notes);
+  async checkPinnedNotesChanges(): Promise<void> {
+    await this.handlePinnedNotesChange(pinnedNotesStore.notes);
   }
 
   /**
    * Handle changes to pinned notes (pin/unpin operations)
    */
-  private handlePinnedNotesChange(
+  private async handlePinnedNotesChange(
     pinnedNotes: Array<{ id: string; title: string; filename: string }>
-  ): void {
+  ): Promise<void> {
     const currentPinnedIds = pinnedNotes.map((note) => note.id);
 
     // Remove newly pinned notes from recent list
-    temporaryTabsStore.removeTabsByNoteIds(currentPinnedIds);
+    await temporaryTabsStore.removeTabsByNoteIds(currentPinnedIds);
 
     // Find notes that were unpinned
     const unpinnedIds = this.previousPinnedIds.filter(

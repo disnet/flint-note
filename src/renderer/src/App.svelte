@@ -282,27 +282,21 @@
 
   // Handle unpinned notes event from navigation service
   $effect(() => {
-    function handleNotesUnpinned(event: CustomEvent): void {
+    async function handleNotesUnpinned(event: CustomEvent): Promise<void> {
       const { noteIds } = event.detail;
 
       // Add unpinned notes to temporary tabs
       for (const noteId of noteIds) {
         const note = notesStore.notes.find((n) => n.id === noteId);
         if (note) {
-          temporaryTabsStore.addTab(note.id, note.title, 'navigation');
+          await temporaryTabsStore.addTab(note.id, note.title, 'navigation');
         }
       }
     }
 
-    document.addEventListener(
-      'notes-unpinned',
-      handleNotesUnpinned as (event: Event) => void
-    );
+    document.addEventListener('notes-unpinned', handleNotesUnpinned as any);
     return () =>
-      document.removeEventListener(
-        'notes-unpinned',
-        handleNotesUnpinned as (event: Event) => void
-      );
+      document.removeEventListener('notes-unpinned', handleNotesUnpinned as any);
   });
 
   // Handle browser navigation (back/forward buttons)
@@ -384,39 +378,39 @@
           text,
           unifiedChatStore.activeThreadId || undefined,
           // onChunk: append text chunks to the message
-          (chunk: string) => {
+          async (chunk: string) => {
             const currentMessage = unifiedChatStore.activeThread?.messages?.find(
               (m) => m.id === agentResponseId
             );
             if (currentMessage) {
-              unifiedChatStore.updateMessage(agentResponseId, {
+              await unifiedChatStore.updateMessage(agentResponseId, {
                 text: currentMessage.text + chunk
               });
             }
           },
           // onComplete: streaming finished
-          (fullText: string) => {
-            unifiedChatStore.updateMessage(agentResponseId, { text: fullText });
+          async (fullText: string) => {
+            await unifiedChatStore.updateMessage(agentResponseId, { text: fullText });
             isLoadingResponse = false;
           },
           // onError: handle streaming errors
-          (error: string) => {
+          async (error: string) => {
             console.error('Streaming error:', error);
-            unifiedChatStore.updateMessage(agentResponseId, {
+            await unifiedChatStore.updateMessage(agentResponseId, {
               text: 'Sorry, I encountered an error while processing your message.'
             });
             isLoadingResponse = false;
           },
           modelStore.selectedModel,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (toolCall: any) => {
+          async (toolCall: any) => {
             console.log('App.svelte: Received tool call:', toolCall);
             const currentMessage = unifiedChatStore.activeThread?.messages?.find(
               (m) => m.id === agentResponseId
             );
             if (currentMessage) {
               const updatedToolCalls = [...(currentMessage.toolCalls || []), toolCall];
-              unifiedChatStore.updateMessage(agentResponseId, {
+              await unifiedChatStore.updateMessage(agentResponseId, {
                 toolCalls: updatedToolCalls
               });
               console.log(
@@ -436,7 +430,7 @@
         );
 
         // Update the placeholder message with the complete response
-        unifiedChatStore.updateMessage(agentResponseId, {
+        await unifiedChatStore.updateMessage(agentResponseId, {
           text: response.text,
           toolCalls: response.toolCalls
         });
@@ -445,7 +439,7 @@
       }
     } catch (error) {
       console.error('Failed to send message:', error);
-      unifiedChatStore.updateMessage(agentResponseId, {
+      await unifiedChatStore.updateMessage(agentResponseId, {
         text: 'Sorry, I encountered an error while processing your message.'
       });
       isLoadingResponse = false;

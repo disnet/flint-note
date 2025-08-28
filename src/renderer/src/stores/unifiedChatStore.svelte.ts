@@ -58,6 +58,7 @@ interface UnifiedChatState {
   // Settings
   maxThreadsPerVault: number;
   isLoading: boolean;
+  isInitialized: boolean;
 }
 
 const defaultState: UnifiedChatState = {
@@ -65,7 +66,8 @@ const defaultState: UnifiedChatState = {
   activeThreadId: null,
   currentVaultId: null,
   maxThreadsPerVault: 50,
-  isLoading: false
+  isLoading: false,
+  isInitialized: false
 };
 
 // Helper functions
@@ -107,11 +109,32 @@ class UnifiedChatStore {
   private isVaultSwitching = false;
   private effectsInitialized = false;
   private vaultInitialized = false;
+  private initializationPromise: Promise<void> | null = null;
 
   constructor() {
     // Don't initialize vault in constructor to avoid circular dependencies
     // Vault will be initialized lazily when needed
-    this.loadFromStorage();
+    this.initializationPromise = this.initialize();
+  }
+
+  private async initialize(): Promise<void> {
+    this.state.isLoading = true;
+    try {
+      // First, try to migrate any old localStorage data to the new format
+      await this.migrateOldStorage();
+
+      // Initialize vault
+      await this.ensureVaultInitialized();
+
+      // Load data for current vault
+      await this.loadFromStorage();
+    } catch (error) {
+      console.warn('Failed to initialize unified chat store:', error);
+    } finally {
+      this.state.isLoading = false;
+      this.state.isInitialized = true;
+      this.initializationPromise = null;
+    }
   }
 
   // Initialize reactive effects
@@ -124,7 +147,11 @@ class UnifiedChatStore {
 
     // Auto-save effect
     $effect(() => {
-      this.saveToStorage();
+      if (this.state.isInitialized && this.state.currentVaultId) {
+        this.saveToStorage().catch((error) => {
+          console.warn('Auto-save failed:', error);
+        });
+      }
     });
 
     // Cleanup effect - remove old threads when over limit
@@ -180,6 +207,16 @@ class UnifiedChatStore {
 
   get isLoading(): boolean {
     return this.state.isLoading;
+  }
+
+  get initialized(): boolean {
+    return this.state.isInitialized;
+  }
+
+  async ensureInitialized(): Promise<void> {
+    if (this.initializationPromise) {
+      await this.initializationPromise;
+    }
   }
 
   get maxThreadsPerVault(): number {
@@ -276,15 +313,15 @@ class UnifiedChatStore {
 
     // Enforce thread limit
     this.enforceThreadLimitForVault(vaultId);
-    if (!this.effectsInitialized) this.saveToStorage();
+    if (!this.effectsInitialized) await this.saveToStorage();
 
     return threadId;
   }
 
-  updateThread(
+  async updateThread(
     threadId: string,
     updates: Partial<Omit<UnifiedThread, 'id' | 'createdAt' | 'vaultId'>>
-  ): boolean {
+  ): Promise<boolean> {
     const vaultId = this.findVaultForThread(threadId);
     if (!vaultId) return false;
 
@@ -321,11 +358,11 @@ class UnifiedChatStore {
     newMap.set(vaultId, updatedThreads);
     this.state.threadsByVault = newMap;
 
-    if (!this.effectsInitialized) this.saveToStorage();
+    if (!this.effectsInitialized) await this.saveToStorage();
     return true;
   }
 
-  deleteThread(threadId: string): boolean {
+  async deleteThread(threadId: string): Promise<boolean> {
     const vaultId = this.findVaultForThread(threadId);
     if (!vaultId) return false;
 
@@ -343,7 +380,7 @@ class UnifiedChatStore {
         filteredThreads.length > 0 ? filteredThreads[0].id : null;
     }
 
-    if (!this.effectsInitialized) this.saveToStorage();
+    if (!this.effectsInitialized) await this.saveToStorage();
     return threads.length !== filteredThreads.length;
   }
 
@@ -358,7 +395,7 @@ class UnifiedChatStore {
     this.state.activeThreadId = threadId;
 
     // Update last activity
-    this.updateThread(threadId, { lastActivity: new Date() });
+    await this.updateThread(threadId, { lastActivity: new Date() });
 
     // Sync thread history with backend
     try {
@@ -380,17 +417,17 @@ class UnifiedChatStore {
       console.warn('Failed to sync thread with backend:', error);
     }
 
-    if (!this.effectsInitialized) this.saveToStorage();
+    if (!this.effectsInitialized) await this.saveToStorage();
     return true;
   }
 
   // Archive/unarchive operations
-  archiveThread(threadId: string): boolean {
-    return this.updateThread(threadId, { isArchived: true });
+  async archiveThread(threadId: string): Promise<boolean> {
+    return await this.updateThread(threadId, { isArchived: true });
   }
 
-  unarchiveThread(threadId: string): boolean {
-    return this.updateThread(threadId, { isArchived: false });
+  async unarchiveThread(threadId: string): Promise<boolean> {
+    return await this.updateThread(threadId, { isArchived: false });
   }
 
   // Message operations
@@ -415,10 +452,10 @@ class UnifiedChatStore {
     }
 
     const updatedMessages = [...thread.messages, message];
-    this.updateThread(thread.id, { messages: updatedMessages });
+    await this.updateThread(thread.id, { messages: updatedMessages });
   }
 
-  addMessageToThread(threadId: string, message: Message): boolean {
+  async addMessageToThread(threadId: string, message: Message): Promise<boolean> {
     const thread = this.findThread(threadId);
     if (!thread) return false;
 
@@ -431,10 +468,10 @@ class UnifiedChatStore {
     }
 
     const updatedMessages = [...thread.messages, message];
-    return this.updateThread(threadId, { messages: updatedMessages });
+    return await this.updateThread(threadId, { messages: updatedMessages });
   }
 
-  updateMessage(messageId: string, updates: Partial<Message>): void {
+  async updateMessage(messageId: string, updates: Partial<Message>): Promise<void> {
     if (this.isVaultSwitching) return;
 
     const thread = this.activeThread;
@@ -447,7 +484,7 @@ class UnifiedChatStore {
         ...updatedMessages[messageIndex],
         ...updates
       };
-      this.updateThread(thread.id, { messages: updatedMessages });
+      await this.updateThread(thread.id, { messages: updatedMessages });
     }
   }
 
@@ -457,7 +494,7 @@ class UnifiedChatStore {
     this.isVaultSwitching = true;
 
     // Save current state before switching
-    if (!this.effectsInitialized) this.saveToStorage();
+    if (!this.effectsInitialized) await this.saveToStorage();
 
     if (vaultId) {
       this.state.currentVaultId = vaultId;
@@ -512,7 +549,7 @@ class UnifiedChatStore {
     return threads.filter((thread) => thread.notesDiscussed.includes(noteId));
   }
 
-  clearAllThreads(): void {
+  async clearAllThreads(): Promise<void> {
     const vaultId = this.state.currentVaultId || 'default';
 
     // Create a new Map to trigger Svelte reactivity
@@ -520,11 +557,11 @@ class UnifiedChatStore {
     newMap.set(vaultId, []);
     this.state.threadsByVault = newMap;
     this.state.activeThreadId = null;
-    if (!this.effectsInitialized) this.saveToStorage();
+    if (!this.effectsInitialized) await this.saveToStorage();
   }
 
   // Cost tracking
-  recordThreadUsage(
+  async recordThreadUsage(
     threadId: string,
     usageData: {
       modelName: string;
@@ -534,7 +571,7 @@ class UnifiedChatStore {
       cost: number;
       timestamp: Date;
     }
-  ): boolean {
+  ): Promise<boolean> {
     const thread = this.findThread(threadId);
     if (!thread) return false;
 
@@ -568,7 +605,7 @@ class UnifiedChatStore {
     }
 
     // Trigger reactivity by updating the thread
-    this.updateThread(threadId, {});
+    await this.updateThread(threadId, {});
     return true;
   }
 
@@ -611,8 +648,57 @@ class UnifiedChatStore {
     }
   }
 
-  private getStorageKey(): string {
-    return 'flint-unified-chat-store';
+  private async migrateOldStorage(): Promise<void> {
+    if (typeof window === 'undefined') return;
+
+    try {
+      // Check for old localStorage data
+      const oldData = localStorage.getItem('flint-unified-chat-store');
+      if (oldData) {
+        const parsed = JSON.parse(oldData);
+
+        // Convert threadsByVault from object to Map and restore dates
+        if (parsed.threadsByVault) {
+          for (const [vaultId, threads] of Object.entries(parsed.threadsByVault)) {
+            const threadArray = threads as any[];
+            const processedThreads = threadArray.map((thread: any) => ({
+              ...thread,
+              createdAt: new Date(thread.createdAt),
+              lastActivity: new Date(thread.lastActivity),
+              costInfo: {
+                ...thread.costInfo,
+                lastUpdated: new Date(thread.costInfo?.lastUpdated || thread.createdAt)
+              }
+            }));
+
+            // Save each vault's threads to file system
+            try {
+              await window.api?.saveConversations({
+                vaultId,
+                conversations: {
+                  threads: processedThreads,
+                  activeThreadId: parsed.activeThreadId,
+                  maxThreadsPerVault: parsed.maxThreadsPerVault || 50
+                }
+              });
+            } catch (error) {
+              console.warn(
+                `Failed to migrate conversations for vault ${vaultId}:`,
+                error
+              );
+            }
+          }
+        }
+
+        // Remove old localStorage data after successful migration
+        localStorage.removeItem('flint-unified-chat-store');
+        console.log(
+          'Successfully migrated unified chat store from localStorage to file system'
+        );
+      }
+    } catch (error) {
+      console.warn('Failed to migrate old chat storage:', error);
+    }
   }
 
   private deduplicateMessages(messages: Message[]): Message[] {
@@ -631,71 +717,86 @@ class UnifiedChatStore {
     return deduplicated;
   }
 
-  private loadFromStorage(): void {
-    if (typeof window === 'undefined') return;
+  private async loadFromStorage(): Promise<void> {
+    if (!this.state.currentVaultId) return;
 
     try {
-      const stored = localStorage.getItem(this.getStorageKey());
-      if (stored) {
-        const parsed = JSON.parse(stored);
+      const stored = await window.api?.loadConversations({
+        vaultId: this.state.currentVaultId
+      });
+      if (
+        stored &&
+        typeof stored === 'object' &&
+        'threads' in stored &&
+        Array.isArray(stored.threads)
+      ) {
+        // Process threads with proper date conversion
+        const processedThreads = stored.threads.map((thread: any) => ({
+          ...thread,
+          createdAt: new Date(thread.createdAt),
+          lastActivity: new Date(thread.lastActivity),
+          costInfo: {
+            ...thread.costInfo,
+            lastUpdated: new Date(thread.costInfo?.lastUpdated || thread.createdAt)
+          },
+          messages: this.deduplicateMessages(
+            thread.messages.map((msg: any) => ({
+              ...msg,
+              timestamp: new Date(msg.timestamp)
+            }))
+          )
+        }));
 
-        // Convert threadsByVault from object to Map and restore dates
-        if (parsed.threadsByVault) {
-          this.state.threadsByVault.clear();
-          for (const [vaultId, threads] of Object.entries(parsed.threadsByVault)) {
-            const restoredThreads = (threads as UnifiedThread[]).map((thread) => ({
-              ...thread,
-              createdAt: new Date(thread.createdAt),
-              lastActivity: new Date(thread.lastActivity),
-              costInfo: {
-                ...thread.costInfo,
-                lastUpdated: new Date(thread.costInfo.lastUpdated)
-              },
-              messages: this.deduplicateMessages(
-                thread.messages.map((msg: Message) => ({
-                  ...msg,
-                  timestamp: new Date(msg.timestamp)
-                }))
-              )
-            }));
-            this.state.threadsByVault.set(vaultId, restoredThreads);
-          }
+        // Update state for current vault
+        const newMap = new Map(this.state.threadsByVault);
+        newMap.set(this.state.currentVaultId, processedThreads);
+        this.state.threadsByVault = newMap;
+
+        // Only set activeThreadId if it exists in the loaded threads
+        if (
+          'activeThreadId' in stored &&
+          typeof stored.activeThreadId === 'string' &&
+          processedThreads.some((t: any) => t.id === stored.activeThreadId)
+        ) {
+          this.state.activeThreadId = stored.activeThreadId;
         }
 
-        // Restore other state properties
-        this.state.activeThreadId = parsed.activeThreadId || null;
-        this.state.currentVaultId = parsed.currentVaultId || 'default';
-        this.state.maxThreadsPerVault = parsed.maxThreadsPerVault || 50;
-
-        // Save the cleaned up data back to storage to prevent future issues
-        this.saveToStorage();
+        this.state.maxThreadsPerVault =
+          'maxThreadsPerVault' in stored && typeof stored.maxThreadsPerVault === 'number'
+            ? stored.maxThreadsPerVault
+            : 50;
       }
     } catch (error) {
-      console.warn('Failed to load unified chat store from storage:', error);
-      this.state = { ...defaultState };
+      console.warn('Failed to load conversations from storage:', error);
+      // Initialize empty state for current vault on error
+      if (this.state.currentVaultId) {
+        const newMap = new Map(this.state.threadsByVault);
+        newMap.set(this.state.currentVaultId, []);
+        this.state.threadsByVault = newMap;
+      }
     }
   }
 
-  private saveToStorage(): void {
-    if (typeof window === 'undefined') return;
+  private async saveToStorage(): Promise<void> {
+    if (!this.state.currentVaultId) return;
 
     try {
-      // Convert Map to object for JSON serialization
-      const threadsByVaultObject: Record<string, UnifiedThread[]> = {};
-      for (const [vaultId, threads] of this.state.threadsByVault.entries()) {
-        threadsByVaultObject[vaultId] = threads;
-      }
+      const threadsForCurrentVault = this.getThreadsForCurrentVault();
 
       const toSave = {
-        threadsByVault: threadsByVaultObject,
+        threads: threadsForCurrentVault,
         activeThreadId: this.state.activeThreadId,
-        currentVaultId: this.state.currentVaultId,
         maxThreadsPerVault: this.state.maxThreadsPerVault
       };
 
-      localStorage.setItem(this.getStorageKey(), JSON.stringify(toSave));
+      const serializable = $state.snapshot(toSave);
+      await window.api?.saveConversations({
+        vaultId: this.state.currentVaultId,
+        conversations: serializable
+      });
     } catch (error) {
-      console.warn('Failed to save unified chat store to storage:', error);
+      console.warn('Failed to save conversations to storage:', error);
+      throw error; // Let component handle user feedback
     }
   }
 

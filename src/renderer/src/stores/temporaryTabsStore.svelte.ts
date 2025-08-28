@@ -28,9 +28,12 @@ class TemporaryTabsStore {
   private state = $state<TemporaryTabsState>(defaultState);
   private currentVaultId: string | null = null;
   private isVaultSwitching = false;
+  private isLoading = $state(true);
+  private isInitialized = $state(false);
+  private initializationPromise: Promise<void> | null = null;
 
   constructor() {
-    this.initializeVault();
+    this.initializationPromise = this.initializeVault();
   }
 
   get tabs(): TemporaryTab[] {
@@ -45,11 +48,26 @@ class TemporaryTabsStore {
     return this.state.maxTabs;
   }
 
-  addTab(
+  get loading(): boolean {
+    return this.isLoading;
+  }
+
+  get initialized(): boolean {
+    return this.isInitialized;
+  }
+
+  async ensureInitialized(): Promise<void> {
+    if (this.initializationPromise) {
+      await this.initializationPromise;
+    }
+  }
+
+  async addTab(
     noteId: string,
     title: string,
     source: 'search' | 'wikilink' | 'navigation' | 'history'
-  ): void {
+  ): Promise<void> {
+    await this.ensureInitialized();
     // Don't add tabs while we're switching vaults
     if (this.isVaultSwitching) {
       return;
@@ -85,10 +103,11 @@ class TemporaryTabsStore {
       }
     }
 
-    this.saveToStorage();
+    await this.saveToStorage();
   }
 
-  removeTab(tabId: string): void {
+  async removeTab(tabId: string): Promise<void> {
+    await this.ensureInitialized();
     const index = this.state.tabs.findIndex((tab) => tab.id === tabId);
     if (index !== -1) {
       this.state.tabs.splice(index, 1);
@@ -105,16 +124,18 @@ class TemporaryTabsStore {
       }
     }
 
-    this.saveToStorage();
+    await this.saveToStorage();
   }
 
-  clearAllTabs(): void {
+  async clearAllTabs(): Promise<void> {
+    await this.ensureInitialized();
     this.state.tabs = [];
     this.state.activeTabId = null;
-    this.saveToStorage();
+    await this.saveToStorage();
   }
 
-  startVaultSwitch(): void {
+  async startVaultSwitch(): Promise<void> {
+    await this.ensureInitialized();
     console.log(
       '🔒 startVaultSwitch: current vault',
       this.currentVaultId,
@@ -123,7 +144,7 @@ class TemporaryTabsStore {
     );
     this.isVaultSwitching = true;
     // Save current tabs to storage before clearing
-    this.saveToStorage();
+    await this.saveToStorage();
     console.log(
       '💾 startVaultSwitch: saved tabs to storage for vault',
       this.currentVaultId
@@ -141,7 +162,11 @@ class TemporaryTabsStore {
   /**
    * Remove tabs by note IDs (used by navigation service for coordination)
    */
-  removeTabsByNoteIds(noteIds: string[], autoSelectNext: boolean = false): void {
+  async removeTabsByNoteIds(
+    noteIds: string[],
+    autoSelectNext: boolean = false
+  ): Promise<void> {
+    await this.ensureInitialized();
     const originalLength = this.state.tabs.length;
     this.state.tabs = this.state.tabs.filter((tab) => !noteIds.includes(tab.noteId));
 
@@ -157,19 +182,21 @@ class TemporaryTabsStore {
 
     // Only save if something was actually removed
     if (this.state.tabs.length !== originalLength) {
-      this.saveToStorage();
+      await this.saveToStorage();
     }
   }
 
   /**
    * Clear the active tab highlighting
    */
-  clearActiveTab(): void {
+  async clearActiveTab(): Promise<void> {
+    await this.ensureInitialized();
     this.state.activeTabId = null;
-    this.saveToStorage();
+    await this.saveToStorage();
   }
 
-  setActiveTab(tabId: string): void {
+  async setActiveTab(tabId: string): Promise<void> {
+    await this.ensureInitialized();
     const tab = this.state.tabs.find((t) => t.id === tabId);
     if (tab) {
       this.state.activeTabId = tabId;
@@ -177,10 +204,11 @@ class TemporaryTabsStore {
       // Don't move to top - keep existing position
     }
 
-    this.saveToStorage();
+    await this.saveToStorage();
   }
 
-  reorderTabs(sourceIndex: number, targetIndex: number): void {
+  async reorderTabs(sourceIndex: number, targetIndex: number): Promise<void> {
+    await this.ensureInitialized();
     const tabs = [...this.state.tabs].sort((a, b) => a.order - b.order);
     const movedTab = tabs[sourceIndex];
     const [removed] = tabs.splice(sourceIndex, 1);
@@ -192,7 +220,7 @@ class TemporaryTabsStore {
     });
 
     this.state.tabs = tabs;
-    this.saveToStorage();
+    await this.saveToStorage();
 
     // Trigger animation after DOM update
     if (movedTab && typeof window !== 'undefined') {
@@ -208,7 +236,7 @@ class TemporaryTabsStore {
     }
   }
 
-  addTabAtPosition(
+  async addTabAtPosition(
     tab: {
       noteId: string;
       title: string;
@@ -216,7 +244,8 @@ class TemporaryTabsStore {
       order?: number;
     },
     targetIndex?: number
-  ): void {
+  ): Promise<void> {
+    await this.ensureInitialized();
     const tabs = [...this.state.tabs].sort((a, b) => a.order - b.order);
     const position = targetIndex ?? tabs.length;
 
@@ -239,7 +268,7 @@ class TemporaryTabsStore {
 
     this.state.tabs = tabs;
     this.state.activeTabId = newTab.id;
-    this.saveToStorage();
+    await this.saveToStorage();
 
     // Trigger animation for newly added tab
     if (typeof window !== 'undefined') {
@@ -260,11 +289,12 @@ class TemporaryTabsStore {
     }));
   }
 
-  private cleanupOldTabs(): void {
+  private async cleanupOldTabs(): Promise<void> {
     const cutoffTime = new Date(
       Date.now() - this.state.autoCleanupHours * 60 * 60 * 1000
     );
 
+    const originalLength = this.state.tabs.length;
     this.state.tabs = this.state.tabs.filter((tab) => {
       return tab.lastAccessed > cutoffTime;
     });
@@ -277,24 +307,36 @@ class TemporaryTabsStore {
       this.state.activeTabId = this.state.tabs.length > 0 ? this.state.tabs[0].id : null;
     }
 
-    this.saveToStorage();
+    // Only save if something was cleaned up
+    if (this.state.tabs.length !== originalLength) {
+      await this.saveToStorage();
+    }
   }
 
   private async initializeVault(): Promise<void> {
-    // Clean up old non-vault-specific data
-    this.migrateOldStorage();
-
+    this.isLoading = true;
     try {
-      const service = getChatService();
-      const vault = await service.getCurrentVault();
-      this.currentVaultId = vault?.id || 'default';
-      this.loadFromStorage();
-      this.cleanupOldTabs();
+      // Clean up old non-vault-specific data
+      this.migrateOldStorage();
+
+      try {
+        const service = getChatService();
+        const vault = await service.getCurrentVault();
+        this.currentVaultId = vault?.id || 'default';
+      } catch (error) {
+        console.warn('Failed to get current vault for temporary tabs:', error);
+        this.currentVaultId = 'default';
+      }
+
+      await this.loadFromStorage();
+      await this.cleanupOldTabs();
     } catch (error) {
-      console.warn('Failed to initialize vault for temporary tabs:', error);
-      this.currentVaultId = 'default';
-      this.loadFromStorage();
-      this.cleanupOldTabs();
+      console.warn('Failed to initialize temporary tabs store:', error);
+      // Use default state on error
+    } finally {
+      this.isLoading = false;
+      this.isInitialized = true;
+      this.initializationPromise = null;
     }
   }
 
@@ -309,44 +351,54 @@ class TemporaryTabsStore {
     }
   }
 
-  private getStorageKey(): string {
-    const vaultId = this.currentVaultId || 'default';
-    return `temporaryTabs-${vaultId}`;
-  }
-
-  private loadFromStorage(): void {
-    if (typeof window === 'undefined') return;
+  private async loadFromStorage(): Promise<void> {
+    if (!this.currentVaultId) return;
 
     try {
-      const stored = localStorage.getItem(this.getStorageKey());
-      if (stored) {
-        const parsed = JSON.parse(stored);
-
+      const stored = await window.api?.loadTemporaryTabs({
+        vaultId: this.currentVaultId
+      });
+      if (
+        stored &&
+        typeof stored === 'object' &&
+        'tabs' in stored &&
+        Array.isArray(stored.tabs)
+      ) {
         // Convert date strings back to Date objects and migrate order field
-        parsed.tabs = this.migrateTabsWithoutOrder(
-          parsed.tabs.map(
+        const parsedTabs = this.migrateTabsWithoutOrder(
+          stored.tabs.map(
             (tab: TemporaryTab & { openedAt: string; lastAccessed: string }) => ({
               ...tab,
               openedAt: new Date(tab.openedAt),
               lastAccessed: new Date(tab.lastAccessed)
             })
-          )
+          ) || []
         );
 
-        this.state = { ...defaultState, ...parsed };
+        this.state = {
+          ...defaultState,
+          ...stored,
+          tabs: parsedTabs
+        };
       }
     } catch (error) {
       console.warn('Failed to load temporary tabs from storage:', error);
+      // Use default state on error
     }
   }
 
-  private saveToStorage(): void {
-    if (typeof window === 'undefined') return;
+  private async saveToStorage(): Promise<void> {
+    if (!this.currentVaultId) return;
 
     try {
-      localStorage.setItem(this.getStorageKey(), JSON.stringify(this.state));
+      const serializable = $state.snapshot(this.state);
+      await window.api?.saveTemporaryTabs({
+        vaultId: this.currentVaultId,
+        tabs: serializable
+      });
     } catch (error) {
       console.warn('Failed to save temporary tabs to storage:', error);
+      throw error; // Let component handle user feedback
     }
   }
 
@@ -367,7 +419,7 @@ class TemporaryTabsStore {
       }
     }
 
-    console.log('🔑 refreshForVault: using storage key', this.getStorageKey());
+    console.log('🔑 refreshForVault: using vault', this.currentVaultId);
 
     // Reset to completely new state object to force reactivity
     this.state = {
@@ -378,14 +430,14 @@ class TemporaryTabsStore {
     };
 
     // Load from storage for the new vault
-    this.loadFromStorage();
+    await this.loadFromStorage();
     console.log(
       '💾 refreshForVault: loaded',
       this.state.tabs.length,
       'tabs for vault',
       this.currentVaultId
     );
-    this.cleanupOldTabs();
+    await this.cleanupOldTabs();
 
     // Clear vault switching flag
     this.isVaultSwitching = false;

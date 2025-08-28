@@ -69,7 +69,7 @@ export class ElectronChatService implements ChatService, NoteService {
   private initializeUsageTracking(): void {
     // Set up listener for usage data
     if (window.api?.onUsageRecorded) {
-      window.api.onUsageRecorded((usageData: unknown) => {
+      window.api.onUsageRecorded(async (usageData: unknown) => {
         // Type guard to ensure usageData has the expected shape
         if (
           typeof usageData === 'object' &&
@@ -93,7 +93,7 @@ export class ElectronChatService implements ChatService, NoteService {
           };
 
           // Record usage in the unified chat store
-          unifiedChatStore.recordThreadUsage(data.conversationId, {
+          await unifiedChatStore.recordThreadUsage(data.conversationId, {
             modelName: data.modelName,
             inputTokens: data.inputTokens,
             outputTokens: data.outputTokens,

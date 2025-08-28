@@ -19,25 +19,25 @@
 
   const dragState = globalDragState;
 
-  function handleTabClick(noteId: string): void {
+  async function handleTabClick(noteId: string): Promise<void> {
     const note = notesStore.notes.find((n) => n.id === noteId);
     if (note) {
       onNoteSelect(note);
       // Find the tab ID that corresponds to this note ID
       const tab = temporaryTabsStore.tabs.find((t) => t.noteId === noteId);
       if (tab) {
-        temporaryTabsStore.setActiveTab(tab.id);
+        await temporaryTabsStore.setActiveTab(tab.id);
       }
     }
   }
 
-  function handleCloseTab(tabId: string, event: Event): void {
+  async function handleCloseTab(tabId: string, event: Event): Promise<void> {
     event.stopPropagation();
-    temporaryTabsStore.removeTab(tabId);
+    await temporaryTabsStore.removeTab(tabId);
   }
 
-  function handleClearAll(): void {
-    temporaryTabsStore.clearAllTabs();
+  async function handleClearAll(): Promise<void> {
+    await temporaryTabsStore.clearAllTabs();
   }
 
   function truncateTitle(title: string, maxLength: number = 30): string {
@@ -102,7 +102,7 @@
       if (sourceIndex !== -1) {
         const finalDropIndex = calculateDropIndex(targetIndex, position, sourceIndex);
         if (sourceIndex !== finalDropIndex) {
-          temporaryTabsStore.reorderTabs(sourceIndex, finalDropIndex);
+          await temporaryTabsStore.reorderTabs(sourceIndex, finalDropIndex);
         }
       }
     }

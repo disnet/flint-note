@@ -105,7 +105,7 @@ class PinnedNotesStore {
     await this.saveToStorage(); // Now async
 
     // Remove from temporary tabs when pinned
-    temporaryTabsStore.removeTabsByNoteIds([id]);
+    await temporaryTabsStore.removeTabsByNoteIds([id]);
   }
 
   async unpinNote(noteId: string): Promise<void> {
@@ -121,7 +121,7 @@ class PinnedNotesStore {
 
     // Add to temporary tabs when unpinned
     if (noteToUnpin) {
-      temporaryTabsStore.addTab(noteToUnpin.id, noteToUnpin.title, 'navigation');
+      await temporaryTabsStore.addTab(noteToUnpin.id, noteToUnpin.title, 'navigation');
     }
   }
 
