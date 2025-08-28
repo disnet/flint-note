@@ -5,6 +5,7 @@ import icon from '../../resources/icon.png?asset';
 import { AIService } from './ai-service';
 import { NoteService } from './note-service';
 import { SecureStorageService } from './secure-storage-service';
+import { PinnedNotesStorageService } from './pinned-notes-storage-service';
 import type {
   MetadataFieldDefinition,
   MetadataSchema
@@ -192,6 +193,9 @@ app.whenReady().then(async () => {
 
   // Initialize Secure Storage service
   const secureStorageService = new SecureStorageService();
+
+  // Initialize Pinned Notes Storage service
+  const pinnedNotesStorageService = new PinnedNotesStorageService();
 
   // Initialize AI service
   let aiService: AIService | null = null;
@@ -774,6 +778,40 @@ app.whenReady().then(async () => {
       throw new Error('Secure storage service not available');
     }
     return await secureStorageService.clearAllKeys();
+  });
+
+  // Pinned notes storage handlers
+  ipcMain.handle('load-pinned-notes', async (_event, params: { vaultId: string }) => {
+    if (!pinnedNotesStorageService) {
+      throw new Error('Pinned notes storage service not available');
+    }
+    return await pinnedNotesStorageService.loadPinnedNotes(params.vaultId);
+  });
+
+  ipcMain.handle(
+    'save-pinned-notes',
+    async (
+      _event,
+      params: {
+        vaultId: string;
+        notes: import('./pinned-notes-storage-service').PinnedNoteInfo[];
+      }
+    ) => {
+      if (!pinnedNotesStorageService) {
+        throw new Error('Pinned notes storage service not available');
+      }
+      return await pinnedNotesStorageService.savePinnedNotes(
+        params.vaultId,
+        params.notes
+      );
+    }
+  );
+
+  ipcMain.handle('clear-pinned-notes', async (_event, params: { vaultId: string }) => {
+    if (!pinnedNotesStorageService) {
+      throw new Error('Pinned notes storage service not available');
+    }
+    return await pinnedNotesStorageService.clearPinnedNotes(params.vaultId);
   });
 
   // Cache performance monitoring handlers

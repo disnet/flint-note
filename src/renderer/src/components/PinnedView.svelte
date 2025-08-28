@@ -31,9 +31,13 @@
     onNoteSelect(note);
   }
 
-  function handleUnpin(noteId: string, event: Event): void {
+  async function handleUnpin(noteId: string, event: Event): Promise<void> {
     event.stopPropagation();
-    pinnedNotesStore.unpinNote(noteId);
+    try {
+      await pinnedNotesStore.unpinNote(noteId);
+    } catch (error) {
+      console.error('Failed to unpin note:', error);
+    }
   }
 </script>
 

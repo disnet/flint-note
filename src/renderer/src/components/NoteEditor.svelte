@@ -538,8 +538,12 @@
     }
   }
 
-  function togglePin(): void {
-    pinnedNotesStore.togglePin(note.id, note.title, note.filename || note.title);
+  async function togglePin(): Promise<void> {
+    try {
+      await pinnedNotesStore.togglePin(note.id, note.title, note.filename || note.title);
+    } catch (error) {
+      console.error('Failed to toggle pin status:', error);
+    }
   }
 </script>
 

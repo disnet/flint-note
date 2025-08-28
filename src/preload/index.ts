@@ -178,6 +178,14 @@ const api = {
   getAllApiKeys: () => electronAPI.ipcRenderer.invoke('get-all-api-keys'),
   clearApiKeys: () => electronAPI.ipcRenderer.invoke('clear-api-keys'),
 
+  // Pinned notes storage operations
+  loadPinnedNotes: (params: { vaultId: string }) =>
+    electronAPI.ipcRenderer.invoke('load-pinned-notes', params),
+  savePinnedNotes: (params: { vaultId: string; notes: unknown[] }) =>
+    electronAPI.ipcRenderer.invoke('save-pinned-notes', params),
+  clearPinnedNotes: (params: { vaultId: string }) =>
+    electronAPI.ipcRenderer.invoke('clear-pinned-notes', params),
+
   // Cache monitoring operations
   getCacheMetrics: () => electronAPI.ipcRenderer.invoke('get-cache-metrics'),
   getCachePerformanceSnapshot: () =>

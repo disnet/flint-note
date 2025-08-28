@@ -75,7 +75,7 @@
     handleDragOver(event, index, 'temporary', dragState, element);
   }
 
-  function onDrop(event: DragEvent, targetIndex: number): void {
+  async function onDrop(event: DragEvent, targetIndex: number): Promise<void> {
     event.preventDefault();
 
     const data = event.dataTransfer?.getData('text/plain');
@@ -90,7 +90,7 @@
       if (position === 'bottom') {
         dropIndex = targetIndex + 1;
       }
-      if (handleCrossSectionDrop(id, type, 'temporary', dropIndex)) {
+      if (await handleCrossSectionDrop(id, type, 'temporary', dropIndex)) {
         handleDragEnd(dragState);
         return;
       }

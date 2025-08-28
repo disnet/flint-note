@@ -99,7 +99,7 @@
     handleDragOver(event, index, 'pinned', dragState, element);
   }
 
-  function onDrop(event: DragEvent, targetIndex: number): void {
+  async function onDrop(event: DragEvent, targetIndex: number): Promise<void> {
     event.preventDefault();
 
     const data = event.dataTransfer?.getData('text/plain');
@@ -116,7 +116,7 @@
     const dropIndex = calculateDropIndex(targetIndex, position, sourceIndex);
 
     // Handle cross-section drag
-    if (handleCrossSectionDrop(id, type, 'pinned', dropIndex)) {
+    if (await handleCrossSectionDrop(id, type, 'pinned', dropIndex)) {
       handleDragEnd(dragState);
       return;
     }
@@ -124,7 +124,11 @@
     // Handle same-section reorder
     if (type === 'pinned' && sourceIndex !== undefined) {
       if (sourceIndex !== dropIndex) {
-        pinnedNotesStore.reorderNotes(sourceIndex, dropIndex);
+        try {
+          await pinnedNotesStore.reorderNotes(sourceIndex, dropIndex);
+        } catch (error) {
+          console.error('Failed to reorder notes:', error);
+        }
       }
     }
 

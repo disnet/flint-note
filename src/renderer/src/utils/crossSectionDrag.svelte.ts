@@ -2,12 +2,12 @@ import { temporaryTabsStore } from '../stores/temporaryTabsStore.svelte';
 import { pinnedNotesStore } from '../services/pinnedStore.svelte';
 import type { PinnedNoteInfo } from '../services/types';
 
-export function handleCrossSectionDrop(
+export async function handleCrossSectionDrop(
   draggedId: string,
   draggedType: 'pinned' | 'temporary',
   targetSection: 'pinned' | 'temporary',
   targetIndex: number
-): boolean {
+): Promise<boolean> {
   // Handle temporary → pinned conversion
   if (draggedType === 'temporary' && targetSection === 'pinned') {
     const tab = temporaryTabsStore.tabs.find((t) => t.id === draggedId);
@@ -22,31 +22,36 @@ export function handleCrossSectionDrop(
       order: targetIndex
     };
 
-    // Add to pinned notes at specific position (this triggers fade-in animation)
-    pinnedNotesStore.addNoteAtPosition(pinnedNote, targetIndex);
+    try {
+      // Add to pinned notes at specific position (this triggers fade-in animation)
+      await pinnedNotesStore.addNoteAtPosition(pinnedNote, targetIndex);
 
-    // Clear active tab if this tab was active (to prevent auto-selecting another tab)
-    if (temporaryTabsStore.activeTabId === tab.id) {
-      temporaryTabsStore.clearActiveTab();
-    }
+      // Clear active tab if this tab was active (to prevent auto-selecting another tab)
+      if (temporaryTabsStore.activeTabId === tab.id) {
+        temporaryTabsStore.clearActiveTab();
+      }
 
-    // Animate removal from temporary tabs
-    if (typeof window !== 'undefined') {
-      import('./dragDrop.svelte.js')
-        .then(({ animateItemRemove }) => {
-          animateItemRemove(tab.id, '.tabs-list', () => {
+      // Animate removal from temporary tabs
+      if (typeof window !== 'undefined') {
+        import('./dragDrop.svelte.js')
+          .then(({ animateItemRemove }) => {
+            animateItemRemove(tab.id, '.tabs-list', () => {
+              temporaryTabsStore.removeTab(tab.id);
+            });
+          })
+          .catch(() => {
+            // Fallback to immediate removal
             temporaryTabsStore.removeTab(tab.id);
           });
-        })
-        .catch(() => {
-          // Fallback to immediate removal
-          temporaryTabsStore.removeTab(tab.id);
-        });
-    } else {
-      temporaryTabsStore.removeTab(tab.id);
-    }
+      } else {
+        temporaryTabsStore.removeTab(tab.id);
+      }
 
-    return true;
+      return true;
+    } catch (error) {
+      console.error('Failed to add note to pinned:', error);
+      return false;
+    }
   }
 
   // Handle pinned → temporary conversion
@@ -69,16 +74,29 @@ export function handleCrossSectionDrop(
     if (typeof window !== 'undefined') {
       import('./dragDrop.svelte.js')
         .then(({ animateItemRemove }) => {
-          animateItemRemove(pinnedNote.id, '.pinned-list', () => {
-            pinnedNotesStore.unpinNote(pinnedNote.id);
+          animateItemRemove(pinnedNote.id, '.pinned-list', async () => {
+            try {
+              await pinnedNotesStore.unpinNote(pinnedNote.id);
+            } catch (error) {
+              console.error('Failed to unpin note:', error);
+            }
           });
         })
-        .catch(() => {
+        .catch(async () => {
           // Fallback to immediate removal
-          pinnedNotesStore.unpinNote(pinnedNote.id);
+          try {
+            await pinnedNotesStore.unpinNote(pinnedNote.id);
+          } catch (error) {
+            console.error('Failed to unpin note:', error);
+          }
         });
     } else {
-      pinnedNotesStore.unpinNote(pinnedNote.id);
+      try {
+        await pinnedNotesStore.unpinNote(pinnedNote.id);
+      } catch (error) {
+        console.error('Failed to unpin note:', error);
+        return false;
+      }
     }
 
     return true;

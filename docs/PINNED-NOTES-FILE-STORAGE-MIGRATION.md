@@ -40,6 +40,7 @@ The pinned notes are currently managed by the `PinnedNotesStore` class in `src/r
 **File**: `src/main/pinned-notes-storage-service.ts`
 
 Create a service class that:
+
 - Manages JSON files in `{userData}/pinned-notes/` directory
 - Provides async methods: `load()`, `save()`, `migrate()`, and `clear()`
 - Handles file system errors gracefully with fallback to empty arrays
@@ -47,12 +48,13 @@ Create a service class that:
 - Follows the same patterns as `SecureStorageService`
 
 Key Methods:
+
 ```typescript
 class PinnedNotesStorageService {
-  async loadPinnedNotes(vaultId: string): Promise<PinnedNoteInfo[]>
-  async savePinnedNotes(vaultId: string, notes: PinnedNoteInfo[]): Promise<void>
-  async clearPinnedNotes(vaultId: string): Promise<void>
-  async listVaultFiles(): Promise<string[]>
+  async loadPinnedNotes(vaultId: string): Promise<PinnedNoteInfo[]>;
+  async savePinnedNotes(vaultId: string, notes: PinnedNoteInfo[]): Promise<void>;
+  async clearPinnedNotes(vaultId: string): Promise<void>;
+  async listVaultFiles(): Promise<string[]>;
 }
 ```
 
@@ -61,6 +63,7 @@ class PinnedNotesStorageService {
 **File**: `src/main/index.ts`
 
 Add IPC handlers for pinned notes operations:
+
 ```typescript
 ipcMain.handle('load-pinned-notes', async (_event, params: { vaultId: string }) => { ... })
 ipcMain.handle('save-pinned-notes', async (_event, params: { vaultId: string, notes: PinnedNoteInfo[] }) => { ... })
@@ -72,6 +75,7 @@ ipcMain.handle('clear-pinned-notes', async (_event, params: { vaultId: string })
 **File**: `src/preload/index.ts`
 
 Expose new IPC methods to renderer:
+
 ```typescript
 // Pinned notes storage operations
 loadPinnedNotes: (params: { vaultId: string }) => electronAPI.ipcRenderer.invoke('load-pinned-notes', params),
@@ -84,6 +88,7 @@ clearPinnedNotes: (params: { vaultId: string }) => electronAPI.ipcRenderer.invok
 **File**: `src/renderer/src/services/pinnedStore.svelte.ts`
 
 Transform the PinnedNotesStore class to:
+
 - Replace `loadFromStorage()` with async `window.api.loadPinnedNotes()`
 - Replace `saveToStorage()` with async `window.api.savePinnedNotes()`
 - Remove all localStorage-related methods (`loadFromLocalStorage`, `saveToLocalStorage`, etc.)
@@ -94,6 +99,7 @@ Transform the PinnedNotesStore class to:
 ### Async Initialization Challenge
 
 **Current Issue**: The current implementation has synchronous assumptions:
+
 1. `constructor()` calls `initializeVault()` but doesn't await it
 2. `initializeVault()` calls `loadFromStorage()` synchronously (currently localStorage)
 3. Components use `pinnedNotesStore.notes` immediately and expect data to be available
@@ -102,6 +108,7 @@ Transform the PinnedNotesStore class to:
 **Solution**: Implement loading state pattern to handle async initialization:
 
 Key Changes:
+
 ```typescript
 class PinnedNotesStore {
   private state = $state<PinnedNotesState>(defaultState);
@@ -210,12 +217,12 @@ class PinnedNotesStore {
   async unpinNote(noteId: string): Promise<void> {
     const noteToUnpin = this.state.notes.find((note) => note.id === noteId);
     this.state.notes = this.state.notes.filter((note) => note.id !== noteId);
-    
+
     // Reassign order values
     this.state.notes.forEach((note, index) => {
       note.order = index;
     });
-    
+
     await this.saveToStorage(); // Now async
 
     // Add to temporary tabs when unpinned
@@ -237,12 +244,14 @@ class PinnedNotesStore {
 **Component Changes**: All components that call pinned note mutation methods must be updated to handle async operations:
 
 **Files to Update**:
+
 - `src/renderer/src/components/PinnedView.svelte` - `handleUnpin()` function
-- `src/renderer/src/components/NoteEditor.svelte` - Pin/unpin actions  
+- `src/renderer/src/components/NoteEditor.svelte` - Pin/unpin actions
 - `src/renderer/src/components/PinnedNotes.svelte` - Drag and drop reordering
 - Any other components that call `pinNote()`, `unpinNote()`, `reorderNotes()`, etc.
 
 **Component Pattern Changes**:
+
 ```typescript
 // OLD (synchronous)
 function handleUnpin(noteId: string, event: Event): void {
@@ -268,6 +277,7 @@ async function handleUnpin(noteId: string, event: Event): Promise<void> {
 ```
 
 **Loading States in Components**:
+
 ```typescript
 // Components should show loading states
 $effect(() => {
@@ -280,6 +290,7 @@ $effect(() => {
 #### Phase 5: Cleanup and Testing
 
 **Cleanup Process**:
+
 1. Remove all localStorage-related methods from `PinnedNotesStore`
 2. Remove localStorage key constants (`PINNED_NOTES_KEY_PREFIX`)
 3. Remove the `migrateNotesWithoutOrder()` method (no longer needed)
@@ -287,6 +298,7 @@ $effect(() => {
 5. Add loading state handling in UI components
 
 **Error Handling**:
+
 - File operation errors return empty arrays (graceful degradation)
 - Clear error messages in console for debugging
 - No fallback to localStorage - clean break from old system
@@ -295,6 +307,7 @@ $effect(() => {
 ## File Structure
 
 ### Directory Layout
+
 ```
 {userData}/
 ├── secure/                          # Existing secure storage
@@ -306,6 +319,7 @@ $effect(() => {
 ```
 
 ### JSON File Format
+
 ```json
 {
   "version": "1.0.0",
@@ -326,21 +340,25 @@ $effect(() => {
 ## Benefits
 
 ### Reliability
+
 - Data persists across browser sessions and app updates
 - No localStorage size limitations or browser clearing issues
 - Better error handling and recovery options
 
 ### Performance
+
 - Reduced memory usage in renderer process
 - Async operations don't block UI updates
 - File system operations handled in main process
 
 ### Maintenance
+
 - Centralized data management following app patterns
 - Easier backup and synchronization capabilities
 - Better debugging and data inspection capabilities
 
 ### Architecture Consistency
+
 - Aligns with existing secure storage patterns
 - Follows established IPC communication patterns
 - Maintains separation of concerns between main and renderer processes
@@ -348,22 +366,28 @@ $effect(() => {
 ## Risks and Mitigations
 
 ### Data Loss Impact
+
 **Impact**: Users will lose their existing pinned notes after migration
 **Mitigation**:
+
 - Document this clearly in release notes and migration documentation
 - Consider showing a one-time notification to users about the change
 - Provide clear instructions on how to re-pin important notes
 
 ### Performance Impact
+
 **Risk**: Async operations might affect UI responsiveness
 **Mitigation**:
+
 - Use reactive Svelte patterns to handle async state updates
 - Implement loading states for better user experience
 - Batch operations where possible to reduce IPC calls
 
 ### File System Permissions
+
 **Risk**: File access might be restricted on some systems
 **Mitigation**:
+
 - Graceful error handling with empty arrays as fallback
 - User-friendly error messages explaining permission issues
 - Use Electron's userData directory which should always be writable
@@ -371,6 +395,7 @@ $effect(() => {
 ## Testing Strategy
 
 ### Unit Tests
+
 - File operations in main process service
 - JSON serialization/deserialization
 - Error handling scenarios
@@ -378,6 +403,7 @@ $effect(() => {
 - Loading state transitions
 
 ### Integration Tests
+
 - Vault switching with file-based storage
 - IPC communication reliability
 - File creation and reading across app restarts
@@ -385,6 +411,7 @@ $effect(() => {
 - Loading states in UI during async operations
 
 ### Manual Testing
+
 - Cross-platform file system behavior
 - Empty state handling when no pinned notes exist
 - Error recovery scenarios
@@ -394,6 +421,7 @@ $effect(() => {
 ## Rollback Plan
 
 If critical issues are discovered post-migration:
+
 1. **Immediate**: Revert code changes to restore localStorage-based implementation
 2. **Short-term**: Feature flag to toggle between file storage and localStorage
 3. **Long-term**: Fix file storage issues while maintaining localStorage as backup option
@@ -409,16 +437,19 @@ If critical issues are discovered post-migration:
 ## Post-Migration Considerations
 
 ### Future Enhancements
+
 - Cloud synchronization support for pinned notes across devices
 - Export/import functionality for backup purposes
 - Advanced pinned notes features (categories, smart pinning, etc.)
 
 ### Maintenance Tasks
+
 - Periodic cleanup of orphaned pinned notes files
 - Performance monitoring of file operations
 - Documentation updates for new storage architecture
 
 ### User Communication
+
 - Clear release notes explaining the change
 - Documentation about re-pinning notes after update
 - FAQ addressing common questions about the migration

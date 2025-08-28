@@ -182,6 +182,11 @@ declare global {
       getAllApiKeys: () => Promise<any>;
       clearApiKeys: () => Promise<any>;
 
+      // Pinned notes storage operations
+      loadPinnedNotes: (params: { vaultId: string }) => Promise<any>;
+      savePinnedNotes: (params: { vaultId: string; notes: unknown[] }) => Promise<any>;
+      clearPinnedNotes: (params: { vaultId: string }) => Promise<any>;
+
       // Cache monitoring operations
       getCacheMetrics: () => Promise<any>;
       getCachePerformanceSnapshot: () => Promise<any>;
