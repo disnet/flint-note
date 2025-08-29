@@ -108,6 +108,7 @@
   import { getChatService } from '../services/chatService.js';
   import { wikilinkService } from '../services/wikilinkService.svelte.js';
   import { pinnedNotesStore } from '../services/pinnedStore.svelte.js';
+  import { temporaryTabsStore } from '../stores/temporaryTabsStore.svelte.js';
   import MetadataView from './MetadataView.svelte';
 
   interface Props {
@@ -521,17 +522,40 @@
 
     try {
       const noteService = getChatService();
-      await noteService.moveNote({
+      const oldId = note.id;
+
+      const moveResult = await noteService.moveNote({
         identifier: note.id,
         newType: newType
       });
 
-      // Refresh the note data to reflect the type change
-      const result = await noteService.getNote({ identifier: note.id });
-      noteData = result;
+      if (moveResult.success) {
+        const newId = moveResult.new_id;
 
-      // Also refresh the notes store to update the sidebar
-      await notesStore.refresh();
+        // Update pinned notes if this note is pinned
+        if (pinnedNotesStore.isPinned(oldId)) {
+          await pinnedNotesStore.updateNoteId(oldId, newId);
+        }
+
+        // Update temporary tabs that reference this note
+        await temporaryTabsStore.updateNoteId(oldId, newId);
+
+        // Update the local note reference with new ID
+        note = {
+          ...note,
+          id: newId,
+          type: newType
+        };
+
+        // Refresh the note data to reflect the type change
+        const result = await noteService.getNote({ identifier: newId });
+        noteData = result;
+
+        // Also refresh the notes store to update the sidebar
+        await notesStore.refresh();
+      } else {
+        throw new Error('Move operation failed');
+      }
     } catch (err) {
       console.error('Error changing note type:', err);
       throw err;

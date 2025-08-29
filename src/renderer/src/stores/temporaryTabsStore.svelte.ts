@@ -236,6 +236,22 @@ class TemporaryTabsStore {
     }
   }
 
+  async updateNoteId(oldId: string, newId: string): Promise<void> {
+    await this.ensureInitialized();
+    let updated = false;
+
+    this.state.tabs.forEach((tab) => {
+      if (tab.noteId === oldId) {
+        tab.noteId = newId;
+        updated = true;
+      }
+    });
+
+    if (updated) {
+      await this.saveToStorage();
+    }
+  }
+
   async addTabAtPosition(
     tab: {
       noteId: string;

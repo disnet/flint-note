@@ -194,6 +194,14 @@ class PinnedNotesStore {
     await this.saveToStorage(); // Now async
   }
 
+  async updateNoteId(oldId: string, newId: string): Promise<void> {
+    const pinnedNote = this.state.notes.find((note) => note.id === oldId);
+    if (pinnedNote) {
+      pinnedNote.id = newId;
+      await this.saveToStorage();
+    }
+  }
+
   async refreshForVault(vaultId?: string): Promise<void> {
     this.state.isLoading = true;
     try {

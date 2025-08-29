@@ -15,6 +15,7 @@
   import { noteNavigationService } from './services/noteNavigationService.svelte';
   import { activeNoteStore } from './stores/activeNoteStore.svelte';
   import { generateSafeNoteIdentifier } from './utils/noteUtils.svelte';
+  import { pinnedNotesStore } from './services/pinnedStore.svelte';
 
   // Initialize unified chat store effects
   unifiedChatStore.initializeEffects();
@@ -135,10 +136,21 @@
       });
 
       if (moveResult.success) {
+        const oldId = activeNote.id;
+        const newId = moveResult.new_id;
+
+        // Update pinned notes if this note is pinned
+        if (pinnedNotesStore.isPinned(oldId)) {
+          await pinnedNotesStore.updateNoteId(oldId, newId);
+        }
+
+        // Update temporary tabs that reference this note
+        await temporaryTabsStore.updateNoteId(oldId, newId);
+
         // Update the active note with new ID and type
         const updatedNote = {
           ...activeNote,
-          id: moveResult.new_id,
+          id: newId,
           type: moveResult.new_type
         };
         await activeNoteStore.setActiveNote(updatedNote);
@@ -147,7 +159,7 @@
         await notesStore.refresh();
 
         console.log(
-          `Successfully moved note to type '${moveResult.new_type}' with new ID '${moveResult.new_id}'`
+          `Successfully moved note to type '${moveResult.new_type}' with new ID '${newId}'`
         );
       } else {
         throw new Error('Failed to move note');
