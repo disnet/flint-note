@@ -377,9 +377,38 @@
       });
 
       if (result.success) {
+        const oldId = note.id;
+        const newId = result.new_id || note.id; // Use new_id if provided, otherwise keep the same ID
+
+        // Update pinned notes if this note is pinned
+        if (pinnedNotesStore.isPinned(oldId)) {
+          if (newId !== oldId) {
+            // ID changed - update both ID and title
+            await pinnedNotesStore.updateNoteIdAndTitle(oldId, newId, trimmedTitle);
+          } else {
+            // ID same but title changed - update just title
+            await pinnedNotesStore.updateNoteTitle(oldId, trimmedTitle);
+          }
+        }
+
+        // Update temporary tabs that reference this note
+        const hasTemporaryTab = temporaryTabsStore.tabs.some(
+          (tab) => tab.noteId === oldId
+        );
+        if (hasTemporaryTab) {
+          if (newId !== oldId) {
+            // ID changed - update both ID and title
+            await temporaryTabsStore.updateNoteIdAndTitle(oldId, newId, trimmedTitle);
+          } else {
+            // ID same but title changed - update just title
+            await temporaryTabsStore.updateNoteTitle(oldId, trimmedTitle);
+          }
+        }
+
         // Update the local note reference
         note = {
           ...note,
+          id: newId,
           title: trimmedTitle
         };
 

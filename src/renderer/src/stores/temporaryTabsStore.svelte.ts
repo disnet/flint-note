@@ -252,6 +252,43 @@ class TemporaryTabsStore {
     }
   }
 
+  async updateNoteTitle(noteId: string, newTitle: string): Promise<void> {
+    await this.ensureInitialized();
+    let updated = false;
+
+    this.state.tabs.forEach((tab) => {
+      if (tab.noteId === noteId) {
+        tab.title = newTitle;
+        updated = true;
+      }
+    });
+
+    if (updated) {
+      await this.saveToStorage();
+    }
+  }
+
+  async updateNoteIdAndTitle(
+    oldId: string,
+    newId: string,
+    newTitle: string
+  ): Promise<void> {
+    await this.ensureInitialized();
+    let updated = false;
+
+    this.state.tabs.forEach((tab) => {
+      if (tab.noteId === oldId) {
+        tab.noteId = newId;
+        tab.title = newTitle;
+        updated = true;
+      }
+    });
+
+    if (updated) {
+      await this.saveToStorage();
+    }
+  }
+
   async addTabAtPosition(
     tab: {
       noteId: string;

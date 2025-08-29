@@ -115,7 +115,12 @@ export class NoteService {
     identifier: string,
     newIdentifier: string,
     vaultId?: string
-  ): Promise<{ success: boolean; notesUpdated?: number; linksUpdated?: number }> {
+  ): Promise<{
+    success: boolean;
+    notesUpdated?: number;
+    linksUpdated?: number;
+    new_id?: string;
+  }> {
     this.ensureInitialized();
     // Get the note first to obtain content hash
     const note = await this.api.getNote(identifier, vaultId);

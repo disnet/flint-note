@@ -84,7 +84,12 @@ export interface NoteService {
     identifier: string;
     newIdentifier: string;
     vaultId?: string;
-  }): Promise<{ success: boolean; notesUpdated?: number; linksUpdated?: number }>;
+  }): Promise<{
+    success: boolean;
+    notesUpdated?: number;
+    linksUpdated?: number;
+    new_id?: string;
+  }>;
   moveNote(params: {
     identifier: string;
     newType: string;

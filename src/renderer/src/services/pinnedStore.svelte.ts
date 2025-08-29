@@ -202,6 +202,27 @@ class PinnedNotesStore {
     }
   }
 
+  async updateNoteTitle(noteId: string, newTitle: string): Promise<void> {
+    const pinnedNote = this.state.notes.find((note) => note.id === noteId);
+    if (pinnedNote) {
+      pinnedNote.title = newTitle;
+      await this.saveToStorage();
+    }
+  }
+
+  async updateNoteIdAndTitle(
+    oldId: string,
+    newId: string,
+    newTitle: string
+  ): Promise<void> {
+    const pinnedNote = this.state.notes.find((note) => note.id === oldId);
+    if (pinnedNote) {
+      pinnedNote.id = newId;
+      pinnedNote.title = newTitle;
+      await this.saveToStorage();
+    }
+  }
+
   async refreshForVault(vaultId?: string): Promise<void> {
     this.state.isLoading = true;
     try {

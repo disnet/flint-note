@@ -279,7 +279,12 @@ export class ElectronChatService implements ChatService, NoteService {
     identifier: string;
     newIdentifier: string;
     vaultId?: string;
-  }): Promise<{ success: boolean; notesUpdated?: number; linksUpdated?: number }> {
+  }): Promise<{
+    success: boolean;
+    notesUpdated?: number;
+    linksUpdated?: number;
+    new_id?: string;
+  }> {
     const { identifier, newIdentifier, vaultId } = params;
     try {
       return await window.api.renameNote({ identifier, newIdentifier, vaultId });

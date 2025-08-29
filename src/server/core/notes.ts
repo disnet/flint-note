@@ -1400,7 +1400,12 @@ export class NoteManager {
     identifier: string,
     newTitle: string,
     contentHash: string
-  ): Promise<{ success: boolean; notesUpdated?: number; linksUpdated?: number }> {
+  ): Promise<{
+    success: boolean;
+    notesUpdated?: number;
+    linksUpdated?: number;
+    new_id?: string;
+  }> {
     // Input validation
     if (!identifier) {
       throw new Error('Note identifier is required');
@@ -1578,7 +1583,8 @@ export class NoteManager {
       return {
         success: true,
         notesUpdated: wikilinksResult.notesUpdated,
-        linksUpdated: wikilinksResult.linksUpdated + brokenLinksUpdated
+        linksUpdated: wikilinksResult.linksUpdated + brokenLinksUpdated,
+        new_id: newId
       };
     } catch (error) {
       // Rollback operations in reverse order
