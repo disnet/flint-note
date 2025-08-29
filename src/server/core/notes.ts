@@ -1426,24 +1426,27 @@ export class NoteManager {
       }
 
       // Generate new filename from title
-      const baseFilename = this.generateFilename(trimmedTitle);
+      const newFilenameWithExt = this.generateFilename(trimmedTitle);
 
       // Validate that the generated filename isn't empty
-      if (!baseFilename) {
+      if (!newFilenameWithExt) {
         throw new Error(`Cannot generate valid filename from title: "${trimmedTitle}"`);
       }
 
-      const newFilenameWithExt = `${baseFilename}.md`;
+      // Extract base filename without extension for metadata
+      const baseFilename = path.basename(newFilenameWithExt, '.md');
 
       // Get the note type path
       const typePath = this.#workspace.getNoteTypePath(currentNote.type);
       const newNotePath = path.join(typePath, newFilenameWithExt);
-      const currentPath = path.join(typePath, `${currentNote.filename}.md`);
+      // Use the same path that was used to read the note (from currentNote.path)
+      const currentPath = currentNote.path;
 
       originalPath = currentPath;
 
       // Handle filename conflicts by generating unique name
-      let finalFilename = baseFilename;
+      let finalBaseFilename = baseFilename;
+      let finalFilenameWithExt = newFilenameWithExt;
       let finalNotePath = newNotePath;
       let counter = 1;
 
@@ -1453,8 +1456,9 @@ export class NoteManager {
           try {
             await fs.access(finalNotePath);
             // File exists, try with counter
-            finalFilename = `${baseFilename}-${counter}`;
-            finalNotePath = path.join(typePath, `${finalFilename}.md`);
+            finalBaseFilename = `${baseFilename}-${counter}`;
+            finalFilenameWithExt = `${finalBaseFilename}.md`;
+            finalNotePath = path.join(typePath, finalFilenameWithExt);
             counter++;
 
             // Prevent infinite loops with a reasonable limit
@@ -1474,13 +1478,13 @@ export class NoteManager {
 
       // Generate old and new IDs
       const oldId = this.generateNoteId(currentNote.type, currentNote.filename);
-      const newId = this.generateNoteId(currentNote.type, finalFilename);
+      const newId = this.generateNoteId(currentNote.type, finalBaseFilename);
 
       // Update the metadata with new title and filename
       const updatedMetadata = {
         ...currentNote.metadata,
         title: trimmedTitle,
-        filename: finalFilename,
+        filename: finalBaseFilename,
         updated: new Date().toISOString()
       };
 
@@ -1493,12 +1497,9 @@ export class NoteManager {
       );
 
       // Validate content hash for optimistic locking
-      const crypto = await import('crypto');
       const currentContent = await fs.readFile(currentPath, 'utf-8');
-      const currentContentHash = crypto
-        .createHash('sha256')
-        .update(currentContent)
-        .digest('hex');
+      const currentParsed = this.parseNoteContent(currentContent);
+      const currentContentHash = generateContentHash(currentParsed.content);
 
       if (currentContentHash !== contentHash) {
         throw new Error(
