@@ -11,6 +11,7 @@ Currently, when a note's title is updated via `renameNote()`, only the title fie
 ## Current State Analysis
 
 ### Existing Functionality
+
 - **Title updates**: `renameNote()` method only updates the `title` field in frontmatter metadata
 - **Wikilink updates**: Both `moveNote()` and `renameNote()` have sophisticated wikilink updating via:
   - `LinkExtractor.updateWikilinksForMovedNote()` - handles identifier changes
@@ -19,6 +20,7 @@ Currently, when a note's title is updated via `renameNote()`, only the title fie
 - **File structure**: Notes store both `title` and `filename` in frontmatter
 
 ### Current Limitations
+
 - Filename doesn't reflect title changes
 - No automatic file system synchronization
 - Potential confusion between display title and file identity
@@ -28,15 +30,18 @@ Currently, when a note's title is updated via `renameNote()`, only the title fie
 ### 1. Core Method Enhancement
 
 #### Enhance `renameNote()` Method
+
 **Location**: `src/server/core/notes.ts:1399`
 
 **Current behavior**: Updates only title metadata  
 **New behavior**: Update title + rename file + update all wikilinks
 
 #### New `renameNoteWithFile()` Method
+
 **Purpose**: Handle complete title/filename synchronization
 
 **Implementation steps**:
+
 1. **Validate inputs**
    - Check new title validity
    - Get current note data
@@ -72,6 +77,7 @@ Currently, when a note's title is updated via `renameNote()`, only the title fie
 ### 2. Wikilink Update Strategy
 
 #### Leverage Existing Infrastructure
+
 The codebase already has robust wikilink updating mechanisms that can be reused:
 
 - `LinkExtractor.updateWikilinksForMovedNote()` - handles note identifier changes
@@ -79,28 +85,31 @@ The codebase already has robust wikilink updating mechanisms that can be reused:
 - `WikilinkParser` - provides parsing and manipulation capabilities
 
 #### Link Update Scenarios
+
 Handle all common wikilink patterns:
 
 ```markdown
 # Before rename (title: "Old Title" → "New Title", filename: old-title.md → new-title.md)
 
-[[old-title]]                           → [[new-title]]
-[[type/old-title]]                      → [[type/new-title]]  
-[[Old Title]]                           → [[New Title]]
-[[type/old-title|Old Title]]            → [[type/new-title|New Title]]
-[[Old Title|Custom Display]]            → [[New Title|Custom Display]]
-[[type/old-title|Custom Display]]       → [[type/new-title|Custom Display]]
+[[old-title]] → [[new-title]]
+[[type/old-title]] → [[type/new-title]]  
+[[Old Title]] → [[New Title]]
+[[type/old-title|Old Title]] → [[type/new-title|New Title]]
+[[Old Title|Custom Display]] → [[New Title|Custom Display]]
+[[type/old-title|Custom Display]] → [[type/new-title|Custom Display]]
 ```
 
 ### 3. Database and Search Index Updates
 
 #### Requirements
+
 - **Search index synchronization**: Update note path in hybrid search database
 - **Link database updates**: Update all link references to use new identifier
 - **Atomic operations**: Ensure database consistency during rename process
 - **Re-indexing**: Extract and store links for renamed note with new path
 
 #### Implementation Details
+
 ```typescript
 // Update search index
 await this.removeFromSearchIndex(oldPath);
@@ -115,6 +124,7 @@ await LinkExtractor.updateWikilinksForRenamedNote(newId, oldTitle, newTitle, db)
 ### 4. Error Handling and Edge Cases
 
 #### Critical Scenarios
+
 - **Filename conflicts**: Generate unique filenames when titles produce duplicate names
 - **Invalid characters**: Handle titles with filesystem-unsafe characters
 - **Concurrent modifications**: Validate content hashes to prevent conflicts
@@ -122,17 +132,18 @@ await LinkExtractor.updateWikilinksForRenamedNote(newId, oldTitle, newTitle, db)
 - **Large reference counts**: Handle performance with many referencing notes
 
 #### Conflict Resolution Strategy
+
 ```typescript
 async generateUniqueFilename(baseName: string, typePath: string): Promise<string> {
   let counter = 1;
   let filename = baseName;
-  
+
   while (await this.fileExists(path.join(typePath, filename))) {
     const nameWithoutExt = baseName.replace(/\.md$/, '');
     filename = `${nameWithoutExt}-${counter}.md`;
     counter++;
   }
-  
+
   return filename;
 }
 ```
@@ -140,11 +151,13 @@ async generateUniqueFilename(baseName: string, typePath: string): Promise<string
 ### 5. Integration Points
 
 #### API Compatibility
+
 - Extend existing `rename_note` tool to support filename synchronization
 - Add optional parameter to control sync behavior
 - Maintain backward compatibility for title-only updates
 
 #### System Integration
+
 - Update `generateNoteId()` calls with new filename
 - Ensure all caches reflect new filename
 - Update file system watchers and monitors
@@ -152,21 +165,25 @@ async generateUniqueFilename(baseName: string, typePath: string): Promise<string
 ### 6. Implementation Phases
 
 #### Phase 1: Core Functionality
+
 - Implement `renameNoteWithFile()` method
 - Add filename conflict resolution
 - Basic error handling
 
 #### Phase 2: Wikilink Integration
+
 - Integrate existing `LinkExtractor` methods
 - Ensure comprehensive link updates
 - Database consistency maintenance
 
 #### Phase 3: Edge Case Handling
+
 - Advanced conflict resolution
 - Comprehensive error handling
 - Transaction rollback capabilities
 
 #### Phase 4: Testing and Optimization
+
 - Comprehensive test coverage
 - Performance optimization
 - API integration and documentation
@@ -174,6 +191,7 @@ async generateUniqueFilename(baseName: string, typePath: string): Promise<string
 ### 7. Testing Strategy
 
 #### Test Coverage Areas
+
 - **Basic functionality**: Title/filename sync with simple cases
 - **Wikilink updates**: All link formats across multiple notes
 - **Error scenarios**: Filename conflicts, invalid characters, concurrent access
@@ -182,6 +200,7 @@ async generateUniqueFilename(baseName: string, typePath: string): Promise<string
 - **Performance**: Large-scale operations with many references
 
 #### Test Structure
+
 ```
 test/server/integration/rename-with-filename-sync/
 ├── basic-rename-sync.test.ts
@@ -195,12 +214,14 @@ test/server/integration/rename-with-filename-sync/
 ## Expected Outcomes
 
 ### User Benefits
+
 - **Intuitive file management**: Filenames automatically reflect note titles
 - **Consistent references**: All wikilinks remain valid after title changes
 - **Improved navigation**: File system browsing matches note titles
 - **Reduced maintenance**: No manual link fixing required
 
 ### System Benefits
+
 - **Data consistency**: Synchronized title/filename relationship
 - **Robust operations**: Comprehensive error handling and rollback
 - **Performance**: Leverages existing optimized wikilink update mechanisms
@@ -209,11 +230,13 @@ test/server/integration/rename-with-filename-sync/
 ## Migration Considerations
 
 ### Backward Compatibility
+
 - Existing notes with mismatched titles/filenames will continue to work
 - New rename operations will establish title/filename synchronization
 - Optional migration tool could sync existing notes
 
 ### Deployment Strategy
+
 - Feature can be deployed incrementally
 - No breaking changes to existing functionality
 - Enhanced behavior only applies to new rename operations

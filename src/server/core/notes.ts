@@ -1350,7 +1350,7 @@ export class NoteManager {
    * - 'filename': The file system name (use rename_note tool instead)
    *
    * This protection ensures that:
-   * 1. Note renaming goes through the proper rename_note tool which handles wikilink updates
+   * 1. Note renaming goes through the proper rename_note tool which handles wikilink updates and filename synchronization
    * 2. File system consistency is maintained
    * 3. Note IDs and references remain stable
    * 4. Users receive clear guidance on the correct tool to use
@@ -1376,7 +1376,7 @@ export class NoteManager {
       const titleMessage = foundProtectedFields.some((field) =>
         ['title', 'filename'].includes(field)
       )
-        ? `Use the 'rename_note' tool to safely update note titles and preserve links. `
+        ? `Use the 'rename_note' tool to safely update note titles with automatic filename synchronization and link preservation. `
         : '';
       const timestampMessage = foundProtectedFields.some((field) =>
         ['created', 'updated'].includes(field)
@@ -1394,59 +1394,219 @@ export class NoteManager {
   }
 
   /**
-   * Rename a note by updating its title field
+   * Rename a note with full title/filename synchronization and wikilink updates
    */
-  async renameNote(
+  async renameNoteWithFile(
     identifier: string,
     newTitle: string,
     contentHash: string
   ): Promise<{ success: boolean; notesUpdated?: number; linksUpdated?: number }> {
-    // Get the current note
-    const currentNote = await this.getNote(identifier);
-    if (!currentNote) {
-      throw new Error(`Note '${identifier}' not found`);
+    // Input validation
+    if (!identifier) {
+      throw new Error('Note identifier is required');
+    }
+    if (!newTitle?.trim()) {
+      throw new Error('New title is required');
+    }
+    if (!contentHash) {
+      throw new Error('Content hash is required for optimistic locking');
     }
 
-    // Update the title in metadata while preserving all other metadata
-    const updatedMetadata = {
-      ...currentNote.metadata,
-      title: newTitle
-    };
+    const trimmedTitle = newTitle.trim();
+    let originalPath: string | null = null;
+    let finalPath: string | null = null;
+    let wasFileRenamed = false;
+    let wasRemovedFromIndex = false;
 
-    // Use the existing updateNoteWithMetadata method with protection bypass for rename
-    await this.updateNoteWithMetadata(
-      identifier,
-      currentNote.content, // Keep content unchanged
-      updatedMetadata,
-      contentHash,
-      true // Bypass protection for legitimate rename operations
-    );
+    try {
+      // Get the current note
+      const currentNote = await this.getNote(identifier);
+      if (!currentNote) {
+        throw new Error(`Note '${identifier}' not found`);
+      }
 
-    let brokenLinksUpdated = 0;
-    let wikilinksResult = { notesUpdated: 0, linksUpdated: 0 };
+      // Generate new filename from title
+      const baseFilename = this.generateFilename(trimmedTitle);
 
-    // Only proceed with link updates if search manager is available
-    if (this.#hybridSearchManager) {
-      const db = await this.#hybridSearchManager.getDatabaseConnection();
-      const noteId = this.generateNoteId(currentNote.type, currentNote.filename);
+      // Validate that the generated filename isn't empty
+      if (!baseFilename) {
+        throw new Error(`Cannot generate valid filename from title: "${trimmedTitle}"`);
+      }
 
-      // Update broken links that might now be resolved due to the new title
-      brokenLinksUpdated = await LinkExtractor.updateBrokenLinks(noteId, newTitle, db);
+      const newFilenameWithExt = `${baseFilename}.md`;
 
-      // Always update wikilinks in other notes
-      wikilinksResult = await LinkExtractor.updateWikilinksForRenamedNote(
-        noteId,
-        currentNote.title,
-        newTitle,
-        db
+      // Get the note type path
+      const typePath = this.#workspace.getNoteTypePath(currentNote.type);
+      const newNotePath = path.join(typePath, newFilenameWithExt);
+      const currentPath = path.join(typePath, `${currentNote.filename}.md`);
+
+      originalPath = currentPath;
+
+      // Handle filename conflicts by generating unique name
+      let finalFilename = baseFilename;
+      let finalNotePath = newNotePath;
+      let counter = 1;
+
+      // Only check for conflicts if we're actually changing the filename
+      if (finalNotePath !== currentPath) {
+        while (true) {
+          try {
+            await fs.access(finalNotePath);
+            // File exists, try with counter
+            finalFilename = `${baseFilename}-${counter}`;
+            finalNotePath = path.join(typePath, `${finalFilename}.md`);
+            counter++;
+
+            // Prevent infinite loops with a reasonable limit
+            if (counter > 1000) {
+              throw new Error(
+                `Cannot generate unique filename for title: "${trimmedTitle}"`
+              );
+            }
+          } catch {
+            // File doesn't exist, we can use this name
+            break;
+          }
+        }
+      }
+
+      finalPath = finalNotePath;
+
+      // Generate old and new IDs
+      const oldId = this.generateNoteId(currentNote.type, currentNote.filename);
+      const newId = this.generateNoteId(currentNote.type, finalFilename);
+
+      // Update the metadata with new title and filename
+      const updatedMetadata = {
+        ...currentNote.metadata,
+        title: trimmedTitle,
+        filename: finalFilename,
+        updated: new Date().toISOString()
+      };
+
+      // Create the updated content
+      const updatedContent = await this.formatNoteContent(
+        trimmedTitle,
+        currentNote.content,
+        currentNote.type,
+        updatedMetadata
       );
-    }
 
-    return {
-      success: true,
-      notesUpdated: wikilinksResult.notesUpdated,
-      linksUpdated: wikilinksResult.linksUpdated + brokenLinksUpdated
-    };
+      // Validate content hash for optimistic locking
+      const crypto = await import('crypto');
+      const currentContent = await fs.readFile(currentPath, 'utf-8');
+      const currentContentHash = crypto
+        .createHash('sha256')
+        .update(currentContent)
+        .digest('hex');
+
+      if (currentContentHash !== contentHash) {
+        throw new Error(
+          'Content has been modified by another process. Please refresh and try again.'
+        );
+      }
+
+      // Remove from search index first (with old path)
+      await this.removeFromSearchIndex(currentPath);
+      wasRemovedFromIndex = true;
+
+      // Rename the physical file if path is changing
+      if (finalNotePath !== currentPath) {
+        await fs.rename(currentPath, finalNotePath);
+        wasFileRenamed = true;
+      }
+
+      // Write updated content to the file
+      await fs.writeFile(finalNotePath, updatedContent, 'utf-8');
+
+      // Update search index with new path and content
+      await this.updateSearchIndex(finalNotePath, updatedContent);
+
+      let brokenLinksUpdated = 0;
+      let wikilinksResult = { notesUpdated: 0, linksUpdated: 0 };
+
+      // Update wikilinks if search manager is available
+      if (this.#hybridSearchManager) {
+        const db = await this.#hybridSearchManager.getDatabaseConnection();
+
+        // Update broken links that might now be resolved due to the new title
+        try {
+          brokenLinksUpdated = await LinkExtractor.updateBrokenLinks(
+            newId,
+            trimmedTitle,
+            db
+          );
+        } catch (error) {
+          console.warn('Failed to update broken links:', error);
+          // Continue with operation - broken link updates are not critical
+        }
+
+        // Update wikilinks for identifier changes (if filename changed)
+        if (oldId !== newId) {
+          try {
+            const moveResult = await LinkExtractor.updateWikilinksForMovedNote(
+              oldId,
+              newId,
+              trimmedTitle,
+              db
+            );
+            wikilinksResult.notesUpdated += moveResult.notesUpdated;
+            wikilinksResult.linksUpdated += moveResult.linksUpdated;
+          } catch (error) {
+            console.warn('Failed to update wikilinks for moved note:', error);
+            // Continue with operation - wikilink updates are not critical for core functionality
+          }
+        }
+
+        // Always update wikilinks for title changes
+        try {
+          const renameResult = await LinkExtractor.updateWikilinksForRenamedNote(
+            newId,
+            currentNote.title,
+            trimmedTitle,
+            db
+          );
+          wikilinksResult.notesUpdated += renameResult.notesUpdated;
+          wikilinksResult.linksUpdated += renameResult.linksUpdated;
+        } catch (error) {
+          console.warn('Failed to update wikilinks for renamed note:', error);
+          // Continue with operation - wikilink updates are not critical for core functionality
+        }
+      }
+
+      return {
+        success: true,
+        notesUpdated: wikilinksResult.notesUpdated,
+        linksUpdated: wikilinksResult.linksUpdated + brokenLinksUpdated
+      };
+    } catch (error) {
+      // Rollback operations in reverse order
+      try {
+        // If we renamed the file, try to rename it back
+        if (wasFileRenamed && originalPath && finalPath) {
+          try {
+            await fs.rename(finalPath, originalPath);
+          } catch (rollbackError) {
+            console.error('Failed to rollback file rename:', rollbackError);
+          }
+        }
+
+        // If we removed from search index, try to re-add it
+        if (wasRemovedFromIndex && originalPath) {
+          try {
+            const originalContent = await fs.readFile(originalPath, 'utf-8');
+            await this.updateSearchIndex(originalPath, originalContent);
+          } catch (rollbackError) {
+            console.error('Failed to rollback search index removal:', rollbackError);
+          }
+        }
+      } catch (rollbackError) {
+        console.error('Error during rollback operations:', rollbackError);
+      }
+
+      // Re-throw the original error
+      throw error;
+    }
   }
 
   /**

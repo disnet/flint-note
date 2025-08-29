@@ -432,7 +432,7 @@ export class ToolService {
   });
 
   private renameNoteTool = tool({
-    description: 'Rename a note and update links',
+    description: 'Rename a note with automatic filename synchronization and link updates',
     inputSchema: z.object({
       identifier: z.string().describe('Note identifier'),
       new_title: z.string().describe('New display title for the note'),
@@ -463,7 +463,7 @@ export class ToolService {
           success: result.success,
           data: result,
           message: result.success
-            ? `Renamed note "${identifier}" to "${new_title}"`
+            ? `Renamed note "${identifier}" to "${new_title}" with filename synchronization`
             : 'Failed to rename note'
         } as ToolResponse;
       } catch (error) {

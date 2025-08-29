@@ -814,7 +814,8 @@ export const TOOL_SCHEMAS = [
   },
   {
     name: 'rename_note',
-    description: 'Rename a note and update any wikilinks that reference it',
+    description:
+      'Rename a note and automatically synchronize the filename with the new title. Updates any wikilinks that reference the note.',
     inputSchema: {
       type: 'object',
       properties: {

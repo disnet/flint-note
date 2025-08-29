@@ -446,7 +446,7 @@ General-purpose notes for miscellaneous thoughts, ideas, and information that do
 - Use clear headings and formatting
 - Link to related notes when appropriate
 - Extract actionable items when present
-- When renaming notes, always use the rename_note tool to update the title field only (preserves links)
+- When renaming notes, always use the rename_note tool to update the title and synchronize the filename (preserves links)
 
 ## Metadata Schema (Optional)
 Expected frontmatter fields:

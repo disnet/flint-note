@@ -4,7 +4,6 @@
 
 import type { NoteMetadata } from '../types/index.js';
 import { filterNoteFields } from '../utils/field-filter.js';
-import { LinkExtractor } from '../core/link-extractor.js';
 import { validateToolArgs } from './validation.js';
 import type {
   CreateNoteArgs,
@@ -25,6 +24,7 @@ export class NoteHandlers {
    * Resolve vault context helper
    */
   private resolveVaultContext: (vaultId?: string) => Promise<VaultContext>;
+  // @ts-ignore - may be used by other methods
   private generateNoteIdFromIdentifier: (identifier: string) => string;
   private requireWorkspace: () => void;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -456,59 +456,18 @@ export class NoteHandlers {
       // Validate arguments
       validateToolArgs('rename_note', args);
 
-      const { noteManager, hybridSearchManager } = await this.resolveVaultContext(
-        args.vault_id
-      );
+      const { noteManager } = await this.resolveVaultContext(args.vault_id);
 
-      // Get the current note to read current metadata
-      const currentNote = await noteManager.getNote(args.identifier);
-      if (!currentNote) {
-        throw new Error(`Note '${args.identifier}' not found`);
-      }
-
-      // Update the title in metadata while preserving all other metadata
-      const updatedMetadata = {
-        ...currentNote.metadata,
-        title: args.new_title
-      };
-
-      // Use the existing updateNoteWithMetadata method with protection bypass for rename
-      const result = await noteManager.updateNoteWithMetadata(
+      // Always use the new method with file synchronization
+      const result = await noteManager.renameNoteWithFile(
         args.identifier,
-        currentNote.content, // Keep content unchanged
-        updatedMetadata,
-        args.content_hash,
-        true // Bypass protection for legitimate rename operations
-      );
-
-      let brokenLinksUpdated = 0;
-      let wikilinksResult = { notesUpdated: 0, linksUpdated: 0 };
-
-      // Update links using the vault-specific hybrid search manager
-      const db = await hybridSearchManager.getDatabaseConnection();
-      const noteId = this.generateNoteIdFromIdentifier(args.identifier);
-
-      // Update broken links that might now be resolved due to the new title
-      brokenLinksUpdated = await LinkExtractor.updateBrokenLinks(
-        noteId,
         args.new_title,
-        db
-      );
-
-      // Always update wikilinks in other notes
-      wikilinksResult = await LinkExtractor.updateWikilinksForRenamedNote(
-        noteId,
-        currentNote.title,
-        args.new_title,
-        db
+        args.content_hash
       );
 
       let wikilinkMessage = '';
-      if (brokenLinksUpdated > 0) {
-        wikilinkMessage = `\n\n🔗 Updated ${brokenLinksUpdated} broken links that now resolve to this note.`;
-      }
-      if (wikilinksResult.notesUpdated > 0) {
-        wikilinkMessage += `\n🔗 Updated ${wikilinksResult.linksUpdated} wikilinks in ${wikilinksResult.notesUpdated} notes that referenced the old title.`;
+      if (result.linksUpdated && result.linksUpdated > 0) {
+        wikilinkMessage = `\n\n🔗 Updated ${result.linksUpdated} wikilinks in ${result.notesUpdated || 0} notes.`;
       }
 
       return {
@@ -518,16 +477,14 @@ export class NoteHandlers {
             text: JSON.stringify(
               {
                 success: true,
-                message: `Note renamed successfully${wikilinkMessage}`,
-                old_title: currentNote.title,
+                message: `Note renamed with filename synchronization${wikilinkMessage}`,
                 new_title: args.new_title,
                 identifier: args.identifier,
-                filename_unchanged: true,
+                filename_synced: true,
                 links_preserved: true,
-                broken_links_resolved: brokenLinksUpdated,
-                wikilinks_updated: true,
-                notes_with_updated_wikilinks: wikilinksResult.notesUpdated,
-                total_wikilinks_updated: wikilinksResult.linksUpdated,
+                wikilinks_updated: result.linksUpdated ? result.linksUpdated > 0 : false,
+                notes_with_updated_wikilinks: result.notesUpdated || 0,
+                total_wikilinks_updated: result.linksUpdated || 0,
                 result
               },
               null,

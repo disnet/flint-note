@@ -471,7 +471,7 @@ export class FlintNoteApi {
   ): Promise<{ success: boolean; notesUpdated?: number; linksUpdated?: number }> {
     this.ensureInitialized();
     const { noteManager } = await this.resolveVaultContext(args.vault_id);
-    return await noteManager.renameNote(
+    return await noteManager.renameNoteWithFile(
       args.identifier,
       args.new_title,
       args.content_hash
