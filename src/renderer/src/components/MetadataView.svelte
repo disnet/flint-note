@@ -269,7 +269,7 @@
 
     // Capture note reference to prevent race conditions
     const currentNote = note;
-    
+
     try {
       isSaving = true;
 
