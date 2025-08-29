@@ -17,7 +17,6 @@
     onClose: () => void;
     onNoteSelect: (note: NoteMetadata) => void;
     onCreateNote: (noteType?: string) => void;
-    onNoteTypeChange: (noteId: string, newType: string) => Promise<void>;
   }
 
   let { activeNote, activeSystemView, onClose, onNoteSelect, onCreateNote }: Props =

@@ -15,7 +15,6 @@
   import { noteNavigationService } from './services/noteNavigationService.svelte';
   import { activeNoteStore } from './stores/activeNoteStore.svelte';
   import { generateSafeNoteIdentifier } from './utils/noteUtils.svelte';
-  import { pinnedNotesStore } from './services/pinnedStore.svelte';
 
   // Initialize unified chat store effects
   unifiedChatStore.initializeEffects();
@@ -118,56 +117,6 @@
 
   async function closeNoteEditor(): Promise<void> {
     await activeNoteStore.clearActiveNote();
-  }
-
-  async function handleNoteTypeChange(noteId: string, newType: string): Promise<void> {
-    const activeNote = activeNoteStore.activeNote;
-    if (!activeNote || activeNote.id !== noteId) return;
-
-    try {
-      const chatService = getChatService();
-
-      console.log(`Moving note from type '${activeNote.type}' to '${newType}'`);
-
-      // Use moveNote API to properly move the note to a new type
-      const moveResult = await chatService.moveNote({
-        identifier: noteId,
-        newType: newType
-      });
-
-      if (moveResult.success) {
-        const oldId = activeNote.id;
-        const newId = moveResult.new_id;
-
-        // Update pinned notes if this note is pinned
-        if (pinnedNotesStore.isPinned(oldId)) {
-          await pinnedNotesStore.updateNoteId(oldId, newId);
-        }
-
-        // Update temporary tabs that reference this note
-        await temporaryTabsStore.updateNoteId(oldId, newId);
-
-        // Update the active note with new ID and type
-        const updatedNote = {
-          ...activeNote,
-          id: newId,
-          type: moveResult.new_type
-        };
-        await activeNoteStore.setActiveNote(updatedNote);
-
-        // Refresh notes store to update the lists
-        await notesStore.refresh();
-
-        console.log(
-          `Successfully moved note to type '${moveResult.new_type}' with new ID '${newId}'`
-        );
-      } else {
-        throw new Error('Failed to move note');
-      }
-    } catch (error) {
-      console.error('Failed to change note type:', error);
-      throw error; // Re-throw so the UI can handle it
-    }
   }
 
   function handleNavigationBack(): void {
@@ -661,7 +610,6 @@
       onClose={closeNoteEditor}
       onNoteSelect={handleNoteSelect}
       onCreateNote={handleCreateNote}
-      onNoteTypeChange={handleNoteTypeChange}
     />
 
     <RightSidebar
