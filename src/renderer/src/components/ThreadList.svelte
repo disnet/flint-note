@@ -1,7 +1,6 @@
 <script lang="ts">
   import { unifiedChatStore } from '../stores/unifiedChatStore.svelte';
   import type { UnifiedThread } from '../stores/unifiedChatStore.svelte';
-  import { formatCostFromMicroCents } from '../lib/costUtils.svelte';
 
   interface Props {
     onThreadSelect?: (threadId: string) => void;
@@ -204,11 +203,6 @@
                   • {thread.notesDiscussed.length} note{thread.notesDiscussed.length === 1
                     ? ''
                     : 's'}
-                </span>
-              {/if}
-              {#if thread.costInfo?.totalCost > 0}
-                <span class="cost-info" title="Total conversation cost">
-                  • {formatCostFromMicroCents(thread.costInfo.totalCost, 3)}
                 </span>
               {/if}
               {#if thread.isArchived}
@@ -459,14 +453,8 @@
   }
 
   .message-count,
-  .notes-count,
-  .cost-info {
+  .notes-count {
     margin-right: 0.5rem;
-  }
-
-  .cost-info {
-    color: var(--accent-primary);
-    font-weight: 500;
   }
 
   .archived-badge {

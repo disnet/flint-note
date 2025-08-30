@@ -9,7 +9,12 @@ import {
   Prec,
   type Extension
 } from '@codemirror/state';
-import { autocompletion, CompletionContext, moveCompletionSelection, completionStatus } from '@codemirror/autocomplete';
+import {
+  autocompletion,
+  CompletionContext,
+  moveCompletionSelection,
+  completionStatus
+} from '@codemirror/autocomplete';
 import type { CompletionResult } from '@codemirror/autocomplete';
 import { keymap } from '@codemirror/view';
 import type { NoteMetadata } from '../services/noteStore.svelte';
@@ -383,28 +388,30 @@ export function wikilinksExtension(clickHandler: WikilinkClickHandler): Extensio
     autocompletion({
       override: [wikilinkCompletion]
     }),
-    Prec.high(keymap.of([
-      {
-        key: 'Ctrl-n',
-        run: (view) => {
-          const status = completionStatus(view.state);
-          if (status === 'active') {
-            return moveCompletionSelection(true)(view);
+    Prec.high(
+      keymap.of([
+        {
+          key: 'Ctrl-n',
+          run: (view) => {
+            const status = completionStatus(view.state);
+            if (status === 'active') {
+              return moveCompletionSelection(true)(view);
+            }
+            return false; // Let default handler take over
           }
-          return false; // Let default handler take over
-        }
-      },
-      {
-        key: 'Ctrl-p',
-        run: (view) => {
-          const status = completionStatus(view.state);
-          if (status === 'active') {
-            return moveCompletionSelection(false)(view);
+        },
+        {
+          key: 'Ctrl-p',
+          run: (view) => {
+            const status = completionStatus(view.state);
+            if (status === 'active') {
+              return moveCompletionSelection(false)(view);
+            }
+            return false; // Let default handler take over
           }
-          return false; // Let default handler take over
         }
-      }
-    ]))
+      ])
+    )
   ];
 }
 

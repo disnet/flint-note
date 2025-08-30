@@ -8,24 +8,6 @@ interface ExtendedChatService extends ChatService {
   ): Promise<{ success: boolean; error?: string }>;
 }
 
-export interface ModelUsageBreakdown {
-  model: string; // e.g., "anthropic/claude-3-5-sonnet-20241022"
-  inputTokens: number;
-  outputTokens: number;
-  cachedTokens: number;
-  cost: number; // in micro-cents (millionths of a dollar) for precise arithmetic
-}
-
-export interface ThreadCostInfo {
-  totalCost: number; // in micro-cents (millionths of a dollar) for precise arithmetic
-  inputTokens: number;
-  outputTokens: number;
-  cachedTokens: number;
-  requestCount: number;
-  modelUsage: ModelUsageBreakdown[];
-  lastUpdated: Date;
-}
-
 export interface UnifiedThread {
   // Core thread identity
   id: string;
@@ -44,21 +26,9 @@ export interface UnifiedThread {
   // Timestamps
   createdAt: Date;
   lastActivity: Date;
-
-  // Cost tracking (enhanced from both)
-  costInfo: ThreadCostInfo;
 }
 
 // Serialized data types for deserialization
-interface SerializedThreadCostInfo {
-  totalCost: number;
-  inputTokens: number;
-  outputTokens: number;
-  cachedTokens: number;
-  requestCount: number;
-  modelUsage: ModelUsageBreakdown[];
-  lastUpdated?: string | Date;
-}
 
 interface SerializedMessage {
   id: string;
@@ -77,7 +47,6 @@ interface SerializedThread {
   isArchived?: boolean;
   createdAt: string | Date;
   lastActivity: string | Date;
-  costInfo: SerializedThreadCostInfo;
 }
 
 interface UnifiedChatState {
@@ -307,16 +276,7 @@ class UnifiedChatStore {
       notesDiscussed: initialMessage ? extractNotesDiscussed([initialMessage]) : [],
       isArchived: false,
       createdAt: now,
-      lastActivity: now,
-      costInfo: {
-        totalCost: 0,
-        inputTokens: 0,
-        outputTokens: 0,
-        cachedTokens: 0,
-        requestCount: 0,
-        modelUsage: [],
-        lastUpdated: now
-      }
+      lastActivity: now
     };
 
     // Add to current vault's threads
@@ -591,62 +551,6 @@ class UnifiedChatStore {
     if (!this.effectsInitialized) await this.saveToStorage();
   }
 
-  // Cost tracking
-  async recordThreadUsage(
-    threadId: string,
-    usageData: {
-      modelName: string;
-      inputTokens: number;
-      outputTokens: number;
-      cachedTokens: number;
-      cost: number;
-      timestamp: Date;
-    }
-  ): Promise<boolean> {
-    const thread = this.findThread(threadId);
-    if (!thread) return false;
-
-    // Update cost info
-    thread.costInfo.totalCost += usageData.cost;
-    thread.costInfo.inputTokens += usageData.inputTokens;
-    thread.costInfo.outputTokens += usageData.outputTokens;
-    thread.costInfo.cachedTokens += usageData.cachedTokens;
-    thread.costInfo.requestCount += 1;
-    thread.costInfo.lastUpdated = usageData.timestamp;
-
-    // Update or add model breakdown
-    const existingModelIndex = thread.costInfo.modelUsage.findIndex(
-      (m) => m.model === usageData.modelName
-    );
-
-    if (existingModelIndex !== -1) {
-      const existingModel = thread.costInfo.modelUsage[existingModelIndex];
-      existingModel.inputTokens += usageData.inputTokens;
-      existingModel.outputTokens += usageData.outputTokens;
-      existingModel.cachedTokens += usageData.cachedTokens;
-      existingModel.cost += usageData.cost;
-    } else {
-      thread.costInfo.modelUsage.push({
-        model: usageData.modelName,
-        inputTokens: usageData.inputTokens,
-        outputTokens: usageData.outputTokens,
-        cachedTokens: usageData.cachedTokens,
-        cost: usageData.cost
-      });
-    }
-
-    // Trigger reactivity by updating the thread
-    await this.updateThread(threadId, {});
-    return true;
-  }
-
-  getTotalCost(): number {
-    return this.allThreads.reduce(
-      (total, thread) => total + thread.costInfo.totalCost,
-      0
-    );
-  }
-
   // Private helper methods
   private findThread(threadId: string): UnifiedThread | null {
     for (const threads of this.state.threadsByVault.values()) {
@@ -695,11 +599,7 @@ class UnifiedChatStore {
             const processedThreads = threadArray.map((thread: SerializedThread) => ({
               ...thread,
               createdAt: new Date(thread.createdAt),
-              lastActivity: new Date(thread.lastActivity),
-              costInfo: {
-                ...thread.costInfo,
-                lastUpdated: new Date(thread.costInfo.lastUpdated || thread.createdAt)
-              }
+              lastActivity: new Date(thread.lastActivity)
             }));
 
             // Save each vault's threads to file system
@@ -766,10 +666,6 @@ class UnifiedChatStore {
           ...thread,
           createdAt: new Date(thread.createdAt),
           lastActivity: new Date(thread.lastActivity),
-          costInfo: {
-            ...thread.costInfo,
-            lastUpdated: new Date(thread.costInfo.lastUpdated || thread.createdAt)
-          },
           messages: this.deduplicateMessages(
             thread.messages.map((msg: SerializedMessage) => ({
               ...msg,

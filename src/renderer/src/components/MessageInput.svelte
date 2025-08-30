@@ -1,7 +1,6 @@
 <script lang="ts">
   import ModelSelector from './ModelSelector.svelte';
   import SlashCommandAutocomplete from './SlashCommandAutocomplete.svelte';
-  import Tooltip from './Tooltip.svelte';
   type SlashCommandAutocompleteType = SlashCommandAutocomplete;
   import { onMount, onDestroy } from 'svelte';
   import { EditorView, WidgetType, Decoration } from '@codemirror/view';
@@ -31,34 +30,11 @@
     slashCommandsStore,
     type SlashCommand
   } from '../stores/slashCommandsStore.svelte';
-  import { unifiedChatStore } from '../stores/unifiedChatStore.svelte';
-  import { formatCostFromMicroCents } from '../lib/costUtils.svelte';
 
   let { onSend }: { onSend: (text: string) => void } = $props();
 
   let inputText = $state('');
   let autocompleteComponent = $state<SlashCommandAutocompleteType | null>(null);
-
-  // Get active thread for cost information
-  const activeConversation = $derived(unifiedChatStore.activeThread);
-
-  // Format tooltip content for cost display
-  const costTooltipContent = $derived.by(() => {
-    if (!activeConversation?.costInfo) return '';
-
-    const info = activeConversation.costInfo;
-    let content = `Total: ${formatCostFromMicroCents(info.totalCost, 4)}\n`;
-    content += `Input tokens: ${info.inputTokens.toLocaleString()}\n`;
-    content += `Output tokens: ${info.outputTokens.toLocaleString()}`;
-
-    if (info.cachedTokens > 0) {
-      content += `\nCached tokens: ${info.cachedTokens.toLocaleString()}`;
-    }
-
-    content += `\nRequests: ${info.requestCount}`;
-
-    return content;
-  });
 
   // Slash command widget for atomic display
   class SlashCommandWidget extends WidgetType {
@@ -675,13 +651,6 @@
   <div class="controls-row">
     <div class="model-selector-wrapper">
       <ModelSelector />
-      {#if activeConversation?.costInfo && activeConversation.costInfo.totalCost > 0}
-        <Tooltip content={costTooltipContent}>
-          <div class="cost-display">
-            {formatCostFromMicroCents(activeConversation.costInfo.totalCost, 2)}
-          </div>
-        </Tooltip>
-      {/if}
     </div>
     <button onclick={handleSubmit} disabled={!inputText.trim()} class="send-button">
       submit ↵
@@ -720,18 +689,6 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-  }
-
-  .cost-display {
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-    font-weight: 500;
-    cursor: help;
-    transition: color 0.2s ease;
-  }
-
-  .cost-display:hover {
-    color: var(--text-primary);
   }
 
   .editor-field {

@@ -4,11 +4,6 @@ export interface ModelInfo {
   provider: string;
   icon: string;
   contextLength?: number;
-  costPerMTokens?: {
-    input: number;
-    output: number;
-    cached?: number;
-  };
 }
 
 export const SUPPORTED_MODELS: ModelInfo[] = [
@@ -28,16 +23,14 @@ export const SUPPORTED_MODELS: ModelInfo[] = [
     name: 'Claude 4 Sonnet',
     provider: 'Anthropic',
     icon: '🧠',
-    contextLength: 200000,
-    costPerMTokens: { input: 3.0, output: 15.0, cached: 0.3 }
+    contextLength: 200000
   },
   {
     id: 'anthropic/claude-3.5-haiku',
     name: 'Claude 3.5 Haiku',
     provider: 'Anthropic',
     icon: '🧠',
-    contextLength: 200000,
-    costPerMTokens: { input: 0.8, output: 4.0, cached: 0.08 }
+    contextLength: 200000
   }
 ];
 

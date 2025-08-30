@@ -86,11 +86,6 @@
     }
     return () => {};
   });
-
-  function formatCost(cost: { input: number; output: number }): string {
-    const avgCost = (cost.input + cost.output) / 2;
-    return `$${avgCost.toFixed(2)}/M`;
-  }
 </script>
 
 <div class="model-selector" bind:this={dropdownElement}>
@@ -135,14 +130,11 @@
                       <span class="checkmark">✓</span>
                     {/if}
                   </div>
-                  {#if model.costPerMTokens}
+                  {#if model.contextLength}
                     <div class="model-meta">
-                      <span class="cost">{formatCost(model.costPerMTokens)}</span>
-                      {#if model.contextLength}
-                        <span class="context"
-                          >{(model.contextLength / 1000).toFixed(0)}K ctx</span
-                        >
-                      {/if}
+                      <span class="context"
+                        >{(model.contextLength / 1000).toFixed(0)}K ctx</span
+                      >
                     </div>
                   {/if}
                 </div>
@@ -294,10 +286,6 @@
     gap: 1rem;
     font-size: 0.75rem;
     color: var(--text-secondary);
-  }
-
-  .cost {
-    font-weight: 500;
   }
 
   .context {

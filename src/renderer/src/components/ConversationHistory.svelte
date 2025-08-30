@@ -1,7 +1,6 @@
 <script lang="ts">
   import { unifiedChatStore } from '../stores/unifiedChatStore.svelte';
   import type { UnifiedThread } from '../stores/unifiedChatStore.svelte';
-  import { formatCostFromMicroCents } from '../lib/costUtils.svelte';
 
   interface Props {
     onConversationSelect: (conversationId: string) => void;
@@ -118,11 +117,6 @@
             <p class="conversation-preview">{getLastMessagePreview(conversation)}</p>
             <div class="conversation-meta">
               <span class="message-count">{getMessageCount(conversation)} messages</span>
-              {#if conversation.costInfo?.totalCost > 0}
-                <span class="cost-info"
-                  >{formatCostFromMicroCents(conversation.costInfo.totalCost, 3)}</span
-                >
-              {/if}
               <span class="conversation-date"
                 >{formatDate(conversation.lastActivity)}</span
               >
@@ -314,11 +308,6 @@
   }
 
   .message-count {
-    font-weight: 500;
-  }
-
-  .cost-info {
-    color: var(--accent-primary);
     font-weight: 500;
   }
 
