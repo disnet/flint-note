@@ -148,10 +148,9 @@ export class NoteManager {
 
       const typePath = await this.#workspace.ensureNoteType(typeName);
 
-      // Generate filename from title and check availability
+      // Generate filename from title and ensure uniqueness
       const baseFilename = this.generateFilename(trimmedTitle);
-      await this.checkFilenameAvailability(typePath, baseFilename);
-      const filename = baseFilename;
+      const filename = await this.generateUniqueFilename(typePath, baseFilename);
       const notePath = path.join(typePath, filename);
 
       // Prepare metadata with title for validation
@@ -231,31 +230,46 @@ export class NoteManager {
   }
 
   /**
-   * Check if a filename is available, throwing an error if it already exists
+   * Generate a unique filename, handling conflicts by appending numbers
    */
-  async checkFilenameAvailability(typePath: string, filename: string): Promise<void> {
-    const filePath = path.join(typePath, filename);
+  async generateUniqueFilename(typePath: string, baseFilename: string): Promise<string> {
+    let filename = baseFilename;
+    let counter = 1;
+
+    // First, check if the base filename is available
+    const basePath = path.join(typePath, filename);
     try {
-      await fs.access(filePath);
-      // File exists, throw an error
-      const error = new Error(
-        `A note with the filename '${filename}' already exists in the '${path.basename(typePath)}' note type`
-      ) as FlintNoteError;
-      error.code = 'NOTE_ALREADY_EXISTS';
-      error.details = {
-        filename,
-        typePath,
-        filePath
-      };
-      throw error;
+      await fs.access(basePath);
+      // File exists, need to generate a unique name
     } catch (error) {
-      // File doesn't exist, filename is available
+      // File doesn't exist, base filename is available
       if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
-        return; // Filename is available
+        return filename;
       } else {
         throw error; // Re-throw if it's not a "file not found" error
       }
     }
+
+    // Generate unique filename by appending numbers
+    const baseName = baseFilename.replace(/\.md$/, ''); // Remove .md extension
+    do {
+      filename = `${baseName}-${counter}.md`;
+      const filePath = path.join(typePath, filename);
+      try {
+        await fs.access(filePath);
+        // File exists, try next number
+        counter++;
+      } catch (error) {
+        // File doesn't exist, filename is available
+        if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+          return filename;
+        } else {
+          throw error; // Re-throw if it's not a "file not found" error
+        }
+      }
+    } while (counter < 1000); // Safety limit to prevent infinite loops
+
+    throw new Error(`Could not generate unique filename after ${counter} attempts`);
   }
 
   /**
