@@ -130,12 +130,48 @@ export class ElectronChatService implements ChatService, NoteService {
               onToolCall(data.toolCall);
               // Trigger notes store refresh for any tool call
               notesStore.handleToolCall({ name: data.toolCall.name });
+
+              // Specifically handle note updates
+              if (data.toolCall.name === 'update_note' && data.toolCall.arguments) {
+                try {
+                  const args =
+                    typeof data.toolCall.arguments === 'string'
+                      ? JSON.parse(data.toolCall.arguments)
+                      : data.toolCall.arguments;
+                  if (args.identifier) {
+                    notesStore.notifyNoteUpdated(args.identifier);
+                  }
+                } catch (err) {
+                  console.warn(
+                    'Failed to parse tool call arguments for note update notification:',
+                    err
+                  );
+                }
+              }
             }
           }
         : (data) => {
             // Even if no onToolCall callback, still handle notes store refresh
             if (data.requestId === requestId) {
               notesStore.handleToolCall({ name: data.toolCall.name });
+
+              // Specifically handle note updates
+              if (data.toolCall.name === 'update_note' && data.toolCall.arguments) {
+                try {
+                  const args =
+                    typeof data.toolCall.arguments === 'string'
+                      ? JSON.parse(data.toolCall.arguments)
+                      : data.toolCall.arguments;
+                  if (args.identifier) {
+                    notesStore.notifyNoteUpdated(args.identifier);
+                  }
+                } catch (err) {
+                  console.warn(
+                    'Failed to parse tool call arguments for note update notification:',
+                    err
+                  );
+                }
+              }
             }
           }
     );

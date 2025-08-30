@@ -187,6 +187,23 @@
     }
   });
 
+  // Watch for specific note updates and reload content if the current note was updated
+  $effect(() => {
+    const updateCounter = notesStore.noteUpdateCounter;
+    const lastUpdatedNoteId = notesStore.lastUpdatedNoteId;
+
+    // Skip initial load (when counter is 0) and only reload if current note was updated
+    if (updateCounter > 0 && lastUpdatedNoteId === note?.id) {
+      setTimeout(async () => {
+        try {
+          await loadNote(note);
+        } catch (loadError) {
+          console.warn('Failed to reload note content after agent update:', loadError);
+        }
+      }, 100);
+    }
+  });
+
   async function loadNote(note: NoteMetadata): Promise<void> {
     try {
       error = null;
