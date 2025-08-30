@@ -106,9 +106,18 @@
   import { notesStore } from '../services/noteStore.svelte';
   import type { Note } from '@/server/core/notes';
   import { getChatService } from '../services/chatService.js';
+
+  interface CursorPosition {
+    noteId: string;
+    position: number;
+    selectionStart?: number;
+    selectionEnd?: number;
+    lastUpdated: string;
+  }
   import { wikilinkService } from '../services/wikilinkService.svelte.js';
   import { pinnedNotesStore } from '../services/pinnedStore.svelte.js';
   import { temporaryTabsStore } from '../stores/temporaryTabsStore.svelte.js';
+  import { cursorPositionStore } from '../services/cursorPositionStore.svelte.js';
   import MetadataView from './MetadataView.svelte';
 
   interface Props {
@@ -131,13 +140,21 @@
   let metadataExpanded = $state(false);
   let showPinControl = $state(false);
 
+  // Cursor position management
+  let pendingCursorPosition: CursorPosition | null = null;
+  let cursorSaveTimeout: number | null = null;
+
   onMount(() => {
     return () => {
+      // Cleanup editor and timers only - cursor position is handled in $effect
       if (editorView) {
         editorView.destroy();
       }
       if (saveTimeout) {
         clearTimeout(saveTimeout);
+      }
+      if (cursorSaveTimeout) {
+        clearTimeout(cursorSaveTimeout);
       }
     };
   });
@@ -148,10 +165,29 @@
     }
   });
 
+  // Track previous note to save cursor position before switching
+  let previousNote: NoteMetadata | null = null;
+
   $effect(() => {
-    loadNote(note);
-    // Update title when note changes
-    titleValue = note.title;
+    (async () => {
+      // Save cursor position for previous note before switching
+      if (previousNote && previousNote.id !== note.id) {
+        try {
+          await saveCurrentCursorPositionForNote(previousNote);
+        } catch (error) {
+          console.warn('Failed to save cursor position before note switch:', error);
+        }
+      }
+
+      // Load new note
+      await loadNote(note);
+
+      // Update title when note changes
+      titleValue = note.title;
+
+      // Update previous note reference
+      previousNote = note;
+    })();
   });
 
   // Watch for changes in notes store and refresh wikilinks
@@ -210,9 +246,18 @@
       const noteService = getChatService();
 
       if (await noteService.isReady()) {
-        const result = await noteService.getNote({ identifier: note.id });
-        noteData = result;
-        noteContent = result?.content ?? '';
+        // Load BOTH content and cursor position before creating editor
+        const [noteResult, cursorPosition] = await Promise.all([
+          noteService.getNote({ identifier: note.id }),
+          cursorPositionStore.getCursorPosition(note.id)
+        ]);
+
+        noteData = noteResult;
+        noteContent = noteResult?.content ?? '';
+
+        // Store cursor position for use in updateEditorContent()
+        pendingCursorPosition = cursorPosition;
+
         updateEditorContent();
       } else {
         throw new Error('Note service not ready');
@@ -308,10 +353,35 @@
         wikilinksExtension(handleWikilinkClick),
         EditorView.contentAttributes.of({ spellcheck: 'true' }),
         EditorView.updateListener.of((update) => {
+          if (update.selectionSet && !update.docChanged) {
+            // Only cursor/selection moved - debounce save cursor position
+            debouncedSaveCursorPosition();
+          }
           if (update.docChanged) {
             hasChanges = true;
             noteContent = update.state.doc.toString();
             debouncedSave();
+            // Also save cursor position when content changes with shorter debounce
+            if (editorView && note) {
+              const selection = editorView.state.selection.main;
+              const position: CursorPosition = {
+                noteId: note.id,
+                position: selection.anchor,
+                selectionStart:
+                  selection.from !== selection.to ? selection.from : undefined,
+                selectionEnd: selection.from !== selection.to ? selection.to : undefined,
+                lastUpdated: new Date().toISOString()
+              };
+
+              cursorPositionStore
+                .setCursorPositionOnContentChange(note.id, position)
+                .catch((error) => {
+                  console.warn(
+                    'Failed to save cursor position on content change:',
+                    error
+                  );
+                });
+            }
           }
         })
       ]
@@ -344,19 +414,56 @@
     if (mediaQuery) {
       mediaQuery.removeEventListener('change', handleThemeChange);
     }
+    if (cursorSaveTimeout) {
+      clearTimeout(cursorSaveTimeout);
+    }
   });
 
   function updateEditorContent(): void {
     if (editorView && noteContent !== undefined) {
       const currentDoc = editorView.state.doc.toString();
       if (currentDoc !== noteContent) {
-        editorView.dispatch({
-          changes: {
-            from: 0,
-            to: currentDoc.length,
-            insert: noteContent
+        const changes = {
+          from: 0,
+          to: currentDoc.length,
+          insert: noteContent
+        };
+
+        // Calculate cursor position for new content
+        let selection: { anchor: number; head: number } | undefined = undefined;
+        if (pendingCursorPosition) {
+          const position = Math.min(pendingCursorPosition.position, noteContent.length);
+
+          if (
+            pendingCursorPosition.selectionStart !== undefined &&
+            pendingCursorPosition.selectionEnd !== undefined
+          ) {
+            // Restore selection range
+            const start = Math.min(
+              pendingCursorPosition.selectionStart,
+              noteContent.length
+            );
+            const end = Math.min(pendingCursorPosition.selectionEnd, noteContent.length);
+            selection = { anchor: start, head: end };
+          } else {
+            // Restore cursor position
+            selection = { anchor: position, head: position };
           }
+
+          // Clear pending position
+          pendingCursorPosition = null;
+        } else {
+          // No saved cursor position - reset cursor to start of document
+          selection = { anchor: 0, head: 0 };
+        }
+
+        // Apply content and cursor position in single transaction
+        editorView.dispatch({
+          changes,
+          selection,
+          scrollIntoView: !!selection
         });
+
         hasChanges = false;
       }
     }
@@ -378,6 +485,49 @@
     } finally {
       isSaving = false;
     }
+  }
+
+  // Cursor position management functions
+  async function saveCurrentCursorPositionForNote(
+    targetNote: NoteMetadata
+  ): Promise<void> {
+    if (editorView) {
+      const selection = editorView.state.selection.main;
+      const position: CursorPosition = {
+        noteId: targetNote.id,
+        position: selection.anchor,
+        selectionStart: selection.from !== selection.to ? selection.from : undefined,
+        selectionEnd: selection.from !== selection.to ? selection.to : undefined,
+        lastUpdated: new Date().toISOString()
+      };
+
+      await cursorPositionStore.saveCurrentCursorPosition(targetNote.id, position);
+    }
+  }
+
+  function debouncedSaveCursorPosition(): void {
+    if (cursorSaveTimeout) {
+      clearTimeout(cursorSaveTimeout);
+    }
+
+    cursorSaveTimeout = window.setTimeout(async () => {
+      try {
+        if (editorView && note) {
+          const selection = editorView.state.selection.main;
+          const position: CursorPosition = {
+            noteId: note.id,
+            position: selection.anchor,
+            selectionStart: selection.from !== selection.to ? selection.from : undefined,
+            selectionEnd: selection.from !== selection.to ? selection.to : undefined,
+            lastUpdated: new Date().toISOString()
+          };
+
+          await cursorPositionStore.setCursorPosition(note.id, position);
+        }
+      } catch (error) {
+        console.warn('Failed to save cursor position:', error);
+      }
+    }, 1000); // 1000ms debounce for cursor movement
   }
 
   function debouncedSave(): void {

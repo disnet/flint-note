@@ -133,10 +133,85 @@ export class VaultDataStorageService extends BaseStorageService {
   }
 
   /**
+   * Load cursor positions for a vault
+   */
+  async loadCursorPositions(vaultId: string): Promise<Record<string, CursorPosition>> {
+    await this.ensureVaultDirectory(vaultId);
+    const filePath = this.getStoragePath('vault-data', vaultId, 'cursor-positions.json');
+    const data = await this.readJsonFile<CursorPositionsData>(filePath, {
+      version: '1.0',
+      vaultId,
+      positions: {},
+      lastUpdated: new Date().toISOString()
+    });
+    return data.positions;
+  }
+
+  /**
+   * Save cursor positions for a vault
+   */
+  async saveCursorPositions(
+    vaultId: string,
+    positions: Record<string, CursorPosition>
+  ): Promise<void> {
+    await this.ensureVaultDirectory(vaultId);
+    const filePath = this.getStoragePath('vault-data', vaultId, 'cursor-positions.json');
+    const data: CursorPositionsData = {
+      version: '1.0',
+      vaultId,
+      positions,
+      lastUpdated: new Date().toISOString()
+    };
+    await this.writeJsonFile(filePath, data);
+  }
+
+  /**
+   * Get cursor position for a specific note in a vault
+   */
+  async getCursorPosition(
+    vaultId: string,
+    noteId: string
+  ): Promise<CursorPosition | null> {
+    const positions = await this.loadCursorPositions(vaultId);
+    return positions[noteId] || null;
+  }
+
+  /**
+   * Set cursor position for a specific note in a vault
+   */
+  async setCursorPosition(
+    vaultId: string,
+    noteId: string,
+    position: CursorPosition
+  ): Promise<void> {
+    const positions = await this.loadCursorPositions(vaultId);
+    positions[noteId] = position;
+    await this.saveCursorPositions(vaultId, positions);
+  }
+
+  /**
    * List all vault IDs that have data stored
    */
   async listVaults(): Promise<string[]> {
     const files = await this.listFiles(this.vaultDataDir);
     return files.filter((file) => !file.includes('.'));
   }
+}
+
+/**
+ * Cursor position data structures
+ */
+export interface CursorPosition {
+  noteId: string;
+  position: number;
+  selectionStart?: number;
+  selectionEnd?: number;
+  lastUpdated: string;
+}
+
+export interface CursorPositionsData {
+  version: string;
+  vaultId: string;
+  positions: Record<string, CursorPosition>;
+  lastUpdated: string;
 }

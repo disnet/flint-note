@@ -6,6 +6,7 @@
   import { temporaryTabsStore } from '../stores/temporaryTabsStore.svelte';
   import { unifiedChatStore } from '../stores/unifiedChatStore.svelte';
   import { activeNoteStore } from '../stores/activeNoteStore.svelte';
+  import { cursorPositionStore } from '../services/cursorPositionStore.svelte';
   import CreateVaultModal from './CreateVaultModal.svelte';
 
   interface Props {
@@ -46,6 +47,7 @@
       // Start vault switch mode - this clears tabs and blocks new ones
       await temporaryTabsStore.startVaultSwitch();
       await activeNoteStore.startVaultSwitch();
+      await cursorPositionStore.startVaultSwitch();
 
       // Close the active note since it's from the previous vault
       onNoteClose();
@@ -58,6 +60,7 @@
       await pinnedNotesStore.refreshForVault(vaultId);
       await temporaryTabsStore.refreshForVault(vaultId);
       await unifiedChatStore.refreshForVault(vaultId);
+      await cursorPositionStore.endVaultSwitch();
       await activeNoteStore.endVaultSwitch();
 
       // End vault switch mode

@@ -14,10 +14,29 @@
   import { unifiedChatStore } from './stores/unifiedChatStore.svelte';
   import { noteNavigationService } from './services/noteNavigationService.svelte';
   import { activeNoteStore } from './stores/activeNoteStore.svelte';
+  import { cursorPositionStore } from './services/cursorPositionStore.svelte';
   import { generateSafeNoteIdentifier } from './utils/noteUtils.svelte';
+  import { onMount } from 'svelte';
 
   // Initialize unified chat store effects
   unifiedChatStore.initializeEffects();
+
+  // Add app lifecycle integration for cursor position persistence
+  onMount(() => {
+    const handleBeforeUnload = async (): Promise<void> => {
+      try {
+        await cursorPositionStore.flushPendingSaves();
+      } catch (error) {
+        console.warn('Failed to flush cursor position saves on app close:', error);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  });
 
   // Messages are now managed by unifiedChatStore
   const messages = $derived(unifiedChatStore.activeThread?.messages || []);

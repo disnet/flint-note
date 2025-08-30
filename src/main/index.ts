@@ -7,7 +7,10 @@ import { NoteService } from './note-service';
 import { SecureStorageService } from './secure-storage-service';
 import { PinnedNotesStorageService } from './pinned-notes-storage-service';
 import { SettingsStorageService } from './settings-storage-service';
-import { VaultDataStorageService } from './vault-data-storage-service';
+import {
+  VaultDataStorageService,
+  type CursorPosition
+} from './vault-data-storage-service';
 import type {
   MetadataFieldDefinition,
   MetadataSchema
@@ -1039,6 +1042,59 @@ app.whenReady().then(async () => {
         throw new Error('Vault data storage service not available');
       }
       return await vaultDataStorageService.saveActiveNote(params.vaultId, params.noteId);
+    }
+  );
+
+  ipcMain.handle('load-cursor-positions', async (_event, params: { vaultId: string }) => {
+    if (!vaultDataStorageService) {
+      throw new Error('Vault data storage service not available');
+    }
+    return await vaultDataStorageService.loadCursorPositions(params.vaultId);
+  });
+
+  ipcMain.handle(
+    'save-cursor-positions',
+    async (
+      _event,
+      params: { vaultId: string; positions: Record<string, CursorPosition> }
+    ) => {
+      if (!vaultDataStorageService) {
+        throw new Error('Vault data storage service not available');
+      }
+      return await vaultDataStorageService.saveCursorPositions(
+        params.vaultId,
+        params.positions
+      );
+    }
+  );
+
+  ipcMain.handle(
+    'get-cursor-position',
+    async (_event, params: { vaultId: string; noteId: string }) => {
+      if (!vaultDataStorageService) {
+        throw new Error('Vault data storage service not available');
+      }
+      return await vaultDataStorageService.getCursorPosition(
+        params.vaultId,
+        params.noteId
+      );
+    }
+  );
+
+  ipcMain.handle(
+    'set-cursor-position',
+    async (
+      _event,
+      params: { vaultId: string; noteId: string; position: CursorPosition }
+    ) => {
+      if (!vaultDataStorageService) {
+        throw new Error('Vault data storage service not available');
+      }
+      return await vaultDataStorageService.setCursorPosition(
+        params.vaultId,
+        params.noteId,
+        params.position
+      );
     }
   );
 

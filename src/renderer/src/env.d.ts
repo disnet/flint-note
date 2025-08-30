@@ -46,6 +46,14 @@ type ToolCallData = {
   error: string | undefined;
 };
 
+interface CursorPosition {
+  noteId: string;
+  position: number;
+  selectionStart?: number;
+  selectionEnd?: number;
+  lastUpdated: string;
+}
+
 declare global {
   interface Window {
     electron: import('@electron-toolkit/preload').ElectronAPI;
@@ -231,6 +239,24 @@ declare global {
       saveActiveNote: (params: {
         vaultId: string;
         noteId: string | null;
+      }) => Promise<void>;
+
+      // Cursor position management
+      loadCursorPositions: (params: {
+        vaultId: string;
+      }) => Promise<Record<string, CursorPosition>>;
+      saveCursorPositions: (params: {
+        vaultId: string;
+        positions: Record<string, CursorPosition>;
+      }) => Promise<void>;
+      getCursorPosition: (params: {
+        vaultId: string;
+        noteId: string;
+      }) => Promise<CursorPosition | null>;
+      setCursorPosition: (params: {
+        vaultId: string;
+        noteId: string;
+        position: CursorPosition;
       }) => Promise<void>;
     };
   }

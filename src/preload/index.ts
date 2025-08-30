@@ -1,6 +1,7 @@
 import { contextBridge } from 'electron';
 import { electronAPI } from '@electron-toolkit/preload';
 import { MetadataFieldDefinition, MetadataSchema } from '../server/core/metadata-schema';
+import type { CursorPosition } from '../main/vault-data-storage-service';
 
 interface FrontendMessage {
   id: string;
@@ -235,6 +236,21 @@ const api = {
     electronAPI.ipcRenderer.invoke('load-active-note', params),
   saveActiveNote: (params: { vaultId: string; noteId: string | null }) =>
     electronAPI.ipcRenderer.invoke('save-active-note', params),
+
+  // Cursor position management
+  loadCursorPositions: (params: { vaultId: string }) =>
+    electronAPI.ipcRenderer.invoke('load-cursor-positions', params),
+  saveCursorPositions: (params: {
+    vaultId: string;
+    positions: Record<string, CursorPosition>;
+  }) => electronAPI.ipcRenderer.invoke('save-cursor-positions', params),
+  getCursorPosition: (params: { vaultId: string; noteId: string }) =>
+    electronAPI.ipcRenderer.invoke('get-cursor-position', params),
+  setCursorPosition: (params: {
+    vaultId: string;
+    noteId: string;
+    position: CursorPosition;
+  }) => electronAPI.ipcRenderer.invoke('set-cursor-position', params),
 
   // Usage tracking
   onUsageRecorded: (callback: (usageData: unknown) => void) => {
