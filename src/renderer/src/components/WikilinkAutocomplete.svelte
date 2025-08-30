@@ -96,10 +96,14 @@
   function handleKeyDown(event: KeyboardEvent): void {
     switch (event.key) {
       case 'ArrowDown':
+      case 'n':
+        if (event.key === 'n' && !event.ctrlKey) break;
         event.preventDefault();
         selectedIndex = Math.min(selectedIndex + 1, options.length - 1);
         break;
       case 'ArrowUp':
+      case 'p':
+        if (event.key === 'p' && !event.ctrlKey) break;
         event.preventDefault();
         selectedIndex = Math.max(selectedIndex - 1, 0);
         break;
