@@ -171,6 +171,22 @@
     }
   });
 
+  // Watch for wikilink updates and reload note content if needed
+  $effect(() => {
+    const updateCounter = notesStore.wikilinksUpdateCounter;
+
+    // Skip initial load (when counter is 0)
+    if (updateCounter > 0 && note) {
+      setTimeout(async () => {
+        try {
+          await loadNote(note);
+        } catch (loadError) {
+          console.warn('Failed to reload note content after wikilink update:', loadError);
+        }
+      }, 100);
+    }
+  });
+
   async function loadNote(note: NoteMetadata): Promise<void> {
     try {
       error = null;
@@ -417,6 +433,11 @@
           await notesStore.refresh();
         } catch (refreshError) {
           console.warn('Failed to refresh notes store after rename:', refreshError);
+        }
+
+        // If wikilinks were updated in other notes, notify the store so all open notes can reload
+        if (result.linksUpdated && result.linksUpdated > 0) {
+          notesStore.notifyWikilinksUpdated();
         }
       } else {
         throw new Error('Rename operation failed');

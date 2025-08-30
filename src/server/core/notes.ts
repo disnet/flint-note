@@ -1567,9 +1567,10 @@ export class NoteManager {
         // Always update wikilinks for title changes
         try {
           const renameResult = await LinkExtractor.updateWikilinksForRenamedNote(
-            newId,
+            oldId,
             currentNote.title,
             trimmedTitle,
+            newId,
             db
           );
           wikilinksResult.notesUpdated += renameResult.notesUpdated;

@@ -385,17 +385,22 @@ export class LinkExtractor {
    * Update wikilinks in other notes that reference a renamed note's old title
    */
   static async updateWikilinksForRenamedNote(
-    renamedNoteId: string,
+    oldNoteId: string,
     oldTitle: string,
     newTitle: string,
+    newNoteId: string,
     db: DatabaseConnection
   ): Promise<{ notesUpdated: number; linksUpdated: number }> {
-    // Find all notes that link to the renamed note
+    // Find all notes that link to the renamed note (using the old note ID and old title)
+    // Look for:
+    // 1. target_note_id matches old note ID (for resolved links)
+    // 2. target_title matches old title (case-insensitive, for title-based links)
+    // 3. target_title matches old note ID (for type/filename format links like [[note/id|Title]])
     const linkingNotes = await db.all<{ source_note_id: string }>(
       `SELECT DISTINCT source_note_id
        FROM note_links
-       WHERE target_note_id = ? OR target_title = ?`,
-      [renamedNoteId, oldTitle]
+       WHERE target_note_id = ? OR target_title = ? COLLATE NOCASE OR target_title = ?`,
+      [oldNoteId, oldTitle, oldNoteId]
     );
 
     let notesUpdated = 0;
@@ -416,7 +421,8 @@ export class LinkExtractor {
           noteRow.content,
           oldTitle,
           newTitle,
-          renamedNoteId
+          oldNoteId,
+          newNoteId
         );
 
         // Only update if changes were made
@@ -555,7 +561,8 @@ export class LinkExtractor {
     content: string,
     oldTitle: string,
     newTitle: string,
-    renamedNoteId: string
+    oldNoteId: string,
+    newNoteId: string
   ): { updatedContent: string; linksUpdated: number } {
     let linksUpdated = 0;
     let updatedContent = content;
@@ -576,19 +583,25 @@ export class LinkExtractor {
         shouldUpdate = true;
       }
       // Case 2: [[type/filename|Old Title]] -> [[type/filename|New Title]]
-      // Only update if the target matches the renamed note ID
+      // Only update if the target matches the old note ID
       // Handle both old format (with .md) and new format (without .md)
       else if (
         link.display === oldTitle &&
         link.target !== oldTitle &&
-        (link.target === renamedNoteId || link.target === renamedNoteId + '.md')
+        (link.target === oldNoteId || link.target === oldNoteId + '.md')
       ) {
-        newWikilink = `[[${link.target}|${newTitle}]]`;
+        newWikilink = `[[${newNoteId}|${newTitle}]]`;
         shouldUpdate = true;
       }
       // Case 3: [[Old Title|Custom Text]] -> [[New Title|Custom Text]]
       else if (link.target === oldTitle && link.display !== oldTitle) {
         newWikilink = `[[${newTitle}|${link.display}]]`;
+        shouldUpdate = true;
+      }
+      // Case 4: [[old/note-id|Any Display]] -> [[new/note-id|Any Display]]
+      // Handle links that target the old note ID with any display text
+      else if (link.target === oldNoteId || link.target === oldNoteId + '.md') {
+        newWikilink = `[[${newNoteId}|${link.display}]]`;
         shouldUpdate = true;
       }
 

@@ -23,6 +23,7 @@ interface NotesStoreState {
   noteTypes: NoteType[];
   loading: boolean;
   error: string | null;
+  wikilinksUpdateCounter: number;
 }
 
 function createNotesStore(): {
@@ -31,8 +32,10 @@ function createNotesStore(): {
   readonly loading: boolean;
   readonly error: string | null;
   readonly groupedNotes: Record<string, NoteMetadata[]>;
+  readonly wikilinksUpdateCounter: number;
   refresh: () => Promise<void>;
   handleToolCall: (toolCall: { name: string }) => void;
+  notifyWikilinksUpdated: () => void;
 } {
   const noteService = getChatService();
 
@@ -40,7 +43,8 @@ function createNotesStore(): {
     notes: [],
     noteTypes: [],
     loading: true,
-    error: null
+    error: null,
+    wikilinksUpdateCounter: 0
   });
 
   // Derived store for grouped notes by type
@@ -204,6 +208,10 @@ function createNotesStore(): {
     }, 100);
   }
 
+  function notifyWikilinksUpdated(): void {
+    state.wikilinksUpdateCounter++;
+  }
+
   // Initial load
   loadAllNotes();
 
@@ -223,8 +231,12 @@ function createNotesStore(): {
     get groupedNotes() {
       return groupedNotes;
     },
+    get wikilinksUpdateCounter() {
+      return state.wikilinksUpdateCounter;
+    },
     refresh,
-    handleToolCall
+    handleToolCall,
+    notifyWikilinksUpdated
   };
 }
 
