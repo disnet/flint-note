@@ -26,9 +26,6 @@ flint-ui/
 │       ├── server/            # Server handlers
 │       ├── types/             # Type definitions
 │       └── utils/             # Server utilities
-├── test/                       # Consolidated tests
-│   ├── app/                   # App-specific tests
-│   └── server/                # Server tests
 ├── docs/                       # Project documentation
 └── [config files]             # Build configs, TypeScript, etc.
 ```
@@ -41,10 +38,6 @@ flint-ui/
 - `npm run typecheck` - Run TypeScript checking
 - `npm run format` - Format code across all files
 - `npm run clean` - Clean build artifacts
-- `npm run test` - Run Vitest tests for UI components
-- `npm run test:server` - Run server tests
-- `npm run test:unit` - Run server unit tests
-- `npm run test:integration` - Run server integration tests
 
 ## System Layout
 

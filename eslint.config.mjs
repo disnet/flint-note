@@ -4,7 +4,7 @@ import eslintPluginSvelte from 'eslint-plugin-svelte';
 
 export default tseslint.config(
   {
-    ignores: ['**/node_modules', '**/dist', '**/out', '**/src/server', '**/test/server']
+    ignores: ['**/node_modules', '**/dist', '**/out', '**/src/server']
   },
   tseslint.configs.recommended,
   eslintPluginSvelte.configs['flat/recommended'],
