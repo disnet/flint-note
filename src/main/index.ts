@@ -745,11 +745,22 @@ app.whenReady().then(async () => {
       if (!secureStorageService) {
         throw new Error('Secure storage service not available');
       }
-      return await secureStorageService.updateApiKey(
-        params.provider,
-        params.key,
-        params.orgId
-      );
+
+      // Update the API key in secure storage
+      await secureStorageService.updateApiKey(params.provider, params.key, params.orgId);
+
+      // If this is an OpenRouter key update and AI service is available, refresh it
+      if (params.provider === 'openrouter' && aiService) {
+        try {
+          await aiService.refreshApiKey(secureStorageService);
+          logger.info('AI Service refreshed after OpenRouter API key update');
+        } catch (error) {
+          logger.error('Failed to refresh AI Service after API key update', { error });
+          // Don't throw here - the key was still stored successfully
+        }
+      }
+
+      return;
     }
   );
 

@@ -85,6 +85,23 @@ export class AIService extends EventEmitter {
     this.toolService = new ToolService(noteService);
   }
 
+  /**
+   * Refresh the OpenRouter client with new API key
+   * Called when API keys are updated to ensure the service uses the latest credentials
+   */
+  async refreshApiKey(secureStorage: SecureStorageService): Promise<void> {
+    try {
+      const { key } = await secureStorage.getApiKey('openrouter');
+      this.openrouter = createOpenRouter({
+        apiKey: key
+      });
+      logger.info('AI Service API key refreshed successfully');
+    } catch (error) {
+      logger.error('Failed to refresh AI Service API key', { error });
+      throw error;
+    }
+  }
+
   static async of(
     secureStorage: SecureStorageService,
     noteService: NoteService | null = null
