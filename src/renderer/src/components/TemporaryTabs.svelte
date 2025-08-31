@@ -119,7 +119,21 @@
   <div class="temporary-tabs">
     <div class="tabs-header">
       <div class="separator"></div>
-      <button class="clear-all" onclick={handleClearAll}> close all </button>
+      <button class="clear-all" onclick={handleClearAll}>
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          class="down-arrow"
+        >
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <polyline points="7,14 12,19 17,14"></polyline>
+        </svg>
+        close all
+      </button>
     </div>
 
     <div class="tabs-list">
@@ -212,10 +226,17 @@
     transition: color 0.2s ease;
     text-decoration: underline;
     text-underline-offset: 2px;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
   }
 
   .clear-all:hover {
     color: var(--text-secondary);
+  }
+
+  .down-arrow {
+    flex-shrink: 0;
   }
 
   .tabs-list {
