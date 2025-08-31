@@ -22,6 +22,13 @@
   let noteTypeInfo = $state<GetNoteTypeInfoResult | null>(null);
   let loadingSchema = $state(false);
 
+  // Load schema when note changes to show all schema fields in read-only mode
+  $effect(() => {
+    if (note?.type) {
+      loadNoteTypeSchema(note.type);
+    }
+  });
+
   // Get available note types from the notes store
   let availableTypes = $derived(notesStore.noteTypes);
 
@@ -29,7 +36,7 @@
     if (!note) return [];
 
     const metadata = note.metadata || {};
-    const result: Array<{ key: string; value: string; type: string }> = [];
+    const result: Array<{ key: string; value: string; type: string; isEmpty?: boolean }> = [];
 
     // Add standard metadata fields
     if (note.type) {
@@ -76,7 +83,7 @@
       });
     }
 
-    // Add custom metadata fields (excluding standard ones)
+    // Add schema-defined metadata fields if available
     const standardFields = new Set([
       'title',
       'type',
@@ -88,9 +95,58 @@
       'links'
     ]);
 
+    const schemaFields = new Set();
+
+    // Add schema fields from noteTypeInfo if available
+    if (noteTypeInfo?.metadata_schema?.fields) {
+      for (const fieldDef of noteTypeInfo.metadata_schema.fields) {
+        schemaFields.add(fieldDef.name);
+
+        // Show all schema fields, even if they don't have values
+        const value = metadata[fieldDef.name];
+        let displayValue: string;
+        let valueType = fieldDef.type;
+
+        let isEmpty = false;
+
+        if (value === undefined || value === null || value === '') {
+          // Show placeholder for empty schema fields
+          displayValue = '—';
+          valueType = 'string'; // Use 'string' as fallback instead of 'empty'
+          isEmpty = true;
+        } else if (Array.isArray(value)) {
+          if (value.length > 0) {
+            displayValue = value.join(', ');
+            valueType = 'array';
+          } else {
+            displayValue = '—';
+            valueType = 'string'; // Use 'string' as fallback instead of 'empty'
+            isEmpty = true;
+          }
+        } else if (typeof value === 'object') {
+          displayValue = JSON.stringify(value, null, 2);
+          valueType = 'string'; // Use 'string' as fallback for objects
+        } else if (typeof value === 'boolean') {
+          displayValue = value ? 'True' : 'False';
+          valueType = 'boolean';
+        } else {
+          displayValue = String(value);
+        }
+
+        result.push({
+          key: fieldDef.name.charAt(0).toUpperCase() + fieldDef.name.slice(1),
+          value: displayValue,
+          type: valueType,
+          isEmpty
+        });
+      }
+    }
+
+    // Add custom metadata fields that aren't in schema (excluding standard ones)
     Object.entries(metadata).forEach(([key, value]) => {
       if (
         !standardFields.has(key) &&
+        !schemaFields.has(key) &&
         value !== undefined &&
         value !== null &&
         value !== ''
@@ -103,7 +159,7 @@
             displayValue = value.join(', ');
             valueType = 'array';
           } else {
-            return; // Skip empty arrays
+            return; // Skip empty arrays for non-schema fields
           }
         } else if (typeof value === 'object') {
           displayValue = JSON.stringify(value, null, 2);
@@ -503,7 +559,7 @@
           {#each formattedMetadata as item (item.key)}
             <div class="metadata-item">
               <div class="metadata-key">{item.key}</div>
-              <div class="metadata-value" data-type={item.type}>
+              <div class="metadata-value" data-type={item.type} class:empty-value={item.isEmpty}>
                 {#if item.type === 'tags'}
                   <div class="tags-container">
                     {#each item.value.split(', ') as tag, index (index)}
@@ -638,6 +694,12 @@
   .metadata-value[data-type='date'] {
     font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace;
     font-size: 0.8rem;
+  }
+
+  .metadata-value.empty-value {
+    color: var(--text-secondary);
+    font-style: italic;
+    opacity: 0.7;
   }
 
   .tags-container {
