@@ -1,10 +1,10 @@
 <script lang="ts">
-  import { notesStore, type NoteMetadata } from '../services/noteStore.svelte';
+  import { notesStore, type NoteMetadata, type NoteType } from '../services/noteStore.svelte';
   import { pinnedNotesStore } from '../services/pinnedStore.svelte';
   import NoteTypeActions from './NoteTypeActions.svelte';
   import TypeInfoOverlay from './TypeInfoOverlay.svelte';
 
-  const { groupedNotes } = notesStore;
+  const { groupedNotes, noteTypes } = notesStore;
 
   interface Props {
     onNoteSelect?: (note: NoteMetadata) => void;
@@ -78,67 +78,80 @@
     </div>
   {/if}
 
-  {#if notesStore.notes.length > 0 && Object.keys(groupedNotes).length > 0}
+  {#if noteTypes.length > 0}
     <div class="notes-tree">
-      {#each Object.entries(groupedNotes) as [typeName, notes] (typeName)}
+      {#each noteTypes as noteType (noteType.name)}
+        {@const notes = groupedNotes[noteType.name] || []}
         <div class="note-type">
           <div class="type-header-container">
             <button
               class="type-header"
-              class:expanded={expandedTypes.has(typeName)}
-              onclick={() => toggleType(typeName)}
+              class:expanded={expandedTypes.has(noteType.name)}
+              onclick={() => toggleType(noteType.name)}
             >
               <span class="type-icon">
-                {expandedTypes.has(typeName) ? '▼' : '▶'}
+                {expandedTypes.has(noteType.name) ? '▼' : '▶'}
               </span>
-              <span class="type-name">{typeName}</span>
+              <span class="type-name">{noteType.name}</span>
               <span class="note-count">({notes.length})</span>
             </button>
             <div class="type-actions">
               <NoteTypeActions
-                {typeName}
+                typeName={noteType.name}
                 onCreateNote={handleCreateNoteWithType}
                 onShowTypeInfo={handleShowTypeInfo}
               />
             </div>
           </div>
 
-          {#if showTypeInfoOverlay === typeName}
+          {#if showTypeInfoOverlay === noteType.name}
             <div class="full-width-overlay">
-              <TypeInfoOverlay {typeName} onClose={() => (showTypeInfoOverlay = null)} />
+              <TypeInfoOverlay typeName={noteType.name} onClose={() => (showTypeInfoOverlay = null)} />
             </div>
           {/if}
 
-          {#if expandedTypes.has(typeName)}
+          {#if expandedTypes.has(noteType.name)}
             <div class="notes-list">
-              {#each notes as note, index (note.id || `${typeName}-${index}`)}
-                <div
-                  class="note-item"
-                  role="button"
-                  tabindex="0"
-                  onclick={() => handleNoteClick(note)}
-                  onkeydown={(e) => handleNoteKeyDown(e, note)}
-                >
-                  <div class="note-title">
-                    {#if pinnedNotesStore.isPinned(note.id)}
-                      <span class="pin-indicator" title="Pinned note">📌</span>
-                    {/if}
-                    {note.title}
-                  </div>
-                  {#if note.snippet}
-                    <div class="note-snippet">
-                      {note.snippet}
+              {#if notes.length > 0}
+                {#each notes as note, index (note.id || `${noteType.name}-${index}`)}
+                  <div
+                    class="note-item"
+                    role="button"
+                    tabindex="0"
+                    onclick={() => handleNoteClick(note)}
+                    onkeydown={(e) => handleNoteKeyDown(e, note)}
+                  >
+                    <div class="note-title">
+                      {#if pinnedNotesStore.isPinned(note.id)}
+                        <span class="pin-indicator" title="Pinned note">📌</span>
+                      {/if}
+                      {note.title}
                     </div>
-                  {/if}
+                    {#if note.snippet}
+                      <div class="note-snippet">
+                        {note.snippet}
+                      </div>
+                    {/if}
+                  </div>
+                {/each}
+              {:else}
+                <div class="empty-type-message">
+                  No notes of this type yet. 
+                  <button 
+                    class="create-first-note-btn"
+                    onclick={() => handleCreateNoteWithType(noteType.name)}
+                  >
+                    Create first note
+                  </button>
                 </div>
-              {/each}
+              {/if}
             </div>
           {/if}
         </div>
       {/each}
     </div>
   {:else if !notesStore.loading}
-    <div style="padding: 20px; text-align: center; color: #666;">No notes found.</div>
+    <div style="padding: 20px; text-align: center; color: #666;">No note types found.</div>
   {:else}
     <div style="padding: 20px; text-align: center; color: #666;">Loading notes...</div>
   {/if}
@@ -384,5 +397,38 @@
     width: 100%;
     margin-top: 0.5rem;
     margin-bottom: 1rem;
+  }
+
+  .empty-type-message {
+    padding: 1rem;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    background: var(--bg-secondary);
+    border-radius: 0.25rem;
+    margin: 0.5rem 0;
+  }
+
+  .create-first-note-btn {
+    display: inline-block;
+    margin-top: 0.5rem;
+    padding: 0.375rem 0.75rem;
+    background: var(--accent-primary);
+    color: var(--accent-text);
+    border: none;
+    border-radius: 0.25rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .create-first-note-btn:hover {
+    background: var(--accent-primary-hover);
+    transform: translateY(-1px);
+  }
+
+  .create-first-note-btn:active {
+    transform: translateY(0);
   }
 </style>
