@@ -722,7 +722,7 @@
       await noteService.updateNote({
         identifier: note.id,
         content: noteContent,
-        metadata: metadata as import('@/server/types').NoteMetadata
+        metadata: $state.snapshot(metadata) as import('@/server/types').NoteMetadata
       });
 
       // Refresh the note data to reflect changes

@@ -247,9 +247,9 @@ export class ElectronChatService implements ChatService, NoteService {
     vaultId?: string;
     metadata?: NoteMetadata;
   }): Promise<UpdateResult> {
-    const { identifier, content, vaultId } = params;
+    const { identifier, content, vaultId, metadata } = params;
     try {
-      return await window.api.updateNote({ identifier, content, vaultId });
+      return await window.api.updateNote({ identifier, content, vaultId, metadata });
     } catch (error) {
       console.error('Failed to update note:', error);
       throw new Error('Failed to update note. Please try again.');

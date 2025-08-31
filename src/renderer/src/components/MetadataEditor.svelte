@@ -251,7 +251,8 @@
       const noteService = getChatService();
       await noteService.updateNote({
         identifier: activeNote.id,
-        content: newContent
+        content: newContent,
+        metadata: $state.snapshot(parsedMetadata)
       });
 
       hasChanges = false;

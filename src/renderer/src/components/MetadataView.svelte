@@ -36,7 +36,8 @@
     if (!note) return [];
 
     const metadata = note.metadata || {};
-    const result: Array<{ key: string; value: string; type: string; isEmpty?: boolean }> = [];
+    const result: Array<{ key: string; value: string; type: string; isEmpty?: boolean }> =
+      [];
 
     // Add standard metadata fields
     if (note.type) {
@@ -337,19 +338,44 @@
       // Handle metadata update if needed
       if (onMetadataUpdate) {
         // Prepare metadata update - only include editable fields
-        const updatedMetadata = {
-          ...currentNote.metadata,
-          tags: editedMetadata.tags,
-          // Add other custom metadata fields
-          ...Object.fromEntries(
-            Object.entries(editedMetadata).filter(
-              ([key]) =>
-                !['type', 'created', 'modified', 'filename', 'path'].includes(key)
-            )
+        const filteredMetadata = Object.fromEntries(
+          Object.entries(editedMetadata).filter(([key, value]) => {
+            // Exclude system fields that shouldn't be in metadata
+            if (['title', 'filename', 'type', 'created', 'updated', 'modified', 'path'].includes(key)) {
+              return false;
+            }
+
+            // For arrays (like tags), only include if they have content
+            if (Array.isArray(value)) {
+              return (
+                value.length > 0 && value.some((item) => item !== '' && item != null)
+              );
+            }
+
+            // For other values, only include if they have meaningful content
+            return value !== undefined && value !== null && value !== '';
+          })
+        );
+
+        // Filter out protected fields from existing metadata
+        const existingMetadata = $state.snapshot(currentNote.metadata);
+        const safeExistingMetadata = Object.fromEntries(
+          Object.entries(existingMetadata).filter(([key]) => 
+            !['title', 'filename', 'type', 'created', 'updated'].includes(key)
           )
+        );
+
+        const updatedMetadata = {
+          ...safeExistingMetadata,
+          ...filteredMetadata
         };
 
         await onMetadataUpdate(updatedMetadata);
+
+        // Reload schema to reflect any changes
+        if (note?.type) {
+          await loadNoteTypeSchema(note.type);
+        }
       }
 
       isEditing = false;
@@ -559,7 +585,11 @@
           {#each formattedMetadata as item (item.key)}
             <div class="metadata-item">
               <div class="metadata-key">{item.key}</div>
-              <div class="metadata-value" data-type={item.type} class:empty-value={item.isEmpty}>
+              <div
+                class="metadata-value"
+                data-type={item.type}
+                class:empty-value={item.isEmpty}
+              >
                 {#if item.type === 'tags'}
                   <div class="tags-container">
                     {#each item.value.split(', ') as tag, index (index)}
