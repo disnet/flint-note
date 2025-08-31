@@ -22,13 +22,6 @@
   let noteTypeInfo = $state<GetNoteTypeInfoResult | null>(null);
   let loadingSchema = $state(false);
 
-  // Load schema when note changes to show all schema fields in read-only mode
-  $effect(() => {
-    if (note?.type) {
-      loadNoteTypeSchema(note.type);
-    }
-  });
-
   // Get available note types from the notes store
   let availableTypes = $derived(notesStore.noteTypes);
 
@@ -341,7 +334,17 @@
         const filteredMetadata = Object.fromEntries(
           Object.entries(editedMetadata).filter(([key, value]) => {
             // Exclude system fields that shouldn't be in metadata
-            if (['title', 'filename', 'type', 'created', 'updated', 'modified', 'path'].includes(key)) {
+            if (
+              [
+                'title',
+                'filename',
+                'type',
+                'created',
+                'updated',
+                'modified',
+                'path'
+              ].includes(key)
+            ) {
               return false;
             }
 
@@ -360,8 +363,8 @@
         // Filter out protected fields from existing metadata
         const existingMetadata = $state.snapshot(currentNote.metadata);
         const safeExistingMetadata = Object.fromEntries(
-          Object.entries(existingMetadata).filter(([key]) => 
-            !['title', 'filename', 'type', 'created', 'updated'].includes(key)
+          Object.entries(existingMetadata).filter(
+            ([key]) => !['title', 'filename', 'type', 'created', 'updated'].includes(key)
           )
         );
 
