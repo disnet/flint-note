@@ -200,22 +200,25 @@ export class MetadataValidator {
    */
   static validate(
     metadata: Record<string, unknown>,
-    schema: MetadataSchema
+    schema: MetadataSchema,
+    enforceRequiredFields: boolean = true
   ): ValidationResult {
     const errors: ValidationError[] = [];
     const warnings: ValidationError[] = [];
 
-    // Check required fields
-    for (const field of schema.fields) {
-      if (
-        field.required &&
-        (metadata[field.name] === undefined || metadata[field.name] === null)
-      ) {
-        errors.push({
-          field: field.name,
-          message: `Required field '${field.name}' is missing`,
-          value: metadata[field.name]
-        });
+    // Check required fields (only if enforcement is enabled)
+    if (enforceRequiredFields) {
+      for (const field of schema.fields) {
+        if (
+          field.required &&
+          (metadata[field.name] === undefined || metadata[field.name] === null)
+        ) {
+          errors.push({
+            field: field.name,
+            message: `Required field '${field.name}' is missing`,
+            value: metadata[field.name]
+          });
+        }
       }
     }
 

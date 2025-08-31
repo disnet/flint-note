@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { notesStore, type NoteMetadata, type NoteType } from '../services/noteStore.svelte';
+  import { notesStore, type NoteMetadata } from '../services/noteStore.svelte';
   import { pinnedNotesStore } from '../services/pinnedStore.svelte';
   import NoteTypeActions from './NoteTypeActions.svelte';
   import TypeInfoOverlay from './TypeInfoOverlay.svelte';
@@ -106,7 +106,10 @@
 
           {#if showTypeInfoOverlay === noteType.name}
             <div class="full-width-overlay">
-              <TypeInfoOverlay typeName={noteType.name} onClose={() => (showTypeInfoOverlay = null)} />
+              <TypeInfoOverlay
+                typeName={noteType.name}
+                onClose={() => (showTypeInfoOverlay = null)}
+              />
             </div>
           {/if}
 
@@ -136,8 +139,8 @@
                 {/each}
               {:else}
                 <div class="empty-type-message">
-                  No notes of this type yet. 
-                  <button 
+                  No notes of this type yet.
+                  <button
                     class="create-first-note-btn"
                     onclick={() => handleCreateNoteWithType(noteType.name)}
                   >
@@ -151,7 +154,9 @@
       {/each}
     </div>
   {:else if !notesStore.loading}
-    <div style="padding: 20px; text-align: center; color: #666;">No note types found.</div>
+    <div style="padding: 20px; text-align: center; color: #666;">
+      No note types found.
+    </div>
   {:else}
     <div style="padding: 20px; text-align: center; color: #666;">Loading notes...</div>
   {/if}

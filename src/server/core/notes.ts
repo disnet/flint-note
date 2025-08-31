@@ -130,7 +130,8 @@ export class NoteManager {
     typeName: string,
     title: string,
     content: string,
-    metadata: Record<string, unknown> = {}
+    metadata: Record<string, unknown> = {},
+    enforceRequiredFields: boolean = true
   ): Promise<NoteInfo> {
     try {
       // Validate inputs
@@ -160,7 +161,11 @@ export class NoteManager {
       };
 
       // Validate metadata against schema
-      const validationResult = await this.validateMetadata(typeName, metadataWithTitle);
+      const validationResult = await this.validateMetadata(
+        typeName,
+        metadataWithTitle,
+        enforceRequiredFields
+      );
       if (!validationResult.valid) {
         throw new Error(
           `Metadata validation failed: ${validationResult.errors.map((e) => e.message).join(', ')}`
@@ -1209,11 +1214,12 @@ export class NoteManager {
    */
   async validateMetadata(
     typeName: string,
-    metadata: Record<string, unknown>
+    metadata: Record<string, unknown>,
+    enforceRequiredFields: boolean = true
   ): Promise<ValidationResult> {
     try {
       const schema = await this.#noteTypeManager.getMetadataSchema(typeName);
-      return MetadataValidator.validate(metadata, schema);
+      return MetadataValidator.validate(metadata, schema, enforceRequiredFields);
     } catch (error) {
       // If schema retrieval fails, allow the operation but log warning
       console.warn(
@@ -1227,7 +1233,10 @@ export class NoteManager {
   /**
    * Create multiple notes in a batch operation
    */
-  async batchCreateNotes(notes: BatchCreateNoteInput[]): Promise<BatchCreateResult> {
+  async batchCreateNotes(
+    notes: BatchCreateNoteInput[],
+    enforceRequiredFields: boolean = true
+  ): Promise<BatchCreateResult> {
     const results: BatchCreateResult['results'] = [];
     let successful = 0;
     let failed = 0;
@@ -1238,7 +1247,8 @@ export class NoteManager {
           noteInput.type,
           noteInput.title,
           noteInput.content,
-          noteInput.metadata || {}
+          noteInput.metadata || {},
+          enforceRequiredFields
         );
         results.push({
           input: noteInput,

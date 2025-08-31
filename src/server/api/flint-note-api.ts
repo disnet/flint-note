@@ -341,6 +341,7 @@ export class FlintNoteApi {
 
   /**
    * Create a single note - returns NoteInfo
+   * By default, does not enforce required fields (for UI usage)
    */
   async createNote(options: CreateSingleNoteOptions): Promise<NoteInfo> {
     this.ensureInitialized();
@@ -350,18 +351,48 @@ export class FlintNoteApi {
       options.type,
       options.title,
       options.content,
-      options.metadata || {}
+      options.metadata || {},
+      false // Don't enforce required fields for UI
+    );
+  }
+
+  /**
+   * Create a single note with required field validation (for agent usage)
+   */
+  async createNoteForAgent(options: CreateSingleNoteOptions): Promise<NoteInfo> {
+    this.ensureInitialized();
+    const { noteManager } = await this.resolveVaultContext(options.vaultId);
+
+    return await noteManager.createNote(
+      options.type,
+      options.title,
+      options.content,
+      options.metadata || {},
+      true // Enforce required fields for agents
     );
   }
 
   /**
    * Create multiple notes in batch - returns NoteInfo array
+   * By default, does not enforce required fields (for UI usage)
    */
   async createNotes(options: CreateMultipleNotesOptions): Promise<NoteInfo[]> {
     this.ensureInitialized();
     const { noteManager } = await this.resolveVaultContext(options.vaultId);
 
-    const result = await noteManager.batchCreateNotes(options.notes);
+    const result = await noteManager.batchCreateNotes(options.notes, false); // Don't enforce required fields for UI
+    // Extract successful note creations and return pure NoteInfo array
+    return result.results.filter((r) => r.success && r.result).map((r) => r.result!);
+  }
+
+  /**
+   * Create multiple notes in batch with required field validation (for agent usage)
+   */
+  async createNotesForAgent(options: CreateMultipleNotesOptions): Promise<NoteInfo[]> {
+    this.ensureInitialized();
+    const { noteManager } = await this.resolveVaultContext(options.vaultId);
+
+    const result = await noteManager.batchCreateNotes(options.notes, true); // Enforce required fields for agents
     // Extract successful note creations and return pure NoteInfo array
     return result.results.filter((r) => r.success && r.result).map((r) => r.result!);
   }

@@ -53,7 +53,7 @@ export class NoteHandlers {
 
     // Handle batch creation if notes array is provided
     if (args.notes) {
-      const result = await noteManager.batchCreateNotes(args.notes);
+      const result = await noteManager.batchCreateNotes(args.notes, true); // Enforce required fields for agents
       return {
         content: [
           {
@@ -73,7 +73,8 @@ export class NoteHandlers {
       args.type,
       args.title,
       args.content,
-      args.metadata || {}
+      args.metadata || {},
+      true // Enforce required fields for agents
     );
 
     // Get agent instructions for this note type
