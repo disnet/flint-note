@@ -7,6 +7,27 @@ body {
   user-select: none;
 }
 
+/* Allow text selection in message content */
+.message-content {
+  user-select: text;
+}
+
+.message-content * {
+  user-select: text;
+}
+
+/* Allow text selection in type info overlay content */
+.type-info-overlay .overlay-content {
+  user-select: text;
+}
+
+.type-info-overlay .overlay-content p,
+.type-info-overlay .overlay-content li,
+.type-info-overlay .overlay-content .field-description,
+.type-info-overlay .overlay-content .no-data {
+  user-select: text;
+}
+
 code {
   font-weight: 600;
   padding: 3px 5px;
