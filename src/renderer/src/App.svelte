@@ -349,6 +349,10 @@
     };
     await unifiedChatStore.addMessage(agentResponse);
 
+    // Track streaming state to handle tool call separation
+    let currentMessageId = agentResponseId;
+    let hasToolCalls = false;
+
     try {
       const chatService = getChatService();
 
@@ -357,26 +361,47 @@
         chatService.sendMessageStream(
           text,
           unifiedChatStore.activeThreadId || undefined,
-          // onChunk: append text chunks to the message
+          // onChunk: append text chunks to the current message
           async (chunk: string) => {
             const currentMessage = unifiedChatStore.activeThread?.messages?.find(
-              (m) => m.id === agentResponseId
+              (m) => m.id === currentMessageId
             );
             if (currentMessage) {
-              await unifiedChatStore.updateMessage(agentResponseId, {
+              await unifiedChatStore.updateMessage(currentMessageId, {
                 text: currentMessage.text + chunk
               });
             }
           },
           // onComplete: streaming finished
-          async (fullText: string) => {
-            await unifiedChatStore.updateMessage(agentResponseId, { text: fullText });
+          async (_fullText: string) => {
+            // Clean up any empty messages that were created for post-tool-call text
+            if (hasToolCalls) {
+              const thread = unifiedChatStore.activeThread;
+              if (thread) {
+                // Filter out any empty messages (no text and no tool calls)
+                const filteredMessages = thread.messages.filter((message) => {
+                  // Keep messages with text content
+                  if (message.text.trim() !== '') return true;
+                  // Keep messages with tool calls
+                  if (message.toolCalls && message.toolCalls.length > 0) return true;
+                  // Remove empty messages
+                  return false;
+                });
+
+                // Only update if we actually removed some messages
+                if (filteredMessages.length !== thread.messages.length) {
+                  await unifiedChatStore.updateThread(thread.id, {
+                    messages: filteredMessages
+                  });
+                }
+              }
+            }
             isLoadingResponse = false;
           },
           // onError: handle streaming errors
           async (error: string) => {
             console.error('Streaming error:', error);
-            await unifiedChatStore.updateMessage(agentResponseId, {
+            await unifiedChatStore.updateMessage(currentMessageId, {
               text: 'Sorry, I encountered an error while processing your message.'
             });
             isLoadingResponse = false;
@@ -384,20 +409,28 @@
           modelStore.selectedModel,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           async (toolCall: any) => {
-            console.log('App.svelte: Received tool call:', toolCall);
+            // Add the tool call to the current message that's receiving streamed text
             const currentMessage = unifiedChatStore.activeThread?.messages?.find(
-              (m) => m.id === agentResponseId
+              (m) => m.id === currentMessageId
             );
             if (currentMessage) {
               const updatedToolCalls = [...(currentMessage.toolCalls || []), toolCall];
-              await unifiedChatStore.updateMessage(agentResponseId, {
+              await unifiedChatStore.updateMessage(currentMessageId, {
                 toolCalls: updatedToolCalls
               });
-              console.log(
-                'App.svelte: Added tool call to message, message now has',
-                updatedToolCalls.length,
-                'tool calls'
-              );
+              hasToolCalls = true;
+
+              // Create a new message for any text that comes after this tool call
+              const postToolCallMessageId = generateUniqueId();
+              const postToolCallMessage: Message = {
+                id: postToolCallMessageId,
+                text: '',
+                sender: 'agent',
+                timestamp: new Date(),
+                toolCalls: []
+              };
+              await unifiedChatStore.addMessage(postToolCallMessage);
+              currentMessageId = postToolCallMessageId;
             }
           }
         );

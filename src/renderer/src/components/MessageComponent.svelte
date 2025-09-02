@@ -16,17 +16,17 @@
   class:user={message.sender === 'user'}
   class:agent={message.sender === 'agent'}
 >
+  {#if message.text.trim()}
+    <div class="message-content">
+      <MarkdownRenderer text={message.text} {onNoteClick} />
+    </div>
+  {/if}
+
   {#if message.toolCalls && message.toolCalls.length > 0}
     <div class="tool-calls">
       {#each message.toolCalls as toolCall (toolCall.id)}
         <ToolCallComponent {toolCall} />
       {/each}
-    </div>
-  {/if}
-
-  {#if message.text.trim()}
-    <div class="message-content">
-      <MarkdownRenderer text={message.text} {onNoteClick} />
     </div>
   {/if}
 </div>
