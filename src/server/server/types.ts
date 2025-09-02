@@ -1,5 +1,5 @@
 /**
- * Type definitions for the FlintNote MCP Server
+ * Type definitions for the FlintNote Server
  */
 
 import type { MetadataSchema, MetadataFieldDefinition } from '../core/metadata-schema.js';

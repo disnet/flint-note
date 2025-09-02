@@ -1,5 +1,5 @@
 /**
- * Direct API for FlintNote - Direct manager access without MCP protocol
+ * Direct API for FlintNote - Direct manager access
  * Conservative implementation using only verified manager methods
  */
 

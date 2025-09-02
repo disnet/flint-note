@@ -7,6 +7,7 @@ Subnotes introduce hierarchical note organization to Flint while preserving the 
 ## Core Concept
 
 **Hierarchical Independence**: A subnote is a regular note that maintains a parent-child relationship with another note. Unlike folders, subnotes:
+
 - Remain independently accessible and linkable
 - Can have multiple parents (many-to-many relationships)
 - Preserve all existing note functionality (metadata, types, search, AI integration)
@@ -17,21 +18,25 @@ Subnotes introduce hierarchical note organization to Flint while preserving the 
 ## Design Principles
 
 ### 1. Frictionless Capture
+
 - New notes require no organizational decisions
 - Hierarchy can be added retroactively
 - Quick capture workflow remains unchanged
 
 ### 2. Multi-Scale Focus
+
 - Seamless zoom between individual notes and project overviews
 - Collapse/expand hierarchies to manage cognitive load
 - Context preservation during focus transitions
 
 ### 3. Flexible Relationships
+
 - Notes can belong to multiple hierarchies simultaneously
 - Easy reorganization as understanding evolves
 - Support both sequential (chapter-like) and thematic organization
 
 ### 4. Preserve Existing Workflows
+
 - All current note operations continue unchanged
 - Wikilinks, search, and AI assistance work across hierarchy boundaries
 - Backward compatibility with non-hierarchical notes
@@ -41,23 +46,25 @@ Subnotes introduce hierarchical note organization to Flint while preserving the 
 ### Data Model Extensions
 
 **Frontmatter Schema Addition**:
+
 ```yaml
 ---
-title: "Project Alpha"
-type: "project"
+title: 'Project Alpha'
+type: 'project'
 subnotes:
-  - "tasks/setup-environment"
-  - "research/market-analysis"  
-  - "Planning Session Notes"
+  - 'tasks/setup-environment'
+  - 'research/market-analysis'
+  - 'Planning Session Notes'
 ---
 ```
 
 **Core Data Structures**:
+
 ```typescript
 interface NoteHierarchy {
-  parents: string[];      // Note IDs of parent notes
-  children: string[];     // Ordered list of child note IDs
-  depth: number;         // Nesting level for UI optimization
+  parents: string[]; // Note IDs of parent notes
+  children: string[]; // Ordered list of child note IDs
+  depth: number; // Nesting level for UI optimization
 }
 
 interface HierarchyGraph extends LinkGraph {
@@ -70,6 +77,7 @@ interface HierarchyGraph extends LinkGraph {
 ### Service Layer Changes
 
 **Note Service Extensions**:
+
 - `addSubnote(parentId: string, childId: string, position?: number)`
 - `removeSubnote(parentId: string, childId: string)`
 - `reorderSubnotes(parentId: string, childIds: string[])`
@@ -77,14 +85,16 @@ interface HierarchyGraph extends LinkGraph {
 - `getDescendants(noteId: string, depth?: number): NoteMetadata[]`
 
 **Hierarchy Resolution**:
+
 - Automatic parent-child relationship tracking
-- Circular reference detection and prevention  
+- Circular reference detection and prevention
 - Bidirectional relationship maintenance
 - Integration with existing link graph system
 
 ### UI Component Updates
 
 **Left Sidebar Enhancement** (`LeftSidebar.svelte`):
+
 - Hierarchical tree view with expand/collapse
 - Visual nesting indicators (indentation, connecting lines)
 - Drag-and-drop reordering within and between hierarchies
@@ -92,12 +102,14 @@ interface HierarchyGraph extends LinkGraph {
 - Compact view toggle for deeply nested structures
 
 **Main View Integration** (`MainView.svelte`):
+
 - Breadcrumb navigation showing hierarchy path
 - "Add Subnote" action in note controls
 - Visual parent/child relationship indicators
 - Quick navigation between related notes in hierarchy
 
 **Right Sidebar Context** (`RightSidebar.svelte`):
+
 - Hierarchy panel showing current note's position
 - Parent and child note quick links
 - Hierarchy-aware metadata editing
@@ -105,6 +117,7 @@ interface HierarchyGraph extends LinkGraph {
 ### State Management
 
 **New Store: `hierarchyStore.svelte.ts`**:
+
 ```typescript
 interface HierarchyState {
   hierarchyGraph: HierarchyGraph;
@@ -118,20 +131,23 @@ interface HierarchyState {
 ```
 
 **Store Operations**:
+
 - Real-time hierarchy updates
-- Expand/collapse state persistence  
+- Expand/collapse state persistence
 - Drag-and-drop state management
 - Integration with existing `notesStore`
 
 ### Search and Discovery
 
 **Enhanced Search**:
+
 - Hierarchy-aware search results showing note paths
 - Filter by hierarchy depth or specific parent
 - "Search within subtree" functionality
 - Preserve existing full-text search capabilities
 
 **Navigation Improvements**:
+
 - Hierarchy-aware note navigation
 - "Go to parent/child" keyboard shortcuts
 - Breadcrumb-based navigation
@@ -142,12 +158,14 @@ interface HierarchyState {
 ### Visual Design
 
 **Hierarchy Indicators**:
+
 - Subtle indentation with connecting lines
 - Collapsible tree nodes with standard expand/collapse icons
 - Visual depth limits to prevent excessive nesting display
 - Parent-child relationship badges in note cards
 
 **Responsive Behavior**:
+
 - Collapsible hierarchy sections on mobile
 - Touch-friendly drag-and-drop for reorganization
 - Simplified hierarchy view for narrow screens
@@ -156,17 +174,20 @@ interface HierarchyState {
 ### Interaction Patterns
 
 **Creation Workflow**:
+
 1. Create note normally (no hierarchy required)
 2. Optionally add as subnote via drag-drop or context menu
 3. Hierarchy relationships appear automatically in navigation
 
 **Organization Workflow**:
+
 1. Drag existing notes into hierarchical relationships
 2. Reorder subnotes within parent via drag-drop
 3. Multi-select operations for bulk hierarchy changes
 4. Copy/move notes between hierarchy branches
 
 **Navigation Workflow**:
+
 1. Click to navigate between parent/child notes
 2. Breadcrumb navigation for hierarchy awareness
 3. Keyboard shortcuts for hierarchy traversal
@@ -175,30 +196,35 @@ interface HierarchyState {
 ## Implementation Phases
 
 ### Phase 1: Core Data Model
+
 - Extend note metadata schema for subnote relationships
 - Implement basic parent-child relationship storage
 - Create hierarchy graph data structure
 - Add relationship validation and circular reference detection
 
-### Phase 2: Service Layer Integration  
+### Phase 2: Service Layer Integration
+
 - Implement hierarchy management APIs
 - Extend note CRUD operations to handle relationships
 - Add hierarchy-aware search and filtering
 - Update link graph to include hierarchical relationships
 
 ### Phase 3: Basic UI Implementation
+
 - Add hierarchical tree view to left sidebar
 - Implement expand/collapse functionality
 - Create basic drag-and-drop for subnote management
 - Add breadcrumb navigation to main view
 
 ### Phase 4: Advanced UI Features
+
 - Implement advanced drag-and-drop with visual feedback
 - Add context menus for hierarchy management
 - Create hierarchy-aware metadata editing
 - Add keyboard shortcuts and navigation improvements
 
 ### Phase 5: Polish and Integration
+
 - Integrate with AI assistant for hierarchy-aware operations
 - Add hierarchy-specific settings and preferences
 - Implement export/import for hierarchical structures
@@ -207,18 +233,21 @@ interface HierarchyState {
 ## Success Metrics
 
 **Functionality**:
+
 - Notes can be organized hierarchically without losing independence
 - All existing workflows continue unchanged
 - Hierarchy operations are intuitive and efficient
 - No performance degradation with deep or wide hierarchies
 
 **User Experience**:
+
 - Reduced cognitive load when working with large note collections
 - Improved project organization and navigation
 - Maintained frictionless note creation process
 - Enhanced discoverability of related notes
 
 **Technical Quality**:
+
 - Consistent with existing architecture patterns
 - Proper error handling and edge case management
 - Comprehensive test coverage for hierarchy operations

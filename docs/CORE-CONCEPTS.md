@@ -19,12 +19,13 @@ This document describes the fundamental conceptual units that users interact wit
 - **Version History**: Notes maintain their edit history and creation timestamps
 
 **Note Structure**:
+
 ```markdown
 ---
-title: "Example Note"
+title: 'Example Note'
 created: 2024-01-15T10:30:00Z
-tags: ["important", "project"]
-type: "task"
+tags: ['important', 'project']
+type: 'task'
 ---
 
 # Note Content
@@ -33,6 +34,7 @@ This is the markdown content of the note.
 ```
 
 **Note Operations**:
+
 - Create, read, update, delete (CRUD)
 - Search and filter
 - Rename and move between locations
@@ -52,6 +54,7 @@ This is the markdown content of the note.
 - **Validation**: Ensure note metadata conforms to the type schema
 
 **Common Note Types**:
+
 - **Document**: General-purpose notes for writing and documentation
 - **Task**: Action items with status tracking and due dates
 - **Event**: Calendar entries with time and location information
@@ -59,6 +62,7 @@ This is the markdown content of the note.
 - **Project**: Complex initiatives with multiple related notes
 
 **Note Type Schema Example**:
+
 ```typescript
 interface NoteType {
   id: string;
@@ -99,6 +103,7 @@ interface NoteType {
 - **Link Graph**: Network of connections between notes in the vault
 
 **Vault Operations**:
+
 - Create and initialize new vaults
 - Switch between active vaults
 - Import and export vault data
@@ -122,6 +127,7 @@ interface NoteType {
 **Link Types**:
 
 **Title-Based Wikilinks**:
+
 - Syntax: `[[Note Title]]`
 - Links to notes by their display title
 - System resolves title to the actual note location
@@ -129,6 +135,7 @@ interface NoteType {
 - Automatically tracked in the system link graph
 
 **Path-Based Wikilinks**:
+
 - Syntax: `[[type/name|Display Title]]`
 - Links to notes by their filesystem path within the vault
 - Path uses vault-relative directory structure
@@ -137,19 +144,22 @@ interface NoteType {
 - Enables precise linking when multiple notes have similar titles
 
 **Examples**:
+
 ```markdown
-[[Meeting Notes]]                    // Links by title
-[[projects/alpha|Alpha Project]]     // Links to projects/alpha.md, displays as "Alpha Project"
-[[tasks/urgent|Urgent Tasks]]        // Links to tasks/urgent.md, displays as "Urgent Tasks"
+[[Meeting Notes]] // Links by title
+[[projects/alpha|Alpha Project]] // Links to projects/alpha.md, displays as "Alpha Project"
+[[tasks/urgent|Urgent Tasks]] // Links to tasks/urgent.md, displays as "Urgent Tasks"
 ```
 
 **Backlinks**:
+
 - Automatically generated reverse connections
 - Show which notes reference the current note
 - Enable discovery of related content
 - Maintained automatically by the system for both link types
 
 **Link Operations**:
+
 - **Creation**: Automatic link creation when using either wikilink syntax
 - **Navigation**: Click-to-navigate between linked notes regardless of link type
 - **Resolution**: System resolves both title-based and path-based links to actual notes
@@ -158,6 +168,7 @@ interface NoteType {
 - **Discovery**: Find related notes through link relationships
 
 **Link Graph Structure**:
+
 ```typescript
 interface LinkGraph {
   nodes: {

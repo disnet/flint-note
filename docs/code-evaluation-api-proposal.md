@@ -13,20 +13,24 @@ This document proposes an alternative approach to LLM-note interactions using We
 The current system provides 29+ specialized tools:
 
 **Core Note Operations (13 tools):**
+
 - `create_note`, `get_note`, `get_notes`, `update_note`, `delete_note`
 - `rename_note`, `move_note`, `list_notes_by_type`, `bulk_delete_notes`
 - `search_notes`, `search_notes_advanced`, `search_notes_sql`
 - `get_note_info`
 
 **Note Type Operations (5 tools):**
+
 - `create_note_type`, `list_note_types`, `get_note_type_info`
 - `update_note_type`, `delete_note_type`
 
 **Vault Operations (6 tools):**
+
 - `get_current_vault`, `list_vaults`, `create_vault`
 - `switch_vault`, `update_vault`, `remove_vault`
 
 **Link Operations (5 tools):**
+
 - `get_note_links`, `get_backlinks`, `find_broken_links`
 - `search_by_links`, `migrate_links`
 
@@ -43,6 +47,7 @@ The current system provides 29+ specialized tools:
 ### Core Concept
 
 Replace 29+ discrete tools with a single `evaluate_note_code` tool that:
+
 - Accepts JavaScript code as input
 - Executes in a WebAssembly sandbox using quickjs-emscripten
 - Provides controlled access to the FlintNote API
@@ -56,14 +61,14 @@ interface WASMCodeEvaluationTool {
   name: 'evaluate_note_code';
   description: 'Execute JavaScript/TypeScript in secure WebAssembly sandbox';
   inputSchema: {
-    code: string;                    // JavaScript/TypeScript code to execute
-    language?: 'javascript' | 'typescript';  // Language (default: javascript)
-    timeout?: number;                // Maximum execution time (default: 5000ms)
-    memoryLimit?: number;            // Memory limit in MB (default: 128MB)
-    allowedAPIs?: string[];          // Whitelisted API methods
-    context?: object;                // Optional initial context variables
-    enableFileSystem?: boolean;      // Enable virtual filesystem (default: false)
-    enableNetwork?: boolean;         // Enable network access (default: false)
+    code: string; // JavaScript/TypeScript code to execute
+    language?: 'javascript' | 'typescript'; // Language (default: javascript)
+    timeout?: number; // Maximum execution time (default: 5000ms)
+    memoryLimit?: number; // Memory limit in MB (default: 128MB)
+    allowedAPIs?: string[]; // Whitelisted API methods
+    context?: object; // Optional initial context variables
+    enableFileSystem?: boolean; // Enable virtual filesystem (default: false)
+    enableNetwork?: boolean; // Enable network access (default: false)
   };
 }
 ```
@@ -71,6 +76,7 @@ interface WASMCodeEvaluationTool {
 ### WebAssembly Security Model
 
 Unlike Node.js VM, WebAssembly provides improved security through:
+
 - **Memory Safety**: No buffer overflows or memory corruption
 - **Sandboxed Execution**: Isolation from host system
 - **Control Flow Integrity**: Protected call stacks prevent code injection
@@ -89,19 +95,19 @@ const notes = {
     // Filters: { type?, metadata?, limit?, offset? }
     // Usage: for await (const note of notes.list({type: 'meeting'})) { ... }
   },
-  
+
   // Get full note by ID
   get: async (id) => {
     // Returns: {id, type, title, content, created, updated, metadata} | null
   },
-  
+
   // Create or update note (upsert based on presence of id)
   save: async (note) => {
     // Input: {id?, type, title, content, metadata?}
     // Returns: {id, created, updated}
     // Create: omit id, Update: include existing id
   },
-  
+
   // Delete note by ID
   delete: async (id) => {
     // Returns: boolean (success)
@@ -120,12 +126,14 @@ const utils = {
 ### Core Primitive Benefits
 
 **Everything builds on 4 operations:**
-- `notes.list()` - Async iteration with filtering  
+
+- `notes.list()` - Async iteration with filtering
 - `notes.get(id)` - Retrieve full note
 - `notes.save(note)` - Create/update (upsert)
 - `notes.delete(id)` - Remove note
 
 **Complex operations become agent code:**
+
 ```javascript
 // Search becomes iteration + filtering
 async function search(query) {
@@ -140,36 +148,36 @@ async function search(query) {
 // Rename becomes get + save
 async function rename(id, newTitle) {
   const note = await notes.get(id);
-  return await notes.save({...note, title: newTitle});
+  return await notes.save({ ...note, title: newTitle });
 }
 
 // Move becomes get + save with new type
 async function move(id, newType) {
   const note = await notes.get(id);
-  return await notes.save({...note, type: newType});
+  return await notes.save({ ...note, type: newType });
 }
 
 // Link analysis becomes iteration + parsing
 async function findBrokenLinks() {
   const allNoteIds = new Set();
   const brokenLinks = [];
-  
+
   // Collect all note IDs
   for await (const note of notes.list()) {
     allNoteIds.add(note.id);
   }
-  
+
   // Find broken links
   for await (const note of notes.list()) {
     const full = await notes.get(note.id);
     const links = utils.parseLinks(full.content);
     for (const link of links) {
       if (!allNoteIds.has(link)) {
-        brokenLinks.push({noteId: note.id, brokenLink: link});
+        brokenLinks.push({ noteId: note.id, brokenLink: link });
       }
     }
   }
-  
+
   return brokenLinks;
 }
 ```
@@ -177,6 +185,7 @@ async function findBrokenLinks() {
 ### Example Usage Scenarios
 
 #### 1. Simple Note Creation
+
 ```javascript
 // Create new note using primitive API
 const noteId = utils.generateId();
@@ -189,23 +198,24 @@ const result = await notes.save({
 - Sprint progress
 - Blockers
 - Next steps`,
-  metadata: { 
+  metadata: {
     attendees: ['Alice', 'Bob', 'Charlie'],
-    date: new Date().toISOString() 
+    date: new Date().toISOString()
   }
 });
 
 return { success: true, noteId: result.id };
 ```
 
-#### 2. Complex Search and Analysis  
+#### 2. Complex Search and Analysis
+
 ```javascript
 // Multi-step analysis using primitive iteration
 const recentMeetings = [];
 const cutoffDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
 // Use async iteration to filter recent meetings
-for await (const note of notes.list({type: 'meeting'})) {
+for await (const note of notes.list({ type: 'meeting' })) {
   if (new Date(note.created) > cutoffDate) {
     recentMeetings.push(note);
   }
@@ -216,7 +226,7 @@ const attendeeStats = {};
 for (const meeting of recentMeetings) {
   const fullNote = await notes.get(meeting.id);
   const attendees = fullNote.metadata?.attendees || [];
-  attendees.forEach(attendee => {
+  attendees.forEach((attendee) => {
     attendeeStats[attendee] = (attendeeStats[attendee] || 0) + 1;
   });
 }
@@ -224,33 +234,35 @@ for (const meeting of recentMeetings) {
 return {
   totalMeetings: recentMeetings.length,
   topAttendees: Object.entries(attendeeStats)
-    .sort(([,a], [,b]) => b - a)
+    .sort(([, a], [, b]) => b - a)
     .slice(0, 5),
-  averageAttendeesPerMeeting: recentMeetings.reduce((sum, m) => 
-    sum + (m.metadata?.attendees?.length || 0), 0) / recentMeetings.length
+  averageAttendeesPerMeeting:
+    recentMeetings.reduce((sum, m) => sum + (m.metadata?.attendees?.length || 0), 0) /
+    recentMeetings.length
 };
 ```
 
 #### 3. Batch Operations with Error Handling
+
 ```javascript
 // Batch update using primitive save operation
 const results = [];
 
-for await (const note of notes.list({type: 'project'})) {
+for await (const note of notes.list({ type: 'project' })) {
   try {
     const fullNote = await notes.get(note.id);
     if (fullNote && fullNote.content.includes('TODO:')) {
       const updatedContent = fullNote.content.replace(
-        /TODO:/g, 
+        /TODO:/g,
         `UPDATED ${utils.formatDate(new Date())}:`
       );
-      
+
       // Update using save with existing id
       await notes.save({
         ...fullNote,
         content: updatedContent
       });
-      
+
       results.push({ id: note.id, success: true });
     }
   } catch (error) {
@@ -258,10 +270,10 @@ for await (const note of notes.list({type: 'project'})) {
   }
 }
 
-return { 
-  processed: results.length, 
-  successful: results.filter(r => r.success).length,
-  details: results 
+return {
+  processed: results.length,
+  successful: results.filter((r) => r.success).length,
+  details: results
 };
 ```
 
@@ -278,6 +290,7 @@ return {
 - **Capability-Based Security**: Fine-grained permission model for system resources
 
 **Node.js VM Security**: Has known limitations with documented escape vectors:
+
 - Constructor chain exploits (`this.constructor.constructor`)
 - Process access through exception handling
 - Global object pollution attacks
@@ -286,85 +299,87 @@ return {
 ### QuickJS-Emscripten Implementation
 
 ```typescript
-import { getQuickJS, shouldInterruptAfterDeadline } from 'quickjs-emscripten'
+import { getQuickJS, shouldInterruptAfterDeadline } from 'quickjs-emscripten';
 
 class WASMCodeEvaluator {
   private QuickJS: any;
   private noteApi: FlintNoteApi;
-  
+
   async initialize() {
     this.QuickJS = await getQuickJS();
   }
-  
+
   async evaluate(
-    code: string, 
+    code: string,
     options: {
-      timeout?: number;        // Execution timeout (ms)
-      memoryLimit?: number;    // Memory limit (bytes)  
-      allowedAPIs?: string[];  // Whitelisted API methods
+      timeout?: number; // Execution timeout (ms)
+      memoryLimit?: number; // Memory limit (bytes)
+      allowedAPIs?: string[]; // Whitelisted API methods
       enableNetwork?: boolean; // Enable fetch API
-      context?: object;        // Custom context variables
+      context?: object; // Custom context variables
     } = {}
   ) {
     if (!this.QuickJS) {
       await this.initialize();
     }
-    
+
     // Create isolated JavaScript context
     const vm = this.QuickJS.newContext();
-    
+
     try {
       // Inject secure note API proxy
       const safeAPI = this.createSecureAPIProxy(options.allowedAPIs);
       this.injectAPI(vm, safeAPI, options.context);
-      
+
       // Configure execution limits
       const evalOptions = {
         // Memory limit (default 128MB)
         memoryLimitBytes: options.memoryLimit || 128 * 1024 * 1024,
-        
+
         // Timeout interrupt (default 5 seconds)
-        shouldInterrupt: options.timeout 
+        shouldInterrupt: options.timeout
           ? shouldInterruptAfterDeadline(Date.now() + options.timeout)
           : shouldInterruptAfterDeadline(Date.now() + 5000)
       };
-      
+
       // Execute JavaScript code in sandbox
-      const result = vm.evalCode(`
+      const result = vm.evalCode(
+        `
         (async function() {
           ${code}
         })()
-      `, evalOptions);
-      
+      `,
+        evalOptions
+      );
+
       // Handle successful execution
       if (result.error) {
         const error = vm.dump(result.error);
         result.error.dispose();
         throw new Error(`Execution error: ${error}`);
       }
-      
+
       // Process async results
       if (result.value && vm.typeof(result.value) === 'object') {
         const promiseHandle = result.value;
         const promiseResult = await vm.resolvePromise(promiseHandle);
         promiseHandle.dispose();
-        
+
         if (promiseResult.error) {
           const error = vm.dump(promiseResult.error);
           promiseResult.error.dispose();
           throw new Error(`Promise error: ${error}`);
         }
-        
+
         const finalResult = vm.dump(promiseResult.value);
         promiseResult.value.dispose();
         return finalResult;
       }
-      
+
       // Process sync results
       const finalResult = vm.dump(result.value);
       result.value.dispose();
       return finalResult;
-      
     } catch (error) {
       // WASM isolation prevents security exploits even on errors
       throw new Error(`Code execution failed: ${error.message}`);
@@ -373,7 +388,7 @@ class WASMCodeEvaluator {
       vm.dispose();
     }
   }
-  
+
   private injectAPI(vm: any, safeAPI: any, customContext?: object) {
     // Inject note API with proper error handling
     const notesHandle = vm.newObject();
@@ -382,7 +397,7 @@ class WASMCodeEvaluator {
     }
     vm.setProp(vm.global, 'notes', notesHandle);
     notesHandle.dispose();
-    
+
     // Inject note types API
     const noteTypesHandle = vm.newObject();
     for (const [key, fn] of Object.entries(safeAPI.noteTypes)) {
@@ -390,7 +405,7 @@ class WASMCodeEvaluator {
     }
     vm.setProp(vm.global, 'noteTypes', noteTypesHandle);
     noteTypesHandle.dispose();
-    
+
     // Inject vaults API
     const vaultsHandle = vm.newObject();
     for (const [key, fn] of Object.entries(safeAPI.vaults)) {
@@ -398,7 +413,7 @@ class WASMCodeEvaluator {
     }
     vm.setProp(vm.global, 'vaults', vaultsHandle);
     vaultsHandle.dispose();
-    
+
     // Inject utilities
     const utilsHandle = vm.newObject();
     for (const [key, fn] of Object.entries(safeAPI.utils)) {
@@ -406,7 +421,7 @@ class WASMCodeEvaluator {
     }
     vm.setProp(vm.global, 'utils', utilsHandle);
     utilsHandle.dispose();
-    
+
     // Inject custom context variables
     if (customContext) {
       for (const [key, value] of Object.entries(customContext)) {
@@ -415,34 +430,42 @@ class WASMCodeEvaluator {
         valueHandle.dispose();
       }
     }
-    
+
     // Disable dangerous globals by default
     vm.setProp(vm.global, 'fetch', vm.undefined);
     vm.setProp(vm.global, 'require', vm.undefined);
     vm.setProp(vm.global, 'process', vm.undefined);
   }
-  
+
   private createSecureAPIProxy(allowedAPIs?: string[]) {
     // Create permission-controlled API proxy
-    const isAllowed = (apiPath: string) => 
-      !allowedAPIs || allowedAPIs.includes(apiPath);
-    
+    const isAllowed = (apiPath: string) => !allowedAPIs || allowedAPIs.includes(apiPath);
+
     return {
       notes: {
-        list: isAllowed('notes.list') ? this.createAsyncIterator(this.noteApi.listNotes.bind(this.noteApi)) : null,
-        get: isAllowed('notes.get') ? this.wrapAsync(this.noteApi.getNote.bind(this.noteApi)) : null,
-        save: isAllowed('notes.save') ? this.wrapAsync(this.noteApi.saveNote.bind(this.noteApi)) : null,
-        delete: isAllowed('notes.delete') ? this.wrapAsync(this.noteApi.deleteNote.bind(this.noteApi)) : null,
+        list: isAllowed('notes.list')
+          ? this.createAsyncIterator(this.noteApi.listNotes.bind(this.noteApi))
+          : null,
+        get: isAllowed('notes.get')
+          ? this.wrapAsync(this.noteApi.getNote.bind(this.noteApi))
+          : null,
+        save: isAllowed('notes.save')
+          ? this.wrapAsync(this.noteApi.saveNote.bind(this.noteApi))
+          : null,
+        delete: isAllowed('notes.delete')
+          ? this.wrapAsync(this.noteApi.deleteNote.bind(this.noteApi))
+          : null
       },
       utils: {
         formatDate: (date: string) => new Date(date).toISOString(),
         generateId: () => Math.random().toString(36).substr(2, 9),
         sanitizeTitle: (title: string) => title.replace(/[^a-zA-Z0-9\s-]/g, '').trim(),
-        parseLinks: (content: string) => content.match(/\[\[([^\]]+)\]\]/g)?.map(link => link.slice(2, -2)) || [],
+        parseLinks: (content: string) =>
+          content.match(/\[\[([^\]]+)\]\]/g)?.map((link) => link.slice(2, -2)) || []
       }
     };
   }
-  
+
   private wrapAsync(fn: Function) {
     return async (...args: any[]) => {
       try {
@@ -452,9 +475,9 @@ class WASMCodeEvaluator {
       }
     };
   }
-  
+
   private createAsyncIterator(fn: Function) {
-    return async function*(filters = {}) {
+    return async function* (filters = {}) {
       try {
         const results = await fn(filters);
         for (const result of results) {
@@ -471,36 +494,37 @@ class WASMCodeEvaluator {
 ### Security Levels with quickjs-emscripten
 
 #### Level 1: Full Trust (Internal Use)
+
 ```typescript
 const evaluator = new WASMCodeEvaluator(noteApi);
 await evaluator.initialize();
 
 const result = await evaluator.evaluate(code, {
   // Full API access for internal operations
-  timeout: 30000,           // 30 seconds
-  memoryLimit: 256 * 1024 * 1024, // 256MB
+  timeout: 30000, // 30 seconds
+  memoryLimit: 256 * 1024 * 1024 // 256MB
 });
 ```
 
-#### Level 2: Limited Trust (Restricted APIs)  
+#### Level 2: Limited Trust (Restricted APIs)
+
 ```typescript
 const result = await evaluator.evaluate(code, {
-  allowedAPIs: [
-    'notes.get', 'notes.list', 'notes.save'
-  ],
-  timeout: 10000,           // 10 seconds
-  memoryLimit: 64 * 1024 * 1024,  // 64MB
-  enableNetwork: false,
+  allowedAPIs: ['notes.get', 'notes.list', 'notes.save'],
+  timeout: 10000, // 10 seconds
+  memoryLimit: 64 * 1024 * 1024, // 64MB
+  enableNetwork: false
 });
 ```
 
 #### Level 3: Zero Trust (Maximum Security)
+
 ```typescript
 const result = await evaluator.evaluate(code, {
   allowedAPIs: ['notes.get', 'notes.list'], // Read-only
-  timeout: 2000,            // 2 seconds  
-  memoryLimit: 32 * 1024 * 1024,  // 32MB
-  enableNetwork: false,
+  timeout: 2000, // 2 seconds
+  memoryLimit: 32 * 1024 * 1024, // 32MB
+  enableNetwork: false
 });
 ```
 
@@ -527,6 +551,7 @@ const result = await evaluator.evaluate(code, {
 ## WebAssembly Implementation Roadmap
 
 ### Phase 1: quickjs-emscripten MVP (Weeks 1-2)
+
 - [ ] Integrate `quickjs-emscripten` package
 - [ ] Implement WASMCodeEvaluator class with proper handle disposal
 - [ ] Create secure note API proxy with permission controls
@@ -534,6 +559,7 @@ const result = await evaluator.evaluate(code, {
 - [ ] Build comprehensive test suite with security validation
 
 ### Phase 2: Security Hardening (Weeks 3-4)
+
 - [ ] Implement API whitelisting system
 - [ ] Add static code analysis for security scanning
 - [ ] Create security level configurations (Full/Limited/Zero trust)
@@ -541,6 +567,7 @@ const result = await evaluator.evaluate(code, {
 - [ ] Add comprehensive audit logging
 
 ### Phase 3: Production Features (Weeks 5-6)
+
 - [ ] Add TypeScript execution support
 - [ ] Implement execution result caching
 - [ ] Create performance monitoring dashboard
@@ -548,6 +575,7 @@ const result = await evaluator.evaluate(code, {
 - [ ] Build admin controls and policy management
 
 ### Phase 4: Advanced Capabilities (Weeks 7-8)
+
 - [ ] Virtual filesystem support for complex operations
 - [ ] Multi-tenant isolation for different users/contexts
 - [ ] Code optimization and execution analytics
@@ -555,6 +583,7 @@ const result = await evaluator.evaluate(code, {
 - [ ] Comprehensive documentation and examples
 
 ### Phase 5: AI/LLM Integration (Weeks 9-10)
+
 - [ ] Create specialized MCP server integration
 - [ ] Build agent-friendly API documentation
 - [ ] Add execution context persistence
@@ -564,6 +593,7 @@ const result = await evaluator.evaluate(code, {
 ## WebAssembly Benefits Analysis
 
 ### Agent/LLM Benefits
+
 1. **Reduced Cognitive Load**: Single tool vs. 29+ specialized tools
 2. **Better Composability**: Write sophisticated workflows in JavaScript
 3. **Stateful Operations**: Maintain complex state across operations
@@ -573,6 +603,7 @@ const result = await evaluator.evaluate(code, {
 7. **Async/Await Support**: Modern JavaScript patterns for complex operations
 
 ### Security Benefits
+
 1. **Production Ready**: WASM sandboxing suitable for production environments
 2. **Better Isolation**: Improved security vs. VM module limitations
 3. **Memory Safety**: No buffer overflows or memory corruption attacks
@@ -581,6 +612,7 @@ const result = await evaluator.evaluate(code, {
 6. **Performance**: Near-native execution speed with safety
 
 ### Development Benefits
+
 1. **Simplified Architecture**: One secure tool vs. 29+ tool endpoints
 2. **Reduced Maintenance**: Single WASM evaluator vs. multiple tool handlers
 3. **Flexible API Evolution**: Add capabilities without new tool definitions
@@ -589,6 +621,7 @@ const result = await evaluator.evaluate(code, {
 6. **Comprehensive Logging**: Single execution context to monitor
 
 ### Operational Benefits
+
 1. **Resource Efficiency**: WASM runtime manages memory and CPU efficiently
 2. **Scalability**: Single evaluation endpoint vs. managing many tools
 3. **Debugging**: Centralized execution with comprehensive error reporting
@@ -599,52 +632,70 @@ const result = await evaluator.evaluate(code, {
 ## WASM Risks and Mitigations
 
 ### Risk: WASM Runtime Vulnerabilities
+
 **Mitigation**: WASM's built-in security model significantly reduces attack surface compared to VM. Use established QuickJS-WASM packages with active maintenance.
 
-### Risk: API Surface Exposure  
+### Risk: API Surface Exposure
+
 **Mitigation**: Implement strict API whitelisting, start with minimal permissions and expand gradually.
 
 ### Risk: Resource Exhaustion
+
 **Mitigation**: WASM runtime enforces memory limits. Add timeout controls and execution monitoring.
 
 ### Risk: Complex Debugging
+
 **Mitigation**: Comprehensive execution logging, stack trace preservation, and debugging tools built into QuickJS.
 
 ### Risk: Performance Overhead
+
 **Mitigation**: WASM provides near-native performance. Profile and optimize hot paths, implement result caching.
 
 ### Risk: Ecosystem Maturity
+
 **Mitigation**: QuickJS-WASM is production-ready with active community. Fallback to tool-based approach if needed.
 
 ## Alternative Approaches Considered
 
 ### 1. Node.js VM Module (Rejected)
+
 Execute JavaScript using Node's vm.runInNewContext
+
 - **Pros**: Native Node.js feature, familiar JavaScript execution
 - **Cons**: ❌ **Fundamentally insecure**, well-known escape vectors, unsuitable for production
 
 ### 2. Docker Container Isolation
+
 Execute code in isolated containers
+
 - **Pros**: Strong isolation, full system security
 - **Cons**: High overhead, complex setup, slow startup times
 
 ### 3. Domain-Specific Language (DSL)
+
 Create custom query language for note operations
+
 - **Pros**: Highly secure, optimized for note operations
 - **Cons**: Learning curve, limited expressiveness, maintenance overhead
 
 ### 4. Template-Based Operations
+
 Pre-built operation templates with parameters
+
 - **Pros**: Very safe, easy to understand
 - **Cons**: Inflexible, doesn't solve composability issues
 
 ### 5. GraphQL Interface
+
 Expose note operations through GraphQL
+
 - **Pros**: Powerful querying, strongly typed
 - **Cons**: Complex setup, not programmable, still requires multiple calls
 
 ### 6. **WebAssembly + quickjs-emscripten (Selected)**
+
 Execute JavaScript in WASM sandbox with explicit resource management
+
 - **Pros**: Mature security model, production-ready, ES2023 support, cross-platform, fine-grained control
 - **Cons**: Requires explicit handle disposal, WASM runtime setup
 
@@ -663,9 +714,10 @@ The WebAssembly-based code evaluation API offers a practical alternative to the 
 ### Capabilities Enabled
 
 This approach provides new agent capabilities:
+
 - Complex multi-step operations in single tool calls
 - Sophisticated data analysis and reporting
-- Custom workflows tailored to specific use cases  
+- Custom workflows tailored to specific use cases
 - Stateful operations maintaining context across steps
 - Flexible problem-solving not constrained by tool boundaries
 
