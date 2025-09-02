@@ -81,88 +81,141 @@ Unlike Node.js VM, WebAssembly provides improved security through:
 The code executes in a secure WebAssembly runtime with controlled access to:
 
 ```javascript
-// Available in the execution context:
+// Core note primitives available in execution context:
 const notes = {
-  // Core operations
-  create: async (type, title, content, metadata) => { ... },
-  get: async (identifier) => { ... },
-  getMany: async (identifiers) => { ... },
-  update: async (identifier, content, metadata) => { ... },
-  delete: async (identifier, confirm) => { ... },
-  rename: async (identifier, newTitle) => { ... },
-  move: async (identifier, newType) => { ... },
-  list: async (type, limit) => { ... },
+  // Async iterable of notes with optional filtering
+  list: async function*(filters = {}) {
+    // Returns: AsyncIterable<{id, type, title, created, updated, metadata}>
+    // Filters: { type?, metadata?, limit?, offset? }
+    // Usage: for await (const note of notes.list({type: 'meeting'})) { ... }
+  },
   
-  // Search operations
-  search: async (query, options) => { ... },
-  searchAdvanced: async (filters) => { ... },
-  searchSQL: async (query, params) => { ... },
+  // Get full note by ID
+  get: async (id) => {
+    // Returns: {id, type, title, content, created, updated, metadata} | null
+  },
   
-  // Link operations
-  getLinks: async (identifier) => { ... },
-  getBacklinks: async (identifier) => { ... },
-  findBrokenLinks: async () => { ... },
-  searchByLinks: async (criteria) => { ... },
+  // Create or update note (upsert based on presence of id)
+  save: async (note) => {
+    // Input: {id?, type, title, content, metadata?}
+    // Returns: {id, created, updated}
+    // Create: omit id, Update: include existing id
+  },
+  
+  // Delete note by ID
+  delete: async (id) => {
+    // Returns: boolean (success)
+  }
 };
 
-const noteTypes = {
-  create: async (name, description, schema) => { ... },
-  list: async () => { ... },
-  get: async (name) => { ... },
-  update: async (name, changes) => { ... },
-  delete: async (name, options) => { ... },
-};
-
-const vaults = {
-  current: async () => { ... },
-  list: async () => { ... },
-  create: async (config) => { ... },
-  switch: async (id) => { ... },
-  update: async (id, changes) => { ... },
-  remove: async (id) => { ... },
-};
-
-// Utility functions
+// Minimal utility functions
 const utils = {
-  formatDate: (date) => { ... },
-  sanitizeTitle: (title) => { ... },
-  generateId: () => { ... },
-  validateMetadata: (schema, data) => { ... },
+  generateId: () => string,              // Generate unique note ID
+  parseLinks: (content) => string[],     // Extract [[wiki-style]] links from content
+  formatDate: (date) => string,          // Format date for display
+  sanitizeTitle: (title) => string,      // Remove invalid characters from titles
 };
+```
+
+### Core Primitive Benefits
+
+**Everything builds on 4 operations:**
+- `notes.list()` - Async iteration with filtering  
+- `notes.get(id)` - Retrieve full note
+- `notes.save(note)` - Create/update (upsert)
+- `notes.delete(id)` - Remove note
+
+**Complex operations become agent code:**
+```javascript
+// Search becomes iteration + filtering
+async function search(query) {
+  const results = [];
+  for await (const note of notes.list()) {
+    const full = await notes.get(note.id);
+    if (full.content.includes(query)) results.push(full);
+  }
+  return results;
+}
+
+// Rename becomes get + save
+async function rename(id, newTitle) {
+  const note = await notes.get(id);
+  return await notes.save({...note, title: newTitle});
+}
+
+// Move becomes get + save with new type
+async function move(id, newType) {
+  const note = await notes.get(id);
+  return await notes.save({...note, type: newType});
+}
+
+// Link analysis becomes iteration + parsing
+async function findBrokenLinks() {
+  const allNoteIds = new Set();
+  const brokenLinks = [];
+  
+  // Collect all note IDs
+  for await (const note of notes.list()) {
+    allNoteIds.add(note.id);
+  }
+  
+  // Find broken links
+  for await (const note of notes.list()) {
+    const full = await notes.get(note.id);
+    const links = utils.parseLinks(full.content);
+    for (const link of links) {
+      if (!allNoteIds.has(link)) {
+        brokenLinks.push({noteId: note.id, brokenLink: link});
+      }
+    }
+  }
+  
+  return brokenLinks;
+}
 ```
 
 ### Example Usage Scenarios
 
 #### 1. Simple Note Creation
 ```javascript
-// Instead of: create_note tool call
-const note = await notes.create('meeting', 'Weekly Standup', `
-# Weekly Standup - ${utils.formatDate(new Date())}
+// Create new note using primitive API
+const noteId = utils.generateId();
+const result = await notes.save({
+  type: 'meeting',
+  title: 'Weekly Standup',
+  content: `# Weekly Standup - ${utils.formatDate(new Date())}
 
 ## Agenda
 - Sprint progress
 - Blockers
-- Next steps
-`, { 
-  attendees: ['Alice', 'Bob', 'Charlie'],
-  date: new Date().toISOString() 
+- Next steps`,
+  metadata: { 
+    attendees: ['Alice', 'Bob', 'Charlie'],
+    date: new Date().toISOString() 
+  }
 });
 
-return { success: true, noteId: note.id };
+return { success: true, noteId: result.id };
 ```
 
-#### 2. Complex Search and Analysis
+#### 2. Complex Search and Analysis  
 ```javascript
-// Multi-step analysis that would require multiple tool calls
-const meetings = await notes.search('', { typeFilter: 'meeting', limit: 100 });
-const recentMeetings = meetings.filter(m => 
-  new Date(m.created) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-);
+// Multi-step analysis using primitive iteration
+const recentMeetings = [];
+const cutoffDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
+// Use async iteration to filter recent meetings
+for await (const note of notes.list({type: 'meeting'})) {
+  if (new Date(note.created) > cutoffDate) {
+    recentMeetings.push(note);
+  }
+}
+
+// Analyze attendee patterns
 const attendeeStats = {};
 for (const meeting of recentMeetings) {
-  const note = await notes.get(meeting.id);
-  const attendees = note.metadata?.attendees || [];
+  const fullNote = await notes.get(meeting.id);
+  const attendees = fullNote.metadata?.attendees || [];
   attendees.forEach(attendee => {
     attendeeStats[attendee] = (attendeeStats[attendee] || 0) + 1;
   });
@@ -180,19 +233,24 @@ return {
 
 #### 3. Batch Operations with Error Handling
 ```javascript
-// Batch update with proper error handling
+// Batch update using primitive save operation
 const results = [];
-const projectNotes = await notes.search('', { typeFilter: 'project' });
 
-for (const note of projectNotes) {
+for await (const note of notes.list({type: 'project'})) {
   try {
     const fullNote = await notes.get(note.id);
-    if (fullNote.content.includes('TODO:')) {
+    if (fullNote && fullNote.content.includes('TODO:')) {
       const updatedContent = fullNote.content.replace(
         /TODO:/g, 
         `UPDATED ${utils.formatDate(new Date())}:`
       );
-      await notes.update(note.id, updatedContent);
+      
+      // Update using save with existing id
+      await notes.save({
+        ...fullNote,
+        content: updatedContent
+      });
+      
       results.push({ id: note.id, success: true });
     }
   } catch (error) {
@@ -371,26 +429,16 @@ class WASMCodeEvaluator {
     
     return {
       notes: {
-        create: isAllowed('notes.create') ? this.wrapAsync(this.noteApi.createNote.bind(this.noteApi)) : null,
+        list: isAllowed('notes.list') ? this.createAsyncIterator(this.noteApi.listNotes.bind(this.noteApi)) : null,
         get: isAllowed('notes.get') ? this.wrapAsync(this.noteApi.getNote.bind(this.noteApi)) : null,
-        update: isAllowed('notes.update') ? this.wrapAsync(this.noteApi.updateNote.bind(this.noteApi)) : null,
+        save: isAllowed('notes.save') ? this.wrapAsync(this.noteApi.saveNote.bind(this.noteApi)) : null,
         delete: isAllowed('notes.delete') ? this.wrapAsync(this.noteApi.deleteNote.bind(this.noteApi)) : null,
-        search: isAllowed('notes.search') ? this.wrapAsync(this.noteApi.searchNotes.bind(this.noteApi)) : null,
-        list: isAllowed('notes.list') ? this.wrapAsync(this.noteApi.listNotes.bind(this.noteApi)) : null,
-      },
-      noteTypes: {
-        create: isAllowed('noteTypes.create') ? this.wrapAsync(this.noteApi.createNoteType.bind(this.noteApi)) : null,
-        list: isAllowed('noteTypes.list') ? this.wrapAsync(this.noteApi.listNoteTypes.bind(this.noteApi)) : null,
-        get: isAllowed('noteTypes.get') ? this.wrapAsync(this.noteApi.getNoteTypeInfo.bind(this.noteApi)) : null,
-      },
-      vaults: {
-        current: isAllowed('vaults.current') ? this.wrapAsync(this.noteApi.getCurrentVault.bind(this.noteApi)) : null,
-        list: isAllowed('vaults.list') ? this.wrapAsync(this.noteApi.listVaults.bind(this.noteApi)) : null,
       },
       utils: {
         formatDate: (date: string) => new Date(date).toISOString(),
         generateId: () => Math.random().toString(36).substr(2, 9),
         sanitizeTitle: (title: string) => title.replace(/[^a-zA-Z0-9\s-]/g, '').trim(),
+        parseLinks: (content: string) => content.match(/\[\[([^\]]+)\]\]/g)?.map(link => link.slice(2, -2)) || [],
       }
     };
   }
@@ -401,6 +449,19 @@ class WASMCodeEvaluator {
         return await fn(...args);
       } catch (error) {
         throw new Error(`API Error: ${error.message}`);
+      }
+    };
+  }
+  
+  private createAsyncIterator(fn: Function) {
+    return async function*(filters = {}) {
+      try {
+        const results = await fn(filters);
+        for (const result of results) {
+          yield result;
+        }
+      } catch (error) {
+        throw new Error(`Iterator Error: ${error.message}`);
       }
     };
   }
@@ -425,8 +486,7 @@ const result = await evaluator.evaluate(code, {
 ```typescript
 const result = await evaluator.evaluate(code, {
   allowedAPIs: [
-    'notes.get', 'notes.search', 'notes.create',
-    'noteTypes.list', 'vaults.current'
+    'notes.get', 'notes.list', 'notes.save'
   ],
   timeout: 10000,           // 10 seconds
   memoryLimit: 64 * 1024 * 1024,  // 64MB
@@ -437,7 +497,7 @@ const result = await evaluator.evaluate(code, {
 #### Level 3: Zero Trust (Maximum Security)
 ```typescript
 const result = await evaluator.evaluate(code, {
-  allowedAPIs: ['notes.get', 'notes.search'], // Read-only
+  allowedAPIs: ['notes.get', 'notes.list'], // Read-only
   timeout: 2000,            // 2 seconds  
   memoryLimit: 32 * 1024 * 1024,  // 32MB
   enableNetwork: false,
