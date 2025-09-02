@@ -194,43 +194,45 @@ interface LinkPrimitives {
 
 ### Features to Remove from Current API
 
-1. **Batch Operations**: 
+1. **Batch Operations**:
    - Remove `createNotes()`, `createNotesForAgent()`, `updateNotes()`, `getNotes()`, `bulkDeleteNotes()`
    - Clients loop with single operations instead
 
-2. **Complex Search Operations**: 
+2. **Complex Search Operations**:
    - Remove `searchNotes()`, `searchNotesAdvanced()`, `searchNotesSQL()`
    - Keep only `searchNotesByText()` as single text search method
 
-3. **Context Resolution Complexity**: 
+3. **Context Resolution Complexity**:
    - Remove `resolveVaultContext()` method entirely
    - Add explicit `vaultId` parameter to ALL operations
    - Eliminate fallback to "current active vault" behavior
 
-4. **High-Level Link Management**: 
+4. **High-Level Link Management**:
    - Remove `getNoteLinks()`, `getBacklinks()`, `searchByLinks()`, `migrateLinks()`
    - Replace with simple read-only link primitives
 
-5. **Agent-Specific Methods**: 
+5. **Agent-Specific Methods**:
    - Remove `createNoteForAgent()`, `createNotesForAgent()`
    - Single create method handles all cases
 
-6. **Convenience Methods**: 
+6. **Convenience Methods**:
    - Remove `getNoteInfo()` convenience wrapper
    - Remove complex deletion strategies from note types
 
-7. **MCP Protocol Considerations**: 
+7. **MCP Protocol Considerations**:
    - Return pure data objects instead of MCP-formatted responses
 
 ### Current vs Simplified Data Flow
 
 **Current Complex Flow:**
+
 ```
-Client Request → Context Resolution → MCP Handlers → Validation → 
+Client Request → Context Resolution → MCP Handlers → Validation →
 Batch Processing → Manager Calls → Database
 ```
 
 **Simplified Flow:**
+
 ```
 Client Request → Primitive Method → Direct Manager Call → Database
 ```
@@ -408,8 +410,9 @@ Clients can implement their own:
 **Before:** ~40+ methods with complex interdependencies
 
 **After:** ~23 focused primitives organized as:
+
 - **Vault Primitives (6):** `createVault`, `getVault`, `updateVault`, `deleteVault`, `listVaults`, `setActiveVault`
-- **Note Type Primitives (5):** `createNoteType`, `getNoteType`, `updateNoteType`, `deleteNoteType`, `listNoteTypes`  
+- **Note Type Primitives (5):** `createNoteType`, `getNoteType`, `updateNoteType`, `deleteNoteType`, `listNoteTypes`
 - **Note Primitives (6):** `createNote`, `getNote`, `updateNote`, `deleteNote`, `renameNote`, `moveNote`
 - **Query Primitives (3):** `listNotes`, `findNotesByMetadata`, `searchNotesByText`
 - **Link Primitives (3):** `getOutboundLinks`, `getInboundLinks`, `findBrokenLinks`

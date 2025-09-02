@@ -156,55 +156,6 @@ export interface DeletionValidation {
   incoming_links?: string[];
 }
 
-// Batch operation types
-export interface BatchCreateNoteInput {
-  type: string;
-  title: string;
-  content: string;
-  metadata?: Record<string, unknown>;
-}
-
-export interface BatchUpdateNoteInput {
-  identifier: string;
-  content?: string;
-  metadata?: Record<string, unknown>;
-  content_hash: string;
-}
-
-export interface BatchOperationResult<T> {
-  total: number;
-  successful: number;
-  failed: number;
-  results: Array<{
-    input: T;
-    success: boolean;
-    result?: unknown;
-    error?: string;
-  }>;
-}
-
-export interface BatchCreateResult extends BatchOperationResult<BatchCreateNoteInput> {
-  results: Array<{
-    input: BatchCreateNoteInput;
-    success: boolean;
-    result?: NoteInfo;
-    error?: string;
-  }>;
-}
-
-export interface BatchUpdateResult extends BatchOperationResult<BatchUpdateNoteInput> {
-  results: Array<{
-    input: BatchUpdateNoteInput;
-    success: boolean;
-    result?: UpdateResult;
-    error?: string;
-    hash_mismatch?: {
-      current_hash: string;
-      provided_hash: string;
-    };
-  }>;
-}
-
 // Note info and update result types (needed for batch results)
 export interface NoteInfo {
   id: string;

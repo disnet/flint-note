@@ -13,11 +13,9 @@ import { GlobalConfigManager } from '../utils/global-config.js';
 import type {
   ServerConfig,
   VaultContext,
-  GetNotesArgs,
   GetNoteInfoArgs,
   RenameNoteArgs,
   MoveNoteArgs,
-  BulkDeleteNotesArgs,
   CreateNoteTypeArgs,
   ListNoteTypesArgs,
   GetNoteTypeInfoArgs,
@@ -39,7 +37,6 @@ import type {
   NoteListItem,
   MoveNoteResult
 } from '../core/notes.js';
-import type { BatchUpdateResult, BatchUpdateNoteInput } from '../types/index.js';
 import type {
   NoteTypeInfo,
   NoteTypeListItem,
@@ -92,26 +89,6 @@ export interface CreateSingleNoteOptions {
   title: string;
   content: string;
   metadata?: NoteMetadata;
-  vaultId?: string;
-}
-
-export interface CreateMultipleNotesOptions {
-  notes: Array<{
-    type: string;
-    title: string;
-    content: string;
-    metadata?: NoteMetadata;
-  }>;
-  vaultId?: string;
-}
-
-export interface UpdateMultipleNotesOptions {
-  notes: Array<{
-    identifier: string;
-    content: string;
-    contentHash: string;
-    metadata?: NoteMetadata;
-  }>;
   vaultId?: string;
 }
 
@@ -332,10 +309,11 @@ export class FlintNoteApi {
   // Note Operations
 
   /**
-   * Create a single note - returns NoteInfo
-   * By default, does not enforce required fields (for UI usage)
+   * Create a single note with optional required field validation
    */
-  async createNote(options: CreateSingleNoteOptions): Promise<NoteInfo> {
+  async createNote(
+    options: CreateSingleNoteOptions & { enforceRequiredFields?: boolean }
+  ): Promise<NoteInfo> {
     this.ensureInitialized();
     const { noteManager } = await this.resolveVaultContext(options.vaultId);
 
@@ -344,49 +322,8 @@ export class FlintNoteApi {
       options.title,
       options.content,
       options.metadata || {},
-      false // Don't enforce required fields for UI
+      options.enforceRequiredFields ?? false
     );
-  }
-
-  /**
-   * Create a single note with required field validation (for agent usage)
-   */
-  async createNoteForAgent(options: CreateSingleNoteOptions): Promise<NoteInfo> {
-    this.ensureInitialized();
-    const { noteManager } = await this.resolveVaultContext(options.vaultId);
-
-    return await noteManager.createNote(
-      options.type,
-      options.title,
-      options.content,
-      options.metadata || {},
-      true // Enforce required fields for agents
-    );
-  }
-
-  /**
-   * Create multiple notes in batch - returns NoteInfo array
-   * By default, does not enforce required fields (for UI usage)
-   */
-  async createNotes(options: CreateMultipleNotesOptions): Promise<NoteInfo[]> {
-    this.ensureInitialized();
-    const { noteManager } = await this.resolveVaultContext(options.vaultId);
-
-    const result = await noteManager.batchCreateNotes(options.notes, false); // Don't enforce required fields for UI
-    // Extract successful note creations and return pure NoteInfo array
-    return result.results.filter((r) => r.success && r.result).map((r) => r.result!);
-  }
-
-  /**
-   * Create multiple notes in batch with required field validation (for agent usage)
-   */
-  async createNotesForAgent(options: CreateMultipleNotesOptions): Promise<NoteInfo[]> {
-    this.ensureInitialized();
-    const { noteManager } = await this.resolveVaultContext(options.vaultId);
-
-    const result = await noteManager.batchCreateNotes(options.notes, true); // Enforce required fields for agents
-    // Extract successful note creations and return pure NoteInfo array
-    return result.results.filter((r) => r.success && r.result).map((r) => r.result!);
   }
 
   /**
@@ -422,23 +359,6 @@ export class FlintNoteApi {
   }
 
   /**
-   * Update multiple notes in batch - returns BatchUpdateResult
-   */
-  async updateNotes(options: UpdateMultipleNotesOptions): Promise<BatchUpdateResult> {
-    this.ensureInitialized();
-    const { noteManager } = await this.resolveVaultContext(options.vaultId);
-
-    const batchUpdates: BatchUpdateNoteInput[] = options.notes.map((note) => ({
-      identifier: note.identifier,
-      content: note.content,
-      metadata: note.metadata,
-      content_hash: note.contentHash
-    }));
-
-    return await noteManager.batchUpdateNotes(batchUpdates);
-  }
-
-  /**
    * Delete a note - returns DeleteNoteResult
    */
   async deleteNote(options: DeleteNoteOptions): Promise<DeleteNoteResult> {
@@ -454,17 +374,6 @@ export class FlintNoteApi {
     this.ensureInitialized();
     const { noteManager } = await this.resolveVaultContext(options.vaultId);
     return await noteManager.listNotes(options.typeName, options.limit);
-  }
-
-  /**
-   * Get multiple notes by identifiers
-   */
-  async getNotes(args: GetNotesArgs): Promise<(Note | null)[]> {
-    this.ensureInitialized();
-    const { noteManager } = await this.resolveVaultContext(args.vault_id);
-    const results = await noteManager.getNotes(args.identifiers);
-    // Extract notes from the success/error result structure
-    return results.map((result) => (result.success && result.note ? result.note : null));
   }
 
   /**
@@ -511,51 +420,6 @@ export class FlintNoteApi {
     this.ensureInitialized();
     const { noteManager } = await this.resolveVaultContext(args.vault_id);
     return await noteManager.moveNote(args.identifier, args.new_type, args.content_hash);
-  }
-
-  /**
-   * Bulk delete notes
-   */
-  async bulkDeleteNotes(args: BulkDeleteNotesArgs): Promise<DeleteNoteResult[]> {
-    this.ensureInitialized();
-    const { noteManager } = await this.resolveVaultContext(args.vault_id);
-
-    // Build criteria for finding notes to delete
-    const criteria: Parameters<typeof noteManager.findNotesMatchingCriteria>[0] = {};
-
-    if (args.type) {
-      criteria.type = args.type;
-    }
-    if (args.tags) {
-      criteria.tags = args.tags;
-    }
-    if (args.pattern) {
-      criteria.pattern = args.pattern;
-    }
-
-    // Find matching notes (returns string[] of note identifiers)
-    const matchingNoteIds = await noteManager.findNotesMatchingCriteria(criteria);
-
-    // Delete each note
-    const results: DeleteNoteResult[] = [];
-    for (const noteId of matchingNoteIds) {
-      try {
-        const result = await noteManager.deleteNote(noteId, args.confirm ?? true);
-        results.push(result);
-      } catch (error) {
-        // Create a minimal DeleteNoteResult for failed deletions
-        results.push({
-          id: noteId,
-          deleted: false,
-          timestamp: new Date().toISOString(),
-          warnings: [
-            `Failed to delete: ${error instanceof Error ? error.message : 'Unknown error'}`
-          ]
-        });
-      }
-    }
-
-    return results;
   }
 
   // Note Type Operations

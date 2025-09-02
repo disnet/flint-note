@@ -17,7 +17,6 @@ import { parseFrontmatter, parseNoteContent } from '../utils/yaml-parser.js';
 import {
   generateContentHash,
   validateContentHash,
-  ContentHashMismatchError,
   MissingContentHashError
 } from '../utils/content-hash.js';
 import type {
@@ -26,11 +25,7 @@ import type {
   FlintNoteError,
   DeletionValidation,
   BackupInfo,
-  WikiLink,
-  BatchCreateNoteInput,
-  BatchUpdateNoteInput,
-  BatchCreateResult,
-  BatchUpdateResult
+  WikiLink
 } from '../types/index.js';
 import { WikilinkParser } from './wikilink-parser.js';
 import { LinkExtractor } from './link-extractor.js';
@@ -892,65 +887,6 @@ export class NoteManager {
   }
 
   /**
-   * Bulk delete notes matching criteria
-   */
-  async bulkDeleteNotes(
-    criteria: { type?: string; tags?: string[]; pattern?: string },
-    confirm: boolean = false
-  ): Promise<DeleteNoteResult[]> {
-    try {
-      const config = this.#workspace.getConfig();
-
-      // Find notes matching criteria
-      const matchingNotes = await this.findNotesMatchingCriteria(criteria);
-
-      if (matchingNotes.length === 0) {
-        return [];
-      }
-
-      // Check bulk delete limit
-      if (matchingNotes.length > (config?.deletion?.max_bulk_delete || 10)) {
-        throw new Error(
-          `Bulk delete limit exceeded: attempting to delete ${matchingNotes.length} notes, ` +
-            `maximum allowed is ${config?.deletion?.max_bulk_delete || 10}`
-        );
-      }
-
-      // Check confirmation requirement
-      if (config?.deletion?.require_confirmation && !confirm) {
-        throw new Error(
-          `Bulk deletion of ${matchingNotes.length} notes requires confirmation. Set confirm=true to proceed.`
-        );
-      }
-
-      // Delete each note
-      const results: DeleteNoteResult[] = [];
-      for (const noteIdentifier of matchingNotes) {
-        try {
-          const result = await this.deleteNote(noteIdentifier, true); // Already confirmed at bulk level
-          results.push(result);
-        } catch (error) {
-          // Continue with other deletions, but record the error
-          results.push({
-            id: noteIdentifier,
-            deleted: false,
-            timestamp: new Date().toISOString(),
-            warnings: [
-              `Failed to delete: ${error instanceof Error ? error.message : 'Unknown error'}`
-            ]
-          });
-        }
-      }
-
-      return results;
-    } catch (error) {
-      throw new Error(
-        `Bulk delete failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
-    }
-  }
-
-  /**
    * Find notes matching deletion criteria
    */
   async findNotesMatchingCriteria(criteria: {
@@ -1212,141 +1148,6 @@ export class NoteManager {
       );
       return { valid: true, errors: [], warnings: [] };
     }
-  }
-
-  /**
-   * Create multiple notes in a batch operation
-   */
-  async batchCreateNotes(
-    notes: BatchCreateNoteInput[],
-    enforceRequiredFields: boolean = true
-  ): Promise<BatchCreateResult> {
-    const results: BatchCreateResult['results'] = [];
-    let successful = 0;
-    let failed = 0;
-
-    for (const noteInput of notes) {
-      try {
-        const result = await this.createNote(
-          noteInput.type,
-          noteInput.title,
-          noteInput.content,
-          noteInput.metadata || {},
-          enforceRequiredFields
-        );
-        results.push({
-          input: noteInput,
-          success: true,
-          result
-        });
-        successful++;
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        results.push({
-          input: noteInput,
-          success: false,
-          error: errorMessage
-        });
-        failed++;
-      }
-    }
-
-    return {
-      total: notes.length,
-      successful,
-      failed,
-      results
-    };
-  }
-
-  /**
-   * Update multiple notes in a batch operation
-   */
-  async batchUpdateNotes(updates: BatchUpdateNoteInput[]): Promise<BatchUpdateResult> {
-    const results: BatchUpdateResult['results'] = [];
-    let successful = 0;
-    let failed = 0;
-
-    // First validate that all updates include content hashes
-    for (const updateInput of updates) {
-      if (!updateInput.content_hash) {
-        throw new MissingContentHashError('batch note update');
-      }
-    }
-
-    for (const updateInput of updates) {
-      try {
-        let result: UpdateResult;
-
-        if (updateInput.content !== undefined && updateInput.metadata !== undefined) {
-          // Both content and metadata update
-          result = await this.updateNoteWithMetadata(
-            updateInput.identifier,
-            updateInput.content,
-            updateInput.metadata as NoteMetadata,
-            updateInput.content_hash,
-            false // Don't bypass protection for batch operations
-          );
-        } else if (updateInput.content !== undefined) {
-          // Content-only update
-          result = await this.updateNote(
-            updateInput.identifier,
-            updateInput.content,
-            updateInput.content_hash
-          );
-        } else if (updateInput.metadata !== undefined) {
-          // Metadata-only update - read current content and update with new metadata
-          const currentNote = await this.getNote(updateInput.identifier);
-          if (!currentNote) {
-            throw new Error(`Note '${updateInput.identifier}' not found`);
-          }
-          result = await this.updateNoteWithMetadata(
-            updateInput.identifier,
-            currentNote.content,
-            updateInput.metadata as NoteMetadata,
-            updateInput.content_hash,
-            false // Don't bypass protection for batch operations
-          );
-        } else {
-          throw new Error('Either content or metadata must be provided for update');
-        }
-
-        results.push({
-          input: updateInput,
-          success: true,
-          result
-        });
-        successful++;
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        // Include hash mismatch details in error response
-        if (error instanceof ContentHashMismatchError) {
-          results.push({
-            input: updateInput,
-            success: false,
-            error: errorMessage,
-            hash_mismatch: {
-              current_hash: error.current_hash,
-              provided_hash: error.provided_hash
-            }
-          });
-        } else {
-          results.push({
-            input: updateInput,
-            success: false,
-            error: errorMessage
-          });
-        }
-        failed++;
-      }
-    }
-
-    return {
-      total: updates.length,
-      successful,
-      failed,
-      results
-    };
   }
 
   /**
