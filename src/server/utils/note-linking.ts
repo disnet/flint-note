@@ -254,7 +254,11 @@ export class NoteLinkingUtils {
       suggestions: LinkSuggestion[];
     }>,
     aggressiveness: 'conservative' | 'moderate' | 'aggressive'
-  ) {
+  ): Array<{
+    text: string;
+    position: { start: number; end: number };
+    suggestions: LinkSuggestion[];
+  }> {
     const minRelevance = {
       conservative: 0.8,
       moderate: 0.6,

@@ -157,7 +157,7 @@ export class HybridSearchManager {
               if (filteredRows.length >= limit) break;
             }
           }
-        } catch (_regexError) {
+        } catch {
           throw new Error(`Invalid regex pattern: ${safeQuery}`);
         }
 

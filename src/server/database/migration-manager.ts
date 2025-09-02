@@ -151,6 +151,7 @@ export class DatabaseMigrationManager {
    */
   private static async migrateLinkExtraction(
     db: DatabaseConnection,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _workspacePath: string
   ): Promise<boolean> {
     try {

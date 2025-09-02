@@ -17,6 +17,7 @@ import type {
   NoteLookupResult,
   LinkSuggestion
 } from '../types/index.js';
+import type { LinkValidationResult, AutoLinkResult } from '../utils/note-linking.js';
 import type { NoteLinkingManager } from '../utils/note-linking.js';
 
 interface LinkNotesArgs {
@@ -574,7 +575,10 @@ export class LinkManager implements NoteLinkingManager {
   /**
    * Validate wikilinks in content using enhanced utilities
    */
-  async validateWikilinks(content: string, contextType?: string) {
+  async validateWikilinks(
+    content: string,
+    contextType?: string
+  ): Promise<LinkValidationResult> {
     return await this.#linkingUtils.validateWikilinks(content, contextType);
   }
 
@@ -585,7 +589,7 @@ export class LinkManager implements NoteLinkingManager {
     content: string,
     contextType?: string,
     aggressiveness: 'conservative' | 'moderate' | 'aggressive' = 'moderate'
-  ) {
+  ): Promise<AutoLinkResult> {
     return await this.#linkingUtils.autoLinkContent(content, contextType, aggressiveness);
   }
 
@@ -597,7 +601,7 @@ export class LinkManager implements NoteLinkingManager {
     contextType?: string,
     contextContent?: string,
     limit: number = 10
-  ) {
+  ): Promise<LinkSuggestion[]> {
     return await this.#linkingUtils.getSmartLinkSuggestions(
       partialQuery,
       contextType,
@@ -609,7 +613,16 @@ export class LinkManager implements NoteLinkingManager {
   /**
    * Generate comprehensive link report for content
    */
-  async generateLinkReport(content: string, contextType?: string) {
+  async generateLinkReport(
+    content: string,
+    contextType?: string
+  ): Promise<{
+    totalWikilinks: number;
+    validLinks: number;
+    brokenLinks: number;
+    linkingOpportunities: number;
+    linkDensity: number;
+  }> {
     return await this.#linkingUtils.generateLinkReport(content, contextType);
   }
 }

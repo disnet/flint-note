@@ -276,7 +276,12 @@ export class FlintNoteApi {
   }
 
   // Utility to get current managers for convenience
-  getManagers() {
+  getManagers(): {
+    workspace: Workspace;
+    noteManager: NoteManager;
+    noteTypeManager: NoteTypeManager;
+    hybridSearchManager: HybridSearchManager;
+  } {
     this.ensureInitialized();
     return {
       workspace: this.workspace,

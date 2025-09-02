@@ -543,11 +543,7 @@ export class NoteManager {
         throw new MissingContentHashError('note update');
       }
 
-      const {
-        typeName: _typeName,
-        filename: _filename,
-        notePath
-      } = this.parseNoteIdentifier(identifier);
+      const { notePath } = this.parseNoteIdentifier(identifier);
 
       // Check if note exists
       try {
@@ -685,11 +681,7 @@ export class NoteManager {
         throw new MissingContentHashError('note metadata update');
       }
 
-      const {
-        typeName: _typeName,
-        filename: _filename,
-        notePath
-      } = this.parseNoteIdentifier(identifier);
+      const { notePath } = this.parseNoteIdentifier(identifier);
 
       // Check if note exists
       try {
@@ -758,11 +750,7 @@ export class NoteManager {
         throw new Error(`Deletion requires confirmation. Set confirm=true to proceed.`);
       }
 
-      const {
-        typeName: _typeName,
-        filename: _filename,
-        notePath
-      } = this.parseNoteIdentifier(identifier);
+      const { notePath } = this.parseNoteIdentifier(identifier);
 
       let backupPath: string | undefined;
 
@@ -802,11 +790,7 @@ export class NoteManager {
     };
 
     try {
-      const {
-        typeName: _typeName,
-        filename: _filename,
-        notePath
-      } = this.parseNoteIdentifier(identifier);
+      const { notePath } = this.parseNoteIdentifier(identifier);
 
       // Check if note exists
       try {
@@ -1553,7 +1537,7 @@ export class NoteManager {
       await this.updateSearchIndex(finalNotePath, updatedContent);
 
       let brokenLinksUpdated = 0;
-      let wikilinksResult = { notesUpdated: 0, linksUpdated: 0 };
+      const wikilinksResult = { notesUpdated: 0, linksUpdated: 0 };
 
       // Update wikilinks if search manager is available
       if (this.#hybridSearchManager) {

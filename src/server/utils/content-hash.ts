@@ -60,7 +60,12 @@ export class ContentHashMismatchError extends Error {
     this.provided_hash = providedHash;
   }
 
-  toJSON() {
+  toJSON(): {
+    error: string;
+    message: string;
+    current_hash: string;
+    provided_hash: string;
+  } {
     return {
       error: 'content_hash_mismatch',
       message: this.message,

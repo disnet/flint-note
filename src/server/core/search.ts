@@ -746,7 +746,7 @@ export class SearchManager {
                     updated: new Date().toISOString(),
                     metadata: parsed.metadata
                   };
-                } catch (_error) {
+                } catch {
                   // Skip files that can't be read
                   continue;
                 }
