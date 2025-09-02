@@ -74,15 +74,28 @@ interface NotePrimitives {
   updateNote(vaultId: string, identifier: string, updates: {
     content?: string
     metadata?: NoteMetadata
-  }): void
+  }): void  // Throws if attempting to change note identity (title/type)
   deleteNote(vaultId: string, identifier: string): void
+  
+  // Identity-changing operations that maintain link consistency
+  renameNote(vaultId: string, identifier: string, newTitle: string): {
+    newIdentifier: string
+    linksUpdated: number
+    affectedNotes: string[]
+  }
+  
+  moveNote(vaultId: string, identifier: string, newType: string): {
+    newIdentifier: string
+    linksUpdated: number
+    affectedNotes: string[]
+  }
 }
 ```
 
 **Key Changes:**
 - No batch operations - clients loop if needed
 - No content hash validation - clients handle optimistic locking
-- No rename/move operations - delete and recreate
+- **Atomic rename/move operations** that automatically update all links
 - Simple identifier-based access
 
 ### 4. Note Query Primitives
@@ -135,13 +148,13 @@ interface LinkPrimitives {
 
 ### Removed Features
 1. **Batch Operations**: No `batchCreateNotes`, `batchUpdateNotes` - clients loop
-2. **High-Level Convenience**: No `renameNote`, `moveNote`, `bulkDeleteNotes`
+2. **High-Level Convenience**: No `bulkDeleteNotes`, complex search operations
 3. **Advanced Search**: No SQL queries, advanced filtering, or hybrid search exposure
 4. **MCP Protocol**: Core API returns pure data objects
 5. **Context Resolution**: Explicit `vaultId` parameter for all operations
 6. **Content Hash Validation**: Moved to higher-level layer
 7. **Complex Deletion**: No migration strategies for note types
-8. **Link Management**: No active link creation/editing
+8. **Manual Link Management**: No manual link creation/editing (handled automatically)
 
 ### Simplified Data Flow
 ```
@@ -159,21 +172,68 @@ Batch Processing → Manager Calls → Database
 ### 1. Composability
 Complex operations become combinations of primitives:
 ```typescript
-// Rename note = delete + create
-async function renameNote(vaultId: string, oldId: string, newTitle: string) {
-  const note = await api.getNote(vaultId, oldId)
-  if (!note) throw new Error('Note not found')
+// Complex workflow combining multiple primitives
+async function duplicateAndModifyNote(vaultId: string, sourceId: string, newTitle: string, modifications: string) {
+  const sourceNote = await api.getNote(vaultId, sourceId)
+  if (!sourceNote) throw new Error('Source note not found')
   
-  const newNote = await api.createNote(vaultId, note.type, newTitle, note.content, note.metadata)
-  await api.deleteNote(vaultId, oldId)
-  return newNote
+  // Create duplicate with modifications
+  const duplicateNote = await api.createNote(
+    vaultId, 
+    sourceNote.type, 
+    newTitle, 
+    sourceNote.content + '\n\n' + modifications, 
+    { ...sourceNote.metadata, duplicatedFrom: sourceId }
+  )
+  
+  return duplicateNote
 }
 ```
 
-### 2. Testability
+**Note**: Rename and move operations are **not** composed from delete+create because they need to maintain link consistency atomically.
+
+## Link Consistency Requirements
+
+The system supports wikilinks in the format `[[type/name|display name]]` where:
+- `type/name` maps directly to the filesystem path
+- This allows external applications (Obsidian, iA Writer) to understand the links
+- When notes are renamed or moved, all links must be updated consistently
+
+### Why Rename/Move are Primitives
+
+```typescript
+// ❌ BAD: Composing rename from delete+create breaks links
+async function badRename(vaultId: string, oldId: string, newTitle: string) {
+  const note = await api.getNote(vaultId, oldId)
+  const newNote = await api.createNote(vaultId, note.type, newTitle, note.content, note.metadata)
+  await api.deleteNote(vaultId, oldId)
+  // 💥 All links to the old note are now broken!
+  return newNote
+}
+
+// ✅ GOOD: Atomic rename maintains link consistency
+async function goodRename(vaultId: string, oldId: string, newTitle: string) {
+  return await api.renameNote(vaultId, oldId, newTitle)
+  // ✨ All links automatically updated from [[type/oldname]] to [[type/newname]]
+}
+```
+
+### Link Update Examples
+
+When `daily/2024-01-15` is renamed to `daily/weekly-review`:
+- `[[daily/2024-01-15]]` → `[[daily/weekly-review]]`
+- `[[daily/2024-01-15|My Daily Note]]` → `[[daily/weekly-review|My Daily Note]]`
+
+When `todos/shopping` is moved to `projects/shopping`:
+- `[[todos/shopping]]` → `[[projects/shopping]]`
+- `[[todos/shopping|Shopping List]]` → `[[projects/shopping|Shopping List]]`
+
+## Benefits
+
+### 1. Testability
 Each primitive has a single responsibility and clear inputs/outputs.
 
-### 3. Memory Efficiency
+### 2. Memory Efficiency
 Async iterables prevent loading large datasets into memory:
 ```typescript
 // Stream through all notes without loading them all at once
@@ -194,19 +254,19 @@ for await (const note of api.listNotes(vaultId)) {
 }
 ```
 
-### 4. Flexibility
+### 3. Flexibility
 Clients can implement their own:
 - Batch processing strategies
 - Caching layers  
 - Validation logic
 - Error handling
 
-### 5. Maintainability
+### 4. Maintainability
 - Smaller API surface area
 - No complex interdependencies
 - Clear separation of concerns
 
-### 6. Performance
+### 5. Performance
 - No overhead from unused convenience methods
 - Direct manager access
 - Optional features only loaded when needed
