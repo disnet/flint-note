@@ -194,7 +194,7 @@ interface LinkPrimitives {
 
 ### Features to Remove from Current API
 
-1. **Batch Operations**:
+1. DONE **Batch Operations**:
    - Remove `createNotes()`, `createNotesForAgent()`, `updateNotes()`, `getNotes()`, `bulkDeleteNotes()`
    - Clients loop with single operations instead
 
@@ -369,7 +369,7 @@ Clients can implement their own:
 
 ### Phase 1: Simplify Existing API
 
-1. **Remove Batch Operations**
+1. **Remove Batch Operations** - DONE
    - Delete `createNotes()`, `createNotesForAgent()`, `updateNotes()`, `getNotes()`, `bulkDeleteNotes()`
    - Update existing `createNote()` to handle all creation cases
 
