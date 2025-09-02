@@ -1,20 +1,21 @@
-# Core API Primitives Proposal
+# Core API Primitives Implementation Plan
 
 ## Overview
 
-This document proposes simplifying the current FlintNote server API down to a set of core primitives that provide the foundational building blocks for note management. The existing API has grown to include many high-level convenience methods and complex features. This proposal aims to create a cleaner, more composable foundation.
+This document outlines the plan to simplify the existing `FlintNoteApi` down to a set of core primitives that provide foundational building blocks for note management. Rather than creating a separate API, we will refactor the current implementation to align with these simplification goals.
 
 ## Current State Analysis
 
-The existing API (`FlintNoteApi` + MCP handlers) currently offers:
+The existing `FlintNoteApi` currently offers:
 
 - 40+ methods across vault, note, note-type, link, and search operations
 - Complex batch operations and convenience methods
-- MCP protocol formatting and validation layers
-- Advanced features like SQL search, link migration, bulk operations
 - Context resolution and vault switching logic
+- Advanced features like SQL search, link migration, bulk operations
+- MCP protocol formatting considerations
+- Agent-specific method variants
 
-While comprehensive, this creates a large API surface that can be difficult to maintain and test.
+This creates a large API surface that can be difficult to maintain and test, with complex interdependencies and data flows.
 
 ## Proposed Core Primitives
 
@@ -189,30 +190,49 @@ interface LinkPrimitives {
 - No link creation/deletion (handled automatically by note content)
 - No complex link migration tools
 
-## Key Simplifications
+## Key Simplifications Required
 
-### Removed Features
+### Features to Remove from Current API
 
-1. **Batch Operations**: No `batchCreateNotes`, `batchUpdateNotes` - clients loop
-2. **High-Level Convenience**: No `bulkDeleteNotes`, complex search operations
-3. **Advanced Search**: No SQL queries, advanced filtering, or hybrid search exposure
-4. **MCP Protocol**: Core API returns pure data objects
-5. **Context Resolution**: Explicit `vaultId` parameter for all operations
-6. **Content Hash Validation**: Moved to higher-level layer
-7. **Complex Deletion**: No migration strategies for note types
-8. **Manual Link Management**: No manual link creation/editing (handled automatically)
+1. **Batch Operations**: 
+   - Remove `createNotes()`, `createNotesForAgent()`, `updateNotes()`, `getNotes()`, `bulkDeleteNotes()`
+   - Clients loop with single operations instead
 
-### Simplified Data Flow
+2. **Complex Search Operations**: 
+   - Remove `searchNotes()`, `searchNotesAdvanced()`, `searchNotesSQL()`
+   - Keep only `searchNotesByText()` as single text search method
 
+3. **Context Resolution Complexity**: 
+   - Remove `resolveVaultContext()` method entirely
+   - Add explicit `vaultId` parameter to ALL operations
+   - Eliminate fallback to "current active vault" behavior
+
+4. **High-Level Link Management**: 
+   - Remove `getNoteLinks()`, `getBacklinks()`, `searchByLinks()`, `migrateLinks()`
+   - Replace with simple read-only link primitives
+
+5. **Agent-Specific Methods**: 
+   - Remove `createNoteForAgent()`, `createNotesForAgent()`
+   - Single create method handles all cases
+
+6. **Convenience Methods**: 
+   - Remove `getNoteInfo()` convenience wrapper
+   - Remove complex deletion strategies from note types
+
+7. **MCP Protocol Considerations**: 
+   - Return pure data objects instead of MCP-formatted responses
+
+### Current vs Simplified Data Flow
+
+**Current Complex Flow:**
 ```
-Client Request → Core Primitives → Direct Manager Calls → Database
-```
-
-Instead of:
-
-```
-Client Request → MCP Handlers → Validation → Context Resolution →
+Client Request → Context Resolution → MCP Handlers → Validation → 
 Batch Processing → Manager Calls → Database
+```
+
+**Simplified Flow:**
+```
+Client Request → Primitive Method → Direct Manager Call → Database
 ```
 
 ## Benefits
@@ -345,47 +365,54 @@ Clients can implement their own:
 
 ## Implementation Strategy
 
-### Phase 1: Extract Primitives
+### Phase 1: Simplify Existing API
 
-1. Create `src/server/api/primitives/` directory
-2. Implement primitive classes using existing manager methods
-3. Add comprehensive tests for each primitive
+1. **Remove Batch Operations**
+   - Delete `createNotes()`, `createNotesForAgent()`, `updateNotes()`, `getNotes()`, `bulkDeleteNotes()`
+   - Update existing `createNote()` to handle all creation cases
 
-### Phase 2: Compatibility Layer
+2. **Eliminate Context Resolution**
+   - Remove `resolveVaultContext()` method
+   - Add explicit `vaultId: string` parameter to all remaining methods
+   - Remove current vault fallback logic
 
-1. Keep existing `FlintNoteApi` as wrapper around primitives
-2. Maintain MCP handlers using primitives internally
-3. Ensure no breaking changes to current consumers
+3. **Streamline Search Operations**
+   - Remove `searchNotes()`, `searchNotesAdvanced()`, `searchNotesSQL()`
+   - Keep only `searchNotesByText()` as the single search method
 
-### Phase 3: Migration
+### Phase 2: Convert to Async Iterables
 
-1. Update UI components to use primitives directly
-2. Implement higher-level operations as needed
-3. Eventually deprecate high-level convenience methods
+1. **Update Query Methods**
+   - Convert `listNotes()` → `AsyncIterable<NoteListItem>`
+   - Convert `searchNotesByText()` → `AsyncIterable<SearchResult>`
+   - Add `findNotesByMetadata()` → `AsyncIterable<NoteListItem>`
 
-### Phase 4: Cleanup
+2. **Simplify Link Operations**
+   - Replace complex link methods with simple read-only primitives
+   - Return async iterables for memory efficiency
 
-1. Remove unused convenience methods
-2. Simplify manager interfaces
-3. Remove complex validation from core layer
+### Phase 3: Final Cleanup
 
-## File Structure
+1. **Remove High-Level Features**
+   - Delete complex link management methods
+   - Remove convenience wrappers like `getNoteInfo()`
+   - Simplify note type deletion (remove migration strategies)
 
-```
-src/server/api/
-├── primitives/
-│   ├── vault-primitives.ts
-│   ├── note-type-primitives.ts
-│   ├── note-primitives.ts
-│   ├── note-query-primitives.ts
-│   └── link-primitives.ts
-├── convenience/
-│   ├── batch-operations.ts
-│   ├── high-level-operations.ts
-│   └── validation-helpers.ts
-├── flint-note-api.ts          # Compatibility layer
-└── index.ts                    # Public exports
-```
+2. **Maintain Critical Primitives**
+   - Keep atomic `renameNote()` and `moveNote()` for link consistency
+   - Preserve vault management operations
+   - Ensure all primitives have explicit vault parameters
+
+## Resulting API Surface
+
+**Before:** ~40+ methods with complex interdependencies
+
+**After:** ~23 focused primitives organized as:
+- **Vault Primitives (6):** `createVault`, `getVault`, `updateVault`, `deleteVault`, `listVaults`, `setActiveVault`
+- **Note Type Primitives (5):** `createNoteType`, `getNoteType`, `updateNoteType`, `deleteNoteType`, `listNoteTypes`  
+- **Note Primitives (6):** `createNote`, `getNote`, `updateNote`, `deleteNote`, `renameNote`, `moveNote`
+- **Query Primitives (3):** `listNotes`, `findNotesByMetadata`, `searchNotesByText`
+- **Link Primitives (3):** `getOutboundLinks`, `getInboundLinks`, `findBrokenLinks`
 
 ## Conclusion
 
