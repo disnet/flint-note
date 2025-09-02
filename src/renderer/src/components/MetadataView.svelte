@@ -2,7 +2,7 @@
   import type { Note } from '@/server/core/notes';
   import { notesStore } from '../services/noteStore.svelte';
   import { getChatService } from '../services/chatService';
-  import type { GetNoteTypeInfoResult } from '@/server/server/types';
+  import type { GetNoteTypeInfoResult } from '@/server/api/types';
   import type { MetadataFieldDefinition } from '@/server/core/metadata-schema';
 
   interface Props {

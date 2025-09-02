@@ -19,7 +19,7 @@ import type {
   MetadataFieldDefinition,
   MetadataSchema
 } from '@/server/core/metadata-schema';
-import type { GetNoteTypeInfoResult } from '@/server/server/types';
+import type { GetNoteTypeInfoResult } from '@/server/api/types';
 import type { NoteTypeDescription } from '@/server/core/note-types';
 
 export interface ToolCall {

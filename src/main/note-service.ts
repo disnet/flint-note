@@ -8,7 +8,7 @@ import type {
 } from '../server/core/notes';
 import type { NoteTypeListItem } from '../server/core/note-types';
 import type { NoteMetadata } from '../server/types';
-import type { GetNoteTypeInfoArgs } from '../server/server/types';
+import type { GetNoteTypeInfoArgs } from '../server/api/types.js';
 import type { MoveNoteResult } from '../server/core/notes';
 import type { SearchResult } from '../server/database/search-manager';
 import type {
@@ -22,7 +22,7 @@ import type {
   MetadataSchema
 } from '../server/core/metadata-schema';
 import { logger } from './logger';
-import { GetNoteTypeInfoResult } from '../server/server/types';
+import { GetNoteTypeInfoResult } from '../server/api/types.js';
 import { NoteTypeDescription } from '../server/core/note-types';
 
 export class NoteService {

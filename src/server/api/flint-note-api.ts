@@ -30,7 +30,7 @@ import type {
   SwitchVaultArgs,
   RemoveVaultArgs,
   UpdateVaultArgs
-} from '../server/types.js';
+} from './types.js';
 import type {
   NoteInfo,
   Note,
@@ -51,7 +51,9 @@ import type { VaultInfo } from '../utils/global-config.js';
 import { resolvePath, isPathSafe } from '../utils/path.js';
 import { LinkExtractor } from '../core/link-extractor.js';
 import type { NoteLinkRow, ExternalLinkRow, NoteRow } from '../database/schema.js';
-import { generateNoteIdFromIdentifier } from '../server/server-utils.js';
+import { generateNoteIdFromIdentifier } from '../utils/note-linking.js';
+import { handleIndexRebuild } from '../database/search-manager.js';
+import { logInitialization } from '../utils/config.js';
 import type { MetadataFieldDefinition } from '../core/metadata-schema.js';
 
 export interface FlintNoteApiConfig extends ServerConfig {
@@ -169,33 +171,18 @@ export class FlintNoteApi {
         this.noteTypeManager = new NoteTypeManager(this.workspace);
 
         // Initialize hybrid search index - only rebuild if necessary
-        try {
-          const stats = await this.hybridSearchManager.getStats();
-          const forceRebuild = process.env.FORCE_INDEX_REBUILD === 'true';
-          const isEmptyIndex = stats.noteCount === 0;
+        const stats = await this.hybridSearchManager.getStats();
+        const forceRebuild = process.env.FORCE_INDEX_REBUILD === 'true';
+        const isEmptyIndex = stats.noteCount === 0;
 
-          // Check if index exists but might be stale
-          const shouldRebuild = forceRebuild || isEmptyIndex;
+        // Check if index exists but might be stale
+        const shouldRebuild = forceRebuild || isEmptyIndex;
 
-          if (shouldRebuild) {
-            console.error('Rebuilding hybrid search index on startup...');
-            await this.hybridSearchManager.rebuildIndex((processed, total) => {
-              if (processed % 5 === 0 || processed === total) {
-                console.error(
-                  `Hybrid search index: ${processed}/${total} notes processed`
-                );
-              }
-            });
-            console.error('Hybrid search index rebuilt successfully');
-          } else {
-            console.error(`Hybrid search index ready (${stats.noteCount} notes indexed)`);
-          }
-        } catch (error) {
-          console.error(
-            'Warning: Failed to initialize hybrid search index on startup:',
-            error
-          );
-        }
+        await handleIndexRebuild(
+          this.hybridSearchManager,
+          shouldRebuild,
+          logInitialization
+        );
       } else {
         // Use the current active vault
         const currentVault = this.globalConfig.getCurrentVault();

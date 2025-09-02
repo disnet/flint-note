@@ -27,10 +27,10 @@ export type {
   SwitchVaultArgs,
   RemoveVaultArgs,
   UpdateVaultArgs
-} from '../server/types.js';
+} from './types.js';
 
 // Re-export core types
-export type { ServerConfig } from '../server/types.js';
+export type { ServerConfig } from './types.js';
 export type { NoteMetadata } from '../types/index.js';
 
 // Re-export core manager types (for direct API users)

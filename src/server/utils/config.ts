@@ -5,6 +5,19 @@
  */
 
 import path from 'path';
+
+/**
+ * Helper to log initialization progress
+ * @param message - Message to log
+ * @param isError - Whether this is an error message
+ */
+export function logInitialization(message: string, isError: boolean = false): void {
+  if (isError) {
+    console.error(message);
+  } else {
+    console.error(message); // Using console.error for all server logs as per existing pattern
+  }
+}
 import fs from 'fs/promises';
 import yaml from 'js-yaml';
 

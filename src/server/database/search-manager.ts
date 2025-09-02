@@ -9,6 +9,51 @@ import fs from 'fs/promises';
 import path from 'path';
 import { createHash } from 'crypto';
 
+/**
+ * Helper to handle index rebuilding with progress reporting
+ * @param hybridSearchManager - Search manager instance
+ * @param forceRebuild - Whether to force rebuild
+ * @param logCallback - Optional logging function
+ */
+export async function handleIndexRebuild(
+  hybridSearchManager: {
+    getStats(): Promise<{ noteCount: number }>;
+    rebuildIndex(callback: (processed: number, total: number) => void): Promise<void>;
+  },
+  forceRebuild: boolean = false,
+  logCallback?: (message: string, isError?: boolean) => void
+): Promise<void> {
+  const log =
+    logCallback ||
+    ((message: string, isError?: boolean) => {
+      if (isError) {
+        console.error(message);
+      } else {
+        console.error(message); // Using console.error for all server logs as per existing pattern
+      }
+    });
+
+  try {
+    const stats = await hybridSearchManager.getStats();
+    const isEmptyIndex = stats.noteCount === 0;
+    const shouldRebuild = forceRebuild || isEmptyIndex;
+
+    if (shouldRebuild) {
+      log('Rebuilding hybrid search index on startup...');
+      await hybridSearchManager.rebuildIndex((processed: number, total: number) => {
+        if (processed % 5 === 0 || processed === total) {
+          log(`Hybrid search index: ${processed}/${total} notes processed`);
+        }
+      });
+      log('Hybrid search index rebuilt successfully');
+    } else {
+      log(`Hybrid search index ready (${stats.noteCount} notes indexed)`);
+    }
+  } catch (error) {
+    log(`Warning: Failed to initialize hybrid search index on startup: ${error}`, true);
+  }
+}
+
 export interface SearchResult {
   id: string;
   title: string;

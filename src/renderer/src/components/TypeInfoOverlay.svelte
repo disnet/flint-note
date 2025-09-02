@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { GetNoteTypeInfoResult } from '@/server/server/types';
+  import type { GetNoteTypeInfoResult } from '@/server/api/types';
   import type { MetadataSchema, MetadataFieldType } from '@/server/core/metadata-schema';
   import { getChatService } from '../services/chatService';
 

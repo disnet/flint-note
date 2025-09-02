@@ -95,6 +95,19 @@ export class Workspace {
   public config: WorkspaceConfig | null = null;
   #databaseManager: DatabaseManager | null = null;
 
+  /**
+   * Helper to check if workspace is required and available
+   * @param workspace - Workspace instance to check
+   * @throws Error if workspace is not available
+   */
+  static requireWorkspace(workspace?: unknown): void {
+    if (!workspace) {
+      throw new Error(
+        'No vault configured. Use the create_vault tool to create a new vault, or list_vaults and switch_vault to use an existing one.'
+      );
+    }
+  }
+
   constructor(rootPath: string, databaseManager?: DatabaseManager) {
     this.rootPath = path.resolve(rootPath);
     this.flintNoteDir = path.join(this.rootPath, '.flint-note');

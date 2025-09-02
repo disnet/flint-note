@@ -21,7 +21,7 @@ import type {
   MetadataSchema
 } from '@/server/core/metadata-schema';
 import { notesStore } from './noteStore.svelte';
-import type { GetNoteTypeInfoResult } from '@/server/server/types';
+import type { GetNoteTypeInfoResult } from '@/server/api/types';
 import type { NoteTypeDescription } from '@/server/core/note-types';
 
 // Cache monitoring interfaces

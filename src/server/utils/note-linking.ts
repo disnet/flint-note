@@ -6,6 +6,22 @@
  */
 
 import { WikilinkParser } from '../core/wikilink-parser.js';
+
+/**
+ * Helper method to generate note ID from identifier
+ * @param identifier - Note identifier (could be type/filename format or just filename)
+ * @returns Properly formatted note ID
+ */
+export function generateNoteIdFromIdentifier(identifier: string): string {
+  // Check if identifier is already in type/filename format
+  if (identifier.includes('/')) {
+    return identifier;
+  }
+
+  // If it's just a filename, we need to find the note and get its type
+  // For now, we'll assume it's in the format we expect
+  return identifier;
+}
 import type {
   WikiLink,
   NoteLookupResult,
