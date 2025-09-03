@@ -52,12 +52,24 @@ export class WASMCodeEvaluator {
     }
 
     const startTime = Date.now();
+    const timeout = options.timeout || 5000; // Default 5 second timeout
     let vm: QuickJSContext | null = null;
 
     try {
       vm = this.QuickJS!.newContext();
 
-      // Set up execution limits (currently unused but kept for future async support)
+      // Set up interrupt handler for timeout and infinite loop protection
+      let interrupted = false;
+      const interruptHandler = () => {
+        const elapsed = Date.now() - startTime;
+        if (elapsed > timeout) {
+          interrupted = true;
+          return true; // Signal interrupt
+        }
+        return false; // Continue execution
+      };
+
+      vm.runtime.setInterruptHandler(interruptHandler);
 
       // Create secure API proxy and inject into VM
       this.injectSecureAPI(vm, options.vaultId, options.allowedAPIs, options.context);
@@ -71,9 +83,37 @@ export class WASMCodeEvaluator {
 
       const evalResult = vm!.evalCode(codeToExecute);
 
-      // Check for compilation/syntax errors
+      // Check for compilation/syntax errors or interrupts
       if (evalResult.error) {
-        const errorMsg = vm!.dump(evalResult.error);
+        let errorMsg: string;
+        
+        // Check if this was due to an interrupt (timeout)
+        if (interrupted) {
+          evalResult.error.dispose();
+          return {
+            success: false,
+            error: `Execution timeout after ${timeout}ms`,
+            executionTime: Date.now() - startTime
+          };
+        }
+        
+        // Try to extract a meaningful error message
+        try {
+          const errorObj = vm!.dump(evalResult.error);
+          if (typeof errorObj === 'object' && errorObj !== null && 'message' in errorObj) {
+            errorMsg = String(errorObj.message);
+          } else if (typeof errorObj === 'string') {
+            errorMsg = errorObj;
+          } else {
+            // For runtime errors, try to get the string representation
+            const errorStr = vm!.getString(evalResult.error);
+            errorMsg = errorStr || String(errorObj);
+          }
+        } catch {
+          // Fallback to basic string conversion
+          errorMsg = 'Unknown execution error';
+        }
+        
         evalResult.error.dispose();
         return {
           success: false,
@@ -103,6 +143,15 @@ export class WASMCodeEvaluator {
         };
       }
     } catch (error) {
+      // Check if this was due to a timeout interrupt
+      if (interrupted) {
+        return {
+          success: false,
+          error: `Execution timeout after ${timeout}ms`,
+          executionTime: Date.now() - startTime
+        };
+      }
+      
       return {
         success: false,
         error: `Code execution failed: ${error instanceof Error ? error.message : String(error)}`,

@@ -65,43 +65,43 @@ describe('WASMCodeEvaluator - Phase 1', () => {
     // });
   });
 
-  // describe('Error Handling', () => {
-  //   it('should handle syntax errors', async () => {
-  //     const result = await evaluator.evaluate({
-  //       code: 'return invalid syntax here;',
-  //       vaultId: testVaultId
-  //     });
+  describe('Error Handling', () => {
+    it('should handle syntax errors', async () => {
+      const result = await evaluator.evaluate({
+        code: 'return invalid syntax here;',
+        vaultId: testVaultId
+      });
 
-  //     expect(result.success).toBe(false);
-  //     expect(result.error).toContain('error');
-  //     expect(result.result).toBeUndefined();
-  //   });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('error');
+      expect(result.result).toBeUndefined();
+    });
 
-  //   it('should handle runtime errors', async () => {
-  //     const result = await evaluator.evaluate({
-  //       code: 'throw new Error("Test runtime error");',
-  //       vaultId: testVaultId
-  //     });
+    it('should handle runtime errors', async () => {
+      const result = await evaluator.evaluate({
+        code: 'throw new Error("Test runtime error");',
+        vaultId: testVaultId
+      });
 
-  //     expect(result.success).toBe(false);
-  //     expect(result.error).toContain('Test runtime error');
-  //   });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Test runtime error');
+    });
 
-  //   it('should handle timeout limits', async () => {
-  //     const result = await evaluator.evaluate({
-  //       code: `
-  //         while (true) {
-  //           // Infinite loop to test timeout
-  //         }
-  //       `,
-  //       vaultId: testVaultId,
-  //       timeout: 100 // 100ms timeout
-  //     });
+    it('should handle timeout limits', async () => {
+      const result = await evaluator.evaluate({
+        code: `
+          while (true) {
+            // Infinite loop to test timeout
+          }
+        `,
+        vaultId: testVaultId,
+        timeout: 100 // 100ms timeout
+      });
 
-  //     expect(result.success).toBe(false);
-  //     expect(result.error).toBeDefined();
-  //   });
-  // });
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
+    });
+  });
 
   // describe('Notes API Integration', () => {
   //   it('should allow note retrieval through notes.get', async () => {
@@ -196,6 +196,7 @@ describe('WASMCodeEvaluator - Phase 1', () => {
       expect(resultObj.links).toEqual(['link1', 'link2']);
     });
   });
+
 
   // describe('Security Features', () => {
   //   it('should block access to restricted APIs by default', async () => {
