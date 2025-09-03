@@ -93,23 +93,13 @@ describe('Hierarchy Operations - Frontmatter Sync', () => {
       };
       const result = await testSetup.api.addSubnote(addArgs);
 
-      // Debug output if the test fails
-      if (!result.success) {
-        console.log('addSubnote failed:', result);
-        console.log('Parent ID:', parent.id);
-        console.log('Child ID:', child.id);
-        console.log('Vault ID:', testVaultId);
-      }
-
       expect(result.success).toBe(true);
 
       // Verify hierarchy relationship was created in database
-      console.log('Parent ID for getChildren:', parent.id);
       const children = await testSetup.api.getChildren({
         vault_id: testVaultId,
         note_id: parent.id
       });
-      console.log('Children found:', children);
 
       // Verify parent frontmatter now includes subnotes
       parentNote = await getNoteWithFrontmatter(parent.id);

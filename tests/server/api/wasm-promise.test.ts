@@ -6,7 +6,7 @@ describe('WASMCodeEvaluator Promise Support', () => {
     const evaluator = new WASMCodeEvaluator(null as any);
 
     const result = await evaluator.evaluate({
-      code: 'return 42;',
+      code: 'async function main() { return 42; }',
       vaultId: 'test'
     });
 
@@ -20,7 +20,7 @@ describe('WASMCodeEvaluator Promise Support', () => {
     const evaluator = new WASMCodeEvaluator(null as any);
 
     const result = await evaluator.evaluate({
-      code: 'return Promise.resolve("Hello from promise!");',
+      code: 'async function main() { return Promise.resolve("Hello from promise!"); }',
       vaultId: 'test'
     });
 
@@ -34,7 +34,7 @@ describe('WASMCodeEvaluator Promise Support', () => {
     const evaluator = new WASMCodeEvaluator(null as any);
 
     const result = await evaluator.evaluate({
-      code: 'return Promise.reject("Error message");',
+      code: 'async function main() { return Promise.reject("Error message"); }',
       vaultId: 'test'
     });
 
@@ -49,11 +49,13 @@ describe('WASMCodeEvaluator Promise Support', () => {
 
     const result = await evaluator.evaluate({
       code: `
-        const asyncFunction = async () => {
-          const value = await Promise.resolve('async result');
-          return value;
-        };
-        return asyncFunction();
+        async function main() {
+          const asyncFunction = async () => {
+            const value = await Promise.resolve('async result');
+            return value;
+          };
+          return asyncFunction();
+        }
       `,
       vaultId: 'test',
       timeout: 1000
@@ -70,9 +72,11 @@ describe('WASMCodeEvaluator Promise Support', () => {
 
     const result = await evaluator.evaluate({
       code: `
-        return Promise.resolve(5)
-          .then(x => x * 2)
-          .then(x => x + 3);
+        async function main() {
+          return Promise.resolve(5)
+            .then(x => x * 2)
+            .then(x => x + 3);
+        }
       `,
       vaultId: 'test',
       timeout: 1000
@@ -88,7 +92,7 @@ describe('WASMCodeEvaluator Promise Support', () => {
     const evaluator = new WASMCodeEvaluator(null as any);
 
     const result = await evaluator.evaluate({
-      code: 'return utils.delay(50);',
+      code: 'async function main() { return utils.delay(50); }',
       vaultId: 'test',
       timeout: 1000
     });

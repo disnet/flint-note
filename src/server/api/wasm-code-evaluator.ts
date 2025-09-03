@@ -304,9 +304,6 @@ export class WASMCodeEvaluator {
 
         const promiseCode = `Promise.resolve(${JSON.stringify(noteObject)})`;
 
-        // Debug: Log the generated code to see what's wrong
-        console.log('Generated promise code:', promiseCode);
-
         const promiseResult = vm.evalCode(promiseCode);
         if (promiseResult.error) {
           promiseResult.error.dispose();

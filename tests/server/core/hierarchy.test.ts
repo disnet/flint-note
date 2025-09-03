@@ -71,23 +71,6 @@ describe('HierarchyManager', () => {
         // Add hierarchy relationship
         const result = await hierarchyManager.addSubnote(parent.id, child.id);
 
-        // Debug output if the test fails
-        if (!result.success) {
-          console.log('addSubnote failed:', result);
-          console.log('Parent ID:', parent.id);
-          console.log('Child ID:', child.id);
-
-          // Check if notes exist in database
-          const parentExists = await db.get('SELECT id FROM notes WHERE id = ?', [
-            parent.id
-          ]);
-          const childExists = await db.get('SELECT id FROM notes WHERE id = ?', [
-            child.id
-          ]);
-          console.log('Parent exists in DB:', !!parentExists);
-          console.log('Child exists in DB:', !!childExists);
-        }
-
         expect(result.success).toBe(true);
         expect(result.parentId).toBe(parent.id);
         expect(result.childId).toBe(child.id);
