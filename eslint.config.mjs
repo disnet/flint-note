@@ -46,5 +46,23 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': 'off' // Imported types may not be used directly
     }
   },
+  {
+    files: [
+      '**/*.test.ts',
+      '**/*.test.js',
+      '**/*.spec.ts',
+      '**/*.spec.js',
+      '**/test-*.ts',
+      '**/test-*.js'
+    ],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off', // Allow any in tests for mocking and flexibility
+      '@typescript-eslint/explicit-function-return-type': 'off', // Don't require return types in tests
+      '@typescript-eslint/no-unused-vars': 'off', // Allow unused vars in tests for partial implementations
+      '@typescript-eslint/no-non-null-assertion': 'off', // Allow non-null assertions in test scenarios
+      '@typescript-eslint/no-empty-function': 'off', // Allow empty functions for mocking
+      '@typescript-eslint/no-object-literal-type-assertion': 'off' // Allow type assertions in tests
+    }
+  },
   eslintConfigPrettier
 );
