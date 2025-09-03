@@ -12,41 +12,54 @@ This document proposes an alternative approach to LLM-note interactions using We
 
 The current system provides 29+ specialized tools:
 
-**Core Note Operations (13 tools):**
+**Core Note Operations (7 methods):**
 
-- `create_note`, `get_note`, `get_notes`, `update_note`, `delete_note`
-- `rename_note`, `move_note`, `list_notes_by_type`, `bulk_delete_notes`
-- `search_notes`, `search_notes_advanced`, `search_notes_sql`
-- `get_note_info`
+- `createNote`, `getNote`, `updateNote`, `deleteNote`
+- `listNotes`, `renameNote`, `moveNote`
 
-**Note Type Operations (5 tools):**
+**Note Type Operations (5 methods):**
 
-- `create_note_type`, `list_note_types`, `get_note_type_info`
-- `update_note_type`, `delete_note_type`
+- `createNoteType`, `listNoteTypes`, `getNoteTypeInfo`
+- `updateNoteType`, `deleteNoteType`
 
-**Vault Operations (6 tools):**
+**Vault Operations (6 methods):**
 
-- `get_current_vault`, `list_vaults`, `create_vault`
-- `switch_vault`, `update_vault`, `remove_vault`
+- `getCurrentVault`, `listVaults`, `createVault`
+- `switchVault`, `updateVault`, `removeVault`
 
-**Link Operations (5 tools):**
+**Link Operations (5 methods):**
 
-- `get_note_links`, `get_backlinks`, `find_broken_links`
-- `search_by_links`, `migrate_links`
+- `getNoteLinks`, `getBacklinks`, `findBrokenLinks`
+- `searchByLinks`, `migrateLinks`
+
+**Search Operations (4 methods):**
+
+- `searchNotes`, `searchNotesAdvanced`, `searchNotesSQL`, `searchNotesByText`
+
+**Hierarchy Operations (6 methods):**
+
+- `addSubnote`, `removeSubnote`, `reorderSubnotes`
+- `getHierarchyPath`, `getDescendants`, `getChildren`, `getParents`
+
+**Relationship Operations (4 methods):**
+
+- `getNoteRelationships`, `getRelatedNotes`
+- `findRelationshipPath`, `getClusteringCoefficient`
 
 ### Limitations of Current Approach
 
-1. **Cognitive Overhead**: Agents must remember and coordinate many discrete tools
-2. **Limited Composability**: Complex operations require chaining multiple tool calls
-3. **Context Inefficiency**: Each tool call consumes significant context tokens
-4. **Inflexible Workflows**: Predefined tool boundaries limit creative problem-solving
-5. **State Management**: No way to maintain intermediate state across tool calls
+1. **Cognitive Overhead**: Agents must remember and coordinate 32+ discrete methods
+2. **Limited Composability**: Complex operations require chaining multiple method calls
+3. **Context Inefficiency**: Each method call consumes significant context tokens
+4. **Inflexible Workflows**: Predefined method boundaries limit creative problem-solving
+5. **State Management**: No way to maintain intermediate state across method calls
+6. **Vault ID Requirements**: Every operation requires explicit vault ID parameter
 
 ## Proposed WebAssembly Code Evaluation API
 
 ### Core Concept
 
-Replace 29+ discrete tools with a single `evaluate_note_code` tool that:
+Replace 32+ discrete methods with a single `evaluate_note_code` tool that:
 
 - Accepts JavaScript code as input
 - Executes in a WebAssembly sandbox using quickjs-emscripten
@@ -89,28 +102,213 @@ The code executes in a secure WebAssembly runtime with controlled access to:
 ```javascript
 // Core note primitives available in execution context:
 const notes = {
-  // Async iterable of notes with optional filtering
-  list: async function*(filters = {}) {
-    // Returns: AsyncIterable<{id, type, title, created, updated, metadata}>
-    // Filters: { type?, metadata?, limit?, offset? }
-    // Usage: for await (const note of notes.list({type: 'meeting'})) { ... }
+  // Create note
+  create: async (options) => {
+    // Input: {type, title, content, metadata?}
+    // Returns: {id, type, title, filename, path, created}
   },
 
-  // Get full note by ID
-  get: async (id) => {
-    // Returns: {id, type, title, content, created, updated, metadata} | null
+  // Get note by identifier
+  get: async (identifier) => {
+    // Returns: {id, title, content, metadata, content_hash, links, type, created, updated, ...} | null
   },
 
-  // Create or update note (upsert based on presence of id)
-  save: async (note) => {
-    // Input: {id?, type, title, content, metadata?}
-    // Returns: {id, created, updated}
-    // Create: omit id, Update: include existing id
+  // Update note content and/or metadata
+  update: async (options) => {
+    // Input: {identifier, content, contentHash, metadata?}
+    // Returns: {id, updated, timestamp}
   },
 
-  // Delete note by ID
-  delete: async (id) => {
-    // Returns: boolean (success)
+  // Delete note by identifier
+  delete: async (options) => {
+    // Input: {identifier, confirm?}
+    // Returns: {id, deleted, timestamp, backup_path?, warnings?}
+  },
+
+  // List notes with optional filtering
+  list: async (options = {}) => {
+    // Input: {typeName?, limit?}
+    // Returns: [{id, title, type, created, updated, size, tags, path}, ...]
+  },
+
+  // Rename note and update all references
+  rename: async (options) => {
+    // Input: {identifier, new_title, content_hash}
+    // Returns: {success, notesUpdated?, linksUpdated?, new_id?}
+  },
+
+  // Move note to different type
+  move: async (options) => {
+    // Input: {identifier, new_type, content_hash}
+    // Returns: {success, old_id, new_id, old_type, new_type, filename, title, timestamp, links_updated?, notes_with_updated_links?}
+  },
+
+  // Search notes by text
+  search: async (options) => {
+    // Input: {query, typeFilter?, limit?, useRegex?}
+    // Returns: [{note_id, title, excerpt, score, type?, created?}, ...]
+  }
+};
+
+// Note type operations
+const noteTypes = {
+  // Create note type
+  create: async (options) => {
+    // Input: {type_name, description, agent_instructions?, metadata_schema?}
+    // Returns: {name, filename, path, created}
+  },
+
+  // List all note types
+  list: async () => {
+    // Returns: [{name, description, noteCount, filename}, ...]
+  },
+
+  // Get note type info
+  get: async (typeName) => {
+    // Returns: {name, purpose, path, instructions, metadata_schema, content_hash}
+  },
+
+  // Update note type
+  update: async (options) => {
+    // Input: {type_name, description?, instructions?, metadata_schema?}
+    // Returns: {raw, parsed: {description, agentInstructions, metadataSchema?}}
+  },
+
+  // Delete note type
+  delete: async (options) => {
+    // Input: {type_name, action, target_type?, confirm?}
+    // Returns: {success, notesAffected}
+  }
+};
+
+// Vault operations
+const vaults = {
+  // Get current vault
+  getCurrent: async () => {
+    // Returns: {id, name, path, description?, last_accessed, created} | null
+  },
+
+  // List all vaults
+  list: async () => {
+    // Returns: [{id, name, path, description?, last_accessed, created}, ...]
+  },
+
+  // Create new vault
+  create: async (options) => {
+    // Input: {id, name, path, description?, initialize?, switch_to?}
+    // Returns: {id, name, path, description?, last_accessed, created}
+  },
+
+  // Switch to vault
+  switch: async (vaultId) => {
+    // Returns: void
+  },
+
+  // Update vault metadata
+  update: async (options) => {
+    // Input: {id, name?, description?}
+    // Returns: void
+  },
+
+  // Remove vault from registry
+  remove: async (vaultId) => {
+    // Returns: void
+  }
+};
+
+// Link operations
+const links = {
+  // Get all links for a note
+  getForNote: async (identifier) => {
+    // Returns: {outgoing_internal: [...], outgoing_external: [...], incoming: [...]}
+  },
+
+  // Get backlinks to a note
+  getBacklinks: async (identifier) => {
+    // Returns: [{source_note_id, target_note_id, link_text, link_type}, ...]
+  },
+
+  // Find broken links
+  findBroken: async () => {
+    // Returns: [{source_note_id, target_note_id, link_text, link_type}, ...]
+  },
+
+  // Search notes by link relationships
+  searchBy: async (options) => {
+    // Input: {has_links_to?, linked_from?, external_domains?, broken_links?}
+    // Returns: [{id, title, type, created, updated, content_hash, metadata}, ...]
+  },
+
+  // Migrate existing notes to populate link tables
+  migrate: async (force = false) => {
+    // Returns: {total_notes, processed, errors, error_details?}
+  }
+};
+
+// Hierarchy operations
+const hierarchy = {
+  // Add parent-child relationship
+  addSubnote: async (options) => {
+    // Input: {parent_id, child_id, position?}
+    // Returns: {success, parentId, childId, operation, timestamp, hierarchyUpdated, error?}
+  },
+
+  // Remove parent-child relationship
+  removeSubnote: async (options) => {
+    // Input: {parent_id, child_id}
+    // Returns: {success, parentId, childId, operation, timestamp, hierarchyUpdated, error?}
+  },
+
+  // Reorder subnotes
+  reorder: async (options) => {
+    // Input: {parent_id, child_ids}
+    // Returns: {success, parentId, operation, timestamp, hierarchyUpdated, error?}
+  },
+
+  // Get hierarchy path from root to note
+  getPath: async (noteId) => {
+    // Returns: ["type/note1", "type/note2", ...]
+  },
+
+  // Get all descendants
+  getDescendants: async (options) => {
+    // Input: {note_id, max_depth?}
+    // Returns: [{parent_id, child_id, depth, position}, ...]
+  },
+
+  // Get direct children
+  getChildren: async (noteId) => {
+    // Returns: [{parent_id, child_id, depth, position}, ...]
+  },
+
+  // Get direct parents
+  getParents: async (noteId) => {
+    // Returns: [{parent_id, child_id, depth, position}, ...]
+  }
+};
+
+// Relationship analysis operations
+const relationships = {
+  // Get comprehensive relationships for a note
+  get: async (noteId) => {
+    // Returns: {content_links: {...}, hierarchy_links: {...}, external_links: {...}}
+  },
+
+  // Find related notes ranked by strength
+  getRelated: async (options) => {
+    // Input: {note_id, max_results?}
+    // Returns: [{noteId, strength, relationship_types}, ...]
+  },
+
+  // Find relationship path between two notes
+  findPath: async (options) => {
+    // Input: {start_note_id, end_note_id, max_depth?}
+    // Returns: [{noteId, relationship}, ...] | null
+  },
+
+  // Get clustering coefficient for a note
+  getClusteringCoefficient: async (noteId) => {
+    // Returns: number (0-1)
   }
 };
 
@@ -125,60 +323,182 @@ const utils = {
 
 ### Core Primitive Benefits
 
-**Everything builds on 4 operations:**
+**Everything builds on organized primitives:**
 
-- `notes.list()` - Async iteration with filtering
-- `notes.get(id)` - Retrieve full note
-- `notes.save(note)` - Create/update (upsert)
-- `notes.delete(id)` - Remove note
+- **Core CRUD**: `notes.create()`, `notes.get()`, `notes.update()`, `notes.delete()`
+- **Discovery**: `notes.list()`, `notes.search()`
+- **Management**: `notes.rename()`, `notes.move()`
+- **Organization**: `noteTypes.*`, `vaults.*`, `hierarchy.*`
+- **Analysis**: `links.*`, `relationships.*`
 
 **Complex operations become agent code:**
 
 ```javascript
-// Search becomes iteration + filtering
-async function search(query) {
+// Advanced search with multiple criteria
+async function advancedSearch(criteria) {
   const results = [];
-  for await (const note of notes.list()) {
-    const full = await notes.get(note.id);
-    if (full.content.includes(query)) results.push(full);
+  const allNotes = await notes.list({ limit: 1000 });
+  
+  for (const noteInfo of allNotes) {
+    const note = await notes.get(noteInfo.id);
+    if (!note) continue;
+    
+    let matches = true;
+    
+    // Check content criteria
+    if (criteria.contentContains) {
+      matches = matches && note.content.includes(criteria.contentContains);
+    }
+    
+    // Check metadata criteria
+    if (criteria.metadata) {
+      for (const [key, value] of Object.entries(criteria.metadata)) {
+        matches = matches && note.metadata[key] === value;
+      }
+    }
+    
+    // Check link criteria
+    if (criteria.hasLinksTo) {
+      const noteLinks = await links.getForNote(note.id);
+      const hasLink = noteLinks.outgoing_internal.some(link => 
+        criteria.hasLinksTo.includes(link.target_note_id)
+      );
+      matches = matches && hasLink;
+    }
+    
+    if (matches) {
+      results.push(note);
+    }
   }
+  
   return results;
 }
 
-// Rename becomes get + save
-async function rename(id, newTitle) {
-  const note = await notes.get(id);
-  return await notes.save({ ...note, title: newTitle });
-}
-
-// Move becomes get + save with new type
-async function move(id, newType) {
-  const note = await notes.get(id);
-  return await notes.save({ ...note, type: newType });
-}
-
-// Link analysis becomes iteration + parsing
-async function findBrokenLinks() {
-  const allNoteIds = new Set();
-  const brokenLinks = [];
-
-  // Collect all note IDs
-  for await (const note of notes.list()) {
-    allNoteIds.add(note.id);
-  }
-
-  // Find broken links
-  for await (const note of notes.list()) {
-    const full = await notes.get(note.id);
-    const links = utils.parseLinks(full.content);
-    for (const link of links) {
-      if (!allNoteIds.has(link)) {
-        brokenLinks.push({ noteId: note.id, brokenLink: link });
+// Bulk operations with proper error handling
+async function bulkUpdate(identifiers, updateFn) {
+  const results = [];
+  
+  for (const id of identifiers) {
+    try {
+      const note = await notes.get(id);
+      if (!note) {
+        results.push({ id, success: false, error: 'Note not found' });
+        continue;
       }
+      
+      const updates = await updateFn(note);
+      const result = await notes.update({
+        identifier: id,
+        content: updates.content || note.content,
+        contentHash: note.content_hash,
+        metadata: { ...note.metadata, ...updates.metadata }
+      });
+      
+      results.push({ id, success: true, result });
+    } catch (error) {
+      results.push({ id, success: false, error: error.message });
     }
   }
+  
+  return results;
+}
 
-  return brokenLinks;
+// Complex hierarchy management
+async function reorganizeHierarchy(parentId, childrenConfig) {
+  const results = [];
+  
+  // First, get current children
+  const currentChildren = await hierarchy.getChildren(parentId);
+  
+  // Remove existing children not in new config
+  const newChildIds = childrenConfig.map(c => c.id);
+  for (const child of currentChildren) {
+    if (!newChildIds.includes(child.child_id)) {
+      await hierarchy.removeSubnote({
+        parent_id: parentId,
+        child_id: child.child_id
+      });
+      results.push({ operation: 'removed', childId: child.child_id });
+    }
+  }
+  
+  // Add new children and set positions
+  for (const config of childrenConfig) {
+    await hierarchy.addSubnote({
+      parent_id: parentId,
+      child_id: config.id,
+      position: config.position
+    });
+    results.push({ operation: 'added', childId: config.id, position: config.position });
+  }
+  
+  // Reorder all children
+  await hierarchy.reorder({
+    parent_id: parentId,
+    child_ids: newChildIds
+  });
+  
+  return results;
+}
+
+// Link analysis with relationship mapping
+async function analyzeNoteNetwork() {
+  const networkData = {
+    nodes: [],
+    edges: [],
+    clusters: {},
+    centralNodes: []
+  };
+  
+  const allNotes = await notes.list({ limit: 1000 });
+  
+  // Build node data with relationship metrics
+  for (const noteInfo of allNotes) {
+    const note = await notes.get(noteInfo.id);
+    if (!note) continue;
+    
+    const noteLinks = await links.getForNote(note.id);
+    const relatedNotes = await relationships.getRelated({ note_id: note.id, max_results: 10 });
+    const clusterCoeff = await relationships.getClusteringCoefficient(note.id);
+    
+    networkData.nodes.push({
+      id: note.id,
+      title: note.title,
+      type: note.type,
+      outgoingLinks: noteLinks.outgoing_internal.length,
+      incomingLinks: noteLinks.incoming.length,
+      externalLinks: noteLinks.outgoing_external.length,
+      relatedCount: relatedNotes.length,
+      clusteringCoefficient: clusterCoeff,
+      centrality: noteLinks.incoming.length + noteLinks.outgoing_internal.length
+    });
+    
+    // Add edges
+    for (const link of noteLinks.outgoing_internal) {
+      networkData.edges.push({
+        source: note.id,
+        target: link.target_note_id,
+        type: 'content_link',
+        text: link.link_text
+      });
+    }
+  }
+  
+  // Identify central nodes (high connectivity)
+  networkData.centralNodes = networkData.nodes
+    .filter(node => node.centrality > 5)
+    .sort((a, b) => b.centrality - a.centrality)
+    .slice(0, 10);
+  
+  // Group nodes by type for cluster analysis
+  for (const node of networkData.nodes) {
+    if (!networkData.clusters[node.type]) {
+      networkData.clusters[node.type] = [];
+    }
+    networkData.clusters[node.type].push(node);
+  }
+  
+  return networkData;
 }
 ```
 
@@ -187,9 +507,8 @@ async function findBrokenLinks() {
 #### 1. Simple Note Creation
 
 ```javascript
-// Create new note using primitive API
-const noteId = utils.generateId();
-const result = await notes.save({
+// Create new note with proper structure
+const result = await notes.create({
   type: 'meeting',
   title: 'Weekly Standup',
   content: `# Weekly Standup - ${utils.formatDate(new Date())}
@@ -204,75 +523,142 @@ const result = await notes.save({
   }
 });
 
-return { success: true, noteId: result.id };
+return { success: true, noteInfo: result };
 ```
 
 #### 2. Complex Search and Analysis
 
 ```javascript
-// Multi-step analysis using primitive iteration
+// Multi-step analysis using list and get operations
 const recentMeetings = [];
 const cutoffDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-// Use async iteration to filter recent meetings
-for await (const note of notes.list({ type: 'meeting' })) {
-  if (new Date(note.created) > cutoffDate) {
-    recentMeetings.push(note);
+// Get all meeting notes
+const meetingNotes = await notes.list({ typeName: 'meeting', limit: 100 });
+
+// Filter recent meetings and get full content
+for (const noteInfo of meetingNotes) {
+  if (new Date(noteInfo.created) > cutoffDate) {
+    const fullNote = await notes.get(noteInfo.id);
+    if (fullNote) {
+      recentMeetings.push(fullNote);
+    }
   }
 }
 
 // Analyze attendee patterns
 const attendeeStats = {};
 for (const meeting of recentMeetings) {
-  const fullNote = await notes.get(meeting.id);
-  const attendees = fullNote.metadata?.attendees || [];
+  const attendees = meeting.metadata?.attendees || [];
   attendees.forEach((attendee) => {
     attendeeStats[attendee] = (attendeeStats[attendee] || 0) + 1;
   });
 }
 
-return {
+// Calculate meeting network metrics
+const meetingNetwork = {
   totalMeetings: recentMeetings.length,
   topAttendees: Object.entries(attendeeStats)
     .sort(([, a], [, b]) => b - a)
-    .slice(0, 5),
+    .slice(0, 5)
+    .map(([name, count]) => ({ name, meetings: count })),
   averageAttendeesPerMeeting:
     recentMeetings.reduce((sum, m) => sum + (m.metadata?.attendees?.length || 0), 0) /
-    recentMeetings.length
+    recentMeetings.length,
+  mostConnectedMeetings: []
 };
+
+// Find meetings with most cross-references
+for (const meeting of recentMeetings) {
+  const meetingLinks = await links.getForNote(meeting.id);
+  const relatedNotes = await relationships.getRelated({ 
+    note_id: meeting.id, 
+    max_results: 5 
+  });
+  
+  meetingNetwork.mostConnectedMeetings.push({
+    id: meeting.id,
+    title: meeting.title,
+    linkCount: meetingLinks.outgoing_internal.length + meetingLinks.incoming.length,
+    relatedCount: relatedNotes.length
+  });
+}
+
+meetingNetwork.mostConnectedMeetings = meetingNetwork.mostConnectedMeetings
+  .sort((a, b) => b.linkCount - a.linkCount)
+  .slice(0, 5);
+
+return meetingNetwork;
 ```
 
 #### 3. Batch Operations with Error Handling
 
 ```javascript
-// Batch update using primitive save operation
+// Batch update using proper update operations
 const results = [];
+const projectNotes = await notes.list({ typeName: 'project', limit: 100 });
 
-for await (const note of notes.list({ type: 'project' })) {
+for (const noteInfo of projectNotes) {
   try {
-    const fullNote = await notes.get(note.id);
+    const fullNote = await notes.get(noteInfo.id);
     if (fullNote && fullNote.content.includes('TODO:')) {
       const updatedContent = fullNote.content.replace(
         /TODO:/g,
         `UPDATED ${utils.formatDate(new Date())}:`
       );
 
-      // Update using save with existing id
-      await notes.save({
-        ...fullNote,
-        content: updatedContent
+      // Update using proper update method
+      const updateResult = await notes.update({
+        identifier: fullNote.id,
+        content: updatedContent,
+        contentHash: fullNote.content_hash,
+        metadata: {
+          ...fullNote.metadata,
+          last_todo_update: new Date().toISOString()
+        }
       });
 
-      results.push({ id: note.id, success: true });
+      results.push({ id: noteInfo.id, success: true, result: updateResult });
+    } else {
+      results.push({ id: noteInfo.id, success: false, reason: 'No TODOs found' });
     }
   } catch (error) {
-    results.push({ id: note.id, success: false, error: error.message });
+    results.push({ id: noteInfo.id, success: false, error: error.message });
+  }
+}
+
+// Also update any hierarchical relationships if needed
+const updatedNotes = results.filter(r => r.success && r.result);
+for (const result of updatedNotes) {
+  const children = await hierarchy.getChildren(result.id);
+  if (children.length > 0) {
+    // Sync hierarchy changes to frontmatter if this note has subnotes
+    try {
+      const note = await notes.get(result.id);
+      if (note) {
+        const subnoteIds = children.map(child => child.child_id);
+        await notes.update({
+          identifier: result.id,
+          content: note.content,
+          contentHash: note.content_hash,
+          metadata: {
+            ...note.metadata,
+            subnotes_count: subnoteIds.length,
+            hierarchy_updated: new Date().toISOString()
+          }
+        });
+      }
+    } catch (hierarchyError) {
+      console.warn(`Failed to update hierarchy metadata for ${result.id}:`, hierarchyError);
+    }
   }
 }
 
 return {
   processed: results.length,
   successful: results.filter((r) => r.success).length,
+  failed: results.filter((r) => !r.success).length,
+  hierarchyUpdates: updatedNotes.filter(r => r.result).length,
   details: results
 };
 ```
@@ -594,13 +980,15 @@ const result = await evaluator.evaluate(code, {
 
 ### Agent/LLM Benefits
 
-1. **Reduced Cognitive Load**: Single tool vs. 29+ specialized tools
+1. **Reduced Cognitive Load**: Single tool vs. 32+ specialized methods
 2. **Better Composability**: Write sophisticated workflows in JavaScript
 3. **Stateful Operations**: Maintain complex state across operations
 4. **Flexible Problem Solving**: No predefined boundaries limit approaches
 5. **Context Efficiency**: One comprehensive tool call vs. multiple sequential calls
 6. **Language Familiarity**: Agents already understand JavaScript syntax
 7. **Async/Await Support**: Modern JavaScript patterns for complex operations
+8. **Unified API**: No need to remember vault ID requirements for each method
+9. **Complex Analysis**: Enable sophisticated relationship and hierarchy analysis in single execution
 
 ### Security Benefits
 
@@ -613,12 +1001,14 @@ const result = await evaluator.evaluate(code, {
 
 ### Development Benefits
 
-1. **Simplified Architecture**: One secure tool vs. 29+ tool endpoints
-2. **Reduced Maintenance**: Single WASM evaluator vs. multiple tool handlers
-3. **Flexible API Evolution**: Add capabilities without new tool definitions
-4. **Better Testing**: Test actual business logic, not tool orchestration
+1. **Simplified Architecture**: One secure tool vs. 32+ method endpoints
+2. **Reduced Maintenance**: Single WASM evaluator vs. multiple method handlers
+3. **Flexible API Evolution**: Add capabilities without new method definitions
+4. **Better Testing**: Test actual business logic, not method orchestration
 5. **TypeScript Support**: Strong typing for complex operations
 6. **Comprehensive Logging**: Single execution context to monitor
+7. **Unified Error Handling**: Consistent error patterns across all operations
+8. **Vault Context Management**: Automatic vault context handling in sandbox
 
 ### Operational Benefits
 
