@@ -13,6 +13,13 @@ import { WikilinkParser } from '../core/wikilink-parser.js';
  * @returns Properly formatted note ID
  */
 export function generateNoteIdFromIdentifier(identifier: string): string {
+  // Validate input
+  if (!identifier || typeof identifier !== 'string') {
+    throw new Error(
+      `Invalid identifier: expected non-empty string, got ${typeof identifier}`
+    );
+  }
+
   // Check if identifier is already in type/filename format
   if (identifier.includes('/')) {
     return identifier;

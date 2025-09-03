@@ -192,7 +192,9 @@ export class NoteManager {
    * Sync subnotes from hierarchy database to frontmatter
    */
   async #syncHierarchyToSubnotes(noteIdentifier: string): Promise<void> {
-    if (!this.#hierarchyManager || !this.#hybridSearchManager) return;
+    if (!this.#hierarchyManager || !this.#hybridSearchManager) {
+      return;
+    }
 
     // Get database connection if hierarchy manager isn't initialized
     if (!this.#hierarchyManager) {
@@ -758,6 +760,11 @@ export class NoteManager {
     let formattedContent = '---\n';
 
     for (const [key, value] of Object.entries(metadata)) {
+      // Skip undefined values (used to explicitly remove properties from frontmatter)
+      if (value === undefined) {
+        continue;
+      }
+
       if (key === 'links' && value && typeof value === 'object') {
         // Special handling for new bidirectional links structure
         const links = value as { outbound?: NoteLink[]; inbound?: NoteLink[] };

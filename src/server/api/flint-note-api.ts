@@ -849,9 +849,12 @@ export class FlintNoteApi {
     // If the hierarchy operation was successful, sync changes back to parent note frontmatter
     if (result.success) {
       try {
-        const { workspace } = await this.getVaultContext(args.vault_id);
-        const noteManager = new NoteManager(workspace, hybridSearchManager);
-        await noteManager.syncHierarchyToFrontmatter(args.parent_id);
+        await this.syncHierarchyToFrontmatter(
+          args.vault_id,
+          args.parent_id,
+          hierarchyManager,
+          hybridSearchManager
+        );
       } catch (syncError) {
         // Log the sync error but don't fail the operation
         console.warn('Failed to sync hierarchy changes to frontmatter:', syncError);
@@ -880,9 +883,12 @@ export class FlintNoteApi {
     // If the hierarchy operation was successful, sync changes back to parent note frontmatter
     if (result.success) {
       try {
-        const { workspace } = await this.getVaultContext(args.vault_id);
-        const noteManager = new NoteManager(workspace, hybridSearchManager);
-        await noteManager.syncHierarchyToFrontmatter(args.parent_id);
+        await this.syncHierarchyToFrontmatter(
+          args.vault_id,
+          args.parent_id,
+          hierarchyManager,
+          hybridSearchManager
+        );
       } catch (syncError) {
         // Log the sync error but don't fail the operation
         console.warn('Failed to sync hierarchy changes to frontmatter:', syncError);
@@ -911,9 +917,12 @@ export class FlintNoteApi {
     // If the hierarchy operation was successful, sync changes back to parent note frontmatter
     if (result.success) {
       try {
-        const { workspace } = await this.getVaultContext(args.vault_id);
-        const noteManager = new NoteManager(workspace, hybridSearchManager);
-        await noteManager.syncHierarchyToFrontmatter(args.parent_id);
+        await this.syncHierarchyToFrontmatter(
+          args.vault_id,
+          args.parent_id,
+          hierarchyManager,
+          hybridSearchManager
+        );
       } catch (syncError) {
         // Log the sync error but don't fail the operation
         console.warn('Failed to sync hierarchy changes to frontmatter:', syncError);
@@ -921,6 +930,63 @@ export class FlintNoteApi {
     }
 
     return result;
+  }
+
+  /**
+   * Sync hierarchy changes to note frontmatter
+   */
+  private async syncHierarchyToFrontmatter(
+    vaultId: string,
+    noteIdentifier: string,
+    hierarchyManager: HierarchyManager,
+    hybridSearchManager: HybridSearchManager
+  ): Promise<void> {
+    const { noteManager } = await this.getVaultContext(vaultId);
+
+    // Get current hierarchy children
+    const noteId = generateNoteIdFromIdentifier(noteIdentifier);
+    const children = await hierarchyManager.getChildren(noteId);
+
+    // Convert child IDs back to identifiers
+    const subnotes: string[] = [];
+    const db = await hybridSearchManager.getDatabaseConnection();
+
+    for (const child of children) {
+      const note = await db.get<{ title: string; type: string }>(
+        'SELECT title, type FROM notes WHERE id = ?',
+        [child.child_id]
+      );
+      if (note) {
+        subnotes.push(`${note.type}/${note.title}`);
+      }
+    }
+
+    // Get current note and update its frontmatter
+    const currentNote = await noteManager.getNote(noteIdentifier);
+    if (!currentNote) {
+      console.warn(`Note not found when syncing hierarchy: ${noteIdentifier}`);
+      return;
+    }
+
+    // Create metadata object excluding protected fields
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { type, title, filename, created, updated, ...userMetadata } =
+      currentNote.metadata;
+    const updatedMetadata = { ...userMetadata };
+
+    if (subnotes.length > 0) {
+      updatedMetadata.subnotes = subnotes;
+    } else {
+      // Explicitly set to undefined to override existing value during merge
+      (updatedMetadata as Record<string, unknown>).subnotes = undefined;
+    }
+
+    await noteManager.updateNoteWithMetadata(
+      noteIdentifier,
+      currentNote.content,
+      updatedMetadata,
+      currentNote.content_hash
+    );
   }
 
   /**
