@@ -233,6 +233,21 @@ export class DatabaseManager {
         )
       `);
 
+      // Create note hierarchies table for parent-child relationships
+      await connection.run(`
+        CREATE TABLE IF NOT EXISTS note_hierarchies (
+          id INTEGER PRIMARY KEY,
+          parent_id TEXT NOT NULL,
+          child_id TEXT NOT NULL,
+          position INTEGER NOT NULL DEFAULT 0,
+          created DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(parent_id, child_id),
+          FOREIGN KEY (parent_id) REFERENCES notes(id) ON DELETE CASCADE,
+          FOREIGN KEY (child_id) REFERENCES notes(id) ON DELETE CASCADE
+        )
+      `);
+
       // Create indexes for performance
       await connection.run('CREATE INDEX IF NOT EXISTS idx_notes_type ON notes(type)');
       await connection.run(
@@ -266,6 +281,17 @@ export class DatabaseManager {
       );
       await connection.run(
         'CREATE INDEX IF NOT EXISTS idx_external_links_url ON external_links(url)'
+      );
+
+      // Create indexes for hierarchy table
+      await connection.run(
+        'CREATE INDEX IF NOT EXISTS idx_note_hierarchies_parent ON note_hierarchies(parent_id)'
+      );
+      await connection.run(
+        'CREATE INDEX IF NOT EXISTS idx_note_hierarchies_child ON note_hierarchies(child_id)'
+      );
+      await connection.run(
+        'CREATE INDEX IF NOT EXISTS idx_note_hierarchies_position ON note_hierarchies(parent_id, position)'
       );
 
       // Create triggers to keep FTS table in sync
@@ -308,6 +334,7 @@ export class DatabaseManager {
       await connection.run('BEGIN TRANSACTION');
       await connection.run('DELETE FROM external_links');
       await connection.run('DELETE FROM note_links');
+      await connection.run('DELETE FROM note_hierarchies');
       await connection.run('DELETE FROM note_metadata');
       await connection.run('DELETE FROM notes');
       await connection.run('DELETE FROM notes_fts');
@@ -379,6 +406,15 @@ export interface ExternalLinkRow {
   line_number: number | null;
   link_type: 'url' | 'image' | 'embed';
   created: string;
+}
+
+export interface NoteHierarchyRow {
+  id: number;
+  parent_id: string;
+  child_id: string;
+  position: number;
+  created: string;
+  updated: string;
 }
 
 // Helper functions for metadata type conversion

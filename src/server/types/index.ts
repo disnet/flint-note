@@ -39,6 +39,7 @@ export interface NoteMetadata {
   updated?: string;
   tags?: string[];
   filename?: string; // Store filename for easy reference
+  subnotes?: string[]; // Array of child note identifiers (supports frontmatter)
   links?: {
     outbound?: NoteLink[];
     inbound?: NoteLink[];
@@ -176,4 +177,51 @@ export interface UpdateResult {
 export interface FlintNoteError extends Error {
   code?: string;
   details?: Record<string, unknown>;
+}
+
+// ============================================================================
+// Hierarchy/Subnotes Types (Phase 1)
+// ============================================================================
+
+/**
+ * Represents hierarchical relationships for a single note
+ */
+export interface NoteHierarchy {
+  parents: string[]; // Note IDs of parent notes
+  children: string[]; // Ordered list of child note IDs
+  depth: number; // Nesting level for UI optimization
+}
+
+/**
+ * Graph structure that manages hierarchical relationships between notes
+ * Extends the existing link system to include parent-child relationships
+ */
+export interface HierarchyGraph {
+  hierarchies: {
+    [noteId: string]: NoteHierarchy;
+  };
+}
+
+/**
+ * Result of hierarchy validation operations
+ */
+export interface HierarchyValidation {
+  isValid: boolean;
+  errors: string[];
+  warnings: string[];
+  wouldCreateCycle: boolean;
+  maxDepthExceeded: boolean;
+}
+
+/**
+ * Operation result for hierarchy modifications
+ */
+export interface HierarchyOperationResult {
+  success: boolean;
+  parentId: string;
+  childId: string;
+  operation: 'add' | 'remove' | 'reorder';
+  timestamp: string;
+  hierarchyUpdated: boolean;
+  error?: string;
 }

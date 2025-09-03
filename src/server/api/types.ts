@@ -33,7 +33,14 @@ export type {
 
 export type { VaultInfo as CoreVaultInfo } from '../utils/global-config.js';
 
-export type { NoteMetadata } from '../types/index.js';
+export type {
+  NoteMetadata,
+  HierarchyGraph,
+  HierarchyOperationResult,
+  HierarchyValidation
+} from '../types/index.js';
+
+export type { NoteHierarchyRow } from '../database/schema.js';
 
 // ============================================================================
 // Server Configuration Types
@@ -241,5 +248,43 @@ export interface MoveNoteArgs {
   identifier: string;
   new_type: string;
   content_hash: string;
+  vault_id: string;
+}
+
+// ============================================================================
+// Hierarchy/Subnotes API Args (Phase 1)
+// ============================================================================
+
+export interface AddSubnoteArgs {
+  parent_id: string;
+  child_id: string;
+  position?: number;
+  vault_id: string;
+}
+
+export interface RemoveSubnoteArgs {
+  parent_id: string;
+  child_id: string;
+  vault_id: string;
+}
+
+export interface ReorderSubnotesArgs {
+  parent_id: string;
+  child_ids: string[];
+  vault_id: string;
+}
+
+export interface GetHierarchyPathArgs {
+  note_id: string;
+  vault_id: string;
+}
+
+export interface GetDescendantsArgs {
+  note_id: string;
+  max_depth?: number;
+  vault_id: string;
+}
+
+export interface GetHierarchyGraphArgs {
   vault_id: string;
 }

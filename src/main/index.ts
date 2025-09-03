@@ -453,7 +453,7 @@ app.whenReady().then(async () => {
       if (!noteService) {
         throw new Error('Note service not available');
       }
-      
+
       let vaultId = params.vaultId;
       if (!vaultId) {
         const currentVault = await noteService.getCurrentVault();
@@ -462,7 +462,7 @@ app.whenReady().then(async () => {
         }
         vaultId = currentVault.id;
       }
-      
+
       return await noteService.getNote(params.identifier, vaultId);
     }
   );
@@ -496,7 +496,7 @@ app.whenReady().then(async () => {
       if (!noteService) {
         throw new Error('Note service not available');
       }
-      
+
       let vaultId = params.vaultId;
       if (!vaultId) {
         const currentVault = await noteService.getCurrentVault();
@@ -505,7 +505,7 @@ app.whenReady().then(async () => {
         }
         vaultId = currentVault.id;
       }
-      
+
       return await noteService.deleteNote(params.identifier, vaultId);
     }
   );
@@ -531,7 +531,7 @@ app.whenReady().then(async () => {
         }
         vaultId = currentVault.id;
       }
-      
+
       return await noteService.renameNote(
         params.identifier,
         params.newIdentifier,
@@ -561,12 +561,8 @@ app.whenReady().then(async () => {
         }
         vaultId = currentVault.id;
       }
-      
-      return await noteService.moveNote(
-        params.identifier,
-        params.newType,
-        vaultId
-      );
+
+      return await noteService.moveNote(params.identifier, params.newType, vaultId);
     }
   );
 
@@ -592,7 +588,7 @@ app.whenReady().then(async () => {
         }
         vaultId = currentVault.id;
       }
-      
+
       return await noteService.searchNotes(params.query, vaultId, params.limit);
     }
   );
@@ -622,7 +618,7 @@ app.whenReady().then(async () => {
         }
         vaultId = currentVault.id;
       }
-      
+
       return await noteService.searchNotesAdvanced({
         ...params,
         vaultId
@@ -635,7 +631,7 @@ app.whenReady().then(async () => {
     if (!noteService) {
       throw new Error('Note service not available');
     }
-    
+
     let vaultId = params?.vaultId;
     if (!vaultId) {
       const currentVault = await noteService.getCurrentVault();
@@ -644,7 +640,7 @@ app.whenReady().then(async () => {
       }
       vaultId = currentVault.id;
     }
-    
+
     return await noteService.listNoteTypes(vaultId);
   });
 
@@ -673,7 +669,7 @@ app.whenReady().then(async () => {
       if (!noteService) {
         throw new Error('Note service not available');
       }
-      
+
       let vaultId = params.vaultId;
       if (!vaultId) {
         const currentVault = await noteService.getCurrentVault();
@@ -682,7 +678,7 @@ app.whenReady().then(async () => {
         }
         vaultId = currentVault.id;
       }
-      
+
       return await noteService.getNoteTypeInfo({
         type_name: params.typeName,
         vault_id: vaultId
@@ -722,7 +718,7 @@ app.whenReady().then(async () => {
       if (!noteService) {
         throw new Error('Note service not available');
       }
-      
+
       let vaultId = params.vaultId;
       if (!vaultId) {
         const currentVault = await noteService.getCurrentVault();
@@ -731,7 +727,7 @@ app.whenReady().then(async () => {
         }
         vaultId = currentVault.id;
       }
-      
+
       return await noteService.listNotesByType(params.type, vaultId, params.limit);
     }
   );
@@ -799,7 +795,7 @@ app.whenReady().then(async () => {
       if (!noteService) {
         throw new Error('Note service not available');
       }
-      
+
       let vaultId = params.vaultId;
       if (!vaultId) {
         const currentVault = await noteService.getCurrentVault();
@@ -808,7 +804,7 @@ app.whenReady().then(async () => {
         }
         vaultId = currentVault.id;
       }
-      
+
       return await noteService.getNoteLinks(params.identifier, vaultId);
     }
   );
@@ -819,7 +815,7 @@ app.whenReady().then(async () => {
       if (!noteService) {
         throw new Error('Note service not available');
       }
-      
+
       let vaultId = params.vaultId;
       if (!vaultId) {
         const currentVault = await noteService.getCurrentVault();
@@ -828,7 +824,7 @@ app.whenReady().then(async () => {
         }
         vaultId = currentVault.id;
       }
-      
+
       return await noteService.getBacklinks(params.identifier, vaultId);
     }
   );
@@ -837,7 +833,7 @@ app.whenReady().then(async () => {
     if (!noteService) {
       throw new Error('Note service not available');
     }
-    
+
     let vaultId = params.vaultId;
     if (!vaultId) {
       const currentVault = await noteService.getCurrentVault();

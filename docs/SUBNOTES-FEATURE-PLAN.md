@@ -195,35 +195,53 @@ interface HierarchyState {
 
 ## Implementation Phases
 
-### Phase 1: Core Data Model
+### Phase 1: Core Data Model ✅ **COMPLETED**
 
-- Extend note metadata schema for subnote relationships
-- Implement basic parent-child relationship storage
-- Create hierarchy graph data structure
-- Add relationship validation and circular reference detection
+- ✅ Extend note metadata schema for subnote relationships
+- ✅ Implement basic parent-child relationship storage  
+- ✅ Create hierarchy graph data structure
+- ✅ Add relationship validation and circular reference detection
 
-### Phase 2: Service Layer Integration
+**Implementation Details:**
+- Extended `NoteMetadata` interface with `subnotes?: string[]` field for frontmatter support
+- Added comprehensive hierarchy type definitions (`NoteHierarchy`, `HierarchyGraph`, `HierarchyValidation`, `HierarchyOperationResult`)
+- Created `note_hierarchies` database table with proper indexes and foreign key constraints
+- Implemented complete `HierarchyManager` class with full CRUD operations:
+  - `addSubnote()` with position support and validation
+  - `removeSubnote()` with safe relationship removal
+  - `reorderSubnotes()` with transaction-safe updates
+  - `getHierarchyPath()` and `getDescendants()` for navigation
+- Comprehensive validation system preventing circular dependencies and excessive nesting
+- All TypeScript types, linting, and formatting checks pass
+
+**Files Modified/Created:**
+- `src/server/types/index.ts` - Extended with hierarchy types
+- `src/server/database/schema.ts` - Added hierarchy table and interfaces
+- `src/server/core/hierarchy.ts` - New complete hierarchy manager
+- `src/server/api/types.ts` - Added hierarchy API argument types
+
+### Phase 2: Service Layer Integration ⏳ **NEXT**
 
 - Implement hierarchy management APIs
 - Extend note CRUD operations to handle relationships
 - Add hierarchy-aware search and filtering
 - Update link graph to include hierarchical relationships
 
-### Phase 3: Basic UI Implementation
+### Phase 3: Basic UI Implementation ⏳ **PLANNED**
 
 - Add hierarchical tree view to left sidebar
 - Implement expand/collapse functionality
 - Create basic drag-and-drop for subnote management
 - Add breadcrumb navigation to main view
 
-### Phase 4: Advanced UI Features
+### Phase 4: Advanced UI Features ⏳ **PLANNED**
 
 - Implement advanced drag-and-drop with visual feedback
 - Add context menus for hierarchy management
 - Create hierarchy-aware metadata editing
 - Add keyboard shortcuts and navigation improvements
 
-### Phase 5: Polish and Integration
+### Phase 5: Polish and Integration ⏳ **PLANNED**
 
 - Integrate with AI assistant for hierarchy-aware operations
 - Add hierarchy-specific settings and preferences
