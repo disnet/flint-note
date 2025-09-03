@@ -54,13 +54,13 @@ export class WASMCodeEvaluator {
     const startTime = Date.now();
     const timeout = options.timeout || 5000; // Default 5 second timeout
     let vm: QuickJSContext | null = null;
+    let interrupted = false; // Moved outside try block for scope accessibility
 
     try {
       vm = this.QuickJS!.newContext();
 
       // Set up interrupt handler for timeout and infinite loop protection
-      let interrupted = false;
-      const interruptHandler = () => {
+      const interruptHandler = (): boolean => {
         const elapsed = Date.now() - startTime;
         if (elapsed > timeout) {
           interrupted = true;
@@ -86,7 +86,7 @@ export class WASMCodeEvaluator {
       // Check for compilation/syntax errors or interrupts
       if (evalResult.error) {
         let errorMsg: string;
-        
+
         // Check if this was due to an interrupt (timeout)
         if (interrupted) {
           evalResult.error.dispose();
@@ -96,11 +96,15 @@ export class WASMCodeEvaluator {
             executionTime: Date.now() - startTime
           };
         }
-        
+
         // Try to extract a meaningful error message
         try {
           const errorObj = vm!.dump(evalResult.error);
-          if (typeof errorObj === 'object' && errorObj !== null && 'message' in errorObj) {
+          if (
+            typeof errorObj === 'object' &&
+            errorObj !== null &&
+            'message' in errorObj
+          ) {
             errorMsg = String(errorObj.message);
           } else if (typeof errorObj === 'string') {
             errorMsg = errorObj;
@@ -113,7 +117,7 @@ export class WASMCodeEvaluator {
           // Fallback to basic string conversion
           errorMsg = 'Unknown execution error';
         }
-        
+
         evalResult.error.dispose();
         return {
           success: false,
@@ -151,7 +155,7 @@ export class WASMCodeEvaluator {
           executionTime: Date.now() - startTime
         };
       }
-      
+
       return {
         success: false,
         error: `Code execution failed: ${error instanceof Error ? error.message : String(error)}`,

@@ -197,7 +197,6 @@ describe('WASMCodeEvaluator - Phase 1', () => {
     });
   });
 
-
   // describe('Security Features', () => {
   //   it('should block access to restricted APIs by default', async () => {
   //     const result = await evaluator.evaluate({
