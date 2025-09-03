@@ -3,9 +3,8 @@
  * Phase 1: Basic implementation with note retrieval functionality
  */
 
-import { getQuickJS, QuickJSContext } from 'quickjs-emscripten';
+import { getQuickJS, QuickJSContext, QuickJSWASMModule } from 'quickjs-emscripten';
 import type { FlintNoteApi } from './flint-note-api.js';
-import type { Note } from '../core/notes.js';
 
 export interface WASMCodeEvaluationOptions {
   code: string;
@@ -24,12 +23,14 @@ export interface WASMCodeEvaluationResult {
 }
 
 export class WASMCodeEvaluator {
-  private QuickJS: unknown;
-  private noteApi: FlintNoteApi;
+  private QuickJS: QuickJSWASMModule | null = null;
   private initialized = false;
 
-  constructor(noteApi: FlintNoteApi) {
-    this.noteApi = noteApi;
+  constructor(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _noteApi: FlintNoteApi
+  ) {
+    // noteApi parameter kept for potential future use
   }
 
   async initialize(): Promise<void> {
@@ -54,7 +55,7 @@ export class WASMCodeEvaluator {
     let vm: QuickJSContext | null = null;
 
     try {
-      vm = this.QuickJS.newContext();
+      vm = this.QuickJS!.newContext();
 
       // Set up execution limits (currently unused but kept for future async support)
 
@@ -68,11 +69,11 @@ export class WASMCodeEvaluator {
         })()
       `;
 
-      const evalResult = vm.evalCode(codeToExecute);
+      const evalResult = vm!.evalCode(codeToExecute);
 
       // Check for compilation/syntax errors
       if (evalResult.error) {
-        const errorMsg = vm.dump(evalResult.error);
+        const errorMsg = vm!.dump(evalResult.error);
         evalResult.error.dispose();
         return {
           success: false,
@@ -85,7 +86,7 @@ export class WASMCodeEvaluator {
       let finalResult: unknown;
       try {
         // For Phase 1, we'll only handle synchronous results
-        finalResult = vm.dump(evalResult.value);
+        finalResult = vm!.dump(evalResult.value);
         evalResult.value.dispose();
 
         return {
@@ -115,37 +116,9 @@ export class WASMCodeEvaluator {
     }
   }
 
-  private createSecureAPIProxy(
-    vaultId: string,
-    allowedAPIs?: string[]
-  ): {
-    notes: Record<string, (...args: unknown[]) => unknown>;
-    utils: Record<string, (...args: unknown[]) => unknown>;
-  } {
-    const isAllowed = (apiPath: string): boolean =>
-      !allowedAPIs || allowedAPIs.includes(apiPath);
-
-    return {
-      notes: {
-        get: isAllowed('notes.get')
-          ? this.wrapAsync(async (identifier: string): Promise<Note | null> => {
-              return await this.noteApi.getNote(vaultId, identifier);
-            })
-          : null
-      },
-      utils: {
-        formatDate: (date: string) => new Date(date).toISOString(),
-        generateId: () => Math.random().toString(36).substr(2, 9),
-        sanitizeTitle: (title: string) => title.replace(/[^a-zA-Z0-9\s-]/g, '').trim(),
-        parseLinks: (content: string) =>
-          content.match(/\[\[([^\]]+)\]\]/g)?.map((link) => link.slice(2, -2)) || []
-      }
-    };
-  }
-
   private injectSecureAPI(
     vm: QuickJSContext,
-    vaultId: string,
+    _vaultId: string,
     allowedAPIs?: string[],
     customContext?: Record<string, unknown>
   ): void {
@@ -218,20 +191,6 @@ export class WASMCodeEvaluator {
     vm.setProp(vm.global, 'process', vm.undefined);
     vm.setProp(vm.global, 'global', vm.undefined);
     vm.setProp(vm.global, 'globalThis', vm.undefined);
-  }
-
-  private wrapAsync<T extends unknown[], R>(
-    fn: (...args: T) => Promise<R>
-  ): (...args: T) => Promise<R> {
-    return async (...args: T): Promise<R> => {
-      try {
-        return await fn(...args);
-      } catch (error) {
-        throw new Error(
-          `API Error: ${error instanceof Error ? error.message : String(error)}`
-        );
-      }
-    };
   }
 
   dispose(): void {
