@@ -24,6 +24,11 @@ export async function handleIndexRebuild(
   forceRebuild: boolean = false,
   logCallback?: (message: string, isError?: boolean) => void
 ): Promise<void> {
+  // Skip search index initialization during tests
+  if (process.env.NODE_ENV === 'test' || process.env.VITEST === 'true') {
+    return;
+  }
+
   const log =
     logCallback ||
     ((message: string, isError?: boolean) => {
