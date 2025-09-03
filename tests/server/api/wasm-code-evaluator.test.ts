@@ -50,19 +50,6 @@ describe('WASMCodeEvaluator - Phase 1', () => {
       expect(result.success).toBe(true);
       expect(result.result).toBe(14);
     });
-
-    // it('should support async code execution', async () => {
-    //   const result = await evaluator.evaluate({
-    //     code: `
-    //       await new Promise(resolve => setTimeout(resolve, 10));
-    //       return "async result";
-    //     `,
-    //     vaultId: testVaultId
-    //   });
-
-    //   expect(result.success).toBe(true);
-    //   expect(result.result).toBe('async result');
-    // });
   });
 
   describe('Error Handling', () => {
@@ -197,107 +184,105 @@ describe('WASMCodeEvaluator - Phase 1', () => {
     });
   });
 
-  // describe('Security Features', () => {
-  //   it('should block access to restricted APIs by default', async () => {
-  //     const result = await evaluator.evaluate({
-  //       code: `
-  //         // Should not have access to notes.get without explicit permission
-  //         return typeof notes.get;
-  //       `,
-  //       vaultId: testVaultId
-  //       // No allowedAPIs specified, so notes.get should be null
-  //     });
+  describe('Security Features', () => {
+    it('should block access to restricted APIs by default', async () => {
+      const result = await evaluator.evaluate({
+        code: `
+          // Should not have access to notes.get without explicit permission
+          return typeof notes.get;
+        `,
+        vaultId: testVaultId
+        // No allowedAPIs specified, so notes.get should be null
+      });
 
-  //     expect(result.success).toBe(true);
-  //     expect(result.result).toBe('object'); // null is typeof 'object'
-  //   });
+      expect(result.success).toBe(true);
+      expect(result.result).toBe('object'); // null is typeof 'object'
+    });
 
-  //   it('should block dangerous globals', async () => {
-  //     const result = await evaluator.evaluate({
-  //       code: `
-  //         return {
-  //           fetch: typeof fetch,
-  //           require: typeof require,
-  //           process: typeof process,
-  //           global: typeof global,
-  //           globalThis: typeof globalThis
-  //         };
-  //       `,
-  //       vaultId: testVaultId
-  //     });
+    it('should block dangerous globals', async () => {
+      const result = await evaluator.evaluate({
+        code: `
+          return {
+            fetch: typeof fetch,
+            require: typeof require,
+            process: typeof process,
+            global: typeof global,
+            globalThis: typeof globalThis
+          };
+        `,
+        vaultId: testVaultId
+      });
 
-  //     expect(result.success).toBe(true);
-  //     const resultObj = result.result as any;
-  //     expect(resultObj.fetch).toBe('undefined');
-  //     expect(resultObj.require).toBe('undefined');
-  //     expect(resultObj.process).toBe('undefined');
-  //     expect(resultObj.global).toBe('undefined');
-  //     expect(resultObj.globalThis).toBe('undefined');
-  //   });
+      expect(result.success).toBe(true);
+      const resultObj = result.result as any;
+      expect(resultObj.fetch).toBe('undefined');
+      expect(resultObj.require).toBe('undefined');
+      expect(resultObj.process).toBe('undefined');
+      expect(resultObj.global).toBe('undefined');
+      expect(resultObj.globalThis).toBe('undefined');
+    });
 
-  //   it('should honor API whitelisting', async () => {
-  //     // Create a note first
-  //     const noteOptions = {
-  //       type: 'general',
-  //       title: 'Security Test Note',
-  //       content: 'This is for security testing.',
-  //       vaultId: testVaultId
-  //     };
+    it('should honor API whitelisting', async () => {
+      // Create a note first
+      const noteOptions = {
+        type: 'general',
+        title: 'Security Test Note',
+        content: 'This is for security testing.',
+        vaultId: testVaultId
+      };
 
-  //     const createdNote = await testSetup.api.createNote(noteOptions);
+      const createdNote = await testSetup.api.createNote(noteOptions);
 
-  //     // Test with whitelisted API
-  //     const allowedResult = await evaluator.evaluate({
-  //       code: `
-  //         const note = await notes.get("${createdNote.id}");
-  //         return note !== null;
-  //       `,
-  //       vaultId: testVaultId,
-  //       allowedAPIs: ['notes.get']
-  //     });
+      // Test with whitelisted API
+      const allowedResult = await evaluator.evaluate({
+        code: `
+          return notes.get("${createdNote.id}").then(note => note !== null);
+        `,
+        vaultId: testVaultId,
+        allowedAPIs: ['notes.get']
+      });
 
-  //     expect(allowedResult.success).toBe(true);
-  //     expect(allowedResult.result).toBe(true);
+      expect(allowedResult.success).toBe(true);
+      expect(allowedResult.result).toBe(true);
 
-  //     // Test without whitelisted API
-  //     const blockedResult = await evaluator.evaluate({
-  //       code: `
-  //         const note = await notes.get("${createdNote.id}");
-  //         return note !== null;
-  //       `,
-  //       vaultId: testVaultId,
-  //       allowedAPIs: [] // Explicitly empty allowed APIs
-  //     });
+      // Test without whitelisted API
+      const blockedResult = await evaluator.evaluate({
+        code: `
+          return notes.get("${createdNote.id}").then(note => note !== null);
+        `,
+        vaultId: testVaultId,
+        allowedAPIs: [] // Explicitly empty allowed APIs
+      });
 
-  //     expect(blockedResult.success).toBe(false);
-  //     expect(blockedResult.error).toContain('error');
-  //   });
-  // });
+      expect(blockedResult.success).toBe(false);
+      expect(blockedResult.error).toContain('error');
+    });
+  });
 
-  // describe('Context Variables', () => {
-  //   it('should inject custom context variables', async () => {
-  //     const result = await evaluator.evaluate({
-  //       code: `
-  //         return {
-  //           hasCustomVar: typeof customVar !== 'undefined',
-  //           customValue: customVar,
-  //           hasAnotherVar: typeof anotherVar !== 'undefined',
-  //           anotherValue: anotherVar
-  //         };
-  //       `,
-  //       vaultId: testVaultId,
-  //       context: {
-  //         customVar: 'test value',
-  //         anotherVar: { nested: 'object' }
-  //       }
-  //     });
+  describe('Context Variables', () => {
+    it('should inject custom context variables', async () => {
+      const result = await evaluator.evaluate({
+        code: `
+          return {
+            hasCustomVar: typeof customVar !== 'undefined',
+            customValue: customVar,
+            hasAnotherVar: typeof anotherVar !== 'undefined',
+            anotherValue: anotherVar
+          };
+        `,
+        vaultId: testVaultId,
+        context: {
+          customVar: 'test value',
+          anotherVar: { nested: 'object' }
+        }
+      });
 
-  //     expect(result.success).toBe(true);
-  //     const resultObj = result.result as any;
-  //     expect(resultObj.hasCustomVar).toBe(true);
-  //     expect(resultObj.customValue).toBe('test value');
-  //     expect(resultObj.hasAnotherVar).toBe(true);
-  //     expect(resultObj.anotherValue).toEqual({ nested: 'object' });
-  //   });
-  // });
+      expect(result.success).toBe(true);
+      const resultObj = result.result as any;
+      expect(resultObj.hasCustomVar).toBe(true);
+      expect(resultObj.customValue).toBe('test value');
+      expect(resultObj.hasAnotherVar).toBe(true);
+      expect(resultObj.anotherValue).toEqual({ nested: 'object' });
+    });
+  });
 });

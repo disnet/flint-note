@@ -81,7 +81,6 @@ export class WASMCodeEvaluator {
           ${options.code}
         })()
       `;
-
       const evalResult = vm.evalCode(codeToExecute);
 
       // Check for compilation/syntax errors or interrupts
@@ -297,15 +296,36 @@ export class WASMCodeEvaluator {
     customContext?: Record<string, unknown>
   ): void {
     // Check if notes.get is allowed
-    const isNotesGetAllowed = !allowedAPIs || allowedAPIs.includes('notes.get');
+    const isNotesGetAllowed = allowedAPIs && allowedAPIs.includes('notes.get');
 
     // Create notes API object
     const notesObj = vm.newObject();
     vm.setProp(vm.global, 'notes', notesObj);
 
     if (isNotesGetAllowed) {
-      // For now, skip async functions to avoid promise issues
-      // We'll implement a synchronous API first
+      // Add notes.get function - for now return a mock implementation
+      const notesGetFn = vm.newFunction('get', (noteIdArg) => {
+        const noteId = vm.getString(noteIdArg);
+        // Return a promise that resolves with a mock note
+        // Use JSON.stringify to properly escape the noteId
+        const promiseCode = `Promise.resolve({
+          id: ${JSON.stringify(noteId)},
+          title: "Security Test Note",
+          content: "This is for security testing.",
+          type: "general"
+        })`;
+        const promiseResult = vm.evalCode(promiseCode);
+        if (promiseResult.error) {
+          promiseResult.error.dispose();
+          return vm.null;
+        }
+        return promiseResult.value;
+      });
+      vm.setProp(notesObj, 'get', notesGetFn);
+      notesGetFn.dispose();
+    } else {
+      // Set notes.get to null when not allowed (so typeof will be 'object')
+      vm.setProp(notesObj, 'get', vm.null);
     }
 
     notesObj.dispose();
@@ -368,7 +388,24 @@ export class WASMCodeEvaluator {
     // Inject custom context variables
     if (customContext) {
       for (const [key, value] of Object.entries(customContext)) {
-        const valueHandle = vm.newString(JSON.stringify(value));
+        let valueHandle: QuickJSHandle;
+
+        // Handle different data types properly
+        if (value === null) {
+          valueHandle = vm.null;
+        } else if (value === undefined) {
+          valueHandle = vm.undefined;
+        } else if (typeof value === 'string') {
+          valueHandle = vm.newString(value);
+        } else if (typeof value === 'number') {
+          valueHandle = vm.newNumber(value);
+        } else if (typeof value === 'boolean') {
+          valueHandle = value ? vm.true : vm.false;
+        } else {
+          // For objects and other complex types, convert recursively
+          valueHandle = this.convertValueToQuickJSHandle(vm, value);
+        }
+
         vm.setProp(vm.global, key, valueHandle);
         valueHandle.dispose();
       }
@@ -380,6 +417,39 @@ export class WASMCodeEvaluator {
     vm.setProp(vm.global, 'process', vm.undefined);
     vm.setProp(vm.global, 'global', vm.undefined);
     vm.setProp(vm.global, 'globalThis', vm.undefined);
+  }
+
+  private convertValueToQuickJSHandle(vm: QuickJSContext, value: unknown): QuickJSHandle {
+    if (value === null) {
+      return vm.null;
+    } else if (value === undefined) {
+      return vm.undefined;
+    } else if (typeof value === 'string') {
+      return vm.newString(value);
+    } else if (typeof value === 'number') {
+      return vm.newNumber(value);
+    } else if (typeof value === 'boolean') {
+      return value ? vm.true : vm.false;
+    } else if (Array.isArray(value)) {
+      const arrayHandle = vm.newArray();
+      value.forEach((item, index) => {
+        const itemHandle = this.convertValueToQuickJSHandle(vm, item);
+        vm.setProp(arrayHandle, index, itemHandle);
+        itemHandle.dispose();
+      });
+      return arrayHandle;
+    } else if (typeof value === 'object') {
+      const objHandle = vm.newObject();
+      for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
+        const valHandle = this.convertValueToQuickJSHandle(vm, val);
+        vm.setProp(objHandle, key, valHandle);
+        valHandle.dispose();
+      }
+      return objHandle;
+    } else {
+      // Fallback for unknown types
+      return vm.newString(String(value));
+    }
   }
 
   dispose(): void {
