@@ -41,15 +41,15 @@ describe('WASMCodeEvaluator - Phase 1', () => {
       expect(result.error).toBeUndefined();
     });
 
-    // it('should handle arithmetic operations', async () => {
-    //   const result = await evaluator.evaluate({
-    //     code: 'return 2 + 3 * 4;',
-    //     vaultId: testVaultId
-    //   });
+    it('should handle arithmetic operations', async () => {
+      const result = await evaluator.evaluate({
+        code: 'return 2 + 3 * 4;',
+        vaultId: testVaultId
+      });
 
-    //   expect(result.success).toBe(true);
-    //   expect(result.result).toBe(14);
-    // });
+      expect(result.success).toBe(true);
+      expect(result.result).toBe(14);
+    });
 
     // it('should support async code execution', async () => {
     //   const result = await evaluator.evaluate({
@@ -176,28 +176,26 @@ describe('WASMCodeEvaluator - Phase 1', () => {
   //   });
   // });
 
-  // describe('Utility Functions', () => {
-  //   it('should provide utility functions', async () => {
-  //     const result = await evaluator.evaluate({
-  //       code: `
-  //         return {
-  //           formattedDate: utils.formatDate("2024-01-15T10:30:00Z"),
-  //           generatedId: typeof utils.generateId(),
-  //           sanitizedTitle: utils.sanitizeTitle("Test Title with @#$ chars"),
-  //           links: utils.parseLinks("Content with [[link1]] and [[link2]]")
-  //         };
-  //       `,
-  //       vaultId: testVaultId
-  //     });
+  describe('Utility Functions', () => {
+    it('should provide utility functions', async () => {
+      const result = await evaluator.evaluate({
+        code: `return {
+          formattedDate: utils.formatDate("2024-01-15T10:30:00Z"),
+          generatedId: typeof utils.generateId(),
+          sanitizedTitle: utils.sanitizeTitle("Test Title with @#$ chars"),
+          links: utils.parseLinks("Content with [[link1]] and [[link2]]")
+        };`,
+        vaultId: testVaultId
+      });
 
-  //     expect(result.success).toBe(true);
-  //     const resultObj = result.result as any;
-  //     expect(resultObj.formattedDate).toMatch(/2024-01-15T10:30:00.000Z/);
-  //     expect(resultObj.generatedId).toBe('string');
-  //     expect(resultObj.sanitizedTitle).toBe('Test Title with  chars');
-  //     expect(resultObj.links).toEqual(['link1', 'link2']);
-  //   });
-  // });
+      expect(result.success).toBe(true);
+      const resultObj = result.result as any;
+      expect(resultObj.formattedDate).toMatch(/2024-01-15T10:30:00.000Z/);
+      expect(resultObj.generatedId).toBe('string');
+      expect(resultObj.sanitizedTitle).toBe('Test Title with  chars');
+      expect(resultObj.links).toEqual(['link1', 'link2']);
+    });
+  });
 
   // describe('Security Features', () => {
   //   it('should block access to restricted APIs by default', async () => {

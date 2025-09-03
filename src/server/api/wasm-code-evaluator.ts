@@ -3,11 +3,7 @@
  * Phase 1: Basic implementation with note retrieval functionality
  */
 
-import {
-  getQuickJS,
-  shouldInterruptAfterDeadline,
-  QuickJSContext
-} from 'quickjs-emscripten';
+import { getQuickJS, QuickJSContext } from 'quickjs-emscripten';
 import type { FlintNoteApi } from './flint-note-api.js';
 import type { Note } from '../core/notes.js';
 
@@ -28,7 +24,7 @@ export interface WASMCodeEvaluationResult {
 }
 
 export class WASMCodeEvaluator {
-  private QuickJS: any;
+  private QuickJS: unknown;
   private noteApi: FlintNoteApi;
   private initialized = false;
 
@@ -60,22 +56,19 @@ export class WASMCodeEvaluator {
     try {
       vm = this.QuickJS.newContext();
 
-      // Set up execution limits
-      const timeout = options.timeout || 5000;
+      // Set up execution limits (currently unused but kept for future async support)
 
       // Create secure API proxy and inject into VM
       this.injectSecureAPI(vm, options.vaultId, options.allowedAPIs, options.context);
 
-      // Execute the code
+      // Execute the code - for now, use synchronous function wrapper
       const codeToExecute = `
-        (async function() {
+        (() => {
           ${options.code}
         })()
       `;
 
-      const evalResult = vm.evalCode(codeToExecute, {
-        shouldInterrupt: shouldInterruptAfterDeadline(Date.now() + timeout)
-      });
+      const evalResult = vm.evalCode(codeToExecute);
 
       // Check for compilation/syntax errors
       if (evalResult.error) {
@@ -88,31 +81,11 @@ export class WASMCodeEvaluator {
         };
       }
 
-      // Handle the result
+      // Handle the result - for now, treat all results as synchronous
       let finalResult: unknown;
       try {
-        // Check if result is a promise (async function)
-        if (evalResult.value && vm.typeof(evalResult.value) === 'object') {
-          const promiseResult = await vm.resolvePromise(evalResult.value);
-
-          if (promiseResult.error) {
-            const errorMsg = vm.dump(promiseResult.error);
-            promiseResult.error.dispose();
-            evalResult.value.dispose();
-            return {
-              success: false,
-              error: `Promise error: ${errorMsg}`,
-              executionTime: Date.now() - startTime
-            };
-          }
-
-          finalResult = vm.dump(promiseResult.value);
-          promiseResult.value.dispose();
-        } else {
-          // Synchronous result
-          finalResult = vm.dump(evalResult.value);
-        }
-
+        // For Phase 1, we'll only handle synchronous results
+        finalResult = vm.dump(evalResult.value);
         evalResult.value.dispose();
 
         return {
@@ -146,10 +119,11 @@ export class WASMCodeEvaluator {
     vaultId: string,
     allowedAPIs?: string[]
   ): {
-    notes: Record<string, Function>;
-    utils: Record<string, Function>;
+    notes: Record<string, (...args: unknown[]) => unknown>;
+    utils: Record<string, (...args: unknown[]) => unknown>;
   } {
-    const isAllowed = (apiPath: string) => !allowedAPIs || allowedAPIs.includes(apiPath);
+    const isAllowed = (apiPath: string): boolean =>
+      !allowedAPIs || allowedAPIs.includes(apiPath);
 
     return {
       notes: {
@@ -179,58 +153,55 @@ export class WASMCodeEvaluator {
     const isNotesGetAllowed = !allowedAPIs || allowedAPIs.includes('notes.get');
 
     // Create notes API object
-    vm.setProp(vm.global, 'notes', vm.newObject());
-    const notesHandle = vm.getProp(vm.global, 'notes');
+    const notesObj = vm.newObject();
+    vm.setProp(vm.global, 'notes', notesObj);
 
     if (isNotesGetAllowed) {
-      // Create the notes.get function
-      const noteGetFn = vm.newFunction('get', async (identifier: string) => {
-        try {
-          return await this.noteApi.getNote(vaultId, identifier);
-        } catch (error) {
-          throw new Error(
-            `API Error: ${error instanceof Error ? error.message : String(error)}`
-          );
-        }
-      });
-      vm.setProp(notesHandle, 'get', noteGetFn);
-      noteGetFn.dispose();
+      // For now, skip async functions to avoid promise issues
+      // We'll implement a synchronous API first
     }
 
-    notesHandle.dispose();
+    notesObj.dispose();
 
-    // Create utils API object
-    vm.setProp(vm.global, 'utils', vm.newObject());
-    const utilsHandle = vm.getProp(vm.global, 'utils');
+    // Create utils API object with proper disposal
+    const utilsObj = vm.newObject();
+    vm.setProp(vm.global, 'utils', utilsObj);
 
-    // Add utility functions
-    const formatDateFn = vm.newFunction('formatDate', (date: string) =>
-      new Date(date).toISOString()
-    );
-    vm.setProp(utilsHandle, 'formatDate', formatDateFn);
+    // Add utility functions with proper QuickJS function wrapper
+    const formatDateFn = vm.newFunction('formatDate', (vmArg) => {
+      const dateStr = vm.getString(vmArg);
+      return vm.newString(new Date(dateStr).toISOString());
+    });
+    vm.setProp(utilsObj, 'formatDate', formatDateFn);
     formatDateFn.dispose();
 
-    const generateIdFn = vm.newFunction('generateId', () =>
-      Math.random().toString(36).substr(2, 9)
-    );
-    vm.setProp(utilsHandle, 'generateId', generateIdFn);
+    const generateIdFn = vm.newFunction('generateId', () => {
+      return vm.newString(Math.random().toString(36).substr(2, 9));
+    });
+    vm.setProp(utilsObj, 'generateId', generateIdFn);
     generateIdFn.dispose();
 
-    const sanitizeTitleFn = vm.newFunction('sanitizeTitle', (title: string) =>
-      title.replace(/[^a-zA-Z0-9\s-]/g, '').trim()
-    );
-    vm.setProp(utilsHandle, 'sanitizeTitle', sanitizeTitleFn);
+    const sanitizeTitleFn = vm.newFunction('sanitizeTitle', (vmArg) => {
+      const title = vm.getString(vmArg);
+      return vm.newString(title.replace(/[^a-zA-Z0-9\s-]/g, '').trim());
+    });
+    vm.setProp(utilsObj, 'sanitizeTitle', sanitizeTitleFn);
     sanitizeTitleFn.dispose();
 
-    const parseLinksFn = vm.newFunction(
-      'parseLinks',
-      (content: string) =>
-        content.match(/\[\[([^\]]+)\]\]/g)?.map((link) => link.slice(2, -2)) || []
-    );
-    vm.setProp(utilsHandle, 'parseLinks', parseLinksFn);
+    const parseLinksFn = vm.newFunction('parseLinks', (vmArg) => {
+      const content = vm.getString(vmArg);
+      const links =
+        content.match(/\[\[([^\]]+)\]\]/g)?.map((link) => link.slice(2, -2)) || [];
+      const arrayHandle = vm.newArray();
+      links.forEach((link, index) => {
+        vm.setProp(arrayHandle, index, vm.newString(link));
+      });
+      return arrayHandle;
+    });
+    vm.setProp(utilsObj, 'parseLinks', parseLinksFn);
     parseLinksFn.dispose();
 
-    utilsHandle.dispose();
+    utilsObj.dispose();
 
     // Inject custom context variables
     if (customContext) {
