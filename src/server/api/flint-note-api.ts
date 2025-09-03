@@ -27,7 +27,15 @@ import type {
   CreateVaultArgs,
   SwitchVaultArgs,
   RemoveVaultArgs,
-  UpdateVaultArgs
+  UpdateVaultArgs,
+  AddSubnoteArgs,
+  RemoveSubnoteArgs,
+  ReorderSubnotesArgs,
+  GetHierarchyPathArgs,
+  GetDescendantsArgs,
+  GetChildrenArgs,
+  GetParentsArgs,
+  HierarchyOperationResult
 } from './types.js';
 import type {
   NoteInfo,
@@ -52,6 +60,10 @@ import { generateNoteIdFromIdentifier } from '../utils/note-linking.js';
 import { handleIndexRebuild } from '../database/search-manager.js';
 import { logInitialization } from '../utils/config.js';
 import type { MetadataFieldDefinition } from '../core/metadata-schema.js';
+import { HierarchyManager } from '../core/hierarchy.js';
+import type { NoteHierarchyRow } from '../database/schema.js';
+import { RelationshipManager } from '../core/relationship-manager.js';
+import type { NoteRelationships } from '../core/relationship-manager.js';
 
 export interface FlintNoteApiConfig extends ServerConfig {
   [key: string]: unknown;
@@ -786,5 +798,235 @@ export class FlintNoteApi {
       errors: errorCount,
       error_details: errors.length > 0 ? errors.slice(0, 10) : undefined // Limit error details to first 10
     };
+  }
+
+  // Hierarchy Operations
+
+  /**
+   * Add a parent-child relationship between two notes
+   */
+  async addSubnote(args: AddSubnoteArgs): Promise<HierarchyOperationResult> {
+    this.ensureInitialized();
+
+    const { hybridSearchManager } = await this.getVaultContext(args.vault_id);
+    const db = await hybridSearchManager.getDatabaseConnection();
+    const hierarchyManager = new HierarchyManager(db);
+
+    // Convert identifiers to note IDs
+    const parentId = generateNoteIdFromIdentifier(args.parent_id);
+    const childId = generateNoteIdFromIdentifier(args.child_id);
+
+    // Verify both notes exist
+    const parentExists = await db.get('SELECT id FROM notes WHERE id = ?', [parentId]);
+    const childExists = await db.get('SELECT id FROM notes WHERE id = ?', [childId]);
+
+    if (!parentExists) {
+      return {
+        success: false,
+        parentId: args.parent_id,
+        childId: args.child_id,
+        operation: 'add',
+        timestamp: new Date().toISOString(),
+        hierarchyUpdated: false,
+        error: `Parent note not found: ${args.parent_id}`
+      };
+    }
+
+    if (!childExists) {
+      return {
+        success: false,
+        parentId: args.parent_id,
+        childId: args.child_id,
+        operation: 'add',
+        timestamp: new Date().toISOString(),
+        hierarchyUpdated: false,
+        error: `Child note not found: ${args.child_id}`
+      };
+    }
+
+    return await hierarchyManager.addSubnote(parentId, childId, args.position);
+  }
+
+  /**
+   * Remove a parent-child relationship
+   */
+  async removeSubnote(args: RemoveSubnoteArgs): Promise<HierarchyOperationResult> {
+    this.ensureInitialized();
+
+    const { hybridSearchManager } = await this.getVaultContext(args.vault_id);
+    const db = await hybridSearchManager.getDatabaseConnection();
+    const hierarchyManager = new HierarchyManager(db);
+
+    // Convert identifiers to note IDs
+    const parentId = generateNoteIdFromIdentifier(args.parent_id);
+    const childId = generateNoteIdFromIdentifier(args.child_id);
+
+    return await hierarchyManager.removeSubnote(parentId, childId);
+  }
+
+  /**
+   * Reorder subnotes within a parent
+   */
+  async reorderSubnotes(args: ReorderSubnotesArgs): Promise<HierarchyOperationResult> {
+    this.ensureInitialized();
+
+    const { hybridSearchManager } = await this.getVaultContext(args.vault_id);
+    const db = await hybridSearchManager.getDatabaseConnection();
+    const hierarchyManager = new HierarchyManager(db);
+
+    // Convert identifiers to note IDs
+    const parentId = generateNoteIdFromIdentifier(args.parent_id);
+    const childIds = args.child_ids.map((id) => generateNoteIdFromIdentifier(id));
+
+    return await hierarchyManager.reorderSubnotes(parentId, childIds);
+  }
+
+  /**
+   * Get the hierarchy path from root to the specified note
+   */
+  async getHierarchyPath(args: GetHierarchyPathArgs): Promise<string[]> {
+    this.ensureInitialized();
+
+    const { hybridSearchManager } = await this.getVaultContext(args.vault_id);
+    const db = await hybridSearchManager.getDatabaseConnection();
+    const hierarchyManager = new HierarchyManager(db);
+
+    const noteId = generateNoteIdFromIdentifier(args.note_id);
+    const path = await hierarchyManager.getHierarchyPath(noteId);
+
+    // Convert note IDs back to identifiers for the response
+    const identifierPath: string[] = [];
+    for (const id of path) {
+      const note = await db.get<{ title: string; type: string }>(
+        'SELECT title, type FROM notes WHERE id = ?',
+        [id]
+      );
+      if (note) {
+        identifierPath.push(`${note.type}/${note.title}`);
+      }
+    }
+
+    return identifierPath;
+  }
+
+  /**
+   * Get all descendant notes up to specified depth
+   */
+  async getDescendants(args: GetDescendantsArgs): Promise<NoteHierarchyRow[]> {
+    this.ensureInitialized();
+
+    const { hybridSearchManager } = await this.getVaultContext(args.vault_id);
+    const db = await hybridSearchManager.getDatabaseConnection();
+    const hierarchyManager = new HierarchyManager(db);
+
+    const noteId = generateNoteIdFromIdentifier(args.note_id);
+    return await hierarchyManager.getDescendants(noteId, args.max_depth);
+  }
+
+  /**
+   * Get direct children of a note
+   */
+  async getChildren(args: GetChildrenArgs): Promise<NoteHierarchyRow[]> {
+    this.ensureInitialized();
+
+    const { hybridSearchManager } = await this.getVaultContext(args.vault_id);
+    const db = await hybridSearchManager.getDatabaseConnection();
+    const hierarchyManager = new HierarchyManager(db);
+
+    const noteId = generateNoteIdFromIdentifier(args.note_id);
+    return await hierarchyManager.getChildren(noteId);
+  }
+
+  /**
+   * Get direct parents of a note
+   */
+  async getParents(args: GetParentsArgs): Promise<NoteHierarchyRow[]> {
+    this.ensureInitialized();
+
+    const { hybridSearchManager } = await this.getVaultContext(args.vault_id);
+    const db = await hybridSearchManager.getDatabaseConnection();
+    const hierarchyManager = new HierarchyManager(db);
+
+    const noteId = generateNoteIdFromIdentifier(args.note_id);
+    return await hierarchyManager.getParents(noteId);
+  }
+
+  // Relationship Analysis Operations
+
+  /**
+   * Get comprehensive relationships for a note (content + hierarchy)
+   */
+  async getNoteRelationships(args: {
+    note_id: string;
+    vault_id: string;
+  }): Promise<NoteRelationships> {
+    this.ensureInitialized();
+
+    const { hybridSearchManager } = await this.getVaultContext(args.vault_id);
+    const db = await hybridSearchManager.getDatabaseConnection();
+    const relationshipManager = new RelationshipManager(db);
+
+    const noteId = generateNoteIdFromIdentifier(args.note_id);
+    return await relationshipManager.getNoteRelationships(noteId);
+  }
+
+  /**
+   * Find notes related to the given note, ranked by relationship strength
+   */
+  async getRelatedNotes(args: {
+    note_id: string;
+    vault_id: string;
+    max_results?: number;
+  }): Promise<Array<{ noteId: string; strength: number; relationship_types: string[] }>> {
+    this.ensureInitialized();
+
+    const { hybridSearchManager } = await this.getVaultContext(args.vault_id);
+    const db = await hybridSearchManager.getDatabaseConnection();
+    const relationshipManager = new RelationshipManager(db);
+
+    const noteId = generateNoteIdFromIdentifier(args.note_id);
+    return await relationshipManager.getRelatedNotes(noteId, args.max_results);
+  }
+
+  /**
+   * Find relationship path between two notes
+   */
+  async findRelationshipPath(args: {
+    start_note_id: string;
+    end_note_id: string;
+    vault_id: string;
+    max_depth?: number;
+  }): Promise<Array<{ noteId: string; relationship: string }> | null> {
+    this.ensureInitialized();
+
+    const { hybridSearchManager } = await this.getVaultContext(args.vault_id);
+    const db = await hybridSearchManager.getDatabaseConnection();
+    const relationshipManager = new RelationshipManager(db);
+
+    const startNoteId = generateNoteIdFromIdentifier(args.start_note_id);
+    const endNoteId = generateNoteIdFromIdentifier(args.end_note_id);
+
+    return await relationshipManager.findRelationshipPath(
+      startNoteId,
+      endNoteId,
+      args.max_depth
+    );
+  }
+
+  /**
+   * Get clustering coefficient for a note
+   */
+  async getClusteringCoefficient(args: {
+    note_id: string;
+    vault_id: string;
+  }): Promise<number> {
+    this.ensureInitialized();
+
+    const { hybridSearchManager } = await this.getVaultContext(args.vault_id);
+    const db = await hybridSearchManager.getDatabaseConnection();
+    const relationshipManager = new RelationshipManager(db);
+
+    const noteId = generateNoteIdFromIdentifier(args.note_id);
+    return await relationshipManager.getClusteringCoefficient(noteId);
   }
 }

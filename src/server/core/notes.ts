@@ -29,6 +29,8 @@ import type {
 } from '../types/index.js';
 import { WikilinkParser } from './wikilink-parser.js';
 import { LinkExtractor } from './link-extractor.js';
+import { HierarchyManager } from './hierarchy.js';
+import { generateNoteIdFromIdentifier } from '../utils/note-linking.js';
 
 interface ParsedNote {
   metadata: NoteMetadata;
@@ -108,6 +110,7 @@ interface ParsedIdentifier {
 export class NoteManager {
   #workspace: Workspace;
   #noteTypeManager: NoteTypeManager;
+  #hierarchyManager?: HierarchyManager;
 
   #hybridSearchManager?: HybridSearchManager;
 
@@ -116,6 +119,141 @@ export class NoteManager {
     this.#noteTypeManager = new NoteTypeManager(workspace);
 
     this.#hybridSearchManager = hybridSearchManager;
+
+    // Initialize hierarchy manager if we have a database connection
+    if (hybridSearchManager) {
+      this.#initializeHierarchyManager(hybridSearchManager);
+    }
+  }
+
+  /**
+   * Initialize hierarchy manager asynchronously
+   */
+  async #initializeHierarchyManager(
+    hybridSearchManager: HybridSearchManager
+  ): Promise<void> {
+    const db = await hybridSearchManager.getDatabaseConnection();
+    this.#hierarchyManager = new HierarchyManager(db);
+  }
+
+  /**
+   * Sync subnotes from frontmatter to hierarchy database
+   */
+  async #syncSubnotesToHierarchy(
+    noteIdentifier: string,
+    subnotes: string[]
+  ): Promise<void> {
+    if (!this.#hierarchyManager || !this.#hybridSearchManager) return;
+
+    // Get database connection if hierarchy manager isn't initialized
+    if (!this.#hierarchyManager) {
+      await this.#initializeHierarchyManager(this.#hybridSearchManager);
+      if (!this.#hierarchyManager) return;
+    }
+
+    const noteId = generateNoteIdFromIdentifier(noteIdentifier);
+
+    // Get current children from database
+    const currentChildren = await this.#hierarchyManager.getChildren(noteId);
+    const currentChildIds = currentChildren.map((child) => child.child_id);
+
+    // Convert subnote identifiers to IDs
+    const desiredChildIds = subnotes.map((identifier) =>
+      generateNoteIdFromIdentifier(identifier)
+    );
+
+    // Find children to add
+    const toAdd = desiredChildIds.filter((childId) => !currentChildIds.includes(childId));
+
+    // Find children to remove
+    const toRemove = currentChildIds.filter(
+      (childId) => !desiredChildIds.includes(childId)
+    );
+
+    // Remove children no longer in frontmatter
+    for (const childId of toRemove) {
+      await this.#hierarchyManager.removeSubnote(noteId, childId);
+    }
+
+    // Add new children from frontmatter
+    for (let i = 0; i < toAdd.length; i++) {
+      const childId = toAdd[i];
+      const position = desiredChildIds.indexOf(childId);
+      await this.#hierarchyManager.addSubnote(noteId, childId, position);
+    }
+
+    // Reorder existing children to match frontmatter order
+    if (desiredChildIds.length > 0) {
+      await this.#hierarchyManager.reorderSubnotes(noteId, desiredChildIds);
+    }
+  }
+
+  /**
+   * Sync subnotes from hierarchy database to frontmatter
+   * Currently unused but kept for future frontmatter synchronization features
+   */
+  // async #syncHierarchyToSubnotes(noteIdentifier: string): Promise<string[]> {
+  //   if (!this.#hierarchyManager || !this.#hybridSearchManager) return [];
+
+  //   // Get database connection if hierarchy manager isn't initialized
+  //   if (!this.#hierarchyManager) {
+  //     await this.#initializeHierarchyManager(this.#hybridSearchManager);
+  //     if (!this.#hierarchyManager) return [];
+  //   }
+
+  //   const noteId = generateNoteIdFromIdentifier(noteIdentifier);
+  //   const children = await this.#hierarchyManager.getChildren(noteId);
+
+  //   // Convert child IDs back to identifiers
+  //   const subnotes: string[] = [];
+  //   const db = await this.#hybridSearchManager.getDatabaseConnection();
+
+  //   for (const child of children) {
+  //     const note = await db.get<{ title: string; type: string }>(
+  //       'SELECT title, type FROM notes WHERE id = ?',
+  //       [child.child_id]
+  //     );
+  //     if (note) {
+  //       subnotes.push(`${note.type}/${note.title}`);
+  //     }
+  //   }
+
+  //   return subnotes;
+  // }
+
+  /**
+   * Clean up hierarchy relationships when a note is deleted
+   */
+  async #cleanupHierarchyOnDelete(noteIdentifier: string): Promise<void> {
+    if (!this.#hierarchyManager || !this.#hybridSearchManager) return;
+
+    // Get database connection if hierarchy manager isn't initialized
+    if (!this.#hierarchyManager) {
+      await this.#initializeHierarchyManager(this.#hybridSearchManager);
+      if (!this.#hierarchyManager) return;
+    }
+
+    const noteId = generateNoteIdFromIdentifier(noteIdentifier);
+
+    try {
+      // Remove all parent-child relationships where this note is the parent
+      const children = await this.#hierarchyManager.getChildren(noteId);
+      for (const child of children) {
+        await this.#hierarchyManager.removeSubnote(noteId, child.child_id);
+      }
+
+      // Remove all parent-child relationships where this note is the child
+      const parents = await this.#hierarchyManager.getParents(noteId);
+      for (const parent of parents) {
+        await this.#hierarchyManager.removeSubnote(parent.parent_id, noteId);
+      }
+    } catch (error) {
+      // Don't fail deletion if hierarchy cleanup fails, but log it
+      console.warn(
+        `Failed to clean up hierarchy for deleted note ${noteIdentifier}:`,
+        error
+      );
+    }
   }
 
   /**
@@ -181,8 +319,14 @@ export class NoteManager {
       // Update search index
       await this.updateSearchIndex(notePath, noteContent);
 
+      // Sync hierarchy if subnotes are specified in metadata
+      const noteId = this.generateNoteId(typeName, filename);
+      if (metadata.subnotes && Array.isArray(metadata.subnotes)) {
+        await this.#syncSubnotesToHierarchy(noteId, metadata.subnotes as string[]);
+      }
+
       return {
-        id: this.generateNoteId(typeName, filename),
+        id: noteId,
         type: typeName,
         title: trimmedTitle,
         filename,
@@ -713,6 +857,12 @@ export class NoteManager {
       // Update search index
       await this.updateSearchIndex(notePath, formattedContent);
 
+      // Sync hierarchy if subnotes have changed
+      if (metadata.subnotes !== undefined) {
+        const subnotes = Array.isArray(metadata.subnotes) ? metadata.subnotes : [];
+        await this.#syncSubnotesToHierarchy(identifier, subnotes);
+      }
+
       return {
         id: identifier,
         updated: true,
@@ -757,6 +907,9 @@ export class NoteManager {
 
       // Remove from search index first
       await this.removeFromSearchIndex(notePath);
+
+      // Clean up hierarchy relationships
+      await this.#cleanupHierarchyOnDelete(identifier);
 
       // Delete the file
       await fs.unlink(notePath);

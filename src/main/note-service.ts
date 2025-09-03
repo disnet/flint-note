@@ -21,6 +21,11 @@ import type {
   MetadataFieldDefinition,
   MetadataSchema
 } from '../server/core/metadata-schema';
+import type {
+  HierarchyOperationResult,
+  NoteHierarchyRow,
+  NoteRelationships
+} from '../server/api/types';
 import { logger } from './logger';
 import { GetNoteTypeInfoResult } from '../server/api/types.js';
 import { NoteTypeDescription } from '../server/core/note-types';
@@ -386,6 +391,133 @@ export class NoteService {
     } catch (error) {
       logger.error(`Failed to ensure default note type in vault ${vaultId}:`, { error });
     }
+  }
+
+  // Hierarchy operations
+  async addSubnote(
+    parentIdentifier: string,
+    childIdentifier: string,
+    vaultId: string,
+    position?: number
+  ): Promise<HierarchyOperationResult> {
+    this.ensureInitialized();
+    return await this.api.addSubnote({
+      parent_id: parentIdentifier,
+      child_id: childIdentifier,
+      vault_id: vaultId,
+      position
+    });
+  }
+
+  async removeSubnote(
+    parentIdentifier: string,
+    childIdentifier: string,
+    vaultId: string
+  ): Promise<HierarchyOperationResult> {
+    this.ensureInitialized();
+    return await this.api.removeSubnote({
+      parent_id: parentIdentifier,
+      child_id: childIdentifier,
+      vault_id: vaultId
+    });
+  }
+
+  async reorderSubnotes(
+    parentIdentifier: string,
+    childIdentifiers: string[],
+    vaultId: string
+  ): Promise<HierarchyOperationResult> {
+    this.ensureInitialized();
+    return await this.api.reorderSubnotes({
+      parent_id: parentIdentifier,
+      child_ids: childIdentifiers,
+      vault_id: vaultId
+    });
+  }
+
+  async getHierarchyPath(identifier: string, vaultId: string): Promise<string[]> {
+    this.ensureInitialized();
+    return await this.api.getHierarchyPath({
+      note_id: identifier,
+      vault_id: vaultId
+    });
+  }
+
+  async getDescendants(
+    identifier: string,
+    vaultId: string,
+    maxDepth?: number
+  ): Promise<NoteHierarchyRow[]> {
+    this.ensureInitialized();
+    return await this.api.getDescendants({
+      note_id: identifier,
+      vault_id: vaultId,
+      max_depth: maxDepth
+    });
+  }
+
+  async getChildren(identifier: string, vaultId: string): Promise<NoteHierarchyRow[]> {
+    this.ensureInitialized();
+    return await this.api.getChildren({
+      note_id: identifier,
+      vault_id: vaultId
+    });
+  }
+
+  async getParents(identifier: string, vaultId: string): Promise<NoteHierarchyRow[]> {
+    this.ensureInitialized();
+    return await this.api.getParents({
+      note_id: identifier,
+      vault_id: vaultId
+    });
+  }
+
+  // Relationship analysis operations
+  async getNoteRelationships(
+    identifier: string,
+    vaultId: string
+  ): Promise<NoteRelationships> {
+    this.ensureInitialized();
+    return await this.api.getNoteRelationships({
+      note_id: identifier,
+      vault_id: vaultId
+    });
+  }
+
+  async getRelatedNotes(
+    identifier: string,
+    vaultId: string,
+    maxResults?: number
+  ): Promise<Array<{ noteId: string; strength: number; relationship_types: string[] }>> {
+    this.ensureInitialized();
+    return await this.api.getRelatedNotes({
+      note_id: identifier,
+      vault_id: vaultId,
+      max_results: maxResults
+    });
+  }
+
+  async findRelationshipPath(
+    startIdentifier: string,
+    endIdentifier: string,
+    vaultId: string,
+    maxDepth?: number
+  ): Promise<Array<{ noteId: string; relationship: string }> | null> {
+    this.ensureInitialized();
+    return await this.api.findRelationshipPath({
+      start_note_id: startIdentifier,
+      end_note_id: endIdentifier,
+      vault_id: vaultId,
+      max_depth: maxDepth
+    });
+  }
+
+  async getClusteringCoefficient(identifier: string, vaultId: string): Promise<number> {
+    this.ensureInitialized();
+    return await this.api.getClusteringCoefficient({
+      note_id: identifier,
+      vault_id: vaultId
+    });
   }
 
   // Utility methods

@@ -8,6 +8,7 @@ import type { NoteMetadata, NoteLink as _NoteLink } from '../types/index.js';
 import fs from 'fs/promises';
 import path from 'path';
 import { createHash } from 'crypto';
+import { generateNoteIdFromIdentifier } from '../utils/note-linking.js';
 
 /**
  * Helper to handle index rebuilding with progress reporting
@@ -84,6 +85,14 @@ export interface AdvancedSearchOptions {
   created_within?: string;
   created_before?: string;
   content_contains?: string;
+  // Hierarchy-specific filters
+  parent_of?: string; // Find notes that are parents of the specified note
+  child_of?: string; // Find notes that are children of the specified note
+  descendants_of?: string; // Find all descendants of the specified note
+  ancestors_of?: string; // Find all ancestors of the specified note
+  max_depth?: number; // Maximum hierarchy depth for descendants search
+  has_children?: boolean; // Find notes that have or don't have children
+  has_parents?: boolean; // Find notes that have or don't have parents
   sort?: Array<{
     field: 'title' | 'type' | 'created' | 'updated' | 'size';
     order: 'asc' | 'desc';
@@ -355,6 +364,83 @@ export class HybridSearchManager {
         joins.push('JOIN notes_fts fts ON n.id = fts.id');
         whereConditions.push('notes_fts MATCH ?');
         params.push(options.content_contains);
+      }
+
+      // Hierarchy filters
+      if (options.parent_of) {
+        const childId = generateNoteIdFromIdentifier(options.parent_of);
+        joins.push('JOIN note_hierarchies h_parent ON n.id = h_parent.parent_id');
+        whereConditions.push('h_parent.child_id = ?');
+        params.push(childId);
+      }
+
+      if (options.child_of) {
+        const parentId = generateNoteIdFromIdentifier(options.child_of);
+        joins.push('JOIN note_hierarchies h_child ON n.id = h_child.child_id');
+        whereConditions.push('h_child.parent_id = ?');
+        params.push(parentId);
+      }
+
+      if (options.descendants_of) {
+        const ancestorId = generateNoteIdFromIdentifier(options.descendants_of);
+        // Use recursive CTE to find all descendants
+        const maxDepth = options.max_depth || 10;
+        joins.push(`
+          JOIN (
+            WITH RECURSIVE descendants(id, level) AS (
+              SELECT child_id, 1 FROM note_hierarchies WHERE parent_id = ?
+              UNION ALL
+              SELECT h.child_id, d.level + 1 
+              FROM note_hierarchies h 
+              JOIN descendants d ON h.parent_id = d.id 
+              WHERE d.level < ${maxDepth}
+            )
+            SELECT id FROM descendants
+          ) d ON n.id = d.id
+        `);
+        params.push(ancestorId);
+      }
+
+      if (options.ancestors_of) {
+        const descendantId = generateNoteIdFromIdentifier(options.ancestors_of);
+        // Use recursive CTE to find all ancestors
+        joins.push(`
+          JOIN (
+            WITH RECURSIVE ancestors(id) AS (
+              SELECT parent_id FROM note_hierarchies WHERE child_id = ?
+              UNION ALL
+              SELECT h.parent_id 
+              FROM note_hierarchies h 
+              JOIN ancestors a ON h.child_id = a.id
+            )
+            SELECT id FROM ancestors
+          ) a ON n.id = a.id
+        `);
+        params.push(descendantId);
+      }
+
+      if (options.has_children !== undefined) {
+        if (options.has_children) {
+          joins.push(
+            'JOIN note_hierarchies h_has_children ON n.id = h_has_children.parent_id'
+          );
+        } else {
+          whereConditions.push(
+            'n.id NOT IN (SELECT DISTINCT parent_id FROM note_hierarchies WHERE parent_id IS NOT NULL)'
+          );
+        }
+      }
+
+      if (options.has_parents !== undefined) {
+        if (options.has_parents) {
+          joins.push(
+            'JOIN note_hierarchies h_has_parents ON n.id = h_has_parents.child_id'
+          );
+        } else {
+          whereConditions.push(
+            'n.id NOT IN (SELECT DISTINCT child_id FROM note_hierarchies WHERE child_id IS NOT NULL)'
+          );
+        }
       }
 
       // Build complete query

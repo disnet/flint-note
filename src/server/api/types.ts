@@ -42,6 +42,11 @@ export type {
 
 export type { NoteHierarchyRow } from '../database/schema.js';
 
+export type {
+  NoteRelationships,
+  RelationshipGraph
+} from '../core/relationship-manager.js';
+
 // ============================================================================
 // Server Configuration Types
 // ============================================================================
@@ -134,6 +139,14 @@ export interface SearchNotesAdvancedArgs {
   created_within?: string;
   created_before?: string;
   content_contains?: string;
+  // Hierarchy-specific filters
+  parent_of?: string;
+  child_of?: string;
+  descendants_of?: string;
+  ancestors_of?: string;
+  max_depth?: number;
+  has_children?: boolean;
+  has_parents?: boolean;
   sort?: Array<{
     field: 'title' | 'type' | 'created' | 'updated' | 'size';
     order: 'asc' | 'desc';
@@ -195,6 +208,77 @@ export interface SwitchVaultArgs {
 
 export interface RemoveVaultArgs {
   id: string;
+}
+
+// ============================================================================
+// Hierarchy API Argument Types
+// ============================================================================
+
+export interface AddSubnoteArgs {
+  parent_id: string;
+  child_id: string;
+  position?: number;
+  vault_id: string;
+}
+
+export interface RemoveSubnoteArgs {
+  parent_id: string;
+  child_id: string;
+  vault_id: string;
+}
+
+export interface ReorderSubnotesArgs {
+  parent_id: string;
+  child_ids: string[];
+  vault_id: string;
+}
+
+export interface GetHierarchyPathArgs {
+  note_id: string;
+  vault_id: string;
+}
+
+export interface GetDescendantsArgs {
+  note_id: string;
+  max_depth?: number;
+  vault_id: string;
+}
+
+export interface GetChildrenArgs {
+  note_id: string;
+  vault_id: string;
+}
+
+export interface GetParentsArgs {
+  note_id: string;
+  vault_id: string;
+}
+
+// ============================================================================
+// Relationship Analysis API Argument Types
+// ============================================================================
+
+export interface GetNoteRelationshipsArgs {
+  note_id: string;
+  vault_id: string;
+}
+
+export interface GetRelatedNotesArgs {
+  note_id: string;
+  vault_id: string;
+  max_results?: number;
+}
+
+export interface FindRelationshipPathArgs {
+  start_note_id: string;
+  end_note_id: string;
+  vault_id: string;
+  max_depth?: number;
+}
+
+export interface GetClusteringCoefficientArgs {
+  note_id: string;
+  vault_id: string;
 }
 
 export interface UpdateVaultArgs {
