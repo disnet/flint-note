@@ -114,7 +114,7 @@ export class NoteService {
   async renameNote(
     identifier: string,
     newIdentifier: string,
-    vaultId?: string
+    vaultId: string
   ): Promise<{
     success: boolean;
     notesUpdated?: number;
@@ -139,7 +139,7 @@ export class NoteService {
   async moveNote(
     identifier: string,
     newType: string,
-    vaultId?: string
+    vaultId: string
   ): Promise<MoveNoteResult> {
     this.ensureInitialized();
     // Get the note first to obtain content hash

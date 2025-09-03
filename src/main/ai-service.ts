@@ -199,8 +199,12 @@ Use these tools to help users manage their notes effectively and answer their qu
 
     let noteTypeInfo = '';
     if (this.noteService) {
-      const noteTypes = await this.noteService.listNoteTypes();
-      noteTypeInfo = `## User's Current Note Types
+      try {
+        // Get current vault to retrieve note types
+        const currentVault = await this.noteService.getCurrentVault();
+        if (currentVault) {
+          const noteTypes = await this.noteService.listNoteTypes(currentVault.id);
+          noteTypeInfo = `## User's Current Note Types
 
   ${noteTypes
     .map(
@@ -214,6 +218,11 @@ ${nt.agentInstructions.map((instruction) => `- ${instruction}`).join('\n')}
   `
     )
     .join('\n')}`;
+        }
+      } catch (error) {
+        logger.warn('Failed to load note types for system message:', { error });
+        // Continue without note type info if vault access fails
+      }
     }
 
     console.log('System message generated:', contextualInfo + noteTypeInfo);

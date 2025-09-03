@@ -16,6 +16,26 @@ interface ToolResponse {
 export class ToolService {
   constructor(private noteService: NoteService | null) {}
 
+  /**
+   * Resolve vault ID - use provided vault_id or get current vault as fallback
+   */
+  private async resolveVaultId(vault_id?: string | null): Promise<string> {
+    if (vault_id) {
+      return vault_id;
+    }
+
+    if (!this.noteService) {
+      throw new Error('Note service not available');
+    }
+
+    const currentVault = await this.noteService.getCurrentVault();
+    if (!currentVault) {
+      throw new Error('No vault specified and no current vault available');
+    }
+
+    return currentVault.id;
+  }
+
   getTools(): Record<string, Tool> | undefined {
     if (!this.noteService) {
       return undefined;
@@ -95,6 +115,7 @@ export class ToolService {
 
         // Handle batch creation
         if (notes && notes.length > 0) {
+          const resolvedVaultId = await this.resolveVaultId(vault_id);
           const results: Array<{
             success: boolean;
             noteId?: string;
@@ -108,7 +129,7 @@ export class ToolService {
                 note.type,
                 note.title,
                 note.content,
-                vault_id || undefined,
+                resolvedVaultId,
                 note.metadata as NoteMetadata
               );
               results.push({
@@ -144,11 +165,12 @@ export class ToolService {
           } as ToolResponse;
         }
 
+        const resolvedVaultId = await this.resolveVaultId(vault_id);
         const result = await this.noteService.createNote(
           type,
           title,
           content,
-          vault_id || undefined,
+          resolvedVaultId,
           metadata as NoteMetadata
         );
 
@@ -194,7 +216,8 @@ export class ToolService {
           } as ToolResponse;
         }
 
-        const note = await this.noteService.getNote(identifier, vault_id || undefined);
+        const resolvedVaultId = await this.resolveVaultId(vault_id);
+        const note = await this.noteService.getNote(identifier, resolvedVaultId);
 
         if (!note) {
           return {
@@ -274,12 +297,10 @@ export class ToolService {
           data?: Note | Record<string, unknown>;
           error?: string;
         }> = [];
+        const resolvedVaultId = await this.resolveVaultId(vault_id);
         for (const identifier of identifiers) {
           try {
-            const note = await this.noteService.getNote(
-              identifier,
-              vault_id || undefined
-            );
+            const note = await this.noteService.getNote(identifier, resolvedVaultId);
             if (note) {
               // Filter fields if specified
               let noteData: Note | Record<string, unknown> = note;
@@ -355,10 +376,11 @@ export class ToolService {
           } as ToolResponse;
         }
 
+        const resolvedVaultId = await this.resolveVaultId(vault_id);
         const result = await this.noteService.updateNote(
           identifier,
           content || '',
-          vault_id || undefined,
+          resolvedVaultId,
           metadata as NoteMetadata
         );
 
@@ -410,10 +432,8 @@ export class ToolService {
           } as ToolResponse;
         }
 
-        const result = await this.noteService.deleteNote(
-          identifier,
-          vault_id || undefined
-        );
+        const resolvedVaultId = await this.resolveVaultId(vault_id);
+        const result = await this.noteService.deleteNote(identifier, resolvedVaultId);
 
         return {
           success: true,
@@ -453,10 +473,11 @@ export class ToolService {
           } as ToolResponse;
         }
 
+        const resolvedVaultId = await this.resolveVaultId(vault_id);
         const result = await this.noteService.renameNote(
           identifier,
           new_title,
-          vault_id || undefined
+          resolvedVaultId
         );
 
         return {
@@ -501,10 +522,11 @@ export class ToolService {
           } as ToolResponse;
         }
 
+        const resolvedVaultId = await this.resolveVaultId(vault_id);
         const result = await this.noteService.moveNote(
           identifier,
           new_type,
-          vault_id || undefined
+          resolvedVaultId
         );
 
         return {
@@ -558,7 +580,8 @@ export class ToolService {
 
         // If no query provided, get all notes
         if (!query) {
-          const allNotes = await this.noteService.getAllNotes(vault_id || undefined);
+          const resolvedVaultId = await this.resolveVaultId(vault_id);
+          const allNotes = await this.noteService.getAllNotes(resolvedVaultId);
           let filteredNotes = allNotes;
 
           // Apply type filter if provided
@@ -578,11 +601,8 @@ export class ToolService {
           } as ToolResponse;
         }
 
-        const results = await this.noteService.searchNotes(
-          query,
-          vault_id || undefined,
-          limit
-        );
+        const resolvedVaultId = await this.resolveVaultId(vault_id);
+        const results = await this.noteService.searchNotes(query, resolvedVaultId, limit);
 
         // Apply type filter if provided
         let filteredResults = results;
@@ -685,13 +705,14 @@ export class ToolService {
         }
 
         // Convert to the format expected by the note service
+        const resolvedVaultId = await this.resolveVaultId(vault_id);
         const results = await this.noteService.searchNotesAdvanced({
           query: content_contains || '',
           type,
           dateFrom: created_within || updated_within,
           dateTo: created_before || updated_before,
           limit,
-          vaultId: vault_id || undefined
+          vaultId: resolvedVaultId
         });
 
         return {
@@ -776,12 +797,13 @@ export class ToolService {
           } as ToolResponse;
         }
 
+        const resolvedVaultId = await this.resolveVaultId(vault_id);
         const result = await this.noteService.createNoteType({
           typeName: type_name,
           description,
           agentInstructions: agent_instructions,
           metadataSchema: metadata_schema as MetadataSchema,
-          vaultId: vault_id || undefined
+          vaultId: resolvedVaultId
         });
 
         return {
@@ -809,7 +831,7 @@ export class ToolService {
         .optional()
         .describe('Optional vault ID to operate on')
     }),
-    execute: async () => {
+    execute: async ({ vault_id }) => {
       try {
         if (!this.noteService) {
           return {
@@ -819,7 +841,8 @@ export class ToolService {
           } as ToolResponse;
         }
 
-        const noteTypes = await this.noteService.listNoteTypes();
+        const resolvedVaultId = await this.resolveVaultId(vault_id);
+        const noteTypes = await this.noteService.listNoteTypes(resolvedVaultId);
 
         return {
           success: true,
@@ -857,9 +880,10 @@ export class ToolService {
           } as ToolResponse;
         }
 
+        const resolvedVaultId = await this.resolveVaultId(vault_id);
         const noteType = await this.noteService.getNoteTypeInfo({
           type_name,
-          vault_id: vault_id || undefined
+          vault_id: resolvedVaultId
         });
 
         if (!noteType) {
@@ -1077,9 +1101,14 @@ export class ToolService {
   private getNoteLinksTool = tool({
     description: 'Get outgoing and incoming links for a note',
     inputSchema: z.object({
-      identifier: z.string().describe('Note identifier (type/filename format)')
+      identifier: z.string().describe('Note identifier (type/filename format)'),
+      vault_id: z
+        .string()
+        .nullable()
+        .optional()
+        .describe('Optional vault ID to operate on')
     }),
-    execute: async ({ identifier }) => {
+    execute: async ({ identifier, vault_id }) => {
       try {
         if (!this.noteService) {
           return {
@@ -1089,7 +1118,8 @@ export class ToolService {
           } as ToolResponse;
         }
 
-        const links = await this.noteService.getNoteLinks(identifier);
+        const resolvedVaultId = await this.resolveVaultId(vault_id);
+        const links = await this.noteService.getNoteLinks(identifier, resolvedVaultId);
 
         return {
           success: true,
@@ -1110,9 +1140,14 @@ export class ToolService {
   private getBacklinksTool = tool({
     description: 'Get backlinks pointing to a note',
     inputSchema: z.object({
-      identifier: z.string().describe('Note identifier (type/filename format)')
+      identifier: z.string().describe('Note identifier (type/filename format)'),
+      vault_id: z
+        .string()
+        .nullable()
+        .optional()
+        .describe('Optional vault ID to operate on')
     }),
-    execute: async ({ identifier }) => {
+    execute: async ({ identifier, vault_id }) => {
       try {
         if (!this.noteService) {
           return {
@@ -1122,7 +1157,11 @@ export class ToolService {
           } as ToolResponse;
         }
 
-        const backlinks = await this.noteService.getBacklinks(identifier);
+        const resolvedVaultId = await this.resolveVaultId(vault_id);
+        const backlinks = await this.noteService.getBacklinks(
+          identifier,
+          resolvedVaultId
+        );
 
         return {
           success: true,
@@ -1142,8 +1181,14 @@ export class ToolService {
 
   private findBrokenLinksTool = tool({
     description: 'Find all broken wikilinks in the vault',
-    inputSchema: z.object({}),
-    execute: async () => {
+    inputSchema: z.object({
+      vault_id: z
+        .string()
+        .nullable()
+        .optional()
+        .describe('Optional vault ID to operate on')
+    }),
+    execute: async ({ vault_id }) => {
       try {
         if (!this.noteService) {
           return {
@@ -1153,7 +1198,8 @@ export class ToolService {
           } as ToolResponse;
         }
 
-        const brokenLinks = await this.noteService.findBrokenLinks();
+        const resolvedVaultId = await this.resolveVaultId(vault_id);
+        const brokenLinks = await this.noteService.findBrokenLinks(resolvedVaultId);
 
         return {
           success: true,

@@ -142,7 +142,6 @@ export class FlintNoteApi {
           await this.workspace.initialize();
         }
 
-
         // Initialize hybrid search index - only rebuild if necessary
         const stats = await this.hybridSearchManager.getStats();
         const forceRebuild = process.env.FORCE_INDEX_REBUILD === 'true';
