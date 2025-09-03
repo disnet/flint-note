@@ -24,6 +24,7 @@ import type {
 import { logger } from './logger';
 import { GetNoteTypeInfoResult } from '../server/api/types.js';
 import { NoteTypeDescription } from '../server/core/note-types';
+import { getCurrentVaultPath } from '../server/utils/global-config.js';
 
 export class NoteService {
   private api: FlintNoteApi;
@@ -43,6 +44,16 @@ export class NoteService {
     }
 
     try {
+      // Get the current vault path for initialization
+      const currentVaultPath = await getCurrentVaultPath();
+      if (currentVaultPath) {
+        // Reinitialize API with workspace path if we have a current vault
+        this.api = new FlintNoteApi({
+          workspacePath: currentVaultPath,
+          throwOnError: false
+        });
+      }
+
       await this.api.initialize();
       this.isInitialized = true;
       logger.info('FlintNote API initialized successfully');
@@ -56,6 +67,11 @@ export class NoteService {
     if (!this.isInitialized) {
       throw new Error('NoteService must be initialized before use');
     }
+  }
+
+  private ensureVaultOpsAvailable(): void {
+    // Vault operations only need the API object to exist, not full initialization
+    // because they work with the global config, not workspace-specific data
   }
 
   // Note CRUD operations
@@ -260,13 +276,13 @@ export class NoteService {
 
   // Vault operations
   async listVaults(): Promise<VaultInfo[]> {
-    this.ensureInitialized();
+    this.ensureVaultOpsAvailable();
     const vaults = await this.api.listVaults();
     return vaults;
   }
 
   async getCurrentVault(): Promise<VaultInfo | null> {
-    this.ensureInitialized();
+    this.ensureVaultOpsAvailable();
     return await this.api.getCurrentVault();
   }
 
@@ -275,7 +291,7 @@ export class NoteService {
     path: string,
     description?: string
   ): Promise<VaultInfo> {
-    this.ensureInitialized();
+    this.ensureVaultOpsAvailable();
     return await this.api.createVault({
       id: name.toLowerCase().replace(/\s+/g, '-'),
       name,
@@ -285,12 +301,12 @@ export class NoteService {
   }
 
   async switchVault(vaultId: string): Promise<void> {
-    this.ensureInitialized();
+    this.ensureVaultOpsAvailable();
     return await this.api.switchVault({ id: vaultId });
   }
 
   async removeVault(vaultId: string): Promise<void> {
-    this.ensureInitialized();
+    this.ensureVaultOpsAvailable();
     return await this.api.removeVault({ id: vaultId });
   }
 

@@ -449,11 +449,21 @@ app.whenReady().then(async () => {
 
   ipcMain.handle(
     'get-note',
-    async (_event, params: { identifier: string; vaultId: string }) => {
+    async (_event, params: { identifier: string; vaultId?: string }) => {
       if (!noteService) {
         throw new Error('Note service not available');
       }
-      return await noteService.getNote(params.identifier, params.vaultId);
+      
+      let vaultId = params.vaultId;
+      if (!vaultId) {
+        const currentVault = await noteService.getCurrentVault();
+        if (!currentVault) {
+          throw new Error('No vault available');
+        }
+        vaultId = currentVault.id;
+      }
+      
+      return await noteService.getNote(params.identifier, vaultId);
     }
   );
 
@@ -482,11 +492,21 @@ app.whenReady().then(async () => {
 
   ipcMain.handle(
     'delete-note',
-    async (_event, params: { identifier: string; vaultId: string }) => {
+    async (_event, params: { identifier: string; vaultId?: string }) => {
       if (!noteService) {
         throw new Error('Note service not available');
       }
-      return await noteService.deleteNote(params.identifier, params.vaultId);
+      
+      let vaultId = params.vaultId;
+      if (!vaultId) {
+        const currentVault = await noteService.getCurrentVault();
+        if (!currentVault) {
+          throw new Error('No vault available');
+        }
+        vaultId = currentVault.id;
+      }
+      
+      return await noteService.deleteNote(params.identifier, vaultId);
     }
   );
 
@@ -497,16 +517,25 @@ app.whenReady().then(async () => {
       params: {
         identifier: string;
         newIdentifier: string;
-        vaultId: string;
+        vaultId?: string;
       }
     ) => {
       if (!noteService) {
         throw new Error('Note service not available');
       }
+      let vaultId = params.vaultId;
+      if (!vaultId) {
+        const currentVault = await noteService.getCurrentVault();
+        if (!currentVault) {
+          throw new Error('No vault available');
+        }
+        vaultId = currentVault.id;
+      }
+      
       return await noteService.renameNote(
         params.identifier,
         params.newIdentifier,
-        params.vaultId
+        vaultId
       );
     }
   );
@@ -518,16 +547,25 @@ app.whenReady().then(async () => {
       params: {
         identifier: string;
         newType: string;
-        vaultId: string;
+        vaultId?: string;
       }
     ) => {
       if (!noteService) {
         throw new Error('Note service not available');
       }
+      let vaultId = params.vaultId;
+      if (!vaultId) {
+        const currentVault = await noteService.getCurrentVault();
+        if (!currentVault) {
+          throw new Error('No vault available');
+        }
+        vaultId = currentVault.id;
+      }
+      
       return await noteService.moveNote(
         params.identifier,
         params.newType,
-        params.vaultId
+        vaultId
       );
     }
   );
@@ -539,14 +577,23 @@ app.whenReady().then(async () => {
       _event,
       params: {
         query: string;
-        vaultId: string;
+        vaultId?: string;
         limit?: number;
       }
     ) => {
       if (!noteService) {
         throw new Error('Note service not available');
       }
-      return await noteService.searchNotes(params.query, params.vaultId, params.limit);
+      let vaultId = params.vaultId;
+      if (!vaultId) {
+        const currentVault = await noteService.getCurrentVault();
+        if (!currentVault) {
+          throw new Error('No vault available');
+        }
+        vaultId = currentVault.id;
+      }
+      
+      return await noteService.searchNotes(params.query, vaultId, params.limit);
     }
   );
 
@@ -561,22 +608,44 @@ app.whenReady().then(async () => {
         dateFrom?: string;
         dateTo?: string;
         limit?: number;
-        vaultId: string;
+        vaultId?: string;
       }
     ) => {
       if (!noteService) {
         throw new Error('Note service not available');
       }
-      return await noteService.searchNotesAdvanced(params);
+      let vaultId = params.vaultId;
+      if (!vaultId) {
+        const currentVault = await noteService.getCurrentVault();
+        if (!currentVault) {
+          throw new Error('No vault available');
+        }
+        vaultId = currentVault.id;
+      }
+      
+      return await noteService.searchNotesAdvanced({
+        ...params,
+        vaultId
+      });
     }
   );
 
   // Note type operations
-  ipcMain.handle('list-note-types', async (_event, params: { vaultId: string }) => {
+  ipcMain.handle('list-note-types', async (_event, params?: { vaultId: string }) => {
     if (!noteService) {
       throw new Error('Note service not available');
     }
-    return await noteService.listNoteTypes(params.vaultId);
+    
+    let vaultId = params?.vaultId;
+    if (!vaultId) {
+      const currentVault = await noteService.getCurrentVault();
+      if (!currentVault) {
+        throw new Error('No vault available');
+      }
+      vaultId = currentVault.id;
+    }
+    
+    return await noteService.listNoteTypes(vaultId);
   });
 
   ipcMain.handle(
@@ -600,13 +669,23 @@ app.whenReady().then(async () => {
 
   ipcMain.handle(
     'get-note-type-info',
-    async (_event, params: { typeName: string; vaultId: string }) => {
+    async (_event, params: { typeName: string; vaultId?: string }) => {
       if (!noteService) {
         throw new Error('Note service not available');
       }
+      
+      let vaultId = params.vaultId;
+      if (!vaultId) {
+        const currentVault = await noteService.getCurrentVault();
+        if (!currentVault) {
+          throw new Error('No vault available');
+        }
+        vaultId = currentVault.id;
+      }
+      
       return await noteService.getNoteTypeInfo({
         type_name: params.typeName,
-        vault_id: params.vaultId
+        vault_id: vaultId
       });
     }
   );
@@ -636,14 +715,24 @@ app.whenReady().then(async () => {
       _event,
       params: {
         type: string;
-        vaultId: string;
+        vaultId?: string;
         limit?: number;
       }
     ) => {
       if (!noteService) {
         throw new Error('Note service not available');
       }
-      return await noteService.listNotesByType(params.type, params.vaultId, params.limit);
+      
+      let vaultId = params.vaultId;
+      if (!vaultId) {
+        const currentVault = await noteService.getCurrentVault();
+        if (!currentVault) {
+          throw new Error('No vault available');
+        }
+        vaultId = currentVault.id;
+      }
+      
+      return await noteService.listNotesByType(params.type, vaultId, params.limit);
     }
   );
 
@@ -706,29 +795,58 @@ app.whenReady().then(async () => {
   // Link operations
   ipcMain.handle(
     'get-note-links',
-    async (_event, params: { identifier: string; vaultId: string }) => {
+    async (_event, params: { identifier: string; vaultId?: string }) => {
       if (!noteService) {
         throw new Error('Note service not available');
       }
-      return await noteService.getNoteLinks(params.identifier, params.vaultId);
+      
+      let vaultId = params.vaultId;
+      if (!vaultId) {
+        const currentVault = await noteService.getCurrentVault();
+        if (!currentVault) {
+          throw new Error('No vault available');
+        }
+        vaultId = currentVault.id;
+      }
+      
+      return await noteService.getNoteLinks(params.identifier, vaultId);
     }
   );
 
   ipcMain.handle(
     'get-backlinks',
-    async (_event, params: { identifier: string; vaultId: string }) => {
+    async (_event, params: { identifier: string; vaultId?: string }) => {
       if (!noteService) {
         throw new Error('Note service not available');
       }
-      return await noteService.getBacklinks(params.identifier, params.vaultId);
+      
+      let vaultId = params.vaultId;
+      if (!vaultId) {
+        const currentVault = await noteService.getCurrentVault();
+        if (!currentVault) {
+          throw new Error('No vault available');
+        }
+        vaultId = currentVault.id;
+      }
+      
+      return await noteService.getBacklinks(params.identifier, vaultId);
     }
   );
 
-  ipcMain.handle('find-broken-links', async (_event, params: { vaultId: string }) => {
+  ipcMain.handle('find-broken-links', async (_event, params: { vaultId?: string }) => {
     if (!noteService) {
       throw new Error('Note service not available');
     }
-    return await noteService.findBrokenLinks(params.vaultId);
+    
+    let vaultId = params.vaultId;
+    if (!vaultId) {
+      const currentVault = await noteService.getCurrentVault();
+      if (!currentVault) {
+        throw new Error('No vault available');
+      }
+      vaultId = currentVault.id;
+    }
+    return await noteService.findBrokenLinks(vaultId);
   });
 
   // Service status

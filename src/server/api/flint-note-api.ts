@@ -471,8 +471,7 @@ export class FlintNoteApi {
    * Get information about the currently active vault
    */
   async getCurrentVault(): Promise<VaultInfo | null> {
-    this.ensureInitialized();
-
+    // Only need globalConfig, not full workspace initialization
     const currentVault = this.globalConfig.getCurrentVault();
     return currentVault;
   }
@@ -481,8 +480,7 @@ export class FlintNoteApi {
    * List all configured vaults with their details
    */
   async listVaults(): Promise<VaultInfo[]> {
-    this.ensureInitialized();
-
+    // Only need globalConfig, not full workspace initialization
     const vaults = this.globalConfig.listVaults();
     return vaults.map(({ info }) => info);
   }
@@ -569,8 +567,7 @@ export class FlintNoteApi {
    * Update vault metadata (name and/or description)
    */
   async updateVault(args: UpdateVaultArgs): Promise<void> {
-    this.ensureInitialized();
-
+    // Only need globalConfig, not full workspace initialization
     const vault = this.globalConfig.getVault(args.id);
     if (!vault) {
       throw new Error(`Vault with ID '${args.id}' does not exist`);
