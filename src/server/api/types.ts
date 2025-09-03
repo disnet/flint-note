@@ -63,7 +63,7 @@ export interface CreateNoteTypeArgs {
   description: string;
   agent_instructions?: string[];
   metadata_schema?: import('../core/metadata-schema.js').MetadataSchema;
-  vault_id?: string;
+  vault_id: string;
 }
 
 export interface CreateNoteArgs {
@@ -77,18 +77,18 @@ export interface CreateNoteArgs {
     content: string;
     metadata?: Record<string, unknown>;
   }>;
-  vault_id?: string;
+  vault_id: string;
 }
 
 export interface GetNoteArgs {
   identifier: string;
-  vault_id?: string;
+  vault_id: string;
   fields?: string[];
 }
 
 export interface GetNotesArgs {
   identifiers: string[];
-  vault_id?: string;
+  vault_id: string;
   fields?: string[];
 }
 
@@ -103,7 +103,7 @@ export interface UpdateNoteArgs {
     metadata?: Record<string, unknown>;
     content_hash: string;
   }>;
-  vault_id?: string;
+  vault_id: string;
 }
 
 export interface SearchNotesArgs {
@@ -111,7 +111,7 @@ export interface SearchNotesArgs {
   type_filter?: string;
   limit?: number;
   use_regex?: boolean;
-  vault_id?: string;
+  vault_id: string;
   fields?: string[];
 }
 
@@ -133,7 +133,7 @@ export interface SearchNotesAdvancedArgs {
   }>;
   limit?: number;
   offset?: number;
-  vault_id?: string;
+  vault_id: string;
   fields?: string[];
 }
 
@@ -142,12 +142,12 @@ export interface SearchNotesSqlArgs {
   params?: (string | number | boolean | null)[];
   limit?: number;
   timeout?: number;
-  vault_id?: string;
+  vault_id: string;
   fields?: string[];
 }
 
 export interface ListNoteTypesArgs {
-  vault_id?: string;
+  vault_id: string;
 }
 
 export interface UpdateNoteTypeArgs {
@@ -156,12 +156,12 @@ export interface UpdateNoteTypeArgs {
   description?: string;
   metadata_schema?: import('../core/metadata-schema.js').MetadataFieldDefinition[];
   content_hash: string;
-  vault_id?: string;
+  vault_id: string;
 }
 
 export interface GetNoteTypeInfoArgs {
   type_name: string;
-  vault_id?: string;
+  vault_id: string;
 }
 
 export interface GetNoteTypeInfoResult {
@@ -199,19 +199,19 @@ export interface UpdateVaultArgs {
 export interface GetNoteInfoArgs {
   title_or_filename: string;
   type?: string;
-  vault_id?: string;
+  vault_id: string;
 }
 
 export interface ListNotesByTypeArgs {
   type: string;
   limit?: number;
-  vault_id?: string;
+  vault_id: string;
 }
 
 export interface DeleteNoteArgs {
   identifier: string;
   confirm?: boolean;
-  vault_id?: string;
+  vault_id: string;
 }
 
 export interface DeleteNoteTypeArgs {
@@ -219,7 +219,7 @@ export interface DeleteNoteTypeArgs {
   action: 'error' | 'migrate' | 'delete';
   target_type?: string;
   confirm?: boolean;
-  vault_id?: string;
+  vault_id: string;
 }
 
 export interface BulkDeleteNotesArgs {
@@ -227,19 +227,19 @@ export interface BulkDeleteNotesArgs {
   tags?: string[];
   pattern?: string;
   confirm?: boolean;
-  vault_id?: string;
+  vault_id: string;
 }
 
 export interface RenameNoteArgs {
   identifier: string;
   new_title: string;
   content_hash: string;
-  vault_id?: string;
+  vault_id: string;
 }
 
 export interface MoveNoteArgs {
   identifier: string;
   new_type: string;
   content_hash: string;
-  vault_id?: string;
+  vault_id: string;
 }

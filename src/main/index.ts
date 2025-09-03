@@ -189,8 +189,17 @@ app.whenReady().then(async () => {
     await noteService.initialize();
     logger.info('Note Service initialized successfully');
 
-    // Ensure default 'note' type exists in all vaults
-    await noteService.ensureDefaultNoteType();
+    // Ensure default 'note' type exists in current vault
+    try {
+      const currentVault = await noteService.getCurrentVault();
+      if (currentVault) {
+        await noteService.ensureDefaultNoteType(currentVault.id);
+      } else {
+        logger.warn('No current vault available - skipping default note type creation');
+      }
+    } catch (error) {
+      logger.warn('Failed to ensure default note type in current vault:', { error });
+    }
   } catch (error) {
     logger.error('Failed to initialize Note Service', { error });
     logger.warn('Note operations will not be available');
@@ -423,7 +432,7 @@ app.whenReady().then(async () => {
         type: string;
         identifier: string;
         content: string;
-        vaultId?: string;
+        vaultId: string;
       }
     ) => {
       if (!noteService) {
@@ -440,7 +449,7 @@ app.whenReady().then(async () => {
 
   ipcMain.handle(
     'get-note',
-    async (_event, params: { identifier: string; vaultId?: string }) => {
+    async (_event, params: { identifier: string; vaultId: string }) => {
       if (!noteService) {
         throw new Error('Note service not available');
       }
@@ -455,7 +464,7 @@ app.whenReady().then(async () => {
       params: {
         identifier: string;
         content: string;
-        vaultId?: string;
+        vaultId: string;
         metadata?: NoteMetadata;
       }
     ) => {
@@ -473,7 +482,7 @@ app.whenReady().then(async () => {
 
   ipcMain.handle(
     'delete-note',
-    async (_event, params: { identifier: string; vaultId?: string }) => {
+    async (_event, params: { identifier: string; vaultId: string }) => {
       if (!noteService) {
         throw new Error('Note service not available');
       }
@@ -488,7 +497,7 @@ app.whenReady().then(async () => {
       params: {
         identifier: string;
         newIdentifier: string;
-        vaultId?: string;
+        vaultId: string;
       }
     ) => {
       if (!noteService) {
@@ -509,7 +518,7 @@ app.whenReady().then(async () => {
       params: {
         identifier: string;
         newType: string;
-        vaultId?: string;
+        vaultId: string;
       }
     ) => {
       if (!noteService) {
@@ -530,7 +539,7 @@ app.whenReady().then(async () => {
       _event,
       params: {
         query: string;
-        vaultId?: string;
+        vaultId: string;
         limit?: number;
       }
     ) => {
@@ -552,7 +561,7 @@ app.whenReady().then(async () => {
         dateFrom?: string;
         dateTo?: string;
         limit?: number;
-        vaultId?: string;
+        vaultId: string;
       }
     ) => {
       if (!noteService) {
@@ -563,11 +572,11 @@ app.whenReady().then(async () => {
   );
 
   // Note type operations
-  ipcMain.handle('list-note-types', async () => {
+  ipcMain.handle('list-note-types', async (_event, params: { vaultId: string }) => {
     if (!noteService) {
       throw new Error('Note service not available');
     }
-    return await noteService.listNoteTypes();
+    return await noteService.listNoteTypes(params.vaultId);
   });
 
   ipcMain.handle(
@@ -579,7 +588,7 @@ app.whenReady().then(async () => {
         description: string;
         agentInstructions?: string[];
         metadataSchema?: MetadataSchema;
-        vaultId?: string;
+        vaultId: string;
       }
     ) => {
       if (!noteService) {
@@ -591,7 +600,7 @@ app.whenReady().then(async () => {
 
   ipcMain.handle(
     'get-note-type-info',
-    async (_event, params: { typeName: string; vaultId?: string }) => {
+    async (_event, params: { typeName: string; vaultId: string }) => {
       if (!noteService) {
         throw new Error('Note service not available');
       }
@@ -611,7 +620,7 @@ app.whenReady().then(async () => {
         description?: string;
         instructions?: string[];
         metadataSchema?: MetadataFieldDefinition[];
-        vaultId?: string;
+        vaultId: string;
       }
     ) => {
       if (!noteService) {
@@ -627,7 +636,7 @@ app.whenReady().then(async () => {
       _event,
       params: {
         type: string;
-        vaultId?: string;
+        vaultId: string;
         limit?: number;
       }
     ) => {
@@ -697,7 +706,7 @@ app.whenReady().then(async () => {
   // Link operations
   ipcMain.handle(
     'get-note-links',
-    async (_event, params: { identifier: string; vaultId?: string }) => {
+    async (_event, params: { identifier: string; vaultId: string }) => {
       if (!noteService) {
         throw new Error('Note service not available');
       }
@@ -707,7 +716,7 @@ app.whenReady().then(async () => {
 
   ipcMain.handle(
     'get-backlinks',
-    async (_event, params: { identifier: string; vaultId?: string }) => {
+    async (_event, params: { identifier: string; vaultId: string }) => {
       if (!noteService) {
         throw new Error('Note service not available');
       }
@@ -715,7 +724,7 @@ app.whenReady().then(async () => {
     }
   );
 
-  ipcMain.handle('find-broken-links', async (_event, params: { vaultId?: string }) => {
+  ipcMain.handle('find-broken-links', async (_event, params: { vaultId: string }) => {
     if (!noteService) {
       throw new Error('Note service not available');
     }

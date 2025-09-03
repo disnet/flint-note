@@ -61,27 +61,27 @@ export interface UpdateNoteOptions {
   identifier: string;
   content: string;
   contentHash: string;
-  vaultId?: string;
+  vaultId: string;
   metadata?: NoteMetadata;
 }
 
 export interface DeleteNoteOptions {
   identifier: string;
   confirm?: boolean;
-  vaultId?: string;
+  vaultId: string;
 }
 
 export interface ListNotesOptions {
   typeName?: string;
   limit?: number;
-  vaultId?: string;
+  vaultId: string;
 }
 
 export interface SearchNotesByTextOptions {
   query: string;
   typeFilter?: string;
   limit?: number;
-  vaultId?: string;
+  vaultId: string;
 }
 
 export interface CreateSingleNoteOptions {
@@ -89,13 +89,11 @@ export interface CreateSingleNoteOptions {
   title: string;
   content: string;
   metadata?: NoteMetadata;
-  vaultId?: string;
+  vaultId: string;
 }
 
 export class FlintNoteApi {
   private workspace!: Workspace;
-  private noteManager!: NoteManager;
-  private noteTypeManager!: NoteTypeManager;
   private hybridSearchManager!: HybridSearchManager;
   private globalConfig: GlobalConfigManager;
   private config: FlintNoteApiConfig;
@@ -144,8 +142,6 @@ export class FlintNoteApi {
           await this.workspace.initialize();
         }
 
-        this.noteManager = new NoteManager(this.workspace, this.hybridSearchManager);
-        this.noteTypeManager = new NoteTypeManager(this.workspace);
 
         // Initialize hybrid search index - only rebuild if necessary
         const stats = await this.hybridSearchManager.getStats();
@@ -161,26 +157,10 @@ export class FlintNoteApi {
           logInitialization
         );
       } else {
-        // Use the current active vault
-        const currentVault = this.globalConfig.getCurrentVault();
-        if (!currentVault) {
-          throw new Error(
-            'No workspace path provided and no active vault configured. ' +
-              'Initialize a vault first or provide a workspace path.'
-          );
-        }
-
-        // Initialize with current vault
-        const workspacePath = currentVault.path;
-        this.hybridSearchManager = new HybridSearchManager(workspacePath);
-        this.workspace = new Workspace(
-          workspacePath,
-          this.hybridSearchManager.getDatabaseManager()
+        throw new Error(
+          'No workspace path provided in config. ' +
+            'FlintNoteApi requires explicit workspace path configuration.'
         );
-        await this.workspace.initialize();
-
-        this.noteManager = new NoteManager(this.workspace, this.hybridSearchManager);
-        this.noteTypeManager = new NoteTypeManager(this.workspace);
       }
 
       this.initialized = true;
@@ -198,23 +178,10 @@ export class FlintNoteApi {
     }
   }
 
-  async resolveVaultContext(vaultId?: string): Promise<VaultContext> {
+  async getVaultContext(vaultId: string): Promise<VaultContext> {
     this.ensureInitialized();
 
-    if (!vaultId) {
-      // Use current active vault
-      if (!this.noteManager || !this.noteTypeManager || !this.hybridSearchManager) {
-        throw new Error('API not fully initialized');
-      }
-      return {
-        workspace: this.workspace,
-        noteManager: this.noteManager,
-        noteTypeManager: this.noteTypeManager,
-        hybridSearchManager: this.hybridSearchManager
-      };
-    }
-
-    // Create temporary context for specified vault
+    // Create context for specified vault
     const vault = this.globalConfig.getVault(vaultId);
     if (!vault) {
       throw new Error(`Vault with ID '${vaultId}' does not exist`);
@@ -239,22 +206,6 @@ export class FlintNoteApi {
     };
   }
 
-  // Utility to get current managers for convenience
-  getManagers(): {
-    workspace: Workspace;
-    noteManager: NoteManager;
-    noteTypeManager: NoteTypeManager;
-    hybridSearchManager: HybridSearchManager;
-  } {
-    this.ensureInitialized();
-    return {
-      workspace: this.workspace,
-      noteManager: this.noteManager,
-      noteTypeManager: this.noteTypeManager,
-      hybridSearchManager: this.hybridSearchManager
-    };
-  }
-
   // Core Note Operations (only verified methods)
 
   // Search Operations
@@ -264,7 +215,7 @@ export class FlintNoteApi {
    */
   async searchNotes(args: SearchNotesArgs): Promise<SearchResult[]> {
     this.ensureInitialized();
-    const { hybridSearchManager } = await this.resolveVaultContext(args.vault_id);
+    const { hybridSearchManager } = await this.getVaultContext(args.vault_id);
     const results = await hybridSearchManager.searchNotes(
       args.query,
       args.type_filter,
@@ -279,7 +230,7 @@ export class FlintNoteApi {
    */
   async searchNotesAdvanced(args: SearchNotesAdvancedArgs): Promise<SearchResult[]> {
     this.ensureInitialized();
-    const { hybridSearchManager } = await this.resolveVaultContext(args.vault_id);
+    const { hybridSearchManager } = await this.getVaultContext(args.vault_id);
     const response = await hybridSearchManager.searchNotesAdvanced(args);
     return response.results;
   }
@@ -289,7 +240,7 @@ export class FlintNoteApi {
    */
   async searchNotesSQL(args: SearchNotesSqlArgs): Promise<SearchResult[]> {
     this.ensureInitialized();
-    const { hybridSearchManager } = await this.resolveVaultContext(args.vault_id);
+    const { hybridSearchManager } = await this.getVaultContext(args.vault_id);
     const response = await hybridSearchManager.searchNotesSQL(args);
     return response.results;
   }
@@ -315,7 +266,7 @@ export class FlintNoteApi {
     options: CreateSingleNoteOptions & { enforceRequiredFields?: boolean }
   ): Promise<NoteInfo> {
     this.ensureInitialized();
-    const { noteManager } = await this.resolveVaultContext(options.vaultId);
+    const { noteManager } = await this.getVaultContext(options.vaultId);
 
     return await noteManager.createNote(
       options.type,
@@ -329,9 +280,9 @@ export class FlintNoteApi {
   /**
    * Get a note by identifier - returns pure Note object
    */
-  async getNote(identifier: string, vaultId?: string): Promise<Note | null> {
+  async getNote(vaultId: string, identifier: string): Promise<Note | null> {
     this.ensureInitialized();
-    const { noteManager } = await this.resolveVaultContext(vaultId);
+    const { noteManager } = await this.getVaultContext(vaultId);
     return await noteManager.getNote(identifier);
   }
 
@@ -340,7 +291,7 @@ export class FlintNoteApi {
    */
   async updateNote(options: UpdateNoteOptions): Promise<UpdateResult> {
     this.ensureInitialized();
-    const { noteManager } = await this.resolveVaultContext(options.vaultId);
+    const { noteManager } = await this.getVaultContext(options.vaultId);
 
     if (options.metadata) {
       return await noteManager.updateNoteWithMetadata(
@@ -363,25 +314,25 @@ export class FlintNoteApi {
    */
   async deleteNote(options: DeleteNoteOptions): Promise<DeleteNoteResult> {
     this.ensureInitialized();
-    const { noteManager } = await this.resolveVaultContext(options.vaultId);
+    const { noteManager } = await this.getVaultContext(options.vaultId);
     return await noteManager.deleteNote(options.identifier, options.confirm ?? true);
   }
 
   /**
    * List notes by type - returns NoteListItem array
    */
-  async listNotes(options: ListNotesOptions = {}): Promise<NoteListItem[]> {
+  async listNotes(options: ListNotesOptions): Promise<NoteListItem[]> {
     this.ensureInitialized();
-    const { noteManager } = await this.resolveVaultContext(options.vaultId);
+    const { noteManager } = await this.getVaultContext(options.vaultId);
     return await noteManager.listNotes(options.typeName, options.limit);
   }
 
   /**
    * Get note metadata without full content
    */
-  async getNoteInfo(args: GetNoteInfoArgs): Promise<Note | null> {
+  async getNoteInfo(args: GetNoteInfoArgs & { vault_id: string }): Promise<Note | null> {
     this.ensureInitialized();
-    const { noteManager } = await this.resolveVaultContext(args.vault_id);
+    const { noteManager } = await this.getVaultContext(args.vault_id);
 
     // First try to get by exact title/filename
     let note = await noteManager.getNote(args.title_or_filename);
@@ -398,14 +349,14 @@ export class FlintNoteApi {
   /**
    * Rename a note
    */
-  async renameNote(args: RenameNoteArgs): Promise<{
+  async renameNote(args: RenameNoteArgs & { vault_id: string }): Promise<{
     success: boolean;
     notesUpdated?: number;
     linksUpdated?: number;
     new_id?: string;
   }> {
     this.ensureInitialized();
-    const { noteManager } = await this.resolveVaultContext(args.vault_id);
+    const { noteManager } = await this.getVaultContext(args.vault_id);
     return await noteManager.renameNoteWithFile(
       args.identifier,
       args.new_title,
@@ -416,9 +367,9 @@ export class FlintNoteApi {
   /**
    * Move a note from one note type to another
    */
-  async moveNote(args: MoveNoteArgs): Promise<MoveNoteResult> {
+  async moveNote(args: MoveNoteArgs & { vault_id: string }): Promise<MoveNoteResult> {
     this.ensureInitialized();
-    const { noteManager } = await this.resolveVaultContext(args.vault_id);
+    const { noteManager } = await this.getVaultContext(args.vault_id);
     return await noteManager.moveNote(args.identifier, args.new_type, args.content_hash);
   }
 
@@ -427,9 +378,11 @@ export class FlintNoteApi {
   /**
    * Create a new note type
    */
-  async createNoteType(args: CreateNoteTypeArgs): Promise<NoteTypeInfo> {
+  async createNoteType(
+    args: CreateNoteTypeArgs & { vault_id: string }
+  ): Promise<NoteTypeInfo> {
     this.ensureInitialized();
-    const { noteTypeManager } = await this.resolveVaultContext(args.vault_id);
+    const { noteTypeManager } = await this.getVaultContext(args.vault_id);
     return await noteTypeManager.createNoteType(
       args.type_name,
       args.description,
@@ -441,18 +394,22 @@ export class FlintNoteApi {
   /**
    * List all note types
    */
-  async listNoteTypes(args: ListNoteTypesArgs = {}): Promise<NoteTypeListItem[]> {
+  async listNoteTypes(
+    args: ListNoteTypesArgs & { vault_id: string }
+  ): Promise<NoteTypeListItem[]> {
     this.ensureInitialized();
-    const { noteTypeManager } = await this.resolveVaultContext(args.vault_id);
+    const { noteTypeManager } = await this.getVaultContext(args.vault_id);
     return await noteTypeManager.listNoteTypes();
   }
 
   /**
    * Get note type information
    */
-  async getNoteTypeInfo(args: GetNoteTypeInfoArgs): Promise<GetNoteTypeInfoResult> {
+  async getNoteTypeInfo(
+    args: GetNoteTypeInfoArgs & { vault_id: string }
+  ): Promise<GetNoteTypeInfoResult> {
     this.ensureInitialized();
-    const { noteTypeManager } = await this.resolveVaultContext(args.vault_id);
+    const { noteTypeManager } = await this.getVaultContext(args.vault_id);
     const desc = await noteTypeManager.getNoteTypeDescription(args.type_name);
     return {
       name: desc.name,
@@ -472,10 +429,10 @@ export class FlintNoteApi {
     description?: string;
     instructions?: string[];
     metadata_schema?: MetadataFieldDefinition[];
-    vault_id?: string;
+    vault_id: string;
   }): Promise<NoteTypeDescription> {
     this.ensureInitialized();
-    const { noteTypeManager } = await this.resolveVaultContext(args.vault_id);
+    const { noteTypeManager } = await this.getVaultContext(args.vault_id);
 
     const updates: Parameters<typeof noteTypeManager.updateNoteType>[1] = {};
     if (args.description) {
@@ -495,9 +452,11 @@ export class FlintNoteApi {
   /**
    * Delete a note type
    */
-  async deleteNoteType(args: DeleteNoteTypeArgs): Promise<NoteTypeDeleteResult> {
+  async deleteNoteType(
+    args: DeleteNoteTypeArgs & { vault_id: string }
+  ): Promise<NoteTypeDeleteResult> {
     this.ensureInitialized();
-    const { noteTypeManager } = await this.resolveVaultContext(args.vault_id);
+    const { noteTypeManager } = await this.getVaultContext(args.vault_id);
 
     return await noteTypeManager.deleteNoteType(
       args.type_name,
@@ -658,8 +617,8 @@ export class FlintNoteApi {
    * Get all links for a specific note (outgoing and incoming)
    */
   async getNoteLinks(
-    identifier: string,
-    vaultId?: string
+    vaultId: string,
+    identifier: string
   ): Promise<{
     outgoing_internal: NoteLinkRow[];
     outgoing_external: ExternalLinkRow[];
@@ -667,7 +626,7 @@ export class FlintNoteApi {
   }> {
     this.ensureInitialized();
 
-    const { hybridSearchManager } = await this.resolveVaultContext(vaultId);
+    const { hybridSearchManager } = await this.getVaultContext(vaultId);
     const db = await hybridSearchManager.getDatabaseConnection();
     const noteId = generateNoteIdFromIdentifier(identifier);
 
@@ -683,10 +642,10 @@ export class FlintNoteApi {
   /**
    * Get all notes that link to the specified note (backlinks)
    */
-  async getBacklinks(identifier: string, vaultId?: string): Promise<NoteLinkRow[]> {
+  async getBacklinks(vaultId: string, identifier: string): Promise<NoteLinkRow[]> {
     this.ensureInitialized();
 
-    const { hybridSearchManager } = await this.resolveVaultContext(vaultId);
+    const { hybridSearchManager } = await this.getVaultContext(vaultId);
     const db = await hybridSearchManager.getDatabaseConnection();
     const noteId = generateNoteIdFromIdentifier(identifier);
 
@@ -702,10 +661,10 @@ export class FlintNoteApi {
   /**
    * Find all broken wikilinks (links to non-existent notes)
    */
-  async findBrokenLinks(vaultId?: string): Promise<NoteLinkRow[]> {
+  async findBrokenLinks(vaultId: string): Promise<NoteLinkRow[]> {
     this.ensureInitialized();
 
-    const { hybridSearchManager } = await this.resolveVaultContext(vaultId);
+    const { hybridSearchManager } = await this.getVaultContext(vaultId);
     const db = await hybridSearchManager.getDatabaseConnection();
 
     return await LinkExtractor.findBrokenLinks(db);
@@ -719,11 +678,11 @@ export class FlintNoteApi {
     linked_from?: string[];
     external_domains?: string[];
     broken_links?: boolean;
-    vault_id?: string;
+    vault_id: string;
   }): Promise<NoteRow[]> {
     this.ensureInitialized();
 
-    const { hybridSearchManager } = await this.resolveVaultContext(args.vault_id);
+    const { hybridSearchManager } = await this.getVaultContext(args.vault_id);
     const db = await hybridSearchManager.getDatabaseConnection();
 
     let notes: NoteRow[] = [];
@@ -777,8 +736,8 @@ export class FlintNoteApi {
    * Scan all existing notes and populate the link tables (one-time migration)
    */
   async migrateLinks(
-    force?: boolean,
-    vaultId?: string
+    vaultId: string,
+    force?: boolean
   ): Promise<{
     total_notes: number;
     processed: number;
@@ -787,7 +746,7 @@ export class FlintNoteApi {
   }> {
     this.ensureInitialized();
 
-    const { hybridSearchManager } = await this.resolveVaultContext(vaultId);
+    const { hybridSearchManager } = await this.getVaultContext(vaultId);
     const db = await hybridSearchManager.getDatabaseConnection();
 
     // Check if migration is needed
