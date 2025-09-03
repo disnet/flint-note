@@ -190,36 +190,64 @@ export class NoteManager {
 
   /**
    * Sync subnotes from hierarchy database to frontmatter
-   * Currently unused but kept for future frontmatter synchronization features
    */
-  // async #syncHierarchyToSubnotes(noteIdentifier: string): Promise<string[]> {
-  //   if (!this.#hierarchyManager || !this.#hybridSearchManager) return [];
+  async #syncHierarchyToSubnotes(noteIdentifier: string): Promise<void> {
+    if (!this.#hierarchyManager || !this.#hybridSearchManager) return;
 
-  //   // Get database connection if hierarchy manager isn't initialized
-  //   if (!this.#hierarchyManager) {
-  //     await this.#initializeHierarchyManager(this.#hybridSearchManager);
-  //     if (!this.#hierarchyManager) return [];
-  //   }
+    // Get database connection if hierarchy manager isn't initialized
+    if (!this.#hierarchyManager) {
+      await this.#initializeHierarchyManager(this.#hybridSearchManager);
+      if (!this.#hierarchyManager) return;
+    }
 
-  //   const noteId = generateNoteIdFromIdentifier(noteIdentifier);
-  //   const children = await this.#hierarchyManager.getChildren(noteId);
+    const noteId = generateNoteIdFromIdentifier(noteIdentifier);
+    const children = await this.#hierarchyManager.getChildren(noteId);
 
-  //   // Convert child IDs back to identifiers
-  //   const subnotes: string[] = [];
-  //   const db = await this.#hybridSearchManager.getDatabaseConnection();
+    // Convert child IDs back to identifiers
+    const subnotes: string[] = [];
+    const db = await this.#hybridSearchManager.getDatabaseConnection();
 
-  //   for (const child of children) {
-  //     const note = await db.get<{ title: string; type: string }>(
-  //       'SELECT title, type FROM notes WHERE id = ?',
-  //       [child.child_id]
-  //     );
-  //     if (note) {
-  //       subnotes.push(`${note.type}/${note.title}`);
-  //     }
-  //   }
+    for (const child of children) {
+      const note = await db.get<{ title: string; type: string }>(
+        'SELECT title, type FROM notes WHERE id = ?',
+        [child.child_id]
+      );
+      if (note) {
+        subnotes.push(`${note.type}/${note.title}`);
+      }
+    }
 
-  //   return subnotes;
-  // }
+    // Update the note's frontmatter with the current subnotes
+    try {
+      const currentNote = await this.getNote(noteIdentifier);
+      if (!currentNote) {
+        console.warn(`Note not found when syncing hierarchy: ${noteIdentifier}`);
+        return;
+      }
+
+      const updatedMetadata = { ...currentNote.metadata };
+
+      if (subnotes.length > 0) {
+        updatedMetadata.subnotes = subnotes;
+      } else {
+        // Remove subnotes property if there are no children
+        delete updatedMetadata.subnotes;
+      }
+
+      await this.updateNoteWithMetadata(
+        noteIdentifier,
+        currentNote.content,
+        updatedMetadata,
+        currentNote.content_hash
+      );
+    } catch (error) {
+      // If we can't update the note, just log the error and continue
+      console.warn(
+        `Failed to sync hierarchy to frontmatter for ${noteIdentifier}:`,
+        error
+      );
+    }
+  }
 
   /**
    * Clean up hierarchy relationships when a note is deleted
@@ -1728,5 +1756,12 @@ export class NoteManager {
         `Failed to move note '${identifier}' to type '${newType}': ${errorMessage}`
       );
     }
+  }
+
+  /**
+   * Public method to sync hierarchy changes back to note frontmatter
+   */
+  async syncHierarchyToFrontmatter(noteIdentifier: string): Promise<void> {
+    await this.#syncHierarchyToSubnotes(noteIdentifier);
   }
 }

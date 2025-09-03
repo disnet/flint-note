@@ -77,28 +77,34 @@ flint-ui/
 The project uses **Vitest** for testing with a structured approach:
 
 ### Test Organization
+
 - Tests are located in `tests/` directory (separate from `src/`)
 - Test files follow naming convention: `*.test.ts` or `*.spec.ts`
 - Structure mirrors source code: `tests/server/api/`, `tests/server/core/`, etc.
 
 ### Testing Framework
+
 - **Vitest** with Node.js environment
 - Global test functions available (`describe`, `it`, `expect`, `beforeEach`, `afterEach`)
 - Isolated test environments with temporary directories and databases
 
 ### Test Utilities
+
 - `TestApiSetup` class provides isolated test environments
 - Automatic cleanup of test data and temporary files
 - Database testing with real SQLite instances in temporary locations
 
 ### ESLint for Tests
+
 Test files have relaxed ESLint rules allowing:
+
 - `any` types for mocking and flexibility
 - Functions without explicit return types
 - Unused variables for partial test implementations
 - Non-null assertions and empty functions for test scenarios
 
 ### Running Tests
+
 - `npm run test` - Interactive watch mode
 - `npm run test:run` - Single run with coverage
 

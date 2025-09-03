@@ -844,7 +844,21 @@ export class FlintNoteApi {
       };
     }
 
-    return await hierarchyManager.addSubnote(parentId, childId, args.position);
+    const result = await hierarchyManager.addSubnote(parentId, childId, args.position);
+
+    // If the hierarchy operation was successful, sync changes back to parent note frontmatter
+    if (result.success) {
+      try {
+        const { workspace } = await this.getVaultContext(args.vault_id);
+        const noteManager = new NoteManager(workspace, hybridSearchManager);
+        await noteManager.syncHierarchyToFrontmatter(args.parent_id);
+      } catch (syncError) {
+        // Log the sync error but don't fail the operation
+        console.warn('Failed to sync hierarchy changes to frontmatter:', syncError);
+      }
+    }
+
+    return result;
   }
 
   /**
@@ -861,7 +875,21 @@ export class FlintNoteApi {
     const parentId = generateNoteIdFromIdentifier(args.parent_id);
     const childId = generateNoteIdFromIdentifier(args.child_id);
 
-    return await hierarchyManager.removeSubnote(parentId, childId);
+    const result = await hierarchyManager.removeSubnote(parentId, childId);
+
+    // If the hierarchy operation was successful, sync changes back to parent note frontmatter
+    if (result.success) {
+      try {
+        const { workspace } = await this.getVaultContext(args.vault_id);
+        const noteManager = new NoteManager(workspace, hybridSearchManager);
+        await noteManager.syncHierarchyToFrontmatter(args.parent_id);
+      } catch (syncError) {
+        // Log the sync error but don't fail the operation
+        console.warn('Failed to sync hierarchy changes to frontmatter:', syncError);
+      }
+    }
+
+    return result;
   }
 
   /**
@@ -878,7 +906,21 @@ export class FlintNoteApi {
     const parentId = generateNoteIdFromIdentifier(args.parent_id);
     const childIds = args.child_ids.map((id) => generateNoteIdFromIdentifier(id));
 
-    return await hierarchyManager.reorderSubnotes(parentId, childIds);
+    const result = await hierarchyManager.reorderSubnotes(parentId, childIds);
+
+    // If the hierarchy operation was successful, sync changes back to parent note frontmatter
+    if (result.success) {
+      try {
+        const { workspace } = await this.getVaultContext(args.vault_id);
+        const noteManager = new NoteManager(workspace, hybridSearchManager);
+        await noteManager.syncHierarchyToFrontmatter(args.parent_id);
+      } catch (syncError) {
+        // Log the sync error but don't fail the operation
+        console.warn('Failed to sync hierarchy changes to frontmatter:', syncError);
+      }
+    }
+
+    return result;
   }
 
   /**
