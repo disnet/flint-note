@@ -72,13 +72,44 @@ export class WASMCodeEvaluator {
       // Create secure API proxy and inject into VM
       this.injectSecureAPI(vm, options.vaultId, options.allowedAPIs, options.context);
 
-      // Execute the code
-      const codeToExecute = `
-        (() => {
-          ${options.code}
-        })()
-      `;
-      const evalResult = vm.evalCode(codeToExecute);
+      // Execute the user code to define the main function, then call it
+      const setupResult = vm.evalCode(options.code);
+      if (setupResult.error) {
+        let errorMsg: string;
+        try {
+          const errorObj = vm.dump(setupResult.error);
+          errorMsg = typeof errorObj === 'string' ? errorObj : String(errorObj);
+        } catch {
+          errorMsg = 'Code compilation failed';
+        }
+        setupResult.error.dispose();
+        return {
+          success: false,
+          error: `Setup error: ${errorMsg}`,
+          executionTime: Date.now() - startTime
+        };
+      }
+      setupResult.value.dispose();
+
+      // Now call the main() function which should return a promise
+      const callResult = vm.evalCode('main()');
+      if (callResult.error) {
+        let errorMsg: string;
+        try {
+          const errorObj = vm.dump(callResult.error);
+          errorMsg = typeof errorObj === 'string' ? errorObj : String(errorObj);
+        } catch {
+          errorMsg = 'main() call failed';
+        }
+        callResult.error.dispose();
+        return {
+          success: false,
+          error: `Execution error: ${errorMsg}`,
+          executionTime: Date.now() - startTime
+        };
+      }
+
+      const evalResult = callResult;
 
       // Check for compilation/syntax errors or interrupts
       if (evalResult.error) {
@@ -124,83 +155,71 @@ export class WASMCodeEvaluator {
       // Handle the result - check if it's a promise or synchronous value
       let finalResult: unknown;
 
-      // Check if the result is a promise
-      const promiseState = vm.getPromiseState(evalResult.value);
+      try {
+        const resultHandle = vm.unwrapResult(evalResult);
 
-      if (promiseState.type === 'fulfilled') {
-        // Promise is already resolved or it's a synchronous value
-        if (promiseState.notAPromise) {
-          // It's a regular synchronous value, not a promise
-          finalResult = vm.dump(evalResult.value);
-        } else {
-          // It's a resolved promise
-          finalResult = vm.dump(promiseState.value);
-        }
-        evalResult.value.dispose();
-      } else if (promiseState.type === 'rejected') {
-        // Promise was rejected
-        const errorMsg = vm.dump(promiseState.error);
-        evalResult.value.dispose();
-        return {
-          success: false,
-          error: `Promise rejected: ${errorMsg}`,
-          executionTime: Date.now() - startTime
-        };
-      } else if (promiseState.type === 'pending') {
-        // For pending promises, we need to execute pending jobs and then wait
-        try {
-          // Execute pending jobs to allow promises to resolve
+        // main() always returns a promise, so execute pending jobs to resolve it
+        const maxIterations = 1000; // Prevent infinite loops
+        let iterations = 0;
+        let resolved = false;
+        
+        while (!resolved && iterations < maxIterations) {
           const jobsResult = vm.runtime.executePendingJobs();
           if (jobsResult.error) {
             const errorMsg = vm.dump(jobsResult.error);
             jobsResult.dispose();
-            evalResult.value.dispose();
+            resultHandle.dispose();
             return {
               success: false,
-              error: `Promise job execution error: ${errorMsg}`,
+              error: `Promise execution error: ${errorMsg}`,
               executionTime: Date.now() - startTime
             };
           }
           jobsResult.dispose();
 
-          // Check promise state again after executing jobs
-          const newState = vm.getPromiseState(evalResult.value);
-          if (newState.type === 'fulfilled') {
-            if (newState.notAPromise) {
-              finalResult = vm.dump(evalResult.value);
-            } else {
-              finalResult = vm.dump(newState.value);
-            }
-          } else if (newState.type === 'rejected') {
-            const errorMsg = vm.dump(newState.error);
-            evalResult.value.dispose();
+          // Check if promise is resolved
+          const promiseState = vm.getPromiseState(resultHandle);
+          if (promiseState.type === 'fulfilled') {
+            finalResult = vm.dump(promiseState.value);
+            resolved = true;
+          } else if (promiseState.type === 'rejected') {
+            const errorMsg = vm.dump(promiseState.error);
+            resultHandle.dispose();
             return {
               success: false,
               error: `Promise rejected: ${errorMsg}`,
               executionTime: Date.now() - startTime
             };
           } else {
-            // Still pending - use fallback waiting
-            finalResult = await this.waitForPromise(
-              vm,
-              evalResult.value,
-              timeout - (Date.now() - startTime)
-            );
+            // Still pending, check for timeout
+            const elapsed = Date.now() - startTime;
+            if (elapsed > timeout) {
+              resultHandle.dispose();
+              return {
+                success: false,
+                error: `Execution timeout after ${timeout}ms`,
+                executionTime: elapsed
+              };
+            }
+            iterations++;
           }
+        }
 
-          evalResult.value.dispose();
-        } catch (promiseError) {
-          evalResult.value.dispose();
+        resultHandle.dispose();
+        
+        if (!resolved) {
           return {
             success: false,
-            error: `Promise execution error: ${promiseError instanceof Error ? promiseError.message : String(promiseError)}`,
+            error: 'Promise resolution exceeded maximum iterations',
             executionTime: Date.now() - startTime
           };
         }
-      } else {
-        // Fallback for unknown state
-        finalResult = vm.dump(evalResult.value);
-        evalResult.value.dispose();
+      } catch (error) {
+        return {
+          success: false,
+          error: `Result processing failed: ${error instanceof Error ? error.message : String(error)}`,
+          executionTime: Date.now() - startTime
+        };
       }
 
       return {
@@ -229,61 +248,6 @@ export class WASMCodeEvaluator {
         vm.dispose();
       }
     }
-  }
-
-  private async waitForPromise(
-    vm: QuickJSContext,
-    promiseHandle: QuickJSHandle,
-    remainingTimeout: number
-  ): Promise<unknown> {
-    const pollInterval = 10; // Check every 10ms
-    const maxWaitTime = Math.max(remainingTimeout, 0);
-    let waitedTime = 0;
-
-    return new Promise((resolve, reject): void => {
-      const checkPromise = (): void => {
-        try {
-          const state = vm.getPromiseState(promiseHandle);
-
-          if (state.type === 'fulfilled') {
-            try {
-              const result = vm.dump(state.value);
-              state.value.dispose();
-              resolve(result);
-            } catch (error) {
-              reject(new Error(`Promise resolution error: ${error}`));
-            }
-            return;
-          }
-
-          if (state.type === 'rejected') {
-            try {
-              const errorMsg = vm.dump(state.error);
-              state.error.dispose();
-              reject(new Error(`Promise rejected: ${errorMsg}`));
-            } catch (error) {
-              reject(new Error(`Promise rejection handling error: ${error}`));
-            }
-            return;
-          }
-
-          // Still pending, check if we should timeout
-          if (waitedTime >= maxWaitTime) {
-            reject(new Error(`Promise timeout after ${maxWaitTime}ms`));
-            return;
-          }
-
-          // Continue waiting
-          waitedTime += pollInterval;
-          setTimeout(checkPromise, pollInterval);
-        } catch (error) {
-          reject(new Error(`Promise polling error: ${error}`));
-        }
-      };
-
-      // Start checking immediately
-      checkPromise();
-    });
   }
 
   private injectSecureAPI(
