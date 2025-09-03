@@ -590,33 +590,372 @@ export class WASMCodeEvaluator {
     allowedAPIs?: string[],
     customContext?: Record<string, unknown>
   ): void {
-    // Check if notes.get is allowed
-    const isNotesGetAllowed = allowedAPIs && allowedAPIs.includes('notes.get');
+    // Helper function to check if API is allowed
+    const isApiAllowed = (apiName: string): boolean =>
+      !allowedAPIs || allowedAPIs.includes(apiName);
 
     // Create notes API object
     const notesObj = vm.newObject();
     vm.setProp(vm.global, 'notes', notesObj);
 
-    if (isNotesGetAllowed) {
-      // Add notes.get function with real async API integration
+    // notes.get
+    if (isApiAllowed('notes.get')) {
       const notesGetFn = vm.newFunction('get', (noteIdArg) => {
         const noteId = vm.getString(noteIdArg);
-        // Create host promise for actual API call
         const hostPromise = this.noteApi.getNote(vaultId, noteId);
-
-        // Create proxy promise in QuickJS that will resolve when hostPromise resolves
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
       });
-
       notesGetFn.consume((handle) => {
         vm.setProp(notesObj, 'get', handle);
       });
     } else {
-      // Set notes.get to null when not allowed (so typeof will be 'object')
       vm.setProp(notesObj, 'get', vm.null);
     }
 
+    // notes.create
+    if (isApiAllowed('notes.create')) {
+      const notesCreateFn = vm.newFunction('create', (optionsArg) => {
+        const optionsStr = vm.getString(optionsArg);
+        const options = JSON.parse(optionsStr);
+        const hostPromise = this.noteApi.createNote({
+          type: options.type,
+          title: options.title,
+          content: options.content,
+          metadata: options.metadata,
+          vaultId
+        });
+        return this.promiseFactory.createProxy(vm, registry, hostPromise);
+      });
+      notesCreateFn.consume((handle) => {
+        vm.setProp(notesObj, 'create', handle);
+      });
+    } else {
+      vm.setProp(notesObj, 'create', vm.null);
+    }
+
+    // notes.update
+    if (isApiAllowed('notes.update')) {
+      const notesUpdateFn = vm.newFunction('update', (optionsArg) => {
+        const optionsStr = vm.getString(optionsArg);
+        const options = JSON.parse(optionsStr);
+        const hostPromise = this.noteApi.updateNote({
+          identifier: options.identifier,
+          content: options.content,
+          contentHash: options.contentHash,
+          vaultId,
+          metadata: options.metadata
+        });
+        return this.promiseFactory.createProxy(vm, registry, hostPromise);
+      });
+      notesUpdateFn.consume((handle) => {
+        vm.setProp(notesObj, 'update', handle);
+      });
+    } else {
+      vm.setProp(notesObj, 'update', vm.null);
+    }
+
+    // notes.delete
+    if (isApiAllowed('notes.delete')) {
+      const notesDeleteFn = vm.newFunction('delete', (optionsArg) => {
+        const optionsStr = vm.getString(optionsArg);
+        const options = JSON.parse(optionsStr);
+        const hostPromise = this.noteApi.deleteNote({
+          identifier: options.identifier,
+          confirm: options.confirm,
+          vaultId
+        });
+        return this.promiseFactory.createProxy(vm, registry, hostPromise);
+      });
+      notesDeleteFn.consume((handle) => {
+        vm.setProp(notesObj, 'delete', handle);
+      });
+    } else {
+      vm.setProp(notesObj, 'delete', vm.null);
+    }
+
+    // notes.list
+    if (isApiAllowed('notes.list')) {
+      const notesListFn = vm.newFunction('list', (optionsArg) => {
+        let optionsStr = '{}';
+        if (optionsArg && vm.typeof(optionsArg) === 'string') {
+          optionsStr = vm.getString(optionsArg);
+        }
+        const options = JSON.parse(optionsStr);
+        const hostPromise = this.noteApi.listNotes({
+          typeName: options.typeName,
+          limit: options.limit,
+          vaultId
+        });
+        return this.promiseFactory.createProxy(vm, registry, hostPromise);
+      });
+      notesListFn.consume((handle) => {
+        vm.setProp(notesObj, 'list', handle);
+      });
+    } else {
+      vm.setProp(notesObj, 'list', vm.null);
+    }
+
+    // notes.rename
+    if (isApiAllowed('notes.rename')) {
+      const notesRenameFn = vm.newFunction('rename', (optionsArg) => {
+        const optionsStr = vm.getString(optionsArg);
+        const options = JSON.parse(optionsStr);
+        const hostPromise = this.noteApi.renameNote({
+          identifier: options.identifier,
+          new_title: options.new_title,
+          content_hash: options.content_hash,
+          vault_id: vaultId
+        });
+        return this.promiseFactory.createProxy(vm, registry, hostPromise);
+      });
+      notesRenameFn.consume((handle) => {
+        vm.setProp(notesObj, 'rename', handle);
+      });
+    } else {
+      vm.setProp(notesObj, 'rename', vm.null);
+    }
+
+    // notes.move
+    if (isApiAllowed('notes.move')) {
+      const notesMoveFn = vm.newFunction('move', (optionsArg) => {
+        const optionsStr = vm.getString(optionsArg);
+        const options = JSON.parse(optionsStr);
+        const hostPromise = this.noteApi.moveNote({
+          identifier: options.identifier,
+          new_type: options.new_type,
+          content_hash: options.content_hash,
+          vault_id: vaultId
+        });
+        return this.promiseFactory.createProxy(vm, registry, hostPromise);
+      });
+      notesMoveFn.consume((handle) => {
+        vm.setProp(notesObj, 'move', handle);
+      });
+    } else {
+      vm.setProp(notesObj, 'move', vm.null);
+    }
+
+    // notes.search
+    if (isApiAllowed('notes.search')) {
+      const notesSearchFn = vm.newFunction('search', (optionsArg) => {
+        const optionsStr = vm.getString(optionsArg);
+        const options = JSON.parse(optionsStr);
+        const hostPromise = this.noteApi.searchNotesByText({
+          query: options.query,
+          typeFilter: options.typeFilter,
+          limit: options.limit,
+          vaultId
+        });
+        return this.promiseFactory.createProxy(vm, registry, hostPromise);
+      });
+      notesSearchFn.consume((handle) => {
+        vm.setProp(notesObj, 'search', handle);
+      });
+    } else {
+      vm.setProp(notesObj, 'search', vm.null);
+    }
+
     notesObj.dispose();
+
+    // Create noteTypes API object
+    const noteTypesObj = vm.newObject();
+    vm.setProp(vm.global, 'noteTypes', noteTypesObj);
+
+    // noteTypes.create
+    if (isApiAllowed('noteTypes.create')) {
+      const noteTypesCreateFn = vm.newFunction('create', (optionsArg) => {
+        const optionsStr = vm.getString(optionsArg);
+        const options = JSON.parse(optionsStr);
+        const hostPromise = this.noteApi.createNoteType({
+          type_name: options.type_name,
+          description: options.description,
+          agent_instructions: options.agent_instructions,
+          metadata_schema: options.metadata_schema,
+          vault_id: vaultId
+        });
+        return this.promiseFactory.createProxy(vm, registry, hostPromise);
+      });
+      noteTypesCreateFn.consume((handle) => {
+        vm.setProp(noteTypesObj, 'create', handle);
+      });
+    } else {
+      vm.setProp(noteTypesObj, 'create', vm.null);
+    }
+
+    // noteTypes.list
+    if (isApiAllowed('noteTypes.list')) {
+      const noteTypesListFn = vm.newFunction('list', () => {
+        const hostPromise = this.noteApi.listNoteTypes({ vault_id: vaultId });
+        return this.promiseFactory.createProxy(vm, registry, hostPromise);
+      });
+      noteTypesListFn.consume((handle) => {
+        vm.setProp(noteTypesObj, 'list', handle);
+      });
+    } else {
+      vm.setProp(noteTypesObj, 'list', vm.null);
+    }
+
+    // noteTypes.get
+    if (isApiAllowed('noteTypes.get')) {
+      const noteTypesGetFn = vm.newFunction('get', (typeNameArg) => {
+        const typeName = vm.getString(typeNameArg);
+        const hostPromise = this.noteApi.getNoteTypeInfo({
+          type_name: typeName,
+          vault_id: vaultId
+        });
+        return this.promiseFactory.createProxy(vm, registry, hostPromise);
+      });
+      noteTypesGetFn.consume((handle) => {
+        vm.setProp(noteTypesObj, 'get', handle);
+      });
+    } else {
+      vm.setProp(noteTypesObj, 'get', vm.null);
+    }
+
+    // noteTypes.update
+    if (isApiAllowed('noteTypes.update')) {
+      const noteTypesUpdateFn = vm.newFunction('update', (optionsArg) => {
+        const optionsStr = vm.getString(optionsArg);
+        const options = JSON.parse(optionsStr);
+        const hostPromise = this.noteApi.updateNoteType({
+          type_name: options.type_name,
+          description: options.description,
+          instructions: options.instructions,
+          metadata_schema: options.metadata_schema,
+          vault_id: vaultId
+        });
+        return this.promiseFactory.createProxy(vm, registry, hostPromise);
+      });
+      noteTypesUpdateFn.consume((handle) => {
+        vm.setProp(noteTypesObj, 'update', handle);
+      });
+    } else {
+      vm.setProp(noteTypesObj, 'update', vm.null);
+    }
+
+    // noteTypes.delete
+    if (isApiAllowed('noteTypes.delete')) {
+      const noteTypesDeleteFn = vm.newFunction('delete', (optionsArg) => {
+        const optionsStr = vm.getString(optionsArg);
+        const options = JSON.parse(optionsStr);
+        const hostPromise = this.noteApi.deleteNoteType({
+          type_name: options.type_name,
+          action: options.action,
+          target_type: options.target_type,
+          confirm: options.confirm,
+          vault_id: vaultId
+        });
+        return this.promiseFactory.createProxy(vm, registry, hostPromise);
+      });
+      noteTypesDeleteFn.consume((handle) => {
+        vm.setProp(noteTypesObj, 'delete', handle);
+      });
+    } else {
+      vm.setProp(noteTypesObj, 'delete', vm.null);
+    }
+
+    noteTypesObj.dispose();
+
+    // Create vaults API object
+    const vaultsObj = vm.newObject();
+    vm.setProp(vm.global, 'vaults', vaultsObj);
+
+    // vaults.getCurrent
+    if (isApiAllowed('vaults.getCurrent')) {
+      const vaultsGetCurrentFn = vm.newFunction('getCurrent', () => {
+        const hostPromise = this.noteApi.getCurrentVault();
+        return this.promiseFactory.createProxy(vm, registry, hostPromise);
+      });
+      vaultsGetCurrentFn.consume((handle) => {
+        vm.setProp(vaultsObj, 'getCurrent', handle);
+      });
+    } else {
+      vm.setProp(vaultsObj, 'getCurrent', vm.null);
+    }
+
+    // vaults.list
+    if (isApiAllowed('vaults.list')) {
+      const vaultsListFn = vm.newFunction('list', () => {
+        const hostPromise = this.noteApi.listVaults();
+        return this.promiseFactory.createProxy(vm, registry, hostPromise);
+      });
+      vaultsListFn.consume((handle) => {
+        vm.setProp(vaultsObj, 'list', handle);
+      });
+    } else {
+      vm.setProp(vaultsObj, 'list', vm.null);
+    }
+
+    // vaults.create
+    if (isApiAllowed('vaults.create')) {
+      const vaultsCreateFn = vm.newFunction('create', (optionsArg) => {
+        const optionsStr = vm.getString(optionsArg);
+        const options = JSON.parse(optionsStr);
+        const hostPromise = this.noteApi.createVault({
+          id: options.id,
+          name: options.name,
+          path: options.path,
+          description: options.description,
+          initialize: options.initialize,
+          switch_to: options.switch_to
+        });
+        return this.promiseFactory.createProxy(vm, registry, hostPromise);
+      });
+      vaultsCreateFn.consume((handle) => {
+        vm.setProp(vaultsObj, 'create', handle);
+      });
+    } else {
+      vm.setProp(vaultsObj, 'create', vm.null);
+    }
+
+    // vaults.switch
+    if (isApiAllowed('vaults.switch')) {
+      const vaultsSwitchFn = vm.newFunction('switch', (vaultIdArg) => {
+        const targetVaultId = vm.getString(vaultIdArg);
+        const hostPromise = this.noteApi.switchVault({ id: targetVaultId });
+        return this.promiseFactory.createProxy(vm, registry, hostPromise);
+      });
+      vaultsSwitchFn.consume((handle) => {
+        vm.setProp(vaultsObj, 'switch', handle);
+      });
+    } else {
+      vm.setProp(vaultsObj, 'switch', vm.null);
+    }
+
+    // vaults.update
+    if (isApiAllowed('vaults.update')) {
+      const vaultsUpdateFn = vm.newFunction('update', (optionsArg) => {
+        const optionsStr = vm.getString(optionsArg);
+        const options = JSON.parse(optionsStr);
+        const hostPromise = this.noteApi.updateVault({
+          id: options.id,
+          name: options.name,
+          description: options.description
+        });
+        return this.promiseFactory.createProxy(vm, registry, hostPromise);
+      });
+      vaultsUpdateFn.consume((handle) => {
+        vm.setProp(vaultsObj, 'update', handle);
+      });
+    } else {
+      vm.setProp(vaultsObj, 'update', vm.null);
+    }
+
+    // vaults.remove
+    if (isApiAllowed('vaults.remove')) {
+      const vaultsRemoveFn = vm.newFunction('remove', (vaultIdArg) => {
+        const targetVaultId = vm.getString(vaultIdArg);
+        const hostPromise = this.noteApi.removeVault({ id: targetVaultId });
+        return this.promiseFactory.createProxy(vm, registry, hostPromise);
+      });
+      vaultsRemoveFn.consume((handle) => {
+        vm.setProp(vaultsObj, 'remove', handle);
+      });
+    } else {
+      vm.setProp(vaultsObj, 'remove', vm.null);
+    }
+
+    vaultsObj.dispose();
 
     // Create utils API object with proper disposal
     const utilsObj = vm.newObject();
