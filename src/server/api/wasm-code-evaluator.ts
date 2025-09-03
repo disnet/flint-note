@@ -4,6 +4,7 @@
  */
 
 import { getQuickJS, QuickJSContext, QuickJSWASMModule } from 'quickjs-emscripten';
+import type { QuickJSHandle } from 'quickjs-emscripten';
 import type { FlintNoteApi } from './flint-note-api.js';
 
 export interface WASMCodeEvaluationOptions {
@@ -54,7 +55,7 @@ export class WASMCodeEvaluator {
     const startTime = Date.now();
     const timeout = options.timeout || 5000; // Default 5 second timeout
     let vm: QuickJSContext | null = null;
-    let interrupted = false; // Moved outside try block for scope accessibility
+    let interrupted = false;
 
     try {
       vm = this.QuickJS!.newContext();
@@ -74,14 +75,14 @@ export class WASMCodeEvaluator {
       // Create secure API proxy and inject into VM
       this.injectSecureAPI(vm, options.vaultId, options.allowedAPIs, options.context);
 
-      // Execute the code - for now, use synchronous function wrapper
+      // Execute the code
       const codeToExecute = `
         (() => {
           ${options.code}
         })()
       `;
 
-      const evalResult = vm!.evalCode(codeToExecute);
+      const evalResult = vm.evalCode(codeToExecute);
 
       // Check for compilation/syntax errors or interrupts
       if (evalResult.error) {
@@ -99,7 +100,7 @@ export class WASMCodeEvaluator {
 
         // Try to extract a meaningful error message
         try {
-          const errorObj = vm!.dump(evalResult.error);
+          const errorObj = vm.dump(evalResult.error);
           if (
             typeof errorObj === 'object' &&
             errorObj !== null &&
@@ -109,12 +110,10 @@ export class WASMCodeEvaluator {
           } else if (typeof errorObj === 'string') {
             errorMsg = errorObj;
           } else {
-            // For runtime errors, try to get the string representation
-            const errorStr = vm!.getString(evalResult.error);
+            const errorStr = vm.getString(evalResult.error);
             errorMsg = errorStr || String(errorObj);
           }
         } catch {
-          // Fallback to basic string conversion
           errorMsg = 'Unknown execution error';
         }
 
@@ -126,26 +125,93 @@ export class WASMCodeEvaluator {
         };
       }
 
-      // Handle the result - for now, treat all results as synchronous
+      // Handle the result - check if it's a promise or synchronous value
       let finalResult: unknown;
-      try {
-        // For Phase 1, we'll only handle synchronous results
-        finalResult = vm!.dump(evalResult.value);
-        evalResult.value.dispose();
 
-        return {
-          success: true,
-          result: finalResult,
-          executionTime: Date.now() - startTime
-        };
-      } catch (promiseError) {
+      // Check if the result is a promise
+      const promiseState = vm.getPromiseState(evalResult.value);
+
+      if (promiseState.type === 'fulfilled') {
+        // Promise is already resolved or it's a synchronous value
+        if (promiseState.notAPromise) {
+          // It's a regular synchronous value, not a promise
+          finalResult = vm.dump(evalResult.value);
+        } else {
+          // It's a resolved promise
+          finalResult = vm.dump(promiseState.value);
+        }
+        evalResult.value.dispose();
+      } else if (promiseState.type === 'rejected') {
+        // Promise was rejected
+        const errorMsg = vm.dump(promiseState.error);
         evalResult.value.dispose();
         return {
           success: false,
-          error: `Promise execution error: ${promiseError instanceof Error ? promiseError.message : String(promiseError)}`,
+          error: `Promise rejected: ${errorMsg}`,
           executionTime: Date.now() - startTime
         };
+      } else if (promiseState.type === 'pending') {
+        // For pending promises, we need to execute pending jobs and then wait
+        try {
+          // Execute pending jobs to allow promises to resolve
+          const jobsResult = vm.runtime.executePendingJobs();
+          if (jobsResult.error) {
+            const errorMsg = vm.dump(jobsResult.error);
+            jobsResult.dispose();
+            evalResult.value.dispose();
+            return {
+              success: false,
+              error: `Promise job execution error: ${errorMsg}`,
+              executionTime: Date.now() - startTime
+            };
+          }
+          jobsResult.dispose();
+
+          // Check promise state again after executing jobs
+          const newState = vm.getPromiseState(evalResult.value);
+          if (newState.type === 'fulfilled') {
+            if (newState.notAPromise) {
+              finalResult = vm.dump(evalResult.value);
+            } else {
+              finalResult = vm.dump(newState.value);
+            }
+          } else if (newState.type === 'rejected') {
+            const errorMsg = vm.dump(newState.error);
+            evalResult.value.dispose();
+            return {
+              success: false,
+              error: `Promise rejected: ${errorMsg}`,
+              executionTime: Date.now() - startTime
+            };
+          } else {
+            // Still pending - use fallback waiting
+            finalResult = await this.waitForPromise(
+              vm,
+              evalResult.value,
+              timeout - (Date.now() - startTime)
+            );
+          }
+
+          evalResult.value.dispose();
+        } catch (promiseError) {
+          evalResult.value.dispose();
+          return {
+            success: false,
+            error: `Promise execution error: ${promiseError instanceof Error ? promiseError.message : String(promiseError)}`,
+            executionTime: Date.now() - startTime
+          };
+        }
+      } else {
+        // Fallback for unknown state
+        finalResult = vm.dump(evalResult.value);
+        evalResult.value.dispose();
       }
+
+      return {
+        success: true,
+        result: finalResult,
+        executionTime: Date.now() - startTime
+      };
     } catch (error) {
       // Check if this was due to a timeout interrupt
       if (interrupted) {
@@ -167,6 +233,61 @@ export class WASMCodeEvaluator {
         vm.dispose();
       }
     }
+  }
+
+  private async waitForPromise(
+    vm: QuickJSContext,
+    promiseHandle: QuickJSHandle,
+    remainingTimeout: number
+  ): Promise<unknown> {
+    const pollInterval = 10; // Check every 10ms
+    const maxWaitTime = Math.max(remainingTimeout, 0);
+    let waitedTime = 0;
+
+    return new Promise((resolve, reject): void => {
+      const checkPromise = (): void => {
+        try {
+          const state = vm.getPromiseState(promiseHandle);
+
+          if (state.type === 'fulfilled') {
+            try {
+              const result = vm.dump(state.value);
+              state.value.dispose();
+              resolve(result);
+            } catch (error) {
+              reject(new Error(`Promise resolution error: ${error}`));
+            }
+            return;
+          }
+
+          if (state.type === 'rejected') {
+            try {
+              const errorMsg = vm.dump(state.error);
+              state.error.dispose();
+              reject(new Error(`Promise rejected: ${errorMsg}`));
+            } catch (error) {
+              reject(new Error(`Promise rejection handling error: ${error}`));
+            }
+            return;
+          }
+
+          // Still pending, check if we should timeout
+          if (waitedTime >= maxWaitTime) {
+            reject(new Error(`Promise timeout after ${maxWaitTime}ms`));
+            return;
+          }
+
+          // Continue waiting
+          waitedTime += pollInterval;
+          setTimeout(checkPromise, pollInterval);
+        } catch (error) {
+          reject(new Error(`Promise polling error: ${error}`));
+        }
+      };
+
+      // Start checking immediately
+      checkPromise();
+    });
   }
 
   private injectSecureAPI(
@@ -226,6 +347,21 @@ export class WASMCodeEvaluator {
     });
     vm.setProp(utilsObj, 'parseLinks', parseLinksFn);
     parseLinksFn.dispose();
+
+    // Add promise utilities for testing
+    const delayFn = vm.newFunction('delay', (msArg) => {
+      const ms = vm.getNumber(msArg);
+      // Create a simple resolved promise since setTimeout doesn't exist in QuickJS
+      const promiseCode = `Promise.resolve('delayed for ${ms}ms')`;
+      const promiseResult = vm.evalCode(promiseCode);
+      if (promiseResult.error) {
+        promiseResult.error.dispose();
+        return vm.newString('Promise creation failed');
+      }
+      return promiseResult.value;
+    });
+    vm.setProp(utilsObj, 'delay', delayFn);
+    delayFn.dispose();
 
     utilsObj.dispose();
 
