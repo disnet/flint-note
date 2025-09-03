@@ -167,6 +167,7 @@ export class WASMCodeEvaluator {
           const jobsResult = vm.runtime.executePendingJobs();
           if (jobsResult.error) {
             const errorMsg = vm.dump(jobsResult.error);
+            jobsResult.error?.dispose(); // Dispose the error handle
             jobsResult.dispose();
             resultHandle.dispose();
             return {
@@ -181,9 +182,23 @@ export class WASMCodeEvaluator {
           const promiseState = vm.getPromiseState(resultHandle);
           if (promiseState.type === 'fulfilled') {
             finalResult = vm.dump(promiseState.value);
+            promiseState.value?.dispose(); // Dispose the value handle
             resolved = true;
           } else if (promiseState.type === 'rejected') {
-            const errorMsg = vm.dump(promiseState.error);
+            let errorMsg: string;
+            try {
+              const errorObj = vm.dump(promiseState.error);
+              if (typeof errorObj === 'object' && errorObj !== null && 'message' in errorObj) {
+                errorMsg = String(errorObj.message);
+              } else if (typeof errorObj === 'string') {
+                errorMsg = errorObj;
+              } else {
+                errorMsg = String(errorObj);
+              }
+            } catch {
+              errorMsg = 'Unknown promise rejection error';
+            }
+            promiseState.error?.dispose(); // Dispose the error handle
             resultHandle.dispose();
             return {
               success: false,
@@ -385,7 +400,11 @@ export class WASMCodeEvaluator {
         }
 
         vm.setProp(vm.global, key, valueHandle);
-        valueHandle.dispose();
+        // Only dispose if it's not a primitive handle (null, undefined, true, false)
+        if (valueHandle !== vm.null && valueHandle !== vm.undefined && 
+            valueHandle !== vm.true && valueHandle !== vm.false) {
+          valueHandle.dispose();
+        }
       }
     }
 

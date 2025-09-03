@@ -13,70 +13,44 @@
 - ✅ **No more timeouts** - eliminated infinite loop issues
 - ✅ **Clean API** - consistent pattern for all code execution
 
-### Test Results: 5/9 Passing
+### Test Results: 9/9 Passing ✅
 - ✅ Basic code execution (sync)
 - ✅ Arithmetic operations  
 - ✅ Syntax error handling
-- ✅ API whitelisting with async/await
+- ✅ Runtime error handling (exception handling)
+- ✅ Utility functions (complex object returns)
 - ✅ Restricted API blocking
+- ✅ API whitelisting with async/await
+- ✅ Dangerous globals (security checks)
+- ✅ Custom context variables (context injection)
 
-## ❌ Remaining Issues
+## ✅ All Issues Resolved!
 
-### Memory Leak Assertions (4 failing tests)
-```
-Assertion failed: list_empty(&rt->gc_obj_list), at: ../../vendor/quickjs/quickjs.c,1998,JS_FreeRuntime
-```
+### Memory Leak Fixes Applied
+**Fixed the QuickJS handle disposal issues:**
+1. **Promise state handles** - Added proper disposal of `promiseState.value` and `promiseState.error` in promise resolution loops
+2. **Error path cleanup** - Added disposal of error handles in `executePendingJobs()` error handling
+3. **Context injection** - Added proper conditional disposal of handles in custom context variable injection
+4. **Error message extraction** - Improved error object dumping to extract meaningful error messages from rejected promises
 
-**Affected Tests:**
-1. Runtime errors (exception handling)
-2. Utility functions (complex object returns)
-3. Dangerous globals (security checks)
-4. Custom context variables (context injection)
+## 🔍 Root Cause Analysis (Resolved)
 
-## 🔍 Root Cause Analysis
+The memory leaks occurred because QuickJS handle objects were not being properly disposed in several scenarios:
 
-The memory leaks appear to occur in tests that:
-- **Throw exceptions** in async functions
-- **Return complex objects** with nested properties
-- **Access undefined/blocked globals**
-- **Use injected context variables**
+### Issues Found & Fixed:
+1. **Promise state handles**: `vm.getPromiseState()` returns handles for `value` and `error` that need explicit disposal
+2. **Job execution errors**: Error handles from `vm.runtime.executePendingJobs()` were not being disposed
+3. **Context variable disposal**: Custom context variables weren't conditionally disposing handles to avoid double-disposal of primitives
+4. **Error message extraction**: Promise rejection error objects needed better error message extraction logic
 
-## 🚧 Next Steps to Fix Remaining Tests
+### Applied Fixes:
+- Added `promiseState.value?.dispose()` and `promiseState.error?.dispose()` in promise resolution logic
+- Added `jobsResult.error?.dispose()` in job execution error handling
+- Added conditional disposal check for primitive handles in context injection
+- Improved error message extraction from rejected promise error objects
 
-### 1. QuickJS Object Lifecycle Investigation
-- Review our `dispose()` calls in error handling paths
-- Ensure all `QuickJSHandle` objects are properly disposed in exception scenarios
-- Check if promise state objects need explicit disposal
-
-### 2. Error Handling Path Cleanup
-- **Runtime error test**: Exception thrown in `main()` may not be disposing promise handles correctly
-- **Complex object test**: Nested object serialization might be leaking handles during `vm.dump()`
-
-### 3. Context Injection Review
-- **Custom variables**: Our `convertValueToQuickJSHandle()` recursive conversion may have disposal issues
-- **Security globals**: Setting properties to `vm.undefined` might need different disposal pattern
-
-### 4. Potential Fixes to Investigate
-
-```typescript
-// Current pattern that might be leaking:
-const promiseState = vm.getPromiseState(promiseHandle);
-finalResult = vm.dump(promiseState.value); // Missing disposal?
-
-// May need:
-if (promiseState.type === 'fulfilled') {
-  finalResult = vm.dump(promiseState.value);
-  promiseState.value?.dispose(); // Explicit cleanup
-}
-```
-
-### 5. Testing Strategy
-- Run individual failing tests to isolate specific leak patterns
-- Add explicit disposal calls in all error paths
-- Consider using QuickJS scoped contexts for better automatic cleanup
-
-## 🎯 Success Criteria
-The core functionality is **working perfectly** - we just need to plug the memory leaks in edge cases. Once these 4 tests pass, we'll have a robust WASM evaluator with full top-level await support.
+## 🎯 Success Achieved! 
+**All 9 WASM evaluator tests now pass** - we have a robust, memory-leak-free WASM evaluator with full top-level await support.
 
 ## Usage Pattern
 
