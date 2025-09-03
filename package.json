@@ -14,6 +14,8 @@
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
     "svelte-check": "svelte-check --tsconfig ./tsconfig.web.json",
     "typecheck": "npm run typecheck:node && npm run typecheck:web && npm run svelte-check",
+    "test": "vitest",
+    "test:run": "vitest run",
     "start": "electron-vite preview",
     "check": "npm run lint && npm run typecheck",
     "clean": "rm -rf out dist node_modules/.vite src/server/dist",
