@@ -122,6 +122,7 @@ class PromiseProxyFactory {
    ```
 
 5. **Job Processing Loop**
+
    ```typescript
    // Enhanced promise resolution loop
    while (this.registry.hasPending() && iterations < maxIterations) {
@@ -263,7 +264,7 @@ The complete async implementation is now working and consists of these core comp
 class AsyncOperationRegistry {
   private operations = new Map<string, AsyncOperation>();
   private nextId = 0;
-  
+
   register(promise: Promise<unknown>, promiseHandle: QuickJSHandle): string;
   resolve(id: string, result: unknown): void;
   reject(id: string, error: unknown): void;
@@ -276,6 +277,7 @@ class AsyncOperationRegistry {
 ```
 
 **Key Features:**
+
 - Tracks all pending async operations with unique IDs
 - Provides timeout detection and cleanup
 - Handles both success and error cases
@@ -289,7 +291,7 @@ class VMLifecycleManager {
   private registry: AsyncOperationRegistry;
   private disposed = false;
   private maxWaitTime = 30000; // 30 seconds timeout
-  
+
   async waitForPendingOperations(): Promise<void>;
   safeDispose(): void;
   isAlive(): boolean;
@@ -305,16 +307,16 @@ async waitForPendingOperations(): Promise<void> {
   let allOperationsCompleted = false;
   let additionalJobProcessingTime = 0;
   const maxAdditionalProcessingTime = 100; // Process jobs for extra 100ms
-  
+
   while (!this.disposed) {
     const hasPending = this.registry.hasPending();
-    
+
     if (!hasPending && !allOperationsCompleted) {
       // All operations just completed, start additional job processing timer
       allOperationsCompleted = true;
       additionalJobProcessingTime = 0;
     }
-    
+
     if (allOperationsCompleted) {
       additionalJobProcessingTime += checkInterval;
       if (additionalJobProcessingTime >= maxAdditionalProcessingTime) {
@@ -322,7 +324,7 @@ async waitForPendingOperations(): Promise<void> {
         break;
       }
     }
-    
+
     // Process any pending QuickJS jobs
     const jobsResult = vm.runtime.executePendingJobs();
     // ... handle results
@@ -341,13 +343,18 @@ class PromiseProxyFactory {
     registry: AsyncOperationRegistry,
     hostPromise: Promise<T>
   ): QuickJSHandle;
-  
-  private resolvePromiseInVM(vm: QuickJSContext, promiseId: string, result: unknown): void;
+
+  private resolvePromiseInVM(
+    vm: QuickJSContext,
+    promiseId: string,
+    result: unknown
+  ): void;
   private rejectPromiseInVM(vm: QuickJSContext, promiseId: string, error: unknown): void;
 }
 ```
 
 **Promise Creation Pattern:**
+
 ```typescript
 // Generate unique promise ID
 const promiseId = `promise_${++this.promiseIdCounter}`;
@@ -368,6 +375,7 @@ const promiseCode = `
 ```
 
 **Promise Resolution Pattern:**
+
 ```typescript
 // When host promise resolves, call the QuickJS resolver
 const resolveCode = `
@@ -389,16 +397,16 @@ async evaluate(options: WASMCodeEvaluationOptions): Promise<WASMCodeEvaluationRe
   vm = this.QuickJS!.newContext();
   registry = new AsyncOperationRegistry();
   lifecycleManager = new VMLifecycleManager(vm, registry);
-  
+
   // Inject async-capable APIs
   this.injectSecureAPI(vm, registry, options.vaultId, options.allowedAPIs, options.context);
-  
+
   // Execute user code
   const evalResult = vm.evalCode('main()');
-  
+
   // Wait for all async operations to complete
   await lifecycleManager.waitForPendingOperations();
-  
+
   // Process results
   const promiseState = vm.getPromiseState(resultHandle);
   // ... handle fulfilled/rejected states
@@ -406,14 +414,15 @@ async evaluate(options: WASMCodeEvaluationOptions): Promise<WASMCodeEvaluationRe
 ```
 
 **Real API Integration:**
+
 ```typescript
 // In injectSecureAPI method
 const notesGetFn = vm.newFunction('get', (noteIdArg) => {
   const noteId = vm.getString(noteIdArg);
-  
+
   // Create host promise for actual API call
   const hostPromise = this.noteApi.getNote(vaultId, noteId);
-  
+
   // Create proxy promise in QuickJS that will resolve when hostPromise resolves
   return this.promiseFactory.createProxy(vm, registry, hostPromise);
 });
@@ -424,19 +433,21 @@ const notesGetFn = vm.newFunction('get', (noteIdArg) => {
 ### ✅ Working Features
 
 1. **Single Async API Calls**
+
    ```javascript
    async function main() {
-     const note = await notes.get("note-id");
+     const note = await notes.get('note-id');
      return note;
    }
    ```
 
 2. **Multiple Concurrent Async API Calls**
+
    ```javascript
    async function main() {
      const [note1, note2] = await Promise.all([
-       notes.get("note-id-1"),
-       notes.get("note-id-2")
+       notes.get('note-id-1'),
+       notes.get('note-id-2')
      ]);
      return { note1, note2 };
    }

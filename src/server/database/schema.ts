@@ -157,16 +157,40 @@ export class DatabaseManager {
 
     const connection = this.createConnection(this.db);
 
-    try {
-      // Enable foreign keys and optimize for performance
-      await connection.run('PRAGMA foreign_keys = ON');
-      await connection.run('PRAGMA journal_mode = WAL');
-      await connection.run('PRAGMA synchronous = NORMAL');
-      await connection.run('PRAGMA cache_size = 10000');
-      await connection.run('PRAGMA temp_store = MEMORY');
+    // Retry schema initialization with exponential backoff for database busy errors
+    const maxRetries = 3;
+    let retryCount = 0;
 
-      // Create notes table
-      await connection.run(`
+    while (retryCount < maxRetries) {
+      try {
+        await this.doInitializeSchema(connection);
+        return; // Success, exit retry loop
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        if (errorMessage.includes('SQLITE_BUSY') && retryCount < maxRetries - 1) {
+          retryCount++;
+          const delay = Math.min(100 * Math.pow(2, retryCount - 1), 1000); // Exponential backoff, max 1s
+          console.warn(
+            `Database busy during schema init, retrying in ${delay}ms (attempt ${retryCount}/${maxRetries})`
+          );
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          continue;
+        }
+        throw new Error(`Failed to initialize database schema: ${error}`);
+      }
+    }
+  }
+
+  private async doInitializeSchema(connection: DatabaseConnection): Promise<void> {
+    // Enable foreign keys and optimize for performance
+    await connection.run('PRAGMA foreign_keys = ON');
+    await connection.run('PRAGMA journal_mode = WAL');
+    await connection.run('PRAGMA synchronous = NORMAL');
+    await connection.run('PRAGMA cache_size = 10000');
+    await connection.run('PRAGMA temp_store = MEMORY');
+
+    // Create notes table
+    await connection.run(`
         CREATE TABLE IF NOT EXISTS notes (
           id TEXT PRIMARY KEY,
           title TEXT NOT NULL,
@@ -181,8 +205,8 @@ export class DatabaseManager {
         )
       `);
 
-      // Create metadata table
-      await connection.run(`
+    // Create metadata table
+    await connection.run(`
         CREATE TABLE IF NOT EXISTS note_metadata (
           note_id TEXT,
           key TEXT,
@@ -192,8 +216,8 @@ export class DatabaseManager {
         )
       `);
 
-      // Create full-text search table
-      await connection.run(`
+    // Create full-text search table
+    await connection.run(`
         CREATE VIRTUAL TABLE IF NOT EXISTS notes_fts USING fts5(
           id UNINDEXED,
           title,
@@ -204,8 +228,8 @@ export class DatabaseManager {
         )
       `);
 
-      // Create internal links table (wikilinks)
-      await connection.run(`
+    // Create internal links table (wikilinks)
+    await connection.run(`
         CREATE TABLE IF NOT EXISTS note_links (
           id INTEGER PRIMARY KEY,
           source_note_id TEXT NOT NULL,
@@ -219,8 +243,8 @@ export class DatabaseManager {
         )
       `);
 
-      // Create external links table
-      await connection.run(`
+    // Create external links table
+    await connection.run(`
         CREATE TABLE IF NOT EXISTS external_links (
           id INTEGER PRIMARY KEY,
           note_id TEXT NOT NULL,
@@ -233,8 +257,8 @@ export class DatabaseManager {
         )
       `);
 
-      // Create note hierarchies table for parent-child relationships
-      await connection.run(`
+    // Create note hierarchies table for parent-child relationships
+    await connection.run(`
         CREATE TABLE IF NOT EXISTS note_hierarchies (
           id INTEGER PRIMARY KEY,
           parent_id TEXT NOT NULL,
@@ -248,78 +272,75 @@ export class DatabaseManager {
         )
       `);
 
-      // Create indexes for performance
-      await connection.run('CREATE INDEX IF NOT EXISTS idx_notes_type ON notes(type)');
-      await connection.run(
-        'CREATE INDEX IF NOT EXISTS idx_notes_updated ON notes(updated)'
-      );
-      await connection.run(
-        'CREATE INDEX IF NOT EXISTS idx_notes_created ON notes(created)'
-      );
-      await connection.run(
-        'CREATE INDEX IF NOT EXISTS idx_metadata_key ON note_metadata(key)'
-      );
-      await connection.run(
-        'CREATE INDEX IF NOT EXISTS idx_metadata_key_value ON note_metadata(key, value)'
-      );
-      await connection.run(
-        'CREATE INDEX IF NOT EXISTS idx_metadata_note_id ON note_metadata(note_id)'
-      );
+    // Create indexes for performance
+    await connection.run('CREATE INDEX IF NOT EXISTS idx_notes_type ON notes(type)');
+    await connection.run(
+      'CREATE INDEX IF NOT EXISTS idx_notes_updated ON notes(updated)'
+    );
+    await connection.run(
+      'CREATE INDEX IF NOT EXISTS idx_notes_created ON notes(created)'
+    );
+    await connection.run(
+      'CREATE INDEX IF NOT EXISTS idx_metadata_key ON note_metadata(key)'
+    );
+    await connection.run(
+      'CREATE INDEX IF NOT EXISTS idx_metadata_key_value ON note_metadata(key, value)'
+    );
+    await connection.run(
+      'CREATE INDEX IF NOT EXISTS idx_metadata_note_id ON note_metadata(note_id)'
+    );
 
-      // Create indexes for link tables
-      await connection.run(
-        'CREATE INDEX IF NOT EXISTS idx_note_links_source ON note_links(source_note_id)'
-      );
-      await connection.run(
-        'CREATE INDEX IF NOT EXISTS idx_note_links_target ON note_links(target_note_id)'
-      );
-      await connection.run(
-        'CREATE INDEX IF NOT EXISTS idx_note_links_target_title ON note_links(target_title)'
-      );
-      await connection.run(
-        'CREATE INDEX IF NOT EXISTS idx_external_links_note ON external_links(note_id)'
-      );
-      await connection.run(
-        'CREATE INDEX IF NOT EXISTS idx_external_links_url ON external_links(url)'
-      );
+    // Create indexes for link tables
+    await connection.run(
+      'CREATE INDEX IF NOT EXISTS idx_note_links_source ON note_links(source_note_id)'
+    );
+    await connection.run(
+      'CREATE INDEX IF NOT EXISTS idx_note_links_target ON note_links(target_note_id)'
+    );
+    await connection.run(
+      'CREATE INDEX IF NOT EXISTS idx_note_links_target_title ON note_links(target_title)'
+    );
+    await connection.run(
+      'CREATE INDEX IF NOT EXISTS idx_external_links_note ON external_links(note_id)'
+    );
+    await connection.run(
+      'CREATE INDEX IF NOT EXISTS idx_external_links_url ON external_links(url)'
+    );
 
-      // Create indexes for hierarchy table
-      await connection.run(
-        'CREATE INDEX IF NOT EXISTS idx_note_hierarchies_parent ON note_hierarchies(parent_id)'
-      );
-      await connection.run(
-        'CREATE INDEX IF NOT EXISTS idx_note_hierarchies_child ON note_hierarchies(child_id)'
-      );
-      await connection.run(
-        'CREATE INDEX IF NOT EXISTS idx_note_hierarchies_position ON note_hierarchies(parent_id, position)'
-      );
+    // Create indexes for hierarchy table
+    await connection.run(
+      'CREATE INDEX IF NOT EXISTS idx_note_hierarchies_parent ON note_hierarchies(parent_id)'
+    );
+    await connection.run(
+      'CREATE INDEX IF NOT EXISTS idx_note_hierarchies_child ON note_hierarchies(child_id)'
+    );
+    await connection.run(
+      'CREATE INDEX IF NOT EXISTS idx_note_hierarchies_position ON note_hierarchies(parent_id, position)'
+    );
 
-      // Create triggers to keep FTS table in sync
-      await connection.run(`
+    // Create triggers to keep FTS table in sync
+    await connection.run(`
         CREATE TRIGGER IF NOT EXISTS notes_fts_insert AFTER INSERT ON notes BEGIN
           INSERT INTO notes_fts(rowid, id, title, content, type)
           VALUES (new.rowid, new.id, new.title, new.content, new.type);
         END
       `);
 
-      await connection.run(`
-        CREATE TRIGGER IF NOT EXISTS notes_fts_delete AFTER DELETE ON notes BEGIN
+    await connection.run(`
+      CREATE TRIGGER IF NOT EXISTS notes_fts_delete AFTER DELETE ON notes BEGIN
           INSERT INTO notes_fts(notes_fts, rowid, id, title, content, type)
           VALUES('delete', old.rowid, old.id, old.title, old.content, old.type);
         END
       `);
 
-      await connection.run(`
-        CREATE TRIGGER IF NOT EXISTS notes_fts_update AFTER UPDATE ON notes BEGIN
+    await connection.run(`
+      CREATE TRIGGER IF NOT EXISTS notes_fts_update AFTER UPDATE ON notes BEGIN
           INSERT INTO notes_fts(notes_fts, rowid, id, title, content, type)
           VALUES('delete', old.rowid, old.id, old.title, old.content, old.type);
           INSERT INTO notes_fts(rowid, id, title, content, type)
           VALUES (new.rowid, new.id, new.title, new.content, new.type);
         END
       `);
-    } catch (error) {
-      throw new Error(`Failed to initialize database schema: ${error}`);
-    }
   }
 
   async rebuild(): Promise<void> {

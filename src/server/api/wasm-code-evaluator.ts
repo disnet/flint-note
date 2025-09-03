@@ -1,13 +1,13 @@
 /**
  * WebAssembly Code Evaluator - Secure JavaScript execution for FlintNote API
- * 
+ *
  * IMPLEMENTATION STATUS: ✅ COMPLETE - True async API integration
- * 
+ *
  * This implementation supports true asynchronous API calls using the Promise Proxy Pattern:
  * - AsyncOperationRegistry: Tracks all pending async operations
- * - VMLifecycleManager: Extends VM lifecycle until async operations complete  
+ * - VMLifecycleManager: Extends VM lifecycle until async operations complete
  * - PromiseProxyFactory: Creates QuickJS promises that proxy to host promises
- * 
+ *
  * Key capabilities:
  * ✅ Real async API calls (notes.get, etc.)
  * ✅ Multiple concurrent operations (Promise.all support)

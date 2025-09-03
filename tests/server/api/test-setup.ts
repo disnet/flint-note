@@ -18,8 +18,11 @@ export class TestApiSetup {
   }
 
   async setup(): Promise<void> {
-    // Create a temporary directory for testing
-    this.testWorkspacePath = await fs.mkdtemp(path.join(os.tmpdir(), 'flint-test-'));
+    // Create a temporary directory for testing with unique timestamp to prevent conflicts
+    const uniqueId = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+    this.testWorkspacePath = await fs.mkdtemp(
+      path.join(os.tmpdir(), `flint-test-${uniqueId}-`)
+    );
 
     // Set up isolated global config directory for this test instance
     const testConfigDir = path.join(this.testWorkspacePath, 'config');
@@ -33,8 +36,8 @@ export class TestApiSetup {
     // Initialize the API - this should set up database schema
     await this.api.initialize();
 
-    // Wait a bit to ensure database is fully initialized
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    // Wait a bit to ensure database is fully initialized and all locks released
+    await new Promise((resolve) => setTimeout(resolve, 200));
   }
 
   async createTestVault(
@@ -78,6 +81,15 @@ export class TestApiSetup {
 
     // Reset the created vaults array
     this.createdVaultIds = [];
+
+    // Clean up API resources and database connections
+    if (this.api) {
+      try {
+        await this.api.cleanup();
+      } catch (error) {
+        console.warn('Failed to cleanup API:', error);
+      }
+    }
 
     // Clean up environment variable
     delete process.env.XDG_CONFIG_HOME;

@@ -1137,4 +1137,19 @@ export class FlintNoteApi {
     const noteId = generateNoteIdFromIdentifier(args.note_id);
     return await relationshipManager.getClusteringCoefficient(noteId);
   }
+
+  /**
+   * Cleanup resources and close database connections
+   * Call this when the API instance is no longer needed
+   */
+  async cleanup(): Promise<void> {
+    if (this.hybridSearchManager) {
+      try {
+        await this.hybridSearchManager.close();
+      } catch (error) {
+        console.warn('Error closing hybrid search manager:', error);
+      }
+    }
+    this.initialized = false;
+  }
 }
