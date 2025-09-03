@@ -338,46 +338,46 @@ const utils = {
 async function advancedSearch(criteria) {
   const results = [];
   const allNotes = await notes.list({ limit: 1000 });
-  
+
   for (const noteInfo of allNotes) {
     const note = await notes.get(noteInfo.id);
     if (!note) continue;
-    
+
     let matches = true;
-    
+
     // Check content criteria
     if (criteria.contentContains) {
       matches = matches && note.content.includes(criteria.contentContains);
     }
-    
+
     // Check metadata criteria
     if (criteria.metadata) {
       for (const [key, value] of Object.entries(criteria.metadata)) {
         matches = matches && note.metadata[key] === value;
       }
     }
-    
+
     // Check link criteria
     if (criteria.hasLinksTo) {
       const noteLinks = await links.getForNote(note.id);
-      const hasLink = noteLinks.outgoing_internal.some(link => 
+      const hasLink = noteLinks.outgoing_internal.some((link) =>
         criteria.hasLinksTo.includes(link.target_note_id)
       );
       matches = matches && hasLink;
     }
-    
+
     if (matches) {
       results.push(note);
     }
   }
-  
+
   return results;
 }
 
 // Bulk operations with proper error handling
 async function bulkUpdate(identifiers, updateFn) {
   const results = [];
-  
+
   for (const id of identifiers) {
     try {
       const note = await notes.get(id);
@@ -385,7 +385,7 @@ async function bulkUpdate(identifiers, updateFn) {
         results.push({ id, success: false, error: 'Note not found' });
         continue;
       }
-      
+
       const updates = await updateFn(note);
       const result = await notes.update({
         identifier: id,
@@ -393,25 +393,25 @@ async function bulkUpdate(identifiers, updateFn) {
         contentHash: note.content_hash,
         metadata: { ...note.metadata, ...updates.metadata }
       });
-      
+
       results.push({ id, success: true, result });
     } catch (error) {
       results.push({ id, success: false, error: error.message });
     }
   }
-  
+
   return results;
 }
 
 // Complex hierarchy management
 async function reorganizeHierarchy(parentId, childrenConfig) {
   const results = [];
-  
+
   // First, get current children
   const currentChildren = await hierarchy.getChildren(parentId);
-  
+
   // Remove existing children not in new config
-  const newChildIds = childrenConfig.map(c => c.id);
+  const newChildIds = childrenConfig.map((c) => c.id);
   for (const child of currentChildren) {
     if (!newChildIds.includes(child.child_id)) {
       await hierarchy.removeSubnote({
@@ -421,7 +421,7 @@ async function reorganizeHierarchy(parentId, childrenConfig) {
       results.push({ operation: 'removed', childId: child.child_id });
     }
   }
-  
+
   // Add new children and set positions
   for (const config of childrenConfig) {
     await hierarchy.addSubnote({
@@ -431,13 +431,13 @@ async function reorganizeHierarchy(parentId, childrenConfig) {
     });
     results.push({ operation: 'added', childId: config.id, position: config.position });
   }
-  
+
   // Reorder all children
   await hierarchy.reorder({
     parent_id: parentId,
     child_ids: newChildIds
   });
-  
+
   return results;
 }
 
@@ -449,18 +449,21 @@ async function analyzeNoteNetwork() {
     clusters: {},
     centralNodes: []
   };
-  
+
   const allNotes = await notes.list({ limit: 1000 });
-  
+
   // Build node data with relationship metrics
   for (const noteInfo of allNotes) {
     const note = await notes.get(noteInfo.id);
     if (!note) continue;
-    
+
     const noteLinks = await links.getForNote(note.id);
-    const relatedNotes = await relationships.getRelated({ note_id: note.id, max_results: 10 });
+    const relatedNotes = await relationships.getRelated({
+      note_id: note.id,
+      max_results: 10
+    });
     const clusterCoeff = await relationships.getClusteringCoefficient(note.id);
-    
+
     networkData.nodes.push({
       id: note.id,
       title: note.title,
@@ -472,7 +475,7 @@ async function analyzeNoteNetwork() {
       clusteringCoefficient: clusterCoeff,
       centrality: noteLinks.incoming.length + noteLinks.outgoing_internal.length
     });
-    
+
     // Add edges
     for (const link of noteLinks.outgoing_internal) {
       networkData.edges.push({
@@ -483,13 +486,13 @@ async function analyzeNoteNetwork() {
       });
     }
   }
-  
+
   // Identify central nodes (high connectivity)
   networkData.centralNodes = networkData.nodes
-    .filter(node => node.centrality > 5)
+    .filter((node) => node.centrality > 5)
     .sort((a, b) => b.centrality - a.centrality)
     .slice(0, 10);
-  
+
   // Group nodes by type for cluster analysis
   for (const node of networkData.nodes) {
     if (!networkData.clusters[node.type]) {
@@ -497,7 +500,7 @@ async function analyzeNoteNetwork() {
     }
     networkData.clusters[node.type].push(node);
   }
-  
+
   return networkData;
 }
 ```
@@ -571,11 +574,11 @@ const meetingNetwork = {
 // Find meetings with most cross-references
 for (const meeting of recentMeetings) {
   const meetingLinks = await links.getForNote(meeting.id);
-  const relatedNotes = await relationships.getRelated({ 
-    note_id: meeting.id, 
-    max_results: 5 
+  const relatedNotes = await relationships.getRelated({
+    note_id: meeting.id,
+    max_results: 5
   });
-  
+
   meetingNetwork.mostConnectedMeetings.push({
     id: meeting.id,
     title: meeting.title,
@@ -628,7 +631,7 @@ for (const noteInfo of projectNotes) {
 }
 
 // Also update any hierarchical relationships if needed
-const updatedNotes = results.filter(r => r.success && r.result);
+const updatedNotes = results.filter((r) => r.success && r.result);
 for (const result of updatedNotes) {
   const children = await hierarchy.getChildren(result.id);
   if (children.length > 0) {
@@ -636,7 +639,7 @@ for (const result of updatedNotes) {
     try {
       const note = await notes.get(result.id);
       if (note) {
-        const subnoteIds = children.map(child => child.child_id);
+        const subnoteIds = children.map((child) => child.child_id);
         await notes.update({
           identifier: result.id,
           content: note.content,
@@ -649,7 +652,10 @@ for (const result of updatedNotes) {
         });
       }
     } catch (hierarchyError) {
-      console.warn(`Failed to update hierarchy metadata for ${result.id}:`, hierarchyError);
+      console.warn(
+        `Failed to update hierarchy metadata for ${result.id}:`,
+        hierarchyError
+      );
     }
   }
 }
@@ -658,7 +664,7 @@ return {
   processed: results.length,
   successful: results.filter((r) => r.success).length,
   failed: results.filter((r) => !r.success).length,
-  hierarchyUpdates: updatedNotes.filter(r => r.result).length,
+  hierarchyUpdates: updatedNotes.filter((r) => r.result).length,
   details: results
 };
 ```
