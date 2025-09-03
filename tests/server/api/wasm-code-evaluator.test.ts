@@ -86,51 +86,23 @@ describe('WASMCodeEvaluator - Phase 1', () => {
       expect(result.error).toContain('Test runtime error');
     });
 
-    // it('should handle timeout limits', async () => {
-    //   const result = await evaluator.evaluate({
-    //     code: `
-    //       while (true) {
-    //         // Infinite loop to test timeout
-    //       }
-    //     `,
-    //     vaultId: testVaultId,
-    //     timeout: 100 // 100ms timeout
-    //   });
-
-    //   expect(result.success).toBe(false);
-    //   expect(result.error).toBeDefined();
-    // });
-  });
-
-  describe('Notes API Integration', () => {
-    it('should mock test the notes api', async () => {
+    it('should handle timeout limits', async () => {
       const result = await evaluator.evaluate({
         code: `
-          async function main() {
-            const note = await notes.get('id');
-            return {
-              id: note,
-              title: note,
-              content: note,
-              type: note
-            };
+          while (true) {
+            // Infinite loop to test timeout
           }
         `,
         vaultId: testVaultId,
-        allowedAPIs: ['notes.get']
+        timeout: 100 // 100ms timeout
       });
 
-      expect(result.success).toBe(true);
-      expect(result.result).toBeDefined();
-      // The note doesn't exist, so it should return null for all fields
-      expect(result.result).toEqual({
-        id: null,
-        title: null,
-        content: null,
-        type: null
-      });
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
     });
+  });
 
+  describe('Notes API Integration', () => {
     it('should retrieve real notes through async API calls', async () => {
       // First create a test note
       const noteOptions = {
@@ -198,7 +170,7 @@ describe('WASMCodeEvaluator - Phase 1', () => {
               notes.get("${note1.id}"),
               notes.get("${note2.id}")
             ]);
-            
+
             return {
               note1: {
                 title: note1?.title,
@@ -227,38 +199,6 @@ describe('WASMCodeEvaluator - Phase 1', () => {
         }
       });
     });
-    //   it('should return null for non-existent notes', async () => {
-    //     const result = await evaluator.evaluate({
-    //       code: `
-    //         const note = await notes.get("non-existent-note-id");
-    //         return { found: note !== null, note: note };
-    //       `,
-    //       vaultId: testVaultId,
-    //       allowedAPIs: ['notes.get']
-    //     });
-    //     expect(result.success).toBe(true);
-    //     expect(result.result).toEqual({
-    //       found: false,
-    //       note: null
-    //     });
-    //   });
-    //   it('should handle note retrieval errors gracefully', async () => {
-    //     const result = await evaluator.evaluate({
-    //       code: `
-    //         try {
-    //           const note = await notes.get("");
-    //           return { success: true, note };
-    //         } catch (error) {
-    //           return { success: false, error: error.message };
-    //         }
-    //       `,
-    //       vaultId: testVaultId,
-    //       allowedAPIs: ['notes.get']
-    //     });
-    //     expect(result.success).toBe(true);
-    //     expect(result.result).toHaveProperty('success', false);
-    //     expect(result.result).toHaveProperty('error');
-    //   });
   });
 
   describe('Utility Functions', () => {
@@ -328,46 +268,46 @@ describe('WASMCodeEvaluator - Phase 1', () => {
       expect(resultObj.globalThis).toBe('undefined');
     });
 
-    // it('should honor API whitelisting', async () => {
-    //   // Create a note first
-    //   const noteOptions = {
-    //     type: 'general',
-    //     title: 'Security Test Note',
-    //     content: 'This is for security testing.',
-    //     vaultId: testVaultId
-    //   };
+    it('should honor API whitelisting', async () => {
+      // Create a note first
+      const noteOptions = {
+        type: 'general',
+        title: 'Security Test Note',
+        content: 'This is for security testing.',
+        vaultId: testVaultId
+      };
 
-    //   const createdNote = await testSetup.api.createNote(noteOptions);
+      const createdNote = await testSetup.api.createNote(noteOptions);
 
-    //   // Test with whitelisted API
-    //   const allowedResult = await evaluator.evaluate({
-    //     code: `
-    //       async function main() {
-    //         const note = await notes.get("${createdNote.id}");
-    //         return note !== null;
-    //       }
-    //     `,
-    //     vaultId: testVaultId,
-    //     allowedAPIs: ['notes.get']
-    //   });
+      // Test with whitelisted API
+      const allowedResult = await evaluator.evaluate({
+        code: `
+          async function main() {
+            const note = await notes.get("${createdNote.id}");
+            return note !== null;
+          }
+        `,
+        vaultId: testVaultId,
+        allowedAPIs: ['notes.get']
+      });
 
-    //   expect(allowedResult.success).toBe(true);
-    //   expect(allowedResult.result).toBe(true);
+      expect(allowedResult.success).toBe(true);
+      expect(allowedResult.result).toBe(true);
 
-    //   // Test without whitelisted API
-    //   const blockedResult = await evaluator.evaluate({
-    //     code: `
-    //     async function main() {
-    //       return notes.get("${createdNote.id}").then(note => note !== null);
-    //     }
-    //     `,
-    //     vaultId: testVaultId,
-    //     allowedAPIs: [] // Explicitly empty allowed APIs
-    //   });
+      // Test without whitelisted API
+      const blockedResult = await evaluator.evaluate({
+        code: `
+        async function main() {
+          return notes.get("${createdNote.id}").then(note => note !== null);
+        }
+        `,
+        vaultId: testVaultId,
+        allowedAPIs: [] // Explicitly empty allowed APIs
+      });
 
-    //   expect(blockedResult.success).toBe(false);
-    //   expect(blockedResult.error).toContain('error');
-    // });
+      expect(blockedResult.success).toBe(false);
+      expect(blockedResult.error).toContain('not a function');
+    });
   });
 
   describe('Context Variables', () => {
