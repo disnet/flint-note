@@ -126,4 +126,5 @@ Test files have relaxed ESLint rules allowing:
   const serializable = $state.snapshot(this.reactiveState);
   await window.api?.saveData(serializable);
   ```
+
 - when finishing a significant task (excluding things like linting/formatting), write a concicse summary (one bullet point) in PROJECT-LOG.md

@@ -39,14 +39,14 @@ interface EnhancedWASMCodeEvaluationTool {
   name: 'evaluate_note_code';
   description: 'Execute TypeScript code in secure WebAssembly sandbox with strict type checking';
   inputSchema: {
-    code: string;                    // TypeScript code
-    timeout?: number;                // Execution timeout (default: 5000ms)
-    memoryLimit?: number;            // Memory limit (default: 128MB)
-    allowedAPIs?: string[];          // API whitelist
-    context?: object;                // Initial context
+    code: string; // TypeScript code
+    timeout?: number; // Execution timeout (default: 5000ms)
+    memoryLimit?: number; // Memory limit (default: 128MB)
+    allowedAPIs?: string[]; // API whitelist
+    context?: object; // Initial context
 
     // TypeScript debugging option
-    typesOnly?: boolean;             // Return type errors without execution (debugging)
+    typesOnly?: boolean; // Return type errors without execution (debugging)
   };
 }
 ```
@@ -82,14 +82,14 @@ interface EnhancedWASMCodeEvaluationResult {
 }
 
 interface TypeScriptDiagnostic {
-  code: number;                    // TypeScript error code (e.g., 2322)
+  code: number; // TypeScript error code (e.g., 2322)
   category: 'error' | 'warning' | 'suggestion';
-  messageText: string;             // Human-readable error message
-  file?: string;                   // Source file (always 'user-code.ts')
-  line: number;                    // 1-based line number
-  column: number;                  // 1-based column number
-  length: number;                  // Error span length
-  source: string;                  // Source code context around error
+  messageText: string; // Human-readable error message
+  file?: string; // Source file (always 'user-code.ts')
+  line: number; // 1-based line number
+  column: number; // 1-based column number
+  length: number; // Error span length
+  source: string; // Source code context around error
   relatedInformation?: {
     line: number;
     column: number;
@@ -169,7 +169,7 @@ export class ToolService {
         .string()
         .describe(
           'TypeScript code to execute in the sandbox with strict type checking. Must define `async function main() { return result; }`. ' +
-          'Has access to typed APIs: notes, noteTypes, vaults, links, hierarchy, relationships, and utils.'
+            'Has access to typed APIs: notes, noteTypes, vaults, links, hierarchy, relationships, and utils.'
         ),
       typesOnly: z
         .boolean()
@@ -241,10 +241,11 @@ export class ToolService {
             // Enhance error message with compilation context
             if (result.compilation.errors.length > 0) {
               const firstError = result.compilation.errors[0];
-              response.message = `TypeScript Error [${firstError.code}]: ${firstError.message}\n` +
-                               `  At line ${firstError.line}, column ${firstError.column}\n` +
-                               `  Source: ${firstError.source}` +
-                               (firstError.suggestion ? `\n  Suggestion: ${firstError.suggestion}` : '');
+              response.message =
+                `TypeScript Error [${firstError.code}]: ${firstError.message}\n` +
+                `  At line ${firstError.line}, column ${firstError.column}\n` +
+                `  Source: ${firstError.source}` +
+                (firstError.suggestion ? `\n  Suggestion: ${firstError.suggestion}` : '');
             }
           }
 
@@ -266,6 +267,7 @@ export class ToolService {
 ### Agent Experience with Enhanced Tool
 
 **TypeScript Code with Strict Checking:**
+
 ```typescript
 // Agent sends TypeScript code - strict checking always enabled
 {
@@ -291,6 +293,7 @@ export class ToolService {
 ```
 
 **Types-Only Debug Mode:**
+
 ```typescript
 // Agent can check types without executing (debugging)
 {
@@ -300,7 +303,6 @@ export class ToolService {
 
 // Fast feedback on type errors without execution risk
 ```
-
 
 ## Implementation Architecture
 
@@ -366,7 +368,9 @@ class TypeScriptCompiler {
     let compiledCode: string | undefined;
     let sourceMap: string | undefined;
 
-    if (diagnostics.filter(d => d.category === ts.DiagnosticCategory.Error).length === 0) {
+    if (
+      diagnostics.filter((d) => d.category === ts.DiagnosticCategory.Error).length === 0
+    ) {
       const emitResult = program.emit();
       // Extract compiled JavaScript from emit result
       compiledCode = this.extractCompiledCode(emitResult);
@@ -383,7 +387,9 @@ class TypeScriptCompiler {
 
   private loadFlintNoteTypeDefinitions(): void {
     // Load comprehensive FlintNote API type definitions
-    this.typeDefinitions.set('flint-api.d.ts', `
+    this.typeDefinitions.set(
+      'flint-api.d.ts',
+      `
       // Complete FlintNote API type definitions
       declare namespace FlintAPI {
         // Notes API
@@ -459,15 +465,20 @@ class TypeScriptCompiler {
       declare const hierarchy: FlintAPI.HierarchyAPI;
       declare const relationships: FlintAPI.RelationshipsAPI;
       declare const utils: FlintAPI.UtilsAPI;
-    `);
+    `
+    );
   }
 
-  private formatDiagnostics(diagnostics: ts.Diagnostic[], sourceCode: string): TypeScriptDiagnostic[] {
-    return diagnostics.map(diagnostic => {
+  private formatDiagnostics(
+    diagnostics: ts.Diagnostic[],
+    sourceCode: string
+  ): TypeScriptDiagnostic[] {
+    return diagnostics.map((diagnostic) => {
       const file = diagnostic.file;
       const position = file?.getLineAndCharacterOfPosition(diagnostic.start || 0);
       const lineStart = file?.getLineStarts()[position?.line || 0] || 0;
-      const lineEnd = file?.getLineStarts()[(position?.line || 0) + 1] || sourceCode.length;
+      const lineEnd =
+        file?.getLineStarts()[(position?.line || 0) + 1] || sourceCode.length;
       const sourceLine = sourceCode.substring(lineStart, lineEnd);
 
       return {
@@ -479,9 +490,11 @@ class TypeScriptCompiler {
         column: (position?.character || 0) + 1,
         length: diagnostic.length || 0,
         source: sourceLine.trim(),
-        relatedInformation: diagnostic.relatedInformation?.map(info => ({
+        relatedInformation: diagnostic.relatedInformation?.map((info) => ({
           line: (info.file?.getLineAndCharacterOfPosition(info.start || 0).line || 0) + 1,
-          column: (info.file?.getLineAndCharacterOfPosition(info.start || 0).character || 0) + 1,
+          column:
+            (info.file?.getLineAndCharacterOfPosition(info.start || 0).character || 0) +
+            1,
           messageText: ts.flattenDiagnosticMessageText(info.messageText, '\n')
         }))
       };
@@ -579,11 +592,13 @@ export class EnhancedWASMCodeEvaluator extends WASMCodeEvaluator {
 ### 1. Rich Type Error Feedback
 
 **Before (JavaScript only):**
+
 ```
 Error: Cannot read property 'title' of null at line 15
 ```
 
 **After (TypeScript with context):**
+
 ```
 TypeScript Error [2322]: Type 'null' is not assignable to type 'Note'
   At line 15, column 23 in user-code.ts:
@@ -602,11 +617,12 @@ TypeScript Error [2322]: Type 'null' is not assignable to type 'Note'
 ### 2. API Signature Validation
 
 **Example: Incorrect API usage detected at compile time**
+
 ```typescript
 // Agent writes incorrect code:
 const result = await notes.create({
-  title: "My Note",
-  content: "Note content"
+  title: 'My Note',
+  content: 'Note content'
   // Missing required 'type' field
 });
 
@@ -619,14 +635,14 @@ const result = await notes.create({
 
 ```typescript
 // Agent gets complete type information:
-const note = await notes.get("note-id");
+const note = await notes.get('note-id');
 if (note) {
   // TypeScript knows all available properties:
-  note.title;        // string
-  note.content;      // string
-  note.metadata;     // Record<string, any>
-  note.created;      // string
-  note.updated;      // string
+  note.title; // string
+  note.content; // string
+  note.metadata; // Record<string, any>
+  note.created; // string
+  note.updated; // string
   // ... all properties with correct types
 }
 ```
@@ -643,24 +659,28 @@ interface MeetingMetadata {
   duration: number;
 }
 
-const createMeeting = async (title: string, attendees: string[]): Promise<CreateNoteResult> => {
+const createMeeting = async (
+  title: string,
+  attendees: string[]
+): Promise<CreateNoteResult> => {
   // TypeScript validates all parameters and return types
   const result = await notes.create({
-    type: 'meeting',              // Required field validated
-    title,                        // Type validated as string
+    type: 'meeting', // Required field validated
+    title, // Type validated as string
     content: `# ${title}\n\n## Attendees\n${attendees.join(', ')}`,
-    metadata: {                   // Metadata structure validated
+    metadata: {
+      // Metadata structure validated
       attendees,
       date: new Date().toISOString(),
       duration: 60
     } as MeetingMetadata
   });
 
-  return result;  // Return type validated
+  return result; // Return type validated
 };
 
 // Usage with type checking:
-const meeting = await createMeeting("Weekly Standup", ["Alice", "Bob", "Charlie"]);
+const meeting = await createMeeting('Weekly Standup', ['Alice', 'Bob', 'Charlie']);
 ```
 
 ### 2. Complex Analysis with Type Safety
@@ -713,16 +733,23 @@ const analyzeVault = async (): Promise<AnalysisResult> => {
 
 ```typescript
 // TypeScript guides proper error handling patterns
-const safeBulkUpdate = async (noteIds: string[], updateFn: (note: Note) => Partial<Note>): Promise<{
+const safeBulkUpdate = async (
+  noteIds: string[],
+  updateFn: (note: Note) => Partial<Note>
+): Promise<{
   successful: string[];
-  failed: { id: string; error: string; }[];
+  failed: { id: string; error: string }[];
 }> => {
-  const results = { successful: [] as string[], failed: [] as { id: string; error: string; }[] };
+  const results = {
+    successful: [] as string[],
+    failed: [] as { id: string; error: string }[]
+  };
 
   for (const id of noteIds) {
     try {
       const note = await notes.get(id);
-      if (!note) {  // TypeScript enforces null checking
+      if (!note) {
+        // TypeScript enforces null checking
         results.failed.push({ id, error: 'Note not found' });
         continue;
       }
@@ -731,7 +758,7 @@ const safeBulkUpdate = async (noteIds: string[], updateFn: (note: Note) => Parti
       await notes.update({
         identifier: id,
         content: updates.content || note.content,
-        contentHash: note.content_hash,  // Type system ensures correct property name
+        contentHash: note.content_hash, // Type system ensures correct property name
         metadata: { ...note.metadata, ...updates.metadata }
       });
 
@@ -751,30 +778,35 @@ const safeBulkUpdate = async (noteIds: string[], updateFn: (note: Note) => Parti
 ## Implementation Phases
 
 ### Phase 1: Core TypeScript Integration
+
 - [ ] Integrate TypeScript compiler into WASM evaluator
 - [ ] Create comprehensive FlintNote API type definitions
 - [ ] Implement compilation error formatting and reporting
 - [ ] Add type-checking without execution mode
 
 ### Phase 2: Enhanced Error Experience
+
 - [ ] Implement detailed error context with source code snippets
 - [ ] Add intelligent error suggestions and fixes
 - [ ] Create error categorization (syntax, type, API usage)
 - [ ] Implement error location mapping with line/column precision
 
 ### Phase 3: Advanced Type Features
+
 - [ ] Add support for custom type definitions in agent code
 - [ ] Implement type inference reporting for better debugging
 - [ ] Add strict mode options for enhanced type safety
 - [ ] Create type-aware code completion suggestions
 
 ### Phase 4: Performance and Optimization
+
 - [ ] Optimize TypeScript compilation performance
 - [ ] Implement compilation caching for repeated patterns
 - [ ] Add incremental compilation support
 - [ ] Performance benchmarking and optimization
 
 ### Phase 5: Developer Experience
+
 - [ ] Create comprehensive TypeScript usage documentation
 - [ ] Add example code patterns and best practices
 - [ ] Implement usage analytics and common error reporting

@@ -30,53 +30,6 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
   });
 
   describe('Full Notes API', () => {
-    it.only('should handle', async () => {
-      const result = await evaluator.evaluate({
-        code: `async function main() {
-        const today = new Date().toISOString().split('T')[0];
-        const dailyNoteTitle = \`Daily Note for \${today}\`;
-
-        // Try to find an existing daily note for today
-        const existingNotes = await notes.list({
-          typeName: 'daily',
-          title: dailyNoteTitle
-        });
-
-        let noteId;
-        if (existingNotes.length > 0) {
-          // Update existing note
-          noteId = existingNotes[0].id;
-          await notes.update({
-            id: noteId,
-            content: 'this is a test'
-          });
-        } else {
-          // Create new daily note
-          const newNote = await notes.create({
-            type: 'daily',
-            title: dailyNoteTitle,
-            content: 'this is a test'
-          });
-          noteId = newNote.id;
-        }
-
-        return \`[[daily/\${today}|\${dailyNoteTitle}]]\`;
-      }
-      `,
-        vaultId: testVaultId,
-        allowedAPIs: [
-          'notes.create',
-          'notes.get',
-          'notes.update',
-          'notes.list',
-          'notes.delete'
-        ]
-      });
-
-      console.log(result);
-      expect(result.success).toBe(true);
-    });
-
     it('should support complete CRUD operations', async () => {
       const result = await evaluator.evaluate({
         code: `
