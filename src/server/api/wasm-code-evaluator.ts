@@ -459,6 +459,48 @@ interface WASMUpdateVaultOptions {
   description?: string;
 }
 
+// Links API interfaces
+interface WASMSearchByLinksOptions {
+  has_links_to?: string[];
+  linked_from?: string[];
+  external_domains?: string[];
+  broken_links?: boolean;
+}
+
+// Hierarchy API interfaces
+interface WASMAddSubnoteOptions {
+  parent_id: string;
+  child_id: string;
+  position?: number;
+}
+
+interface WASMRemoveSubnoteOptions {
+  parent_id: string;
+  child_id: string;
+}
+
+interface WASMReorderSubnotesOptions {
+  parent_id: string;
+  child_ids: string[];
+}
+
+interface WASMGetDescendantsOptions {
+  note_id: string;
+  max_depth?: number;
+}
+
+// Relationships API interfaces
+interface WASMGetRelatedNotesOptions {
+  note_id: string;
+  max_results?: number;
+}
+
+interface WASMFindRelationshipPathOptions {
+  start_note_id: string;
+  end_note_id: string;
+  max_depth?: number;
+}
+
 export interface WASMCodeEvaluationOptions {
   code: string;
   vaultId: string;
@@ -1023,6 +1065,299 @@ export class WASMCodeEvaluator {
     }
 
     vaultsObj.dispose();
+
+    // Create links API object
+    const linksObj = vm.newObject();
+    vm.setProp(vm.global, 'links', linksObj);
+
+    // links.getForNote
+    if (isApiAllowed('links.getForNote')) {
+      const linksGetForNoteFn = vm.newFunction('getForNote', (identifierArg) => {
+        const identifier = vm.getString(identifierArg);
+        const hostPromise = this.noteApi.getNoteLinks(vaultId, identifier);
+        return this.promiseFactory.createProxy(vm, registry, hostPromise);
+      });
+      linksGetForNoteFn.consume((handle) => {
+        vm.setProp(linksObj, 'getForNote', handle);
+      });
+    } else {
+      vm.setProp(linksObj, 'getForNote', vm.null);
+    }
+
+    // links.getBacklinks
+    if (isApiAllowed('links.getBacklinks')) {
+      const linksGetBacklinksFn = vm.newFunction('getBacklinks', (identifierArg) => {
+        const identifier = vm.getString(identifierArg);
+        const hostPromise = this.noteApi.getBacklinks(vaultId, identifier);
+        return this.promiseFactory.createProxy(vm, registry, hostPromise);
+      });
+      linksGetBacklinksFn.consume((handle) => {
+        vm.setProp(linksObj, 'getBacklinks', handle);
+      });
+    } else {
+      vm.setProp(linksObj, 'getBacklinks', vm.null);
+    }
+
+    // links.findBroken
+    if (isApiAllowed('links.findBroken')) {
+      const linksFindBrokenFn = vm.newFunction('findBroken', () => {
+        const hostPromise = this.noteApi.findBrokenLinks(vaultId);
+        return this.promiseFactory.createProxy(vm, registry, hostPromise);
+      });
+      linksFindBrokenFn.consume((handle) => {
+        vm.setProp(linksObj, 'findBroken', handle);
+      });
+    } else {
+      vm.setProp(linksObj, 'findBroken', vm.null);
+    }
+
+    // links.searchBy
+    if (isApiAllowed('links.searchBy')) {
+      const linksSearchByFn = vm.newFunction('searchBy', (optionsArg) => {
+        const options = vm.dump(optionsArg) as WASMSearchByLinksOptions;
+        const hostPromise = this.noteApi.searchByLinks({
+          has_links_to: options.has_links_to,
+          linked_from: options.linked_from,
+          external_domains: options.external_domains,
+          broken_links: options.broken_links,
+          vault_id: vaultId
+        });
+        return this.promiseFactory.createProxy(vm, registry, hostPromise);
+      });
+      linksSearchByFn.consume((handle) => {
+        vm.setProp(linksObj, 'searchBy', handle);
+      });
+    } else {
+      vm.setProp(linksObj, 'searchBy', vm.null);
+    }
+
+    // links.migrate
+    if (isApiAllowed('links.migrate')) {
+      const linksMigrateFn = vm.newFunction('migrate', (forceArg) => {
+        const force = forceArg
+          ? vm.typeof(forceArg) === 'boolean' && vm.dump(forceArg)
+          : false;
+        const hostPromise = this.noteApi.migrateLinks(vaultId, force);
+        return this.promiseFactory.createProxy(vm, registry, hostPromise);
+      });
+      linksMigrateFn.consume((handle) => {
+        vm.setProp(linksObj, 'migrate', handle);
+      });
+    } else {
+      vm.setProp(linksObj, 'migrate', vm.null);
+    }
+
+    linksObj.dispose();
+
+    // Create hierarchy API object
+    const hierarchyObj = vm.newObject();
+    vm.setProp(vm.global, 'hierarchy', hierarchyObj);
+
+    // hierarchy.addSubnote
+    if (isApiAllowed('hierarchy.addSubnote')) {
+      const hierarchyAddSubnoteFn = vm.newFunction('addSubnote', (optionsArg) => {
+        const options = vm.dump(optionsArg) as WASMAddSubnoteOptions;
+        const hostPromise = this.noteApi.addSubnote({
+          parent_id: options.parent_id,
+          child_id: options.child_id,
+          position: options.position,
+          vault_id: vaultId
+        });
+        return this.promiseFactory.createProxy(vm, registry, hostPromise);
+      });
+      hierarchyAddSubnoteFn.consume((handle) => {
+        vm.setProp(hierarchyObj, 'addSubnote', handle);
+      });
+    } else {
+      vm.setProp(hierarchyObj, 'addSubnote', vm.null);
+    }
+
+    // hierarchy.removeSubnote
+    if (isApiAllowed('hierarchy.removeSubnote')) {
+      const hierarchyRemoveSubnoteFn = vm.newFunction('removeSubnote', (optionsArg) => {
+        const options = vm.dump(optionsArg) as WASMRemoveSubnoteOptions;
+        const hostPromise = this.noteApi.removeSubnote({
+          parent_id: options.parent_id,
+          child_id: options.child_id,
+          vault_id: vaultId
+        });
+        return this.promiseFactory.createProxy(vm, registry, hostPromise);
+      });
+      hierarchyRemoveSubnoteFn.consume((handle) => {
+        vm.setProp(hierarchyObj, 'removeSubnote', handle);
+      });
+    } else {
+      vm.setProp(hierarchyObj, 'removeSubnote', vm.null);
+    }
+
+    // hierarchy.reorder
+    if (isApiAllowed('hierarchy.reorder')) {
+      const hierarchyReorderFn = vm.newFunction('reorder', (optionsArg) => {
+        const options = vm.dump(optionsArg) as WASMReorderSubnotesOptions;
+        const hostPromise = this.noteApi.reorderSubnotes({
+          parent_id: options.parent_id,
+          child_ids: options.child_ids,
+          vault_id: vaultId
+        });
+        return this.promiseFactory.createProxy(vm, registry, hostPromise);
+      });
+      hierarchyReorderFn.consume((handle) => {
+        vm.setProp(hierarchyObj, 'reorder', handle);
+      });
+    } else {
+      vm.setProp(hierarchyObj, 'reorder', vm.null);
+    }
+
+    // hierarchy.getPath
+    if (isApiAllowed('hierarchy.getPath')) {
+      const hierarchyGetPathFn = vm.newFunction('getPath', (noteIdArg) => {
+        const noteId = vm.getString(noteIdArg);
+        const hostPromise = this.noteApi.getHierarchyPath({
+          note_id: noteId,
+          vault_id: vaultId
+        });
+        return this.promiseFactory.createProxy(vm, registry, hostPromise);
+      });
+      hierarchyGetPathFn.consume((handle) => {
+        vm.setProp(hierarchyObj, 'getPath', handle);
+      });
+    } else {
+      vm.setProp(hierarchyObj, 'getPath', vm.null);
+    }
+
+    // hierarchy.getDescendants
+    if (isApiAllowed('hierarchy.getDescendants')) {
+      const hierarchyGetDescendantsFn = vm.newFunction('getDescendants', (optionsArg) => {
+        const options = vm.dump(optionsArg) as WASMGetDescendantsOptions;
+        const hostPromise = this.noteApi.getDescendants({
+          note_id: options.note_id,
+          max_depth: options.max_depth,
+          vault_id: vaultId
+        });
+        return this.promiseFactory.createProxy(vm, registry, hostPromise);
+      });
+      hierarchyGetDescendantsFn.consume((handle) => {
+        vm.setProp(hierarchyObj, 'getDescendants', handle);
+      });
+    } else {
+      vm.setProp(hierarchyObj, 'getDescendants', vm.null);
+    }
+
+    // hierarchy.getChildren
+    if (isApiAllowed('hierarchy.getChildren')) {
+      const hierarchyGetChildrenFn = vm.newFunction('getChildren', (noteIdArg) => {
+        const noteId = vm.getString(noteIdArg);
+        const hostPromise = this.noteApi.getChildren({
+          note_id: noteId,
+          vault_id: vaultId
+        });
+        return this.promiseFactory.createProxy(vm, registry, hostPromise);
+      });
+      hierarchyGetChildrenFn.consume((handle) => {
+        vm.setProp(hierarchyObj, 'getChildren', handle);
+      });
+    } else {
+      vm.setProp(hierarchyObj, 'getChildren', vm.null);
+    }
+
+    // hierarchy.getParents
+    if (isApiAllowed('hierarchy.getParents')) {
+      const hierarchyGetParentsFn = vm.newFunction('getParents', (noteIdArg) => {
+        const noteId = vm.getString(noteIdArg);
+        const hostPromise = this.noteApi.getParents({
+          note_id: noteId,
+          vault_id: vaultId
+        });
+        return this.promiseFactory.createProxy(vm, registry, hostPromise);
+      });
+      hierarchyGetParentsFn.consume((handle) => {
+        vm.setProp(hierarchyObj, 'getParents', handle);
+      });
+    } else {
+      vm.setProp(hierarchyObj, 'getParents', vm.null);
+    }
+
+    hierarchyObj.dispose();
+
+    // Create relationships API object
+    const relationshipsObj = vm.newObject();
+    vm.setProp(vm.global, 'relationships', relationshipsObj);
+
+    // relationships.get
+    if (isApiAllowed('relationships.get')) {
+      const relationshipsGetFn = vm.newFunction('get', (noteIdArg) => {
+        const noteId = vm.getString(noteIdArg);
+        const hostPromise = this.noteApi.getNoteRelationships({
+          note_id: noteId,
+          vault_id: vaultId
+        });
+        return this.promiseFactory.createProxy(vm, registry, hostPromise);
+      });
+      relationshipsGetFn.consume((handle) => {
+        vm.setProp(relationshipsObj, 'get', handle);
+      });
+    } else {
+      vm.setProp(relationshipsObj, 'get', vm.null);
+    }
+
+    // relationships.getRelated
+    if (isApiAllowed('relationships.getRelated')) {
+      const relationshipsGetRelatedFn = vm.newFunction('getRelated', (optionsArg) => {
+        const options = vm.dump(optionsArg) as WASMGetRelatedNotesOptions;
+        const hostPromise = this.noteApi.getRelatedNotes({
+          note_id: options.note_id,
+          max_results: options.max_results,
+          vault_id: vaultId
+        });
+        return this.promiseFactory.createProxy(vm, registry, hostPromise);
+      });
+      relationshipsGetRelatedFn.consume((handle) => {
+        vm.setProp(relationshipsObj, 'getRelated', handle);
+      });
+    } else {
+      vm.setProp(relationshipsObj, 'getRelated', vm.null);
+    }
+
+    // relationships.findPath
+    if (isApiAllowed('relationships.findPath')) {
+      const relationshipsFindPathFn = vm.newFunction('findPath', (optionsArg) => {
+        const options = vm.dump(optionsArg) as WASMFindRelationshipPathOptions;
+        const hostPromise = this.noteApi.findRelationshipPath({
+          start_note_id: options.start_note_id,
+          end_note_id: options.end_note_id,
+          max_depth: options.max_depth,
+          vault_id: vaultId
+        });
+        return this.promiseFactory.createProxy(vm, registry, hostPromise);
+      });
+      relationshipsFindPathFn.consume((handle) => {
+        vm.setProp(relationshipsObj, 'findPath', handle);
+      });
+    } else {
+      vm.setProp(relationshipsObj, 'findPath', vm.null);
+    }
+
+    // relationships.getClusteringCoefficient
+    if (isApiAllowed('relationships.getClusteringCoefficient')) {
+      const relationshipsGetClusteringCoefficientFn = vm.newFunction(
+        'getClusteringCoefficient',
+        (noteIdArg) => {
+          const noteId = vm.getString(noteIdArg);
+          const hostPromise = this.noteApi.getClusteringCoefficient({
+            note_id: noteId,
+            vault_id: vaultId
+          });
+          return this.promiseFactory.createProxy(vm, registry, hostPromise);
+        }
+      );
+      relationshipsGetClusteringCoefficientFn.consume((handle) => {
+        vm.setProp(relationshipsObj, 'getClusteringCoefficient', handle);
+      });
+    } else {
+      vm.setProp(relationshipsObj, 'getClusteringCoefficient', vm.null);
+    }
+
+    relationshipsObj.dispose();
 
     // Create utils API object with proper disposal
     const utilsObj = vm.newObject();

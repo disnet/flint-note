@@ -580,4 +580,292 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
       expect(resultObj.vaultsRemove).toBe('object');
     });
   });
+
+  describe('Links API', () => {
+    it('should support link operations', async () => {
+      const result = await evaluator.evaluate({
+        code: `
+          async function main() {
+            try {
+              // First just check if links object exists
+              if (typeof links === 'undefined') {
+                return { success: false, error: 'links object is undefined' };
+              }
+
+              // Test individual method availability
+              const methodTests = {
+                getForNote: typeof links.getForNote === 'function',
+                getBacklinks: typeof links.getBacklinks === 'function', 
+                findBroken: typeof links.findBroken === 'function',
+                searchBy: typeof links.searchBy === 'function',
+                migrate: typeof links.migrate === 'function'
+              };
+
+              return {
+                success: true,
+                linksExists: true,
+                ...methodTests
+              };
+            } catch (error) {
+              return {
+                success: false,
+                error: error?.message || String(error),
+                stack: error?.stack,
+                errorType: typeof error,
+                fullError: error
+              };
+            }
+          }
+        `,
+        vaultId: testVaultId,
+        allowedAPIs: [
+          'notes.create',
+          'notes.delete',
+          'links.getForNote',
+          'links.getBacklinks',
+          'links.findBroken',
+          'links.searchBy',
+          'links.migrate'
+        ]
+      });
+
+      expect(result.success).toBe(true);
+      const resultObj = result.result as any;
+
+      if (!resultObj.success) {
+        console.log('Links API test internal error:', resultObj.error);
+        console.log('Stack:', resultObj.stack);
+        console.log('Error type:', resultObj.errorType);
+        console.log('Full error:', JSON.stringify(resultObj.fullError, null, 2));
+      }
+
+      expect(resultObj.success).toBe(true);
+      expect(resultObj.linksExists).toBe(true);
+      expect(resultObj.getForNote).toBe(true);
+      expect(resultObj.getBacklinks).toBe(true);
+      expect(resultObj.findBroken).toBe(true);
+      expect(resultObj.searchBy).toBe(true);
+      expect(resultObj.migrate).toBe(true);
+    });
+  });
+
+  describe('Hierarchy API', () => {
+    it('should support hierarchy operations', async () => {
+      const result = await evaluator.evaluate({
+        code: `
+          async function main() {
+            try {
+              // First just check if hierarchy object exists
+              if (typeof hierarchy === 'undefined') {
+                return { success: false, error: 'hierarchy object is undefined' };
+              }
+
+              // Test individual method availability
+              const methodTests = {
+                addSubnote: typeof hierarchy.addSubnote === 'function',
+                removeSubnote: typeof hierarchy.removeSubnote === 'function',
+                reorder: typeof hierarchy.reorder === 'function',
+                getPath: typeof hierarchy.getPath === 'function',
+                getDescendants: typeof hierarchy.getDescendants === 'function',
+                getChildren: typeof hierarchy.getChildren === 'function',
+                getParents: typeof hierarchy.getParents === 'function'
+              };
+
+              return {
+                success: true,
+                hierarchyExists: true,
+                ...methodTests
+              };
+            } catch (error) {
+              return {
+                success: false,
+                error: error.message,
+                stack: error.stack
+              };
+            }
+          }
+        `,
+        vaultId: testVaultId,
+        allowedAPIs: [
+          'notes.create',
+          'notes.delete',
+          'hierarchy.addSubnote',
+          'hierarchy.removeSubnote',
+          'hierarchy.reorder',
+          'hierarchy.getPath',
+          'hierarchy.getDescendants',
+          'hierarchy.getChildren',
+          'hierarchy.getParents'
+        ]
+      });
+
+      expect(result.success).toBe(true);
+      const resultObj = result.result as any;
+
+      if (!resultObj.success) {
+        console.log('Hierarchy API test internal error:', resultObj.error);
+        console.log('Stack:', resultObj.stack);
+      }
+
+      expect(resultObj.success).toBe(true);
+      expect(resultObj.hierarchyExists).toBe(true);
+      expect(resultObj.addSubnote).toBe(true);
+      expect(resultObj.removeSubnote).toBe(true);
+      expect(resultObj.reorder).toBe(true);
+      expect(resultObj.getPath).toBe(true);
+      expect(resultObj.getDescendants).toBe(true);
+      expect(resultObj.getChildren).toBe(true);
+      expect(resultObj.getParents).toBe(true);
+    });
+  });
+
+  describe('Relationships API', () => {
+    it('should support relationship analysis operations', async () => {
+      const result = await evaluator.evaluate({
+        code: `
+          async function main() {
+            try {
+              // Create related notes
+              const note1 = await notes.create({
+                type: 'general',
+                title: 'Relationship Test Note 1',
+                content: 'This note is related to [[Relationship Test Note 2]]'
+              });
+
+              const note2 = await notes.create({
+                type: 'general',
+                title: 'Relationship Test Note 2',
+                content: 'This note is related back'
+              });
+
+              // Get comprehensive relationships for note1
+              const noteRelationships = await relationships.get(note1.id);
+
+              // Get related notes
+              const relatedNotes = await relationships.getRelated({
+                note_id: note1.id,
+                max_results: 5
+              });
+
+              // Find relationship path
+              const relationshipPath = await relationships.findPath({
+                start_note_id: note1.id,
+                end_note_id: note2.id,
+                max_depth: 3
+              });
+
+              // Get clustering coefficient
+              const clusteringCoefficient = await relationships.getClusteringCoefficient(note1.id);
+
+              // Clean up
+              await notes.delete({ identifier: note1.id, confirm: true });
+              await notes.delete({ identifier: note2.id, confirm: true });
+
+              return {
+                success: true,
+                relationshipsAvailable: noteRelationships !== null,
+                relatedNotesCount: relatedNotes.length,
+                pathFound: relationshipPath !== null,
+                clusteringCoeff: clusteringCoefficient,
+                canGet: typeof relationships.get === 'function',
+                canGetRelated: typeof relationships.getRelated === 'function',
+                canFindPath: typeof relationships.findPath === 'function',
+                canGetClusteringCoefficient: typeof relationships.getClusteringCoefficient === 'function'
+              };
+            } catch (error) {
+              return {
+                success: false,
+                error: error.message,
+                stack: error.stack
+              };
+            }
+          }
+        `,
+        vaultId: testVaultId,
+        allowedAPIs: [
+          'notes.create',
+          'notes.delete',
+          'relationships.get',
+          'relationships.getRelated',
+          'relationships.findPath',
+          'relationships.getClusteringCoefficient'
+        ]
+      });
+
+      expect(result.success).toBe(true);
+      const resultObj = result.result as any;
+
+      if (!resultObj.success) {
+        console.log('Relationships API test internal error:', resultObj.error);
+        console.log('Stack:', resultObj.stack);
+      }
+
+      expect(resultObj.success).toBe(true);
+      expect(resultObj.canGet).toBe(true);
+      expect(resultObj.canGetRelated).toBe(true);
+      expect(resultObj.canFindPath).toBe(true);
+      expect(resultObj.canGetClusteringCoefficient).toBe(true);
+    });
+  });
+
+  describe('Advanced API Security and Whitelisting', () => {
+    it('should enforce API whitelisting for advanced APIs', async () => {
+      const result = await evaluator.evaluate({
+        code: `
+          async function main() {
+            return {
+              // Test Links API availability
+              linksGetForNote: typeof links.getForNote,
+              linksGetBacklinks: typeof links.getBacklinks,
+              linksFindBroken: typeof links.findBroken,
+              linksSearchBy: typeof links.searchBy,
+              linksMigrate: typeof links.migrate,
+              
+              // Test Hierarchy API availability
+              hierarchyAddSubnote: typeof hierarchy.addSubnote,
+              hierarchyRemoveSubnote: typeof hierarchy.removeSubnote,
+              hierarchyReorder: typeof hierarchy.reorder,
+              hierarchyGetPath: typeof hierarchy.getPath,
+              hierarchyGetDescendants: typeof hierarchy.getDescendants,
+              hierarchyGetChildren: typeof hierarchy.getChildren,
+              hierarchyGetParents: typeof hierarchy.getParents,
+              
+              // Test Relationships API availability
+              relationshipsGet: typeof relationships.get,
+              relationshipsGetRelated: typeof relationships.getRelated,
+              relationshipsFindPath: typeof relationships.findPath,
+              relationshipsGetClusteringCoefficient: typeof relationships.getClusteringCoefficient
+            };
+          }
+        `,
+        vaultId: testVaultId,
+        allowedAPIs: ['links.getForNote', 'hierarchy.addSubnote', 'relationships.get']
+      });
+
+      expect(result.success).toBe(true);
+      const resultObj = result.result as any;
+
+      // Allowed APIs should be functions
+      expect(resultObj.linksGetForNote).toBe('function');
+      expect(resultObj.hierarchyAddSubnote).toBe('function');
+      expect(resultObj.relationshipsGet).toBe('function');
+
+      // Non-allowed APIs should be null (typeof null === 'object')
+      expect(resultObj.linksGetBacklinks).toBe('object');
+      expect(resultObj.linksFindBroken).toBe('object');
+      expect(resultObj.linksSearchBy).toBe('object');
+      expect(resultObj.linksMigrate).toBe('object');
+
+      expect(resultObj.hierarchyRemoveSubnote).toBe('object');
+      expect(resultObj.hierarchyReorder).toBe('object');
+      expect(resultObj.hierarchyGetPath).toBe('object');
+      expect(resultObj.hierarchyGetDescendants).toBe('object');
+      expect(resultObj.hierarchyGetChildren).toBe('object');
+      expect(resultObj.hierarchyGetParents).toBe('object');
+
+      expect(resultObj.relationshipsGetRelated).toBe('object');
+      expect(resultObj.relationshipsFindPath).toBe('object');
+      expect(resultObj.relationshipsGetClusteringCoefficient).toBe('object');
+    });
+  });
 });
