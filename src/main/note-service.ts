@@ -79,6 +79,13 @@ export class NoteService {
     // because they work with the global config, not workspace-specific data
   }
 
+  /**
+   * Get the underlying FlintNoteApi instance for advanced operations
+   */
+  getFlintNoteApi(): FlintNoteApi {
+    return this.api;
+  }
+
   // Note CRUD operations
   async createNote(
     type: string,

@@ -1032,17 +1032,12 @@ With async infrastructure complete, the API surface expansion is underway:
 **Current Status**: Phase 2C is **COMPLETE** with **39 API methods** now available in the WASM sandbox. This represents the full vision of replacing 32+ discrete tools with a unified code evaluation interface that provides comprehensive note management capabilities.
 
 **API Coverage Summary**:
+
 - **Links API**: 5/5 methods ✅ (getForNote, getBacklinks, findBroken, searchBy, migrate)
 - **Hierarchy API**: 7/7 methods ✅ (addSubnote, removeSubnote, reorder, getPath, getDescendants, getChildren, getParents)
 - **Relationships API**: 4/4 methods ✅ (get, getRelated, findPath, getClusteringCoefficient)
 - **Test Coverage**: 4 new test suites with 16 advanced API method validations
 - **Security**: Full API whitelisting and access control enforcement
-
-### Phase 3: additional features
-
-- [x] Basic API whitelisting system (completed in Phase 1)
-- [ ] Implement memory limit enforcement (currently not enforced)
-- [ ] Add TypeScript execution support
 
 ## WebAssembly Benefits Analysis
 
