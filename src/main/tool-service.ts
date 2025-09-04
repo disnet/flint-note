@@ -1,19 +1,40 @@
 import { Tool, tool } from 'ai';
 import { NoteService } from './note-service';
-import { EvaluateNoteCode, evaluateCodeSchema } from './evaluate-note-code';
+import {
+  EnhancedEvaluateNoteCode,
+  enhancedEvaluateCodeSchema
+} from './enhanced-evaluate-note-code';
 
 interface ToolResponse {
   success: boolean;
   data?: unknown;
   error?: string;
   message: string;
+  compilation?: {
+    success: boolean;
+    errors: Array<{
+      code: number;
+      message: string;
+      line: number;
+      column: number;
+      source: string;
+      suggestion?: string;
+    }>;
+    warnings: Array<{
+      code: number;
+      message: string;
+      line: number;
+      column: number;
+      source: string;
+    }>;
+  };
 }
 
 export class ToolService {
-  private evaluateNoteCode: EvaluateNoteCode;
+  private evaluateNoteCode: EnhancedEvaluateNoteCode;
 
   constructor(private noteService: NoteService | null) {
-    this.evaluateNoteCode = new EvaluateNoteCode(noteService);
+    this.evaluateNoteCode = new EnhancedEvaluateNoteCode(noteService);
   }
 
   getTools(): Record<string, Tool> | undefined {
@@ -28,10 +49,12 @@ export class ToolService {
 
   private evaluateNoteCodeTool = tool({
     description:
-      'Execute JavaScript code in secure WebAssembly sandbox with access to FlintNote API. This replaces 32+ discrete tools with a single programmable interface allowing complex operations, data analysis, and custom workflows. Your code must define an async function called main() that returns the result.',
-    inputSchema: evaluateCodeSchema,
-    execute: async ({ code }) => {
-      return (await this.evaluateNoteCode.execute({ code })) as ToolResponse;
+      'Execute TypeScript code in secure WebAssembly sandbox with strict type checking and access to FlintNote API. ' +
+      'Provides compile-time type safety and comprehensive error feedback. ' +
+      'Your code must define an async function called main() that returns the result.',
+    inputSchema: enhancedEvaluateCodeSchema,
+    execute: async ({ code, typesOnly = false }) => {
+      return (await this.evaluateNoteCode.execute({ code, typesOnly })) as ToolResponse;
     }
   });
 }
