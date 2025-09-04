@@ -30,6 +30,53 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
   });
 
   describe('Full Notes API', () => {
+    it.only('should handle', async () => {
+      const result = await evaluator.evaluate({
+        code: `async function main() {
+        const today = new Date().toISOString().split('T')[0];
+        const dailyNoteTitle = \`Daily Note for \${today}\`;
+
+        // Try to find an existing daily note for today
+        const existingNotes = await notes.list({
+          typeName: 'daily',
+          title: dailyNoteTitle
+        });
+
+        let noteId;
+        if (existingNotes.length > 0) {
+          // Update existing note
+          noteId = existingNotes[0].id;
+          await notes.update({
+            id: noteId,
+            content: 'this is a test'
+          });
+        } else {
+          // Create new daily note
+          const newNote = await notes.create({
+            type: 'daily',
+            title: dailyNoteTitle,
+            content: 'this is a test'
+          });
+          noteId = newNote.id;
+        }
+
+        return \`[[daily/\${today}|\${dailyNoteTitle}]]\`;
+      }
+      `,
+        vaultId: testVaultId,
+        allowedAPIs: [
+          'notes.create',
+          'notes.get',
+          'notes.update',
+          'notes.list',
+          'notes.delete'
+        ]
+      });
+
+      console.log(result);
+      expect(result.success).toBe(true);
+    });
+
     it('should support complete CRUD operations', async () => {
       const result = await evaluator.evaluate({
         code: `
@@ -44,7 +91,7 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
 
             // Get the created note
             const getResult = await notes.get(createResult.id);
-            
+
             // Update the note
             const updateResult = await notes.update({
               identifier: createResult.id,
@@ -485,7 +532,7 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
             const retrievedNotes = await Promise.all(getPromises);
 
             // Delete all notes concurrently
-            const deletePromises = createdNotes.map(note => 
+            const deletePromises = createdNotes.map(note =>
               notes.delete({
                 identifier: note.id,
                 confirm: true
@@ -497,7 +544,7 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
               createdCount: createdNotes.length,
               retrievedCount: retrievedNotes.filter(n => n !== null).length,
               deletedCount: deleteResults.filter(r => r.deleted).length,
-              allTitlesMatch: createdNotes.every((note, i) => 
+              allTitlesMatch: createdNotes.every((note, i) =>
                 note.title === \`Concurrent Note \${i + 1}\`
               )
             };
@@ -531,13 +578,13 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
               notesRename: typeof notes.rename,
               notesMove: typeof notes.move,
               notesSearch: typeof notes.search,
-              
+
               noteTypesCreate: typeof noteTypes.create,
               noteTypesList: typeof noteTypes.list,
               noteTypesGet: typeof noteTypes.get,
               noteTypesUpdate: typeof noteTypes.update,
               noteTypesDelete: typeof noteTypes.delete,
-              
+
               vaultsGetCurrent: typeof vaults.getCurrent,
               vaultsList: typeof vaults.list,
               vaultsCreate: typeof vaults.create,
@@ -595,7 +642,7 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
               // Test individual method availability
               const methodTests = {
                 getForNote: typeof links.getForNote === 'function',
-                getBacklinks: typeof links.getBacklinks === 'function', 
+                getBacklinks: typeof links.getBacklinks === 'function',
                 findBroken: typeof links.findBroken === 'function',
                 searchBy: typeof links.searchBy === 'function',
                 migrate: typeof links.migrate === 'function'
@@ -820,7 +867,7 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
               linksFindBroken: typeof links.findBroken,
               linksSearchBy: typeof links.searchBy,
               linksMigrate: typeof links.migrate,
-              
+
               // Test Hierarchy API availability
               hierarchyAddSubnote: typeof hierarchy.addSubnote,
               hierarchyRemoveSubnote: typeof hierarchy.removeSubnote,
@@ -829,7 +876,7 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
               hierarchyGetDescendants: typeof hierarchy.getDescendants,
               hierarchyGetChildren: typeof hierarchy.getChildren,
               hierarchyGetParents: typeof hierarchy.getParents,
-              
+
               // Test Relationships API availability
               relationshipsGet: typeof relationships.get,
               relationshipsGetRelated: typeof relationships.getRelated,

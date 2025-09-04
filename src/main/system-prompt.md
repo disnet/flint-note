@@ -26,13 +26,17 @@ The execution environment provides these API namespaces:
 
 ```javascript
 async function main() {
-  // Create a note
-  const result = await notes.create({
-    type: 'meeting',
-    title: 'Weekly Standup',
-    content: '# Meeting Notes\n\n...'
-  });
-  return result;
+  try {
+    // Create a note
+    const result = await notes.create({
+      type: 'meeting',
+      title: 'Weekly Standup',
+      content: '# Meeting Notes\n\n...'
+    });
+    return result;
+  } catch (error) {
+    return { error: error.message, stack: error.stack };
+  }
 }
 ```
 
@@ -66,25 +70,29 @@ async function main() {
 
 ```javascript
 async function main() {
-  // Create note with hierarchy
-  const parent = await notes.create({
-    type: 'project',
-    title: 'New Project',
-    content: '# Project Overview'
-  });
+  try {
+    // Create note with hierarchy
+    const parent = await notes.create({
+      type: 'project',
+      title: 'New Project',
+      content: '# Project Overview'
+    });
 
-  const child = await notes.create({
-    type: 'task',
-    title: 'First Task',
-    content: '# Task Details'
-  });
+    const child = await notes.create({
+      type: 'task',
+      title: 'First Task',
+      content: '# Task Details'
+    });
 
-  await hierarchy.addSubnote({
-    parent_id: parent.id,
-    child_id: child.id
-  });
+    await hierarchy.addSubnote({
+      parent_id: parent.id,
+      child_id: child.id
+    });
 
-  return { parent, child, hierarchyCreated: true };
+    return { parent, child, hierarchyCreated: true };
+  } catch (error) {
+    return { error: error.message, stack: error.stack };
+  }
 }
 ```
 

@@ -374,8 +374,34 @@ class PromiseProxyFactory {
       }
       return objHandle;
     } else {
-      // Fallback for unknown types
-      return vm.newString(String(value));
+      // Fallback for unknown types - use better string conversion for error objects
+      let stringValue: string;
+      if (typeof value === 'object' && value !== null) {
+        // Try to extract meaningful information from error objects
+        try {
+          const obj = value as Record<string, unknown>;
+          if (obj.message && typeof obj.message === 'string') {
+            stringValue = obj.message;
+          } else if (typeof obj.toString === 'function') {
+            const toStringResult = obj.toString();
+            if (
+              typeof toStringResult === 'string' &&
+              toStringResult !== '[object Object]'
+            ) {
+              stringValue = toStringResult;
+            } else {
+              stringValue = JSON.stringify(value);
+            }
+          } else {
+            stringValue = JSON.stringify(value);
+          }
+        } catch {
+          stringValue = String(value);
+        }
+      } else {
+        stringValue = String(value);
+      }
+      return vm.newString(stringValue);
     }
   }
 }
@@ -603,12 +629,10 @@ export class WASMCodeEvaluator {
         let errorMsg: string;
         let errorStack: string | undefined;
         try {
-          const errorObj = vm.dump(setupResult.error) as JSErrorObject;
+          const errorObj = vm.dump(setupResult.error);
+          errorMsg = this.extractErrorMessage(errorObj);
           if (typeof errorObj === 'object' && errorObj !== null) {
-            errorMsg = errorObj.message || errorObj.toString?.() || String(errorObj);
-            errorStack = errorObj.stack;
-          } else {
-            errorMsg = typeof errorObj === 'string' ? errorObj : String(errorObj);
+            errorStack = (errorObj as JSErrorObject).stack;
           }
         } catch {
           errorMsg = 'Code compilation failed';
@@ -643,32 +667,30 @@ export class WASMCodeEvaluator {
           'Ensure your main() function is defined and returns a value or promise.';
 
         try {
-          const errorObj = vm.dump(callResult.error) as JSErrorObject;
+          const errorObj = vm.dump(callResult.error);
+          errorMsg = this.extractErrorMessage(errorObj);
           if (typeof errorObj === 'object' && errorObj !== null) {
-            errorMsg = errorObj.message || errorObj.toString?.() || String(errorObj);
-            errorStack = errorObj.stack;
+            errorStack = (errorObj as JSErrorObject).stack;
+          }
 
-            // Provide specific suggestions based on error type
-            if (errorMsg.includes('main is not defined')) {
-              errorType = 'validation';
-              suggestion =
-                'Your code must define a main() function. Example: async function main() { return "result"; }';
-            } else if (
-              errorMsg.includes('TypeError') ||
-              errorMsg.includes('ReferenceError')
-            ) {
-              suggestion =
-                'Check variable names and function calls for typos. Ensure all required APIs are in your allowedAPIs list.';
-            } else if (
-              errorMsg.includes('Permission') ||
-              errorMsg.includes('not allowed')
-            ) {
-              errorType = 'validation';
-              suggestion =
-                'API call blocked by security policy. Check your allowedAPIs configuration.';
-            }
-          } else {
-            errorMsg = typeof errorObj === 'string' ? errorObj : String(errorObj);
+          // Provide specific suggestions based on error type
+          if (errorMsg.includes('main is not defined')) {
+            errorType = 'validation';
+            suggestion =
+              'Your code must define a main() function. Example: async function main() { return "result"; }';
+          } else if (
+            errorMsg.includes('TypeError') ||
+            errorMsg.includes('ReferenceError')
+          ) {
+            suggestion =
+              'Check variable names and function calls for typos. Ensure all required APIs are in your allowedAPIs list.';
+          } else if (
+            errorMsg.includes('Permission') ||
+            errorMsg.includes('not allowed')
+          ) {
+            errorType = 'validation';
+            suggestion =
+              'API call blocked by security policy. Check your allowedAPIs configuration.';
           }
         } catch {
           errorMsg = 'main() call failed';
@@ -716,35 +738,28 @@ export class WASMCodeEvaluator {
             'Check API parameters and ensure all required fields are provided.';
 
           try {
-            const errorObj = vm.dump(promiseState.error) as JSErrorObject;
+            const errorObj = vm.dump(promiseState.error);
+            errorMsg = this.extractErrorMessage(errorObj);
             if (typeof errorObj === 'object' && errorObj !== null) {
-              errorMsg = errorObj.message || String(errorObj);
-              errorStack = errorObj.stack;
+              errorStack = (errorObj as JSErrorObject).stack;
+            }
 
-              // Provide contextual suggestions based on error content
-              if (errorMsg.includes('not found')) {
-                suggestion =
-                  'The requested resource was not found. Check IDs and ensure the item exists.';
-              } else if (errorMsg.includes('hash')) {
-                suggestion =
-                  'Content hash mismatch. Refetch the latest note data and use the current content_hash.';
-              } else if (
-                errorMsg.includes('permission') ||
-                errorMsg.includes('unauthorized')
-              ) {
-                suggestion =
-                  'Permission denied. Check your API access rights and vault permissions.';
-              } else if (
-                errorMsg.includes('validation') ||
-                errorMsg.includes('invalid')
-              ) {
-                suggestion =
-                  'Invalid input parameters. Check the API documentation for required fields and formats.';
-              }
-            } else if (typeof errorObj === 'string') {
-              errorMsg = errorObj;
-            } else {
-              errorMsg = String(errorObj);
+            // Provide contextual suggestions based on error content
+            if (errorMsg.includes('not found')) {
+              suggestion =
+                'The requested resource was not found. Check IDs and ensure the item exists.';
+            } else if (errorMsg.includes('hash')) {
+              suggestion =
+                'Content hash mismatch. Refetch the latest note data and use the current content_hash.';
+            } else if (
+              errorMsg.includes('permission') ||
+              errorMsg.includes('unauthorized')
+            ) {
+              suggestion =
+                'Permission denied. Check your API access rights and vault permissions.';
+            } else if (errorMsg.includes('validation') || errorMsg.includes('invalid')) {
+              suggestion =
+                'Invalid input parameters. Check the API documentation for required fields and formats.';
             }
           } catch {
             errorMsg = 'Unknown promise rejection error';
@@ -899,9 +914,6 @@ export class WASMCodeEvaluator {
     // Helper function to check if API is allowed
     const isApiAllowed = (apiName: string): boolean => {
       const allowed = allowedAPIs ? allowedAPIs.includes(apiName) : true; // Default to allow all if no restrictions
-      if (!allowed && allowedAPIs) {
-        console.warn(`API call blocked: ${apiName}. Allowed APIs:`, allowedAPIs);
-      }
       return allowed;
     };
 
@@ -1675,6 +1687,46 @@ export class WASMCodeEvaluator {
       // Fallback for unknown types
       return vm.newString(String(value));
     }
+  }
+
+  private extractErrorMessage(errorObj: unknown): string {
+    if (typeof errorObj === 'string') {
+      return errorObj;
+    }
+
+    if (typeof errorObj === 'object' && errorObj !== null) {
+      const obj = errorObj as JSErrorObject;
+
+      // Try message property first
+      if (obj.message && typeof obj.message === 'string') {
+        return obj.message;
+      }
+
+      // Try toString method
+      if (typeof obj.toString === 'function') {
+        try {
+          const toStringResult = obj.toString();
+          if (
+            typeof toStringResult === 'string' &&
+            toStringResult !== '[object Object]'
+          ) {
+            return toStringResult;
+          }
+        } catch {
+          // toString failed, continue to next fallback
+        }
+      }
+
+      // Try JSON.stringify as fallback
+      try {
+        return JSON.stringify(obj);
+      } catch {
+        // JSON.stringify failed, use final fallback
+      }
+    }
+
+    // Final fallback
+    return String(errorObj);
   }
 
   dispose(): void {
