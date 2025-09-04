@@ -993,7 +993,7 @@ const result = await evaluator.evaluate(code, {
 **Current Status**: Phase 2C Part 1 achieved comprehensive API expansion:
 
 - **Full Notes API**: All 8 core note operations (create, get, update, delete, list, rename, move, search)
-- **Complete NoteTypes API**: All 5 note type management operations  
+- **Complete NoteTypes API**: All 5 note type management operations
 - **Comprehensive Vaults API**: All 6 vault management operations
 - **23 Total API Methods**: Major expansion from single `notes.get()` to full API surface
 - **Async Integration**: All methods use the Promise Proxy Pattern with proper async handling
@@ -1006,6 +1006,7 @@ const result = await evaluator.evaluate(code, {
 With async infrastructure complete, the API surface expansion is underway:
 
 **Phase 2C Part 1: Core APIs** ✅ **COMPLETED**
+
 - [x] Implement full notes API: `create`, `update`, `delete`, `list`, `rename`, `move`, `search`
 - [x] Add noteTypes API: `create`, `list`, `get`, `update`, `delete`
 - [x] Add vaults API: `getCurrent`, `list`, `create`, `switch`, `update`, `remove`
@@ -1015,6 +1016,7 @@ With async infrastructure complete, the API surface expansion is underway:
 - [x] Concurrent operations with Promise.all support
 
 **Phase 2C Part 2: Advanced APIs** **[NEXT PRIORITY]**
+
 - [ ] Add links API: `getForNote`, `getBacklinks`, `findBroken`, `searchBy`, `migrate`
 - [ ] Add hierarchy API: `addSubnote`, `removeSubnote`, `reorder`, `getPath`, `getDescendants`, `getChildren`, `getParents`
 - [ ] Add relationships API: `get`, `getRelated`, `findPath`, `getClusteringCoefficient`

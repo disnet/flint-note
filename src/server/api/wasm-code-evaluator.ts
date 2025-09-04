@@ -592,7 +592,7 @@ export class WASMCodeEvaluator {
   ): void {
     // Helper function to check if API is allowed
     const isApiAllowed = (apiName: string): boolean =>
-      !allowedAPIs || allowedAPIs.includes(apiName);
+      allowedAPIs ? allowedAPIs.includes(apiName) : false;
 
     // Create notes API object
     const notesObj = vm.newObject();
@@ -674,7 +674,7 @@ export class WASMCodeEvaluator {
     if (isApiAllowed('notes.list')) {
       const notesListFn = vm.newFunction('list', (optionsArg) => {
         // Handle optional parameter - default to empty object if not provided
-        const options = optionsArg ? vm.dump(optionsArg) as any : {};
+        const options = optionsArg ? (vm.dump(optionsArg) as any) : {};
         const hostPromise = this.noteApi.listNotes({
           typeName: options.typeName,
           limit: options.limit,
