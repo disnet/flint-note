@@ -380,6 +380,13 @@ class PromiseProxyFactory {
   }
 }
 
+// Type for JavaScript error objects dumped from QuickJS VM
+interface JSErrorObject {
+  message?: string;
+  stack?: string;
+  toString?(): string;
+}
+
 // WASM API parameter types - extracted from vm.dump() calls
 interface WASMCreateNoteOptions {
   type: string;
@@ -514,7 +521,19 @@ export interface WASMCodeEvaluationResult {
   success: boolean;
   result?: unknown;
   error?: string;
+  errorDetails?: {
+    type: 'syntax' | 'runtime' | 'timeout' | 'api' | 'validation';
+    message: string;
+    suggestion?: string;
+    context?: Record<string, unknown>;
+    stack?: string;
+  };
   executionTime: number;
+  debugInfo?: {
+    pendingOperations?: number;
+    vmAlive?: boolean;
+    interruptCalled?: boolean;
+  };
 }
 
 export class WASMCodeEvaluator {
@@ -582,17 +601,34 @@ export class WASMCodeEvaluator {
       const setupResult = vm.evalCode(options.code);
       if (setupResult.error) {
         let errorMsg: string;
+        let errorStack: string | undefined;
         try {
-          const errorObj = vm.dump(setupResult.error);
-          errorMsg = typeof errorObj === 'string' ? errorObj : String(errorObj);
+          const errorObj = vm.dump(setupResult.error) as JSErrorObject;
+          if (typeof errorObj === 'object' && errorObj !== null) {
+            errorMsg = errorObj.message || errorObj.toString?.() || String(errorObj);
+            errorStack = errorObj.stack;
+          } else {
+            errorMsg = typeof errorObj === 'string' ? errorObj : String(errorObj);
+          }
         } catch {
           errorMsg = 'Code compilation failed';
         }
         setupResult.error.dispose();
         return {
           success: false,
-          error: `Setup error: ${errorMsg}`,
-          executionTime: Date.now() - startTime
+          error: `Syntax Error: ${errorMsg}`,
+          errorDetails: {
+            type: 'syntax',
+            message: errorMsg,
+            suggestion:
+              'Check your JavaScript syntax. Make sure to define a main() function that returns the result.',
+            stack: errorStack
+          },
+          executionTime: Date.now() - startTime,
+          debugInfo: {
+            vmAlive: vm.alive,
+            interruptCalled: interrupted
+          }
         };
       }
       setupResult.value.dispose();
@@ -601,17 +637,58 @@ export class WASMCodeEvaluator {
       const callResult = vm.evalCode('main()');
       if (callResult.error) {
         let errorMsg: string;
+        let errorStack: string | undefined;
+        let errorType: 'runtime' | 'validation' = 'runtime';
+        let suggestion =
+          'Ensure your main() function is defined and returns a value or promise.';
+
         try {
-          const errorObj = vm.dump(callResult.error);
-          errorMsg = typeof errorObj === 'string' ? errorObj : String(errorObj);
+          const errorObj = vm.dump(callResult.error) as JSErrorObject;
+          if (typeof errorObj === 'object' && errorObj !== null) {
+            errorMsg = errorObj.message || errorObj.toString?.() || String(errorObj);
+            errorStack = errorObj.stack;
+
+            // Provide specific suggestions based on error type
+            if (errorMsg.includes('main is not defined')) {
+              errorType = 'validation';
+              suggestion =
+                'Your code must define a main() function. Example: async function main() { return "result"; }';
+            } else if (
+              errorMsg.includes('TypeError') ||
+              errorMsg.includes('ReferenceError')
+            ) {
+              suggestion =
+                'Check variable names and function calls for typos. Ensure all required APIs are in your allowedAPIs list.';
+            } else if (
+              errorMsg.includes('Permission') ||
+              errorMsg.includes('not allowed')
+            ) {
+              errorType = 'validation';
+              suggestion =
+                'API call blocked by security policy. Check your allowedAPIs configuration.';
+            }
+          } else {
+            errorMsg = typeof errorObj === 'string' ? errorObj : String(errorObj);
+          }
         } catch {
           errorMsg = 'main() call failed';
         }
         callResult.error.dispose();
         return {
           success: false,
-          error: `Execution error: ${errorMsg}`,
-          executionTime: Date.now() - startTime
+          error: `Runtime Error: ${errorMsg}`,
+          errorDetails: {
+            type: errorType,
+            message: errorMsg,
+            suggestion,
+            context: { allowedAPIs: 'all' },
+            stack: errorStack
+          },
+          executionTime: Date.now() - startTime,
+          debugInfo: {
+            vmAlive: vm.alive,
+            interruptCalled: interrupted
+          }
         };
       }
 
@@ -634,14 +711,36 @@ export class WASMCodeEvaluator {
           promiseState.value?.dispose();
         } else if (promiseState.type === 'rejected') {
           let errorMsg: string;
+          let errorStack: string | undefined;
+          let suggestion =
+            'Check API parameters and ensure all required fields are provided.';
+
           try {
-            const errorObj = vm.dump(promiseState.error);
-            if (
-              typeof errorObj === 'object' &&
-              errorObj !== null &&
-              'message' in errorObj
-            ) {
-              errorMsg = String(errorObj.message);
+            const errorObj = vm.dump(promiseState.error) as JSErrorObject;
+            if (typeof errorObj === 'object' && errorObj !== null) {
+              errorMsg = errorObj.message || String(errorObj);
+              errorStack = errorObj.stack;
+
+              // Provide contextual suggestions based on error content
+              if (errorMsg.includes('not found')) {
+                suggestion =
+                  'The requested resource was not found. Check IDs and ensure the item exists.';
+              } else if (errorMsg.includes('hash')) {
+                suggestion =
+                  'Content hash mismatch. Refetch the latest note data and use the current content_hash.';
+              } else if (
+                errorMsg.includes('permission') ||
+                errorMsg.includes('unauthorized')
+              ) {
+                suggestion =
+                  'Permission denied. Check your API access rights and vault permissions.';
+              } else if (
+                errorMsg.includes('validation') ||
+                errorMsg.includes('invalid')
+              ) {
+                suggestion =
+                  'Invalid input parameters. Check the API documentation for required fields and formats.';
+              }
             } else if (typeof errorObj === 'string') {
               errorMsg = errorObj;
             } else {
@@ -654,8 +753,20 @@ export class WASMCodeEvaluator {
           resultHandle.dispose();
           return {
             success: false,
-            error: `Promise rejected: ${errorMsg}`,
-            executionTime: Date.now() - startTime
+            error: `API Error: ${errorMsg}`,
+            errorDetails: {
+              type: 'api',
+              message: errorMsg,
+              suggestion,
+              context: { vaultId: options.vaultId, timeout },
+              stack: errorStack
+            },
+            executionTime: Date.now() - startTime,
+            debugInfo: {
+              pendingOperations: registry.getPendingCount(),
+              vmAlive: vm.alive,
+              interruptCalled: interrupted
+            }
           };
         } else {
           // Still pending after timeout
@@ -663,7 +774,23 @@ export class WASMCodeEvaluator {
           return {
             success: false,
             error: `Execution timeout after ${timeout}ms - promise still pending`,
-            executionTime: Date.now() - startTime
+            errorDetails: {
+              type: 'timeout',
+              message: `Operation exceeded ${timeout}ms timeout`,
+              suggestion:
+                'Reduce operation complexity, increase timeout, or check for infinite loops. Break large operations into smaller batches.',
+              context: {
+                timeout,
+                pendingOperations: registry.getPendingCount(),
+                executionTime: Date.now() - startTime
+              }
+            },
+            executionTime: Date.now() - startTime,
+            debugInfo: {
+              pendingOperations: registry.getPendingCount(),
+              vmAlive: vm.alive,
+              interruptCalled: interrupted
+            }
           };
         }
 
@@ -672,7 +799,20 @@ export class WASMCodeEvaluator {
         return {
           success: false,
           error: `Result processing failed: ${error instanceof Error ? error.message : String(error)}`,
-          executionTime: Date.now() - startTime
+          errorDetails: {
+            type: 'runtime',
+            message: error instanceof Error ? error.message : String(error),
+            suggestion:
+              'Internal processing error. This may indicate a bug in the evaluation system.',
+            context: { step: 'result_processing' },
+            stack: error instanceof Error ? error.stack : undefined
+          },
+          executionTime: Date.now() - startTime,
+          debugInfo: {
+            pendingOperations: registry.getPendingCount(),
+            vmAlive: vm ? vm.alive : false,
+            interruptCalled: interrupted
+          }
         };
       }
 
@@ -687,14 +827,42 @@ export class WASMCodeEvaluator {
         return {
           success: false,
           error: `Execution timeout after ${timeout}ms`,
-          executionTime: Date.now() - startTime
+          errorDetails: {
+            type: 'timeout',
+            message: `Code execution exceeded ${timeout}ms limit`,
+            suggestion:
+              'Reduce operation complexity, increase timeout, or optimize your code to avoid long-running operations.',
+            context: { timeout, executionTime: Date.now() - startTime }
+          },
+          executionTime: Date.now() - startTime,
+          debugInfo: {
+            pendingOperations: registry ? registry.getPendingCount() : 0,
+            vmAlive: vm ? vm.alive : false,
+            interruptCalled: true
+          }
         };
       }
 
       return {
         success: false,
         error: `Code execution failed: ${error instanceof Error ? error.message : String(error)}`,
-        executionTime: Date.now() - startTime
+        errorDetails: {
+          type: 'runtime',
+          message: error instanceof Error ? error.message : String(error),
+          suggestion:
+            'Check the error message for details. Common issues include syntax errors, undefined variables, or API call failures.',
+          context: {
+            vaultId: options.vaultId,
+            allowedAPIs: options.allowedAPIs || 'all'
+          },
+          stack: error instanceof Error ? error.stack : undefined
+        },
+        executionTime: Date.now() - startTime,
+        debugInfo: {
+          pendingOperations: registry ? registry.getPendingCount() : 0,
+          vmAlive: vm ? vm.alive : false,
+          interruptCalled: interrupted
+        }
       };
     } finally {
       // Always dispose the VM context and cleanup async operations
@@ -714,8 +882,13 @@ export class WASMCodeEvaluator {
     customContext?: Record<string, unknown>
   ): void {
     // Helper function to check if API is allowed
-    const isApiAllowed = (apiName: string): boolean =>
-      allowedAPIs ? allowedAPIs.includes(apiName) : false;
+    const isApiAllowed = (apiName: string): boolean => {
+      const allowed = allowedAPIs ? allowedAPIs.includes(apiName) : true; // Default to allow all if no restrictions
+      if (!allowed && allowedAPIs) {
+        console.warn(`API call blocked: ${apiName}. Allowed APIs:`, allowedAPIs);
+      }
+      return allowed;
+    };
 
     // Create notes API object
     const notesObj = vm.newObject();
