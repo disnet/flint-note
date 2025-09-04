@@ -19,6 +19,8 @@
 import { getQuickJS, QuickJSContext, QuickJSWASMModule } from 'quickjs-emscripten';
 import type { QuickJSHandle } from 'quickjs-emscripten';
 import type { FlintNoteApi } from './flint-note-api.js';
+import type { NoteMetadata } from '../types/index.js';
+import type { MetadataSchema, MetadataFieldDefinition } from '../core/metadata-schema.js';
 
 interface AsyncOperation {
   id: string;
@@ -378,6 +380,85 @@ class PromiseProxyFactory {
   }
 }
 
+// WASM API parameter types - extracted from vm.dump() calls
+interface WASMCreateNoteOptions {
+  type: string;
+  title: string;
+  content: string;
+  metadata?: NoteMetadata;
+}
+
+interface WASMUpdateNoteOptions {
+  identifier: string;
+  content: string;
+  contentHash: string;
+  metadata?: NoteMetadata;
+}
+
+interface WASMDeleteNoteOptions {
+  identifier: string;
+  confirm?: boolean;
+}
+
+interface WASMListNotesOptions {
+  typeName?: string;
+  limit?: number;
+}
+
+interface WASMRenameNoteOptions {
+  identifier: string;
+  new_title: string;
+  content_hash: string;
+}
+
+interface WASMMoveNoteOptions {
+  identifier: string;
+  new_type: string;
+  content_hash: string;
+}
+
+interface WASMSearchNotesOptions {
+  query: string;
+  typeFilter?: string;
+  limit?: number;
+}
+
+interface WASMCreateNoteTypeOptions {
+  type_name: string;
+  description: string;
+  agent_instructions?: string[];
+  metadata_schema?: MetadataSchema;
+}
+
+interface WASMUpdateNoteTypeOptions {
+  type_name: string;
+  description?: string;
+  instructions?: string[];
+  metadata_schema?: MetadataFieldDefinition[];
+}
+
+interface WASMDeleteNoteTypeOptions {
+  type_name: string;
+  action: 'error' | 'migrate' | 'delete';
+  target_type?: string;
+  confirm?: boolean;
+}
+
+interface WASMCreateVaultOptions {
+  id: string;
+  name: string;
+  path: string;
+  description?: string;
+  initialize?: boolean;
+  switch_to?: boolean;
+}
+
+interface WASMUpdateVaultOptions {
+  id: string;
+  name?: string;
+  description?: string;
+}
+
 export interface WASMCodeEvaluationOptions {
   code: string;
   vaultId: string;
@@ -615,7 +696,7 @@ export class WASMCodeEvaluator {
     // notes.create
     if (isApiAllowed('notes.create')) {
       const notesCreateFn = vm.newFunction('create', (optionsArg) => {
-        const options = vm.dump(optionsArg) as any;
+        const options = vm.dump(optionsArg) as WASMCreateNoteOptions;
         const hostPromise = this.noteApi.createNote({
           type: options.type,
           title: options.title,
@@ -635,7 +716,7 @@ export class WASMCodeEvaluator {
     // notes.update
     if (isApiAllowed('notes.update')) {
       const notesUpdateFn = vm.newFunction('update', (optionsArg) => {
-        const options = vm.dump(optionsArg) as any;
+        const options = vm.dump(optionsArg) as WASMUpdateNoteOptions;
         const hostPromise = this.noteApi.updateNote({
           identifier: options.identifier,
           content: options.content,
@@ -655,7 +736,7 @@ export class WASMCodeEvaluator {
     // notes.delete
     if (isApiAllowed('notes.delete')) {
       const notesDeleteFn = vm.newFunction('delete', (optionsArg) => {
-        const options = vm.dump(optionsArg) as any;
+        const options = vm.dump(optionsArg) as WASMDeleteNoteOptions;
         const hostPromise = this.noteApi.deleteNote({
           identifier: options.identifier,
           confirm: options.confirm,
@@ -674,7 +755,7 @@ export class WASMCodeEvaluator {
     if (isApiAllowed('notes.list')) {
       const notesListFn = vm.newFunction('list', (optionsArg) => {
         // Handle optional parameter - default to empty object if not provided
-        const options = optionsArg ? (vm.dump(optionsArg) as any) : {};
+        const options = optionsArg ? (vm.dump(optionsArg) as WASMListNotesOptions) : {};
         const hostPromise = this.noteApi.listNotes({
           typeName: options.typeName,
           limit: options.limit,
@@ -692,7 +773,7 @@ export class WASMCodeEvaluator {
     // notes.rename
     if (isApiAllowed('notes.rename')) {
       const notesRenameFn = vm.newFunction('rename', (optionsArg) => {
-        const options = vm.dump(optionsArg) as any;
+        const options = vm.dump(optionsArg) as WASMRenameNoteOptions;
         const hostPromise = this.noteApi.renameNote({
           identifier: options.identifier,
           new_title: options.new_title,
@@ -711,7 +792,7 @@ export class WASMCodeEvaluator {
     // notes.move
     if (isApiAllowed('notes.move')) {
       const notesMoveFn = vm.newFunction('move', (optionsArg) => {
-        const options = vm.dump(optionsArg) as any;
+        const options = vm.dump(optionsArg) as WASMMoveNoteOptions;
         const hostPromise = this.noteApi.moveNote({
           identifier: options.identifier,
           new_type: options.new_type,
@@ -730,7 +811,7 @@ export class WASMCodeEvaluator {
     // notes.search
     if (isApiAllowed('notes.search')) {
       const notesSearchFn = vm.newFunction('search', (optionsArg) => {
-        const options = vm.dump(optionsArg) as any;
+        const options = vm.dump(optionsArg) as WASMSearchNotesOptions;
         const hostPromise = this.noteApi.searchNotesByText({
           query: options.query,
           typeFilter: options.typeFilter,
@@ -755,7 +836,7 @@ export class WASMCodeEvaluator {
     // noteTypes.create
     if (isApiAllowed('noteTypes.create')) {
       const noteTypesCreateFn = vm.newFunction('create', (optionsArg) => {
-        const options = vm.dump(optionsArg) as any;
+        const options = vm.dump(optionsArg) as WASMCreateNoteTypeOptions;
         const hostPromise = this.noteApi.createNoteType({
           type_name: options.type_name,
           description: options.description,
@@ -805,7 +886,7 @@ export class WASMCodeEvaluator {
     // noteTypes.update
     if (isApiAllowed('noteTypes.update')) {
       const noteTypesUpdateFn = vm.newFunction('update', (optionsArg) => {
-        const options = vm.dump(optionsArg) as any;
+        const options = vm.dump(optionsArg) as WASMUpdateNoteTypeOptions;
         const hostPromise = this.noteApi.updateNoteType({
           type_name: options.type_name,
           description: options.description,
@@ -825,7 +906,7 @@ export class WASMCodeEvaluator {
     // noteTypes.delete
     if (isApiAllowed('noteTypes.delete')) {
       const noteTypesDeleteFn = vm.newFunction('delete', (optionsArg) => {
-        const options = vm.dump(optionsArg) as any;
+        const options = vm.dump(optionsArg) as WASMDeleteNoteTypeOptions;
         const hostPromise = this.noteApi.deleteNoteType({
           type_name: options.type_name,
           action: options.action,
@@ -877,7 +958,7 @@ export class WASMCodeEvaluator {
     // vaults.create
     if (isApiAllowed('vaults.create')) {
       const vaultsCreateFn = vm.newFunction('create', (optionsArg) => {
-        const options = vm.dump(optionsArg) as any;
+        const options = vm.dump(optionsArg) as WASMCreateVaultOptions;
         const hostPromise = this.noteApi.createVault({
           id: options.id,
           name: options.name,
@@ -912,7 +993,7 @@ export class WASMCodeEvaluator {
     // vaults.update
     if (isApiAllowed('vaults.update')) {
       const vaultsUpdateFn = vm.newFunction('update', (optionsArg) => {
-        const options = vm.dump(optionsArg) as any;
+        const options = vm.dump(optionsArg) as WASMUpdateVaultOptions;
         const hostPromise = this.noteApi.updateVault({
           id: options.id,
           name: options.name,
