@@ -50,9 +50,15 @@ export type EnhancedEvaluateCodeInput = z.infer<typeof enhancedEvaluateCodeSchem
 export class EnhancedEvaluateNoteCode {
   private wasmEvaluator: EnhancedWASMCodeEvaluator | null = null;
 
-  constructor(private noteService: NoteService | null) {
+  constructor(
+    private noteService: NoteService | null,
+    workspaceRoot?: string
+  ) {
     if (noteService) {
-      this.wasmEvaluator = new EnhancedWASMCodeEvaluator(noteService.getFlintNoteApi());
+      this.wasmEvaluator = new EnhancedWASMCodeEvaluator(
+        noteService.getFlintNoteApi(),
+        workspaceRoot
+      );
     }
   }
 

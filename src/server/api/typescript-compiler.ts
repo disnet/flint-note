@@ -7,6 +7,7 @@
 
 import * as ts from 'typescript';
 import { FLINT_API_TYPE_DEFINITIONS } from './flint-api-types.js';
+import type { CustomFunction } from '../types/custom-functions.js';
 
 export interface TypeScriptDiagnostic {
   code: number;
@@ -33,9 +34,71 @@ export interface CompilationResult {
 
 export class TypeScriptCompiler {
   private diagnosticSuggestions = new Map<number, string>();
+  private customFunctions: CustomFunction[] = [];
 
   constructor() {
     this.initializeDiagnosticSuggestions();
+  }
+
+  /**
+   * Set custom functions for type declaration generation
+   */
+  setCustomFunctions(customFunctions: CustomFunction[]): void {
+    this.customFunctions = customFunctions;
+  }
+
+  /**
+   * Generate TypeScript declarations for custom functions
+   */
+  private generateCustomFunctionDeclarations(): string {
+    if (this.customFunctions.length === 0) {
+      return '';
+    }
+
+    let declarations =
+      '\n// Custom Functions Namespace\ndeclare namespace customFunctions {\n';
+
+    // Add individual function declarations
+    for (const func of this.customFunctions) {
+      const paramList = Object.entries(func.parameters)
+        .map(([name, param]) => {
+          const optional = param.optional ? '?' : '';
+          return `${name}${optional}: ${param.type}`;
+        })
+        .join(', ');
+
+      declarations += `  function ${func.name}(${paramList}): ${func.returnType};\n`;
+    }
+
+    // Add management functions
+    declarations += '\n  // Management functions\n';
+    declarations += `  function _list(): Promise<Array<{
+    id: string;
+    name: string;
+    description: string;
+    parameters: Record<string, any>;
+    returnType: string;
+    tags: string[];
+    usageCount: number;
+  }>>;\n`;
+    declarations += '  function _remove(name: string): Promise<{ success: boolean }>;\n';
+    declarations += `  function _update(name: string, changes: {
+    description?: string;
+    parameters?: Record<string, any>;
+    returnType?: string;
+    code?: string;
+    tags?: string[];
+  }): Promise<{
+    id: string;
+    name: string;
+    description: string;
+    parameters: Record<string, any>;
+    returnType: string;
+    tags: string[];
+  }>;\n`;
+
+    declarations += '}\n';
+    return declarations;
   }
 
   async compile(sourceCode: string): Promise<CompilationResult> {
@@ -43,7 +106,8 @@ export class TypeScriptCompiler {
       // Create a simple in-memory file system for TypeScript compiler
       const fileName = 'user-code.ts';
 
-      // Combine minimal lib with FlintNote API types
+      // Combine minimal lib with FlintNote API types and custom functions
+      const customFunctionDeclarations = this.generateCustomFunctionDeclarations();
       const minimalLibContent = `
 interface Promise<T> {
   then<TResult1 = T, TResult2 = never>(
@@ -88,6 +152,7 @@ declare var Error: ErrorConstructor;
 declare function String(value?: any): string;
 
 ${FLINT_API_TYPE_DEFINITIONS}
+${customFunctionDeclarations}
 `;
 
       // Create a minimal compiler host
@@ -231,6 +296,40 @@ ${FLINT_API_TYPE_DEFINITIONS}
     this.diagnosticSuggestions.set(
       2532,
       'Initialize the variable before use or mark as optional with ?.'
+    );
+
+    // Additional custom functions and API specific errors
+    this.diagnosticSuggestions.set(
+      2503,
+      'Ensure your main() function has a return type annotation: async function main(): Promise<YourType>'
+    );
+    this.diagnosticSuggestions.set(
+      2663,
+      'Cannot redeclare variable. Use different variable names or proper scoping.'
+    );
+    this.diagnosticSuggestions.set(
+      2774,
+      'This condition will always return true. Check your type guards and conditions.'
+    );
+    this.diagnosticSuggestions.set(
+      2794,
+      'Expected arguments but got none. Check the function signature and provide required parameters.'
+    );
+    this.diagnosticSuggestions.set(
+      2740,
+      'Type has no properties in common. Check that object structure matches the expected interface.'
+    );
+    this.diagnosticSuggestions.set(
+      2769,
+      'No overload matches this call. Check function signature and parameter types. Available APIs: notes, noteTypes, vaults, links, hierarchy, relationships, utils, customFunctions.'
+    );
+    this.diagnosticSuggestions.set(
+      18048,
+      'Add await keyword for Promise-returning functions or handle the Promise properly.'
+    );
+    this.diagnosticSuggestions.set(
+      2554,
+      'Add await keyword for async function calls: await someAsyncFunction()'
     );
   }
 

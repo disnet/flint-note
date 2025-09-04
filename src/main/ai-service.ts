@@ -7,6 +7,7 @@ import { SecureStorageService } from './secure-storage-service';
 import { logger } from './logger';
 import { NoteService } from './note-service';
 import { ToolService } from './tool-service';
+import { CustomFunctionsApi } from '../server/api/custom-functions-api.js';
 
 interface CacheConfig {
   enableSystemMessageCaching: boolean;
@@ -51,6 +52,7 @@ export class AIService extends EventEmitter {
   private systemPrompt: string;
   private noteService: NoteService | null;
   private toolService: ToolService;
+  private customFunctionsApi: CustomFunctionsApi;
   private readonly maxConversationHistory = 20;
   private readonly maxConversations = 100;
   private cacheConfig: CacheConfig = {
@@ -74,7 +76,8 @@ export class AIService extends EventEmitter {
 
   constructor(
     openrouter: ReturnType<typeof createOpenRouter>,
-    noteService: NoteService | null
+    noteService: NoteService | null,
+    workspaceRoot?: string
   ) {
     super();
     this.currentModelName = 'openai/gpt-4o-mini';
@@ -82,7 +85,8 @@ export class AIService extends EventEmitter {
     logger.info('AI Service constructed', { model: this.currentModelName });
     this.openrouter = openrouter;
     this.noteService = noteService;
-    this.toolService = new ToolService(noteService);
+    this.toolService = new ToolService(noteService, workspaceRoot);
+    this.customFunctionsApi = new CustomFunctionsApi(workspaceRoot || process.cwd());
   }
 
   /**
@@ -104,12 +108,13 @@ export class AIService extends EventEmitter {
 
   static async of(
     secureStorage: SecureStorageService,
-    noteService: NoteService | null = null
+    noteService: NoteService | null = null,
+    workspaceRoot?: string
   ): Promise<AIService> {
     const openrouter = createOpenRouter({
       apiKey: (await secureStorage.getApiKey('openrouter')).key
     });
-    return new AIService(openrouter, noteService);
+    return new AIService(openrouter, noteService, workspaceRoot);
   }
 
   private switchModel(modelName: string): void {
@@ -225,8 +230,20 @@ ${nt.agentInstructions.map((instruction) => `- ${instruction}`).join('\n')}
       }
     }
 
-    console.log('System message generated:', contextualInfo + noteTypeInfo);
-    return this.systemPrompt + contextualInfo + noteTypeInfo;
+    // Add custom functions to system prompt
+    let customFunctionsInfo = '';
+    try {
+      customFunctionsInfo = await this.customFunctionsApi.getSystemPromptSection();
+    } catch (error) {
+      logger.warn('Failed to load custom functions for system message:', { error });
+      // Continue without custom functions info if loading fails
+    }
+
+    console.log(
+      'System message generated:',
+      contextualInfo + noteTypeInfo + customFunctionsInfo
+    );
+    return this.systemPrompt + contextualInfo + noteTypeInfo + customFunctionsInfo;
   }
 
   private async getSystemMessageWithCaching(): Promise<ModelMessage> {
