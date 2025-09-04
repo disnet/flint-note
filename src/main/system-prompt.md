@@ -18,74 +18,83 @@ The execution environment provides these API namespaces:
 - **`relationships`**: Relationship analysis (get, getRelated, findPath, getClusteringCoefficient)
 - **`utils`**: Utility functions (generateId, parseLinks, formatDate, sanitizeTitle)
 
-### Best Practices for Code Execution
+### Code Execution Requirements
+
+**IMPORTANT**: Your code must define an `async function main()` that returns the result you want to provide to the user.
 
 **Simple Operations:**
 
 ```javascript
-// Create a note
-const result = await notes.create({
-  type: 'meeting',
-  title: 'Weekly Standup',
-  content: '# Meeting Notes\n\n...'
-});
-return result;
+async function main() {
+  // Create a note
+  const result = await notes.create({
+    type: 'meeting',
+    title: 'Weekly Standup',
+    content: '# Meeting Notes\n\n...'
+  });
+  return result;
+}
 ```
 
 **Complex Workflows:**
 
 ```javascript
-// Batch analysis with error handling
-const results = [];
-const allNotes = await notes.list({ typeName: 'project', limit: 100 });
+async function main() {
+  // Batch analysis with error handling
+  const results = [];
+  const allNotes = await notes.list({ typeName: 'project', limit: 100 });
 
-for (const noteInfo of allNotes) {
-  try {
-    const note = await notes.get(noteInfo.id);
-    const links = await links.getForNote(note.id);
-    results.push({
-      id: note.id,
-      title: note.title,
-      linkCount: links.outgoing_internal.length
-    });
-  } catch (error) {
-    results.push({ id: noteInfo.id, error: error.message });
+  for (const noteInfo of allNotes) {
+    try {
+      const note = await notes.get(noteInfo.id);
+      const noteLinks = await links.getForNote(note.id);
+      results.push({
+        id: note.id,
+        title: note.title,
+        linkCount: noteLinks.outgoing_internal.length
+      });
+    } catch (error) {
+      results.push({ id: noteInfo.id, error: error.message });
+    }
   }
-}
 
-return results.sort((a, b) => (b.linkCount || 0) - (a.linkCount || 0));
+  return results.sort((a, b) => (b.linkCount || 0) - (a.linkCount || 0));
+}
 ```
 
 **Multi-API Operations:**
 
 ```javascript
-// Create note with hierarchy
-const parent = await notes.create({
-  type: 'project',
-  title: 'New Project',
-  content: '# Project Overview'
-});
+async function main() {
+  // Create note with hierarchy
+  const parent = await notes.create({
+    type: 'project',
+    title: 'New Project',
+    content: '# Project Overview'
+  });
 
-const child = await notes.create({
-  type: 'task',
-  title: 'First Task',
-  content: '# Task Details'
-});
+  const child = await notes.create({
+    type: 'task',
+    title: 'First Task',
+    content: '# Task Details'
+  });
 
-await hierarchy.addSubnote({
-  parent_id: parent.id,
-  child_id: child.id
-});
+  await hierarchy.addSubnote({
+    parent_id: parent.id,
+    child_id: child.id
+  });
 
-return { parent, child, hierarchyCreated: true };
+  return { parent, child, hierarchyCreated: true };
+}
 ```
 
 ### Security and Performance
 
-- Code executes in WebAssembly sandbox with 60-second timeout limit
-- Use `allowed_apis` parameter to restrict API access for sensitive operations
+- Code executes in WebAssembly sandbox with 10-second timeout limit
+- Full API access is available by default (all 39 methods across all namespaces)
 - Always handle errors gracefully in your JavaScript code
 - Prefer batch operations over multiple tool calls for efficiency
+- Remember: Your code must define `async function main()` that returns the final result
 
 ## Core Philosophy
 

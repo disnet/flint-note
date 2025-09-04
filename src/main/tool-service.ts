@@ -52,38 +52,15 @@ export class ToolService {
 
   private evaluateNoteCodeTool = tool({
     description:
-      'Execute JavaScript code in secure WebAssembly sandbox with access to FlintNote API. This replaces 32+ discrete tools with a single programmable interface allowing complex operations, data analysis, and custom workflows.',
+      'Execute JavaScript code in secure WebAssembly sandbox with access to FlintNote API. This replaces 32+ discrete tools with a single programmable interface allowing complex operations, data analysis, and custom workflows. Your code must define an async function called main() that returns the result.',
     inputSchema: z.object({
       code: z
         .string()
         .describe(
-          'JavaScript code to execute in the sandbox. Has access to notes, noteTypes, vaults, links, hierarchy, relationships, and utils APIs.'
-        ),
-      vault_id: z
-        .string()
-        .nullable()
-        .optional()
-        .describe(
-          'Optional vault ID to operate on. If not provided, uses current vault.'
-        ),
-      timeout: z
-        .number()
-        .optional()
-        .describe(
-          'Maximum execution time in milliseconds (default: 10000ms, max: 60000ms)'
-        ),
-      allowed_apis: z
-        .array(z.string())
-        .optional()
-        .describe(
-          'Whitelisted API methods (e.g., ["notes.get", "notes.list"]). If not provided, allows all APIs.'
-        ),
-      context: z
-        .record(z.string(), z.unknown())
-        .optional()
-        .describe('Optional context variables to inject into execution environment')
+          'JavaScript code to execute in the sandbox. Must define `async function main() { return result; }`. Has access to notes, noteTypes, vaults, links, hierarchy, relationships, and utils APIs.'
+        )
     }),
-    execute: async ({ code, vault_id, timeout, allowed_apis, context }) => {
+    execute: async ({ code }) => {
       try {
         if (!this.wasmEvaluator) {
           return {
@@ -93,17 +70,12 @@ export class ToolService {
           } as ToolResponse;
         }
 
-        const resolvedVaultId = await this.resolveVaultId(vault_id);
-
-        // Enforce timeout limits
-        const finalTimeout = Math.min(timeout || 10000, 60000);
+        const resolvedVaultId = await this.resolveVaultId();
 
         const result = await this.wasmEvaluator.evaluate({
           code,
           vaultId: resolvedVaultId,
-          timeout: finalTimeout,
-          allowedAPIs: allowed_apis,
-          context
+          timeout: 10000
         });
 
         if (result.success) {
