@@ -35,32 +35,32 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
         code: `
           async function main() {
             // Create a note
-            const createResult = await notes.create(JSON.stringify({
+            const createResult = await notes.create({
               type: 'general',
               title: 'WASM Test Note',
               content: 'This is a test note created via WASM API',
               metadata: { priority: 'high', tags: ['test', 'wasm'] }
-            }));
+            });
 
             // Get the created note
             const getResult = await notes.get(createResult.id);
             
             // Update the note
-            const updateResult = await notes.update(JSON.stringify({
+            const updateResult = await notes.update({
               identifier: createResult.id,
               content: 'Updated content via WASM API',
               contentHash: getResult.content_hash,
               metadata: { priority: 'medium', tags: ['test', 'wasm', 'updated'] }
-            }));
+            });
 
             // List notes to verify existence
-            const listResult = await notes.list(JSON.stringify({ limit: 10 }));
+            const listResult = await notes.list({ limit: 10 });
 
             // Delete the note
-            const deleteResult = await notes.delete(JSON.stringify({
+            const deleteResult = await notes.delete({
               identifier: createResult.id,
               confirm: true
-            }));
+            });
 
             return {
               created: createResult.title,
@@ -95,40 +95,40 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
         code: `
           async function main() {
             // Create a note
-            const createResult = await notes.create(JSON.stringify({
+            const createResult = await notes.create({
               type: 'general',
               title: 'Original Name',
               content: 'Test content for rename/move operations'
-            }));
+            });
 
             // Get content hash
             const getResult = await notes.get(createResult.id);
 
             // Rename the note
-            const renameResult = await notes.rename(JSON.stringify({
+            const renameResult = await notes.rename({
               identifier: createResult.id,
               new_title: 'Renamed Note',
               content_hash: getResult.content_hash
-            }));
+            });
 
             // Move to different type (if meeting type exists)
             let moveResult = null;
             try {
-              moveResult = await notes.move(JSON.stringify({
+              moveResult = await notes.move({
                 identifier: renameResult.new_id || createResult.id,
                 new_type: 'meeting',
                 content_hash: getResult.content_hash
-              }));
+              });
             } catch (error) {
               // Meeting type may not exist, that's ok
               moveResult = { success: false, error: error.message };
             }
 
             // Clean up
-            await notes.delete(JSON.stringify({
+            await notes.delete({
               identifier: moveResult && moveResult.new_id ? moveResult.new_id : (renameResult.new_id || createResult.id),
               confirm: true
-            }));
+            });
 
             return {
               renamed: renameResult.success,
@@ -160,10 +160,10 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
             try {
               // Test search functionality by searching for existing general notes
               // Rather than creating new notes and expecting immediate indexing
-              const searchResults = await notes.search(JSON.stringify({
+              const searchResults = await notes.search({
                 query: 'general',
                 limit: 10
-              }));
+              });
 
               return {
                 success: true,
@@ -271,14 +271,14 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
             // Create a new vault
             let createResult = null;
             try {
-              createResult = await vaults.create(JSON.stringify({
+              createResult = await vaults.create({
                 id: 'wasm-test-vault',
                 name: 'WASM Test Vault',
                 path: '/tmp/wasm-test-vault',
                 description: 'Test vault created via WASM API',
                 initialize: true,
                 switch_to: false
-              }));
+              });
             } catch (error) {
               createResult = { error: error.message };
             }
@@ -287,11 +287,11 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
             let updateResult = null;
             if (createResult && !createResult.error) {
               try {
-                await vaults.update(JSON.stringify({
+                await vaults.update({
                   id: 'wasm-test-vault',
                   name: 'Updated WASM Test Vault',
                   description: 'Updated description via WASM'
-                }));
+                });
                 updateResult = { success: true };
               } catch (error) {
                 updateResult = { error: error.message };
@@ -395,28 +395,28 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
               const noteTypesList = await noteTypes.list();
 
               // Create a simple note
-              const note = await notes.create(JSON.stringify({
+              const note = await notes.create({
                 type: 'general',
                 title: 'Multi-API Workflow Test',
                 content: 'This note tests complex workflows'
-              }));
+              });
 
               // Get and update the note
               const retrievedNote = await notes.get(note.id);
-              await notes.update(JSON.stringify({
+              await notes.update({
                 identifier: note.id,
                 content: 'Updated content with [[test-link]] and more text',
                 contentHash: retrievedNote.content_hash
-              }));
+              });
 
               // Get final state
               const finalNote = await notes.get(note.id);
 
               // Clean up
-              await notes.delete(JSON.stringify({
+              await notes.delete({
                 identifier: note.id,
                 confirm: true
-              }));
+              });
 
               return {
                 success: true,
@@ -470,11 +470,11 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
             const createPromises = [];
             for (let i = 0; i < 3; i++) {
               createPromises.push(
-                notes.create(JSON.stringify({
+                notes.create({
                   type: 'general',
                   title: \`Concurrent Note \${i + 1}\`,
                   content: \`Content for concurrent note \${i + 1}\`
-                }))
+                })
               );
             }
 
@@ -486,10 +486,10 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
 
             // Delete all notes concurrently
             const deletePromises = createdNotes.map(note => 
-              notes.delete(JSON.stringify({
+              notes.delete({
                 identifier: note.id,
                 confirm: true
-              }))
+              })
             );
             const deleteResults = await Promise.all(deletePromises);
 

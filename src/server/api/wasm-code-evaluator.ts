@@ -615,8 +615,7 @@ export class WASMCodeEvaluator {
     // notes.create
     if (isApiAllowed('notes.create')) {
       const notesCreateFn = vm.newFunction('create', (optionsArg) => {
-        const optionsStr = vm.getString(optionsArg);
-        const options = JSON.parse(optionsStr);
+        const options = vm.dump(optionsArg) as any;
         const hostPromise = this.noteApi.createNote({
           type: options.type,
           title: options.title,
@@ -636,8 +635,7 @@ export class WASMCodeEvaluator {
     // notes.update
     if (isApiAllowed('notes.update')) {
       const notesUpdateFn = vm.newFunction('update', (optionsArg) => {
-        const optionsStr = vm.getString(optionsArg);
-        const options = JSON.parse(optionsStr);
+        const options = vm.dump(optionsArg) as any;
         const hostPromise = this.noteApi.updateNote({
           identifier: options.identifier,
           content: options.content,
@@ -657,8 +655,7 @@ export class WASMCodeEvaluator {
     // notes.delete
     if (isApiAllowed('notes.delete')) {
       const notesDeleteFn = vm.newFunction('delete', (optionsArg) => {
-        const optionsStr = vm.getString(optionsArg);
-        const options = JSON.parse(optionsStr);
+        const options = vm.dump(optionsArg) as any;
         const hostPromise = this.noteApi.deleteNote({
           identifier: options.identifier,
           confirm: options.confirm,
@@ -676,11 +673,8 @@ export class WASMCodeEvaluator {
     // notes.list
     if (isApiAllowed('notes.list')) {
       const notesListFn = vm.newFunction('list', (optionsArg) => {
-        let optionsStr = '{}';
-        if (optionsArg && vm.typeof(optionsArg) === 'string') {
-          optionsStr = vm.getString(optionsArg);
-        }
-        const options = JSON.parse(optionsStr);
+        // Handle optional parameter - default to empty object if not provided
+        const options = optionsArg ? vm.dump(optionsArg) as any : {};
         const hostPromise = this.noteApi.listNotes({
           typeName: options.typeName,
           limit: options.limit,
@@ -698,8 +692,7 @@ export class WASMCodeEvaluator {
     // notes.rename
     if (isApiAllowed('notes.rename')) {
       const notesRenameFn = vm.newFunction('rename', (optionsArg) => {
-        const optionsStr = vm.getString(optionsArg);
-        const options = JSON.parse(optionsStr);
+        const options = vm.dump(optionsArg) as any;
         const hostPromise = this.noteApi.renameNote({
           identifier: options.identifier,
           new_title: options.new_title,
@@ -718,8 +711,7 @@ export class WASMCodeEvaluator {
     // notes.move
     if (isApiAllowed('notes.move')) {
       const notesMoveFn = vm.newFunction('move', (optionsArg) => {
-        const optionsStr = vm.getString(optionsArg);
-        const options = JSON.parse(optionsStr);
+        const options = vm.dump(optionsArg) as any;
         const hostPromise = this.noteApi.moveNote({
           identifier: options.identifier,
           new_type: options.new_type,
@@ -738,8 +730,7 @@ export class WASMCodeEvaluator {
     // notes.search
     if (isApiAllowed('notes.search')) {
       const notesSearchFn = vm.newFunction('search', (optionsArg) => {
-        const optionsStr = vm.getString(optionsArg);
-        const options = JSON.parse(optionsStr);
+        const options = vm.dump(optionsArg) as any;
         const hostPromise = this.noteApi.searchNotesByText({
           query: options.query,
           typeFilter: options.typeFilter,
@@ -764,8 +755,7 @@ export class WASMCodeEvaluator {
     // noteTypes.create
     if (isApiAllowed('noteTypes.create')) {
       const noteTypesCreateFn = vm.newFunction('create', (optionsArg) => {
-        const optionsStr = vm.getString(optionsArg);
-        const options = JSON.parse(optionsStr);
+        const options = vm.dump(optionsArg) as any;
         const hostPromise = this.noteApi.createNoteType({
           type_name: options.type_name,
           description: options.description,
@@ -815,8 +805,7 @@ export class WASMCodeEvaluator {
     // noteTypes.update
     if (isApiAllowed('noteTypes.update')) {
       const noteTypesUpdateFn = vm.newFunction('update', (optionsArg) => {
-        const optionsStr = vm.getString(optionsArg);
-        const options = JSON.parse(optionsStr);
+        const options = vm.dump(optionsArg) as any;
         const hostPromise = this.noteApi.updateNoteType({
           type_name: options.type_name,
           description: options.description,
@@ -836,8 +825,7 @@ export class WASMCodeEvaluator {
     // noteTypes.delete
     if (isApiAllowed('noteTypes.delete')) {
       const noteTypesDeleteFn = vm.newFunction('delete', (optionsArg) => {
-        const optionsStr = vm.getString(optionsArg);
-        const options = JSON.parse(optionsStr);
+        const options = vm.dump(optionsArg) as any;
         const hostPromise = this.noteApi.deleteNoteType({
           type_name: options.type_name,
           action: options.action,
@@ -889,8 +877,7 @@ export class WASMCodeEvaluator {
     // vaults.create
     if (isApiAllowed('vaults.create')) {
       const vaultsCreateFn = vm.newFunction('create', (optionsArg) => {
-        const optionsStr = vm.getString(optionsArg);
-        const options = JSON.parse(optionsStr);
+        const options = vm.dump(optionsArg) as any;
         const hostPromise = this.noteApi.createVault({
           id: options.id,
           name: options.name,
@@ -925,8 +912,7 @@ export class WASMCodeEvaluator {
     // vaults.update
     if (isApiAllowed('vaults.update')) {
       const vaultsUpdateFn = vm.newFunction('update', (optionsArg) => {
-        const optionsStr = vm.getString(optionsArg);
-        const options = JSON.parse(optionsStr);
+        const options = vm.dump(optionsArg) as any;
         const hostPromise = this.noteApi.updateVault({
           id: options.id,
           name: options.name,
