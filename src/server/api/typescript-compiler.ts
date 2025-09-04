@@ -95,7 +95,8 @@ export class TypeScriptCompiler {
         readFile: (fileName) => files.get(fileName),
         getCanonicalFileName: (fileName) => fileName,
         useCaseSensitiveFileNames: () => true,
-        getNewLine: () => '\n'
+        getNewLine: () => '\n',
+        getDefaultLibFileName: (options) => ts.getDefaultLibFileName(options)
       };
 
       const program = ts.createProgram(
@@ -138,47 +139,6 @@ export class TypeScriptCompiler {
         compiledJavaScript: undefined
       };
     }
-  }
-
-  private createVirtualCompilerHost(sourceCode: string): ts.CompilerHost {
-    const host = ts.createCompilerHost(this.compilerOptions);
-
-    const originalGetSourceFile = host.getSourceFile;
-    host.getSourceFile = (fileName, languageVersion) => {
-      if (fileName === 'user-code.ts') {
-        return ts.createSourceFile(fileName, sourceCode, languageVersion, true);
-      }
-
-      if (this.typeDefinitions.has(fileName)) {
-        const typeDefContent = this.typeDefinitions.get(fileName)!;
-        return ts.createSourceFile(fileName, typeDefContent, languageVersion, true);
-      }
-
-      return originalGetSourceFile.call(host, fileName, languageVersion);
-    };
-
-    const originalFileExists = host.fileExists;
-    host.fileExists = (fileName) => {
-      if (fileName === 'user-code.ts' || this.typeDefinitions.has(fileName)) {
-        return true;
-      }
-      return originalFileExists.call(host, fileName);
-    };
-
-    const originalReadFile = host.readFile;
-    host.readFile = (fileName) => {
-      if (fileName === 'user-code.ts') {
-        return sourceCode;
-      }
-
-      if (this.typeDefinitions.has(fileName)) {
-        return this.typeDefinitions.get(fileName);
-      }
-
-      return originalReadFile.call(host, fileName);
-    };
-
-    return host;
   }
 
   private prepareSourceWithTypeDefinitions(sourceCode: string): string {
@@ -679,13 +639,6 @@ declare const utils: FlintAPI.UtilsAPI;
 
       return formattedDiagnostic;
     });
-  }
-
-  private formatDiagnostics(
-    diagnostics: ts.Diagnostic[],
-    sourceCode: string
-  ): TypeScriptDiagnostic[] {
-    return this.formatDiagnosticsFromTranspile(diagnostics, sourceCode);
   }
 
   private mapDiagnosticCategory(
