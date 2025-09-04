@@ -30,16 +30,18 @@ The current implementation provides:
 
 ### Core Enhancement Concept
 
-Replace the existing JavaScript-only `evaluate_note_code` tool with TypeScript-only execution that performs strict compile-time type checking, provides detailed error feedback, and executes the compiled JavaScript in the existing WASM sandbox.
+Replace the existing JavaScript-only `evaluate_note_code` tool with **TypeScript-only execution** that enforces strict compile-time type checking, rejects plain JavaScript code, provides detailed error feedback, and executes the compiled JavaScript in the existing WASM sandbox. 
+
+**Key Change**: The tool will no longer accept JavaScript code - all submissions must be valid TypeScript with proper type annotations to pass compilation.
 
 ### Enhanced API Interface
 
 ```typescript
 interface EnhancedWASMCodeEvaluationTool {
   name: 'evaluate_note_code';
-  description: 'Execute TypeScript code in secure WebAssembly sandbox with strict type checking';
+  description: 'Execute ONLY TypeScript code in secure WebAssembly sandbox with strict type checking. JavaScript code will be rejected.';
   inputSchema: {
-    code: string; // TypeScript code
+    code: string; // REQUIRED: Valid TypeScript code with proper type annotations - JavaScript will fail compilation
     timeout?: number; // Execution timeout (default: 5000ms)
     memoryLimit?: number; // Memory limit (default: 128MB)
     allowedAPIs?: string[]; // API whitelist
@@ -162,14 +164,17 @@ export class ToolService {
   private evaluateNoteCodeTool = tool({
     description:
       'Execute TypeScript code in secure WebAssembly sandbox with access to FlintNote API. ' +
+      'IMPORTANT: Only TypeScript code is accepted - JavaScript will be rejected with compilation errors. ' +
       'Provides strict compile-time type checking and comprehensive API type safety. ' +
-      'Your code must define an async function called main() that returns the result.',
+      'Your code must define an async function called main() that returns the result. ' +
+      'All code is strictly type-checked before execution.',
     inputSchema: z.object({
       code: z
         .string()
         .describe(
-          'TypeScript code to execute in the sandbox with strict type checking. Must define `async function main() { return result; }`. ' +
-            'Has access to typed APIs: notes, noteTypes, vaults, links, hierarchy, relationships, and utils.'
+          'REQUIRED: TypeScript code only - JavaScript will fail compilation. Must define `async function main() { return result; }`. ' +
+            'Code undergoes strict type checking before execution. Has access to fully-typed APIs: notes, noteTypes, vaults, links, hierarchy, relationships, and utils. ' +
+            'Use proper TypeScript syntax including type annotations, null checks, and type-safe API calls.'
         ),
       typesOnly: z
         .boolean()
@@ -264,31 +269,69 @@ export class ToolService {
 }
 ```
 
+### Updated Agent System Prompt
+
+With TypeScript-only evaluation, the system prompt should clearly communicate the TypeScript requirement:
+
+```
+IMPORTANT: The evaluate_note_code tool now REQUIRES TypeScript code. JavaScript code will be rejected with compilation errors. 
+
+When using the evaluate_note_code tool:
+- Write TypeScript code with proper type annotations
+- Use strict type checking patterns (null checks, type guards)
+- Leverage the fully-typed FlintNote API interfaces
+- Define your main function as: async function main(): Promise<YourReturnType> { ... }
+- All variables, parameters, and return types should be properly typed
+
+The evaluator will perform strict compile-time type checking before execution. Type errors must be resolved before code can run.
+```
+
 ### Agent Experience with Enhanced Tool
 
-**TypeScript Code with Strict Checking:**
+**JavaScript Code Rejected (TypeScript Required):**
 
 ```typescript
-// Agent sends TypeScript code - strict checking always enabled
+// Agent mistakenly sends JavaScript code
 {
-  "code": "async function main() {\n  const note = await notes.get('invalid-id');\n  return note.title; // TypeScript will catch potential null access\n}"
+  "code": "async function main() {\n  const note = await notes.get('invalid-id');\n  return note.title;\n}"
 }
 
-// Response includes compilation feedback:
+// Response rejects JavaScript, requires TypeScript:
 {
   "success": false,
   "compilation": {
     "success": false,
     "errors": [{
-      "code": 2531,
-      "message": "Object is possibly 'null'",
-      "line": 3,
+      "code": 7006,
+      "message": "Parameter 'main' implicitly has an 'any' type",
+      "line": 1,
       "column": 15,
-      "source": "return note.title;",
-      "suggestion": "Add null check: if (note) { return note.title; }"
+      "source": "async function main() {",
+      "suggestion": "Add explicit return type: async function main(): Promise<string> {"
     }]
   },
-  "message": "TypeScript Error [2531]: Object is possibly 'null'\n  At line 3, column 15\n  Source: return note.title;\n  Suggestion: Add null check: if (note) { return note.title; }"
+  "message": "TypeScript Error [7006]: Code must use TypeScript syntax with explicit types"
+}
+```
+
+**Proper TypeScript Code with Strict Checking:**
+
+```typescript
+// Agent sends properly typed TypeScript code
+{
+  "code": "async function main(): Promise<string | null> {\n  const note = await notes.get('invalid-id');\n  return note?.title || null; // Proper null handling\n}"
+}
+
+// Response shows successful compilation and execution:
+{
+  "success": true,
+  "data": { "result": null },
+  "compilation": {
+    "success": true,
+    "errors": [],
+    "warnings": []
+  },
+  "message": "Code executed successfully in 45ms"
 }
 ```
 
