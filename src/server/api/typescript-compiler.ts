@@ -58,7 +58,12 @@ interface PromiseConstructor {
   new <T>(executor: (resolve: (value: T | PromiseLike<T>) => void, reject: (reason?: any) => void) => void): Promise<T>;
 }
 declare var Promise: PromiseConstructor;
-type PromiseLike<T> = { then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): PromiseLike<TResult1 | TResult2>; };
+interface PromiseLike<T> {
+  then<TResult1 = T, TResult2 = never>(
+    onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null,
+    onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null
+  ): PromiseLike<TResult1 | TResult2>;
+}
 
 interface Array<T> {
   filter<S extends T>(predicate: (value: T, index: number, array: T[]) => value is S, thisArg?: any): S[];
@@ -67,6 +72,20 @@ interface Array<T> {
   length: number;
   [n: number]: T;
 }
+
+interface Error {
+  name: string;
+  message: string;
+  stack?: string;
+}
+interface ErrorConstructor {
+  new(message?: string): Error;
+  (message?: string): Error;
+  readonly prototype: Error;
+}
+declare var Error: ErrorConstructor;
+
+declare function String(value?: any): string;
 
 ${FLINT_API_TYPE_DEFINITIONS}
 `;
