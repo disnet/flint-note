@@ -30,7 +30,7 @@ The current implementation provides:
 
 ### Core Enhancement Concept
 
-Replace the existing JavaScript-only `evaluate_note_code` tool with **TypeScript-only execution** that enforces strict compile-time type checking, rejects plain JavaScript code, provides detailed error feedback, and executes the compiled JavaScript in the existing WASM sandbox. 
+Replace the existing JavaScript-only `evaluate_note_code` tool with **TypeScript-only execution** that enforces strict compile-time type checking, rejects plain JavaScript code, provides detailed error feedback, and executes the compiled JavaScript in the existing WASM sandbox.
 
 **Key Change**: The tool will no longer accept JavaScript code - all submissions must be valid TypeScript with proper type annotations to pass compilation.
 
@@ -274,7 +274,7 @@ export class ToolService {
 With TypeScript-only evaluation, the system prompt should clearly communicate the TypeScript requirement:
 
 ```
-IMPORTANT: The evaluate_note_code tool now REQUIRES TypeScript code. JavaScript code will be rejected with compilation errors. 
+IMPORTANT: The evaluate_note_code tool now REQUIRES TypeScript code. JavaScript code will be rejected with compilation errors.
 
 When using the evaluate_note_code tool:
 - Write TypeScript code with proper type annotations

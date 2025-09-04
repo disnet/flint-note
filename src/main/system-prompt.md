@@ -20,357 +20,89 @@ The execution environment provides these fully-typed API namespaces:
 
 ### Complete API Type Declarations
 
+The FlintNote API provides comprehensive TypeScript definitions. Here are the key types you'll work with:
+
 ```typescript
-// Core Types
-interface Note {
-  id: string;
-  title: string;
-  content: string;
-  metadata: Record<string, any>;
-  content_hash: string;
-  links: any[];
-  type: string;
-  created: string;
-  updated: string;
-  size: number;
-  tags: string[];
-  path: string;
-}
+// Core data types
+type Note = FlintAPI.Note; // Full note object with content
+type NoteInfo = FlintAPI.NoteInfo; // Note metadata without content
+type CreateNoteResult = FlintAPI.CreateNoteResult;
+type UpdateNoteResult = FlintAPI.UpdateNoteResult;
+type SearchResult = FlintAPI.SearchResult;
+type Vault = FlintAPI.Vault;
+type LinkInfo = FlintAPI.LinkInfo;
 
-interface NoteInfo {
-  id: string;
-  title: string;
-  type: string;
-  created: string;
-  updated: string;
-  size: number;
-  tags: string[];
-  path: string;
-}
-
-interface CreateNoteResult {
-  id: string;
-  type: string;
-  title: string;
-  filename: string;
-  path: string;
-  created: string;
-}
-
-interface UpdateNoteResult {
-  id: string;
-  updated: string;
-  content_hash: string;
-}
-
-interface DeleteNoteResult {
-  id: string;
-  deleted: boolean;
-}
-
-interface RenameNoteResult {
-  id: string;
-  old_title: string;
-  new_title: string;
-  old_path: string;
-  new_path: string;
-}
-
-interface MoveNoteResult {
-  id: string;
-  old_path: string;
-  new_path: string;
-}
-
-interface SearchResult {
-  id: string;
-  title: string;
-  type: string;
-  path: string;
-  score: number;
-  matches: {
-    field: string;
-    value: string;
-    highlight: string;
-  }[];
-}
-
-// Notes API
-declare const notes: {
-  create(options: {
-    type: string;
-    title: string;
-    content: string;
-    metadata?: Record<string, any>;
-  }): Promise<CreateNoteResult>;
-  
-  get(identifier: string): Promise<Note | null>;
-  
-  update(options: {
-    identifier: string;
-    content?: string;
-    contentHash?: string;
-    metadata?: Record<string, any>;
-  }): Promise<UpdateNoteResult>;
-  
-  delete(options: {
-    identifier: string;
-    contentHash?: string;
-  }): Promise<DeleteNoteResult>;
-  
-  list(options?: {
-    typeName?: string;
-    limit?: number;
-    offset?: number;
-    sortBy?: 'created' | 'updated' | 'title';
-    sortOrder?: 'asc' | 'desc';
-  }): Promise<NoteInfo[]>;
-  
-  rename(options: {
-    identifier: string;
-    newTitle: string;
-    contentHash?: string;
-  }): Promise<RenameNoteResult>;
-  
-  move(options: {
-    identifier: string;
-    newPath: string;
-    contentHash?: string;
-  }): Promise<MoveNoteResult>;
-  
-  search(options: {
-    query: string;
-    types?: string[];
-    limit?: number;
-    offset?: number;
-  }): Promise<SearchResult[]>;
-};
-
-// Note Types API
-interface NoteType {
-  name: string;
-  description?: string;
-  agent_instructions?: string;
-  template?: string;
-  created: string;
-  updated: string;
-}
-
-interface NoteTypeInfo {
-  name: string;
-  description?: string;
-  created: string;
-  updated: string;
-  note_count: number;
-}
-
-interface CreateNoteTypeResult {
-  name: string;
-  created: string;
-}
-
-interface UpdateNoteTypeResult {
-  name: string;
-  updated: string;
-}
-
-interface DeleteNoteTypeResult {
-  name: string;
-  deleted: boolean;
-  notes_affected: number;
-}
-
-declare const noteTypes: {
-  create(options: {
-    name: string;
-    description?: string;
-    agent_instructions?: string;
-    template?: string;
-  }): Promise<CreateNoteTypeResult>;
-  
-  list(): Promise<NoteTypeInfo[]>;
-  
-  get(typeName: string): Promise<NoteType>;
-  
-  update(options: {
-    name: string;
-    description?: string;
-    agent_instructions?: string;
-    template?: string;
-  }): Promise<UpdateNoteTypeResult>;
-  
-  delete(options: {
-    name: string;
-    deleteNotes?: boolean;
-  }): Promise<DeleteNoteTypeResult>;
-};
-
-// Vaults API
-interface Vault {
-  id: string;
-  name: string;
-  path: string;
-  created: string;
-  updated: string;
-  is_current: boolean;
-}
-
-declare const vaults: {
-  getCurrent(): Promise<Vault | null>;
-  list(): Promise<Vault[]>;
-  create(options: { name: string; path: string }): Promise<Vault>;
-  switch(vaultId: string): Promise<void>;
-  update(options: { id: string; name?: string }): Promise<void>;
-  remove(vaultId: string): Promise<void>;
-};
-
-// Links API
-interface LinkInfo {
-  outgoing_internal: Array<{
-    target_id: string;
-    target_title: string;
-    target_type: string;
-    link_text: string;
-    context: string;
-  }>;
-  outgoing_external: Array<{
-    url: string;
-    link_text: string;
-    context: string;
-  }>;
-  incoming: Array<{
-    source_id: string;
-    source_title: string;
-    source_type: string;
-    link_text: string;
-    context: string;
-  }>;
-}
-
-declare const links: {
-  getForNote(noteId: string): Promise<LinkInfo>;
-  getBacklinks(noteId: string): Promise<Array<{
-    source_id: string;
-    source_title: string;
-    source_type: string;
-    link_text: string;
-    context: string;
-  }>>;
-  findBroken(): Promise<Array<{
-    source_id: string;
-    source_title: string;
-    target_reference: string;
-    link_text: string;
-    context: string;
-  }>>;
-  searchBy(options: { text?: string; url?: string }): Promise<Array<{
-    source_id: string;
-    source_title: string;
-    target_reference: string;
-    link_text: string;
-    context: string;
-  }>>;
-  migrate(options: {
-    oldReference: string;
-    newReference: string;
-  }): Promise<{ updated_notes: number }>;
-};
-
-// Hierarchy API
-declare const hierarchy: {
-  addSubnote(options: {
-    parent_id: string;
-    child_id: string;
-    order?: number;
-  }): Promise<void>;
-  
-  removeSubnote(options: {
-    parent_id: string;
-    child_id: string;
-  }): Promise<void>;
-  
-  reorder(options: {
-    parent_id: string;
-    child_orders: Array<{ child_id: string; order: number }>;
-  }): Promise<void>;
-  
-  getPath(noteId: string): Promise<Array<{
-    id: string;
-    title: string;
-    type: string;
-  }>>;
-  
-  getDescendants(noteId: string): Promise<Array<{
-    id: string;
-    title: string;
-    type: string;
-    depth: number;
-    order: number;
-  }>>;
-  
-  getChildren(noteId: string): Promise<Array<{
-    id: string;
-    title: string;
-    type: string;
-    order: number;
-  }>>;
-  
-  getParents(noteId: string): Promise<Array<{
-    id: string;
-    title: string;
-    type: string;
-  }>>;
-};
-
-// Relationships API
-declare const relationships: {
-  get(noteId: string): Promise<{
-    direct_connections: number;
-    total_reachable: number;
-    clustering_coefficient: number;
-    related_notes: Array<{
-      id: string;
-      title: string;
-      type: string;
-      connection_strength: number;
-      connection_types: string[];
-    }>;
-  }>;
-  
-  getRelated(noteId: string, options?: {
-    limit?: number;
-    min_strength?: number;
-  }): Promise<Array<{
-    id: string;
-    title: string;
-    type: string;
-    connection_strength: number;
-    connection_types: string[];
-  }>>;
-  
-  findPath(fromId: string, toId: string): Promise<Array<{
-    id: string;
-    title: string;
-    type: string;
-  }> | null>;
-  
-  getClusteringCoefficient(noteId: string): Promise<number>;
-};
-
-// Utils API
-declare const utils: {
-  generateId(): string;
-  parseLinks(content: string): Array<{
-    type: 'internal' | 'external';
-    reference: string;
-    text: string;
-    start: number;
-    end: number;
-  }>;
-  formatDate(date: string | Date, format?: string): string;
-  sanitizeTitle(title: string): string;
-};
+// API namespace interfaces available globally
+declare const notes: FlintAPI.NotesAPI;
+declare const noteTypes: FlintAPI.NoteTypesAPI;
+declare const vaults: FlintAPI.VaultsAPI;
+declare const links: FlintAPI.LinksAPI;
+declare const hierarchy: FlintAPI.HierarchyAPI;
+declare const relationships: FlintAPI.RelationshipsAPI;
+declare const utils: FlintAPI.UtilsAPI;
 ```
+
+**Key API Operations:**
+
+**Notes API:**
+
+- `notes.create(options: { type: string; title: string; content: string; metadata?: Record<string, any> })` - Create new notes
+- `notes.get(identifier: string)` - Retrieve note by ID (returns `Note | null`)
+- `notes.update(options: { identifier: string; content?: string; contentHash?: string; metadata?: Record<string, any> })` - Update note content/metadata
+- `notes.delete(options: { identifier: string; contentHash?: string })` - Delete note (returns `DeleteNoteResult`)
+- `notes.list(options?: { typeName?: string; limit?: number; offset?: number; sortBy?: 'created' | 'updated' | 'title'; sortOrder?: 'asc' | 'desc' })` - List notes with optional filtering
+- `notes.rename(options: { identifier: string; newTitle: string; contentHash?: string })` - Rename note (returns `RenameNoteResult`)
+- `notes.move(options: { identifier: string; newPath: string; contentHash?: string })` - Move note (returns `MoveNoteResult`)
+- `notes.search(options: { query: string; types?: string[]; limit?: number; offset?: number })` - Search notes with query and filters
+
+**Note Types API:**
+
+- `noteTypes.create(options: { name: string; description?: string; agent_instructions?: string; template?: string })` - Define new note types with agent instructions
+- `noteTypes.list()` - Get all available note types (returns `NoteTypeInfo[]`)
+- `noteTypes.get(typeName: string)` - Get specific note type definition (returns `NoteType`)
+- `noteTypes.update(options: { name: string; description?: string; agent_instructions?: string; template?: string })` - Update note type (returns `UpdateNoteTypeResult`)
+- `noteTypes.delete(options: { name: string; deleteNotes?: boolean })` - Delete note type (returns `DeleteNoteTypeResult`)
+
+**Links API:**
+
+- `links.getForNote(noteId: string)` - Get all links from/to a note (returns `LinkInfo`)
+- `links.getBacklinks(noteId: string)` - Get notes linking to this note (returns array with `source_id`, `source_title`, `source_type`, `link_text`, `context`)
+- `links.findBroken()` - Find broken internal links (returns array with `source_id`, `source_title`, `target_reference`, `link_text`, `context`)
+- `links.searchBy(options: { text?: string; url?: string })` - Search links by text or URL
+- `links.migrate(options: { oldReference: string; newReference: string })` - Migrate link references (returns `{ updated_notes: number }`)
+
+**Hierarchy API:**
+
+- `hierarchy.addSubnote(options: { parent_id: string; child_id: string; order?: number })` - Create parent-child relationships
+- `hierarchy.removeSubnote(options: { parent_id: string; child_id: string })` - Remove parent-child relationships
+- `hierarchy.reorder(options: { parent_id: string; child_orders: Array<{ child_id: string; order: number }> })` - Reorder child notes
+- `hierarchy.getPath(noteId: string)` - Get hierarchical path to root (returns array with `id`, `title`, `type`)
+- `hierarchy.getDescendants(noteId: string)` - Get all descendants (returns array with `id`, `title`, `type`, `depth`, `order`)
+- `hierarchy.getChildren(noteId: string)` - Get direct children (returns array with `id`, `title`, `type`, `order`)
+- `hierarchy.getParents(noteId: string)` - Get direct parents (returns array with `id`, `title`, `type`)
+
+**Utils API:**
+
+- `utils.generateId()` - Generate unique note identifiers (returns `string`)
+- `utils.parseLinks(content: string)` - Extract links from note content (returns array with `type`, `reference`, `text`, `start`, `end`)
+- `utils.formatDate(date: string | Date, format?: string)` - Format dates (returns `string`)
+- `utils.sanitizeTitle(title: string)` - Clean titles for file system use (returns `string`)
+
+**Vaults API:**
+
+- `vaults.getCurrent()` - Get current vault (returns `Vault | null`)
+- `vaults.list()` - Get all vaults (returns `Vault[]`)
+- `vaults.create(options: { name: string; path: string })` - Create new vault (returns `Vault`)
+- `vaults.switch(vaultId: string)` - Switch to different vault
+- `vaults.update(options: { id: string; name?: string })` - Update vault
+- `vaults.remove(vaultId: string)` - Remove vault
+
+**Relationships API:**
+
+- `relationships.get(noteId: string)` - Get relationship analysis (returns object with `direct_connections`, `total_reachable`, `clustering_coefficient`, `related_notes`)
+- `relationships.getRelated(noteId: string, options?: { limit?: number; min_strength?: number })` - Get related notes with connection strength
+- `relationships.findPath(fromId: string, toId: string)` - Find connection path between notes (returns array or null)
+- `relationships.getClusteringCoefficient(noteId: string)` - Get clustering coefficient (returns `number`)
 
 ### Code Execution Requirements
 
@@ -379,6 +111,7 @@ declare const utils: {
 **IMPORTANT**: Your code must define a typed `async function main(): Promise<YourReturnType>` that returns the result for you to work with and interpret for the user.
 
 **TypeScript Requirements:**
+
 - Use explicit type annotations for all variables, parameters, and return types
 - Handle null/undefined values with proper type guards (e.g., `note?.title` or `if (note) { ... }`)
 - Leverage the fully-typed FlintNote API interfaces for compile-time safety
@@ -397,9 +130,9 @@ async function main(): Promise<CreateNoteResult | { error: string; stack?: strin
     });
     return result;
   } catch (error) {
-    return { 
+    return {
       error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined 
+      stack: error instanceof Error ? error.stack : undefined
     };
   }
 }
@@ -427,7 +160,7 @@ async function main(): Promise<AnalysisResult[]> {
         results.push({ id: noteInfo.id, error: 'Note not found' });
         continue;
       }
-      
+
       const noteLinks = await links.getForNote(note.id);
       results.push({
         id: note.id,
@@ -435,8 +168,8 @@ async function main(): Promise<AnalysisResult[]> {
         linkCount: noteLinks.outgoing_internal.length
       });
     } catch (error) {
-      results.push({ 
-        id: noteInfo.id, 
+      results.push({
+        id: noteInfo.id,
         error: error instanceof Error ? error.message : String(error)
       });
     }
@@ -482,9 +215,9 @@ async function main(): Promise<HierarchyResult | ErrorResult> {
 
     return { parent, child, hierarchyCreated: true };
   } catch (error) {
-    return { 
+    return {
       error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined 
+      stack: error instanceof Error ? error.stack : undefined
     };
   }
 }
