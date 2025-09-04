@@ -68,7 +68,7 @@ describe('WASMCodeEvaluator - Phase 1', () => {
       });
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('error');
+      expect(result.error).toContain('Syntax Error');
       expect(result.result).toBeUndefined();
     });
 
@@ -235,8 +235,8 @@ describe('WASMCodeEvaluator - Phase 1', () => {
             return typeof notes.get;
           }
         `,
-        vaultId: testVaultId
-        // No allowedAPIs specified, so notes.get should be null
+        vaultId: testVaultId,
+        allowedAPIs: [] // Explicitly empty allowed APIs to block access
       });
 
       expect(result.success).toBe(true);

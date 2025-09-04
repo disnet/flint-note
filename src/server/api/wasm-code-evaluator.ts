@@ -522,7 +522,7 @@ export interface WASMCodeEvaluationResult {
   result?: unknown;
   error?: string;
   errorDetails?: {
-    type: 'syntax' | 'runtime' | 'timeout' | 'api' | 'validation';
+    type: 'syntax' | 'runtime' | 'timeout' | 'api' | 'validation' | 'promise';
     message: string;
     suggestion?: string;
     context?: Record<string, unknown>;
@@ -751,11 +751,26 @@ export class WASMCodeEvaluator {
           }
           promiseState.error?.dispose();
           resultHandle.dispose();
+          // Determine if this is a user promise rejection or an API error
+          // User promise rejections from Promise.reject() or throw in async functions
+          // vs API call failures
+          const isUserPromiseRejection =
+            !errorMsg.includes('API call blocked') &&
+            !errorMsg.includes('not found') &&
+            !errorMsg.includes('hash') &&
+            !errorMsg.includes('permission') &&
+            !errorMsg.includes('unauthorized') &&
+            !errorMsg.includes('validation') &&
+            !errorMsg.includes('invalid');
+
+          const errorPrefix = isUserPromiseRejection ? 'Promise rejected:' : 'API Error:';
+          const errorType = isUserPromiseRejection ? 'promise' : 'api';
+
           return {
             success: false,
-            error: `API Error: ${errorMsg}`,
+            error: `${errorPrefix} ${errorMsg}`,
             errorDetails: {
-              type: 'api',
+              type: errorType,
               message: errorMsg,
               suggestion,
               context: { vaultId: options.vaultId, timeout },
