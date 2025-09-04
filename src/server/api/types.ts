@@ -372,3 +372,84 @@ export interface GetDescendantsArgs {
 export interface GetHierarchyGraphArgs {
   vault_id: string;
 }
+
+// ============================================================================
+// Custom Functions API Argument Types
+// ============================================================================
+
+export interface RegisterCustomFunctionArgs {
+  name: string;
+  description: string;
+  parameters: Record<
+    string,
+    {
+      type: string;
+      description?: string;
+      optional?: boolean;
+      default?: unknown;
+    }
+  >;
+  returnType: string;
+  code: string;
+  tags?: string[];
+  vault_id: string;
+}
+
+export interface UpdateCustomFunctionArgs {
+  id: string;
+  name?: string;
+  description?: string;
+  parameters?: Record<
+    string,
+    {
+      type: string;
+      description?: string;
+      optional?: boolean;
+      default?: unknown;
+    }
+  >;
+  returnType?: string;
+  code?: string;
+  tags?: string[];
+  vault_id: string;
+}
+
+export interface ListCustomFunctionsArgs {
+  tags?: string[];
+  searchQuery?: string;
+  vault_id: string;
+}
+
+export interface DeleteCustomFunctionArgs {
+  id: string;
+  vault_id: string;
+}
+
+export interface GetCustomFunctionArgs {
+  id?: string;
+  name?: string;
+  vault_id: string;
+}
+
+export interface ValidateCustomFunctionArgs {
+  name: string;
+  description: string;
+  parameters: Record<
+    string,
+    {
+      type: string;
+      description?: string;
+      optional?: boolean;
+      default?: unknown;
+    }
+  >;
+  returnType: string;
+  code: string;
+  tags?: string[];
+  vault_id: string;
+}
+
+export interface CustomFunctionExecutionStatsArgs {
+  functionId?: string;
+  vault_id: string;
+}

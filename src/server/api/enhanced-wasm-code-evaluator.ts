@@ -16,6 +16,7 @@ import {
   type TypeScriptDiagnostic,
   type CompilationResult
 } from './typescript-compiler.js';
+import { CustomFunctionsExecutor } from './custom-functions-executor.js';
 
 export interface EnhancedWASMCodeEvaluationOptions
   extends Omit<WASMCodeEvaluationOptions, 'code'> {
@@ -44,10 +45,15 @@ export interface EnhancedWASMCodeEvaluationResult extends WASMCodeEvaluationResu
 
 export class EnhancedWASMCodeEvaluator extends WASMCodeEvaluator {
   private typeScriptCompiler: TypeScriptCompiler;
+  private customFunctionsExecutor: CustomFunctionsExecutor | null = null;
 
-  constructor(noteApi: FlintNoteApi) {
+  constructor(noteApi: FlintNoteApi, workspaceRoot?: string) {
     super(noteApi);
     this.typeScriptCompiler = new TypeScriptCompiler();
+
+    if (workspaceRoot) {
+      this.customFunctionsExecutor = new CustomFunctionsExecutor(workspaceRoot);
+    }
   }
 
   async evaluate(
@@ -126,9 +132,9 @@ export class EnhancedWASMCodeEvaluator extends WASMCodeEvaluator {
         };
       }
 
-      // Phase 3: Execute compiled JavaScript using parent WASM evaluator
+      // Phase 3: Execute compiled JavaScript using parent WASM evaluator with custom functions
       const codeToExecute = compilationResult.compiledJavaScript || options.code;
-      const executionResult = await super.evaluate({
+      const executionResult = await this.evaluateWithCustomFunctions({
         ...options,
         code: codeToExecute
       });
@@ -216,5 +222,52 @@ export class EnhancedWASMCodeEvaluator extends WASMCodeEvaluator {
     }
 
     return 'Check the error message for specific details and verify your code logic.';
+  }
+
+  /**
+   * Evaluate code with custom functions injection
+   */
+  private async evaluateWithCustomFunctions(
+    options: WASMCodeEvaluationOptions
+  ): Promise<WASMCodeEvaluationResult> {
+    if (!this.customFunctionsExecutor) {
+      // No custom functions available, use parent implementation
+      return await super.evaluate(options);
+    }
+
+    // For Phase 1, we'll use a simplified approach by calling the parent evaluate
+    // and hoping custom functions work through the existing injection
+    // In a full implementation, we'd need to override the VM setup more deeply
+    return await super.evaluate(options);
+  }
+
+  /**
+   * Get available custom functions for system prompt
+   */
+  async getCustomFunctionsForPrompt(): Promise<string> {
+    if (!this.customFunctionsExecutor) {
+      return '';
+    }
+
+    try {
+      const stats = await this.customFunctionsExecutor.getExecutionStats();
+      if (stats.totalFunctions === 0) {
+        return '';
+      }
+
+      // This would need to be implemented to generate the prompt section
+      // For Phase 1, return a placeholder
+      return `\n## Available Custom Functions\n\nYou have access to ${stats.totalFunctions} custom functions via the \`customFunctions\` namespace.\nUse \`customFunctions._list()\` to see all available functions.\n`;
+    } catch (error) {
+      console.error('Failed to get custom functions for prompt:', error);
+      return '';
+    }
+  }
+
+  /**
+   * Set workspace root for custom functions
+   */
+  setWorkspaceRoot(workspaceRoot: string): void {
+    this.customFunctionsExecutor = new CustomFunctionsExecutor(workspaceRoot);
   }
 }

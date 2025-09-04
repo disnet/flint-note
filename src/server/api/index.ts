@@ -3,6 +3,7 @@
  */
 
 export { FlintNoteApi, type FlintNoteApiConfig } from './flint-note-api.js';
+export { CustomFunctionsApi } from './custom-functions-api.js';
 
 // Re-export commonly used types from server
 export type {
@@ -26,7 +27,14 @@ export type {
   CreateVaultArgs,
   SwitchVaultArgs,
   RemoveVaultArgs,
-  UpdateVaultArgs
+  UpdateVaultArgs,
+  RegisterCustomFunctionArgs,
+  UpdateCustomFunctionArgs,
+  ListCustomFunctionsArgs,
+  DeleteCustomFunctionArgs,
+  GetCustomFunctionArgs,
+  ValidateCustomFunctionArgs,
+  CustomFunctionExecutionStatsArgs
 } from './types.js';
 
 // Re-export core types
@@ -42,3 +50,17 @@ export type {
   NoteListItem
 } from '../core/notes.js';
 export type { NoteTypeListItem } from '../core/note-types.js';
+
+// Custom Functions types
+export type {
+  CustomFunction,
+  CustomFunctionParameter,
+  CreateCustomFunctionOptions,
+  UpdateCustomFunctionOptions,
+  ValidationResult,
+  ValidationError,
+  ValidationWarning,
+  CompiledFunction,
+  CustomFunctionExecutionContext,
+  CustomFunctionExecutionResult
+} from '../types/custom-functions.js';
