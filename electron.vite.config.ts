@@ -13,7 +13,8 @@ export default defineConfig({
       rollupOptions: {
         input: {
           index: 'src/main/index.ts'
-        }
+        },
+        external: ['typescript', /^typescript\//]
       }
     }
   },
@@ -22,6 +23,11 @@ export default defineConfig({
     resolve: {
       alias: {
         '@': 'src'
+      }
+    },
+    build: {
+      rollupOptions: {
+        external: ['typescript', /^typescript\//]
       }
     }
   },
