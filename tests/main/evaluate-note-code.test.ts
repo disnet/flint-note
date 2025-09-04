@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { EvaluateNoteCode } from '../../src/main/evaluate-note-code';
+import { EnhancedEvaluateNoteCode } from '../../src/main/enhanced-evaluate-note-code';
 import { NoteService } from '../../src/main/note-service';
 import { TestApiSetup } from '../server/api/test-setup.js';
 
@@ -10,8 +10,8 @@ vi.mock('../../src/main/logger', () => ({
   }
 }));
 
-describe('EvaluateNoteCode', () => {
-  let evaluateNoteCode: EvaluateNoteCode;
+describe('EnhancedEvaluateNoteCode', () => {
+  let evaluateNoteCode: EnhancedEvaluateNoteCode;
   let noteService: NoteService;
   let testSetup: TestApiSetup;
   let testVaultId: string;
@@ -29,7 +29,7 @@ describe('EvaluateNoteCode', () => {
       getCurrentVault: async () => ({ id: testVaultId, name: 'Test Vault', path: '' })
     } as any;
 
-    evaluateNoteCode = new EvaluateNoteCode(noteService);
+    evaluateNoteCode = new EnhancedEvaluateNoteCode(noteService);
   });
 
   afterEach(async () => {
@@ -42,21 +42,21 @@ describe('EvaluateNoteCode', () => {
     });
 
     it('should handle null note service', () => {
-      const evaluator = new EvaluateNoteCode(null);
+      const evaluator = new EnhancedEvaluateNoteCode(null);
       expect(evaluator).toBeDefined();
     });
   });
 
   describe('execute', () => {
     it('should return error when WASM evaluator is not available', async () => {
-      const evaluator = new EvaluateNoteCode(null);
+      const evaluator = new EnhancedEvaluateNoteCode(null);
       const result = await evaluator.execute({
         code: 'async function main() { return "test"; }'
       });
 
       expect(result.success).toBe(false);
-      expect(result.error).toBe('Code evaluator not available');
-      expect(result.message).toBe('WASM code evaluator not initialized');
+      expect(result.error).toBe('Enhanced code evaluator not available');
+      expect(result.message).toBe('Enhanced WASM code evaluator not initialized');
     });
 
     it('should handle vault resolution errors when no current vault', async () => {
@@ -65,7 +65,7 @@ describe('EvaluateNoteCode', () => {
         getFlintNoteApi: () => testSetup.api,
         getCurrentVault: async () => null
       } as any;
-      const evaluatorWithoutVault = new EvaluateNoteCode(noteServiceWithoutVault);
+      const evaluatorWithoutVault = new EnhancedEvaluateNoteCode(noteServiceWithoutVault);
 
       const result = await evaluatorWithoutVault.execute({
         code: 'async function main() { return "test"; }'
@@ -83,7 +83,7 @@ describe('EvaluateNoteCode', () => {
           throw new Error('Database error');
         }
       } as any;
-      const faultyEvaluator = new EvaluateNoteCode(faultyNoteService);
+      const faultyEvaluator = new EnhancedEvaluateNoteCode(faultyNoteService);
 
       const result = await faultyEvaluator.execute({
         code: 'async function main() { return "test"; }'
@@ -91,7 +91,7 @@ describe('EvaluateNoteCode', () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('Database error');
-      expect(result.message).toBe('Failed to execute code: Database error');
+      expect(result.message).toBe('Failed to execute TypeScript code: Database error');
     });
 
     it('should use provided vault_id to skip resolution', async () => {
@@ -116,7 +116,7 @@ describe('EvaluateNoteCode', () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toBeDefined();
-      expect(result.message).toMatch(/Code execution failed: Syntax Error/);
+      expect(result.message).toMatch(/TypeScript Error \[\d+\]:.*Unexpected/);
     });
 
     it('should handle code without main function', async () => {
