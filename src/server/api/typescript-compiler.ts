@@ -31,94 +31,126 @@ export interface CompilationResult {
 }
 
 export class TypeScriptCompiler {
-  private compilerOptions: ts.CompilerOptions;
   private typeDefinitions = new Map<string, string>();
   private diagnosticSuggestions = new Map<number, string>();
 
   constructor() {
-    this.compilerOptions = {
-      target: ts.ScriptTarget.ES2022,
-      module: ts.ModuleKind.CommonJS,
-      strict: true,
-      noImplicitAny: true,
-      strictNullChecks: true,
-      strictFunctionTypes: true,
-      noImplicitReturns: true,
-      noImplicitThis: true,
-      noUnusedLocals: true,
-      noUnusedParameters: true,
-      esModuleInterop: true,
-      skipLibCheck: true,
-      declaration: false,
-      sourceMap: false,
-      noEmit: false
-    };
-
     this.loadFlintNoteTypeDefinitions();
     this.initializeDiagnosticSuggestions();
   }
 
   async compile(sourceCode: string): Promise<CompilationResult> {
     try {
-      // For Phase 1, let's use a simpler approach that works
-      // First, do basic transpilation to get JavaScript output
-      const transpileResult = ts.transpileModule(sourceCode, {
-        compilerOptions: {
-          ...this.compilerOptions,
-          noEmit: false,
-          declaration: false
-        },
-        reportDiagnostics: true
-      });
+      // Create a simple in-memory file system for TypeScript compiler
+      const fileName = 'user-code.ts';
 
-      // For type checking, create a program with type definitions
-      const combinedSource = this.prepareSourceWithTypeDefinitions(sourceCode);
+      // Combine minimal lib with FlintNote API types
+      const flintApiTypes = this.typeDefinitions.get('flint-api.d.ts') || '';
+      const minimalLibContent = `
+interface Promise<T> {
+  then<TResult1 = T, TResult2 = never>(
+    onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null,
+    onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null
+  ): Promise<TResult1 | TResult2>;
+  catch<TResult = never>(
+    onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null
+  ): Promise<T | TResult>;
+}
+interface PromiseConstructor {
+  new <T>(executor: (resolve: (value: T | PromiseLike<T>) => void, reject: (reason?: any) => void) => void): Promise<T>;
+}
+declare var Promise: PromiseConstructor;
+type PromiseLike<T> = { then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): PromiseLike<TResult1 | TResult2>; };
 
-      // Use TypeScript's createProgram for type checking
-      const files = new Map([['user-code.ts', combinedSource]]);
+interface Array<T> {
+  filter<S extends T>(predicate: (value: T, index: number, array: T[]) => value is S, thisArg?: any): S[];
+  filter(predicate: (value: T, index: number, array: T[]) => unknown, thisArg?: any): T[];
+  map<U>(callbackfn: (value: T, index: number, array: T[]) => U, thisArg?: any): U[];
+  length: number;
+  [n: number]: T;
+}
 
+${flintApiTypes}
+`;
+
+      // Create a minimal compiler host
       const compilerHost: ts.CompilerHost = {
-        getSourceFile: (fileName) => {
-          if (files.has(fileName)) {
-            return ts.createSourceFile(
-              fileName,
-              files.get(fileName)!,
-              this.compilerOptions.target!
-            );
+        getSourceFile: (name: string, languageVersion: ts.ScriptTarget) => {
+          if (name === fileName) {
+            return ts.createSourceFile(name, sourceCode, languageVersion, true);
           }
+          if (name === 'lib.d.ts') {
+            return ts.createSourceFile(name, minimalLibContent, languageVersion, true);
+          }
+          // Return undefined for other lib files
           return undefined;
         },
         writeFile: () => {},
-        getCurrentDirectory: () => '/',
+        getCurrentDirectory: () => '',
         getDirectories: () => [],
-        fileExists: (fileName) => files.has(fileName),
-        readFile: (fileName) => files.get(fileName),
-        getCanonicalFileName: (fileName) => fileName,
+        fileExists: (name: string) => name === fileName || name === 'lib.d.ts',
+        readFile: (name: string) => {
+          if (name === fileName) return sourceCode;
+          if (name === 'lib.d.ts') return minimalLibContent;
+          return undefined;
+        },
+        getCanonicalFileName: (fileName: string) => fileName,
         useCaseSensitiveFileNames: () => true,
         getNewLine: () => '\n',
-        getDefaultLibFileName: (options) => ts.getDefaultLibFileName(options)
+        getDefaultLibFileName: () => 'lib.d.ts'
       };
 
+      // Create TypeScript program for type checking
       const program = ts.createProgram(
-        ['user-code.ts'],
-        this.compilerOptions,
+        [fileName],
+        {
+          target: ts.ScriptTarget.ES2022,
+          module: ts.ModuleKind.CommonJS,
+          strict: true,
+          noImplicitAny: true,
+          strictNullChecks: true,
+          noImplicitReturns: true,
+          noUnusedLocals: true, // Enable unused variable warnings
+          noUnusedParameters: true,
+          skipLibCheck: true, // Skip lib files since we don't provide them
+          noLib: false, // Use our minimal lib files
+          lib: ['lib.d.ts'] // Use our custom lib
+        },
         compilerHost
       );
-      const typeCheckDiagnostics = ts.getPreEmitDiagnostics(program);
 
-      // Combine transpile diagnostics with type check diagnostics
-      const allDiagnostics = [
-        ...(transpileResult.diagnostics || []),
-        ...typeCheckDiagnostics
-      ];
+      // Get semantic diagnostics (type errors)
+      const sourceFile = program.getSourceFile(fileName);
+      const semanticDiagnostics = sourceFile
+        ? program.getSemanticDiagnostics(sourceFile)
+        : [];
+
+      // Get syntactic diagnostics (syntax errors)
+      const syntacticDiagnostics = sourceFile
+        ? program.getSyntacticDiagnostics(sourceFile)
+        : [];
+
+      // Combine all diagnostics
+      const allDiagnostics = [...syntacticDiagnostics, ...semanticDiagnostics];
+
+      // Generate JavaScript output using transpileModule
+      const transpileResult = ts.transpileModule(sourceCode, {
+        compilerOptions: {
+          target: ts.ScriptTarget.ES2022,
+          module: ts.ModuleKind.CommonJS,
+          esModuleInterop: true
+        }
+      });
+
+      // Filter errors, treating certain diagnostics as warnings instead of errors
       const errors = allDiagnostics.filter(
-        (d) => d.category === ts.DiagnosticCategory.Error
+        (d) => d.category === ts.DiagnosticCategory.Error && !this.shouldTreatAsWarning(d)
       );
 
       return {
         success: errors.length === 0,
         diagnostics: this.formatDiagnosticsFromTranspile(allDiagnostics, sourceCode),
-        compiledJavaScript: errors.length === 0 ? transpileResult.outputText : undefined,
+        compiledJavaScript: transpileResult.outputText,
         sourceMap: transpileResult.sourceMapText
       };
     } catch (error) {
@@ -139,12 +171,6 @@ export class TypeScriptCompiler {
         compiledJavaScript: undefined
       };
     }
-  }
-
-  private prepareSourceWithTypeDefinitions(sourceCode: string): string {
-    // Prepend FlintNote API type definitions to the source code
-    const typeDefinitions = this.typeDefinitions.get('flint-api.d.ts') || '';
-    return `${typeDefinitions}\n\n${sourceCode}`;
   }
 
   private loadFlintNoteTypeDefinitions(): void {
@@ -518,6 +544,19 @@ declare const links: FlintAPI.LinksAPI;
 declare const hierarchy: FlintAPI.HierarchyAPI;
 declare const relationships: FlintAPI.RelationshipsAPI;
 declare const utils: FlintAPI.UtilsAPI;
+
+// Global type aliases for common types
+type Note = FlintAPI.Note;
+type NoteInfo = FlintAPI.NoteInfo;
+type CreateNoteResult = FlintAPI.CreateNoteResult;
+type UpdateNoteResult = FlintAPI.UpdateNoteResult;
+type DeleteNoteResult = FlintAPI.DeleteNoteResult;
+type RenameNoteResult = FlintAPI.RenameNoteResult;
+type MoveNoteResult = FlintAPI.MoveNoteResult;
+type SearchResult = FlintAPI.SearchResult;
+type NoteType = FlintAPI.NoteType;
+type NoteTypeInfo = FlintAPI.NoteTypeInfo;
+type Vault = FlintAPI.Vault;
 `;
 
     this.typeDefinitions.set('flint-api.d.ts', flintApiTypeDefs);
@@ -584,27 +623,21 @@ declare const utils: FlintAPI.UtilsAPI;
 
       if (diagnostic.file && typeof diagnostic.start === 'number') {
         const position = diagnostic.file.getLineAndCharacterOfPosition(diagnostic.start);
-        const combinedLines = diagnostic.file.text.split('\n');
+        line = position.line + 1;
+        column = position.character + 1;
 
-        // Try to map back to original source by finding the line in original code
-        const diagnosticLine = combinedLines[position.line] || '';
-        const matchingLineIndex = sourceLines.findIndex(
-          (originalLine) => originalLine.trim() === diagnosticLine.trim()
-        );
-
-        if (matchingLineIndex >= 0) {
-          line = matchingLineIndex + 1;
-          column = position.character + 1;
-          sourceLine = sourceLines[matchingLineIndex];
-        } else {
-          // Fallback: try to estimate position
-          line = Math.max(1, position.line - 50); // Rough estimate accounting for type definitions
-          column = position.character + 1;
-          sourceLine = sourceLines[line - 1] || diagnosticLine;
+        // Get the source line from the original code
+        if (line > 0 && line <= sourceLines.length) {
+          sourceLine = sourceLines[line - 1];
         }
       }
 
-      const category = this.mapDiagnosticCategory(diagnostic.category);
+      let category = this.mapDiagnosticCategory(diagnostic.category);
+      // Override category for specific diagnostics that should be warnings
+      if (this.shouldTreatAsWarning(diagnostic)) {
+        category = 'warning';
+      }
+
       const code = diagnostic.code;
       const messageText = ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n');
 
@@ -656,5 +689,10 @@ declare const utils: FlintAPI.UtilsAPI;
       default:
         return 'error';
     }
+  }
+
+  private shouldTreatAsWarning(diagnostic: ts.Diagnostic): boolean {
+    // Treat unused local variables as warnings instead of errors
+    return diagnostic.code === 6133 || diagnostic.code === 6196;
   }
 }

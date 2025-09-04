@@ -103,7 +103,7 @@ async function main(): Promise<any> {
     const compiler = new TypeScriptCompiler();
 
     const validMetadataCode = `
-async function main(): Promise<Note> {
+async function main(): Promise<Note | null> {
   const result = await notes.create({
     type: "meeting",
     title: "Weekly Standup",
