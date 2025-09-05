@@ -36,17 +36,18 @@
     confirmDeleteId = null;
   }
 
-  function handleSort(field: 'name' | 'createdAt' | 'usageCount' | 'lastUsed'): void {
+  function handleSort(field: 'name' | 'createdAt' | 'usageCount' | 'lastUsed' | string): void {
+    const sortField = field as 'name' | 'createdAt' | 'usageCount' | 'lastUsed';
     const currentSort = customFunctionsStore.sortBy;
     const currentDirection = customFunctionsStore.sortDirection;
 
-    if (currentSort === field) {
+    if (currentSort === sortField) {
       // Toggle direction
-      customFunctionsStore.setSorting(field, currentDirection === 'asc' ? 'desc' : 'asc');
+      customFunctionsStore.setSorting(sortField, currentDirection === 'asc' ? 'desc' : 'asc');
     } else {
       // Default direction for each field
-      const defaultDirection = field === 'name' ? 'asc' : 'desc';
-      customFunctionsStore.setSorting(field, defaultDirection);
+      const defaultDirection = sortField === 'name' ? 'asc' : 'desc';
+      customFunctionsStore.setSorting(sortField, defaultDirection);
     }
   }
 
@@ -244,177 +245,145 @@
     </div>
   {/if}
 
-  <!-- Functions table -->
+  <!-- Functions cards -->
   {#if !customFunctionsStore.isLoading && customFunctionsStore.filteredFunctions.length > 0}
-    <div class="table-container">
-      <table class="functions-table">
-        <thead>
-          <tr>
-            <th class="sortable" onclick={() => handleSort('name')}>
-              Name {getSortIcon('name')}
-            </th>
-            <th>Description</th>
-            <th>Tags</th>
-            <th class="sortable" onclick={() => handleSort('createdAt')}>
-              Created {getSortIcon('createdAt')}
-            </th>
-            <th class="sortable" onclick={() => handleSort('usageCount')}>
-              Usage {getSortIcon('usageCount')}
-            </th>
-            <th class="sortable" onclick={() => handleSort('lastUsed')}>
-              Last Used {getSortIcon('lastUsed')}
-            </th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {#each customFunctionsStore.filteredFunctions as func (func.id)}
-            <tr>
-              <td class="function-name">
-                <code>{func.name}</code>
-                <span class="return-type">{func.returnType}</span>
-              </td>
-              <td class="description" title={func.description}>
-                {func.description}
-              </td>
-              <td class="tags">
-                {#each func.tags as tag (tag)}
-                  <span class="tag">{tag}</span>
-                {/each}
-              </td>
-              <td class="date">
-                {formatDate(func.metadata.createdAt)}
-                <div class="created-by">by {func.metadata.createdBy}</div>
-              </td>
-              <td class="usage-count">
-                {func.metadata.usageCount}
-              </td>
-              <td class="date">
-                {func.metadata.lastUsed ? formatDate(func.metadata.lastUsed) : 'Never'}
-              </td>
-              <td class="actions">
-                <div class="action-buttons">
-                  <button
-                    class="btn-icon"
-                    title="View Details"
-                    aria-label="View Details"
-                    onclick={() => onDetails?.(func)}
-                  >
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                    >
-                      <circle cx="12" cy="12" r="3"></circle>
-                      <path
-                        d="M12 1v6M12 17v6M4.22 4.22l4.24 4.24M15.54 15.54l4.24 4.24M1 12h6M17 12h6M4.22 19.78l4.24-4.24M15.54 8.46l4.24-4.24"
-                      ></path>
-                    </svg>
-                  </button>
+    <div class="sort-controls">
+      <label class="sort-label" for="sort-select">Sort by:</label>
+      <select 
+        id="sort-select"
+        value={customFunctionsStore.sortBy} 
+        onchange={(e) => handleSort(e.target.value)}
+        class="sort-select"
+      >
+        <option value="name">Name</option>
+        <option value="createdAt">Created</option>
+        <option value="usageCount">Usage</option>
+        <option value="lastUsed">Last Used</option>
+      </select>
+      <button 
+        class="sort-direction"
+        onclick={() => handleSort(customFunctionsStore.sortBy)}
+        title="Toggle sort direction"
+      >
+        {customFunctionsStore.sortDirection === 'asc' ? '↑' : '↓'}
+      </button>
+    </div>
 
-                  <button
-                    class="btn-icon"
-                    title="Test Function"
-                    aria-label="Test Function"
-                    onclick={() => onTest?.(func)}
-                  >
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                    >
-                      <polygon points="5,3 19,12 5,21"></polygon>
-                    </svg>
-                  </button>
+    <div class="functions-grid">
+      {#each customFunctionsStore.filteredFunctions as func (func.id)}
+        <div class="function-card">
+          <div class="function-header">
+            <div class="function-signature">
+              <code class="function-name">{func.name}</code>
+              <span class="return-type">{func.returnType}</span>
+            </div>
+            <div class="function-meta">
+              <span class="usage-count" title="Usage count">{func.metadata.usageCount} uses</span>
+            </div>
+          </div>
 
-                  <button
-                    class="btn-icon"
-                    title="Edit Function"
-                    aria-label="Edit Function"
-                    onclick={() => onEdit?.(func)}
-                  >
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                    >
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
-                      ></path>
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
-                      ></path>
-                    </svg>
-                  </button>
+          <div class="function-description">
+            {func.description}
+          </div>
 
-                  <button
-                    class="btn-icon"
-                    title="Duplicate Function"
-                    aria-label="Duplicate Function"
-                    onclick={() => onDuplicate?.(func)}
-                  >
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                    >
-                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
-                      ></path>
-                    </svg>
-                  </button>
+          {#if func.tags.length > 0}
+            <div class="function-tags">
+              {#each func.tags as tag (tag)}
+                <span class="tag">{tag}</span>
+              {/each}
+            </div>
+          {/if}
 
-                  {#if confirmDeleteId === func.id}
-                    <button
-                      class="btn-danger-small"
-                      title="Confirm Delete"
-                      onclick={() => handleDelete(func.id)}
-                    >
-                      ✓
-                    </button>
-                    <button class="btn-icon" title="Cancel Delete" onclick={cancelDelete}>
-                      ✕
-                    </button>
-                  {:else}
-                    <button
-                      class="btn-icon danger"
-                      title="Delete Function"
-                      aria-label="Delete Function"
-                      onclick={() => handleDelete(func.id)}
-                    >
-                      <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                      >
-                        <polyline points="3,6 5,6 21,6"></polyline>
-                        <path
-                          d="M19,6v14a2,2 0 0,1-2,2H7a2,2 0 0,1-2-2V6m3,0V4a2,2 0 0,1,2-2h4a2,2 0 0,1,2,2v2"
-                        ></path>
-                        <line x1="10" y1="11" x2="10" y2="17"></line>
-                        <line x1="14" y1="11" x2="14" y2="17"></line>
-                      </svg>
-                    </button>
-                  {/if}
-                </div>
-              </td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
+          <div class="function-details">
+            <span class="created-info">
+              Created {formatDate(func.metadata.createdAt)} by {func.metadata.createdBy}
+            </span>
+            <span class="last-used">
+              Last used: {func.metadata.lastUsed ? formatDate(func.metadata.lastUsed) : 'Never'}
+            </span>
+          </div>
+
+          <div class="function-controls">
+            <button
+              class="btn-action"
+              title="View Details"
+              onclick={() => onDetails?.(func)}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M12 1v6M12 17v6M4.22 4.22l4.24 4.24M15.54 15.54l4.24 4.24M1 12h6M17 12h6M4.22 19.78l4.24-4.24M15.54 8.46l4.24-4.24"></path>
+              </svg>
+              Details
+            </button>
+
+            <button
+              class="btn-action"
+              title="Test Function"
+              onclick={() => onTest?.(func)}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="5,3 19,12 5,21"></polygon>
+              </svg>
+              Test
+            </button>
+
+            <button
+              class="btn-action primary"
+              title="Edit Function"
+              onclick={() => onEdit?.(func)}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+              </svg>
+              Edit
+            </button>
+
+            <button
+              class="btn-action"
+              title="Duplicate Function"
+              onclick={() => onDuplicate?.(func)}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+              Duplicate
+            </button>
+
+            {#if confirmDeleteId === func.id}
+              <button
+                class="btn-action danger"
+                title="Confirm Delete"
+                onclick={() => handleDelete(func.id)}
+              >
+                ✓ Confirm
+              </button>
+              <button
+                class="btn-action"
+                title="Cancel Delete"
+                onclick={cancelDelete}
+              >
+                Cancel
+              </button>
+            {:else}
+              <button
+                class="btn-action danger"
+                title="Delete Function"
+                onclick={() => handleDelete(func.id)}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="3,6 5,6 21,6"></polyline>
+                  <path d="M19,6v14a2,2 0 0,1-2,2H7a2,2 0 0,1-2-2V6m3,0V4a2,2 0 0,1,2-2h4a2,2 0 0,1,2,2v2"></path>
+                  <line x1="10" y1="11" x2="10" y2="17"></line>
+                  <line x1="14" y1="11" x2="14" y2="17"></line>
+                </svg>
+                Delete
+              </button>
+            {/if}
+          </div>
+        </div>
+      {/each}
     </div>
   {:else if !customFunctionsStore.isLoading}
     <div class="empty-state">
@@ -573,122 +542,206 @@
     gap: 1rem;
   }
 
-  .table-container {
+  /* Sort controls */
+  .sort-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    flex-shrink: 0;
+  }
+
+  .sort-label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+  }
+
+  .sort-select {
+    padding: 0.5rem;
+    border: 1px solid var(--border-light);
+    border-radius: 0.375rem;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    cursor: pointer;
+  }
+
+  .sort-direction {
+    padding: 0.5rem;
+    border: 1px solid var(--border-light);
+    border-radius: 0.375rem;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 1rem;
+    cursor: pointer;
+    min-width: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .sort-select:hover,
+  .sort-direction:hover {
+    background: var(--bg-hover);
+    border-color: var(--accent);
+  }
+
+  /* Functions grid */
+  .functions-grid {
     flex: 1;
     overflow: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .function-card {
     border: 1px solid var(--border-light);
     border-radius: 0.75rem;
-  }
-
-  .functions-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.875rem;
-  }
-
-  .functions-table th {
+    padding: 1.5rem;
     background: var(--bg-secondary);
-    padding: 0.75rem;
-    text-align: left;
-    font-weight: 600;
-    color: var(--text-primary);
-    border-bottom: 1px solid var(--border-light);
-    white-space: nowrap;
+    transition: all 0.2s ease;
   }
 
-  .functions-table th.sortable {
-    cursor: pointer;
-    user-select: none;
+  .function-card:hover {
+    border-color: var(--accent);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   }
 
-  .functions-table th.sortable:hover {
-    background: var(--bg-hover);
+  .function-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.75rem;
+    gap: 1rem;
   }
 
-  .functions-table td {
-    padding: 0.75rem;
-    border-bottom: 1px solid var(--border-light);
-    vertical-align: top;
-  }
-
-  .functions-table tr:hover {
-    background: var(--bg-hover);
+  .function-signature {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
   }
 
   .function-name {
-    min-width: 150px;
-  }
-
-  .function-name code {
-    display: block;
-    font-size: 0.875rem;
-    font-weight: 500;
+    font-size: 1.125rem;
+    font-weight: 600;
     color: var(--accent);
+    font-family: monospace;
+    margin: 0;
   }
 
   .return-type {
     font-size: 0.75rem;
     color: var(--text-secondary);
     font-family: monospace;
+    font-weight: normal;
   }
 
-  .description {
-    max-width: 250px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  .function-meta {
+    text-align: right;
   }
 
-  .tags {
-    max-width: 150px;
+  .usage-count {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    background: var(--bg-primary);
+    padding: 0.25rem 0.75rem;
+    border-radius: 1rem;
+    border: 1px solid var(--border-light);
+  }
+
+  .function-description {
+    color: var(--text-primary);
+    line-height: 1.5;
+    margin-bottom: 1rem;
+    white-space: pre-wrap;
+  }
+
+  .function-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
   }
 
   .tag {
     display: inline-block;
-    padding: 0.125rem 0.5rem;
-    margin: 0.125rem;
-    background: var(--bg-secondary);
+    padding: 0.25rem 0.75rem;
+    background: var(--bg-primary);
     border: 1px solid var(--border-light);
-    border-radius: 0.75rem;
-    font-size: 0.625rem;
-    color: var(--text-secondary);
-  }
-
-  .date {
-    min-width: 120px;
+    border-radius: 1rem;
     font-size: 0.75rem;
     color: var(--text-secondary);
   }
 
-  .created-by {
-    font-size: 0.625rem;
-    margin-top: 0.25rem;
-    opacity: 0.7;
-  }
-
-  .usage-count {
-    text-align: center;
-    font-weight: 500;
-    color: var(--accent);
-  }
-
-  .actions {
-    min-width: 200px;
-  }
-
-  .action-buttons {
+  .function-details {
     display: flex;
+    flex-direction: column;
     gap: 0.25rem;
-    flex-wrap: wrap;
+    margin-bottom: 1rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
   }
 
-  .btn-secondary,
-  .btn-icon,
-  .btn-danger-small {
+  .function-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    border-top: 1px solid var(--border-light);
+    padding-top: 1rem;
+  }
+
+  .btn-action {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.5rem;
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--border-light);
+    border-radius: 0.375rem;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    font-weight: 500;
+  }
+
+  .btn-action:hover {
+    background: var(--bg-hover);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .btn-action.primary {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+  }
+
+  .btn-action.primary:hover {
+    background: color-mix(in srgb, var(--accent) 90%, white);
+    color: white;
+  }
+
+  .btn-action.danger {
+    color: var(--danger);
+    border-color: var(--danger);
+  }
+
+  .btn-action.danger:hover {
+    background: color-mix(in srgb, var(--danger) 10%, transparent);
+    border-color: var(--danger);
+    color: var(--danger);
+  }
+
+  /* Keep existing header button styles */
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
     border: 1px solid var(--border-light);
     border-radius: 0.375rem;
     background: var(--bg-secondary);
@@ -699,35 +752,9 @@
     text-decoration: none;
   }
 
-  .btn-secondary {
-    padding: 0.5rem 1rem;
-  }
-
-  .btn-icon {
-    padding: 0.375rem;
-  }
-
-  .btn-secondary:hover,
-  .btn-icon:hover {
+  .btn-secondary:hover {
     background: var(--bg-hover);
     border-color: var(--accent);
-  }
-
-  .btn-icon.danger:hover {
-    background: #fee;
-    border-color: var(--danger);
-    color: var(--danger);
-  }
-
-  .btn-danger-small {
-    background: var(--danger);
-    color: white;
-    border-color: var(--danger);
-    font-weight: 600;
-  }
-
-  .btn-danger-small:hover {
-    background: color-mix(in srgb, var(--danger) 90%, white);
   }
 
   .empty-state {

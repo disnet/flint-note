@@ -53,10 +53,10 @@
     isRunning = true;
 
     try {
-      const result = await customFunctionsStore.testFunction({
+      const result = await customFunctionsStore.testFunction($state.snapshot({
         functionId: func.id,
         parameters: prepareParametersForExecution()
-      });
+      }));
 
       results = [result, ...results].slice(0, 10); // Keep last 10 results
       selectedResult = result;

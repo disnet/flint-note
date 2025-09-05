@@ -88,14 +88,14 @@
 
     isValidating = true;
     try {
-      validation = await customFunctionsStore.validateFunction({
+      validation = await customFunctionsStore.validateFunction($state.snapshot({
         name: name.trim(),
         description: description.trim(),
         parameters,
         returnType,
         code: code.trim(),
         tags
-      });
+      }));
     } catch (error) {
       console.error('Validation failed:', error);
     } finally {
@@ -119,7 +119,7 @@
       let result: CustomFunction;
 
       if (editingFunction) {
-        result = await customFunctionsStore.updateFunction({
+        result = await customFunctionsStore.updateFunction($state.snapshot({
           id: editingFunction.id,
           name: name.trim(),
           description: description.trim(),
@@ -127,16 +127,16 @@
           returnType,
           code: code.trim(),
           tags
-        });
+        }));
       } else {
-        result = await customFunctionsStore.createFunction({
+        result = await customFunctionsStore.createFunction($state.snapshot({
           name: name.trim(),
           description: description.trim(),
           parameters,
           returnType,
           code: code.trim(),
           tags
-        });
+        }));
       }
 
       onSave?.(result);
