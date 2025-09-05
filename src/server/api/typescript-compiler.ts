@@ -55,8 +55,8 @@ export class TypeScriptCompiler {
       return '';
     }
 
-    let declarations =
-      '\n// Custom Functions Namespace\ndeclare namespace customFunctions {\n';
+    // Use var object to match runtime implementation and avoid const conflicts
+    let declarations = '\n// Custom Functions Object\ndeclare var customFunctions: {\n';
 
     // Add individual function declarations
     for (const func of this.customFunctions) {
@@ -67,12 +67,12 @@ export class TypeScriptCompiler {
         })
         .join(', ');
 
-      declarations += `  function ${func.name}(${paramList}): ${func.returnType};\n`;
+      declarations += `  ${func.name}(${paramList}): ${func.returnType};\n`;
     }
 
     // Add management functions
     declarations += '\n  // Management functions\n';
-    declarations += `  function _list(): Promise<Array<{
+    declarations += `  _list(): Promise<Array<{
     id: string;
     name: string;
     description: string;
@@ -81,8 +81,8 @@ export class TypeScriptCompiler {
     tags: string[];
     usageCount: number;
   }>>;\n`;
-    declarations += '  function _remove(name: string): Promise<{ success: boolean }>;\n';
-    declarations += `  function _update(name: string, changes: {
+    declarations += '  _remove(name: string): Promise<{ success: boolean }>;\n';
+    declarations += `  _update(name: string, changes: {
     description?: string;
     parameters?: Record<string, any>;
     returnType?: string;
@@ -97,7 +97,7 @@ export class TypeScriptCompiler {
     tags: string[];
   }>;\n`;
 
-    declarations += '}\n';
+    declarations += '};\n';
     return declarations;
   }
 
@@ -138,9 +138,41 @@ interface Array<T> {
   filter<S extends T>(predicate: (value: T, index: number, array: T[]) => value is S, thisArg?: any): S[];
   filter(predicate: (value: T, index: number, array: T[]) => unknown, thisArg?: any): T[];
   map<U>(callbackfn: (value: T, index: number, array: T[]) => U, thisArg?: any): U[];
+  slice(start?: number, end?: number): T[];
+  push(...items: T[]): number;
+  pop(): T | undefined;
+  shift(): T | undefined;
+  unshift(...items: T[]): number;
+  indexOf(searchElement: T, fromIndex?: number): number;
+  includes(searchElement: T, fromIndex?: number): boolean;
+  join(separator?: string): string;
+  forEach(callbackfn: (value: T, index: number, array: T[]) => void, thisArg?: any): void;
+  find<S extends T>(predicate: (this: void, value: T, index: number, obj: T[]) => value is S, thisArg?: any): S | undefined;
+  find(predicate: (value: T, index: number, obj: T[]) => unknown, thisArg?: any): T | undefined;
+  [Symbol.iterator](): IterableIterator<T>;
   length: number;
   [n: number]: T;
 }
+
+interface IterableIterator<T> extends Iterator<T> {
+  [Symbol.iterator](): IterableIterator<T>;
+}
+
+interface Iterator<T, TReturn = any, TNext = undefined> {
+  next(...args: [] | [TNext]): IteratorResult<T, TReturn>;
+  return?(value?: TReturn): IteratorResult<T, TReturn>;
+  throw?(e?: any): IteratorResult<T, TReturn>;
+}
+
+interface IteratorResult<T, TReturn = any> {
+  done: boolean;
+  value: T | TReturn;
+}
+
+interface SymbolConstructor {
+  readonly iterator: symbol;
+}
+declare var Symbol: SymbolConstructor;
 
 interface Error {
   name: string;

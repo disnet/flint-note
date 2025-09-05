@@ -15,7 +15,7 @@ describe('Custom Function Registration Integration', () => {
   beforeEach(async () => {
     setup = new TestCustomFunctionsSetup();
     await setup.setup();
-    
+
     // Create test vault
     vaultId = await setup.createTestVault('custom-function-registration-test');
   });
@@ -346,7 +346,7 @@ describe('Custom Function Registration Integration', () => {
       const importedList = await setup.customFunctionsApi.listFunctions();
       expect(importedList).toHaveLength(2);
 
-      const names = importedList.map(f => f.name);
+      const names = importedList.map((f) => f.name);
       expect(names).toContain('exportTest1');
       expect(names).toContain('exportTest2');
     });

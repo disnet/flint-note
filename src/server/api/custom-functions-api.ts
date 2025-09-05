@@ -109,6 +109,10 @@ export class CustomFunctionsApi {
       tags: args.tags || []
     };
 
+    // Set existing functions in validator for cross-reference validation
+    const existingFunctions = await this.store.list();
+    this.validator.setExistingFunctions(existingFunctions);
+
     // Validate the function definition
     const validation = await this.validator.validateDefinition(options);
     if (!validation.valid) {

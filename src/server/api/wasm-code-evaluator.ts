@@ -32,7 +32,7 @@ interface AsyncOperation {
   rejector?: (error: unknown) => void;
 }
 
-class AsyncOperationRegistry {
+export class AsyncOperationRegistry {
   private operations = new Map<string, AsyncOperation>();
   private nextId = 0;
 
@@ -565,7 +565,7 @@ export interface WASMCodeEvaluationResult {
 export class WASMCodeEvaluator {
   private QuickJS: QuickJSWASMModule | null = null;
   private initialized = false;
-  private promiseFactory = new PromiseProxyFactory();
+  protected promiseFactory = new PromiseProxyFactory();
 
   constructor(private noteApi: FlintNoteApi) {
     // Store noteApi for actual API calls
@@ -904,7 +904,7 @@ export class WASMCodeEvaluator {
     }
   }
 
-  private injectSecureAPI(
+  protected injectSecureAPI(
     vm: QuickJSContext,
     registry: AsyncOperationRegistry,
     vaultId: string,

@@ -19,6 +19,7 @@ import { TypeScriptCompiler } from './typescript-compiler.js';
 export class CustomFunctionValidator {
   private typeScriptCompiler: TypeScriptCompiler;
   private reservedNames: Set<string>;
+  private existingFunctions: CustomFunction[] = [];
 
   constructor() {
     this.typeScriptCompiler = new TypeScriptCompiler();
@@ -104,6 +105,13 @@ export class CustomFunctionValidator {
       // Custom functions namespace
       'customFunctions'
     ]);
+  }
+
+  /**
+   * Set existing custom functions for validation context
+   */
+  setExistingFunctions(functions: CustomFunction[]): void {
+    this.existingFunctions = functions;
   }
 
   /**
@@ -280,14 +288,45 @@ export class CustomFunctionValidator {
     context: string,
     errors: ValidationError[]
   ): void {
-    // Basic type validation - check for common patterns
-    const validTypePattern = /^[a-zA-Z0-9_<>[\]|&\s,.:{}?"'-]+$/;
-    if (!validTypePattern.test(typeStr)) {
+    // Skip basic pattern validation - let TypeScript compiler handle proper validation
+    // Only check for obviously problematic patterns
+    if (typeStr.trim() === '') {
       errors.push({
         type: 'type',
-        message: `Invalid type definition for ${context}: ${typeStr}`,
+        message: `Parameter '${context}' missing type definition`,
+        suggestion: 'Provide a valid TypeScript type'
+      });
+      return;
+    }
+
+    // Check for invalid type syntax - only reject truly problematic patterns
+    const invalidTypePattern = /[!@#$%^&*()+=\\~`]/;
+    if (invalidTypePattern.test(typeStr)) {
+      errors.push({
+        type: 'type',
+        message: `Invalid type definition for parameter '${context}': ${typeStr}`,
         suggestion: 'Use valid TypeScript type syntax'
       });
+      return;
+    }
+
+    // Check for dangerous patterns that might indicate code injection
+    const dangerousPatterns = [
+      /function\s*\(/i,
+      /eval\s*\(/i,
+      /constructor\s*\(/i,
+      /prototype\s*\./i
+    ];
+
+    for (const pattern of dangerousPatterns) {
+      if (pattern.test(typeStr)) {
+        errors.push({
+          type: 'security',
+          message: `Potentially dangerous pattern in type definition for ${context}: ${typeStr}`,
+          suggestion:
+            'Use only TypeScript type syntax, avoid function calls or code execution'
+        });
+      }
     }
   }
 
@@ -347,15 +386,55 @@ export class CustomFunctionValidator {
       })
       .join(', ');
 
+    // Generate custom functions namespace for validation
+    const customFunctionsDeclaration = this.generateCustomFunctionsNamespaceDeclaration();
+
     // Wrap in validation context - API types are already available from the compiler context
     // Don't include FLINT_API_TYPE_DEFINITIONS here to avoid conflicts
     return `
+      // Custom functions namespace for validation
+      ${customFunctionsDeclaration}
+      
       // Custom function validation wrapper
       ${options.code}
       
       // Validation check - ensure function signature matches
       const validateFunction: (${parameterList}) => ${options.returnType} = ${options.name};
     `;
+  }
+
+  /**
+   * Generate TypeScript declarations for the custom functions namespace
+   */
+  private generateCustomFunctionsNamespaceDeclaration(): string {
+    if (this.existingFunctions.length === 0) {
+      return `
+declare const customFunctions: {
+  _list(): Promise<any[]>;
+  _remove(name: string): Promise<boolean>;
+};
+`;
+    }
+
+    // Generate function signatures for existing custom functions
+    const functionSignatures = this.existingFunctions.map((func) => {
+      const parameterList = Object.entries(func.parameters)
+        .map(([name, param]) => {
+          const optional = param.optional ? '?' : '';
+          return `${name}${optional}: ${param.type}`;
+        })
+        .join(', ');
+
+      return `  ${func.name}(${parameterList}): ${func.returnType};`;
+    });
+
+    return `
+declare const customFunctions: {
+  _list(): Promise<any[]>;
+  _remove(name: string): Promise<boolean>;
+${functionSignatures.join('\n')}
+};
+`;
   }
 
   /**
@@ -400,9 +479,9 @@ export class CustomFunctionValidator {
       },
       {
         pattern: /global\./g,
-        message: 'Access to global object should be avoided',
+        message: 'Access to global object is not allowed',
         type: 'security' as const,
-        severity: 'warning' as const
+        severity: 'error' as const
       },
       {
         pattern: /while\s*\(\s*true\s*\)/g,

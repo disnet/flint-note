@@ -5,6 +5,8 @@
  * with comprehensive type checking and detailed error feedback for AI agents.
  */
 
+import type { QuickJSContext } from 'quickjs-emscripten';
+import type { AsyncOperationRegistry } from './wasm-code-evaluator.js';
 import type { FlintNoteApi } from './flint-note-api.js';
 import {
   WASMCodeEvaluator,
@@ -373,12 +375,14 @@ export class EnhancedWASMCodeEvaluator extends WASMCodeEvaluator {
       // Set custom functions for TypeScript type checking
       const customFunctions = await this.customFunctionsStore!.list();
       this.typeScriptCompiler.setCustomFunctions(customFunctions);
-      
+
       // Compile the user code with TypeScript (this includes custom function types)
       const compilationResult = await this.typeScriptCompiler.compile(options.code);
-      
+
       if (!compilationResult.success) {
-        const firstError = compilationResult.diagnostics.find(d => d.category === 'error');
+        const firstError = compilationResult.diagnostics.find(
+          (d) => d.category === 'error'
+        );
         return {
           success: false,
           error: 'Custom function enhanced code compilation failed',
@@ -389,39 +393,45 @@ export class EnhancedWASMCodeEvaluator extends WASMCodeEvaluator {
           },
           compilation: {
             success: false,
-            errors: compilationResult.diagnostics.filter(d => d.category === 'error'),
-            warnings: compilationResult.diagnostics.filter(d => d.category === 'warning' || d.category === 'suggestion')
+            errors: compilationResult.diagnostics.filter((d) => d.category === 'error'),
+            warnings: compilationResult.diagnostics.filter(
+              (d) => d.category === 'warning' || d.category === 'suggestion'
+            )
           },
           executionTime: 0
-        };
+        } as EnhancedWASMCodeEvaluationResult;
       }
-      
+
       // Get compiled JavaScript
       const compiledUserCode = compilationResult.compiledJavaScript || options.code;
-      
+
       // Generate custom functions implementation and prepend to compiled JavaScript
-      const customFunctionsCode = await this.customFunctionsExecutor.generateNamespaceCode();
+      const customFunctionsCode =
+        await this.customFunctionsExecutor.generateNamespaceCode();
       const finalJavaScript = customFunctionsCode + '\n\n' + compiledUserCode;
-      
+
       // Debug logging can be removed in production
-      
+
       // Call the base WASM evaluator with the final JavaScript
-      const wasmResult = await WASMCodeEvaluator.prototype.evaluate.call(this, {
+      // We need to inject the custom functions management API
+      const wasmResult = await this.evaluateWithCustomFunctionsAPI({
         ...options,
         code: finalJavaScript
       });
-      
+
       // Add compilation info to result
       return {
         ...wasmResult,
         compilation: {
           success: true,
           errors: [],
-          warnings: compilationResult.diagnostics.filter(d => d.category === 'warning' || d.category === 'suggestion'),
+          warnings: compilationResult.diagnostics.filter(
+            (d) => d.category === 'warning' || d.category === 'suggestion'
+          ),
           compiledJavaScript: finalJavaScript,
           sourceMap: compilationResult.sourceMap
         }
-      };
+      } as EnhancedWASMCodeEvaluationResult;
     } catch (error) {
       // If custom functions generation fails, fall back to regular evaluation
       console.error('Failed to generate custom functions namespace:', error);
@@ -458,5 +468,105 @@ export class EnhancedWASMCodeEvaluator extends WASMCodeEvaluator {
   setWorkspaceRoot(workspaceRoot: string): void {
     this.customFunctionsExecutor = new CustomFunctionsExecutor(workspaceRoot);
     this.customFunctionsStore = new CustomFunctionsStore(workspaceRoot);
+  }
+
+  /**
+   * Evaluate code with custom functions management API injected
+   */
+  private async evaluateWithCustomFunctionsAPI(
+    options: WASMCodeEvaluationOptions
+  ): Promise<WASMCodeEvaluationResult> {
+    // Store the original method reference
+    const originalInjectSecureAPI = this.injectSecureAPI;
+
+    // Override injectSecureAPI to add custom functions management
+    this.injectSecureAPI = (
+      vm: QuickJSContext,
+      registry: AsyncOperationRegistry,
+      vaultId: string,
+      allowedAPIs?: string[],
+      customContext?: Record<string, unknown>
+    ) => {
+      // Call parent implementation first
+      originalInjectSecureAPI.call(
+        this,
+        vm,
+        registry,
+        vaultId,
+        allowedAPIs,
+        customContext
+      );
+
+      // Add custom functions management API
+      this.injectCustomFunctionsManagementAPI(vm, registry);
+    };
+
+    try {
+      // Call parent evaluate which will use our overridden injectSecureAPI
+      const result = await WASMCodeEvaluator.prototype.evaluate.call(this, options);
+      return result;
+    } finally {
+      // Restore original method
+      this.injectSecureAPI = originalInjectSecureAPI;
+    }
+  }
+
+  /**
+   * Inject custom functions management API into VM context
+   */
+  private injectCustomFunctionsManagementAPI(
+    vm: QuickJSContext,
+    registry: AsyncOperationRegistry
+  ): void {
+    if (!this.customFunctionsStore) return;
+
+    // Create customFunctionsAPI object for management operations
+    const cfApiObj = vm.newObject();
+    vm.setProp(vm.global, 'customFunctionsAPI', cfApiObj);
+
+    // _listFunctions - list all custom functions
+    const listFn = vm.newFunction('_listFunctions', () => {
+      const hostPromise = this.customFunctionsStore!.list();
+      return this.promiseFactory.createProxy(vm, registry, hostPromise);
+    });
+    vm.setProp(cfApiObj, 'list', listFn);
+    listFn.dispose();
+
+    // _removeFunction - remove a custom function by name
+    const removeFn = vm.newFunction('_removeFunction', (nameArg) => {
+      const name = vm.getString(nameArg);
+      const hostPromise = this.removeCustomFunctionByName(name);
+      return this.promiseFactory.createProxy(vm, registry, hostPromise);
+    });
+    vm.setProp(cfApiObj, 'remove', removeFn);
+    removeFn.dispose();
+
+    cfApiObj.dispose();
+  }
+
+  /**
+   * Helper method to remove a custom function by name
+   */
+  private async removeCustomFunctionByName(name: string): Promise<boolean> {
+    if (!this.customFunctionsStore) return false;
+
+    try {
+      const functions = await this.customFunctionsStore.list();
+      const functionToRemove = functions.find((f) => f.name === name);
+
+      if (functionToRemove) {
+        await this.customFunctionsStore.delete(functionToRemove.id);
+        // Clear the compiled functions cache
+        if (this.customFunctionsExecutor) {
+          this.customFunctionsExecutor.clearCache();
+        }
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      console.error(`Failed to remove custom function '${name}':`, error);
+      return false;
+    }
   }
 }

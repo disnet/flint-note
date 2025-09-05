@@ -496,7 +496,7 @@ async function main(): Promise<string> {
 
 // Into this (automatically):
 const customFunctions = {
-  formatMessage: function(message: string, prefix?: string): string {
+  formatMessage: function (message: string, prefix?: string): string {
     const actualPrefix = prefix || 'Message';
     return actualPrefix + ': ' + message;
   }
@@ -509,6 +509,7 @@ async function main(): Promise<string> {
 ```
 
 **Implementation Plan:**
+
 1. Add `generateNamespaceCode()` method to `CustomFunctionsExecutor`
 2. Modify `evaluateWithCustomFunctionsInternal()` to prepend namespace code
 3. Leverage existing TypeScript compilation pipeline

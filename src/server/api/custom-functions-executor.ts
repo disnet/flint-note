@@ -43,9 +43,6 @@ export class CustomFunctionsExecutor {
       }
     }
 
-    // Add management functions (prefixed with _ to avoid conflicts)
-    this.addManagementFunctions(vm, customFunctionsObj);
-
     return customFunctionsObj;
   }
 
@@ -113,7 +110,7 @@ export class CustomFunctionsExecutor {
     return `
       // Custom function implementation
       ${func.code}
-      
+
       // Export for VM execution
       globalThis.${safeId} = ${func.name};
     `;
@@ -180,12 +177,12 @@ export class CustomFunctionsExecutor {
       const safeId = `f_${compiled.id.replace(/-/g, '_')}`;
       const executionCode = `
         ${compiled.compiledCode}
-        
+
         // Execute the function
         const result = globalThis.${safeId}(${Object.values(parameters)
           .map((p) => JSON.stringify(p))
           .join(', ')});
-        
+
         result;
       `;
 
@@ -207,42 +204,7 @@ export class CustomFunctionsExecutor {
     }
   }
 
-  /**
-   * Add management functions to the customFunctions namespace
-   */
-  private addManagementFunctions(
-    vm: QuickJSContext,
-    customFunctionsObj: QuickJSHandle
-  ): void {
-    // _list function - simplified for Phase 1
-    const listFn = vm.newFunction('_list', () => {
-      // For Phase 1, return a placeholder - would need proper async handling
-      return vm.newString(JSON.stringify([]));
-    });
-    vm.setProp(customFunctionsObj, '_list', listFn);
-    listFn.dispose();
-
-    // _remove function - simplified for Phase 1
-    const removeFn = vm.newFunction('_remove', () => {
-      // For Phase 1, return a placeholder - would need proper async handling
-      return vm.newString(
-        JSON.stringify({ success: false, message: 'Not implemented in Phase 1' })
-      );
-    });
-    vm.setProp(customFunctionsObj, '_remove', removeFn);
-    removeFn.dispose();
-
-    // _update function - simplified for Phase 1
-    const updateFn = vm.newFunction('_update', () => {
-      // For Phase 1, return a placeholder - would need proper async handling
-      return vm.newString(
-        JSON.stringify({ success: false, message: 'Not implemented in Phase 1' })
-      );
-    });
-    vm.setProp(customFunctionsObj, '_update', updateFn);
-    updateFn.dispose();
-  }
-
+  /*
   /**
    * Extract dependencies from function code (basic implementation)
    */
@@ -294,60 +256,115 @@ export class CustomFunctionsExecutor {
    */
   async generateNamespaceCode(): Promise<string> {
     const functions = await this.store.list();
-    
+
     if (functions.length === 0) {
-      // Return empty namespace for consistency
+      // Return namespace with management functions only
       return `
-// Custom functions namespace (empty)
-const customFunctions = {};
+// Custom functions namespace (empty - management functions only)
+const customFunctions = {
+  _list: async function() {
+    // Use the injected customFunctionsAPI to get current list
+    return await customFunctionsAPI.list();
+  },
+  _remove: async function(name) {
+    // Remove a custom function by name using the injected API
+    if (!name) {
+      throw new Error('Function name is required');
+    }
+    return await customFunctionsAPI.remove(name);
+  }
+};
 `;
     }
 
     const functionDefinitions: string[] = [];
-    
+
     for (const func of functions) {
       try {
-        // Compile the individual function from TypeScript to JavaScript
+        // Set the existing functions in the compiler so it knows about the customFunctions namespace
+        // Filter out the current function to avoid self-reference issues
+        const otherFunctions = functions.filter((f) => f.id !== func.id);
+        this.compiler.setCustomFunctions(otherFunctions);
+
+        // Compile the function code directly - the compiler now has the custom functions context
         const compilationResult = await this.compiler.compile(func.code);
-        
+
         if (!compilationResult.success) {
-          console.error(`Failed to compile custom function '${func.name}':`, compilationResult.diagnostics);
+          console.error(
+            `Failed to compile custom function '${func.name}':`,
+            compilationResult.diagnostics
+          );
           continue; // Skip this function
         }
-        
-        // Get the compiled JavaScript and clean it up
+
+        // Get the compiled JavaScript
         let compiledCode = compilationResult.compiledJavaScript || func.code;
-        
+
         // Remove any leading/trailing whitespace and convert to function expression
         compiledCode = compiledCode.trim();
-        
+
         // If the compiled code starts with 'function functionName', convert it to anonymous function
         const functionMatch = compiledCode.match(/^function\s+\w+/);
         if (functionMatch) {
           compiledCode = compiledCode.replace(/^function\s+\w+/, 'function');
         }
-        
+
         functionDefinitions.push(`  ${func.name}: ${compiledCode}`);
-        
+
         // Update usage statistics
         await this.store.recordUsage(func.id);
       } catch (error) {
-        console.error(`Failed to add custom function '${func.name}' to namespace:`, error);
+        console.error(
+          `Failed to add custom function '${func.name}' to namespace:`,
+          error
+        );
         // Skip this function but continue with others
       }
     }
 
     if (functionDefinitions.length === 0) {
       return `
-// Custom functions namespace (compilation failed)
-const customFunctions = {};
+// Custom functions namespace (compilation failed - management functions only)
+const customFunctions = {
+  _list: async function() {
+    // Use the injected customFunctionsAPI to get current list
+    return await customFunctionsAPI.list();
+  },
+  _remove: async function(name) {
+    // Remove a custom function by name using the injected API
+    if (!name) {
+      throw new Error('Function name is required');
+    }
+    return await customFunctionsAPI.remove(name);
+  }
+};
 `;
     }
+
+    // Add management functions that use the injected API
+    const managementFunctions = [
+      `  _list: async function() {
+    // Use the injected customFunctionsAPI to get current list
+    return await customFunctionsAPI.list();
+  }`,
+      `  _remove: async function(name) {
+    // Remove a custom function by name using the injected API
+    if (!name) {
+      throw new Error('Function name is required');
+    }
+    return await customFunctionsAPI.remove(name);
+  }`
+    ];
+
+    const allFunctions =
+      functionDefinitions.length > 0
+        ? [...functionDefinitions, ...managementFunctions]
+        : managementFunctions;
 
     return `
 // Auto-generated custom functions namespace
 const customFunctions = {
-${functionDefinitions.join(',\n')}
+${allFunctions.join(',\n')}
 };
 `;
   }

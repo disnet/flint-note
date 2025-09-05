@@ -246,6 +246,8 @@ describe('CustomFunctionsStore', () => {
 
       const initialUsage = testFunc.metadata.usageCount;
 
+      // Add a small delay to ensure different timestamps
+      await new Promise((resolve) => setTimeout(resolve, 1));
       await store.recordUsage(testFunc.id);
 
       const updated = await store.get(testFunc.id);
