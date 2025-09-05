@@ -3,6 +3,14 @@ import { join } from 'path';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import icon from '../../resources/icon.png?asset';
 import { AIService } from './ai-service';
+import { CustomFunctionsApi } from '../server/api/custom-functions-api.js';
+import { ToolService } from './tool-service';
+
+// Type for accessing private properties of AIService
+type AIServiceWithPrivateProps = {
+  customFunctionsApi: CustomFunctionsApi;
+  toolService: ToolService;
+};
 import { NoteService } from './note-service';
 import { SecureStorageService } from './secure-storage-service';
 import { PinnedNotesStorageService } from './pinned-notes-storage-service';
@@ -1240,7 +1248,8 @@ app.whenReady().then(async () => {
         throw new Error('AI service not available');
       }
       // Access the customFunctionsApi through reflection since it's private
-      const customFunctionsApi = (aiService as any).customFunctionsApi;
+      const customFunctionsApi = (aiService as unknown as AIServiceWithPrivateProps)
+        .customFunctionsApi;
       if (!customFunctionsApi) {
         throw new Error('Custom functions API not available');
       }
@@ -1272,7 +1281,8 @@ app.whenReady().then(async () => {
       if (!aiService) {
         throw new Error('AI service not available');
       }
-      const customFunctionsApi = (aiService as any).customFunctionsApi;
+      const customFunctionsApi = (aiService as unknown as AIServiceWithPrivateProps)
+        .customFunctionsApi;
       if (!customFunctionsApi) {
         throw new Error('Custom functions API not available');
       }
@@ -1286,7 +1296,8 @@ app.whenReady().then(async () => {
       if (!aiService) {
         throw new Error('AI service not available');
       }
-      const customFunctionsApi = (aiService as any).customFunctionsApi;
+      const customFunctionsApi = (aiService as unknown as AIServiceWithPrivateProps)
+        .customFunctionsApi;
       if (!customFunctionsApi) {
         throw new Error('Custom functions API not available');
       }
@@ -1319,7 +1330,8 @@ app.whenReady().then(async () => {
       if (!aiService) {
         throw new Error('AI service not available');
       }
-      const customFunctionsApi = (aiService as any).customFunctionsApi;
+      const customFunctionsApi = (aiService as unknown as AIServiceWithPrivateProps)
+        .customFunctionsApi;
       if (!customFunctionsApi) {
         throw new Error('Custom functions API not available');
       }
@@ -1331,7 +1343,8 @@ app.whenReady().then(async () => {
     if (!aiService) {
       throw new Error('AI service not available');
     }
-    const customFunctionsApi = (aiService as any).customFunctionsApi;
+    const customFunctionsApi = (aiService as unknown as AIServiceWithPrivateProps)
+      .customFunctionsApi;
     if (!customFunctionsApi) {
       throw new Error('Custom functions API not available');
     }
@@ -1362,7 +1375,8 @@ app.whenReady().then(async () => {
       if (!aiService) {
         throw new Error('AI service not available');
       }
-      const customFunctionsApi = (aiService as any).customFunctionsApi;
+      const customFunctionsApi = (aiService as unknown as AIServiceWithPrivateProps)
+        .customFunctionsApi;
       if (!customFunctionsApi) {
         throw new Error('Custom functions API not available');
       }
@@ -1382,7 +1396,8 @@ app.whenReady().then(async () => {
       if (!aiService) {
         throw new Error('AI service not available');
       }
-      const customFunctionsApi = (aiService as any).customFunctionsApi;
+      const customFunctionsApi = (aiService as unknown as AIServiceWithPrivateProps)
+        .customFunctionsApi;
       if (!customFunctionsApi) {
         throw new Error('Custom functions API not available');
       }
@@ -1421,16 +1436,37 @@ app.whenReady().then(async () => {
     `;
 
       // Use the toolService to execute the code with custom functions
-      const toolService = (aiService as any).toolService;
-      const evaluateResult = await toolService.evaluateNoteCode.execute({
-        code: testCode
+      const toolService = (aiService as unknown as AIServiceWithPrivateProps).toolService;
+      const tools = toolService.getTools();
+      if (!tools?.evaluate_note_code) {
+        throw new Error('Code evaluation tool not available');
+      }
+
+      const evaluateResult = await (
+        tools.evaluate_note_code.execute as (args: {
+          code: string;
+          typesOnly: boolean;
+        }) => Promise<{
+          success: boolean;
+          data?: { result: unknown; executionTime: number };
+          error?: string;
+        }>
+      )({
+        code: testCode,
+        typesOnly: false
       });
 
       return {
         success: evaluateResult.success,
-        result: evaluateResult.success ? evaluateResult.result : undefined,
+        result:
+          evaluateResult.success && evaluateResult.data
+            ? evaluateResult.data.result
+            : undefined,
         error: evaluateResult.success ? undefined : evaluateResult.error,
-        executionTime: evaluateResult.result?.executionTime || 0
+        executionTime:
+          evaluateResult.success && evaluateResult.data
+            ? evaluateResult.data.executionTime || 0
+            : 0
       };
     }
   );
@@ -1441,7 +1477,8 @@ app.whenReady().then(async () => {
       if (!aiService) {
         throw new Error('AI service not available');
       }
-      const customFunctionsApi = (aiService as any).customFunctionsApi;
+      const customFunctionsApi = (aiService as unknown as AIServiceWithPrivateProps)
+        .customFunctionsApi;
       if (!customFunctionsApi) {
         throw new Error('Custom functions API not available');
       }
@@ -1453,7 +1490,8 @@ app.whenReady().then(async () => {
     if (!aiService) {
       throw new Error('AI service not available');
     }
-    const customFunctionsApi = (aiService as any).customFunctionsApi;
+    const customFunctionsApi = (aiService as unknown as AIServiceWithPrivateProps)
+      .customFunctionsApi;
     if (!customFunctionsApi) {
       throw new Error('Custom functions API not available');
     }
@@ -1466,7 +1504,8 @@ app.whenReady().then(async () => {
       if (!aiService) {
         throw new Error('AI service not available');
       }
-      const customFunctionsApi = (aiService as any).customFunctionsApi;
+      const customFunctionsApi = (aiService as unknown as AIServiceWithPrivateProps)
+        .customFunctionsApi;
       if (!customFunctionsApi) {
         throw new Error('Custom functions API not available');
       }

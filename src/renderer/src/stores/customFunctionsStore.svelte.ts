@@ -114,8 +114,8 @@ const filteredFunctions = $derived((): CustomFunction[] => {
 
   // Apply sorting
   filtered.sort((a, b) => {
-    let aValue: unknown;
-    let bValue: unknown;
+    let aValue: string | number;
+    let bValue: string | number;
 
     switch (sortBy) {
       case 'name':

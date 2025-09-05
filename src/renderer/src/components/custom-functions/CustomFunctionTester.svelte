@@ -96,7 +96,7 @@
             prepared[key] = Boolean(value);
             break;
           case 'Date':
-            prepared[key] = new Date(value);
+            prepared[key] = new Date(value as string | number | Date);
             break;
           case 'object':
           case 'any':
@@ -110,7 +110,7 @@
           default:
             prepared[key] = value;
         }
-      } catch (_error) {
+      } catch {
         // If conversion fails, use raw value
         prepared[key] = value;
       }
@@ -261,7 +261,7 @@
                   <input
                     id="param-{key}"
                     type="checkbox"
-                    checked={parameters[key]}
+                    checked={Boolean(parameters[key])}
                     onchange={(e) =>
                       updateParameter(key, (e.target as HTMLInputElement).checked)}
                   />
