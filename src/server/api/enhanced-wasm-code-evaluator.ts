@@ -365,14 +365,68 @@ export class EnhancedWASMCodeEvaluator extends WASMCodeEvaluator {
   private async evaluateWithCustomFunctionsInternal(
     options: WASMCodeEvaluationOptions
   ): Promise<WASMCodeEvaluationResult> {
-    // Use parent implementation and extend it by accessing the VM after creation
-    // This is a simplified approach for Phase 2
-    const baseResult = await super.evaluate(options);
+    if (!this.customFunctionsExecutor) {
+      return await super.evaluate(options);
+    }
 
-    // For Phase 2, we rely on the fact that the custom functions executor
-    // should have been initialized and the functions should be available
-    // through the customFunctions namespace that we'll inject
-    return baseResult;
+    try {
+      // Set custom functions for TypeScript type checking
+      const customFunctions = await this.customFunctionsStore!.list();
+      this.typeScriptCompiler.setCustomFunctions(customFunctions);
+      
+      // Compile the user code with TypeScript (this includes custom function types)
+      const compilationResult = await this.typeScriptCompiler.compile(options.code);
+      
+      if (!compilationResult.success) {
+        const firstError = compilationResult.diagnostics.find(d => d.category === 'error');
+        return {
+          success: false,
+          error: 'Custom function enhanced code compilation failed',
+          errorDetails: {
+            type: 'syntax',
+            message: firstError?.messageText || 'Compilation failed',
+            suggestion: 'Check custom function definitions and user code syntax'
+          },
+          compilation: {
+            success: false,
+            errors: compilationResult.diagnostics.filter(d => d.category === 'error'),
+            warnings: compilationResult.diagnostics.filter(d => d.category === 'warning' || d.category === 'suggestion')
+          },
+          executionTime: 0
+        };
+      }
+      
+      // Get compiled JavaScript
+      const compiledUserCode = compilationResult.compiledJavaScript || options.code;
+      
+      // Generate custom functions implementation and prepend to compiled JavaScript
+      const customFunctionsCode = await this.customFunctionsExecutor.generateNamespaceCode();
+      const finalJavaScript = customFunctionsCode + '\n\n' + compiledUserCode;
+      
+      // Debug logging can be removed in production
+      
+      // Call the base WASM evaluator with the final JavaScript
+      const wasmResult = await WASMCodeEvaluator.prototype.evaluate.call(this, {
+        ...options,
+        code: finalJavaScript
+      });
+      
+      // Add compilation info to result
+      return {
+        ...wasmResult,
+        compilation: {
+          success: true,
+          errors: [],
+          warnings: compilationResult.diagnostics.filter(d => d.category === 'warning' || d.category === 'suggestion'),
+          compiledJavaScript: finalJavaScript,
+          sourceMap: compilationResult.sourceMap
+        }
+      };
+    } catch (error) {
+      // If custom functions generation fails, fall back to regular evaluation
+      console.error('Failed to generate custom functions namespace:', error);
+      return await super.evaluate(options);
+    }
   }
 
   /**

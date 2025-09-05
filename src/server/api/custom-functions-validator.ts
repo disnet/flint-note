@@ -375,7 +375,7 @@ export class CustomFunctionValidator {
         severity: 'error' as const
       },
       {
-        pattern: /Function\s*\(/g,
+        pattern: /\bnew\s+Function\s*\(|\bFunction\s*\(/g,
         message: 'Dynamic function creation is not allowed',
         type: 'security' as const,
         severity: 'error' as const

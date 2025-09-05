@@ -290,6 +290,69 @@ export class CustomFunctionsExecutor {
   }
 
   /**
+   * Generate namespace code for prepending to user code
+   */
+  async generateNamespaceCode(): Promise<string> {
+    const functions = await this.store.list();
+    
+    if (functions.length === 0) {
+      // Return empty namespace for consistency
+      return `
+// Custom functions namespace (empty)
+const customFunctions = {};
+`;
+    }
+
+    const functionDefinitions: string[] = [];
+    
+    for (const func of functions) {
+      try {
+        // Compile the individual function from TypeScript to JavaScript
+        const compilationResult = await this.compiler.compile(func.code);
+        
+        if (!compilationResult.success) {
+          console.error(`Failed to compile custom function '${func.name}':`, compilationResult.diagnostics);
+          continue; // Skip this function
+        }
+        
+        // Get the compiled JavaScript and clean it up
+        let compiledCode = compilationResult.compiledJavaScript || func.code;
+        
+        // Remove any leading/trailing whitespace and convert to function expression
+        compiledCode = compiledCode.trim();
+        
+        // If the compiled code starts with 'function functionName', convert it to anonymous function
+        const functionMatch = compiledCode.match(/^function\s+\w+/);
+        if (functionMatch) {
+          compiledCode = compiledCode.replace(/^function\s+\w+/, 'function');
+        }
+        
+        functionDefinitions.push(`  ${func.name}: ${compiledCode}`);
+        
+        // Update usage statistics
+        await this.store.recordUsage(func.id);
+      } catch (error) {
+        console.error(`Failed to add custom function '${func.name}' to namespace:`, error);
+        // Skip this function but continue with others
+      }
+    }
+
+    if (functionDefinitions.length === 0) {
+      return `
+// Custom functions namespace (compilation failed)
+const customFunctions = {};
+`;
+    }
+
+    return `
+// Auto-generated custom functions namespace
+const customFunctions = {
+${functionDefinitions.join(',\n')}
+};
+`;
+  }
+
+  /**
    * Get execution statistics
    */
   async getExecutionStats(): Promise<{
