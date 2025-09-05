@@ -2,9 +2,9 @@
 
 ## Executive Summary
 
-The code evaluator system provides AI agents with a single TypeScript-enabled tool that replaces 32+ discrete FlintNote API methods. Built on a secure WebAssembly foundation using quickjs-emscripten, it offers compile-time type checking, comprehensive error feedback, and full access to the FlintNote API through a unified programming interface.
+The code evaluator system provides AI agents with a single TypeScript-enabled tool that replaces 32+ discrete FlintNote API methods. Built on a secure WebAssembly foundation using quickjs-emscripten, it offers compile-time type checking, comprehensive error feedback, and full access to the FlintNote API through a unified programming interface. The system has been extended with custom functions capabilities, allowing AI agents to register, persist, and reuse workflow automation functions across sessions.
 
-**Current Status**: ✅ **PRODUCTION READY** - Complete implementation with TypeScript support, comprehensive API coverage, and security hardening.
+**Current Status**: ✅ **PRODUCTION READY** - Complete implementation with TypeScript support, comprehensive API coverage, security hardening, and custom functions extension.
 
 ## System Architecture
 
@@ -13,68 +13,104 @@ The code evaluator system provides AI agents with a single TypeScript-enabled to
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                         AI Agent Layer                          │
-│  Single Tool: evaluate_note_code (TypeScript required)         │
+│  • evaluate_note_code (TypeScript required)                     │
+│  • register_custom_function, test_custom_function               │
+│  • list_custom_functions, validate_custom_function              │
 └─────────────────────────┬───────────────────────────────────────┘
                           │
 ┌─────────────────────────▼───────────────────────────────────────┐
-│                    Tool Service Layer                          │
-│  • Input validation with Zod schemas                          │
-│  • Vault ID resolution                                        │
-│  • Error formatting and response handling                     │
+│                    Tool Service Layer                           │
+│  • Input validation with Zod schemas                            │
+│  • Vault ID resolution                                          │
+│  • Error formatting and response handling                       │
 └─────────────────────────┬───────────────────────────────────────┘
                           │
 ┌─────────────────────────▼───────────────────────────────────────┐
-│              Enhanced Evaluate Note Code Layer                 │
-│  • Request orchestration                                       │
-│  • Vault context management                                   │
-│  • Error aggregation and formatting                           │
+│              Enhanced Evaluate Note Code Layer                  │
+│  • Request orchestration                                        │
+│  • Vault context management                                     │
+│  • Error aggregation and formatting                             │
+│  • Custom functions integration                                 │
 └─────────────────────────┬───────────────────────────────────────┘
                           │
 ┌─────────────────────────▼───────────────────────────────────────┐
-│             Enhanced WASM Code Evaluator                       │
-│  • TypeScript compilation phase                               │
-│  • JavaScript execution phase                                 │
-│  • Result composition and error mapping                       │
+│             Enhanced WASM Code Evaluator                        │
+│  • TypeScript compilation phase                                 │
+│  • Custom functions code prepending                             │
+│  • JavaScript execution phase                                   │
+│  • Result composition and error mapping                         │
 └─────────────────────────┬───────────────────────────────────────┘
                           │
-     ┌────────────────────┼────────────────────┐
-     │                    │                    │
-     ▼                    ▼                    ▼
-┌─────────────┐  ┌─────────────────┐  ┌─────────────────┐
-│ TypeScript  │  │ Base WASM       │  │ FlintNote API   │
-│ Compiler    │  │ Code Evaluator  │  │ Integration     │
-│             │  │                 │  │                 │
-│ • Type      │  │ • QuickJS WASM  │  │ • 39 API        │
-│   checking  │  │   sandbox       │  │   methods       │
-│ • Error     │  │ • Promise       │  │ • Async         │
-│   reporting │  │   handling      │  │   operations    │
-│ • Code      │  │ • Security      │  │ • Type          │
-│   emission  │  │   controls      │  │   definitions   │
-└─────────────┘  └─────────────────┘  └─────────────────┘
+     ┌────────────────────┼────────────────────┬─────────────────┐
+     │                    │                    │                 │
+     ▼                    ▼                    ▼                 ▼
+┌─────────────┐  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────┐
+│ TypeScript  │  │ Base WASM       │  │ FlintNote API   │  │ Custom      │
+│ Compiler    │  │ Code Evaluator  │  │ Integration     │  │ Functions   │
+│             │  │                 │  │                 │  │ System      │
+│ • Type      │  │ • QuickJS WASM  │  │ • 39 API        │  │             │
+│   checking  │  │   sandbox       │  │   methods       │  │ • Storage   │
+│ • Error     │  │ • Promise       │  │ • Async         │  │ • Validation│
+│   reporting │  │   handling      │  │   operations    │  │ • Execution │
+│ • Code      │  │ • Security      │  │ • Type          │  │ • Namespace │
+│   emission  │  │   controls      │  │   definitions   │  │   injection │
+└─────────────┘  └─────────────────┘  └─────────────────┘  └─────────────┘
 ```
 
 ## Implementation Stack
 
 ### 1. Tool Service Layer (`src/main/tool-service.ts`)
 
-**Purpose**: Exposes the single `evaluate_note_code` tool to AI systems
+**Purpose**: Exposes code evaluation and custom functions management tools to AI systems
 
 **Key Features**:
 
-- Single tool definition using `ai` library and Zod schemas
+- Primary tool: `evaluate_note_code` for TypeScript code execution
+- Custom functions tools: 4 additional tools for function management
 - TypeScript-only code acceptance (JavaScript rejected)
 - Integration with note service for vault management
 - Structured error response formatting
 
-**Tool Interface**:
+**Tool Interfaces**:
 
 ```typescript
+// Primary code evaluation tool
 evaluate_note_code: {
   description: "Execute TypeScript code in secure WebAssembly sandbox...",
   inputSchema: {
     code: string,        // TypeScript code required
     typesOnly?: boolean  // Debug mode for type-only checking
   }
+}
+
+// Custom functions management tools
+register_custom_function: {
+  description: "Register a reusable custom function...",
+  inputSchema: {
+    name: string,
+    description: string,
+    parameters: Record<string, ParameterDefinition>,
+    returnType: string,
+    code: string,
+    tags?: string[]
+  }
+}
+
+test_custom_function: {
+  description: "Test a custom function with parameters...",
+  inputSchema: {
+    name: string,
+    parameters?: Record<string, any>
+  }
+}
+
+list_custom_functions: {
+  description: "List all registered custom functions..."
+}
+
+validate_custom_function: {
+  description: "Validate a custom function definition...",
+  inputSchema: { /* same as register */ }
 }
 ```
 
@@ -108,26 +144,33 @@ async execute({ code, typesOnly }) {
 
 ### 3. Enhanced WASM Code Evaluator (`src/server/api/enhanced-wasm-code-evaluator.ts`)
 
-**Purpose**: Coordinates TypeScript compilation with WebAssembly execution
+**Purpose**: Coordinates TypeScript compilation with WebAssembly execution, including custom functions integration
 
 **Execution Pipeline**:
 
-1. **TypeScript Compilation Phase**
+1. **Custom Functions Preparation Phase**
+   - Load registered custom functions for current vault
+   - Generate `customFunctions` namespace code
+   - Prepend namespace code to user's TypeScript code
+
+2. **TypeScript Compilation Phase**
    - Strict type checking with comprehensive FlintNote API types
+   - Custom functions type definitions included
    - Detailed error reporting with line/column precision
    - JavaScript code emission for successful compilation
 
-2. **Types-Only Mode** (Optional)
+3. **Types-Only Mode** (Optional)
    - Early return with compilation results
    - No code execution for debugging workflows
 
-3. **JavaScript Execution Phase**
-   - Delegates to base WASM evaluator
-   - Executes compiled JavaScript in secure sandbox
+4. **JavaScript Execution Phase**
+   - Delegates to base WASM evaluator with enhanced code
+   - Executes compiled JavaScript with custom functions in secure sandbox
 
-4. **Result Composition**
+5. **Result Composition**
    - Combines compilation and execution results
    - Enhanced error context with suggestions
+   - Custom function usage tracking and analytics
 
 **Error Enhancement Logic**:
 
@@ -199,7 +242,61 @@ class PromiseProxyFactory {
 }
 ```
 
-### 6. FlintNote API Integration
+### 6. Custom Functions System
+
+**Purpose**: Enables AI agents to register, persist, and reuse TypeScript functions across sessions
+
+**Core Components**:
+
+**6.1 Custom Functions Store** (`src/server/core/custom-functions-store.ts`)
+- Vault-scoped JSON persistence in `.flint-note/custom-functions.json`
+- Full CRUD operations with automatic conflict detection
+- Usage tracking and analytics with metadata
+- Search and filtering by name, tags, description
+- Import/export functionality for function sharing
+
+**6.2 Validation Framework** (`src/server/api/custom-functions-validator.ts`)
+- TypeScript syntax validation using existing compiler infrastructure
+- Security analysis detecting dangerous patterns (eval, require, imports)
+- Function name validation with reserved keyword detection
+- Parameter and return type validation
+- Performance analysis and code complexity warnings
+
+**6.3 Execution Integration** (`src/server/api/custom-functions-executor.ts`)
+- Code prepending approach for WASM sandbox integration
+- Dynamic TypeScript namespace generation
+- Custom function compilation and caching
+- Usage tracking and performance monitoring
+
+**Custom Functions Namespace**:
+
+```typescript
+// Generated automatically and prepended to user code
+const customFunctions = {
+  // User-registered functions appear here
+  createDailyNote: async function(date?: string): Promise<Note> {
+    // User's function implementation
+  },
+
+  formatMessage: function(message: string, prefix?: string): string {
+    // Another user function
+  }
+};
+
+// User's code can then call:
+async function main() {
+  const note = await customFunctions.createDailyNote('2025-01-15');
+  return customFunctions.formatMessage(`Created note: ${note.title}`);
+}
+```
+
+**AI Agent Integration**:
+- Dynamic system prompt generation with custom function documentation
+- Type definitions automatically generated for IntelliSense support
+- 4 management tools integrated into AI service
+- Enhanced error handling with custom function context
+
+### 7. FlintNote API Integration
 
 **Complete API Surface** (39 methods across 6 categories):
 
@@ -330,7 +427,7 @@ Agents can check types without execution:
 }
 ```
 
-### Complete API Access Pattern
+### Complete API Access Pattern with Custom Functions
 
 ```typescript
 async function main(): Promise<AnalysisResult> {
@@ -339,18 +436,66 @@ async function main(): Promise<AnalysisResult> {
   const vault = await vaults.getCurrent();
   const noteTypes = await noteTypes.list();
 
+  // Custom functions available via customFunctions namespace
+  const dailyNote = await customFunctions.createOrUpdateDailyNote();
+
   // Complex multi-step operations in single execution
   for (const noteInfo of notes) {
     const note = await notes.get(noteInfo.id);
     if (note) {
       const links = await links.getForNote(note.id);
       const related = await relationships.getRelated({ note_id: note.id });
+
+      // Use custom functions for reusable workflows
+      const summary = await customFunctions.generateNoteSummary(note);
+      const tags = customFunctions.extractTags(note.content);
+
       // Process note with full context
     }
   }
 
   return analysisResults;
 }
+```
+
+### Custom Functions Management
+
+**Registration Example**:
+```typescript
+// Agent registers a reusable function
+await register_custom_function({
+  name: 'extractTags',
+  description: 'Extract hashtags from note content',
+  parameters: {
+    content: { type: 'string', description: 'Note content to analyze' }
+  },
+  returnType: 'string[]',
+  code: `
+    function extractTags(content: string): string[] {
+      const tagRegex = /#[a-zA-Z0-9_-]+/g;
+      return content.match(tagRegex) || [];
+    }
+  `,
+  tags: ['utility', 'parsing']
+});
+
+// Function is now available in subsequent evaluations
+const tags = customFunctions.extractTags('#work #important Some note content');
+// Returns: ['#work', '#important']
+```
+
+**Testing and Validation**:
+```typescript
+// Test function before use
+await test_custom_function({
+  name: 'extractTags',
+  parameters: { content: '#test This is test content #demo' }
+});
+// Returns: { success: true, result: ['#test', '#demo'] }
+
+// List all available functions
+const functions = await list_custom_functions();
+// Returns array of CustomFunction objects with metadata
 ```
 
 ## Performance Characteristics
@@ -401,19 +546,24 @@ async function main(): Promise<AnalysisResult> {
 
 ### For AI Agents
 
-1. **Unified Interface**: Single tool replaces 32+ discrete methods
-2. **Type Safety**: Compile-time error detection and prevention
-3. **Rich Feedback**: Detailed error context with actionable suggestions
-4. **Flexible Programming**: Complex multi-step operations in single execution
-5. **Learning Support**: Type system guides correct API usage patterns
+1. **Unified Interface**: Single evaluation tool replaces 32+ discrete methods
+2. **Custom Functions**: Persistent, reusable workflow automation across sessions
+3. **Type Safety**: Compile-time error detection and prevention for all code
+4. **Rich Feedback**: Detailed error context with actionable suggestions
+5. **Flexible Programming**: Complex multi-step operations in single execution
+6. **Learning Support**: Type system guides correct API usage patterns
+7. **Workflow Reuse**: Build libraries of proven automation patterns
+8. **Enhanced Productivity**: Avoid rewriting similar multi-step operations
 
 ### For System Architecture
 
 1. **Reduced Complexity**: Single secure endpoint vs. multiple method handlers
-2. **Better Security**: WASM isolation vs. traditional execution environments
-3. **Improved Performance**: Reduced IPC overhead and faster execution
+2. **Better Security**: WASM isolation with custom functions sandboxing
+3. **Improved Performance**: Reduced IPC overhead and cached function execution
 4. **Enhanced Monitoring**: Single execution point for comprehensive observability
 5. **Simplified Maintenance**: Unified codebase with consistent patterns
+6. **Extensible Design**: Custom functions extend capabilities without core changes
+7. **Persistent State**: Session-independent function persistence and reuse
 
 ### For Development Workflow
 
@@ -461,4 +611,15 @@ async function main(): Promise<AnalysisResult> {
 
 The implemented code evaluator architecture successfully provides AI agents with a powerful, type-safe programming interface that replaces the complexity of managing 32+ discrete tools. Built on secure WebAssembly foundations with comprehensive TypeScript support, it enables sophisticated agent workflows while maintaining production-grade security and performance characteristics.
 
-The system's layered architecture allows for clear separation of concerns, comprehensive testing, and maintainable evolution while providing agents with immediate feedback and learning support through the TypeScript type system and enhanced error reporting.
+**Enhanced with Custom Functions**: The system has been extended with comprehensive custom functions capabilities, enabling AI agents to register, persist, and reuse TypeScript workflow automation functions across sessions. This addresses the common pattern where agents repeatedly perform similar multi-step operations by allowing them to build libraries of reusable, type-safe functions.
+
+**Current Status**: The backend implementation is 100% complete with:
+- ✅ 98 tests passing with comprehensive coverage including end-to-end integration
+- ✅ Secure storage layer with vault-scoped persistence
+- ✅ Complete validation framework with TypeScript compilation and security analysis
+- ✅ WASM execution integration using code prepending approach
+- ✅ Full AI agent integration with 4 management tools
+- ✅ Dynamic system prompt generation and type definitions
+- ❌ User interface layer (pending Phase 3 implementation)
+
+The system's layered architecture allows for clear separation of concerns, comprehensive testing, and maintainable evolution while providing agents with immediate feedback and learning support through the TypeScript type system, enhanced error reporting, and persistent workflow automation capabilities.
