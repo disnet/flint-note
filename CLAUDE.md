@@ -127,4 +127,4 @@ Test files have relaxed ESLint rules allowing:
   await window.api?.saveData(serializable);
   ```
 
-- when finishing a significant task (excluding things like linting/formatting), write a concicse summary (one bullet point) in PROJECT-LOG.md
+- when finishing a significant task (excluding things like linting/formatting), write a concicse summary (one bullet point) in ./PROJECT-LOG.md

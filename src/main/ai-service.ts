@@ -239,10 +239,6 @@ ${nt.agentInstructions.map((instruction) => `- ${instruction}`).join('\n')}
       // Continue without custom functions info if loading fails
     }
 
-    console.log(
-      'System message generated:',
-      contextualInfo + noteTypeInfo + customFunctionsInfo
-    );
     return this.systemPrompt + contextualInfo + noteTypeInfo + customFunctionsInfo;
   }
 
