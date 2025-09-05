@@ -1,5 +1,33 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2025-09-05T17:27:49.993Z",
-  "functions": {}
+  "lastUpdated": "2025-01-28T00:00:00.000Z",
+  "functions": {
+    "greetUser": {
+      "id": "demo-function-001",
+      "name": "greetUser",
+      "description": "Greets a user with a personalized message",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "The name of the user to greet"
+        },
+        "formal": {
+          "type": "boolean",
+          "description": "Whether to use formal greeting",
+          "optional": true,
+          "default": false
+        }
+      },
+      "returnType": "string",
+      "code": "function greetUser(name: string, formal?: boolean): string {\n  if (formal) {\n    return `Good day, ${name}. I hope this message finds you well.`;\n  } else {\n    return `Hi ${name}! How are you doing?`;\n  }\n}",
+      "tags": ["demo", "greeting"],
+      "metadata": {
+        "createdAt": "2025-01-28T00:00:00.000Z",
+        "updatedAt": "2025-01-28T00:00:00.000Z",
+        "createdBy": "agent",
+        "usageCount": 0,
+        "version": 1
+      }
+    }
+  }
 }

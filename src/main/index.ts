@@ -230,7 +230,21 @@ app.whenReady().then(async () => {
   // Initialize AI service
   let aiService: AIService | null = null;
   try {
-    aiService = await AIService.of(secureStorageService, noteService);
+    // Get workspace root from current vault for custom functions support
+    let workspaceRoot: string | undefined;
+    if (noteService) {
+      try {
+        const currentVault = await noteService.getCurrentVault();
+        if (currentVault) {
+          workspaceRoot = currentVault.path;
+          logger.info('Using workspace root for custom functions', { workspaceRoot });
+        }
+      } catch (error) {
+        logger.warn('Could not get current vault for workspace root', { error });
+      }
+    }
+
+    aiService = await AIService.of(secureStorageService, noteService, workspaceRoot);
 
     // Set up global usage tracking listener
     aiService.on('usage-recorded', (usageData) => {
