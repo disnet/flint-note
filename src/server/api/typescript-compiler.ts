@@ -151,6 +151,106 @@ declare var Error: ErrorConstructor;
 
 declare function String(value?: any): string;
 
+// Built-in utility types
+type Record<K extends keyof any, T> = {
+  [P in K]: T;
+};
+
+// Date interface
+interface DateConstructor {
+  new(): Date;
+  new(value: number | string): Date;
+  new(year: number, month: number, date?: number, hours?: number, minutes?: number, seconds?: number, ms?: number): Date;
+}
+declare var Date: DateConstructor;
+
+interface Date {
+  toString(): string;
+  toISOString(): string;
+  getTime(): number;
+  valueOf(): number;
+}
+
+// JSON interface
+interface JSON {
+  stringify(value: any, replacer?: (key: string, value: any) => any, space?: string | number): string;
+  stringify(value: any, replacer?: (number | string)[] | null, space?: string | number): string;
+  parse(text: string, reviver?: (key: string, value: any) => any): any;
+}
+declare var JSON: JSON;
+
+// Math interface
+interface Math {
+  abs(x: number): number;
+  max(...values: number[]): number;
+  min(...values: number[]): number;
+  random(): number;
+  round(x: number): number;
+  floor(x: number): number;
+  ceil(x: number): number;
+}
+declare var Math: Math;
+
+// Number interface
+interface NumberConstructor {
+  (value?: any): number;
+  new(value?: any): Number;
+}
+declare var Number: NumberConstructor;
+
+interface Number {
+  toString(radix?: number): string;
+  valueOf(): number;
+}
+
+// String interface
+interface String {
+  length: number;
+  charAt(pos: number): string;
+  substring(start: number, end?: number): string;
+  indexOf(searchString: string, position?: number): number;
+  replace(searchValue: string | RegExp, replaceValue: string): string;
+  split(separator?: string | RegExp, limit?: number): string[];
+  toLowerCase(): string;
+  toUpperCase(): string;
+  trim(): string;
+}
+interface StringConstructor {
+  new(value?: any): String;
+  (value?: any): string;
+}
+declare var String: StringConstructor;
+
+// Object interface
+interface Object {
+  toString(): string;
+  valueOf(): any;
+}
+interface ObjectConstructor {
+  keys(o: any): string[];
+  values(o: any): any[];
+  entries(o: any): [string, any][];
+  assign<T, U>(target: T, source: U): T & U;
+  assign<T, U, V>(target: T, source1: U, source2: V): T & U & V;
+  assign(target: any, ...sources: any[]): any;
+}
+declare var Object: ObjectConstructor;
+
+// Console interface
+interface Console {
+  log(...data: any[]): void;
+  error(...data: any[]): void;
+  warn(...data: any[]): void;
+  info(...data: any[]): void;
+}
+declare var console: Console;
+
+// GlobalThis interface
+interface GlobalThis {
+  [key: string]: any;
+}
+declare var globalThis: GlobalThis;
+
 ${FLINT_API_TYPE_DEFINITIONS}
 ${customFunctionDeclarations}
 `;
@@ -189,7 +289,7 @@ ${customFunctionDeclarations}
           target: ts.ScriptTarget.ES2022,
           module: ts.ModuleKind.CommonJS,
           strict: true,
-          noImplicitAny: true,
+          noImplicitAny: false, // Allow implicit any for globalThis access
           strictNullChecks: true,
           noImplicitReturns: true,
           noUnusedLocals: true, // Enable unused variable warnings

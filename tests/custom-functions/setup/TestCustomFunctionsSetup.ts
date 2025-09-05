@@ -18,7 +18,7 @@ export class TestCustomFunctionsSetup extends TestApiSetup {
 
   async setup(): Promise<void> {
     await super.setup();
-    
+
     // Initialize custom functions API with the test workspace
     this.customFunctionsApi = new CustomFunctionsApi(this.testWorkspacePath);
   }
@@ -62,8 +62,8 @@ export class TestCustomFunctionsSetup extends TestApiSetup {
       parameters: {
         text: { type: 'string', description: 'Input text' },
         count: { type: 'number', description: 'Repeat count' },
-        options: { 
-          type: 'object', 
+        options: {
+          type: 'object',
           description: 'Options object',
           optional: true
         }
@@ -150,11 +150,11 @@ export class TestCustomFunctionsSetup extends TestApiSetup {
    */
   createMultipleFunctions(count: number = 3): CustomFunction[] {
     const functions: CustomFunction[] = [];
-    
+
     for (let i = 0; i < count; i++) {
       functions.push(this.createSampleFunction(`testFunction${i + 1}`));
     }
-    
+
     return functions;
   }
 

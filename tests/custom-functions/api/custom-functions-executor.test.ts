@@ -14,13 +14,17 @@ import type { CustomFunction } from '../../../src/server/types/custom-functions.
 // Mock QuickJS since we don't have it in test environment
 const mockVM = {
   newObject: () => ({ dispose: () => {} }),
-  newFunction: (name: string, fn: Function) => ({ dispose: () => {}, name, fn }),
+  newFunction: (name: string, fn: (...args: unknown[]) => unknown) => ({
+    dispose: () => {},
+    name,
+    fn
+  }),
   newString: (value: string) => ({ dispose: () => {}, value }),
   newError: (message: string) => ({ dispose: () => {}, message }),
   setProp: () => {},
-  evalCode: (code: string) => ({ 
-    value: { dispose: () => {} }, 
-    error: null 
+  evalCode: (code: string) => ({
+    value: { dispose: () => {} },
+    error: null
   }),
   dump: (handle: any) => handle.value || 'mocked_result',
   global: {}
@@ -34,11 +38,11 @@ describe('CustomFunctionsExecutor', () => {
   beforeEach(async () => {
     setup = new TestCustomFunctionsSetup();
     await setup.setup();
-    
+
     // Create a test vault
     const vaultId = await setup.createTestVault('test-executor-vault');
     testVaultPath = setup.testWorkspacePath;
-    
+
     executor = new CustomFunctionsExecutor(testVaultPath);
   });
 
@@ -54,9 +58,9 @@ describe('CustomFunctionsExecutor', () => {
           return 'Compiled: ' + input;
         };
       `;
-      
+
       const compiled = await executor.compileFunction(testFunc);
-      
+
       expect(compiled.id).toBe(testFunc.id);
       expect(compiled.compiledCode).toBeDefined();
       expect(typeof compiled.compiledCode).toBe('string');
@@ -73,16 +77,16 @@ describe('CustomFunctionsExecutor', () => {
 
       // First compilation
       const compiled1 = await executor.compileFunction(testFunc);
-      
+
       // Second compilation should return cached result
       const compiled2 = await executor.compileFunction(testFunc);
-      
+
       expect(compiled1).toBe(compiled2); // Same object reference
     });
 
     it('should handle TypeScript compilation errors', async () => {
       const invalidFunc = setup.createInvalidFunction('syntaxErrorTest');
-      
+
       await expect(executor.compileFunction(invalidFunc)).rejects.toThrow(
         'Function validation failed'
       );
@@ -97,19 +101,19 @@ describe('CustomFunctionsExecutor', () => {
       `;
 
       const compiled1 = await executor.compileFunction(testFunc);
-      
+
       // Clear cache to simulate function update
       executor.clearCache();
-      
+
       // Modify function code
       testFunc.code = `
         const updateCacheTest = (input: string): string => {
           return 'Version 2: ' + input;
         };
       `;
-      
+
       const compiled2 = await executor.compileFunction(testFunc);
-      
+
       expect(compiled1).not.toBe(compiled2);
       expect(compiled2.compiledCode).toContain('Version 2');
     });
@@ -125,7 +129,7 @@ describe('CustomFunctionsExecutor', () => {
       `;
 
       const compiled = await executor.compileFunction(testFunc);
-      
+
       expect(compiled.compiledCode).toBeDefined();
       expect(compiled.id).toBe(testFunc.id);
     });
@@ -142,9 +146,9 @@ describe('CustomFunctionsExecutor', () => {
       };
 
       const compiled = await executor.compileFunction(apiFunc);
-      
-      // Should compile without errors and include API type definitions
-      expect(compiled.compiledCode).toContain('FlintAPI');
+
+      // Should compile without errors and include the function export
+      expect(compiled.compiledCode).toContain('globalThis.f_');
     });
 
     it('should isolate function execution contexts', async () => {
@@ -164,7 +168,7 @@ describe('CustomFunctionsExecutor', () => {
 
       const compiled1 = await executor.compileFunction(func1);
       const compiled2 = await executor.compileFunction(func2);
-      
+
       expect(compiled1.id).toBe(func1.id);
       expect(compiled2.id).toBe(func2.id);
       expect(compiled1.compiledCode).not.toEqual(compiled2.compiledCode);
@@ -180,7 +184,7 @@ describe('CustomFunctionsExecutor', () => {
       `;
 
       const compiled = await executor.compileFunction(timeoutFunc);
-      
+
       expect(compiled).toBeDefined();
       expect(compiled.compiledCode).toBeDefined();
     });
@@ -195,10 +199,10 @@ describe('CustomFunctionsExecutor', () => {
 
       // Test that compilation doesn't leak resources
       await executor.compileFunction(cleanupFunc);
-      
+
       // Clear cache should clean up resources
       executor.clearCache();
-      
+
       const stats = await executor.getExecutionStats();
       expect(stats.compiledFunctions).toBe(0);
       expect(stats.cacheSize).toBe(0);
@@ -215,13 +219,13 @@ describe('CustomFunctionsExecutor', () => {
       `;
 
       const namespaceObj = await executor.createNamespaceObject(mockVM as any);
-      
+
       expect(namespaceObj).toBeDefined();
     });
 
     it('should inject all registered functions', async () => {
       const functions = setup.createMultipleFunctions(3);
-      
+
       // Store all functions with proper API
       for (const func of functions) {
         func.code = `
@@ -232,14 +236,14 @@ describe('CustomFunctionsExecutor', () => {
       }
 
       const namespaceObj = await executor.createNamespaceObject(mockVM as any);
-      
+
       expect(namespaceObj).toBeDefined();
       // In a full test, we'd verify each function is available in the namespace
     });
 
     it('should provide management methods', async () => {
       const namespaceObj = await executor.createNamespaceObject(mockVM as any);
-      
+
       expect(namespaceObj).toBeDefined();
       // Management methods are added in createNamespaceObject
       // In a full test environment, we'd verify _list, _remove, _update are available
@@ -260,14 +264,16 @@ describe('CustomFunctionsExecutor', () => {
 
     it('should handle missing function dependencies', async () => {
       const dependentFunc = setup.createSampleFunction('dependencyTest');
+      dependentFunc.returnType = 'Promise<string>';
       dependentFunc.code = `
-        const dependencyTest = (input: string): string => {
-          return notes.get(input) || 'No note found';
+        const dependencyTest = async (input: string): Promise<string> => {
+          const note = await notes.get(input);
+          return note ? note.title : 'No note found';
         };
       `;
 
       const compiled = await executor.compileFunction(dependentFunc);
-      
+
       expect(compiled.dependencies).toContain('notes');
     });
 
@@ -298,7 +304,7 @@ describe('CustomFunctionsExecutor', () => {
       } catch (error) {
         // Ignore error, test cleanup
       }
-      
+
       executor.clearCache();
       const stats = await executor.getExecutionStats();
       expect(stats.cacheSize).toBe(0);
@@ -308,7 +314,7 @@ describe('CustomFunctionsExecutor', () => {
   describe('Performance and Statistics', () => {
     it('should track compilation statistics', async () => {
       const functions = setup.createMultipleFunctions(3);
-      
+
       // Compile functions
       for (const func of functions) {
         func.code = `
@@ -316,12 +322,12 @@ describe('CustomFunctionsExecutor', () => {
             return '${func.name}: ' + input;
           };
         `;
-        
+
         await executor.compileFunction(func);
       }
 
       const stats = await executor.getExecutionStats();
-      
+
       expect(stats.compiledFunctions).toBe(3);
       expect(stats.cacheSize).toBe(3);
     });
@@ -336,14 +342,14 @@ describe('CustomFunctionsExecutor', () => {
 
       // Compile multiple times to test performance
       const startTime = Date.now();
-      
+
       for (let i = 0; i < 10; i++) {
         await executor.compileFunction(testFunc);
       }
-      
+
       const endTime = Date.now();
       const totalTime = endTime - startTime;
-      
+
       // Should be fast due to caching (most calls should use cached version)
       expect(totalTime).toBeLessThan(1000); // Less than 1 second for 10 calls
     });
@@ -364,7 +370,7 @@ describe('CustomFunctionsExecutor', () => {
       };
 
       const compiled = await executor.compileFunction(testFunc);
-      
+
       expect(compiled).toBeDefined();
       expect(compiled.id).toBe(testFunc.id);
     });
@@ -385,7 +391,7 @@ describe('CustomFunctionsExecutor', () => {
       };
 
       const compiled = await executor.compileFunction(asyncFunc);
-      
+
       expect(compiled).toBeDefined();
       expect(compiled.compiledCode).toContain('async');
     });

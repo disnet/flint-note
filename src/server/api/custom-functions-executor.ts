@@ -10,7 +10,6 @@ import type { CustomFunction, CompiledFunction } from '../types/custom-functions
 import { CustomFunctionsStore } from '../core/custom-functions-store.js';
 import { CustomFunctionValidator } from './custom-functions-validator.js';
 import { TypeScriptCompiler } from './typescript-compiler.js';
-import { FLINT_API_TYPE_DEFINITIONS } from './flint-api-types.js';
 
 export class CustomFunctionsExecutor {
   private store: CustomFunctionsStore;
@@ -108,14 +107,15 @@ export class CustomFunctionsExecutor {
    */
   private wrapFunctionForExecution(func: CustomFunction): string {
     // Wrap function to be executable in VM context
+    // API types are already available from the compiler context
+    // Create safe identifier from function ID (UUIDs can start with numbers)
+    const safeId = `f_${func.id.replace(/-/g, '_')}`;
     return `
-      ${FLINT_API_TYPE_DEFINITIONS}
-      
       // Custom function implementation
       ${func.code}
       
       // Export for VM execution
-      globalThis.customFunction_${func.id} = ${func.name};
+      globalThis.${safeId} = ${func.name};
     `;
   }
 
@@ -176,13 +176,13 @@ export class CustomFunctionsExecutor {
 
     try {
       // Create a new context for execution
+      // Create safe identifier from function ID (UUIDs can start with numbers)
+      const safeId = `f_${compiled.id.replace(/-/g, '_')}`;
       const executionCode = `
         ${compiled.compiledCode}
         
         // Execute the function
-        const result = globalThis.customFunction_${compiled.id}(${Object.values(
-          parameters
-        )
+        const result = globalThis.${safeId}(${Object.values(parameters)
           .map((p) => JSON.stringify(p))
           .join(', ')});
         

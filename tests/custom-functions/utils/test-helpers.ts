@@ -2,10 +2,10 @@
  * Test utilities and helpers for Custom Functions testing
  */
 
-import type { 
-  CustomFunction, 
+import type {
+  CustomFunction,
   CreateCustomFunctionOptions,
-  ValidationResult 
+  ValidationResult
 } from '../../../src/server/types/custom-functions.js';
 import type { TestCustomFunctionsSetup } from '../setup/TestCustomFunctionsSetup.js';
 import { randomUUID } from 'crypto';
@@ -15,7 +15,7 @@ export class CustomFunctionTestHelper {
    * Register a function and test its basic functionality
    */
   static async registerAndTest(
-    setup: TestCustomFunctionsSetup, 
+    setup: TestCustomFunctionsSetup,
     func: CustomFunction
   ): Promise<{ success: boolean; error?: string }> {
     try {
@@ -28,25 +28,25 @@ export class CustomFunctionTestHelper {
         code: func.code,
         tags: func.tags
       };
-      
+
       const registeredFunc = await setup.customFunctionsApi.create(createOptions);
-      
+
       // Verify it was registered correctly
       const retrievedFunc = await setup.customFunctionsApi.get(registeredFunc.id);
-      
+
       if (!retrievedFunc) {
         return { success: false, error: 'Function was not properly registered' };
       }
-      
+
       if (retrievedFunc.name !== func.name) {
         return { success: false, error: 'Function name mismatch' };
       }
-      
+
       return { success: true };
     } catch (error) {
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
       };
     }
   }
@@ -66,12 +66,12 @@ export class CustomFunctionTestHelper {
       }
 
       const result = await setup.customFunctionsApi.execute(func.id, parameters);
-      
+
       return { success: true, result };
     } catch (error) {
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
       };
     }
   }
@@ -79,10 +79,12 @@ export class CustomFunctionTestHelper {
   /**
    * Generate a random function for testing
    */
-  static generateRandomFunction(complexity: 'simple' | 'complex' = 'simple'): CustomFunction {
+  static generateRandomFunction(
+    complexity: 'simple' | 'complex' = 'simple'
+  ): CustomFunction {
     const id = randomUUID();
     const name = `randomFunction_${Math.random().toString(36).substr(2, 8)}`;
-    
+
     if (complexity === 'simple') {
       return {
         id,
@@ -114,8 +116,8 @@ export class CustomFunctionTestHelper {
         parameters: {
           data: { type: 'object', description: 'Input data' },
           transform: { type: 'string', description: 'Transform type' },
-          options: { 
-            type: 'object', 
+          options: {
+            type: 'object',
             description: 'Processing options',
             optional: true
           }
@@ -149,7 +151,7 @@ export class CustomFunctionTestHelper {
    * Validate function execution result
    */
   static validateFunctionExecution(
-    result: unknown, 
+    result: unknown,
     expected: unknown
   ): { valid: boolean; error?: string } {
     try {
@@ -178,14 +180,16 @@ export class CustomFunctionTestHelper {
     expectedErrors?: number,
     expectedWarnings?: number
   ): { valid: boolean; message?: string } {
-    let messages: string[] = [];
+    const messages: string[] = [];
 
     if (expectedErrors !== undefined && result.errors.length !== expectedErrors) {
       messages.push(`Expected ${expectedErrors} errors, got ${result.errors.length}`);
     }
 
     if (expectedWarnings !== undefined && result.warnings.length !== expectedWarnings) {
-      messages.push(`Expected ${expectedWarnings} warnings, got ${result.warnings.length}`);
+      messages.push(
+        `Expected ${expectedWarnings} warnings, got ${result.warnings.length}`
+      );
     }
 
     return {
@@ -217,7 +221,7 @@ export class CustomFunctionTestHelper {
       case 'naming':
         return {
           ...baseFunction,
-          name: 'if', // Reserved keyword
+          name: 'if' // Reserved keyword
         };
 
       case 'security':
@@ -248,7 +252,7 @@ export class CustomFunctionTestHelper {
    * Wait for a specified amount of time (for async testing)
    */
   static async wait(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**
@@ -256,7 +260,7 @@ export class CustomFunctionTestHelper {
    */
   static generateLargeDataSet(size: number): object {
     const data: Record<string, unknown> = {};
-    
+
     for (let i = 0; i < size; i++) {
       data[`item_${i}`] = {
         id: i,
@@ -269,7 +273,7 @@ export class CustomFunctionTestHelper {
         }
       };
     }
-    
+
     return data;
   }
 }

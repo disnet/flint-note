@@ -15,9 +15,9 @@ export const sampleFunctions = {
     name: 'formatGreeting',
     description: 'Format a greeting message with name and title',
     parameters: {
-      name: { type: 'string', description: 'The person\'s name' },
-      title: { 
-        type: 'string', 
+      name: { type: 'string', description: "The person's name" },
+      title: {
+        type: 'string',
         description: 'Optional title',
         optional: true
       }
@@ -51,8 +51,8 @@ export const sampleFunctions = {
     description: 'Process data asynchronously with delay',
     parameters: {
       data: { type: 'object', description: 'Data to process' },
-      delayMs: { 
-        type: 'number', 
+      delayMs: {
+        type: 'number',
         description: 'Processing delay in milliseconds',
         optional: true,
         default: 100
@@ -89,14 +89,14 @@ export const sampleFunctions = {
     name: 'createOrUpdateDailyNote',
     description: 'Create or update a daily note with specified content',
     parameters: {
-      date: { 
-        type: 'string', 
+      date: {
+        type: 'string',
         description: 'Date in YYYY-MM-DD format',
         optional: true
       },
       content: { type: 'string', description: 'Note content to add' },
-      section: { 
-        type: 'string', 
+      section: {
+        type: 'string',
         description: 'Section to update',
         optional: true
       }
@@ -109,13 +109,13 @@ export const sampleFunctions = {
         section?: string
       ): Promise<string> {
         const noteDate = date || new Date().toISOString().split('T')[0];
-        const notePath = \`daily/\$\{noteDate\}.md\`;
+        const notePath = \`daily/$\{noteDate}.md\`;
         
         // Simulate note creation/update
-        const sectionHeader = section ? \`## \$\{section\}\\n\` : '';
+        const sectionHeader = section ? \`## $\{section}\\n\` : '';
         const timestamp = new Date().toISOString();
         
-        return \`Updated note at \$\{notePath\} with content in section '\$\{section || 'main'\}' at \$\{timestamp\}\`;
+        return \`Updated note at $\{notePath} with content in section '$\{section || 'main'}' at $\{timestamp}\`;
       }
     `,
     tags: ['notes', 'daily', 'management'],
@@ -138,8 +138,8 @@ export const sampleFunctions = {
     description: 'Function that throws errors based on input for testing error handling',
     parameters: {
       input: { type: 'string', description: 'Input string' },
-      shouldThrow: { 
-        type: 'boolean', 
+      shouldThrow: {
+        type: 'boolean',
         description: 'Whether to throw an error',
         optional: true
       }
@@ -292,12 +292,12 @@ export function getAllSampleFunctions(): CustomFunction[] {
  * Get sample functions by tag
  */
 export function getSampleFunctionsByTag(tag: string): CustomFunction[] {
-  return getAllSampleFunctions().filter(func => func.tags.includes(tag));
+  return getAllSampleFunctions().filter((func) => func.tags.includes(tag));
 }
 
 /**
  * Get a sample function by name
  */
 export function getSampleFunctionByName(name: string): CustomFunction | undefined {
-  return getAllSampleFunctions().find(func => func.name === name);
+  return getAllSampleFunctions().find((func) => func.name === name);
 }

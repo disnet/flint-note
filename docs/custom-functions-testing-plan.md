@@ -7,6 +7,7 @@ This document outlines a comprehensive testing strategy for the Custom Functions
 ## Current Implementation Status
 
 **✅ Completed Components:**
+
 - Storage layer with vault-scoped persistence
 - Validation framework with TypeScript compilation and security analysis
 - Execution layer with WASM sandbox integration
@@ -16,6 +17,7 @@ This document outlines a comprehensive testing strategy for the Custom Functions
 - Testing and debugging tools
 
 **📋 Testing Gaps:**
+
 - No systematic test coverage for implemented components
 - No validation of end-to-end workflows
 - No performance or security testing
@@ -30,13 +32,13 @@ This document outlines a comprehensive testing strategy for the Custom Functions
 class TestCustomFunctionsSetup extends TestApiSetup {
   private customFunctionsApi: CustomFunctionsApi;
   private tempVaultPath: string;
-  
+
   async initialize() {
     await super.initialize();
     this.customFunctionsApi = new CustomFunctionsApi(this.tempDir);
     this.tempVaultPath = path.join(this.tempDir, 'test-vault');
   }
-  
+
   createSampleFunction(name: string = 'testFunction'): CustomFunction {
     return {
       id: uuidv4(),
@@ -67,6 +69,7 @@ class TestCustomFunctionsSetup extends TestApiSetup {
 ## Phase 1: Unit Testing (Foundation)
 
 ### 1.1 Storage Layer Tests
+
 **File:** `tests/custom-functions/core/custom-functions-store.test.ts`
 
 ```typescript
@@ -84,6 +87,7 @@ describe('CustomFunctionsStore', () => {
 ```
 
 **Key Test Scenarios:**
+
 - CRUD operations for individual functions
 - Concurrent access safety
 - Data persistence across application restarts
@@ -91,6 +95,7 @@ describe('CustomFunctionsStore', () => {
 - Storage format migrations
 
 ### 1.2 Validation Framework Tests
+
 **File:** `tests/custom-functions/api/custom-functions-validator.test.ts`
 
 ```typescript
@@ -103,7 +108,7 @@ describe('CustomFunctionValidator', () => {
     it('should detect dangerous code patterns');
     it('should validate return type annotations');
   });
-  
+
   describe('Security Analysis', () => {
     it('should block access to restricted globals');
     it('should prevent file system access attempts');
@@ -114,6 +119,7 @@ describe('CustomFunctionValidator', () => {
 ```
 
 **Key Test Scenarios:**
+
 - Valid and invalid TypeScript syntax
 - Security pattern detection
 - Parameter and return type validation
@@ -121,6 +127,7 @@ describe('CustomFunctionValidator', () => {
 - Edge cases with complex type definitions
 
 ### 1.3 Execution Layer Tests
+
 **File:** `tests/custom-functions/api/custom-functions-executor.test.ts`
 
 ```typescript
@@ -131,7 +138,7 @@ describe('CustomFunctionsExecutor', () => {
     it('should handle TypeScript compilation errors');
     it('should update cached functions when code changes');
   });
-  
+
   describe('WASM Integration', () => {
     it('should execute custom functions in sandbox');
     it('should provide access to standard APIs');
@@ -139,7 +146,7 @@ describe('CustomFunctionsExecutor', () => {
     it('should handle function execution timeouts');
     it('should properly clean up VM contexts');
   });
-  
+
   describe('Namespace Injection', () => {
     it('should create customFunctions namespace');
     it('should inject all registered functions');
@@ -150,6 +157,7 @@ describe('CustomFunctionsExecutor', () => {
 ```
 
 **Key Test Scenarios:**
+
 - TypeScript compilation and caching
 - WASM sandbox execution
 - Function isolation and cleanup
@@ -159,6 +167,7 @@ describe('CustomFunctionsExecutor', () => {
 ## Phase 2: Integration Testing (Component Interaction)
 
 ### 2.1 API Integration Tests
+
 **File:** `tests/custom-functions/integration/custom-functions-api.test.ts`
 
 ```typescript
@@ -169,7 +178,7 @@ describe('Custom Functions API Integration', () => {
     it('should delete functions and clean up references');
     it('should handle function dependencies correctly');
   });
-  
+
   describe('Error Handling', () => {
     it('should provide detailed error messages for compilation failures');
     it('should handle runtime errors gracefully');
@@ -180,6 +189,7 @@ describe('Custom Functions API Integration', () => {
 ```
 
 ### 2.2 System Prompt Integration Tests
+
 **File:** `tests/custom-functions/integration/system-prompt-integration.test.ts`
 
 ```typescript
@@ -193,6 +203,7 @@ describe('System Prompt Integration', () => {
 ```
 
 ### 2.3 Code Evaluator Integration Tests
+
 **File:** `tests/custom-functions/integration/code-evaluator-integration.test.ts`
 
 ```typescript
@@ -208,6 +219,7 @@ describe('Code Evaluator Integration', () => {
 ## Phase 3: End-to-End Testing (Complete Workflows)
 
 ### 3.1 Agent Workflow Tests
+
 **File:** `tests/custom-functions/e2e/agent-workflow.test.ts`
 
 ```typescript
@@ -221,12 +233,14 @@ describe('Agent Custom Functions Workflow', () => {
 ```
 
 **Test Scenarios:**
+
 - Complete agent interaction workflow
 - Function registration → validation → execution → management
 - Multi-session persistence
 - Function sharing between agent sessions
 
 ### 3.2 Complex Function Tests
+
 **File:** `tests/custom-functions/e2e/complex-functions.test.ts`
 
 ```typescript
@@ -237,7 +251,7 @@ describe('Complex Custom Functions', () => {
     it('should create new notes when needed');
     it('should work with different date formats');
   });
-  
+
   describe('Multi-Step Operations', () => {
     it('should execute functions that call multiple APIs');
     it('should handle async operations correctly');
@@ -247,6 +261,7 @@ describe('Complex Custom Functions', () => {
 ```
 
 ### 3.3 Performance and Reliability Tests
+
 **File:** `tests/custom-functions/e2e/performance.test.ts`
 
 ```typescript
@@ -262,6 +277,7 @@ describe('Performance and Reliability', () => {
 ## Phase 4: Security and Edge Case Testing
 
 ### 4.1 Security Tests
+
 **File:** `tests/custom-functions/security/security.test.ts`
 
 ```typescript
@@ -276,6 +292,7 @@ describe('Security Testing', () => {
 ```
 
 ### 4.2 Error Recovery Tests
+
 **File:** `tests/custom-functions/reliability/error-recovery.test.ts`
 
 ```typescript
@@ -291,6 +308,7 @@ describe('Error Recovery', () => {
 ## Implementation Plan
 
 ### Phase 1: Foundation Tests (Week 1)
+
 **Priority: High** - Verify core components work correctly
 
 1. **Day 1-2**: Set up test infrastructure and utilities
@@ -299,12 +317,14 @@ describe('Error Recovery', () => {
 4. **Day 7**: Implement execution layer tests
 
 **Acceptance Criteria:**
+
 - All storage operations work correctly
 - Validation catches errors and security issues
 - Functions execute properly in WASM sandbox
 - 90%+ code coverage on core components
 
 ### Phase 2: Integration Tests (Week 2)
+
 **Priority: High** - Verify components work together
 
 1. **Day 1-2**: API integration tests
@@ -312,12 +332,14 @@ describe('Error Recovery', () => {
 3. **Day 5-7**: Code evaluator integration tests
 
 **Acceptance Criteria:**
+
 - Complete function lifecycle works end-to-end
 - System prompts generate correctly
 - Code evaluation includes custom functions
 - Error handling works across component boundaries
 
 ### Phase 3: End-to-End Tests (Week 3)
+
 **Priority: Medium** - Verify complete user workflows
 
 1. **Day 1-3**: Agent workflow tests
@@ -325,12 +347,14 @@ describe('Error Recovery', () => {
 3. **Day 6-7**: Performance tests
 
 **Acceptance Criteria:**
+
 - Agent can register and use custom functions
 - Complex multi-step functions work correctly
 - Performance meets acceptable thresholds
 - System handles realistic usage patterns
 
 ### Phase 4: Security and Reliability (Week 4)
+
 **Priority: Medium** - Verify system robustness
 
 1. **Day 1-3**: Security tests
@@ -338,6 +362,7 @@ describe('Error Recovery', () => {
 3. **Day 6-7**: Edge case handling
 
 **Acceptance Criteria:**
+
 - Security sandbox is effective
 - System recovers from all tested failure modes
 - Edge cases handled gracefully
@@ -346,6 +371,7 @@ describe('Error Recovery', () => {
 ## Test Data and Fixtures
 
 ### Sample Functions Library
+
 ```typescript
 // tests/custom-functions/fixtures/sample-functions.ts
 export const sampleFunctions = {
@@ -359,6 +385,7 @@ export const sampleFunctions = {
 ```
 
 ### Test Utilities
+
 ```typescript
 // tests/custom-functions/utils/test-helpers.ts
 export class CustomFunctionTestHelper {
@@ -372,18 +399,21 @@ export class CustomFunctionTestHelper {
 ## Success Metrics
 
 ### Coverage Targets
+
 - **Unit Tests**: >90% line coverage on all core components
 - **Integration Tests**: All major component interactions covered
 - **E2E Tests**: All documented user workflows tested
 - **Security Tests**: All identified attack vectors tested
 
 ### Performance Benchmarks
+
 - Function registration: <100ms for simple functions
 - Function execution: <50ms overhead vs direct code
 - Storage operations: <10ms for typical vault sizes
 - System prompt generation: <200ms with 50+ functions
 
 ### Reliability Standards
+
 - Zero data loss under normal error conditions
 - Graceful degradation for all failure modes
 - Recovery time <5s for storage corruption
@@ -392,12 +422,14 @@ export class CustomFunctionTestHelper {
 ## Maintenance and Continuous Testing
 
 ### Automated Testing
+
 - All tests run on every commit
 - Performance regression detection
 - Security vulnerability scanning
 - Coverage reporting and tracking
 
 ### Test Maintenance
+
 - Regular review of test relevance
 - Update tests for new features
 - Remove obsolete test scenarios

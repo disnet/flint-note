@@ -8,10 +8,10 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { CustomFunctionValidator } from '../../../src/server/api/custom-functions-validator.js';
 import { CustomFunctionTestHelper } from '../utils/test-helpers.js';
 import { sampleFunctions } from '../fixtures/sample-functions.js';
-import type { 
-  CreateCustomFunctionOptions, 
+import type {
+  CreateCustomFunctionOptions,
   CustomFunction,
-  ValidationResult 
+  ValidationResult
 } from '../../../src/server/types/custom-functions.js';
 
 describe('CustomFunctionValidator', () => {
@@ -39,9 +39,11 @@ describe('CustomFunctionValidator', () => {
       };
 
       const result = await validator.validateDefinition(validOptions);
-      
-      // Should pass basic validation (name, parameters) - may have syntax issues due to lib limitations  
-      expect(result.errors.filter(e => e.type === 'naming' || e.type === 'security')).toHaveLength(0);
+
+      // Should pass basic validation (name, parameters) - may have syntax issues due to lib limitations
+      expect(
+        result.errors.filter((e) => e.type === 'naming' || e.type === 'security')
+      ).toHaveLength(0);
     });
 
     it('should reject functions with syntax errors', async () => {
@@ -61,10 +63,10 @@ describe('CustomFunctionValidator', () => {
       };
 
       const result = await validator.validateDefinition(invalidOptions);
-      
+
       expect(result.valid).toBe(false);
       expect(result.errors.length).toBeGreaterThan(0);
-      expect(result.errors.some(e => e.type === 'syntax')).toBe(true);
+      expect(result.errors.some((e) => e.type === 'syntax')).toBe(true);
     });
 
     it('should validate parameter type annotations', async () => {
@@ -85,15 +87,30 @@ describe('CustomFunctionValidator', () => {
       };
 
       const result = await validator.validateDefinition(invalidTypeOptions);
-      
+
       expect(result.valid).toBe(false);
-      expect(result.errors.some(e => e.type === 'type' && e.message.includes('missing type definition'))).toBe(true);
-      expect(result.errors.some(e => e.type === 'type' && e.message.includes('Invalid type definition'))).toBe(true);
+      expect(
+        result.errors.some(
+          (e) => e.type === 'type' && e.message.includes('missing type definition')
+        )
+      ).toBe(true);
+      expect(
+        result.errors.some(
+          (e) => e.type === 'type' && e.message.includes('Invalid type definition')
+        )
+      ).toBe(true);
     });
 
     it('should reject reserved function names', async () => {
-      const reservedNames = ['console', 'setTimeout', 'notes', 'customFunctions', 'if', 'function'];
-      
+      const reservedNames = [
+        'console',
+        'setTimeout',
+        'notes',
+        'customFunctions',
+        'if',
+        'function'
+      ];
+
       for (const reservedName of reservedNames) {
         const reservedNameOptions: CreateCustomFunctionOptions = {
           name: reservedName,
@@ -111,11 +128,13 @@ describe('CustomFunctionValidator', () => {
         };
 
         const result = await validator.validateDefinition(reservedNameOptions);
-        
+
         expect(result.valid).toBe(false);
-        expect(result.errors.some(e => 
-          e.type === 'conflict' && e.message.includes('reserved')
-        )).toBe(true);
+        expect(
+          result.errors.some(
+            (e) => e.type === 'conflict' && e.message.includes('reserved')
+          )
+        ).toBe(true);
       }
     });
 
@@ -137,11 +156,11 @@ describe('CustomFunctionValidator', () => {
       };
 
       const result = await validator.validateDefinition(dangerousOptions);
-      
+
       expect(result.valid).toBe(false);
-      expect(result.errors.some(e => 
-        e.type === 'security' && e.message.includes('eval()')
-      )).toBe(true);
+      expect(
+        result.errors.some((e) => e.type === 'security' && e.message.includes('eval()'))
+      ).toBe(true);
     });
 
     it('should validate return type annotations', async () => {
@@ -161,16 +180,26 @@ describe('CustomFunctionValidator', () => {
       };
 
       const result = await validator.validateDefinition(missingReturnType);
-      
+
       expect(result.valid).toBe(false);
-      expect(result.errors.some(e => 
-        e.type === 'type' && e.message.includes('Return type is required')
-      )).toBe(true);
+      expect(
+        result.errors.some(
+          (e) => e.type === 'type' && e.message.includes('Return type is required')
+        )
+      ).toBe(true);
     });
 
     it('should validate function name format', async () => {
-      const invalidNames = ['', '   ', '123invalid', 'invalid-name', 'invalid name', 'if', 'ab'];
-      
+      const invalidNames = [
+        '',
+        '   ',
+        '123invalid',
+        'invalid-name',
+        'invalid name',
+        'if',
+        'ab'
+      ];
+
       for (const invalidName of invalidNames) {
         const invalidNameOptions: CreateCustomFunctionOptions = {
           name: invalidName,
@@ -188,9 +217,11 @@ describe('CustomFunctionValidator', () => {
         };
 
         const result = await validator.validateDefinition(invalidNameOptions);
-        
+
         expect(result.valid).toBe(false);
-        expect(result.errors.some(e => e.type === 'naming' || e.type === 'conflict')).toBe(true);
+        expect(
+          result.errors.some((e) => e.type === 'naming' || e.type === 'conflict')
+        ).toBe(true);
       }
     });
   });
@@ -223,9 +254,9 @@ describe('CustomFunctionValidator', () => {
         };
 
         const result = await validator.validateDefinition(securityOptions);
-        
+
         expect(result.valid).toBe(false);
-        expect(result.errors.some(e => e.type === 'security')).toBe(true);
+        expect(result.errors.some((e) => e.type === 'security')).toBe(true);
       }
     });
 
@@ -247,11 +278,13 @@ describe('CustomFunctionValidator', () => {
       };
 
       const result = await validator.validateDefinition(fsAccessOptions);
-      
+
       expect(result.valid).toBe(false);
-      expect(result.errors.some(e => 
-        e.type === 'security' && e.message.includes('require()')
-      )).toBe(true);
+      expect(
+        result.errors.some(
+          (e) => e.type === 'security' && e.message.includes('require()')
+        )
+      ).toBe(true);
     });
 
     it('should detect infinite loops in simple cases', async () => {
@@ -274,11 +307,13 @@ describe('CustomFunctionValidator', () => {
       };
 
       const result = await validator.validateDefinition(infiniteLoopOptions);
-      
+
       // The function should have warnings about infinite loops, regardless of compilation success
-      expect(result.warnings.some(w => 
-        w.type === 'performance' && w.message.includes('Infinite loops')
-      )).toBe(true);
+      expect(
+        result.warnings.some(
+          (w) => w.type === 'performance' && w.message.includes('Infinite loops')
+        )
+      ).toBe(true);
     });
 
     it('should block dynamic code execution patterns', async () => {
@@ -298,11 +333,13 @@ describe('CustomFunctionValidator', () => {
       };
 
       const result = await validator.validateDefinition(dynamicCodeOptions);
-      
+
       expect(result.valid).toBe(false);
-      expect(result.errors.some(e => 
-        e.type === 'security' && e.message.includes('Dynamic function creation')
-      )).toBe(true);
+      expect(
+        result.errors.some(
+          (e) => e.type === 'security' && e.message.includes('Dynamic function creation')
+        )
+      ).toBe(true);
     });
 
     it.skip('should warn about performance issues', async () => {
@@ -316,7 +353,10 @@ describe('CustomFunctionValidator', () => {
         name: 'invalidParamNames',
         description: 'Function with invalid parameter names',
         parameters: {
-          '123invalid': { type: 'string', description: 'Invalid name starting with number' },
+          '123invalid': {
+            type: 'string',
+            description: 'Invalid name starting with number'
+          },
           'invalid-name': { type: 'string', description: 'Invalid name with dash' }
         },
         returnType: 'string',
@@ -329,11 +369,13 @@ describe('CustomFunctionValidator', () => {
       };
 
       const result = await validator.validateDefinition(invalidParamOptions);
-      
+
       expect(result.valid).toBe(false);
-      expect(result.errors.filter(e => 
-        e.type === 'naming' && e.message.includes('Invalid parameter name')
-      )).toHaveLength(2);
+      expect(
+        result.errors.filter(
+          (e) => e.type === 'naming' && e.message.includes('Invalid parameter name')
+        )
+      ).toHaveLength(2);
     });
 
     it('should warn about excessive parameter counts', async () => {
@@ -356,10 +398,12 @@ describe('CustomFunctionValidator', () => {
       };
 
       const result = await validator.validateDefinition(manyParamsOptions);
-      
-      expect(result.warnings.some(w => 
-        w.type === 'style' && w.message.includes('many parameters')
-      )).toBe(true);
+
+      expect(
+        result.warnings.some(
+          (w) => w.type === 'style' && w.message.includes('many parameters')
+        )
+      ).toBe(true);
     });
 
     it('should validate complex type definitions', async () => {
@@ -367,13 +411,13 @@ describe('CustomFunctionValidator', () => {
         name: 'complexTypeFunction',
         description: 'Function with complex types',
         parameters: {
-          config: { 
-            type: 'object', 
-            description: 'Configuration object' 
+          config: {
+            type: 'object',
+            description: 'Configuration object'
           },
-          items: { 
-            type: 'any[]', 
-            description: 'Array of items' 
+          items: {
+            type: 'any[]',
+            description: 'Array of items'
           }
         },
         returnType: 'string',
@@ -389,9 +433,9 @@ describe('CustomFunctionValidator', () => {
       };
 
       const result = await validator.validateDefinition(complexTypeOptions);
-      
+
       // Should pass basic validation checks (name, parameters structure) - security may detect issues
-      expect(result.errors.filter(e => e.type === 'naming')).toHaveLength(0);
+      expect(result.errors.filter((e) => e.type === 'naming')).toHaveLength(0);
     });
   });
 
@@ -405,9 +449,17 @@ describe('CustomFunctionValidator', () => {
         description: 'Test function for runtime validation',
         parameters: {
           requiredString: { type: 'string', description: 'Required string parameter' },
-          optionalNumber: { type: 'number', description: 'Optional number', optional: true },
+          optionalNumber: {
+            type: 'number',
+            description: 'Optional number',
+            optional: true
+          },
           requiredArray: { type: 'string[]', description: 'Required array parameter' },
-          optionalObject: { type: 'object', description: 'Optional object', optional: true }
+          optionalObject: {
+            type: 'object',
+            description: 'Optional object',
+            optional: true
+          }
         },
         returnType: 'string',
         code: 'function testFunction() { return "test"; }',
@@ -429,11 +481,13 @@ describe('CustomFunctionValidator', () => {
       };
 
       const result = await validator.validateExecution(testFunction, missingParams);
-      
+
       expect(result.valid).toBe(false);
-      expect(result.errors.filter(e => 
-        e.type === 'validation' && e.message.includes('Required parameter')
-      )).toHaveLength(2);
+      expect(
+        result.errors.filter(
+          (e) => e.type === 'validation' && e.message.includes('Required parameter')
+        )
+      ).toHaveLength(2);
     });
 
     it('should accept valid parameter values', async () => {
@@ -445,7 +499,7 @@ describe('CustomFunctionValidator', () => {
       };
 
       const result = await validator.validateExecution(testFunction, validParams);
-      
+
       expect(result.valid).toBe(true);
       expect(result.errors).toHaveLength(0);
     });
@@ -458,11 +512,13 @@ describe('CustomFunctionValidator', () => {
       };
 
       const result = await validator.validateExecution(testFunction, invalidTypeParams);
-      
+
       expect(result.valid).toBe(false);
-      expect(result.errors.filter(e => 
-        e.type === 'validation' && e.message.includes('should be of type')
-      ).length).toBeGreaterThan(0);
+      expect(
+        result.errors.filter(
+          (e) => e.type === 'validation' && e.message.includes('should be of type')
+        ).length
+      ).toBeGreaterThan(0);
     });
 
     it('should handle optional parameters correctly', async () => {
@@ -472,8 +528,11 @@ describe('CustomFunctionValidator', () => {
         // Optional parameters omitted
       };
 
-      const result = await validator.validateExecution(testFunction, validParamsWithoutOptional);
-      
+      const result = await validator.validateExecution(
+        testFunction,
+        validParamsWithoutOptional
+      );
+
       expect(result.valid).toBe(true);
       expect(result.errors).toHaveLength(0);
     });
@@ -497,19 +556,27 @@ describe('CustomFunctionValidator', () => {
         numberArray: [1, 2, 3]
       };
 
-      const validResult = await validator.validateExecution(arrayTestFunction, validArrayParams);
+      const validResult = await validator.validateExecution(
+        arrayTestFunction,
+        validArrayParams
+      );
       expect(validResult.valid).toBe(true);
 
-      const invalidResult = await validator.validateExecution(arrayTestFunction, invalidArrayParams);
+      const invalidResult = await validator.validateExecution(
+        arrayTestFunction,
+        invalidArrayParams
+      );
       expect(invalidResult.valid).toBe(false);
-      expect(invalidResult.errors.some(e => e.message.includes('should be an array'))).toBe(true);
+      expect(
+        invalidResult.errors.some((e) => e.message.includes('should be an array'))
+      ).toBe(true);
     });
   });
 
   describe('Edge Cases and Error Handling', () => {
     it('should handle extremely long function names', async () => {
       const longName = 'a'.repeat(100);
-      
+
       const longNameOptions: CreateCustomFunctionOptions = {
         name: longName,
         description: 'Function with very long name',
@@ -526,11 +593,11 @@ describe('CustomFunctionValidator', () => {
       };
 
       const result = await validator.validateDefinition(longNameOptions);
-      
+
       expect(result.valid).toBe(false);
-      expect(result.errors.some(e => 
-        e.type === 'naming' && e.message.includes('too long')
-      )).toBe(true);
+      expect(
+        result.errors.some((e) => e.type === 'naming' && e.message.includes('too long'))
+      ).toBe(true);
     });
 
     it('should handle empty or whitespace-only code', async () => {
@@ -546,9 +613,9 @@ describe('CustomFunctionValidator', () => {
       };
 
       const result = await validator.validateDefinition(emptyCodeOptions);
-      
+
       expect(result.valid).toBe(false);
-      expect(result.errors.some(e => e.type === 'syntax')).toBe(true);
+      expect(result.errors.some((e) => e.type === 'syntax')).toBe(true);
     });
 
     it('should handle functions with complex nested types', async () => {
@@ -556,9 +623,9 @@ describe('CustomFunctionValidator', () => {
         name: 'nestedTypeFunction',
         description: 'Function with deeply nested types',
         parameters: {
-          data: { 
-            type: 'any[]', 
-            description: 'Complex nested data structure' 
+          data: {
+            type: 'any[]',
+            description: 'Complex nested data structure'
           }
         },
         returnType: 'object',
@@ -571,9 +638,9 @@ describe('CustomFunctionValidator', () => {
       };
 
       const result = await validator.validateDefinition(nestedTypeOptions);
-      
+
       // Should pass basic validation checks (name, parameters structure)
-      expect(result.errors.filter(e => e.type === 'naming')).toHaveLength(0);
+      expect(result.errors.filter((e) => e.type === 'naming')).toHaveLength(0);
     });
 
     it('should handle validation errors gracefully', async () => {
@@ -594,7 +661,7 @@ describe('CustomFunctionValidator', () => {
       };
 
       const result = await validator.validateDefinition(problematicOptions);
-      
+
       // Should not throw an error, but should return validation results
       expect(result).toBeDefined();
       expect(result.valid).toBe(false);
@@ -608,7 +675,7 @@ describe('CustomFunctionValidator', () => {
 
     it('should warn about overly long functions', async () => {
       const longCode = Array(150).fill('console.log("test");').join('\n');
-      
+
       const longFunctionOptions: CreateCustomFunctionOptions = {
         name: 'longFunction',
         description: 'Very long function',
@@ -626,17 +693,19 @@ describe('CustomFunctionValidator', () => {
       };
 
       const result = await validator.validateDefinition(longFunctionOptions);
-      
-      expect(result.warnings.some(w => 
-        w.type === 'performance' && w.message.includes('very long')
-      )).toBe(true);
+
+      expect(
+        result.warnings.some(
+          (w) => w.type === 'performance' && w.message.includes('very long')
+        )
+      ).toBe(true);
     });
   });
 
   describe('Sample Function Validation', () => {
     it('should validate all sample functions', async () => {
       const validSamples = ['simpleString', 'asyncOperation'];
-      
+
       for (const sampleKey of validSamples) {
         const sampleFunc = sampleFunctions[sampleKey as keyof typeof sampleFunctions];
         const options: CreateCustomFunctionOptions = {
@@ -649,9 +718,11 @@ describe('CustomFunctionValidator', () => {
         };
 
         const result = await validator.validateDefinition(options);
-        
+
         // Should pass basic validation (name, security) even if TypeScript has issues
-        expect(result.errors.filter(e => e.type === 'security' || e.type === 'naming')).toHaveLength(0);
+        expect(
+          result.errors.filter((e) => e.type === 'security' || e.type === 'naming')
+        ).toHaveLength(0);
       }
     });
 
@@ -667,9 +738,11 @@ describe('CustomFunctionValidator', () => {
       };
 
       const result = await validator.validateDefinition(options);
-      
+
       expect(result.valid).toBe(false);
-      expect(result.errors.filter(e => e.type === 'security').length).toBeGreaterThan(0);
+      expect(result.errors.filter((e) => e.type === 'security').length).toBeGreaterThan(
+        0
+      );
     });
   });
 });

@@ -15,7 +15,6 @@ import type {
   ValidationWarning
 } from '../types/custom-functions.js';
 import { TypeScriptCompiler } from './typescript-compiler.js';
-import { FLINT_API_TYPE_DEFINITIONS } from './flint-api-types.js';
 
 export class CustomFunctionValidator {
   private typeScriptCompiler: TypeScriptCompiler;
@@ -348,10 +347,9 @@ export class CustomFunctionValidator {
       })
       .join(', ');
 
-    // Wrap in validation context with API types available
+    // Wrap in validation context - API types are already available from the compiler context
+    // Don't include FLINT_API_TYPE_DEFINITIONS here to avoid conflicts
     return `
-      ${FLINT_API_TYPE_DEFINITIONS}
-      
       // Custom function validation wrapper
       ${options.code}
       
