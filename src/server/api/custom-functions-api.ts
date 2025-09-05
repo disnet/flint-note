@@ -347,11 +347,6 @@ export class CustomFunctionsApi {
       prompt += `);\n\n`;
     }
 
-    prompt += 'Management functions:\n';
-    prompt += '- `customFunctions._list()` - List all registered functions\n';
-    prompt += '- `customFunctions._remove(name)` - Remove a function by name\n';
-    prompt += '- `customFunctions._update(name, changes)` - Update a function\n\n';
-
     return prompt;
   }
 }

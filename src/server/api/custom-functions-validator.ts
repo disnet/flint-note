@@ -409,10 +409,7 @@ export class CustomFunctionValidator {
   private generateCustomFunctionsNamespaceDeclaration(): string {
     if (this.existingFunctions.length === 0) {
       return `
-declare const customFunctions: {
-  _list(): Promise<any[]>;
-  _remove(name: string): Promise<boolean>;
-};
+declare const customFunctions: {};
 `;
     }
 
@@ -430,8 +427,6 @@ declare const customFunctions: {
 
     return `
 declare const customFunctions: {
-  _list(): Promise<any[]>;
-  _remove(name: string): Promise<boolean>;
 ${functionSignatures.join('\n')}
 };
 `;

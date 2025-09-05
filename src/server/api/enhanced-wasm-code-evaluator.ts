@@ -455,7 +455,7 @@ export class EnhancedWASMCodeEvaluator extends WASMCodeEvaluator {
 
       // This would need to be implemented to generate the prompt section
       // For Phase 1, return a placeholder
-      return `\n## Available Custom Functions\n\nYou have access to ${stats.totalFunctions} custom functions via the \`customFunctions\` namespace.\nUse \`customFunctions._list()\` to see all available functions.\n`;
+      return `\n## Available Custom Functions\n\nYou have access to ${stats.totalFunctions} custom functions via the \`customFunctions\` namespace.\n`;
     } catch (error) {
       console.error('Failed to get custom functions for prompt:', error);
       return '';
@@ -496,9 +496,6 @@ export class EnhancedWASMCodeEvaluator extends WASMCodeEvaluator {
         allowedAPIs,
         customContext
       );
-
-      // Add custom functions management API
-      this.injectCustomFunctionsManagementAPI(vm, registry);
     };
 
     try {
@@ -508,65 +505,6 @@ export class EnhancedWASMCodeEvaluator extends WASMCodeEvaluator {
     } finally {
       // Restore original method
       this.injectSecureAPI = originalInjectSecureAPI;
-    }
-  }
-
-  /**
-   * Inject custom functions management API into VM context
-   */
-  private injectCustomFunctionsManagementAPI(
-    vm: QuickJSContext,
-    registry: AsyncOperationRegistry
-  ): void {
-    if (!this.customFunctionsStore) return;
-
-    // Create customFunctionsAPI object for management operations
-    const cfApiObj = vm.newObject();
-    vm.setProp(vm.global, 'customFunctionsAPI', cfApiObj);
-
-    // _listFunctions - list all custom functions
-    const listFn = vm.newFunction('_listFunctions', () => {
-      const hostPromise = this.customFunctionsStore!.list();
-      return this.promiseFactory.createProxy(vm, registry, hostPromise);
-    });
-    vm.setProp(cfApiObj, 'list', listFn);
-    listFn.dispose();
-
-    // _removeFunction - remove a custom function by name
-    const removeFn = vm.newFunction('_removeFunction', (nameArg) => {
-      const name = vm.getString(nameArg);
-      const hostPromise = this.removeCustomFunctionByName(name);
-      return this.promiseFactory.createProxy(vm, registry, hostPromise);
-    });
-    vm.setProp(cfApiObj, 'remove', removeFn);
-    removeFn.dispose();
-
-    cfApiObj.dispose();
-  }
-
-  /**
-   * Helper method to remove a custom function by name
-   */
-  private async removeCustomFunctionByName(name: string): Promise<boolean> {
-    if (!this.customFunctionsStore) return false;
-
-    try {
-      const functions = await this.customFunctionsStore.list();
-      const functionToRemove = functions.find((f) => f.name === name);
-
-      if (functionToRemove) {
-        await this.customFunctionsStore.delete(functionToRemove.id);
-        // Clear the compiled functions cache
-        if (this.customFunctionsExecutor) {
-          this.customFunctionsExecutor.clearCache();
-        }
-        return true;
-      }
-
-      return false;
-    } catch (error) {
-      console.error(`Failed to remove custom function '${name}':`, error);
-      return false;
     }
   }
 }

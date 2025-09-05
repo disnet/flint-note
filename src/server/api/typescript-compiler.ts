@@ -70,33 +70,6 @@ export class TypeScriptCompiler {
       declarations += `  ${func.name}(${paramList}): ${func.returnType};\n`;
     }
 
-    // Add management functions
-    declarations += '\n  // Management functions\n';
-    declarations += `  _list(): Promise<Array<{
-    id: string;
-    name: string;
-    description: string;
-    parameters: Record<string, any>;
-    returnType: string;
-    tags: string[];
-    usageCount: number;
-  }>>;\n`;
-    declarations += '  _remove(name: string): Promise<{ success: boolean }>;\n';
-    declarations += `  _update(name: string, changes: {
-    description?: string;
-    parameters?: Record<string, any>;
-    returnType?: string;
-    code?: string;
-    tags?: string[];
-  }): Promise<{
-    id: string;
-    name: string;
-    description: string;
-    parameters: Record<string, any>;
-    returnType: string;
-    tags: string[];
-  }>;\n`;
-
     declarations += '};\n';
     return declarations;
   }

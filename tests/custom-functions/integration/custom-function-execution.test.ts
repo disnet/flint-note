@@ -177,12 +177,12 @@ describe('Custom Function Execution Integration', () => {
         code: `
           async function createOrUpdateDailyNote(date: string, content?: string): Promise<CreateNoteResult> {
             const title = 'Daily Note - ' + date;
-            
+
             // Check if daily note exists
-            const existing = await notes.search({ 
+            const existing = await notes.search({
               query: title
             });
-            
+
             if (existing.length > 0) {
               const note = await notes.get(existing[0].id);
               if (!note) {
@@ -455,84 +455,6 @@ describe('Custom Function Execution Integration', () => {
     });
   });
 
-  describe('Function Management Through Code', () => {
-    it('should allow listing custom functions from within executed code', async () => {
-      // Register a couple of test functions
-      const func1 = setup.createSampleFunction('testFunc1');
-      const func2 = setup.createSampleFunction('testFunc2');
-
-      await setup.customFunctionsApi.registerFunction({
-        name: func1.name,
-        description: func1.description,
-        parameters: func1.parameters,
-        returnType: func1.returnType,
-        code: func1.code,
-        tags: func1.tags
-      });
-      await setup.customFunctionsApi.registerFunction({
-        name: func2.name,
-        description: func2.description,
-        parameters: func2.parameters,
-        returnType: func2.returnType,
-        code: func2.code,
-        tags: func2.tags
-      });
-
-      // Execute code that lists custom functions
-      const listCode = `
-        async function main(): Promise<number> {
-          const functions = await customFunctions._list();
-          return functions.length;
-        }
-      `;
-
-      const result = await evaluator.evaluate({
-        code: listCode,
-        vaultId: vaultId
-      });
-
-      expect(result.success).toBe(true);
-      expect(result.result).toBe(2);
-    });
-
-    it('should allow removing custom functions from within executed code', async () => {
-      // Register a test function
-      const testFunc = setup.createSampleFunction('functionToRemove');
-      await setup.customFunctionsApi.registerFunction({
-        name: testFunc.name,
-        description: testFunc.description,
-        parameters: testFunc.parameters,
-        returnType: testFunc.returnType,
-        code: testFunc.code,
-        tags: testFunc.tags
-      });
-
-      // Verify it exists
-      const functions = await setup.customFunctionsApi.listFunctions();
-      expect(functions.length).toBe(1);
-
-      // Execute code that removes the function
-      const removeCode = `
-        async function main(): Promise<boolean> {
-          await customFunctions._remove('functionToRemove');
-          return true;
-        }
-      `;
-
-      const result = await evaluator.evaluate({
-        code: removeCode,
-        vaultId: vaultId
-      });
-
-      expect(result.success).toBe(true);
-      expect(result.result).toBe(true);
-
-      // Verify it was removed
-      const functionsAfter = await setup.customFunctionsApi.listFunctions();
-      expect(functionsAfter.length).toBe(0);
-    });
-  });
-
   describe('Complex Integration Scenarios', () => {
     it('should handle custom functions that call other custom functions', async () => {
       // Register helper function
@@ -638,15 +560,15 @@ describe('Custom Function Execution Integration', () => {
         returnType: 'Promise<{ processed: number; skipped: number }>',
         code: `
           async function processNoteData(
-            noteIds: string[], 
+            noteIds: string[],
             options?: { includeContent?: boolean; maxResults?: number }
           ): Promise<{ processed: number; skipped: number }> {
             const maxResults = options?.maxResults || noteIds.length;
             const toProcess = noteIds.slice(0, maxResults);
-            
+
             let processed = 0;
             let skipped = 0;
-            
+
             for (const id of toProcess) {
               try {
                 const note = await notes.get(id);
@@ -659,7 +581,7 @@ describe('Custom Function Execution Integration', () => {
                 skipped++;
               }
             }
-            
+
             return { processed, skipped };
           }
         `,

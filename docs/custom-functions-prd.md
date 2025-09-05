@@ -328,15 +328,10 @@ register_custom_function: {
   })
 }
 
-// Management functions available within evaluate_note_code
+// Custom functions namespace within evaluate_note_code
 customFunctions: {
   // Registered custom functions appear as methods on this namespace
-  [functionName: string]: (...args: any[]) => Promise<any>,
-
-  // Built-in management methods (prefixed to avoid conflicts)
-  _list: () => Promise<CustomFunction[]>           // List registered functions
-  _remove: (name: string) => Promise<void>         // Remove a function
-  _update: (name: string, changes: Partial<FunctionDefinition>) => Promise<CustomFunction>
+  [functionName: string]: (...args: any[]) => Promise<any>
 }
 ```
 

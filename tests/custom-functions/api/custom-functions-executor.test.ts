@@ -240,14 +240,6 @@ describe('CustomFunctionsExecutor', () => {
       expect(namespaceObj).toBeDefined();
       // In a full test, we'd verify each function is available in the namespace
     });
-
-    it('should provide management methods', async () => {
-      const namespaceObj = await executor.createNamespaceObject(mockVM as any);
-
-      expect(namespaceObj).toBeDefined();
-      // Management methods are added in createNamespaceObject
-      // In a full test environment, we'd verify _list, _remove, _update are available
-    });
   });
 
   describe('Error Handling and Edge Cases', () => {

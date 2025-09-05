@@ -258,22 +258,10 @@ export class CustomFunctionsExecutor {
     const functions = await this.store.list();
 
     if (functions.length === 0) {
-      // Return namespace with management functions only
+      // Return empty namespace
       return `
-// Custom functions namespace (empty - management functions only)
-const customFunctions = {
-  _list: async function() {
-    // Use the injected customFunctionsAPI to get current list
-    return await customFunctionsAPI.list();
-  },
-  _remove: async function(name) {
-    // Remove a custom function by name using the injected API
-    if (!name) {
-      throw new Error('Function name is required');
-    }
-    return await customFunctionsAPI.remove(name);
-  }
-};
+// Custom functions namespace (empty)
+const customFunctions = {};
 `;
     }
 
@@ -324,42 +312,12 @@ const customFunctions = {
 
     if (functionDefinitions.length === 0) {
       return `
-// Custom functions namespace (compilation failed - management functions only)
-const customFunctions = {
-  _list: async function() {
-    // Use the injected customFunctionsAPI to get current list
-    return await customFunctionsAPI.list();
-  },
-  _remove: async function(name) {
-    // Remove a custom function by name using the injected API
-    if (!name) {
-      throw new Error('Function name is required');
-    }
-    return await customFunctionsAPI.remove(name);
-  }
-};
+// Custom functions namespace (compilation failed)
+const customFunctions = {};
 `;
     }
 
-    // Add management functions that use the injected API
-    const managementFunctions = [
-      `  _list: async function() {
-    // Use the injected customFunctionsAPI to get current list
-    return await customFunctionsAPI.list();
-  }`,
-      `  _remove: async function(name) {
-    // Remove a custom function by name using the injected API
-    if (!name) {
-      throw new Error('Function name is required');
-    }
-    return await customFunctionsAPI.remove(name);
-  }`
-    ];
-
-    const allFunctions =
-      functionDefinitions.length > 0
-        ? [...functionDefinitions, ...managementFunctions]
-        : managementFunctions;
+    const allFunctions = functionDefinitions;
 
     return `
 // Auto-generated custom functions namespace
