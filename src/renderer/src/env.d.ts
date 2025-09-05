@@ -14,6 +14,12 @@ import type {
 import type { NoteTypeListItem } from '../server/core/note-types';
 import type { NoteMetadata } from '../server/types';
 import type { MoveNoteResult } from '../server/core/notes';
+import type {
+  CustomFunction,
+  CustomFunctionParameter,
+  ValidationResult,
+  CustomFunctionExecutionResult
+} from '../server/types/custom-functions';
 import type { SearchResult } from '../server/database/search-manager';
 import type {
   CoreVaultInfo as VaultInfo,
@@ -258,6 +264,62 @@ declare global {
         noteId: string;
         position: CursorPosition;
       }) => Promise<void>;
+
+      // Custom functions operations
+      listCustomFunctions: (params?: {
+        tags?: string[];
+        searchQuery?: string;
+      }) => Promise<CustomFunction[]>;
+      createCustomFunction: (params: {
+        name: string;
+        description: string;
+        parameters: Record<string, CustomFunctionParameter>;
+        returnType: string;
+        code: string;
+        tags?: string[];
+      }) => Promise<CustomFunction>;
+      getCustomFunction: (params: {
+        id?: string;
+        name?: string;
+      }) => Promise<CustomFunction | null>;
+      updateCustomFunction: (params: {
+        id: string;
+        name?: string;
+        description?: string;
+        parameters?: Record<string, CustomFunctionParameter>;
+        returnType?: string;
+        code?: string;
+        tags?: string[];
+      }) => Promise<CustomFunction>;
+      deleteCustomFunction: (params: { id: string }) => Promise<{ success: boolean }>;
+      validateCustomFunction: (params: {
+        name: string;
+        description: string;
+        parameters: Record<string, CustomFunctionParameter>;
+        returnType: string;
+        code: string;
+        tags?: string[];
+      }) => Promise<ValidationResult>;
+      testCustomFunction: (params: {
+        functionId: string;
+        parameters: Record<string, unknown>;
+      }) => Promise<CustomFunctionExecutionResult>;
+      getCustomFunctionStats: (params?: { functionId?: string }) => Promise<{
+        totalFunctions: number;
+        totalUsage: number;
+        averageUsage: number;
+        mostUsedFunction?: string;
+        functionStats?: {
+          id: string;
+          name: string;
+          usageCount: number;
+          lastUsed?: string;
+        };
+      }>;
+      exportCustomFunctions: () => Promise<{ data: string; filename: string }>;
+      importCustomFunctions: (params: {
+        backupData: string;
+      }) => Promise<{ imported: number; skipped: number; errors: string[] }>;
     };
   }
 }

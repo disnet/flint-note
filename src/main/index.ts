@@ -1232,6 +1232,248 @@ app.whenReady().then(async () => {
     }
   );
 
+  // Custom functions handlers
+  ipcMain.handle(
+    'list-custom-functions',
+    async (_event, params?: { tags?: string[]; searchQuery?: string }) => {
+      if (!aiService) {
+        throw new Error('AI service not available');
+      }
+      // Access the customFunctionsApi through reflection since it's private
+      const customFunctionsApi = (aiService as any).customFunctionsApi;
+      if (!customFunctionsApi) {
+        throw new Error('Custom functions API not available');
+      }
+      return await customFunctionsApi.listFunctions(params || {});
+    }
+  );
+
+  ipcMain.handle(
+    'create-custom-function',
+    async (
+      _event,
+      params: {
+        name: string;
+        description: string;
+        parameters: Record<
+          string,
+          {
+            type: string;
+            description?: string;
+            optional?: boolean;
+            default?: unknown;
+          }
+        >;
+        returnType: string;
+        code: string;
+        tags?: string[];
+      }
+    ) => {
+      if (!aiService) {
+        throw new Error('AI service not available');
+      }
+      const customFunctionsApi = (aiService as any).customFunctionsApi;
+      if (!customFunctionsApi) {
+        throw new Error('Custom functions API not available');
+      }
+      return await customFunctionsApi.registerFunction(params);
+    }
+  );
+
+  ipcMain.handle(
+    'get-custom-function',
+    async (_event, params: { id?: string; name?: string }) => {
+      if (!aiService) {
+        throw new Error('AI service not available');
+      }
+      const customFunctionsApi = (aiService as any).customFunctionsApi;
+      if (!customFunctionsApi) {
+        throw new Error('Custom functions API not available');
+      }
+      return await customFunctionsApi.getFunction(params);
+    }
+  );
+
+  ipcMain.handle(
+    'update-custom-function',
+    async (
+      _event,
+      params: {
+        id: string;
+        name?: string;
+        description?: string;
+        parameters?: Record<
+          string,
+          {
+            type: string;
+            description?: string;
+            optional?: boolean;
+            default?: unknown;
+          }
+        >;
+        returnType?: string;
+        code?: string;
+        tags?: string[];
+      }
+    ) => {
+      if (!aiService) {
+        throw new Error('AI service not available');
+      }
+      const customFunctionsApi = (aiService as any).customFunctionsApi;
+      if (!customFunctionsApi) {
+        throw new Error('Custom functions API not available');
+      }
+      return await customFunctionsApi.updateFunction(params);
+    }
+  );
+
+  ipcMain.handle('delete-custom-function', async (_event, params: { id: string }) => {
+    if (!aiService) {
+      throw new Error('AI service not available');
+    }
+    const customFunctionsApi = (aiService as any).customFunctionsApi;
+    if (!customFunctionsApi) {
+      throw new Error('Custom functions API not available');
+    }
+    return await customFunctionsApi.deleteFunction(params);
+  });
+
+  ipcMain.handle(
+    'validate-custom-function',
+    async (
+      _event,
+      params: {
+        name: string;
+        description: string;
+        parameters: Record<
+          string,
+          {
+            type: string;
+            description?: string;
+            optional?: boolean;
+            default?: unknown;
+          }
+        >;
+        returnType: string;
+        code: string;
+        tags?: string[];
+      }
+    ) => {
+      if (!aiService) {
+        throw new Error('AI service not available');
+      }
+      const customFunctionsApi = (aiService as any).customFunctionsApi;
+      if (!customFunctionsApi) {
+        throw new Error('Custom functions API not available');
+      }
+      return await customFunctionsApi.validateFunction(params);
+    }
+  );
+
+  ipcMain.handle(
+    'test-custom-function',
+    async (
+      _event,
+      params: {
+        functionId: string;
+        parameters: Record<string, unknown>;
+      }
+    ) => {
+      if (!aiService) {
+        throw new Error('AI service not available');
+      }
+      const customFunctionsApi = (aiService as any).customFunctionsApi;
+      if (!customFunctionsApi) {
+        throw new Error('Custom functions API not available');
+      }
+
+      // For testing, we need to use the evaluate_note_code functionality
+      // Get the function first to construct a test call
+      const func = await customFunctionsApi.getFunction({ id: params.functionId });
+      if (!func) {
+        throw new Error(`Function with ID '${params.functionId}' not found`);
+      }
+
+      // Create test code that calls the custom function
+      const paramValues = Object.entries(params.parameters)
+        .map(([, value]) => JSON.stringify(value))
+        .join(', ');
+
+      const testCode = `
+      async function main() {
+        try {
+          const result = await customFunctions.${func.name}(${paramValues});
+          return {
+            success: true,
+            result: result,
+            executionTime: Date.now() - startTime
+          };
+        } catch (error) {
+          return {
+            success: false,
+            error: error.message,
+            executionTime: Date.now() - startTime
+          };
+        }
+      }
+      const startTime = Date.now();
+      return await main();
+    `;
+
+      // Use the toolService to execute the code with custom functions
+      const toolService = (aiService as any).toolService;
+      const evaluateResult = await toolService.evaluateNoteCode.execute({
+        code: testCode
+      });
+
+      return {
+        success: evaluateResult.success,
+        result: evaluateResult.success ? evaluateResult.result : undefined,
+        error: evaluateResult.success ? undefined : evaluateResult.error,
+        executionTime: evaluateResult.result?.executionTime || 0
+      };
+    }
+  );
+
+  ipcMain.handle(
+    'get-custom-function-stats',
+    async (_event, params?: { functionId?: string }) => {
+      if (!aiService) {
+        throw new Error('AI service not available');
+      }
+      const customFunctionsApi = (aiService as any).customFunctionsApi;
+      if (!customFunctionsApi) {
+        throw new Error('Custom functions API not available');
+      }
+      return await customFunctionsApi.getExecutionStats(params || {});
+    }
+  );
+
+  ipcMain.handle('export-custom-functions', async () => {
+    if (!aiService) {
+      throw new Error('AI service not available');
+    }
+    const customFunctionsApi = (aiService as any).customFunctionsApi;
+    if (!customFunctionsApi) {
+      throw new Error('Custom functions API not available');
+    }
+    return await customFunctionsApi.exportFunctions();
+  });
+
+  ipcMain.handle(
+    'import-custom-functions',
+    async (_event, params: { backupData: string }) => {
+      if (!aiService) {
+        throw new Error('AI service not available');
+      }
+      const customFunctionsApi = (aiService as any).customFunctionsApi;
+      if (!customFunctionsApi) {
+        throw new Error('Custom functions API not available');
+      }
+      return await customFunctionsApi.importFunctions(params.backupData);
+    }
+  );
+
   createWindow();
   logger.info('Main window created and IPC handlers registered');
 

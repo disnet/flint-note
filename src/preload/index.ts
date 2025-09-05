@@ -259,7 +259,73 @@ const api = {
 
   removeUsageListener: () => {
     electronAPI.ipcRenderer.removeAllListeners('ai-usage-recorded');
-  }
+  },
+
+  // Custom functions operations
+  listCustomFunctions: (params?: { tags?: string[]; searchQuery?: string }) =>
+    electronAPI.ipcRenderer.invoke('list-custom-functions', params),
+  createCustomFunction: (params: {
+    name: string;
+    description: string;
+    parameters: Record<
+      string,
+      {
+        type: string;
+        description?: string;
+        optional?: boolean;
+        default?: unknown;
+      }
+    >;
+    returnType: string;
+    code: string;
+    tags?: string[];
+  }) => electronAPI.ipcRenderer.invoke('create-custom-function', params),
+  getCustomFunction: (params: { id?: string; name?: string }) =>
+    electronAPI.ipcRenderer.invoke('get-custom-function', params),
+  updateCustomFunction: (params: {
+    id: string;
+    name?: string;
+    description?: string;
+    parameters?: Record<
+      string,
+      {
+        type: string;
+        description?: string;
+        optional?: boolean;
+        default?: unknown;
+      }
+    >;
+    returnType?: string;
+    code?: string;
+    tags?: string[];
+  }) => electronAPI.ipcRenderer.invoke('update-custom-function', params),
+  deleteCustomFunction: (params: { id: string }) =>
+    electronAPI.ipcRenderer.invoke('delete-custom-function', params),
+  validateCustomFunction: (params: {
+    name: string;
+    description: string;
+    parameters: Record<
+      string,
+      {
+        type: string;
+        description?: string;
+        optional?: boolean;
+        default?: unknown;
+      }
+    >;
+    returnType: string;
+    code: string;
+    tags?: string[];
+  }) => electronAPI.ipcRenderer.invoke('validate-custom-function', params),
+  testCustomFunction: (params: {
+    functionId: string;
+    parameters: Record<string, unknown>;
+  }) => electronAPI.ipcRenderer.invoke('test-custom-function', params),
+  getCustomFunctionStats: (params?: { functionId?: string }) =>
+    electronAPI.ipcRenderer.invoke('get-custom-function-stats', params),
+  exportCustomFunctions: () => electronAPI.ipcRenderer.invoke('export-custom-functions'),
+  importCustomFunctions: (params: { backupData: string }) =>
+    electronAPI.ipcRenderer.invoke('import-custom-functions', params)
 };
 
 // Use `contextBridge` APIs to expose Electron APIs to
