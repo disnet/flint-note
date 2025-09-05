@@ -1,5 +1,9 @@
 # Project Log
 
+## Custom Functions UI Integration Improvement - 2025-09-05
+
+- Moved custom functions from Settings section to dedicated system view in left sidebar navigation, improving accessibility and making it a first-class feature positioned between "Slash Commands" and "Settings"
+
 ## Custom Functions Testing Implementation (Phase 1) - 2025-09-05
 
 - Successfully implemented comprehensive Phase 1 foundation tests for Custom Functions system with 80% overall test coverage (64/80 tests passing), including complete storage layer validation, robust security validation framework, and test infrastructure ready for integration testing phases

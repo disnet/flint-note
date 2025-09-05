@@ -24,7 +24,7 @@ All backend infrastructure has been successfully implemented and thoroughly test
 
 All user interface components have been successfully implemented and integrated:
 
-- **Settings Integration**: Custom functions management integrated in Settings UI ✅
+- **System View Integration**: Custom functions accessible as dedicated system view in sidebar navigation ✅
 - **Function Editor**: Full-featured code editor for creating/editing functions ✅
 - **Testing Interface**: Interactive UI for testing functions with parameters ✅
 - **Function Management**: Complete list view, details, and analytics interface ✅
@@ -244,39 +244,50 @@ declare namespace customFunctions {
 
 ### 5. User Interface Requirements
 
-#### Function Management View
+#### System View Integration
 
-Create a new settings section: **Settings > Advanced > Custom Functions**
+Custom functions are accessible as a dedicated system view in the left sidebar navigation:
+
+**Navigation:** Left Sidebar > **Custom Functions** (between Slash Commands and Settings)
+
+**Function Management Interface:**
 
 **Function List View:**
 
 - Table showing all registered functions with name, description, created date, usage count
 - Search and filter by tags, creation source, usage frequency
 - Sort by name, creation date, usage count, last used
-- Quick actions: Edit, Test, Duplicate, Delete, Export
+- Quick actions: View Details, Test, Edit, Duplicate, Delete, Export
+- Create New Function button with proper navigation
+- Import/Export functionality for function backup and sharing
 
 **Function Editor:**
 
-- Code editor with TypeScript syntax highlighting and validation
-- Parameter definition interface with type validation
-- Test execution panel with parameter input and result display
-- Validation feedback showing compilation errors and warnings
-- Save/Cancel with confirmation for breaking changes
+- Complete function metadata form: name, description, tags with validation
+- Parameter definition interface with type selection and advanced parameter modal
+- Return type specification with common type suggestions
+- Code editor with TypeScript syntax highlighting and real-time validation
+- Template generation for quick function scaffolding
+- Save/Cancel actions with proper state management
+- Support for both create and edit modes
+
+**Function Tester:**
+
+- Parameter input form with type-aware controls (string, number, boolean, object inputs)
+- Test execution button with progress indication and loading states
+- Result display panel with pretty-printed JSON output and type information
+- Error display with detailed error messages and execution context
+- Test execution history with result selection and comparison
+- Copy result functionality for easy result sharing
 
 **Function Details:**
 
-- Execution history and performance metrics
-- Usage analytics (frequency, success rate, error patterns)
-- Version history with diff view for changes
-- Export to file or share with other vaults
-
-#### Testing Interface
-
-- Parameter input form with type-aware controls
-- Real-time validation of parameter values
-- Execution button with progress indication
-- Result display with pretty-printed output
-- Error display with stack traces and suggestions
+- Function metadata display (created, last used, version, usage count)
+- Function signature display with parameter documentation
+- Code view with TypeScript syntax highlighting (read-only)
+- Usage analytics display (usage count, creation info)
+- Copy function signature and source code functionality
+- Navigation integration with edit and test actions
 
 ## Implementation Architecture
 
@@ -458,11 +469,13 @@ customFunctions: {
 
 **Implementation Completed:**
 
-#### 1. Settings Integration ✅
+#### 1. System View Integration ✅
 
-- ✅ Added "Custom Functions" section to `src/renderer/src/components/Settings.svelte`
+- ✅ Added "Custom Functions" as dedicated system view in left sidebar navigation
+- ✅ Integrated with existing system view architecture (`App.svelte`, `MainView.svelte`, `SystemViews.svelte`)
 - ✅ Created 10 IPC bridge methods in preload script for complete custom functions API
 - ✅ Updated main process to expose all custom functions methods via IPC with proper error handling
+- ✅ Positioned between "Slash Commands" and "Settings" for logical organization
 
 #### 2. Core UI Components ✅ (`src/renderer/src/components/custom-functions/`)
 
@@ -509,7 +522,7 @@ customFunctions: {
 - ✅ Navigation between all views (list, editor, tester, details)
 - ✅ Breadcrumb navigation showing current context
 - ✅ State management for view transitions and data passing
-- ✅ Integration point for Settings page
+- ✅ Integration point for system view architecture
 
 #### 3. IPC Integration ✅
 
@@ -562,7 +575,7 @@ customFunctions: {
 
 **✅ All Components Complete**
 
-- ✅ Settings UI for custom functions management fully integrated
+- ✅ System view integration for custom functions management as dedicated sidebar navigation
 - ✅ Function editor with TypeScript syntax highlighting and validation
 - ✅ Function testing interface for parameter input and execution
 - ✅ Function details and analytics display with usage statistics
@@ -570,9 +583,11 @@ customFunctions: {
 
 **Current Status:** Feature Complete - Custom functions are fully accessible to users through both UI and AI agents.
 
+**User Experience:** Custom functions are now accessible as a first-class feature through dedicated system view navigation in the left sidebar. Users can access the full custom functions manager by clicking "Custom Functions" in the sidebar navigation, positioned between "Slash Commands" and "Settings" for intuitive discovery.
+
 **Implementation Status:** 100% complete - fully functional custom functions feature delivered with comprehensive UI for creating, managing, testing, and using custom functions through both the graphical interface and AI agents.
 
-The backend implementation leverages existing architectural patterns while maintaining security and type safety. The UI implementation will follow established Svelte patterns and integrate seamlessly with the existing settings interface.
+The backend implementation leverages existing architectural patterns while maintaining security and type safety. The UI implementation follows established Svelte patterns and integrates seamlessly with the existing system view architecture.
 
 ---
 
@@ -598,7 +613,8 @@ The backend implementation leverages existing architectural patterns while maint
 - ✅ `src/renderer/src/stores/customFunctionsStore.svelte.ts` - Complete state management (469 lines)
 - ✅ `src/preload/index.ts` - 10 IPC bridge methods added with full type safety
 - ✅ `src/renderer/src/env.d.ts` - Complete TypeScript definitions for all custom function APIs
-- ✅ Settings integration in `src/renderer/src/components/Settings.svelte` - Custom functions section added
+- ✅ System view integration in `src/renderer/src/components/SystemViews.svelte` - Custom functions navigation added
+- ✅ Main app integration in `src/renderer/src/App.svelte` and `src/renderer/src/components/MainView.svelte`
 
 **Quality Metrics:**
 
