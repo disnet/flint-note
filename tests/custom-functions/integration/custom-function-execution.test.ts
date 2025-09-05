@@ -173,32 +173,55 @@ describe('Custom Function Execution Integration', () => {
           date: { type: 'string', description: 'Date in YYYY-MM-DD format' },
           content: { type: 'string', description: 'Note content', optional: true }
         },
-        returnType: 'Promise<Note>',
+        returnType: 'Promise<CreateNoteResult>',
         code: `
-          async function createOrUpdateDailyNote(date: string, content?: string): Promise<Note> {
+          async function createOrUpdateDailyNote(date: string, content?: string): Promise<CreateNoteResult> {
             const title = 'Daily Note - ' + date;
             
             // Check if daily note exists
             const existing = await notes.search({ 
-              query: title,
-              vault_id: '${vaultId}'
+              query: title
             });
             
             if (existing.length > 0) {
               const note = await notes.get(existing[0].id);
-              if (note && content) {
-                const updatedNote = await notes.update(note.id, {
+              if (!note) {
+                // If note is null, create a new one
+                return await notes.create({
+                  type: 'daily',
+                  title: title,
+                  content: content || '# Daily Note\\n\\nCreated on ' + date
+                });
+              }
+              if (content) {
+                const updatedNote = await notes.update({
+                  identifier: note.id,
                   content: note.content + '\\n\\n' + content
                 });
-                return updatedNote;
+                // For simplicity, return a create-like result for existing updated notes
+                return {
+                  id: note.id,
+                  type: note.type,
+                  title: note.title,
+                  filename: note.path,
+                  path: note.path,
+                  created: note.created
+                };
               }
-              return note!;
+              // Return create-like result for existing note without update
+              return {
+                id: note.id,
+                type: note.type,
+                title: note.title,
+                filename: note.path,
+                path: note.path,
+                created: note.created
+              };
             } else {
               return await notes.create({
                 type: 'daily',
                 title: title,
-                content: content || '# Daily Note\\n\\nCreated on ' + date,
-                vault_id: '${vaultId}'
+                content: content || '# Daily Note\\n\\nCreated on ' + date
               });
             }
           }
@@ -377,7 +400,7 @@ describe('Custom Function Execution Integration', () => {
       });
 
       expect(result.success).toBe(false);
-      expect(result.errorMessage).toContain('Custom function error: Test error message');
+      expect(result.error).toContain('Custom function error: Test error message');
     });
 
     it('should handle compilation errors with custom function calls', async () => {
