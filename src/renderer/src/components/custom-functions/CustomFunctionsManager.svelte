@@ -137,7 +137,6 @@
     {:else if currentView === 'details' && selectedFunction}
       <CustomFunctionDetails
         func={selectedFunction}
-        onEdit={() => showEditEditor(selectedFunction!)}
         onTest={() => showTester(selectedFunction!)}
         onClose={showList}
       />

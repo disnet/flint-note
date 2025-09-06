@@ -1,5 +1,13 @@
 # Project Log
 
+## Custom Functions CodeMirror Integration - 2025-09-05
+
+- Integrated CodeMirror 6 with TypeScript syntax highlighting to replace basic textarea code editors in both CustomFunctionDetails and CustomFunctionEditor components, providing professional-grade code editing experience with syntax highlighting, bracket matching, auto-completion, and theme adaptation
+
+## Custom Functions Inline Editing - 2025-09-05
+
+- Converted CustomFunctionDetails component from read-only display to live inline editor, eliminating the need for separate edit modes and enabling direct editing of all function properties (name, description, tags, parameters, code) with real-time validation and auto-save functionality
+
 ## Custom Functions UI Integration Improvement - 2025-09-05
 
 - Moved custom functions from Settings section to dedicated system view in left sidebar navigation, improving accessibility and making it a first-class feature positioned between "Slash Commands" and "Settings"

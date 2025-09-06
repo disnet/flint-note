@@ -36,14 +36,19 @@
     confirmDeleteId = null;
   }
 
-  function handleSort(field: 'name' | 'createdAt' | 'usageCount' | 'lastUsed' | string): void {
+  function handleSort(
+    field: 'name' | 'createdAt' | 'usageCount' | 'lastUsed' | string
+  ): void {
     const sortField = field as 'name' | 'createdAt' | 'usageCount' | 'lastUsed';
     const currentSort = customFunctionsStore.sortBy;
     const currentDirection = customFunctionsStore.sortDirection;
 
     if (currentSort === sortField) {
       // Toggle direction
-      customFunctionsStore.setSorting(sortField, currentDirection === 'asc' ? 'desc' : 'asc');
+      customFunctionsStore.setSorting(
+        sortField,
+        currentDirection === 'asc' ? 'desc' : 'asc'
+      );
     } else {
       // Default direction for each field
       const defaultDirection = sortField === 'name' ? 'asc' : 'desc';
@@ -61,12 +66,7 @@
     }).format(date);
   }
 
-  function getSortIcon(field: string): string {
-    if (customFunctionsStore.sortBy !== field) {
-      return '↕️';
-    }
-    return customFunctionsStore.sortDirection === 'asc' ? '↑' : '↓';
-  }
+  // Removed unused getSortIcon function
 
   async function handleExport(): Promise<void> {
     try {
@@ -249,10 +249,10 @@
   {#if !customFunctionsStore.isLoading && customFunctionsStore.filteredFunctions.length > 0}
     <div class="sort-controls">
       <label class="sort-label" for="sort-select">Sort by:</label>
-      <select 
+      <select
         id="sort-select"
-        value={customFunctionsStore.sortBy} 
-        onchange={(e) => handleSort(e.target.value)}
+        value={customFunctionsStore.sortBy}
+        onchange={(e) => handleSort((e.target as HTMLSelectElement).value)}
         class="sort-select"
       >
         <option value="name">Name</option>
@@ -260,7 +260,7 @@
         <option value="usageCount">Usage</option>
         <option value="lastUsed">Last Used</option>
       </select>
-      <button 
+      <button
         class="sort-direction"
         onclick={() => handleSort(customFunctionsStore.sortBy)}
         title="Toggle sort direction"
@@ -278,7 +278,9 @@
               <span class="return-type">{func.returnType}</span>
             </div>
             <div class="function-meta">
-              <span class="usage-count" title="Usage count">{func.metadata.usageCount} uses</span>
+              <span class="usage-count" title="Usage count"
+                >{func.metadata.usageCount} uses</span
+              >
             </div>
           </div>
 
@@ -299,7 +301,9 @@
               Created {formatDate(func.metadata.createdAt)} by {func.metadata.createdBy}
             </span>
             <span class="last-used">
-              Last used: {func.metadata.lastUsed ? formatDate(func.metadata.lastUsed) : 'Never'}
+              Last used: {func.metadata.lastUsed
+                ? formatDate(func.metadata.lastUsed)
+                : 'Never'}
             </span>
           </div>
 
@@ -309,9 +313,18 @@
               title="View Details"
               onclick={() => onDetails?.(func)}
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
                 <circle cx="12" cy="12" r="3"></circle>
-                <path d="M12 1v6M12 17v6M4.22 4.22l4.24 4.24M15.54 15.54l4.24 4.24M1 12h6M17 12h6M4.22 19.78l4.24-4.24M15.54 8.46l4.24-4.24"></path>
+                <path
+                  d="M12 1v6M12 17v6M4.22 4.22l4.24 4.24M15.54 15.54l4.24 4.24M1 12h6M17 12h6M4.22 19.78l4.24-4.24M15.54 8.46l4.24-4.24"
+                ></path>
               </svg>
               Details
             </button>
@@ -321,7 +334,14 @@
               title="Test Function"
               onclick={() => onTest?.(func)}
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
                 <polygon points="5,3 19,12 5,21"></polygon>
               </svg>
               Test
@@ -332,8 +352,16 @@
               title="Edit Function"
               onclick={() => onEdit?.(func)}
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
+                ></path>
                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
               </svg>
               Edit
@@ -344,7 +372,14 @@
               title="Duplicate Function"
               onclick={() => onDuplicate?.(func)}
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
                 <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
                 <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
               </svg>
@@ -359,11 +394,7 @@
               >
                 ✓ Confirm
               </button>
-              <button
-                class="btn-action"
-                title="Cancel Delete"
-                onclick={cancelDelete}
-              >
+              <button class="btn-action" title="Cancel Delete" onclick={cancelDelete}>
                 Cancel
               </button>
             {:else}
@@ -372,9 +403,18 @@
                 title="Delete Function"
                 onclick={() => handleDelete(func.id)}
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
                   <polyline points="3,6 5,6 21,6"></polyline>
-                  <path d="M19,6v14a2,2 0 0,1-2,2H7a2,2 0 0,1-2-2V6m3,0V4a2,2 0 0,1,2-2h4a2,2 0 0,1,2,2v2"></path>
+                  <path
+                    d="M19,6v14a2,2 0 0,1-2,2H7a2,2 0 0,1-2-2V6m3,0V4a2,2 0 0,1,2-2h4a2,2 0 0,1,2,2v2"
+                  ></path>
                   <line x1="10" y1="11" x2="10" y2="17"></line>
                   <line x1="14" y1="11" x2="14" y2="17"></line>
                 </svg>

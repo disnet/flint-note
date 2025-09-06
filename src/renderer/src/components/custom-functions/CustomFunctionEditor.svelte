@@ -5,6 +5,7 @@
     CustomFunctionParameter,
     ValidationResult
   } from '../../stores/customFunctionsStore.svelte';
+  import CodeEditor from '../CodeEditor.svelte';
 
   interface Props {
     editingFunction?: CustomFunction;
@@ -88,14 +89,16 @@
 
     isValidating = true;
     try {
-      validation = await customFunctionsStore.validateFunction($state.snapshot({
-        name: name.trim(),
-        description: description.trim(),
-        parameters,
-        returnType,
-        code: code.trim(),
-        tags
-      }));
+      validation = await customFunctionsStore.validateFunction(
+        $state.snapshot({
+          name: name.trim(),
+          description: description.trim(),
+          parameters,
+          returnType,
+          code: code.trim(),
+          tags
+        })
+      );
     } catch (error) {
       console.error('Validation failed:', error);
     } finally {
@@ -119,24 +122,28 @@
       let result: CustomFunction;
 
       if (editingFunction) {
-        result = await customFunctionsStore.updateFunction($state.snapshot({
-          id: editingFunction.id,
-          name: name.trim(),
-          description: description.trim(),
-          parameters,
-          returnType,
-          code: code.trim(),
-          tags
-        }));
+        result = await customFunctionsStore.updateFunction(
+          $state.snapshot({
+            id: editingFunction.id,
+            name: name.trim(),
+            description: description.trim(),
+            parameters,
+            returnType,
+            code: code.trim(),
+            tags
+          })
+        );
       } else {
-        result = await customFunctionsStore.createFunction($state.snapshot({
-          name: name.trim(),
-          description: description.trim(),
-          parameters,
-          returnType,
-          code: code.trim(),
-          tags
-        }));
+        result = await customFunctionsStore.createFunction(
+          $state.snapshot({
+            name: name.trim(),
+            description: description.trim(),
+            parameters,
+            returnType,
+            code: code.trim(),
+            tags
+          })
+        );
       }
 
       onSave?.(result);
@@ -443,11 +450,15 @@
       </div>
 
       <div class="code-editor">
-        <textarea
-          bind:value={code}
+        <CodeEditor
+          value={code}
+          language="typescript"
+          height="300px"
           placeholder="Enter your TypeScript function code here..."
-          spellcheck="false"
-        ></textarea>
+          onUpdate={(newValue) => {
+            code = newValue;
+          }}
+        />
       </div>
 
       <!-- Validation Results -->
@@ -823,23 +834,8 @@
 
   .code-editor {
     flex: 1;
-    border: 1px solid var(--border-light);
     border-radius: 0.5rem;
     overflow: hidden;
-  }
-
-  .code-editor textarea {
-    width: 100%;
-    height: 300px;
-    min-height: 200px;
-    border: none;
-    resize: vertical;
-    font-family: 'SF Mono', Monaco, Consolas, monospace;
-    font-size: 0.875rem;
-    line-height: 1.5;
-    padding: 1rem;
-    background: var(--bg-primary);
-    color: var(--text-primary);
   }
 
   /* Validation */
