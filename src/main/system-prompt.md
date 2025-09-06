@@ -79,63 +79,63 @@ declare const utils: FlintAPI.UtilsAPI;
 
 **Notes API:**
 
-- `notes.create(options: { type: string; title: string; content: string; metadata?: Record<string, any> })` - Create new notes
-- `notes.get(identifier: string)` - Retrieve note by ID (returns `Note | null`)
-- `notes.update(options: { identifier: string; content?: string; contentHash?: string; metadata?: Record<string, any> })` - Update note content/metadata
-- `notes.delete(options: { identifier: string; contentHash?: string })` - Delete note (returns `DeleteNoteResult`)
-- `notes.list(options?: { typeName?: string; limit?: number; offset?: number; sortBy?: 'created' | 'updated' | 'title'; sortOrder?: 'asc' | 'desc' })` - List notes with optional filtering
-- `notes.rename(options: { identifier: string; newTitle: string; contentHash?: string })` - Rename note (returns `RenameNoteResult`)
-- `notes.move(options: { identifier: string; newPath: string; contentHash?: string })` - Move note (returns `MoveNoteResult`)
-- `notes.search(options: { query: string; types?: string[]; limit?: number; offset?: number })` - Search notes with query and filters
+- `notes.create(options: { type: string; title: string; content: string; metadata?: Record<string, any> }): Promise<CreateNoteResult>` - Create new notes
+- `notes.get(identifier: string): Promise<Note | null>` - Retrieve note by ID
+- `notes.update(options: { identifier: string; content?: string; contentHash?: string; metadata?: Record<string, any> }): Promise<UpdateNoteResult>` - Update note content/metadata
+- `notes.delete(options: { identifier: string; contentHash?: string }): Promise<DeleteNoteResult>` - Delete note
+- `notes.list(options?: { typeName?: string; limit?: number; offset?: number; sortBy?: 'created' | 'updated' | 'title'; sortOrder?: 'asc' | 'desc' }): Promise<NoteInfo[]>` - List notes with optional filtering
+- `notes.rename(options: { identifier: string; newTitle: string; contentHash?: string }): Promise<RenameNoteResult>` - Rename note
+- `notes.move(options: { identifier: string; newPath: string; contentHash?: string }): Promise<MoveNoteResult>` - Move note
+- `notes.search(options: { query: string; types?: string[]; limit?: number; offset?: number }): Promise<SearchResult[]>` - Search notes with query and filters
 
 **Note Types API:**
 
-- `noteTypes.create(options: { name: string; description?: string; agent_instructions?: string; template?: string })` - Define new note types with agent instructions
-- `noteTypes.list()` - Get all available note types (returns `NoteTypeInfo[]`)
-- `noteTypes.get(typeName: string)` - Get specific note type definition (returns `NoteType`)
-- `noteTypes.update(options: { name: string; description?: string; agent_instructions?: string; template?: string })` - Update note type (returns `UpdateNoteTypeResult`)
-- `noteTypes.delete(options: { name: string; deleteNotes?: boolean })` - Delete note type (returns `DeleteNoteTypeResult`)
+- `noteTypes.create(options: { name: string; description?: string; agent_instructions?: string; template?: string }): Promise<NoteType>` - Define new note types with agent instructions
+- `noteTypes.list(): Promise<NoteTypeInfo[]>` - Get all available note types
+- `noteTypes.get(typeName: string): Promise<NoteType | null>` - Get specific note type definition
+- `noteTypes.update(options: { name: string; description?: string; agent_instructions?: string; template?: string }): Promise<UpdateNoteTypeResult>` - Update note type
+- `noteTypes.delete(options: { name: string; deleteNotes?: boolean }): Promise<DeleteNoteTypeResult>` - Delete note type
 
 **Links API:**
 
-- `links.getForNote(noteId: string)` - Get all links from/to a note (returns `LinkInfo`)
-- `links.getBacklinks(noteId: string)` - Get notes linking to this note (returns array with `source_id`, `source_title`, `source_type`, `link_text`, `context`)
-- `links.findBroken()` - Find broken internal links (returns array with `source_id`, `source_title`, `target_reference`, `link_text`, `context`)
-- `links.searchBy(options: { text?: string; url?: string })` - Search links by text or URL
-- `links.migrate(options: { oldReference: string; newReference: string })` - Migrate link references (returns `{ updated_notes: number }`)
+- `links.getForNote(noteId: string): Promise<LinkInfo>` - Get all links from/to a note
+- `links.getBacklinks(noteId: string): Promise<Array<{ source_id: string; source_title: string; source_type: string; link_text: string; context: string }>>` - Get notes linking to this note
+- `links.findBroken(): Promise<Array<{ source_id: string; source_title: string; target_reference: string; link_text: string; context: string }>>` - Find broken internal links
+- `links.searchBy(options: { text?: string; url?: string }): Promise<LinkInfo[]>` - Search links by text or URL
+- `links.migrate(options: { oldReference: string; newReference: string }): Promise<{ updated_notes: number }>` - Migrate link references
 
 **Hierarchy API:**
 
-- `hierarchy.addSubnote(options: { parent_id: string; child_id: string; order?: number })` - Create parent-child relationships
-- `hierarchy.removeSubnote(options: { parent_id: string; child_id: string })` - Remove parent-child relationships
-- `hierarchy.reorder(options: { parent_id: string; child_orders: Array<{ child_id: string; order: number }> })` - Reorder child notes
-- `hierarchy.getPath(noteId: string)` - Get hierarchical path to root (returns array with `id`, `title`, `type`)
-- `hierarchy.getDescendants(noteId: string)` - Get all descendants (returns array with `id`, `title`, `type`, `depth`, `order`)
-- `hierarchy.getChildren(noteId: string)` - Get direct children (returns array with `id`, `title`, `type`, `order`)
-- `hierarchy.getParents(noteId: string)` - Get direct parents (returns array with `id`, `title`, `type`)
+- `hierarchy.addSubnote(options: { parent_id: string; child_id: string; order?: number }): Promise<void>` - Create parent-child relationships
+- `hierarchy.removeSubnote(options: { parent_id: string; child_id: string }): Promise<void>` - Remove parent-child relationships
+- `hierarchy.reorder(options: { parent_id: string; child_orders: Array<{ child_id: string; order: number }> }): Promise<void>` - Reorder child notes
+- `hierarchy.getPath(noteId: string): Promise<Array<{ id: string; title: string; type: string }>>` - Get hierarchical path to root
+- `hierarchy.getDescendants(noteId: string): Promise<Array<{ id: string; title: string; type: string; depth: number; order: number }>>` - Get all descendants
+- `hierarchy.getChildren(noteId: string): Promise<Array<{ id: string; title: string; type: string; order: number }>>` - Get direct children
+- `hierarchy.getParents(noteId: string): Promise<Array<{ id: string; title: string; type: string }>>` - Get direct parents
 
 **Utils API:**
 
-- `utils.generateId()` - Generate unique note identifiers (returns `string`)
-- `utils.parseLinks(content: string)` - Extract links from note content (returns array with `type`, `reference`, `text`, `start`, `end`)
-- `utils.formatDate(date: string | Date, format?: string)` - Format dates (returns `string`)
-- `utils.sanitizeTitle(title: string)` - Clean titles for file system use (returns `string`)
+- `utils.generateId(): string` - Generate unique note identifiers
+- `utils.parseLinks(content: string): Array<{ type: string; reference: string; text: string; start: number; end: number }>` - Extract links from note content
+- `utils.formatDate(date: string | Date, format?: string): string` - Format dates
+- `utils.sanitizeTitle(title: string): string` - Clean titles for file system use
 
 **Vaults API:**
 
-- `vaults.getCurrent()` - Get current vault (returns `Vault | null`)
-- `vaults.list()` - Get all vaults (returns `Vault[]`)
-- `vaults.create(options: { name: string; path: string })` - Create new vault (returns `Vault`)
-- `vaults.switch(vaultId: string)` - Switch to different vault
-- `vaults.update(options: { id: string; name?: string })` - Update vault
-- `vaults.remove(vaultId: string)` - Remove vault
+- `vaults.getCurrent(): Promise<Vault | null>` - Get current vault
+- `vaults.list(): Promise<Vault[]>` - Get all vaults
+- `vaults.create(options: { name: string; path: string }): Promise<Vault>` - Create new vault
+- `vaults.switch(vaultId: string): Promise<void>` - Switch to different vault
+- `vaults.update(options: { id: string; name?: string }): Promise<Vault>` - Update vault
+- `vaults.remove(vaultId: string): Promise<void>` - Remove vault
 
 **Relationships API:**
 
-- `relationships.get(noteId: string)` - Get relationship analysis (returns object with `direct_connections`, `total_reachable`, `clustering_coefficient`, `related_notes`)
-- `relationships.getRelated(noteId: string, options?: { limit?: number; min_strength?: number })` - Get related notes with connection strength
-- `relationships.findPath(fromId: string, toId: string)` - Find connection path between notes (returns array or null)
-- `relationships.getClusteringCoefficient(noteId: string)` - Get clustering coefficient (returns `number`)
+- `relationships.get(noteId: string): Promise<{ direct_connections: number; total_reachable: number; clustering_coefficient: number; related_notes: Array<{ id: string; title: string; strength: number }> }>` - Get relationship analysis
+- `relationships.getRelated(noteId: string, options?: { limit?: number; min_strength?: number }): Promise<Array<{ id: string; title: string; strength: number }>>` - Get related notes with connection strength
+- `relationships.findPath(fromId: string, toId: string): Promise<Array<{ id: string; title: string }> | null>` - Find connection path between notes
+- `relationships.getClusteringCoefficient(noteId: string): Promise<number>` - Get clustering coefficient
 
 ### Code Execution Requirements
 
