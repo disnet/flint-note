@@ -119,16 +119,41 @@ export class CustomFunctionsStore {
   }
 
   /**
-   * Create a new custom function
+   * Create a new custom function or update existing one with same name
    */
   async create(options: CreateCustomFunctionOptions): Promise<CustomFunction> {
     const functions = await this.load();
 
-    // Check for name conflicts
-    if (functions.some((func) => func.name === options.name)) {
-      throw new Error(`Function with name '${options.name}' already exists`);
+    // Check if function with this name already exists
+    const existingFunctionIndex = functions.findIndex(
+      (func) => func.name === options.name
+    );
+
+    if (existingFunctionIndex !== -1) {
+      // Update existing function (re-registration)
+      const existingFunction = functions[existingFunctionIndex];
+
+      const updatedFunction: CustomFunction = {
+        ...existingFunction,
+        description: options.description,
+        parameters: options.parameters,
+        returnType: options.returnType,
+        code: options.code,
+        tags: options.tags || [],
+        metadata: {
+          ...existingFunction.metadata,
+          updatedAt: new Date(),
+          version: existingFunction.metadata.version + 1
+          // Keep original createdAt, createdBy, and usageCount
+        }
+      };
+
+      functions[existingFunctionIndex] = updatedFunction;
+      await this.save(functions);
+      return updatedFunction;
     }
 
+    // Create new function
     const newFunction: CustomFunction = {
       id: randomUUID(),
       name: options.name,

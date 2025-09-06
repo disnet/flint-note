@@ -61,6 +61,7 @@ export class ToolService {
       tools.test_custom_function = this.testCustomFunctionTool;
       tools.list_custom_functions = this.listCustomFunctionsTool;
       tools.validate_custom_function = this.validateCustomFunctionTool;
+      tools.delete_custom_function = this.deleteCustomFunctionTool;
     }
 
     return tools;
@@ -383,6 +384,70 @@ export class ToolService {
           success: false,
           error: error instanceof Error ? error.message : String(error),
           message: `Failed to validate custom function '${name}': ${error instanceof Error ? error.message : String(error)}`
+        };
+      }
+    }
+  });
+
+  private deleteCustomFunctionTool = tool({
+    description:
+      'Delete a registered custom function. This permanently removes the function and it will no longer be available for use.',
+    inputSchema: z.object({
+      id: z.string().optional().describe('ID of the custom function to delete'),
+      name: z.string().optional().describe('Name of the custom function to delete')
+    }),
+    execute: async ({ id, name }) => {
+      if (!this.customFunctionsApi) {
+        return {
+          success: false,
+          error: 'Custom functions not available',
+          message: 'Custom functions API not initialized'
+        };
+      }
+
+      // Either id or name must be provided
+      if (!id && !name) {
+        return {
+          success: false,
+          error: 'Missing required parameter',
+          message: 'Either id or name must be provided to delete a custom function'
+        };
+      }
+
+      try {
+        // If name is provided but not id, look up the function by name
+        let functionId = id;
+        if (!functionId && name) {
+          const func = await this.customFunctionsApi.getFunction({ name });
+          if (!func) {
+            return {
+              success: false,
+              error: `Custom function '${name}' not found`,
+              message: `No custom function named '${name}' is registered`
+            };
+          }
+          functionId = func.id;
+        }
+
+        const result = await this.customFunctionsApi.deleteFunction({ id: functionId! });
+
+        if (result.success) {
+          return {
+            success: true,
+            message: `Custom function ${name ? `'${name}'` : `with ID '${functionId}'`} deleted successfully`
+          };
+        } else {
+          return {
+            success: false,
+            error: 'Function not found',
+            message: `Custom function ${name ? `'${name}'` : `with ID '${functionId}'`} not found`
+          };
+        }
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+          message: `Failed to delete custom function: ${error instanceof Error ? error.message : String(error)}`
         };
       }
     }

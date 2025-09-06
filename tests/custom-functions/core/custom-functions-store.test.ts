@@ -183,7 +183,7 @@ describe('CustomFunctionsStore', () => {
   });
 
   describe('Validation and Constraints', () => {
-    it('should validate function uniqueness by name', async () => {
+    it('should allow re-registration (overwriting) of functions with same name', async () => {
       const createOptions = {
         name: 'uniqueTest',
         description: 'Test function',
@@ -193,12 +193,28 @@ describe('CustomFunctionsStore', () => {
         tags: ['test']
       };
 
-      await store.create(createOptions);
+      const func1 = await store.create(createOptions);
 
-      // Attempt to create another function with the same name
-      await expect(store.create(createOptions)).rejects.toThrow(
-        "Function with name 'uniqueTest' already exists"
-      );
+      // Re-register function with same name but different description
+      const updatedOptions = {
+        ...createOptions,
+        description: 'Updated test function',
+        code: 'function uniqueTest(input: string): string { return "updated: " + input; }'
+      };
+
+      const func2 = await store.create(updatedOptions);
+
+      // Should return the updated function
+      expect(func2.id).toBe(func1.id); // Same ID (updated existing function)
+      expect(func2.name).toBe('uniqueTest');
+      expect(func2.description).toBe('Updated test function');
+      expect(func2.metadata.version).toBe(func1.metadata.version + 1); // Version incremented
+      expect(func2.metadata.usageCount).toBe(func1.metadata.usageCount); // Usage count preserved
+
+      // Verify only one function exists in storage
+      const allFunctions = await store.list();
+      expect(allFunctions).toHaveLength(1);
+      expect(allFunctions[0].description).toBe('Updated test function');
     });
 
     it('should prevent name conflicts during updates', async () => {
