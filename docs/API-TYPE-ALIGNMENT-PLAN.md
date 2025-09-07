@@ -147,6 +147,7 @@ flintApi.getCurrentVault();
 **Issue**: ✅ **RESOLVED** - All tests updated to use new standardized field names
 
 **Completed Work**:
+
 1. ✅ Updated test files to use `noteId` instead of `identifier`
 2. ✅ Updated custom function examples to use new field names
 3. ✅ Updated FlintNoteApi implementation to use standardized field names
@@ -154,6 +155,7 @@ flintApi.getCurrentVault();
 5. ✅ Verified 223/224 tests now pass (99.5% success rate)
 
 **Files Updated**:
+
 - ✅ `/tests/custom-functions/integration/custom-function-execution.test.ts`
 - ✅ `/tests/server/api/wasm-expanded-api.test.ts`
 - ✅ `/src/server/api/types.ts` - Updated RenameNoteArgs and MoveNoteArgs
@@ -161,7 +163,8 @@ flintApi.getCurrentVault();
 - ✅ `/src/server/api/wasm-code-evaluator.ts` - Updated WASM bindings and types
 - ✅ `/src/main/note-service.ts` - Updated service layer calls
 
-**Results**: 
+**Results**:
+
 - **Before**: 6 failing tests due to field name mismatches
 - **After**: 1 failing test (unrelated to field names - Relationships API issue)
 - **Success Rate**: 99.5% (223/224 tests passing)

@@ -426,7 +426,7 @@ namespace FlintAPI {
   }
 
   export interface UpdateNoteOptions {
-    noteId: string;
+    id: string;
     content?: string;
     contentHash?: string;
     metadata?: Record<string, unknown>;
@@ -434,7 +434,7 @@ namespace FlintAPI {
   }
 
   export interface DeleteNoteOptions {
-    noteId: string;
+    id: string;
     contentHash?: string;
     vaultId?: string;
   }
@@ -449,14 +449,14 @@ namespace FlintAPI {
   }
 
   export interface RenameNoteOptions {
-    noteId: string;
+    id: string;
     newTitle: string;
     contentHash?: string;
     vaultId?: string;
   }
 
   export interface MoveNoteOptions {
-    noteId: string;
+    id: string;
     newType: string;
     contentHash?: string;
     vaultId?: string;
@@ -892,9 +892,9 @@ export class WASMCodeEvaluator {
 
     // flintApi.getNote
     if (isApiAllowed('flintApi.getNote')) {
-      const getNoteFn = vm.newFunction('getNote', (noteIdArg) => {
-        const noteId = vm.getString(noteIdArg);
-        const hostPromise = this.noteApi.getNote(vaultId, noteId);
+      const getNoteFn = vm.newFunction('getNote', (idArg) => {
+        const id = vm.getString(idArg);
+        const hostPromise = this.noteApi.getNote(vaultId, id);
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
       });
       getNoteFn.consume((handle) => {
@@ -929,7 +929,7 @@ export class WASMCodeEvaluator {
       const updateNoteFn = vm.newFunction('updateNote', (optionsArg) => {
         const options = vm.dump(optionsArg) as FlintAPI.UpdateNoteOptions;
         const hostPromise = this.noteApi.updateNote({
-          identifier: options.noteId,
+          identifier: options.id,
           content: options.content || '',
           contentHash: options.contentHash || '',
           vaultId,
@@ -949,7 +949,7 @@ export class WASMCodeEvaluator {
       const deleteNoteFn = vm.newFunction('deleteNote', (optionsArg) => {
         const options = vm.dump(optionsArg) as FlintAPI.DeleteNoteOptions;
         const hostPromise = this.noteApi.deleteNote({
-          identifier: options.noteId,
+          identifier: options.id,
           confirm: true,
           vaultId
         });
@@ -988,7 +988,7 @@ export class WASMCodeEvaluator {
       const renameNoteFn = vm.newFunction('renameNote', (optionsArg) => {
         const options = vm.dump(optionsArg) as FlintAPI.RenameNoteOptions;
         const hostPromise = this.noteApi.renameNote({
-          noteId: options.noteId,
+          noteId: options.id,
           newTitle: options.newTitle,
           contentHash: options.contentHash || '',
           vault_id: vaultId
@@ -1007,7 +1007,7 @@ export class WASMCodeEvaluator {
       const moveNoteFn = vm.newFunction('moveNote', (optionsArg) => {
         const options = vm.dump(optionsArg) as FlintAPI.MoveNoteOptions;
         const hostPromise = this.noteApi.moveNote({
-          noteId: options.noteId,
+          noteId: options.id,
           newType: options.newType,
           contentHash: options.contentHash || '',
           vault_id: vaultId
@@ -1370,10 +1370,10 @@ export class WASMCodeEvaluator {
 
     // flintApi.getHierarchyPath
     if (isApiAllowed('flintApi.getHierarchyPath')) {
-      const getHierarchyPathFn = vm.newFunction('getHierarchyPath', (noteIdArg) => {
-        const noteId = vm.getString(noteIdArg);
+      const getHierarchyPathFn = vm.newFunction('getHierarchyPath', (idArg) => {
+        const id = vm.getString(idArg);
         const hostPromise = this.noteApi.getHierarchyPath({
-          note_id: noteId,
+          note_id: id,
           vault_id: vaultId
         });
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
@@ -1388,9 +1388,9 @@ export class WASMCodeEvaluator {
     // flintApi.getDescendants
     if (isApiAllowed('flintApi.getDescendants')) {
       const getDescendantsFn = vm.newFunction('getDescendants', (optionsArg) => {
-        const options = vm.dump(optionsArg) as { noteId: string; max_depth?: number };
+        const options = vm.dump(optionsArg) as { id: string; max_depth?: number };
         const hostPromise = this.noteApi.getDescendants({
-          note_id: options.noteId,
+          note_id: options.id,
           max_depth: options.max_depth,
           vault_id: vaultId
         });
@@ -1405,10 +1405,10 @@ export class WASMCodeEvaluator {
 
     // flintApi.getChildren
     if (isApiAllowed('flintApi.getChildren')) {
-      const getChildrenFn = vm.newFunction('getChildren', (noteIdArg) => {
-        const noteId = vm.getString(noteIdArg);
+      const getChildrenFn = vm.newFunction('getChildren', (idArg) => {
+        const id = vm.getString(idArg);
         const hostPromise = this.noteApi.getChildren({
-          note_id: noteId,
+          note_id: id,
           vault_id: vaultId
         });
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
@@ -1422,10 +1422,10 @@ export class WASMCodeEvaluator {
 
     // flintApi.getParents
     if (isApiAllowed('flintApi.getParents')) {
-      const getParentsFn = vm.newFunction('getParents', (noteIdArg) => {
-        const noteId = vm.getString(noteIdArg);
+      const getParentsFn = vm.newFunction('getParents', (idArg) => {
+        const id = vm.getString(idArg);
         const hostPromise = this.noteApi.getParents({
-          note_id: noteId,
+          note_id: id,
           vault_id: vaultId
         });
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
@@ -1441,17 +1441,14 @@ export class WASMCodeEvaluator {
 
     // flintApi.getNoteRelationships
     if (isApiAllowed('flintApi.getNoteRelationships')) {
-      const getNoteRelationshipsFn = vm.newFunction(
-        'getNoteRelationships',
-        (noteIdArg) => {
-          const noteId = vm.getString(noteIdArg);
-          const hostPromise = this.noteApi.getNoteRelationships({
-            note_id: noteId,
-            vault_id: vaultId
-          });
-          return this.promiseFactory.createProxy(vm, registry, hostPromise);
-        }
-      );
+      const getNoteRelationshipsFn = vm.newFunction('getNoteRelationships', (idArg) => {
+        const id = vm.getString(idArg);
+        const hostPromise = this.noteApi.getNoteRelationships({
+          note_id: id,
+          vault_id: vaultId
+        });
+        return this.promiseFactory.createProxy(vm, registry, hostPromise);
+      });
       getNoteRelationshipsFn.consume((handle) => {
         vm.setProp(flintApiObj, 'getNoteRelationships', handle);
       });
@@ -1463,12 +1460,12 @@ export class WASMCodeEvaluator {
     if (isApiAllowed('flintApi.getRelatedNotes')) {
       const getRelatedNotesFn = vm.newFunction('getRelatedNotes', (optionsArg) => {
         const options = vm.dump(optionsArg) as {
-          noteId: string;
+          id: string;
           limit?: number;
           min_strength?: number;
         };
         const hostPromise = this.noteApi.getRelatedNotes({
-          note_id: options.noteId,
+          note_id: options.id,
           max_results: options.limit,
           vault_id: vaultId
         });
@@ -1506,10 +1503,10 @@ export class WASMCodeEvaluator {
     if (isApiAllowed('flintApi.getClusteringCoefficient')) {
       const getClusteringCoefficientFn = vm.newFunction(
         'getClusteringCoefficient',
-        (noteIdArg) => {
-          const noteId = vm.getString(noteIdArg);
+        (idArg) => {
+          const id = vm.getString(idArg);
           const hostPromise = this.noteApi.getClusteringCoefficient({
-            note_id: noteId,
+            note_id: id,
             vault_id: vaultId
           });
           return this.promiseFactory.createProxy(vm, registry, hostPromise);

@@ -11,7 +11,7 @@ declare namespace FlintAPI {
   interface FlintAPI {
     // Note methods
     createNote(options: CreateNoteOptions): Promise<CreateNoteResult>;
-    getNote(noteId: string): Promise<Note>;
+    getNote(id: string): Promise<Note>;
     updateNote(options: UpdateNoteOptions): Promise<UpdateNoteResult>;
     deleteNote(options: DeleteNoteOptions): Promise<DeleteNoteResult>;
     listNotes(options?: ListNotesOptions): Promise<NoteInfo[]>;
@@ -35,8 +35,8 @@ declare namespace FlintAPI {
     removeVault(vaultId: string): Promise<void>;
 
     // Link methods
-    getNoteLinks(noteId: string): Promise<LinkInfo>;
-    getBacklinks(noteId: string): Promise<Array<{
+    getNoteLinks(id: string): Promise<LinkInfo>;
+    getBacklinks(id: string): Promise<Array<{
       source_id: string;
       source_title: string;
       source_type: string;
@@ -76,32 +76,32 @@ declare namespace FlintAPI {
       parent_id: string;
       child_orders: Array<{ child_id: string; order: number }>;
     }): Promise<void>;
-    getHierarchyPath(noteId: string): Promise<Array<{
+    getHierarchyPath(id: string): Promise<Array<{
       id: string;
       title: string;
       type: string;
     }>>;
-    getDescendants(noteId: string): Promise<Array<{
+    getDescendants(id: string): Promise<Array<{
       id: string;
       title: string;
       type: string;
       depth: number;
       order: number;
     }>>;
-    getChildren(noteId: string): Promise<Array<{
+    getChildren(id: string): Promise<Array<{
       id: string;
       title: string;
       type: string;
       order: number;
     }>>;
-    getParents(noteId: string): Promise<Array<{
+    getParents(id: string): Promise<Array<{
       id: string;
       title: string;
       type: string;
     }>>;
 
     // Relationship methods
-    getNoteRelationships(noteId: string): Promise<{
+    getNoteRelationships(id: string): Promise<{
       direct_connections: number;
       total_reachable: number;
       clustering_coefficient: number;
@@ -113,7 +113,7 @@ declare namespace FlintAPI {
         connection_types: string[];
       }>;
     }>;
-    getRelatedNotes(noteId: string, options?: {
+    getRelatedNotes(id: string, options?: {
       limit?: number;
       min_strength?: number;
     }): Promise<Array<{
@@ -128,7 +128,7 @@ declare namespace FlintAPI {
       title: string;
       type: string;
     }> | null>;
-    getClusteringCoefficient(noteId: string): Promise<number>;
+    getClusteringCoefficient(id: string): Promise<number>;
   }
 
   interface CreateNoteOptions {
@@ -149,7 +149,7 @@ declare namespace FlintAPI {
   }
 
   interface UpdateNoteOptions {
-    noteId: string;
+    id: string;
     content?: string;
     contentHash?: string;
     metadata?: Record<string, any>;
@@ -163,7 +163,7 @@ declare namespace FlintAPI {
   }
 
   interface DeleteNoteOptions {
-    noteId: string;
+    id: string;
     contentHash?: string;
     vaultId?: string;
   }
@@ -209,7 +209,7 @@ declare namespace FlintAPI {
   }
 
   interface RenameNoteOptions {
-    noteId: string;
+    id: string;
     newTitle: string;
     contentHash?: string;
     vaultId?: string;
@@ -224,7 +224,7 @@ declare namespace FlintAPI {
   }
 
   interface MoveNoteOptions {
-    noteId: string;
+    id: string;
     newType: string;
     contentHash?: string;
     vaultId?: string;
