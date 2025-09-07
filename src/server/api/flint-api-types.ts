@@ -11,7 +11,7 @@ declare namespace FlintAPI {
   interface FlintAPI {
     // Note methods
     createNote(options: CreateNoteOptions): Promise<CreateNoteResult>;
-    getNote(noteId: string): Promise<Note | null>;
+    getNote(noteId: string): Promise<Note>;
     updateNote(options: UpdateNoteOptions): Promise<UpdateNoteResult>;
     deleteNote(options: DeleteNoteOptions): Promise<DeleteNoteResult>;
     listNotes(options?: ListNotesOptions): Promise<NoteInfo[]>;

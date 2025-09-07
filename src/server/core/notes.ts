@@ -518,7 +518,7 @@ export class NoteManager {
   /**
    * Get a specific note by identifier
    */
-  async getNote(identifier: string): Promise<Note | null> {
+  async getNote(identifier: string): Promise<Note> {
     try {
       const { typeName, filename, notePath } = this.parseNoteIdentifier(identifier);
 
@@ -526,7 +526,7 @@ export class NoteManager {
       try {
         await fs.access(notePath);
       } catch {
-        return null;
+        throw new Error(`Note not found: ${identifier}`);
       }
 
       // Read note content

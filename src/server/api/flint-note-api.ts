@@ -291,7 +291,7 @@ export class FlintNoteApi {
   /**
    * Get a note by identifier - returns pure Note object
    */
-  async getNote(vaultId: string, identifier: string): Promise<Note | null> {
+  async getNote(vaultId: string, identifier: string): Promise<Note> {
     this.ensureInitialized();
     const { noteManager } = await this.getVaultContext(vaultId);
     return await noteManager.getNote(identifier);

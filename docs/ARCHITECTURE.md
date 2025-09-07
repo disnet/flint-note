@@ -164,7 +164,7 @@ class NoteService {
 
   // Core CRUD operations
   async createNote(type, identifier, content, vaultId?): Promise<NoteInfo>;
-  async getNote(identifier, vaultId?): Promise<Note | null>;
+  async getNote(identifier, vaultId?): Promise<Note>;
   async updateNote(identifier, content, vaultId?, metadata?): Promise<UpdateResult>;
   async deleteNote(identifier, vaultId?): Promise<DeleteNoteResult>;
 

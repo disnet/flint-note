@@ -162,15 +162,15 @@ async function main(): Promise<any> {
     expect(result.compilation?.errors.length).toBeGreaterThan(0);
   });
 
-  it('should handle null checking for API responses', async () => {
+  it('should handle missing notes for API responses', async () => {
     const vaultId = await testSetup.createTestVault('test-vault');
 
     const nullCheckCode = `
 async function main(): Promise<string> {
-  const note = await flintApi.getNote("probably-nonexistent-id");
-  if (note) {
+  try {
+    const note = await flintApi.getNote("probably-nonexistent-id");
     return note.title;
-  } else {
+  } catch (error) {
     return "Note not found";
   }
 }
