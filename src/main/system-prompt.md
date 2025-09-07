@@ -51,15 +51,6 @@ The execution environment provides a unified `flintApi` object with all note man
 The FlintNote API provides comprehensive TypeScript definitions. Here are the key types you'll work with:
 
 ```typescript
-// Core data types
-type Note = FlintAPI.Note; // Full note object with content
-type NoteInfo = FlintAPI.NoteInfo; // Note metadata without content
-type CreateNoteResult = FlintAPI.CreateNoteResult;
-type UpdateNoteResult = FlintAPI.UpdateNoteResult;
-type SearchResult = FlintAPI.SearchResult;
-type Vault = FlintAPI.Vault;
-type LinkInfo = FlintAPI.LinkInfo;
-
 // Main API object available globally
 declare const flintApi: FlintAPI.FlintAPI;
 declare const utils: FlintAPI.UtilsAPI;
@@ -69,26 +60,26 @@ declare const utils: FlintAPI.UtilsAPI;
 
 **Note Operations:**
 
-- `flintApi.createNote(options: { type: string; title: string; content: string; metadata?: Record<string, any>; vaultId?: string }): Promise<CreateNoteResult>` - Create new notes
-- `flintApi.getNote(id: string): Promise<Note>` - Retrieve note by ID  
-- `flintApi.updateNote(options: { id: string; content?: string; contentHash?: string; metadata?: Record<string, any>; vaultId?: string }): Promise<UpdateNoteResult>` - Update note content/metadata
-- `flintApi.deleteNote(options: { id: string; contentHash?: string; vaultId?: string }): Promise<DeleteNoteResult>` - Delete note
-- `flintApi.listNotes(options?: { typeName?: string; limit?: number; offset?: number; sortBy?: 'created' | 'updated' | 'title'; sortOrder?: 'asc' | 'desc'; vaultId?: string }): Promise<NoteInfo[]>` - List notes with optional filtering
-- `flintApi.renameNote(options: { id: string; newTitle: string; contentHash?: string; vaultId?: string }): Promise<RenameNoteResult>` - Rename note
-- `flintApi.moveNote(options: { id: string; newType: string; contentHash?: string; vaultId?: string }): Promise<MoveNoteResult>` - Move note to different type
-- `flintApi.searchNotes(options: { query: string; types?: string[]; limit?: number; offset?: number; vaultId?: string }): Promise<SearchResult[]>` - Search notes with query and filters
+- `flintApi.createNote(options: { type: string; title: string; content: string; metadata?: Record<string, any>; vaultId?: string }): Promise<{ id: string; type: string; title: string; filename: string; path: string; created: string }>` - Create new notes
+- `flintApi.getNote(id: string): Promise<{ id: string; title: string; content: string; metadata: Record<string, any>; content_hash: string; links: any[]; type: string; created: string; updated: string; size: number; tags: string[]; path: string }>` - Retrieve note by ID  
+- `flintApi.updateNote(options: { id: string; content?: string; contentHash?: string; metadata?: Record<string, any>; vaultId?: string }): Promise<{ id: string; updated: string; content_hash: string }>` - Update note content/metadata
+- `flintApi.deleteNote(options: { id: string; contentHash?: string; vaultId?: string }): Promise<{ id: string; deleted: boolean }>` - Delete note
+- `flintApi.listNotes(options?: { typeName?: string; limit?: number; offset?: number; sortBy?: 'created' | 'updated' | 'title'; sortOrder?: 'asc' | 'desc'; vaultId?: string }): Promise<Array<{ id: string; title: string; type: string; created: string; updated: string; size: number; tags: string[]; path: string }>>` - List notes with optional filtering
+- `flintApi.renameNote(options: { id: string; newTitle: string; contentHash?: string; vaultId?: string }): Promise<{ id: string; old_title: string; new_title: string; old_path: string; new_path: string }>` - Rename note
+- `flintApi.moveNote(options: { id: string; newType: string; contentHash?: string; vaultId?: string }): Promise<{ id: string; old_path: string; new_path: string }>` - Move note to different type
+- `flintApi.searchNotes(options: { query: string; types?: string[]; limit?: number; offset?: number; vaultId?: string }): Promise<Array<{ id: string; title: string; type: string; path: string; score: number; matches: { field: string; value: string; highlight: string }[] }>>` - Search notes with query and filters
 
 **Note Type Operations:**
 
-- `flintApi.createNoteType(options: { typeName: string; description?: string; agent_instructions?: string; template?: string; vaultId?: string }): Promise<CreateNoteTypeResult>` - Define new note types with agent instructions
-- `flintApi.listNoteTypes(): Promise<NoteTypeInfo[]>` - Get all available note types
-- `flintApi.getNoteType(typeName: string): Promise<NoteType>` - Get specific note type definition
-- `flintApi.updateNoteType(options: { typeName: string; description?: string; agent_instructions?: string; template?: string; vaultId?: string }): Promise<UpdateNoteTypeResult>` - Update note type
-- `flintApi.deleteNoteType(options: { typeName: string; deleteNotes?: boolean; vaultId?: string }): Promise<DeleteNoteTypeResult>` - Delete note type
+- `flintApi.createNoteType(options: { typeName: string; description?: string; agent_instructions?: string; template?: string; vaultId?: string }): Promise<{ name: string; created: string }>` - Define new note types with agent instructions
+- `flintApi.listNoteTypes(): Promise<Array<{ name: string; description?: string; created: string; updated: string; note_count: number }>>` - Get all available note types
+- `flintApi.getNoteType(typeName: string): Promise<{ name: string; description?: string; agent_instructions?: string; template?: string; created: string; updated: string }>` - Get specific note type definition
+- `flintApi.updateNoteType(options: { typeName: string; description?: string; agent_instructions?: string; template?: string; vaultId?: string }): Promise<{ name: string; updated: string }>` - Update note type
+- `flintApi.deleteNoteType(options: { typeName: string; deleteNotes?: boolean; vaultId?: string }): Promise<{ name: string; deleted: boolean; notes_affected: number }>` - Delete note type
 
 **Link Operations:**
 
-- `flintApi.getNoteLinks(id: string): Promise<LinkInfo>` - Get all links from/to a note
+- `flintApi.getNoteLinks(id: string): Promise<{ outgoing_internal: Array<{ target_id: string; target_title: string; target_type: string; link_text: string; context: string }>; outgoing_external: Array<{ url: string; link_text: string; context: string }>; incoming: Array<{ source_id: string; source_title: string; source_type: string; link_text: string; context: string }> }>` - Get all links from/to a note
 - `flintApi.getBacklinks(id: string): Promise<Array<{ source_id: string; source_title: string; source_type: string; link_text: string; context: string }>>` - Get notes linking to this note
 - `flintApi.findBrokenLinks(): Promise<Array<{ source_id: string; source_title: string; target_reference: string; link_text: string; context: string }>>` - Find broken internal links
 - `flintApi.searchByLinks(options: { text?: string; url?: string }): Promise<Array<{ source_id: string; source_title: string; target_reference: string; link_text: string; context: string }>>` - Search links by text or URL
@@ -106,9 +97,9 @@ declare const utils: FlintAPI.UtilsAPI;
 
 **Vault Operations:**
 
-- `flintApi.getCurrentVault(): Promise<Vault | null>` - Get current vault
-- `flintApi.listVaults(): Promise<Vault[]>` - Get all vaults
-- `flintApi.createVault(options: { name: string; path: string }): Promise<Vault>` - Create new vault
+- `flintApi.getCurrentVault(): Promise<{ id: string; name: string; path: string; created: string; updated: string; is_current: boolean } | null>` - Get current vault
+- `flintApi.listVaults(): Promise<Array<{ id: string; name: string; path: string; created: string; updated: string; is_current: boolean }>>` - Get all vaults
+- `flintApi.createVault(options: { name: string; path: string }): Promise<{ id: string; name: string; path: string; created: string; updated: string; is_current: boolean }>` - Create new vault
 - `flintApi.switchVault(vaultId: string): Promise<void>` - Switch to different vault
 - `flintApi.updateVault(options: { vaultId: string; name?: string }): Promise<void>` - Update vault
 - `flintApi.removeVault(vaultId: string): Promise<void>` - Remove vault
@@ -143,7 +134,7 @@ declare const utils: FlintAPI.UtilsAPI;
 **Simple Operations:**
 
 ```typescript
-async function main(): Promise<CreateNoteResult | { error: string; stack?: string }> {
+async function main(): Promise<{ id: string; type: string; title: string; filename: string; path: string; created: string } | { error: string; stack?: string }> {
   try {
     // Create a note with typed parameters
     const result = await flintApi.createNote({
@@ -206,8 +197,8 @@ async function main(): Promise<AnalysisResult[]> {
 
 ```typescript
 interface HierarchyResult {
-  parent: CreateNoteResult;
-  child: CreateNoteResult;
+  parent: { id: string; type: string; title: string; filename: string; path: string; created: string };
+  child: { id: string; type: string; title: string; filename: string; path: string; created: string };
   hierarchyCreated: boolean;
 }
 
