@@ -35,7 +35,7 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
         code: `
           async function main() {
             // Create a note
-            const createResult = await notes.create({
+            const createResult = await flintApi.createNote({
               type: 'general',
               title: 'WASM Test Note',
               content: 'This is a test note created via WASM API',
@@ -43,10 +43,10 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
             });
 
             // Get the created note
-            const getResult = await notes.get(createResult.id);
+            const getResult = await flintApi.getNote(createResult.id);
 
             // Update the note
-            const updateResult = await notes.update({
+            const updateResult = await flintApi.updateNote({
               identifier: createResult.id,
               content: 'Updated content via WASM API',
               contentHash: getResult.content_hash,
@@ -54,10 +54,10 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
             });
 
             // List notes to verify existence
-            const listResult = await notes.list({ limit: 10 });
+            const listResult = await flintApi.listNotes({ limit: 10 });
 
             // Delete the note
-            const deleteResult = await notes.delete({
+            const deleteResult = await flintApi.deleteNote({
               identifier: createResult.id,
               confirm: true
             });
@@ -73,11 +73,11 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
         `,
         vaultId: testVaultId,
         allowedAPIs: [
-          'notes.create',
-          'notes.get',
-          'notes.update',
-          'notes.list',
-          'notes.delete'
+          'flintApi.createNote',
+          'flintApi.getNote',
+          'flintApi.updateNote',
+          'flintApi.listNotes',
+          'flintApi.deleteNote'
         ]
       });
 
@@ -95,17 +95,17 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
         code: `
           async function main() {
             // Create a note
-            const createResult = await notes.create({
+            const createResult = await flintApi.createNote({
               type: 'general',
               title: 'Original Name',
               content: 'Test content for rename/move operations'
             });
 
             // Get content hash
-            const getResult = await notes.get(createResult.id);
+            const getResult = await flintApi.getNote(createResult.id);
 
             // Rename the note
-            const renameResult = await notes.rename({
+            const renameResult = await flintApi.renameNote({
               identifier: createResult.id,
               new_title: 'Renamed Note',
               content_hash: getResult.content_hash
@@ -114,7 +114,7 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
             // Move to different type (if meeting type exists)
             let moveResult = null;
             try {
-              moveResult = await notes.move({
+              moveResult = await flintApi.moveNote({
                 identifier: renameResult.new_id || createResult.id,
                 new_type: 'meeting',
                 content_hash: getResult.content_hash
@@ -125,7 +125,7 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
             }
 
             // Clean up
-            await notes.delete({
+            await flintApi.deleteNote({
               identifier: moveResult && moveResult.new_id ? moveResult.new_id : (renameResult.new_id || createResult.id),
               confirm: true
             });
@@ -139,11 +139,11 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
         `,
         vaultId: testVaultId,
         allowedAPIs: [
-          'notes.create',
-          'notes.get',
-          'notes.rename',
-          'notes.move',
-          'notes.delete'
+          'flintApi.createNote',
+          'flintApi.getNote',
+          'flintApi.renameNote',
+          'flintApi.moveNote',
+          'flintApi.deleteNote'
         ]
       });
 
@@ -160,7 +160,7 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
             try {
               // Test search functionality by searching for existing general notes
               // Rather than creating new notes and expecting immediate indexing
-              const searchResults = await notes.search({
+              const searchResults = await flintApi.searchNotes({
                 query: 'general',
                 limit: 10
               });
@@ -170,7 +170,7 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
                 searchCount: searchResults.length,
                 hasResults: searchResults.length >= 0, // Search should work even if no results
                 searchResultsType: typeof searchResults,
-                canCallSearch: typeof notes.search === 'function'
+                canCallSearch: typeof flintApi.searchNotes === 'function'
               };
             } catch (error) {
               return {
@@ -182,7 +182,7 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
           }
         `,
         vaultId: testVaultId,
-        allowedAPIs: ['notes.search']
+        allowedAPIs: ['flintApi.searchNotes']
       });
 
       expect(result.success).toBe(true);
@@ -207,16 +207,16 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
           async function main() {
             try {
               // List existing note types
-              const initialTypes = await noteTypes.list();
+              const initialTypes = await flintApi.listNoteTypes();
 
               return {
                 success: true,
                 initialCount: initialTypes.length,
-                canListTypes: typeof noteTypes.list === 'function',
-                canCreateTypes: typeof noteTypes.create === 'function',
-                canGetTypes: typeof noteTypes.get === 'function',
-                canUpdateTypes: typeof noteTypes.update === 'function',
-                canDeleteTypes: typeof noteTypes.delete === 'function',
+                canListTypes: typeof flintApi.listNoteTypes === 'function',
+                canCreateTypes: typeof flintApi.createNoteType === 'function',
+                canGetTypes: typeof flintApi.getNoteType === 'function',
+                canUpdateTypes: typeof flintApi.updateNoteType === 'function',
+                canDeleteTypes: typeof flintApi.deleteNoteType === 'function',
                 typesType: typeof initialTypes,
                 hasDefaultTypes: initialTypes.length > 0
               };
@@ -231,11 +231,11 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
         `,
         vaultId: testVaultId,
         allowedAPIs: [
-          'noteTypes.list',
-          'noteTypes.create',
-          'noteTypes.get',
-          'noteTypes.update',
-          'noteTypes.delete'
+          'flintApi.listNoteTypes',
+          'flintApi.createNoteType',
+          'flintApi.getNoteType',
+          'flintApi.updateNoteType',
+          'flintApi.deleteNoteType'
         ]
       });
 
@@ -263,15 +263,15 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
         code: `
           async function main() {
             // Get current vault
-            const currentVault = await vaults.getCurrent();
+            const currentVault = await flintApi.getCurrentVault();
 
             // List all vaults
-            const allVaults = await vaults.list();
+            const allVaults = await flintApi.listVaults();
 
             // Create a new vault
             let createResult = null;
             try {
-              createResult = await vaults.create({
+              createResult = await flintApi.createVault({
                 id: 'wasm-test-vault',
                 name: 'WASM Test Vault',
                 path: '/tmp/wasm-test-vault',
@@ -287,7 +287,7 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
             let updateResult = null;
             if (createResult && !createResult.error) {
               try {
-                await vaults.update({
+                await flintApi.updateVault({
                   id: 'wasm-test-vault',
                   name: 'Updated WASM Test Vault',
                   description: 'Updated description via WASM'
@@ -302,7 +302,7 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
             let removeResult = null;
             if (createResult && !createResult.error) {
               try {
-                await vaults.remove('wasm-test-vault');
+                await flintApi.removeVault('wasm-test-vault');
                 removeResult = { success: true };
               } catch (error) {
                 removeResult = { error: error.message };
@@ -321,11 +321,11 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
         `,
         vaultId: testVaultId,
         allowedAPIs: [
-          'vaults.getCurrent',
-          'vaults.list',
-          'vaults.create',
-          'vaults.update',
-          'vaults.remove'
+          'flintApi.getCurrentVault',
+          'flintApi.listVaults',
+          'flintApi.createVault',
+          'flintApi.updateVault',
+          'flintApi.removeVault'
         ]
       });
 
@@ -341,8 +341,8 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
         code: `
           async function main() {
             // Get current vault info
-            const currentVault = await vaults.getCurrent();
-            const allVaults = await vaults.list();
+            const currentVault = await flintApi.getCurrentVault();
+            const allVaults = await flintApi.listVaults();
 
             // Find a different vault to switch to (if available)
             const targetVault = allVaults.find(v => v.id !== currentVault?.id);
@@ -352,12 +352,12 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
 
             if (targetVault) {
               try {
-                await vaults.switch(targetVault.id);
+                await flintApi.switchVault(targetVault.id);
                 switchResult = { attempted: true, success: true };
 
                 // Switch back to original vault
                 if (currentVault) {
-                  await vaults.switch(currentVault.id);
+                  await flintApi.switchVault(currentVault.id);
                   switchBackResult = { attempted: true, success: true };
                 }
               } catch (error) {
@@ -375,7 +375,11 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
           }
         `,
         vaultId: testVaultId,
-        allowedAPIs: ['vaults.getCurrent', 'vaults.list', 'vaults.switch']
+        allowedAPIs: [
+          'flintApi.getCurrentVault',
+          'flintApi.listVaults',
+          'flintApi.switchVault'
+        ]
       });
 
       expect(result.success).toBe(true);
@@ -391,29 +395,29 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
           async function main() {
             try {
               // Get vault context
-              const currentVault = await vaults.getCurrent();
-              const noteTypesList = await noteTypes.list();
+              const currentVault = await flintApi.getCurrentVault();
+              const noteTypesList = await flintApi.listNoteTypes();
 
               // Create a simple note
-              const note = await notes.create({
+              const note = await flintApi.createNote({
                 type: 'general',
                 title: 'Multi-API Workflow Test',
                 content: 'This note tests complex workflows'
               });
 
               // Get and update the note
-              const retrievedNote = await notes.get(note.id);
-              await notes.update({
+              const retrievedNote = await flintApi.getNote(note.id);
+              await flintApi.updateNote({
                 identifier: note.id,
                 content: 'Updated content with [[test-link]] and more text',
                 contentHash: retrievedNote.content_hash
               });
 
               // Get final state
-              const finalNote = await notes.get(note.id);
+              const finalNote = await flintApi.getNote(note.id);
 
               // Clean up
-              await notes.delete({
+              await flintApi.deleteNote({
                 identifier: note.id,
                 confirm: true
               });
@@ -438,12 +442,12 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
         `,
         vaultId: testVaultId,
         allowedAPIs: [
-          'vaults.getCurrent',
-          'noteTypes.list',
-          'notes.create',
-          'notes.get',
-          'notes.update',
-          'notes.delete'
+          'flintApi.getCurrentVault',
+          'flintApi.listNoteTypes',
+          'flintApi.createNote',
+          'flintApi.getNote',
+          'flintApi.updateNote',
+          'flintApi.deleteNote'
         ]
       });
 
@@ -470,7 +474,7 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
             const createPromises = [];
             for (let i = 0; i < 3; i++) {
               createPromises.push(
-                notes.create({
+                flintApi.createNote({
                   type: 'general',
                   title: \`Concurrent Note \${i + 1}\`,
                   content: \`Content for concurrent note \${i + 1}\`
@@ -481,12 +485,12 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
             const createdNotes = await Promise.all(createPromises);
 
             // Get all created notes concurrently
-            const getPromises = createdNotes.map(note => notes.get(note.id));
+            const getPromises = createdNotes.map(note => flintApi.getNote(note.id));
             const retrievedNotes = await Promise.all(getPromises);
 
             // Delete all notes concurrently
             const deletePromises = createdNotes.map(note =>
-              notes.delete({
+              flintApi.deleteNote({
                 identifier: note.id,
                 confirm: true
               })
@@ -504,7 +508,7 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
           }
         `,
         vaultId: testVaultId,
-        allowedAPIs: ['notes.create', 'notes.get', 'notes.delete']
+        allowedAPIs: ['flintApi.createNote', 'flintApi.getNote', 'flintApi.deleteNote']
       });
 
       expect(result.success).toBe(true);
@@ -523,32 +527,36 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
           async function main() {
             return {
               // Test which APIs are available
-              notesCreate: typeof notes.create,
-              notesGet: typeof notes.get,
-              notesUpdate: typeof notes.update,
-              notesDelete: typeof notes.delete,
-              notesList: typeof notes.list,
-              notesRename: typeof notes.rename,
-              notesMove: typeof notes.move,
-              notesSearch: typeof notes.search,
+              notesCreate: typeof flintApi.createNote,
+              notesGet: typeof flintApi.getNote,
+              notesUpdate: typeof flintApi.updateNote,
+              notesDelete: typeof flintApi.deleteNote,
+              notesList: typeof flintApi.listNotes,
+              notesRename: typeof flintApi.renameNote,
+              notesMove: typeof flintApi.moveNote,
+              notesSearch: typeof flintApi.searchNotes,
 
-              noteTypesCreate: typeof noteTypes.create,
-              noteTypesList: typeof noteTypes.list,
-              noteTypesGet: typeof noteTypes.get,
-              noteTypesUpdate: typeof noteTypes.update,
-              noteTypesDelete: typeof noteTypes.delete,
+              noteTypesCreate: typeof flintApi.createNoteType,
+              noteTypesList: typeof flintApi.listNoteTypes,
+              noteTypesGet: typeof flintApi.getNoteType,
+              noteTypesUpdate: typeof flintApi.updateNoteType,
+              noteTypesDelete: typeof flintApi.deleteNoteType,
 
-              vaultsGetCurrent: typeof vaults.getCurrent,
-              vaultsList: typeof vaults.list,
-              vaultsCreate: typeof vaults.create,
-              vaultsSwitch: typeof vaults.switch,
-              vaultsUpdate: typeof vaults.update,
-              vaultsRemove: typeof vaults.remove
+              vaultsGetCurrent: typeof flintApi.getCurrentVault,
+              vaultsList: typeof flintApi.listVaults,
+              vaultsCreate: typeof flintApi.createVault,
+              vaultsSwitch: typeof flintApi.switchVault,
+              vaultsUpdate: typeof flintApi.updateVault,
+              vaultsRemove: typeof flintApi.removeVault
             };
           }
         `,
         vaultId: testVaultId,
-        allowedAPIs: ['notes.get', 'noteTypes.list', 'vaults.getCurrent']
+        allowedAPIs: [
+          'flintApi.getNote',
+          'flintApi.listNoteTypes',
+          'flintApi.getCurrentVault'
+        ]
       });
 
       expect(result.success).toBe(true);
@@ -587,18 +595,18 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
         code: `
           async function main() {
             try {
-              // First just check if links object exists
-              if (typeof links === 'undefined') {
-                return { success: false, error: 'links object is undefined' };
+              // First just check if flintApi object exists
+              if (typeof flintApi === 'undefined') {
+                return { success: false, error: 'flintApi object is undefined' };
               }
 
               // Test individual method availability
               const methodTests = {
-                getForNote: typeof links.getForNote === 'function',
-                getBacklinks: typeof links.getBacklinks === 'function',
-                findBroken: typeof links.findBroken === 'function',
-                searchBy: typeof links.searchBy === 'function',
-                migrate: typeof links.migrate === 'function'
+                getForNote: typeof flintApi.getNoteLinks === 'function',
+                getBacklinks: typeof flintApi.getBacklinks === 'function',
+                findBroken: typeof flintApi.findBrokenLinks === 'function',
+                searchBy: typeof flintApi.searchByLinks === 'function',
+                migrate: typeof flintApi.migrateLinks === 'function'
               };
 
               return {
@@ -619,13 +627,13 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
         `,
         vaultId: testVaultId,
         allowedAPIs: [
-          'notes.create',
-          'notes.delete',
-          'links.getForNote',
-          'links.getBacklinks',
-          'links.findBroken',
-          'links.searchBy',
-          'links.migrate'
+          'flintApi.createNote',
+          'flintApi.deleteNote',
+          'flintApi.getNoteLinks',
+          'flintApi.getBacklinks',
+          'flintApi.findBrokenLinks',
+          'flintApi.searchByLinks',
+          'flintApi.migrateLinks'
         ]
       });
 
@@ -655,20 +663,20 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
         code: `
           async function main() {
             try {
-              // First just check if hierarchy object exists
-              if (typeof hierarchy === 'undefined') {
-                return { success: false, error: 'hierarchy object is undefined' };
+              // First just check if flintApi object exists
+              if (typeof flintApi === 'undefined') {
+                return { success: false, error: 'flintApi object is undefined' };
               }
 
               // Test individual method availability
               const methodTests = {
-                addSubnote: typeof hierarchy.addSubnote === 'function',
-                removeSubnote: typeof hierarchy.removeSubnote === 'function',
-                reorder: typeof hierarchy.reorder === 'function',
-                getPath: typeof hierarchy.getPath === 'function',
-                getDescendants: typeof hierarchy.getDescendants === 'function',
-                getChildren: typeof hierarchy.getChildren === 'function',
-                getParents: typeof hierarchy.getParents === 'function'
+                addSubnote: typeof flintApi.addSubnote === 'function',
+                removeSubnote: typeof flintApi.removeSubnote === 'function',
+                reorder: typeof flintApi.reorderSubnotes === 'function',
+                getPath: typeof flintApi.getHierarchyPath === 'function',
+                getDescendants: typeof flintApi.getDescendants === 'function',
+                getChildren: typeof flintApi.getChildren === 'function',
+                getParents: typeof flintApi.getParents === 'function'
               };
 
               return {
@@ -687,15 +695,15 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
         `,
         vaultId: testVaultId,
         allowedAPIs: [
-          'notes.create',
-          'notes.delete',
-          'hierarchy.addSubnote',
-          'hierarchy.removeSubnote',
-          'hierarchy.reorder',
-          'hierarchy.getPath',
-          'hierarchy.getDescendants',
-          'hierarchy.getChildren',
-          'hierarchy.getParents'
+          'flintApi.createNote',
+          'flintApi.deleteNote',
+          'flintApi.addSubnote',
+          'flintApi.removeSubnote',
+          'flintApi.reorderSubnotes',
+          'flintApi.getHierarchyPath',
+          'flintApi.getDescendants',
+          'flintApi.getChildren',
+          'flintApi.getParents'
         ]
       });
 
@@ -726,40 +734,40 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
           async function main() {
             try {
               // Create related notes
-              const note1 = await notes.create({
+              const note1 = await flintApi.createNote({
                 type: 'general',
                 title: 'Relationship Test Note 1',
                 content: 'This note is related to [[Relationship Test Note 2]]'
               });
 
-              const note2 = await notes.create({
+              const note2 = await flintApi.createNote({
                 type: 'general',
                 title: 'Relationship Test Note 2',
                 content: 'This note is related back'
               });
 
               // Get comprehensive relationships for note1
-              const noteRelationships = await relationships.get(note1.id);
+              const noteRelationships = await flintApi.getNoteRelationships(note1.id);
 
               // Get related notes
-              const relatedNotes = await relationships.getRelated({
+              const relatedNotes = await flintApi.getRelatedNotes({
                 note_id: note1.id,
                 max_results: 5
               });
 
               // Find relationship path
-              const relationshipPath = await relationships.findPath({
+              const relationshipPath = await flintApi.findRelationshipPath({
                 start_note_id: note1.id,
                 end_note_id: note2.id,
                 max_depth: 3
               });
 
               // Get clustering coefficient
-              const clusteringCoefficient = await relationships.getClusteringCoefficient(note1.id);
+              const clusteringCoefficient = await flintApi.getClusteringCoefficient(note1.id);
 
               // Clean up
-              await notes.delete({ identifier: note1.id, confirm: true });
-              await notes.delete({ identifier: note2.id, confirm: true });
+              await flintApi.deleteNote({ identifier: note1.id, confirm: true });
+              await flintApi.deleteNote({ identifier: note2.id, confirm: true });
 
               return {
                 success: true,
@@ -767,10 +775,10 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
                 relatedNotesCount: relatedNotes.length,
                 pathFound: relationshipPath !== null,
                 clusteringCoeff: clusteringCoefficient,
-                canGet: typeof relationships.get === 'function',
-                canGetRelated: typeof relationships.getRelated === 'function',
-                canFindPath: typeof relationships.findPath === 'function',
-                canGetClusteringCoefficient: typeof relationships.getClusteringCoefficient === 'function'
+                canGet: typeof flintApi.getNoteRelationships === 'function',
+                canGetRelated: typeof flintApi.getRelatedNotes === 'function',
+                canFindPath: typeof flintApi.findRelationshipPath === 'function',
+                canGetClusteringCoefficient: typeof flintApi.getClusteringCoefficient === 'function'
               };
             } catch (error) {
               return {
@@ -783,12 +791,12 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
         `,
         vaultId: testVaultId,
         allowedAPIs: [
-          'notes.create',
-          'notes.delete',
-          'relationships.get',
-          'relationships.getRelated',
-          'relationships.findPath',
-          'relationships.getClusteringCoefficient'
+          'flintApi.createNote',
+          'flintApi.deleteNote',
+          'flintApi.getNoteRelationships',
+          'flintApi.getRelatedNotes',
+          'flintApi.findRelationshipPath',
+          'flintApi.getClusteringCoefficient'
         ]
       });
 
@@ -815,31 +823,35 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
           async function main() {
             return {
               // Test Links API availability
-              linksGetForNote: typeof links.getForNote,
-              linksGetBacklinks: typeof links.getBacklinks,
-              linksFindBroken: typeof links.findBroken,
-              linksSearchBy: typeof links.searchBy,
-              linksMigrate: typeof links.migrate,
+              linksGetForNote: typeof flintApi.getNoteLinks,
+              linksGetBacklinks: typeof flintApi.getBacklinks,
+              linksFindBroken: typeof flintApi.findBrokenLinks,
+              linksSearchBy: typeof flintApi.searchByLinks,
+              linksMigrate: typeof flintApi.migrateLinks,
 
               // Test Hierarchy API availability
-              hierarchyAddSubnote: typeof hierarchy.addSubnote,
-              hierarchyRemoveSubnote: typeof hierarchy.removeSubnote,
-              hierarchyReorder: typeof hierarchy.reorder,
-              hierarchyGetPath: typeof hierarchy.getPath,
-              hierarchyGetDescendants: typeof hierarchy.getDescendants,
-              hierarchyGetChildren: typeof hierarchy.getChildren,
-              hierarchyGetParents: typeof hierarchy.getParents,
+              hierarchyAddSubnote: typeof flintApi.addSubnote,
+              hierarchyRemoveSubnote: typeof flintApi.removeSubnote,
+              hierarchyReorder: typeof flintApi.reorderSubnotes,
+              hierarchyGetPath: typeof flintApi.getHierarchyPath,
+              hierarchyGetDescendants: typeof flintApi.getDescendants,
+              hierarchyGetChildren: typeof flintApi.getChildren,
+              hierarchyGetParents: typeof flintApi.getParents,
 
               // Test Relationships API availability
-              relationshipsGet: typeof relationships.get,
-              relationshipsGetRelated: typeof relationships.getRelated,
-              relationshipsFindPath: typeof relationships.findPath,
-              relationshipsGetClusteringCoefficient: typeof relationships.getClusteringCoefficient
+              relationshipsGet: typeof flintApi.getNoteRelationships,
+              relationshipsGetRelated: typeof flintApi.getRelatedNotes,
+              relationshipsFindPath: typeof flintApi.findRelationshipPath,
+              relationshipsGetClusteringCoefficient: typeof flintApi.getClusteringCoefficient
             };
           }
         `,
         vaultId: testVaultId,
-        allowedAPIs: ['links.getForNote', 'hierarchy.addSubnote', 'relationships.get']
+        allowedAPIs: [
+          'flintApi.getNoteLinks',
+          'flintApi.addSubnote',
+          'flintApi.getNoteRelationships'
+        ]
       });
 
       expect(result.success).toBe(true);

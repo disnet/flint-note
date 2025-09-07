@@ -40,7 +40,7 @@ async function main(): Promise<string> {
 
     const invalidCode = `
 async function main(): Promise<Note> {
-  const note = await notes.get("test-id");
+  const note = await flintApi.getNote("test-id");
   return note.title; // Error: Object is possibly 'null' and Property 'title' does not exist on type 'string'
 }
     `.trim();
@@ -63,7 +63,7 @@ async function main(): Promise<Note> {
 
     const validApiCode = `
 async function main(): Promise<Note | null> {
-  const note = await notes.get("test-id");
+  const note = await flintApi.getNote("test-id");
   if (note) {
     return note;
   }
@@ -82,7 +82,7 @@ async function main(): Promise<Note | null> {
 
     const invalidApiCode = `
 async function main(): Promise<any> {
-  const result = await notes.create({
+  const result = await flintApi.createNote({
     title: "My Note",
     content: "Note content"
     // Missing required 'type' field
@@ -104,7 +104,7 @@ async function main(): Promise<any> {
 
     const validMetadataCode = `
 async function main(): Promise<Note | null> {
-  const result = await notes.create({
+  const result = await flintApi.createNote({
     type: "meeting",
     title: "Weekly Standup",
     content: "Meeting notes",
@@ -114,7 +114,7 @@ async function main(): Promise<Note | null> {
       important: true
     }
   });
-  return await notes.get(result.id);
+  return await flintApi.getNote(result.id);
 }
     `.trim();
 
@@ -131,7 +131,7 @@ async function main(): Promise<Note | null> {
 
     const asyncCode = `
 async function main(): Promise<NoteInfo[]> {
-  const allNotes = await notes.list();
+  const allNotes = await flintApi.listNotes();
   const filtered = allNotes.filter(note => note.type === "task");
   return filtered;
 }
@@ -148,7 +148,7 @@ async function main(): Promise<NoteInfo[]> {
 
     const incorrectReturnCode = `
 async function main(): Promise<string> {
-  const note = await notes.get("test-id");
+  const note = await flintApi.getNote("test-id");
   return note; // Error: Note | null is not assignable to string
 }
     `.trim();

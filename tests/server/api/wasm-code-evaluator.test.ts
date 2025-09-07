@@ -117,7 +117,7 @@ describe('WASMCodeEvaluator - Phase 1', () => {
       const result = await evaluator.evaluate({
         code: `
           async function main() {
-            const note = await notes.get("${createdNote.id}");
+            const note = await flintApi.getNote("${createdNote.id}");
             return {
               found: note !== null,
               id: note?.id,
@@ -128,9 +128,13 @@ describe('WASMCodeEvaluator - Phase 1', () => {
           }
         `,
         vaultId: testVaultId,
-        allowedAPIs: ['notes.get']
+        allowedAPIs: ['flintApi.getNote']
       });
 
+      if (!result.success) {
+        console.log('Test failed with error:', result.error);
+        console.log('Error details:', result.errorDetails);
+      }
       expect(result.success).toBe(true);
       expect(result.result).toEqual({
         found: true,
@@ -167,8 +171,8 @@ describe('WASMCodeEvaluator - Phase 1', () => {
           async function main() {
             // Make multiple concurrent API calls
             const [note1, note2] = await Promise.all([
-              notes.get("${note1.id}"),
-              notes.get("${note2.id}")
+              flintApi.getNote("${note1.id}"),
+              flintApi.getNote("${note2.id}")
             ]);
 
             return {
@@ -184,7 +188,7 @@ describe('WASMCodeEvaluator - Phase 1', () => {
           }
         `,
         vaultId: testVaultId,
-        allowedAPIs: ['notes.get']
+        allowedAPIs: ['flintApi.getNote']
       });
 
       expect(result.success).toBe(true);
@@ -231,8 +235,8 @@ describe('WASMCodeEvaluator - Phase 1', () => {
       const result = await evaluator.evaluate({
         code: `
           async function main() {
-            // Should not have access to notes.get without explicit permission
-            return typeof notes.get;
+            // Should not have access to flintApi.getNote without explicit permission
+            return typeof flintApi.getNote;
           }
         `,
         vaultId: testVaultId,
@@ -283,12 +287,12 @@ describe('WASMCodeEvaluator - Phase 1', () => {
       const allowedResult = await evaluator.evaluate({
         code: `
           async function main() {
-            const note = await notes.get("${createdNote.id}");
+            const note = await flintApi.getNote("${createdNote.id}");
             return note !== null;
           }
         `,
         vaultId: testVaultId,
-        allowedAPIs: ['notes.get']
+        allowedAPIs: ['flintApi.getNote']
       });
 
       expect(allowedResult.success).toBe(true);
@@ -298,7 +302,7 @@ describe('WASMCodeEvaluator - Phase 1', () => {
       const blockedResult = await evaluator.evaluate({
         code: `
         async function main() {
-          return notes.get("${createdNote.id}").then(note => note !== null);
+          return flintApi.getNote("${createdNote.id}").then(note => note !== null);
         }
         `,
         vaultId: testVaultId,

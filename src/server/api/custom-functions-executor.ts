@@ -212,15 +212,7 @@ export class CustomFunctionsExecutor {
     const dependencies: string[] = [];
 
     // Look for API object usage
-    const apiObjects = [
-      'notes',
-      'noteTypes',
-      'vaults',
-      'links',
-      'hierarchy',
-      'relationships',
-      'utils'
-    ];
+    const apiObjects = ['flintApi', 'utils'];
     for (const apiObj of apiObjects) {
       if (code.includes(apiObj + '.')) {
         dependencies.push(apiObj);

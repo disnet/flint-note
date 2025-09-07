@@ -65,7 +65,7 @@ async function main(): Promise<string> {
 
     const typeScriptCode = `
 async function main(): Promise<Note | null> {
-  const note = await notes.get("test-id");
+  const note = await flintApi.getNote("test-id");
   return note.title; // Type error: string | undefined not assignable to Note | null
 }
     `;
@@ -87,7 +87,7 @@ async function main(): Promise<Note | null> {
 
     const codeWithError = `
 async function main(): Promise<void> {
-  const note: Note = await notes.get("nonexistent"); // Type error: Note | null not assignable to Note
+  const note: Note = await flintApi.getNote("nonexistent"); // Type error: Note | null not assignable to Note
 }
     `;
 
@@ -114,7 +114,7 @@ async function main(): Promise<void> {
 
     const validApiCode = `
 async function main(): Promise<CreateNoteResult> {
-  const result = await notes.create({
+  const result = await flintApi.createNote({
     type: "test-type",
     title: "TypeScript Test Note",
     content: "This is a test note created with TypeScript",
@@ -143,7 +143,7 @@ async function main(): Promise<CreateNoteResult> {
 
     const invalidApiCode = `
 async function main(): Promise<any> {
-  const result = await notes.create({
+  const result = await flintApi.createNote({
     title: "Incomplete Note",
     content: "Missing type parameter"
     // Missing required 'type' field
@@ -167,7 +167,7 @@ async function main(): Promise<any> {
 
     const nullCheckCode = `
 async function main(): Promise<string> {
-  const note = await notes.get("probably-nonexistent-id");
+  const note = await flintApi.getNote("probably-nonexistent-id");
   if (note) {
     return note.title;
   } else {

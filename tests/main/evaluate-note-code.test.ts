@@ -153,7 +153,7 @@ describe('EnhancedEvaluateNoteCode', () => {
       const result = await evaluateNoteCode.execute({
         code: `
           async function main() {
-            const notesList = await notes.list();
+            const notesList = await flintApi.listNotes();
             return notesList.length;
           }
         `

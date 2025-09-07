@@ -179,22 +179,22 @@ describe('Custom Function Execution Integration', () => {
             const title = 'Daily Note - ' + date;
 
             // Check if daily note exists
-            const existing = await notes.search({
+            const existing = await flintApi.searchNotes({
               query: title
             });
 
             if (existing.length > 0) {
-              const note = await notes.get(existing[0].id);
+              const note = await flintApi.getNote(existing[0].id);
               if (!note) {
                 // If note is null, create a new one
-                return await notes.create({
+                return await flintApi.createNote({
                   type: 'daily',
                   title: title,
                   content: content || '# Daily Note\\n\\nCreated on ' + date
                 });
               }
               if (content) {
-                const updatedNote = await notes.update({
+                const updatedNote = await flintApi.updateNote({
                   identifier: note.id,
                   content: note.content + '\\n\\n' + content
                 });
@@ -218,7 +218,7 @@ describe('Custom Function Execution Integration', () => {
                 created: note.created
               };
             } else {
-              return await notes.create({
+              return await flintApi.createNote({
                 type: 'daily',
                 title: title,
                 content: content || '# Daily Note\\n\\nCreated on ' + date
@@ -571,7 +571,7 @@ describe('Custom Function Execution Integration', () => {
 
             for (const id of toProcess) {
               try {
-                const note = await notes.get(id);
+                const note = await flintApi.getNote(id);
                 if (note) {
                   processed++;
                 } else {

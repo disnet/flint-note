@@ -917,27 +917,27 @@ export class WASMCodeEvaluator {
       return allowed;
     };
 
-    // Create notes API object
-    const notesObj = vm.newObject();
-    vm.setProp(vm.global, 'notes', notesObj);
+    // Create single flintApi object
+    const flintApiObj = vm.newObject();
+    vm.setProp(vm.global, 'flintApi', flintApiObj);
 
-    // notes.get
-    if (isApiAllowed('notes.get')) {
-      const notesGetFn = vm.newFunction('get', (noteIdArg) => {
+    // flintApi.getNote
+    if (isApiAllowed('flintApi.getNote')) {
+      const getNoteFn = vm.newFunction('getNote', (noteIdArg) => {
         const noteId = vm.getString(noteIdArg);
         const hostPromise = this.noteApi.getNote(vaultId, noteId);
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
       });
-      notesGetFn.consume((handle) => {
-        vm.setProp(notesObj, 'get', handle);
+      getNoteFn.consume((handle) => {
+        vm.setProp(flintApiObj, 'getNote', handle);
       });
     } else {
-      vm.setProp(notesObj, 'get', vm.null);
+      vm.setProp(flintApiObj, 'getNote', vm.null);
     }
 
-    // notes.create
-    if (isApiAllowed('notes.create')) {
-      const notesCreateFn = vm.newFunction('create', (optionsArg) => {
+    // flintApi.createNote
+    if (isApiAllowed('flintApi.createNote')) {
+      const createNoteFn = vm.newFunction('createNote', (optionsArg) => {
         const options = vm.dump(optionsArg) as WASMCreateNoteOptions;
         const hostPromise = this.noteApi.createNote({
           type: options.type,
@@ -948,16 +948,16 @@ export class WASMCodeEvaluator {
         });
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
       });
-      notesCreateFn.consume((handle) => {
-        vm.setProp(notesObj, 'create', handle);
+      createNoteFn.consume((handle) => {
+        vm.setProp(flintApiObj, 'createNote', handle);
       });
     } else {
-      vm.setProp(notesObj, 'create', vm.null);
+      vm.setProp(flintApiObj, 'createNote', vm.null);
     }
 
-    // notes.update
-    if (isApiAllowed('notes.update')) {
-      const notesUpdateFn = vm.newFunction('update', (optionsArg) => {
+    // flintApi.updateNote
+    if (isApiAllowed('flintApi.updateNote')) {
+      const updateNoteFn = vm.newFunction('updateNote', (optionsArg) => {
         const options = vm.dump(optionsArg) as WASMUpdateNoteOptions;
         const hostPromise = this.noteApi.updateNote({
           identifier: options.identifier,
@@ -968,16 +968,16 @@ export class WASMCodeEvaluator {
         });
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
       });
-      notesUpdateFn.consume((handle) => {
-        vm.setProp(notesObj, 'update', handle);
+      updateNoteFn.consume((handle) => {
+        vm.setProp(flintApiObj, 'updateNote', handle);
       });
     } else {
-      vm.setProp(notesObj, 'update', vm.null);
+      vm.setProp(flintApiObj, 'updateNote', vm.null);
     }
 
-    // notes.delete
-    if (isApiAllowed('notes.delete')) {
-      const notesDeleteFn = vm.newFunction('delete', (optionsArg) => {
+    // flintApi.deleteNote
+    if (isApiAllowed('flintApi.deleteNote')) {
+      const deleteNoteFn = vm.newFunction('deleteNote', (optionsArg) => {
         const options = vm.dump(optionsArg) as WASMDeleteNoteOptions;
         const hostPromise = this.noteApi.deleteNote({
           identifier: options.identifier,
@@ -986,16 +986,16 @@ export class WASMCodeEvaluator {
         });
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
       });
-      notesDeleteFn.consume((handle) => {
-        vm.setProp(notesObj, 'delete', handle);
+      deleteNoteFn.consume((handle) => {
+        vm.setProp(flintApiObj, 'deleteNote', handle);
       });
     } else {
-      vm.setProp(notesObj, 'delete', vm.null);
+      vm.setProp(flintApiObj, 'deleteNote', vm.null);
     }
 
-    // notes.list
-    if (isApiAllowed('notes.list')) {
-      const notesListFn = vm.newFunction('list', (optionsArg) => {
+    // flintApi.listNotes
+    if (isApiAllowed('flintApi.listNotes')) {
+      const listNotesFn = vm.newFunction('listNotes', (optionsArg) => {
         // Handle optional parameter - default to empty object if not provided
         const options = optionsArg ? (vm.dump(optionsArg) as WASMListNotesOptions) : {};
         const hostPromise = this.noteApi.listNotes({
@@ -1005,16 +1005,16 @@ export class WASMCodeEvaluator {
         });
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
       });
-      notesListFn.consume((handle) => {
-        vm.setProp(notesObj, 'list', handle);
+      listNotesFn.consume((handle) => {
+        vm.setProp(flintApiObj, 'listNotes', handle);
       });
     } else {
-      vm.setProp(notesObj, 'list', vm.null);
+      vm.setProp(flintApiObj, 'listNotes', vm.null);
     }
 
-    // notes.rename
-    if (isApiAllowed('notes.rename')) {
-      const notesRenameFn = vm.newFunction('rename', (optionsArg) => {
+    // flintApi.renameNote
+    if (isApiAllowed('flintApi.renameNote')) {
+      const renameNoteFn = vm.newFunction('renameNote', (optionsArg) => {
         const options = vm.dump(optionsArg) as WASMRenameNoteOptions;
         const hostPromise = this.noteApi.renameNote({
           identifier: options.identifier,
@@ -1024,16 +1024,16 @@ export class WASMCodeEvaluator {
         });
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
       });
-      notesRenameFn.consume((handle) => {
-        vm.setProp(notesObj, 'rename', handle);
+      renameNoteFn.consume((handle) => {
+        vm.setProp(flintApiObj, 'renameNote', handle);
       });
     } else {
-      vm.setProp(notesObj, 'rename', vm.null);
+      vm.setProp(flintApiObj, 'renameNote', vm.null);
     }
 
-    // notes.move
-    if (isApiAllowed('notes.move')) {
-      const notesMoveFn = vm.newFunction('move', (optionsArg) => {
+    // flintApi.moveNote
+    if (isApiAllowed('flintApi.moveNote')) {
+      const moveNoteFn = vm.newFunction('moveNote', (optionsArg) => {
         const options = vm.dump(optionsArg) as WASMMoveNoteOptions;
         const hostPromise = this.noteApi.moveNote({
           identifier: options.identifier,
@@ -1043,16 +1043,16 @@ export class WASMCodeEvaluator {
         });
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
       });
-      notesMoveFn.consume((handle) => {
-        vm.setProp(notesObj, 'move', handle);
+      moveNoteFn.consume((handle) => {
+        vm.setProp(flintApiObj, 'moveNote', handle);
       });
     } else {
-      vm.setProp(notesObj, 'move', vm.null);
+      vm.setProp(flintApiObj, 'moveNote', vm.null);
     }
 
-    // notes.search
-    if (isApiAllowed('notes.search')) {
-      const notesSearchFn = vm.newFunction('search', (optionsArg) => {
+    // flintApi.searchNotes
+    if (isApiAllowed('flintApi.searchNotes')) {
+      const searchNotesFn = vm.newFunction('searchNotes', (optionsArg) => {
         const options = vm.dump(optionsArg) as WASMSearchNotesOptions;
         const hostPromise = this.noteApi.searchNotesByText({
           query: options.query,
@@ -1062,22 +1062,18 @@ export class WASMCodeEvaluator {
         });
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
       });
-      notesSearchFn.consume((handle) => {
-        vm.setProp(notesObj, 'search', handle);
+      searchNotesFn.consume((handle) => {
+        vm.setProp(flintApiObj, 'searchNotes', handle);
       });
     } else {
-      vm.setProp(notesObj, 'search', vm.null);
+      vm.setProp(flintApiObj, 'searchNotes', vm.null);
     }
 
-    notesObj.dispose();
+    // Note Types methods continue on flintApiObj
 
-    // Create noteTypes API object
-    const noteTypesObj = vm.newObject();
-    vm.setProp(vm.global, 'noteTypes', noteTypesObj);
-
-    // noteTypes.create
-    if (isApiAllowed('noteTypes.create')) {
-      const noteTypesCreateFn = vm.newFunction('create', (optionsArg) => {
+    // flintApi.createNoteType
+    if (isApiAllowed('flintApi.createNoteType')) {
+      const createNoteTypeFn = vm.newFunction('createNoteType', (optionsArg) => {
         const options = vm.dump(optionsArg) as WASMCreateNoteTypeOptions;
         const hostPromise = this.noteApi.createNoteType({
           type_name: options.type_name,
@@ -1088,29 +1084,29 @@ export class WASMCodeEvaluator {
         });
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
       });
-      noteTypesCreateFn.consume((handle) => {
-        vm.setProp(noteTypesObj, 'create', handle);
+      createNoteTypeFn.consume((handle) => {
+        vm.setProp(flintApiObj, 'createNoteType', handle);
       });
     } else {
-      vm.setProp(noteTypesObj, 'create', vm.null);
+      vm.setProp(flintApiObj, 'createNoteType', vm.null);
     }
 
-    // noteTypes.list
-    if (isApiAllowed('noteTypes.list')) {
-      const noteTypesListFn = vm.newFunction('list', () => {
+    // flintApi.listNoteTypes
+    if (isApiAllowed('flintApi.listNoteTypes')) {
+      const listNoteTypesFn = vm.newFunction('listNoteTypes', () => {
         const hostPromise = this.noteApi.listNoteTypes({ vault_id: vaultId });
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
       });
-      noteTypesListFn.consume((handle) => {
-        vm.setProp(noteTypesObj, 'list', handle);
+      listNoteTypesFn.consume((handle) => {
+        vm.setProp(flintApiObj, 'listNoteTypes', handle);
       });
     } else {
-      vm.setProp(noteTypesObj, 'list', vm.null);
+      vm.setProp(flintApiObj, 'listNoteTypes', vm.null);
     }
 
-    // noteTypes.get
-    if (isApiAllowed('noteTypes.get')) {
-      const noteTypesGetFn = vm.newFunction('get', (typeNameArg) => {
+    // flintApi.getNoteType
+    if (isApiAllowed('flintApi.getNoteType')) {
+      const getNoteTypeFn = vm.newFunction('getNoteType', (typeNameArg) => {
         const typeName = vm.getString(typeNameArg);
         const hostPromise = this.noteApi.getNoteTypeInfo({
           type_name: typeName,
@@ -1118,16 +1114,16 @@ export class WASMCodeEvaluator {
         });
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
       });
-      noteTypesGetFn.consume((handle) => {
-        vm.setProp(noteTypesObj, 'get', handle);
+      getNoteTypeFn.consume((handle) => {
+        vm.setProp(flintApiObj, 'getNoteType', handle);
       });
     } else {
-      vm.setProp(noteTypesObj, 'get', vm.null);
+      vm.setProp(flintApiObj, 'getNoteType', vm.null);
     }
 
-    // noteTypes.update
-    if (isApiAllowed('noteTypes.update')) {
-      const noteTypesUpdateFn = vm.newFunction('update', (optionsArg) => {
+    // flintApi.updateNoteType
+    if (isApiAllowed('flintApi.updateNoteType')) {
+      const updateNoteTypeFn = vm.newFunction('updateNoteType', (optionsArg) => {
         const options = vm.dump(optionsArg) as WASMUpdateNoteTypeOptions;
         const hostPromise = this.noteApi.updateNoteType({
           type_name: options.type_name,
@@ -1138,16 +1134,16 @@ export class WASMCodeEvaluator {
         });
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
       });
-      noteTypesUpdateFn.consume((handle) => {
-        vm.setProp(noteTypesObj, 'update', handle);
+      updateNoteTypeFn.consume((handle) => {
+        vm.setProp(flintApiObj, 'updateNoteType', handle);
       });
     } else {
-      vm.setProp(noteTypesObj, 'update', vm.null);
+      vm.setProp(flintApiObj, 'updateNoteType', vm.null);
     }
 
-    // noteTypes.delete
-    if (isApiAllowed('noteTypes.delete')) {
-      const noteTypesDeleteFn = vm.newFunction('delete', (optionsArg) => {
+    // flintApi.deleteNoteType
+    if (isApiAllowed('flintApi.deleteNoteType')) {
+      const deleteNoteTypeFn = vm.newFunction('deleteNoteType', (optionsArg) => {
         const options = vm.dump(optionsArg) as WASMDeleteNoteTypeOptions;
         const hostPromise = this.noteApi.deleteNoteType({
           type_name: options.type_name,
@@ -1158,48 +1154,44 @@ export class WASMCodeEvaluator {
         });
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
       });
-      noteTypesDeleteFn.consume((handle) => {
-        vm.setProp(noteTypesObj, 'delete', handle);
+      deleteNoteTypeFn.consume((handle) => {
+        vm.setProp(flintApiObj, 'deleteNoteType', handle);
       });
     } else {
-      vm.setProp(noteTypesObj, 'delete', vm.null);
+      vm.setProp(flintApiObj, 'deleteNoteType', vm.null);
     }
 
-    noteTypesObj.dispose();
+    // Vaults methods continue on flintApiObj
 
-    // Create vaults API object
-    const vaultsObj = vm.newObject();
-    vm.setProp(vm.global, 'vaults', vaultsObj);
-
-    // vaults.getCurrent
-    if (isApiAllowed('vaults.getCurrent')) {
-      const vaultsGetCurrentFn = vm.newFunction('getCurrent', () => {
+    // flintApi.getCurrentVault
+    if (isApiAllowed('flintApi.getCurrentVault')) {
+      const getCurrentVaultFn = vm.newFunction('getCurrentVault', () => {
         const hostPromise = this.noteApi.getCurrentVault();
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
       });
-      vaultsGetCurrentFn.consume((handle) => {
-        vm.setProp(vaultsObj, 'getCurrent', handle);
+      getCurrentVaultFn.consume((handle) => {
+        vm.setProp(flintApiObj, 'getCurrentVault', handle);
       });
     } else {
-      vm.setProp(vaultsObj, 'getCurrent', vm.null);
+      vm.setProp(flintApiObj, 'getCurrentVault', vm.null);
     }
 
-    // vaults.list
-    if (isApiAllowed('vaults.list')) {
-      const vaultsListFn = vm.newFunction('list', () => {
+    // flintApi.listVaults
+    if (isApiAllowed('flintApi.listVaults')) {
+      const listVaultsFn = vm.newFunction('listVaults', () => {
         const hostPromise = this.noteApi.listVaults();
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
       });
-      vaultsListFn.consume((handle) => {
-        vm.setProp(vaultsObj, 'list', handle);
+      listVaultsFn.consume((handle) => {
+        vm.setProp(flintApiObj, 'listVaults', handle);
       });
     } else {
-      vm.setProp(vaultsObj, 'list', vm.null);
+      vm.setProp(flintApiObj, 'listVaults', vm.null);
     }
 
-    // vaults.create
-    if (isApiAllowed('vaults.create')) {
-      const vaultsCreateFn = vm.newFunction('create', (optionsArg) => {
+    // flintApi.createVault
+    if (isApiAllowed('flintApi.createVault')) {
+      const createVaultFn = vm.newFunction('createVault', (optionsArg) => {
         const options = vm.dump(optionsArg) as WASMCreateVaultOptions;
         const hostPromise = this.noteApi.createVault({
           id: options.id,
@@ -1211,30 +1203,30 @@ export class WASMCodeEvaluator {
         });
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
       });
-      vaultsCreateFn.consume((handle) => {
-        vm.setProp(vaultsObj, 'create', handle);
+      createVaultFn.consume((handle) => {
+        vm.setProp(flintApiObj, 'createVault', handle);
       });
     } else {
-      vm.setProp(vaultsObj, 'create', vm.null);
+      vm.setProp(flintApiObj, 'createVault', vm.null);
     }
 
-    // vaults.switch
-    if (isApiAllowed('vaults.switch')) {
-      const vaultsSwitchFn = vm.newFunction('switch', (vaultIdArg) => {
+    // flintApi.switchVault
+    if (isApiAllowed('flintApi.switchVault')) {
+      const switchVaultFn = vm.newFunction('switchVault', (vaultIdArg) => {
         const targetVaultId = vm.getString(vaultIdArg);
         const hostPromise = this.noteApi.switchVault({ id: targetVaultId });
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
       });
-      vaultsSwitchFn.consume((handle) => {
-        vm.setProp(vaultsObj, 'switch', handle);
+      switchVaultFn.consume((handle) => {
+        vm.setProp(flintApiObj, 'switchVault', handle);
       });
     } else {
-      vm.setProp(vaultsObj, 'switch', vm.null);
+      vm.setProp(flintApiObj, 'switchVault', vm.null);
     }
 
-    // vaults.update
-    if (isApiAllowed('vaults.update')) {
-      const vaultsUpdateFn = vm.newFunction('update', (optionsArg) => {
+    // flintApi.updateVault
+    if (isApiAllowed('flintApi.updateVault')) {
+      const updateVaultFn = vm.newFunction('updateVault', (optionsArg) => {
         const options = vm.dump(optionsArg) as WASMUpdateVaultOptions;
         const hostPromise = this.noteApi.updateVault({
           id: options.id,
@@ -1243,77 +1235,73 @@ export class WASMCodeEvaluator {
         });
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
       });
-      vaultsUpdateFn.consume((handle) => {
-        vm.setProp(vaultsObj, 'update', handle);
+      updateVaultFn.consume((handle) => {
+        vm.setProp(flintApiObj, 'updateVault', handle);
       });
     } else {
-      vm.setProp(vaultsObj, 'update', vm.null);
+      vm.setProp(flintApiObj, 'updateVault', vm.null);
     }
 
-    // vaults.remove
-    if (isApiAllowed('vaults.remove')) {
-      const vaultsRemoveFn = vm.newFunction('remove', (vaultIdArg) => {
+    // flintApi.removeVault
+    if (isApiAllowed('flintApi.removeVault')) {
+      const removeVaultFn = vm.newFunction('removeVault', (vaultIdArg) => {
         const targetVaultId = vm.getString(vaultIdArg);
         const hostPromise = this.noteApi.removeVault({ id: targetVaultId });
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
       });
-      vaultsRemoveFn.consume((handle) => {
-        vm.setProp(vaultsObj, 'remove', handle);
+      removeVaultFn.consume((handle) => {
+        vm.setProp(flintApiObj, 'removeVault', handle);
       });
     } else {
-      vm.setProp(vaultsObj, 'remove', vm.null);
+      vm.setProp(flintApiObj, 'removeVault', vm.null);
     }
 
-    vaultsObj.dispose();
+    // Links methods continue on flintApiObj
 
-    // Create links API object
-    const linksObj = vm.newObject();
-    vm.setProp(vm.global, 'links', linksObj);
-
-    // links.getForNote
-    if (isApiAllowed('links.getForNote')) {
-      const linksGetForNoteFn = vm.newFunction('getForNote', (identifierArg) => {
+    // flintApi.getNoteLinks
+    if (isApiAllowed('flintApi.getNoteLinks')) {
+      const getNoteLinksFn = vm.newFunction('getNoteLinks', (identifierArg) => {
         const identifier = vm.getString(identifierArg);
         const hostPromise = this.noteApi.getNoteLinks(vaultId, identifier);
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
       });
-      linksGetForNoteFn.consume((handle) => {
-        vm.setProp(linksObj, 'getForNote', handle);
+      getNoteLinksFn.consume((handle) => {
+        vm.setProp(flintApiObj, 'getNoteLinks', handle);
       });
     } else {
-      vm.setProp(linksObj, 'getForNote', vm.null);
+      vm.setProp(flintApiObj, 'getNoteLinks', vm.null);
     }
 
-    // links.getBacklinks
-    if (isApiAllowed('links.getBacklinks')) {
-      const linksGetBacklinksFn = vm.newFunction('getBacklinks', (identifierArg) => {
+    // flintApi.getBacklinks
+    if (isApiAllowed('flintApi.getBacklinks')) {
+      const getBacklinksFn = vm.newFunction('getBacklinks', (identifierArg) => {
         const identifier = vm.getString(identifierArg);
         const hostPromise = this.noteApi.getBacklinks(vaultId, identifier);
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
       });
-      linksGetBacklinksFn.consume((handle) => {
-        vm.setProp(linksObj, 'getBacklinks', handle);
+      getBacklinksFn.consume((handle) => {
+        vm.setProp(flintApiObj, 'getBacklinks', handle);
       });
     } else {
-      vm.setProp(linksObj, 'getBacklinks', vm.null);
+      vm.setProp(flintApiObj, 'getBacklinks', vm.null);
     }
 
-    // links.findBroken
-    if (isApiAllowed('links.findBroken')) {
-      const linksFindBrokenFn = vm.newFunction('findBroken', () => {
+    // flintApi.findBrokenLinks
+    if (isApiAllowed('flintApi.findBrokenLinks')) {
+      const findBrokenLinksFn = vm.newFunction('findBrokenLinks', () => {
         const hostPromise = this.noteApi.findBrokenLinks(vaultId);
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
       });
-      linksFindBrokenFn.consume((handle) => {
-        vm.setProp(linksObj, 'findBroken', handle);
+      findBrokenLinksFn.consume((handle) => {
+        vm.setProp(flintApiObj, 'findBrokenLinks', handle);
       });
     } else {
-      vm.setProp(linksObj, 'findBroken', vm.null);
+      vm.setProp(flintApiObj, 'findBrokenLinks', vm.null);
     }
 
-    // links.searchBy
-    if (isApiAllowed('links.searchBy')) {
-      const linksSearchByFn = vm.newFunction('searchBy', (optionsArg) => {
+    // flintApi.searchByLinks
+    if (isApiAllowed('flintApi.searchByLinks')) {
+      const searchByLinksFn = vm.newFunction('searchByLinks', (optionsArg) => {
         const options = vm.dump(optionsArg) as WASMSearchByLinksOptions;
         const hostPromise = this.noteApi.searchByLinks({
           has_links_to: options.has_links_to,
@@ -1324,38 +1312,34 @@ export class WASMCodeEvaluator {
         });
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
       });
-      linksSearchByFn.consume((handle) => {
-        vm.setProp(linksObj, 'searchBy', handle);
+      searchByLinksFn.consume((handle) => {
+        vm.setProp(flintApiObj, 'searchByLinks', handle);
       });
     } else {
-      vm.setProp(linksObj, 'searchBy', vm.null);
+      vm.setProp(flintApiObj, 'searchByLinks', vm.null);
     }
 
-    // links.migrate
-    if (isApiAllowed('links.migrate')) {
-      const linksMigrateFn = vm.newFunction('migrate', (forceArg) => {
+    // flintApi.migrateLinks
+    if (isApiAllowed('flintApi.migrateLinks')) {
+      const migrateLinksFn = vm.newFunction('migrateLinks', (forceArg) => {
         const force = forceArg
           ? vm.typeof(forceArg) === 'boolean' && vm.dump(forceArg)
           : false;
         const hostPromise = this.noteApi.migrateLinks(vaultId, force);
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
       });
-      linksMigrateFn.consume((handle) => {
-        vm.setProp(linksObj, 'migrate', handle);
+      migrateLinksFn.consume((handle) => {
+        vm.setProp(flintApiObj, 'migrateLinks', handle);
       });
     } else {
-      vm.setProp(linksObj, 'migrate', vm.null);
+      vm.setProp(flintApiObj, 'migrateLinks', vm.null);
     }
 
-    linksObj.dispose();
+    // Hierarchy methods continue on flintApiObj
 
-    // Create hierarchy API object
-    const hierarchyObj = vm.newObject();
-    vm.setProp(vm.global, 'hierarchy', hierarchyObj);
-
-    // hierarchy.addSubnote
-    if (isApiAllowed('hierarchy.addSubnote')) {
-      const hierarchyAddSubnoteFn = vm.newFunction('addSubnote', (optionsArg) => {
+    // flintApi.addSubnote
+    if (isApiAllowed('flintApi.addSubnote')) {
+      const addSubnoteFn = vm.newFunction('addSubnote', (optionsArg) => {
         const options = vm.dump(optionsArg) as WASMAddSubnoteOptions;
         const hostPromise = this.noteApi.addSubnote({
           parent_id: options.parent_id,
@@ -1365,16 +1349,16 @@ export class WASMCodeEvaluator {
         });
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
       });
-      hierarchyAddSubnoteFn.consume((handle) => {
-        vm.setProp(hierarchyObj, 'addSubnote', handle);
+      addSubnoteFn.consume((handle) => {
+        vm.setProp(flintApiObj, 'addSubnote', handle);
       });
     } else {
-      vm.setProp(hierarchyObj, 'addSubnote', vm.null);
+      vm.setProp(flintApiObj, 'addSubnote', vm.null);
     }
 
-    // hierarchy.removeSubnote
-    if (isApiAllowed('hierarchy.removeSubnote')) {
-      const hierarchyRemoveSubnoteFn = vm.newFunction('removeSubnote', (optionsArg) => {
+    // flintApi.removeSubnote
+    if (isApiAllowed('flintApi.removeSubnote')) {
+      const removeSubnoteFn = vm.newFunction('removeSubnote', (optionsArg) => {
         const options = vm.dump(optionsArg) as WASMRemoveSubnoteOptions;
         const hostPromise = this.noteApi.removeSubnote({
           parent_id: options.parent_id,
@@ -1383,16 +1367,16 @@ export class WASMCodeEvaluator {
         });
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
       });
-      hierarchyRemoveSubnoteFn.consume((handle) => {
-        vm.setProp(hierarchyObj, 'removeSubnote', handle);
+      removeSubnoteFn.consume((handle) => {
+        vm.setProp(flintApiObj, 'removeSubnote', handle);
       });
     } else {
-      vm.setProp(hierarchyObj, 'removeSubnote', vm.null);
+      vm.setProp(flintApiObj, 'removeSubnote', vm.null);
     }
 
-    // hierarchy.reorder
-    if (isApiAllowed('hierarchy.reorder')) {
-      const hierarchyReorderFn = vm.newFunction('reorder', (optionsArg) => {
+    // flintApi.reorderSubnotes
+    if (isApiAllowed('flintApi.reorderSubnotes')) {
+      const reorderSubnotesFn = vm.newFunction('reorderSubnotes', (optionsArg) => {
         const options = vm.dump(optionsArg) as WASMReorderSubnotesOptions;
         const hostPromise = this.noteApi.reorderSubnotes({
           parent_id: options.parent_id,
@@ -1401,16 +1385,16 @@ export class WASMCodeEvaluator {
         });
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
       });
-      hierarchyReorderFn.consume((handle) => {
-        vm.setProp(hierarchyObj, 'reorder', handle);
+      reorderSubnotesFn.consume((handle) => {
+        vm.setProp(flintApiObj, 'reorderSubnotes', handle);
       });
     } else {
-      vm.setProp(hierarchyObj, 'reorder', vm.null);
+      vm.setProp(flintApiObj, 'reorderSubnotes', vm.null);
     }
 
-    // hierarchy.getPath
-    if (isApiAllowed('hierarchy.getPath')) {
-      const hierarchyGetPathFn = vm.newFunction('getPath', (noteIdArg) => {
+    // flintApi.getHierarchyPath
+    if (isApiAllowed('flintApi.getHierarchyPath')) {
+      const getHierarchyPathFn = vm.newFunction('getHierarchyPath', (noteIdArg) => {
         const noteId = vm.getString(noteIdArg);
         const hostPromise = this.noteApi.getHierarchyPath({
           note_id: noteId,
@@ -1418,16 +1402,16 @@ export class WASMCodeEvaluator {
         });
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
       });
-      hierarchyGetPathFn.consume((handle) => {
-        vm.setProp(hierarchyObj, 'getPath', handle);
+      getHierarchyPathFn.consume((handle) => {
+        vm.setProp(flintApiObj, 'getHierarchyPath', handle);
       });
     } else {
-      vm.setProp(hierarchyObj, 'getPath', vm.null);
+      vm.setProp(flintApiObj, 'getHierarchyPath', vm.null);
     }
 
-    // hierarchy.getDescendants
-    if (isApiAllowed('hierarchy.getDescendants')) {
-      const hierarchyGetDescendantsFn = vm.newFunction('getDescendants', (optionsArg) => {
+    // flintApi.getDescendants
+    if (isApiAllowed('flintApi.getDescendants')) {
+      const getDescendantsFn = vm.newFunction('getDescendants', (optionsArg) => {
         const options = vm.dump(optionsArg) as WASMGetDescendantsOptions;
         const hostPromise = this.noteApi.getDescendants({
           note_id: options.note_id,
@@ -1436,16 +1420,16 @@ export class WASMCodeEvaluator {
         });
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
       });
-      hierarchyGetDescendantsFn.consume((handle) => {
-        vm.setProp(hierarchyObj, 'getDescendants', handle);
+      getDescendantsFn.consume((handle) => {
+        vm.setProp(flintApiObj, 'getDescendants', handle);
       });
     } else {
-      vm.setProp(hierarchyObj, 'getDescendants', vm.null);
+      vm.setProp(flintApiObj, 'getDescendants', vm.null);
     }
 
-    // hierarchy.getChildren
-    if (isApiAllowed('hierarchy.getChildren')) {
-      const hierarchyGetChildrenFn = vm.newFunction('getChildren', (noteIdArg) => {
+    // flintApi.getChildren
+    if (isApiAllowed('flintApi.getChildren')) {
+      const getChildrenFn = vm.newFunction('getChildren', (noteIdArg) => {
         const noteId = vm.getString(noteIdArg);
         const hostPromise = this.noteApi.getChildren({
           note_id: noteId,
@@ -1453,16 +1437,16 @@ export class WASMCodeEvaluator {
         });
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
       });
-      hierarchyGetChildrenFn.consume((handle) => {
-        vm.setProp(hierarchyObj, 'getChildren', handle);
+      getChildrenFn.consume((handle) => {
+        vm.setProp(flintApiObj, 'getChildren', handle);
       });
     } else {
-      vm.setProp(hierarchyObj, 'getChildren', vm.null);
+      vm.setProp(flintApiObj, 'getChildren', vm.null);
     }
 
-    // hierarchy.getParents
-    if (isApiAllowed('hierarchy.getParents')) {
-      const hierarchyGetParentsFn = vm.newFunction('getParents', (noteIdArg) => {
+    // flintApi.getParents
+    if (isApiAllowed('flintApi.getParents')) {
+      const getParentsFn = vm.newFunction('getParents', (noteIdArg) => {
         const noteId = vm.getString(noteIdArg);
         const hostPromise = this.noteApi.getParents({
           note_id: noteId,
@@ -1470,39 +1454,38 @@ export class WASMCodeEvaluator {
         });
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
       });
-      hierarchyGetParentsFn.consume((handle) => {
-        vm.setProp(hierarchyObj, 'getParents', handle);
+      getParentsFn.consume((handle) => {
+        vm.setProp(flintApiObj, 'getParents', handle);
       });
     } else {
-      vm.setProp(hierarchyObj, 'getParents', vm.null);
+      vm.setProp(flintApiObj, 'getParents', vm.null);
     }
 
-    hierarchyObj.dispose();
+    // Relationships methods continue on flintApiObj
 
-    // Create relationships API object
-    const relationshipsObj = vm.newObject();
-    vm.setProp(vm.global, 'relationships', relationshipsObj);
-
-    // relationships.get
-    if (isApiAllowed('relationships.get')) {
-      const relationshipsGetFn = vm.newFunction('get', (noteIdArg) => {
-        const noteId = vm.getString(noteIdArg);
-        const hostPromise = this.noteApi.getNoteRelationships({
-          note_id: noteId,
-          vault_id: vaultId
-        });
-        return this.promiseFactory.createProxy(vm, registry, hostPromise);
-      });
-      relationshipsGetFn.consume((handle) => {
-        vm.setProp(relationshipsObj, 'get', handle);
+    // flintApi.getNoteRelationships
+    if (isApiAllowed('flintApi.getNoteRelationships')) {
+      const getNoteRelationshipsFn = vm.newFunction(
+        'getNoteRelationships',
+        (noteIdArg) => {
+          const noteId = vm.getString(noteIdArg);
+          const hostPromise = this.noteApi.getNoteRelationships({
+            note_id: noteId,
+            vault_id: vaultId
+          });
+          return this.promiseFactory.createProxy(vm, registry, hostPromise);
+        }
+      );
+      getNoteRelationshipsFn.consume((handle) => {
+        vm.setProp(flintApiObj, 'getNoteRelationships', handle);
       });
     } else {
-      vm.setProp(relationshipsObj, 'get', vm.null);
+      vm.setProp(flintApiObj, 'getNoteRelationships', vm.null);
     }
 
-    // relationships.getRelated
-    if (isApiAllowed('relationships.getRelated')) {
-      const relationshipsGetRelatedFn = vm.newFunction('getRelated', (optionsArg) => {
+    // flintApi.getRelatedNotes
+    if (isApiAllowed('flintApi.getRelatedNotes')) {
+      const getRelatedNotesFn = vm.newFunction('getRelatedNotes', (optionsArg) => {
         const options = vm.dump(optionsArg) as WASMGetRelatedNotesOptions;
         const hostPromise = this.noteApi.getRelatedNotes({
           note_id: options.note_id,
@@ -1511,35 +1494,38 @@ export class WASMCodeEvaluator {
         });
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
       });
-      relationshipsGetRelatedFn.consume((handle) => {
-        vm.setProp(relationshipsObj, 'getRelated', handle);
+      getRelatedNotesFn.consume((handle) => {
+        vm.setProp(flintApiObj, 'getRelatedNotes', handle);
       });
     } else {
-      vm.setProp(relationshipsObj, 'getRelated', vm.null);
+      vm.setProp(flintApiObj, 'getRelatedNotes', vm.null);
     }
 
-    // relationships.findPath
-    if (isApiAllowed('relationships.findPath')) {
-      const relationshipsFindPathFn = vm.newFunction('findPath', (optionsArg) => {
-        const options = vm.dump(optionsArg) as WASMFindRelationshipPathOptions;
-        const hostPromise = this.noteApi.findRelationshipPath({
-          start_note_id: options.start_note_id,
-          end_note_id: options.end_note_id,
-          max_depth: options.max_depth,
-          vault_id: vaultId
-        });
-        return this.promiseFactory.createProxy(vm, registry, hostPromise);
-      });
-      relationshipsFindPathFn.consume((handle) => {
-        vm.setProp(relationshipsObj, 'findPath', handle);
+    // flintApi.findRelationshipPath
+    if (isApiAllowed('flintApi.findRelationshipPath')) {
+      const findRelationshipPathFn = vm.newFunction(
+        'findRelationshipPath',
+        (optionsArg) => {
+          const options = vm.dump(optionsArg) as WASMFindRelationshipPathOptions;
+          const hostPromise = this.noteApi.findRelationshipPath({
+            start_note_id: options.start_note_id,
+            end_note_id: options.end_note_id,
+            max_depth: options.max_depth,
+            vault_id: vaultId
+          });
+          return this.promiseFactory.createProxy(vm, registry, hostPromise);
+        }
+      );
+      findRelationshipPathFn.consume((handle) => {
+        vm.setProp(flintApiObj, 'findRelationshipPath', handle);
       });
     } else {
-      vm.setProp(relationshipsObj, 'findPath', vm.null);
+      vm.setProp(flintApiObj, 'findRelationshipPath', vm.null);
     }
 
-    // relationships.getClusteringCoefficient
-    if (isApiAllowed('relationships.getClusteringCoefficient')) {
-      const relationshipsGetClusteringCoefficientFn = vm.newFunction(
+    // flintApi.getClusteringCoefficient
+    if (isApiAllowed('flintApi.getClusteringCoefficient')) {
+      const getClusteringCoefficientFn = vm.newFunction(
         'getClusteringCoefficient',
         (noteIdArg) => {
           const noteId = vm.getString(noteIdArg);
@@ -1550,14 +1536,12 @@ export class WASMCodeEvaluator {
           return this.promiseFactory.createProxy(vm, registry, hostPromise);
         }
       );
-      relationshipsGetClusteringCoefficientFn.consume((handle) => {
-        vm.setProp(relationshipsObj, 'getClusteringCoefficient', handle);
+      getClusteringCoefficientFn.consume((handle) => {
+        vm.setProp(flintApiObj, 'getClusteringCoefficient', handle);
       });
     } else {
-      vm.setProp(relationshipsObj, 'getClusteringCoefficient', vm.null);
+      vm.setProp(flintApiObj, 'getClusteringCoefficient', vm.null);
     }
-
-    relationshipsObj.dispose();
 
     // Create utils API object with proper disposal
     const utilsObj = vm.newObject();
@@ -1613,6 +1597,9 @@ export class WASMCodeEvaluator {
     delayFn.dispose();
 
     utilsObj.dispose();
+
+    // Dispose the main flintApi object
+    flintApiObj.dispose();
 
     // Inject custom context variables
     if (customContext) {

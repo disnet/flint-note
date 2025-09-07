@@ -7,16 +7,128 @@
 
 export const FLINT_API_TYPE_DEFINITIONS = `
 declare namespace FlintAPI {
-  // Notes API
-  interface NotesAPI {
-    create(options: CreateNoteOptions): Promise<CreateNoteResult>;
-    get(identifier: string): Promise<Note | null>;
-    update(options: UpdateNoteOptions): Promise<UpdateNoteResult>;
-    delete(options: DeleteNoteOptions): Promise<DeleteNoteResult>;
-    list(options?: ListNotesOptions): Promise<NoteInfo[]>;
-    rename(options: RenameNoteOptions): Promise<RenameNoteResult>;
-    move(options: MoveNoteOptions): Promise<MoveNoteResult>;
-    search(options: SearchNotesOptions): Promise<SearchResult[]>;
+  // Unified FlintAPI interface with all methods
+  interface FlintAPI {
+    // Note methods
+    createNote(options: CreateNoteOptions): Promise<CreateNoteResult>;
+    getNote(identifier: string): Promise<Note | null>;
+    updateNote(options: UpdateNoteOptions): Promise<UpdateNoteResult>;
+    deleteNote(options: DeleteNoteOptions): Promise<DeleteNoteResult>;
+    listNotes(options?: ListNotesOptions): Promise<NoteInfo[]>;
+    renameNote(options: RenameNoteOptions): Promise<RenameNoteResult>;
+    moveNote(options: MoveNoteOptions): Promise<MoveNoteResult>;
+    searchNotes(options: SearchNotesOptions): Promise<SearchResult[]>;
+
+    // Note Type methods
+    createNoteType(options: CreateNoteTypeOptions): Promise<CreateNoteTypeResult>;
+    listNoteTypes(): Promise<NoteTypeInfo[]>;
+    getNoteType(typeName: string): Promise<NoteType>;
+    updateNoteType(options: UpdateNoteTypeOptions): Promise<UpdateNoteTypeResult>;
+    deleteNoteType(options: DeleteNoteTypeOptions): Promise<DeleteNoteTypeResult>;
+
+    // Vault methods
+    getCurrentVault(): Promise<Vault | null>;
+    listVaults(): Promise<Vault[]>;
+    createVault(options: CreateVaultOptions): Promise<Vault>;
+    switchVault(vaultId: string): Promise<void>;
+    updateVault(options: UpdateVaultOptions): Promise<void>;
+    removeVault(vaultId: string): Promise<void>;
+
+    // Link methods
+    getNoteLinks(noteId: string): Promise<LinkInfo>;
+    getBacklinks(noteId: string): Promise<Array<{
+      source_id: string;
+      source_title: string;
+      source_type: string;
+      link_text: string;
+      context: string;
+    }>>;
+    findBrokenLinks(): Promise<Array<{
+      source_id: string;
+      source_title: string;
+      target_reference: string;
+      link_text: string;
+      context: string;
+    }>>;
+    searchByLinks(options: { text?: string; url?: string }): Promise<Array<{
+      source_id: string;
+      source_title: string;
+      target_reference: string;
+      link_text: string;
+      context: string;
+    }>>;
+    migrateLinks(options: {
+      oldReference: string;
+      newReference: string;
+    }): Promise<{ updated_notes: number }>;
+
+    // Hierarchy methods
+    addSubnote(options: {
+      parent_id: string;
+      child_id: string;
+      order?: number;
+    }): Promise<void>;
+    removeSubnote(options: {
+      parent_id: string;
+      child_id: string;
+    }): Promise<void>;
+    reorderSubnotes(options: {
+      parent_id: string;
+      child_orders: Array<{ child_id: string; order: number }>;
+    }): Promise<void>;
+    getHierarchyPath(noteId: string): Promise<Array<{
+      id: string;
+      title: string;
+      type: string;
+    }>>;
+    getDescendants(noteId: string): Promise<Array<{
+      id: string;
+      title: string;
+      type: string;
+      depth: number;
+      order: number;
+    }>>;
+    getChildren(noteId: string): Promise<Array<{
+      id: string;
+      title: string;
+      type: string;
+      order: number;
+    }>>;
+    getParents(noteId: string): Promise<Array<{
+      id: string;
+      title: string;
+      type: string;
+    }>>;
+
+    // Relationship methods
+    getNoteRelationships(noteId: string): Promise<{
+      direct_connections: number;
+      total_reachable: number;
+      clustering_coefficient: number;
+      related_notes: Array<{
+        id: string;
+        title: string;
+        type: string;
+        connection_strength: number;
+        connection_types: string[];
+      }>;
+    }>;
+    getRelatedNotes(noteId: string, options?: {
+      limit?: number;
+      min_strength?: number;
+    }): Promise<Array<{
+      id: string;
+      title: string;
+      type: string;
+      connection_strength: number;
+      connection_types: string[];
+    }>>;
+    findRelationshipPath(fromId: string, toId: string): Promise<Array<{
+      id: string;
+      title: string;
+      type: string;
+    }> | null>;
+    getClusteringCoefficient(noteId: string): Promise<number>;
   }
 
   interface CreateNoteOptions {
@@ -138,14 +250,7 @@ declare namespace FlintAPI {
     }[];
   }
 
-  // Note Types API
-  interface NoteTypesAPI {
-    create(options: CreateNoteTypeOptions): Promise<CreateNoteTypeResult>;
-    list(): Promise<NoteTypeInfo[]>;
-    get(typeName: string): Promise<NoteType>;
-    update(options: UpdateNoteTypeOptions): Promise<UpdateNoteTypeResult>;
-    delete(options: DeleteNoteTypeOptions): Promise<DeleteNoteTypeResult>;
-  }
+  // Legacy interfaces for backward compatibility (deprecated)
 
   interface CreateNoteTypeOptions {
     name: string;
@@ -199,15 +304,6 @@ declare namespace FlintAPI {
     notes_affected: number;
   }
 
-  // Vaults API
-  interface VaultsAPI {
-    getCurrent(): Promise<Vault | null>;
-    list(): Promise<Vault[]>;
-    create(options: CreateVaultOptions): Promise<Vault>;
-    switch(vaultId: string): Promise<void>;
-    update(options: UpdateVaultOptions): Promise<void>;
-    remove(vaultId: string): Promise<void>;
-  }
 
   interface Vault {
     id: string;
@@ -228,35 +324,6 @@ declare namespace FlintAPI {
     name?: string;
   }
 
-  // Links API
-  interface LinksAPI {
-    getForNote(noteId: string): Promise<LinkInfo>;
-    getBacklinks(noteId: string): Promise<Array<{
-      source_id: string;
-      source_title: string;
-      source_type: string;
-      link_text: string;
-      context: string;
-    }>>;
-    findBroken(): Promise<Array<{
-      source_id: string;
-      source_title: string;
-      target_reference: string;
-      link_text: string;
-      context: string;
-    }>>;
-    searchBy(options: { text?: string; url?: string }): Promise<Array<{
-      source_id: string;
-      source_title: string;
-      target_reference: string;
-      link_text: string;
-      context: string;
-    }>>;
-    migrate(options: {
-      oldReference: string;
-      newReference: string;
-    }): Promise<{ updated_notes: number }>;
-  }
 
   interface LinkInfo {
     outgoing_internal: Array<{
@@ -280,88 +347,9 @@ declare namespace FlintAPI {
     }>;
   }
 
-  // Hierarchy API
-  interface HierarchyAPI {
-    addSubnote(options: {
-      parent_id: string;
-      child_id: string;
-      order?: number;
-    }): Promise<void>;
-    
-    removeSubnote(options: {
-      parent_id: string;
-      child_id: string;
-    }): Promise<void>;
-    
-    reorder(options: {
-      parent_id: string;
-      child_orders: Array<{ child_id: string; order: number }>;
-    }): Promise<void>;
-    
-    getPath(noteId: string): Promise<Array<{
-      id: string;
-      title: string;
-      type: string;
-    }>>;
-    
-    getDescendants(noteId: string): Promise<Array<{
-      id: string;
-      title: string;
-      type: string;
-      depth: number;
-      order: number;
-    }>>;
-    
-    getChildren(noteId: string): Promise<Array<{
-      id: string;
-      title: string;
-      type: string;
-      order: number;
-    }>>;
-    
-    getParents(noteId: string): Promise<Array<{
-      id: string;
-      title: string;
-      type: string;
-    }>>;
-  }
 
-  // Relationships API
-  interface RelationshipsAPI {
-    get(noteId: string): Promise<{
-      direct_connections: number;
-      total_reachable: number;
-      clustering_coefficient: number;
-      related_notes: Array<{
-        id: string;
-        title: string;
-        type: string;
-        connection_strength: number;
-        connection_types: string[];
-      }>;
-    }>;
-    
-    getRelated(noteId: string, options?: {
-      limit?: number;
-      min_strength?: number;
-    }): Promise<Array<{
-      id: string;
-      title: string;
-      type: string;
-      connection_strength: number;
-      connection_types: string[];
-    }>>;
-    
-    findPath(fromId: string, toId: string): Promise<Array<{
-      id: string;
-      title: string;
-      type: string;
-    }> | null>;
-    
-    getClusteringCoefficient(noteId: string): Promise<number>;
-  }
 
-  // Utils API
+  // Utils API (remains unchanged as utilities)
   interface UtilsAPI {
     generateId(): string;
     parseLinks(content: string): Array<{
@@ -377,12 +365,7 @@ declare namespace FlintAPI {
 }
 
 // Global API objects available in execution context
-declare const notes: FlintAPI.NotesAPI;
-declare const noteTypes: FlintAPI.NoteTypesAPI;
-declare const vaults: FlintAPI.VaultsAPI;
-declare const links: FlintAPI.LinksAPI;
-declare const hierarchy: FlintAPI.HierarchyAPI;
-declare const relationships: FlintAPI.RelationshipsAPI;
+declare const flintApi: FlintAPI.FlintAPI;
 declare const utils: FlintAPI.UtilsAPI;
 
 // Global type aliases for common types

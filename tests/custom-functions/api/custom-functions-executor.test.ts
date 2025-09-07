@@ -259,14 +259,14 @@ describe('CustomFunctionsExecutor', () => {
       dependentFunc.returnType = 'Promise<string>';
       dependentFunc.code = `
         const dependencyTest = async (input: string): Promise<string> => {
-          const note = await notes.get(input);
+          const note = await flintApi.getNote(input);
           return note ? note.title : 'No note found';
         };
       `;
 
       const compiled = await executor.compileFunction(dependentFunc);
 
-      expect(compiled.dependencies).toContain('notes');
+      expect(compiled.dependencies).toContain('flintApi');
     });
 
     it('should handle execution context errors', async () => {
