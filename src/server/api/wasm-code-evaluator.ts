@@ -19,7 +19,7 @@
 import { getQuickJS, QuickJSContext, QuickJSWASMModule } from 'quickjs-emscripten';
 import type { QuickJSHandle } from 'quickjs-emscripten';
 import type { FlintNoteApi } from './flint-note-api.js';
-// import type { NoteMetadata } from '../types/index.js';
+import type { NoteMetadata } from '../types/index.js';
 
 interface AsyncOperation {
   id: string;
@@ -912,7 +912,7 @@ export class WASMCodeEvaluator {
           type: options.type,
           title: options.title,
           content: options.content,
-          metadata: options.metadata as any,
+          metadata: options.metadata as NoteMetadata,
           vaultId
         });
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
@@ -933,7 +933,7 @@ export class WASMCodeEvaluator {
           content: options.content || '',
           contentHash: options.contentHash || '',
           vaultId,
-          metadata: options.metadata as any
+          metadata: options.metadata as NoteMetadata
         });
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
       });
