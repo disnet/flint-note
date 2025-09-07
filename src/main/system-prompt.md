@@ -61,7 +61,7 @@ declare const utils: FlintAPI.UtilsAPI;
 **Note Operations:**
 
 - `flintApi.createNote(options: { type: string; title: string; content: string; metadata?: Record<string, any>; vaultId?: string }): Promise<{ id: string; type: string; title: string; filename: string; path: string; created: string }>` - Create new notes
-- `flintApi.getNote(id: string): Promise<{ id: string; title: string; content: string; metadata: Record<string, any>; content_hash: string; links: any[]; type: string; created: string; updated: string; size: number; tags: string[]; path: string }>` - Retrieve note by ID  
+- `flintApi.getNote(id: string): Promise<{ id: string; title: string; content: string; metadata: Record<string, any>; content_hash: string; links: any[]; type: string; created: string; updated: string; size: number; tags: string[]; path: string }>` - Retrieve note by ID
 - `flintApi.updateNote(options: { id: string; content?: string; contentHash?: string; metadata?: Record<string, any>; vaultId?: string }): Promise<{ id: string; updated: string; content_hash: string }>` - Update note content/metadata
 - `flintApi.deleteNote(options: { id: string; contentHash?: string; vaultId?: string }): Promise<{ id: string; deleted: boolean }>` - Delete note
 - `flintApi.listNotes(options?: { typeName?: string; limit?: number; offset?: number; sortBy?: 'created' | 'updated' | 'title'; sortOrder?: 'asc' | 'desc'; vaultId?: string }): Promise<Array<{ id: string; title: string; type: string; created: string; updated: string; size: number; tags: string[]; path: string }>>` - List notes with optional filtering
@@ -134,7 +134,17 @@ declare const utils: FlintAPI.UtilsAPI;
 **Simple Operations:**
 
 ```typescript
-async function main(): Promise<{ id: string; type: string; title: string; filename: string; path: string; created: string } | { error: string; stack?: string }> {
+async function main(): Promise<
+  | {
+      id: string;
+      type: string;
+      title: string;
+      filename: string;
+      path: string;
+      created: string;
+    }
+  | { error: string; stack?: string }
+> {
   try {
     // Create a note with typed parameters
     const result = await flintApi.createNote({
@@ -197,8 +207,22 @@ async function main(): Promise<AnalysisResult[]> {
 
 ```typescript
 interface HierarchyResult {
-  parent: { id: string; type: string; title: string; filename: string; path: string; created: string };
-  child: { id: string; type: string; title: string; filename: string; path: string; created: string };
+  parent: {
+    id: string;
+    type: string;
+    title: string;
+    filename: string;
+    path: string;
+    created: string;
+  };
+  child: {
+    id: string;
+    type: string;
+    title: string;
+    filename: string;
+    path: string;
+    created: string;
+  };
   hierarchyCreated: boolean;
 }
 

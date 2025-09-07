@@ -242,7 +242,7 @@ export class ElectronChatService implements ChatService, NoteService {
   }
 
   async updateNote(params: {
-    vaultId: string;
+    vaultId?: string;
     identifier: string;
     content: string;
     metadata?: NoteMetadata;

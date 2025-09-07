@@ -496,17 +496,27 @@ app.whenReady().then(async () => {
       params: {
         identifier: string;
         content: string;
-        vaultId: string;
+        vaultId?: string;
         metadata?: NoteMetadata;
       }
     ) => {
       if (!noteService) {
         throw new Error('Note service not available');
       }
+
+      let vaultId = params.vaultId;
+      if (!vaultId) {
+        const currentVault = await noteService.getCurrentVault();
+        if (!currentVault) {
+          throw new Error('No vault available');
+        }
+        vaultId = currentVault.id;
+      }
+
       return await noteService.updateNote(
         params.identifier,
         params.content,
-        params.vaultId,
+        vaultId,
         params.metadata
       );
     }
