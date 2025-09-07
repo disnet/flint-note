@@ -47,7 +47,7 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
 
             // Update the note
             const updateResult = await flintApi.updateNote({
-              identifier: createResult.id,
+              noteId: createResult.id,
               content: 'Updated content via WASM API',
               contentHash: getResult.content_hash,
               metadata: { priority: 'medium', tags: ['test', 'wasm', 'updated'] }
@@ -58,7 +58,7 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
 
             // Delete the note
             const deleteResult = await flintApi.deleteNote({
-              identifier: createResult.id,
+              noteId: createResult.id,
               confirm: true
             });
 
@@ -106,18 +106,18 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
 
             // Rename the note
             const renameResult = await flintApi.renameNote({
-              identifier: createResult.id,
-              new_title: 'Renamed Note',
-              content_hash: getResult.content_hash
+              noteId: createResult.id,
+              newTitle: 'Renamed Note',
+              contentHash: getResult.content_hash
             });
 
             // Move to different type (if meeting type exists)
             let moveResult = null;
             try {
               moveResult = await flintApi.moveNote({
-                identifier: renameResult.new_id || createResult.id,
-                new_type: 'meeting',
-                content_hash: getResult.content_hash
+                noteId: renameResult.new_id || createResult.id,
+                newType: 'meeting',
+                contentHash: getResult.content_hash
               });
             } catch (error) {
               // Meeting type may not exist, that's ok
@@ -126,7 +126,7 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
 
             // Clean up
             await flintApi.deleteNote({
-              identifier: moveResult && moveResult.new_id ? moveResult.new_id : (renameResult.new_id || createResult.id),
+              noteId: moveResult && moveResult.new_id ? moveResult.new_id : (renameResult.new_id || createResult.id),
               confirm: true
             });
 
@@ -408,7 +408,7 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
               // Get and update the note
               const retrievedNote = await flintApi.getNote(note.id);
               await flintApi.updateNote({
-                identifier: note.id,
+                noteId: note.id,
                 content: 'Updated content with [[test-link]] and more text',
                 contentHash: retrievedNote.content_hash
               });
@@ -418,7 +418,7 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
 
               // Clean up
               await flintApi.deleteNote({
-                identifier: note.id,
+                noteId: note.id,
                 confirm: true
               });
 
@@ -491,7 +491,7 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
             // Delete all notes concurrently
             const deletePromises = createdNotes.map(note =>
               flintApi.deleteNote({
-                identifier: note.id,
+                noteId: note.id,
                 confirm: true
               })
             );
@@ -751,23 +751,22 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
 
               // Get related notes
               const relatedNotes = await flintApi.getRelatedNotes({
-                note_id: note1.id,
-                max_results: 5
+                noteId: note1.id,
+                limit: 5
               });
 
               // Find relationship path
               const relationshipPath = await flintApi.findRelationshipPath({
-                start_note_id: note1.id,
-                end_note_id: note2.id,
-                max_depth: 3
+                fromId: note1.id,
+                toId: note2.id
               });
 
               // Get clustering coefficient
               const clusteringCoefficient = await flintApi.getClusteringCoefficient(note1.id);
 
               // Clean up
-              await flintApi.deleteNote({ identifier: note1.id, confirm: true });
-              await flintApi.deleteNote({ identifier: note2.id, confirm: true });
+              await flintApi.deleteNote({ noteId: note1.id, confirm: true });
+              await flintApi.deleteNote({ noteId: note2.id, confirm: true });
 
               return {
                 success: true,
@@ -783,6 +782,7 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
             } catch (error) {
               return {
                 success: false,
+                fullError: error,
                 error: error.message,
                 stack: error.stack
               };

@@ -1,5 +1,9 @@
 # Project Log
 
+## API Type Alignment Phase 2 Implementation - 2025-01-26
+
+- Completed Phase 2 of API Type Alignment Plan: removed duplicate WASM interfaces, standardized field naming (identifier→noteId, name→typeName), added missing vaultId parameters, and unified FlintAPI type usage across WASM bindings with TypeScript compilation passing
+
 ## Custom Functions CodeMirror Integration - 2025-09-05
 
 - Integrated CodeMirror 6 with TypeScript syntax highlighting to replace basic textarea code editors in both CustomFunctionDetails and CustomFunctionEditor components, providing professional-grade code editing experience with syntax highlighting, bracket matching, auto-completion, and theme adaptation

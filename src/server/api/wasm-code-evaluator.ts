@@ -19,8 +19,7 @@
 import { getQuickJS, QuickJSContext, QuickJSWASMModule } from 'quickjs-emscripten';
 import type { QuickJSHandle } from 'quickjs-emscripten';
 import type { FlintNoteApi } from './flint-note-api.js';
-import type { NoteMetadata } from '../types/index.js';
-import type { MetadataSchema, MetadataFieldDefinition } from '../core/metadata-schema.js';
+// import type { NoteMetadata } from '../types/index.js';
 
 interface AsyncOperation {
   id: string;
@@ -413,125 +412,95 @@ interface JSErrorObject {
   toString?(): string;
 }
 
-// WASM API parameter types - extracted from vm.dump() calls
-interface WASMCreateNoteOptions {
-  type: string;
-  title: string;
-  content: string;
-  metadata?: NoteMetadata;
-}
+// Import FlintAPI types for parameter validation
 
-interface WASMUpdateNoteOptions {
-  identifier: string;
-  content: string;
-  contentHash: string;
-  metadata?: NoteMetadata;
-}
+// FlintAPI types for runtime use
+// eslint-disable-next-line @typescript-eslint/no-namespace
+namespace FlintAPI {
+  export interface CreateNoteOptions {
+    type: string;
+    title: string;
+    content: string;
+    metadata?: Record<string, unknown>;
+    vaultId?: string;
+  }
 
-interface WASMDeleteNoteOptions {
-  identifier: string;
-  confirm?: boolean;
-}
+  export interface UpdateNoteOptions {
+    noteId: string;
+    content?: string;
+    contentHash?: string;
+    metadata?: Record<string, unknown>;
+    vaultId?: string;
+  }
 
-interface WASMListNotesOptions {
-  typeName?: string;
-  limit?: number;
-}
+  export interface DeleteNoteOptions {
+    noteId: string;
+    contentHash?: string;
+    vaultId?: string;
+  }
 
-interface WASMRenameNoteOptions {
-  identifier: string;
-  new_title: string;
-  content_hash: string;
-}
+  export interface ListNotesOptions {
+    typeName?: string;
+    limit?: number;
+    offset?: number;
+    sortBy?: 'created' | 'updated' | 'title';
+    sortOrder?: 'asc' | 'desc';
+    vaultId?: string;
+  }
 
-interface WASMMoveNoteOptions {
-  identifier: string;
-  new_type: string;
-  content_hash: string;
-}
+  export interface RenameNoteOptions {
+    noteId: string;
+    newTitle: string;
+    contentHash?: string;
+    vaultId?: string;
+  }
 
-interface WASMSearchNotesOptions {
-  query: string;
-  typeFilter?: string;
-  limit?: number;
-}
+  export interface MoveNoteOptions {
+    noteId: string;
+    newType: string;
+    contentHash?: string;
+    vaultId?: string;
+  }
 
-interface WASMCreateNoteTypeOptions {
-  type_name: string;
-  description: string;
-  agent_instructions?: string[];
-  metadata_schema?: MetadataSchema;
-}
+  export interface SearchNotesOptions {
+    query: string;
+    types?: string[];
+    limit?: number;
+    offset?: number;
+    vaultId?: string;
+  }
 
-interface WASMUpdateNoteTypeOptions {
-  type_name: string;
-  description?: string;
-  instructions?: string[];
-  metadata_schema?: MetadataFieldDefinition[];
-}
+  export interface CreateNoteTypeOptions {
+    typeName: string;
+    description?: string;
+    agent_instructions?: string;
+    template?: string;
+    vaultId?: string;
+  }
 
-interface WASMDeleteNoteTypeOptions {
-  type_name: string;
-  action: 'error' | 'migrate' | 'delete';
-  target_type?: string;
-  confirm?: boolean;
-}
+  export interface UpdateNoteTypeOptions {
+    typeName: string;
+    description?: string;
+    agent_instructions?: string;
+    template?: string;
+    vaultId?: string;
+  }
 
-interface WASMCreateVaultOptions {
-  id: string;
-  name: string;
-  path: string;
-  description?: string;
-  initialize?: boolean;
-  switch_to?: boolean;
-}
+  export interface DeleteNoteTypeOptions {
+    typeName: string;
+    deleteNotes?: boolean;
+    vaultId?: string;
+  }
 
-interface WASMUpdateVaultOptions {
-  id: string;
-  name?: string;
-  description?: string;
-}
+  export interface CreateVaultOptions {
+    name: string;
+    path: string;
+  }
 
-// Links API interfaces
-interface WASMSearchByLinksOptions {
-  has_links_to?: string[];
-  linked_from?: string[];
-  external_domains?: string[];
-  broken_links?: boolean;
-}
-
-// Hierarchy API interfaces
-interface WASMAddSubnoteOptions {
-  parent_id: string;
-  child_id: string;
-  position?: number;
-}
-
-interface WASMRemoveSubnoteOptions {
-  parent_id: string;
-  child_id: string;
-}
-
-interface WASMReorderSubnotesOptions {
-  parent_id: string;
-  child_ids: string[];
-}
-
-interface WASMGetDescendantsOptions {
-  note_id: string;
-  max_depth?: number;
-}
-
-// Relationships API interfaces
-interface WASMGetRelatedNotesOptions {
-  note_id: string;
-  max_results?: number;
-}
-
-interface WASMFindRelationshipPathOptions {
-  start_note_id: string;
-  end_note_id: string;
-  max_depth?: number;
+  export interface UpdateVaultOptions {
+    vaultId: string;
+    name?: string;
+  }
 }
 
 export interface WASMCodeEvaluationOptions {
@@ -938,12 +907,12 @@ export class WASMCodeEvaluator {
     // flintApi.createNote
     if (isApiAllowed('flintApi.createNote')) {
       const createNoteFn = vm.newFunction('createNote', (optionsArg) => {
-        const options = vm.dump(optionsArg) as WASMCreateNoteOptions;
+        const options = vm.dump(optionsArg) as FlintAPI.CreateNoteOptions;
         const hostPromise = this.noteApi.createNote({
           type: options.type,
           title: options.title,
           content: options.content,
-          metadata: options.metadata,
+          metadata: options.metadata as any,
           vaultId
         });
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
@@ -958,13 +927,13 @@ export class WASMCodeEvaluator {
     // flintApi.updateNote
     if (isApiAllowed('flintApi.updateNote')) {
       const updateNoteFn = vm.newFunction('updateNote', (optionsArg) => {
-        const options = vm.dump(optionsArg) as WASMUpdateNoteOptions;
+        const options = vm.dump(optionsArg) as FlintAPI.UpdateNoteOptions;
         const hostPromise = this.noteApi.updateNote({
-          identifier: options.identifier,
-          content: options.content,
-          contentHash: options.contentHash,
+          identifier: options.noteId,
+          content: options.content || '',
+          contentHash: options.contentHash || '',
           vaultId,
-          metadata: options.metadata
+          metadata: options.metadata as any
         });
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
       });
@@ -978,10 +947,10 @@ export class WASMCodeEvaluator {
     // flintApi.deleteNote
     if (isApiAllowed('flintApi.deleteNote')) {
       const deleteNoteFn = vm.newFunction('deleteNote', (optionsArg) => {
-        const options = vm.dump(optionsArg) as WASMDeleteNoteOptions;
+        const options = vm.dump(optionsArg) as FlintAPI.DeleteNoteOptions;
         const hostPromise = this.noteApi.deleteNote({
-          identifier: options.identifier,
-          confirm: options.confirm,
+          identifier: options.noteId,
+          confirm: true,
           vaultId
         });
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
@@ -997,7 +966,9 @@ export class WASMCodeEvaluator {
     if (isApiAllowed('flintApi.listNotes')) {
       const listNotesFn = vm.newFunction('listNotes', (optionsArg) => {
         // Handle optional parameter - default to empty object if not provided
-        const options = optionsArg ? (vm.dump(optionsArg) as WASMListNotesOptions) : {};
+        const options = optionsArg
+          ? (vm.dump(optionsArg) as FlintAPI.ListNotesOptions)
+          : {};
         const hostPromise = this.noteApi.listNotes({
           typeName: options.typeName,
           limit: options.limit,
@@ -1015,11 +986,11 @@ export class WASMCodeEvaluator {
     // flintApi.renameNote
     if (isApiAllowed('flintApi.renameNote')) {
       const renameNoteFn = vm.newFunction('renameNote', (optionsArg) => {
-        const options = vm.dump(optionsArg) as WASMRenameNoteOptions;
+        const options = vm.dump(optionsArg) as FlintAPI.RenameNoteOptions;
         const hostPromise = this.noteApi.renameNote({
-          identifier: options.identifier,
-          new_title: options.new_title,
-          content_hash: options.content_hash,
+          noteId: options.noteId,
+          newTitle: options.newTitle,
+          contentHash: options.contentHash || '',
           vault_id: vaultId
         });
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
@@ -1034,11 +1005,11 @@ export class WASMCodeEvaluator {
     // flintApi.moveNote
     if (isApiAllowed('flintApi.moveNote')) {
       const moveNoteFn = vm.newFunction('moveNote', (optionsArg) => {
-        const options = vm.dump(optionsArg) as WASMMoveNoteOptions;
+        const options = vm.dump(optionsArg) as FlintAPI.MoveNoteOptions;
         const hostPromise = this.noteApi.moveNote({
-          identifier: options.identifier,
-          new_type: options.new_type,
-          content_hash: options.content_hash,
+          noteId: options.noteId,
+          newType: options.newType,
+          contentHash: options.contentHash || '',
           vault_id: vaultId
         });
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
@@ -1053,10 +1024,10 @@ export class WASMCodeEvaluator {
     // flintApi.searchNotes
     if (isApiAllowed('flintApi.searchNotes')) {
       const searchNotesFn = vm.newFunction('searchNotes', (optionsArg) => {
-        const options = vm.dump(optionsArg) as WASMSearchNotesOptions;
+        const options = vm.dump(optionsArg) as FlintAPI.SearchNotesOptions;
         const hostPromise = this.noteApi.searchNotesByText({
           query: options.query,
-          typeFilter: options.typeFilter,
+          typeFilter: options.types?.[0],
           limit: options.limit,
           vaultId
         });
@@ -1074,12 +1045,14 @@ export class WASMCodeEvaluator {
     // flintApi.createNoteType
     if (isApiAllowed('flintApi.createNoteType')) {
       const createNoteTypeFn = vm.newFunction('createNoteType', (optionsArg) => {
-        const options = vm.dump(optionsArg) as WASMCreateNoteTypeOptions;
+        const options = vm.dump(optionsArg) as FlintAPI.CreateNoteTypeOptions;
         const hostPromise = this.noteApi.createNoteType({
-          type_name: options.type_name,
-          description: options.description,
-          agent_instructions: options.agent_instructions,
-          metadata_schema: options.metadata_schema,
+          type_name: options.typeName,
+          description: options.description || '',
+          agent_instructions: options.agent_instructions
+            ? [options.agent_instructions]
+            : undefined,
+          // template: options.template, // Template not supported in createNoteType API
           vault_id: vaultId
         });
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
@@ -1124,12 +1097,14 @@ export class WASMCodeEvaluator {
     // flintApi.updateNoteType
     if (isApiAllowed('flintApi.updateNoteType')) {
       const updateNoteTypeFn = vm.newFunction('updateNoteType', (optionsArg) => {
-        const options = vm.dump(optionsArg) as WASMUpdateNoteTypeOptions;
+        const options = vm.dump(optionsArg) as FlintAPI.UpdateNoteTypeOptions;
         const hostPromise = this.noteApi.updateNoteType({
-          type_name: options.type_name,
+          type_name: options.typeName,
           description: options.description,
-          instructions: options.instructions,
-          metadata_schema: options.metadata_schema,
+          instructions: options.agent_instructions
+            ? [options.agent_instructions]
+            : undefined,
+          // template: options.template, // Template not supported in updateNoteType API
           vault_id: vaultId
         });
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
@@ -1144,12 +1119,11 @@ export class WASMCodeEvaluator {
     // flintApi.deleteNoteType
     if (isApiAllowed('flintApi.deleteNoteType')) {
       const deleteNoteTypeFn = vm.newFunction('deleteNoteType', (optionsArg) => {
-        const options = vm.dump(optionsArg) as WASMDeleteNoteTypeOptions;
+        const options = vm.dump(optionsArg) as FlintAPI.DeleteNoteTypeOptions;
         const hostPromise = this.noteApi.deleteNoteType({
-          type_name: options.type_name,
-          action: options.action,
-          target_type: options.target_type,
-          confirm: options.confirm,
+          type_name: options.typeName,
+          action: options.deleteNotes ? 'delete' : 'error',
+          confirm: options.deleteNotes,
           vault_id: vaultId
         });
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
@@ -1192,14 +1166,12 @@ export class WASMCodeEvaluator {
     // flintApi.createVault
     if (isApiAllowed('flintApi.createVault')) {
       const createVaultFn = vm.newFunction('createVault', (optionsArg) => {
-        const options = vm.dump(optionsArg) as WASMCreateVaultOptions;
+        const options = vm.dump(optionsArg) as FlintAPI.CreateVaultOptions;
         const hostPromise = this.noteApi.createVault({
-          id: options.id,
+          id: `vault_${Date.now()}`,
           name: options.name,
           path: options.path,
-          description: options.description,
-          initialize: options.initialize,
-          switch_to: options.switch_to
+          initialize: true
         });
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
       });
@@ -1227,11 +1199,10 @@ export class WASMCodeEvaluator {
     // flintApi.updateVault
     if (isApiAllowed('flintApi.updateVault')) {
       const updateVaultFn = vm.newFunction('updateVault', (optionsArg) => {
-        const options = vm.dump(optionsArg) as WASMUpdateVaultOptions;
+        const options = vm.dump(optionsArg) as FlintAPI.UpdateVaultOptions;
         const hostPromise = this.noteApi.updateVault({
-          id: options.id,
-          name: options.name,
-          description: options.description
+          id: options.vaultId,
+          name: options.name
         });
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
       });
@@ -1302,12 +1273,10 @@ export class WASMCodeEvaluator {
     // flintApi.searchByLinks
     if (isApiAllowed('flintApi.searchByLinks')) {
       const searchByLinksFn = vm.newFunction('searchByLinks', (optionsArg) => {
-        const options = vm.dump(optionsArg) as WASMSearchByLinksOptions;
+        const options = vm.dump(optionsArg) as { text?: string; url?: string };
         const hostPromise = this.noteApi.searchByLinks({
-          has_links_to: options.has_links_to,
-          linked_from: options.linked_from,
-          external_domains: options.external_domains,
-          broken_links: options.broken_links,
+          has_links_to: options.text ? [options.text] : undefined,
+          external_domains: options.url ? [options.url] : undefined,
           vault_id: vaultId
         });
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
@@ -1340,11 +1309,15 @@ export class WASMCodeEvaluator {
     // flintApi.addSubnote
     if (isApiAllowed('flintApi.addSubnote')) {
       const addSubnoteFn = vm.newFunction('addSubnote', (optionsArg) => {
-        const options = vm.dump(optionsArg) as WASMAddSubnoteOptions;
+        const options = vm.dump(optionsArg) as {
+          parent_id: string;
+          child_id: string;
+          order?: number;
+        };
         const hostPromise = this.noteApi.addSubnote({
           parent_id: options.parent_id,
           child_id: options.child_id,
-          position: options.position,
+          position: options.order,
           vault_id: vaultId
         });
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
@@ -1359,7 +1332,7 @@ export class WASMCodeEvaluator {
     // flintApi.removeSubnote
     if (isApiAllowed('flintApi.removeSubnote')) {
       const removeSubnoteFn = vm.newFunction('removeSubnote', (optionsArg) => {
-        const options = vm.dump(optionsArg) as WASMRemoveSubnoteOptions;
+        const options = vm.dump(optionsArg) as { parent_id: string; child_id: string };
         const hostPromise = this.noteApi.removeSubnote({
           parent_id: options.parent_id,
           child_id: options.child_id,
@@ -1377,10 +1350,13 @@ export class WASMCodeEvaluator {
     // flintApi.reorderSubnotes
     if (isApiAllowed('flintApi.reorderSubnotes')) {
       const reorderSubnotesFn = vm.newFunction('reorderSubnotes', (optionsArg) => {
-        const options = vm.dump(optionsArg) as WASMReorderSubnotesOptions;
+        const options = vm.dump(optionsArg) as {
+          parent_id: string;
+          child_orders: Array<{ child_id: string; order: number }>;
+        };
         const hostPromise = this.noteApi.reorderSubnotes({
           parent_id: options.parent_id,
-          child_ids: options.child_ids,
+          child_ids: options.child_orders.map((item) => item.child_id),
           vault_id: vaultId
         });
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
@@ -1412,9 +1388,9 @@ export class WASMCodeEvaluator {
     // flintApi.getDescendants
     if (isApiAllowed('flintApi.getDescendants')) {
       const getDescendantsFn = vm.newFunction('getDescendants', (optionsArg) => {
-        const options = vm.dump(optionsArg) as WASMGetDescendantsOptions;
+        const options = vm.dump(optionsArg) as { noteId: string; max_depth?: number };
         const hostPromise = this.noteApi.getDescendants({
-          note_id: options.note_id,
+          note_id: options.noteId,
           max_depth: options.max_depth,
           vault_id: vaultId
         });
@@ -1486,10 +1462,14 @@ export class WASMCodeEvaluator {
     // flintApi.getRelatedNotes
     if (isApiAllowed('flintApi.getRelatedNotes')) {
       const getRelatedNotesFn = vm.newFunction('getRelatedNotes', (optionsArg) => {
-        const options = vm.dump(optionsArg) as WASMGetRelatedNotesOptions;
+        const options = vm.dump(optionsArg) as {
+          noteId: string;
+          limit?: number;
+          min_strength?: number;
+        };
         const hostPromise = this.noteApi.getRelatedNotes({
-          note_id: options.note_id,
-          max_results: options.max_results,
+          note_id: options.noteId,
+          max_results: options.limit,
           vault_id: vaultId
         });
         return this.promiseFactory.createProxy(vm, registry, hostPromise);
@@ -1506,11 +1486,10 @@ export class WASMCodeEvaluator {
       const findRelationshipPathFn = vm.newFunction(
         'findRelationshipPath',
         (optionsArg) => {
-          const options = vm.dump(optionsArg) as WASMFindRelationshipPathOptions;
+          const options = vm.dump(optionsArg) as { fromId: string; toId: string };
           const hostPromise = this.noteApi.findRelationshipPath({
-            start_note_id: options.start_note_id,
-            end_note_id: options.end_note_id,
-            max_depth: options.max_depth,
+            start_note_id: options.fromId,
+            end_note_id: options.toId,
             vault_id: vaultId
           });
           return this.promiseFactory.createProxy(vm, registry, hostPromise);

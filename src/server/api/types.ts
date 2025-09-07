@@ -322,16 +322,16 @@ export interface BulkDeleteNotesArgs {
 }
 
 export interface RenameNoteArgs {
-  identifier: string;
-  new_title: string;
-  content_hash: string;
+  noteId: string;
+  newTitle: string;
+  contentHash: string;
   vault_id: string;
 }
 
 export interface MoveNoteArgs {
-  identifier: string;
-  new_type: string;
-  content_hash: string;
+  noteId: string;
+  newType: string;
+  contentHash: string;
   vault_id: string;
 }
 

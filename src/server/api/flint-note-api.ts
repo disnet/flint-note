@@ -369,9 +369,9 @@ export class FlintNoteApi {
     this.ensureInitialized();
     const { noteManager } = await this.getVaultContext(args.vault_id);
     return await noteManager.renameNoteWithFile(
-      args.identifier,
-      args.new_title,
-      args.content_hash
+      args.noteId,
+      args.newTitle,
+      args.contentHash
     );
   }
 
@@ -381,7 +381,7 @@ export class FlintNoteApi {
   async moveNote(args: MoveNoteArgs & { vault_id: string }): Promise<MoveNoteResult> {
     this.ensureInitialized();
     const { noteManager } = await this.getVaultContext(args.vault_id);
-    return await noteManager.moveNote(args.identifier, args.new_type, args.content_hash);
+    return await noteManager.moveNote(args.noteId, args.newType, args.contentHash);
   }
 
   // Note Type Operations

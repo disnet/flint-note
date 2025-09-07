@@ -157,9 +157,9 @@ export class NoteService {
     }
 
     return await this.api.renameNote({
-      identifier,
-      new_title: newIdentifier,
-      content_hash: note.content_hash,
+      noteId: identifier,
+      newTitle: newIdentifier,
+      contentHash: note.content_hash,
       vault_id: vaultId
     });
   }
@@ -177,9 +177,9 @@ export class NoteService {
     }
 
     return await this.api.moveNote({
-      identifier,
-      new_type: newType,
-      content_hash: note.content_hash,
+      noteId: identifier,
+      newType: newType,
+      contentHash: note.content_hash,
       vault_id: vaultId
     });
   }

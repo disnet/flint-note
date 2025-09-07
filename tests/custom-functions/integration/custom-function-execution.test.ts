@@ -195,7 +195,7 @@ describe('Custom Function Execution Integration', () => {
               }
               if (content) {
                 const updatedNote = await flintApi.updateNote({
-                  identifier: note.id,
+                  noteId: note.id,
                   content: note.content + '\\n\\n' + content
                 });
                 // For simplicity, return a create-like result for existing updated notes

@@ -11,7 +11,7 @@ declare namespace FlintAPI {
   interface FlintAPI {
     // Note methods
     createNote(options: CreateNoteOptions): Promise<CreateNoteResult>;
-    getNote(identifier: string): Promise<Note | null>;
+    getNote(noteId: string): Promise<Note | null>;
     updateNote(options: UpdateNoteOptions): Promise<UpdateNoteResult>;
     deleteNote(options: DeleteNoteOptions): Promise<DeleteNoteResult>;
     listNotes(options?: ListNotesOptions): Promise<NoteInfo[]>;
@@ -136,6 +136,7 @@ declare namespace FlintAPI {
     title: string;
     content: string;
     metadata?: Record<string, any>;
+    vaultId?: string;
   }
 
   interface CreateNoteResult {
@@ -148,10 +149,11 @@ declare namespace FlintAPI {
   }
 
   interface UpdateNoteOptions {
-    identifier: string;
+    noteId: string;
     content?: string;
     contentHash?: string;
     metadata?: Record<string, any>;
+    vaultId?: string;
   }
 
   interface UpdateNoteResult {
@@ -161,8 +163,9 @@ declare namespace FlintAPI {
   }
 
   interface DeleteNoteOptions {
-    identifier: string;
+    noteId: string;
     contentHash?: string;
+    vaultId?: string;
   }
 
   interface DeleteNoteResult {
@@ -176,6 +179,7 @@ declare namespace FlintAPI {
     offset?: number;
     sortBy?: 'created' | 'updated' | 'title';
     sortOrder?: 'asc' | 'desc';
+    vaultId?: string;
   }
 
   interface Note {
@@ -205,9 +209,10 @@ declare namespace FlintAPI {
   }
 
   interface RenameNoteOptions {
-    identifier: string;
+    noteId: string;
     newTitle: string;
     contentHash?: string;
+    vaultId?: string;
   }
 
   interface RenameNoteResult {
@@ -219,9 +224,10 @@ declare namespace FlintAPI {
   }
 
   interface MoveNoteOptions {
-    identifier: string;
-    newPath: string;
+    noteId: string;
+    newType: string;
     contentHash?: string;
+    vaultId?: string;
   }
 
   interface MoveNoteResult {
@@ -235,6 +241,7 @@ declare namespace FlintAPI {
     types?: string[];
     limit?: number;
     offset?: number;
+    vaultId?: string;
   }
 
   interface SearchResult {
@@ -253,10 +260,11 @@ declare namespace FlintAPI {
   // Legacy interfaces for backward compatibility (deprecated)
 
   interface CreateNoteTypeOptions {
-    name: string;
+    typeName: string;
     description?: string;
     agent_instructions?: string;
     template?: string;
+    vaultId?: string;
   }
 
   interface CreateNoteTypeResult {
@@ -282,10 +290,11 @@ declare namespace FlintAPI {
   }
 
   interface UpdateNoteTypeOptions {
-    name: string;
+    typeName: string;
     description?: string;
     agent_instructions?: string;
     template?: string;
+    vaultId?: string;
   }
 
   interface UpdateNoteTypeResult {
@@ -294,8 +303,9 @@ declare namespace FlintAPI {
   }
 
   interface DeleteNoteTypeOptions {
-    name: string;
+    typeName: string;
     deleteNotes?: boolean;
+    vaultId?: string;
   }
 
   interface DeleteNoteTypeResult {
@@ -320,7 +330,7 @@ declare namespace FlintAPI {
   }
 
   interface UpdateVaultOptions {
-    id: string;
+    vaultId: string;
     name?: string;
   }
 
