@@ -237,7 +237,7 @@ class DailyViewStore {
 
   /**
    * Update daily note content
-   * Phase 1: Uses real IPC APIs
+   * Phase 1: Uses real IPC APIs with optimistic local updates to avoid UI refresh
    */
   async updateDailyNote(date: string, content: string): Promise<void> {
     try {
@@ -247,22 +247,45 @@ class DailyViewStore {
         throw new Error('No vault available');
       }
 
-      // Update daily note via IPC
+      // Optimistically update the local state first to avoid UI refresh/focus loss
+      if (this.state.currentWeek) {
+        const updatedWeek = { ...this.state.currentWeek };
+        updatedWeek.days = updatedWeek.days.map((day) => {
+          if (day.date === date && day.dailyNote) {
+            return {
+              ...day,
+              dailyNote: {
+                ...day.dailyNote,
+                content,
+                modified: new Date().toISOString() // Update modified timestamp
+              }
+            };
+          }
+          return day;
+        });
+        this.state.currentWeek = updatedWeek;
+      }
+
+      // Update daily note via IPC in the background
       await (window as unknown as { api?: DailyViewApi }).api?.updateDailyNote({
         date,
         content,
         vaultId: currentVaultId
       });
 
-      // Refresh current week data to reflect changes
+      // Note: No need to refresh the entire week data since we've already updated locally
+      // This prevents UI re-render and focus loss while maintaining data consistency
+    } catch (error) {
+      console.error('Failed to update daily note:', error);
+
+      // If the API call failed, we should refresh to ensure consistency
+      // This is a rare case and better than always refreshing
       if (this.state.currentWeek) {
         await this.loadWeek(
           this.state.currentWeek.startDate,
           this.state.currentVaultId || undefined
         );
       }
-    } catch (error) {
-      console.error('Failed to update daily note:', error);
     }
   }
 

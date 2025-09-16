@@ -1,5 +1,9 @@
 # Project Log
 
+## Daily View Focus Loss Fix - 2025-09-16
+
+- Fixed daily note editor focus loss during auto-save by implementing optimistic local state updates in dailyViewStore.updateDailyNote(), eliminating the need for full week data refresh and preventing UI re-render that caused editors to lose focus
+
 ## Daily View Phase 0 Foundation Implementation - 2025-01-16
 
 - Successfully implemented Phase 0 foundation for Daily View feature including database schema enhancements with date-based indexes, comprehensive date utility functions with ISO week calculation, complete UI shell with mock data (DailyView, WeekNavigation, DaySection, DailyNoteEditor, NotesWorkedOn components), daily view store with navigation state management, and integration into system navigation as new "Daily" view in left sidebar
