@@ -17,12 +17,18 @@
   const loading = $derived(dailyViewStore.loading);
 
   function handleNoteClick(noteId: string): void {
-    // For Phase 0, we need to find the note from our mock data
-    // In later phases, this would query the actual notes store
+    // Find the note from our week data (including daily notes)
     const weekData = dailyViewStore.weekData;
     if (!weekData) return;
 
     for (const day of weekData.days) {
+      // Check daily note first
+      if (day.dailyNote?.id === noteId) {
+        onNoteSelect?.(day.dailyNote);
+        return;
+      }
+
+      // Then check created/modified notes
       const allNotes = [...day.createdNotes, ...day.modifiedNotes];
       const note = allNotes.find((n) => n.id === noteId);
       if (note) {

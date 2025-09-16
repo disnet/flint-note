@@ -42,11 +42,28 @@
   function handleDailyNoteContentChange(content: string): void {
     onDailyNoteUpdate?.(dayData.date, content);
   }
+
+  function handleDayTitleClick(): void {
+    if (dayData.dailyNote?.id) {
+      onNoteClick?.(dayData.dailyNote.id);
+    }
+  }
 </script>
 
 <div class="day-section" class:is-today={isToday}>
   <div class="day-header">
-    <h2 class="day-title">{dayHeader}</h2>
+    {#if dayData.dailyNote?.id}
+      <button
+        class="day-title clickable"
+        class:is-today={isToday}
+        onclick={handleDayTitleClick}
+        type="button"
+      >
+        {dayHeader}
+      </button>
+    {:else}
+      <h2 class="day-title" class:is-today={isToday}>{dayHeader}</h2>
+    {/if}
     {#if isToday}
       <span class="today-badge">Today</span>
     {/if}
@@ -106,8 +123,28 @@
     color: var(--text-primary);
   }
 
-  .day-section.is-today .day-title {
+  .day-title.clickable {
+    background: none;
+    border: none;
+    padding: 0;
+    text-align: left;
+    cursor: pointer;
+    transition: color 0.2s ease;
+    font-family: inherit;
+    font-size: 1.25rem;
+    font-weight: 600;
+  }
+
+  .day-title.clickable:hover {
     color: var(--accent-primary);
+  }
+
+  .day-title.is-today {
+    color: var(--accent-primary);
+  }
+
+  .day-title.clickable.is-today:hover {
+    color: var(--accent-secondary);
   }
 
   .today-badge {
