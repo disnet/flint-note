@@ -40,8 +40,12 @@
   }
 
   function handleDailyNoteContentChange(content: string): void {
-    onDailyNoteUpdate?.(dayData.date, content);
+    // Only trigger update if content is not empty or if we're clearing existing content
+    if (content.trim() || dayData.dailyNote) {
+      onDailyNoteUpdate?.(dayData.date, content);
+    }
   }
+
 
   function handleDayTitleClick(): void {
     if (dayData.dailyNote?.id) {
@@ -164,7 +168,7 @@
   }
 
   .daily-note-section {
-    padding: 1.5rem;
+    padding: 0;
   }
 
   .notes-section {

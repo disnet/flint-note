@@ -528,9 +528,18 @@ export class NoteService {
   }
 
   // Daily View operations
-  async getOrCreateDailyNote(date: string, vaultId: string): Promise<Note> {
+  async getOrCreateDailyNote(
+    date: string,
+    vaultId: string,
+    createIfMissing: boolean = true
+  ): Promise<Note | null> {
     this.ensureInitialized();
-    return await this.api.getOrCreateDailyNote(date, vaultId);
+    return await this.api.getOrCreateDailyNote(date, vaultId, createIfMissing);
+  }
+
+  async getDailyNote(date: string, vaultId: string): Promise<Note | null> {
+    this.ensureInitialized();
+    return await this.api.getOrCreateDailyNote(date, vaultId, false);
   }
 
   async getWeekData(

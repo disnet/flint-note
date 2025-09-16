@@ -28,11 +28,12 @@
     onContentChange?: (content: string) => void;
   }
 
-  let { dailyNote, content: initialContent, date, onContentChange }: Props = $props();
+  let { dailyNote, content: initialContent, onContentChange }: Props = $props();
 
   let editorElement: HTMLDivElement;
   let editorView: EditorView | null = null;
   let content = $state(initialContent || '');
+  let showPlaceholder = $derived(!dailyNote && !content.trim());
 
   // Compartments for dynamic reconfiguration
   const themeCompartment = new Compartment();
@@ -68,6 +69,15 @@
     return false;
   });
 
+  // Placeholder extension for empty daily notes
+  const placeholderExtension = EditorView.theme({
+    '.cm-placeholder': {
+      color: 'var(--text-secondary)',
+      fontStyle: 'italic',
+      opacity: '0.7'
+    }
+  });
+
   // Create theme extension for daily note editor styling
   const dailyNoteTheme = EditorView.theme({
     '&': {
@@ -87,8 +97,8 @@
       width: '100%',
       scrollbarWidth: 'thin',
       scrollbarColor: 'rgba(0, 0, 0, 0.2) transparent',
-      minHeight: '200px',
-      padding: '1rem',
+      minHeight: '100px',
+      padding: '0.25rem',
       fontFamily: 'inherit'
     },
     '&.cm-focused': {
@@ -106,13 +116,14 @@
 
   // Create editor extensions
   function createExtensions(): Extension[] {
-    return [
+    const extensions = [
       minimalSetup,
       markdown(),
       wikilinksExtension(handleWikilinkClick),
       markdownListStyling,
       listStylingTheme,
       dailyNoteTheme,
+      placeholderExtension,
 
       // Theme compartment
       themeCompartment.of(isDarkMode ? githubDark : githubLight),
@@ -135,6 +146,26 @@
         }
       })
     ];
+
+    // Add placeholder if no daily note exists
+    if (showPlaceholder) {
+      extensions.push(
+        EditorView.theme({
+          '.cm-content': {
+            '&::before': {
+              content: '"Start typing to create entry..."',
+              color: 'var(--text-secondary)',
+              fontStyle: 'italic',
+              opacity: '0.7',
+              position: 'absolute',
+              pointerEvents: 'none'
+            }
+          }
+        })
+      );
+    }
+
+    return extensions;
   }
 
   // Initialize the editor
@@ -176,31 +207,26 @@
           }
         });
       }
-    } else if (!initialContent && content === '' && !dailyNote) {
-      // Initialize with appropriate daily note template
-      const dayOfWeek = new Date(date).getDay();
-      const templates = [
-        "# Daily Reflection\n\n## What I accomplished today\n- \n\n## What I learned\n- \n\n## Tomorrow's priorities\n- ",
-        "# Monday Planning\n\n## Week goals\n- \n\n## Today's tasks\n- [ ] \n- [ ] \n\n## Notes\n",
-        '# Tuesday Progress\n\n## Completed\n- \n\n## In progress\n- \n\n## Blockers\n- ',
-        '# Wednesday Check-in\n\n## Key accomplishments\n- \n\n## Challenges faced\n- \n\n## Adjustments needed\n- ',
-        '# Thursday Review\n\n## Project updates\n- \n\n## Meetings & insights\n- \n\n## Action items\n- ',
-        '# Friday Wrap-up\n\n## Week summary\n- \n\n## What went well\n- \n\n## Areas for improvement\n- \n\n## Next week planning\n- ',
-        '# Weekend Planning\n\n## Personal projects\n- \n\n## Learning goals\n- \n\n## Reflection\n- '
-      ];
+    }
+    // Remove template initialization - start with blank content
+  });
 
-      const templateContent = templates[dayOfWeek] || templates[0];
-      content = templateContent;
+  // Reconfigure editor when placeholder state changes
+  $effect(() => {
+    if (editorView) {
+      // Recreate the editor view with new extensions when placeholder state changes
+      const currentContent = editorView.state.doc.toString();
+      editorView.destroy();
 
-      if (editorView) {
-        editorView.dispatch({
-          changes: {
-            from: 0,
-            to: editorView.state.doc.length,
-            insert: templateContent
-          }
-        });
-      }
+      const state = EditorState.create({
+        doc: currentContent,
+        extensions: createExtensions()
+      });
+
+      editorView = new EditorView({
+        state,
+        parent: editorElement
+      });
     }
   });
 
@@ -239,12 +265,26 @@
 </script>
 
 <div class="daily-note-editor">
-  <div class="editor-header">
-    <label for="daily-note-{date}" class="editor-label"> Daily Note </label>
-    <span class="editor-hint"> Auto-saves as you type </span>
-  </div>
-
-  <div class="editor-container">
+  <div 
+    class="editor-container" 
+    class:has-placeholder={showPlaceholder}
+    onclick={() => editorView?.focus()}
+    onkeydown={(e) => {
+      // Only handle key events when placeholder is shown and not coming from CodeMirror
+      if (showPlaceholder && e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
+        e.preventDefault();
+        editorView?.focus();
+      }
+    }}
+    role={showPlaceholder ? "button" : undefined}
+    tabindex={showPlaceholder ? 0 : -1}
+    aria-label={showPlaceholder ? "Click to start typing in daily note" : undefined}
+  >
+    {#if showPlaceholder}
+      <div class="placeholder-text">
+        Start typing to create entry...
+      </div>
+    {/if}
     <div bind:this={editorElement} class="codemirror-editor"></div>
   </div>
 </div>
@@ -256,43 +296,60 @@
     gap: 0.75rem;
   }
 
-  .editor-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-  }
-
-  .editor-label {
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--text-secondary);
-    margin: 0;
-  }
-
-  .editor-hint {
-    font-size: 0.75rem;
-    color: var(--text-tertiary);
-    font-style: italic;
-  }
-
   .editor-container {
     position: relative;
-    border: 1px solid var(--border-light);
-    border-radius: 0.375rem;
     background: var(--bg-primary);
     transition: border-color 0.2s ease;
     overflow: hidden;
+    min-height: 100px;
+    cursor: text;
   }
 
-  .editor-container:focus-within {
-    border-color: var(--accent-primary);
-    box-shadow: 0 0 0 1px var(--accent-primary);
+
+  .editor-container.has-placeholder {
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding: 0.25rem;
+  }
+
+  .placeholder-text {
+    color: var(--text-secondary);
+    font-style: italic;
+    opacity: 0.7;
+    font-family:
+      'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace;
+    line-height: 1.6;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .editor-container.has-placeholder .codemirror-editor {
+    position: relative;
+    z-index: 1;
+  }
+
+  .editor-container.has-placeholder .codemirror-editor :global(.cm-content) {
+    color: transparent;
+  }
+
+  .editor-container.has-placeholder .codemirror-editor :global(.cm-cursor) {
+    border-color: var(--text-primary) !important;
+    opacity: 1 !important;
+  }
+
+  .placeholder-text {
+    position: absolute;
+    top: 0.25rem;
+    left: 0.25rem;
+    z-index: 0;
+    pointer-events: none;
+    user-select: none;
   }
 
   .codemirror-editor {
     width: 100%;
-    min-height: 200px;
+    min-height: 100px;
   }
 
   /* Override CodeMirror styles for daily note editor */
@@ -340,12 +397,6 @@
 
   /* Mobile responsive */
   @media (max-width: 768px) {
-    .editor-header {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 0.25rem;
-    }
-
     .codemirror-editor {
       min-height: 150px;
     }

@@ -37,7 +37,11 @@ interface DailyViewApi {
       totalActivity: number;
     }>;
   }>;
-  getOrCreateDailyNote: (params: { date: string; vaultId: string }) => Promise<ApiNote>;
+  getOrCreateDailyNote: (params: {
+    date: string;
+    vaultId: string;
+    createIfMissing?: boolean;
+  }) => Promise<ApiNote | null>;
   updateDailyNote: (params: {
     date: string;
     content: string;
@@ -208,7 +212,10 @@ class DailyViewStore {
    * Get or create daily note for a specific date
    * Phase 1: Uses real IPC APIs
    */
-  async getOrCreateDailyNote(date: string): Promise<DailyNote | null> {
+  async getOrCreateDailyNote(
+    date: string,
+    createIfMissing: boolean = true
+  ): Promise<DailyNote | null> {
     try {
       // Get current vault
       const currentVaultId = await this.getCurrentVaultId();
@@ -221,11 +228,12 @@ class DailyViewStore {
         window as unknown as { api?: DailyViewApi }
       ).api?.getOrCreateDailyNote({
         date,
-        vaultId: currentVaultId
+        vaultId: currentVaultId,
+        createIfMissing
       });
 
       if (!apiNote) {
-        throw new Error('Failed to get/create daily note');
+        return null;
       }
 
       return this.convertApiNoteToDailyNote(apiNote);
@@ -247,31 +255,64 @@ class DailyViewStore {
         throw new Error('No vault available');
       }
 
+      // If content is empty and no note exists, don't create one
+      if (!content.trim()) {
+        // Check if note exists
+        const existingNote = await this.getOrCreateDailyNote(date, false);
+        if (!existingNote) {
+          // No note exists and content is empty, nothing to do
+          return;
+        }
+      }
+
       // Optimistically update the local state first to avoid UI refresh/focus loss
       if (this.state.currentWeek) {
         const updatedWeek = { ...this.state.currentWeek };
         updatedWeek.days = updatedWeek.days.map((day) => {
-          if (day.date === date && day.dailyNote) {
-            return {
-              ...day,
-              dailyNote: {
-                ...day.dailyNote,
-                content,
-                modified: new Date().toISOString() // Update modified timestamp
-              }
-            };
+          if (day.date === date) {
+            // If no daily note exists and we have content, create it locally
+            if (!day.dailyNote && content.trim()) {
+              return {
+                ...day,
+                dailyNote: {
+                  id: `daily/${date}`,
+                  title: date,
+                  filename: `${date}.md`,
+                  path: `/daily/${date}.md`,
+                  type: 'daily',
+                  created: new Date().toISOString(),
+                  modified: new Date().toISOString(),
+                  size: content.length,
+                  tags: [],
+                  date: date,
+                  autoCreated: true,
+                  content
+                }
+              };
+            } else if (day.dailyNote) {
+              return {
+                ...day,
+                dailyNote: {
+                  ...day.dailyNote,
+                  content,
+                  modified: new Date().toISOString() // Update modified timestamp
+                }
+              };
+            }
           }
           return day;
         });
         this.state.currentWeek = updatedWeek;
       }
 
-      // Update daily note via IPC in the background
-      await (window as unknown as { api?: DailyViewApi }).api?.updateDailyNote({
-        date,
-        content,
-        vaultId: currentVaultId
-      });
+      // Only call API if we have content to save
+      if (content.trim()) {
+        await (window as unknown as { api?: DailyViewApi }).api?.updateDailyNote({
+          date,
+          content,
+          vaultId: currentVaultId
+        });
+      }
 
       // Note: No need to refresh the entire week data since we've already updated locally
       // This prevents UI re-render and focus loss while maintaining data consistency

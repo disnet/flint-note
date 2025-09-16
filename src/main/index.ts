@@ -1540,13 +1540,20 @@ app.whenReady().then(async () => {
   // Daily View IPC handlers
   ipcMain.handle(
     'get-or-create-daily-note',
-    async (_event, params: { date: string; vaultId: string }) => {
+    async (
+      _event,
+      params: { date: string; vaultId: string; createIfMissing?: boolean }
+    ) => {
       if (!noteService) {
         throw new Error('Note service not available');
       }
       try {
         await noteService.initialize();
-        return await noteService.getOrCreateDailyNote(params.date, params.vaultId);
+        return await noteService.getOrCreateDailyNote(
+          params.date,
+          params.vaultId,
+          params.createIfMissing
+        );
       } catch (error) {
         logger.error('Failed to get/create daily note', { error, params });
         throw error;

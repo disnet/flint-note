@@ -1143,7 +1143,11 @@ export class FlintNoteApi {
   /**
    * Get or create a daily note for a specific date
    */
-  async getOrCreateDailyNote(date: string, vaultId: string): Promise<Note> {
+  async getOrCreateDailyNote(
+    date: string,
+    vaultId: string,
+    createIfMissing: boolean = true
+  ): Promise<Note | null> {
     this.ensureInitialized();
     const { noteManager } = await this.getVaultContext(vaultId);
 
@@ -1154,11 +1158,16 @@ export class FlintNoteApi {
       // Try to get existing daily note
       return await noteManager.getNote(identifier);
     } catch {
-      // If note doesn't exist, create it
+      // If note doesn't exist and we're not creating, return null
+      if (!createIfMissing) {
+        return null;
+      }
+
+      // If note doesn't exist, create it with blank content
       await noteManager.createNote(
         'daily',
         date,
-        `# ${date}\n\n`,
+        '', // Start with blank content instead of date header
         {
           date: date,
           autoCreated: true
@@ -1212,12 +1221,12 @@ export class FlintNoteApi {
       currentDate.setDate(start.getDate() + i);
       const dateStr = currentDate.toISOString().split('T')[0];
 
-      // Get or create daily note
+      // Only get existing daily notes, don't create new ones during week loading
       let dailyNote: Note | null = null;
       try {
-        dailyNote = await this.getOrCreateDailyNote(dateStr, vaultId);
+        dailyNote = await this.getOrCreateDailyNote(dateStr, vaultId, false);
       } catch (error) {
-        console.warn(`Failed to get/create daily note for ${dateStr}:`, error);
+        console.warn(`Failed to get daily note for ${dateStr}:`, error);
       }
 
       // Get notes created on this date
@@ -1305,8 +1314,12 @@ export class FlintNoteApi {
   ): Promise<UpdateResult> {
     this.ensureInitialized();
 
-    // First ensure the daily note exists
-    const dailyNote = await this.getOrCreateDailyNote(date, vaultId);
+    // First ensure the daily note exists (create if missing since user is providing content)
+    const dailyNote = await this.getOrCreateDailyNote(date, vaultId, true);
+
+    if (!dailyNote) {
+      throw new Error('Failed to create daily note');
+    }
 
     // Update the note content
     return await this.updateNote({
