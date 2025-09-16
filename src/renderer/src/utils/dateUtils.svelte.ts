@@ -62,10 +62,10 @@ export function formatISODate(date: Date): string {
 }
 
 /**
- * Parse ISO date string to Date object
+ * Parse ISO date string to Date object in local timezone
  */
 export function parseISODate(dateString: string): Date {
-  const date = new Date(dateString + 'T00:00:00.000Z');
+  const date = new Date(dateString + 'T00:00:00');
   return date;
 }
 
