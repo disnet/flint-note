@@ -165,7 +165,7 @@
 <style>
   .notes-view {
     height: 100%;
-    overflow-y: auto;
+    overflow: visible;
     padding: 0.5rem;
     background: var(--bg-primary);
   }

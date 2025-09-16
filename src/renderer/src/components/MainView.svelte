@@ -313,14 +313,35 @@
     flex-direction: column;
     background: var(--bg-primary);
     width: 100%;
-    max-width: 75ch;
-    margin: 0 auto;
+    overflow: auto;
+    scrollbar-gutter: stable;
+  }
+
+  .system-view-container::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .system-view-container::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .system-view-container::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+  }
+
+  .system-view-container::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
   }
 
   .system-view-content {
     flex: 1;
-    overflow: hidden;
+    overflow: visible;
     display: flex;
     flex-direction: column;
+    max-width: 75ch;
+    margin: 0 auto;
+    width: 100%;
   }
 </style>

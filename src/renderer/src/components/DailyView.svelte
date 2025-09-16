@@ -103,27 +103,8 @@
 
   .timeline-container {
     flex: 1;
-    overflow: auto;
-    scrollbar-gutter: stable;
+    overflow: visible;
     padding: 0 1.5rem;
-  }
-
-  .timeline-container::-webkit-scrollbar {
-    width: 8px;
-  }
-
-  .timeline-container::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  .timeline-container::-webkit-scrollbar-thumb {
-    background: var(--scrollbar-thumb);
-    border-radius: 4px;
-    transition: background-color 0.2s ease;
-  }
-
-  .timeline-container::-webkit-scrollbar-thumb:hover {
-    background: var(--scrollbar-thumb-hover);
   }
 
   .timeline {

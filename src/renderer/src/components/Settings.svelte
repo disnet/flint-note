@@ -781,16 +781,14 @@
 <style>
   .settings {
     height: 100%;
-    max-height: 100vh;
     background: var(--bg-primary);
-    overflow: hidden;
+    overflow: visible;
   }
 
   .settings-content {
     padding: 2rem;
     padding-bottom: 4rem;
-    overflow-y: auto;
-    max-height: 100vh;
+    overflow: visible;
     min-height: 0;
   }
 
