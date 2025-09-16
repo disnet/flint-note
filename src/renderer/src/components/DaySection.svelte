@@ -46,7 +46,6 @@
     }
   }
 
-
   function handleDayTitleClick(): void {
     if (dayData.dailyNote?.id) {
       onNoteClick?.(dayData.dailyNote.id);
@@ -77,9 +76,7 @@
     <!-- Daily Note Editor -->
     <div class="daily-note-section">
       <DailyNoteEditor
-        dailyNote={dayData.dailyNote}
         content={dayData.dailyNote?.content || ''}
-        date={dayData.date}
         onContentChange={handleDailyNoteContentChange}
       />
     </div>

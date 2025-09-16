@@ -8,7 +8,7 @@
     wikilinksExtension,
     type WikilinkClickHandler
   } from '../lib/wikilinks.svelte.js';
-  import { dropCursor, keymap } from '@codemirror/view';
+  import { dropCursor, keymap, placeholder } from '@codemirror/view';
   import { indentOnInput } from '@codemirror/language';
   import {
     defaultKeymap,
@@ -19,21 +19,17 @@
   import { highlightSelectionMatches, searchKeymap } from '@codemirror/search';
   import { markdownListStyling, listStylingTheme } from '../lib/markdownListStyling';
   import { onMount } from 'svelte';
-  import type { DailyNote } from '../stores/dailyViewStore.svelte';
 
   interface Props {
-    dailyNote: DailyNote | null;
     content: string;
-    date: string;
     onContentChange?: (content: string) => void;
   }
 
-  let { dailyNote, content: initialContent, onContentChange }: Props = $props();
+  let { content: initialContent, onContentChange }: Props = $props();
 
   let editorElement: HTMLDivElement;
   let editorView: EditorView | null = null;
   let content = $state(initialContent || '');
-  let showPlaceholder = $derived(!dailyNote && !content.trim());
 
   // Compartments for dynamic reconfiguration
   const themeCompartment = new Compartment();
@@ -70,7 +66,8 @@
   });
 
   // Placeholder extension for empty daily notes
-  const placeholderExtension = EditorView.theme({
+  const placeholderExtension = placeholder('Start typing to create entry...');
+  const placeholderTheme = EditorView.theme({
     '.cm-placeholder': {
       color: 'var(--text-secondary)',
       fontStyle: 'italic',
@@ -116,7 +113,7 @@
 
   // Create editor extensions
   function createExtensions(): Extension[] {
-    const extensions = [
+    return [
       minimalSetup,
       markdown(),
       wikilinksExtension(handleWikilinkClick),
@@ -124,6 +121,7 @@
       listStylingTheme,
       dailyNoteTheme,
       placeholderExtension,
+      placeholderTheme,
 
       // Theme compartment
       themeCompartment.of(isDarkMode ? githubDark : githubLight),
@@ -146,26 +144,6 @@
         }
       })
     ];
-
-    // Add placeholder if no daily note exists
-    if (showPlaceholder) {
-      extensions.push(
-        EditorView.theme({
-          '.cm-content': {
-            '&::before': {
-              content: '"Start typing to create entry..."',
-              color: 'var(--text-secondary)',
-              fontStyle: 'italic',
-              opacity: '0.7',
-              position: 'absolute',
-              pointerEvents: 'none'
-            }
-          }
-        })
-      );
-    }
-
-    return extensions;
   }
 
   // Initialize the editor
@@ -211,25 +189,6 @@
     // Remove template initialization - start with blank content
   });
 
-  // Reconfigure editor when placeholder state changes
-  $effect(() => {
-    if (editorView) {
-      // Recreate the editor view with new extensions when placeholder state changes
-      const currentContent = editorView.state.doc.toString();
-      editorView.destroy();
-
-      const state = EditorState.create({
-        doc: currentContent,
-        extensions: createExtensions()
-      });
-
-      editorView = new EditorView({
-        state,
-        parent: editorElement
-      });
-    }
-  });
-
   // Update theme when system theme changes
   $effect(() => {
     if (editorView) {
@@ -265,26 +224,7 @@
 </script>
 
 <div class="daily-note-editor">
-  <div 
-    class="editor-container" 
-    class:has-placeholder={showPlaceholder}
-    onclick={() => editorView?.focus()}
-    onkeydown={(e) => {
-      // Only handle key events when placeholder is shown and not coming from CodeMirror
-      if (showPlaceholder && e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
-        e.preventDefault();
-        editorView?.focus();
-      }
-    }}
-    role={showPlaceholder ? "button" : undefined}
-    tabindex={showPlaceholder ? 0 : -1}
-    aria-label={showPlaceholder ? "Click to start typing in daily note" : undefined}
-  >
-    {#if showPlaceholder}
-      <div class="placeholder-text">
-        Start typing to create entry...
-      </div>
-    {/if}
+  <div class="editor-container">
     <div bind:this={editorElement} class="codemirror-editor"></div>
   </div>
 </div>
@@ -303,48 +243,6 @@
     overflow: hidden;
     min-height: 100px;
     cursor: text;
-  }
-
-
-  .editor-container.has-placeholder {
-    display: flex;
-    align-items: flex-start;
-    justify-content: flex-start;
-    padding: 0.25rem;
-  }
-
-  .placeholder-text {
-    color: var(--text-secondary);
-    font-style: italic;
-    opacity: 0.7;
-    font-family:
-      'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace;
-    line-height: 1.6;
-    pointer-events: none;
-    user-select: none;
-  }
-
-  .editor-container.has-placeholder .codemirror-editor {
-    position: relative;
-    z-index: 1;
-  }
-
-  .editor-container.has-placeholder .codemirror-editor :global(.cm-content) {
-    color: transparent;
-  }
-
-  .editor-container.has-placeholder .codemirror-editor :global(.cm-cursor) {
-    border-color: var(--text-primary) !important;
-    opacity: 1 !important;
-  }
-
-  .placeholder-text {
-    position: absolute;
-    top: 0.25rem;
-    left: 0.25rem;
-    z-index: 0;
-    pointer-events: none;
-    user-select: none;
   }
 
   .codemirror-editor {
