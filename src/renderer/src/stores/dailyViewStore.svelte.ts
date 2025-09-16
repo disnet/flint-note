@@ -6,6 +6,7 @@ export interface DailyNote extends NoteMetadata {
   type: 'daily';
   date: string; // ISO date string
   autoCreated: boolean; // Track if auto-generated
+  content?: string; // Note content
 }
 
 // Interface for API note type
@@ -295,7 +296,8 @@ class DailyViewStore {
       size: apiNote.size || 0,
       tags: [],
       date: (apiNote.metadata?.date as string) || apiNote.title,
-      autoCreated: (apiNote.metadata?.autoCreated as boolean) || false
+      autoCreated: (apiNote.metadata?.autoCreated as boolean) || false,
+      content: apiNote.content
     };
   }
 

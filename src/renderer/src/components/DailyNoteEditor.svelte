@@ -1,62 +1,185 @@
 <script lang="ts">
+  import { EditorView, minimalSetup } from 'codemirror';
+  import { EditorState, Compartment, type Extension } from '@codemirror/state';
+  import { markdown } from '@codemirror/lang-markdown';
+  import { githubLight } from '@fsegurai/codemirror-theme-github-light';
+  import { githubDark } from '@fsegurai/codemirror-theme-github-dark';
+  import {
+    wikilinksExtension,
+    type WikilinkClickHandler
+  } from '../lib/wikilinks.svelte.js';
+  import { dropCursor, keymap } from '@codemirror/view';
+  import { indentOnInput } from '@codemirror/language';
+  import {
+    defaultKeymap,
+    history,
+    historyKeymap,
+    indentWithTab
+  } from '@codemirror/commands';
+  import { highlightSelectionMatches, searchKeymap } from '@codemirror/search';
+  import { markdownListStyling, listStylingTheme } from '../lib/markdownListStyling';
+  import { onMount } from 'svelte';
   import type { DailyNote } from '../stores/dailyViewStore.svelte';
 
   interface Props {
     dailyNote: DailyNote | null;
+    content: string;
     date: string;
     onContentChange?: (content: string) => void;
   }
 
-  let { dailyNote, date, onContentChange }: Props = $props();
+  let { dailyNote, content: initialContent, date, onContentChange }: Props = $props();
 
-  // Mock content for Phase 0
-  let content = $state('');
+  let editorElement: HTMLDivElement;
+  let editorView: EditorView | null = null;
+  let content = $state(initialContent || '');
+
+  // Compartments for dynamic reconfiguration
+  const themeCompartment = new Compartment();
 
   // Debounced content change handler
   let debounceTimeout: ReturnType<typeof setTimeout> | null = null;
 
-  function handleInput(event: Event): void {
-    const target = event.target as HTMLTextAreaElement;
-    content = target.value;
+  // Wikilink click handler - for now just log, can be enhanced later
+  const handleWikilinkClick: WikilinkClickHandler = (
+    noteId: string,
+    title: string,
+    shouldCreate?: boolean
+  ): void => {
+    console.log('Daily note wikilink clicked:', { noteId, title, shouldCreate });
+    // Could integrate with navigation here in the future
+  };
 
-    // Debounce the content change callback
+  function debounceContentChange(newContent: string): void {
     if (debounceTimeout) {
       clearTimeout(debounceTimeout);
     }
 
     debounceTimeout = setTimeout(() => {
-      onContentChange?.(content);
+      onContentChange?.(newContent);
     }, 500); // 500ms debounce
   }
 
-  function handleKeyDown(event: KeyboardEvent): void {
-    // Allow Tab key to insert tab character
-    if (event.key === 'Tab') {
-      event.preventDefault();
-      const target = event.target as HTMLTextAreaElement;
-      const start = target.selectionStart;
-      const end = target.selectionEnd;
-
-      // Insert tab character
-      const newValue = content.substring(0, start) + '\t' + content.substring(end);
-      content = newValue;
-
-      // Restore cursor position
-      setTimeout(() => {
-        target.setSelectionRange(start + 1, start + 1);
-      }, 0);
-
-      // Trigger content change
-      onContentChange?.(content);
+  // Auto-detect dark mode preference
+  let isDarkMode = $derived.by(() => {
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
     }
+    return false;
+  });
+
+  // Create theme extension for daily note editor styling
+  const dailyNoteTheme = EditorView.theme({
+    '&': {
+      height: '100%',
+      fontFamily:
+        "'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace",
+      fontSize: '0.875rem',
+      lineHeight: '1.6',
+      width: '100%'
+    },
+    '&.cm-editor': {
+      backgroundColor: 'var(--bg-primary)',
+      border: 'none',
+      borderRadius: '0.375rem'
+    },
+    '.cm-scroller': {
+      width: '100%',
+      scrollbarWidth: 'thin',
+      scrollbarColor: 'rgba(0, 0, 0, 0.2) transparent',
+      minHeight: '200px',
+      padding: '1rem',
+      fontFamily: 'inherit'
+    },
+    '&.cm-focused': {
+      outline: 'none',
+      boxShadow: 'none !important'
+    },
+    '.cm-content': {
+      fontFamily: 'inherit',
+      padding: '0'
+    },
+    '.cm-line': {
+      lineHeight: '1.6'
+    }
+  });
+
+  // Create editor extensions
+  function createExtensions(): Extension[] {
+    return [
+      minimalSetup,
+      markdown(),
+      wikilinksExtension(handleWikilinkClick),
+      markdownListStyling,
+      listStylingTheme,
+      dailyNoteTheme,
+
+      // Theme compartment
+      themeCompartment.of(isDarkMode ? githubDark : githubLight),
+
+      // Editor features
+      history(),
+      dropCursor(),
+      indentOnInput(),
+      highlightSelectionMatches(),
+
+      // Keymaps
+      keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap, indentWithTab]),
+
+      // Update listener with debouncing
+      EditorView.updateListener.of((update) => {
+        if (update.docChanged) {
+          const newContent = update.state.doc.toString();
+          content = newContent;
+          debounceContentChange(newContent);
+        }
+      })
+    ];
   }
 
-  // Initialize with mock content for demonstration
+  // Initialize the editor
+  onMount(() => {
+    if (!editorElement) return;
+
+    const state = EditorState.create({
+      doc: content,
+      extensions: createExtensions()
+    });
+
+    editorView = new EditorView({
+      state,
+      parent: editorElement
+    });
+
+    return () => {
+      if (editorView) {
+        editorView.destroy();
+        editorView = null;
+      }
+      if (debounceTimeout) {
+        clearTimeout(debounceTimeout);
+      }
+    };
+  });
+
+  // Update editor content when initialContent changes
   $effect(() => {
-    if (dailyNote && content === '') {
-      // Mock content for Phase 0 - different content for different days
+    if (initialContent && editorView) {
+      const currentDoc = editorView.state.doc.toString();
+      if (currentDoc !== initialContent) {
+        content = initialContent;
+        editorView.dispatch({
+          changes: {
+            from: 0,
+            to: editorView.state.doc.length,
+            insert: initialContent
+          }
+        });
+      }
+    } else if (!initialContent && content === '' && !dailyNote) {
+      // Initialize with appropriate daily note template
       const dayOfWeek = new Date(date).getDay();
-      const mockContents = [
+      const templates = [
         "# Daily Reflection\n\n## What I accomplished today\n- \n\n## What I learned\n- \n\n## Tomorrow's priorities\n- ",
         "# Monday Planning\n\n## Week goals\n- \n\n## Today's tasks\n- [ ] \n- [ ] \n\n## Notes\n",
         '# Tuesday Progress\n\n## Completed\n- \n\n## In progress\n- \n\n## Blockers\n- ',
@@ -66,9 +189,53 @@
         '# Weekend Planning\n\n## Personal projects\n- \n\n## Learning goals\n- \n\n## Reflection\n- '
       ];
 
-      content = mockContents[dayOfWeek] || mockContents[0];
+      const templateContent = templates[dayOfWeek] || templates[0];
+      content = templateContent;
+
+      if (editorView) {
+        editorView.dispatch({
+          changes: {
+            from: 0,
+            to: editorView.state.doc.length,
+            insert: templateContent
+          }
+        });
+      }
     }
   });
+
+  // Update theme when system theme changes
+  $effect(() => {
+    if (editorView) {
+      editorView.dispatch({
+        effects: themeCompartment.reconfigure(isDarkMode ? githubDark : githubLight)
+      });
+    }
+  });
+
+  // Public methods for external control
+  export function focus(): void {
+    if (editorView) {
+      editorView.focus();
+    }
+  }
+
+  export function getContent(): string {
+    return content;
+  }
+
+  export function setContent(newContent: string): void {
+    content = newContent;
+    if (editorView) {
+      editorView.dispatch({
+        changes: {
+          from: 0,
+          to: editorView.state.doc.length,
+          insert: newContent
+        }
+      });
+    }
+  }
 </script>
 
 <div class="daily-note-editor">
@@ -78,15 +245,7 @@
   </div>
 
   <div class="editor-container">
-    <textarea
-      id="daily-note-{date}"
-      class="editor-textarea"
-      bind:value={content}
-      oninput={handleInput}
-      onkeydown={handleKeyDown}
-      placeholder="Start writing your daily note..."
-      rows="8"
-    ></textarea>
+    <div bind:this={editorElement} class="codemirror-editor"></div>
   </div>
 </div>
 
@@ -123,6 +282,7 @@
     border-radius: 0.375rem;
     background: var(--bg-primary);
     transition: border-color 0.2s ease;
+    overflow: hidden;
   }
 
   .editor-container:focus-within {
@@ -130,44 +290,52 @@
     box-shadow: 0 0 0 1px var(--accent-primary);
   }
 
-  .editor-textarea {
+  .codemirror-editor {
     width: 100%;
     min-height: 200px;
-    padding: 1rem;
-    border: none;
-    border-radius: 0.375rem;
-    background: transparent;
-    color: var(--text-primary);
-    font-family: var(--font-mono, 'Consolas', 'Monaco', monospace);
-    font-size: 0.875rem;
-    line-height: 1.6;
-    resize: vertical;
-    outline: none;
-    white-space: pre-wrap;
-    word-wrap: break-word;
-    tab-size: 2;
   }
 
-  .editor-textarea::placeholder {
-    color: var(--text-tertiary);
-    font-style: italic;
+  /* Override CodeMirror styles for daily note editor */
+  .daily-note-editor :global(.cm-editor) {
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
   }
 
-  .editor-textarea::-webkit-scrollbar {
+  .daily-note-editor :global(.cm-focused) {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+
+  .daily-note-editor :global(.cm-scroller) {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+  }
+
+  .daily-note-editor :global(.cm-scroller::-webkit-scrollbar) {
     width: 8px;
   }
 
-  .editor-textarea::-webkit-scrollbar-track {
+  .daily-note-editor :global(.cm-scroller::-webkit-scrollbar-track) {
     background: transparent;
   }
 
-  .editor-textarea::-webkit-scrollbar-thumb {
+  .daily-note-editor :global(.cm-scroller::-webkit-scrollbar-thumb) {
     background: var(--scrollbar-thumb);
     border-radius: 4px;
   }
 
-  .editor-textarea::-webkit-scrollbar-thumb:hover {
+  .daily-note-editor :global(.cm-scroller::-webkit-scrollbar-thumb:hover) {
     background: var(--scrollbar-thumb-hover);
+  }
+
+  /* Ensure proper text coloring based on theme */
+  .daily-note-editor :global(.cm-content) {
+    color: var(--text-primary);
+  }
+
+  .daily-note-editor :global(.cm-cursor) {
+    border-color: var(--text-primary);
   }
 
   /* Mobile responsive */
@@ -178,9 +346,12 @@
       gap: 0.25rem;
     }
 
-    .editor-textarea {
-      font-size: 1rem; /* Larger font on mobile for better readability */
+    .codemirror-editor {
       min-height: 150px;
+    }
+
+    .daily-note-editor :global(.cm-editor) {
+      font-size: 1rem !important; /* Larger font on mobile for better readability */
     }
   }
 </style>

@@ -57,6 +57,7 @@
     <div class="daily-note-section">
       <DailyNoteEditor
         dailyNote={dayData.dailyNote}
+        content={dayData.dailyNote?.content || ''}
         date={dayData.date}
         onContentChange={handleDailyNoteContentChange}
       />
