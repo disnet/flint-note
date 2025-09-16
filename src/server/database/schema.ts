@@ -280,6 +280,13 @@ export class DatabaseManager {
     await connection.run(
       'CREATE INDEX IF NOT EXISTS idx_notes_created ON notes(created)'
     );
+    // Additional indexes for daily view date queries
+    await connection.run(
+      'CREATE INDEX IF NOT EXISTS idx_notes_type_created ON notes(type, created)'
+    );
+    await connection.run(
+      'CREATE INDEX IF NOT EXISTS idx_notes_type_updated ON notes(type, updated)'
+    );
     await connection.run(
       'CREATE INDEX IF NOT EXISTS idx_metadata_key ON note_metadata(key)'
     );

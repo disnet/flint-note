@@ -1,6 +1,7 @@
 <script lang="ts">
   import NoteEditor from './NoteEditor.svelte';
   import NotesView from './NotesView.svelte';
+  import DailyView from './DailyView.svelte';
   import Settings from './Settings.svelte';
   import SlashCommands from './SlashCommands.svelte';
   import CustomFunctionsManager from './custom-functions/CustomFunctionsManager.svelte';
@@ -13,7 +14,13 @@
 
   interface Props {
     activeNote: NoteMetadata | null;
-    activeSystemView: 'notes' | 'settings' | 'slash-commands' | 'custom-functions' | null;
+    activeSystemView:
+      | 'daily'
+      | 'notes'
+      | 'settings'
+      | 'slash-commands'
+      | 'custom-functions'
+      | null;
     noteTypes: NoteType[];
     onClose: () => void;
     onNoteSelect: (note: NoteMetadata) => void;
@@ -124,7 +131,13 @@
 </script>
 
 <div class="main-view">
-  {#if activeSystemView === 'notes'}
+  {#if activeSystemView === 'daily'}
+    <div class="system-view-container">
+      <div class="system-view-content">
+        <DailyView {onNoteSelect} />
+      </div>
+    </div>
+  {:else if activeSystemView === 'notes'}
     <div class="system-view-container">
       <div class="system-view-content">
         <NotesView {onNoteSelect} {onCreateNote} />
