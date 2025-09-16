@@ -1138,6 +1138,185 @@ export class FlintNoteApi {
     return await relationshipManager.getClusteringCoefficient(noteId);
   }
 
+  // Daily View API Methods (Phase 1)
+
+  /**
+   * Get or create a daily note for a specific date
+   */
+  async getOrCreateDailyNote(date: string, vaultId: string): Promise<Note> {
+    this.ensureInitialized();
+    const { noteManager } = await this.getVaultContext(vaultId);
+
+    // Use the date as the identifier (YYYY-MM-DD)
+    const identifier = `daily/${date}`;
+
+    try {
+      // Try to get existing daily note
+      return await noteManager.getNote(identifier);
+    } catch {
+      // If note doesn't exist, create it
+      await noteManager.createNote(
+        'daily',
+        date,
+        `# ${date}\n\n`,
+        {
+          date: date,
+          autoCreated: true
+        },
+        false // Don't enforce required fields for daily notes
+      );
+
+      // Return the full note
+      return await noteManager.getNote(identifier);
+    }
+  }
+
+  /**
+   * Get week data with daily notes and note aggregation
+   */
+  async getWeekData(
+    startDate: string,
+    vaultId: string
+  ): Promise<{
+    startDate: string;
+    endDate: string;
+    days: Array<{
+      date: string;
+      dailyNote: Note | null;
+      createdNotes: Array<{ id: string; title: string; type: string }>;
+      modifiedNotes: Array<{ id: string; title: string; type: string }>;
+      totalActivity: number;
+    }>;
+  }> {
+    this.ensureInitialized();
+    const { hybridSearchManager } = await this.getVaultContext(vaultId);
+    const db = await hybridSearchManager.getDatabaseConnection();
+
+    // Calculate end date (6 days after start date)
+    const start = new Date(startDate);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    const endDate = end.toISOString().split('T')[0];
+
+    const days: Array<{
+      date: string;
+      dailyNote: Note | null;
+      createdNotes: Array<{ id: string; title: string; type: string }>;
+      modifiedNotes: Array<{ id: string; title: string; type: string }>;
+      totalActivity: number;
+    }> = [];
+
+    // Generate data for each day in the week
+    for (let i = 0; i < 7; i++) {
+      const currentDate = new Date(start);
+      currentDate.setDate(start.getDate() + i);
+      const dateStr = currentDate.toISOString().split('T')[0];
+
+      // Get or create daily note
+      let dailyNote: Note | null = null;
+      try {
+        dailyNote = await this.getOrCreateDailyNote(dateStr, vaultId);
+      } catch (error) {
+        console.warn(`Failed to get/create daily note for ${dateStr}:`, error);
+      }
+
+      // Get notes created on this date
+      const createdNotes = await db.all<{ id: string; title: string; type: string }>(
+        `SELECT id, title, type FROM notes 
+         WHERE DATE(created) = ? AND type != 'daily'
+         ORDER BY created DESC`,
+        [dateStr]
+      );
+
+      // Get notes modified on this date (excluding those already in created)
+      const modifiedNotes = await db.all<{ id: string; title: string; type: string }>(
+        `SELECT id, title, type FROM notes 
+         WHERE DATE(updated) = ? AND DATE(created) != ? AND type != 'daily'
+         ORDER BY updated DESC`,
+        [dateStr, dateStr]
+      );
+
+      days.push({
+        date: dateStr,
+        dailyNote,
+        createdNotes,
+        modifiedNotes,
+        totalActivity: createdNotes.length + modifiedNotes.length
+      });
+    }
+
+    return {
+      startDate,
+      endDate,
+      days
+    };
+  }
+
+  /**
+   * Get notes created or modified on a specific date
+   */
+  async getNotesByDate(
+    date: string,
+    vaultId: string
+  ): Promise<{
+    created: Array<{ id: string; title: string; type: string; created: string }>;
+    modified: Array<{ id: string; title: string; type: string; updated: string }>;
+  }> {
+    this.ensureInitialized();
+    const { hybridSearchManager } = await this.getVaultContext(vaultId);
+    const db = await hybridSearchManager.getDatabaseConnection();
+
+    // Get notes created on this date
+    const created = await db.all<{
+      id: string;
+      title: string;
+      type: string;
+      created: string;
+    }>(
+      `SELECT id, title, type, created FROM notes 
+       WHERE DATE(created) = ? AND type != 'daily'
+       ORDER BY created DESC`,
+      [date]
+    );
+
+    // Get notes modified on this date (excluding those created on the same date)
+    const modified = await db.all<{
+      id: string;
+      title: string;
+      type: string;
+      updated: string;
+    }>(
+      `SELECT id, title, type, updated FROM notes 
+       WHERE DATE(updated) = ? AND DATE(created) != ? AND type != 'daily'
+       ORDER BY updated DESC`,
+      [date, date]
+    );
+
+    return { created, modified };
+  }
+
+  /**
+   * Update a daily note's content
+   */
+  async updateDailyNote(
+    date: string,
+    content: string,
+    vaultId: string
+  ): Promise<UpdateResult> {
+    this.ensureInitialized();
+
+    // First ensure the daily note exists
+    const dailyNote = await this.getOrCreateDailyNote(date, vaultId);
+
+    // Update the note content
+    return await this.updateNote({
+      identifier: `daily/${date}`,
+      content,
+      contentHash: dailyNote.content_hash,
+      vaultId
+    });
+  }
+
   /**
    * Cleanup resources and close database connections
    * Call this when the API instance is no longer needed

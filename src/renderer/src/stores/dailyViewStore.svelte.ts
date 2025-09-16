@@ -1,18 +1,47 @@
 import type { NoteMetadata } from '../services/noteStore.svelte';
-import {
-  type WeekRange,
-  getCurrentWeek,
-  getPreviousWeek,
-  getNextWeek,
-  getWeekDays,
-  formatISODate
-} from '../utils/dateUtils.svelte';
+import { getCurrentWeek, getPreviousWeek, getNextWeek } from '../utils/dateUtils.svelte';
 
 // Types for daily view data structures
 export interface DailyNote extends NoteMetadata {
   type: 'daily';
   date: string; // ISO date string
   autoCreated: boolean; // Track if auto-generated
+}
+
+// Interface for API note type
+interface ApiNote {
+  id: string;
+  title: string;
+  filename: string;
+  path: string;
+  content: string;
+  created: string;
+  updated: string;
+  size?: number;
+  content_hash: string;
+  metadata?: Record<string, unknown>;
+}
+
+// Interface for the daily view specific API methods
+interface DailyViewApi {
+  getCurrentVault: () => Promise<{ id: string; name: string; path: string } | null>;
+  getWeekData: (params: { startDate: string; vaultId: string }) => Promise<{
+    startDate: string;
+    endDate: string;
+    days: Array<{
+      date: string;
+      dailyNote: ApiNote | null;
+      createdNotes: Array<{ id: string; title: string; type: string }>;
+      modifiedNotes: Array<{ id: string; title: string; type: string }>;
+      totalActivity: number;
+    }>;
+  }>;
+  getOrCreateDailyNote: (params: { date: string; vaultId: string }) => Promise<ApiNote>;
+  updateDailyNote: (params: {
+    date: string;
+    content: string;
+    vaultId: string;
+  }) => Promise<{ success: boolean }>;
 }
 
 export interface DayData {
@@ -79,16 +108,45 @@ class DailyViewStore {
 
   /**
    * Load week data for a specific start date
-   * Currently uses mock data for Phase 0
+   * Phase 1: Uses real IPC APIs
    */
   async loadWeek(startDate: string, vaultId?: string): Promise<void> {
     this.state.isLoading = true;
 
     try {
-      // For Phase 0, generate mock week data
-      const weekData = this.generateMockWeekData(startDate);
+      // Get current vault if vaultId not provided
+      const currentVaultId = vaultId || (await this.getCurrentVaultId());
+      if (!currentVaultId) {
+        throw new Error('No vault available');
+      }
+
+      // Load real week data via IPC
+      const apiWeekData = await (
+        window as unknown as { api?: DailyViewApi }
+      ).api?.getWeekData({
+        startDate,
+        vaultId: currentVaultId
+      });
+
+      if (!apiWeekData) {
+        throw new Error('Failed to load week data');
+      }
+
+      // Convert API response to our format
+      const weekData: WeekData = {
+        startDate: apiWeekData.startDate,
+        endDate: apiWeekData.endDate,
+        days: apiWeekData.days.map((day) => ({
+          date: day.date,
+          dailyNote: day.dailyNote ? this.convertApiNoteToDailyNote(day.dailyNote) : null,
+          createdNotes: day.createdNotes.map(this.convertApiNoteToMetadata),
+          modifiedNotes: day.modifiedNotes.map(this.convertApiNoteToMetadata),
+          totalActivity: day.totalActivity
+        }))
+      };
+
       this.state.currentWeek = weekData;
-      this.state.currentVaultId = vaultId || null;
+      this.state.currentVaultId = currentVaultId;
 
       // Add to navigation history
       if (!this.state.navigationHistory.includes(startDate)) {
@@ -147,26 +205,29 @@ class DailyViewStore {
 
   /**
    * Get or create daily note for a specific date
-   * Phase 0: Returns mock data
+   * Phase 1: Uses real IPC APIs
    */
   async getOrCreateDailyNote(date: string): Promise<DailyNote | null> {
     try {
-      // Phase 0: Return mock daily note
-      const mockDailyNote: DailyNote = {
-        id: `daily-${date}`,
-        title: date,
-        filename: `${date}.md`,
-        path: `/daily/${date}.md`,
-        type: 'daily',
-        created: new Date(date).toISOString(),
-        modified: new Date().toISOString(),
-        size: 0,
-        tags: [],
-        date,
-        autoCreated: true
-      };
+      // Get current vault
+      const currentVaultId = await this.getCurrentVaultId();
+      if (!currentVaultId) {
+        throw new Error('No vault available');
+      }
 
-      return mockDailyNote;
+      // Get or create daily note via IPC
+      const apiNote = await (
+        window as unknown as { api?: DailyViewApi }
+      ).api?.getOrCreateDailyNote({
+        date,
+        vaultId: currentVaultId
+      });
+
+      if (!apiNote) {
+        throw new Error('Failed to get/create daily note');
+      }
+
+      return this.convertApiNoteToDailyNote(apiNote);
     } catch (error) {
       console.error('Failed to get/create daily note:', error);
       return null;
@@ -175,11 +236,22 @@ class DailyViewStore {
 
   /**
    * Update daily note content
-   * Phase 0: Mock implementation
+   * Phase 1: Uses real IPC APIs
    */
   async updateDailyNote(date: string, content: string): Promise<void> {
     try {
-      console.log(`Mock: Updating daily note for ${date} with content:`, content);
+      // Get current vault
+      const currentVaultId = await this.getCurrentVaultId();
+      if (!currentVaultId) {
+        throw new Error('No vault available');
+      }
+
+      // Update daily note via IPC
+      await (window as unknown as { api?: DailyViewApi }).api?.updateDailyNote({
+        date,
+        content,
+        vaultId: currentVaultId
+      });
 
       // Refresh current week data to reflect changes
       if (this.state.currentWeek) {
@@ -194,87 +266,57 @@ class DailyViewStore {
   }
 
   /**
-   * Generate mock week data for Phase 0 development
+   * Get current vault ID
    */
-  private generateMockWeekData(startDate: string): WeekData {
-    const weekRange: WeekRange = {
-      startDate,
-      endDate: '', // Will be calculated
-      year: new Date(startDate).getFullYear(),
-      weekNumber: 1
-    };
+  private async getCurrentVaultId(): Promise<string | null> {
+    try {
+      const currentVault = await (
+        window as unknown as { api?: DailyViewApi }
+      ).api?.getCurrentVault();
+      return currentVault?.id || null;
+    } catch (error) {
+      console.error('Failed to get current vault:', error);
+      return null;
+    }
+  }
 
-    // Calculate end date (6 days later)
-    const start = new Date(startDate);
-    const end = new Date(start);
-    end.setDate(start.getDate() + 6);
-    weekRange.endDate = formatISODate(end);
-
-    const weekDays = getWeekDays(weekRange);
-
-    const days: DayData[] = weekDays.map((dateString, index) => {
-      // Generate mock data for each day
-      const mockCreatedNotes: NoteMetadata[] = [];
-      const mockModifiedNotes: NoteMetadata[] = [];
-
-      // Add some mock notes for demonstration
-      if (index % 2 === 0) {
-        // Every other day has activity
-        mockCreatedNotes.push({
-          id: `note-created-${dateString}-1`,
-          title: 'Project Planning',
-          filename: 'project-planning.md',
-          path: '/notes/project-planning.md',
-          type: 'note',
-          created: new Date(dateString).toISOString(),
-          modified: new Date(dateString).toISOString(),
-          size: 1500,
-          tags: ['planning', 'project']
-        });
-
-        if (index < 4) {
-          // First few days have more activity
-          mockModifiedNotes.push({
-            id: `note-modified-${dateString}-1`,
-            title: 'Research Notes',
-            filename: 'research-notes.md',
-            path: '/notes/research-notes.md',
-            type: 'note',
-            created: new Date(Date.now() - 86400000 * 3).toISOString(), // 3 days ago
-            modified: new Date(dateString).toISOString(),
-            size: 2300,
-            tags: ['research']
-          });
-        }
-      }
-
-      const mockDailyNote: DailyNote = {
-        id: `daily-${dateString}`,
-        title: dateString,
-        filename: `${dateString}.md`,
-        path: `/daily/${dateString}.md`,
-        type: 'daily',
-        created: new Date(dateString).toISOString(),
-        modified: new Date(dateString).toISOString(),
-        size: 0,
-        tags: [],
-        date: dateString,
-        autoCreated: true
-      };
-
-      return {
-        date: dateString,
-        dailyNote: mockDailyNote,
-        createdNotes: mockCreatedNotes,
-        modifiedNotes: mockModifiedNotes,
-        totalActivity: mockCreatedNotes.length + mockModifiedNotes.length
-      };
-    });
-
+  /**
+   * Convert API note to DailyNote
+   */
+  private convertApiNoteToDailyNote(apiNote: ApiNote): DailyNote {
     return {
-      startDate: weekRange.startDate,
-      endDate: weekRange.endDate,
-      days
+      id: apiNote.id,
+      title: apiNote.title,
+      filename: apiNote.filename,
+      path: apiNote.path,
+      type: 'daily',
+      created: apiNote.created,
+      modified: apiNote.updated,
+      size: apiNote.size || 0,
+      tags: [],
+      date: (apiNote.metadata?.date as string) || apiNote.title,
+      autoCreated: (apiNote.metadata?.autoCreated as boolean) || false
+    };
+  }
+
+  /**
+   * Convert API note to NoteMetadata
+   */
+  private convertApiNoteToMetadata(apiNote: {
+    id: string;
+    title: string;
+    type: string;
+  }): NoteMetadata {
+    return {
+      id: apiNote.id,
+      title: apiNote.title,
+      filename: `${apiNote.title}.md`,
+      path: `/${apiNote.type}/${apiNote.title}.md`,
+      type: apiNote.type,
+      created: new Date().toISOString(), // API doesn't provide these in the simple format
+      modified: new Date().toISOString(),
+      size: 0,
+      tags: []
     };
   }
 }

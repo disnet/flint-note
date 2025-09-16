@@ -527,6 +527,50 @@ export class NoteService {
     });
   }
 
+  // Daily View operations
+  async getOrCreateDailyNote(date: string, vaultId: string): Promise<Note> {
+    this.ensureInitialized();
+    return await this.api.getOrCreateDailyNote(date, vaultId);
+  }
+
+  async getWeekData(
+    startDate: string,
+    vaultId: string
+  ): Promise<{
+    startDate: string;
+    endDate: string;
+    days: Array<{
+      date: string;
+      dailyNote: Note | null;
+      createdNotes: Array<{ id: string; title: string; type: string }>;
+      modifiedNotes: Array<{ id: string; title: string; type: string }>;
+      totalActivity: number;
+    }>;
+  }> {
+    this.ensureInitialized();
+    return await this.api.getWeekData(startDate, vaultId);
+  }
+
+  async getNotesByDate(
+    date: string,
+    vaultId: string
+  ): Promise<{
+    created: Array<{ id: string; title: string; type: string; created: string }>;
+    modified: Array<{ id: string; title: string; type: string; updated: string }>;
+  }> {
+    this.ensureInitialized();
+    return await this.api.getNotesByDate(date, vaultId);
+  }
+
+  async updateDailyNote(
+    date: string,
+    content: string,
+    vaultId: string
+  ): Promise<UpdateResult> {
+    this.ensureInitialized();
+    return await this.api.updateDailyNote(date, content, vaultId);
+  }
+
   // Utility methods
   isReady(): boolean {
     return this.isInitialized;

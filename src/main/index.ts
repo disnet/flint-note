@@ -1537,6 +1537,75 @@ app.whenReady().then(async () => {
     }
   );
 
+  // Daily View IPC handlers
+  ipcMain.handle(
+    'get-or-create-daily-note',
+    async (_event, params: { date: string; vaultId: string }) => {
+      if (!noteService) {
+        throw new Error('Note service not available');
+      }
+      try {
+        await noteService.initialize();
+        return await noteService.getOrCreateDailyNote(params.date, params.vaultId);
+      } catch (error) {
+        logger.error('Failed to get/create daily note', { error, params });
+        throw error;
+      }
+    }
+  );
+
+  ipcMain.handle(
+    'get-week-data',
+    async (_event, params: { startDate: string; vaultId: string }) => {
+      if (!noteService) {
+        throw new Error('Note service not available');
+      }
+      try {
+        await noteService.initialize();
+        return await noteService.getWeekData(params.startDate, params.vaultId);
+      } catch (error) {
+        logger.error('Failed to get week data', { error, params });
+        throw error;
+      }
+    }
+  );
+
+  ipcMain.handle(
+    'get-notes-by-date',
+    async (_event, params: { date: string; vaultId: string }) => {
+      if (!noteService) {
+        throw new Error('Note service not available');
+      }
+      try {
+        await noteService.initialize();
+        return await noteService.getNotesByDate(params.date, params.vaultId);
+      } catch (error) {
+        logger.error('Failed to get notes by date', { error, params });
+        throw error;
+      }
+    }
+  );
+
+  ipcMain.handle(
+    'update-daily-note',
+    async (_event, params: { date: string; content: string; vaultId: string }) => {
+      if (!noteService) {
+        throw new Error('Note service not available');
+      }
+      try {
+        await noteService.initialize();
+        return await noteService.updateDailyNote(
+          params.date,
+          params.content,
+          params.vaultId
+        );
+      } catch (error) {
+        logger.error('Failed to update daily note', { error, params });
+        throw error;
+      }
+    }
+  );
+
   createWindow();
   logger.info('Main window created and IPC handlers registered');
 

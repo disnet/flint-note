@@ -325,7 +325,16 @@ const api = {
     electronAPI.ipcRenderer.invoke('get-custom-function-stats', params),
   exportCustomFunctions: () => electronAPI.ipcRenderer.invoke('export-custom-functions'),
   importCustomFunctions: (params: { backupData: string }) =>
-    electronAPI.ipcRenderer.invoke('import-custom-functions', params)
+    electronAPI.ipcRenderer.invoke('import-custom-functions', params),
+  // Daily View operations
+  getOrCreateDailyNote: (params: { date: string; vaultId: string }) =>
+    electronAPI.ipcRenderer.invoke('get-or-create-daily-note', params),
+  getWeekData: (params: { startDate: string; vaultId: string }) =>
+    electronAPI.ipcRenderer.invoke('get-week-data', params),
+  getNotesByDate: (params: { date: string; vaultId: string }) =>
+    electronAPI.ipcRenderer.invoke('get-notes-by-date', params),
+  updateDailyNote: (params: { date: string; content: string; vaultId: string }) =>
+    electronAPI.ipcRenderer.invoke('update-daily-note', params)
 };
 
 // Use `contextBridge` APIs to expose Electron APIs to

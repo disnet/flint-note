@@ -63,9 +63,9 @@
     </div>
 
     <!-- Notes Worked On -->
-    {#if allNotesWorkedOn().length > 0}
+    {#if allNotesWorkedOn.length > 0}
       <div class="notes-section">
-        <NotesWorkedOn notes={allNotesWorkedOn()} onNoteClick={handleNoteClick} />
+        <NotesWorkedOn notes={allNotesWorkedOn} onNoteClick={handleNoteClick} />
       </div>
     {/if}
   </div>
