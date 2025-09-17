@@ -16,19 +16,6 @@
     onNoteClick?.(noteId);
   }
 
-  function getActivityIcon(activity: string): string {
-    switch (activity) {
-      case 'created':
-        return '✨'; // Sparkles for new
-      case 'modified':
-        return '✏️'; // Pencil for edited
-      case 'created and modified':
-        return '🆕'; // New badge for both
-      default:
-        return '📝'; // Note for default
-    }
-  }
-
   function getActivityText(activity: string): string {
     switch (activity) {
       case 'created':
@@ -52,33 +39,11 @@
   <div class="notes-list">
     {#each notes as note (note.id)}
       <button
-        class="note-item"
+        class="note-link"
         onclick={() => handleNoteClick(note.id)}
-        title="Click to open {note.title}"
+        title="Click to open {note.title} ({getActivityText(note.activity)})"
       >
-        <div class="note-content">
-          <span class="activity-icon" title={getActivityText(note.activity)}>
-            {getActivityIcon(note.activity)}
-          </span>
-          <span class="note-title">[{note.title}]</span>
-          {#if note.tags && note.tags.length > 0}
-            <div class="note-tags">
-              {#each note.tags.slice(0, 3) as tag, index (index)}
-                <span class="tag">#{tag}</span>
-              {/each}
-              {#if note.tags.length > 3}
-                <span class="tag-more">+{note.tags.length - 3}</span>
-              {/if}
-            </div>
-          {/if}
-        </div>
-
-        <div class="note-meta">
-          <span class="activity-text">{getActivityText(note.activity)}</span>
-          {#if note.size}
-            <span class="note-size">{Math.round(note.size / 100) / 10}k</span>
-          {/if}
-        </div>
+        {note.title}
       </button>
     {/each}
   </div>
@@ -121,125 +86,65 @@
 
   .notes-list {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
+    flex-wrap: wrap;
     gap: 0.5rem;
+    max-height: 200px;
+    overflow-y: auto;
   }
 
-  .note-item {
-    display: flex;
+  .notes-list::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .notes-list::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .notes-list::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 3px;
+    transition: background-color 0.2s ease;
+  }
+
+  .notes-list::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+  }
+
+  .note-link {
+    display: inline-block;
     align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    padding: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-primary);
+    color: var(--accent-primary);
+    font-size: 0.875rem;
+    font-weight: 500;
     border: 1px solid var(--border-light);
     border-radius: 0.375rem;
-    background: var(--bg-primary);
-    text-align: left;
     cursor: pointer;
     transition: all 0.2s ease;
-    width: 100%;
-  }
-
-  .note-item:hover {
-    background: var(--bg-tertiary);
-    border-color: var(--accent-primary);
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  }
-
-  .note-content {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    flex: 1;
-    min-width: 0; /* Allow text truncation */
-  }
-
-  .activity-icon {
-    font-size: 1rem;
-    flex-shrink: 0;
-  }
-
-  .note-title {
-    color: var(--accent-primary);
-    font-weight: 500;
-    font-size: 0.875rem;
-    text-overflow: ellipsis;
+    text-decoration: none;
     overflow: hidden;
     white-space: nowrap;
-    flex: 1;
-    min-width: 0;
+    text-overflow: ellipsis;
+    max-width: 25ch;
   }
 
-  .note-tags {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-    flex-shrink: 0;
-  }
-
-  .tag {
-    background: var(--accent-light);
-    color: var(--accent-primary);
-    font-size: 0.625rem;
-    font-weight: 500;
-    padding: 0.125rem 0.375rem;
-    border-radius: 0.125rem;
-    white-space: nowrap;
-  }
-
-  .tag-more {
-    color: var(--text-tertiary);
-    font-size: 0.625rem;
-    font-weight: 500;
-  }
-
-  .note-meta {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    flex-shrink: 0;
-    font-size: 0.75rem;
-    color: var(--text-tertiary);
-  }
-
-  .activity-text {
-    font-weight: 500;
-  }
-
-  .note-size {
-    opacity: 0.7;
+  .note-link:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--accent-primary);
   }
 
   /* Mobile responsive */
   @media (max-width: 768px) {
-    .note-item {
-      padding: 0.5rem;
-      gap: 0.75rem;
-    }
-
-    .note-content {
-      gap: 0.5rem;
-    }
-
-    .note-tags {
-      display: none; /* Hide tags on mobile to save space */
-    }
-
-    .note-meta {
-      flex-direction: column;
-      align-items: flex-end;
-      gap: 0.125rem;
-    }
-
     .section-title {
       font-size: 0.8125rem;
     }
-  }
 
-  @media (max-width: 480px) {
-    .note-size {
-      display: none; /* Hide file size on very small screens */
+    .note-link {
+      padding: 0.375rem 0.5rem;
+      font-size: 0.8125rem;
+      max-width: 20ch;
     }
   }
 </style>

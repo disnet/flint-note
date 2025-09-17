@@ -1,5 +1,9 @@
 # Project Log
 
+## Daily View Notes Styling Update - 2025-09-17
+
+- Updated 'Notes worked on this day' styling in NotesWorkedOn component to match the compact, flexbox-based approach used for 'discussed notes' in AIAssistant component, replacing complex card layout with simple note-link buttons in horizontal wrap layout
+
 ## Daily View Focus Loss Fix - 2025-09-16
 
 - Fixed daily note editor focus loss during auto-save by implementing optimistic local state updates in dailyViewStore.updateDailyNote(), eliminating the need for full week data refresh and preventing UI re-render that caused editors to lose focus
