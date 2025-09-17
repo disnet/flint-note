@@ -42,6 +42,14 @@
     // Update the daily note content
     dailyViewStore.updateDailyNote(date, content);
   }
+
+  // Reload data when the component becomes active
+  // This ensures fresh data when navigating back to daily view
+  $effect(() => {
+    // This effect runs when the component is mounted/re-mounted
+    // and when reactive dependencies change
+    dailyViewStore.loadCurrentWeek();
+  });
 </script>
 
 <div class="daily-view">
