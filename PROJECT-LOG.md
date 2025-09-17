@@ -1,5 +1,17 @@
 # Project Log
 
+## Daily Note Editor Unified Architecture - 2025-09-17
+
+- Successfully refactored DailyNoteEditor to use shared CodeMirrorEditor component instead of duplicate implementation by extending EditorConfig with variant and placeholder props, eliminating 180+ lines of duplicate code while preserving daily-note-specific styling (placeholder text, compact layout, custom scrollbars) and maintaining backward compatibility with same API (getContent, setContent, focus methods)
+
+## NoteEditor Refactoring TODO Completion - 2025-09-17
+
+- Completed all remaining TODOs from the NoteEditor refactoring: added refreshWikilinks() and getCurrentCursorPosition() exports to CodeMirrorEditor, implemented proper cursor position saving and change handling in NoteEditor, enabling full functionality for wikilink refresh and cursor persistence across note switches
+
+## NoteEditor Component Refactoring - 2025-09-17
+
+- Successfully broke down the 1000+ line NoteEditor.svelte into reusable components and hooks: CodeMirrorEditor (pure editor), useAutoSave/useCursorPosition/useEditorTheme hooks, NoteTitle/NotePinButton/EditorHeader/ErrorBanner components, dramatically improving maintainability, testability, and reusability while maintaining all functionality
+
 ## Daily View Wikilink Navigation Fix - 2025-09-17
 
 - Fixed wikilink clicking to properly open notes in main view by restoring the event-based system where wikilinkService dispatches wikilink-navigate events and App.svelte handles them through noteNavigationService.openNote() with proper system view clearing, ensuring wikilinks from daily notes now correctly open the target note in the editor
