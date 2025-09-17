@@ -81,6 +81,7 @@ const defaultState: DailyViewState = {
 
 class DailyViewStore {
   private state = $state<DailyViewState>(defaultState);
+  private updateDebounceTimeout: number | null = null;
 
   constructor() {
     // Initialize with current week on creation
@@ -244,10 +245,71 @@ class DailyViewStore {
   }
 
   /**
-   * Update daily note content
-   * Phase 1: Uses real IPC APIs with optimistic local updates to avoid UI refresh
+   * Update daily note content with debouncing to prevent database busy errors
    */
   async updateDailyNote(date: string, content: string): Promise<void> {
+    // Clear existing timeout
+    if (this.updateDebounceTimeout) {
+      clearTimeout(this.updateDebounceTimeout);
+    }
+
+    // Update local state immediately for UI responsiveness
+    this.updateLocalDailyNote(date, content);
+
+    // Debounce the actual API call
+    this.updateDebounceTimeout = setTimeout(async () => {
+      await this.performDailyNoteUpdate(date, content);
+    }, 300) as unknown as number;
+  }
+
+  /**
+   * Update the local state optimistically
+   */
+  private updateLocalDailyNote(date: string, content: string): void {
+    if (this.state.currentWeek) {
+      const updatedWeek = { ...this.state.currentWeek };
+      updatedWeek.days = updatedWeek.days.map((day) => {
+        if (day.date === date) {
+          // If no daily note exists and we have content, create it locally
+          if (!day.dailyNote && content.trim()) {
+            return {
+              ...day,
+              dailyNote: {
+                id: `daily/${date}`,
+                title: date,
+                filename: `${date}.md`,
+                path: `/daily/${date}.md`,
+                type: 'daily',
+                created: new Date().toISOString(),
+                modified: new Date().toISOString(),
+                size: content.length,
+                tags: [],
+                date: date,
+                autoCreated: true,
+                content
+              }
+            };
+          } else if (day.dailyNote) {
+            return {
+              ...day,
+              dailyNote: {
+                ...day.dailyNote,
+                content,
+                modified: new Date().toISOString()
+              }
+            };
+          }
+        }
+        return day;
+      });
+      this.state.currentWeek = updatedWeek;
+    }
+  }
+
+  /**
+   * Perform the actual API update
+   */
+  private async performDailyNoteUpdate(date: string, content: string): Promise<void> {
     try {
       // Get current vault
       const currentVaultId = await this.getCurrentVaultId();
@@ -257,52 +319,10 @@ class DailyViewStore {
 
       // If content is empty and no note exists, don't create one
       if (!content.trim()) {
-        // Check if note exists
         const existingNote = await this.getOrCreateDailyNote(date, false);
         if (!existingNote) {
-          // No note exists and content is empty, nothing to do
           return;
         }
-      }
-
-      // Optimistically update the local state first to avoid UI refresh/focus loss
-      if (this.state.currentWeek) {
-        const updatedWeek = { ...this.state.currentWeek };
-        updatedWeek.days = updatedWeek.days.map((day) => {
-          if (day.date === date) {
-            // If no daily note exists and we have content, create it locally
-            if (!day.dailyNote && content.trim()) {
-              return {
-                ...day,
-                dailyNote: {
-                  id: `daily/${date}`,
-                  title: date,
-                  filename: `${date}.md`,
-                  path: `/daily/${date}.md`,
-                  type: 'daily',
-                  created: new Date().toISOString(),
-                  modified: new Date().toISOString(),
-                  size: content.length,
-                  tags: [],
-                  date: date,
-                  autoCreated: true,
-                  content
-                }
-              };
-            } else if (day.dailyNote) {
-              return {
-                ...day,
-                dailyNote: {
-                  ...day.dailyNote,
-                  content,
-                  modified: new Date().toISOString() // Update modified timestamp
-                }
-              };
-            }
-          }
-          return day;
-        });
-        this.state.currentWeek = updatedWeek;
       }
 
       await (window as unknown as { api?: DailyViewApi }).api?.updateDailyNote({
@@ -310,14 +330,9 @@ class DailyViewStore {
         content,
         vaultId: currentVaultId
       });
-
-      // Note: No need to refresh the entire week data since we've already updated locally
-      // This prevents UI re-render and focus loss while maintaining data consistency
     } catch (error) {
       console.error('Failed to update daily note:', error);
-
-      // If the API call failed, we should refresh to ensure consistency
-      // This is a rare case and better than always refreshing
+      // If the API call failed, refresh to ensure consistency
       if (this.state.currentWeek) {
         await this.loadWeek(
           this.state.currentWeek.startDate,

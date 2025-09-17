@@ -414,8 +414,8 @@ Rather than creating a separate `DailyNoteCodeMirrorEditor` component, we:
 
 3. **Unified Daily Note Editor**:
    ```svelte
-   <CodeMirrorEditor 
-     {content} 
+   <CodeMirrorEditor
+     {content}
      {onContentChange}
      onWikilinkClick={handleWikilinkClick}
      placeholder="Start typing to create entry..."
@@ -426,7 +426,7 @@ Rather than creating a separate `DailyNoteCodeMirrorEditor` component, we:
 ### **Code Reduction Achieved**
 
 - **DailyNoteEditor**: 230 lines → 40 lines (83% reduction)
-- **Eliminated Files**: 
+- **Eliminated Files**:
   - `DailyNoteCodeMirrorEditor.svelte` (180+ lines)
   - `dailyNoteEditorConfig.svelte.ts` (120+ lines)
 - **Total Duplicate Code Eliminated**: ~300 lines
@@ -446,18 +446,15 @@ Rather than creating a separate `DailyNoteCodeMirrorEditor` component, we:
 <CodeMirrorEditor {content} {onContentChange} />
 
 <!-- Daily note editor with custom styling -->
-<CodeMirrorEditor 
-  {content} 
+<CodeMirrorEditor
+  {content}
   {onContentChange}
   placeholder="Start your day..."
-  variant="daily-note" 
+  variant="daily-note"
 />
 
 <!-- Custom placeholder, default styling -->
-<CodeMirrorEditor 
-  {content} 
-  placeholder="Enter your thoughts..."
-/>
+<CodeMirrorEditor {content} placeholder="Enter your thoughts..." />
 ```
 
 ## Final Status: ✅ COMPLETE - Updated to Svelte 5 Patterns
