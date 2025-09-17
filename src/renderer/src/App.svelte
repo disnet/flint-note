@@ -247,7 +247,9 @@
     async function handleWikilinkNavigate(event: CustomEvent): Promise<void> {
       const { note } = event.detail;
       if (note) {
-        await noteNavigationService.openNote(note, 'wikilink', openNoteEditor);
+        await noteNavigationService.openNote(note, 'wikilink', openNoteEditor, () => {
+          activeSystemView = null;
+        });
       }
     }
 

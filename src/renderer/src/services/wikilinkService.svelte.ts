@@ -1,6 +1,5 @@
 import { getChatService } from './chatService.js';
 import { notesStore } from './noteStore.svelte';
-import { noteNavigationService } from './noteNavigationService.svelte';
 
 /**
  * Centralized service for handling wikilink click interactions.
@@ -34,15 +33,12 @@ class WikilinkService {
         const fullNote = notesStore.notes.find((n) => n.id === newNote.id);
 
         if (fullNote) {
-          // Use the note navigation service for consistent navigation behavior
-          noteNavigationService.openNote(fullNote, 'wikilink', (note) => {
-            // Dispatch the navigation event for components to handle
-            const event = new CustomEvent('wikilink-navigate', {
-              detail: { note },
-              bubbles: true
-            });
-            document.dispatchEvent(event);
+          // Dispatch the navigation event for App.svelte to handle
+          const event = new CustomEvent('wikilink-navigate', {
+            detail: { note: fullNote },
+            bubbles: true
           });
+          document.dispatchEvent(event);
         }
       } catch (error) {
         console.error('Failed to create note:', error);
@@ -51,15 +47,12 @@ class WikilinkService {
       // Navigate to existing note
       const existingNote = notesStore.notes.find((n) => n.id === noteId);
       if (existingNote) {
-        // Use the note navigation service for consistent navigation behavior
-        noteNavigationService.openNote(existingNote, 'wikilink', (note) => {
-          // Dispatch the navigation event for components to handle
-          const event = new CustomEvent('wikilink-navigate', {
-            detail: { note },
-            bubbles: true
-          });
-          document.dispatchEvent(event);
+        // Dispatch the navigation event for App.svelte to handle
+        const event = new CustomEvent('wikilink-navigate', {
+          detail: { note: existingNote },
+          bubbles: true
         });
+        document.dispatchEvent(event);
       }
     }
   }

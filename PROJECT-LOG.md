@@ -1,5 +1,13 @@
 # Project Log
 
+## Daily View Wikilink Navigation Fix - 2025-09-17
+
+- Fixed wikilink clicking to properly open notes in main view by restoring the event-based system where wikilinkService dispatches wikilink-navigate events and App.svelte handles them through noteNavigationService.openNote() with proper system view clearing, ensuring wikilinks from daily notes now correctly open the target note in the editor
+
+## Daily View Wikilink Click Fix - 2025-09-17
+
+- Fixed wikilink clicking functionality in daily notes by updating DailyNoteEditor to use wikilinkService.handleWikilinkClick() instead of just logging, enabling proper note navigation from wikilinks within daily note content
+
 ## Daily View Notes Styling Update - 2025-09-17
 
 - Updated 'Notes worked on this day' styling in NotesWorkedOn component to match the compact, flexbox-based approach used for 'discussed notes' in AIAssistant component, replacing complex card layout with simple note-link buttons in horizontal wrap layout

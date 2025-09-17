@@ -18,6 +18,7 @@
   } from '@codemirror/commands';
   import { highlightSelectionMatches, searchKeymap } from '@codemirror/search';
   import { markdownListStyling, listStylingTheme } from '../lib/markdownListStyling';
+  import { wikilinkService } from '../services/wikilinkService.svelte';
   import { onMount } from 'svelte';
 
   interface Props {
@@ -37,14 +38,14 @@
   // Debounced content change handler
   let debounceTimeout: ReturnType<typeof setTimeout> | null = null;
 
-  // Wikilink click handler - for now just log, can be enhanced later
-  const handleWikilinkClick: WikilinkClickHandler = (
+  // Wikilink click handler - use centralized wikilink service
+  const handleWikilinkClick: WikilinkClickHandler = async (
     noteId: string,
     title: string,
     shouldCreate?: boolean
-  ): void => {
-    console.log('Daily note wikilink clicked:', { noteId, title, shouldCreate });
-    // Could integrate with navigation here in the future
+  ): Promise<void> => {
+    // Use centralized wikilink service for consistent navigation behavior
+    await wikilinkService.handleWikilinkClick(noteId, title, shouldCreate);
   };
 
   function debounceContentChange(newContent: string): void {
