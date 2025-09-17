@@ -94,7 +94,7 @@
       width: '100%',
       scrollbarWidth: 'thin',
       scrollbarColor: 'rgba(0, 0, 0, 0.2) transparent',
-      minHeight: '100px',
+      // minHeight: '100px',
       padding: '0.25rem',
       fontFamily: 'inherit'
     },
@@ -241,13 +241,13 @@
     background: var(--bg-primary);
     transition: border-color 0.2s ease;
     overflow: hidden;
-    min-height: 100px;
+    /*min-height: 100px;*/
     cursor: text;
   }
 
   .codemirror-editor {
     width: 100%;
-    min-height: 100px;
+    /*min-height: 100px;*/
   }
 
   /* Override CodeMirror styles for daily note editor */
@@ -296,7 +296,7 @@
   /* Mobile responsive */
   @media (max-width: 768px) {
     .codemirror-editor {
-      min-height: 150px;
+      /*min-height: 150px;*/
     }
 
     .daily-note-editor :global(.cm-editor) {

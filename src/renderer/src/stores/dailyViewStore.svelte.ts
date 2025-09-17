@@ -305,14 +305,11 @@ class DailyViewStore {
         this.state.currentWeek = updatedWeek;
       }
 
-      // Only call API if we have content to save
-      if (content.trim()) {
-        await (window as unknown as { api?: DailyViewApi }).api?.updateDailyNote({
-          date,
-          content,
-          vaultId: currentVaultId
-        });
-      }
+      await (window as unknown as { api?: DailyViewApi }).api?.updateDailyNote({
+        date,
+        content,
+        vaultId: currentVaultId
+      });
 
       // Note: No need to refresh the entire week data since we've already updated locally
       // This prevents UI re-render and focus loss while maintaining data consistency
