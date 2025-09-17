@@ -82,7 +82,7 @@
       height: '100%',
       fontFamily:
         "'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace",
-      fontSize: '0.875rem',
+      fontSize: 'var(--font-editor-size) !important',
       lineHeight: '1.6',
       width: '100%'
     },
