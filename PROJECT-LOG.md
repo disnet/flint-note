@@ -1,5 +1,9 @@
 # Project Log
 
+## Onboarding Improvement Plan - 2025-09-18
+
+- Created comprehensive onboarding improvement plan identifying critical gap between promised features and reality (welcome note promises 7 note types but only 1 exists), designed experiential learning approach with interactive tutorials, progressive skill building, and agent-first education strategy to improve user adoption and understanding of Flint's core concepts
+
 ## Daily Note Editor Unified Architecture - 2025-09-17
 
 - Successfully refactored DailyNoteEditor to use shared CodeMirrorEditor component instead of duplicate implementation by extending EditorConfig with variant and placeholder props, eliminating 180+ lines of duplicate code while preserving daily-note-specific styling (placeholder text, compact layout, custom scrollbars) and maintaining backward compatibility with same API (getContent, setContent, focus methods)
