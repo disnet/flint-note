@@ -120,10 +120,10 @@ function createNotesStore(): {
   }
 
   // Load notes of a specific type from API
-  async function loadNotesOfType(type: string): Promise<NoteMetadata[]> {
+  async function loadNotesOfType(type: string, vaultId: string): Promise<NoteMetadata[]> {
     try {
       // Try to use the note service API first
-      const result = await noteService.listNotesByType({ type });
+      const result = await noteService.listNotesByType({ vaultId, type });
       if (result && Array.isArray(result)) {
         const notesWithSnippets: NoteMetadata[] = [];
 
@@ -131,7 +131,7 @@ function createNotesStore(): {
           let snippet = '';
           try {
             // Get the full note content to generate snippet
-            const fullNote = await noteService.getNote({ identifier: note.id });
+            const fullNote = await noteService.getNote({ vaultId, identifier: note.id });
             if (fullNote && fullNote.content) {
               snippet = generateSnippet(fullNote.content);
             }
@@ -172,12 +172,21 @@ function createNotesStore(): {
   // Function to load all notes
   async function loadAllNotes(): Promise<void> {
     try {
+      // Get the current vault first
+      const currentVault = await noteService.getCurrentVault();
+      if (!currentVault) {
+        console.warn('No current vault available for loading notes');
+        state.loading = false;
+        state.error = 'No vault selected';
+        return;
+      }
+
       await loadNoteTypes();
       const loadedNotes: NoteMetadata[] = [];
 
       // Load notes for each type
       for (const noteType of state.noteTypes) {
-        const notesOfType = await loadNotesOfType(noteType.name);
+        const notesOfType = await loadNotesOfType(noteType.name, currentVault.id);
         loadedNotes.push(...notesOfType);
       }
 

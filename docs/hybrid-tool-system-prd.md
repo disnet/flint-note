@@ -1,4 +1,5 @@
 # Hybrid Tool System PRD
+
 ## Basic Tools + Code Evaluator Integration
 
 ### Executive Summary
@@ -16,6 +17,7 @@
 ### Current State Analysis
 
 **Code Evaluator Strengths:**
+
 - Powerful TypeScript-based programming interface
 - Secure WebAssembly execution environment
 - Complete FlintNote API access (39 methods)
@@ -23,6 +25,7 @@
 - Excellent for complex multi-step operations
 
 **Current Pain Points:**
+
 - TypeScript requirement for simple operations
 - Compilation overhead for basic CRUD
 - Steep learning curve for basic note access
@@ -31,6 +34,7 @@
 ### User Journey Analysis
 
 **80% of agent interactions are basic operations:**
+
 ```
 Agent: "Get note ABC123"
 Current: Must write TypeScript function with async/await, types, error handling
@@ -38,6 +42,7 @@ Desired: Single tool call: get_note({ id: "ABC123" })
 ```
 
 **20% of interactions are complex workflows:**
+
 ```
 Agent: "Analyze note relationships across 100 notes"
 Current: Perfect use case for code evaluator
@@ -91,7 +96,9 @@ Desired: Continue using code evaluator (no change)
 ## Tool Specifications
 
 ### 1. get_note
+
 **Purpose**: Retrieve a specific note by ID
+
 ```typescript
 {
   description: "Get a specific note by ID",
@@ -104,7 +111,9 @@ Desired: Continue using code evaluator (no change)
 ```
 
 ### 2. create_note
+
 **Purpose**: Create a new note with optional hierarchy placement
+
 ```typescript
 {
   description: "Create a new note",
@@ -121,7 +130,9 @@ Desired: Continue using code evaluator (no change)
 ```
 
 ### 3. update_note
+
 **Purpose**: Update existing note properties
+
 ```typescript
 {
   description: "Update an existing note",
@@ -137,7 +148,9 @@ Desired: Continue using code evaluator (no change)
 ```
 
 ### 4. list_notes
+
 **Purpose**: List notes with basic filtering and pagination
+
 ```typescript
 {
   description: "List notes with basic filtering",
@@ -154,7 +167,9 @@ Desired: Continue using code evaluator (no change)
 ```
 
 ### 5. search_notes
+
 **Purpose**: Full-text search across note titles and content
+
 ```typescript
 {
   description: "Search notes by title and content",
@@ -169,7 +184,9 @@ Desired: Continue using code evaluator (no change)
 ```
 
 ### 6. get_vault_info
+
 **Purpose**: Get current vault context and metadata
+
 ```typescript
 {
   description: "Get current vault information",
@@ -180,7 +197,9 @@ Desired: Continue using code evaluator (no change)
 ```
 
 ### 7. delete_note
+
 **Purpose**: Delete a note with confirmation
+
 ```typescript
 {
   description: "Delete a note",
@@ -199,16 +218,19 @@ Desired: Continue using code evaluator (no change)
 ### Implementation Architecture
 
 **Tool Service Layer Extensions** (`src/main/tool-service.ts`)
+
 - Add 7 new tool definitions alongside existing `evaluate_note_code`
 - Use same Zod validation patterns as code evaluator tools
 - Consistent error response formatting
 
 **Direct API Integration**
+
 - Bypass TypeScript compilation for basic tools
 - Direct calls to FlintNote API methods from `enhanced-evaluate-note-code.ts`
 - Reuse existing vault resolution and error handling logic
 
 **Shared Type Definitions**
+
 - Use identical `Note`, `Vault`, `NoteInfo` interfaces
 - Consistent error response format with code evaluator
 - Same success/failure response patterns
@@ -216,12 +238,14 @@ Desired: Continue using code evaluator (no change)
 ### Performance Characteristics
 
 **Basic Tools Performance:**
+
 - Response time: 1-10ms (vs 50-200ms for code evaluator)
 - Memory usage: <1MB (vs 10-50MB for TypeScript compilation)
 - No compilation overhead
 - Direct API method invocation
 
 **Error Handling:**
+
 - Same error message format as code evaluator
 - Consistent error codes and descriptions
 - Detailed context for troubleshooting
@@ -229,6 +253,7 @@ Desired: Continue using code evaluator (no change)
 ### Security Considerations
 
 **Same Security Model:**
+
 - Vault-scoped access control
 - No additional security surface
 - Reuse existing authentication and authorization
@@ -239,34 +264,43 @@ Desired: Continue using code evaluator (no change)
 ## Implementation Plan
 
 ### Phase 1: Core CRUD Tools
+
 **Deliverables:**
+
 - `get_note`, `create_note`, `update_note`, `list_notes`
 - Tool service integration
 - Basic testing coverage
 
 **Success Criteria:**
+
 - All 4 tools functional with proper error handling
 - Performance benchmarks meet targets (<10ms response)
 - Integration tests passing
 
 ### Phase 2: Discovery and Management
+
 **Deliverables:**
+
 - `search_notes`, `get_vault_info`, `delete_note`
 - Complete tool set documentation
 - Comprehensive test coverage
 
 **Success Criteria:**
+
 - All 7 tools complete and tested
 - Documentation updated
 - Performance validation complete
 
 ### Phase 3: Integration and Optimization
+
 **Deliverables:**
+
 - Agent workflow optimization
 - Performance tuning
 - Usage analytics integration
 
 **Success Criteria:**
+
 - Agent productivity improvements measurable
 - No performance regressions in code evaluator
 - Both systems working harmoniously
@@ -276,17 +310,20 @@ Desired: Continue using code evaluator (no change)
 ## Success Metrics
 
 ### Performance Metrics
+
 - **Basic tool response time**: <10ms (vs current 50-200ms)
 - **Agent task completion time**: 50% reduction for basic operations
 - **Memory usage**: <1MB per basic tool operation
 - **Error rate**: <1% for valid operations
 
 ### Usage Metrics
+
 - **Tool adoption**: 80% of simple operations use basic tools within 30 days
 - **Code evaluator usage**: Complex operations continue using code evaluator
 - **Agent productivity**: Measured by tasks completed per session
 
 ### Quality Metrics
+
 - **Error consistency**: Same error patterns across both systems
 - **Type safety**: No type-related runtime errors
 - **API coverage**: 100% compatibility with existing FlintNote API patterns
@@ -298,20 +335,24 @@ Desired: Continue using code evaluator (no change)
 ### Technical Risks
 
 **Risk**: Inconsistency between basic tools and code evaluator
+
 - **Mitigation**: Shared underlying API layer and types
 - **Contingency**: Automated integration tests validate consistency
 
 **Risk**: Performance regression in code evaluator
+
 - **Mitigation**: Separate execution paths, no shared resources
 - **Contingency**: Performance monitoring and rollback plan
 
 ### User Experience Risks
 
 **Risk**: Confusion about when to use which system
+
 - **Mitigation**: Clear documentation and usage guidelines
 - **Contingency**: Agent training and examples
 
 **Risk**: Feature gap between systems
+
 - **Mitigation**: Basic tools cover 80% use case analysis
 - **Contingency**: Easy escalation path to code evaluator
 
@@ -320,11 +361,13 @@ Desired: Continue using code evaluator (no change)
 ## Future Considerations
 
 ### Potential Extensions
+
 - Additional basic tools based on usage analytics
 - Tool composition for common multi-step patterns
 - Performance optimization based on usage patterns
 
 ### Integration Opportunities
+
 - Enhanced error suggestions pointing to appropriate tool
 - Automatic tool selection based on operation complexity
 - Workflow templates combining both systems

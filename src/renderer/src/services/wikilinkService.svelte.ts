@@ -20,7 +20,17 @@ class WikilinkService {
       // Create a new note with the default 'note' type
       try {
         const chatService = getChatService();
+
+        // Get the current vault ID
+        const currentVault = await chatService.getCurrentVault();
+        if (!currentVault) {
+          console.error('No current vault available for creating note');
+          return;
+        }
+
+        console.log('Creating new note for broken wikilink:', title);
         const newNote = await chatService.createNote({
+          vaultId: currentVault.id,
           type: 'note',
           identifier: title,
           content: ``
