@@ -6,7 +6,7 @@
 
 **Problem**: While the code evaluator provides powerful TypeScript-based automation, it creates friction for simple operations that comprise 80% of AI agent interactions. Agents must write TypeScript for basic CRUD operations like retrieving or updating a single note.
 
-**Solution**: Introduce 7 structured basic tools for common operations while preserving the code evaluator for complex workflows. This hybrid approach provides the simplicity agents need for everyday tasks and the power they need for advanced automation.
+**Solution**: Introduce 6 structured basic tools for common operations while preserving the code evaluator for complex workflows. This hybrid approach provides the simplicity agents need for everyday tasks and the power they need for advanced automation.
 
 **Impact**: Reduces complexity for basic operations while maintaining full flexibility for complex workflows, improving agent productivity and developer experience.
 
@@ -67,10 +67,9 @@ Desired: Continue using code evaluator (no change)
 │ • get_note             │ │ • Multi-step workflows          │
 │ • create_note          │ │ • Bulk operations               │
 │ • update_note          │ │ • Custom functions              │
-│ • list_notes           │ │ • Complex analysis              │
-│ • search_notes         │ │ • Relationship mapping          │
-│ • get_vault_info       │ │ • Performance-critical ops     │
-│ • delete_note          │ │                                 │
+│ • search_notes         │ │ • Complex analysis              │
+│ • get_vault_info       │ │ • Relationship mapping          │
+│ • delete_note          │ │ • Performance-critical ops     │
 └─────────────────────────┘ └─────────────────────────────────┘
   │                                 │
   └─────────────┬───────────────────┘
@@ -147,34 +146,15 @@ Desired: Continue using code evaluator (no change)
 }
 ```
 
-### 4. list_notes
+### 4. search_notes
 
-**Purpose**: List notes with basic filtering and pagination
-
-```typescript
-{
-  description: "List notes with basic filtering",
-  inputSchema: {
-    limit?: number,      // Default: 50, Max: 200
-    offset?: number,     // Default: 0
-    noteType?: string,   // Filter by note type
-    parentId?: string,   // Filter by parent (hierarchy)
-    includeContent?: boolean  // Default: false for performance
-  },
-  returns: Note[] | NoteInfo[],
-  errors: ["INVALID_LIMIT", "VAULT_ACCESS_ERROR"]
-}
-```
-
-### 5. search_notes
-
-**Purpose**: Full-text search across note titles and content
+**Purpose**: Search and list notes with full-text search capability
 
 ```typescript
 {
-  description: "Search notes by title and content",
+  description: "Search notes by title and content, or list all notes",
   inputSchema: {
-    query: string,       // Search query
+    query?: string,      // Search query (empty/omitted for listing all)
     limit?: number,      // Default: 20, Max: 100
     noteType?: string    // Filter by note type
   },
@@ -183,7 +163,7 @@ Desired: Continue using code evaluator (no change)
 }
 ```
 
-### 6. get_vault_info
+### 5. get_vault_info
 
 **Purpose**: Get current vault context and metadata
 
@@ -196,7 +176,7 @@ Desired: Continue using code evaluator (no change)
 }
 ```
 
-### 7. delete_note
+### 6. delete_note
 
 **Purpose**: Delete a note with confirmation
 
@@ -219,7 +199,7 @@ Desired: Continue using code evaluator (no change)
 
 **Tool Service Layer Extensions** (`src/main/tool-service.ts`)
 
-- Add 7 new tool definitions alongside existing `evaluate_note_code`
+- Add 6 new tool definitions alongside existing `evaluate_note_code`
 - Use same Zod validation patterns as code evaluator tools
 - Consistent error response formatting
 
@@ -267,7 +247,7 @@ Desired: Continue using code evaluator (no change)
 
 **Deliverables:**
 
-- `get_note`, `create_note`, `update_note`, `list_notes`
+- `get_note`, `create_note`, `update_note`, `search_notes`
 - Tool service integration
 - Basic testing coverage
 
