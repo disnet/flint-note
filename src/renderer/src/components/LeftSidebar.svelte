@@ -18,17 +18,23 @@
     onSystemViewSelect: (
       view: 'daily' | 'notes' | 'settings' | 'slash-commands' | 'custom-functions' | null
     ) => void;
+    onCreateNote?: () => void;
   }
 
-  let { activeNote, onNoteSelect, onSystemViewSelect, activeSystemView }: Props =
-    $props();
+  let {
+    activeNote,
+    onNoteSelect,
+    onSystemViewSelect,
+    activeSystemView,
+    onCreateNote
+  }: Props = $props();
 </script>
 
 <div class="left-sidebar" class:visible={sidebarState.leftSidebar.visible}>
   <div class="sidebar-content">
     <SystemViews {onSystemViewSelect} {activeSystemView} />
     <PinnedNotes {activeNote} {onNoteSelect} />
-    <TemporaryTabs {onNoteSelect} />
+    <TemporaryTabs {onNoteSelect} {onCreateNote} />
   </div>
 </div>
 

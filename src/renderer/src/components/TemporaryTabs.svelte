@@ -13,9 +13,10 @@
 
   interface Props {
     onNoteSelect: (note: NoteMetadata) => void;
+    onCreateNote?: () => void;
   }
 
-  let { onNoteSelect }: Props = $props();
+  let { onNoteSelect, onCreateNote }: Props = $props();
 
   const dragState = globalDragState;
 
@@ -115,10 +116,10 @@
   }
 </script>
 
-{#if temporaryTabsStore.tabs.length > 0}
-  <div class="temporary-tabs">
-    <div class="tabs-header">
-      <div class="separator"></div>
+<div class="temporary-tabs">
+  <div class="tabs-header">
+    <div class="separator"></div>
+    {#if temporaryTabsStore.tabs.length > 0}
       <button class="clear-all" onclick={handleClearAll}>
         <svg
           width="12"
@@ -134,8 +135,28 @@
         </svg>
         close all
       </button>
-    </div>
+    {/if}
+  </div>
 
+  <!-- Create New Note Button (always visible) -->
+  <div class="create-note-section">
+    <button class="create-note-button" onclick={onCreateNote} disabled={!onCreateNote}>
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <line x1="12" y1="5" x2="12" y2="19"></line>
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+      </svg>
+      New Note
+    </button>
+  </div>
+
+  {#if temporaryTabsStore.tabs.length > 0}
     <div class="tabs-list">
       {#each temporaryTabsStore.tabs as tab, index (tab.id)}
         <div
@@ -187,10 +208,42 @@
         </div>
       {/each}
     </div>
-  </div>
-{/if}
+  {/if}
+</div>
 
 <style>
+  .create-note-section {
+    padding: 0.75rem;
+  }
+
+  .create-note-button {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border: 1px dashed var(--border-light);
+    border-radius: 0.5rem;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .create-note-button:hover:not(:disabled) {
+    background: var(--bg-secondary);
+    border-color: var(--border-medium);
+    color: var(--text-primary);
+  }
+
+  .create-note-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
   .temporary-tabs {
     display: flex;
     flex-direction: column;

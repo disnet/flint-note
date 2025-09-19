@@ -1,5 +1,9 @@
 # Project Log
 
+## Create New Note Button Addition - 2025-09-19
+
+- **Added "Create New Note" button** above temporary tabs list in left sidebar for quick note creation: button displays with plus icon and "New Note" text, styled with dashed border and hover effects, integrates with existing handleCreateNote function from App.svelte to create new notes with default "note" type and "Untitled Note" title, button is always visible regardless of temporary tabs state
+
 ## Content Hash Validation Testing - 2025-09-19
 
 - **Added content hash mismatch error handling test** to verify proper error responses when incorrect contentHash provided to update operations: created test validating CONTENT_HASH_MISMATCH error return, fixed ContentHashMismatchError propagation through note manager layers by preventing generic error wrapping, and ensured all tool tests continue passing with proper error handling

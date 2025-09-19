@@ -665,6 +665,7 @@
       {activeSystemView}
       onNoteSelect={handleNoteSelect}
       onSystemViewSelect={handleSystemViewSelect}
+      onCreateNote={() => handleCreateNote()}
     />
 
     <MainView
