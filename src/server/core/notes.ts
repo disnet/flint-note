@@ -17,6 +17,7 @@ import { parseFrontmatter, parseNoteContent } from '../utils/yaml-parser.js';
 import {
   generateContentHash,
   validateContentHash,
+  ContentHashMismatchError,
   MissingContentHashError
 } from '../utils/content-hash.js';
 import type {
@@ -748,6 +749,12 @@ export class NoteManager {
         timestamp: updatedMetadata.updated
       };
     } catch (error) {
+      if (
+        error instanceof ContentHashMismatchError ||
+        error instanceof MissingContentHashError
+      ) {
+        throw error; // Re-throw content hash errors as-is
+      }
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       throw new Error(`Failed to update note '${identifier}': ${errorMessage}`);
     }
@@ -904,6 +911,12 @@ export class NoteManager {
         timestamp: updatedMetadata.updated
       };
     } catch (error) {
+      if (
+        error instanceof ContentHashMismatchError ||
+        error instanceof MissingContentHashError
+      ) {
+        throw error; // Re-throw content hash errors as-is
+      }
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       throw new Error(`Failed to update note '${identifier}': ${errorMessage}`);
     }

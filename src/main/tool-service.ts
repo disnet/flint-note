@@ -6,6 +6,7 @@ import {
   enhancedEvaluateCodeSchema
 } from './enhanced-evaluate-note-code';
 import { CustomFunctionsApi } from '../server/api/custom-functions-api.js';
+import { ContentHashMismatchError } from '../server/utils/content-hash.js';
 
 interface ToolResponse {
   success: boolean;
@@ -52,7 +53,14 @@ export class ToolService {
     }
 
     const tools: Record<string, Tool> = {
-      evaluate_note_code: this.evaluateNoteCodeTool
+      evaluate_note_code: this.evaluateNoteCodeTool,
+      // Basic CRUD tools
+      get_note: this.getNoteTool,
+      create_note: this.createNoteTool,
+      update_note: this.updateNoteTool,
+      search_notes: this.searchNotesTool,
+      get_vault_info: this.getVaultInfoTool,
+      delete_note: this.deleteNoteTool
     };
 
     // Add custom functions tools if available
@@ -384,6 +392,535 @@ export class ToolService {
           success: false,
           error: error instanceof Error ? error.message : String(error),
           message: `Failed to validate custom function '${name}': ${error instanceof Error ? error.message : String(error)}`
+        };
+      }
+    }
+  });
+
+  // Basic CRUD Tools
+  private getNoteTool = tool({
+    description: 'Get a specific note by ID',
+    inputSchema: z.object({
+      id: z.string().describe('Note ID or identifier (e.g., "note123" or "type/title")')
+    }),
+    execute: async ({ id }) => {
+      if (!this.noteService) {
+        return {
+          success: false,
+          error: 'Note service not available',
+          message: 'Note service not initialized'
+        };
+      }
+
+      try {
+        const flintApi = this.noteService.getFlintNoteApi();
+        const currentVault = await this.noteService.getCurrentVault();
+
+        if (!currentVault) {
+          return {
+            success: false,
+            error: 'NO_ACTIVE_VAULT',
+            message: 'No active vault available'
+          };
+        }
+
+        const note = await flintApi.getNote(currentVault.id, id);
+
+        return {
+          success: true,
+          data: note,
+          message: `Retrieved note: ${note.title}`
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+
+        if (
+          errorMessage.includes('not found') ||
+          errorMessage.includes('does not exist')
+        ) {
+          return {
+            success: false,
+            error: 'NOTE_NOT_FOUND',
+            message: `Note not found: ${id}`
+          };
+        }
+
+        return {
+          success: false,
+          error: 'VAULT_ACCESS_ERROR',
+          message: `Failed to get note: ${errorMessage}`
+        };
+      }
+    }
+  });
+
+  private createNoteTool = tool({
+    description: 'Create a new note',
+    inputSchema: z.object({
+      title: z.string().describe('Note title'),
+      content: z.string().optional().describe('Note content (optional)'),
+      noteType: z.string().describe('Note type (required)'),
+      parentId: z
+        .string()
+        .optional()
+        .describe('Parent note ID for hierarchy placement (optional)'),
+      metadata: z
+        .record(z.string(), z.unknown())
+        .optional()
+        .describe('Additional metadata (optional)')
+    }),
+    execute: async ({ title, content = '', noteType, parentId, metadata = {} }) => {
+      if (!this.noteService) {
+        return {
+          success: false,
+          error: 'Note service not available',
+          message: 'Note service not initialized'
+        };
+      }
+
+      try {
+        const flintApi = this.noteService.getFlintNoteApi();
+        const currentVault = await this.noteService.getCurrentVault();
+
+        if (!currentVault) {
+          return {
+            success: false,
+            error: 'NO_ACTIVE_VAULT',
+            message: 'No active vault available'
+          };
+        }
+
+        // Note type is now required, so use it directly
+
+        const noteInfo = await flintApi.createNote({
+          type: noteType,
+          title,
+          content,
+          metadata: metadata as Parameters<typeof flintApi.createNote>[0]['metadata'], // Cast to satisfy type checking for user-provided metadata
+          vaultId: currentVault.id
+        });
+
+        // Get the full note object
+        const note = await flintApi.getNote(currentVault.id, noteInfo.id);
+
+        // If parentId is specified, add this note as a subnote
+        if (parentId) {
+          try {
+            await flintApi.addSubnote({
+              parent_id: parentId,
+              child_id: `${noteType}/${title}`,
+              vault_id: currentVault.id
+            });
+          } catch (hierarchyError) {
+            console.warn('Failed to add hierarchy relationship:', hierarchyError);
+            // Don't fail the creation, just warn
+          }
+        }
+
+        return {
+          success: true,
+          data: note,
+          message: `Created note: ${note.title}`
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+
+        if (errorMessage.includes('Invalid title') || errorMessage.includes('title')) {
+          return {
+            success: false,
+            error: 'INVALID_TITLE',
+            message: `Invalid title: ${errorMessage}`
+          };
+        }
+
+        if (errorMessage.includes('not found') && parentId) {
+          return {
+            success: false,
+            error: 'PARENT_NOT_FOUND',
+            message: `Parent note not found: ${parentId}`
+          };
+        }
+
+        return {
+          success: false,
+          error: 'VAULT_ACCESS_ERROR',
+          message: `Failed to create note: ${errorMessage}`
+        };
+      }
+    }
+  });
+
+  private updateNoteTool = tool({
+    description: 'Update an existing note (requires content hash from current note)',
+    inputSchema: z.object({
+      id: z.string().describe('Note ID or identifier'),
+      contentHash: z
+        .string()
+        .describe('Content hash from current note (required for data consistency)'),
+      title: z.string().optional().describe('New title (optional)'),
+      content: z.string().optional().describe('New content (optional)'),
+      metadata: z
+        .record(z.string(), z.unknown())
+        .optional()
+        .describe('New metadata (optional)')
+    }),
+    execute: async ({ id, contentHash, title, content, metadata }) => {
+      if (!this.noteService) {
+        return {
+          success: false,
+          error: 'Note service not available',
+          message: 'Note service not initialized'
+        };
+      }
+
+      try {
+        const flintApi = this.noteService.getFlintNoteApi();
+        const currentVault = await this.noteService.getCurrentVault();
+
+        if (!currentVault) {
+          return {
+            success: false,
+            error: 'NO_ACTIVE_VAULT',
+            message: 'No active vault available'
+          };
+        }
+
+        // Get current note if content is not provided (needed for API requirement)
+        let finalContent = content;
+        if (content === undefined) {
+          try {
+            const currentNote = await flintApi.getNote(currentVault.id, id);
+            finalContent = currentNote.content;
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            if (
+              errorMessage.includes('not found') ||
+              errorMessage.includes('does not exist')
+            ) {
+              return {
+                success: false,
+                error: 'NOTE_NOT_FOUND',
+                message: `Note not found: ${id}`
+              };
+            }
+            throw error; // Re-throw if it's a different error
+          }
+        }
+
+        // At this point, finalContent is guaranteed to be defined
+        if (!finalContent) {
+          throw new Error('Content is required for note update');
+        }
+
+        // Prepare updates using provided content hash
+        const updates: {
+          identifier: string;
+          content: string;
+          contentHash: string;
+          vaultId: string;
+          metadata?: Record<string, unknown>;
+        } = {
+          identifier: id,
+          content: finalContent,
+          contentHash,
+          vaultId: currentVault.id
+        };
+
+        // Update metadata if provided
+        if (metadata !== undefined) {
+          // Get current note only when metadata update is needed
+          let currentNote;
+          try {
+            currentNote = await flintApi.getNote(currentVault.id, id);
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            if (
+              errorMessage.includes('not found') ||
+              errorMessage.includes('does not exist')
+            ) {
+              return {
+                success: false,
+                error: 'NOTE_NOT_FOUND',
+                message: `Note not found: ${id}`
+              };
+            }
+            throw error; // Re-throw if it's a different error
+          }
+
+          // Merge with existing metadata, excluding protected fields
+          const {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            type: _type,
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            title: _metaTitle,
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            filename: _filename,
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            created: _created,
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            updated: _updated,
+            ...userMetadata
+          } = currentNote.metadata;
+          updates.metadata = { ...userMetadata, ...metadata };
+        }
+
+        // Handle title change if provided
+        if (title !== undefined) {
+          // Get current note to check if title is actually changing
+          const currentNote = await flintApi.getNote(currentVault.id, id);
+
+          if (title !== currentNote.title) {
+            const renameResult = await flintApi.renameNote({
+              noteId: id,
+              newTitle: title,
+              contentHash: contentHash,
+              vault_id: currentVault.id
+            });
+
+            if (!renameResult.success) {
+              return {
+                success: false,
+                error: 'RENAME_FAILED',
+                message: 'Failed to rename note'
+              };
+            }
+
+            // Update identifier for subsequent operations
+            updates.identifier = renameResult.new_id || id;
+          }
+        }
+
+        await flintApi.updateNote(updates as Parameters<typeof flintApi.updateNote>[0]); // Cast to satisfy type checking for user-provided metadata
+
+        // Get updated note to return
+        const updatedNote = await flintApi.getNote(currentVault.id, updates.identifier);
+
+        return {
+          success: true,
+          data: updatedNote,
+          message: `Updated note: ${updatedNote.title}`
+        };
+      } catch (error) {
+        if (error instanceof ContentHashMismatchError) {
+          return {
+            success: false,
+            error: 'CONTENT_HASH_MISMATCH',
+            message: error.message
+          };
+        }
+
+        const errorMessage = error instanceof Error ? error.message : String(error);
+
+        if (
+          errorMessage.includes('not found') ||
+          errorMessage.includes('does not exist')
+        ) {
+          return {
+            success: false,
+            error: 'NOTE_NOT_FOUND',
+            message: `Note not found: ${id}`
+          };
+        }
+
+        return {
+          success: false,
+          error: 'VAULT_ACCESS_ERROR',
+          message: `Failed to update note: ${errorMessage}`
+        };
+      }
+    }
+  });
+
+  private searchNotesTool = tool({
+    description: 'Search notes by title and content, or list all notes',
+    inputSchema: z.object({
+      query: z.string().optional().describe('Search query (empty for listing all notes)'),
+      limit: z
+        .number()
+        .optional()
+        .default(20)
+        .describe('Maximum number of results (default: 20, max: 100)'),
+      noteType: z.string().optional().describe('Filter by note type (optional)')
+    }),
+    execute: async ({ query, limit = 20, noteType }) => {
+      if (!this.noteService) {
+        return {
+          success: false,
+          error: 'Note service not available',
+          message: 'Note service not initialized'
+        };
+      }
+
+      try {
+        const flintApi = this.noteService.getFlintNoteApi();
+        const currentVault = await this.noteService.getCurrentVault();
+
+        if (!currentVault) {
+          return {
+            success: false,
+            error: 'NO_ACTIVE_VAULT',
+            message: 'No active vault available'
+          };
+        }
+
+        // Clamp limit to maximum of 100
+        const clampedLimit = Math.min(limit, 100);
+
+        let results;
+        if (query) {
+          // Perform search
+          results = await flintApi.searchNotes({
+            query,
+            type_filter: noteType,
+            limit: clampedLimit,
+            vault_id: currentVault.id
+          });
+
+          // Convert SearchResult[] to Note-like objects
+          const notes = await Promise.all(
+            results.map(async (result) => {
+              try {
+                return await flintApi.getNote(currentVault.id, result.id);
+              } catch {
+                // If note can't be retrieved, create a minimal representation
+                return {
+                  id: result.id,
+                  title: result.title,
+                  type: result.type || 'unknown',
+                  content: result.content || '',
+                  snippet: result.snippet
+                };
+              }
+            })
+          );
+
+          return {
+            success: true,
+            data: notes,
+            message: `Found ${results.length} note(s) matching query: ${query}`
+          };
+        } else {
+          // List all notes
+          const noteList = await flintApi.listNotes({
+            typeName: noteType,
+            limit: clampedLimit,
+            vaultId: currentVault.id
+          });
+
+          return {
+            success: true,
+            data: noteList,
+            message: `Listed ${noteList.length} note(s)${noteType ? ` of type: ${noteType}` : ''}`
+          };
+        }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+
+        return {
+          success: false,
+          error: 'VAULT_ACCESS_ERROR',
+          message: `Failed to search notes: ${errorMessage}`
+        };
+      }
+    }
+  });
+
+  private getVaultInfoTool = tool({
+    description: 'Get current vault information',
+    inputSchema: z.object({}),
+    execute: async () => {
+      if (!this.noteService) {
+        return {
+          success: false,
+          error: 'Note service not available',
+          message: 'Note service not initialized'
+        };
+      }
+
+      try {
+        const flintApi = this.noteService.getFlintNoteApi();
+        const currentVault = await flintApi.getCurrentVault();
+
+        if (!currentVault) {
+          return {
+            success: false,
+            error: 'NO_ACTIVE_VAULT',
+            message: 'No active vault available'
+          };
+        }
+
+        return {
+          success: true,
+          data: currentVault,
+          message: `Current vault: ${currentVault.name}`
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+
+        return {
+          success: false,
+          error: 'VAULT_ACCESS_ERROR',
+          message: `Failed to get vault info: ${errorMessage}`
+        };
+      }
+    }
+  });
+
+  private deleteNoteTool = tool({
+    description: 'Delete a note',
+    inputSchema: z.object({
+      id: z.string().describe('Note ID or identifier to delete')
+    }),
+    execute: async ({ id }) => {
+      if (!this.noteService) {
+        return {
+          success: false,
+          error: 'Note service not available',
+          message: 'Note service not initialized'
+        };
+      }
+
+      try {
+        const flintApi = this.noteService.getFlintNoteApi();
+        const currentVault = await this.noteService.getCurrentVault();
+
+        if (!currentVault) {
+          return {
+            success: false,
+            error: 'NO_ACTIVE_VAULT',
+            message: 'No active vault available'
+          };
+        }
+
+        const result = await flintApi.deleteNote({
+          identifier: id,
+          confirm: true,
+          vaultId: currentVault.id
+        });
+
+        return {
+          success: result.deleted,
+          data: { success: result.deleted },
+          message: result.deleted ? `Deleted note: ${id}` : `Failed to delete note: ${id}`
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+
+        if (
+          errorMessage.includes('not found') ||
+          errorMessage.includes('does not exist')
+        ) {
+          return {
+            success: false,
+            error: 'NOTE_NOT_FOUND',
+            message: `Note not found: ${id}`
+          };
+        }
+
+        return {
+          success: false,
+          error: 'DELETE_FAILED',
+          message: `Failed to delete note: ${errorMessage}`
         };
       }
     }

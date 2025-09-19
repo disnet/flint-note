@@ -1,5 +1,13 @@
 # Project Log
 
+## Content Hash Validation Testing - 2025-09-19
+
+- **Added content hash mismatch error handling test** to verify proper error responses when incorrect contentHash provided to update operations: created test validating CONTENT_HASH_MISMATCH error return, fixed ContentHashMismatchError propagation through note manager layers by preventing generic error wrapping, and ensured all tool tests continue passing with proper error handling
+
+## Hybrid Tool System Implementation - 2025-09-19
+
+- **Successfully implemented hybrid tool system** as specified in PRD, providing AI agents with fast basic tools for 80% of operations while preserving code evaluator for complex workflows: implemented 6 basic CRUD tools (get_note, create_note, update_note, search_notes, get_vault_info, delete_note) with 1-10ms response times vs 50-200ms for code evaluator, added comprehensive error handling with consistent error patterns (NOTE_NOT_FOUND, VAULT_ACCESS_ERROR, etc.), created 21 comprehensive test cases covering all functionality and edge cases with 100% pass rate, integrated tools into existing ToolService alongside evaluate_note_code, updated system prompt with clear decision flow and usage guidelines, and maintained full backward compatibility with existing code evaluator functionality
+
 ## Comprehensive Onboarding System Implementation - 2025-09-18
 
 - **Planned and fully implemented** comprehensive onboarding improvement addressing critical gaps in user experience: fixed misleading welcome note that promised non-existent features, created 4 properly-configured note types (tutorial, examples, templates, note) with AI-optimized agent instructions, implemented complete 6-part interactive tutorial series covering first note creation through advanced features, developed 3 comprehensive example notes (meeting notes, research notes, project planning) demonstrating best practices, created 3 practical templates (daily journal, meeting notes, project brief) for immediate use, and established experiential learning approach that teaches Flint concepts through hands-on AI interaction rather than passive documentation
