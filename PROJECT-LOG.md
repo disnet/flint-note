@@ -1,5 +1,9 @@
 # Project Log
 
+## Note Editor Auto-Scroll Design - 2025-09-19
+
+- **Analyzed and designed auto-scroll solution** for note editor viewport scrolling when cursor approaches screen edges: researched CodeMirror 6 scrolling APIs (scrollMargins, scrollHandler, scrollIntoView), analyzed current editor architecture built on CodeMirrorEditor.svelte and EditorConfig.svelte.ts, and created comprehensive implementation plan using EditorView.scrollMargins for elegant auto-scrolling with variant-specific configurations (150px bottom margin for default, 100px for daily-note)
+
 ## Create New Note Button Addition - 2025-09-19
 
 - **Added "Create New Note" button** above temporary tabs list in left sidebar for quick note creation: button displays with plus icon and "New Note" text, styled with dashed border and hover effects, integrates with existing handleCreateNote function from App.svelte to create new notes with default "note" type and "Untitled Note" title, button is always visible regardless of temporary tabs state
