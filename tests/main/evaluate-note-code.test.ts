@@ -141,7 +141,10 @@ describe('EnhancedEvaluateNoteCode', () => {
     });
 
     it('should execute code with access to note API', async () => {
-      // First create a test note in the vault
+      // Count initial notes in the vault (from vault initialization)
+      const initialNotes = await testSetup.api.listNotes({ vaultId: testVaultId });
+
+      // Create a test note in the vault
       await testSetup.api.createNote({
         type: 'general',
         vaultId: testVaultId,
@@ -160,7 +163,52 @@ describe('EnhancedEvaluateNoteCode', () => {
       });
 
       expect(result.success).toBe(true);
-      expect(result.data?.result).toBe(1); // Should find the one note we created
+      expect(result.data?.result).toBe(initialNotes.length + 1); // Should find all initial notes + our test note
+      expect(result.data?.executionTime).toBeGreaterThan(0);
+    });
+
+    it('should execute code with access to note API in clean vault', async () => {
+      // Create a clean vault without initialization to have precise control
+      const cleanVaultId = await testSetup.createTestVault('clean-test-vault', {
+        initialize: false
+      });
+
+      // Create a specific note service for the clean vault
+      const cleanNoteService = {
+        getFlintNoteApi: () => testSetup.api,
+        getCurrentVault: async () => ({
+          id: cleanVaultId,
+          name: 'Clean Test Vault',
+          path: ''
+        })
+      } as any;
+
+      const cleanEvaluateNoteCode = new EnhancedEvaluateNoteCode(cleanNoteService);
+
+      // Verify vault starts empty
+      const initialNotes = await testSetup.api.listNotes({ vaultId: cleanVaultId });
+      expect(initialNotes.length).toBe(0);
+
+      // Create exactly one test note
+      await testSetup.api.createNote({
+        type: 'general',
+        vaultId: cleanVaultId,
+        title: 'Single Test Note',
+        content: 'This is the only note in a clean vault'
+      });
+
+      // Execute code that counts notes
+      const result = await cleanEvaluateNoteCode.execute({
+        code: `
+          async function main() {
+            const notesList = await flintApi.listNotes();
+            return notesList.length;
+          }
+        `
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.data?.result).toBe(1); // Should find exactly 1 note
       expect(result.data?.executionTime).toBeGreaterThan(0);
     });
   });
@@ -190,7 +238,7 @@ describe('EnhancedEvaluateNoteCode', () => {
           function greet(name: string): string {
             return "Hello " + name;
           }
-          
+
           async function main() {
             return greet(42); // Type error: number passed to string parameter
           }
@@ -283,7 +331,7 @@ describe('EnhancedEvaluateNoteCode', () => {
             name: string;
             active: boolean;
           }
-          
+
           async function main() {
             const user: User = {
               id: "123", // Type error: string instead of number
@@ -310,7 +358,7 @@ describe('EnhancedEvaluateNoteCode', () => {
             port: number;
             secure: boolean;
           }
-          
+
           async function main() {
             const config: Config = {
               host: "localhost"
@@ -351,7 +399,7 @@ describe('EnhancedEvaluateNoteCode', () => {
           function processItems<T extends { id: number }>(items: T[]): T[] {
             return items;
           }
-          
+
           async function main() {
             const items = [{ name: "test" }]; // Missing 'id' property
             return processItems(items); // Type error: constraint not satisfied
