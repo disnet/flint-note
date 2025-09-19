@@ -59,17 +59,25 @@
     // For keyboard shortcuts, create note directly
     if (fromKeyboard) {
       try {
+        // Get the current vault ID
+        const chatService = getChatService();
+        const currentVault = await chatService.getCurrentVault();
+        if (!currentVault) {
+          console.error('No current vault available for note creation');
+          return;
+        }
+
         // Generate a safe, unique title and identifier
         const type = noteType || 'note'; // Default to 'note' type
         const { title, identifier } = generateSafeNoteIdentifier('Untitled Note', type);
         const content = `# ${title}\n\n`;
 
         // Create the note via the chat service
-        const chatService = getChatService();
         const noteInfo = await chatService.createNote({
           type,
           identifier,
-          content
+          content,
+          vaultId: currentVault.id
         });
 
         // Refresh notes store to show new note
