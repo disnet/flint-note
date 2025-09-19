@@ -63,6 +63,39 @@ export class ElectronChatService implements ChatService, NoteService {
   constructor() {
     // Set up usage tracking
   }
+
+  private handleNoteModifyingTool(toolCall: { name: string; arguments?: unknown }): void {
+    // Handle tools that modify notes for UI refresh
+    const noteModifyingTools = ['update_note', 'create_note', 'delete_note'];
+
+    if (noteModifyingTools.includes(toolCall.name) && toolCall.arguments) {
+      try {
+        const args =
+          typeof toolCall.arguments === 'string'
+            ? JSON.parse(toolCall.arguments)
+            : toolCall.arguments;
+
+        let noteId: string | undefined;
+
+        // Extract note ID based on tool type
+        if (toolCall.name === 'update_note' || toolCall.name === 'delete_note') {
+          noteId = args.id || args.identifier;
+        } else if (toolCall.name === 'create_note') {
+          // For create_note, we notify with the title since that's what becomes the identifier
+          noteId = args.title;
+        }
+
+        if (noteId) {
+          notesStore.notifyNoteUpdated(noteId);
+        }
+      } catch (err) {
+        console.warn(
+          'Failed to parse tool call arguments for note update notification:',
+          err
+        );
+      }
+    }
+  }
   async sendMessage(
     text: string,
     conversationId?: string,
@@ -131,23 +164,8 @@ export class ElectronChatService implements ChatService, NoteService {
               // Trigger notes store refresh for any tool call
               notesStore.handleToolCall({ name: data.toolCall.name });
 
-              // Specifically handle note updates
-              if (data.toolCall.name === 'update_note' && data.toolCall.arguments) {
-                try {
-                  const args =
-                    typeof data.toolCall.arguments === 'string'
-                      ? JSON.parse(data.toolCall.arguments)
-                      : data.toolCall.arguments;
-                  if (args.identifier) {
-                    notesStore.notifyNoteUpdated(args.identifier);
-                  }
-                } catch (err) {
-                  console.warn(
-                    'Failed to parse tool call arguments for note update notification:',
-                    err
-                  );
-                }
-              }
+              // Handle note-modifying tools for UI refresh
+              this.handleNoteModifyingTool(data.toolCall);
             }
           }
         : (data) => {
@@ -155,23 +173,8 @@ export class ElectronChatService implements ChatService, NoteService {
             if (data.requestId === requestId) {
               notesStore.handleToolCall({ name: data.toolCall.name });
 
-              // Specifically handle note updates
-              if (data.toolCall.name === 'update_note' && data.toolCall.arguments) {
-                try {
-                  const args =
-                    typeof data.toolCall.arguments === 'string'
-                      ? JSON.parse(data.toolCall.arguments)
-                      : data.toolCall.arguments;
-                  if (args.identifier) {
-                    notesStore.notifyNoteUpdated(args.identifier);
-                  }
-                } catch (err) {
-                  console.warn(
-                    'Failed to parse tool call arguments for note update notification:',
-                    err
-                  );
-                }
-              }
+              // Handle note-modifying tools for UI refresh
+              this.handleNoteModifyingTool(data.toolCall);
             }
           }
     );
