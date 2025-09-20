@@ -495,6 +495,24 @@ class TemporaryTabsStore {
     // Clear vault switching flag
     this.isVaultSwitching = false;
   }
+
+  /**
+   * Add tutorial notes to temporary tabs for new vaults
+   * Called after vault creation to provide immediate guidance
+   */
+  async addTutorialNoteTabs(): Promise<void> {
+    await this.ensureInitialized();
+
+    // Add tutorial notes to temporary tabs
+    const tutorialNotes = [
+      { id: 'tutorial/01-your-first-note', title: '01 Your First Note' },
+      { id: 'tutorial/02-working-with-ai', title: '02 Working with AI' }
+    ];
+
+    for (const tutorial of tutorialNotes) {
+      await this.addTab(tutorial.id, tutorial.title, 'navigation');
+    }
+  }
 }
 
 export const temporaryTabsStore = new TemporaryTabsStore();

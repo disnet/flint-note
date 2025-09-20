@@ -101,6 +101,21 @@
       // Optionally switch to the newly created vault
       if (vaultInfo.id) {
         await switchVault(vaultInfo.id);
+
+        // Pin welcome note and add tutorial notes after vault switch is complete
+        try {
+          await pinnedNotesStore.pinWelcomeNote();
+        } catch (error) {
+          console.warn('Failed to pin welcome note:', error);
+          // Non-blocking - don't fail the vault creation flow
+        }
+
+        try {
+          await temporaryTabsStore.addTutorialNoteTabs();
+        } catch (error) {
+          console.warn('Failed to add tutorial notes to tabs:', error);
+          // Non-blocking - don't fail the vault creation flow
+        }
       }
     } catch (error) {
       console.error('Failed to handle vault creation:', error);

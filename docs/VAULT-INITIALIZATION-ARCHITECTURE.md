@@ -132,17 +132,13 @@ if (args.initialize !== false) {
 ### Phase 3: Search Index Setup
 
 ```typescript
-  // Initialize hybrid search index for the new vault
-  const stats = await tempHybridSearchManager.getStats();
-  const forceRebuild = process.env.FORCE_INDEX_REBUILD === 'true';
-  const isEmptyIndex = stats.noteCount === 0;
-  const shouldRebuild = forceRebuild || isEmptyIndex;
+// Initialize hybrid search index for the new vault
+const stats = await tempHybridSearchManager.getStats();
+const forceRebuild = process.env.FORCE_INDEX_REBUILD === 'true';
+const isEmptyIndex = stats.noteCount === 0;
+const shouldRebuild = forceRebuild || isEmptyIndex;
 
-  await handleIndexRebuild(
-    tempHybridSearchManager,
-    shouldRebuild,
-    logInitialization
-  );
+await handleIndexRebuild(tempHybridSearchManager, shouldRebuild, logInitialization);
 ```
 
 ### Phase 4: Immediate Onboarding Content Creation
@@ -234,11 +230,13 @@ For new vaults, the system creates onboarding content immediately during vault c
 The system provides onboarding content creation in two contexts:
 
 ### 1. Main Application Initialization
+
 - **When**: Application startup detects a new workspace
 - **Context**: Main FlintNoteApi instance with full service dependencies
 - **Purpose**: Handle existing directory structures that lack onboarding content
 
 ### 2. Vault Creation Process
+
 - **When**: User explicitly creates a new vault through the UI
 - **Context**: Temporary managers created specifically for vault initialization
 - **Purpose**: Provide immediate value and guidance to new vault users

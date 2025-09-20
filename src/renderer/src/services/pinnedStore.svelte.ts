@@ -245,6 +245,18 @@ class PinnedNotesStore {
       this.state.isLoading = false;
     }
   }
+
+  /**
+   * Pin the welcome note for new vaults
+   * Called after vault creation to provide immediate guidance
+   */
+  async pinWelcomeNote(): Promise<void> {
+    await this.pinNote(
+      'note/welcome-to-flint',
+      'Welcome to Flint',
+      'welcome-to-flint.md'
+    );
+  }
 }
 
 export const pinnedNotesStore = new PinnedNotesStore();
