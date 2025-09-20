@@ -38,11 +38,13 @@ When typing in long notes or moving the cursor near the bottom of the viewport, 
 ### **Architecture Analysis: Container vs CodeMirror Scrolling**
 
 **Current Implementation:**
+
 - CodeMirror instances are sized to `flex: 1` (100% height of container)
 - Scrolling happens at the container level (`.note-content` in `MainView.svelte`)
 - Container has `overflow: auto` and custom scrollbar styling
 
 **Problem with CodeMirror ScrollMargins:**
+
 - `EditorView.scrollMargins` only works when CodeMirror handles scrolling
 - Current architecture scrolls the containing div, not CodeMirror itself
 - Would require major layout changes to make CodeMirror the scroll container
@@ -52,6 +54,7 @@ When typing in long notes or moving the cursor near the bottom of the viewport, 
 Monitor CodeMirror cursor position and trigger auto-scrolling on the containing div when cursor approaches viewport edges.
 
 **Benefits:**
+
 - ✅ Works with existing architecture - no layout changes needed
 - ✅ Maintains consistent scrolling behavior for entire note content
 - ✅ Preserves existing scroll styling and customization
@@ -59,13 +62,14 @@ Monitor CodeMirror cursor position and trigger auto-scrolling on the containing 
 - ✅ Handles headers, metadata, and editor content uniformly
 
 **Implementation:**
+
 ```typescript
 // ScrollAutoService.svelte.ts
 class ScrollAutoService {
   private cursorElement: HTMLElement | null = null;
   private scrollContainer: HTMLElement | null = null;
   private config = {
-    topMargin: 75,    // Pixels from top edge to trigger scroll
+    topMargin: 75, // Pixels from top edge to trigger scroll
     bottomMargin: 150 // Pixels from bottom edge to trigger scroll
   };
 
@@ -87,10 +91,12 @@ class ScrollAutoService {
 Change architecture to make CodeMirror handle all scrolling using `EditorView.scrollMargins`.
 
 **Benefits:**
+
 - ✅ Uses CodeMirror's built-in, well-tested functionality
 - ✅ Automatically handles all cursor movement types
 
 **Drawbacks:**
+
 - ❌ Requires significant layout restructuring
 - ❌ Headers and metadata would need repositioning
 - ❌ Loss of unified scroll behavior for note content
@@ -105,6 +111,7 @@ Implement container-based auto-scroll with optional CodeMirror scrollMargins for
 ### **Phase 1: Container-Based Auto-Scroll Service**
 
 1. **Create ScrollAutoService**
+
    ```typescript
    // stores/scrollAutoService.svelte.ts
    export class ScrollAutoService {
@@ -133,6 +140,7 @@ Implement container-based auto-scroll with optional CodeMirror scrollMargins for
    ```
 
 2. **Integrate with CodeMirrorEditor**
+
    ```typescript
    // In CodeMirrorEditor.svelte
    import { ScrollAutoService } from '../stores/scrollAutoService.svelte.js';
@@ -149,6 +157,7 @@ Implement container-based auto-scroll with optional CodeMirror scrollMargins for
    ```
 
 3. **Find Scroll Container**
+
    ```typescript
    // Find the nearest scrollable parent (.note-content in MainView)
    function findScrollContainer(element: HTMLElement): HTMLElement | null {
@@ -178,6 +187,7 @@ Implement container-based auto-scroll with optional CodeMirror scrollMargins for
 ### **Phase 2: Enhanced Container Auto-Scroll**
 
 1. **Advanced Scroll Triggering**
+
    ```typescript
    private calculateScrollTarget(cursorRect: DOMRect): number | null {
      const containerRect = this.scrollContainer!.getBoundingClientRect();
@@ -199,6 +209,7 @@ Implement container-based auto-scroll with optional CodeMirror scrollMargins for
    ```
 
 2. **Smooth Container Scrolling**
+
    ```typescript
    private smoothScrollTo(targetY: number) {
      if (this.config.smoothScroll) {
@@ -229,10 +240,10 @@ Implement container-based auto-scroll with optional CodeMirror scrollMargins for
 ```typescript
 const defaultAutoScrollConfig = {
   enabled: true,
-  bottomMargin: 150,  // Pixels from bottom edge to trigger scroll
-  topMargin: 75,      // Pixels from top edge to trigger scroll
+  bottomMargin: 150, // Pixels from bottom edge to trigger scroll
+  topMargin: 75, // Pixels from top edge to trigger scroll
   smoothScroll: false, // Use smooth scrolling animation
-  debounceMs: 50      // Debounce cursor position changes
+  debounceMs: 50 // Debounce cursor position changes
 };
 ```
 
@@ -240,19 +251,19 @@ const defaultAutoScrollConfig = {
 
 ```typescript
 const autoScrollConfigs = {
-  'default': {
+  default: {
     enabled: true,
-    bottomMargin: 150,   // Larger margin for full editor
+    bottomMargin: 150, // Larger margin for full editor
     topMargin: 75,
     smoothScroll: false, // Immediate scrolling for responsiveness
     debounceMs: 50
   },
   'daily-note': {
     enabled: true,
-    bottomMargin: 100,   // Smaller margin for compact layout
+    bottomMargin: 100, // Smaller margin for compact layout
     topMargin: 50,
-    smoothScroll: true,  // Smoother for daily editing workflow
-    debounceMs: 30       // More responsive for short entries
+    smoothScroll: true, // Smoother for daily editing workflow
+    debounceMs: 30 // More responsive for short entries
   }
 };
 ```
@@ -352,6 +363,7 @@ function checkAndScroll(editorView: EditorView) {
 
 **Approach**: Use CodeMirror's built-in `EditorView.scrollMargins`
 **Rejected because**:
+
 - Requires restructuring layout to make CodeMirror the scroll container
 - Would break unified scroll behavior for headers/metadata
 - Loss of existing container scroll styling
@@ -361,6 +373,7 @@ function checkAndScroll(editorView: EditorView) {
 
 **Approach**: Use browser API to detect cursor near viewport edges
 **Rejected because**:
+
 - Requires creating DOM elements to track cursor position
 - Complex setup for text cursor vs physical DOM elements
 - Performance overhead of continuous intersection monitoring
@@ -370,6 +383,7 @@ function checkAndScroll(editorView: EditorView) {
 
 **Approach**: Use CSS `scroll-padding` properties on containers
 **Rejected because**:
+
 - CSS scroll-padding doesn't trigger automatic scrolling
 - Limited browser support for programmatic scroll triggers
 - No integration with cursor position tracking
@@ -378,18 +392,21 @@ function checkAndScroll(editorView: EditorView) {
 ## Migration Path
 
 ### **Phase 1: Basic Container Auto-Scroll**
+
 - Implement ScrollAutoService with basic cursor tracking
 - Enable by default with conservative margin settings
 - Test with existing note editing workflows
 - Ensure compatibility with current scroll styling
 
 ### **Phase 2: Refinement**
+
 - Gather user feedback on scroll behavior and timing
 - Adjust margin sizes and debounce timing based on usage patterns
 - Add variant-specific configurations (daily-note vs default)
 - Performance optimization for long documents
 
 ### **Phase 3: Enhancement**
+
 - Add smooth scrolling animation options
 - Implement visual feedback for scroll trigger zones
 - Add user preference controls for auto-scroll behavior

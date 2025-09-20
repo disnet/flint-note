@@ -6,6 +6,7 @@
   import { type CursorPosition } from '../stores/cursorPositionManager.svelte.js';
   import { measureMarkerWidths, updateCSSCustomProperties } from '../lib/textMeasurement';
   import { forceWikilinkRefresh } from '../lib/wikilinks.svelte.js';
+  import { ScrollAutoService } from '../stores/scrollAutoService.svelte.js';
 
   interface Props {
     content: string;
@@ -43,6 +44,8 @@
     variant
   });
 
+  const scrollAutoService = new ScrollAutoService(variant);
+
   onMount(() => {
     editorConfig.initializeTheme();
     return () => {
@@ -51,6 +54,7 @@
         editorView = null;
       }
       editorConfig.destroy();
+      scrollAutoService.destroy();
     };
   });
 
@@ -137,6 +141,17 @@
 
   $effect(() => {
     updateEditorConfig();
+  });
+
+  // Set up auto-scroll service when editor and container are available
+  $effect(() => {
+    if (editorView) {
+      // Use the auto-search method to find the scroll container
+      const success = scrollAutoService.setupAutoScrollWithSearch(editorView);
+      if (!success) {
+        console.debug('Auto-scroll: Could not find scroll container');
+      }
+    }
   });
 
   function measureAndUpdateMarkerWidths(): void {
@@ -241,6 +256,22 @@
   }
 
   export { focusAtEnd };
+
+  export function setAutoScrollEnabled(enabled: boolean): void {
+    scrollAutoService.setEnabled(enabled);
+  }
+
+  export function updateAutoScrollConfig(
+    config: Partial<{
+      enabled: boolean;
+      topMargin: number;
+      bottomMargin: number;
+      smoothScroll: boolean;
+      debounceMs: number;
+    }>
+  ): void {
+    scrollAutoService.updateConfig(config);
+  }
 </script>
 
 <div
