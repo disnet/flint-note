@@ -22,6 +22,7 @@ export interface UnifiedThread {
   // Threading features
   notesDiscussed: string[];
   isArchived?: boolean;
+  includeNoteContext?: boolean; // Whether to include note context in this thread
 
   // Timestamps
   createdAt: Date;
@@ -45,6 +46,7 @@ interface SerializedThread {
   messages: SerializedMessage[];
   notesDiscussed: string[];
   isArchived?: boolean;
+  includeNoteContext?: boolean;
   createdAt: string | Date;
   lastActivity: string | Date;
 }
@@ -275,6 +277,7 @@ class UnifiedChatStore {
       messages: initialMessage ? [initialMessage] : [],
       notesDiscussed: initialMessage ? extractNotesDiscussed([initialMessage]) : [],
       isArchived: false,
+      includeNoteContext: true, // Default to true for new threads
       createdAt: now,
       lastActivity: now
     };
@@ -419,6 +422,14 @@ class UnifiedChatStore {
 
   async unarchiveThread(threadId: string): Promise<boolean> {
     return await this.updateThread(threadId, { isArchived: false });
+  }
+
+  // Note context operations
+  async toggleNoteContext(
+    threadId: string,
+    includeNoteContext: boolean
+  ): Promise<boolean> {
+    return await this.updateThread(threadId, { includeNoteContext });
   }
 
   // Message operations
@@ -599,7 +610,8 @@ class UnifiedChatStore {
             const processedThreads = threadArray.map((thread: SerializedThread) => ({
               ...thread,
               createdAt: new Date(thread.createdAt),
-              lastActivity: new Date(thread.lastActivity)
+              lastActivity: new Date(thread.lastActivity),
+              includeNoteContext: thread.includeNoteContext ?? true // Default to true for legacy threads
             }));
 
             // Save each vault's threads to file system
@@ -666,6 +678,7 @@ class UnifiedChatStore {
           ...thread,
           createdAt: new Date(thread.createdAt),
           lastActivity: new Date(thread.lastActivity),
+          includeNoteContext: thread.includeNoteContext ?? true, // Default to true for legacy threads
           messages: this.deduplicateMessages(
             thread.messages.map((msg: SerializedMessage) => ({
               ...msg,

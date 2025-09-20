@@ -51,7 +51,8 @@ export interface ChatService {
   sendMessage(
     text: string,
     conversationId?: string,
-    model?: string
+    model?: string,
+    systemMessage?: string
   ): Promise<ChatResponse>;
   sendMessageStream?(
     text: string,
@@ -60,7 +61,8 @@ export interface ChatService {
     onComplete: (fullText: string) => void,
     onError: (error: string) => void,
     model?: string,
-    onToolCall?: (toolCall: ToolCall) => void
+    onToolCall?: (toolCall: ToolCall) => void,
+    systemMessage?: string
   ): void;
 }
 

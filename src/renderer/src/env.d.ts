@@ -69,6 +69,7 @@ declare global {
         message: string;
         conversationId?: string;
         model?: string;
+        systemMessage?: string;
       }) => Promise<any>;
       sendMessageStream: (
         params: {
@@ -76,6 +77,7 @@ declare global {
           conversationId?: string;
           model?: string;
           requestId: string;
+          systemMessage?: string;
         },
         onStreamStart: (data: { requestId: string }) => void,
         onStreamChunk: (data: { requestId: string; chunk: string }) => void,

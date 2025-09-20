@@ -339,10 +339,35 @@
     return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }
 
-  async function handleSendMessage(text: string): Promise<void> {
+  async function handleSendMessage(
+    text: string,
+    noteContext?: { title: string; content: string; type: string }
+  ): Promise<void> {
+    let systemMessageForAI: string | undefined = undefined;
+    if (noteContext != null) {
+      // Truncate content if too long
+      const maxContentLength = 8000;
+      let content = noteContext.content;
+      let truncated = false;
+
+      if (content.length > maxContentLength) {
+        content = content.substring(0, maxContentLength) + '...';
+        truncated = true;
+      }
+
+      systemMessageForAI = `CURRENT NOTE CONTEXT:
+Title: ${noteContext.title}
+Type: ${noteContext.type}
+Content:
+${content}${truncated ? '\n[Content truncated for length]' : ''}
+
+The user is currently working on this note. Use this context to provide more relevant and helpful responses related to their work.`;
+    }
+
+    // Store the original user message (without context) in conversation history
     const newMessage: Message = {
       id: generateUniqueId(),
-      text,
+      text: text, // Store original text without context
       sender: 'user',
       timestamp: new Date()
     };
@@ -371,7 +396,7 @@
       // Use streaming if available, otherwise fall back to regular sendMessage
       if (chatService.sendMessageStream) {
         chatService.sendMessageStream(
-          text,
+          text, // Send original user message
           unifiedChatStore.activeThreadId || undefined,
           // onChunk: append text chunks to the current message
           async (chunk: string) => {
@@ -444,14 +469,16 @@
               await unifiedChatStore.addMessage(postToolCallMessage);
               currentMessageId = postToolCallMessageId;
             }
-          }
+          },
+          systemMessageForAI // Pass system message with note context
         );
       } else {
         // Fallback to non-streaming mode
         const response = await chatService.sendMessage(
-          text,
+          text, // Send original user message
           unifiedChatStore.activeThreadId || undefined,
-          modelStore.selectedModel
+          modelStore.selectedModel,
+          systemMessageForAI // Pass system message with note context
         );
 
         // Update the placeholder message with the complete response

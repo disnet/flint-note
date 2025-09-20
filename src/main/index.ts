@@ -267,7 +267,12 @@ app.whenReady().then(async () => {
     'send-message',
     async (
       _event,
-      params: { message: string; conversationId?: string; model?: string }
+      params: {
+        message: string;
+        conversationId?: string;
+        model?: string;
+        systemMessage?: string;
+      }
     ) => {
       try {
         if (aiService) {
@@ -284,7 +289,8 @@ app.whenReady().then(async () => {
           return await aiService.sendMessage(
             params.message,
             params.conversationId,
-            params.model
+            params.model,
+            params.systemMessage
           );
         } else {
           // Fallback to mock responses if AI service failed to initialize
@@ -320,6 +326,7 @@ app.whenReady().then(async () => {
         conversationId?: string;
         model?: string;
         requestId: string;
+        systemMessage?: string;
       }
     ) => {
       try {
@@ -371,7 +378,8 @@ app.whenReady().then(async () => {
             params.message,
             params.requestId,
             params.conversationId,
-            params.model
+            params.model,
+            params.systemMessage
           );
         } else {
           // Fallback mock streaming
