@@ -1,5 +1,13 @@
 # Project Log
 
+## Onboarding Note Creation API Refactor - 2025-09-20
+
+- **Refactored onboarding note creation to use standard createNote APIs** instead of direct filesystem writes: moved welcome note and tutorial creation from Workspace class to FlintNoteApi.createOnboardingContent(), ensuring proper database integration, metadata handling, link extraction, content hashing, and search indexing; implemented comprehensive onboarding content including welcome note, 2 tutorial notes, 2 example notes, and 3 template notes using proper NoteManager.createNote() API calls with correct TypeScript typing and error handling; fixed architectural issue by using dependency injection pattern - creating NoteManager directly during initialization and passing it to onboarding content creation, eliminating circular dependency where onboarding creation required API to be initialized while still being in initialization process
+
+## Welcome Note Directory Fix - 2025-09-20
+
+- **Fixed welcome note creation path** to place it in 'note' type directory instead of vault root: updated createWelcomeNote() method in workspace.ts to create "Welcome to Flint.md" in /note/ subdirectory and added ensureDirectory() call for safety, aligning with note type organization structure where all notes belong to specific types
+
 ## Note Editor Auto-Scroll Design - 2025-09-19
 
 - **Analyzed and designed auto-scroll solution** for note editor viewport scrolling when cursor approaches screen edges: researched CodeMirror 6 scrolling APIs (scrollMargins, scrollHandler, scrollIntoView), analyzed current editor architecture built on CodeMirrorEditor.svelte and EditorConfig.svelte.ts, and created comprehensive implementation plan using EditorView.scrollMargins for elegant auto-scrolling with variant-specific configurations (150px bottom margin for default, 100px for daily-note)

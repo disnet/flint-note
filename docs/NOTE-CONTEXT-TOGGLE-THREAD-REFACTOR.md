@@ -37,21 +37,25 @@ Refactored the note context toggle feature to use thread-based persistence inste
 ## Architecture Benefits
 
 ### 1. **Thread-Specific Context**
+
 - Each conversation thread maintains its own note context preference
 - Users can have different settings for different conversations
 - Context preference travels with the conversation when switching between threads
 
 ### 2. **Improved Data Consistency**
+
 - Note context setting is stored with conversation data
 - Automatic persistence through existing conversation storage mechanism
 - No risk of localStorage/conversation state getting out of sync
 
 ### 3. **Better User Experience**
+
 - Context setting remembers per conversation thread
 - More intuitive behavior - users expect conversation settings to be per-conversation
 - Seamless experience when switching between threads
 
 ### 4. **Simplified State Management**
+
 - Removed localStorage dependency for this feature
 - Uses existing unified chat store infrastructure
 - Leverages existing thread persistence and sync mechanisms
@@ -59,6 +63,7 @@ Refactored the note context toggle feature to use thread-based persistence inste
 ## Technical Implementation
 
 ### **Thread State Management**
+
 ```typescript
 interface UnifiedThread {
   // ... existing properties
@@ -73,6 +78,7 @@ async toggleNoteContext(threadId: string, includeNoteContext: boolean): Promise<
 ```
 
 ### **Reactive UI State**
+
 ```typescript
 // Derived from active thread state
 const includeNoteContext = $derived(
@@ -89,6 +95,7 @@ function toggleNoteContext(): void {
 ```
 
 ### **Backwards Compatibility**
+
 - Legacy threads without `includeNoteContext` default to `true`
 - Migration code handles existing conversation data
 - No data loss during transition
@@ -96,11 +103,13 @@ function toggleNoteContext(): void {
 ## User-Facing Changes
 
 ### **Before**: Global Setting
+
 - Note context toggle was vault-wide preference stored in localStorage
 - Same setting applied to all conversations in a vault
 - Setting persisted across all conversations
 
 ### **After**: Per-Thread Setting
+
 - Note context toggle is per-conversation thread
 - Each thread remembers its own preference
 - New threads default to enabled

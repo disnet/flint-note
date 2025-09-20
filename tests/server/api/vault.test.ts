@@ -7,6 +7,34 @@ import { TestApiSetup } from './test-setup.js';
 import fs from 'fs/promises';
 import path from 'path';
 
+// Helper function to recursively list all files
+async function getAllFiles(dir: string): Promise<string[]> {
+  const files: string[] = [];
+
+  async function walk(currentPath: string, basePath: string) {
+    const entries = await fs.readdir(currentPath, { withFileTypes: true });
+
+    for (const entry of entries) {
+      const fullPath = path.join(currentPath, entry.name);
+      const relativePath = path.relative(basePath, fullPath);
+
+      if (entry.isDirectory()) {
+        await walk(fullPath, basePath);
+      } else {
+        files.push(relativePath);
+      }
+    }
+  }
+
+  try {
+    await walk(dir, dir);
+  } catch (error) {
+    console.log('Error reading directory:', error);
+  }
+
+  return files.sort();
+}
+
 describe('FlintNoteApi - Vault Operations', () => {
   let testSetup: TestApiSetup;
 
@@ -116,6 +144,52 @@ describe('FlintNoteApi - Vault Operations', () => {
 
       // Should have at least config.yml from initialization
       expect(files).toContain('config.yml');
+    });
+
+    it('should create onboarding content when initializing a new vault', async () => {
+      const vaultConfig = {
+        id: 'onboarding-vault',
+        name: 'Onboarding Test Vault',
+        path: path.join(testSetup.testWorkspacePath, 'onboarding-vault'),
+        description: 'A vault that should contain onboarding content',
+        initialize: true,
+        switch_to: false
+      };
+
+      await testSetup.api.createVault(vaultConfig);
+      testSetup.createdVaultIds.push(vaultConfig.id);
+
+      // Check that onboarding content files were created
+      // Note: filenames are generated using kebab-case from titles
+      const expectedFiles = [
+        'note/welcome-to-flint.md',
+        'tutorial/01-your-first-note.md',
+        'tutorial/02-working-with-ai.md',
+        'examples/meeting-notes-example.md',
+        'examples/research-notes-example.md',
+        'templates/daily-journal-template.md',
+        'templates/meeting-notes-template.md',
+        'templates/project-brief-template.md'
+      ];
+
+      for (const expectedFile of expectedFiles) {
+        const filePath = path.join(vaultConfig.path, expectedFile);
+        const fileExists = await fs
+          .access(filePath)
+          .then(() => true)
+          .catch(() => false);
+        expect(fileExists).toBe(true);
+
+        // Verify file has content
+        const content = await fs.readFile(filePath, 'utf-8');
+        expect(content.length).toBeGreaterThan(0);
+      }
+
+      // Verify that note type descriptions exist
+      const flintNoteDir = path.join(vaultConfig.path, '.flint-note');
+      const files = await fs.readdir(flintNoteDir);
+      const descriptions = files.filter((f) => f.endsWith('_description.md'));
+      expect(descriptions.length).toBeGreaterThan(0);
     });
   });
 
