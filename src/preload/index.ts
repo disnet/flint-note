@@ -31,19 +31,14 @@ export type ToolCallData = {
 // Custom APIs for renderer
 const api = {
   // Chat operations
-  sendMessage: (params: {
-    message: string;
-    conversationId?: string;
-    model?: string;
-    systemMessage?: string;
-  }) => electronAPI.ipcRenderer.invoke('send-message', params),
+  sendMessage: (params: { message: string; conversationId?: string; model?: string }) =>
+    electronAPI.ipcRenderer.invoke('send-message', params),
   sendMessageStream: (
     params: {
       message: string;
       conversationId?: string;
       model?: string;
       requestId: string;
-      systemMessage?: string;
     },
     onStreamStart: (data: { requestId: string }) => void,
     onStreamChunk: (data: { requestId: string; chunk: string }) => void,

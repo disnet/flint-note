@@ -99,15 +99,13 @@ export class ElectronChatService implements ChatService, NoteService {
   async sendMessage(
     text: string,
     conversationId?: string,
-    model?: string,
-    systemMessage?: string
+    model?: string
   ): Promise<ChatResponse> {
     try {
       const response = await window.api.sendMessage({
         message: text,
         conversationId,
-        model,
-        systemMessage
+        model
       });
 
       // Handle both old string format and new object format
@@ -130,13 +128,12 @@ export class ElectronChatService implements ChatService, NoteService {
     onError: (error: string) => void,
     model?: string,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    onToolCall?: (toolCall: any) => void,
-    systemMessage?: string
+    onToolCall?: (toolCall: any) => void
   ): void {
     const requestId = crypto.randomUUID();
 
     window.api.sendMessageStream(
-      { message: text, conversationId, model, requestId, systemMessage },
+      { message: text, conversationId, model, requestId },
       (data) => {
         // Stream started
         console.log('Stream started:', data.requestId);

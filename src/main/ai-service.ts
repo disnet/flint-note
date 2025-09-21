@@ -1016,8 +1016,7 @@ ${
   async sendMessage(
     userMessage: string,
     conversationId?: string,
-    modelName?: string,
-    systemMessage?: string
+    modelName?: string
   ): Promise<{
     text: string;
     toolCalls?: Array<{
@@ -1055,28 +1054,13 @@ ${
       this.setConversationHistory(this.currentConversationId!, currentHistory);
 
       // Prepare messages for the model
-      let baseSystemMessage = await this.getSystemMessageWithCaching();
-
-      // If additional system message provided, combine it with the base system prompt
-      if (systemMessage) {
-        const baseContent =
-          typeof baseSystemMessage.content === 'string'
-            ? baseSystemMessage.content
-            : JSON.stringify(baseSystemMessage.content);
-        const combinedContent = `${baseContent}\n\n${systemMessage}`;
-        baseSystemMessage = {
-          ...baseSystemMessage,
-          content: combinedContent,
-          role: 'system' as const
-        };
-      }
-
+      const systemMessage = await this.getSystemMessageWithCaching();
       const conversationHistory = this.getConversationMessages(
         this.currentConversationId!
       );
       const cachedHistory = this.prepareCachedMessages(conversationHistory);
 
-      const messages: ModelMessage[] = [baseSystemMessage, ...cachedHistory];
+      const messages: ModelMessage[] = [systemMessage, ...cachedHistory];
 
       const tools = this.toolService.getTools();
       const result = await generateText({
@@ -1179,8 +1163,7 @@ ${
     userMessage: string,
     requestId: string,
     conversationId?: string,
-    modelName?: string,
-    systemMessage?: string
+    modelName?: string
   ): Promise<void> {
     try {
       // Switch model if specified
@@ -1205,28 +1188,13 @@ ${
       this.setConversationHistory(this.currentConversationId!, currentHistory);
 
       // Prepare messages for the model
-      let baseSystemMessage = await this.getSystemMessageWithCaching();
-
-      // If additional system message provided, combine it with the base system prompt
-      if (systemMessage) {
-        const baseContent =
-          typeof baseSystemMessage.content === 'string'
-            ? baseSystemMessage.content
-            : JSON.stringify(baseSystemMessage.content);
-        const combinedContent = `${baseContent}\n\n${systemMessage}`;
-        baseSystemMessage = {
-          ...baseSystemMessage,
-          content: combinedContent,
-          role: 'system' as const
-        };
-      }
-
+      const systemMessage = await this.getSystemMessageWithCaching();
       const conversationHistory = this.getConversationMessages(
         this.currentConversationId!
       );
       const cachedHistory = this.prepareCachedMessages(conversationHistory);
 
-      const messages: ModelMessage[] = [baseSystemMessage, ...cachedHistory];
+      const messages: ModelMessage[] = [systemMessage, ...cachedHistory];
 
       this.emit('stream-start', { requestId });
 

@@ -30,34 +30,11 @@
     slashCommandsStore,
     type SlashCommand
   } from '../stores/slashCommandsStore.svelte';
-  import { activeNoteStore } from '../stores/activeNoteStore.svelte';
-  import { getChatService } from '../services/chatService';
-  import { unifiedChatStore } from '../stores/unifiedChatStore.svelte';
 
-  interface Props {
-    onSend: (
-      text: string,
-      noteContext?: { title: string; content: string; type: string }
-    ) => void;
-  }
-
-  let { onSend }: Props = $props();
+  let { onSend }: { onSend: (text: string) => void } = $props();
 
   let inputText = $state('');
   let autocompleteComponent = $state<SlashCommandAutocompleteType | null>(null);
-
-  // Note context state - derived from active thread
-  const includeNoteContext = $derived(
-    unifiedChatStore.activeThread?.includeNoteContext ?? true
-  );
-
-  // Function to toggle note context for current thread
-  function toggleNoteContext(): void {
-    const activeThreadId = unifiedChatStore.activeThreadId;
-    if (activeThreadId) {
-      unifiedChatStore.toggleNoteContext(activeThreadId, !includeNoteContext);
-    }
-  }
 
   // Slash command widget for atomic display
   class SlashCommandWidget extends WidgetType {
@@ -188,35 +165,10 @@
   let slashCommandStart = $state(0);
   let isInParameterMode = $state(false);
 
-  async function handleSubmit(): Promise<void> {
+  function handleSubmit(): void {
     const text = inputText.trim();
     if (text) {
-      let noteContext: { title: string; content: string; type: string } | undefined =
-        undefined;
-
-      // Include note context if enabled and a note is active
-      if (includeNoteContext && activeNoteStore.activeNote) {
-        try {
-          const chatService = getChatService();
-          const note = await chatService.getNote({
-            identifier: activeNoteStore.activeNote.id,
-            vaultId: unifiedChatStore.currentVaultId || 'default'
-          });
-
-          if (note) {
-            noteContext = {
-              title: activeNoteStore.activeNote.title,
-              content: note.content,
-              type: activeNoteStore.activeNote.type || 'note'
-            };
-          }
-        } catch (error) {
-          console.warn('Failed to fetch note content for context:', error);
-          // Continue without note context
-        }
-      }
-
-      onSend(text, noteContext);
+      onSend(text);
       inputText = '';
       // Clear the editor content
       if (editorView) {
@@ -697,38 +649,8 @@
     {/if}
   </div>
   <div class="controls-row">
-    <div class="left-controls">
-      <div class="model-selector-wrapper">
-        <ModelSelector />
-      </div>
-      {#if activeNoteStore.activeNote}
-        <label class="note-context-toggle">
-          <input
-            type="checkbox"
-            checked={includeNoteContext}
-            onchange={toggleNoteContext}
-            class="note-context-checkbox"
-          />
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            class="note-context-icon"
-          >
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-            <polyline points="14,2 14,8 20,8" />
-            <line x1="16" y1="13" x2="8" y2="13" />
-            <line x1="16" y1="17" x2="8" y2="17" />
-            <polyline points="10,9 9,9 8,9" />
-          </svg>
-          <span class="note-context-label">
-            {activeNoteStore.activeNote.title}
-          </span>
-        </label>
-      {/if}
+    <div class="model-selector-wrapper">
+      <ModelSelector />
     </div>
     <button onclick={handleSubmit} disabled={!inputText.trim()} class="send-button">
       submit ↵
@@ -762,61 +684,11 @@
     gap: 0.75rem;
   }
 
-  .left-controls {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    flex: 1;
-  }
-
   .model-selector-wrapper {
     flex-shrink: 0;
     display: flex;
     align-items: center;
     gap: 0.5rem;
-  }
-
-  .note-context-toggle {
-    display: flex;
-    align-items: center;
-    gap: 0.375rem;
-    padding: 0.25rem 0.5rem;
-    border: 1px solid var(--border-light);
-    border-radius: 0.375rem;
-    background: var(--bg-primary);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-    user-select: none;
-  }
-
-  .note-context-toggle:hover {
-    background: var(--bg-tertiary);
-    border-color: var(--border-medium);
-  }
-
-  .note-context-checkbox {
-    margin: 0;
-    accent-color: var(--accent-primary);
-  }
-
-  .note-context-icon {
-    flex-shrink: 0;
-    color: var(--text-tertiary);
-    transition: color 0.2s ease;
-  }
-
-  .note-context-toggle:has(.note-context-checkbox:checked) .note-context-icon {
-    color: var(--accent-primary);
-  }
-
-  .note-context-label {
-    font-weight: 500;
-    max-width: 120px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 
   .editor-field {
