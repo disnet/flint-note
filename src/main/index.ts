@@ -152,7 +152,7 @@ app.whenReady().then(async () => {
   logger.info('Application ready, initializing main process');
 
   // Set app user model id for windows
-  electronApp.setAppUserModelId('com.electron');
+  electronApp.setAppUserModelId('rocks.flint-note.flint');
 
   // Initialize auto-updater service
   // TODO: enable once we have a production build

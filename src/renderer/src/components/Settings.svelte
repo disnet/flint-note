@@ -359,6 +359,19 @@
         encrypted on your device.
       </p>
 
+      <div class="keychain-info">
+        <div class="info-icon">🔐</div>
+        <div class="info-content">
+          <strong>Secure Storage Notice:</strong>
+          <p>
+            When you save API keys, your system may prompt you to allow "Flint" access to
+            your keychain. This is normal and secure - we use your system's built-in
+            encryption to protect your API keys. You can choose "Always Allow" to avoid
+            repeated prompts.
+          </p>
+        </div>
+      </div>
+
       <div class="api-key-group">
         <label for="openrouter-key-input">
           <strong>OpenRouter API Key</strong>
@@ -854,6 +867,41 @@
     margin: 0 0 2rem 0;
     color: var(--text-secondary);
     line-height: 1.5;
+  }
+
+  .keychain-info {
+    display: flex;
+    gap: 1rem;
+    padding: 1.25rem;
+    margin-bottom: 2rem;
+    background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+    border: 1px solid #bbdefb;
+    border-radius: 0.75rem;
+    align-items: flex-start;
+  }
+
+  .info-icon {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+    margin-top: 0.125rem;
+  }
+
+  .info-content {
+    flex: 1;
+  }
+
+  .info-content strong {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+
+  .info-content p {
+    margin: 0;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    font-size: 0.875rem;
   }
 
   .api-key-group {
