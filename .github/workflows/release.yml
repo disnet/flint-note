@@ -9,6 +9,9 @@ jobs:
   release:
     runs-on: ${{ matrix.os }}
 
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: true
+
     strategy:
       matrix:
         os: [macos-latest, windows-latest]
@@ -73,7 +76,6 @@ jobs:
         shell: bash
         env:
           # macOS code signing environment variables
-          CSC_IDENTITY_AUTO_DISCOVERY: "true"
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
