@@ -58,6 +58,7 @@
     "@electron-toolkit/eslint-config-prettier": "^3.0.0",
     "@electron-toolkit/eslint-config-ts": "^3.0.0",
     "@electron-toolkit/tsconfig": "^1.0.1",
+    "@electron/notarize": "^3.1.0",
     "@fsegurai/codemirror-theme-github-dark": "^6.2.0",
     "@fsegurai/codemirror-theme-github-light": "^6.2.0",
     "@sveltejs/vite-plugin-svelte": "^5.0.3",

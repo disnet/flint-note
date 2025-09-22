@@ -26,7 +26,7 @@ mac:
   gatekeeperAssess: false
   entitlements: 'build/entitlements.mac.plist'
   entitlementsInherit: 'build/entitlements.mac.plist'
-  notarize: { teamId: 'R54QLXZTK7' }
+  notarize: false
   extendInfo:
     - NSCameraUsageDescription: Application requests access to the device's camera.
     - NSMicrophoneUsageDescription: Application requests access to the device's microphone.
@@ -50,4 +50,4 @@ npmRebuild: false
 publish:
   provider: generic
   url: https://updates.your-domain.com # Replace with your actual update server URL
-# afterSign: build/notarize.js # Optional: for macOS notarization
+afterSign: build/notarize.cjs # Optional: for macOS notarization
