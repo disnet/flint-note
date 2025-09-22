@@ -600,6 +600,7 @@ Add these additional secrets to your repository:
    - Set a strong password
 
 2. **Convert to Base64:**
+
    ```bash
    base64 -i certificate.p12 | pbcopy
    ```

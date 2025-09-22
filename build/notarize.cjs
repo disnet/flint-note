@@ -43,7 +43,7 @@ async function notarizeApp(context) {
       appPath: appPath,
       appleId: appleId,
       appleIdPassword: appleIdPassword,
-      teamId: teamId,
+      teamId: teamId
     });
 
     console.log('✅ Notarization completed successfully');
