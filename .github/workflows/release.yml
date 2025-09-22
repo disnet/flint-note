@@ -29,6 +29,32 @@ jobs:
       - name: Build application
         run: npm run build
 
+      - name: Import Code Signing Certificate (macOS)
+        if: runner.os == 'macOS'
+        env:
+          BUILD_CERTIFICATE_BASE64: ${{ secrets.CSC_LINK }}
+          P12_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          # Create variables
+          CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+
+          # Import certificate from secrets
+          echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o $CERTIFICATE_PATH
+
+          # Create temporary keychain
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+
+          # Import certificate to keychain
+          security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+          security list-keychain -d user -s $KEYCHAIN_PATH
+
+          # Clean up certificate file
+          rm $CERTIFICATE_PATH
+
       - name: Build distributables
         run: |
           if [ "$RUNNER_OS" == "Linux" ]; then
@@ -39,6 +65,12 @@ jobs:
             npm run build:mac
           fi
         shell: bash
+        env:
+          # macOS code signing environment variables
+          CSC_NAME: ${{ secrets.CSC_NAME }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
