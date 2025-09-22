@@ -52,30 +52,3 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: npm run build:linux
 
-      - name: Upload artifacts (macOS)
-        if: matrix.os == 'macos-latest'
-        uses: actions/upload-artifact@v4
-        with:
-          name: flint-macos
-          path: |
-            dist/*.dmg
-            dist/*.zip
-
-      - name: Upload artifacts (Windows)
-        if: matrix.os == 'windows-latest'
-        uses: actions/upload-artifact@v4
-        with:
-          name: flint-windows
-          path: |
-            dist/*.exe
-            dist/*.msi
-
-      - name: Upload artifacts (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        uses: actions/upload-artifact@v4
-        with:
-          name: flint-linux
-          path: |
-            dist/*.AppImage
-            dist/*.snap
-            dist/*.deb
