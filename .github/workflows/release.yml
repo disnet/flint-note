@@ -65,12 +65,15 @@ jobs:
           elif [ "$RUNNER_OS" == "Windows" ]; then
             npm run build:win
           elif [ "$RUNNER_OS" == "macOS" ]; then
+            echo "CSC_IDENTITY_AUTO_DISCOVERY: $CSC_IDENTITY_AUTO_DISCOVERY"
+            echo "Available certificates before build:"
+            security find-identity -v -p codesigning
             npm run build:mac
           fi
         shell: bash
         env:
           # macOS code signing environment variables
-          CSC_IDENTITY_AUTO_DISCOVERY: true
+          CSC_IDENTITY_AUTO_DISCOVERY: "true"
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
