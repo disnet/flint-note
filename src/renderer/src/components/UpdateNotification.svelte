@@ -2,7 +2,9 @@
   import { onMount, onDestroy } from 'svelte';
 
   // State for update status
-  let updateState = $state<'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'error'>('idle');
+  let updateState = $state<
+    'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'error'
+  >('idle');
   let updateInfo = $state<{
     version?: string;
     releaseDate?: string;
@@ -17,7 +19,7 @@
   let showNotification = $state(false);
   let showDetails = $state(false);
 
-  async function loadCurrentVersion() {
+  async function loadCurrentVersion(): Promise<void> {
     try {
       const versionInfo = await window.api?.getAppVersion();
       if (versionInfo) {
@@ -28,7 +30,7 @@
     }
   }
 
-  async function checkForUpdates() {
+  async function checkForUpdates(): Promise<void> {
     if (!window.api) return;
 
     updateState = 'checking';
@@ -41,7 +43,7 @@
     }
   }
 
-  async function downloadUpdate() {
+  async function downloadUpdate(): Promise<void> {
     if (!window.api) return;
 
     updateState = 'downloading';
@@ -54,7 +56,7 @@
     }
   }
 
-  async function installUpdate() {
+  async function installUpdate(): Promise<void> {
     if (!window.api) return;
 
     try {
@@ -66,10 +68,9 @@
     }
   }
 
-  function dismissNotification() {
+  function dismissNotification(): void {
     showNotification = false;
   }
-
 
   function formatReleaseNotes(notes?: string): string {
     if (!notes) return '';
@@ -156,7 +157,7 @@
           <p class="release-name">{updateInfo.releaseName}</p>
         {/if}
         <div class="notification-actions">
-          <button onclick={() => showDetails = !showDetails} class="details-btn">
+          <button onclick={() => (showDetails = !showDetails)} class="details-btn">
             {showDetails ? 'Hide' : 'Show'} Details
           </button>
           <button onclick={downloadUpdate} class="download-btn">Download</button>
@@ -164,10 +165,10 @@
 
         {#if showDetails && updateInfo.releaseNotes}
           <div class="release-notes">
+            <!-- eslint-disable-next-line svelte/no-at-html-tags -->
             {@html formatReleaseNotes(updateInfo.releaseNotes)}
           </div>
         {/if}
-
       {:else if updateState === 'downloading'}
         <div class="notification-header">
           <h3>Downloading Update...</h3>
@@ -176,7 +177,6 @@
           <div class="progress-fill" style="width: {downloadProgress}%"></div>
         </div>
         <p>{Math.round(downloadProgress)}% complete</p>
-
       {:else if updateState === 'downloaded'}
         <div class="notification-header">
           <h3>Update Ready</h3>
@@ -187,7 +187,6 @@
           <button onclick={dismissNotification} class="later-btn">Install Later</button>
           <button onclick={installUpdate} class="install-btn">Restart & Install</button>
         </div>
-
       {:else if updateState === 'error'}
         <div class="notification-header">
           <h3>Update Error</h3>
@@ -306,12 +305,15 @@
     font-size: 0.875rem;
   }
 
-  .details-btn, .later-btn, .retry-btn {
+  .details-btn,
+  .later-btn,
+  .retry-btn {
     background: var(--bg-color, white);
     color: var(--text-color, black);
   }
 
-  .download-btn, .install-btn {
+  .download-btn,
+  .install-btn {
     background: var(--primary-color, #007acc);
     color: white;
     border-color: var(--primary-color, #007acc);

@@ -7,12 +7,14 @@ Refactor the Flint UI state management to use a centralized action dispatcher pa
 ## Goals & Objectives
 
 ### Primary Goals
+
 1. **Standardize State Updates**: All state changes flow through predictable action patterns
 2. **Enable Event Broadcasting**: Automatically broadcast workspace changes to main process for AI tool context
 3. **Maintain Developer Experience**: Keep existing Svelte 5 runes and familiar patterns
 4. **Gradual Migration**: Allow incremental refactoring without breaking existing functionality
 
 ### Success Metrics
+
 - All workspace state changes broadcast to main process within 50ms
 - Zero performance regression in UI responsiveness
 - 100% backward compatibility during migration
@@ -21,11 +23,12 @@ Refactor the Flint UI state management to use a centralized action dispatcher pa
 ## Current State Analysis
 
 ### Existing Store Architecture
+
 ```typescript
 // Current pattern (activeNoteStore example)
 class ActiveNoteStore {
   private state = $state<ActiveNoteState>(defaultState);
-  
+
   async setActiveNote(note: NoteMetadata | null): Promise<void> {
     this.state.activeNote = note;
     await this.saveToStorage();
@@ -37,8 +40,9 @@ activeNoteStore.setActiveNote(selectedNote);
 ```
 
 ### Key Stores to Migrate
+
 - `activeNoteStore` - Current active note tracking
-- `temporaryTabsStore` - Recent notes/tabs management  
+- `temporaryTabsStore` - Recent notes/tabs management
 - `pinnedNotesStore` - Pinned notes management
 - `unifiedChatStore` - Chat threads and conversation state
 - `sidebarState` - UI layout state
@@ -65,7 +69,10 @@ interface Action {
 interface ActionableStore<TState> {
   readonly state: TState;
   dispatch(action: Action): Promise<void>;
-  getActionHandlers(): Record<string, (state: TState, action: Action) => TState | Promise<TState>>;
+  getActionHandlers(): Record<
+    string,
+    (state: TState, action: Action) => TState | Promise<TState>
+  >;
 }
 
 // Central dispatcher
@@ -88,7 +95,7 @@ class ActionDispatcher {
     }
 
     this.isDispatching = true;
-    
+
     try {
       // Apply middleware (logging, validation, etc.)
       let processedAction = action;
@@ -104,16 +111,13 @@ class ActionDispatcher {
 
       // Dispatch to all registered stores
       await Promise.all(
-        Array.from(this.stores.values()).map(store => 
-          store.dispatch(processedAction)
-        )
+        Array.from(this.stores.values()).map((store) => store.dispatch(processedAction))
       );
 
       // Broadcast to main process if requested
       if (processedAction.meta?.broadcast) {
         await window.api?.emitWorkspaceAction(processedAction);
       }
-
     } finally {
       this.isDispatching = false;
     }
@@ -162,7 +166,7 @@ function isWorkspaceAction(type: string): boolean {
   return [
     'ACTIVE_NOTE_CHANGED',
     'NOTE_PINNED',
-    'NOTE_UNPINNED', 
+    'NOTE_UNPINNED',
     'TEMPORARY_TAB_ADDED',
     'TEMPORARY_TAB_REMOVED',
     'VAULT_SWITCHED'
@@ -178,25 +182,25 @@ export const WorkspaceActions = {
   // Active note actions
   SET_ACTIVE_NOTE: 'ACTIVE_NOTE_SET',
   CLEAR_ACTIVE_NOTE: 'ACTIVE_NOTE_CLEARED',
-  
+
   // Pinned notes actions
   PIN_NOTE: 'NOTE_PINNED',
   UNPIN_NOTE: 'NOTE_UNPINNED',
   REORDER_PINNED_NOTES: 'PINNED_NOTES_REORDERED',
-  
+
   // Temporary tabs actions
   ADD_TEMPORARY_TAB: 'TEMPORARY_TAB_ADDED',
   REMOVE_TEMPORARY_TAB: 'TEMPORARY_TAB_REMOVED',
   REORDER_TEMPORARY_TABS: 'TEMPORARY_TABS_REORDERED',
   CLEAR_TEMPORARY_TABS: 'TEMPORARY_TABS_CLEARED',
-  
+
   // Vault actions
   SWITCH_VAULT: 'VAULT_SWITCHED',
-  
+
   // Navigation actions
   NAVIGATE_TO_NOTE: 'NAVIGATE_TO_NOTE',
   NAVIGATE_BACK: 'NAVIGATE_BACK',
-  NAVIGATE_FORWARD: 'NAVIGATE_FORWARD',
+  NAVIGATE_FORWARD: 'NAVIGATE_FORWARD'
 } as const;
 
 // Action creators
@@ -206,15 +210,19 @@ export const createSetActiveNoteAction = (note: NoteMetadata | null): Action => 
   meta: { broadcast: true }
 });
 
-export const createPinNoteAction = (note: { id: string; title: string; filename: string }): Action => ({
+export const createPinNoteAction = (note: {
+  id: string;
+  title: string;
+  filename: string;
+}): Action => ({
   type: WorkspaceActions.PIN_NOTE,
   payload: { note },
   meta: { broadcast: true }
 });
 
 export const createAddTemporaryTabAction = (
-  noteId: string, 
-  title: string, 
+  noteId: string,
+  title: string,
   source: 'search' | 'wikilink' | 'navigation' | 'history'
 ): Action => ({
   type: WorkspaceActions.ADD_TEMPORARY_TAB,
@@ -264,7 +272,7 @@ class ActiveNoteStoreV2 implements ActionableStore<ActiveNoteState> {
     return {
       [WorkspaceActions.SET_ACTIVE_NOTE]: this.handleSetActiveNote.bind(this),
       [WorkspaceActions.CLEAR_ACTIVE_NOTE]: this.handleClearActiveNote.bind(this),
-      [WorkspaceActions.SWITCH_VAULT]: this.handleVaultSwitch.bind(this),
+      [WorkspaceActions.SWITCH_VAULT]: this.handleVaultSwitch.bind(this)
     };
   }
 
@@ -285,22 +293,35 @@ class ActiveNoteStoreV2 implements ActionableStore<ActiveNoteState> {
   }
 
   // Action handlers - these update state
-  private async handleSetActiveNote(state: ActiveNoteState, action: Action): Promise<ActiveNoteState> {
+  private async handleSetActiveNote(
+    state: ActiveNoteState,
+    action: Action
+  ): Promise<ActiveNoteState> {
     const newState = { ...state, activeNote: action.payload.note };
     this._state = newState;
     await this.saveToStorage();
     return newState;
   }
 
-  private async handleClearActiveNote(state: ActiveNoteState, action: Action): Promise<ActiveNoteState> {
+  private async handleClearActiveNote(
+    state: ActiveNoteState,
+    action: Action
+  ): Promise<ActiveNoteState> {
     const newState = { ...state, activeNote: null };
     this._state = newState;
     await this.saveToStorage();
     return newState;
   }
 
-  private async handleVaultSwitch(state: ActiveNoteState, action: Action): Promise<ActiveNoteState> {
-    const newState = { ...state, currentVaultId: action.payload.vaultId, activeNote: null };
+  private async handleVaultSwitch(
+    state: ActiveNoteState,
+    action: Action
+  ): Promise<ActiveNoteState> {
+    const newState = {
+      ...state,
+      currentVaultId: action.payload.vaultId,
+      activeNote: null
+    };
     this._state = newState;
     await this.saveToStorage();
     return newState;
@@ -310,7 +331,7 @@ class ActiveNoteStoreV2 implements ActionableStore<ActiveNoteState> {
   async dispatch(action: Action): Promise<void> {
     const handlers = this.getActionHandlers();
     const handler = handlers[action.type];
-    
+
     if (handler) {
       await handler(this._state, action);
     }
@@ -337,7 +358,7 @@ export const activeNoteStore = new ActiveNoteStoreV2();
   async function handleNoteSelect(note: NoteMetadata) {
     // Old way:
     // await activeNoteStore.setActiveNote(note);
-    
+
     // New way:
     await actionDispatcher.dispatch(createSetActiveNoteAction(note));
   }
@@ -403,23 +424,27 @@ export class WorkspaceStateService {
 
     switch (action.type) {
       case 'ACTIVE_NOTE_SET':
-        this.state.activeNote = action.payload.note ? {
-          id: action.payload.note.id,
-          title: action.payload.note.title,
-          type: action.payload.note.type
-        } : null;
+        this.state.activeNote = action.payload.note
+          ? {
+              id: action.payload.note.id,
+              title: action.payload.note.title,
+              type: action.payload.note.type
+            }
+          : null;
         stateChanged = true;
         break;
 
       case 'NOTE_PINNED':
-        if (!this.state.pinnedNotes.find(n => n.id === action.payload.note.id)) {
+        if (!this.state.pinnedNotes.find((n) => n.id === action.payload.note.id)) {
           this.state.pinnedNotes.push(action.payload.note);
           stateChanged = true;
         }
         break;
 
       case 'TEMPORARY_TAB_ADDED':
-        const existingTab = this.state.temporaryTabs.find(t => t.noteId === action.payload.noteId);
+        const existingTab = this.state.temporaryTabs.find(
+          (t) => t.noteId === action.payload.noteId
+        );
         if (!existingTab) {
           this.state.temporaryTabs.push({
             id: `tab-${Date.now()}`,
@@ -449,7 +474,7 @@ export class WorkspaceStateService {
   }
 
   private notifyListeners(): void {
-    this.listeners.forEach(listener => listener(this.state));
+    this.listeners.forEach((listener) => listener(this.state));
   }
 }
 ```
@@ -475,14 +500,14 @@ private getWorkspaceContextTool = {
   },
   handler: async (args: { includeContent?: boolean }) => {
     const workspaceState = this.workspaceStateService.getCurrentState();
-    
+
     if (args.includeContent && workspaceState.activeNote) {
       // Fetch note content if requested
       const noteContent = await this.noteService.getNote({
         identifier: workspaceState.activeNote.id,
         vaultId: workspaceState.currentVaultId || 'default'
       });
-      
+
       return {
         success: true,
         data: {
@@ -506,9 +531,10 @@ private getWorkspaceContextTool = {
 ## Implementation Plan
 
 ### Phase 1: Foundation (Week 1)
+
 1. **Create core action system**
    - Implement `ActionDispatcher` class
-   - Create middleware system  
+   - Create middleware system
    - Add action definitions
    - Set up IPC broadcasting
 
@@ -518,6 +544,7 @@ private getWorkspaceContextTool = {
    - Create basic workspace context tool
 
 ### Phase 2: Store Migration (Weeks 2-3)
+
 1. **Migrate high-impact stores first**
    - `activeNoteStore` - most critical for tools
    - `pinnedNotesStore` - frequently used
@@ -529,6 +556,7 @@ private getWorkspaceContextTool = {
    - Add action creators for common operations
 
 ### Phase 3: Advanced Features (Week 4)
+
 1. **Add sophisticated middleware**
    - Persistence middleware for auto-saving
    - Undo/redo middleware
@@ -540,6 +568,7 @@ private getWorkspaceContextTool = {
    - Note relationship context
 
 ### Phase 4: Optimization & Polish (Week 5)
+
 1. **Performance optimization**
    - Batch action processing
    - Debounced broadcasting
@@ -553,6 +582,7 @@ private getWorkspaceContextTool = {
 ## Migration Strategy
 
 ### Backward Compatibility
+
 During migration, stores will support both old and new APIs:
 
 ```typescript
@@ -561,7 +591,7 @@ class MigratingStore {
   async dispatch(action: Action): Promise<void> {
     // ... handle action
   }
-  
+
   // Legacy API - delegates to actions
   async setActiveNote(note: NoteMetadata | null): Promise<void> {
     console.warn('setActiveNote is deprecated, use actions instead');
@@ -574,6 +604,7 @@ class MigratingStore {
 ```
 
 ### Component Update Pattern
+
 ```typescript
 <script lang="ts">
   // Phase 1: Add action dispatcher alongside existing store
@@ -584,7 +615,7 @@ class MigratingStore {
   async function handleNoteSelect(note: NoteMetadata) {
     // Use actions for new features
     await actionDispatcher.dispatch(createSetActiveNoteAction(note));
-    
+
     // Keep existing calls for stability
     // await activeNoteStore.setActiveNote(note);
   }
@@ -594,6 +625,7 @@ class MigratingStore {
 ## Testing Strategy
 
 ### Unit Testing
+
 ```typescript
 describe('ActionDispatcher', () => {
   let dispatcher: ActionDispatcher;
@@ -607,37 +639,38 @@ describe('ActionDispatcher', () => {
 
   it('should dispatch actions to registered stores', async () => {
     const action = { type: 'TEST_ACTION', payload: { data: 'test' } };
-    
+
     await dispatcher.dispatch(action);
-    
+
     expect(mockStore.dispatch).toHaveBeenCalledWith(action);
   });
 
   it('should broadcast workspace actions to main process', async () => {
-    const workspaceAction = { 
-      type: 'ACTIVE_NOTE_SET', 
+    const workspaceAction = {
+      type: 'ACTIVE_NOTE_SET',
       payload: { note: mockNote },
       meta: { broadcast: true }
     };
-    
+
     await dispatcher.dispatch(workspaceAction);
-    
+
     expect(window.api?.emitWorkspaceAction).toHaveBeenCalledWith(workspaceAction);
   });
 });
 ```
 
 ### Integration Testing
+
 ```typescript
 describe('Workspace Context Integration', () => {
   it('should provide current workspace state to tools', async () => {
     // Set up workspace state via actions
     await actionDispatcher.dispatch(createSetActiveNoteAction(mockNote));
     await actionDispatcher.dispatch(createPinNoteAction(mockPinnedNote));
-    
+
     // Query workspace context tool
     const result = await toolService.executeWorkspaceContextTool({});
-    
+
     expect(result.data.activeNote.id).toBe(mockNote.id);
     expect(result.data.pinnedNotes).toHaveLength(1);
   });
@@ -647,19 +680,25 @@ describe('Workspace Context Integration', () => {
 ## Risk Assessment & Mitigation
 
 ### High Risk: Breaking Changes During Migration
-**Mitigation**: 
+
+**Mitigation**:
+
 - Maintain dual APIs during transition
 - Comprehensive testing at each phase
 - Feature flags for new action system
 
 ### Medium Risk: Performance Regression
+
 **Mitigation**:
+
 - Benchmark current performance
 - Implement batching for high-frequency actions
 - Monitor bundle size impact
 
 ### Low Risk: Developer Adoption
+
 **Mitigation**:
+
 - Clear migration guides
 - Incremental adoption possible
 - Maintain familiar patterns where possible
@@ -667,17 +706,20 @@ describe('Workspace Context Integration', () => {
 ## Success Criteria
 
 ### Technical Metrics
+
 - [ ] All workspace state changes broadcast to main process within 50ms
 - [ ] Zero breaking changes to existing component APIs during migration
 - [ ] Bundle size increase < 15KB
 - [ ] Action dispatch overhead < 1ms average
 
-### Functional Metrics  
+### Functional Metrics
+
 - [ ] Workspace context tools return accurate real-time state
 - [ ] UI responsiveness maintained or improved
 - [ ] State coordination bugs eliminated (no more manual sync issues)
 
 ### Developer Experience
+
 - [ ] Clear action patterns for all state changes
 - [ ] Debugging capabilities improved with action logs
 - [ ] New feature development simplified with standardized state patterns

@@ -7,12 +7,14 @@ Implement on-demand workspace context tools for the AI agent, leveraging the new
 ## Goals & Objectives
 
 ### Primary Goals
+
 1. **Dynamic Context Access**: Enable AI agent to retrieve current workspace state on-demand
 2. **Token Efficiency**: Reduce token usage by 60-80% through selective context retrieval
 3. **Real-Time Synchronization**: Ensure context always reflects current UI state via event broadcasting
 4. **Enhanced Scope**: Provide access to active note, pinned notes, and temporary tabs
 
 ### Success Metrics
+
 - Average tokens per conversation reduced by 60-80%
 - Tool response latency < 100ms for workspace context queries
 - 100% accuracy in workspace state reflection
@@ -21,6 +23,7 @@ Implement on-demand workspace context tools for the AI agent, leveraging the new
 ## Problem Statement
 
 ### Current Limitations
+
 The existing static note context system has critical flaws:
 
 1. **Static Context**: Note content captured once at message send, becomes stale as users navigate
@@ -30,6 +33,7 @@ The existing static note context system has critical flaws:
 5. **Performance Impact**: Large context injection affects response times
 
 ### Business Impact
+
 - Users receive irrelevant responses when context is stale
 - Increased API costs due to unnecessary token usage
 - Poor AI assistance quality during multi-note workflows
@@ -38,6 +42,7 @@ The existing static note context system has critical flaws:
 ## Solution Architecture
 
 ### Event-Driven Context System
+
 Leveraging the centralized action dispatcher, workspace state is automatically synchronized to the main process, enabling instant tool access to current state.
 
 ```typescript
@@ -74,6 +79,7 @@ interface WorkspaceState {
 **Purpose**: Provides overview of current workspace state with optional content inclusion.
 
 **Input Schema**:
+
 ```typescript
 {
   includeContent?: boolean; // Default: false
@@ -83,6 +89,7 @@ interface WorkspaceState {
 ```
 
 **Output Schema**:
+
 ```typescript
 {
   success: boolean;
@@ -129,6 +136,7 @@ interface WorkspaceState {
 ```
 
 **Implementation Strategy**:
+
 - Read from synchronized workspace state (instant access)
 - Fetch note content only when requested
 - Apply content truncation with smart ellipsis
@@ -139,6 +147,7 @@ interface WorkspaceState {
 **Purpose**: Retrieves complete details of the currently active note.
 
 **Input Schema**:
+
 ```typescript
 {
   includeMetadata?: boolean; // Default: true
@@ -149,6 +158,7 @@ interface WorkspaceState {
 ```
 
 **Output Schema**:
+
 ```typescript
 {
   success: boolean;
@@ -185,6 +195,7 @@ interface WorkspaceState {
 ```
 
 **Implementation Strategy**:
+
 - Fast path: Return immediately if no active note
 - Leverage existing note service APIs
 - Optional enrichment with links and structure
@@ -195,6 +206,7 @@ interface WorkspaceState {
 **Purpose**: Retrieves specific note by ID, title, or filename for contextual reference.
 
 **Input Schema**:
+
 ```typescript
 {
   reference: string; // Note ID, title, or filename
@@ -205,6 +217,7 @@ interface WorkspaceState {
 ```
 
 **Use Cases**:
+
 - Agent needs to reference a specific note mentioned in conversation
 - Cross-referencing between notes in workspace
 - Following up on pinned or temporary notes
@@ -219,21 +232,26 @@ export class WorkspaceStateService {
   private state: WorkspaceState;
   private noteService: NoteService;
 
-  async getWorkspaceContext(options: GetWorkspaceContextOptions): Promise<WorkspaceContextResult> {
+  async getWorkspaceContext(
+    options: GetWorkspaceContextOptions
+  ): Promise<WorkspaceContextResult> {
     const baseState = this.getCurrentState();
-    
+
     if (options.includeContent) {
       // Batch fetch note content for efficiency
       const noteIds = [
         ...(baseState.activeNote ? [baseState.activeNote.id] : []),
-        ...baseState.pinnedNotes.map(n => n.id),
-        ...baseState.temporaryTabs.map(t => t.noteId)
+        ...baseState.pinnedNotes.map((n) => n.id),
+        ...baseState.temporaryTabs.map((t) => t.noteId)
       ];
-      
-      const noteContents = await this.batchFetchNoteContent(noteIds, options.maxContentLength);
+
+      const noteContents = await this.batchFetchNoteContent(
+        noteIds,
+        options.maxContentLength
+      );
       return this.enrichStateWithContent(baseState, noteContents);
     }
-    
+
     return { success: true, data: baseState, message: 'Workspace context retrieved' };
   }
 
@@ -262,12 +280,17 @@ export class WorkspaceStateService {
     return this.buildCurrentNoteResponse(note, options);
   }
 
-  private async batchFetchNoteContent(noteIds: string[], maxLength?: number): Promise<Map<string, string>> {
+  private async batchFetchNoteContent(
+    noteIds: string[],
+    maxLength?: number
+  ): Promise<Map<string, string>> {
     const results = new Map<string, string>();
-    
+
     // Batch fetch for efficiency
     const notes = await Promise.allSettled(
-      noteIds.map(id => this.noteService.getNote({ identifier: id, vaultId: this.state.currentVaultId }))
+      noteIds.map((id) =>
+        this.noteService.getNote({ identifier: id, vaultId: this.state.currentVaultId })
+      )
     );
 
     notes.forEach((result, index) => {
@@ -285,12 +308,12 @@ export class WorkspaceStateService {
 
   private smartTruncate(content: string, maxLength: number): string {
     if (content.length <= maxLength) return content;
-    
+
     // Try to break at paragraph or sentence boundaries
     const truncated = content.substring(0, maxLength);
     const lastParagraph = truncated.lastIndexOf('\n\n');
     const lastSentence = truncated.lastIndexOf('. ');
-    
+
     if (lastParagraph > maxLength * 0.7) {
       return truncated.substring(0, lastParagraph) + '\n\n[Content truncated...]';
     } else if (lastSentence > maxLength * 0.7) {
@@ -315,7 +338,7 @@ class WorkspaceEventHandler {
   private handleWorkspaceAction(event: any, action: Action): void {
     // Update workspace state based on UI actions
     this.workspaceStateService.handleWorkspaceAction(action);
-    
+
     // Emit state change event for debugging/monitoring
     this.emitStateChange(action.type);
   }
@@ -341,13 +364,14 @@ export class ToolService {
       // ... existing tools
       this.getWorkspaceContextTool,
       this.getCurrentNoteTool,
-      this.getNoteByReferenceTool,
+      this.getNoteByReferenceTool
     ];
   }
 
   private getWorkspaceContextTool = {
     name: 'get_workspace_context',
-    description: 'Get current workspace state including active note, pinned notes, and temporary tabs',
+    description:
+      'Get current workspace state including active note, pinned notes, and temporary tabs',
     schema: {
       type: 'object',
       properties: {
@@ -509,6 +533,7 @@ async function handleSendMessage(text: string): Promise<void> {
 ## Implementation Plan
 
 ### Phase 1: Core Infrastructure (Week 1)
+
 1. **Implement WorkspaceStateService**
    - Create state management service in main process
    - Add event handling for workspace actions
@@ -520,6 +545,7 @@ async function handleSendMessage(text: string): Promise<void> {
    - Add `get_current_note` tool
 
 ### Phase 2: Enhanced Tools (Week 2)
+
 1. **Add advanced tool features**
    - Implement content truncation and smart ellipsis
    - Add batch note fetching for efficiency
@@ -531,6 +557,7 @@ async function handleSendMessage(text: string): Promise<void> {
    - Remove note context toggle UI
 
 ### Phase 3: Optimization (Week 3)
+
 1. **Performance improvements**
    - Implement note content caching
    - Add batch processing for multiple tool calls
@@ -542,6 +569,7 @@ async function handleSendMessage(text: string): Promise<void> {
    - Add workspace summary generation
 
 ### Phase 4: Testing & Polish (Week 4)
+
 1. **Comprehensive testing**
    - Unit tests for workspace state service
    - Integration tests for tool functionality
@@ -555,6 +583,7 @@ async function handleSendMessage(text: string): Promise<void> {
 ## Testing Strategy
 
 ### Unit Testing
+
 ```typescript
 describe('WorkspaceStateService', () => {
   let service: WorkspaceStateService;
@@ -571,20 +600,20 @@ describe('WorkspaceStateService', () => {
     });
 
     const result = await service.getWorkspaceContext({});
-    
+
     expect(result.success).toBe(true);
     expect(result.data.activeNote?.id).toBe(mockNote.id);
   });
 
   it('should include content when requested', async () => {
     const result = await service.getWorkspaceContext({ includeContent: true });
-    
+
     expect(result.data.activeNote?.content).toBeDefined();
   });
 
   it('should handle no active note gracefully', async () => {
     const result = await service.getCurrentNote({});
-    
+
     expect(result.success).toBe(false);
     expect(result.error).toBe('No note currently active');
   });
@@ -592,6 +621,7 @@ describe('WorkspaceStateService', () => {
 ```
 
 ### Integration Testing
+
 ```typescript
 describe('Agent Context Tools Integration', () => {
   it('should provide real-time workspace state to agent', async () => {
@@ -608,8 +638,8 @@ describe('Agent Context Tools Integration', () => {
 
   it('should handle note content efficiently', async () => {
     const start = Date.now();
-    const result = await toolService.executeWorkspaceContextTool({ 
-      includeContent: true 
+    const result = await toolService.executeWorkspaceContextTool({
+      includeContent: true
     });
     const duration = Date.now() - start;
 
@@ -622,22 +652,26 @@ describe('Agent Context Tools Integration', () => {
 ## Success Metrics & KPIs
 
 ### Performance Metrics
+
 - [ ] Tool response time < 100ms for workspace context queries
 - [ ] Tool response time < 200ms for content-inclusive queries
 - [ ] State synchronization latency < 50ms from UI action to main process
 - [ ] Memory usage increase < 10MB for workspace state management
 
 ### Token Efficiency Metrics
+
 - [ ] Average conversation token count reduced by 60-80%
 - [ ] Context relevance score > 90% (measured via user feedback)
 - [ ] Reduced API costs measurable in production usage
 
 ### Reliability Metrics
+
 - [ ] Zero context staleness incidents during user navigation
 - [ ] 100% workspace state accuracy in tool responses
 - [ ] < 0.1% tool failure rate under normal usage conditions
 
 ### User Experience Metrics
+
 - [ ] AI response relevance improved (measured via user ratings)
 - [ ] Conversation flow uninterrupted by context issues
 - [ ] No degradation in AI assistance quality despite reduced static context
@@ -645,22 +679,28 @@ describe('Agent Context Tools Integration', () => {
 ## Risk Assessment & Mitigation
 
 ### High Risk: Tool Performance Impact
+
 **Risk**: Tool calls add latency to AI responses
-**Mitigation**: 
+**Mitigation**:
+
 - Aggressive caching of workspace state
 - Batch processing for multiple tool calls
 - Asynchronous state updates with eventual consistency
 
 ### Medium Risk: Context Accuracy During Rapid Navigation
+
 **Risk**: State synchronization lag during fast user navigation
 **Mitigation**:
+
 - Debounced state updates for rapid actions
 - Optimistic UI updates with rollback capability
 - Performance monitoring and alerting
 
 ### Low Risk: Agent Over-reliance on Tools
+
 **Risk**: Agent makes excessive tool calls, degrading performance
 **Mitigation**:
+
 - Tool usage monitoring and optimization suggestions
 - Intelligent caching to reduce redundant calls
 - Agent prompt engineering to encourage efficient tool usage
@@ -668,17 +708,20 @@ describe('Agent Context Tools Integration', () => {
 ## Future Enhancements
 
 ### Advanced Context Tools
+
 - `search_workspace`: Full-text search across workspace with ranking
 - `get_related_notes`: Semantic similarity search for related content
 - `get_note_diff`: Track changes in notes during conversation
 - `get_workspace_summary`: High-level overview of workspace organization
 
 ### AI Memory Integration
+
 - Persistent context memory across conversations
 - Workspace structure learning and optimization
 - Proactive context suggestion based on usage patterns
 
 ### Collaborative Features
+
 - Multi-user workspace state synchronization
 - Shared context in team environments
 - Context access permissions and privacy controls

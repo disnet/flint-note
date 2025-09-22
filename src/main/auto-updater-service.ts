@@ -128,7 +128,10 @@ export class AutoUpdaterService {
     // Get current version
     ipcMain.handle('get-app-version', async () => {
       return {
-        version: autoUpdater.currentVersion?.version || process.env.npm_package_version || '0.0.0',
+        version:
+          autoUpdater.currentVersion?.version ||
+          process.env.npm_package_version ||
+          '0.0.0',
         channel: autoUpdater.channel || 'latest'
       };
     });
@@ -145,34 +148,40 @@ export class AutoUpdaterService {
     });
 
     // Update configuration
-    ipcMain.handle('set-update-config', async (_, config: {
-      autoDownload?: boolean;
-      autoInstallOnAppQuit?: boolean;
-      allowPrerelease?: boolean;
-      allowDowngrade?: boolean;
-    }) => {
-      try {
-        if (config.autoDownload !== undefined) {
-          autoUpdater.autoDownload = config.autoDownload;
+    ipcMain.handle(
+      'set-update-config',
+      async (
+        _,
+        config: {
+          autoDownload?: boolean;
+          autoInstallOnAppQuit?: boolean;
+          allowPrerelease?: boolean;
+          allowDowngrade?: boolean;
         }
-        if (config.autoInstallOnAppQuit !== undefined) {
-          autoUpdater.autoInstallOnAppQuit = config.autoInstallOnAppQuit;
+      ) => {
+        try {
+          if (config.autoDownload !== undefined) {
+            autoUpdater.autoDownload = config.autoDownload;
+          }
+          if (config.autoInstallOnAppQuit !== undefined) {
+            autoUpdater.autoInstallOnAppQuit = config.autoInstallOnAppQuit;
+          }
+          if (config.allowPrerelease !== undefined) {
+            autoUpdater.allowPrerelease = config.allowPrerelease;
+          }
+          if (config.allowDowngrade !== undefined) {
+            autoUpdater.allowDowngrade = config.allowDowngrade;
+          }
+          return { success: true };
+        } catch (error) {
+          logger.error('Failed to update config:', error);
+          return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          };
         }
-        if (config.allowPrerelease !== undefined) {
-          autoUpdater.allowPrerelease = config.allowPrerelease;
-        }
-        if (config.allowDowngrade !== undefined) {
-          autoUpdater.allowDowngrade = config.allowDowngrade;
-        }
-        return { success: true };
-      } catch (error) {
-        logger.error('Failed to update config:', error);
-        return {
-          success: false,
-          error: error instanceof Error ? error.message : 'Unknown error'
-        };
       }
-    });
+    );
   }
 
   private sendToRenderer(channel: string, data?: unknown): void {
@@ -187,9 +196,12 @@ export class AutoUpdaterService {
       clearInterval(this.updateCheckInterval);
     }
 
-    this.updateCheckInterval = setInterval(() => {
-      this.checkForUpdates();
-    }, intervalMinutes * 60 * 1000);
+    this.updateCheckInterval = setInterval(
+      () => {
+        this.checkForUpdates();
+      },
+      intervalMinutes * 60 * 1000
+    );
 
     logger.info(`Started periodic update check every ${intervalMinutes} minutes`);
   }

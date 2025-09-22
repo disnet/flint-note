@@ -243,26 +243,34 @@ declare global {
 
       // Auto-updater event listeners
       onUpdateChecking: (callback: () => void) => void;
-      onUpdateAvailable: (callback: (info: {
-        version: string;
-        releaseDate?: string;
-        releaseName?: string;
-        releaseNotes?: string;
-      }) => void) => void;
+      onUpdateAvailable: (
+        callback: (info: {
+          version: string;
+          releaseDate?: string;
+          releaseName?: string;
+          releaseNotes?: string;
+        }) => void
+      ) => void;
       onUpdateNotAvailable: (callback: (info: { version: string }) => void) => void;
-      onUpdateError: (callback: (error: { message: string; stack?: string }) => void) => void;
-      onUpdateDownloadProgress: (callback: (progress: {
-        bytesPerSecond: number;
-        percent: number;
-        transferred: number;
-        total: number;
-      }) => void) => void;
-      onUpdateDownloaded: (callback: (info: {
-        version: string;
-        releaseDate?: string;
-        releaseName?: string;
-        releaseNotes?: string;
-      }) => void) => void;
+      onUpdateError: (
+        callback: (error: { message: string; stack?: string }) => void
+      ) => void;
+      onUpdateDownloadProgress: (
+        callback: (progress: {
+          bytesPerSecond: number;
+          percent: number;
+          transferred: number;
+          total: number;
+        }) => void
+      ) => void;
+      onUpdateDownloaded: (
+        callback: (info: {
+          version: string;
+          releaseDate?: string;
+          releaseName?: string;
+          releaseNotes?: string;
+        }) => void
+      ) => void;
       removeAllUpdateListeners: () => void;
 
       // Global settings storage operations

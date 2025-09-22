@@ -51,4 +51,3 @@ jobs:
       - name: Build Electron app (Linux)
         if: matrix.os == 'ubuntu-latest'
         run: npm run build:linux
-

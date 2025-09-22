@@ -46,31 +46,37 @@ const api = {
   // Auto-updater event listeners
   onUpdateChecking: (callback: () => void) =>
     electronAPI.ipcRenderer.on('update-checking', callback),
-  onUpdateAvailable: (callback: (info: {
-    version: string;
-    releaseDate?: string;
-    releaseName?: string;
-    releaseNotes?: string;
-  }) => void) =>
-    electronAPI.ipcRenderer.on('update-available', (_event, info) => callback(info)),
+  onUpdateAvailable: (
+    callback: (info: {
+      version: string;
+      releaseDate?: string;
+      releaseName?: string;
+      releaseNotes?: string;
+    }) => void
+  ) => electronAPI.ipcRenderer.on('update-available', (_event, info) => callback(info)),
   onUpdateNotAvailable: (callback: (info: { version: string }) => void) =>
     electronAPI.ipcRenderer.on('update-not-available', (_event, info) => callback(info)),
   onUpdateError: (callback: (error: { message: string; stack?: string }) => void) =>
     electronAPI.ipcRenderer.on('update-error', (_event, error) => callback(error)),
-  onUpdateDownloadProgress: (callback: (progress: {
-    bytesPerSecond: number;
-    percent: number;
-    transferred: number;
-    total: number;
-  }) => void) =>
-    electronAPI.ipcRenderer.on('update-download-progress', (_event, progress) => callback(progress)),
-  onUpdateDownloaded: (callback: (info: {
-    version: string;
-    releaseDate?: string;
-    releaseName?: string;
-    releaseNotes?: string;
-  }) => void) =>
-    electronAPI.ipcRenderer.on('update-downloaded', (_event, info) => callback(info)),
+  onUpdateDownloadProgress: (
+    callback: (progress: {
+      bytesPerSecond: number;
+      percent: number;
+      transferred: number;
+      total: number;
+    }) => void
+  ) =>
+    electronAPI.ipcRenderer.on('update-download-progress', (_event, progress) =>
+      callback(progress)
+    ),
+  onUpdateDownloaded: (
+    callback: (info: {
+      version: string;
+      releaseDate?: string;
+      releaseName?: string;
+      releaseNotes?: string;
+    }) => void
+  ) => electronAPI.ipcRenderer.on('update-downloaded', (_event, info) => callback(info)),
 
   // Clean up event listeners
   removeAllUpdateListeners: () => {

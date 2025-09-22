@@ -51,21 +51,25 @@ graph TD
 ## Features
 
 ### Automatic Update Checking
+
 - Checks for updates every 4 hours by default
 - Manual check via "Check for Updates" button
 - Startup check (production only)
 
 ### User Control
+
 - Users can choose when to download updates
 - Users can choose when to install updates
 - Release notes display for informed decisions
 
 ### Progress Tracking
+
 - Real-time download progress
 - Error handling with user feedback
 - Retry functionality for failed operations
 
 ### Configuration Options
+
 - Auto-download toggle
 - Auto-install on quit toggle
 - Prerelease channel support
@@ -98,11 +102,13 @@ src/
 ### Step 1: Create S3 Bucket
 
 1. **Create the bucket:**
+
    ```bash
    aws s3 mb s3://your-app-updates-bucket --region us-east-1
    ```
 
 2. **Configure bucket policy for public read access:**
+
    ```json
    {
      "Version": "2012-10-17",
@@ -119,6 +125,7 @@ src/
    ```
 
 3. **Apply the bucket policy:**
+
    ```bash
    aws s3api put-bucket-policy --bucket your-app-updates-bucket --policy file://bucket-policy.json
    ```
@@ -131,6 +138,7 @@ src/
 ### Step 2: Create CloudFront Distribution
 
 1. **Create distribution configuration file** (`cloudfront-distribution.json`):
+
    ```json
    {
      "CallerReference": "flint-updates-$(date +%s)",
@@ -170,6 +178,7 @@ src/
    ```
 
 2. **Create the distribution:**
+
    ```bash
    aws cloudfront create-distribution --distribution-config file://cloudfront-distribution.json
    ```
@@ -179,6 +188,7 @@ src/
 ### Step 3: Configure Custom Domain (Optional)
 
 1. **Create SSL certificate in ACM** (must be in us-east-1 for CloudFront):
+
    ```bash
    aws acm request-certificate --domain-name updates.yourdomain.com --validation-method DNS --region us-east-1
    ```
@@ -186,6 +196,7 @@ src/
 2. **Validate the certificate** by adding the DNS record provided by ACM
 
 3. **Update CloudFront distribution** to use custom domain:
+
    ```json
    {
      "Aliases": {
@@ -210,13 +221,15 @@ src/
 ### Step 4: Update Application Configuration
 
 1. **Update `electron-builder.yml`:**
+
    ```yaml
    publish:
      provider: generic
-     url: https://updates.yourdomain.com  # or https://d1234567890123.cloudfront.net
+     url: https://updates.yourdomain.com # or https://d1234567890123.cloudfront.net
    ```
 
 2. **For multiple environments, create separate configs:**
+
    ```yaml
    # electron-builder.yml (production)
    publish:
@@ -267,6 +280,7 @@ echo "Files available at: https://updates.yourdomain.com/"
 ```
 
 Make it executable:
+
 ```bash
 chmod +x scripts/deploy-updates.sh
 ```
@@ -281,74 +295,74 @@ name: Build and Deploy Release
 on:
   push:
     tags:
-      - 'v*'  # Trigger on version tags like v1.0.0
+      - 'v*' # Trigger on version tags like v1.0.0
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
 
-    - name: Install dependencies
-      run: npm ci
+      - name: Install dependencies
+        run: npm ci
 
-    - name: Build application
-      run: npm run build
+      - name: Build application
+        run: npm run build
 
-    - name: Build Electron packages
-      run: |
-        npx electron-builder --win --publish=never
-        npx electron-builder --mac --publish=never
-        npx electron-builder --linux --publish=never
-      env:
-        # Add code signing secrets if needed
-        CSC_LINK: ${{ secrets.CSC_LINK }}
-        CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+      - name: Build Electron packages
+        run: |
+          npx electron-builder --win --publish=never
+          npx electron-builder --mac --publish=never
+          npx electron-builder --linux --publish=never
+        env:
+          # Add code signing secrets if needed
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
 
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: us-east-1
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
 
-    - name: Deploy to S3
-      env:
-        BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
-      run: |
-        # Upload application files
-        aws s3 sync dist/ s3://$BUCKET_NAME/ --delete --exclude "*.blockmap"
+      - name: Deploy to S3
+        env:
+          BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
+        run: |
+          # Upload application files
+          aws s3 sync dist/ s3://$BUCKET_NAME/ --delete --exclude "*.blockmap"
 
-        # Upload latest files (update metadata)
-        aws s3 cp dist/latest.yml s3://$BUCKET_NAME/latest.yml
-        aws s3 cp dist/latest-mac.yml s3://$BUCKET_NAME/latest-mac.yml
-        aws s3 cp dist/latest-linux.yml s3://$BUCKET_NAME/latest-linux.yml
+          # Upload latest files (update metadata)
+          aws s3 cp dist/latest.yml s3://$BUCKET_NAME/latest.yml
+          aws s3 cp dist/latest-mac.yml s3://$BUCKET_NAME/latest-mac.yml
+          aws s3 cp dist/latest-linux.yml s3://$BUCKET_NAME/latest-linux.yml
 
-    - name: Invalidate CloudFront cache
-      env:
-        CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
-      run: |
-        aws cloudfront create-invalidation --distribution-id $CLOUDFRONT_DISTRIBUTION_ID --paths "/latest*.yml"
+      - name: Invalidate CloudFront cache
+        env:
+          CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
+        run: |
+          aws cloudfront create-invalidation --distribution-id $CLOUDFRONT_DISTRIBUTION_ID --paths "/latest*.yml"
 
-    - name: Create GitHub Release
-      uses: softprops/action-gh-release@v1
-      with:
-        files: |
-          dist/*.exe
-          dist/*.dmg
-          dist/*.AppImage
-          dist/*.zip
-        generate_release_notes: true
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            dist/*.exe
+            dist/*.dmg
+            dist/*.AppImage
+            dist/*.zip
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 #### Required GitHub Secrets
@@ -386,9 +400,7 @@ Create an IAM user with this minimal policy for GitHub Actions:
     },
     {
       "Effect": "Allow",
-      "Action": [
-        "cloudfront:CreateInvalidation"
-      ],
+      "Action": ["cloudfront:CreateInvalidation"],
       "Resource": "*"
     }
   ]
@@ -409,6 +421,7 @@ To deploy a new version:
 For staging/production environments, create separate workflows:
 
 **`.github/workflows/staging.yml`** (triggers on `develop` branch):
+
 ```yaml
 # Similar to above but with staging bucket/distribution
 env:
@@ -417,6 +430,7 @@ env:
 ```
 
 **`.github/workflows/production.yml`** (triggers on version tags):
+
 ```yaml
 # Use production secrets as shown above
 ```
@@ -426,16 +440,17 @@ env:
 ### Code Signing
 
 1. **Windows:** Obtain a code signing certificate and configure in `electron-builder.yml`:
+
    ```yaml
    win:
-     certificateFile: "path/to/certificate.p12"
-     certificatePassword: "certificate-password"
+     certificateFile: 'path/to/certificate.p12'
+     certificatePassword: 'certificate-password'
    ```
 
 2. **macOS:** Configure with Apple Developer certificate:
    ```yaml
    mac:
-     identity: "Developer ID Application: Your Name (TEAM_ID)"
+     identity: 'Developer ID Application: Your Name (TEAM_ID)'
      notarize: true
    ```
 
@@ -498,15 +513,13 @@ export APPLE_TEAM_ID="YOUR_TEAM_ID"
 # electron-builder.yml
 mac:
   category: public.app-category.productivity
-  icon: "build/icon.icns"
-  identity: "Developer ID Application: Your Name (TEAM_ID)"
+  icon: 'build/icon.icns'
+  identity: 'Developer ID Application: Your Name (TEAM_ID)'
   hardenedRuntime: true
   gatekeeperAssess: false
-  entitlements: "build/entitlements.mac.plist"
-  entitlementsInherit: "build/entitlements.mac.plist"
-  notarize: {
-    teamId: "YOUR_TEAM_ID"
-  }
+  entitlements: 'build/entitlements.mac.plist'
+  entitlementsInherit: 'build/entitlements.mac.plist'
+  notarize: { teamId: 'YOUR_TEAM_ID' }
 ```
 
 ### Step 5: Create Entitlements File
@@ -544,26 +557,26 @@ Update your GitHub Actions workflow with macOS signing secrets:
 # .github/workflows/release.yml
 jobs:
   build-and-deploy:
-    runs-on: macos-latest  # Required for macOS signing
+    runs-on: macos-latest # Required for macOS signing
 
     steps:
-    # ... other steps ...
+      # ... other steps ...
 
-    - name: Import Code Signing Certificate
-      if: runner.os == 'macOS'
-      uses: apple-actions/import-codesign-certs@v2
-      with:
-        p12-file-base64: ${{ secrets.CSC_LINK }}
-        p12-password: ${{ secrets.CSC_KEY_PASSWORD }}
+      - name: Import Code Signing Certificate
+        if: runner.os == 'macOS'
+        uses: apple-actions/import-codesign-certs@v2
+        with:
+          p12-file-base64: ${{ secrets.CSC_LINK }}
+          p12-password: ${{ secrets.CSC_KEY_PASSWORD }}
 
-    - name: Build Electron packages
-      run: |
-        npx electron-builder --mac --publish=never
-      env:
-        CSC_NAME: ${{ secrets.CSC_NAME }}
-        APPLE_ID: ${{ secrets.APPLE_ID }}
-        APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
-        APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      - name: Build Electron packages
+        run: |
+          npx electron-builder --mac --publish=never
+        env:
+          CSC_NAME: ${{ secrets.CSC_NAME }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 ```
 
 ### Step 7: GitHub Secrets for macOS Signing
@@ -590,6 +603,7 @@ Add these additional secrets to your repository:
    ```bash
    base64 -i certificate.p12 | pbcopy
    ```
+
    - Paste the result into `CSC_LINK` GitHub secret
 
 ### Step 9: Testing Signing Locally
@@ -610,6 +624,7 @@ xcrun notarytool history --keychain-profile "flint-notarization"
 ### Troubleshooting macOS Signing
 
 1. **Certificate Issues:**
+
    ```bash
    # List available certificates
    security find-identity -v -p codesigning
@@ -619,6 +634,7 @@ xcrun notarytool history --keychain-profile "flint-notarization"
    ```
 
 2. **Notarization Failures:**
+
    ```bash
    # Check notarization logs
    xcrun notarytool log <submission-id> --keychain-profile "flint-notarization"
@@ -647,6 +663,7 @@ xcrun notarytool history --keychain-profile "flint-notarization"
 ### CloudWatch Monitoring
 
 Set up CloudWatch alarms for:
+
 - S3 bucket access patterns
 - CloudFront cache hit ratios
 - Failed update attempts
@@ -654,13 +671,14 @@ Set up CloudWatch alarms for:
 ### Application Metrics
 
 Track update metrics in your application:
+
 ```typescript
 // Example metrics collection
 const updateMetrics = {
   version: currentVersion,
   updateCheckTime: Date.now(),
   downloadTime: downloadDuration,
-  installSuccess: true/false,
+  installSuccess: true / false,
   errorMessage: errorDetails
 };
 ```
@@ -686,16 +704,18 @@ const updateMetrics = {
 ### Debug Mode
 
 Enable debug logging in development:
+
 ```typescript
 // In main process
 process.env.ELECTRON_ENABLE_LOGGING = true;
-autoUpdater.logger = require("electron-log");
-autoUpdater.logger.transports.file.level = "info";
+autoUpdater.logger = require('electron-log');
+autoUpdater.logger.transports.file.level = 'info';
 ```
 
 ### Testing Updates
 
 1. **Local testing:**
+
    ```bash
    # Set up local update server for testing
    npm install -g http-server
@@ -716,6 +736,7 @@ autoUpdater.logger.transports.file.level = "info";
 - **Data Transfer:** Varies by region
 
 **Example for 1,000 monthly updates:**
+
 - Storage (500MB app): ~$0.01
 - Requests: ~$0.01
 - Transfer (500GB): ~$42.50
