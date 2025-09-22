@@ -439,6 +439,202 @@ env:
      notarize: true
    ```
 
+## macOS Code Signing Setup
+
+### Prerequisites
+
+1. **Apple Developer Account** - Enrolled in Apple Developer Program ($99/year)
+2. **Xcode** - Installed on macOS for certificate management
+3. **Developer ID Application Certificate** - For distribution outside App Store
+
+### Step 1: Create Certificates
+
+1. **Log into Apple Developer Portal:**
+   - Go to [developer.apple.com](https://developer.apple.com)
+   - Navigate to Certificates, Identifiers & Profiles
+
+2. **Create Developer ID Application Certificate:**
+   - Click "+" to create new certificate
+   - Select "Developer ID Application" (for apps distributed outside Mac App Store)
+   - Follow prompts to upload Certificate Signing Request (CSR)
+   - Download the certificate (.cer file)
+
+3. **Install Certificate:**
+   - Double-click the .cer file to install in Keychain Access
+   - Verify it appears under "My Certificates" in Keychain Access
+
+### Step 2: Configure Environment Variables
+
+For local development, add to your shell profile (`.zshrc`, `.bash_profile`):
+
+```bash
+# macOS code signing
+export CSC_NAME="Developer ID Application: Your Name (TEAM_ID)"
+export APPLE_ID="your-apple-id@example.com"
+export APPLE_ID_PASSWORD="app-specific-password"  # See below
+export APPLE_TEAM_ID="YOUR_TEAM_ID"
+```
+
+### Step 3: App-Specific Password for Notarization
+
+1. **Generate App-Specific Password:**
+   - Go to [appleid.apple.com](https://appleid.apple.com)
+   - Sign in with your Apple ID
+   - In Security section, generate app-specific password
+   - Label it "Electron App Notarization"
+   - Save the generated password securely
+
+2. **Store in Keychain (Recommended):**
+   ```bash
+   xcrun notarytool store-credentials "flint-notarization" \
+     --apple-id "your-apple-id@example.com" \
+     --team-id "YOUR_TEAM_ID" \
+     --password "app-specific-password"
+   ```
+
+### Step 4: Update electron-builder Configuration
+
+```yaml
+# electron-builder.yml
+mac:
+  category: public.app-category.productivity
+  icon: "build/icon.icns"
+  identity: "Developer ID Application: Your Name (TEAM_ID)"
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: "build/entitlements.mac.plist"
+  entitlementsInherit: "build/entitlements.mac.plist"
+  notarize: {
+    teamId: "YOUR_TEAM_ID"
+  }
+```
+
+### Step 5: Create Entitlements File
+
+Create `build/entitlements.mac.plist`:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>com.apple.security.cs.allow-jit</key>
+  <true/>
+  <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+  <true/>
+  <key>com.apple.security.cs.disable-executable-page-protection</key>
+  <true/>
+  <key>com.apple.security.cs.disable-library-validation</key>
+  <true/>
+  <key>com.apple.security.network.client</key>
+  <true/>
+  <key>com.apple.security.network.server</key>
+  <true/>
+  <key>com.apple.security.files.user-selected.read-write</key>
+  <true/>
+</dict>
+</plist>
+```
+
+### Step 6: GitHub Actions Configuration
+
+Update your GitHub Actions workflow with macOS signing secrets:
+
+```yaml
+# .github/workflows/release.yml
+jobs:
+  build-and-deploy:
+    runs-on: macos-latest  # Required for macOS signing
+
+    steps:
+    # ... other steps ...
+
+    - name: Import Code Signing Certificate
+      if: runner.os == 'macOS'
+      uses: apple-actions/import-codesign-certs@v2
+      with:
+        p12-file-base64: ${{ secrets.CSC_LINK }}
+        p12-password: ${{ secrets.CSC_KEY_PASSWORD }}
+
+    - name: Build Electron packages
+      run: |
+        npx electron-builder --mac --publish=never
+      env:
+        CSC_NAME: ${{ secrets.CSC_NAME }}
+        APPLE_ID: ${{ secrets.APPLE_ID }}
+        APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+        APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+```
+
+### Step 7: GitHub Secrets for macOS Signing
+
+Add these additional secrets to your repository:
+
+- `CSC_LINK` - Base64 encoded .p12 certificate file
+- `CSC_KEY_PASSWORD` - Password for the .p12 certificate
+- `CSC_NAME` - Certificate name (e.g., "Developer ID Application: Your Name (TEAM_ID)")
+- `APPLE_ID` - Your Apple ID email
+- `APPLE_ID_PASSWORD` - App-specific password for notarization
+- `APPLE_TEAM_ID` - Your Apple Developer Team ID
+
+### Step 8: Export Certificate for CI/CD
+
+1. **Export from Keychain:**
+   - Open Keychain Access
+   - Find your "Developer ID Application" certificate
+   - Right-click → Export
+   - Choose Personal Information Exchange (.p12)
+   - Set a strong password
+
+2. **Convert to Base64:**
+   ```bash
+   base64 -i certificate.p12 | pbcopy
+   ```
+   - Paste the result into `CSC_LINK` GitHub secret
+
+### Step 9: Testing Signing Locally
+
+```bash
+# Build and sign locally
+npm run build
+npx electron-builder --mac --publish=never
+
+# Verify signature
+codesign --verify --deep --strict dist/mac/Flint.app
+spctl --assess --verbose dist/mac/Flint.app
+
+# Check notarization status (after upload)
+xcrun notarytool history --keychain-profile "flint-notarization"
+```
+
+### Troubleshooting macOS Signing
+
+1. **Certificate Issues:**
+   ```bash
+   # List available certificates
+   security find-identity -v -p codesigning
+
+   # Verify certificate chain
+   security verify-cert -c certificate.cer
+   ```
+
+2. **Notarization Failures:**
+   ```bash
+   # Check notarization logs
+   xcrun notarytool log <submission-id> --keychain-profile "flint-notarization"
+   ```
+
+3. **Common Issues:**
+   - **"No identity found"** - Certificate not installed or expired
+   - **"Hardened runtime violations"** - Missing entitlements
+   - **"Notarization failed"** - Check logs for specific violations
+
+### Cost Considerations
+
+- **Apple Developer Program:** $99/year (required)
+- **Code signing is included** in the developer program
+- **Notarization is free** but requires valid developer account
+
 ### Content Security
 
 1. **Use HTTPS only** for update distribution
