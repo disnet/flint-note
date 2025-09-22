@@ -22,7 +22,7 @@ nsis:
 mac:
   category: public.app-category.productivity
   icon: 'build/icon.icns'
-  identity: 'Developer ID Application: Timothy Disney (R54QLXZTK7)'
+  identity: 'Timothy Disney (R54QLXZTK7)'
   hardenedRuntime: true
   gatekeeperAssess: false
   entitlements: 'build/entitlements.mac.plist'
