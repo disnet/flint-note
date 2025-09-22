@@ -50,4 +50,4 @@ npmRebuild: false
 publish:
   provider: generic
   url: https://updates.your-domain.com # Replace with your actual update server URL
-afterSign: build/notarize.js # Optional: for macOS notarization
+# afterSign: build/notarize.js # Optional: for macOS notarization
