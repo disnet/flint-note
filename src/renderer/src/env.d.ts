@@ -218,6 +218,53 @@ declare global {
       onUsageRecorded: (callback: (usageData: unknown) => void) => void;
       removeUsageListener: () => void;
 
+      // Auto-updater operations
+      checkForUpdates: () => Promise<{
+        success: boolean;
+        updateInfo?: any;
+        error?: string;
+      }>;
+      downloadUpdate: () => Promise<{ success: boolean; error?: string }>;
+      installUpdate: () => Promise<{ success: boolean; error?: string }>;
+      getAppVersion: () => Promise<{ version: string; channel: string }>;
+      getUpdateConfig: () => Promise<{
+        autoDownload: boolean;
+        autoInstallOnAppQuit: boolean;
+        allowPrerelease: boolean;
+        allowDowngrade: boolean;
+        currentVersion?: string;
+      }>;
+      setUpdateConfig: (config: {
+        autoDownload?: boolean;
+        autoInstallOnAppQuit?: boolean;
+        allowPrerelease?: boolean;
+        allowDowngrade?: boolean;
+      }) => Promise<{ success: boolean; error?: string }>;
+
+      // Auto-updater event listeners
+      onUpdateChecking: (callback: () => void) => void;
+      onUpdateAvailable: (callback: (info: {
+        version: string;
+        releaseDate?: string;
+        releaseName?: string;
+        releaseNotes?: string;
+      }) => void) => void;
+      onUpdateNotAvailable: (callback: (info: { version: string }) => void) => void;
+      onUpdateError: (callback: (error: { message: string; stack?: string }) => void) => void;
+      onUpdateDownloadProgress: (callback: (progress: {
+        bytesPerSecond: number;
+        percent: number;
+        transferred: number;
+        total: number;
+      }) => void) => void;
+      onUpdateDownloaded: (callback: (info: {
+        version: string;
+        releaseDate?: string;
+        releaseName?: string;
+        releaseNotes?: string;
+      }) => void) => void;
+      removeAllUpdateListeners: () => void;
+
       // Global settings storage operations
       loadAppSettings: () => Promise<unknown>;
       saveAppSettings: (settings: unknown) => Promise<unknown>;

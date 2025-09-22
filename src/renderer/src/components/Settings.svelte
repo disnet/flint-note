@@ -4,6 +4,7 @@
   import { modelStore } from '../stores/modelStore.svelte';
   import { SUPPORTED_MODELS } from '../config/models';
   import { ElectronChatService } from '../services/electronChatService';
+  import UpdateNotification from './UpdateNotification.svelte';
 
   let errorMessage = $state('');
   let successMessage = $state('');
@@ -329,6 +330,12 @@
         {successMessage}
       </div>
     {/if}
+
+    <!-- Auto-Updater Section -->
+    <section class="settings-section">
+      <h3>📦 Application Updates</h3>
+      <UpdateNotification />
+    </section>
 
     <section class="settings-section">
       <h3>

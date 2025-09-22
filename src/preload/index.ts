@@ -30,6 +30,57 @@ export type ToolCallData = {
 
 // Custom APIs for renderer
 const api = {
+  // Auto-updater operations
+  checkForUpdates: () => electronAPI.ipcRenderer.invoke('check-for-updates'),
+  downloadUpdate: () => electronAPI.ipcRenderer.invoke('download-update'),
+  installUpdate: () => electronAPI.ipcRenderer.invoke('install-update'),
+  getAppVersion: () => electronAPI.ipcRenderer.invoke('get-app-version'),
+  getUpdateConfig: () => electronAPI.ipcRenderer.invoke('get-update-config'),
+  setUpdateConfig: (config: {
+    autoDownload?: boolean;
+    autoInstallOnAppQuit?: boolean;
+    allowPrerelease?: boolean;
+    allowDowngrade?: boolean;
+  }) => electronAPI.ipcRenderer.invoke('set-update-config', config),
+
+  // Auto-updater event listeners
+  onUpdateChecking: (callback: () => void) =>
+    electronAPI.ipcRenderer.on('update-checking', callback),
+  onUpdateAvailable: (callback: (info: {
+    version: string;
+    releaseDate?: string;
+    releaseName?: string;
+    releaseNotes?: string;
+  }) => void) =>
+    electronAPI.ipcRenderer.on('update-available', (_event, info) => callback(info)),
+  onUpdateNotAvailable: (callback: (info: { version: string }) => void) =>
+    electronAPI.ipcRenderer.on('update-not-available', (_event, info) => callback(info)),
+  onUpdateError: (callback: (error: { message: string; stack?: string }) => void) =>
+    electronAPI.ipcRenderer.on('update-error', (_event, error) => callback(error)),
+  onUpdateDownloadProgress: (callback: (progress: {
+    bytesPerSecond: number;
+    percent: number;
+    transferred: number;
+    total: number;
+  }) => void) =>
+    electronAPI.ipcRenderer.on('update-download-progress', (_event, progress) => callback(progress)),
+  onUpdateDownloaded: (callback: (info: {
+    version: string;
+    releaseDate?: string;
+    releaseName?: string;
+    releaseNotes?: string;
+  }) => void) =>
+    electronAPI.ipcRenderer.on('update-downloaded', (_event, info) => callback(info)),
+
+  // Clean up event listeners
+  removeAllUpdateListeners: () => {
+    electronAPI.ipcRenderer.removeAllListeners('update-checking');
+    electronAPI.ipcRenderer.removeAllListeners('update-available');
+    electronAPI.ipcRenderer.removeAllListeners('update-not-available');
+    electronAPI.ipcRenderer.removeAllListeners('update-error');
+    electronAPI.ipcRenderer.removeAllListeners('update-download-progress');
+    electronAPI.ipcRenderer.removeAllListeners('update-downloaded');
+  },
   // Chat operations
   sendMessage: (params: { message: string; conversationId?: string; model?: string }) =>
     electronAPI.ipcRenderer.invoke('send-message', params),

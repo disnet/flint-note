@@ -25,6 +25,7 @@ import type {
 } from '../server/core/metadata-schema';
 import type { NoteMetadata } from '../server/types';
 import { logger } from './logger';
+import { AutoUpdaterService } from './auto-updater-service';
 
 interface FrontendMessage {
   id: string;
@@ -153,6 +154,9 @@ app.whenReady().then(async () => {
 
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron');
+
+  // Initialize auto-updater service
+  const autoUpdaterService = new AutoUpdaterService();
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
@@ -1615,6 +1619,20 @@ app.whenReady().then(async () => {
 
   createWindow();
   logger.info('Main window created and IPC handlers registered');
+
+  // Set main window for auto-updater
+  const mainWindow = BrowserWindow.getAllWindows()[0];
+  if (mainWindow) {
+    autoUpdaterService.setMainWindow(mainWindow);
+
+    // Start periodic update checks (every 4 hours)
+    autoUpdaterService.startPeriodicUpdateCheck(240);
+
+    // Check for updates on startup (in production only)
+    if (!is.dev) {
+      autoUpdaterService.checkForUpdatesOnStartup();
+    }
+  }
 
   // Listen for system theme changes and update window background
   nativeTheme.on('updated', () => {

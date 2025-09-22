@@ -1,0 +1,6 @@
+owner: your-company
+repo: flint-ui
+provider: generic
+url: http://localhost:3000/updates  # For local testing
+updaterCacheDirName: flint-updater
+publishAutoUpdate: true
