@@ -1,5 +1,9 @@
 # Project Log
 
+## Onboarding Content File Refactoring - 2025-09-25
+
+- Refactored onboarding content in FlintNoteApi from embedded template strings to separate markdown files for easier editing and maintenance: created directory structure `src/server/onboarding/{welcome,tutorials,examples,templates}/`, extracted all content to separate .md files, added `loadOnboardingContent()` helper method, updated build process to copy files to output directory during build
+
 ## Onboarding Note Creation API Refactor - 2025-09-20
 
 - **Refactored onboarding note creation to use standard createNote APIs** instead of direct filesystem writes: moved welcome note and tutorial creation from Workspace class to FlintNoteApi.createOnboardingContent(), ensuring proper database integration, metadata handling, link extraction, content hashing, and search indexing; implemented comprehensive onboarding content including welcome note, 2 tutorial notes, 2 example notes, and 3 template notes using proper NoteManager.createNote() API calls with correct TypeScript typing and error handling; fixed architectural issue by using dependency injection pattern - creating NoteManager directly during initialization and passing it to onboarding content creation, eliminating circular dependency where onboarding creation required API to be initialized while still being in initialization process

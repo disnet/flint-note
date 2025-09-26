@@ -1357,6 +1357,19 @@ export class FlintNoteApi {
   }
 
   /**
+   * Load onboarding content from file
+   */
+  private async loadOnboardingContent(relativePath: string): Promise<string> {
+    const filePath = path.join(__dirname, '../onboarding', relativePath);
+    try {
+      return await fs.readFile(filePath, 'utf-8');
+    } catch (error) {
+      console.error(`Failed to load onboarding content from ${filePath}:`, error);
+      throw new Error(`Could not load onboarding content: ${relativePath}`);
+    }
+  }
+
+  /**
    * Create onboarding content (welcome note and tutorials) using proper note creation API
    * Called during initial vault setup with noteManager provided directly
    */
@@ -1385,59 +1398,9 @@ export class FlintNoteApi {
    * Create the welcome note using proper note creation API
    */
   private async createWelcomeNote(noteManager: NoteManager): Promise<void> {
-    const welcomeContent = `# Welcome to Flint!
-
-Welcome to your new Flint vault! Flint is an AI-powered note-taking system designed to help you capture, organize, and connect your knowledge through intelligent conversations with your AI assistant.
-
-## What Makes Flint Different?
-
-Unlike traditional note-taking apps, Flint puts **AI assistance at the center** of your workflow. Your AI agent doesn't just help you write—it helps you think, organize, and discover connections in your knowledge.
-
-## Your Learning Path
-
-Your vault has been set up with a complete learning system to get you started:
-
-### 📚 **Tutorial Notes** (/tutorial/)
-Interactive step-by-step tutorials that teach you Flint's core concepts:
-- **Your First Note** - Create and edit notes with AI assistance
-- **Working with AI** - Learn to have effective conversations with your agent
-- **Smart Note-Taking** - Write notes that enhance AI interactions
-- **Building Connections** - Use wikilinks to create knowledge graphs
-- **Organizing with Types** - Create custom note types for your workflows
-- **Advanced Features** - Master sophisticated Flint capabilities
-
-### 📋 **Example Notes** (/examples/)
-Real examples showing best practices and effective patterns for different scenarios.
-
-### 📄 **Template Notes** (/templates/)
-Starter templates you can copy and customize for common note-taking needs.
-
-### 📝 **General Notes** (/note/)
-Your space for everyday notes, thoughts, and ideas.
-
-## Quick Start
-
-**👉 Start here**: Open the first tutorial at [[tutorial/01-your-first-note]] to begin your Flint journey.
-
-The tutorials are designed to be completed in order, but you can jump around based on your interests and needs.
-
-## Key Concepts to Remember
-
-- **Your AI agent is your partner** - Don't just write alone, engage it in conversation
-- **Structure helps AI help you** - Well-organized notes lead to better AI assistance
-- **Connections create value** - Link related notes to build a knowledge network
-- **Iterate and improve** - Notes grow more valuable as you develop and refine them
-
-## Need Help?
-
-- **Ask your AI agent** - It's designed to help with Flint-specific questions
-- **Check the tutorials** - They cover all major concepts and workflows
-- **Experiment freely** - Flint is designed for exploration and learning
-
-Ready to transform how you work with knowledge? Let's begin with your first tutorial!
-
-**Next step**: [[tutorial/01-your-first-note]]
-`;
+    const welcomeContent = await this.loadOnboardingContent(
+      'welcome/welcome-to-flint.md'
+    );
 
     await noteManager.createNote(
       'note',
@@ -1453,67 +1416,9 @@ Ready to transform how you work with knowledge? Let's begin with your first tuto
    */
   private async createTutorialNotes(noteManager: NoteManager): Promise<void> {
     // Tutorial 1: Your First Note
-    const tutorial1Content = `# Tutorial 1: Your First Note
-
-Welcome to your first Flint tutorial! This interactive guide will walk you through creating and editing notes with AI assistance.
-
-## What You'll Learn
-
-- How to create and edit notes in Flint
-- Basic markdown formatting
-- How to start conversations with your AI agent
-- Saving and organizing your work
-
-## Getting Started
-
-Flint combines traditional note-taking with AI assistance. Every note you create becomes part of a larger knowledge system that your AI agent can help you navigate and develop.
-
-### Step 1: Understanding This Note
-
-You're currently reading a tutorial note. Notice how it's structured with clear headings and sections. This helps both you and the AI agent understand the content.
-
-### Step 2: Try Editing
-
-**👉 Your first task**: Try editing this note! Add your own thoughts or questions below this line:
-
----
-*[Add your thoughts here]*
-
-### Step 3: Talk to Your AI Agent
-
-The AI agent is your thinking partner. Try asking it questions like:
-- "What should I write about in my first personal note?"
-- "How can I organize my thoughts effectively?"
-- "What are some good note-taking practices?"
-
-### Step 4: Create Your First Personal Note
-
-Now that you understand the basics, create your first personal note:
-
-1. Navigate to the main interface
-2. Click "New Note" or use the keyboard shortcut
-3. Choose the "note" type for general content
-4. Give it a meaningful title
-5. Start writing!
-
-## Key Concepts Learned
-
-- **Notes are structured documents** with headings and sections
-- **AI agent integration** is seamless and conversational
-- **Note types** help organize different kinds of content
-- **Markdown formatting** creates clear, readable documents
-
-## What's Next?
-
-Continue to [[tutorial/02-working-with-ai]] to learn how to have more effective conversations with your AI agent.
-
-## Practice Exercise
-
-Create a note about something you're interested in or working on. Ask your AI agent to help you structure it effectively.
-
-**Remember**: The best way to learn Flint is by using it. Don't worry about making mistakes—everything can be edited and improved!
-`;
-
+    const tutorial1Content = await this.loadOnboardingContent(
+      'tutorials/01-your-first-note.md'
+    );
     await noteManager.createNote(
       'tutorial',
       '01-your-first-note',
@@ -1523,115 +1428,9 @@ Create a note about something you're interested in or working on. Ask your AI ag
     );
 
     // Tutorial 2: Working with AI
-    const tutorial2Content = `# Tutorial 2: Working with the AI Agent
-
-Your AI agent is more than just a writing assistant—it's a thinking partner designed to help you develop and organize your ideas. This tutorial teaches you how to work effectively together.
-
-## Understanding Your AI Agent
-
-Your AI agent has access to:
-- **All your notes** - It can reference and connect information across your vault
-- **Note structure understanding** - It knows about your note types and organization
-- **Context awareness** - It remembers the conversation flow within each note
-- **Task assistance** - It can help with research, writing, planning, and analysis
-
-## Effective AI Conversations
-
-### 1. Be Specific and Clear
-
-**Good**: "Help me organize my research notes about renewable energy trends"
-**Better**: "I have 5 research notes about solar and wind energy trends from 2020-2024. Help me create a summary that identifies the 3 most significant developments."
-
-### 2. Provide Context
-
-The AI works best when it understands:
-- **What you're trying to accomplish**
-- **What information you already have**
-- **What kind of output you need**
-- **Any constraints or preferences**
-
-### 3. Ask for Specific Types of Help
-
-Your AI agent can assist with:
-- **Brainstorming**: "Help me think of topics to explore about urban planning"
-- **Organization**: "How should I structure my project notes for the marketing campaign?"
-- **Analysis**: "What patterns do you see in my meeting notes from this month?"
-- **Writing**: "Help me write a clear summary of this research"
-- **Connections**: "What other notes relate to this topic?"
-
-## Conversation Patterns That Work
-
-### The Iterative Approach
-
-Start broad, then get specific:
-1. "I'm working on X, what should I consider?"
-2. "Of those points, help me dive deeper into Y"
-3. "Now help me create an action plan for Y"
-
-### The Building Approach
-
-Use the AI to build up complex documents:
-1. "Help me outline a report about Z"
-2. "Now help me write the introduction section"
-3. "Let's develop the main argument in section 2"
-
-### The Review Approach
-
-Use the AI to improve existing work:
-1. "Review this draft and suggest improvements"
-2. "What questions does this content leave unanswered?"
-3. "How can I make this clearer for my audience?"
-
-## Practice Exercise: AI-Assisted Note Creation
-
-Let's practice by creating a note together with AI assistance:
-
-**👉 Try this conversation with your AI agent:**
-
-1. "I want to create a note about [choose a topic you're interested in]. Help me brainstorm what to include."
-
-2. After the AI responds, ask: "Of those ideas, which 3 should I focus on first?"
-
-3. Then: "Help me create an outline for a note covering those 3 areas."
-
-4. Finally: "Now help me write the introduction section."
-
-## Advanced AI Collaboration
-
-### Using Notes as Context
-
-- Reference other notes: "Based on my note about X, help me think about Y"
-- Build connections: "What themes connect my notes about A, B, and C?"
-- Track progress: "Looking at my project notes, what should I focus on next?"
-
-### Task Management with AI
-
-Your AI agent can help you:
-- Break down complex projects into steps
-- Identify priorities and dependencies
-- Track progress and next actions
-- Review and adjust plans
-
-## What You've Learned
-
-- How to have specific, contextual conversations with AI
-- Patterns for effective AI collaboration
-- Ways to use AI for different types of thinking tasks
-- How to iterate and build with AI assistance
-
-## Next Steps
-
-Continue to [[tutorial/03-smart-note-taking]] to learn how to structure your notes for maximum AI effectiveness.
-
-## Reflection Questions
-
-- What types of tasks do you most want AI help with?
-- How might AI assistance change your thinking and writing process?
-- What questions do you want to explore in future conversations?
-
-**Remember**: The AI agent learns from each conversation how to better assist you. The more you work together, the more effective your collaboration becomes.
-`;
-
+    const tutorial2Content = await this.loadOnboardingContent(
+      'tutorials/02-working-with-ai.md'
+    );
     await noteManager.createNote(
       'tutorial',
       '02-working-with-ai',
@@ -1648,58 +1447,9 @@ Continue to [[tutorial/03-smart-note-taking]] to learn how to structure your not
    */
   private async createExampleNotes(noteManager: NoteManager): Promise<void> {
     // Example 1: Meeting Notes
-    const meetingExampleContent = `# Example: Effective Meeting Notes
-
-This example demonstrates how to structure meeting notes for maximum value and AI assistance.
-
-## Meeting Details
-- **Meeting**: Product Planning Session Q2 2024
-- **Date**: March 15, 2024
-- **Attendees**: Sarah Chen (PM), Mike Rodriguez (Dev Lead), Lisa Wang (Design), Alex Thompson (Marketing)
-- **Duration**: 90 minutes
-- **Location**: Conference Room B / Zoom hybrid
-
-## Context & Purpose
-Quarterly planning meeting to define product roadmap for Q2 2024. This is our third quarterly planning session following the new agile framework adopted in Q1.
-
-**Background**: Q1 showed 15% user growth but also revealed UX friction points in the onboarding flow. We need to balance new feature development with addressing technical debt.
-
-## Key Decisions Made
-
-### Q2 Priority: Hybrid Approach
-- **Decision**: Focus on UX improvements + 2 new features
-- **Rationale**: Competitive pressure requires new features, but UX issues are affecting retention
-- **Timeline**: 6 sprints (12 weeks)
-
-### Resource Allocation
-- Development: 80 story points per sprint
-- Design: 3 designers, 2 focused on UX overhaul
-- QA: Increase testing capacity by 30%
-
-## Action Items
-
-| Task | Owner | Due Date | Priority |
-|------|-------|----------|----------|
-| Design system audit | Lisa Wang | March 22 | High |
-| User research interviews | Sarah Chen | March 29 | High |
-| Technical debt assessment | Mike Rodriguez | March 25 | Medium |
-| Competitor analysis update | Alex Thompson | April 1 | Medium |
-
-## Next Steps
-- **Next meeting**: March 29, 2024 (Design review)
-- **Follow-up needed**: Technical debt breakdown from engineering
-- **Decisions pending**: Final feature prioritization after user research
-
-## Meeting Effectiveness Notes
-- **What worked well**: Clear agenda, good participation from all teams
-- **What could improve**: Need better pre-meeting prep, some discussions went long
-- **AI assistance opportunities**: Could help with follow-up task tracking and decision documentation
-
----
-
-**AI Review Prompt**: "Help me identify any missing action items or unclear decisions from this meeting."
-`;
-
+    const meetingExampleContent = await this.loadOnboardingContent(
+      'examples/meeting-notes-example.md'
+    );
     await noteManager.createNote(
       'examples',
       'meeting-notes-example',
@@ -1709,69 +1459,9 @@ Quarterly planning meeting to define product roadmap for Q2 2024. This is our th
     );
 
     // Example 2: Research Notes
-    const researchExampleContent = `# Example: Research Note Structure
-
-This example shows how to organize research notes for effective AI collaboration and knowledge building.
-
-## Research Topic: Remote Work Productivity Trends 2024
-
-### Research Question
-How has remote work productivity changed since 2020, and what factors most influence team effectiveness in hybrid environments?
-
-### Key Sources
-1. **Harvard Business Review** - "The Future of Hybrid Work" (Feb 2024)
-2. **MIT Sloan Management Review** - "Measuring Remote Team Performance" (Jan 2024)
-3. **Gallup State of the Workplace** - Annual Report 2024
-4. **PwC Remote Work Survey** - 2,000 executives, Q1 2024
-
-### Major Findings
-
-#### Productivity Metrics
-- **Overall productivity**: 12% increase vs. 2020 baseline
-- **Individual tasks**: 18% improvement
-- **Collaborative work**: 8% decline in efficiency
-- **Innovation activities**: 15% decline in breakthrough ideas
-
-#### Success Factors
-1. **Clear communication protocols** (89% correlation with high performance)
-2. **Dedicated home office space** (76% correlation)
-3. **Regular 1:1 manager meetings** (71% correlation)
-4. **Flexible core hours** (68% correlation)
-
-#### Challenges Identified
-- **Social isolation**: 67% report decreased informal interactions
-- **Career development concerns**: 54% worry about advancement opportunities
-- **Technology fatigue**: 43% experience video call burnout
-- **Work-life boundaries**: 39% struggle with "always on" culture
-
-### Synthesis & Insights
-
-**Key Insight**: The productivity gains in remote work are real but unevenly distributed. Individual focused work benefits significantly, while collaborative and creative work face ongoing challenges.
-
-**Emerging Patterns**:
-- Companies with structured hybrid policies (3-2 split) show better outcomes
-- Investment in digital collaboration tools correlates with team satisfaction
-- Intentional culture-building activities become more critical
-
-### Questions for Further Research
-- How do productivity patterns vary by industry and role type?
-- What specific technologies most effectively support remote collaboration?
-- How can organizations measure and improve "innovation productivity" in remote settings?
-
-### Related Notes
-- [[project-planning-example]] - Shows how research insights inform planning
-- [[meeting-notes-example]] - Demonstrates research application in decision-making
-
-### Next Actions
-- [ ] Interview 3 remote team managers about success strategies
-- [ ] Analyze our own team's productivity data using these frameworks
-- [ ] Create presentation summarizing findings for leadership team
-
----
-
-**AI Analysis Prompt**: "Based on this research, what recommendations would you make for optimizing our team's hybrid work approach?"
-`;
-
+    const researchExampleContent = await this.loadOnboardingContent(
+      'examples/research-notes-example.md'
+    );
     await noteManager.createNote(
       'examples',
       'research-notes-example',
@@ -1786,47 +1476,9 @@ How has remote work productivity changed since 2020, and what factors most influ
    */
   private async createTemplateNotes(noteManager: NoteManager): Promise<void> {
     // Template 1: Daily Journal
-    const dailyTemplateContent = `# Daily Journal - [Date]
-
-## Today's Focus
-*What are the main priorities for today?*
-
-## Morning Reflection
-*How am I feeling? What energy level? What's on my mind?*
-
-## Work Accomplishments
-
-### Completed Tasks
--
-
-### In Progress
--
-
-### Challenges Encountered
--
-
-## Learning & Insights
-*What did I learn today? Any interesting discoveries or realizations?*
-
-## Personal Highlights
-*Positive moments, achievements, or things I'm grateful for*
-
-## Tomorrow's Preparation
-*What should I focus on tomorrow? Any prep needed?*
-
-### Priority Tasks for Tomorrow
-1.
-2.
-3.
-
-## Notes & Thoughts
-*Random thoughts, ideas, or things to remember*
-
----
-
-**AI Reflection Prompt**: "Help me identify patterns in my recent daily journals and suggest areas for improvement or focus."
-`;
-
+    const dailyTemplateContent = await this.loadOnboardingContent(
+      'templates/daily-journal-template.md'
+    );
     await noteManager.createNote(
       'templates',
       'daily-journal-template',
@@ -1836,71 +1488,9 @@ How has remote work productivity changed since 2020, and what factors most influ
     );
 
     // Template 2: Meeting Notes
-    const meetingTemplateContent = `# Meeting: [Meeting Title]
-
-## Meeting Details
-- **Date**: [Date]
-- **Time**: [Time]
-- **Duration**: [Duration]
-- **Location**: [Location/Platform]
-- **Attendees**: [List participants]
-- **Meeting Type**: [Planning/Review/Decision/Brainstorm/etc.]
-
-## Purpose & Objectives
-*Why are we meeting? What do we hope to accomplish?*
-
-## Agenda
-1.
-2.
-3.
-
-## Key Discussion Points
-
-### Topic 1: [Topic Name]
-**Discussion Summary**:
-
-**Key Points Raised**:
--
--
-
-**Decisions Made**:
--
-
-### Topic 2: [Topic Name]
-**Discussion Summary**:
-
-**Key Points Raised**:
--
--
-
-**Decisions Made**:
--
-
-## Action Items
-
-| Task | Owner | Due Date | Priority | Status |
-|------|-------|----------|----------|---------|
-|      |       |          |          |         |
-
-## Next Steps
-- **Next meeting**: [Date/Time]
-- **Follow-up needed**:
-- **Decisions pending**:
-
-## Meeting Notes & Observations
-- **What worked well**:
-- **What could improve**:
-- **Unanswered questions**:
-
-## Related Notes
-- [[Previous meeting link]]
-- [[Related project/topic links]]
-
----
-
-**AI Review Prompt**: "Review this meeting and help me identify any missing action items or unclear decisions that need follow-up."
-`;
-
+    const meetingTemplateContent = await this.loadOnboardingContent(
+      'templates/meeting-notes-template.md'
+    );
     await noteManager.createNote(
       'templates',
       'meeting-notes-template',
@@ -1910,93 +1500,9 @@ How has remote work productivity changed since 2020, and what factors most influ
     );
 
     // Template 3: Project Brief
-    const projectTemplateContent = `# Project: [Project Name]
-
-## Project Overview
-*Brief description of what this project aims to accomplish*
-
-## Background & Context
-*Why is this project needed? What problem does it solve? What's the current situation?*
-
-## Project Goals
-
-### Primary Objectives
-1.
-2.
-3.
-
-### Success Metrics
-- **Metric 1**: [Target]
-- **Metric 2**: [Target]
-- **Metric 3**: [Target]
-
-## Scope & Deliverables
-
-### In Scope
--
--
--
-
-### Out of Scope
--
--
--
-
-### Key Deliverables
-1. **[Deliverable Name]** - [Description] - Due: [Date]
-2. **[Deliverable Name]** - [Description] - Due: [Date]
-3. **[Deliverable Name]** - [Description] - Due: [Date]
-
-## Timeline & Milestones
-
-### Phase 1: [Phase Name] - [Date Range]
-- [ ] [Milestone 1]
-- [ ] [Milestone 2]
-
-### Phase 2: [Phase Name] - [Date Range]
-- [ ] [Milestone 1]
-- [ ] [Milestone 2]
-
-### Phase 3: [Phase Name] - [Date Range]
-- [ ] [Milestone 1]
-- [ ] [Milestone 2]
-
-## Resources & Team
-
-### Team Members
-- **[Role]**: [Name] - [Responsibilities]
-- **[Role]**: [Name] - [Responsibilities]
-
-### Required Resources
-- **Budget**: [Amount/Range]
-- **Tools/Technology**:
-- **External vendors**:
-
-## Risks & Mitigation
-
-| Risk | Impact | Probability | Mitigation Strategy |
-|------|--------|-------------|-------------------|
-|      | H/M/L  | H/M/L       |                   |
-
-## Dependencies
-- **Internal**:
-- **External**:
-
-## Communication Plan
-- **Status updates**: [Frequency and format]
-- **Stakeholder reviews**: [Schedule]
-- **Team meetings**: [Schedule]
-
-## Related Notes & References
-- [[Research notes]]
-- [[Previous projects]]
-- [[Requirements documents]]
-
----
-
-**AI Planning Prompt**: "Review this project brief and help me identify potential gaps, risks, or areas that need more detail."
-`;
-
+    const projectTemplateContent = await this.loadOnboardingContent(
+      'templates/project-brief-template.md'
+    );
     await noteManager.createNote(
       'templates',
       'project-brief-template',
