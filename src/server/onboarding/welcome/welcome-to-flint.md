@@ -1,57 +1,44 @@
 # Welcome to Flint!
 
-Welcome to your new Flint vault! Flint is an AI-powered note-taking system designed to help you capture, organize, and connect your knowledge through intelligent conversations with your AI assistant.
+## What is Flint?
+Flint is a thinking system designed to extend and amplify your thinking through structured note-taking with AI assistance.
 
-## What Makes Flint Different?
+## Core Concepts
 
-Unlike traditional note-taking apps, Flint puts **AI assistance at the center** of your workflow. Your AI agent doesn't just help you write—it helps you think, organize, and discover connections in your knowledge.
+### Notes as Building Blocks
+- **Plain text markdown** - your thoughts in simple, portable format
+- **[[Wikilinks]]** - connect ideas with `[[note name]]` syntax
+- **Note types** - different purposes (daily notes, projects, references) with tailored workflows
 
-## Your Learning Path
+### The Three-Column Interface
+- **Left sidebar** - your workspace with pinned and temporary notes
+- **Main view** - where you write and edit your notes
+- **Right sidebar** - AI chat for assistance with your notes
 
-Your vault has been set up with a complete learning system to get you started:
+### AI as Thinking Partner
+- AI helps with **organizing** and **connecting** your notes
+- AI **assists** your thinking, never replaces it
+- Ask about specific notes using `[[note name]]` in the chat
 
-### 📚 **Tutorial Notes** (/tutorial/)
+## Getting Started
 
-Interactive step-by-step tutorials that teach you Flint's core concepts:
+### Your Daily Practice
+1. **Start with daily notes** - capture thoughts, meetings, and ideas
+2. **Link as you write** - use `[[]]` to connect related concepts
+3. **Let structure emerge** - don't worry about perfect organization initially
 
-- **Your First Note** - Create and edit notes with AI assistance
-- **Working with AI** - Learn to have effective conversations with your agent
-- **Smart Note-Taking** - Write notes that enhance AI interactions
-- **Building Connections** - Use wikilinks to create knowledge graphs
-- **Organizing with Types** - Create custom note types for your workflows
-- **Advanced Features** - Master sophisticated Flint capabilities
+### Creating Notes
+- Click **"+ New Note"** in the sidebar
+- Use keyboard shortcut: `Ctrl+N` (Windows/Linux) or `Cmd+N` (Mac)
+- Create by linking: type `[[new idea]]` and click the link
 
-### 📋 **Example Notes** (/examples/)
+### Working with Your AI Assistant
+- Chat with AI in the right sidebar
+- AI can search, read, and update your notes
+- Reference specific notes in chat using `[[note name]]` syntax
+- Ask for help organizing, finding connections, or structuring thoughts
 
-Real examples showing best practices and effective patterns for different scenarios.
+## Your Note-Taking Philosophy
+Flint believes in **frictionless capture** - get your thoughts down first, add structure later. The system grows with your thinking, helping you build connections and insights over time.
 
-### 📄 **Template Notes** (/templates/)
-
-Starter templates you can copy and customize for common note-taking needs.
-
-### 📝 **General Notes** (/note/)
-
-Your space for everyday notes, thoughts, and ideas.
-
-## Quick Start
-
-**👉 Start here**: Open the first tutorial at [[tutorial/01-your-first-note]] to begin your Flint journey.
-
-The tutorials are designed to be completed in order, but you can jump around based on your interests and needs.
-
-## Key Concepts to Remember
-
-- **Your AI agent is your partner** - Don't just write alone, engage it in conversation
-- **Structure helps AI help you** - Well-organized notes lead to better AI assistance
-- **Connections create value** - Link related notes to build a knowledge network
-- **Iterate and improve** - Notes grow more valuable as you develop and refine them
-
-## Need Help?
-
-- **Ask your AI agent** - It's designed to help with Flint-specific questions
-- **Check the tutorials** - They cover all major concepts and workflows
-- **Experiment freely** - Flint is designed for exploration and learning
-
-Ready to transform how you work with knowledge? Let's begin with your first tutorial!
-
-**Next step**: [[tutorial/01-your-first-note]]
+Ready to start thinking with Flint? Try creating your first daily note!
