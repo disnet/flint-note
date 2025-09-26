@@ -1257,7 +1257,7 @@ export class FlintNoteApi {
 
       // Get notes created on this date
       const createdNotes = await db.all<{ id: string; title: string; type: string }>(
-        `SELECT id, title, type FROM notes 
+        `SELECT id, title, type FROM notes
          WHERE DATE(created) = ? AND type != 'daily'
          ORDER BY created DESC`,
         [dateStr]
@@ -1265,7 +1265,7 @@ export class FlintNoteApi {
 
       // Get notes modified on this date (excluding those already in created)
       const modifiedNotes = await db.all<{ id: string; title: string; type: string }>(
-        `SELECT id, title, type FROM notes 
+        `SELECT id, title, type FROM notes
          WHERE DATE(updated) = ? AND DATE(created) != ? AND type != 'daily'
          ORDER BY updated DESC`,
         [dateStr, dateStr]
@@ -1308,7 +1308,7 @@ export class FlintNoteApi {
       type: string;
       created: string;
     }>(
-      `SELECT id, title, type, created FROM notes 
+      `SELECT id, title, type, created FROM notes
        WHERE DATE(created) = ? AND type != 'daily'
        ORDER BY created DESC`,
       [date]
@@ -1321,7 +1321,7 @@ export class FlintNoteApi {
       type: string;
       updated: string;
     }>(
-      `SELECT id, title, type, updated FROM notes 
+      `SELECT id, title, type, updated FROM notes
        WHERE DATE(updated) = ? AND DATE(created) != ? AND type != 'daily'
        ORDER BY updated DESC`,
       [date, date]
@@ -1379,15 +1379,6 @@ export class FlintNoteApi {
     try {
       // Create welcome note
       await this.createWelcomeNote(noteManager);
-
-      // Create tutorial notes
-      await this.createTutorialNotes(noteManager);
-
-      // Create example notes
-      await this.createExampleNotes(noteManager);
-
-      // Create template notes
-      await this.createTemplateNotes(noteManager);
     } catch (error) {
       console.error('Failed to create onboarding content:', error);
       // Don't throw - onboarding content creation shouldn't block vault initialization
@@ -1408,107 +1399,6 @@ export class FlintNoteApi {
       welcomeContent,
       {},
       false // Don't enforce required fields for onboarding content
-    );
-  }
-
-  /**
-   * Create tutorial notes using proper note creation API
-   */
-  private async createTutorialNotes(noteManager: NoteManager): Promise<void> {
-    // Tutorial 1: Your First Note
-    const tutorial1Content = await this.loadOnboardingContent(
-      'tutorials/01-your-first-note.md'
-    );
-    await noteManager.createNote(
-      'tutorial',
-      '01-your-first-note',
-      tutorial1Content,
-      {},
-      false
-    );
-
-    // Tutorial 2: Working with AI
-    const tutorial2Content = await this.loadOnboardingContent(
-      'tutorials/02-working-with-ai.md'
-    );
-    await noteManager.createNote(
-      'tutorial',
-      '02-working-with-ai',
-      tutorial2Content,
-      {},
-      false
-    );
-
-    // Add more tutorials as needed - keeping this concise for now
-  }
-
-  /**
-   * Create example notes using proper note creation API
-   */
-  private async createExampleNotes(noteManager: NoteManager): Promise<void> {
-    // Example 1: Meeting Notes
-    const meetingExampleContent = await this.loadOnboardingContent(
-      'examples/meeting-notes-example.md'
-    );
-    await noteManager.createNote(
-      'examples',
-      'meeting-notes-example',
-      meetingExampleContent,
-      {},
-      false
-    );
-
-    // Example 2: Research Notes
-    const researchExampleContent = await this.loadOnboardingContent(
-      'examples/research-notes-example.md'
-    );
-    await noteManager.createNote(
-      'examples',
-      'research-notes-example',
-      researchExampleContent,
-      {},
-      false
-    );
-  }
-
-  /**
-   * Create template notes using proper note creation API
-   */
-  private async createTemplateNotes(noteManager: NoteManager): Promise<void> {
-    // Template 1: Daily Journal
-    const dailyTemplateContent = await this.loadOnboardingContent(
-      'templates/daily-journal-template.md'
-    );
-    await noteManager.createNote(
-      'templates',
-      'daily-journal-template',
-      dailyTemplateContent,
-      {},
-      false
-    );
-
-    // Template 2: Meeting Notes
-    const meetingTemplateContent = await this.loadOnboardingContent(
-      'templates/meeting-notes-template.md'
-    );
-    await noteManager.createNote(
-      'templates',
-      'meeting-notes-template',
-      meetingTemplateContent,
-      {},
-      false
-    );
-
-    // Template 3: Project Brief
-    const projectTemplateContent = await this.loadOnboardingContent(
-      'templates/project-brief-template.md'
-    );
-    await noteManager.createNote(
-      'templates',
-      'project-brief-template',
-      projectTemplateContent,
-      {},
-      false
     );
   }
 

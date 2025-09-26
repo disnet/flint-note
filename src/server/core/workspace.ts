@@ -616,42 +616,15 @@ Expected frontmatter fields:
   getDefaultNoteTypes(): DefaultNoteType[] {
     return [
       {
-        name: 'tutorial',
-        purpose: 'Interactive tutorials for learning Flint concepts and best practices',
+        name: 'daily',
+        purpose: 'Daily notes for tracking progress and capturing daily thoughts',
         agentInstructions: [
-          'Guide users through tutorial steps with clear explanations',
-          'Provide encouragement and helpful clarification',
-          'Help users apply tutorial concepts to their own notes',
-          'Answer questions about Flint features and workflows',
-          'Suggest next steps for continued learning'
-        ],
-        metadataSchema: {
-          fields: []
-        }
-      },
-      {
-        name: 'examples',
-        purpose: 'Reference examples demonstrating Flint best practices and patterns',
-        agentInstructions: [
-          'Explain the techniques and patterns shown in examples',
-          'Help users adapt examples to their specific needs',
-          'Suggest related examples and tutorials for deeper learning',
-          'Demonstrate effective note structure and AI interaction',
-          'Show how to build on example concepts'
-        ],
-        metadataSchema: {
-          fields: []
-        }
-      },
-      {
-        name: 'templates',
-        purpose: 'Starter templates for common note-taking scenarios and workflows',
-        agentInstructions: [
-          'Help users customize templates for their specific use cases',
-          'Suggest appropriate template usage and modifications',
-          'Guide template-based note creation and organization',
-          'Explain the structure and purpose of template elements',
-          'Recommend when to create new templates'
+          'Extract actionable items and suggest appropriate note types for follow-up',
+          'Identify and link related notes mentioned in daily entries',
+          'Link to related notes when appropriate',
+          "Preserve the user's voice and thinking style completely",
+          'Focus on structural help, not content generation',
+          'Suggest connections to previous daily notes or related project notes'
         ],
         metadataSchema: {
           fields: []
@@ -661,11 +634,12 @@ Expected frontmatter fields:
         name: 'note',
         purpose: 'General-purpose notes for thoughts, ideas, and information',
         agentInstructions: [
-          'Keep notes organized and well-structured',
+          'Identify and create wikilinks to related existing notes',
           'Use clear headings and formatting',
-          'Link to related notes when appropriate',
           'Extract actionable items when present',
-          'Help build connections between related concepts'
+          'Help build connections between related concepts',
+          'Help categorize notes that might benefit from more specific note types',
+          "NEVER alter the user's content or voice - only enhance organization"
         ],
         metadataSchema: {
           fields: []
