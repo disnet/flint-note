@@ -505,8 +505,26 @@ class TemporaryTabsStore {
 
     // Add tutorial notes to temporary tabs
     const tutorialNotes = [
-      { id: 'tutorial/01-your-first-note', title: '01 Your First Note' },
-      { id: 'tutorial/02-working-with-ai', title: '02 Working with AI' }
+      {
+        id: 'note/tutorial-1-your-first-daily-note',
+        title: 'Tutorial 1: Your First Daily Note'
+      },
+      {
+        id: 'note/tutorial-2-connecting-ideas-with-wikilinks',
+        title: 'Tutorial 2: Connecting Ideas with Wikilinks'
+      },
+      {
+        id: 'note/tutorial-3-your-ai-assistant-in-action',
+        title: 'Tutorial 3: Your AI Assistant in Action'
+      },
+      {
+        id: 'note/tutorial-4-understanding-note-types',
+        title: 'Tutorial 4: Understanding Note Types'
+      },
+      {
+        id: 'note/tutorial-5-building-your-capture-habit',
+        title: 'Tutorial 5: Building Your Capture Habit'
+      }
     ];
 
     for (const tutorial of tutorialNotes) {

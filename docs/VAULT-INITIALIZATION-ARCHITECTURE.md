@@ -207,21 +207,13 @@ For new vaults, the system creates onboarding content immediately during vault c
 - Overview of the learning path
 - Links to tutorial content
 
-#### 2. Tutorial Notes (`tutorial/`)
+#### 2. Tutorial Notes (`note/`)
 
-- `01-your-first-note.md` - Basic note creation and AI interaction
-- `02-working-with-ai.md` - Effective AI collaboration patterns
-
-#### 3. Example Notes (`examples/`)
-
-- `meeting-notes-example.md` - Structured meeting documentation
-- `research-notes-example.md` - Research organization and synthesis
-
-#### 4. Template Notes (`templates/`)
-
-- `daily-journal-template.md` - Daily reflection and planning
-- `meeting-notes-template.md` - Structured meeting capture
-- `project-brief-template.md` - Project planning and tracking
+- `tutorial-1-your-first-daily-note.md` - Basic note creation and daily practice
+- `tutorial-2-connecting-ideas-with-wikilinks.md` - Linking concepts naturally
+- `tutorial-3-your-ai-assistant-in-action.md` - Effective AI collaboration patterns
+- `tutorial-4-understanding-note-types.md` - Working with different note types
+- `tutorial-5-building-your-capture-habit.md` - Sustainable long-term practice
 
 **Note**: Filenames are automatically generated using kebab-case conversion from note titles (e.g., "Welcome to Flint" becomes `welcome-to-flint.md`).
 

@@ -102,11 +102,11 @@
       if (vaultInfo.id) {
         await switchVault(vaultInfo.id);
 
-        // Pin welcome note and add tutorial notes after vault switch is complete
+        // Pin welcome note and tutorial notes after vault switch is complete
         try {
           await pinnedNotesStore.pinWelcomeNote();
         } catch (error) {
-          console.warn('Failed to pin welcome note:', error);
+          console.warn('Failed to pin onboarding notes:', error);
           // Non-blocking - don't fail the vault creation flow
         }
 

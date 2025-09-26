@@ -257,6 +257,44 @@ class PinnedNotesStore {
       'welcome-to-flint.md'
     );
   }
+
+  /**
+   * Pin tutorial notes for new vaults
+   * Called after vault creation to provide structured learning path
+   */
+  async pinTutorialNotes(): Promise<void> {
+    const tutorialNotes = [
+      {
+        id: 'note/tutorial-1-your-first-daily-note',
+        title: 'Tutorial 1: Your First Daily Note',
+        filename: 'tutorial-1-your-first-daily-note.md'
+      },
+      {
+        id: 'note/tutorial-2-connecting-ideas-with-wikilinks',
+        title: 'Tutorial 2: Connecting Ideas with Wikilinks',
+        filename: 'tutorial-2-connecting-ideas-with-wikilinks.md'
+      },
+      {
+        id: 'note/tutorial-3-your-ai-assistant-in-action',
+        title: 'Tutorial 3: Your AI Assistant in Action',
+        filename: 'tutorial-3-your-ai-assistant-in-action.md'
+      },
+      {
+        id: 'note/tutorial-4-understanding-note-types',
+        title: 'Tutorial 4: Understanding Note Types',
+        filename: 'tutorial-4-understanding-note-types.md'
+      },
+      {
+        id: 'note/tutorial-5-building-your-capture-habit',
+        title: 'Tutorial 5: Building Your Capture Habit',
+        filename: 'tutorial-5-building-your-capture-habit.md'
+      }
+    ];
+
+    for (const tutorial of tutorialNotes) {
+      await this.pinNote(tutorial.id, tutorial.title, tutorial.filename);
+    }
+  }
 }
 
 export const pinnedNotesStore = new PinnedNotesStore();

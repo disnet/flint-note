@@ -39,6 +39,7 @@ Flint's AI assistant is designed to enhance your thinking, not replace it. Ask i
 Flint's AI is designed around a simple principle: you do the thinking, AI handles the organizational tasks.
 
 **What Flint's AI Does:**
+
 - Helps organize and structure your existing thoughts
 - Discovers connections between notes you might have missed
 - Manages metadata and tags automatically
@@ -46,6 +47,7 @@ Flint's AI is designed around a simple principle: you do the thinking, AI handle
 - Surfaces relevant information when you're writing
 
 **What Flint's AI Doesn't Do:**
+
 - Generate content to replace your thinking
 - Make decisions about what you should write
 - Impose external structures on your personal knowledge

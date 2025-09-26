@@ -1379,6 +1379,9 @@ export class FlintNoteApi {
     try {
       // Create welcome note
       await this.createWelcomeNote(noteManager);
+
+      // Create tutorial notes
+      await this.createTutorialNotes(noteManager);
     } catch (error) {
       console.error('Failed to create onboarding content:', error);
       // Don't throw - onboarding content creation shouldn't block vault initialization
@@ -1400,6 +1403,52 @@ export class FlintNoteApi {
       {},
       false // Don't enforce required fields for onboarding content
     );
+  }
+
+  /**
+   * Create tutorial notes using proper note creation API
+   */
+  private async createTutorialNotes(noteManager: NoteManager): Promise<void> {
+    const tutorials = [
+      {
+        filename: 'tutorials/01-your-first-daily-note.md',
+        title: 'Tutorial 1: Your First Daily Note'
+      },
+      {
+        filename: 'tutorials/02-connecting-ideas-with-wikilinks.md',
+        title: 'Tutorial 2: Connecting Ideas with Wikilinks'
+      },
+      {
+        filename: 'tutorials/03-your-ai-assistant-in-action.md',
+        title: 'Tutorial 3: Your AI Assistant in Action'
+      },
+      {
+        filename: 'tutorials/04-understanding-note-types.md',
+        title: 'Tutorial 4: Understanding Note Types'
+      },
+      {
+        filename: 'tutorials/05-building-your-capture-habit.md',
+        title: 'Tutorial 5: Building Your Capture Habit'
+      }
+    ];
+
+    for (const tutorial of tutorials) {
+      try {
+        const content = await this.loadOnboardingContent(tutorial.filename);
+        await noteManager.createNote(
+          'note',
+          tutorial.title,
+          content,
+          {
+            tags: ['tutorial', 'onboarding']
+          },
+          false // Don't enforce required fields for onboarding content
+        );
+      } catch (error) {
+        console.error(`Failed to create tutorial note ${tutorial.title}:`, error);
+        // Continue with other tutorials even if one fails
+      }
+    }
   }
 
   /**

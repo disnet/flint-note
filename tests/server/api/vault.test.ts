@@ -163,13 +163,11 @@ describe('FlintNoteApi - Vault Operations', () => {
       // Note: filenames are generated using kebab-case from titles
       const expectedFiles = [
         'note/welcome-to-flint.md',
-        'tutorial/01-your-first-note.md',
-        'tutorial/02-working-with-ai.md',
-        'examples/meeting-notes-example.md',
-        'examples/research-notes-example.md',
-        'templates/daily-journal-template.md',
-        'templates/meeting-notes-template.md',
-        'templates/project-brief-template.md'
+        'note/tutorial-1-your-first-daily-note.md',
+        'note/tutorial-2-connecting-ideas-with-wikilinks.md',
+        'note/tutorial-3-your-ai-assistant-in-action.md',
+        'note/tutorial-4-understanding-note-types.md',
+        'note/tutorial-5-building-your-capture-habit.md'
       ];
 
       for (const expectedFile of expectedFiles) {

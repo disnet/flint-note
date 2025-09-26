@@ -1,5 +1,9 @@
 # Project Log
 
+## Tutorial System Overhaul and Pinned/Temporary Views Fix - 2025-09-26
+
+- **Created comprehensive 5-tutorial onboarding system** with progressive hands-on learning: expanded from basic welcome note to complete tutorial series covering daily notes, wikilinks, AI assistant usage, note types, and sustainable habits; created new tutorial files `01-your-first-daily-note.md` through `05-building-your-capture-habit.md` with detailed step-by-step guidance and practical exercises; updated `createOnboardingContentWithManager()` method to create all 5 tutorials as 'note' type with proper metadata tagging; fixed broken pinned/temporary views by updating old tutorial note references (`tutorial/01-your-first-note`, `tutorial/02-working-with-ai`) to new note IDs (`note/tutorial-1-your-first-daily-note`, etc.) in both `pinnedStore.svelte.ts` and `temporaryTabsStore.svelte.ts`; added `pinTutorialNotes()` method to pin all tutorials for immediate access; updated test expectations and documentation to reflect new tutorial structure
+
 ## Onboarding Content File Refactoring - 2025-09-25
 
 - Refactored onboarding content in FlintNoteApi from embedded template strings to separate markdown files for easier editing and maintenance: created directory structure `src/server/onboarding/{welcome,tutorials,examples,templates}/`, extracted all content to separate .md files, added `loadOnboardingContent()` helper method, updated build process to copy files to output directory during build
