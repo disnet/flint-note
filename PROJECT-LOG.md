@@ -1,5 +1,9 @@
 # Project Log
 
+## Agent Note Type Management Tools Implementation - 2025-09-27
+
+- **Added comprehensive note type management tools for AI agents** to enable creation, modification, and deletion of note types directly through the agent interface: implemented `create_note_type`, `update_note_type`, and `delete_note_type` tools in ToolService with full schema validation, metadata schema support, and comprehensive error handling; tools support agent instructions configuration, custom metadata field definitions (string, number, boolean, date, array, select types), and safe deletion with migration options; all implementations follow existing tool patterns with consistent error codes (NOTE_TYPE_NOT_FOUND, CREATE_NOTE_TYPE_FAILED, etc.) and proper vault context handling; full TypeScript type safety with proper MetadataFieldDefinition alignment and all tests passing
+
 ## Tutorial System Overhaul and Pinned/Temporary Views Fix - 2025-09-26
 
 - **Created comprehensive 5-tutorial onboarding system** with progressive hands-on learning: expanded from basic welcome note to complete tutorial series covering daily notes, wikilinks, AI assistant usage, note types, and sustainable habits; created new tutorial files `01-your-first-daily-note.md` through `05-building-your-capture-habit.md` with detailed step-by-step guidance and practical exercises; updated `createOnboardingContentWithManager()` method to create all 5 tutorials as 'note' type with proper metadata tagging; fixed broken pinned/temporary views by updating old tutorial note references (`tutorial/01-your-first-note`, `tutorial/02-working-with-ai`) to new note IDs (`note/tutorial-1-your-first-daily-note`, etc.) in both `pinnedStore.svelte.ts` and `temporaryTabsStore.svelte.ts`; added `pinTutorialNotes()` method to pin all tutorials for immediate access; updated test expectations and documentation to reflect new tutorial structure

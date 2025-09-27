@@ -60,7 +60,11 @@ export class ToolService {
       update_note: this.updateNoteTool,
       search_notes: this.searchNotesTool,
       get_vault_info: this.getVaultInfoTool,
-      delete_note: this.deleteNoteTool
+      delete_note: this.deleteNoteTool,
+      // Note type management tools
+      create_note_type: this.createNoteTypeTool,
+      update_note_type: this.updateNoteTypeTool,
+      delete_note_type: this.deleteNoteTypeTool
     };
 
     // Add custom functions tools if available
@@ -921,6 +925,262 @@ export class ToolService {
           success: false,
           error: 'DELETE_FAILED',
           message: `Failed to delete note: ${errorMessage}`
+        };
+      }
+    }
+  });
+
+  private createNoteTypeTool = tool({
+    description:
+      'Create a new note type with description, agent instructions, and metadata schema',
+    inputSchema: z.object({
+      typeName: z.string().describe('Name of the new note type (valid identifier)'),
+      description: z.string().describe('Description of what this note type is for'),
+      agentInstructions: z
+        .array(z.string())
+        .optional()
+        .describe(
+          'Optional array of instructions for agents working with this note type'
+        ),
+      metadataSchema: z
+        .array(
+          z.object({
+            name: z.string().describe('Field name'),
+            type: z
+              .enum(['string', 'number', 'boolean', 'date', 'array', 'select'])
+              .describe('Field type'),
+            required: z
+              .boolean()
+              .optional()
+              .default(false)
+              .describe('Whether this field is required'),
+            description: z.string().optional().describe('Description of this field'),
+            default: z.union([z.string(), z.number(), z.boolean(), z.array(z.string())]).optional().describe('Default value for this field')
+          })
+        )
+        .optional()
+        .describe('Optional metadata schema definition')
+    }),
+    execute: async ({ typeName, description, agentInstructions, metadataSchema }) => {
+      if (!this.noteService) {
+        return {
+          success: false,
+          error: 'Note service not available',
+          message: 'Note service not initialized'
+        };
+      }
+
+      try {
+        const currentVault = await this.noteService.getCurrentVault();
+        if (!currentVault) {
+          return {
+            success: false,
+            error: 'NO_ACTIVE_VAULT',
+            message: 'No active vault available'
+          };
+        }
+
+        const metadataSchemaObj = metadataSchema ? { fields: metadataSchema } : undefined;
+
+        const result = await this.noteService.createNoteType({
+          typeName,
+          description,
+          agentInstructions,
+          metadataSchema: metadataSchemaObj,
+          vaultId: currentVault.id
+        });
+
+        return {
+          success: true,
+          data: result,
+          message: `Created note type '${typeName}' successfully`
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        return {
+          success: false,
+          error: 'CREATE_NOTE_TYPE_FAILED',
+          message: `Failed to create note type: ${errorMessage}`
+        };
+      }
+    }
+  });
+
+  private updateNoteTypeTool = tool({
+    description:
+      'Update an existing note type with new description, instructions, or metadata schema',
+    inputSchema: z.object({
+      typeName: z.string().describe('Name of the note type to update'),
+      description: z.string().optional().describe('New description (optional)'),
+      instructions: z
+        .array(z.string())
+        .optional()
+        .describe('New agent instructions (optional)'),
+      metadataSchema: z
+        .array(
+          z.object({
+            name: z.string().describe('Field name'),
+            type: z
+              .enum(['string', 'number', 'boolean', 'date', 'array', 'select'])
+              .describe('Field type'),
+            required: z
+              .boolean()
+              .optional()
+              .default(false)
+              .describe('Whether this field is required'),
+            description: z.string().optional().describe('Description of this field'),
+            default: z.union([z.string(), z.number(), z.boolean(), z.array(z.string())]).optional().describe('Default value for this field')
+          })
+        )
+        .optional()
+        .describe('New metadata schema definition (optional)')
+    }),
+    execute: async ({ typeName, description, instructions, metadataSchema }) => {
+      if (!this.noteService) {
+        return {
+          success: false,
+          error: 'Note service not available',
+          message: 'Note service not initialized'
+        };
+      }
+
+      try {
+        const currentVault = await this.noteService.getCurrentVault();
+        if (!currentVault) {
+          return {
+            success: false,
+            error: 'NO_ACTIVE_VAULT',
+            message: 'No active vault available'
+          };
+        }
+
+        const result = await this.noteService.updateNoteType({
+          typeName,
+          description,
+          instructions,
+          metadataSchema,
+          vaultId: currentVault.id
+        });
+
+        return {
+          success: true,
+          data: result,
+          message: `Updated note type '${typeName}' successfully`
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+
+        if (
+          errorMessage.includes('does not exist') ||
+          errorMessage.includes('not found')
+        ) {
+          return {
+            success: false,
+            error: 'NOTE_TYPE_NOT_FOUND',
+            message: `Note type '${typeName}' not found`
+          };
+        }
+
+        return {
+          success: false,
+          error: 'UPDATE_NOTE_TYPE_FAILED',
+          message: `Failed to update note type: ${errorMessage}`
+        };
+      }
+    }
+  });
+
+  private deleteNoteTypeTool = tool({
+    description: 'Delete a note type with options for handling existing notes',
+    inputSchema: z.object({
+      typeName: z.string().describe('Name of the note type to delete'),
+      action: z
+        .enum(['error', 'migrate', 'delete'])
+        .optional()
+        .default('error')
+        .describe(
+          'Action to take if notes exist: error (fail if notes exist), migrate (move notes to target type), delete (delete all notes)'
+        ),
+      targetType: z
+        .string()
+        .optional()
+        .describe('Target note type for migration (required when action is "migrate")'),
+      confirm: z
+        .boolean()
+        .optional()
+        .default(false)
+        .describe('Confirmation flag for destructive operations')
+    }),
+    execute: async ({ typeName, action = 'error', targetType, confirm = false }) => {
+      if (!this.noteService) {
+        return {
+          success: false,
+          error: 'Note service not available',
+          message: 'Note service not initialized'
+        };
+      }
+
+      try {
+        const currentVault = await this.noteService.getCurrentVault();
+        if (!currentVault) {
+          return {
+            success: false,
+            error: 'NO_ACTIVE_VAULT',
+            message: 'No active vault available'
+          };
+        }
+
+        const flintApi = this.noteService.getFlintNoteApi();
+
+        const result = await flintApi.deleteNoteType({
+          type_name: typeName,
+          action,
+          target_type: targetType,
+          confirm,
+          vault_id: currentVault.id
+        });
+
+        return {
+          success: result.deleted,
+          data: result,
+          message: result.deleted
+            ? `Deleted note type '${typeName}' successfully. ${result.notes_affected} notes affected.`
+            : `Failed to delete note type '${typeName}'`
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+
+        if (
+          errorMessage.includes('does not exist') ||
+          errorMessage.includes('not found')
+        ) {
+          return {
+            success: false,
+            error: 'NOTE_TYPE_NOT_FOUND',
+            message: `Note type '${typeName}' not found`
+          };
+        }
+
+        if (errorMessage.includes('contains') && errorMessage.includes('notes')) {
+          return {
+            success: false,
+            error: 'NOTE_TYPE_HAS_NOTES',
+            message: `Cannot delete note type '${typeName}': it contains notes. Use action 'migrate' or 'delete' to handle existing notes.`
+          };
+        }
+
+        if (errorMessage.includes('requires confirmation')) {
+          return {
+            success: false,
+            error: 'CONFIRMATION_REQUIRED',
+            message: `Deletion requires confirmation. Set confirm=true to proceed.`
+          };
+        }
+
+        return {
+          success: false,
+          error: 'DELETE_NOTE_TYPE_FAILED',
+          message: `Failed to delete note type: ${errorMessage}`
         };
       }
     }

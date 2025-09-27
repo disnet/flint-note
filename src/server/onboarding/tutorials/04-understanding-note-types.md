@@ -17,6 +17,7 @@ Note types in Flint aren't rigid categories—they're more like different lenses
 **Step 1: Explore the All Notes View**
 
 First, let's see how note types are organized. Open the sidebar and click on **"📄 Notes"** to see the All Notes view. You'll see:
+
 - Notes grouped by type with expandable sections
 - A count of notes for each type (like "daily (5)" or "project (2)")
 - Action buttons next to each note type for creating notes and managing types
@@ -25,7 +26,7 @@ First, let's see how note types are organized. Open the sidebar and click on **"
 
 Let's create a new note type for reference notes. In the chat, ask the agent:
 
-*"Can you help me create a new note type called 'reference' for storing information I want to keep for future reference? It should help me organize facts, concepts, and sources."*
+_"Can you help me create a new note type called 'reference' for storing information I want to keep for future reference? It should help me organize facts, concepts, and sources."_
 
 The agent will create the note type for you and explain how it customized the AI assistance for reference notes.
 
@@ -46,6 +47,7 @@ As you start writing in your reference note, notice how the AI assistant adapts 
 - It offers to help track sources and references
 
 Try capturing:
+
 - Key facts or information
 - Your thoughts or commentary on the information
 - Links to related concepts
@@ -72,6 +74,7 @@ Now go back to your daily note from Tutorial 1. Can you link to your new referen
 Note types in Flint are dynamic and customizable. Each type consists of:
 
 **Type Definition**: Stored as a folder in your workspace with an optional `_description.md` file that defines:
+
 - The purpose of the note type
 - How the AI should assist with this type
 - Custom metadata fields (tags, dates, etc.)
@@ -79,18 +82,21 @@ Note types in Flint are dynamic and customizable. Each type consists of:
 **AI Assistance**: Each note type gets specialized help:
 
 **Daily Notes:**
+
 - Capture the flow of your day
 - Mix of thoughts, experiences, and ideas
 - Often link to other notes as topics come up
 - AI helps identify themes and connections
 
 **Reference Notes** (when created):
+
 - Store information for future use
 - More stable and factual
 - AI helps organize information and suggest connections
 - Serve as knowledge building blocks
 
 **Custom Types**: You can ask the agent to create note types like:
+
 - Meeting notes with agenda and action items
 - Book notes with quotes and reflections
 - Person notes with contact info and interaction history
