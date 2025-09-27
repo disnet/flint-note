@@ -209,16 +209,161 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
               // List existing note types
               const initialTypes = await flintApi.listNoteTypes();
 
+              // Create a new note type
+              const createdType = await flintApi.createNoteType({
+                typeName: "wasm-test-type",
+                description: "A note type created via WASM API",
+                agent_instructions: "Help organize WASM test notes"
+              });
+
+              // Get the created note type info
+              const typeInfo = await flintApi.getNoteType("wasm-test-type");
+
+              // Update the note type
+              const updatedType = await flintApi.updateNoteType({
+                typeName: "wasm-test-type",
+                description: "Updated description via WASM API",
+                instructions: ["Updated instruction 1", "Updated instruction 2"]
+              });
+
+              // List types again to verify it exists
+              const finalTypes = await flintApi.listNoteTypes();
+
+              // Create a note of this type to verify it works
+              const testNote = await flintApi.createNote({
+                type: "wasm-test-type",
+                title: "WASM Test Note",
+                content: "This note was created to test the WASM-created note type"
+              });
+
+              // Clean up - delete the note first
+              await flintApi.deleteNote({
+                id: testNote.id,
+                confirm: true
+              });
+
+              // Then delete the note type
+              const deleteResult = await flintApi.deleteNoteType({
+                typeName: "wasm-test-type",
+                action: "error",
+                confirm: true
+              });
+
               return {
                 success: true,
                 initialCount: initialTypes.length,
-                canListTypes: typeof flintApi.listNoteTypes === 'function',
-                canCreateTypes: typeof flintApi.createNoteType === 'function',
-                canGetTypes: typeof flintApi.getNoteType === 'function',
-                canUpdateTypes: typeof flintApi.updateNoteType === 'function',
-                canDeleteTypes: typeof flintApi.deleteNoteType === 'function',
-                typesType: typeof initialTypes,
-                hasDefaultTypes: initialTypes.length > 0
+                finalCount: finalTypes.length,
+                typeCreated: createdType.name,
+                typeRetrieved: typeInfo.name,
+                typeUpdated: updatedType.parsed.purpose,
+                noteCreated: testNote.id,
+                typeDeleted: deleteResult.deleted,
+                functionsAvailable: {
+                  canListTypes: typeof flintApi.listNoteTypes === 'function',
+                  canCreateTypes: typeof flintApi.createNoteType === 'function',
+                  canGetTypes: typeof flintApi.getNoteType === 'function',
+                  canUpdateTypes: typeof flintApi.updateNoteType === 'function',
+                  canDeleteTypes: typeof flintApi.deleteNoteType === 'function'
+                }
+              };
+            } catch (error) {
+              return {
+                success: false,
+                error: error.message,
+                stack: error.stack
+              };
+            }
+          }
+        `,
+        vaultId: testVaultId,
+        allowedAPIs: [
+          'flintApi.listNoteTypes',
+          'flintApi.createNoteType',
+          'flintApi.getNoteType',
+          'flintApi.updateNoteType',
+          'flintApi.deleteNoteType',
+          'flintApi.createNote',
+          'flintApi.deleteNote'
+        ]
+      });
+
+      expect(result.success).toBe(true);
+      const resultObj = result.result as any;
+
+      if (!resultObj.success) {
+        console.log('NoteTypes test internal error:', resultObj.error);
+        console.log('Stack:', resultObj.stack);
+      }
+
+      expect(resultObj.success).toBe(true);
+      expect(resultObj.typeCreated).toBe('wasm-test-type');
+      expect(resultObj.typeRetrieved).toBe('wasm-test-type');
+      expect(resultObj.typeUpdated).toBe('Updated description via WASM API');
+      expect(resultObj.noteCreated).toBeTruthy();
+      expect(resultObj.typeDeleted).toBe(true);
+      expect(resultObj.functionsAvailable.canListTypes).toBe(true);
+      expect(resultObj.functionsAvailable.canCreateTypes).toBe(true);
+      expect(resultObj.functionsAvailable.canGetTypes).toBe(true);
+      expect(resultObj.functionsAvailable.canUpdateTypes).toBe(true);
+      expect(resultObj.functionsAvailable.canDeleteTypes).toBe(true);
+    });
+
+    it('should handle note type CRUD workflow with error recovery', async () => {
+      const result = await evaluator.evaluate({
+        code: `
+          async function main() {
+            try {
+              // Create multiple note types for testing
+              const types = await Promise.all([
+                flintApi.createNoteType({
+                  typeName: "workflow-type-1",
+                  description: "First workflow type"
+                }),
+                flintApi.createNoteType({
+                  typeName: "workflow-type-2",
+                  description: "Second workflow type"
+                })
+              ]);
+
+              // Test error handling - try to create duplicate
+              let duplicateError = null;
+              try {
+                await flintApi.createNoteType({
+                  typeName: "workflow-type-1",
+                  description: "Duplicate type"
+                });
+              } catch (error) {
+                duplicateError = error.message;
+              }
+
+              // Test error handling - try to get non-existent type
+              let notFoundError = null;
+              try {
+                await flintApi.getNoteType("non-existent-type");
+              } catch (error) {
+                notFoundError = error.message;
+              }
+
+              // Clean up created types
+              const cleanupResults = await Promise.all([
+                flintApi.deleteNoteType({
+                  typeName: "workflow-type-1",
+                  action: "error",
+                  confirm: true
+                }),
+                flintApi.deleteNoteType({
+                  typeName: "workflow-type-2",
+                  action: "error",
+                  confirm: true
+                })
+              ]);
+
+              return {
+                success: true,
+                typesCreated: types.map(t => t.name),
+                duplicateError: duplicateError ? "Handled duplicate creation" : null,
+                notFoundError: notFoundError ? "Handled not found error" : null,
+                cleanupResults: cleanupResults.map(r => r.deleted)
               };
             } catch (error) {
               return {
@@ -243,17 +388,15 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
       const resultObj = result.result as any;
 
       if (!resultObj.success) {
-        console.log('NoteTypes test internal error:', resultObj.error);
+        console.log('Workflow test internal error:', resultObj.error);
         console.log('Stack:', resultObj.stack);
       }
 
       expect(resultObj.success).toBe(true);
-      expect(resultObj.canListTypes).toBe(true);
-      expect(resultObj.canCreateTypes).toBe(true);
-      expect(resultObj.canGetTypes).toBe(true);
-      expect(resultObj.canUpdateTypes).toBe(true);
-      expect(resultObj.canDeleteTypes).toBe(true);
-      expect(typeof resultObj.initialCount).toBe('number');
+      expect(resultObj.typesCreated).toHaveLength(2);
+      expect(resultObj.typesCreated).toContain('workflow-type-1');
+      expect(resultObj.typesCreated).toContain('workflow-type-2');
+      expect(resultObj.cleanupResults).toEqual([true, true]);
     });
   });
 

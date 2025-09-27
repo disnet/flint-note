@@ -955,7 +955,10 @@ export class ToolService {
               .default(false)
               .describe('Whether this field is required'),
             description: z.string().optional().describe('Description of this field'),
-            default: z.union([z.string(), z.number(), z.boolean(), z.array(z.string())]).optional().describe('Default value for this field')
+            default: z
+              .union([z.string(), z.number(), z.boolean(), z.array(z.string())])
+              .optional()
+              .describe('Default value for this field')
           })
         )
         .optional()
@@ -1029,7 +1032,10 @@ export class ToolService {
               .default(false)
               .describe('Whether this field is required'),
             description: z.string().optional().describe('Description of this field'),
-            default: z.union([z.string(), z.number(), z.boolean(), z.array(z.string())]).optional().describe('Default value for this field')
+            default: z
+              .union([z.string(), z.number(), z.boolean(), z.array(z.string())])
+              .optional()
+              .describe('Default value for this field')
           })
         )
         .optional()
