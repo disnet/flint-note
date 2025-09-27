@@ -4,7 +4,7 @@ Welcome to Flint, a thinking system designed to extend your cognitive abilities.
 
 ## What Makes Flint Different
 
-Most note-taking tools focus on storage and organization. Flint focuses on thinking. Rather than forcing you to fit your thoughts into predefined structures, Flint adapts to how your mind naturally works—capturing ideas quickly, making connections between them, and letting patterns emerge organically.
+Most note-taking tools focus on storage and organization. Flint focuses on thinking. Rather than forcing you to fit your thoughts into predefined structures, Flint tries to adapt to how your mind naturally works—capturing ideas quickly, making connections between them, and letting patterns emerge organically.
 
 Flint operates on a simple principle: your notes should be an extension of your mind, not a filing cabinet for your thoughts. This means embracing the messiness of real thinking while providing enough structure to build lasting knowledge.
 
@@ -12,21 +12,19 @@ Flint operates on a simple principle: your notes should be an extension of your 
 
 In Flint, everything starts with notes. These are the building blocks of your thinking process.
 
-**Plain Text, Powerful Connections**
-Your notes are written in markdown, keeping your content simple and portable. No complex blocks or proprietary formats—just plain text that you can read anywhere.
+**Plain Text**
+Your notes are written in plain text, keeping your content simple and portable.
 
 **Wikilinks: Connecting Ideas**
-You can connect ideas using `[[note name]]` syntax to link any note to any other note. If the linked note doesn't exist yet, Flint will create it when you're ready. This frictionless linking lets you jump from concept to concept naturally.
+You can connect ideas using `[[note name]]` syntax to link any note to any other note. If the linked note doesn't exist yet, Flint will create it when you're ready.
 
 **Note Types: Structure When You Need It**
-Different kinds of notes serve different purposes. Daily notes capture the flow of your day. Project notes develop specific initiatives. Reference notes store important information. Each type comes with tailored workflows and AI assistance, but you're never locked into rigid structures.
+Different kinds of notes serve different purposes. Daily notes capture the flow of your day. Project notes develop specific initiatives. Reference notes store important information. Each type comes with tailored workflows and AI assistance.
 
 ## Your Flint Workspace
 
-Flint uses a three-column layout designed for focus and clarity:
-
 **Left Sidebar: Your Workspace**
-The left sidebar contains your pinned notes, temporary notes, and system views for navigating your knowledge base. This spatial organization lets you remember where things are located.
+The left sidebar contains your pinned notes, temporary notes, and system views for navigating your knowledge base.
 
 **Main View: Your Writing Space**
 The center column is where you write, edit, and develop your ideas. Clean and distraction-free, this space adapts to your needs whether you're drafting a daily note or developing a complex project.
@@ -44,7 +42,6 @@ Flint's AI is designed around a simple principle: you do the thinking, AI handle
 - Discovers connections between notes you might have missed
 - Manages metadata and tags automatically
 - Assists with routine tasks like creating note templates
-- Surfaces relevant information when you're writing
 
 **What Flint's AI Doesn't Do:**
 
@@ -58,7 +55,7 @@ Your thinking is uniquely yours. The goal is to amplify your cognitive abilities
 ## Starting Your Flint Journey
 
 **Begin with Daily Notes**
-The best way to start with Flint is to begin capturing your daily experience. Create a daily note and start writing about your day—meetings, thoughts, ideas, questions. Don't worry about organization or structure; just get your thoughts out of your head and into text.
+The best way to start with Flint is to begin capturing your daily experience. Start writing daily in notes about your day—meetings, thoughts, ideas, questions. Don't worry about organization or structure; just get your thoughts out of your head and into text.
 
 **Link as You Think**
 As you write, connect ideas using `[[double brackets]]`. Mentioned a project? Link to `[[project name]]`. Referenced a person? Create a link to `[[person name]]`. These links help you navigate between related concepts.
@@ -67,7 +64,7 @@ As you write, connect ideas using `[[double brackets]]`. Mentioned a project? Li
 When you're ready, start experimenting with the AI assistant. Ask it to help you organize a messy note, find related notes, or identify patterns in your writing. Reference specific notes in your conversations using the `[[note name]]` syntax for context-aware assistance.
 
 **Create When Inspiration Strikes**
-Notes can be created in multiple ways: use the "+" button in the sidebar, hit `Ctrl+N` (Windows/Linux) or `Cmd+N` (Mac), or create a link to a note that doesn't exist yet. What matters is capturing the idea quickly.
+Notes can be created in multiple ways: use the "+" button in the sidebar, hit `Ctrl+Shift+n` (Windows/Linux) or `Cmd+Shift+n` (Mac), or create a link to a note that doesn't exist yet. What matters is capturing the idea quickly.
 
 ## The Philosophy Behind Flint
 
