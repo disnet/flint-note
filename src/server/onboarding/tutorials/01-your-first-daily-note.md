@@ -4,26 +4,29 @@ Welcome to your first hands-on tutorial with Flint! In the next few minutes, you
 
 ## What You'll Learn
 
-- How to create a daily note
-- Basic writing and editing in Flint
-- Why daily notes are the perfect starting point
-- How to capture thoughts naturally
+- How to access Flint's daily view
+- How daily notes are created automatically as you type
+- Basic writing and editing in the daily timeline
+- Why the weekly view makes daily notes so powerful
+- How to capture thoughts naturally across multiple days
 
 ## Let's Start
 
-**Step 1: Create Your Daily Note**
+**Step 1: Open the Daily View**
 
-Look for the **"+ New Note"** button in the left sidebar and click it. You'll see a menu—select **"Daily Note"**.
+Look for the **"Daily"** button in the left sidebar navigation and click it. You'll see your week timeline with individual day sections, including today highlighted with a "Today" badge.
 
-Alternatively, use the keyboard shortcut: `Ctrl+N` (Windows/Linux) or `Cmd+N` (Mac), then select "Daily Note" from the menu.
+**Step 2: Start Writing in Today's Section**
 
-**Step 2: Notice What Flint Did**
+Find today's section (it will be highlighted and marked with "Today"). Click in the text area and start typing. You don't need to create anything first—just start writing.
 
-Flint automatically created a note titled with today's date. You didn't have to think about naming it or where to put it—Flint handled that for you. This is "frictionless capture" in action.
+**Step 3: Notice What Flint Did**
 
-**Step 3: Start Writing**
+As soon as you started typing, Flint automatically created your daily note behind the scenes. You didn't have to think about naming it, where to put it, or any file management—Flint handled that for you. This is "frictionless capture" in action.
 
-In the main editor, start writing about your day so far. Don't worry about structure or perfection. Try capturing:
+**Step 4: Write About Your Day**
+
+In today's text area, start writing about your day so far. Don't worry about structure or perfection. Try capturing:
 
 - What you did this morning
 - Something on your mind right now
@@ -32,14 +35,15 @@ In the main editor, start writing about your day so far. Don't worry about struc
 
 Write for 2-3 minutes. This is your thinking space—use it naturally.
 
-**Step 4: Experience the Interface**
+**Step 5: Experience the Interface**
 
 As you write, notice:
 
-- The clean, distraction-free editor
+- The clean, distraction-free editor within the day section
 - How your text appears immediately with no lag
-- The simplicity—just you and your thoughts
+- The weekly timeline view showing multiple days at once
 - Markdown formatting works automatically (try `**bold**` or `*italic*`)
+- Your content is saved automatically as you type
 
 ## What You Just Experienced
 
@@ -51,14 +55,16 @@ Notice what Flint didn't make you do:
 - Worry about the "right" place to put it
 - Fill out metadata fields
 - Follow a specific template
+- Click "save"—everything is saved automatically
+- Navigate away from other content—you can see the whole week at once
 
-Daily notes work because they mirror how your mind actually operates—a stream of thoughts, experiences, and ideas that naturally flow together.
+Daily notes work because they mirror how your mind actually operates—a stream of thoughts, experiences, and ideas that naturally flow together. The weekly timeline view lets you see patterns across days and easily add thoughts to any day.
 
 ## Next Steps
 
-Keep your daily note open—you'll use it in the next tutorial where we'll learn how to connect your ideas using Flint's wikilink system.
+Stay in the daily view—you'll use it in the next tutorial where we'll learn how to connect your ideas using Flint's wikilink system. You can explore other days in the timeline or click on the day title to open your daily note in a focused editor.
 
-The key insight from this tutorial: **good thinking tools get out of your way**. You just experienced what frictionless capture feels like.
+The key insight from this tutorial: **good thinking tools get out of your way**. You just experienced what frictionless capture feels like in a timeline that lets you think across days, not just moments.
 
 ---
 
