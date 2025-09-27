@@ -108,7 +108,13 @@ The All Notes view puts you in complete control:
 
 **Organize Visually**: See all your notes organized by type, with expandable sections showing exactly what you have.
 
-**Change Types Easily**: Notes aren't locked into their types forever. Click on any note and edit its metadata to move it between types. The AI assistance will adapt immediately.
+**Default Note Type**: When you create new notes, they start with the default "note" type. This gives you a clean starting point that you can change as your note's purpose becomes clear.
+
+**Change Types Easily**: You have multiple ways to change note types:
+
+1. **Via the Metadata Panel**: In any note editor, expand the "Metadata" section at the bottom, click the edit button (✏️), select a new type from the dropdown, and save your changes.
+
+2. **Ask the Agent**: Simply tell the agent "Change this note to a project type" or "Move this note to my reference notes." The agent will handle the type change for you.
 
 **Create Custom Types**: Ask the agent to create new note types whenever you need them. "Can you create a 'book notes' type?" or "I need a note type for meeting minutes."
 
@@ -129,7 +135,10 @@ Try these activities to master note types:
 
 1. **Ask the agent to create a custom note type** that fits your specific needs
 2. **Use the All Notes view** to browse and organize your existing notes
-3. **Experiment with changing note types** - select a note and move it to a different type
+3. **Practice changing note types**:
+   - Try the metadata panel method: open a note, expand "Metadata," click edit, change the type
+   - Try asking the agent: "Change this note to a reference type"
 4. **Notice how AI assistance adapts** as you work with different note types
+5. **Start with "general" notes** and let them evolve - remember that new notes begin as "general" type, giving you flexibility to decide their purpose as you write
 
 Don't worry about choosing the "perfect" type—start with your best guess and evolve as needed. The system is designed to adapt to how your thinking changes.
