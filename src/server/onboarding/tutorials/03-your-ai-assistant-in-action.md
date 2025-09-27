@@ -4,10 +4,37 @@ You've created notes and linked ideas together. Now let's explore how Flint's AI
 
 ## What You'll Learn
 
+- How to set up your OpenRouter API key for AI access
 - How to chat with Flint's AI about your notes
 - How to reference specific notes in your conversations
 - Practical ways AI can help organize and structure your thoughts
 - The difference between AI assistance and AI replacement
+
+## First Step: Setting Up Your AI Access
+
+Before you can use Flint's AI assistant, you'll need to set up an OpenRouter API key. OpenRouter provides access to multiple AI models through a single API.
+
+**Step 1: Get an OpenRouter Account**
+
+1. Visit [openrouter.ai](https://openrouter.ai) and create an account
+2. Add some credits to your account (start small - $5-10 is plenty for initial testing)
+3. **Important**: Don't enable auto-refill for your credits initially. Since this is alpha software, it's better to maintain manual control over your spending
+
+**Step 2: Generate Your API Key**
+
+1. In your OpenRouter dashboard, go to the API Keys section
+2. Create a new API key
+3. Copy the key (it starts with `sk-`)
+
+**Step 3: Add the Key to Flint**
+
+1. In Flint, open Settings (look for a gear icon or settings option)
+2. Find the "API Keys" section
+3. Paste your OpenRouter key into the "OpenRouter API Key" field
+4. The key will be validated automatically (you'll see a ✓ when it's valid)
+5. Your key is stored securely using your system's encrypted keychain
+
+**Security Note**: When you save your API key, your system may prompt you to allow "Flint" access to your keychain. This is normal and secure—choose "Always Allow" to avoid repeated prompts.
 
 ## Meet Your AI Assistant
 
