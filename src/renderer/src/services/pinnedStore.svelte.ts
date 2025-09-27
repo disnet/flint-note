@@ -283,11 +283,6 @@ class PinnedNotesStore {
         id: 'note/tutorial-4-understanding-note-types',
         title: 'Tutorial 4: Understanding Note Types',
         filename: 'tutorial-4-understanding-note-types.md'
-      },
-      {
-        id: 'note/tutorial-5-building-your-capture-habit',
-        title: 'Tutorial 5: Building Your Capture Habit',
-        filename: 'tutorial-5-building-your-capture-habit.md'
       }
     ];
 

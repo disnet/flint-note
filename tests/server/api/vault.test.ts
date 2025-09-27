@@ -166,8 +166,7 @@ describe('FlintNoteApi - Vault Operations', () => {
         'note/tutorial-1-your-first-daily-note.md',
         'note/tutorial-2-connecting-ideas-with-wikilinks.md',
         'note/tutorial-3-your-ai-assistant-in-action.md',
-        'note/tutorial-4-understanding-note-types.md',
-        'note/tutorial-5-building-your-capture-habit.md'
+        'note/tutorial-4-understanding-note-types.md'
       ];
 
       for (const expectedFile of expectedFiles) {

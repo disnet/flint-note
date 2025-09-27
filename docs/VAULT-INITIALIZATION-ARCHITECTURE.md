@@ -213,7 +213,6 @@ For new vaults, the system creates onboarding content immediately during vault c
 - `tutorial-2-connecting-ideas-with-wikilinks.md` - Linking concepts naturally
 - `tutorial-3-your-ai-assistant-in-action.md` - Effective AI collaboration patterns
 - `tutorial-4-understanding-note-types.md` - Working with different note types
-- `tutorial-5-building-your-capture-habit.md` - Sustainable long-term practice
 
 **Note**: Filenames are automatically generated using kebab-case conversion from note titles (e.g., "Welcome to Flint" becomes `welcome-to-flint.md`).
 

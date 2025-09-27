@@ -1425,10 +1425,6 @@ export class FlintNoteApi {
       {
         filename: 'tutorials/04-understanding-note-types.md',
         title: 'Tutorial 4: Understanding Note Types'
-      },
-      {
-        filename: 'tutorials/05-building-your-capture-habit.md',
-        title: 'Tutorial 5: Building Your Capture Habit'
       }
     ];
 
