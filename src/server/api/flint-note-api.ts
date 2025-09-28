@@ -66,6 +66,7 @@ import { RelationshipManager } from '../core/relationship-manager.js';
 import type { NoteRelationships } from '../core/relationship-manager.js';
 
 export interface FlintNoteApiConfig extends ServerConfig {
+  configDir?: string;
   [key: string]: unknown;
 }
 
@@ -113,7 +114,7 @@ export class FlintNoteApi {
 
   constructor(config: FlintNoteApiConfig = {}) {
     this.config = config;
-    this.globalConfig = new GlobalConfigManager();
+    this.globalConfig = new GlobalConfigManager(config.configDir);
   }
 
   async initialize(): Promise<void> {

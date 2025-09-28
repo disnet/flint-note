@@ -30,15 +30,19 @@ import { logger } from './logger';
 import { GetNoteTypeInfoResult } from '../server/api/types.js';
 import { NoteTypeDescription } from '../server/core/note-types';
 import { getCurrentVaultPath } from '../server/utils/global-config.js';
+import { app } from 'electron';
 
 export class NoteService {
   private api: FlintNoteApi;
   private isInitialized = false;
+  private electronUserDataPath: string;
 
   constructor() {
-    // Use default workspace path if not provided
+    // Use Electron's userData directory for configuration storage
+    this.electronUserDataPath = app.getPath('userData');
 
     this.api = new FlintNoteApi({
+      configDir: this.electronUserDataPath,
       throwOnError: false
     });
   }
@@ -49,11 +53,12 @@ export class NoteService {
     }
 
     try {
-      // Get the current vault path for initialization
-      const currentVaultPath = await getCurrentVaultPath();
+      // Get the current vault path for initialization, using Electron userData directory
+      const currentVaultPath = await getCurrentVaultPath(this.electronUserDataPath);
       if (currentVaultPath) {
         // Reinitialize API with workspace path if we have a current vault
         this.api = new FlintNoteApi({
+          configDir: this.electronUserDataPath,
           workspacePath: currentVaultPath,
           throwOnError: false
         });

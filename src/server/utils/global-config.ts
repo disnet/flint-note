@@ -36,8 +36,8 @@ export class GlobalConfigManager {
   #configPath: string;
   #config: GlobalConfig | null = null;
 
-  constructor() {
-    this.#configDir = this.getPlatformConfigDir();
+  constructor(configDir?: string) {
+    this.#configDir = configDir || this.getPlatformConfigDir();
     this.#configPath = path.join(this.#configDir, 'config.yml');
   }
 
@@ -76,6 +76,10 @@ export class GlobalConfigManager {
   async load(): Promise<GlobalConfig> {
     try {
       await this.ensureConfigDirectory();
+
+      // Try to migrate from legacy location first
+      const migrated = await this.migrateFromLegacyLocation();
+
       const configContent = await fs.readFile(this.#configPath, 'utf-8');
       this.#config = yaml.load(configContent) as GlobalConfig;
 
@@ -84,18 +88,24 @@ export class GlobalConfigManager {
 
       this.validateConfig();
 
-      // Save if migrations were applied
-      if (needsSave) {
+      // Save if migrations were applied or migration occurred
+      if (needsSave || migrated) {
         await this.save();
       }
 
       return this.#config;
     } catch (error) {
       if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
-        // Create default config if file doesn't exist
-        this.#config = this.getDefaultConfig();
-        await this.save();
-        return this.#config;
+        // Try to migrate from legacy location if config doesn't exist
+        const migrated = await this.migrateFromLegacyLocation();
+
+        if (!migrated) {
+          // Create default config if file doesn't exist and no migration
+          this.#config = this.getDefaultConfig();
+          await this.save();
+        }
+
+        return this.#config!;
       }
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       throw new Error(`Failed to load global configuration: ${errorMessage}`);
@@ -219,6 +229,60 @@ export class GlobalConfigManager {
     }
 
     return modified;
+  }
+
+  /**
+   * Migrate configuration from legacy flint-note directory to new location
+   * Returns true if migration was performed
+   */
+  async migrateFromLegacyLocation(): Promise<boolean> {
+    // Only attempt migration if current config doesn't exist
+    try {
+      await fs.access(this.#configPath);
+      return false; // Config already exists at new location
+    } catch {
+      // Config doesn't exist at new location, proceed with migration check
+    }
+
+    // Get the legacy config path using the original platform-specific logic
+    const legacyConfigDir = this.getPlatformConfigDir();
+    const legacyConfigPath = path.join(legacyConfigDir, 'config.yml');
+
+    try {
+      // Check if legacy config exists
+      const legacyConfigContent = await fs.readFile(legacyConfigPath, 'utf-8');
+
+      // Parse and validate legacy config
+      const legacyConfig = yaml.load(legacyConfigContent) as GlobalConfig;
+      this.#config = legacyConfig;
+
+      console.log(
+        `Migrating configuration from ${legacyConfigPath} to ${this.#configPath}`
+      );
+
+      // Save config to new location
+      await this.save();
+
+      // Create a migration marker in the legacy directory
+      const migrationMarkerPath = path.join(
+        legacyConfigDir,
+        'MIGRATED_TO_ELECTRON_USERDATA.txt'
+      );
+      const migrationNote = `Configuration migrated to: ${this.#configPath}\nMigration date: ${new Date().toISOString()}`;
+      await fs.writeFile(migrationMarkerPath, migrationNote, 'utf-8');
+
+      console.log('Configuration migration completed successfully');
+      return true;
+    } catch (error) {
+      if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+        // Legacy config doesn't exist, no migration needed
+        return false;
+      }
+
+      // Log migration error but don't fail the load operation
+      console.warn('Failed to migrate legacy configuration:', error);
+      return false;
+    }
   }
 
   /**
@@ -491,15 +555,15 @@ export class GlobalConfigManager {
 /**
  * Helper function to create a global configuration manager
  */
-export function createGlobalConfigManager(): GlobalConfigManager {
-  return new GlobalConfigManager();
+export function createGlobalConfigManager(configDir?: string): GlobalConfigManager {
+  return new GlobalConfigManager(configDir);
 }
 
 /**
  * Helper function to get current vault path
  */
-export async function getCurrentVaultPath(): Promise<string | null> {
-  const globalConfig = new GlobalConfigManager();
+export async function getCurrentVaultPath(configDir?: string): Promise<string | null> {
+  const globalConfig = new GlobalConfigManager(configDir);
   await globalConfig.load();
   return globalConfig.getCurrentVaultPath();
 }
@@ -508,8 +572,8 @@ export async function getCurrentVaultPath(): Promise<string | null> {
  * Helper function to initialize vault system and get current vault path
  * Returns null if no vault is configured
  */
-export async function initializeVaultSystem(): Promise<string | null> {
-  const globalConfig = new GlobalConfigManager();
+export async function initializeVaultSystem(configDir?: string): Promise<string | null> {
+  const globalConfig = new GlobalConfigManager(configDir);
   await globalConfig.load();
 
   const currentPath = globalConfig.getCurrentVaultPath();
