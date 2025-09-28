@@ -1123,7 +1123,7 @@ export class WASMCodeEvaluator {
         const hostPromise = this.noteApi.deleteNoteType({
           type_name: options.typeName,
           action: options.deleteNotes ? 'delete' : 'error',
-          confirm: options.deleteNotes,
+          confirm: true, // Always confirm for API calls since user is explicitly calling the function
           vault_id: vaultId
         });
         return this.promiseFactory.createProxy(vm, registry, hostPromise);

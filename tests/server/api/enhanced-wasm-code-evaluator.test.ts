@@ -329,7 +329,7 @@ async function main(): Promise<any> {
       expect(evalResult.result.hasContentHash).toBe(true);
     });
 
-    it.skip('should update note type through evaluator', async () => {
+    it('should update note type through evaluator', async () => {
       // TODO: Fix updateNoteType API issue - function is callable but returns undefined error
       const vaultId = await testSetup.createTestVault('test-vault');
 
@@ -374,7 +374,7 @@ async function main(): Promise<any> {
       // TODO: Investigate why updateNoteType returns empty object
     });
 
-    it.skip('should delete note type through evaluator', async () => {
+    it('should delete note type through evaluator', async () => {
       // TODO: Fix deleteNoteType API issue - similar to updateNoteType
       const vaultId = await testSetup.createTestVault('test-vault');
 

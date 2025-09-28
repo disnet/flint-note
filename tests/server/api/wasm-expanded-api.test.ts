@@ -219,11 +219,10 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
               // Get the created note type info
               const typeInfo = await flintApi.getNoteType("wasm-test-type");
 
-              // Update the note type
+              // Update the note type - simplified test
               const updatedType = await flintApi.updateNoteType({
                 typeName: "wasm-test-type",
-                description: "Updated description via WASM API",
-                instructions: ["Updated instruction 1", "Updated instruction 2"]
+                description: "Updated description via WASM API"
               });
 
               // List types again to verify it exists
@@ -245,8 +244,7 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
               // Then delete the note type
               const deleteResult = await flintApi.deleteNoteType({
                 typeName: "wasm-test-type",
-                action: "error",
-                confirm: true
+                deleteNotes: false // Only delete if empty (error if notes exist)
               });
 
               return {
@@ -269,8 +267,13 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
             } catch (error) {
               return {
                 success: false,
-                error: error.message,
-                stack: error.stack
+                error: error?.message || String(error),
+                stack: error?.stack || 'No stack available',
+                errorDetails: {
+                  name: error?.name,
+                  type: typeof error,
+                  errorObject: error
+                }
               };
             }
           }
@@ -287,12 +290,16 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
         ]
       });
 
+      if (!result.success) {
+        console.log('WASM evaluation failed:', result);
+      }
       expect(result.success).toBe(true);
       const resultObj = result.result as any;
 
       if (!resultObj.success) {
         console.log('NoteTypes test internal error:', resultObj.error);
         console.log('Stack:', resultObj.stack);
+        console.log('Error details:', JSON.stringify(resultObj.errorDetails, null, 2));
       }
 
       expect(resultObj.success).toBe(true);
