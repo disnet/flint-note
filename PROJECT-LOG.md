@@ -1,5 +1,9 @@
 # Project Log
 
+## Enhanced get_note Tool for Multiple IDs - 2025-09-28
+
+- **Modified get_note tool to accept multiple IDs** by updating the input schema from single `id: string` to `ids: string[]`; added new `getNotes` method to FlintNoteApi that leverages existing `noteManager.getNotes()` functionality; updated tool logic to handle batch note retrieval with proper error handling for mixed valid/invalid IDs; comprehensive test coverage added for multiple ID scenarios including empty arrays, duplicate IDs, and partial failures; all existing tests updated to use new array format; implementation provides efficient parallel retrieval using `Promise.allSettled` while maintaining consistent error reporting per note
+
 ## Lazy API Key Loading Implementation - 2025-09-28
 
 - **Implemented lazy loading for API keys to prevent keychain prompts on app startup** by refactoring the AIService initialization flow: modified `AIService.of()` to initialize OpenRouter client with `undefined` API key instead of immediately calling `secureStorageService.getApiKey()` during app startup; added new utility methods `hasValidApiKey()` and `ensureApiKeyLoaded()` to the AIService for on-demand key validation and loading; updated both 'send-message' and 'send-message-stream' IPC handlers to call `ensureApiKeyLoaded()` before AI operations, which only triggers keychain access when users actually try to use AI features; verified that Settings component flow still works correctly for user-initiated key configuration; this change significantly improves user experience by eliminating unexpected keychain prompts on app launch while maintaining secure key storage and proper lazy loading when AI features are accessed

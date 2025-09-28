@@ -403,16 +403,26 @@ export class ToolService {
 
   // Basic CRUD Tools
   private getNoteTool = tool({
-    description: 'Get a specific note by ID',
+    description: 'Get notes by IDs',
     inputSchema: z.object({
-      id: z.string().describe('Note ID or identifier (e.g., "note123" or "type/title")')
+      ids: z
+        .array(z.string())
+        .describe('Array of note IDs or identifiers (e.g., ["note123", "type/title"])')
     }),
-    execute: async ({ id }) => {
+    execute: async ({ ids }) => {
       if (!this.noteService) {
         return {
           success: false,
           error: 'Note service not available',
           message: 'Note service not initialized'
+        };
+      }
+
+      if (ids.length === 0) {
+        return {
+          success: true,
+          data: [],
+          message: 'No note IDs provided'
         };
       }
 
@@ -428,31 +438,21 @@ export class ToolService {
           };
         }
 
-        const note = await flintApi.getNote(currentVault.id, id);
+        const results = await flintApi.getNotes(currentVault.id, ids);
+        const successCount = results.filter((r) => r.success).length;
 
         return {
           success: true,
-          data: note,
-          message: `Retrieved note: ${note.title}`
+          data: results,
+          message: `Retrieved ${successCount} of ${ids.length} note(s)`
         };
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
 
-        if (
-          errorMessage.includes('not found') ||
-          errorMessage.includes('does not exist')
-        ) {
-          return {
-            success: false,
-            error: 'NOTE_NOT_FOUND',
-            message: `Note not found: ${id}`
-          };
-        }
-
         return {
           success: false,
           error: 'VAULT_ACCESS_ERROR',
-          message: `Failed to get note: ${errorMessage}`
+          message: `Failed to get notes: ${errorMessage}`
         };
       }
     }

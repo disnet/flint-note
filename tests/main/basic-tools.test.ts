@@ -59,12 +59,15 @@ describe('Basic Tools', () => {
 
       // Now retrieve it
       const getResult = await tools!.get_note.execute({
-        id: createdNote.id
+        ids: [createdNote.id]
       });
 
       expect(getResult.success).toBe(true);
       expect(getResult.data).toBeDefined();
-      const retrievedNote = getResult.data as any;
+      const results = getResult.data as any[];
+      expect(results).toHaveLength(1);
+      expect(results[0].success).toBe(true);
+      const retrievedNote = results[0].note;
       expect(retrievedNote.title).toBe('Test Note');
       expect(retrievedNote.content).toBe('This is test content');
     });
@@ -73,11 +76,15 @@ describe('Basic Tools', () => {
       const tools = toolService.getTools();
 
       const result = await tools!.get_note.execute({
-        id: 'nonexistent/note'
+        ids: ['nonexistent/note']
       });
 
-      expect(result.success).toBe(false);
-      expect(result.error).toBe('NOTE_NOT_FOUND');
+      expect(result.success).toBe(true);
+      expect(result.data).toBeDefined();
+      const results = result.data as any[];
+      expect(results).toHaveLength(1);
+      expect(results[0].success).toBe(false);
+      expect(results[0].error).toContain('not found');
     });
 
     it('should handle missing note service', async () => {
@@ -85,6 +92,120 @@ describe('Basic Tools', () => {
       const tools = toolServiceWithoutNoteService.getTools();
 
       expect(tools).toBeUndefined();
+    });
+
+    it('should retrieve multiple notes successfully', async () => {
+      const tools = toolService.getTools();
+      expect(tools).toBeDefined();
+
+      // Create multiple notes
+      const createResult1 = await tools!.create_note.execute({
+        title: 'Test Note 1',
+        content: 'First note content',
+        noteType: 'general'
+      });
+      const createResult2 = await tools!.create_note.execute({
+        title: 'Test Note 2',
+        content: 'Second note content',
+        noteType: 'general'
+      });
+
+      expect(createResult1.success).toBe(true);
+      expect(createResult2.success).toBe(true);
+
+      const note1 = createResult1.data as any;
+      const note2 = createResult2.data as any;
+
+      // Retrieve both notes
+      const getResult = await tools!.get_note.execute({
+        ids: [note1.id, note2.id]
+      });
+
+      expect(getResult.success).toBe(true);
+      expect(getResult.data).toBeDefined();
+      const results = getResult.data as any[];
+      expect(results).toHaveLength(2);
+
+      expect(results[0].success).toBe(true);
+      expect(results[0].note.title).toBe('Test Note 1');
+      expect(results[1].success).toBe(true);
+      expect(results[1].note.title).toBe('Test Note 2');
+    });
+
+    it('should handle mixed valid and invalid IDs', async () => {
+      const tools = toolService.getTools();
+      expect(tools).toBeDefined();
+
+      // Create one valid note
+      const createResult = await tools!.create_note.execute({
+        title: 'Valid Note',
+        content: 'Valid content',
+        noteType: 'general'
+      });
+      expect(createResult.success).toBe(true);
+      const validNote = createResult.data as any;
+
+      // Request valid and invalid notes
+      const getResult = await tools!.get_note.execute({
+        ids: [validNote.id, 'invalid/note', 'another/invalid']
+      });
+
+      expect(getResult.success).toBe(true);
+      const results = getResult.data as any[];
+      expect(results).toHaveLength(3);
+
+      // First result should be successful
+      expect(results[0].success).toBe(true);
+      expect(results[0].note.title).toBe('Valid Note');
+
+      // Other results should fail
+      expect(results[1].success).toBe(false);
+      expect(results[1].error).toContain('not found');
+      expect(results[2].success).toBe(false);
+      expect(results[2].error).toContain('not found');
+    });
+
+    it('should handle empty ID array', async () => {
+      const tools = toolService.getTools();
+      expect(tools).toBeDefined();
+
+      const getResult = await tools!.get_note.execute({
+        ids: []
+      });
+
+      expect(getResult.success).toBe(true);
+      expect(getResult.data).toEqual([]);
+      expect(getResult.message).toBe('No note IDs provided');
+    });
+
+    it('should handle duplicate IDs efficiently', async () => {
+      const tools = toolService.getTools();
+      expect(tools).toBeDefined();
+
+      // Create a note
+      const createResult = await tools!.create_note.execute({
+        title: 'Duplicate Test Note',
+        content: 'Test content',
+        noteType: 'general'
+      });
+      expect(createResult.success).toBe(true);
+      const note = createResult.data as any;
+
+      // Request the same note multiple times
+      const getResult = await tools!.get_note.execute({
+        ids: [note.id, note.id, note.id]
+      });
+
+      expect(getResult.success).toBe(true);
+      const results = getResult.data as any[];
+      expect(results).toHaveLength(3);
+
+      // All should be successful and return the same note
+      results.forEach((result, index) => {
+        expect(result.success).toBe(true);
+        expect(result.note.title).toBe('Duplicate Test Note');
+        expect(result.note.id).toBe(note.id);
+      });
     });
   });
 
@@ -403,10 +524,13 @@ describe('Basic Tools', () => {
 
       // Verify note is gone
       const getResult = await tools!.get_note.execute({
-        id: note.id
+        ids: [note.id]
       });
-      expect(getResult.success).toBe(false);
-      expect(getResult.error).toBe('NOTE_NOT_FOUND');
+      expect(getResult.success).toBe(true);
+      const results = getResult.data as any[];
+      expect(results).toHaveLength(1);
+      expect(results[0].success).toBe(false);
+      expect(results[0].error).toContain('not found');
     });
 
     it('should handle note not found for deletion', async () => {
@@ -440,7 +564,7 @@ describe('Basic Tools', () => {
       const tools = failingToolService.getTools();
 
       const result = await tools!.get_note.execute({
-        id: 'any/note'
+        ids: ['any/note']
       });
 
       expect(result.success).toBe(false);
@@ -464,9 +588,12 @@ describe('Basic Tools', () => {
 
       // Read
       const getResult = await tools!.get_note.execute({
-        id: note.id
+        ids: [note.id]
       });
       expect(getResult.success).toBe(true);
+      const results = getResult.data as any[];
+      expect(results).toHaveLength(1);
+      expect(results[0].success).toBe(true);
 
       // Update
       const updateResult = await tools!.update_note.execute({
@@ -493,9 +620,12 @@ describe('Basic Tools', () => {
 
       // Verify deletion
       const getFinalResult = await tools!.get_note.execute({
-        id: note.id
+        ids: [note.id]
       });
-      expect(getFinalResult.success).toBe(false);
+      expect(getFinalResult.success).toBe(true);
+      const finalResults = getFinalResult.data as any[];
+      expect(finalResults).toHaveLength(1);
+      expect(finalResults[0].success).toBe(false);
     });
   });
 });

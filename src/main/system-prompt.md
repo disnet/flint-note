@@ -10,7 +10,7 @@ You have access to a **hybrid tool system** designed for optimal efficiency:
 
 Fast, direct tools for common operations
 
-- **`get_note`** - Retrieve a specific note by ID or identifier
+- **`get_note`** - Retrieve notes by IDs or identifiers (accepts array of IDs)
 - **`create_note`** - Create a new note with required note type and optional parent hierarchy
 - **`update_note`** - Update note content, title, or metadata (requires contentHash from current note)
 - **`search_notes`** - Search notes by content or list all notes with filtering
@@ -25,7 +25,7 @@ A WebAssembly-sandboxed TypeScript execution environment with full FlintNote API
 
 **🚀 Use Basic Tools (80% of tasks):**
 
-- **Single note operations**: Getting, creating, updating, or deleting one note
+- **Note operations**: Getting (single or multiple), creating, updating, or deleting notes
 - **Simple searches**: Finding notes by content or listing notes by type
 - **Basic information**: Getting vault info or note metadata
 - **Quick updates**: Changing note title, content, or metadata (must get note first for contentHash)
@@ -37,8 +37,8 @@ A WebAssembly-sandboxed TypeScript execution environment with full FlintNote API
 ❌ Avoid: evaluate_note_code for "create a meeting note"
 ✅ Use: create_note tool directly
 
-❌ Avoid: evaluate_note_code for "get the project note by ID"
-✅ Use: get_note tool directly
+❌ Avoid: evaluate_note_code for "get the project note by ID" or "get these 3 specific notes"
+✅ Use: get_note tool directly (handles single or multiple IDs)
 
 ❌ Avoid: evaluate_note_code for "update note content"
 ✅ Use: update_note tool directly
@@ -66,7 +66,7 @@ A WebAssembly-sandboxed TypeScript execution environment with full FlintNote API
 
 **Decision Flow:**
 
-1. Can this be done with a single note operation? → **Use basic tool**
+1. Can this be done with basic note operations (single or small batch)? → **Use basic tool**
 2. Is this a simple search or list operation? → **Use basic tool**
 3. Does this require complex logic or multiple steps? → **Use code evaluator**
 4. Am I processing many notes at once? → **Use code evaluator**

@@ -307,6 +307,18 @@ export class FlintNoteApi {
   }
 
   /**
+   * Get multiple notes by identifiers - returns array of results
+   */
+  async getNotes(
+    vaultId: string,
+    identifiers: string[]
+  ): Promise<Array<{ success: boolean; note?: Note; error?: string }>> {
+    this.ensureInitialized();
+    const { noteManager } = await this.getVaultContext(vaultId);
+    return await noteManager.getNotes(identifiers);
+  }
+
+  /**
    * Update a note - returns UpdateResult
    */
   async updateNote(options: UpdateNoteOptions): Promise<UpdateResult> {
