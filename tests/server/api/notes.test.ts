@@ -109,9 +109,9 @@ describe('FlintNoteApi - Note Operations', () => {
     it('should return null for non-existent note', async () => {
       const nonExistentIdentifier = 'general/NonExistentNote';
 
-      expect(testSetup.api.getNote(testVaultId, nonExistentIdentifier)).rejects.toThrow(
-        /Note not found/
-      );
+      await expect(
+        testSetup.api.getNote(testVaultId, nonExistentIdentifier)
+      ).rejects.toThrow(/Note not found/);
     });
   });
 
@@ -221,7 +221,7 @@ describe('FlintNoteApi - Note Operations', () => {
       expect(deleteResult.deleted).toBe(true);
 
       // Verify the note is gone
-      expect(testSetup.api.getNote(testVaultId, createdNote.id)).rejects.toThrow(
+      await expect(testSetup.api.getNote(testVaultId, createdNote.id)).rejects.toThrow(
         /Note not found/
       );
     });

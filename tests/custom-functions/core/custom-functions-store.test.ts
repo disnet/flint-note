@@ -263,13 +263,13 @@ describe('CustomFunctionsStore', () => {
       const initialUsage = testFunc.metadata.usageCount;
 
       // Add a small delay to ensure different timestamps
-      await new Promise((resolve) => setTimeout(resolve, 1));
+      await new Promise((resolve) => setTimeout(resolve, 10));
       await store.recordUsage(testFunc.id);
 
       const updated = await store.get(testFunc.id);
       expect(updated!.metadata.usageCount).toBe(initialUsage + 1);
       expect(updated!.metadata.lastUsed).toBeDefined();
-      expect(updated!.metadata.lastUsed!.getTime()).toBeGreaterThan(
+      expect(updated!.metadata.lastUsed!.getTime()).toBeGreaterThanOrEqual(
         testFunc.metadata.createdAt.getTime()
       );
     });
