@@ -4,27 +4,53 @@
 
 This document tracks issues with note type CRUD operations in the WASM code evaluator.
 
-**Current Status:** PARTIALLY RESOLVED as of 2025-09-28
+**Current Status:** FULLY RESOLVED as of 2025-09-28
 
 ## Working Operations
 
-The following note type operations work correctly through the WASM evaluator:
+All note type operations now work correctly through the WASM evaluator:
 
 - ✅ `flintApi.createNoteType` - Creates note types successfully
 - ✅ `flintApi.listNoteTypes` - Lists all note types correctly
 - ✅ `flintApi.getNoteType` - Retrieves specific note type info
+- ✅ `flintApi.updateNoteType` - Updates note types successfully (FIXED)
 - ✅ `flintApi.deleteNoteType` - Deletes note types successfully
 
-## ⚠️ OUTSTANDING ISSUE: updateNoteType API
+## ✅ RESOLVED ISSUE: updateNoteType API
 
-**Status:** Still failing in WASM expanded API tests
-**Severity:** Medium - Functional limitation but not blocking
+**Status:** FIXED - Now working correctly in WASM expanded API tests
+**Resolution Date:** 2025-09-28
 
-### Current Problem: updateNoteType Serialization Error
+### Root Cause Identified and Fixed
 
-The `updateNoteType` API call fails when invoked through the WASM code evaluator, throwing an error that cannot be properly serialized or handled within the WASM execution environment.
+The issue was **NOT** a serialization problem as originally suspected, but a **metadata schema validation error**.
+
+**Problem:** When `updateNoteType` was called without explicit metadata schema parameters, it defaulted to using the existing note type's metadata schema. However, existing schemas contained system-managed protected fields ('created', 'updated') that were automatically added by the system. When the validation checked for protected fields, it incorrectly flagged these system-managed fields as user-defined, causing the validation to fail.
+
+**Solution:** Modified the validation logic to only validate metadata schemas when they are explicitly provided as parameters. When reusing existing schemas (which are already validated and legitimate), skip validation entirely.
+
+### Resolution Applied ✅
+
+**Fixed in:** `/src/server/core/note-types.ts:847-854`
+
+```typescript
+// Only validate schema if it's explicitly provided (not reusing existing)
+if (updates.metadata_schema) {
+  const validation = MetadataValidator.validateSchema(newSchema);
+  if (validation.errors.length > 0) {
+    throw new Error(`Invalid metadata schema: ${validation.errors.join(', ')}`);
+  }
+
+  this.#validateNoProtectedFieldsInSchema(newSchema);
+}
+```
+
+### Original Problem Description (Historical)
+
+The `updateNoteType` API call was failing when invoked through the WASM code evaluator, throwing an error that appeared to be serialization-related but was actually a metadata validation error.
 
 #### Symptoms
+
 - `flintApi.updateNoteType()` calls in WASM environment throw unhandled errors
 - Error objects are empty when serialized (`{}`)
 - Error stack traces show "No stack available"
@@ -35,14 +61,14 @@ The `updateNoteType` API call fails when invoked through the WASM code evaluator
 ```javascript
 // This works fine:
 const createdType = await flintApi.createNoteType({
-  typeName: "test-type",
-  description: "Test description"
+  typeName: 'test-type',
+  description: 'Test description'
 });
 
 // This fails with unserializable error:
 const updatedType = await flintApi.updateNoteType({
-  typeName: "test-type",
-  description: "Updated description"
+  typeName: 'test-type',
+  description: 'Updated description'
 });
 ```
 
@@ -76,33 +102,41 @@ const hostPromise = this.noteApi.deleteNoteType({
 ## Areas Requiring Further Investigation
 
 ### 1. Parameter Validation Issues
+
 **Hypothesis:** The updateNoteType API has stricter validation that's failing silently
 
 **Investigation Steps:**
+
 - Check if `options.description` parameter is being properly validated
 - Verify if empty/undefined `instructions` array is causing issues
 - Test with minimal vs. full parameter sets
 
 ### 2. Promise Serialization Issues
+
 **Hypothesis:** The returned `NoteTypeDescription` object contains non-serializable properties
 
 **Investigation Steps:**
+
 - Compare the structure of objects returned by `createNoteType` vs `updateNoteType`
 - Check if `updateNoteType` returns circular references or non-serializable objects
 - Test direct API calls outside of WASM environment
 
 ### 3. Database/File System Issues
+
 **Hypothesis:** The update operation involves file system operations that fail in the WASM context
 
 **Investigation Steps:**
+
 - Check if updateNoteType requires different file permissions
 - Verify if temporary files or locks are created during updates
 - Test in isolated vault environments
 
 ### 4. Async Promise Chain Issues
+
 **Hypothesis:** The promise proxy creation fails for updateNoteType's specific return type
 
 **Investigation Steps:**
+
 - Add detailed logging to `promiseFactory.createProxy()`
 - Compare promise resolution patterns between working and failing APIs
 - Test with simplified return objects
@@ -112,6 +146,7 @@ const hostPromise = this.noteApi.deleteNoteType({
 ### Immediate Steps
 
 1. **Add Comprehensive Logging**
+
    ```typescript
    const updateNoteTypeFn = vm.newFunction('updateNoteType', (optionsArg) => {
      try {
@@ -122,7 +157,9 @@ const hostPromise = this.noteApi.deleteNoteType({
        const hostPromise = this.noteApi.updateNoteType({
          type_name: options.typeName,
          description: options.description,
-         instructions: options.agent_instructions ? [options.agent_instructions] : undefined,
+         instructions: options.agent_instructions
+           ? [options.agent_instructions]
+           : undefined,
          vault_id: vaultId
        });
 
@@ -202,6 +239,7 @@ The failing test has been temporarily simplified to avoid the updateNoteType cal
 ## Success Criteria
 
 Investigation will be considered complete when:
+
 1. Root cause of the updateNoteType error is identified
 2. updateNoteType works reliably in WASM environment
 3. Error handling provides meaningful feedback
@@ -215,4 +253,4 @@ Investigation will be considered complete when:
 
 _Document created: 2025-09-27_
 _Last updated: 2025-09-28_
-_Status: ⚠️ PARTIALLY RESOLVED - deleteNoteType fixed, updateNoteType still under investigation_
+_Status: ✅ FULLY RESOLVED - All note type CRUD operations working correctly in WASM evaluator_

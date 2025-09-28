@@ -824,12 +824,15 @@ export class NoteTypeManager {
       const newInstructions = updates.instructions ?? noteType.parsed.agentInstructions;
       const newSchema = updates.metadata_schema ?? noteType.metadataSchema;
 
-      const validation = MetadataValidator.validateSchema(newSchema);
-      if (validation.errors.length > 0) {
-        throw new Error(`Invalid metadata schema: ${validation.errors.join(', ')}`);
-      }
+      // Only validate schema if it's explicitly provided (not reusing existing)
+      if (updates.metadata_schema) {
+        const validation = MetadataValidator.validateSchema(newSchema);
+        if (validation.errors.length > 0) {
+          throw new Error(`Invalid metadata schema: ${validation.errors.join(', ')}`);
+        }
 
-      this.#validateNoProtectedFieldsInSchema(newSchema);
+        this.#validateNoProtectedFieldsInSchema(newSchema);
+      }
 
       const newContent = this.formatNoteTypeDescription(
         typeName,

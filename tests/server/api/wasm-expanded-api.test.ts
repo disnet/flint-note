@@ -216,6 +216,12 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
               // Get the created note type info
               const typeInfo = await flintApi.getNoteType(testTypeName);
 
+              // Update the note type
+              const updatedType = await flintApi.updateNoteType({
+                typeName: testTypeName,
+                description: "Updated description"
+              });
+
               // Delete the note type
               const deleteResult = await flintApi.deleteNoteType({
                 typeName: testTypeName,
@@ -226,6 +232,7 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
                 success: true,
                 typeCreated: createdType.name,
                 typeRetrieved: typeInfo.name,
+                typeUpdated: updatedType.name,
                 testTypeName: testTypeName,
                 typeDeleted: deleteResult.deleted,
                 functionsAvailable: {
