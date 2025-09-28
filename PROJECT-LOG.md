@@ -1,5 +1,9 @@
 # Project Log
 
+## Lazy API Key Loading Implementation - 2025-09-28
+
+- **Implemented lazy loading for API keys to prevent keychain prompts on app startup** by refactoring the AIService initialization flow: modified `AIService.of()` to initialize OpenRouter client with `undefined` API key instead of immediately calling `secureStorageService.getApiKey()` during app startup; added new utility methods `hasValidApiKey()` and `ensureApiKeyLoaded()` to the AIService for on-demand key validation and loading; updated both 'send-message' and 'send-message-stream' IPC handlers to call `ensureApiKeyLoaded()` before AI operations, which only triggers keychain access when users actually try to use AI features; verified that Settings component flow still works correctly for user-initiated key configuration; this change significantly improves user experience by eliminating unexpected keychain prompts on app launch while maintaining secure key storage and proper lazy loading when AI features are accessed
+
 ## WASM updateNoteType API Issue Resolution - 2025-09-28
 
 - **Fixed the outstanding updateNoteType API issue in WASM code evaluator** that was preventing note type updates from working: systematically debugged and resolved a metadata schema validation error where protected fields ('created', 'updated') from existing note type schemas were being incorrectly flagged as user-defined during updates; implemented a cleaner solution that only validates metadata schemas when explicitly provided as parameters, skipping validation when reusing existing (already-validated) schemas; restored updateNoteType functionality to the note type CRUD test and verified all operations now work correctly through the WASM evaluator

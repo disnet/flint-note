@@ -275,10 +275,9 @@ app.whenReady().then(async () => {
     ) => {
       try {
         if (aiService) {
-          // Check if API key is available before attempting to send
-          const openrouterApiKey = (await secureStorageService.getApiKey('openrouter'))
-            .key;
-          if (!openrouterApiKey || openrouterApiKey.trim() === '') {
+          // Ensure API key is loaded before attempting to send
+          const apiKeyLoaded = await aiService.ensureApiKeyLoaded(secureStorageService);
+          if (!apiKeyLoaded) {
             return {
               text: "⚠️ **API Key Required**\n\nIt looks like you haven't set up your OpenRouter API key yet. To use the AI assistant:\n\n1. Click the **Settings** button (⚙️) in the sidebar\n2. Go to **🔑 API Keys** section\n3. Add your OpenRouter API key\n\nOnce configured, you'll be able to chat with the AI assistant!"
             };
@@ -328,10 +327,9 @@ app.whenReady().then(async () => {
     ) => {
       try {
         if (aiService) {
-          // Check if API key is available before attempting to stream
-          const openrouterApiKey = (await secureStorageService.getApiKey('openrouter'))
-            .key;
-          if (!openrouterApiKey || openrouterApiKey.trim() === '') {
+          // Ensure API key is loaded before attempting to stream
+          const apiKeyLoaded = await aiService.ensureApiKeyLoaded(secureStorageService);
+          if (!apiKeyLoaded) {
             const apiKeyErrorMessage =
               "⚠️ **API Key Required**\n\nIt looks like you haven't set up your OpenRouter API key yet. To use the AI assistant:\n\n1. Click the **Settings** button (⚙️) in the sidebar\n2. Go to **🔑 API Keys** section\n3. Add your OpenRouter API key\n\nOnce configured, you'll be able to chat with the AI assistant!";
 

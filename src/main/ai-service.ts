@@ -106,13 +106,50 @@ export class AIService extends EventEmitter {
     }
   }
 
+  /**
+   * Check if a valid API key is available
+   * Returns true if we have a valid OpenRouter API key, false otherwise
+   */
+  async hasValidApiKey(secureStorage: SecureStorageService): Promise<boolean> {
+    try {
+      const { key } = await secureStorage.getApiKey('openrouter');
+      return !!(key && key.trim() !== '');
+    } catch (error) {
+      logger.warn('Failed to check API key availability', { error });
+      return false;
+    }
+  }
+
+  /**
+   * Ensure API key is loaded before making AI requests
+   * This method should be called before any AI operations to ensure we have a valid key
+   */
+  async ensureApiKeyLoaded(secureStorage: SecureStorageService): Promise<boolean> {
+    try {
+      const hasKey = await this.hasValidApiKey(secureStorage);
+      if (!hasKey) {
+        logger.info('No valid API key found, cannot proceed with AI operations');
+        return false;
+      }
+
+      // Refresh the key to make sure it's loaded in the OpenRouter client
+      await this.refreshApiKey(secureStorage);
+      return true;
+    } catch (error) {
+      logger.error('Failed to ensure API key is loaded', { error });
+      return false;
+    }
+  }
+
   static async of(
-    secureStorage: SecureStorageService,
+    _secureStorage: SecureStorageService,
     noteService: NoteService | null = null,
     workspaceRoot?: string
   ): Promise<AIService> {
+    // Initialize with undefined API key to avoid triggering keychain access on startup
+    // secureStorage will be passed to lazy loading methods when needed
     const openrouter = createOpenRouter({
-      apiKey: (await secureStorage.getApiKey('openrouter')).key
+      apiKey: undefined
     });
     return new AIService(openrouter, noteService, workspaceRoot);
   }
