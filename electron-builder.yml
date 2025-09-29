@@ -14,6 +14,10 @@ asarUnpack:
   - resources/**
 win:
   executableName: flint
+  certificateFile: env:CSC_LINK # Path to certificate file or env var
+  certificatePassword: env:CSC_KEY_PASSWORD # Certificate password from env var
+  publisherName: 'Timothy Disney'
+  verifyUpdateCodeSignature: true
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}
@@ -22,11 +26,13 @@ nsis:
 mac:
   category: public.app-category.productivity
   icon: 'build/icon.icns'
+  identity: 'Timothy Disney (R54QLXZTK7)'
   hardenedRuntime: true
   gatekeeperAssess: false
   entitlements: 'build/entitlements.mac.plist'
   entitlementsInherit: 'build/entitlements.mac.plist'
-  notarize: false
+  notarize:
+    teamId: 'R54QLXZTK7'
   extendInfo:
     - NSCameraUsageDescription: Application requests access to the device's camera.
     - NSMicrophoneUsageDescription: Application requests access to the device's microphone.
@@ -35,19 +41,31 @@ mac:
   target:
     - target: dmg
       arch: [arm64, x64]
-    - target: zip
-      arch: [arm64, x64]
+dmg:
+  sign: true
+  title: '${productName} ${version}'
+  iconSize: 100
+  window:
+    width: 540
+    height: 380
+  contents:
+    - x: 130
+      y: 220
+    - x: 410
+      y: 220
+      type: link
+      path: /Applications
 linux:
   target:
     - AppImage
     - snap
     - deb
-  maintainer: electronjs.org
+  maintainer: Timothy Disney
   category: Utility
 appImage:
   artifactName: ${name}-${version}.${ext}
 npmRebuild: false
 publish:
   provider: generic
-  url: https://updates.your-domain.com # Replace with your actual update server URL
-afterSign: build/notarize.cjs # Optional: for macOS notarization
+  url: https://updates.flint-note.rocks # TODO: Replace with your actual update server URL
+# afterSign: build/notarize.cjs # Disabled: using DMG notarization instead

@@ -622,6 +622,280 @@ spctl --assess --verbose dist/mac/Flint.app
 xcrun notarytool history --keychain-profile "flint-notarization"
 ```
 
+## Local Notarization Testing
+
+This section covers how to manually notarize your macOS application locally for testing purposes before deploying through CI/CD.
+
+### Prerequisites for Local Notarization
+
+1. **Completed Code Signing Setup** - Follow all previous macOS code signing steps
+2. **Built Application** - Have a signed .app or .dmg file ready
+3. **Keychain Profile** - Notarytool credentials stored (from Step 3 above)
+
+### Step 1: Build and Sign Application
+
+```bash
+# Build the application
+npm run build
+npx electron-builder --mac --publish=never
+
+# Verify the build was signed
+codesign --verify --deep --strict dist/mac/Flint.app
+```
+
+### Step 2: Submit for Notarization
+
+**Option A: Submit .app bundle directly:**
+
+```bash
+# Submit the app bundle
+xcrun notarytool submit dist/mac/Flint.app \
+  --keychain-profile "flint-notarization" \
+  --wait
+
+# Note: --wait flag makes the command wait for completion
+```
+
+**Option B: Submit .dmg file (recommended):**
+
+```bash
+# If you have a .dmg file
+xcrun notarytool submit dist/Flint-1.0.0.dmg \
+  --keychain-profile "flint-notarization" \
+  --wait
+```
+
+### Step 3: Monitor Submission Status
+
+**Check submission without waiting:**
+
+```bash
+# Submit without waiting
+SUBMISSION_ID=$(xcrun notarytool submit dist/mac/Flint.app \
+  --keychain-profile "flint-notarization" | \
+  grep "id:" | awk '{print $2}')
+
+# Check status manually
+xcrun notarytool info $SUBMISSION_ID \
+  --keychain-profile "flint-notarization"
+```
+
+**View all recent submissions:**
+
+```bash
+# List recent notarization history
+xcrun notarytool history \
+  --keychain-profile "flint-notarization"
+```
+
+### Step 4: Handle Notarization Results
+
+**If notarization succeeds:**
+
+```bash
+# For .app bundles, staple the notarization ticket
+xcrun stapler staple dist/mac/Flint.app
+
+# Verify stapling worked
+xcrun stapler validate dist/mac/Flint.app
+
+# Test Gatekeeper assessment
+spctl --assess --verbose=2 dist/mac/Flint.app
+```
+
+**If notarization fails:**
+
+```bash
+# Get detailed logs for failed submission
+xcrun notarytool log $SUBMISSION_ID \
+  --keychain-profile "flint-notarization"
+
+# Save logs to file for analysis
+xcrun notarytool log $SUBMISSION_ID \
+  --keychain-profile "flint-notarization" \
+  > notarization-log.json
+```
+
+### Step 5: Local Testing Script
+
+Create a script for local notarization testing (`scripts/test-notarization.sh`):
+
+```bash
+#!/bin/bash
+
+set -e
+
+# Configuration
+APP_NAME="Flint"
+VERSION=$(node -p "require('./package.json').version")
+KEYCHAIN_PROFILE="flint-notarization"
+
+echo "Starting local notarization test for $APP_NAME v$VERSION..."
+
+# Build the application
+echo "Building application..."
+npm run build
+npx electron-builder --mac --publish=never
+
+# Verify signing
+echo "Verifying code signature..."
+codesign --verify --deep --strict "dist/mac/$APP_NAME.app"
+
+# Submit for notarization
+echo "Submitting for notarization..."
+SUBMISSION_ID=$(xcrun notarytool submit "dist/mac/$APP_NAME.app" \
+  --keychain-profile "$KEYCHAIN_PROFILE" \
+  --output-format json | jq -r '.id')
+
+echo "Submission ID: $SUBMISSION_ID"
+echo "Waiting for notarization to complete..."
+
+# Wait for completion (timeout after 10 minutes)
+TIMEOUT=600
+ELAPSED=0
+INTERVAL=30
+
+while [ $ELAPSED -lt $TIMEOUT ]; do
+  STATUS=$(xcrun notarytool info "$SUBMISSION_ID" \
+    --keychain-profile "$KEYCHAIN_PROFILE" \
+    --output-format json | jq -r '.status')
+
+  echo "Status: $STATUS (${ELAPSED}s elapsed)"
+
+  if [ "$STATUS" = "Accepted" ]; then
+    echo "✅ Notarization successful!"
+
+    # Staple the ticket
+    echo "Stapling notarization ticket..."
+    xcrun stapler staple "dist/mac/$APP_NAME.app"
+
+    # Verify stapling
+    echo "Verifying staple..."
+    xcrun stapler validate "dist/mac/$APP_NAME.app"
+
+    # Test Gatekeeper
+    echo "Testing Gatekeeper assessment..."
+    spctl --assess --verbose=2 "dist/mac/$APP_NAME.app"
+
+    echo "✅ Local notarization test completed successfully!"
+    exit 0
+  elif [ "$STATUS" = "Invalid" ]; then
+    echo "❌ Notarization failed!"
+    echo "Fetching logs..."
+    xcrun notarytool log "$SUBMISSION_ID" \
+      --keychain-profile "$KEYCHAIN_PROFILE" \
+      > "notarization-log-$SUBMISSION_ID.json"
+    echo "Logs saved to: notarization-log-$SUBMISSION_ID.json"
+    exit 1
+  fi
+
+  sleep $INTERVAL
+  ELAPSED=$((ELAPSED + INTERVAL))
+done
+
+echo "❌ Notarization timed out after ${TIMEOUT} seconds"
+exit 1
+```
+
+Make it executable:
+
+```bash
+chmod +x scripts/test-notarization.sh
+```
+
+### Step 6: Common Local Testing Scenarios
+
+**Test with different build configurations:**
+
+```bash
+# Test development build
+npm run build:dev
+npx electron-builder --mac --config=dev-app-update.yml --publish=never
+xcrun notarytool submit dist/mac/Flint.app --keychain-profile "flint-notarization"
+
+# Test production build
+npm run build
+npx electron-builder --mac --publish=never
+xcrun notarytool submit dist/mac/Flint.app --keychain-profile "flint-notarization"
+```
+
+**Batch testing multiple artifacts:**
+
+```bash
+# Build all platforms and test macOS notarization
+npx electron-builder --mac --win --linux --publish=never
+
+# Submit multiple macOS artifacts if available
+find dist -name "*.dmg" -exec xcrun notarytool submit {} \
+  --keychain-profile "flint-notarization" \;
+```
+
+### Step 7: Troubleshooting Local Notarization
+
+**Common Issues and Solutions:**
+
+1. **Bundle format rejected:**
+   ```bash
+   # Check bundle structure
+   find dist/mac/Flint.app -name "*.dylib" -o -name "*.so"
+
+   # Verify all binaries are signed
+   find dist/mac/Flint.app -type f -perm +111 -exec codesign --verify {} \;
+   ```
+
+2. **Hardened runtime violations:**
+   ```bash
+   # Check entitlements
+   codesign -d --entitlements - dist/mac/Flint.app
+
+   # Verify entitlements file is properly configured
+   plutil -lint build/entitlements.mac.plist
+   ```
+
+3. **Credential issues:**
+   ```bash
+   # Verify keychain profile
+   xcrun notarytool history --keychain-profile "flint-notarization"
+
+   # Test with environment variables instead
+   export APPLE_ID="your-apple-id@example.com"
+   export APPLE_ID_PASSWORD="app-specific-password"
+   export APPLE_TEAM_ID="YOUR_TEAM_ID"
+
+   xcrun notarytool submit dist/mac/Flint.app \
+     --apple-id "$APPLE_ID" \
+     --password "$APPLE_ID_PASSWORD" \
+     --team-id "$APPLE_TEAM_ID"
+   ```
+
+### Best Practices for Local Testing
+
+1. **Test Early and Often** - Don't wait until release to test notarization
+2. **Keep Logs** - Save notarization logs for debugging patterns
+3. **Verify Stapling** - Always test stapling after successful notarization
+4. **Test Different Environments** - Test both development and production builds
+5. **Monitor Timing** - Track how long notarization takes for your app size
+
+### Integration with Development Workflow
+
+Add notarization testing to your development process:
+
+```bash
+# Add to package.json scripts
+{
+  "scripts": {
+    "test:notarize": "./scripts/test-notarization.sh",
+    "build:test": "npm run build && npm run test:notarize"
+  }
+}
+```
+
+This allows developers to test notarization locally with:
+
+```bash
+npm run test:notarize
+```
+
 ### Troubleshooting macOS Signing
 
 1. **Certificate Issues:**
