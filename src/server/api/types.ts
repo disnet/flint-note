@@ -203,6 +203,16 @@ export interface CreateVaultArgs {
   detectExisting?: boolean; // If true, check if path contains existing vault and handle appropriately
 }
 
+export interface CreateVaultResult {
+  id: string;
+  name: string;
+  path: string;
+  created: string;
+  last_accessed: string;
+  description?: string;
+  isNewVault: boolean; // True if this was a newly created vault, false if existing vault was opened
+}
+
 export interface SwitchVaultArgs {
   id: string;
 }

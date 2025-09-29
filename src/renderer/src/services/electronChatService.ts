@@ -13,7 +13,8 @@ import type { SearchResult } from '@/server/database/search-manager';
 import type {
   CoreVaultInfo as VaultInfo,
   CoreNoteLinkRow as NoteLinkRow,
-  CoreNoteTypeInfo as NoteTypeInfo
+  CoreNoteTypeInfo as NoteTypeInfo,
+  CreateVaultResult
 } from '@/server/api/types';
 import type { ExternalLinkRow } from '@/server/database/schema';
 import type {
@@ -426,7 +427,7 @@ export class ElectronChatService implements ChatService, NoteService {
     name: string;
     path: string;
     description?: string;
-  }): Promise<VaultInfo> {
+  }): Promise<CreateVaultResult> {
     const { name, path, description } = params;
     try {
       return await window.api.createVault({ name, path, description });

@@ -14,7 +14,8 @@ import type { SearchResult } from '../server/database/search-manager';
 import type {
   CoreVaultInfo as VaultInfo,
   CoreNoteLinkRow as NoteLinkRow,
-  CoreNoteTypeInfo as NoteTypeInfo
+  CoreNoteTypeInfo as NoteTypeInfo,
+  CreateVaultResult
 } from '../server/api/types';
 import type { ExternalLinkRow } from '../server/database/schema';
 import type {
@@ -356,7 +357,7 @@ export class NoteService {
     name: string,
     path: string,
     description?: string
-  ): Promise<VaultInfo> {
+  ): Promise<CreateVaultResult> {
     this.ensureVaultOpsAvailable();
     return await this.api.createVault({
       id: name.toLowerCase().replace(/\s+/g, '-'),

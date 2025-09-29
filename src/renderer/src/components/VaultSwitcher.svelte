@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { VaultInfo } from '@/server/utils/global-config';
+  import type { CreateVaultResult } from '@/server/api/types';
   import { getChatService } from '../services/chatService';
   import { notesStore } from '../services/noteStore.svelte';
   import { pinnedNotesStore } from '../services/pinnedStore.svelte';
@@ -93,7 +94,7 @@
     isCreateModalOpen = false;
   }
 
-  async function handleVaultCreated(vaultInfo: VaultInfo): Promise<void> {
+  async function handleVaultCreated(vaultInfo: CreateVaultResult): Promise<void> {
     try {
       // Refresh vault list to include the new vault
       await loadVaults();
@@ -102,19 +103,21 @@
       if (vaultInfo.id) {
         await switchVault(vaultInfo.id);
 
-        // Pin welcome note and tutorial notes after vault switch is complete
-        try {
-          await pinnedNotesStore.pinWelcomeNote();
-        } catch (error) {
-          console.warn('Failed to pin onboarding notes:', error);
-          // Non-blocking - don't fail the vault creation flow
-        }
+        // Only pin welcome note and tutorial notes for newly created vaults
+        if (vaultInfo.isNewVault) {
+          try {
+            await pinnedNotesStore.pinWelcomeNote();
+          } catch (error) {
+            console.warn('Failed to pin onboarding notes:', error);
+            // Non-blocking - don't fail the vault creation flow
+          }
 
-        try {
-          await temporaryTabsStore.addTutorialNoteTabs();
-        } catch (error) {
-          console.warn('Failed to add tutorial notes to tabs:', error);
-          // Non-blocking - don't fail the vault creation flow
+          try {
+            await temporaryTabsStore.addTutorialNoteTabs();
+          } catch (error) {
+            console.warn('Failed to add tutorial notes to tabs:', error);
+            // Non-blocking - don't fail the vault creation flow
+          }
         }
       }
     } catch (error) {

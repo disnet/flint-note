@@ -12,7 +12,8 @@ import type { SearchResult } from '@/server/database/search-manager';
 import type {
   CoreVaultInfo as VaultInfo,
   CoreNoteLinkRow as NoteLinkRow,
-  CoreNoteTypeInfo as NoteTypeInfo
+  CoreNoteTypeInfo as NoteTypeInfo,
+  CreateVaultResult
 } from '@/server/api/types';
 import type { ExternalLinkRow } from '@/server/database/schema';
 import type {
@@ -145,7 +146,7 @@ export interface NoteService {
     name: string;
     path: string;
     description?: string;
-  }): Promise<VaultInfo>;
+  }): Promise<CreateVaultResult>;
   switchVault(params: { vaultId: string }): Promise<void>;
   removeVault(params: { vaultId: string }): Promise<void>;
 

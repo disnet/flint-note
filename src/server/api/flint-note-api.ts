@@ -25,6 +25,7 @@ import type {
   SearchNotesAdvancedArgs,
   SearchNotesSqlArgs,
   CreateVaultArgs,
+  CreateVaultResult,
   SwitchVaultArgs,
   RemoveVaultArgs,
   UpdateVaultArgs,
@@ -524,7 +525,7 @@ export class FlintNoteApi {
   /**
    * Create a new vault with optional initialization and switching
    */
-  async createVault(args: CreateVaultArgs): Promise<VaultInfo> {
+  async createVault(args: CreateVaultArgs): Promise<CreateVaultResult> {
     this.ensureVaultOpsAvailable();
 
     // Validate vault ID
@@ -557,6 +558,8 @@ export class FlintNoteApi {
 
     // Check if directory contains an existing vault
     const isExistingVault = await Workspace.isExistingVault(resolvedPath);
+    // Track whether this is a new vault for the response
+    let isNewVault = false;
 
     if (args.detectExisting !== false && isExistingVault) {
       // Path contains existing vault - just register it without full initialization
@@ -600,6 +603,7 @@ export class FlintNoteApi {
       }
     } else {
       // New vault or existing detection disabled - proceed with full initialization
+      isNewVault = true;
 
       if (isExistingVault && args.detectExisting === false) {
         console.warn(
@@ -666,7 +670,10 @@ export class FlintNoteApi {
       throw new Error('Failed to retrieve created vault');
     }
 
-    return vault;
+    return {
+      ...vault,
+      isNewVault
+    };
   }
 
   /**

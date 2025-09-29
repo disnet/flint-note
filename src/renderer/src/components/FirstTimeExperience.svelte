@@ -100,17 +100,6 @@
           <span class="button-icon">📁</span>
           Create Your First Vault
         </button>
-
-        <div class="secondary-actions">
-          <button
-            class="secondary-action"
-            onclick={handleImportExisting}
-            title="Browse for an existing vault folder"
-          >
-            <span class="button-icon">📂</span>
-            Browse for Existing Vault
-          </button>
-        </div>
       </div>
     </div>
   </div>
