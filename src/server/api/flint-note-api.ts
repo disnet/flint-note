@@ -135,26 +135,18 @@ export class FlintNoteApi {
           this.hybridSearchManager.getDatabaseManager()
         );
 
-        // Check if workspace has any note type descriptions
+        // Check if .flint-note directory exists to determine if this is a new vault
         const flintNoteDir = path.join(workspacePath, '.flint-note');
-        let hasDescriptions = false;
+        let isNewVault = false;
 
         try {
-          const files = await fs.readdir(flintNoteDir);
-          hasDescriptions = files.some((entry) => entry.endsWith('_description.md'));
+          await fs.access(flintNoteDir);
+          // .flint-note directory exists - this is an existing vault
+          await this.workspace.initialize();
         } catch {
-          // .flint-note directory doesn't exist or is empty
-          hasDescriptions = false;
-        }
-
-        let isNewVault = false;
-        if (!hasDescriptions) {
-          // No note type descriptions found - initialize as a vault with default note types
+          // .flint-note directory doesn't exist - this is a new vault
           await this.workspace.initializeVault();
           isNewVault = true;
-        } else {
-          // Existing workspace with note types - just initialize
-          await this.workspace.initialize();
         }
 
         // Initialize hybrid search index - only rebuild if necessary

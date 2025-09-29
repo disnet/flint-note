@@ -43,26 +43,18 @@ this.workspace = new Workspace(
 ### Phase 3: Vault Type Detection
 
 ```typescript
-// Check if workspace has any note type descriptions
+// Check if .flint-note directory exists to determine if this is a new vault
 const flintNoteDir = path.join(workspacePath, '.flint-note');
-let hasDescriptions = false;
+let isNewVault = false;
 
 try {
-  const files = await fs.readdir(flintNoteDir);
-  hasDescriptions = files.some((entry) => entry.endsWith('_description.md'));
+  await fs.access(flintNoteDir);
+  // .flint-note directory exists - this is an existing vault
+  await this.workspace.initialize();
 } catch {
-  // .flint-note directory doesn't exist or is empty
-  hasDescriptions = false;
-}
-
-let isNewVault = false;
-if (!hasDescriptions) {
-  // No note type descriptions found - initialize as a vault with default note types
+  // .flint-note directory doesn't exist - this is a new vault
   await this.workspace.initializeVault();
   isNewVault = true;
-} else {
-  // Existing workspace with note types - just initialize
-  await this.workspace.initialize();
 }
 ```
 
@@ -157,16 +149,15 @@ await handleIndexRebuild(tempHybridSearchManager, shouldRebuild, logInitializati
 
 ## New Vault vs Existing Vault Detection
 
-The system determines whether a vault is new by checking for the presence of note type description files:
+The system determines whether a vault is new by checking for the existence of the `.flint-note` directory:
 
 ### New Vault Indicators
 
 - `.flint-note` directory doesn't exist
-- `.flint-note` directory exists but contains no `*_description.md` files
 
 ### Existing Vault Indicators
 
-- `.flint-note` directory exists with one or more `*_description.md` files
+- `.flint-note` directory exists
 
 ## Onboarding Content Architecture
 
