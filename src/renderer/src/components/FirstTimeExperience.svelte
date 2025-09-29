@@ -50,7 +50,6 @@
     <!-- Header -->
     <div class="header">
       <div class="logo-section">
-        <div class="logo">🔥</div>
         <h1>Welcome to Flint</h1>
       </div>
       <p class="subtitle">Your intelligent note-taking companion</p>
@@ -113,18 +112,6 @@
           </button>
         </div>
       </div>
-
-      <!-- Help text -->
-      <div class="help-text">
-        <p>
-          <strong>New to note-taking?</strong> Start with "Create Your First Vault" – we'll
-          set up everything you need including sample notes and templates to get you started.
-        </p>
-        <p>
-          <strong>Have notes elsewhere?</strong> Choose "Browse for Existing Vault" to point
-          Flint to a folder where you'd like to store your notes.
-        </p>
-      </div>
     </div>
   </div>
 </div>
@@ -172,12 +159,6 @@
 
   .logo-section {
     margin-bottom: 1rem;
-  }
-
-  .logo {
-    font-size: 4rem;
-    margin-bottom: 1rem;
-    display: block;
   }
 
   .header h1 {
@@ -305,28 +286,6 @@
     font-size: 1rem;
   }
 
-  .help-text {
-    background: var(--bg-secondary);
-    border-radius: 0.75rem;
-    padding: 1.5rem;
-    border: 1px solid var(--border-light);
-  }
-
-  .help-text p {
-    margin: 0 0 1rem 0;
-    color: var(--text-secondary);
-    font-size: 0.9rem;
-    line-height: 1.5;
-  }
-
-  .help-text p:last-child {
-    margin-bottom: 0;
-  }
-
-  .help-text strong {
-    color: var(--text-primary);
-  }
-
   /* Mobile responsive */
   @media (max-width: 640px) {
     .first-time-container {
@@ -335,10 +294,6 @@
 
     .header h1 {
       font-size: 2rem;
-    }
-
-    .logo {
-      font-size: 3rem;
     }
 
     .vault-explanation {
@@ -358,10 +313,6 @@
     .primary-action {
       padding: 0.875rem 1.5rem;
       font-size: 1rem;
-    }
-
-    .help-text {
-      padding: 1rem;
     }
   }
 </style>
