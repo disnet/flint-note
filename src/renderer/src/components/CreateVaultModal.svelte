@@ -476,12 +476,6 @@
     gap: 1rem;
   }
 
-  .pro-tip {
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-    flex: 1;
-  }
-
   .action-buttons {
     display: flex;
     gap: 0.75rem;
@@ -553,11 +547,6 @@
     .cancel-btn,
     .create-btn {
       flex: 1;
-    }
-
-    .pro-tip {
-      order: 1;
-      text-align: center;
     }
   }
 </style>

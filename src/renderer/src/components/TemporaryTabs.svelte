@@ -13,12 +13,30 @@
 
   interface Props {
     onNoteSelect: (note: NoteMetadata) => void;
-    onCreateNote?: () => void;
+    onCreateNote?: (noteType?: string) => void;
   }
 
   let { onNoteSelect, onCreateNote }: Props = $props();
 
   const dragState = globalDragState;
+
+  // Dropdown state
+  let isDropdownOpen = $state(false);
+
+  function toggleDropdown(): void {
+    isDropdownOpen = !isDropdownOpen;
+  }
+
+  function closeDropdown(): void {
+    isDropdownOpen = false;
+  }
+
+  function handleCreateNoteWithType(noteType?: string): void {
+    if (onCreateNote) {
+      onCreateNote(noteType);
+    }
+    closeDropdown();
+  }
 
   async function handleTabClick(noteId: string): Promise<void> {
     const note = notesStore.notes.find((n) => n.id === noteId);
@@ -114,6 +132,24 @@
   function onDragEnd(): void {
     handleDragEnd(dragState);
   }
+
+  // Close dropdown when clicking outside
+  $effect(() => {
+    function handleClickOutside(event: MouseEvent): void {
+      const target = event.target as Element;
+      if (isDropdownOpen && !target.closest('.create-note-section')) {
+        closeDropdown();
+      }
+    }
+
+    if (isDropdownOpen) {
+      setTimeout(() => {
+        document.addEventListener('click', handleClickOutside);
+      }, 10);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+    return () => {};
+  });
 </script>
 
 <div class="temporary-tabs">
@@ -140,20 +176,58 @@
 
   <!-- Create New Note Button (always visible) -->
   <div class="create-note-section">
-    <button class="create-note-button" onclick={onCreateNote} disabled={!onCreateNote}>
-      <svg
-        width="14"
-        height="14"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
+    <div class="create-note-button-group">
+      <button
+        class="create-note-button main-button"
+        onclick={() => handleCreateNoteWithType()}
+        disabled={!onCreateNote}
       >
-        <line x1="12" y1="5" x2="12" y2="19"></line>
-        <line x1="5" y1="12" x2="19" y2="12"></line>
-      </svg>
-      New Note
-    </button>
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        New Note
+      </button>
+      <button
+        class="create-note-button dropdown-button"
+        onclick={toggleDropdown}
+        disabled={!onCreateNote}
+        aria-label="Choose note type"
+      >
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          class:rotated={isDropdownOpen}
+        >
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </button>
+    </div>
+
+    {#if isDropdownOpen && notesStore.noteTypes.length > 0}
+      <div class="note-type-dropdown">
+        {#each notesStore.noteTypes as noteType (noteType.name)}
+          <button
+            class="note-type-option"
+            onclick={() => handleCreateNoteWithType(noteType.name)}
+          >
+            <span class="note-type-name">{noteType.name}</span>
+            <span class="note-type-count">({noteType.count})</span>
+          </button>
+        {/each}
+      </div>
+    {/if}
   </div>
 
   {#if temporaryTabsStore.tabs.length > 0}
@@ -214,23 +288,40 @@
 <style>
   .create-note-section {
     padding: 0.75rem;
+    position: relative;
+  }
+
+  .create-note-button-group {
+    display: flex;
+    width: 100%;
   }
 
   .create-note-button {
-    width: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
     padding: 0.5rem 1rem;
     border: 1px dashed var(--border-light);
-    border-radius: 0.5rem;
     background: transparent;
     color: var(--text-secondary);
     font-size: 0.875rem;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s ease;
+  }
+
+  .create-note-button.main-button {
+    flex: 1;
+    border-radius: 0.5rem 0 0 0.5rem;
+    border-right: none;
+  }
+
+  .create-note-button.dropdown-button {
+    padding: 0.5rem;
+    border-radius: 0 0.5rem 0.5rem 0;
+    min-width: 2rem;
+    width: 2rem;
   }
 
   .create-note-button:hover:not(:disabled) {
@@ -242,6 +333,61 @@
   .create-note-button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+
+  .create-note-button .rotated {
+    transform: rotate(180deg);
+  }
+
+  .note-type-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0.75rem;
+    right: 0.75rem;
+    z-index: 100;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-medium);
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 12px var(--shadow-medium);
+    margin-top: 0.25rem;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+
+  .note-type-option {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0.75rem;
+    border: none;
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    text-align: left;
+  }
+
+  .note-type-option:hover {
+    background: var(--bg-secondary);
+  }
+
+  .note-type-option:first-child {
+    border-radius: 0.5rem 0.5rem 0 0;
+  }
+
+  .note-type-option:last-child {
+    border-radius: 0 0 0.5rem 0.5rem;
+  }
+
+  .note-type-name {
+    font-weight: 500;
+  }
+
+  .note-type-count {
+    color: var(--text-secondary);
+    font-size: 0.75rem;
   }
 
   .temporary-tabs {

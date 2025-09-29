@@ -241,31 +241,6 @@
     box-shadow: 0 8px 12px -2px rgba(0, 0, 0, 0.15);
   }
 
-  .secondary-actions {
-    display: flex;
-    justify-content: center;
-  }
-
-  .secondary-action {
-    background: var(--bg-secondary);
-    color: var(--text-secondary);
-    border: 1px solid var(--border-light);
-    border-radius: 0.5rem;
-    padding: 0.75rem 1.5rem;
-    font-size: 0.9rem;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .secondary-action:hover {
-    background: var(--bg-hover);
-    color: var(--text-primary);
-    border-color: var(--border-medium);
-  }
-
   .button-icon {
     font-size: 1rem;
   }

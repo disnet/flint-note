@@ -18,7 +18,7 @@
     onSystemViewSelect: (
       view: 'daily' | 'notes' | 'settings' | 'slash-commands' | 'custom-functions' | null
     ) => void;
-    onCreateNote?: () => void;
+    onCreateNote?: (noteType?: string) => void;
   }
 
   let {
