@@ -4,6 +4,7 @@
   import RightSidebar from './components/RightSidebar.svelte';
   import SearchBar from './components/SearchBar.svelte';
   import VaultSwitcher from './components/VaultSwitcher.svelte';
+  import FirstTimeExperience from './components/FirstTimeExperience.svelte';
   import type { Message } from './services/types';
   import type { NoteMetadata } from './services/noteStore.svelte';
   import { getChatService } from './services/chatService';
@@ -16,7 +17,10 @@
   import { activeNoteStore } from './stores/activeNoteStore.svelte';
   import { cursorPositionStore } from './services/cursorPositionStore.svelte';
   import { generateSafeNoteIdentifier } from './utils/noteUtils.svelte';
+  import { vaultAvailabilityService } from './services/vaultAvailabilityService.svelte';
+  import { pinnedNotesStore } from './services/pinnedStore.svelte';
   import { onMount } from 'svelte';
+  import type { VaultInfo } from '@/server/utils/global-config';
 
   // Initialize unified chat store effects
   unifiedChatStore.initializeEffects();
@@ -500,191 +504,245 @@
   function closeWindow(): void {
     window.electron?.ipcRenderer.send('window-close');
   }
+
+  // Handle vault creation from first-time experience
+  async function handleVaultCreatedFromFirstTime(vault: VaultInfo): Promise<void> {
+    console.log('Vault created from first-time experience:', vault);
+
+    // The vault availability service should already be updated by FirstTimeExperience
+    // Now we need to trigger reinitialization of the note service and refresh stores
+    try {
+      // Reinitialize the note service in the main process
+      const result = await window.api?.reinitializeNoteService();
+      if (result?.success) {
+        console.log('Note service reinitialized successfully');
+
+        // Refresh the notes store now that note service is working
+        await notesStore.refresh();
+        console.log('Notes store refreshed after vault creation');
+
+        // Set up onboarding content for the new vault
+        try {
+          await pinnedNotesStore.pinWelcomeNote();
+          console.log('Welcome note pinned successfully');
+        } catch (error) {
+          console.warn('Failed to pin welcome note:', error);
+          // Non-blocking - don't fail the vault creation flow
+        }
+
+        try {
+          await temporaryTabsStore.addTutorialNoteTabs();
+          console.log('Tutorial tabs added successfully');
+        } catch (error) {
+          console.warn('Failed to add tutorial notes to tabs:', error);
+          // Non-blocking - don't fail the vault creation flow
+        }
+      } else {
+        console.error('Failed to reinitialize note service:', result?.error);
+      }
+    } catch (error) {
+      console.error('Failed to reinitialize services after vault creation:', error);
+    }
+  }
 </script>
 
-<div class="app">
-  <!-- Custom title bar with drag region -->
-  <div class="title-bar">
-    <div class="title-bar-content">
-      <!-- Traffic light spacing for macOS -->
-      <div class="traffic-light-spacer"></div>
-      <div class="title-bar-left">
-        <button
-          class="hamburger-button"
-          onclick={toggleLeftSidebar}
-          aria-label="Toggle sidebar"
-        >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <line x1="3" y1="6" x2="21" y2="6"></line>
-            <line x1="3" y1="12" x2="21" y2="12"></line>
-            <line x1="3" y1="18" x2="21" y2="18"></line>
-          </svg>
-        </button>
-        <VaultSwitcher onNoteClose={closeNoteEditor} />
-        <div class="navigation-controls">
+{#if vaultAvailabilityService.isLoading}
+  <!-- Loading state while checking for vaults -->
+  <div class="app loading-state">
+    <div class="loading-content">
+      <div class="loading-spinner">🔥</div>
+      <p>Loading Flint...</p>
+    </div>
+  </div>
+{:else if !vaultAvailabilityService.hasVaults}
+  <!-- First-time experience when no vaults exist -->
+  <FirstTimeExperience onVaultCreated={handleVaultCreatedFromFirstTime} />
+{:else}
+  <!-- Normal app interface when vaults are available -->
+  <div class="app">
+    <!-- Custom title bar with drag region -->
+    <div class="title-bar">
+      <div class="title-bar-content">
+        <!-- Traffic light spacing for macOS -->
+        <div class="traffic-light-spacer"></div>
+        <div class="title-bar-left">
           <button
-            class="nav-btn"
-            class:disabled={!noteNavigationService.canGoBack}
-            onclick={handleNavigationBack}
-            disabled={!noteNavigationService.canGoBack}
-            aria-label="Go back"
-            title="Go back (Cmd/Ctrl + Shift + [)"
+            class="hamburger-button"
+            onclick={toggleLeftSidebar}
+            aria-label="Toggle sidebar"
           >
             <svg
-              width="14"
-              height="14"
+              width="18"
+              height="18"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
               stroke-width="2"
             >
-              <path d="m15 18-6-6 6-6" />
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
             </svg>
           </button>
-          <button
-            class="nav-btn"
-            class:disabled={!noteNavigationService.canGoForward}
-            onclick={handleNavigationForward}
-            disabled={!noteNavigationService.canGoForward}
-            aria-label="Go forward"
-            title="Go forward (Cmd/Ctrl + Shift + ])"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
+          <VaultSwitcher onNoteClose={closeNoteEditor} />
+          <div class="navigation-controls">
+            <button
+              class="nav-btn"
+              class:disabled={!noteNavigationService.canGoBack}
+              onclick={handleNavigationBack}
+              disabled={!noteNavigationService.canGoBack}
+              aria-label="Go back"
+              title="Go back (Cmd/Ctrl + Shift + [)"
             >
-              <path d="m9 18 6-6-6-6" />
-            </svg>
-          </button>
-        </div>
-        <SearchBar onNoteSelect={handleNoteSelect} />
-      </div>
-      <div class="title-bar-drag-center"></div>
-      <div class="title-bar-controls">
-        <div class="pillbox-controls">
-          <button
-            class="pillbox-btn pillbox-btn-left"
-            class:active={sidebarState.rightSidebar.visible &&
-              sidebarState.rightSidebar.mode === 'ai'}
-            onclick={() => setRightSidebarMode('ai')}
-            aria-label="AI Assistant"
-            title="AI Assistant"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path
-                d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
-              ></path>
-            </svg>
-          </button>
-          <button
-            class="pillbox-btn pillbox-btn-right"
-            class:active={sidebarState.rightSidebar.visible &&
-              sidebarState.rightSidebar.mode === 'threads'}
-            onclick={() => setRightSidebarMode('threads')}
-            aria-label="Agent Threads"
-            title="Agent Threads"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
-              ></path>
-              <path d="M13 8l-2 2-2-2"></path>
-            </svg>
-          </button>
-        </div>
-
-        <!-- Window controls for non-macOS platforms -->
-        <div class="window-controls">
-          <button
-            class="window-control-btn minimize-btn"
-            onclick={minimizeWindow}
-            aria-label="Minimize window"
-            title="Minimize"
-          >
-            <svg width="12" height="12" viewBox="0 0 12 12">
-              <path d="M 2,6 10,6" stroke="currentColor" stroke-width="1" />
-            </svg>
-          </button>
-          <button
-            class="window-control-btn maximize-btn"
-            onclick={maximizeWindow}
-            aria-label="Maximize window"
-            title="Maximize"
-          >
-            <svg width="12" height="12" viewBox="0 0 12 12">
-              <path
-                d="M 2,2 2,10 10,10 10,2 Z"
-                stroke="currentColor"
-                stroke-width="1"
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
                 fill="none"
-              />
-            </svg>
-          </button>
-          <button
-            class="window-control-btn close-btn"
-            onclick={closeWindow}
-            aria-label="Close window"
-            title="Close"
-          >
-            <svg width="12" height="12" viewBox="0 0 12 12">
-              <path d="M 3,3 9,9 M 9,3 3,9" stroke="currentColor" stroke-width="1" />
-            </svg>
-          </button>
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="m15 18-6-6 6-6" />
+              </svg>
+            </button>
+            <button
+              class="nav-btn"
+              class:disabled={!noteNavigationService.canGoForward}
+              onclick={handleNavigationForward}
+              disabled={!noteNavigationService.canGoForward}
+              aria-label="Go forward"
+              title="Go forward (Cmd/Ctrl + Shift + ])"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="m9 18 6-6-6-6" />
+              </svg>
+            </button>
+          </div>
+          <SearchBar onNoteSelect={handleNoteSelect} />
+        </div>
+        <div class="title-bar-drag-center"></div>
+        <div class="title-bar-controls">
+          <div class="pillbox-controls">
+            <button
+              class="pillbox-btn pillbox-btn-left"
+              class:active={sidebarState.rightSidebar.visible &&
+                sidebarState.rightSidebar.mode === 'ai'}
+              onclick={() => setRightSidebarMode('ai')}
+              aria-label="AI Assistant"
+              title="AI Assistant"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                ></path>
+              </svg>
+            </button>
+            <button
+              class="pillbox-btn pillbox-btn-right"
+              class:active={sidebarState.rightSidebar.visible &&
+                sidebarState.rightSidebar.mode === 'threads'}
+              onclick={() => setRightSidebarMode('threads')}
+              aria-label="Agent Threads"
+              title="Agent Threads"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+                ></path>
+                <path d="M13 8l-2 2-2-2"></path>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Window controls for non-macOS platforms -->
+          <div class="window-controls">
+            <button
+              class="window-control-btn minimize-btn"
+              onclick={minimizeWindow}
+              aria-label="Minimize window"
+              title="Minimize"
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12">
+                <path d="M 2,6 10,6" stroke="currentColor" stroke-width="1" />
+              </svg>
+            </button>
+            <button
+              class="window-control-btn maximize-btn"
+              onclick={maximizeWindow}
+              aria-label="Maximize window"
+              title="Maximize"
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12">
+                <path
+                  d="M 2,2 2,10 10,10 10,2 Z"
+                  stroke="currentColor"
+                  stroke-width="1"
+                  fill="none"
+                />
+              </svg>
+            </button>
+            <button
+              class="window-control-btn close-btn"
+              onclick={closeWindow}
+              aria-label="Close window"
+              title="Close"
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12">
+                <path d="M 3,3 9,9 M 9,3 3,9" stroke="currentColor" stroke-width="1" />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
     </div>
+
+    <div class="app-layout">
+      <LeftSidebar
+        activeNote={activeNoteStore.activeNote}
+        {activeSystemView}
+        onNoteSelect={handleNoteSelect}
+        onSystemViewSelect={handleSystemViewSelect}
+        onCreateNote={() => handleCreateNote()}
+      />
+
+      <MainView
+        activeNote={activeNoteStore.activeNote}
+        {activeSystemView}
+        noteTypes={notesStore.noteTypes}
+        onClose={closeNoteEditor}
+        onNoteSelect={handleNoteSelect}
+        onCreateNote={handleCreateNote}
+      />
+
+      <RightSidebar
+        {messages}
+        isLoading={isLoadingResponse}
+        onNoteClick={handleNoteClick}
+        onSendMessage={handleSendMessage}
+      />
+    </div>
   </div>
-
-  <div class="app-layout">
-    <LeftSidebar
-      activeNote={activeNoteStore.activeNote}
-      {activeSystemView}
-      onNoteSelect={handleNoteSelect}
-      onSystemViewSelect={handleSystemViewSelect}
-      onCreateNote={() => handleCreateNote()}
-    />
-
-    <MainView
-      activeNote={activeNoteStore.activeNote}
-      {activeSystemView}
-      noteTypes={notesStore.noteTypes}
-      onClose={closeNoteEditor}
-      onNoteSelect={handleNoteSelect}
-      onCreateNote={handleCreateNote}
-    />
-
-    <RightSidebar
-      {messages}
-      isLoading={isLoadingResponse}
-      onNoteClick={handleNoteClick}
-      onSendMessage={handleSendMessage}
-    />
-  </div>
-</div>
+{/if}
 
 <style>
   .app {
@@ -698,6 +756,39 @@
       color 0.2s ease;
     display: flex;
     flex-direction: column;
+  }
+
+  .app.loading-state {
+    align-items: center;
+    justify-content: center;
+  }
+
+  .loading-content {
+    text-align: center;
+    color: var(--text-secondary);
+  }
+
+  .loading-spinner {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    animation: pulse 2s ease-in-out infinite alternate;
+  }
+
+  @keyframes pulse {
+    from {
+      opacity: 0.6;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1.05);
+    }
+  }
+
+  .loading-content p {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 500;
   }
 
   .title-bar {

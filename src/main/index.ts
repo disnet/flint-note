@@ -199,22 +199,35 @@ app.whenReady().then(async () => {
   try {
     noteService = new NoteService();
     await noteService.initialize();
-    logger.info('Note Service initialized successfully');
 
-    // Ensure default 'note' type exists in current vault
-    try {
-      const currentVault = await noteService.getCurrentVault();
-      if (currentVault) {
-        await noteService.ensureDefaultNoteType(currentVault.id);
-      } else {
-        logger.warn('No current vault available - skipping default note type creation');
+    const status = noteService.getStatus();
+    if (status.canPerformNoteOperations) {
+      logger.info('Note Service initialized successfully with vault support');
+
+      // Ensure default 'note' type exists in current vault
+      try {
+        const currentVault = await noteService.getCurrentVault();
+        if (currentVault) {
+          await noteService.ensureDefaultNoteType(currentVault.id);
+        }
+      } catch (error) {
+        logger.warn('Failed to ensure default note type in current vault:', { error });
       }
-    } catch (error) {
-      logger.warn('Failed to ensure default note type in current vault:', { error });
+    } else if (status.hasVaults) {
+      logger.info('Note Service initialized but vault operations limited');
+    } else {
+      logger.info(
+        'Note Service initialized in vault-management mode (no vaults available)'
+      );
+      logger.info('First-time user experience will be shown');
     }
   } catch (error) {
     logger.error('Failed to initialize Note Service', { error });
     logger.warn('Note operations will not be available');
+    // Still create a basic noteService for vault management even if initialization fails
+    if (!noteService) {
+      noteService = new NoteService();
+    }
   }
 
   // Initialize Secure Storage service
@@ -820,6 +833,39 @@ app.whenReady().then(async () => {
       throw new Error('Note service not available');
     }
     return await noteService.removeVault(params.vaultId);
+  });
+
+  // Reinitialize note service after vault creation/switching
+  ipcMain.handle('reinitialize-note-service', async () => {
+    if (!noteService) {
+      throw new Error('Note service not available');
+    }
+
+    try {
+      const success = await noteService.retryInitialization();
+      if (success) {
+        logger.info('Note service successfully reinitialized after vault operation');
+
+        // Ensure default note type exists in the new vault
+        try {
+          const currentVault = await noteService.getCurrentVault();
+          if (currentVault) {
+            await noteService.ensureDefaultNoteType(currentVault.id);
+          }
+        } catch (error) {
+          logger.warn('Failed to ensure default note type after reinitialization:', {
+            error
+          });
+        }
+      }
+      return { success, status: noteService.getStatus() };
+    } catch (error) {
+      logger.error('Failed to reinitialize note service:', { error });
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
   });
 
   // Link operations

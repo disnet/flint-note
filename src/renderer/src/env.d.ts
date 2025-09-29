@@ -168,6 +168,15 @@ declare global {
       }) => Promise<any>;
       switchVault: (params: { vaultId: string }) => Promise<any>;
       removeVault: (params: { vaultId: string }) => Promise<any>;
+      reinitializeNoteService: () => Promise<{
+        success: boolean;
+        status?: {
+          isInitialized: boolean;
+          hasVaults: boolean;
+          canPerformNoteOperations: boolean;
+        };
+        error?: string;
+      }>;
 
       // File system operations
       showDirectoryPicker: () => Promise<any>;

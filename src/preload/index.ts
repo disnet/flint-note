@@ -206,6 +206,8 @@ const api = {
     electronAPI.ipcRenderer.invoke('switch-vault', params),
   removeVault: (params: { vaultId: string }) =>
     electronAPI.ipcRenderer.invoke('remove-vault', params),
+  reinitializeNoteService: () =>
+    electronAPI.ipcRenderer.invoke('reinitialize-note-service'),
 
   // File system operations
   showDirectoryPicker: () => electronAPI.ipcRenderer.invoke('show-directory-picker'),

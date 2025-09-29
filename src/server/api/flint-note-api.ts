@@ -178,10 +178,11 @@ export class FlintNoteApi {
           await this.createOnboardingContentWithManager(noteManager);
         }
       } else {
-        throw new Error(
-          'No workspace path provided in config. ' +
-            'FlintNoteApi requires explicit workspace path configuration.'
-        );
+        // No workspace path - we can still do vault operations with globalConfig
+        // but cannot perform note operations that require a workspace
+        console.log('No workspace path provided - vault operations only mode');
+        // Don't set this.initialized = true, as we're not fully initialized for note operations
+        return;
       }
 
       this.initialized = true;
@@ -195,6 +196,15 @@ export class FlintNoteApi {
     if (!this.initialized) {
       throw new Error(
         'FlintNoteApi must be initialized before use. Call initialize() first.'
+      );
+    }
+  }
+
+  private ensureVaultOpsAvailable(): void {
+    // Vault operations only need globalConfig, not full workspace initialization
+    if (!this.globalConfig) {
+      throw new Error(
+        'FlintNoteApi configuration not available. Cannot perform vault operations.'
       );
     }
   }
@@ -523,7 +533,7 @@ export class FlintNoteApi {
    * Create a new vault with optional initialization and switching
    */
   async createVault(args: CreateVaultArgs): Promise<VaultInfo> {
-    this.ensureInitialized();
+    this.ensureVaultOpsAvailable();
 
     // Validate vault ID
     if (!this.globalConfig.isValidVaultId(args.id)) {
@@ -599,7 +609,7 @@ export class FlintNoteApi {
    * Switch to a different vault
    */
   async switchVault(args: SwitchVaultArgs): Promise<void> {
-    this.ensureInitialized();
+    this.ensureVaultOpsAvailable();
 
     const vault = this.globalConfig.getVault(args.id);
     if (!vault) {
@@ -639,7 +649,7 @@ export class FlintNoteApi {
    * Remove a vault from the registry (does not delete files)
    */
   async removeVault(args: RemoveVaultArgs): Promise<void> {
-    this.ensureInitialized();
+    this.ensureVaultOpsAvailable();
 
     const vault = this.globalConfig.getVault(args.id);
     if (!vault) {

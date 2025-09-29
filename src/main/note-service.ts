@@ -36,6 +36,7 @@ export class NoteService {
   private api: FlintNoteApi;
   private isInitialized = false;
   private electronUserDataPath: string;
+  private hasVaultsAvailable = false;
 
   constructor() {
     // Use Electron's userData directory for configuration storage
@@ -62,20 +63,68 @@ export class NoteService {
           workspacePath: currentVaultPath,
           throwOnError: false
         });
-      }
 
-      await this.api.initialize();
-      this.isInitialized = true;
-      logger.info('FlintNote API initialized successfully');
+        await this.api.initialize();
+        this.isInitialized = true;
+        this.hasVaultsAvailable = true;
+        logger.info(
+          'FlintNote API initialized successfully with vault:',
+          currentVaultPath
+        );
+      } else {
+        // No vaults available - set up API without workspace for vault operations only
+        this.api = new FlintNoteApi({
+          configDir: this.electronUserDataPath,
+          throwOnError: false
+        });
+        this.isInitialized = false; // Not fully initialized for note operations
+        this.hasVaultsAvailable = false;
+        logger.info('No vaults available - NoteService in vault-management-only mode');
+      }
     } catch (error) {
       logger.error('Failed to initialize FlintNote API', { error });
-      throw error;
+      this.isInitialized = false;
+      this.hasVaultsAvailable = false;
+      // Don't throw - allow the service to exist in an uninitialized state
+      logger.warn(
+        'NoteService will operate in limited mode due to initialization failure'
+      );
     }
   }
 
   private ensureInitialized(): void {
     if (!this.isInitialized) {
-      throw new Error('NoteService must be initialized before use');
+      throw new Error(
+        'NoteService must be initialized before use. Please create or select a vault first.'
+      );
+    }
+  }
+
+  /**
+   * Check if vaults are available for initialization
+   */
+  async checkVaultAvailability(): Promise<boolean> {
+    try {
+      const currentVaultPath = await getCurrentVaultPath(this.electronUserDataPath);
+      return currentVaultPath !== null;
+    } catch (error) {
+      logger.error('Failed to check vault availability:', { error });
+      return false;
+    }
+  }
+
+  /**
+   * Retry initialization after vault creation/switching
+   */
+  async retryInitialization(): Promise<boolean> {
+    try {
+      this.isInitialized = false;
+      this.hasVaultsAvailable = false;
+      await this.initialize();
+      return this.isInitialized;
+    } catch (error) {
+      logger.error('Failed to retry initialization:', { error });
+      return false;
     }
   }
 
@@ -588,5 +637,24 @@ export class NoteService {
   // Utility methods
   isReady(): boolean {
     return this.isInitialized;
+  }
+
+  hasVaults(): boolean {
+    return this.hasVaultsAvailable;
+  }
+
+  /**
+   * Get initialization status with details
+   */
+  getStatus(): {
+    isInitialized: boolean;
+    hasVaults: boolean;
+    canPerformNoteOperations: boolean;
+  } {
+    return {
+      isInitialized: this.isInitialized,
+      hasVaults: this.hasVaultsAvailable,
+      canPerformNoteOperations: this.isInitialized && this.hasVaultsAvailable
+    };
   }
 }
