@@ -1,10 +1,11 @@
 <script lang="ts">
   import CreateVaultModal from './CreateVaultModal.svelte';
   import type { VaultInfo } from '@/server/utils/global-config';
+  import type { CreateVaultResult } from '@/server/api/types';
   import { vaultAvailabilityService } from '../services/vaultAvailabilityService.svelte';
 
   interface Props {
-    onVaultCreated: (vault: VaultInfo) => void;
+    onVaultCreated: (vault: CreateVaultResult) => void;
   }
 
   let { onVaultCreated }: Props = $props();
@@ -19,29 +20,23 @@
     isCreateModalOpen = false;
   }
 
-  async function handleVaultCreated(vault: VaultInfo): Promise<void> {
-    // Update the vault availability service
-    vaultAvailabilityService.handleVaultCreated(vault);
+  async function handleVaultCreated(vault: CreateVaultResult): Promise<void> {
+    // Update the vault availability service with VaultInfo portion
+    const vaultInfo: VaultInfo = {
+      id: vault.id,
+      name: vault.name,
+      path: vault.path,
+      created: vault.created,
+      last_accessed: vault.last_accessed,
+      description: vault.description
+    };
+    vaultAvailabilityService.handleVaultCreated(vaultInfo);
 
-    // Notify parent component
+    // Notify parent component with full CreateVaultResult
     onVaultCreated(vault);
 
     // Close modal
     isCreateModalOpen = false;
-  }
-
-  async function handleImportExisting(): Promise<void> {
-    try {
-      const selectedPath = await window.api.showDirectoryPicker();
-      if (selectedPath) {
-        // Try to detect if this is an existing Flint vault
-        // For now, just open the create modal with the path pre-filled
-        // TODO: In the future, we could add proper vault detection logic
-        isCreateModalOpen = true;
-      }
-    } catch (error) {
-      console.error('Failed to select directory:', error);
-    }
   }
 </script>
 

@@ -19,8 +19,9 @@
   import { generateSafeNoteIdentifier } from './utils/noteUtils.svelte';
   import { vaultAvailabilityService } from './services/vaultAvailabilityService.svelte';
   import { pinnedNotesStore } from './services/pinnedStore.svelte';
+  import { dailyViewStore } from './stores/dailyViewStore.svelte';
   import { onMount } from 'svelte';
-  import type { VaultInfo } from '@/server/utils/global-config';
+  import type { CreateVaultResult } from '@/server/api/types';
 
   // Initialize unified chat store effects
   unifiedChatStore.initializeEffects();
@@ -506,7 +507,9 @@
   }
 
   // Handle vault creation from first-time experience
-  async function handleVaultCreatedFromFirstTime(vault: VaultInfo): Promise<void> {
+  async function handleVaultCreatedFromFirstTime(
+    vault: CreateVaultResult
+  ): Promise<void> {
     console.log('Vault created from first-time experience:', vault);
 
     // The vault availability service should already be updated by FirstTimeExperience
@@ -521,21 +524,30 @@
         await notesStore.refresh();
         console.log('Notes store refreshed after vault creation');
 
-        // Set up onboarding content for the new vault
-        try {
-          await pinnedNotesStore.pinWelcomeNote();
-          console.log('Welcome note pinned successfully');
-        } catch (error) {
-          console.warn('Failed to pin welcome note:', error);
-          // Non-blocking - don't fail the vault creation flow
-        }
+        // Reinitialize the daily view store now that a vault is available
+        await dailyViewStore.reinitialize();
+        console.log('Daily view store reinitialized after vault creation');
 
-        try {
-          await temporaryTabsStore.addTutorialNoteTabs();
-          console.log('Tutorial tabs added successfully');
-        } catch (error) {
-          console.warn('Failed to add tutorial notes to tabs:', error);
-          // Non-blocking - don't fail the vault creation flow
+        // Set up onboarding content only for new vaults (not existing ones)
+        if (vault.isNewVault) {
+          console.log('New vault detected, setting up onboarding content');
+          try {
+            await pinnedNotesStore.pinWelcomeNote();
+            console.log('Welcome note pinned successfully');
+          } catch (error) {
+            console.warn('Failed to pin welcome note:', error);
+            // Non-blocking - don't fail the vault creation flow
+          }
+
+          try {
+            await temporaryTabsStore.addTutorialNoteTabs();
+            console.log('Tutorial tabs added successfully');
+          } catch (error) {
+            console.warn('Failed to add tutorial notes to tabs:', error);
+            // Non-blocking - don't fail the vault creation flow
+          }
+        } else {
+          console.log('Existing vault detected, skipping onboarding content setup');
         }
       } else {
         console.error('Failed to reinitialize note service:', result?.error);

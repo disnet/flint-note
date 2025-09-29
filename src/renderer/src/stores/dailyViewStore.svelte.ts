@@ -82,10 +82,11 @@ const defaultState: DailyViewState = {
 class DailyViewStore {
   private state = $state<DailyViewState>(defaultState);
   private updateDebounceTimeout: number | null = null;
+  private isInitialized = false;
 
   constructor() {
-    // Initialize with current week on creation
-    this.loadCurrentWeek();
+    // Don't load data in constructor to avoid errors during first-time setup
+    // Data will be loaded lazily when first accessed
   }
 
   get loading(): boolean {
@@ -93,7 +94,29 @@ class DailyViewStore {
   }
 
   get weekData(): WeekData | null {
+    this.ensureInitialized();
     return this.state.currentWeek;
+  }
+
+  /**
+   * Initialize the store if not already initialized
+   */
+  private ensureInitialized(): void {
+    if (!this.isInitialized) {
+      this.isInitialized = true;
+      this.loadCurrentWeek().catch((error) => {
+        console.warn('Failed to initialize daily view store:', error);
+      });
+    }
+  }
+
+  /**
+   * Reinitialize the store after vault setup
+   */
+  async reinitialize(): Promise<void> {
+    this.isInitialized = false;
+    this.state = { ...defaultState };
+    await this.loadCurrentWeek();
   }
 
   get selectedDate(): string | null {
@@ -123,7 +146,10 @@ class DailyViewStore {
       // Get current vault if vaultId not provided
       const currentVaultId = vaultId || (await this.getCurrentVaultId());
       if (!currentVaultId) {
-        throw new Error('No vault available');
+        // During first-time setup, no vault may be available yet
+        console.log('No vault available for daily view, waiting for vault setup');
+        this.state.currentWeek = null;
+        return;
       }
 
       // Load real week data via IPC
