@@ -494,6 +494,33 @@ export class GlobalConfigManager {
   }
 
   /**
+   * Check if a path is already registered as a vault (possibly under different ID)
+   * @param vaultPath - Path to check for conflicts
+   * @param excludeId - Optional vault ID to exclude from conflict check
+   * @returns VaultInfo if path conflicts with existing vault, null otherwise
+   */
+  getVaultByPath(vaultPath: string, excludeId?: string): VaultInfo | null {
+    if (!this.#config) {
+      return null;
+    }
+
+    const resolvedPath = path.resolve(vaultPath);
+
+    for (const [vaultId, vaultInfo] of Object.entries(this.#config.vaults)) {
+      if (excludeId && vaultId === excludeId) {
+        continue;
+      }
+
+      const existingPath = path.resolve(vaultInfo.path);
+      if (existingPath === resolvedPath) {
+        return vaultInfo;
+      }
+    }
+
+    return null;
+  }
+
+  /**
    * Get configuration directory path
    */
   getConfigDir(): string {

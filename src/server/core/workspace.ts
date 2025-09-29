@@ -108,6 +108,40 @@ export class Workspace {
     }
   }
 
+  /**
+   * Check if a directory contains an existing Flint vault
+   * @param vaultPath - Path to check for existing vault
+   * @returns Promise<boolean> - True if directory contains a valid Flint vault
+   */
+  static async isExistingVault(vaultPath: string): Promise<boolean> {
+    try {
+      const flintNoteDir = path.join(vaultPath, '.flint-note');
+      const configPath = path.join(flintNoteDir, 'config.yml');
+
+      // Check if .flint-note directory exists
+      const flintNoteStat = await fs.stat(flintNoteDir);
+      if (!flintNoteStat.isDirectory()) {
+        return false;
+      }
+
+      // Check if config.yml exists and is readable
+      const configStat = await fs.stat(configPath);
+      if (!configStat.isFile()) {
+        return false;
+      }
+
+      // Try to read and parse the config to ensure it's valid
+      const configContent = await fs.readFile(configPath, 'utf-8');
+      const config = yaml.load(configContent) as PartialWorkspaceConfig;
+
+      // Basic validation - must have workspace_root
+      return Boolean(config && config.workspace_root);
+    } catch {
+      // If any error occurs (file doesn't exist, permission denied, etc.), not a vault
+      return false;
+    }
+  }
+
   constructor(rootPath: string, databaseManager?: DatabaseManager) {
     this.rootPath = path.resolve(rootPath);
     this.flintNoteDir = path.join(this.rootPath, '.flint-note');

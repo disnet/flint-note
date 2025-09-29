@@ -555,36 +555,108 @@ export class FlintNoteApi {
       throw new Error(`Invalid or unsafe path: ${args.path}`);
     }
 
-    // Ensure directory exists
-    await fs.mkdir(resolvedPath, { recursive: true });
-
-    // Add vault to registry
-    await this.globalConfig.addVault(args.id, args.name, resolvedPath, args.description);
-
-    if (args.initialize !== false) {
-      // Initialize the vault with default note types
-      const tempHybridSearchManager = new HybridSearchManager(resolvedPath);
-      const workspace = new Workspace(
-        resolvedPath,
-        tempHybridSearchManager.getDatabaseManager()
+    // Check if path is already registered as a different vault
+    const existingVaultAtPath = this.globalConfig.getVaultByPath(resolvedPath, args.id);
+    if (existingVaultAtPath) {
+      throw new Error(
+        `Path '${resolvedPath}' is already registered as vault '${existingVaultAtPath.name}' (ID: ${existingVaultAtPath.id})`
       );
-      await workspace.initializeVault();
+    }
 
-      // Initialize hybrid search index for the new vault
-      const stats = await tempHybridSearchManager.getStats();
-      const forceRebuild = process.env.FORCE_INDEX_REBUILD === 'true';
-      const isEmptyIndex = stats.noteCount === 0;
-      const shouldRebuild = forceRebuild || isEmptyIndex;
+    // Check if directory contains an existing vault
+    const isExistingVault = await Workspace.isExistingVault(resolvedPath);
 
-      await handleIndexRebuild(tempHybridSearchManager, shouldRebuild, logInitialization);
+    if (args.detectExisting !== false && isExistingVault) {
+      // Path contains existing vault - just register it without full initialization
 
-      // Create onboarding content for the new vault
-      try {
-        const tempNoteManager = new NoteManager(workspace, tempHybridSearchManager);
-        await this.createOnboardingContentWithManager(tempNoteManager);
-      } catch (error) {
-        console.error('Failed to create onboarding content for new vault:', error);
-        // Don't throw - onboarding content creation shouldn't block vault creation
+      // Ensure directory exists (should already exist, but make sure)
+      await fs.mkdir(resolvedPath, { recursive: true });
+
+      // Add vault to registry
+      await this.globalConfig.addVault(
+        args.id,
+        args.name,
+        resolvedPath,
+        args.description
+      );
+
+      // For existing vaults, only do minimal initialization to preserve existing data
+      if (args.initialize !== false) {
+        const tempHybridSearchManager = new HybridSearchManager(resolvedPath);
+        const workspace = new Workspace(
+          resolvedPath,
+          tempHybridSearchManager.getDatabaseManager()
+        );
+
+        // Initialize workspace to load existing config and handle migrations
+        await workspace.initialize();
+
+        // Rebuild search index if needed (but don't create new content)
+        const stats = await tempHybridSearchManager.getStats();
+        const forceRebuild = process.env.FORCE_INDEX_REBUILD === 'true';
+        const shouldRebuild = forceRebuild || stats.noteCount === 0;
+
+        if (shouldRebuild) {
+          await handleIndexRebuild(
+            tempHybridSearchManager,
+            shouldRebuild,
+            logInitialization
+          );
+        }
+
+        await tempHybridSearchManager.close();
+      }
+    } else {
+      // New vault or existing detection disabled - proceed with full initialization
+
+      if (isExistingVault && args.detectExisting === false) {
+        console.warn(
+          `Warning: Path '${resolvedPath}' contains existing vault but detectExisting=false, proceeding with initialization`
+        );
+      }
+
+      // Ensure directory exists
+      await fs.mkdir(resolvedPath, { recursive: true });
+
+      // Add vault to registry
+      await this.globalConfig.addVault(
+        args.id,
+        args.name,
+        resolvedPath,
+        args.description
+      );
+
+      if (args.initialize !== false) {
+        // Initialize the vault with default note types
+        const tempHybridSearchManager = new HybridSearchManager(resolvedPath);
+        const workspace = new Workspace(
+          resolvedPath,
+          tempHybridSearchManager.getDatabaseManager()
+        );
+        await workspace.initializeVault();
+
+        // Initialize hybrid search index for the new vault
+        const stats = await tempHybridSearchManager.getStats();
+        const forceRebuild = process.env.FORCE_INDEX_REBUILD === 'true';
+        const isEmptyIndex = stats.noteCount === 0;
+        const shouldRebuild = forceRebuild || isEmptyIndex;
+
+        await handleIndexRebuild(
+          tempHybridSearchManager,
+          shouldRebuild,
+          logInitialization
+        );
+
+        // Create onboarding content for the new vault
+        try {
+          const tempNoteManager = new NoteManager(workspace, tempHybridSearchManager);
+          await this.createOnboardingContentWithManager(tempNoteManager);
+        } catch (error) {
+          console.error('Failed to create onboarding content for new vault:', error);
+          // Don't throw - onboarding content creation shouldn't block vault creation
+        }
+
+        await tempHybridSearchManager.close();
       }
     }
 

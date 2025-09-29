@@ -179,7 +179,7 @@
   >
     <div class="modal-content">
       <div class="modal-header">
-        <h3 id="modal-title">📁 Create New Vault</h3>
+        <h3 id="modal-title">📁 Open New Vault</h3>
         <button class="close-btn" onclick={onClose} aria-label="Close modal"> ✕ </button>
       </div>
 
@@ -262,7 +262,6 @@
         {/if}
 
         <div class="form-actions">
-          <div class="pro-tip">💡 Pro tip: Use Ctrl+Enter to create quickly</div>
           <div class="action-buttons">
             <button type="button" class="cancel-btn" onclick={onClose}> Cancel </button>
             <button
@@ -274,7 +273,7 @@
                 !vaultName.trim() ||
                 !vaultPath.trim()}
             >
-              {isLoading ? 'Creating...' : 'Create Vault'}
+              {isLoading ? 'Creating...' : 'Open Vault'}
             </button>
           </div>
         </div>

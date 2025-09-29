@@ -200,6 +200,7 @@ export interface CreateVaultArgs {
   description?: string;
   initialize?: boolean;
   switch_to?: boolean;
+  detectExisting?: boolean; // If true, check if path contains existing vault and handle appropriately
 }
 
 export interface SwitchVaultArgs {

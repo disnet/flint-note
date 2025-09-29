@@ -373,8 +373,8 @@
           </svg>
         </span>
         <div class="vault-details">
-          <div class="vault-name">New Vault</div>
-          <div class="vault-description">Create a new vault</div>
+          <div class="vault-name">New/Open Vault</div>
+          <div class="vault-description">Open a vault</div>
         </div>
       </button>
     </div>
