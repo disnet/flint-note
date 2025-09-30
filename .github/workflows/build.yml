@@ -38,46 +38,17 @@ jobs:
       - name: Build application
         run: npm run build
 
-      - name: Import Code Signing Certificate (macOS)
-        if: matrix.os == 'macos-latest'
-        env:
-          BUILD_CERTIFICATE_BASE64: ${{ secrets.CSC_LINK }}
-          P12_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-        run: |
-          # Create variables
-          CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
-
-          # Import certificate from secrets
-          echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o $CERTIFICATE_PATH
-
-          # Import certificate to login keychain (default)
-          security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k ~/Library/Keychains/login.keychain
-
-          # Set the partition list (required for codesign to access the private key)
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" ~/Library/Keychains/login.keychain
-
-          # Verify certificate is available
-          echo "Available identities:"
-          security find-identity -v -p codesigning
-
-          # Clean up certificate file
-          rm $CERTIFICATE_PATH
-
       - name: Build Electron app (macOS)
         if: matrix.os == 'macos-latest'
         run: npm run build:mac
         env:
-          CSC_IDENTITY_AUTO_DISCOVERY: true
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false
 
       - name: Build Electron app (Windows)
         if: matrix.os == 'windows-latest'
         run: npm run build:win
         env:
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false
 
       - name: Build Electron app (Linux)
         if: matrix.os == 'ubuntu-latest'
