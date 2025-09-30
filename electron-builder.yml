@@ -66,5 +66,5 @@ appImage:
 npmRebuild: false
 publish:
   provider: generic
-  url: https://updates.flint-note.rocks # TODO: Replace with your actual update server URL
+  url: https://updates.flintnote.com # TODO: Replace with your actual Cloudflare R2 public URL
 # afterSign: build/notarize.cjs # Disabled: using DMG notarization instead

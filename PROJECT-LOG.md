@@ -1,5 +1,9 @@
 # Project Log
 
+## Cloudflare R2 Auto-Updater Setup - 2025-09-30
+
+- **Migrated auto-updater deployment from Netlify to Cloudflare R2** for zero-cost bandwidth distribution: updated docs/AUTO-UPDATER-SETUP.md with comprehensive R2 setup instructions including bucket creation, API token generation, and GitHub Actions integration; updated electron-builder.yml to point to R2 public URL; added deploy-to-r2 job to .github/workflows/release.yml that uses AWS CLI with S3-compatible API to upload build artifacts after release; configured proper YAML content types and public ACLs for update metadata files; deployment automatically triggers on version tags and uploads all installers plus latest.yml update metadata to R2 bucket; cost comparison shows R2 at ~$0.01/month for 10,000 updates vs Netlify $2,000/month or AWS $900/month due to free egress bandwidth
+
 ## Note Type Dropdown for New Note Button - 2025-09-29
 
 - **Added note type selection dropdown to the "New Note" button** by implementing a button group with main "New Note" button and dropdown arrow; modified TemporaryTabs.svelte to replace single button with button group that includes dropdown showing all available note types from notesStore.noteTypes; updated prop interfaces throughout component chain (LeftSidebar.svelte, App.svelte) to pass optional noteType parameter to handleCreateNote function; added dropdown state management with click-outside-to-close functionality and smooth animations; styled button group with seamless visual connection between main button and dropdown arrow, consistent with existing UI patterns; preserved existing behavior where clicking main button creates default "note" type while dropdown allows selection of any available note type

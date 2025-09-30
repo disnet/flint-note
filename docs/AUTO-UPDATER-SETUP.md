@@ -1,10 +1,10 @@
 # Flint Auto-Updater System
 
-This document explains how the auto-updater system works and provides instructions for setting up AWS S3 + CloudFront for hosting updates.
+This document explains how the auto-updater system works and provides instructions for setting up Cloudflare R2 for hosting updates.
 
 ## Overview
 
-The Flint application uses `electron-updater` to provide automatic application updates. The system is designed for private/proprietary applications and uses a self-hosted approach with AWS S3 and CloudFront for reliable, global distribution.
+The Flint application uses `electron-updater` to provide automatic application updates. The system is designed for private/proprietary applications and uses Cloudflare R2 for cost-effective, reliable distribution with zero egress fees.
 
 **Current Version:** The application is currently at version 0.1.0 (as specified in `package.json`). Auto-updates will only trigger when a higher version number is available on the update server.
 
@@ -93,169 +93,59 @@ src/
     └── env.d.ts                     # Type definitions
 ```
 
-## AWS S3 + CloudFront Setup
+## Cloudflare R2 Setup
 
 ### Prerequisites
 
-- AWS Account with appropriate permissions
-- AWS CLI installed and configured
-- Domain name (optional but recommended)
+- Cloudflare account (free tier available)
+- Wrangler CLI installed (optional, for local testing): `npm install -g wrangler`
 
-### Step 1: Create S3 Bucket
+### Why Cloudflare R2?
 
-1. **Create the bucket:**
+- **Zero egress fees** - No bandwidth charges for downloads
+- **S3-compatible API** - Works with existing tools
+- **Global CDN** - Fast downloads worldwide via Cloudflare's network
+- **Cost-effective** - Pay only for storage (~$0.015/GB/month) and minimal operation fees
 
-   ```bash
-   aws s3 mb s3://your-app-updates-bucket --region us-east-1
-   ```
+### Step 1: Create R2 Bucket
 
-2. **Configure bucket policy for public read access:**
+1. **Log into Cloudflare Dashboard:**
+   - Go to [dash.cloudflare.com](https://dash.cloudflare.com)
+   - Navigate to R2 Object Storage
 
-   ```json
-   {
-     "Version": "2012-10-17",
-     "Statement": [
-       {
-         "Sid": "PublicReadGetObject",
-         "Effect": "Allow",
-         "Principal": "*",
-         "Action": "s3:GetObject",
-         "Resource": "arn:aws:s3:::your-app-updates-bucket/*"
-       }
-     ]
-   }
-   ```
+2. **Create a bucket:**
+   - Click "Create bucket"
+   - Name it (e.g., `flint-updates`)
+   - Choose a location (Automatic is recommended)
 
-3. **Apply the bucket policy:**
+3. **Enable public access:**
+   - Go to bucket Settings → Public Access
+   - Click "Connect Domain" or "Allow Access"
+   - Note the public R2.dev URL (e.g., `https://pub-xxxxx.r2.dev`)
+   - Or connect a custom domain (e.g., `updates.yourdomain.com`)
 
-   ```bash
-   aws s3api put-bucket-policy --bucket your-app-updates-bucket --policy file://bucket-policy.json
-   ```
+### Step 2: Create API Token
 
-4. **Enable public access:**
-   ```bash
-   aws s3api put-public-access-block --bucket your-app-updates-bucket --public-access-block-configuration "BlockPublicAcls=false,IgnorePublicAcls=false,BlockPublicPolicy=false,RestrictPublicBuckets=false"
-   ```
+1. **Generate R2 API Token:**
+   - In Cloudflare Dashboard → R2 → Manage R2 API Tokens
+   - Click "Create API token"
+   - Permissions: Object Read & Write
+   - Scope to your specific bucket (optional but recommended)
+   - Save the Access Key ID and Secret Access Key
 
-### Step 2: Create CloudFront Distribution
-
-1. **Create distribution configuration file** (`cloudfront-distribution.json`):
-
-   Note: The `CallerReference` field needs to be generated dynamically. You can use a script or manually replace the timestamp.
-
-   ```json
-   {
-     "CallerReference": "flint-updates-1234567890",
-     "Comment": "Flint App Updates Distribution",
-     "DefaultCacheBehavior": {
-       "TargetOriginId": "S3-your-app-updates-bucket",
-       "ViewerProtocolPolicy": "redirect-to-https",
-       "MinTTL": 0,
-       "DefaultTTL": 86400,
-       "MaxTTL": 31536000,
-       "ForwardedValues": {
-         "QueryString": false,
-         "Cookies": {
-           "Forward": "none"
-         }
-       },
-       "TrustedSigners": {
-         "Enabled": false,
-         "Quantity": 0
-       },
-       "Compress": true,
-       "AllowedMethods": {
-         "Quantity": 2,
-         "Items": ["GET", "HEAD"],
-         "CachedMethods": {
-           "Quantity": 2,
-           "Items": ["GET", "HEAD"]
-         }
-       }
-     },
-     "Origins": {
-       "Quantity": 1,
-       "Items": [
-         {
-           "Id": "S3-your-app-updates-bucket",
-           "DomainName": "your-app-updates-bucket.s3.amazonaws.com",
-           "S3OriginConfig": {
-             "OriginAccessIdentity": ""
-           }
-         }
-       ]
-     },
-     "Enabled": true,
-     "PriceClass": "PriceClass_100"
-   }
-   ```
-
-   To generate the `CallerReference` dynamically:
-   ```bash
-   # Create the JSON with a timestamp
-   CALLER_REF="flint-updates-$(date +%s)"
-   cat > cloudfront-distribution.json <<EOF
-   {
-     "CallerReference": "$CALLER_REF",
-     ...
-   }
-   EOF
-   ```
-
-2. **Create the distribution:**
-
-   ```bash
-   aws cloudfront create-distribution --distribution-config file://cloudfront-distribution.json
-   ```
-
-3. **Note the CloudFront domain name** from the response (e.g., `d1234567890123.cloudfront.net`)
-
-### Step 3: Configure Custom Domain (Optional)
-
-1. **Create SSL certificate in ACM** (must be in us-east-1 for CloudFront):
-
-   ```bash
-   aws acm request-certificate --domain-name updates.yourdomain.com --validation-method DNS --region us-east-1
-   ```
-
-2. **Validate the certificate** by adding the DNS record provided by ACM
-
-3. **Update CloudFront distribution** to use custom domain:
-
-   ```json
-   {
-     "Aliases": {
-       "Quantity": 1,
-       "Items": ["updates.yourdomain.com"]
-     },
-     "ViewerCertificate": {
-       "ACMCertificateArn": "arn:aws:acm:us-east-1:123456789012:certificate/12345678-1234-1234-1234-123456789012",
-       "SSLSupportMethod": "sni-only",
-       "MinimumProtocolVersion": "TLSv1.2_2021"
-     }
-   }
-   ```
-
-4. **Add CNAME record** in your DNS:
-   ```
-   Type: CNAME
-   Name: updates
-   Value: d1234567890123.cloudfront.net
-   ```
-
-### Step 4: Update Application Configuration
+### Step 3: Update Application Configuration
 
 1. **Update `electron-builder.yml`:**
 
    ```yaml
    publish:
      provider: generic
-     url: https://updates.yourdomain.com # or https://d1234567890123.cloudfront.net
+     url: https://pub-xxxxx.r2.dev # or https://updates.yourdomain.com
    ```
 
-   **Important:** The current configuration uses `https://updates.flint-note.rocks` as a placeholder. You must update this URL to your actual update server before deploying.
+   **Important:** The current configuration uses `https://updates.flint-note.rocks` as a placeholder. You must update this URL to your actual R2 public URL before deploying.
 
-2. **For multiple environments, create separate configs:**
+2. **For multiple environments, create separate R2 buckets:**
 
    ```yaml
    # electron-builder.yml (production)
@@ -269,50 +159,41 @@ src/
      url: https://staging-updates.yourdomain.com
    ```
 
-### Step 5: Deployment Script (Optional)
+### Step 4: Manual Deployment (Optional)
 
-You can create a deployment script (`scripts/deploy-updates.sh`) for manual deployments, or use GitHub Actions (recommended, see Step 6):
+For quick testing, you can manually upload using Wrangler CLI or AWS CLI (R2 is S3-compatible):
 
+**Using Wrangler:**
 ```bash
-#!/bin/bash
+# Install wrangler
+npm install -g wrangler
 
-# Configuration
-BUCKET_NAME="your-app-updates-bucket"
-CLOUDFRONT_DISTRIBUTION_ID="E1234567890123"
-VERSION=$(node -p "require('./package.json').version")
-
-echo "Deploying version $VERSION..."
+# Authenticate
+wrangler login
 
 # Build the application
 npm run build
+npm run build:mac  # or build:win, build:linux
 
-# Build platform-specific packages
-npm run build:win
-npm run build:mac
-npm run build:linux
-
-# Upload files to S3
-aws s3 sync dist/ s3://$BUCKET_NAME/ --delete --exclude "*.blockmap"
-
-# Upload latest files (these contain update metadata)
-aws s3 cp dist/latest.yml s3://$BUCKET_NAME/latest.yml
-aws s3 cp dist/latest-mac.yml s3://$BUCKET_NAME/latest-mac.yml
-aws s3 cp dist/latest-linux.yml s3://$BUCKET_NAME/latest-linux.yml
-
-# Invalidate CloudFront cache for latest files
-aws cloudfront create-invalidation --distribution-id $CLOUDFRONT_DISTRIBUTION_ID --paths "/latest*.yml"
-
-echo "Deployment complete!"
-echo "Files available at: https://updates.yourdomain.com/"
+# Upload to R2
+wrangler r2 object put flint-updates/latest.yml --file=dist/latest.yml
+wrangler r2 object put flint-updates/latest-mac.yml --file=dist/latest-mac.yml
+# ... upload other files
 ```
 
-Make it executable:
-
+**Using AWS CLI (S3-compatible):**
 ```bash
-chmod +x scripts/deploy-updates.sh
+# Configure AWS CLI with R2 credentials
+aws configure --profile r2
+# Enter your R2 Access Key ID and Secret Access Key
+# Region: auto
+# Endpoint: https://<account-id>.r2.cloudflarestorage.com
+
+# Upload files
+aws s3 sync dist/ s3://flint-updates/ --profile r2 --endpoint-url https://<account-id>.r2.cloudflarestorage.com
 ```
 
-### Step 6: GitHub Actions Integration
+### Step 5: GitHub Actions Integration
 
 The project includes two GitHub Actions workflows:
 
@@ -327,12 +208,12 @@ The release workflow (`.github/workflows/release.yml`) is already configured wit
 - Automatic code signing for both platforms
 - Artifact upload and GitHub release creation
 
-#### Adding S3/CloudFront Deployment
+#### Adding R2 Deployment
 
-To add automatic deployment to S3/CloudFront, add a new job to `.github/workflows/release.yml` after the `create-release` job:
+To add automatic deployment to Cloudflare R2, add a new job to `.github/workflows/release.yml` after the `create-release` job:
 
 ```yaml
-  deploy-to-s3:
+  deploy-to-r2:
     needs: release
     runs-on: ubuntu-latest
 
@@ -347,47 +228,57 @@ To add automatic deployment to S3/CloudFront, add a new job to `.github/workflow
           mkdir -p dist
           find artifacts -type f -exec cp {} dist/ \;
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
-
-      - name: Deploy to S3
-        env:
-          BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
+      - name: Configure R2 credentials
         run: |
-          # Upload application files
-          aws s3 sync dist/ s3://$BUCKET_NAME/ --delete --exclude "*.blockmap"
+          mkdir -p ~/.aws
+          cat > ~/.aws/credentials << EOF
+          [r2]
+          aws_access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          aws_secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          EOF
+          cat > ~/.aws/config << EOF
+          [profile r2]
+          region = auto
+          endpoint_url = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+          EOF
 
-          # Upload latest files (update metadata)
-          aws s3 cp dist/latest.yml s3://$BUCKET_NAME/latest.yml || true
-          aws s3 cp dist/latest-mac.yml s3://$BUCKET_NAME/latest-mac.yml || true
-          aws s3 cp dist/latest-linux.yml s3://$BUCKET_NAME/latest-linux.yml || true
-
-      - name: Invalidate CloudFront cache
+      - name: Deploy to R2
         env:
-          CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
+          BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
         run: |
-          aws cloudfront create-invalidation --distribution-id $CLOUDFRONT_DISTRIBUTION_ID --paths "/latest*.yml"
+          # Upload all files to R2 using S3-compatible API
+          aws s3 sync dist/ s3://$BUCKET_NAME/ \
+            --profile r2 \
+            --endpoint-url https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com \
+            --exclude "*.blockmap"
+
+          # Ensure latest.yml files have proper content type
+          for file in dist/latest*.yml; do
+            if [ -f "$file" ]; then
+              aws s3 cp "$file" s3://$BUCKET_NAME/$(basename "$file") \
+                --profile r2 \
+                --endpoint-url https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com \
+                --content-type "text/yaml"
+            fi
+          done
 ```
 
 This approach:
 - Reuses artifacts from the existing build matrix
 - Keeps signing and building separate from deployment
-- Only requires AWS secrets, not code signing secrets
+- Uses S3-compatible API (no CloudFront invalidation needed!)
+- Only requires R2 secrets, not code signing secrets
 
 #### Required GitHub Secrets
 
 Add these secrets to your repository settings (`Settings > Secrets and variables > Actions`):
 
-**For both Windows and macOS:**
+**For R2 deployment:**
 
-- `AWS_ACCESS_KEY_ID` - AWS access key with S3 and CloudFront permissions
-- `AWS_SECRET_ACCESS_KEY` - AWS secret access key
-- `S3_BUCKET_NAME` - Your S3 bucket name (e.g., `your-app-updates-bucket`)
-- `CLOUDFRONT_DISTRIBUTION_ID` - CloudFront distribution ID (e.g., `E1234567890123`)
+- `R2_ACCESS_KEY_ID` - R2 API token Access Key ID
+- `R2_SECRET_ACCESS_KEY` - R2 API token Secret Access Key
+- `R2_BUCKET_NAME` - Your R2 bucket name (e.g., `flint-updates`)
+- `CLOUDFLARE_ACCOUNT_ID` - Your Cloudflare account ID (found in R2 dashboard)
 
 **For Windows code signing:**
 - `CSC_LINK` - Base64-encoded .p12 certificate file for Windows
@@ -402,36 +293,25 @@ Add these secrets to your repository settings (`Settings > Secrets and variables
 
 **Note:** If you're building for both platforms, `CSC_LINK` and `CSC_KEY_PASSWORD` can be reused if you use the same certificate format, or you can set them conditionally per platform in the workflow.
 
-#### IAM Policy for GitHub Actions
+#### Getting R2 Credentials
 
-Create an IAM user with this minimal policy for GitHub Actions:
+1. **Access Key and Secret:**
+   - Go to Cloudflare Dashboard → R2 → Manage R2 API Tokens
+   - Click "Create API token"
+   - Give it a name (e.g., "GitHub Actions - Flint Updates")
+   - Permissions: Object Read & Write
+   - Optionally scope to specific bucket
+   - Copy both the Access Key ID and Secret Access Key
+   - Add as `R2_ACCESS_KEY_ID` and `R2_SECRET_ACCESS_KEY` in GitHub secrets
 
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": [
-        "s3:PutObject",
-        "s3:PutObjectAcl",
-        "s3:GetObject",
-        "s3:DeleteObject",
-        "s3:ListBucket"
-      ],
-      "Resource": [
-        "arn:aws:s3:::your-app-updates-bucket",
-        "arn:aws:s3:::your-app-updates-bucket/*"
-      ]
-    },
-    {
-      "Effect": "Allow",
-      "Action": ["cloudfront:CreateInvalidation"],
-      "Resource": "*"
-    }
-  ]
-}
-```
+2. **Account ID:**
+   - Found in Cloudflare Dashboard → R2 (in the URL or sidebar)
+   - Format: 32-character hex string
+   - Add as `CLOUDFLARE_ACCOUNT_ID` in GitHub secrets
+
+3. **Bucket Name:**
+   - The name you gave your bucket (e.g., `flint-updates`)
+   - Add as `R2_BUCKET_NAME` in GitHub secrets
 
 #### Triggering Releases
 
@@ -444,21 +324,23 @@ To deploy a new version:
 
 #### Multi-Environment Setup
 
-For staging/production environments, create separate workflows:
+For staging/production environments, create separate R2 buckets and use different secrets:
 
 **`.github/workflows/staging.yml`** (triggers on `develop` branch):
 
 ```yaml
-# Similar to above but with staging bucket/distribution
+# Similar to above but with staging bucket
 env:
-  BUCKET_NAME: ${{ secrets.STAGING_S3_BUCKET_NAME }}
-  CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.STAGING_CLOUDFRONT_DISTRIBUTION_ID }}
+  R2_BUCKET_NAME: ${{ secrets.R2_STAGING_BUCKET_NAME }}
+  # Reuse same R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, and CLOUDFLARE_ACCOUNT_ID
 ```
 
 **`.github/workflows/production.yml`** (triggers on version tags):
 
 ```yaml
-# Use production secrets as shown above
+# Use production bucket as shown above
+env:
+  R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
 ```
 
 ## Security Considerations
@@ -1025,13 +907,14 @@ npm run test:notarize
 
 ## Monitoring and Analytics
 
-### CloudWatch Monitoring
+### Cloudflare Analytics
 
-Set up CloudWatch alarms for:
+Cloudflare provides built-in analytics for R2:
 
-- S3 bucket access patterns
-- CloudFront cache hit ratios
-- Failed update attempts
+- Storage usage and trends
+- Request metrics (Class A and Class B operations)
+- No egress bandwidth tracking needed (it's free!)
+- View in Cloudflare Dashboard → R2 → Your bucket → Metrics
 
 ### Application Metrics
 
@@ -1052,19 +935,27 @@ const updateMetrics = {
 
 ### Common Issues
 
-1. **CORS errors:**
-   - Ensure CloudFront is configured correctly
-   - Check S3 bucket CORS configuration
+1. **Update check failures:**
+   - Verify R2 public URL is accessible
+   - Check that public access is enabled on the bucket
+   - Validate YAML file format in deployed files
+   - Ensure all required files (latest.yml, latest-mac.yml, etc.) are deployed
 
-2. **Update check failures:**
-   - Verify URL accessibility
-   - Check network connectivity
-   - Validate YAML file format
+2. **Download failures:**
+   - Check that R2 bucket has public access enabled
+   - Verify file paths in latest.yml match deployed file names
+   - Ensure Content-Type headers are correct (especially for .yml files)
 
-3. **Download failures:**
-   - Check file permissions in S3
-   - Verify CloudFront cache behavior
-   - Monitor download size limits
+3. **404 errors:**
+   - Ensure all build artifacts are uploaded to R2
+   - Check that file names in latest.yml match actual file names in R2
+   - Verify R2 bucket name and endpoint URL are correct
+   - Check that public R2.dev domain or custom domain is properly configured
+
+4. **CORS errors:**
+   - R2 public buckets should handle CORS automatically
+   - If using custom domain, ensure CORS headers are configured
+   - Check browser console for specific CORS error messages
 
 ### Debug Mode
 
@@ -1088,33 +979,79 @@ autoUpdater.logger.transports.file.level = 'info';
    ```
 
 2. **Staging environment:**
-   - Use separate S3 bucket/CloudFront for staging
+   - Create a separate R2 bucket for staging
    - Configure dev-app-update.yml for staging URL
 
 ## Cost Estimation
 
-### AWS Costs (approximate monthly)
+### Cloudflare R2 Costs
 
-- **S3 Storage:** $0.02 per GB
-- **S3 Requests:** $0.0004 per 1,000 GET requests
-- **CloudFront:** $0.085 per GB for first 10 TB
-- **Data Transfer:** Varies by region
+**Free Tier includes (per month):**
+- 10GB storage
+- 1 million Class A operations (writes, lists)
+- 10 million Class B operations (reads)
+- **Unlimited egress bandwidth** (completely free!)
 
-**Example for 1,000 monthly updates:**
+**Paid Pricing (above free tier):**
+- **Storage:** $0.015/GB/month
+- **Class A operations:** $4.50 per million
+- **Class B operations:** $0.36 per million
+- **Egress bandwidth:** $0 (always free!)
 
-- Storage (500MB app): ~$0.01
-- Requests: ~$0.01
-- Transfer (500GB): ~$42.50
-- **Total: ~$42.52/month**
+**Real-World Examples:**
+
+**Example 1: 1,000 monthly updates (500MB app)**
+- Storage: 0.5GB = ~$0.01/month
+- Bandwidth: 500GB = **$0** (free!)
+- Operations: ~1,000 reads = $0.00036
+- **Total: ~$0.01/month** 🎉
+
+**Example 2: 10,000 monthly updates (500MB app)**
+- Storage: 0.5GB = ~$0.01/month
+- Bandwidth: 5TB = **$0** (free!)
+- Operations: ~10,000 reads = $0.0036
+- **Total: ~$0.01/month** 🎉
+
+**Example 3: 100,000 monthly updates (500MB app)**
+- Storage: 0.5GB = ~$0.01/month
+- Bandwidth: 50TB = **$0** (free!)
+- Operations: ~100,000 reads = $0.036
+- **Total: ~$0.05/month** 🎉
+
+**Cost Comparison (10TB bandwidth/month):**
+- Vercel: $4,000
+- Netlify: $2,000
+- AWS CloudFront: $900
+- **Cloudflare R2: $0.01** ⚡️
+
+### Why R2 is So Cheap
+
+The secret is **zero egress fees**. Traditional CDNs (including AWS CloudFront, Netlify, Vercel) charge for data transfer out to users. R2 eliminates this completely, making it ideal for bandwidth-heavy applications like Electron app updates.
 
 ## Backup and Disaster Recovery
 
-1. **S3 Versioning:** Enable versioning on your S3 bucket
-2. **Cross-region replication:** Set up replication to another region
-3. **CloudFront failover:** Configure multiple origins for redundancy
+1. **Version Control:** Keep all release artifacts in GitHub releases as backup
+2. **Multiple Buckets:** Create backup R2 buckets in different Cloudflare regions
+3. **Local Backup:** Keep copies of all release builds locally
+4. **R2 Versioning:** Consider enabling object versioning in R2 for additional protection
 
 ## Conclusion
 
-The auto-updater system provides a robust, secure way to distribute updates to your Flint application users. The AWS S3 + CloudFront setup ensures global availability, fast download speeds, and scalable distribution.
+The auto-updater system provides a robust, secure way to distribute updates to your Flint application users. The Cloudflare R2 setup ensures global availability through Cloudflare's CDN, fast download speeds, and unbeatable cost-effectiveness with zero egress fees.
 
-For additional security in enterprise environments, consider implementing signed URLs or custom authentication mechanisms.
+**Benefits of Cloudflare R2 for updates:**
+- **Zero egress bandwidth costs** - No charges for downloads, no matter the scale
+- **S3-compatible API** - Works with existing AWS tools and libraries
+- **Automatic HTTPS and global CDN** - Fast downloads worldwide
+- **Generous free tier** - 10GB storage and 10M reads/month free
+- **Simple setup** - Easier than AWS, cheaper than Netlify/Vercel
+- **No cache invalidation** - Updates are immediately available
+- **Predictable costs** - Pay only for storage (~$0.015/GB/month)
+
+**Perfect for:**
+- Electron app updates (bandwidth-heavy, cost-sensitive)
+- Any application with frequent or large downloads
+- Startups wanting to minimize infrastructure costs
+- Applications with unpredictable bandwidth spikes
+
+For additional security in enterprise environments, consider implementing Cloudflare Workers for authentication or rate limiting.

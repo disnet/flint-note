@@ -123,6 +123,8 @@ jobs:
             dist/*.rpm
             dist/*.tar.gz
             dist/*.zip
+            dist/*.yml
+            dist/*.yaml
           if-no-files-found: ignore
 
   create-release:
@@ -149,3 +151,78 @@ jobs:
           prerelease: ${{ contains(github.ref, '-') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  deploy-to-r2:
+    needs: release
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare update files
+        run: |
+          mkdir -p dist
+          # Copy installer files for all platforms (needed by electron-updater)
+          find artifacts -name "*.dmg" -exec cp {} dist/ \;    # macOS
+          find artifacts -name "*.exe" -exec cp {} dist/ \;    # Windows
+          find artifacts -name "*.AppImage" -exec cp {} dist/ \; # Linux
+          # Copy update metadata files (required for electron-updater)
+          find artifacts -name "latest*.yml" -exec cp {} dist/ \;
+          echo "Files to deploy:"
+          ls -lh dist/
+
+      - name: Configure R2 credentials
+        run: |
+          mkdir -p ~/.aws
+          cat > ~/.aws/credentials << EOF
+          [r2]
+          aws_access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          aws_secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          EOF
+          cat > ~/.aws/config << EOF
+          [profile r2]
+          region = auto
+          endpoint_url = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+          EOF
+
+      - name: Deploy to R2
+        env:
+          BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          echo "Uploading update files to R2 bucket: $BUCKET_NAME"
+
+          # Upload installer files (DMG, EXE, AppImage)
+          for ext in dmg exe AppImage; do
+            for file in dist/*.$ext; do
+              if [ -f "$file" ]; then
+                filename=$(basename "$file")
+                echo "Uploading $filename..."
+                aws s3 cp "$file" s3://$BUCKET_NAME/$filename \
+                  --profile r2 \
+                  --endpoint-url https://$CLOUDFLARE_ACCOUNT_ID.r2.cloudflarestorage.com \
+                  --acl public-read
+              fi
+            done
+          done
+
+          # Upload update metadata files with correct content type
+          echo "Uploading update metadata files..."
+          for file in dist/latest*.yml; do
+            if [ -f "$file" ]; then
+              filename=$(basename "$file")
+              echo "Uploading $filename with correct content type..."
+              aws s3 cp "$file" s3://$BUCKET_NAME/$filename \
+                --profile r2 \
+                --endpoint-url https://$CLOUDFLARE_ACCOUNT_ID.r2.cloudflarestorage.com \
+                --content-type "text/yaml" \
+                --acl public-read
+            fi
+          done
+
+          echo "✅ Deployment to R2 complete!"
+          echo "Update files available for electron-updater on all platforms"
