@@ -100,12 +100,12 @@ preserve_old_version() {
     print_step "Preserving old version artifacts..."
     mkdir -p "$BACKUP_DIR"
 
-    # Find the DMG file
-    DMG_FILE=$(find dist -name "Flint-${OLD_VERSION}-universal.dmg" -type f | head -n 1)
+    # Find the DMG file for the old version
+    DMG_FILE=$(find dist -name "Flint-${OLD_VERSION}*.dmg" -type f | head -n 1)
 
     if [ -n "$DMG_FILE" ]; then
-        cp "$DMG_FILE" "$BACKUP_DIR/Flint-${OLD_VERSION}-universal.dmg"
-        print_success "Saved old DMG: $(basename "$DMG_FILE")"
+        mv "$DMG_FILE" "$BACKUP_DIR/"
+        print_success "Moved old DMG to backup: $(basename "$DMG_FILE")"
     else
         print_warning "Could not find old version DMG"
     fi
@@ -114,6 +114,10 @@ preserve_old_version() {
         cp dist/latest-mac.yml "$BACKUP_DIR/latest-mac-${OLD_VERSION}.yml"
         print_success "Saved old latest-mac.yml"
     fi
+
+    # Clean dist directory to avoid confusion
+    rm -f dist/*.dmg dist/*.yml dist/*.zip 2>/dev/null || true
+    print_success "Cleaned dist directory"
 }
 
 # Function to set up update server
@@ -124,20 +128,31 @@ setup_update_server() {
     rm -rf "$UPDATE_SERVER_DIR"
     mkdir -p "$UPDATE_SERVER_DIR"
 
-    # Copy new version artifacts
-    DMG_FILE=$(find dist -name "*.dmg" -type f | head -n 1)
+    # Copy new version artifacts (use specific version to avoid wrong file)
+    DMG_FILE=$(find dist -name "Flint-${NEW_VERSION}*.dmg" -type f | head -n 1)
 
     if [ -n "$DMG_FILE" ]; then
         cp "$DMG_FILE" "$UPDATE_SERVER_DIR/"
-        print_success "Copied DMG: $(basename "$DMG_FILE")"
+        print_success "Copied NEW version DMG: $(basename "$DMG_FILE")"
     else
-        print_error "No DMG file found in dist/"
+        print_error "No DMG file found for version $NEW_VERSION in dist/"
+        print_warning "Available files in dist:"
+        ls -lh dist/ || true
         exit 1
     fi
 
     if [ -f "dist/latest-mac.yml" ]; then
         cp dist/latest-mac.yml "$UPDATE_SERVER_DIR/"
         print_success "Copied latest-mac.yml"
+
+        # Verify the version in latest-mac.yml matches NEW_VERSION
+        YAML_VERSION=$(grep "^version:" "$UPDATE_SERVER_DIR/latest-mac.yml" | cut -d' ' -f2)
+        if [ "$YAML_VERSION" = "$NEW_VERSION" ]; then
+            print_success "Verified: latest-mac.yml has correct version ($YAML_VERSION)"
+        else
+            print_error "Version mismatch! latest-mac.yml has $YAML_VERSION but expected $NEW_VERSION"
+            exit 1
+        fi
     else
         print_error "No latest-mac.yml found in dist/"
         exit 1
@@ -147,6 +162,13 @@ setup_update_server() {
     echo ""
     print_step "Update server contents:"
     ls -lh "$UPDATE_SERVER_DIR"
+
+    # Show file sizes for comparison
+    if [ -d "$BACKUP_DIR" ]; then
+        echo ""
+        print_step "OLD version (in backup):"
+        ls -lh "$BACKUP_DIR"/*.dmg 2>/dev/null || echo "  No DMG found"
+    fi
     echo ""
 }
 
@@ -228,7 +250,12 @@ show_next_steps() {
     echo -e "${BLUE}Testing Steps:${NC}"
     echo ""
     echo "1. Install the OLD version:"
-    echo "   ${YELLOW}open $BACKUP_DIR/Flint-${OLD_VERSION}-universal.dmg${NC}"
+    OLD_DMG=$(find "$BACKUP_DIR" -name "*.dmg" -type f | head -n 1)
+    if [ -n "$OLD_DMG" ]; then
+        echo "   ${YELLOW}open \"$OLD_DMG\"${NC}"
+    else
+        echo "   ${YELLOW}open $BACKUP_DIR/Flint-${OLD_VERSION}*.dmg${NC}"
+    fi
     echo "   Drag to Applications and launch"
     echo ""
     echo "2. In the app, go to Settings (⚙️) and click 'Check for Updates'"
@@ -292,6 +319,11 @@ main() {
 
             # Backup package.json
             backup_package_json
+
+            # Clean dist directory before building
+            print_step "Cleaning dist directory..."
+            rm -rf dist
+            mkdir -p dist
 
             # Build old version (current version, no need to change package.json)
             echo ""
