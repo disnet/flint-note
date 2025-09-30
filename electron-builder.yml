@@ -42,6 +42,8 @@ mac:
   target:
     - target: dmg
       arch: [universal]
+    - target: zip
+      arch: [universal]
 dmg:
   sign: false
   title: '${productName} ${version}'

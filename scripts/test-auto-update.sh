@@ -130,6 +130,7 @@ setup_update_server() {
 
     # Copy new version artifacts (use specific version to avoid wrong file)
     DMG_FILE=$(find dist -name "Flint-${NEW_VERSION}*.dmg" -type f | head -n 1)
+    ZIP_FILE=$(find dist -name "Flint-${NEW_VERSION}*.zip" -type f | head -n 1)
 
     if [ -n "$DMG_FILE" ]; then
         cp "$DMG_FILE" "$UPDATE_SERVER_DIR/"
@@ -139,6 +140,14 @@ setup_update_server() {
         print_warning "Available files in dist:"
         ls -lh dist/ || true
         exit 1
+    fi
+
+    if [ -n "$ZIP_FILE" ]; then
+        cp "$ZIP_FILE" "$UPDATE_SERVER_DIR/"
+        print_success "Copied NEW version ZIP: $(basename "$ZIP_FILE")"
+    else
+        print_warning "No ZIP file found for version $NEW_VERSION in dist/"
+        print_warning "ZIP file is required for auto-updates on macOS"
     fi
 
     if [ -f "dist/latest-mac.yml" ]; then

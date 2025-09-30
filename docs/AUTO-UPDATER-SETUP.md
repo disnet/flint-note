@@ -1059,7 +1059,10 @@ npx http-server . -p 3000 --cors
 
 The server should now be running at `http://localhost:3000` and serving:
 - `latest-mac.yml` (update metadata)
-- `Flint-0.1.1-universal.dmg` (the new version)
+- `Flint-0.1.1-universal.dmg` (the new version - for initial installation)
+- `Flint-0.1.1-mac.zip` (the new version - for auto-updates)
+
+**Note:** macOS auto-updater requires ZIP files for updates, not DMG files. The DMG is only used for initial installation.
 
 #### Step 3: Verify dev-app-update.yml Configuration
 
@@ -1213,9 +1216,11 @@ tail -f ~/Library/Logs/Flint/main.log
    - Check that `latest-mac.yml` contains correct file paths
    - Ensure http-server has CORS enabled (`--cors` flag)
 
-3. **Download fails**
-   - Check that DMG file exists in http-server directory
-   - Verify file name in `latest-mac.yml` matches actual DMG file name
+3. **Download fails / "ZIP file not provided" error**
+   - macOS auto-updater requires ZIP files, not DMG
+   - Ensure both ZIP and DMG are built: add `zip` target in `electron-builder.yml`
+   - Check that ZIP file exists in http-server directory
+   - Verify file name in `latest-mac.yml` matches actual ZIP file name
    - Check http-server logs for 404 errors
 
 4. **App doesn't check for updates**
@@ -1230,19 +1235,21 @@ The `latest-mac.yml` file should look like this:
 ```yaml
 version: 0.1.1
 files:
-  - url: Flint-0.1.1-universal.dmg
+  - url: Flint-0.1.1-mac.zip
     sha512: [base64-encoded-hash]
     size: 123456789
-path: Flint-0.1.1-universal.dmg
+path: Flint-0.1.1-mac.zip
 sha512: [base64-encoded-hash]
 releaseDate: '2024-01-15T10:30:00.000Z'
 ```
 
 **Important fields:**
 - `version`: Must be higher than installed version (using semver comparison)
-- `files[0].url`: Filename or URL to download
+- `files[0].url`: Filename or URL to download (must be ZIP for macOS auto-updates)
 - `path`: Same as `files[0].url` for generic provider
 - `sha512`: Used to verify download integrity
+
+**Note:** The `latest-mac.yml` file should reference the ZIP file, not the DMG. electron-builder generates this automatically with the correct file references when you include the `zip` target in your build configuration.
 
 #### Staging Environment Testing
 
