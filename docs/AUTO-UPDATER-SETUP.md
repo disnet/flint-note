@@ -6,6 +6,8 @@ This document explains how the auto-updater system works and provides instructio
 
 The Flint application uses `electron-updater` to provide automatic application updates. The system is designed for private/proprietary applications and uses a self-hosted approach with AWS S3 and CloudFront for reliable, global distribution.
 
+**Current Version:** The application is currently at version 0.1.0 (as specified in `package.json`). Auto-updates will only trigger when a higher version number is available on the update server.
+
 ## Architecture
 
 ### Components
@@ -52,9 +54,9 @@ graph TD
 
 ### Automatic Update Checking
 
-- Checks for updates every 4 hours by default
+- Can be configured with custom intervals (default not set - must be enabled manually)
 - Manual check via "Check for Updates" button
-- Startup check (production only)
+- Optional startup check with configurable delay (10 seconds by default)
 
 ### User Control
 
@@ -70,10 +72,10 @@ graph TD
 
 ### Configuration Options
 
-- Auto-download toggle
-- Auto-install on quit toggle
-- Prerelease channel support
-- Manual update channel configuration
+- Auto-download toggle (default: false - users must manually trigger downloads)
+- Auto-install on quit toggle (default: true)
+- Allow prerelease updates
+- Allow downgrade to older versions
 
 ## File Structure
 
@@ -139,9 +141,11 @@ src/
 
 1. **Create distribution configuration file** (`cloudfront-distribution.json`):
 
+   Note: The `CallerReference` field needs to be generated dynamically. You can use a script or manually replace the timestamp.
+
    ```json
    {
-     "CallerReference": "flint-updates-$(date +%s)",
+     "CallerReference": "flint-updates-1234567890",
      "Comment": "Flint App Updates Distribution",
      "DefaultCacheBehavior": {
        "TargetOriginId": "S3-your-app-updates-bucket",
@@ -158,6 +162,15 @@ src/
        "TrustedSigners": {
          "Enabled": false,
          "Quantity": 0
+       },
+       "Compress": true,
+       "AllowedMethods": {
+         "Quantity": 2,
+         "Items": ["GET", "HEAD"],
+         "CachedMethods": {
+           "Quantity": 2,
+           "Items": ["GET", "HEAD"]
+         }
        }
      },
      "Origins": {
@@ -175,6 +188,18 @@ src/
      "Enabled": true,
      "PriceClass": "PriceClass_100"
    }
+   ```
+
+   To generate the `CallerReference` dynamically:
+   ```bash
+   # Create the JSON with a timestamp
+   CALLER_REF="flint-updates-$(date +%s)"
+   cat > cloudfront-distribution.json <<EOF
+   {
+     "CallerReference": "$CALLER_REF",
+     ...
+   }
+   EOF
    ```
 
 2. **Create the distribution:**
@@ -228,6 +253,8 @@ src/
      url: https://updates.yourdomain.com # or https://d1234567890123.cloudfront.net
    ```
 
+   **Important:** The current configuration uses `https://updates.flint-note.rocks` as a placeholder. You must update this URL to your actual update server before deploying.
+
 2. **For multiple environments, create separate configs:**
 
    ```yaml
@@ -242,9 +269,9 @@ src/
      url: https://staging-updates.yourdomain.com
    ```
 
-### Step 5: Deployment Script
+### Step 5: Deployment Script (Optional)
 
-Create a deployment script (`scripts/deploy-updates.sh`):
+You can create a deployment script (`scripts/deploy-updates.sh`) for manual deployments, or use GitHub Actions (recommended, see Step 6):
 
 ```bash
 #!/bin/bash
@@ -260,9 +287,9 @@ echo "Deploying version $VERSION..."
 npm run build
 
 # Build platform-specific packages
-electron-builder --win --publish=never
-electron-builder --mac --publish=never
-electron-builder --linux --publish=never
+npm run build:win
+npm run build:mac
+npm run build:linux
 
 # Upload files to S3
 aws s3 sync dist/ s3://$BUCKET_NAME/ --delete --exclude "*.blockmap"
@@ -287,45 +314,38 @@ chmod +x scripts/deploy-updates.sh
 
 ### Step 6: GitHub Actions Integration
 
-For automated deployments, create `.github/workflows/release.yml`:
+The project includes two GitHub Actions workflows:
+
+1. **`.github/workflows/build.yml`** - Runs on push to main/develop and PRs. Builds and tests all platforms.
+2. **`.github/workflows/release.yml`** - Runs on version tags (v*). Builds signed releases and creates GitHub releases.
+
+#### Current Release Workflow
+
+The release workflow (`.github/workflows/release.yml`) is already configured with:
+- Matrix builds for macOS and Windows
+- Manual certificate import for macOS (more reliable than apple-actions)
+- Automatic code signing for both platforms
+- Artifact upload and GitHub release creation
+
+#### Adding S3/CloudFront Deployment
+
+To add automatic deployment to S3/CloudFront, add a new job to `.github/workflows/release.yml` after the `create-release` job:
 
 ```yaml
-name: Build and Deploy Release
-
-on:
-  push:
-    tags:
-      - 'v*' # Trigger on version tags like v1.0.0
-
-jobs:
-  build-and-deploy:
+  deploy-to-s3:
+    needs: release
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
         with:
-          node-version: '18'
-          cache: 'npm'
+          path: artifacts
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build application
-        run: npm run build
-
-      - name: Build Electron packages
+      - name: Flatten artifacts directory
         run: |
-          npx electron-builder --win --publish=never
-          npx electron-builder --mac --publish=never
-          npx electron-builder --linux --publish=never
-        env:
-          # Add code signing secrets if needed
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          mkdir -p dist
+          find artifacts -type f -exec cp {} dist/ \;
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -342,39 +362,45 @@ jobs:
           aws s3 sync dist/ s3://$BUCKET_NAME/ --delete --exclude "*.blockmap"
 
           # Upload latest files (update metadata)
-          aws s3 cp dist/latest.yml s3://$BUCKET_NAME/latest.yml
-          aws s3 cp dist/latest-mac.yml s3://$BUCKET_NAME/latest-mac.yml
-          aws s3 cp dist/latest-linux.yml s3://$BUCKET_NAME/latest-linux.yml
+          aws s3 cp dist/latest.yml s3://$BUCKET_NAME/latest.yml || true
+          aws s3 cp dist/latest-mac.yml s3://$BUCKET_NAME/latest-mac.yml || true
+          aws s3 cp dist/latest-linux.yml s3://$BUCKET_NAME/latest-linux.yml || true
 
       - name: Invalidate CloudFront cache
         env:
           CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
         run: |
           aws cloudfront create-invalidation --distribution-id $CLOUDFRONT_DISTRIBUTION_ID --paths "/latest*.yml"
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            dist/*.exe
-            dist/*.dmg
-            dist/*.AppImage
-            dist/*.zip
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
+
+This approach:
+- Reuses artifacts from the existing build matrix
+- Keeps signing and building separate from deployment
+- Only requires AWS secrets, not code signing secrets
 
 #### Required GitHub Secrets
 
 Add these secrets to your repository settings (`Settings > Secrets and variables > Actions`):
 
+**For both Windows and macOS:**
+
 - `AWS_ACCESS_KEY_ID` - AWS access key with S3 and CloudFront permissions
 - `AWS_SECRET_ACCESS_KEY` - AWS secret access key
 - `S3_BUCKET_NAME` - Your S3 bucket name (e.g., `your-app-updates-bucket`)
 - `CLOUDFRONT_DISTRIBUTION_ID` - CloudFront distribution ID (e.g., `E1234567890123`)
-- `CSC_LINK` - (Optional) Code signing certificate for Windows/macOS
-- `CSC_KEY_PASSWORD` - (Optional) Certificate password
+
+**For Windows code signing:**
+- `CSC_LINK` - Base64-encoded .p12 certificate file for Windows
+- `CSC_KEY_PASSWORD` - Certificate password for Windows
+
+**For macOS code signing and notarization:**
+- `CSC_LINK` - Base64-encoded .p12 certificate file for macOS (same variable name, different certificate)
+- `CSC_KEY_PASSWORD` - Certificate password for macOS
+- `APPLE_ID` - Your Apple ID email
+- `APPLE_ID_PASSWORD` - App-specific password for notarization
+- `APPLE_TEAM_ID` - Your Apple Developer Team ID
+
+**Note:** If you're building for both platforms, `CSC_LINK` and `CSC_KEY_PASSWORD` can be reused if you use the same certificate format, or you can set them conditionally per platform in the workflow.
 
 #### IAM Policy for GitHub Actions
 
@@ -439,19 +465,39 @@ env:
 
 ### Code Signing
 
-1. **Windows:** Obtain a code signing certificate and configure in `electron-builder.yml`:
+1. **Windows:** Obtain a code signing certificate and configure environment variables:
 
+   Windows code signing is configured via environment variables (not in `electron-builder.yml`):
+   - `CSC_LINK` - Path to .p12 certificate file or base64-encoded certificate
+   - `CSC_KEY_PASSWORD` - Certificate password
+
+   In `electron-builder.yml`:
    ```yaml
    win:
-     certificateFile: 'path/to/certificate.p12'
-     certificatePassword: 'certificate-password'
+     executableName: flint
+     publisherName: 'Your Name'
+     verifyUpdateCodeSignature: true
    ```
+
+   For local development, set environment variables:
+   ```bash
+   export CSC_LINK="/path/to/certificate.p12"
+   export CSC_KEY_PASSWORD="your-password"
+   ```
+
+   For CI/CD, these should be set as GitHub Secrets (see GitHub Actions section below).
 
 2. **macOS:** Configure with Apple Developer certificate:
    ```yaml
    mac:
+     category: public.app-category.productivity
      identity: 'Developer ID Application: Your Name (TEAM_ID)'
-     notarize: true
+     hardenedRuntime: true
+     gatekeeperAssess: false
+     entitlements: 'build/entitlements.mac.plist'
+     entitlementsInherit: 'build/entitlements.mac.plist'
+     notarize:
+       teamId: 'YOUR_TEAM_ID'
    ```
 
 ## macOS Code Signing Setup
@@ -519,7 +565,8 @@ mac:
   gatekeeperAssess: false
   entitlements: 'build/entitlements.mac.plist'
   entitlementsInherit: 'build/entitlements.mac.plist'
-  notarize: { teamId: 'YOUR_TEAM_ID' }
+  notarize:
+    teamId: 'YOUR_TEAM_ID'
 ```
 
 ### Step 5: Create Entitlements File
@@ -570,10 +617,10 @@ jobs:
           p12-password: ${{ secrets.CSC_KEY_PASSWORD }}
 
       - name: Build Electron packages
-        run: |
-          npx electron-builder --mac --publish=never
+        run: npm run build:mac
         env:
-          CSC_NAME: ${{ secrets.CSC_NAME }}
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
@@ -583,12 +630,11 @@ jobs:
 
 Add these additional secrets to your repository:
 
-- `CSC_LINK` - Base64 encoded .p12 certificate file
+- `CSC_LINK` - Base64 encoded .p12 certificate file (required for both macOS code signing and when using apple-actions/import-codesign-certs)
 - `CSC_KEY_PASSWORD` - Password for the .p12 certificate
-- `CSC_NAME` - Certificate name (e.g., "Developer ID Application: Your Name (TEAM_ID)")
-- `APPLE_ID` - Your Apple ID email
+- `APPLE_ID` - Your Apple ID email (for notarization)
 - `APPLE_ID_PASSWORD` - App-specific password for notarization
-- `APPLE_TEAM_ID` - Your Apple Developer Team ID
+- `APPLE_TEAM_ID` - Your Apple Developer Team ID (for notarization)
 
 ### Step 8: Export Certificate for CI/CD
 
@@ -612,19 +658,23 @@ Add these additional secrets to your repository:
 ```bash
 # Build and sign locally
 npm run build
-npx electron-builder --mac --publish=never
+npm run build:mac
 
 # Verify signature
-codesign --verify --deep --strict dist/mac/Flint.app
-spctl --assess --verbose dist/mac/Flint.app
+codesign --verify --deep --strict dist/mac-arm64/Flint.app
+spctl --assess --verbose dist/mac-arm64/Flint.app
 
 # Check notarization status (after upload)
 xcrun notarytool history --keychain-profile "flint-notarization"
 ```
 
+Note: The actual output directory may vary based on architecture (e.g., `dist/mac-arm64/`, `dist/mac/`, `dist/mac-universal/`). Check the `dist/` directory after building.
+
 ## Local Notarization Testing
 
 This section covers how to manually notarize your macOS application locally for testing purposes before deploying through CI/CD.
+
+**Important:** When distributing via DMG (recommended), you only need to notarize the DMG file. The notarization process checks the entire DMG contents, including the signed .app bundle inside. You do NOT need to notarize both the .app and the DMG separately.
 
 ### Prerequisites for Local Notarization
 
@@ -637,48 +687,61 @@ This section covers how to manually notarize your macOS application locally for 
 ```bash
 # Build the application
 npm run build
-npx electron-builder --mac --publish=never
+npm run build:mac
 
-# Verify the build was signed
-codesign --verify --deep --strict dist/mac/Flint.app
+# Verify the build was signed (check dist/ for actual directory name)
+codesign --verify --deep --strict dist/mac-arm64/Flint.app
+# Or for universal builds:
+# codesign --verify --deep --strict dist/mac-universal/Flint.app
 ```
 
 ### Step 2: Submit for Notarization
 
-**Option A: Submit .app bundle directly:**
+**Option A: Submit .dmg file (recommended for distribution):**
 
 ```bash
-# Submit the app bundle
-xcrun notarytool submit dist/mac/Flint.app \
+# Submit the DMG directly - this notarizes the entire DMG including the .app inside
+xcrun notarytool submit dist/Flint-0.1.0-arm64.dmg \
   --keychain-profile "flint-notarization" \
   --wait
 
 # Note: --wait flag makes the command wait for completion
 ```
 
-**Option B: Submit .dmg file (recommended):**
+**Option B: Submit .app bundle as zip (only if not using DMG):**
 
 ```bash
-# If you have a .dmg file
-xcrun notarytool submit dist/Flint-1.0.0.dmg \
+# Only needed if you're distributing the .app directly without a DMG
+# Create a zip of the .app bundle (required by notarytool - it doesn't accept .app directly)
+cd dist/mac-arm64 && zip -r Flint.zip Flint.app && cd ../..
+
+# Submit the zip file
+xcrun notarytool submit dist/mac-arm64/Flint.zip \
   --keychain-profile "flint-notarization" \
   --wait
 ```
+
+**Which to choose?**
+- If you're distributing via DMG (recommended): Only notarize the DMG
+- If you're distributing the .app directly: Notarize the .app as a zip
+- You do NOT need to notarize both - notarizing the DMG covers everything inside it
 
 ### Step 3: Monitor Submission Status
 
 **Check submission without waiting:**
 
 ```bash
-# Submit without waiting
-SUBMISSION_ID=$(xcrun notarytool submit dist/mac/Flint.app \
-  --keychain-profile "flint-notarization" | \
-  grep "id:" | awk '{print $2}')
+# Submit without waiting (use DMG for distribution)
+SUBMISSION_ID=$(xcrun notarytool submit dist/Flint-0.1.0-arm64.dmg \
+  --keychain-profile "flint-notarization" \
+  --output-format json | jq -r '.id')
 
 # Check status manually
 xcrun notarytool info $SUBMISSION_ID \
   --keychain-profile "flint-notarization"
 ```
+
+Note: If you don't have `jq` installed, you can parse the output manually or use `--output-format plist`.
 
 **View all recent submissions:**
 
@@ -693,15 +756,22 @@ xcrun notarytool history \
 **If notarization succeeds:**
 
 ```bash
-# For .app bundles, staple the notarization ticket
-xcrun stapler staple dist/mac/Flint.app
+# For DMG files (recommended), staple to the DMG
+xcrun stapler staple dist/Flint-0.1.0-arm64.dmg
 
 # Verify stapling worked
-xcrun stapler validate dist/mac/Flint.app
+xcrun stapler validate dist/Flint-0.1.0-arm64.dmg
 
-# Test Gatekeeper assessment
-spctl --assess --verbose=2 dist/mac/Flint.app
+# Test Gatekeeper assessment on the DMG
+spctl --assess --type open --context context:primary-signature --verbose dist/Flint-0.1.0-arm64.dmg
+
+# For .app bundles only (if you notarized the .app directly):
+# xcrun stapler staple dist/mac-arm64/Flint.app
+# xcrun stapler validate dist/mac-arm64/Flint.app
+# spctl --assess --verbose=2 dist/mac-arm64/Flint.app
 ```
+
+**Important:** Staple the same artifact you notarized (DMG or .app), not both.
 
 **If notarization fails:**
 
@@ -735,15 +805,36 @@ echo "Starting local notarization test for $APP_NAME v$VERSION..."
 # Build the application
 echo "Building application..."
 npm run build
-npx electron-builder --mac --publish=never
+npm run build:mac
+
+# Determine the actual dist directory (check for arm64, x64, or universal)
+if [ -d "dist/mac-arm64" ]; then
+  DIST_DIR="dist/mac-arm64"
+elif [ -d "dist/mac-universal" ]; then
+  DIST_DIR="dist/mac-universal"
+else
+  DIST_DIR="dist/mac"
+fi
+
+echo "Using dist directory: $DIST_DIR"
 
 # Verify signing
 echo "Verifying code signature..."
-codesign --verify --deep --strict "dist/mac/$APP_NAME.app"
+codesign --verify --deep --strict "$DIST_DIR/$APP_NAME.app"
 
-# Submit for notarization
-echo "Submitting for notarization..."
-SUBMISSION_ID=$(xcrun notarytool submit "dist/mac/$APP_NAME.app" \
+# Find the DMG file
+DMG_FILE=$(find dist -name "*.dmg" -type f | head -n 1)
+
+if [ -z "$DMG_FILE" ]; then
+  echo "❌ No DMG file found. Make sure the build created a DMG."
+  exit 1
+fi
+
+echo "Found DMG: $DMG_FILE"
+
+# Submit DMG for notarization
+echo "Submitting DMG for notarization..."
+SUBMISSION_ID=$(xcrun notarytool submit "$DMG_FILE" \
   --keychain-profile "$KEYCHAIN_PROFILE" \
   --output-format json | jq -r '.id')
 
@@ -765,19 +856,20 @@ while [ $ELAPSED -lt $TIMEOUT ]; do
   if [ "$STATUS" = "Accepted" ]; then
     echo "✅ Notarization successful!"
 
-    # Staple the ticket
-    echo "Stapling notarization ticket..."
-    xcrun stapler staple "dist/mac/$APP_NAME.app"
+    # Staple the ticket to the DMG
+    echo "Stapling notarization ticket to DMG..."
+    xcrun stapler staple "$DMG_FILE"
 
     # Verify stapling
     echo "Verifying staple..."
-    xcrun stapler validate "dist/mac/$APP_NAME.app"
+    xcrun stapler validate "$DMG_FILE"
 
-    # Test Gatekeeper
+    # Test Gatekeeper on the DMG
     echo "Testing Gatekeeper assessment..."
-    spctl --assess --verbose=2 "dist/mac/$APP_NAME.app"
+    spctl --assess --type open --context context:primary-signature --verbose "$DMG_FILE"
 
     echo "✅ Local notarization test completed successfully!"
+    echo "✅ DMG is ready for distribution: $DMG_FILE"
     exit 0
   elif [ "$STATUS" = "Invalid" ]; then
     echo "❌ Notarization failed!"
@@ -808,24 +900,28 @@ chmod +x scripts/test-notarization.sh
 **Test with different build configurations:**
 
 ```bash
-# Test development build
-npm run build:dev
-npx electron-builder --mac --config=dev-app-update.yml --publish=never
-xcrun notarytool submit dist/mac/Flint.app --keychain-profile "flint-notarization"
-
 # Test production build
 npm run build
-npx electron-builder --mac --publish=never
-xcrun notarytool submit dist/mac/Flint.app --keychain-profile "flint-notarization"
+npm run build:mac
+
+# Submit the DMG for notarization
+DMG_FILE=$(find dist -name "*.dmg" -type f | head -n 1)
+xcrun notarytool submit "$DMG_FILE" --keychain-profile "flint-notarization" --wait
+
+# If successful, staple the ticket
+xcrun stapler staple "$DMG_FILE"
 ```
 
 **Batch testing multiple artifacts:**
 
 ```bash
-# Build all platforms and test macOS notarization
-npx electron-builder --mac --win --linux --publish=never
+# Build all platforms
+npm run build
+npm run build:win
+npm run build:mac
+npm run build:linux
 
-# Submit multiple macOS artifacts if available
+# Submit macOS DMG files for notarization
 find dist -name "*.dmg" -exec xcrun notarytool submit {} \
   --keychain-profile "flint-notarization" \;
 ```
@@ -836,17 +932,17 @@ find dist -name "*.dmg" -exec xcrun notarytool submit {} \
 
 1. **Bundle format rejected:**
    ```bash
-   # Check bundle structure
-   find dist/mac/Flint.app -name "*.dylib" -o -name "*.so"
+   # Check bundle structure (adjust path as needed)
+   find dist/mac-arm64/Flint.app -name "*.dylib" -o -name "*.so"
 
    # Verify all binaries are signed
-   find dist/mac/Flint.app -type f -perm +111 -exec codesign --verify {} \;
+   find dist/mac-arm64/Flint.app -type f -perm +111 -exec codesign --verify {} \;
    ```
 
 2. **Hardened runtime violations:**
    ```bash
-   # Check entitlements
-   codesign -d --entitlements - dist/mac/Flint.app
+   # Check entitlements (adjust path as needed)
+   codesign -d --entitlements - dist/mac-arm64/Flint.app
 
    # Verify entitlements file is properly configured
    plutil -lint build/entitlements.mac.plist
@@ -857,12 +953,14 @@ find dist -name "*.dmg" -exec xcrun notarytool submit {} \
    # Verify keychain profile
    xcrun notarytool history --keychain-profile "flint-notarization"
 
-   # Test with environment variables instead
+   # Test with environment variables instead of keychain profile
    export APPLE_ID="your-apple-id@example.com"
    export APPLE_ID_PASSWORD="app-specific-password"
    export APPLE_TEAM_ID="YOUR_TEAM_ID"
 
-   xcrun notarytool submit dist/mac/Flint.app \
+   # Submit DMG with credentials
+   DMG_FILE=$(find dist -name "*.dmg" -type f | head -n 1)
+   xcrun notarytool submit "$DMG_FILE" \
      --apple-id "$APPLE_ID" \
      --password "$APPLE_ID_PASSWORD" \
      --team-id "$APPLE_TEAM_ID"
