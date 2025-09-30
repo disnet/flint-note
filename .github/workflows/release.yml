@@ -63,9 +63,41 @@ jobs:
         run: npm run build:mac
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: true
+
+      - name: Notarize DMG (macOS)
+        if: matrix.os == 'macos-latest'
+        env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          # Find the DMG file
+          DMG_FILE=$(find dist -name "*.dmg" -type f | head -n 1)
+
+          if [ -z "$DMG_FILE" ]; then
+            echo "No DMG file found"
+            exit 1
+          fi
+
+          echo "Found DMG: $DMG_FILE"
+          echo "Submitting for notarization..."
+
+          # Submit for notarization
+          xcrun notarytool submit "$DMG_FILE" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+
+          # Staple the notarization ticket
+          echo "Stapling notarization ticket..."
+          xcrun stapler staple "$DMG_FILE"
+
+          # Verify stapling
+          echo "Verifying staple..."
+          xcrun stapler validate "$DMG_FILE"
+
+          echo "Notarization complete!"
 
       - name: Build Electron app (Windows)
         if: matrix.os == 'windows-latest'
