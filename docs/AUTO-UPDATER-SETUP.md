@@ -968,19 +968,378 @@ autoUpdater.logger = require('electron-log');
 autoUpdater.logger.transports.file.level = 'info';
 ```
 
-### Testing Updates
+### Testing Updates Locally
 
-1. **Local testing:**
+Local testing allows you to verify the auto-update mechanism without deploying to production. This is essential for debugging update flows, UI behavior, and error handling.
 
-   ```bash
-   # Set up local update server for testing
-   npm install -g http-server
-   http-server dist/ -p 3000 --cors
+#### Quick Start with Automated Script
+
+The easiest way to test auto-updates locally is using the provided test script:
+
+```bash
+# Set up test environment (builds both versions, starts server)
+./scripts/test-auto-update.sh setup
+
+# This will:
+# 1. Read current version from package.json (e.g., 0.1.1)
+# 2. Build "old" version using current version
+# 3. Build "new" version using current version + 1 (e.g., 0.1.2)
+# 4. Start local HTTP server serving the new version
+# 5. Show instructions for testing
+
+# Follow the on-screen instructions to install and test
+
+# When done testing, clean up:
+./scripts/test-auto-update.sh cleanup
+```
+
+**Available commands:**
+- `./scripts/test-auto-update.sh setup` - Set up test environment
+- `./scripts/test-auto-update.sh status` - Check server status
+- `./scripts/test-auto-update.sh logs` - View server logs
+- `./scripts/test-auto-update.sh cleanup` - Clean up test environment
+- `./scripts/test-auto-update.sh help` - Show help
+
+#### Manual Testing (Advanced)
+
+If you prefer to set up the test environment manually or need more control:
+
+**Prerequisites:**
+
+- Node.js and npm installed
+- Built application packages
+- HTTP server (http-server or similar)
+
+#### Step 1: Build Two Versions of Your App
+
+To test updates, you need an "old" version to upgrade from and a "new" version to upgrade to.
+
+**Build Version 1 (Current/Old Version):**
+
+```bash
+# Make sure package.json has a lower version (e.g., 0.1.0)
+npm run build
+npm run build:mac
+
+# Rename the output to preserve it
+mv dist/Flint-0.1.0-universal.dmg dist/Flint-0.1.0-universal-OLD.dmg
+mv dist/latest-mac.yml dist/latest-mac-OLD.yml
+```
+
+**Build Version 2 (New Version):**
+
+```bash
+# Update version in package.json to a higher version (e.g., 0.1.1)
+# Edit package.json: "version": "0.1.1"
+
+npm run build
+npm run build:mac
+
+# The new version artifacts will be in dist/
+# - Flint-0.1.1-universal.dmg
+# - latest-mac.yml (pointing to the new version)
+```
+
+#### Step 2: Set Up Local Update Server
+
+Create a directory to serve updates from:
+
+```bash
+# Create a directory for the update server
+mkdir local-update-server
+cd local-update-server
+
+# Copy the NEW version artifacts here
+cp ../dist/Flint-0.1.1-universal.dmg .
+cp ../dist/latest-mac.yml .
+
+# Start http-server (using npx, no global install needed)
+npx http-server . -p 3000 --cors
+```
+
+The server should now be running at `http://localhost:3000` and serving:
+- `latest-mac.yml` (update metadata)
+- `Flint-0.1.1-universal.dmg` (the new version)
+
+#### Step 3: Verify dev-app-update.yml Configuration
+
+The `dev-app-update.yml` file should be configured to point to your local server:
+
+```yaml
+provider: generic
+url: http://localhost:3000
+```
+
+This file is already set up in the project root. Electron-updater will use this in development mode.
+
+#### Step 4: Install the Old Version
+
+```bash
+# Install the OLD version (0.1.0) on your system
+# Open the DMG and drag to Applications
+open dist/Flint-0.1.0-universal-OLD.dmg
+```
+
+Install it like a normal application. This will be the version that checks for updates.
+
+#### Step 5: Run the App in Development Mode
+
+**Option A: Run from source (development build)**
+
+This simulates production update checking behavior:
+
+```bash
+# Make sure dev-app-update.yml is configured
+# The app will use dev-app-update.yml in development mode
+npm run dev
+```
+
+**Option B: Run the installed production app**
+
+For more realistic testing, run the installed app directly:
+
+```bash
+# Run the installed OLD version
+/Applications/Flint.app/Contents/MacOS/Flint
+```
+
+**Important:** Production apps only check for updates if they detect they're not in development mode. You may need to temporarily modify `src/main/index.ts` to force update checking:
+
+```typescript
+// Temporarily change this line for testing:
+// if (!is.dev) {
+if (true) {  // Force update check even in dev
+  autoUpdaterService.checkForUpdatesOnStartup();
+}
+```
+
+#### Step 6: Test the Update Flow
+
+1. **Open the app** (either via `npm run dev` or the installed app)
+
+2. **Trigger an update check:**
+   - Go to Settings (⚙️ in sidebar)
+   - Click "Check for Updates" button
+   - Or wait 10 seconds for automatic startup check
+
+3. **Expected behavior:**
+   - You should see "Checking for update..." briefly
+   - An update notification should appear showing version 0.1.1 is available
+   - Click "Show Details" to see release notes (if any)
+   - Click "Download" to download the update
+
+4. **During download:**
+   - Progress bar should show download percentage
+   - Console logs should show download progress
+
+5. **After download completes:**
+   - Notification changes to "Update Ready"
+   - Two options appear: "Install Later" or "Restart & Install"
+   - Click "Restart & Install" to test the installation
+
+6. **After restart:**
+   - App should restart with the new version (0.1.1)
+   - Check the version in Settings or About
+
+#### Step 7: Test Different Scenarios
+
+**Scenario 1: No Update Available**
+
+```bash
+# In local-update-server, modify latest-mac.yml
+# Change version to match the installed version (0.1.0)
+# Click "Check for Updates" - should show "up to date"
+```
+
+**Scenario 2: Update Error**
+
+```bash
+# Stop the http-server
+# Click "Check for Updates"
+# Should show error notification with retry option
+```
+
+**Scenario 3: Interrupted Download**
+
+```bash
+# Start downloading an update
+# Stop http-server mid-download
+# Should show error with retry option
+```
+
+**Scenario 4: Auto-Install on Quit**
+
+```bash
+# Download an update but click "Install Later"
+# The update should install when you quit the app normally
+```
+
+#### Debugging Tips
+
+**Enable Debug Logging:**
+
+Add this to `src/main/auto-updater-service.ts` constructor:
+
+```typescript
+constructor() {
+  // Enable detailed logging
+  autoUpdater.logger = logger;
+  autoUpdater.logger.transports.file.level = 'debug';
+
+  this.setupAutoUpdater();
+  this.setupIpcHandlers();
+}
+```
+
+**Check Electron Updater Logs:**
+
+```bash
+# macOS logs location
+~/Library/Logs/Flint/main.log
+
+# Or watch logs in real-time
+tail -f ~/Library/Logs/Flint/main.log
+```
+
+**Common Issues:**
+
+1. **"Cannot find channel file latest-mac.yml"**
+   - Ensure `latest-mac.yml` is in the http-server root directory
+   - Check that http-server is running on port 3000
+   - Verify `dev-app-update.yml` URL is correct
+
+2. **Update not detected**
+   - Verify version in `latest-mac.yml` is higher than installed version
+   - Check that `latest-mac.yml` contains correct file paths
+   - Ensure http-server has CORS enabled (`--cors` flag)
+
+3. **Download fails**
+   - Check that DMG file exists in http-server directory
+   - Verify file name in `latest-mac.yml` matches actual DMG file name
+   - Check http-server logs for 404 errors
+
+4. **App doesn't check for updates**
+   - Verify AutoUpdaterService is initialized (not commented out)
+   - Check that main window is set: `autoUpdaterService.setMainWindow(mainWindow)`
+   - For production apps, ensure `is.dev` check is bypassed for testing
+
+#### Inspecting latest-mac.yml
+
+The `latest-mac.yml` file should look like this:
+
+```yaml
+version: 0.1.1
+files:
+  - url: Flint-0.1.1-universal.dmg
+    sha512: [base64-encoded-hash]
+    size: 123456789
+path: Flint-0.1.1-universal.dmg
+sha512: [base64-encoded-hash]
+releaseDate: '2024-01-15T10:30:00.000Z'
+```
+
+**Important fields:**
+- `version`: Must be higher than installed version (using semver comparison)
+- `files[0].url`: Filename or URL to download
+- `path`: Same as `files[0].url` for generic provider
+- `sha512`: Used to verify download integrity
+
+#### Staging Environment Testing
+
+For team testing, set up a staging environment:
+
+1. **Create staging R2 bucket:**
+   - Bucket name: `flint-updates-staging`
+   - Public URL: `https://staging-updates.flintnote.com`
+
+2. **Update `dev-app-update.yml`:**
+   ```yaml
+   provider: generic
+   url: https://staging-updates.flintnote.com
    ```
 
-2. **Staging environment:**
-   - Create a separate R2 bucket for staging
-   - Configure dev-app-update.yml for staging URL
+3. **Deploy to staging:**
+   ```bash
+   # Build staging version
+   npm run build
+   npm run build:mac
+
+   # Upload to staging R2 bucket
+   aws s3 sync dist/ s3://flint-updates-staging/ \
+     --profile r2 \
+     --endpoint-url https://[account-id].r2.cloudflarestorage.com
+   ```
+
+4. **Test with team:**
+   - Share staging builds with team
+   - Everyone tests against staging update server
+   - Verify updates work before deploying to production
+
+#### Cleanup After Testing
+
+```bash
+# Stop http-server (Ctrl+C)
+
+# Remove test artifacts
+rm -rf local-update-server
+
+# Uninstall test versions if needed
+rm -rf /Applications/Flint.app
+
+# Revert any temporary code changes
+# - Restore version in package.json
+# - Remove forced update check bypass
+```
+
+#### Automated Testing (Advanced)
+
+For CI/CD integration, consider automating update testing:
+
+```bash
+#!/bin/bash
+# test-updates.sh - Automated update testing script
+
+set -e
+
+echo "Building old version..."
+npm version 0.1.0 --no-git-tag-version
+npm run build && npm run build:mac
+cp dist/Flint-0.1.0-universal.dmg test-artifacts/
+
+echo "Building new version..."
+npm version 0.1.1 --no-git-tag-version
+npm run build && npm run build:mac
+
+echo "Starting update server..."
+cp dist/* local-update-server/
+npx http-server local-update-server -p 3000 &
+SERVER_PID=$!
+
+echo "Installing old version..."
+# Install and test update mechanism
+# (This would require additional automation tools)
+
+echo "Cleanup..."
+kill $SERVER_PID
+```
+
+### Production Update Testing
+
+Before deploying to production, test with your actual R2 server:
+
+1. Deploy a test version to R2 with a pre-release version number (e.g., 0.1.1-beta.1)
+2. Configure `electron-builder.yml` to allow pre-releases:
+   ```yaml
+   publish:
+     provider: generic
+     url: https://updates.flintnote.com
+   ```
+3. In `src/main/auto-updater-service.ts`, temporarily enable pre-releases:
+   ```typescript
+   autoUpdater.allowPrerelease = true;
+   ```
+4. Test the full update flow against production infrastructure
+5. Revert pre-release settings before final production release
 
 ## Cost Estimation
 

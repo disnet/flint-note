@@ -1,6 +1,6 @@
-owner: your-company
-repo: flint-ui
 provider: generic
-url: http://localhost:3000/updates # For local testing
-updaterCacheDirName: flint-updater
-publishAutoUpdate: true
+url: http://localhost:3000
+# For local testing of auto-updates:
+# 1. Build the app: npm run build:mac
+# 2. Serve the dist folder: npx http-server dist -p 3000 --cors
+# 3. Run the app in dev mode to test update checking
