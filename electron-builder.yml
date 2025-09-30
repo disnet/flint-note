@@ -14,8 +14,9 @@ asarUnpack:
   - resources/**
 win:
   executableName: flint
-  certificateFile: env:CSC_LINK # Path to certificate file or env var
-  certificatePassword: env:CSC_KEY_PASSWORD # Certificate password from env var
+  # Windows code signing is configured via environment variables:
+  # CSC_LINK - Path to .p12 certificate file or base64-encoded certificate
+  # CSC_KEY_PASSWORD - Certificate password
   publisherName: 'Timothy Disney'
   verifyUpdateCodeSignature: true
 nsis:
@@ -40,7 +41,7 @@ mac:
     - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
   target:
     - target: dmg
-      arch: [arm64, x64]
+      arch: [universal]
 dmg:
   sign: true
   title: '${productName} ${version}'
