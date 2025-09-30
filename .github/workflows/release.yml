@@ -9,9 +9,6 @@ jobs:
   release:
     runs-on: ${{ matrix.os }}
 
-    env:
-      CSC_IDENTITY_AUTO_DISCOVERY: true
-
     strategy:
       matrix:
         os: [macos-latest, windows-latest]
@@ -71,14 +68,18 @@ jobs:
             echo "CSC_IDENTITY_AUTO_DISCOVERY: $CSC_IDENTITY_AUTO_DISCOVERY"
             echo "Available certificates before build:"
             security find-identity -v -p codesigning
-            env CSC_IDENTITY_AUTO_DISCOVERY=true APPLE_ID="${APPLE_ID}" APPLE_ID_PASSWORD="${APPLE_ID_PASSWORD}" APPLE_TEAM_ID="${APPLE_TEAM_ID}" npm run build:mac
+            npm run build:mac
           fi
         shell: bash
         env:
-          # macOS code signing environment variables
+          # macOS code signing and notarization
+          CSC_IDENTITY_AUTO_DISCOVERY: true
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # Windows code signing
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

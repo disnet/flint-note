@@ -75,6 +75,9 @@ jobs:
       - name: Build Electron app (Windows)
         if: matrix.os == 'windows-latest'
         run: npm run build:win
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
 
       - name: Build Electron app (Linux)
         if: matrix.os == 'ubuntu-latest'
