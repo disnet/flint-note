@@ -668,7 +668,7 @@ spctl --assess --verbose dist/mac-arm64/Flint.app
 xcrun notarytool history --keychain-profile "flint-notarization"
 ```
 
-Note: The actual output directory may vary based on architecture (e.g., `dist/mac-arm64/`, `dist/mac/`, `dist/mac-universal/`). Check the `dist/` directory after building.
+Note: The build produces a universal macOS binary in `dist/mac-universal/`.
 
 ## Local Notarization Testing
 
@@ -689,10 +689,8 @@ This section covers how to manually notarize your macOS application locally for 
 npm run build
 npm run build:mac
 
-# Verify the build was signed (check dist/ for actual directory name)
-codesign --verify --deep --strict dist/mac-arm64/Flint.app
-# Or for universal builds:
-# codesign --verify --deep --strict dist/mac-universal/Flint.app
+# Verify the build was signed
+codesign --verify --deep --strict dist/mac-universal/Flint.app
 ```
 
 ### Step 2: Submit for Notarization
@@ -701,7 +699,7 @@ codesign --verify --deep --strict dist/mac-arm64/Flint.app
 
 ```bash
 # Submit the DMG directly - this notarizes the entire DMG including the .app inside
-xcrun notarytool submit dist/Flint-0.1.0-arm64.dmg \
+xcrun notarytool submit dist/Flint-0.1.0-universal.dmg \
   --keychain-profile "flint-notarization" \
   --wait
 
@@ -713,10 +711,10 @@ xcrun notarytool submit dist/Flint-0.1.0-arm64.dmg \
 ```bash
 # Only needed if you're distributing the .app directly without a DMG
 # Create a zip of the .app bundle (required by notarytool - it doesn't accept .app directly)
-cd dist/mac-arm64 && zip -r Flint.zip Flint.app && cd ../..
+cd dist/mac-universal && zip -r Flint.zip Flint.app && cd ../..
 
 # Submit the zip file
-xcrun notarytool submit dist/mac-arm64/Flint.zip \
+xcrun notarytool submit dist/mac-universal/Flint.zip \
   --keychain-profile "flint-notarization" \
   --wait
 ```
@@ -732,7 +730,7 @@ xcrun notarytool submit dist/mac-arm64/Flint.zip \
 
 ```bash
 # Submit without waiting (use DMG for distribution)
-SUBMISSION_ID=$(xcrun notarytool submit dist/Flint-0.1.0-arm64.dmg \
+SUBMISSION_ID=$(xcrun notarytool submit dist/Flint-0.1.0-universal.dmg \
   --keychain-profile "flint-notarization" \
   --output-format json | jq -r '.id')
 
@@ -757,18 +755,18 @@ xcrun notarytool history \
 
 ```bash
 # For DMG files (recommended), staple to the DMG
-xcrun stapler staple dist/Flint-0.1.0-arm64.dmg
+xcrun stapler staple dist/Flint-0.1.0-universal.dmg
 
 # Verify stapling worked
-xcrun stapler validate dist/Flint-0.1.0-arm64.dmg
+xcrun stapler validate dist/Flint-0.1.0-universal.dmg
 
 # Test Gatekeeper assessment on the DMG
-spctl --assess --type open --context context:primary-signature --verbose dist/Flint-0.1.0-arm64.dmg
+spctl --assess --type open --context context:primary-signature --verbose dist/Flint-0.1.0-universal.dmg
 
 # For .app bundles only (if you notarized the .app directly):
-# xcrun stapler staple dist/mac-arm64/Flint.app
-# xcrun stapler validate dist/mac-arm64/Flint.app
-# spctl --assess --verbose=2 dist/mac-arm64/Flint.app
+# xcrun stapler staple dist/mac-universal/Flint.app
+# xcrun stapler validate dist/mac-universal/Flint.app
+# spctl --assess --verbose=2 dist/mac-universal/Flint.app
 ```
 
 **Important:** Staple the same artifact you notarized (DMG or .app), not both.
@@ -807,14 +805,8 @@ echo "Building application..."
 npm run build
 npm run build:mac
 
-# Determine the actual dist directory (check for arm64, x64, or universal)
-if [ -d "dist/mac-arm64" ]; then
-  DIST_DIR="dist/mac-arm64"
-elif [ -d "dist/mac-universal" ]; then
-  DIST_DIR="dist/mac-universal"
-else
-  DIST_DIR="dist/mac"
-fi
+# Use universal build directory
+DIST_DIR="dist/mac-universal"
 
 echo "Using dist directory: $DIST_DIR"
 
@@ -932,17 +924,17 @@ find dist -name "*.dmg" -exec xcrun notarytool submit {} \
 
 1. **Bundle format rejected:**
    ```bash
-   # Check bundle structure (adjust path as needed)
-   find dist/mac-arm64/Flint.app -name "*.dylib" -o -name "*.so"
+   # Check bundle structure
+   find dist/mac-universal/Flint.app -name "*.dylib" -o -name "*.so"
 
    # Verify all binaries are signed
-   find dist/mac-arm64/Flint.app -type f -perm +111 -exec codesign --verify {} \;
+   find dist/mac-universal/Flint.app -type f -perm +111 -exec codesign --verify {} \;
    ```
 
 2. **Hardened runtime violations:**
    ```bash
-   # Check entitlements (adjust path as needed)
-   codesign -d --entitlements - dist/mac-arm64/Flint.app
+   # Check entitlements
+   codesign -d --entitlements - dist/mac-universal/Flint.app
 
    # Verify entitlements file is properly configured
    plutil -lint build/entitlements.mac.plist
