@@ -32,8 +32,6 @@ mac:
   gatekeeperAssess: false
   entitlements: 'build/entitlements.mac.plist'
   entitlementsInherit: 'build/entitlements.mac.plist'
-  notarize:
-    teamId: 'R54QLXZTK7'
   extendInfo:
     - NSCameraUsageDescription: Application requests access to the device's camera.
     - NSMicrophoneUsageDescription: Application requests access to the device's microphone.
@@ -56,6 +54,7 @@ dmg:
       y: 220
       type: link
       path: /Applications
+afterSign: build/notarize-dmg.cjs
 linux:
   target:
     - AppImage
