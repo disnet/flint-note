@@ -1,11 +1,11 @@
 const { notarize } = require('@electron/notarize');
 const path = require('path');
 
-exports.default = async function notarizeDmg(context) {
-  const { electronPlatformName, appOutDir, packager } = context;
+exports.default = async function notarizeDmg(buildResult) {
+  const { platformToTargets, outDir } = buildResult;
 
-  // Only notarize on macOS
-  if (electronPlatformName !== 'darwin') {
+  // Only notarize macOS builds
+  if (!platformToTargets.has('darwin')) {
     return;
   }
 
@@ -21,26 +21,36 @@ exports.default = async function notarizeDmg(context) {
     return;
   }
 
-  // Find the DMG file
-  const productName = packager.appInfo.productName;
-  const version = packager.appInfo.version;
-  const dmgName = `${productName}-${version}-universal.dmg`;
-  const dmgPath = path.join(packager.outDir, dmgName);
+  // Find all DMG files in the output directory
+  const fs = require('fs');
+  const files = fs.readdirSync(outDir);
+  const dmgFiles = files.filter((file) => file.endsWith('.dmg'));
 
-  console.log(`Notarizing DMG: ${dmgPath}`);
+  if (dmgFiles.length === 0) {
+    console.warn('No DMG files found to notarize');
+    return;
+  }
 
-  try {
-    await notarize({
-      tool: 'notarytool',
-      appPath: dmgPath,
-      appleId,
-      appleIdPassword,
-      teamId
-    });
+  console.log(`Found ${dmgFiles.length} DMG file(s) to notarize`);
 
-    console.log(`Successfully notarized: ${dmgPath}`);
-  } catch (error) {
-    console.error('Notarization failed:', error);
-    throw error;
+  // Notarize each DMG file
+  for (const dmgFile of dmgFiles) {
+    const dmgPath = path.join(outDir, dmgFile);
+    console.log(`Notarizing DMG: ${dmgPath}`);
+
+    try {
+      await notarize({
+        tool: 'notarytool',
+        appPath: dmgPath,
+        appleId,
+        appleIdPassword,
+        teamId
+      });
+
+      console.log(`Successfully notarized: ${dmgPath}`);
+    } catch (error) {
+      console.error(`Notarization failed for ${dmgFile}:`, error);
+      throw error;
+    }
   }
 };

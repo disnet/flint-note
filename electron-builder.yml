@@ -54,7 +54,7 @@ dmg:
       y: 220
       type: link
       path: /Applications
-afterSign: build/notarize-dmg.cjs
+afterAllArtifactBuild: build/notarize-dmg.cjs
 linux:
   target:
     - AppImage
