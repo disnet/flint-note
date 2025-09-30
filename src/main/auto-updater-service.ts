@@ -1,6 +1,6 @@
 import pkg from 'electron-updater';
 const { autoUpdater } = pkg;
-import { BrowserWindow, ipcMain } from 'electron';
+import { BrowserWindow, ipcMain, app } from 'electron';
 import { logger } from './logger';
 
 export class AutoUpdaterService {
@@ -8,8 +8,10 @@ export class AutoUpdaterService {
   private updateCheckInterval: NodeJS.Timeout | null = null;
 
   constructor() {
+    logger.info('AutoUpdaterService constructor called');
     this.setupAutoUpdater();
     this.setupIpcHandlers();
+    logger.info('AutoUpdaterService initialization complete');
   }
 
   setMainWindow(window: BrowserWindow): void {
@@ -22,10 +24,18 @@ export class AutoUpdaterService {
     autoUpdater.autoInstallOnAppQuit = true; // Install when app quits
 
     // Development mode configuration
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === 'development' || !app.isPackaged) {
       autoUpdater.updateConfigPath = 'dev-app-update.yml'; // Optional dev config
       autoUpdater.forceDevUpdateConfig = true;
+      logger.info('Auto-updater configured for development mode');
     }
+
+    logger.info('Auto-updater initialized', {
+      autoDownload: autoUpdater.autoDownload,
+      autoInstallOnAppQuit: autoUpdater.autoInstallOnAppQuit,
+      isPackaged: app.isPackaged,
+      currentVersion: app.getVersion()
+    });
 
     // Auto-updater events
     autoUpdater.on('checking-for-update', () => {
@@ -81,8 +91,11 @@ export class AutoUpdaterService {
   }
 
   private setupIpcHandlers(): void {
+    logger.info('Setting up auto-updater IPC handlers');
+
     // Check for updates manually
     ipcMain.handle('check-for-updates', async () => {
+      logger.info('check-for-updates handler called');
       try {
         const result = await autoUpdater.checkForUpdates();
         return {
@@ -128,11 +141,10 @@ export class AutoUpdaterService {
 
     // Get current version
     ipcMain.handle('get-app-version', async () => {
+      const version = autoUpdater.currentVersion?.version || app.getVersion() || '0.0.0';
+      logger.info('get-app-version called', { version });
       return {
-        version:
-          autoUpdater.currentVersion?.version ||
-          process.env.npm_package_version ||
-          '0.0.0',
+        version,
         channel: autoUpdater.channel || 'latest'
       };
     });
@@ -183,6 +195,8 @@ export class AutoUpdaterService {
         }
       }
     );
+
+    logger.info('Auto-updater IPC handlers registered successfully');
   }
 
   private sendToRenderer(channel: string, data?: unknown): void {

@@ -32,6 +32,8 @@ mac:
   gatekeeperAssess: false
   entitlements: 'build/entitlements.mac.plist'
   entitlementsInherit: 'build/entitlements.mac.plist'
+  # Code signing configuration via environment variables:
+  # CSC_IDENTITY_AUTO_DISCOVERY=false - Disable automatic code signing discovery
   extendInfo:
     - NSCameraUsageDescription: Application requests access to the device's camera.
     - NSMicrophoneUsageDescription: Application requests access to the device's microphone.
@@ -41,7 +43,7 @@ mac:
     - target: dmg
       arch: [universal]
 dmg:
-  sign: true
+  sign: false
   title: '${productName} ${version}'
   iconSize: 100
   window:
