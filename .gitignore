@@ -7,6 +7,3 @@ out
 .env
 *.tsbuildinfo
 .wrangler
-
-# Auto-update testing artifacts
-build-autoupdate

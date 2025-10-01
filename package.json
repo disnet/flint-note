@@ -18,15 +18,14 @@
     "test:run": "vitest run",
     "start": "electron-vite preview",
     "check": "npm run lint && npm run typecheck",
-    "clean": "rm -rf out dist node_modules/.vite src/server/dist build-autoupdate",
+    "clean": "rm -rf out dist node_modules/.vite src/server/dist",
     "dev": "electron-vite dev",
     "build": "npm run typecheck && electron-vite build && npm run copy-onboarding",
     "copy-onboarding": "cp -r src/server/onboarding out/",
     "build:unpack": "npm run build && electron-builder --dir",
     "build:win": "npm run build && electron-builder --win",
     "build:mac": "npm run build && electron-builder --mac",
-    "build:linux": "npm run build && electron-builder --linux",
-    "test:update": "./scripts/test-auto-update.sh setup"
+    "build:linux": "npm run build && electron-builder --linux"
   },
   "dependencies": {
     "@ai-sdk/gateway": "^1.0.0",

@@ -27,7 +27,7 @@ nsis:
 mac:
   category: public.app-category.productivity
   icon: 'build/icon.icns'
-  # # identity: 'Timothy Disney (R54QLXZTK7)' # Disabled for local testing # Disabled for local testing
+  identity: 'Timothy Disney (R54QLXZTK7)'
   hardenedRuntime: true
   gatekeeperAssess: false
   entitlements: 'build/entitlements.mac.plist'
@@ -70,5 +70,5 @@ appImage:
 npmRebuild: false
 publish:
   provider: generic
-  url: http://localhost:3000
+  url: https://updates.flintnote.com
 # afterSign: build/notarize.cjs # Disabled: using DMG notarization instead
