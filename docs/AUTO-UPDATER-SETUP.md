@@ -6,7 +6,75 @@ This document explains how the auto-updater system works and provides instructio
 
 The Flint application uses `electron-updater` to provide automatic application updates. The system is designed for private/proprietary applications and uses Cloudflare R2 for cost-effective, reliable distribution with zero egress fees.
 
-**Current Version:** The application is currently at version 0.1.0 (as specified in `package.json`). Auto-updates will only trigger when a higher version number is available on the update server.
+**Current Version:** The application is currently at version 0.1.1 (as specified in `package.json`). Auto-updates will only trigger when a higher version number is available on the update server.
+
+## Update Trains (Production and Canary)
+
+Flint uses a **dual-train update system** to safely test new features before releasing them to all users:
+
+### Production Train
+- **URL:** `https://updates.flintnote.com`
+- **Version Format:** Stable semver (e.g., `1.0.0`, `1.0.1`, `1.1.0`)
+- **Purpose:** Stable releases for all users
+- **Configuration:** `electron-builder.production.yml`
+- **Build Commands:**
+  - `npm run build:mac:production`
+  - `npm run build:win:production`
+  - `npm run build:linux:production`
+
+### Canary Train
+- **URL:** `https://canary.flintnote.com`
+- **Version Format:** Prerelease semver (e.g., `1.1.0-canary.1`, `1.2.0-canary.2`)
+- **Purpose:** Early testing of new features and bug fixes
+- **Configuration:** `electron-builder.canary.yml`
+- **Product Name:** "Flint Canary" (distinguishable from production)
+- **Build Commands:**
+  - `npm run build:mac:canary`
+  - `npm run build:win:canary`
+  - `npm run build:linux:canary`
+
+### Key Differences
+
+| Aspect | Production | Canary |
+|--------|-----------|--------|
+| Update URL | `updates.flintnote.com` | `canary.flintnote.com` |
+| Version | Stable (1.0.0) | Prerelease (1.0.0-canary.1) |
+| R2 Bucket | `flint-updates-production` | `flint-updates-canary` |
+| App Name | "Flint" | "Flint Canary" |
+| Executable | `flint` | `flint-canary` |
+| Installation | Separate - users can have both installed |
+
+### Versioning Strategy
+
+**Production releases:**
+```bash
+# Increment version for production release
+npm version 1.0.1
+npm run build:mac:production
+# Tag and push
+git tag v1.0.1
+git push origin v1.0.1
+```
+
+**Canary releases:**
+```bash
+# Use prerelease tag for canary
+npm version 1.1.0-canary.1
+npm run build:mac:canary
+# Tag and push
+git tag v1.1.0-canary.1
+git push origin v1.1.0-canary.1
+```
+
+**Promoting Canary to Production:**
+When a canary version is stable, remove the prerelease tag:
+```bash
+# Canary 1.1.0-canary.3 is stable, promote to production
+npm version 1.1.0
+npm run build:mac:production
+git tag v1.1.0
+git push origin v1.1.0
+```
 
 ## Architecture
 
@@ -107,22 +175,31 @@ src/
 - **Global CDN** - Fast downloads worldwide via Cloudflare's network
 - **Cost-effective** - Pay only for storage (~$0.015/GB/month) and minimal operation fees
 
-### Step 1: Create R2 Bucket
+### Step 1: Create R2 Buckets
+
+You need to create **two separate R2 buckets** for the dual-train system:
 
 1. **Log into Cloudflare Dashboard:**
    - Go to [dash.cloudflare.com](https://dash.cloudflare.com)
    - Navigate to R2 Object Storage
 
-2. **Create a bucket:**
+2. **Create production bucket:**
    - Click "Create bucket"
-   - Name it (e.g., `flint-updates`)
+   - Name it `flint-updates-production`
    - Choose a location (Automatic is recommended)
 
-3. **Enable public access:**
-   - Go to bucket Settings → Public Access
+3. **Create canary bucket:**
+   - Click "Create bucket"
+   - Name it `flint-updates-canary`
+   - Choose a location (Automatic is recommended)
+
+4. **Enable public access for both buckets:**
+   - For each bucket, go to Settings → Public Access
    - Click "Connect Domain" or "Allow Access"
-   - Note the public R2.dev URL (e.g., `https://pub-xxxxx.r2.dev`)
-   - Or connect a custom domain (e.g., `updates.yourdomain.com`)
+   - Connect custom domains:
+     - Production: `updates.flintnote.com` → `flint-updates-production`
+     - Canary: `canary.flintnote.com` → `flint-updates-canary`
+   - Alternatively, note the public R2.dev URLs if not using custom domains
 
 ### Step 2: Create API Token
 
@@ -135,29 +212,27 @@ src/
 
 ### Step 3: Update Application Configuration
 
-1. **Update `electron-builder.yml`:**
+The application is already configured with separate config files for each train:
+
+1. **Production configuration (`electron-builder.production.yml`):**
 
    ```yaml
    publish:
      provider: generic
-     url: https://pub-xxxxx.r2.dev # or https://updates.yourdomain.com
+     url: https://updates.flintnote.com
    ```
 
-   **Important:** The current configuration uses `https://updates.flint-note.rocks` as a placeholder. You must update this URL to your actual R2 public URL before deploying.
-
-2. **For multiple environments, create separate R2 buckets:**
+2. **Canary configuration (`electron-builder.canary.yml`):**
 
    ```yaml
-   # electron-builder.yml (production)
    publish:
      provider: generic
-     url: https://updates.yourdomain.com
-
-   # dev-app-update.yml (development/staging)
-   publish:
-     provider: generic
-     url: https://staging-updates.yourdomain.com
+     url: https://canary.flintnote.com
    ```
+
+3. **Build scripts are already set up in `package.json`:**
+   - Production: `npm run build:mac:production`, `build:win:production`, `build:linux:production`
+   - Canary: `npm run build:mac:canary`, `build:win:canary`, `build:linux:canary`
 
 ### Step 4: Manual Deployment (Optional)
 
@@ -171,13 +246,21 @@ npm install -g wrangler
 # Authenticate
 wrangler login
 
-# Build the application
-npm run build
-npm run build:mac  # or build:win, build:linux
+# Build production release
+npm run build:mac:production  # or build:win:production, build:linux:production
 
-# Upload to R2
-wrangler r2 object put flint-updates/latest.yml --file=dist/latest.yml
-wrangler r2 object put flint-updates/latest-mac.yml --file=dist/latest-mac.yml
+# Upload to production R2 bucket
+wrangler r2 object put flint-updates-production/latest.yml --file=dist/latest.yml
+wrangler r2 object put flint-updates-production/latest-mac.yml --file=dist/latest-mac.yml
+# ... upload other files
+
+# Build canary release
+npm version 1.1.0-canary.1
+npm run build:mac:canary  # or build:win:canary, build:linux:canary
+
+# Upload to canary R2 bucket
+wrangler r2 object put flint-updates-canary/latest.yml --file=dist/latest.yml
+wrangler r2 object put flint-updates-canary/latest-mac.yml --file=dist/latest-mac.yml
 # ... upload other files
 ```
 
@@ -189,8 +272,14 @@ aws configure --profile r2
 # Region: auto
 # Endpoint: https://<account-id>.r2.cloudflarestorage.com
 
-# Upload files
-aws s3 sync dist/ s3://flint-updates/ --profile r2 --endpoint-url https://<account-id>.r2.cloudflarestorage.com
+# Upload production build
+npm run build:mac:production
+aws s3 sync dist/ s3://flint-updates-production/ --profile r2 --endpoint-url https://<account-id>.r2.cloudflarestorage.com
+
+# Upload canary build
+npm version 1.1.0-canary.1
+npm run build:mac:canary
+aws s3 sync dist/ s3://flint-updates-canary/ --profile r2 --endpoint-url https://<account-id>.r2.cloudflarestorage.com
 ```
 
 ### Step 5: GitHub Actions Integration
@@ -198,86 +287,44 @@ aws s3 sync dist/ s3://flint-updates/ --profile r2 --endpoint-url https://<accou
 The project includes two GitHub Actions workflows:
 
 1. **`.github/workflows/build.yml`** - Runs on push to main/develop and PRs. Builds and tests all platforms.
-2. **`.github/workflows/release.yml`** - Runs on version tags (v*). Builds signed releases and creates GitHub releases.
+2. **`.github/workflows/release.yml`** - Runs on version tags (v*). Automatically determines production vs canary based on tag name and deploys to the appropriate R2 bucket.
 
 #### Current Release Workflow
 
 The release workflow (`.github/workflows/release.yml`) is already configured with:
-- Matrix builds for macOS and Windows
-- Manual certificate import for macOS (more reliable than apple-actions)
-- Automatic code signing for both platforms
-- Artifact upload and GitHub release creation
+- **Automatic train detection**: Detects production vs canary based on tag name (e.g., `v1.0.0` vs `v1.0.0-canary.1`)
+- **Dynamic bucket selection**: Automatically deploys to the correct R2 bucket
+- **Platform-specific builds**: Uses correct build command (`build:mac:production` or `build:mac:canary`)
+- **Code signing and notarization**: Automatic code signing for macOS and Windows
+- **R2 deployment**: Direct upload to the appropriate R2 bucket
+- **GitHub release creation**: Creates release with correct prerelease flag
 
-#### Adding R2 Deployment
+#### How It Works
 
-To add automatic deployment to Cloudflare R2, add a new job to `.github/workflows/release.yml` after the `create-release` job:
+The workflow determines the release train based on the git tag:
 
-```yaml
-  deploy-to-r2:
-    needs: release
-    runs-on: ubuntu-latest
+1. **Production releases** (tags like `v1.0.0`, `v1.0.1`):
+   - Uses `electron-builder.production.yml` configuration
+   - Deploys to `R2_PRODUCTION_BUCKET_NAME` bucket
+   - Update URL: `https://updates.flintnote.com`
+   - Creates stable GitHub release
 
-    steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - name: Flatten artifacts directory
-        run: |
-          mkdir -p dist
-          find artifacts -type f -exec cp {} dist/ \;
-
-      - name: Configure R2 credentials
-        run: |
-          mkdir -p ~/.aws
-          cat > ~/.aws/credentials << EOF
-          [r2]
-          aws_access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
-          aws_secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          EOF
-          cat > ~/.aws/config << EOF
-          [profile r2]
-          region = auto
-          endpoint_url = https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
-          EOF
-
-      - name: Deploy to R2
-        env:
-          BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
-        run: |
-          # Upload all files to R2 using S3-compatible API
-          aws s3 sync dist/ s3://$BUCKET_NAME/ \
-            --profile r2 \
-            --endpoint-url https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com \
-            --exclude "*.blockmap"
-
-          # Ensure latest.yml files have proper content type
-          for file in dist/latest*.yml; do
-            if [ -f "$file" ]; then
-              aws s3 cp "$file" s3://$BUCKET_NAME/$(basename "$file") \
-                --profile r2 \
-                --endpoint-url https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com \
-                --content-type "text/yaml"
-            fi
-          done
-```
-
-This approach:
-- Reuses artifacts from the existing build matrix
-- Keeps signing and building separate from deployment
-- Uses S3-compatible API (no CloudFront invalidation needed!)
-- Only requires R2 secrets, not code signing secrets
+2. **Canary releases** (tags like `v1.0.0-canary.1`, `v1.1.0-canary.2`):
+   - Uses `electron-builder.canary.yml` configuration
+   - Deploys to `R2_CANARY_BUCKET_NAME` bucket
+   - Update URL: `https://canary.flintnote.com`
+   - Creates prerelease GitHub release
 
 #### Required GitHub Secrets
 
 Add these secrets to your repository settings (`Settings > Secrets and variables > Actions`):
 
-**For R2 deployment:**
+**For R2 deployment (dual-train system):**
 
 - `R2_ACCESS_KEY_ID` - R2 API token Access Key ID
 - `R2_SECRET_ACCESS_KEY` - R2 API token Secret Access Key
-- `R2_BUCKET_NAME` - Your R2 bucket name (e.g., `flint-updates`)
+- `R2_PRODUCTION_BUCKET_NAME` - Production R2 bucket name (e.g., `flint-updates-production`)
+- `R2_CANARY_BUCKET_NAME` - Canary R2 bucket name (e.g., `flint-updates-canary`)
 - `CLOUDFLARE_ACCOUNT_ID` - Your Cloudflare account ID (found in R2 dashboard)
 
 **For Windows code signing:**
@@ -315,33 +362,38 @@ Add these secrets to your repository settings (`Settings > Secrets and variables
 
 #### Triggering Releases
 
-To deploy a new version:
-
-1. Update version in `package.json`
-2. Commit changes: `git commit -am "Release v1.0.1"`
-3. Create and push tag: `git tag v1.0.1 && git push origin v1.0.1`
-4. GitHub Actions will automatically build and deploy
-
-#### Multi-Environment Setup
-
-For staging/production environments, create separate R2 buckets and use different secrets:
-
-**`.github/workflows/staging.yml`** (triggers on `develop` branch):
-
-```yaml
-# Similar to above but with staging bucket
-env:
-  R2_BUCKET_NAME: ${{ secrets.R2_STAGING_BUCKET_NAME }}
-  # Reuse same R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, and CLOUDFLARE_ACCOUNT_ID
+**Production release:**
+```bash
+# Update version to stable semver
+npm version 1.0.1
+git push origin main
+git push origin v1.0.1
+# GitHub Actions automatically builds and deploys to production bucket
 ```
 
-**`.github/workflows/production.yml`** (triggers on version tags):
-
-```yaml
-# Use production bucket as shown above
-env:
-  R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+**Canary release:**
+```bash
+# Update version with canary prerelease tag
+npm version 1.1.0-canary.1
+git push origin main
+git push origin v1.1.0-canary.1
+# GitHub Actions automatically builds and deploys to canary bucket
 ```
+
+The workflow automatically:
+1. Detects train from tag name (presence of `-canary.` indicates canary)
+2. Uses appropriate electron-builder config
+3. Deploys to correct R2 bucket
+4. Creates GitHub release with correct prerelease flag
+
+#### Summary
+
+The dual-train system is now fully configured and automated:
+
+- **Production train** (`v1.0.0`) → `flint-updates-production` → `updates.flintnote.com`
+- **Canary train** (`v1.0.0-canary.1`) → `flint-updates-canary` → `canary.flintnote.com`
+
+Simply push a tag with the appropriate version format, and GitHub Actions handles the rest!
 
 ## Security Considerations
 

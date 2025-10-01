@@ -25,7 +25,13 @@
     "build:unpack": "npm run build && electron-builder --dir",
     "build:win": "npm run build && electron-builder --win",
     "build:mac": "npm run build && electron-builder --mac",
-    "build:linux": "npm run build && electron-builder --linux"
+    "build:linux": "npm run build && electron-builder --linux",
+    "build:win:production": "npm run build && electron-builder --win --config electron-builder.production.yml",
+    "build:mac:production": "npm run build && electron-builder --mac --config electron-builder.production.yml",
+    "build:linux:production": "npm run build && electron-builder --linux --config electron-builder.production.yml",
+    "build:win:canary": "npm run build && electron-builder --win --config electron-builder.canary.yml",
+    "build:mac:canary": "npm run build && electron-builder --mac --config electron-builder.canary.yml",
+    "build:linux:canary": "npm run build && electron-builder --linux --config electron-builder.canary.yml"
   },
   "dependencies": {
     "@ai-sdk/gateway": "^1.0.0",

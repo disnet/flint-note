@@ -1,5 +1,5 @@
-appId: com.flintnote.flint
-productName: Flint
+appId: com.flintnote.flint-canary
+productName: Flint Canary
 directories:
   buildResources: build
 files:
@@ -13,7 +13,7 @@ files:
 asarUnpack:
   - resources/**
 win:
-  executableName: flint
+  executableName: flint-canary
   # Windows code signing is configured via environment variables:
   # CSC_LINK - Path to .p12 certificate file or base64-encoded certificate
   # CSC_KEY_PASSWORD - Certificate password
@@ -70,5 +70,5 @@ appImage:
 npmRebuild: false
 publish:
   provider: generic
-  url: https://updates.flintnote.com
+  url: https://canary.flintnote.com
 # afterSign: build/notarize.cjs # Disabled: using DMG notarization instead

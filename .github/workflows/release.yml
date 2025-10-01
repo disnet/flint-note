@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - 'v*' # Triggers on version tags like v1.0.0
+      - 'v*' # Triggers on version tags like v1.0.0 or v1.0.0-canary.1
 
 jobs:
   release:
@@ -16,6 +16,21 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Determine release train
+        id: train
+        run: |
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          if [[ "$TAG_NAME" == *"-canary."* ]]; then
+            echo "train=canary" >> $GITHUB_OUTPUT
+            echo "bucket=${{ secrets.R2_CANARY_BUCKET_NAME }}" >> $GITHUB_OUTPUT
+            echo "update_url=https://canary.flintnote.com" >> $GITHUB_OUTPUT
+          else
+            echo "train=production" >> $GITHUB_OUTPUT
+            echo "bucket=${{ secrets.R2_PRODUCTION_BUCKET_NAME }}" >> $GITHUB_OUTPUT
+            echo "update_url=https://updates.flintnote.com" >> $GITHUB_OUTPUT
+          fi
+          echo "Release train: $(cat $GITHUB_OUTPUT)"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -60,7 +75,12 @@ jobs:
 
       - name: Build Electron app (macOS)
         if: matrix.os == 'macos-latest'
-        run: npm run build:mac
+        run: |
+          if [ "${{ steps.train.outputs.train }}" == "canary" ]; then
+            npm run build:mac:canary
+          else
+            npm run build:mac:production
+          fi
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: true
 
@@ -101,14 +121,24 @@ jobs:
 
       - name: Build Electron app (Windows)
         if: matrix.os == 'windows-latest'
-        run: npm run build:win
+        run: |
+          if [ "${{ steps.train.outputs.train }}" == "canary" ]; then
+            npm run build:win:canary
+          else
+            npm run build:win:production
+          fi
         env:
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
 
       - name: Build Electron app (Linux)
         if: matrix.os == 'ubuntu-latest'
-        run: npm run build:linux
+        run: |
+          if [ "${{ steps.train.outputs.train }}" == "canary" ]; then
+            npm run build:linux:canary
+          else
+            npm run build:linux:production
+          fi
 
       - name: Configure R2 credentials
         run: |
@@ -126,10 +156,13 @@ jobs:
 
       - name: Deploy to R2
         env:
-          BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+          BUCKET_NAME: ${{ steps.train.outputs.bucket }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          UPDATE_URL: ${{ steps.train.outputs.update_url }}
+          RELEASE_TRAIN: ${{ steps.train.outputs.train }}
         run: |
-          echo "Uploading update files to R2 bucket: $BUCKET_NAME"
+          echo "Deploying $RELEASE_TRAIN release to R2 bucket: $BUCKET_NAME"
+          echo "Update URL: $UPDATE_URL"
 
           # Upload installer files (DMG, EXE, AppImage)
           for ext in dmg exe AppImage; do
@@ -159,8 +192,8 @@ jobs:
             fi
           done
 
-          echo "✅ Deployment to R2 complete!"
-          echo "Update files available for electron-updater on all platforms"
+          echo "✅ Deployment to $RELEASE_TRAIN R2 complete!"
+          echo "Update files available at: $UPDATE_URL"
 
   create-release:
     needs: release
@@ -172,13 +205,29 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Determine release info
+        id: release_info
+        run: |
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          if [[ "$TAG_NAME" == *"-canary."* ]]; then
+            echo "update_url=https://canary.flintnote.com" >> $GITHUB_OUTPUT
+            echo "train=canary" >> $GITHUB_OUTPUT
+          else
+            echo "update_url=https://updates.flintnote.com" >> $GITHUB_OUTPUT
+            echo "train=production" >> $GITHUB_OUTPUT
+          fi
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
           draft: false
-          prerelease: ${{ contains(github.ref, '-') }}
+          prerelease: ${{ contains(github.ref, '-canary.') }}
           body: |
-            Download installers from: https://your-r2-public-url.com/
+            ## Release Train: ${{ steps.release_info.outputs.train }}
+
+            Download installers from: ${{ steps.release_info.outputs.update_url }}
+
+            Auto-update URL: ${{ steps.release_info.outputs.update_url }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

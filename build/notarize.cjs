@@ -39,7 +39,7 @@ async function notarizeApp(context) {
     const { notarize } = require('@electron/notarize');
 
     await notarize({
-      appBundleId: 'rocks.flint-note.flint',
+      appBundleId: 'com.flintnote.flint',
       appPath: appPath,
       appleId: appleId,
       appleIdPassword: appleIdPassword,

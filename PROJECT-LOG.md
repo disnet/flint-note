@@ -1,5 +1,9 @@
 # Project Log
 
+## Dual-Train Auto-Updater System - 2025-10-01
+
+- Implemented production and canary update trains for safe feature testing: created separate electron-builder.production.yml and electron-builder.canary.yml configurations pointing to updates.flintnote.com and canary.flintnote.com respectively; added train-specific build scripts (build:mac:production/canary, etc.) to package.json; modified .github/workflows/release.yml to automatically detect train from git tag (v1.0.0 vs v1.0.0-canary.1), use appropriate configuration, and deploy to correct R2 bucket (R2_PRODUCTION_BUCKET_NAME or R2_CANARY_BUCKET_NAME); canary builds use "Flint Canary" product name and flint-canary executable allowing side-by-side installation; documented complete versioning strategy, R2 bucket setup, GitHub secrets configuration, and release workflow in AUTO-UPDATER-SETUP.md with new "Update Trains" section; created DUAL-TRAIN-SETUP.md summary document
+
 ## Cloudflare R2 Auto-Updater Setup - 2025-09-30
 
 - **Migrated auto-updater deployment from Netlify to Cloudflare R2** for zero-cost bandwidth distribution: updated docs/AUTO-UPDATER-SETUP.md with comprehensive R2 setup instructions including bucket creation, API token generation, and GitHub Actions integration; updated electron-builder.yml to point to R2 public URL; added deploy-to-r2 job to .github/workflows/release.yml that uses AWS CLI with S3-compatible API to upload build artifacts after release; configured proper YAML content types and public ACLs for update metadata files; deployment automatically triggers on version tags and uploads all installers plus latest.yml update metadata to R2 bucket; cost comparison shows R2 at ~$0.01/month for 10,000 updates vs Netlify $2,000/month or AWS $900/month due to free egress bandwidth
