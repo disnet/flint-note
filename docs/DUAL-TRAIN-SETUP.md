@@ -25,11 +25,13 @@ Created two separate Electron Builder configurations:
 Added train-specific build commands to `package.json`:
 
 **Production:**
+
 - `npm run build:mac:production`
 - `npm run build:win:production`
 - `npm run build:linux:production`
 
 **Canary:**
+
 - `npm run build:mac:canary`
 - `npm run build:win:canary`
 - `npm run build:linux:canary`
@@ -37,6 +39,7 @@ Added train-specific build commands to `package.json`:
 ### 3. Versioning Strategy
 
 **Production releases** use stable semver:
+
 ```bash
 npm version 1.0.1
 git tag v1.0.1
@@ -44,6 +47,7 @@ git push origin v1.0.1
 ```
 
 **Canary releases** use prerelease tags:
+
 ```bash
 npm version 1.1.0-canary.1
 git tag v1.1.0-canary.1
@@ -51,6 +55,7 @@ git push origin v1.1.0-canary.1
 ```
 
 **Promoting canary to production:**
+
 ```bash
 # After testing canary 1.1.0-canary.3
 npm version 1.1.0
@@ -72,10 +77,12 @@ Modified `.github/workflows/release.yml` to automatically:
 ### 5. Required Infrastructure
 
 **Cloudflare R2 Buckets:**
+
 - `flint-updates-production` with custom domain `updates.flintnote.com`
 - `flint-updates-canary` with custom domain `canary.flintnote.com`
 
 **GitHub Secrets:**
+
 - `R2_ACCESS_KEY_ID` - Shared R2 API access key
 - `R2_SECRET_ACCESS_KEY` - Shared R2 API secret key
 - `R2_PRODUCTION_BUCKET_NAME` - Production bucket name
@@ -87,12 +94,14 @@ Modified `.github/workflows/release.yml` to automatically:
 ### For Developers
 
 **Release to production:**
+
 ```bash
 npm version 1.0.1
 git push origin main v1.0.1
 ```
 
 **Release to canary:**
+
 ```bash
 npm version 1.1.0-canary.1
 git push origin main v1.1.0-canary.1
@@ -101,10 +110,12 @@ git push origin main v1.1.0-canary.1
 ### For Users
 
 **Production users:**
+
 - Install from `updates.flintnote.com`
 - Receive stable updates only
 
 **Canary users:**
+
 - Install from `canary.flintnote.com`
 - Receive early access to new features
 - Can run side-by-side with production (different executable names)

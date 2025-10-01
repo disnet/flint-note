@@ -5,6 +5,7 @@
   import SearchBar from './components/SearchBar.svelte';
   import VaultSwitcher from './components/VaultSwitcher.svelte';
   import FirstTimeExperience from './components/FirstTimeExperience.svelte';
+  import UpdateIndicator from './components/UpdateIndicator.svelte';
   import type { Message } from './services/types';
   import type { NoteMetadata } from './services/noteStore.svelte';
   import { getChatService } from './services/chatService';
@@ -641,6 +642,7 @@
         </div>
         <div class="title-bar-drag-center"></div>
         <div class="title-bar-controls">
+          <UpdateIndicator />
           <div class="pillbox-controls">
             <button
               class="pillbox-btn pillbox-btn-left"

@@ -1,5 +1,9 @@
 # Project Log
 
+## Auto-Update UX Improvement - 2025-10-01
+
+- Improved auto-update UX by replacing toast-style notifications with minimal title bar indicator: enabled automatic background downloads (`autoUpdater.autoDownload = true`), created compact UpdateIndicator component that shows "Downloading update..." with progress then transitions to "Click to restart and install", integrated indicator into title bar just left of agent panel buttons, removed old UpdateNotification component from Settings (replaced with informational text), resulting in zero-interruption workflow where updates download silently in background and user sees only small, clickable indicator when ready to install
+
 ## Dual-Train Auto-Updater System - 2025-10-01
 
 - Implemented production and canary update trains for safe feature testing: created separate electron-builder.production.yml and electron-builder.canary.yml configurations pointing to updates.flintnote.com and canary.flintnote.com respectively; added train-specific build scripts (build:mac:production/canary, etc.) to package.json; modified .github/workflows/release.yml to automatically detect train from git tag (v1.0.0 vs v1.0.0-canary.1), use appropriate configuration, and deploy to correct R2 bucket (R2_PRODUCTION_BUCKET_NAME or R2_CANARY_BUCKET_NAME); canary builds use "Flint Canary" product name and flint-canary executable allowing side-by-side installation; documented complete versioning strategy, R2 bucket setup, GitHub secrets configuration, and release workflow in AUTO-UPDATER-SETUP.md with new "Update Trains" section; created DUAL-TRAIN-SETUP.md summary document

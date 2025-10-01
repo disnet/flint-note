@@ -13,6 +13,7 @@ The Flint application uses `electron-updater` to provide automatic application u
 Flint uses a **dual-train update system** to safely test new features before releasing them to all users:
 
 ### Production Train
+
 - **URL:** `https://updates.flintnote.com`
 - **Version Format:** Stable semver (e.g., `1.0.0`, `1.0.1`, `1.1.0`)
 - **Purpose:** Stable releases for all users
@@ -23,6 +24,7 @@ Flint uses a **dual-train update system** to safely test new features before rel
   - `npm run build:linux:production`
 
 ### Canary Train
+
 - **URL:** `https://canary.flintnote.com`
 - **Version Format:** Prerelease semver (e.g., `1.1.0-canary.1`, `1.2.0-canary.2`)
 - **Purpose:** Early testing of new features and bug fixes
@@ -35,18 +37,19 @@ Flint uses a **dual-train update system** to safely test new features before rel
 
 ### Key Differences
 
-| Aspect | Production | Canary |
-|--------|-----------|--------|
-| Update URL | `updates.flintnote.com` | `canary.flintnote.com` |
-| Version | Stable (1.0.0) | Prerelease (1.0.0-canary.1) |
-| R2 Bucket | `flint-updates-production` | `flint-updates-canary` |
-| App Name | "Flint" | "Flint Canary" |
-| Executable | `flint` | `flint-canary` |
+| Aspect       | Production                               | Canary                      |
+| ------------ | ---------------------------------------- | --------------------------- |
+| Update URL   | `updates.flintnote.com`                  | `canary.flintnote.com`      |
+| Version      | Stable (1.0.0)                           | Prerelease (1.0.0-canary.1) |
+| R2 Bucket    | `flint-updates-production`               | `flint-updates-canary`      |
+| App Name     | "Flint"                                  | "Flint Canary"              |
+| Executable   | `flint`                                  | `flint-canary`              |
 | Installation | Separate - users can have both installed |
 
 ### Versioning Strategy
 
 **Production releases:**
+
 ```bash
 # Increment version for production release
 npm version 1.0.1
@@ -57,6 +60,7 @@ git push origin v1.0.1
 ```
 
 **Canary releases:**
+
 ```bash
 # Use prerelease tag for canary
 npm version 1.1.0-canary.1
@@ -68,6 +72,7 @@ git push origin v1.1.0-canary.1
 
 **Promoting Canary to Production:**
 When a canary version is stable, remove the prerelease tag:
+
 ```bash
 # Canary 1.1.0-canary.3 is stable, promote to production
 npm version 1.1.0
@@ -239,6 +244,7 @@ The application is already configured with separate config files for each train:
 For quick testing, you can manually upload using Wrangler CLI or AWS CLI (R2 is S3-compatible):
 
 **Using Wrangler:**
+
 ```bash
 # Install wrangler
 npm install -g wrangler
@@ -265,6 +271,7 @@ wrangler r2 object put flint-updates-canary/latest-mac.yml --file=dist/latest-ma
 ```
 
 **Using AWS CLI (S3-compatible):**
+
 ```bash
 # Configure AWS CLI with R2 credentials
 aws configure --profile r2
@@ -287,11 +294,12 @@ aws s3 sync dist/ s3://flint-updates-canary/ --profile r2 --endpoint-url https:/
 The project includes two GitHub Actions workflows:
 
 1. **`.github/workflows/build.yml`** - Runs on push to main/develop and PRs. Builds and tests all platforms.
-2. **`.github/workflows/release.yml`** - Runs on version tags (v*). Automatically determines production vs canary based on tag name and deploys to the appropriate R2 bucket.
+2. **`.github/workflows/release.yml`** - Runs on version tags (v\*). Automatically determines production vs canary based on tag name and deploys to the appropriate R2 bucket.
 
 #### Current Release Workflow
 
 The release workflow (`.github/workflows/release.yml`) is already configured with:
+
 - **Automatic train detection**: Detects production vs canary based on tag name (e.g., `v1.0.0` vs `v1.0.0-canary.1`)
 - **Dynamic bucket selection**: Automatically deploys to the correct R2 bucket
 - **Platform-specific builds**: Uses correct build command (`build:mac:production` or `build:mac:canary`)
@@ -328,10 +336,12 @@ Add these secrets to your repository settings (`Settings > Secrets and variables
 - `CLOUDFLARE_ACCOUNT_ID` - Your Cloudflare account ID (found in R2 dashboard)
 
 **For Windows code signing:**
+
 - `CSC_LINK` - Base64-encoded .p12 certificate file for Windows
 - `CSC_KEY_PASSWORD` - Certificate password for Windows
 
 **For macOS code signing and notarization:**
+
 - `CSC_LINK` - Base64-encoded .p12 certificate file for macOS (same variable name, different certificate)
 - `CSC_KEY_PASSWORD` - Certificate password for macOS
 - `APPLE_ID` - Your Apple ID email
@@ -363,6 +373,7 @@ Add these secrets to your repository settings (`Settings > Secrets and variables
 #### Triggering Releases
 
 **Production release:**
+
 ```bash
 # Update version to stable semver
 npm version 1.0.1
@@ -372,6 +383,7 @@ git push origin v1.0.1
 ```
 
 **Canary release:**
+
 ```bash
 # Update version with canary prerelease tag
 npm version 1.1.0-canary.1
@@ -381,6 +393,7 @@ git push origin v1.1.0-canary.1
 ```
 
 The workflow automatically:
+
 1. Detects train from tag name (presence of `-canary.` indicates canary)
 2. Uses appropriate electron-builder config
 3. Deploys to correct R2 bucket
@@ -406,6 +419,7 @@ Simply push a tag with the appropriate version format, and GitHub Actions handle
    - `CSC_KEY_PASSWORD` - Certificate password
 
    In `electron-builder.yml`:
+
    ```yaml
    win:
      executableName: flint
@@ -414,6 +428,7 @@ Simply push a tag with the appropriate version format, and GitHub Actions handle
    ```
 
    For local development, set environment variables:
+
    ```bash
    export CSC_LINK="/path/to/certificate.p12"
    export CSC_KEY_PASSWORD="your-password"
@@ -654,6 +669,7 @@ xcrun notarytool submit dist/mac-universal/Flint.zip \
 ```
 
 **Which to choose?**
+
 - If you're distributing via DMG (recommended): Only notarize the DMG
 - If you're distributing the .app directly: Notarize the .app as a zip
 - You do NOT need to notarize both - notarizing the DMG covers everything inside it
@@ -857,6 +873,7 @@ find dist -name "*.dmg" -exec xcrun notarytool submit {} \
 **Common Issues and Solutions:**
 
 1. **Bundle format rejected:**
+
    ```bash
    # Check bundle structure
    find dist/mac-universal/Flint.app -name "*.dylib" -o -name "*.so"
@@ -866,6 +883,7 @@ find dist -name "*.dmg" -exec xcrun notarytool submit {} \
    ```
 
 2. **Hardened runtime violations:**
+
    ```bash
    # Check entitlements
    codesign -d --entitlements - dist/mac-universal/Flint.app
@@ -875,6 +893,7 @@ find dist -name "*.dmg" -exec xcrun notarytool submit {} \
    ```
 
 3. **Credential issues:**
+
    ```bash
    # Verify keychain profile
    xcrun notarytool history --keychain-profile "flint-notarization"
@@ -1029,12 +1048,14 @@ For team testing, set up a staging environment:
    - Public URL: `https://staging-updates.flintnote.com`
 
 2. **Update `dev-app-update.yml`:**
+
    ```yaml
    provider: generic
    url: https://staging-updates.flintnote.com
    ```
 
 3. **Deploy to staging:**
+
    ```bash
    # Build staging version
    npm run build
@@ -1074,12 +1095,14 @@ Before deploying to production, test with your actual R2 server:
 ### Cloudflare R2 Costs
 
 **Free Tier includes (per month):**
+
 - 10GB storage
 - 1 million Class A operations (writes, lists)
 - 10 million Class B operations (reads)
 - **Unlimited egress bandwidth** (completely free!)
 
 **Paid Pricing (above free tier):**
+
 - **Storage:** $0.015/GB/month
 - **Class A operations:** $4.50 per million
 - **Class B operations:** $0.36 per million
@@ -1088,24 +1111,28 @@ Before deploying to production, test with your actual R2 server:
 **Real-World Examples:**
 
 **Example 1: 1,000 monthly updates (500MB app)**
+
 - Storage: 0.5GB = ~$0.01/month
 - Bandwidth: 500GB = **$0** (free!)
 - Operations: ~1,000 reads = $0.00036
 - **Total: ~$0.01/month** 🎉
 
 **Example 2: 10,000 monthly updates (500MB app)**
+
 - Storage: 0.5GB = ~$0.01/month
 - Bandwidth: 5TB = **$0** (free!)
 - Operations: ~10,000 reads = $0.0036
 - **Total: ~$0.01/month** 🎉
 
 **Example 3: 100,000 monthly updates (500MB app)**
+
 - Storage: 0.5GB = ~$0.01/month
 - Bandwidth: 50TB = **$0** (free!)
 - Operations: ~100,000 reads = $0.036
 - **Total: ~$0.05/month** 🎉
 
 **Cost Comparison (10TB bandwidth/month):**
+
 - Vercel: $4,000
 - Netlify: $2,000
 - AWS CloudFront: $900
@@ -1127,6 +1154,7 @@ The secret is **zero egress fees**. Traditional CDNs (including AWS CloudFront, 
 The auto-updater system provides a robust, secure way to distribute updates to your Flint application users. The Cloudflare R2 setup ensures global availability through Cloudflare's CDN, fast download speeds, and unbeatable cost-effectiveness with zero egress fees.
 
 **Benefits of Cloudflare R2 for updates:**
+
 - **Zero egress bandwidth costs** - No charges for downloads, no matter the scale
 - **S3-compatible API** - Works with existing AWS tools and libraries
 - **Automatic HTTPS and global CDN** - Fast downloads worldwide
@@ -1136,6 +1164,7 @@ The auto-updater system provides a robust, secure way to distribute updates to y
 - **Predictable costs** - Pay only for storage (~$0.015/GB/month)
 
 **Perfect for:**
+
 - Electron app updates (bandwidth-heavy, cost-sensitive)
 - Any application with frequent or large downloads
 - Startups wanting to minimize infrastructure costs

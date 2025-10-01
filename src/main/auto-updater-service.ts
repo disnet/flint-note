@@ -20,7 +20,7 @@ export class AutoUpdaterService {
 
   private setupAutoUpdater(): void {
     // Configure auto-updater
-    autoUpdater.autoDownload = false; // Don't auto-download, let user choose
+    autoUpdater.autoDownload = true; // Automatically download updates in background
     autoUpdater.autoInstallOnAppQuit = true; // Install when app quits
 
     logger.info('Auto-updater initialized', {
