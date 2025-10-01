@@ -13,8 +13,9 @@ NC='\033[0m' # No Color
 
 # Configuration
 SERVER_PORT=3000
-UPDATE_SERVER_DIR="local-update-server"
-BACKUP_DIR="update-test-backup"
+BUILD_DIR="build-autoupdate"
+OLD_DIR="$BUILD_DIR/old"
+NEW_DIR="$BUILD_DIR/new"
 
 # Versions will be determined from package.json
 OLD_VERSION=""
@@ -61,21 +62,39 @@ increment_patch_version() {
     echo "${major}.${minor}.${patch}"
 }
 
-# Function to backup package.json
-backup_package_json() {
-    print_step "Backing up package.json..."
-    mkdir -p "$BACKUP_DIR"
-    cp package.json "$BACKUP_DIR/package.json.bak"
-    print_success "Backup created"
+# Function to backup package.json and electron-builder.yml
+backup_configs() {
+    print_step "Backing up configuration files..."
+    mkdir -p "$BUILD_DIR"
+    cp package.json "$BUILD_DIR/package.json.bak"
+    cp electron-builder.yml "$BUILD_DIR/electron-builder.yml.bak"
+    print_success "Backups created"
 }
 
-# Function to restore package.json
-restore_package_json() {
-    if [ -f "$BACKUP_DIR/package.json.bak" ]; then
-        print_step "Restoring package.json..."
-        cp "$BACKUP_DIR/package.json.bak" package.json
-        print_success "Package.json restored"
+# Function to restore configs
+restore_configs() {
+    if [ -f "$BUILD_DIR/package.json.bak" ]; then
+        print_step "Restoring configuration files..."
+        cp "$BUILD_DIR/package.json.bak" package.json
+        cp "$BUILD_DIR/electron-builder.yml.bak" electron-builder.yml
+        print_success "Configs restored"
     fi
+}
+
+# Function to set update server URL for testing
+set_test_update_url() {
+    print_step "Configuring test update server URL..."
+    # Temporarily update electron-builder.yml to use localhost
+    sed -i.tmp 's|url: https://updates.flintnote.com|url: http://localhost:3000|' electron-builder.yml
+    rm electron-builder.yml.tmp
+
+    # Disable code signing for test builds to avoid signature verification issues
+    # Comment out the identity line to disable signing
+    sed -i.tmp "s|identity: 'Timothy Disney (R54QLXZTK7)'|# identity: 'Timothy Disney (R54QLXZTK7)' # Disabled for local testing|" electron-builder.yml
+    rm electron-builder.yml.tmp
+
+    print_success "Update server URL set to http://localhost:3000"
+    print_success "Code signing disabled for local testing"
 }
 
 # Function to set version in package.json
@@ -98,20 +117,20 @@ build_app() {
 # Function to preserve build artifacts
 preserve_old_version() {
     print_step "Preserving old version artifacts..."
-    mkdir -p "$BACKUP_DIR"
+    mkdir -p "$OLD_DIR"
 
     # Find the DMG file for the old version
     DMG_FILE=$(find dist -name "Flint-${OLD_VERSION}*.dmg" -type f | head -n 1)
 
     if [ -n "$DMG_FILE" ]; then
-        mv "$DMG_FILE" "$BACKUP_DIR/"
-        print_success "Moved old DMG to backup: $(basename "$DMG_FILE")"
+        mv "$DMG_FILE" "$OLD_DIR/"
+        print_success "Moved old DMG to $OLD_DIR: $(basename "$DMG_FILE")"
     else
         print_warning "Could not find old version DMG"
     fi
 
     if [ -f "dist/latest-mac.yml" ]; then
-        cp dist/latest-mac.yml "$BACKUP_DIR/latest-mac-${OLD_VERSION}.yml"
+        cp dist/latest-mac.yml "$OLD_DIR/latest-mac-${OLD_VERSION}.yml"
         print_success "Saved old latest-mac.yml"
     fi
 
@@ -125,15 +144,15 @@ setup_update_server() {
     print_step "Setting up local update server..."
 
     # Create server directory
-    rm -rf "$UPDATE_SERVER_DIR"
-    mkdir -p "$UPDATE_SERVER_DIR"
+    rm -rf "$NEW_DIR"
+    mkdir -p "$NEW_DIR"
 
     # Copy new version artifacts (use specific version to avoid wrong file)
     DMG_FILE=$(find dist -name "Flint-${NEW_VERSION}*.dmg" -type f | head -n 1)
     ZIP_FILE=$(find dist -name "Flint-${NEW_VERSION}*.zip" -type f | head -n 1)
 
     if [ -n "$DMG_FILE" ]; then
-        cp "$DMG_FILE" "$UPDATE_SERVER_DIR/"
+        cp "$DMG_FILE" "$NEW_DIR/"
         print_success "Copied NEW version DMG: $(basename "$DMG_FILE")"
     else
         print_error "No DMG file found for version $NEW_VERSION in dist/"
@@ -143,7 +162,7 @@ setup_update_server() {
     fi
 
     if [ -n "$ZIP_FILE" ]; then
-        cp "$ZIP_FILE" "$UPDATE_SERVER_DIR/"
+        cp "$ZIP_FILE" "$NEW_DIR/"
         print_success "Copied NEW version ZIP: $(basename "$ZIP_FILE")"
     else
         print_warning "No ZIP file found for version $NEW_VERSION in dist/"
@@ -151,11 +170,11 @@ setup_update_server() {
     fi
 
     if [ -f "dist/latest-mac.yml" ]; then
-        cp dist/latest-mac.yml "$UPDATE_SERVER_DIR/"
+        cp dist/latest-mac.yml "$NEW_DIR/"
         print_success "Copied latest-mac.yml"
 
         # Verify the version in latest-mac.yml matches NEW_VERSION
-        YAML_VERSION=$(grep "^version:" "$UPDATE_SERVER_DIR/latest-mac.yml" | cut -d' ' -f2)
+        YAML_VERSION=$(grep "^version:" "$NEW_DIR/latest-mac.yml" | cut -d' ' -f2)
         if [ "$YAML_VERSION" = "$NEW_VERSION" ]; then
             print_success "Verified: latest-mac.yml has correct version ($YAML_VERSION)"
         else
@@ -170,79 +189,32 @@ setup_update_server() {
     # Show what's in the update server directory
     echo ""
     print_step "Update server contents:"
-    ls -lh "$UPDATE_SERVER_DIR"
+    ls -lh "$NEW_DIR"
 
     # Show file sizes for comparison
-    if [ -d "$BACKUP_DIR" ]; then
+    if [ -d "$OLD_DIR" ]; then
         echo ""
-        print_step "OLD version (in backup):"
-        ls -lh "$BACKUP_DIR"/*.dmg 2>/dev/null || echo "  No DMG found"
+        print_step "OLD version (in $OLD_DIR):"
+        ls -lh "$OLD_DIR"/*.dmg 2>/dev/null || echo "  No DMG found"
     fi
     echo ""
 }
 
-# Function to start http-server
+# Function to start http-server (foreground)
 start_server() {
     print_step "Starting HTTP server on port $SERVER_PORT..."
+    echo ""
+    echo -e "${YELLOW}========================================${NC}"
+    echo -e "${YELLOW}  Press Ctrl+C to stop the server${NC}"
+    echo -e "${YELLOW}========================================${NC}"
+    echo ""
 
-    # Start server in background using npx (no global install needed)
-    cd "$UPDATE_SERVER_DIR"
-    npx http-server . -p "$SERVER_PORT" --cors > ../server.log 2>&1 &
-    SERVER_PID=$!
+    # Start server in foreground using npx (no global install needed)
+    cd "$NEW_DIR"
+    npx http-server . -p "$SERVER_PORT" --cors
     cd ..
-
-    # Save PID for cleanup
-    echo "$SERVER_PID" > server.pid
-
-    # Wait a bit for server to start
-    sleep 3
-
-    # Check if server is running
-    if kill -0 "$SERVER_PID" 2>/dev/null; then
-        print_success "Server started (PID: $SERVER_PID)"
-        print_success "Update server running at: http://localhost:$SERVER_PORT"
-        echo ""
-        print_step "Available files:"
-        curl -s "http://localhost:$SERVER_PORT/" | grep -o 'href="[^"]*"' | sed 's/href="//;s/"//' | grep -v '^/$' || true
-        echo ""
-    else
-        print_error "Failed to start server"
-        cat server.log 2>/dev/null || true
-        exit 1
-    fi
 }
 
-# Function to stop http-server
-stop_server() {
-    if [ -f "server.pid" ]; then
-        SERVER_PID=$(cat server.pid)
-        if kill -0 "$SERVER_PID" 2>/dev/null; then
-            print_step "Stopping HTTP server (PID: $SERVER_PID)..."
-            kill "$SERVER_PID" 2>/dev/null || true
-            rm -f server.pid
-            print_success "Server stopped"
-        fi
-    fi
-}
-
-# Function to cleanup
-cleanup() {
-    print_step "Cleaning up..."
-
-    # Stop server
-    stop_server
-
-    # Remove server directory
-    rm -rf "$UPDATE_SERVER_DIR"
-
-    # Remove backup directory
-    rm -rf "$BACKUP_DIR"
-
-    # Remove log file
-    rm -f server.log
-
-    print_success "Cleanup complete"
-}
 
 # Function to show next steps
 show_next_steps() {
@@ -259,13 +231,16 @@ show_next_steps() {
     echo -e "${BLUE}Testing Steps:${NC}"
     echo ""
     echo "1. Install the OLD version:"
-    OLD_DMG=$(find "$BACKUP_DIR" -name "*.dmg" -type f | head -n 1)
+    OLD_DMG=$(find "$OLD_DIR" -name "*.dmg" -type f | head -n 1)
     if [ -n "$OLD_DMG" ]; then
-        echo "   ${YELLOW}open \"$OLD_DMG\"${NC}"
+        echo -e "   ${YELLOW}open \"$OLD_DMG\"${NC}"
     else
-        echo "   ${YELLOW}open $BACKUP_DIR/Flint-${OLD_VERSION}*.dmg${NC}"
+        echo -e "   ${YELLOW}open $OLD_DIR/Flint-${OLD_VERSION}*.dmg${NC}"
     fi
-    echo "   Drag to Applications and launch"
+    echo "   Drag to Applications"
+    echo ""
+    echo "   ${YELLOW}Important: Start the app with FLINT_LOCAL_TESTING=true${NC}"
+    echo -e "   ${YELLOW}FLINT_LOCAL_TESTING=true /Applications/Flint.app/Contents/MacOS/Flint${NC}"
     echo ""
     echo "2. In the app, go to Settings (⚙️) and click 'Check for Updates'"
     echo ""
@@ -275,14 +250,17 @@ show_next_steps() {
     echo "   - Download and install the update"
     echo ""
     echo -e "${BLUE}Monitoring:${NC}"
-    echo "   - Server logs: ${YELLOW}tail -f server.log${NC}"
-    echo "   - App logs: ${YELLOW}tail -f ~/Library/Logs/Flint/main.log${NC}"
+    echo -e "   - App logs: ${YELLOW}tail -f ~/Library/Logs/Flint/main.log${NC}"
+    echo ""
+    echo -e "${BLUE}Next Step:${NC}"
+    echo "   Now starting the HTTP server..."
+    echo "   The server will serve the new version for auto-update testing."
+    echo ""
+    echo -e "   ${YELLOW}Press Ctrl+C to stop the server when done testing${NC}"
     echo ""
     echo -e "${BLUE}Cleanup:${NC}"
-    echo "   When done testing, run:"
-    echo "   ${YELLOW}./scripts/test-auto-update.sh cleanup${NC}"
-    echo ""
-    echo -e "${YELLOW}Note: Server is running in background (PID: $(cat server.pid 2>/dev/null || echo 'N/A'))${NC}"
+    echo "   After stopping the server, run:"
+    echo -e "   ${YELLOW}npm run clean${NC}"
     echo ""
 }
 
@@ -326,8 +304,11 @@ main() {
             echo "  New version (to upgrade to):   $NEW_VERSION"
             echo ""
 
-            # Backup package.json
-            backup_package_json
+            # Backup configs
+            backup_configs
+
+            # Set test update server URL
+            set_test_update_url
 
             # Clean dist directory before building
             print_step "Cleaning dist directory..."
@@ -350,23 +331,14 @@ main() {
             echo ""
             setup_update_server
 
-            # Start server
-            start_server
-
-            # Restore original version
-            restore_package_json
+            # Restore original configs
+            restore_configs
 
             # Show next steps
             show_next_steps
-            ;;
 
-        cleanup)
-            echo ""
-            print_step "Cleaning up test environment..."
-            cleanup
-            restore_package_json
-            print_success "Test environment cleaned up"
-            echo ""
+            # Start server (foreground - will block until Ctrl+C)
+            start_server
             ;;
 
         status)
@@ -374,40 +346,38 @@ main() {
             print_step "Auto-Update Test Status"
             echo ""
 
-            if [ -f "server.pid" ]; then
-                SERVER_PID=$(cat server.pid)
-                if kill -0 "$SERVER_PID" 2>/dev/null; then
-                    print_success "Server is running (PID: $SERVER_PID)"
-                    echo "  URL: http://localhost:$SERVER_PORT"
-                else
-                    print_warning "Server PID file exists but server is not running"
+            if [ -d "$BUILD_DIR" ]; then
+                print_success "Test environment exists"
+
+                if [ -d "$OLD_DIR" ]; then
+                    echo ""
+                    print_step "Old version directory ($OLD_DIR):"
+                    ls -lh "$OLD_DIR"
+                fi
+
+                if [ -d "$NEW_DIR" ]; then
+                    echo ""
+                    print_step "New version directory ($NEW_DIR):"
+                    ls -lh "$NEW_DIR"
                 fi
             else
-                print_warning "Server is not running"
-            fi
-
-            if [ -d "$UPDATE_SERVER_DIR" ]; then
-                echo ""
-                print_step "Update server contents:"
-                ls -lh "$UPDATE_SERVER_DIR"
-            fi
-
-            if [ -d "$BACKUP_DIR" ]; then
-                echo ""
-                print_step "Backup directory contents:"
-                ls -lh "$BACKUP_DIR"
+                print_warning "Test environment not set up"
+                echo "Run './scripts/test-auto-update.sh setup' to create it"
             fi
 
             echo ""
             ;;
 
         logs)
-            if [ -f "server.log" ]; then
-                print_step "HTTP Server logs:"
-                tail -f server.log
+            print_step "Monitoring app logs..."
+            echo ""
+            echo -e "${YELLOW}App logs location: ~/Library/Logs/Flint/main.log${NC}"
+            echo ""
+            if [ -f ~/Library/Logs/Flint/main.log ]; then
+                tail -f ~/Library/Logs/Flint/main.log
             else
-                print_error "No server logs found"
-                echo "Run './scripts/test-auto-update.sh setup' first"
+                print_error "No app logs found yet"
+                echo "Logs will appear after you run the app at least once"
             fi
             ;;
 
@@ -418,16 +388,15 @@ main() {
             echo "Usage: $0 [command]"
             echo ""
             echo "Commands:"
-            echo "  setup      Set up test environment (builds both versions, starts server)"
-            echo "  cleanup    Stop server and remove test artifacts"
+            echo "  setup      Build old/new versions and start HTTP server for testing"
             echo "  status     Show current test environment status"
-            echo "  logs       Show HTTP server logs (follows)"
+            echo "  logs       Monitor app logs (tail -f)"
             echo "  help       Show this help message"
             echo ""
             echo "Examples:"
-            echo "  $0 setup      # Set up test environment"
-            echo "  $0 status     # Check if server is running"
-            echo "  $0 cleanup    # Clean up when done testing"
+            echo "  $0 setup      # Set up and start server (use Ctrl+C to stop)"
+            echo "  $0 status     # Check test environment"
+            echo "  npm run clean # Clean up after testing"
             echo ""
             ;;
 
@@ -439,8 +408,8 @@ main() {
     esac
 }
 
-# Handle Ctrl+C gracefully
-trap 'echo ""; print_warning "Interrupted by user"; cleanup; exit 130' INT TERM
+# Handle Ctrl+C gracefully during setup
+trap 'echo ""; print_warning "Interrupted by user"; restore_configs; exit 130' INT TERM
 
 # Run main function
 main "$@"

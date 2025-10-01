@@ -23,18 +23,44 @@ export class AutoUpdaterService {
     autoUpdater.autoDownload = false; // Don't auto-download, let user choose
     autoUpdater.autoInstallOnAppQuit = true; // Install when app quits
 
+    // Disable signature verification for local testing
+    // In production, this should be enabled for security
+    const isLocalTesting = process.env.FLINT_LOCAL_TESTING === 'true';
+    if (isLocalTesting) {
+      autoUpdater.disableWebInstaller = true;
+      logger.info('Code signature verification disabled for local testing');
+    }
+
+    // Allow environment variable override for testing
+    const updateServerUrl = process.env.FLINT_UPDATE_SERVER_URL;
+    if (updateServerUrl) {
+      logger.info('Using update server URL from environment', { url: updateServerUrl });
+      autoUpdater.setFeedURL({
+        provider: 'generic',
+        url: updateServerUrl
+      });
+    }
     // Development mode configuration
-    if (process.env.NODE_ENV === 'development' || !app.isPackaged) {
+    else if (process.env.NODE_ENV === 'development' || !app.isPackaged) {
       autoUpdater.updateConfigPath = 'dev-app-update.yml'; // Optional dev config
       autoUpdater.forceDevUpdateConfig = true;
-      logger.info('Auto-updater configured for development mode');
+      // Explicitly set the feed URL for development
+      autoUpdater.setFeedURL({
+        provider: 'generic',
+        url: 'http://localhost:3000'
+      });
+      logger.info('Auto-updater configured for development mode', {
+        updateConfigPath: autoUpdater.updateConfigPath,
+        feedURL: autoUpdater.getFeedURL()
+      });
     }
 
     logger.info('Auto-updater initialized', {
       autoDownload: autoUpdater.autoDownload,
       autoInstallOnAppQuit: autoUpdater.autoInstallOnAppQuit,
       isPackaged: app.isPackaged,
-      currentVersion: app.getVersion()
+      currentVersion: app.getVersion(),
+      feedURL: autoUpdater.getFeedURL()
     });
 
     // Auto-updater events

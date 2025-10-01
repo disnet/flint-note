@@ -977,28 +977,32 @@ Local testing allows you to verify the auto-update mechanism without deploying t
 The easiest way to test auto-updates locally is using the provided test script:
 
 ```bash
-# Set up test environment (builds both versions, starts server)
+# Set up test environment and start HTTP server
 ./scripts/test-auto-update.sh setup
 
 # This will:
 # 1. Read current version from package.json (e.g., 0.1.1)
 # 2. Build "old" version using current version
 # 3. Build "new" version using current version + 1 (e.g., 0.1.2)
-# 4. Start local HTTP server serving the new version
-# 5. Show instructions for testing
+# 4. Show instructions for testing
+# 5. Start HTTP server in foreground (serving the new version)
 
-# Follow the on-screen instructions to install and test
+# The server runs in the foreground - press Ctrl+C to stop when done
 
-# When done testing, clean up:
-./scripts/test-auto-update.sh cleanup
+# After stopping the server, clean up:
+npm run clean
 ```
 
 **Available commands:**
-- `./scripts/test-auto-update.sh setup` - Set up test environment
-- `./scripts/test-auto-update.sh status` - Check server status
-- `./scripts/test-auto-update.sh logs` - View server logs
-- `./scripts/test-auto-update.sh cleanup` - Clean up test environment
+- `./scripts/test-auto-update.sh setup` - Build versions and start server (Ctrl+C to stop)
+- `./scripts/test-auto-update.sh status` - Check test environment status
+- `./scripts/test-auto-update.sh logs` - Monitor app logs (tail -f)
 - `./scripts/test-auto-update.sh help` - Show help
+- `npm run clean` - Remove test artifacts
+
+**Directory structure:**
+- `build-autoupdate/old/` - Old version DMG for installation
+- `build-autoupdate/new/` - New version files served by HTTP server
 
 #### Manual Testing (Advanced)
 

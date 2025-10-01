@@ -9,7 +9,4 @@ out
 .wrangler
 
 # Auto-update testing artifacts
-local-update-server
-update-test-backup
-server.pid
-server.log
+build-autoupdate
