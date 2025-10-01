@@ -166,31 +166,31 @@ jobs:
 
           # Upload installer files (DMG, EXE, AppImage)
           for ext in dmg exe AppImage; do
-            for file in dist/*.$ext; do
+            while IFS= read -r -d '' file; do
               if [ -f "$file" ]; then
                 filename=$(basename "$file")
                 echo "Uploading $filename..."
-                aws s3 cp "$file" s3://$BUCKET_NAME/$filename \
+                aws s3 cp "$file" "s3://$BUCKET_NAME/$filename" \
                   --profile r2 \
-                  --endpoint-url https://$CLOUDFLARE_ACCOUNT_ID.r2.cloudflarestorage.com \
+                  --endpoint-url "https://$CLOUDFLARE_ACCOUNT_ID.r2.cloudflarestorage.com" \
                   --acl public-read
               fi
-            done
+            done < <(find dist -maxdepth 1 -name "*.$ext" -print0)
           done
 
           # Upload update metadata files with correct content type
           echo "Uploading update metadata files..."
-          for file in dist/latest*.yml; do
+          while IFS= read -r -d '' file; do
             if [ -f "$file" ]; then
               filename=$(basename "$file")
               echo "Uploading $filename with correct content type..."
-              aws s3 cp "$file" s3://$BUCKET_NAME/$filename \
+              aws s3 cp "$file" "s3://$BUCKET_NAME/$filename" \
                 --profile r2 \
-                --endpoint-url https://$CLOUDFLARE_ACCOUNT_ID.r2.cloudflarestorage.com \
+                --endpoint-url "https://$CLOUDFLARE_ACCOUNT_ID.r2.cloudflarestorage.com" \
                 --content-type "text/yaml" \
                 --acl public-read
             fi
-          done
+          done < <(find dist -maxdepth 1 -name "latest*.yml" -print0)
 
           echo "✅ Deployment to $RELEASE_TRAIN R2 complete!"
           echo "Update files available at: $UPDATE_URL"
