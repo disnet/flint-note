@@ -164,8 +164,8 @@ jobs:
           echo "Deploying $RELEASE_TRAIN release to R2 bucket: $BUCKET_NAME"
           echo "Update URL: $UPDATE_URL"
 
-          # Upload installer files (DMG, EXE, AppImage)
-          for ext in dmg exe AppImage; do
+          # Upload installer files (DMG, ZIP, EXE, AppImage)
+          for ext in dmg zip exe AppImage; do
             while IFS= read -r -d '' file; do
               if [ -f "$file" ]; then
                 filename=$(basename "$file")
