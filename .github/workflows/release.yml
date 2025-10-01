@@ -180,17 +180,15 @@ jobs:
 
           # Upload update metadata files with correct content type
           echo "Uploading update metadata files..."
-          while IFS= read -r -d '' file; do
-            if [ -f "$file" ]; then
-              filename=$(basename "$file")
-              echo "Uploading $filename with correct content type..."
-              aws s3 cp "$file" "s3://$BUCKET_NAME/$filename" \
-                --profile r2 \
-                --endpoint-url "https://$CLOUDFLARE_ACCOUNT_ID.r2.cloudflarestorage.com" \
-                --content-type "text/yaml" \
-                --acl public-read
-            fi
-          done < <(find dist -maxdepth 1 -name "latest*.yml" -print0)
+          find dist -maxdepth 1 -name "*.yml" -type f | while read -r file; do
+            filename=$(basename "$file")
+            echo "Uploading $filename with correct content type..."
+            aws s3 cp "$file" "s3://$BUCKET_NAME/$filename" \
+              --profile r2 \
+              --endpoint-url "https://$CLOUDFLARE_ACCOUNT_ID.r2.cloudflarestorage.com" \
+              --content-type "text/yaml" \
+              --acl public-read
+          done
 
           echo "✅ Deployment to $RELEASE_TRAIN R2 complete!"
           echo "Update files available at: $UPDATE_URL"
