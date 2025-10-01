@@ -14,11 +14,14 @@ asarUnpack:
   - resources/**
 win:
   executableName: flint
+  icon: 'build/icon.png'
   # Windows code signing is configured via environment variables:
   # CSC_LINK - Path to .p12 certificate file or base64-encoded certificate
   # CSC_KEY_PASSWORD - Certificate password
   publisherName: 'Timothy Disney'
-  verifyUpdateCodeSignature: true
+  # Disabled until we obtain Windows code signing certificate
+  # Set to true once you have a certificate to verify update signatures
+  verifyUpdateCodeSignature: false
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}

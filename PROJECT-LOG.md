@@ -1,5 +1,9 @@
 # Project Log
 
+## Windows Build Configuration - 2025-10-01
+
+- Configured Windows builds for dual-train auto-updater system: added Windows icon configuration to both electron-builder.production.yml and electron-builder.canary.yml (electron-builder auto-converts PNG to ICO during build), updated GitHub Actions workflow to include windows-latest in build matrix alongside macos-latest, added `shell: bash` to all bash-syntax steps for Windows compatibility, updated R2 upload script to use simple find+while loop instead of process substitution for cross-platform compatibility, added blockmap file uploads for delta updates; set `verifyUpdateCodeSignature: false` for Windows to enable auto-updates without code signing certificate (can be enabled later when certificate obtained), while macOS continues using signed+notarized builds with Gatekeeper verification; created docs/WINDOWS-BUILD-SETUP.md documenting platform-independent signing configuration, icon setup, build commands, GitHub Actions configuration, and upgrade path to add Windows code signing later
+
 ## Auto-Update UX Improvement - 2025-10-01
 
 - Improved auto-update UX by replacing toast-style notifications with minimal title bar indicator: enabled automatic background downloads (`autoUpdater.autoDownload = true`), created compact UpdateIndicator component that shows "Downloading update..." with progress then transitions to "Click to restart and install", integrated indicator into title bar just left of agent panel buttons, removed old UpdateNotification component from Settings (replaced with informational text), resulting in zero-interruption workflow where updates download silently in background and user sees only small, clickable indicator when ready to install
