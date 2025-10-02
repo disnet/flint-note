@@ -128,6 +128,9 @@ class UnifiedChatStore {
 
       // Load data for current vault
       await this.loadFromStorage();
+
+      // Sync active thread with backend after loading threads
+      await this.syncActiveThreadWithBackend();
     } catch (error) {
       console.warn('Failed to initialize unified chat store:', error);
     } finally {
@@ -180,9 +183,6 @@ class UnifiedChatStore {
       const vault = await service.getCurrentVault();
       this.state.currentVaultId = vault?.id || 'default';
       this.vaultInitialized = true;
-
-      // Sync active thread with backend after initialization
-      await this.syncActiveThreadWithBackend();
     } catch (error) {
       console.warn('Failed to initialize vault for threads:', error);
       this.state.currentVaultId = 'default';

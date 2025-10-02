@@ -903,11 +903,11 @@ ${
       }
     }
 
-    // If we have messages and no backend history, sync them
-    if (messagesArray.length > 0 && !this.conversationHistories.has(conversationId)) {
+    // Always sync messages when provided to ensure context is properly restored
+    if (messagesArray.length > 0) {
       this.syncConversationFromFrontend(conversationId, messagesArray);
     } else if (!this.conversationHistories.has(conversationId)) {
-      // Create empty conversation if it doesn't exist
+      // Create empty conversation only if no messages provided and no history exists
       this.conversationHistories.set(conversationId, []);
       logger.info('Created new conversation', { conversationId });
     }
