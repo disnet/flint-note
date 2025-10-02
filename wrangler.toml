@@ -1,0 +1,12 @@
+# Cloudflare Pages configuration for Flint website
+name = "flint-website"
+compatibility_date = "2025-01-15"
+
+# Pages configuration
+pages_build_output_dir = "website"
+
+# Custom domain configuration
+# Configure these in the Cloudflare dashboard under Pages > Custom domains:
+# - www.flintnote.com -> this Pages project
+# - updates.flintnote.com -> R2 bucket (flint-updates-production)
+# - canary.flintnote.com -> R2 bucket (flint-updates-canary)
