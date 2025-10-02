@@ -11,6 +11,10 @@ on:
       - '.github/workflows/deploy-website.yml'
   workflow_dispatch:
 
+permissions:
+  contents: read
+  deployments: write
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
