@@ -1,5 +1,9 @@
 # Project Log
 
+## Custom Functions Moved to Settings - 2025-10-02
+
+- Moved Custom Functions from system view to Settings page section: removed "Custom Functions" navigation button from SystemViews.svelte, removed 'custom-functions' from activeSystemView type union across App.svelte, MainView.svelte, and LeftSidebar.svelte, added CustomFunctionsManager component as new section in Settings.svelte with heading and description; enhanced CustomFunctionsManager with embedded mode prop that hides full-page header and shows "Create Function" button in list view, added "Back to List" navigation when in embedded editor/tester/details views, maintained full functionality while consolidating advanced features in Settings page
+
 ## Settings Page Cleanup - 2025-10-02
 
 - Removed Cache Performance section from Settings page and moved Slash Commands from left sidebar to Settings for better organization: deleted entire Cache Performance monitoring section including all cache-related state variables (cacheMetrics, cachePerformance, cacheConfig, cacheHealthCheck, etc.), removed all cache monitoring functions (loadCacheData, generateCacheReport, optimizeCache, resetCacheMetrics, etc.), cleaned up cache-related CSS and ElectronChatService import; moved slash commands management UI from left sidebar to Settings page by removing "Slash Commands" button from SystemViews component, adding SlashCommands as new section in Settings.svelte with heading and description, updating TypeScript types throughout app to remove 'slash-commands' from activeSystemView union type, and cleaning up SlashCommands component styles to work within Settings page context; Settings page now contains: Application Updates, API Keys, Model Preferences, and Slash Commands sections, with left sidebar focused on primary navigation (Daily, All notes, Custom Functions, Settings)

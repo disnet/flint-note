@@ -48,9 +48,7 @@
   const messages = $derived(unifiedChatStore.activeThread?.messages || []);
 
   let isLoadingResponse = $state(false);
-  let activeSystemView = $state<
-    'daily' | 'notes' | 'settings' | 'custom-functions' | null
-  >(null);
+  let activeSystemView = $state<'daily' | 'notes' | 'settings' | null>(null);
 
   async function handleNoteSelect(note: NoteMetadata): Promise<void> {
     await noteNavigationService.openNote(note, 'navigation', openNoteEditor, () => {
@@ -114,7 +112,7 @@
   }
 
   async function handleSystemViewSelect(
-    view: 'daily' | 'notes' | 'settings' | 'custom-functions' | null
+    view: 'daily' | 'notes' | 'settings' | null
   ): Promise<void> {
     // If clicking the same view that's already active and sidebar is visible, toggle the sidebar
     if (sidebarState.leftSidebar.visible && activeSystemView === view && view !== null) {

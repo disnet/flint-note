@@ -3,7 +3,6 @@
   import NotesView from './NotesView.svelte';
   import DailyView from './DailyView.svelte';
   import Settings from './Settings.svelte';
-  import CustomFunctionsManager from './custom-functions/CustomFunctionsManager.svelte';
   import { ViewRegistry } from '../lib/views';
   import { getChatService } from '../services/chatService.js';
   import { notesStore } from '../services/noteStore.svelte';
@@ -14,7 +13,7 @@
 
   interface Props {
     activeNote: NoteMetadata | null;
-    activeSystemView: 'daily' | 'notes' | 'settings' | 'custom-functions' | null;
+    activeSystemView: 'daily' | 'notes' | 'settings' | null;
     noteTypes: NoteType[];
     onClose: () => void;
     onNoteSelect: (note: NoteMetadata) => void;
@@ -164,12 +163,6 @@
     <div class="system-view-container">
       <div class="system-view-content">
         <Settings />
-      </div>
-    </div>
-  {:else if activeSystemView === 'custom-functions'}
-    <div class="system-view-container">
-      <div class="system-view-content">
-        <CustomFunctionsManager />
       </div>
     </div>
   {:else if activeNote}

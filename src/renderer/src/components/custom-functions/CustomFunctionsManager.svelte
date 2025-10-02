@@ -6,6 +6,12 @@
   import { customFunctionsStore } from '../../stores/customFunctionsStore.svelte';
   import type { CustomFunction } from '../../stores/customFunctionsStore.svelte';
 
+  interface Props {
+    embedded?: boolean;
+  }
+
+  let { embedded = false }: Props = $props();
+
   // UI State
   let currentView = $state<'list' | 'editor' | 'tester' | 'details'>('list');
   let selectedFunction = $state<CustomFunction | null>(null);
@@ -57,51 +63,73 @@
   }
 </script>
 
-<div class="custom-functions-manager">
-  <div class="manager-header">
-    <div class="header-left">
-      <h2>Custom Functions Manager</h2>
-      <div class="breadcrumb">
-        <button
-          class="breadcrumb-item"
-          class:active={currentView === 'list'}
-          onclick={showList}
-        >
-          Functions
-        </button>
-        {#if currentView === 'editor'}
-          <span class="breadcrumb-separator">›</span>
-          <span class="breadcrumb-item active">
-            {editingFunction ? 'Edit Function' : 'Create Function'}
-          </span>
-        {:else if currentView === 'tester' && selectedFunction}
-          <span class="breadcrumb-separator">›</span>
-          <span class="breadcrumb-item active">Test: {selectedFunction.name}</span>
-        {:else if currentView === 'details' && selectedFunction}
-          <span class="breadcrumb-separator">›</span>
-          <span class="breadcrumb-item active">Details: {selectedFunction.name}</span>
+<div class="custom-functions-manager" class:embedded>
+  {#if !embedded}
+    <div class="manager-header">
+      <div class="header-left">
+        <h2>Custom Functions Manager</h2>
+        <div class="breadcrumb">
+          <button
+            class="breadcrumb-item"
+            class:active={currentView === 'list'}
+            onclick={showList}
+          >
+            Functions
+          </button>
+          {#if currentView === 'editor'}
+            <span class="breadcrumb-separator">›</span>
+            <span class="breadcrumb-item active">
+              {editingFunction ? 'Edit Function' : 'Create Function'}
+            </span>
+          {:else if currentView === 'tester' && selectedFunction}
+            <span class="breadcrumb-separator">›</span>
+            <span class="breadcrumb-item active">Test: {selectedFunction.name}</span>
+          {:else if currentView === 'details' && selectedFunction}
+            <span class="breadcrumb-separator">›</span>
+            <span class="breadcrumb-item active">Details: {selectedFunction.name}</span>
+          {/if}
+        </div>
+      </div>
+
+      <div class="header-actions">
+        {#if currentView === 'list'}
+          <button class="btn-primary" onclick={showCreateEditor}>
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Create Function
+          </button>
+        {:else}
+          <button class="btn-secondary" onclick={showList}>
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M19 12H5m7-7l-7 7 7 7"></path>
+            </svg>
+            Back to List
+          </button>
         {/if}
       </div>
     </div>
+  {/if}
 
-    <div class="header-actions">
-      {#if currentView === 'list'}
-        <button class="btn-primary" onclick={showCreateEditor}>
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <line x1="12" y1="5" x2="12" y2="19"></line>
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-          </svg>
-          Create Function
-        </button>
-      {:else}
-        <button class="btn-secondary" onclick={showList}>
+  <div class="manager-content">
+    {#if embedded && currentView !== 'list'}
+      <div class="embedded-header">
+        <button class="btn-back" onclick={showList}>
           <svg
             width="16"
             height="16"
@@ -114,12 +142,27 @@
           </svg>
           Back to List
         </button>
-      {/if}
-    </div>
-  </div>
-
-  <div class="manager-content">
+      </div>
+    {/if}
     {#if currentView === 'list'}
+      {#if embedded}
+        <div class="embedded-list-header">
+          <button class="btn-primary" onclick={showCreateEditor}>
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Create Function
+          </button>
+        </div>
+      {/if}
       <CustomFunctionsList
         onEdit={showEditEditor}
         onTest={showTester}
@@ -153,6 +196,11 @@
     overflow: hidden;
   }
 
+  .custom-functions-manager.embedded {
+    height: auto;
+    background: transparent;
+  }
+
   .manager-header {
     display: flex;
     justify-content: space-between;
@@ -160,6 +208,35 @@
     padding: 2rem 2rem 1rem 2rem;
     border-bottom: 1px solid var(--border-light);
     flex-shrink: 0;
+  }
+
+  .embedded-header,
+  .embedded-list-header {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    margin-bottom: 1.5rem;
+  }
+
+  .btn-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-light);
+  }
+
+  .btn-back:hover {
+    background: var(--bg-hover);
+    border-color: var(--accent);
   }
 
   .header-left {
@@ -193,7 +270,7 @@
   }
 
   .breadcrumb-item:hover:not(.active) {
-    color: var(--accent);
+    color: var(--accent-primary);
   }
 
   .breadcrumb-item.active {
@@ -219,6 +296,11 @@
     padding: 0 2rem 2rem 2rem;
   }
 
+  .embedded .manager-content {
+    padding: 0;
+    overflow: visible;
+  }
+
   .btn-primary,
   .btn-secondary {
     display: inline-flex;
@@ -235,9 +317,9 @@
   }
 
   .btn-primary {
-    background: var(--accent);
+    background: var(--accent-primary);
     color: white;
-    border-color: var(--accent);
+    border-color: var(--accent-primary);
   }
 
   .btn-secondary {
@@ -247,12 +329,12 @@
   }
 
   .btn-primary:hover {
-    background: color-mix(in srgb, var(--accent) 90%, white);
+    background: var(--accent-hover);
   }
 
   .btn-secondary:hover {
     background: var(--bg-hover);
-    border-color: var(--accent);
+    border-color: var(--accent-primary);
   }
 
   /* Dark theme adjustments */

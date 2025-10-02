@@ -2,6 +2,7 @@
   import { settingsStore } from '../stores/settingsStore.svelte';
   import { secureStorageService } from '../services/secureStorageService';
   import SlashCommands from './SlashCommands.svelte';
+  import CustomFunctionsManager from './custom-functions/CustomFunctionsManager.svelte';
 
   let errorMessage = $state('');
   let successMessage = $state('');
@@ -308,6 +309,33 @@
       </p>
 
       <SlashCommands />
+    </section>
+
+    <section class="settings-section">
+      <h3>
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          class="section-icon"
+        >
+          <path d="M14.5 4H20a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2h-5.5"></path>
+          <polyline points="14.5,1 14.5,8 21,8"></polyline>
+          <path d="M10,21H4a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h6l4,4v7"></path>
+          <line x1="7" y1="10" x2="8" y2="10"></line>
+          <line x1="7" y1="14" x2="10" y2="14"></line>
+        </svg>
+        Custom Functions
+      </h3>
+      <p class="section-description">
+        Create and manage custom TypeScript functions that can be called by AI during
+        conversations.
+      </p>
+
+      <CustomFunctionsManager embedded={true} />
     </section>
   </div>
 </div>

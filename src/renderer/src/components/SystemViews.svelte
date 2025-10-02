@@ -1,16 +1,12 @@
 <script lang="ts">
   interface Props {
-    activeSystemView: 'daily' | 'notes' | 'settings' | 'custom-functions' | null;
-    onSystemViewSelect: (
-      view: 'daily' | 'notes' | 'settings' | 'custom-functions' | null
-    ) => void;
+    activeSystemView: 'daily' | 'notes' | 'settings' | null;
+    onSystemViewSelect: (view: 'daily' | 'notes' | 'settings' | null) => void;
   }
 
   let { onSystemViewSelect, activeSystemView }: Props = $props();
 
-  function setActiveView(
-    view: 'daily' | 'notes' | 'settings' | 'custom-functions'
-  ): void {
+  function setActiveView(view: 'daily' | 'notes' | 'settings'): void {
     onSystemViewSelect(view);
   }
 </script>
@@ -55,28 +51,6 @@
         <polyline points="14,2 14,8 20,8"></polyline>
       </svg>
       All notes
-    </button>
-
-    <button
-      class="nav-item"
-      class:active={activeSystemView === 'custom-functions'}
-      onclick={() => setActiveView('custom-functions')}
-    >
-      <svg
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-      >
-        <path d="M14.5 4H20a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2h-5.5"></path>
-        <polyline points="14.5,1 14.5,8 21,8"></polyline>
-        <path d="M10,21H4a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h6l4,4v7"></path>
-        <line x1="7" y1="10" x2="8" y2="10"></line>
-        <line x1="7" y1="14" x2="10" y2="14"></line>
-      </svg>
-      Custom Functions
     </button>
 
     <button
