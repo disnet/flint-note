@@ -7,16 +7,10 @@
 
   interface Props {
     activeNote: NoteMetadata | null;
-    activeSystemView:
-      | 'daily'
-      | 'notes'
-      | 'settings'
-      | 'slash-commands'
-      | 'custom-functions'
-      | null;
+    activeSystemView: 'daily' | 'notes' | 'settings' | 'custom-functions' | null;
     onNoteSelect: (note: NoteMetadata) => void;
     onSystemViewSelect: (
-      view: 'daily' | 'notes' | 'settings' | 'slash-commands' | 'custom-functions' | null
+      view: 'daily' | 'notes' | 'settings' | 'custom-functions' | null
     ) => void;
     onCreateNote?: (noteType?: string) => void;
   }

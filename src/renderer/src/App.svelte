@@ -49,7 +49,7 @@
 
   let isLoadingResponse = $state(false);
   let activeSystemView = $state<
-    'daily' | 'notes' | 'settings' | 'slash-commands' | 'custom-functions' | null
+    'daily' | 'notes' | 'settings' | 'custom-functions' | null
   >(null);
 
   async function handleNoteSelect(note: NoteMetadata): Promise<void> {
@@ -114,7 +114,7 @@
   }
 
   async function handleSystemViewSelect(
-    view: 'daily' | 'notes' | 'settings' | 'slash-commands' | 'custom-functions' | null
+    view: 'daily' | 'notes' | 'settings' | 'custom-functions' | null
   ): Promise<void> {
     // If clicking the same view that's already active and sidebar is visible, toggle the sidebar
     if (sidebarState.leftSidebar.visible && activeSystemView === view && view !== null) {

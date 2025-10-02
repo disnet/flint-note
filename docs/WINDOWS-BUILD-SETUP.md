@@ -112,12 +112,14 @@ Output will be in `dist/` directory.
 ### Platform Differences
 
 **macOS:**
+
 - ✅ **Already configured and working** with notarization
 - Uses Apple Developer certificate
 - Gatekeeper provides built-in signature verification
 - Auto-updates are secure and verified automatically
 
 **Windows:**
+
 - ⚠️ **Currently unsigned** (signature verification disabled)
 - Can be enabled independently when you obtain a certificate
 - `verifyUpdateCodeSignature: false` allows updates without signing
@@ -127,10 +129,10 @@ Output will be in `dist/` directory.
 
 You can have different code signing status for each platform:
 
-| Platform | Code Signing | Update Verification | Auto-Updates |
-|----------|--------------|---------------------|--------------|
-| macOS    | ✅ Signed & Notarized | ✅ Built-in (Gatekeeper) | ✅ Works |
-| Windows  | ❌ Unsigned | ❌ Disabled | ✅ Works |
+| Platform | Code Signing          | Update Verification      | Auto-Updates |
+| -------- | --------------------- | ------------------------ | ------------ |
+| macOS    | ✅ Signed & Notarized | ✅ Built-in (Gatekeeper) | ✅ Works     |
+| Windows  | ❌ Unsigned           | ❌ Disabled              | ✅ Works     |
 
 When you obtain a Windows certificate later:
 

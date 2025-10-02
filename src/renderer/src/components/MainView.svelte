@@ -3,7 +3,6 @@
   import NotesView from './NotesView.svelte';
   import DailyView from './DailyView.svelte';
   import Settings from './Settings.svelte';
-  import SlashCommands from './SlashCommands.svelte';
   import CustomFunctionsManager from './custom-functions/CustomFunctionsManager.svelte';
   import { ViewRegistry } from '../lib/views';
   import { getChatService } from '../services/chatService.js';
@@ -15,13 +14,7 @@
 
   interface Props {
     activeNote: NoteMetadata | null;
-    activeSystemView:
-      | 'daily'
-      | 'notes'
-      | 'settings'
-      | 'slash-commands'
-      | 'custom-functions'
-      | null;
+    activeSystemView: 'daily' | 'notes' | 'settings' | 'custom-functions' | null;
     noteTypes: NoteType[];
     onClose: () => void;
     onNoteSelect: (note: NoteMetadata) => void;
@@ -165,12 +158,6 @@
     <div class="system-view-container">
       <div class="system-view-content">
         <NotesView {onNoteSelect} {onCreateNote} />
-      </div>
-    </div>
-  {:else if activeSystemView === 'slash-commands'}
-    <div class="system-view-container">
-      <div class="system-view-content">
-        <SlashCommands />
       </div>
     </div>
   {:else if activeSystemView === 'settings'}

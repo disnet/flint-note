@@ -1,21 +1,15 @@
 <script lang="ts">
   interface Props {
-    activeSystemView:
-      | 'daily'
-      | 'notes'
-      | 'settings'
-      | 'slash-commands'
-      | 'custom-functions'
-      | null;
+    activeSystemView: 'daily' | 'notes' | 'settings' | 'custom-functions' | null;
     onSystemViewSelect: (
-      view: 'daily' | 'notes' | 'settings' | 'slash-commands' | 'custom-functions' | null
+      view: 'daily' | 'notes' | 'settings' | 'custom-functions' | null
     ) => void;
   }
 
   let { onSystemViewSelect, activeSystemView }: Props = $props();
 
   function setActiveView(
-    view: 'daily' | 'notes' | 'settings' | 'slash-commands' | 'custom-functions'
+    view: 'daily' | 'notes' | 'settings' | 'custom-functions'
   ): void {
     onSystemViewSelect(view);
   }
@@ -61,25 +55,6 @@
         <polyline points="14,2 14,8 20,8"></polyline>
       </svg>
       All notes
-    </button>
-
-    <button
-      class="nav-item"
-      class:active={activeSystemView === 'slash-commands'}
-      onclick={() => setActiveView('slash-commands')}
-    >
-      <svg
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-      >
-        <path d="M10 3l-7 7 7 7"></path>
-        <path d="M21 3l-7 7 7 7"></path>
-      </svg>
-      Slash Commands
     </button>
 
     <button

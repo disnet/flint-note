@@ -137,7 +137,6 @@
 
 <div class="slash-commands">
   <div class="section-header">
-    <h2>Slash Commands</h2>
     <button class="add-button" onclick={startCreating}>
       <svg
         width="16"
@@ -632,23 +631,14 @@
 
 <style>
   .slash-commands {
-    padding: 1.25rem;
-    height: 100%;
-    overflow-y: auto;
+    width: 100%;
   }
 
   .section-header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
     margin-bottom: 1.5rem;
-  }
-
-  .section-header h2 {
-    margin: 0;
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: var(--text-primary);
   }
 
   .add-button {

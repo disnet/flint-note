@@ -170,6 +170,7 @@ Download links are **automatically updated** when you change the version in `pac
 **When you release a new version:**
 
 1. **Update version in package.json:**
+
    ```bash
    npm version 0.2.4  # or npm version patch/minor/major
    ```
@@ -239,12 +240,14 @@ To update content:
 If setting up from scratch, configure these DNS records in Cloudflare:
 
 **A Records (if using apex domain):**
+
 ```
 Type    Name    Content
 A       @       [Cloudflare Pages IP]
 ```
 
 **CNAME Records:**
+
 ```
 Type     Name      Target
 CNAME    www       flint-website.pages.dev
@@ -278,6 +281,7 @@ For more detailed analytics, consider adding:
 **Issue:** GitHub Actions workflow fails
 
 **Solutions:**
+
 - Verify `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` secrets are set correctly
 - Check API token has correct permissions (Cloudflare Pages — Edit)
 - Ensure token hasn't expired
@@ -287,6 +291,7 @@ For more detailed analytics, consider adding:
 **Issue:** `www.flintnote.com` shows 404 or SSL error
 
 **Solutions:**
+
 - Verify DNS CNAME record points to `flint-website.pages.dev`
 - Check SSL/TLS mode is set to "Full (strict)"
 - Wait 5-10 minutes for DNS propagation
@@ -297,6 +302,7 @@ For more detailed analytics, consider adding:
 **Issue:** Download buttons return 404
 
 **Solutions:**
+
 - Verify files are uploaded to R2 bucket (`flint-updates-production`)
 - Check R2 bucket has public access enabled
 - Ensure file names in HTML match exactly (case-sensitive)
@@ -307,6 +313,7 @@ For more detailed analytics, consider adding:
 **Issue:** Website looks broken or unstyled
 
 **Solutions:**
+
 - Ensure `styles.css` is in same directory as `index.html`
 - Check browser console for 404 errors
 - Verify Cloudflare Pages deployed all files (check deployment log)
