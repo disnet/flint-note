@@ -34,6 +34,10 @@ Flint uses a **dual-train update system** to safely test new features before rel
   - `npm run build:mac:canary`
   - `npm run build:win:canary`
   - `npm run build:linux:canary`
+- **Latest Build URLs** (always point to newest canary):
+  - macOS: `https://canary.flintnote.com/flint-canary-latest-universal.dmg`
+  - Windows: `https://canary.flintnote.com/flint-canary-latest.exe`
+  - Linux: `https://canary.flintnote.com/flint-canary-latest.AppImage`
 
 ### Key Differences
 
@@ -397,7 +401,11 @@ The workflow automatically:
 1. Detects train from tag name (presence of `-canary.` indicates canary)
 2. Uses appropriate electron-builder config
 3. Deploys to correct R2 bucket
-4. Creates GitHub release with correct prerelease flag
+4. For canary builds, creates "latest" copies for easy website linking:
+   - `Flint-1.0.0-canary.1-universal.dmg` → `flint-canary-latest-universal.dmg`
+   - `Flint Setup 1.0.0-canary.1.exe` → `flint-canary-latest.exe`
+   - `Flint-1.0.0-canary.1.AppImage` → `flint-canary-latest.AppImage`
+5. Creates GitHub release with correct prerelease flag
 
 #### Summary
 

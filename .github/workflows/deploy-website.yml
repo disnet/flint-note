@@ -6,6 +6,8 @@ on:
       - main
     paths:
       - 'website/**'
+      - 'scripts/build-website.js'
+      - 'package.json'
       - '.github/workflows/deploy-website.yml'
   workflow_dispatch:
 
@@ -17,6 +19,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build website
+        run: npm run build:website
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/pages-action@v1

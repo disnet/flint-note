@@ -23,12 +23,16 @@ The Flint infrastructure uses the following domain layout:
 
 ```
 website/
-├── index.html       # Main landing page
-├── styles.css       # Stylesheet with dark mode support
-└── 404.html         # Custom 404 page
+├── index.html          # Main landing page (generated)
+├── index.template.html # HTML template with {{VERSION}} placeholders
+├── styles.css          # Stylesheet with dark mode support
+└── 404.html            # Custom 404 page
+
+scripts/
+└── build-website.js    # Build script that generates index.html from template
 ```
 
-The website is intentionally minimal - just static HTML and CSS with no JavaScript, no build process, and no dependencies.
+The website is intentionally minimal - just static HTML and CSS with no JavaScript. A simple build step reads the version from `package.json` and generates `index.html` from the template.
 
 ## Cloudflare Pages Setup
 
@@ -101,10 +105,14 @@ The website automatically deploys on every push to `main` that modifies files in
 
 **Deployment workflow:**
 
-1. Push changes to `website/` directory
+1. Push changes to `website/` directory or `package.json` version
 2. GitHub Actions workflow (`.github/workflows/deploy-website.yml`) triggers
-3. Cloudflare Pages builds and deploys automatically
-4. Changes are live at `www.flintnote.com` within ~1 minute
+3. Build script runs: `npm run build:website`
+   - Reads version from `package.json`
+   - Generates `website/index.html` from `website/index.template.html`
+   - Replaces all `{{VERSION}}` placeholders with actual version number
+4. Cloudflare Pages deploys the generated website
+5. Changes are live at `www.flintnote.com` within ~1 minute
 
 **Manual deployment:**
 
@@ -116,11 +124,26 @@ You can also trigger deployment manually:
 
 ## Local Development
 
-Since this is a static website, you can preview it locally with any HTTP server:
+**Build the website locally:**
+
+```bash
+# Generate index.html from template with current version
+npm run build:website
+```
+
+This reads the version from `package.json` and generates `website/index.html` from the template.
+
+**Preview locally:**
+
+Since this is a static website, you can preview it with any HTTP server:
 
 **Using Python:**
 
 ```bash
+# First build the website
+npm run build:website
+
+# Then serve it
 cd website
 python3 -m http.server 8000
 # Visit http://localhost:8000
@@ -129,53 +152,69 @@ python3 -m http.server 8000
 **Using Node.js:**
 
 ```bash
+npm run build:website
 npx serve website
 # Visit http://localhost:3000
 ```
 
 **Using VS Code:**
 
-Install the "Live Server" extension and right-click `index.html` → "Open with Live Server"
+1. Run `npm run build:website`
+2. Install the "Live Server" extension
+3. Right-click `website/index.html` → "Open with Live Server"
 
-## Updating Download Links
+## Updating Version and Download Links
 
-When releasing a new version, update the download links in `website/index.html`:
+Download links are **automatically updated** when you change the version in `package.json`.
 
-1. **Update version number:**
-   ```html
-   <p class="version">Current version: 0.2.3</p>
-   ```
+**When you release a new version:**
 
-2. **Update download URLs:**
-   ```html
-   <!-- macOS -->
-   <a href="https://updates.flintnote.com/Flint-0.2.3-universal.dmg">
-
-   <!-- Windows -->
-   <a href="https://updates.flintnote.com/Flint Setup 0.2.3.exe">
-
-   <!-- Linux -->
-   <a href="https://updates.flintnote.com/Flint-0.2.3.AppImage">
-   ```
-
-3. **Commit and push:**
+1. **Update version in package.json:**
    ```bash
-   git add website/index.html
-   git commit -m "Update website download links to v0.2.3"
+   npm version 0.2.4  # or npm version patch/minor/major
+   ```
+
+2. **Build and commit:**
+   ```bash
+   npm run build:website
+   git add package.json website/index.html
+   git commit -m "Release v0.2.4"
    git push origin main
    ```
 
-The website will automatically deploy with the new links.
+The website automatically deploys with updated download links pointing to the new version.
+
+**How it works:**
+
+- Version number and download URLs use `{{VERSION}}` placeholders in `website/index.template.html`
+- Build script (`npm run build:website`) reads version from `package.json`
+- Generates `website/index.html` with all placeholders replaced
+- GitHub Actions runs the build script before deploying
+
+**Manual updates:**
+
+If you need to change the template (e.g., update feature descriptions), edit `website/index.template.html` directly, not `index.html`. The `index.html` file is generated and should not be edited manually.
 
 ## Canary Builds
 
-The website includes a link to canary builds for users who want to test upcoming features:
+The website includes direct download links to the latest canary builds:
 
-```html
-<a href="https://canary.flintnote.com/" class="button secondary">Download Canary Build</a>
-```
+- **macOS**: `https://canary.flintnote.com/flint-canary-latest-universal.dmg`
+- **Windows**: `https://canary.flintnote.com/flint-canary-latest.exe`
+- **Linux**: `https://canary.flintnote.com/flint-canary-latest.AppImage`
 
-This links directly to the R2 bucket hosting canary releases. Users can browse available files and download the latest canary build.
+**How it works:**
+
+The release workflow (`.github/workflows/release.yml`) automatically creates these "latest" copies when deploying canary builds:
+
+1. Builds the canary release with version (e.g., `Flint-1.0.0-canary.1-universal.dmg`)
+2. Uploads versioned files to R2 bucket
+3. Creates copies with "latest" filenames:
+   - `Flint-1.0.0-canary.1-universal.dmg` → `flint-canary-latest-universal.dmg`
+   - `Flint Setup 1.0.0-canary.1.exe` → `flint-canary-latest.exe`
+   - `Flint-1.0.0-canary.1.AppImage` → `flint-canary-latest.AppImage`
+
+This provides stable URLs that always point to the latest canary build, with no JavaScript or CORS configuration required.
 
 ## Customization
 

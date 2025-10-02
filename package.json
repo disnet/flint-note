@@ -22,6 +22,7 @@
     "dev": "electron-vite dev",
     "build": "npm run typecheck && electron-vite build && npm run copy-onboarding",
     "copy-onboarding": "cp -r src/server/onboarding out/",
+    "build:website": "node scripts/build-website.js",
     "build:unpack": "npm run build && electron-builder --dir",
     "build:win": "npm run build && electron-builder --win",
     "build:mac": "npm run build && electron-builder --mac",
