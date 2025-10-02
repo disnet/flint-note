@@ -19,6 +19,13 @@ export const SUPPORTED_MODELS: ModelInfo[] = [
 
   // Anthropic Claude Models
   {
+    id: 'anthropic/claude-sonnet-4.5',
+    name: 'Claude 4.5 Sonnet',
+    provider: 'Anthropic',
+    icon: '🧠',
+    contextLength: 200000
+  },
+  {
     id: 'anthropic/claude-sonnet-4',
     name: 'Claude 4 Sonnet',
     provider: 'Anthropic',
@@ -34,7 +41,7 @@ export const SUPPORTED_MODELS: ModelInfo[] = [
   }
 ];
 
-export const DEFAULT_MODEL = 'anthropic/claude-sonnet-4';
+export const DEFAULT_MODEL = 'anthropic/claude-sonnet-4.5';
 
 export function getModelById(id: string): ModelInfo | undefined {
   return SUPPORTED_MODELS.find((model) => model.id === id);

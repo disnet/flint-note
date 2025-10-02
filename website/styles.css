@@ -51,6 +51,13 @@ header {
   border-bottom: 1px solid var(--color-border);
 }
 
+.header-logo {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 1rem;
+  display: block;
+}
+
 header h1 {
   font-size: 3rem;
   font-weight: 700;
@@ -262,6 +269,11 @@ footer nav a:hover {
 @media (max-width: 480px) {
   header {
     padding: 2rem 0 1.5rem;
+  }
+
+  .header-logo {
+    width: 60px;
+    height: 60px;
   }
 
   header h1 {
