@@ -17,6 +17,7 @@ import {
 } from '@codemirror/autocomplete';
 import type { CompletionResult } from '@codemirror/autocomplete';
 import { keymap } from '@codemirror/view';
+import { syntaxTree } from '@codemirror/language';
 import type { NoteMetadata } from '../services/noteStore.svelte';
 import { notesStore } from '../services/noteStore.svelte';
 import { wikilinkTheme } from './wikilink-theme';
@@ -297,6 +298,32 @@ const wikilinkField = StateField.define<DecorationSet>({
 });
 
 /**
+ * Check if a position is inside a code context (inline code or code block)
+ */
+function isInCodeContext(state: EditorState, pos: number): boolean {
+  const tree = syntaxTree(state);
+  let inCode = false;
+
+  tree.iterate({
+    from: pos,
+    to: pos,
+    enter: (node) => {
+      // Check for inline code (InlineCode) or code blocks (FencedCode, CodeBlock)
+      if (
+        node.name === 'InlineCode' ||
+        node.name === 'FencedCode' ||
+        node.name === 'CodeBlock' ||
+        node.name === 'CodeText'
+      ) {
+        inCode = true;
+      }
+    }
+  });
+
+  return inCode;
+}
+
+/**
  * Create decorations for wikilinks in the document
  */
 function decorateWikilinks(state: EditorState): DecorationSet {
@@ -312,6 +339,11 @@ function decorateWikilinks(state: EditorState): DecorationSet {
   const wikilinks = parseWikilinks(text, notes);
 
   for (const wikilink of wikilinks) {
+    // Skip wikilinks that are inside code contexts
+    if (isInCodeContext(state, wikilink.from)) {
+      continue;
+    }
+
     const widget = new WikilinkWidget(
       wikilink.identifier,
       wikilink.title,
