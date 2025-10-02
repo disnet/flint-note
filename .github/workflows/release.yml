@@ -207,6 +207,7 @@ jobs:
               aws s3 cp "$DMG_FILE" "s3://$BUCKET_NAME/flint-canary-latest-universal.dmg" \
                 --profile r2 \
                 --endpoint-url "https://$CLOUDFLARE_ACCOUNT_ID.r2.cloudflarestorage.com" \
+                --cache-control "no-cache, no-store, must-revalidate" \
                 --acl public-read
             fi
 
@@ -217,6 +218,7 @@ jobs:
               aws s3 cp "$EXE_FILE" "s3://$BUCKET_NAME/flint-canary-latest.exe" \
                 --profile r2 \
                 --endpoint-url "https://$CLOUDFLARE_ACCOUNT_ID.r2.cloudflarestorage.com" \
+                --cache-control "no-cache, no-store, must-revalidate" \
                 --acl public-read
             fi
 
@@ -227,6 +229,7 @@ jobs:
               aws s3 cp "$APPIMAGE_FILE" "s3://$BUCKET_NAME/flint-canary-latest.AppImage" \
                 --profile r2 \
                 --endpoint-url "https://$CLOUDFLARE_ACCOUNT_ID.r2.cloudflarestorage.com" \
+                --cache-control "no-cache, no-store, must-revalidate" \
                 --acl public-read
             fi
           else
@@ -239,6 +242,7 @@ jobs:
               aws s3 cp "$DMG_FILE" "s3://$BUCKET_NAME/Flint-latest-universal.dmg" \
                 --profile r2 \
                 --endpoint-url "https://$CLOUDFLARE_ACCOUNT_ID.r2.cloudflarestorage.com" \
+                --cache-control "no-cache, no-store, must-revalidate" \
                 --acl public-read
             fi
 
@@ -249,6 +253,7 @@ jobs:
               aws s3 cp "$EXE_FILE" "s3://$BUCKET_NAME/Flint-latest.exe" \
                 --profile r2 \
                 --endpoint-url "https://$CLOUDFLARE_ACCOUNT_ID.r2.cloudflarestorage.com" \
+                --cache-control "no-cache, no-store, must-revalidate" \
                 --acl public-read
             fi
 
@@ -259,6 +264,7 @@ jobs:
               aws s3 cp "$APPIMAGE_FILE" "s3://$BUCKET_NAME/Flint-latest.AppImage" \
                 --profile r2 \
                 --endpoint-url "https://$CLOUDFLARE_ACCOUNT_ID.r2.cloudflarestorage.com" \
+                --cache-control "no-cache, no-store, must-revalidate" \
                 --acl public-read
             fi
           fi
