@@ -30,6 +30,10 @@
   // Initialize chat service for cache monitoring
   const chatService = new ElectronChatService();
 
+  // App version state
+  let appVersion = $state('');
+  let checkingForUpdates = $state(false);
+
   // Cache monitoring types
   interface CacheConfig {
     enableSystemMessageCaching: boolean;
@@ -65,7 +69,7 @@
     score: number;
   }
 
-  // Load API keys on component mount
+  // Load API keys and app version on component mount
   $effect(() => {
     (async () => {
       try {
@@ -81,6 +85,12 @@
           'openrouter',
           openrouterKey
         );
+
+        // Load app version
+        const versionInfo = await window.api?.getAppVersion();
+        if (versionInfo) {
+          appVersion = versionInfo.version;
+        }
       } catch (error) {
         console.error('Failed to load API keys:', error);
       }
@@ -299,6 +309,25 @@
     }
   }
 
+  async function checkForUpdatesNow(): Promise<void> {
+    try {
+      checkingForUpdates = true;
+      const result = await window.api?.checkForUpdates();
+      if (result?.success) {
+        showSuccess('Update check complete');
+      } else {
+        showError(`Update check failed: ${result?.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      showError(
+        'Failed to check for updates: ' +
+          (error instanceof Error ? error.message : 'Unknown error')
+      );
+    } finally {
+      checkingForUpdates = false;
+    }
+  }
+
   // Load cache data on component mount
   $effect(() => {
     if (!cacheDataLoaded && !loadingCache) {
@@ -337,6 +366,36 @@
         Updates are downloaded automatically in the background. When an update is ready,
         you'll see an indicator in the title bar.
       </p>
+
+      <div class="version-info">
+        <div class="info-row">
+          <span class="info-label">Current Version:</span>
+          <span class="info-value">{appVersion || 'Loading...'}</span>
+        </div>
+      </div>
+
+      <div class="update-actions">
+        <button
+          class="btn-secondary"
+          onclick={checkForUpdatesNow}
+          disabled={checkingForUpdates}
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path>
+            <path d="M21 3v5h-5"></path>
+            <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path>
+            <path d="M3 21v-5h5"></path>
+          </svg>
+          {checkingForUpdates ? 'Checking...' : 'Check Now'}
+        </button>
+      </div>
     </section>
 
     <section class="settings-section">
@@ -858,6 +917,36 @@
     color: var(--text-primary);
     padding-bottom: 0.5rem;
     border-bottom: 2px solid var(--border-light);
+  }
+
+  .version-info {
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border-radius: 0.5rem;
+    border: 1px solid var(--border-light);
+    margin-bottom: 1rem;
+  }
+
+  .info-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .info-label {
+    font-weight: 500;
+    color: var(--text-secondary);
+  }
+
+  .info-value {
+    font-family: 'SF Mono', Monaco, Consolas, monospace;
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+
+  .update-actions {
+    display: flex;
+    gap: 0.75rem;
   }
 
   .section-icon {
