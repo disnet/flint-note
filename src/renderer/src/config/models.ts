@@ -26,13 +26,6 @@ export const SUPPORTED_MODELS: ModelInfo[] = [
     contextLength: 200000
   },
   {
-    id: 'anthropic/claude-sonnet-4',
-    name: 'Claude 4 Sonnet',
-    provider: 'Anthropic',
-    icon: '🧠',
-    contextLength: 200000
-  },
-  {
     id: 'anthropic/claude-3.5-haiku',
     name: 'Claude 3.5 Haiku',
     provider: 'Anthropic',
