@@ -196,7 +196,7 @@ jobs:
             fi
           done
 
-          # For canary builds, create "latest" copies for easy linking
+          # Create "latest" copies for easy linking
           if [ "$RELEASE_TRAIN" == "canary" ]; then
             echo "Creating canary latest links..."
 
@@ -225,6 +225,38 @@ jobs:
             if [ -f "$APPIMAGE_FILE" ]; then
               echo "Copying AppImage to flint-canary-latest.AppImage"
               aws s3 cp "$APPIMAGE_FILE" "s3://$BUCKET_NAME/flint-canary-latest.AppImage" \
+                --profile r2 \
+                --endpoint-url "https://$CLOUDFLARE_ACCOUNT_ID.r2.cloudflarestorage.com" \
+                --acl public-read
+            fi
+          else
+            echo "Creating production latest links..."
+
+            # Find and copy DMG as latest
+            DMG_FILE=$(find dist -maxdepth 1 -name "*.dmg" -type f | head -n 1)
+            if [ -f "$DMG_FILE" ]; then
+              echo "Copying DMG to Flint-latest-universal.dmg"
+              aws s3 cp "$DMG_FILE" "s3://$BUCKET_NAME/Flint-latest-universal.dmg" \
+                --profile r2 \
+                --endpoint-url "https://$CLOUDFLARE_ACCOUNT_ID.r2.cloudflarestorage.com" \
+                --acl public-read
+            fi
+
+            # Find and copy EXE as latest
+            EXE_FILE=$(find dist -maxdepth 1 -name "*.exe" -type f | head -n 1)
+            if [ -f "$EXE_FILE" ]; then
+              echo "Copying EXE to Flint-latest.exe"
+              aws s3 cp "$EXE_FILE" "s3://$BUCKET_NAME/Flint-latest.exe" \
+                --profile r2 \
+                --endpoint-url "https://$CLOUDFLARE_ACCOUNT_ID.r2.cloudflarestorage.com" \
+                --acl public-read
+            fi
+
+            # Find and copy AppImage as latest
+            APPIMAGE_FILE=$(find dist -maxdepth 1 -name "*.AppImage" -type f | head -n 1)
+            if [ -f "$APPIMAGE_FILE" ]; then
+              echo "Copying AppImage to Flint-latest.AppImage"
+              aws s3 cp "$APPIMAGE_FILE" "s3://$BUCKET_NAME/Flint-latest.AppImage" \
                 --profile r2 \
                 --endpoint-url "https://$CLOUDFLARE_ACCOUNT_ID.r2.cloudflarestorage.com" \
                 --acl public-read

@@ -29,9 +29,6 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Build website
-        run: npm run build:website
-
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/pages-action@v1
         with:
