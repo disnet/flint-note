@@ -10,6 +10,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - Add link in setting to view changelog
 
+### Changed
+
+- Removed excessive tooltip on links
+
 ## [0.2.5-canary.2]
 
 ### Added

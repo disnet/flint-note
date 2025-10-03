@@ -269,9 +269,6 @@ class WikilinkWidget extends WidgetType {
 
     // Display only the title part (no brackets), which is more user-friendly
     span.textContent = this.title;
-    span.title = this.exists
-      ? `Open note: ${this.title} (${this.identifier})`
-      : `Note "${this.title}" not found - click to create`;
 
     span.addEventListener('click', (e) => {
       e.preventDefault();
