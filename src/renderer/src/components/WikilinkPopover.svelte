@@ -21,21 +21,28 @@
 
   let inputValue = $state(displayText);
   let inputElement: HTMLInputElement | undefined = $state();
+  let hasBeenOpened = $state(false);
 
-  // Update input value when displayText changes
+  // Update input value when displayText changes (but only if we're not actively editing)
   $effect(() => {
-    inputValue = displayText;
-  });
-
-  // Focus input when popover becomes visible
-  $effect(() => {
-    if (visible && inputElement) {
-      inputElement.focus();
-      inputElement.select();
+    // Only update if the input doesn't have focus (not being edited)
+    if (inputElement !== document.activeElement) {
+      inputValue = displayText;
     }
   });
 
-  function handleSave() {
+  // Focus input when popover becomes visible for the first time
+  $effect(() => {
+    if (visible && inputElement && !hasBeenOpened) {
+      hasBeenOpened = true;
+      inputElement.focus();
+      inputElement.select();
+    } else if (!visible) {
+      hasBeenOpened = false;
+    }
+  });
+
+  function handleInput() {
     if (inputValue.trim()) {
       onSave(inputValue.trim());
     }
@@ -45,11 +52,7 @@
     // Only handle keys when popover is visible
     if (!visible) return;
 
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      e.stopPropagation();
-      handleSave();
-    } else if (e.key === 'Escape') {
+    if (e.key === 'Escape') {
       e.preventDefault();
       e.stopPropagation();
       onCancel();
@@ -60,24 +63,17 @@
 {#if visible}
   <div class="wikilink-popover" style="left: {x}px; top: {y}px;">
     <div class="popover-content">
-      <div class="identifier-section">
-        <div class="label-text">Link to:</div>
-        <div class="identifier-value">{identifier}</div>
-      </div>
       <div class="display-section">
-        <label for="display-input">Display as:</label>
+        <label for="display-input">{identifier}</label>
         <input
           id="display-input"
           type="text"
           bind:this={inputElement}
           bind:value={inputValue}
+          oninput={handleInput}
           onkeydown={handleKeydown}
           placeholder="Display text"
         />
-      </div>
-      <div class="button-section">
-        <button class="save-btn" onclick={handleSave}>Save</button>
-        <button class="cancel-btn" onclick={onCancel}>Cancel</button>
       </div>
     </div>
   </div>
@@ -101,30 +97,19 @@
   .popover-content {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 4px;
   }
 
-  .identifier-section,
   .display-section {
     display: flex;
     flex-direction: column;
     gap: 4px;
   }
 
-  label,
-  .label-text {
+  label {
     font-size: 12px;
     font-weight: 500;
     color: #6b7280;
-  }
-
-  .identifier-value {
-    font-size: 13px;
-    color: #374151;
-    padding: 6px 8px;
-    background: #f9fafb;
-    border-radius: 4px;
-    font-family: 'SF Mono', 'Monaco', 'Cascadia Code', monospace;
   }
 
   input[type='text'] {
@@ -141,41 +126,6 @@
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
   }
 
-  .button-section {
-    display: flex;
-    gap: 8px;
-    justify-content: flex-end;
-    margin-top: 4px;
-  }
-
-  button {
-    padding: 6px 12px;
-    font-size: 13px;
-    border-radius: 4px;
-    border: none;
-    cursor: pointer;
-    font-weight: 500;
-    transition: all 0.15s;
-  }
-
-  .save-btn {
-    background: #3b82f6;
-    color: white;
-  }
-
-  .save-btn:hover {
-    background: #2563eb;
-  }
-
-  .cancel-btn {
-    background: #f3f4f6;
-    color: #374151;
-  }
-
-  .cancel-btn:hover {
-    background: #e5e7eb;
-  }
-
   /* Dark mode */
   @media (prefers-color-scheme: dark) {
     .wikilink-popover {
@@ -183,14 +133,8 @@
       border-color: #374151;
     }
 
-    label,
-    .label-text {
+    label {
       color: #9ca3af;
-    }
-
-    .identifier-value {
-      background: #111827;
-      color: #e5e7eb;
     }
 
     input[type='text'] {
@@ -201,15 +145,6 @@
 
     input[type='text']:focus {
       border-color: #3b82f6;
-    }
-
-    .cancel-btn {
-      background: #374151;
-      color: #e5e7eb;
-    }
-
-    .cancel-btn:hover {
-      background: #4b5563;
     }
   }
 </style>

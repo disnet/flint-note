@@ -179,17 +179,18 @@ Allows users to edit the display text of wikilinks without manually editing the 
   - Allows mouse movement from link to popover without closing
   - Escape key closes popover (with event propagation stopped)
 - **UI Elements**:
-  - Read-only identifier display (shows which note is being linked)
+  - Identifier shown as label (displays which note is being linked)
   - Editable input field for display text
-  - Save/Cancel buttons
   - Auto-focuses and selects text when opened
 - **Keyboard shortcuts**:
-  - `Enter`: Save changes
-  - `Escape`: Cancel and close (only when popover is visible)
+  - `Escape`: Close popover (only when popover is visible)
 - **Editing behavior**:
+  - Live editing: Updates wikilink on every keystroke
   - Updates wikilink text from `[[identifier|old-title]]` to `[[identifier|new-title]]`
   - Preserves the identifier (target note reference)
   - Only modifies the display portion
+  - Maintains focus and popover visibility during edits
+  - Dynamically tracks position as text length changes
 - **Styling**: Full dark mode support with consistent theming
 
 **Hover State Management** (`src/renderer/src/components/CodeMirrorEditor.svelte`):
@@ -198,6 +199,8 @@ Allows users to edit the display text of wikilinks without manually editing the 
 - Tracks hover position and popover visibility
 - Manages enter/leave timeouts for smooth UX
 - Coordinates between widget events and popover mouse events
+- Updates popover position tracking during live edits to handle text length changes
+- Keeps popover open and focused during editing
 
 **Integration Points**:
 

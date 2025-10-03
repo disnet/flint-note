@@ -334,6 +334,11 @@
     // Create the new wikilink text with updated display
     const newText = `[[${popoverIdentifier}|${newDisplayText}]]`;
 
+    // Calculate the new end position based on the length difference
+    const oldLength = popoverTo - popoverFrom;
+    const newLength = newText.length;
+    const lengthDiff = newLength - oldLength;
+
     // Replace the old wikilink with the new one
     editorView.dispatch({
       changes: {
@@ -343,7 +348,11 @@
       }
     });
 
-    popoverVisible = false;
+    // Update the popover's to position to reflect the new text length
+    popoverTo = popoverTo + lengthDiff;
+
+    // Update the display text to match what we just inserted
+    popoverDisplayText = newDisplayText;
   }
 
   function handlePopoverCancel(): void {
