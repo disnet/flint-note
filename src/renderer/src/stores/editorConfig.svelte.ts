@@ -13,7 +13,10 @@ import { markdown } from '@codemirror/lang-markdown';
 import { githubLight } from '@fsegurai/codemirror-theme-github-light';
 import { githubDark } from '@fsegurai/codemirror-theme-github-dark';
 import { markdownListStyling, listStylingTheme } from '../lib/markdownListStyling';
-import { wikilinksExtension } from '../lib/wikilinks.svelte.js';
+import {
+  wikilinksExtension,
+  type WikilinkHoverHandler
+} from '../lib/wikilinks.svelte.js';
 
 export interface EditorConfigOptions {
   onWikilinkClick?: (
@@ -21,6 +24,7 @@ export interface EditorConfigOptions {
     title: string,
     shouldCreate?: boolean
   ) => Promise<void>;
+  onWikilinkHover?: WikilinkHoverHandler;
   onContentChange?: (content: string) => void;
   onCursorChange?: () => void;
   placeholder?: string;
@@ -216,7 +220,7 @@ export class EditorConfig {
       markdownListStyling,
       listStylingTheme,
       ...(this.options.onWikilinkClick
-        ? [wikilinksExtension(this.options.onWikilinkClick)]
+        ? [wikilinksExtension(this.options.onWikilinkClick, this.options.onWikilinkHover)]
         : []),
       EditorView.contentAttributes.of({ spellcheck: 'true' }),
       updateListener

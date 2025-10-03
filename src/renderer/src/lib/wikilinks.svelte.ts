@@ -39,8 +39,24 @@ export interface WikilinkClickHandler {
   (noteId: string, title: string, shouldCreate?: boolean): void;
 }
 
+export interface WikilinkHoverHandler {
+  (
+    data: {
+      identifier: string;
+      displayText: string;
+      from: number;
+      to: number;
+      x: number;
+      y: number;
+    } | null
+  ): void;
+}
+
 // Effect to update wikilink click handler
 const setWikilinkHandler = StateEffect.define<WikilinkClickHandler>();
+
+// Effect to update wikilink hover handler
+const setWikilinkHoverHandler = StateEffect.define<WikilinkHoverHandler>();
 
 // Effect to force wikilink re-rendering (when notes store updates)
 const forceWikilinkUpdate = StateEffect.define<boolean>();
@@ -51,6 +67,19 @@ const wikilinkHandlerField = StateField.define<WikilinkClickHandler | null>({
   update: (value, tr) => {
     for (const effect of tr.effects) {
       if (effect.is(setWikilinkHandler)) {
+        return effect.value;
+      }
+    }
+    return value;
+  }
+});
+
+// State field to store the current hover handler
+const wikilinkHoverHandlerField = StateField.define<WikilinkHoverHandler | null>({
+  create: () => null,
+  update: (value, tr) => {
+    for (const effect of tr.effects) {
+      if (effect.is(setWikilinkHoverHandler)) {
         return effect.value;
       }
     }
@@ -224,12 +253,15 @@ class WikilinkWidget extends WidgetType {
     private title: string,
     private exists: boolean,
     private noteId: string | undefined,
-    private clickHandler: WikilinkClickHandler | null
+    private clickHandler: WikilinkClickHandler | null,
+    private hoverHandler: WikilinkHoverHandler | null,
+    private from: number,
+    private to: number
   ) {
     super();
   }
 
-  toDOM(): HTMLElement {
+  toDOM(view: EditorView): HTMLElement {
     const span = document.createElement('span');
     span.className = this.exists
       ? 'wikilink wikilink-exists'
@@ -256,6 +288,30 @@ class WikilinkWidget extends WidgetType {
       }
     });
 
+    // Add hover event listeners
+    span.addEventListener('mouseenter', () => {
+      if (this.hoverHandler) {
+        const coords = view.coordsAtPos(this.from);
+        if (coords) {
+          this.hoverHandler({
+            identifier: this.identifier,
+            displayText: this.title,
+            from: this.from,
+            to: this.to,
+            x: coords.left,
+            y: coords.bottom
+          });
+        }
+      }
+    });
+
+    span.addEventListener('mouseleave', () => {
+      // Signal that mouse left the wikilink
+      if (this.hoverHandler) {
+        this.hoverHandler(null);
+      }
+    });
+
     return span;
   }
 
@@ -264,7 +320,9 @@ class WikilinkWidget extends WidgetType {
       this.identifier === other.identifier &&
       this.title === other.title &&
       this.exists === other.exists &&
-      this.noteId === other.noteId
+      this.noteId === other.noteId &&
+      this.from === other.from &&
+      this.to === other.to
     );
   }
 
@@ -333,8 +391,9 @@ function decorateWikilinks(state: EditorState): DecorationSet {
   // Get current notes from store
   const notes = notesStore.notes; // Immediately unsubscribe since we just want current value
 
-  // Get current click handler
+  // Get current handlers
   const clickHandler = state.field(wikilinkHandlerField, false) || null;
+  const hoverHandler = state.field(wikilinkHoverHandlerField, false) || null;
 
   const wikilinks = parseWikilinks(text, notes);
 
@@ -349,7 +408,10 @@ function decorateWikilinks(state: EditorState): DecorationSet {
       wikilink.title,
       wikilink.exists,
       wikilink.noteId,
-      clickHandler
+      clickHandler,
+      hoverHandler,
+      wikilink.from,
+      wikilink.to
     );
 
     decorations.push(
@@ -371,11 +433,13 @@ function decorateWikilinks(state: EditorState): DecorationSet {
  * Wikilinks extension without autocomplete (for use when combining with other autocomplete sources)
  */
 export function wikilinksWithoutAutocomplete(
-  clickHandler: WikilinkClickHandler
+  clickHandler: WikilinkClickHandler,
+  hoverHandler?: WikilinkHoverHandler
 ): Extension {
   return [
     wikilinkTheme,
     wikilinkHandlerField.init(() => clickHandler),
+    wikilinkHoverHandlerField.init(() => hoverHandler || null),
     wikilinkField,
     // Add atomic ranges for proper cursor movement
     EditorView.atomicRanges.of((view) => {
@@ -409,12 +473,23 @@ export function wikilinksWithoutAutocomplete(
           effects: setWikilinkHandler.of(clickHandler)
         });
       }
+      if (
+        hoverHandler &&
+        update.view.state.field(wikilinkHoverHandlerField) !== hoverHandler
+      ) {
+        update.view.dispatch({
+          effects: setWikilinkHoverHandler.of(hoverHandler)
+        });
+      }
     })
   ];
 }
 
-export function wikilinksExtension(clickHandler: WikilinkClickHandler): Extension {
-  const baseExtensions = wikilinksWithoutAutocomplete(clickHandler);
+export function wikilinksExtension(
+  clickHandler: WikilinkClickHandler,
+  hoverHandler?: WikilinkHoverHandler
+): Extension {
+  const baseExtensions = wikilinksWithoutAutocomplete(clickHandler, hoverHandler);
   return [
     ...(Array.isArray(baseExtensions) ? baseExtensions : [baseExtensions]),
     autocompletion({

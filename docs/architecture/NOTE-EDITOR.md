@@ -92,6 +92,7 @@ Wikilinks provide bi-directional linking between notes using the syntax `[[Note 
 #### Parsing
 
 The `parseWikilinks()` function:
+
 - Uses regex `/\[\[([^[\]]+)\]\]/g` to match wikilink syntax
 - Supports two formats:
   - `[[title]]`: Simple format using title as both identifier and display text
@@ -102,6 +103,7 @@ The `parseWikilinks()` function:
 #### Note Resolution
 
 The `findNoteByIdentifier()` function attempts to match identifiers in priority order:
+
 1. **Note ID** (exact match, case-insensitive)
 2. **Title** (case-insensitive)
 3. **Filename** (without `.md` extension, case-insensitive)
@@ -111,6 +113,7 @@ This flexible matching allows users to reference notes in multiple ways.
 #### Visual Rendering
 
 **WikilinkWidget Class**:
+
 - Extends CodeMirror's `WidgetType` to create custom inline elements
 - Renders wikilinks as styled clickable buttons
 - Shows only the display title (not the full `[[...]]` syntax)
@@ -121,12 +124,14 @@ This flexible matching allows users to reference notes in multiple ways.
 - Dark mode support via CSS media queries
 
 **State Field Management**:
+
 - `wikilinkField`: StateField that manages decoration lifecycle
 - Recreates decorations on document changes
 - Force update effect for external triggers (e.g., notes store updates)
 - Skips wikilinks inside code contexts (inline code, code blocks)
 
 **Styling** (`src/renderer/src/lib/wikilink-theme.ts`):
+
 ```typescript
 // Light mode - existing links
 background: rgba(255, 255, 255, 0.9)
@@ -148,6 +153,7 @@ color: #f85149
 #### Cursor Behavior
 
 Wikilinks are treated as **atomic ranges** using `EditorView.atomicRanges`:
+
 - Cursor jumps over the entire wikilink widget
 - Cannot position cursor inside a wikilink
 - Arrow keys navigate around wikilinks as single units
@@ -155,21 +161,63 @@ Wikilinks are treated as **atomic ranges** using `EditorView.atomicRanges`:
 #### Click Handling
 
 Click events on wikilink widgets:
+
 - **Existing links**: Navigate to the target note using `noteId`
 - **Broken links**: Trigger note creation with `shouldCreate=true` flag
 - Events propagate through `onWikilinkClick` callback prop
 - Handled by `wikilinkService` in application layer
+
+#### Hover-to-Edit Popover
+
+**WikilinkPopover Component** (`src/renderer/src/components/WikilinkPopover.svelte`):
+
+Allows users to edit the display text of wikilinks without manually editing the raw syntax:
+
+- **Trigger**: Appears after 300ms hover delay over a wikilink widget
+- **Dismissal**:
+  - Closes 200ms after mouse leaves if mouse doesn't enter popover
+  - Allows mouse movement from link to popover without closing
+  - Escape key closes popover (with event propagation stopped)
+- **UI Elements**:
+  - Read-only identifier display (shows which note is being linked)
+  - Editable input field for display text
+  - Save/Cancel buttons
+  - Auto-focuses and selects text when opened
+- **Keyboard shortcuts**:
+  - `Enter`: Save changes
+  - `Escape`: Cancel and close (only when popover is visible)
+- **Editing behavior**:
+  - Updates wikilink text from `[[identifier|old-title]]` to `[[identifier|new-title]]`
+  - Preserves the identifier (target note reference)
+  - Only modifies the display portion
+- **Styling**: Full dark mode support with consistent theming
+
+**Hover State Management** (`src/renderer/src/components/CodeMirrorEditor.svelte`):
+
+- Hover handler passed through EditorConfig to wikilinks extension
+- Tracks hover position and popover visibility
+- Manages enter/leave timeouts for smooth UX
+- Coordinates between widget events and popover mouse events
+
+**Integration Points**:
+
+- `WikilinkWidget` emits hover events with position and metadata
+- `WikilinkHoverHandler` interface defines hover callback signature
+- Hover handler stored in CodeMirror state field alongside click handler
+- Popover positioned using `EditorView.coordsAtPos()` for accurate placement
 
 ### Autocomplete Integration
 
 #### CodeMirror Autocomplete
 
 **wikilinkCompletion()** function (`src/renderer/src/lib/wikilinks.svelte.ts:136-216`):
+
 - Triggers when user types `[[`
 - Matches pattern `/\[\[([^\]]*)/` to capture query text
 - Returns `CompletionResult` with filtered note suggestions
 
 **Filtering and Ranking**:
+
 1. Filters notes by query matching title, filename, or ID
 2. Ranks results by relevance:
    - Exact title match (highest)
@@ -180,11 +228,13 @@ Click events on wikilink widgets:
 3. Limits to 10 results
 
 **Completion Options**:
+
 - Each option shows: `label` (note title), `info` (ID and type)
 - Apply text uses format: `identifier|title]]`
 - Special "Create new note" option if no exact title match
 
 **Keyboard Navigation**:
+
 - Custom keybindings for autocomplete:
   - `Ctrl-n`: Next option
   - `Ctrl-p`: Previous option
@@ -194,6 +244,7 @@ Click events on wikilink widgets:
 #### Standalone Autocomplete Component
 
 **WikilinkAutocomplete.svelte** (`src/renderer/src/components/WikilinkAutocomplete.svelte`):
+
 - Used in contexts outside CodeMirror (e.g., message input)
 - Svelte-based autocomplete UI
 - Same filtering/ranking logic as CodeMirror version
@@ -221,6 +272,7 @@ $effect(() => {
 ```
 
 When notes are added, removed, or renamed:
+
 1. `notesStore` updates its internal state
 2. Effect triggers in parent component
 3. `refreshWikilinks()` called on editor
@@ -230,6 +282,7 @@ When notes are added, removed, or renamed:
 #### Wikilink Service
 
 **wikilinkService** (`src/renderer/src/services/wikilinkService.svelte.ts`):
+
 - Centralized handler for wikilink clicks across the application
 - Manages navigation to existing notes
 - Handles new note creation flow
@@ -246,6 +299,7 @@ Provides consistent, visually aligned markdown list rendering with proper indent
 #### List Parser (`src/renderer/src/lib/markdownListParser.ts`)
 
 Analyzes each line to detect:
+
 - Unordered markers: `-`, `*`, `+`
 - Ordered markers: `1.`, `2.`, etc.
 - Nesting level based on leading whitespace
@@ -254,11 +308,13 @@ Analyzes each line to detect:
 #### Styling Plugin (`src/renderer/src/lib/markdownListStyling.ts`)
 
 **ListStylePlugin** ViewPlugin:
+
 - Runs on every document update
 - Decorates list marker lines with dynamic inline styles
 - Calculates padding and text-indent using CSS `calc()` and custom properties
 
 **Dynamic Style Calculation**:
+
 ```typescript
 // For nested lists (level > 0)
 paddingLeft: calc(var(--cm-line-padding) + (var(--list-base-indent) * level) + var(--list-marker-width))
@@ -272,6 +328,7 @@ textIndent: calc(-1 * var(--list-marker-width))
 #### Text Measurement (`src/renderer/src/lib/textMeasurement.ts`)
 
 **measureMarkerWidths()** function:
+
 - Creates invisible DOM element matching editor styles
 - Measures pixel width of different markers:
   - Unordered: `- `, `* `, `+ `
@@ -281,6 +338,7 @@ textIndent: calc(-1 * var(--list-marker-width))
 - Updates CSS custom properties on document root
 
 **Measured values**:
+
 - `--list-marker-dash-width`
 - `--list-marker-star-width`
 - `--list-marker-plus-width`
@@ -291,6 +349,7 @@ textIndent: calc(-1 * var(--list-marker-width))
 - `--cm-line-padding`
 
 **Timing**:
+
 - Measured after editor creation
 - Re-measured when editor configuration changes
 - Uses 10ms timeout to ensure DOM is ready
@@ -298,6 +357,7 @@ textIndent: calc(-1 * var(--list-marker-width))
 ### Visual Result
 
 Lists render with:
+
 - Pixel-perfect alignment of marker characters
 - Proper indentation at all nesting levels
 - Content alignment that respects marker width
@@ -317,6 +377,7 @@ Automatically scrolls the editor viewport to keep the cursor visible as the user
 Two variants with different behaviors:
 
 **Default variant** (regular note editor):
+
 ```typescript
 {
   enabled: true,
@@ -328,6 +389,7 @@ Two variants with different behaviors:
 ```
 
 **Daily-note variant** (daily note editor):
+
 ```typescript
 {
   enabled: true,
@@ -341,11 +403,13 @@ Two variants with different behaviors:
 #### Scroll Detection
 
 **Selection Monitoring**:
+
 - Polls cursor position every 100ms when editor has focus
 - Compares current selection range to previous
 - Triggers debounced scroll check on changes
 
 **Coordinate Calculation**:
+
 - Uses `editorView.coordsAtPos(cursorPos)` to get cursor coordinates
 - Calculates position relative to scroll container
 - Checks if cursor is within margin zones
@@ -353,26 +417,30 @@ Two variants with different behaviors:
 #### Scroll Behavior
 
 **Margin zones**:
+
 - **Top margin**: Scrolls up if cursor is within `topMargin` pixels of top edge
 - **Bottom margin**: Scrolls down if cursor is within `bottomMargin` pixels of bottom edge
 - **Safe zone**: No scrolling if cursor is between margins
 
 **Scroll calculation**:
+
 ```typescript
 // Top margin violation
-scrollTarget = scrollTop - (topMargin - relativeTop)
+scrollTarget = scrollTop - (topMargin - relativeTop);
 
 // Bottom margin violation
-scrollTarget = scrollTop + (relativeBottom - bottomThreshold)
+scrollTarget = scrollTop + (relativeBottom - bottomThreshold);
 ```
 
 **Smooth scrolling**:
+
 - Daily-note variant uses `behavior: 'smooth'`
 - Default variant uses instant scrolling
 
 #### Container Discovery
 
 **setupAutoScrollWithSearch()** method:
+
 - Automatically finds scroll container by traversing DOM parents
 - Looks for elements with `overflow: auto` or `overflowY: auto`
 - Falls back gracefully if no container found
@@ -380,6 +448,7 @@ scrollTarget = scrollTop + (relativeBottom - bottomThreshold)
 ### Integration
 
 The auto-scroll service is:
+
 - Created in `CodeMirrorEditor` component
 - Configured based on `variant` prop
 - Set up after `EditorView` is created
@@ -390,6 +459,7 @@ The auto-scroll service is:
 ### Persistence
 
 **CursorPositionManager** (`src/renderer/src/stores/cursorPositionManager.svelte.ts`):
+
 - Saves cursor position and selection range per note
 - Uses debounced saves (500ms) for frequent cursor movements
 - Stores in IPC-backed persistent storage
@@ -398,6 +468,7 @@ The auto-scroll service is:
 ### Restoration
 
 When loading a note:
+
 1. Fetch cursor position from storage
 2. Set as `pendingCursorPosition` state
 3. Apply during next content update
@@ -409,9 +480,9 @@ When loading a note:
 ```typescript
 interface CursorPosition {
   noteId: string;
-  position: number;        // Cursor position
+  position: number; // Cursor position
   selectionStart?: number; // Selection start (if text selected)
-  selectionEnd?: number;   // Selection end (if text selected)
+  selectionEnd?: number; // Selection end (if text selected)
 }
 ```
 
@@ -420,6 +491,7 @@ interface CursorPosition {
 ### Default Variant
 
 Used in main note editor (`NoteEditor.svelte`):
+
 - Large bottom margin (25vh) for comfortable editing
 - No smooth scrolling (instant cursor tracking)
 - Larger auto-scroll margins
@@ -428,6 +500,7 @@ Used in main note editor (`NoteEditor.svelte`):
 ### Daily-Note Variant
 
 Used in daily note editor (`DailyNoteEditor.svelte`):
+
 - No bottom margin (compact layout)
 - Smooth scrolling enabled
 - Smaller auto-scroll margins
@@ -439,16 +512,19 @@ Used in daily note editor (`DailyNoteEditor.svelte`):
 ### Color Schemes
 
 **Light mode**:
+
 - GitHub Light theme from `@fsegurai/codemirror-theme-github-light`
 - Light scrollbar: `rgba(0, 0, 0, 0.2)`
 
 **Dark mode**:
+
 - GitHub Dark theme from `@fsegurai/codemirror-theme-github-dark`
 - Dark scrollbar: `rgba(255, 255, 255, 0.2)`
 
 ### Automatic Switching
 
 Theme detection uses `window.matchMedia('(prefers-color-scheme: dark)')`:
+
 - Listens for system theme changes
 - Updates editor theme reactively
 - Applies variant-specific theme overrides
@@ -456,12 +532,14 @@ Theme detection uses `window.matchMedia('(prefers-color-scheme: dark)')`:
 ### Font Configuration
 
 All editor text uses consistent font stack:
+
 ```css
-font-family: 'iA Writer Quattro', 'SF Mono', 'Monaco',
-             'Cascadia Code', 'Roboto Mono', monospace
+font-family:
+  'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace;
 ```
 
 Applied to:
+
 - Editor content (`.cm-content`)
 - Editor lines (`.cm-line`)
 - Autocomplete tooltips (`.cm-tooltip-autocomplete`)
@@ -497,6 +575,7 @@ Extensions are applied in specific order for correct behavior:
 **wikilinksWithoutAutocomplete()**: Wikilink rendering only (for combining with other autocomplete sources)
 
 Both provide:
+
 - Wikilink theme
 - Click handler field
 - Decoration field
@@ -520,6 +599,7 @@ Both provide:
 ### Code Context Detection
 
 Wikilinks check if they're inside code using syntax tree:
+
 ```typescript
 function isInCodeContext(state: EditorState, pos: number): boolean {
   const tree = syntaxTree(state);
@@ -532,6 +612,7 @@ This prevents wikilink decoration inside code blocks and inline code.
 ### Measurement Caching
 
 List marker widths:
+
 - Measured once on editor creation
 - Re-measured on configuration changes
 - Stored as CSS custom properties
@@ -542,12 +623,14 @@ List marker widths:
 ### Parent Components
 
 **NoteEditor.svelte**:
+
 - Manages note loading and saving
 - Handles title changes and metadata
 - Coordinates cursor position persistence
 - Watches for note store updates
 
 **DailyNoteEditor.svelte**:
+
 - Similar to NoteEditor but for daily notes
 - Uses `variant="daily-note"`
 - Different layout constraints
@@ -563,6 +646,7 @@ List marker widths:
 ### IPC Communication
 
 All server communication uses `$state.snapshot()` before IPC calls:
+
 ```typescript
 await window.api?.saveData($state.snapshot(this.reactiveState));
 ```
@@ -574,6 +658,7 @@ This prevents Svelte reactivity metadata from breaking structured cloning.
 ### CodeMirrorEditor Component
 
 **Methods**:
+
 - `focus()`: Focus the editor
 - `focusAtEnd()`: Focus and move cursor to end
 - `refreshWikilinks()`: Force wikilink re-rendering
@@ -584,6 +669,7 @@ This prevents Svelte reactivity metadata from breaking structured cloning.
 - `updateAutoScrollConfig(config)`: Update auto-scroll settings
 
 **Events**:
+
 - `onContentChange(content)`: Document changed
 - `onCursorChange()`: Cursor moved or selection changed
 - `onWikilinkClick(noteId, title, shouldCreate)`: Wikilink clicked

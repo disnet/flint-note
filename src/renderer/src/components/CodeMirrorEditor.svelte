@@ -7,6 +7,7 @@
   import { measureMarkerWidths, updateCSSCustomProperties } from '../lib/textMeasurement';
   import { forceWikilinkRefresh } from '../lib/wikilinks.svelte.js';
   import { ScrollAutoService } from '../stores/scrollAutoService.svelte.js';
+  import WikilinkPopover from './WikilinkPopover.svelte';
 
   interface Props {
     content: string;
@@ -36,12 +37,24 @@
   let editorView: EditorView | null = null;
   let pendingCursorPosition: CursorPosition | null = null;
 
+  // Popover state
+  let popoverVisible = $state(false);
+  let popoverX = $state(0);
+  let popoverY = $state(0);
+  let popoverIdentifier = $state('');
+  let popoverDisplayText = $state('');
+  let popoverFrom = $state(0);
+  let popoverTo = $state(0);
+  let hoverTimeout: ReturnType<typeof setTimeout> | null = null;
+  let leaveTimeout: ReturnType<typeof setTimeout> | null = null;
+
   const editorConfig = new EditorConfig({
     onWikilinkClick,
     onContentChange,
     onCursorChange,
     placeholder,
-    variant
+    variant,
+    onWikilinkHover: handleWikilinkHover
   });
 
   const scrollAutoService = new ScrollAutoService(variant);
@@ -272,6 +285,86 @@
   ): void {
     scrollAutoService.updateConfig(config);
   }
+
+  function handleWikilinkHover(
+    data: {
+      identifier: string;
+      displayText: string;
+      from: number;
+      to: number;
+      x: number;
+      y: number;
+    } | null
+  ): void {
+    // Clear any pending leave timeout
+    if (leaveTimeout) {
+      clearTimeout(leaveTimeout);
+      leaveTimeout = null;
+    }
+
+    if (data) {
+      // Clear any pending hover timeout
+      if (hoverTimeout) {
+        clearTimeout(hoverTimeout);
+      }
+
+      // Set a delay before showing the popover
+      hoverTimeout = setTimeout(() => {
+        popoverIdentifier = data.identifier;
+        popoverDisplayText = data.displayText;
+        popoverFrom = data.from;
+        popoverTo = data.to;
+        popoverX = data.x;
+        popoverY = data.y;
+        popoverVisible = true;
+        hoverTimeout = null;
+      }, 300);
+    } else {
+      // Mouse left the wikilink - start leave timeout
+      leaveTimeout = setTimeout(() => {
+        popoverVisible = false;
+        leaveTimeout = null;
+      }, 200);
+    }
+  }
+
+  function handlePopoverSave(newDisplayText: string): void {
+    if (!editorView) return;
+
+    // Create the new wikilink text with updated display
+    const newText = `[[${popoverIdentifier}|${newDisplayText}]]`;
+
+    // Replace the old wikilink with the new one
+    editorView.dispatch({
+      changes: {
+        from: popoverFrom,
+        to: popoverTo,
+        insert: newText
+      }
+    });
+
+    popoverVisible = false;
+  }
+
+  function handlePopoverCancel(): void {
+    popoverVisible = false;
+  }
+
+  // Add mouse enter handler for the popover
+  function handlePopoverMouseEnter(): void {
+    if (leaveTimeout) {
+      clearTimeout(leaveTimeout);
+      leaveTimeout = null;
+    }
+  }
+
+  // Add mouse leave handler for the popover
+  function handlePopoverMouseLeave(): void {
+    leaveTimeout = setTimeout(() => {
+      popoverVisible = false;
+      leaveTimeout = null;
+    }, 200);
+  }
 </script>
 
 <div
@@ -282,6 +375,22 @@
   onkeydown={handleEditorAreaKeydown}
 >
   <div class="editor-container editor-font" bind:this={editorContainer}></div>
+</div>
+
+<div
+  role="tooltip"
+  onmouseenter={handlePopoverMouseEnter}
+  onmouseleave={handlePopoverMouseLeave}
+>
+  <WikilinkPopover
+    bind:visible={popoverVisible}
+    x={popoverX}
+    y={popoverY}
+    identifier={popoverIdentifier}
+    displayText={popoverDisplayText}
+    onSave={handlePopoverSave}
+    onCancel={handlePopoverCancel}
+  />
 </div>
 
 <style>
