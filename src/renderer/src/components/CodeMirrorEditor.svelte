@@ -315,8 +315,12 @@
         popoverDisplayText = data.displayText;
         popoverFrom = data.from;
         popoverTo = data.to;
-        popoverX = data.x;
-        popoverY = data.y;
+
+        // Calculate viewport-aware position
+        const position = calculatePopoverPosition(data.x, data.y);
+        popoverX = position.x;
+        popoverY = position.y;
+
         popoverVisible = true;
         hoverTimeout = null;
       }, 300);
@@ -327,6 +331,53 @@
         leaveTimeout = null;
       }, 200);
     }
+  }
+
+  function calculatePopoverPosition(x: number, y: number): { x: number; y: number } {
+    // Popover dimensions (approximate)
+    const popoverWidth = 300;
+    const popoverHeight = 100;
+    const padding = 8;
+
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+
+    let finalX = x;
+    let finalY = y;
+
+    // Check right edge
+    if (finalX + popoverWidth + padding > viewportWidth) {
+      finalX = viewportWidth - popoverWidth - padding;
+    }
+
+    // Check left edge
+    if (finalX < padding) {
+      finalX = padding;
+    }
+
+    // Check if there's enough space below the link
+    // y is already at the bottom of the link from the hover coordinates
+    const spaceBelow = viewportHeight - (finalY + padding);
+    const spaceAbove = finalY - padding;
+
+    if (spaceBelow < popoverHeight && spaceAbove > spaceBelow) {
+      // Show above the link with 8px padding
+      finalY = finalY - popoverHeight - padding;
+    } else {
+      // Show below the link with 8px padding
+      finalY = finalY + padding;
+    }
+
+    // Final bounds check
+    if (finalY + popoverHeight + padding > viewportHeight) {
+      finalY = viewportHeight - popoverHeight - padding;
+    }
+
+    if (finalY < padding) {
+      finalY = padding;
+    }
+
+    return { x: finalX, y: finalY };
   }
 
   function handlePopoverSave(newDisplayText: string): void {
