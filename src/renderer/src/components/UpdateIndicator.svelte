@@ -96,7 +96,11 @@
 </script>
 
 {#if showChangelogModal}
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div class="changelog-modal-overlay" onclick={closeChangelogModal}>
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div class="changelog-modal" onclick={(e) => e.stopPropagation()}>
       <ChangelogViewer
         version={currentVersion}

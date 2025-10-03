@@ -10,10 +10,11 @@ files:
   - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,README.md}'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
-  - 'CHANGELOG.md'
-  - 'CHANGELOG-CANARY.md'
 asarUnpack:
   - resources/**
+extraResources:
+  - CHANGELOG.md
+  - CHANGELOG-CANARY.md
 win:
   executableName: flint
   # Windows code signing is configured via environment variables:

@@ -2,7 +2,7 @@ import pkg from 'electron-updater';
 const { autoUpdater } = pkg;
 import { BrowserWindow, ipcMain, app } from 'electron';
 import { logger } from './logger';
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 
 export class AutoUpdaterService {
@@ -212,12 +212,22 @@ export class AutoUpdaterService {
   }
 
   private getChangelog(version: string, isCanary: boolean): string {
-    try {
-      const changelogFile = isCanary ? 'CHANGELOG-CANARY.md' : 'CHANGELOG.md';
-      const changelogPath = app.isPackaged
-        ? join(process.resourcesPath, changelogFile)
-        : join(app.getAppPath(), changelogFile);
+    const changelogFile = isCanary ? 'CHANGELOG-CANARY.md' : 'CHANGELOG.md';
+    const changelogPath = app.isPackaged
+      ? join(process.resourcesPath, changelogFile)
+      : join(app.getAppPath(), changelogFile);
 
+    // Check if changelog file exists before trying to read it
+    if (!existsSync(changelogPath)) {
+      logger.warn('Changelog file not found', {
+        changelogFile,
+        changelogPath,
+        isPackaged: app.isPackaged
+      });
+      return `# What's New in ${version}\n\nChangelog not available.`;
+    }
+
+    try {
       const fullChangelog = readFileSync(changelogPath, 'utf-8');
 
       // Extract the section for the specific version
