@@ -1,5 +1,9 @@
 # Project Log
 
+## Note Editor Documentation - 2025-10-03
+
+- Created comprehensive documentation of note editor architecture and features in docs/NOTE-EDITOR.md covering CodeMirror 6 foundation, markdown language support, wikilinks system (parsing, rendering, autocomplete, integration), custom list styling, auto-scroll service, cursor position management, editor variants, theme support, extension system, performance considerations, and integration points
+
 ## Custom Functions Moved to Settings - 2025-10-02
 
 - Moved Custom Functions from system view to Settings page section: removed "Custom Functions" navigation button from SystemViews.svelte, removed 'custom-functions' from activeSystemView type union across App.svelte, MainView.svelte, and LeftSidebar.svelte, added CustomFunctionsManager component as new section in Settings.svelte with heading and description; enhanced CustomFunctionsManager with embedded mode prop that hides full-page header and shows "Create Function" button in list view, added "Back to List" navigation when in embedded editor/tester/details views, maintained full functionality while consolidating advanced features in Settings page
