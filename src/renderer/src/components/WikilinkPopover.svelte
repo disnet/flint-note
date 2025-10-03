@@ -42,13 +42,13 @@
     }
   });
 
-  function handleInput() {
+  function handleInput(): void {
     if (inputValue.trim()) {
       onSave(inputValue.trim());
     }
   }
 
-  function handleKeydown(e: KeyboardEvent) {
+  function handleKeydown(e: KeyboardEvent): void {
     // Only handle keys when popover is visible
     if (!visible) return;
 

@@ -23,6 +23,10 @@ export interface AppSettings {
     proxyUrl?: string;
     customEndpoints: Record<string, never>;
   };
+  updates: {
+    lastSeenVersion: string;
+    lastSeenCanaryVersion: string;
+  };
 }
 
 // Default settings
@@ -46,6 +50,10 @@ const DEFAULT_SETTINGS: AppSettings = {
     debugMode: false,
     proxyUrl: '',
     customEndpoints: {}
+  },
+  updates: {
+    lastSeenVersion: '',
+    lastSeenCanaryVersion: ''
   }
 };
 
@@ -78,7 +86,8 @@ async function saveStoredSettings(settingsToSave: AppSettings): Promise<void> {
       modelPreferences: settingsToSave.modelPreferences,
       appearance: settingsToSave.appearance,
       dataAndPrivacy: settingsToSave.dataAndPrivacy,
-      advanced: settingsToSave.advanced
+      advanced: settingsToSave.advanced,
+      updates: settingsToSave.updates
     };
     // Use $state.snapshot to get a serializable copy
     const serializableSettings = $state.snapshot(safeSettings);
@@ -191,6 +200,9 @@ export const settingsStore = {
     if (newSettings.advanced) {
       updatedSettings.advanced = { ...settings.advanced, ...newSettings.advanced };
     }
+    if (newSettings.updates) {
+      updatedSettings.updates = { ...settings.updates, ...newSettings.updates };
+    }
 
     settings = updatedSettings;
     await saveStoredSettings(settings);
@@ -253,7 +265,8 @@ export const settingsStore = {
       modelPreferences: settings.modelPreferences,
       appearance: settings.appearance,
       dataAndPrivacy: settings.dataAndPrivacy,
-      advanced: settings.advanced
+      advanced: settings.advanced,
+      updates: settings.updates
     };
     return JSON.stringify(exportableSettings, null, 2);
   },
@@ -278,6 +291,22 @@ export const settingsStore = {
       return key.startsWith('sk-') && key.length > 20; // OpenRouter keys start with sk-
     }
     return false;
+  },
+
+  // Update tracking helpers
+  async updateLastSeenVersion(version: string, isCanary: boolean): Promise<void> {
+    await this.updateSettings({
+      updates: {
+        ...settings.updates,
+        ...(isCanary ? { lastSeenCanaryVersion: version } : { lastSeenVersion: version })
+      }
+    });
+  },
+
+  getLastSeenVersion(isCanary: boolean): string {
+    return isCanary
+      ? settings.updates.lastSeenCanaryVersion
+      : settings.updates.lastSeenVersion;
   }
 };
 

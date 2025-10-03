@@ -100,6 +100,7 @@ src/
 The `AutoUpdaterService` class manages the entire update lifecycle:
 
 **Key responsibilities:**
+
 - Initialize electron-updater with configuration
 - Handle update check requests
 - Manage download progress
@@ -107,12 +108,14 @@ The `AutoUpdaterService` class manages the entire update lifecycle:
 - Communicate status to renderer via IPC
 
 **Main methods:**
+
 - `checkForUpdates()` - Manually trigger update check
 - `checkForUpdatesOnStartup()` - Check for updates on app startup (10s delay)
 - `startPeriodicUpdateCheck(intervalMinutes)` - Start periodic checking
 - `stopPeriodicUpdateCheck()` - Stop periodic checking
 
 **IPC handlers:**
+
 - `check-for-updates` - Manually trigger update check
 - `download-update` - Start update download (rarely needed due to auto-download)
 - `install-update` - Install update and restart app via `quitAndInstall()`
@@ -158,6 +161,7 @@ The preload script exposes a type-safe API for the renderer:
 The `UpdateNotification.svelte` component provides the user interface:
 
 **Features:**
+
 - Displays update availability with version info
 - Shows download progress with percentage and speed
 - Presents release notes for user review
@@ -165,6 +169,7 @@ The `UpdateNotification.svelte` component provides the user interface:
 - Handles error states gracefully
 
 **User actions:**
+
 - "Show/Hide Details" - Toggle release notes visibility
 - "Restart & Install" - Apply downloaded update immediately
 - "Install Later" - Defer installation to next quit
@@ -175,6 +180,7 @@ The `UpdateNotification.svelte` component provides the user interface:
 ### 1. Startup Check (Optional)
 
 When the app starts:
+
 1. Wait for configurable delay (default: 10 seconds)
 2. Check for updates automatically (if enabled)
 3. Notify user if update is available
@@ -182,6 +188,7 @@ When the app starts:
 ### 2. Manual Check
 
 User can trigger manual check:
+
 1. Click "Check for Updates" in settings/menu
 2. Service queries update server
 3. Compare current version with available version
@@ -190,6 +197,7 @@ User can trigger manual check:
 ### 3. Download Phase
 
 When update is detected:
+
 1. Download starts automatically in background (if autoDownload is true)
 2. Progress events emitted to renderer
 3. UI displays download progress (percentage only)
@@ -200,11 +208,13 @@ When update is detected:
 User has two installation options:
 
 **Immediate Installation:**
+
 1. User clicks "Restart & Install"
 2. App quits and installer runs
 3. New version launches automatically
 
 **Deferred Installation:**
+
 1. User clicks "Install Later" or dismisses notification
 2. Update marked for installation on quit (if autoInstallOnAppQuit is true)
 3. When user quits app, update installs automatically
@@ -219,7 +229,7 @@ Configured in `electron-builder.yml`:
 ```yaml
 publish:
   provider: generic
-  url: https://updates.flintnote.com  # or canary.flintnote.com
+  url: https://updates.flintnote.com # or canary.flintnote.com
 ```
 
 ### Auto-updater Settings
@@ -228,8 +238,8 @@ Configured in `AutoUpdaterService` initialization:
 
 ```typescript
 // Default configuration
-autoUpdater.autoDownload = true;  // Automatic background downloads
-autoUpdater.autoInstallOnAppQuit = true;  // Install on quit enabled
+autoUpdater.autoDownload = true; // Automatic background downloads
+autoUpdater.autoInstallOnAppQuit = true; // Install on quit enabled
 ```
 
 ### Check Interval
@@ -238,9 +248,12 @@ Optional periodic checking:
 
 ```typescript
 // Check every 4 hours (example)
-setInterval(() => {
-  autoUpdater.checkForUpdates();
-}, 4 * 60 * 60 * 1000);
+setInterval(
+  () => {
+    autoUpdater.checkForUpdates();
+  },
+  4 * 60 * 60 * 1000
+);
 ```
 
 ## Error Handling
@@ -248,21 +261,25 @@ setInterval(() => {
 The system handles various error scenarios:
 
 **Network Errors:**
+
 - Update check failures due to connectivity
 - Download interruptions
 - Timeout handling
 
 **Version Errors:**
+
 - Invalid version formats
 - Checksum mismatches
 - Corrupted downloads
 
 **Installation Errors:**
+
 - Insufficient permissions
 - Disk space issues
 - Process conflicts
 
 All errors are:
+
 1. Logged to electron-log
 2. Communicated to renderer via IPC
 3. Displayed to user with retry options
@@ -272,6 +289,7 @@ All errors are:
 ### Update Verification
 
 `electron-updater` automatically:
+
 - Verifies update signatures (when configured)
 - Validates checksums from latest.yml
 - Ensures HTTPS for downloads
@@ -329,6 +347,7 @@ All errors are:
 ### Pre-Release Testing
 
 Use canary channel for testing:
+
 1. Deploy pre-release version to canary bucket
 2. Configure app to use canary updates
 3. Test with team before production release
@@ -345,6 +364,7 @@ autoUpdater.logger.transports.file.level = 'info';
 ```
 
 **Logged events:**
+
 - Update checks (initiated/completed)
 - Downloads (started/progress/completed)
 - Installations (started/completed)
@@ -353,6 +373,7 @@ autoUpdater.logger.transports.file.level = 'info';
 ### Analytics
 
 Track key metrics:
+
 - Update check frequency
 - Download success rate
 - Installation completion rate
@@ -390,12 +411,14 @@ Track key metrics:
 ### Update Not Detected
 
 **Possible causes:**
+
 - Version number not higher than current
 - Update server not accessible
 - Invalid YAML format in latest.yml
 - Incorrect publish URL in config
 
 **Debug steps:**
+
 1. Enable debug logging
 2. Verify server URL is correct
 3. Check latest.yml format
@@ -404,12 +427,14 @@ Track key metrics:
 ### Download Fails
 
 **Possible causes:**
+
 - Network connectivity issues
 - Server file paths incorrect
 - CORS configuration problems
 - File corruption
 
 **Debug steps:**
+
 1. Check network logs
 2. Verify file URLs in latest.yml
 3. Test direct download via browser
@@ -418,12 +443,14 @@ Track key metrics:
 ### Installation Issues
 
 **Possible causes:**
+
 - Insufficient permissions
 - App already running
 - Antivirus interference
 - Disk space
 
 **Debug steps:**
+
 1. Check system permissions
 2. Verify no other instances running
 3. Review antivirus logs
@@ -432,6 +459,7 @@ Track key metrics:
 ## Future Enhancements
 
 Potential improvements:
+
 - Delta updates for faster downloads
 - Background downloads with bandwidth limits
 - Rollback capability for failed updates

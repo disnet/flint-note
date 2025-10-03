@@ -42,6 +42,8 @@ const api = {
     allowPrerelease?: boolean;
     allowDowngrade?: boolean;
   }) => electronAPI.ipcRenderer.invoke('set-update-config', config),
+  getChangelog: (version: string, isCanary: boolean) =>
+    electronAPI.ipcRenderer.invoke('get-changelog', version, isCanary),
 
   // Auto-updater event listeners
   onUpdateChecking: (callback: () => void) =>

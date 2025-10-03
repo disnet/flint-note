@@ -384,6 +384,10 @@ declare global {
       importCustomFunctions: (params: {
         backupData: string;
       }) => Promise<{ imported: number; skipped: number; errors: string[] }>;
+      getChangelog: (
+        version: string,
+        isCanaray: boolean
+      ) => Promise<{ success: boolean; changelog?: string; error?: string }>;
     };
   }
 }

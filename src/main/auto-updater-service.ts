@@ -2,6 +2,8 @@ import pkg from 'electron-updater';
 const { autoUpdater } = pkg;
 import { BrowserWindow, ipcMain, app } from 'electron';
 import { logger } from './logger';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
 export class AutoUpdaterService {
   private mainWindow: BrowserWindow | null = null;
@@ -189,7 +191,53 @@ export class AutoUpdaterService {
       }
     );
 
+    // Get changelog for a specific version
+    ipcMain.handle('get-changelog', async (_, version: string, isCanary: boolean) => {
+      try {
+        const changelog = this.getChangelog(version, isCanary);
+        return { success: true, changelog };
+      } catch (error) {
+        logger.error('Failed to get changelog:', error);
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        };
+      }
+    });
+
     logger.info('Auto-updater IPC handlers registered successfully');
+  }
+
+  private getChangelog(version: string, isCanary: boolean): string {
+    try {
+      const changelogFile = isCanary ? 'CHANGELOG-CANARY.md' : 'CHANGELOG.md';
+      const changelogPath = app.isPackaged
+        ? join(process.resourcesPath, changelogFile)
+        : join(app.getAppPath(), changelogFile);
+
+      const fullChangelog = readFileSync(changelogPath, 'utf-8');
+
+      // Extract the section for the specific version
+      const versionHeader = `## [${version}]`;
+      const versionIndex = fullChangelog.indexOf(versionHeader);
+
+      if (versionIndex === -1) {
+        logger.warn(`Changelog section for version ${version} not found`);
+        return `# What's New in ${version}\n\nNo changelog available for this version.`;
+      }
+
+      // Find the next version header or end of file
+      const nextVersionIndex = fullChangelog.indexOf('\n## [', versionIndex + 1);
+      const versionSection =
+        nextVersionIndex === -1
+          ? fullChangelog.slice(versionIndex)
+          : fullChangelog.slice(versionIndex, nextVersionIndex);
+
+      return `# What's New in ${version}\n\n${versionSection}`;
+    } catch (error) {
+      logger.error('Error reading changelog:', error);
+      return `# What's New\n\nChangelog not available.`;
+    }
   }
 
   private sendToRenderer(channel: string, data?: unknown): void {

@@ -1,9 +1,22 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
+  import { settingsStore } from '../stores/settingsStore.svelte';
+
+  interface Props {
+    onShowChangelog?: (version: string, isCanary: boolean) => void;
+  }
+
+  let { onShowChangelog }: Props = $props();
 
   // State for update status
   let updateState = $state<
-    'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'error'
+    | 'idle'
+    | 'checking'
+    | 'available'
+    | 'downloading'
+    | 'downloaded'
+    | 'error'
+    | 'whats-new'
   >('idle');
   let updateInfo = $state<{
     version?: string;
@@ -14,6 +27,7 @@
   let downloadProgress = $state(0);
   let errorMessage = $state('');
   let currentVersion = $state('');
+  let isCanaryVersion = $state(false);
 
   // UI state
   let showNotification = $state(false);
@@ -24,9 +38,33 @@
       const versionInfo = await window.api?.getAppVersion();
       if (versionInfo) {
         currentVersion = versionInfo.version;
+        isCanaryVersion = versionInfo.channel === 'canary';
       }
     } catch (error) {
       console.error('Failed to get current version:', error);
+    }
+  }
+
+  async function checkForNewVersion(): Promise<void> {
+    if (!currentVersion) return;
+
+    await settingsStore.ensureInitialized();
+    const lastSeenVersion = settingsStore.getLastSeenVersion(isCanaryVersion);
+
+    // Check if this is a new version
+    if (lastSeenVersion && lastSeenVersion !== currentVersion) {
+      updateState = 'whats-new';
+      showNotification = true;
+    }
+
+    // Update the last seen version to current
+    await settingsStore.updateLastSeenVersion(currentVersion, isCanaryVersion);
+  }
+
+  function showChangelogViewer(): void {
+    if (onShowChangelog && currentVersion) {
+      onShowChangelog(currentVersion, isCanaryVersion);
+      dismissNotification();
     }
   }
 
@@ -81,10 +119,11 @@
       .replace(/\n/g, '<br>');
   }
 
-  onMount(() => {
+  onMount(async () => {
     if (!window.api) return;
 
-    loadCurrentVersion();
+    await loadCurrentVersion();
+    await checkForNewVersion();
 
     // Set up event listeners
     window.api.onUpdateChecking(() => {
@@ -195,6 +234,17 @@
         <p class="error-message">{errorMessage}</p>
         <div class="notification-actions">
           <button onclick={checkForUpdates} class="retry-btn">Retry</button>
+        </div>
+      {:else if updateState === 'whats-new'}
+        <div class="notification-header">
+          <h3>What's New</h3>
+          <button onclick={dismissNotification} class="close-btn">&times;</button>
+        </div>
+        <p>Flint has been updated to version {currentVersion}</p>
+        <div class="notification-actions">
+          <button onclick={showChangelogViewer} class="changelog-btn"
+            >View Changelog</button
+          >
         </div>
       {/if}
     </div>
@@ -313,7 +363,8 @@
   }
 
   .download-btn,
-  .install-btn {
+  .install-btn,
+  .changelog-btn {
     background: var(--primary-color, #007acc);
     color: white;
     border-color: var(--primary-color, #007acc);
