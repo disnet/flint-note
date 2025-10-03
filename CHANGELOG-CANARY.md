@@ -4,7 +4,13 @@ All notable changes to the Flint application canary builds will be documented in
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## Unreleased
+## [0.2.5-canary.3]
+
+### Added
+
+- Add link in setting to view changelog
+
+## [0.2.5-canary.2]
 
 ### Added
 

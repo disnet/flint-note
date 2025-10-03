@@ -137,10 +137,13 @@ export class AutoUpdaterService {
     // Get current version
     ipcMain.handle('get-app-version', async () => {
       const version = autoUpdater.currentVersion?.version || app.getVersion() || '0.0.0';
-      logger.info('get-app-version called', { version });
+      // Determine channel from version string if not set by auto-updater
+      const isCanary = version.includes('canary');
+      const channel = autoUpdater.channel || (isCanary ? 'canary' : 'latest');
+      logger.info('get-app-version called', { version, channel });
       return {
         version,
-        channel: autoUpdater.channel || 'latest'
+        channel
       };
     });
 
@@ -222,7 +225,14 @@ export class AutoUpdaterService {
       const versionIndex = fullChangelog.indexOf(versionHeader);
 
       if (versionIndex === -1) {
-        logger.warn(`Changelog section for version ${version} not found`);
+        logger.warn(`Changelog section for version ${version} not found`, {
+          version,
+          isCanary,
+          changelogFile,
+          changelogPath,
+          versionHeader,
+          changelogPreview: fullChangelog.slice(0, 200)
+        });
         return `# What's New in ${version}\n\nNo changelog available for this version.`;
       }
 

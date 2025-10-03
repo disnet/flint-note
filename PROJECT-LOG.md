@@ -1,5 +1,9 @@
 # Project Log
 
+## Changelog Test Link in Settings - 2025-10-03
+
+- Added "View Changelog" button to Settings update section for easier testing and debugging of changelog display functionality: added button next to "Check Now" button in Application Updates section, implemented modal overlay to display ChangelogViewer component when clicked, added state management for isCanary flag detection from app version info, included proper accessibility attributes for modal overlay
+
 ## Note Editor Documentation - 2025-10-03
 
 - Created comprehensive documentation of note editor architecture and features in docs/NOTE-EDITOR.md covering CodeMirror 6 foundation, markdown language support, wikilinks system (parsing, rendering, autocomplete, integration), custom list styling, auto-scroll service, cursor position management, editor variants, theme support, extension system, performance considerations, and integration points

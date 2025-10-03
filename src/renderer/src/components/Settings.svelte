@@ -3,6 +3,7 @@
   import { secureStorageService } from '../services/secureStorageService';
   import SlashCommands from './SlashCommands.svelte';
   import CustomFunctionsManager from './custom-functions/CustomFunctionsManager.svelte';
+  import ChangelogViewer from './ChangelogViewer.svelte';
 
   let errorMessage = $state('');
   let successMessage = $state('');
@@ -19,6 +20,8 @@
   // App version state
   let appVersion = $state('');
   let checkingForUpdates = $state(false);
+  let showChangelog = $state(false);
+  let isCanary = $state(false);
 
   // Load API keys and app version on component mount
   $effect(() => {
@@ -41,6 +44,7 @@
         const versionInfo = await window.api?.getAppVersion();
         if (versionInfo) {
           appVersion = versionInfo.version;
+          isCanary = versionInfo.channel === 'canary';
         }
       } catch (error) {
         console.error('Failed to load API keys:', error);
@@ -158,6 +162,10 @@
       checkingForUpdates = false;
     }
   }
+
+  function openChangelog(): void {
+    showChangelog = true;
+  }
 </script>
 
 <div class="settings">
@@ -211,6 +219,23 @@
             <path d="M3 21v-5h5"></path>
           </svg>
           {checkingForUpdates ? 'Checking...' : 'Check Now'}
+        </button>
+        <button class="btn-secondary" onclick={openChangelog}>
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+            <polyline points="10 9 9 9 8 9"></polyline>
+          </svg>
+          View Changelog
         </button>
       </div>
     </section>
@@ -339,6 +364,22 @@
     </section>
   </div>
 </div>
+
+{#if showChangelog}
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div class="modal-overlay" onclick={() => (showChangelog = false)}>
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div class="modal-content" onclick={(e) => e.stopPropagation()}>
+      <ChangelogViewer
+        version={appVersion}
+        {isCanary}
+        onClose={() => (showChangelog = false)}
+      />
+    </div>
+  </div>
+{/if}
 
 <style>
   .settings {
@@ -574,5 +615,28 @@
     margin: 0 0 1rem 0;
     color: #c53030;
     font-weight: 600;
+  }
+
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+
+  .modal-content {
+    width: 90%;
+    max-width: 800px;
+    height: 80vh;
+    background: var(--bg-primary);
+    border-radius: 0.75rem;
+    overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   }
 </style>
