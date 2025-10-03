@@ -1,12 +1,10 @@
-# Flint Auto-Updater System
+# Flint Auto-Updater Infrastructure Setup
 
-This document explains how the auto-updater system works and provides instructions for setting up Cloudflare R2 for hosting updates.
+This document covers the infrastructure setup and deployment configuration for the Flint auto-updater system.
 
 ## Overview
 
-The Flint application uses `electron-updater` to provide automatic application updates. The system is designed for private/proprietary applications and uses Cloudflare R2 for cost-effective, reliable distribution with zero egress fees.
-
-**Current Version:** The application is currently at version 0.1.1 (as specified in `package.json`). Auto-updates will only trigger when a higher version number is available on the update server.
+The Flint application uses `electron-updater` with Cloudflare R2 for cost-effective, reliable update distribution with zero egress fees.
 
 ## Update Trains (Production and Canary)
 
@@ -83,91 +81,6 @@ npm version 1.1.0
 npm run build:mac:production
 git tag v1.1.0
 git push origin v1.1.0
-```
-
-## Architecture
-
-### Components
-
-1. **AutoUpdaterService** (`src/main/auto-updater-service.ts`)
-   - Manages all update logic in the main process
-   - Handles update checking, downloading, and installation
-   - Provides IPC communication with the renderer process
-
-2. **Update UI** (`src/renderer/src/components/UpdateNotification.svelte`)
-   - User interface for update notifications
-   - Progress tracking for downloads
-   - Release notes display
-
-3. **IPC Layer** (`src/preload/index.ts`)
-   - Secure communication between main and renderer processes
-   - Type-safe API for update operations
-
-4. **Configuration** (`electron-builder.yml`)
-   - Build configuration for different platforms
-   - Update server URL configuration
-
-### Update Flow
-
-```mermaid
-graph TD
-    A[App Startup] --> B[Check for Updates]
-    B --> C{Update Available?}
-    C -->|No| D[Continue Normal Operation]
-    C -->|Yes| E[Show Update Notification]
-    E --> F[User Choice]
-    F -->|Download| G[Download Update]
-    F -->|Later| D
-    G --> H[Show Download Progress]
-    H --> I[Update Downloaded]
-    I --> J[User Choice]
-    J -->|Install Now| K[Restart & Install]
-    J -->|Install Later| L[Install on Next Quit]
-    K --> M[App Restarts with New Version]
-    L --> D
-```
-
-## Features
-
-### Automatic Update Checking
-
-- Can be configured with custom intervals (default not set - must be enabled manually)
-- Manual check via "Check for Updates" button
-- Optional startup check with configurable delay (10 seconds by default)
-
-### User Control
-
-- Users can choose when to download updates
-- Users can choose when to install updates
-- Release notes display for informed decisions
-
-### Progress Tracking
-
-- Real-time download progress
-- Error handling with user feedback
-- Retry functionality for failed operations
-
-### Configuration Options
-
-- Auto-download toggle (default: false - users must manually trigger downloads)
-- Auto-install on quit toggle (default: true)
-- Allow prerelease updates
-- Allow downgrade to older versions
-
-## File Structure
-
-```
-src/
-├── main/
-│   ├── auto-updater-service.ts     # Core auto-updater logic
-│   └── index.ts                    # Main process integration
-├── preload/
-│   └── index.ts                    # IPC API definitions
-└── renderer/src/
-    ├── components/
-    │   ├── UpdateNotification.svelte # Update UI component
-    │   └── Settings.svelte          # Settings integration
-    └── env.d.ts                     # Type definitions
 ```
 
 ## Cloudflare R2 Setup
@@ -293,14 +206,14 @@ npm run build:mac:canary
 aws s3 sync dist/ s3://flint-updates-canary/ --profile r2 --endpoint-url https://<account-id>.r2.cloudflarestorage.com
 ```
 
-### Step 5: GitHub Actions Integration
+## GitHub Actions Integration
 
 The project includes two GitHub Actions workflows:
 
 1. **`.github/workflows/build.yml`** - Runs on push to main/develop and PRs. Builds and tests all platforms.
 2. **`.github/workflows/release.yml`** - Runs on version tags (v\*). Automatically determines production vs canary based on tag name and deploys to the appropriate R2 bucket.
 
-#### Current Release Workflow
+### Current Release Workflow
 
 The release workflow (`.github/workflows/release.yml`) is already configured with:
 
@@ -311,7 +224,7 @@ The release workflow (`.github/workflows/release.yml`) is already configured wit
 - **R2 deployment**: Direct upload to the appropriate R2 bucket
 - **GitHub release creation**: Creates release with correct prerelease flag
 
-#### How It Works
+### How It Works
 
 The workflow determines the release train based on the git tag:
 
@@ -327,7 +240,7 @@ The workflow determines the release train based on the git tag:
    - Update URL: `https://canary.flintnote.com`
    - Creates prerelease GitHub release
 
-#### Required GitHub Secrets
+### Required GitHub Secrets
 
 Add these secrets to your repository settings (`Settings > Secrets and variables > Actions`):
 
@@ -354,7 +267,7 @@ Add these secrets to your repository settings (`Settings > Secrets and variables
 
 **Note:** If you're building for both platforms, `CSC_LINK` and `CSC_KEY_PASSWORD` can be reused if you use the same certificate format, or you can set them conditionally per platform in the workflow.
 
-#### Getting R2 Credentials
+### Getting R2 Credentials
 
 1. **Access Key and Secret:**
    - Go to Cloudflare Dashboard → R2 → Manage R2 API Tokens
@@ -374,7 +287,7 @@ Add these secrets to your repository settings (`Settings > Secrets and variables
    - The name you gave your bucket (e.g., `flint-updates`)
    - Add as `R2_BUCKET_NAME` in GitHub secrets
 
-#### Triggering Releases
+### Triggering Releases
 
 **Production release:**
 
@@ -407,7 +320,7 @@ The workflow automatically:
    - `Flint-1.0.0-canary.1.AppImage` → `flint-canary-latest.AppImage`
 5. Creates GitHub release with correct prerelease flag
 
-#### Summary
+### Summary
 
 The dual-train system is now fully configured and automated:
 
