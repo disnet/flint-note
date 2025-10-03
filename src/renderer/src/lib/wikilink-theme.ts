@@ -33,6 +33,14 @@ export const wikilinkTheme = EditorView.theme({
     boxShadow: '0 2px 6px rgba(0, 0, 0, 0.3)'
   },
 
+  '.wikilink-selected': {
+    background: 'rgba(59, 130, 246, 0.2)',
+    color: '#1a1a1a',
+    borderColor: '#3b82f6',
+    outline: '2px solid #3b82f6',
+    outlineOffset: '1px'
+  },
+
   '.wikilink-broken': {
     background: 'rgba(255, 255, 255, 0.8)',
     color: '#d73a49',
@@ -79,6 +87,14 @@ export const wikilinkTheme = EditorView.theme({
       borderColor: 'rgba(248, 81, 73, 0.3)',
       transform: 'translateY(-1px)',
       boxShadow: '0 2px 6px rgba(0, 0, 0, 0.5)'
+    },
+
+    '.wikilink-selected': {
+      background: 'rgba(59, 130, 246, 0.3)',
+      color: '#ffffff',
+      borderColor: '#3b82f6',
+      outline: '2px solid #3b82f6',
+      outlineOffset: '1px'
     }
   }
 });

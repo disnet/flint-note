@@ -5,9 +5,10 @@
   import { EditorConfig } from '../stores/editorConfig.svelte.js';
   import { type CursorPosition } from '../stores/cursorPositionManager.svelte.js';
   import { measureMarkerWidths, updateCSSCustomProperties } from '../lib/textMeasurement';
-  import { forceWikilinkRefresh } from '../lib/wikilinks.svelte.js';
+  import { forceWikilinkRefresh, getSelectedWikilink } from '../lib/wikilinks.svelte.js';
   import { ScrollAutoService } from '../stores/scrollAutoService.svelte.js';
   import WikilinkPopover from './WikilinkPopover.svelte';
+  import WikilinkNavigationPopover from './WikilinkNavigationPopover.svelte';
 
   interface Props {
     content: string;
@@ -37,7 +38,7 @@
   let editorView: EditorView | null = null;
   let pendingCursorPosition: CursorPosition | null = null;
 
-  // Popover state
+  // Edit popover state
   let popoverVisible = $state(false);
   let popoverX = $state(0);
   let popoverY = $state(0);
@@ -48,6 +49,11 @@
   let hoverTimeout: ReturnType<typeof setTimeout> | null = null;
   let leaveTimeout: ReturnType<typeof setTimeout> | null = null;
   let popoverRef: WikilinkPopover | undefined = $state();
+
+  // Navigation popover state
+  let navPopoverVisible = $state(false);
+  let navPopoverX = $state(0);
+  let navPopoverY = $state(0);
 
   const editorConfig = new EditorConfig({
     onWikilinkClick,
@@ -166,6 +172,35 @@
         console.debug('Auto-scroll: Could not find scroll container');
       }
     }
+  });
+
+  // Track selected wikilink and show navigation popup
+  $effect(() => {
+    if (!editorView) return;
+
+    // Poll for selection changes
+    const interval = setInterval(() => {
+      if (!editorView) return;
+
+      const selected = getSelectedWikilink(editorView);
+
+      if (selected && !popoverVisible) {
+        // Show navigation popup only if edit popover is not visible
+        // Position popup near the selected wikilink
+        const coords = editorView.coordsAtPos(selected.from);
+        if (coords) {
+          const position = calculateNavPopoverPosition(coords.left, coords.bottom);
+          navPopoverX = position.x;
+          navPopoverY = position.y;
+          navPopoverVisible = true;
+        }
+      } else if (!selected || popoverVisible) {
+        // Hide navigation popup if no wikilink selected or edit popover is visible
+        navPopoverVisible = false;
+      }
+    }, 100);
+
+    return () => clearInterval(interval);
   });
 
   function measureAndUpdateMarkerWidths(): void {
@@ -322,6 +357,8 @@
         popoverY = position.y;
 
         popoverVisible = true;
+        // Hide navigation popover when edit popover is shown
+        navPopoverVisible = false;
         hoverTimeout = null;
       }, 300);
     } else {
@@ -375,6 +412,29 @@
 
     if (finalY < padding) {
       finalY = padding;
+    }
+
+    return { x: finalX, y: finalY };
+  }
+
+  function calculateNavPopoverPosition(x: number, y: number): { x: number; y: number } {
+    // Navigation popover is smaller
+    const popoverWidth = 150;
+    const padding = 8;
+
+    const viewportWidth = window.innerWidth;
+
+    let finalX = x;
+    let finalY = y + padding; // Show below the wikilink
+
+    // Check right edge
+    if (finalX + popoverWidth + padding > viewportWidth) {
+      finalX = viewportWidth - popoverWidth - padding;
+    }
+
+    // Check left edge
+    if (finalX < padding) {
+      finalX = padding;
     }
 
     return { x: finalX, y: finalY };
@@ -458,6 +518,12 @@
     onCancel={handlePopoverCancel}
   />
 </div>
+
+<WikilinkNavigationPopover
+  bind:visible={navPopoverVisible}
+  x={navPopoverX}
+  y={navPopoverY}
+/>
 
 <style>
   .editor-content {

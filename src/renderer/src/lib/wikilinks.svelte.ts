@@ -61,6 +61,50 @@ const setWikilinkHoverHandler = StateEffect.define<WikilinkHoverHandler>();
 // Effect to force wikilink re-rendering (when notes store updates)
 const forceWikilinkUpdate = StateEffect.define<boolean>();
 
+// Interface for selected wikilink data
+interface SelectedWikilink {
+  from: number;
+  to: number;
+  identifier: string;
+  title: string;
+  exists: boolean;
+  noteId?: string;
+}
+
+// State field to store the currently selected wikilink (cursor adjacent to it)
+const selectedWikilinkField = StateField.define<SelectedWikilink | null>({
+  create: () => null,
+  update: (value, tr) => {
+    // Only recalculate on selection changes or document changes
+    if (!tr.docChanged && !tr.selection) {
+      return value;
+    }
+
+    const cursorPos = tr.state.selection.main.head;
+
+    // Find all wikilinks in the document
+    const text = tr.state.doc.toString();
+    const notes = notesStore.notes;
+    const wikilinks = parseWikilinks(text, notes);
+
+    // Check if cursor is adjacent to any wikilink (at from or to position)
+    for (const wikilink of wikilinks) {
+      if (cursorPos === wikilink.from || cursorPos === wikilink.to) {
+        return {
+          from: wikilink.from,
+          to: wikilink.to,
+          identifier: wikilink.identifier,
+          title: wikilink.title,
+          exists: wikilink.exists,
+          noteId: wikilink.noteId
+        };
+      }
+    }
+
+    return null;
+  }
+});
+
 // State field to store the current click handler
 const wikilinkHandlerField = StateField.define<WikilinkClickHandler | null>({
   create: () => null,
@@ -256,16 +300,23 @@ class WikilinkWidget extends WidgetType {
     private clickHandler: WikilinkClickHandler | null,
     private hoverHandler: WikilinkHoverHandler | null,
     private from: number,
-    private to: number
+    private to: number,
+    private isSelected: boolean
   ) {
     super();
   }
 
   toDOM(view: EditorView): HTMLElement {
     const span = document.createElement('span');
-    span.className = this.exists
-      ? 'wikilink wikilink-exists'
-      : 'wikilink wikilink-broken';
+
+    // Determine class based on selection state and existence
+    if (this.isSelected) {
+      span.className = 'wikilink wikilink-selected';
+    } else {
+      span.className = this.exists
+        ? 'wikilink wikilink-exists'
+        : 'wikilink wikilink-broken';
+    }
 
     // Display only the title part (no brackets), which is more user-friendly
     span.textContent = this.title;
@@ -319,7 +370,8 @@ class WikilinkWidget extends WidgetType {
       this.exists === other.exists &&
       this.noteId === other.noteId &&
       this.from === other.from &&
-      this.to === other.to
+      this.to === other.to &&
+      this.isSelected === other.isSelected
     );
   }
 
@@ -337,6 +389,11 @@ const wikilinkField = StateField.define<DecorationSet>({
   },
   update(decorations, tr) {
     if (tr.docChanged) {
+      return decorateWikilinks(tr.state);
+    }
+
+    // Re-decorate if selection changed (to update selected wikilink highlighting)
+    if (tr.selection) {
       return decorateWikilinks(tr.state);
     }
 
@@ -392,6 +449,9 @@ function decorateWikilinks(state: EditorState): DecorationSet {
   const clickHandler = state.field(wikilinkHandlerField, false) || null;
   const hoverHandler = state.field(wikilinkHoverHandlerField, false) || null;
 
+  // Get currently selected wikilink
+  const selectedWikilink = state.field(selectedWikilinkField, false) || null;
+
   const wikilinks = parseWikilinks(text, notes);
 
   for (const wikilink of wikilinks) {
@@ -399,6 +459,12 @@ function decorateWikilinks(state: EditorState): DecorationSet {
     if (isInCodeContext(state, wikilink.from)) {
       continue;
     }
+
+    // Check if this wikilink is currently selected
+    const isSelected =
+      selectedWikilink !== null &&
+      selectedWikilink.from === wikilink.from &&
+      selectedWikilink.to === wikilink.to;
 
     const widget = new WikilinkWidget(
       wikilink.identifier,
@@ -408,7 +474,8 @@ function decorateWikilinks(state: EditorState): DecorationSet {
       clickHandler,
       hoverHandler,
       wikilink.from,
-      wikilink.to
+      wikilink.to,
+      isSelected
     );
 
     decorations.push(
@@ -437,7 +504,32 @@ export function wikilinksWithoutAutocomplete(
     wikilinkTheme,
     wikilinkHandlerField.init(() => clickHandler),
     wikilinkHoverHandlerField.init(() => hoverHandler || null),
+    selectedWikilinkField,
     wikilinkField,
+    // Add Enter key handler to open selected wikilinks
+    Prec.high(
+      keymap.of([
+        {
+          key: 'Enter',
+          run: (view) => {
+            const selectedWikilink = view.state.field(selectedWikilinkField, false);
+            if (selectedWikilink) {
+              const handler = view.state.field(wikilinkHandlerField, false);
+              if (handler) {
+                if (selectedWikilink.exists && selectedWikilink.noteId) {
+                  handler(selectedWikilink.noteId, selectedWikilink.title);
+                } else {
+                  // Handle broken link - create new note
+                  handler(selectedWikilink.identifier, selectedWikilink.title, true);
+                }
+                return true; // Prevent default Enter behavior
+              }
+            }
+            return false; // Allow normal Enter behavior
+          }
+        }
+      ])
+    ),
     // Add atomic ranges for proper cursor movement
     EditorView.atomicRanges.of((view) => {
       const decorations = view.state.field(wikilinkField, false);
@@ -539,3 +631,15 @@ export function forceWikilinkRefresh(view: EditorView): void {
     effects: forceWikilinkUpdate.of(true)
   });
 }
+
+/**
+ * Get the currently selected wikilink (cursor adjacent to it)
+ */
+export function getSelectedWikilink(view: EditorView): SelectedWikilink | null {
+  return view.state.field(selectedWikilinkField, false) || null;
+}
+
+/**
+ * Export the SelectedWikilink type for use in components
+ */
+export type { SelectedWikilink };
