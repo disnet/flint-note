@@ -47,6 +47,7 @@
   let popoverTo = $state(0);
   let hoverTimeout: ReturnType<typeof setTimeout> | null = null;
   let leaveTimeout: ReturnType<typeof setTimeout> | null = null;
+  let popoverRef: WikilinkPopover | undefined = $state();
 
   const editorConfig = new EditorConfig({
     onWikilinkClick,
@@ -370,6 +371,10 @@
   // Add mouse leave handler for the popover
   function handlePopoverMouseLeave(): void {
     leaveTimeout = setTimeout(() => {
+      // Don't close if the input has focus
+      if (popoverRef && popoverRef.hasFocus()) {
+        return;
+      }
       popoverVisible = false;
       leaveTimeout = null;
     }, 200);
@@ -392,6 +397,7 @@
   onmouseleave={handlePopoverMouseLeave}
 >
   <WikilinkPopover
+    bind:this={popoverRef}
     bind:visible={popoverVisible}
     x={popoverX}
     y={popoverY}

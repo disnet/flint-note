@@ -21,7 +21,6 @@
 
   let inputValue = $state(displayText);
   let inputElement: HTMLInputElement | undefined = $state();
-  let hasBeenOpened = $state(false);
 
   // Update input value when displayText changes (but only if we're not actively editing)
   $effect(() => {
@@ -31,16 +30,9 @@
     }
   });
 
-  // Focus input when popover becomes visible for the first time
-  $effect(() => {
-    if (visible && inputElement && !hasBeenOpened) {
-      hasBeenOpened = true;
-      inputElement.focus();
-      inputElement.select();
-    } else if (!visible) {
-      hasBeenOpened = false;
-    }
-  });
+  export function hasFocus(): boolean {
+    return inputElement === document.activeElement;
+  }
 
   function handleInput(): void {
     if (inputValue.trim()) {
@@ -53,6 +45,10 @@
     if (!visible) return;
 
     if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      onCancel();
+    } else if (e.key === 'Enter') {
       e.preventDefault();
       e.stopPropagation();
       onCancel();
