@@ -825,19 +825,33 @@ export class HybridSearchManager {
 
       // Check if note exists
       const existing = await connection.get<NoteRow>(
-        'SELECT id FROM notes WHERE id = ?',
+        'SELECT id, content_hash FROM notes WHERE id = ?',
         [id]
       );
 
       if (existing) {
-        // Update existing note
-        await connection.run(
-          `UPDATE notes SET
-           title = ?, content = ?, type = ?, filename = ?, path = ?,
-           updated = ?, size = ?, content_hash = ?
-           WHERE id = ?`,
-          [title, content, type, filename, filePath, now, stats.size, contentHash, id]
-        );
+        // Only update the 'updated' timestamp if content has actually changed
+        const contentChanged = existing.content_hash !== contentHash;
+
+        if (contentChanged) {
+          // Content has changed, update with new timestamp
+          await connection.run(
+            `UPDATE notes SET
+             title = ?, content = ?, type = ?, filename = ?, path = ?,
+             updated = ?, size = ?, content_hash = ?
+             WHERE id = ?`,
+            [title, content, type, filename, filePath, now, stats.size, contentHash, id]
+          );
+        } else {
+          // Content hasn't changed, preserve existing updated timestamp
+          await connection.run(
+            `UPDATE notes SET
+             title = ?, content = ?, type = ?, filename = ?, path = ?,
+             size = ?, content_hash = ?
+             WHERE id = ?`,
+            [title, content, type, filename, filePath, stats.size, contentHash, id]
+          );
+        }
       } else {
         // Insert new note
         await connection.run(
