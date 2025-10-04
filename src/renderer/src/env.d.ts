@@ -388,6 +388,43 @@ declare global {
         version: string,
         isCanaray: boolean
       ) => Promise<{ success: boolean; changelog?: string; error?: string }>;
+
+      // Daily View operations
+      getOrCreateDailyNote: (params: {
+        date: string;
+        vaultId: string;
+      }) => Promise<Note | null>;
+      getWeekData: (params: {
+        startDate: string;
+        vaultId: string;
+      }) => Promise<{
+        startDate: string;
+        endDate: string;
+        days: Array<{
+          date: string;
+          dailyNote: Note | null;
+          createdNotes: Array<{ id: string; title: string; type: string }>;
+          modifiedNotes: Array<{ id: string; title: string; type: string }>;
+          totalActivity: number;
+        }>;
+      }>;
+      getNotesByDate: (params: {
+        date: string;
+        vaultId: string;
+      }) => Promise<{
+        created: Array<{ id: string; title: string; type: string; created: string }>;
+        modified: Array<{ id: string; title: string; type: string; updated: string }>;
+      }>;
+      updateDailyNote: (params: {
+        date: string;
+        content: string;
+        vaultId: string;
+      }) => Promise<UpdateResult>;
+
+      // Database operations
+      rebuildDatabase: (params: {
+        vaultId?: string;
+      }) => Promise<{ success: boolean; noteCount: number }>;
     };
   }
 }

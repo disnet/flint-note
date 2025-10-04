@@ -23,6 +23,9 @@
   let showChangelog = $state(false);
   let isCanary = $state(false);
 
+  // Database rebuild state
+  let rebuildingDatabase = $state(false);
+
   // Load API keys and app version on component mount
   $effect(() => {
     (async () => {
@@ -165,6 +168,38 @@
 
   function openChangelog(): void {
     showChangelog = true;
+  }
+
+  async function rebuildDatabaseNow(): Promise<void> {
+    if (
+      !confirm(
+        'This will rebuild the database from your markdown notes on disk. This may take a few moments. Continue?'
+      )
+    ) {
+      return;
+    }
+
+    try {
+      rebuildingDatabase = true;
+      const currentVault = await window.api?.getCurrentVault();
+      if (!currentVault) {
+        showError('No vault selected');
+        return;
+      }
+
+      const result = await window.api?.rebuildDatabase({ vaultId: currentVault.id });
+      if (result?.success) {
+        showSuccess(`Database rebuilt successfully (${result.noteCount} notes indexed)`);
+      } else {
+        showError('Failed to rebuild database');
+      }
+    } catch (error) {
+      showError(
+        'Failed to rebuild database: ' + (error instanceof Error ? error.message : 'Unknown error')
+      );
+    } finally {
+      rebuildingDatabase = false;
+    }
   }
 </script>
 
@@ -310,6 +345,57 @@
         <h4>Danger Zone</h4>
         <button class="btn-danger" onclick={clearAllApiKeys}> Clear All API Keys </button>
       </div>
+    </section>
+
+    <!-- Database Section -->
+    <section class="settings-section">
+      <h3>
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          class="section-icon"
+        >
+          <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+          <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+          <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+        </svg>
+        Database
+      </h3>
+      <p class="section-description">
+        Manage your vault's database. The database indexes all your markdown notes for fast
+        search and retrieval.
+      </p>
+
+      <div class="database-actions">
+        <button
+          class="btn-secondary"
+          onclick={rebuildDatabaseNow}
+          disabled={rebuildingDatabase}
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path>
+            <path d="M21 3v5h-5"></path>
+            <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path>
+            <path d="M3 21v-5h5"></path>
+          </svg>
+          {rebuildingDatabase ? 'Rebuilding...' : 'Rebuild Database'}
+        </button>
+      </div>
+      <p class="help-text">
+        Use this to rebuild the database from your markdown files on disk. This can help fix
+        search issues or sync problems.
+      </p>
     </section>
 
     <section class="settings-section">
@@ -469,6 +555,17 @@
   .update-actions {
     display: flex;
     gap: 0.75rem;
+  }
+
+  .database-actions {
+    margin-bottom: 1rem;
+  }
+
+  .help-text {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
   }
 
   .section-icon {

@@ -1450,6 +1450,52 @@ export class FlintNoteApi {
     });
   }
 
+  // Database Operations
+
+  /**
+   * Rebuild the database from markdown files on disk
+   */
+  async rebuildDatabase(
+    vaultId?: string
+  ): Promise<{ success: boolean; noteCount: number }> {
+    this.ensureInitialized();
+
+    try {
+      // Use the current workspace's search manager (which is already initialized)
+      // If a vaultId is provided, verify it matches the current vault
+      if (vaultId) {
+        const currentVault = this.globalConfig.getCurrentVault();
+        if (!currentVault || currentVault.id !== vaultId) {
+          throw new Error(
+            `Cannot rebuild database for vault '${vaultId}' - it is not the current vault. Please switch to the vault first.`
+          );
+        }
+      }
+
+      // Use the already-initialized search manager from this instance
+      const hybridSearchManager = this.hybridSearchManager;
+
+      // Rebuild the index with progress reporting
+      let noteCount = 0;
+      await hybridSearchManager.rebuildIndex((processed: number, total: number) => {
+        noteCount = total;
+        if (processed % 10 === 0 || processed === total) {
+          console.log(`Rebuilding database: ${processed}/${total} notes processed`);
+        }
+      });
+
+      return {
+        success: true,
+        noteCount
+      };
+    } catch (error) {
+      console.error('Failed to rebuild database:', error);
+      throw new Error(
+        `Failed to rebuild database: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }
+
   /**
    * Load onboarding content from file
    */

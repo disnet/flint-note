@@ -1,5 +1,9 @@
 # Project Log
 
+## Database Rebuild Button in Settings - 2025-10-04
+
+- Added manual database rebuild functionality to Settings page for fixing search/sync issues: implemented rebuildDatabase IPC method in preload layer that invokes rebuild-database handler in main process, added rebuildDatabase method to NoteService and FlintNoteApi that calls HybridSearchManager.rebuildIndex() which clears database and rescans all markdown files on disk, created Database section in Settings UI with rebuild button showing loading state and confirmation dialog, displays success message with note count after completion, fixed initialization issue by ensuring HybridSearchManager.ensureInitialized() is called before rebuild operation, added TypeScript types to env.d.ts for rebuildDatabase API method
+
 ## Pinned/Temporary Tabs Hydration Fix - 2025-10-04
 
 - Fixed stale title issue in pinned and temporary notes by removing cached metadata: pinned and temporary stores now only persist note identifiers and order/timestamps, titles are hydrated fresh from notesStore on every render, eliminates race conditions where cached titles showed then switched to "Untitled", updated all callers to use new simpler signatures (no title/filename parameters), components use $effect/$derived to merge live note data with persisted tab data

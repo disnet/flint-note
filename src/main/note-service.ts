@@ -635,6 +635,12 @@ export class NoteService {
     return await this.api.updateDailyNote(date, content, vaultId);
   }
 
+  // Database operations
+  async rebuildDatabase(vaultId?: string): Promise<{ success: boolean; noteCount: number }> {
+    this.ensureInitialized();
+    return await this.api.rebuildDatabase(vaultId);
+  }
+
   // Utility methods
   isReady(): boolean {
     return this.isInitialized;

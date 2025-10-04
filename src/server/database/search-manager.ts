@@ -897,6 +897,9 @@ export class HybridSearchManager {
     progressCallback?: (processed: number, total: number) => void
   ): Promise<void> {
     try {
+      // Ensure we have a connection before rebuilding
+      await this.ensureInitialized();
+
       // Clear existing data
       await this.dbManager.rebuild();
 

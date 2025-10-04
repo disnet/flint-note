@@ -395,7 +395,11 @@ const api = {
   getNotesByDate: (params: { date: string; vaultId: string }) =>
     electronAPI.ipcRenderer.invoke('get-notes-by-date', params),
   updateDailyNote: (params: { date: string; content: string; vaultId: string }) =>
-    electronAPI.ipcRenderer.invoke('update-daily-note', params)
+    electronAPI.ipcRenderer.invoke('update-daily-note', params),
+
+  // Database operations
+  rebuildDatabase: (params: { vaultId?: string }) =>
+    electronAPI.ipcRenderer.invoke('rebuild-database', params)
 };
 
 // Use `contextBridge` APIs to expose Electron APIs to
