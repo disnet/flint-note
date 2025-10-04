@@ -16,6 +16,7 @@
   import EditorHeader from './EditorHeader.svelte';
   import ErrorBanner from './ErrorBanner.svelte';
   import MetadataView from './MetadataView.svelte';
+  import Backlinks from './Backlinks.svelte';
 
   interface Props {
     note: NoteMetadata;
@@ -354,6 +355,12 @@
   async function handlePinToggle(): Promise<void> {
     await pinnedNotesStore.togglePin(note.id);
   }
+
+  async function handleBacklinkSelect(selectedNote: NoteMetadata): Promise<void> {
+    // Close current editor and navigate to the selected backlink note
+    onClose();
+    await wikilinkService.handleWikilinkClick(selectedNote.id, selectedNote.title, false);
+  }
 </script>
 
 <div
@@ -392,6 +399,8 @@
     cursorPosition={pendingCursorPosition}
     placeholder="Write, type [[ to make links..."
   />
+
+  <Backlinks noteId={note.id} onNoteSelect={handleBacklinkSelect} />
 </div>
 
 <style>
