@@ -73,8 +73,8 @@
 
         // Generate a safe, unique title and identifier
         const type = noteType || 'note'; // Default to 'note' type
-        const { title, identifier } = generateSafeNoteIdentifier('Untitled Note', type);
-        const content = `# ${title}\n\n`;
+        const { identifier } = generateSafeNoteIdentifier('Untitled Note', type);
+        const content = ``;
 
         // Create the note via the chat service
         const noteInfo = await chatService.createNote({
