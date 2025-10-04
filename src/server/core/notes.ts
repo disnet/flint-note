@@ -1522,11 +1522,9 @@ export class NoteManager {
       };
 
       // Create the updated content
-      const updatedContent = await this.formatNoteContent(
-        trimmedTitle,
-        currentNote.content,
-        currentNote.type,
-        updatedMetadata
+      const updatedContent = this.formatUpdatedNoteContent(
+        updatedMetadata,
+        currentNote.content
       );
 
       // Validate content hash for optimistic locking

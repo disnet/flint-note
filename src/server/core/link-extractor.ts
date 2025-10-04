@@ -6,11 +6,13 @@
  */
 
 import { WikilinkParser } from './wikilink-parser.js';
+import { parseNoteContent } from '../utils/yaml-parser.js';
 import type {
   DatabaseConnection,
   NoteLinkRow,
   ExternalLinkRow
 } from '../database/schema.js';
+import type { NoteMetadata } from '../types/index.js';
 
 export interface ExtractedWikilink {
   target_title: string;
@@ -382,6 +384,48 @@ export class LinkExtractor {
   }
 
   /**
+   * Reconstruct a complete note file with frontmatter and content
+   */
+  private static formatNoteWithFrontmatter(metadata: NoteMetadata, content: string): string {
+    let formattedContent = '---\n';
+
+    for (const [key, value] of Object.entries(metadata)) {
+      // Skip undefined values
+      if (value === undefined) {
+        continue;
+      }
+
+      if (Array.isArray(value)) {
+        if (value.length > 0) {
+          const escapedArray = value.map((v) => {
+            if (typeof v === 'string') {
+              const escapedValue = v.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+              return `"${escapedValue}"`;
+            }
+            return `"${v}"`;
+          });
+          formattedContent += `${key}: [${escapedArray.join(', ')}]\n`;
+        } else {
+          formattedContent += `${key}: []\n`;
+        }
+      } else if (typeof value === 'string') {
+        const escapedValue = value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+        formattedContent += `${key}: "${escapedValue}"\n`;
+      } else if (typeof value === 'object' && value !== null) {
+        // Skip complex objects (they should be handled separately if needed)
+        continue;
+      } else {
+        formattedContent += `${key}: ${value}\n`;
+      }
+    }
+
+    formattedContent += '---\n\n';
+    formattedContent += content;
+
+    return formattedContent;
+  }
+
+  /**
    * Update wikilinks in other notes that reference a renamed note's old title
    */
   static async updateWikilinksForRenamedNote(
@@ -408,17 +452,24 @@ export class LinkExtractor {
 
     for (const linkingNote of linkingNotes) {
       try {
-        // Get the linking note's content
-        const noteRow = await db.get<{ content: string; content_hash: string }>(
-          'SELECT content, content_hash FROM notes WHERE id = ?',
+        // Get the linking note's path
+        const notePath = await db.get<{ path: string }>(
+          'SELECT path FROM notes WHERE id = ?',
           [linkingNote.source_note_id]
         );
 
-        if (!noteRow) continue;
+        if (!notePath?.path) continue;
 
-        // Update wikilinks that reference the old title
+        // Read the full file content (including frontmatter)
+        const fs = await import('fs/promises');
+        const fullFileContent = await fs.readFile(notePath.path, 'utf-8');
+
+        // Parse to separate frontmatter from content
+        const parsed = parseNoteContent(fullFileContent);
+
+        // Update wikilinks in the body content only
         const { updatedContent, linksUpdated } = this.updateWikilinksInContent(
-          noteRow.content,
+          parsed.content,
           oldTitle,
           newTitle,
           oldNoteId,
@@ -427,7 +478,19 @@ export class LinkExtractor {
 
         // Only update if changes were made
         if (linksUpdated > 0) {
-          // Generate new content hash
+          // Update the metadata timestamp
+          const updatedMetadata = {
+            ...parsed.metadata,
+            updated: new Date().toISOString()
+          };
+
+          // Reconstruct the full file with frontmatter and updated body
+          const fullUpdatedContent = this.formatNoteWithFrontmatter(
+            updatedMetadata,
+            updatedContent
+          );
+
+          // Generate new content hash (from body content only, matching other parts of system)
           const crypto = await import('crypto');
           const newContentHash = crypto
             .createHash('sha256')
@@ -440,18 +503,10 @@ export class LinkExtractor {
             [updatedContent, newContentHash, linkingNote.source_note_id]
           );
 
-          // Write updated content to file system
-          const notePath = await db.get<{ path: string }>(
-            'SELECT path FROM notes WHERE id = ?',
-            [linkingNote.source_note_id]
-          );
+          // Write the complete file (with frontmatter) to file system
+          await fs.writeFile(notePath.path, fullUpdatedContent, 'utf-8');
 
-          if (notePath?.path) {
-            const fs = await import('fs/promises');
-            await fs.writeFile(notePath.path, updatedContent, 'utf-8');
-          }
-
-          // Re-extract links for the updated note
+          // Re-extract links for the updated note (from body content)
           const updatedExtractionResult = this.extractLinks(updatedContent);
           await this.storeLinks(linkingNote.source_note_id, updatedExtractionResult, db);
 
@@ -492,18 +547,25 @@ export class LinkExtractor {
 
     for (const linkingNote of linkingNotes) {
       try {
-        // Get the linking note's content
-        const noteRow = await db.get<{ content: string; content_hash: string }>(
-          'SELECT content, content_hash FROM notes WHERE id = ?',
+        // Get the linking note's path
+        const notePath = await db.get<{ path: string }>(
+          'SELECT path FROM notes WHERE id = ?',
           [linkingNote.source_note_id]
         );
 
-        if (!noteRow) continue;
+        if (!notePath?.path) continue;
 
-        // Update wikilinks that reference the old identifier
+        // Read the full file content (including frontmatter)
+        const fs = await import('fs/promises');
+        const fullFileContent = await fs.readFile(notePath.path, 'utf-8');
+
+        // Parse to separate frontmatter from content
+        const parsed = parseNoteContent(fullFileContent);
+
+        // Update wikilinks in the body content only
         const { updatedContent, linksUpdated } =
           this.updateWikilinksForMovedNoteInContent(
-            noteRow.content,
+            parsed.content,
             oldNoteId,
             newNoteId,
             noteTitle
@@ -511,7 +573,19 @@ export class LinkExtractor {
 
         // Only update if changes were made
         if (linksUpdated > 0) {
-          // Generate new content hash
+          // Update the metadata timestamp
+          const updatedMetadata = {
+            ...parsed.metadata,
+            updated: new Date().toISOString()
+          };
+
+          // Reconstruct the full file with frontmatter and updated body
+          const fullUpdatedContent = this.formatNoteWithFrontmatter(
+            updatedMetadata,
+            updatedContent
+          );
+
+          // Generate new content hash (from body content only, matching other parts of system)
           const crypto = await import('crypto');
           const newContentHash = crypto
             .createHash('sha256')
@@ -524,18 +598,10 @@ export class LinkExtractor {
             [updatedContent, newContentHash, linkingNote.source_note_id]
           );
 
-          // Write updated content to file system
-          const notePath = await db.get<{ path: string }>(
-            'SELECT path FROM notes WHERE id = ?',
-            [linkingNote.source_note_id]
-          );
+          // Write the complete file (with frontmatter) to file system
+          await fs.writeFile(notePath.path, fullUpdatedContent, 'utf-8');
 
-          if (notePath?.path) {
-            const fs = await import('fs/promises');
-            await fs.writeFile(notePath.path, updatedContent, 'utf-8');
-          }
-
-          // Re-extract links for the updated note
+          // Re-extract links for the updated note (from body content)
           const updatedExtractionResult = this.extractLinks(updatedContent);
           await this.storeLinks(linkingNote.source_note_id, updatedExtractionResult, db);
 
