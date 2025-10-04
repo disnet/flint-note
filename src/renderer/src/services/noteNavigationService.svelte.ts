@@ -48,7 +48,7 @@ class NoteNavigationService {
       await temporaryTabsStore.clearActiveTab();
     } else {
       // Regular note: add to recent list
-      await temporaryTabsStore.addTab(note.id, note.title, source);
+      await temporaryTabsStore.addTab(note.id, source);
     }
 
     // Add to navigation history (unless this is already a history navigation)
@@ -159,7 +159,7 @@ class NoteNavigationService {
    * Handle changes to pinned notes (pin/unpin operations)
    */
   private async handlePinnedNotesChange(
-    pinnedNotes: Array<{ id: string; title: string; filename: string }>
+    pinnedNotes: Array<{ id: string }>
   ): Promise<void> {
     const currentPinnedIds = pinnedNotes.map((note) => note.id);
 

@@ -165,8 +165,6 @@ export interface NoteService {
 
 export interface PinnedNoteInfo {
   id: string;
-  title: string;
-  filename: string;
   pinnedAt: string;
   order: number;
 }

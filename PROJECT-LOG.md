@@ -1,5 +1,9 @@
 # Project Log
 
+## Pinned/Temporary Tabs Hydration Fix - 2025-10-04
+
+- Fixed stale title issue in pinned and temporary notes by removing cached metadata: pinned and temporary stores now only persist note identifiers and order/timestamps, titles are hydrated fresh from notesStore on every render, eliminates race conditions where cached titles showed then switched to "Untitled", updated all callers to use new simpler signatures (no title/filename parameters), components use $effect/$derived to merge live note data with persisted tab data
+
 ## Optional Note Titles - 2025-10-04
 
 - Made note titles optional throughout the application: backend now allows empty titles in createNote and stores them as nullable in database, empty titles generate "untitled.md" filenames with automatic numbering for uniqueness, UI displays "Untitled" in greyed italic text when title is missing, note editor placeholder changed to "Start writing note title..." for better UX, new note button creates notes without titles by default

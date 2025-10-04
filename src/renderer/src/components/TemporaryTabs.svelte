@@ -20,6 +20,17 @@
 
   const dragState = globalDragState;
 
+  // Hydrate tabs with metadata from notesStore
+  let hydratedTabs = $derived(
+    temporaryTabsStore.tabs.map((tab) => {
+      const note = notesStore.notes.find((n) => n.id === tab.noteId);
+      return {
+        ...tab,
+        title: note?.title || ''
+      };
+    })
+  );
+
   async function handleTabClick(noteId: string): Promise<void> {
     const note = notesStore.notes.find((n) => n.id === noteId);
     if (note) {
@@ -138,9 +149,9 @@
     {/if}
   </div>
 
-  {#if temporaryTabsStore.tabs.length > 0}
+  {#if hydratedTabs.length > 0}
     <div class="tabs-list">
-      {#each temporaryTabsStore.tabs as tab, index (tab.id)}
+      {#each hydratedTabs as tab, index (tab.id)}
         <div
           class="tab-item"
           class:active={tab.id === temporaryTabsStore.activeTabId}

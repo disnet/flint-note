@@ -283,10 +283,7 @@
 
       // Add unpinned notes to temporary tabs
       for (const noteId of noteIds) {
-        const note = notesStore.notes.find((n) => n.id === noteId);
-        if (note) {
-          await temporaryTabsStore.addTab(note.id, note.title, 'navigation');
-        }
+        await temporaryTabsStore.addTab(noteId, 'navigation');
       }
     };
 

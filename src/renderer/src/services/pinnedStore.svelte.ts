@@ -50,11 +50,9 @@ class PinnedNotesStore {
   private async saveToStorage(vaultId?: string): Promise<void> {
     try {
       const vault = vaultId || this.currentVaultId || 'default';
-      // Serialize the notes to ensure they can be cloned through IPC
+      // Serialize the notes - only persist id, pinnedAt, and order
       const serializedNotes = this.state.notes.map((note) => ({
         id: note.id,
-        title: note.title,
-        filename: note.filename,
         pinnedAt: note.pinnedAt,
         order: note.order
       }));
@@ -88,49 +86,42 @@ class PinnedNotesStore {
     return this.state.notes.some((note) => note.id === noteId);
   }
 
-  async pinNote(id: string, title: string, filename: string): Promise<void> {
+  async pinNote(id: string): Promise<void> {
     if (this.state.notes.some((note) => note.id === id)) {
       return; // Already pinned
     }
 
     const pinnedNote: PinnedNoteInfo = {
       id,
-      title,
-      filename,
       pinnedAt: new Date().toISOString(),
       order: this.state.notes.length
     };
 
     this.state.notes = [...this.state.notes, pinnedNote];
-    await this.saveToStorage(); // Now async
+    await this.saveToStorage();
 
     // Remove from temporary tabs when pinned
     await temporaryTabsStore.removeTabsByNoteIds([id]);
   }
 
   async unpinNote(noteId: string): Promise<void> {
-    // Get note info before removing it
-    const noteToUnpin = this.state.notes.find((note) => note.id === noteId);
-
     this.state.notes = this.state.notes.filter((note) => note.id !== noteId);
     // Reassign order values to maintain sequence
     this.state.notes.forEach((note, index) => {
       note.order = index;
     });
-    await this.saveToStorage(); // Now async
+    await this.saveToStorage();
 
     // Add to temporary tabs when unpinned
-    if (noteToUnpin) {
-      await temporaryTabsStore.addTab(noteToUnpin.id, noteToUnpin.title, 'navigation');
-    }
+    await temporaryTabsStore.addTab(noteId, 'navigation');
   }
 
-  async togglePin(id: string, title: string, filename: string): Promise<boolean> {
+  async togglePin(id: string): Promise<boolean> {
     if (this.isPinned(id)) {
       await this.unpinNote(id);
       return false;
     } else {
-      await this.pinNote(id, title, filename);
+      await this.pinNote(id);
       return true;
     }
   }
@@ -202,27 +193,6 @@ class PinnedNotesStore {
     }
   }
 
-  async updateNoteTitle(noteId: string, newTitle: string): Promise<void> {
-    const pinnedNote = this.state.notes.find((note) => note.id === noteId);
-    if (pinnedNote) {
-      pinnedNote.title = newTitle;
-      await this.saveToStorage();
-    }
-  }
-
-  async updateNoteIdAndTitle(
-    oldId: string,
-    newId: string,
-    newTitle: string
-  ): Promise<void> {
-    const pinnedNote = this.state.notes.find((note) => note.id === oldId);
-    if (pinnedNote) {
-      pinnedNote.id = newId;
-      pinnedNote.title = newTitle;
-      await this.saveToStorage();
-    }
-  }
-
   async refreshForVault(vaultId?: string): Promise<void> {
     this.state.isLoading = true;
     try {
@@ -251,11 +221,7 @@ class PinnedNotesStore {
    * Called after vault creation to provide immediate guidance
    */
   async pinWelcomeNote(): Promise<void> {
-    await this.pinNote(
-      'note/welcome-to-flint',
-      'Welcome to Flint',
-      'welcome-to-flint.md'
-    );
+    await this.pinNote('note/welcome-to-flint');
   }
 
   /**
@@ -263,31 +229,15 @@ class PinnedNotesStore {
    * Called after vault creation to provide structured learning path
    */
   async pinTutorialNotes(): Promise<void> {
-    const tutorialNotes = [
-      {
-        id: 'note/tutorial-1-your-first-daily-note',
-        title: 'Tutorial 1: Your First Daily Note',
-        filename: 'tutorial-1-your-first-daily-note.md'
-      },
-      {
-        id: 'note/tutorial-2-connecting-ideas-with-wikilinks',
-        title: 'Tutorial 2: Connecting Ideas with Wikilinks',
-        filename: 'tutorial-2-connecting-ideas-with-wikilinks.md'
-      },
-      {
-        id: 'note/tutorial-3-your-ai-assistant-in-action',
-        title: 'Tutorial 3: Your AI Assistant in Action',
-        filename: 'tutorial-3-your-ai-assistant-in-action.md'
-      },
-      {
-        id: 'note/tutorial-4-understanding-note-types',
-        title: 'Tutorial 4: Understanding Note Types',
-        filename: 'tutorial-4-understanding-note-types.md'
-      }
+    const tutorialIds = [
+      'note/tutorial-1-your-first-daily-note',
+      'note/tutorial-2-connecting-ideas-with-wikilinks',
+      'note/tutorial-3-your-ai-assistant-in-action',
+      'note/tutorial-4-understanding-note-types'
     ];
 
-    for (const tutorial of tutorialNotes) {
-      await this.pinNote(tutorial.id, tutorial.title, tutorial.filename);
+    for (const id of tutorialIds) {
+      await this.pinNote(id);
     }
   }
 }

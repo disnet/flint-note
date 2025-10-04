@@ -3,7 +3,6 @@ import { getChatService } from '../services/chatService';
 interface TemporaryTab {
   id: string;
   noteId: string;
-  title: string;
   openedAt: Date;
   lastAccessed: Date;
   source: 'search' | 'wikilink' | 'navigation' | 'history';
@@ -64,7 +63,6 @@ class TemporaryTabsStore {
 
   async addTab(
     noteId: string,
-    title: string,
     source: 'search' | 'wikilink' | 'navigation' | 'history'
   ): Promise<void> {
     await this.ensureInitialized();
@@ -78,7 +76,6 @@ class TemporaryTabsStore {
     if (existingIndex !== -1) {
       // Update existing tab without moving it
       this.state.tabs[existingIndex].lastAccessed = new Date();
-      this.state.tabs[existingIndex].title = title; // Update title in case it changed
       this.state.activeTabId = this.state.tabs[existingIndex].id;
       // Don't move to top - keep existing position
     } else {
@@ -86,7 +83,6 @@ class TemporaryTabsStore {
       const newTab: TemporaryTab = {
         id: `tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         noteId,
-        title,
         openedAt: new Date(),
         lastAccessed: new Date(),
         source,
@@ -252,47 +248,9 @@ class TemporaryTabsStore {
     }
   }
 
-  async updateNoteTitle(noteId: string, newTitle: string): Promise<void> {
-    await this.ensureInitialized();
-    let updated = false;
-
-    this.state.tabs.forEach((tab) => {
-      if (tab.noteId === noteId) {
-        tab.title = newTitle;
-        updated = true;
-      }
-    });
-
-    if (updated) {
-      await this.saveToStorage();
-    }
-  }
-
-  async updateNoteIdAndTitle(
-    oldId: string,
-    newId: string,
-    newTitle: string
-  ): Promise<void> {
-    await this.ensureInitialized();
-    let updated = false;
-
-    this.state.tabs.forEach((tab) => {
-      if (tab.noteId === oldId) {
-        tab.noteId = newId;
-        tab.title = newTitle;
-        updated = true;
-      }
-    });
-
-    if (updated) {
-      await this.saveToStorage();
-    }
-  }
-
   async addTabAtPosition(
     tab: {
       noteId: string;
-      title: string;
       source: 'search' | 'wikilink' | 'navigation' | 'history';
       order?: number;
     },
@@ -305,7 +263,6 @@ class TemporaryTabsStore {
     const newTab: TemporaryTab = {
       id: crypto.randomUUID(),
       noteId: tab.noteId,
-      title: tab.title,
       openedAt: new Date(),
       lastAccessed: new Date(),
       source: tab.source,
@@ -524,7 +481,7 @@ class TemporaryTabsStore {
     ];
 
     for (const tutorial of tutorialNotes) {
-      await this.addTab(tutorial.id, tutorial.title, 'navigation');
+      await this.addTab(tutorial.id, 'navigation');
     }
   }
 }

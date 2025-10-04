@@ -16,8 +16,6 @@ export async function handleCrossSectionDrop(
     // Create pinned note from temporary tab
     const pinnedNote: PinnedNoteInfo = {
       id: tab.noteId,
-      title: tab.title,
-      filename: '', // Will be resolved by PinnedNotes component
       pinnedAt: new Date().toISOString(),
       order: targetIndex
     };
@@ -62,7 +60,6 @@ export async function handleCrossSectionDrop(
     // Create temporary tab from pinned note
     const tempTab = {
       noteId: pinnedNote.id,
-      title: pinnedNote.title,
       source: 'navigation' as const,
       order: targetIndex
     };

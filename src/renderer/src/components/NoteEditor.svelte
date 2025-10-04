@@ -197,7 +197,8 @@
   }
 
   async function handleTitleChange(newTitle: string): Promise<void> {
-    if (!newTitle || newTitle === note.title) {
+    // Allow empty titles, but skip if unchanged
+    if (newTitle === note.title) {
       return;
     }
 
@@ -215,24 +216,16 @@
         const newId = result.new_id || note.id;
 
         // Update pinned notes if this note is pinned
-        if (pinnedNotesStore.isPinned(oldId)) {
-          if (newId !== oldId) {
-            await pinnedNotesStore.updateNoteIdAndTitle(oldId, newId, newTitle);
-          } else {
-            await pinnedNotesStore.updateNoteTitle(oldId, newTitle);
-          }
+        if (pinnedNotesStore.isPinned(oldId) && newId !== oldId) {
+          await pinnedNotesStore.updateNoteId(oldId, newId);
         }
 
         // Update temporary tabs that reference this note
         const hasTemporaryTab = temporaryTabsStore.tabs.some(
           (tab) => tab.noteId === oldId
         );
-        if (hasTemporaryTab) {
-          if (newId !== oldId) {
-            await temporaryTabsStore.updateNoteIdAndTitle(oldId, newId, newTitle);
-          } else {
-            await temporaryTabsStore.updateNoteTitle(oldId, newTitle);
-          }
+        if (hasTemporaryTab && newId !== oldId) {
+          await temporaryTabsStore.updateNoteId(oldId, newId);
         }
 
         // Update the local note reference
@@ -359,7 +352,7 @@
   }
 
   async function handlePinToggle(): Promise<void> {
-    await pinnedNotesStore.togglePin(note.id, note.title, note.filename || note.title);
+    await pinnedNotesStore.togglePin(note.id);
   }
 </script>
 

@@ -28,25 +28,9 @@
     const result = pinnedNotesStore.notes
       .map((pinnedInfo) => {
         // Find the corresponding note in notesStore
-        const fullNote = notesStore.notes.find((note) => note.id === pinnedInfo.id);
-
-        return (
-          fullNote ||
-          ({
-            // Fallback using pinned info if note not found in notesStore
-            id: pinnedInfo.id,
-            title: pinnedInfo.title,
-            filename: pinnedInfo.filename,
-            type: 'unknown',
-            created: pinnedInfo.pinnedAt,
-            modified: pinnedInfo.pinnedAt,
-            size: 0,
-            tags: [],
-            path: ''
-          } as NoteMetadata)
-        );
+        return notesStore.notes.find((note) => note.id === pinnedInfo.id);
       })
-      .filter((note) => note !== null);
+      .filter((note): note is NoteMetadata => note !== undefined);
 
     pinnedNotes = result;
   });
