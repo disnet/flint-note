@@ -59,8 +59,24 @@
 {#if visible}
   <div class="wikilink-popover" style="left: {x}px; top: {y}px;">
     <div class="popover-content">
+      <div class="link-section">
+        <svg class="icon" viewBox="0 0 20 20" fill="currentColor">
+          <path
+            fill-rule="evenodd"
+            d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z"
+            clip-rule="evenodd"
+          />
+        </svg>
+        <span class="link-value">{identifier}</span>
+      </div>
       <div class="display-section">
-        <label for="display-input">{identifier}</label>
+        <svg class="icon" viewBox="0 0 20 20" fill="currentColor">
+          <path
+            fill-rule="evenodd"
+            d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+            clip-rule="evenodd"
+          />
+        </svg>
         <input
           id="display-input"
           type="text"
@@ -93,19 +109,27 @@
   .popover-content {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 8px;
   }
 
+  .link-section,
   .display-section {
     display: flex;
-    flex-direction: column;
-    gap: 4px;
+    align-items: center;
+    gap: 8px;
   }
 
-  label {
-    font-size: 12px;
-    font-weight: 500;
+  .icon {
+    width: 16px;
+    height: 16px;
     color: #6b7280;
+    flex-shrink: 0;
+  }
+
+  .link-value {
+    font-size: 13px;
+    color: #111827;
+    flex: 1;
   }
 
   input[type='text'] {
@@ -115,6 +139,7 @@
     border-radius: 4px;
     outline: none;
     transition: border-color 0.15s;
+    flex: 1;
   }
 
   input[type='text']:focus {
@@ -129,8 +154,12 @@
       border-color: #374151;
     }
 
-    label {
+    .icon {
       color: #9ca3af;
+    }
+
+    .link-value {
+      color: #e5e7eb;
     }
 
     input[type='text'] {
