@@ -397,6 +397,7 @@
     onCursorChange={handleCursorChange}
     onWikilinkClick={handleWikilinkClick}
     cursorPosition={pendingCursorPosition}
+    placeholder="Write, type [[ to make links..."
   />
 </div>
 

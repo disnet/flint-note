@@ -172,7 +172,7 @@ export class EditorConfig {
   // Placeholder theme extension
   private placeholderTheme = EditorView.theme({
     '.cm-placeholder': {
-      color: 'var(--text-secondary)',
+      color: 'var(--text-placeholder)',
       fontStyle: 'italic',
       opacity: '0.7'
     }

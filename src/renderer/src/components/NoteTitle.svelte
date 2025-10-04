@@ -11,7 +11,7 @@
     value,
     onSave,
     onCancel,
-    placeholder = 'Start writing note title...',
+    placeholder = 'Title...',
     disabled = false
   }: Props = $props();
 
@@ -90,7 +90,7 @@
   }
 
   .note-title-input::placeholder {
-    color: var(--text-tertiary);
+    color: var(--text-placeholder);
     opacity: 0.5;
   }
 
