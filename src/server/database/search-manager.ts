@@ -1073,10 +1073,8 @@ export class HybridSearchManager {
       const type =
         (typeof metadata.type === 'string' ? metadata.type : null) || parentDir;
 
-      // Determine title from metadata or filename
-      const title =
-        (typeof metadata.title === 'string' ? metadata.title : null) ||
-        filename.replace('.md', '');
+      // Determine title from metadata (allow empty/missing titles)
+      const title = typeof metadata.title === 'string' ? metadata.title : '';
 
       // Generate note ID (remove .md extension for consistency)
       const baseFilename = filename.replace(/\.md$/, '');

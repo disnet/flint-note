@@ -128,7 +128,11 @@
                       {#if pinnedNotesStore.isPinned(note.id)}
                         <span class="pin-indicator" title="Pinned note">📌</span>
                       {/if}
-                      {note.title}
+                      {#if note.title}
+                        {note.title}
+                      {:else}
+                        <span class="untitled-text">Untitled</span>
+                      {/if}
                     </div>
                     {#if note.snippet}
                       <div class="note-snippet">
@@ -383,6 +387,12 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
+  }
+
+  .untitled-text {
+    color: var(--text-tertiary);
+    opacity: 0.5;
+    font-style: italic;
   }
 
   .pin-indicator {

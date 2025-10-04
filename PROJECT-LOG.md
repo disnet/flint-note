@@ -1,5 +1,9 @@
 # Project Log
 
+## Optional Note Titles - 2025-10-04
+
+- Made note titles optional throughout the application: backend now allows empty titles in createNote and stores them as nullable in database, empty titles generate "untitled.md" filenames with automatic numbering for uniqueness, UI displays "Untitled" in greyed italic text when title is missing, note editor placeholder changed to "Start writing note title..." for better UX, new note button creates notes without titles by default
+
 ## Changelog Test Link in Settings - 2025-10-03
 
 - Added "View Changelog" button to Settings update section for easier testing and debugging of changelog display functionality: added button next to "Check Now" button in Application Updates section, implemented modal overlay to display ChangelogViewer component when clicked, added state management for isCanary flag detection from app version info, included proper accessibility attributes for modal overlay

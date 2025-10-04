@@ -193,7 +193,7 @@ export class DatabaseManager {
     await connection.run(`
         CREATE TABLE IF NOT EXISTS notes (
           id TEXT PRIMARY KEY,
-          title TEXT NOT NULL,
+          title TEXT,
           content TEXT,
           type TEXT NOT NULL,
           filename TEXT NOT NULL,

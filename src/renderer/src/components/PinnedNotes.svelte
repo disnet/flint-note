@@ -190,7 +190,13 @@
             <!-- eslint-disable-next-line svelte/no-at-html-tags -->
             {@html getIconSvg(getNoteIcon(note))}
           </div>
-          <span class="note-title">{note.title}</span>
+          <span class="note-title">
+            {#if note.title}
+              {note.title}
+            {:else}
+              <span class="untitled-text">Untitled</span>
+            {/if}
+          </span>
         </button>
       {:else}
         <div
@@ -312,6 +318,11 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .untitled-text {
+    color: var(--text-placeholder);
+    font-style: italic;
   }
 
   .empty-state {

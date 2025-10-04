@@ -11,7 +11,7 @@
     value,
     onSave,
     onCancel,
-    placeholder = 'Enter note title...',
+    placeholder = 'Start writing note title...',
     disabled = false
   }: Props = $props();
 
@@ -26,7 +26,8 @@
   async function handleSave(): Promise<void> {
     const trimmedTitle = titleValue.trim();
 
-    if (!trimmedTitle || trimmedTitle === value || disabled || isProcessing) {
+    // Allow saving empty titles, but skip if unchanged or processing
+    if (trimmedTitle === value || disabled || isProcessing) {
       return;
     }
 
@@ -63,6 +64,7 @@
   bind:value={titleValue}
   class="note-title-input"
   class:processing={isProcessing}
+  class:empty={!titleValue || titleValue.trim().length === 0}
   type="text"
   onkeydown={handleKeydown}
   onblur={handleSave}
@@ -85,6 +87,11 @@
     outline: none;
     width: 100%;
     min-width: 200px;
+  }
+
+  .note-title-input::placeholder {
+    color: var(--text-tertiary);
+    opacity: 0.5;
   }
 
   .note-title-input:focus {

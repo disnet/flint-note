@@ -168,7 +168,13 @@
               <!-- eslint-disable-next-line svelte/no-at-html-tags -->
               {@html getSourceIcon(tab.source)}
             </div>
-            <span class="tab-title">{truncateTitle(tab.title)}</span>
+            <span class="tab-title">
+              {#if tab.title}
+                {truncateTitle(tab.title)}
+              {:else}
+                <span class="untitled-text">Untitled</span>
+              {/if}
+            </span>
           </div>
           <button
             class="close-tab"
@@ -289,6 +295,11 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .untitled-text {
+    color: var(--text-placeholder);
+    font-style: italic;
   }
 
   .close-tab {

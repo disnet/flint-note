@@ -17,7 +17,6 @@
   import { noteNavigationService } from './services/noteNavigationService.svelte';
   import { activeNoteStore } from './stores/activeNoteStore.svelte';
   import { cursorPositionStore } from './services/cursorPositionStore.svelte';
-  import { generateSafeNoteIdentifier } from './utils/noteUtils.svelte';
   import { vaultAvailabilityService } from './services/vaultAvailabilityService.svelte';
   import { pinnedNotesStore } from './services/pinnedStore.svelte';
   import { dailyViewStore } from './stores/dailyViewStore.svelte';
@@ -71,9 +70,9 @@
           return;
         }
 
-        // Generate a safe, unique title and identifier
+        // Create note without title (empty string will generate unique identifier)
         const type = noteType || 'note'; // Default to 'note' type
-        const { identifier } = generateSafeNoteIdentifier('Untitled Note', type);
+        const identifier = ''; // Empty identifier for untitled notes
         const content = ``;
 
         // Create the note via the chat service

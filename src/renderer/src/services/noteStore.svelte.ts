@@ -144,7 +144,7 @@ function createNotesStore(): {
             id: note.id,
             type: note.type || type,
             filename: note.title || `unknown-${result.indexOf(note)}`,
-            title: note.title || `Untitled Note ${result.indexOf(note) + 1}`,
+            title: note.title || '',
             created: note.created || new Date().toISOString(),
             modified: note.modified || new Date().toISOString(),
             size: note.size || 0,

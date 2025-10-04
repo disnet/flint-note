@@ -170,7 +170,13 @@
           class:selected={index === selectedIndex}
           onclick={() => selectNote(note)}
         >
-          <div class="result-title">{note.title}</div>
+          <div class="result-title">
+            {#if note.title}
+              {note.title}
+            {:else}
+              <span class="untitled-text">Untitled</span>
+            {/if}
+          </div>
           <div class="result-meta">
             <span class="result-path">{note.filename}</span>
             {#if note.type}
@@ -189,6 +195,12 @@
     min-width: 50ch;
     max-width: 80ch;
     width: 100%;
+  }
+
+  .untitled-text {
+    color: var(--text-placeholder);
+    opacity: 0.5;
+    font-style: italic;
   }
 
   .search-input-wrapper {

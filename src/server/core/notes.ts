@@ -298,13 +298,8 @@ export class NoteManager {
     enforceRequiredFields: boolean = true
   ): Promise<NoteInfo> {
     try {
-      // Validate inputs
-      if (!title || title.trim().length === 0) {
-        throw new Error('Note title is required and cannot be empty');
-      }
-
-      // Trim the title for consistent handling
-      const trimmedTitle = title.trim();
+      // Trim the title for consistent handling (allow empty titles)
+      const trimmedTitle = title ? title.trim() : '';
 
       // Validate and ensure note type exists
       if (!this.#workspace.isValidNoteTypeName(typeName)) {
@@ -383,6 +378,11 @@ export class NoteManager {
    * Generate a filesystem-safe filename from a title
    */
   generateFilename(title: string): string {
+    // Handle empty titles
+    if (!title || title.trim().length === 0) {
+      return 'untitled.md';
+    }
+
     // Remove or replace problematic characters
     let filename = title
       .toLowerCase()
@@ -391,7 +391,7 @@ export class NoteManager {
       .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
       .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
 
-    // Ensure filename isn't empty
+    // Ensure filename isn't empty after cleaning
     if (!filename) {
       filename = 'untitled';
     }
@@ -470,7 +470,10 @@ export class NoteManager {
     const baseFilename = path.basename(filename, '.md');
 
     let formattedContent = '---\n';
-    formattedContent += `title: "${title}"\n`;
+    // Only add title if it's not empty
+    if (title && title.trim().length > 0) {
+      formattedContent += `title: "${title}"\n`;
+    }
     formattedContent += `filename: "${baseFilename}"\n`;
     formattedContent += `type: ${typeName}\n`;
     formattedContent += `created: ${timestamp}\n`;
@@ -545,7 +548,7 @@ export class NoteManager {
         type: typeName,
         filename,
         path: notePath,
-        title: parsed.metadata.title || this.extractTitleFromFilename(filename),
+        title: parsed.metadata.title || '',
         content: parsed.content,
         content_hash: contentHash,
         metadata: parsed.metadata,
@@ -632,7 +635,7 @@ export class NoteManager {
         type: typeName,
         filename,
         path: filePath,
-        title: parsed.metadata.title || this.extractTitleFromFilename(filename),
+        title: parsed.metadata.title || '',
         content: parsed.content,
         content_hash: contentHash,
         metadata: parsed.metadata,
@@ -1199,7 +1202,7 @@ export class NoteManager {
               id: this.generateNoteId(noteType.name, filename),
               type: noteType.name,
               filename,
-              title: parsed.metadata.title || this.extractTitleFromFilename(filename),
+              title: parsed.metadata.title || '',
               created: stats.birthtime.toISOString(),
               modified: stats.mtime.toISOString(),
               size: stats.size,
