@@ -15,7 +15,8 @@ import { githubDark } from '@fsegurai/codemirror-theme-github-dark';
 import { markdownListStyling, listStylingTheme } from '../lib/markdownListStyling';
 import {
   wikilinksExtension,
-  type WikilinkHoverHandler
+  type WikilinkHoverHandler,
+  getSelectedWikilink
 } from '../lib/wikilinks.svelte.js';
 
 export interface EditorConfigOptions {
@@ -263,13 +264,20 @@ export class EditorConfig {
     ];
 
     // Add custom Enter key handler for backlink context
+    // This should have lower precedence than wikilinks extension's Enter handler
     if (this.options.variant === 'backlink-context' && this.options.onEnterKey) {
       const enterKeymap = keymap.of([
         {
           key: 'Enter',
-          run: () => {
+          run: (view) => {
+            // Check if there's a selected wikilink first - if so, let wikilinks handle it
+            const selectedWikilink = getSelectedWikilink(view);
+            if (selectedWikilink) {
+              return false; // Let wikilinks extension handle it
+            }
+            // Otherwise, navigate to source
             this.options.onEnterKey?.();
-            return true; // Prevent default behavior
+            return true; // Prevent default newline behavior
           }
         }
       ]);

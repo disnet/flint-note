@@ -174,5 +174,7 @@
 
   .backlink-context-editor :global(.cm-scroller) {
     overflow: hidden;
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
   }
 </style>

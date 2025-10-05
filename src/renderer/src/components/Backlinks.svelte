@@ -3,6 +3,7 @@
   import type { NoteMetadata } from '../services/noteStore.svelte';
   import { getChatService } from '../services/chatService.js';
   import { notesStore } from '../services/noteStore.svelte';
+  import { wikilinkService } from '../services/wikilinkService.svelte.js';
   import BacklinkContextEditor from './BacklinkContextEditor.svelte';
 
   interface Props {
@@ -190,6 +191,15 @@
   function handleNavigateToSource(backlink: BacklinkWithContext): void {
     handleBacklinkClick(backlink, backlink.link.line_number ?? undefined);
   }
+
+  async function handleWikilinkClick(
+    noteId: string,
+    title: string,
+    shouldCreate?: boolean
+  ): Promise<void> {
+    // Use centralized wikilink service
+    await wikilinkService.handleWikilinkClick(noteId, title, shouldCreate);
+  }
 </script>
 
 <div class="backlinks-container">
@@ -252,6 +262,7 @@
                         lineNumber={backlink.link.line_number ?? 1}
                         initialContent={backlink.context}
                         onNavigate={() => handleNavigateToSource(backlink)}
+                        onWikilinkClick={handleWikilinkClick}
                       />
                     {/if}
                   </div>
