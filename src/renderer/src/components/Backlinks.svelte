@@ -254,7 +254,7 @@
                 {#each group.links as backlink, index (backlink.link.id)}
                   <div class="backlink-context-item">
                     {#if index > 0}
-                      <div class="context-separator"></div>
+                      <div class="context-separator">⋮</div>
                     {/if}
                     {#if backlink.context}
                       <BacklinkContextEditor
@@ -414,9 +414,11 @@
   }
 
   .context-separator {
-    height: 1px;
-    background: var(--border-light);
-    margin: 0.5rem 0 0.5rem 1.25rem;
+    display: flex;
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    margin: 0;
   }
 
   .link-count {
