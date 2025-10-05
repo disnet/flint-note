@@ -4,6 +4,20 @@ All notable changes to the Flint application canary builds will be documented in
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.2.6-canary.5]
+
+### Added
+
+- added backlinks control
+- added icons in wikilink popover
+- add button in settings to rebuild the index
+
+### Fixed
+
+- only change update time on actual content change
+- fix bug that would erase frontmatter when updating link references when a note was renamed
+
+
 ## [0.2.6-canary.4]
 
 - Made titles optional, new notes are created with empty titles
