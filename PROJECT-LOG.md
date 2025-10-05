@@ -1,5 +1,9 @@
 # Project Log
 
+## Editable Backlink Context with CodeMirror - 2025-10-05
+
+- Made backlink context live-editable using CodeMirror single-line editor: created BacklinkContextEditor.svelte component that embeds minimal CodeMirror instance with full wikilink support, markdown rendering, and theme consistency; added 'backlink-context' variant to editorConfig.svelte.ts with compact single-line theme and custom Enter key handler; editor auto-saves changes after 1s debounce and on blur by fetching full note content, replacing specific line, and calling updateNote API; pressing Enter navigates to source note at that line instead of adding newlines; updated Backlinks.svelte to replace static text display with new editor component and moved click handler from entire backlink item to just title button to prevent interference with context editing; enhanced NoteEditor.svelte handleBacklinkSelect to accept optional lineNumber parameter and calculate cursor position by converting line number to character offset, then save cursor position before navigation
+
 ## Backlinks Context Display Enhancement - 2025-10-05
 
 - Enhanced backlinks control to show meaningful context from source notes: modified Backlinks.svelte to fetch full note content for each backlink, extract line containing the wikilink using line_number from NoteLinkRow, display context in new two-line layout showing note type/title header plus indented context line beneath, improved visual hierarchy with proper spacing and secondary text styling for context; added disclosure arrows to show/hide context per backlink with animated rotation, keyboard accessibility (Enter/Space to toggle), and proper event handling to prevent parent button clicks when toggling context visibility; added "Show all" and "Hide all" buttons in backlinks header for bulk expand/collapse operations, only visible when backlinks are expanded and at least one backlink has context

@@ -356,9 +356,44 @@
     await pinnedNotesStore.togglePin(note.id);
   }
 
-  async function handleBacklinkSelect(selectedNote: NoteMetadata): Promise<void> {
+  async function handleBacklinkSelect(
+    selectedNote: NoteMetadata,
+    lineNumber?: number
+  ): Promise<void> {
     // Close current editor and navigate to the selected backlink note
     onClose();
+
+    // If a line number was provided, calculate cursor position and save it
+    if (lineNumber !== undefined && lineNumber > 0) {
+      try {
+        const noteService = getChatService();
+        const targetNote = await noteService.getNote({ identifier: selectedNote.id });
+
+        if (targetNote?.content) {
+          const lines = targetNote.content.split('\n');
+          // Calculate position as the start of the target line
+          let position = 0;
+          for (let i = 0; i < lineNumber - 1 && i < lines.length; i++) {
+            position += lines[i].length + 1; // +1 for newline character
+          }
+
+          // Save cursor position for the target note
+          const cursorPositionWithId = cursorManager.createCursorPosition(
+            selectedNote.id,
+            position,
+            position,
+            position
+          );
+          await cursorManager.saveCursorPositionImmediately(
+            selectedNote.id,
+            cursorPositionWithId
+          );
+        }
+      } catch (err) {
+        console.warn('Failed to set cursor position for backlink navigation:', err);
+      }
+    }
+
     await wikilinkService.handleWikilinkClick(selectedNote.id, selectedNote.title, false);
   }
 </script>

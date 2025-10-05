@@ -27,8 +27,9 @@ export interface EditorConfigOptions {
   onWikilinkHover?: WikilinkHoverHandler;
   onContentChange?: (content: string) => void;
   onCursorChange?: () => void;
+  onEnterKey?: () => void;
   placeholder?: string;
-  variant?: 'default' | 'daily-note';
+  variant?: 'default' | 'daily-note' | 'backlink-context';
 }
 
 export class EditorConfig {
@@ -169,6 +170,38 @@ export class EditorConfig {
     });
   }
 
+  // Backlink context variant theme (minimal single-line)
+  private getBacklinkContextTheme(): Extension {
+    return EditorView.theme({
+      '&': {
+        height: 'auto'
+      },
+      '&.cm-editor': {
+        border: 'none',
+        backgroundColor: 'transparent'
+      },
+      '&.cm-focused': {
+        outline: '1px solid var(--border-light)',
+        borderRadius: '2px'
+      },
+      '.cm-scroller': {
+        overflow: 'hidden',
+        marginBottom: '0',
+        padding: '0',
+        fontFamily:
+          "'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace !important"
+      },
+      '.cm-content': {
+        padding: '0',
+        minHeight: '1.5rem'
+      },
+      '.cm-line': {
+        padding: '0',
+        lineHeight: '1.4'
+      }
+    });
+  }
+
   // Placeholder theme extension
   private placeholderTheme = EditorView.theme({
     '.cm-placeholder': {
@@ -216,15 +249,32 @@ export class EditorConfig {
       // Variant-specific theme
       this.options.variant === 'daily-note'
         ? this.getDailyNoteTheme()
-        : this.getDefaultTheme(),
+        : this.options.variant === 'backlink-context'
+          ? this.getBacklinkContextTheme()
+          : this.getDefaultTheme(),
       markdownListStyling,
       listStylingTheme,
       ...(this.options.onWikilinkClick
         ? [wikilinksExtension(this.options.onWikilinkClick, this.options.onWikilinkHover)]
         : []),
       EditorView.contentAttributes.of({ spellcheck: 'true' }),
+      EditorView.editable.of(true),
       updateListener
     ];
+
+    // Add custom Enter key handler for backlink context
+    if (this.options.variant === 'backlink-context' && this.options.onEnterKey) {
+      const enterKeymap = keymap.of([
+        {
+          key: 'Enter',
+          run: () => {
+            this.options.onEnterKey?.();
+            return true; // Prevent default behavior
+          }
+        }
+      ]);
+      extensions.push(enterKeymap);
+    }
 
     // Add placeholder if provided
     if (this.options.placeholder) {

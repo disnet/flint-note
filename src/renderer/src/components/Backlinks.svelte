@@ -3,10 +3,11 @@
   import type { NoteMetadata } from '../services/noteStore.svelte';
   import { getChatService } from '../services/chatService.js';
   import { notesStore } from '../services/noteStore.svelte';
+  import BacklinkContextEditor from './BacklinkContextEditor.svelte';
 
   interface Props {
     noteId: string;
-    onNoteSelect: (note: NoteMetadata) => void;
+    onNoteSelect: (note: NoteMetadata, lineNumber?: number) => void;
   }
 
   interface BacklinkWithContext {
@@ -114,14 +115,17 @@
     });
   }
 
-  async function handleBacklinkClick(backlink: BacklinkWithContext): Promise<void> {
+  async function handleBacklinkClick(
+    backlink: BacklinkWithContext,
+    lineNumber?: number
+  ): Promise<void> {
     // Find the note metadata for the source note
     const sourceNote = notesStore.notes.find(
       (n) => n.id === backlink.link.source_note_id
     );
 
     if (sourceNote) {
-      onNoteSelect(sourceNote);
+      onNoteSelect(sourceNote, lineNumber);
     } else {
       // If not in the cached list, fetch the note directly
       try {
@@ -142,12 +146,16 @@
             tags: noteData.metadata?.tags || [],
             path: noteData.path
           };
-          onNoteSelect(noteMetadata);
+          onNoteSelect(noteMetadata, lineNumber);
         }
       } catch (err) {
         console.error('Error loading backlink note:', err);
       }
     }
+  }
+
+  function handleNavigateToSource(backlink: BacklinkWithContext): void {
+    handleBacklinkClick(backlink, backlink.link.line_number ?? undefined);
   }
 </script>
 
@@ -184,7 +192,7 @@
         <div class="backlinks-list">
           {#each backlinks as backlink (backlink.link.id)}
             <div class="backlink-wrapper">
-              <button class="backlink-item" onclick={() => handleBacklinkClick(backlink)}>
+              <div class="backlink-item">
                 <div class="backlink-header">
                   {#if backlink.context}
                     <span
@@ -206,14 +214,24 @@
                     </span>
                   {/if}
                   <span class="backlink-type">{backlink.sourceType || 'note'}</span>
-                  <span class="backlink-title"
-                    >{backlink.sourceTitle || backlink.link.source_note_id}</span
+                  <button
+                    class="backlink-title-button"
+                    onclick={() => handleBacklinkClick(backlink)}
                   >
+                    <span class="backlink-title"
+                      >{backlink.sourceTitle || backlink.link.source_note_id}</span
+                    >
+                  </button>
                 </div>
                 {#if backlink.context && backlink.contextExpanded}
-                  <div class="backlink-context">{backlink.context}</div>
+                  <BacklinkContextEditor
+                    sourceNoteId={backlink.link.source_note_id}
+                    lineNumber={backlink.link.line_number ?? 1}
+                    initialContent={backlink.context}
+                    onNavigate={() => handleNavigateToSource(backlink)}
+                  />
                 {/if}
-              </button>
+              </div>
             </div>
           {/each}
         </div>
@@ -338,9 +356,7 @@
     width: 100%;
     padding: 0.5rem;
     background: transparent;
-    border: none;
     border-radius: 4px;
-    cursor: pointer;
     text-align: left;
     font-size: 0.875rem;
     transition: background-color 0.2s ease;
@@ -348,6 +364,25 @@
 
   .backlink-item:hover {
     background: var(--bg-tertiary);
+  }
+
+  .backlink-title-button {
+    display: inline-flex;
+    align-items: baseline;
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    font-size: inherit;
+    font-family: inherit;
+    color: inherit;
+    text-align: left;
+    flex: 1;
+  }
+
+  .backlink-title-button:hover .backlink-title {
+    text-decoration: underline;
   }
 
   .backlink-header {
@@ -393,12 +428,5 @@
   .backlink-title {
     color: var(--text-primary);
     font-weight: 500;
-  }
-
-  .backlink-context {
-    color: var(--text-secondary);
-    font-size: 0.8125rem;
-    padding-left: 1.25rem;
-    line-height: 1.4;
   }
 </style>
