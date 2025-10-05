@@ -386,7 +386,10 @@ export class LinkExtractor {
   /**
    * Reconstruct a complete note file with frontmatter and content
    */
-  private static formatNoteWithFrontmatter(metadata: NoteMetadata, content: string): string {
+  private static formatNoteWithFrontmatter(
+    metadata: NoteMetadata,
+    content: string
+  ): string {
     let formattedContent = '---\n';
 
     for (const [key, value] of Object.entries(metadata)) {

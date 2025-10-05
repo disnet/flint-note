@@ -365,7 +365,10 @@ It has multiple references to [[Original Title]] in the content.`,
       });
 
       // Get the original linking note to verify initial state
-      const originalLinkingNote = await testSetup.api.getNote(testVaultId, linkingNote.id);
+      const originalLinkingNote = await testSetup.api.getNote(
+        testVaultId,
+        linkingNote.id
+      );
       expect(originalLinkingNote).toBeDefined();
       expect(originalLinkingNote?.metadata?.tags).toEqual(['linking', 'reference']);
       expect(originalLinkingNote?.metadata?.author).toBe('test-author');
@@ -417,7 +420,9 @@ It has multiple references to [[Original Title]] in the content.`,
       expect(renamedTargetNote?.title).toBe('New Title');
       expect(renamedTargetNote?.metadata?.tags).toEqual(['target', 'original']);
       expect(renamedTargetNote?.metadata?.priority).toBe('high');
-      expect(renamedTargetNote?.metadata?.created).toBe(targetNoteData?.metadata?.created);
+      expect(renamedTargetNote?.metadata?.created).toBe(
+        targetNoteData?.metadata?.created
+      );
     });
 
     it('should handle multiple notes linking to a renamed note', async () => {
@@ -446,7 +451,8 @@ It has multiple references to [[Original Title]] in the content.`,
       const linkingNote2 = await testSetup.api.createNote({
         type: 'general',
         title: 'Second Linker',
-        content: 'Also references [[Shared Reference]] multiple times [[Shared Reference]].',
+        content:
+          'Also references [[Shared Reference]] multiple times [[Shared Reference]].',
         metadata: {
           tags: ['linker2'],
           category: 'category-b',

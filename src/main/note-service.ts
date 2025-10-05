@@ -636,7 +636,9 @@ export class NoteService {
   }
 
   // Database operations
-  async rebuildDatabase(vaultId?: string): Promise<{ success: boolean; noteCount: number }> {
+  async rebuildDatabase(
+    vaultId?: string
+  ): Promise<{ success: boolean; noteCount: number }> {
     this.ensureInitialized();
     return await this.api.rebuildDatabase(vaultId);
   }

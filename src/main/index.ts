@@ -1662,21 +1662,18 @@ app.whenReady().then(async () => {
   );
 
   // Database operations
-  ipcMain.handle(
-    'rebuild-database',
-    async (_event, params: { vaultId?: string }) => {
-      if (!noteService) {
-        throw new Error('Note service not available');
-      }
-      try {
-        await noteService.initialize();
-        return await noteService.rebuildDatabase(params.vaultId);
-      } catch (error) {
-        logger.error('Failed to rebuild database', { error, params });
-        throw error;
-      }
+  ipcMain.handle('rebuild-database', async (_event, params: { vaultId?: string }) => {
+    if (!noteService) {
+      throw new Error('Note service not available');
     }
-  );
+    try {
+      await noteService.initialize();
+      return await noteService.rebuildDatabase(params.vaultId);
+    } catch (error) {
+      logger.error('Failed to rebuild database', { error, params });
+      throw error;
+    }
+  });
 
   createWindow();
   logger.info('Main window created and IPC handlers registered');

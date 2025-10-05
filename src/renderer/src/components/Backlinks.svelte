@@ -9,9 +9,17 @@
     onNoteSelect: (note: NoteMetadata) => void;
   }
 
+  interface BacklinkWithContext {
+    link: NoteLinkRow;
+    context: string | null;
+    sourceTitle: string | null;
+    sourceType: string | null;
+    contextExpanded: boolean;
+  }
+
   let { noteId, onNoteSelect }: Props = $props();
 
-  let backlinks = $state<NoteLinkRow[]>([]);
+  let backlinks = $state<BacklinkWithContext[]>([]);
   let expanded = $state(true);
   let loading = $state(false);
   let error = $state<string | null>(null);
@@ -38,8 +46,40 @@
       const noteService = getChatService();
 
       if (await noteService.isReady()) {
-        const result = await noteService.getBacklinks({ identifier: id });
-        backlinks = result;
+        const rawBacklinks = await noteService.getBacklinks({ identifier: id });
+
+        // Fetch context for each backlink
+        backlinks = await Promise.all(
+          rawBacklinks.map(async (link) => {
+            try {
+              const sourceNote = await noteService.getNote({
+                identifier: link.source_note_id
+              });
+
+              let context: string | null = null;
+              if (sourceNote?.content && link.line_number != null) {
+                const lines = sourceNote.content.split('\n');
+                context = lines[link.line_number - 1]?.trim() || null;
+              }
+
+              return {
+                link,
+                context,
+                sourceTitle: sourceNote?.title || null,
+                sourceType: sourceNote?.type || null,
+                contextExpanded: true
+              };
+            } catch {
+              return {
+                link,
+                context: null,
+                sourceTitle: null,
+                sourceType: null,
+                contextExpanded: true
+              };
+            }
+          })
+        );
       }
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to load backlinks';
@@ -50,9 +90,35 @@
     }
   }
 
-  async function handleBacklinkClick(link: NoteLinkRow): Promise<void> {
+  function toggleContext(backlink: BacklinkWithContext, event: Event): void {
+    event.stopPropagation();
+    event.preventDefault();
+    backlink.contextExpanded = !backlink.contextExpanded;
+  }
+
+  function expandAll(event: Event): void {
+    event.stopPropagation();
+    backlinks.forEach((backlink) => {
+      if (backlink.context) {
+        backlink.contextExpanded = true;
+      }
+    });
+  }
+
+  function collapseAll(event: Event): void {
+    event.stopPropagation();
+    backlinks.forEach((backlink) => {
+      if (backlink.context) {
+        backlink.contextExpanded = false;
+      }
+    });
+  }
+
+  async function handleBacklinkClick(backlink: BacklinkWithContext): Promise<void> {
     // Find the note metadata for the source note
-    const sourceNote = notesStore.notes.find((n) => n.id === link.source_note_id);
+    const sourceNote = notesStore.notes.find(
+      (n) => n.id === backlink.link.source_note_id
+    );
 
     if (sourceNote) {
       onNoteSelect(sourceNote);
@@ -60,7 +126,9 @@
       // If not in the cached list, fetch the note directly
       try {
         const noteService = getChatService();
-        const noteData = await noteService.getNote({ identifier: link.source_note_id });
+        const noteData = await noteService.getNote({
+          identifier: backlink.link.source_note_id
+        });
 
         if (noteData) {
           const noteMetadata: NoteMetadata = {
@@ -81,26 +149,28 @@
       }
     }
   }
-
-  function formatNoteId(noteId: string): string {
-    // Extract readable parts from note ID (e.g., "note/my-note" -> "note")
-    const parts = noteId.split('/');
-    return parts[0] || noteId;
-  }
 </script>
 
 <div class="backlinks-container">
-  <button
-    class="backlinks-header"
-    onclick={() => (expanded = !expanded)}
-    aria-expanded={expanded}
-  >
-    <span class="expand-icon" class:expanded>▼</span>
-    <span class="backlinks-title">Backlinks</span>
-    {#if backlinks.length > 0}
-      <span class="backlinks-count">{backlinks.length}</span>
+  <div class="backlinks-header-wrapper">
+    <button
+      class="backlinks-header"
+      onclick={() => (expanded = !expanded)}
+      aria-expanded={expanded}
+    >
+      <span class="expand-icon" class:expanded>▼</span>
+      <span class="backlinks-title">Backlinks</span>
+      {#if backlinks.length > 0}
+        <span class="backlinks-count">{backlinks.length}</span>
+      {/if}
+    </button>
+    {#if expanded && backlinks.length > 0 && backlinks.some((b) => b.context)}
+      <div class="context-controls">
+        <button class="context-control-btn" onclick={expandAll}>Show all</button>
+        <button class="context-control-btn" onclick={collapseAll}>Hide all</button>
+      </div>
     {/if}
-  </button>
+  </div>
 
   {#if expanded}
     <div class="backlinks-content">
@@ -112,14 +182,39 @@
         <div class="empty-state">No backlinks found</div>
       {:else}
         <div class="backlinks-list">
-          {#each backlinks as link (link.id)}
-            <button class="backlink-item" onclick={() => handleBacklinkClick(link)}>
-              <span class="backlink-type">{formatNoteId(link.source_note_id)}</span>
-              <span class="backlink-title">{link.target_title}</span>
-              {#if link.link_text && link.link_text !== link.target_title}
-                <span class="backlink-text">({link.link_text})</span>
-              {/if}
-            </button>
+          {#each backlinks as backlink (backlink.link.id)}
+            <div class="backlink-wrapper">
+              <button class="backlink-item" onclick={() => handleBacklinkClick(backlink)}>
+                <div class="backlink-header">
+                  {#if backlink.context}
+                    <span
+                      class="context-toggle"
+                      onclick={(e) => toggleContext(backlink, e)}
+                      role="button"
+                      tabindex="0"
+                      aria-expanded={backlink.contextExpanded}
+                      onkeydown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          toggleContext(backlink, e);
+                        }
+                      }}
+                    >
+                      <span class="toggle-icon" class:expanded={backlink.contextExpanded}
+                        >▼</span
+                      >
+                    </span>
+                  {/if}
+                  <span class="backlink-type">{backlink.sourceType || 'note'}</span>
+                  <span class="backlink-title"
+                    >{backlink.sourceTitle || backlink.link.source_note_id}</span
+                  >
+                </div>
+                {#if backlink.context && backlink.contextExpanded}
+                  <div class="backlink-context">{backlink.context}</div>
+                {/if}
+              </button>
+            </div>
           {/each}
         </div>
       {/if}
@@ -134,11 +229,18 @@
     margin-top: 2rem;
   }
 
+  .backlinks-header-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
   .backlinks-header {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    width: 100%;
+    flex: 1;
     padding: 0.5rem;
     background: transparent;
     border: none;
@@ -150,6 +252,30 @@
   }
 
   .backlinks-header:hover {
+    color: var(--text-primary);
+  }
+
+  .context-controls {
+    display: flex;
+    gap: 0.25rem;
+    padding: 0.5rem;
+  }
+
+  .context-control-btn {
+    padding: 0.25rem 0.5rem;
+    background: transparent;
+    border: 1px solid var(--border-light);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    transition:
+      background-color 0.2s ease,
+      color 0.2s ease;
+  }
+
+  .context-control-btn:hover {
+    background: var(--bg-tertiary);
     color: var(--text-primary);
   }
 
@@ -197,13 +323,18 @@
   .backlinks-list {
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
+    gap: 0.5rem;
+  }
+
+  .backlink-wrapper {
+    display: flex;
+    width: 100%;
   }
 
   .backlink-item {
     display: flex;
-    align-items: baseline;
-    gap: 0.5rem;
+    flex-direction: column;
+    gap: 0.25rem;
     width: 100%;
     padding: 0.5rem;
     background: transparent;
@@ -219,6 +350,39 @@
     background: var(--bg-tertiary);
   }
 
+  .backlink-header {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+  }
+
+  .context-toggle {
+    display: inline-flex;
+    align-items: center;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    margin: 0;
+    color: var(--text-muted);
+    transition: color 0.2s ease;
+  }
+
+  .context-toggle:hover {
+    color: var(--text-primary);
+  }
+
+  .toggle-icon {
+    display: inline-block;
+    transition: transform 0.2s ease;
+    font-size: 0.625rem;
+    transform: rotate(-90deg);
+  }
+
+  .toggle-icon.expanded {
+    transform: rotate(0deg);
+  }
+
   .backlink-type {
     font-size: 0.75rem;
     color: var(--text-muted);
@@ -228,12 +392,13 @@
 
   .backlink-title {
     color: var(--text-primary);
-    flex: 1;
+    font-weight: 500;
   }
 
-  .backlink-text {
+  .backlink-context {
     color: var(--text-secondary);
     font-size: 0.8125rem;
-    font-style: italic;
+    padding-left: 1.25rem;
+    line-height: 1.4;
   }
 </style>

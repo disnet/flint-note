@@ -1,5 +1,9 @@
 # Project Log
 
+## Backlinks Context Display Enhancement - 2025-10-05
+
+- Enhanced backlinks control to show meaningful context from source notes: modified Backlinks.svelte to fetch full note content for each backlink, extract line containing the wikilink using line_number from NoteLinkRow, display context in new two-line layout showing note type/title header plus indented context line beneath, improved visual hierarchy with proper spacing and secondary text styling for context; added disclosure arrows to show/hide context per backlink with animated rotation, keyboard accessibility (Enter/Space to toggle), and proper event handling to prevent parent button clicks when toggling context visibility; added "Show all" and "Hide all" buttons in backlinks header for bulk expand/collapse operations, only visible when backlinks are expanded and at least one backlink has context
+
 ## Database Rebuild Button in Settings - 2025-10-04
 
 - Added manual database rebuild functionality to Settings page for fixing search/sync issues: implemented rebuildDatabase IPC method in preload layer that invokes rebuild-database handler in main process, added rebuildDatabase method to NoteService and FlintNoteApi that calls HybridSearchManager.rebuildIndex() which clears database and rescans all markdown files on disk, created Database section in Settings UI with rebuild button showing loading state and confirmation dialog, displays success message with note count after completion, fixed initialization issue by ensuring HybridSearchManager.ensureInitialized() is called before rebuild operation, added TypeScript types to env.d.ts for rebuildDatabase API method

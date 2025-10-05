@@ -14,7 +14,7 @@ Initially suspected that the database might be out of sync with the file system,
 
 ```typescript
 // src/server/core/notes.ts:1205
-title: parsed.metadata.title || ''
+title: parsed.metadata.title || '';
 ```
 
 ### Second Hypothesis: YAML Parsing Issues
@@ -104,11 +104,12 @@ The fix was to eliminate cached metadata entirely:
 ### Changes to Data Model
 
 **Before:**
+
 ```typescript
 interface PinnedNoteInfo {
   id: string;
-  title: string;      // ❌ Cached
-  filename: string;   // ❌ Cached
+  title: string; // ❌ Cached
+  filename: string; // ❌ Cached
   pinnedAt: string;
   order: number;
 }
@@ -116,7 +117,7 @@ interface PinnedNoteInfo {
 interface TemporaryTab {
   id: string;
   noteId: string;
-  title: string;      // ❌ Cached
+  title: string; // ❌ Cached
   openedAt: Date;
   lastAccessed: Date;
   source: string;
@@ -125,20 +126,21 @@ interface TemporaryTab {
 ```
 
 **After:**
+
 ```typescript
 interface PinnedNoteInfo {
-  id: string;         // ✓ Identifier only
-  pinnedAt: string;   // ✓ Metadata about pinning
-  order: number;      // ✓ UI state
+  id: string; // ✓ Identifier only
+  pinnedAt: string; // ✓ Metadata about pinning
+  order: number; // ✓ UI state
 }
 
 interface TemporaryTab {
-  id: string;         // ✓ Tab ID
-  noteId: string;     // ✓ Note identifier
-  openedAt: Date;     // ✓ Metadata about tab
+  id: string; // ✓ Tab ID
+  noteId: string; // ✓ Note identifier
+  openedAt: Date; // ✓ Metadata about tab
   lastAccessed: Date; // ✓ Metadata about tab
-  source: string;     // ✓ UI state
-  order: number;      // ✓ UI state
+  source: string; // ✓ UI state
+  order: number; // ✓ UI state
 }
 ```
 
@@ -186,15 +188,18 @@ let hydratedTabs = $derived(
 Caching identifiers is safe. Caching derived data (like titles extracted from files) creates sync problems.
 
 **Good:**
+
 - Cache: IDs, timestamps, order, user preferences
 - Derive: Titles, content, metadata from files
 
 **Bad:**
+
 - Cache: Anything that can change in the source of truth
 
 ### 2. Race Conditions from Async Loading
 
 When multiple data sources load asynchronously:
+
 - Initial state may differ from final state
 - Users see "flashing" or "switching" content
 - Hard to debug without understanding load order
@@ -202,6 +207,7 @@ When multiple data sources load asynchronously:
 ### 3. Svelte Reactivity and Data Flow
 
 Svelte's `$effect` and `$derived` are perfect for hydration:
+
 - Automatically recompute when dependencies change
 - Clean separation of persistence vs. display
 - No manual sync needed
@@ -209,6 +215,7 @@ Svelte's `$effect` and `$derived` are perfect for hydration:
 ### 4. Debugging Clues
 
 The key clue was "**after a moment, some notes switch**":
+
 - "After a moment" → something loads asynchronously
 - "Some notes" → conditional behavior based on data state
 - "Switch" → data source changes
@@ -216,15 +223,18 @@ The key clue was "**after a moment, some notes switch**":
 ## Related Code Locations
 
 ### Stores
+
 - `src/renderer/src/services/pinnedStore.svelte.ts` - Pinned notes persistence
 - `src/renderer/src/stores/temporaryTabsStore.svelte.ts` - Temporary tabs persistence
 - `src/renderer/src/services/noteStore.svelte.ts` - Note metadata loading
 
 ### Components
+
 - `src/renderer/src/components/PinnedNotes.svelte` - Pinned notes display
 - `src/renderer/src/components/TemporaryTabs.svelte` - Temporary tabs display
 
 ### Backend
+
 - `src/server/core/notes.ts` - `listNotes()` reads from files
 - `src/server/utils/yaml-parser.ts` - Frontmatter parsing
 
@@ -277,6 +287,7 @@ After fixing the cached metadata issue, a more serious bug was discovered: **whe
 ### Root Cause
 
 The bug was in `src/server/core/link-extractor.ts` in two functions:
+
 - `updateWikilinksForRenamedNote` (line 431+)
 - `updateWikilinksForMovedNote` (line 531+)
 
@@ -286,6 +297,7 @@ When a note's title changed, the system would:
 
 1. Find all notes that link to the renamed note
 2. Query the database for each linking note's **content** (body only, no frontmatter):
+
    ```typescript
    const noteRow = await db.get<{ content: string; content_hash: string }>(
      'SELECT content, content_hash FROM notes WHERE id = ?',
@@ -300,6 +312,7 @@ When a note's title changed, the system would:
    ```
 
 This completely **destroyed all frontmatter** because:
+
 - The database stores `content` (markdown body) and metadata **separately**
 - The code only fetched the body content from the database
 - It wrote that body-only content back to the file, replacing frontmatter with nothing
@@ -373,12 +386,14 @@ Added a helper method `formatNoteWithFrontmatter` to reconstruct the complete fi
 While investigating, discovered that `renameNoteWithFile` in `src/server/core/notes.ts` (line 1525) was calling `formatNoteContent` instead of `formatUpdatedNoteContent`.
 
 **Problem:** `formatNoteContent` is designed for **creating new notes** and:
+
 - Generates a new `created` timestamp (destroying the original)
 - Generates a new `updated` timestamp (correct but should use existing)
 - Only includes hardcoded fields: `title`, `filename`, `type`, `created`, `updated`, `tags`
 - **Drops all custom metadata fields**
 
 **Solution:** Changed to use `formatUpdatedNoteContent` which:
+
 - Preserves all existing metadata fields
 - Only updates the `updated` timestamp
 - Handles complex metadata structures (arrays, links, etc.)

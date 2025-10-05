@@ -394,10 +394,7 @@ declare global {
         date: string;
         vaultId: string;
       }) => Promise<Note | null>;
-      getWeekData: (params: {
-        startDate: string;
-        vaultId: string;
-      }) => Promise<{
+      getWeekData: (params: { startDate: string; vaultId: string }) => Promise<{
         startDate: string;
         endDate: string;
         days: Array<{
@@ -408,10 +405,7 @@ declare global {
           totalActivity: number;
         }>;
       }>;
-      getNotesByDate: (params: {
-        date: string;
-        vaultId: string;
-      }) => Promise<{
+      getNotesByDate: (params: { date: string; vaultId: string }) => Promise<{
         created: Array<{ id: string; title: string; type: string; created: string }>;
         modified: Array<{ id: string; title: string; type: string; updated: string }>;
       }>;

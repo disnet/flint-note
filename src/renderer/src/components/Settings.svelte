@@ -195,7 +195,8 @@
       }
     } catch (error) {
       showError(
-        'Failed to rebuild database: ' + (error instanceof Error ? error.message : 'Unknown error')
+        'Failed to rebuild database: ' +
+          (error instanceof Error ? error.message : 'Unknown error')
       );
     } finally {
       rebuildingDatabase = false;
@@ -366,8 +367,8 @@
         Database
       </h3>
       <p class="section-description">
-        Manage your vault's database. The database indexes all your markdown notes for fast
-        search and retrieval.
+        Manage your vault's database. The database indexes all your markdown notes for
+        fast search and retrieval.
       </p>
 
       <div class="database-actions">
@@ -393,8 +394,8 @@
         </button>
       </div>
       <p class="help-text">
-        Use this to rebuild the database from your markdown files on disk. This can help fix
-        search issues or sync problems.
+        Use this to rebuild the database from your markdown files on disk. This can help
+        fix search issues or sync problems.
       </p>
     </section>
 
