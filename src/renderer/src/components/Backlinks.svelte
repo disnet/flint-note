@@ -18,12 +18,41 @@
     contextExpanded: boolean;
   }
 
+  interface GroupedBacklink {
+    sourceNoteId: string;
+    sourceTitle: string | null;
+    sourceType: string | null;
+    links: BacklinkWithContext[];
+  }
+
   let { noteId, onNoteSelect }: Props = $props();
 
   let backlinks = $state<BacklinkWithContext[]>([]);
   let expanded = $state(true);
   let loading = $state(false);
   let error = $state<string | null>(null);
+
+  // Group backlinks by source note
+  let groupedBacklinks = $derived.by(() => {
+    const groups = new Map<string, GroupedBacklink>();
+
+    for (const backlink of backlinks) {
+      const sourceId = backlink.link.source_note_id;
+
+      if (!groups.has(sourceId)) {
+        groups.set(sourceId, {
+          sourceNoteId: sourceId,
+          sourceTitle: backlink.sourceTitle,
+          sourceType: backlink.sourceType,
+          links: []
+        });
+      }
+
+      groups.get(sourceId)!.links.push(backlink);
+    }
+
+    return Array.from(groups.values());
+  });
 
   // Load backlinks when note changes
   $effect(() => {
@@ -91,12 +120,6 @@
     }
   }
 
-  function toggleContext(backlink: BacklinkWithContext, event: Event): void {
-    event.stopPropagation();
-    event.preventDefault();
-    backlink.contextExpanded = !backlink.contextExpanded;
-  }
-
   function expandAll(event: Event): void {
     event.stopPropagation();
     backlinks.forEach((backlink) => {
@@ -115,14 +138,24 @@
     });
   }
 
+  async function handleGroupClick(group: GroupedBacklink): Promise<void> {
+    // Navigate to the source note without a line number
+    await handleNoteNavigation(group.sourceNoteId);
+  }
+
   async function handleBacklinkClick(
     backlink: BacklinkWithContext,
     lineNumber?: number
   ): Promise<void> {
+    await handleNoteNavigation(backlink.link.source_note_id, lineNumber);
+  }
+
+  async function handleNoteNavigation(
+    noteId: string,
+    lineNumber?: number
+  ): Promise<void> {
     // Find the note metadata for the source note
-    const sourceNote = notesStore.notes.find(
-      (n) => n.id === backlink.link.source_note_id
-    );
+    const sourceNote = notesStore.notes.find((n) => n.id === noteId);
 
     if (sourceNote) {
       onNoteSelect(sourceNote, lineNumber);
@@ -131,7 +164,7 @@
       try {
         const noteService = getChatService();
         const noteData = await noteService.getNote({
-          identifier: backlink.link.source_note_id
+          identifier: noteId
         });
 
         if (noteData) {
@@ -190,47 +223,39 @@
         <div class="empty-state">No backlinks found</div>
       {:else}
         <div class="backlinks-list">
-          {#each backlinks as backlink (backlink.link.id)}
-            <div class="backlink-wrapper">
-              <div class="backlink-item">
-                <div class="backlink-header">
-                  {#if backlink.context}
-                    <span
-                      class="context-toggle"
-                      onclick={(e) => toggleContext(backlink, e)}
-                      role="button"
-                      tabindex="0"
-                      aria-expanded={backlink.contextExpanded}
-                      onkeydown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          toggleContext(backlink, e);
-                        }
-                      }}
-                    >
-                      <span class="toggle-icon" class:expanded={backlink.contextExpanded}
-                        >▼</span
-                      >
-                    </span>
-                  {/if}
-                  <span class="backlink-type">{backlink.sourceType || 'note'}</span>
-                  <button
-                    class="backlink-title-button"
-                    onclick={() => handleBacklinkClick(backlink)}
+          {#each groupedBacklinks as group (group.sourceNoteId)}
+            <div class="backlink-group">
+              <div class="group-header">
+                <span class="backlink-type">{group.sourceType || 'note'}</span>
+                <button
+                  class="backlink-title-button"
+                  onclick={() => handleGroupClick(group)}
+                >
+                  <span class="backlink-title"
+                    >{group.sourceTitle || group.sourceNoteId}</span
                   >
-                    <span class="backlink-title"
-                      >{backlink.sourceTitle || backlink.link.source_note_id}</span
-                    >
-                  </button>
-                </div>
-                {#if backlink.context && backlink.contextExpanded}
-                  <BacklinkContextEditor
-                    sourceNoteId={backlink.link.source_note_id}
-                    lineNumber={backlink.link.line_number ?? 1}
-                    initialContent={backlink.context}
-                    onNavigate={() => handleNavigateToSource(backlink)}
-                  />
+                </button>
+                {#if group.links.length > 1}
+                  <span class="link-count">{group.links.length}</span>
                 {/if}
+              </div>
+
+              <div class="group-contexts">
+                {#each group.links as backlink, index (backlink.link.id)}
+                  <div class="backlink-context-item">
+                    {#if index > 0}
+                      <div class="context-separator"></div>
+                    {/if}
+                    {#if backlink.context}
+                      <BacklinkContextEditor
+                        sourceNoteId={backlink.link.source_note_id}
+                        lineNumber={backlink.link.line_number ?? 1}
+                        initialContent={backlink.context}
+                        onNavigate={() => handleNavigateToSource(backlink)}
+                      />
+                    {/if}
+                  </div>
+                {/each}
               </div>
             </div>
           {/each}
@@ -341,29 +366,55 @@
   .backlinks-list {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.75rem;
   }
 
-  .backlink-wrapper {
-    display: flex;
-    width: 100%;
-  }
-
-  .backlink-item {
+  .backlink-group {
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
-    width: 100%;
+  }
+
+  .group-header {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
     padding: 0.5rem;
     background: transparent;
     border-radius: 4px;
-    text-align: left;
-    font-size: 0.875rem;
     transition: background-color 0.2s ease;
   }
 
-  .backlink-item:hover {
+  .group-header:hover {
     background: var(--bg-tertiary);
+  }
+
+  .group-contexts {
+    display: flex;
+    flex-direction: column;
+    margin-left: 1.5rem;
+    padding-left: 0.5rem;
+    border-left: 2px solid var(--border-light);
+  }
+
+  .backlink-context-item {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .context-separator {
+    height: 1px;
+    background: var(--border-light);
+    margin: 0.5rem 0 0.5rem 1.25rem;
+  }
+
+  .link-count {
+    font-size: 0.75rem;
+    padding: 0.125rem 0.375rem;
+    background: var(--bg-tertiary);
+    border-radius: 10px;
+    color: var(--text-muted);
+    margin-left: auto;
   }
 
   .backlink-title-button {
@@ -383,39 +434,6 @@
 
   .backlink-title-button:hover .backlink-title {
     text-decoration: underline;
-  }
-
-  .backlink-header {
-    display: flex;
-    align-items: baseline;
-    gap: 0.5rem;
-  }
-
-  .context-toggle {
-    display: inline-flex;
-    align-items: center;
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    padding: 0;
-    margin: 0;
-    color: var(--text-muted);
-    transition: color 0.2s ease;
-  }
-
-  .context-toggle:hover {
-    color: var(--text-primary);
-  }
-
-  .toggle-icon {
-    display: inline-block;
-    transition: transform 0.2s ease;
-    font-size: 0.625rem;
-    transform: rotate(-90deg);
-  }
-
-  .toggle-icon.expanded {
-    transform: rotate(0deg);
   }
 
   .backlink-type {

@@ -38,6 +38,7 @@ CREATE INDEX idx_note_links_target ON note_links(target_note_id);
 ```
 
 **Key Fields:**
+
 - `source_note_id` - The note that contains the wikilink
 - `target_note_id` - The note being referenced (the one showing the backlink)
 - `line_number` - 1-indexed line number for precise context extraction and navigation
@@ -51,13 +52,14 @@ The `LinkExtractor` class parses markdown content to find wikilinks:
 
 ```typescript
 interface ExtractedLink {
-  identifier: string;    // Target note identifier
-  displayText: string;   // Text shown in brackets
-  lineNumber: number;    // 1-indexed line number
+  identifier: string; // Target note identifier
+  displayText: string; // Text shown in brackets
+  lineNumber: number; // 1-indexed line number
 }
 ```
 
 **Process:**
+
 1. Split content into lines
 2. Use regex to find all `[[...]]` patterns per line
 3. Parse identifier and optional display text (e.g., `[[id|display]]`)
@@ -75,6 +77,7 @@ async updateNoteLinks(
 ```
 
 **Process:**
+
 1. Delete all existing links for the source note
 2. For each extracted link:
    - Resolve identifier to target note ID
@@ -101,6 +104,7 @@ Backlinks.svelte (Container)
 **Location:** `src/renderer/src/components/Backlinks.svelte`
 
 **Props:**
+
 ```typescript
 interface Props {
   noteId: string;
@@ -109,17 +113,19 @@ interface Props {
 ```
 
 **State:**
+
 ```typescript
 interface BacklinkWithContext {
-  link: NoteLinkRow;           // Database row
-  context: string | null;      // Line content from source note
-  sourceTitle: string | null;  // Display name of source note
-  sourceType: string | null;   // Type of source note
-  contextExpanded: boolean;    // UI expansion state
+  link: NoteLinkRow; // Database row
+  context: string | null; // Line content from source note
+  sourceTitle: string | null; // Display name of source note
+  sourceType: string | null; // Type of source note
+  contextExpanded: boolean; // UI expansion state
 }
 ```
 
 **Key Features:**
+
 - Loads backlinks when `noteId` changes
 - Fetches full note content to extract line context
 - Expands/collapses individual backlinks
@@ -133,6 +139,7 @@ interface BacklinkWithContext {
 A minimal single-line CodeMirror editor for editing backlink context inline.
 
 **Props:**
+
 ```typescript
 interface Props {
   sourceNoteId: string;         // Note containing the link
@@ -144,6 +151,7 @@ interface Props {
 ```
 
 **Features:**
+
 - Full CodeMirror editor with wikilink support
 - Markdown syntax highlighting
 - Single-line editing (Enter navigates instead of adding newlines)
@@ -151,6 +159,7 @@ interface Props {
 - Updates only the specific line in the source note
 
 **Editor Configuration:**
+
 - Uses `'backlink-context'` variant in `EditorConfig`
 - Compact single-line theme with minimal padding
 - Custom Enter key handler for navigation
@@ -227,6 +236,7 @@ notifyWikilinksUpdated(): void {
 ```
 
 **Triggers:**
+
 - Note rename operations that update wikilinks in other notes
 - Manual link updates
 - Any operation that modifies note_links table
@@ -254,6 +264,7 @@ The backlink context editor uses a specialized variant:
 **Variant:** `'backlink-context'`
 
 **Theme Customizations:**
+
 - `height: auto` - Grows to fit content
 - `overflow: hidden` - No scrolling
 - `padding: 0` - Minimal spacing
@@ -261,12 +272,14 @@ The backlink context editor uses a specialized variant:
 - Focus outline for clarity
 
 **Extensions:**
+
 - All standard markdown and wikilink support
 - Custom Enter keymap that calls `onNavigate()`
 - Line wrapping enabled
 - Spellcheck enabled
 
 **Key Difference from Main Editor:**
+
 - Prevents newlines (Enter navigates)
 - No cursor position persistence
 - No auto-scroll margin
@@ -294,6 +307,7 @@ $effect(() => {
 ### 1-Indexed Convention
 
 All line numbers in the system use 1-based indexing:
+
 - Database storage: `line_number` starts at 1
 - Link extraction: Returns 1-based line numbers
 - UI display: Shows line N as "line N"
@@ -337,6 +351,7 @@ This positions the cursor at the start of the target line.
 ### Missing Source Notes
 
 If a source note is deleted but the link remains:
+
 ```typescript
 try {
   const sourceNote = await noteService.getNote({ identifier: link.source_note_id });
@@ -356,6 +371,7 @@ The backlink displays with null context rather than failing entirely.
 ### Invalid Line Numbers
 
 If `line_number` exceeds the file length:
+
 ```typescript
 if (lineNumber > 0 && lineNumber <= lines.length) {
   lines[lineNumber - 1] = currentContent;
@@ -367,6 +383,7 @@ The save operation is skipped silently to prevent corruption.
 ### Navigation Failures
 
 If cursor position cannot be saved:
+
 ```typescript
 try {
   await cursorManager.saveCursorPositionImmediately(...);
@@ -392,6 +409,7 @@ try {
 ### Scalability Considerations
 
 For large vaults (1000+ notes):
+
 - Consider pagination for backlinks
 - Virtual scrolling for long backlink lists
 - Lazy loading of context content
