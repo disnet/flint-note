@@ -1,5 +1,9 @@
 # Project Log
 
+## Auto-focus Title on New Note Creation - 2025-10-05
+
+- Enhanced new note creation to focus on title input instead of content: added focus() export to NoteTitle.svelte that selects title text, added focusTitle() export to EditorHeader.svelte that delegates to NoteTitle component, modified NoteEditor.focus() to check if note title is empty and focus title input if so (otherwise focus content editor as before), ensures better UX by guiding user to add title first when creating new untitled notes
+
 ## Editable Backlink Context with CodeMirror - 2025-10-05
 
 - Made backlink context live-editable using CodeMirror single-line editor: created BacklinkContextEditor.svelte component that embeds minimal CodeMirror instance with full wikilink support, markdown rendering, and theme consistency; added 'backlink-context' variant to editorConfig.svelte.ts with compact single-line theme and custom Enter key handler; editor auto-saves changes after 1s debounce and on blur by fetching full note content, replacing specific line, and calling updateNote API; pressing Enter navigates to source note at that line instead of adding newlines; updated Backlinks.svelte to replace static text display with new editor component and moved click handler from entire backlink item to just title button to prevent interference with context editing; enhanced NoteEditor.svelte handleBacklinkSelect to accept optional lineNumber parameter and calculate cursor position by converting line number to character offset, then save cursor position before navigation

@@ -235,14 +235,17 @@ export class AutoUpdaterService {
       const versionIndex = fullChangelog.indexOf(versionHeader);
 
       if (versionIndex === -1) {
-        logger.warn(`Changelog section for version ${version} not found, returning full changelog`, {
-          version,
-          isCanary,
-          changelogFile,
-          changelogPath,
-          versionHeader,
-          changelogPreview: fullChangelog.slice(0, 200)
-        });
+        logger.warn(
+          `Changelog section for version ${version} not found, returning full changelog`,
+          {
+            version,
+            isCanary,
+            changelogFile,
+            changelogPath,
+            versionHeader,
+            changelogPreview: fullChangelog.slice(0, 200)
+          }
+        );
         return `# What's New in ${version}\n\n${fullChangelog}`;
       }
 

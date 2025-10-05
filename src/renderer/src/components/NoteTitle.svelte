@@ -58,6 +58,14 @@
       handleCancel();
     }
   }
+
+  export function focus(): void {
+    const input = document.querySelector('.note-title-input') as HTMLInputElement;
+    if (input) {
+      input.focus();
+      input.select();
+    }
+  }
 </script>
 
 <input

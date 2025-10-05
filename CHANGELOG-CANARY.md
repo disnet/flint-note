@@ -17,7 +17,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - only change update time on actual content change
 - fix bug that would erase frontmatter when updating link references when a note was renamed
 
-
 ## [0.2.6-canary.4]
 
 - Made titles optional, new notes are created with empty titles

@@ -13,6 +13,13 @@
   let { title, isPinned, onTitleChange, onPinToggle, disabled = false }: Props = $props();
 
   let showPinControl = $state(false);
+  let titleComponent: { focus?: () => void } | null = null;
+
+  export function focusTitle(): void {
+    if (titleComponent && titleComponent.focus) {
+      titleComponent.focus();
+    }
+  }
 </script>
 
 <div class="editor-header">
@@ -28,7 +35,12 @@
       onToggle={onPinToggle}
       visible={showPinControl || isPinned}
     />
-    <NoteTitle value={title} onSave={onTitleChange} {disabled} />
+    <NoteTitle
+      bind:this={titleComponent}
+      value={title}
+      onSave={onTitleChange}
+      {disabled}
+    />
   </div>
 </div>
 

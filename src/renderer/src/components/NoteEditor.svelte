@@ -30,6 +30,7 @@
   let noteData = $state<Note | null>(null);
   let metadataExpanded = $state(false);
   let editorRef: CodeMirrorEditor;
+  let headerRef: { focusTitle?: () => void } | null = null;
   let pendingCursorPosition = $state<CursorPosition | null>(null);
 
   const cursorManager = new CursorPositionManager();
@@ -278,8 +279,15 @@
   }
 
   export function focus(): void {
-    if (editorRef) {
-      editorRef.focus();
+    // Focus on title if it's empty, otherwise focus on content
+    if (!note.title || note.title.trim().length === 0) {
+      if (headerRef && headerRef.focusTitle) {
+        headerRef.focusTitle();
+      }
+    } else {
+      if (editorRef) {
+        editorRef.focus();
+      }
     }
   }
 
@@ -406,6 +414,7 @@
   onkeydown={handleKeyDown}
 >
   <EditorHeader
+    bind:this={headerRef}
     title={note.title}
     isPinned={pinnedNotesStore.isPinned(note.id)}
     onTitleChange={handleTitleChange}
