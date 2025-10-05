@@ -235,7 +235,7 @@ export class AutoUpdaterService {
       const versionIndex = fullChangelog.indexOf(versionHeader);
 
       if (versionIndex === -1) {
-        logger.warn(`Changelog section for version ${version} not found`, {
+        logger.warn(`Changelog section for version ${version} not found, returning full changelog`, {
           version,
           isCanary,
           changelogFile,
@@ -243,7 +243,7 @@ export class AutoUpdaterService {
           versionHeader,
           changelogPreview: fullChangelog.slice(0, 200)
         });
-        return `# What's New in ${version}\n\nNo changelog available for this version.`;
+        return `# What's New in ${version}\n\n${fullChangelog}`;
       }
 
       // Find the next version header or end of file
