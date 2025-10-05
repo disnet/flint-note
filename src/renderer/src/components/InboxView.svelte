@@ -18,6 +18,7 @@
   const notes = $derived(inboxStore.notes);
   const loading = $derived(inboxStore.isLoading);
   const error = $derived(inboxStore.error);
+  const showProcessed = $derived(inboxStore.showProcessed);
 
   // Load inbox notes when component mounts
   $effect(() => {
@@ -61,13 +62,6 @@
       // Refresh inbox to show the new note
       await inboxStore.refresh(currentVaultId);
 
-      // Find the newly created note and open it
-      const freshNotes = notesStore.notes;
-      const newNote = freshNotes.find((n) => n.id === noteInfo.id);
-      if (newNote && onNoteSelect) {
-        onNoteSelect(newNote);
-      }
-
       // Clear the input
       newNoteTitle = '';
     } catch (error) {
@@ -90,6 +84,19 @@
     await inboxStore.markAsProcessed(noteId, currentVaultId);
   }
 
+  async function handleUnmarkAsProcessed(noteId: string): Promise<void> {
+    if (!currentVaultId) return;
+
+    await inboxStore.unmarkAsProcessed(noteId, currentVaultId);
+  }
+
+  async function handleToggleView(): Promise<void> {
+    inboxStore.showProcessed = !showProcessed;
+    if (currentVaultId) {
+      await inboxStore.loadInboxNotes(currentVaultId);
+    }
+  }
+
   function handleNoteClick(noteId: string): void {
     // Find the full note metadata
     const note = notesStore.notes.find((n) => n.id === noteId);
@@ -102,9 +109,14 @@
 <div class="inbox-view">
   <div class="inbox-header">
     <h2>📥 Inbox</h2>
-    {#if loading}
-      <div class="loading-indicator">...</div>
-    {/if}
+    <div class="header-actions">
+      <button class="toggle-button" onclick={handleToggleView}>
+        {showProcessed ? 'Show Unprocessed' : 'Show Processed'}
+      </button>
+      {#if loading}
+        <div class="loading-indicator">...</div>
+      {/if}
+    </div>
   </div>
 
   {#if error}
@@ -145,21 +157,36 @@
                 {new Date(note.created).toLocaleDateString()} • {note.type}
               </div>
             </button>
-            <button
-              class="process-button"
-              onclick={() => handleMarkAsProcessed(note.id)}
-              title="Mark as processed"
-              aria-label="Mark note as processed"
-            >
-              ✓
-            </button>
+            {#if showProcessed}
+              <button
+                class="process-button"
+                onclick={() => handleUnmarkAsProcessed(note.id)}
+                title="Unmark as processed"
+                aria-label="Unmark note as processed"
+              >
+                ✕
+              </button>
+            {:else}
+              <button
+                class="process-button"
+                onclick={() => handleMarkAsProcessed(note.id)}
+                title="Mark as processed"
+                aria-label="Mark note as processed"
+              >
+                ✓
+              </button>
+            {/if}
           </div>
         {/each}
       </div>
     {:else}
       <div class="empty-state">
-        <p>No unprocessed notes</p>
-        <p class="empty-hint">Create a note above or notes you create will appear here</p>
+        <p>{showProcessed ? 'No processed notes' : 'No unprocessed notes'}</p>
+        <p class="empty-hint">
+          {showProcessed
+            ? 'Notes you process will appear here'
+            : 'Create a note above or notes you create will appear here'}
+        </p>
       </div>
     {/if}
   </div>
@@ -187,6 +214,30 @@
     margin: 0;
     font-size: 1rem;
     font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .toggle-button {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.75rem;
+    border: 1px solid var(--border-medium);
+    border-radius: 0.375rem;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-weight: 500;
+  }
+
+  .toggle-button:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--accent-primary);
     color: var(--text-primary);
   }
 

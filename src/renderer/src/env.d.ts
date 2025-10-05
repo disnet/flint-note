@@ -420,7 +420,15 @@ declare global {
         vaultId: string;
         daysBack?: number;
       }) => Promise<Array<{ id: string; title: string; type: string; created: string }>>;
+      getRecentProcessedNotes: (params: {
+        vaultId: string;
+        daysBack?: number;
+      }) => Promise<Array<{ id: string; title: string; type: string; created: string }>>;
       markNoteAsProcessed: (params: {
+        noteId: string;
+        vaultId: string;
+      }) => Promise<{ success: boolean }>;
+      unmarkNoteAsProcessed: (params: {
         noteId: string;
         vaultId: string;
       }) => Promise<{ success: boolean }>;

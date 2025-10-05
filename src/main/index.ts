@@ -1682,6 +1682,22 @@ app.whenReady().then(async () => {
   );
 
   ipcMain.handle(
+    'get-recent-processed-notes',
+    async (_event, params: { vaultId: string; daysBack?: number }) => {
+      if (!noteService) {
+        throw new Error('Note service not available');
+      }
+      try {
+        await noteService.initialize();
+        return await noteService.getRecentProcessedNotes(params.vaultId, params.daysBack);
+      } catch (error) {
+        logger.error('Failed to get recent processed notes', { error, params });
+        throw error;
+      }
+    }
+  );
+
+  ipcMain.handle(
     'mark-note-as-processed',
     async (_event, params: { noteId: string; vaultId: string }) => {
       if (!noteService) {
@@ -1692,6 +1708,22 @@ app.whenReady().then(async () => {
         return await noteService.markNoteAsProcessed(params.noteId, params.vaultId);
       } catch (error) {
         logger.error('Failed to mark note as processed', { error, params });
+        throw error;
+      }
+    }
+  );
+
+  ipcMain.handle(
+    'unmark-note-as-processed',
+    async (_event, params: { noteId: string; vaultId: string }) => {
+      if (!noteService) {
+        throw new Error('Note service not available');
+      }
+      try {
+        await noteService.initialize();
+        return await noteService.unmarkNoteAsProcessed(params.noteId, params.vaultId);
+      } catch (error) {
+        logger.error('Failed to unmark note as processed', { error, params });
         throw error;
       }
     }

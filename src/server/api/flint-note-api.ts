@@ -1630,6 +1630,47 @@ export class FlintNoteApi {
   }
 
   /**
+   * Get recent processed notes for the inbox view
+   * Returns notes that have been marked as processed in the last N days
+   */
+  async getRecentProcessedNotes(
+    vaultId: string,
+    daysBack: number = 7
+  ): Promise<NoteListItem[]> {
+    this.ensureInitialized();
+    const { hybridSearchManager } = await this.getVaultContext(vaultId);
+    const db = await hybridSearchManager.getDatabaseConnection();
+
+    // Calculate the date threshold
+    const threshold = new Date();
+    threshold.setDate(threshold.getDate() - daysBack);
+    const thresholdDate = threshold.toISOString();
+
+    // Query for notes that have been processed in the last N days
+    const notes = await db.all<NoteRow>(
+      `
+      SELECT n.* FROM notes n
+      INNER JOIN processed_notes pn ON n.id = pn.note_id
+      WHERE pn.processed_at >= ?
+      ORDER BY pn.processed_at DESC
+    `,
+      [thresholdDate]
+    );
+
+    return notes.map((note) => ({
+      id: note.id,
+      title: note.title,
+      type: note.type,
+      filename: note.filename,
+      path: note.path,
+      created: note.created,
+      modified: note.updated,
+      size: note.size || 0,
+      tags: []
+    }));
+  }
+
+  /**
    * Mark a note as processed in the inbox
    * Adds the note to the processed_notes table so it no longer appears in the inbox
    */
@@ -1652,6 +1693,33 @@ export class FlintNoteApi {
       return { success: true };
     } catch (error) {
       console.error('Failed to mark note as processed:', error);
+      return { success: false };
+    }
+  }
+
+  /**
+   * Unmark a note as processed in the inbox
+   * Removes the note from the processed_notes table so it appears in the inbox again
+   */
+  async unmarkNoteAsProcessed(
+    noteId: string,
+    vaultId: string
+  ): Promise<{ success: boolean }> {
+    this.ensureInitialized();
+    const { hybridSearchManager } = await this.getVaultContext(vaultId);
+    const db = await hybridSearchManager.getDatabaseConnection();
+
+    try {
+      await db.run(
+        `
+        DELETE FROM processed_notes
+        WHERE note_id = ?
+      `,
+        [noteId]
+      );
+      return { success: true };
+    } catch (error) {
+      console.error('Failed to unmark note as processed:', error);
       return { success: false };
     }
   }

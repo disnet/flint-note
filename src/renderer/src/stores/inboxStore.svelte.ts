@@ -9,12 +9,16 @@ interface InboxStoreState {
   notes: InboxNote[];
   isLoading: boolean;
   error: string | null;
+  showProcessed: boolean;
+  unprocessedCount: number;
 }
 
 const defaultState: InboxStoreState = {
   notes: [],
   isLoading: false,
-  error: null
+  error: null,
+  showProcessed: false,
+  unprocessedCount: 0
 };
 
 class InboxStore {
@@ -32,24 +36,38 @@ class InboxStore {
     return this.state.error;
   }
 
+  get count(): number {
+    return this.state.unprocessedCount;
+  }
+
+  get showProcessed(): boolean {
+    return this.state.showProcessed;
+  }
+
+  set showProcessed(value: boolean) {
+    this.state.showProcessed = value;
+  }
+
   /**
-   * Load unprocessed notes from the last N days
+   * Load notes based on current view mode (processed or unprocessed)
    */
   async loadInboxNotes(vaultId: string, daysBack: number = 7): Promise<void> {
     this.state.isLoading = true;
     this.state.error = null;
 
     try {
-      const notes = await window.api?.getRecentUnprocessedNotes({
-        vaultId,
-        daysBack
-      });
+      const notes = this.state.showProcessed
+        ? await window.api?.getRecentProcessedNotes({ vaultId, daysBack })
+        : await window.api?.getRecentUnprocessedNotes({ vaultId, daysBack });
 
       if (notes) {
         this.state.notes = notes;
       } else {
         this.state.notes = [];
       }
+
+      // Always update unprocessed count for the badge
+      await this.updateUnprocessedCount(vaultId, daysBack);
     } catch (error) {
       console.error('Failed to load inbox notes:', error);
       this.state.error =
@@ -57,6 +75,21 @@ class InboxStore {
       this.state.notes = [];
     } finally {
       this.state.isLoading = false;
+    }
+  }
+
+  /**
+   * Update the unprocessed count (for badge display)
+   */
+  async updateUnprocessedCount(vaultId: string, daysBack: number = 7): Promise<void> {
+    try {
+      const unprocessedNotes = await window.api?.getRecentUnprocessedNotes({
+        vaultId,
+        daysBack
+      });
+      this.state.unprocessedCount = unprocessedNotes?.length || 0;
+    } catch (error) {
+      console.error('Failed to update unprocessed count:', error);
     }
   }
 
@@ -73,11 +106,37 @@ class InboxStore {
       if (result?.success) {
         // Remove the note from the local state
         this.state.notes = this.state.notes.filter((note) => note.id !== noteId);
+        // Update unprocessed count
+        await this.updateUnprocessedCount(vaultId);
         return true;
       }
       return false;
     } catch (error) {
       console.error('Failed to mark note as processed:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Unmark a note as processed and remove it from the processed list
+   */
+  async unmarkAsProcessed(noteId: string, vaultId: string): Promise<boolean> {
+    try {
+      const result = await window.api?.unmarkNoteAsProcessed({
+        noteId,
+        vaultId
+      });
+
+      if (result?.success) {
+        // Remove the note from the local state
+        this.state.notes = this.state.notes.filter((note) => note.id !== noteId);
+        // Update unprocessed count
+        await this.updateUnprocessedCount(vaultId);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Failed to unmark note as processed:', error);
       return false;
     }
   }

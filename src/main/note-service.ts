@@ -685,6 +685,23 @@ export class NoteService {
   }
 
   /**
+   * Get recent processed notes for the inbox view
+   */
+  async getRecentProcessedNotes(
+    vaultId: string,
+    daysBack?: number
+  ): Promise<Array<{ id: string; title: string; type: string; created: string }>> {
+    this.ensureInitialized();
+    const notes = await this.api.getRecentProcessedNotes(vaultId, daysBack);
+    return notes.map((note) => ({
+      id: note.id,
+      title: note.title,
+      type: note.type,
+      created: note.created
+    }));
+  }
+
+  /**
    * Mark a note as processed in the inbox
    */
   async markNoteAsProcessed(
@@ -693,5 +710,16 @@ export class NoteService {
   ): Promise<{ success: boolean }> {
     this.ensureInitialized();
     return await this.api.markNoteAsProcessed(noteId, vaultId);
+  }
+
+  /**
+   * Unmark a note as processed in the inbox
+   */
+  async unmarkNoteAsProcessed(
+    noteId: string,
+    vaultId: string
+  ): Promise<{ success: boolean }> {
+    this.ensureInitialized();
+    return await this.api.unmarkNoteAsProcessed(noteId, vaultId);
   }
 }

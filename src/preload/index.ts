@@ -400,8 +400,12 @@ const api = {
   // Inbox operations
   getRecentUnprocessedNotes: (params: { vaultId: string; daysBack?: number }) =>
     electronAPI.ipcRenderer.invoke('get-recent-unprocessed-notes', params),
+  getRecentProcessedNotes: (params: { vaultId: string; daysBack?: number }) =>
+    electronAPI.ipcRenderer.invoke('get-recent-processed-notes', params),
   markNoteAsProcessed: (params: { noteId: string; vaultId: string }) =>
     electronAPI.ipcRenderer.invoke('mark-note-as-processed', params),
+  unmarkNoteAsProcessed: (params: { noteId: string; vaultId: string }) =>
+    electronAPI.ipcRenderer.invoke('unmark-note-as-processed', params),
 
   // Database operations
   rebuildDatabase: (params: { vaultId?: string }) =>

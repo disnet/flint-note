@@ -20,6 +20,7 @@
   import { vaultAvailabilityService } from './services/vaultAvailabilityService.svelte';
   import { pinnedNotesStore } from './services/pinnedStore.svelte';
   import { dailyViewStore } from './stores/dailyViewStore.svelte';
+  import { inboxStore } from './stores/inboxStore.svelte';
   import { onMount } from 'svelte';
   import type { CreateVaultResult } from '@/server/api/types';
 
@@ -27,7 +28,7 @@
   unifiedChatStore.initializeEffects();
 
   // Add app lifecycle integration for cursor position persistence
-  onMount(() => {
+  onMount(async () => {
     const handleBeforeUnload = async (): Promise<void> => {
       try {
         await cursorPositionStore.flushPendingSaves();
@@ -37,6 +38,17 @@
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
+
+    // Initialize inbox count
+    try {
+      const chatService = getChatService();
+      const vault = await chatService.getCurrentVault();
+      if (vault) {
+        await inboxStore.updateUnprocessedCount(vault.id);
+      }
+    } catch (error) {
+      console.error('Failed to initialize inbox count:', error);
+    }
 
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);

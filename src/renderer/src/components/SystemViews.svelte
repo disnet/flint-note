@@ -1,10 +1,14 @@
 <script lang="ts">
+  import { inboxStore } from '../stores/inboxStore.svelte';
+
   interface Props {
     activeSystemView: 'inbox' | 'daily' | 'notes' | 'settings' | null;
     onSystemViewSelect: (view: 'inbox' | 'daily' | 'notes' | 'settings' | null) => void;
   }
 
   let { onSystemViewSelect, activeSystemView }: Props = $props();
+
+  const inboxCount = $derived(inboxStore.count);
 
   function setActiveView(view: 'inbox' | 'daily' | 'notes' | 'settings'): void {
     onSystemViewSelect(view);
@@ -32,6 +36,9 @@
         ></path>
       </svg>
       Inbox
+      {#if inboxCount > 0}
+        <span class="count-badge">{inboxCount}</span>
+      {/if}
     </button>
 
     <button
@@ -127,5 +134,22 @@
 
   .nav-item svg {
     flex-shrink: 0;
+  }
+
+  .count-badge {
+    margin-left: auto;
+    background: var(--accent-primary);
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.125rem 0.5rem;
+    border-radius: 0.75rem;
+    min-width: 1.25rem;
+    text-align: center;
+  }
+
+  .nav-item.active .count-badge {
+    background: var(--accent-primary);
+    opacity: 0.9;
   }
 </style>
