@@ -1,5 +1,5 @@
 import { EditorView, minimalSetup } from 'codemirror';
-import { type Extension } from '@codemirror/state';
+import { type Extension, Prec } from '@codemirror/state';
 import { dropCursor, keymap, placeholder } from '@codemirror/view';
 import { indentOnInput } from '@codemirror/language';
 import {
@@ -234,6 +234,28 @@ export class EditorConfig {
       }
     });
 
+    // Create custom Enter key handler for backlink context with highest precedence
+    const enterKeymap =
+      this.options.variant === 'backlink-context' && this.options.onEnterKey
+        ? Prec.highest(
+            keymap.of([
+              {
+                key: 'Enter',
+                run: (view) => {
+                  // Check if there's a selected wikilink first - if so, let wikilinks handle it
+                  const selectedWikilink = getSelectedWikilink(view);
+                  if (selectedWikilink) {
+                    return false; // Let wikilinks extension handle it
+                  }
+                  // Otherwise, navigate to source
+                  this.options.onEnterKey?.();
+                  return true; // Prevent default newline behavior
+                }
+              }
+            ])
+          )
+        : null;
+
     const extensions: Extension[] = [
       minimalSetup,
       dropCursor(),
@@ -260,29 +282,10 @@ export class EditorConfig {
         : []),
       EditorView.contentAttributes.of({ spellcheck: 'true' }),
       EditorView.editable.of(true),
-      updateListener
+      updateListener,
+      // Add custom Enter key handler last for highest precedence
+      ...(enterKeymap ? [enterKeymap] : [])
     ];
-
-    // Add custom Enter key handler for backlink context
-    // This should have lower precedence than wikilinks extension's Enter handler
-    if (this.options.variant === 'backlink-context' && this.options.onEnterKey) {
-      const enterKeymap = keymap.of([
-        {
-          key: 'Enter',
-          run: (view) => {
-            // Check if there's a selected wikilink first - if so, let wikilinks handle it
-            const selectedWikilink = getSelectedWikilink(view);
-            if (selectedWikilink) {
-              return false; // Let wikilinks extension handle it
-            }
-            // Otherwise, navigate to source
-            this.options.onEnterKey?.();
-            return true; // Prevent default newline behavior
-          }
-        }
-      ]);
-      extensions.push(enterKeymap);
-    }
 
     // Add placeholder if provided
     if (this.options.placeholder) {
