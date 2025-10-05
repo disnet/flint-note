@@ -16,7 +16,6 @@
     context: string | null;
     sourceTitle: string | null;
     sourceType: string | null;
-    contextExpanded: boolean;
   }
 
   interface GroupedBacklink {
@@ -24,6 +23,7 @@
     sourceTitle: string | null;
     sourceType: string | null;
     links: BacklinkWithContext[];
+    expanded: boolean;
   }
 
   let { noteId, onNoteSelect }: Props = $props();
@@ -32,6 +32,9 @@
   let expanded = $state(true);
   let loading = $state(false);
   let error = $state<string | null>(null);
+
+  // Track expansion state for groups
+  let groupExpansionState = $state<Map<string, boolean>>(new Map());
 
   // Group backlinks by source note
   let groupedBacklinks = $derived.by(() => {
@@ -45,7 +48,8 @@
           sourceNoteId: sourceId,
           sourceTitle: backlink.sourceTitle,
           sourceType: backlink.sourceType,
-          links: []
+          links: [],
+          expanded: groupExpansionState.get(sourceId) ?? false
         });
       }
 
@@ -97,16 +101,14 @@
                 link,
                 context,
                 sourceTitle: sourceNote?.title || null,
-                sourceType: sourceNote?.type || null,
-                contextExpanded: true
+                sourceType: sourceNote?.type || null
               };
             } catch {
               return {
                 link,
                 context: null,
                 sourceTitle: null,
-                sourceType: null,
-                contextExpanded: true
+                sourceType: null
               };
             }
           })
@@ -123,20 +125,26 @@
 
   function expandAll(event: Event): void {
     event.stopPropagation();
-    backlinks.forEach((backlink) => {
-      if (backlink.context) {
-        backlink.contextExpanded = true;
-      }
-    });
+    const newState = new Map<string, boolean>();
+    for (const group of groupedBacklinks) {
+      newState.set(group.sourceNoteId, true);
+    }
+    groupExpansionState = newState;
   }
 
   function collapseAll(event: Event): void {
     event.stopPropagation();
-    backlinks.forEach((backlink) => {
-      if (backlink.context) {
-        backlink.contextExpanded = false;
-      }
-    });
+    const newState = new Map<string, boolean>();
+    for (const group of groupedBacklinks) {
+      newState.set(group.sourceNoteId, false);
+    }
+    groupExpansionState = newState;
+  }
+
+  function toggleGroup(sourceNoteId: string): void {
+    const currentState = groupExpansionState.get(sourceNoteId) ?? false;
+    groupExpansionState = new Map(groupExpansionState);
+    groupExpansionState.set(sourceNoteId, !currentState);
   }
 
   async function handleGroupClick(group: GroupedBacklink): Promise<void> {
@@ -236,6 +244,13 @@
           {#each groupedBacklinks as group (group.sourceNoteId)}
             <div class="backlink-group">
               <div class="group-header">
+                <button
+                  class="group-toggle"
+                  onclick={() => toggleGroup(group.sourceNoteId)}
+                  aria-expanded={group.expanded}
+                >
+                  <span class="toggle-icon" class:expanded={group.expanded}>▼</span>
+                </button>
                 <span class="backlink-type">{group.sourceType || 'note'}</span>
                 <button
                   class="backlink-title-button"
@@ -250,24 +265,26 @@
                 {/if}
               </div>
 
-              <div class="group-contexts">
-                {#each group.links as backlink, index (backlink.link.id)}
-                  <div class="backlink-context-item">
-                    {#if index > 0}
-                      <div class="context-separator">⋮</div>
-                    {/if}
-                    {#if backlink.context}
-                      <BacklinkContextEditor
-                        sourceNoteId={backlink.link.source_note_id}
-                        lineNumber={backlink.link.line_number ?? 1}
-                        initialContent={backlink.context}
-                        onNavigate={() => handleNavigateToSource(backlink)}
-                        onWikilinkClick={handleWikilinkClick}
-                      />
-                    {/if}
-                  </div>
-                {/each}
-              </div>
+              {#if group.expanded}
+                <div class="group-contexts">
+                  {#each group.links as backlink, index (backlink.link.id)}
+                    <div class="backlink-context-item">
+                      {#if index > 0}
+                        <div class="context-separator">⋮</div>
+                      {/if}
+                      {#if backlink.context}
+                        <BacklinkContextEditor
+                          sourceNoteId={backlink.link.source_note_id}
+                          lineNumber={backlink.link.line_number ?? 1}
+                          initialContent={backlink.context}
+                          onNavigate={() => handleNavigateToSource(backlink)}
+                          onWikilinkClick={handleWikilinkClick}
+                        />
+                      {/if}
+                    </div>
+                  {/each}
+                </div>
+              {/if}
             </div>
           {/each}
         </div>
@@ -390,14 +407,24 @@
     display: flex;
     align-items: baseline;
     gap: 0.5rem;
-    padding: 0.5rem;
-    background: transparent;
-    border-radius: 4px;
-    transition: background-color 0.2s ease;
+    padding: 0.25rem 0.5rem;
   }
 
-  .group-header:hover {
-    background: var(--bg-tertiary);
+  .group-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.25rem;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: color 0.2s ease;
+    flex-shrink: 0;
+  }
+
+  .group-toggle:hover {
+    color: var(--text-primary);
   }
 
   .group-contexts {
@@ -411,6 +438,17 @@
   .backlink-context-item {
     display: flex;
     flex-direction: column;
+  }
+
+  .toggle-icon {
+    display: inline-block;
+    transition: transform 0.2s ease;
+    font-size: 0.625rem;
+    transform: rotate(-90deg);
+  }
+
+  .toggle-icon.expanded {
+    transform: rotate(0deg);
   }
 
   .context-separator {
