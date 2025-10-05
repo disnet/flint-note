@@ -1588,6 +1588,75 @@ export class FlintNoteApi {
   }
 
   /**
+   * Get recent unprocessed notes for the inbox view
+   * Returns notes created in the last 7 days that haven't been marked as processed
+   */
+  async getRecentUnprocessedNotes(
+    vaultId: string,
+    daysBack: number = 7
+  ): Promise<NoteListItem[]> {
+    this.ensureInitialized();
+    const { hybridSearchManager } = await this.getVaultContext(vaultId);
+    const db = await hybridSearchManager.getDatabaseConnection();
+
+    // Calculate the date threshold
+    const threshold = new Date();
+    threshold.setDate(threshold.getDate() - daysBack);
+    const thresholdDate = threshold.toISOString();
+
+    // Query for notes created in the last N days that are not in processed_notes
+    const notes = await db.all<NoteRow>(
+      `
+      SELECT n.* FROM notes n
+      LEFT JOIN processed_notes pn ON n.id = pn.note_id
+      WHERE n.created >= ?
+        AND pn.note_id IS NULL
+      ORDER BY n.created DESC
+    `,
+      [thresholdDate]
+    );
+
+    return notes.map((note) => ({
+      id: note.id,
+      title: note.title,
+      type: note.type,
+      filename: note.filename,
+      path: note.path,
+      created: note.created,
+      modified: note.updated,
+      size: note.size || 0,
+      tags: []
+    }));
+  }
+
+  /**
+   * Mark a note as processed in the inbox
+   * Adds the note to the processed_notes table so it no longer appears in the inbox
+   */
+  async markNoteAsProcessed(
+    noteId: string,
+    vaultId: string
+  ): Promise<{ success: boolean }> {
+    this.ensureInitialized();
+    const { hybridSearchManager } = await this.getVaultContext(vaultId);
+    const db = await hybridSearchManager.getDatabaseConnection();
+
+    try {
+      await db.run(
+        `
+        INSERT OR IGNORE INTO processed_notes (note_id, processed_at)
+        VALUES (?, CURRENT_TIMESTAMP)
+      `,
+        [noteId]
+      );
+      return { success: true };
+    } catch (error) {
+      console.error('Failed to mark note as processed:', error);
+      return { success: false };
+    }
+  }
+
+  /**
    * Cleanup resources and close database connections
    * Call this when the API instance is no longer needed
    */

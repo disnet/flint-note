@@ -1661,6 +1661,42 @@ app.whenReady().then(async () => {
     }
   );
 
+  // Inbox operations
+  ipcMain.handle(
+    'get-recent-unprocessed-notes',
+    async (_event, params: { vaultId: string; daysBack?: number }) => {
+      if (!noteService) {
+        throw new Error('Note service not available');
+      }
+      try {
+        await noteService.initialize();
+        return await noteService.getRecentUnprocessedNotes(
+          params.vaultId,
+          params.daysBack
+        );
+      } catch (error) {
+        logger.error('Failed to get recent unprocessed notes', { error, params });
+        throw error;
+      }
+    }
+  );
+
+  ipcMain.handle(
+    'mark-note-as-processed',
+    async (_event, params: { noteId: string; vaultId: string }) => {
+      if (!noteService) {
+        throw new Error('Note service not available');
+      }
+      try {
+        await noteService.initialize();
+        return await noteService.markNoteAsProcessed(params.noteId, params.vaultId);
+      } catch (error) {
+        logger.error('Failed to mark note as processed', { error, params });
+        throw error;
+      }
+    }
+  );
+
   // Database operations
   ipcMain.handle('rebuild-database', async (_event, params: { vaultId?: string }) => {
     if (!noteService) {

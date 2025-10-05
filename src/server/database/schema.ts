@@ -272,6 +272,16 @@ export class DatabaseManager {
         )
       `);
 
+    // Create processed notes table for inbox functionality
+    await connection.run(`
+        CREATE TABLE IF NOT EXISTS processed_notes (
+          id INTEGER PRIMARY KEY,
+          note_id TEXT NOT NULL UNIQUE,
+          processed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
+        )
+      `);
+
     // Create indexes for performance
     await connection.run('CREATE INDEX IF NOT EXISTS idx_notes_type ON notes(type)');
     await connection.run(
@@ -323,6 +333,11 @@ export class DatabaseManager {
     );
     await connection.run(
       'CREATE INDEX IF NOT EXISTS idx_note_hierarchies_position ON note_hierarchies(parent_id, position)'
+    );
+
+    // Create index for processed notes table
+    await connection.run(
+      'CREATE INDEX IF NOT EXISTS idx_processed_notes_note_id ON processed_notes(note_id)'
     );
 
     // Create triggers to keep FTS table in sync
@@ -443,6 +458,12 @@ export interface NoteHierarchyRow {
   position: number;
   created: string;
   updated: string;
+}
+
+export interface ProcessedNoteRow {
+  id: number;
+  note_id: string;
+  processed_at: string;
 }
 
 // Helper functions for metadata type conversion

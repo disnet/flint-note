@@ -415,6 +415,16 @@ declare global {
         vaultId: string;
       }) => Promise<UpdateResult>;
 
+      // Inbox operations
+      getRecentUnprocessedNotes: (params: {
+        vaultId: string;
+        daysBack?: number;
+      }) => Promise<Array<{ id: string; title: string; type: string; created: string }>>;
+      markNoteAsProcessed: (params: {
+        noteId: string;
+        vaultId: string;
+      }) => Promise<{ success: boolean }>;
+
       // Database operations
       rebuildDatabase: (params: {
         vaultId?: string;

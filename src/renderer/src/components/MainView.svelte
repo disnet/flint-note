@@ -2,6 +2,7 @@
   import NoteEditor from './NoteEditor.svelte';
   import NotesView from './NotesView.svelte';
   import DailyView from './DailyView.svelte';
+  import InboxView from './InboxView.svelte';
   import Settings from './Settings.svelte';
   import { ViewRegistry } from '../lib/views';
   import { getChatService } from '../services/chatService.js';
@@ -13,7 +14,7 @@
 
   interface Props {
     activeNote: NoteMetadata | null;
-    activeSystemView: 'daily' | 'notes' | 'settings' | null;
+    activeSystemView: 'inbox' | 'daily' | 'notes' | 'settings' | null;
     noteTypes: NoteType[];
     onClose: () => void;
     onNoteSelect: (note: NoteMetadata) => void;
@@ -147,7 +148,13 @@
 </script>
 
 <div class="main-view">
-  {#if activeSystemView === 'daily'}
+  {#if activeSystemView === 'inbox'}
+    <div class="system-view-container">
+      <div class="system-view-content">
+        <InboxView {onNoteSelect} />
+      </div>
+    </div>
+  {:else if activeSystemView === 'daily'}
     <div class="system-view-container">
       <div class="system-view-content">
         <DailyView {onNoteSelect} />

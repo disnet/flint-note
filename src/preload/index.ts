@@ -397,6 +397,12 @@ const api = {
   updateDailyNote: (params: { date: string; content: string; vaultId: string }) =>
     electronAPI.ipcRenderer.invoke('update-daily-note', params),
 
+  // Inbox operations
+  getRecentUnprocessedNotes: (params: { vaultId: string; daysBack?: number }) =>
+    electronAPI.ipcRenderer.invoke('get-recent-unprocessed-notes', params),
+  markNoteAsProcessed: (params: { noteId: string; vaultId: string }) =>
+    electronAPI.ipcRenderer.invoke('mark-note-as-processed', params),
+
   // Database operations
   rebuildDatabase: (params: { vaultId?: string }) =>
     electronAPI.ipcRenderer.invoke('rebuild-database', params)

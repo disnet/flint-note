@@ -666,4 +666,32 @@ export class NoteService {
       canPerformNoteOperations: this.isInitialized && this.hasVaultsAvailable
     };
   }
+
+  /**
+   * Get recent unprocessed notes for the inbox view
+   */
+  async getRecentUnprocessedNotes(
+    vaultId: string,
+    daysBack?: number
+  ): Promise<Array<{ id: string; title: string; type: string; created: string }>> {
+    this.ensureInitialized();
+    const notes = await this.api.getRecentUnprocessedNotes(vaultId, daysBack);
+    return notes.map((note) => ({
+      id: note.id,
+      title: note.title,
+      type: note.type,
+      created: note.created
+    }));
+  }
+
+  /**
+   * Mark a note as processed in the inbox
+   */
+  async markNoteAsProcessed(
+    noteId: string,
+    vaultId: string
+  ): Promise<{ success: boolean }> {
+    this.ensureInitialized();
+    return await this.api.markNoteAsProcessed(noteId, vaultId);
+  }
 }
