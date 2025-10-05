@@ -49,7 +49,7 @@
       const chatService = getChatService();
 
       // Create the note with the entered title
-      const noteInfo = await chatService.createNote({
+      await chatService.createNote({
         type: 'note',
         identifier: newNoteTitle.trim(),
         content: '',

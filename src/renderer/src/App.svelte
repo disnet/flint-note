@@ -21,7 +21,7 @@
   import { pinnedNotesStore } from './services/pinnedStore.svelte';
   import { dailyViewStore } from './stores/dailyViewStore.svelte';
   import { inboxStore } from './stores/inboxStore.svelte';
-  import { onMount } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
   import type { CreateVaultResult } from '@/server/api/types';
 
   // Initialize unified chat store effects
@@ -50,9 +50,9 @@
       console.error('Failed to initialize inbox count:', error);
     }
 
-    return () => {
+    onDestroy(() => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
+    });
   });
 
   // Messages are now managed by unifiedChatStore
