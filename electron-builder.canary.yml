@@ -8,11 +8,12 @@ files:
   - '!electron.vite.config.{js,ts,mjs,cjs}'
   - '!svelte.config.mjs'
   - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
-  - 'CHANGELOG-CANARY.md'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
 asarUnpack:
   - resources/**
+extraResources:
+  - CHANGELOG-CANARY.md
 win:
   executableName: flint-canary
   icon: 'build/icon.png'
