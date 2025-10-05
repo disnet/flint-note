@@ -9,6 +9,7 @@
   import { activeNoteStore } from '../stores/activeNoteStore.svelte';
   import { cursorPositionStore } from '../services/cursorPositionStore.svelte';
   import { inboxStore } from '../stores/inboxStore.svelte';
+  import { dailyViewStore } from '../stores/dailyViewStore.svelte';
   import CreateVaultModal from './CreateVaultModal.svelte';
 
   interface Props {
@@ -58,11 +59,12 @@
       await loadVaults(); // Refresh vault info
       await notesStore.refresh(); // Refresh notes for the new vault
 
-      // Refresh pinned notes, temporary tabs, conversations, and inbox for the new vault
+      // Refresh pinned notes, temporary tabs, conversations, inbox, and daily view for the new vault
       await pinnedNotesStore.refreshForVault(vaultId);
       await temporaryTabsStore.refreshForVault(vaultId);
       await unifiedChatStore.refreshForVault(vaultId);
       await inboxStore.refresh(vaultId);
+      await dailyViewStore.reinitialize();
       await cursorPositionStore.endVaultSwitch();
       await activeNoteStore.endVaultSwitch();
 
@@ -166,6 +168,7 @@
           await temporaryTabsStore.refreshForVault(nextVault.id);
           await unifiedChatStore.refreshForVault(nextVault.id);
           await inboxStore.refresh(nextVault.id);
+          await dailyViewStore.reinitialize();
           await activeNoteStore.endVaultSwitch();
 
           // End vault switch mode
