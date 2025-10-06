@@ -7,6 +7,7 @@
     displayText: string;
     onSave: (newDisplayText: string) => void;
     onCancel: () => void;
+    onCommit?: () => void;
   }
 
   let {
@@ -16,7 +17,8 @@
     identifier,
     displayText,
     onSave,
-    onCancel
+    onCancel,
+    onCommit
   }: Props = $props();
 
   let inputValue = $state(displayText);
@@ -62,7 +64,11 @@
     } else if (e.key === 'Enter') {
       e.preventDefault();
       e.stopPropagation();
-      onCancel();
+      // Commit the current value and close
+      if (inputValue.trim()) {
+        onSave(inputValue.trim());
+      }
+      onCommit?.();
     }
   }
 </script>

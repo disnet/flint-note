@@ -49,6 +49,7 @@
   let hoverTimeout: ReturnType<typeof setTimeout> | null = null;
   let leaveTimeout: ReturnType<typeof setTimeout> | null = null;
   let popoverRef: WikilinkPopover | undefined = $state();
+  let savedSelection: { anchor: number; head: number } | null = null;
 
   // Action popover state (unified for cursor and mouse interactions)
   let actionPopoverVisible = $state(false);
@@ -198,7 +199,7 @@
         // Position popup near the selected wikilink
         const coords = editorView.coordsAtPos(selected.from);
         if (coords) {
-          actionPopoverIdentifier = selected.title;
+          actionPopoverIdentifier = selected.identifier;
           actionPopoverWikilinkData = {
             identifier: selected.identifier,
             title: selected.title,
@@ -382,7 +383,7 @@
           return;
         }
 
-        actionPopoverIdentifier = data.displayText;
+        actionPopoverIdentifier = data.identifier;
         actionPopoverWikilinkData = {
           identifier: data.identifier,
           title: data.displayText,
@@ -538,8 +539,32 @@
     popoverDisplayText = newDisplayText;
   }
 
+  function handlePopoverCommit(): void {
+    popoverVisible = false;
+    // Restore focus and selection after committing
+    restoreFocusAndSelection();
+  }
+
   function handlePopoverCancel(): void {
     popoverVisible = false;
+    // Restore focus and selection
+    restoreFocusAndSelection();
+  }
+
+  function restoreFocusAndSelection(): void {
+    if (!editorView) return;
+
+    // Focus the editor
+    editorView.focus();
+
+    // Restore the saved selection if available
+    if (savedSelection) {
+      editorView.dispatch({
+        selection: savedSelection,
+        scrollIntoView: true
+      });
+      savedSelection = null;
+    }
   }
 
   function handleActionPopoverOpen(): void {
@@ -559,6 +584,10 @@
 
   function handleActionPopoverEdit(): void {
     if (!editorView || !actionPopoverWikilinkData) return;
+
+    // Save the current selection before opening the edit popover
+    const selection = editorView.state.selection.main;
+    savedSelection = { anchor: selection.anchor, head: selection.head };
 
     // Hide action popover and show edit popover
     actionPopoverVisible = false;
@@ -612,11 +641,15 @@
 
   // Add mouse leave handler for the action popover
   function handleActionPopoverMouseLeave(): void {
-    leaveTimeout = setTimeout(() => {
-      actionPopoverVisible = false;
-      actionPopoverIsFromHover = false; // Reset the hover flag
-      leaveTimeout = null;
-    }, 200);
+    // Only hide on mouse leave if the popover was triggered by hover
+    // If it was triggered by cursor position, let the cursor polling handle visibility
+    if (actionPopoverIsFromHover) {
+      leaveTimeout = setTimeout(() => {
+        actionPopoverVisible = false;
+        actionPopoverIsFromHover = false; // Reset the hover flag
+        leaveTimeout = null;
+      }, 200);
+    }
   }
 </script>
 
@@ -644,6 +677,7 @@
     displayText={popoverDisplayText}
     onSave={handlePopoverSave}
     onCancel={handlePopoverCancel}
+    onCommit={handlePopoverCommit}
   />
 </div>
 
