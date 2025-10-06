@@ -433,7 +433,14 @@
         hoverTimeout = null;
       }, 300);
     } else {
-      // Mouse left the wikilink - start leave timeout only if popover is from hover
+      // Mouse left the wikilink
+      // Clear any pending hover timeout to prevent showing the popover
+      if (hoverTimeout) {
+        clearTimeout(hoverTimeout);
+        hoverTimeout = null;
+      }
+
+      // Start leave timeout only if popover is from hover
       if (actionPopoverIsFromHover) {
         leaveTimeout = setTimeout(() => {
           actionPopoverVisible = false;
