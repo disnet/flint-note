@@ -1,6 +1,8 @@
 <script lang="ts">
   import { sidebarNotesStore } from '../stores/sidebarNotesStore.svelte';
   import { wikilinkService } from '../services/wikilinkService.svelte';
+  import { notesStore } from '../services/noteStore.svelte';
+  import { getChatService } from '../services/chatService';
   import CodeMirrorEditor from './CodeMirrorEditor.svelte';
 
   // Debounce timers for content updates
@@ -8,6 +10,45 @@
 
   // Track original titles for cancel/revert
   const originalTitles = new Map<string, string>();
+
+  // React to external note updates (e.g., from NoteEditor)
+  $effect(() => {
+    const updateCounter = notesStore.noteUpdateCounter;
+    const lastUpdatedNoteId = notesStore.lastUpdatedNoteId;
+
+    // Skip initial load (when counter is 0)
+    if (updateCounter > 0 && lastUpdatedNoteId) {
+      // Check if this note is in our sidebar
+      const sidebarNote = sidebarNotesStore.notes.find(
+        (n) => n.noteId === lastUpdatedNoteId
+      );
+      if (sidebarNote) {
+        // Reload the note content from the database
+        setTimeout(async () => {
+          try {
+            const noteService = getChatService();
+            const updatedNote = await noteService.getNote({
+              identifier: lastUpdatedNoteId
+            });
+            if (updatedNote) {
+              // Update both title and content to stay in sync
+              // Pass syncToDatabase=false to prevent infinite loop
+              await sidebarNotesStore.updateNote(
+                lastUpdatedNoteId,
+                {
+                  title: updatedNote.title || sidebarNote.title,
+                  content: updatedNote.content || ''
+                },
+                false // Don't sync back to database - we're already in sync
+              );
+            }
+          } catch (error) {
+            console.warn('Failed to reload sidebar note after external update:', error);
+          }
+        }, 100);
+      }
+    }
+  });
 
   function handleDisclosureToggle(noteId: string): void {
     sidebarNotesStore.toggleExpanded(noteId);

@@ -1,3 +1,5 @@
+import { notesStore } from '../services/noteStore.svelte';
+
 export interface SidebarNote {
   noteId: string;
   title: string;
@@ -132,10 +134,12 @@ class SidebarNotesStore {
   /**
    * Update a note's title and/or content
    * Both title and content changes sync back to the actual note in the database
+   * @param syncToDatabase - If true, sync changes to database and notify other components (default: true)
    */
   async updateNote(
     noteId: string,
-    updates: Partial<Pick<SidebarNote, 'title' | 'content'>>
+    updates: Partial<Pick<SidebarNote, 'title' | 'content'>>,
+    syncToDatabase: boolean = true
   ): Promise<void> {
     await this.ensureInitialized();
 
@@ -153,6 +157,11 @@ class SidebarNotesStore {
 
       await this.saveToStorage();
 
+      // Only sync to database if requested (prevents infinite loops)
+      if (!syncToDatabase) {
+        return;
+      }
+
       // Sync title changes back to the actual note (rename)
       if (updates.title !== undefined && updates.title !== oldTitle) {
         try {
@@ -165,6 +174,12 @@ class SidebarNotesStore {
           if (result?.new_id && result.new_id !== noteId) {
             note.noteId = result.new_id;
             await this.saveToStorage();
+
+            // Notify other components (like NoteEditor) about the update
+            notesStore.notifyNoteUpdated(result.new_id);
+          } else {
+            // Title changed but noteId stayed the same
+            notesStore.notifyNoteUpdated(noteId);
           }
         } catch (error) {
           console.error('Failed to rename note in database:', error);
@@ -181,6 +196,9 @@ class SidebarNotesStore {
             identifier: note.noteId, // Use potentially updated noteId
             content: updates.content
           });
+
+          // Notify other components (like NoteEditor) about the update
+          notesStore.notifyNoteUpdated(note.noteId);
         } catch (error) {
           console.error('Failed to update note content in database:', error);
           // Note: We don't revert the sidebar note update on error
@@ -199,6 +217,20 @@ class SidebarNotesStore {
     const note = this.state.notes.find((n) => n.noteId === noteId);
     if (note) {
       note.isExpanded = !note.isExpanded;
+      await this.saveToStorage();
+    }
+  }
+
+  /**
+   * Update a note's ID when it gets renamed
+   * This is needed when external components (like NoteEditor) rename a note
+   */
+  async updateNoteId(oldId: string, newId: string): Promise<void> {
+    await this.ensureInitialized();
+
+    const note = this.state.notes.find((n) => n.noteId === oldId);
+    if (note) {
+      note.noteId = newId;
       await this.saveToStorage();
     }
   }

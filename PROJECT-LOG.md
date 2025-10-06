@@ -1,5 +1,9 @@
 # Project Log
 
+## Bidirectional Sync for Sidebar Notes - 2025-10-06
+
+- Implemented bidirectional reactivity between sidebar notes and main NoteEditor so changes in either location reflect in both: sidebarNotesStore now calls notesStore.notifyNoteUpdated() after syncing changes to database, NoteEditor watches notesStore.noteUpdateCounter and reloads when current note is updated externally, SidebarNotes watches same counter and reloads sidebar notes from database when updated in main editor, added syncToDatabase parameter to sidebarNotesStore.updateNote() to prevent infinite loops during external reloads, NoteEditor updates sidebarNotesStore.updateNoteId() when renaming notes that are in sidebar, both components reload from database as single source of truth to stay in sync
+
 ## Sidebar Notes Improvements - 2025-10-06
 
 - Made sidebar note containers hug their contents and improved title editing UX: removed min-height from note containers so single-line notes don't take up excessive space, changed titles from click-to-edit to always-editable inputs with subtle styling (transparent background, shows border on hover/focus), added bidirectional sync so both title and content edits in sidebar update the actual notes, content changes debounced at 500ms while title changes only commit on blur/Enter key, Escape key reverts title to original value and blurs input, title changes rename the underlying note file via renameNote API and update noteId if rename returns new identifier, reverts title on rename failure to prevent inconsistent state

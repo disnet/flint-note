@@ -232,6 +232,11 @@
           await temporaryTabsStore.updateNoteId(oldId, newId);
         }
 
+        // Update sidebar notes if this note is in the sidebar
+        if (sidebarNotesStore.isInSidebar(oldId) && newId !== oldId) {
+          await sidebarNotesStore.updateNoteId(oldId, newId);
+        }
+
         // Update the local note reference
         note = {
           ...note,

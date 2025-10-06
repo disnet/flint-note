@@ -57,6 +57,7 @@ SidebarNotes component reactively updates
 - Handles title editing with inline input
 - Renders CodeMirrorEditor for each expanded note
 - Connects wikilink clicks to navigation via `wikilinkService`
+- Reacts to external note changes via `$effect` on `notesStore.noteUpdateCounter`
 
 **Key Props:**
 
@@ -69,6 +70,7 @@ SidebarNotes component reactively updates
 - Remove buttons to delete notes from sidebar
 - Full CodeMirror integration with wikilinks using 'sidebar-note' variant
 - Content-hugging containers (no min-height, only max-height of 400px)
+- Reactive updates: watches `notesStore.noteUpdateCounter` and reloads sidebar notes from database when they're updated externally (e.g., in NoteEditor)
 
 #### **NoteActionBar.svelte**
 
@@ -96,6 +98,8 @@ Implements sidebar integration:
 
 - Checks `sidebarNotesStore.isInSidebar(note.id)` to determine button state
 - Passes handler and state to NoteActionBar
+- Updates `sidebarNotesStore.updateNoteId()` when renaming notes that are in the sidebar
+- Has `$effect` watching `notesStore.noteUpdateCounter` that reloads when its note is updated from another source
 
 #### **RightSidebar.svelte**
 
@@ -136,12 +140,15 @@ interface SidebarNote {
 
 - `addNote(noteId, title, content)` - Add note to sidebar (no-op if exists)
 - `removeNote(noteId)` - Remove note from sidebar
-- `updateNote(noteId, updates)` - Update title and/or content with sync to actual note:
+- `updateNote(noteId, updates, syncToDatabase?)` - Update title and/or content with sync to actual note:
   - Title changes call `renameNote()` API and update `noteId` if changed
   - Content changes call `updateNote()` API with debounced updates
   - Reverts title on rename failure to prevent inconsistent state
+  - Calls `notesStore.notifyNoteUpdated()` to notify other components
+  - `syncToDatabase` parameter (default true) prevents infinite loops when reloading from external updates
 - `toggleExpanded(noteId)` - Toggle disclosure state
 - `isInSidebar(noteId)` - Check if note exists in sidebar
+- `updateNoteId(oldId, newId)` - Update noteId when note is renamed externally
 
 **Persistence:**
 
@@ -212,6 +219,7 @@ Sidebar note editors use the same CodeMirrorEditor component as the main note vi
 **Variant Customizations:**
 
 The 'sidebar-note' variant (defined in `editorConfig.svelte.ts`) provides:
+
 - `marginBottom: '0'` instead of default `'25vh'` to prevent excess whitespace
 - Compact 8px scrollbars with auto overflow
 - 0.5rem content padding for comfortable editing
@@ -240,7 +248,7 @@ The 'sidebar-note' variant (defined in `editorConfig.svelte.ts`) provides:
 
 ### 1. Bidirectional Sync with Actual Notes
 
-**Decision:** Sidebar notes sync edits back to actual note files in the database.
+**Decision:** Sidebar notes sync edits back to actual note files in the database and react to external changes.
 
 **Rationale:**
 
@@ -249,13 +257,24 @@ The 'sidebar-note' variant (defined in `editorConfig.svelte.ts`) provides:
 - Content changes update the actual note via `updateNote()` API with debouncing
 - Maintains consistency between sidebar view and main editor view
 - Handles noteId updates when rename returns a new identifier
+- All components (NoteEditor, SidebarNotes) stay reactive to changes from any source
 
 **Implementation Details:**
+
 - Content changes debounced at 500ms to avoid excessive API calls during typing
 - Title changes only commit on blur/Enter to give users explicit control
 - Escape key cancels title edits and reverts to original value
 - Rename failures revert title to prevent inconsistent state
 - Sidebar state persists to app settings, actual note changes persist to vault database
+
+**Reactivity Architecture:**
+
+- When `sidebarNotesStore.updateNote()` changes a note, it calls `notesStore.notifyNoteUpdated(noteId)`
+- `NoteEditor` has a `$effect` watching `notesStore.noteUpdateCounter` that reloads when its note is updated
+- `SidebarNotes` has a `$effect` watching `notesStore.noteUpdateCounter` that reloads sidebar notes when updated externally
+- Both reload from database (single source of truth) to stay in sync
+- `syncToDatabase` parameter prevents infinite loops when reloading from external updates
+- When notes are renamed in NoteEditor, it updates `sidebarNotesStore.updateNoteId()` to keep references current
 
 ### 2. Always-Editable Title Inputs
 
@@ -269,6 +288,7 @@ The 'sidebar-note' variant (defined in `editorConfig.svelte.ts`) provides:
 - Transparent background blends in when not focused
 
 **UX Details:**
+
 - Subtle styling: transparent background, border appears on hover/focus
 - Commit on blur/Enter for deliberate changes
 - Escape cancels and reverts to original
