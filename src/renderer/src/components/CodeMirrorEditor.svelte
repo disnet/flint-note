@@ -365,8 +365,34 @@
         return;
       }
 
-      // If the popover is already visible (from hover or cursor), don't start a new timeout
-      // Just keep it visible by clearing the leave timeout above
+      // If the popover is already visible from hover, update its data and position immediately
+      if (actionPopoverVisible && actionPopoverIsFromHover) {
+        // Cancel any pending hover timeout
+        if (hoverTimeout) {
+          clearTimeout(hoverTimeout);
+          hoverTimeout = null;
+        }
+
+        // Update popover data and position immediately
+        actionPopoverIdentifier = data.identifier;
+        actionPopoverWikilinkData = {
+          identifier: data.identifier,
+          title: data.displayText,
+          exists: data.exists,
+          noteId: data.noteId
+        };
+        popoverFrom = data.from;
+        popoverTo = data.to;
+        popoverIdentifier = data.identifier;
+        popoverDisplayText = data.displayText;
+
+        const position = calculateActionPopoverPosition(data.x, data.y);
+        actionPopoverX = position.x;
+        actionPopoverY = position.y;
+        return;
+      }
+
+      // If visible from cursor position, don't interfere with it
       if (actionPopoverVisible) {
         return;
       }
