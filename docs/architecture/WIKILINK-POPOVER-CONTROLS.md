@@ -100,7 +100,7 @@ span.addEventListener('mouseenter', () => {
 
 The system prevents conflicts between cursor and mouse interactions:
 
-1. **Hover Ignore When Already Visible**: If the action popover is already visible (from cursor or previous hover), new hover events are ignored
+1. **Hover Data Update**: If the action popover is already visible from hover, moving to another wikilink immediately updates the popover data and position
 2. **Edit Popover Priority**: When the edit popover is visible, the action popover is completely disabled
 3. **Hover Flag Tracking**: `actionPopoverIsFromHover` tracks whether the popover was triggered by hover, preventing cursor polling from interfering
 
@@ -109,7 +109,18 @@ function handleWikilinkHover(data) {
   // Don't show action popover if edit popover is visible
   if (popoverVisible) return;
 
-  // If already visible, just clear leave timeout
+  // If the popover is already visible from hover, update its data immediately
+  if (actionPopoverVisible && actionPopoverIsFromHover) {
+    // Update popover data and position immediately
+    actionPopoverIdentifier = data.identifier;
+    actionPopoverWikilinkData = { /* ... */ };
+    const position = calculateActionPopoverPosition(data.x, data.y);
+    actionPopoverX = position.x;
+    actionPopoverY = position.y;
+    return;
+  }
+
+  // If visible from cursor position, don't interfere
   if (actionPopoverVisible) return;
 
   // Show with 300ms delay
@@ -142,36 +153,98 @@ This timeout is cleared if:
 
 ### Keyboard Handlers
 
-Located in `src/renderer/src/lib/wikilinks.svelte.ts`:
+The system uses a two-tier keyboard handling approach:
+
+#### 1. Hover Popover Handlers (High Precedence)
+
+Located in `src/renderer/src/stores/editorConfig.svelte.ts`, these handlers have high precedence and check if a hover-triggered popover is visible:
 
 ```typescript
-keymap.of([
-  {
-    key: 'Enter',
-    run: (view) => {
-      const selectedWikilink = view.state.field(selectedWikilinkField);
-      if (selectedWikilink) {
-        // Open the note
-        handler(selectedWikilink.noteId, selectedWikilink.title);
-        return true;
+Prec.high(
+  keymap.of([
+    {
+      key: 'Enter',
+      run: () => {
+        // Check if hover popover should handle it
+        if (onHoverPopoverEnter?.()) {
+          return true; // Consumed by hover popover
+        }
+        return false; // Let other handlers process it
       }
-      return false;
-    }
-  },
-  {
-    key: 'Alt-Enter',
-    run: (view) => {
-      const selectedWikilink = view.state.field(selectedWikilinkField);
-      if (selectedWikilink) {
-        // Open edit popover
-        editHandler();
-        return true;
+    },
+    {
+      key: 'Alt-Enter',
+      run: () => {
+        // Check if hover popover should handle it
+        if (onHoverPopoverAltEnter?.()) {
+          return true; // Consumed by hover popover
+        }
+        return false; // Let other handlers process it
       }
-      return false;
     }
-  }
-]);
+  ])
+);
 ```
+
+The handler functions in CodeMirrorEditor check if the action popover is visible from hover:
+
+```typescript
+function handleHoverPopoverEnter(): boolean {
+  if (actionPopoverVisible && actionPopoverIsFromHover) {
+    handleActionPopoverOpen();
+    return true; // Consumed the event
+  }
+  return false; // Not consumed
+}
+
+function handleHoverPopoverAltEnter(): boolean {
+  if (actionPopoverVisible && actionPopoverIsFromHover) {
+    handleActionPopoverEdit();
+    return true; // Consumed the event
+  }
+  return false; // Not consumed
+}
+```
+
+#### 2. Wikilink Selection Handlers (High Precedence)
+
+Located in `src/renderer/src/lib/wikilinks.svelte.ts`, these handlers work when the cursor is adjacent to a wikilink:
+
+```typescript
+Prec.high(
+  keymap.of([
+    {
+      key: 'Enter',
+      run: (view) => {
+        const selectedWikilink = view.state.field(selectedWikilinkField);
+        if (selectedWikilink) {
+          // Open the note
+          handler(selectedWikilink.noteId, selectedWikilink.title);
+          return true;
+        }
+        return false;
+      }
+    },
+    {
+      key: 'Alt-Enter',
+      run: (view) => {
+        const selectedWikilink = view.state.field(selectedWikilinkField);
+        if (selectedWikilink) {
+          // Open edit popover
+          editHandler();
+          return true;
+        }
+        return false;
+      }
+    }
+  ])
+);
+```
+
+**Handler Priority:**
+1. Hover popover handlers check first (when hovering over a wikilink without cursor adjacent)
+2. Wikilink selection handlers check second (when cursor is adjacent to a wikilink)
+3. Other default handlers process the key if neither consumes it
 
 ### Data Flow for Edit Action
 
@@ -266,3 +339,5 @@ Both popovers include:
 4. **Missing wikilink data**: Guards check for null/undefined before accessing data
 5. **Viewport boundaries**: Position calculation ensures popover stays within viewport
 6. **Focus management**: Edit popover checks if input has focus before auto-hiding
+7. **Quick hover between links**: When popover is visible from hover and user hovers over a different wikilink, data and position update immediately without hiding/reshowing
+8. **Keyboard shortcuts on hover**: Enter and Alt-Enter work when hovering over a wikilink, even if cursor is not adjacent to it

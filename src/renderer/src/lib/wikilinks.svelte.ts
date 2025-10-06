@@ -333,7 +333,9 @@ class WikilinkWidget extends WidgetType {
 
     // Determine class based on selection state and existence
     if (this.isSelected) {
-      span.className = 'wikilink wikilink-selected';
+      span.className = this.exists
+        ? 'wikilink wikilink-selected'
+        : 'wikilink wikilink-selected-broken';
     } else {
       span.className = this.exists
         ? 'wikilink wikilink-exists'

@@ -31,6 +31,8 @@ export interface EditorConfigOptions {
   onContentChange?: (content: string) => void;
   onCursorChange?: () => void;
   onEnterKey?: () => void;
+  onHoverPopoverEnter?: () => boolean;
+  onHoverPopoverAltEnter?: () => boolean;
   placeholder?: string;
   variant?: 'default' | 'daily-note' | 'backlink-context';
 }
@@ -236,6 +238,35 @@ export class EditorConfig {
       }
     });
 
+    // Create hover popover keyboard handlers with high precedence (checked before wikilinks)
+    const hoverPopoverKeymap =
+      this.options.onHoverPopoverEnter || this.options.onHoverPopoverAltEnter
+        ? Prec.high(
+            keymap.of([
+              {
+                key: 'Enter',
+                run: () => {
+                  // Check if hover popover should handle it
+                  if (this.options.onHoverPopoverEnter?.()) {
+                    return true; // Consumed by hover popover
+                  }
+                  return false; // Let other handlers process it
+                }
+              },
+              {
+                key: 'Alt-Enter',
+                run: () => {
+                  // Check if hover popover should handle it
+                  if (this.options.onHoverPopoverAltEnter?.()) {
+                    return true; // Consumed by hover popover
+                  }
+                  return false; // Let other handlers process it
+                }
+              }
+            ])
+          )
+        : null;
+
     // Create custom Enter key handler for backlink context with highest precedence
     const enterKeymap =
       this.options.variant === 'backlink-context' && this.options.onEnterKey
@@ -291,6 +322,8 @@ export class EditorConfig {
       EditorView.contentAttributes.of({ spellcheck: 'true' }),
       EditorView.editable.of(true),
       updateListener,
+      // Add hover popover keymap before wikilinks but after other handlers
+      ...(hoverPopoverKeymap ? [hoverPopoverKeymap] : []),
       // Add custom Enter key handler last for highest precedence
       ...(enterKeymap ? [enterKeymap] : [])
     ];

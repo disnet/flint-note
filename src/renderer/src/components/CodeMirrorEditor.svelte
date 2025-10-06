@@ -71,7 +71,9 @@
     placeholder,
     variant,
     onWikilinkHover: handleWikilinkHover,
-    onWikilinkEdit: handleActionPopoverEdit
+    onWikilinkEdit: handleActionPopoverEdit,
+    onHoverPopoverEnter: handleHoverPopoverEnter,
+    onHoverPopoverAltEnter: handleHoverPopoverAltEnter
   });
 
   const scrollAutoService = new ScrollAutoService(variant);
@@ -676,6 +678,24 @@
         leaveTimeout = null;
       }, 200);
     }
+  }
+
+  // Handle Enter key when hover popover is visible
+  function handleHoverPopoverEnter(): boolean {
+    if (actionPopoverVisible && actionPopoverIsFromHover) {
+      handleActionPopoverOpen();
+      return true; // Consumed the event
+    }
+    return false; // Not consumed
+  }
+
+  // Handle Alt-Enter key when hover popover is visible
+  function handleHoverPopoverAltEnter(): boolean {
+    if (actionPopoverVisible && actionPopoverIsFromHover) {
+      handleActionPopoverEdit();
+      return true; // Consumed the event
+    }
+    return false; // Not consumed
   }
 </script>
 

@@ -1,5 +1,9 @@
 # Project Log
 
+## Wikilink Popover Keyboard Shortcuts and Hover Switching - 2025-10-06
+
+- Fixed wikilink action popover to correctly update when hovering between different links and added keyboard shortcuts for hover-triggered popovers: when popover is visible from hovering link A and user hovers over link B, the popover now immediately updates its data and position instead of staying on link A; added high-precedence keyboard handlers in editorConfig.svelte.ts that enable Enter (open) and Alt-Enter (edit) to work on hover-triggered popovers even when cursor is not adjacent to the wikilink; two-tier handler priority ensures hover popover handlers check first, then wikilink selection handlers, then other defaults; updated architecture documentation in WIKILINK-POPOVER-CONTROLS.md to reflect new hover data update behavior and keyboard handling approach
+
 ## Auto-focus Title on New Note Creation - 2025-10-05
 
 - Enhanced new note creation to focus on title input instead of content: added focus() export to NoteTitle.svelte that selects title text, added focusTitle() export to EditorHeader.svelte that delegates to NoteTitle component, modified NoteEditor.focus() to check if note title is empty and focus title input if so (otherwise focus content editor as before), ensures better UX by guiding user to add title first when creating new untitled notes
