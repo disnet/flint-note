@@ -131,6 +131,7 @@ class SidebarNotesStore {
 
   /**
    * Update a note's title and/or content
+   * Both title and content changes sync back to the actual note in the database
    */
   async updateNote(
     noteId: string,
@@ -140,6 +141,9 @@ class SidebarNotesStore {
 
     const note = this.state.notes.find((n) => n.noteId === noteId);
     if (note) {
+      const oldTitle = note.title;
+
+      // Update the sidebar note copy
       if (updates.title !== undefined) {
         note.title = updates.title;
       }
@@ -148,6 +152,41 @@ class SidebarNotesStore {
       }
 
       await this.saveToStorage();
+
+      // Sync title changes back to the actual note (rename)
+      if (updates.title !== undefined && updates.title !== oldTitle) {
+        try {
+          const result = await window.api?.renameNote({
+            identifier: noteId,
+            newIdentifier: updates.title
+          });
+
+          // If rename was successful and returned a new ID, update our noteId
+          if (result?.new_id && result.new_id !== noteId) {
+            note.noteId = result.new_id;
+            await this.saveToStorage();
+          }
+        } catch (error) {
+          console.error('Failed to rename note in database:', error);
+          // Revert title change on error
+          note.title = oldTitle;
+          await this.saveToStorage();
+        }
+      }
+
+      // Sync content changes back to the actual note
+      if (updates.content !== undefined) {
+        try {
+          await window.api?.updateNote({
+            identifier: note.noteId, // Use potentially updated noteId
+            content: updates.content
+          });
+        } catch (error) {
+          console.error('Failed to update note content in database:', error);
+          // Note: We don't revert the sidebar note update on error
+          // This preserves the user's changes in the sidebar
+        }
+      }
     }
   }
 

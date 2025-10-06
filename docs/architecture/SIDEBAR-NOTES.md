@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Sidebar Notes feature allows users to pin notes to the right sidebar for quick reference while working on other content. Each sidebar note displays with an editable title, collapsible content area, and full CodeMirror editor support including wikilinks.
+The Sidebar Notes feature allows users to pin notes to the right sidebar for quick reference and editing while working on other content. Each sidebar note displays with an always-editable title input, collapsible content area, and full CodeMirror editor support including wikilinks. Edits to both title and content sync back to the actual note files.
 
 ## User Workflow
 
@@ -14,17 +14,23 @@ The Sidebar Notes feature allows users to pin notes to the right sidebar for qui
 2. **Managing Sidebar Notes**
    - Click the clipboard icon in the title bar to toggle the sidebar notes view
    - Each note shows a disclosure triangle to expand/collapse content
-   - Click the note title to edit it inline
+   - Title is always editable - click to focus and type
    - Click the X button to remove a note from the sidebar
 
 3. **Editing Sidebar Notes**
-   - Expanded notes show a full CodeMirrorEditor with all features:
-     - Wikilink support (type `[[` to create links)
-     - Hover previews on wikilinks
-     - Click to navigate to linked notes
-     - All standard editor extensions
-   - Changes auto-save to the sidebar notes store
-   - Edits do not affect the actual note files - sidebar notes are independent copies
+   - **Title Editing:**
+     - Title input is always visible and editable
+     - Press Enter or blur the input to commit changes (renames the actual note)
+     - Press Escape to cancel and revert to original title
+     - Changes sync to the actual note file via renameNote API
+   - **Content Editing:**
+     - Expanded notes show a full CodeMirrorEditor with all features:
+       - Wikilink support (type `[[` to create links)
+       - Hover previews on wikilinks
+       - Click to navigate to linked notes
+       - All standard editor extensions
+     - Changes auto-save with 500ms debounce
+     - Edits sync back to the actual note file via updateNote API
 
 ## Architecture
 
@@ -58,10 +64,11 @@ SidebarNotes component reactively updates
 
 **Key Features:**
 
-- Inline title editing (click to edit, Enter to save, Escape to cancel)
+- Always-editable title inputs with commit-on-blur/Enter and cancel-on-Escape
 - Disclosure triangles for expand/collapse
 - Remove buttons to delete notes from sidebar
-- Full CodeMirror integration with wikilinks
+- Full CodeMirror integration with wikilinks using 'sidebar-note' variant
+- Content-hugging containers (no min-height, only max-height of 400px)
 
 #### **NoteActionBar.svelte**
 
@@ -129,15 +136,19 @@ interface SidebarNote {
 
 - `addNote(noteId, title, content)` - Add note to sidebar (no-op if exists)
 - `removeNote(noteId)` - Remove note from sidebar
-- `updateNote(noteId, updates)` - Update title and/or content
+- `updateNote(noteId, updates)` - Update title and/or content with sync to actual note:
+  - Title changes call `renameNote()` API and update `noteId` if changed
+  - Content changes call `updateNote()` API with debounced updates
+  - Reverts title on rename failure to prevent inconsistent state
 - `toggleExpanded(noteId)` - Toggle disclosure state
 - `isInSidebar(noteId)` - Check if note exists in sidebar
 
 **Persistence:**
 
-- Stores data in app settings file via `window.api?.saveAppSettings()`
+- Sidebar state stored in app settings file via `window.api?.saveAppSettings()`
 - Loads on initialization via `window.api?.loadAppSettings()`
 - Uses `$state.snapshot()` for IPC serialization
+- Actual note changes sync to database via `renameNote()` and `updateNote()` APIs
 
 #### **sidebarState.svelte.ts**
 
@@ -188,7 +199,7 @@ Three-button layout for right sidebar modes:
 
 ### CodeMirror Configuration
 
-Sidebar note editors use the same CodeMirrorEditor component as the main note view, ensuring feature parity:
+Sidebar note editors use the same CodeMirrorEditor component as the main note view with a specialized 'sidebar-note' variant:
 
 **Enabled Features:**
 
@@ -198,6 +209,14 @@ Sidebar note editors use the same CodeMirrorEditor component as the main note vi
 - Wikilink autocomplete with `[[`
 - All standard editor extensions
 
+**Variant Customizations:**
+
+The 'sidebar-note' variant (defined in `editorConfig.svelte.ts`) provides:
+- `marginBottom: '0'` instead of default `'25vh'` to prevent excess whitespace
+- Compact 8px scrollbars with auto overflow
+- 0.5rem content padding for comfortable editing
+- Scroll auto-service with tighter margins (80px bottom, 40px top)
+
 **Implementation:**
 
 ```svelte
@@ -206,6 +225,7 @@ Sidebar note editors use the same CodeMirrorEditor component as the main note vi
   onContentChange={(content) => handleContentChange(note.noteId, content)}
   onWikilinkClick={handleWikilinkClick}
   placeholder="Note content..."
+  variant="sidebar-note"
 />
 ```
 
@@ -218,20 +238,53 @@ Sidebar note editors use the same CodeMirrorEditor component as the main note vi
 
 ## Important Design Decisions
 
-### 1. Independent Content Snapshots
+### 1. Bidirectional Sync with Actual Notes
 
-**Decision:** Sidebar notes store independent copies of note content, not live references.
+**Decision:** Sidebar notes sync edits back to actual note files in the database.
 
 **Rationale:**
 
-- Allows users to preserve specific versions for reference
-- Prevents unintended updates when original notes change
-- Simpler state management without reactivity to source notes
-- Clear separation of concerns
+- Users expect edits to persist - sidebar is an alternative editing interface
+- Title changes rename the actual note via `renameNote()` API
+- Content changes update the actual note via `updateNote()` API with debouncing
+- Maintains consistency between sidebar view and main editor view
+- Handles noteId updates when rename returns a new identifier
 
-**Trade-off:** Changes to original notes don't reflect in sidebar copies. Users must manually update or re-add notes if they want fresh content.
+**Implementation Details:**
+- Content changes debounced at 500ms to avoid excessive API calls during typing
+- Title changes only commit on blur/Enter to give users explicit control
+- Escape key cancels title edits and reverts to original value
+- Rename failures revert title to prevent inconsistent state
+- Sidebar state persists to app settings, actual note changes persist to vault database
 
-### 2. No Duplicate Prevention Beyond noteId
+### 2. Always-Editable Title Inputs
+
+**Decision:** Title inputs are always visible and editable, not click-to-edit.
+
+**Rationale:**
+
+- More intuitive - users can see it's editable without clicking
+- Simpler interaction model - no mode switching
+- Consistent with modern web UX patterns
+- Transparent background blends in when not focused
+
+**UX Details:**
+- Subtle styling: transparent background, border appears on hover/focus
+- Commit on blur/Enter for deliberate changes
+- Escape cancels and reverts to original
+
+### 3. Content-Hugging Containers
+
+**Decision:** Note containers have no min-height, only max-height (400px).
+
+**Rationale:**
+
+- Efficient use of sidebar space
+- Single-line notes don't waste vertical space
+- Users can see more notes at once
+- Max-height prevents extremely long notes from dominating the sidebar
+
+### 4. No Duplicate Prevention Beyond noteId
 
 **Decision:** Can only add each note once (checked by noteId), but no duplicate content detection.
 
@@ -241,7 +294,7 @@ Sidebar note editors use the same CodeMirrorEditor component as the main note vi
 - Users understand "one copy per note"
 - Prevents infinite additions of same note
 
-### 3. Persistent Storage in App Settings
+### 5. Persistent Storage in App Settings
 
 **Decision:** Store sidebar notes in app settings file alongside other UI state.
 
@@ -252,45 +305,46 @@ Sidebar note editors use the same CodeMirrorEditor component as the main note vi
 - No database schema changes needed
 - App-specific data, not vault-specific
 
-### 4. Full Editor Experience
+### 6. Full Editor Experience with Variant
 
-**Decision:** Use complete CodeMirrorEditor with all extensions, not a simplified textarea.
+**Decision:** Use complete CodeMirrorEditor with all extensions via 'sidebar-note' variant.
 
 **Rationale:**
 
 - Consistency with main editing experience
 - Wikilinks are essential for note-taking workflow
 - Users expect same editing capabilities everywhere
-- Minimal additional complexity since component is reusable
+- Variant system allows customization without code duplication
+- Specialized theme (no bottom margin, compact scrollbars) optimized for sidebar context
 
 ## Future Enhancements
 
 ### Potential Features
 
-1. **Sync with Source Notes**
-   - Option to keep sidebar notes in sync with original
-   - Visual indicator when source note has changed
-   - "Refresh from source" button
-
-2. **Note Organization**
+1. **Note Organization**
    - Drag-to-reorder sidebar notes
    - Group notes into categories/sections
    - Search/filter sidebar notes
 
-3. **Enhanced Editing**
+2. **Enhanced Editing**
    - Resize individual note editors
    - Split view to see multiple sidebar notes
    - Rich text formatting
 
-4. **Collaboration**
+3. **Collaboration**
    - Share sidebar note collections
    - Export/import sidebar configurations
    - Team note templates
 
-5. **Smart Features**
+4. **Smart Features**
    - Auto-add related notes based on wikilinks
    - Recently edited notes quick-add
    - Workspace-specific sidebar configurations
+
+5. **Conflict Resolution**
+   - Visual indicator when underlying note changes externally
+   - Three-way merge options for conflicts
+   - "Reload from source" button to discard sidebar changes
 
 ## Testing Considerations
 

@@ -3,8 +3,11 @@
   import { wikilinkService } from '../services/wikilinkService.svelte';
   import CodeMirrorEditor from './CodeMirrorEditor.svelte';
 
-  let editingTitleId = $state<string | null>(null);
-  let editedTitle = $state('');
+  // Debounce timers for content updates
+  const contentDebounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+  // Track original titles for cancel/revert
+  const originalTitles = new Map<string, string>();
 
   function handleDisclosureToggle(noteId: string): void {
     sidebarNotesStore.toggleExpanded(noteId);
@@ -15,33 +18,48 @@
   }
 
   function handleContentChange(noteId: string, content: string): void {
-    sidebarNotesStore.updateNote(noteId, { content });
-  }
-
-  function startEditingTitle(noteId: string, currentTitle: string): void {
-    editingTitleId = noteId;
-    editedTitle = currentTitle;
-  }
-
-  function cancelEditingTitle(): void {
-    editingTitleId = null;
-    editedTitle = '';
-  }
-
-  async function saveTitle(noteId: string): Promise<void> {
-    if (editedTitle.trim()) {
-      await sidebarNotesStore.updateNote(noteId, { title: editedTitle });
+    // Clear existing timer for this note
+    const existingTimer = contentDebounceTimers.get(noteId);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
     }
-    cancelEditingTitle();
+
+    // Set new timer - update after 500ms of no typing
+    const timer = setTimeout(() => {
+      sidebarNotesStore.updateNote(noteId, { content });
+      contentDebounceTimers.delete(noteId);
+    }, 500);
+
+    contentDebounceTimers.set(noteId, timer);
+  }
+
+  function handleTitleFocus(noteId: string, currentTitle: string): void {
+    // Save original title when editing starts
+    originalTitles.set(noteId, currentTitle);
+  }
+
+  function handleTitleBlur(noteId: string, newTitle: string): void {
+    const originalTitle = originalTitles.get(noteId);
+    if (originalTitle !== undefined && newTitle !== originalTitle) {
+      sidebarNotesStore.updateNote(noteId, { title: newTitle });
+    }
+    originalTitles.delete(noteId);
   }
 
   function handleTitleKeyDown(event: KeyboardEvent, noteId: string): void {
+    const target = event.target as HTMLInputElement;
+
     if (event.key === 'Enter') {
       event.preventDefault();
-      saveTitle(noteId);
+      target.blur(); // Trigger blur which will save
     } else if (event.key === 'Escape') {
       event.preventDefault();
-      cancelEditingTitle();
+      const originalTitle = originalTitles.get(noteId);
+      if (originalTitle !== undefined) {
+        target.value = originalTitle; // Revert to original
+      }
+      originalTitles.delete(noteId);
+      target.blur();
     }
   }
 
@@ -89,24 +107,15 @@
               </svg>
             </button>
 
-            {#if editingTitleId === note.noteId}
-              <!-- svelte-ignore a11y_autofocus -->
-              <input
-                type="text"
-                class="title-input"
-                bind:value={editedTitle}
-                onkeydown={(e) => handleTitleKeyDown(e, note.noteId)}
-                onblur={() => saveTitle(note.noteId)}
-                autofocus
-              />
-            {:else}
-              <button
-                class="note-title"
-                onclick={() => startEditingTitle(note.noteId, note.title)}
-              >
-                {note.title || 'Untitled'}
-              </button>
-            {/if}
+            <input
+              type="text"
+              class="title-input"
+              value={note.title || ''}
+              onfocus={(e) => handleTitleFocus(note.noteId, e.currentTarget.value)}
+              onblur={(e) => handleTitleBlur(note.noteId, e.currentTarget.value)}
+              onkeydown={(e) => handleTitleKeyDown(e, note.noteId)}
+              placeholder="Untitled"
+            />
 
             <button
               class="remove-button"
@@ -224,38 +233,32 @@
     transform: rotate(90deg);
   }
 
-  .note-title {
+  .title-input {
     flex: 1;
-    text-align: left;
-    padding: 0.25rem;
-    border: none;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid transparent;
+    border-radius: 0.25rem;
     background: transparent;
     color: var(--text-primary);
     font-size: 0.9rem;
     font-weight: 500;
-    cursor: pointer;
-    border-radius: 0.25rem;
-    transition: background-color 0.2s ease;
+    transition: all 0.2s ease;
   }
 
-  .note-title:hover {
+  .title-input:hover {
     background: var(--bg-tertiary);
-  }
-
-  .title-input {
-    flex: 1;
-    padding: 0.25rem;
-    border: 1px solid var(--accent-primary);
-    border-radius: 0.25rem;
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    font-size: 0.9rem;
-    font-weight: 500;
+    border-color: var(--border-light);
   }
 
   .title-input:focus {
     outline: none;
+    background: var(--bg-primary);
     border-color: var(--accent-primary);
+  }
+
+  .title-input::placeholder {
+    color: var(--text-tertiary);
+    font-style: italic;
   }
 
   .remove-button {
@@ -278,7 +281,12 @@
 
   .note-content {
     border-top: 1px solid var(--border-light);
-    min-height: 150px;
     max-height: 400px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .note-content :global(.editor-content) {
+    min-height: 0;
   }
 </style>

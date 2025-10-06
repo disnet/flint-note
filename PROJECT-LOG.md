@@ -1,5 +1,9 @@
 # Project Log
 
+## Sidebar Notes Improvements - 2025-10-06
+
+- Made sidebar note containers hug their contents and improved title editing UX: removed min-height from note containers so single-line notes don't take up excessive space, changed titles from click-to-edit to always-editable inputs with subtle styling (transparent background, shows border on hover/focus), added bidirectional sync so both title and content edits in sidebar update the actual notes, content changes debounced at 500ms while title changes only commit on blur/Enter key, Escape key reverts title to original value and blurs input, title changes rename the underlying note file via renameNote API and update noteId if rename returns new identifier, reverts title on rename failure to prevent inconsistent state
+
 ## Sidebar Notes Editor Variant - 2025-10-06
 
 - Added dedicated 'sidebar-note' variant to CodeMirror configuration to fix bottom padding issue in sidebar notes: created new getSidebarNoteTheme() in editorConfig.svelte.ts with marginBottom: '0' to prevent 25vh scroll padding from default variant, added 'sidebar-note' to variant type union across EditorConfigOptions, CodeMirrorEditor props, and ScrollAutoService, configured sidebar-note theme with compact scrollbars and auto overflow instead of visible, SidebarNotes.svelte now passes variant="sidebar-note" prop to CodeMirrorEditor, properly styled editors that don't extend into adjacent notes
