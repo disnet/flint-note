@@ -14,23 +14,18 @@ export const wikilinkTheme = EditorView.theme({
     fontSize: 'inherit',
     fontFamily: 'inherit',
     fontWeight: '600',
-    textDecoration: 'none',
-    transition: 'all 0.2s ease',
-    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
+    textDecoration: 'underline',
+    transition: 'all 0.2s ease'
   },
 
   '.wikilink-exists': {
-    background: 'rgba(255, 255, 255, 0.9)',
-    color: '#1a1a1a',
-    borderColor: 'rgba(255, 255, 255, 0.3)'
+    background: 'rgba(0, 0, 0, 0.03)',
+    color: '#1a1a1a'
   },
 
   '.wikilink-exists:hover': {
-    background: 'rgba(255, 255, 255, 1)',
-    color: '#0066cc',
-    borderColor: 'rgba(255, 255, 255, 0.5)',
-    transform: 'translateY(-1px)',
-    boxShadow: '0 2px 6px rgba(0, 0, 0, 0.3)'
+    background: 'rgba(0, 0, 0, 0.06)',
+    color: '#0066cc'
   },
 
   '.wikilink-selected': {
@@ -38,51 +33,35 @@ export const wikilinkTheme = EditorView.theme({
   },
 
   '.wikilink-broken': {
-    background: 'rgba(255, 255, 255, 0.8)',
-    color: '#d73a49',
-    borderColor: 'rgba(215, 58, 73, 0.3)'
+    background: 'rgba(215, 58, 73, 0.08)',
+    color: '#d73a49'
   },
 
   '.wikilink-broken:hover': {
-    background: 'rgba(255, 255, 255, 1)',
-    color: '#cb2431',
-    borderColor: 'rgba(215, 58, 73, 0.5)',
-    transform: 'translateY(-1px)',
-    boxShadow: '0 2px 6px rgba(0, 0, 0, 0.3)'
+    background: 'rgba(215, 58, 73, 0.12)',
+    color: '#cb2431'
   },
 
   // Dark mode using CSS media queries
   '@media (prefers-color-scheme: dark)': {
-    '.wikilink': {
-      boxShadow: '0 1px 2px rgba(0, 0, 0, 0.4)'
-    },
-
     '.wikilink-exists': {
-      background: 'rgba(255, 255, 255, 0.15)',
-      color: '#ffffff',
-      borderColor: 'rgba(255, 255, 255, 0.2)'
+      background: 'rgba(255, 255, 255, 0.06)',
+      color: '#ffffff'
     },
 
     '.wikilink-exists:hover': {
-      background: 'rgba(255, 255, 255, 0.25)',
-      color: '#ffffff',
-      borderColor: 'rgba(255, 255, 255, 0.3)',
-      transform: 'translateY(-1px)',
-      boxShadow: '0 2px 6px rgba(0, 0, 0, 0.5)'
+      background: 'rgba(255, 255, 255, 0.12)',
+      color: '#ffffff'
     },
 
     '.wikilink-broken': {
-      background: 'rgba(255, 255, 255, 0.12)',
-      color: '#f85149',
-      borderColor: 'rgba(248, 81, 73, 0.2)'
+      background: 'rgba(248, 81, 73, 0.12)',
+      color: '#f85149'
     },
 
     '.wikilink-broken:hover': {
-      background: 'rgba(255, 255, 255, 0.2)',
-      color: '#ff7b72',
-      borderColor: 'rgba(248, 81, 73, 0.3)',
-      transform: 'translateY(-1px)',
-      boxShadow: '0 2px 6px rgba(0, 0, 0, 0.5)'
+      background: 'rgba(248, 81, 73, 0.18)',
+      color: '#ff7b72'
     },
 
     '.wikilink-selected': {
