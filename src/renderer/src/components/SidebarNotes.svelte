@@ -50,6 +50,43 @@
     }
   });
 
+  // React to external note renames (e.g., from NoteEditor)
+  $effect(() => {
+    const renameCounter = notesStore.noteRenameCounter;
+    const oldId = notesStore.lastRenamedNoteOldId;
+    const newId = notesStore.lastRenamedNoteNewId;
+
+    // Skip initial load (when counter is 0)
+    if (renameCounter > 0 && oldId && newId) {
+      // Check if the old ID is in our sidebar
+      const sidebarNote = sidebarNotesStore.notes.find((n) => n.noteId === oldId);
+      if (sidebarNote) {
+        // The noteId has already been updated by sidebarNotesStore.updateNoteId()
+        // Now we need to reload the content with the new ID
+        setTimeout(async () => {
+          try {
+            const noteService = getChatService();
+            const updatedNote = await noteService.getNote({ identifier: newId });
+            if (updatedNote) {
+              // Update both title and content to stay in sync
+              // Pass syncToDatabase=false to prevent infinite loop
+              await sidebarNotesStore.updateNote(
+                newId, // Use new ID
+                {
+                  title: updatedNote.title || sidebarNote.title,
+                  content: updatedNote.content || ''
+                },
+                false // Don't sync back to database - we're already in sync
+              );
+            }
+          } catch (error) {
+            console.warn('Failed to reload sidebar note after external rename:', error);
+          }
+        }, 100);
+      }
+    }
+  });
+
   function handleDisclosureToggle(noteId: string): void {
     sidebarNotesStore.toggleExpanded(noteId);
   }

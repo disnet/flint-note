@@ -175,8 +175,8 @@ class SidebarNotesStore {
             note.noteId = result.new_id;
             await this.saveToStorage();
 
-            // Notify other components (like NoteEditor) about the update
-            notesStore.notifyNoteUpdated(result.new_id);
+            // Notify other components (like NoteEditor) about the rename
+            notesStore.notifyNoteRenamed(noteId, result.new_id);
           } else {
             // Title changed but noteId stayed the same
             notesStore.notifyNoteUpdated(noteId);

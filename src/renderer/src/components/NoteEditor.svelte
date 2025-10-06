@@ -118,6 +118,38 @@
     }
   });
 
+  // Watch for note renames and update note reference if this note was renamed
+  $effect(() => {
+    const renameCounter = notesStore.noteRenameCounter;
+    const oldId = notesStore.lastRenamedNoteOldId;
+    const newId = notesStore.lastRenamedNoteNewId;
+
+    // Skip initial load (when counter is 0) and only update if current note was renamed
+    if (renameCounter > 0 && oldId === note?.id && newId) {
+      setTimeout(async () => {
+        try {
+          // Fetch the updated note with the new ID
+          const noteService = getChatService();
+          const updatedNote = await noteService.getNote({ identifier: newId });
+
+          if (updatedNote) {
+            // Update the note reference with new ID and title
+            note = {
+              ...note,
+              id: newId,
+              title: updatedNote.title || note.title
+            };
+
+            // Reload the content
+            await loadNote(note);
+          }
+        } catch (loadError) {
+          console.warn('Failed to reload note after external rename:', loadError);
+        }
+      }, 100);
+    }
+  });
+
   async function loadNote(note: NoteMetadata): Promise<void> {
     try {
       error = null;
@@ -235,6 +267,8 @@
         // Update sidebar notes if this note is in the sidebar
         if (sidebarNotesStore.isInSidebar(oldId) && newId !== oldId) {
           await sidebarNotesStore.updateNoteId(oldId, newId);
+          // Notify about the rename so sidebar can reload content
+          notesStore.notifyNoteRenamed(oldId, newId);
         }
 
         // Update the local note reference
