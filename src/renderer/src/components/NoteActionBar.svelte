@@ -2,11 +2,20 @@
   interface Props {
     isPinned: boolean;
     metadataExpanded: boolean;
+    isInSidebar: boolean;
     onPinToggle: () => Promise<void>;
     onMetadataToggle: () => void;
+    onAddToSidebar: () => Promise<void>;
   }
 
-  let { isPinned, metadataExpanded, onPinToggle, onMetadataToggle }: Props = $props();
+  let {
+    isPinned,
+    metadataExpanded,
+    isInSidebar,
+    onPinToggle,
+    onMetadataToggle,
+    onAddToSidebar
+  }: Props = $props();
 </script>
 
 <div class="note-action-bar">
@@ -27,6 +36,16 @@
     title={metadataExpanded ? 'Hide metadata' : 'Show metadata'}
   >
     {metadataExpanded ? '▼ Hide Metadata' : '▶ Show Metadata'}
+  </button>
+  <button
+    class="action-button"
+    class:active={isInSidebar}
+    onclick={onAddToSidebar}
+    type="button"
+    title={isInSidebar ? 'Already in sidebar' : 'Add to sidebar'}
+    disabled={isInSidebar}
+  >
+    {isInSidebar ? '📋 In Sidebar' : '📋 Add to Sidebar'}
   </button>
 </div>
 
@@ -65,5 +84,10 @@
 
   .action-button.active:hover {
     filter: brightness(0.9);
+  }
+
+  .action-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 </style>

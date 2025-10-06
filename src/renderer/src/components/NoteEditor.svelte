@@ -8,6 +8,7 @@
   import { pinnedNotesStore } from '../services/pinnedStore.svelte.js';
   import { temporaryTabsStore } from '../stores/temporaryTabsStore.svelte.js';
   import { AutoSave } from '../stores/autoSave.svelte.js';
+  import { sidebarNotesStore } from '../stores/sidebarNotesStore.svelte.js';
   import {
     CursorPositionManager,
     type CursorPosition
@@ -365,6 +366,12 @@
     await pinnedNotesStore.togglePin(note.id);
   }
 
+  async function handleAddToSidebar(): Promise<void> {
+    if (!noteData) return;
+
+    await sidebarNotesStore.addNote(note.id, note.title, noteContent);
+  }
+
   async function handleBacklinkSelect(
     selectedNote: NoteMetadata,
     lineNumber?: number
@@ -423,8 +430,10 @@
 
   <NoteActionBar
     isPinned={pinnedNotesStore.isPinned(note.id)}
+    isInSidebar={sidebarNotesStore.isInSidebar(note.id)}
     {metadataExpanded}
     onPinToggle={handlePinToggle}
+    onAddToSidebar={handleAddToSidebar}
     onMetadataToggle={toggleMetadata}
   />
 

@@ -1,6 +1,7 @@
 <script lang="ts">
   import AIAssistant from './AIAssistant.svelte';
   import ThreadList from './ThreadList.svelte';
+  import SidebarNotes from './SidebarNotes.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
   import type { Message } from '../services/types';
 
@@ -28,6 +29,10 @@
             sidebarState.setRightSidebarMode('ai');
           }}
         />
+      </div>
+    {:else if sidebarState.rightSidebar.mode === 'notes'}
+      <div class="notes-mode">
+        <SidebarNotes />
       </div>
     {/if}
   </div>
@@ -73,6 +78,14 @@
   }
 
   .threads-mode {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .notes-mode {
     flex: 1;
     min-height: 0;
     overflow: hidden;

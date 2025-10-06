@@ -489,7 +489,7 @@
     sidebarState.toggleLeftSidebar();
   }
 
-  function setRightSidebarMode(mode: 'ai' | 'threads'): void {
+  function setRightSidebarMode(mode: 'ai' | 'threads' | 'notes'): void {
     // If clicking the same mode that's already active and sidebar is visible, toggle the sidebar
     if (sidebarState.rightSidebar.visible && sidebarState.rightSidebar.mode === mode) {
       sidebarState.toggleRightSidebar();
@@ -674,7 +674,7 @@
               </svg>
             </button>
             <button
-              class="pillbox-btn pillbox-btn-right"
+              class="pillbox-btn pillbox-btn-middle"
               class:active={sidebarState.rightSidebar.visible &&
                 sidebarState.rightSidebar.mode === 'threads'}
               onclick={() => setRightSidebarMode('threads')}
@@ -692,6 +692,27 @@
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
                 ></path>
                 <path d="M13 8l-2 2-2-2"></path>
+              </svg>
+            </button>
+            <button
+              class="pillbox-btn pillbox-btn-right"
+              class:active={sidebarState.rightSidebar.visible &&
+                sidebarState.rightSidebar.mode === 'notes'}
+              onclick={() => setRightSidebarMode('notes')}
+              aria-label="Sidebar Notes"
+              title="Sidebar Notes"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                ></path>
               </svg>
             </button>
           </div>
