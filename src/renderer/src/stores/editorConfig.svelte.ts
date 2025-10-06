@@ -16,6 +16,7 @@ import { markdownListStyling, listStylingTheme } from '../lib/markdownListStylin
 import {
   wikilinksExtension,
   type WikilinkHoverHandler,
+  type WikilinkEditHandler,
   getSelectedWikilink
 } from '../lib/wikilinks.svelte.js';
 
@@ -26,6 +27,7 @@ export interface EditorConfigOptions {
     shouldCreate?: boolean
   ) => Promise<void>;
   onWikilinkHover?: WikilinkHoverHandler;
+  onWikilinkEdit?: WikilinkEditHandler;
   onContentChange?: (content: string) => void;
   onCursorChange?: () => void;
   onEnterKey?: () => void;
@@ -278,7 +280,13 @@ export class EditorConfig {
       markdownListStyling,
       listStylingTheme,
       ...(this.options.onWikilinkClick
-        ? [wikilinksExtension(this.options.onWikilinkClick, this.options.onWikilinkHover)]
+        ? [
+            wikilinksExtension(
+              this.options.onWikilinkClick,
+              this.options.onWikilinkHover,
+              this.options.onWikilinkEdit
+            )
+          ]
         : []),
       EditorView.contentAttributes.of({ spellcheck: 'true' }),
       EditorView.editable.of(true),

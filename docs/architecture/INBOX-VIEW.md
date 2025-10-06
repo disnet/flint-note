@@ -16,6 +16,7 @@ The Inbox View is a new system view in Flint GUI that provides users with a cent
 ### Design Philosophy
 
 The Inbox View follows the GTD (Getting Things Done) methodology where:
+
 - Capture should be effortless and fast
 - Processing (reviewing and deciding on action) is a separate step from capture
 - The inbox serves as a temporary holding area, not a permanent storage location
@@ -44,6 +45,7 @@ CREATE TABLE IF NOT EXISTS processed_notes (
 - **Unique constraint**: Prevents duplicate processing records for the same note
 
 **Index:**
+
 ```sql
 CREATE INDEX IF NOT EXISTS idx_processed_notes_note_id ON processed_notes(note_id)
 ```
@@ -59,6 +61,7 @@ This index enables efficient lookups when filtering unprocessed notes.
 **Purpose**: Retrieve notes that haven't been marked as processed
 
 **Algorithm**:
+
 ```typescript
 1. Calculate date threshold (current date - daysBack)
 2. Query notes table with LEFT JOIN to processed_notes
@@ -70,6 +73,7 @@ This index enables efficient lookups when filtering unprocessed notes.
 ```
 
 **Parameters**:
+
 - `vaultId: string` - Vault to query
 - `daysBack: number = 7` - How many days back to look (default: 7)
 
@@ -82,6 +86,7 @@ This index enables efficient lookups when filtering unprocessed notes.
 **Purpose**: Mark a note as processed, removing it from inbox
 
 **Algorithm**:
+
 ```typescript
 1. Get database connection for vault
 2. INSERT OR IGNORE into processed_notes (note_id, processed_at)
@@ -89,6 +94,7 @@ This index enables efficient lookups when filtering unprocessed notes.
 ```
 
 **Parameters**:
+
 - `noteId: string` - Note to mark as processed
 - `vaultId: string` - Vault containing the note
 
@@ -125,15 +131,11 @@ markNoteAsProcessed: (params: { noteId: string; vaultId: string }) =>
 **TypeScript Definitions** (`src/renderer/src/env.d.ts`):
 
 ```typescript
-getRecentUnprocessedNotes: (params: {
-  vaultId: string;
-  daysBack?: number;
-}) => Promise<Array<{ id: string; title: string; type: string; created: string }>>;
+getRecentUnprocessedNotes: (params: { vaultId: string; daysBack?: number }) =>
+  Promise<Array<{ id: string; title: string; type: string; created: string }>>;
 
-markNoteAsProcessed: (params: {
-  noteId: string;
-  vaultId: string;
-}) => Promise<{ success: boolean }>;
+markNoteAsProcessed: (params: { noteId: string; vaultId: string }) =>
+  Promise<{ success: boolean }>;
 ```
 
 ### Frontend State Management
@@ -155,10 +157,10 @@ class InboxStore {
     error: string | null;
   }>();
 
-  async loadInboxNotes(vaultId: string, daysBack?: number): Promise<void>
-  async markAsProcessed(noteId: string, vaultId: string): Promise<boolean>
-  async refresh(vaultId: string): Promise<void>
-  clear(): void
+  async loadInboxNotes(vaultId: string, daysBack?: number): Promise<void>;
+  async markAsProcessed(noteId: string, vaultId: string): Promise<boolean>;
+  async refresh(vaultId: string): Promise<void>;
+  clear(): void;
 }
 ```
 
@@ -176,6 +178,7 @@ class InboxStore {
 **Location**: `src/renderer/src/components/InboxView.svelte`
 
 **Layout Structure**:
+
 ```
 ┌─────────────────────────────────┐
 │ 📥 Inbox                   [⋯]  │
@@ -196,6 +199,7 @@ class InboxStore {
 ```
 
 **Component Props**:
+
 ```typescript
 interface Props {
   onNoteSelect?: (note: NoteMetadata) => void;
@@ -240,12 +244,14 @@ async function loadInboxData() {
 **User Interactions**:
 
 1. **Create Note**:
+
    ```
    User types title → Presses Enter → Note created →
    Notes store refreshed → Inbox refreshed → Note opened in editor → Input cleared
    ```
 
 2. **Process Note**:
+
    ```
    User clicks ✓ → Mark as processed API call →
    Success → Note removed from local state → UI updates instantly
@@ -260,11 +266,13 @@ async function loadInboxData() {
 #### SystemViews Integration
 
 **Updated Type Definitions**:
+
 ```typescript
 type SystemView = 'inbox' | 'daily' | 'notes' | 'settings' | null;
 ```
 
 **Inbox Button** (added to SystemViews.svelte):
+
 ```svelte
 <button class="nav-item" class:active={activeSystemView === 'inbox'}>
   <svg><!-- Inbox icon --></svg>
@@ -279,6 +287,7 @@ type SystemView = 'inbox' | 'daily' | 'notes' | 'settings' | null;
 #### MainView Integration
 
 **Conditional Rendering**:
+
 ```svelte
 {#if activeSystemView === 'inbox'}
   <div class="system-view-container">
@@ -298,6 +307,7 @@ type SystemView = 'inbox' | 'daily' | 'notes' | 'settings' | null;
 **User Story**: As a user, I want to quickly capture a thought without interrupting my workflow.
 
 **Steps**:
+
 1. User clicks "Inbox" in left sidebar (or it's already active)
 2. User types note title in quick-capture input
 3. User presses Enter
@@ -306,6 +316,7 @@ type SystemView = 'inbox' | 'daily' | 'notes' | 'settings' | null;
 6. Note appears in inbox list for later processing
 
 **Design Decisions**:
+
 - Enter key submission (no button needed) reduces friction
 - Auto-open after creation maintains user context
 - Default note type ('note') chosen for simplicity
@@ -316,6 +327,7 @@ type SystemView = 'inbox' | 'daily' | 'notes' | 'settings' | null;
 **User Story**: As a user, I want to review my recently created notes and mark them as processed.
 
 **Steps**:
+
 1. User opens Inbox view
 2. User sees list of unprocessed notes (last 7 days)
 3. User clicks note title to review content
@@ -324,6 +336,7 @@ type SystemView = 'inbox' | 'daily' | 'notes' | 'settings' | null;
 6. User continues to next note
 
 **Design Decisions**:
+
 - 7-day window balances recency with practicality
 - Checkmark icon (✓) universally understood for completion
 - Immediate UI update provides instant feedback
@@ -334,11 +347,13 @@ type SystemView = 'inbox' | 'daily' | 'notes' | 'settings' | null;
 **User Story**: As a user, I want my inbox to automatically clean itself up over time.
 
 **Steps**:
+
 1. Notes older than 7 days automatically stop appearing in inbox
 2. Deleted notes are automatically removed from processed_notes table (CASCADE)
 3. User doesn't need to manually manage the inbox
 
 **Design Decisions**:
+
 - Time-based automatic removal (7 days) prevents inbox bloat
 - Database CASCADE ensures no orphaned processing records
 - No manual "clear all" needed (reduces UI complexity)
@@ -350,6 +365,7 @@ type SystemView = 'inbox' | 'daily' | 'notes' | 'settings' | null;
 **Decision**: Store processing state in separate `processed_notes` table rather than as note metadata.
 
 **Rationale**:
+
 - **Separation of concerns**: Processing is a UI/workflow concern, not intrinsic to the note
 - **Performance**: Indexed table enables fast LEFT JOIN queries
 - **Simplicity**: No frontmatter parsing or metadata updates needed
@@ -362,6 +378,7 @@ type SystemView = 'inbox' | 'daily' | 'notes' | 'settings' | null;
 **Decision**: Only show notes from last 7 days in inbox.
 
 **Rationale**:
+
 - Balances recency with practical review timeframe
 - Prevents inbox from becoming overwhelming
 - Older notes likely already organized/reviewed
@@ -374,6 +391,7 @@ type SystemView = 'inbox' | 'daily' | 'notes' | 'settings' | null;
 **Decision**: Quick-capture input always creates notes of type 'note'.
 
 **Rationale**:
+
 - Simplifies UI (no type selector in quick-capture)
 - 'note' is the most generic, versatile type
 - Users can change type later if needed
@@ -386,6 +404,7 @@ type SystemView = 'inbox' | 'daily' | 'notes' | 'settings' | null;
 **Decision**: Marking a note as processed is immediate and irreversible (from inbox UI).
 
 **Rationale**:
+
 - Simplifies implementation
 - Processing isn't destructive (note still exists)
 - Can be "un-processed" by deleting record from database if needed
@@ -398,6 +417,7 @@ type SystemView = 'inbox' | 'daily' | 'notes' | 'settings' | null;
 **Decision**: Remove note from UI immediately after marking as processed, before confirming with backend.
 
 **Rationale**:
+
 - Provides instant user feedback
 - Reduces perceived latency
 - Processing API is idempotent (safe to retry)
@@ -410,6 +430,7 @@ type SystemView = 'inbox' | 'daily' | 'notes' | 'settings' | null;
 **Decision**: No UI mechanism to move a processed note back to inbox.
 
 **Rationale**:
+
 - Keeps UI simple and focused
 - Processing should be intentional, not frequently reversed
 - Database design supports un-processing (delete from processed_notes)
@@ -426,14 +447,15 @@ The Inbox View integrates with Flint's existing note navigation system:
 ```typescript
 // When note is clicked in inbox
 function handleNoteClick(noteId: string): void {
-  const note = notesStore.notes.find(n => n.id === noteId);
+  const note = notesStore.notes.find((n) => n.id === noteId);
   if (note && onNoteSelect) {
-    onNoteSelect(note);  // Triggers standard note opening flow
+    onNoteSelect(note); // Triggers standard note opening flow
   }
 }
 ```
 
 **Effects**:
+
 - Note opens in main editor view
 - System view is cleared (inbox closes)
 - Navigation history updated
@@ -453,6 +475,7 @@ const noteInfo = await chatService.createNote({
 ```
 
 **Effects**:
+
 - Note created in database
 - Note appears in "All Notes" view
 - Note appears in inbox (as unprocessed)
@@ -465,11 +488,12 @@ The Inbox View respects vault boundaries:
 ```typescript
 // Load inbox notes when component mounts
 $effect(() => {
-  loadInboxData();  // Gets current vault automatically
+  loadInboxData(); // Gets current vault automatically
 });
 ```
 
 **Behavior**:
+
 - Inbox shows only notes from current vault
 - Switching vaults automatically refreshes inbox
 - Processing state is vault-specific (via foreign key to notes table)
@@ -489,11 +513,13 @@ $effect(() => {
 ### Layout
 
 **Spacing**:
+
 - Padding: 0.5rem (component), 0.75rem (inputs), 0.5rem (list items)
 - Gaps: 0.5rem (notes list)
 - Margins: 0.75rem (header bottom), 1rem (quick-capture bottom)
 
 **Borders**:
+
 - Header: 1px solid `var(--border-light)` bottom border
 - Input: 1px solid `var(--border-medium)`, focus → `var(--accent-primary)`
 - Note items: 1px solid `var(--border-light)`, hover → `var(--accent-primary)`
@@ -503,21 +529,25 @@ $effect(() => {
 ### Interactions
 
 **Quick-Capture Input**:
+
 - Default: Gray border, secondary background
 - Focus: Accent border, primary background, no outline
 - Disabled: 50% opacity
 
 **Note Items**:
+
 - Default: Secondary background, light border
 - Hover: Accent border, subtle shadow (`var(--shadow-light)`)
 - Note content hover: Tertiary background
 
 **Process Button**:
+
 - Default: Transparent background, secondary text color
 - Hover: Light accent background, accent text color
 - Size: 1.25rem font, 3rem min-width
 
 **Empty State**:
+
 - Centered flex layout
 - Secondary text color
 - Hint text: 0.875rem font, 70% opacity
@@ -527,10 +557,12 @@ $effect(() => {
 The Inbox View follows the same responsive patterns as other system views:
 
 **Desktop (>1400px)**:
+
 - Full layout with all features visible
 - Optimal spacing and sizing
 
 **Mobile (<768px)**:
+
 - Maintains full functionality
 - Touch-optimized button sizes (checkmark button remains easily clickable)
 - Vertical scrolling for long note lists
@@ -542,6 +574,7 @@ The Inbox View follows the same responsive patterns as other system views:
 **Query**: `SELECT n.* FROM notes n LEFT JOIN processed_notes pn ...`
 
 **Optimizations**:
+
 1. Index on `processed_notes.note_id` enables fast LEFT JOIN
 2. Index on `notes.created` enables fast date filtering and sorting
 3. LEFT JOIN + IS NULL pattern more efficient than NOT EXISTS for this use case
@@ -552,6 +585,7 @@ The Inbox View follows the same responsive patterns as other system views:
 ### Frontend Rendering
 
 **Optimizations**:
+
 1. Svelte's reactive system ensures minimal re-renders
 2. Key-based iteration (`{#each notes as note (note.id)}`) enables efficient list updates
 3. Local state update on processing provides instant UI feedback without backend round-trip
@@ -572,6 +606,7 @@ The Inbox View follows the same responsive patterns as other system views:
 ### Unit Tests (Future)
 
 **Backend**:
+
 - `getRecentUnprocessedNotes` returns correct notes
 - `getRecentUnprocessedNotes` filters by date correctly
 - `getRecentUnprocessedNotes` excludes processed notes
@@ -579,6 +614,7 @@ The Inbox View follows the same responsive patterns as other system views:
 - `markNoteAsProcessed` is idempotent (duplicate calls don't fail)
 
 **Frontend**:
+
 - Inbox store loads notes correctly
 - Inbox store marks notes as processed and updates local state
 - InboxView creates notes via quick-capture
@@ -675,6 +711,7 @@ The Inbox View follows the same responsive patterns as other system views:
 The Inbox View successfully implements a GTD-style workflow for note capture and processing in Flint GUI. By separating the concerns of note creation from note organization, it reduces friction in the user's workflow while encouraging regular review and organization of new content. The implementation leverages Flint's existing architecture patterns and integrates seamlessly with other system views, providing a cohesive user experience.
 
 Key achievements:
+
 - **Low-friction capture**: Quick-capture input requires minimal interaction
 - **Clear processing workflow**: Visual feedback and immediate results
 - **Clean architecture**: Separation of processing state from note data

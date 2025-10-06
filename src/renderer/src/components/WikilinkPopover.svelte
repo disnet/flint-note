@@ -30,6 +30,17 @@
     }
   });
 
+  // Focus the input when the popover becomes visible
+  $effect(() => {
+    if (visible && inputElement) {
+      // Use setTimeout to ensure the DOM has rendered
+      setTimeout(() => {
+        inputElement?.focus();
+        inputElement?.select(); // Also select all text for easier editing
+      }, 0);
+    }
+  });
+
   export function hasFocus(): boolean {
     return inputElement === document.activeElement;
   }

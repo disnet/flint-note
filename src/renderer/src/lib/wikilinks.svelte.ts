@@ -52,11 +52,18 @@ export interface WikilinkHoverHandler {
   ): void;
 }
 
+export interface WikilinkEditHandler {
+  (): void;
+}
+
 // Effect to update wikilink click handler
 const setWikilinkHandler = StateEffect.define<WikilinkClickHandler>();
 
 // Effect to update wikilink hover handler
 const setWikilinkHoverHandler = StateEffect.define<WikilinkHoverHandler>();
+
+// Effect to update wikilink edit handler
+const setWikilinkEditHandler = StateEffect.define<WikilinkEditHandler>();
 
 // Effect to force wikilink re-rendering (when notes store updates)
 const forceWikilinkUpdate = StateEffect.define<boolean>();
@@ -124,6 +131,19 @@ const wikilinkHoverHandlerField = StateField.define<WikilinkHoverHandler | null>
   update: (value, tr) => {
     for (const effect of tr.effects) {
       if (effect.is(setWikilinkHoverHandler)) {
+        return effect.value;
+      }
+    }
+    return value;
+  }
+});
+
+// State field to store the current edit handler
+const wikilinkEditHandlerField = StateField.define<WikilinkEditHandler | null>({
+  create: () => null,
+  update: (value, tr) => {
+    for (const effect of tr.effects) {
+      if (effect.is(setWikilinkEditHandler)) {
         return effect.value;
       }
     }
@@ -498,12 +518,14 @@ function decorateWikilinks(state: EditorState): DecorationSet {
  */
 export function wikilinksWithoutAutocomplete(
   clickHandler: WikilinkClickHandler,
-  hoverHandler?: WikilinkHoverHandler
+  hoverHandler?: WikilinkHoverHandler,
+  editHandler?: WikilinkEditHandler
 ): Extension {
   return [
     wikilinkTheme,
     wikilinkHandlerField.init(() => clickHandler),
     wikilinkHoverHandlerField.init(() => hoverHandler || null),
+    wikilinkEditHandlerField.init(() => editHandler || null),
     selectedWikilinkField,
     wikilinkField,
     // Add Enter key handler to open selected wikilinks
@@ -526,6 +548,20 @@ export function wikilinksWithoutAutocomplete(
               }
             }
             return false; // Allow normal Enter behavior
+          }
+        },
+        {
+          key: 'Alt-Enter',
+          run: (view) => {
+            const selectedWikilink = view.state.field(selectedWikilinkField, false);
+            if (selectedWikilink) {
+              const handler = view.state.field(wikilinkEditHandlerField, false);
+              if (handler) {
+                handler();
+                return true; // Prevent default behavior
+              }
+            }
+            return false; // Allow normal behavior
           }
         }
       ])
@@ -570,15 +606,28 @@ export function wikilinksWithoutAutocomplete(
           effects: setWikilinkHoverHandler.of(hoverHandler)
         });
       }
+      if (
+        editHandler &&
+        update.view.state.field(wikilinkEditHandlerField) !== editHandler
+      ) {
+        update.view.dispatch({
+          effects: setWikilinkEditHandler.of(editHandler)
+        });
+      }
     })
   ];
 }
 
 export function wikilinksExtension(
   clickHandler: WikilinkClickHandler,
-  hoverHandler?: WikilinkHoverHandler
+  hoverHandler?: WikilinkHoverHandler,
+  editHandler?: WikilinkEditHandler
 ): Extension {
-  const baseExtensions = wikilinksWithoutAutocomplete(clickHandler, hoverHandler);
+  const baseExtensions = wikilinksWithoutAutocomplete(
+    clickHandler,
+    hoverHandler,
+    editHandler
+  );
   return [
     ...(Array.isArray(baseExtensions) ? baseExtensions : [baseExtensions]),
     autocompletion({

@@ -8,7 +8,7 @@
   import { forceWikilinkRefresh, getSelectedWikilink } from '../lib/wikilinks.svelte.js';
   import { ScrollAutoService } from '../stores/scrollAutoService.svelte.js';
   import WikilinkPopover from './WikilinkPopover.svelte';
-  import WikilinkNavigationPopover from './WikilinkNavigationPopover.svelte';
+  import WikilinkActionPopover from './WikilinkActionPopover.svelte';
 
   interface Props {
     content: string;
@@ -50,10 +50,12 @@
   let leaveTimeout: ReturnType<typeof setTimeout> | null = null;
   let popoverRef: WikilinkPopover | undefined = $state();
 
-  // Navigation popover state
-  let navPopoverVisible = $state(false);
-  let navPopoverX = $state(0);
-  let navPopoverY = $state(0);
+  // Action popover state (unified for cursor and mouse interactions)
+  let actionPopoverVisible = $state(false);
+  let actionPopoverX = $state(0);
+  let actionPopoverY = $state(0);
+  let actionPopoverIdentifier = $state('');
+  let actionPopoverIsFromHover = $state(false); // Track if popover is from hover vs cursor
 
   const editorConfig = new EditorConfig({
     onWikilinkClick,
@@ -61,7 +63,8 @@
     onCursorChange,
     placeholder,
     variant,
-    onWikilinkHover: handleWikilinkHover
+    onWikilinkHover: handleWikilinkHover,
+    onWikilinkEdit: handleActionPopoverEdit
   });
 
   const scrollAutoService = new ScrollAutoService(variant);
@@ -174,7 +177,7 @@
     }
   });
 
-  // Track selected wikilink and show navigation popup
+  // Track selected wikilink and show action popup
   $effect(() => {
     if (!editorView) return;
 
@@ -184,19 +187,22 @@
 
       const selected = getSelectedWikilink(editorView);
 
-      if (selected && !popoverVisible) {
-        // Show navigation popup only if edit popover is not visible
+      if (selected && !popoverVisible && !actionPopoverIsFromHover) {
+        // Show action popup only if edit popover is not visible and not already shown from hover
         // Position popup near the selected wikilink
         const coords = editorView.coordsAtPos(selected.from);
         if (coords) {
-          const position = calculateNavPopoverPosition(coords.left, coords.bottom);
-          navPopoverX = position.x;
-          navPopoverY = position.y;
-          navPopoverVisible = true;
+          actionPopoverIdentifier = selected.title;
+          const position = calculateActionPopoverPosition(coords.left, coords.bottom);
+          actionPopoverX = position.x;
+          actionPopoverY = position.y;
+          actionPopoverVisible = true;
+          actionPopoverIsFromHover = false;
         }
-      } else if (!selected || popoverVisible) {
-        // Hide navigation popup if no wikilink selected or edit popover is visible
-        navPopoverVisible = false;
+      } else if ((!selected || popoverVisible) && !actionPopoverIsFromHover) {
+        // Hide action popup if no wikilink selected or edit popover is visible
+        // BUT only if it's not being shown from hover
+        actionPopoverVisible = false;
       }
     }, 100);
 
@@ -339,34 +345,53 @@
     }
 
     if (data) {
+      // Don't show action popover if edit popover is visible
+      if (popoverVisible) {
+        return;
+      }
+
+      // If the popover is already visible (from hover or cursor), don't start a new timeout
+      // Just keep it visible by clearing the leave timeout above
+      if (actionPopoverVisible) {
+        return;
+      }
+
       // Clear any pending hover timeout
       if (hoverTimeout) {
         clearTimeout(hoverTimeout);
       }
 
-      // Set a delay before showing the popover
+      // Set a delay before showing the action popover
       hoverTimeout = setTimeout(() => {
-        popoverIdentifier = data.identifier;
-        popoverDisplayText = data.displayText;
+        // Double-check that edit popover isn't visible before showing
+        if (popoverVisible) {
+          return;
+        }
+
+        actionPopoverIdentifier = data.displayText;
         popoverFrom = data.from;
         popoverTo = data.to;
+        popoverIdentifier = data.identifier;
+        popoverDisplayText = data.displayText;
 
         // Calculate viewport-aware position
-        const position = calculatePopoverPosition(data.x, data.y);
-        popoverX = position.x;
-        popoverY = position.y;
+        const position = calculateActionPopoverPosition(data.x, data.y);
+        actionPopoverX = position.x;
+        actionPopoverY = position.y;
 
-        popoverVisible = true;
-        // Hide navigation popover when edit popover is shown
-        navPopoverVisible = false;
+        actionPopoverVisible = true;
+        actionPopoverIsFromHover = true; // Mark this as from hover
         hoverTimeout = null;
       }, 300);
     } else {
-      // Mouse left the wikilink - start leave timeout
-      leaveTimeout = setTimeout(() => {
-        popoverVisible = false;
-        leaveTimeout = null;
-      }, 200);
+      // Mouse left the wikilink - start leave timeout only if popover is from hover
+      if (actionPopoverIsFromHover) {
+        leaveTimeout = setTimeout(() => {
+          actionPopoverVisible = false;
+          actionPopoverIsFromHover = false; // Reset the hover flag
+          leaveTimeout = null;
+        }, 200);
+      }
     }
   }
 
@@ -417,15 +442,20 @@
     return { x: finalX, y: finalY };
   }
 
-  function calculateNavPopoverPosition(x: number, y: number): { x: number; y: number } {
-    // Navigation popover is smaller
-    const popoverWidth = 150;
+  function calculateActionPopoverPosition(
+    x: number,
+    y: number
+  ): { x: number; y: number } {
+    // Action popover dimensions
+    const popoverWidth = 240;
+    const popoverHeight = 80;
     const padding = 8;
 
     const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
 
     let finalX = x;
-    let finalY = y + padding; // Show below the wikilink
+    let finalY = y;
 
     // Check right edge
     if (finalX + popoverWidth + padding > viewportWidth) {
@@ -435,6 +465,27 @@
     // Check left edge
     if (finalX < padding) {
       finalX = padding;
+    }
+
+    // Check if there's enough space below the link
+    const spaceBelow = viewportHeight - (finalY + padding);
+    const spaceAbove = finalY - padding;
+
+    if (spaceBelow < popoverHeight && spaceAbove > spaceBelow) {
+      // Show above the link
+      finalY = finalY - popoverHeight - padding;
+    } else {
+      // Show below the link
+      finalY = finalY + padding;
+    }
+
+    // Final bounds check
+    if (finalY + popoverHeight + padding > viewportHeight) {
+      finalY = viewportHeight - popoverHeight - padding;
+    }
+
+    if (finalY < padding) {
+      finalY = padding;
     }
 
     return { x: finalX, y: finalY };
@@ -471,6 +522,39 @@
     popoverVisible = false;
   }
 
+  function handleActionPopoverOpen(): void {
+    if (!editorView || !onWikilinkClick) return;
+
+    // Get the current selected wikilink
+    const selected = getSelectedWikilink(editorView);
+    if (selected) {
+      if (selected.exists && selected.noteId) {
+        onWikilinkClick(selected.noteId, selected.title);
+      } else {
+        // Handle broken link - create new note
+        onWikilinkClick(selected.identifier, selected.title, true);
+      }
+    }
+
+    // Hide the action popover after opening
+    actionPopoverVisible = false;
+  }
+
+  function handleActionPopoverEdit(): void {
+    if (!editorView) return;
+
+    // Hide action popover and show edit popover
+    actionPopoverVisible = false;
+
+    // The popoverIdentifier and popoverDisplayText are already set from hover
+    // Get coordinates from the action popover position (reuse it for edit popover)
+    const position = calculatePopoverPosition(actionPopoverX, actionPopoverY);
+    popoverX = position.x;
+    popoverY = position.y;
+
+    popoverVisible = true;
+  }
+
   // Add mouse enter handler for the popover
   function handlePopoverMouseEnter(): void {
     if (leaveTimeout) {
@@ -487,6 +571,23 @@
         return;
       }
       popoverVisible = false;
+      leaveTimeout = null;
+    }, 200);
+  }
+
+  // Add mouse enter handler for the action popover
+  function handleActionPopoverMouseEnter(): void {
+    if (leaveTimeout) {
+      clearTimeout(leaveTimeout);
+      leaveTimeout = null;
+    }
+  }
+
+  // Add mouse leave handler for the action popover
+  function handleActionPopoverMouseLeave(): void {
+    leaveTimeout = setTimeout(() => {
+      actionPopoverVisible = false;
+      actionPopoverIsFromHover = false; // Reset the hover flag
       leaveTimeout = null;
     }, 200);
   }
@@ -519,11 +620,20 @@
   />
 </div>
 
-<WikilinkNavigationPopover
-  bind:visible={navPopoverVisible}
-  x={navPopoverX}
-  y={navPopoverY}
-/>
+<div
+  role="tooltip"
+  onmouseenter={handleActionPopoverMouseEnter}
+  onmouseleave={handleActionPopoverMouseLeave}
+>
+  <WikilinkActionPopover
+    bind:visible={actionPopoverVisible}
+    x={actionPopoverX}
+    y={actionPopoverY}
+    identifier={actionPopoverIdentifier}
+    onOpen={handleActionPopoverOpen}
+    onEdit={handleActionPopoverEdit}
+  />
+</div>
 
 <style>
   .editor-content {
