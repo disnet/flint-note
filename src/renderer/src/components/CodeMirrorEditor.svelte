@@ -56,6 +56,12 @@
   let actionPopoverY = $state(0);
   let actionPopoverIdentifier = $state('');
   let actionPopoverIsFromHover = $state(false); // Track if popover is from hover vs cursor
+  let actionPopoverWikilinkData = $state<{
+    identifier: string;
+    title: string;
+    exists: boolean;
+    noteId?: string;
+  } | null>(null);
 
   const editorConfig = new EditorConfig({
     onWikilinkClick,
@@ -193,6 +199,12 @@
         const coords = editorView.coordsAtPos(selected.from);
         if (coords) {
           actionPopoverIdentifier = selected.title;
+          actionPopoverWikilinkData = {
+            identifier: selected.identifier,
+            title: selected.title,
+            exists: selected.exists,
+            noteId: selected.noteId
+          };
           const position = calculateActionPopoverPosition(coords.left, coords.bottom);
           actionPopoverX = position.x;
           actionPopoverY = position.y;
@@ -336,6 +348,8 @@
       to: number;
       x: number;
       y: number;
+      exists: boolean;
+      noteId?: string;
     } | null
   ): void {
     // Clear any pending leave timeout
@@ -369,6 +383,12 @@
         }
 
         actionPopoverIdentifier = data.displayText;
+        actionPopoverWikilinkData = {
+          identifier: data.identifier,
+          title: data.displayText,
+          exists: data.exists,
+          noteId: data.noteId
+        };
         popoverFrom = data.from;
         popoverTo = data.to;
         popoverIdentifier = data.identifier;
@@ -523,17 +543,14 @@
   }
 
   function handleActionPopoverOpen(): void {
-    if (!editorView || !onWikilinkClick) return;
+    if (!onWikilinkClick || !actionPopoverWikilinkData) return;
 
-    // Get the current selected wikilink
-    const selected = getSelectedWikilink(editorView);
-    if (selected) {
-      if (selected.exists && selected.noteId) {
-        onWikilinkClick(selected.noteId, selected.title);
-      } else {
-        // Handle broken link - create new note
-        onWikilinkClick(selected.identifier, selected.title, true);
-      }
+    const data = actionPopoverWikilinkData;
+    if (data.exists && data.noteId) {
+      onWikilinkClick(data.noteId, data.title);
+    } else {
+      // Handle broken link - create new note
+      onWikilinkClick(data.identifier, data.title, true);
     }
 
     // Hide the action popover after opening
@@ -541,12 +558,22 @@
   }
 
   function handleActionPopoverEdit(): void {
-    if (!editorView) return;
+    if (!editorView || !actionPopoverWikilinkData) return;
 
     // Hide action popover and show edit popover
     actionPopoverVisible = false;
 
-    // The popoverIdentifier and popoverDisplayText are already set from hover
+    // Set the edit popover data from the action popover's stored wikilink data
+    popoverIdentifier = actionPopoverWikilinkData.identifier;
+    popoverDisplayText = actionPopoverWikilinkData.title;
+
+    // Get the wikilink position for the edit popover
+    const selected = getSelectedWikilink(editorView);
+    if (selected) {
+      popoverFrom = selected.from;
+      popoverTo = selected.to;
+    }
+
     // Get coordinates from the action popover position (reuse it for edit popover)
     const position = calculatePopoverPosition(actionPopoverX, actionPopoverY);
     popoverX = position.x;

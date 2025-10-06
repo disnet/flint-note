@@ -48,6 +48,8 @@ export interface WikilinkHoverHandler {
       to: number;
       x: number;
       y: number;
+      exists: boolean;
+      noteId?: string;
     } | null
   ): void;
 }
@@ -367,7 +369,9 @@ class WikilinkWidget extends WidgetType {
             from: this.from,
             to: this.to,
             x: coords.left,
-            y: coords.bottom
+            y: coords.bottom,
+            exists: this.exists,
+            noteId: this.noteId
           });
         }
       }
