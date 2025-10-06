@@ -142,6 +142,26 @@ class InboxStore {
   }
 
   /**
+   * Mark all visible notes as processed
+   */
+  async markAllAsProcessed(vaultId: string): Promise<void> {
+    const noteIds = this.state.notes.map((note) => note.id);
+    for (const noteId of noteIds) {
+      await this.markAsProcessed(noteId, vaultId);
+    }
+  }
+
+  /**
+   * Unmark all visible notes as processed
+   */
+  async markAllAsUnprocessed(vaultId: string): Promise<void> {
+    const noteIds = this.state.notes.map((note) => note.id);
+    for (const noteId of noteIds) {
+      await this.unmarkAsProcessed(noteId, vaultId);
+    }
+  }
+
+  /**
    * Refresh the inbox notes
    */
   async refresh(vaultId: string): Promise<void> {

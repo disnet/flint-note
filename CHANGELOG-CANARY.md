@@ -4,6 +4,13 @@ All notable changes to the Flint application canary builds will be documented in
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.3.1-canary.3]
+
+### Changed
+
+- improved performance of wikilink popover
+- improved styling of wikilinks
+
 ## [0.3.1-canary.1]
 
 ### Added
