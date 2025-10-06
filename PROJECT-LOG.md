@@ -1,5 +1,9 @@
 # Project Log
 
+## Note Action Bar Layout Redesign - 2025-10-06
+
+- Redesigned note editor action buttons for clearer layout: created new NoteActionBar.svelte component with normally-styled buttons for pin and metadata toggle actions, moved pin button from EditorHeader (where it appeared on hover) to action bar below title, replaced metadata disclosure triangle with "Show/Hide Metadata" button in action bar, updated EditorHeader to only contain title (removed pin control and hover logic), simplified MetadataView by removing disclosure triangle header button and moving Edit button to only appear when metadata is expanded, new layout follows pattern: title → action buttons (pin/metadata) → metadata (when expanded) → content
+
 ## Wikilink Popover Keyboard Shortcuts and Hover Switching - 2025-10-06
 
 - Fixed wikilink action popover to correctly update when hovering between different links and added keyboard shortcuts for hover-triggered popovers: when popover is visible from hovering link A and user hovers over link B, the popover now immediately updates its data and position instead of staying on link A; added high-precedence keyboard handlers in editorConfig.svelte.ts that enable Enter (open) and Alt-Enter (edit) to work on hover-triggered popovers even when cursor is not adjacent to the wikilink; two-tier handler priority ensures hover popover handlers check first, then wikilink selection handlers, then other defaults; updated architecture documentation in WIKILINK-POPOVER-CONTROLS.md to reflect new hover data update behavior and keyboard handling approach

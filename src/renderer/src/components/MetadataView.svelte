@@ -8,12 +8,11 @@
   interface Props {
     note: Note | null;
     expanded: boolean;
-    onToggle: () => void;
     onMetadataUpdate?: (metadata: Record<string, unknown>) => Promise<void>;
     onTypeChange?: (newType: string) => Promise<void>;
   }
 
-  let { note, expanded, onToggle, onMetadataUpdate, onTypeChange }: Props = $props();
+  let { note, expanded, onMetadataUpdate, onTypeChange }: Props = $props();
 
   let isEditing = $state(false);
   let editedMetadata = $state<Record<string, unknown>>({});
@@ -413,31 +412,20 @@
 </script>
 
 <div class="metadata-section">
-  <div class="metadata-header-container">
-    <button
-      class="metadata-header"
-      class:expanded
-      onclick={onToggle}
-      type="button"
-      aria-expanded={expanded}
-      aria-controls="metadata-content"
-    >
-      <span class="metadata-icon">
-        {expanded ? '▼' : '▶'}
-      </span>
-      <span class="metadata-title">Metadata</span>
-    </button>
-    {#if expanded && hasMetadata && onMetadataUpdate && !isEditing}
-      <button
-        class="edit-button"
-        onclick={startEditing}
-        type="button"
-        title="Edit metadata"
-      >
-        ✏️
-      </button>
-    {/if}
-  </div>
+  {#if expanded}
+    <div class="metadata-header-container">
+      {#if hasMetadata && onMetadataUpdate && !isEditing}
+        <button
+          class="edit-button"
+          onclick={startEditing}
+          type="button"
+          title="Edit metadata"
+        >
+          ✏️ Edit
+        </button>
+      {/if}
+    </div>
+  {/if}
 
   {#if expanded && hasMetadata}
     <div id="metadata-content" class="metadata-content">
@@ -628,56 +616,24 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-  }
-
-  .metadata-header {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    flex: 1;
-    padding: 0.5rem 0;
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--text-secondary);
-    transition: color 0.2s ease;
-    text-align: left;
-  }
-
-  .metadata-header:hover {
-    color: var(--text-primary);
-  }
-
-  .metadata-header.expanded {
-    color: var(--text-primary);
-  }
-
-  .metadata-icon {
-    font-size: 0.75rem;
-    width: 1rem;
-    text-align: center;
-    transition: transform 0.2s ease;
-  }
-
-  .metadata-title {
-    flex: 1;
+    justify-content: flex-end;
+    margin-bottom: 0.5rem;
   }
 
   .edit-button {
-    padding: 0.25rem 0.5rem;
-    background: none;
+    padding: 0.375rem 0.75rem;
+    background: var(--bg-secondary);
     border: 1px solid var(--border-light);
     border-radius: 0.25rem;
     cursor: pointer;
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     color: var(--text-secondary);
     transition: all 0.2s ease;
   }
 
   .edit-button:hover {
-    background: var(--bg-secondary);
+    background: var(--bg-tertiary);
+    border-color: var(--border-medium);
     color: var(--text-primary);
   }
 

@@ -17,6 +17,7 @@
   import ErrorBanner from './ErrorBanner.svelte';
   import MetadataView from './MetadataView.svelte';
   import Backlinks from './Backlinks.svelte';
+  import NoteActionBar from './NoteActionBar.svelte';
 
   interface Props {
     note: NoteMetadata;
@@ -416,10 +417,15 @@
   <EditorHeader
     bind:this={headerRef}
     title={note.title}
-    isPinned={pinnedNotesStore.isPinned(note.id)}
     onTitleChange={handleTitleChange}
-    onPinToggle={handlePinToggle}
     disabled={autoSave.isSaving}
+  />
+
+  <NoteActionBar
+    isPinned={pinnedNotesStore.isPinned(note.id)}
+    {metadataExpanded}
+    onPinToggle={handlePinToggle}
+    onMetadataToggle={toggleMetadata}
   />
 
   <ErrorBanner {error} />
@@ -428,7 +434,6 @@
     <MetadataView
       note={noteData}
       expanded={metadataExpanded}
-      onToggle={toggleMetadata}
       onMetadataUpdate={handleMetadataUpdate}
       onTypeChange={handleTypeChange}
     />

@@ -122,16 +122,28 @@
     <div class="header-actions">
       {#if notes.length > 0}
         {#if showProcessed}
-          <button class="action-button" onclick={handleMarkAllAsUnprocessed} title="Mark all as unprocessed">
+          <button
+            class="action-button"
+            onclick={handleMarkAllAsUnprocessed}
+            title="Mark all as unprocessed"
+          >
             ✕ All
           </button>
         {:else}
-          <button class="action-button" onclick={handleMarkAllAsProcessed} title="Mark all as processed">
+          <button
+            class="action-button"
+            onclick={handleMarkAllAsProcessed}
+            title="Mark all as processed"
+          >
             ✓ All
           </button>
         {/if}
       {/if}
-      <button class="toggle-button" onclick={handleToggleView} title="Toggle between unprocessed and processed notes">
+      <button
+        class="toggle-button"
+        onclick={handleToggleView}
+        title="Toggle between unprocessed and processed notes"
+      >
         <span class="toggle-option" class:active={!showProcessed}>
           <span class="toggle-icon">⏺</span>
           Unprocessed

@@ -113,7 +113,9 @@ function handleWikilinkHover(data) {
   if (actionPopoverVisible && actionPopoverIsFromHover) {
     // Update popover data and position immediately
     actionPopoverIdentifier = data.identifier;
-    actionPopoverWikilinkData = { /* ... */ };
+    actionPopoverWikilinkData = {
+      /* ... */
+    };
     const position = calculateActionPopoverPosition(data.x, data.y);
     actionPopoverX = position.x;
     actionPopoverY = position.y;
@@ -242,6 +244,7 @@ Prec.high(
 ```
 
 **Handler Priority:**
+
 1. Hover popover handlers check first (when hovering over a wikilink without cursor adjacent)
 2. Wikilink selection handlers check second (when cursor is adjacent to a wikilink)
 3. Other default handlers process the key if neither consumes it
