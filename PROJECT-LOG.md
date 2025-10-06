@@ -1,5 +1,9 @@
 # Project Log
 
+## Sidebar Notes Editor Variant - 2025-10-06
+
+- Added dedicated 'sidebar-note' variant to CodeMirror configuration to fix bottom padding issue in sidebar notes: created new getSidebarNoteTheme() in editorConfig.svelte.ts with marginBottom: '0' to prevent 25vh scroll padding from default variant, added 'sidebar-note' to variant type union across EditorConfigOptions, CodeMirrorEditor props, and ScrollAutoService, configured sidebar-note theme with compact scrollbars and auto overflow instead of visible, SidebarNotes.svelte now passes variant="sidebar-note" prop to CodeMirrorEditor, properly styled editors that don't extend into adjacent notes
+
 ## Note Action Bar Layout Redesign - 2025-10-06
 
 - Redesigned note editor action buttons for clearer layout: created new NoteActionBar.svelte component with normally-styled buttons for pin and metadata toggle actions, moved pin button from EditorHeader (where it appeared on hover) to action bar below title, replaced metadata disclosure triangle with "Show/Hide Metadata" button in action bar, updated EditorHeader to only contain title (removed pin control and hover logic), simplified MetadataView by removing disclosure triangle header button and moving Edit button to only appear when metadata is expanded, new layout follows pattern: title → action buttons (pin/metadata) → metadata (when expanded) → content

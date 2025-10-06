@@ -34,7 +34,7 @@ export interface EditorConfigOptions {
   onHoverPopoverEnter?: () => boolean;
   onHoverPopoverAltEnter?: () => boolean;
   placeholder?: string;
-  variant?: 'default' | 'daily-note' | 'backlink-context';
+  variant?: 'default' | 'daily-note' | 'backlink-context' | 'sidebar-note';
 }
 
 export class EditorConfig {
@@ -207,6 +207,44 @@ export class EditorConfig {
     });
   }
 
+  // Sidebar note variant theme (compact multi-line editor)
+  private getSidebarNoteTheme(): Extension {
+    return EditorView.theme({
+      '&.cm-editor': {
+        border: 'none',
+        borderRadius: '0.375rem'
+      },
+      '.cm-scroller': {
+        width: '100%',
+        scrollbarWidth: 'thin',
+        scrollbarColor: 'rgba(0, 0, 0, 0.2) transparent',
+        marginBottom: '0', // NO 25vh margin for sidebar notes
+        overflow: 'auto',
+        fontFamily:
+          "'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace !important"
+      },
+      '.cm-content': {
+        padding: '0.5rem'
+      },
+      '.cm-line': {
+        lineHeight: '1.6'
+      },
+      '.cm-scroller::-webkit-scrollbar': {
+        width: '8px'
+      },
+      '.cm-scroller::-webkit-scrollbar-track': {
+        background: 'transparent'
+      },
+      '.cm-scroller::-webkit-scrollbar-thumb': {
+        background: 'rgba(0, 0, 0, 0.2)',
+        borderRadius: '4px'
+      },
+      '.cm-scroller::-webkit-scrollbar-thumb:hover': {
+        background: 'rgba(0, 0, 0, 0.3)'
+      }
+    });
+  }
+
   // Placeholder theme extension
   private placeholderTheme = EditorView.theme({
     '.cm-placeholder': {
@@ -307,7 +345,9 @@ export class EditorConfig {
         ? this.getDailyNoteTheme()
         : this.options.variant === 'backlink-context'
           ? this.getBacklinkContextTheme()
-          : this.getDefaultTheme(),
+          : this.options.variant === 'sidebar-note'
+            ? this.getSidebarNoteTheme()
+            : this.getDefaultTheme(),
       markdownListStyling,
       listStylingTheme,
       ...(this.options.onWikilinkClick

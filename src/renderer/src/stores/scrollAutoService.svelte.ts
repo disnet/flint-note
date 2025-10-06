@@ -6,7 +6,7 @@ interface AutoScrollConfig {
   bottomMargin: number;
   smoothScroll: boolean;
   debounceMs: number;
-  variant: 'default' | 'daily-note';
+  variant: 'default' | 'daily-note' | 'sidebar-note';
 }
 
 const autoScrollConfigs: Record<string, AutoScrollConfig> = {
@@ -25,6 +25,14 @@ const autoScrollConfigs: Record<string, AutoScrollConfig> = {
     smoothScroll: true,
     debounceMs: 30,
     variant: 'daily-note'
+  },
+  'sidebar-note': {
+    enabled: true,
+    bottomMargin: 80,
+    topMargin: 40,
+    smoothScroll: true,
+    debounceMs: 30,
+    variant: 'sidebar-note'
   }
 };
 
@@ -34,7 +42,7 @@ export class ScrollAutoService {
   private config: AutoScrollConfig;
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
-  constructor(variant: 'default' | 'daily-note' = 'default') {
+  constructor(variant: 'default' | 'daily-note' | 'sidebar-note' = 'default') {
     this.config = { ...autoScrollConfigs[variant] };
   }
 

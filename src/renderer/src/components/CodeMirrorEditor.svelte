@@ -21,7 +21,7 @@
     ) => Promise<void>;
     cursorPosition?: CursorPosition | null;
     placeholder?: string;
-    variant?: 'default' | 'daily-note';
+    variant?: 'default' | 'daily-note' | 'sidebar-note';
   }
 
   let {

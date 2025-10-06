@@ -134,6 +134,7 @@
                 onContentChange={(content) => handleContentChange(note.noteId, content)}
                 onWikilinkClick={handleWikilinkClick}
                 placeholder="Note content..."
+                variant="sidebar-note"
               />
             </div>
           {/if}
@@ -277,7 +278,6 @@
 
   .note-content {
     border-top: 1px solid var(--border-light);
-    padding: 0.5rem;
     min-height: 150px;
     max-height: 400px;
   }

@@ -45,6 +45,7 @@ SidebarNotes component reactively updates
 ### Components
 
 #### **SidebarNotes.svelte**
+
 - Main component for displaying the sidebar notes list
 - Manages disclosure state for expand/collapse
 - Handles title editing with inline input
@@ -52,44 +53,55 @@ SidebarNotes component reactively updates
 - Connects wikilink clicks to navigation via `wikilinkService`
 
 **Key Props:**
+
 - None (reads directly from `sidebarNotesStore`)
 
 **Key Features:**
+
 - Inline title editing (click to edit, Enter to save, Escape to cancel)
 - Disclosure triangles for expand/collapse
 - Remove buttons to delete notes from sidebar
 - Full CodeMirror integration with wikilinks
 
 #### **NoteActionBar.svelte**
+
 Extended with sidebar functionality:
 
 **New Props:**
+
 - `isInSidebar: boolean` - Whether the current note is in the sidebar
 - `onAddToSidebar: () => Promise<void>` - Callback to add note to sidebar
 
 **Button States:**
+
 - Not in sidebar: Shows "📋 Add to Sidebar"
 - Already in sidebar: Shows "📋 In Sidebar" (disabled)
 
 #### **NoteEditor.svelte**
+
 Implements sidebar integration:
 
 **New Methods:**
+
 - `handleAddToSidebar()` - Adds current note to sidebar store with snapshot of content
 
 **Integration Points:**
+
 - Checks `sidebarNotesStore.isInSidebar(note.id)` to determine button state
 - Passes handler and state to NoteActionBar
 
 #### **RightSidebar.svelte**
+
 Extended to support notes mode:
 
 **Modes:**
+
 - `'ai'` - AI Assistant view
 - `'threads'` - Thread list view
 - `'notes'` - Sidebar notes view (new)
 
 **Rendering:**
+
 ```svelte
 {:else if sidebarState.rightSidebar.mode === 'notes'}
   <div class="notes-mode">
@@ -103,16 +115,18 @@ Extended to support notes mode:
 #### **sidebarNotesStore.svelte.ts**
 
 **State Structure:**
+
 ```typescript
 interface SidebarNote {
-  noteId: string;      // Original note ID
-  title: string;       // Editable title
-  content: string;     // Editable content snapshot
+  noteId: string; // Original note ID
+  title: string; // Editable title
+  content: string; // Editable content snapshot
   isExpanded: boolean; // Disclosure state
 }
 ```
 
 **Key Methods:**
+
 - `addNote(noteId, title, content)` - Add note to sidebar (no-op if exists)
 - `removeNote(noteId)` - Remove note from sidebar
 - `updateNote(noteId, updates)` - Update title and/or content
@@ -120,6 +134,7 @@ interface SidebarNote {
 - `isInSidebar(noteId)` - Check if note exists in sidebar
 
 **Persistence:**
+
 - Stores data in app settings file via `window.api?.saveAppSettings()`
 - Loads on initialization via `window.api?.loadAppSettings()`
 - Uses `$state.snapshot()` for IPC serialization
@@ -127,6 +142,7 @@ interface SidebarNote {
 #### **sidebarState.svelte.ts**
 
 **Extended Type:**
+
 ```typescript
 rightSidebar: {
   mode: 'ai' | 'threads' | 'notes'; // Added 'notes'
@@ -134,6 +150,7 @@ rightSidebar: {
 ```
 
 **New Method:**
+
 - `setRightSidebarMode('notes')` - Switch to notes view
 
 ### UI Integration
@@ -156,10 +173,12 @@ Three-button layout for right sidebar modes:
    - Toggles notes mode
 
 **Button Behavior:**
+
 - Clicking active mode toggles sidebar visibility
 - Clicking inactive mode switches mode and opens sidebar if closed
 
 **Styling:**
+
 - Left button: Rounded left corners
 - Middle button: No rounded corners
 - Right button: Rounded right corners
@@ -172,6 +191,7 @@ Three-button layout for right sidebar modes:
 Sidebar note editors use the same CodeMirrorEditor component as the main note view, ensuring feature parity:
 
 **Enabled Features:**
+
 - Wikilink syntax highlighting
 - Wikilink hover popovers
 - Click to navigate wikilinks
@@ -179,6 +199,7 @@ Sidebar note editors use the same CodeMirrorEditor component as the main note vi
 - All standard editor extensions
 
 **Implementation:**
+
 ```svelte
 <CodeMirrorEditor
   content={note.content}
@@ -189,6 +210,7 @@ Sidebar note editors use the same CodeMirrorEditor component as the main note vi
 ```
 
 **Wikilink Navigation:**
+
 - Uses centralized `wikilinkService.handleWikilinkClick()`
 - Navigates to existing notes
 - Prompts creation for broken links
@@ -201,6 +223,7 @@ Sidebar note editors use the same CodeMirrorEditor component as the main note vi
 **Decision:** Sidebar notes store independent copies of note content, not live references.
 
 **Rationale:**
+
 - Allows users to preserve specific versions for reference
 - Prevents unintended updates when original notes change
 - Simpler state management without reactivity to source notes
@@ -213,6 +236,7 @@ Sidebar note editors use the same CodeMirrorEditor component as the main note vi
 **Decision:** Can only add each note once (checked by noteId), but no duplicate content detection.
 
 **Rationale:**
+
 - Simple, predictable behavior
 - Users understand "one copy per note"
 - Prevents infinite additions of same note
@@ -222,6 +246,7 @@ Sidebar note editors use the same CodeMirrorEditor component as the main note vi
 **Decision:** Store sidebar notes in app settings file alongside other UI state.
 
 **Rationale:**
+
 - Consistent with other UI persistence (sidebar state, pinned notes)
 - Survives app restarts
 - No database schema changes needed
@@ -232,6 +257,7 @@ Sidebar note editors use the same CodeMirrorEditor component as the main note vi
 **Decision:** Use complete CodeMirrorEditor with all extensions, not a simplified textarea.
 
 **Rationale:**
+
 - Consistency with main editing experience
 - Wikilinks are essential for note-taking workflow
 - Users expect same editing capabilities everywhere
