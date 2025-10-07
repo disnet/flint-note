@@ -63,7 +63,10 @@ We should separate notes into two distinct concepts:
 
 ### 1. **Note ID** (Immutable)
 - **Purpose**: Permanent, stable identifier that never changes
-- **Format**: Short hash derived from `sha256(vault_id + creation_timestamp + random_salt)` (e.g., `n-a3b4c5d6`)
+- **Format**: Short random hash (e.g., `n-a3b4c5d6`) stored directly in note frontmatter
+- **Source of Truth**: The `id` field in the note's frontmatter - the file itself is authoritative
+- **Generation**: Created once at note creation using `crypto.randomBytes(4).toString('hex')`
+- **Stability**: Survives index rebuilds, file moves, database recreation - ID comes from the file
 - **Used for**:
   - Primary key in database
   - References in stores (pinned, sidebar, temporary tabs)
@@ -96,7 +99,7 @@ The filename IS the "link ID" - it's just automatically derived from the title.
 
 ```typescript
 interface Note {
-  id: string;           // Immutable identity (e.g., "n-a3b4c5d6")
+  id: string;           // Immutable identity (e.g., "n-a3b4c5d6") - stored in frontmatter
   title: string;        // Mutable user-visible title
   filename: string;     // Derived from title (e.g., "my-note.md")
   type: string;
@@ -105,6 +108,18 @@ interface Note {
   modified: string;
   // ... other fields
 }
+```
+
+**Example note file structure:**
+```markdown
+---
+id: n-a3b4c5d6
+created: 2025-01-15T10:30:00.000Z
+---
+
+# My Note Title
+
+Content here...
 ```
 
 ### API Changes
@@ -131,19 +146,35 @@ renameNote(id: string, newTitle: string) → {
 ```typescript
 // Before rename
 {
-  id: "n-3f8a9b2c",           // ← Never changes
+  id: "n-3f8a9b2c",           // ← Never changes (from frontmatter)
   title: "My Daily Note",
   filename: "my-daily-note.md",
   type: "daily"
 }
 
+// File content before:
+---
+id: n-3f8a9b2c
+created: 2025-01-15T10:30:00.000Z
+---
+
+# My Daily Note
+
 // After rename
 {
-  id: "n-3f8a9b2c",           // ← Same ID!
+  id: "n-3f8a9b2c",           // ← Same ID! (frontmatter unchanged)
   title: "My Updated Note",
-  filename: "my-updated-note.md",  // ← Derived from new title
+  filename: "my-updated-note.md",  // ← File renamed, derived from new title
   type: "daily"
 }
+
+// File content after (file renamed to my-updated-note.md):
+---
+id: n-3f8a9b2c              // ← ID stays the same
+created: 2025-01-15T10:30:00.000Z
+---
+
+# My Updated Note
 ```
 
 **What gets updated:**
@@ -299,8 +330,8 @@ async function migrateToImmutableIds(db: DatabaseConnection): Promise<void> {
   `);
 
   // 3. Get all existing notes and generate immutable IDs
-  const existingNotes = await db.all<{ type: string; filename: string }>(`
-    SELECT type, filename FROM notes
+  const existingNotes = await db.all<{ type: string; filename: string; created: string }>(`
+    SELECT type, filename, created FROM notes
   `);
 
   console.log(`Generating immutable IDs for ${existingNotes.length} notes...`);
@@ -308,6 +339,15 @@ async function migrateToImmutableIds(db: DatabaseConnection): Promise<void> {
   for (const note of existingNotes) {
     const oldIdentifier = `${note.type}/${note.filename.replace(/\.md$/, '')}`;
     const newId = generateImmutableId(); // 'n-' + 8-char hash
+
+    // Write ID to frontmatter - this is the source of truth
+    const filepath = path.join(vaultPath, note.type, note.filename);
+    const content = await fs.readFile(filepath, 'utf-8');
+    const updatedContent = addOrUpdateFrontmatter(content, {
+      id: newId,
+      created: note.created
+    });
+    await fs.writeFile(filepath, updatedContent);
 
     await db.run(`
       INSERT INTO note_id_migration (old_identifier, new_id, type, filename)
@@ -405,6 +445,20 @@ async function migrateToImmutableIds(db: DatabaseConnection): Promise<void> {
 
 function generateImmutableId(): string {
   return 'n-' + crypto.randomBytes(4).toString('hex');
+}
+
+async function addOrUpdateFrontmatter(
+  content: string,
+  fields: { id: string; created: string }
+): Promise<string> {
+  const { frontmatter, body } = parseFrontmatter(content);
+
+  return `---
+id: ${fields.id}
+created: ${fields.created}
+---
+
+${body}`;
 }
 ```
 
@@ -607,27 +661,76 @@ async function migrateIndexedDB(idMapping: Record<string, string>) {
      return `${typeName}/${filename.replace(/\.md$/, '')}`;
    }
 
-   // NEW: Returns immutable hash
+   // NEW: Returns immutable hash (simple random)
    generateNoteId(): string {
-     return 'n-' + createHash('sha256')
-       .update(`${Date.now()}-${Math.random()}`)
-       .digest('hex')
-       .substring(0, 8);
+     return 'n-' + crypto.randomBytes(4).toString('hex');
    }
    ```
 
-2. **Simplify `renameNoteWithFile()` (line 1427-1644)**:
+2. **Update `createNote()` (line 293-375)**:
+   ```typescript
+   async createNote(type: string, title: string, content?: string): Promise<Note> {
+     const id = this.generateNoteId(); // Generate immutable ID
+     const filename = this.generateFilename(title);
+     const created = new Date().toISOString();
+
+     // Write frontmatter with ID - this is the source of truth
+     const fullContent = `---
+id: ${id}
+created: ${created}
+---
+
+# ${title}
+
+${content || ''}`;
+
+     await fs.writeFile(filepath, fullContent);
+
+     // Database stores the ID from frontmatter
+     await this.db.run(`
+       INSERT INTO notes (id, type, filename, title, content, created, modified)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+     `, [id, type, filename, title, fullContent, created, created]);
+
+     return { id, type, filename, title, content: fullContent, created, modified: created };
+   }
+   ```
+
+3. **Update index rebuild to read ID from frontmatter**:
+   ```typescript
+   async rebuildIndex(): Promise<void> {
+     for (const file of noteFiles) {
+       const content = await fs.readFile(file, 'utf-8');
+       const { frontmatter, body } = this.parseFrontmatter(content);
+
+       // ID comes from frontmatter - file is the source of truth
+       let id = frontmatter.id;
+
+       if (!id) {
+         // Legacy note without ID - generate and write to frontmatter
+         id = this.generateNoteId();
+         const updatedContent = this.addFrontmatterField(content, 'id', id);
+         await fs.writeFile(file, updatedContent);
+       }
+
+       // Use ID from frontmatter for database
+       await this.db.run(`
+         INSERT INTO notes (id, type, filename, title, content, created, modified)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
+       `, [id, type, filename, title, content, created, modified]);
+     }
+   }
+   ```
+
+4. **Simplify `renameNoteWithFile()` (line 1427-1644)**:
    - Remove ID change logic (line 1514)
    - Keep file rename (line 1547-1548)
    - Keep wikilink updates (line 1577-1607)
+   - **Frontmatter ID stays unchanged** - only filename changes
    - **Remove** rollback of "wasRemovedFromIndex" - ID stays in index
    - Return `{ id, filename_changed }` instead of `{ old_id, new_id }`
 
-3. **Update `createNote()` (line 293-375)**:
-   - Generate immutable ID at creation time
-   - Store ID in database immediately
-
-4. **Update lookup methods** to use new ID scheme:
+5. **Update lookup methods** to use new ID scheme:
    ```typescript
    // getNoteByIdentifier() now expects immutable ID
    async getNoteByIdentifier(id: string): Promise<Note | null> {
@@ -899,6 +1002,27 @@ Since we don't have progressive rollout capability:
 
 ## Edge Cases & Considerations
 
+### Frontmatter as Source of Truth
+
+**Key principle**: The note file's frontmatter `id` field is authoritative, database is just an index.
+
+**Benefits:**
+- ✅ **Survives index rebuilds**: Read ID from file, not regenerate
+- ✅ **Portable**: Copy file anywhere, ID travels with it
+- ✅ **Tool compatible**: Obsidian and other tools preserve frontmatter
+- ✅ **Git-friendly**: ID is tracked in version control
+- ✅ **Debuggable**: Users can inspect ID directly in the file
+
+**Handling missing IDs:**
+```typescript
+// During index rebuild
+if (!frontmatter.id) {
+  // Legacy note or imported file - generate ID and update file
+  const id = generateNoteId();
+  await updateFileFrontmatter(filepath, { id });
+}
+```
+
 ### Wikilink Resolution
 **User types**: `[[type/some-note]]` or `[[Some Note]]`
 
@@ -920,15 +1044,32 @@ Since we don't have progressive rollout capability:
 // This behavior doesn't change with immutable IDs
 ```
 
-### ID Generation
-**Collision resistance**: SHA256 with timestamp + random → virtually impossible
+### ID Generation and Storage
+**Method**: Simple random generation stored directly in frontmatter
 
 ```typescript
+function generateNoteId(): string {
+  return 'n-' + crypto.randomBytes(4).toString('hex');
+}
+
 // Example generated IDs (8-char hex)
 n-3f8a9b2c  // Probability of collision: ~1 in 4 billion
 n-7e2d1a5f
 n-9c4b6e8a
 ```
+
+**Storage location**: Note frontmatter is the single source of truth
+```markdown
+---
+id: n-3f8a9b2c
+created: 2025-01-15T10:30:00.000Z
+---
+```
+
+**Database behavior**: Database reads ID from frontmatter during indexing/sync
+- On note creation: Generate ID, write to frontmatter, then index to database
+- On index rebuild: Read ID from frontmatter, use for database primary key
+- On file import: If no ID in frontmatter, generate and add it to the file
 
 ### Wikilink Updates Still Required
 **Important**: Even though IDs don't change, wikilink **text** must still update:
