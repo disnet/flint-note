@@ -128,3 +128,5 @@ Test files have relaxed ESLint rules allowing:
   ```
 
 - when finishing a significant task (excluding things like linting/formatting), write a concicse summary (one bullet point) in ./PROJECT-LOG.md
+- when planning migrations or breaking changes don't use progressive rollout strategy since we don't have that capability yet
+- we we need to deal with breaking changes to the DB schema we have version aware migration code in the migration-manager

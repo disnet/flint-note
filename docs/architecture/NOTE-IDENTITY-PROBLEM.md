@@ -216,23 +216,388 @@ class PinnedNotesStore {
 
 ## Migration Strategy
 
-Since there are currently no users, we can implement a breaking change without migration concerns.
+Since we have existing users with vaults, we need a comprehensive migration strategy that handles:
+1. Database schema changes
+2. File system references (wikilinks)
+3. UI state (localStorage, IndexedDB)
+4. In-memory application state
 
-### Phase 1: Database Schema Update
-**File**: `src/server/database/schema.sql`
+### Migration Approach
 
-```sql
--- Add immutable ID column (primary key)
-ALTER TABLE notes ADD COLUMN id TEXT PRIMARY KEY;
+**We use our existing DatabaseMigrationManager system** (src/server/database/migration-manager.ts):
 
--- Generate IDs for existing notes (one-time migration)
-UPDATE notes SET id = 'n-' || substr(hex(randomblob(4)), 1, 8);
+This is a proven pattern already in use (see v1.1.0 link extraction migration). Key benefits:
+- ✅ Version-based migrations execute automatically on vault open
+- ✅ Built-in idempotency and error handling
+- ✅ Users who skip versions get all pending migrations in order
+- ✅ No progressive rollout needed - migration runs per-vault basis
 
--- Keep existing columns (title, filename, type)
--- No changes needed - they already exist and work correctly
+**Pattern overview**:
+
+**Key characteristics**:
+- **Version-based**: Each migration has a version number (e.g., "2.0.0")
+- **Automatic**: Runs on vault open via `DatabaseMigrationManager.checkAndMigrate()`
+- **Ordered execution**: Migrations run in version order
+- **Options**: Can require full rebuild or custom migration functions
+- **Transactional**: Uses batch processing with rollback on failure
+
+**Migration lifecycle**:
+1. User opens vault → Workspace reads config schema_version
+2. Compare current schema version vs CURRENT_SCHEMA_VERSION
+3. If different, execute pending migrations in order
+4. Update config with new schema_version
+5. Continue vault initialization
+
+### Migration Principles
+
+- **Zero data loss**: All notes, content, and references must be preserved
+- **Automatic**: Migration happens transparently on vault opening
+- **Version-based**: Uses existing DatabaseMigrationManager pattern
+- **Idempotent**: Safe to run multiple times (detect if already migrated)
+- **Rollback-safe**: Batch processing with transaction rollback on errors
+
+### Phase 1: Database Schema & Data Migration
+**File**: `src/server/database/migration-manager.ts`
+
+**Add migration to MIGRATIONS array**:
+```typescript
+{
+  version: '2.0.0',
+  description: 'Add immutable note IDs and migrate to two-concept model',
+  requiresFullRebuild: false,  // We'll do custom migration
+  requiresLinkMigration: false, // We'll handle link migration ourselves
+  migrationFunction: migrateToImmutableIds
+}
 ```
 
-### Phase 2: Core Note Manager Update
+**Migration function** (`migrateToImmutableIds`):
+
+```typescript
+async function migrateToImmutableIds(db: DatabaseConnection): Promise<void> {
+  console.log('Starting immutable ID migration...');
+
+  // 1. Check if already migrated (idempotency)
+  const hasNewSchema = await db.get<{ count: number }>(`
+    SELECT COUNT(*) as count
+    FROM pragma_table_info('notes')
+    WHERE name='id' AND pk=1
+  `);
+
+  if (hasNewSchema && hasNewSchema.count > 0) {
+    console.log('Database already migrated to immutable IDs, skipping');
+    return;
+  }
+
+  // 2. Create ID mapping table (old identifier → new immutable ID)
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS note_id_migration (
+      old_identifier TEXT PRIMARY KEY,
+      new_id TEXT NOT NULL UNIQUE,
+      type TEXT NOT NULL,
+      filename TEXT NOT NULL
+    )
+  `);
+
+  // 3. Get all existing notes and generate immutable IDs
+  const existingNotes = await db.all<{ type: string; filename: string }>(`
+    SELECT type, filename FROM notes
+  `);
+
+  console.log(`Generating immutable IDs for ${existingNotes.length} notes...`);
+
+  for (const note of existingNotes) {
+    const oldIdentifier = `${note.type}/${note.filename.replace(/\.md$/, '')}`;
+    const newId = generateImmutableId(); // 'n-' + 8-char hash
+
+    await db.run(`
+      INSERT INTO note_id_migration (old_identifier, new_id, type, filename)
+      VALUES (?, ?, ?, ?)
+    `, [oldIdentifier, newId, note.type, note.filename]);
+  }
+
+  // 4. Backup existing tables
+  await db.run('CREATE TABLE notes_backup AS SELECT * FROM notes');
+  await db.run('CREATE TABLE note_links_backup AS SELECT * FROM note_links');
+  await db.run('CREATE TABLE external_links_backup AS SELECT * FROM external_links');
+
+  // 5. Drop and recreate notes table with new schema
+  await db.run('DROP TABLE notes');
+  await db.run(`
+    CREATE TABLE notes (
+      id TEXT PRIMARY KEY,
+      type TEXT NOT NULL,
+      filename TEXT NOT NULL,
+      title TEXT NOT NULL,
+      content TEXT NOT NULL,
+      created TEXT NOT NULL,
+      modified TEXT NOT NULL,
+      UNIQUE(type, filename)
+    )
+  `);
+
+  // 6. Migrate notes data using ID mapping
+  await db.run(`
+    INSERT INTO notes (id, type, filename, title, content, created, modified)
+    SELECT
+      m.new_id,
+      b.type,
+      b.filename,
+      b.title,
+      b.content,
+      b.created,
+      b.modified
+    FROM notes_backup b
+    JOIN note_id_migration m
+      ON (b.type || '/' || replace(b.filename, '.md', '')) = m.old_identifier
+  `);
+
+  // 7. Recreate note_links table with new foreign keys
+  await db.run('DROP TABLE note_links');
+  await db.run(`
+    CREATE TABLE note_links (
+      source_id TEXT NOT NULL,
+      target_id TEXT NOT NULL,
+      link_text TEXT NOT NULL,
+      FOREIGN KEY(source_id) REFERENCES notes(id) ON DELETE CASCADE,
+      FOREIGN KEY(target_id) REFERENCES notes(id) ON DELETE CASCADE
+    )
+  `);
+
+  // 8. Migrate note_links using ID mapping
+  await db.run(`
+    INSERT INTO note_links (source_id, target_id, link_text)
+    SELECT
+      ms.new_id,
+      mt.new_id,
+      l.link_text
+    FROM note_links_backup l
+    LEFT JOIN note_id_migration ms ON l.source_id = ms.old_identifier
+    LEFT JOIN note_id_migration mt ON l.target_id = mt.old_identifier
+    WHERE ms.new_id IS NOT NULL AND mt.new_id IS NOT NULL
+  `);
+
+  // 9. Recreate external_links table
+  await db.run('DROP TABLE external_links');
+  await db.run(`
+    CREATE TABLE external_links (
+      note_id TEXT NOT NULL,
+      url TEXT NOT NULL,
+      FOREIGN KEY(note_id) REFERENCES notes(id) ON DELETE CASCADE
+    )
+  `);
+
+  // 10. Migrate external_links using ID mapping
+  await db.run(`
+    INSERT INTO external_links (note_id, url)
+    SELECT
+      m.new_id,
+      l.url
+    FROM external_links_backup l
+    LEFT JOIN note_id_migration m ON l.note_id = m.old_identifier
+    WHERE m.new_id IS NOT NULL
+  `);
+
+  console.log(`Migration completed: ${existingNotes.length} notes migrated`);
+
+  // Keep note_id_migration table for UI migration
+  // Keep backup tables for one release cycle (can drop later)
+}
+
+function generateImmutableId(): string {
+  return 'n-' + crypto.randomBytes(4).toString('hex');
+}
+```
+
+**New API endpoint** for UI migration (add to FlintAPI):
+```typescript
+async getMigrationMapping(): Promise<Record<string, string> | null> {
+  const db = await this.dbManager.connect();
+
+  // Check if migration table exists
+  const tableExists = await db.get<{ count: number }>(`
+    SELECT COUNT(*) as count FROM sqlite_master
+    WHERE type='table' AND name='note_id_migration'
+  `);
+
+  if (!tableExists || tableExists.count === 0) {
+    return null; // No migration needed
+  }
+
+  const mappings = await db.all<{ old_identifier: string; new_id: string }>(
+    'SELECT old_identifier, new_id FROM note_id_migration'
+  );
+
+  return Object.fromEntries(mappings.map(m => [m.old_identifier, m.new_id]));
+}
+```
+
+### Phase 2: UI State Migration
+**When**: Immediately after vault opens and database migration completes
+
+**Files to migrate**:
+- `localStorage` - Persisted UI preferences and state
+- `IndexedDB` - Cached note data and indexes
+- In-memory stores - Active application state
+
+#### 2.1: LocalStorage Migration
+**File**: `src/renderer/src/services/migrationService.svelte.ts`
+
+**Storage keys that reference note IDs**:
+```typescript
+interface StorageKeysToMigrate {
+  'pinned-notes': Array<{id: string, ...}>;           // Pinned notes sidebar
+  'sidebar-notes': Array<{noteId: string, ...}>;      // Sidebar note list
+  'temporary-tabs': Array<{id: string, ...}>;         // Temporary tab bar
+  'recent-notes': Array<string>;                       // Recently opened notes
+  'cursor-positions': Record<string, {line, col}>;     // Per-note cursor state
+  'note-scroll-positions': Record<string, number>;     // Per-note scroll state
+  'expanded-folders': Set<string>;                     // May contain note references
+  'last-opened-note': string;                          // Last active note
+}
+```
+
+**Migration process**:
+```typescript
+async function migrateLocalStorage(idMapping: Record<string, string>) {
+  // 1. Get migration mapping from server
+  const mapping = await window.api?.getMigrationMapping();
+  if (!mapping) return; // No migration needed
+
+  // 2. Migrate pinned notes
+  const pinnedRaw = localStorage.getItem('pinned-notes');
+  if (pinnedRaw) {
+    const pinned = JSON.parse(pinnedRaw);
+    const migrated = pinned.map(note => ({
+      ...note,
+      id: mapping[note.id] || note.id  // Fallback to old ID if not found
+    }));
+    localStorage.setItem('pinned-notes', JSON.stringify(migrated));
+  }
+
+  // 3. Migrate sidebar notes
+  const sidebarRaw = localStorage.getItem('sidebar-notes');
+  if (sidebarRaw) {
+    const sidebar = JSON.parse(sidebarRaw);
+    const migrated = sidebar.map(note => ({
+      ...note,
+      noteId: mapping[note.noteId] || note.noteId
+    }));
+    localStorage.setItem('sidebar-notes', JSON.stringify(migrated));
+  }
+
+  // 4. Migrate temporary tabs
+  const tabsRaw = localStorage.getItem('temporary-tabs');
+  if (tabsRaw) {
+    const tabs = JSON.parse(tabsRaw);
+    const migrated = tabs.map(tab => ({
+      ...tab,
+      id: mapping[tab.id] || tab.id
+    }));
+    localStorage.setItem('temporary-tabs', JSON.stringify(migrated));
+  }
+
+  // 5. Migrate cursor positions (keys are old note IDs)
+  const cursorRaw = localStorage.getItem('cursor-positions');
+  if (cursorRaw) {
+    const positions = JSON.parse(cursorRaw);
+    const migrated: Record<string, any> = {};
+    for (const [oldId, position] of Object.entries(positions)) {
+      const newId = mapping[oldId] || oldId;
+      migrated[newId] = position;
+    }
+    localStorage.setItem('cursor-positions', JSON.stringify(migrated));
+  }
+
+  // 6. Migrate scroll positions
+  const scrollRaw = localStorage.getItem('note-scroll-positions');
+  if (scrollRaw) {
+    const positions = JSON.parse(scrollRaw);
+    const migrated: Record<string, any> = {};
+    for (const [oldId, position] of Object.entries(positions)) {
+      const newId = mapping[oldId] || oldId;
+      migrated[newId] = position;
+    }
+    localStorage.setItem('note-scroll-positions', JSON.stringify(migrated));
+  }
+
+  // 7. Migrate recent notes list
+  const recentRaw = localStorage.getItem('recent-notes');
+  if (recentRaw) {
+    const recent = JSON.parse(recentRaw);
+    const migrated = recent.map(id => mapping[id] || id);
+    localStorage.setItem('recent-notes', JSON.stringify(migrated));
+  }
+
+  // 8. Migrate last opened note
+  const lastOpened = localStorage.getItem('last-opened-note');
+  if (lastOpened && mapping[lastOpened]) {
+    localStorage.setItem('last-opened-note', mapping[lastOpened]);
+  }
+
+  // 9. Mark migration as complete
+  localStorage.setItem('note-id-migration-complete', 'true');
+}
+```
+
+#### 2.2: In-Memory Store Migration
+**File**: `src/renderer/src/App.svelte`
+
+**Trigger**: During app initialization, before loading stores
+
+```typescript
+// In App.svelte onMount
+onMount(async () => {
+  // Check if migration is needed
+  const migrationComplete = localStorage.getItem('note-id-migration-complete');
+
+  if (!migrationComplete) {
+    // Run migration before initializing stores
+    await migrateLocalStorage();
+  }
+
+  // Now load stores - they'll read migrated localStorage data
+  await pinnedStore.load();
+  await sidebarNotesStore.load();
+  await temporaryTabsStore.load();
+  // ... etc
+});
+```
+
+#### 2.3: IndexedDB Migration (if applicable)
+**File**: `src/renderer/src/services/noteCache.svelte.ts`
+
+If we're using IndexedDB for caching:
+
+```typescript
+async function migrateIndexedDB(idMapping: Record<string, string>) {
+  const db = await openDB('flint-notes-cache', 2, {
+    upgrade(db, oldVersion) {
+      if (oldVersion < 2) {
+        // Migration version
+        const store = db.createObjectStore('notes-temp', { keyPath: 'id' });
+
+        // Copy and migrate data
+        const oldStore = db.transaction.objectStore('notes');
+        oldStore.openCursor().onsuccess = (event) => {
+          const cursor = event.target.result;
+          if (cursor) {
+            const note = cursor.value;
+            const newId = idMapping[note.id] || note.id;
+            store.put({ ...note, id: newId });
+            cursor.continue();
+          }
+        };
+      }
+    }
+  });
+
+  // Swap old and new stores
+  db.deleteObjectStore('notes');
+  db.transaction.objectStore('notes-temp').name = 'notes';
+}
+```
+
+### Phase 3: Core Note Manager Update
 **File**: `src/server/core/notes.ts`
 
 1. **Change `generateNoteId()` (line 453)**:
@@ -262,8 +627,23 @@ UPDATE notes SET id = 'n-' || substr(hex(randomblob(4)), 1, 8);
    - Generate immutable ID at creation time
    - Store ID in database immediately
 
-### Phase 3: Frontend Store Cleanup
+4. **Update lookup methods** to use new ID scheme:
+   ```typescript
+   // getNoteByIdentifier() now expects immutable ID
+   async getNoteByIdentifier(id: string): Promise<Note | null> {
+     return this.db.get('SELECT * FROM notes WHERE id = ?', [id]);
+   }
+
+   // Keep backward compatibility helper during transition
+   async findNoteByTypeAndFilename(type: string, filename: string): Promise<Note | null> {
+     return this.db.get('SELECT * FROM notes WHERE type = ? AND filename = ?', [type, filename]);
+   }
+   ```
+
+### Phase 4: Frontend Store Cleanup
 **Files**: All `*.svelte.ts` stores
+
+**After UI migration is complete**, clean up rename tracking code:
 
 **DELETE these methods entirely:**
 - `src/renderer/src/stores/sidebarNotesStore.svelte.ts:228-236` - `updateNoteId()`
@@ -279,7 +659,17 @@ UPDATE notes SET id = 'n-' || substr(hex(randomblob(4)), 1, 8);
   lastRenamedNoteNewId: string | null;
   ```
 
-### Phase 4: API Type Updates
+**REMOVE rename watching effects** from components:
+```typescript
+// DELETE this pattern from NoteEditor, Sidebar, etc.
+$effect(() => {
+  if (oldId === note?.id && newId) {
+    note = { ...note, id: newId, title: updatedNote.title };
+  }
+});
+```
+
+### Phase 5: API Type Updates
 **File**: `src/server/api/flint-api-types.ts`
 
 ```typescript
@@ -316,7 +706,53 @@ interface RenameNoteResult {
 }
 ```
 
-### Phase 5: Component Updates
+### Phase 6: Migration Cleanup
+**When**: After 2-3 releases to ensure users have upgraded
+
+**Option 1: Add cleanup migration** (recommended):
+```typescript
+// Add to MIGRATIONS array in future release (e.g., 2.1.0)
+{
+  version: '2.1.0',
+  description: 'Clean up immutable ID migration tables',
+  requiresFullRebuild: false,
+  requiresLinkMigration: false,
+  migrationFunction: cleanupImmutableIdMigration
+}
+
+async function cleanupImmutableIdMigration(db: DatabaseConnection): Promise<void> {
+  // Check if backup tables still exist
+  const hasBackupTables = await db.get<{ count: number }>(`
+    SELECT COUNT(*) as count FROM sqlite_master
+    WHERE type='table' AND name LIKE '%_backup'
+  `);
+
+  if (hasBackupTables && hasBackupTables.count > 0) {
+    console.log('Cleaning up migration backup tables...');
+    await db.run('DROP TABLE IF EXISTS notes_backup');
+    await db.run('DROP TABLE IF EXISTS note_links_backup');
+    await db.run('DROP TABLE IF EXISTS external_links_backup');
+    await db.run('DROP TABLE IF EXISTS note_id_migration');
+    console.log('Migration cleanup completed');
+  }
+}
+```
+
+**Option 2: Manual cleanup** (for advanced users):
+```sql
+-- Can be run manually via database tools if needed
+DROP TABLE IF EXISTS notes_backup;
+DROP TABLE IF EXISTS note_links_backup;
+DROP TABLE IF EXISTS external_links_backup;
+DROP TABLE IF EXISTS note_id_migration;
+```
+
+**Migration code retention**:
+- Keep migration v2.0.0 code indefinitely (users may skip versions)
+- Migration manager pattern handles this automatically
+- Cleanup migration (v2.1.0) only removes backup tables, not migration logic
+
+### Phase 7: Component Updates (Already covered in Phase 4)
 **Files**: Any components that handle rename events
 
 **BEFORE**:
@@ -338,6 +774,128 @@ $effect(() => {
   }
 });
 ```
+
+## Migration Execution Order
+
+**Using DatabaseMigrationManager pattern**:
+
+1. **User opens vault** → `workspace.open()` called
+2. **Read current schema version** from vault config (`config.database.schema_version`)
+3. **DatabaseMigrationManager.checkAndMigrate()** called:
+   - Compare `currentSchemaVersion` vs `CURRENT_SCHEMA_VERSION`
+   - Find pending migrations (versions newer than current)
+   - Execute migrations in order:
+     - **v2.0.0**: `migrateToImmutableIds()` runs
+       - Check idempotency (skip if already done)
+       - Create backup tables
+       - Generate immutable IDs
+       - Recreate tables with new schema
+       - Migrate all data
+       - Keep `note_id_migration` table for UI
+   - Update vault config with new schema_version
+4. **Vault initialization continues** → Database ready with new schema
+5. **UI state migration** (client-side, during app initialization):
+   - Check `localStorage.note-id-migration-complete`
+   - If not migrated:
+     - Fetch ID mapping from server API
+     - Migrate localStorage keys
+     - Mark migration complete
+6. **Code changes** (development, same release):
+   - Update core note manager (generateNoteId, renameNote, etc.)
+   - Clean up frontend stores (remove updateNoteId methods)
+   - Update API types (RenameNoteResult)
+7. **Cleanup migration** (future release, e.g., v2.1.0):
+   - Add cleanup migration to drop backup tables
+   - Migration manager handles automatically
+
+## Testing Migration
+
+### Test Cases Required
+
+1. **Empty vault migration**
+   - ✅ No notes → Migration succeeds with no data
+   - ✅ No localStorage → Migration succeeds with no UI state
+
+2. **Small vault migration** (10-50 notes)
+   - ✅ All notes get unique immutable IDs
+   - ✅ Wikilinks preserved and updated
+   - ✅ Pinned notes, sidebar, tabs all migrated
+   - ✅ Cursor positions preserved
+
+3. **Large vault migration** (1000+ notes)
+   - ✅ Performance acceptable (<5 seconds)
+   - ✅ No data loss
+   - ✅ Transaction rollback on error
+
+4. **Idempotency test**
+   - ✅ Running migration twice has no effect
+   - ✅ Detection correctly skips already-migrated vaults
+
+5. **UI state edge cases**
+   - ✅ Stale localStorage (references deleted notes) → Gracefully ignore
+   - ✅ Partial localStorage (only some keys exist) → Migrate what exists
+   - ✅ Corrupted localStorage → Clear and rebuild
+
+6. **Error recovery**
+   - ✅ Database migration fails mid-way → Rollback to backup
+   - ✅ UI migration fails → Don't mark complete, retry next open
+
+## Risk Mitigation
+
+### Backup Strategy
+
+**Database-level backup** (built into migration):
+- Migration creates backup tables (`notes_backup`, `note_links_backup`, etc.)
+- Backup tables remain in database for emergency recovery
+- Can be dropped after confirmation migration is successful
+
+**User recommendation**:
+```typescript
+// Show notification when migration starts
+showNotification({
+  type: 'info',
+  message: 'Upgrading vault database...',
+  detail: 'This is a one-time migration to improve note identity handling.',
+  duration: 10000
+});
+```
+
+**Optional**: Users can manually backup their vault folder before upgrading if desired
+
+### Rollback Plan
+If critical bugs are discovered post-migration:
+
+1. **Database rollback**: Backup tables (`notes_backup`, etc.) remain in database for emergency recovery
+2. **Manual restoration**:
+   ```sql
+   -- Emergency rollback (run manually if needed)
+   DROP TABLE notes;
+   ALTER TABLE notes_backup RENAME TO notes;
+   DROP TABLE note_links;
+   ALTER TABLE note_links_backup RENAME TO note_links;
+   -- etc.
+   ```
+3. **UI state rollback**: Clear `localStorage.note-id-migration-complete` to retry migration
+4. **Version rollback**: Users can downgrade to previous version if migration fails
+
+### Testing Strategy
+Since we don't have progressive rollout capability:
+
+- **Comprehensive pre-release testing**:
+  - Test on multiple vault sizes (empty, small, large)
+  - Test edge cases (corrupted data, partial data, missing fields)
+  - Test performance (1000+ notes should complete in <10 seconds)
+  - Test idempotency (run migration twice, verify no errors)
+
+- **Beta testing**:
+  - Internal dogfooding on real vaults
+  - Small group of trusted users (if available)
+  - Monitor for issues before general release
+
+- **Clear communication**:
+  - Release notes warning users about one-time migration
+  - Recommendation to backup vault before upgrading
+  - Known issues and workarounds documented
 
 ## Edge Cases & Considerations
 
@@ -432,11 +990,18 @@ This is the simplest solution that solves the root cause:
 - ✅ Simpler mental model (just ID + title)
 
 **Costs:**
-- Database migration (add ID column)
-- Update note creation/lookup logic
-- Remove rename tracking from stores
+- **Migration complexity**: Database + UI state migration required
+- **User impact**: One-time migration on vault open (automatic, <10 seconds)
+- **Development effort**: Migration code, testing, rollback planning
+- **Risk mitigation**: Comprehensive testing, database backups, clear communication
 
-**No users yet** → Can implement without backward compatibility concerns.
+**We have users** → Requires careful migration strategy with:
+- Database-level backup tables (automatic, built into migration)
+- Idempotent migration (safe to run multiple times)
+- Comprehensive testing (empty vaults, large vaults, edge cases)
+- UI state migration (localStorage, in-memory stores)
+- Version-based migration using existing DatabaseMigrationManager
+- Migration code kept indefinitely (users may skip versions)
 
 ## Related Issues
 
@@ -458,3 +1023,74 @@ The two-concept model (immutable ID + mutable title/filename) is the right archi
 4. **Prevents entire bug classes** (no more stale references)
 
 Wikilink text still updates when notes are renamed, but this is for **human/tool readability**, not system correctness. The internal references (database IDs, store pointers) remain stable forever.
+
+### Migration Checklist
+
+**Before implementing**:
+- [ ] Review and approve migration strategy
+- [ ] Create test vaults (empty, small, large, edge cases)
+- [ ] Plan database migration function following migration-manager pattern
+- [ ] Design UI state migration service
+- [ ] Write comprehensive migration tests
+- [ ] Document rollback procedure
+
+**Implementation - Phase 1: Database Migration**:
+- [ ] Add migration to `migration-manager.ts` MIGRATIONS array (v2.0.0)
+- [ ] Implement `migrateToImmutableIds()` function
+  - [ ] Idempotency check (skip if already migrated)
+  - [ ] Create backup tables
+  - [ ] Generate immutable IDs for all notes
+  - [ ] Recreate tables with new schema
+  - [ ] Migrate notes data
+  - [ ] Migrate note_links and external_links
+  - [ ] Keep note_id_migration table for UI
+- [ ] Add `getMigrationMapping()` API endpoint
+- [ ] Update `CURRENT_SCHEMA_VERSION` to "2.0.0"
+
+**Implementation - Phase 2: UI State Migration**:
+- [ ] Create `migrationService.svelte.ts`
+- [ ] Implement localStorage migration (pinned, sidebar, tabs, cursors, etc.)
+- [ ] Add migration check in App.svelte initialization
+- [ ] Mark migration complete flag in localStorage
+
+**Implementation - Phase 3-5: Code Updates**:
+- [ ] Update `generateNoteId()` to return immutable IDs
+- [ ] Simplify `renameNoteWithFile()` (remove ID change logic)
+- [ ] Update `createNote()` to use immutable IDs
+- [ ] Update lookup methods (getNoteByIdentifier, etc.)
+- [ ] Delete store cleanup methods (updateNoteId, notifyNoteRenamed)
+- [ ] Delete rename tracking state fields
+- [ ] Remove rename watching $effects from components
+- [ ] Update API types (RenameNoteResult)
+
+**Testing**:
+- [ ] Empty vault migration
+- [ ] Small vault migration (10-50 notes)
+- [ ] Large vault migration (1000+ notes)
+- [ ] Idempotency (run migration twice, verify no errors)
+- [ ] UI state edge cases (stale, partial, corrupted localStorage)
+- [ ] Error recovery (verify backup tables work)
+- [ ] Performance benchmarks (<10 seconds for 1000+ notes)
+- [ ] Manual rollback test (restore from backup tables)
+
+**Pre-release**:
+- [ ] Internal dogfooding on real vaults
+- [ ] Beta testing with small user group (if available)
+- [ ] Write clear release notes about migration
+- [ ] Document backup recommendations
+- [ ] Test downgrade path (users can roll back version if needed)
+
+**Post-release monitoring**:
+- [ ] Monitor for migration failures
+- [ ] Collect performance metrics
+- [ ] Address any reported issues promptly
+
+**Future cleanup** (2-3 releases later):
+- [ ] Add v2.1.0 cleanup migration to drop backup tables
+- [ ] Consider compacting database after cleanup
+
+**Success criteria**:
+- Zero data loss in production migrations
+- Migration completes successfully for 99%+ of users
+- Performance <10 seconds for typical vault sizes
+- Clear path for users to roll back if issues occur
