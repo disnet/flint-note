@@ -70,7 +70,7 @@ flint-ui/
 
 - don't run the development server
 
-- we currently have no users to unless told otherwise assume we can and should ignore backward compatibility or migration concerns
+- we currently have users so make sure to handle backward compatibility or migration concerns
 
 ## Testing Structure
 
