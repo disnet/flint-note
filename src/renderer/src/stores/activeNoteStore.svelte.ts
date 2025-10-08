@@ -143,31 +143,35 @@ class ActiveNoteStore {
 
     try {
       const vaultId = this.state.currentVaultId || 'default';
-      const activeNoteId = await window.api?.loadActiveNote({ vaultId });
+      const stored = await window.api?.loadUIState({
+        vaultId,
+        stateKey: 'active_note'
+      });
 
-      if (activeNoteId && typeof activeNoteId === 'string') {
-        // We have a note ID, now we need to find the full metadata in the notes store
-        // First ensure notes store is loaded
-        if (notesStore.loading || notesStore.notes.length === 0) {
-          await notesStore.refresh();
-        }
+      if (stored && typeof stored === 'object' && 'noteId' in stored) {
+        const activeNoteId = stored.noteId as string | null;
 
-        // Find the note in the notes store (try multiple fields like in handleNoteClick)
-        const noteMetadata = notesStore.notes.find(
-          (note) =>
-            note.filename === activeNoteId ||
-            note.id === activeNoteId ||
-            note.title === activeNoteId
-        );
+        if (activeNoteId) {
+          // We have a note ID, now we need to find the full metadata in the notes store
+          // First ensure notes store is loaded
+          if (notesStore.loading || notesStore.notes.length === 0) {
+            await notesStore.refresh();
+          }
 
-        if (noteMetadata) {
-          this.state.activeNote = noteMetadata;
+          // Find the note in the notes store
+          const noteMetadata = notesStore.notes.find((note) => note.id === activeNoteId);
+
+          if (noteMetadata) {
+            this.state.activeNote = noteMetadata;
+          } else {
+            // Note ID exists in storage but note doesn't exist anymore - clear it
+            console.warn('Active note ID found but note no longer exists:', activeNoteId);
+            this.state.activeNote = null;
+            // Clear the invalid ID from storage
+            await this.saveToStorage();
+          }
         } else {
-          // Note ID exists in storage but note doesn't exist anymore - clear it
-          console.warn('Active note ID found but note no longer exists:', activeNoteId);
           this.state.activeNote = null;
-          // Clear the invalid ID from storage
-          await this.saveToStorage();
         }
       } else {
         this.state.activeNote = null;
@@ -183,9 +187,10 @@ class ActiveNoteStore {
 
     try {
       const vaultId = this.state.currentVaultId || 'default';
-      await window.api?.saveActiveNote({
+      await window.api?.saveUIState({
         vaultId,
-        noteId: this.state.activeNote?.id || null
+        stateKey: 'active_note',
+        stateValue: $state.snapshot({ noteId: this.state.activeNote?.id || null })
       });
     } catch (error) {
       console.warn('Failed to save active note to storage:', error);

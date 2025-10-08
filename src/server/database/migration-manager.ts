@@ -572,8 +572,41 @@ async function initializeFreshDatabase(db: DatabaseConnection): Promise<void> {
   console.log('Fresh database initialized successfully');
 }
 
+/**
+ * Migration function to add UI state table
+ */
+async function addUIStateTable(db: DatabaseConnection): Promise<void> {
+  console.log('Adding UI state table...');
+
+  // Create ui_state table
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS ui_state (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      vault_id TEXT NOT NULL,
+      state_key TEXT NOT NULL,
+      state_value TEXT NOT NULL,
+      schema_version TEXT NOT NULL DEFAULT '2.0.0',
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(vault_id, state_key)
+    )
+  `);
+
+  // Create indexes for performance
+  await db.run(`
+    CREATE INDEX IF NOT EXISTS idx_ui_state_vault
+    ON ui_state(vault_id)
+  `);
+
+  await db.run(`
+    CREATE INDEX IF NOT EXISTS idx_ui_state_key
+    ON ui_state(vault_id, state_key)
+  `);
+
+  console.log('UI state table added successfully');
+}
+
 export class DatabaseMigrationManager {
-  private static readonly CURRENT_SCHEMA_VERSION = '2.0.0';
+  private static readonly CURRENT_SCHEMA_VERSION = '2.1.0';
 
   private static readonly MIGRATIONS: DatabaseMigration[] = [
     {
@@ -588,6 +621,13 @@ export class DatabaseMigrationManager {
       requiresFullRebuild: false,
       requiresLinkMigration: false,
       migrationFunction: migrateToImmutableIds
+    },
+    {
+      version: '2.1.0',
+      description: 'Add UI state table',
+      requiresFullRebuild: false,
+      requiresLinkMigration: false,
+      migrationFunction: addUIStateTable
     }
   ];
 

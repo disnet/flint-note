@@ -68,6 +68,7 @@ const activeNoteId = await window.api?.loadActiveNote({ vaultId });
 ```
 
 **The actual flow**:
+
 1. Store constructor fires during module import
 2. `initializeVault()` starts async
 3. Waits for `getCurrentVault()` to get vault ID
@@ -107,6 +108,7 @@ The "loading screen" only prevents rendering, but stores have already loaded dat
 **The fundamental issue**: We're trying to migrate UI state **after** stores have already initialized and loaded data. It's like trying to change the water in a fish tank after the fish are already swimming in it.
 
 **Why backup-and-clear doesn't work**:
+
 - Stores don't just read from localStorage (which we clear)
 - They also read from vault-data files (which we clear too late, async)
 - Store initialization starts during module import (before we can intervene)
@@ -124,6 +126,7 @@ The "loading screen" only prevents rendering, but stores have already loaded dat
 #### Implementation
 
 1. **Add migration state to database**:
+
 ```sql
 CREATE TABLE ui_migration_state (
   vault_id TEXT PRIMARY KEY,
@@ -135,6 +138,7 @@ CREATE TABLE ui_migration_state (
 2. **Migration mapping stays in database** (already exists as `note_id_migration` table)
 
 3. **Stores transparently migrate on read**:
+
 ```typescript
 // activeNoteStore.svelte.ts
 private async loadFromStorage(): Promise<void> {
@@ -158,12 +162,14 @@ private async loadFromStorage(): Promise<void> {
 4. **No global migration flag** - Each store migrates its own data lazily
 
 5. **Mark vault as migrated after all data is accessed**:
+
 ```typescript
 // After all stores have loaded and migrated their data
 await window.api?.markUIStateMigrated({ vaultId });
 ```
 
 #### Benefits
+
 - ✅ **Per-vault migration**: Each vault tracks its own migration state
 - ✅ **No timing issues**: Migration happens when data is accessed, not before
 - ✅ **Idempotent**: Safe to run multiple times (IDs starting with 'n-' are already migrated)
@@ -172,6 +178,7 @@ await window.api?.markUIStateMigrated({ vaultId });
 - ✅ **Works with both localStorage and vault-data**: Each store handles its own migration
 
 #### Drawbacks
+
 - ⚠️ More complex store code (each store needs migration logic)
 - ⚠️ Repeated IPC calls to get mapping (can be cached in renderer)
 - ⚠️ Migration spread across codebase rather than centralized
@@ -185,6 +192,7 @@ await window.api?.markUIStateMigrated({ vaultId });
 #### Implementation
 
 1. **Lazy store singletons**:
+
 ```typescript
 // activeNoteStore.svelte.ts
 class ActiveNoteStore {
@@ -210,6 +218,7 @@ export function getActiveNoteStore(): ActiveNoteStore {
 ```
 
 2. **Explicit initialization in App.svelte**:
+
 ```typescript
 // App.svelte
 $effect(() => {
@@ -229,6 +238,7 @@ $effect(() => {
 ```
 
 3. **Migration clears ALL storage (localStorage + vault-data) before store init**:
+
 ```typescript
 // migrationService.svelte.ts
 async migrateAll(): Promise<void> {
@@ -245,12 +255,14 @@ async migrateAll(): Promise<void> {
 ```
 
 #### Benefits
+
 - ✅ **Guaranteed ordering**: Migration always runs before store initialization
 - ✅ **No race conditions**: Stores can't load stale data because they haven't started yet
 - ✅ **Centralized migration**: All logic in one place
 - ✅ **Clean separation**: Clear boundary between migration and app startup
 
 #### Drawbacks
+
 - ⚠️ **Major refactor**: All stores need to change from auto-init to lazy-init
 - ⚠️ **Breaks existing code**: Many places import stores expecting them to be ready
 - ⚠️ **Complex initialization order**: Need to manage dependencies between stores
@@ -265,6 +277,7 @@ async migrateAll(): Promise<void> {
 #### Implementation
 
 1. **Add version to vault-data structure**:
+
 ```typescript
 interface VaultUIState {
   schemaVersion: string; // '2.0.0'
@@ -275,6 +288,7 @@ interface VaultUIState {
 ```
 
 2. **Stores check version on load**:
+
 ```typescript
 // activeNoteStore.svelte.ts
 private async loadFromStorage(): Promise<void> {
@@ -291,6 +305,7 @@ private async loadFromStorage(): Promise<void> {
 ```
 
 3. **Migration sets new version**:
+
 ```typescript
 // After database migration completes
 await window.api?.updateVaultDataVersion({
@@ -300,12 +315,14 @@ await window.api?.updateVaultDataVersion({
 ```
 
 #### Benefits
+
 - ✅ **Automatic invalidation**: Old data automatically discarded on version mismatch
 - ✅ **Per-vault**: Each vault has its own version
 - ✅ **Simple stores**: No migration logic, just version check
 - ✅ **Future-proof**: Works for future schema changes too
 
 #### Drawbacks
+
 - ⚠️ **Loses all UI state**: Users lose tabs, cursor positions, etc. (but this was accepted in current approach anyway)
 - ⚠️ **No granular migration**: Can't migrate some data and discard others
 - ⚠️ **Requires vault-data changes**: Need to update all vault-data structures
@@ -319,6 +336,7 @@ await window.api?.updateVaultDataVersion({
 #### Implementation
 
 1. **Vault-level migration lock**:
+
 ```typescript
 // New IPC handler
 ipcMain.handle('is-vault-migrating', async (_event, params: { vaultId: string }) => {
@@ -327,6 +345,7 @@ ipcMain.handle('is-vault-migrating', async (_event, params: { vaultId: string })
 ```
 
 2. **Stores wait for migration lock**:
+
 ```typescript
 // activeNoteStore.svelte.ts
 private async loadFromStorage(): Promise<void> {
@@ -344,6 +363,7 @@ private async loadFromStorage(): Promise<void> {
 ```
 
 3. **Migration acquires lock**:
+
 ```typescript
 // migrationService.svelte.ts
 async migrateUIState(): Promise<void> {
@@ -364,12 +384,14 @@ async migrateUIState(): Promise<void> {
 ```
 
 #### Benefits
+
 - ✅ **Guaranteed ordering**: Stores can't load until migration completes
 - ✅ **Minimal store changes**: Just add wait-for-lock at start of load
 - ✅ **Centralized migration**: All logic still in migration service
 - ✅ **Per-vault**: Locks are vault-specific
 
 #### Drawbacks
+
 - ⚠️ **Polling overhead**: Stores poll for lock status
 - ⚠️ **Deadlock risk**: If migration crashes, lock may never release
 - ⚠️ **Complex state management**: Need lock tracking in main process
@@ -412,6 +434,7 @@ async migrateUIState(): Promise<void> {
 ### Code Changes Required
 
 **Minimal changes to stores**:
+
 ```typescript
 private async loadFromStorage(): Promise<void> {
   const stored = await window.api?.loadActiveNote({ vaultId });
@@ -437,13 +460,14 @@ private async loadFromStorage(): Promise<void> {
 ```
 
 **Helper function**:
+
 ```typescript
 // migrationHelper.svelte.ts
 let cachedMapping: Record<string, string> | null = null;
 
 export async function migrateNoteId(oldId: string): Promise<string | null> {
   if (!cachedMapping) {
-    cachedMapping = await window.api?.getMigrationMapping() || {};
+    cachedMapping = (await window.api?.getMigrationMapping()) || {};
   }
   return cachedMapping[oldId] || null;
 }
@@ -509,6 +533,7 @@ But even with all these fixes, we're fighting against JavaScript's module loadin
 ## Conclusion
 
 The current migration approach has fundamental architectural mismatches:
+
 - Tries to migrate before stores init, but stores init during import
 - Uses global flag for per-vault state
 - Clears storage but stores read from multiple sources

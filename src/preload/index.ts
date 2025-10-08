@@ -313,6 +313,14 @@ const api = {
     position: CursorPosition;
   }) => electronAPI.ipcRenderer.invoke('set-cursor-position', params),
 
+  // UI State management
+  loadUIState: (params: { vaultId: string; stateKey: string }) =>
+    electronAPI.ipcRenderer.invoke('load-ui-state', params),
+  saveUIState: (params: { vaultId: string; stateKey: string; stateValue: unknown }) =>
+    electronAPI.ipcRenderer.invoke('save-ui-state', params),
+  clearUIState: (params: { vaultId: string }) =>
+    electronAPI.ipcRenderer.invoke('clear-ui-state', params),
+
   // Usage tracking
   onUsageRecorded: (callback: (usageData: unknown) => void) => {
     electronAPI.ipcRenderer.on('ai-usage-recorded', (_event, data) => callback(data));

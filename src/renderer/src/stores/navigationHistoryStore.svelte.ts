@@ -324,7 +324,10 @@ class NavigationHistoryStore {
 
     try {
       const vaultId = this.state.currentVaultId || 'default';
-      const stored = await window.api?.loadNavigationHistory({ vaultId });
+      const stored = await window.api?.loadUIState({
+        vaultId,
+        stateKey: 'navigation_history'
+      });
 
       if (stored) {
         // Validate and restore state
@@ -364,7 +367,11 @@ class NavigationHistoryStore {
         currentIndex: this.state.currentIndex,
         maxHistorySize: this.state.maxHistorySize
       };
-      await window.api?.saveNavigationHistory({ vaultId, history: dataToSave });
+      await window.api?.saveUIState({
+        vaultId,
+        stateKey: 'navigation_history',
+        stateValue: dataToSave
+      });
     } catch (error) {
       console.warn('Failed to save navigation history to storage:', error);
       throw error; // Re-throw to let calling code handle

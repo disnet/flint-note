@@ -1818,6 +1818,68 @@ export class FlintNoteApi {
     }
   }
 
+  // UI State management
+  async loadUIState(vaultId: string, stateKey: string): Promise<unknown | null> {
+    this.ensureInitialized();
+    const { hybridSearchManager } = await this.getVaultContext(vaultId);
+    const db = await hybridSearchManager.getDatabaseConnection();
+
+    try {
+      const row = await db.get<{ state_value: string }>(
+        'SELECT state_value FROM ui_state WHERE vault_id = ? AND state_key = ?',
+        [vaultId, stateKey]
+      );
+
+      if (!row) {
+        return null;
+      }
+
+      return JSON.parse(row.state_value);
+    } catch (error) {
+      console.error('Failed to load UI state:', error);
+      return null;
+    }
+  }
+
+  async saveUIState(
+    vaultId: string,
+    stateKey: string,
+    stateValue: unknown
+  ): Promise<{ success: boolean }> {
+    this.ensureInitialized();
+    const { hybridSearchManager } = await this.getVaultContext(vaultId);
+    const db = await hybridSearchManager.getDatabaseConnection();
+
+    try {
+      await db.run(
+        `INSERT INTO ui_state (vault_id, state_key, state_value, updated_at)
+         VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+         ON CONFLICT(vault_id, state_key)
+         DO UPDATE SET state_value = ?, updated_at = CURRENT_TIMESTAMP`,
+        [vaultId, stateKey, JSON.stringify(stateValue), JSON.stringify(stateValue)]
+      );
+
+      return { success: true };
+    } catch (error) {
+      console.error('Failed to save UI state:', error);
+      throw error;
+    }
+  }
+
+  async clearUIState(vaultId: string): Promise<{ success: boolean }> {
+    this.ensureInitialized();
+    const { hybridSearchManager } = await this.getVaultContext(vaultId);
+    const db = await hybridSearchManager.getDatabaseConnection();
+
+    try {
+      await db.run('DELETE FROM ui_state WHERE vault_id = ?', [vaultId]);
+      return { success: true };
+    } catch (error) {
+      console.error('Failed to clear UI state:', error);
+      throw error;
+    }
+  }
+
   /**
    * Cleanup resources and close database connections
    * Call this when the API instance is no longer needed

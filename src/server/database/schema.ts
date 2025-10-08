@@ -466,6 +466,15 @@ export interface ProcessedNoteRow {
   processed_at: string;
 }
 
+export interface UIStateRow {
+  id: number;
+  vault_id: string;
+  state_key: string;
+  state_value: string;
+  schema_version: string;
+  updated_at: string;
+}
+
 // Helper functions for metadata type conversion
 export function serializeMetadataValue(value: unknown): {
   value: string;

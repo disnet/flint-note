@@ -365,8 +365,9 @@ class TemporaryTabsStore {
     if (!this.currentVaultId) return;
 
     try {
-      const stored = await window.api?.loadTemporaryTabs({
-        vaultId: this.currentVaultId
+      const stored = await window.api?.loadUIState({
+        vaultId: this.currentVaultId,
+        stateKey: 'temporary_tabs'
       });
       if (
         stored &&
@@ -402,9 +403,10 @@ class TemporaryTabsStore {
 
     try {
       const serializable = $state.snapshot(this.state);
-      await window.api?.saveTemporaryTabs({
+      await window.api?.saveUIState({
         vaultId: this.currentVaultId,
-        tabs: serializable
+        stateKey: 'temporary_tabs',
+        stateValue: serializable
       });
     } catch (error) {
       console.warn('Failed to save temporary tabs to storage:', error);

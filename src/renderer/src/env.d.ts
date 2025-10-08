@@ -329,6 +329,18 @@ declare global {
         position: CursorPosition;
       }) => Promise<void>;
 
+      // UI State management
+      loadUIState: (params: {
+        vaultId: string;
+        stateKey: string;
+      }) => Promise<unknown | null>;
+      saveUIState: (params: {
+        vaultId: string;
+        stateKey: string;
+        stateValue: unknown;
+      }) => Promise<{ success: boolean }>;
+      clearUIState: (params: { vaultId: string }) => Promise<{ success: boolean }>;
+
       // Custom functions operations
       listCustomFunctions: (params?: {
         tags?: string[];

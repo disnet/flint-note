@@ -1312,6 +1312,41 @@ app.whenReady().then(async () => {
     }
   );
 
+  // UI State handlers
+  ipcMain.handle(
+    'load-ui-state',
+    async (_event, params: { vaultId: string; stateKey: string }) => {
+      if (!noteService) {
+        throw new Error('Note service not available');
+      }
+      return await noteService.loadUIState(params.vaultId, params.stateKey);
+    }
+  );
+
+  ipcMain.handle(
+    'save-ui-state',
+    async (
+      _event,
+      params: { vaultId: string; stateKey: string; stateValue: unknown }
+    ) => {
+      if (!noteService) {
+        throw new Error('Note service not available');
+      }
+      return await noteService.saveUIState(
+        params.vaultId,
+        params.stateKey,
+        params.stateValue
+      );
+    }
+  );
+
+  ipcMain.handle('clear-ui-state', async (_event, params: { vaultId: string }) => {
+    if (!noteService) {
+      throw new Error('Note service not available');
+    }
+    return await noteService.clearUIState(params.vaultId);
+  });
+
   // Custom functions handlers
   ipcMain.handle(
     'list-custom-functions',

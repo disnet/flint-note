@@ -40,9 +40,22 @@ class PinnedNotesStore {
   private async loadFromStorage(vaultId?: string): Promise<PinnedNoteInfo[]> {
     try {
       const vault = vaultId || this.currentVaultId || 'default';
-      return await window.api.loadPinnedNotes({ vaultId: vault });
+      const stored = await window.api.loadUIState({
+        vaultId: vault,
+        stateKey: 'pinned_notes'
+      });
+
+      if (
+        stored &&
+        typeof stored === 'object' &&
+        'notes' in stored &&
+        Array.isArray(stored.notes)
+      ) {
+        return stored.notes as PinnedNoteInfo[];
+      }
+      return [];
     } catch (error) {
-      console.warn('Failed to load pinned notes from file storage:', error);
+      console.warn('Failed to load pinned notes from storage:', error);
       return []; // Return empty array on error
     }
   }
@@ -56,9 +69,13 @@ class PinnedNotesStore {
         pinnedAt: note.pinnedAt,
         order: note.order
       }));
-      await window.api.savePinnedNotes({ vaultId: vault, notes: serializedNotes });
+      await window.api.saveUIState({
+        vaultId: vault,
+        stateKey: 'pinned_notes',
+        stateValue: $state.snapshot({ notes: serializedNotes })
+      });
     } catch (error) {
-      console.warn('Failed to save pinned notes to file storage:', error);
+      console.warn('Failed to save pinned notes to storage:', error);
       throw error; // Let calling code handle the error
     }
   }

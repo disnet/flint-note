@@ -602,11 +602,12 @@ class UnifiedChatStore {
               lastActivity: new Date(thread.lastActivity)
             }));
 
-            // Save each vault's threads to file system
+            // Save each vault's threads to database
             try {
-              await window.api?.saveConversations({
+              await window.api?.saveUIState({
                 vaultId,
-                conversations: {
+                stateKey: 'conversations',
+                stateValue: {
                   threads: processedThreads,
                   activeThreadId: parsed.activeThreadId,
                   maxThreadsPerVault: parsed.maxThreadsPerVault || 50
@@ -652,8 +653,9 @@ class UnifiedChatStore {
     if (!this.state.currentVaultId) return;
 
     try {
-      const stored = await window.api?.loadConversations({
-        vaultId: this.state.currentVaultId
+      const stored = await window.api?.loadUIState({
+        vaultId: this.state.currentVaultId,
+        stateKey: 'conversations'
       });
       if (
         stored &&
@@ -717,9 +719,10 @@ class UnifiedChatStore {
       };
 
       const serializable = $state.snapshot(toSave);
-      await window.api?.saveConversations({
+      await window.api?.saveUIState({
         vaultId: this.state.currentVaultId,
-        conversations: serializable
+        stateKey: 'conversations',
+        stateValue: serializable
       });
     } catch (error) {
       console.warn('Failed to save conversations to storage:', error);

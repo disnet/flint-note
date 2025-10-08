@@ -727,4 +727,24 @@ export class NoteService {
     this.ensureInitialized();
     return await this.api.unmarkNoteAsProcessed(noteId, vaultId);
   }
+
+  // UI State management
+  async loadUIState(vaultId: string, stateKey: string): Promise<unknown | null> {
+    this.ensureInitialized();
+    return await this.api.loadUIState(vaultId, stateKey);
+  }
+
+  async saveUIState(
+    vaultId: string,
+    stateKey: string,
+    stateValue: unknown
+  ): Promise<{ success: boolean }> {
+    this.ensureInitialized();
+    return await this.api.saveUIState(vaultId, stateKey, stateValue);
+  }
+
+  async clearUIState(vaultId: string): Promise<{ success: boolean }> {
+    this.ensureInitialized();
+    return await this.api.clearUIState(vaultId);
+  }
 }

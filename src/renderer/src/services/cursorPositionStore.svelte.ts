@@ -190,10 +190,13 @@ class CursorPositionStore {
 
     try {
       const vaultId = this.state.currentVaultId || 'default';
-      const positions = await window.api?.loadCursorPositions({ vaultId });
+      const stored = await window.api?.loadUIState({
+        vaultId,
+        stateKey: 'cursor_positions'
+      });
 
-      if (positions && typeof positions === 'object') {
-        this.state.positions = positions;
+      if (stored && typeof stored === 'object' && 'positions' in stored) {
+        this.state.positions = stored.positions as Record<string, CursorPosition>;
       } else {
         this.state.positions = {};
       }
@@ -211,11 +214,16 @@ class CursorPositionStore {
 
     try {
       const vaultId = this.state.currentVaultId || 'default';
-      const snapshotPosition = $state.snapshot(position);
-      await window.api?.setCursorPosition({
+
+      // Update the local state
+      this.state.positions[noteId] = position;
+
+      // Save the entire positions object
+      const snapshotPositions = $state.snapshot({ positions: this.state.positions });
+      await window.api?.saveUIState({
         vaultId,
-        noteId,
-        position: snapshotPosition
+        stateKey: 'cursor_positions',
+        stateValue: snapshotPositions
       });
 
       // Remove from pending after successful save

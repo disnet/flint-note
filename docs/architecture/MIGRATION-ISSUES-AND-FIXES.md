@@ -9,11 +9,13 @@ This document outlines the issues encountered during the v2.0.0 database migrati
 The v2.0.0 migration fundamentally changed how notes are identified:
 
 **Before (v1.1.0 and earlier):**
+
 - Note IDs were derived from type and filename: `type/filename` (e.g., `note/my-daily-note`)
 - When a note was renamed, its ID changed
 - This required complex rename tracking throughout the entire UI
 
 **After (v2.0.0):**
+
 - Note IDs are immutable random hashes: `n-xxxxxxxx` (e.g., `n-3f8a9b2c`)
 - IDs are stored in note frontmatter as the source of truth
 - When a note is renamed, only the filename changes - ID stays stable
@@ -78,11 +80,13 @@ Initial fix only cleared localStorage, but stores also loaded from vault-data fi
 
 **Problem:**
 Initial approach tried to migrate the stored IDs by:
+
 1. Reading old IDs from localStorage
 2. Looking up the mapping (old ID → new ID) from the database
 3. Updating all the stored references
 
 But this was complex and timing-dependent:
+
 - Migration mapping available asynchronously
 - Stores loading synchronously
 - Race conditions everywhere
@@ -96,6 +100,7 @@ But this was complex and timing-dependent:
 **Implementation:**
 
 1. **Early Execution** (`App.svelte`):
+
    ```typescript
    // FIRST import - before any other stores
    import { migrationService } from './services/migrationService.svelte';
@@ -107,6 +112,7 @@ But this was complex and timing-dependent:
    ```
 
 2. **Backup localStorage** (`migrationService.svelte.ts`):
+
    ```typescript
    clearStaleUIState(): void {
      if (this.isMigrationComplete()) return;
@@ -135,6 +141,7 @@ But this was complex and timing-dependent:
    - App starts cleanly
 
 4. **Async Migration Restores Data:**
+
    ```typescript
    async migrateUIState(): Promise<void> {
      const mapping = await window.api.getMigrationMapping();
@@ -150,6 +157,7 @@ But this was complex and timing-dependent:
    ```
 
 **Benefits:**
+
 - No errors on first load (critical UX win)
 - Migration happens in background
 - Users eventually get their UI state back (with new IDs)
@@ -162,6 +170,7 @@ But this was complex and timing-dependent:
 **Implementation:**
 
 1. **Added IPC Handler** (`src/main/index.ts`):
+
    ```typescript
    ipcMain.handle('clear-vault-ui-state', async (_event, params: { vaultId: string }) => {
      logger.info('Clearing vault UI state for migration', { vaultId });
@@ -171,6 +180,7 @@ But this was complex and timing-dependent:
    ```
 
 2. **Called During Migration** (`migrationService.svelte.ts`):
+
    ```typescript
    async migrateUIState(): Promise<void> {
      // Clear server-side vault-data files
@@ -186,10 +196,11 @@ But this was complex and timing-dependent:
 3. **Exposed via Preload** (`src/preload/index.ts`):
    ```typescript
    clearVaultUIState: (params: { vaultId: string }) =>
-     electronAPI.ipcRenderer.invoke('clear-vault-ui-state', params)
+     electronAPI.ipcRenderer.invoke('clear-vault-ui-state', params);
    ```
 
 **Benefits:**
+
 - Handles both storage locations comprehensively
 - Uses existing `clearVaultData()` method (already tested)
 - Server-side clearing is atomic and safe
@@ -201,6 +212,7 @@ But this was complex and timing-dependent:
 **Implementation:**
 
 1. **Track Migration State** (`App.svelte`):
+
    ```typescript
    let migrationComplete = $state(false);
    let migrationError = $state<string | null>(null);
@@ -233,6 +245,7 @@ But this was complex and timing-dependent:
    ```
 
 **Benefits:**
+
 - Clear user feedback during migration
 - Prevents flickering/errors
 - Professional migration experience
@@ -302,6 +315,7 @@ Based on lessons learned:
 ### How to Test
 
 1. **Create old vault**:
+
    ```bash
    mkdir -p test-vault/note
    echo "# Test" > test-vault/note/test.md
