@@ -437,6 +437,9 @@ declare global {
       rebuildDatabase: (params: {
         vaultId?: string;
       }) => Promise<{ success: boolean; noteCount: number }>;
+
+      // Migration operations
+      getMigrationMapping: () => Promise<Record<string, string> | null>;
     };
   }
 }

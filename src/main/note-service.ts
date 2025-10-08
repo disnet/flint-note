@@ -28,8 +28,8 @@ import type {
   NoteRelationships
 } from '../server/api/types';
 import { logger } from './logger';
-import { GetNoteTypeInfoResult } from '../server/api/types.js';
-import { NoteTypeDescription } from '../server/core/note-types';
+import type { GetNoteTypeInfoResult } from '../server/api/types.js';
+import type { NoteTypeDescription } from '../server/core/note-types';
 import { getCurrentVaultPath } from '../server/utils/global-config.js';
 import { app } from 'electron';
 

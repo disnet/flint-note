@@ -22,9 +22,28 @@
   import { dailyViewStore } from './stores/dailyViewStore.svelte';
   import { inboxStore } from './stores/inboxStore.svelte';
   import type { CreateVaultResult } from '@/server/api/types';
+  import { migrationService } from './services/migrationService.svelte';
 
   // Initialize unified chat store effects
   unifiedChatStore.initializeEffects();
+
+  // Run UI state migration on app startup (before stores initialize)
+  $effect(() => {
+    async function runMigration(): Promise<void> {
+      try {
+        if (!migrationService.isMigrationComplete()) {
+          console.log('Running UI state migration...');
+          await migrationService.migrateUIState();
+          console.log('UI state migration completed');
+        }
+      } catch (error) {
+        console.error('UI state migration failed:', error);
+        // Don't block app startup - stores will load with whatever state exists
+      }
+    }
+
+    runMigration();
+  });
 
   // Add app lifecycle integration for cursor position persistence
   $effect(() => {
