@@ -119,8 +119,23 @@ async function migrateToImmutableIds(
     `);
 
     if (hasMigrationTable && hasMigrationTable.count > 0) {
-      console.log('Database already migrated to immutable IDs, skipping');
-      return;
+      // Also verify notes table has data - if empty, migration may have failed
+      const notesCount = await db.get<{ count: number }>(
+        'SELECT COUNT(*) as count FROM notes'
+      );
+      const migrationCount = await db.get<{ count: number }>(
+        'SELECT COUNT(*) as count FROM note_id_migration'
+      );
+
+      if ((notesCount?.count || 0) > 0 && (migrationCount?.count || 0) > 0) {
+        console.log('Database already migrated to immutable IDs, skipping');
+        return;
+      } else {
+        console.log(
+          `Detected partial migration (notes: ${notesCount?.count || 0}, mappings: ${migrationCount?.count || 0}), will retry...`
+        );
+        // Continue with migration to fix partial state
+      }
     }
   }
 
@@ -177,13 +192,64 @@ async function migrateToImmutableIds(
     }
   }
 
-  // 4. Backup existing tables
-  await db.run('DROP TABLE IF EXISTS notes_backup');
-  await db.run('DROP TABLE IF EXISTS note_links_backup');
-  await db.run('DROP TABLE IF EXISTS external_links_backup');
-  await db.run('DROP TABLE IF EXISTS note_metadata_backup');
+  // 4. Backup existing tables (unless they already exist from a previous failed migration)
+  const backupExists = await db.get<{ count: number }>(`
+    SELECT COUNT(*) as count FROM sqlite_master
+    WHERE type='table' AND name='notes_backup'
+  `);
 
-  await db.run('CREATE TABLE notes_backup AS SELECT * FROM notes');
+  if (!backupExists || backupExists.count === 0) {
+    // No existing backup, create one
+    // Debug: Check old schema before backup
+    const oldSchemaColumns = await db.all<{ name: string }>(
+      "SELECT name FROM pragma_table_info('notes')"
+    );
+    console.log(
+      'Old notes table columns:',
+      oldSchemaColumns.map((c) => c.name).join(', ')
+    );
+
+    await db.run('CREATE TABLE notes_backup AS SELECT * FROM notes');
+
+    // Debug: Verify backup was created
+    const backupCount = await db.get<{ count: number }>(
+      'SELECT COUNT(*) as count FROM notes_backup'
+    );
+    console.log(`Created backup with ${backupCount?.count || 0} notes`);
+  } else {
+    // Backup already exists from previous failed migration, reuse it
+    const backupCount = await db.get<{ count: number }>(
+      'SELECT COUNT(*) as count FROM notes_backup'
+    );
+    console.log(
+      `Reusing existing backup with ${backupCount?.count || 0} notes from previous migration attempt`
+    );
+  }
+
+  // Check and backup other tables
+  const noteLinksBackupExists = await db.get<{ count: number }>(`
+    SELECT COUNT(*) as count FROM sqlite_master
+    WHERE type='table' AND name='note_links_backup'
+  `);
+  if (!noteLinksBackupExists || noteLinksBackupExists.count === 0) {
+    await db.run('DROP TABLE IF EXISTS note_links_backup');
+  }
+
+  const externalLinksBackupExists = await db.get<{ count: number }>(`
+    SELECT COUNT(*) as count FROM sqlite_master
+    WHERE type='table' AND name='external_links_backup'
+  `);
+  if (!externalLinksBackupExists || externalLinksBackupExists.count === 0) {
+    await db.run('DROP TABLE IF EXISTS external_links_backup');
+  }
+
+  const metadataBackupExists = await db.get<{ count: number }>(`
+    SELECT COUNT(*) as count FROM sqlite_master
+    WHERE type='table' AND name='note_metadata_backup'
+  `);
+  if (!metadataBackupExists || metadataBackupExists.count === 0) {
+    await db.run('DROP TABLE IF EXISTS note_metadata_backup');
+  }
 
   // Check if note_links table exists before backing it up
   const noteLinksExists = await db.get<{ count: number }>(`
@@ -247,6 +313,31 @@ async function migrateToImmutableIds(
     FROM notes_backup b
     JOIN note_id_migration m ON b.id = m.old_identifier
   `);
+
+  // Verify migration succeeded
+  const migratedCount = await db.get<{ count: number }>(
+    'SELECT COUNT(*) as count FROM notes'
+  );
+  console.log(`Migrated ${migratedCount?.count || 0} notes to new schema`);
+
+  if ((migratedCount?.count || 0) === 0 && existingNotes.length > 0) {
+    console.error('ERROR: No notes were migrated! Checking mapping table...');
+    const mappingCount = await db.get<{ count: number }>(
+      'SELECT COUNT(*) as count FROM note_id_migration'
+    );
+    console.error(`Mapping table has ${mappingCount?.count || 0} entries`);
+
+    // Debug: Show sample from each table
+    const backupSample = await db.get<{ id: string }>(
+      'SELECT id FROM notes_backup LIMIT 1'
+    );
+    const mappingSample = await db.get<{ old_identifier: string }>(
+      'SELECT old_identifier FROM note_id_migration LIMIT 1'
+    );
+    console.error(`Sample backup ID: ${backupSample?.id}`);
+    console.error(`Sample mapping old_identifier: ${mappingSample?.old_identifier}`);
+    throw new Error('Migration failed: No notes were migrated to new schema');
+  }
 
   // 7. Recreate note_links table with new foreign keys (if it exists)
   if (noteLinksExists && noteLinksExists.count > 0) {
