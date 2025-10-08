@@ -440,6 +440,7 @@ declare global {
 
       // Migration operations
       getMigrationMapping: () => Promise<Record<string, string> | null>;
+      clearVaultUIState: (params: { vaultId: string }) => Promise<void>;
     };
   }
 }

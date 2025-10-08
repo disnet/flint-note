@@ -25,12 +25,67 @@ interface TemporaryTab {
 
 export class MigrationService {
   private migrationCompleteKey = 'note-id-migration-complete';
+  private migrationBackupKey = 'note-id-migration-backup';
 
   /**
    * Check if migration has already been completed
    */
   isMigrationComplete(): boolean {
     return localStorage.getItem(this.migrationCompleteKey) === 'true';
+  }
+
+  /**
+   * Backup and clear all localStorage data that contains old note IDs
+   * This is called BEFORE migration to prevent stores from loading stale data
+   */
+  clearStaleUIState(): void {
+    if (this.isMigrationComplete()) {
+      return; // Already migrated, don't clear
+    }
+
+    console.log('Backing up and clearing stale UI state before migration...');
+
+    // Keys that reference note IDs
+    const keysToBackup = [
+      'pinned-notes',
+      'sidebar-notes',
+      'temporary-tabs',
+      'cursor-positions',
+      'note-scroll-positions',
+      'recent-notes',
+      'last-opened-note'
+    ];
+
+    // Create backup object
+    const backup: Record<string, string | null> = {};
+    keysToBackup.forEach((key) => {
+      backup[key] = localStorage.getItem(key);
+    });
+
+    // Save backup
+    localStorage.setItem(this.migrationBackupKey, JSON.stringify(backup));
+
+    // Clear the original keys to prevent stores from loading stale data
+    keysToBackup.forEach((key) => {
+      localStorage.removeItem(key);
+    });
+
+    console.log('Stale UI state backed up and cleared');
+  }
+
+  /**
+   * Get backed up localStorage data
+   */
+  private getBackup(): Record<string, string | null> | null {
+    const backupRaw = localStorage.getItem(this.migrationBackupKey);
+    if (!backupRaw) return null;
+
+    try {
+      return JSON.parse(backupRaw);
+    } catch (error) {
+      console.error('Failed to parse backup data:', error);
+      return null;
+    }
   }
 
   /**
@@ -46,6 +101,20 @@ export class MigrationService {
     console.log('Starting UI state migration...');
 
     try {
+      // Clear vault-specific UI state (server-side JSON files)
+      try {
+        const { getChatService } = await import('./chatService');
+        const chatService = getChatService();
+        const vault = await chatService.getCurrentVault();
+        if (vault?.id && window.api?.clearVaultUIState) {
+          await window.api.clearVaultUIState({ vaultId: vault.id });
+          console.log('Cleared vault-specific UI state');
+        }
+      } catch (error) {
+        console.warn('Failed to clear vault-specific UI state:', error);
+        // Non-blocking - continue with localStorage migration
+      }
+
       // Get migration mapping from server
       const mapping = await window.api?.getMigrationMapping();
 
@@ -82,7 +151,8 @@ export class MigrationService {
    */
   private migratePinnedNotes(mapping: Record<string, string>): void {
     const key = 'pinned-notes';
-    const raw = localStorage.getItem(key);
+    const backup = this.getBackup();
+    const raw = backup?.[key];
 
     if (!raw) return;
 
@@ -109,7 +179,8 @@ export class MigrationService {
    */
   private migrateSidebarNotes(mapping: Record<string, string>): void {
     const key = 'sidebar-notes';
-    const raw = localStorage.getItem(key);
+    const backup = this.getBackup();
+    const raw = backup?.[key];
 
     if (!raw) return;
 
@@ -135,7 +206,8 @@ export class MigrationService {
    */
   private migrateTemporaryTabs(mapping: Record<string, string>): void {
     const key = 'temporary-tabs';
-    const raw = localStorage.getItem(key);
+    const backup = this.getBackup();
+    const raw = backup?.[key];
 
     if (!raw) return;
 
@@ -161,7 +233,8 @@ export class MigrationService {
    */
   private migrateCursorPositions(mapping: Record<string, string>): void {
     const key = 'cursor-positions';
-    const raw = localStorage.getItem(key);
+    const backup = this.getBackup();
+    const raw = backup?.[key];
 
     if (!raw) return;
 
@@ -189,7 +262,8 @@ export class MigrationService {
    */
   private migrateScrollPositions(mapping: Record<string, string>): void {
     const key = 'note-scroll-positions';
-    const raw = localStorage.getItem(key);
+    const backup = this.getBackup();
+    const raw = backup?.[key];
 
     if (!raw) return;
 
@@ -217,7 +291,8 @@ export class MigrationService {
    */
   private migrateRecentNotes(mapping: Record<string, string>): void {
     const key = 'recent-notes';
-    const raw = localStorage.getItem(key);
+    const backup = this.getBackup();
+    const raw = backup?.[key];
 
     if (!raw) return;
 
@@ -238,7 +313,8 @@ export class MigrationService {
    */
   private migrateLastOpenedNote(mapping: Record<string, string>): void {
     const key = 'last-opened-note';
-    const lastOpened = localStorage.getItem(key);
+    const backup = this.getBackup();
+    const lastOpened = backup?.[key];
 
     if (!lastOpened) return;
 
@@ -262,6 +338,8 @@ export class MigrationService {
    */
   private markMigrationComplete(): void {
     localStorage.setItem(this.migrationCompleteKey, 'true');
+    // Clean up backup after successful migration
+    localStorage.removeItem(this.migrationBackupKey);
   }
 
   /**

@@ -1,4 +1,10 @@
 <script lang="ts">
+  // CRITICAL: Migration service must be imported FIRST and clear stale state
+  // This prevents other stores from loading old note IDs during initialization
+  import { migrationService } from './services/migrationService.svelte';
+  migrationService.clearStaleUIState();
+
+  // Now safe to import other components and stores
   import LeftSidebar from './components/LeftSidebar.svelte';
   import MainView from './components/MainView.svelte';
   import RightSidebar from './components/RightSidebar.svelte';
@@ -22,12 +28,16 @@
   import { dailyViewStore } from './stores/dailyViewStore.svelte';
   import { inboxStore } from './stores/inboxStore.svelte';
   import type { CreateVaultResult } from '@/server/api/types';
-  import { migrationService } from './services/migrationService.svelte';
 
   // Initialize unified chat store effects
   unifiedChatStore.initializeEffects();
 
-  // Run UI state migration on app startup (before stores initialize)
+  // Track migration status
+  let migrationComplete = $state(false);
+  let migrationError = $state<string | null>(null);
+
+  // Run UI state migration SYNCHRONOUSLY before any stores load
+  // This must complete before the app renders to prevent stores from loading stale IDs
   $effect(() => {
     async function runMigration(): Promise<void> {
       try {
@@ -36,9 +46,12 @@
           await migrationService.migrateUIState();
           console.log('UI state migration completed');
         }
+        migrationComplete = true;
       } catch (error) {
         console.error('UI state migration failed:', error);
-        // Don't block app startup - stores will load with whatever state exists
+        migrationError = error instanceof Error ? error.message : String(error);
+        // Mark as complete anyway to allow app to start (better than blocking)
+        migrationComplete = true;
       }
     }
 
@@ -591,7 +604,18 @@
   }
 </script>
 
-{#if vaultAvailabilityService.isLoading}
+{#if !migrationComplete}
+  <!-- Loading state during UI migration -->
+  <div class="app loading-state">
+    <div class="loading-content">
+      <div class="loading-spinner">🔥</div>
+      <p>Migrating vault data...</p>
+      {#if migrationError}
+        <p class="error-message">Migration failed: {migrationError}</p>
+      {/if}
+    </div>
+  </div>
+{:else if vaultAvailabilityService.isLoading}
   <!-- Loading state while checking for vaults -->
   <div class="app loading-state">
     <div class="loading-content">

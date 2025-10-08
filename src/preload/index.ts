@@ -410,7 +410,9 @@ const api = {
   // Database operations
   rebuildDatabase: (params: { vaultId?: string }) =>
     electronAPI.ipcRenderer.invoke('rebuild-database', params),
-  getMigrationMapping: () => electronAPI.ipcRenderer.invoke('get-migration-mapping')
+  getMigrationMapping: () => electronAPI.ipcRenderer.invoke('get-migration-mapping'),
+  clearVaultUIState: (params: { vaultId: string }) =>
+    electronAPI.ipcRenderer.invoke('clear-vault-ui-state', params)
 };
 
 // Use `contextBridge` APIs to expose Electron APIs to

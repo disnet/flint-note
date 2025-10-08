@@ -1756,6 +1756,18 @@ app.whenReady().then(async () => {
     }
   });
 
+  // Clear vault-specific UI state (for migration purposes)
+  ipcMain.handle('clear-vault-ui-state', async (_event, params: { vaultId: string }) => {
+    try {
+      logger.info('Clearing vault UI state for migration', { vaultId: params.vaultId });
+      await vaultDataStorageService.clearVaultData(params.vaultId);
+      logger.info('Vault UI state cleared successfully');
+    } catch (error) {
+      logger.error('Failed to clear vault UI state', { error, vaultId: params.vaultId });
+      throw error;
+    }
+  });
+
   createWindow();
   logger.info('Main window created and IPC handlers registered');
 
