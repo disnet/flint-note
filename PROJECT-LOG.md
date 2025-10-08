@@ -1,5 +1,9 @@
 # Project Log
 
+## UI State Migration Test Suite - 2025-10-08
+
+- Added comprehensive test suite for database-backed UI state system: updated migration-manager.test.ts with new test that verifies ui_state table creation during v2.0.0 migration including schema validation (checks all columns: id, vault_id, state_key, state_value, schema_version, updated_at) and index verification (idx_ui_state_vault, idx_ui_state_key); created new ui-state.test.ts with 18 tests covering basic saveUIState/loadUIState operations (simple and complex state with arrays, update behavior, null values, data type preservation), vault isolation (state segregation between different vaults), clearUIState functionality, error handling (large state values), and real-world workflow patterns (active note switching, temporary tabs management, pinned notes reordering); added ui_state table creation to schema.ts initializeSchema() so new vaults include the table from the start; all 31 tests pass successfully (13 migration tests + 18 UI state tests)
+
 ## Database Migration Consolidation - 2025-10-08
 
 - Consolidated v2.0.0 and v2.1.0 database migrations into a single v2.0.0 release since 2.0.0 has not been released yet: combined immutable note IDs migration and UI state table creation into single migrateToV2() function that runs both sequentially, updated CURRENT_SCHEMA_VERSION to 2.0.0, simplified migration array to have just 1.1.0 and 2.0.0 versions; all linting and type checking passes

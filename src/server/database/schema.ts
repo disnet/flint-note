@@ -257,6 +257,29 @@ export class DatabaseManager {
         )
       `);
 
+    // Create UI state table for storing vault-specific UI state
+    await connection.run(`
+        CREATE TABLE IF NOT EXISTS ui_state (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          vault_id TEXT NOT NULL,
+          state_key TEXT NOT NULL,
+          state_value TEXT NOT NULL,
+          schema_version TEXT NOT NULL DEFAULT '2.0.0',
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(vault_id, state_key)
+        )
+      `);
+
+    await connection.run(`
+        CREATE INDEX IF NOT EXISTS idx_ui_state_vault
+        ON ui_state(vault_id)
+      `);
+
+    await connection.run(`
+        CREATE INDEX IF NOT EXISTS idx_ui_state_key
+        ON ui_state(vault_id, state_key)
+      `);
+
     // Create note hierarchies table for parent-child relationships
     await connection.run(`
         CREATE TABLE IF NOT EXISTS note_hierarchies (

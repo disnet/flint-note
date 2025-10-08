@@ -695,6 +695,57 @@ This is test note ${i}`;
       expect(isValid).toBe(true);
     });
 
+    it('should create ui_state table in v2.0.0 migration', async () => {
+      // Create v1.1.0 database
+      await createV1_1_0_Database(5);
+
+      // Run migration
+      await DatabaseMigrationManager.checkAndMigrate('1.1.0', dbManager, workspacePath);
+
+      const db = await dbManager.connect();
+
+      // Verify ui_state table exists
+      const tableExists = await db.get<{ count: number }>(
+        "SELECT COUNT(*) as count FROM sqlite_master WHERE type='table' AND name='ui_state'"
+      );
+      expect(tableExists?.count).toBe(1);
+
+      // Verify ui_state table has correct schema
+      const columns = await db.all<{
+        name: string;
+        type: string;
+        notnull: number;
+        pk: number;
+      }>('SELECT name, type, "notnull", pk FROM pragma_table_info(\'ui_state\')');
+
+      const expectedColumns = [
+        { name: 'id', type: 'INTEGER', notnull: 0, pk: 1 },
+        { name: 'vault_id', type: 'TEXT', notnull: 1, pk: 0 },
+        { name: 'state_key', type: 'TEXT', notnull: 1, pk: 0 },
+        { name: 'state_value', type: 'TEXT', notnull: 1, pk: 0 },
+        { name: 'schema_version', type: 'TEXT', notnull: 1, pk: 0 },
+        { name: 'updated_at', type: 'DATETIME', notnull: 0, pk: 0 }
+      ];
+
+      expect(columns.length).toBe(expectedColumns.length);
+      for (const expected of expectedColumns) {
+        const found = columns.find((c) => c.name === expected.name);
+        expect(found).toBeDefined();
+        expect(found?.type).toBe(expected.type);
+        expect(found?.notnull).toBe(expected.notnull);
+        expect(found?.pk).toBe(expected.pk);
+      }
+
+      // Verify indexes exist
+      const indexes = await db.all<{ name: string }>(
+        "SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='ui_state'"
+      );
+
+      const indexNames = indexes.map((i) => i.name);
+      expect(indexNames).toContain('idx_ui_state_vault');
+      expect(indexNames).toContain('idx_ui_state_key');
+    });
+
     it('should detect invalid schema', async () => {
       // Create database with incomplete schema (missing tables)
       const db = await dbManager.connect();
