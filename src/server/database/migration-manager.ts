@@ -414,6 +414,73 @@ async function migrateToImmutableIds(
   // Keep backup tables for one release cycle (can drop later)
 }
 
+/**
+ * Initialize a fresh database with the current schema (v2.0.0)
+ */
+async function initializeFreshDatabase(db: DatabaseConnection): Promise<void> {
+  // Check if notes table already exists
+  const tableExists = await db.get<{ count: number }>(`
+    SELECT COUNT(*) as count FROM sqlite_master
+    WHERE type='table' AND name='notes'
+  `);
+
+  if (tableExists && tableExists.count > 0) {
+    // Table already exists, skip initialization
+    return;
+  }
+
+  console.log('Initializing fresh database with v2.0.0 schema...');
+
+  // Create notes table with v2.0.0 schema (immutable IDs)
+  await db.run(`
+    CREATE TABLE notes (
+      id TEXT PRIMARY KEY,
+      type TEXT NOT NULL,
+      filename TEXT NOT NULL,
+      path TEXT NOT NULL,
+      title TEXT,
+      content TEXT,
+      content_hash TEXT,
+      created TEXT NOT NULL,
+      updated TEXT NOT NULL,
+      size INTEGER,
+      UNIQUE(type, filename)
+    )
+  `);
+
+  // Create note_links table
+  await db.run(`
+    CREATE TABLE note_links (
+      source_id TEXT NOT NULL,
+      target_id TEXT NOT NULL,
+      link_text TEXT NOT NULL,
+      FOREIGN KEY(source_id) REFERENCES notes(id) ON DELETE CASCADE,
+      FOREIGN KEY(target_id) REFERENCES notes(id) ON DELETE CASCADE
+    )
+  `);
+
+  // Create external_links table
+  await db.run(`
+    CREATE TABLE external_links (
+      note_id TEXT NOT NULL,
+      url TEXT NOT NULL,
+      FOREIGN KEY(note_id) REFERENCES notes(id) ON DELETE CASCADE
+    )
+  `);
+
+  // Create note_metadata table
+  await db.run(`
+    CREATE TABLE note_metadata (
+      note_id TEXT NOT NULL,
+      key TEXT NOT NULL,
+      value TEXT,
+      FOREIGN KEY(note_id) REFERENCES notes(id) ON DELETE CASCADE
+    )
+  `);
+
+  console.log('Fresh database initialized successfully');
+}
+
 export class DatabaseMigrationManager {
   private static readonly CURRENT_SCHEMA_VERSION = '2.0.0';
 
@@ -453,8 +520,10 @@ export class DatabaseMigrationManager {
       executedMigrations: []
     };
 
-    // No migration needed if versions match
+    // No migration needed if versions match, but ensure database is initialized
     if (fromVersion === toVersion) {
+      const db = await dbManager.connect();
+      await initializeFreshDatabase(db);
       return result;
     }
 

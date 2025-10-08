@@ -124,7 +124,7 @@ export class ConfigManager {
     return {
       version: '1.1.0',
       database: {
-        schema_version: '1.1.0',
+        schema_version: '2.0.0',
         last_migration: new Date().toISOString()
       },
       workspace_root: '.',
