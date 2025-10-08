@@ -23,6 +23,7 @@ This document prioritizes test recommendations based on what's implementable wit
 ### ✅ Well-Covered
 
 **`tests/server/api/ui-state.test.ts`** (375 lines)
+
 - Basic save/load operations
 - Complex data structures (arrays, nested objects)
 - Vault isolation (basic)
@@ -31,6 +32,7 @@ This document prioritizes test recommendations based on what's implementable wit
 - Real-world usage patterns
 
 **`tests/server/database/migration-manager.test.ts`** (876 lines)
+
 - v1.1.0 → v2.0.0 migration
 - UI state table creation and schema
 - Partial migration recovery
@@ -91,8 +93,12 @@ describe('Concurrent vault operations', () => {
     await Promise.all([
       testSetup.api.saveUIState(vaultA, 'active_note', { noteId: 'n-a1' }),
       testSetup.api.saveUIState(vaultB, 'active_note', { noteId: 'n-b1' }),
-      testSetup.api.saveUIState(vaultA, 'pinned_notes', { notes: [{ id: 'n-a2', order: 0 }] }),
-      testSetup.api.saveUIState(vaultB, 'pinned_notes', { notes: [{ id: 'n-b2', order: 0 }] })
+      testSetup.api.saveUIState(vaultA, 'pinned_notes', {
+        notes: [{ id: 'n-a2', order: 0 }]
+      }),
+      testSetup.api.saveUIState(vaultB, 'pinned_notes', {
+        notes: [{ id: 'n-b2', order: 0 }]
+      })
     ]);
 
     // Verify all writes succeeded and are isolated
@@ -138,7 +144,10 @@ describe('Concurrent vault operations', () => {
 
     // Update vault A multiple times
     await testSetup.api.saveUIState(vaultA, 'temporary_tabs', {
-      tabs: [{ id: 'tab-1', noteId: 'n-shared' }, { id: 'tab-2', noteId: 'n-a-specific' }],
+      tabs: [
+        { id: 'tab-1', noteId: 'n-shared' },
+        { id: 'tab-2', noteId: 'n-a-specific' }
+      ],
       activeTabId: 'tab-2'
     });
     await testSetup.api.saveUIState(vaultA, 'temporary_tabs', {
@@ -216,12 +225,17 @@ describe('Error recovery', () => {
     await testSetup.api.saveUIState(vaultId, 'empty_object', {});
     await testSetup.api.saveUIState(vaultId, 'empty_array', { items: [] });
     await testSetup.api.saveUIState(vaultId, 'null_value', { value: null });
-    await testSetup.api.saveUIState(vaultId, 'undefined_becomes_null', { value: undefined });
+    await testSetup.api.saveUIState(vaultId, 'undefined_becomes_null', {
+      value: undefined
+    });
 
     const emptyObj = await testSetup.api.loadUIState(vaultId, 'empty_object');
     const emptyArr = await testSetup.api.loadUIState(vaultId, 'empty_array');
     const nullVal = await testSetup.api.loadUIState(vaultId, 'null_value');
-    const undefinedVal = await testSetup.api.loadUIState(vaultId, 'undefined_becomes_null');
+    const undefinedVal = await testSetup.api.loadUIState(
+      vaultId,
+      'undefined_becomes_null'
+    );
 
     expect(emptyObj).toEqual({});
     expect(emptyArr).toEqual({ items: [] });
@@ -263,7 +277,9 @@ describe('Error recovery', () => {
 
     // Save state
     await testSetup.api.saveUIState(vaultId, 'active_note', { noteId: 'n-1' });
-    await testSetup.api.saveUIState(vaultId, 'pinned_notes', { notes: [{ id: 'n-2', order: 0 }] });
+    await testSetup.api.saveUIState(vaultId, 'pinned_notes', {
+      notes: [{ id: 'n-2', order: 0 }]
+    });
 
     // Clear all
     await testSetup.api.clearUIState(vaultId);
@@ -487,8 +503,12 @@ describe('Multi-vault state management', () => {
     await testSetup.api.clearUIState(vault2);
 
     // Verify vault 1 and 3 unchanged
-    expect(await testSetup.api.loadUIState(vault1, 'active_note')).toEqual({ noteId: `n-${vault1}` });
-    expect(await testSetup.api.loadUIState(vault3, 'active_note')).toEqual({ noteId: `n-${vault3}` });
+    expect(await testSetup.api.loadUIState(vault1, 'active_note')).toEqual({
+      noteId: `n-${vault1}`
+    });
+    expect(await testSetup.api.loadUIState(vault3, 'active_note')).toEqual({
+      noteId: `n-${vault3}`
+    });
 
     // Verify vault 2 cleared
     expect(await testSetup.api.loadUIState(vault2, 'active_note')).toBeNull();
@@ -508,7 +528,9 @@ describe('Multi-vault state management', () => {
     // Updating one vault shouldn't affect the other
     await testSetup.api.saveUIState(vault1, 'active_note', { noteId: 'n-different' });
 
-    expect(await testSetup.api.loadUIState(vault1, 'active_note')).toEqual({ noteId: 'n-different' });
+    expect(await testSetup.api.loadUIState(vault1, 'active_note')).toEqual({
+      noteId: 'n-different'
+    });
     expect(await testSetup.api.loadUIState(vault2, 'active_note')).toEqual(sharedState);
   });
 });
@@ -528,6 +550,7 @@ These tests would benefit from additional test utilities or renderer-process tes
 **Current limitation:** Our tests run in Node.js; stores run in browser/Svelte environment.
 
 **What's needed:**
+
 - Mock IPC layer (`window.api`)
 - Mock Svelte reactivity (`$state`, `$derived`)
 - Test harness that can initialize stores
@@ -564,6 +587,7 @@ describe('ActiveNoteStore integration', () => {
 **Current limitation:** Need Svelte runtime in tests.
 
 **What's needed:**
+
 - Svelte compiler integration
 - Mock Svelte runes
 - IPC call interception
@@ -605,6 +629,7 @@ describe('Svelte reactivity compliance', () => {
 **Current limitation:** Need realistic data sets and timing infrastructure.
 
 **What's needed:**
+
 - Performance timing utilities
 - Large test data generators
 - Baseline measurements
@@ -737,6 +762,7 @@ For tests not automatable with current infrastructure:
 **Immediate action:** Implement Phase 1 tests (6-8 hours of work).
 
 These tests will provide strong confidence in:
+
 - Core vault isolation (the original bug)
 - Error resilience
 - Schema compliance
