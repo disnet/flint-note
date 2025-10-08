@@ -573,12 +573,19 @@ async function initializeFreshDatabase(db: DatabaseConnection): Promise<void> {
 }
 
 /**
- * Migration function to add UI state table
+ * Migration function to add immutable IDs and UI state table
+ * Combined migration for version 2.0.0
  */
-async function addUIStateTable(db: DatabaseConnection): Promise<void> {
+async function migrateToV2(
+  db: DatabaseConnection
+  // dbManager and workspacePath are not currently used but required by interface signature
+): Promise<void> {
+  // First migrate to immutable IDs
+  await migrateToImmutableIds(db);
+
+  // Then add UI state table
   console.log('Adding UI state table...');
 
-  // Create ui_state table
   await db.run(`
     CREATE TABLE IF NOT EXISTS ui_state (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -591,7 +598,6 @@ async function addUIStateTable(db: DatabaseConnection): Promise<void> {
     )
   `);
 
-  // Create indexes for performance
   await db.run(`
     CREATE INDEX IF NOT EXISTS idx_ui_state_vault
     ON ui_state(vault_id)
@@ -606,7 +612,7 @@ async function addUIStateTable(db: DatabaseConnection): Promise<void> {
 }
 
 export class DatabaseMigrationManager {
-  private static readonly CURRENT_SCHEMA_VERSION = '2.1.0';
+  private static readonly CURRENT_SCHEMA_VERSION = '2.0.0';
 
   private static readonly MIGRATIONS: DatabaseMigration[] = [
     {
@@ -617,17 +623,11 @@ export class DatabaseMigrationManager {
     },
     {
       version: '2.0.0',
-      description: 'Add immutable note IDs and migrate to two-concept model',
+      description:
+        'Add immutable note IDs, UI state table, and migrate to two-concept model',
       requiresFullRebuild: false,
       requiresLinkMigration: false,
-      migrationFunction: migrateToImmutableIds
-    },
-    {
-      version: '2.1.0',
-      description: 'Add UI state table',
-      requiresFullRebuild: false,
-      requiresLinkMigration: false,
-      migrationFunction: addUIStateTable
+      migrationFunction: migrateToV2
     }
   ];
 

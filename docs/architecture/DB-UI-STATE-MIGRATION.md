@@ -159,31 +159,44 @@ CREATE INDEX idx_pinned_notes_vault ON pinned_notes(vault_id, display_order);
 ```typescript
 // Add to migrations array
 {
-  version: '2.1.0',
-  description: 'Add UI state table',
-  async up(db: DatabaseConnection): Promise<void> {
-    await db.run(`
-      CREATE TABLE IF NOT EXISTS ui_state (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        vault_id TEXT NOT NULL,
-        state_key TEXT NOT NULL,
-        state_value TEXT NOT NULL,
-        schema_version TEXT NOT NULL DEFAULT '2.0.0',
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(vault_id, state_key)
-      )
-    `);
+  version: '2.0.0',
+  description: 'Add immutable note IDs, UI state table, and migrate to two-concept model',
+  requiresFullRebuild: false,
+  requiresLinkMigration: false,
+  migrationFunction: migrateToV2
+}
 
-    await db.run(`
-      CREATE INDEX IF NOT EXISTS idx_ui_state_vault
-      ON ui_state(vault_id)
-    `);
+// Migration function that combines both immutable IDs and UI state table
+async function migrateToV2(db: DatabaseConnection): Promise<void> {
+  // First migrate to immutable IDs
+  await migrateToImmutableIds(db);
 
-    await db.run(`
-      CREATE INDEX IF NOT EXISTS idx_ui_state_key
-      ON ui_state(vault_id, state_key)
-    `);
-  }
+  // Then add UI state table
+  console.log('Adding UI state table...');
+
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS ui_state (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      vault_id TEXT NOT NULL,
+      state_key TEXT NOT NULL,
+      state_value TEXT NOT NULL,
+      schema_version TEXT NOT NULL DEFAULT '2.0.0',
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(vault_id, state_key)
+    )
+  `);
+
+  await db.run(`
+    CREATE INDEX IF NOT EXISTS idx_ui_state_vault
+    ON ui_state(vault_id)
+  `);
+
+  await db.run(`
+    CREATE INDEX IF NOT EXISTS idx_ui_state_key
+    ON ui_state(vault_id, state_key)
+  `);
+
+  console.log('UI state table added successfully');
 }
 ```
 
@@ -588,7 +601,7 @@ If critical issues discovered after release:
 - [x] All 6 stores updated and tested
 - [x] Old file storage code removed (migration service deleted from App.svelte)
 - [x] localStorage usage eliminated completely
-- [x] Migration adds `ui_state` table (version 2.1.0)
+- [x] Migration adds `ui_state` table (version 2.0.0 - consolidated with immutable IDs migration)
 - [x] IPC handlers working for load/save/clear
 - [x] Vault switching preserves UI state correctly
 - [x] No race conditions on app startup
@@ -654,19 +667,23 @@ The implementation followed the plan closely with these minor adjustments:
 ### Files Modified
 
 **Database Layer:**
-- `src/server/database/migration-manager.ts` - Added migration v2.1.0
+
+- `src/server/database/migration-manager.ts` - Added migration v2.0.0 (includes immutable IDs + UI state table)
 - `src/server/database/schema.ts` - Added UIStateRow interface
 
 **API Layer:**
+
 - `src/server/api/flint-note-api.ts` - Added loadUIState/saveUIState/clearUIState methods
 - `src/main/note-service.ts` - Added UI state wrapper methods
 
 **IPC Layer:**
+
 - `src/main/index.ts` - Added load-ui-state/save-ui-state/clear-ui-state handlers
 - `src/preload/index.ts` - Added preload API methods
 - `src/renderer/src/env.d.ts` - Added TypeScript definitions
 
 **Stores Updated:**
+
 - `src/renderer/src/stores/activeNoteStore.svelte.ts`
 - `src/renderer/src/stores/temporaryTabsStore.svelte.ts`
 - `src/renderer/src/stores/navigationHistoryStore.svelte.ts`
@@ -675,6 +692,7 @@ The implementation followed the plan closely with these minor adjustments:
 - `src/renderer/src/stores/unifiedChatStore.svelte.ts`
 
 **UI Layer:**
+
 - `src/renderer/src/App.svelte` - Removed migration service imports and loading screen
 
 ### Testing Results
