@@ -643,15 +643,45 @@ export class FlintNoteApi {
         );
 
         // Create onboarding content for the new vault
+        let onboardingNoteIds: {
+          welcomeNoteId: string | null;
+          tutorialNoteIds: string[];
+        } = {
+          welcomeNoteId: null,
+          tutorialNoteIds: []
+        };
+
         try {
           const tempNoteManager = new NoteManager(workspace, tempHybridSearchManager);
-          await this.createOnboardingContentWithManager(tempNoteManager);
+          onboardingNoteIds =
+            await this.createOnboardingContentWithManager(tempNoteManager);
         } catch (error) {
           console.error('Failed to create onboarding content for new vault:', error);
           // Don't throw - onboarding content creation shouldn't block vault creation
         }
 
         await tempHybridSearchManager.close();
+
+        // Store onboarding note IDs for return
+        if (args.switch_to !== false) {
+          // Switch to the new vault
+          await this.globalConfig.switchVault(args.id);
+
+          // Reinitialize this API instance with the new vault
+          this.initialized = false;
+          await this.initialize();
+        }
+
+        const vault = this.globalConfig.getVault(args.id);
+        if (!vault) {
+          throw new Error('Failed to retrieve created vault');
+        }
+
+        return {
+          ...vault,
+          isNewVault,
+          onboardingNotes: isNewVault ? onboardingNoteIds : undefined
+        };
       }
     }
 
@@ -1558,43 +1588,56 @@ export class FlintNoteApi {
   /**
    * Create onboarding content (welcome note and tutorials) using proper note creation API
    * Called during initial vault setup with noteManager provided directly
+   * Returns the IDs of created notes for pinning/tabs
    */
   private async createOnboardingContentWithManager(
     noteManager: NoteManager
-  ): Promise<void> {
+  ): Promise<{ welcomeNoteId: string | null; tutorialNoteIds: string[] }> {
     try {
       // Create welcome note
-      await this.createWelcomeNote(noteManager);
+      const welcomeNoteId = await this.createWelcomeNote(noteManager);
 
       // Create tutorial notes
-      await this.createTutorialNotes(noteManager);
+      const tutorialNoteIds = await this.createTutorialNotes(noteManager);
+
+      return { welcomeNoteId, tutorialNoteIds };
     } catch (error) {
       console.error('Failed to create onboarding content:', error);
       // Don't throw - onboarding content creation shouldn't block vault initialization
+      return { welcomeNoteId: null, tutorialNoteIds: [] };
     }
   }
 
   /**
    * Create the welcome note using proper note creation API
+   * Returns the ID of the created note
    */
-  private async createWelcomeNote(noteManager: NoteManager): Promise<void> {
-    const welcomeContent = await this.loadOnboardingContent(
-      'welcome/welcome-to-flint.md'
-    );
+  private async createWelcomeNote(noteManager: NoteManager): Promise<string | null> {
+    try {
+      const welcomeContent = await this.loadOnboardingContent(
+        'welcome/welcome-to-flint.md'
+      );
 
-    await noteManager.createNote(
-      'note',
-      'Welcome to Flint',
-      welcomeContent,
-      {},
-      false // Don't enforce required fields for onboarding content
-    );
+      const note = await noteManager.createNote(
+        'note',
+        'Welcome to Flint',
+        welcomeContent,
+        {},
+        false // Don't enforce required fields for onboarding content
+      );
+
+      return note.id;
+    } catch (error) {
+      console.error('Failed to create welcome note:', error);
+      return null;
+    }
   }
 
   /**
    * Create tutorial notes using proper note creation API
+   * Returns the IDs of the created notes
    */
-  private async createTutorialNotes(noteManager: NoteManager): Promise<void> {
+  private async createTutorialNotes(noteManager: NoteManager): Promise<string[]> {
     const tutorials = [
       {
         filename: 'tutorials/01-your-first-daily-note.md',
@@ -1614,10 +1657,12 @@ export class FlintNoteApi {
       }
     ];
 
+    const createdNoteIds: string[] = [];
+
     for (const tutorial of tutorials) {
       try {
         const content = await this.loadOnboardingContent(tutorial.filename);
-        await noteManager.createNote(
+        const note = await noteManager.createNote(
           'note',
           tutorial.title,
           content,
@@ -1626,11 +1671,14 @@ export class FlintNoteApi {
           },
           false // Don't enforce required fields for onboarding content
         );
+        createdNoteIds.push(note.id);
       } catch (error) {
         console.error(`Failed to create tutorial note ${tutorial.title}:`, error);
         // Continue with other tutorials even if one fails
       }
     }
+
+    return createdNoteIds;
   }
 
   /**

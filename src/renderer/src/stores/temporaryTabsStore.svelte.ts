@@ -457,31 +457,35 @@ class TemporaryTabsStore {
    * Add tutorial notes to temporary tabs for new vaults
    * Called after vault creation to provide immediate guidance
    */
-  async addTutorialNoteTabs(): Promise<void> {
+  async addTutorialNoteTabs(tutorialNoteIds?: string[]): Promise<void> {
     await this.ensureInitialized();
 
-    // Add tutorial notes to temporary tabs
-    const tutorialNotes = [
-      {
-        id: 'note/tutorial-1-your-first-daily-note',
-        title: 'Tutorial 1: Your First Daily Note'
-      },
-      {
-        id: 'note/tutorial-2-connecting-ideas-with-wikilinks',
-        title: 'Tutorial 2: Connecting Ideas with Wikilinks'
-      },
-      {
-        id: 'note/tutorial-3-your-ai-assistant-in-action',
-        title: 'Tutorial 3: Your AI Assistant in Action'
-      },
-      {
-        id: 'note/tutorial-4-understanding-note-types',
-        title: 'Tutorial 4: Understanding Note Types'
+    if (tutorialNoteIds && tutorialNoteIds.length > 0) {
+      // Use provided tutorial note IDs
+      for (const noteId of tutorialNoteIds) {
+        await this.addTab(noteId, 'navigation');
       }
-    ];
+    } else {
+      // Fallback: try to find tutorial notes by title
+      const tutorialTitles = [
+        'Tutorial 1: Your First Daily Note',
+        'Tutorial 2: Connecting Ideas with Wikilinks',
+        'Tutorial 3: Your AI Assistant in Action',
+        'Tutorial 4: Understanding Note Types'
+      ];
 
-    for (const tutorial of tutorialNotes) {
-      await this.addTab(tutorial.id, 'navigation');
+      // Import notesStore dynamically to avoid circular dependencies
+      const { notesStore } = await import('../services/noteStore.svelte');
+
+      // Refresh notes to ensure we have the latest list
+      await notesStore.refresh();
+
+      for (const title of tutorialTitles) {
+        const tutorialNote = notesStore.notes.find((note) => note.title === title);
+        if (tutorialNote) {
+          await this.addTab(tutorialNote.id, 'navigation');
+        }
+      }
     }
   }
 }

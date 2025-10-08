@@ -559,8 +559,13 @@
         // Set up onboarding content only for new vaults (not existing ones)
         if (vault.isNewVault) {
           console.log('New vault detected, setting up onboarding content');
+
+          // Use the onboarding note IDs returned from vault creation if available
+          const welcomeNoteId = vault.onboardingNotes?.welcomeNoteId;
+          const tutorialNoteIds = vault.onboardingNotes?.tutorialNoteIds || [];
+
           try {
-            await pinnedNotesStore.pinWelcomeNote();
+            await pinnedNotesStore.pinWelcomeNote(welcomeNoteId);
             console.log('Welcome note pinned successfully');
           } catch (error) {
             console.warn('Failed to pin welcome note:', error);
@@ -568,7 +573,7 @@
           }
 
           try {
-            await temporaryTabsStore.addTutorialNoteTabs();
+            await temporaryTabsStore.addTutorialNoteTabs(tutorialNoteIds);
             console.log('Tutorial tabs added successfully');
           } catch (error) {
             console.warn('Failed to add tutorial notes to tabs:', error);

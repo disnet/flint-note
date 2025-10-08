@@ -220,8 +220,20 @@ class PinnedNotesStore {
    * Pin the welcome note for new vaults
    * Called after vault creation to provide immediate guidance
    */
-  async pinWelcomeNote(): Promise<void> {
-    await this.pinNote('note/welcome-to-flint');
+  async pinWelcomeNote(welcomeNoteId?: string | null): Promise<void> {
+    if (welcomeNoteId) {
+      await this.pinNote(welcomeNoteId);
+    } else {
+      // Fallback: try to find the welcome note by title
+      const { notesStore } = await import('./noteStore.svelte');
+      await notesStore.refresh();
+      const welcomeNote = notesStore.notes.find(
+        (note) => note.title === 'Welcome to Flint'
+      );
+      if (welcomeNote) {
+        await this.pinNote(welcomeNote.id);
+      }
+    }
   }
 
   /**
