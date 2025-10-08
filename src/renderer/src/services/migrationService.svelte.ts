@@ -8,6 +8,21 @@
  * has completed, updating all localStorage references to use new IDs.
  */
 
+interface PinnedNote {
+  id: string;
+  [key: string]: unknown;
+}
+
+interface SidebarNote {
+  noteId: string;
+  [key: string]: unknown;
+}
+
+interface TemporaryTab {
+  id: string;
+  [key: string]: unknown;
+}
+
 export class MigrationService {
   private migrationCompleteKey = 'note-id-migration-complete';
 
@@ -72,7 +87,7 @@ export class MigrationService {
     if (!raw) return;
 
     try {
-      const pinned = JSON.parse(raw) as Array<{ id: string; [key: string]: any }>;
+      const pinned = JSON.parse(raw) as PinnedNote[];
       const migrated = pinned
         .map((note) => ({
           ...note,
@@ -99,7 +114,7 @@ export class MigrationService {
     if (!raw) return;
 
     try {
-      const sidebar = JSON.parse(raw) as Array<{ noteId: string; [key: string]: any }>;
+      const sidebar = JSON.parse(raw) as SidebarNote[];
       const migrated = sidebar
         .map((note) => ({
           ...note,
@@ -125,7 +140,7 @@ export class MigrationService {
     if (!raw) return;
 
     try {
-      const tabs = JSON.parse(raw) as Array<{ id: string; [key: string]: any }>;
+      const tabs = JSON.parse(raw) as TemporaryTab[];
       const migrated = tabs
         .map((tab) => ({
           ...tab,
