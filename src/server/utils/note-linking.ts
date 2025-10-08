@@ -6,32 +6,6 @@
  */
 
 import { WikilinkParser } from '../core/wikilink-parser.js';
-
-/**
- * Helper method to generate note ID from identifier
- *
- * NOTE: This is a simple identifier pass-through that assumes the identifier
- * IS the note ID. After the immutable ID migration, note IDs are in the format
- * `n-xxxxxxxx` (not `type/filename`). Callers should ensure they're passing
- * the correct ID format, or use database lookups to resolve type/filename
- * identifiers to immutable IDs.
- *
- * @param identifier - Note identifier (immutable ID like n-xxxxxxxx)
- * @returns The note ID
- */
-export function generateNoteIdFromIdentifier(identifier: string): string {
-  // Validate input
-  if (!identifier || typeof identifier !== 'string') {
-    throw new Error(
-      `Invalid identifier: expected non-empty string, got ${typeof identifier}`
-    );
-  }
-
-  // After immutable ID migration, this should be an immutable ID
-  // If it contains '/', it's likely a legacy type/filename identifier
-  // which needs to be resolved via database lookup by the caller
-  return identifier;
-}
 import type {
   WikiLink,
   NoteLookupResult,

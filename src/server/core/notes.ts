@@ -32,7 +32,6 @@ import type {
 import { WikilinkParser } from './wikilink-parser.js';
 import { LinkExtractor } from './link-extractor.js';
 import { HierarchyManager } from './hierarchy.js';
-import { generateNoteIdFromIdentifier } from '../utils/note-linking.js';
 
 interface ParsedNote {
   metadata: NoteMetadata;
@@ -141,10 +140,7 @@ export class NoteManager {
   /**
    * Sync subnotes from frontmatter to hierarchy database
    */
-  async #syncSubnotesToHierarchy(
-    noteIdentifier: string,
-    subnotes: string[]
-  ): Promise<void> {
+  async #syncSubnotesToHierarchy(noteId: string, subnotes: string[]): Promise<void> {
     if (!this.#hierarchyManager || !this.#hybridSearchManager) return;
 
     // Get database connection if hierarchy manager isn't initialized
@@ -153,16 +149,12 @@ export class NoteManager {
       if (!this.#hierarchyManager) return;
     }
 
-    const noteId = generateNoteIdFromIdentifier(noteIdentifier);
-
     // Get current children from database
     const currentChildren = await this.#hierarchyManager.getChildren(noteId);
     const currentChildIds = currentChildren.map((child) => child.child_id);
 
-    // Convert subnote identifiers to IDs
-    const desiredChildIds = subnotes.map((identifier) =>
-      generateNoteIdFromIdentifier(identifier)
-    );
+    // Desired child IDs from subnotes
+    const desiredChildIds = subnotes;
 
     // Find children to add
     const toAdd = desiredChildIds.filter((childId) => !currentChildIds.includes(childId));
@@ -193,7 +185,7 @@ export class NoteManager {
   /**
    * Sync subnotes from hierarchy database to frontmatter
    */
-  async #syncHierarchyToSubnotes(noteIdentifier: string): Promise<void> {
+  async #syncHierarchyToSubnotes(noteId: string): Promise<void> {
     if (!this.#hierarchyManager || !this.#hybridSearchManager) {
       return;
     }
@@ -204,7 +196,6 @@ export class NoteManager {
       if (!this.#hierarchyManager) return;
     }
 
-    const noteId = generateNoteIdFromIdentifier(noteIdentifier);
     const children = await this.#hierarchyManager.getChildren(noteId);
 
     // Convert child IDs back to identifiers
@@ -223,9 +214,9 @@ export class NoteManager {
 
     // Update the note's frontmatter with the current subnotes
     try {
-      const currentNote = await this.getNote(noteIdentifier);
+      const currentNote = await this.getNote(noteId);
       if (!currentNote) {
-        console.warn(`Note not found when syncing hierarchy: ${noteIdentifier}`);
+        console.warn(`Note not found when syncing hierarchy: ${noteId}`);
         return;
       }
 
@@ -239,24 +230,21 @@ export class NoteManager {
       }
 
       await this.updateNoteWithMetadata(
-        noteIdentifier,
+        noteId,
         currentNote.content,
         updatedMetadata,
         currentNote.content_hash
       );
     } catch (error) {
       // If we can't update the note, just log the error and continue
-      console.warn(
-        `Failed to sync hierarchy to frontmatter for ${noteIdentifier}:`,
-        error
-      );
+      console.warn(`Failed to sync hierarchy to frontmatter for ${noteId}:`, error);
     }
   }
 
   /**
    * Clean up hierarchy relationships when a note is deleted
    */
-  async #cleanupHierarchyOnDelete(noteIdentifier: string): Promise<void> {
+  async #cleanupHierarchyOnDelete(noteId: string): Promise<void> {
     if (!this.#hierarchyManager || !this.#hybridSearchManager) return;
 
     // Get database connection if hierarchy manager isn't initialized
@@ -264,8 +252,6 @@ export class NoteManager {
       await this.#initializeHierarchyManager(this.#hybridSearchManager);
       if (!this.#hierarchyManager) return;
     }
-
-    const noteId = generateNoteIdFromIdentifier(noteIdentifier);
 
     try {
       // Remove all parent-child relationships where this note is the parent
@@ -281,10 +267,7 @@ export class NoteManager {
       }
     } catch (error) {
       // Don't fail deletion if hierarchy cleanup fails, but log it
-      console.warn(
-        `Failed to clean up hierarchy for deleted note ${noteIdentifier}:`,
-        error
-      );
+      console.warn(`Failed to clean up hierarchy for deleted note ${noteId}:`, error);
     }
   }
 
@@ -1863,7 +1846,7 @@ export class NoteManager {
   /**
    * Public method to sync hierarchy changes back to note frontmatter
    */
-  async syncHierarchyToFrontmatter(noteIdentifier: string): Promise<void> {
-    await this.#syncHierarchyToSubnotes(noteIdentifier);
+  async syncHierarchyToFrontmatter(noteId: string): Promise<void> {
+    await this.#syncHierarchyToSubnotes(noteId);
   }
 }

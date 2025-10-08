@@ -8,7 +8,6 @@ import type { NoteMetadata, NoteLink as _NoteLink } from '../types/index.js';
 import fs from 'fs/promises';
 import path from 'path';
 import { createHash } from 'crypto';
-import { generateNoteIdFromIdentifier } from '../utils/note-linking.js';
 
 /**
  * Helper to handle index rebuilding with progress reporting
@@ -373,21 +372,19 @@ export class HybridSearchManager {
 
       // Hierarchy filters
       if (options.parent_of) {
-        const childId = generateNoteIdFromIdentifier(options.parent_of);
         joins.push('JOIN note_hierarchies h_parent ON n.id = h_parent.parent_id');
         whereConditions.push('h_parent.child_id = ?');
-        params.push(childId);
+        params.push(options.parent_of);
       }
 
       if (options.child_of) {
-        const parentId = generateNoteIdFromIdentifier(options.child_of);
         joins.push('JOIN note_hierarchies h_child ON n.id = h_child.child_id');
         whereConditions.push('h_child.parent_id = ?');
-        params.push(parentId);
+        params.push(options.child_of);
       }
 
       if (options.descendants_of) {
-        const ancestorId = generateNoteIdFromIdentifier(options.descendants_of);
+        const ancestorId = options.descendants_of;
         // Use recursive CTE to find all descendants
         const maxDepth = options.max_depth || 10;
         joins.push(`
@@ -407,21 +404,20 @@ export class HybridSearchManager {
       }
 
       if (options.ancestors_of) {
-        const descendantId = generateNoteIdFromIdentifier(options.ancestors_of);
         // Use recursive CTE to find all ancestors
         joins.push(`
           JOIN (
             WITH RECURSIVE ancestors(id) AS (
               SELECT parent_id FROM note_hierarchies WHERE child_id = ?
               UNION ALL
-              SELECT h.parent_id 
-              FROM note_hierarchies h 
+              SELECT h.parent_id
+              FROM note_hierarchies h
               JOIN ancestors a ON h.child_id = a.id
             )
             SELECT id FROM ancestors
           ) a ON n.id = a.id
         `);
-        params.push(descendantId);
+        params.push(options.ancestors_of);
       }
 
       if (options.has_children !== undefined) {

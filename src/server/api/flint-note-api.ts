@@ -57,7 +57,6 @@ import type { VaultInfo } from '../utils/global-config.js';
 import { resolvePath, isPathSafe } from '../utils/path.js';
 import { LinkExtractor } from '../core/link-extractor.js';
 import type { NoteLinkRow, ExternalLinkRow, NoteRow } from '../database/schema.js';
-import { generateNoteIdFromIdentifier } from '../utils/note-linking.js';
 import { handleIndexRebuild } from '../database/search-manager.js';
 import { logInitialization } from '../utils/config.js';
 import type { MetadataFieldDefinition } from '../core/metadata-schema.js';
@@ -756,15 +755,14 @@ export class FlintNoteApi {
 
     const { hybridSearchManager } = await this.getVaultContext(vaultId);
     const db = await hybridSearchManager.getDatabaseConnection();
-    const noteId = generateNoteIdFromIdentifier(identifier);
 
     // Check if note exists
-    const note = await db.get('SELECT id FROM notes WHERE id = ?', [noteId]);
+    const note = await db.get('SELECT id FROM notes WHERE id = ?', [identifier]);
     if (!note) {
       throw new Error(`Note not found: ${identifier}`);
     }
 
-    return await LinkExtractor.getLinksForNote(noteId, db);
+    return await LinkExtractor.getLinksForNote(identifier, db);
   }
 
   /**
@@ -775,15 +773,14 @@ export class FlintNoteApi {
 
     const { hybridSearchManager } = await this.getVaultContext(vaultId);
     const db = await hybridSearchManager.getDatabaseConnection();
-    const noteId = generateNoteIdFromIdentifier(identifier);
 
     // Check if note exists
-    const note = await db.get('SELECT id FROM notes WHERE id = ?', [noteId]);
+    const note = await db.get('SELECT id FROM notes WHERE id = ?', [identifier]);
     if (!note) {
       throw new Error(`Note not found: ${identifier}`);
     }
 
-    return await LinkExtractor.getBacklinks(noteId, db);
+    return await LinkExtractor.getBacklinks(identifier, db);
   }
 
   /**
@@ -818,7 +815,7 @@ export class FlintNoteApi {
     // Handle different search criteria
     if (args.has_links_to && args.has_links_to.length > 0) {
       // Find notes that link to any of the specified notes
-      const targetIds = args.has_links_to.map((id) => generateNoteIdFromIdentifier(id));
+      const targetIds = args.has_links_to;
       const placeholders = targetIds.map(() => '?').join(',');
       notes = await db.all(
         `SELECT DISTINCT n.* FROM notes n
@@ -828,7 +825,7 @@ export class FlintNoteApi {
       );
     } else if (args.linked_from && args.linked_from.length > 0) {
       // Find notes that are linked from any of the specified notes
-      const sourceIds = args.linked_from.map((id) => generateNoteIdFromIdentifier(id));
+      const sourceIds = args.linked_from;
       const placeholders = sourceIds.map(() => '?').join(',');
       notes = await db.all(
         `SELECT DISTINCT n.* FROM notes n
@@ -933,8 +930,8 @@ export class FlintNoteApi {
     const hierarchyManager = new HierarchyManager(db);
 
     // Convert identifiers to note IDs
-    const parentId = generateNoteIdFromIdentifier(args.parent_id);
-    const childId = generateNoteIdFromIdentifier(args.child_id);
+    const parentId = args.parent_id;
+    const childId = args.child_id;
 
     // Verify both notes exist
     const parentExists = await db.get('SELECT id FROM notes WHERE id = ?', [parentId]);
@@ -995,8 +992,8 @@ export class FlintNoteApi {
     const hierarchyManager = new HierarchyManager(db);
 
     // Convert identifiers to note IDs
-    const parentId = generateNoteIdFromIdentifier(args.parent_id);
-    const childId = generateNoteIdFromIdentifier(args.child_id);
+    const parentId = args.parent_id;
+    const childId = args.child_id;
 
     const result = await hierarchyManager.removeSubnote(parentId, childId);
 
@@ -1029,8 +1026,8 @@ export class FlintNoteApi {
     const hierarchyManager = new HierarchyManager(db);
 
     // Convert identifiers to note IDs
-    const parentId = generateNoteIdFromIdentifier(args.parent_id);
-    const childIds = args.child_ids.map((id) => generateNoteIdFromIdentifier(id));
+    const parentId = args.parent_id;
+    const childIds = args.child_ids;
 
     const result = await hierarchyManager.reorderSubnotes(parentId, childIds);
 
@@ -1133,7 +1130,7 @@ export class FlintNoteApi {
     const db = await hybridSearchManager.getDatabaseConnection();
     const hierarchyManager = new HierarchyManager(db);
 
-    const noteId = generateNoteIdFromIdentifier(args.note_id);
+    const noteId = args.note_id;
     const path = await hierarchyManager.getHierarchyPath(noteId);
 
     // Convert note IDs back to identifiers for the response
@@ -1163,7 +1160,7 @@ export class FlintNoteApi {
     const db = await hybridSearchManager.getDatabaseConnection();
     const hierarchyManager = new HierarchyManager(db);
 
-    const noteId = generateNoteIdFromIdentifier(args.note_id);
+    const noteId = args.note_id;
     return await hierarchyManager.getDescendants(noteId, args.max_depth);
   }
 
@@ -1177,7 +1174,7 @@ export class FlintNoteApi {
     const db = await hybridSearchManager.getDatabaseConnection();
     const hierarchyManager = new HierarchyManager(db);
 
-    const noteId = generateNoteIdFromIdentifier(args.note_id);
+    const noteId = args.note_id;
     return await hierarchyManager.getChildren(noteId);
   }
 
@@ -1191,7 +1188,7 @@ export class FlintNoteApi {
     const db = await hybridSearchManager.getDatabaseConnection();
     const hierarchyManager = new HierarchyManager(db);
 
-    const noteId = generateNoteIdFromIdentifier(args.note_id);
+    const noteId = args.note_id;
     return await hierarchyManager.getParents(noteId);
   }
 
@@ -1210,7 +1207,7 @@ export class FlintNoteApi {
     const db = await hybridSearchManager.getDatabaseConnection();
     const relationshipManager = new RelationshipManager(db);
 
-    const noteId = generateNoteIdFromIdentifier(args.note_id);
+    const noteId = args.note_id;
     return await relationshipManager.getNoteRelationships(noteId);
   }
 
@@ -1228,7 +1225,7 @@ export class FlintNoteApi {
     const db = await hybridSearchManager.getDatabaseConnection();
     const relationshipManager = new RelationshipManager(db);
 
-    const noteId = generateNoteIdFromIdentifier(args.note_id);
+    const noteId = args.note_id;
     return await relationshipManager.getRelatedNotes(noteId, args.max_results);
   }
 
@@ -1247,8 +1244,8 @@ export class FlintNoteApi {
     const db = await hybridSearchManager.getDatabaseConnection();
     const relationshipManager = new RelationshipManager(db);
 
-    const startNoteId = generateNoteIdFromIdentifier(args.start_note_id);
-    const endNoteId = generateNoteIdFromIdentifier(args.end_note_id);
+    const startNoteId = args.start_note_id;
+    const endNoteId = args.end_note_id;
 
     return await relationshipManager.findRelationshipPath(
       startNoteId,
@@ -1270,7 +1267,7 @@ export class FlintNoteApi {
     const db = await hybridSearchManager.getDatabaseConnection();
     const relationshipManager = new RelationshipManager(db);
 
-    const noteId = generateNoteIdFromIdentifier(args.note_id);
+    const noteId = args.note_id;
     return await relationshipManager.getClusteringCoefficient(noteId);
   }
 
