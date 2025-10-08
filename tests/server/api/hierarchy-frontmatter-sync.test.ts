@@ -104,7 +104,7 @@ describe('Hierarchy Operations - Frontmatter Sync', () => {
       // Verify parent frontmatter now includes subnotes
       parentNote = await getNoteWithFrontmatter(parent.id);
       expect(parentNote.metadata.subnotes).toBeDefined();
-      expect(parentNote.metadata.subnotes).toEqual(['general/Child Note']);
+      expect(parentNote.metadata.subnotes).toEqual(['general/child-note']);
     });
 
     it('should update parent frontmatter when adding multiple children', async () => {
@@ -138,9 +138,9 @@ describe('Hierarchy Operations - Frontmatter Sync', () => {
       // Verify all children are in frontmatter
       const parentNote = await getNoteWithFrontmatter(parent.id);
       expect(parentNote.metadata.subnotes).toEqual([
-        'general/First Child',
-        'general/Second Child',
-        'general/Third Child'
+        'general/first-child',
+        'general/second-child',
+        'general/third-child'
       ]);
     });
 
@@ -165,7 +165,7 @@ describe('Hierarchy Operations - Frontmatter Sync', () => {
       expect(parentNote.metadata.tags).toEqual(['important', 'project']);
       expect(parentNote.metadata.priority).toBe('high');
       expect(parentNote.metadata.custom_field).toBe('custom_value');
-      expect(parentNote.metadata.subnotes).toEqual(['general/Child Note']);
+      expect(parentNote.metadata.subnotes).toEqual(['general/child-note']);
     });
   });
 
@@ -183,7 +183,7 @@ describe('Hierarchy Operations - Frontmatter Sync', () => {
 
       // Verify child is in frontmatter
       let parentNote = await getNoteWithFrontmatter(parent.id);
-      expect(parentNote.metadata.subnotes).toEqual(['general/Child Note']);
+      expect(parentNote.metadata.subnotes).toEqual(['general/child-note']);
 
       // Remove child from parent
       const removeArgs: RemoveSubnoteArgs = {
@@ -233,8 +233,8 @@ describe('Hierarchy Operations - Frontmatter Sync', () => {
       // Verify remaining children are in frontmatter
       const parentNote = await getNoteWithFrontmatter(parent.id);
       expect(parentNote.metadata.subnotes).toEqual([
-        'general/First Child',
-        'general/Third Child'
+        'general/first-child',
+        'general/third-child'
       ]);
     });
 
@@ -295,9 +295,9 @@ describe('Hierarchy Operations - Frontmatter Sync', () => {
       // Verify original order
       let parentNote = await getNoteWithFrontmatter(parent.id);
       expect(parentNote.metadata.subnotes).toEqual([
-        'general/Alpha Child',
-        'general/Beta Child',
-        'general/Gamma Child'
+        'general/alpha-child',
+        'general/beta-child',
+        'general/gamma-child'
       ]);
 
       // Reorder children: [Alpha, Beta, Gamma] -> [Gamma, Alpha, Beta]
@@ -312,9 +312,9 @@ describe('Hierarchy Operations - Frontmatter Sync', () => {
       // Verify new order in frontmatter
       parentNote = await getNoteWithFrontmatter(parent.id);
       expect(parentNote.metadata.subnotes).toEqual([
-        'general/Gamma Child',
-        'general/Alpha Child',
-        'general/Beta Child'
+        'general/gamma-child',
+        'general/alpha-child',
+        'general/beta-child'
       ]);
     });
 
@@ -351,8 +351,8 @@ describe('Hierarchy Operations - Frontmatter Sync', () => {
       expect(parentNote.metadata.tags).toEqual(['project']);
       expect(parentNote.metadata.status).toBe('active');
       expect(parentNote.metadata.subnotes).toEqual([
-        'general/Second Child',
-        'general/First Child'
+        'general/second-child',
+        'general/first-child'
       ]);
     });
   });
@@ -396,7 +396,7 @@ describe('Hierarchy Operations - Frontmatter Sync', () => {
 
       // Verify the frontmatter is updated with current database state
       const parentNote = await getNoteWithFrontmatter(parent.id);
-      expect(parentNote.metadata.subnotes).toEqual(['general/New Child']);
+      expect(parentNote.metadata.subnotes).toEqual(['general/new-child']);
     });
   });
 });

@@ -971,7 +971,7 @@ export class FlintNoteApi {
       try {
         await this.syncHierarchyToFrontmatter(
           args.vault_id,
-          args.parent_id,
+          parentId, // Use immutable ID, not the identifier
           hierarchyManager,
           hybridSearchManager
         );
@@ -1005,7 +1005,7 @@ export class FlintNoteApi {
       try {
         await this.syncHierarchyToFrontmatter(
           args.vault_id,
-          args.parent_id,
+          parentId, // Use immutable ID, not the identifier
           hierarchyManager,
           hybridSearchManager
         );
@@ -1039,7 +1039,7 @@ export class FlintNoteApi {
       try {
         await this.syncHierarchyToFrontmatter(
           args.vault_id,
-          args.parent_id,
+          parentId, // Use immutable ID, not the identifier
           hierarchyManager,
           hybridSearchManager
         );
@@ -1057,29 +1057,43 @@ export class FlintNoteApi {
    */
   private async syncHierarchyToFrontmatter(
     vaultId: string,
-    noteIdentifier: string,
+    noteId: string, // Now accepts immutable ID directly
     hierarchyManager: HierarchyManager,
     hybridSearchManager: HybridSearchManager
   ): Promise<void> {
     const { noteManager } = await this.getVaultContext(vaultId);
+    const db = await hybridSearchManager.getDatabaseConnection();
 
     // Get current hierarchy children
-    const noteId = generateNoteIdFromIdentifier(noteIdentifier);
     const children = await hierarchyManager.getChildren(noteId);
 
     // Convert child IDs back to identifiers
     const subnotes: string[] = [];
-    const db = await hybridSearchManager.getDatabaseConnection();
 
     for (const child of children) {
-      const note = await db.get<{ title: string; type: string }>(
-        'SELECT title, type FROM notes WHERE id = ?',
+      const note = await db.get<{ filename: string; type: string }>(
+        'SELECT filename, type FROM notes WHERE id = ?',
         [child.child_id]
       );
       if (note) {
-        subnotes.push(`${note.type}/${note.title}`);
+        // Remove .md extension from filename for the identifier
+        const filenameWithoutExt = note.filename.replace(/\.md$/, '');
+        subnotes.push(`${note.type}/${filenameWithoutExt}`);
       }
     }
+
+    // Get parent note info to construct the identifier for noteManager
+    const parentNoteInfo = await db.get<{ filename: string; type: string }>(
+      'SELECT filename, type FROM notes WHERE id = ?',
+      [noteId]
+    );
+    if (!parentNoteInfo) {
+      console.warn(`Note not found when syncing hierarchy: ${noteId}`);
+      return;
+    }
+
+    // Construct the identifier (type/filename without .md)
+    const noteIdentifier = `${parentNoteInfo.type}/${parentNoteInfo.filename.replace(/\.md$/, '')}`;
 
     // Get current note and update its frontmatter
     const currentNote = await noteManager.getNote(noteIdentifier);
@@ -1125,12 +1139,14 @@ export class FlintNoteApi {
     // Convert note IDs back to identifiers for the response
     const identifierPath: string[] = [];
     for (const id of path) {
-      const note = await db.get<{ title: string; type: string }>(
-        'SELECT title, type FROM notes WHERE id = ?',
+      const note = await db.get<{ filename: string; type: string }>(
+        'SELECT filename, type FROM notes WHERE id = ?',
         [id]
       );
       if (note) {
-        identifierPath.push(`${note.type}/${note.title}`);
+        // Remove .md extension from filename for the identifier
+        const filenameWithoutExt = note.filename.replace(/\.md$/, '');
+        identifierPath.push(`${note.type}/${filenameWithoutExt}`);
       }
     }
 

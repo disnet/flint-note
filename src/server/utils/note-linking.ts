@@ -9,8 +9,15 @@ import { WikilinkParser } from '../core/wikilink-parser.js';
 
 /**
  * Helper method to generate note ID from identifier
- * @param identifier - Note identifier (could be type/filename format or just filename)
- * @returns Properly formatted note ID
+ *
+ * NOTE: This is a simple identifier pass-through that assumes the identifier
+ * IS the note ID. After the immutable ID migration, note IDs are in the format
+ * `n-xxxxxxxx` (not `type/filename`). Callers should ensure they're passing
+ * the correct ID format, or use database lookups to resolve type/filename
+ * identifiers to immutable IDs.
+ *
+ * @param identifier - Note identifier (immutable ID like n-xxxxxxxx)
+ * @returns The note ID
  */
 export function generateNoteIdFromIdentifier(identifier: string): string {
   // Validate input
@@ -20,13 +27,9 @@ export function generateNoteIdFromIdentifier(identifier: string): string {
     );
   }
 
-  // Check if identifier is already in type/filename format
-  if (identifier.includes('/')) {
-    return identifier;
-  }
-
-  // If it's just a filename, we need to find the note and get its type
-  // For now, we'll assume it's in the format we expect
+  // After immutable ID migration, this should be an immutable ID
+  // If it contains '/', it's likely a legacy type/filename identifier
+  // which needs to be resolved via database lookup by the caller
   return identifier;
 }
 import type {
