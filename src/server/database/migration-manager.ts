@@ -266,21 +266,48 @@ async function migrateToImmutableIds(
     `);
 
     // 8. Migrate note_links using ID mapping
-    await db.run(`
-      INSERT INTO note_links (id, source_note_id, target_note_id, target_title, link_text, line_number, created)
-      SELECT
-        l.id,
-        ms.new_id,
-        mt.new_id,
-        l.target_title,
-        l.link_text,
-        l.line_number,
-        l.created
-      FROM note_links_backup l
-      LEFT JOIN note_id_migration ms ON l.source_note_id = ms.old_identifier
-      LEFT JOIN note_id_migration mt ON l.target_note_id = mt.old_identifier
-      WHERE ms.new_id IS NOT NULL
+    // Check if link_text column exists in the backup table
+    const linkTextExists = await db.get<{ count: number }>(`
+      SELECT COUNT(*) as count
+      FROM pragma_table_info('note_links_backup')
+      WHERE name='link_text'
     `);
+
+    if (linkTextExists && linkTextExists.count > 0) {
+      // New schema with link_text
+      await db.run(`
+        INSERT INTO note_links (id, source_note_id, target_note_id, target_title, link_text, line_number, created)
+        SELECT
+          l.id,
+          ms.new_id,
+          mt.new_id,
+          l.target_title,
+          l.link_text,
+          l.line_number,
+          l.created
+        FROM note_links_backup l
+        LEFT JOIN note_id_migration ms ON l.source_note_id = ms.old_identifier
+        LEFT JOIN note_id_migration mt ON l.target_note_id = mt.old_identifier
+        WHERE ms.new_id IS NOT NULL
+      `);
+    } else {
+      // Old schema without link_text - use target_title as link_text
+      await db.run(`
+        INSERT INTO note_links (id, source_note_id, target_note_id, target_title, link_text, line_number, created)
+        SELECT
+          l.id,
+          ms.new_id,
+          mt.new_id,
+          l.target_title,
+          l.target_title,
+          l.line_number,
+          l.created
+        FROM note_links_backup l
+        LEFT JOIN note_id_migration ms ON l.source_note_id = ms.old_identifier
+        LEFT JOIN note_id_migration mt ON l.target_note_id = mt.old_identifier
+        WHERE ms.new_id IS NOT NULL
+      `);
+    }
   }
 
   // 9. Recreate external_links table (if it exists)
@@ -299,19 +326,43 @@ async function migrateToImmutableIds(
     `);
 
     // 10. Migrate external_links using ID mapping
-    await db.run(`
-      INSERT INTO external_links (id, note_id, url, link_text, line_number, created)
-      SELECT
-        l.id,
-        m.new_id,
-        l.url,
-        l.link_text,
-        l.line_number,
-        l.created
-      FROM external_links_backup l
-      LEFT JOIN note_id_migration m ON l.note_id = m.old_identifier
-      WHERE m.new_id IS NOT NULL
+    // Check if link_text column exists in the backup table
+    const extLinkTextExists = await db.get<{ count: number }>(`
+      SELECT COUNT(*) as count
+      FROM pragma_table_info('external_links_backup')
+      WHERE name='link_text'
     `);
+
+    if (extLinkTextExists && extLinkTextExists.count > 0) {
+      // New schema with link_text
+      await db.run(`
+        INSERT INTO external_links (id, note_id, url, link_text, line_number, created)
+        SELECT
+          l.id,
+          m.new_id,
+          l.url,
+          l.link_text,
+          l.line_number,
+          l.created
+        FROM external_links_backup l
+        LEFT JOIN note_id_migration m ON l.note_id = m.old_identifier
+        WHERE m.new_id IS NOT NULL
+      `);
+    } else {
+      // Old schema without link_text
+      await db.run(`
+        INSERT INTO external_links (id, note_id, url, line_number, created)
+        SELECT
+          l.id,
+          m.new_id,
+          l.url,
+          l.line_number,
+          l.created
+        FROM external_links_backup l
+        LEFT JOIN note_id_migration m ON l.note_id = m.old_identifier
+        WHERE m.new_id IS NOT NULL
+      `);
+    }
   }
 
   // 11. Recreate note_metadata table (if it exists)

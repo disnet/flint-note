@@ -81,6 +81,9 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
         ]
       });
 
+      if (!result.success) {
+        console.error('WASM evaluation failed:', result.error, result.result);
+      }
       expect(result.success).toBe(true);
       const resultObj = result.result as any;
       expect(resultObj.created).toBe('WASM Test Note');
@@ -112,10 +115,11 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
             });
 
             // Move to different type (if meeting type exists)
+            // Note: With immutable IDs, the ID stays the same after rename
             let moveResult = null;
             try {
               moveResult = await flintApi.moveNote({
-                id: renameResult.new_id || createResult.id,
+                id: createResult.id,  // ID doesn't change on rename
                 newType: 'meeting',
                 contentHash: getResult.content_hash
               });
@@ -125,8 +129,9 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
             }
 
             // Clean up
+            // Note: With immutable IDs, the ID stays the same after move
             await flintApi.deleteNote({
-              id: moveResult && moveResult.new_id ? moveResult.new_id : (renameResult.new_id || createResult.id),
+              id: createResult.id,  // ID doesn't change on rename or move
               confirm: true
             });
 

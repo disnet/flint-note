@@ -412,10 +412,8 @@ It has multiple references to [[Original Title]] in the content.`,
       expect(updatedLinkingNote?.content).toBe(originalContent);
 
       // Verify the target note's metadata is also preserved
-      const renamedTargetNote = await testSetup.api.getNote(
-        testVaultId,
-        renameResult.new_id || targetNote.id
-      );
+      // Note: With immutable IDs, the ID doesn't change on rename
+      const renamedTargetNote = await testSetup.api.getNote(testVaultId, targetNote.id);
       expect(renamedTargetNote).toBeDefined();
       expect(renamedTargetNote?.title).toBe('New Title');
       expect(renamedTargetNote?.metadata?.tags).toEqual(['target', 'original']);

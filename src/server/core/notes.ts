@@ -530,7 +530,50 @@ export class NoteManager {
    */
   async getNote(identifier: string): Promise<Note> {
     try {
-      const { typeName, filename, notePath } = this.parseNoteIdentifier(identifier);
+      let typeName: string;
+      let filename: string;
+      let notePath: string;
+      let noteId: string;
+
+      // Check if identifier is an immutable ID (format: n-xxxxxxxx)
+      if (identifier.startsWith('n-')) {
+        // Look up note in database to get type and filename
+        if (!this.#hybridSearchManager) {
+          throw new Error('Database not initialized');
+        }
+        const db = await this.#hybridSearchManager.getDatabaseConnection();
+        const dbNote = await db.get<{ id: string; type: string; filename: string }>(
+          'SELECT id, type, filename FROM notes WHERE id = ?',
+          [identifier]
+        );
+
+        if (!dbNote) {
+          throw new Error(`Note not found: ${identifier}`);
+        }
+
+        noteId = dbNote.id;
+        typeName = dbNote.type;
+        filename = dbNote.filename;
+        notePath = path.join(this.#workspace.rootPath, typeName, filename);
+      } else {
+        // Old-style identifier (type/filename)
+        const parsed = await this.parseNoteIdentifier(identifier);
+        typeName = parsed.typeName;
+        filename = parsed.filename;
+        notePath = parsed.notePath;
+
+        // For old-style identifiers, look up the actual ID from database
+        if (this.#hybridSearchManager) {
+          const db = await this.#hybridSearchManager.getDatabaseConnection();
+          const dbNote = await db.get<{ id: string }>(
+            'SELECT id FROM notes WHERE type = ? AND filename = ?',
+            [typeName, filename]
+          );
+          noteId = dbNote?.id || identifier; // Fallback to identifier if not found in DB
+        } else {
+          noteId = identifier; // Fallback when no database
+        }
+      }
 
       // Check if note exists
       try {
@@ -550,7 +593,7 @@ export class NoteManager {
       const contentHash = generateContentHash(parsed.content);
 
       return {
-        id: identifier,
+        id: noteId,
         type: typeName,
         filename,
         path: notePath,
@@ -658,12 +701,31 @@ export class NoteManager {
 
   /**
    * Parse note identifier to extract type, filename, and path
+   * Supports both immutable IDs (n-xxxxxxxx) and old-style identifiers (type/filename)
    */
-  parseNoteIdentifier(identifier: string): ParsedIdentifier {
+  async parseNoteIdentifier(identifier: string): Promise<ParsedIdentifier> {
     let typeName: string;
     let filename: string;
 
-    if (identifier.includes('/')) {
+    // Check if identifier is an immutable ID (format: n-xxxxxxxx)
+    if (identifier.startsWith('n-')) {
+      // Look up note in database to get type and filename
+      if (!this.#hybridSearchManager) {
+        throw new Error('Database not initialized');
+      }
+      const db = await this.#hybridSearchManager.getDatabaseConnection();
+      const dbNote = await db.get<{ type: string; filename: string }>(
+        'SELECT type, filename FROM notes WHERE id = ?',
+        [identifier]
+      );
+
+      if (!dbNote) {
+        throw new Error(`Note not found: ${identifier}`);
+      }
+
+      typeName = dbNote.type;
+      filename = dbNote.filename;
+    } else if (identifier.includes('/')) {
       // Format: "type/filename"
       const parts = identifier.split('/');
       typeName = parts[0];
@@ -722,7 +784,7 @@ export class NoteManager {
         throw new MissingContentHashError('note update');
       }
 
-      const { notePath } = this.parseNoteIdentifier(identifier);
+      const { notePath } = await this.parseNoteIdentifier(identifier);
 
       // Check if note exists
       try {
@@ -871,7 +933,7 @@ export class NoteManager {
         throw new MissingContentHashError('note metadata update');
       }
 
-      const { notePath } = this.parseNoteIdentifier(identifier);
+      const { notePath } = await this.parseNoteIdentifier(identifier);
 
       // Check if note exists
       try {
@@ -952,7 +1014,7 @@ export class NoteManager {
         throw new Error(`Deletion requires confirmation. Set confirm=true to proceed.`);
       }
 
-      const { notePath } = this.parseNoteIdentifier(identifier);
+      const { notePath } = await this.parseNoteIdentifier(identifier);
 
       let backupPath: string | undefined;
 
@@ -995,7 +1057,7 @@ export class NoteManager {
     };
 
     try {
-      const { notePath } = this.parseNoteIdentifier(identifier);
+      const { notePath } = await this.parseNoteIdentifier(identifier);
 
       // Check if note exists
       try {
@@ -1249,11 +1311,6 @@ export class NoteManager {
    * Update search index for a note
    */
   async updateSearchIndex(notePath: string, content: string): Promise<void> {
-    // Skip search index updates during tests
-    if (process.env.NODE_ENV === 'test' || process.env.VITEST === 'true') {
-      return;
-    }
-
     try {
       // Update hybrid search index if available
       if (this.#hybridSearchManager) {
@@ -1697,7 +1754,7 @@ export class NoteManager {
         typeName: oldType,
         filename,
         notePath: currentPath
-      } = this.parseNoteIdentifier(identifier);
+      } = await this.parseNoteIdentifier(identifier);
 
       // Don't move if already in target type
       if (oldType === newType) {
