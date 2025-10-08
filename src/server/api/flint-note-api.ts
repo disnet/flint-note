@@ -1497,6 +1497,39 @@ export class FlintNoteApi {
   }
 
   /**
+   * Get migration mapping for UI state migration (old identifier → new immutable ID)
+   * Returns null if no migration is needed
+   */
+  async getMigrationMapping(): Promise<Record<string, string> | null> {
+    this.ensureInitialized();
+
+    try {
+      const db = await this.hybridSearchManager.getDatabaseConnection();
+
+      // Check if migration table exists
+      const tableExists = await db.get<{ count: number }>(`
+        SELECT COUNT(*) as count FROM sqlite_master
+        WHERE type='table' AND name='note_id_migration'
+      `);
+
+      if (!tableExists || tableExists.count === 0) {
+        return null; // No migration needed
+      }
+
+      const mappings = await db.all<{ old_identifier: string; new_id: string }>(
+        'SELECT old_identifier, new_id FROM note_id_migration'
+      );
+
+      return Object.fromEntries(mappings.map((m) => [m.old_identifier, m.new_id]));
+    } catch (error) {
+      console.error('Failed to get migration mapping:', error);
+      throw new Error(
+        `Failed to get migration mapping: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }
+
+  /**
    * Load onboarding content from file
    */
   private async loadOnboardingContent(relativePath: string): Promise<string> {

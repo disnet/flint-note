@@ -7,6 +7,7 @@
 
 import path from 'path';
 import fs from 'fs/promises';
+import crypto from 'crypto';
 import { Workspace } from './workspace.js';
 import { NoteTypeManager } from './note-types.js';
 
@@ -331,12 +332,16 @@ export class NoteManager {
         );
       }
 
+      // Generate immutable note ID first
+      const noteId = this.generateNoteId();
+
       // Prepare note content with metadata
       const noteContent = await this.formatNoteContent(
         trimmedTitle,
         content,
         typeName,
-        metadata
+        metadata,
+        noteId
       );
 
       // Write the note file
@@ -346,7 +351,6 @@ export class NoteManager {
       await this.updateSearchIndex(notePath, noteContent);
 
       // Sync hierarchy if subnotes are specified in metadata
-      const noteId = this.generateNoteId(typeName, filename);
       if (metadata.subnotes && Array.isArray(metadata.subnotes)) {
         await this.#syncSubnotesToHierarchy(noteId, metadata.subnotes as string[]);
       }
@@ -448,12 +452,11 @@ export class NoteManager {
   }
 
   /**
-   * Generate a unique note ID
+   * Generate an immutable note ID
+   * This ID is stored in the note's frontmatter and never changes
    */
-  generateNoteId(typeName: string, filename: string): string {
-    // Remove .md extension from filename for the ID
-    const baseFilename = filename.replace(/\.md$/, '');
-    return `${typeName}/${baseFilename}`;
+  generateNoteId(): string {
+    return 'n-' + crypto.randomBytes(4).toString('hex');
   }
 
   /**
@@ -463,13 +466,16 @@ export class NoteManager {
     title: string,
     content: string,
     typeName: string,
-    metadata: Record<string, unknown> = {}
+    metadata: Record<string, unknown> = {},
+    noteId?: string
   ): Promise<string> {
     const timestamp = new Date().toISOString();
     const filename = this.generateFilename(title);
     const baseFilename = path.basename(filename, '.md');
+    const id = noteId || this.generateNoteId();
 
     let formattedContent = '---\n';
+    formattedContent += `id: ${id}\n`;
     // Only add title if it's not empty
     if (title && title.trim().length > 0) {
       formattedContent += `title: "${title}"\n`;
@@ -1198,8 +1204,14 @@ export class NoteManager {
             const content = await fs.readFile(notePath, 'utf-8');
             const parsed = this.parseNoteContent(content);
 
+            // Get ID from frontmatter (for migrated notes) or generate if missing (legacy notes)
+            const noteId =
+              typeof parsed.metadata.id === 'string'
+                ? parsed.metadata.id
+                : this.generateNoteId();
+
             notes.push({
-              id: this.generateNoteId(noteType.name, filename),
+              id: noteId,
               type: noteType.name,
               filename,
               title: parsed.metadata.title || '',
@@ -1247,7 +1259,11 @@ export class NoteManager {
       if (this.#hybridSearchManager) {
         const parsed = parseNoteContent(content);
         const filename = path.basename(notePath);
-        const noteId = this.generateNoteId(parsed.metadata.type || 'default', filename);
+        // Get ID from frontmatter (for migrated notes) or generate if missing (legacy notes)
+        const noteId =
+          typeof parsed.metadata.id === 'string'
+            ? parsed.metadata.id
+            : this.generateNoteId();
 
         await this.#hybridSearchManager.upsertNote(
           noteId,
@@ -1307,10 +1323,13 @@ export class NoteManager {
     try {
       // Remove from hybrid search index if available
       if (this.#hybridSearchManager) {
-        const filename = path.basename(notePath);
         const content = await fs.readFile(notePath, 'utf-8');
         const parsed = parseNoteContent(content);
-        const noteId = this.generateNoteId(parsed.metadata.type || 'default', filename);
+        // Get ID from frontmatter (for migrated notes) or generate if missing (legacy notes)
+        const noteId =
+          typeof parsed.metadata.id === 'string'
+            ? parsed.metadata.id
+            : this.generateNoteId();
 
         // Clear links for this note
         const db = await this.#hybridSearchManager.getDatabaseConnection();
@@ -1509,9 +1528,12 @@ export class NoteManager {
 
       finalPath = finalNotePath;
 
-      // Generate old and new IDs
-      const oldId = this.generateNoteId(currentNote.type, currentNote.filename);
-      const newId = this.generateNoteId(currentNote.type, finalBaseFilename);
+      // Note ID remains unchanged - it's immutable and stored in frontmatter
+      const noteId = currentNote.id;
+
+      // Track old filename for wikilink updates
+      const oldFilename = currentNote.filename.replace(/\.md$/, '');
+      const newFilename = finalBaseFilename;
 
       // Update the metadata with new title and filename
       const updatedMetadata = {
@@ -1564,7 +1586,7 @@ export class NoteManager {
         // Update broken links that might now be resolved due to the new title
         try {
           brokenLinksUpdated = await LinkExtractor.updateBrokenLinks(
-            newId,
+            noteId,
             trimmedTitle,
             db
           );
@@ -1573,19 +1595,20 @@ export class NoteManager {
           // Continue with operation - broken link updates are not critical
         }
 
-        // Update wikilinks for identifier changes (if filename changed)
-        if (oldId !== newId) {
+        // Update wikilinks for filename changes (if filename changed)
+        // Note: ID stays the same, but we need to update the wikilink text in markdown
+        if (oldFilename !== newFilename) {
           try {
             const moveResult = await LinkExtractor.updateWikilinksForMovedNote(
-              oldId,
-              newId,
+              noteId,
+              noteId,
               trimmedTitle,
               db
             );
             wikilinksResult.notesUpdated += moveResult.notesUpdated;
             wikilinksResult.linksUpdated += moveResult.linksUpdated;
           } catch (error) {
-            console.warn('Failed to update wikilinks for moved note:', error);
+            console.warn('Failed to update wikilinks for renamed note:', error);
             // Continue with operation - wikilink updates are not critical for core functionality
           }
         }
@@ -1593,10 +1616,10 @@ export class NoteManager {
         // Always update wikilinks for title changes
         try {
           const renameResult = await LinkExtractor.updateWikilinksForRenamedNote(
-            oldId,
+            noteId,
             currentNote.title,
             trimmedTitle,
-            newId,
+            noteId,
             db
           );
           wikilinksResult.notesUpdated += renameResult.notesUpdated;
@@ -1611,7 +1634,7 @@ export class NoteManager {
         success: true,
         notesUpdated: wikilinksResult.notesUpdated,
         linksUpdated: wikilinksResult.linksUpdated + brokenLinksUpdated,
-        new_id: newId
+        new_id: noteId
       };
     } catch (error) {
       // Rollback operations in reverse order
@@ -1735,8 +1758,8 @@ export class NoteManager {
       // Update search index at new location
       await this.updateSearchIndex(targetPath, updatedContent);
 
-      // Generate new identifier
-      const newId = this.generateNoteId(newType, filename);
+      // Note ID remains unchanged - it's immutable and stored in frontmatter
+      const noteId = currentNote.id;
 
       let linksUpdated = 0;
       let notesWithUpdatedLinks = 0;
@@ -1745,10 +1768,11 @@ export class NoteManager {
       if (this.#hybridSearchManager) {
         const db = await this.#hybridSearchManager.getDatabaseConnection();
 
-        // Update all links that reference the old identifier
+        // Update all links that reference the old path
+        // Note: ID stays the same, but wikilink text needs to update to new type/filename
         const result = await LinkExtractor.updateWikilinksForMovedNote(
-          identifier,
-          newId,
+          noteId,
+          noteId,
           currentNote.title,
           db
         );
@@ -1761,8 +1785,8 @@ export class NoteManager {
 
       return {
         success: true,
-        old_id: identifier,
-        new_id: newId,
+        old_id: noteId,
+        new_id: noteId,
         old_type: oldType,
         new_type: newType,
         filename,

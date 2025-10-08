@@ -1743,6 +1743,19 @@ app.whenReady().then(async () => {
     }
   });
 
+  ipcMain.handle('get-migration-mapping', async () => {
+    if (!noteService) {
+      throw new Error('Note service not available');
+    }
+    try {
+      await noteService.initialize();
+      return await noteService.getMigrationMapping();
+    } catch (error) {
+      logger.error('Failed to get migration mapping', { error });
+      throw error;
+    }
+  });
+
   createWindow();
   logger.info('Main window created and IPC handlers registered');
 

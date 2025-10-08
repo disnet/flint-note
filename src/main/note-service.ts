@@ -643,6 +643,11 @@ export class NoteService {
     return await this.api.rebuildDatabase(vaultId);
   }
 
+  async getMigrationMapping(): Promise<Record<string, string> | null> {
+    this.ensureInitialized();
+    return await this.api.getMigrationMapping();
+  }
+
   // Utility methods
   isReady(): boolean {
     return this.isInitialized;

@@ -8,13 +8,19 @@
 import type { DatabaseConnection } from './schema.js';
 import type { DatabaseManager } from './schema.js';
 import { LinkExtractor } from '../core/link-extractor.js';
+import crypto from 'crypto';
+import fs from 'fs/promises';
 
 export interface DatabaseMigration {
   version: string;
   description: string;
   requiresFullRebuild: boolean;
   requiresLinkMigration: boolean;
-  migrationFunction?: (db: DatabaseConnection) => Promise<void>;
+  migrationFunction?: (
+    db: DatabaseConnection,
+    dbManager: DatabaseManager,
+    workspacePath: string
+  ) => Promise<void>;
 }
 
 export interface MigrationResult {
@@ -26,8 +32,339 @@ export interface MigrationResult {
   executedMigrations: string[];
 }
 
+/**
+ * Generate an immutable note ID
+ */
+function generateImmutableId(): string {
+  return 'n-' + crypto.randomBytes(4).toString('hex');
+}
+
+/**
+ * Add or update frontmatter fields in note content
+ */
+function addOrUpdateFrontmatter(
+  content: string,
+  fields: { id: string; created: string }
+): string {
+  // Simple frontmatter extraction - matches the pattern in the yaml-parser
+  const frontmatterRegex = /^---\s*\n([\s\S]*?)\n---\s*\n/;
+  const match = content.match(frontmatterRegex);
+
+  let body = content;
+  const existingFrontmatter: Record<string, unknown> = {};
+
+  if (match) {
+    // Extract existing frontmatter
+    const frontmatterText = match[1];
+    body = content.slice(match[0].length);
+
+    // Parse existing frontmatter (simple key: value parsing)
+    const lines = frontmatterText.split('\n');
+    for (const line of lines) {
+      const colonIndex = line.indexOf(':');
+      if (colonIndex > 0) {
+        const key = line.slice(0, colonIndex).trim();
+        const value = line.slice(colonIndex + 1).trim();
+        existingFrontmatter[key] = value;
+      }
+    }
+  } else {
+    // No frontmatter, extract the body (skip frontmatter delimiter if present)
+    body = content.replace(/^---\s*\n/, '');
+  }
+
+  // Merge fields
+  const mergedFrontmatter = {
+    ...existingFrontmatter,
+    id: fields.id,
+    created: fields.created
+  };
+
+  // Build new frontmatter
+  let newContent = '---\n';
+  for (const [key, value] of Object.entries(mergedFrontmatter)) {
+    if (typeof value === 'string' && value.includes(':')) {
+      newContent += `${key}: "${value}"\n`;
+    } else {
+      newContent += `${key}: ${value}\n`;
+    }
+  }
+  newContent += '---\n\n';
+  newContent += body;
+
+  return newContent;
+}
+
+/**
+ * Migration function to convert notes to use immutable IDs
+ */
+async function migrateToImmutableIds(
+  db: DatabaseConnection
+  // dbManager and workspacePath are not currently used but required by interface signature
+): Promise<void> {
+  console.log('Starting immutable ID migration...');
+
+  // 1. Check if already migrated (idempotency)
+  const hasNewSchema = await db.get<{ count: number }>(`
+    SELECT COUNT(*) as count
+    FROM pragma_table_info('notes')
+    WHERE name='id' AND pk=1
+  `);
+
+  if (hasNewSchema && hasNewSchema.count > 0) {
+    // Check if note_id_migration table exists to determine if we're truly migrated
+    const hasMigrationTable = await db.get<{ count: number }>(`
+      SELECT COUNT(*) as count FROM sqlite_master
+      WHERE type='table' AND name='note_id_migration'
+    `);
+
+    if (hasMigrationTable && hasMigrationTable.count > 0) {
+      console.log('Database already migrated to immutable IDs, skipping');
+      return;
+    }
+  }
+
+  // 2. Create ID mapping table (old identifier → new immutable ID)
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS note_id_migration (
+      old_identifier TEXT PRIMARY KEY,
+      new_id TEXT NOT NULL UNIQUE,
+      type TEXT NOT NULL,
+      filename TEXT NOT NULL
+    )
+  `);
+
+  // 3. Get all existing notes and generate immutable IDs
+  const existingNotes = await db.all<{
+    id: string;
+    type: string;
+    filename: string;
+    created: string;
+    path: string;
+  }>(`
+    SELECT id, type, filename, created, path FROM notes
+  `);
+
+  console.log(`Generating immutable IDs for ${existingNotes.length} notes...`);
+
+  const idMapping: Map<string, string> = new Map();
+
+  for (const note of existingNotes) {
+    const oldIdentifier = note.id;
+    const newId = generateImmutableId();
+    idMapping.set(oldIdentifier, newId);
+
+    // Write ID to frontmatter - this is the source of truth
+    const filepath = note.path;
+    try {
+      const content = await fs.readFile(filepath, 'utf-8');
+      const updatedContent = addOrUpdateFrontmatter(content, {
+        id: newId,
+        created: note.created
+      });
+      await fs.writeFile(filepath, updatedContent);
+
+      await db.run(
+        `
+        INSERT INTO note_id_migration (old_identifier, new_id, type, filename)
+        VALUES (?, ?, ?, ?)
+      `,
+        [oldIdentifier, newId, note.type, note.filename]
+      );
+    } catch (error) {
+      console.error(`Failed to update frontmatter for note ${oldIdentifier}:`, error);
+      throw error;
+    }
+  }
+
+  // 4. Backup existing tables
+  await db.run('DROP TABLE IF EXISTS notes_backup');
+  await db.run('DROP TABLE IF EXISTS note_links_backup');
+  await db.run('DROP TABLE IF EXISTS external_links_backup');
+  await db.run('DROP TABLE IF EXISTS note_metadata_backup');
+
+  await db.run('CREATE TABLE notes_backup AS SELECT * FROM notes');
+
+  // Check if note_links table exists before backing it up
+  const noteLinksExists = await db.get<{ count: number }>(`
+    SELECT COUNT(*) as count FROM sqlite_master
+    WHERE type='table' AND name='note_links'
+  `);
+  if (noteLinksExists && noteLinksExists.count > 0) {
+    await db.run('CREATE TABLE note_links_backup AS SELECT * FROM note_links');
+  }
+
+  // Check if external_links table exists before backing it up
+  const externalLinksExists = await db.get<{ count: number }>(`
+    SELECT COUNT(*) as count FROM sqlite_master
+    WHERE type='table' AND name='external_links'
+  `);
+  if (externalLinksExists && externalLinksExists.count > 0) {
+    await db.run('CREATE TABLE external_links_backup AS SELECT * FROM external_links');
+  }
+
+  // Check if note_metadata table exists before backing it up
+  const metadataExists = await db.get<{ count: number }>(`
+    SELECT COUNT(*) as count FROM sqlite_master
+    WHERE type='table' AND name='note_metadata'
+  `);
+  if (metadataExists && metadataExists.count > 0) {
+    await db.run('CREATE TABLE note_metadata_backup AS SELECT * FROM note_metadata');
+  }
+
+  // 5. Drop and recreate notes table with new schema
+  await db.run('DROP TABLE IF EXISTS notes');
+  await db.run(`
+    CREATE TABLE notes (
+      id TEXT PRIMARY KEY,
+      type TEXT NOT NULL,
+      filename TEXT NOT NULL,
+      path TEXT NOT NULL,
+      title TEXT,
+      content TEXT,
+      content_hash TEXT,
+      created TEXT NOT NULL,
+      updated TEXT NOT NULL,
+      size INTEGER,
+      UNIQUE(type, filename)
+    )
+  `);
+
+  // 6. Migrate notes data using ID mapping
+  await db.run(`
+    INSERT INTO notes (id, type, filename, path, title, content, content_hash, created, updated, size)
+    SELECT
+      m.new_id,
+      b.type,
+      b.filename,
+      b.path,
+      b.title,
+      b.content,
+      b.content_hash,
+      b.created,
+      b.updated,
+      b.size
+    FROM notes_backup b
+    JOIN note_id_migration m ON b.id = m.old_identifier
+  `);
+
+  // 7. Recreate note_links table with new foreign keys (if it exists)
+  if (noteLinksExists && noteLinksExists.count > 0) {
+    await db.run('DROP TABLE IF EXISTS note_links');
+    await db.run(`
+      CREATE TABLE note_links (
+        id INTEGER PRIMARY KEY,
+        source_note_id TEXT NOT NULL,
+        target_note_id TEXT,
+        target_title TEXT NOT NULL,
+        link_text TEXT,
+        line_number INTEGER,
+        created DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(source_note_id) REFERENCES notes(id) ON DELETE CASCADE,
+        FOREIGN KEY(target_note_id) REFERENCES notes(id) ON DELETE SET NULL
+      )
+    `);
+
+    // 8. Migrate note_links using ID mapping
+    await db.run(`
+      INSERT INTO note_links (id, source_note_id, target_note_id, target_title, link_text, line_number, created)
+      SELECT
+        l.id,
+        ms.new_id,
+        mt.new_id,
+        l.target_title,
+        l.link_text,
+        l.line_number,
+        l.created
+      FROM note_links_backup l
+      LEFT JOIN note_id_migration ms ON l.source_note_id = ms.old_identifier
+      LEFT JOIN note_id_migration mt ON l.target_note_id = mt.old_identifier
+      WHERE ms.new_id IS NOT NULL
+    `);
+  }
+
+  // 9. Recreate external_links table (if it exists)
+  if (externalLinksExists && externalLinksExists.count > 0) {
+    await db.run('DROP TABLE IF EXISTS external_links');
+    await db.run(`
+      CREATE TABLE external_links (
+        id INTEGER PRIMARY KEY,
+        note_id TEXT NOT NULL,
+        url TEXT NOT NULL,
+        link_text TEXT,
+        line_number INTEGER,
+        created DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(note_id) REFERENCES notes(id) ON DELETE CASCADE
+      )
+    `);
+
+    // 10. Migrate external_links using ID mapping
+    await db.run(`
+      INSERT INTO external_links (id, note_id, url, link_text, line_number, created)
+      SELECT
+        l.id,
+        m.new_id,
+        l.url,
+        l.link_text,
+        l.line_number,
+        l.created
+      FROM external_links_backup l
+      LEFT JOIN note_id_migration m ON l.note_id = m.old_identifier
+      WHERE m.new_id IS NOT NULL
+    `);
+  }
+
+  // 11. Recreate note_metadata table (if it exists)
+  if (metadataExists && metadataExists.count > 0) {
+    await db.run('DROP TABLE IF EXISTS note_metadata');
+    await db.run(`
+      CREATE TABLE note_metadata (
+        note_id TEXT,
+        key TEXT,
+        value TEXT,
+        value_type TEXT CHECK (value_type IN ('string', 'number', 'date', 'boolean', 'array')),
+        FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
+      )
+    `);
+
+    // 12. Migrate note_metadata using ID mapping
+    await db.run(`
+      INSERT INTO note_metadata (note_id, key, value, value_type)
+      SELECT
+        m.new_id,
+        md.key,
+        md.value,
+        md.value_type
+      FROM note_metadata_backup md
+      LEFT JOIN note_id_migration m ON md.note_id = m.old_identifier
+      WHERE m.new_id IS NOT NULL
+    `);
+  }
+
+  // 13. Recreate FTS table
+  await db.run('DROP TABLE IF EXISTS notes_fts');
+  await db.run(`
+    CREATE VIRTUAL TABLE notes_fts USING fts5(
+      id UNINDEXED,
+      title,
+      content,
+      type UNINDEXED,
+      content=notes,
+      content_rowid=rowid
+    )
+  `);
+
+  // Rebuild FTS index
+  await db.run(`INSERT INTO notes_fts(notes_fts) VALUES('rebuild')`);
+
+  console.log(`Migration completed: ${existingNotes.length} notes migrated`);
+
+  // Keep note_id_migration table for UI migration
+  // Keep backup tables for one release cycle (can drop later)
+}
+
 export class DatabaseMigrationManager {
-  private static readonly CURRENT_SCHEMA_VERSION = '1.1.0';
+  private static readonly CURRENT_SCHEMA_VERSION = '2.0.0';
 
   private static readonly MIGRATIONS: DatabaseMigration[] = [
     {
@@ -35,6 +372,13 @@ export class DatabaseMigrationManager {
       description: 'Add link extraction tables (note_links, external_links)',
       requiresFullRebuild: true,
       requiresLinkMigration: true
+    },
+    {
+      version: '2.0.0',
+      description: 'Add immutable note IDs and migrate to two-concept model',
+      requiresFullRebuild: false,
+      requiresLinkMigration: false,
+      migrationFunction: migrateToImmutableIds
     }
   ];
 
@@ -91,7 +435,7 @@ export class DatabaseMigrationManager {
 
         // Execute custom migration function if provided
         if (migration.migrationFunction) {
-          await migration.migrationFunction(db);
+          await migration.migrationFunction(db, dbManager, workspacePath);
         }
 
         // Handle link migration
@@ -296,7 +640,7 @@ export class DatabaseMigrationManager {
     }
 
     if (migration.migrationFunction) {
-      await migration.migrationFunction(db);
+      await migration.migrationFunction(db, dbManager, workspacePath);
     }
 
     if (migration.requiresLinkMigration) {
