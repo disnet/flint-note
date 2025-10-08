@@ -766,6 +766,170 @@ This is test note ${i}`;
   });
 
   describe('Edge cases', () => {
+    it('should preserve existing frontmatter when adding ID', async () => {
+      const db = await dbManager.connect();
+
+      // Create v1.1.0 schema
+      await db.run(`
+        CREATE TABLE notes (
+          id TEXT PRIMARY KEY,
+          type TEXT NOT NULL,
+          filename TEXT NOT NULL,
+          path TEXT NOT NULL,
+          title TEXT,
+          content TEXT,
+          content_hash TEXT,
+          created TEXT NOT NULL,
+          updated TEXT NOT NULL,
+          size INTEGER,
+          UNIQUE(type, filename)
+        )
+      `);
+
+      // Create note with complex frontmatter (like onboarding notes)
+      const filename = 'tutorial-1.md';
+      const oldStyleId = `note/${filename.replace('.md', '')}`;
+      const noteContent = `---
+title: "Tutorial 1: Your First Daily Note"
+filename: "tutorial-1-your-first-daily-note"
+type: note
+created: "2025-10-08T04:10:37.503Z"
+updated: "2025-10-08T04:10:37.502Z"
+tags: ["tutorial", "onboarding"]
+---
+
+# Tutorial 1: Your First Daily Note
+
+This is a tutorial note with complex frontmatter.`;
+
+      const filepath = path.join(workspacePath, 'note', filename);
+      await fs.writeFile(filepath, noteContent);
+
+      await db.run(
+        'INSERT INTO notes (id, type, filename, path, title, content, content_hash, created, updated, size) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+          oldStyleId,
+          'note',
+          filename,
+          filepath,
+          'Tutorial 1',
+          noteContent,
+          'hash',
+          '2025-10-08T04:10:37.503Z',
+          '2025-10-08T04:10:37.502Z',
+          100
+        ]
+      );
+
+      // Run migration
+      await DatabaseMigrationManager.checkAndMigrate('1.1.0', dbManager, workspacePath);
+
+      // Verify migration succeeded
+      const notes = await db.all<{ id: string; filename: string }>(
+        'SELECT id, filename FROM notes'
+      );
+      expect(notes.length).toBe(1);
+      expect(notes[0].id).toMatch(/^n-[0-9a-f]{8}$/);
+
+      // Read migrated file and verify YAML is valid
+      const migratedContent = await fs.readFile(filepath, 'utf-8');
+
+      // Parse using the same parser the app uses
+      const { parseNoteContent } = await import('../../../src/server/utils/yaml-parser.js');
+      const parsed = parseNoteContent(migratedContent);
+
+      // Verify metadata was preserved correctly
+      expect(parsed.metadata.id).toMatch(/^n-[0-9a-f]{8}$/);
+      expect(parsed.metadata.title).toBe('Tutorial 1: Your First Daily Note'); // NOT double-quoted!
+      expect(parsed.metadata.filename).toBe('tutorial-1-your-first-daily-note');
+      expect(parsed.metadata.type).toBe('note');
+      expect(parsed.metadata.created).toBe('2025-10-08T04:10:37.503Z');
+      expect(parsed.metadata.updated).toBe('2025-10-08T04:10:37.502Z');
+      expect(parsed.metadata.tags).toEqual(['tutorial', 'onboarding']);
+
+      // Verify body content is preserved
+      expect(parsed.content).toContain('# Tutorial 1: Your First Daily Note');
+      expect(parsed.content).toContain('This is a tutorial note with complex frontmatter.');
+    });
+
+    it('should handle frontmatter values with colons and special characters', async () => {
+      const db = await dbManager.connect();
+
+      // Create v1.1.0 schema
+      await db.run(`
+        CREATE TABLE notes (
+          id TEXT PRIMARY KEY,
+          type TEXT NOT NULL,
+          filename TEXT NOT NULL,
+          path TEXT NOT NULL,
+          title TEXT,
+          content TEXT,
+          content_hash TEXT,
+          created TEXT NOT NULL,
+          updated TEXT NOT NULL,
+          size INTEGER,
+          UNIQUE(type, filename)
+        )
+      `);
+
+      const filename = 'complex-yaml.md';
+      const oldStyleId = `note/${filename.replace('.md', '')}`;
+      const noteContent = `---
+title: "Tutorial 1: Your First Daily Note"
+subtitle: "Learn Flint: The Basics"
+description: "Notes: Testing \\"Quotes\\" and 'Apostrophes'"
+emoji: "🎉 Party!"
+count: 42
+flag: true
+date: 2025-01-01T00:00:00.000Z
+tags: ["array", "of", "strings"]
+metadata:
+  nested: "object"
+  value: 123
+---
+
+# Content`;
+
+      const filepath = path.join(workspacePath, 'note', filename);
+      await fs.writeFile(filepath, noteContent);
+
+      await db.run(
+        'INSERT INTO notes (id, type, filename, path, title, content, content_hash, created, updated, size) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+          oldStyleId,
+          'note',
+          filename,
+          filepath,
+          'Complex YAML',
+          noteContent,
+          'hash',
+          '2025-01-01T00:00:00.000Z',
+          '2025-01-01T00:00:00.000Z',
+          100
+        ]
+      );
+
+      // Run migration
+      await DatabaseMigrationManager.checkAndMigrate('1.1.0', dbManager, workspacePath);
+
+      // Read and parse migrated file
+      const migratedContent = await fs.readFile(filepath, 'utf-8');
+      const { parseNoteContent } = await import('../../../src/server/utils/yaml-parser.js');
+      const parsed = parseNoteContent(migratedContent);
+
+      // Verify all YAML types are preserved correctly
+      expect(parsed.metadata.title).toBe('Tutorial 1: Your First Daily Note');
+      expect(parsed.metadata.subtitle).toBe('Learn Flint: The Basics');
+      expect(parsed.metadata.description).toBe('Notes: Testing "Quotes" and \'Apostrophes\'');
+      expect(parsed.metadata.emoji).toBe('🎉 Party!');
+      expect(parsed.metadata.count).toBe(42);
+      expect(parsed.metadata.flag).toBe(true);
+      expect(parsed.metadata.tags).toEqual(['array', 'of', 'strings']);
+
+      // Verify ID was added
+      expect(parsed.metadata.id).toMatch(/^n-[0-9a-f]{8}$/);
+    });
+
     it('should handle notes with special characters in filenames', async () => {
       const db = await dbManager.connect();
 

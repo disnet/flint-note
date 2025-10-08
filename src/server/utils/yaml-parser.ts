@@ -125,9 +125,13 @@ export function parseNoteContent(
     let metadata: NoteMetadata = {};
     try {
       metadata = parseFrontmatter(frontmatter, parseLinks);
-    } catch {
+    } catch (error) {
       // YAML parsing failed - continue with empty metadata
       // This allows the system to handle malformed YAML gracefully
+      console.warn(
+        'Failed to parse YAML frontmatter:',
+        error instanceof Error ? error.message : error
+      );
       metadata = {};
     }
 

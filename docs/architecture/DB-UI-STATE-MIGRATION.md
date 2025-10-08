@@ -702,9 +702,72 @@ The implementation followed the plan closely with these minor adjustments:
 - ✅ All 6 stores successfully migrated
 - ✅ No breaking changes to existing functionality
 
+### Post-Implementation Issues Found
+
+**Issue #1: UI state in database contained old note IDs after migration**
+
+When opening an old vault (v1.1.0) and migrating to v2.0.0:
+
+- Database migration changed note IDs from hash-based to immutable UUIDs
+- UI state (in `ui_state` table) still contained old note IDs
+- Stores tried to load notes with old IDs → "Note not found" errors
+
+**Fix Applied:**
+Added UI state clearing to `migrateToV2()` function in migration-manager.ts:
+
+```typescript
+// Clear any existing UI state since note IDs have changed
+console.log('Clearing old UI state (note IDs have changed)...');
+await db.run('DELETE FROM ui_state');
+console.log('Old UI state cleared - UI will start fresh');
+```
+
+**Issue #2: YAML frontmatter double-quoting bug in migration**
+
+The migration was creating invalid YAML that failed to parse:
+
+- Original frontmatter: `title: "Tutorial 1: Your First Daily Note"`
+- Migration read this as a string: `"Tutorial 1: Your First Daily Note"` (with quotes)
+- Then added quotes for values with colons: `title: ""Tutorial 1: Your First Daily Note""`
+- Result: Invalid YAML with double-double-quotes that failed parsing
+- Parser silently caught the error and returned empty metadata
+- This caused `metadata.id` to be `undefined`, triggering random ID generation
+
+**Fix Applied:**
+Replaced manual string manipulation with proper YAML library usage in `addOrUpdateFrontmatter()`:
+
+```typescript
+// Parse existing frontmatter using js-yaml
+const parsed = yaml.load(frontmatterText);
+existingFrontmatter = parsed as Record<string, unknown>;
+
+// Merge fields
+const mergedFrontmatter = { ...existingFrontmatter, id: fields.id, created: fields.created };
+
+// Serialize back using js-yaml for correct formatting
+const newFrontmatter = yaml.dump(mergedFrontmatter, {
+  lineWidth: -1,
+  noRefs: true,
+  sortKeys: false
+});
+```
+
+This ensures:
+- Proper YAML parsing and serialization
+- No double-quoting issues
+- Consistent formatting
+- Robust handling of all YAML types (strings, arrays, objects)
+
+**Issue #3: Legacy IPC handlers (defensive measure)**
+
+Modified legacy IPC handlers in `src/main/index.ts` to return empty state instead of loading from old JSON files. This is a defensive measure to prevent any fallback code paths from using stale data:
+
+- `load-active-note`, `load-temporary-tabs`, `load-pinned-notes`, etc. → return empty state
+- These handlers are no longer used by migrated stores but kept for backward compatibility
+
 ### Next Steps
 
-1. Manual testing with actual vault switching
+1. ✅ Manual testing with actual vault switching - issue found and fixed
 2. Monitor for issues after deployment
 3. Plan removal of old storage services in future release
 4. Consider adding automated tests for UI state persistence

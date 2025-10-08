@@ -41,56 +41,54 @@ function generateImmutableId(): string {
 
 /**
  * Add or update frontmatter fields in note content
+ * Uses js-yaml for robust YAML parsing and serialization
  */
 function addOrUpdateFrontmatter(
   content: string,
   fields: { id: string; created: string }
 ): string {
-  // Simple frontmatter extraction - matches the pattern in the yaml-parser
-  const frontmatterRegex = /^---\s*\n([\s\S]*?)\n---\s*\n/;
+  const yaml = require('js-yaml');
+
+  // Match frontmatter - consistent with yaml-parser.ts
+  const frontmatterRegex = /^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/;
   const match = content.match(frontmatterRegex);
 
   let body = content;
-  const existingFrontmatter: Record<string, unknown> = {};
+  let existingFrontmatter: Record<string, unknown> = {};
 
   if (match) {
-    // Extract existing frontmatter
+    // Extract existing frontmatter and body
     const frontmatterText = match[1];
-    body = content.slice(match[0].length);
+    body = match[2];
 
-    // Parse existing frontmatter (simple key: value parsing)
-    const lines = frontmatterText.split('\n');
-    for (const line of lines) {
-      const colonIndex = line.indexOf(':');
-      if (colonIndex > 0) {
-        const key = line.slice(0, colonIndex).trim();
-        const value = line.slice(colonIndex + 1).trim();
-        existingFrontmatter[key] = value;
+    try {
+      // Parse existing frontmatter using js-yaml (same as yaml-parser.ts)
+      const parsed = yaml.load(frontmatterText);
+      if (parsed && typeof parsed === 'object') {
+        existingFrontmatter = parsed as Record<string, unknown>;
       }
+    } catch (error) {
+      console.warn('Failed to parse existing frontmatter during migration:', error);
+      // Continue with empty frontmatter if parsing fails
     }
-  } else {
-    // No frontmatter, extract the body (skip frontmatter delimiter if present)
-    body = content.replace(/^---\s*\n/, '');
   }
 
-  // Merge fields
+  // Merge fields - new fields take precedence
   const mergedFrontmatter = {
     ...existingFrontmatter,
     id: fields.id,
     created: fields.created
   };
 
-  // Build new frontmatter
-  let newContent = '---\n';
-  for (const [key, value] of Object.entries(mergedFrontmatter)) {
-    if (typeof value === 'string' && value.includes(':')) {
-      newContent += `${key}: "${value}"\n`;
-    } else {
-      newContent += `${key}: ${value}\n`;
-    }
-  }
-  newContent += '---\n\n';
-  newContent += body;
+  // Serialize back to YAML using js-yaml for correct formatting
+  const newFrontmatter = yaml.dump(mergedFrontmatter, {
+    lineWidth: -1, // Don't wrap lines
+    noRefs: true, // Don't use YAML references
+    sortKeys: false // Keep original order
+  });
+
+  // Build new content
+  const newContent = `---\n${newFrontmatter}---\n${body}`;
 
   return newContent;
 }
@@ -609,6 +607,16 @@ async function migrateToV2(
   `);
 
   console.log('UI state table added successfully');
+
+  // Clear any existing UI state since note IDs have changed
+  // This prevents stores from trying to load notes with old IDs
+  console.log('Clearing old UI state (note IDs have changed)...');
+  await db.run('DELETE FROM ui_state');
+  console.log('Old UI state cleared - UI will start fresh');
+
+  // IMPORTANT: We can't clear localStorage from here (main process),
+  // but we've already disabled the legacy IPC handlers that would load old data.
+  // The stores will call loadUIState, get empty results, and start fresh.
 }
 
 export class DatabaseMigrationManager {

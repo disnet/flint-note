@@ -1008,11 +1008,9 @@ app.whenReady().then(async () => {
   });
 
   // Pinned notes storage handlers
-  ipcMain.handle('load-pinned-notes', async (_event, params: { vaultId: string }) => {
-    if (!pinnedNotesStorageService) {
-      throw new Error('Pinned notes storage service not available');
-    }
-    return await pinnedNotesStorageService.loadPinnedNotes(params.vaultId);
+  ipcMain.handle('load-pinned-notes', async (_event, _params: { vaultId: string }) => {
+    // Legacy handler - always return empty array for v2.0.0+ (UI state now in database)
+    return [];
   });
 
   ipcMain.handle(
@@ -1182,11 +1180,9 @@ app.whenReady().then(async () => {
   });
 
   // Vault-specific data storage handlers
-  ipcMain.handle('load-conversations', async (_event, params: { vaultId: string }) => {
-    if (!vaultDataStorageService) {
-      throw new Error('Vault data storage service not available');
-    }
-    return await vaultDataStorageService.loadConversations(params.vaultId, {});
+  ipcMain.handle('load-conversations', async (_event, _params: { vaultId: string }) => {
+    // Legacy handler - always return empty object for v2.0.0+ (UI state now in database)
+    return {};
   });
 
   ipcMain.handle(
@@ -1202,11 +1198,9 @@ app.whenReady().then(async () => {
     }
   );
 
-  ipcMain.handle('load-temporary-tabs', async (_event, params: { vaultId: string }) => {
-    if (!vaultDataStorageService) {
-      throw new Error('Vault data storage service not available');
-    }
-    return await vaultDataStorageService.loadTemporaryTabs(params.vaultId, []);
+  ipcMain.handle('load-temporary-tabs', async (_event, _params: { vaultId: string }) => {
+    // Legacy handler - always return empty array for v2.0.0+ (UI state now in database)
+    return [];
   });
 
   ipcMain.handle(
@@ -1221,11 +1215,9 @@ app.whenReady().then(async () => {
 
   ipcMain.handle(
     'load-navigation-history',
-    async (_event, params: { vaultId: string }) => {
-      if (!vaultDataStorageService) {
-        throw new Error('Vault data storage service not available');
-      }
-      return await vaultDataStorageService.loadNavigationHistory(params.vaultId, []);
+    async (_event, _params: { vaultId: string }) => {
+      // Legacy handler - always return empty array for v2.0.0+ (UI state now in database)
+      return [];
     }
   );
 
@@ -1242,11 +1234,9 @@ app.whenReady().then(async () => {
     }
   );
 
-  ipcMain.handle('load-active-note', async (_event, params: { vaultId: string }) => {
-    if (!vaultDataStorageService) {
-      throw new Error('Vault data storage service not available');
-    }
-    return await vaultDataStorageService.loadActiveNote(params.vaultId);
+  ipcMain.handle('load-active-note', async (_event, _params: { vaultId: string }) => {
+    // Legacy handler - always return null for v2.0.0+ (UI state now in database)
+    return null;
   });
 
   ipcMain.handle(
@@ -1259,12 +1249,13 @@ app.whenReady().then(async () => {
     }
   );
 
-  ipcMain.handle('load-cursor-positions', async (_event, params: { vaultId: string }) => {
-    if (!vaultDataStorageService) {
-      throw new Error('Vault data storage service not available');
+  ipcMain.handle(
+    'load-cursor-positions',
+    async (_event, _params: { vaultId: string }) => {
+      // Legacy handler - always return null for v2.0.0+ (UI state now in database)
+      return null;
     }
-    return await vaultDataStorageService.loadCursorPositions(params.vaultId);
-  });
+  );
 
   ipcMain.handle(
     'save-cursor-positions',
