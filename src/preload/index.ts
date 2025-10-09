@@ -240,14 +240,6 @@ const api = {
   getAllApiKeys: () => electronAPI.ipcRenderer.invoke('get-all-api-keys'),
   clearApiKeys: () => electronAPI.ipcRenderer.invoke('clear-api-keys'),
 
-  // Pinned notes storage operations
-  loadPinnedNotes: (params: { vaultId: string }) =>
-    electronAPI.ipcRenderer.invoke('load-pinned-notes', params),
-  savePinnedNotes: (params: { vaultId: string; notes: unknown[] }) =>
-    electronAPI.ipcRenderer.invoke('save-pinned-notes', params),
-  clearPinnedNotes: (params: { vaultId: string }) =>
-    electronAPI.ipcRenderer.invoke('clear-pinned-notes', params),
-
   // Cache monitoring operations
   getCacheMetrics: () => electronAPI.ipcRenderer.invoke('get-cache-metrics'),
   getCachePerformanceSnapshot: () =>
@@ -280,31 +272,7 @@ const api = {
   saveSlashCommands: (commands: unknown) =>
     electronAPI.ipcRenderer.invoke('save-slash-commands', commands),
 
-  // Vault-specific data storage operations
-  loadConversations: (params: { vaultId: string }) =>
-    electronAPI.ipcRenderer.invoke('load-conversations', params),
-  saveConversations: (params: { vaultId: string; conversations: unknown }) =>
-    electronAPI.ipcRenderer.invoke('save-conversations', params),
-  loadTemporaryTabs: (params: { vaultId: string }) =>
-    electronAPI.ipcRenderer.invoke('load-temporary-tabs', params),
-  saveTemporaryTabs: (params: { vaultId: string; tabs: unknown }) =>
-    electronAPI.ipcRenderer.invoke('save-temporary-tabs', params),
-  loadNavigationHistory: (params: { vaultId: string }) =>
-    electronAPI.ipcRenderer.invoke('load-navigation-history', params),
-  saveNavigationHistory: (params: { vaultId: string; history: unknown }) =>
-    electronAPI.ipcRenderer.invoke('save-navigation-history', params),
-  loadActiveNote: (params: { vaultId: string }) =>
-    electronAPI.ipcRenderer.invoke('load-active-note', params),
-  saveActiveNote: (params: { vaultId: string; noteId: string | null }) =>
-    electronAPI.ipcRenderer.invoke('save-active-note', params),
-
   // Cursor position management
-  loadCursorPositions: (params: { vaultId: string }) =>
-    electronAPI.ipcRenderer.invoke('load-cursor-positions', params),
-  saveCursorPositions: (params: {
-    vaultId: string;
-    positions: Record<string, CursorPosition>;
-  }) => electronAPI.ipcRenderer.invoke('save-cursor-positions', params),
   getCursorPosition: (params: { vaultId: string; noteId: string }) =>
     electronAPI.ipcRenderer.invoke('get-cursor-position', params),
   setCursorPosition: (params: {

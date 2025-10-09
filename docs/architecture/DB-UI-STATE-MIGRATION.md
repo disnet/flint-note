@@ -742,7 +742,11 @@ const parsed = yaml.load(frontmatterText);
 existingFrontmatter = parsed as Record<string, unknown>;
 
 // Merge fields
-const mergedFrontmatter = { ...existingFrontmatter, id: fields.id, created: fields.created };
+const mergedFrontmatter = {
+  ...existingFrontmatter,
+  id: fields.id,
+  created: fields.created
+};
 
 // Serialize back using js-yaml for correct formatting
 const newFrontmatter = yaml.dump(mergedFrontmatter, {
@@ -753,6 +757,7 @@ const newFrontmatter = yaml.dump(mergedFrontmatter, {
 ```
 
 This ensures:
+
 - Proper YAML parsing and serialization
 - No double-quoting issues
 - Consistent formatting

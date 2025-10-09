@@ -10,6 +10,7 @@ import type { DatabaseManager } from './schema.js';
 import { LinkExtractor } from '../core/link-extractor.js';
 import crypto from 'crypto';
 import fs from 'fs/promises';
+import yaml from 'js-yaml';
 
 export interface DatabaseMigration {
   version: string;
@@ -47,8 +48,6 @@ function addOrUpdateFrontmatter(
   content: string,
   fields: { id: string; created: string }
 ): string {
-  const yaml = require('js-yaml');
-
   // Match frontmatter - consistent with yaml-parser.ts
   const frontmatterRegex = /^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/;
   const match = content.match(frontmatterRegex);

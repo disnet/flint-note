@@ -5,6 +5,7 @@
 ### What Happened
 
 The v2.0.0 migration had a critical bug that caused YAML frontmatter to be serialized incorrectly:
+
 - Original: `title: "Tutorial 1: Your First Daily Note"`
 - Migrated: `title: ""Tutorial 1: Your First Daily Note""` (double-double-quotes)
 - Result: Invalid YAML that failed to parse
@@ -14,24 +15,27 @@ This bug went undetected by our test suite and only surfaced when testing with a
 ### Why Tests Didn't Catch It
 
 **Test files had no frontmatter:**
+
 ```typescript
 // tests/server/database/migration-manager.test.ts:793
 await fs.writeFile(filepath, '# Test\n\nContent with émojis 🎉');
 ```
 
 **Real vault files have complex frontmatter:**
+
 ```markdown
 ---
-title: "Tutorial 1: Your First Daily Note"
-filename: "tutorial-1-your-first-daily-note"
+title: 'Tutorial 1: Your First Daily Note'
+filename: 'tutorial-1-your-first-daily-note'
 type: note
-created: "2025-10-08T04:10:37.503Z"
-updated: "2025-10-08T04:10:37.502Z"
-tags: ["tutorial", "onboarding"]
+created: '2025-10-08T04:10:37.503Z'
+updated: '2025-10-08T04:10:37.502Z'
+tags: ['tutorial', 'onboarding']
 ---
 ```
 
 **The gap:**
+
 - Tests created notes with NO frontmatter → migration added frontmatter to empty files → worked fine
 - Real notes have EXISTING frontmatter with quoted strings → migration broke the YAML → failed
 
@@ -126,8 +130,8 @@ it('should produce valid YAML that can be parsed', async () => {
 
   // Verify metadata is correctly parsed
   expect(parsed.metadata.id).toMatch(/^n-[0-9a-f]{8}$/);
-  expect(parsed.metadata.title).toBe("Tutorial 1: Your First Daily Note");
-  expect(parsed.metadata.tags).toEqual(["tutorial", "onboarding"]);
+  expect(parsed.metadata.title).toBe('Tutorial 1: Your First Daily Note');
+  expect(parsed.metadata.tags).toEqual(['tutorial', 'onboarding']);
 });
 ```
 
@@ -152,6 +156,7 @@ it('should produce valid YAML that can be parsed', async () => {
 ### 1. Never Manipulate Structured Data as Strings
 
 **Bad:**
+
 ```typescript
 const value = line.slice(colonIndex + 1).trim();
 if (value.includes(':')) {
@@ -160,6 +165,7 @@ if (value.includes(':')) {
 ```
 
 **Good:**
+
 ```typescript
 const parsed = yaml.load(frontmatterText);
 const updated = { ...parsed, id: newId };
@@ -182,6 +188,7 @@ expect(data2).toEqual(data);
 ### 3. Use Real-World Test Data
 
 Don't create simplified test data. Use actual files from:
+
 - Onboarding notes
 - User-reported issues
 - Edge cases found in production
@@ -189,6 +196,7 @@ Don't create simplified test data. Use actual files from:
 ### 4. Test the Error Paths
 
 The bug was hidden because the YAML parser **silently caught errors**:
+
 ```typescript
 try {
   metadata = parseFrontmatter(frontmatter);

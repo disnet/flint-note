@@ -835,7 +835,9 @@ This is a tutorial note with complex frontmatter.`;
       const migratedContent = await fs.readFile(filepath, 'utf-8');
 
       // Parse using the same parser the app uses
-      const { parseNoteContent } = await import('../../../src/server/utils/yaml-parser.js');
+      const { parseNoteContent } = await import(
+        '../../../src/server/utils/yaml-parser.js'
+      );
       const parsed = parseNoteContent(migratedContent);
 
       // Verify metadata was preserved correctly
@@ -849,7 +851,9 @@ This is a tutorial note with complex frontmatter.`;
 
       // Verify body content is preserved
       expect(parsed.content).toContain('# Tutorial 1: Your First Daily Note');
-      expect(parsed.content).toContain('This is a tutorial note with complex frontmatter.');
+      expect(parsed.content).toContain(
+        'This is a tutorial note with complex frontmatter.'
+      );
     });
 
     it('should handle frontmatter values with colons and special characters', async () => {
@@ -914,13 +918,17 @@ metadata:
 
       // Read and parse migrated file
       const migratedContent = await fs.readFile(filepath, 'utf-8');
-      const { parseNoteContent } = await import('../../../src/server/utils/yaml-parser.js');
+      const { parseNoteContent } = await import(
+        '../../../src/server/utils/yaml-parser.js'
+      );
       const parsed = parseNoteContent(migratedContent);
 
       // Verify all YAML types are preserved correctly
       expect(parsed.metadata.title).toBe('Tutorial 1: Your First Daily Note');
       expect(parsed.metadata.subtitle).toBe('Learn Flint: The Basics');
-      expect(parsed.metadata.description).toBe('Notes: Testing "Quotes" and \'Apostrophes\'');
+      expect(parsed.metadata.description).toBe(
+        'Notes: Testing "Quotes" and \'Apostrophes\''
+      );
       expect(parsed.metadata.emoji).toBe('🎉 Party!');
       expect(parsed.metadata.count).toBe(42);
       expect(parsed.metadata.flag).toBe(true);
