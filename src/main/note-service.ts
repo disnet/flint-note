@@ -36,6 +36,7 @@ import { app } from 'electron';
 export class NoteService {
   private api: FlintNoteApi;
   private isInitialized = false;
+  private initializationPromise: Promise<void> | null = null;
   private electronUserDataPath: string;
   private hasVaultsAvailable = false;
 
@@ -50,10 +51,28 @@ export class NoteService {
   }
 
   async initialize(): Promise<void> {
+    // If already initialized, return immediately
     if (this.isInitialized) {
       return;
     }
 
+    // If initialization is in progress, wait for it to complete
+    // This prevents concurrent initialization calls from racing
+    if (this.initializationPromise) {
+      return this.initializationPromise;
+    }
+
+    // Start new initialization and store the promise
+    this.initializationPromise = this.doInitialize();
+
+    try {
+      await this.initializationPromise;
+    } finally {
+      this.initializationPromise = null;
+    }
+  }
+
+  private async doInitialize(): Promise<void> {
     try {
       // Get the current vault path for initialization, using Electron userData directory
       const currentVaultPath = await getCurrentVaultPath(this.electronUserDataPath);
@@ -121,6 +140,7 @@ export class NoteService {
     try {
       this.isInitialized = false;
       this.hasVaultsAvailable = false;
+      this.initializationPromise = null; // Clear any existing promise
       await this.initialize();
       return this.isInitialized;
     } catch (error) {

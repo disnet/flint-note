@@ -1358,11 +1358,17 @@ export class NoteManager {
             ? parsed.metadata.id
             : this.generateNoteId();
 
+        // Determine type from frontmatter or fallback to parent directory name
+        const parentDir = path.basename(path.dirname(notePath));
+        const noteType =
+          (typeof parsed.metadata.type === 'string' ? parsed.metadata.type : null) ||
+          parentDir;
+
         await this.#hybridSearchManager.upsertNote(
           noteId,
           parsed.metadata.title || filename.replace('.md', ''),
           parsed.content,
-          parsed.metadata.type || 'default',
+          noteType,
           filename,
           notePath,
           parsed.metadata

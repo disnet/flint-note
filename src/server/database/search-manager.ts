@@ -1082,6 +1082,26 @@ export class HybridSearchManager {
     }
   }
 
+  /**
+   * Refresh database connections to see latest data after rebuild
+   * This is critical for SQLite WAL mode to avoid stale read snapshots
+   */
+  async refreshConnections(): Promise<void> {
+    // Close existing connections
+    if (this.connection) {
+      await this.connection.close();
+      this.connection = null;
+      this.isInitialized = false;
+    }
+    if (this.readOnlyConnection) {
+      await this.readOnlyConnection.close();
+      this.readOnlyConnection = null;
+    }
+
+    // Reinitialize to get fresh connections
+    await this.ensureInitialized();
+  }
+
   async close(): Promise<void> {
     if (this.connection) {
       await this.connection.close();

@@ -1,5 +1,9 @@
 # Project Log
 
+## Wikilink Path-Based Resolution Fix - 2025-10-09
+
+- Fixed broken wikilink resolution for type/filename format identifiers where wikilinks like `[[sketch/what-makes-a-good-thinking-system|...]]` failed to open existing notes and instead created new ones: root cause was findNoteByIdentifier() function in wikilinks.svelte.ts missing support for path-based lookup, it only checked note IDs, titles, and filenames but never parsed identifiers containing slashes as type/filename paths; added path-based lookup logic that splits identifier on first slash to extract type and filename, then searches notes matching both type.toLowerCase() === extractedType AND filename without .md matches extractedFilename; new lookup order is: (1) note ID exact match, (2) type/filename path match, (3) title case-insensitive match, (4) filename without extension match; updated DATABASE-REBUILD-INVESTIGATION.md with Issue 8 documenting the problem, root cause, fix, and modified files; all formatting and type checking passes successfully
+
 ## External Links Table Schema Migration - 2025-10-09
 
 - Fixed database rebuild error "table external_links has no column named title" caused by schema mismatch between migration code and current schema: migration v2.0.0 created external_links table with old schema (link_text column) while link-extractor.ts was updated to use new schema (title and link_type columns), causing INSERT failures during database rebuild link extraction; created migration v2.0.1 that updates external_links schema by renaming link_text to title and adding link_type column with default 'url' value, updated migrateToImmutableIds function to create correct schema from the start handling three states (new schema with title/link_type, old schema with link_text, oldest schema without either), updated all tests to reflect v2.0.1 as current version; all 319 tests pass successfully

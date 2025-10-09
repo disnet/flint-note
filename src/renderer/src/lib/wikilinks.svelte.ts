@@ -197,7 +197,7 @@ export function parseWikilinks(text: string, notes: NoteMetadata[]): WikilinkMat
 }
 
 /**
- * Find a note by identifier (which can be note ID, title, or filename)
+ * Find a note by identifier (which can be note ID, title, type/filename path, or filename)
  */
 function findNoteByIdentifier(
   identifier: string,
@@ -208,6 +208,19 @@ function findNoteByIdentifier(
   // First, try to match by note ID (exact match)
   const byId = notes.find((note) => note.id.toLowerCase() === normalizedIdentifier);
   if (byId) return byId;
+
+  // Then try to match by type/filename format (e.g., "sketch/what-makes-a-good-thinking-system")
+  if (normalizedIdentifier.includes('/')) {
+    const [type, ...filenameParts] = normalizedIdentifier.split('/');
+    const filename = filenameParts.join('/'); // Handle nested paths if any
+
+    const byTypePath = notes.find(
+      (note) =>
+        note.type.toLowerCase() === type &&
+        note.filename.toLowerCase().replace(/\.md$/, '').trim() === filename
+    );
+    if (byTypePath) return byTypePath;
+  }
 
   // Then try to match by title (case-insensitive)
   const byTitle = notes.find(

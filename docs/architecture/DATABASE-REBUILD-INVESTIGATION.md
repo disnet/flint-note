@@ -186,74 +186,214 @@ SQLITE_ERROR: table external_links has no column named title
 - `src/server/database/migration-manager.ts:401-479` - Updated `migrateToImmutableIds` to use correct schema
 - `tests/server/database/migration-manager.test.ts` - Updated tests for v2.0.1
 
-## Issue 5: Race Condition Between Rebuild and UI State (CURRENT ISSUE)
+## Issue 5: Stale Database Connections After Rebuild (RESOLVED)
 
-**Problem:** After database rebuild, notes appear missing ("Note not found") and wikilinks show as broken/red, even after the fixes for Issues 1-4.
+**Problem:** After database rebuild, notes appear missing ("Note not found") and wikilinks show as broken/red, even after the fixes for Issues 1-4. This occurs when:
+
+1. User rebuilds database from Settings
+2. User restarts app
+3. User opens a note (works fine initially)
+4. User restarts app again (note fails to load with "Note not found" error)
 
 **Root Cause Analysis:**
 
-The issue is NOT a simple race condition, but a sequence problem:
+The issue is **stale database connection snapshots in SQLite WAL mode**:
 
-1. User triggers rebuild from Settings → `rebuildDatabase()` called
-2. `rebuildDatabase()` calls `dbManager.rebuild()` which:
-   - Clears all tables including `ui_state` ✅
-   - Commits the transaction ✅
-3. `rebuildDatabase()` calls `rebuildIndex()` which:
-   - Scans filesystem for markdown files
-   - Indexes notes in batches (processing 10 files in parallel)
-   - Extracts and stores wikilinks for each note
-   - **This is synchronous and awaited** ✅
-4. User restarts app (rebuild completed, ui_state is empty)
-5. App initializes:
-   - `initialize()` in `flint-note-api.ts:120-184` runs
-   - Checks if index is empty (`stats.noteCount === 0`)
-   - **Database is NOT empty** (rebuild completed in step 3)
-   - Does NOT trigger reindexing ❌
-6. UI starts loading:
-   - `activeNoteStore` tries to load from storage
-   - No active note stored (ui_state was cleared)
-   - Works fine at this point ✅
-7. User opens a note:
-   - UI loads the note successfully
-   - Saves note ID to `ui_state` via `activeNoteStore.setActiveNote()`
-   - Works fine ✅
-8. User restarts app again:
-   - `activeNoteStore` tries to restore the note from step 7
-   - **Note exists in database** ✅
-   - **Links SHOULD exist** (extracted during rebuild)
-   - **But wikilinks show as RED** ❌
+1. **SQLite WAL Mode Connection Isolation**: Each `HybridSearchManager` instance caches its own `DatabaseConnection` wrapper around the underlying `sqlite3.Database` object
+2. **Stale Read Snapshots**: In SQLite WAL mode, connections can maintain read snapshots that don't see recent writes by other connections
+3. **The Failure Sequence**:
+   - Database rebuild clears all data and rebuilds notes (commits successfully)
+   - **Existing database connections retain stale read snapshots from BEFORE the rebuild**
+   - When app restarts, `NoteManager.getNote()` queries for note `n-77d33c76` using an existing connection
+   - The connection's stale snapshot returns `undefined` even though the note exists in the database file
+   - This causes "Note not found" errors
 
-**Wait - this means the links ARE being extracted during rebuild, but they're not being resolved properly!**
+**Code Path**:
 
-**The real bug:** The issue is that `ui_state` is being cleared correctly, and notes are being indexed correctly, but after restart the note appears to not exist OR the wikilinks aren't resolving correctly.
+- `NoteManager.getNote()` (notes.ts:514-596) queries: `SELECT id, type, filename FROM notes WHERE id = ?`
+- Line 532: `if (!dbNote) { throw new Error('Note not found') }`
+- The query returns `undefined` because the connection has a stale snapshot
 
-Looking at the error logs:
+**Why It Only Happens After App Restart**:
+
+1. During rebuild: Connection is actively writing, sees its own writes
+2. After rebuild completes: Connection snapshot becomes "frozen"
+3. On app restart: Same connection instance is reused
+4. Connection still has the old snapshot, doesn't see rebuilt data
+
+**Fix Applied:**
+
+Added `refreshConnections()` method to `HybridSearchManager` to close and reopen database connections after rebuild:
+
+```typescript
+// In search-manager.ts
+async refreshConnections(): Promise<void> {
+  // Close existing connections
+  if (this.connection) {
+    await this.connection.close();
+    this.connection = null;
+    this.isInitialized = false;
+  }
+  if (this.readOnlyConnection) {
+    await this.readOnlyConnection.close();
+    this.readOnlyConnection = null;
+  }
+  // Reinitialize to get fresh connections
+  await this.ensureInitialized();
+}
 ```
-Failed to get note 'n-77d33c76': Note not found: n-77d33c76
+
+Called after rebuild completes:
+
+```typescript
+// In flint-note-api.ts:1540-1543
+await hybridSearchManager.rebuildIndex(...);
+await hybridSearchManager.refreshConnections();
+console.log('Database connections refreshed after rebuild');
 ```
 
-This means the note DOESN'T EXIST in the database after restart, which means:
-- Either the rebuild didn't complete
-- OR the database file is being recreated on restart
-- OR there's a timing issue where notes aren't indexed before UI queries
+**Additional Fix**: Modified `getVaultContext()` to reuse existing `HybridSearchManager` instances instead of creating new ones, preventing connection proliferation (flint-note-api.ts:215-220).
 
-**Hypothesis:** The `initialize()` method checks `stats.noteCount === 0` at line 155, and if the database has ANY notes, it skips reindexing. But what if:
-- Rebuild clears the database
-- User restarts BEFORE rebuild completes
-- On startup, database is empty, so it triggers reindexing
-- But the reindexing happens ASYNC in the background
-- UI loads before reindexing completes
+**Files Modified:**
 
-**Solution:** Need to ensure `handleIndexRebuild()` completes BEFORE the app responds to IPC calls from the UI.
+- `src/server/database/search-manager.ts:1085-1103` - Added `refreshConnections()` method
+- `src/server/api/flint-note-api.ts:1540-1543` - Call `refreshConnections()` after rebuild
+- `src/server/api/flint-note-api.ts:215-220` - Reuse existing HybridSearchManager in `getVaultContext()`
 
-## Known Remaining Issues
+## Issue 6: Concurrent Initialization Race Condition (RESOLVED)
 
-Investigating race condition between app initialization and database rebuild completion.
+**Problem:** Even with all previous fixes, "Note not found" errors persist during app startup when the UI tries to restore the active note.
+
+**Root Cause:**
+
+The real issue is a **concurrent initialization race condition** in `NoteService`:
+
+1. App starts and begins initializing `NoteService` in `main/index.ts:200`
+2. Window loads and renderer starts immediately
+3. Multiple UI components load in parallel: `activeNoteStore`, `notesStore`, etc.
+4. Each component makes IPC calls that trigger `await noteService.initialize()`
+5. **Critical bug**: `NoteService.initialize()` had NO promise tracking
+6. Multiple concurrent calls to `initialize()` all started their own initialization
+7. Each created a NEW `FlintNoteApi` instance, each with its own database connections
+8. Race condition: Some connections might see data, others might not
+
+**Code Flow:**
+
+```typescript
+// BEFORE (buggy):
+async initialize(): Promise<void> {
+  if (this.isInitialized) {
+    return;  // ← Only guards AFTER completion
+  }
+  // ❌ No guard against concurrent calls
+  this.api = new FlintNoteApi(...);  // Multiple instances created!
+  await this.api.initialize();
+}
+```
+
+Multiple concurrent calls all passed the `isInitialized` check and created separate API instances simultaneously.
+
+**Fix Applied:**
+
+Added initialization promise tracking to prevent concurrent initialization:
+
+```typescript
+// In note-service.ts:39,53-73
+private initializationPromise: Promise<void> | null = null;
+
+async initialize(): Promise<void> {
+  if (this.isInitialized) {
+    return;
+  }
+
+  // If initialization is in progress, wait for it to complete
+  if (this.initializationPromise) {
+    return this.initializationPromise;  // ← Reuse existing promise
+  }
+
+  // Start new initialization and store the promise
+  this.initializationPromise = this.doInitialize();
+
+  try {
+    await this.initializationPromise;
+  } finally {
+    this.initializationPromise = null;
+  }
+}
+```
+
+**Files Modified:**
+
+- `src/main/note-service.ts:39,53-150` - Added promise tracking to prevent concurrent initialization
+
+## Issue 7: Note Type Determination Inconsistency (RESOLVED)
+
+**Problem:** After database rebuild, notes get indexed with `type = 'default'` instead of their actual directory-based type, causing "Note not found" errors when the UI queries by type.
+
+**Root Cause:**
+
+Two different code paths determine note type differently:
+
+1. **During rebuild** (`search-manager.ts:1048-1049`):
+
+   ```typescript
+   const parentDir = path.basename(path.dirname(filePath));
+   const type = (typeof metadata.type === 'string' ? metadata.type : null) || parentDir;
+   ```
+
+   ✅ Correctly falls back to parent directory name
+
+2. **During note updates** (`notes.ts:1365`):
+   ```typescript
+   parsed.metadata.type || 'default';
+   ```
+   ❌ Falls back to hardcoded `'default'` string
+
+**The Failure Sequence:**
+
+1. Database rebuild correctly indexes note with `type = 'projects'` (from directory)
+2. User edits and saves the note
+3. `NoteManager.updateSearchIndex()` is called
+4. Note doesn't have `type` in frontmatter, so it gets `type = 'default'`
+5. Database now has wrong type, queries fail
+
+**Fix Applied:**
+
+Modified `notes.ts:1361-1364` to derive type from directory name, matching the rebuild logic:
+
+```typescript
+// Determine type from frontmatter or fallback to parent directory name
+const parentDir = path.basename(path.dirname(notePath));
+const noteType =
+  (typeof parsed.metadata.type === 'string' ? parsed.metadata.type : null) || parentDir;
+```
+
+**Files Modified:**
+
+- `src/server/core/notes.ts:1361-1370` - Fixed type determination to match rebuild logic
+
+## Summary of All Fixes
+
+1. **Issue 1**: Clear `ui_state` table during rebuild (`schema.ts:425`)
+2. **Issue 2**: Extract and store wikilinks during rebuild (`search-manager.ts:1012-1017`)
+3. **Issue 3**: Add `useTransaction` parameter to `storeLinks()` (`link-extractor.ts:236-291`)
+4. **Issue 4**: Migrate `external_links` schema to v2.0.1 (`migration-manager.ts:621-750`)
+5. **Issue 5**: Refresh database connections after rebuild (`search-manager.ts:1089-1103`, `flint-note-api.ts:1542`)
+6. **Issue 6**: Prevent concurrent initialization race condition (`note-service.ts:39,53-73`)
+7. **Issue 7**: Fix note type determination inconsistency (`notes.ts:1361-1370`)
+8. **Issue 8**: Add path-based wikilink resolution (`wikilinks.svelte.ts:212-223`)
 
 ## Files Changed
 
 1. `src/server/database/schema.ts` - Added `ui_state` table clearing during rebuild
-2. `src/server/database/search-manager.ts` - Added link extraction during note indexing
+2. `src/server/database/search-manager.ts` - Added link extraction during note indexing + connection refresh method
+3. `src/server/core/link-extractor.ts` - Added `useTransaction` parameter to prevent nested transactions
+4. `src/server/database/migration-manager.ts` - Added v2.0.1 migration for external_links schema
+5. `src/server/api/flint-note-api.ts` - Added connection refresh after rebuild + reuse HybridSearchManager instances
+6. `src/main/note-service.ts` - Added initialization promise tracking to prevent concurrent initialization
+7. `src/server/core/notes.ts` - Fixed type determination to derive from directory name
+8. `src/renderer/src/lib/wikilinks.svelte.ts` - Added path-based lookup for type/filename wikilinks
+9. `tests/server/database/migration-manager.test.ts` - Updated tests for v2.0.1
 
 ## Related Documentation
 
@@ -261,35 +401,72 @@ Investigating race condition between app initialization and database rebuild com
 - [UI State Management](./UI-STATE-MANAGEMENT.md)
 - [Database Architecture](./DATABASE-ARCHITECTURE.md)
 
-## Next Steps for Investigation
-
-If issues persist after these fixes:
-
-1. **Check rebuild completion timing**
-   - Verify `rebuildIndex()` fully completes before UI attempts to load notes
-   - Look for race conditions in initialization flow
-   - Check if `handleIndexRebuild()` properly awaits completion
-
-2. **Verify link resolution logic**
-   - Ensure `LinkExtractor.resolveWikilinks()` correctly maps wikilink text to note IDs
-   - Check if type/filename format links resolve properly
-   - Verify database queries in `findNoteByTitle()` work with immutable IDs
-
-3. **Check app initialization order**
-   - Review startup sequence in `flint-note-api.ts:120-185`
-   - Verify `initialize()` completes before UI renders
-   - Check if notes store waits for initialization
-
-4. **Monitor specific error patterns**
-   - Collect logs showing exact timing of errors
-   - Identify if errors only occur for specific note types
-   - Check if certain wikilink formats cause issues
-
 ## Investigation Timeline
 
-- **Initial symptoms:** "Note not found" errors after rebuild + restart
+- **Initial symptoms:** "Note not found" errors after rebuild + restart sequence
 - **First hypothesis:** UI state loading before rebuild completion (race condition)
-- **Finding 1:** `ui_state` table survives rebuild, creating stale references
-- **Finding 2:** Link extraction missing from rebuild process
-- **Fixes applied:** Clear `ui_state` during rebuild, add link extraction
-- **Status:** Partial fix - some issues may remain
+- **Finding 1:** `ui_state` table survives rebuild, creating stale references → Fixed by clearing ui_state
+- **Finding 2:** Link extraction missing from rebuild process → Fixed by adding link extraction to indexNoteFile()
+- **Finding 3:** Nested transaction errors during rebuild → Fixed with `useTransaction` parameter
+- **Finding 4:** External links schema mismatch → Fixed with v2.0.1 migration
+- **Finding 5:** Stale database connections in SQLite WAL mode → Fixed with connection refresh
+- **Finding 6:** Concurrent initialization creating multiple API instances → Fixed with promise tracking
+- **Finding 7:** Note type determination inconsistency between rebuild and updates → Fixed by deriving type from directory
+- **Finding 8:** Wikilink resolution missing path-based lookup for `type/filename` format → Fixed by adding path parsing
+- **Status:** All issues resolved, ready for testing
+
+## Issue 8: Wikilink Resolution Missing Path-Based Lookup (RESOLVED)
+
+**Problem:** Wikilinks using the `type/filename` format (e.g., `[[sketch/what-makes-a-good-thinking-system|...]]`) fail to resolve to the correct note, even when the note exists in the database.
+
+**Symptoms:**
+
+- Clicking wikilink with `[[sketch/what-makes-a-good-thinking-system|What makes a good thinking system?]]` format creates a new note instead of opening the existing one
+- The existing note at `~/pkb-flint/sketch/what-makes-a-good-thinking-system.md` (ID: `n-37f12926`) is never found
+- Wikilinks appear "broken" even though the target note exists
+
+**Root Cause:**
+
+The `findNoteByIdentifier()` function in `src/renderer/src/lib/wikilinks.svelte.ts` was missing support for the `type/filename` identifier format:
+
+1. **Original lookup order**:
+   - By note ID (exact match)
+   - By title (case-insensitive)
+   - By filename without extension
+
+2. **Missing**: No support for `type/filename` format like `sketch/what-makes-a-good-thinking-system`
+
+3. The function would try to match the full string `"sketch/what-makes-a-good-thinking-system"` against note IDs, titles, and filenames, but never parsed it as a path-based identifier
+
+**Fix Applied:**
+
+Added path-based lookup to `findNoteByIdentifier()` (lines 212-223):
+
+```typescript
+// Then try to match by type/filename format (e.g., "sketch/what-makes-a-good-thinking-system")
+if (normalizedIdentifier.includes('/')) {
+  const [type, ...filenameParts] = normalizedIdentifier.split('/');
+  const filename = filenameParts.join('/'); // Handle nested paths if any
+
+  const byTypePath = notes.find(
+    (note) =>
+      note.type.toLowerCase() === type &&
+      note.filename.toLowerCase().replace(/\.md$/, '').trim() === filename
+  );
+  if (byTypePath) return byTypePath;
+}
+```
+
+**New lookup order**:
+1. By note ID (exact match)
+2. **By type/filename path** (e.g., `sketch/what-makes-a-good-thinking-system`)
+3. By title (case-insensitive)
+4. By filename without extension
+
+**Files Modified:**
+
+- `src/renderer/src/lib/wikilinks.svelte.ts:199-239` - Added type/filename path lookup
+
+## Key Insight
+
+The fundamental issue was **not** about database rebuild specifically, but about **concurrent initialization during app startup**. The rebuild sequence exposed the race condition because it triggered app restarts, which caused the UI to load while multiple IPC handlers were all calling `initialize()` concurrently. Each created separate database connections, some of which had stale snapshots.

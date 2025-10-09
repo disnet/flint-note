@@ -1537,6 +1537,11 @@ export class FlintNoteApi {
         }
       });
 
+      // CRITICAL: Refresh database connections after rebuild to avoid stale read snapshots
+      // SQLite WAL mode can cause existing connections to see old data after major writes
+      await hybridSearchManager.refreshConnections();
+      console.log('Database connections refreshed after rebuild');
+
       return {
         success: true,
         noteCount
