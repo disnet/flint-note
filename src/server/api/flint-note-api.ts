@@ -211,12 +211,22 @@ export class FlintNoteApi {
     }
 
     const workspacePath = vault.path;
-    const hybridSearchManager = new HybridSearchManager(workspacePath);
-    const workspace = new Workspace(
-      workspacePath,
-      hybridSearchManager.getDatabaseManager()
-    );
-    await workspace.initialize();
+
+    // CRITICAL FIX: Reuse the existing HybridSearchManager if we're working with the current vault
+    // Creating new instances causes multiple database connections which can lead to stale reads
+    // after database rebuilds due to SQLite WAL mode connection isolation
+    const isCurrentVault = this.workspace && this.workspace.rootPath === workspacePath;
+    const hybridSearchManager = isCurrentVault
+      ? this.hybridSearchManager
+      : new HybridSearchManager(workspacePath);
+
+    const workspace = isCurrentVault
+      ? this.workspace
+      : new Workspace(workspacePath, hybridSearchManager.getDatabaseManager());
+
+    if (!isCurrentVault) {
+      await workspace.initialize();
+    }
 
     const noteManager = new NoteManager(workspace, hybridSearchManager);
     const noteTypeManager = new NoteTypeManager(workspace);

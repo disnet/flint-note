@@ -1008,6 +1008,13 @@ export class HybridSearchManager {
           filePath,
           parsed.metadata as NoteMetadata
         );
+
+        // Extract and store links for this note
+        // Don't use transaction here since this may be called during rebuild
+        const { LinkExtractor } = await import('../core/link-extractor.js');
+        const extractionResult = LinkExtractor.extractLinks(parsed.content);
+        const db = await this.getConnection();
+        await LinkExtractor.storeLinks(parsed.id, extractionResult, db, false);
       }
     } catch (error) {
       throw new Error(

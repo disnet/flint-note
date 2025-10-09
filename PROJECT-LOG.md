@@ -1,5 +1,13 @@
 # Project Log
 
+## External Links Table Schema Migration - 2025-10-09
+
+- Fixed database rebuild error "table external_links has no column named title" caused by schema mismatch between migration code and current schema: migration v2.0.0 created external_links table with old schema (link_text column) while link-extractor.ts was updated to use new schema (title and link_type columns), causing INSERT failures during database rebuild link extraction; created migration v2.0.1 that updates external_links schema by renaming link_text to title and adding link_type column with default 'url' value, updated migrateToImmutableIds function to create correct schema from the start handling three states (new schema with title/link_type, old schema with link_text, oldest schema without either), updated all tests to reflect v2.0.1 as current version; all 319 tests pass successfully
+
+## Database Rebuild Transaction Error Fix - 2025-10-09
+
+- Fixed critical transaction error during database rebuild that prevented link extraction: LinkExtractor.storeLinks() always started its own transaction (BEGIN TRANSACTION) but was called from indexNoteFile() during rebuild when no transaction was active, causing "SQLITE_ERROR: cannot start a transaction within a transaction" errors when processing notes with wikilinks; modified LinkExtractor.storeLinks() to accept optional useTransaction parameter (defaults to true for backward compatibility), updated search-manager.ts:1017 to pass false during rebuild so link storage happens without transaction management while other callers (migrateLinks) continue using transactions for safety; all 219 tests pass successfully
+
 ## Database Rebuild YAML Parser Fix - 2025-10-09
 
 - Fixed critical bug where database rebuild ignored immutable IDs from frontmatter: HybridSearchManager.parseNoteContent() was using a broken custom YAML parser that generated old-style type/filename IDs instead of reading immutable IDs from frontmatter, causing "Note not found" errors after rebuilding database; replaced custom parser with proper parseNoteContent() from yaml-parser.ts that uses js-yaml library, now correctly reads immutable IDs (n-xxxxxxxx format) from frontmatter during indexing and falls back to old-style IDs only for legacy notes, also fixed NoteManager.listNotes() to query database for missing frontmatter IDs and auto-heal files by writing database IDs back to frontmatter

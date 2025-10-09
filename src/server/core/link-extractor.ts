@@ -236,10 +236,13 @@ export class LinkExtractor {
   static async storeLinks(
     noteId: string,
     extractionResult: LinkExtractionResult,
-    db: DatabaseConnection
+    db: DatabaseConnection,
+    useTransaction: boolean = true
   ): Promise<void> {
-    // Start transaction
-    await db.run('BEGIN TRANSACTION');
+    // Start transaction if requested
+    if (useTransaction) {
+      await db.run('BEGIN TRANSACTION');
+    }
 
     try {
       // Clear existing links for this note
@@ -276,9 +279,13 @@ export class LinkExtractor {
         );
       }
 
-      await db.run('COMMIT');
+      if (useTransaction) {
+        await db.run('COMMIT');
+      }
     } catch (error) {
-      await db.run('ROLLBACK');
+      if (useTransaction) {
+        await db.run('ROLLBACK');
+      }
       throw error;
     }
   }

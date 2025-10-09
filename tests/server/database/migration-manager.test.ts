@@ -2,7 +2,7 @@
  * Tests for DatabaseMigrationManager
  *
  * These tests verify the migration system works correctly including:
- * - Fresh migrations from v1.1.0 to v2.0.0
+ * - Fresh migrations from v1.1.0 to v2.0.1
  * - Partial migration recovery (when migration fails mid-way)
  * - Idempotency (running migration multiple times)
  * - Schema validation
@@ -338,7 +338,7 @@ This is test note ${i}`;
     return { migratedNotes, mappings };
   }
 
-  describe('Fresh migration from v1.1.0 to v2.0.0', () => {
+  describe('Fresh migration from v1.1.0 to v2.0.1', () => {
     it('should successfully migrate a small vault (7 notes)', async () => {
       // Create v1.1.0 database with 7 notes
       const originalNotes = await createV1_1_0_Database(7);
@@ -353,8 +353,9 @@ This is test note ${i}`;
       // Verify migration result
       expect(result.migrated).toBe(true);
       expect(result.fromVersion).toBe('1.1.0');
-      expect(result.toVersion).toBe('2.0.0');
+      expect(result.toVersion).toBe('2.0.1');
       expect(result.executedMigrations).toContain('2.0.0');
+      expect(result.executedMigrations).toContain('2.0.1');
 
       // Verify database state
       await verifyMigration(originalNotes);
@@ -374,6 +375,7 @@ This is test note ${i}`;
       // Should succeed even with no notes
       expect(result.migrated).toBe(true);
       expect(result.executedMigrations).toContain('2.0.0');
+      expect(result.executedMigrations).toContain('2.0.1');
 
       const db = await dbManager.connect();
       const count = await db.get<{ count: number }>(
@@ -602,9 +604,9 @@ This is test note ${i}`;
       // Get migrated state
       const { migratedNotes: firstRun } = await verifyMigration(originalNotes);
 
-      // Run migration again
+      // Run migration again (with current version)
       const result = await DatabaseMigrationManager.checkAndMigrate(
-        '2.0.0',
+        '2.0.1',
         dbManager as unknown as DatabaseManager,
         workspacePath
       );
@@ -626,7 +628,7 @@ This is test note ${i}`;
       }
     });
 
-    it('should handle migration from v1.0.0 through v1.1.0 to v2.0.0', async () => {
+    it('should handle migration from v1.0.0 through v1.1.0 to v2.0.1', async () => {
       // This tests running multiple migrations in sequence
       const db = await dbManager.connect();
 
@@ -673,10 +675,11 @@ This is test note ${i}`;
         workspacePath
       );
 
-      // Should execute both migrations
+      // Should execute all three migrations
       expect(result.migrated).toBe(true);
       expect(result.executedMigrations).toContain('1.1.0');
       expect(result.executedMigrations).toContain('2.0.0');
+      expect(result.executedMigrations).toContain('2.0.1');
 
       // Verify final state has immutable IDs
       const notes = await db.all<{ id: string }>('SELECT id FROM notes');

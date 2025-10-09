@@ -406,46 +406,71 @@ async function migrateToImmutableIds(
         id INTEGER PRIMARY KEY,
         note_id TEXT NOT NULL,
         url TEXT NOT NULL,
-        link_text TEXT,
+        title TEXT,
         line_number INTEGER,
+        link_type TEXT DEFAULT 'url' CHECK (link_type IN ('url', 'image', 'embed')),
         created DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY(note_id) REFERENCES notes(id) ON DELETE CASCADE
       )
     `);
 
     // 10. Migrate external_links using ID mapping
-    // Check if link_text column exists in the backup table
+    // Check if link_text or title column exists in the backup table
     const extLinkTextExists = await db.get<{ count: number }>(`
       SELECT COUNT(*) as count
       FROM pragma_table_info('external_links_backup')
       WHERE name='link_text'
     `);
 
-    if (extLinkTextExists && extLinkTextExists.count > 0) {
-      // New schema with link_text
+    const extTitleExists = await db.get<{ count: number }>(`
+      SELECT COUNT(*) as count
+      FROM pragma_table_info('external_links_backup')
+      WHERE name='title'
+    `);
+
+    if (extTitleExists && extTitleExists.count > 0) {
+      // Newer schema with title (map to title)
       await db.run(`
-        INSERT INTO external_links (id, note_id, url, link_text, line_number, created)
+        INSERT INTO external_links (id, note_id, url, title, line_number, created, link_type)
+        SELECT
+          l.id,
+          m.new_id,
+          l.url,
+          l.title,
+          l.line_number,
+          l.created,
+          COALESCE(l.link_type, 'url')
+        FROM external_links_backup l
+        LEFT JOIN note_id_migration m ON l.note_id = m.old_identifier
+        WHERE m.new_id IS NOT NULL
+      `);
+    } else if (extLinkTextExists && extLinkTextExists.count > 0) {
+      // Old schema with link_text (map to title)
+      await db.run(`
+        INSERT INTO external_links (id, note_id, url, title, line_number, created, link_type)
         SELECT
           l.id,
           m.new_id,
           l.url,
           l.link_text,
           l.line_number,
-          l.created
+          l.created,
+          'url'
         FROM external_links_backup l
         LEFT JOIN note_id_migration m ON l.note_id = m.old_identifier
         WHERE m.new_id IS NOT NULL
       `);
     } else {
-      // Old schema without link_text
+      // Oldest schema without link_text or title
       await db.run(`
-        INSERT INTO external_links (id, note_id, url, line_number, created)
+        INSERT INTO external_links (id, note_id, url, line_number, created, link_type)
         SELECT
           l.id,
           m.new_id,
           l.url,
           l.line_number,
-          l.created
+          l.created,
+          'url'
         FROM external_links_backup l
         LEFT JOIN note_id_migration m ON l.note_id = m.old_identifier
         WHERE m.new_id IS NOT NULL
@@ -618,8 +643,118 @@ async function migrateToV2(
   // The stores will call loadUIState, get empty results, and start fresh.
 }
 
+/**
+ * Migration function to update external_links table schema
+ * Renames link_text to title and adds link_type column
+ */
+async function migrateToV2_0_1(db: DatabaseConnection): Promise<void> {
+  console.log('Starting external_links schema update...');
+
+  // Check if external_links table exists
+  const externalLinksExists = await db.get<{ count: number }>(`
+    SELECT COUNT(*) as count FROM sqlite_master
+    WHERE type='table' AND name='external_links'
+  `);
+
+  if (!externalLinksExists || externalLinksExists.count === 0) {
+    console.log('external_links table does not exist, skipping migration');
+    return;
+  }
+
+  // Check if the table already has the new schema (title and link_type columns)
+  const titleColumnExists = await db.get<{ count: number }>(`
+    SELECT COUNT(*) as count
+    FROM pragma_table_info('external_links')
+    WHERE name='title'
+  `);
+
+  const linkTypeColumnExists = await db.get<{ count: number }>(`
+    SELECT COUNT(*) as count
+    FROM pragma_table_info('external_links')
+    WHERE name='link_type'
+  `);
+
+  if (
+    titleColumnExists &&
+    titleColumnExists.count > 0 &&
+    linkTypeColumnExists &&
+    linkTypeColumnExists.count > 0
+  ) {
+    console.log('external_links table already has new schema, skipping migration');
+    return;
+  }
+
+  // Backup existing external_links data
+  await db.run('DROP TABLE IF EXISTS external_links_old');
+  await db.run('CREATE TABLE external_links_old AS SELECT * FROM external_links');
+
+  // Drop the old table
+  await db.run('DROP TABLE external_links');
+
+  // Create new external_links table with updated schema
+  await db.run(`
+    CREATE TABLE external_links (
+      id INTEGER PRIMARY KEY,
+      note_id TEXT NOT NULL,
+      url TEXT NOT NULL,
+      title TEXT,
+      line_number INTEGER,
+      link_type TEXT DEFAULT 'url' CHECK (link_type IN ('url', 'image', 'embed')),
+      created DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
+    )
+  `);
+
+  // Create index for better performance
+  await db.run(
+    'CREATE INDEX IF NOT EXISTS idx_external_links_note ON external_links(note_id)'
+  );
+  await db.run(
+    'CREATE INDEX IF NOT EXISTS idx_external_links_url ON external_links(url)'
+  );
+
+  // Check if the old table had link_text column
+  const oldLinkTextExists = await db.get<{ count: number }>(`
+    SELECT COUNT(*) as count
+    FROM pragma_table_info('external_links_old')
+    WHERE name='link_text'
+  `);
+
+  if (oldLinkTextExists && oldLinkTextExists.count > 0) {
+    // Migrate data from old table, mapping link_text to title
+    await db.run(`
+      INSERT INTO external_links (id, note_id, url, title, line_number, created, link_type)
+      SELECT
+        id,
+        note_id,
+        url,
+        link_text,
+        line_number,
+        created,
+        'url'
+      FROM external_links_old
+    `);
+  } else {
+    // Old table didn't have link_text, just migrate basic fields
+    await db.run(`
+      INSERT INTO external_links (id, note_id, url, line_number, created, link_type)
+      SELECT
+        id,
+        note_id,
+        url,
+        line_number,
+        created,
+        'url'
+      FROM external_links_old
+    `);
+  }
+
+  // Keep backup table for now
+  console.log('external_links table schema updated successfully');
+}
+
 export class DatabaseMigrationManager {
-  private static readonly CURRENT_SCHEMA_VERSION = '2.0.0';
+  private static readonly CURRENT_SCHEMA_VERSION = '2.0.1';
 
   private static readonly MIGRATIONS: DatabaseMigration[] = [
     {
@@ -635,6 +770,14 @@ export class DatabaseMigrationManager {
       requiresFullRebuild: false,
       requiresLinkMigration: false,
       migrationFunction: migrateToV2
+    },
+    {
+      version: '2.0.1',
+      description:
+        'Update external_links table schema (rename link_text to title, add link_type)',
+      requiresFullRebuild: false,
+      requiresLinkMigration: false,
+      migrationFunction: migrateToV2_0_1
     }
   ];
 

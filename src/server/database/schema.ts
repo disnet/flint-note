@@ -421,6 +421,8 @@ export class DatabaseManager {
       await connection.run('DELETE FROM note_metadata');
       await connection.run('DELETE FROM notes');
       await connection.run('DELETE FROM notes_fts');
+      // Clear UI state to prevent references to notes that haven't been reindexed yet
+      await connection.run('DELETE FROM ui_state');
       await connection.run('COMMIT');
 
       // Optimize database after bulk operations
