@@ -484,9 +484,11 @@ The `noteStore.svelte.ts` was incorrectly mapping the API response to the `NoteM
    - `title`: The note title (e.g., `"What makes a good thinking system"`)
 
 2. **Bug in noteStore.svelte.ts:156**:
+
    ```typescript
    filename: note.title || `unknown-${result.indexOf(note)}`,
    ```
+
    This replaced the filename with the title, breaking path-based wikilink resolution.
 
 3. **Impact on Wikilink Resolution**:

@@ -999,6 +999,9 @@ export class HybridSearchManager {
       const parsed = this.parseNoteContent(filePath, content);
 
       if (parsed) {
+        // Check if we need to normalize the frontmatter type field
+        await this.normalizeFrontmatterType(filePath, content, parsed);
+
         await this.upsertNote(
           parsed.id,
           parsed.title,
@@ -1019,6 +1022,84 @@ export class HybridSearchManager {
     } catch (error) {
       throw new Error(
         `Failed to index note file ${filePath}: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }
+
+  /**
+   * Normalize the type field in frontmatter if it's missing or incorrect
+   * Writes the correct type back to the file if normalization is needed
+   */
+  private async normalizeFrontmatterType(
+    filePath: string,
+    content: string,
+    parsed: {
+      id: string;
+      title: string;
+      content: string;
+      type: string;
+      filename: string;
+      metadata: Record<string, unknown>;
+    }
+  ): Promise<void> {
+    try {
+      const parentDir = path.basename(path.dirname(filePath));
+      const frontmatterType =
+        typeof parsed.metadata.type === 'string' ? parsed.metadata.type : null;
+
+      // Check if type is missing or doesn't match the directory
+      const needsNormalization = !frontmatterType || frontmatterType !== parentDir;
+
+      if (needsNormalization) {
+        console.log(
+          `Normalizing type field in ${filePath}: ${frontmatterType || '(missing)'} → ${parentDir}`
+        );
+
+        // Parse the original content to get the frontmatter boundary
+        const frontmatterRegex = /^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/;
+        const match = content.match(frontmatterRegex);
+
+        if (!match) {
+          // No frontmatter found - can't normalize
+          console.warn(`Cannot normalize type for ${filePath}: no frontmatter found`);
+          return;
+        }
+
+        const originalFrontmatter = match[1];
+        const bodyContent = match[2];
+
+        // Replace or add the type field in the frontmatter
+        let updatedFrontmatter: string;
+        if (frontmatterType) {
+          // Replace existing type field
+          updatedFrontmatter = originalFrontmatter.replace(
+            /^type:.*$/m,
+            `type: ${parentDir}`
+          );
+        } else {
+          // Add type field after id (if it exists) or at the beginning
+          const lines = originalFrontmatter.split('\n');
+          const idLineIndex = lines.findIndex((line) => line.startsWith('id:'));
+          const insertIndex = idLineIndex >= 0 ? idLineIndex + 1 : 0;
+          lines.splice(insertIndex, 0, `type: ${parentDir}`);
+          updatedFrontmatter = lines.join('\n');
+        }
+
+        // Reconstruct the file content
+        const updatedContent = `---\n${updatedFrontmatter}\n---\n${bodyContent}`;
+
+        // Write the corrected content back to the file
+        await fs.writeFile(filePath, updatedContent, 'utf-8');
+
+        // Update the parsed object to reflect the correction
+        parsed.type = parentDir;
+        parsed.metadata.type = parentDir;
+      }
+    } catch (error) {
+      // Log but don't fail the indexing operation if normalization fails
+      console.error(
+        `Failed to normalize type for ${filePath}:`,
+        error instanceof Error ? error.message : 'Unknown error'
       );
     }
   }
