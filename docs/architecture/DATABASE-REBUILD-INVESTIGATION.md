@@ -382,6 +382,7 @@ const noteType =
 6. **Issue 6**: Prevent concurrent initialization race condition (`note-service.ts:39,53-73`)
 7. **Issue 7**: Fix note type determination inconsistency (`notes.ts:1361-1370`)
 8. **Issue 8**: Add path-based wikilink resolution (`wikilinks.svelte.ts:212-223`)
+9. **Issue 9**: Fix filename field mapping in noteStore (`noteStore.svelte.ts:156`)
 
 ## Files Changed
 
@@ -393,7 +394,8 @@ const noteType =
 6. `src/main/note-service.ts` - Added initialization promise tracking to prevent concurrent initialization
 7. `src/server/core/notes.ts` - Fixed type determination to derive from directory name
 8. `src/renderer/src/lib/wikilinks.svelte.ts` - Added path-based lookup for type/filename wikilinks
-9. `tests/server/database/migration-manager.test.ts` - Updated tests for v2.0.1
+9. `src/renderer/src/services/noteStore.svelte.ts` - Fixed filename field mapping to preserve actual filename from API
+10. `tests/server/database/migration-manager.test.ts` - Updated tests for v2.0.1
 
 ## Related Documentation
 
@@ -413,7 +415,8 @@ const noteType =
 - **Finding 6:** Concurrent initialization creating multiple API instances → Fixed with promise tracking
 - **Finding 7:** Note type determination inconsistency between rebuild and updates → Fixed by deriving type from directory
 - **Finding 8:** Wikilink resolution missing path-based lookup for `type/filename` format → Fixed by adding path parsing
-- **Status:** All issues resolved, ready for testing
+- **Finding 9:** NoteStore filename field incorrectly mapped to title → Fixed by preserving filename from API
+- **Status:** All issues resolved
 
 ## Issue 8: Wikilink Resolution Missing Path-Based Lookup (RESOLVED)
 
@@ -458,6 +461,7 @@ if (normalizedIdentifier.includes('/')) {
 ```
 
 **New lookup order**:
+
 1. By note ID (exact match)
 2. **By type/filename path** (e.g., `sketch/what-makes-a-good-thinking-system`)
 3. By title (case-insensitive)
@@ -466,6 +470,41 @@ if (normalizedIdentifier.includes('/')) {
 **Files Modified:**
 
 - `src/renderer/src/lib/wikilinks.svelte.ts:199-239` - Added type/filename path lookup
+
+## Issue 9: NoteStore Filename Field Mapping Bug (RESOLVED)
+
+**Problem:** Wikilinks using `type/filename` format (e.g., `[[sketch/what-makes-a-good-thinking-system|...]]`) were still failing to resolve even after adding path-based lookup in Issue 8.
+
+**Root Cause:**
+
+The `noteStore.svelte.ts` was incorrectly mapping the API response to the `NoteMetadata` interface:
+
+1. **API Returns** (`NoteListItem` from `listNotesByType`):
+   - `filename`: The actual filesystem filename (e.g., `"what-makes-a-good-thinking-system.md"`)
+   - `title`: The note title (e.g., `"What makes a good thinking system"`)
+
+2. **Bug in noteStore.svelte.ts:156**:
+   ```typescript
+   filename: note.title || `unknown-${result.indexOf(note)}`,
+   ```
+   This replaced the filename with the title, breaking path-based wikilink resolution.
+
+3. **Impact on Wikilink Resolution**:
+   - When parsing `[[sketch/what-makes-a-good-thinking-system|...]]`, the code extracts `type = "sketch"` and `filename = "what-makes-a-good-thinking-system"`
+   - The lookup compares against `note.filename.replace(/\.md$/, '')` (line 220 of wikilinks.svelte.ts)
+   - But `note.filename` contained the title instead of the actual filename, so the match failed
+
+**Fix Applied:**
+
+Changed `noteStore.svelte.ts:156` to preserve the filename from the API:
+
+```typescript
+filename: note.filename || `unknown-${result.indexOf(note)}.md`,
+```
+
+**Files Modified:**
+
+- `src/renderer/src/services/noteStore.svelte.ts:156` - Fixed filename mapping to use actual filename from API
 
 ## Key Insight
 

@@ -153,7 +153,7 @@ function createNotesStore(): {
           const noteWithSnippet: NoteMetadata = {
             id: note.id,
             type: note.type || type,
-            filename: note.title || `unknown-${result.indexOf(note)}`,
+            filename: note.filename || `unknown-${result.indexOf(note)}.md`,
             title: note.title || '',
             created: note.created || new Date().toISOString(),
             modified: note.modified || new Date().toISOString(),
