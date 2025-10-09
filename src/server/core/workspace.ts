@@ -304,7 +304,7 @@ export class Workspace {
       workspace_root: '.',
       default_note_type: 'daily',
       database: {
-        schema_version: '2.0.0',
+        schema_version: DatabaseMigrationManager.getCurrentSchemaVersion(),
         last_migration: new Date().toISOString()
       },
       mcp_server: {
