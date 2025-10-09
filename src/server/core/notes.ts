@@ -1249,11 +1249,64 @@ export class NoteManager {
             const content = await fs.readFile(notePath, 'utf-8');
             const parsed = this.parseNoteContent(content);
 
-            // Get ID from frontmatter (for migrated notes) or generate if missing (legacy notes)
-            const noteId =
-              typeof parsed.metadata.id === 'string'
-                ? parsed.metadata.id
-                : this.generateNoteId();
+            // Get ID from frontmatter (for migrated notes) or look up from database
+            let noteId: string;
+            if (typeof parsed.metadata.id === 'string') {
+              noteId = parsed.metadata.id;
+            } else {
+              // Try to look up ID from database if frontmatter is missing it
+              if (this.#hybridSearchManager) {
+                try {
+                  const db = await this.#hybridSearchManager.getDatabaseConnection();
+                  const dbNote = await db.get<{ id: string }>(
+                    'SELECT id FROM notes WHERE type = ? AND filename = ?',
+                    [noteType.name, filename]
+                  );
+                  if (dbNote) {
+                    noteId = dbNote.id;
+                    // Frontmatter is missing ID but database has it - write it back to frontmatter
+                    console.log(
+                      `Fixing missing ID in frontmatter for note ${noteType.name}/${filename} (ID: ${noteId})`
+                    );
+                    try {
+                      const updatedMetadata = {
+                        ...parsed.metadata,
+                        id: noteId
+                      };
+                      const updatedContent = this.formatUpdatedNoteContent(
+                        updatedMetadata,
+                        parsed.content
+                      );
+                      await fs.writeFile(notePath, updatedContent, 'utf-8');
+                    } catch (writeError) {
+                      console.error(
+                        `Failed to write ID to frontmatter for ${noteType.name}/${filename}:`,
+                        writeError
+                      );
+                      // Continue anyway - we have the ID from the database
+                    }
+                  } else {
+                    // Not in database yet, skip this note (it will be indexed later)
+                    console.warn(
+                      `Note ${noteType.name}/${filename} has no ID in frontmatter and is not in database - skipping`
+                    );
+                    continue;
+                  }
+                } catch (error) {
+                  console.warn(
+                    `Failed to look up ID for note ${noteType.name}/${filename}:`,
+                    error
+                  );
+                  continue;
+                }
+              } else {
+                // No database available, skip this note
+                console.warn(
+                  `Note ${noteType.name}/${filename} has no ID in frontmatter and no database available - skipping`
+                );
+                continue;
+              }
+            }
 
             notes.push({
               id: noteId,

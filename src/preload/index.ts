@@ -287,7 +287,7 @@ const api = {
   saveUIState: (params: { vaultId: string; stateKey: string; stateValue: unknown }) =>
     electronAPI.ipcRenderer.invoke('save-ui-state', params),
   clearUIState: (params: { vaultId: string }) =>
-    electronAPI.ipcRenderer.invoke('clear-ui-state', params),
+    electronAPI.ipcRenderer.invoke('clear-ui-state', params.vaultId),
 
   // Usage tracking
   onUsageRecorded: (callback: (usageData: unknown) => void) => {

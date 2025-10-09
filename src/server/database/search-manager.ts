@@ -8,6 +8,7 @@ import type { NoteMetadata, NoteLink as _NoteLink } from '../types/index.js';
 import fs from 'fs/promises';
 import path from 'path';
 import { createHash } from 'crypto';
+import { parseNoteContent as parseNoteContentProper } from '../utils/yaml-parser.js';
 
 /**
  * Helper to handle index rebuilding with progress reporting
@@ -1028,56 +1029,10 @@ export class HybridSearchManager {
     metadata: Record<string, unknown>;
   } | null {
     try {
-      // Parse frontmatter
-      const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
-      const metadata: Record<string, unknown> = {};
-      let bodyContent = content;
-
-      if (frontmatterMatch) {
-        try {
-          // Simple YAML parser for basic metadata
-          const yamlContent = frontmatterMatch[1];
-          const lines = yamlContent.split('\n');
-
-          for (const line of lines) {
-            const colonIndex = line.indexOf(':');
-            if (colonIndex > 0) {
-              const key = line.substring(0, colonIndex).trim();
-              const value = line.substring(colonIndex + 1).trim();
-
-              if (key && value) {
-                // Remove quotes if present
-                const cleanValue = value.replace(/^["']|["']$/g, '');
-
-                // Handle arrays (simple case)
-                if (cleanValue.startsWith('[') && cleanValue.endsWith(']')) {
-                  metadata[key] = cleanValue
-                    .slice(1, -1)
-                    .split(',')
-                    .map((v) => v.trim().replace(/^["']|["']$/g, ''));
-                } else {
-                  // Handle numbers
-                  if (/^\d+(\.\d+)?$/.test(cleanValue)) {
-                    metadata[key] = parseFloat(cleanValue);
-                  } else if (cleanValue === 'true') {
-                    metadata[key] = true;
-                  } else if (cleanValue === 'false') {
-                    metadata[key] = false;
-                  } else if (cleanValue === 'null') {
-                    metadata[key] = null;
-                  } else {
-                    metadata[key] = cleanValue;
-                  }
-                }
-              }
-            }
-          }
-
-          bodyContent = frontmatterMatch[2];
-        } catch (error) {
-          console.error(`Failed to parse frontmatter in ${filePath}:`, error);
-        }
-      }
+      // Use proper YAML parser from yaml-parser.ts
+      const parsed = parseNoteContentProper(content, false);
+      const metadata = parsed.metadata;
+      const bodyContent = parsed.content;
 
       const filename = path.basename(filePath);
       const parentDir = path.basename(path.dirname(filePath));
@@ -1089,9 +1044,16 @@ export class HybridSearchManager {
       // Determine title from metadata (allow empty/missing titles)
       const title = typeof metadata.title === 'string' ? metadata.title : '';
 
-      // Generate note ID (remove .md extension for consistency)
-      const baseFilename = filename.replace(/\.md$/, '');
-      const id = `${type}/${baseFilename}`;
+      // Get ID from frontmatter (for migrated notes with immutable IDs)
+      // Fall back to old-style ID if frontmatter doesn't have one
+      let id: string;
+      if (typeof metadata.id === 'string' && metadata.id.startsWith('n-')) {
+        id = metadata.id;
+      } else {
+        // Generate old-style ID for legacy notes without immutable IDs
+        const baseFilename = filename.replace(/\.md$/, '');
+        id = `${type}/${baseFilename}`;
+      }
 
       return {
         id,

@@ -1,5 +1,13 @@
 # Project Log
 
+## Database Rebuild YAML Parser Fix - 2025-10-09
+
+- Fixed critical bug where database rebuild ignored immutable IDs from frontmatter: HybridSearchManager.parseNoteContent() was using a broken custom YAML parser that generated old-style type/filename IDs instead of reading immutable IDs from frontmatter, causing "Note not found" errors after rebuilding database; replaced custom parser with proper parseNoteContent() from yaml-parser.ts that uses js-yaml library, now correctly reads immutable IDs (n-xxxxxxxx format) from frontmatter during indexing and falls back to old-style IDs only for legacy notes, also fixed NoteManager.listNotes() to query database for missing frontmatter IDs and auto-heal files by writing database IDs back to frontmatter
+
+## Migration Frontmatter Recovery Fix - 2025-10-09
+
+- Fixed "Note not found" errors in vaults where migration failed to write IDs to frontmatter: modified NoteManager.listNotes() to query database for note IDs when frontmatter is missing instead of generating random IDs, implemented automatic frontmatter healing that writes database IDs back to files when detected, added proper error handling to skip notes that are neither in frontmatter nor database (will be indexed on next rebuild); fix prevents UI from requesting invalid note IDs and gradually repairs vaults with missing frontmatter during normal operation
+
 ## Slash Commands Database Migration - 2025-10-09
 
 - Migrated slash commands storage from JSON file to database for consistency with other UI state: created slash_commands table in database schema with id/name/instruction/parameters/created_at/updated_at columns plus name index, added loadSlashCommands/saveSlashCommands methods to FlintNoteApi that serialize parameters JSON and handle DB operations, exposed methods through NoteService wrapper and updated IPC handlers to use note service instead of settings storage service, no changes needed to slashCommandsStore since it already uses IPC methods; all formatting, typechecking, and linting passes successfully
