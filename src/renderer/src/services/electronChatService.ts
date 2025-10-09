@@ -427,10 +427,11 @@ export class ElectronChatService implements ChatService, NoteService {
     name: string;
     path: string;
     description?: string;
+    templateId?: string;
   }): Promise<CreateVaultResult> {
-    const { name, path, description } = params;
+    const { name, path, description, templateId } = params;
     try {
-      return await window.api.createVault({ name, path, description });
+      return await window.api.createVault({ name, path, description, templateId });
     } catch (error) {
       console.error('Failed to create vault:', error);
       throw new Error('Failed to create vault. Please try again.');

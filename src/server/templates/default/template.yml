@@ -1,0 +1,6 @@
+id: default
+name: 'Default Vault'
+description: 'A general-purpose vault for note-taking, daily journaling, and knowledge management'
+icon: '📝'
+author: 'Flint Team'
+version: '1.0.0'

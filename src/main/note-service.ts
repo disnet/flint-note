@@ -17,6 +17,7 @@ import type {
   CoreNoteTypeInfo as NoteTypeInfo,
   CreateVaultResult
 } from '../server/api/types';
+import type { TemplateMetadata } from '../server/core/template-manager';
 import type { ExternalLinkRow } from '../server/database/schema';
 import type {
   MetadataFieldDefinition,
@@ -376,14 +377,16 @@ export class NoteService {
   async createVault(
     name: string,
     path: string,
-    description?: string
+    description?: string,
+    templateId?: string
   ): Promise<CreateVaultResult> {
     this.ensureVaultOpsAvailable();
     return await this.api.createVault({
       id: name.toLowerCase().replace(/\s+/g, '-'),
       name,
       path,
-      description
+      description,
+      templateId
     });
   }
 
@@ -395,6 +398,11 @@ export class NoteService {
   async removeVault(vaultId: string): Promise<void> {
     this.ensureVaultOpsAvailable();
     return await this.api.removeVault({ id: vaultId });
+  }
+
+  async listTemplates(): Promise<TemplateMetadata[]> {
+    this.ensureVaultOpsAvailable();
+    return await this.api.listTemplates();
   }
 
   // Link operations

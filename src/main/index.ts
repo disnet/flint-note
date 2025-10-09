@@ -798,12 +798,18 @@ app.whenReady().then(async () => {
         name: string;
         path: string;
         description?: string;
+        templateId?: string;
       }
     ) => {
       if (!noteService) {
         throw new Error('Note service not available');
       }
-      return await noteService.createVault(params.name, params.path, params.description);
+      return await noteService.createVault(
+        params.name,
+        params.path,
+        params.description,
+        params.templateId
+      );
     }
   );
 
@@ -829,6 +835,13 @@ app.whenReady().then(async () => {
       throw new Error('Note service not available');
     }
     return await noteService.removeVault(params.vaultId);
+  });
+
+  ipcMain.handle('list-templates', async () => {
+    if (!noteService) {
+      throw new Error('Note service not available');
+    }
+    return await noteService.listTemplates();
   });
 
   // Reinitialize note service after vault creation/switching

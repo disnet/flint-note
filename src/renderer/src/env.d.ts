@@ -165,6 +165,7 @@ declare global {
         name: string;
         path: string;
         description?: string;
+        templateId?: string;
       }) => Promise<any>;
       switchVault: (params: { vaultId: string }) => Promise<any>;
       removeVault: (params: { vaultId: string }) => Promise<any>;

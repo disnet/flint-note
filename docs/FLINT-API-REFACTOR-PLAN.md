@@ -13,6 +13,7 @@ Refactor `flint-note-api.ts` from a 1,979-line class-based API to a functional A
 ## Current State
 
 **File**: `src/server/api/flint-note-api.ts`
+
 - **Size**: 1,979 lines
 - **Structure**: Single `FlintNoteApi` class with ~70 methods
 - **State**: Workspace, HybridSearchManager, GlobalConfig instances
@@ -21,6 +22,7 @@ Refactor `flint-note-api.ts` from a 1,979-line class-based API to a functional A
 ## Target State
 
 **Structure**: Multiple focused modules
+
 - **Context**: Simple object holding shared state (no class)
 - **Operations**: Pure functions taking context as first parameter
 - **Modules**: ~10-15 operation modules, each 50-200 lines
@@ -46,7 +48,7 @@ export interface FlintContext {
 export async function createContext(config: {
   configDir?: string;
   workspacePath?: string;
-}): Promise<FlintContext>
+}): Promise<FlintContext>;
 
 export async function getVaultManagers(
   ctx: FlintContext,
@@ -56,7 +58,7 @@ export async function getVaultManagers(
   noteManager: NoteManager;
   noteTypeManager: NoteTypeManager;
   hybridSearchManager: HybridSearchManager;
-}>
+}>;
 ```
 
 ### Operation Modules Pattern
@@ -121,12 +123,14 @@ const note = await notes.getNote(ctx, vaultId, identifier);
 **Goal**: Set up core context system and establish patterns
 
 **Deliverables**:
+
 1. Create `src/server/api/context.ts`
    - `FlintContext` interface
    - `createContext()` function
    - `getVaultManagers()` helper with caching
 
 2. Create operations directory structure:
+
    ```
    src/server/api/operations/
    ├── notes.ts
@@ -146,6 +150,7 @@ const note = await notes.getNote(ctx, vaultId, identifier);
 3. Update `types.ts` - ensure all arg types are exported
 
 **Testing**:
+
 - Unit tests for `createContext()`
 - Unit tests for `getVaultManagers()`
 - Verify context caching behavior
@@ -163,6 +168,7 @@ const note = await notes.getNote(ctx, vaultId, identifier);
 **Operations to Migrate**:
 
 **Notes module** (`operations/notes.ts`):
+
 - `createNote()` - Create new note with metadata
 - `getNote()` - Get single note by identifier
 - `getNotes()` - Get multiple notes by identifiers
@@ -174,12 +180,14 @@ const note = await notes.getNote(ctx, vaultId, identifier);
 - `moveNote()` - Move note to different type
 
 **Search module** (`operations/search.ts`):
+
 - `searchNotes()` - Basic text search with filters
 - `searchNotesAdvanced()` - Advanced search with structured filters
 - `searchNotesSQL()` - SQL-based custom search
 - `searchNotesByText()` - Convenience wrapper for basic search
 
 **Implementation Strategy**:
+
 1. Create new operation modules with functional implementations
 2. Add deprecated wrapper methods in `FlintNoteApi` class
 3. Wrappers call functional API internally
@@ -187,12 +195,14 @@ const note = await notes.getNote(ctx, vaultId, identifier);
 5. Add `@deprecated` JSDoc comments with migration examples
 
 **Testing**:
+
 - Port existing tests to use functional API
 - Keep compatibility tests for class methods
 - Test context reuse across multiple operations
 - Verify no performance regression
 
 **Success Criteria**:
+
 - ✅ All existing tests pass
 - ✅ New functional tests pass
 - ✅ Type checking passes
@@ -210,6 +220,7 @@ const note = await notes.getNote(ctx, vaultId, identifier);
 **Operations to Migrate**:
 
 **Note Types module** (`operations/note-types.ts`):
+
 - `createNoteType()` - Create new note type with schema
 - `listNoteTypes()` - List all note types
 - `getNoteTypeInfo()` - Get detailed note type info
@@ -217,6 +228,7 @@ const note = await notes.getNote(ctx, vaultId, identifier);
 - `deleteNoteType()` - Delete type with migration strategy
 
 **Vaults module** (`operations/vaults.ts`):
+
 - `getCurrentVault()` - Get active vault info
 - `listVaults()` - List all registered vaults
 - `createVault()` - Create/register new vault (complex: 270 lines)
@@ -225,17 +237,20 @@ const note = await notes.getNote(ctx, vaultId, identifier);
 - `removeVault()` - Remove vault from registry
 
 **Special Considerations**:
+
 - Vault operations need special context handling (work without full workspace initialization)
 - `createVault()` includes onboarding content creation
 - Vault switching must invalidate cached managers in context
 - May need `refreshContext()` helper function
 
 **Implementation Notes**:
+
 - Consider extracting onboarding logic to separate helper
 - Vault operations should check context state before requiring full initialization
 - Add context refresh mechanism for vault switching
 
 **Testing**:
+
 - Test vault switching invalidates cached managers
 - Test vault creation with/without initialization
 - Test vault creation with/without onboarding
@@ -253,6 +268,7 @@ const note = await notes.getNote(ctx, vaultId, identifier);
 **Operations to Migrate**:
 
 **Links module** (`operations/links.ts`):
+
 - `getNoteLinks()` - Get all links for a note (incoming/outgoing)
 - `getBacklinks()` - Get all notes linking to specified note
 - `findBrokenLinks()` - Find all broken wikilinks
@@ -260,6 +276,7 @@ const note = await notes.getNote(ctx, vaultId, identifier);
 - `migrateLinks()` - One-time migration to populate link tables
 
 **Hierarchy module** (`operations/hierarchy.ts`):
+
 - `addSubnote()` - Create parent-child relationship
 - `removeSubnote()` - Remove parent-child relationship
 - `reorderSubnotes()` - Reorder children within parent
@@ -270,17 +287,20 @@ const note = await notes.getNote(ctx, vaultId, identifier);
 - `syncHierarchyToFrontmatter()` - Sync DB hierarchy to note frontmatter (private helper)
 
 **Special Considerations**:
+
 - `syncHierarchyToFrontmatter()` is currently private - becomes internal helper function
 - Hierarchy operations have complex DB + file sync requirements
 - Must maintain consistency between database and file frontmatter
 - Operations involve identifier ↔ ID conversions
 
 **Implementation Notes**:
+
 - Private helpers become non-exported functions in module
 - Consider extracting common ID/identifier conversion logic
 - Hierarchy operations may need transaction support
 
 **Testing**:
+
 - Test hierarchy operations maintain DB consistency
 - Test frontmatter sync after hierarchy changes
 - Test link extraction and broken link detection
@@ -298,24 +318,28 @@ const note = await notes.getNote(ctx, vaultId, identifier);
 **Operations to Migrate**:
 
 **Relationships module** (`operations/relationships.ts`):
+
 - `getNoteRelationships()` - Get comprehensive relationships (content + hierarchy)
 - `getRelatedNotes()` - Find related notes ranked by strength
 - `findRelationshipPath()` - Find path between two notes
 - `getClusteringCoefficient()` - Calculate clustering coefficient for note
 
 **Daily Notes module** (`operations/daily.ts`):
+
 - `getOrCreateDailyNote()` - Get/create daily note for date
 - `getWeekData()` - Get week view with daily notes and activity
 - `getNotesByDate()` - Get notes created/modified on date
 - `updateDailyNote()` - Update daily note content
 
 **Special Considerations**:
+
 - Relationship operations use graph algorithms
 - Daily note operations have special auto-creation logic
 - Week data involves aggregating across multiple days
 - Daily notes use special `daily/` type
 
 **Testing**:
+
 - Test relationship strength calculations
 - Test relationship path finding with various depths
 - Test clustering coefficient calculation
@@ -334,27 +358,32 @@ const note = await notes.getNote(ctx, vaultId, identifier);
 **Operations to Migrate**:
 
 **Inbox module** (`operations/inbox.ts`):
+
 - `getRecentUnprocessedNotes()` - Get recent notes not yet processed
 - `getRecentProcessedNotes()` - Get recently processed notes
 - `markNoteAsProcessed()` - Mark note as processed in inbox
 - `unmarkNoteAsProcessed()` - Unmark note as processed
 
 **Database module** (`operations/database.ts`):
+
 - `rebuildDatabase()` - Rebuild database from markdown files
 - `getMigrationMapping()` - Get ID migration mapping for UI state
 
 **Special Considerations**:
+
 - `rebuildDatabase()` needs to refresh context connections after rebuild
 - SQLite WAL mode can cause stale reads - must refresh connections
 - May need `refreshContextConnections()` helper in context module
 - Migration mapping is optional (only exists during migrations)
 
 **Implementation Notes**:
+
 - Add connection refresh to context module
 - Database operations should handle empty/missing tables gracefully
 - Consider progress callbacks for rebuild operation
 
 **Testing**:
+
 - Test inbox filtering by processed state
 - Test marking/unmarking notes as processed
 - Test database rebuild with connection refresh
@@ -372,20 +401,24 @@ const note = await notes.getNote(ctx, vaultId, identifier);
 **Operations to Migrate**:
 
 **UI State module** (`operations/ui-state.ts`):
+
 - `loadUIState()` - Load UI state by key
 - `saveUIState()` - Save UI state for key
 - `clearUIState()` - Clear all UI state for vault
 
 **Slash Commands module** (`operations/slash-commands.ts`):
+
 - `loadSlashCommands()` - Load all slash commands from DB
 - `saveSlashCommands()` - Save slash commands to DB
 
 **Special Considerations**:
+
 - UI state uses JSON serialization
 - Slash commands need full CRUD via save operation
 - Both operations are vault-specific
 
 **Testing**:
+
 - Test UI state persistence and retrieval
 - Test UI state with complex nested objects
 - Test clearing UI state
@@ -434,6 +467,7 @@ const note = await notes.getNote(ctx, vaultId, identifier);
    - Document context lifecycle and best practices
 
 **Testing**:
+
 - Run complete test suite
 - Manual testing of all features end-to-end
 - Performance comparison (functional vs class)
@@ -441,6 +475,7 @@ const note = await notes.getNote(ctx, vaultId, identifier);
 - Test NoteService integration thoroughly
 
 **Documentation Deliverables**:
+
 - Updated API reference with functional examples
 - Migration guide from class to functional
 - Best practices for context management
@@ -477,14 +512,14 @@ const note = await notes.getNote(ctx, vaultId, identifier);
 
 ### What Could Go Wrong
 
-| Risk | Mitigation |
-|------|------------|
-| Context caching issues | Thorough tests of manager reuse and invalidation |
-| Breaking changes leak through wrappers | Comprehensive compatibility tests |
-| Performance regression from context creation | Benchmark context operations, optimize caching |
-| Type safety issues in functional API | Strict TypeScript checks, explicit return types |
-| Complex state management (vault switching) | Integration tests for all state transitions |
-| Onboarding content creation failures | Graceful error handling, don't block vault creation |
+| Risk                                         | Mitigation                                          |
+| -------------------------------------------- | --------------------------------------------------- |
+| Context caching issues                       | Thorough tests of manager reuse and invalidation    |
+| Breaking changes leak through wrappers       | Comprehensive compatibility tests                   |
+| Performance regression from context creation | Benchmark context operations, optimize caching      |
+| Type safety issues in functional API         | Strict TypeScript checks, explicit return types     |
+| Complex state management (vault switching)   | Integration tests for all state transitions         |
+| Onboarding content creation failures         | Graceful error handling, don't block vault creation |
 
 ---
 
@@ -510,7 +545,7 @@ const note = await notes.getNote(ctx, vaultId, identifier);
 
 ### Deprecation Messages
 
-```typescript
+````typescript
 /**
  * @deprecated Use functional API instead:
  *
@@ -527,7 +562,7 @@ const note = await notes.getNote(ctx, vaultId, identifier);
 async getNote(vaultId: string, identifier: string): Promise<Note> {
   // ... wrapper implementation
 }
-```
+````
 
 ---
 
@@ -538,6 +573,7 @@ async getNote(vaultId: string, identifier: string): Promise<Note> {
 **Concern**: Creating context on every operation vs single class instance
 
 **Mitigation**:
+
 - Context is lightweight (just references to managers)
 - Manager instances are cached and reused
 - Benchmark shows < 1ms overhead for context operations
@@ -551,11 +587,13 @@ async getNote(vaultId: string, identifier: string): Promise<Note> {
 **New**: Context holds cached managers, creates per-vault as needed
 
 **Benefits**:
+
 - Better multi-vault support
 - Explicit cache invalidation
 - No stale manager issues
 
 **Trade-offs**:
+
 - Slightly more memory if working with multiple vaults
 - Need to manually refresh on vault changes
 
@@ -564,6 +602,7 @@ async getNote(vaultId: string, identifier: string): Promise<Note> {
 **Expected**: Similar or slightly better than class-based
 
 **Reason**:
+
 - No class instance overhead
 - Managers are still cached
 - Can explicitly release unused managers
@@ -577,6 +616,7 @@ async getNote(vaultId: string, identifier: string): Promise<Note> {
 ### Unit Tests
 
 Each operation module should have:
+
 - Tests for success cases
 - Tests for error cases (note not found, vault not found, etc.)
 - Tests for edge cases (empty lists, null values, etc.)
@@ -592,6 +632,7 @@ Each operation module should have:
 ### Compatibility Tests
 
 During migration (Phases 1-6):
+
 - Test class methods still work
 - Test class and functional APIs produce same results
 - Test error messages are consistent
@@ -606,6 +647,7 @@ During migration (Phases 1-6):
 ### Manual Testing
 
 Each phase:
+
 - Smoke test in actual Electron app
 - Test from UI (via NoteService)
 - Test error scenarios in UI
@@ -689,31 +731,37 @@ export class NoteService {
 ## Benefits Summary
 
 ### Maintainability
+
 - **Before**: 1,979-line monolithic class
 - **After**: 12+ focused modules, each 50-200 lines
 - **Impact**: Much easier to find and modify specific operations
 
 ### Testability
+
 - **Before**: Must instantiate and initialize entire class
 - **After**: Test individual functions with mock context
 - **Impact**: Faster tests, better isolation, easier mocking
 
 ### Tree-Shaking
+
 - **Before**: All operations bundled with class
 - **After**: Only imported operations included in bundle
 - **Impact**: Smaller bundle size for limited-feature builds
 
 ### Type Safety
+
 - **Before**: Full type safety in class methods
 - **After**: Full type safety in functions
 - **Impact**: No loss of type safety, improved inference in some cases
 
 ### Flexibility
+
 - **Before**: Must use class instance for all operations
 - **After**: Can compose operations however needed
 - **Impact**: More flexible, can create custom operation groups
 
 ### Learning Curve
+
 - **Before**: Must understand class lifecycle and state management
 - **After**: Simple functions with explicit dependencies
 - **Impact**: Easier for new contributors to understand and modify
@@ -744,16 +792,16 @@ export class NoteService {
 
 ## Timeline Estimate
 
-| Phase | Estimated Time | Cumulative |
-|-------|----------------|------------|
-| Phase 0: Foundation | 1-2 days | 2 days |
-| Phase 1: Core Ops | 2-3 days | 5 days |
-| Phase 2: Types & Vaults | 2-3 days | 8 days |
-| Phase 3: Links & Hierarchy | 2-3 days | 11 days |
-| Phase 4: Relationships & Daily | 1-2 days | 13 days |
-| Phase 5: Inbox & Database | 1-2 days | 15 days |
-| Phase 6: UI State & Commands | 1 day | 16 days |
-| Phase 7: Cleanup & Docs | 2-3 days | 19 days |
+| Phase                          | Estimated Time | Cumulative |
+| ------------------------------ | -------------- | ---------- |
+| Phase 0: Foundation            | 1-2 days       | 2 days     |
+| Phase 1: Core Ops              | 2-3 days       | 5 days     |
+| Phase 2: Types & Vaults        | 2-3 days       | 8 days     |
+| Phase 3: Links & Hierarchy     | 2-3 days       | 11 days    |
+| Phase 4: Relationships & Daily | 1-2 days       | 13 days    |
+| Phase 5: Inbox & Database      | 1-2 days       | 15 days    |
+| Phase 6: UI State & Commands   | 1 day          | 16 days    |
+| Phase 7: Cleanup & Docs        | 2-3 days       | 19 days    |
 
 **Total: ~3-4 weeks** (assuming focused work, no other tasks)
 
@@ -764,18 +812,21 @@ export class NoteService {
 ## Success Metrics
 
 ### Code Quality
+
 - ✅ File count: 1 → 13+ files
 - ✅ Average file size: 1,979 → ~150 lines
 - ✅ Cyclomatic complexity: Reduced by ~40%
 - ✅ Test coverage: Maintained or improved
 
 ### Performance
+
 - ✅ Operation latency: < 5% regression
 - ✅ Memory usage: < 10% increase
 - ✅ Startup time: No significant change
 - ✅ Bundle size: Reduced if tree-shaking enabled
 
 ### Developer Experience
+
 - ✅ Time to find operation: 60s → 10s (estimated)
 - ✅ Time to add new operation: 30min → 15min (estimated)
 - ✅ Lines of code to add operation: 80 → 40 (estimated)
@@ -788,6 +839,7 @@ export class NoteService {
 This refactor transforms the Flint API from a monolithic class into a modular, functional architecture. The phased approach minimizes risk while delivering incremental benefits. Each phase is independently valuable and can be tested in isolation.
 
 The functional API provides:
+
 - **Better organization** through focused modules
 - **Improved testability** with pure functions
 - **Enhanced flexibility** through composition

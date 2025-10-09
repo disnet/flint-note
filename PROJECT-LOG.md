@@ -1,5 +1,9 @@
 # Project Log
 
+## Vault Template System Implementation - 2025-10-10
+
+- Replaced hardcoded onboarding content with flexible file-based vault template system to enable custom vault configurations: created TemplateManager class for loading templates from YAML/markdown files, built two templates (default for general note-taking, research for academic work) with template-defined note types and starter notes, updated FlintNoteApi.createVault() to apply selected template during vault creation instead of every load, added listTemplates IPC API exposed through preload and integrated into CreateVaultModal UI with radio button template selector showing template icons and descriptions, updated build process to copy templates directory to output and removed old onboarding directory; all formatting and linting passes successfully
+
 ## Frontmatter Type Normalization - 2025-10-09
 
 - Implemented automatic type field normalization in frontmatter during database rebuild to ensure consistency between filesystem location and note metadata: added normalizeFrontmatterType() helper method to search-manager.ts that checks if frontmatter type is missing or doesn't match parent directory name, writes correct type back to file using simple regex-based frontmatter updates, preserves all other frontmatter fields while fixing only the type field; integrated normalization into indexNoteFile() so it runs automatically during database rebuild for all notes, logs normalization actions for visibility, handles edge cases (missing frontmatter, malformed YAML) gracefully without failing the indexing operation; eliminates inconsistencies where notes had wrong type in frontmatter (e.g., type=project but in todo/ directory) or missing type field, ensuring database and filesystem are always in sync after rebuild; all 319 tests pass successfully with type checking and formatting clean

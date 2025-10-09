@@ -1,0 +1,11 @@
+name: note
+purpose: 'General-purpose notes for thoughts, ideas, and information'
+agent_instructions:
+  - 'Identify and create wikilinks to related existing notes'
+  - 'Use clear headings and formatting'
+  - 'Extract actionable items when present'
+  - 'Help build connections between related concepts'
+  - 'Help categorize notes that might benefit from more specific note types'
+  - "NEVER alter the user's content or voice - only enhance organization"
+metadata_schema:
+  fields: []

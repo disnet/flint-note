@@ -64,6 +64,8 @@ import { HierarchyManager } from '../core/hierarchy.js';
 import type { NoteHierarchyRow } from '../database/schema.js';
 import { RelationshipManager } from '../core/relationship-manager.js';
 import type { NoteRelationships } from '../core/relationship-manager.js';
+import { TemplateManager } from '../core/template-manager.js';
+import type { TemplateMetadata } from '../core/template-manager.js';
 
 export interface FlintNoteApiConfig extends ServerConfig {
   configDir?: string;
@@ -137,7 +139,6 @@ export class FlintNoteApi {
 
         // Check if .flint-note directory exists to determine if this is a new vault
         const flintNoteDir = path.join(workspacePath, '.flint-note');
-        let isNewVault = false;
 
         try {
           await fs.access(flintNoteDir);
@@ -146,7 +147,6 @@ export class FlintNoteApi {
         } catch {
           // .flint-note directory doesn't exist - this is a new vault
           await this.workspace.initializeVault();
-          isNewVault = true;
         }
 
         // Initialize hybrid search index - only rebuild if necessary
@@ -163,12 +163,8 @@ export class FlintNoteApi {
           logInitialization
         );
 
-        // Create onboarding content for new vaults after search index is ready
-        if (isNewVault) {
-          // Create noteManager directly for onboarding content creation
-          const noteManager = new NoteManager(this.workspace, this.hybridSearchManager);
-          await this.createOnboardingContentWithManager(noteManager);
-        }
+        // Note: Template application happens during createVault(), not here
+        // This initialization is for existing vaults only
       } else {
         // No workspace path - we can still do vault operations with globalConfig
         // but cannot perform note operations that require a workspace
@@ -652,27 +648,34 @@ export class FlintNoteApi {
           logInitialization
         );
 
-        // Create onboarding content for the new vault
-        let onboardingNoteIds: {
-          welcomeNoteId: string | null;
-          tutorialNoteIds: string[];
-        } = {
-          welcomeNoteId: null,
-          tutorialNoteIds: []
-        };
-
+        // Apply template to the new vault
         try {
           const tempNoteManager = new NoteManager(workspace, tempHybridSearchManager);
-          onboardingNoteIds =
-            await this.createOnboardingContentWithManager(tempNoteManager);
+          const tempNoteTypeManager = new NoteTypeManager(workspace);
+          const templateManager = new TemplateManager();
+          const templateId = args.templateId || 'default';
+
+          const result = await templateManager.applyTemplate(
+            templateId,
+
+            tempNoteManager,
+            tempNoteTypeManager
+          );
+
+          console.log(
+            `Template applied: ${result.noteTypesCreated} note types, ${result.notesCreated} notes`
+          );
+          if (result.errors.length > 0) {
+            console.warn('Template application errors:', result.errors);
+          }
         } catch (error) {
-          console.error('Failed to create onboarding content for new vault:', error);
-          // Don't throw - onboarding content creation shouldn't block vault creation
+          console.error('Failed to apply template to new vault:', error);
+          // Don't throw - template application shouldn't block vault creation
         }
 
         await tempHybridSearchManager.close();
 
-        // Store onboarding note IDs for return
+        // Handle vault switching
         if (args.switch_to !== false) {
           // Switch to the new vault
           await this.globalConfig.switchVault(args.id);
@@ -689,8 +692,7 @@ export class FlintNoteApi {
 
         return {
           ...vault,
-          isNewVault,
-          onboardingNotes: isNewVault ? onboardingNoteIds : undefined
+          isNewVault
         };
       }
     }
@@ -1588,112 +1590,12 @@ export class FlintNoteApi {
   }
 
   /**
-   * Load onboarding content from file
+   * List available vault templates
    */
-  private async loadOnboardingContent(relativePath: string): Promise<string> {
-    const filePath = path.join(__dirname, '../onboarding', relativePath);
-    try {
-      return await fs.readFile(filePath, 'utf-8');
-    } catch (error) {
-      console.error(`Failed to load onboarding content from ${filePath}:`, error);
-      throw new Error(`Could not load onboarding content: ${relativePath}`);
-    }
-  }
-
-  /**
-   * Create onboarding content (welcome note and tutorials) using proper note creation API
-   * Called during initial vault setup with noteManager provided directly
-   * Returns the IDs of created notes for pinning/tabs
-   */
-  private async createOnboardingContentWithManager(
-    noteManager: NoteManager
-  ): Promise<{ welcomeNoteId: string | null; tutorialNoteIds: string[] }> {
-    try {
-      // Create welcome note
-      const welcomeNoteId = await this.createWelcomeNote(noteManager);
-
-      // Create tutorial notes
-      const tutorialNoteIds = await this.createTutorialNotes(noteManager);
-
-      return { welcomeNoteId, tutorialNoteIds };
-    } catch (error) {
-      console.error('Failed to create onboarding content:', error);
-      // Don't throw - onboarding content creation shouldn't block vault initialization
-      return { welcomeNoteId: null, tutorialNoteIds: [] };
-    }
-  }
-
-  /**
-   * Create the welcome note using proper note creation API
-   * Returns the ID of the created note
-   */
-  private async createWelcomeNote(noteManager: NoteManager): Promise<string | null> {
-    try {
-      const welcomeContent = await this.loadOnboardingContent(
-        'welcome/welcome-to-flint.md'
-      );
-
-      const note = await noteManager.createNote(
-        'note',
-        'Welcome to Flint',
-        welcomeContent,
-        {},
-        false // Don't enforce required fields for onboarding content
-      );
-
-      return note.id;
-    } catch (error) {
-      console.error('Failed to create welcome note:', error);
-      return null;
-    }
-  }
-
-  /**
-   * Create tutorial notes using proper note creation API
-   * Returns the IDs of the created notes
-   */
-  private async createTutorialNotes(noteManager: NoteManager): Promise<string[]> {
-    const tutorials = [
-      {
-        filename: 'tutorials/01-your-first-daily-note.md',
-        title: 'Tutorial 1: Your First Daily Note'
-      },
-      {
-        filename: 'tutorials/02-connecting-ideas-with-wikilinks.md',
-        title: 'Tutorial 2: Connecting Ideas with Wikilinks'
-      },
-      {
-        filename: 'tutorials/03-your-ai-assistant-in-action.md',
-        title: 'Tutorial 3: Your AI Assistant in Action'
-      },
-      {
-        filename: 'tutorials/04-understanding-note-types.md',
-        title: 'Tutorial 4: Understanding Note Types'
-      }
-    ];
-
-    const createdNoteIds: string[] = [];
-
-    for (const tutorial of tutorials) {
-      try {
-        const content = await this.loadOnboardingContent(tutorial.filename);
-        const note = await noteManager.createNote(
-          'note',
-          tutorial.title,
-          content,
-          {
-            tags: ['tutorial', 'onboarding']
-          },
-          false // Don't enforce required fields for onboarding content
-        );
-        createdNoteIds.push(note.id);
-      } catch (error) {
-        console.error(`Failed to create tutorial note ${tutorial.title}:`, error);
-        // Continue with other tutorials even if one fails
-      }
-    }
-
-    return createdNoteIds;
+  async listTemplates(): Promise<TemplateMetadata[]> {
+    // Template listing doesn't require initialization
+    const templateManager = new TemplateManager();
+    return await templateManager.listTemplates();
   }
 
   /**

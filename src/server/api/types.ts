@@ -198,6 +198,7 @@ export interface CreateVaultArgs {
   name: string;
   path: string;
   description?: string;
+  templateId?: string; // Template to apply to new vault (defaults to 'default')
   initialize?: boolean;
   switch_to?: boolean;
   detectExisting?: boolean; // If true, check if path contains existing vault and handle appropriately
@@ -211,11 +212,6 @@ export interface CreateVaultResult {
   last_accessed: string;
   description?: string;
   isNewVault: boolean; // True if this was a newly created vault, false if existing vault was opened
-  onboardingNotes?: {
-    // IDs of onboarding notes created for new vaults
-    welcomeNoteId: string | null;
-    tutorialNoteIds: string[];
-  };
 }
 
 export interface SwitchVaultArgs {

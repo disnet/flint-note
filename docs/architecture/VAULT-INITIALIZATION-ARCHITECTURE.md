@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes how Flint initializes vaults and creates onboarding content, covering both the main application initialization flow and the immediate vault creation process. The architecture focuses on proper dependency management, clean initialization flows, and immediate user value.
+This document describes how Flint initializes vaults and applies templates, covering both the main application initialization flow and the vault creation process. The architecture focuses on proper dependency management, clean initialization flows, and flexible template-based vault configuration.
 
 ## Core Principles
 
@@ -72,18 +72,7 @@ const shouldRebuild = forceRebuild || isEmptyIndex;
 await handleIndexRebuild(this.hybridSearchManager, shouldRebuild, logInitialization);
 ```
 
-### Phase 5: Onboarding Content Creation (New Vaults Only)
-
-```typescript
-// Create onboarding content for new vaults after search index is ready
-if (isNewVault) {
-  // Create noteManager directly for onboarding content creation
-  const noteManager = new NoteManager(this.workspace, this.hybridSearchManager);
-  await this.createOnboardingContentWithManager(noteManager);
-}
-```
-
-### Phase 6: Initialization Complete
+### Phase 5: Initialization Complete
 
 ```typescript
 this.initialized = true;
@@ -133,16 +122,26 @@ const shouldRebuild = forceRebuild || isEmptyIndex;
 await handleIndexRebuild(tempHybridSearchManager, shouldRebuild, logInitialization);
 ```
 
-### Phase 4: Immediate Onboarding Content Creation
+### Phase 4: Template Application
 
 ```typescript
-  // Create onboarding content for the new vault
+  // Apply template to the new vault
   try {
     const tempNoteManager = new NoteManager(workspace, tempHybridSearchManager);
-    await this.createOnboardingContentWithManager(tempNoteManager);
+    const tempNoteTypeManager = new NoteTypeManager(workspace);
+    const templateManager = new TemplateManager();
+    const templateId = args.templateId || 'default';
+
+    const result = await templateManager.applyTemplate(
+      templateId,
+      tempNoteManager,
+      tempNoteTypeManager
+    );
+
+    console.log(`Template applied: ${result.noteTypesCreated} note types, ${result.notesCreated} notes`);
   } catch (error) {
-    console.error('Failed to create onboarding content for new vault:', error);
-    // Don't throw - onboarding content creation shouldn't block vault creation
+    console.error('Failed to apply template to new vault:', error);
+    // Don't throw - template application shouldn't block vault creation
   }
 }
 ```
@@ -159,105 +158,114 @@ The system determines whether a vault is new by checking for the existence of th
 
 - `.flint-note` directory exists
 
-## Onboarding Content Architecture
+## Template Application Architecture
 
 ### Dependency Injection Pattern
 
-Instead of using the service locator pattern (which creates circular dependencies), onboarding content creation uses direct dependency injection:
+Template application uses direct dependency injection to avoid circular dependencies:
 
 ```typescript
-// ❌ Old approach - Circular dependency
-async createOnboardingContent() {
-  const { noteManager } = await this.getVaultContext(); // Requires initialized = true
-  // ... create notes
-}
+// Create managers and apply template during vault creation
+const tempNoteManager = new NoteManager(workspace, tempHybridSearchManager);
+const tempNoteTypeManager = new NoteTypeManager(workspace);
+const templateManager = new TemplateManager();
 
-// ✅ New approach - Direct dependency injection
-async createOnboardingContentWithManager(noteManager: NoteManager) {
-  // ... create notes with provided noteManager
-}
+await templateManager.applyTemplate(templateId, tempNoteManager, tempNoteTypeManager);
 ```
 
-### Content Creation Process
+### Template Structure
 
-Onboarding content is created through the standard note creation APIs to ensure:
+Templates are file-based configurations stored in `src/server/templates/`:
 
-1. **Database Integration**: Notes are properly indexed and searchable
-2. **Metadata Processing**: Frontmatter and metadata handled correctly
+```
+templates/
+├── default/
+│   ├── template.yml           # Template metadata
+│   ├── note-types/
+│   │   ├── daily.yml         # Note type definitions
+│   │   └── meeting.yml
+│   └── notes/
+│       ├── welcome.md        # Starter notes
+│       └── getting-started.md
+└── research/
+    ├── template.yml
+    ├── note-types/
+    │   └── paper.yml
+    └── notes/
+        └── research-guide.md
+```
+
+### Template Application Process
+
+Templates are applied through the standard creation APIs to ensure:
+
+1. **Database Integration**: Note types and notes are properly indexed
+2. **Metadata Processing**: Schemas and frontmatter handled correctly
 3. **Link Extraction**: Wikilinks parsed and registered in the database
 4. **Content Hashing**: Integrity checking and change detection
-5. **Search Indexing**: Notes immediately available in search results
+5. **Search Indexing**: Content immediately available in search results
 
-### Content Types Created
+### Available Templates
 
-For new vaults, the system creates onboarding content immediately during vault creation:
+The system includes several built-in templates:
 
-#### 1. Welcome Note (`note/welcome-to-flint.md`)
+#### 1. Default Template
 
-- Introduction to Flint's AI-first approach
-- Overview of the learning path
-- Links to tutorial content
+- General-purpose vault for note-taking and knowledge management
+- Includes daily and meeting note types
+- Welcome and tutorial starter notes
 
-#### 2. Tutorial Notes (`note/`)
+#### 2. Research Template
 
-- `tutorial-1-your-first-daily-note.md` - Basic note creation and daily practice
-- `tutorial-2-connecting-ideas-with-wikilinks.md` - Linking concepts naturally
-- `tutorial-3-your-ai-assistant-in-action.md` - Effective AI collaboration patterns
-- `tutorial-4-understanding-note-types.md` - Working with different note types
+- Academic research and literature review focused
+- Includes paper and project note types with metadata schemas
+- Research workflow starter notes
 
-**Note**: Filenames are automatically generated using kebab-case conversion from note titles (e.g., "Welcome to Flint" becomes `welcome-to-flint.md`).
+### Template Selection
 
-## Dual Initialization Approach
+Users select a template during vault creation through the UI:
 
-The system provides onboarding content creation in two contexts:
-
-### 1. Main Application Initialization
-
-- **When**: Application startup detects a new workspace
-- **Context**: Main FlintNoteApi instance with full service dependencies
-- **Purpose**: Handle existing directory structures that lack onboarding content
-
-### 2. Vault Creation Process
-
-- **When**: User explicitly creates a new vault through the UI
-- **Context**: Temporary managers created specifically for vault initialization
-- **Purpose**: Provide immediate value and guidance to new vault users
-
-### Benefits of Dual Approach
-
-1. **Immediate User Value**: Users get helpful content right when they create a vault
-2. **Comprehensive Coverage**: Handles both new installations and vault-specific onboarding
-3. **Consistent Experience**: Same content creation logic used in both contexts
-4. **Clean Architecture**: Proper dependency injection in both scenarios
+- Templates are listed with name, description, and icon
+- Selection is optional (defaults to "default" template)
+- Template is applied once at vault creation time only
 
 ## Error Handling
 
 ### Graceful Degradation
 
-Onboarding content creation uses a non-blocking error handling pattern:
+Template application uses a non-blocking error handling pattern:
 
 ```typescript
 try {
-  await this.createOnboardingContentWithManager(noteManager);
+  const result = await templateManager.applyTemplate(
+    templateId,
+    tempNoteManager,
+    tempNoteTypeManager
+  );
+  console.log(
+    `Template applied: ${result.noteTypesCreated} note types, ${result.notesCreated} notes`
+  );
 } catch (error) {
-  console.error('Failed to create onboarding content:', error);
-  // Don't throw - onboarding content creation shouldn't block vault initialization
+  console.error('Failed to apply template to new vault:', error);
+  // Don't throw - template application shouldn't block vault creation
 }
 ```
 
 This ensures that:
 
 - Vault initialization always completes successfully
-- Missing onboarding content doesn't prevent system usage
+- Template application failures don't prevent vault creation
 - Errors are logged for debugging but don't crash the application
+- Partial template application is captured in the result object
 
 ### Error Recovery
 
-If onboarding content creation fails:
+If template application fails:
 
-1. The vault remains functional
-2. Users can manually create notes
-3. The system can attempt to recreate content later if needed
+1. The vault remains functional with basic structure
+2. Users can manually create note types and notes
+3. Partial results are reported (e.g., "2 note types created, 0 notes created")
+4. Individual errors are tracked in the result's `errors` array
 
 ## Benefits of This Architecture
 
@@ -275,23 +283,23 @@ If onboarding content creation fails:
 
 ### 3. Immediate User Experience
 
-- Onboarding content created instantly during vault creation
-- Users see helpful guidance without waiting for next app launch
-- Educational content available from the moment of vault creation
+- Template applied instantly during vault creation
+- Users get appropriate note types and starter content immediately
+- Vault is ready to use with relevant structure from the moment of creation
 
 ### 4. Testability
 
 - Each component can be tested independently
 - Dependencies are explicit and can be mocked
 - No hidden service location or global state
-- Comprehensive test coverage for both initialization paths
+- Templates can be tested as standalone file structures
 
 ### 5. Maintainability
 
 - Easy to understand the initialization flow
 - Clear error boundaries and handling
 - Simple to add new initialization steps
-- Consistent patterns across both vault creation and app startup
+- Templates are easy to create and modify without code changes
 
 ### 6. Performance
 
@@ -305,18 +313,21 @@ If onboarding content creation fails:
 When modifying the initialization process:
 
 1. **Maintain Detection Logic**: The new vault vs existing vault detection should remain stable
-2. **Preserve Error Handling**: Non-blocking onboarding content creation is critical
+2. **Preserve Error Handling**: Non-blocking template application is critical
 3. **Respect Dependencies**: Follow the established phase order
-4. **Update Documentation**: Keep this document current with any changes
+4. **Template Versioning**: Consider backward compatibility when updating template structures
+5. **Update Documentation**: Keep this document current with any changes
 
 ## Future Enhancements
 
 Potential improvements to the initialization system:
 
-1. **Pluggable Content**: Allow extensions to contribute onboarding content
-2. **Version Management**: Track onboarding content versions and update as needed
-3. **User Preferences**: Allow users to customize or skip onboarding content
-4. **Async Optimization**: Parallelize independent initialization phases where possible
+1. **Custom Templates**: Allow users to create and share their own templates
+2. **Template Marketplace**: Community-contributed templates for specialized workflows
+3. **Template Updates**: Allow updating existing vaults with new template content
+4. **Template Inheritance**: Templates that extend or compose other templates
+5. **Template Variables**: Parameterized templates for dynamic content generation
+6. **Async Optimization**: Parallelize independent initialization phases where possible
 
 ## Conclusion
 
@@ -327,6 +338,6 @@ This architecture provides a robust, maintainable foundation for vault initializ
 - Provides excellent error handling and recovery
 - Maintains clear separation of concerns
 - Enables easy testing and modification
-- **Delivers immediate user value through instant onboarding content creation**
+- **Delivers immediate user value through template-based vault customization**
 
-The dependency injection pattern eliminates circular dependencies while maintaining proper abstraction layers and clear initialization semantics. The dual initialization approach ensures users get helpful guidance whether they're starting fresh or creating additional vaults, providing a superior user experience from the moment of vault creation.
+The dependency injection pattern eliminates circular dependencies while maintaining proper abstraction layers and clear initialization semantics. The template system provides users with tailored vault configurations from the moment of creation, with templates that are easy to develop, modify, and extend without requiring code changes.

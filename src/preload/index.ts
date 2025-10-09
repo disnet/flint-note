@@ -202,12 +202,17 @@ const api = {
   // Vault operations
   listVaults: () => electronAPI.ipcRenderer.invoke('list-vaults'),
   getCurrentVault: () => electronAPI.ipcRenderer.invoke('get-current-vault'),
-  createVault: (params: { name: string; path: string; description?: string }) =>
-    electronAPI.ipcRenderer.invoke('create-vault', params),
+  createVault: (params: {
+    name: string;
+    path: string;
+    description?: string;
+    templateId?: string;
+  }) => electronAPI.ipcRenderer.invoke('create-vault', params),
   switchVault: (params: { vaultId: string }) =>
     electronAPI.ipcRenderer.invoke('switch-vault', params),
   removeVault: (params: { vaultId: string }) =>
     electronAPI.ipcRenderer.invoke('remove-vault', params),
+  listTemplates: () => electronAPI.ipcRenderer.invoke('list-templates'),
   reinitializeNoteService: () =>
     electronAPI.ipcRenderer.invoke('reinitialize-note-service'),
 

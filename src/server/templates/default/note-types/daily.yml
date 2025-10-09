@@ -1,0 +1,11 @@
+name: daily
+purpose: 'Daily notes for tracking progress and capturing daily thoughts'
+agent_instructions:
+  - 'Extract actionable items and suggest appropriate note types for follow-up'
+  - 'Identify and link related notes mentioned in daily entries'
+  - 'Link to related notes when appropriate'
+  - "Preserve the user's voice and thinking style completely"
+  - 'Focus on structural help, not content generation'
+  - 'Suggest connections to previous daily notes or related project notes'
+metadata_schema:
+  fields: []

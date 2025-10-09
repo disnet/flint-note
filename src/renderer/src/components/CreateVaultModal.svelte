@@ -2,6 +2,13 @@
   import { getChatService } from '../services/chatService';
   import type { CreateVaultResult } from '@/server/api/types';
 
+  interface TemplateMetadata {
+    id: string;
+    name: string;
+    description: string;
+    icon?: string;
+  }
+
   interface Props {
     isOpen: boolean;
     onClose: () => void;
@@ -13,20 +20,40 @@
   let vaultName = $state('');
   let vaultPath = $state('');
   let vaultDescription = $state('');
+  let selectedTemplate = $state('default');
+  let templates = $state<TemplateMetadata[]>([]);
   let isLoading = $state(false);
   let error = $state<string | null>(null);
   let nameError = $state<string | null>(null);
   let pathError = $state<string | null>(null);
 
-  // Focus name input when modal opens
+  // Load templates and focus name input when modal opens
   $effect(() => {
     if (isOpen) {
+      loadTemplates();
       setTimeout(() => {
         const nameInput = document.querySelector('.vault-name-input') as HTMLInputElement;
         nameInput?.focus();
       }, 100);
     }
   });
+
+  async function loadTemplates(): Promise<void> {
+    try {
+      const fetchedTemplates = await window.api.listTemplates();
+      templates = fetchedTemplates;
+    } catch (err) {
+      console.error('Failed to load templates:', err);
+      // Fallback to default if templates can't be loaded
+      templates = [
+        {
+          id: 'default',
+          name: 'Default Vault',
+          description: 'A general-purpose vault for note-taking and knowledge management'
+        }
+      ];
+    }
+  }
 
   // Reset form when modal closes
   $effect(() => {
@@ -39,6 +66,7 @@
     vaultName = '';
     vaultPath = '';
     vaultDescription = '';
+    selectedTemplate = 'default';
     error = null;
     nameError = null;
     pathError = null;
@@ -120,7 +148,8 @@
       const vaultInfo = await chatService.createVault({
         name: vaultName.trim(),
         path: vaultPath.trim(),
-        description: vaultDescription.trim() || undefined
+        description: vaultDescription.trim() || undefined,
+        templateId: selectedTemplate
       });
 
       // Notify parent component
@@ -241,6 +270,34 @@
               {vaultPath.trim() && !pathError ? '✓' : ''}
             </div>
           {/if}
+        </div>
+
+        <div class="form-group">
+          <label for="vault-template">Template:</label>
+          <div class="template-selector">
+            {#each templates as template (template.id)}
+              <label
+                class="template-option"
+                class:selected={selectedTemplate === template.id}
+              >
+                <input
+                  type="radio"
+                  name="template"
+                  value={template.id}
+                  bind:group={selectedTemplate}
+                />
+                <div class="template-content">
+                  <div class="template-header">
+                    {#if template.icon}
+                      <span class="template-icon">{template.icon}</span>
+                    {/if}
+                    <span class="template-name">{template.name}</span>
+                  </div>
+                  <p class="template-description">{template.description}</p>
+                </div>
+              </label>
+            {/each}
+          </div>
         </div>
 
         <div class="form-group">
@@ -437,6 +494,66 @@
     resize: vertical;
     min-height: 80px;
     font-family: inherit;
+  }
+
+  .template-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .template-option {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 1rem;
+    border: 1px solid var(--border-light);
+    border-radius: 0.5rem;
+    background: var(--bg-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .template-option:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--border-medium);
+  }
+
+  .template-option.selected {
+    border-color: var(--accent-primary);
+    background: rgba(59, 130, 246, 0.05);
+  }
+
+  .template-option input[type='radio'] {
+    margin-top: 0.125rem;
+    cursor: pointer;
+  }
+
+  .template-content {
+    flex: 1;
+  }
+
+  .template-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .template-icon {
+    font-size: 1.25rem;
+  }
+
+  .template-name {
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+
+  .template-description {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    margin: 0;
   }
 
   .validation-indicator {
