@@ -747,4 +747,15 @@ export class NoteService {
     this.ensureInitialized();
     return await this.api.clearUIState(vaultId);
   }
+
+  // Slash Commands management
+  async loadSlashCommands(): Promise<unknown[]> {
+    this.ensureInitialized();
+    return await this.api.loadSlashCommands();
+  }
+
+  async saveSlashCommands(commands: unknown): Promise<{ success: boolean }> {
+    this.ensureInitialized();
+    return await this.api.saveSlashCommands(commands as unknown[]);
+  }
 }

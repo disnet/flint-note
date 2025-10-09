@@ -1,5 +1,9 @@
 # Project Log
 
+## Slash Commands Database Migration - 2025-10-09
+
+- Migrated slash commands storage from JSON file to database for consistency with other UI state: created slash_commands table in database schema with id/name/instruction/parameters/created_at/updated_at columns plus name index, added loadSlashCommands/saveSlashCommands methods to FlintNoteApi that serialize parameters JSON and handle DB operations, exposed methods through NoteService wrapper and updated IPC handlers to use note service instead of settings storage service, no changes needed to slashCommandsStore since it already uses IPC methods; all formatting, typechecking, and linting passes successfully
+
 ## Migration Test Coverage Improvements - 2025-10-09
 
 - Added comprehensive test cases to migration-manager.test.ts addressing gaps identified in MIGRATION-TEST-GAP.md: created test "should preserve existing frontmatter when adding ID" that uses realistic onboarding note content with complex YAML frontmatter (quoted strings with colons, arrays, multiple fields) matching actual tutorial notes, added test "should handle frontmatter values with colons and special characters" covering all YAML types (strings, numbers, booleans, arrays, nested objects, dates, emojis, escaped quotes), both tests include critical YAML validation step that re-parses migrated files using parseNoteContent() to verify valid YAML and correct metadata preservation; tests confirm the js-yaml library fix prevents double-quoting bug and that title "Tutorial 1: Your First Daily Note" is preserved exactly (not as ""Tutorial 1...""), all 16 migration tests pass successfully

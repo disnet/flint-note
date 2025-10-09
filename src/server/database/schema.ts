@@ -305,6 +305,18 @@ export class DatabaseManager {
         )
       `);
 
+    // Create slash commands table for storing global slash commands
+    await connection.run(`
+        CREATE TABLE IF NOT EXISTS slash_commands (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL UNIQUE,
+          instruction TEXT NOT NULL,
+          parameters TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
     // Create indexes for performance
     await connection.run('CREATE INDEX IF NOT EXISTS idx_notes_type ON notes(type)');
     await connection.run(
@@ -361,6 +373,11 @@ export class DatabaseManager {
     // Create index for processed notes table
     await connection.run(
       'CREATE INDEX IF NOT EXISTS idx_processed_notes_note_id ON processed_notes(note_id)'
+    );
+
+    // Create index for slash commands table
+    await connection.run(
+      'CREATE INDEX IF NOT EXISTS idx_slash_commands_name ON slash_commands(name)'
     );
 
     // Create triggers to keep FTS table in sync
@@ -495,6 +512,15 @@ export interface UIStateRow {
   state_key: string;
   state_value: string;
   schema_version: string;
+  updated_at: string;
+}
+
+export interface SlashCommandRow {
+  id: string;
+  name: string;
+  instruction: string;
+  parameters: string | null;
+  created_at: string;
   updated_at: string;
 }
 

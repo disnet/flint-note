@@ -1130,17 +1130,27 @@ app.whenReady().then(async () => {
   });
 
   ipcMain.handle('load-slash-commands', async () => {
-    if (!settingsStorageService) {
-      throw new Error('Settings storage service not available');
+    if (!noteService) {
+      throw new Error('Note service not available');
     }
-    return await settingsStorageService.loadSlashCommands([]);
+    try {
+      return await noteService.loadSlashCommands();
+    } catch (error) {
+      logger.error('Failed to load slash commands', { error });
+      return [];
+    }
   });
 
   ipcMain.handle('save-slash-commands', async (_event, commands: unknown) => {
-    if (!settingsStorageService) {
-      throw new Error('Settings storage service not available');
+    if (!noteService) {
+      throw new Error('Note service not available');
     }
-    return await settingsStorageService.saveSlashCommands(commands);
+    try {
+      return await noteService.saveSlashCommands(commands);
+    } catch (error) {
+      logger.error('Failed to save slash commands', { error });
+      throw error;
+    }
   });
 
   ipcMain.handle(
