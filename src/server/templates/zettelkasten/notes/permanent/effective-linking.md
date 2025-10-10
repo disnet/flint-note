@@ -1,5 +1,7 @@
 # Effective Linking in a Zettelkasten
 
+#permanent
+
 Links are the heart of a Zettelkasten. While individual notes contain ideas, the network of connections between notes creates understanding and insight. Quality linking is what transforms a collection of notes into a thinking tool.
 
 ## Why Links Matter
@@ -78,14 +80,16 @@ When creating a permanent note, systematically ask:
 
 ### Add Context to Links
 
-Don't just add links—explain *why* the connection matters.
+Don't just add links—explain _why_ the connection matters.
 
 **❌ Weak linking:**
+
 ```
 Related: [[habit-formation]] [[willpower]] [[environment-design]]
 ```
 
 **✅ Strong linking:**
+
 ```
 ## Related Ideas
 
@@ -119,6 +123,7 @@ If you reference a concept that doesn't have a note yet, create the link anyway:
 That said, permanent notes often develop 5-10 strong connections over time as you add new related notes to your Zettelkasten.
 
 **Warning signs:**
+
 - **Zero links** - The note is orphaned and disconnected
 - **Fifty links** - The note is probably too broad or the links aren't meaningful
 
@@ -132,6 +137,7 @@ In a Zettelkasten, **prefer links over tags.** Links are more specific, more mea
 
 **Instead of tagging notes with "productivity":**
 Create specific links like:
+
 - [[time-management-strategies]]
 - [[attention-management]]
 - [[energy-management]]
@@ -141,11 +147,13 @@ These specific connections are more useful than a broad category.
 ## Hub Notes and Index Notes
 
 Some notes naturally become "hubs" with many connections:
+
 - Fundamental concepts that many ideas build upon
 - Frequently referenced definitions
 - Notes that connect different domains
 
 **Index** notes intentionally organize related permanent notes:
+
 - They provide entry points into topic areas
 - They curate note sequences on specific themes
 - They help navigate dense clusters of related notes
@@ -167,11 +175,13 @@ When you notice these connections, create the link and explain why it's interest
 As your Zettelkasten grows:
 
 **When adding new notes:**
+
 - Link to relevant existing notes
 - Update existing notes with links to the new note
 - Add new notes to relevant index notes
 
 **When reading old notes:**
+
 - Look for connection opportunities you might have missed
 - Add links to newer notes that are relevant
 - Update explanations of why connections matter
@@ -183,11 +193,13 @@ As your Zettelkasten grows:
 Not every connection deserves a link:
 
 **❌ Weak connections to avoid:**
+
 - Very general relationships ("both relate to psychology")
 - Obvious connections that add no insight
 - Links added just to have more links
 
 **✅ Strong connections to create:**
+
 - Specific relationships you can explain
 - Connections that revealed insight
 - Links that help navigation or understanding

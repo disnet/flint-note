@@ -1,5 +1,7 @@
 # Welcome to Your Zettelkasten
 
+#index
+
 This vault is set up for the Zettelkasten method—a proven system for developing ideas, building knowledge, and making unexpected connections between concepts.
 
 ## What is a Zettelkasten?
@@ -16,7 +18,7 @@ When you encounter an interesting idea—from a conversation, while reading, or 
 
 ### 2. Process Source Material with Literature Notes
 
-When reading books, articles, or papers, create **literature** notes. These capture the key ideas from the source *in your own words*, along with your reactions and thoughts about the content.
+When reading books, articles, or papers, create **literature** notes. These capture the key ideas from the source _in your own words_, along with your reactions and thoughts about the content.
 
 **Literature notes connect ideas to sources.** They bridge external knowledge and your thinking.
 
@@ -87,7 +89,7 @@ Your Zettelkasten will grow organically as you develop ideas. Don't worry about 
 
 ## Your Next Steps
 
-Start by reading the [[zettelkasten-workflow]] note for a detailed walkthrough of the process. Then begin with something simple:
+Start by reading the [[permanent/zettelkasten-workflow]] note for a detailed walkthrough of the process. Then begin with something simple:
 
 - Find an article or book chapter that interests you
 - Create a literature note about it
@@ -98,10 +100,23 @@ Your Zettelkasten journey begins with a single note.
 
 ## Further Learning
 
-This vault includes sample notes to demonstrate the system:
+This vault includes guides explaining the system:
 
-- [[zettelkasten-workflow]] - Detailed process walkthrough
-- [[atomic-notes-principle]] - Understanding atomic notes
-- [[effective-linking]] - How to create meaningful connections
+- [[permanent/zettelkasten-workflow]] - Detailed process walkthrough
+- [[permanent/atomic-notes-principle]] - Understanding atomic notes
+- [[permanent/effective-linking]] - How to create meaningful connections
+
+## Example Notes
+
+To see what different note types look like in practice, explore these examples:
+
+- [[fleeting/fleeting-note-example]] - A quick capture of an interesting thought
+- [[literature/literature-note-example]] - Notes from reading a book chapter
+- [[permanent/permanent-note-context-dependent-behavior]] - A developed idea about behavior
+- [[permanent/permanent-note-habits-as-cue-response]] - How habits work mechanistically
+- [[permanent/permanent-note-environment-design]] - Applying ideas to behavior change
+- [[index/index-note-behavior-change]] - Organizing notes around a theme
+
+These examples show how notes progress from fleeting thoughts and reading notes into permanent, interconnected ideas.
 
 Start exploring, and remember: the best Zettelkasten is the one you actually use.

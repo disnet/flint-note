@@ -4,4 +4,4 @@ description: 'A general-purpose vault for note-taking, daily journaling, and kno
 icon: '📝'
 author: 'Flint Team'
 version: '1.0.0'
-initialNote: 'welcome.md'
+initialNote: 'note/welcome.md'

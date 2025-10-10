@@ -1,5 +1,7 @@
 # The Atomic Notes Principle
 
+#permanent
+
 A core principle of the Zettelkasten method is that each permanent note should contain exactly one idea, expressed as a complete thought. This "atomic" approach maximizes the value and reusability of notes.
 
 ## What Makes a Note Atomic?
@@ -91,6 +93,7 @@ If you find yourself writing "and" or "also" frequently in a note, that's often 
 "Habits are context-dependent AND they form through repetition AND changing environment is easier than using willpower..."
 
 **Create separate notes:**
+
 - [[context-dependent-behavior]]
 - [[habit-formation-through-repetition]]
 - [[environment-design-over-willpower]]

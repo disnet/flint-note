@@ -255,29 +255,9 @@ export class TemplateManager {
     const notes: TemplateNote[] = [];
 
     try {
-      const files = await fs.readdir(notesDir);
-      const mdFiles = files.filter((f) => f.endsWith('.md'));
-
-      for (const file of mdFiles) {
-        try {
-          const content = await fs.readFile(path.join(notesDir, file), 'utf-8');
-
-          // Extract title from first heading or use filename
-          const title = this.extractTitle(content, file);
-
-          // Determine note type (default to 'note')
-          const type = 'note';
-
-          notes.push({
-            filename: file,
-            title,
-            content,
-            type
-          });
-        } catch (err) {
-          console.warn(`Failed to load note from ${file}:`, err);
-        }
-      }
+      // Recursively read all markdown files from notes directory
+      const allNotes = await this.loadNotesRecursive(notesDir, notesDir);
+      notes.push(...allNotes);
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (_) {
       // notes directory is optional
@@ -285,6 +265,77 @@ export class TemplateManager {
     }
 
     return notes;
+  }
+
+  /**
+   * Recursively load notes from a directory
+   */
+  private async loadNotesRecursive(
+    dir: string,
+    baseDir: string
+  ): Promise<TemplateNote[]> {
+    const notes: TemplateNote[] = [];
+
+    try {
+      const entries = await fs.readdir(dir, { withFileTypes: true });
+
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+
+        if (entry.isDirectory()) {
+          // Recursively load notes from subdirectories
+          const subNotes = await this.loadNotesRecursive(fullPath, baseDir);
+          notes.push(...subNotes);
+        } else if (entry.name.endsWith('.md')) {
+          try {
+            const content = await fs.readFile(fullPath, 'utf-8');
+
+            // Extract title from first heading or use filename
+            const title = this.extractTitle(content, entry.name);
+
+            // Get relative path from notes directory for filename
+            const relativePath = path.relative(baseDir, fullPath);
+
+            // Extract note type from directory structure, frontmatter, or tags
+            const type = this.extractNoteType(content, relativePath);
+
+            notes.push({
+              filename: relativePath,
+              title,
+              content,
+              type
+            });
+          } catch (err) {
+            console.warn(`Failed to load note from ${entry.name}:`, err);
+          }
+        }
+      }
+    } catch (err) {
+      console.warn(`Failed to read directory ${dir}:`, err);
+    }
+
+    return notes;
+  }
+
+  /**
+   * Extract note type from directory structure
+   * Template notes must be organized in type-specific directories
+   */
+  private extractNoteType(_content: string, relativePath: string): string {
+    // Extract note type from directory structure
+    // e.g., "permanent/my-note.md" -> "permanent"
+    const pathParts = relativePath.split(path.sep);
+    if (pathParts.length > 1) {
+      // The first directory name is the note type
+      const dirName = pathParts[0];
+      // Only use it if it's not a generic folder name
+      if (dirName && dirName !== 'notes' && dirName !== 'examples') {
+        return dirName;
+      }
+    }
+
+    // Default to 'note' if not in a type-specific directory
+    return 'note';
   }
 
   /**

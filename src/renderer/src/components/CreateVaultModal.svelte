@@ -282,30 +282,23 @@
 
         <div class="form-group">
           <label for="vault-template">Template:</label>
-          <div class="template-selector">
+          <select
+            id="vault-template"
+            class="template-select"
+            bind:value={selectedTemplate}
+          >
             {#each templates as template (template.id)}
-              <label
-                class="template-option"
-                class:selected={selectedTemplate === template.id}
-              >
-                <input
-                  type="radio"
-                  name="template"
-                  value={template.id}
-                  bind:group={selectedTemplate}
-                />
-                <div class="template-content">
-                  <div class="template-header">
-                    {#if template.icon}
-                      <span class="template-icon">{template.icon}</span>
-                    {/if}
-                    <span class="template-name">{template.name}</span>
-                  </div>
-                  <p class="template-description">{template.description}</p>
-                </div>
-              </label>
+              <option value={template.id}>
+                {#if template.icon}{template.icon}
+                {/if}{template.name}
+              </option>
             {/each}
-          </div>
+          </select>
+          {#if templates.find((t) => t.id === selectedTemplate)}
+            <p class="template-description">
+              {templates.find((t) => t.id === selectedTemplate)?.description}
+            </p>
+          {/if}
         </div>
 
         <div class="form-group">
@@ -373,6 +366,8 @@
     max-width: 500px;
     max-height: 90vh;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
     animation: slideIn 0.2s ease-out;
   }
 
@@ -393,6 +388,7 @@
     justify-content: space-between;
     padding: 1.5rem 1.5rem 1rem;
     border-bottom: 1px solid var(--border-light);
+    flex-shrink: 0;
   }
 
   .modal-header h3 {
@@ -428,6 +424,9 @@
     display: flex;
     flex-direction: column;
     gap: 1.25rem;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
   }
 
   .form-group {
@@ -504,64 +503,37 @@
     font-family: inherit;
   }
 
-  .template-selector {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-
-  .template-option {
-    position: relative;
-    display: flex;
-    align-items: flex-start;
-    gap: 0.75rem;
-    padding: 1rem;
+  .template-select {
+    padding: 0.75rem;
     border: 1px solid var(--border-light);
     border-radius: 0.5rem;
     background: var(--bg-secondary);
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-
-  .template-option:hover {
-    background: var(--bg-tertiary);
-    border-color: var(--border-medium);
-  }
-
-  .template-option.selected {
-    border-color: var(--accent-primary);
-    background: rgba(59, 130, 246, 0.05);
-  }
-
-  .template-option input[type='radio'] {
-    margin-top: 0.125rem;
-    cursor: pointer;
-  }
-
-  .template-content {
-    flex: 1;
-  }
-
-  .template-header {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 0.25rem;
-  }
-
-  .template-icon {
-    font-size: 1.25rem;
-  }
-
-  .template-name {
-    font-weight: 500;
     color: var(--text-primary);
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    width: 100%;
+  }
+
+  .template-select:hover {
+    border-color: var(--border-medium);
+    background: var(--bg-tertiary);
+  }
+
+  .template-select:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
   }
 
   .template-description {
     font-size: 0.8125rem;
     color: var(--text-secondary);
-    margin: 0;
+    margin: 0.5rem 0 0 0;
+    padding: 0.75rem;
+    background: var(--bg-tertiary);
+    border-radius: 0.375rem;
+    border-left: 3px solid var(--accent-primary);
   }
 
   .validation-indicator {

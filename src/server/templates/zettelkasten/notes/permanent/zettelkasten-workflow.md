@@ -1,5 +1,7 @@
 # The Zettelkasten Workflow
 
+#permanent
+
 This note provides a detailed walkthrough of the Zettelkasten process, from capturing fleeting ideas to building a network of permanent notes.
 
 ## The Complete Workflow
@@ -14,6 +16,7 @@ Create a **fleeting** note whenever you have a thought worth remembering:
 - Something that surprised or confused you
 
 **Example fleeting note:**
+
 ```
 Maybe the reason habits are hard to break is because they're
 context-dependent? Noticed I automatically check phone when sitting
@@ -34,6 +37,7 @@ When reading books, articles, papers, or watching videos, create **literature** 
 **Write in your own words** as much as possible. The goal is understanding, not summarizing.
 
 **Example literature note structure:**
+
 ```
 # [Author Name] - [Title]
 
@@ -99,17 +103,20 @@ environmental triggers.
 After creating a permanent note, don't stop there. Actively build connections:
 
 **Link to related notes:**
+
 - Notes that support this idea
 - Notes that contradict it
 - Notes that provide examples
 - Notes that extend the concept
 
 **Update existing notes:**
+
 - Add links from older notes to this new note
 - Update index notes to include this note
 - Add this note to relevant note sequences
 
 **Create new notes when needed:**
+
 - If you reference a concept that doesn't have a note yet, create it
 - If this note raises questions, create question notes
 
@@ -142,11 +149,13 @@ This index collects notes about how people change behaviors and form habits.
 ## Processing Schedule
 
 **Daily (5-10 minutes):**
+
 - Review today's fleeting notes
 - Convert any that are ready into permanent notes
 - Delete or combine fleeting notes that have been processed
 
 **Weekly (30-60 minutes):**
+
 - Review literature notes from the past week
 - Extract permanent notes from key ideas
 - Update index notes with new permanent notes
