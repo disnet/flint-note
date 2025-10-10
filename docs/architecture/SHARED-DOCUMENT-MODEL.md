@@ -320,7 +320,6 @@ async function handleTitleChange(newTitle: string): Promise<void> {
       disabled={doc.isSaving}
     />
 
-
     <CodeMirrorEditor content={doc.content} onContentChange={handleContentChange} />
   </div>
 {/if}
@@ -372,7 +371,6 @@ $effect(() => {
         value={doc.title || ''}
         onblur={(e) => handleTitleBlur(note.noteId, e.currentTarget.value)}
       />
-
 
       <CodeMirrorEditor
         content={doc.content}
@@ -474,11 +472,7 @@ Both components show when a note is open in multiple editors:
 
 **NoteEditor:**
 
-
-
 **SidebarNotes:**
-
-
 
 ## Edge Cases
 

@@ -8,6 +8,7 @@
   import { pinnedNotesStore } from '../services/pinnedStore.svelte.js';
   import { temporaryTabsStore } from '../stores/temporaryTabsStore.svelte.js';
   import { sidebarNotesStore } from '../stores/sidebarNotesStore.svelte.js';
+  import { sidebarState } from '../stores/sidebarState.svelte.js';
   import {
     CursorPositionManager,
     type CursorPosition
@@ -356,6 +357,19 @@
     if (!doc) return;
 
     await sidebarNotesStore.addNote(note.id, doc.title, doc.content);
+
+    // Open the sidebar if it's not already visible
+    if (
+      !sidebarState.rightSidebar.visible ||
+      sidebarState.rightSidebar.mode !== 'notes'
+    ) {
+      if (!sidebarState.rightSidebar.visible) {
+        await sidebarState.toggleRightSidebar();
+      }
+      if (sidebarState.rightSidebar.mode !== 'notes') {
+        await sidebarState.setRightSidebarMode('notes');
+      }
+    }
   }
 
   async function handleBacklinkSelect(
