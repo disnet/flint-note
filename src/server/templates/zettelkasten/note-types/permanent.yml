@@ -11,10 +11,6 @@ agent_instructions:
   - 'Suggest literature notes that support or challenge the idea'
 metadata_schema:
   fields:
-    - name: 'created'
-      type: 'string'
-      description: 'Date note was created'
-      required: false
     - name: 'tags'
       type: 'string'
       description: 'Tags for categorization'

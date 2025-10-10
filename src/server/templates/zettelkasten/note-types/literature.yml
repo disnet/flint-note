@@ -13,7 +13,7 @@ metadata_schema:
       type: 'string'
       description: 'Author of the source material'
       required: false
-    - name: 'title'
+    - name: 'source_title'
       type: 'string'
       description: 'Title of the source material'
       required: false
@@ -25,7 +25,7 @@ metadata_schema:
       type: 'string'
       description: 'Link to source'
       required: false
-    - name: 'type'
+    - name: 'source_type'
       type: 'string'
       description: 'Type of source (book, article, paper, video, etc.)'
       required: false
