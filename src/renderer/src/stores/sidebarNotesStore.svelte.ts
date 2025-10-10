@@ -1,4 +1,4 @@
-import { notesStore } from '../services/noteStore.svelte';
+// Removed notesStore import - no longer needed for notifications with shared document model
 
 export interface SidebarNote {
   noteId: string;
@@ -132,22 +132,19 @@ class SidebarNotesStore {
   }
 
   /**
-   * Update a note's title and/or content
-   * Both title and content changes sync back to the actual note in the database
-   * @param syncToDatabase - If true, sync changes to database and notify other components (default: true)
+   * Update a note's title and/or content in the sidebar store
+   * Note: With the shared document model, this is primarily for maintaining
+   * the sidebar's internal state. Content sync happens through NoteDocument.
    */
   async updateNote(
     noteId: string,
-    updates: Partial<Pick<SidebarNote, 'title' | 'content'>>,
-    syncToDatabase: boolean = true
+    updates: Partial<Pick<SidebarNote, 'title' | 'content'>>
   ): Promise<void> {
     await this.ensureInitialized();
 
     const note = this.state.notes.find((n) => n.noteId === noteId);
     if (note) {
-      const oldTitle = note.title;
-
-      // Update the sidebar note copy
+      // Update the sidebar note copy (used for display state)
       if (updates.title !== undefined) {
         note.title = updates.title;
       }
@@ -156,55 +153,6 @@ class SidebarNotesStore {
       }
 
       await this.saveToStorage();
-
-      // Only sync to database if requested (prevents infinite loops)
-      if (!syncToDatabase) {
-        return;
-      }
-
-      // Sync title changes back to the actual note (rename)
-      if (updates.title !== undefined && updates.title !== oldTitle) {
-        try {
-          const result = await window.api?.renameNote({
-            identifier: noteId,
-            newIdentifier: updates.title
-          });
-
-          // If rename was successful and returned a new ID, update our noteId
-          if (result?.new_id && result.new_id !== noteId) {
-            note.noteId = result.new_id;
-            await this.saveToStorage();
-
-            // Notify other components (like NoteEditor) about the rename
-            notesStore.notifyNoteRenamed(noteId, result.new_id);
-          } else {
-            // Title changed but noteId stayed the same
-            notesStore.notifyNoteUpdated(noteId);
-          }
-        } catch (error) {
-          console.error('Failed to rename note in database:', error);
-          // Revert title change on error
-          note.title = oldTitle;
-          await this.saveToStorage();
-        }
-      }
-
-      // Sync content changes back to the actual note
-      if (updates.content !== undefined) {
-        try {
-          await window.api?.updateNote({
-            identifier: note.noteId, // Use potentially updated noteId
-            content: updates.content
-          });
-
-          // Notify other components (like NoteEditor) about the update
-          notesStore.notifyNoteUpdated(note.noteId);
-        } catch (error) {
-          console.error('Failed to update note content in database:', error);
-          // Note: We don't revert the sidebar note update on error
-          // This preserves the user's changes in the sidebar
-        }
-      }
     }
   }
 

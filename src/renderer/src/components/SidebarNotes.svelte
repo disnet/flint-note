@@ -1,114 +1,72 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { sidebarNotesStore } from '../stores/sidebarNotesStore.svelte';
   import { wikilinkService } from '../services/wikilinkService.svelte';
-  import { notesStore } from '../services/noteStore.svelte';
-  import { getChatService } from '../services/chatService';
+  import {
+    noteDocumentRegistry,
+    type NoteDocument
+  } from '../stores/noteDocumentRegistry.svelte';
   import CodeMirrorEditor from './CodeMirrorEditor.svelte';
 
-  // Debounce timers for content updates
-  const contentDebounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  // Map of noteId -> NoteDocument for sidebar notes
+  let sidebarDocs = $state<Map<string, NoteDocument>>(new Map());
 
   // Track original titles for cancel/revert
   const originalTitles = new Map<string, string>();
 
-  // React to external note updates (e.g., from NoteEditor)
+  // Open documents for all sidebar notes
   $effect(() => {
-    const updateCounter = notesStore.noteUpdateCounter;
-    const lastUpdatedNoteId = notesStore.lastUpdatedNoteId;
+    (async () => {
+      const notes = sidebarNotesStore.notes;
+      const newDocs = new Map<string, NoteDocument>();
 
-    // Skip initial load (when counter is 0)
-    if (updateCounter > 0 && lastUpdatedNoteId) {
-      // Check if this note is in our sidebar
-      const sidebarNote = sidebarNotesStore.notes.find(
-        (n) => n.noteId === lastUpdatedNoteId
-      );
-      if (sidebarNote) {
-        // Reload the note content from the database
-        setTimeout(async () => {
-          try {
-            const noteService = getChatService();
-            const updatedNote = await noteService.getNote({
-              identifier: lastUpdatedNoteId
-            });
-            if (updatedNote) {
-              // Update both title and content to stay in sync
-              // Pass syncToDatabase=false to prevent infinite loop
-              await sidebarNotesStore.updateNote(
-                lastUpdatedNoteId,
-                {
-                  title: updatedNote.title || sidebarNote.title,
-                  content: updatedNote.content || ''
-                },
-                false // Don't sync back to database - we're already in sync
-              );
-            }
-          } catch (error) {
-            console.warn('Failed to reload sidebar note after external update:', error);
-          }
-        }, 100);
+      // Open documents for all current sidebar notes
+      for (const note of notes) {
+        const editorId = `sidebar-${note.noteId}`;
+        const doc = await noteDocumentRegistry.open(note.noteId, editorId);
+        newDocs.set(note.noteId, doc);
       }
-    }
+
+      // Close documents that are no longer in sidebar
+      for (const [noteId] of sidebarDocs) {
+        if (!newDocs.has(noteId)) {
+          const editorId = `sidebar-${noteId}`;
+          noteDocumentRegistry.close(noteId, editorId);
+        }
+      }
+
+      sidebarDocs = newDocs;
+    })();
   });
 
-  // React to external note renames (e.g., from NoteEditor)
-  $effect(() => {
-    const renameCounter = notesStore.noteRenameCounter;
-    const oldId = notesStore.lastRenamedNoteOldId;
-    const newId = notesStore.lastRenamedNoteNewId;
-
-    // Skip initial load (when counter is 0)
-    if (renameCounter > 0 && oldId && newId) {
-      // Check if the old ID is in our sidebar
-      const sidebarNote = sidebarNotesStore.notes.find((n) => n.noteId === oldId);
-      if (sidebarNote) {
-        // The noteId has already been updated by sidebarNotesStore.updateNoteId()
-        // Now we need to reload the content with the new ID
-        setTimeout(async () => {
-          try {
-            const noteService = getChatService();
-            const updatedNote = await noteService.getNote({ identifier: newId });
-            if (updatedNote) {
-              // Update both title and content to stay in sync
-              // Pass syncToDatabase=false to prevent infinite loop
-              await sidebarNotesStore.updateNote(
-                newId, // Use new ID
-                {
-                  title: updatedNote.title || sidebarNote.title,
-                  content: updatedNote.content || ''
-                },
-                false // Don't sync back to database - we're already in sync
-              );
-            }
-          } catch (error) {
-            console.warn('Failed to reload sidebar note after external rename:', error);
-          }
-        }, 100);
+  // Cleanup: close all documents when component is destroyed
+  onMount(() => {
+    return () => {
+      for (const [noteId] of sidebarDocs) {
+        const editorId = `sidebar-${noteId}`;
+        noteDocumentRegistry.close(noteId, editorId);
       }
-    }
+    };
   });
 
   function handleDisclosureToggle(noteId: string): void {
     sidebarNotesStore.toggleExpanded(noteId);
   }
 
-  function handleRemoveNote(noteId: string): void {
-    sidebarNotesStore.removeNote(noteId);
+  async function handleRemoveNote(noteId: string): Promise<void> {
+    // Close the document before removing from sidebar
+    const editorId = `sidebar-${noteId}`;
+    noteDocumentRegistry.close(noteId, editorId);
+
+    await sidebarNotesStore.removeNote(noteId);
   }
 
   function handleContentChange(noteId: string, content: string): void {
-    // Clear existing timer for this note
-    const existingTimer = contentDebounceTimers.get(noteId);
-    if (existingTimer) {
-      clearTimeout(existingTimer);
+    const doc = sidebarDocs.get(noteId);
+    if (doc) {
+      // Update shared document - this automatically syncs to other editors
+      doc.updateContent(content);
     }
-
-    // Set new timer - update after 500ms of no typing
-    const timer = setTimeout(() => {
-      sidebarNotesStore.updateNote(noteId, { content });
-      contentDebounceTimers.delete(noteId);
-    }, 500);
-
-    contentDebounceTimers.set(noteId, timer);
   }
 
   function handleTitleFocus(noteId: string, currentTitle: string): void {
@@ -116,10 +74,19 @@
     originalTitles.set(noteId, currentTitle);
   }
 
-  function handleTitleBlur(noteId: string, newTitle: string): void {
+  async function handleTitleBlur(noteId: string, newTitle: string): Promise<void> {
     const originalTitle = originalTitles.get(noteId);
     if (originalTitle !== undefined && newTitle !== originalTitle) {
-      sidebarNotesStore.updateNote(noteId, { title: newTitle });
+      const doc = sidebarDocs.get(noteId);
+      if (doc) {
+        // Update shared document - this automatically syncs to other editors
+        const result = await doc.updateTitle(newTitle);
+
+        // If the note ID changed, update sidebar store
+        if (result.success && result.newId && result.newId !== noteId) {
+          await sidebarNotesStore.updateNoteId(noteId, result.newId);
+        }
+      }
     }
     originalTitles.delete(noteId);
   }
@@ -164,68 +131,71 @@
       </div>
     {:else}
       {#each sidebarNotesStore.notes as note (note.noteId)}
-        <div class="sidebar-note">
-          <div class="note-header">
-            <button
-              class="disclosure-button"
-              onclick={() => handleDisclosureToggle(note.noteId)}
-              aria-label={note.isExpanded ? 'Collapse' : 'Expand'}
-            >
-              <svg
-                class="disclosure-icon"
-                class:expanded={note.isExpanded}
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
+        {@const doc = sidebarDocs.get(note.noteId)}
+        {#if doc}
+          <div class="sidebar-note">
+            <div class="note-header">
+              <button
+                class="disclosure-button"
+                onclick={() => handleDisclosureToggle(note.noteId)}
+                aria-label={note.isExpanded ? 'Collapse' : 'Expand'}
               >
-                <path d="m9 18 6-6-6-6" />
-              </svg>
-            </button>
+                <svg
+                  class="disclosure-icon"
+                  class:expanded={note.isExpanded}
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="m9 18 6-6-6-6" />
+                </svg>
+              </button>
 
-            <input
-              type="text"
-              class="title-input"
-              value={note.title || ''}
-              onfocus={(e) => handleTitleFocus(note.noteId, e.currentTarget.value)}
-              onblur={(e) => handleTitleBlur(note.noteId, e.currentTarget.value)}
-              onkeydown={(e) => handleTitleKeyDown(e, note.noteId)}
-              placeholder="Untitled"
-            />
-
-            <button
-              class="remove-button"
-              onclick={() => handleRemoveNote(note.noteId)}
-              aria-label="Remove note"
-              title="Remove from sidebar"
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <path d="M18 6 6 18M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-
-          {#if note.isExpanded}
-            <div class="note-content">
-              <CodeMirrorEditor
-                content={note.content}
-                onContentChange={(content) => handleContentChange(note.noteId, content)}
-                onWikilinkClick={handleWikilinkClick}
-                placeholder="Note content..."
-                variant="sidebar-note"
+              <input
+                type="text"
+                class="title-input"
+                value={doc.title || ''}
+                onfocus={(e) => handleTitleFocus(note.noteId, e.currentTarget.value)}
+                onblur={(e) => handleTitleBlur(note.noteId, e.currentTarget.value)}
+                onkeydown={(e) => handleTitleKeyDown(e, note.noteId)}
+                placeholder="Untitled"
               />
+
+              <button
+                class="remove-button"
+                onclick={() => handleRemoveNote(note.noteId)}
+                aria-label="Remove note"
+                title="Remove from sidebar"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M18 6 6 18M6 6l12 12" />
+                </svg>
+              </button>
             </div>
-          {/if}
-        </div>
+
+            {#if note.isExpanded}
+              <div class="note-content">
+                <CodeMirrorEditor
+                  content={doc.content}
+                  onContentChange={(content) => handleContentChange(note.noteId, content)}
+                  onWikilinkClick={handleWikilinkClick}
+                  placeholder="Note content..."
+                  variant="sidebar-note"
+                />
+              </div>
+            {/if}
+          </div>
+        {/if}
       {/each}
     {/if}
   </div>

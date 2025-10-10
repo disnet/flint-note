@@ -6,7 +6,6 @@
   import Settings from './Settings.svelte';
   import { ViewRegistry } from '../lib/views';
   import { getChatService } from '../services/chatService.js';
-  import { notesStore } from '../services/noteStore.svelte';
   import type { NoteMetadata, NoteType } from '../services/noteStore.svelte';
   import type { Note } from '../services/types';
   import type { Component } from 'svelte';
@@ -56,28 +55,8 @@
     }
   });
 
-  // Watch for note updates and reload if the current note was modified
-  $effect(() => {
-    // Watch the noteUpdateCounter and lastUpdatedNoteId from notesStore
-    // We need to reference updateCounter to make this effect reactive
-    const updateCounter = notesStore.noteUpdateCounter;
-    const lastUpdatedId = notesStore.lastUpdatedNoteId;
-
-    // Avoid unused variable warning by using updateCounter in a no-op way
-    void updateCounter;
-
-    // If there's an active note and it was the one that got updated, reload it
-    if (
-      activeNote &&
-      lastUpdatedId &&
-      (activeNote.id === lastUpdatedId ||
-        activeNote.filename === lastUpdatedId ||
-        activeNote.title === lastUpdatedId)
-    ) {
-      console.log('Note update detected for active note, reloading...', lastUpdatedId);
-      loadNoteAndView(activeNote);
-    }
-  });
+  // Note: With the shared document model, NoteEditor handles sync automatically.
+  // Custom views would need their own reload logic if they support live collaboration.
 
   async function loadNoteAndView(note: NoteMetadata): Promise<void> {
     try {

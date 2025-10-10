@@ -7,12 +7,15 @@
   import { wikilinkService } from '../services/wikilinkService.svelte.js';
   import { pinnedNotesStore } from '../services/pinnedStore.svelte.js';
   import { temporaryTabsStore } from '../stores/temporaryTabsStore.svelte.js';
-  import { AutoSave } from '../stores/autoSave.svelte.js';
   import { sidebarNotesStore } from '../stores/sidebarNotesStore.svelte.js';
   import {
     CursorPositionManager,
     type CursorPosition
   } from '../stores/cursorPositionManager.svelte.js';
+  import {
+    noteDocumentRegistry,
+    type NoteDocument
+  } from '../stores/noteDocumentRegistry.svelte.js';
   import CodeMirrorEditor from './CodeMirrorEditor.svelte';
   import EditorHeader from './EditorHeader.svelte';
   import ErrorBanner from './ErrorBanner.svelte';
@@ -27,8 +30,9 @@
 
   let { note, onClose }: Props = $props();
 
-  let noteContent = $state('');
-  let error = $state<string | null>(null);
+  // Shared document instance
+  let doc = $state<NoteDocument | null>(null);
+
   let noteData = $state<Note | null>(null);
   let metadataExpanded = $state(false);
   let editorRef: CodeMirrorEditor;
@@ -37,11 +41,10 @@
 
   const cursorManager = new CursorPositionManager();
 
-  const autoSave = new AutoSave(saveNote);
+  const editorId = 'main';
 
   onMount(() => {
     return () => {
-      autoSave.destroy();
       cursorManager.destroy();
     };
   });
@@ -60,12 +63,29 @@
         }
       }
 
-      // Load new note
-      await loadNote(note);
+      // Close previous document if switching notes
+      if (previousNote && previousNote.id !== note.id && doc) {
+        noteDocumentRegistry.close(previousNote.id, editorId);
+      }
+
+      // Open the shared document for this note
+      doc = await noteDocumentRegistry.open(note.id, editorId);
+
+      // Load full note data for metadata
+      await loadNoteMetadata(note);
 
       // Update previous note reference
       previousNote = note;
     })();
+  });
+
+  // Cleanup: close document when component is destroyed
+  $effect(() => {
+    return () => {
+      if (note?.id) {
+        noteDocumentRegistry.close(note.id, editorId);
+      }
+    };
   });
 
   // Watch for changes in notes store and refresh wikilinks
@@ -90,10 +110,11 @@
     const updateCounter = notesStore.wikilinksUpdateCounter;
 
     // Skip initial load (when counter is 0)
-    if (updateCounter > 0 && note) {
+    if (updateCounter > 0 && note && doc) {
+      const currentDoc = doc; // Capture in closure to avoid null issues
       setTimeout(async () => {
         try {
-          await loadNote(note);
+          await currentDoc.reload();
         } catch (loadError) {
           console.warn('Failed to reload note content after wikilink update:', loadError);
         }
@@ -101,91 +122,24 @@
     }
   });
 
-  // Watch for specific note updates and reload content if the current note was updated
-  $effect(() => {
-    const updateCounter = notesStore.noteUpdateCounter;
-    const lastUpdatedNoteId = notesStore.lastUpdatedNoteId;
-
-    // Skip initial load (when counter is 0) and only reload if current note was updated
-    if (updateCounter > 0 && lastUpdatedNoteId === note?.id) {
-      setTimeout(async () => {
-        try {
-          await loadNote(note);
-        } catch (loadError) {
-          console.warn('Failed to reload note content after agent update:', loadError);
-        }
-      }, 100);
-    }
-  });
-
-  // Watch for note renames and update note reference if this note was renamed
-  $effect(() => {
-    const renameCounter = notesStore.noteRenameCounter;
-    const oldId = notesStore.lastRenamedNoteOldId;
-    const newId = notesStore.lastRenamedNoteNewId;
-
-    // Skip initial load (when counter is 0) and only update if current note was renamed
-    if (renameCounter > 0 && oldId === note?.id && newId) {
-      setTimeout(async () => {
-        try {
-          // Fetch the updated note with the new ID
-          const noteService = getChatService();
-          const updatedNote = await noteService.getNote({ identifier: newId });
-
-          if (updatedNote) {
-            // Update the note reference with new ID and title
-            note = {
-              ...note,
-              id: newId,
-              title: updatedNote.title || note.title
-            };
-
-            // Reload the content
-            await loadNote(note);
-          }
-        } catch (loadError) {
-          console.warn('Failed to reload note after external rename:', loadError);
-        }
-      }, 100);
-    }
-  });
-
-  async function loadNote(note: NoteMetadata): Promise<void> {
+  async function loadNoteMetadata(note: NoteMetadata): Promise<void> {
     try {
-      error = null;
       const noteService = getChatService();
 
       if (await noteService.isReady()) {
-        // Load BOTH content and cursor position
+        // Load full note data and cursor position
         const [noteResult, cursorPosition] = await Promise.all([
           noteService.getNote({ identifier: note.id }),
           cursorManager.getCursorPosition(note.id)
         ]);
 
         noteData = noteResult;
-        noteContent = noteResult?.content ?? '';
         pendingCursorPosition = cursorPosition;
-        autoSave.clearChanges();
       } else {
         throw new Error('Note service not ready');
       }
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to load note';
-      console.error('Error loading note:', err);
-    }
-  }
-
-  async function saveNote(): Promise<void> {
-    if (!noteData) return;
-
-    try {
-      error = null;
-      const noteService = getChatService();
-      await noteService.updateNote({ identifier: note.id, content: noteContent });
-    } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to save note';
-      console.error('Error saving note:', err);
-      throw err;
+      console.error('Error loading note metadata:', err);
     }
   }
 
@@ -210,8 +164,9 @@
   }
 
   function handleContentChange(content: string): void {
-    noteContent = content;
-    autoSave.markChanged();
+    if (!doc) return;
+    // Update shared document - this automatically syncs to other editors
+    doc.updateContent(content);
   }
 
   function handleCursorChange(): void {
@@ -233,69 +188,60 @@
   }
 
   async function handleTitleChange(newTitle: string): Promise<void> {
+    if (!doc) return;
+
     // Allow empty titles, but skip if unchanged
-    if (newTitle === note.title) {
+    if (newTitle === doc.title) {
       return;
     }
 
-    try {
-      error = null;
-      const noteService = getChatService();
+    const oldId = note.id;
 
-      const result = await noteService.renameNote({
-        identifier: note.id,
-        newIdentifier: newTitle
-      });
+    // Update shared document - this automatically syncs to other editors
+    const result = await doc.updateTitle(newTitle);
 
-      if (result.success) {
-        const oldId = note.id;
-        const newId = result.new_id || note.id;
+    if (result.success) {
+      const newId = result.newId || note.id;
 
-        // Update pinned notes if this note is pinned
-        if (pinnedNotesStore.isPinned(oldId) && newId !== oldId) {
-          await pinnedNotesStore.updateNoteId(oldId, newId);
-        }
-
-        // Update temporary tabs that reference this note
-        const hasTemporaryTab = temporaryTabsStore.tabs.some(
-          (tab) => tab.noteId === oldId
-        );
-        if (hasTemporaryTab && newId !== oldId) {
-          await temporaryTabsStore.updateNoteId(oldId, newId);
-        }
-
-        // Update sidebar notes if this note is in the sidebar
-        if (sidebarNotesStore.isInSidebar(oldId) && newId !== oldId) {
-          await sidebarNotesStore.updateNoteId(oldId, newId);
-          // Notify about the rename so sidebar can reload content
-          notesStore.notifyNoteRenamed(oldId, newId);
-        }
-
-        // Update the local note reference
-        note = {
-          ...note,
-          id: newId,
-          title: newTitle
-        };
-
-        // Refresh the notes store to update UI components
-        try {
-          await notesStore.refresh();
-        } catch (refreshError) {
-          console.warn('Failed to refresh notes store after rename:', refreshError);
-        }
-
-        // If wikilinks were updated in other notes, notify the store so all open notes can reload
-        if (result.linksUpdated && result.linksUpdated > 0) {
-          notesStore.notifyWikilinksUpdated();
-        }
-      } else {
-        throw new Error('Rename operation failed');
+      // Update pinned notes if this note is pinned
+      if (pinnedNotesStore.isPinned(oldId) && newId !== oldId) {
+        await pinnedNotesStore.updateNoteId(oldId, newId);
       }
-    } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to rename note';
-      console.error('Error renaming note:', err);
-      throw err;
+
+      // Update temporary tabs that reference this note
+      const hasTemporaryTab = temporaryTabsStore.tabs.some((tab) => tab.noteId === oldId);
+      if (hasTemporaryTab && newId !== oldId) {
+        await temporaryTabsStore.updateNoteId(oldId, newId);
+      }
+
+      // Update sidebar notes if this note is in the sidebar
+      if (sidebarNotesStore.isInSidebar(oldId) && newId !== oldId) {
+        await sidebarNotesStore.updateNoteId(oldId, newId);
+      }
+
+      // Update the document registry if ID changed
+      if (newId !== oldId) {
+        noteDocumentRegistry.updateNoteId(oldId, newId);
+      }
+
+      // Update the local note reference
+      note = {
+        ...note,
+        id: newId,
+        title: newTitle
+      };
+
+      // Refresh the notes store to update UI components
+      try {
+        await notesStore.refresh();
+      } catch (refreshError) {
+        console.warn('Failed to refresh notes store after rename:', refreshError);
+      }
+
+      // If wikilinks were updated in other notes, notify the store so all open notes can reload
+      if (result.linksUpdated && result.linksUpdated > 0) {
+        notesStore.notifyWikilinksUpdated();
+      }
     }
   }
 
@@ -321,7 +267,8 @@
 
   export function focus(): void {
     // Focus on title if it's empty, otherwise focus on content
-    if (!note.title || note.title.trim().length === 0) {
+    const title = doc?.title || '';
+    if (!title || title.trim().length === 0) {
       if (headerRef && headerRef.focusTitle) {
         headerRef.focusTitle();
       }
@@ -337,13 +284,13 @@
   }
 
   async function handleMetadataUpdate(metadata: Record<string, unknown>): Promise<void> {
-    if (!noteData) return;
+    if (!noteData || !doc) return;
 
     try {
       const noteService = getChatService();
       await noteService.updateNote({
         identifier: note.id,
-        content: noteContent,
+        content: doc.content,
         metadata: $state.snapshot(metadata) as import('@/server/types').NoteMetadata
       });
 
@@ -406,9 +353,9 @@
   }
 
   async function handleAddToSidebar(): Promise<void> {
-    if (!noteData) return;
+    if (!doc) return;
 
-    await sidebarNotesStore.addNote(note.id, note.title, noteContent);
+    await sidebarNotesStore.addNote(note.id, doc.title, doc.content);
   }
 
   async function handleBacklinkSelect(
@@ -453,52 +400,54 @@
   }
 </script>
 
-<div
-  class="note-editor"
-  role="dialog"
-  aria-labelledby="note-editor-title"
-  tabindex="-1"
-  onkeydown={handleKeyDown}
->
-  <EditorHeader
-    bind:this={headerRef}
-    title={note.title}
-    onTitleChange={handleTitleChange}
-    disabled={autoSave.isSaving}
-  />
-
-  <NoteActionBar
-    isPinned={pinnedNotesStore.isPinned(note.id)}
-    isInSidebar={sidebarNotesStore.isInSidebar(note.id)}
-    {metadataExpanded}
-    onPinToggle={handlePinToggle}
-    onAddToSidebar={handleAddToSidebar}
-    onMetadataToggle={toggleMetadata}
-  />
-
-  <ErrorBanner {error} />
-
-  <div class="metadata-section-container">
-    <MetadataView
-      note={noteData}
-      expanded={metadataExpanded}
-      onMetadataUpdate={handleMetadataUpdate}
-      onTypeChange={handleTypeChange}
+{#if doc}
+  <div
+    class="note-editor"
+    role="dialog"
+    aria-labelledby="note-editor-title"
+    tabindex="-1"
+    onkeydown={handleKeyDown}
+  >
+    <EditorHeader
+      bind:this={headerRef}
+      title={doc.title}
+      onTitleChange={handleTitleChange}
+      disabled={doc.isSaving}
     />
+
+    <NoteActionBar
+      isPinned={pinnedNotesStore.isPinned(note.id)}
+      isInSidebar={sidebarNotesStore.isInSidebar(note.id)}
+      {metadataExpanded}
+      onPinToggle={handlePinToggle}
+      onAddToSidebar={handleAddToSidebar}
+      onMetadataToggle={toggleMetadata}
+    />
+
+    <ErrorBanner error={doc.error} />
+
+    <div class="metadata-section-container">
+      <MetadataView
+        note={noteData}
+        expanded={metadataExpanded}
+        onMetadataUpdate={handleMetadataUpdate}
+        onTypeChange={handleTypeChange}
+      />
+    </div>
+
+    <CodeMirrorEditor
+      bind:this={editorRef}
+      content={doc.content}
+      onContentChange={handleContentChange}
+      onCursorChange={handleCursorChange}
+      onWikilinkClick={handleWikilinkClick}
+      cursorPosition={pendingCursorPosition}
+      placeholder="Write, type [[ to make links..."
+    />
+
+    <Backlinks noteId={note.id} onNoteSelect={handleBacklinkSelect} />
   </div>
-
-  <CodeMirrorEditor
-    bind:this={editorRef}
-    content={noteContent}
-    onContentChange={handleContentChange}
-    onCursorChange={handleCursorChange}
-    onWikilinkClick={handleWikilinkClick}
-    cursorPosition={pendingCursorPosition}
-    placeholder="Write, type [[ to make links..."
-  />
-
-  <Backlinks noteId={note.id} onNoteSelect={handleBacklinkSelect} />
-</div>
+{/if}
 
 <style>
   .note-editor {

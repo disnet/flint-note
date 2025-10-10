@@ -22,6 +22,7 @@ import type {
   MetadataSchema
 } from '@/server/core/metadata-schema';
 import { notesStore } from './noteStore.svelte';
+import { noteDocumentRegistry } from '../stores/noteDocumentRegistry.svelte';
 import type { GetNoteTypeInfoResult } from '@/server/api/types';
 import type { NoteTypeDescription } from '@/server/core/note-types';
 
@@ -65,7 +66,10 @@ export class ElectronChatService implements ChatService, NoteService {
     // Set up usage tracking
   }
 
-  private handleNoteModifyingTool(toolCall: { name: string; arguments?: unknown }): void {
+  private async handleNoteModifyingTool(toolCall: {
+    name: string;
+    arguments?: unknown;
+  }): Promise<void> {
     // Handle tools that modify notes for UI refresh
     const noteModifyingTools = ['update_note', 'create_note', 'delete_note'];
 
@@ -82,12 +86,13 @@ export class ElectronChatService implements ChatService, NoteService {
         if (toolCall.name === 'update_note' || toolCall.name === 'delete_note') {
           noteId = args.id || args.identifier;
         } else if (toolCall.name === 'create_note') {
-          // For create_note, we notify with the title since that's what becomes the identifier
+          // For create_note, use the title since that's what becomes the identifier
           noteId = args.title;
         }
 
-        if (noteId) {
-          notesStore.notifyNoteUpdated(noteId);
+        // Reload the affected note document if it's currently open
+        if (noteId && noteDocumentRegistry.isOpen(noteId)) {
+          await noteDocumentRegistry.reload(noteId);
         }
       } catch (err) {
         console.warn(

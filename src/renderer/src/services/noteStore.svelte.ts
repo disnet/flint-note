@@ -24,11 +24,6 @@ interface NotesStoreState {
   loading: boolean;
   error: string | null;
   wikilinksUpdateCounter: number;
-  noteUpdateCounter: number;
-  lastUpdatedNoteId: string | null;
-  noteRenameCounter: number;
-  lastRenamedNoteOldId: string | null;
-  lastRenamedNoteNewId: string | null;
 }
 
 function createNotesStore(): {
@@ -38,16 +33,9 @@ function createNotesStore(): {
   readonly error: string | null;
   readonly groupedNotes: Record<string, NoteMetadata[]>;
   readonly wikilinksUpdateCounter: number;
-  readonly noteUpdateCounter: number;
-  readonly lastUpdatedNoteId: string | null;
-  readonly noteRenameCounter: number;
-  readonly lastRenamedNoteOldId: string | null;
-  readonly lastRenamedNoteNewId: string | null;
   refresh: () => Promise<void>;
   handleToolCall: (toolCall: { name: string }) => void;
   notifyWikilinksUpdated: () => void;
-  notifyNoteUpdated: (noteId: string) => void;
-  notifyNoteRenamed: (oldId: string, newId: string) => void;
 } {
   const noteService = getChatService();
 
@@ -56,12 +44,7 @@ function createNotesStore(): {
     noteTypes: [],
     loading: true,
     error: null,
-    wikilinksUpdateCounter: 0,
-    noteUpdateCounter: 0,
-    lastUpdatedNoteId: null,
-    noteRenameCounter: 0,
-    lastRenamedNoteOldId: null,
-    lastRenamedNoteNewId: null
+    wikilinksUpdateCounter: 0
   });
 
   // Derived store for grouped notes by type
@@ -238,17 +221,6 @@ function createNotesStore(): {
     state.wikilinksUpdateCounter++;
   }
 
-  function notifyNoteUpdated(noteId: string): void {
-    state.noteUpdateCounter++;
-    state.lastUpdatedNoteId = noteId;
-  }
-
-  function notifyNoteRenamed(oldId: string, newId: string): void {
-    state.noteRenameCounter++;
-    state.lastRenamedNoteOldId = oldId;
-    state.lastRenamedNoteNewId = newId;
-  }
-
   // Initial load
   loadAllNotes();
 
@@ -271,26 +243,9 @@ function createNotesStore(): {
     get wikilinksUpdateCounter() {
       return state.wikilinksUpdateCounter;
     },
-    get noteUpdateCounter() {
-      return state.noteUpdateCounter;
-    },
-    get lastUpdatedNoteId() {
-      return state.lastUpdatedNoteId;
-    },
-    get noteRenameCounter() {
-      return state.noteRenameCounter;
-    },
-    get lastRenamedNoteOldId() {
-      return state.lastRenamedNoteOldId;
-    },
-    get lastRenamedNoteNewId() {
-      return state.lastRenamedNoteNewId;
-    },
     refresh,
     handleToolCall,
-    notifyWikilinksUpdated,
-    notifyNoteUpdated,
-    notifyNoteRenamed
+    notifyWikilinksUpdated
   };
 }
 
