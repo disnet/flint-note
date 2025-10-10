@@ -649,6 +649,7 @@ export class FlintNoteApi {
         );
 
         // Apply template to the new vault (unless skipTemplate is true)
+        let initialNoteId: string | undefined;
         if (args.skipTemplate !== true) {
           try {
             const tempNoteManager = new NoteManager(workspace, tempHybridSearchManager);
@@ -658,10 +659,12 @@ export class FlintNoteApi {
 
             const result = await templateManager.applyTemplate(
               templateId,
-
               tempNoteManager,
               tempNoteTypeManager
             );
+
+            // Capture the initial note ID from template application
+            initialNoteId = result.initialNoteId;
 
             console.log(
               `Template applied: ${result.noteTypesCreated} note types, ${result.notesCreated} notes`
@@ -694,7 +697,8 @@ export class FlintNoteApi {
 
         return {
           ...vault,
-          isNewVault
+          isNewVault,
+          initialNoteId
         };
       }
     }

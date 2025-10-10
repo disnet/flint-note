@@ -4,3 +4,4 @@ description: 'A vault for academic research, literature review, and organizing r
 icon: '🔬'
 author: 'Flint Team'
 version: '1.0.0'
+initialNote: 'research-workflow.md'

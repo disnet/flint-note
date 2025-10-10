@@ -22,6 +22,7 @@ export interface TemplateMetadata {
   icon?: string;
   author?: string;
   version?: string;
+  initialNote?: string; // Filename of note to open initially (e.g., "welcome.md")
 }
 
 /**
@@ -311,11 +312,13 @@ export class TemplateManager {
     noteTypesCreated: number;
     notesCreated: number;
     errors: string[];
+    initialNoteId?: string;
   }> {
     const template = await this.loadTemplate(templateId);
     const errors: string[] = [];
     let noteTypesCreated = 0;
     let notesCreated = 0;
+    let initialNoteId: string | undefined;
 
     // Create note types
     for (const noteTypedef of template.noteTypes) {
@@ -342,7 +345,7 @@ export class TemplateManager {
     // Create starter notes
     for (const note of template.notes) {
       try {
-        await noteManager.createNote(
+        const createdNote = await noteManager.createNote(
           note.type,
           note.title,
           note.content,
@@ -351,6 +354,11 @@ export class TemplateManager {
         );
 
         notesCreated++;
+
+        // Track the initial note if this matches the template's initialNote
+        if (template.metadata.initialNote === note.filename) {
+          initialNoteId = createdNote.id;
+        }
       } catch (error) {
         const errorMsg = `Failed to create note ${note.title}: ${error instanceof Error ? error.message : 'Unknown error'}`;
         console.error(errorMsg);
@@ -361,7 +369,8 @@ export class TemplateManager {
     return {
       noteTypesCreated,
       notesCreated,
-      errors
+      errors,
+      initialNoteId
     };
   }
 }

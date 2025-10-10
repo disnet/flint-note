@@ -1,5 +1,6 @@
 <script lang="ts">
   import { getChatService } from '../services/chatService';
+  import { temporaryTabsStore } from '../stores/temporaryTabsStore.svelte';
   import type { CreateVaultResult } from '@/server/api/types';
 
   interface TemplateMetadata {
@@ -151,6 +152,11 @@
         description: vaultDescription.trim() || undefined,
         templateId: selectedTemplate
       });
+
+      // If this is a new vault with an initial note, add it to temporary tabs
+      if (vaultInfo.isNewVault && vaultInfo.initialNoteId) {
+        await temporaryTabsStore.addTutorialNoteTabs([vaultInfo.initialNoteId]);
+      }
 
       // Notify parent component
       onVaultCreated?.(vaultInfo);

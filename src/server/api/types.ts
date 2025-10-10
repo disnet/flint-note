@@ -213,10 +213,7 @@ export interface CreateVaultResult {
   last_accessed: string;
   description?: string;
   isNewVault: boolean; // True if this was a newly created vault, false if existing vault was opened
-  onboardingNotes?: {
-    welcomeNoteId?: string;
-    tutorialNoteIds?: string[];
-  };
+  initialNoteId?: string; // ID of the note to open initially (from template)
 }
 
 export interface SwitchVaultArgs {

@@ -18,7 +18,6 @@
   import { activeNoteStore } from './stores/activeNoteStore.svelte';
   import { cursorPositionStore } from './services/cursorPositionStore.svelte';
   import { vaultAvailabilityService } from './services/vaultAvailabilityService.svelte';
-  import { pinnedNotesStore } from './services/pinnedStore.svelte';
   import { dailyViewStore } from './stores/dailyViewStore.svelte';
   import { inboxStore } from './stores/inboxStore.svelte';
   import type { CreateVaultResult } from '@/server/api/types';
@@ -537,32 +536,9 @@
         await dailyViewStore.reinitialize();
         console.log('Daily view store reinitialized after vault creation');
 
-        // Set up onboarding content only for new vaults (not existing ones)
-        if (vault.isNewVault) {
-          console.log('New vault detected, setting up onboarding content');
-
-          // Use the onboarding note IDs returned from vault creation if available
-          const welcomeNoteId = vault.onboardingNotes?.welcomeNoteId;
-          const tutorialNoteIds = vault.onboardingNotes?.tutorialNoteIds || [];
-
-          try {
-            await pinnedNotesStore.pinWelcomeNote(welcomeNoteId);
-            console.log('Welcome note pinned successfully');
-          } catch (error) {
-            console.warn('Failed to pin welcome note:', error);
-            // Non-blocking - don't fail the vault creation flow
-          }
-
-          try {
-            await temporaryTabsStore.addTutorialNoteTabs(tutorialNoteIds);
-            console.log('Tutorial tabs added successfully');
-          } catch (error) {
-            console.warn('Failed to add tutorial notes to tabs:', error);
-            // Non-blocking - don't fail the vault creation flow
-          }
-        } else {
-          console.log('Existing vault detected, skipping onboarding content setup');
-        }
+        // Initial note setup is now handled in CreateVaultModal.svelte
+        // This ensures the note is added to temporary tabs immediately after creation
+        console.log(vault.isNewVault ? 'New vault created' : 'Existing vault opened');
       } else {
         console.error('Failed to reinitialize note service:', result?.error);
       }

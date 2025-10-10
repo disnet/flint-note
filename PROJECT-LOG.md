@@ -1,5 +1,9 @@
 # Project Log
 
+## Template Initial Note Auto-Open - 2025-10-10
+
+- Added template-based initial note auto-open feature to guide new users immediately upon vault creation: templates now specify `initialNote` field in template.yml pointing to a starter note filename (e.g., welcome.md), TemplateManager.applyTemplate() tracks which note matches initialNote and returns its immutable ID, createVault() API returns initialNoteId in CreateVaultResult interface, CreateVaultModal automatically adds initialNoteId to temporary tabs using existing addTutorialNoteTabs() method when vault is created, cleaned up old App.svelte onboarding logic that referenced removed onboardingNotes field; architecture documentation updated to reflect new Phase 5 (Initial Note Tab Setup) in vault initialization flow; all type checking and formatting passes successfully
+
 ## Vault Template System Implementation - 2025-10-10
 
 - Replaced hardcoded onboarding content with flexible file-based vault template system to enable custom vault configurations: created TemplateManager class for loading templates from YAML/markdown files, built two templates (default for general note-taking, research for academic work) with template-defined note types and starter notes, updated FlintNoteApi.createVault() to apply selected template during vault creation instead of every load, added listTemplates IPC API exposed through preload and integrated into CreateVaultModal UI with radio button template selector showing template icons and descriptions, updated build process to copy templates directory to output and removed old onboarding directory; all formatting and linting passes successfully

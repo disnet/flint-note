@@ -126,6 +126,7 @@ await handleIndexRebuild(tempHybridSearchManager, shouldRebuild, logInitializati
 
 ```typescript
   // Apply template to the new vault
+  let initialNoteId: string | undefined;
   try {
     const tempNoteManager = new NoteManager(workspace, tempHybridSearchManager);
     const tempNoteTypeManager = new NoteTypeManager(workspace);
@@ -138,11 +139,25 @@ await handleIndexRebuild(tempHybridSearchManager, shouldRebuild, logInitializati
       tempNoteTypeManager
     );
 
+    // Capture the initial note ID from template application
+    initialNoteId = result.initialNoteId;
+
     console.log(`Template applied: ${result.noteTypesCreated} note types, ${result.notesCreated} notes`);
   } catch (error) {
     console.error('Failed to apply template to new vault:', error);
     // Don't throw - template application shouldn't block vault creation
   }
+}
+```
+
+### Phase 5: Initial Note Tab Setup
+
+If the template specified an initial note, it is automatically added to the user's temporary tabs when they first open the vault:
+
+```typescript
+// In CreateVaultModal.svelte (renderer process)
+if (vaultInfo.isNewVault && vaultInfo.initialNoteId) {
+  await temporaryTabsStore.addTutorialNoteTabs([vaultInfo.initialNoteId]);
 }
 ```
 
@@ -193,6 +208,20 @@ templates/
     │   └── paper.yml
     └── notes/
         └── research-guide.md
+```
+
+#### Template Metadata
+
+Each template's `template.yml` can specify an `initialNote` field to indicate which note should be opened automatically when the vault is first created:
+
+```yaml
+id: default
+name: 'Default Vault'
+description: 'A general-purpose vault for note-taking...'
+icon: '📝'
+author: 'Flint Team'
+version: '1.0.0'
+initialNote: 'welcome.md' # Filename of note to open initially
 ```
 
 ### Template Application Process
