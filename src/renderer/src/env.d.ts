@@ -169,6 +169,9 @@ declare global {
       }) => Promise<any>;
       switchVault: (params: { vaultId: string }) => Promise<any>;
       removeVault: (params: { vaultId: string }) => Promise<any>;
+      listTemplates: () => Promise<
+        Array<{ id: string; name: string; description: string; icon?: string }>
+      >;
       reinitializeNoteService: () => Promise<{
         success: boolean;
         status?: {

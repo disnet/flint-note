@@ -146,6 +146,7 @@ export interface NoteService {
     name: string;
     path: string;
     description?: string;
+    templateId?: string;
   }): Promise<CreateVaultResult>;
   switchVault(params: { vaultId: string }): Promise<void>;
   removeVault(params: { vaultId: string }): Promise<void>;

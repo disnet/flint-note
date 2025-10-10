@@ -648,29 +648,31 @@ export class FlintNoteApi {
           logInitialization
         );
 
-        // Apply template to the new vault
-        try {
-          const tempNoteManager = new NoteManager(workspace, tempHybridSearchManager);
-          const tempNoteTypeManager = new NoteTypeManager(workspace);
-          const templateManager = new TemplateManager();
-          const templateId = args.templateId || 'default';
+        // Apply template to the new vault (unless skipTemplate is true)
+        if (args.skipTemplate !== true) {
+          try {
+            const tempNoteManager = new NoteManager(workspace, tempHybridSearchManager);
+            const tempNoteTypeManager = new NoteTypeManager(workspace);
+            const templateManager = new TemplateManager();
+            const templateId = args.templateId || 'default';
 
-          const result = await templateManager.applyTemplate(
-            templateId,
+            const result = await templateManager.applyTemplate(
+              templateId,
 
-            tempNoteManager,
-            tempNoteTypeManager
-          );
+              tempNoteManager,
+              tempNoteTypeManager
+            );
 
-          console.log(
-            `Template applied: ${result.noteTypesCreated} note types, ${result.notesCreated} notes`
-          );
-          if (result.errors.length > 0) {
-            console.warn('Template application errors:', result.errors);
+            console.log(
+              `Template applied: ${result.noteTypesCreated} note types, ${result.notesCreated} notes`
+            );
+            if (result.errors.length > 0) {
+              console.warn('Template application errors:', result.errors);
+            }
+          } catch (error) {
+            console.error('Failed to apply template to new vault:', error);
+            // Don't throw - template application shouldn't block vault creation
           }
-        } catch (error) {
-          console.error('Failed to apply template to new vault:', error);
-          // Don't throw - template application shouldn't block vault creation
         }
 
         await tempHybridSearchManager.close();

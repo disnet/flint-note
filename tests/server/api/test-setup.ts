@@ -42,7 +42,7 @@ export class TestApiSetup {
 
   async createTestVault(
     vaultId: string,
-    options?: { initialize?: boolean }
+    options?: { initialize?: boolean; skipTemplate?: boolean }
   ): Promise<string> {
     // Generate unique vault ID if provided ID is already taken
     let uniqueVaultId = vaultId;
@@ -59,6 +59,7 @@ export class TestApiSetup {
       path: path.join(this.testWorkspacePath, uniqueVaultId),
       description: `Test vault for ${uniqueVaultId}`,
       initialize: options?.initialize ?? true,
+      skipTemplate: options?.skipTemplate ?? true, // Skip templates by default in tests
       switch_to: false
     };
 

@@ -57,16 +57,74 @@ export interface Template {
 
 export class TemplateManager {
   private templatesDir: string;
+  private foundTemplatesDir: string | null = null;
 
   constructor(templatesDir?: string) {
-    // Default to templates directory in build output
-    this.templatesDir = templatesDir || path.join(__dirname, '../../templates');
+    if (templatesDir) {
+      this.templatesDir = templatesDir;
+    } else {
+      // Try to find templates directory
+      // In development/tests: src/server/templates
+      // In production: built output location
+      const possiblePaths = [
+        path.join(__dirname, '../../templates'), // Production build
+        path.join(__dirname, '../templates'), // Alternative build structure
+        path.join(process.cwd(), 'src/server/templates') // Development/tests
+      ];
+
+      // Use the first path that exists
+      this.templatesDir = possiblePaths[0]; // Default to production path
+      // Note: We don't check if the directory exists here to avoid async constructor
+      // The methods will handle missing directories gracefully
+    }
+  }
+
+  /**
+   * Find the templates directory by trying multiple possible locations
+   * Memoizes the result for subsequent calls
+   */
+  private async findTemplatesDir(): Promise<string | null> {
+    // Return memoized result if already found
+    if (this.foundTemplatesDir) {
+      return this.foundTemplatesDir;
+    }
+
+    const possiblePaths = [
+      this.templatesDir, // Explicitly provided or default
+      path.join(__dirname, '../../templates'), // Production build
+      path.join(__dirname, '../templates'), // Alternative build structure
+      path.join(process.cwd(), 'src/server/templates') // Development/tests
+    ];
+
+    for (const testPath of possiblePaths) {
+      try {
+        await fs.access(testPath);
+        // Memoize the found directory
+        this.foundTemplatesDir = testPath;
+        this.templatesDir = testPath;
+        return testPath;
+      } catch {
+        // Continue to next path
+      }
+    }
+
+    return null;
   }
 
   /**
    * List all available templates
    */
   async listTemplates(): Promise<TemplateMetadata[]> {
+    const templatesDir = await this.findTemplatesDir();
+
+    if (!templatesDir) {
+      console.error('Failed to locate templates directory');
+      return [];
+    }
+
+    // Update the templates directory to the found one
+    this.templatesDir = templatesDir;
+
     try {
       const entries = await fs.readdir(this.templatesDir, {
         withFileTypes: true
@@ -98,6 +156,12 @@ export class TemplateManager {
    * Load metadata for a specific template
    */
   async loadTemplateMetadata(templateId: string): Promise<TemplateMetadata> {
+    // Ensure we have the correct templates directory
+    const templatesDir = await this.findTemplatesDir();
+    if (templatesDir) {
+      this.templatesDir = templatesDir;
+    }
+
     const templateDir = path.join(this.templatesDir, templateId);
     const metadataPath = path.join(templateDir, 'template.yml');
 
@@ -120,6 +184,12 @@ export class TemplateManager {
    * Load complete template definition
    */
   async loadTemplate(templateId: string): Promise<Template> {
+    // Ensure we have the correct templates directory
+    const templatesDir = await this.findTemplatesDir();
+    if (templatesDir) {
+      this.templatesDir = templatesDir;
+    }
+
     const templateDir = path.join(this.templatesDir, templateId);
 
     // Load metadata
