@@ -1,0 +1,19 @@
+name: fleeting
+purpose: 'Fleeting notes for quick capture of thoughts, ideas, and observations that need processing'
+agent_instructions:
+  - 'Help identify when a fleeting note is ready to become a permanent note'
+  - 'Suggest connections to existing permanent notes and concepts'
+  - 'Extract the core idea or insight from the fleeting note'
+  - 'Keep fleeting notes concise and focused on single ideas'
+  - "Preserve the user's original thinking and formulation"
+  - 'Encourage conversion to permanent notes when ideas mature'
+metadata_schema:
+  fields:
+    - name: 'source'
+      type: 'string'
+      description: 'Where this idea came from (conversation, reading, etc.)'
+      required: false
+    - name: 'processed'
+      type: 'boolean'
+      description: 'Has this fleeting note been converted to permanent notes?'
+      required: false

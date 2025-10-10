@@ -1,0 +1,31 @@
+name: literature
+purpose: 'Literature notes for capturing ideas from books, articles, papers, and other external sources'
+agent_instructions:
+  - 'Help extract key ideas that could become permanent notes'
+  - 'Distinguish between source content and personal insights'
+  - 'Create connections to related literature notes and permanent notes'
+  - 'Suggest themes and concepts that appear across multiple sources'
+  - 'Maintain citation integrity and proper attribution'
+  - 'Help identify when ideas are ready to be transformed into permanent notes'
+metadata_schema:
+  fields:
+    - name: 'author'
+      type: 'string'
+      description: 'Author of the source material'
+      required: false
+    - name: 'title'
+      type: 'string'
+      description: 'Title of the source material'
+      required: false
+    - name: 'year'
+      type: 'number'
+      description: 'Publication year'
+      required: false
+    - name: 'url'
+      type: 'string'
+      description: 'Link to source'
+      required: false
+    - name: 'type'
+      type: 'string'
+      description: 'Type of source (book, article, paper, video, etc.)'
+      required: false

@@ -1,0 +1,21 @@
+name: permanent
+purpose: 'Permanent notes containing atomic, evergreen ideas in your own words'
+agent_instructions:
+  - 'Ensure each permanent note contains one clear, atomic idea'
+  - 'Help create rich connections to related permanent notes'
+  - 'Suggest when ideas could be split into multiple atomic notes'
+  - 'Identify clusters and themes emerging from connected notes'
+  - 'Encourage writing in complete sentences and clear explanations'
+  - "NEVER alter the user's thinking or voice"
+  - 'Help ensure ideas are expressed in own words, not copied from sources'
+  - 'Suggest literature notes that support or challenge the idea'
+metadata_schema:
+  fields:
+    - name: 'created'
+      type: 'string'
+      description: 'Date note was created'
+      required: false
+    - name: 'tags'
+      type: 'string'
+      description: 'Tags for categorization'
+      required: false

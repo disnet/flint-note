@@ -1,0 +1,7 @@
+id: zettelkasten
+name: 'Zettelkasten Vault'
+description: 'A vault optimized for the Zettelkasten method of knowledge development and atomic note-taking'
+icon: '🗂️'
+author: 'Flint Team'
+version: '1.0.0'
+initialNote: 'zettelkasten-guide.md'

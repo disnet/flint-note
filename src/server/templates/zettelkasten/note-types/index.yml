@@ -1,0 +1,15 @@
+name: index
+purpose: 'Index notes that serve as entry points and organize related permanent notes by topic or theme'
+agent_instructions:
+  - 'Help organize permanent notes into thematic structures'
+  - 'Suggest permanent notes that could be added to the index'
+  - 'Identify when sub-indexes might be useful for large topics'
+  - 'Create narrative connections between indexed notes'
+  - 'Help maintain index consistency and usefulness'
+  - 'Suggest related index notes for cross-referencing'
+metadata_schema:
+  fields:
+    - name: 'theme'
+      type: 'string'
+      description: 'Main theme or topic of this index'
+      required: false
