@@ -35,8 +35,8 @@
 
   let noteData = $state<Note | null>(null);
   let metadataExpanded = $state(false);
-  let editorRef: CodeMirrorEditor;
-  let headerRef: { focusTitle?: () => void } | null = null;
+  let editorRef = $state<CodeMirrorEditor | undefined>(undefined);
+  let headerRef = $state<{ focusTitle?: () => void } | null>(null);
   let pendingCursorPosition = $state<CursorPosition | null>(null);
 
   const cursorManager = new CursorPositionManager();
