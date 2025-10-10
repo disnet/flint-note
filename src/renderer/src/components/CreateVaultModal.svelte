@@ -1,6 +1,5 @@
 <script lang="ts">
   import { getChatService } from '../services/chatService';
-  import { temporaryTabsStore } from '../stores/temporaryTabsStore.svelte';
   import type { CreateVaultResult } from '@/server/api/types';
 
   interface TemplateMetadata {
@@ -153,15 +152,18 @@
         templateId: selectedTemplate
       });
 
-      // If this is a new vault with an initial note, add it to temporary tabs
-      if (vaultInfo.isNewVault && vaultInfo.initialNoteId) {
-        await temporaryTabsStore.addTutorialNoteTabs([vaultInfo.initialNoteId]);
-      }
+      console.log('CreateVaultModal: vaultInfo =', vaultInfo);
+      console.log('CreateVaultModal: isNewVault =', vaultInfo.isNewVault);
+      console.log('CreateVaultModal: initialNoteId =', vaultInfo.initialNoteId);
 
-      // Notify parent component
-      onVaultCreated?.(vaultInfo);
+      // Notify parent component - DON'T add tabs here, let the parent handle it
+      // after vault switching is complete to ensure we have the correct vault ID
+      // IMPORTANT: await the callback to ensure it completes before closing modal
+      console.log('CreateVaultModal: Calling onVaultCreated...');
+      await onVaultCreated?.(vaultInfo);
+      console.log('CreateVaultModal: onVaultCreated completed');
 
-      // Close modal
+      // Close modal AFTER callback completes
       onClose();
     } catch (err) {
       console.error('Failed to create vault:', err);

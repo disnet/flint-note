@@ -99,6 +99,10 @@
   }
 
   async function handleVaultCreated(vaultInfo: CreateVaultResult): Promise<void> {
+    console.log('VaultSwitcher: handleVaultCreated called with vaultInfo:', vaultInfo);
+    console.log('VaultSwitcher: vaultInfo.isNewVault =', vaultInfo.isNewVault);
+    console.log('VaultSwitcher: vaultInfo.initialNoteId =', vaultInfo.initialNoteId);
+
     try {
       // Refresh vault list to include the new vault
       await loadVaults();
@@ -117,7 +121,19 @@
           }
 
           try {
-            await temporaryTabsStore.addTutorialNoteTabs();
+            // If template specified an initial note, use that; otherwise fall back to tutorial notes
+            if (vaultInfo.initialNoteId) {
+              console.log(
+                'VaultSwitcher: Adding initial note from template:',
+                vaultInfo.initialNoteId
+              );
+              await temporaryTabsStore.addTutorialNoteTabs([vaultInfo.initialNoteId]);
+            } else {
+              console.log(
+                'VaultSwitcher: No initial note from template, adding tutorial notes'
+              );
+              await temporaryTabsStore.addTutorialNoteTabs();
+            }
           } catch (error) {
             console.warn('Failed to add tutorial notes to tabs:', error);
             // Non-blocking - don't fail the vault creation flow

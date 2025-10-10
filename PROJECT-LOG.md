@@ -1,5 +1,13 @@
 # Project Log
 
+## Template Initial Note VaultSwitcher Fix - 2025-10-10
+
+- Fixed VaultSwitcher interference with template initial note auto-open feature where VaultSwitcher's CreateVaultModal handler was executing instead of FirstTimeExperience handler during vault creation, causing initialNoteId to be lost: root cause was that when vault is created from FirstTimeExperience, hasVaults becomes true immediately and app switches from FirstTimeExperience to normal interface mid-flow, triggering VaultSwitcher's handleVaultCreated which called addTutorialNoteTabs() without initialNoteId argument; updated VaultSwitcher.svelte handleVaultCreated() to check if vaultInfo.initialNoteId exists and pass it to addTutorialNoteTabs([vaultInfo.initialNoteId]) when available, otherwise fall back to default tutorial notes behavior; added comprehensive logging throughout vault creation flow to track initialNoteId propagation; all linting and type checking passes successfully
+
+## Template Initial Note Tab Timing Fix - 2025-10-10
+
+- Fixed critical timing bug where initial note tab was added to wrong vault ID during vault creation: root cause was CreateVaultModal adding tab immediately after vault creation (to vault ID temp-6) but then vault switching/reinitialization changed current vault to different ID (temp-7), causing tab to be saved to wrong vault's storage and not appear when loading new vault; moved initial note tab addition from CreateVaultModal to App.svelte's handleVaultCreatedFromFirstTime() to run AFTER reinitializeNoteService() completes vault switching, ensuring temporary tabs store has correct vault ID when adding tab; updated CreateVaultModal to only pass vault info to parent without tab management, removed temporaryTabsStore import from CreateVaultModal; all formatting passes successfully
+
 ## Template Initial Note Auto-Open - 2025-10-10
 
 - Added template-based initial note auto-open feature to guide new users immediately upon vault creation: templates now specify `initialNote` field in template.yml pointing to a starter note filename (e.g., welcome.md), TemplateManager.applyTemplate() tracks which note matches initialNote and returns its immutable ID, createVault() API returns initialNoteId in CreateVaultResult interface, CreateVaultModal automatically adds initialNoteId to temporary tabs using existing addTutorialNoteTabs() method when vault is created, cleaned up old App.svelte onboarding logic that referenced removed onboardingNotes field; architecture documentation updated to reflect new Phase 5 (Initial Note Tab Setup) in vault initialization flow; all type checking and formatting passes successfully

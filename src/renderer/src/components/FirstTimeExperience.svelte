@@ -21,6 +21,10 @@
   }
 
   async function handleVaultCreated(vault: CreateVaultResult): Promise<void> {
+    console.log('FirstTimeExperience: handleVaultCreated called with vault:', vault);
+    console.log('FirstTimeExperience: vault.isNewVault =', vault.isNewVault);
+    console.log('FirstTimeExperience: vault.initialNoteId =', vault.initialNoteId);
+
     // Update the vault availability service with VaultInfo portion
     const vaultInfo: VaultInfo = {
       id: vault.id,
@@ -33,6 +37,7 @@
     vaultAvailabilityService.handleVaultCreated(vaultInfo);
 
     // Notify parent component with full CreateVaultResult
+    console.log('FirstTimeExperience: Calling onVaultCreated with vault:', vault);
     onVaultCreated(vault);
 
     // Close modal

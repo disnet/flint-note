@@ -565,6 +565,8 @@ export class FlintNoteApi {
     const isExistingVault = await Workspace.isExistingVault(resolvedPath);
     // Track whether this is a new vault for the response
     let isNewVault = false;
+    // Track initial note ID from template (if any)
+    let initialNoteId: string | undefined;
 
     if (args.detectExisting !== false && isExistingVault) {
       // Path contains existing vault - just register it without full initialization
@@ -649,7 +651,6 @@ export class FlintNoteApi {
         );
 
         // Apply template to the new vault (unless skipTemplate is true)
-        let initialNoteId: string | undefined;
         if (args.skipTemplate !== true) {
           try {
             const tempNoteManager = new NoteManager(workspace, tempHybridSearchManager);
@@ -668,6 +669,10 @@ export class FlintNoteApi {
 
             console.log(
               `Template applied: ${result.noteTypesCreated} note types, ${result.notesCreated} notes`
+            );
+            console.log(
+              'Template application result.initialNoteId:',
+              result.initialNoteId
             );
             if (result.errors.length > 0) {
               console.warn('Template application errors:', result.errors);
@@ -717,10 +722,13 @@ export class FlintNoteApi {
       throw new Error('Failed to retrieve created vault');
     }
 
-    return {
+    const result = {
       ...vault,
-      isNewVault
+      isNewVault,
+      initialNoteId
     };
+    console.log('createVault returning:', result);
+    return result;
   }
 
   /**

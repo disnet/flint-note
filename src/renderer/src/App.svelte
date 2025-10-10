@@ -518,7 +518,9 @@
   async function handleVaultCreatedFromFirstTime(
     vault: CreateVaultResult
   ): Promise<void> {
-    console.log('Vault created from first-time experience:', vault);
+    console.log('App.svelte: handleVaultCreatedFromFirstTime called with vault:', vault);
+    console.log('App.svelte: vault.isNewVault =', vault.isNewVault);
+    console.log('App.svelte: vault.initialNoteId =', vault.initialNoteId);
 
     // The vault availability service should already be updated by FirstTimeExperience
     // Now we need to trigger reinitialization of the note service and refresh stores
@@ -536,8 +538,19 @@
         await dailyViewStore.reinitialize();
         console.log('Daily view store reinitialized after vault creation');
 
-        // Initial note setup is now handled in CreateVaultModal.svelte
-        // This ensures the note is added to temporary tabs immediately after creation
+        // NOW add initial note tab AFTER vault switching is complete
+        // This ensures we have the correct vault ID in temporary tabs store
+        console.log('App.svelte: Checking if should add initial note...');
+        console.log('App.svelte: vault.isNewVault =', vault.isNewVault);
+        console.log('App.svelte: vault.initialNoteId =', vault.initialNoteId);
+        if (vault.isNewVault && vault.initialNoteId) {
+          console.log('App.svelte: Adding initial note to tabs:', vault.initialNoteId);
+          await temporaryTabsStore.addTutorialNoteTabs([vault.initialNoteId]);
+          console.log('App.svelte: Initial note added to tabs');
+        } else {
+          console.log('App.svelte: NOT adding initial note - conditions not met');
+        }
+
         console.log(vault.isNewVault ? 'New vault created' : 'Existing vault opened');
       } else {
         console.error('Failed to reinitialize note service:', result?.error);

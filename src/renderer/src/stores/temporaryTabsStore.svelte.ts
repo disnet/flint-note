@@ -68,8 +68,10 @@ class TemporaryTabsStore {
     await this.ensureInitialized();
     // Don't add tabs while we're switching vaults
     if (this.isVaultSwitching) {
+      console.log('addTab: Blocked by isVaultSwitching flag for noteId:', noteId);
       return;
     }
+    console.log('addTab: Adding tab for noteId:', noteId, 'source:', source);
 
     const existingIndex = this.state.tabs.findIndex((tab) => tab.noteId === noteId);
 
@@ -462,11 +464,28 @@ class TemporaryTabsStore {
   async addTutorialNoteTabs(tutorialNoteIds?: string[]): Promise<void> {
     await this.ensureInitialized();
 
+    console.log('addTutorialNoteTabs: tutorialNoteIds =', tutorialNoteIds);
+    console.log('addTutorialNoteTabs: isVaultSwitching =', this.isVaultSwitching);
+    console.log('addTutorialNoteTabs: currentVaultId =', this.currentVaultId);
+
     if (tutorialNoteIds && tutorialNoteIds.length > 0) {
       // Use provided tutorial note IDs
+      // Temporarily clear vault switching flag to allow adding tutorial tabs
+      const wasVaultSwitching = this.isVaultSwitching;
+      console.log('addTutorialNoteTabs: Temporarily clearing vault switching flag');
+      this.isVaultSwitching = false;
+
       for (const noteId of tutorialNoteIds) {
+        console.log('addTutorialNoteTabs: Adding tab for noteId:', noteId);
         await this.addTab(noteId, 'navigation');
       }
+
+      // Restore vault switching flag
+      console.log(
+        'addTutorialNoteTabs: Restoring vault switching flag to:',
+        wasVaultSwitching
+      );
+      this.isVaultSwitching = wasVaultSwitching;
     } else {
       // Fallback: try to find tutorial notes by title
       const tutorialTitles = [

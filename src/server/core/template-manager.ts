@@ -315,6 +315,14 @@ export class TemplateManager {
     initialNoteId?: string;
   }> {
     const template = await this.loadTemplate(templateId);
+    console.log(
+      'applyTemplate: template.metadata.initialNote =',
+      template.metadata.initialNote
+    );
+    console.log(
+      'applyTemplate: template.notes =',
+      template.notes.map((n) => n.filename)
+    );
     const errors: string[] = [];
     let noteTypesCreated = 0;
     let notesCreated = 0;
@@ -356,7 +364,17 @@ export class TemplateManager {
         notesCreated++;
 
         // Track the initial note if this matches the template's initialNote
+        console.log(
+          'applyTemplate: Checking if note.filename',
+          note.filename,
+          '=== template.metadata.initialNote',
+          template.metadata.initialNote
+        );
         if (template.metadata.initialNote === note.filename) {
+          console.log(
+            'applyTemplate: Match found! Setting initialNoteId =',
+            createdNote.id
+          );
           initialNoteId = createdNote.id;
         }
       } catch (error) {
@@ -366,6 +384,7 @@ export class TemplateManager {
       }
     }
 
+    console.log('applyTemplate: Returning initialNoteId =', initialNoteId);
     return {
       noteTypesCreated,
       notesCreated,
