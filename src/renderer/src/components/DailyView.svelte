@@ -43,6 +43,14 @@
     dailyViewStore.updateDailyNote(date, content);
   }
 
+  async function handleDailyNoteTitleClick(date: string): Promise<void> {
+    // Open the daily note, creating it if necessary
+    const dailyNote = await dailyViewStore.openDailyNote(date);
+    if (dailyNote) {
+      onNoteSelect?.(dailyNote);
+    }
+  }
+
   // Reload data when the component becomes active
   // This ensures fresh data when navigating back to daily view
   $effect(() => {
@@ -69,6 +77,7 @@
             isToday={isToday(dayData.date)}
             onNoteClick={handleNoteClick}
             onDailyNoteUpdate={handleDailyNoteUpdate}
+            onDailyNoteTitleClick={handleDailyNoteTitleClick}
           />
         {/each}
       </div>

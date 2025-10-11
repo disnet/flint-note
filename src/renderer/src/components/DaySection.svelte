@@ -9,9 +9,17 @@
     isToday: boolean;
     onNoteClick?: (noteId: string) => void;
     onDailyNoteUpdate?: (date: string, content: string) => void;
+    onDailyNoteTitleClick?: (date: string) => void;
   }
 
-  let { dayData, dayHeader, isToday, onNoteClick, onDailyNoteUpdate }: Props = $props();
+  let {
+    dayData,
+    dayHeader,
+    isToday,
+    onNoteClick,
+    onDailyNoteUpdate,
+    onDailyNoteTitleClick
+  }: Props = $props();
 
   // Combine created and modified notes, removing duplicates
   const allNotesWorkedOn = $derived.by(() => {
@@ -47,26 +55,21 @@
   }
 
   function handleDayTitleClick(): void {
-    if (dayData.dailyNote?.id) {
-      onNoteClick?.(dayData.dailyNote.id);
-    }
+    // Always allow clicking the title - let the store handle creation
+    onDailyNoteTitleClick?.(dayData.date);
   }
 </script>
 
 <div class="day-section" class:is-today={isToday}>
   <div class="day-header">
-    {#if dayData.dailyNote?.id}
-      <button
-        class="day-title clickable"
-        class:is-today={isToday}
-        onclick={handleDayTitleClick}
-        type="button"
-      >
-        {dayHeader}
-      </button>
-    {:else}
-      <h2 class="day-title" class:is-today={isToday}>{dayHeader}</h2>
-    {/if}
+    <button
+      class="day-title clickable"
+      class:is-today={isToday}
+      onclick={handleDayTitleClick}
+      type="button"
+    >
+      {dayHeader}
+    </button>
     {#if isToday}
       <span class="today-badge">Today</span>
     {/if}

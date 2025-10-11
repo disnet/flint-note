@@ -82,11 +82,10 @@ const defaultState: DailyViewState = {
 class DailyViewStore {
   private state = $state<DailyViewState>(defaultState);
   private updateDebounceTimeout: number | null = null;
-  private isInitialized = false;
 
   constructor() {
     // Don't load data in constructor to avoid errors during first-time setup
-    // Data will be loaded lazily when first accessed
+    // Data will be loaded when DailyView component mounts via $effect
   }
 
   get loading(): boolean {
@@ -94,27 +93,13 @@ class DailyViewStore {
   }
 
   get weekData(): WeekData | null {
-    this.ensureInitialized();
     return this.state.currentWeek;
-  }
-
-  /**
-   * Initialize the store if not already initialized
-   */
-  private ensureInitialized(): void {
-    if (!this.isInitialized) {
-      this.isInitialized = true;
-      this.loadCurrentWeek().catch((error) => {
-        console.warn('Failed to initialize daily view store:', error);
-      });
-    }
   }
 
   /**
    * Reinitialize the store after vault setup
    */
   async reinitialize(): Promise<void> {
-    this.isInitialized = false;
     this.state = { ...defaultState };
     await this.loadCurrentWeek();
   }
@@ -271,6 +256,32 @@ class DailyViewStore {
   }
 
   /**
+   * Open a daily note, creating it if necessary
+   * Returns the full note metadata for navigation
+   */
+  async openDailyNote(date: string): Promise<DailyNote | null> {
+    try {
+      // Get or create the note
+      const dailyNote = await this.getOrCreateDailyNote(date, true);
+
+      if (dailyNote) {
+        // Update local state to ensure the note is reflected
+        this.updateLocalDailyNoteMetadata(date, dailyNote);
+
+        // Refresh notes store so the new note appears in temporary tabs with correct title
+        // Import dynamically to avoid circular dependencies
+        const { notesStore } = await import('../services/noteStore.svelte');
+        await notesStore.refresh();
+      }
+
+      return dailyNote;
+    } catch (error) {
+      console.error('Failed to open daily note:', error);
+      return null;
+    }
+  }
+
+  /**
    * Update daily note content with debouncing to prevent database busy errors
    */
   async updateDailyNote(date: string, content: string): Promise<void> {
@@ -286,6 +297,25 @@ class DailyViewStore {
     this.updateDebounceTimeout = setTimeout(async () => {
       await this.performDailyNoteUpdate(date, content);
     }, 300) as unknown as number;
+  }
+
+  /**
+   * Update the local state with a fully loaded daily note
+   */
+  private updateLocalDailyNoteMetadata(date: string, dailyNote: DailyNote): void {
+    if (this.state.currentWeek) {
+      const updatedWeek = { ...this.state.currentWeek };
+      updatedWeek.days = updatedWeek.days.map((day) => {
+        if (day.date === date) {
+          return {
+            ...day,
+            dailyNote
+          };
+        }
+        return day;
+      });
+      this.state.currentWeek = updatedWeek;
+    }
   }
 
   /**
