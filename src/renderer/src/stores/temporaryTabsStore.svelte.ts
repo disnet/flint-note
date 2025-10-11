@@ -37,15 +37,30 @@ class TemporaryTabsStore {
 
     // Subscribe to note events
     messageBus.subscribe('note.renamed', async (event) => {
+      console.log('[temporaryTabsStore] note.renamed event:', {
+        oldId: event.oldId,
+        newId: event.newId
+      });
       await this.updateNoteId(event.oldId, event.newId);
     });
 
     messageBus.subscribe('note.deleted', async (event) => {
+      console.log('[temporaryTabsStore] note.deleted event:', {
+        noteId: event.noteId
+      });
       await this.removeTabsByNoteIds([event.noteId]);
     });
 
     messageBus.subscribe('vault.switched', async (event) => {
+      console.log('[temporaryTabsStore] vault.switched event:', {
+        vaultId: event.vaultId
+      });
       await this.refreshForVault(event.vaultId);
+    });
+
+    messageBus.subscribe('notes.bulkRefresh', async () => {
+      console.log('[temporaryTabsStore] notes.bulkRefresh event: Validating tabs');
+      await this.validateTabs();
     });
   }
 
@@ -82,14 +97,25 @@ class TemporaryTabsStore {
     await this.ensureInitialized();
     // Don't add tabs while we're switching vaults
     if (this.isVaultSwitching) {
-      console.log('addTab: Blocked by isVaultSwitching flag for noteId:', noteId);
+      console.log(
+        '[temporaryTabsStore] addTab: Blocked by isVaultSwitching flag for noteId:',
+        noteId
+      );
       return;
     }
-    console.log('addTab: Adding tab for noteId:', noteId, 'source:', source);
+    console.log(
+      '[temporaryTabsStore] addTab: Adding tab for noteId:',
+      noteId,
+      'source:',
+      source
+    );
 
     const existingIndex = this.state.tabs.findIndex((tab) => tab.noteId === noteId);
 
     if (existingIndex !== -1) {
+      console.log(
+        '[temporaryTabsStore] addTab: Tab already exists, updating lastAccessed'
+      );
       // Update existing tab without moving it
       this.state.tabs[existingIndex].lastAccessed = new Date();
       this.state.activeTabId = this.state.tabs[existingIndex].id;
@@ -105,12 +131,29 @@ class TemporaryTabsStore {
         order: this.state.tabs.length
       };
 
+      console.log('[temporaryTabsStore] addTab: Creating new tab:', {
+        tabId: newTab.id,
+        noteId: newTab.noteId,
+        source: newTab.source,
+        order: newTab.order,
+        totalTabsAfter: this.state.tabs.length + 1
+      });
+
       // Add to bottom instead of top
       this.state.tabs.push(newTab);
       this.state.activeTabId = newTab.id;
 
       // Enforce max tabs limit by removing from the beginning (oldest tabs)
       if (this.state.tabs.length > this.state.maxTabs) {
+        const removedTabs = this.state.tabs.slice(
+          0,
+          this.state.tabs.length - this.state.maxTabs
+        );
+        console.log('[temporaryTabsStore] addTab: Removing old tabs due to max limit:', {
+          maxTabs: this.state.maxTabs,
+          removedCount: removedTabs.length,
+          removedTabIds: removedTabs.map((t) => ({ tabId: t.id, noteId: t.noteId }))
+        });
         this.state.tabs = this.state.tabs.slice(-this.state.maxTabs);
       }
     }
@@ -180,6 +223,19 @@ class TemporaryTabsStore {
   ): Promise<void> {
     await this.ensureInitialized();
     const originalLength = this.state.tabs.length;
+    const removedTabs = this.state.tabs.filter((tab) => noteIds.includes(tab.noteId));
+
+    if (removedTabs.length > 0) {
+      console.log('[temporaryTabsStore] removeTabsByNoteIds: Removing tabs:', {
+        noteIds,
+        removedTabs: removedTabs.map((t) => ({
+          tabId: t.id,
+          noteId: t.noteId,
+          source: t.source
+        }))
+      });
+    }
+
     this.state.tabs = this.state.tabs.filter((tab) => !noteIds.includes(tab.noteId));
 
     // Update active tab if the removed tab was active
@@ -251,15 +307,26 @@ class TemporaryTabsStore {
   async updateNoteId(oldId: string, newId: string): Promise<void> {
     await this.ensureInitialized();
     let updated = false;
+    const updatedTabs: string[] = [];
 
     this.state.tabs.forEach((tab) => {
       if (tab.noteId === oldId) {
+        console.log('[temporaryTabsStore] updateNoteId: Updating tab:', {
+          tabId: tab.id,
+          oldNoteId: oldId,
+          newNoteId: newId
+        });
         tab.noteId = newId;
         updated = true;
+        updatedTabs.push(tab.id);
       }
     });
 
     if (updated) {
+      console.log('[temporaryTabsStore] updateNoteId: Updated tabs:', {
+        count: updatedTabs.length,
+        tabIds: updatedTabs
+      });
       await this.saveToStorage();
     }
   }
@@ -315,12 +382,72 @@ class TemporaryTabsStore {
     }));
   }
 
+  /**
+   * Validate tabs against the notes cache and log warnings for orphaned tabs
+   * This should be called after the notes cache is populated to detect underlying issues
+   */
+  async validateTabs(): Promise<void> {
+    await this.ensureInitialized();
+
+    // Import notesStore to check if notes exist
+    const { notesStore } = await import('../services/noteStore.svelte');
+
+    const orphanedTabs = this.state.tabs.filter((tab) => {
+      const noteExists = notesStore.notes.some((note) => note.id === tab.noteId);
+      return !noteExists;
+    });
+
+    if (orphanedTabs.length > 0) {
+      console.warn(
+        '[temporaryTabsStore] ⚠️ ORPHANED TABS DETECTED - Tabs reference notes that do not exist in database:',
+        {
+          message:
+            'This indicates an underlying issue with note deletion events or database consistency',
+          orphanedCount: orphanedTabs.length,
+          totalTabs: this.state.tabs.length,
+          orphanedTabs: orphanedTabs.map((t) => ({
+            tabId: t.id,
+            noteId: t.noteId,
+            source: t.source,
+            openedAt: t.openedAt.toISOString(),
+            lastAccessed: t.lastAccessed.toISOString(),
+            ageHours: Math.floor(
+              (Date.now() - t.lastAccessed.getTime()) / (60 * 60 * 1000)
+            )
+          }))
+        }
+      );
+    } else {
+      console.log(
+        '[temporaryTabsStore] ✓ Tab validation passed - all tabs reference valid notes'
+      );
+    }
+  }
+
   private async cleanupOldTabs(): Promise<void> {
     const cutoffTime = new Date(
       Date.now() - this.state.autoCleanupHours * 60 * 60 * 1000
     );
 
     const originalLength = this.state.tabs.length;
+    const removedTabs = this.state.tabs.filter((tab) => {
+      return tab.lastAccessed <= cutoffTime;
+    });
+
+    if (removedTabs.length > 0) {
+      console.log('[temporaryTabsStore] cleanupOldTabs: Removing old tabs:', {
+        cutoffTime: cutoffTime.toISOString(),
+        autoCleanupHours: this.state.autoCleanupHours,
+        removedCount: removedTabs.length,
+        removedTabs: removedTabs.map((t) => ({
+          tabId: t.id,
+          noteId: t.noteId,
+          lastAccessed: t.lastAccessed.toISOString(),
+          ageHours: Math.floor((Date.now() - t.lastAccessed.getTime()) / (60 * 60 * 1000))
+        }))
+      });
+    }
+
     this.state.tabs = this.state.tabs.filter((tab) => {
       return tab.lastAccessed > cutoffTime;
     });
@@ -381,6 +508,10 @@ class TemporaryTabsStore {
     if (!this.currentVaultId) return;
 
     try {
+      console.log(
+        '[temporaryTabsStore] loadFromStorage: Loading for vault:',
+        this.currentVaultId
+      );
       const stored = await window.api?.loadUIState({
         vaultId: this.currentVaultId,
         stateKey: 'temporary_tabs'
@@ -391,6 +522,11 @@ class TemporaryTabsStore {
         'tabs' in stored &&
         Array.isArray(stored.tabs)
       ) {
+        console.log('[temporaryTabsStore] loadFromStorage: Found stored tabs:', {
+          count: stored.tabs.length,
+          noteIds: stored.tabs.map((t: TemporaryTab) => t.noteId)
+        });
+
         // Convert date strings back to Date objects and migrate order field
         const parsedTabs = this.migrateTabsWithoutOrder(
           stored.tabs.map(
@@ -407,9 +543,26 @@ class TemporaryTabsStore {
           ...stored,
           tabs: parsedTabs
         };
+
+        console.log('[temporaryTabsStore] loadFromStorage: Loaded tabs:', {
+          count: this.state.tabs.length,
+          tabs: this.state.tabs.map((t) => ({
+            tabId: t.id,
+            noteId: t.noteId,
+            source: t.source,
+            order: t.order
+          }))
+        });
+      } else {
+        console.log(
+          '[temporaryTabsStore] loadFromStorage: No stored tabs found or invalid format'
+        );
       }
     } catch (error) {
-      console.warn('Failed to load temporary tabs from storage:', error);
+      console.warn(
+        '[temporaryTabsStore] Failed to load temporary tabs from storage:',
+        error
+      );
       // Use default state on error
     }
   }

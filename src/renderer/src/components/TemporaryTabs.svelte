@@ -24,6 +24,16 @@
   let hydratedTabs = $derived(
     temporaryTabsStore.tabs.map((tab) => {
       const note = notesStore.notes.find((n) => n.id === tab.noteId);
+      if (!note) {
+        console.warn('[TemporaryTabs] Tab hydration failed - note not found:', {
+          tabId: tab.id,
+          noteId: tab.noteId,
+          source: tab.source,
+          openedAt: tab.openedAt,
+          lastAccessed: tab.lastAccessed,
+          totalNotesInStore: notesStore.notes.length
+        });
+      }
       return {
         ...tab,
         title: note?.title || ''
@@ -32,14 +42,26 @@
   );
 
   async function handleTabClick(noteId: string): Promise<void> {
+    console.log('[TemporaryTabs] Tab clicked:', { noteId });
     const note = notesStore.notes.find((n) => n.id === noteId);
     if (note) {
+      console.log('[TemporaryTabs] Note found, opening:', {
+        noteId: note.id,
+        title: note.title
+      });
       onNoteSelect(note);
       // Find the tab ID that corresponds to this note ID
       const tab = temporaryTabsStore.tabs.find((t) => t.noteId === noteId);
       if (tab) {
         await temporaryTabsStore.setActiveTab(tab.id);
       }
+    } else {
+      console.error('[TemporaryTabs] Click on tab with missing note - cannot open:', {
+        noteId,
+        availableNoteIds: notesStore.notes.map((n) => n.id).slice(0, 10),
+        totalNotesInStore: notesStore.notes.length,
+        tab: temporaryTabsStore.tabs.find((t) => t.noteId === noteId)
+      });
     }
   }
 
