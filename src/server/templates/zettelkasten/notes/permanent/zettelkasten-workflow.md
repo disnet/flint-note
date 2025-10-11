@@ -1,6 +1,4 @@
-# The Zettelkasten Workflow
-
-#permanent
+# Zettelkasten Workflow
 
 This note provides a detailed walkthrough of the Zettelkasten process, from capturing fleeting ideas to building a network of permanent notes.
 
@@ -94,7 +92,7 @@ environmental triggers.
 - How long does it take to dissociate a behavior from a context?
 
 ## Sources
-- [[James Clear - Atomic Habits]] (p. 82-84)
+- [[literature/literature-note-example]] (p. 82-84)
 - Personal observation documented in [[fleeting-2024-01-15]]
 ```
 
@@ -219,6 +217,6 @@ The workflow becomes natural with practice. Focus on clear thinking and meaningf
 
 ## Related Notes
 
-- [[atomic-notes-principle]] - Understanding atomic notes
-- [[effective-linking]] - Creating meaningful connections
-- [[zettelkasten-guide]] - Overview of the system
+- [[permanent/atomic-notes-principle]] - Understanding atomic notes
+- [[permanent/effective-linking]] - Creating meaningful connections
+- [[index/zettelkasten-guide]] - Overview of the system

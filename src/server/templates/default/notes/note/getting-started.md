@@ -1,4 +1,4 @@
-# Getting Started with Flint
+# Getting Started
 
 Welcome! Here are some quick tips to help you get the most out of Flint.
 

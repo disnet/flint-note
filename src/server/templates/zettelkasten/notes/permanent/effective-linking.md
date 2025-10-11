@@ -1,6 +1,4 @@
-# Effective Linking in a Zettelkasten
-
-#permanent
+# Effective Linking
 
 Links are the heart of a Zettelkasten. While individual notes contain ideas, the network of connections between notes creates understanding and insight. Quality linking is what transforms a collection of notes into a thinking tool.
 
@@ -231,5 +229,5 @@ This workflow ensures each new note is well-integrated into your knowledge netwo
 
 ## Related Notes
 
-- [[zettelkasten-workflow]] - How linking fits into the overall process
-- [[atomic-notes-principle]] - Atomic notes create more connection opportunities
+- [[permanent/zettelkasten-workflow]] - How linking fits into the overall process
+- [[permanent/atomic-notes-principle]] - Atomic notes create more connection opportunities

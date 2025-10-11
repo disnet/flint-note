@@ -4,4 +4,4 @@ description: 'A vault optimized for the Zettelkasten method of knowledge develop
 icon: '🗂️'
 author: 'Flint Team'
 version: '1.0.0'
-initialNote: 'zettelkasten-guide.md'
+initialNote: 'index/zettelkasten-guide.md'

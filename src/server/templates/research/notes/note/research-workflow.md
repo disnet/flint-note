@@ -1,4 +1,4 @@
-# Research Workflow Guide
+# Research Workflow
 
 This research vault is set up to help you organize academic research, literature reviews, and paper analysis.
 

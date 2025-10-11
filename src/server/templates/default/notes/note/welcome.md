@@ -1,4 +1,4 @@
-# Welcome to Flint!
+# Welcome
 
 Welcome to Flint, a thinking system designed to extend your cognitive abilities. Whether you're researching complex topics, organizing technical knowledge, or connecting disparate ideas, Flint helps you capture thoughts quickly and build connections between them over time.
 

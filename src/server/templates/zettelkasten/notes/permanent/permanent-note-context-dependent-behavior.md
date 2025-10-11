@@ -1,6 +1,4 @@
-# Context-Dependent Behavior
-
-#permanent
+# Permanent Note Context Dependent Behavior
 
 The same person will behave differently in different environmental contexts, not because of changes in willpower or character, but because environmental context automatically triggers different behavioral patterns.
 
@@ -26,8 +24,8 @@ The implication is profound: **behavior is not primarily a function of character
 
 ## Related Ideas
 
-- [[habits-as-cue-response]] - The mechanism explaining how context triggers behavior
-- [[environment-design]] - Using context dependence deliberately to shape behavior
+- [[permanent/permanent-note-habits-as-cue-response]] - The mechanism explaining how context triggers behavior
+- [[permanent/permanent-note-environment-design]] - Using context dependence deliberately to shape behavior
 - [[identity-fluidity]] - If behavior is context-dependent, identity may be more fluid than we assume
 - [[habit-breaking-strategies]] - Breaking context-behavior pairings to change habits
 
@@ -46,5 +44,5 @@ The implication is profound: **behavior is not primarily a function of character
 ## Sources
 
 - Personal observation: phone checking at desk vs. while cooking
-- [[examples/literature-note-example]] - James Clear's discussion of environmental cues
+- [[literature/literature-note-example]] - James Clear's discussion of environmental cues
 - [[Wendy Wood - Good Habits, Bad Habits]] - Research on context and habit formation (to be created)

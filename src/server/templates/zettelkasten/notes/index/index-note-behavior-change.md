@@ -1,6 +1,4 @@
-# Index: Behavior Change and Habit Formation
-
-#index
+# Index Note Behavior Change
 
 This index collects notes about how people change behaviors, form habits, and why behavior change is often difficult. The central theme: behavior is shaped more by environmental context and automatic patterns than by conscious willpower.
 
@@ -8,8 +6,8 @@ This index collects notes about how people change behaviors, form habits, and wh
 
 These notes explain the fundamental processes underlying behavior and habit formation:
 
-- [[examples/permanent-note-habits-as-cue-response]] - How habits work as automatic responses to environmental cues
-- [[examples/permanent-note-context-dependent-behavior]] - Why people behave differently in different environments
+- [[permanent/permanent-note-habits-as-cue-response]] - How habits work as automatic responses to environmental cues
+- [[permanent/permanent-note-context-dependent-behavior]] - Why people behave differently in different environments
 - [[friction-and-behavior]] - How small obstacles shape behavior (to be created)
 - [[automaticity-development]] - How behaviors become automatic through repetition (to be created)
 
@@ -17,7 +15,7 @@ These notes explain the fundamental processes underlying behavior and habit form
 
 These notes describe approaches that work for changing behavior:
 
-- [[examples/permanent-note-environment-design]] - Restructuring environment to support desired behaviors
+- [[permanent/permanent-note-environment-design]] - Restructuring environment to support desired behaviors
 - [[habit-stacking]] - Building new habits onto existing ones (to be created)
 - [[implementation-intentions]] - Using "if-then" plans to trigger behaviors (to be created)
 - [[tiny-habits-method]] - Starting with behaviors so small they require no willpower (to be created)
@@ -58,7 +56,7 @@ These indexes explore related topics:
 
 Key references for this topic area:
 
-- [[examples/literature-note-example]] - James Clear, Atomic Habits
+- [[literature/literature-note-example]] - James Clear, Atomic Habits
 - [[BJ Fogg - Tiny Habits]] - Research on behavior design (to be created)
 - [[Wendy Wood - Good Habits, Bad Habits]] - Research on habit formation (to be created)
 - [[Charles Duhigg - The Power of Habit]] - Popular treatment of habit science (to be created)

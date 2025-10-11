@@ -1,6 +1,4 @@
-# fleeting: Design patterns across languages
-
-#fleeting
+# Fleeting Note Example
 
 Was reading some Rust code today and noticed how their trait system feels similar to TypeScript interfaces but more powerful. Makes me wonder if there's a deeper pattern about how type systems express contracts between code components.
 

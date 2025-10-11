@@ -1,6 +1,4 @@
-# Environment Design for Behavior Change
-
-#permanent
+# Permanent Note Environment Design
 
 Changing your environment is more effective for changing behavior than relying on willpower or conscious effort. Because most behaviors are automatic responses to environmental cues, restructuring the environment changes which behaviors are triggered automatically.
 
@@ -38,8 +36,8 @@ The key insight: you're not changing yourself, you're changing the system in whi
 
 ## Related Ideas
 
-- [[habits-as-cue-response]] - The mechanism that makes environment design effective
-- [[context-dependent-behavior]] - Why the same person behaves differently in different settings
+- [[permanent/permanent-note-habits-as-cue-response]] - The mechanism that makes environment design effective
+- [[permanent/permanent-note-context-dependent-behavior]] - Why the same person behaves differently in different settings
 - [[friction-and-behavior]] - How small obstacles significantly impact behavior
 - [[choice-architecture]] - Formal study of how environment influences decisions
 
@@ -56,6 +54,6 @@ The key insight: you're not changing yourself, you're changing the system in whi
 
 ## Sources
 
-- [[examples/literature-note-example]] - James Clear's discussion of environmental cues
+- [[literature/literature-note-example]] - James Clear's discussion of environmental cues
 - [[BJ Fogg - Tiny Habits]] - Research on behavior design (to be created)
 - Personal experience: removed phone from bedroom, reading increased significantly

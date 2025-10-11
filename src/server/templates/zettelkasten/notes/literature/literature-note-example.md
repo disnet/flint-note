@@ -1,6 +1,4 @@
-# James Clear - Atomic Habits (Chapter 4: The Man Who Didn't Look Right)
-
-#literature
+# Literature Note Example
 
 **Source:** Atomic Habits by James Clear (2018), Chapter 4, pages 51-62
 **Read:** 2025-10-10
@@ -40,9 +38,9 @@ The medical story is powerful but the connection to habits feels a bit indirect.
 
 ## Connections to Existing Notes
 
-This supports and extends [[context-dependent-behavior]] - provides the mechanism (cues) for why context triggers behavior.
+This supports and extends [[permanent/permanent-note-context-dependent-behavior]] - provides the mechanism (cues) for why context triggers behavior.
 
-Relates to [[environment-design]] - if cues trigger habits, designing your environment means controlling your cues.
+Relates to [[permanent/permanent-note-environment-design]] - if cues trigger habits, designing your environment means controlling your cues.
 
 ## Potential Permanent Notes
 

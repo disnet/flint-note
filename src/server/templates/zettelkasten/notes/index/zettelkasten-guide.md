@@ -1,8 +1,6 @@
-# Welcome to Your Zettelkasten
+# Zettelkasten Guide
 
-#index
-
-This vault is set up for the Zettelkasten method—a proven system for developing ideas, building knowledge, and making unexpected connections between concepts.
+Welcome to Your Zettelkasten! This vault is set up for the Zettelkasten method—a proven system for developing ideas, building knowledge, and making unexpected connections between concepts.
 
 ## What is a Zettelkasten?
 

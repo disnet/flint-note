@@ -1,6 +1,4 @@
-# Habits as Cue-Response Patterns
-
-#permanent
+# Permanent Note Habits As Cue Response
 
 Habits are automatic behavioral responses triggered by environmental cues, rather than conscious decisions. When you encounter a specific cue in your environment, your brain automatically initiates a learned response without requiring deliberate thought or willpower.
 
@@ -20,8 +18,8 @@ This explains why habit change is so difficult: you're not fighting against a la
 
 ## Related Ideas
 
-- [[context-dependent-behavior]] - Why the same person behaves differently in different environments
-- [[environment-design]] - Deliberately structuring your environment to support desired behaviors
+- [[permanent/permanent-note-context-dependent-behavior]] - Why the same person behaves differently in different environments
+- [[permanent/permanent-note-environment-design]] - Deliberately structuring your environment to support desired behaviors
 - [[willpower-limitations]] - Why conscious effort is less effective than cue management
 - [[habit-stacking]] - Using existing cue-response patterns to build new ones
 
@@ -33,5 +31,5 @@ This explains why habit change is so difficult: you're not fighting against a la
 
 ## Sources
 
-- [[examples/literature-note-example]] - James Clear, Atomic Habits, Chapter 4
+- [[literature/literature-note-example]] - James Clear, Atomic Habits, Chapter 4
 - Personal observation: desk → phone checking pattern

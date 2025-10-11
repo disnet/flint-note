@@ -1,6 +1,4 @@
-# The Atomic Notes Principle
-
-#permanent
+# Atomic Notes Principle
 
 A core principle of the Zettelkasten method is that each permanent note should contain exactly one idea, expressed as a complete thought. This "atomic" approach maximizes the value and reusability of notes.
 
@@ -136,5 +134,5 @@ When in doubt, split the note. It's easier to link separate notes than to extrac
 
 ## Related Notes
 
-- [[zettelkasten-workflow]] - How atomic notes fit into the overall process
-- [[effective-linking]] - Connecting atomic notes meaningfully
+- [[permanent/zettelkasten-workflow]] - How atomic notes fit into the overall process
+- [[permanent/effective-linking]] - Connecting atomic notes meaningfully
