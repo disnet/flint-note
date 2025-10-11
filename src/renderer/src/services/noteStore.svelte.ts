@@ -1,4 +1,6 @@
 import { getChatService } from './chatService';
+import { noteCache } from './noteCache.svelte';
+import { messageBus } from './messageBus.svelte';
 
 export type NoteMetadata = {
   id: string;
@@ -18,11 +20,9 @@ export type NoteType = {
 };
 
 interface NotesStoreState {
-  notes: NoteMetadata[];
   noteTypes: NoteType[];
   loading: boolean;
   error: string | null;
-  wikilinksUpdateCounter: number;
 }
 
 function createNotesStore(): {
@@ -31,26 +31,24 @@ function createNotesStore(): {
   readonly loading: boolean;
   readonly error: string | null;
   readonly groupedNotes: Record<string, NoteMetadata[]>;
-  readonly wikilinksUpdateCounter: number;
-  refresh: () => Promise<void>;
-  handleToolCall: (toolCall: { name: string }) => void;
-  notifyWikilinksUpdated: () => void;
+  initialize: () => Promise<void>;
 } {
   const noteService = getChatService();
 
   const state = $state<NotesStoreState>({
-    notes: [],
     noteTypes: [],
     loading: true,
-    error: null,
-    wikilinksUpdateCounter: 0
+    error: null
   });
 
-  // Derived store for grouped notes by type
+  // Derived: notes come from cache, not local state
+  const notes = $derived(noteCache.getAllNotes());
+
+  // Derived: grouped notes by type
   const groupedNotes = $derived.by(() => {
     const grouped: Record<string, NoteMetadata[]> = {};
 
-    for (const note of state.notes) {
+    for (const note of notes) {
       if (!grouped[note.type]) {
         grouped[note.type] = [];
       }
@@ -112,8 +110,8 @@ function createNotesStore(): {
     }
   }
 
-  // Function to load all notes
-  async function loadAllNotes(): Promise<void> {
+  // Initialize: load all notes into cache
+  async function initialize(): Promise<void> {
     try {
       // Get the current vault first
       const currentVault = await noteService.getCurrentVault();
@@ -127,7 +125,7 @@ function createNotesStore(): {
       await loadNoteTypes();
       const loadedNotes: NoteMetadata[] = [];
 
-      // Load notes for each type (without fetching full content for snippets)
+      // Load notes for each type
       for (const noteType of state.noteTypes) {
         const notesOfType = await loadNotesOfType(noteType.name, currentVault.id);
         loadedNotes.push(...notesOfType);
@@ -138,8 +136,12 @@ function createNotesStore(): {
         (a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime()
       );
 
-      // Update the state with the loaded notes
-      state.notes = sortedNotes;
+      // Publish bulk refresh event to populate cache
+      messageBus.publish({
+        type: 'notes.bulkRefresh',
+        notes: sortedNotes
+      });
+
       state.loading = false;
     } catch (err) {
       const errorMessage =
@@ -150,33 +152,17 @@ function createNotesStore(): {
     }
   }
 
-  // Public refresh function that can be called to reload notes
-  async function refresh(): Promise<void> {
-    console.log('Notes store: refresh() called - starting refresh...');
-    state.loading = true;
-    state.error = null;
-    await loadAllNotes();
-    console.log('Notes store: refresh() completed');
-  }
-
-  // Handle tool calls and refresh on any tool call
-  function handleToolCall(_toolCall: { name: string }): void {
-    // Use a small delay to ensure the backend operation is complete
-    setTimeout(() => {
-      refresh();
-    }, 100);
-  }
-
-  function notifyWikilinksUpdated(): void {
-    state.wikilinksUpdateCounter++;
-  }
+  // Subscribe to vault switch events to reinitialize
+  messageBus.subscribe('vault.switched', () => {
+    initialize();
+  });
 
   // Initial load
-  loadAllNotes();
+  initialize();
 
   return {
     get notes() {
-      return state.notes;
+      return notes;
     },
     get noteTypes() {
       return state.noteTypes;
@@ -190,12 +176,7 @@ function createNotesStore(): {
     get groupedNotes() {
       return groupedNotes;
     },
-    get wikilinksUpdateCounter() {
-      return state.wikilinksUpdateCounter;
-    },
-    refresh,
-    handleToolCall,
-    notifyWikilinksUpdated
+    initialize
   };
 }
 

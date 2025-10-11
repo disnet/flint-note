@@ -21,7 +21,6 @@ import type {
   MetadataFieldDefinition,
   MetadataSchema
 } from '@/server/core/metadata-schema';
-import { notesStore } from './noteStore.svelte';
 import { noteDocumentRegistry } from '../stores/noteDocumentRegistry.svelte';
 import type { GetNoteTypeInfoResult } from '@/server/api/types';
 import type { NoteTypeDescription } from '@/server/core/note-types';
@@ -167,19 +166,15 @@ export class ElectronChatService implements ChatService, NoteService {
             // Handle tool call
             if (data.requestId === requestId) {
               onToolCall(data.toolCall);
-              // Trigger notes store refresh for any tool call
-              notesStore.handleToolCall({ name: data.toolCall.name });
+              // Note: The message bus will automatically update the note cache when IPC events are published
 
               // Handle note-modifying tools for UI refresh
               this.handleNoteModifyingTool(data.toolCall);
             }
           }
         : (data) => {
-            // Even if no onToolCall callback, still handle notes store refresh
+            // Handle note-modifying tools for UI refresh
             if (data.requestId === requestId) {
-              notesStore.handleToolCall({ name: data.toolCall.name });
-
-              // Handle note-modifying tools for UI refresh
               this.handleNoteModifyingTool(data.toolCall);
             }
           }

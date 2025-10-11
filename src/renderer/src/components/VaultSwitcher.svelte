@@ -2,7 +2,7 @@
   import type { VaultInfo } from '@/server/utils/global-config';
   import type { CreateVaultResult } from '@/server/api/types';
   import { getChatService } from '../services/chatService';
-  import { notesStore } from '../services/noteStore.svelte';
+  import { messageBus } from '../services/messageBus.svelte';
   import { pinnedNotesStore } from '../services/pinnedStore.svelte';
   import { temporaryTabsStore } from '../stores/temporaryTabsStore.svelte';
   import { unifiedChatStore } from '../stores/unifiedChatStore.svelte';
@@ -57,7 +57,12 @@
 
       await service.switchVault({ vaultId });
       await loadVaults(); // Refresh vault info
-      await notesStore.refresh(); // Refresh notes for the new vault
+
+      // Publish vault switched event - noteStore will automatically reinitialize
+      messageBus.publish({
+        type: 'vault.switched',
+        vaultId
+      });
 
       // Refresh pinned notes, temporary tabs, conversations, inbox, and daily view for the new vault
       await pinnedNotesStore.refreshForVault(vaultId);
@@ -178,8 +183,13 @@
 
           await service.switchVault({ vaultId: nextVault.id });
 
+          // Publish vault switched event - noteStore will automatically reinitialize
+          messageBus.publish({
+            type: 'vault.switched',
+            vaultId: nextVault.id
+          });
+
           // Refresh stores for the new vault
-          await notesStore.refresh();
           await pinnedNotesStore.refreshForVault(nextVault.id);
           await temporaryTabsStore.refreshForVault(nextVault.id);
           await unifiedChatStore.refreshForVault(nextVault.id);

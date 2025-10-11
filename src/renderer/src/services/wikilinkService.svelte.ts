@@ -36,9 +36,7 @@ class WikilinkService {
           content: ``
         });
 
-        // Refresh the notes store to include the new note
-        await notesStore.refresh();
-
+        // Note: The message bus will automatically update the note cache when IPC events are published
         // Find the full note data from the store
         const fullNote = notesStore.notes.find((n) => n.id === newNote.id);
 

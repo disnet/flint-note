@@ -56,8 +56,7 @@
         vaultId: currentVaultId
       });
 
-      // Refresh notes store to show new note
-      await notesStore.refresh();
+      // Note: The message bus will automatically update the note cache when IPC events are published
 
       // Refresh inbox to show the new note
       await inboxStore.refresh(currentVaultId);

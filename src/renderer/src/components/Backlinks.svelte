@@ -3,6 +3,7 @@
   import type { NoteMetadata } from '../services/noteStore.svelte';
   import { getChatService } from '../services/chatService.js';
   import { notesStore } from '../services/noteStore.svelte';
+  import { messageBus } from '../services/messageBus.svelte';
   import { wikilinkService } from '../services/wikilinkService.svelte.js';
   import BacklinkContextEditor from './BacklinkContextEditor.svelte';
 
@@ -66,12 +67,15 @@
     }
   });
 
-  // Reload backlinks when notes are updated (in case links changed)
+  // Reload backlinks when links are changed
   $effect(() => {
-    const updateCounter = notesStore.wikilinksUpdateCounter;
-    if (updateCounter > 0 && noteId) {
-      loadBacklinks(noteId);
-    }
+    const unsubscribe = messageBus.subscribe('note.linksChanged', () => {
+      if (noteId) {
+        loadBacklinks(noteId);
+      }
+    });
+
+    return () => unsubscribe();
   });
 
   async function loadBacklinks(id: string): Promise<void> {

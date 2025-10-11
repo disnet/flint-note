@@ -109,8 +109,7 @@
           vaultId: currentVault.id
         });
 
-        // Refresh notes store to show new note
-        await notesStore.refresh();
+        // Note: The message bus will automatically update the note cache when IPC events are published
 
         // Find the newly created note and open it through navigation service
         const notes = notesStore.notes;
@@ -543,9 +542,12 @@
       if (result?.success) {
         console.log('Note service reinitialized successfully');
 
-        // Refresh the notes store now that note service is working
-        await notesStore.refresh();
-        console.log('Notes store refreshed after vault creation');
+        // Publish vault switched event - noteStore will automatically reinitialize
+        messageBus.publish({
+          type: 'vault.switched',
+          vaultId: vault.id
+        });
+        console.log('Vault switched event published for vault:', vault.id);
 
         // Reinitialize the daily view store now that a vault is available
         await dailyViewStore.reinitialize();

@@ -498,9 +498,7 @@ class TemporaryTabsStore {
       // Import notesStore dynamically to avoid circular dependencies
       const { notesStore } = await import('../services/noteStore.svelte');
 
-      // Refresh notes to ensure we have the latest list
-      await notesStore.refresh();
-
+      // Note: The note cache should already be populated via message bus events
       for (const title of tutorialTitles) {
         const tutorialNote = notesStore.notes.find((note) => note.title === title);
         if (tutorialNote) {

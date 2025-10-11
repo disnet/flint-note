@@ -390,9 +390,11 @@ All core infrastructure is in place:
 
 **Next Steps:** Phase 2 will migrate the noteStore to use this infrastructure, eliminating manual refresh calls.
 
-### Phase 2: Migrate noteStore (3-4 hours)
+### Phase 2: Migrate noteStore ✅ COMPLETED
 
 Update `notesStore` to use the cache and message bus.
+
+**Status:** Implemented and tested. The noteStore has been successfully migrated to use the event sourcing architecture.
 
 #### 2.1: Update noteStore to Read from Cache
 
@@ -591,6 +593,24 @@ export const notesStore = createNotesStore();
 - ✅ Notes now come from `noteCache` via `$derived`
 - ✅ Initial load publishes `notes.bulkRefresh` event
 - ✅ Subscribes to `vault.switched` for re-initialization
+
+**Phase 2 Summary:**
+
+All renderer-side code has been updated to use the event sourcing architecture:
+
+- **noteStore.svelte.ts**: Migrated to read from cache, removed manual refresh methods, subscribes to vault switch events
+- **Backlinks.svelte**: Replaced `wikilinksUpdateCounter` with `note.linksChanged` event subscription
+- **NoteEditor.svelte**: Replaced counter-based reactivity with event subscriptions, removed refresh calls, publishes `note.linksChanged` events
+- **VaultSwitcher.svelte**: Updated to publish `vault.switched` events instead of calling `notesStore.refresh()`
+- **App.svelte**: Updated vault creation flow to publish events instead of manual refresh
+- **InboxView.svelte**: Removed manual refresh after note creation
+- **dailyViewStore.svelte.ts**: Removed manual refresh calls (events will handle updates)
+- **temporaryTabsStore.svelte.ts**: Removed manual refresh calls
+- **pinnedStore.svelte.ts**: Removed manual refresh calls
+- **wikilinkService.svelte.ts**: Removed manual refresh calls
+- **electronChatService.ts**: Removed `notesStore.handleToolCall()` calls
+
+**Next Steps:** Phase 3 will update the main process IPC handlers to publish events when notes are modified, completing the event sourcing loop.
 
 ### Phase 3: Update IPC Handlers to Publish Events (2-3 hours)
 
@@ -926,11 +946,14 @@ async function handleVaultSwitch(vaultId: string) {
   - [x] Create `noteCache.svelte.ts`
   - [x] Add IPC event bridge in preload
   - [x] Connect IPC to message bus in App.svelte
-- [ ] Phase 2: Migrate noteStore
-  - [ ] Read notes from cache
-  - [ ] Remove `refresh()` method
-  - [ ] Remove `wikilinksUpdateCounter`
-  - [ ] Subscribe to `vault.switched`
+- [x] Phase 2: Migrate noteStore ✅ COMPLETED
+  - [x] Read notes from cache
+  - [x] Remove `refresh()` method
+  - [x] Remove `wikilinksUpdateCounter`
+  - [x] Subscribe to `vault.switched`
+  - [x] Remove all manual `notesStore.refresh()` calls from components
+  - [x] Replace `wikilinksUpdateCounter` with `note.linksChanged` event subscription
+  - [x] Update vault switching to publish `vault.switched` events
 - [ ] Phase 3: Update IPC Handlers
   - [ ] Create event publisher helper
   - [ ] Update create-note handler

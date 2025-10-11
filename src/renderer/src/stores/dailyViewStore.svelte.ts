@@ -267,11 +267,7 @@ class DailyViewStore {
       if (dailyNote) {
         // Update local state to ensure the note is reflected
         this.updateLocalDailyNoteMetadata(date, dailyNote);
-
-        // Refresh notes store so the new note appears in temporary tabs with correct title
-        // Import dynamically to avoid circular dependencies
-        const { notesStore } = await import('../services/noteStore.svelte');
-        await notesStore.refresh();
+        // Note: The message bus will automatically update the note cache when IPC events are published
       }
 
       return dailyNote;

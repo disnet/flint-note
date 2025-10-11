@@ -243,7 +243,7 @@ class PinnedNotesStore {
     } else {
       // Fallback: try to find the welcome note by title
       const { notesStore } = await import('./noteStore.svelte');
-      await notesStore.refresh();
+      // Note: The note cache should already be populated via message bus events
       const welcomeNote = notesStore.notes.find(
         (note) => note.title === 'Welcome to Flint'
       );

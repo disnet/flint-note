@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import type { NoteMetadata } from '../services/noteStore.svelte';
   import { notesStore } from '../services/noteStore.svelte';
+  import { messageBus } from '../services/messageBus.svelte';
   import type { Note } from '@/server/core/notes';
   import { getChatService } from '../services/chatService.js';
   import { wikilinkService } from '../services/wikilinkService.svelte.js';
@@ -108,19 +109,20 @@
 
   // Watch for wikilink updates and reload note content if needed
   $effect(() => {
-    const updateCounter = notesStore.wikilinksUpdateCounter;
+    const unsubscribe = messageBus.subscribe('note.linksChanged', () => {
+      if (note && doc) {
+        const currentDoc = doc; // Capture in closure to avoid null issues
+        setTimeout(async () => {
+          try {
+            await currentDoc.reload();
+          } catch (loadError) {
+            console.warn('Failed to reload note content after wikilink update:', loadError);
+          }
+        }, 100);
+      }
+    });
 
-    // Skip initial load (when counter is 0)
-    if (updateCounter > 0 && note && doc) {
-      const currentDoc = doc; // Capture in closure to avoid null issues
-      setTimeout(async () => {
-        try {
-          await currentDoc.reload();
-        } catch (loadError) {
-          console.warn('Failed to reload note content after wikilink update:', loadError);
-        }
-      }, 100);
-    }
+    return () => unsubscribe();
   });
 
   async function loadNoteMetadata(note: NoteMetadata): Promise<void> {
@@ -232,16 +234,13 @@
         title: newTitle
       };
 
-      // Refresh the notes store to update UI components
-      try {
-        await notesStore.refresh();
-      } catch (refreshError) {
-        console.warn('Failed to refresh notes store after rename:', refreshError);
-      }
-
-      // If wikilinks were updated in other notes, notify the store so all open notes can reload
+      // Note: The message bus will automatically update the note cache when IPC events are published
+      // If wikilinks were updated in other notes, publish an event
       if (result.linksUpdated && result.linksUpdated > 0) {
-        notesStore.notifyWikilinksUpdated();
+        messageBus.publish({
+          type: 'note.linksChanged',
+          noteId: newId
+        });
       }
     }
   }
@@ -338,8 +337,7 @@
         const result = await noteService.getNote({ identifier: newId });
         noteData = result;
 
-        // Also refresh the notes store to update the sidebar
-        await notesStore.refresh();
+        // Note: The message bus will automatically update the note cache when IPC events are published
       } else {
         throw new Error('Move operation failed');
       }
