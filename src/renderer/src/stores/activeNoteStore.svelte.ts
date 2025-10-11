@@ -1,6 +1,5 @@
 import type { NoteMetadata } from '../services/noteStore.svelte';
 import { getChatService } from '../services/chatService';
-import { notesStore } from '../services/noteStore.svelte';
 
 interface ActiveNoteState {
   currentVaultId: string | null;
@@ -152,22 +151,36 @@ class ActiveNoteStore {
         const activeNoteId = stored.noteId as string | null;
 
         if (activeNoteId) {
-          // We have a note ID, now we need to find the full metadata in the notes store
-          // First ensure notes store is loaded
-          if (notesStore.loading || notesStore.notes.length === 0) {
-            await notesStore.refresh();
-          }
+          // Try to get the note directly from the API instead of loading all notes
+          try {
+            const service = getChatService();
+            const note = await service.getNote({ identifier: activeNoteId });
 
-          // Find the note in the notes store
-          const noteMetadata = notesStore.notes.find((note) => note.id === activeNoteId);
-
-          if (noteMetadata) {
-            this.state.activeNote = noteMetadata;
-          } else {
-            // Note ID exists in storage but note doesn't exist anymore - clear it
-            console.warn('Active note ID found but note no longer exists:', activeNoteId);
+            if (note) {
+              // Build NoteMetadata from the note
+              this.state.activeNote = {
+                id: note.id,
+                type: note.type || 'note',
+                filename: note.filename || `${activeNoteId}.md`,
+                title: note.title || '',
+                created: note.created || new Date().toISOString(),
+                modified: note.modified || new Date().toISOString(),
+                size: note.size || 0,
+                tags: Array.isArray(note.tags) ? note.tags : [],
+                path: note.path || ''
+              };
+            } else {
+              // Note doesn't exist anymore - clear it
+              console.warn(
+                'Active note ID found but note no longer exists:',
+                activeNoteId
+              );
+              this.state.activeNote = null;
+              await this.saveToStorage();
+            }
+          } catch (error) {
+            console.warn('Failed to load active note:', error);
             this.state.activeNote = null;
-            // Clear the invalid ID from storage
             await this.saveToStorage();
           }
         } else {

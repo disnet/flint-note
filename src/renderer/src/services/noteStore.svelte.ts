@@ -10,7 +10,6 @@ export type NoteMetadata = {
   size: number;
   tags: string[];
   path: string;
-  snippet?: string;
 };
 
 export type NoteType = {
@@ -85,71 +84,22 @@ function createNotesStore(): {
     }
   }
 
-  // Function to generate a snippet from content
-  function generateSnippet(content: string, maxLength: number = 150): string {
-    // Remove frontmatter if present
-    const contentWithoutFrontmatter = content.replace(/^---[\s\S]*?---\n?/, '');
-
-    // Remove markdown headers and formatting
-    const cleanContent = contentWithoutFrontmatter
-      .replace(/^#+\s+/gm, '') // Remove headers
-      .replace(/\*\*(.*?)\*\*/g, '$1') // Remove bold
-      .replace(/\*(.*?)\*/g, '$1') // Remove italic
-      .replace(/`(.*?)`/g, '$1') // Remove inline code
-      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Convert links to text
-      .replace(/\n+/g, ' ') // Replace newlines with spaces
-      .trim();
-
-    if (cleanContent.length <= maxLength) {
-      return cleanContent;
-    }
-
-    // Find a good breaking point near the max length
-    const truncated = cleanContent.substring(0, maxLength);
-    const lastSpace = truncated.lastIndexOf(' ');
-    const breakPoint = lastSpace > maxLength * 0.8 ? lastSpace : maxLength;
-
-    return cleanContent.substring(0, breakPoint) + '...';
-  }
-
-  // Load notes of a specific type from API
+  // Load notes of a specific type from API (without fetching full content)
   async function loadNotesOfType(type: string, vaultId: string): Promise<NoteMetadata[]> {
     try {
-      // Try to use the note service API first
       const result = await noteService.listNotesByType({ vaultId, type });
       if (result && Array.isArray(result)) {
-        const notesWithSnippets: NoteMetadata[] = [];
-
-        for (const note of result) {
-          let snippet = '';
-          try {
-            // Get the full note content to generate snippet
-            const fullNote = await noteService.getNote({ vaultId, identifier: note.id });
-            if (fullNote && fullNote.content) {
-              snippet = generateSnippet(fullNote.content);
-            }
-          } catch (err) {
-            console.warn(`Failed to get content for note ${note.id}:`, err);
-            // Continue without snippet if content fetch fails
-          }
-
-          const noteWithSnippet: NoteMetadata = {
-            id: note.id,
-            type: note.type || type,
-            filename: note.filename || `unknown-${result.indexOf(note)}.md`,
-            title: note.title || '',
-            created: note.created || new Date().toISOString(),
-            modified: note.modified || new Date().toISOString(),
-            size: note.size || 0,
-            tags: note.tags || [],
-            path: note.path || '',
-            snippet
-          };
-
-          notesWithSnippets.push(noteWithSnippet);
-        }
-
-        return notesWithSnippets;
+        return result.map((note) => ({
+          id: note.id,
+          type: note.type || type,
+          filename: note.filename || `unknown-${result.indexOf(note)}.md`,
+          title: note.title || '',
+          created: note.created || new Date().toISOString(),
+          modified: note.modified || new Date().toISOString(),
+          size: note.size || 0,
+          tags: note.tags || [],
+          path: note.path || ''
+        }));
       } else {
         throw new Error(`Invalid response from listNotesByType API for type: ${type}`);
       }
@@ -177,7 +127,7 @@ function createNotesStore(): {
       await loadNoteTypes();
       const loadedNotes: NoteMetadata[] = [];
 
-      // Load notes for each type
+      // Load notes for each type (without fetching full content for snippets)
       for (const noteType of state.noteTypes) {
         const notesOfType = await loadNotesOfType(noteType.name, currentVault.id);
         loadedNotes.push(...notesOfType);

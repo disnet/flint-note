@@ -1,5 +1,9 @@
 # Project Log
 
+## Snippet Generation Removal for Faster Startup - 2025-10-11
+
+- Eliminated expensive snippet generation at startup that was causing performance issues with large vaults: removed `generateSnippet()` function that required fetching full note content for every note just to display preview text, simplified `loadNotesOfType()` to return metadata directly from `listNotesByType` API without additional `getNote()` calls, removed `snippet` field from `NoteMetadata` type and all snippet display from UI (NotesView.svelte); fixed activeNoteStore.svelte.ts to use direct `getNote()` API call for loading single note instead of forcing full `notesStore.refresh()` that loaded all vault notes just to find one; startup performance dramatically improved for large vaults (loading only metadata from database instead of fetching full content for every note), memory footprint reduced, all components continue working as expected (SearchBar, NotesView, wikilink autocomplete), all type checking and linting passes successfully
+
 ## Add to Sidebar Auto-Opens Right Sidebar - 2025-10-10
 
 - Enhanced "Add to Sidebar" button to automatically open the right sidebar in notes mode when clicked: modified NoteEditor.svelte handleAddToSidebar() function to check if right sidebar is visible and in notes mode, calls sidebarState.toggleRightSidebar() if closed and sidebarState.setRightSidebarMode('notes') if in different mode, ensuring users immediately see their newly added sidebar note without manual navigation; all linting and type checking passes successfully

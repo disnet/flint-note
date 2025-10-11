@@ -134,11 +134,6 @@
                         <span class="untitled-text">Untitled</span>
                       {/if}
                     </div>
-                    {#if note.snippet}
-                      <div class="note-snippet">
-                        {note.snippet}
-                      </div>
-                    {/if}
                   </div>
                 {/each}
               {:else}
@@ -399,13 +394,6 @@
     font-size: 0.875rem;
     opacity: 0.8;
     color: var(--accent-primary);
-  }
-
-  .note-snippet {
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-    line-height: 1.4;
-    margin-bottom: 0.25rem;
   }
 
   .full-width-overlay {
