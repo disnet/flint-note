@@ -126,6 +126,11 @@ class NoteNavigationService {
   async startVaultSwitch(): Promise<void> {
     await navigationHistoryStore.startVaultSwitch();
     await activeNoteStore.startVaultSwitch();
+    // Clear pinned notes state to avoid cross-vault comparisons
+    // This prevents the service from comparing pinned notes from the old vault
+    // with pinned notes from the new vault, which would incorrectly trigger
+    // "unpinned" events for notes that don't exist in the new vault
+    this.previousPinnedIds = [];
   }
 
   /**
@@ -134,6 +139,9 @@ class NoteNavigationService {
   async endVaultSwitch(): Promise<void> {
     await navigationHistoryStore.endVaultSwitch();
     await activeNoteStore.endVaultSwitch();
+    // Reinitialize with the new vault's pinned notes
+    // This ensures future pin/unpin comparisons are within the same vault
+    this.previousPinnedIds = pinnedNotesStore.notes.map((note) => note.id);
   }
 
   /**

@@ -11,6 +11,7 @@
   import { inboxStore } from '../stores/inboxStore.svelte';
   import { dailyViewStore } from '../stores/dailyViewStore.svelte';
   import { notesStore } from '../services/noteStore.svelte';
+  import { noteNavigationService } from '../services/noteNavigationService.svelte';
   import CreateVaultModal from './CreateVaultModal.svelte';
 
   interface Props {
@@ -52,6 +53,7 @@
       await temporaryTabsStore.startVaultSwitch();
       await activeNoteStore.startVaultSwitch();
       await cursorPositionStore.startVaultSwitch();
+      await noteNavigationService.startVaultSwitch();
 
       // Close the active note since it's from the previous vault
       onNoteClose();
@@ -95,6 +97,7 @@
       await dailyViewStore.reinitialize();
       await cursorPositionStore.endVaultSwitch();
       await activeNoteStore.endVaultSwitch();
+      await noteNavigationService.endVaultSwitch();
 
       // End vault switch mode
       temporaryTabsStore.endVaultSwitch();
@@ -200,6 +203,7 @@
           // Start vault switch mode - this clears tabs and blocks new ones
           await temporaryTabsStore.startVaultSwitch();
           await activeNoteStore.startVaultSwitch();
+          await noteNavigationService.startVaultSwitch();
 
           // Close the active note since it's from the vault being archived
           onNoteClose();
@@ -233,6 +237,7 @@
           await inboxStore.refresh(nextVault.id);
           await dailyViewStore.reinitialize();
           await activeNoteStore.endVaultSwitch();
+          await noteNavigationService.endVaultSwitch();
 
           // End vault switch mode
           temporaryTabsStore.endVaultSwitch();
