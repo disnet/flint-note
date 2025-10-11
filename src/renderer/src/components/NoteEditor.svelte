@@ -116,7 +116,10 @@
           try {
             await currentDoc.reload();
           } catch (loadError) {
-            console.warn('Failed to reload note content after wikilink update:', loadError);
+            console.warn(
+              'Failed to reload note content after wikilink update:',
+              loadError
+            );
           }
         }, 100);
       }

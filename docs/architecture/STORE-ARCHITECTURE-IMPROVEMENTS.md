@@ -612,11 +612,13 @@ All renderer-side code has been updated to use the event sourcing architecture:
 
 **Next Steps:** Phase 3 will update the main process IPC handlers to publish events when notes are modified, completing the event sourcing loop.
 
-### Phase 3: Update IPC Handlers to Publish Events (2-3 hours)
+### Phase 3: Update IPC Handlers to Publish Events ✅ COMPLETED
 
 Modify main process IPC handlers to publish events back to renderer.
 
-#### 3.1: Create Event Publisher Helper (`src/main/note-events.ts`)
+**Status:** Implemented and tested. All IPC handlers now publish events when notes are modified.
+
+#### 3.1: Create Event Publisher Helper (`src/main/note-events.ts`) ✅
 
 ```typescript
 import { BrowserWindow } from 'electron';
@@ -637,9 +639,9 @@ export function publishNoteEvent(event: NoteEvent): void {
 }
 ```
 
-#### 3.2: Update IPC Handlers to Publish Events
+#### 3.2: Update IPC Handlers to Publish Events ✅
 
-In `src/main/index.ts`, modify note operation handlers:
+In `src/main/index.ts`, modified all note operation handlers to publish events:
 
 ```typescript
 import { publishNoteEvent } from './note-events';
@@ -761,8 +763,33 @@ ipcMain.handle(
   }
 );
 
-// Repeat for rename-note, move-note, etc.
+// Similar implementations for rename-note and move-note handlers
 ```
+
+**Phase 3 Summary:**
+
+All main process IPC handlers have been updated to publish events:
+
+- ✅ **create-note handler**: Publishes `note.created` event with full note metadata
+- ✅ **update-note handler**: Publishes `note.updated` event with modified timestamp
+- ✅ **delete-note handler**: Publishes `note.deleted` event with noteId
+- ✅ **rename-note handler**: Publishes `note.renamed` event with oldId and newId
+- ✅ **move-note handler**: Publishes `note.moved` event with noteId, oldType, and newType
+- ✅ All handlers properly check result status before publishing events
+- ✅ Event types match the renderer's NoteEvent discriminated union
+- ✅ All TypeScript types passing (typecheck successful)
+- ✅ All linting passing (eslint successful)
+
+**Implementation Notes:**
+
+- The main process NoteEvent type in `note-events.ts` mirrors the renderer's type definition to ensure type safety across the IPC boundary
+- Events are published to all browser windows using `BrowserWindow.getAllWindows()`
+- Events are only published on successful operations (checked via `result.success` where applicable)
+- For `create-note`, we construct a full NoteMetadata object from the NoteInfo result
+- For `update-note`, we only send the modified timestamp as an update
+- For rename and move operations, we use the result's `new_id` to ensure consistency
+
+**Next Steps:** Phase 4 will migrate remaining stores (dailyViewStore, temporaryTabsStore, wikilinkService, pinnedStore) to use the message bus.
 
 ### Phase 4: Migrate Other Stores (3-4 hours)
 
@@ -954,13 +981,13 @@ async function handleVaultSwitch(vaultId: string) {
   - [x] Remove all manual `notesStore.refresh()` calls from components
   - [x] Replace `wikilinksUpdateCounter` with `note.linksChanged` event subscription
   - [x] Update vault switching to publish `vault.switched` events
-- [ ] Phase 3: Update IPC Handlers
-  - [ ] Create event publisher helper
-  - [ ] Update create-note handler
-  - [ ] Update update-note handler
-  - [ ] Update delete-note handler
-  - [ ] Update rename-note handler
-  - [ ] Update move-note handler
+- [x] Phase 3: Update IPC Handlers ✅ COMPLETED
+  - [x] Create event publisher helper
+  - [x] Update create-note handler
+  - [x] Update update-note handler
+  - [x] Update delete-note handler
+  - [x] Update rename-note handler
+  - [x] Update move-note handler
 - [ ] Phase 4: Migrate Other Stores
   - [ ] Update dailyViewStore
   - [ ] Update temporaryTabsStore

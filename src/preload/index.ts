@@ -396,8 +396,8 @@ const api = {
     electronAPI.ipcRenderer.invoke('clear-vault-ui-state', params),
 
   // Event listener for note events from main process
-  onNoteEvent: (callback: (event: unknown) => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, noteEvent: unknown) =>
+  onNoteEvent: (callback: (event: unknown) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, noteEvent: unknown): void =>
       callback(noteEvent);
     electronAPI.ipcRenderer.on('note-event', handler);
     return () => electronAPI.ipcRenderer.removeListener('note-event', handler);

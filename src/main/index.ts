@@ -25,6 +25,7 @@ import type {
 import type { NoteMetadata } from '../server/types';
 import { logger } from './logger';
 import { AutoUpdaterService } from './auto-updater-service';
+import { publishNoteEvent } from './note-events';
 
 interface FrontendMessage {
   id: string;
@@ -471,12 +472,30 @@ app.whenReady().then(async () => {
       if (!noteService) {
         throw new Error('Note service not available');
       }
-      return await noteService.createNote(
+      const result = await noteService.createNote(
         params.type,
         params.identifier,
         params.content,
         params.vaultId
       );
+
+      // Publish event to renderer
+      publishNoteEvent({
+        type: 'note.created',
+        note: {
+          id: result.id,
+          type: result.type,
+          filename: result.filename,
+          title: result.title,
+          created: result.created,
+          modified: result.created, // Use created timestamp for modified on new notes
+          size: 0, // Will be calculated from content
+          tags: [],
+          path: result.path
+        }
+      });
+
+      return result;
     }
   );
 
@@ -524,12 +543,23 @@ app.whenReady().then(async () => {
         vaultId = currentVault.id;
       }
 
-      return await noteService.updateNote(
+      const result = await noteService.updateNote(
         params.identifier,
         params.content,
         vaultId,
         params.metadata
       );
+
+      // Publish event to renderer
+      publishNoteEvent({
+        type: 'note.updated',
+        noteId: params.identifier,
+        updates: {
+          modified: result.timestamp
+        }
+      });
+
+      return result;
     }
   );
 
@@ -549,7 +579,15 @@ app.whenReady().then(async () => {
         vaultId = currentVault.id;
       }
 
-      return await noteService.deleteNote(params.identifier, vaultId);
+      const result = await noteService.deleteNote(params.identifier, vaultId);
+
+      // Publish event to renderer
+      publishNoteEvent({
+        type: 'note.deleted',
+        noteId: params.identifier
+      });
+
+      return result;
     }
   );
 
@@ -575,11 +613,22 @@ app.whenReady().then(async () => {
         vaultId = currentVault.id;
       }
 
-      return await noteService.renameNote(
+      const result = await noteService.renameNote(
         params.identifier,
         params.newIdentifier,
         vaultId
       );
+
+      // Publish event to renderer
+      if (result.success && result.new_id) {
+        publishNoteEvent({
+          type: 'note.renamed',
+          oldId: params.identifier,
+          newId: result.new_id
+        });
+      }
+
+      return result;
     }
   );
 
@@ -605,7 +654,23 @@ app.whenReady().then(async () => {
         vaultId = currentVault.id;
       }
 
-      return await noteService.moveNote(params.identifier, params.newType, vaultId);
+      const result = await noteService.moveNote(
+        params.identifier,
+        params.newType,
+        vaultId
+      );
+
+      // Publish event to renderer
+      if (result.success) {
+        publishNoteEvent({
+          type: 'note.moved',
+          noteId: result.new_id,
+          oldType: result.old_type,
+          newType: result.new_type
+        });
+      }
+
+      return result;
     }
   );
 
