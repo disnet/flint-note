@@ -10,6 +10,7 @@
   import { cursorPositionStore } from '../services/cursorPositionStore.svelte';
   import { inboxStore } from '../stores/inboxStore.svelte';
   import { dailyViewStore } from '../stores/dailyViewStore.svelte';
+  import { notesStore } from '../services/noteStore.svelte';
   import CreateVaultModal from './CreateVaultModal.svelte';
 
   interface Props {
@@ -58,11 +59,33 @@
       await service.switchVault({ vaultId });
       await loadVaults(); // Refresh vault info
 
-      // Publish vault switched event - noteStore will automatically reinitialize
+      // Publish vault switched event for other listeners
       messageBus.publish({
         type: 'vault.switched',
         vaultId
       });
+
+      // IMPORTANT: Wait for noteStore to fully initialize before proceeding
+      // This ensures notes are loaded before tabs/pinned notes try to hydrate
+      await notesStore.initialize();
+
+      // Wait for Svelte's reactivity to propagate the notes to all derived values
+      // This ensures notesStore.notes is fully updated before dependent stores try to use it
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      // Verify notes are actually available (safety check)
+      if (notesStore.notes.length === 0) {
+        console.warn(
+          '[VaultSwitcher] Notes not yet propagated, waiting additional time...'
+        );
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+
+      console.log(
+        '[VaultSwitcher] Notes loaded and propagated:',
+        notesStore.notes.length,
+        'notes'
+      );
 
       // Refresh pinned notes, temporary tabs, conversations, inbox, and daily view for the new vault
       await pinnedNotesStore.refreshForVault(vaultId);
@@ -183,11 +206,25 @@
 
           await service.switchVault({ vaultId: nextVault.id });
 
-          // Publish vault switched event - noteStore will automatically reinitialize
+          // Publish vault switched event for other listeners
           messageBus.publish({
             type: 'vault.switched',
             vaultId: nextVault.id
           });
+
+          // IMPORTANT: Wait for noteStore to fully initialize before proceeding
+          await notesStore.initialize();
+
+          // Wait for Svelte's reactivity to propagate
+          await new Promise((resolve) => setTimeout(resolve, 0));
+
+          // Verify notes are available
+          if (notesStore.notes.length === 0) {
+            console.warn(
+              '[VaultSwitcher] Notes not yet propagated during archive, waiting...'
+            );
+            await new Promise((resolve) => setTimeout(resolve, 50));
+          }
 
           // Refresh stores for the new vault
           await pinnedNotesStore.refreshForVault(nextVault.id);

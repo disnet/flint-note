@@ -23,6 +23,7 @@ interface NotesStoreState {
   noteTypes: NoteType[];
   loading: boolean;
   error: string | null;
+  initializationPromise: Promise<void> | null;
 }
 
 function createNotesStore(): {
@@ -38,7 +39,8 @@ function createNotesStore(): {
   const state = $state<NotesStoreState>({
     noteTypes: [],
     loading: true,
-    error: null
+    error: null,
+    initializationPromise: null
   });
 
   // Derived: notes come from cache, not local state
@@ -120,52 +122,70 @@ function createNotesStore(): {
 
   // Initialize: load all notes into cache
   async function initialize(): Promise<void> {
-    try {
-      // Get the current vault first
-      const currentVault = await noteService.getCurrentVault();
-      if (!currentVault) {
-        console.warn('No current vault available for loading notes');
-        state.loading = false;
-        state.error = 'No vault selected';
-        return;
-      }
-
-      await loadNoteTypes();
-      const loadedNotes: NoteMetadata[] = [];
-
-      // Load notes for each type
-      for (const noteType of state.noteTypes) {
-        const notesOfType = await loadNotesOfType(noteType.name, currentVault.id);
-        loadedNotes.push(...notesOfType);
-      }
-
-      // Sort notes by modification date (newest first)
-      const sortedNotes = loadedNotes.sort(
-        (a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime()
+    // If already initializing, return the existing promise
+    if (state.initializationPromise) {
+      console.log(
+        '[noteStore] Initialization already in progress, awaiting existing promise'
       );
-
-      // Publish bulk refresh event to populate cache
-      console.log(`[noteStore] Publishing bulk refresh with ${sortedNotes.length} notes`);
-      messageBus.publish({
-        type: 'notes.bulkRefresh',
-        notes: sortedNotes
-      });
-
-      state.loading = false;
-      console.log('[noteStore] Initialization complete');
-    } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : 'Failed to load all notes';
-      state.error = errorMessage;
-      state.loading = false;
-      console.error('Error loading all notes:', err);
+      return state.initializationPromise;
     }
+
+    // Create and store the initialization promise
+    state.initializationPromise = (async () => {
+      try {
+        state.loading = true;
+        // Get the current vault first
+        const currentVault = await noteService.getCurrentVault();
+        if (!currentVault) {
+          console.warn('No current vault available for loading notes');
+          state.loading = false;
+          state.error = 'No vault selected';
+          return;
+        }
+
+        await loadNoteTypes();
+        const loadedNotes: NoteMetadata[] = [];
+
+        // Load notes for each type
+        for (const noteType of state.noteTypes) {
+          const notesOfType = await loadNotesOfType(noteType.name, currentVault.id);
+          loadedNotes.push(...notesOfType);
+        }
+
+        // Sort notes by modification date (newest first)
+        const sortedNotes = loadedNotes.sort(
+          (a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime()
+        );
+
+        // Publish bulk refresh event to populate cache
+        console.log(
+          `[noteStore] Publishing bulk refresh with ${sortedNotes.length} notes`
+        );
+        messageBus.publish({
+          type: 'notes.bulkRefresh',
+          notes: sortedNotes
+        });
+
+        state.loading = false;
+        console.log('[noteStore] Initialization complete');
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error ? err.message : 'Failed to load all notes';
+        state.error = errorMessage;
+        state.loading = false;
+        console.error('Error loading all notes:', err);
+      } finally {
+        // Clear the promise once initialization is complete
+        state.initializationPromise = null;
+      }
+    })();
+
+    return state.initializationPromise;
   }
 
-  // Subscribe to vault switch events to reinitialize
-  messageBus.subscribe('vault.switched', () => {
-    initialize();
-  });
+  // NOTE: vault.switched listener removed to prevent duplicate initialization
+  // VaultSwitcher now explicitly calls notesStore.initialize() in the correct sequence
+  // This prevents race conditions between event-driven and explicit initialization paths
 
   // Defer initial load to next tick to ensure all modules are initialized
   // This prevents race conditions where events are published before subscribers are ready

@@ -20,11 +20,18 @@
 
   const dragState = globalDragState;
 
+  // Check if notes are still loading
+  let isNotesLoading = $derived(notesStore.loading);
+
+  // Check if tabs are ready to display (validated and hydrated)
+  let isTabsReady = $derived(temporaryTabsStore.isReady);
+
   // Hydrate tabs with metadata from notesStore
   let hydratedTabs = $derived(
     temporaryTabsStore.tabs.map((tab) => {
       const note = notesStore.notes.find((n) => n.id === tab.noteId);
-      if (!note) {
+      if (!note && !isNotesLoading && isTabsReady) {
+        // Only warn if we're supposedly ready but still missing notes
         console.warn('[TemporaryTabs] Tab hydration failed - note not found:', {
           tabId: tab.id,
           noteId: tab.noteId,
@@ -42,6 +49,14 @@
   );
 
   async function handleTabClick(noteId: string): Promise<void> {
+    // Don't allow clicks while tabs are not ready
+    if (!isTabsReady || isNotesLoading) {
+      console.log(
+        '[TemporaryTabs] Click blocked - tabs not ready or notes still loading'
+      );
+      return;
+    }
+
     console.log('[TemporaryTabs] Tab clicked:', { noteId });
     const note = notesStore.notes.find((n) => n.id === noteId);
     if (note) {
@@ -152,7 +167,7 @@
 <div class="temporary-tabs">
   <div class="tabs-header">
     <div class="separator"></div>
-    {#if temporaryTabsStore.tabs.length > 0}
+    {#if temporaryTabsStore.tabs.length > 0 && isTabsReady}
       <button class="clear-all" onclick={handleClearAll}>
         <svg
           width="12"
@@ -171,12 +186,18 @@
     {/if}
   </div>
 
-  {#if hydratedTabs.length > 0}
+  {#if !isTabsReady}
+    <div class="loading-state">
+      <div class="loading-spinner"></div>
+      <span class="loading-text">Loading tabs...</span>
+    </div>
+  {:else if hydratedTabs.length > 0}
     <div class="tabs-list">
       {#each hydratedTabs as tab, index (tab.id)}
         <div
           class="tab-item"
           class:active={tab.id === temporaryTabsStore.activeTabId}
+          class:loading={!isTabsReady}
           class:dragging={dragState.draggedId === tab.id}
           class:drag-over-top={dragState.dragOverIndex === index &&
             dragState.dragOverSection === 'temporary' &&
@@ -185,15 +206,15 @@
             dragState.dragOverSection === 'temporary' &&
             dragState.dragOverPosition === 'bottom'}
           data-id={tab.id}
-          draggable="true"
+          draggable={isTabsReady}
           ondragstart={(e) => onDragStart(e, tab)}
           ondragover={(e) => onDragOver(e, index, e.currentTarget)}
           ondrop={(e) => onDrop(e, index)}
           ondragend={onDragEnd}
           onclick={() => handleTabClick(tab.noteId)}
-          title={tab.title}
+          title={!isTabsReady ? 'Loading...' : tab.title}
           role="button"
-          tabindex="0"
+          tabindex={!isTabsReady ? -1 : 0}
           onkeydown={(e) => e.key === 'Enter' && handleTabClick(tab.noteId)}
         >
           <div class="tab-content">
@@ -306,6 +327,12 @@
     background: var(--accent-light);
   }
 
+  .tab-item.loading {
+    opacity: 0.6;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
   .tab-content {
     display: flex;
     align-items: center;
@@ -356,5 +383,35 @@
   .close-tab:hover {
     background: var(--bg-tertiary);
     color: var(--text-primary);
+  }
+
+  .loading-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 1rem;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+  }
+
+  .loading-spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid var(--border-light);
+    border-top-color: var(--accent-primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .loading-text {
+    font-size: 0.75rem;
+    opacity: 0.7;
   }
 </style>

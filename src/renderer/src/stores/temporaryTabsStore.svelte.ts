@@ -30,6 +30,7 @@ class TemporaryTabsStore {
   private isVaultSwitching = false;
   private isLoading = $state(true);
   private isInitialized = $state(false);
+  private isHydrated = $state(false); // NEW: Tracks if tabs are validated against notes
   private initializationPromise: Promise<void> | null = null;
 
   constructor() {
@@ -51,12 +52,9 @@ class TemporaryTabsStore {
       await this.removeTabsByNoteIds([event.noteId]);
     });
 
-    messageBus.subscribe('vault.switched', async (event) => {
-      console.log('[temporaryTabsStore] vault.switched event:', {
-        vaultId: event.vaultId
-      });
-      await this.refreshForVault(event.vaultId);
-    });
+    // NOTE: vault.switched listener removed to prevent duplicate refresh
+    // VaultSwitcher now explicitly calls refreshForVault() in the correct sequence
+    // This prevents race conditions between event-driven and explicit refresh paths
 
     messageBus.subscribe('notes.bulkRefresh', async () => {
       console.log('[temporaryTabsStore] notes.bulkRefresh event: Validating tabs');
@@ -82,6 +80,15 @@ class TemporaryTabsStore {
 
   get initialized(): boolean {
     return this.isInitialized;
+  }
+
+  /**
+   * Check if tabs are ready to display (hydrated and validated)
+   * Note: We don't check isVaultSwitching here because refreshForVault sets isHydrated=true
+   * before endVaultSwitch() is called. The hydration status is the source of truth.
+   */
+  get isReady(): boolean {
+    return this.isHydrated && !this.isLoading;
   }
 
   async ensureInitialized(): Promise<void> {
@@ -468,6 +475,7 @@ class TemporaryTabsStore {
 
   private async initializeVault(): Promise<void> {
     this.isLoading = true;
+    this.isHydrated = false;
     try {
       // Clean up old non-vault-specific data
       this.migrateOldStorage();
@@ -483,9 +491,14 @@ class TemporaryTabsStore {
 
       await this.loadFromStorage();
       await this.cleanupOldTabs();
+
+      // Validate tabs on initial load
+      await this.ensureNotesAvailable();
+      this.isHydrated = true;
     } catch (error) {
       console.warn('Failed to initialize temporary tabs store:', error);
       // Use default state on error
+      this.isHydrated = true; // Mark as ready even on error to unblock UI
     } finally {
       this.isLoading = false;
       this.isInitialized = true;
@@ -585,8 +598,10 @@ class TemporaryTabsStore {
 
   async refreshForVault(vaultId?: string): Promise<void> {
     console.log('🔄 refreshForVault: switching to vault', vaultId);
-    // Set vault switching flag to prevent new tabs from being added
-    this.isVaultSwitching = true;
+    // Note: isVaultSwitching flag is set by startVaultSwitch() and cleared by endVaultSwitch()
+
+    // Mark as not hydrated during refresh
+    this.isHydrated = false;
 
     if (vaultId) {
       this.currentVaultId = vaultId;
@@ -620,8 +635,80 @@ class TemporaryTabsStore {
     );
     await this.cleanupOldTabs();
 
-    // Clear vault switching flag
-    this.isVaultSwitching = false;
+    // Wait for notes to be available and validate tabs
+    await this.ensureNotesAvailable();
+
+    // Mark as hydrated and ready
+    this.isHydrated = true;
+    console.log('✅ refreshForVault: tabs validated and hydrated');
+
+    // Note: Don't clear vault switching flag here - let VaultSwitcher control the full sequence
+  }
+
+  /**
+   * Wait for notes to be available and validate all tabs against notes
+   * Remove any tabs that don't have corresponding notes
+   */
+  private async ensureNotesAvailable(): Promise<void> {
+    // If there are no tabs to validate, skip the check
+    if (this.state.tabs.length === 0) {
+      console.log('[temporaryTabsStore] No tabs to validate, skipping');
+      return;
+    }
+
+    const { notesStore } = await import('../services/noteStore.svelte');
+
+    // Wait for notes to be loaded (with timeout)
+    let attempts = 0;
+    const maxAttempts = 100; // 1 second max wait
+
+    // Wait until either notes are loaded OR we've waited long enough
+    while ((notesStore.loading || notesStore.notes.length === 0) && attempts < maxAttempts) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      attempts++;
+    }
+
+    if (attempts >= maxAttempts) {
+      console.warn(
+        '[temporaryTabsStore] Timeout waiting for notes, proceeding with validation anyway'
+      );
+    }
+
+    // Wait one more tick to ensure derived values have propagated
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    // Validate all tabs have corresponding notes
+    const availableNoteIds = new Set(notesStore.notes.map((n) => n.id));
+    const invalidTabs = this.state.tabs.filter(
+      (tab) => !availableNoteIds.has(tab.noteId)
+    );
+
+    if (invalidTabs.length > 0) {
+      console.warn('[temporaryTabsStore] Removing tabs with missing notes:', {
+        count: invalidTabs.length,
+        tabs: invalidTabs.map((t) => ({
+          tabId: t.id,
+          noteId: t.noteId,
+          source: t.source
+        }))
+      });
+
+      // Remove invalid tabs
+      this.state.tabs = this.state.tabs.filter((tab) => availableNoteIds.has(tab.noteId));
+
+      // Clear active tab if it was invalid
+      if (
+        this.state.activeTabId &&
+        !this.state.tabs.find((t) => t.id === this.state.activeTabId)
+      ) {
+        this.state.activeTabId = null;
+      }
+
+      // Save the cleaned state
+      await this.saveToStorage();
+    } else {
+      console.log('[temporaryTabsStore] ✓ All tabs validated successfully');
+    }
   }
 
   /**

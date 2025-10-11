@@ -23,6 +23,9 @@
 
   const dragState = globalDragState;
 
+  // Check if notes are ready (for consistency with TemporaryTabs)
+  let isNotesReady = $derived(!notesStore.loading);
+
   // Use $effect to update pinnedNotes when pinnedNotesStore or notesStore changes
   $effect(() => {
     const result = pinnedNotesStore.notes
@@ -40,6 +43,11 @@
   }
 
   function handleNoteClick(note: NoteMetadata): void {
+    // Don't allow clicks while notes are loading
+    if (!isNotesReady) {
+      console.log('[PinnedNotes] Click blocked - notes are not ready');
+      return;
+    }
     onNoteSelect(note);
   }
 
@@ -154,6 +162,7 @@
         <button
           class="pinned-item"
           class:active={activeNote?.id === note.id}
+          class:loading={!isNotesReady}
           class:dragging={dragState.draggedId === note.id}
           class:drag-over-top={dragState.dragOverIndex === index &&
             dragState.dragOverSection === 'pinned' &&
@@ -162,13 +171,13 @@
             dragState.dragOverSection === 'pinned' &&
             dragState.dragOverPosition === 'bottom'}
           data-id={note.id}
-          draggable="true"
+          draggable={isNotesReady}
           ondragstart={(e) => onDragStart(e, note)}
           ondragover={(e) => onDragOver(e, index, e.currentTarget)}
           ondrop={(e) => onDrop(e, index)}
           ondragend={onDragEnd}
           onclick={() => handleNoteClick(note)}
-          title={note.title}
+          title={!isNotesReady ? 'Loading...' : note.title}
         >
           <div class="note-icon">
             <!-- eslint-disable-next-line svelte/no-at-html-tags -->
@@ -287,6 +296,12 @@
 
   .pinned-item.active {
     background: var(--accent-light);
+  }
+
+  .pinned-item.loading {
+    opacity: 0.6;
+    cursor: not-allowed;
+    pointer-events: none;
   }
 
   .note-icon {
