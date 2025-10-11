@@ -457,6 +457,9 @@ declare global {
       // Migration operations
       getMigrationMapping: () => Promise<Record<string, string> | null>;
       clearVaultUIState: (params: { vaultId: string }) => Promise<void>;
+
+      // Event listener for note events from main process
+      onNoteEvent: (callback: (event: unknown) => void) => () => void;
     };
   }
 }

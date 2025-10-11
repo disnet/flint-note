@@ -3,6 +3,7 @@
 ## Current Problems
 
 ### 1. Manual Refresh Pattern
+
 Currently, any code that modifies notes must manually call `notesStore.refresh()`:
 
 ```typescript
@@ -13,12 +14,14 @@ await notesStore.refresh(); // Manual refresh - error prone!
 ```
 
 **Issues:**
+
 - Easy to forget the refresh call
 - Tight coupling between stores
 - Loads ALL notes even when only one changed
 - No way to know what changed (full refresh)
 
 ### 2. Counter-Based Invalidation
+
 Some stores use counters to signal updates:
 
 ```typescript
@@ -30,12 +33,14 @@ notifyWikilinksUpdated(): void {
 ```
 
 **Issues:**
+
 - Indirect communication pattern
 - Components must watch counter and react
 - No information about what changed
 - Still requires manual notification calls
 
 ### 3. Event-Based Updates
+
 Some stores emit custom DOM events:
 
 ```typescript
@@ -46,6 +51,7 @@ document.dispatchEvent(event);
 ```
 
 **Issues:**
+
 - Type-unsafe
 - Hard to track dependencies
 - Easy to miss event handlers
@@ -65,11 +71,13 @@ After evaluating multiple patterns, **Event Sourcing with Message Bus** is the b
 ### Why Not Reactive Database Queries?
 
 Reactive DB queries work well for:
+
 - ✅ Database directly accessible in same process
 - ✅ Multi-user/multi-process concurrent writes
 - ✅ External file system changes to watch
 
 Flint UI's situation:
+
 - ❌ Database in main process, UI in renderer
 - ❌ Single-writer (only one app instance)
 - ❌ All changes flow through IPC anyway
@@ -78,9 +86,11 @@ Flint UI's situation:
 
 ## Implementation Plan
 
-### Phase 1: Core Infrastructure (2-3 hours)
+### Phase 1: Core Infrastructure ✅ COMPLETED
 
-Create the foundational event system and cache.
+**Status:** Implemented and tested. The foundational event system and cache are in place.
+
+**What was built:**
 
 #### 1.1: Message Bus (`src/renderer/src/services/messageBus.svelte.ts`)
 
@@ -92,7 +102,12 @@ export type NoteEvent =
   | { type: 'note.deleted'; noteId: string }
   | { type: 'note.renamed'; oldId: string; newId: string }
   | { type: 'note.moved'; noteId: string; oldType: string; newType: string }
-  | { type: 'note.linksChanged'; noteId: string; addedLinks?: string[]; removedLinks?: string[] }
+  | {
+      type: 'note.linksChanged';
+      noteId: string;
+      addedLinks?: string[];
+      removedLinks?: string[];
+    }
   | { type: 'notes.bulkRefresh'; notes: NoteMetadata[] } // For initial load
   | { type: 'vault.switched'; vaultId: string };
 
@@ -132,7 +147,7 @@ class MessageBus {
     // Notify specific event type subscribers
     const handlers = this.subscribers.get(event.type);
     if (handlers) {
-      handlers.forEach(handler => {
+      handlers.forEach((handler) => {
         try {
           handler(event);
         } catch (error) {
@@ -144,7 +159,7 @@ class MessageBus {
     // Notify wildcard subscribers
     const wildcardHandlers = this.subscribers.get('*');
     if (wildcardHandlers) {
-      wildcardHandlers.forEach(handler => {
+      wildcardHandlers.forEach((handler) => {
         try {
           handler(event);
         } catch (error) {
@@ -236,10 +251,12 @@ class NoteCache {
     }
   }
 
-  private handleBulkRefresh(event: Extract<NoteEvent, { type: 'notes.bulkRefresh' }>): void {
+  private handleBulkRefresh(
+    event: Extract<NoteEvent, { type: 'notes.bulkRefresh' }>
+  ): void {
     // Replace entire cache (used for initial load)
     this.cache.clear();
-    event.notes.forEach(note => this.cache.set(note.id, note));
+    event.notes.forEach((note) => this.cache.set(note.id, note));
   }
 
   private handleVaultSwitch(): void {
@@ -267,7 +284,7 @@ class NoteCache {
    * Get notes by type
    */
   getNotesByType(type: string): NoteMetadata[] {
-    return this.getAllNotes().filter(note => note.type === type);
+    return this.getAllNotes().filter((note) => note.type === type);
   }
 
   /**
@@ -340,17 +357,18 @@ interface Window {
 }
 ```
 
-#### 1.4: Connect IPC to Message Bus (`src/renderer/src/App.svelte`)
+#### 1.4: Connect IPC to Message Bus (`src/renderer/src/App.svelte`) ✅
 
 In the root component, forward IPC events to message bus:
 
 ```typescript
 import { messageBus } from './services/messageBus.svelte';
+import type { NoteEvent } from './services/messageBus.svelte';
 
+// Forward note events from main process to message bus
 $effect(() => {
-  // Forward note events from main process to message bus
   const unsubscribe = window.api?.onNoteEvent((event) => {
-    messageBus.publish(event);
+    messageBus.publish(event as NoteEvent);
   });
 
   return () => {
@@ -358,6 +376,19 @@ $effect(() => {
   };
 });
 ```
+
+**Phase 1 Summary:**
+
+All core infrastructure is in place:
+
+- ✅ Type-safe message bus with pub/sub pattern
+- ✅ Reactive note cache that updates automatically from events
+- ✅ IPC bridge from main process to renderer
+- ✅ Event forwarding in App.svelte
+- ✅ Development logging enabled for debugging
+- ✅ All TypeScript types passing
+
+**Next Steps:** Phase 2 will migrate the noteStore to use this infrastructure, eliminating manual refresh calls.
 
 ### Phase 2: Migrate noteStore (3-4 hours)
 
@@ -553,6 +584,7 @@ export const notesStore = createNotesStore();
 ```
 
 **Key Changes:**
+
 - ❌ Removed `refresh()` method
 - ❌ Removed `handleToolCall()` method
 - ❌ Removed `wikilinksUpdateCounter`
@@ -579,7 +611,7 @@ export type NoteEvent =
 
 export function publishNoteEvent(event: NoteEvent): void {
   const allWindows = BrowserWindow.getAllWindows();
-  allWindows.forEach(window => {
+  allWindows.forEach((window) => {
     window.webContents.send('note-event', event);
   });
 }
@@ -760,9 +792,9 @@ import { noteCache } from '../services/noteCache.svelte';
 
 // Hydrated tabs now derive from cache automatically
 let hydratedTabs = $derived(
-  this.tabs.map(tab => ({
+  this.tabs.map((tab) => ({
     ...tab,
-    title: noteCache.getNote(tab.noteId)?.title || 'Untitled',
+    title: noteCache.getNote(tab.noteId)?.title || 'Untitled'
     // ... other fields from cache
   }))
 );
@@ -809,7 +841,7 @@ messageBus.publish({
 
 // And derive pinned notes from cache:
 const pinnedNotes = $derived(
-  this.pinnedNoteIds.map(id => noteCache.getNote(id)).filter(Boolean)
+  this.pinnedNoteIds.map((id) => noteCache.getNote(id)).filter(Boolean)
 );
 ```
 
@@ -889,11 +921,11 @@ async function handleVaultSwitch(vaultId: string) {
 
 ## Migration Checklist
 
-- [ ] Phase 1: Core Infrastructure
-  - [ ] Create `messageBus.svelte.ts`
-  - [ ] Create `noteCache.svelte.ts`
-  - [ ] Add IPC event bridge in preload
-  - [ ] Connect IPC to message bus in App.svelte
+- [x] Phase 1: Core Infrastructure ✅ COMPLETED
+  - [x] Create `messageBus.svelte.ts`
+  - [x] Create `noteCache.svelte.ts`
+  - [x] Add IPC event bridge in preload
+  - [x] Connect IPC to message bus in App.svelte
 - [ ] Phase 2: Migrate noteStore
   - [ ] Read notes from cache
   - [ ] Remove `refresh()` method
@@ -935,23 +967,27 @@ async function handleVaultSwitch(vaultId: string) {
 ## Expected Outcomes
 
 **Before:**
+
 ```typescript
 const dailyNote = await this.getOrCreateDailyNote(date, true);
 await notesStore.refresh(); // 😞 Slow, couples stores, loads everything
 ```
 
 **After:**
+
 ```typescript
 const dailyNote = await this.getOrCreateDailyNote(date, true);
 // ✅ IPC handler publishes event → message bus → cache → all stores react
 ```
 
 **Performance:**
+
 - 🚀 No full note list reloads (only load once on startup)
 - 🚀 Immediate UI updates with optimistic updates
 - 🚀 Targeted cache updates (single note vs. all notes)
 
 **Code Quality:**
+
 - ✨ 50% reduction in store coupling
 - ✨ Type-safe event system
 - ✨ Easier debugging with event log

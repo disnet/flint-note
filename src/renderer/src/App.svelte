@@ -21,9 +21,22 @@
   import { dailyViewStore } from './stores/dailyViewStore.svelte';
   import { inboxStore } from './stores/inboxStore.svelte';
   import type { CreateVaultResult } from '@/server/api/types';
+  import { messageBus } from './services/messageBus.svelte';
+  import type { NoteEvent } from './services/messageBus.svelte';
 
   // Initialize unified chat store effects
   unifiedChatStore.initializeEffects();
+
+  // Forward note events from main process to message bus
+  $effect(() => {
+    const unsubscribe = window.api?.onNoteEvent((event) => {
+      messageBus.publish(event as NoteEvent);
+    });
+
+    return () => {
+      unsubscribe?.();
+    };
+  });
 
   // Add app lifecycle integration for cursor position persistence
   $effect(() => {

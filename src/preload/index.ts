@@ -393,7 +393,15 @@ const api = {
     electronAPI.ipcRenderer.invoke('rebuild-database', params),
   getMigrationMapping: () => electronAPI.ipcRenderer.invoke('get-migration-mapping'),
   clearVaultUIState: (params: { vaultId: string }) =>
-    electronAPI.ipcRenderer.invoke('clear-vault-ui-state', params)
+    electronAPI.ipcRenderer.invoke('clear-vault-ui-state', params),
+
+  // Event listener for note events from main process
+  onNoteEvent: (callback: (event: unknown) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, noteEvent: unknown) =>
+      callback(noteEvent);
+    electronAPI.ipcRenderer.on('note-event', handler);
+    return () => electronAPI.ipcRenderer.removeListener('note-event', handler);
+  }
 };
 
 // Use `contextBridge` APIs to expose Electron APIs to
