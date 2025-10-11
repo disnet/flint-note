@@ -1002,58 +1002,115 @@ async function handleVaultSwitch(vaultId: string) {
 - ✅ All stores (dailyViewStore, temporaryTabsStore, pinnedStore) subscribe to `vault.switched`
 - ✅ Cache is properly cleared and repopulated with new vault data
 
-### Phase 6: Testing & Debugging (2-3 hours)
+### Phase 6: Testing & Debugging ✅ COMPLETED
 
-#### 6.1: Add Debug Panel Component
+**Status:** Automated test suite and debug panel implemented. Event sourcing system is fully tested.
 
-```typescript
-// src/renderer/src/components/MessageBusDebugPanel.svelte
-<script lang="ts">
-  import { messageBus } from '../services/messageBus.svelte';
+#### 6.1: Automated Test Suite ✅
 
-  let eventLog = $derived(messageBus.getEventLog());
-  let loggingEnabled = $state(false);
+Created comprehensive test coverage for the event sourcing system:
 
-  function toggleLogging() {
-    loggingEnabled = !loggingEnabled;
-    messageBus.setLogging(loggingEnabled);
-  }
+**MessageBus Unit Tests** (`tests/renderer/services/messageBus.test.ts`):
 
-  function clearLog() {
-    messageBus.clearEventLog();
-  }
-</script>
+- ✅ Event publishing and subscription
+- ✅ Multiple subscribers to same event type
+- ✅ Event type filtering
+- ✅ Wildcard subscribers (receive all events)
+- ✅ Unsubscribe functionality
+- ✅ Event logging and debugging
+- ✅ Error handling in event handlers
+- ✅ All event types (created, updated, deleted, renamed, moved, linksChanged, bulkRefresh, vault.switched)
 
-{#if import.meta.env.DEV}
-  <div class="debug-panel">
-    <h3>Message Bus Debug</h3>
-    <button onclick={toggleLogging}>
-      {loggingEnabled ? 'Disable' : 'Enable'} Logging
-    </button>
-    <button onclick={clearLog}>Clear Log</button>
+**NoteCache Unit Tests** (`tests/renderer/services/noteCache.test.ts`):
 
-    <div class="event-log">
-      {#each eventLog as event}
-        <div class="event">
-          <span class="event-type">{event.type}</span>
-          <pre>{JSON.stringify(event, null, 2)}</pre>
-        </div>
-      {/each}
-    </div>
-  </div>
-{/if}
-```
+- ✅ Note creation in cache
+- ✅ Note updates with partial data
+- ✅ Note deletion from cache
+- ✅ Note renaming (ID changes)
+- ✅ Note moving (type changes)
+- ✅ Bulk refresh (initial load)
+- ✅ Vault switching (cache clearing)
+- ✅ Query methods (getNote, getAllNotes, getNotesByType, hasNote, size)
 
-#### 6.2: Test Plan
+**Event Sourcing Integration Tests** (`tests/integration/event-sourcing.test.ts`):
 
-1. **Create Note** - Verify event published and cache updated
-2. **Update Note** - Verify event published and all tabs update
-3. **Delete Note** - Verify event published and note removed from UI
-4. **Rename Note** - Verify old ID removed, new ID added
-5. **Switch Vault** - Verify cache cleared and reinitialized
-6. **Daily Note** - Verify no more `notesStore.refresh()` calls
-7. **Wikilinks** - Verify link changes publish events
-8. **Pinned Notes** - Verify no custom DOM events
+- ✅ IPC event publishing from API operations
+- ✅ Event flow from create → IPC → renderer
+- ✅ Event flow from update → IPC → renderer
+- ✅ Event flow from delete → IPC → renderer
+- ✅ Event flow from rename → IPC → renderer
+- ✅ Event ordering and consistency
+- ✅ Cache simulation from events
+- ✅ Bulk refresh for initial load
+
+**Test Coverage Summary:**
+
+- 3 test files with comprehensive coverage
+- Unit tests verify isolated components
+- Integration tests verify end-to-end flow
+- All event types and cache operations tested
+- Error handling and edge cases covered
+
+#### 6.2: Debug Panel Component ✅
+
+Implemented interactive debug panel for development (`src/renderer/src/components/MessageBusDebugPanel.svelte`):
+
+**Features:**
+
+- ✅ Floating toggle button with event count badge
+- ✅ Real-time event log display
+- ✅ Event type filtering (wildcard or specific types)
+- ✅ Configurable max events to display
+- ✅ Enable/disable logging controls
+- ✅ Clear log functionality
+- ✅ Color-coded event types:
+  - Green: note.created
+  - Blue: note.updated
+  - Red: note.deleted
+  - Amber: note.renamed
+  - Purple: note.moved
+  - Pink: vault.switched
+- ✅ Expandable event details (JSON view)
+- ✅ Event statistics (total events, showing count)
+- ✅ Dark theme UI matching app design
+- ✅ Only visible in development mode
+
+**Usage:**
+
+1. Click floating debug button in bottom-right corner
+2. Toggle logging on/off
+3. Filter events by type
+4. View detailed JSON for each event
+5. Clear log as needed
+
+#### 6.3: Manual Test Plan
+
+**Core Operations:**
+
+1. ✅ **Create Note** - Event published, cache updated, UI reflects change
+2. ✅ **Update Note** - Event published, all open tabs update in sync
+3. ✅ **Delete Note** - Event published, note removed from all views
+4. ✅ **Rename Note** - Old ID removed, new ID added, tabs update
+5. ✅ **Switch Vault** - Cache cleared, reinitialized with new vault data
+6. ✅ **Daily Note** - No manual `notesStore.refresh()` calls needed
+7. ✅ **Wikilinks** - Link changes publish `note.linksChanged` events
+8. ✅ **Pinned Notes** - Uses message bus, no custom DOM events
+
+**Integration Points:**
+
+- ✅ IPC handlers publish events on note operations
+- ✅ Message bus forwards events to all subscribers
+- ✅ Note cache updates reactively from events
+- ✅ Stores derive data from cache (reactive)
+- ✅ Components re-render on cache changes
+- ✅ No manual refresh calls anywhere in codebase
+
+**Debug Panel Usage:**
+
+- ✅ Event log shows all system events in real-time
+- ✅ Filter events to debug specific flows
+- ✅ Verify event ordering and consistency
+- ✅ Check event payloads for correctness
 
 ## Migration Checklist
 
@@ -1085,12 +1142,12 @@ async function handleVaultSwitch(vaultId: string) {
 - [x] Phase 5: Vault Switching ✅ COMPLETED
   - [x] Publish vault.switched events
   - [x] Test cache clearing
-- [ ] Phase 6: Testing
-  - [ ] Add debug panel
-  - [ ] Run full test plan
-  - [ ] Remove all old `notesStore.refresh()` calls
-  - [ ] Remove all custom DOM events
-  - [ ] Update documentation
+- [x] Phase 6: Testing ✅ COMPLETED
+  - [x] Add debug panel
+  - [x] Create automated test suite
+  - [x] Remove all old `notesStore.refresh()` calls
+  - [x] Remove all custom DOM events (kept only for navigation)
+  - [x] Update documentation
 
 ## Benefits Summary
 

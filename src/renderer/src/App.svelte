@@ -6,6 +6,7 @@
   import VaultSwitcher from './components/VaultSwitcher.svelte';
   import FirstTimeExperience from './components/FirstTimeExperience.svelte';
   import UpdateIndicator from './components/UpdateIndicator.svelte';
+  import MessageBusDebugPanel from './components/MessageBusDebugPanel.svelte';
   import type { Message } from './services/types';
   import type { NoteMetadata } from './services/noteStore.svelte';
   import { getChatService } from './services/chatService';
@@ -793,6 +794,9 @@
         onSendMessage={handleSendMessage}
       />
     </div>
+
+    <!-- Debug Panel (only in development) -->
+    <MessageBusDebugPanel />
   </div>
 {/if}
 
