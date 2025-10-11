@@ -24,6 +24,7 @@
   import MetadataView from './MetadataView.svelte';
   import Backlinks from './Backlinks.svelte';
   import NoteActionBar from './NoteActionBar.svelte';
+  import MarkdownRenderer from './MarkdownRenderer.svelte';
 
   interface Props {
     note: NoteMetadata;
@@ -37,6 +38,7 @@
 
   let noteData = $state<Note | null>(null);
   let metadataExpanded = $state(false);
+  let previewMode = $state(false);
   let editorRef = $state<CodeMirrorEditor | undefined>(undefined);
   let headerRef = $state<{ focusTitle?: () => void } | null>(null);
   let pendingCursorPosition = $state<CursorPosition | null>(null);
@@ -286,6 +288,10 @@
     metadataExpanded = !metadataExpanded;
   }
 
+  function togglePreview(): void {
+    previewMode = !previewMode;
+  }
+
   async function handleMetadataUpdate(metadata: Record<string, unknown>): Promise<void> {
     if (!noteData || !doc) return;
 
@@ -413,6 +419,21 @@
 
     await wikilinkService.handleWikilinkClick(selectedNote.id, selectedNote.title, false);
   }
+
+  async function handlePreviewWikilinkClick(noteId: string): Promise<void> {
+    // Close current editor before navigating
+    onClose();
+
+    // Navigate to the clicked note using the wikilink service
+    // Find the note by ID to get its title
+    const targetNote = notesStore.notes.find((n) => n.id === noteId);
+    if (targetNote) {
+      await wikilinkService.handleWikilinkClick(noteId, targetNote.title, false);
+    } else {
+      // If not found, try to create it
+      await wikilinkService.handleWikilinkClick(noteId, noteId, true);
+    }
+  }
 </script>
 
 {#if doc}
@@ -434,9 +455,11 @@
       isPinned={pinnedNotesStore.isPinned(note.id)}
       isInSidebar={sidebarNotesStore.isInSidebar(note.id)}
       {metadataExpanded}
+      {previewMode}
       onPinToggle={handlePinToggle}
       onAddToSidebar={handleAddToSidebar}
       onMetadataToggle={toggleMetadata}
+      onPreviewToggle={togglePreview}
     />
 
     <ErrorBanner error={doc.error} />
@@ -450,15 +473,21 @@
       />
     </div>
 
-    <CodeMirrorEditor
-      bind:this={editorRef}
-      content={doc.content}
-      onContentChange={handleContentChange}
-      onCursorChange={handleCursorChange}
-      onWikilinkClick={handleWikilinkClick}
-      cursorPosition={pendingCursorPosition}
-      placeholder="Write, type [[ to make links..."
-    />
+    {#if previewMode}
+      <div class="preview-content">
+        <MarkdownRenderer text={doc.content} onNoteClick={handlePreviewWikilinkClick} />
+      </div>
+    {:else}
+      <CodeMirrorEditor
+        bind:this={editorRef}
+        content={doc.content}
+        onContentChange={handleContentChange}
+        onCursorChange={handleCursorChange}
+        onWikilinkClick={handleWikilinkClick}
+        cursorPosition={pendingCursorPosition}
+        placeholder="Write, type [[ to make links..."
+      />
+    {/if}
 
     <Backlinks noteId={note.id} onNoteSelect={handleBacklinkSelect} />
   </div>
@@ -480,5 +509,10 @@
     justify-content: flex-start;
     width: 100%;
     padding: 0;
+  }
+
+  .preview-content {
+    padding: 0.75rem;
+    line-height: 1.6;
   }
 </style>

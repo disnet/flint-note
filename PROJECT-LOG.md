@@ -369,3 +369,7 @@
 ## Phase 1 API Type Alignment Complete - 2025-01-XX
 
 - Successfully implemented **Phase 1: Flatten WASM API to Single Namespace** from the API Type Alignment Plan, converting separate namespace objects (`notes`, `noteTypes`, `vaults`, etc.) to unified `flintApi` object with direct method name alignment to FlintNoteApi implementation, updated all type definitions and test files, achieving 100% test pass rate (222/222 tests passing)
+## Note Preview Mode Implementation - 2025-10-12
+
+- Added preview mode toggle to main note editor for switching between editing and rendered markdown views: created preview toggle button in NoteActionBar.svelte (displays "👁 Preview" or "✏️ Edit" based on mode), added previewMode state to NoteEditor.svelte with conditional rendering between CodeMirrorEditor and MarkdownRenderer components, implemented handlePreviewWikilinkClick() to handle wikilink navigation in preview mode using wikilinkService, updated MarkdownRenderer.svelte wikilink styling to match editor's subtle appearance (minimal background with underline, no borders or shadows, matches wikilink-theme.ts styling), fixed preview content scrolling to scroll entire window (title, metadata, backlinks) like editor mode instead of creating internal scroll container; preview mode provides clean markdown rendering with fully functional wikilinks while maintaining consistent UI patterns
+

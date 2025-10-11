@@ -3,18 +3,22 @@
     isPinned: boolean;
     metadataExpanded: boolean;
     isInSidebar: boolean;
+    previewMode: boolean;
     onPinToggle: () => Promise<void>;
     onMetadataToggle: () => void;
     onAddToSidebar: () => Promise<void>;
+    onPreviewToggle: () => void;
   }
 
   let {
     isPinned,
     metadataExpanded,
     isInSidebar,
+    previewMode,
     onPinToggle,
     onMetadataToggle,
-    onAddToSidebar
+    onAddToSidebar,
+    onPreviewToggle
   }: Props = $props();
 </script>
 
@@ -46,6 +50,15 @@
     disabled={isInSidebar}
   >
     {isInSidebar ? '📋 In Sidebar' : '📋 Add to Sidebar'}
+  </button>
+  <button
+    class="action-button"
+    class:active={previewMode}
+    onclick={onPreviewToggle}
+    type="button"
+    title={previewMode ? 'Switch to edit mode' : 'Switch to preview mode'}
+  >
+    {previewMode ? '✏️ Edit' : '👁 Preview'}
   </button>
 </div>
 

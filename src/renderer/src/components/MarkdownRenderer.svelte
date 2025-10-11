@@ -288,33 +288,25 @@
   }
 
   .markdown-content :global(.note-link) {
-    background: rgba(255, 255, 255, 0.9);
+    background: rgba(0, 0, 0, 0.03);
     color: #1a1a1a;
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    border: none;
     border-radius: 0.25rem;
-    padding: 0.125rem 0.375rem;
+    padding: 0 0.175rem;
     margin: 0 0.125rem;
     cursor: pointer;
     font-size: inherit;
     font-family: inherit;
-    text-decoration: none;
+    text-decoration: underline;
     display: inline-flex;
     align-items: center;
     transition: all 0.2s ease;
     font-weight: 600;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
   }
 
   .markdown-content :global(.note-link:hover) {
-    background: rgba(255, 255, 255, 1);
+    background: rgba(0, 0, 0, 0.06);
     color: #0066cc;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
-    border-color: rgba(255, 255, 255, 0.5);
-  }
-
-  .markdown-content :global(.note-link:active) {
-    transform: translateY(0);
   }
 
   @media (prefers-color-scheme: dark) {
@@ -332,17 +324,13 @@
     }
 
     .markdown-content :global(.note-link) {
-      background: rgba(255, 255, 255, 0.15);
+      background: rgba(255, 255, 255, 0.06);
       color: #ffffff;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
     }
 
     .markdown-content :global(.note-link:hover) {
-      background: rgba(255, 255, 255, 0.25);
+      background: rgba(255, 255, 255, 0.12);
       color: #ffffff;
-      border-color: rgba(255, 255, 255, 0.3);
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
     }
   }
 </style>
