@@ -7,6 +7,7 @@ import {
 } from './enhanced-evaluate-note-code';
 import { CustomFunctionsApi } from '../server/api/custom-functions-api.js';
 import { ContentHashMismatchError } from '../server/utils/content-hash.js';
+import { publishNoteEvent } from './note-events';
 
 interface ToolResponse {
   success: boolean;
@@ -521,6 +522,22 @@ export class ToolService {
           }
         }
 
+        // Publish note.created event to renderer
+        publishNoteEvent({
+          type: 'note.created',
+          note: {
+            id: noteInfo.id,
+            type: noteType,
+            filename: note.filename,
+            title: note.title,
+            created: note.created,
+            modified: note.updated,
+            size: note.size || 0,
+            tags: note.metadata.tags || [],
+            path: note.path
+          }
+        });
+
         return {
           success: true,
           data: note,
@@ -691,6 +708,15 @@ export class ToolService {
 
             // Update identifier for subsequent operations
             updates.identifier = renameResult.new_id || id;
+
+            // Publish note.renamed event
+            if (renameResult.new_id) {
+              publishNoteEvent({
+                type: 'note.renamed',
+                oldId: id,
+                newId: renameResult.new_id
+              });
+            }
           }
         }
 
@@ -698,6 +724,15 @@ export class ToolService {
 
         // Get updated note to return
         const updatedNote = await flintApi.getNote(currentVault.id, updates.identifier);
+
+        // Publish note.updated event
+        publishNoteEvent({
+          type: 'note.updated',
+          noteId: updates.identifier,
+          updates: {
+            modified: new Date().toISOString()
+          }
+        });
 
         return {
           success: true,
@@ -901,6 +936,14 @@ export class ToolService {
           confirm: true,
           vaultId: currentVault.id
         });
+
+        // Publish note.deleted event if deletion was successful
+        if (result.deleted) {
+          publishNoteEvent({
+            type: 'note.deleted',
+            noteId: id
+          });
+        }
 
         return {
           success: result.deleted,
