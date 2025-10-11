@@ -2,8 +2,13 @@ import type { NoteMetadata } from './noteStore.svelte';
 import { messageBus, type NoteEvent } from './messageBus.svelte';
 
 class NoteCache {
-  private cache = $state<Map<string, NoteMetadata>>(new Map());
-  private version = $state(0); // Increment this when cache changes to trigger reactivity
+  // Use reactive array as source of truth for Svelte reactivity
+  private cacheArray = $state<NoteMetadata[]>([]);
+
+  // Derived Map for O(1) lookups - recomputes when cacheArray changes
+  private cacheMap = $derived.by(() => {
+    return new Map(this.cacheArray.map((note) => [note.id, note]));
+  });
 
   constructor() {
     // Subscribe to all note events and update cache accordingly
@@ -19,38 +24,34 @@ class NoteCache {
   // --- Event Handlers ---
 
   private handleNoteCreated(event: Extract<NoteEvent, { type: 'note.created' }>): void {
-    this.cache.set(event.note.id, event.note);
-    this.version++;
+    // Add note to array - array reassignment triggers reactivity
+    this.cacheArray = [...this.cacheArray, event.note];
   }
 
   private handleNoteUpdated(event: Extract<NoteEvent, { type: 'note.updated' }>): void {
-    const existing = this.cache.get(event.noteId);
-    if (existing) {
-      this.cache.set(event.noteId, { ...existing, ...event.updates });
-      this.version++;
-    }
+    // Update note in array - array reassignment triggers reactivity
+    this.cacheArray = this.cacheArray.map((note) =>
+      note.id === event.noteId ? { ...note, ...event.updates } : note
+    );
   }
 
   private handleNoteDeleted(event: Extract<NoteEvent, { type: 'note.deleted' }>): void {
-    this.cache.delete(event.noteId);
-    this.version++;
+    // Remove note from array - array reassignment triggers reactivity
+    this.cacheArray = this.cacheArray.filter((note) => note.id !== event.noteId);
   }
 
   private handleNoteRenamed(event: Extract<NoteEvent, { type: 'note.renamed' }>): void {
-    const existing = this.cache.get(event.oldId);
-    if (existing) {
-      this.cache.delete(event.oldId);
-      this.cache.set(event.newId, { ...existing, id: event.newId });
-      this.version++;
-    }
+    // Update note ID in array - array reassignment triggers reactivity
+    this.cacheArray = this.cacheArray.map((note) =>
+      note.id === event.oldId ? { ...note, id: event.newId } : note
+    );
   }
 
   private handleNoteMoved(event: Extract<NoteEvent, { type: 'note.moved' }>): void {
-    const existing = this.cache.get(event.noteId);
-    if (existing) {
-      this.cache.set(event.noteId, { ...existing, type: event.newType });
-      this.version++;
-    }
+    // Update note type in array - array reassignment triggers reactivity
+    this.cacheArray = this.cacheArray.map((note) =>
+      note.id === event.noteId ? { ...note, type: event.newType } : note
+    );
   }
 
   private handleBulkRefresh(
@@ -58,45 +59,34 @@ class NoteCache {
   ): void {
     // Replace entire cache (used for initial load)
     console.log(`[noteCache] Handling bulk refresh with ${event.notes.length} notes`);
-    this.cache.clear();
-    event.notes.forEach((note) => this.cache.set(note.id, note));
-    this.version++;
-    console.log(
-      `[noteCache] Cache now contains ${this.cache.size} notes, version ${this.version}`
-    );
+    this.cacheArray = event.notes;
+    console.log(`[noteCache] Cache now contains ${this.cacheArray.length} notes`);
   }
 
   private handleVaultSwitch(): void {
     // Clear cache when vault is switched
-    this.cache.clear();
-    this.version++;
+    this.cacheArray = [];
   }
 
   // --- Public API ---
 
   /**
-   * Get a note by ID
+   * Get a note by ID - uses derived Map for O(1) lookup
    */
   getNote(noteId: string): NoteMetadata | undefined {
-    return this.cache.get(noteId);
+    return this.cacheMap.get(noteId);
   }
 
   /**
-   * Get all notes
-   * Note: Returns a new array on each call to ensure Svelte reactivity tracking
+   * Get all notes - returns the reactive array directly
    */
   getAllNotes(): NoteMetadata[] {
-    // Access this.version to ensure Svelte tracks changes
-    const version = this.version; // Track the version for reactivity
-    const notes = Array.from(this.cache.values());
     console.log(
       '[noteCache] getAllNotes() called, returning',
-      notes.length,
-      'notes (version:',
-      version,
-      ')'
+      this.cacheArray.length,
+      'notes'
     );
-    return notes;
+    return this.cacheArray;
   }
 
   /**
@@ -107,41 +97,47 @@ class NoteCache {
   }
 
   /**
-   * Check if cache has a note
+   * Check if cache has a note - uses derived Map for O(1) lookup
    */
   hasNote(noteId: string): boolean {
-    return this.cache.has(noteId);
+    return this.cacheMap.has(noteId);
   }
 
   /**
    * Get cache size
    */
   get size(): number {
-    return this.cache.size;
+    return this.cacheArray.length;
   }
 
   /**
    * Manually add/update note (for optimistic updates)
    */
   addNote(note: NoteMetadata): void {
-    this.cache.set(note.id, note);
+    const existingIndex = this.cacheArray.findIndex((n) => n.id === note.id);
+    if (existingIndex >= 0) {
+      // Update existing note
+      this.cacheArray = this.cacheArray.map((n, i) => (i === existingIndex ? note : n));
+    } else {
+      // Add new note
+      this.cacheArray = [...this.cacheArray, note];
+    }
   }
 
   /**
    * Manually update note (for optimistic updates)
    */
   updateNote(noteId: string, updates: Partial<NoteMetadata>): void {
-    const existing = this.cache.get(noteId);
-    if (existing) {
-      this.cache.set(noteId, { ...existing, ...updates });
-    }
+    this.cacheArray = this.cacheArray.map((note) =>
+      note.id === noteId ? { ...note, ...updates } : note
+    );
   }
 
   /**
    * Manually delete note (for optimistic updates)
    */
   deleteNote(noteId: string): void {
-    this.cache.delete(noteId);
+    this.cacheArray = this.cacheArray.filter((note) => note.id !== noteId);
   }
 }
 

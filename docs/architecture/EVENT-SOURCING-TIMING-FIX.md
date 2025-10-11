@@ -23,6 +23,7 @@ The **actual root cause** was that Svelte 5's reactivity system wasn't tracking 
 Svelte 5's reactivity tracking in `.svelte.ts` files (non-component context) requires **explicit signals** to know when state changes. Even though we were modifying a `$state` Map with `.set()`, `.clear()`, and `.delete()`, Svelte wasn't registering these mutations as reactive changes that should trigger re-computation of derived values.
 
 We tried several approaches that didn't work:
+
 - Accessing `this.cache.size` before returning the array (didn't trigger reactivity)
 - Using destructuring in components (broke reactivity for different reasons)
 - Relying on Map method calls like `.values()` (not tracked by Svelte)
@@ -99,9 +100,9 @@ In theory, this should work. However, in practice, there can be subtle timing is
 
 The event might be published in the same synchronous execution context as the subscription setup, leading to undefined behavior.
 
-## Solution: The Version Counter Pattern
+## Solution: The Reactive Array Pattern
 
-The fix was to add a simple **version counter** that increments whenever the cache changes:
+The fix was to use a **reactive array as the source of truth** with a derived Map for fast lookups:
 
 ### Implementation
 
@@ -109,51 +110,63 @@ In `src/renderer/src/services/noteCache.svelte.ts`:
 
 ```typescript
 class NoteCache {
-  private cache = $state<Map<string, NoteMetadata>>(new Map());
-  private version = $state(0); // ✅ Version counter for reactivity
+  // Use reactive array as source of truth for Svelte reactivity
+  private cacheArray = $state<NoteMetadata[]>([]);
 
-  // Increment version in ALL mutation methods:
+  // Derived Map for O(1) lookups - recomputes when cacheArray changes
+  private cacheMap = $derived.by(() => {
+    return new Map(this.cacheArray.map((note) => [note.id, note]));
+  });
+
+  // Array reassignment triggers reactivity automatically:
   private handleNoteCreated(event): void {
-    this.cache.set(event.note.id, event.note);
-    this.version++; // ✅ Trigger reactivity
+    this.cacheArray = [...this.cacheArray, event.note]; // ✅ Array reassignment
   }
 
   private handleNoteDeleted(event): void {
-    this.cache.delete(event.noteId);
-    this.version++; // ✅ Trigger reactivity
+    this.cacheArray = this.cacheArray.filter((note) => note.id !== event.noteId); // ✅ Array reassignment
   }
 
   private handleBulkRefresh(event): void {
-    this.cache.clear();
-    event.notes.forEach((note) => this.cache.set(note.id, note));
-    this.version++; // ✅ Trigger reactivity
+    this.cacheArray = event.notes; // ✅ Simple reassignment - highly reactive!
   }
 
-  // Access version in getAllNotes to register dependency:
+  // No special tracking needed - just return the array:
   getAllNotes(): NoteMetadata[] {
-    const version = this.version; // ✅ Read the reactive counter
-    return Array.from(this.cache.values());
+    return this.cacheArray;
+  }
+
+  // Use derived Map for O(1) lookups:
+  getNote(noteId: string): NoteMetadata | undefined {
+    return this.cacheMap.get(noteId);
   }
 }
 ```
 
 ### Why This Works
 
-1. **Simple primitive value**: `this.version` is a simple number, not a complex collection
-2. **Guaranteed reactivity**: Svelte 5's `$state` tracking works perfectly with primitive values
-3. **Explicit signal**: Every cache mutation explicitly increments the version
-4. **Reliable dependency**: When `getAllNotes()` accesses `this.version`, Svelte registers it as a dependency
-5. **Automatic re-runs**: When `this.version++` happens, all `$derived` values that accessed it re-run
+1. **Array reassignment is reliably reactive**: Svelte 5's `$state` tracking works perfectly with array reassignment
+2. **No manual version tracking**: Array operations like `[...arr, item]`, `arr.filter()`, and direct assignment automatically trigger reactivity
+3. **Best of both worlds**: Reactive array for reactivity + derived Map for O(1) lookups
+4. **Idiomatic Svelte 5**: Uses `$state` and `$derived.by` as intended
+5. **Clean and simple**: No clever tricks or workarounds needed
 
 ### The Key Insight
 
-**In `.svelte.ts` files (non-component context), Svelte 5's reactivity for complex data structures like Maps requires explicit version counters or change signals.**
+**In `.svelte.ts` files (non-component context), array reassignment is more reliably reactive than Map mutations.**
 
-Unlike Svelte components where reactivity "just works", `.svelte.ts` modules need manual version tracking to ensure derived values re-compute when collections change. This is because:
+Unlike Map methods (`.set()`, `.delete()`, `.clear()`) which don't trigger Svelte's reactivity, array reassignment operations are tracked perfectly:
 
-- Svelte can't intercept Map mutations in the same way it tracks object property assignments
-- Method calls like `.set()`, `.delete()`, `.clear()` don't create reactive dependencies
-- A simple counter provides a reliable, trackable signal that Svelte understands
+- `arr = [...arr, item]` - tracked ✅
+- `arr = arr.filter(...)` - tracked ✅
+- `arr = arr.map(...)` - tracked ✅
+- `arr = newArray` - tracked ✅
+
+By using a reactive array as the source of truth and deriving a Map for lookups, we get:
+
+- Reliable reactivity (from array)
+- Fast O(1) lookups (from derived Map)
+- Clean, maintainable code (no version counters)
 
 ## Additional Improvements
 
@@ -180,9 +193,8 @@ private handleBulkRefresh(
   event: Extract<NoteEvent, { type: 'notes.bulkRefresh' }>
 ): void {
   console.log(`[noteCache] Handling bulk refresh with ${event.notes.length} notes`);
-  this.cache.clear();
-  event.notes.forEach((note) => this.cache.set(note.id, note));
-  console.log(`[noteCache] Cache now contains ${this.cache.size} notes`);
+  this.cacheArray = event.notes;
+  console.log(`[noteCache] Cache now contains ${this.cacheArray.length} notes`);
 }
 ```
 
@@ -248,10 +260,10 @@ Destructuring in Svelte 5 captures the value at that moment, breaking the reacti
 
 ### Critical Insights
 
-1. **Use version counters for $state collections in .svelte.ts files** - Maps, Sets, and Arrays in non-component contexts need explicit version tracking to ensure reactivity
-2. **Primitive counters are more reliable than collection properties** - `this.version++` works better than `this.cache.size` for reactive tracking
-3. **Increment the version in ALL mutation methods** - Every operation that changes the collection must increment the counter
-4. **Access the version in getter methods** - Read the version counter to register the reactive dependency
+1. **Use reactive arrays for $state collections in .svelte.ts files** - Array reassignment is reliably reactive in non-component contexts
+2. **Derive complex data structures from arrays** - Use `$derived.by` to create Maps/Sets for O(1) lookups from reactive arrays
+3. **Array reassignment is more reliable than Map mutations** - Operations like `arr = [...arr, item]` and `arr = arr.filter()` are tracked perfectly
+4. **Combine arrays and Maps for best results** - Reactive array as source of truth + derived Map for performance
 
 ### General Principles
 
@@ -260,55 +272,63 @@ Destructuring in Svelte 5 captures the value at that moment, breaking the reacti
 7. **Test the happy path AND reactivity** - Initial load might work, but updates might not trigger re-renders
 8. **`.svelte.ts` reactivity differs from `.svelte` components** - Non-component modules need more explicit reactivity management
 
-## The Version Counter Pattern - Best Practices
+## The Reactive Array Pattern - Best Practices
 
-When working with `$state` collections (Map, Set, Array) in `.svelte.ts` files:
+When working with `$state` collections in `.svelte.ts` files:
 
-### Always Include a Version Counter
+### Use Reactive Arrays with Derived Maps
 
 ```typescript
 class MyStore {
-  private data = $state(new Map());
-  private version = $state(0); // ✅ Add version counter
+  // Array as source of truth
+  private dataArray = $state<Item[]>([]);
 
-  // Increment in all mutations
-  add(item) {
-    this.data.set(item.id, item);
-    this.version++; // ✅
+  // Derived Map for O(1) lookups
+  private dataMap = $derived.by(() => {
+    return new Map(this.dataArray.map((item) => [item.id, item]));
+  });
+
+  // Array reassignment triggers reactivity
+  add(item: Item) {
+    this.dataArray = [...this.dataArray, item]; // ✅ Array reassignment
   }
 
-  remove(id) {
-    this.data.delete(id);
-    this.version++; // ✅
+  remove(id: string) {
+    this.dataArray = this.dataArray.filter((item) => item.id !== id); // ✅ Array reassignment
   }
 
   clear() {
-    this.data.clear();
-    this.version++; // ✅
+    this.dataArray = []; // ✅ Simple reassignment
   }
 
-  // Access version in getters
-  getAll() {
-    void this.version; // ✅ Register dependency
-    return Array.from(this.data.values());
+  // Return the array directly
+  getAll(): Item[] {
+    return this.dataArray;
+  }
+
+  // Use derived Map for fast lookups
+  get(id: string): Item | undefined {
+    return this.dataMap.get(id);
   }
 }
 ```
 
-### Why This Pattern Is Necessary
+### Why This Pattern Works
 
 - Svelte components (`.svelte` files) have automatic reactivity tracking
-- `.svelte.ts` modules have more limited tracking for complex collections
-- Version counters provide an explicit, reliable signal for change detection
-- This pattern is especially important for stores that are used across multiple components
+- `.svelte.ts` modules have reliable tracking for array reassignment
+- Array reassignment provides automatic reactivity - no manual tracking needed
+- Derived Maps provide O(1) lookups without sacrificing reactivity
+- This pattern is idiomatic Svelte 5 using `$state` and `$derived.by`
 
-### Alternative Approaches (That Didn't Work)
+### Alternative Approaches Considered
 
-We tried these approaches that failed:
+We evaluated these approaches:
 
-1. ❌ **Accessing `.size` property** - Not sufficient for reactivity in `.svelte.ts` context
-2. ❌ **Relying on Map method calls** - `.values()`, `.entries()` don't register as dependencies
-3. ❌ **Using destructuring** - Breaks reactive connections entirely
-4. ❌ **Direct array mutation** - Would work, but we need a Map for lookup performance
+1. ✅ **Reactive array + derived Map** - Best solution (current implementation)
+2. ⚠️ **Version counter pattern** - Works but requires manual tracking (previous implementation)
+3. ❌ **Accessing `.size` property** - Not sufficient for reactivity in `.svelte.ts` context
+4. ❌ **Relying on Map method calls** - `.values()`, `.entries()` don't register as dependencies
+5. ❌ **Using destructuring** - Breaks reactive connections entirely
 
-The version counter is the most reliable and performant solution.
+The reactive array pattern is the most elegant and performant solution.
