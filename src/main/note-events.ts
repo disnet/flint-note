@@ -15,7 +15,10 @@ export type NoteEvent =
       removedLinks?: string[];
     }
   | { type: 'notes.bulkRefresh'; notes: NoteMetadata[] }
-  | { type: 'vault.switched'; vaultId: string };
+  | { type: 'vault.switched'; vaultId: string }
+  | { type: 'noteType.created'; typeName: string }
+  | { type: 'noteType.updated'; typeName: string }
+  | { type: 'noteType.deleted'; typeName: string };
 
 /**
  * Publishes a note event to all renderer processes

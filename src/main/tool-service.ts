@@ -1036,6 +1036,12 @@ export class ToolService {
           vaultId: currentVault.id
         });
 
+        // Publish noteType.created event
+        publishNoteEvent({
+          type: 'noteType.created',
+          typeName
+        });
+
         return {
           success: true,
           data: result,
@@ -1109,6 +1115,12 @@ export class ToolService {
           instructions,
           metadataSchema,
           vaultId: currentVault.id
+        });
+
+        // Publish noteType.updated event
+        publishNoteEvent({
+          type: 'noteType.updated',
+          typeName
         });
 
         return {
@@ -1188,6 +1200,14 @@ export class ToolService {
           confirm,
           vault_id: currentVault.id
         });
+
+        // Publish noteType.deleted event if deletion was successful
+        if (result.deleted) {
+          publishNoteEvent({
+            type: 'noteType.deleted',
+            typeName
+          });
+        }
 
         return {
           success: result.deleted,
