@@ -1581,11 +1581,40 @@ app.whenReady().then(async () => {
       }
       try {
         await noteService.initialize();
-        return await noteService.getOrCreateDailyNote(
+
+        // Check if the note exists before calling getOrCreateDailyNote
+        const existingNote = await noteService.getOrCreateDailyNote(
+          params.date,
+          params.vaultId,
+          false // Don't create, just check if it exists
+        );
+        const wasCreated = !existingNote && params.createIfMissing !== false;
+
+        const result = await noteService.getOrCreateDailyNote(
           params.date,
           params.vaultId,
           params.createIfMissing
         );
+
+        // If the note was just created, publish a note.created event
+        if (wasCreated && result) {
+          publishNoteEvent({
+            type: 'note.created',
+            note: {
+              id: result.id,
+              type: result.type,
+              filename: result.filename,
+              title: result.title,
+              created: result.created,
+              modified: result.updated,
+              size: result.size || 0,
+              tags: [],
+              path: result.path
+            }
+          });
+        }
+
+        return result;
       } catch (error) {
         logger.error('Failed to get/create daily note', { error, params });
         throw error;
