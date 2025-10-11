@@ -42,7 +42,15 @@ function createNotesStore(): {
   });
 
   // Derived: notes come from cache, not local state
-  const notes = $derived(noteCache.getAllNotes());
+  const notes = $derived.by(() => {
+    const allNotes = noteCache.getAllNotes();
+    console.log(
+      '[noteStore] $derived re-running, got',
+      allNotes.length,
+      'notes from cache'
+    );
+    return allNotes;
+  });
 
   // Derived: grouped notes by type
   const groupedNotes = $derived.by(() => {
@@ -137,12 +145,14 @@ function createNotesStore(): {
       );
 
       // Publish bulk refresh event to populate cache
+      console.log(`[noteStore] Publishing bulk refresh with ${sortedNotes.length} notes`);
       messageBus.publish({
         type: 'notes.bulkRefresh',
         notes: sortedNotes
       });
 
       state.loading = false;
+      console.log('[noteStore] Initialization complete');
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : 'Failed to load all notes';
@@ -157,8 +167,11 @@ function createNotesStore(): {
     initialize();
   });
 
-  // Initial load
-  initialize();
+  // Defer initial load to next tick to ensure all modules are initialized
+  // This prevents race conditions where events are published before subscribers are ready
+  setTimeout(() => {
+    initialize();
+  }, 0);
 
   return {
     get notes() {

@@ -3,6 +3,7 @@ import { messageBus, type NoteEvent } from './messageBus.svelte';
 
 class NoteCache {
   private cache = $state<Map<string, NoteMetadata>>(new Map());
+  private version = $state(0); // Increment this when cache changes to trigger reactivity
 
   constructor() {
     // Subscribe to all note events and update cache accordingly
@@ -19,17 +20,20 @@ class NoteCache {
 
   private handleNoteCreated(event: Extract<NoteEvent, { type: 'note.created' }>): void {
     this.cache.set(event.note.id, event.note);
+    this.version++;
   }
 
   private handleNoteUpdated(event: Extract<NoteEvent, { type: 'note.updated' }>): void {
     const existing = this.cache.get(event.noteId);
     if (existing) {
       this.cache.set(event.noteId, { ...existing, ...event.updates });
+      this.version++;
     }
   }
 
   private handleNoteDeleted(event: Extract<NoteEvent, { type: 'note.deleted' }>): void {
     this.cache.delete(event.noteId);
+    this.version++;
   }
 
   private handleNoteRenamed(event: Extract<NoteEvent, { type: 'note.renamed' }>): void {
@@ -37,6 +41,7 @@ class NoteCache {
     if (existing) {
       this.cache.delete(event.oldId);
       this.cache.set(event.newId, { ...existing, id: event.newId });
+      this.version++;
     }
   }
 
@@ -44,6 +49,7 @@ class NoteCache {
     const existing = this.cache.get(event.noteId);
     if (existing) {
       this.cache.set(event.noteId, { ...existing, type: event.newType });
+      this.version++;
     }
   }
 
@@ -51,13 +57,19 @@ class NoteCache {
     event: Extract<NoteEvent, { type: 'notes.bulkRefresh' }>
   ): void {
     // Replace entire cache (used for initial load)
+    console.log(`[noteCache] Handling bulk refresh with ${event.notes.length} notes`);
     this.cache.clear();
     event.notes.forEach((note) => this.cache.set(note.id, note));
+    this.version++;
+    console.log(
+      `[noteCache] Cache now contains ${this.cache.size} notes, version ${this.version}`
+    );
   }
 
   private handleVaultSwitch(): void {
     // Clear cache when vault is switched
     this.cache.clear();
+    this.version++;
   }
 
   // --- Public API ---
@@ -71,9 +83,20 @@ class NoteCache {
 
   /**
    * Get all notes
+   * Note: Returns a new array on each call to ensure Svelte reactivity tracking
    */
   getAllNotes(): NoteMetadata[] {
-    return Array.from(this.cache.values());
+    // Access this.version to ensure Svelte tracks changes
+    const version = this.version; // Track the version for reactivity
+    const notes = Array.from(this.cache.values());
+    console.log(
+      '[noteCache] getAllNotes() called, returning',
+      notes.length,
+      'notes (version:',
+      version,
+      ')'
+    );
+    return notes;
   }
 
   /**

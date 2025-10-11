@@ -4,7 +4,21 @@
   import NoteTypeActions from './NoteTypeActions.svelte';
   import TypeInfoOverlay from './TypeInfoOverlay.svelte';
 
-  const { groupedNotes, noteTypes } = notesStore;
+  // Don't destructure - need reactive references
+  const groupedNotes = $derived.by(() => {
+    const notes = notesStore.groupedNotes;
+    console.log(
+      '[NotesView] groupedNotes derived re-ran, got:',
+      Object.keys(notes).length,
+      'types'
+    );
+    return notes;
+  });
+  const noteTypes = $derived.by(() => {
+    const types = notesStore.noteTypes;
+    console.log('[NotesView] noteTypes derived re-ran, got:', types.length, 'types');
+    return types;
+  });
 
   interface Props {
     onNoteSelect?: (note: NoteMetadata) => void;
