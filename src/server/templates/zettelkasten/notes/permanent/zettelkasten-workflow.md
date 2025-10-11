@@ -2,6 +2,8 @@
 
 This note provides a detailed walkthrough of the Zettelkasten process, from capturing fleeting ideas to building a network of permanent notes.
 
+**Using Flint:** Throughout this guide, remember that you can create notes of specific types by clicking the arrow (▼) next to the "New Note" button in the left sidebar. Select **fleeting**, **literature**, **permanent**, or **index** depending on which step you're on.
+
 ## The Complete Workflow
 
 ### Step 1: Capture Fleeting Thoughts

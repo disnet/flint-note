@@ -5,7 +5,7 @@
 
 ## Main Ideas
 
-Clear argues that habits are triggered by environmental cues rather than by conscious decisions. He uses the story of a psychologist whose patient's wife noticed her husband "didn't look right" - despite all medical tests being normal, she detected subtle cues that eventually revealed a brain tumor.
+Clear argues that habits are triggered by environmental cues rather than by conscious decisions. He uses examples like how people automatically wash their hands after using the bathroom, or how walking into a movie theater makes you crave popcorn even if you just ate—the environment itself triggers the behavior.
 
 The key insight: **our brains are constantly scanning the environment for cues about what action to take next.** Most behavior is automatic response to context, not deliberate choice.
 

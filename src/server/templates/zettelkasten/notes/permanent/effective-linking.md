@@ -19,48 +19,48 @@ Links are the heart of a Zettelkasten. While individual notes contain ideas, the
 These notes provide evidence, examples, or context for the current idea.
 
 **Example:**
-In a note about [[implementation-intentions]]:
-"See examples in [[habit-formation-research]] and [[goal-achievement-studies]]"
+In a note about `[[implementation-intentions]]`:
+"See examples in `[[habit-formation-research]]` and `[[goal-achievement-studies]]`"
 
 ### Contrasting Links
 
 These notes present opposing views or contradictory evidence.
 
 **Example:**
-In a note about [[willpower-depletion]]:
-"However, [[willpower-depletion-controversy]] presents conflicting replication studies"
+In a note about `[[willpower-depletion]]`:
+"However, `[[willpower-depletion-controversy]]` presents conflicting replication studies"
 
 ### Extending Links
 
 These notes build on or develop the current idea further.
 
 **Example:**
-In a note about [[context-dependent-behavior]]:
-"This principle can be applied through [[environment-design]]"
+In a note about `[[context-dependent-behavior]]`:
+"This principle can be applied through `[[environment-design]]`"
 
 ### Prerequisite Links
 
 These notes explain concepts needed to understand the current note.
 
 **Example:**
-In a note about [[habit-stacking]]:
-"Understanding [[context-dependent-behavior]] helps explain why this works"
+In a note about `[[habit-stacking]]`:
+"Understanding `[[context-dependent-behavior]]` helps explain why this works"
 
 ### Question Links
 
 These notes raise questions or problems related to the current idea.
 
 **Example:**
-In a note about [[atomic-habits]]:
-"This raises questions about [[habit-breaking-strategies]]"
+In a note about `[[atomic-habits]]`:
+"This raises questions about `[[habit-breaking-strategies]]`"
 
 ### Parallel Links
 
 These notes address similar questions or problems in different domains.
 
 **Example:**
-In a note about [[spaced-repetition]]:
-"Similar pattern appears in [[deliberate-practice]] and [[interleaving]]"
+In a note about `[[spaced-repetition]]`:
+"Similar pattern appears in `[[deliberate-practice]]` and `[[interleaving]]`"
 
 ## How to Create Effective Links
 
@@ -99,12 +99,6 @@ Traditional approaches emphasizing [[willpower]] miss this
 context dependency, which is why [[environment-design]]
 tends to be more effective.
 ```
-
-### Link in Both Directions
-
-When you create a new note and link to an existing note, go back and add a link from the existing note to the new one.
-
-This bidirectional linking creates a true network rather than a one-way hierarchy.
 
 ### Use Links While Writing
 

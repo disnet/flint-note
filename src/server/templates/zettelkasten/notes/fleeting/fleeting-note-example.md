@@ -12,3 +12,9 @@ Also - the borrow checker in Rust prevents bugs that would be runtime errors in 
 
 **Source:** Random thought while reading Rust documentation
 **Date:** 2025-10-10
+
+---
+
+**About Fleeting Notes in Flint:**
+
+Fleeting notes are meant to be quick captures—you create them when an interesting thought occurs to you. They're **temporary** by design. Set aside time regularly (daily or weekly) to process them into permanent notes or discard them if they no longer seem valuable.

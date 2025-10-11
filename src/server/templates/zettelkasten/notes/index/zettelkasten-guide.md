@@ -8,6 +8,8 @@ The Zettelkasten (German for "slip box") is a knowledge development system creat
 
 ## The Zettelkasten Workflow
 
+The method uses four distinct types of notes, each serving a different purpose in your knowledge development process:
+
 ### 1. Capture with Fleeting Notes
 
 When you encounter an interesting idea—from a conversation, while reading, or from your own thinking—capture it immediately as a **fleeting** note. These are quick, unprocessed thoughts that need further development.
@@ -40,6 +42,32 @@ The heart of the Zettelkasten is **permanent** notes. These are atomic notes—e
 
 **Index notes create pathways.** They help you navigate and develop larger arguments.
 
+## Using Flint for Zettelkasten
+
+Now that you understand the four types of notes, here's how Flint makes it easy: **fleeting**, **literature**, **permanent**, and **index** are actual note types in this vault—not just concepts or folder names!
+
+### Creating Notes by Type
+
+**To create a note of a specific type:**
+1. Look at the "New Note" button in the left sidebar
+2. Click the small arrow (▼) next to it—this opens a dropdown menu
+3. Select the note type you want: **fleeting**, **literature**, **permanent**, or **index**
+4. Your new note will be created with the correct type already set
+
+### Viewing Note Types
+
+**To see what type a note is:**
+- Open any note
+- Click the "Show metadata" button
+
+**To see all your note types:**
+- Click "All notes" in the left sidebar
+- You'll see a list of note types with counts showing how many notes of each type you have
+- This gives you a quick overview of your Zettelkasten's composition
+
+**About changing types:**
+If you need to change a note's type, open the note and click the "Show metadata" button. Then, click the "Edit" button and change the "Type" field.
+
 ## The Power of Links
 
 In a Zettelkasten, links are where the magic happens. Every time you create a permanent note, ask yourself:
@@ -54,16 +82,16 @@ Create links using `[[note name]]` syntax. If the note doesn't exist yet, that's
 
 ## Starting Your Zettelkasten
 
-**Don't start by importing or organizing existing notes.** Start fresh:
-
 1. Read something interesting
-2. Create a literature note about it
-3. Extract one interesting idea into a permanent note
+2. Create a literature note about it (click the arrow next to "New Note" and select **literature**)
+3. Extract one interesting idea into a permanent note (use the **permanent** note type)
 4. Write that idea in your own words
-5. Think about what it connects to
+5. Think about what it connects to and link to related notes using `[[note name]]` syntax
 6. Repeat
 
 Your Zettelkasten will grow organically as you develop ideas. Don't worry about perfect organization—focus on clear thinking and rich connections.
+
+As you work, Flint will help you stay organized by showing you note type counts in the sidebar, so you can see at a glance how many fleeting notes need processing or how your permanent notes are growing.
 
 ## The Zettelkasten Philosophy
 
