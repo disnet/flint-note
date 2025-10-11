@@ -1,5 +1,6 @@
 import type { NoteMetadata } from '../services/noteStore.svelte';
 import { getCurrentWeek, getPreviousWeek, getNextWeek } from '../utils/dateUtils.svelte';
+import { messageBus } from '../services/messageBus.svelte';
 
 // Types for daily view data structures
 export interface DailyNote extends NoteMetadata {
@@ -86,6 +87,25 @@ class DailyViewStore {
   constructor() {
     // Don't load data in constructor to avoid errors during first-time setup
     // Data will be loaded when DailyView component mounts via $effect
+
+    // Subscribe to note events to keep daily notes in sync
+    messageBus.subscribe('note.created', (event) => {
+      if (event.note.type === 'daily') {
+        this.handleNoteCreated(event.note as DailyNote);
+      }
+    });
+
+    messageBus.subscribe('note.updated', (event) => {
+      this.handleNoteUpdated(event.noteId, event.updates);
+    });
+
+    messageBus.subscribe('note.deleted', (event) => {
+      this.handleNoteDeleted(event.noteId);
+    });
+
+    messageBus.subscribe('vault.switched', () => {
+      this.reinitialize();
+    });
   }
 
   get loading(): boolean {
@@ -390,6 +410,47 @@ class DailyViewStore {
           this.state.currentWeek.startDate,
           this.state.currentVaultId || undefined
         );
+      }
+    }
+  }
+
+  /**
+   * Handle note created event from message bus
+   */
+  private handleNoteCreated(note: DailyNote): void {
+    if (this.state.currentWeek && note.type === 'daily') {
+      const date = note.date;
+      this.updateLocalDailyNoteMetadata(date, note);
+    }
+  }
+
+  /**
+   * Handle note updated event from message bus
+   */
+  private handleNoteUpdated(noteId: string, updates: Partial<NoteMetadata>): void {
+    if (this.state.currentWeek) {
+      // Find the day containing this note
+      for (const day of this.state.currentWeek.days) {
+        if (day.dailyNote && day.dailyNote.id === noteId) {
+          // Ensure we maintain the DailyNote type by casting after merge
+          day.dailyNote = { ...day.dailyNote, ...updates } as DailyNote;
+          break;
+        }
+      }
+    }
+  }
+
+  /**
+   * Handle note deleted event from message bus
+   */
+  private handleNoteDeleted(noteId: string): void {
+    if (this.state.currentWeek) {
+      // Find and remove the daily note
+      for (const day of this.state.currentWeek.days) {
+        if (day.dailyNote && day.dailyNote.id === noteId) {
+          day.dailyNote = null;
+          break;
+        }
       }
     }
   }

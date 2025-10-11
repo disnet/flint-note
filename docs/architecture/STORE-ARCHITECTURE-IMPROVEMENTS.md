@@ -791,110 +791,190 @@ All main process IPC handlers have been updated to publish events:
 
 **Next Steps:** Phase 4 will migrate remaining stores (dailyViewStore, temporaryTabsStore, wikilinkService, pinnedStore) to use the message bus.
 
-### Phase 4: Migrate Other Stores (3-4 hours)
+### Phase 4: Migrate Other Stores ✅ COMPLETED
 
 Update remaining stores to use message bus and cache.
 
-#### 4.1: Update dailyViewStore
+**Status:** Implemented and tested. All remaining stores now use the message bus for reactivity.
+
+#### 4.1: Update dailyViewStore ✅
+
+The dailyViewStore now subscribes to note events to keep daily notes in sync:
 
 ```typescript
 // src/renderer/src/stores/dailyViewStore.svelte.ts
 import { messageBus } from '../services/messageBus.svelte';
-import { noteCache } from '../services/noteCache.svelte';
 
 class DailyViewStore {
-  // ... existing code ...
-
-  async openDailyNote(date: string): Promise<DailyNote | null> {
-    try {
-      // Get or create the note
-      const dailyNote = await this.getOrCreateDailyNote(date, true);
-
-      if (dailyNote) {
-        // Update local state
-        this.updateLocalDailyNoteMetadata(date, dailyNote);
-
-        // Add to cache and publish event (instead of refresh)
-        noteCache.addNote(dailyNote);
-        messageBus.publish({
-          type: 'note.created',
-          note: dailyNote
-        });
+  constructor() {
+    // Subscribe to note events to keep daily notes in sync
+    messageBus.subscribe('note.created', (event) => {
+      if (event.note.type === 'daily') {
+        this.handleNoteCreated(event.note as DailyNote);
       }
+    });
 
-      return dailyNote;
-    } catch (error) {
-      console.error('Failed to open daily note:', error);
-      return null;
+    messageBus.subscribe('note.updated', (event) => {
+      this.handleNoteUpdated(event.noteId, event.updates);
+    });
+
+    messageBus.subscribe('note.deleted', (event) => {
+      this.handleNoteDeleted(event.noteId);
+    });
+
+    messageBus.subscribe('vault.switched', () => {
+      this.reinitialize();
+    });
+  }
+
+  private handleNoteCreated(note: DailyNote): void {
+    if (this.state.currentWeek && note.type === 'daily') {
+      this.updateLocalDailyNoteMetadata(note.date, note);
+    }
+  }
+
+  private handleNoteUpdated(noteId: string, updates: Partial<NoteMetadata>): void {
+    // Update daily note in current week view
+    // ...
+  }
+
+  private handleNoteDeleted(noteId: string): void {
+    // Remove daily note from current week view
+    // ...
+  }
+}
+```
+
+**Key Changes:**
+
+- ✅ Subscribes to `note.created`, `note.updated`, `note.deleted` events
+- ✅ Automatically updates local state when daily notes change
+- ✅ Reacts to `vault.switched` events for re-initialization
+- ✅ IPC handlers already publish events, so no manual refresh needed
+
+#### 4.2: Update temporaryTabsStore ✅
+
+The temporaryTabsStore now subscribes to rename and delete events:
+
+```typescript
+// src/renderer/src/stores/temporaryTabsStore.svelte.ts
+import { messageBus } from '../services/messageBus.svelte';
+
+class TemporaryTabsStore {
+  constructor() {
+    // Subscribe to note events
+    messageBus.subscribe('note.renamed', async (event) => {
+      await this.updateNoteId(event.oldId, event.newId);
+    });
+
+    messageBus.subscribe('note.deleted', async (event) => {
+      await this.removeTabsByNoteIds([event.noteId]);
+    });
+
+    messageBus.subscribe('vault.switched', async (event) => {
+      await this.refreshForVault(event.vaultId);
+    });
+  }
+}
+```
+
+**Key Changes:**
+
+- ✅ Subscribes to `note.renamed` to update tab noteIds
+- ✅ Subscribes to `note.deleted` to remove tabs for deleted notes
+- ✅ Subscribes to `vault.switched` to refresh tabs for new vault
+- ✅ Components already derive note titles from `notesStore.notes` (which comes from cache)
+
+#### 4.3: Update wikilinkService ✅
+
+The wikilinkService is already integrated with the event system:
+
+- ✅ Uses `notesStore.notes` which is derived from the note cache
+- ✅ `NoteEditor` component already publishes `note.linksChanged` events
+- ✅ Custom DOM events (`wikilink-navigate`) are kept for UI navigation (appropriate for navigation events)
+
+**No changes needed** - the service already works with the event sourcing architecture.
+
+#### 4.4: Update pinnedStore ✅
+
+The pinnedStore now subscribes to rename and delete events:
+
+```typescript
+// src/renderer/src/services/pinnedStore.svelte.ts
+import { messageBus } from './messageBus.svelte';
+
+class PinnedNotesStore {
+  constructor() {
+    // Subscribe to note events
+    messageBus.subscribe('note.renamed', async (event) => {
+      await this.updateNoteId(event.oldId, event.newId);
+    });
+
+    messageBus.subscribe('note.deleted', async (event) => {
+      if (this.isPinned(event.noteId)) {
+        // Don't add to tabs when unpinning a deleted note
+        await this.unpinNote(event.noteId, false);
+      }
+    });
+
+    messageBus.subscribe('vault.switched', async (event) => {
+      await this.refreshForVault(event.vaultId);
+    });
+  }
+
+  async unpinNote(noteId: string, addToTabs: boolean = true): Promise<void> {
+    this.state.notes = this.state.notes.filter((note) => note.id !== noteId);
+    // ...
+
+    // Add to temporary tabs when unpinned (unless it's being deleted)
+    if (addToTabs) {
+      await temporaryTabsStore.addTab(noteId, 'navigation');
     }
   }
 }
 ```
 
-#### 4.2: Update temporaryTabsStore
+**Key Changes:**
 
-```typescript
-// src/renderer/src/stores/temporaryTabsStore.svelte.ts
-import { noteCache } from '../services/noteCache.svelte';
+- ✅ Subscribes to `note.renamed` to update pinned note IDs
+- ✅ Subscribes to `note.deleted` to unpin deleted notes
+- ✅ Modified `unpinNote` to optionally skip adding to tabs (for deleted notes)
+- ✅ Components already derive full note data from `notesStore.notes` (cache)
+- ✅ No custom DOM events needed - message bus handles all data updates
 
-// Hydrated tabs now derive from cache automatically
-let hydratedTabs = $derived(
-  this.tabs.map((tab) => ({
-    ...tab,
-    title: noteCache.getNote(tab.noteId)?.title || 'Untitled'
-    // ... other fields from cache
-  }))
-);
-```
+**Phase 4 Summary:**
 
-#### 4.3: Update wikilinkService
+All stores have been successfully migrated to use the message bus:
 
-Replace counter-based updates with events:
+- ✅ **dailyViewStore**: Subscribes to note events for reactivity, updates local weekly view state
+- ✅ **temporaryTabsStore**: Subscribes to rename/delete/vault-switch events
+- ✅ **wikilinkService**: Already integrated (uses cache via notesStore)
+- ✅ **pinnedStore**: Subscribes to rename/delete/vault-switch events, intelligent tab management
+- ✅ All TypeScript types passing
+- ✅ All stores properly handle vault switching
+- ✅ No manual refresh calls needed - events flow automatically
 
-```typescript
-// src/renderer/src/services/wikilinkService.svelte.ts
-import { messageBus } from './messageBus.svelte';
+**Implementation Notes:**
 
-// Instead of:
-// notesStore.notifyWikilinksUpdated();
+The actual implementation differed slightly from the original plan:
 
-// Use:
-messageBus.publish({
-  type: 'note.linksChanged',
-  noteId: noteId,
-  addedLinks: newLinks,
-  removedLinks: oldLinks
-});
-```
+1. **dailyViewStore**: Instead of manually adding notes to cache, we rely on IPC event handlers to publish events. The store subscribes to events to update its local weekly view state, but doesn't manipulate the cache directly.
 
-#### 4.4: Update pinnedStore
+2. **temporaryTabsStore**: Components already derive note titles from `notesStore.notes`, so no changes were needed there. We only added event subscriptions for note lifecycle events.
 
-Replace custom events with message bus:
+3. **wikilinkService**: No changes needed - it already uses the event architecture. The `NoteEditor` component handles `note.linksChanged` event publishing.
 
-```typescript
-// src/renderer/src/services/pinnedStore.svelte.ts
-import { messageBus } from './messageBus.svelte';
-import { noteCache } from './noteCache.svelte';
+4. **pinnedStore**: We enhanced the `unpinNote` method with an optional `addToTabs` parameter to prevent adding deleted notes to temporary tabs. Components derive full note data by joining with `notesStore.notes`.
 
-// Instead of:
-// const event = new CustomEvent('notes-unpinned', { detail: { noteIds } });
-// document.dispatchEvent(event);
+The key insight is that stores subscribe to events to maintain their own local state, while components derive presentation data by joining with the reactive note cache. This keeps concerns separated and maintains good performance.
 
-// Use:
-messageBus.publish({
-  type: 'notes.unpinned',
-  noteIds: unpinnedIds
-});
-
-// And derive pinned notes from cache:
-const pinnedNotes = $derived(
-  this.pinnedNoteIds.map((id) => noteCache.getNote(id)).filter(Boolean)
-);
-```
-
-### Phase 5: Vault Switching (1 hour)
+### Phase 5: Vault Switching ✅ COMPLETED
 
 Handle vault switching with events.
+
+**Status:** Already implemented in Phase 2. Vault switching publishes events that all stores subscribe to.
+
+**Implementation:**
 
 ```typescript
 // src/renderer/src/components/VaultSwitcher.svelte
@@ -903,15 +983,24 @@ import { messageBus } from '../services/messageBus.svelte';
 async function handleVaultSwitch(vaultId: string) {
   await window.api?.switchVault({ vaultId });
 
-  // Publish vault switch event
+  // Publish vault switch event - noteStore will automatically reinitialize
   messageBus.publish({
     type: 'vault.switched',
     vaultId
   });
 
-  // noteStore subscribes to this and will reinitialize
+  // All stores subscribe to this event and reinitialize automatically
 }
 ```
+
+**Key Points:**
+
+- ✅ VaultSwitcher.svelte publishes `vault.switched` events on vault change
+- ✅ App.svelte publishes `vault.switched` events after vault creation
+- ✅ noteStore subscribes to `vault.switched` and reinitializes
+- ✅ noteCache clears on `vault.switched` events
+- ✅ All stores (dailyViewStore, temporaryTabsStore, pinnedStore) subscribe to `vault.switched`
+- ✅ Cache is properly cleared and repopulated with new vault data
 
 ### Phase 6: Testing & Debugging (2-3 hours)
 
@@ -988,14 +1077,14 @@ async function handleVaultSwitch(vaultId: string) {
   - [x] Update delete-note handler
   - [x] Update rename-note handler
   - [x] Update move-note handler
-- [ ] Phase 4: Migrate Other Stores
-  - [ ] Update dailyViewStore
-  - [ ] Update temporaryTabsStore
-  - [ ] Update wikilinkService
-  - [ ] Update pinnedStore
-- [ ] Phase 5: Vault Switching
-  - [ ] Publish vault.switched events
-  - [ ] Test cache clearing
+- [x] Phase 4: Migrate Other Stores ✅ COMPLETED
+  - [x] Update dailyViewStore
+  - [x] Update temporaryTabsStore
+  - [x] Update wikilinkService
+  - [x] Update pinnedStore
+- [x] Phase 5: Vault Switching ✅ COMPLETED
+  - [x] Publish vault.switched events
+  - [x] Test cache clearing
 - [ ] Phase 6: Testing
   - [ ] Add debug panel
   - [ ] Run full test plan

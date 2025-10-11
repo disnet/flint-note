@@ -1,4 +1,5 @@
 import { getChatService } from '../services/chatService';
+import { messageBus } from '../services/messageBus.svelte';
 
 interface TemporaryTab {
   id: string;
@@ -33,6 +34,19 @@ class TemporaryTabsStore {
 
   constructor() {
     this.initializationPromise = this.initializeVault();
+
+    // Subscribe to note events
+    messageBus.subscribe('note.renamed', async (event) => {
+      await this.updateNoteId(event.oldId, event.newId);
+    });
+
+    messageBus.subscribe('note.deleted', async (event) => {
+      await this.removeTabsByNoteIds([event.noteId]);
+    });
+
+    messageBus.subscribe('vault.switched', async (event) => {
+      await this.refreshForVault(event.vaultId);
+    });
   }
 
   get tabs(): TemporaryTab[] {

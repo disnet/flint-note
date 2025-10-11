@@ -1,6 +1,7 @@
 import { getChatService } from './chatService';
 import type { PinnedNoteInfo } from './types';
 import { temporaryTabsStore } from '../stores/temporaryTabsStore.svelte';
+import { messageBus } from './messageBus.svelte';
 
 interface PinnedNotesState {
   notes: PinnedNoteInfo[];
@@ -21,6 +22,23 @@ class PinnedNotesStore {
   constructor() {
     // Start initialization but don't await in constructor
     this.initializeVault();
+
+    // Subscribe to note events
+    messageBus.subscribe('note.renamed', async (event) => {
+      await this.updateNoteId(event.oldId, event.newId);
+    });
+
+    messageBus.subscribe('note.deleted', async (event) => {
+      // Check if the deleted note was pinned
+      if (this.isPinned(event.noteId)) {
+        // Don't add to tabs when unpinning a deleted note
+        await this.unpinNote(event.noteId, false);
+      }
+    });
+
+    messageBus.subscribe('vault.switched', async (event) => {
+      await this.refreshForVault(event.vaultId);
+    });
   }
 
   get notes(): PinnedNoteInfo[] {
@@ -121,7 +139,7 @@ class PinnedNotesStore {
     await temporaryTabsStore.removeTabsByNoteIds([id]);
   }
 
-  async unpinNote(noteId: string): Promise<void> {
+  async unpinNote(noteId: string, addToTabs: boolean = true): Promise<void> {
     this.state.notes = this.state.notes.filter((note) => note.id !== noteId);
     // Reassign order values to maintain sequence
     this.state.notes.forEach((note, index) => {
@@ -129,8 +147,10 @@ class PinnedNotesStore {
     });
     await this.saveToStorage();
 
-    // Add to temporary tabs when unpinned
-    await temporaryTabsStore.addTab(noteId, 'navigation');
+    // Add to temporary tabs when unpinned (unless it's being deleted)
+    if (addToTabs) {
+      await temporaryTabsStore.addTab(noteId, 'navigation');
+    }
   }
 
   async togglePin(id: string): Promise<boolean> {
