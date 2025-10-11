@@ -18,7 +18,10 @@ class NoteCache {
     messageBus.subscribe('note.renamed', (e) => this.handleNoteRenamed(e));
     messageBus.subscribe('note.moved', (e) => this.handleNoteMoved(e));
     messageBus.subscribe('notes.bulkRefresh', (e) => this.handleBulkRefresh(e));
-    messageBus.subscribe('vault.switched', () => this.handleVaultSwitch());
+    // NOTE: vault.switched listener removed to prevent race conditions
+    // Cache is now cleared and repopulated via notes.bulkRefresh event during vault switch
+    // This ensures proper sequencing: tabs load -> notes load -> bulk refresh -> tabs hydrate
+    // messageBus.subscribe('vault.switched', () => this.handleVaultSwitch());
   }
 
   // --- Event Handlers ---
@@ -57,15 +60,10 @@ class NoteCache {
   private handleBulkRefresh(
     event: Extract<NoteEvent, { type: 'notes.bulkRefresh' }>
   ): void {
-    // Replace entire cache (used for initial load)
+    // Replace entire cache (used for initial load and vault switches)
     console.log(`[noteCache] Handling bulk refresh with ${event.notes.length} notes`);
     this.cacheArray = event.notes;
     console.log(`[noteCache] Cache now contains ${this.cacheArray.length} notes`);
-  }
-
-  private handleVaultSwitch(): void {
-    // Clear cache when vault is switched
-    this.cacheArray = [];
   }
 
   // --- Public API ---

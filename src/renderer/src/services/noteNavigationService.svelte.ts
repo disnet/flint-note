@@ -32,6 +32,12 @@ class NoteNavigationService {
     onNoteOpen: (note: NoteMetadata) => Promise<void> | void,
     onSystemViewClear?: () => void
   ): Promise<void> {
+    console.log('[noteNavigationService] openNote called:', {
+      noteId: note.id,
+      title: note.title,
+      source
+    });
+
     // Check for pinned notes changes before proceeding
     await this.checkPinnedNotesChanges();
 
@@ -48,6 +54,7 @@ class NoteNavigationService {
       await temporaryTabsStore.clearActiveTab();
     } else {
       // Regular note: add to recent list
+      console.log('[noteNavigationService] Adding note to temporary tabs:', note.id);
       await temporaryTabsStore.addTab(note.id, source);
     }
 

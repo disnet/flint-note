@@ -38,7 +38,14 @@
           source: tab.source,
           openedAt: tab.openedAt,
           lastAccessed: tab.lastAccessed,
-          totalNotesInStore: notesStore.notes.length
+          totalNotesInStore: notesStore.notes.length,
+          availableNoteIds: notesStore.notes.map((n) => n.id).slice(0, 5),
+          reactivityCheck: {
+            storeTabsLength: temporaryTabsStore.tabs.length,
+            notesStoreLength: notesStore.notes.length,
+            isNotesLoading,
+            isTabsReady
+          }
         });
       }
       return {
@@ -71,12 +78,31 @@
         await temporaryTabsStore.setActiveTab(tab.id);
       }
     } else {
-      console.error('[TemporaryTabs] Click on tab with missing note - cannot open:', {
-        noteId,
-        availableNoteIds: notesStore.notes.map((n) => n.id).slice(0, 10),
-        totalNotesInStore: notesStore.notes.length,
-        tab: temporaryTabsStore.tabs.find((t) => t.noteId === noteId)
-      });
+      console.error(
+        '[TemporaryTabs] ❌ CRITICAL: Click on tab with missing note - cannot open:',
+        {
+          noteId,
+          notesStoreState: {
+            loading: notesStore.loading,
+            totalNotes: notesStore.notes.length,
+            noteTypes: notesStore.noteTypes,
+            firstTenNoteIds: notesStore.notes.map((n) => n.id).slice(0, 10)
+          },
+          tabInfo: temporaryTabsStore.tabs.find((t) => t.noteId === noteId),
+          allTabs: temporaryTabsStore.tabs.map((t) => ({ id: t.id, noteId: t.noteId }))
+        }
+      );
+
+      // Try to fetch the note directly from the API to see if it exists in database
+      try {
+        const fetchedNote = await window.api?.getNote({ identifier: noteId });
+        console.error('[TemporaryTabs] Direct API fetch result:', {
+          success: !!fetchedNote,
+          note: fetchedNote
+        });
+      } catch (error) {
+        console.error('[TemporaryTabs] Direct API fetch failed:', error);
+      }
     }
   }
 

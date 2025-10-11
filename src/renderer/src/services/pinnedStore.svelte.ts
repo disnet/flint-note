@@ -106,6 +106,9 @@ class PinnedNotesStore {
       this.currentVaultId = vault?.id || 'default';
       const notes = await this.loadFromStorage(); // Now properly async
       this.state.notes = notes;
+
+      // Validate pinned notes on initial load
+      await this.validatePinnedNotes();
     } catch (error) {
       console.warn('Failed to initialize vault for pinned notes:', error);
       this.currentVaultId = 'default';
@@ -230,6 +233,72 @@ class PinnedNotesStore {
     }
   }
 
+  /**
+   * Validate pinned notes against notesStore and remove any that no longer exist
+   * This cleans up deleted notes that weren't properly unpinned (e.g., deleted when app was closed)
+   */
+  private async validatePinnedNotes(): Promise<void> {
+    // If there are no pinned notes to validate, skip
+    if (this.state.notes.length === 0) {
+      return;
+    }
+
+    // Import notesStore to check if notes exist
+    const { notesStore } = await import('./noteStore.svelte');
+
+    // Wait for notes to be available (with timeout)
+    let attempts = 0;
+    const maxAttempts = 100; // 1 second max wait
+
+    while (
+      (notesStore.loading || notesStore.notes.length === 0) &&
+      attempts < maxAttempts
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      attempts++;
+    }
+
+    // Wait one more tick to ensure derived values have propagated
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    // Find pinned notes that no longer exist in the database
+    const availableNoteIds = new Set(notesStore.notes.map((n) => n.id));
+    const deletedPinnedNotes = this.state.notes.filter(
+      (pinnedNote) => !availableNoteIds.has(pinnedNote.id)
+    );
+
+    if (deletedPinnedNotes.length > 0) {
+      console.warn(
+        '[pinnedStore] Removing pinned notes that no longer exist in database:',
+        {
+          count: deletedPinnedNotes.length,
+          deletedNotes: deletedPinnedNotes.map((n) => ({
+            noteId: n.id,
+            pinnedAt: n.pinnedAt,
+            order: n.order
+          })),
+          message:
+            'These notes were deleted while app was closed, so note.deleted event never fired'
+        }
+      );
+
+      // Remove deleted notes from pinned list
+      this.state.notes = this.state.notes.filter((pinnedNote) =>
+        availableNoteIds.has(pinnedNote.id)
+      );
+
+      // Reassign order values to maintain sequence
+      this.state.notes.forEach((note, index) => {
+        note.order = index;
+      });
+
+      // Save the cleaned state
+      await this.saveToStorage();
+    } else {
+      console.log('[pinnedStore] ✓ All pinned notes validated successfully');
+    }
+  }
+
   async refreshForVault(vaultId?: string): Promise<void> {
     this.state.isLoading = true;
     try {
@@ -246,6 +315,10 @@ class PinnedNotesStore {
       }
       const notes = await this.loadFromStorage(); // Now properly async
       this.state.notes = notes;
+
+      // NOTE: We don't validate during vault switch because VaultSwitcher calls this
+      // BEFORE notesStore.initialize() completes, so validation would run against
+      // the wrong vault's notes. Validation only runs on initial app load.
     } catch (error) {
       console.warn('Failed to refresh vault for pinned notes:', error);
     } finally {

@@ -307,9 +307,24 @@
       const customEvent = event as CustomEvent;
       const { noteIds } = customEvent.detail;
 
+      console.log('[App] notes-unpinned event received:', { noteIds });
+
       // Add unpinned notes to temporary tabs
+      // BUT: only if the note actually exists in the notes store
       for (const noteId of noteIds) {
-        await temporaryTabsStore.addTab(noteId, 'navigation');
+        const note = notesStore.notes.find((n) => n.id === noteId);
+        if (note) {
+          console.log('[App] Adding unpinned note to tabs:', {
+            noteId,
+            title: note.title
+          });
+          await temporaryTabsStore.addTab(noteId, 'navigation');
+        } else {
+          console.warn('[App] Skipping unpinned note - not found in notes store:', {
+            noteId,
+            totalNotes: notesStore.notes.length
+          });
+        }
       }
     };
 

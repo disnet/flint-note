@@ -663,7 +663,10 @@ class TemporaryTabsStore {
     const maxAttempts = 100; // 1 second max wait
 
     // Wait until either notes are loaded OR we've waited long enough
-    while ((notesStore.loading || notesStore.notes.length === 0) && attempts < maxAttempts) {
+    while (
+      (notesStore.loading || notesStore.notes.length === 0) &&
+      attempts < maxAttempts
+    ) {
       await new Promise((resolve) => setTimeout(resolve, 10));
       attempts++;
     }
