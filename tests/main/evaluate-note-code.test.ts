@@ -6,6 +6,9 @@ import { TestApiSetup } from '../server/api/test-setup.js';
 // Mock the logger to avoid console output in tests
 vi.mock('../../src/main/logger', () => ({
   logger: {
+    info: vi.fn(),
+    debug: vi.fn(),
+    warn: vi.fn(),
     error: vi.fn()
   }
 }));

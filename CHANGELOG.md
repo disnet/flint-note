@@ -30,7 +30,6 @@ A new dedicated inbox view provides a streamlined workflow for managing unproces
 
 A collapsible sidebar panel allows users to keep multiple notes accessible for quick reference and editing without leaving their current context. Notes can be added to the sidebar via the "Add to Sidebar" action in the note editor, creating a persistent workspace of frequently referenced notes. Sidebar notes can be easily removed when no longer needed, and the sidebar maintains its state across sessions, making it ideal for keeping research notes, reference material, or works-in-progress readily available during writing and research workflows.
 
-
 ### Changed
 
 - Styling of wikilinks improved

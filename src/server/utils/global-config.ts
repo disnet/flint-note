@@ -10,6 +10,7 @@ import fs from 'fs/promises';
 import os from 'os';
 import yaml from 'js-yaml';
 import { resolvePath } from './path.js';
+import { logger } from '../../main/logger.js';
 
 export interface VaultInfo {
   id: string;
@@ -75,6 +76,12 @@ export class GlobalConfigManager {
    */
   async load(): Promise<GlobalConfig> {
     try {
+      logger.info('Loading global config', {
+        configPath: this.#configPath,
+        configDir: this.#configDir,
+        platform: process.platform
+      });
+
       await this.ensureConfigDirectory();
 
       // Try to migrate from legacy location first
@@ -93,13 +100,16 @@ export class GlobalConfigManager {
         await this.save();
       }
 
+      logger.info('Global config loaded successfully');
       return this.#config;
     } catch (error) {
       if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+        logger.info('Config file not found, attempting migration or creating default');
         // Try to migrate from legacy location if config doesn't exist
         const migrated = await this.migrateFromLegacyLocation();
 
         if (!migrated) {
+          logger.info('No legacy config found, creating default configuration');
           // Create default config if file doesn't exist and no migration
           this.#config = this.getDefaultConfig();
           await this.save();
@@ -107,6 +117,11 @@ export class GlobalConfigManager {
 
         return this.#config!;
       }
+      logger.error('Failed to load global configuration', {
+        error,
+        configPath: this.#configPath,
+        configDir: this.#configDir
+      });
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       throw new Error(`Failed to load global configuration: ${errorMessage}`);
     }
@@ -256,9 +271,10 @@ export class GlobalConfigManager {
       const legacyConfig = yaml.load(legacyConfigContent) as GlobalConfig;
       this.#config = legacyConfig;
 
-      console.log(
-        `Migrating configuration from ${legacyConfigPath} to ${this.#configPath}`
-      );
+      logger.info('Migrating configuration from legacy location', {
+        from: legacyConfigPath,
+        to: this.#configPath
+      });
 
       // Save config to new location
       await this.save();
@@ -271,7 +287,7 @@ export class GlobalConfigManager {
       const migrationNote = `Configuration migrated to: ${this.#configPath}\nMigration date: ${new Date().toISOString()}`;
       await fs.writeFile(migrationMarkerPath, migrationNote, 'utf-8');
 
-      console.log('Configuration migration completed successfully');
+      logger.info('Configuration migration completed successfully');
       return true;
     } catch (error) {
       if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
@@ -280,7 +296,7 @@ export class GlobalConfigManager {
       }
 
       // Log migration error but don't fail the load operation
-      console.warn('Failed to migrate legacy configuration:', error);
+      logger.warn('Failed to migrate legacy configuration', { error });
       return false;
     }
   }

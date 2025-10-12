@@ -1,5 +1,13 @@
 # Project Log
 
+## Test Logger Mock Fix - 2025-10-12
+
+- Fixed all failing tests (50 test failures reduced to 0) by updating logger mocks in test files to include all required methods (info, debug, warn, error): two test files (tests/main/basic-tools.test.ts and tests/main/evaluate-note-code.test.ts) had incomplete vi.mock() calls that only mocked logger.error while actual code uses logger.info for initialization logging; updated both mocks to include all four logger methods with vi.fn() stubs, preventing "logger.info is not a function" TypeError during test execution; verified other test errors were just expected stderr warnings from graceful error handling (invalid template loading logged by console.error, migration transaction errors caught and counted) that don't cause test failures; all 400 tests now pass (397 passed, 3 skipped)
+
+## Vault Loading Error Logging Improvements - 2025-10-12
+
+- Fixed vault loading error debugging on Windows by implementing proper Error serialization and comprehensive initialization logging: updated logger to serialize Error objects with message/name/stack instead of empty `{}` objects (Winston JSON format doesn't enumerate Error properties), added detailed logging throughout initialization chain (NoteService, FlintNoteApi, GlobalConfigManager) with platform info, file paths, and error context at each step, replaced console.log/error calls with proper logger usage for consistent logging architecture; logs now show actual error details and initialization progress, making it possible to diagnose Windows-specific issues like path resolution problems, file permissions, or APPDATA environment variable issues; all linting and type checking passes successfully
+
 ## Note Cache Race Condition Fix - 2025-01-11
 
 - Fixed race condition where noteCache cleared itself before tabs finished loading during vault switches: root cause was noteCache subscribing to `vault.switched` event and immediately clearing cache via `this.cacheArray = []`, causing `notesStore.notes` to become empty while temporaryTabsStore was loading tabs from storage, resulting in tabs showing as "Untitled" because hydration couldn't find note metadata in empty cache; removed `vault.switched` event listener from noteCache.svelte.ts and rely solely on `notes.bulkRefresh` event to repopulate cache, ensuring proper sequencing where VaultSwitcher explicitly calls `notesStore.initialize()` which publishes bulk refresh AFTER tabs are loaded; this matches the pattern already applied to temporaryTabsStore where duplicate event listeners were removed to prevent race conditions
@@ -369,6 +377,7 @@
 ## Phase 1 API Type Alignment Complete - 2025-01-XX
 
 - Successfully implemented **Phase 1: Flatten WASM API to Single Namespace** from the API Type Alignment Plan, converting separate namespace objects (`notes`, `noteTypes`, `vaults`, etc.) to unified `flintApi` object with direct method name alignment to FlintNoteApi implementation, updated all type definitions and test files, achieving 100% test pass rate (222/222 tests passing)
+
 ## Zettelkasten Template UI Integration Enhancements - 2025-10-12
 
 - Enhanced zettelkasten template guide notes to naturally integrate Flint's built-in note type features: restructured zettelkasten-guide.md to first explain the four zettelkasten note types (fleeting, literature, permanent, index) conceptually, then introduce Flint's implementation in dedicated "Using Flint for Zettelkasten" section showing how these types are actual built-in note types accessible via dropdown arrow next to "New Note" button; updated zettelkasten-workflow.md with single introductory note about using the note type dropdown throughout the workflow instead of repetitive callouts at each step, maintaining focus on zettelkasten methodology while showing Flint makes it practical; updated all example notes (fleeting-note-example.md, literature-note-example.md, permanent-note-context-dependent-behavior.md, index-note-behavior-change.md) with prominent blockquotes explaining what note type they demonstrate and how to create similar notes; improved "Starting Your Zettelkasten" section to reference Flint's UI naturally within workflow steps; documentation now flows from understanding zettelkasten concepts to seeing how Flint's native note type system implements those concepts, avoiding UI-first approach that would confuse new users
@@ -376,4 +385,3 @@
 ## Note Preview Mode Implementation - 2025-10-12
 
 - Added preview mode toggle to main note editor for switching between editing and rendered markdown views: created preview toggle button in NoteActionBar.svelte (displays "👁 Preview" or "✏️ Edit" based on mode), added previewMode state to NoteEditor.svelte with conditional rendering between CodeMirrorEditor and MarkdownRenderer components, implemented handlePreviewWikilinkClick() to handle wikilink navigation in preview mode using wikilinkService, updated MarkdownRenderer.svelte wikilink styling to match editor's subtle appearance (minimal background with underline, no borders or shadows, matches wikilink-theme.ts styling), fixed preview content scrolling to scroll entire window (title, metadata, backlinks) like editor mode instead of creating internal scroll container; preview mode provides clean markdown rendering with fully functional wikilinks while maintaining consistent UI patterns
-

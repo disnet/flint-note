@@ -49,6 +49,7 @@ Now that you understand the four types of notes, here's how Flint makes it easy:
 ### Creating Notes by Type
 
 **To create a note of a specific type:**
+
 1. Look at the "New Note" button in the left sidebar
 2. Click the small arrow (▼) next to it—this opens a dropdown menu
 3. Select the note type you want: **fleeting**, **literature**, **permanent**, or **index**
@@ -57,10 +58,12 @@ Now that you understand the four types of notes, here's how Flint makes it easy:
 ### Viewing Note Types
 
 **To see what type a note is:**
+
 - Open any note
 - Click the "Show metadata" button
 
 **To see all your note types:**
+
 - Click "All notes" in the left sidebar
 - You'll see a list of note types with counts showing how many notes of each type you have
 - This gives you a quick overview of your Zettelkasten's composition

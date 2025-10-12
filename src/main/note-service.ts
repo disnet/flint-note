@@ -75,10 +75,21 @@ export class NoteService {
 
   private async doInitialize(): Promise<void> {
     try {
+      logger.info('Starting NoteService initialization', {
+        electronUserDataPath: this.electronUserDataPath,
+        platform: process.platform
+      });
+
       // Get the current vault path for initialization, using Electron userData directory
       const currentVaultPath = await getCurrentVaultPath(this.electronUserDataPath);
+      logger.info('Current vault path retrieved', { currentVaultPath });
+
       if (currentVaultPath) {
         // Reinitialize API with workspace path if we have a current vault
+        logger.info('Initializing FlintNote API with workspace path', {
+          workspacePath: currentVaultPath
+        });
+
         this.api = new FlintNoteApi({
           configDir: this.electronUserDataPath,
           workspacePath: currentVaultPath,
@@ -88,12 +99,12 @@ export class NoteService {
         await this.api.initialize();
         this.isInitialized = true;
         this.hasVaultsAvailable = true;
-        logger.info(
-          'FlintNote API initialized successfully with vault:',
-          currentVaultPath
-        );
+        logger.info('FlintNote API initialized successfully with vault', {
+          vaultPath: currentVaultPath
+        });
       } else {
         // No vaults available - set up API without workspace for vault operations only
+        logger.info('No current vault found, initializing in vault-management mode');
         this.api = new FlintNoteApi({
           configDir: this.electronUserDataPath,
           throwOnError: false
@@ -103,7 +114,12 @@ export class NoteService {
         logger.info('No vaults available - NoteService in vault-management-only mode');
       }
     } catch (error) {
-      logger.error('Failed to initialize FlintNote API', { error });
+      logger.error('Failed to initialize FlintNote API', {
+        error,
+        electronUserDataPath: this.electronUserDataPath,
+        platform: process.platform,
+        errorType: error instanceof Error ? error.constructor.name : typeof error
+      });
       this.isInitialized = false;
       this.hasVaultsAvailable = false;
       // Don't throw - allow the service to exist in an uninitialized state

@@ -94,7 +94,40 @@ class Logger {
 
   error(message: string, meta?: unknown): void {
     this.initializeLogger();
-    this.logger?.error(message, meta);
+    // Properly serialize Error objects
+    const serializedMeta = this.serializeErrorMeta(meta);
+    this.logger?.error(message, serializedMeta);
+  }
+
+  private serializeErrorMeta(meta?: unknown): unknown {
+    if (!meta || typeof meta !== 'object') {
+      return meta;
+    }
+
+    const result: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(meta)) {
+      if (value instanceof Error) {
+        // Serialize Error objects with all their properties
+        result[key] = {
+          message: value.message,
+          name: value.name,
+          stack: value.stack,
+          // Include any additional enumerable properties
+          ...Object.getOwnPropertyNames(value).reduce(
+            (acc, prop) => {
+              if (!['message', 'name', 'stack'].includes(prop)) {
+                acc[prop] = (value as unknown as Record<string, unknown>)[prop];
+              }
+              return acc;
+            },
+            {} as Record<string, unknown>
+          )
+        };
+      } else {
+        result[key] = value;
+      }
+    }
+    return result;
   }
 
   warn(message: string, meta?: unknown): void {

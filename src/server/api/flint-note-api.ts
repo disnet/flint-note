@@ -66,6 +66,7 @@ import { RelationshipManager } from '../core/relationship-manager.js';
 import type { NoteRelationships } from '../core/relationship-manager.js';
 import { TemplateManager } from '../core/template-manager.js';
 import type { TemplateMetadata } from '../core/template-manager.js';
+import { logger } from '../../main/logger.js';
 
 export interface FlintNoteApiConfig extends ServerConfig {
   configDir?: string;
@@ -121,16 +122,26 @@ export class FlintNoteApi {
 
   async initialize(): Promise<void> {
     if (this.initialized) {
+      logger.info('FlintNoteApi already initialized, skipping');
       return;
     }
 
     try {
+      logger.info('Starting FlintNoteApi initialization', {
+        hasWorkspacePath: !!this.config.workspacePath,
+        workspacePath: this.config.workspacePath,
+        configDir: this.config.configDir
+      });
+
       // Load global config first
       await this.globalConfig.load();
+      logger.info('Global config loaded successfully');
 
       // If workspace path is provided explicitly, use it
       if (this.config.workspacePath) {
         const workspacePath = this.config.workspacePath;
+        logger.info('Initializing with workspace path', { workspacePath });
+
         this.hybridSearchManager = new HybridSearchManager(workspacePath);
         this.workspace = new Workspace(
           workspacePath,
@@ -142,9 +153,11 @@ export class FlintNoteApi {
 
         try {
           await fs.access(flintNoteDir);
+          logger.info('.flint-note directory exists, initializing existing vault');
           // .flint-note directory exists - this is an existing vault
           await this.workspace.initialize();
         } catch {
+          logger.info('.flint-note directory not found, initializing new vault');
           // .flint-note directory doesn't exist - this is a new vault
           await this.workspace.initializeVault();
         }
@@ -157,25 +170,32 @@ export class FlintNoteApi {
         // Check if index exists but might be stale
         const shouldRebuild = forceRebuild || isEmptyIndex;
 
+        logger.info('Search index stats', { noteCount: stats.noteCount, shouldRebuild });
+
         await handleIndexRebuild(
           this.hybridSearchManager,
           shouldRebuild,
           logInitialization
         );
 
+        logger.info('FlintNoteApi initialized successfully');
         // Note: Template application happens during createVault(), not here
         // This initialization is for existing vaults only
       } else {
         // No workspace path - we can still do vault operations with globalConfig
         // but cannot perform note operations that require a workspace
-        console.log('No workspace path provided - vault operations only mode');
+        logger.info('No workspace path provided - vault operations only mode');
         // Don't set this.initialized = true, as we're not fully initialized for note operations
         return;
       }
 
       this.initialized = true;
     } catch (error) {
-      console.error('Failed to initialize FlintNoteApi:', error);
+      logger.error('Failed to initialize FlintNoteApi', {
+        error,
+        workspacePath: this.config.workspacePath,
+        configDir: this.config.configDir
+      });
       throw error;
     }
   }
