@@ -34,7 +34,6 @@ interface WorkspaceConfig {
     version: string;
     port: number;
     log_level: string;
-    log_file: string;
   };
   search: {
     index_enabled: boolean;
@@ -133,8 +132,7 @@ export class ConfigManager {
         name: 'flint-note',
         version: '0.1.0',
         port: 3000,
-        log_level: 'info',
-        log_file: '.flint-note/mcp-server.log'
+        log_level: 'info'
       },
       search: {
         index_enabled: true,

@@ -91,7 +91,6 @@ export class Workspace {
   public readonly flintNoteDir: string;
   public readonly configPath: string;
   public readonly searchIndexPath: string;
-  public readonly logPath: string;
   public config: WorkspaceConfig | null = null;
   #databaseManager: DatabaseManager | null = null;
 
@@ -147,7 +146,6 @@ export class Workspace {
     this.flintNoteDir = path.join(this.rootPath, '.flint-note');
     this.configPath = path.join(this.flintNoteDir, 'config.yml');
     this.searchIndexPath = path.join(this.flintNoteDir, 'search-index.json');
-    this.logPath = path.join(this.flintNoteDir, 'mcp-server.log');
     this.#databaseManager = databaseManager || null;
   }
 
