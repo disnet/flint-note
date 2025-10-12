@@ -338,7 +338,7 @@ This is test note ${i}`;
     return { migratedNotes, mappings };
   }
 
-  describe('Fresh migration from v1.1.0 to v2.0.1', () => {
+  describe('Fresh migration from v1.1.0 to v2.1.0', () => {
     it('should successfully migrate a small vault (7 notes)', async () => {
       // Create v1.1.0 database with 7 notes
       const originalNotes = await createV1_1_0_Database(7);
@@ -353,9 +353,10 @@ This is test note ${i}`;
       // Verify migration result
       expect(result.migrated).toBe(true);
       expect(result.fromVersion).toBe('1.1.0');
-      expect(result.toVersion).toBe('2.0.1');
+      expect(result.toVersion).toBe('2.1.0');
       expect(result.executedMigrations).toContain('2.0.0');
       expect(result.executedMigrations).toContain('2.0.1');
+      expect(result.executedMigrations).toContain('2.1.0');
 
       // Verify database state
       await verifyMigration(originalNotes);
@@ -606,7 +607,7 @@ This is test note ${i}`;
 
       // Run migration again (with current version)
       const result = await DatabaseMigrationManager.checkAndMigrate(
-        '2.0.1',
+        '2.1.0',
         dbManager as unknown as DatabaseManager,
         workspacePath
       );
@@ -628,7 +629,7 @@ This is test note ${i}`;
       }
     });
 
-    it('should handle migration from v1.0.0 through v1.1.0 to v2.0.1', async () => {
+    it('should handle migration from v1.0.0 through v1.1.0 to v2.1.0', async () => {
       // This tests running multiple migrations in sequence
       const db = await dbManager.connect();
 
@@ -675,11 +676,12 @@ This is test note ${i}`;
         workspacePath
       );
 
-      // Should execute all three migrations
+      // Should execute all four migrations
       expect(result.migrated).toBe(true);
       expect(result.executedMigrations).toContain('1.1.0');
       expect(result.executedMigrations).toContain('2.0.0');
       expect(result.executedMigrations).toContain('2.0.1');
+      expect(result.executedMigrations).toContain('2.1.0');
 
       // Verify final state has immutable IDs
       const notes = await db.all<{ id: string }>('SELECT id FROM notes');
@@ -1046,6 +1048,579 @@ metadata:
       expect(updatedContent).toContain('---');
       expect(updatedContent).toContain('id: n-');
       expect(updatedContent).toContain('created:');
+    });
+  });
+
+  describe('Windows vault loading scenarios (Path portability)', () => {
+    /**
+     * Test the exact scenario from docs/WINDOWS-VAULT-LOADING-ISSUE.md:
+     * - Database created with paths from user "Admin"
+     * - Same vault accessed by user "Tyler Disney"
+     * - Migration should handle missing files gracefully
+     */
+    it('should handle cross-user vault scenario (Windows Admin → Tyler Disney)', async () => {
+      const db = await dbManager.connect();
+
+      // Create v1.1.0 schema
+      await db.run(`
+        CREATE TABLE notes (
+          id TEXT PRIMARY KEY,
+          type TEXT NOT NULL,
+          filename TEXT NOT NULL,
+          path TEXT NOT NULL,
+          title TEXT,
+          content TEXT,
+          content_hash TEXT,
+          created TEXT NOT NULL,
+          updated TEXT NOT NULL,
+          size INTEGER,
+          UNIQUE(type, filename)
+        )
+      `);
+
+      // Create notes with Admin user paths (Windows-style)
+      const adminVaultPath = 'C:\\Users\\Admin\\Dropbox\\flintvault';
+      const notes = [
+        {
+          filename: 'welcome-to-flint.md',
+          title: 'Welcome to Flint',
+          id: 'note/welcome-to-flint',
+          path: `${adminVaultPath}\\note\\welcome-to-flint.md`
+        },
+        {
+          filename: 'getting-started.md',
+          title: 'Getting Started',
+          id: 'note/getting-started',
+          path: `${adminVaultPath}\\note\\getting-started.md`
+        }
+      ];
+
+      // Add notes to database with old Admin paths
+      for (const note of notes) {
+        // Create actual files in the current test workspace
+        const actualFilePath = path.join(workspacePath, 'note', note.filename);
+        await fs.writeFile(actualFilePath, `# ${note.title}\n\nContent`);
+
+        // But store OLD paths in database (simulating Admin user)
+        await db.run(
+          'INSERT INTO notes (id, type, filename, path, title, content, created, updated, size) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [
+            note.id,
+            'note',
+            note.filename,
+            note.path, // This is the Admin path, which won't exist
+            note.title,
+            `# ${note.title}`,
+            '2025-01-01T00:00:00.000Z',
+            '2025-01-01T00:00:00.000Z',
+            100
+          ]
+        );
+      }
+
+      // Run migration - this should succeed despite wrong paths
+      const result = await DatabaseMigrationManager.checkAndMigrate(
+        '1.1.0',
+        dbManager as unknown as DatabaseManager,
+        workspacePath
+      );
+
+      expect(result.migrated).toBe(true);
+
+      // Verify migration completed (even though files couldn't be updated)
+      const migratedNotes = await db.all<{ id: string; path: string }>(
+        'SELECT id, path FROM notes'
+      );
+      expect(migratedNotes.length).toBe(2);
+
+      // All notes should have new IDs
+      for (const note of migratedNotes) {
+        expect(note.id).toMatch(/^n-[0-9a-f]{8}$/);
+      }
+
+      // Paths should have been converted to relative during v2.1.0 migration
+      for (const note of migratedNotes) {
+        // Should be relative now, not absolute Windows paths
+        expect(note.path).not.toContain('C:\\');
+        expect(note.path).not.toContain('Admin');
+        expect(note.path).toContain('note/');
+      }
+    });
+
+    it('should convert absolute paths to relative paths during v2.1.0 migration', async () => {
+      const db = await dbManager.connect();
+
+      // Create v2.0.1 database (after immutable IDs but before relative paths)
+      await db.run(`
+        CREATE TABLE notes (
+          id TEXT PRIMARY KEY,
+          type TEXT NOT NULL,
+          filename TEXT NOT NULL,
+          path TEXT NOT NULL,
+          title TEXT,
+          content TEXT,
+          content_hash TEXT,
+          created TEXT NOT NULL,
+          updated TEXT NOT NULL,
+          size INTEGER,
+          UNIQUE(type, filename)
+        )
+      `);
+
+      await db.run(`
+        CREATE TABLE note_id_migration (
+          old_identifier TEXT PRIMARY KEY,
+          new_id TEXT NOT NULL UNIQUE,
+          type TEXT NOT NULL,
+          filename TEXT NOT NULL
+        )
+      `);
+
+      await db.run(`
+        CREATE TABLE note_links (
+          id INTEGER PRIMARY KEY,
+          source_note_id TEXT NOT NULL,
+          target_note_id TEXT,
+          target_title TEXT NOT NULL,
+          link_text TEXT,
+          line_number INTEGER,
+          created DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY(source_note_id) REFERENCES notes(id) ON DELETE CASCADE,
+          FOREIGN KEY(target_note_id) REFERENCES notes(id) ON DELETE SET NULL
+        )
+      `);
+
+      await db.run(`
+        CREATE TABLE external_links (
+          id INTEGER PRIMARY KEY,
+          note_id TEXT NOT NULL,
+          url TEXT NOT NULL,
+          title TEXT,
+          line_number INTEGER,
+          link_type TEXT DEFAULT 'url' CHECK (link_type IN ('url', 'image', 'embed')),
+          created DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY(note_id) REFERENCES notes(id) ON DELETE CASCADE
+        )
+      `);
+
+      // Create notes with absolute paths
+      const filename = 'test.md';
+      const absolutePath = path.join(workspacePath, 'note', filename);
+      await fs.writeFile(absolutePath, '# Test\n\nContent');
+
+      await db.run(
+        'INSERT INTO notes (id, type, filename, path, title, content, created, updated, size) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+          'n-12345678',
+          'note',
+          filename,
+          absolutePath, // Absolute path
+          'Test',
+          '# Test',
+          '2025-01-01T00:00:00.000Z',
+          '2025-01-01T00:00:00.000Z',
+          100
+        ]
+      );
+
+      // Run v2.1.0 migration
+      const result = await DatabaseMigrationManager.checkAndMigrate(
+        '2.0.1',
+        dbManager as unknown as DatabaseManager,
+        workspacePath
+      );
+
+      expect(result.migrated).toBe(true);
+      expect(result.executedMigrations).toContain('2.1.0');
+
+      // Verify path was converted to relative
+      const notes = await db.all<{ path: string }>('SELECT path FROM notes');
+      expect(notes.length).toBe(1);
+      expect(notes[0].path).toBe('note/test.md');
+      expect(notes[0].path).not.toContain(workspacePath);
+    });
+
+    it('should handle vault moved between machines with different paths', async () => {
+      const db = await dbManager.connect();
+
+      // Create v1.1.0 schema with paths from a different machine
+      await db.run(`
+        CREATE TABLE notes (
+          id TEXT PRIMARY KEY,
+          type TEXT NOT NULL,
+          filename TEXT NOT NULL,
+          path TEXT NOT NULL,
+          title TEXT,
+          content TEXT,
+          content_hash TEXT,
+          created TEXT NOT NULL,
+          updated TEXT NOT NULL,
+          size INTEGER,
+          UNIQUE(type, filename)
+        )
+      `);
+
+      await db.run(`
+        CREATE TABLE note_links (
+          id INTEGER PRIMARY KEY,
+          source_note_id TEXT NOT NULL,
+          target_note_id TEXT,
+          target_title TEXT NOT NULL,
+          link_text TEXT,
+          line_number INTEGER,
+          created DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY(source_note_id) REFERENCES notes(id) ON DELETE CASCADE,
+          FOREIGN KEY(target_note_id) REFERENCES notes(id) ON DELETE SET NULL
+        )
+      `);
+
+      await db.run(`
+        CREATE TABLE external_links (
+          id INTEGER PRIMARY KEY,
+          note_id TEXT NOT NULL,
+          url TEXT NOT NULL,
+          link_text TEXT,
+          line_number INTEGER,
+          created DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY(note_id) REFERENCES notes(id) ON DELETE CASCADE
+        )
+      `);
+
+      // Simulate paths from old machine
+      const oldMachinePath = '/Users/olduser/Documents/vault';
+      const filename = 'important-note.md';
+      const oldAbsolutePath = `${oldMachinePath}/note/${filename}`;
+
+      // Create file in current workspace (new machine location)
+      const actualPath = path.join(workspacePath, 'note', filename);
+      await fs.writeFile(actualPath, '# Important\n\nData');
+
+      // Store old machine path in database
+      await db.run(
+        'INSERT INTO notes (id, type, filename, path, title, content, created, updated, size) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+          'note/important-note',
+          'note',
+          filename,
+          oldAbsolutePath,
+          'Important',
+          '# Important',
+          '2025-01-01T00:00:00.000Z',
+          '2025-01-01T00:00:00.000Z',
+          100
+        ]
+      );
+
+      // Run full migration
+      const result = await DatabaseMigrationManager.checkAndMigrate(
+        '1.1.0',
+        dbManager as unknown as DatabaseManager,
+        workspacePath
+      );
+
+      expect(result.migrated).toBe(true);
+
+      // Verify note was migrated successfully
+      const notes = await db.all<{ id: string; path: string }>(
+        'SELECT id, path FROM notes'
+      );
+      expect(notes.length).toBe(1);
+      expect(notes[0].id).toMatch(/^n-[0-9a-f]{8}$/);
+      // Path should be relative after v2.1.0 migration
+      expect(notes[0].path).toBe('note/important-note.md');
+    });
+
+    it('should handle migration with mix of existing and missing files', async () => {
+      const db = await dbManager.connect();
+
+      // Create v1.1.0 schema
+      await db.run(`
+        CREATE TABLE notes (
+          id TEXT PRIMARY KEY,
+          type TEXT NOT NULL,
+          filename TEXT NOT NULL,
+          path TEXT NOT NULL,
+          title TEXT,
+          content TEXT,
+          content_hash TEXT,
+          created TEXT NOT NULL,
+          updated TEXT NOT NULL,
+          size INTEGER,
+          UNIQUE(type, filename)
+        )
+      `);
+
+      await db.run(`
+        CREATE TABLE note_links (
+          id INTEGER PRIMARY KEY,
+          source_note_id TEXT NOT NULL,
+          target_note_id TEXT,
+          target_title TEXT NOT NULL,
+          link_text TEXT,
+          line_number INTEGER,
+          created DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY(source_note_id) REFERENCES notes(id) ON DELETE CASCADE,
+          FOREIGN KEY(target_note_id) REFERENCES notes(id) ON DELETE SET NULL
+        )
+      `);
+
+      await db.run(`
+        CREATE TABLE external_links (
+          id INTEGER PRIMARY KEY,
+          note_id TEXT NOT NULL,
+          url TEXT NOT NULL,
+          link_text TEXT,
+          line_number INTEGER,
+          created DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY(note_id) REFERENCES notes(id) ON DELETE CASCADE
+        )
+      `);
+
+      // Create two notes - one exists, one doesn't
+      const existingFile = 'exists.md';
+      const existingPath = path.join(workspacePath, 'note', existingFile);
+      await fs.writeFile(existingPath, '# Exists\n\nThis file exists');
+
+      await db.run(
+        'INSERT INTO notes (id, type, filename, path, title, content, created, updated, size) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+          'note/exists',
+          'note',
+          existingFile,
+          existingPath,
+          'Exists',
+          '# Exists',
+          '2025-01-01T00:00:00.000Z',
+          '2025-01-01T00:00:00.000Z',
+          100
+        ]
+      );
+
+      // Note with path that doesn't exist
+      const missingPath = '/old/path/that/does/not/exist/note/missing.md';
+      await db.run(
+        'INSERT INTO notes (id, type, filename, path, title, content, created, updated, size) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+          'note/missing',
+          'note',
+          'missing.md',
+          missingPath,
+          'Missing',
+          '# Missing',
+          '2025-01-01T00:00:00.000Z',
+          '2025-01-01T00:00:00.000Z',
+          100
+        ]
+      );
+
+      // Migration should succeed despite one missing file
+      const result = await DatabaseMigrationManager.checkAndMigrate(
+        '1.1.0',
+        dbManager as unknown as DatabaseManager,
+        workspacePath
+      );
+
+      expect(result.migrated).toBe(true);
+
+      // Both notes should be in database with new IDs
+      const notes = await db.all<{ id: string; filename: string }>(
+        'SELECT id, filename FROM notes ORDER BY filename'
+      );
+      expect(notes.length).toBe(2);
+      expect(notes[0].filename).toBe('exists.md');
+      expect(notes[1].filename).toBe('missing.md');
+
+      // Both should have new immutable IDs
+      expect(notes[0].id).toMatch(/^n-[0-9a-f]{8}$/);
+      expect(notes[1].id).toMatch(/^n-[0-9a-f]{8}$/);
+
+      // Mapping table should have entries for both
+      const mappings = await db.all<{ old_identifier: string }>(
+        'SELECT old_identifier FROM note_id_migration'
+      );
+      expect(mappings.length).toBe(2);
+    });
+
+    it('should handle vault in Dropbox with different user paths', async () => {
+      const db = await dbManager.connect();
+
+      // Create v1.1.0 schema
+      await db.run(`
+        CREATE TABLE notes (
+          id TEXT PRIMARY KEY,
+          type TEXT NOT NULL,
+          filename TEXT NOT NULL,
+          path TEXT NOT NULL,
+          title TEXT,
+          content TEXT,
+          content_hash TEXT,
+          created TEXT NOT NULL,
+          updated TEXT NOT NULL,
+          size INTEGER,
+          UNIQUE(type, filename)
+        )
+      `);
+
+      await db.run(`
+        CREATE TABLE note_links (
+          id INTEGER PRIMARY KEY,
+          source_note_id TEXT NOT NULL,
+          target_note_id TEXT,
+          target_title TEXT NOT NULL,
+          link_text TEXT,
+          line_number INTEGER,
+          created DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY(source_note_id) REFERENCES notes(id) ON DELETE CASCADE,
+          FOREIGN KEY(target_note_id) REFERENCES notes(id) ON DELETE SET NULL
+        )
+      `);
+
+      await db.run(`
+        CREATE TABLE external_links (
+          id INTEGER PRIMARY KEY,
+          note_id TEXT NOT NULL,
+          url TEXT NOT NULL,
+          link_text TEXT,
+          line_number INTEGER,
+          created DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY(note_id) REFERENCES notes(id) ON DELETE CASCADE
+        )
+      `);
+
+      // Simulate database created by User1, now accessed by User2
+      const user1Path = 'C:\\Users\\User1\\Dropbox\\MyVault';
+      const filename = 'shared-note.md';
+
+      // Create file in test workspace (User2's location)
+      const actualPath = path.join(workspacePath, 'note', filename);
+      await fs.writeFile(actualPath, '# Shared\n\nShared content');
+
+      // Database has User1's path
+      const dbPath = `${user1Path}\\note\\${filename}`;
+      await db.run(
+        'INSERT INTO notes (id, type, filename, path, title, content, created, updated, size) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+          'note/shared-note',
+          'note',
+          filename,
+          dbPath,
+          'Shared',
+          '# Shared',
+          '2025-01-01T00:00:00.000Z',
+          '2025-01-01T00:00:00.000Z',
+          100
+        ]
+      );
+
+      // Run migration
+      const result = await DatabaseMigrationManager.checkAndMigrate(
+        '1.1.0',
+        dbManager as unknown as DatabaseManager,
+        workspacePath
+      );
+
+      expect(result.migrated).toBe(true);
+
+      // Verify note migrated with relative path
+      const notes = await db.all<{ id: string; path: string }>(
+        'SELECT id, path FROM notes'
+      );
+      expect(notes.length).toBe(1);
+      expect(notes[0].id).toMatch(/^n-[0-9a-f]{8}$/);
+      expect(notes[0].path).toBe('note/shared-note.md');
+      expect(notes[0].path).not.toContain('User1');
+      expect(notes[0].path).not.toContain('Dropbox');
+    });
+
+    it('should skip already-relative paths during v2.1.0 migration', async () => {
+      const db = await dbManager.connect();
+
+      // Create v2.0.1 schema
+      await db.run(`
+        CREATE TABLE notes (
+          id TEXT PRIMARY KEY,
+          type TEXT NOT NULL,
+          filename TEXT NOT NULL,
+          path TEXT NOT NULL,
+          title TEXT,
+          content TEXT,
+          content_hash TEXT,
+          created TEXT NOT NULL,
+          updated TEXT NOT NULL,
+          size INTEGER,
+          UNIQUE(type, filename)
+        )
+      `);
+
+      await db.run(`
+        CREATE TABLE note_id_migration (
+          old_identifier TEXT PRIMARY KEY,
+          new_id TEXT NOT NULL UNIQUE,
+          type TEXT NOT NULL,
+          filename TEXT NOT NULL
+        )
+      `);
+
+      await db.run(`
+        CREATE TABLE note_links (
+          id INTEGER PRIMARY KEY,
+          source_note_id TEXT NOT NULL,
+          target_note_id TEXT,
+          target_title TEXT NOT NULL,
+          link_text TEXT,
+          line_number INTEGER,
+          created DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY(source_note_id) REFERENCES notes(id) ON DELETE CASCADE,
+          FOREIGN KEY(target_note_id) REFERENCES notes(id) ON DELETE SET NULL
+        )
+      `);
+
+      await db.run(`
+        CREATE TABLE external_links (
+          id INTEGER PRIMARY KEY,
+          note_id TEXT NOT NULL,
+          url TEXT NOT NULL,
+          title TEXT,
+          line_number INTEGER,
+          link_type TEXT DEFAULT 'url' CHECK (link_type IN ('url', 'image', 'embed')),
+          created DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY(note_id) REFERENCES notes(id) ON DELETE CASCADE
+        )
+      `);
+
+      // Add note that already has relative path
+      const filename = 'test.md';
+      const relativePath = 'note/test.md';
+      const absolutePath = path.join(workspacePath, 'note', filename);
+      await fs.writeFile(absolutePath, '# Test\n\nContent');
+
+      await db.run(
+        'INSERT INTO notes (id, type, filename, path, title, content, created, updated, size) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+          'n-12345678',
+          'note',
+          filename,
+          relativePath, // Already relative
+          'Test',
+          '# Test',
+          '2025-01-01T00:00:00.000Z',
+          '2025-01-01T00:00:00.000Z',
+          100
+        ]
+      );
+
+      // Run v2.1.0 migration
+      const result = await DatabaseMigrationManager.checkAndMigrate(
+        '2.0.1',
+        dbManager as unknown as DatabaseManager,
+        workspacePath
+      );
+
+      expect(result.migrated).toBe(true);
+
+      // Path should remain unchanged
+      const notes = await db.all<{ path: string }>('SELECT path FROM notes');
+      expect(notes[0].path).toBe('note/test.md');
     });
   });
 });

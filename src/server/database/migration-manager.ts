@@ -11,6 +11,7 @@ import { LinkExtractor } from '../core/link-extractor.js';
 import crypto from 'crypto';
 import fs from 'fs/promises';
 import yaml from 'js-yaml';
+import { toRelativePath, toAbsolutePath } from '../utils/path-utils.js';
 
 export interface DatabaseMigration {
   version: string;
@@ -161,6 +162,8 @@ async function migrateToImmutableIds(
 
   const idMapping: Map<string, string> = new Map();
 
+  let skippedCount = 0;
+
   for (const note of existingNotes) {
     const oldIdentifier = note.id;
     const newId = generateImmutableId();
@@ -184,9 +187,32 @@ async function migrateToImmutableIds(
         [oldIdentifier, newId, note.type, note.filename]
       );
     } catch (error) {
+      // Skip files that don't exist (e.g., paths changed due to user migration)
+      if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+        console.warn(
+          `Skipping note ${oldIdentifier} (file not found at ${filepath}) - will be reindexed from disk later`
+        );
+        skippedCount++;
+        // Still add to mapping table so we can migrate database relationships
+        await db.run(
+          `
+          INSERT INTO note_id_migration (old_identifier, new_id, type, filename)
+          VALUES (?, ?, ?, ?)
+        `,
+          [oldIdentifier, newId, note.type, note.filename]
+        );
+        continue;
+      }
+      // For other errors (permissions, disk full, etc.), fail the migration
       console.error(`Failed to update frontmatter for note ${oldIdentifier}:`, error);
       throw error;
     }
+  }
+
+  if (skippedCount > 0) {
+    console.log(
+      `Skipped ${skippedCount} notes with missing files - these will be reindexed from disk`
+    );
   }
 
   // 4. Backup existing tables (unless they already exist from a previous failed migration)
@@ -753,8 +779,103 @@ async function migrateToV2_0_1(db: DatabaseConnection): Promise<void> {
   console.log('external_links table schema updated successfully');
 }
 
+/**
+ * Migration function to convert absolute paths to relative paths
+ * This fixes portability issues when vaults are moved between users or machines
+ */
+async function migrateToV2_1_0(
+  db: DatabaseConnection,
+  _dbManager: DatabaseManager,
+  workspacePath: string
+): Promise<void> {
+  console.log('Starting path migration to relative paths...');
+
+  // Get all notes with their current paths
+  const notes = await db.all<{
+    id: string;
+    path: string;
+    type: string;
+    filename: string;
+  }>('SELECT id, path, type, filename FROM notes');
+
+  if (notes.length === 0) {
+    console.log('No notes found for path migration');
+    return;
+  }
+
+  console.log(`Converting ${notes.length} note paths from absolute to relative...`);
+
+  let convertedCount = 0;
+  let remappedCount = 0;
+  let skippedCount = 0;
+
+  // Process in a transaction for atomicity
+  await db.run('BEGIN TRANSACTION');
+
+  try {
+    for (const note of notes) {
+      const oldPath = note.path;
+
+      // Check if path is already relative
+      if (!oldPath.includes(':\\') && !oldPath.startsWith('/')) {
+        // Already relative, skip
+        continue;
+      }
+
+      // Try direct conversion first
+      let newRelativePath = toRelativePath(oldPath, workspacePath);
+      let newAbsolutePath = toAbsolutePath(newRelativePath, workspacePath);
+
+      // Check if the file exists at the expected location
+      try {
+        await fs.access(newAbsolutePath);
+        // File exists, use this path
+        convertedCount++;
+      } catch {
+        // File doesn't exist at expected location - try to remap
+        console.warn(
+          `File not found at expected location for note ${note.id}: ${newAbsolutePath}`
+        );
+
+        // Attempt to remap using type/filename
+        const expectedPath = `${note.type}/${note.filename}`;
+        newRelativePath = expectedPath;
+        newAbsolutePath = toAbsolutePath(expectedPath, workspacePath);
+
+        try {
+          await fs.access(newAbsolutePath);
+          console.log(
+            `Successfully remapped path for note ${note.id} to ${newRelativePath}`
+          );
+          remappedCount++;
+        } catch {
+          // Can't find file anywhere - keep old absolute path and log warning
+          console.warn(
+            `Could not locate file for note ${note.id} (${note.type}/${note.filename}) - keeping absolute path`
+          );
+          skippedCount++;
+          continue;
+        }
+      }
+
+      // Update the database with the new relative path
+      await db.run('UPDATE notes SET path = ? WHERE id = ?', [newRelativePath, note.id]);
+    }
+
+    await db.run('COMMIT');
+
+    console.log(
+      `Path migration completed: ${convertedCount} converted, ${remappedCount} remapped, ${skippedCount} skipped`
+    );
+  } catch (error) {
+    await db.run('ROLLBACK');
+    console.error('Path migration failed:', error);
+    throw error;
+  }
+}
+
 export class DatabaseMigrationManager {
-  private static readonly CURRENT_SCHEMA_VERSION = '2.0.1';
+  private static readonly CURRENT_SCHEMA_VERSION = '2.1.0';
 
   private static readonly MIGRATIONS: DatabaseMigration[] = [
     {
@@ -778,6 +899,13 @@ export class DatabaseMigrationManager {
       requiresFullRebuild: false,
       requiresLinkMigration: false,
       migrationFunction: migrateToV2_0_1
+    },
+    {
+      version: '2.1.0',
+      description: 'Convert absolute paths to relative paths for vault portability',
+      requiresFullRebuild: false,
+      requiresLinkMigration: false,
+      migrationFunction: migrateToV2_1_0
     }
   ];
 

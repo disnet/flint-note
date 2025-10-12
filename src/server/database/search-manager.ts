@@ -9,6 +9,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { createHash } from 'crypto';
 import { parseNoteContent as parseNoteContentProper } from '../utils/yaml-parser.js';
+import { toRelativePath, toAbsolutePath } from '../utils/path-utils.js';
 
 /**
  * Helper to handle index rebuilding with progress reporting
@@ -738,8 +739,11 @@ export class HybridSearchManager {
         snippet = this.generateSnippet(row.content);
       }
 
-      // Get file stats
-      const stats = await this.getFileStats(row.path);
+      // Convert relative path from database to absolute path for results
+      const absolutePath = toAbsolutePath(row.path, this.workspacePath);
+
+      // Get file stats using the absolute path
+      const stats = await this.getFileStats(absolutePath);
 
       results.push({
         id: row.id,
@@ -750,7 +754,7 @@ export class HybridSearchManager {
         snippet,
         lastUpdated: row.updated,
         filename: row.filename,
-        path: row.path,
+        path: absolutePath, // Return absolute path in results
         created: stats.created,
         modified: stats.modified,
         size: stats.size,
@@ -820,6 +824,9 @@ export class HybridSearchManager {
       const stats = await this.getFileStats(filePath);
       const contentHash = createHash('sha256').update(content).digest('hex');
 
+      // Convert absolute path to relative path for storage
+      const relativePath = toRelativePath(filePath, this.workspacePath);
+
       // Check if note exists
       const existing = await connection.get<NoteRow>(
         'SELECT id, content_hash FROM notes WHERE id = ?',
@@ -837,7 +844,17 @@ export class HybridSearchManager {
              title = ?, content = ?, type = ?, filename = ?, path = ?,
              updated = ?, size = ?, content_hash = ?
              WHERE id = ?`,
-            [title, content, type, filename, filePath, now, stats.size, contentHash, id]
+            [
+              title,
+              content,
+              type,
+              filename,
+              relativePath,
+              now,
+              stats.size,
+              contentHash,
+              id
+            ]
           );
         } else {
           // Content hasn't changed, preserve existing updated timestamp
@@ -846,7 +863,7 @@ export class HybridSearchManager {
              title = ?, content = ?, type = ?, filename = ?, path = ?,
              size = ?, content_hash = ?
              WHERE id = ?`,
-            [title, content, type, filename, filePath, stats.size, contentHash, id]
+            [title, content, type, filename, relativePath, stats.size, contentHash, id]
           );
         }
       } else {
@@ -861,7 +878,7 @@ export class HybridSearchManager {
             content,
             type,
             filename,
-            filePath,
+            relativePath,
             stats.created,
             now,
             stats.size,
