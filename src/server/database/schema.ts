@@ -317,6 +317,22 @@ export class DatabaseManager {
         )
       `);
 
+    // Create note type descriptions table for storing note type metadata
+    await connection.run(`
+        CREATE TABLE IF NOT EXISTS note_type_descriptions (
+          id TEXT PRIMARY KEY,
+          vault_id TEXT NOT NULL,
+          type_name TEXT NOT NULL,
+          purpose TEXT,
+          agent_instructions TEXT,
+          metadata_schema TEXT,
+          content_hash TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(vault_id, type_name)
+        )
+      `);
+
     // Create indexes for performance
     await connection.run('CREATE INDEX IF NOT EXISTS idx_notes_type ON notes(type)');
     await connection.run(
@@ -378,6 +394,11 @@ export class DatabaseManager {
     // Create index for slash commands table
     await connection.run(
       'CREATE INDEX IF NOT EXISTS idx_slash_commands_name ON slash_commands(name)'
+    );
+
+    // Create index for note type descriptions table
+    await connection.run(
+      'CREATE INDEX IF NOT EXISTS idx_note_type_descriptions_vault ON note_type_descriptions(vault_id)'
     );
 
     // Create triggers to keep FTS table in sync
@@ -522,6 +543,18 @@ export interface SlashCommandRow {
   name: string;
   instruction: string;
   parameters: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NoteTypeDescriptionRow {
+  id: string;
+  vault_id: string;
+  type_name: string;
+  purpose: string | null;
+  agent_instructions: string | null;
+  metadata_schema: string | null;
+  content_hash: string | null;
   created_at: string;
   updated_at: string;
 }

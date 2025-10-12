@@ -338,7 +338,7 @@ This is test note ${i}`;
     return { migratedNotes, mappings };
   }
 
-  describe('Fresh migration from v1.1.0 to v2.1.0', () => {
+  describe('Fresh migration from v1.1.0 to v2.2.0', () => {
     it('should successfully migrate a small vault (7 notes)', async () => {
       // Create v1.1.0 database with 7 notes
       const originalNotes = await createV1_1_0_Database(7);
@@ -353,10 +353,11 @@ This is test note ${i}`;
       // Verify migration result
       expect(result.migrated).toBe(true);
       expect(result.fromVersion).toBe('1.1.0');
-      expect(result.toVersion).toBe('2.1.0');
+      expect(result.toVersion).toBe('2.2.0');
       expect(result.executedMigrations).toContain('2.0.0');
       expect(result.executedMigrations).toContain('2.0.1');
       expect(result.executedMigrations).toContain('2.1.0');
+      expect(result.executedMigrations).toContain('2.2.0');
 
       // Verify database state
       await verifyMigration(originalNotes);
@@ -607,7 +608,7 @@ This is test note ${i}`;
 
       // Run migration again (with current version)
       const result = await DatabaseMigrationManager.checkAndMigrate(
-        '2.1.0',
+        '2.2.0',
         dbManager as unknown as DatabaseManager,
         workspacePath
       );
@@ -629,7 +630,7 @@ This is test note ${i}`;
       }
     });
 
-    it('should handle migration from v1.0.0 through v1.1.0 to v2.1.0', async () => {
+    it('should handle migration from v1.0.0 through v1.1.0 to v2.2.0', async () => {
       // This tests running multiple migrations in sequence
       const db = await dbManager.connect();
 
@@ -676,12 +677,13 @@ This is test note ${i}`;
         workspacePath
       );
 
-      // Should execute all four migrations
+      // Should execute all five migrations
       expect(result.migrated).toBe(true);
       expect(result.executedMigrations).toContain('1.1.0');
       expect(result.executedMigrations).toContain('2.0.0');
       expect(result.executedMigrations).toContain('2.0.1');
       expect(result.executedMigrations).toContain('2.1.0');
+      expect(result.executedMigrations).toContain('2.2.0');
 
       // Verify final state has immutable IDs
       const notes = await db.all<{ id: string }>('SELECT id FROM notes');

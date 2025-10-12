@@ -7,6 +7,7 @@
 
 import path from 'path';
 import fs from 'fs/promises';
+import crypto from 'crypto';
 import { Workspace } from './workspace.js';
 import { MetadataSchemaParser, MetadataValidator } from './metadata-schema.js';
 import type { MetadataSchema } from './metadata-schema.js';
@@ -20,6 +21,7 @@ import {
   generateContentHash,
   createNoteTypeHashableContent
 } from '../utils/content-hash.js';
+import type { DatabaseManager, NoteTypeDescriptionRow } from '../database/schema.js';
 
 export interface NoteTypeInfo {
   name: string;
@@ -59,9 +61,11 @@ export interface NoteTypeUpdateRequest {
 
 export class NoteTypeManager {
   private workspace: Workspace;
+  private dbManager: DatabaseManager | null = null;
 
-  constructor(workspace: Workspace) {
+  constructor(workspace: Workspace, dbManager?: DatabaseManager) {
     this.workspace = workspace;
+    this.dbManager = dbManager || null;
   }
 
   /**
@@ -108,18 +112,61 @@ export class NoteTypeManager {
       // Validate metadata schema doesn't contain protected fields
       this.#validateNoProtectedFieldsInSchema(metadataSchema);
 
-      // Ensure the note type directory exists
+      // Ensure the note type directory exists (but don't create _description.md)
       const typePath = await this.workspace.ensureNoteType(name);
 
-      // Create the description file in the note type directory
-      const descriptionPath = path.join(typePath, '_description.md');
-      const descriptionContent = this.formatNoteTypeDescription(
-        name,
-        description,
-        agentInstructions,
-        metadataSchema
-      );
-      await fs.writeFile(descriptionPath, descriptionContent, 'utf-8');
+      // Store in database if available
+      if (this.dbManager) {
+        const db = await this.dbManager.connect();
+
+        // Generate unique ID
+        const id = 'nt-' + crypto.randomBytes(4).toString('hex');
+        const vaultId = this.workspace.rootPath;
+
+        // Prepare instructions and schema for storage
+        const instructions = agentInstructions || [
+          'Ask clarifying questions to understand the context and purpose of this note',
+          'Suggest relevant tags and connections to existing notes in the knowledge base',
+          'Help organize content with clear headings and logical structure',
+          'Identify and extract actionable items, deadlines, or follow-up tasks',
+          'Recommend when this note might benefit from linking to other note types',
+          'Offer to enhance content with additional context, examples, or details',
+          'Suggest follow-up questions or areas that could be expanded upon',
+          'Help maintain consistency with similar notes of this type'
+        ];
+
+        const schema = metadataSchema || { fields: [] };
+
+        // Calculate content hash
+        const descriptionContent = this.formatNoteTypeDescription(
+          name,
+          description,
+          instructions,
+          schema
+        );
+        const hashableContent = createNoteTypeHashableContent({
+          description: descriptionContent,
+          agent_instructions: instructions.join('\n'),
+          metadata_schema: schema
+        });
+        const contentHash = generateContentHash(hashableContent);
+
+        // Insert into database
+        await db.run(
+          `INSERT INTO note_type_descriptions
+           (id, vault_id, type_name, purpose, agent_instructions, metadata_schema, content_hash)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [
+            id,
+            vaultId,
+            name,
+            description,
+            JSON.stringify(instructions),
+            JSON.stringify(schema),
+            contentHash
+          ]
+        );
+      }
 
       return {
         name,
@@ -211,7 +258,6 @@ export class NoteTypeManager {
   async getNoteTypeDescription(typeName: string): Promise<NoteTypeDescription> {
     try {
       const typePath = this.workspace.getNoteTypePath(typeName);
-      const descriptionPath = path.join(typePath, '_description.md');
 
       // Check if note type exists
       try {
@@ -220,7 +266,45 @@ export class NoteTypeManager {
         throw new Error(`Note type '${typeName}' does not exist`);
       }
 
-      // Read description file
+      // Try to read from database first
+      if (this.dbManager) {
+        const db = await this.dbManager.connect();
+        const vaultId = this.workspace.rootPath;
+
+        const row = await db.get<NoteTypeDescriptionRow>(
+          'SELECT * FROM note_type_descriptions WHERE vault_id = ? AND type_name = ?',
+          [vaultId, typeName]
+        );
+
+        if (row) {
+          // Found in database, reconstruct description
+          const instructions = JSON.parse(row.agent_instructions || '[]') as string[];
+          const schema = JSON.parse(
+            row.metadata_schema || '{"fields":[]}'
+          ) as MetadataSchema;
+
+          const description = this.formatNoteTypeDescription(
+            typeName,
+            row.purpose || '',
+            instructions,
+            schema
+          );
+
+          const parsed = this.parseNoteTypeDescription(description);
+
+          return {
+            name: typeName,
+            path: typePath,
+            description,
+            parsed,
+            metadataSchema: schema,
+            content_hash: row.content_hash || ''
+          };
+        }
+      }
+
+      // Fallback to file-based reading (for legacy support)
+      const descriptionPath = path.join(typePath, '_description.md');
       let description = '';
       try {
         description = await fs.readFile(descriptionPath, 'utf-8');
@@ -342,7 +426,34 @@ export class NoteTypeManager {
       const entries = await fs.readdir(workspaceRoot, { withFileTypes: true });
 
       const noteTypes: NoteTypeListItem[] = [];
+      const noteTypeMap = new Map<string, NoteTypeListItem>();
 
+      // If database is available, read from it first
+      if (this.dbManager) {
+        const db = await this.dbManager.connect();
+        const vaultId = this.workspace.rootPath;
+
+        const rows = await db.all<NoteTypeDescriptionRow>(
+          'SELECT * FROM note_type_descriptions WHERE vault_id = ?',
+          [vaultId]
+        );
+
+        for (const row of rows) {
+          const instructions = JSON.parse(row.agent_instructions || '[]') as string[];
+
+          noteTypeMap.set(row.type_name, {
+            name: row.type_name,
+            path: path.join(workspaceRoot, row.type_name),
+            purpose: row.purpose || `Notes of type '${row.type_name}'`,
+            agentInstructions: instructions,
+            hasDescription: true,
+            noteCount: 0, // Will be filled below
+            lastModified: row.updated_at || row.created_at
+          });
+        }
+      }
+
+      // Scan filesystem for note types and note counts
       for (const entry of entries) {
         if (
           entry.isDirectory() &&
@@ -350,57 +461,73 @@ export class NoteTypeManager {
           entry.name !== 'node_modules'
         ) {
           const typePath = path.join(workspaceRoot, entry.name);
-          const descriptionPath = path.join(typePath, '_description.md');
 
-          // Check if this is a valid note type (has notes or description)
+          // Check if this is a valid note type (has notes)
           const typeEntries = await fs.readdir(typePath);
-          const hasNotes = typeEntries.some(
+          const noteCount = typeEntries.filter(
             (file) =>
               file.endsWith('.md') && !file.startsWith('.') && !file.startsWith('_')
-          );
+          ).length;
 
-          // Check if description exists in note type directory
-          let hasDescription = false;
+          const hasNotes = noteCount > 0;
+
+          // Check if description exists in database or file
+          const hasDbEntry = noteTypeMap.has(entry.name);
+
+          // Check if description file exists (for legacy support)
+          const descriptionPath = path.join(typePath, '_description.md');
+          let hasDescriptionFile = false;
           try {
             await fs.access(descriptionPath);
-            hasDescription = true;
+            hasDescriptionFile = true;
           } catch {
-            hasDescription = false;
+            hasDescriptionFile = false;
           }
+
+          const hasDescription = hasDbEntry || hasDescriptionFile;
 
           if (hasNotes || hasDescription) {
-            // Get basic info about the note type
-            let purpose = '';
-            let noteCount = 0;
+            let existing = noteTypeMap.get(entry.name);
 
-            let agentInstructions: string[] = [];
+            if (existing) {
+              // Update note count from filesystem
+              existing.noteCount = noteCount;
+            } else {
+              // Not in database, read from file if available
+              let purpose = '';
+              let agentInstructions: string[] = [];
 
-            try {
-              if (hasDescription) {
-                const description = await fs.readFile(descriptionPath, 'utf-8');
-                const parsed = this.parseNoteTypeDescription(description);
-                purpose = parsed.purpose;
-                agentInstructions = parsed.agentInstructions;
+              if (hasDescriptionFile) {
+                try {
+                  const description = await fs.readFile(descriptionPath, 'utf-8');
+                  const parsed = this.parseNoteTypeDescription(description);
+                  purpose = parsed.purpose;
+                  agentInstructions = parsed.agentInstructions;
+                } catch {
+                  // Ignore errors for individual entries
+                }
               }
 
-              noteCount = typeEntries.filter(
-                (file) =>
-                  file.endsWith('.md') && !file.startsWith('_') && !file.startsWith('.')
-              ).length;
-            } catch {
-              // Ignore errors for individual entries
-            }
+              existing = {
+                name: entry.name,
+                path: typePath,
+                purpose: purpose || `Notes of type '${entry.name}'`,
+                agentInstructions,
+                hasDescription: hasDescriptionFile,
+                noteCount,
+                lastModified: (await fs.stat(typePath)).mtime.toISOString()
+              };
 
-            noteTypes.push({
-              name: entry.name,
-              path: typePath,
-              purpose: purpose || `Notes of type '${entry.name}'`,
-              agentInstructions,
-              hasDescription,
-              noteCount,
-              lastModified: (await fs.stat(typePath)).mtime.toISOString()
-            });
+              noteTypeMap.set(entry.name, existing);
+            }
           }
+        }
+      }
+
+      // Add all items from noteTypeMap to noteTypes array (handles DB entries without directories)
+      for (const item of noteTypeMap.values()) {
+        if (!noteTypes.find((nt) => nt.name === item.name)) {
+          noteTypes.push(item);
         }
       }
 
@@ -522,6 +649,17 @@ export class NoteTypeManager {
       // Remove the directory and all its contents
       await fs.rm(typePath, { recursive: true, force: true });
 
+      // Remove from database if available
+      if (this.dbManager) {
+        const db = await this.dbManager.connect();
+        const vaultId = this.workspace.rootPath;
+
+        await db.run(
+          'DELETE FROM note_type_descriptions WHERE vault_id = ? AND type_name = ?',
+          [vaultId, typeName]
+        );
+      }
+
       return {
         name: typeName,
         deleted: true,
@@ -554,10 +692,30 @@ export class NoteTypeManager {
     try {
       const typePath = this.workspace.getNoteTypePath(typeName);
 
-      // Check if note type exists
+      // Check if note type exists (either in database or filesystem)
+      let existsInDb = false;
+      let existsInFilesystem = false;
+
+      // Check database
+      if (this.dbManager) {
+        const db = await this.dbManager.connect();
+        const vaultId = this.workspace.rootPath;
+        const row = await db.get(
+          'SELECT 1 FROM note_type_descriptions WHERE vault_id = ? AND type_name = ?',
+          [vaultId, typeName]
+        );
+        existsInDb = !!row;
+      }
+
+      // Check filesystem
       try {
         await fs.access(typePath);
+        existsInFilesystem = true;
       } catch {
+        existsInFilesystem = false;
+      }
+
+      if (!existsInDb && !existsInFilesystem) {
         validation.can_delete = false;
         validation.errors.push(`Note type '${typeName}' does not exist`);
         return validation;
@@ -617,6 +775,15 @@ export class NoteTypeManager {
   ): Promise<Array<{ filename: string; path: string }>> {
     try {
       const typePath = this.workspace.getNoteTypePath(typeName);
+
+      // Check if directory exists
+      try {
+        await fs.access(typePath);
+      } catch {
+        // Directory doesn't exist, return empty array
+        return [];
+      }
+
       const entries = await fs.readdir(typePath);
       const notes = entries
         .filter(
@@ -792,12 +959,26 @@ export class NoteTypeManager {
         schema
       );
 
-      // Write updated description
-      const descriptionPath = path.join(
-        this.workspace.getNoteTypePath(typeName),
-        '_description.md'
-      );
-      await fs.writeFile(descriptionPath, newDescription, 'utf-8');
+      // Update in database if available
+      if (this.dbManager) {
+        const db = await this.dbManager.connect();
+        const vaultId = this.workspace.rootPath;
+
+        // Calculate new content hash
+        const hashableContent = createNoteTypeHashableContent({
+          description: newDescription,
+          agent_instructions: _noteType.parsed.agentInstructions.join('\n'),
+          metadata_schema: schema
+        });
+        const contentHash = generateContentHash(hashableContent);
+
+        await db.run(
+          `UPDATE note_type_descriptions
+           SET metadata_schema = ?, content_hash = ?, updated_at = CURRENT_TIMESTAMP
+           WHERE vault_id = ? AND type_name = ?`,
+          [JSON.stringify(schema), contentHash, vaultId, typeName]
+        );
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       throw new Error(
@@ -841,11 +1022,35 @@ export class NoteTypeManager {
         newSchema
       );
 
-      const descriptionPath = path.join(
-        this.workspace.getNoteTypePath(typeName),
-        '_description.md'
-      );
-      await fs.writeFile(descriptionPath, newContent, 'utf-8');
+      // Update in database if available
+      if (this.dbManager) {
+        const db = await this.dbManager.connect();
+        const vaultId = this.workspace.rootPath;
+
+        // Calculate new content hash
+        const hashableContent = createNoteTypeHashableContent({
+          description: newContent,
+          agent_instructions: newInstructions.join('\n'),
+          metadata_schema: newSchema
+        });
+        const contentHash = generateContentHash(hashableContent);
+
+        // Update with optimistic locking
+        await db.run(
+          `UPDATE note_type_descriptions
+           SET purpose = ?, agent_instructions = ?, metadata_schema = ?,
+               content_hash = ?, updated_at = CURRENT_TIMESTAMP
+           WHERE vault_id = ? AND type_name = ?`,
+          [
+            newDescription,
+            JSON.stringify(newInstructions),
+            JSON.stringify(newSchema),
+            contentHash,
+            vaultId,
+            typeName
+          ]
+        );
+      }
 
       return await this.getNoteTypeDescription(typeName);
     } catch (error) {

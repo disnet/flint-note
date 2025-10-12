@@ -780,6 +780,125 @@ async function migrateToV2_0_1(db: DatabaseConnection): Promise<void> {
 }
 
 /**
+ * Migration function to migrate note type descriptions from files to database
+ * Reads _description.md files and stores them in note_type_descriptions table
+ */
+async function migrateToV2_2_0(
+  db: DatabaseConnection,
+  _dbManager: DatabaseManager,
+  workspacePath: string
+): Promise<void> {
+  console.log('Starting note type descriptions migration to database...');
+
+  const path = await import('path');
+
+  // Import NoteTypeManager and Workspace for parsing descriptions
+  const { NoteTypeManager } = await import('../core/note-types.js');
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { Workspace } = await import('../core/workspace.js');
+  // Create minimal workspace object for parsing - only rootPath is needed
+  const noteTypeManager = new NoteTypeManager({
+    rootPath: workspacePath
+  } as unknown as typeof Workspace.prototype);
+
+  // Get all directories in workspace (potential note types)
+  const entries = await fs.readdir(workspacePath, { withFileTypes: true });
+  const noteTypeDirectories = entries.filter(
+    (entry) =>
+      entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'node_modules'
+  );
+
+  console.log(`Found ${noteTypeDirectories.length} potential note type directories`);
+
+  let migratedCount = 0;
+  let skippedCount = 0;
+
+  for (const dir of noteTypeDirectories) {
+    const typeName = dir.name;
+    const typePath = path.join(workspacePath, typeName);
+
+    // Check for description in current location
+    const currentDescPath = path.join(typePath, '_description.md');
+    // Check for description in legacy location
+    const legacyDescPath = path.join(
+      workspacePath,
+      '.flint-note',
+      `${typeName}_description.md`
+    );
+
+    let descriptionContent: string | null = null;
+    let descriptionPath: string | null = null;
+
+    // Try current location first
+    try {
+      descriptionContent = await fs.readFile(currentDescPath, 'utf-8');
+      descriptionPath = currentDescPath;
+    } catch {
+      // Try legacy location
+      try {
+        descriptionContent = await fs.readFile(legacyDescPath, 'utf-8');
+        descriptionPath = legacyDescPath;
+      } catch {
+        // No description file found, skip this type
+        skippedCount++;
+        continue;
+      }
+    }
+
+    if (!descriptionContent) {
+      skippedCount++;
+      continue;
+    }
+
+    try {
+      // Parse the description
+      const parsed = noteTypeManager.parseNoteTypeDescription(descriptionContent);
+
+      // Generate ID and content hash
+      const typeId = `type-${crypto.randomBytes(4).toString('hex')}`;
+      const { generateContentHash, createNoteTypeHashableContent } = await import(
+        '../utils/content-hash.js'
+      );
+      const hashableContent = createNoteTypeHashableContent({
+        description: descriptionContent,
+        agent_instructions: parsed.agentInstructions.join('\n'),
+        metadata_schema: parsed.parsedMetadataSchema
+      });
+      const contentHash = generateContentHash(hashableContent);
+
+      // Insert into database
+      await db.run(
+        `INSERT OR IGNORE INTO note_type_descriptions
+         (id, vault_id, type_name, purpose, agent_instructions, metadata_schema, content_hash)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          typeId,
+          workspacePath, // Use workspace path as vault_id
+          typeName,
+          parsed.purpose,
+          JSON.stringify(parsed.agentInstructions),
+          JSON.stringify(parsed.parsedMetadataSchema),
+          contentHash
+        ]
+      );
+
+      migratedCount++;
+      console.log(`Migrated note type '${typeName}' from ${descriptionPath}`);
+    } catch (error) {
+      console.warn(
+        `Failed to migrate note type '${typeName}':`,
+        error instanceof Error ? error.message : 'Unknown error'
+      );
+      skippedCount++;
+    }
+  }
+
+  console.log(
+    `Note type descriptions migration completed: ${migratedCount} migrated, ${skippedCount} skipped`
+  );
+}
+
+/**
  * Migration function to convert absolute paths to relative paths
  * This fixes portability issues when vaults are moved between users or machines
  */
@@ -875,7 +994,7 @@ async function migrateToV2_1_0(
 }
 
 export class DatabaseMigrationManager {
-  private static readonly CURRENT_SCHEMA_VERSION = '2.1.0';
+  private static readonly CURRENT_SCHEMA_VERSION = '2.2.0';
 
   private static readonly MIGRATIONS: DatabaseMigration[] = [
     {
@@ -906,6 +1025,13 @@ export class DatabaseMigrationManager {
       requiresFullRebuild: false,
       requiresLinkMigration: false,
       migrationFunction: migrateToV2_1_0
+    },
+    {
+      version: '2.2.0',
+      description: 'Migrate note type descriptions from files to database',
+      requiresFullRebuild: false,
+      requiresLinkMigration: false,
+      migrationFunction: migrateToV2_2_0
     }
   ];
 

@@ -117,7 +117,10 @@ export class NoteManager {
 
   constructor(workspace: Workspace, hybridSearchManager?: HybridSearchManager) {
     this.#workspace = workspace;
-    this.#noteTypeManager = new NoteTypeManager(workspace);
+
+    // Pass database manager to NoteTypeManager if available
+    const dbManager = hybridSearchManager?.getDatabaseManager();
+    this.#noteTypeManager = new NoteTypeManager(workspace, dbManager);
 
     this.#hybridSearchManager = hybridSearchManager;
 

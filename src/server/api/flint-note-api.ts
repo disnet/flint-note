@@ -245,7 +245,10 @@ export class FlintNoteApi {
     }
 
     const noteManager = new NoteManager(workspace, hybridSearchManager);
-    const noteTypeManager = new NoteTypeManager(workspace);
+    const noteTypeManager = new NoteTypeManager(
+      workspace,
+      hybridSearchManager.getDatabaseManager()
+    );
 
     return {
       workspace,
@@ -674,7 +677,10 @@ export class FlintNoteApi {
         if (args.skipTemplate !== true) {
           try {
             const tempNoteManager = new NoteManager(workspace, tempHybridSearchManager);
-            const tempNoteTypeManager = new NoteTypeManager(workspace);
+            const tempNoteTypeManager = new NoteTypeManager(
+              workspace,
+              tempHybridSearchManager.getDatabaseManager()
+            );
             const templateManager = new TemplateManager();
             const templateId = args.templateId || 'default';
 
