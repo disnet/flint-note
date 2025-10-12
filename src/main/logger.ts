@@ -5,16 +5,48 @@ import { existsSync, mkdirSync } from 'fs';
 
 class Logger {
   private static instance: Logger;
-  private logger: winston.Logger;
+  private logger: winston.Logger | null = null;
 
   private constructor() {
-    // Create logs directory if it doesn't exist
+    // Defer logger initialization until first use
+  }
+
+  private initializeLogger(): void {
+    if (this.logger) {
+      return;
+    }
+
+    // Check if we're in a test environment or if app is available
+    const isTestEnv = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
+
+    if (isTestEnv || !app || !app.getPath) {
+      // In test environment, use console-only logger
+      this.logger = winston.createLogger({
+        level: 'info',
+        format: winston.format.combine(
+          winston.format.timestamp(),
+          winston.format.errors({ stack: true }),
+          winston.format.json()
+        ),
+        defaultMeta: { service: 'flint-main' },
+        transports: [
+          new winston.transports.Console({
+            format: winston.format.combine(
+              winston.format.colorize(),
+              winston.format.simple()
+            )
+          })
+        ]
+      });
+      return;
+    }
+
+    // Production logger with file transports
     const logsDir = join(app.getPath('userData'), 'logs');
     if (!existsSync(logsDir)) {
       mkdirSync(logsDir, { recursive: true });
     }
 
-    // Configure winston logger
     this.logger = winston.createLogger({
       level: 'info',
       format: winston.format.combine(
@@ -56,22 +88,29 @@ class Logger {
   }
 
   info(message: string, meta?: unknown): void {
-    this.logger.info(message, meta);
+    this.initializeLogger();
+    this.logger?.info(message, meta);
   }
 
   error(message: string, meta?: unknown): void {
-    this.logger.error(message, meta);
+    this.initializeLogger();
+    this.logger?.error(message, meta);
   }
 
   warn(message: string, meta?: unknown): void {
-    this.logger.warn(message, meta);
+    this.initializeLogger();
+    this.logger?.warn(message, meta);
   }
 
   debug(message: string, meta?: unknown): void {
-    this.logger.debug(message, meta);
+    this.initializeLogger();
+    this.logger?.debug(message, meta);
   }
 
   getLogsPath(): string {
+    if (!app || !app.getPath) {
+      return '/tmp/logs'; // Fallback for test environment
+    }
     return join(app.getPath('userData'), 'logs');
   }
 }

@@ -66,14 +66,27 @@ export class TemplateManager {
       // Explicit path provided (useful for testing)
       this.templatesDir = templatesDir;
     } else {
-      // Determine path based on whether we're packaged or in development
-      if (app.isPackaged) {
+      // Check if we're in a test environment or if app is available
+      const isTestEnv = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
+
+      if (isTestEnv) {
+        // In test environment, try to find templates relative to this file
+        // This file is in src/server/core, templates are in src/server/templates
+        const currentDir = path.dirname(new URL(import.meta.url).pathname);
+        this.templatesDir = path.join(currentDir, '../templates');
+      } else if (!app || !app.isPackaged) {
+        // Development: templates are in src/server/templates
+        if (app && app.getAppPath) {
+          this.templatesDir = path.join(app.getAppPath(), 'src/server/templates');
+        } else {
+          // Fallback: try relative to this file
+          const currentDir = path.dirname(new URL(import.meta.url).pathname);
+          this.templatesDir = path.join(currentDir, '../templates');
+        }
+      } else {
         // Production: templates are in extraResources, outside the asar
         // process.resourcesPath = /path/to/App.app/Contents/Resources
         this.templatesDir = path.join(process.resourcesPath, 'templates');
-      } else {
-        // Development: templates are in src/server/templates
-        this.templatesDir = path.join(app.getAppPath(), 'src/server/templates');
       }
     }
   }

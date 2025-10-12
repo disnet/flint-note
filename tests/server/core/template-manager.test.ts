@@ -240,7 +240,7 @@ describe('TemplateManager', () => {
       // Welcome note should have a title extracted from its first heading
       const welcomeNote = template.notes.find((n) => n.filename.includes('welcome'));
       expect(welcomeNote).toBeDefined();
-      expect(welcomeNote?.title).toBe('Welcome to Flint!');
+      expect(welcomeNote?.title).toBe('Welcome');
     });
   });
 

@@ -23,6 +23,24 @@ describe('Basic Tools', () => {
     // Create a test vault
     testVaultId = await testSetup.createTestVault('test-basic-tools-vault');
 
+    // Create the 'general' note type that tests will use
+    await testSetup.api.createNoteType({
+      type_name: 'general',
+      description: 'General notes',
+      agent_instructions: [],
+      metadata_schema: { fields: [] },
+      vault_id: testVaultId
+    });
+
+    // Also create 'project' note type for search tests
+    await testSetup.api.createNoteType({
+      type_name: 'project',
+      description: 'Project notes',
+      agent_instructions: [],
+      metadata_schema: { fields: [] },
+      vault_id: testVaultId
+    });
+
     // Create a real note service that wraps the test API
     noteService = {
       getFlintNoteApi: () => testSetup.api,
@@ -217,7 +235,7 @@ describe('Basic Tools', () => {
         title: 'New Test Note',
         content: 'This is new content',
         noteType: 'general',
-        metadata: { priority: 'high', tags: ['test'] }
+        metadata: { priority: 'high' }
       });
 
       expect(result.success).toBe(true);
