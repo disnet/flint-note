@@ -8,6 +8,8 @@
 import path from 'path';
 import fs from 'fs/promises';
 import yaml from 'js-yaml';
+import { app } from 'electron';
+import { logger } from '../../main/logger.js';
 import type { NoteManager } from './notes.js';
 import type { NoteTypeManager } from './note-types.js';
 import type { MetadataFieldDefinition, MetadataSchema } from './metadata-schema.js';
@@ -58,74 +60,28 @@ export interface Template {
 
 export class TemplateManager {
   private templatesDir: string;
-  private foundTemplatesDir: string | null = null;
 
   constructor(templatesDir?: string) {
     if (templatesDir) {
+      // Explicit path provided (useful for testing)
       this.templatesDir = templatesDir;
     } else {
-      // Try to find templates directory
-      // In development/tests: src/server/templates
-      // In production: built output location
-      const possiblePaths = [
-        path.join(__dirname, '../../templates'), // Production build
-        path.join(__dirname, '../templates'), // Alternative build structure
-        path.join(process.cwd(), 'src/server/templates') // Development/tests
-      ];
-
-      // Use the first path that exists
-      this.templatesDir = possiblePaths[0]; // Default to production path
-      // Note: We don't check if the directory exists here to avoid async constructor
-      // The methods will handle missing directories gracefully
-    }
-  }
-
-  /**
-   * Find the templates directory by trying multiple possible locations
-   * Memoizes the result for subsequent calls
-   */
-  private async findTemplatesDir(): Promise<string | null> {
-    // Return memoized result if already found
-    if (this.foundTemplatesDir) {
-      return this.foundTemplatesDir;
-    }
-
-    const possiblePaths = [
-      this.templatesDir, // Explicitly provided or default
-      path.join(__dirname, '../../templates'), // Production build
-      path.join(__dirname, '../templates'), // Alternative build structure
-      path.join(process.cwd(), 'src/server/templates') // Development/tests
-    ];
-
-    for (const testPath of possiblePaths) {
-      try {
-        await fs.access(testPath);
-        // Memoize the found directory
-        this.foundTemplatesDir = testPath;
-        this.templatesDir = testPath;
-        return testPath;
-      } catch {
-        // Continue to next path
+      // Determine path based on whether we're packaged or in development
+      if (app.isPackaged) {
+        // Production: templates are in extraResources, outside the asar
+        // process.resourcesPath = /path/to/App.app/Contents/Resources
+        this.templatesDir = path.join(process.resourcesPath, 'templates');
+      } else {
+        // Development: templates are in src/server/templates
+        this.templatesDir = path.join(app.getAppPath(), 'src/server/templates');
       }
     }
-
-    return null;
   }
 
   /**
    * List all available templates
    */
   async listTemplates(): Promise<TemplateMetadata[]> {
-    const templatesDir = await this.findTemplatesDir();
-
-    if (!templatesDir) {
-      console.error('Failed to locate templates directory');
-      return [];
-    }
-
-    // Update the templates directory to the found one
-    this.templatesDir = templatesDir;
-
     try {
       const entries = await fs.readdir(this.templatesDir, {
         withFileTypes: true
@@ -141,14 +97,14 @@ export class TemplateManager {
           const metadata = await this.loadTemplateMetadata(dir.name);
           templates.push(metadata);
         } catch (error) {
-          console.warn(`Failed to load template metadata for ${dir.name}:`, error);
+          logger.warn(`Failed to load template metadata for ${dir.name}:`, error);
           // Continue with other templates
         }
       }
 
       return templates;
     } catch (error) {
-      console.error('Failed to list templates:', error);
+      logger.error('Failed to list templates:', error);
       return [];
     }
   }
@@ -157,12 +113,6 @@ export class TemplateManager {
    * Load metadata for a specific template
    */
   async loadTemplateMetadata(templateId: string): Promise<TemplateMetadata> {
-    // Ensure we have the correct templates directory
-    const templatesDir = await this.findTemplatesDir();
-    if (templatesDir) {
-      this.templatesDir = templatesDir;
-    }
-
     const templateDir = path.join(this.templatesDir, templateId);
     const metadataPath = path.join(templateDir, 'template.yml');
 
@@ -185,12 +135,6 @@ export class TemplateManager {
    * Load complete template definition
    */
   async loadTemplate(templateId: string): Promise<Template> {
-    // Ensure we have the correct templates directory
-    const templatesDir = await this.findTemplatesDir();
-    if (templatesDir) {
-      this.templatesDir = templatesDir;
-    }
-
     const templateDir = path.join(this.templatesDir, templateId);
 
     // Load metadata
@@ -235,13 +179,12 @@ export class TemplateManager {
 
           noteTypes.push(noteType);
         } catch (err) {
-          console.warn(`Failed to load note type from ${file}:`, err);
+          logger.warn(`Failed to load note type from ${file}:`, err);
         }
       }
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (_) {
-      // note-types directory is optional
-      console.log('No note-types directory found in template');
+      // note-types directory is optional - this is expected, no need to log
     }
 
     return noteTypes;
@@ -260,8 +203,7 @@ export class TemplateManager {
       notes.push(...allNotes);
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (_) {
-      // notes directory is optional
-      console.log('No notes directory found in template');
+      // notes directory is optional - this is expected, no need to log
     }
 
     return notes;
@@ -306,12 +248,12 @@ export class TemplateManager {
               type
             });
           } catch (err) {
-            console.warn(`Failed to load note from ${entry.name}:`, err);
+            logger.warn(`Failed to load note from ${entry.name}:`, err);
           }
         }
       }
     } catch (err) {
-      console.warn(`Failed to read directory ${dir}:`, err);
+      logger.warn(`Failed to read directory ${dir}:`, err);
     }
 
     return notes;
@@ -366,14 +308,6 @@ export class TemplateManager {
     initialNoteId?: string;
   }> {
     const template = await this.loadTemplate(templateId);
-    console.log(
-      'applyTemplate: template.metadata.initialNote =',
-      template.metadata.initialNote
-    );
-    console.log(
-      'applyTemplate: template.notes =',
-      template.notes.map((n) => n.filename)
-    );
     const errors: string[] = [];
     let noteTypesCreated = 0;
     let notesCreated = 0;
@@ -396,7 +330,7 @@ export class TemplateManager {
         noteTypesCreated++;
       } catch (error) {
         const errorMsg = `Failed to create note type ${noteTypedef.name}: ${error instanceof Error ? error.message : 'Unknown error'}`;
-        console.error(errorMsg);
+        logger.error(errorMsg);
         errors.push(errorMsg);
       }
     }
@@ -415,27 +349,16 @@ export class TemplateManager {
         notesCreated++;
 
         // Track the initial note if this matches the template's initialNote
-        console.log(
-          'applyTemplate: Checking if note.filename',
-          note.filename,
-          '=== template.metadata.initialNote',
-          template.metadata.initialNote
-        );
         if (template.metadata.initialNote === note.filename) {
-          console.log(
-            'applyTemplate: Match found! Setting initialNoteId =',
-            createdNote.id
-          );
           initialNoteId = createdNote.id;
         }
       } catch (error) {
         const errorMsg = `Failed to create note ${note.title}: ${error instanceof Error ? error.message : 'Unknown error'}`;
-        console.error(errorMsg);
+        logger.error(errorMsg);
         errors.push(errorMsg);
       }
     }
 
-    console.log('applyTemplate: Returning initialNoteId =', initialNoteId);
     return {
       noteTypesCreated,
       notesCreated,

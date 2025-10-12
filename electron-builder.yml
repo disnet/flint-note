@@ -13,6 +13,8 @@ files:
 asarUnpack:
   - resources/**
 extraResources:
+  - from: out/templates
+    to: templates
   - CHANGELOG.md
   - CHANGELOG-CANARY.md
 win:
