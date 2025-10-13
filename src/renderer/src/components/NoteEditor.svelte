@@ -7,7 +7,6 @@
   import { getChatService } from '../services/chatService.js';
   import { wikilinkService } from '../services/wikilinkService.svelte.js';
   import { pinnedNotesStore } from '../services/pinnedStore.svelte.js';
-  import { temporaryTabsStore } from '../stores/temporaryTabsStore.svelte.js';
   import { sidebarNotesStore } from '../stores/sidebarNotesStore.svelte.js';
   import { sidebarState } from '../stores/sidebarState.svelte.js';
   import {
@@ -203,34 +202,14 @@
       return;
     }
 
-    const oldId = note.id;
-
     // Update shared document - this automatically syncs to other editors
     const result = await doc.updateTitle(newTitle);
 
     if (result.success) {
       const newId = result.newId || note.id;
 
-      // Update pinned notes if this note is pinned
-      if (pinnedNotesStore.isPinned(oldId) && newId !== oldId) {
-        await pinnedNotesStore.updateNoteId(oldId, newId);
-      }
-
-      // Update temporary tabs that reference this note
-      const hasTemporaryTab = temporaryTabsStore.tabs.some((tab) => tab.noteId === oldId);
-      if (hasTemporaryTab && newId !== oldId) {
-        await temporaryTabsStore.updateNoteId(oldId, newId);
-      }
-
-      // Update sidebar notes if this note is in the sidebar
-      if (sidebarNotesStore.isInSidebar(oldId) && newId !== oldId) {
-        await sidebarNotesStore.updateNoteId(oldId, newId);
-      }
-
-      // Update the document registry if ID changed
-      if (newId !== oldId) {
-        noteDocumentRegistry.updateNoteId(oldId, newId);
-      }
+      // Note: With immutable note IDs, the ID never changes during a rename
+      // The newId returned by the API is always the same as the original ID
 
       // Update the local note reference
       note = {
@@ -317,7 +296,6 @@
 
     try {
       const noteService = getChatService();
-      const oldId = note.id;
 
       const moveResult = await noteService.moveNote({
         identifier: note.id,
@@ -327,18 +305,13 @@
       if (moveResult.success) {
         const newId = moveResult.new_id;
 
-        // Update pinned notes if this note is pinned
-        if (pinnedNotesStore.isPinned(oldId)) {
-          await pinnedNotesStore.updateNoteId(oldId, newId);
-        }
+        // Note: With immutable note IDs, the ID never changes during a move
+        // The new_id returned by the API is always the same as the original ID
 
-        // Update temporary tabs that reference this note
-        await temporaryTabsStore.updateNoteId(oldId, newId);
-
-        // Update the local note reference with new ID
+        // Update the local note reference with new type
         note = {
           ...note,
-          id: newId,
+          id: newId, // Same as original, but keeping for clarity
           type: newType
         };
 

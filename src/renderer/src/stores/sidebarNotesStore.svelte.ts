@@ -1,4 +1,5 @@
-// Removed notesStore import - no longer needed for notifications with shared document model
+import { getChatService } from '../services/chatService';
+import { messageBus } from '../services/messageBus.svelte';
 
 export interface SidebarNote {
   noteId: string;
@@ -20,9 +21,15 @@ class SidebarNotesStore {
   private isLoading = $state(true);
   private isInitialized = $state(false);
   private initializationPromise: Promise<void> | null = null;
+  private currentVaultId: string | null = null;
 
   constructor() {
     this.initializationPromise = this.initialize();
+
+    // Subscribe to vault.switched events to reload sidebar notes for the new vault
+    messageBus.subscribe('vault.switched', async (event) => {
+      await this.refreshForVault(event.vaultId);
+    });
   }
 
   get notes(): SidebarNote[] {
@@ -47,21 +54,24 @@ class SidebarNotesStore {
   }
 
   /**
-   * Initialize the store by loading data from file system
+   * Initialize the store by loading data from the current vault
    */
   private async initialize(): Promise<void> {
     this.isLoading = true;
     try {
-      const storedState = (await window.api?.loadAppSettings()) as
-        | { sidebarNotes?: SidebarNotesState }
-        | undefined;
+      // Get the current vault ID
+      const service = getChatService();
+      const vault = await service.getCurrentVault();
+      this.currentVaultId = vault?.id || 'default';
 
-      if (storedState?.sidebarNotes) {
-        this.state = { ...defaultState, ...storedState.sidebarNotes };
-      }
+      // Load sidebar notes for this vault
+      const notes = await this.loadFromStorage();
+      this.state.notes = notes;
     } catch (error) {
-      console.warn('Failed to load sidebar notes from storage:', error);
-      // Keep default state on error
+      console.warn('Failed to initialize sidebar notes:', error);
+      this.currentVaultId = 'default';
+      const notes = await this.loadFromStorage();
+      this.state.notes = notes;
     } finally {
       this.isLoading = false;
       this.isInitialized = true;
@@ -70,23 +80,47 @@ class SidebarNotesStore {
   }
 
   /**
-   * Save current state to file system
+   * Load sidebar notes from storage for the current vault
    */
-  private async saveToStorage(): Promise<void> {
+  private async loadFromStorage(vaultId?: string): Promise<SidebarNote[]> {
+    try {
+      const vault = vaultId || this.currentVaultId || 'default';
+      const stored = await window.api.loadUIState({
+        vaultId: vault,
+        stateKey: 'sidebar_notes'
+      });
+
+      if (
+        stored &&
+        typeof stored === 'object' &&
+        'notes' in stored &&
+        Array.isArray(stored.notes)
+      ) {
+        return stored.notes as SidebarNote[];
+      }
+      return [];
+    } catch (error) {
+      console.warn('Failed to load sidebar notes from storage:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Save current state to storage for the current vault
+   */
+  private async saveToStorage(vaultId?: string): Promise<void> {
     await this.ensureInitialized();
 
     try {
+      const vault = vaultId || this.currentVaultId || 'default';
       // Snapshot the state to make it serializable for IPC
       const stateSnapshot = $state.snapshot(this.state);
 
-      // Load existing settings and update the sidebar notes portion
-      const currentSettings =
-        ((await window.api?.loadAppSettings()) as Record<string, unknown>) || {};
-      const updatedSettings = {
-        ...currentSettings,
-        sidebarNotes: stateSnapshot
-      };
-      await window.api?.saveAppSettings(updatedSettings);
+      await window.api?.saveUIState({
+        vaultId: vault,
+        stateKey: 'sidebar_notes',
+        stateValue: stateSnapshot
+      });
     } catch (error) {
       console.error('Failed to save sidebar notes to storage:', error);
     }
@@ -170,16 +204,29 @@ class SidebarNotesStore {
   }
 
   /**
-   * Update a note's ID when it gets renamed
-   * This is needed when external components (like NoteEditor) rename a note
+   * Refresh sidebar notes for a new vault
+   * Called when the vault is switched
    */
-  async updateNoteId(oldId: string, newId: string): Promise<void> {
-    await this.ensureInitialized();
-
-    const note = this.state.notes.find((n) => n.noteId === oldId);
-    if (note) {
-      note.noteId = newId;
-      await this.saveToStorage();
+  async refreshForVault(vaultId?: string): Promise<void> {
+    this.isLoading = true;
+    try {
+      if (vaultId) {
+        this.currentVaultId = vaultId;
+      } else {
+        try {
+          const service = getChatService();
+          const vault = await service.getCurrentVault();
+          this.currentVaultId = vault?.id || 'default';
+        } catch (error) {
+          console.warn('Failed to get current vault:', error);
+        }
+      }
+      const notes = await this.loadFromStorage();
+      this.state.notes = notes;
+    } catch (error) {
+      console.warn('Failed to refresh vault for sidebar notes:', error);
+    } finally {
+      this.isLoading = false;
     }
   }
 }

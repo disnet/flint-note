@@ -80,12 +80,8 @@
       const doc = sidebarDocs.get(noteId);
       if (doc) {
         // Update shared document - this automatically syncs to other editors
-        const result = await doc.updateTitle(newTitle);
-
-        // If the note ID changed, update sidebar store
-        if (result.success && result.newId && result.newId !== noteId) {
-          await sidebarNotesStore.updateNoteId(noteId, result.newId);
-        }
+        // Note: With immutable note IDs, the ID never changes during a rename
+        await doc.updateTitle(newTitle);
       }
     }
     originalTitles.delete(noteId);
