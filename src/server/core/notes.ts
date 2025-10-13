@@ -474,6 +474,7 @@ export class NoteManager {
     // Add custom metadata fields
     for (const [key, value] of Object.entries(metadata)) {
       if (
+        key !== 'id' &&
         key !== 'title' &&
         key !== 'filename' &&
         key !== 'type' &&
