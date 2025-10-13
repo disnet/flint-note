@@ -13,7 +13,8 @@
   // Detect if we're on macOS for showing the right symbol
   const isMac =
     typeof navigator !== 'undefined' && /Mac|iPhone|iPod|iPad/.test(navigator.platform);
-  const modifierKey = isMac ? '⌥' : 'Alt';
+  const cmdKey = isMac ? '⌘' : 'Ctrl';
+  const altKey = isMac ? '⌥' : 'Alt';
 
   function handleOpenClick(): void {
     onOpen();
@@ -40,11 +41,11 @@
       <div class="actions">
         <button type="button" class="action-button" onclick={handleOpenClick}>
           <span>Open</span>
-          <kbd>↵</kbd>
+          <kbd>{cmdKey}↵</kbd>
         </button>
         <button type="button" class="action-button" onclick={handleEditClick}>
           <span>Edit</span>
-          <kbd>{modifierKey}↵</kbd>
+          <kbd>{altKey}↵</kbd>
         </button>
       </div>
     </div>

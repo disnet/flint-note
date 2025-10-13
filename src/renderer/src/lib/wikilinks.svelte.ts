@@ -547,11 +547,11 @@ export function wikilinksWithoutAutocomplete(
     wikilinkEditHandlerField.init(() => editHandler || null),
     selectedWikilinkField,
     wikilinkField,
-    // Add Enter key handler to open selected wikilinks
+    // Add Cmd/Ctrl-Enter key handler to open selected wikilinks
     Prec.high(
       keymap.of([
         {
-          key: 'Enter',
+          key: 'Mod-Enter',
           run: (view) => {
             const selectedWikilink = view.state.field(selectedWikilinkField, false);
             if (selectedWikilink) {
@@ -563,10 +563,10 @@ export function wikilinksWithoutAutocomplete(
                   // Handle broken link - create new note
                   handler(selectedWikilink.identifier, selectedWikilink.title, true);
                 }
-                return true; // Prevent default Enter behavior
+                return true; // Prevent default behavior
               }
             }
-            return false; // Allow normal Enter behavior
+            return false; // Allow normal behavior
           }
         },
         {

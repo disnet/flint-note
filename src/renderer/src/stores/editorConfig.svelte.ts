@@ -282,7 +282,7 @@ export class EditorConfig {
         ? Prec.high(
             keymap.of([
               {
-                key: 'Enter',
+                key: 'Mod-Enter',
                 run: () => {
                   // Check if hover popover should handle it
                   if (this.options.onHoverPopoverEnter?.()) {
