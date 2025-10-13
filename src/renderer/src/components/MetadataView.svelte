@@ -15,6 +15,7 @@
   let isSaving = $state(false);
   let noteTypeInfo = $state<GetNoteTypeInfoResult | null>(null);
   let loadingSchema = $state(false);
+  let currentNoteType = $state<string | null>(null);
 
   // System fields that are read-only (managed by the system, not user-editable)
   // NOTE: This must be kept in sync with SYSTEM_FIELDS in src/server/core/system-fields.ts
@@ -289,12 +290,20 @@
   // Initialize metadata when note changes
   $effect(() => {
     if (note) {
-      loadNoteTypeSchema(note.type);
+      // Only load schema if the note type actually changed
+      if (note.type !== currentNoteType) {
+        currentNoteType = note.type;
+        loadNoteTypeSchema(note.type);
+      }
       editedMetadata = {
         type: note.type,
         tags: note.metadata?.tags ? [...(note.metadata.tags as string[])] : [],
         ...note.metadata
       };
+    } else {
+      // Reset when note is cleared
+      currentNoteType = null;
+      noteTypeInfo = null;
     }
   });
 
