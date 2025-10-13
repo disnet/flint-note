@@ -1,5 +1,9 @@
 # Project Log
 
+## Sidebar Note Expansion Unconstrained - 2025-10-13
+
+- Changed sidebar notes to expand fully without scrolling constraints: removed maxHeight constraints from getSidebarNoteTheme() in editorConfig.svelte.ts, set .cm-scroller overflow to 'visible' instead of 'auto', allowing expanded sidebar note content to display in full height without internal scrolling; entire sidebar list now scrolls naturally when viewing long notes, matching user preference for seeing complete note content without nested scroll containers
+
 ## Shift+Click Wikilinks to Add to Sidebar - 2025-10-13
 
 - Added shift+click functionality to wikilinks for quick note addition to sidebar: modified WikilinkWidget class in wikilinks.svelte.ts to pass `e.shiftKey` parameter to click handler, updated WikilinkClickHandler interface to accept optional shiftKey parameter, enhanced wikilinkService.handleWikilinkClick() to detect shift+click and call new addNoteToSidebar() helper method instead of navigating, implemented addNoteToSidebar() to fetch note content via IPC, add to sidebarNotesStore, and auto-open right sidebar in notes mode if not visible, updated all component handlers (NoteEditor, SidebarNotes, DailyNoteEditor, Backlinks) to accept and pass through shiftKey parameter, modified NoteEditor to prevent closing current editor on shift+click; users can now shift+click any wikilink to add referenced note to sidebar for side-by-side viewing without leaving current note, works for both existing notes and newly created notes from broken wikilinks, sidebar automatically opens and switches to notes mode when note is added; all type checking and linting passes successfully

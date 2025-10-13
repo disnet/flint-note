@@ -220,7 +220,7 @@ export class EditorConfig {
         scrollbarWidth: 'thin',
         scrollbarColor: 'rgba(0, 0, 0, 0.2) transparent',
         marginBottom: '0', // NO 25vh margin for sidebar notes
-        overflow: 'auto',
+        overflow: 'visible',
         fontFamily:
           "'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace !important"
       },

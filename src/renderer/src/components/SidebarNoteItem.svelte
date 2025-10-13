@@ -226,7 +226,6 @@
 
   .note-content {
     border-top: 1px solid var(--border-light);
-    max-height: 400px;
     display: flex;
     flex-direction: column;
   }
