@@ -63,6 +63,13 @@
     exists: boolean;
     noteId?: string;
   } | null>(null);
+  // Store link rect for consistent positioning across mode switches
+  let linkRect = $state<{
+    top: number;
+    bottom: number;
+    height: number;
+    left: number;
+  } | null>(null);
 
   const editorConfig = new EditorConfig({
     onWikilinkClick,
@@ -216,7 +223,26 @@
             exists: selected.exists,
             noteId: selected.noteId
           };
-          const position = calculateActionPopoverPosition(coords.left, coords.bottom);
+
+          // Store link rect for cursor-based positioning
+          linkRect = {
+            left: coords.left,
+            top: coords.top,
+            bottom: coords.bottom,
+            height: coords.bottom - coords.top
+          };
+
+          // Action popover dimensions
+          const actionPopoverWidth = 240;
+          const actionPopoverHeight = 80;
+
+          const position = calculatePopoverPosition(
+            linkRect.left,
+            linkRect.top,
+            linkRect.bottom,
+            actionPopoverWidth,
+            actionPopoverHeight
+          );
           actionPopoverX = position.x;
           actionPopoverY = position.y;
           actionPopoverVisible = true;
@@ -390,6 +416,7 @@
       to: number;
       x: number;
       y: number;
+      yTop: number;
       exists: boolean;
       noteId?: string;
     } | null
@@ -427,7 +454,25 @@
         popoverIdentifier = data.identifier;
         popoverDisplayText = data.displayText;
 
-        const position = calculateActionPopoverPosition(data.x, data.y);
+        // Update link rect
+        linkRect = {
+          left: data.x,
+          top: data.yTop,
+          bottom: data.y,
+          height: data.y - data.yTop
+        };
+
+        // Action popover dimensions
+        const actionPopoverWidth = 240;
+        const actionPopoverHeight = 80;
+
+        const position = calculatePopoverPosition(
+          linkRect.left,
+          linkRect.top,
+          linkRect.bottom,
+          actionPopoverWidth,
+          actionPopoverHeight
+        );
         actionPopoverX = position.x;
         actionPopoverY = position.y;
         return;
@@ -462,8 +507,26 @@
         popoverIdentifier = data.identifier;
         popoverDisplayText = data.displayText;
 
+        // Store link rect
+        linkRect = {
+          left: data.x,
+          top: data.yTop,
+          bottom: data.y,
+          height: data.y - data.yTop
+        };
+
+        // Action popover dimensions
+        const actionPopoverWidth = 240;
+        const actionPopoverHeight = 80;
+
         // Calculate viewport-aware position
-        const position = calculateActionPopoverPosition(data.x, data.y);
+        const position = calculatePopoverPosition(
+          linkRect.left,
+          linkRect.top,
+          linkRect.bottom,
+          actionPopoverWidth,
+          actionPopoverHeight
+        );
         actionPopoverX = position.x;
         actionPopoverY = position.y;
 
@@ -490,95 +553,49 @@
     }
   }
 
-  function calculatePopoverPosition(x: number, y: number): { x: number; y: number } {
-    // Popover dimensions (approximate)
-    const popoverWidth = 300;
-    const popoverHeight = 100;
-    const padding = 8;
-
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-
-    let finalX = x;
-    let finalY = y;
-
-    // Check right edge
-    if (finalX + popoverWidth + padding > viewportWidth) {
-      finalX = viewportWidth - popoverWidth - padding;
-    }
-
-    // Check left edge
-    if (finalX < padding) {
-      finalX = padding;
-    }
-
-    // Check if there's enough space below the link
-    // y is already at the bottom of the link from the hover coordinates
-    const spaceBelow = viewportHeight - (finalY + padding);
-    const spaceAbove = finalY - padding;
-
-    if (spaceBelow < popoverHeight && spaceAbove > spaceBelow) {
-      // Show above the link with 8px padding
-      finalY = finalY - popoverHeight - padding;
-    } else {
-      // Show below the link with 8px padding
-      finalY = finalY + padding;
-    }
-
-    // Final bounds check
-    if (finalY + popoverHeight + padding > viewportHeight) {
-      finalY = viewportHeight - popoverHeight - padding;
-    }
-
-    if (finalY < padding) {
-      finalY = padding;
-    }
-
-    return { x: finalX, y: finalY };
-  }
-
-  function calculateActionPopoverPosition(
-    x: number,
-    y: number
+  function calculatePopoverPosition(
+    linkLeft: number,
+    linkTop: number,
+    linkBottom: number,
+    popoverWidth: number,
+    popoverHeight: number
   ): { x: number; y: number } {
-    // Action popover dimensions
-    const popoverWidth = 240;
-    const popoverHeight = 80;
     const padding = 8;
-
+    const gap = 4; // Small gap between popover and link
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
 
-    let finalX = x;
-    let finalY = y;
+    let finalX = linkLeft;
+    let finalY: number;
 
+    // Horizontal positioning
     // Check right edge
     if (finalX + popoverWidth + padding > viewportWidth) {
       finalX = viewportWidth - popoverWidth - padding;
     }
-
     // Check left edge
     if (finalX < padding) {
       finalX = padding;
     }
 
-    // Check if there's enough space below the link
-    const spaceBelow = viewportHeight - (finalY + padding);
-    const spaceAbove = finalY - padding;
+    // Vertical positioning - check if there's space below
+    const spaceBelow = viewportHeight - linkBottom;
+    const canFitBelow = spaceBelow >= popoverHeight + padding + gap;
 
-    if (spaceBelow < popoverHeight && spaceAbove > spaceBelow) {
-      // Show above the link
-      finalY = finalY - popoverHeight - padding;
+    if (canFitBelow) {
+      // Position below the link - anchor top edge below linkBottom with a gap
+      finalY = linkBottom + gap;
     } else {
-      // Show below the link
-      finalY = finalY + padding;
+      // Position above the link - anchor bottom edge above linkTop with a gap
+      // The popover top is at: linkTop - gap - popoverHeight
+      // The popover bottom is at: linkTop - gap
+      finalY = linkTop - gap - popoverHeight;
     }
 
     // Final bounds check
-    if (finalY + popoverHeight + padding > viewportHeight) {
+    if (finalY + popoverHeight > viewportHeight - padding) {
       finalY = viewportHeight - popoverHeight - padding;
     }
-
     if (finalY < padding) {
       finalY = padding;
     }
@@ -657,7 +674,7 @@
   }
 
   function handleActionPopoverEdit(): void {
-    if (!editorView || !actionPopoverWikilinkData) return;
+    if (!editorView || !actionPopoverWikilinkData || !linkRect) return;
 
     // Save the current selection before opening the edit popover
     const selection = editorView.state.selection.main;
@@ -677,8 +694,18 @@
       popoverTo = selected.to;
     }
 
-    // Get coordinates from the action popover position (reuse it for edit popover)
-    const position = calculatePopoverPosition(actionPopoverX, actionPopoverY);
+    // Edit popover dimensions (approximate)
+    const editPopoverWidth = 400;
+    const editPopoverHeight = 100;
+
+    // Use the stored link rect to calculate position with the same anchor logic
+    const position = calculatePopoverPosition(
+      linkRect.left,
+      linkRect.top,
+      linkRect.bottom,
+      editPopoverWidth,
+      editPopoverHeight
+    );
     popoverX = position.x;
     popoverY = position.y;
 
@@ -767,6 +794,7 @@
     y={popoverY}
     identifier={popoverIdentifier}
     displayText={popoverDisplayText}
+    {linkRect}
     onSave={handlePopoverSave}
     onCancel={handlePopoverCancel}
     onCommit={handlePopoverCommit}
@@ -783,6 +811,7 @@
     x={actionPopoverX}
     y={actionPopoverY}
     identifier={actionPopoverIdentifier}
+    {linkRect}
     onOpen={handleActionPopoverOpen}
     onEdit={handleActionPopoverEdit}
   />

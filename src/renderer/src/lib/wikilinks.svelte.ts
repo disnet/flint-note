@@ -48,6 +48,7 @@ export interface WikilinkHoverHandler {
       to: number;
       x: number;
       y: number;
+      yTop: number;
       exists: boolean;
       noteId?: string;
     } | null
@@ -341,7 +342,7 @@ class WikilinkWidget extends WidgetType {
     super();
   }
 
-  toDOM(view: EditorView): HTMLElement {
+  toDOM(_view: EditorView): HTMLElement {
     const span = document.createElement('span');
 
     // Determine class based on selection state and existence
@@ -376,19 +377,19 @@ class WikilinkWidget extends WidgetType {
     // Add hover event listeners
     span.addEventListener('mouseenter', () => {
       if (this.hoverHandler) {
-        const coords = view.coordsAtPos(this.from);
-        if (coords) {
-          this.hoverHandler({
-            identifier: this.identifier,
-            displayText: this.title,
-            from: this.from,
-            to: this.to,
-            x: coords.left,
-            y: coords.bottom,
-            exists: this.exists,
-            noteId: this.noteId
-          });
-        }
+        // Get the actual bounding rect of the wikilink span element
+        const rect = span.getBoundingClientRect();
+        this.hoverHandler({
+          identifier: this.identifier,
+          displayText: this.title,
+          from: this.from,
+          to: this.to,
+          x: rect.left,
+          y: rect.bottom,
+          yTop: rect.top,
+          exists: this.exists,
+          noteId: this.noteId
+        });
       }
     });
 

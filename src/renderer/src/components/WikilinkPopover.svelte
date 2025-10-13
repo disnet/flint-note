@@ -1,10 +1,13 @@
 <script lang="ts">
+  import { notesStore } from '../services/noteStore.svelte';
+
   interface Props {
     visible: boolean;
     x: number;
     y: number;
     identifier: string;
     displayText: string;
+    linkRect: { top: number; bottom: number; left: number; height: number } | null;
     onSave: (newDisplayText: string) => void;
     onCancel: () => void;
     onCommit?: () => void;
@@ -16,6 +19,7 @@
     y,
     identifier,
     displayText,
+    linkRect,
     onSave,
     onCancel,
     onCommit
@@ -23,6 +27,16 @@
 
   let inputValue = $state(displayText);
   let inputElement: HTMLInputElement | undefined = $state();
+  let popoverElement: HTMLDivElement | undefined = $state();
+
+  // Derive the display label from the note metadata
+  const displayLabel = $derived.by(() => {
+    const note = notesStore.notes.find((n) => n.id === identifier);
+    if (note) {
+      return `${note.type}/${note.filename}`;
+    }
+    return identifier;
+  });
 
   // Update input value when displayText changes (but only if we're not actively editing)
   $effect(() => {
@@ -46,6 +60,24 @@
   export function hasFocus(): boolean {
     return inputElement === document.activeElement;
   }
+
+  // Adjust position when visible to avoid covering the link
+  $effect(() => {
+    if (visible && popoverElement && linkRect) {
+      const rect = popoverElement.getBoundingClientRect();
+      const actualHeight = rect.height;
+
+      // Check if popover is covering the link
+      const popoverBottom = rect.top + actualHeight;
+      const isCoveringLink = rect.top < linkRect.bottom && popoverBottom > linkRect.top;
+
+      if (isCoveringLink) {
+        // Position above the link instead
+        const newY = linkRect.top - 4 - actualHeight;
+        popoverElement.style.top = `${newY}px`;
+      }
+    }
+  });
 
   function handleInput(): void {
     if (inputValue.trim()) {
@@ -74,7 +106,11 @@
 </script>
 
 {#if visible}
-  <div class="wikilink-popover" style="left: {x}px; top: {y}px;">
+  <div
+    bind:this={popoverElement}
+    class="wikilink-popover"
+    style="left: {x}px; top: {y}px;"
+  >
     <div class="popover-content">
       <div class="link-section">
         <svg class="icon" viewBox="0 0 20 20" fill="currentColor">
@@ -84,7 +120,7 @@
             clip-rule="evenodd"
           />
         </svg>
-        <span class="link-value">{identifier}</span>
+        <span class="link-value">{displayLabel}</span>
       </div>
       <div class="display-section">
         <svg class="icon" viewBox="0 0 20 20" fill="currentColor">
@@ -119,7 +155,7 @@
       0 4px 6px -1px rgba(0, 0, 0, 0.1),
       0 2px 4px -1px rgba(0, 0, 0, 0.06);
     padding: 12px;
-    min-width: 280px;
+    min-width: 180px;
     max-width: 400px;
   }
 
@@ -127,6 +163,8 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
+    min-width: 0;
+    width: 100%;
   }
 
   .link-section,
@@ -134,6 +172,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
+    min-width: 0;
   }
 
   .icon {
@@ -147,6 +186,10 @@
     font-size: 13px;
     color: #111827;
     flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   input[type='text'] {
@@ -157,6 +200,7 @@
     outline: none;
     transition: border-color 0.15s;
     flex: 1;
+    min-width: 0;
   }
 
   input[type='text']:focus {

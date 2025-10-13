@@ -1,14 +1,36 @@
 <script lang="ts">
+  import { notesStore } from '../services/noteStore.svelte';
+
   interface Props {
     visible: boolean;
     x: number;
     y: number;
     identifier: string;
+    linkRect: { top: number; bottom: number; left: number; height: number } | null;
     onOpen: () => void;
     onEdit: () => void;
   }
 
-  let { visible = $bindable(false), x, y, identifier, onOpen, onEdit }: Props = $props();
+  let {
+    visible = $bindable(false),
+    x,
+    y,
+    identifier,
+    linkRect,
+    onOpen,
+    onEdit
+  }: Props = $props();
+
+  let popoverElement: HTMLDivElement | undefined = $state();
+
+  // Derive the display label from the note metadata
+  const displayLabel = $derived.by(() => {
+    const note = notesStore.notes.find((n) => n.id === identifier);
+    if (note) {
+      return `${note.type}/${note.filename}`;
+    }
+    return identifier;
+  });
 
   // Detect if we're on macOS for showing the right symbol
   const isMac =
@@ -23,10 +45,28 @@
   function handleEditClick(): void {
     onEdit();
   }
+
+  // Adjust position when visible to avoid covering the link
+  $effect(() => {
+    if (visible && popoverElement && linkRect) {
+      const rect = popoverElement.getBoundingClientRect();
+      const actualHeight = rect.height;
+
+      // Check if popover is covering the link
+      const popoverBottom = rect.top + actualHeight;
+      const isCoveringLink = rect.top < linkRect.bottom && popoverBottom > linkRect.top;
+
+      if (isCoveringLink) {
+        // Position above the link instead
+        const newY = linkRect.top - 4 - actualHeight;
+        popoverElement.style.top = `${newY}px`;
+      }
+    }
+  });
 </script>
 
 {#if visible}
-  <div class="action-popover" style="left: {x}px; top: {y}px;">
+  <div bind:this={popoverElement} class="action-popover" style="left: {x}px; top: {y}px;">
     <div class="popover-content">
       <div class="link-info">
         <svg class="icon" viewBox="0 0 20 20" fill="currentColor">
@@ -36,7 +76,7 @@
             clip-rule="evenodd"
           />
         </svg>
-        <span class="link-value">{identifier}</span>
+        <span class="link-value">{displayLabel}</span>
       </div>
       <div class="actions">
         <button type="button" class="action-button" onclick={handleOpenClick}>
@@ -62,14 +102,17 @@
     box-shadow:
       0 4px 6px -1px rgba(0, 0, 0, 0.1),
       0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    padding: 10px;
-    min-width: 240px;
+    padding: 12px;
+    min-width: 140px;
+    max-width: 250px;
     pointer-events: auto;
   }
 
   .popover-content {
     display: flex;
     flex-direction: column;
+    min-width: 0;
+    width: 100%;
   }
 
   .link-info {
@@ -78,6 +121,7 @@
     gap: 8px;
     padding-bottom: 8px;
     border-bottom: 1px solid #e5e7eb;
+    min-width: 0;
   }
 
   .icon {
@@ -91,6 +135,7 @@
     font-size: 12px;
     color: #6b7280;
     flex: 1;
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
