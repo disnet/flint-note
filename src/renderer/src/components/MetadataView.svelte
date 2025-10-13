@@ -363,6 +363,14 @@
     tags[index] = value.trim();
     editedMetadata.tags = [...tags];
   }
+
+  async function handlePathClick(path: string): Promise<void> {
+    try {
+      await window.api?.showItemInFolder({ path });
+    } catch (error) {
+      console.error('Failed to reveal file in folder:', error);
+    }
+  }
 </script>
 
 <div class="metadata-section">
@@ -380,7 +388,14 @@
               {#if item.isSystem}
                 <!-- System fields: read-only display -->
                 {#if item.type === 'path'}
-                  <code class="path-value">{item.value}</code>
+                  <button
+                    class="path-button"
+                    onclick={() => handlePathClick(item.value)}
+                    type="button"
+                    title="Reveal in Finder"
+                  >
+                    <code class="path-value">{item.value}</code>
+                  </button>
                 {:else if item.type === 'date'}
                   <span class="date-value">{item.value}</span>
                 {:else}
@@ -560,11 +575,32 @@
     font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace;
   }
 
+  .path-button {
+    display: block;
+    width: 100%;
+    padding: 0.25rem 0.5rem;
+    border: none;
+    border-radius: 0.25rem;
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+
+  .path-button:hover {
+    background: var(--bg-secondary);
+  }
+
   .path-value {
     font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace;
     font-size: 0.75rem;
     color: var(--text-secondary);
     opacity: 0.8;
+  }
+
+  .path-button:hover .path-value {
+    opacity: 1;
+    text-decoration: underline;
   }
 
   /* Inline editable inputs - borderless, blend with background */

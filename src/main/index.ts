@@ -1810,6 +1810,20 @@ app.whenReady().then(async () => {
     }
   });
 
+  // Shell operations
+  ipcMain.handle('show-item-in-folder', async (_event, params: { path: string }) => {
+    try {
+      shell.showItemInFolder(params.path);
+      return { success: true };
+    } catch (error) {
+      logger.error('Failed to show item in folder', { error, path: params.path });
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  });
+
   createWindow();
   logger.info('Main window created and IPC handlers registered');
 

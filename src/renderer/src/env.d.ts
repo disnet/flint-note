@@ -184,6 +184,10 @@ declare global {
 
       // File system operations
       showDirectoryPicker: () => Promise<any>;
+      showItemInFolder: (params: { path: string }) => Promise<{
+        success: boolean;
+        error?: string;
+      }>;
 
       // Link operations
       getNoteLinks: (params: { identifier: string; vaultId?: string }) => Promise<any>;

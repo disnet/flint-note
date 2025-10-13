@@ -218,6 +218,8 @@ const api = {
 
   // File system operations
   showDirectoryPicker: () => electronAPI.ipcRenderer.invoke('show-directory-picker'),
+  showItemInFolder: (params: { path: string }) =>
+    electronAPI.ipcRenderer.invoke('show-item-in-folder', params),
 
   // Link operations
   getNoteLinks: (params: { identifier: string; vaultId?: string }) =>
