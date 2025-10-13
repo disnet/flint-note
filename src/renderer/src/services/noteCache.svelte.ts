@@ -44,9 +44,11 @@ class NoteCache {
   }
 
   private handleNoteRenamed(event: Extract<NoteEvent, { type: 'note.renamed' }>): void {
-    // Update note ID in array - array reassignment triggers reactivity
+    // Update note ID, title, and filename in array - array reassignment triggers reactivity
     this.cacheArray = this.cacheArray.map((note) =>
-      note.id === event.oldId ? { ...note, id: event.newId } : note
+      note.id === event.oldId
+        ? { ...note, id: event.newId, title: event.title, filename: event.filename }
+        : note
     );
   }
 

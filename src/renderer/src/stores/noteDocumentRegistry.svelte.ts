@@ -1,5 +1,6 @@
 import { getChatService } from '../services/chatService';
 import { AutoSave } from './autoSave.svelte';
+import { messageBus } from '../services/messageBus.svelte';
 
 /**
  * Represents a single note document that can be shared across multiple editor components.
@@ -74,6 +75,21 @@ export class NoteDocument {
         // If the note ID changed, update it
         if (result.new_id && result.new_id !== oldId) {
           this.noteId = result.new_id;
+        }
+
+        // Get the updated note to get the new filename
+        const updatedNote = await noteService.getNote({
+          identifier: result.new_id || oldId
+        });
+        if (updatedNote) {
+          // Publish rename event so the note cache and wikilinks update
+          messageBus.publish({
+            type: 'note.renamed',
+            oldId,
+            newId: result.new_id || oldId,
+            title: newTitle,
+            filename: updatedNote.filename || ''
+          });
         }
 
         return {

@@ -6,7 +6,7 @@
     noteDocumentRegistry,
     type NoteDocument
   } from '../stores/noteDocumentRegistry.svelte';
-  import CodeMirrorEditor from './CodeMirrorEditor.svelte';
+  import SidebarNoteItem from './SidebarNoteItem.svelte';
 
   // Map of noteId -> NoteDocument for sidebar notes
   let sidebarDocs = $state<Map<string, NoteDocument>>(new Map());
@@ -129,68 +129,17 @@
       {#each sidebarNotesStore.notes as note (note.noteId)}
         {@const doc = sidebarDocs.get(note.noteId)}
         {#if doc}
-          <div class="sidebar-note">
-            <div class="note-header">
-              <button
-                class="disclosure-button"
-                onclick={() => handleDisclosureToggle(note.noteId)}
-                aria-label={note.isExpanded ? 'Collapse' : 'Expand'}
-              >
-                <svg
-                  class="disclosure-icon"
-                  class:expanded={note.isExpanded}
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path d="m9 18 6-6-6-6" />
-                </svg>
-              </button>
-
-              <input
-                type="text"
-                class="title-input"
-                value={doc.title || ''}
-                onfocus={(e) => handleTitleFocus(note.noteId, e.currentTarget.value)}
-                onblur={(e) => handleTitleBlur(note.noteId, e.currentTarget.value)}
-                onkeydown={(e) => handleTitleKeyDown(e, note.noteId)}
-                placeholder="Untitled"
-              />
-
-              <button
-                class="remove-button"
-                onclick={() => handleRemoveNote(note.noteId)}
-                aria-label="Remove note"
-                title="Remove from sidebar"
-              >
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path d="M18 6 6 18M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            {#if note.isExpanded}
-              <div class="note-content">
-                <CodeMirrorEditor
-                  content={doc.content}
-                  onContentChange={(content) => handleContentChange(note.noteId, content)}
-                  onWikilinkClick={handleWikilinkClick}
-                  placeholder="Note content..."
-                  variant="sidebar-note"
-                />
-              </div>
-            {/if}
-          </div>
+          <SidebarNoteItem
+            {doc}
+            isExpanded={note.isExpanded}
+            onDisclosureToggle={() => handleDisclosureToggle(note.noteId)}
+            onRemove={() => handleRemoveNote(note.noteId)}
+            onTitleFocus={(currentTitle) => handleTitleFocus(note.noteId, currentTitle)}
+            onTitleBlur={(newTitle) => handleTitleBlur(note.noteId, newTitle)}
+            onTitleKeyDown={(e) => handleTitleKeyDown(e, note.noteId)}
+            onContentChange={(content) => handleContentChange(note.noteId, content)}
+            onWikilinkClick={handleWikilinkClick}
+          />
         {/if}
       {/each}
     {/if}
@@ -237,100 +186,5 @@
   .empty-state .hint {
     font-size: 0.85rem;
     color: var(--text-tertiary);
-  }
-
-  .sidebar-note {
-    margin-bottom: 0.5rem;
-    border: 1px solid var(--border-light);
-    border-radius: 0.375rem;
-    background: var(--bg-secondary);
-  }
-
-  .note-header {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem;
-  }
-
-  .disclosure-button {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0.125rem;
-    border: none;
-    background: transparent;
-    color: var(--text-secondary);
-    cursor: pointer;
-    flex-shrink: 0;
-  }
-
-  .disclosure-button:hover {
-    color: var(--text-primary);
-  }
-
-  .disclosure-icon {
-    transition: transform 0.2s ease;
-  }
-
-  .disclosure-icon.expanded {
-    transform: rotate(90deg);
-  }
-
-  .title-input {
-    flex: 1;
-    padding: 0.25rem 0.5rem;
-    border: 1px solid transparent;
-    border-radius: 0.25rem;
-    background: transparent;
-    color: var(--text-primary);
-    font-size: 0.9rem;
-    font-weight: 500;
-    transition: all 0.2s ease;
-  }
-
-  .title-input:hover {
-    background: var(--bg-tertiary);
-    border-color: var(--border-light);
-  }
-
-  .title-input:focus {
-    outline: none;
-    background: var(--bg-primary);
-    border-color: var(--accent-primary);
-  }
-
-  .title-input::placeholder {
-    color: var(--text-tertiary);
-    font-style: italic;
-  }
-
-  .remove-button {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0.25rem;
-    border: none;
-    background: transparent;
-    color: var(--text-secondary);
-    cursor: pointer;
-    border-radius: 0.25rem;
-    flex-shrink: 0;
-  }
-
-  .remove-button:hover {
-    background: var(--bg-tertiary);
-    color: var(--text-primary);
-  }
-
-  .note-content {
-    border-top: 1px solid var(--border-light);
-    max-height: 400px;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .note-content :global(.editor-content) {
-    min-height: 0;
   }
 </style>
