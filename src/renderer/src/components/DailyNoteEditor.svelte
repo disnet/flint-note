@@ -15,9 +15,10 @@
   const handleWikilinkClick = async (
     noteId: string,
     title: string,
-    shouldCreate?: boolean
+    shouldCreate?: boolean,
+    shiftKey?: boolean
   ): Promise<void> => {
-    await wikilinkService.handleWikilinkClick(noteId, title, shouldCreate);
+    await wikilinkService.handleWikilinkClick(noteId, title, shouldCreate, shiftKey);
   };
 
   // Public methods for external control

@@ -238,15 +238,16 @@
   async function handleWikilinkClick(
     noteId: string,
     title: string,
-    shouldCreate?: boolean
+    shouldCreate?: boolean,
+    shiftKey?: boolean
   ): Promise<void> {
-    // Close current editor before navigating (for existing notes)
-    if (!shouldCreate) {
+    // Close current editor before navigating (for existing notes, unless shift+click for sidebar)
+    if (!shouldCreate && !shiftKey) {
       onClose();
     }
 
     // Use centralized wikilink service
-    await wikilinkService.handleWikilinkClick(noteId, title, shouldCreate);
+    await wikilinkService.handleWikilinkClick(noteId, title, shouldCreate, shiftKey);
   }
 
   export function focus(): void {

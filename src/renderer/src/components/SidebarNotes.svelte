@@ -107,10 +107,11 @@
   async function handleWikilinkClick(
     noteId: string,
     title: string,
-    shouldCreate?: boolean
+    shouldCreate?: boolean,
+    shiftKey?: boolean
   ): Promise<void> {
     // Use centralized wikilink service for navigation
-    await wikilinkService.handleWikilinkClick(noteId, title, shouldCreate);
+    await wikilinkService.handleWikilinkClick(noteId, title, shouldCreate, shiftKey);
   }
 </script>
 

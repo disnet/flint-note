@@ -36,7 +36,7 @@ export interface WikilinkMatch {
 }
 
 export interface WikilinkClickHandler {
-  (noteId: string, title: string, shouldCreate?: boolean): void;
+  (noteId: string, title: string, shouldCreate?: boolean, shiftKey?: boolean): void;
 }
 
 export interface WikilinkHoverHandler {
@@ -365,11 +365,11 @@ class WikilinkWidget extends WidgetType {
 
       if (this.clickHandler) {
         if (this.exists && this.noteId) {
-          this.clickHandler(this.noteId, this.title);
+          this.clickHandler(this.noteId, this.title, false, e.shiftKey);
         } else {
           // Handle broken link - create new note with this title
           console.log('Creating new note for broken wikilink:', this.title);
-          this.clickHandler(this.identifier, this.title, true);
+          this.clickHandler(this.identifier, this.title, true, e.shiftKey);
         }
       }
     });

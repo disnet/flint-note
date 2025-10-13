@@ -24,7 +24,8 @@ export interface EditorConfigOptions {
   onWikilinkClick?: (
     noteId: string,
     title: string,
-    shouldCreate?: boolean
+    shouldCreate?: boolean,
+    shiftKey?: boolean
   ) => Promise<void>;
   onWikilinkHover?: WikilinkHoverHandler;
   onWikilinkEdit?: WikilinkEditHandler;

@@ -17,7 +17,8 @@
     onWikilinkClick?: (
       noteId: string,
       title: string,
-      shouldCreate?: boolean
+      shouldCreate?: boolean,
+      shiftKey?: boolean
     ) => Promise<void>;
     cursorPosition?: CursorPosition | null;
     placeholder?: string;
