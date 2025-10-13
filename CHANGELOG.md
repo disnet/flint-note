@@ -4,6 +4,32 @@ All notable changes to the Flint application will be documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.5.0]
+
+### Added
+
+**Note type switcher in editor header**
+
+Added a convenient dropdown in the note editor header that allows you to quickly change a note's type without opening the metadata panel. The type switcher displays the current note type and provides a searchable dropdown of all available note types in your vault.
+
+**Clickable file paths in metadata**
+
+File paths displayed in the metadata view are now clickable, allowing you to quickly reveal notes in your system's file browser. This makes it easier to locate and work with note files outside of Flint.
+
+### Changed
+
+- Wikilink navigation now requires Cmd/Ctrl+Enter instead of just Enter when the cursor is next to a wikilink, reducing accidental navigation while typing
+- Improved wikilink positioning and styling for better visual clarity
+- Metadata view enhanced to handle duplicate fields more robustly
+- Popovers now automatically hide when the editor loses focus for a cleaner interface
+
+### Fixed
+
+- Fixed race condition when creating and immediately renaming daily notes
+- Fixed wikilink updates not propagating correctly in sidebar notes
+- Fixed sidebar notes not being properly scoped to the current vault
+- Improved system field protection in metadata to prevent unintended modifications
+
 ## [0.4.0]
 
 **NOTE**: This release involved a significant overhaul of how Flint manages UI state and as such your opened and pinned notes were reset. I'll try not to do that again.
