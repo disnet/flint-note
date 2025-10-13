@@ -1,5 +1,6 @@
 <script lang="ts">
   import { notesStore } from '../services/noteStore.svelte';
+  import { messageBus } from '../services/messageBus.svelte';
   import type { NoteDocument } from '../stores/noteDocumentRegistry.svelte';
   import CodeMirrorEditor from './CodeMirrorEditor.svelte';
 
@@ -49,6 +50,28 @@
         }
       }, 50);
     }
+  });
+
+  // Watch for wikilink updates and reload note content if needed
+  // This is the same pattern as NoteEditor.svelte lines 111-130
+  $effect(() => {
+    const unsubscribe = messageBus.subscribe('note.linksChanged', () => {
+      if (doc) {
+        const currentDoc = doc; // Capture in closure to avoid null issues
+        setTimeout(async () => {
+          try {
+            await currentDoc.reload();
+          } catch (loadError) {
+            console.warn(
+              'Failed to reload note content after wikilink update:',
+              loadError
+            );
+          }
+        }, 100);
+      }
+    });
+
+    return () => unsubscribe();
   });
 </script>
 
