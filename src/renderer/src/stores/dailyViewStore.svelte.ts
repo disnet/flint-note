@@ -287,7 +287,21 @@ class DailyViewStore {
       if (dailyNote) {
         // Update local state to ensure the note is reflected
         this.updateLocalDailyNoteMetadata(date, dailyNote);
-        // Note: The message bus will automatically update the note cache when IPC events are published
+
+        // Optimistically add the note to the cache immediately
+        // This ensures it's available for temporary tabs before the IPC event is processed
+        const { noteCache } = await import('../services/noteCache.svelte');
+        noteCache.addNote({
+          id: dailyNote.id,
+          title: dailyNote.title,
+          filename: dailyNote.filename,
+          path: dailyNote.path,
+          type: dailyNote.type,
+          created: dailyNote.created,
+          modified: dailyNote.modified,
+          size: dailyNote.size,
+          tags: dailyNote.tags || []
+        });
       }
 
       return dailyNote;
