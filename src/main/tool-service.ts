@@ -671,6 +671,8 @@ export class ToolService {
           // Merge with existing metadata, excluding protected fields
           const {
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            id: _id,
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             type: _type,
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
             title: _metaTitle,

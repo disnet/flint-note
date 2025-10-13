@@ -23,14 +23,15 @@
   let availableTypes = $derived(notesStore.noteTypes);
 
   // System fields that are read-only (managed by the system, not user-editable)
+  // NOTE: This must be kept in sync with SYSTEM_FIELDS in src/server/core/system-fields.ts
   const SYSTEM_FIELDS = new Set([
     'id',
-    'created',
-    'modified',
-    'updated',
-    'filename',
-    'path',
+    'type',
     'title',
+    'filename',
+    'created',
+    'updated',
+    'path',
     'content',
     'content_hash',
     'size'

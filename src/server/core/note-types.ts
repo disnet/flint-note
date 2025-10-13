@@ -11,6 +11,7 @@ import crypto from 'crypto';
 import { Workspace } from './workspace.js';
 import { MetadataSchemaParser, MetadataValidator } from './metadata-schema.js';
 import type { MetadataSchema } from './metadata-schema.js';
+import { SYSTEM_FIELDS } from './system-fields.js';
 import type {
   DeletionAction,
   NoteTypeDeleteResult,
@@ -69,26 +70,25 @@ export class NoteTypeManager {
   }
 
   /**
-   * Validate that metadata schema doesn't contain protected fields
+   * Validate that metadata schema doesn't contain system fields
    * @param metadataSchema - The metadata schema to validate
-   * @throws Error if protected fields are found
+   * @throws Error if system fields are found
    */
   #validateNoProtectedFieldsInSchema(metadataSchema: MetadataSchema | null): void {
     if (!metadataSchema || !metadataSchema.fields) return;
 
-    const protectedFields = new Set(['title', 'filename', 'created', 'updated']);
-    const foundProtectedFields: string[] = [];
+    const foundSystemFields: string[] = [];
 
     for (const field of metadataSchema.fields) {
-      if (protectedFields.has(field.name)) {
-        foundProtectedFields.push(field.name);
+      if (SYSTEM_FIELDS.has(field.name)) {
+        foundSystemFields.push(field.name);
       }
     }
 
-    if (foundProtectedFields.length > 0) {
-      const fieldList = foundProtectedFields.join(', ');
+    if (foundSystemFields.length > 0) {
+      const fieldList = foundSystemFields.join(', ');
       throw new Error(
-        `Cannot define protected field(s) in metadata schema: ${fieldList}. ` +
+        `Cannot define system field(s) in metadata schema: ${fieldList}. ` +
           `These fields are automatically managed by the system and cannot be redefined.`
       );
     }

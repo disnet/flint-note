@@ -32,6 +32,7 @@ import type {
 import { WikilinkParser } from './wikilink-parser.js';
 import { LinkExtractor } from './link-extractor.js';
 import { HierarchyManager } from './hierarchy.js';
+import { SYSTEM_FIELDS } from './system-fields.js';
 
 interface ParsedNote {
   metadata: NoteMetadata;
@@ -942,11 +943,20 @@ export class NoteManager {
       }
 
       // Merge metadata with existing metadata
+      // Handle undefined values explicitly to allow removing fields
       const updatedMetadata = {
         ...parsed.metadata,
-        ...metadata,
         updated: new Date().toISOString()
       };
+
+      // Apply new metadata, explicitly deleting undefined values
+      for (const [key, value] of Object.entries(metadata)) {
+        if (value === undefined) {
+          delete updatedMetadata[key];
+        } else {
+          updatedMetadata[key] = value;
+        }
+      }
 
       // Format content with metadata
       const formattedContent = this.formatUpdatedNoteContent(updatedMetadata, content);
@@ -1492,53 +1502,58 @@ export class NoteManager {
   }
 
   /**
-   * Validate that metadata does not contain protected fields
+   * Validate that metadata does not contain system fields
    *
-   * This method prevents modification of critical note identification fields
-   * through regular metadata updates. Protected fields include:
-   * - 'title': The display name of the note (use rename_note tool instead)
-   * - 'filename': The file system name (use rename_note tool instead)
+   * This method prevents modification of system-managed fields through regular
+   * metadata updates. System fields include all automatically-managed fields
+   * defined in SYSTEM_FIELDS.
    *
    * This protection ensures that:
    * 1. Note renaming goes through the proper rename_note tool which handles wikilink updates and filename synchronization
-   * 2. File system consistency is maintained
-   * 3. Note IDs and references remain stable
-   * 4. Users receive clear guidance on the correct tool to use
+   * 2. Note type changes go through the move_note tool with proper file relocation
+   * 3. File system consistency is maintained
+   * 4. Note IDs and references remain stable
+   * 5. Users receive clear guidance on the correct tool to use
    *
    * @param metadata - The metadata object to validate
-   * @throws Error with descriptive message directing users to rename_note tool if protected fields are present
+   * @throws Error with descriptive message directing users to appropriate tools if system fields are present
    */
   #validateNoProtectedFields(metadata: NoteMetadata): void {
-    const protectedFields = new Set(['type', 'title', 'filename', 'created', 'updated']);
-    const foundProtectedFields: string[] = [];
+    const foundSystemFields: string[] = [];
 
     for (const [key, value] of Object.entries(metadata)) {
-      if (protectedFields.has(key) && value !== undefined && value !== null) {
-        foundProtectedFields.push(key);
+      if (SYSTEM_FIELDS.has(key) && value !== undefined && value !== null) {
+        foundSystemFields.push(key);
       }
     }
 
-    if (foundProtectedFields.length > 0) {
-      const fieldList = foundProtectedFields.join(', ');
-      const typeMessage = foundProtectedFields.includes('type')
+    if (foundSystemFields.length > 0) {
+      const fieldList = foundSystemFields.join(', ');
+      const typeMessage = foundSystemFields.includes('type')
         ? `Use the 'move_note' tool to safely move notes between note types with proper file relocation and link updates. `
         : '';
-      const titleMessage = foundProtectedFields.some((field) =>
+      const titleMessage = foundSystemFields.some((field) =>
         ['title', 'filename'].includes(field)
       )
         ? `Use the 'rename_note' tool to safely update note titles with automatic filename synchronization and link preservation. `
         : '';
-      const timestampMessage = foundProtectedFields.some((field) =>
+      const timestampMessage = foundSystemFields.some((field) =>
         ['created', 'updated'].includes(field)
       )
-        ? `The 'created' and 'updated' fields are handled automatically and cannot be modified manually.`
+        ? `The 'created' and 'updated' fields are handled automatically and cannot be modified manually. `
+        : '';
+      const otherMessage = foundSystemFields.some((field) =>
+        ['id', 'path', 'content', 'content_hash', 'size'].includes(field)
+      )
+        ? `System fields like 'id', 'path', 'content', 'content_hash', and 'size' are managed automatically by the system.`
         : '';
 
       throw new Error(
-        `Cannot modify protected field(s): ${fieldList}. ` +
+        `Cannot modify system field(s): ${fieldList}. ` +
           typeMessage +
           titleMessage +
-          timestampMessage
+          timestampMessage +
+          otherMessage
       );
     }
   }

@@ -67,6 +67,7 @@ import type { NoteRelationships } from '../core/relationship-manager.js';
 import { TemplateManager } from '../core/template-manager.js';
 import type { TemplateMetadata } from '../core/template-manager.js';
 import { logger } from '../../main/logger.js';
+import { validateNoSystemFields } from '../core/system-fields.js';
 
 export interface FlintNoteApiConfig extends ServerConfig {
   configDir?: string;
@@ -446,6 +447,19 @@ export class FlintNoteApi {
     args: CreateNoteTypeArgs & { vault_id: string }
   ): Promise<NoteTypeInfo> {
     this.ensureInitialized();
+
+    // Validate metadata schema doesn't contain system fields
+    if (args.metadata_schema?.fields) {
+      const fieldNames = args.metadata_schema.fields.map((f) => f.name);
+      const validation = validateNoSystemFields(fieldNames);
+      if (!validation.valid) {
+        throw new Error(
+          `Cannot create note type with system fields in metadata schema: ${validation.systemFields.join(', ')}. ` +
+            `System fields are automatically managed and cannot be redefined.`
+        );
+      }
+    }
+
     const { noteTypeManager } = await this.getVaultContext(args.vault_id);
     return await noteTypeManager.createNoteType(
       args.type_name,
@@ -496,6 +510,19 @@ export class FlintNoteApi {
     vault_id: string;
   }): Promise<NoteTypeDescription> {
     this.ensureInitialized();
+
+    // Validate metadata schema doesn't contain system fields
+    if (args.metadata_schema) {
+      const fieldNames = args.metadata_schema.map((f) => f.name);
+      const validation = validateNoSystemFields(fieldNames);
+      if (!validation.valid) {
+        throw new Error(
+          `Cannot update note type with system fields in metadata schema: ${validation.systemFields.join(', ')}. ` +
+            `System fields are automatically managed and cannot be redefined.`
+        );
+      }
+    }
+
     const { noteTypeManager } = await this.getVaultContext(args.vault_id);
 
     const updates: Parameters<typeof noteTypeManager.updateNoteType>[1] = {};
@@ -1183,7 +1210,7 @@ export class FlintNoteApi {
 
     // Create metadata object excluding protected fields
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { type, title, filename, created, updated, ...userMetadata } =
+    const { id, type, title, filename, created, updated, ...userMetadata } =
       currentNote.metadata;
     const updatedMetadata = { ...userMetadata };
 
