@@ -148,10 +148,14 @@
   }
 
   .note-header {
+    position: sticky;
+    top: -0.5rem;
     display: flex;
     align-items: center;
     gap: 0.5rem;
     padding: 0.5rem;
+    background: var(--bg-secondary);
+    z-index: 1;
   }
 
   .disclosure-button {
