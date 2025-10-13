@@ -443,7 +443,8 @@ export class LinkExtractor {
     oldTitle: string,
     newTitle: string,
     newNoteId: string,
-    db: DatabaseConnection
+    db: DatabaseConnection,
+    vaultRootPath: string
   ): Promise<{ notesUpdated: number; linksUpdated: number }> {
     // Find all notes that link to the renamed note (using the old note ID and old title)
     // Look for:
@@ -472,7 +473,10 @@ export class LinkExtractor {
 
         // Read the full file content (including frontmatter)
         const fs = await import('fs/promises');
-        const fullFileContent = await fs.readFile(notePath.path, 'utf-8');
+        const path = await import('path');
+        // Construct absolute path by joining vault root with relative path from database
+        const absolutePath = path.join(vaultRootPath, notePath.path);
+        const fullFileContent = await fs.readFile(absolutePath, 'utf-8');
 
         // Parse to separate frontmatter from content
         const parsed = parseNoteContent(fullFileContent);
@@ -514,7 +518,7 @@ export class LinkExtractor {
           );
 
           // Write the complete file (with frontmatter) to file system
-          await fs.writeFile(notePath.path, fullUpdatedContent, 'utf-8');
+          await fs.writeFile(absolutePath, fullUpdatedContent, 'utf-8');
 
           // Re-extract links for the updated note (from body content)
           const updatedExtractionResult = this.extractLinks(updatedContent);
@@ -542,7 +546,8 @@ export class LinkExtractor {
     oldNoteId: string,
     newNoteId: string,
     noteTitle: string,
-    db: DatabaseConnection
+    db: DatabaseConnection,
+    vaultRootPath: string
   ): Promise<{ notesUpdated: number; linksUpdated: number }> {
     // Find all notes that link to the moved note by ID or title
     const linkingNotes = await db.all<{ source_note_id: string }>(
@@ -567,7 +572,10 @@ export class LinkExtractor {
 
         // Read the full file content (including frontmatter)
         const fs = await import('fs/promises');
-        const fullFileContent = await fs.readFile(notePath.path, 'utf-8');
+        const path = await import('path');
+        // Construct absolute path by joining vault root with relative path from database
+        const absolutePath = path.join(vaultRootPath, notePath.path);
+        const fullFileContent = await fs.readFile(absolutePath, 'utf-8');
 
         // Parse to separate frontmatter from content
         const parsed = parseNoteContent(fullFileContent);
@@ -609,7 +617,7 @@ export class LinkExtractor {
           );
 
           // Write the complete file (with frontmatter) to file system
-          await fs.writeFile(notePath.path, fullUpdatedContent, 'utf-8');
+          await fs.writeFile(absolutePath, fullUpdatedContent, 'utf-8');
 
           // Re-extract links for the updated note (from body content)
           const updatedExtractionResult = this.extractLinks(updatedContent);

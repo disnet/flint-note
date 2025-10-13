@@ -643,7 +643,17 @@ app.whenReady().then(async () => {
             });
           }
         } catch (error) {
-          console.warn('Failed to fetch renamed note metadata:', error);
+          logger.warn('Failed to fetch renamed note metadata:', { error });
+        }
+
+        // If wikilinks were updated in other notes, publish events to trigger UI refresh
+        if (result.linksUpdated && result.linksUpdated > 0) {
+          // Publish a general note.linksChanged event to refresh all open editors
+          // This ensures wikilinks in all open notes are re-rendered with updated titles
+          publishNoteEvent({
+            type: 'note.linksChanged',
+            noteId: result.new_id
+          });
         }
       }
 

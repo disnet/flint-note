@@ -1705,7 +1705,8 @@ export class NoteManager {
               noteId,
               noteId,
               trimmedTitle,
-              db
+              db,
+              this.#workspace.rootPath
             );
             wikilinksResult.notesUpdated += moveResult.notesUpdated;
             wikilinksResult.linksUpdated += moveResult.linksUpdated;
@@ -1722,7 +1723,8 @@ export class NoteManager {
             currentNote.title,
             trimmedTitle,
             noteId,
-            db
+            db,
+            this.#workspace.rootPath
           );
           wikilinksResult.notesUpdated += renameResult.notesUpdated;
           wikilinksResult.linksUpdated += renameResult.linksUpdated;
@@ -1876,7 +1878,8 @@ export class NoteManager {
           noteId,
           noteId,
           currentNote.title,
-          db
+          db,
+          this.#workspace.rootPath
         );
 
         linksUpdated = result.linksUpdated;
