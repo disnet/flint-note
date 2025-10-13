@@ -725,12 +725,14 @@ export class ToolService {
         // Get updated note to return
         const updatedNote = await flintApi.getNote(currentVault.id, updates.identifier);
 
-        // Publish note.updated event
+        // Publish note.updated event with full metadata
         publishNoteEvent({
           type: 'note.updated',
           noteId: updates.identifier,
           updates: {
-            modified: new Date().toISOString()
+            title: updatedNote.title,
+            filename: updatedNote.filename,
+            modified: updatedNote.updated
           }
         });
 

@@ -103,28 +103,37 @@
         const content = ``;
 
         // Create the note via the chat service
-        const noteInfo = await chatService.createNote({
+        // The IPC handler returns full note data synchronously, no need to wait for events
+        const createdNote = await chatService.createNote({
           type,
           identifier,
           content,
           vaultId: currentVault.id
         });
 
-        // Note: The message bus will automatically update the note cache when IPC events are published
+        // Convert CreateNoteResult to NoteMetadata format
+        const noteMetadata: NoteMetadata = {
+          id: createdNote.id,
+          type: createdNote.type,
+          title: createdNote.title,
+          filename: createdNote.filename,
+          path: createdNote.path,
+          created: createdNote.created,
+          modified: createdNote.created, // New notes have same created/modified time
+          size: 0,
+          tags: []
+        };
 
-        // Find the newly created note and open it through navigation service
-        const notes = notesStore.notes;
-        const newNote = notes.find((n) => n.id === noteInfo.id);
-        if (newNote) {
-          await noteNavigationService.openNote(
-            newNote,
-            'navigation',
-            openNoteEditor,
-            () => {
-              activeSystemView = null;
-            }
-          );
-        }
+        // Open the note immediately using the returned data
+        // Background: note.created event will propagate and update caches
+        await noteNavigationService.openNote(
+          noteMetadata,
+          'navigation',
+          openNoteEditor,
+          () => {
+            activeSystemView = null;
+          }
+        );
       } catch (error) {
         console.error('Failed to create note:', error);
         // Log error for debugging

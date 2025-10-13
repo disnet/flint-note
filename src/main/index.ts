@@ -626,6 +626,25 @@ app.whenReady().then(async () => {
           oldId: params.identifier,
           newId: result.new_id
         });
+
+        // Fetch the renamed note to get updated metadata
+        try {
+          const renamedNote = await noteService.getNote(result.new_id, vaultId);
+          if (renamedNote) {
+            // Publish note.updated event with the new metadata
+            publishNoteEvent({
+              type: 'note.updated',
+              noteId: result.new_id,
+              updates: {
+                title: renamedNote.title,
+                filename: renamedNote.filename,
+                modified: renamedNote.updated
+              }
+            });
+          }
+        } catch (error) {
+          console.warn('Failed to fetch renamed note metadata:', error);
+        }
       }
 
       return result;

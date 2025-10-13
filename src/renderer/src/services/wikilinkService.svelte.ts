@@ -1,5 +1,5 @@
 import { getChatService } from './chatService.js';
-import { notesStore } from './noteStore.svelte';
+import { notesStore, type NoteMetadata } from './noteStore.svelte';
 
 /**
  * Centralized service for handling wikilink click interactions.
@@ -29,25 +29,34 @@ class WikilinkService {
         }
 
         console.log('Creating new note for broken wikilink:', title);
-        const newNote = await chatService.createNote({
+        const createdNote = await chatService.createNote({
           vaultId: currentVault.id,
           type: 'note',
           identifier: title,
           content: ``
         });
 
-        // Note: The message bus will automatically update the note cache when IPC events are published
-        // Find the full note data from the store
-        const fullNote = notesStore.notes.find((n) => n.id === newNote.id);
+        // Convert CreateNoteResult to NoteMetadata format
+        // Use returned data directly (hybrid IPC pattern - no race condition)
+        const noteMetadata: NoteMetadata = {
+          id: createdNote.id,
+          type: createdNote.type,
+          title: createdNote.title,
+          filename: createdNote.filename,
+          path: createdNote.path,
+          created: createdNote.created,
+          modified: createdNote.created, // New notes have same created/modified time
+          size: 0,
+          tags: []
+        };
 
-        if (fullNote) {
-          // Dispatch the navigation event for App.svelte to handle
-          const event = new CustomEvent('wikilink-navigate', {
-            detail: { note: fullNote },
-            bubbles: true
-          });
-          document.dispatchEvent(event);
-        }
+        // Dispatch the navigation event for App.svelte to handle
+        // Background: note.created event will propagate and update caches
+        const event = new CustomEvent('wikilink-navigate', {
+          detail: { note: noteMetadata },
+          bubbles: true
+        });
+        document.dispatchEvent(event);
       } catch (error) {
         console.error('Failed to create note:', error);
       }
