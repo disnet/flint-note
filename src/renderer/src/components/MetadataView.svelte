@@ -47,96 +47,136 @@
       isEmpty?: boolean;
       isSystem?: boolean;
       isEditable?: boolean;
+      uniqueId?: string;
     }> = [];
+
+    // Track seen keys to prevent duplicates
+    const seenKeys = new Set<string>();
 
     // Add system metadata fields (read-only)
     if (note.id) {
-      result.push({
-        key: 'ID',
-        value: note.id,
-        type: 'text',
-        isSystem: true,
-        isEditable: false
-      });
+      const key = 'ID';
+      if (!seenKeys.has(key)) {
+        seenKeys.add(key);
+        result.push({
+          key,
+          value: note.id,
+          type: 'text',
+          isSystem: true,
+          isEditable: false,
+          uniqueId: `${key}-${result.length}`
+        });
+      }
     }
 
     if (note.created) {
       const date = new Date(note.created);
-      result.push({
-        key: 'Created',
-        value:
-          date.toLocaleDateString() +
-          ' ' +
-          date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        type: 'date',
-        isSystem: true,
-        isEditable: false
-      });
+      const key = 'Created';
+      if (!seenKeys.has(key)) {
+        seenKeys.add(key);
+        result.push({
+          key,
+          value:
+            date.toLocaleDateString() +
+            ' ' +
+            date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          type: 'date',
+          isSystem: true,
+          isEditable: false,
+          uniqueId: `${key}-${result.length}`
+        });
+      }
     }
 
     if (note.modified) {
       const date = new Date(note.modified);
-      result.push({
-        key: 'Modified',
-        value:
-          date.toLocaleDateString() +
-          ' ' +
-          date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        type: 'date',
-        isSystem: true,
-        isEditable: false
-      });
+      const key = 'Modified';
+      if (!seenKeys.has(key)) {
+        seenKeys.add(key);
+        result.push({
+          key,
+          value:
+            date.toLocaleDateString() +
+            ' ' +
+            date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          type: 'date',
+          isSystem: true,
+          isEditable: false,
+          uniqueId: `${key}-${result.length}`
+        });
+      }
     }
 
     if (note.filename) {
-      result.push({
-        key: 'Filename',
-        value: note.filename,
-        type: 'text',
-        isSystem: true,
-        isEditable: false
-      });
+      const key = 'Filename';
+      if (!seenKeys.has(key)) {
+        seenKeys.add(key);
+        result.push({
+          key,
+          value: note.filename,
+          type: 'text',
+          isSystem: true,
+          isEditable: false,
+          uniqueId: `${key}-${result.length}`
+        });
+      }
     }
 
     if (note.path) {
-      result.push({
-        key: 'Path',
-        value: note.path,
-        type: 'path',
-        isSystem: true,
-        isEditable: false
-      });
+      const key = 'Path';
+      if (!seenKeys.has(key)) {
+        seenKeys.add(key);
+        result.push({
+          key,
+          value: note.path,
+          type: 'path',
+          isSystem: true,
+          isEditable: false,
+          uniqueId: `${key}-${result.length}`
+        });
+      }
     }
 
     // Add editable type field
     if (note.type) {
-      result.push({
-        key: 'Type',
-        value: note.type,
-        type: 'type',
-        isSystem: false,
-        isEditable: true
-      });
+      const key = 'Type';
+      if (!seenKeys.has(key)) {
+        seenKeys.add(key);
+        result.push({
+          key,
+          value: note.type,
+          type: 'type',
+          isSystem: false,
+          isEditable: true,
+          uniqueId: `${key}-${result.length}`
+        });
+      }
     }
 
     // Add tags (editable)
-    if (metadata.tags && Array.isArray(metadata.tags) && metadata.tags.length > 0) {
-      result.push({
-        key: 'Tags',
-        value: metadata.tags.join(', '),
-        type: 'tags',
-        isSystem: false,
-        isEditable: true
-      });
-    } else {
-      result.push({
-        key: 'Tags',
-        value: '—',
-        type: 'tags',
-        isEmpty: true,
-        isSystem: false,
-        isEditable: true
-      });
+    const tagsKey = 'Tags';
+    if (!seenKeys.has(tagsKey)) {
+      seenKeys.add(tagsKey);
+      if (metadata.tags && Array.isArray(metadata.tags) && metadata.tags.length > 0) {
+        result.push({
+          key: tagsKey,
+          value: metadata.tags.join(', '),
+          type: 'tags',
+          isSystem: false,
+          isEditable: true,
+          uniqueId: `${tagsKey}-${result.length}`
+        });
+      } else {
+        result.push({
+          key: tagsKey,
+          value: '—',
+          type: 'tags',
+          isEmpty: true,
+          isSystem: false,
+          isEditable: true,
+          uniqueId: `${tagsKey}-${result.length}`
+        });
+      }
     }
 
     // Add schema-defined metadata fields if available
@@ -201,14 +241,20 @@
           displayValue = String(value);
         }
 
-        result.push({
-          key: fieldDef.name.charAt(0).toUpperCase() + fieldDef.name.slice(1),
-          value: displayValue,
-          type: valueType,
-          isEmpty,
-          isSystem: false,
-          isEditable: true
-        });
+        const displayKey = fieldDef.name.charAt(0).toUpperCase() + fieldDef.name.slice(1);
+        // Check for duplicates before adding
+        if (!seenKeys.has(displayKey)) {
+          seenKeys.add(displayKey);
+          result.push({
+            key: displayKey,
+            value: displayValue,
+            type: valueType,
+            isEmpty,
+            isSystem: false,
+            isEditable: true,
+            uniqueId: `${displayKey}-${result.length}`
+          });
+        }
       }
     }
 
@@ -238,13 +284,19 @@
           displayValue = String(value);
         }
 
-        result.push({
-          key: key.charAt(0).toUpperCase() + key.slice(1),
-          value: displayValue,
-          type: valueType,
-          isSystem: false,
-          isEditable: true
-        });
+        const displayKey = key.charAt(0).toUpperCase() + key.slice(1);
+        // Check for duplicates before adding
+        if (!seenKeys.has(displayKey)) {
+          seenKeys.add(displayKey);
+          result.push({
+            key: displayKey,
+            value: displayValue,
+            type: valueType,
+            isSystem: false,
+            isEditable: true,
+            uniqueId: `${displayKey}-${result.length}`
+          });
+        }
       }
     });
 
@@ -377,7 +429,7 @@
   {#if expanded && hasMetadata}
     <div id="metadata-content" class="metadata-content">
       <div class="metadata-grid">
-        {#each formattedMetadata as item (item.key)}
+        {#each formattedMetadata as item (item.uniqueId)}
           <div class="metadata-item" class:system-field={item.isSystem}>
             <div class="metadata-key">{item.key}</div>
             <div
