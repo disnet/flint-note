@@ -196,6 +196,14 @@
 
       const selected = getSelectedWikilink(editorView);
 
+      // Check if editor has focus - hide popover if it doesn't
+      if (!editorView.hasFocus) {
+        if (!actionPopoverIsFromHover) {
+          actionPopoverVisible = false;
+        }
+        return;
+      }
+
       if (selected && !popoverVisible && !actionPopoverIsFromHover) {
         // Show action popup only if edit popover is not visible and not already shown from hover
         // Position popup near the selected wikilink
@@ -222,6 +230,37 @@
     }, 100);
 
     return () => clearInterval(interval);
+  });
+
+  // Close popovers when editor loses focus
+  $effect(() => {
+    if (!editorView) return;
+
+    const handleFocusChange = (): void => {
+      // Close popovers if editor loses focus
+      if (!editorView?.hasFocus) {
+        actionPopoverVisible = false;
+        actionPopoverIsFromHover = false;
+        popoverVisible = false;
+
+        // Clear any pending timeouts
+        if (hoverTimeout) {
+          clearTimeout(hoverTimeout);
+          hoverTimeout = null;
+        }
+        if (leaveTimeout) {
+          clearTimeout(leaveTimeout);
+          leaveTimeout = null;
+        }
+      }
+    };
+
+    // Use blur event on the editor to detect focus loss
+    editorView.dom.addEventListener('blur', handleFocusChange);
+
+    return () => {
+      editorView?.dom.removeEventListener('blur', handleFocusChange);
+    };
   });
 
   function measureAndUpdateMarkerWidths(): void {
