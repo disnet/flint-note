@@ -1,6 +1,5 @@
 <script lang="ts">
   import type { Note } from '@/server/core/notes';
-  import { notesStore } from '../services/noteStore.svelte';
   import { getChatService } from '../services/chatService';
   import type { GetNoteTypeInfoResult } from '@/server/api/types';
 
@@ -8,19 +7,14 @@
     note: Note | null;
     expanded: boolean;
     onMetadataUpdate?: (metadata: Record<string, unknown>) => Promise<void>;
-    onTypeChange?: (newType: string) => Promise<void>;
   }
 
-  let { note, expanded, onMetadataUpdate, onTypeChange }: Props = $props();
+  let { note, expanded, onMetadataUpdate }: Props = $props();
 
   let editedMetadata = $state<Record<string, unknown>>({});
-  let editedType = $state('');
   let isSaving = $state(false);
   let noteTypeInfo = $state<GetNoteTypeInfoResult | null>(null);
   let loadingSchema = $state(false);
-
-  // Get available note types from the notes store
-  let availableTypes = $derived(notesStore.noteTypes);
 
   // System fields that are read-only (managed by the system, not user-editable)
   // NOTE: This must be kept in sync with SYSTEM_FIELDS in src/server/core/system-fields.ts
@@ -138,21 +132,7 @@
       }
     }
 
-    // Add editable type field
-    if (note.type) {
-      const key = 'Type';
-      if (!seenKeys.has(key)) {
-        seenKeys.add(key);
-        result.push({
-          key,
-          value: note.type,
-          type: 'type',
-          isSystem: false,
-          isEditable: true,
-          uniqueId: `${key}-${result.length}`
-        });
-      }
-    }
+    // Type is now displayed in the header, not in metadata
 
     // Add tags (editable)
     const tagsKey = 'Tags';
@@ -315,7 +295,6 @@
         tags: note.metadata?.tags ? [...(note.metadata.tags as string[])] : [],
         ...note.metadata
       };
-      editedType = note.type;
     }
   });
 
@@ -342,25 +321,6 @@
       noteTypeInfo = null;
     } finally {
       loadingSchema = false;
-    }
-  }
-
-  async function handleTypeChange(newType: string): Promise<void> {
-    if (!note || isSaving || !onTypeChange) return;
-
-    editedType = newType;
-
-    try {
-      isSaving = true;
-      await onTypeChange(newType);
-      // Load the schema for the new type
-      await loadNoteTypeSchema(newType);
-    } catch (error) {
-      console.error('Failed to change type:', error);
-      // Revert on error
-      editedType = note.type;
-    } finally {
-      isSaving = false;
     }
   }
 
@@ -454,19 +414,6 @@
                 {:else}
                   <span class="system-value">{item.value}</span>
                 {/if}
-              {:else if item.type === 'type'}
-                <!-- Type selector - always editable -->
-                <select
-                  class="inline-select"
-                  value={editedType}
-                  onchange={(e) =>
-                    handleTypeChange((e.target as HTMLSelectElement).value)}
-                  disabled={isSaving}
-                >
-                  {#each availableTypes as noteType (noteType.name)}
-                    <option value={noteType.name}>{noteType.name}</option>
-                  {/each}
-                </select>
               {:else if item.type === 'tags'}
                 <!-- Tags - always editable -->
                 <div class="tags-edit-container">
@@ -657,8 +604,7 @@
   }
 
   /* Inline editable inputs - borderless, blend with background */
-  .inline-input,
-  .inline-select {
+  .inline-input {
     width: 100%;
     padding: 0.25rem 0.5rem;
     border: none;
@@ -670,13 +616,11 @@
     transition: background 0.15s ease;
   }
 
-  .inline-input:hover,
-  .inline-select:hover {
+  .inline-input:hover {
     background: var(--bg-secondary);
   }
 
-  .inline-input:focus,
-  .inline-select:focus {
+  .inline-input:focus {
     outline: none;
     background: var(--bg-secondary);
     box-shadow: inset 0 0 0 1px var(--border-light);
@@ -685,10 +629,6 @@
   .inline-input::placeholder {
     color: var(--text-secondary);
     opacity: 0.5;
-  }
-
-  .inline-select {
-    cursor: pointer;
   }
 
   .inline-checkbox {

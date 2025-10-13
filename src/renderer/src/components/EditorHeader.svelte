@@ -1,13 +1,22 @@
 <script lang="ts">
   import NoteTitle from './NoteTitle.svelte';
+  import NoteTypeDropdown from './NoteTypeDropdown.svelte';
 
   interface Props {
     title: string;
+    noteType: string;
     onTitleChange: (newTitle: string) => Promise<void>;
+    onTypeChange: (newType: string) => Promise<void>;
     disabled?: boolean;
   }
 
-  let { title, onTitleChange, disabled = false }: Props = $props();
+  let {
+    title,
+    noteType,
+    onTitleChange,
+    onTypeChange,
+    disabled = false
+  }: Props = $props();
 
   let titleComponent: { focus?: () => void } | null = null;
 
@@ -19,29 +28,46 @@
 </script>
 
 <div class="editor-header">
-  <div class="editor-title-section" role="group" aria-label="Note title">
-    <NoteTitle
-      bind:this={titleComponent}
-      value={title}
-      onSave={onTitleChange}
-      {disabled}
-    />
+  <div class="header-top-row">
+    <NoteTypeDropdown currentType={noteType} {onTypeChange} {disabled} />
+    <span class="separator">/</span>
+    <div class="title-wrapper" role="group" aria-label="Note title">
+      <NoteTitle
+        bind:this={titleComponent}
+        value={title}
+        onSave={onTitleChange}
+        {disabled}
+      />
+    </div>
   </div>
 </div>
 
 <style>
   .editor-header {
     display: flex;
-    align-items: flex-start;
-    justify-content: flex-start;
+    flex-direction: column;
     background: var(--bg-primary);
     width: 100%;
   }
 
-  .editor-title-section {
+  .header-top-row {
     display: flex;
     align-items: center;
-    flex: 1;
+    gap: 0.5rem;
+    width: 100%;
     min-height: 2rem;
+  }
+
+  .separator {
+    color: var(--text-secondary);
+    opacity: 0.4;
+    font-size: 1rem;
+    font-weight: 300;
+    margin: 0 0.125rem;
+  }
+
+  .title-wrapper {
+    flex: 1;
+    min-width: 0;
   }
 </style>

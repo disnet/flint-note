@@ -420,7 +420,9 @@
     <EditorHeader
       bind:this={headerRef}
       title={doc.title}
+      noteType={note.type}
       onTitleChange={handleTitleChange}
+      onTypeChange={handleTypeChange}
       disabled={doc.isSaving}
     />
 
@@ -442,7 +444,6 @@
         note={noteData}
         expanded={metadataExpanded}
         onMetadataUpdate={handleMetadataUpdate}
-        onTypeChange={handleTypeChange}
       />
     </div>
 
