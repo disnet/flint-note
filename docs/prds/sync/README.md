@@ -25,6 +25,7 @@ Each document is self-contained but linked for easy navigation:
 11. **[Risks & Mitigations](./10-RISKS-MITIGATIONS.md)** - Risk assessment and strategies
 12. **[Future Enhancements](./11-FUTURE-ENHANCEMENTS.md)** - Post-launch roadmap
 13. **[Subscription & Monetization](./12-SUBSCRIPTION-MONETIZATION.md)** - Paid tier strategy with Stripe
+14. **[Service Proxying Alternative](./13-SERVICE-PROXYING-ALTERNATIVE.md)** - AT Protocol native architecture comparison
 
 ## Key Features
 
@@ -66,10 +67,11 @@ Each document is self-contained but linked for easy navigation:
 1. Read [Overview](./00-OVERVIEW.md) for high-level summary
 2. Review [Identity Alternatives Analysis](./03-IDENTITY-ALTERNATIVES-ANALYSIS.md) for AT Protocol decision rationale
 3. Review [AT Protocol Identity](./02-AT-PROTOCOL-IDENTITY.md) for identity implementation details
-4. Review [Cost & Scaling](./09-COST-SCALING.md) for financial planning
-5. Review [Subscription & Monetization](./12-SUBSCRIPTION-MONETIZATION.md) for paid tier strategy
-6. Check [Risks & Mitigations](./10-RISKS-MITIGATIONS.md) for potential issues
-7. See [Future Enhancements](./11-FUTURE-ENHANCEMENTS.md) for roadmap
+4. Review [Service Proxying Alternative](./13-SERVICE-PROXYING-ALTERNATIVE.md) for AT Protocol native architecture comparison
+5. Review [Cost & Scaling](./09-COST-SCALING.md) for financial planning
+6. Review [Subscription & Monetization](./12-SUBSCRIPTION-MONETIZATION.md) for paid tier strategy
+7. Check [Risks & Mitigations](./10-RISKS-MITIGATIONS.md) for potential issues
+8. See [Future Enhancements](./11-FUTURE-ENHANCEMENTS.md) for roadmap
 
 ## For Designers
 
