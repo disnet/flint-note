@@ -91,6 +91,70 @@ interface CredentialsResponse {
 
 ---
 
+### POST /email
+
+Set or update user email address.
+
+**Request:**
+```typescript
+interface EmailRequest {
+  did: string;
+  email: string;
+  productUpdatesOptIn: boolean;
+  dpopToken: string;
+}
+
+// Headers
+{
+  "Content-Type": "application/json",
+  "DPoP": "<dpop-proof-jwt>"
+}
+```
+
+**Response:**
+```typescript
+interface EmailResponse {
+  success: boolean;
+  email: string;
+}
+```
+
+**Status Codes:**
+- `200 OK` - Email set successfully
+- `400 Bad Request` - Invalid email format
+- `401 Unauthorized` - Invalid DPoP token
+- `409 Conflict` - Email already associated with different DID
+
+---
+
+### GET /email/:did
+
+Get user email address (requires valid DPoP token).
+
+**Request:**
+```typescript
+// Headers
+{
+  "DPoP": "<dpop-proof-jwt>"
+}
+```
+
+**Response:**
+```typescript
+interface GetEmailResponse {
+  email: string | null;
+  emailVerified: boolean;
+  productUpdatesOptIn: boolean;
+}
+```
+
+**Status Codes:**
+- `200 OK` - Email information returned
+- `401 Unauthorized` - Invalid DPoP token
+- `404 Not Found` - No email set for this DID
+
+---
+
 ### GET /quota/:did
 
 Check storage quota for a DID (requires valid DPoP token).
@@ -296,6 +360,109 @@ export default {
         });
       }
 
+      // POST /email - Set user email
+      if (url.pathname === '/email' && request.method === 'POST') {
+        const { did, email, productUpdatesOptIn, dpopToken } = await request.json();
+
+        // Verify DPoP token
+        const verified = await verifyATProtocolToken(dpopToken, did, request);
+        if (!verified) {
+          return new Response('Unauthorized', {
+            status: 401,
+            headers: corsHeaders
+          });
+        }
+
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+          return new Response('Invalid email format', {
+            status: 400,
+            headers: corsHeaders
+          });
+        }
+
+        // Check if email already associated with different DID
+        const existing = await env.QUOTA_DB.prepare(
+          'SELECT did FROM user_emails WHERE email = ? AND did != ?'
+        ).bind(email, did).first();
+
+        if (existing) {
+          return new Response('Email already associated with different account', {
+            status: 409,
+            headers: corsHeaders
+          });
+        }
+
+        // Upsert email
+        await env.QUOTA_DB.prepare(`
+          INSERT INTO user_emails (did, email, product_updates_opt_in, updated_at)
+          VALUES (?, ?, ?, datetime('now'))
+          ON CONFLICT(did) DO UPDATE SET
+            email = excluded.email,
+            product_updates_opt_in = excluded.product_updates_opt_in,
+            updated_at = datetime('now')
+        `).bind(did, email, productUpdatesOptIn ? 1 : 0).run();
+
+        return new Response(JSON.stringify({
+          success: true,
+          email
+        }), {
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json'
+          }
+        });
+      }
+
+      // GET /email/:did - Get user email
+      if (url.pathname.startsWith('/email/') && request.method === 'GET') {
+        const did = url.pathname.replace('/email/', '');
+
+        // Verify DPoP token
+        const dpopToken = request.headers.get('DPoP');
+        if (!dpopToken) {
+          return new Response('Missing DPoP token', {
+            status: 401,
+            headers: corsHeaders
+          });
+        }
+
+        const verified = await verifyATProtocolToken(dpopToken, did, request);
+        if (!verified) {
+          return new Response('Unauthorized', {
+            status: 401,
+            headers: corsHeaders
+          });
+        }
+
+        const emailData = await env.QUOTA_DB.prepare(
+          'SELECT email, email_verified, product_updates_opt_in FROM user_emails WHERE did = ?'
+        ).bind(did).first<{
+          email: string;
+          email_verified: number;
+          product_updates_opt_in: number;
+        }>();
+
+        if (!emailData) {
+          return new Response('No email found', {
+            status: 404,
+            headers: corsHeaders
+          });
+        }
+
+        return new Response(JSON.stringify({
+          email: emailData.email,
+          emailVerified: emailData.email_verified === 1,
+          productUpdatesOptIn: emailData.product_updates_opt_in === 1
+        }), {
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json'
+          }
+        });
+      }
+
       // GET /quota/:did - Check storage quota
       if (url.pathname.startsWith('/quota/') && request.method === 'GET') {
         const did = url.pathname.replace('/quota/', '');
@@ -356,6 +523,19 @@ interface Env {
 ### Database Schema (Cloudflare D1)
 
 ```sql
+-- User emails table
+CREATE TABLE user_emails (
+  did TEXT PRIMARY KEY,
+  email TEXT NOT NULL,
+  email_verified BOOLEAN NOT NULL DEFAULT 0,
+  product_updates_opt_in BOOLEAN NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX idx_user_emails_email ON user_emails(email);
+CREATE INDEX idx_user_emails_verified ON user_emails(email_verified);
+
 -- Quotas table
 CREATE TABLE quotas (
   did TEXT PRIMARY KEY,

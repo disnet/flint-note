@@ -153,6 +153,8 @@ interface CreateCheckoutResponse {
 }
 ```
 
+**Note:** The user's email from the `user_emails` table is automatically used to pre-fill the Stripe Checkout form and for receipt delivery.
+
 #### POST /subscription/create-portal
 
 Create Stripe Customer Portal session for managing subscription.
@@ -207,7 +209,49 @@ Handle Stripe webhook events.
 - `invoice.payment_succeeded` - Payment successful
 - `invoice.payment_failed` - Payment failed
 
-### 3. Modified Authorization Flow
+### 3. Stripe Checkout Creation with Email
+
+When creating a Stripe Checkout session, pre-fill the user's email:
+
+```typescript
+async function createCheckoutSession(
+  did: string,
+  tier: string,
+  interval: string,
+  env: Env
+): Promise<string> {
+  // Get user email from database
+  const emailData = await env.QUOTA_DB.prepare(
+    'SELECT email FROM user_emails WHERE did = ?'
+  ).bind(did).first<{ email: string }>();
+
+  const stripe = new Stripe(env.STRIPE_SECRET_KEY);
+
+  const session = await stripe.checkout.sessions.create({
+    customer_email: emailData?.email, // Pre-fill email
+    line_items: [{
+      price: getPriceId(tier, interval),
+      quantity: 1
+    }],
+    mode: 'subscription',
+    success_url: 'flint://subscription/success',
+    cancel_url: 'flint://subscription/cancel',
+    metadata: {
+      did,
+      tier
+    }
+  });
+
+  return session.url;
+}
+```
+
+**Benefits:**
+- Better user experience (no need to re-enter email)
+- Ensures Stripe receipts go to the right address
+- Links subscription to user's communication email
+
+### 4. Modified Authorization Flow
 
 Update the existing `POST /credentials` endpoint to check subscription:
 
@@ -314,6 +358,9 @@ async function handleStripeWebhook(request: Request, env: Env): Promise<Response
 
         // Update quota limits
         await updateQuotaLimits(did, tier, env);
+
+        // Send welcome email (email from user_emails table)
+        await sendSubscriptionWelcomeEmail(did, tier, env);
         break;
       }
 
@@ -393,7 +440,92 @@ async function handleStripeWebhook(request: Request, env: Env): Promise<Response
 }
 ```
 
-### 5. Stripe Configuration
+### 5. Email Notification Helpers
+
+```typescript
+/**
+ * Send subscription welcome email to user
+ */
+async function sendSubscriptionWelcomeEmail(
+  did: string,
+  tier: string,
+  env: Env
+): Promise<void> {
+  // Get user email from database
+  const emailData = await env.QUOTA_DB.prepare(
+    'SELECT email FROM user_emails WHERE did = ?'
+  ).bind(did).first<{ email: string }>();
+
+  if (!emailData?.email) {
+    console.warn(`No email found for DID ${did}, skipping welcome email`);
+    return;
+  }
+
+  // Send via email service (e.g., SendGrid, Mailgun, Resend)
+  await sendEmail({
+    to: emailData.email,
+    subject: `Welcome to Flint ${tier.charAt(0).toUpperCase() + tier.slice(1)}!`,
+    template: 'subscription-welcome',
+    data: {
+      tier,
+      storageLimit: tier === 'pro' ? '50GB' : '100GB',
+      features: getFeaturesList(tier)
+    }
+  });
+}
+
+/**
+ * Send quota warning email
+ */
+async function sendQuotaWarningEmail(
+  did: string,
+  percentUsed: number,
+  env: Env
+): Promise<void> {
+  const emailData = await env.QUOTA_DB.prepare(
+    'SELECT email FROM user_emails WHERE did = ?'
+  ).bind(did).first<{ email: string }>();
+
+  if (!emailData?.email) return;
+
+  await sendEmail({
+    to: emailData.email,
+    subject: 'Flint Storage Warning: Running Low on Space',
+    template: 'quota-warning',
+    data: {
+      percentUsed,
+      upgradeUrl: 'https://flint.app/upgrade'
+    }
+  });
+}
+
+/**
+ * Send payment failed email
+ */
+async function sendPaymentFailedEmail(
+  did: string,
+  env: Env
+): Promise<void> {
+  const emailData = await env.QUOTA_DB.prepare(
+    'SELECT email FROM user_emails WHERE did = ?'
+  ).bind(did).first<{ email: string }>();
+
+  if (!emailData?.email) return;
+
+  const portalUrl = await createCustomerPortalUrl(did, env);
+
+  await sendEmail({
+    to: emailData.email,
+    subject: 'Flint Payment Failed - Update Your Payment Method',
+    template: 'payment-failed',
+    data: {
+      portalUrl
+    }
+  });
+}
+```
+
+### 6. Stripe Configuration
 
 **Products and Prices to create:**
 

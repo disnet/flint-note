@@ -25,7 +25,8 @@ The sync UI follows these principles:
 
 **States:**
 - Not signed in (sync disabled)
-- Signed in (sync options available)
+- Signed in, no email (need email for sync)
+- Signed in with email (sync options available)
 
 **Flow:**
 1. User sees "Sign in with AT Protocol to enable sync"
@@ -33,12 +34,28 @@ The sync UI follows these principles:
 3. System opens browser for OAuth flow
 4. User authorizes Flint app on their PDS
 5. System receives DID and stores session tokens in OS keychain
-6. Sync setup options now available
+6. **NEW:** User prompted for email address
+7. User enters email for service notifications
+8. System validates and stores email (linked to DID)
+9. Sync setup options now available
+
+**Email Collection Screen:**
+- **Headline:** "Stay informed about your sync"
+- **Explanation:** "We'll use this email to notify you about sync issues, quota warnings, and important updates. We never share your email with third parties."
+- **Input:** Email field with validation
+- **Optional:** Checkbox for "Send me product updates" (opt-in, unchecked by default)
+- **Privacy note:** "You can update or remove your email anytime in settings"
+- **Action buttons:** "Continue" (primary), "Skip for now" (secondary, shows warning)
+
+**Skip Warning:**
+- "Without an email, you won't receive critical sync notifications like quota warnings or security alerts. Are you sure?"
+- Allow skip but mark account for follow-up prompt later
 
 **Messaging:**
 - Explain that AT Protocol provides portable identity
 - Clarify that vault encryption is separate (zero-knowledge)
-- Local-only mode works without sign-in
+- Email is for communication only, not authentication
+- Local-only mode works without sign-in or email
 
 #### B. New Vault vs Existing Vault
 
@@ -258,12 +275,18 @@ Complete sync settings component with all flows:
   let syncInProgress = $state(false);
   let hasPasswordBackup = $state(false);
   let atHandle = $state('');
+  let email = $state('');
+  let hasEmail = $state(false);
+  let productUpdatesOptIn = $state(false);
+  let showEmailPrompt = $state(false);
 
   onMount(async () => {
     // Check if already signed in with AT Protocol
     const atStatus = await window.api.getATProtocolStatus();
     isSignedIn = atStatus.isSignedIn;
     did = atStatus.did;
+    hasEmail = atStatus.hasEmail;
+    email = atStatus.email || '';
 
     if (isSignedIn) {
       const status = await window.api.getSyncStatus();
@@ -281,9 +304,27 @@ Complete sync settings component with all flows:
     try {
       did = await window.api.loginWithATProtocol(atHandle);
       isSignedIn = true;
+      showEmailPrompt = true; // Show email collection after successful sign-in
     } catch (error) {
       console.error('Failed to sign in with AT Protocol:', error);
       // Show error to user
+    }
+  }
+
+  async function submitEmail(skip = false) {
+    if (!skip) {
+      try {
+        await window.api.setUserEmail(did!, email, productUpdatesOptIn);
+        hasEmail = true;
+        showEmailPrompt = false;
+      } catch (error) {
+        console.error('Failed to set email:', error);
+        // Show error to user
+      }
+    } else {
+      // User skipped email entry
+      showEmailPrompt = false;
+      // Could still enable sync but flag for later prompt
     }
   }
 
@@ -396,6 +437,42 @@ Complete sync settings component with all flows:
         <h4>Why AT Protocol?</h4>
         <p>AT Protocol provides decentralized identity for secure, portable access to your encrypted notes. Your vault encryption key is separate and never shared with AT Protocol or Flint.</p>
       </div>
+    </div>
+
+  {:else if showEmailPrompt}
+    <!-- Email collection after sign-in -->
+    <div class="email-collection">
+      <h3>Stay Informed About Your Sync</h3>
+      <p>We'll use this email to notify you about sync issues, quota warnings, and important updates. We never share your email with third parties.</p>
+
+      <div class="email-input">
+        <label for="user-email">Email Address</label>
+        <input
+          id="user-email"
+          type="email"
+          bind:value={email}
+          placeholder="alice@example.com"
+          required
+        />
+      </div>
+
+      <div class="opt-in">
+        <input
+          id="product-updates"
+          type="checkbox"
+          bind:checked={productUpdatesOptIn}
+        />
+        <label for="product-updates">Send me product updates (optional)</label>
+      </div>
+
+      <p class="privacy-note">You can update or remove your email anytime in settings.</p>
+
+      <button onclick={() => submitEmail(false)} class="primary" disabled={!email}>
+        Continue
+      </button>
+      <button onclick={() => submitEmail(true)} class="secondary">
+        Skip for Now
+      </button>
     </div>
 
   {:else if !syncEnabled}

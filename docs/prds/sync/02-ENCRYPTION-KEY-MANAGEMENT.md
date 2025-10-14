@@ -90,18 +90,46 @@ Users **must** sign in with AT Protocol to enable sync:
 
 **Note:** AT Protocol login is for identity and authorization only, **not encryption**. Vault keys remain managed via device keychain or password backup and are never sent to Flint's servers.
 
+### 4. Email Collection (Required for Communication)
+
+During sync setup, users provide an email address for:
+
+- **Service notifications:** Sync issues, quota warnings, security alerts
+- **Billing communications:** Payment receipts, subscription updates (for Pro users)
+- **Product updates:** Feature announcements, important changes (opt-in)
+
+**Key Properties:**
+- Email collected during initial sync setup flow
+- Stored separately from AT Protocol identity (not part of encryption)
+- Used only for operational communication, never sold or shared
+- Users can update email anytime in settings
+- Optional secondary email for account recovery notifications
+
+**Storage:**
+- Email stored in Flint Sync Service database (Cloudflare D1)
+- Linked to DID for identification
+- Not used for authentication (AT Protocol handles that)
+- Can be different from email associated with AT Protocol handle
+
+**Privacy:**
+- Email only collected when enabling sync (not for local-only usage)
+- Used exclusively for direct communication with user
+- Not shared with third parties except payment processor (Stripe) for billing
+- Users can request email deletion if they disable sync permanently
+
 ---
 
 ## Security Properties Comparison
 
-| Property | Passwordless | Password Backup | AT Protocol |
-|----------|--------------|-----------------|-------------|
-| Zero-knowledge | ✅ Yes | ✅ Yes | ✅ Yes |
-| Biometric unlock | ✅ Yes | ✅ Yes | ✅ Yes |
-| No password | ✅ Yes | ❌ No | ✅ Yes |
-| Easy device setup | ⚠️ Requires device | ✅ Password only | ⚠️ Requires device |
-| Recovery option | ❌ No | ✅ Password | ❌ No |
-| Hardware-backed | ✅ Yes | ✅ Yes | ✅ Yes |
+| Property | Passwordless | Password Backup | AT Protocol | Email |
+|----------|--------------|-----------------|-------------|-------|
+| Zero-knowledge | ✅ Yes | ✅ Yes | ✅ Yes | N/A |
+| Biometric unlock | ✅ Yes | ✅ Yes | ✅ Yes | N/A |
+| No password | ✅ Yes | ❌ No | ✅ Yes | ✅ Yes |
+| Easy device setup | ⚠️ Requires device | ✅ Password only | ⚠️ Requires device | N/A |
+| Recovery option | ❌ No | ✅ Password | ❌ No | ⚠️ Notifications only |
+| Hardware-backed | ✅ Yes | ✅ Yes | ✅ Yes | N/A |
+| Purpose | Encryption | Encryption backup | Identity/Auth | Communication |
 
 ---
 
