@@ -4,12 +4,12 @@
 
 This document outlines a phased approach to adding multi-device sync to Flint using:
 - **Automerge CRDTs** for conflict-free document merging
-- **Cloudflare R2** for encrypted cloud storage
-- **AT Protocol** for decentralized identity (optional)
+- **Cloudflare R2** for encrypted cloud storage (Flint-hosted)
+- **AT Protocol** for decentralized identity (**required** for sync)
 
-**Timeline:** 12-16 weeks across 4 phases
 **Scope:** Notes only (not UI state, slash commands, or note types initially)
 **Conflict Resolution:** Automatic via Automerge (no conflict UI needed)
+**Identity:** AT Protocol DID required to access Flint-hosted sync service
 
 ---
 
@@ -76,14 +76,15 @@ This document outlines a phased approach to adding multi-device sync to Flint us
 - ⚠️ Password compromise exposes vault key
 - ⚠️ Must be enabled explicitly
 
-#### 3. **Optional Path: AT Protocol Identity**
+#### 3. **AT Protocol Identity (Required for Sync)**
 
-Users can optionally sign in with AT Protocol for:
-- Portable DID across applications
-- Organized R2 storage paths (`{did}/vault-identity.json`)
-- Future collaboration features
+Users **must** sign in with AT Protocol to enable sync:
+- Provides portable DID for identity and authorization
+- DID determines R2 storage namespace (`{did}/vault-identity.json`)
+- Authorization checked by Flint's sync service backend
+- Enables future collaboration features
 
-**Note:** AT Protocol login is purely for identity, not encryption. Vault keys still managed via device keychain or password backup.
+**Note:** AT Protocol login is for identity and authorization only, **not encryption**. Vault keys remain managed via device keychain or password backup and are never sent to Flint's servers.
 
 ### Security Properties
 
@@ -99,18 +100,20 @@ Users can optionally sign in with AT Protocol for:
 ### Recommended Strategy
 
 **For most users:**
-1. Start with passwordless (device keychain)
-2. After using for a while, optionally add password backup
-3. Optionally sign in with AT Protocol for identity
+1. Sign in with AT Protocol (required for sync)
+2. Start with passwordless (device keychain)
+3. After using for a while, optionally add password backup
 
 **For users who lose devices often:**
-1. Enable password backup immediately
-2. Store password in password manager
+1. Sign in with AT Protocol
+2. Enable password backup immediately
+3. Store password in password manager
 
 **For technical users:**
-1. Passwordless by default
-2. Export encrypted vault key to file as manual backup
-3. Store backup securely (USB drive, encrypted cloud storage)
+1. Sign in with AT Protocol
+2. Passwordless by default
+3. Export encrypted vault key to file as manual backup
+4. Store backup securely (USB drive, encrypted cloud storage)
 
 ---
 
@@ -177,14 +180,122 @@ Users can optionally sign in with AT Protocol for:
 └──────────────────────────────────────────────────────────────┘
 
 ┌──────────────────────────────────────────────────────────────┐
-│              Identity Layer (AT Protocol - Optional)         │
+│          Identity & Authorization (AT Protocol)              │
 │                                                              │
 │  ┌──────────┐       ┌──────────┐       ┌──────────────┐   │
 │  │   DID    │──────▶│   PDS    │◀──────│ OAuth Client │   │
 │  │ Registry │       │ (User's) │       │  (Electron)  │   │
 │  └──────────┘       └──────────┘       └──────────────┘   │
+│                             │                               │
+│                             ↓                               │
+│                    ┌─────────────────┐                     │
+│                    │ Flint Sync API  │                     │
+│                    │ (Verifies DID,  │                     │
+│                    │  Returns R2     │                     │
+│                    │  Credentials)   │                     │
+│                    └─────────────────┘                     │
 └──────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+## Flint Sync Service Architecture
+
+The Flint Sync Service is a lightweight backend deployed as a Cloudflare Worker that provides:
+
+### Core Responsibilities
+
+1. **Identity Verification**
+   - Verify AT Protocol DPoP tokens
+   - Validate user's DID from token claims
+   - Ensure token is properly bound to request
+
+2. **Authorization**
+   - Issue temporary, scoped R2 credentials per user
+   - Credentials limited to `/{did}/*` prefix only
+   - Automatic credential rotation (1-hour expiration)
+
+3. **Resource Management**
+   - Track storage usage per DID
+   - Enforce storage quotas (default 1GB)
+   - Rate limiting per DID
+
+4. **Privacy**
+   - Never sees vault encryption keys
+   - Never sees plaintext note data
+   - Only handles authorization metadata
+
+### API Endpoints
+
+```typescript
+// POST /credentials
+// Request scoped R2 credentials
+interface CredentialsRequest {
+  did: string;
+  dpopToken: string;  // DPoP-bound access token from AT Protocol
+}
+
+interface CredentialsResponse {
+  r2Credentials: {
+    accountId: string;
+    accessKeyId: string;
+    secretAccessKey: string;
+    sessionToken: string;
+    bucketName: string;
+    expiration: string;
+  };
+  storageQuota: {
+    used: number;
+    limit: number;
+  };
+}
+
+// GET /quota/:did
+// Check storage quota (requires valid DPoP token)
+interface QuotaResponse {
+  did: string;
+  used: number;
+  limit: number;
+  percentUsed: number;
+}
+```
+
+### Security Model
+
+**DPoP Token Verification:**
+1. Extract JWT from DPoP header
+2. Fetch DID document to get public key
+3. Verify JWT signature using public key
+4. Check token expiration and audience claims
+5. Verify token is bound to request (DPoP proof)
+
+**R2 Credential Scoping:**
+- Use Cloudflare R2 temporary access tokens API
+- Scope each token to specific prefix: `/{did}/*`
+- Tokens expire after 1 hour
+- Automatic rotation on client side
+
+**Storage Quota Enforcement:**
+- Track usage via Cloudflare D1 or KV
+- Update on each write operation (via R2 notifications or periodic scan)
+- Reject writes exceeding quota
+
+### Deployment
+
+**Infrastructure:**
+- Cloudflare Worker (edge compute)
+- Cloudflare R2 (object storage)
+- Cloudflare D1 (quota tracking) or KV
+
+**Cost:**
+- Workers: Free tier covers most usage (10M requests/day)
+- R2: $0.015/GB/month storage, $4.50/M writes
+- D1: Free tier covers quota tracking
+
+**Scaling:**
+- Serverless, auto-scales
+- No server management
+- Global edge deployment
 
 ---
 
@@ -547,9 +658,109 @@ async rebuildDatabaseFromAutomerge(): Promise<void> {
 
 ### Tasks
 
-#### 1. **Setup Cloudflare R2**
+#### 1. **Setup Flint Sync Backend Service**
+
+The Flint Sync Service is a lightweight backend that:
+- Verifies AT Protocol DID tokens
+- Issues scoped, temporary R2 credentials per user
+- Enforces storage quotas and rate limits
+- Provides monitoring and abuse prevention
+
+```typescript
+// Cloudflare Worker for Flint Sync API
+interface SyncCredentialsRequest {
+  did: string;           // User's AT Protocol DID
+  dpopToken: string;     // DPoP-bound access token from AT Protocol OAuth
+}
+
+interface SyncCredentialsResponse {
+  r2Credentials: {
+    accountId: string;
+    accessKeyId: string;
+    secretAccessKey: string;
+    bucketName: string;
+    sessionToken: string;     // Temporary token
+    expiration: string;       // ISO timestamp
+  };
+  storageQuota: {
+    used: number;              // Bytes used
+    limit: number;             // Bytes allowed
+  };
+}
+
+// Cloudflare Worker endpoint
+export default {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    const { did, dpopToken } = await request.json();
+
+    // Verify AT Protocol DPoP token
+    const verified = await verifyATProtocolToken(dpopToken, did);
+    if (!verified) {
+      return new Response('Unauthorized', { status: 401 });
+    }
+
+    // Generate scoped R2 credentials for this DID
+    // Uses Cloudflare's R2 temporary access tokens
+    const credentials = await generateScopedR2Credentials(did, env);
+
+    // Check storage quota
+    const quota = await getStorageQuota(did, env);
+
+    return new Response(JSON.stringify({
+      r2Credentials: credentials,
+      storageQuota: quota
+    }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+};
+
+async function generateScopedR2Credentials(did: string, env: Env) {
+  // Use Cloudflare R2's temporary token API
+  // Scope credentials to only allow access to /{did}/* prefix
+  const token = await env.R2_BUCKET.createTemporaryAccessToken({
+    prefix: `${did}/`,
+    permissions: ['read', 'write', 'delete'],
+    expiresIn: 3600 // 1 hour
+  });
+
+  return {
+    accountId: env.CLOUDFLARE_ACCOUNT_ID,
+    accessKeyId: token.accessKeyId,
+    secretAccessKey: token.secretAccessKey,
+    bucketName: env.R2_BUCKET_NAME,
+    sessionToken: token.sessionToken,
+    expiration: new Date(Date.now() + 3600000).toISOString()
+  };
+}
+
+async function verifyATProtocolToken(dpopToken: string, did: string): Promise<boolean> {
+  // Verify DPoP token with AT Protocol PDS
+  // 1. Parse JWT from DPoP token
+  // 2. Verify signature using DID document's public key
+  // 3. Check token expiration and scope
+  // 4. Verify token is bound to correct DID
+
+  // Implementation uses @atproto/oauth-client or similar
+  return true; // Simplified for example
+}
+
+async function getStorageQuota(did: string, env: Env): Promise<{ used: number; limit: number }> {
+  // Query R2 for storage usage under /{did}/ prefix
+  // Or maintain usage tracking in Cloudflare KV/D1
+  return {
+    used: 0,
+    limit: 1024 * 1024 * 1024 // 1GB default
+  };
+}
+```
+
+**Deliverable:** Flint Sync Service deployed to Cloudflare Workers
+
+#### 2. **Setup R2 Client in Electron App**
+
 ```bash
-npm install @aws-sdk/client-s3
+npm install @aws-sdk/client-s3 @atproto/oauth-client-node
 ```
 
 ```typescript
@@ -559,28 +770,92 @@ interface R2Config {
   accountId: string;
   accessKeyId: string;
   secretAccessKey: string;
+  sessionToken: string;
   bucketName: string;
+  expiration: string;
 }
 
 class R2Manager {
-  private client: S3Client;
+  private client?: S3Client;
+  private config?: R2Config;
+  private identityManager: IdentityManager;
 
-  initialize(config: R2Config): void {
+  constructor(identityManager: IdentityManager) {
+    this.identityManager = identityManager;
+  }
+
+  /**
+   * Get R2 credentials from Flint Sync Service
+   */
+  async initialize(): Promise<void> {
+    const did = this.identityManager.getDID();
+    if (!did) {
+      throw new Error('Must sign in with AT Protocol to enable sync');
+    }
+
+    const dpopToken = await this.identityManager.getDPoPToken();
+
+    // Request scoped R2 credentials from Flint Sync Service
+    const response = await fetch('https://sync.flint.app/credentials', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'DPoP': dpopToken
+      },
+      body: JSON.stringify({ did })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to obtain sync credentials');
+    }
+
+    const { r2Credentials, storageQuota } = await response.json();
+    this.config = r2Credentials;
+
+    // Initialize S3 client with temporary credentials
     this.client = new S3Client({
       region: 'auto',
-      endpoint: `https://${config.accountId}.r2.cloudflarestorage.com`,
+      endpoint: `https://${r2Credentials.accountId}.r2.cloudflarestorage.com`,
       credentials: {
-        accessKeyId: config.accessKeyId,
-        secretAccessKey: config.secretAccessKey
+        accessKeyId: r2Credentials.accessKeyId,
+        secretAccessKey: r2Credentials.secretAccessKey,
+        sessionToken: r2Credentials.sessionToken
       }
     });
+
+    // Schedule credential refresh before expiration
+    this.scheduleCredentialRefresh(r2Credentials.expiration);
+  }
+
+  private scheduleCredentialRefresh(expiration: string): void {
+    const expiresAt = new Date(expiration).getTime();
+    const now = Date.now();
+    const refreshIn = expiresAt - now - 5 * 60 * 1000; // Refresh 5 minutes early
+
+    setTimeout(async () => {
+      await this.initialize(); // Re-fetch credentials
+    }, refreshIn);
+  }
+
+  getClient(): S3Client {
+    if (!this.client) {
+      throw new Error('R2 not initialized');
+    }
+    return this.client;
+  }
+
+  getConfig(): R2Config {
+    if (!this.config) {
+      throw new Error('R2 not initialized');
+    }
+    return this.config;
   }
 }
 ```
 
-**Deliverable:** R2 client configured and tested
+**Deliverable:** R2 client configured with scoped, temporary credentials from Flint Sync Service
 
-#### 2. **Implement Encryption Layer (Hybrid Approach)**
+#### 3. **Implement Encryption Layer (Hybrid Approach)**
 
 **Design Philosophy:**
 - **Default:** Passwordless (device keychain + biometric unlock)
@@ -593,7 +868,7 @@ interface VaultIdentity {
   vaultId: string;              // Stable UUID for this vault
   vaultSalt: number[];          // Random salt for key derivation (when using password)
   created: string;              // ISO timestamp
-  did?: string;                 // Optional AT Protocol DID
+  did: string;                  // AT Protocol DID (required)
   devices: DeviceInfo[];        // Authorized devices
   hasPasswordBackup: boolean;   // Whether password backup is enabled
 }
@@ -1069,9 +1344,9 @@ interface DeviceKey {
 
 **Deliverable:** Hybrid encryption service with passwordless default and optional password backup
 
-#### 3. **Add AT Protocol Identity (Optional)**
+#### 4. **Add AT Protocol Identity (Required)**
 
-Allow users to optionally sign in with AT Protocol for portable identity:
+Integrate AT Protocol OAuth for user authentication and authorization:
 
 ```bash
 npm install @atproto/oauth-client-node
@@ -1117,25 +1392,77 @@ class IdentityManager {
     const session = await this.oauthClient.callback(callbackParams);
     this.did = session.sub; // e.g., "did:plc:abc123xyz"
 
+    // Store session tokens securely in OS keychain
+    await this.storeSession(session);
+
     return this.did;
   }
 
-  getUserIdentifier(): string {
-    // Return DID if logged in, otherwise use local vault ID
-    return this.did || this.generateLocalVaultId();
+  getDID(): string | undefined {
+    return this.did;
   }
 
-  private generateLocalVaultId(): string {
-    // Generate stable ID for local-only users
-    const vaultPath = this.workspace.rootPath;
-    return `local-${hashString(vaultPath)}`;
+  async getDPoPToken(): Promise<string> {
+    if (!this.oauthClient || !this.did) {
+      throw new Error('Not logged in');
+    }
+
+    // Get DPoP-bound access token for Flint Sync API
+    const token = await this.oauthClient.getDPoPToken({
+      audience: 'https://sync.flint.app',
+      scope: 'atproto'
+    });
+
+    return token;
+  }
+
+  private async storeSession(session: OAuthSession): Promise<void> {
+    // Store refresh token in OS keychain
+    const sessionData = JSON.stringify({
+      did: session.sub,
+      refreshToken: session.refreshToken,
+      expiresAt: session.expiresAt
+    });
+
+    if (safeStorage.isEncryptionAvailable()) {
+      const encrypted = safeStorage.encryptString(sessionData);
+      await storageManager.set('atproto-session', encrypted.toString('base64'));
+    }
+  }
+
+  async restoreSession(): Promise<boolean> {
+    const encryptedSession = await storageManager.get('atproto-session');
+    if (!encryptedSession) return false;
+
+    try {
+      const decrypted = safeStorage.decryptString(Buffer.from(encryptedSession, 'base64'));
+      const session = JSON.parse(decrypted);
+
+      // Restore session with OAuth client
+      await this.oauthClient.restoreSession(session);
+      this.did = session.did;
+
+      return true;
+    } catch (error) {
+      console.error('Failed to restore AT Protocol session:', error);
+      return false;
+    }
+  }
+
+  async logout(): Promise<void> {
+    if (this.oauthClient) {
+      await this.oauthClient.revoke();
+    }
+
+    this.did = undefined;
+    await storageManager.remove('atproto-session');
   }
 }
 ```
 
-**Deliverable:** Optional AT Protocol OAuth login
+**Deliverable:** AT Protocol OAuth login with DPoP token support for Flint Sync API
 
-#### 4. **Implement R2 Storage Adapter**
+#### 5. **Implement R2 Storage Adapter**
 
 ```typescript
 import { StorageAdapter } from '@automerge/automerge-repo';
@@ -1144,14 +1471,26 @@ import { PutObjectCommand, GetObjectCommand, ListObjectsV2Command } from '@aws-s
 class EncryptedR2StorageAdapter implements StorageAdapter {
   private r2: R2Manager;
   private encryption: EncryptionService;
-  private userIdentifier: string;
+  private identityManager: IdentityManager;
+
+  constructor(r2: R2Manager, encryption: EncryptionService, identityManager: IdentityManager) {
+    this.r2 = r2;
+    this.encryption = encryption;
+    this.identityManager = identityManager;
+  }
 
   async save(documentId: string, binary: Uint8Array): Promise<void> {
     // Encrypt the Automerge binary
     const encrypted = await this.encryption.encrypt(binary);
 
-    // Upload to R2
-    const key = `${this.userIdentifier}/documents/${documentId}.automerge`;
+    // Get DID for storage path
+    const did = this.identityManager.getDID();
+    if (!did) {
+      throw new Error('Must be signed in to sync');
+    }
+
+    // Upload to R2 under /{did}/ prefix
+    const key = `${did}/documents/${documentId}.automerge`;
     await this.r2.client.send(new PutObjectCommand({
       Bucket: this.r2.config.bucketName,
       Key: key,
@@ -1166,11 +1505,16 @@ class EncryptedR2StorageAdapter implements StorageAdapter {
 
   async load(documentId: string): Promise<Uint8Array | undefined> {
     try {
-      const key = `${this.userIdentifier}/documents/${documentId}.automerge`;
+      const did = this.identityManager.getDID();
+      if (!did) {
+        throw new Error('Must be signed in to sync');
+      }
+
+      const key = `${did}/documents/${documentId}.automerge`;
 
       // Download from R2
-      const response = await this.r2.client.send(new GetObjectCommand({
-        Bucket: this.r2.config.bucketName,
+      const response = await this.r2.getClient().send(new GetObjectCommand({
+        Bucket: this.r2.getConfig().bucketName,
         Key: key
       }));
 
@@ -1190,17 +1534,27 @@ class EncryptedR2StorageAdapter implements StorageAdapter {
   }
 
   async remove(documentId: string): Promise<void> {
-    const key = `${this.userIdentifier}/documents/${documentId}.automerge`;
-    await this.r2.client.send(new DeleteObjectCommand({
-      Bucket: this.r2.config.bucketName,
+    const did = this.identityManager.getDID();
+    if (!did) {
+      throw new Error('Must be signed in to sync');
+    }
+
+    const key = `${did}/documents/${documentId}.automerge`;
+    await this.r2.getClient().send(new DeleteObjectCommand({
+      Bucket: this.r2.getConfig().bucketName,
       Key: key
     }));
   }
 
   async loadRange(keyPrefix: string[]): Promise<Uint8Array[]> {
-    const prefix = `${this.userIdentifier}/documents/`;
-    const response = await this.r2.client.send(new ListObjectsV2Command({
-      Bucket: this.r2.config.bucketName,
+    const did = this.identityManager.getDID();
+    if (!did) {
+      throw new Error('Must be signed in to sync');
+    }
+
+    const prefix = `${did}/documents/`;
+    const response = await this.r2.getClient().send(new ListObjectsV2Command({
+      Bucket: this.r2.getConfig().bucketName,
       Prefix: prefix
     }));
 
@@ -1221,14 +1575,18 @@ class EncryptedR2StorageAdapter implements StorageAdapter {
 
 **Deliverable:** Encrypted Automerge storage adapter for R2
 
-#### 5. **Add Sync UI (Hybrid Approach)**
+#### 6. **Add Sync UI**
 
 **First-Time Setup UI:**
+
+User must sign in with AT Protocol before enabling sync.
 
 ```svelte
 <script lang="ts">
   import { onMount } from 'svelte';
 
+  let isSignedIn = $state(false);
+  let did = $state<string | null>(null);
   let syncEnabled = $state(false);
   let setupMode = $state<'new' | 'existing' | null>(null);
   let joinMethod = $state<'device' | 'password' | null>(null);
@@ -1237,17 +1595,35 @@ class EncryptedR2StorageAdapter implements StorageAdapter {
   let lastSyncTime = $state<Date | null>(null);
   let syncInProgress = $state(false);
   let hasPasswordBackup = $state(false);
+  let atHandle = $state('');
 
   onMount(async () => {
-    const status = await window.api.getSyncStatus();
-    syncEnabled = status.enabled;
-    hasPasswordBackup = status.hasPasswordBackup;
-    lastSyncTime = status.lastSyncTime;
+    // Check if already signed in with AT Protocol
+    const atStatus = await window.api.getATProtocolStatus();
+    isSignedIn = atStatus.isSignedIn;
+    did = atStatus.did;
 
-    if (!syncEnabled) {
-      deviceName = await window.api.getDeviceName(); // e.g., "Alice's MacBook Pro"
+    if (isSignedIn) {
+      const status = await window.api.getSyncStatus();
+      syncEnabled = status.enabled;
+      hasPasswordBackup = status.hasPasswordBackup;
+      lastSyncTime = status.lastSyncTime;
+
+      if (!syncEnabled) {
+        deviceName = await window.api.getDeviceName(); // e.g., "Alice's MacBook Pro"
+      }
     }
   });
+
+  async function signInWithATProtocol() {
+    try {
+      did = await window.api.loginWithATProtocol(atHandle);
+      isSignedIn = true;
+    } catch (error) {
+      console.error('Failed to sign in with AT Protocol:', error);
+      // Show error to user
+    }
+  }
 
   async function startNewVault() {
     setupMode = 'new';
@@ -1260,6 +1636,7 @@ class EncryptedR2StorageAdapter implements StorageAdapter {
   async function enableSyncPasswordless() {
     try {
       // Create new vault with device keychain
+      // DID is automatically included from identity manager
       await window.api.initializeNewVault(deviceName);
       syncEnabled = true;
       setupMode = null;
@@ -1332,11 +1709,39 @@ class EncryptedR2StorageAdapter implements StorageAdapter {
 </script>
 
 <div class="sync-settings">
-  {#if !syncEnabled}
+  {#if !isSignedIn}
+    <!-- Sign in with AT Protocol required -->
+    <div class="signin-required">
+      <h3>Enable Cloud Sync</h3>
+      <p>Sign in with AT Protocol to sync your notes across multiple devices with end-to-end encryption.</p>
+
+      <div class="at-signin">
+        <label for="at-handle">AT Protocol Handle</label>
+        <input
+          id="at-handle"
+          type="text"
+          bind:value={atHandle}
+          placeholder="alice.bsky.social"
+        />
+        <p class="hint">Your Bluesky or other AT Protocol handle</p>
+      </div>
+
+      <button onclick={signInWithATProtocol} class="primary">
+        Sign In with AT Protocol
+      </button>
+
+      <div class="info-box">
+        <h4>Why AT Protocol?</h4>
+        <p>AT Protocol provides decentralized identity for secure, portable access to your encrypted notes. Your vault encryption key is separate and never shared with AT Protocol or Flint.</p>
+      </div>
+    </div>
+
+  {:else if !syncEnabled}
     {#if !setupMode}
       <!-- Initial choice -->
       <div class="setup-choice">
         <h3>Enable Cloud Sync</h3>
+        <p>Signed in as: <strong>{did}</strong></p>
         <p>Sync your notes across multiple devices with end-to-end encryption.</p>
 
         <button onclick={startNewVault} class="primary">
@@ -1541,12 +1946,24 @@ class EncryptedR2StorageAdapter implements StorageAdapter {
   .security-notice ul {
     margin: 8px 0 0 20px;
   }
+
+  .info-box {
+    background: var(--info-bg);
+    border: 1px solid var(--info-border);
+    border-radius: 8px;
+    padding: 16px;
+    margin: 20px 0;
+  }
+
+  .at-signin {
+    margin: 20px 0;
+  }
 </style>
 ```
 
-**Deliverable:** Complete hybrid sync UI with passwordless default and optional password backup
+**Deliverable:** Complete sync UI with AT Protocol sign-in required
 
-#### 6. **Periodic Background Sync**
+#### 7. **Periodic Background Sync**
 
 ```typescript
 class SyncManager {
@@ -1586,19 +2003,26 @@ class SyncManager {
 **Deliverable:** Background sync every minute
 
 ### Testing
-- Enable sync with test R2 credentials
+- Deploy Flint Sync Service to Cloudflare Workers
+- Sign in with test AT Protocol account
+- Enable sync on Device A
 - Create note on Device A, verify uploads to R2
-- Download on Device B (fresh vault)
-- Verify encryption (R2 content is unreadable)
-- Test with/without AT Protocol identity
-- Verify local-only mode still works
+- Sign in with same AT Protocol account on Device B
+- Download encrypted vault from R2 on Device B
+- Verify encryption (R2 content is unreadable without vault key)
+- Test DPoP token verification
+- Test scoped R2 credentials (can only access own DID prefix)
+- Verify local-only mode still works (no sync without AT Protocol sign-in)
 
 ### Acceptance Criteria
-- ✅ Notes encrypted and uploaded to R2
-- ✅ New device can download and decrypt vault
-- ✅ AT Protocol login works (optional)
-- ✅ Local-only mode unchanged
+- ✅ AT Protocol OAuth login works with DPoP tokens
+- ✅ Flint Sync Service verifies DID and issues scoped R2 credentials
+- ✅ Notes encrypted and uploaded to R2 under /{did}/ prefix
+- ✅ New device can download and decrypt vault after AT Protocol sign-in
+- ✅ Storage quotas enforced per DID
+- ✅ Local-only mode unchanged (sync disabled without AT Protocol)
 - ✅ No plaintext data in R2
+- ✅ Users cannot access other users' data (scoped credentials)
 
 ---
 
@@ -1617,11 +2041,11 @@ this.repo = new Repo({
 
   // Add R2 adapter for sync
   network: [
-    new EncryptedR2StorageAdapter({
-      r2Manager: this.r2Manager,
-      encryption: this.encryption,
-      userIdentifier: this.identityManager.getUserIdentifier()
-    })
+    new EncryptedR2StorageAdapter(
+      this.r2Manager,
+      this.encryption,
+      this.identityManager
+    )
   ],
 
   sharePolicy: async () => false
@@ -1878,49 +2302,68 @@ describe('Concurrent Edit Scenarios', () => {
 - OS handles authentication and key unwrapping
 - Fallback to device password if biometric unavailable
 
-### 5. **Authentication (Optional)**
-- AT Protocol OAuth for portable identity
+### 5. **Authentication (Required)**
+- AT Protocol OAuth for portable identity (required for sync)
 - DPoP token binding for token security
 - Refresh tokens stored in OS keychain
-- DID used only for organizing R2 storage paths
+- DID used for authorization and organizing R2 storage namespaces
 
 ### 6. **Data Privacy**
 
+**What Flint Sync Service knows:**
+- User's AT Protocol DID
+- Number of documents per DID
+- Storage usage per DID
+- API request patterns and timestamps
+
+**What Flint Sync Service doesn't know:**
+- Content of notes (encrypted)
+- Titles or metadata (encrypted)
+- Vault encryption keys
+- Device information
+- Password backups (if enabled)
+
 **What R2 knows:**
-- Number of documents
+- Number of encrypted documents per DID
 - File sizes and upload times
 - Access patterns (IP addresses, request timing)
-- Vault ID (but can't link to user identity without AT Protocol DID)
+- DID associated with each storage namespace
 
 **What R2 doesn't know:**
-- Content of notes
-- Titles or metadata
-- Encryption keys
-- Device information
+- Content of notes (encrypted)
+- Titles or metadata (encrypted)
+- Vault encryption keys
+- Relationship between DIDs and real identities (unless correlated externally)
 
-**What AT Protocol PDS knows (if used):**
+**What AT Protocol PDS knows:**
 - User's DID and handle
 - OAuth tokens for authentication
+- That user has authorized Flint app
 
 **What AT Protocol PDS doesn't know:**
 - Note data (not stored on PDS)
-- Vault keys
-- R2 credentials
+- Vault encryption keys
+- R2 storage details
+- Whether user actually uses sync (just that they signed in)
 
 ### 7. **Threat Model**
 
 **Protected Against:**
 - ✅ R2 compromise (data encrypted)
+- ✅ Flint Sync Service compromise (data encrypted, service never sees keys)
 - ✅ Network eavesdropping (TLS + encrypted payloads)
 - ✅ Stolen laptop (keychain encrypted by OS)
 - ✅ Malicious devices (authorization required)
-- ✅ Password guessing (scrypt with high N factor)
+- ✅ Password guessing (scrypt with high N factor if using password backup)
+- ✅ Unauthorized R2 access (scoped credentials per DID)
+- ✅ Cross-user data access (enforced by R2 credential scoping)
 
 **Not Protected Against:**
 - ❌ Compromised device with unlocked keychain
 - ❌ Malware with keychain access
 - ❌ User sharing password backup with attacker
 - ❌ Physical access to unlocked device
+- ❌ Compromised AT Protocol DID (attacker could access encrypted data, but not decrypt without vault key)
 
 ### 8. **Key Rotation and Recovery**
 
@@ -1986,7 +2429,12 @@ describe('Concurrent Edit Scenarios', () => {
 **Mitigation:** Monitor usage. Implement compression. Consider alternative storage backends.
 
 ### Risk 5: AT Protocol Dependency
-**Mitigation:** Make AT Protocol optional. Support local-only and custom identity providers.
+**Mitigation:**
+- Local-only mode works without AT Protocol (no sync)
+- AT Protocol is decentralized (users can choose their PDS)
+- If AT Protocol ecosystem has issues, users still have local access to all notes
+- Future: Consider adding alternative identity providers (OAuth, email, etc.)
+- Vault encryption keys are independent of AT Protocol (can migrate if needed)
 
 ---
 
@@ -2048,7 +2496,8 @@ This plan delivers multi-device sync in 4 focused phases:
 - ✅ Passwordless by default (biometric unlock)
 - ✅ Optional password backup for easier multi-device setup
 - ✅ Device-to-device authorization with QR codes
-- ✅ Optional AT Protocol identity for portable DID
+- ✅ AT Protocol identity for secure, portable DID (required for sync)
+- ✅ Flint-hosted R2 storage with scoped access per DID
 - ✅ Local-first remains core experience
 - ✅ Markdown files remain source of truth
 
@@ -2057,3 +2506,9 @@ This plan delivers multi-device sync in 4 focused phases:
 - **Multi-device:** Device authorization flow (QR code or short code)
 - **Optional:** Password backup for recovery and easier setup
 - **Zero-knowledge:** Flint never sees vault keys or plaintext data
+
+**Identity & Authorization Model:**
+- **Identity:** AT Protocol DID (required for sync)
+- **Authorization:** DPoP-bound OAuth tokens
+- **Storage:** Scoped R2 credentials per DID from Flint Sync Service
+- **Privacy:** Encrypted data, zero-knowledge architecture
