@@ -150,6 +150,20 @@ Paid tier strategy and implementation:
 
 ---
 
+### 11. [Identity Alternatives Analysis](./11-IDENTITY-ALTERNATIVES-ANALYSIS.md)
+
+AT Protocol identity decision rationale and alternatives:
+- Why AT Protocol was chosen for decentralized identity
+- Detailed analysis of downsides and mitigation strategies
+- Alternative approaches considered (Magic Links, OAuth, WebAuthn, DIDs)
+- Comparison matrix and decision rationale
+- Implementation strategy and risks
+- Success metrics for identity layer
+
+**Decision documentation** explaining the identity layer choice and tradeoffs.
+
+---
+
 ## Quick Reference
 
 ### Key Outcomes
@@ -190,7 +204,7 @@ Paid tier strategy and implementation:
 2. **Security reviewers:** Focus on [Encryption & Key Management](./02-ENCRYPTION-KEY-MANAGEMENT.md)
 3. **Backend developers:** Begin with [Backend Service](./03-BACKEND-SERVICE.md) and [Data Model](./04-DATA-MODEL.md)
 4. **Frontend developers:** Review [UI Design](./06-UI-DESIGN.md) and [Implementation Phases](./05-IMPLEMENTATION-PHASES.md)
-5. **Product managers:** Review [Cost Estimates](./07-COST-SCALING.md), [Subscription & Monetization](./10-SUBSCRIPTION-MONETIZATION.md), and [Risks](./08-RISKS-MITIGATIONS.md)
+5. **Product managers:** Review [Identity Alternatives Analysis](./11-IDENTITY-ALTERNATIVES-ANALYSIS.md), [Cost Estimates](./07-COST-SCALING.md), [Subscription & Monetization](./10-SUBSCRIPTION-MONETIZATION.md), and [Risks](./08-RISKS-MITIGATIONS.md)
 6. **Implementation teams:** Follow [Implementation Phases](./05-IMPLEMENTATION-PHASES.md) step by step
 
 ---

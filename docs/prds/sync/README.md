@@ -23,6 +23,7 @@ Each document is self-contained but linked for easy navigation:
 9. **[Risks & Mitigations](./08-RISKS-MITIGATIONS.md)** - Risk assessment and strategies
 10. **[Future Enhancements](./09-FUTURE-ENHANCEMENTS.md)** - Post-launch roadmap
 11. **[Subscription & Monetization](./10-SUBSCRIPTION-MONETIZATION.md)** - Paid tier strategy with Stripe
+12. **[Identity Alternatives Analysis](./11-IDENTITY-ALTERNATIVES-ANALYSIS.md)** - AT Protocol rationale and alternatives
 
 ## Key Features
 
@@ -61,10 +62,11 @@ Each document is self-contained but linked for easy navigation:
 ## For Product Managers
 
 1. Read [Overview](./00-OVERVIEW.md) for high-level summary
-2. Review [Cost & Scaling](./07-COST-SCALING.md) for financial planning
-3. Review [Subscription & Monetization](./10-SUBSCRIPTION-MONETIZATION.md) for paid tier strategy
-4. Check [Risks & Mitigations](./08-RISKS-MITIGATIONS.md) for potential issues
-5. See [Future Enhancements](./09-FUTURE-ENHANCEMENTS.md) for roadmap
+2. Review [Identity Alternatives Analysis](./11-IDENTITY-ALTERNATIVES-ANALYSIS.md) for AT Protocol decision rationale
+3. Review [Cost & Scaling](./07-COST-SCALING.md) for financial planning
+4. Review [Subscription & Monetization](./10-SUBSCRIPTION-MONETIZATION.md) for paid tier strategy
+5. Check [Risks & Mitigations](./08-RISKS-MITIGATIONS.md) for potential issues
+6. See [Future Enhancements](./09-FUTURE-ENHANCEMENTS.md) for roadmap
 
 ## For Designers
 
