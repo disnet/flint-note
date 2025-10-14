@@ -1,6 +1,6 @@
 # Encryption & Key Management Strategy
 
-[← Back to Design Principles](./01-DESIGN-PRINCIPLES.md) | [Next: Backend Service →](./03-BACKEND-SERVICE.md)
+[← Previous: Identity Alternatives Analysis](./03-IDENTITY-ALTERNATIVES-ANALYSIS.md) | [Next: Backend Service →](./05-BACKEND-SERVICE.md)
 
 ---
 
@@ -715,4 +715,4 @@ async decrypt(encrypted: Uint8Array): Promise<Uint8Array> {
 
 ---
 
-**Next:** [Backend Service Architecture →](./03-BACKEND-SERVICE.md)
+**Next:** [Backend Service Architecture →](./05-BACKEND-SERVICE.md)

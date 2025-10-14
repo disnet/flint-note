@@ -14,16 +14,17 @@ Each document is self-contained but linked for easy navigation:
 
 1. **[Overview](./00-OVERVIEW.md)** - Executive summary and documentation guide
 2. **[Design Principles](./01-DESIGN-PRINCIPLES.md)** - Core philosophy and architecture
-3. **[Encryption & Key Management](./02-ENCRYPTION-KEY-MANAGEMENT.md)** - Security model and implementation
-4. **[Backend Service](./03-BACKEND-SERVICE.md)** - Flint Sync Service (Cloudflare Worker)
-5. **[Data Model](./04-DATA-MODEL.md)** - Automerge document schema
-6. **[Implementation Phases](./05-IMPLEMENTATION-PHASES.md)** - Step-by-step development plan
-7. **[UI Design](./06-UI-DESIGN.md)** - User interface and experience flows
-8. **[Cost & Scaling](./07-COST-SCALING.md)** - Financial analysis and projections
-9. **[Risks & Mitigations](./08-RISKS-MITIGATIONS.md)** - Risk assessment and strategies
-10. **[Future Enhancements](./09-FUTURE-ENHANCEMENTS.md)** - Post-launch roadmap
-11. **[Subscription & Monetization](./10-SUBSCRIPTION-MONETIZATION.md)** - Paid tier strategy with Stripe
-12. **[Identity Alternatives Analysis](./11-IDENTITY-ALTERNATIVES-ANALYSIS.md)** - AT Protocol rationale and alternatives
+3. **[AT Protocol Identity](./02-AT-PROTOCOL-IDENTITY.md)** - Integration, implementation, and authorization flows
+4. **[Identity Alternatives Analysis](./03-IDENTITY-ALTERNATIVES-ANALYSIS.md)** - AT Protocol rationale and alternatives
+5. **[Encryption & Key Management](./04-ENCRYPTION-KEY-MANAGEMENT.md)** - Security model and implementation
+6. **[Backend Service](./05-BACKEND-SERVICE.md)** - Flint Sync Service (Cloudflare Worker)
+7. **[Data Model](./06-DATA-MODEL.md)** - Automerge document schema
+8. **[Implementation Phases](./07-IMPLEMENTATION-PHASES.md)** - Step-by-step development plan
+9. **[UI Design](./08-UI-DESIGN.md)** - User interface and experience flows
+10. **[Cost & Scaling](./09-COST-SCALING.md)** - Financial analysis and projections
+11. **[Risks & Mitigations](./10-RISKS-MITIGATIONS.md)** - Risk assessment and strategies
+12. **[Future Enhancements](./11-FUTURE-ENHANCEMENTS.md)** - Post-launch roadmap
+13. **[Subscription & Monetization](./12-SUBSCRIPTION-MONETIZATION.md)** - Paid tier strategy with Stripe
 
 ## Key Features
 
@@ -49,30 +50,32 @@ Each document is self-contained but linked for easy navigation:
 ## For Developers
 
 1. Read [Design Principles](./01-DESIGN-PRINCIPLES.md) to understand the architecture
-2. Review [Data Model](./04-DATA-MODEL.md) for Automerge schema
-3. Follow [Implementation Phases](./05-IMPLEMENTATION-PHASES.md) step by step
-4. Reference [Backend Service](./03-BACKEND-SERVICE.md) for API integration
+2. Review [AT Protocol Identity](./02-AT-PROTOCOL-IDENTITY.md) for identity implementation
+3. Review [Data Model](./06-DATA-MODEL.md) for Automerge schema
+4. Follow [Implementation Phases](./07-IMPLEMENTATION-PHASES.md) step by step
+5. Reference [Backend Service](./05-BACKEND-SERVICE.md) for API integration
 
 ## For Security Reviewers
 
-1. Start with [Encryption & Key Management](./02-ENCRYPTION-KEY-MANAGEMENT.md)
-2. Review threat model in [Risks & Mitigations](./08-RISKS-MITIGATIONS.md)
-3. Check [Backend Service](./03-BACKEND-SERVICE.md) for authorization model
+1. Start with [Encryption & Key Management](./04-ENCRYPTION-KEY-MANAGEMENT.md)
+2. Review threat model in [Risks & Mitigations](./10-RISKS-MITIGATIONS.md)
+3. Check [Backend Service](./05-BACKEND-SERVICE.md) for authorization model
 
 ## For Product Managers
 
 1. Read [Overview](./00-OVERVIEW.md) for high-level summary
-2. Review [Identity Alternatives Analysis](./11-IDENTITY-ALTERNATIVES-ANALYSIS.md) for AT Protocol decision rationale
-3. Review [Cost & Scaling](./07-COST-SCALING.md) for financial planning
-4. Review [Subscription & Monetization](./10-SUBSCRIPTION-MONETIZATION.md) for paid tier strategy
-5. Check [Risks & Mitigations](./08-RISKS-MITIGATIONS.md) for potential issues
-6. See [Future Enhancements](./09-FUTURE-ENHANCEMENTS.md) for roadmap
+2. Review [Identity Alternatives Analysis](./03-IDENTITY-ALTERNATIVES-ANALYSIS.md) for AT Protocol decision rationale
+3. Review [AT Protocol Identity](./02-AT-PROTOCOL-IDENTITY.md) for identity implementation details
+4. Review [Cost & Scaling](./09-COST-SCALING.md) for financial planning
+5. Review [Subscription & Monetization](./12-SUBSCRIPTION-MONETIZATION.md) for paid tier strategy
+6. Check [Risks & Mitigations](./10-RISKS-MITIGATIONS.md) for potential issues
+7. See [Future Enhancements](./11-FUTURE-ENHANCEMENTS.md) for roadmap
 
 ## For Designers
 
-1. Focus on [UI Design](./06-UI-DESIGN.md) for user flows
+1. Focus on [UI Design](./08-UI-DESIGN.md) for user flows
 2. Reference [Design Principles](./01-DESIGN-PRINCIPLES.md) for UX philosophy
-3. Review [Encryption & Key Management](./02-ENCRYPTION-KEY-MANAGEMENT.md) for security messaging
+3. Review [Encryption & Key Management](./04-ENCRYPTION-KEY-MANAGEMENT.md) for security messaging
 
 ## Contributing
 

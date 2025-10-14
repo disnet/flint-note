@@ -1,6 +1,6 @@
 # Flint Sync Service Architecture
 
-[← Back to Encryption & Key Management](./02-ENCRYPTION-KEY-MANAGEMENT.md) | [Next: Data Model →](./04-DATA-MODEL.md)
+[← Back to Encryption & Key Management](./04-ENCRYPTION-KEY-MANAGEMENT.md) | [Next: Data Model →](./06-DATA-MODEL.md)
 
 ---
 
@@ -744,4 +744,4 @@ async function logMetrics(metrics: Metrics, env: Env): Promise<void> {
 
 ---
 
-**Next:** [Data Model & Automerge Schema →](./04-DATA-MODEL.md)
+**Next:** [Data Model & Automerge Schema →](./06-DATA-MODEL.md)

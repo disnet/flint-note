@@ -1,6 +1,6 @@
 # Cost Estimates & Scaling
 
-**← Previous:** [UI Design & User Experience](./06-UI-DESIGN.md) | **Next:** [Risks & Mitigations](./08-RISKS-MITIGATIONS.md) →
+**← Previous:** [UI Design & User Experience](./08-UI-DESIGN.md) | **Next:** [Risks & Mitigations](./10-RISKS-MITIGATIONS.md) →
 
 ---
 
@@ -399,4 +399,4 @@ Prevent malicious or buggy clients from inflating costs:
 
 ---
 
-**← Previous:** [UI Design & User Experience](./06-UI-DESIGN.md) | **Next:** [Risks & Mitigations](./08-RISKS-MITIGATIONS.md) →
+**← Previous:** [UI Design & User Experience](./08-UI-DESIGN.md) | **Next:** [Risks & Mitigations](./10-RISKS-MITIGATIONS.md) →

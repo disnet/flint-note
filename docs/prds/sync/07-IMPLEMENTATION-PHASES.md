@@ -1,6 +1,6 @@
 # Implementation Phases
 
-[← Previous: Data Model](./04-DATA-MODEL.md) | [Next: UI Design →](./06-UI-DESIGN.md)
+[← Previous: Data Model](./06-DATA-MODEL.md) | [Next: UI Design →](./08-UI-DESIGN.md)
 
 This document details the phased implementation approach for adding multi-device sync to Flint using Automerge CRDTs, Cloudflare R2, and AT Protocol identity.
 
@@ -1341,4 +1341,4 @@ describe('Concurrent Edit Scenarios', () => {
 
 ---
 
-[← Previous: Data Model](./04-DATA-MODEL.md) | [Next: UI Design →](./06-UI-DESIGN.md)
+[← Previous: Data Model](./06-DATA-MODEL.md) | [Next: UI Design →](./08-UI-DESIGN.md)

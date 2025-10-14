@@ -1,6 +1,6 @@
 # Risks and Mitigations
 
-[← Previous: Cost and Scaling](./07-COST-SCALING.md) | [Next: Future Enhancements →](./09-FUTURE-ENHANCEMENTS.md)
+[← Previous: Cost and Scaling](./09-COST-SCALING.md) | [Next: Future Enhancements →](./11-FUTURE-ENHANCEMENTS.md)
 
 ---
 
@@ -161,4 +161,4 @@ To measure the effectiveness of these mitigations, track the following metrics:
 
 ---
 
-[← Previous: Cost and Scaling](./07-COST-SCALING.md) | [Next: Future Enhancements →](./09-FUTURE-ENHANCEMENTS.md)
+[← Previous: Cost and Scaling](./09-COST-SCALING.md) | [Next: Future Enhancements →](./11-FUTURE-ENHANCEMENTS.md)

@@ -1,6 +1,6 @@
 # AT Protocol Identity: Rationale and Alternatives Analysis
 
-[← Previous: Subscription & Monetization](./10-SUBSCRIPTION-MONETIZATION.md) | [Back to Overview →](./00-OVERVIEW.md)
+[← Previous: AT Protocol Identity](./02-AT-PROTOCOL-IDENTITY.md) | [Next: Encryption & Key Management →](./04-ENCRYPTION-KEY-MANAGEMENT.md)
 
 ---
 
@@ -459,4 +459,4 @@ This is a values-driven decision that accepts some UX and complexity tradeoffs i
 
 ---
 
-[← Previous: Subscription & Monetization](./10-SUBSCRIPTION-MONETIZATION.md) | [Back to Overview →](./00-OVERVIEW.md)
+[← Previous: AT Protocol Identity](./02-AT-PROTOCOL-IDENTITY.md) | [Next: Encryption & Key Management →](./04-ENCRYPTION-KEY-MANAGEMENT.md)

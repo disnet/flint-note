@@ -1,6 +1,6 @@
 # Data Model & Automerge Schema
 
-[← Back to Backend Service](./03-BACKEND-SERVICE.md) | [Next: Implementation Phases →](./05-IMPLEMENTATION-PHASES.md)
+[← Back to Backend Service](./05-BACKEND-SERVICE.md) | [Next: Implementation Phases →](./07-IMPLEMENTATION-PHASES.md)
 
 ---
 
@@ -580,4 +580,4 @@ function getNoteAtVersion(
 
 ---
 
-**Next:** [Implementation Phases →](./05-IMPLEMENTATION-PHASES.md)
+**Next:** [Implementation Phases →](./07-IMPLEMENTATION-PHASES.md)

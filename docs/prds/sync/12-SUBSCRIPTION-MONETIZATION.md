@@ -1,6 +1,6 @@
 # Subscription & Monetization Strategy
 
-**← Previous:** [Future Enhancements](./09-FUTURE-ENHANCEMENTS.md)
+**← Previous:** [Future Enhancements](./11-FUTURE-ENHANCEMENTS.md)
 
 ---
 
@@ -993,4 +993,4 @@ Stick with simple tier-based pricing initially. Can experiment with alternatives
 
 ---
 
-**← Previous:** [Future Enhancements](./09-FUTURE-ENHANCEMENTS.md)
+**← Previous:** [Future Enhancements](./11-FUTURE-ENHANCEMENTS.md)

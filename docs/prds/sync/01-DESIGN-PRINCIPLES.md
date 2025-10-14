@@ -1,6 +1,6 @@
 # Design Principles & Architecture
 
-[← Back to Overview](./00-OVERVIEW.md) | [Next: Encryption & Key Management →](./02-ENCRYPTION-KEY-MANAGEMENT.md)
+[← Back to Overview](./00-OVERVIEW.md) | [Next: AT Protocol Identity →](./02-AT-PROTOCOL-IDENTITY.md)
 
 ---
 
@@ -366,4 +366,4 @@ No user intervention needed
 
 ---
 
-**Next:** [Encryption & Key Management →](./02-ENCRYPTION-KEY-MANAGEMENT.md)
+**Next:** [AT Protocol Identity →](./02-AT-PROTOCOL-IDENTITY.md)

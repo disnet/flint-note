@@ -1,6 +1,6 @@
 # UI Design and User Experience
 
-← [Previous: Implementation Phases](./05-IMPLEMENTATION-PHASES.md) | [Next: Cost and Scaling](./07-COST-SCALING.md) →
+← [Previous: Implementation Phases](./07-IMPLEMENTATION-PHASES.md) | [Next: Cost and Scaling](./09-COST-SCALING.md) →
 
 This document details the user interface design and user experience flows for multi-device sync in Flint.
 
@@ -1183,4 +1183,4 @@ The sync UI emphasizes:
 5. Real-time sync status (always visible)
 6. Easy device management (add/remove devices)
 
-← [Previous: Implementation Phases](./05-IMPLEMENTATION-PHASES.md) | [Next: Cost and Scaling](./07-COST-SCALING.md) →
+← [Previous: Implementation Phases](./07-IMPLEMENTATION-PHASES.md) | [Next: Cost and Scaling](./09-COST-SCALING.md) →

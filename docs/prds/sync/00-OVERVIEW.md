@@ -28,7 +28,36 @@ Core design philosophy and system architecture:
 
 ---
 
-### 2. [Encryption & Key Management](./02-ENCRYPTION-KEY-MANAGEMENT.md)
+### 2. [AT Protocol Identity](./02-AT-PROTOCOL-IDENTITY.md)
+
+AT Protocol integration and implementation details:
+- How AT Protocol DIDs provide identity and authorization
+- OAuth flow with DPoP token binding
+- Separation between identity and encryption layers
+- Storage namespacing with DIDs
+- Device management and authorization
+- Graceful degradation when PDS unavailable
+- Future collaboration features
+
+**Technical implementation guide** for AT Protocol integration.
+
+---
+
+### 3. [Identity Alternatives Analysis](./03-IDENTITY-ALTERNATIVES-ANALYSIS.md)
+
+AT Protocol identity decision rationale and alternatives:
+- Why AT Protocol was chosen for decentralized identity
+- Detailed analysis of downsides and mitigation strategies
+- Alternative approaches considered (Magic Links, OAuth, WebAuthn, DIDs)
+- Comparison matrix and decision rationale
+- Implementation strategy and risks
+- Success metrics for identity layer
+
+**Decision documentation** explaining the identity layer choice and tradeoffs.
+
+---
+
+### 4. [Encryption & Key Management](./04-ENCRYPTION-KEY-MANAGEMENT.md)
 
 Comprehensive security model and key management strategy:
 - Hybrid approach: passwordless by default with optional password backup
@@ -42,7 +71,7 @@ Comprehensive security model and key management strategy:
 
 ---
 
-### 3. [Backend Service Architecture](./03-BACKEND-SERVICE.md)
+### 5. [Backend Service Architecture](./05-BACKEND-SERVICE.md)
 
 Flint Sync Service design and implementation:
 - Cloudflare Worker for identity verification and authorization
@@ -56,7 +85,7 @@ Flint Sync Service design and implementation:
 
 ---
 
-### 4. [Data Model & Automerge Schema](./04-DATA-MODEL.md)
+### 6. [Data Model & Automerge Schema](./06-DATA-MODEL.md)
 
 Document structure and Automerge integration:
 - FlintNote document schema with separated metadata and content
@@ -69,7 +98,7 @@ Document structure and Automerge integration:
 
 ---
 
-### 5. [Implementation Phases](./05-IMPLEMENTATION-PHASES.md)
+### 7. [Implementation Phases](./07-IMPLEMENTATION-PHASES.md)
 
 Detailed phase-by-phase implementation plan:
 - **Phase 0:** External file editing prerequisites (2-3 weeks)
@@ -84,7 +113,7 @@ Each phase includes tasks, deliverables, testing strategies, and acceptance crit
 
 ---
 
-### 6. [UI Design & User Experience](./06-UI-DESIGN.md)
+### 8. [UI Design & User Experience](./08-UI-DESIGN.md)
 
 User-facing sync interface and flows:
 - First-time setup wizard (AT Protocol sign-in required)
@@ -98,7 +127,7 @@ User-facing sync interface and flows:
 
 ---
 
-### 7. [Cost Estimates & Scaling](./07-COST-SCALING.md)
+### 9. [Cost Estimates & Scaling](./09-COST-SCALING.md)
 
 Financial planning and infrastructure scaling:
 - Cloudflare R2 pricing breakdown
@@ -110,7 +139,7 @@ Financial planning and infrastructure scaling:
 
 ---
 
-### 8. [Risks & Mitigations](./08-RISKS-MITIGATIONS.md)
+### 10. [Risks & Mitigations](./10-RISKS-MITIGATIONS.md)
 
 Potential challenges and mitigation strategies:
 - Automerge performance at scale
@@ -123,7 +152,7 @@ Potential challenges and mitigation strategies:
 
 ---
 
-### 9. [Future Enhancements](./09-FUTURE-ENHANCEMENTS.md)
+### 11. [Future Enhancements](./11-FUTURE-ENHANCEMENTS.md)
 
 Post-launch feature roadmap:
 - Web client (browser-based access)
@@ -136,7 +165,7 @@ Post-launch feature roadmap:
 
 ---
 
-### 10. [Subscription & Monetization](./10-SUBSCRIPTION-MONETIZATION.md)
+### 12. [Subscription & Monetization](./12-SUBSCRIPTION-MONETIZATION.md)
 
 Paid tier strategy and implementation:
 - Free tier (1GB) vs. Pro tier ($5/month, 50GB)
@@ -147,20 +176,6 @@ Paid tier strategy and implementation:
 - Revenue projections and cost analysis
 
 **Business model** for sustainable growth and monetization.
-
----
-
-### 11. [Identity Alternatives Analysis](./11-IDENTITY-ALTERNATIVES-ANALYSIS.md)
-
-AT Protocol identity decision rationale and alternatives:
-- Why AT Protocol was chosen for decentralized identity
-- Detailed analysis of downsides and mitigation strategies
-- Alternative approaches considered (Magic Links, OAuth, WebAuthn, DIDs)
-- Comparison matrix and decision rationale
-- Implementation strategy and risks
-- Success metrics for identity layer
-
-**Decision documentation** explaining the identity layer choice and tradeoffs.
 
 ---
 
@@ -201,11 +216,11 @@ AT Protocol identity decision rationale and alternatives:
 ## How to Use This Documentation
 
 1. **First-time readers:** Start with [Design Principles](./01-DESIGN-PRINCIPLES.md) to understand the system philosophy
-2. **Security reviewers:** Focus on [Encryption & Key Management](./02-ENCRYPTION-KEY-MANAGEMENT.md)
-3. **Backend developers:** Begin with [Backend Service](./03-BACKEND-SERVICE.md) and [Data Model](./04-DATA-MODEL.md)
-4. **Frontend developers:** Review [UI Design](./06-UI-DESIGN.md) and [Implementation Phases](./05-IMPLEMENTATION-PHASES.md)
-5. **Product managers:** Review [Identity Alternatives Analysis](./11-IDENTITY-ALTERNATIVES-ANALYSIS.md), [Cost Estimates](./07-COST-SCALING.md), [Subscription & Monetization](./10-SUBSCRIPTION-MONETIZATION.md), and [Risks](./08-RISKS-MITIGATIONS.md)
-6. **Implementation teams:** Follow [Implementation Phases](./05-IMPLEMENTATION-PHASES.md) step by step
+2. **Security reviewers:** Focus on [Encryption & Key Management](./04-ENCRYPTION-KEY-MANAGEMENT.md) and [AT Protocol Identity](./02-AT-PROTOCOL-IDENTITY.md)
+3. **Backend developers:** Begin with [Backend Service](./05-BACKEND-SERVICE.md), [AT Protocol Identity](./02-AT-PROTOCOL-IDENTITY.md), and [Data Model](./06-DATA-MODEL.md)
+4. **Frontend developers:** Review [UI Design](./08-UI-DESIGN.md), [AT Protocol Identity](./02-AT-PROTOCOL-IDENTITY.md), and [Implementation Phases](./07-IMPLEMENTATION-PHASES.md)
+5. **Product managers:** Review [Identity Alternatives Analysis](./03-IDENTITY-ALTERNATIVES-ANALYSIS.md), [AT Protocol Identity](./02-AT-PROTOCOL-IDENTITY.md), [Cost Estimates](./09-COST-SCALING.md), [Subscription & Monetization](./12-SUBSCRIPTION-MONETIZATION.md), and [Risks](./10-RISKS-MITIGATIONS.md)
+6. **Implementation teams:** Follow [Implementation Phases](./07-IMPLEMENTATION-PHASES.md) step by step
 
 ---
 
