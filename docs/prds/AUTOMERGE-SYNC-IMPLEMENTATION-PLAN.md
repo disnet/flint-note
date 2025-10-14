@@ -1133,22 +1133,28 @@ describe('Concurrent Edit Scenarios', () => {
 
 ## Future Enhancements
 
-### Real-Time Sync (Phase 5)
+### Web Client (Phase 5)
+- Browser-based access to notes without Electron
+- Same Automerge + R2 sync infrastructure
+- Progressive Web App (PWA) with offline support
+- See [Web Client Implementation Plan](./WEB-CLIENT-IMPLEMENTATION-PLAN.md) for details
+
+### Real-Time Sync (Phase 6)
 - WebSocket or long-polling for immediate propagation
 - Live cursors for collaborative editing
 - Presence indicators
 
-### Sharing and Collaboration (Phase 6)
+### Sharing and Collaboration (Phase 7)
 - Share individual notes with other DIDs
 - Real-time collaborative editing
 - Permission management (read/write)
 
-### Mobile Apps (Phase 7)
+### Mobile Apps (Phase 8)
 - React Native implementation
 - Same Automerge + R2 architecture
 - Platform-specific key storage (Keychain/Keystore)
 
-### Selective Sync (Phase 8)
+### Selective Sync (Phase 9)
 - Choose which note types to sync
 - Bandwidth optimization
 - Mobile data usage controls
