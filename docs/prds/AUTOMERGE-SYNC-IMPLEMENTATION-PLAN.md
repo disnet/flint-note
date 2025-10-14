@@ -13,6 +13,107 @@ This document outlines a phased approach to adding multi-device sync to Flint us
 
 ---
 
+## Encryption & Key Management Strategy
+
+### Hybrid Approach: Passwordless by Default
+
+**Philosophy:** Balance security, user experience, and multi-device convenience.
+
+### Three Setup Paths
+
+#### 1. **Primary Path: Passwordless (Recommended)**
+
+**First Device:**
+1. User clicks "Enable Sync"
+2. System generates random 256-bit vault key
+3. Vault key stored in OS keychain (biometric-protected)
+4. Device generates ECDH key pair for authorization
+5. Sync enabled - no password to remember!
+
+**Second Device:**
+1. User clicks "Join Vault" → "Authorize from Another Device"
+2. New device generates ephemeral ECDH key pair
+3. Displays 6-character code or QR code
+4. Existing device scans code and approves
+5. Devices perform ECDH key agreement
+6. Vault key wrapped and transferred via shared secret
+7. New device stores vault key in its keychain
+
+**Advantages:**
+- ✅ No password to remember
+- ✅ Biometric unlock (Touch ID, Windows Hello)
+- ✅ Hardware-backed security (OS keychain)
+- ✅ Zero-knowledge maintained
+- ✅ Best UX for most users
+
+**Disadvantages:**
+- ⚠️ Requires access to existing device for setup
+- ⚠️ If all devices lost without password backup, data unrecoverable
+
+#### 2. **Optional Path: Password Backup**
+
+**Enabling Password Backup:**
+1. After sync enabled, user optionally adds password
+2. Vault key encrypted with password-derived key (scrypt)
+3. Encrypted vault key uploaded to R2 as backup
+4. Password never leaves device
+
+**Using Password Backup:**
+1. New device: "Join Vault" → "Use Password"
+2. Enter password
+3. Download encrypted vault key from R2
+4. Derive decryption key from password
+5. Decrypt and store vault key in keychain
+
+**Advantages:**
+- ✅ Can set up new devices without existing device
+- ✅ Recovery option if all devices lost
+- ✅ Familiar authentication flow
+- ✅ Still zero-knowledge (password not sent to server)
+
+**Disadvantages:**
+- ⚠️ Password to remember
+- ⚠️ Password compromise exposes vault key
+- ⚠️ Must be enabled explicitly
+
+#### 3. **Optional Path: AT Protocol Identity**
+
+Users can optionally sign in with AT Protocol for:
+- Portable DID across applications
+- Organized R2 storage paths (`{did}/vault-identity.json`)
+- Future collaboration features
+
+**Note:** AT Protocol login is purely for identity, not encryption. Vault keys still managed via device keychain or password backup.
+
+### Security Properties
+
+| Property | Passwordless | Password Backup | AT Protocol |
+|----------|--------------|-----------------|-------------|
+| Zero-knowledge | ✅ Yes | ✅ Yes | ✅ Yes |
+| Biometric unlock | ✅ Yes | ✅ Yes | ✅ Yes |
+| No password | ✅ Yes | ❌ No | ✅ Yes |
+| Easy device setup | ⚠️ Requires device | ✅ Password only | ⚠️ Requires device |
+| Recovery option | ❌ No | ✅ Password | ❌ No |
+| Hardware-backed | ✅ Yes | ✅ Yes | ✅ Yes |
+
+### Recommended Strategy
+
+**For most users:**
+1. Start with passwordless (device keychain)
+2. After using for a while, optionally add password backup
+3. Optionally sign in with AT Protocol for identity
+
+**For users who lose devices often:**
+1. Enable password backup immediately
+2. Store password in password manager
+
+**For technical users:**
+1. Passwordless by default
+2. Export encrypted vault key to file as manual backup
+3. Store backup securely (USB drive, encrypted cloud storage)
+
+---
+
 ## Design Principles
 
 ### 1. **Local-First, Sync Optional**
@@ -32,7 +133,8 @@ This document outlines a phased approach to adding multi-device sync to Flint us
 
 ### 4. **Encrypted and Private**
 - Zero-knowledge encryption (Flint never sees plaintext)
-- User controls encryption key
+- Passwordless by default (device keychain + biometric unlock)
+- Optional password backup for easier multi-device setup
 - Data stored encrypted on R2
 
 ---
@@ -478,20 +580,410 @@ class R2Manager {
 
 **Deliverable:** R2 client configured and tested
 
-#### 2. **Implement Encryption Layer**
+#### 2. **Implement Encryption Layer (Hybrid Approach)**
+
+**Design Philosophy:**
+- **Default:** Passwordless (device keychain + biometric unlock)
+- **Optional:** Password backup for easier multi-device setup
+- **Zero-knowledge:** Flint never sees vault keys in plaintext
+
+**Vault Identity Structure:**
+```typescript
+interface VaultIdentity {
+  vaultId: string;              // Stable UUID for this vault
+  vaultSalt: number[];          // Random salt for key derivation (when using password)
+  created: string;              // ISO timestamp
+  did?: string;                 // Optional AT Protocol DID
+  devices: DeviceInfo[];        // Authorized devices
+  hasPasswordBackup: boolean;   // Whether password backup is enabled
+}
+
+interface DeviceInfo {
+  deviceId: string;
+  deviceName: string;           // e.g., "Alice's MacBook Pro"
+  publicKey: JsonWebKey;        // For device-to-device key sharing
+  added: string;                // ISO timestamp
+  lastSeen?: string;
+}
+```
+
+**Implementation:**
 
 ```typescript
 import { webcrypto as crypto } from 'crypto';
+import { safeStorage } from 'electron';
 
 class EncryptionService {
-  private key: CryptoKey;
+  private vaultKey?: CryptoKey;
+  private deviceKeyPair?: CryptoKeyPair;
+  private vaultId?: string;
 
-  async initialize(password: string, userIdentifier: string): Promise<void> {
-    // Derive encryption key from password + user identifier (salt)
-    const salt = await this.hashString(userIdentifier);
-    const keyMaterial = await this.deriveKey(password, salt);
+  // ==================================================================
+  // PRIMARY FLOW: Device Keychain (No Password)
+  // ==================================================================
 
-    this.key = await crypto.subtle.importKey(
+  /**
+   * Initialize new vault with device keychain (passwordless)
+   */
+  async initializeNewVault(deviceName: string): Promise<VaultIdentity> {
+    // Generate random vault key
+    const vaultKeyBuffer = crypto.getRandomValues(new Uint8Array(32));
+    this.vaultKey = await crypto.subtle.importKey(
+      'raw',
+      vaultKeyBuffer,
+      { name: 'AES-GCM' },
+      true,
+      ['encrypt', 'decrypt']
+    );
+
+    // Generate vault identity
+    this.vaultId = this.generateUUID();
+    const vaultSalt = crypto.getRandomValues(new Uint8Array(32));
+
+    // Store vault key in OS keychain (biometric-protected)
+    const keychainKey = `flint-vault-${this.vaultId}`;
+    if (safeStorage.isEncryptionAvailable()) {
+      const encrypted = safeStorage.encryptString(
+        Buffer.from(vaultKeyBuffer).toString('base64')
+      );
+      // Store encrypted key in local storage
+      await this.storageManager.set(keychainKey, encrypted.toString('base64'));
+    } else {
+      throw new Error('OS keychain encryption not available');
+    }
+
+    // Generate device key pair for device-to-device authorization
+    this.deviceKeyPair = await crypto.subtle.generateKey(
+      { name: 'ECDH', namedCurve: 'P-256' },
+      true,
+      ['deriveKey']
+    );
+
+    const deviceId = this.generateUUID();
+    const publicKeyJwk = await crypto.subtle.exportKey(
+      'jwk',
+      this.deviceKeyPair.publicKey
+    );
+
+    // Create vault identity
+    const vaultIdentity: VaultIdentity = {
+      vaultId: this.vaultId,
+      vaultSalt: Array.from(vaultSalt),
+      created: new Date().toISOString(),
+      devices: [{
+        deviceId,
+        deviceName,
+        publicKey: publicKeyJwk,
+        added: new Date().toISOString()
+      }],
+      hasPasswordBackup: false
+    };
+
+    // Store device info locally
+    await this.storageManager.set('device-id', deviceId);
+    const privateKeyJwk = await crypto.subtle.exportKey(
+      'jwk',
+      this.deviceKeyPair.privateKey
+    );
+    await this.storageManager.set('device-private-key', privateKeyJwk);
+
+    return vaultIdentity;
+  }
+
+  /**
+   * Load vault key from OS keychain
+   */
+  async loadFromKeychain(vaultId: string): Promise<void> {
+    this.vaultId = vaultId;
+    const keychainKey = `flint-vault-${vaultId}`;
+
+    const encryptedBase64 = await this.storageManager.get(keychainKey);
+    if (!encryptedBase64) {
+      throw new Error('Vault key not found in keychain');
+    }
+
+    const encrypted = Buffer.from(encryptedBase64, 'base64');
+    const decrypted = safeStorage.decryptString(encrypted);
+    const vaultKeyBuffer = Buffer.from(decrypted, 'base64');
+
+    this.vaultKey = await crypto.subtle.importKey(
+      'raw',
+      vaultKeyBuffer,
+      { name: 'AES-GCM' },
+      true,
+      ['encrypt', 'decrypt']
+    );
+
+    // Load device key pair
+    const privateKeyJwk = await this.storageManager.get('device-private-key');
+    if (privateKeyJwk) {
+      const privateKey = await crypto.subtle.importKey(
+        'jwk',
+        privateKeyJwk,
+        { name: 'ECDH', namedCurve: 'P-256' },
+        true,
+        ['deriveKey']
+      );
+
+      // Reconstruct key pair (we don't need to store public key locally)
+      this.deviceKeyPair = { privateKey } as CryptoKeyPair;
+    }
+  }
+
+  // ==================================================================
+  // DEVICE AUTHORIZATION FLOW
+  // ==================================================================
+
+  /**
+   * Request authorization from existing device
+   */
+  async requestDeviceAuthorization(deviceName: string): Promise<string> {
+    // Generate ephemeral device key pair
+    this.deviceKeyPair = await crypto.subtle.generateKey(
+      { name: 'ECDH', namedCurve: 'P-256' },
+      true,
+      ['deriveKey']
+    );
+
+    const deviceId = this.generateUUID();
+    const publicKeyJwk = await crypto.subtle.exportKey(
+      'jwk',
+      this.deviceKeyPair.publicKey
+    );
+
+    const authRequest = {
+      deviceId,
+      deviceName,
+      publicKey: publicKeyJwk,
+      timestamp: new Date().toISOString()
+    };
+
+    // Store locally
+    await this.storageManager.set('device-id', deviceId);
+    const privateKeyJwk = await crypto.subtle.exportKey(
+      'jwk',
+      this.deviceKeyPair.privateKey
+    );
+    await this.storageManager.set('device-private-key', privateKeyJwk);
+
+    // Generate short authorization code
+    const authCode = await this.generateAuthCode(authRequest);
+
+    return authCode;
+  }
+
+  /**
+   * Approve new device (called on existing device)
+   */
+  async approveDevice(
+    authRequest: DeviceAuthRequest,
+    vaultIdentity: VaultIdentity
+  ): Promise<DeviceKey> {
+    if (!this.vaultKey || !this.deviceKeyPair) {
+      throw new Error('Vault not initialized');
+    }
+
+    // Import new device's public key
+    const newDevicePublicKey = await crypto.subtle.importKey(
+      'jwk',
+      authRequest.publicKey,
+      { name: 'ECDH', namedCurve: 'P-256' },
+      true,
+      []
+    );
+
+    // Derive shared secret
+    const sharedSecret = await crypto.subtle.deriveKey(
+      { name: 'ECDH', public: newDevicePublicKey },
+      this.deviceKeyPair.privateKey,
+      { name: 'AES-GCM', length: 256 },
+      false,
+      ['encrypt', 'wrapKey']
+    );
+
+    // Wrap vault key with shared secret
+    const wrappedKey = await crypto.subtle.wrapKey(
+      'raw',
+      this.vaultKey,
+      sharedSecret,
+      { name: 'AES-GCM', iv: crypto.getRandomValues(new Uint8Array(12)) }
+    );
+
+    const currentDeviceId = await this.storageManager.get('device-id');
+    const authorizerPublicKeyJwk = await crypto.subtle.exportKey(
+      'jwk',
+      this.deviceKeyPair.publicKey
+    );
+
+    return {
+      deviceId: authRequest.deviceId,
+      wrappedKey: Array.from(new Uint8Array(wrappedKey)),
+      authorizerDeviceId: currentDeviceId,
+      authorizerPublicKey: authorizerPublicKeyJwk,
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  /**
+   * Complete device authorization (called on new device)
+   */
+  async completeDeviceAuthorization(
+    deviceKey: DeviceKey,
+    vaultId: string
+  ): Promise<void> {
+    if (!this.deviceKeyPair) {
+      throw new Error('Device keys not initialized');
+    }
+
+    // Import authorizer's public key
+    const authorizerPublicKey = await crypto.subtle.importKey(
+      'jwk',
+      deviceKey.authorizerPublicKey,
+      { name: 'ECDH', namedCurve: 'P-256' },
+      true,
+      []
+    );
+
+    // Derive same shared secret
+    const sharedSecret = await crypto.subtle.deriveKey(
+      { name: 'ECDH', public: authorizerPublicKey },
+      this.deviceKeyPair.privateKey,
+      { name: 'AES-GCM', length: 256 },
+      false,
+      ['decrypt', 'unwrapKey']
+    );
+
+    // Unwrap vault key
+    const wrappedKeyBuffer = new Uint8Array(deviceKey.wrappedKey);
+    this.vaultKey = await crypto.subtle.unwrapKey(
+      'raw',
+      wrappedKeyBuffer,
+      sharedSecret,
+      { name: 'AES-GCM', iv: wrappedKeyBuffer.slice(0, 12) },
+      { name: 'AES-GCM' },
+      true,
+      ['encrypt', 'decrypt']
+    );
+
+    // Store in OS keychain
+    const vaultKeyBuffer = await crypto.subtle.exportKey('raw', this.vaultKey);
+    const keychainKey = `flint-vault-${vaultId}`;
+
+    if (safeStorage.isEncryptionAvailable()) {
+      const encrypted = safeStorage.encryptString(
+        Buffer.from(vaultKeyBuffer).toString('base64')
+      );
+      await this.storageManager.set(keychainKey, encrypted.toString('base64'));
+    }
+
+    this.vaultId = vaultId;
+  }
+
+  // ==================================================================
+  // OPTIONAL: PASSWORD BACKUP
+  // ==================================================================
+
+  /**
+   * Enable password backup (optional feature)
+   */
+  async enablePasswordBackup(password: string): Promise<Uint8Array> {
+    if (!this.vaultKey || !this.vaultId) {
+      throw new Error('Vault not initialized');
+    }
+
+    // Export vault key
+    const vaultKeyBuffer = await crypto.subtle.exportKey('raw', this.vaultKey);
+
+    // Generate random salt for password derivation
+    const salt = crypto.getRandomValues(new Uint8Array(32));
+
+    // Derive password key
+    const passwordKey = await this.derivePasswordKey(password, salt);
+
+    // Encrypt vault key with password
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const encryptedVaultKey = await crypto.subtle.encrypt(
+      { name: 'AES-GCM', iv, tagLength: 128 },
+      passwordKey,
+      vaultKeyBuffer
+    );
+
+    // Concatenate: salt || iv || ciphertext
+    const backup = new Uint8Array(32 + 12 + encryptedVaultKey.byteLength);
+    backup.set(salt, 0);
+    backup.set(iv, 32);
+    backup.set(new Uint8Array(encryptedVaultKey), 44);
+
+    return backup;
+  }
+
+  /**
+   * Initialize vault from password backup
+   */
+  async initializeFromPasswordBackup(
+    password: string,
+    encryptedBackup: Uint8Array,
+    vaultId: string
+  ): Promise<void> {
+    // Extract components
+    const salt = encryptedBackup.slice(0, 32);
+    const iv = encryptedBackup.slice(32, 44);
+    const ciphertext = encryptedBackup.slice(44);
+
+    // Derive password key
+    const passwordKey = await this.derivePasswordKey(password, salt);
+
+    // Decrypt vault key
+    try {
+      const vaultKeyBuffer = await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv, tagLength: 128 },
+        passwordKey,
+        ciphertext
+      );
+
+      // Import vault key
+      this.vaultKey = await crypto.subtle.importKey(
+        'raw',
+        vaultKeyBuffer,
+        { name: 'AES-GCM' },
+        true,
+        ['encrypt', 'decrypt']
+      );
+
+      // Store in OS keychain
+      const keychainKey = `flint-vault-${vaultId}`;
+      if (safeStorage.isEncryptionAvailable()) {
+        const encrypted = safeStorage.encryptString(
+          Buffer.from(vaultKeyBuffer).toString('base64')
+        );
+        await this.storageManager.set(keychainKey, encrypted.toString('base64'));
+      }
+
+      this.vaultId = vaultId;
+    } catch (error) {
+      throw new Error('Incorrect password or corrupted backup');
+    }
+  }
+
+  /**
+   * Derive encryption key from password using scrypt
+   */
+  private async derivePasswordKey(
+    password: string,
+    salt: Uint8Array
+  ): Promise<CryptoKey> {
+    const { scrypt } = await import('crypto');
+    const { promisify } = await import('util');
+    const scryptAsync = promisify(scrypt);
+
+    const keyMaterial = await scryptAsync(
+      password,
+      salt,
+      32, // 256-bit key
+      { N: 32768, r: 8, p: 1 }
+    ) as Buffer;
+
+    return await crypto.subtle.importKey(
       'raw',
       keyMaterial,
       { name: 'AES-GCM' },
@@ -500,14 +992,19 @@ class EncryptionService {
     );
   }
 
-  async encrypt(plaintext: Uint8Array): Promise<Uint8Array> {
-    // Generate random IV
-    const iv = crypto.getRandomValues(new Uint8Array(12));
+  // ==================================================================
+  // ENCRYPTION/DECRYPTION
+  // ==================================================================
 
-    // Encrypt with AES-GCM
+  async encrypt(plaintext: Uint8Array): Promise<Uint8Array> {
+    if (!this.vaultKey) {
+      throw new Error('Vault key not initialized');
+    }
+
+    const iv = crypto.getRandomValues(new Uint8Array(12));
     const ciphertext = await crypto.subtle.encrypt(
       { name: 'AES-GCM', iv, tagLength: 128 },
-      this.key,
+      this.vaultKey,
       plaintext
     );
 
@@ -520,44 +1017,57 @@ class EncryptionService {
   }
 
   async decrypt(encrypted: Uint8Array): Promise<Uint8Array> {
-    // Extract IV and ciphertext
+    if (!this.vaultKey) {
+      throw new Error('Vault key not initialized');
+    }
+
     const iv = encrypted.slice(0, 12);
     const ciphertext = encrypted.slice(12);
 
-    // Decrypt
     const plaintext = await crypto.subtle.decrypt(
       { name: 'AES-GCM', iv, tagLength: 128 },
-      this.key,
+      this.vaultKey,
       ciphertext
     );
 
     return new Uint8Array(plaintext);
   }
 
-  private async deriveKey(password: string, salt: Uint8Array): Promise<Buffer> {
-    // Use scrypt for key derivation (memory-hard, GPU-resistant)
-    const { scrypt } = await import('crypto');
-    const { promisify } = await import('util');
-    const scryptAsync = promisify(scrypt);
+  // ==================================================================
+  // UTILITIES
+  // ==================================================================
 
-    return await scryptAsync(
-      password,
-      salt,
-      32, // 256-bit key
-      { N: 32768, r: 8, p: 1 }
-    ) as Buffer;
+  private generateUUID(): string {
+    return crypto.randomUUID();
   }
 
-  private async hashString(input: string): Promise<Uint8Array> {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(input);
-    const hash = await crypto.subtle.digest('SHA-256', data);
-    return new Uint8Array(hash);
+  private async generateAuthCode(authRequest: DeviceAuthRequest): string {
+    // Generate short code (6 characters) for easy entry or QR code
+    const json = JSON.stringify(authRequest);
+    const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(json));
+    const base64 = Buffer.from(hash).toString('base64url');
+    return base64.substring(0, 6).toUpperCase();
   }
+}
+
+// Supporting types
+interface DeviceAuthRequest {
+  deviceId: string;
+  deviceName: string;
+  publicKey: JsonWebKey;
+  timestamp: string;
+}
+
+interface DeviceKey {
+  deviceId: string;
+  wrappedKey: number[];
+  authorizerDeviceId: string;
+  authorizerPublicKey: JsonWebKey;
+  timestamp: string;
 }
 ```
 
-**Deliverable:** Encryption service with AES-256-GCM
+**Deliverable:** Hybrid encryption service with passwordless default and optional password backup
 
 #### 3. **Add AT Protocol Identity (Optional)**
 
@@ -711,27 +1221,103 @@ class EncryptedR2StorageAdapter implements StorageAdapter {
 
 **Deliverable:** Encrypted Automerge storage adapter for R2
 
-#### 5. **Add Sync UI**
+#### 5. **Add Sync UI (Hybrid Approach)**
 
-Simple UI for managing sync:
+**First-Time Setup UI:**
 
 ```svelte
 <script lang="ts">
+  import { onMount } from 'svelte';
+
   let syncEnabled = $state(false);
+  let setupMode = $state<'new' | 'existing' | null>(null);
+  let joinMethod = $state<'device' | 'password' | null>(null);
+  let authCode = $state<string>('');
+  let deviceName = $state('');
   let lastSyncTime = $state<Date | null>(null);
   let syncInProgress = $state(false);
+  let hasPasswordBackup = $state(false);
 
-  async function enableSync() {
-    // Prompt for password
-    const password = await promptForPassword();
+  onMount(async () => {
+    const status = await window.api.getSyncStatus();
+    syncEnabled = status.enabled;
+    hasPasswordBackup = status.hasPasswordBackup;
+    lastSyncTime = status.lastSyncTime;
 
-    // Initialize encryption
-    await window.api.initializeEncryption(password);
+    if (!syncEnabled) {
+      deviceName = await window.api.getDeviceName(); // e.g., "Alice's MacBook Pro"
+    }
+  });
 
-    // Initialize R2 adapter
-    await window.api.initializeR2Sync();
+  async function startNewVault() {
+    setupMode = 'new';
+  }
 
-    syncEnabled = true;
+  async function joinExistingVault() {
+    setupMode = 'existing';
+  }
+
+  async function enableSyncPasswordless() {
+    try {
+      // Create new vault with device keychain
+      await window.api.initializeNewVault(deviceName);
+      syncEnabled = true;
+      setupMode = null;
+    } catch (error) {
+      console.error('Failed to enable sync:', error);
+      // Show error to user
+    }
+  }
+
+  async function requestDeviceAuth() {
+    try {
+      joinMethod = 'device';
+      // Request authorization from existing device
+      authCode = await window.api.requestDeviceAuthorization(deviceName);
+
+      // Start polling for approval
+      pollForApproval();
+    } catch (error) {
+      console.error('Device authorization failed:', error);
+    }
+  }
+
+  async function pollForApproval() {
+    const result = await window.api.waitForDeviceApproval();
+    if (result.approved) {
+      syncEnabled = true;
+      setupMode = null;
+      joinMethod = null;
+    }
+  }
+
+  async function joinWithPassword() {
+    joinMethod = 'password';
+  }
+
+  async function submitPassword() {
+    const password = (document.getElementById('password-input') as HTMLInputElement).value;
+
+    try {
+      await window.api.joinVaultWithPassword(password);
+      syncEnabled = true;
+      setupMode = null;
+      joinMethod = null;
+    } catch (error) {
+      console.error('Password authentication failed:', error);
+      // Show error to user
+    }
+  }
+
+  async function enablePasswordBackup() {
+    const password = (document.getElementById('backup-password') as HTMLInputElement).value;
+
+    try {
+      await window.api.enablePasswordBackup(password);
+      hasPasswordBackup = true;
+    } catch (error) {
+      console.error('Failed to enable password backup:', error);
+    }
   }
 
   async function manualSync() {
@@ -747,22 +1333,218 @@ Simple UI for managing sync:
 
 <div class="sync-settings">
   {#if !syncEnabled}
-    <button onclick={enableSync}>Enable Cloud Sync</button>
+    {#if !setupMode}
+      <!-- Initial choice -->
+      <div class="setup-choice">
+        <h3>Enable Cloud Sync</h3>
+        <p>Sync your notes across multiple devices with end-to-end encryption.</p>
+
+        <button onclick={startNewVault} class="primary">
+          Set Up New Vault
+        </button>
+
+        <button onclick={joinExistingVault} class="secondary">
+          I Already Have a Vault
+        </button>
+      </div>
+
+    {:else if setupMode === 'new'}
+      <!-- New vault setup (passwordless) -->
+      <div class="setup-new">
+        <h3>Set Up Cloud Sync</h3>
+
+        <div class="device-info">
+          <label for="device-name">Device Name</label>
+          <input
+            id="device-name"
+            type="text"
+            bind:value={deviceName}
+            placeholder="My MacBook Pro"
+          />
+          <p class="hint">This helps you identify devices in your vault.</p>
+        </div>
+
+        <div class="security-notice">
+          <h4>🔒 Security Notice</h4>
+          <ul>
+            <li>Your vault key will be stored securely in your device's keychain</li>
+            <li>Biometric unlock (Touch ID/Windows Hello) protects access</li>
+            <li>To add more devices, you'll authorize them from this device</li>
+            <li>Optionally add a password backup for easier device setup</li>
+          </ul>
+        </div>
+
+        <button onclick={enableSyncPasswordless} class="primary">
+          Enable Sync
+        </button>
+        <button onclick={() => setupMode = null} class="secondary">
+          Cancel
+        </button>
+      </div>
+
+    {:else if setupMode === 'existing'}
+      <!-- Join existing vault -->
+      <div class="setup-join">
+        <h3>Join Existing Vault</h3>
+        <p>How would you like to connect?</p>
+
+        {#if !joinMethod}
+          <button onclick={requestDeviceAuth} class="primary">
+            Authorize from Another Device
+          </button>
+
+          <button onclick={joinWithPassword} class="secondary">
+            Use Password (if you set one)
+          </button>
+
+          <button onclick={() => setupMode = null} class="tertiary">
+            Back
+          </button>
+
+        {:else if joinMethod === 'device'}
+          <div class="device-auth">
+            <h4>Authorize from Another Device</h4>
+            <p>On your other device, go to Settings → Sync → Authorize Device</p>
+            <p>Enter this code or scan the QR code:</p>
+
+            <div class="auth-code">
+              {authCode}
+            </div>
+
+            <!-- QR code would go here -->
+            <canvas id="qr-code"></canvas>
+
+            <div class="waiting">
+              <span class="spinner"></span>
+              Waiting for authorization...
+            </div>
+
+            <button onclick={() => { joinMethod = null; }} class="secondary">
+              Cancel
+            </button>
+          </div>
+
+        {:else if joinMethod === 'password'}
+          <div class="password-auth">
+            <h4>Enter Vault Password</h4>
+            <p>Enter the password you created for this vault:</p>
+
+            <input
+              id="password-input"
+              type="password"
+              placeholder="Vault password"
+              autocomplete="off"
+            />
+
+            <button onclick={submitPassword} class="primary">
+              Join Vault
+            </button>
+
+            <button onclick={() => { joinMethod = null; }} class="secondary">
+              Back
+            </button>
+          </div>
+        {/if}
+      </div>
+    {/if}
+
   {:else}
+    <!-- Sync enabled - show status and options -->
     <div class="sync-status">
-      <span>Sync enabled</span>
+      <h3>Cloud Sync</h3>
+
+      <div class="status-indicator">
+        <span class="status-dot" class:synced={!syncInProgress}></span>
+        {#if syncInProgress}
+          <span>Syncing...</span>
+        {:else}
+          <span>Synced</span>
+        {/if}
+      </div>
+
       {#if lastSyncTime}
-        <span>Last sync: {lastSyncTime.toLocaleString()}</span>
+        <p class="last-sync">Last sync: {lastSyncTime.toLocaleString()}</p>
       {/if}
+
       <button onclick={manualSync} disabled={syncInProgress}>
-        {syncInProgress ? 'Syncing...' : 'Sync Now'}
+        Sync Now
       </button>
+
+      {#if !hasPasswordBackup}
+        <div class="password-backup-prompt">
+          <h4>Optional: Add Password Backup</h4>
+          <p>Set a password to make adding new devices easier.</p>
+
+          <input
+            id="backup-password"
+            type="password"
+            placeholder="Create backup password"
+          />
+
+          <button onclick={enablePasswordBackup} class="secondary">
+            Enable Password Backup
+          </button>
+        </div>
+      {:else}
+        <p class="backup-enabled">✓ Password backup enabled</p>
+      {/if}
+
+      <div class="manage-devices">
+        <h4>Devices</h4>
+        <!-- List of authorized devices would go here -->
+        <button onclick={() => window.api.showDeviceManagement()}>
+          Manage Devices
+        </button>
+      </div>
     </div>
   {/if}
 </div>
+
+<style>
+  .sync-settings {
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  .auth-code {
+    font-size: 32px;
+    font-weight: bold;
+    letter-spacing: 0.2em;
+    text-align: center;
+    padding: 20px;
+    background: var(--surface);
+    border-radius: 8px;
+    margin: 20px 0;
+  }
+
+  .status-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--warning);
+    margin-right: 8px;
+  }
+
+  .status-dot.synced {
+    background: var(--success);
+  }
+
+  .security-notice {
+    background: var(--info-bg);
+    border: 1px solid var(--info-border);
+    border-radius: 8px;
+    padding: 16px;
+    margin: 20px 0;
+  }
+
+  .security-notice ul {
+    margin: 8px 0 0 20px;
+  }
+</style>
 ```
 
-**Deliverable:** Basic sync settings UI
+**Deliverable:** Complete hybrid sync UI with passwordless default and optional password backup
 
 #### 6. **Periodic Background Sync**
 
@@ -1061,24 +1843,106 @@ describe('Concurrent Edit Scenarios', () => {
 ## Security Considerations
 
 ### 1. **Zero-Knowledge Encryption**
-- Flint never sees plaintext data
-- Encryption key derived from user password
+- Flint never sees plaintext data or vault keys
+- Vault keys stored encrypted in OS keychain (biometric-protected)
 - R2 only stores encrypted blobs
+- Device-to-device key sharing uses ECDH key agreement
 
-### 2. **Key Derivation**
-- Use scrypt for memory-hard key derivation
-- Salt with user identifier (DID or vault ID)
-- 256-bit AES-GCM encryption
+### 2. **Key Management**
 
-### 3. **Authentication**
-- AT Protocol OAuth for identity (optional)
-- DPoP token binding
-- Refresh tokens stored securely
+**Primary Flow (Passwordless):**
+- Random 256-bit vault key generated per vault
+- Stored in OS keychain using Electron `safeStorage`
+  - macOS: Keychain with Touch ID/password protection
+  - Windows: DPAPI with Windows Hello/password protection
+  - Linux: Secret Service API / libsecret
+- ECDH (P-256) key pairs for device authorization
+- Vault keys wrapped with ephemeral shared secrets for device transfer
 
-### 4. **Data Privacy**
-- R2 knows: number of documents, file sizes, access patterns
-- R2 doesn't know: content, titles, metadata
-- AT Protocol PDS doesn't see note data
+**Optional Password Backup:**
+- Password derives encryption key via scrypt (N=32768, r=8, p=1)
+- Random 32-byte salt stored with encrypted vault key
+- Password-encrypted vault key uploaded to R2 as backup
+- Only used for recovery or easier device setup
+
+### 3. **Device Authorization Security**
+- Each device has unique ECDH key pair (P-256 curve)
+- New devices request authorization via short code (6 chars) or QR code
+- Existing device approves and derives shared secret (ECDH)
+- Vault key wrapped with shared secret, never transmitted in plaintext
+- Authorization codes are single-use and expire after 15 minutes
+
+### 4. **Biometric Protection**
+- OS keychain access gated by biometric (Touch ID, Windows Hello, etc.)
+- Flint never handles biometric data directly
+- OS handles authentication and key unwrapping
+- Fallback to device password if biometric unavailable
+
+### 5. **Authentication (Optional)**
+- AT Protocol OAuth for portable identity
+- DPoP token binding for token security
+- Refresh tokens stored in OS keychain
+- DID used only for organizing R2 storage paths
+
+### 6. **Data Privacy**
+
+**What R2 knows:**
+- Number of documents
+- File sizes and upload times
+- Access patterns (IP addresses, request timing)
+- Vault ID (but can't link to user identity without AT Protocol DID)
+
+**What R2 doesn't know:**
+- Content of notes
+- Titles or metadata
+- Encryption keys
+- Device information
+
+**What AT Protocol PDS knows (if used):**
+- User's DID and handle
+- OAuth tokens for authentication
+
+**What AT Protocol PDS doesn't know:**
+- Note data (not stored on PDS)
+- Vault keys
+- R2 credentials
+
+### 7. **Threat Model**
+
+**Protected Against:**
+- ✅ R2 compromise (data encrypted)
+- ✅ Network eavesdropping (TLS + encrypted payloads)
+- ✅ Stolen laptop (keychain encrypted by OS)
+- ✅ Malicious devices (authorization required)
+- ✅ Password guessing (scrypt with high N factor)
+
+**Not Protected Against:**
+- ❌ Compromised device with unlocked keychain
+- ❌ Malware with keychain access
+- ❌ User sharing password backup with attacker
+- ❌ Physical access to unlocked device
+
+### 8. **Key Rotation and Recovery**
+
+**Password Change:**
+- Re-encrypt vault key with new password
+- Update R2 password backup
+- Existing device keys unchanged
+
+**Lost Device:**
+- Revoke device from vault identity
+- Remove device's public key from authorized list
+- Device can no longer decrypt new data
+
+**Lost All Devices:**
+- If password backup enabled: recover with password
+- If no password backup: data unrecoverable
+- Prominent warnings during setup about this risk
+
+**Compromised Password:**
+- Change password immediately
+- Revoke all device authorizations
+- Re-authorize known devices only
 
 ---
 
@@ -1111,7 +1975,12 @@ describe('Concurrent Edit Scenarios', () => {
 **Mitigation:** Metadata (title, tags) uses last-write-wins. Content uses Automerge Text CRDT. Accept that some conflicts require user review.
 
 ### Risk 3: Encryption Key Loss
-**Mitigation:** Warn users prominently. Consider key backup options (encrypted with recovery phrase).
+**Mitigation:**
+- OS keychain provides reliable storage across device reboots
+- Optional password backup enables recovery
+- Prominent warnings during setup if password backup not enabled
+- Device authorization allows recovering vault on new device if any authorized device still works
+- Export encrypted vault key to file as manual backup option
 
 ### Risk 4: R2 Costs at Scale
 **Mitigation:** Monitor usage. Implement compression. Consider alternative storage backends.
@@ -1174,8 +2043,17 @@ This plan delivers multi-device sync in 4 focused phases:
 **Total Timeline:** 14-19 weeks (~3.5-5 months)
 
 **Key Outcomes:**
-- ✅ Conflict-free multi-device sync
-- ✅ Zero-knowledge encryption
-- ✅ Optional AT Protocol identity
+- ✅ Conflict-free multi-device sync via Automerge CRDTs
+- ✅ Zero-knowledge encryption with device keychain
+- ✅ Passwordless by default (biometric unlock)
+- ✅ Optional password backup for easier multi-device setup
+- ✅ Device-to-device authorization with QR codes
+- ✅ Optional AT Protocol identity for portable DID
 - ✅ Local-first remains core experience
 - ✅ Markdown files remain source of truth
+
+**Encryption Model:**
+- **Default:** Device keychain + biometric (Touch ID, Windows Hello)
+- **Multi-device:** Device authorization flow (QR code or short code)
+- **Optional:** Password backup for recovery and easier setup
+- **Zero-knowledge:** Flint never sees vault keys or plaintext data
