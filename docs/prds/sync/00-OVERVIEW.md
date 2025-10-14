@@ -136,6 +136,20 @@ Post-launch feature roadmap:
 
 ---
 
+### 10. [Subscription & Monetization](./10-SUBSCRIPTION-MONETIZATION.md)
+
+Paid tier strategy and implementation:
+- Free tier (1GB) vs. Pro tier ($5/month, 50GB)
+- Stripe integration architecture
+- Subscription management and webhook handling
+- Client-side upgrade UI and quota enforcement
+- Migration strategy for existing users
+- Revenue projections and cost analysis
+
+**Business model** for sustainable growth and monetization.
+
+---
+
 ## Quick Reference
 
 ### Key Outcomes
@@ -176,7 +190,7 @@ Post-launch feature roadmap:
 2. **Security reviewers:** Focus on [Encryption & Key Management](./02-ENCRYPTION-KEY-MANAGEMENT.md)
 3. **Backend developers:** Begin with [Backend Service](./03-BACKEND-SERVICE.md) and [Data Model](./04-DATA-MODEL.md)
 4. **Frontend developers:** Review [UI Design](./06-UI-DESIGN.md) and [Implementation Phases](./05-IMPLEMENTATION-PHASES.md)
-5. **Product managers:** Review [Cost Estimates](./07-COST-SCALING.md) and [Risks](./08-RISKS-MITIGATIONS.md)
+5. **Product managers:** Review [Cost Estimates](./07-COST-SCALING.md), [Subscription & Monetization](./10-SUBSCRIPTION-MONETIZATION.md), and [Risks](./08-RISKS-MITIGATIONS.md)
 6. **Implementation teams:** Follow [Implementation Phases](./05-IMPLEMENTATION-PHASES.md) step by step
 
 ---

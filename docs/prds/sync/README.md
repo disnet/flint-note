@@ -22,6 +22,7 @@ Each document is self-contained but linked for easy navigation:
 8. **[Cost & Scaling](./07-COST-SCALING.md)** - Financial analysis and projections
 9. **[Risks & Mitigations](./08-RISKS-MITIGATIONS.md)** - Risk assessment and strategies
 10. **[Future Enhancements](./09-FUTURE-ENHANCEMENTS.md)** - Post-launch roadmap
+11. **[Subscription & Monetization](./10-SUBSCRIPTION-MONETIZATION.md)** - Paid tier strategy with Stripe
 
 ## Key Features
 
@@ -61,8 +62,9 @@ Each document is self-contained but linked for easy navigation:
 
 1. Read [Overview](./00-OVERVIEW.md) for high-level summary
 2. Review [Cost & Scaling](./07-COST-SCALING.md) for financial planning
-3. Check [Risks & Mitigations](./08-RISKS-MITIGATIONS.md) for potential issues
-4. See [Future Enhancements](./09-FUTURE-ENHANCEMENTS.md) for roadmap
+3. Review [Subscription & Monetization](./10-SUBSCRIPTION-MONETIZATION.md) for paid tier strategy
+4. Check [Risks & Mitigations](./08-RISKS-MITIGATIONS.md) for potential issues
+5. See [Future Enhancements](./09-FUTURE-ENHANCEMENTS.md) for roadmap
 
 ## For Designers
 

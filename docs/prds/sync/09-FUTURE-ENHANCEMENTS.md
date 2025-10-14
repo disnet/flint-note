@@ -1,6 +1,6 @@
 # Future Enhancements
 
-[← Back to Overview](./00-OVERVIEW.md)
+**← Previous:** [Risks & Mitigations](./08-RISKS-MITIGATIONS.md) | **Next:** [Subscription & Monetization](./10-SUBSCRIPTION-MONETIZATION.md) →
 
 This document outlines potential future phases beyond the core multi-device sync implementation.
 
@@ -71,4 +71,4 @@ Control which content syncs to optimize bandwidth and storage.
 
 ---
 
-[← Back to Overview](./00-OVERVIEW.md)
+**← Previous:** [Risks & Mitigations](./08-RISKS-MITIGATIONS.md) | **Next:** [Subscription & Monetization](./10-SUBSCRIPTION-MONETIZATION.md) →
