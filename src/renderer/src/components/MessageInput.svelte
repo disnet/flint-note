@@ -1,7 +1,9 @@
 <script lang="ts">
   import ModelSelector from './ModelSelector.svelte';
+  import ContextUsageWidget from './ContextUsageWidget.svelte';
   import SlashCommandAutocomplete from './SlashCommandAutocomplete.svelte';
   type SlashCommandAutocompleteType = SlashCommandAutocomplete;
+  import type { ContextUsage } from '../services/types';
   import { onMount, onDestroy } from 'svelte';
   import { EditorView, WidgetType, Decoration } from '@codemirror/view';
   import {
@@ -31,7 +33,13 @@
     type SlashCommand
   } from '../stores/slashCommandsStore.svelte';
 
-  let { onSend }: { onSend: (text: string) => void } = $props();
+  interface Props {
+    onSend: (text: string) => void;
+    contextUsage?: ContextUsage | null;
+    onStartNewThread?: () => void;
+  }
+
+  let { onSend, contextUsage = null, onStartNewThread }: Props = $props();
 
   let inputText = $state('');
   let autocompleteComponent = $state<SlashCommandAutocompleteType | null>(null);
@@ -652,6 +660,7 @@
     <div class="model-selector-wrapper">
       <ModelSelector />
     </div>
+    <ContextUsageWidget {contextUsage} onWarningClick={onStartNewThread} />
     <button onclick={handleSubmit} disabled={!inputText.trim()} class="send-button">
       submit ↵
     </button>
@@ -679,12 +688,12 @@
 
   .controls-row {
     display: flex;
-    justify-content: space-between;
     align-items: center;
     gap: 0.75rem;
   }
 
   .model-selector-wrapper {
+    flex: 1;
     flex-shrink: 0;
     display: flex;
     align-items: center;

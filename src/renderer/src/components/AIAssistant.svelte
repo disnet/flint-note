@@ -3,7 +3,6 @@
   import LoadingMessage from './LoadingMessage.svelte';
   import MessageInput from './MessageInput.svelte';
   import AgentControlBar from './AgentControlBar.svelte';
-  import ContextUsageBar from './ContextUsageBar.svelte';
   import type { Message, ContextUsage } from '../services/types';
   import { unifiedChatStore } from '../stores/unifiedChatStore.svelte';
 
@@ -21,22 +20,91 @@
   let chatContainer = $state<HTMLDivElement>();
   let expandedDiscussed = $state<boolean>(true);
 
+  // Track the active thread ID to detect changes
+  let lastThreadId = $state<string | null>(null);
+  let updateTimeoutId: number | null = null;
+  let requestCounter = $state<number>(0);
+
   // Fetch context usage when conversation changes or messages change
+  // Use a simpler approach: track the active thread object directly
   $effect(() => {
-    if (unifiedChatStore.activeThreadId && messages.length > 0) {
+    const currentThreadId = unifiedChatStore.activeThreadId;
+    const currentThread = unifiedChatStore.activeThread;
+
+    // Clear context usage when switching threads
+    if (currentThreadId !== lastThreadId) {
+      contextUsage = null;
+      lastThreadId = currentThreadId;
+      // Cancel any pending updates
+      if (updateTimeoutId !== null) {
+        clearTimeout(updateTimeoutId);
+        updateTimeoutId = null;
+      }
+    }
+
+    // Update whenever the thread or messages change
+    if (currentThread) {
+      // Access the messages array and its length to make this reactive
+      const messageCount = currentThread.messages.length;
+      const lastActivity = currentThread.lastActivity;
+
+      // Make dependencies explicit
+      void messageCount;
+      void lastActivity;
+
+      // Debounce the update - cancel previous pending update
+      if (updateTimeoutId !== null) {
+        clearTimeout(updateTimeoutId);
+      }
+
+      // Schedule update after 500ms of no changes
+      updateTimeoutId = window.setTimeout(() => {
+        updateContextUsage();
+        updateTimeoutId = null;
+      }, 500);
+    } else if (currentThreadId) {
+      // Thread exists but has no messages yet
       updateContextUsage();
     }
   });
 
+  // Periodically update context usage during loading (for streaming)
+  $effect(() => {
+    let intervalId: number | null = null;
+
+    if (isLoading) {
+      // Update every 3 seconds while loading
+      intervalId = window.setInterval(() => {
+        updateContextUsage();
+      }, 3000);
+    }
+
+    return () => {
+      if (intervalId !== null) {
+        clearInterval(intervalId);
+      }
+    };
+  });
+
   async function updateContextUsage(): Promise<void> {
+    // Increment request counter to track this specific request
+    const thisRequestId = ++requestCounter;
+
     try {
       const usage = await window.api?.getContextUsage({
         conversationId: unifiedChatStore.activeThreadId ?? undefined
       });
-      contextUsage = usage || null;
+
+      // Only update if this is still the most recent request
+      if (thisRequestId === requestCounter) {
+        contextUsage = usage || null;
+      }
     } catch (error) {
-      console.error('Failed to get context usage:', error);
-      contextUsage = null;
+      // Only update error state if this is still the most recent request
+      if (thisRequestId === requestCounter) {
+        console.error('Failed to get context usage:', error);
+        contextUsage = null;
+      }
     }
   }
 
@@ -159,9 +227,6 @@
 
   <!-- Chat Messages Section -->
   <div class="chat-section" bind:this={chatContainer}>
-    {#if contextUsage && messages.length > 0}
-      <ContextUsageBar {contextUsage} onWarningClick={handleContextWarningClick} />
-    {/if}
     {#each messages as message (message.id)}
       <MessageComponent {message} {onNoteClick} />
     {/each}
@@ -196,7 +261,11 @@
 
   <!-- Message Input Area -->
   <div class="input-section">
-    <MessageInput onSend={onSendMessage || (() => {})} />
+    <MessageInput
+      onSend={onSendMessage || (() => {})}
+      {contextUsage}
+      onStartNewThread={handleContextWarningClick}
+    />
   </div>
 </div>
 
