@@ -5,6 +5,7 @@
 This document outlines the plan to add a web-based client for Flint that works alongside the existing Electron desktop application. The web client will share the same sync infrastructure (Automerge + R2) while providing browser-based access to notes.
 
 **Key Goals:**
+
 - Reuse existing Automerge + R2 sync architecture
 - Enable access from any browser without installation
 - Maintain compatibility with desktop client
@@ -19,21 +20,25 @@ This document outlines the plan to add a web-based client for Flint that works a
 ## Design Principles
 
 ### 1. **Desktop-First, Web-Complementary**
+
 - Electron app is the primary, full-featured client
 - Web client provides convenient access (work, travel, other devices)
 - Web users can always export markdown and migrate to desktop
 
 ### 2. **Shared Sync Infrastructure**
+
 - Same Automerge documents, same R2 storage, same encryption
 - No separate backend or API server needed
 - Desktop and web clients are peers in the sync network
 
 ### 3. **Progressive Web App**
+
 - Works offline after initial load
 - Installable on mobile/desktop as PWA
 - Service worker for caching and background sync
 
 ### 4. **Clear Trade-offs**
+
 - Web: No filesystem, no external editors, no git integration
 - Desktop: Full local-first experience with markdown files
 - Both: Automatic sync, conflict-free merging, encrypted storage
@@ -88,16 +93,16 @@ This document outlines the plan to add a web-based client for Flint that works a
 
 ### Key Differences from Desktop
 
-| Feature | Desktop (Electron) | Web (Browser) |
-|---------|-------------------|---------------|
-| **Source of Truth** | Markdown files | Automerge docs in IndexedDB |
-| **Storage** | Filesystem + IndexedDB | IndexedDB only |
-| **Search** | SQLite FTS5 | Lunr.js or MiniSearch |
-| **External Editors** | Yes (VSCode, etc.) | No |
-| **Git Integration** | Yes | No |
-| **Offline** | Always works | PWA with service worker |
-| **File Export** | Native filesystem | Download ZIP |
-| **Installation** | Required | Optional (PWA) |
+| Feature              | Desktop (Electron)     | Web (Browser)               |
+| -------------------- | ---------------------- | --------------------------- |
+| **Source of Truth**  | Markdown files         | Automerge docs in IndexedDB |
+| **Storage**          | Filesystem + IndexedDB | IndexedDB only              |
+| **Search**           | SQLite FTS5            | Lunr.js or MiniSearch       |
+| **External Editors** | Yes (VSCode, etc.)     | No                          |
+| **Git Integration**  | Yes                    | No                          |
+| **Offline**          | Always works           | PWA with service worker     |
+| **File Export**      | Native filesystem      | Download ZIP                |
+| **Installation**     | Required               | Optional (PWA)              |
 
 ---
 
@@ -152,23 +157,17 @@ export class FlintSyncCore {
   ) {
     this.repo = new Repo({
       storage: new IndexedDBStorageAdapter(),
-      network: [
-        new EncryptedR2StorageAdapter(storage, encryptionKey)
-      ]
+      network: [new EncryptedR2StorageAdapter(storage, encryptionKey)]
     });
 
     this.searchIndex = searchIndex;
   }
 
-  async createNote(
-    type: string,
-    title: string,
-    content: string
-  ): Promise<FlintNote> {
+  async createNote(type: string, title: string, content: string): Promise<FlintNote> {
     const noteId = this.generateNoteId();
     const handle = this.repo.create<FlintNote>();
 
-    handle.change(doc => {
+    handle.change((doc) => {
       doc.id = noteId;
       doc.metadata = {
         title,
@@ -188,14 +187,11 @@ export class FlintSyncCore {
     return handle.doc;
   }
 
-  async updateNote(
-    noteId: string,
-    newContent: string
-  ): Promise<void> {
+  async updateNote(noteId: string, newContent: string): Promise<void> {
     const handle = this.repo.find<FlintNote>(noteId);
     await handle.whenReady();
 
-    handle.change(doc => {
+    handle.change((doc) => {
       doc.content = new Automerge.Text(newContent);
       doc.metadata.updated = new Date().toISOString();
     });
@@ -213,7 +209,7 @@ export class FlintSyncCore {
     const handle = this.repo.find<FlintNote>(noteId);
     await handle.whenReady();
 
-    handle.change(doc => {
+    handle.change((doc) => {
       doc.deleted = true;
       doc.metadata.updated = new Date().toISOString();
     });
@@ -252,6 +248,7 @@ npm install lunr @aws-sdk/client-s3 @atproto/oauth-client
 ```
 
 **Why SvelteKit?**
+
 - Share Svelte components with desktop renderer
 - Built-in SSR for initial load (optional)
 - Adapter for static site generation (deploy to Cloudflare Pages)
@@ -277,15 +274,15 @@ export class LunrSearchIndex implements SearchIndex {
 
   async rebuild(notes: FlintNote[]): Promise<void> {
     this.documents.clear();
-    notes.forEach(note => this.documents.set(note.id, note));
+    notes.forEach((note) => this.documents.set(note.id, note));
 
-    this.index = lunr(function() {
+    this.index = lunr(function () {
       this.ref('id');
       this.field('title', { boost: 10 });
       this.field('content', { boost: 5 });
       this.field('tags', { boost: 3 });
 
-      notes.forEach(note => {
+      notes.forEach((note) => {
         if (!note.deleted) {
           this.add({
             id: note.id,
@@ -303,18 +300,20 @@ export class LunrSearchIndex implements SearchIndex {
 
     const results = this.index.search(query);
 
-    return results.map(result => {
-      const note = this.documents.get(result.ref);
-      if (!note) return null;
+    return results
+      .map((result) => {
+        const note = this.documents.get(result.ref);
+        if (!note) return null;
 
-      return {
-        id: note.id,
-        title: note.metadata.title,
-        snippet: this.extractSnippet(note.content.toString(), query),
-        score: result.score,
-        metadata: note.metadata
-      };
-    }).filter(Boolean) as SearchResult[];
+        return {
+          id: note.id,
+          title: note.metadata.title,
+          snippet: this.extractSnippet(note.content.toString(), query),
+          score: result.score,
+          metadata: note.metadata
+        };
+      })
+      .filter(Boolean) as SearchResult[];
   }
 
   async remove(noteId: string): Promise<void> {
@@ -334,9 +333,11 @@ export class LunrSearchIndex implements SearchIndex {
     const start = Math.max(0, index - 50);
     const end = Math.min(content.length, index + length);
 
-    return (start > 0 ? '...' : '') +
-           content.substring(start, end) +
-           (end < content.length ? '...' : '');
+    return (
+      (start > 0 ? '...' : '') +
+      content.substring(start, end) +
+      (end < content.length ? '...' : '')
+    );
   }
 }
 ```
@@ -351,11 +352,7 @@ import { WebStorageAdapter } from './storage/web-storage-adapter';
 
 export class FlintWebClient extends FlintSyncCore {
   constructor(encryptionKey: CryptoKey, userIdentifier: string) {
-    super(
-      new WebStorageAdapter(userIdentifier),
-      new LunrSearchIndex(),
-      encryptionKey
-    );
+    super(new WebStorageAdapter(userIdentifier), new LunrSearchIndex(), encryptionKey);
   }
 
   // Web-specific: Export vault as ZIP
@@ -417,7 +414,7 @@ export class FlintWebClient extends FlintSyncCore {
     }
 
     const metadata: any = {};
-    match[1].split('\n').forEach(line => {
+    match[1].split('\n').forEach((line) => {
       const [key, ...valueParts] = line.split(':');
       if (key && valueParts.length > 0) {
         metadata[key.trim()] = valueParts.join(':').trim();
@@ -441,9 +438,7 @@ const ASSETS = [...build, ...files];
 
 // Install service worker
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE).then((cache) => cache.addAll(ASSETS))
-  );
+  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ASSETS)));
 });
 
 // Activate and clean old caches
@@ -670,12 +665,14 @@ User Browser → Cloudflare Pages (Static HTML/JS/CSS)
 ```
 
 **Advantages:**
+
 - No server needed
 - Free hosting on Cloudflare
 - CDN for fast global access
 - Automatic HTTPS
 
 **Disadvantages:**
+
 - All code runs client-side
 - Can't use Node.js APIs
 - Harder to debug in production
@@ -734,14 +731,17 @@ class WebEncryptionManager {
 
 ```html
 <!-- packages/web-client/src/app.html -->
-<meta http-equiv="Content-Security-Policy" content="
+<meta
+  http-equiv="Content-Security-Policy"
+  content="
   default-src 'self';
   script-src 'self' 'wasm-unsafe-eval';
   style-src 'self' 'unsafe-inline';
   img-src 'self' data: https:;
   connect-src 'self' https://*.r2.cloudflarestorage.com https://*.bsky.network;
   worker-src 'self';
-">
+"
+/>
 ```
 
 ### 3. **XSS Prevention**
@@ -787,24 +787,28 @@ class WebEncryptionManager {
 ## Testing Strategy
 
 ### Unit Tests
+
 - Core sync logic (shared package)
 - Lunr search implementation
 - Encryption/decryption
 - Markdown import/export
 
 ### Integration Tests
+
 - Automerge document operations
 - R2 sync adapter
 - IndexedDB persistence
 - Service worker caching
 
 ### End-to-End Tests
+
 - Create note on web, verify on desktop
 - Edit on desktop, verify on web
 - Concurrent edits from multiple tabs
 - Offline mode and sync recovery
 
 ### Browser Compatibility
+
 - Chrome/Edge (Chromium)
 - Firefox
 - Safari (desktop and iOS)
@@ -817,14 +821,17 @@ class WebEncryptionManager {
 ### Cloudflare Costs
 
 **Pages (Hosting):**
+
 - Free tier: Unlimited requests, 500 builds/month
 - Custom domains included
 
 **R2 (Storage):**
+
 - Same as desktop (see [Automerge plan](./AUTOMERGE-SYNC-IMPLEMENTATION-PLAN.md#cost-estimates))
 - No per-user cost difference
 
 **Workers (Optional):**
+
 - Not needed for static site
 - Could add for WebSocket sync in future
 
@@ -846,17 +853,20 @@ class WebEncryptionManager {
 ## Future Enhancements
 
 ### Mobile Apps (Phase 6)
+
 - React Native with same `@flint/sync-core`
 - Native mobile UI
 - Share extension for capturing notes
 - Biometric unlock
 
 ### Real-Time Collaboration (Phase 7)
+
 - WebSocket sync for instant updates
 - Live cursors and presence
 - Shared notes (multi-user editing)
 
 ### Advanced Features (Phase 8)
+
 - Rich media (images, PDFs)
 - Drawing/sketching
 - Voice notes
@@ -881,15 +891,19 @@ No data migration required - sync handles everything!
 ## Risks and Mitigations
 
 ### Risk 1: Browser Storage Limits
+
 **Mitigation:** IndexedDB quotas are generous (50GB+ on desktop browsers). Monitor usage and prompt users to export/archive old notes.
 
 ### Risk 2: Password Recovery
+
 **Mitigation:** No password recovery possible (zero-knowledge encryption). Clearly warn users. Consider optional encrypted backup of key material.
 
 ### Risk 3: Performance with Large Vaults
+
 **Mitigation:** Lunr.js has good performance up to ~10k documents. For larger vaults, consider server-side search or suggest desktop client.
 
 ### Risk 4: Cross-Browser Compatibility
+
 **Mitigation:** Test thoroughly on all major browsers. Use polyfills for older browsers. Provide clear browser requirements.
 
 ---

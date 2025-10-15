@@ -14,20 +14,20 @@ This document provides detailed cost estimates for operating the Flint sync infr
 
 Cloudflare R2 offers competitive S3-compatible object storage with zero egress fees:
 
-| Service | Cost |
-|---------|------|
-| **Storage** | $0.015/GB/month |
+| Service                        | Cost                     |
+| ------------------------------ | ------------------------ |
+| **Storage**                    | $0.015/GB/month          |
 | **Class A operations (write)** | $4.50/million operations |
-| **Class B operations (read)** | $0.36/million operations |
-| **Egress** | Free |
+| **Class B operations (read)**  | $0.36/million operations |
+| **Egress**                     | Free                     |
 
 ### Additional Infrastructure Costs
 
-| Service | Cost |
-|---------|------|
-| **Cloudflare Workers** | Free tier: 100K requests/day<br>Paid: $5/month for 10M requests |
+| Service                            | Cost                                                                                 |
+| ---------------------------------- | ------------------------------------------------------------------------------------ |
+| **Cloudflare Workers**             | Free tier: 100K requests/day<br>Paid: $5/month for 10M requests                      |
 | **Cloudflare D1 (quota tracking)** | Free tier: 5M reads/day, 100K writes/day<br>Paid: $5/month for 25M reads, 50M writes |
-| **Cloudflare KV (alternative)** | Free tier: 100K reads/day, 1K writes/day<br>Paid: $5/month for 10M reads, 1M writes |
+| **Cloudflare KV (alternative)**    | Free tier: 100K reads/day, 1K writes/day<br>Paid: $5/month for 10M reads, 1M writes  |
 
 ---
 
@@ -36,24 +36,26 @@ Cloudflare R2 offers competitive S3-compatible object storage with zero egress f
 ### Typical User Profile
 
 **Assumptions:**
+
 - 1,000 notes in vault
 - Average note size: 10KB (includes frontmatter + content)
 - Total storage: 10MB per user
 
 **Usage Patterns:**
+
 - 100 edits per day (creates, updates, deletes)
 - 500 sync operations per month (reading documents from R2)
 - Multiple devices syncing periodically
 
 ### Cost Calculation
 
-| Component | Calculation | Monthly Cost |
-|-----------|-------------|--------------|
-| **Storage** | 0.01 GB × $0.015/GB | $0.00015 |
-| **Write Operations** | 100 edits/day × 30 days = 3,000 writes<br>3,000 ÷ 1,000,000 × $4.50 | $0.01350 |
-| **Read Operations** | 500 syncs × 10 docs avg = 5,000 reads<br>5,000 ÷ 1,000,000 × $0.36 | $0.00180 |
-| **Workers/D1** | Included in free tier | $0.00000 |
-| **Total per user** | | **$0.01545/month** |
+| Component            | Calculation                                                         | Monthly Cost       |
+| -------------------- | ------------------------------------------------------------------- | ------------------ |
+| **Storage**          | 0.01 GB × $0.015/GB                                                 | $0.00015           |
+| **Write Operations** | 100 edits/day × 30 days = 3,000 writes<br>3,000 ÷ 1,000,000 × $4.50 | $0.01350           |
+| **Read Operations**  | 500 syncs × 10 docs avg = 5,000 reads<br>5,000 ÷ 1,000,000 × $0.36  | $0.00180           |
+| **Workers/D1**       | Included in free tier                                               | $0.00000           |
+| **Total per user**   |                                                                     | **$0.01545/month** |
 
 **Simplified:** **~$0.02/user/month** (essentially negligible)
 
@@ -64,23 +66,25 @@ Cloudflare R2 offers competitive S3-compatible object storage with zero egress f
 For users with larger vaults and more active syncing:
 
 **Assumptions:**
+
 - 10,000 notes in vault
 - Average note size: 15KB
 - Total storage: 150MB per user
 
 **Usage Patterns:**
+
 - 500 edits per day
 - 2,000 sync operations per month
 - 5+ devices syncing frequently
 
 ### Cost Calculation
 
-| Component | Calculation | Monthly Cost |
-|-----------|-------------|--------------|
-| **Storage** | 0.15 GB × $0.015/GB | $0.00225 |
-| **Write Operations** | 500 edits/day × 30 days = 15,000 writes<br>15,000 ÷ 1,000,000 × $4.50 | $0.06750 |
-| **Read Operations** | 2,000 syncs × 20 docs avg = 40,000 reads<br>40,000 ÷ 1,000,000 × $0.36 | $0.01440 |
-| **Total per power user** | | **$0.08415/month** |
+| Component                | Calculation                                                            | Monthly Cost       |
+| ------------------------ | ---------------------------------------------------------------------- | ------------------ |
+| **Storage**              | 0.15 GB × $0.015/GB                                                    | $0.00225           |
+| **Write Operations**     | 500 edits/day × 30 days = 15,000 writes<br>15,000 ÷ 1,000,000 × $4.50  | $0.06750           |
+| **Read Operations**      | 2,000 syncs × 20 docs avg = 40,000 reads<br>40,000 ÷ 1,000,000 × $0.36 | $0.01440           |
+| **Total per power user** |                                                                        | **$0.08415/month** |
 
 **Simplified:** **~$0.08/user/month** (still very low)
 
@@ -90,13 +94,14 @@ For users with larger vaults and more active syncing:
 
 ### 10,000 Users
 
-| User Type | Percentage | Count | Cost per User | Total Cost |
-|-----------|-----------|-------|---------------|------------|
-| Typical | 80% | 8,000 | $0.02 | $160 |
-| Power | 20% | 2,000 | $0.08 | $160 |
-| **Total** | | **10,000** | | **$320/month** |
+| User Type | Percentage | Count      | Cost per User | Total Cost     |
+| --------- | ---------- | ---------- | ------------- | -------------- |
+| Typical   | 80%        | 8,000      | $0.02         | $160           |
+| Power     | 20%        | 2,000      | $0.08         | $160           |
+| **Total** |            | **10,000** |               | **$320/month** |
 
 **Additional Infrastructure:**
+
 - Workers: Free tier sufficient (100K req/day covers 10K users)
 - D1: Free tier sufficient for quota tracking
 
@@ -106,13 +111,14 @@ For users with larger vaults and more active syncing:
 
 ### 100,000 Users
 
-| User Type | Percentage | Count | Cost per User | Total Cost |
-|-----------|-----------|-------|---------------|------------|
-| Typical | 80% | 80,000 | $0.02 | $1,600 |
-| Power | 20% | 20,000 | $0.08 | $1,600 |
-| **Total** | | **100,000** | | **$3,200/month** |
+| User Type | Percentage | Count       | Cost per User | Total Cost       |
+| --------- | ---------- | ----------- | ------------- | ---------------- |
+| Typical   | 80%        | 80,000      | $0.02         | $1,600           |
+| Power     | 20%        | 20,000      | $0.08         | $1,600           |
+| **Total** |            | **100,000** |               | **$3,200/month** |
 
 **Additional Infrastructure:**
+
 - Workers: Paid tier required (~$5-10/month for 100K users)
 - D1: Free tier likely sufficient, paid tier ~$5/month if needed
 
@@ -124,13 +130,14 @@ For users with larger vaults and more active syncing:
 
 ### 1,000,000 Users (Future Scale)
 
-| User Type | Percentage | Count | Cost per User | Total Cost |
-|-----------|-----------|-------|---------------|------------|
-| Typical | 80% | 800,000 | $0.02 | $16,000 |
-| Power | 20% | 200,000 | $0.08 | $16,000 |
-| **Total** | | **1,000,000** | | **$32,000/month** |
+| User Type | Percentage | Count         | Cost per User | Total Cost        |
+| --------- | ---------- | ------------- | ------------- | ----------------- |
+| Typical   | 80%        | 800,000       | $0.02         | $16,000           |
+| Power     | 20%        | 200,000       | $0.08         | $16,000           |
+| **Total** |            | **1,000,000** |               | **$32,000/month** |
 
 **Additional Infrastructure:**
+
 - Workers: Paid tier ~$50-100/month for 1M users
 - D1: Paid tier ~$25-50/month for quota tracking
 
@@ -142,12 +149,12 @@ For users with larger vaults and more active syncing:
 
 ## Cost Comparison Table
 
-| User Count | Monthly Cost | Cost per User | Notes |
-|------------|--------------|---------------|-------|
-| 1,000 | $32 | $0.032 | Free tier infrastructure |
-| 10,000 | $320 | $0.032 | Free tier infrastructure |
-| 100,000 | $3,220 | $0.032 | Paid infrastructure tier |
-| 1,000,000 | $32,150 | $0.032 | Paid infrastructure tier |
+| User Count | Monthly Cost | Cost per User | Notes                    |
+| ---------- | ------------ | ------------- | ------------------------ |
+| 1,000      | $32          | $0.032        | Free tier infrastructure |
+| 10,000     | $320         | $0.032        | Free tier infrastructure |
+| 100,000    | $3,220       | $0.032        | Paid infrastructure tier |
+| 1,000,000  | $32,150      | $0.032        | Paid infrastructure tier |
 
 **Key Insight:** Per-user costs remain remarkably consistent across scale (~$0.03/month) due to R2's linear pricing model.
 
@@ -176,6 +183,7 @@ async function compressAndEncrypt(data: Uint8Array): Promise<Uint8Array> {
 ```
 
 **Savings:**
+
 - Storage: 50% reduction = $0.0001/user/month
 - Bandwidth: Faster syncs, better UX
 - Not significant savings but improves performance
@@ -185,9 +193,11 @@ async function compressAndEncrypt(data: Uint8Array): Promise<Uint8Array> {
 Only sync changed documents instead of full vault on each sync:
 
 **Current (full sync):**
+
 - 1,000 docs × 500 syncs/month = 500,000 reads
 
 **Optimized (incremental):**
+
 - 10 changed docs × 500 syncs/month = 5,000 reads (100x reduction)
 
 **Savings:** ~$0.0018/user/month
@@ -227,12 +237,12 @@ Deduplicate common data across Automerge documents:
 
 Offer generous free tier to maximize adoption:
 
-| Metric | Free Tier Limit |
-|--------|----------------|
-| Storage | 1 GB per user |
+| Metric         | Free Tier Limit                |
+| -------------- | ------------------------------ |
+| Storage        | 1 GB per user                  |
 | Sync bandwidth | Unlimited (R2 has free egress) |
-| Devices | Unlimited |
-| Notes | Unlimited |
+| Devices        | Unlimited                      |
+| Notes          | Unlimited                      |
 
 **Cost per free user:** ~$0.02-0.08/month
 
@@ -242,10 +252,10 @@ Offer generous free tier to maximize adoption:
 
 If monetization becomes necessary:
 
-| Feature | Price | User Value |
-|---------|-------|------------|
-| Premium Tier | $5/month | - Increased storage (10GB)<br>- Priority sync<br>- Version history (90 days)<br>- Advanced sharing |
-| Team Plan | $10/user/month | - Shared vaults<br>- Admin controls<br>- SSO integration |
+| Feature      | Price          | User Value                                                                                         |
+| ------------ | -------------- | -------------------------------------------------------------------------------------------------- |
+| Premium Tier | $5/month       | - Increased storage (10GB)<br>- Priority sync<br>- Version history (90 days)<br>- Advanced sharing |
+| Team Plan    | $10/user/month | - Shared vaults<br>- Admin controls<br>- SSO integration                                           |
 
 **Premium margin:** $4.97 profit per user after infrastructure costs
 
@@ -258,6 +268,7 @@ If monetization becomes necessary:
 Unlike S3, R2 doesn't charge for egress bandwidth. This is a major advantage:
 
 **Typical S3 costs (for comparison):**
+
 - 10 MB download/user/month = $0.0009/user
 - 100 MB download/power user/month = $0.009/user
 
@@ -267,11 +278,11 @@ Unlike S3, R2 doesn't charge for egress bandwidth. This is a major advantage:
 
 Target metrics for bandwidth efficiency:
 
-| Metric | Target | Impact |
-|--------|--------|--------|
-| Incremental sync | 95% of syncs | Reduce unnecessary transfers |
-| Compression ratio | 50-70% | Smaller payloads |
-| Batching window | 5-10 seconds | Combine rapid edits |
+| Metric            | Target       | Impact                       |
+| ----------------- | ------------ | ---------------------------- |
+| Incremental sync  | 95% of syncs | Reduce unnecessary transfers |
+| Compression ratio | 50-70%       | Smaller payloads             |
+| Batching window   | 5-10 seconds | Combine rapid edits          |
 
 ---
 
@@ -279,17 +290,18 @@ Target metrics for bandwidth efficiency:
 
 ### When to Upgrade Infrastructure
 
-| User Count | Action | Cost Impact |
-|------------|--------|-------------|
-| 10,000 | Monitor Workers free tier limits | None |
-| 50,000 | Add Workers paid tier | +$5-10/month |
-| 100,000 | Add D1 paid tier | +$5/month |
-| 500,000 | Consider R2 Enterprise pricing | Negotiate volume discount |
-| 1,000,000 | Dedicated account manager | Custom pricing |
+| User Count | Action                           | Cost Impact               |
+| ---------- | -------------------------------- | ------------------------- |
+| 10,000     | Monitor Workers free tier limits | None                      |
+| 50,000     | Add Workers paid tier            | +$5-10/month              |
+| 100,000    | Add D1 paid tier                 | +$5/month                 |
+| 500,000    | Consider R2 Enterprise pricing   | Negotiate volume discount |
+| 1,000,000  | Dedicated account manager        | Custom pricing            |
 
 ### Monitoring Thresholds
 
 Set up alerts for:
+
 - Daily Workers requests approaching 100K
 - D1 reads approaching 5M/day
 - R2 storage growth rate exceeding budget
@@ -301,28 +313,30 @@ Set up alerts for:
 
 ### Self-Hosted S3
 
-| Provider | Storage | Write Ops | Read Ops | Egress | Monthly (10K users) |
-|----------|---------|-----------|----------|--------|---------------------|
-| **R2** | $0.015/GB | $4.50/M | $0.36/M | Free | **$320** |
-| AWS S3 | $0.023/GB | $5.00/M | $0.40/M | $0.09/GB | **$650** |
-| Backblaze B2 | $0.005/GB | $0.40/M | Free | $0.01/GB | **$180** |
+| Provider     | Storage   | Write Ops | Read Ops | Egress   | Monthly (10K users) |
+| ------------ | --------- | --------- | -------- | -------- | ------------------- |
+| **R2**       | $0.015/GB | $4.50/M   | $0.36/M  | Free     | **$320**            |
+| AWS S3       | $0.023/GB | $5.00/M   | $0.40/M  | $0.09/GB | **$650**            |
+| Backblaze B2 | $0.005/GB | $0.40/M   | Free     | $0.01/GB | **$180**            |
 
 **R2 advantages over S3:**
+
 - Free egress (major savings at scale)
 - Cloudflare network integration
 - DDoS protection included
 
 **R2 advantages over B2:**
+
 - Better integration with Cloudflare ecosystem
 - More predictable pricing
 - Enterprise support
 
 ### Hosted Solutions (Supabase, Firebase)
 
-| Provider | Storage | Bandwidth | Monthly (10K users) |
-|----------|---------|-----------|---------------------|
-| Supabase | $0.021/GB | $0.09/GB egress | ~$450 |
-| Firebase Storage | $0.026/GB | $0.12/GB egress | ~$680 |
+| Provider         | Storage   | Bandwidth       | Monthly (10K users) |
+| ---------------- | --------- | --------------- | ------------------- |
+| Supabase         | $0.021/GB | $0.09/GB egress | ~$450               |
+| Firebase Storage | $0.026/GB | $0.12/GB egress | ~$680               |
 
 **R2 advantage:** 30-50% cost savings at scale
 
@@ -332,15 +346,16 @@ Set up alerts for:
 
 ### 5-Year Growth Model
 
-| Year | Users | Monthly Cost | Annual Cost | Cumulative |
-|------|-------|--------------|-------------|------------|
-| 1 | 10,000 | $320 | $3,840 | $3,840 |
-| 2 | 50,000 | $1,610 | $19,320 | $23,160 |
-| 3 | 150,000 | $4,830 | $57,960 | $81,120 |
-| 4 | 400,000 | $12,880 | $154,560 | $235,680 |
-| 5 | 1,000,000 | $32,150 | $385,800 | $621,480 |
+| Year | Users     | Monthly Cost | Annual Cost | Cumulative |
+| ---- | --------- | ------------ | ----------- | ---------- |
+| 1    | 10,000    | $320         | $3,840      | $3,840     |
+| 2    | 50,000    | $1,610       | $19,320     | $23,160    |
+| 3    | 150,000   | $4,830       | $57,960     | $81,120    |
+| 4    | 400,000   | $12,880      | $154,560    | $235,680   |
+| 5    | 1,000,000 | $32,150      | $385,800    | $621,480   |
 
 **Assumptions:**
+
 - Exponential user growth
 - 80% typical / 20% power user split
 - No premium revenue (conservative)

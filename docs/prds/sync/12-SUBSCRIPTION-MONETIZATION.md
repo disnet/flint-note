@@ -18,14 +18,14 @@ This document outlines the strategy for implementing a paid subscription tier fo
 
 **Target:** Individual users with basic sync needs
 
-| Feature | Limit |
-|---------|-------|
-| Storage | 1 GB |
-| Devices | Unlimited |
-| Notes | Unlimited |
-| Sync frequency | Every 30 seconds |
-| Version history | 7 days |
-| Support | Community |
+| Feature         | Limit            |
+| --------------- | ---------------- |
+| Storage         | 1 GB             |
+| Devices         | Unlimited        |
+| Notes           | Unlimited        |
+| Sync frequency  | Every 30 seconds |
+| Version history | 7 days           |
+| Support         | Community        |
 
 **Cost to Flint:** ~$0.03/user/month
 
@@ -35,15 +35,15 @@ This document outlines the strategy for implementing a paid subscription tier fo
 
 **Price:** $5/month or $48/year (20% discount)
 
-| Feature | Limit |
-|---------|-------|
-| Storage | 50 GB |
-| Devices | Unlimited |
-| Notes | Unlimited |
-| Sync frequency | Real-time |
-| Version history | 90 days |
-| Support | Email (48h response) |
-| Early access | Beta features |
+| Feature         | Limit                |
+| --------------- | -------------------- |
+| Storage         | 50 GB                |
+| Devices         | Unlimited            |
+| Notes           | Unlimited            |
+| Sync frequency  | Real-time            |
+| Version history | 90 days              |
+| Support         | Email (48h response) |
+| Early access    | Beta features        |
 
 **Cost to Flint:** ~$0.10-0.20/user/month (including higher storage/operations)
 
@@ -55,13 +55,13 @@ This document outlines the strategy for implementing a paid subscription tier fo
 
 **Price:** $10/user/month
 
-| Feature | Limit |
-|---------|-------|
-| Everything in Pro | ✅ |
-| Shared vaults | Unlimited |
-| Admin controls | User management |
-| Team version history | 1 year |
-| Support | Priority email (24h) |
+| Feature              | Limit                |
+| -------------------- | -------------------- |
+| Everything in Pro    | ✅                   |
+| Shared vaults        | Unlimited            |
+| Admin controls       | User management      |
+| Team version history | 1 year               |
+| Support              | Priority email (24h) |
 
 ---
 
@@ -130,6 +130,7 @@ Add to Flint Sync Service (Cloudflare Worker):
 Create Stripe Checkout session for new subscription.
 
 **Request:**
+
 ```typescript
 interface CreateCheckoutRequest {
   did: string;
@@ -146,9 +147,10 @@ interface CreateCheckoutRequest {
 ```
 
 **Response:**
+
 ```typescript
 interface CreateCheckoutResponse {
-  checkoutUrl: string;  // Redirect user to this URL
+  checkoutUrl: string; // Redirect user to this URL
   sessionId: string;
 }
 ```
@@ -160,15 +162,17 @@ interface CreateCheckoutResponse {
 Create Stripe Customer Portal session for managing subscription.
 
 **Request:**
+
 ```typescript
 interface CreatePortalRequest {
   did: string;
   dpopToken: string;
-  returnUrl: string;  // Where to redirect after portal
+  returnUrl: string; // Where to redirect after portal
 }
 ```
 
 **Response:**
+
 ```typescript
 interface CreatePortalResponse {
   portalUrl: string;
@@ -180,18 +184,19 @@ interface CreatePortalResponse {
 Get current subscription status.
 
 **Response:**
+
 ```typescript
 interface SubscriptionStatus {
   did: string;
   tier: 'free' | 'pro' | 'team';
   status: 'active' | 'trialing' | 'past_due' | 'canceled' | 'unpaid';
-  currentPeriodEnd?: string;  // ISO timestamp
+  currentPeriodEnd?: string; // ISO timestamp
   cancelAtPeriodEnd: boolean;
   storageUsed: number;
   storageLimit: number;
   features: {
-    syncFrequency: number;     // seconds
-    versionHistory: number;    // days
+    syncFrequency: number; // seconds
+    versionHistory: number; // days
     prioritySupport: boolean;
   };
 }
@@ -202,6 +207,7 @@ interface SubscriptionStatus {
 Handle Stripe webhook events.
 
 **Events handled:**
+
 - `checkout.session.completed` - New subscription created
 - `customer.subscription.created` - Subscription started
 - `customer.subscription.updated` - Subscription changed (upgrade/downgrade)
@@ -223,16 +229,20 @@ async function createCheckoutSession(
   // Get user email from database
   const emailData = await env.QUOTA_DB.prepare(
     'SELECT email FROM user_emails WHERE did = ?'
-  ).bind(did).first<{ email: string }>();
+  )
+    .bind(did)
+    .first<{ email: string }>();
 
   const stripe = new Stripe(env.STRIPE_SECRET_KEY);
 
   const session = await stripe.checkout.sessions.create({
     customer_email: emailData?.email, // Pre-fill email
-    line_items: [{
-      price: getPriceId(tier, interval),
-      quantity: 1
-    }],
+    line_items: [
+      {
+        price: getPriceId(tier, interval),
+        quantity: 1
+      }
+    ],
     mode: 'subscription',
     success_url: 'flint://subscription/success',
     cancel_url: 'flint://subscription/cancel',
@@ -247,6 +257,7 @@ async function createCheckoutSession(
 ```
 
 **Benefits:**
+
 - Better user experience (no need to re-enter email)
 - Ensures Stripe receipts go to the right address
 - Links subscription to user's communication email
@@ -269,14 +280,18 @@ async function handleCredentialsRequest(request: Request, env: Env): Promise<Res
   const subscription = await getSubscription(did, env);
 
   if (subscription.status === 'unpaid' || subscription.status === 'past_due') {
-    return new Response(JSON.stringify({
-      error: 'subscription_past_due',
-      message: 'Your subscription payment is past due. Please update your payment method.',
-      portalUrl: await createCustomerPortalUrl(did, env)
-    }), {
-      status: 402, // Payment Required
-      headers: { 'Content-Type': 'application/json' }
-    });
+    return new Response(
+      JSON.stringify({
+        error: 'subscription_past_due',
+        message:
+          'Your subscription payment is past due. Please update your payment method.',
+        portalUrl: await createCustomerPortalUrl(did, env)
+      }),
+      {
+        status: 402, // Payment Required
+        headers: { 'Content-Type': 'application/json' }
+      }
+    );
   }
 
   // 3. Check storage quota with tier-specific limits (UPDATED)
@@ -284,35 +299,42 @@ async function handleCredentialsRequest(request: Request, env: Env): Promise<Res
   const quota = await checkStorageQuota(did, env);
 
   if (quota.used >= tierLimits.storage_limit_bytes) {
-    return new Response(JSON.stringify({
-      error: 'quota_exceeded',
-      message: subscription.tier === 'free'
-        ? 'You have exceeded your 1GB free tier limit. Upgrade to Pro for 50GB storage.'
-        : 'Storage quota exceeded. Please free up space or contact support.',
-      upgradeUrl: subscription.tier === 'free' ? 'https://flint.app/upgrade' : null
-    }), {
-      status: 403,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    return new Response(
+      JSON.stringify({
+        error: 'quota_exceeded',
+        message:
+          subscription.tier === 'free'
+            ? 'You have exceeded your 1GB free tier limit. Upgrade to Pro for 50GB storage.'
+            : 'Storage quota exceeded. Please free up space or contact support.',
+        upgradeUrl: subscription.tier === 'free' ? 'https://flint.app/upgrade' : null
+      }),
+      {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' }
+      }
+    );
   }
 
   // 4. Generate scoped R2 credentials (existing)
   const credentials = await generateScopedR2Credentials(did, env);
 
-  return new Response(JSON.stringify({
-    r2Credentials: credentials,
-    subscription: {
-      tier: subscription.tier,
-      storageUsed: quota.used,
-      storageLimit: tierLimits.storage_limit_bytes,
-      features: {
-        syncFrequency: tierLimits.sync_frequency_seconds,
-        versionHistory: tierLimits.version_history_days
+  return new Response(
+    JSON.stringify({
+      r2Credentials: credentials,
+      subscription: {
+        tier: subscription.tier,
+        storageUsed: quota.used,
+        storageLimit: tierLimits.storage_limit_bytes,
+        features: {
+          syncFrequency: tierLimits.sync_frequency_seconds,
+          versionHistory: tierLimits.version_history_days
+        }
       }
+    }),
+    {
+      headers: { 'Content-Type': 'application/json' }
     }
-  }), {
-    headers: { 'Content-Type': 'application/json' }
-  });
+  );
 }
 ```
 
@@ -339,7 +361,8 @@ async function handleStripeWebhook(request: Request, env: Env): Promise<Response
         const tier = session.metadata.tier;
 
         // Create or update subscription record
-        await env.QUOTA_DB.prepare(`
+        await env.QUOTA_DB.prepare(
+          `
           INSERT INTO subscriptions (did, stripe_customer_id, stripe_subscription_id, status, tier, current_period_end)
           VALUES (?, ?, ?, 'active', ?, ?)
           ON CONFLICT(did) DO UPDATE SET
@@ -348,13 +371,16 @@ async function handleStripeWebhook(request: Request, env: Env): Promise<Response
             tier = excluded.tier,
             current_period_end = excluded.current_period_end,
             updated_at = datetime('now')
-        `).bind(
-          did,
-          session.customer,
-          session.subscription,
-          tier,
-          new Date(session.expires_at * 1000).toISOString()
-        ).run();
+        `
+        )
+          .bind(
+            did,
+            session.customer,
+            session.subscription,
+            tier,
+            new Date(session.expires_at * 1000).toISOString()
+          )
+          .run();
 
         // Update quota limits
         await updateQuotaLimits(did, tier, env);
@@ -368,19 +394,23 @@ async function handleStripeWebhook(request: Request, env: Env): Promise<Response
         const subscription = event.data.object;
         const did = await getDIDFromCustomerId(subscription.customer, env);
 
-        await env.QUOTA_DB.prepare(`
+        await env.QUOTA_DB.prepare(
+          `
           UPDATE subscriptions
           SET status = ?,
               current_period_end = ?,
               cancel_at_period_end = ?,
               updated_at = datetime('now')
           WHERE did = ?
-        `).bind(
-          subscription.status,
-          new Date(subscription.current_period_end * 1000).toISOString(),
-          subscription.cancel_at_period_end ? 1 : 0,
-          did
-        ).run();
+        `
+        )
+          .bind(
+            subscription.status,
+            new Date(subscription.current_period_end * 1000).toISOString(),
+            subscription.cancel_at_period_end ? 1 : 0,
+            did
+          )
+          .run();
         break;
       }
 
@@ -389,13 +419,17 @@ async function handleStripeWebhook(request: Request, env: Env): Promise<Response
         const did = await getDIDFromCustomerId(subscription.customer, env);
 
         // Downgrade to free tier
-        await env.QUOTA_DB.prepare(`
+        await env.QUOTA_DB.prepare(
+          `
           UPDATE subscriptions
           SET status = 'canceled',
               tier = 'free',
               updated_at = datetime('now')
           WHERE did = ?
-        `).bind(did).run();
+        `
+        )
+          .bind(did)
+          .run();
 
         // Update quota to free tier limits
         await updateQuotaLimits(did, 'free', env);
@@ -406,12 +440,16 @@ async function handleStripeWebhook(request: Request, env: Env): Promise<Response
         const invoice = event.data.object;
         const did = await getDIDFromCustomerId(invoice.customer, env);
 
-        await env.QUOTA_DB.prepare(`
+        await env.QUOTA_DB.prepare(
+          `
           UPDATE subscriptions
           SET status = 'past_due',
               updated_at = datetime('now')
           WHERE did = ?
-        `).bind(did).run();
+        `
+        )
+          .bind(did)
+          .run();
         break;
       }
 
@@ -419,12 +457,16 @@ async function handleStripeWebhook(request: Request, env: Env): Promise<Response
         const invoice = event.data.object;
         const did = await getDIDFromCustomerId(invoice.customer, env);
 
-        await env.QUOTA_DB.prepare(`
+        await env.QUOTA_DB.prepare(
+          `
           UPDATE subscriptions
           SET status = 'active',
               updated_at = datetime('now')
           WHERE did = ?
-        `).bind(did).run();
+        `
+        )
+          .bind(did)
+          .run();
         break;
       }
     }
@@ -432,7 +474,6 @@ async function handleStripeWebhook(request: Request, env: Env): Promise<Response
     return new Response(JSON.stringify({ received: true }), {
       headers: { 'Content-Type': 'application/json' }
     });
-
   } catch (error) {
     console.error('Webhook error:', error);
     return new Response(error.message, { status: 400 });
@@ -454,7 +495,9 @@ async function sendSubscriptionWelcomeEmail(
   // Get user email from database
   const emailData = await env.QUOTA_DB.prepare(
     'SELECT email FROM user_emails WHERE did = ?'
-  ).bind(did).first<{ email: string }>();
+  )
+    .bind(did)
+    .first<{ email: string }>();
 
   if (!emailData?.email) {
     console.warn(`No email found for DID ${did}, skipping welcome email`);
@@ -484,7 +527,9 @@ async function sendQuotaWarningEmail(
 ): Promise<void> {
   const emailData = await env.QUOTA_DB.prepare(
     'SELECT email FROM user_emails WHERE did = ?'
-  ).bind(did).first<{ email: string }>();
+  )
+    .bind(did)
+    .first<{ email: string }>();
 
   if (!emailData?.email) return;
 
@@ -502,13 +547,12 @@ async function sendQuotaWarningEmail(
 /**
  * Send payment failed email
  */
-async function sendPaymentFailedEmail(
-  did: string,
-  env: Env
-): Promise<void> {
+async function sendPaymentFailedEmail(did: string, env: Env): Promise<void> {
   const emailData = await env.QUOTA_DB.prepare(
     'SELECT email FROM user_emails WHERE did = ?'
-  ).bind(did).first<{ email: string }>();
+  )
+    .bind(did)
+    .first<{ email: string }>();
 
   if (!emailData?.email) return;
 
@@ -536,21 +580,22 @@ const products = [
     name: 'Flint Pro',
     description: '50GB storage, real-time sync, 90-day version history',
     prices: [
-      { amount: 500, currency: 'usd', interval: 'month' },  // $5/month
-      { amount: 4800, currency: 'usd', interval: 'year' }   // $48/year
+      { amount: 500, currency: 'usd', interval: 'month' }, // $5/month
+      { amount: 4800, currency: 'usd', interval: 'year' } // $48/year
     ]
   },
   {
     name: 'Flint Team',
     description: '100GB storage, shared vaults, priority support',
     prices: [
-      { amount: 1000, currency: 'usd', interval: 'month' }  // $10/user/month
+      { amount: 1000, currency: 'usd', interval: 'month' } // $10/user/month
     ]
   }
 ];
 ```
 
 **Webhook endpoint:**
+
 - URL: `https://sync.flint.app/webhooks/stripe`
 - Events: Select all customer and subscription events
 
@@ -571,9 +616,12 @@ export class SubscriptionService {
     await this.fetchStatus(did);
 
     // Check status periodically
-    this.checkInterval = setInterval(() => {
-      this.fetchStatus(did);
-    }, 5 * 60 * 1000); // Every 5 minutes
+    this.checkInterval = setInterval(
+      () => {
+        this.fetchStatus(did);
+      },
+      5 * 60 * 1000
+    ); // Every 5 minutes
   }
 
   async fetchStatus(did: string): Promise<void> {
@@ -640,15 +688,15 @@ export class SubscriptionService {
 ```svelte
 <!-- src/renderer/src/components/SubscriptionUpgrade.svelte -->
 <script lang="ts">
-import { subscriptionService } from '../services/subscription-service.svelte';
+  import { subscriptionService } from '../services/subscription-service.svelte';
 
-const status = $derived(subscriptionService.currentStatus);
-const usagePercent = $derived(subscriptionService.storageUsagePercent);
-const canUpgrade = $derived(subscriptionService.canUpgrade);
+  const status = $derived(subscriptionService.currentStatus);
+  const usagePercent = $derived(subscriptionService.storageUsagePercent);
+  const canUpgrade = $derived(subscriptionService.canUpgrade);
 
-async function handleUpgrade(tier: 'pro' | 'team', interval: 'month' | 'year') {
-  await subscriptionService.openCheckout(tier, interval);
-}
+  async function handleUpgrade(tier: 'pro' | 'team', interval: 'month' | 'year') {
+    await subscriptionService.openCheckout(tier, interval);
+  }
 </script>
 
 <div class="subscription-upgrade">
@@ -658,7 +706,9 @@ async function handleUpgrade(tier: 'pro' | 'team', interval: 'month' | 'year') {
         <div class="usage-fill" style="width: {usagePercent}%"></div>
       </div>
       <p>
-        Using {formatBytes(status?.storageUsed || 0)} of {formatBytes(status?.storageLimit || 0)}
+        Using {formatBytes(status?.storageUsed || 0)} of {formatBytes(
+          status?.storageLimit || 0
+        )}
         {#if usagePercent > 80}
           <span class="warning-text">Running low on storage!</span>
         {/if}
@@ -704,7 +754,9 @@ async function handleUpgrade(tier: 'pro' | 'team', interval: 'month' | 'year') {
     <div class="current-subscription">
       <h3>Current Plan: {status?.tier}</h3>
       <p>
-        Using {formatBytes(status?.storageUsed || 0)} of {formatBytes(status?.storageLimit || 0)}
+        Using {formatBytes(status?.storageUsed || 0)} of {formatBytes(
+          status?.storageLimit || 0
+        )}
       </p>
       <button onclick={() => subscriptionService.openCustomerPortal()}>
         Manage Subscription
@@ -728,10 +780,12 @@ async function handleSyncError(error: any): Promise<void> {
       type: 'error',
       title: 'Subscription Past Due',
       message: data.message,
-      actions: [{
-        label: 'Update Payment',
-        action: () => subscriptionService.openCustomerPortal()
-      }]
+      actions: [
+        {
+          label: 'Update Payment',
+          action: () => subscriptionService.openCustomerPortal()
+        }
+      ]
     });
   } else if (error.status === 403 && error.error === 'quota_exceeded') {
     const data = await error.json();
@@ -742,10 +796,12 @@ async function handleSyncError(error: any): Promise<void> {
         type: 'warning',
         title: 'Storage Limit Reached',
         message: 'You have reached your 1GB free tier limit.',
-        actions: [{
-          label: 'Upgrade to Pro',
-          action: () => subscriptionService.openCheckout('pro', 'month')
-        }]
+        actions: [
+          {
+            label: 'Upgrade to Pro',
+            action: () => subscriptionService.openCheckout('pro', 'month')
+          }
+        ]
       });
     } else {
       // Pro tier quota exceeded
@@ -753,10 +809,12 @@ async function handleSyncError(error: any): Promise<void> {
         type: 'error',
         title: 'Storage Limit Reached',
         message: 'Please free up space or contact support.',
-        actions: [{
-          label: 'Manage Storage',
-          action: () => router.navigate('/settings/storage')
-        }]
+        actions: [
+          {
+            label: 'Manage Storage',
+            action: () => router.navigate('/settings/storage')
+          }
+        ]
       });
     }
   }
@@ -804,11 +862,13 @@ async function handleSyncError(error: any): Promise<void> {
 ### Grandfathering Strategy
 
 **Option A: Generous Grace Period**
+
 - All existing free users keep 1GB limit
 - 6-month grace period before any changes
 - Proactive communication about new limits
 
 **Option B: Limited Grandfathering**
+
 - Users under 1GB: No change
 - Users 1-5GB: 3-month grace period, then read-only if not upgraded
 - Users >5GB: 1-month grace period, then read-only
@@ -818,6 +878,7 @@ async function handleSyncError(error: any): Promise<void> {
 ### Communication Plan
 
 **Timeline:**
+
 1. **T-60 days:** Announce Pro tier, emphasize free tier remains
 2. **T-30 days:** Email users over 500MB about upcoming limits
 3. **T-14 days:** In-app notification about Pro tier benefits
@@ -850,6 +911,7 @@ async function handleSyncError(error: any): Promise<void> {
 ### Refund Policy
 
 **Recommendation:**
+
 - 14-day money-back guarantee (no questions asked)
 - Prorated refunds for annual plans if canceled early
 - No refunds for partial months on monthly plans
@@ -884,6 +946,7 @@ async function handleSyncError(error: any): Promise<void> {
 ### Alerting
 
 Set up alerts for:
+
 - Payment failure spike (>5% of subscriptions)
 - Webhook processing errors
 - Unusual subscription cancellations
@@ -898,12 +961,13 @@ Set up alerts for:
 With paid tier, costs change:
 
 | User Count | Free Users | Pro Users | Monthly Cost |
-|------------|------------|-----------|--------------|
-| 10,000 | 9,000 | 1,000 | $520 |
-| 100,000 | 90,000 | 10,000 | $5,200 |
-| 1,000,000 | 900,000 | 100,000 | $52,000 |
+| ---------- | ---------- | --------- | ------------ |
+| 10,000     | 9,000      | 1,000     | $520         |
+| 100,000    | 90,000     | 10,000    | $5,200       |
+| 1,000,000  | 900,000    | 100,000   | $52,000      |
 
 **Assumptions:**
+
 - 10% conversion to Pro
 - Pro users average 5GB storage
 - Pro users 3x more operations
@@ -911,10 +975,10 @@ With paid tier, costs change:
 ### Revenue Projection
 
 | User Count | Pro Users (10%) | Monthly Revenue | Infrastructure Cost | Net Profit |
-|------------|----------------|-----------------|--------------------:|------------|
-| 10,000 | 1,000 | $5,000 | $520 | $4,480 |
-| 100,000 | 10,000 | $50,000 | $5,200 | $44,800 |
-| 1,000,000 | 100,000 | $500,000 | $52,000 | $448,000 |
+| ---------- | --------------- | --------------- | ------------------: | ---------- |
+| 10,000     | 1,000           | $5,000          |                $520 | $4,480     |
+| 100,000    | 10,000          | $50,000         |              $5,200 | $44,800    |
+| 1,000,000  | 100,000         | $500,000        |             $52,000 | $448,000   |
 
 **Even at 3% conversion, revenue exceeds costs at 10K+ users**
 
@@ -929,10 +993,12 @@ With paid tier, costs change:
 - No artificial limits
 
 **Pros:**
+
 - Fair pricing
 - Scales with usage
 
 **Cons:**
+
 - Unpredictable bills
 - Complex billing logic
 - Lower revenue per user
@@ -945,10 +1011,12 @@ With paid tier, costs change:
 - Features sold separately
 
 **Pros:**
+
 - Modular pricing
 - Upsell opportunities
 
 **Cons:**
+
 - Complex pricing
 - Decision fatigue
 

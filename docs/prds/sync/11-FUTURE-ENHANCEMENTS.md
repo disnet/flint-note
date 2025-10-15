@@ -11,6 +11,7 @@ This document outlines potential future phases beyond the core multi-device sync
 Browser-based access to notes without requiring Electron installation.
 
 **Key Features:**
+
 - Same Automerge + R2 sync infrastructure
 - Progressive Web App (PWA) with offline support
 - Browser-based encryption using Web Crypto API
@@ -25,6 +26,7 @@ Browser-based access to notes without requiring Electron installation.
 Immediate change propagation for near-instant synchronization across devices.
 
 **Key Features:**
+
 - WebSocket or long-polling for live updates
 - Live cursors for collaborative editing
 - Presence indicators showing active users/devices
@@ -37,6 +39,7 @@ Immediate change propagation for near-instant synchronization across devices.
 Enable sharing individual notes with other Flint users.
 
 **Key Features:**
+
 - Share individual notes with other DIDs
 - Real-time collaborative editing on shared notes
 - Permission management (read-only vs. read-write access)
@@ -49,6 +52,7 @@ Enable sharing individual notes with other Flint users.
 Native mobile applications for iOS and Android.
 
 **Key Features:**
+
 - React Native implementation
 - Same Automerge + R2 sync architecture
 - Platform-specific key storage:
@@ -63,6 +67,7 @@ Native mobile applications for iOS and Android.
 Control which content syncs to optimize bandwidth and storage.
 
 **Key Features:**
+
 - Choose which note types to sync
 - Bandwidth optimization for slow connections
 - Mobile data usage controls

@@ -20,10 +20,10 @@ interface FlintNote {
     title: string;
     filename: string;
     type: string;
-    created: string;      // ISO 8601 timestamp
-    updated: string;      // ISO 8601 timestamp
+    created: string; // ISO 8601 timestamp
+    updated: string; // ISO 8601 timestamp
     tags: string[];
-    [key: string]: any;   // Custom frontmatter fields
+    [key: string]: any; // Custom frontmatter fields
   };
 
   // Markdown content (CRDT for conflict-free merging)
@@ -43,6 +43,7 @@ interface FlintNote {
 **Problem:** If metadata and content are in the same field, concurrent edits cause unnecessary conflicts.
 
 **Solution:** Separate fields allow independent updates:
+
 - User A renames note (metadata change)
 - User B edits content (content change)
 - Both changes merge cleanly without conflict
@@ -53,7 +54,7 @@ interface FlintNote {
 
 ```typescript
 // Update only title
-handle.change(doc => {
+handle.change((doc) => {
   doc.metadata.title = 'New Title';
   doc.metadata.updated = new Date().toISOString();
 });
@@ -96,7 +97,7 @@ async function createNote(
   const noteId = generateNoteId(); // e.g., "n-abc12345"
   const handle = repo.create<FlintNote>();
 
-  handle.change(doc => {
+  handle.change((doc) => {
     doc.id = noteId;
     doc.metadata = {
       title,
@@ -128,7 +129,7 @@ async function importFromFile(filePath: string): Promise<string> {
   const noteId = parsed.metadata.id || generateNoteId();
   const handle = repo.find<FlintNote>(noteId);
 
-  handle.change(doc => {
+  handle.change((doc) => {
     doc.id = noteId;
     doc.metadata = {
       title: parsed.metadata.title || 'Untitled',
@@ -154,14 +155,11 @@ async function importFromFile(filePath: string): Promise<string> {
 ### Content Edit
 
 ```typescript
-async function updateNoteContent(
-  noteId: string,
-  newContent: string
-): Promise<void> {
+async function updateNoteContent(noteId: string, newContent: string): Promise<void> {
   const handle = repo.find<FlintNote>(noteId);
   await handle.whenReady();
 
-  handle.change(doc => {
+  handle.change((doc) => {
     // Replace entire content
     doc.content = new Automerge.Text(newContent);
     doc.metadata.updated = new Date().toISOString();
@@ -181,7 +179,7 @@ async function editNoteContentIncremental(
   const handle = repo.find<FlintNote>(noteId);
   await handle.whenReady();
 
-  handle.change(doc => {
+  handle.change((doc) => {
     // Delete characters
     if (deleteCount > 0) {
       doc.content.deleteAt(startPos, deleteCount);
@@ -207,7 +205,7 @@ async function updateNoteMetadata(
   const handle = repo.find<FlintNote>(noteId);
   await handle.whenReady();
 
-  handle.change(doc => {
+  handle.change((doc) => {
     Object.assign(doc.metadata, updates);
     doc.metadata.updated = new Date().toISOString();
   });
@@ -217,14 +215,11 @@ async function updateNoteMetadata(
 ### Rename
 
 ```typescript
-async function renameNote(
-  noteId: string,
-  newTitle: string
-): Promise<void> {
+async function renameNote(noteId: string, newTitle: string): Promise<void> {
   const handle = repo.find<FlintNote>(noteId);
   await handle.whenReady();
 
-  handle.change(doc => {
+  handle.change((doc) => {
     doc.metadata.title = newTitle;
     doc.metadata.filename = generateFilename(newTitle);
     doc.metadata.updated = new Date().toISOString();
@@ -243,7 +238,7 @@ async function deleteNote(noteId: string): Promise<void> {
   const handle = repo.find<FlintNote>(noteId);
   await handle.whenReady();
 
-  handle.change(doc => {
+  handle.change((doc) => {
     doc.deleted = true;
     doc.metadata.updated = new Date().toISOString();
   });
@@ -257,7 +252,7 @@ async function restoreNote(noteId: string): Promise<void> {
   const handle = repo.find<FlintNote>(noteId);
   await handle.whenReady();
 
-  handle.change(doc => {
+  handle.change((doc) => {
     doc.deleted = false;
     doc.metadata.updated = new Date().toISOString();
   });
@@ -323,12 +318,12 @@ Automerge Text CRDT handles concurrent edits automatically:
 
 ```typescript
 // Device A: Insert "Hello" at position 0
-handleA.change(doc => {
+handleA.change((doc) => {
   doc.content.insertAt(0, ...'Hello'.split(''));
 });
 
 // Device B: Insert "World" at position 0 (concurrently)
-handleB.change(doc => {
+handleB.change((doc) => {
   doc.content.insertAt(0, ...'World'.split(''));
 });
 
@@ -343,13 +338,13 @@ For metadata fields, last write wins based on timestamp:
 
 ```typescript
 // Device A: Rename to "Alpha"
-handleA.change(doc => {
+handleA.change((doc) => {
   doc.metadata.title = 'Alpha';
   doc.metadata.updated = '2024-01-01T10:00:00Z';
 });
 
 // Device B: Rename to "Beta" (later timestamp)
-handleB.change(doc => {
+handleB.change((doc) => {
   doc.metadata.title = 'Beta';
   doc.metadata.updated = '2024-01-01T10:01:00Z';
 });
@@ -377,7 +372,7 @@ async function handleDeletionConflict(
 
     if (action === 'Keep Local Changes') {
       // Undelete
-      handle.change(doc => {
+      handle.change((doc) => {
         doc.deleted = false;
         doc.metadata.updated = new Date().toISOString();
       });
@@ -408,10 +403,7 @@ handle.on('change', async ({ doc }) => {
   }
 
   // Format content with frontmatter
-  const fileContent = formatNoteFile(
-    doc.metadata,
-    doc.content.toString()
-  );
+  const fileContent = formatNoteFile(doc.metadata, doc.content.toString());
 
   // Write to filesystem
   const notePath = getNotePath(doc.id);
@@ -421,10 +413,7 @@ handle.on('change', async ({ doc }) => {
   await changeProcessor.completeWrite(notePath, stats);
 });
 
-function formatNoteFile(
-  metadata: FlintNote['metadata'],
-  content: string
-): string {
+function formatNoteFile(metadata: FlintNote['metadata'], content: string): string {
   const frontmatter = yaml.dump(metadata);
   return `---\n${frontmatter}---\n\n${content}`;
 }
@@ -442,7 +431,7 @@ async function onExternalFileChange(filePath: string): Promise<void> {
   const handle = repo.find<FlintNote>(noteId);
   await handle.whenReady();
 
-  handle.change(doc => {
+  handle.change((doc) => {
     doc.metadata = parsed.metadata;
     doc.content = new Automerge.Text(parsed.content);
   });
@@ -525,17 +514,12 @@ function getNoteHistory(noteId: string): Automerge.Change[] {
 ### View Specific Version
 
 ```typescript
-function getNoteAtVersion(
-  noteId: string,
-  version: Automerge.Heads
-): FlintNote {
+function getNoteAtVersion(noteId: string, version: Automerge.Heads): FlintNote {
   const handle = repo.find<FlintNote>(noteId);
   const allChanges = Automerge.getHistory(handle.doc);
 
   // Filter changes up to version
-  const changesUpToVersion = allChanges.filter(change =>
-    version.includes(change.hash)
-  );
+  const changesUpToVersion = allChanges.filter((change) => version.includes(change.hash));
 
   // Reconstruct document at that version
   let doc = Automerge.init<FlintNote>();
@@ -556,6 +540,7 @@ function getNoteAtVersion(
 **Problem:** Large documents can be slow to serialize/deserialize.
 
 **Solution:**
+
 - Compress binaries before encryption
 - Split very large notes (10,000+ lines) into linked notes
 - Use incremental sync (sync changes, not full documents)
@@ -565,6 +550,7 @@ function getNoteAtVersion(
 **Problem:** Long history increases document size.
 
 **Solution:**
+
 - Compact history periodically (Automerge supports this)
 - Archive old versions to separate storage
 - Prune history older than N days (user configurable)
@@ -574,6 +560,7 @@ function getNoteAtVersion(
 **Problem:** Loading all documents into memory is expensive.
 
 **Solution:**
+
 - Lazy loading: only load documents when accessed
 - Unload inactive documents after timeout
 - Keep only metadata in memory, load content on demand

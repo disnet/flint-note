@@ -18,15 +18,19 @@ This is a **prerequisite** for multi-device sync, as synced changes from other d
 ## Design Principles
 
 ### 1. Filesystem is Source of Truth
+
 From the user's perspective, the markdown files in their vault folder are the canonical data. The database is a cache/index layer.
 
 ### 2. Eventual Consistency
+
 The database will eventually reflect the filesystem state. Brief inconsistencies during file operations are acceptable.
 
 ### 3. Non-Destructive
+
 File watching should never modify user files without explicit user action. Only read and index.
 
 ### 4. Robust Error Handling
+
 File operations can fail or be interrupted. The system must handle partial states gracefully.
 
 ---
@@ -100,19 +104,20 @@ class VaultFileWatcher {
   async start(config: FileWatcherConfig): Promise<void> {
     this.watcher = chokidar.watch(config.vaultPath, {
       ignored: [
-        '**/.flint-note/**',      // Flint's internal directory
-        '**/.git/**',             // Git directory
-        '**/node_modules/**',     // Node modules
-        '**/.DS_Store',           // macOS metadata
-        '**/desktop.ini',         // Windows metadata
-        '**/*~',                  // Backup files
+        '**/.flint-note/**', // Flint's internal directory
+        '**/.git/**', // Git directory
+        '**/node_modules/**', // Node modules
+        '**/.DS_Store', // macOS metadata
+        '**/desktop.ini', // Windows metadata
+        '**/*~', // Backup files
         ...(config.ignored || [])
       ],
-      ignoreInitial: true,        // Don't fire events for existing files
-      persistent: true,           // Keep process running
-      awaitWriteFinish: {         // Wait for write operations to complete
-        stabilityThreshold: 200,  // Wait 200ms of no changes
-        pollInterval: 100         // Check every 100ms
+      ignoreInitial: true, // Don't fire events for existing files
+      persistent: true, // Keep process running
+      awaitWriteFinish: {
+        // Wait for write operations to complete
+        stabilityThreshold: 200, // Wait 200ms of no changes
+        pollInterval: 100 // Check every 100ms
       }
     });
 
@@ -173,11 +178,14 @@ class VaultFileWatcher {
 ```typescript
 interface FileOperationTracker {
   // Track ongoing write operations by Flint
-  operations: Map<string, {
-    type: 'write' | 'rename' | 'delete';
-    startedAt: number;
-    expectedMtime?: number;
-  }>;
+  operations: Map<
+    string,
+    {
+      type: 'write' | 'rename' | 'delete';
+      startedAt: number;
+      expectedMtime?: number;
+    }
+  >;
 }
 
 class ChangeProcessor {
@@ -273,7 +281,6 @@ class FileChangeHandler {
 
       // Notify UI
       this.notifyUI('note.changed', { noteId, path: filePath });
-
     } catch (error) {
       console.error(`Failed to process file change: ${filePath}`, error);
       // Don't throw - continue processing other files
@@ -323,17 +330,21 @@ class FileChangeHandler {
 **Scenario:** User renames `project/alpha.md` → `project/beta.md` in Finder.
 
 **Detection Strategy:**
+
 1. File watcher fires: `unlink(alpha.md)` then `add(beta.md)`
 2. Check if new file has same note ID as recently deleted file
 3. If yes, this is a rename; update database references
 
 ```typescript
 class RenameDetector {
-  private recentDeletions = new Map<string, {
-    noteId: string;
-    deletedAt: number;
-    oldPath: string;
-  }>();
+  private recentDeletions = new Map<
+    string,
+    {
+      noteId: string;
+      deletedAt: number;
+      oldPath: string;
+    }
+  >();
 
   private readonly RENAME_DETECTION_WINDOW_MS = 1000; // 1 second
 
@@ -376,12 +387,7 @@ class RenameDetector {
         // This is a rename!
         console.log(`Rename detected: ${recentDeletion.oldPath} → ${filePath}`);
 
-        await this.processFileRename(
-          noteId,
-          recentDeletion.oldPath,
-          filePath,
-          parsed
-        );
+        await this.processFileRename(noteId, recentDeletion.oldPath, filePath, parsed);
 
         this.recentDeletions.delete(noteId);
         this.notifyUI('note.renamed', {
@@ -395,7 +401,6 @@ class RenameDetector {
 
       // Not a rename, process as new file
       await this.processFileAddition(filePath, parsed);
-
     } catch (error) {
       console.error(`Failed to process file addition: ${filePath}`, error);
     }
@@ -457,16 +462,17 @@ When a note is renamed, wikilinks in other notes may need updating:
 
 ```markdown
 Before rename:
-  [[Project Alpha]]  → References note with title "Project Alpha"
+[[Project Alpha]] → References note with title "Project Alpha"
 
 After rename (title changes to "Alpha Initiative"):
-  [[Project Alpha]]  → Broken link (title no longer matches)
+[[Project Alpha]] → Broken link (title no longer matches)
 
 Should update to:
-  [[Alpha Initiative]]  → Working link
+[[Alpha Initiative]] → Working link
 ```
 
 **Strategy:**
+
 1. Wikilinks use note IDs internally (in database)
 2. Display text uses current title
 3. When title changes, links still resolve via ID
@@ -532,31 +538,38 @@ class WikilinkUpdater {
 ## Edge Cases and Handling
 
 ### 1. **Rapid Successive Edits**
+
 **Problem:** User saves file multiple times quickly.
 
 **Solution:** Debounce file change events (100-200ms).
 
 ### 2. **Large File Operations** (e.g., git checkout)
+
 **Problem:** Hundreds of files change simultaneously.
 
 **Solution:**
+
 - Batch process changes in groups of 10-20
 - Show progress indicator in UI
 - Allow user to cancel/pause processing
 
 ### 3. **Frontmatter Corruption**
+
 **Problem:** User manually edits frontmatter incorrectly.
 
 **Solution:**
+
 - Gracefully parse with fallbacks
 - Log warnings for invalid YAML
 - Preserve original file, don't auto-fix
 - Show notification: "Invalid frontmatter in note X"
 
 ### 4. **ID Conflicts**
+
 **Problem:** Two notes end up with same ID (rare, but possible with manual editing or merges).
 
 **Solution:**
+
 ```typescript
 async function detectAndResolveIdConflicts(): Promise<void> {
   const db = await this.hybridSearchManager.getDatabaseConnection();
@@ -573,10 +586,9 @@ async function detectAndResolveIdConflicts(): Promise<void> {
     console.warn(`Duplicate note ID detected: ${dup.id}`);
 
     // Get all notes with this ID
-    const notes = await db.all<{ path: string }>(
-      `SELECT path FROM notes WHERE id = ?`,
-      [dup.id]
-    );
+    const notes = await db.all<{ path: string }>(`SELECT path FROM notes WHERE id = ?`, [
+      dup.id
+    ]);
 
     // Keep first note, reassign IDs to others
     for (let i = 1; i < notes.length; i++) {
@@ -588,6 +600,7 @@ async function detectAndResolveIdConflicts(): Promise<void> {
 ```
 
 ### 5. **Missing Frontmatter ID**
+
 **Problem:** Note exists without an ID (legacy or manually created).
 
 **Solution:** Auto-generate and inject ID when first detected.
@@ -625,18 +638,22 @@ async function ensureNoteHasId(filePath: string): Promise<string> {
 ## Integration Points
 
 ### 1. **Electron Main Process**
+
 - File watcher runs in main process (has filesystem access)
 - Communicates with renderer via IPC for UI updates
 
 ### 2. **Note Manager**
+
 - Add hooks for external change notifications
 - Expose `processExternalChange(filePath)` method
 
 ### 3. **Database Manager**
+
 - Ensure upsert operations are idempotent
 - Handle concurrent updates gracefully
 
 ### 4. **UI/Renderer**
+
 - Subscribe to file change events
 - Refresh views when external changes detected
 - Show non-intrusive notifications
@@ -646,6 +663,7 @@ async function ensureNoteHasId(filePath: string): Promise<string> {
 ## Testing Strategy
 
 ### Unit Tests
+
 ```typescript
 describe('FileChangeHandler', () => {
   it('should detect external content changes', async () => {
@@ -684,6 +702,7 @@ describe('FileChangeHandler', () => {
 ```
 
 ### Integration Tests
+
 ```typescript
 describe('External Edit Integration', () => {
   it('should maintain database consistency after external edits', async () => {
@@ -713,18 +732,22 @@ describe('External Edit Integration', () => {
 ## Performance Considerations
 
 ### 1. **Debouncing**
+
 - Debounce rapid changes (100-200ms)
 - Batch process multiple pending changes
 
 ### 2. **Selective Indexing**
+
 - Only re-index changed notes
 - Don't rebuild entire database on single file change
 
 ### 3. **Async Processing**
+
 - Process file changes in background
 - Don't block main thread or UI
 
 ### 4. **Memory Management**
+
 - Limit size of recent operations tracking
 - Clean up old entries periodically
 
@@ -733,19 +756,23 @@ describe('External Edit Integration', () => {
 ## Future Enhancements
 
 ### 1. **Git Integration**
+
 - Detect git operations (checkout, pull, merge)
 - Batch process all changes from git operation
 - Show "Syncing from git..." progress
 
 ### 2. **Conflict Resolution UI**
+
 - When external edit conflicts with unsaved local changes
 - Show diff view with merge options
 
 ### 3. **Smart Link Updating**
+
 - Optionally update wikilinks when titles change
 - User preference: auto-update vs manual review
 
 ### 4. **Undo External Changes**
+
 - Track file history
 - Allow user to revert external changes
 - "This note was modified externally. [Revert] [Keep]"
@@ -765,6 +792,7 @@ External edit handling requires:
 7. ✅ **UI notifications** for user awareness
 
 This architecture provides the foundation for:
+
 - Reliable single-device operation with external editors
 - Multi-device sync (changes from other devices = filesystem changes)
 - Git workflow compatibility

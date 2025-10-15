@@ -7,6 +7,7 @@ This document details the user interface design and user experience flows for mu
 ## Overview
 
 The sync UI follows these principles:
+
 - **Local-first**: Sync is completely optional
 - **Clarity**: AT Protocol sign-in required for sync (clear communication)
 - **Security**: Passwordless by default, optional password backup
@@ -24,11 +25,13 @@ The sync UI follows these principles:
 **Entry Point:** Settings → Sync
 
 **States:**
+
 - Not signed in (sync disabled)
 - Signed in, no email (need email for sync)
 - Signed in with email (sync options available)
 
 **Flow:**
+
 1. User sees "Sign in with AT Protocol to enable sync"
 2. User enters their AT Protocol handle (e.g., "alice.bsky.social")
 3. System opens browser for OAuth flow
@@ -40,6 +43,7 @@ The sync UI follows these principles:
 9. Sync setup options now available
 
 **Email Collection Screen:**
+
 - **Headline:** "Stay informed about your sync"
 - **Explanation:** "We'll use this email to notify you about sync issues, quota warnings, and important updates. We never share your email with third parties."
 - **Input:** Email field with validation
@@ -48,10 +52,12 @@ The sync UI follows these principles:
 - **Action buttons:** "Continue" (primary), "Skip for now" (secondary, shows warning)
 
 **Skip Warning:**
+
 - "Without an email, you won't receive critical sync notifications like quota warnings or security alerts. Are you sure?"
 - Allow skip but mark account for follow-up prompt later
 
 **Messaging:**
+
 - Explain that AT Protocol provides portable identity
 - Clarify that vault encryption is separate (zero-knowledge)
 - Email is for communication only, not authentication
@@ -62,6 +68,7 @@ The sync UI follows these principles:
 **After AT Protocol Sign-In:**
 
 User chooses one of two paths:
+
 1. **Set Up New Vault** (first device with sync)
 2. **I Already Have a Vault** (joining existing vault)
 
@@ -70,6 +77,7 @@ User chooses one of two paths:
 **Goal:** Set up sync on first device without requiring password
 
 **Steps:**
+
 1. **Device Name Entry**
    - Auto-populate with system hostname (e.g., "Alice's MacBook Pro")
    - User can customize
@@ -100,6 +108,7 @@ User chooses one of two paths:
 **Goal:** Transfer vault key securely without password
 
 **New Device Steps:**
+
 1. Choose "Authorize from Another Device"
 2. Enter device name
 3. Generate authorization request (ephemeral ECDH key pair)
@@ -109,6 +118,7 @@ User chooses one of two paths:
 7. Poll for approval from existing device
 
 **Existing Device Steps:**
+
 1. Go to Settings → Sync → Authorize New Device
 2. Enter code from new device (or scan QR)
 3. Review new device info (name, timestamp)
@@ -123,6 +133,7 @@ User chooses one of two paths:
 9. Sync active
 
 **Security:**
+
 - Authorization codes expire after 15 minutes
 - Single-use only
 - ECDH ensures vault key never transmitted in plaintext
@@ -134,6 +145,7 @@ User chooses one of two paths:
 **Prerequisites:** Password backup must be enabled on another device
 
 **Steps:**
+
 1. Choose "Use Password"
 2. Enter vault password
 3. System downloads encrypted vault key from R2
@@ -143,6 +155,7 @@ User chooses one of two paths:
 7. Sync active
 
 **Errors:**
+
 - "Incorrect password" if decryption fails
 - "No password backup found" if not enabled on original device
 
@@ -153,6 +166,7 @@ User chooses one of two paths:
 **When:** After sync is already enabled
 
 **Steps:**
+
 1. User clicks "Enable Password Backup"
 2. Explains benefits:
    - Add devices without existing device
@@ -167,6 +181,7 @@ User chooses one of two paths:
 6. Show confirmation: "Password backup enabled"
 
 **Recommendations:**
+
 - Suggest using password manager
 - Warn that password compromise exposes vault key
 - Clarify this is optional
@@ -174,22 +189,24 @@ User chooses one of two paths:
 ### 5. Sync Status Indicators
 
 **Locations:**
+
 - Main app header (sync icon)
 - Settings → Sync (detailed status)
 - Per-note indicator (optional)
 
 **States:**
 
-| State | Icon | Text | Color | Description |
-|-------|------|------|-------|-------------|
-| Synced | ✓ check-circle | "Synced" | Green | All changes synced |
-| Syncing | ↻ refresh (spin) | "Syncing..." | Blue | Sync in progress |
-| Pending | ⏱ clock | "Pending (N)" | Yellow | N changes queued |
-| Error | ⚠ alert-triangle | "Sync error" | Red | Sync failed, will retry |
-| Offline | ⊘ wifi-off | "Offline" | Gray | No network, will sync when online |
-| Disabled | - | - | - | Sync not enabled |
+| State    | Icon              | Text          | Color  | Description                       |
+| -------- | ----------------- | ------------- | ------ | --------------------------------- |
+| Synced   | ✓ check-circle    | "Synced"      | Green  | All changes synced                |
+| Syncing  | ↻ refresh (spin)  | "Syncing..."  | Blue   | Sync in progress                  |
+| Pending  | ⏱ clock          | "Pending (N)" | Yellow | N changes queued                  |
+| Error    | ⚠ alert-triangle | "Sync error"  | Red    | Sync failed, will retry           |
+| Offline  | ⊘ wifi-off        | "Offline"     | Gray   | No network, will sync when online |
+| Disabled | -                 | -             | -      | Sync not enabled                  |
 
 **Last Sync Time:**
+
 - Display relative time: "Last synced 2 minutes ago"
 - Hover for absolute timestamp
 
@@ -198,6 +215,7 @@ User chooses one of two paths:
 **Entry Point:** Settings → Sync → Manage Devices
 
 **Display:**
+
 - List of authorized devices
 - For each device:
   - Device name
@@ -208,6 +226,7 @@ User chooses one of two paths:
   - Remove button
 
 **Actions:**
+
 - **Authorize New Device:** Opens authorization flow
 - **Remove Device:** Revokes device access
   - Confirmation dialog
@@ -376,7 +395,8 @@ Complete sync settings component with all flows:
   }
 
   async function submitPassword() {
-    const password = (document.getElementById('password-input') as HTMLInputElement).value;
+    const password = (document.getElementById('password-input') as HTMLInputElement)
+      .value;
 
     try {
       await window.api.joinVaultWithPassword(password);
@@ -390,7 +410,8 @@ Complete sync settings component with all flows:
   }
 
   async function enablePasswordBackup() {
-    const password = (document.getElementById('backup-password') as HTMLInputElement).value;
+    const password = (document.getElementById('backup-password') as HTMLInputElement)
+      .value;
 
     try {
       await window.api.enablePasswordBackup(password);
@@ -416,7 +437,10 @@ Complete sync settings component with all flows:
     <!-- Sign in with AT Protocol required -->
     <div class="signin-required">
       <h3>Enable Cloud Sync</h3>
-      <p>Sign in with AT Protocol to sync your notes across multiple devices with end-to-end encryption.</p>
+      <p>
+        Sign in with AT Protocol to sync your notes across multiple devices with
+        end-to-end encryption.
+      </p>
 
       <div class="at-signin">
         <label for="at-handle">AT Protocol Handle</label>
@@ -435,15 +459,21 @@ Complete sync settings component with all flows:
 
       <div class="info-box">
         <h4>Why AT Protocol?</h4>
-        <p>AT Protocol provides decentralized identity for secure, portable access to your encrypted notes. Your vault encryption key is separate and never shared with AT Protocol or Flint.</p>
+        <p>
+          AT Protocol provides decentralized identity for secure, portable access to your
+          encrypted notes. Your vault encryption key is separate and never shared with AT
+          Protocol or Flint.
+        </p>
       </div>
     </div>
-
   {:else if showEmailPrompt}
     <!-- Email collection after sign-in -->
     <div class="email-collection">
       <h3>Stay Informed About Your Sync</h3>
-      <p>We'll use this email to notify you about sync issues, quota warnings, and important updates. We never share your email with third parties.</p>
+      <p>
+        We'll use this email to notify you about sync issues, quota warnings, and
+        important updates. We never share your email with third parties.
+      </p>
 
       <div class="email-input">
         <label for="user-email">Email Address</label>
@@ -457,11 +487,7 @@ Complete sync settings component with all flows:
       </div>
 
       <div class="opt-in">
-        <input
-          id="product-updates"
-          type="checkbox"
-          bind:checked={productUpdatesOptIn}
-        />
+        <input id="product-updates" type="checkbox" bind:checked={productUpdatesOptIn} />
         <label for="product-updates">Send me product updates (optional)</label>
       </div>
 
@@ -470,11 +496,8 @@ Complete sync settings component with all flows:
       <button onclick={() => submitEmail(false)} class="primary" disabled={!email}>
         Continue
       </button>
-      <button onclick={() => submitEmail(true)} class="secondary">
-        Skip for Now
-      </button>
+      <button onclick={() => submitEmail(true)} class="secondary"> Skip for Now </button>
     </div>
-
   {:else if !syncEnabled}
     {#if !setupMode}
       <!-- Initial choice -->
@@ -483,15 +506,12 @@ Complete sync settings component with all flows:
         <p>Signed in as: <strong>{did}</strong></p>
         <p>Sync your notes across multiple devices with end-to-end encryption.</p>
 
-        <button onclick={startNewVault} class="primary">
-          Set Up New Vault
-        </button>
+        <button onclick={startNewVault} class="primary"> Set Up New Vault </button>
 
         <button onclick={joinExistingVault} class="secondary">
           I Already Have a Vault
         </button>
       </div>
-
     {:else if setupMode === 'new'}
       <!-- New vault setup (passwordless) -->
       <div class="setup-new">
@@ -518,14 +538,9 @@ Complete sync settings component with all flows:
           </ul>
         </div>
 
-        <button onclick={enableSyncPasswordless} class="primary">
-          Enable Sync
-        </button>
-        <button onclick={() => setupMode = null} class="secondary">
-          Cancel
-        </button>
+        <button onclick={enableSyncPasswordless} class="primary"> Enable Sync </button>
+        <button onclick={() => (setupMode = null)} class="secondary"> Cancel </button>
       </div>
-
     {:else if setupMode === 'existing'}
       <!-- Join existing vault -->
       <div class="setup-join">
@@ -541,10 +556,7 @@ Complete sync settings component with all flows:
             Use Password (if you set one)
           </button>
 
-          <button onclick={() => setupMode = null} class="tertiary">
-            Back
-          </button>
-
+          <button onclick={() => (setupMode = null)} class="tertiary"> Back </button>
         {:else if joinMethod === 'device'}
           <div class="device-auth">
             <h4>Authorize from Another Device</h4>
@@ -563,11 +575,15 @@ Complete sync settings component with all flows:
               Waiting for authorization...
             </div>
 
-            <button onclick={() => { joinMethod = null; }} class="secondary">
+            <button
+              onclick={() => {
+                joinMethod = null;
+              }}
+              class="secondary"
+            >
               Cancel
             </button>
           </div>
-
         {:else if joinMethod === 'password'}
           <div class="password-auth">
             <h4>Enter Vault Password</h4>
@@ -580,18 +596,20 @@ Complete sync settings component with all flows:
               autocomplete="off"
             />
 
-            <button onclick={submitPassword} class="primary">
-              Join Vault
-            </button>
+            <button onclick={submitPassword} class="primary"> Join Vault </button>
 
-            <button onclick={() => { joinMethod = null; }} class="secondary">
+            <button
+              onclick={() => {
+                joinMethod = null;
+              }}
+              class="secondary"
+            >
               Back
             </button>
           </div>
         {/if}
       </div>
     {/if}
-
   {:else}
     <!-- Sync enabled - show status and options -->
     <div class="sync-status">
@@ -610,9 +628,7 @@ Complete sync settings component with all flows:
         <p class="last-sync">Last sync: {lastSyncTime.toLocaleString()}</p>
       {/if}
 
-      <button onclick={manualSync} disabled={syncInProgress}>
-        Sync Now
-      </button>
+      <button onclick={manualSync} disabled={syncInProgress}> Sync Now </button>
 
       {#if !hasPasswordBackup}
         <div class="password-backup-prompt">
@@ -808,7 +824,9 @@ Complete sync settings component with all flows:
   }
 
   @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+      transform: rotate(360deg);
+    }
   }
 
   /* Password Auth */
@@ -940,7 +958,9 @@ Compact sync status indicator for app header:
 <script lang="ts">
   import { onMount } from 'svelte';
 
-  let syncStatus = $state<'synced' | 'syncing' | 'error' | 'offline' | 'disabled'>('disabled');
+  let syncStatus = $state<'synced' | 'syncing' | 'error' | 'offline' | 'disabled'>(
+    'disabled'
+  );
   let pendingChanges = $state(0);
 
   onMount(() => {
@@ -958,31 +978,50 @@ Compact sync status indicator for app header:
   <div class="sync-indicator" class:syncing={syncStatus === 'syncing'}>
     {#if syncStatus === 'synced'}
       <svg class="icon check" viewBox="0 0 24 24">
-        <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
-        <path d="M9 12l2 2 4-4" fill="none" stroke="currentColor" stroke-width="2"/>
+        <circle
+          cx="12"
+          cy="12"
+          r="10"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        />
+        <path d="M9 12l2 2 4-4" fill="none" stroke="currentColor" stroke-width="2" />
       </svg>
       <span>Synced</span>
-
     {:else if syncStatus === 'syncing'}
       <svg class="icon refresh spin" viewBox="0 0 24 24">
-        <path d="M21 12a9 9 0 11-9-9" fill="none" stroke="currentColor" stroke-width="2"/>
-        <path d="M21 3v9h-9" fill="none" stroke="currentColor" stroke-width="2"/>
+        <path
+          d="M21 12a9 9 0 11-9-9"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        />
+        <path d="M21 3v9h-9" fill="none" stroke="currentColor" stroke-width="2" />
       </svg>
       <span>Syncing{pendingChanges > 0 ? ` ${pendingChanges}` : ''}...</span>
-
     {:else if syncStatus === 'error'}
       <svg class="icon error" viewBox="0 0 24 24">
-        <path d="M12 2l9 17H3L12 2z" fill="none" stroke="currentColor" stroke-width="2"/>
-        <path d="M12 9v4m0 4h.01" stroke="currentColor" stroke-width="2"/>
+        <path d="M12 2l9 17H3L12 2z" fill="none" stroke="currentColor" stroke-width="2" />
+        <path d="M12 9v4m0 4h.01" stroke="currentColor" stroke-width="2" />
       </svg>
       <span>Sync error</span>
-
     {:else if syncStatus === 'offline'}
       <svg class="icon offline" viewBox="0 0 24 24">
-        <path d="M5 13a10 10 0 0114 0" fill="none" stroke="currentColor" stroke-width="2"/>
-        <path d="M8.5 16.5a5 5 0 017 0" fill="none" stroke="currentColor" stroke-width="2"/>
-        <circle cx="12" cy="20" r="1" fill="currentColor"/>
-        <line x1="2" y1="2" x2="22" y2="22" stroke="currentColor" stroke-width="2"/>
+        <path
+          d="M5 13a10 10 0 0114 0"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        />
+        <path
+          d="M8.5 16.5a5 5 0 017 0"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        />
+        <circle cx="12" cy="20" r="1" fill="currentColor" />
+        <line x1="2" y1="2" x2="22" y2="22" stroke="currentColor" stroke-width="2" />
       </svg>
       <span>Offline</span>
     {/if}
@@ -1026,7 +1065,9 @@ Compact sync status indicator for app header:
   }
 
   @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+      transform: rotate(360deg);
+    }
   }
 </style>
 ```
@@ -1038,26 +1079,31 @@ Compact sync status indicator for app header:
 ### Common Errors
 
 **1. Network Errors**
+
 - Message: "Unable to sync - check your internet connection"
 - Action: Auto-retry with exponential backoff
 - Recovery: Sync when back online
 
 **2. Authentication Errors**
+
 - Message: "AT Protocol session expired - please sign in again"
 - Action: Show re-authentication dialog
 - Recovery: Refresh OAuth tokens
 
 **3. Storage Quota Exceeded**
+
 - Message: "Sync storage full (1 GB limit reached)"
 - Action: Show quota management screen
 - Recovery: Delete old notes or upgrade plan (future)
 
 **4. Encryption Errors**
+
 - Message: "Unable to decrypt vault - incorrect password"
 - Action: Prompt for password again
 - Recovery: Try password backup or device authorization
 
 **5. Conflict Errors (Rare)**
+
 - Message: "Note was edited on multiple devices - automatically merged"
 - Action: Show merged result
 - Recovery: User can review merged content
@@ -1078,7 +1124,7 @@ class SyncErrorHandler {
 
     const delayMs = Math.pow(2, this.retryCount) * 1000; // 1s, 2s, 4s, 8s, 16s
 
-    await new Promise(resolve => setTimeout(resolve, delayMs));
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
 
     this.retryCount++;
     try {
@@ -1108,21 +1154,25 @@ class SyncErrorHandler {
 ## Accessibility
 
 ### Keyboard Navigation
+
 - All flows navigable via Tab/Shift+Tab
 - Enter to submit forms
 - Escape to cancel/go back
 
 ### Screen Readers
+
 - ARIA labels on all interactive elements
 - Live regions for sync status updates
 - Descriptive button labels
 
 ### Visual Indicators
+
 - High contrast for status indicators
 - Icons plus text (never icon-only)
 - Clear focus states
 
 ### Error Messages
+
 - Announced via ARIA live regions
 - Persistent until resolved or dismissed
 - Clear action items
@@ -1132,21 +1182,25 @@ class SyncErrorHandler {
 ## Animations and Transitions
 
 ### Sync Indicator
+
 - Spinning refresh icon during sync
 - Smooth transition between states
 - Subtle green pulse on successful sync
 
 ### Setup Flows
+
 - Fade transitions between steps
 - Slide-in for authorization code
 - Progress indicators for multi-step flows
 
 ### Device Authorization
+
 - Loading spinner while waiting
 - Success checkmark animation on approval
 - QR code fade-in
 
 ### Performance
+
 - CSS transforms (not layout properties)
 - RequestAnimationFrame for smooth animations
 - Reduced motion support (prefers-reduced-motion)
@@ -1169,6 +1223,7 @@ While initial implementation is Electron desktop only, UI should be designed wit
 ## Summary
 
 The sync UI emphasizes:
+
 - **Clarity**: AT Protocol sign-in required (communicated upfront)
 - **Security**: Passwordless default with optional password backup
 - **Simplicity**: Minimal steps to enable sync
@@ -1176,6 +1231,7 @@ The sync UI emphasizes:
 - **Recovery**: Multiple paths for device authorization and recovery
 
 **Key UX Decisions:**
+
 1. AT Protocol sign-in required before sync options (clear gate)
 2. Passwordless by default (best UX + security)
 3. Device authorization via QR/code (no password needed)

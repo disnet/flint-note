@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Message } from '../services/types';
-  import ToolCallComponent from './ToolCallComponent.svelte';
+  import AgentActivityWidget from './AgentActivityWidget.svelte';
   import MarkdownRenderer from './MarkdownRenderer.svelte';
 
   interface Props {
@@ -24,9 +24,7 @@
 
   {#if message.toolCalls && message.toolCalls.length > 0}
     <div class="tool-calls">
-      {#each message.toolCalls as toolCall (toolCall.id)}
-        <ToolCallComponent {toolCall} />
-      {/each}
+      <AgentActivityWidget toolCalls={message.toolCalls} />
     </div>
   {/if}
 </div>

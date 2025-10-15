@@ -9,6 +9,7 @@ This document analyzes the current state of Flint's LLM agent interactions and p
 ### Architecture Overview
 
 **AI Service** (`src/main/ai-service.ts`)
+
 - Uses Vercel AI SDK with OpenRouter
 - Currently limited to Claude models (Sonnet 4.5, Haiku 3.5)
 - Context window: 200k tokens for both models
@@ -18,6 +19,7 @@ This document analyzes the current state of Flint's LLM agent interactions and p
 - Streaming responses with tool call events
 
 **UI Components**
+
 - `ChatView.svelte`: Main conversation container
 - `MessageComponent.svelte`: Individual message display
 - `ToolCallComponent.svelte`: Collapsible tool call widget (one per tool call)
@@ -25,12 +27,14 @@ This document analyzes the current state of Flint's LLM agent interactions and p
 - `AgentControlBar.svelte`: Thread switching controls
 
 **System Prompt** (`src/main/system-prompt.md`)
+
 - ~390 lines of instructions
 - Includes: tool descriptions, API docs, note type definitions, agent instructions
 - Dynamically includes: date/time context, note types, custom functions
 - Gets injected with vault-specific note type instructions at runtime
 
 **Tool System** (`src/main/tool-service.ts`)
+
 - 14 tools total (basic CRUD + code evaluation + custom functions)
 - Tools passed to AI SDK's `generateText` and `streamText`
 - Results returned as structured JSON
@@ -42,12 +46,14 @@ This document analyzes the current state of Flint's LLM agent interactions and p
 ### 1. Tool Call UI/UX
 
 #### Current State
+
 - Each tool call creates a separate `ToolCallComponent` widget
 - Multiple tools in sequence = cluttered UI
 - No aggregation or progressive disclosure
 - Tool calls appear inline with messages
 
 #### Problems
+
 - Visual clutter during multi-step operations
 - Hard to track overall progress
 - Doesn't show "thinking" state well
@@ -56,6 +62,7 @@ This document analyzes the current state of Flint's LLM agent interactions and p
 #### Proposed Solution: Unified Tool Activity Widget
 
 **Design:**
+
 ```
 ┌─────────────────────────────────────────────┐
 │ 🔧 Agent Activity (3 tools running...)      │
@@ -68,6 +75,7 @@ This document analyzes the current state of Flint's LLM agent interactions and p
 ```
 
 **Features:**
+
 - Single widget per agent turn
 - Animated progress indicator while tools running
 - Shows tool execution order
@@ -76,6 +84,7 @@ This document analyzes the current state of Flint's LLM agent interactions and p
 - Compact by default, expandable for details
 
 **Implementation:**
+
 1. Create `AgentActivityWidget.svelte` component
 2. Track tool calls at the message level (not individual components)
 3. Group all tool calls from a single agent turn
@@ -83,6 +92,7 @@ This document analyzes the current state of Flint's LLM agent interactions and p
 5. Store collapsed/expanded state per message
 
 **Phased Rollout:**
+
 - Phase 1: Basic aggregation (group tool calls)
 - Phase 2: Animation and status indicators
 - Phase 3: Progressive disclosure UI
@@ -92,6 +102,7 @@ This document analyzes the current state of Flint's LLM agent interactions and p
 ### 2. Context Window Management
 
 #### Current State
+
 - No visibility into token usage
 - Hard limit: 20 messages per conversation
 - No max token limit enforcement
@@ -99,6 +110,7 @@ This document analyzes the current state of Flint's LLM agent interactions and p
 - Context window: 200k tokens
 
 #### Problems
+
 - Users don't know how much context they've used
 - Message limit is arbitrary and confusing
 - Bad for caching (cuts off older messages)
@@ -108,6 +120,7 @@ This document analyzes the current state of Flint's LLM agent interactions and p
 #### Proposed Solution: Token-Aware Context Management
 
 **UI Indicators:**
+
 ```
 ┌─────────────────────────────────────┐
 │ Context: ████████░░░░░░  45%        │
@@ -116,6 +129,7 @@ This document analyzes the current state of Flint's LLM agent interactions and p
 ```
 
 **Display Options:**
+
 1. **Progress bar** in conversation header (subtle, always visible)
 2. **Detailed breakdown** in settings/debug view
    - System prompt: X tokens
@@ -127,6 +141,7 @@ This document analyzes the current state of Flint's LLM agent interactions and p
    - 95%: Red indicator with options
 
 **Token Counting:**
+
 - Use actual tokenizer for accurate counts (not estimation)
 - Options:
   - Client-side: `@anthropic-ai/tokenizer` (if available)
@@ -136,6 +151,7 @@ This document analyzes the current state of Flint's LLM agent interactions and p
 **Context Strategy:**
 
 Replace message-count limit with token-based management:
+
 1. **Target: Keep conversation at 60-70% of context window**
    - Reserves 30-40% for responses and tool outputs
 2. **When approaching 80%:**
@@ -147,40 +163,43 @@ Replace message-count limit with token-based management:
    - Keep system prompt + recent messages
 
 **Implementation:**
+
 ```typescript
 interface ContextUsage {
-  systemPrompt: number;      // tokens
+  systemPrompt: number; // tokens
   conversationHistory: number; // tokens
-  tools: number;             // tokens
-  total: number;             // tokens
-  percentage: number;        // 0-100
-  maxTokens: number;         // model-specific
+  tools: number; // tokens
+  total: number; // tokens
+  percentage: number; // 0-100
+  maxTokens: number; // model-specific
 }
 
 class ContextManager {
-  calculateUsage(): ContextUsage
-  shouldWarn(): boolean
-  shouldCompact(): boolean
-  compactHistory(strategy: 'summarize' | 'prune'): Message[]
+  calculateUsage(): ContextUsage;
+  shouldWarn(): boolean;
+  shouldCompact(): boolean;
+  compactHistory(strategy: 'summarize' | 'prune'): Message[];
 }
 ```
 
 **Caching Considerations:**
+
 - Longer histories are BETTER for caching
 - Don't prune cached segments
 - Cache-friendly compaction: keep old messages, compress details
 
 **Model-Specific Limits:**
+
 ```typescript
 // src/renderer/src/config/models.ts
 export const SUPPORTED_MODELS: ModelInfo[] = [
   {
     id: 'anthropic/claude-sonnet-4.5',
     contextLength: 200000,
-    recommendedMaxConversation: 140000, // 70% of context
-  },
+    recommendedMaxConversation: 140000 // 70% of context
+  }
   // ... other models with different limits
-]
+];
 ```
 
 ---
@@ -188,6 +207,7 @@ export const SUPPORTED_MODELS: ModelInfo[] = [
 ### 3. System Prompt Optimization
 
 #### Current State
+
 - ~390 lines base prompt
 - Dynamically adds:
   - Note types (with descriptions + agent instructions)
@@ -196,6 +216,7 @@ export const SUPPORTED_MODELS: ModelInfo[] = [
 - All vault context in system prompt
 
 #### Problems
+
 - Large vaults with many note types → huge system prompt
 - Token burden scales with vault complexity
 - Agent instructions may not be in optimal location
@@ -204,6 +225,7 @@ export const SUPPORTED_MODELS: ModelInfo[] = [
 #### Analysis: System Prompt vs. Context Injection
 
 **What SHOULD be in system prompt:**
+
 - Core identity and role
 - Fundamental behaviors and constraints
 - Tool usage philosophy
@@ -211,6 +233,7 @@ export const SUPPORTED_MODELS: ModelInfo[] = [
 - Stable, vault-independent guidelines
 
 **What COULD be injected as messages:**
+
 - Note type definitions (when relevant)
 - Specific agent instructions (when working with that type)
 - Custom function docs (when needed)
@@ -219,6 +242,7 @@ export const SUPPORTED_MODELS: ModelInfo[] = [
 **Proposed Strategy:**
 
 **Tier 1: Core System Prompt (Always)**
+
 - Agent identity and communication style
 - Tool selection guidance (basic vs. code evaluator)
 - Safety and ethical guidelines
@@ -226,6 +250,7 @@ export const SUPPORTED_MODELS: ModelInfo[] = [
 - ~100-150 lines
 
 **Tier 2: Vault Context (Cached System Prompt Extension)**
+
 - Current vault info
 - Note type registry (list only, no full docs)
 - Custom function registry (list only)
@@ -233,6 +258,7 @@ export const SUPPORTED_MODELS: ModelInfo[] = [
 - **Benefit:** Caches well per vault
 
 **Tier 3: Just-in-Time Context (User Messages)**
+
 - Full note type details when user asks about that type
 - Full custom function docs when referenced
 - Recent note activity
@@ -241,6 +267,7 @@ export const SUPPORTED_MODELS: ModelInfo[] = [
 **Example Flow:**
 
 User: "Create a meeting note"
+
 ```
 System: [Core prompt + Vault context]
 Assistant: [Recognizes "meeting" type]
@@ -253,16 +280,18 @@ Assistant: [Creates note following instructions]
 ```
 
 **Implementation:**
+
 ```typescript
 class ContextualSystemPrompt {
-  getCorePrompt(): string              // Tier 1
-  getVaultContext(vaultId): string     // Tier 2
-  getNoteTypeContext(type): Message    // Tier 3
-  getCustomFunctionContext(name): Message // Tier 3
+  getCorePrompt(): string; // Tier 1
+  getVaultContext(vaultId): string; // Tier 2
+  getNoteTypeContext(type): Message; // Tier 3
+  getCustomFunctionContext(name): Message; // Tier 3
 }
 ```
 
 **Benefits:**
+
 - Reduces token usage for simple queries
 - Puts detailed instructions closer to usage point
 - Better prompt caching (core rarely changes)
@@ -273,12 +302,14 @@ class ContextualSystemPrompt {
 ### 4. Agent Instruction Adherence
 
 #### Current State
+
 - Note types have `agentInstructions` field (array of strings)
 - Instructions added to system prompt
 - No verification that agent follows them
 - No feedback mechanism
 
 #### Problems
+
 - Hard to know if instructions are working
 - Instructions may be too vague
 - No way to debug poor adherence
@@ -299,14 +330,17 @@ class ContextualSystemPrompt {
 **Solution 1: Instruction Formatting & Emphasis**
 
 Current:
+
 ```markdown
 ### Meeting Note Type
+
 - Extract action items from content
 - Identify key decisions
 - Tag participants
 ```
 
 Improved:
+
 ```markdown
 ## CRITICAL: Meeting Note Instructions
 
@@ -320,23 +354,25 @@ When working with meeting notes, you MUST:
 2. **Identify Key Decisions**
    - Mark with "DECISION:" prefix
    - Include decision maker if mentioned
-   ...
+     ...
 
 VERIFICATION: Before responding, confirm you've:
+
 - [ ] Extracted all action items
 - [ ] Identified key decisions
-...
+      ...
 ```
 
 **Solution 2: Contextual Injection (see Section 3)**
 
 Instead of system prompt, inject when relevant:
+
 ```typescript
 // When user creates/updates a meeting note
 messages.push({
   role: 'system',
   content: `ACTIVE NOTE TYPE: meeting\n\n${noteType.agentInstructions.join('\n')}`
-})
+});
 ```
 
 **Solution 3: Instruction Templates & Best Practices**
@@ -347,12 +383,14 @@ Provide vault creators with instruction templates:
 # Agent Instruction Template
 
 ## Good Instructions:
+
 - Specific and actionable
 - Include examples
 - Specify format/structure
 - Explain the "why"
 
 ## Bad Instructions:
+
 - Vague ("be helpful")
 - Contradictory
 - Too complex
@@ -394,6 +432,7 @@ interface InstructionTest {
 **Solution 5: Feedback Loop**
 
 Allow users to flag when agent doesn't follow instructions:
+
 - UI: "Agent didn't follow note type instructions" button
 - Capture: Note type, instruction, agent output, user expectation
 - Use for: Manual review, instruction refinement, model evaluation
@@ -405,12 +444,14 @@ Allow users to flag when agent doesn't follow instructions:
 #### Current Analysis
 
 **Current Approach:**
+
 - Tools for note search (`search_notes`)
 - Tools for specific note retrieval (`get_note`)
 - Code evaluator for complex queries
 - No embeddings or semantic search
 
 **Claude Code's Approach:**
+
 - No RAG
 - Search/grep tools
 - Pull in context as needed
@@ -418,23 +459,25 @@ Allow users to flag when agent doesn't follow instructions:
 
 **Key Differences: Notes vs. Code**
 
-| Aspect | Code | Notes |
-|--------|------|-------|
-| Structure | Files, functions, imports | Freeform, links, metadata |
-| Queries | "Find function X" | "What did I learn about Y?" |
-| Precision | High (symbols, types) | Variable (concepts, themes) |
-| Volume | Large but structured | Can be huge and unstructured |
-| Relationships | Explicit (imports) | Implicit (links, themes) |
+| Aspect        | Code                      | Notes                        |
+| ------------- | ------------------------- | ---------------------------- |
+| Structure     | Files, functions, imports | Freeform, links, metadata    |
+| Queries       | "Find function X"         | "What did I learn about Y?"  |
+| Precision     | High (symbols, types)     | Variable (concepts, themes)  |
+| Volume        | Large but structured      | Can be huge and unstructured |
+| Relationships | Explicit (imports)        | Implicit (links, themes)     |
 
 #### Recommendation: Hybrid Approach
 
 **Phase 1: Optimize Current Search**
+
 - Improve `search_notes` tool
 - Add filters: date range, note type, metadata
 - Better ranking/relevance
 - Support boolean operators
 
 **Phase 2: Semantic Layer (Optional RAG)**
+
 - **When to use RAG:**
   - Vaults with 1000+ notes
   - Heavy conceptual querying
@@ -454,7 +497,7 @@ Allow users to flag when agent doesn't follow instructions:
 interface SearchOptions {
   query: string;
   noteTypes?: string[];
-  dateRange?: { start: Date, end: Date };
+  dateRange?: { start: Date; end: Date };
   tags?: string[];
   metadata?: Record<string, any>;
   limit?: number;
@@ -463,7 +506,7 @@ interface SearchOptions {
 
 // Phase 2: Optional Semantic Search
 interface SemanticSearchOptions extends SearchOptions {
-  useEmbeddings?: boolean;  // default: false
+  useEmbeddings?: boolean; // default: false
   similarityThreshold?: number;
   contextExpansion?: boolean; // include related notes
 }
@@ -487,6 +530,7 @@ User Query → Analyze Query Type
 ### 6. Context Limit Handling Strategies
 
 #### Current Behavior
+
 - Hits 20 message limit → truncates silently
 - No user notification
 - Loses conversation context
@@ -495,6 +539,7 @@ User Query → Analyze Query Type
 #### Proposed Strategies
 
 **Strategy 1: Transparent Warning**
+
 ```
 ┌─────────────────────────────────────────┐
 │ ⚠️  Context approaching limit (85%)    │
@@ -509,6 +554,7 @@ User Query → Analyze Query Type
 **Strategy 2: Smart Compaction**
 
 Similar to Claude Code's approach:
+
 1. Keep first message (often contains important context)
 2. Keep recent N messages (active context)
 3. Summarize middle section
@@ -516,8 +562,8 @@ Similar to Claude Code's approach:
 
 ```typescript
 interface CompactionStrategy {
-  keepFirst: number;      // e.g., 2 messages
-  keepRecent: number;     // e.g., 10 messages
+  keepFirst: number; // e.g., 2 messages
+  keepRecent: number; // e.g., 10 messages
   summarizeMiddle: boolean; // true
   preserveToolResults: boolean; // true
 }
@@ -526,6 +572,7 @@ interface CompactionStrategy {
 **Strategy 3: Conversation Forking**
 
 Instead of compaction, allow forking:
+
 ```
 Thread A (old, approaching limit)
   └─> Thread B (new, keeps summary of A)
@@ -538,12 +585,12 @@ Thread A (old, approaching limit)
 
 Different strategies for different conversation types:
 
-| Conversation Type | Strategy |
-|-------------------|----------|
-| Quick Q&A | Aggressive pruning |
-| Research session | Compaction with summaries |
-| Note creation sprint | New thread with context |
-| Analysis task | Code evaluator (single turn) |
+| Conversation Type    | Strategy                     |
+| -------------------- | ---------------------------- |
+| Quick Q&A            | Aggressive pruning           |
+| Research session     | Compaction with summaries    |
+| Note creation sprint | New thread with context      |
+| Analysis task        | Code evaluator (single turn) |
 
 **Recommended Approach:**
 
@@ -560,6 +607,7 @@ Different strategies for different conversation types:
 #### Current Tools (14 total)
 
 **Basic CRUD:**
+
 - `get_note` - Retrieve notes by ID
 - `create_note` - Create new note
 - `update_note` - Update existing note (requires contentHash)
@@ -567,17 +615,21 @@ Different strategies for different conversation types:
 - `search_notes` - Search or list notes
 
 **Note Type Management:**
+
 - `create_note_type`
 - `update_note_type`
 - `delete_note_type`
 
 **Vault:**
+
 - `get_vault_info`
 
 **Advanced:**
+
 - `evaluate_note_code` - TypeScript sandbox for complex operations
 
 **Custom Functions:**
+
 - `register_custom_function`
 - `test_custom_function`
 - `list_custom_functions`
@@ -586,17 +638,20 @@ Different strategies for different conversation types:
 #### Analysis
 
 **Well-Designed:**
+
 - ✅ `evaluate_note_code` - Powerful, well-scoped
 - ✅ `get_note` - Accepts array of IDs (efficient)
 - ✅ `create_note` - Clear required/optional params
 - ✅ Custom function tools - Good abstraction
 
 **Needs Improvement:**
+
 - ⚠️ `update_note` - Requires contentHash (friction)
 - ⚠️ `search_notes` - Limited filtering options
 - ⚠️ Tool descriptions - Could be more concise
 
 **Missing:**
+
 - ❌ Batch operations (create multiple notes)
 - ❌ Link management (add/remove links)
 - ❌ Hierarchy operations (add subnote, reorder)
@@ -607,26 +662,29 @@ Different strategies for different conversation types:
 **1. Improve Existing Tools**
 
 `update_note`: Make contentHash optional for title-only updates
+
 ```typescript
 // Before: Always requires contentHash
-update_note({ id, title, contentHash }) // contentHash required
+update_note({ id, title, contentHash }); // contentHash required
 
 // After: Optional for metadata-only updates
-update_note({ id, title }) // no contentHash needed for title
-update_note({ id, content, contentHash }) // required for content
+update_note({ id, title }); // no contentHash needed for title
+update_note({ id, content, contentHash }); // required for content
 ```
 
 `search_notes`: Add more filters
+
 ```typescript
 interface SearchNotesInput {
   query?: string;
   noteType?: string;
-  tags?: string[];           // NEW
-  dateRange?: {              // NEW
+  tags?: string[]; // NEW
+  dateRange?: {
+    // NEW
     start: string;
     end: string;
   };
-  hasLinks?: boolean;        // NEW
+  hasLinks?: boolean; // NEW
   metadata?: Record<string, any>; // NEW
   limit?: number;
   sortBy?: 'created' | 'updated' | 'title' | 'relevance'; // EXPANDED
@@ -636,22 +694,24 @@ interface SearchNotesInput {
 **2. Consider New Tools**
 
 **Option A: Add Specific Tools**
+
 ```typescript
 // Link management
-add_link({ noteId, targetId })
-remove_link({ noteId, targetId })
-get_backlinks({ noteId })
+add_link({ noteId, targetId });
+remove_link({ noteId, targetId });
+get_backlinks({ noteId });
 
 // Hierarchy
-add_subnote({ parentId, childId })
-get_children({ noteId })
+add_subnote({ parentId, childId });
+get_children({ noteId });
 
 // Tags
-add_tags({ noteId, tags })
-remove_tags({ noteId, tags })
+add_tags({ noteId, tags });
+remove_tags({ noteId, tags });
 ```
 
 **Option B: Expose Through Code Evaluator**
+
 - Already have full API in sandbox
 - Better for complex operations
 - Less tool clutter
@@ -660,16 +720,19 @@ remove_tags({ noteId, tags })
 **3. Tool Description Improvements**
 
 Current:
+
 ```typescript
-description: 'Get notes by IDs'
+description: 'Get notes by IDs';
 ```
 
 Improved:
+
 ```typescript
-description: 'Retrieve one or more notes by their IDs or identifiers (e.g., ["note123", "meeting/standup"]). Efficient for bulk retrieval.'
+description: 'Retrieve one or more notes by their IDs or identifiers (e.g., ["note123", "meeting/standup"]). Efficient for bulk retrieval.';
 ```
 
 Add usage hints:
+
 ```typescript
 description: `
 Retrieve notes by IDs.
@@ -681,7 +744,7 @@ Use this for:
 Use search_notes instead for:
 - Finding notes by content
 - Listing notes by type
-`.trim()
+`.trim();
 ```
 
 ---
@@ -689,6 +752,7 @@ Use search_notes instead for:
 ### 8. UI Automation & Agent Capabilities
 
 #### Current State
+
 - Agent can only manipulate notes via tools
 - No UI automation (can't open notes, switch views, etc.)
 - User must manually navigate after agent creates notes
@@ -696,41 +760,46 @@ Use search_notes instead for:
 #### Proposed Capabilities
 
 **Tier 1: Note Navigation**
+
 ```typescript
 // New IPC methods
-window.api.openNote(noteId)
-window.api.openNoteInSplit(noteId)
-window.api.focusNote(noteId)
+window.api.openNote(noteId);
+window.api.openNoteInSplit(noteId);
+window.api.focusNote(noteId);
 ```
 
 **Tier 2: View Control**
+
 ```typescript
-window.api.switchView('daily' | 'inbox' | 'chat')
-window.api.openSidebar()
-window.api.closeSidebar()
+window.api.switchView('daily' | 'inbox' | 'chat');
+window.api.openSidebar();
+window.api.closeSidebar();
 ```
 
 **Tier 3: Search & Filter**
+
 ```typescript
-window.api.setSearchQuery(query)
-window.api.setNoteTypeFilter(type)
+window.api.setSearchQuery(query);
+window.api.setNoteTypeFilter(type);
 ```
 
 #### Safety Considerations
 
 **Prevent UI Chaos:**
+
 - Rate limit UI commands (max 1 per second)
 - Confirm destructive navigation (closing unsaved note)
 - Allow user to disable UI automation
 
 **User Control:**
+
 ```typescript
 // Settings
 interface AgentUISettings {
-  allowNavigation: boolean;      // default: true
-  allowViewSwitching: boolean;   // default: false
-  allowSearch: boolean;          // default: true
-  confirmDestructive: boolean;   // default: true
+  allowNavigation: boolean; // default: true
+  allowViewSwitching: boolean; // default: false
+  allowSearch: boolean; // default: true
+  confirmDestructive: boolean; // default: true
 }
 ```
 
@@ -738,6 +807,7 @@ interface AgentUISettings {
 
 **Phase 1: Post-Action Navigation**
 After creating/updating note, offer to open it:
+
 ```
 ✅ Created meeting note "Weekly Standup"
 
@@ -745,6 +815,7 @@ After creating/updating note, offer to open it:
 ```
 
 **Phase 2: Tool-Based UI Commands**
+
 ```typescript
 // New tool
 {
@@ -759,6 +830,7 @@ After creating/updating note, offer to open it:
 
 **Phase 3: Proactive Navigation**
 Agent can suggest/execute navigation:
+
 ```
 I've created the project plan note. Opening it now so you can review...
 [Tool: navigate_to_note({ noteId: "project/plan" })]
@@ -769,9 +841,11 @@ I've created the project plan note. Opening it now so you can review...
 ### 9. Dynamic UI Generation (Advanced)
 
 #### Vision
+
 Allow agents to create custom views, dashboards, or visualizations
 
 #### Challenges
+
 - **Security:** Can't allow arbitrary code execution in UI
 - **Complexity:** Significant engineering effort
 - **Value:** Unclear if users want this
@@ -779,6 +853,7 @@ Allow agents to create custom views, dashboards, or visualizations
 #### Safer Alternatives
 
 **Option 1: Predefined Templates**
+
 ```typescript
 interface DashboardTemplate {
   type: 'kanban' | 'timeline' | 'graph' | 'table';
@@ -786,33 +861,36 @@ interface DashboardTemplate {
     noteIds: string[];
     groupBy?: string;
     sortBy?: string;
-  }
+  };
 }
 
 // Agent can populate template
 create_dashboard({
   type: 'kanban',
   data: {
-    noteIds: allProjectNotes.map(n => n.id),
+    noteIds: allProjectNotes.map((n) => n.id),
     groupBy: 'status'
   }
-})
+});
 ```
 
 **Option 2: Markdown-Based Views**
 Agent creates markdown with special syntax:
-```markdown
+
+````markdown
 # Project Dashboard
 
 ```flint-query
 type: project
 status: active
 ```
+````
 
 ```flint-graph
 nodes: $result
 ```
-```
+
+````
 
 **Recommendation:** Defer until clear user need. Focus on note-based workflows first.
 
@@ -850,11 +928,12 @@ export const SUPPORTED_MODELS: ModelInfo[] = [
   // Others
   { id: 'deepseek/deepseek-chat', contextLength: 64000, ... },
 ]
-```
+````
 
 **Phase 2: Model-Specific Handling**
 
 Different models need different handling:
+
 ```typescript
 interface ModelCapabilities {
   supportsCaching: boolean;
@@ -872,6 +951,7 @@ function getModelCapabilities(modelId: string): ModelCapabilities {
 **Phase 3: Evaluation Matrix**
 
 Test each model on:
+
 - Tool calling reliability
 - Instruction following
 - Note type understanding
@@ -905,6 +985,7 @@ function selectModel(task: TaskComplexity): string {
 ### 11. Evaluation & Testing Framework
 
 #### Current State
+
 - No systematic evaluation
 - Manual testing only
 - No benchmarks
@@ -913,6 +994,7 @@ function selectModel(task: TaskComplexity): string {
 #### Proposed Framework
 
 **Level 1: Unit Tests for Tools**
+
 ```typescript
 describe('create_note tool', () => {
   it('should create note with required fields', async () => {
@@ -927,6 +1009,7 @@ describe('create_note tool', () => {
 ```
 
 **Level 2: Integration Tests for Agent Flows**
+
 ```typescript
 describe('Agent: Meeting Note Creation', () => {
   it('should extract action items from meeting content', async () => {
@@ -941,6 +1024,7 @@ describe('Agent: Meeting Note Creation', () => {
 ```
 
 **Level 3: Vault-Specific Evals**
+
 ```typescript
 interface VaultEvalSuite {
   vaultType: 'personal' | 'work' | 'research';
@@ -958,6 +1042,7 @@ interface EvalScenario {
 ```
 
 **Level 4: Model Comparison**
+
 ```typescript
 interface ModelEvalResult {
   modelId: string;
@@ -977,12 +1062,15 @@ function compareModels(scenarios: EvalScenario[]): ModelEvalResult[] {
 ```
 
 **Example Eval Suite:**
+
 ```typescript
 const MEETING_NOTE_EVALS: EvalScenario[] = [
   {
     name: 'Extract action items',
-    userMessage: 'Create meeting note: Alice to review PR by Thursday, Bob to update docs',
-    expectedBehavior: 'Should create note with action items section containing both tasks',
+    userMessage:
+      'Create meeting note: Alice to review PR by Thursday, Bob to update docs',
+    expectedBehavior:
+      'Should create note with action items section containing both tasks',
     scoring: (output) => {
       let score = 0;
       if (output.noteCreated) score += 30;
@@ -1003,6 +1091,7 @@ const MEETING_NOTE_EVALS: EvalScenario[] = [
 ```
 
 **Dashboard:**
+
 ```
 ┌─────────────────────────────────────────────┐
 │ Flint Agent Evaluation Dashboard           │
@@ -1025,36 +1114,42 @@ const MEETING_NOTE_EVALS: EvalScenario[] = [
 ## Implementation Roadmap
 
 ### Phase 1: Foundation (Week 1-2)
+
 - [ ] Implement unified tool activity widget
 - [ ] Add basic context usage tracking (estimated tokens)
 - [ ] Add context warning at 80%
 - [ ] Improve tool descriptions
 
 ### Phase 2: Context Management (Week 3-4)
+
 - [ ] Implement accurate token counting
 - [ ] Add context usage UI (progress bar)
 - [ ] Implement conversation compaction
 - [ ] Add "new thread" prompt at limit
 
 ### Phase 3: System Prompt Optimization (Week 5-6)
+
 - [ ] Split system prompt into tiers
 - [ ] Implement contextual instruction injection
 - [ ] Optimize note type instruction format
 - [ ] Add instruction templates for users
 
 ### Phase 4: Evaluation (Week 7-8)
+
 - [ ] Create eval framework
 - [ ] Build initial eval suite (10 scenarios)
 - [ ] Test current model performance
 - [ ] Establish baselines
 
 ### Phase 5: Multi-Model Support (Week 9-10)
+
 - [ ] Add OpenAI models
 - [ ] Add Google Gemini
 - [ ] Implement model-specific handling
 - [ ] Run comparative evals
 
 ### Phase 6: Advanced Features (Week 11-12)
+
 - [ ] Enhanced search filters
 - [ ] UI navigation tools (opt-in)
 - [ ] Instruction feedback mechanism
@@ -1065,17 +1160,20 @@ const MEETING_NOTE_EVALS: EvalScenario[] = [
 ## Success Metrics
 
 ### User Experience
+
 - **Clarity:** User understands agent activity (tool calls visible but not overwhelming)
 - **Control:** User knows context status and can manage it
 - **Trust:** Agent follows note type instructions reliably
 
 ### Technical Performance
+
 - **Context Efficiency:** Average conversation uses 50-70% of context window
 - **Cache Hit Rate:** 60%+ cache hits on system prompts
 - **Tool Accuracy:** 90%+ tool calls succeed on first try
 - **Instruction Adherence:** 85%+ scenarios pass eval tests
 
 ### Operational
+
 - **Multi-Model:** Support 3+ model providers
 - **Eval Coverage:** 50+ scenarios across common vault types
 - **User Feedback:** Instruction feedback mechanism used by 10%+ users
@@ -1118,32 +1216,39 @@ const MEETING_NOTE_EVALS: EvalScenario[] = [
 ## Appendix: Related Work
 
 ### Claude Code Analysis
+
 **What they do well:**
+
 - No RAG (search-based)
 - Compact representation of tool results
 - Smart context management
 - Multi-step tool planning
 
 **What we can learn:**
+
 - Keep it simple (no RAG initially)
 - Focus on tool quality over quantity
 - Good context management > more context
 - Transparency in what agent is doing
 
 ### Cursor Analysis
+
 **What they do well:**
+
 - Model selection per task
 - Aggressive caching
 - Multi-file context
 - Inline actions
 
 **What we can learn:**
+
 - Smart model routing saves costs
 - Cache everything cacheable
 - Show progress clearly
 - Make agent actions visible
 
 ### Differences for Note-Taking
+
 - Code: Structured, code is authoritative
 - Notes: Freeform, user intent is authoritative
 - Code: Deterministic queries ("find function X")

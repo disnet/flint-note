@@ -48,6 +48,7 @@ This document explores an alternative architecture for Flint sync that uses **AT
 ```
 
 **Properties:**
+
 - Client talks directly to R2 after getting credentials
 - Simple credential issuance service
 - Low latency (no proxy hop)
@@ -94,6 +95,7 @@ This document explores an alternative architecture for Flint sync that uses **AT
 ```
 
 **Properties:**
+
 - All requests proxied through user's PDS
 - XRPC endpoints following Lexicon schemas
 - Service auth JWT verification
@@ -107,6 +109,7 @@ This document explores an alternative architecture for Flint sync that uses **AT
 ### 1. Client Agnosticism & Zero Lock-in
 
 **With Service Proxying:**
+
 ```
 Flint publishes Lexicon schemas:
   - com.flint.note.create
@@ -122,6 +125,7 @@ Flint publishes Lexicon schemas:
 ```
 
 **With Current Architecture:**
+
 ```
 Flint-specific R2 storage format:
   - Encrypted Automerge documents
@@ -138,6 +142,7 @@ Flint-specific R2 storage format:
 **When AT Protocol adds native private data support:**
 
 **Service Proxying:**
+
 ```
 Change backend implementation:
   Before: Flint Service → R2
@@ -148,6 +153,7 @@ Migration is backend-only data movement
 ```
 
 **Current Architecture:**
+
 ```
 Requires:
   - Rewriting entire sync layer
@@ -160,6 +166,7 @@ Requires:
 ### 3. AT Protocol Ecosystem Alignment
 
 **Benefits:**
+
 - Flint becomes "native AT Protocol notes app"
 - Could get featured in AT Protocol ecosystem
 - Bluesky community adoption easier
@@ -167,6 +174,7 @@ Requires:
 - Future collaboration features more natural
 
 **Example Future Use Cases:**
+
 - Share note with another Flint user via DID
 - Mention someone in a note (@handle.bsky.social)
 - Link notes to Bluesky posts
@@ -175,6 +183,7 @@ Requires:
 ### 4. Data Portability & Transparency
 
 **With Lexicon schemas:**
+
 ```json
 // Published spec that anyone can implement
 {
@@ -196,6 +205,7 @@ Requires:
 ```
 
 Users can:
+
 - Inspect exactly how their data is structured
 - Build their own tools against published specs
 - Trust that data format is stable and open
@@ -390,7 +400,7 @@ class FlintSyncClient {
   async initialize(session: OAuthSession): Promise<void> {
     this.agent = new AtpAgent({
       service: session.pdsUrl,
-      persistSession: () => {},
+      persistSession: () => {}
     });
 
     // Restore OAuth session
@@ -403,26 +413,26 @@ class FlintSyncClient {
   async syncNotes(changes: NoteChange[]): Promise<SyncResult> {
     const response = await this.agent.api.com.flint.note.sync(
       {
-        changes: changes.map(c => ({
+        changes: changes.map((c) => ({
           noteId: c.noteId,
           ops: Buffer.from(c.encryptedOps).toString('base64'),
-          timestamp: c.timestamp.toISOString(),
-        })),
+          timestamp: c.timestamp.toISOString()
+        }))
       },
       {
         headers: {
-          'atproto-proxy': this.serviceEndpoint,
-        },
+          'atproto-proxy': this.serviceEndpoint
+        }
       }
     );
 
     return {
       synced: response.data.synced,
-      serverChanges: response.data.serverChanges.map(c => ({
+      serverChanges: response.data.serverChanges.map((c) => ({
         noteId: c.noteId,
         encryptedOps: Buffer.from(c.ops, 'base64'),
-        timestamp: new Date(c.timestamp),
-      })),
+        timestamp: new Date(c.timestamp)
+      }))
     };
   }
 
@@ -434,12 +444,12 @@ class FlintSyncClient {
       {
         limit: options?.limit || 50,
         cursor: options?.cursor,
-        tag: options?.tag,
+        tag: options?.tag
       },
       {
         headers: {
-          'atproto-proxy': this.serviceEndpoint,
-        },
+          'atproto-proxy': this.serviceEndpoint
+        }
       }
     );
 
@@ -455,12 +465,12 @@ class FlintSyncClient {
         content: note.content,
         title: note.title,
         tags: note.tags,
-        frontmatter: note.frontmatter,
+        frontmatter: note.frontmatter
       },
       {
         headers: {
-          'atproto-proxy': this.serviceEndpoint,
-        },
+          'atproto-proxy': this.serviceEndpoint
+        }
       }
     );
 
@@ -501,16 +511,13 @@ export default {
     }
 
     return new Response('Not found', { status: 404 });
-  },
+  }
 };
 
 /**
  * Verify service auth JWT from PDS
  */
-async function verifyServiceAuthJWT(
-  jwt: string,
-  env: Env
-): Promise<string> {
+async function verifyServiceAuthJWT(jwt: string, env: Env): Promise<string> {
   // 1. Decode JWT
   const decoded = parseJWT(jwt);
 
@@ -530,7 +537,7 @@ async function verifyServiceAuthJWT(
 
   // 4. Verify JWT signature with user's public key
   const publicKey = didDoc.verificationMethod.find(
-    vm => vm.id === `${userDID}#atproto`
+    (vm) => vm.id === `${userDID}#atproto`
   );
 
   const isValid = await verifyJWTSignature(jwt, publicKey);
@@ -561,8 +568,8 @@ async function handleNoteSync(
     // would merge Automerge documents properly)
     await env.R2_BUCKET.put(key, change.ops, {
       customMetadata: {
-        timestamp: change.timestamp,
-      },
+        timestamp: change.timestamp
+      }
     });
 
     synced.push(change.noteId);
@@ -574,10 +581,10 @@ async function handleNoteSync(
   return new Response(
     JSON.stringify({
       synced,
-      serverChanges,
+      serverChanges
     }),
     {
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' }
     }
   );
 }
@@ -587,18 +594,18 @@ async function handleNoteSync(
 
 ## Comparison: Current vs. Service Proxying
 
-| Aspect | Current Architecture | Service Proxying |
-|--------|---------------------|------------------|
-| **Request Path** | Client → Sync Service → R2 credentials → Client → R2 | Client → PDS → Flint Service → R2 |
-| **API Style** | REST (credential issuance) | XRPC (Lexicon schemas) |
-| **Latency** | Lower (direct R2 access) | Higher (proxy hop through PDS) |
-| **PDS Dependency** | Only initial auth + refresh | Every sync operation |
-| **Offline After Auth** | Yes (cached R2 creds) | No (needs PDS for each request) |
-| **Client Agnostic** | No (Flint-specific format) | Yes (published Lexicons) |
-| **Ecosystem Alignment** | Minimal (uses AT Protocol for identity only) | Full (native AT Protocol pattern) |
-| **Migration to PDS Storage** | Requires rewrite | Backend-only change |
-| **Implementation Complexity** | Lower | Higher (XRPC + Lexicons) |
-| **Development Time** | 3.5-5 months | 5-7 months (+30-40%) |
+| Aspect                        | Current Architecture                                 | Service Proxying                  |
+| ----------------------------- | ---------------------------------------------------- | --------------------------------- |
+| **Request Path**              | Client → Sync Service → R2 credentials → Client → R2 | Client → PDS → Flint Service → R2 |
+| **API Style**                 | REST (credential issuance)                           | XRPC (Lexicon schemas)            |
+| **Latency**                   | Lower (direct R2 access)                             | Higher (proxy hop through PDS)    |
+| **PDS Dependency**            | Only initial auth + refresh                          | Every sync operation              |
+| **Offline After Auth**        | Yes (cached R2 creds)                                | No (needs PDS for each request)   |
+| **Client Agnostic**           | No (Flint-specific format)                           | Yes (published Lexicons)          |
+| **Ecosystem Alignment**       | Minimal (uses AT Protocol for identity only)         | Full (native AT Protocol pattern) |
+| **Migration to PDS Storage**  | Requires rewrite                                     | Backend-only change               |
+| **Implementation Complexity** | Lower                                                | Higher (XRPC + Lexicons)          |
+| **Development Time**          | 3.5-5 months                                         | 5-7 months (+30-40%)              |
 
 ---
 
@@ -607,6 +614,7 @@ async function handleNoteSync(
 ### Option A: Pragmatic (Ship Current Plan)
 
 **Approach:**
+
 1. Launch with current architecture (direct R2, no service proxying)
 2. Market as "encrypted, local-first notes with AT Protocol identity"
 3. If/when PDS native storage arrives, evaluate migration
@@ -615,12 +623,14 @@ async function handleNoteSync(
 **Timeline:** Ship in 3.5-5 months as planned
 
 **Pros:**
+
 - ✅ Faster to market
 - ✅ Simpler implementation
 - ✅ Lower operational costs
 - ✅ Better offline support
 
 **Cons:**
+
 - ⚠️ Harder migration to PDS native storage
 - ⚠️ No client agnosticism
 - ⚠️ Less AT Protocol ecosystem integration
@@ -630,6 +640,7 @@ async function handleNoteSync(
 ### Option B: Strategic (Service Proxying Now)
 
 **Approach:**
+
 1. Implement XRPC service with Lexicon schemas from day 1
 2. Use service proxying pattern (client → PDS → Flint service)
 3. Backend stores in R2 today, PDS native storage tomorrow
@@ -638,12 +649,14 @@ async function handleNoteSync(
 **Timeline:** 5-7 months (+4-6 weeks for XRPC implementation)
 
 **Pros:**
+
 - ✅ Smooth PDS migration path
 - ✅ Client-agnostic data format
 - ✅ Full AT Protocol ecosystem integration
 - ✅ Strong trust signal (open specs)
 
 **Cons:**
+
 - ⚠️ Slower to market
 - ⚠️ Higher complexity
 - ⚠️ More PDS dependency
@@ -654,17 +667,20 @@ async function handleNoteSync(
 ### Option C: Hybrid (Best of Both)
 
 **Approach:**
+
 1. Ship current plan for v1 (faster to market)
 2. **Design and publish Lexicon schemas now** (specs only, low cost)
 3. Add XRPC service proxying layer in v1.1 or v2
 4. Maintain both direct R2 and service proxy modes initially
 
 **Timeline:**
+
 - v1: 3.5-5 months (current plan)
 - Lexicon specs: +1-2 weeks (document only)
 - v1.1 XRPC: +2-3 months (after v1 launch)
 
 **Pros:**
+
 - ✅ Fast initial launch
 - ✅ User feedback before over-investing
 - ✅ Clear migration path documented
@@ -672,6 +688,7 @@ async function handleNoteSync(
 - ✅ Can support both modes (direct + proxy)
 
 **Cons:**
+
 - ⚠️ Maintaining two sync modes
 - ⚠️ Deferred ecosystem benefits
 - ⚠️ Specs may need revision after v1 feedback
@@ -683,17 +700,20 @@ async function handleNoteSync(
 ### Short Term: Option C (Hybrid Approach)
 
 **Phase 1: Launch with Current Architecture (v1)**
+
 - Ship local-first + direct R2 access
 - Validate product-market fit
 - Get user feedback on core experience
 
 **Phase 2: Publish Lexicon Specs (Low Cost)**
+
 - Design `com.flint.note.*` Lexicon schemas
 - Publish on GitHub and AT Protocol community
 - Signal commitment to openness: "Here's our open spec"
 - Shows migration path even if not implemented yet
 
 **Phase 3: Implement Service Proxying (v1.1+)**
+
 - Add XRPC endpoints after v1 ships
 - Offer both modes: "Direct sync" vs "AT Protocol sync"
 - Migrate users gradually to service proxying
@@ -702,6 +722,7 @@ async function handleNoteSync(
 ### Long Term: Full Service Proxying
 
 **When AT Protocol adds native private data support:**
+
 - Flint already has XRPC infrastructure
 - Backend switches from R2 to PDS storage
 - Client code remains unchanged (same Lexicons)
@@ -715,6 +736,7 @@ async function handleNoteSync(
 ### 1. Timing of PDS Private Data Support
 
 **Need to know:**
+
 - When will AT Protocol ship native private data?
 - What will the API look like?
 - How does it compare to service proxying today?
@@ -726,11 +748,13 @@ async function handleNoteSync(
 **Key question:** Is "your notes, any client" a core differentiator?
 
 **If yes:**
+
 - Invest in Lexicons early
 - Market open data format prominently
 - Build trust through transparency
 
 **If no:**
+
 - Focus on integrated Flint experience
 - Defer service proxying until PDS storage available
 
@@ -739,6 +763,7 @@ async function handleNoteSync(
 **Key question:** Will third-party Flint clients actually emerge?
 
 **Consider:**
+
 - Size of AT Protocol developer community
 - Interest in notes/PKM space
 - Effort required to build a client
@@ -747,6 +772,7 @@ async function handleNoteSync(
 ### 4. Implementation Complexity
 
 **Service proxying adds:**
+
 - XRPC endpoint implementation
 - Lexicon schema maintenance
 - Service auth JWT verification
@@ -754,6 +780,7 @@ async function handleNoteSync(
 - More complex error handling
 
 **Is the 30-40% time investment worth it?**
+
 - Depends on strategic importance of client agnosticism
 - Depends on timing of PDS native storage
 - Depends on competitive landscape

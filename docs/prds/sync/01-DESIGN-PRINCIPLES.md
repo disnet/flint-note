@@ -191,6 +191,7 @@ No user intervention needed
 ### Automerge Layer
 
 **Purpose:** Conflict-free document representation
+
 - Store note content as CRDTs
 - Automatic conflict resolution
 - Efficient binary serialization
@@ -199,6 +200,7 @@ No user intervention needed
 ### Encryption Layer
 
 **Purpose:** Zero-knowledge security
+
 - Generate and manage vault keys
 - Encrypt/decrypt Automerge documents
 - Device authorization via ECDH
@@ -207,14 +209,16 @@ No user intervention needed
 ### R2 Storage Layer
 
 **Purpose:** Cloud persistence
+
 - Store encrypted Automerge documents
-- Namespaced by DID (/{did}/*)
+- Namespaced by DID (/{did}/\*)
 - Temporary scoped credentials
 - Cost-effective object storage
 
 ### File System Layer
 
 **Purpose:** User-visible storage
+
 - Markdown files as source of truth
 - Bidirectional sync with Automerge
 - Watch for external changes
@@ -223,6 +227,7 @@ No user intervention needed
 ### Database Layer
 
 **Purpose:** Performance optimization
+
 - Full-text search index
 - Link graph and backlinks
 - Note hierarchies
@@ -231,6 +236,7 @@ No user intervention needed
 ### Sync Service Layer
 
 **Purpose:** Authorization and access control
+
 - Verify AT Protocol DIDs
 - Issue scoped R2 credentials
 - Track storage quotas
@@ -279,12 +285,14 @@ No user intervention needed
 ### Automerge vs. Yjs
 
 **Chose Automerge because:**
+
 - More focused on document editing
 - Better TypeScript support
 - Cleaner API for our use case
 - Storage adapter pattern fits our needs
 
 **Yjs advantages (not chosen):**
+
 - Slightly better performance in benchmarks
 - More real-time focused
 - Larger ecosystem
@@ -292,17 +300,20 @@ No user intervention needed
 ### R2 vs. S3 vs. Self-hosted
 
 **Chose R2 because:**
+
 - 10x cheaper than S3 for storage
 - Free egress (S3 charges for downloads)
 - Integrated with Cloudflare Workers
 - Simple pricing model
 
 **S3 advantages (not chosen):**
+
 - More mature ecosystem
 - More regions and availability zones
 - Enterprise SLAs
 
 **Self-hosted advantages (not chosen):**
+
 - Complete control
 - No vendor lock-in
 - But: operational complexity, scaling challenges
@@ -310,17 +321,20 @@ No user intervention needed
 ### AT Protocol vs. Email/OAuth vs. Web3
 
 **Chose AT Protocol because:**
+
 - Decentralized but practical
 - Growing adoption (Bluesky)
 - Good TypeScript libraries
 - User-controlled identity
 
 **Email/OAuth advantages (not chosen):**
+
 - More familiar to users
 - Broader adoption
 - But: centralized, privacy concerns
 
 **Web3 advantages (not chosen):**
+
 - Fully decentralized
 - But: poor UX, complexity, cost
 

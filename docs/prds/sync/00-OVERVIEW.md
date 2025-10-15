@@ -3,6 +3,7 @@
 ## Executive Summary
 
 This document provides an overview of Flint's multi-device sync implementation using:
+
 - **Automerge CRDTs** for conflict-free document merging
 - **Cloudflare R2** for encrypted cloud storage (Flint-hosted)
 - **AT Protocol** for decentralized identity (required for sync)
@@ -18,6 +19,7 @@ This implementation plan is organized into focused documents covering each major
 ### 1. [Design Principles & Architecture](./01-DESIGN-PRINCIPLES.md)
 
 Core design philosophy and system architecture:
+
 - Local-first approach with optional sync
 - Filesystem as source of truth
 - Automerge for automatic conflict resolution
@@ -31,6 +33,7 @@ Core design philosophy and system architecture:
 ### 2. [AT Protocol Identity](./02-AT-PROTOCOL-IDENTITY.md)
 
 AT Protocol integration and implementation details:
+
 - How AT Protocol DIDs provide identity and authorization
 - OAuth flow with DPoP token binding
 - Separation between identity and encryption layers
@@ -46,6 +49,7 @@ AT Protocol integration and implementation details:
 ### 3. [Identity Alternatives Analysis](./03-IDENTITY-ALTERNATIVES-ANALYSIS.md)
 
 AT Protocol identity decision rationale and alternatives:
+
 - Why AT Protocol was chosen for decentralized identity
 - Detailed analysis of downsides and mitigation strategies
 - Alternative approaches considered (Magic Links, OAuth, WebAuthn, DIDs)
@@ -60,6 +64,7 @@ AT Protocol identity decision rationale and alternatives:
 ### 4. [Encryption & Key Management](./04-ENCRYPTION-KEY-MANAGEMENT.md)
 
 Comprehensive security model and key management strategy:
+
 - Hybrid approach: passwordless by default with optional password backup
 - Device keychain with biometric protection (Touch ID, Windows Hello)
 - Device-to-device authorization flow with QR codes
@@ -74,6 +79,7 @@ Comprehensive security model and key management strategy:
 ### 5. [Backend Service Architecture](./05-BACKEND-SERVICE.md)
 
 Flint Sync Service design and implementation:
+
 - Cloudflare Worker for identity verification and authorization
 - DPoP token verification with AT Protocol
 - Scoped R2 credential issuance per user DID
@@ -88,6 +94,7 @@ Flint Sync Service design and implementation:
 ### 6. [Data Model & Automerge Schema](./06-DATA-MODEL.md)
 
 Document structure and Automerge integration:
+
 - FlintNote document schema with separated metadata and content
 - Why separate metadata from content for better conflict resolution
 - Automerge Text CRDT for content
@@ -101,6 +108,7 @@ Document structure and Automerge integration:
 ### 7. [Implementation Phases](./07-IMPLEMENTATION-PHASES.md)
 
 Detailed phase-by-phase implementation plan:
+
 - **Phase 0:** External file editing prerequisites (2-3 weeks)
 - **Phase 1:** Local Automerge integration (3-4 weeks)
 - **Phase 2:** Encryption + R2 backup (3-4 weeks)
@@ -116,6 +124,7 @@ Each phase includes tasks, deliverables, testing strategies, and acceptance crit
 ### 8. [UI Design & User Experience](./08-UI-DESIGN.md)
 
 User-facing sync interface and flows:
+
 - First-time setup wizard (AT Protocol sign-in required)
 - New vault vs. existing vault setup paths
 - Device authorization UI with QR codes
@@ -130,6 +139,7 @@ User-facing sync interface and flows:
 ### 9. [Cost Estimates & Scaling](./09-COST-SCALING.md)
 
 Financial planning and infrastructure scaling:
+
 - Cloudflare R2 pricing breakdown
 - Cost per user estimates (storage, operations)
 - Scaling projections for 10K, 100K users
@@ -142,6 +152,7 @@ Financial planning and infrastructure scaling:
 ### 10. [Risks & Mitigations](./10-RISKS-MITIGATIONS.md)
 
 Potential challenges and mitigation strategies:
+
 - Automerge performance at scale
 - Encryption key loss scenarios
 - AT Protocol dependency concerns
@@ -155,6 +166,7 @@ Potential challenges and mitigation strategies:
 ### 11. [Future Enhancements](./11-FUTURE-ENHANCEMENTS.md)
 
 Post-launch feature roadmap:
+
 - Web client (browser-based access)
 - Real-time sync with WebSockets
 - Sharing and collaboration features
@@ -168,6 +180,7 @@ Post-launch feature roadmap:
 ### 12. [Subscription & Monetization](./12-SUBSCRIPTION-MONETIZATION.md)
 
 Paid tier strategy and implementation:
+
 - Free tier (1GB) vs. Pro tier ($5/month, 50GB)
 - Stripe integration architecture
 - Subscription management and webhook handling

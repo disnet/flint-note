@@ -51,6 +51,7 @@ The Flint Sync Service is a lightweight backend deployed as a Cloudflare Worker 
 Request scoped R2 credentials for authenticated user.
 
 **Request:**
+
 ```typescript
 interface CredentialsRequest {
   did: string;               // User's AT Protocol DID
@@ -65,6 +66,7 @@ interface CredentialsRequest {
 ```
 
 **Response:**
+
 ```typescript
 interface CredentialsResponse {
   r2Credentials: {
@@ -73,16 +75,17 @@ interface CredentialsResponse {
     secretAccessKey: string;
     sessionToken: string;
     bucketName: string;
-    expiration: string;      // ISO 8601 timestamp
+    expiration: string; // ISO 8601 timestamp
   };
   storageQuota: {
-    used: number;            // Bytes used
-    limit: number;           // Bytes allowed
+    used: number; // Bytes used
+    limit: number; // Bytes allowed
   };
 }
 ```
 
 **Status Codes:**
+
 - `200 OK` - Credentials issued successfully
 - `401 Unauthorized` - Invalid or expired DPoP token
 - `403 Forbidden` - Quota exceeded
@@ -96,6 +99,7 @@ interface CredentialsResponse {
 Set or update user email address.
 
 **Request:**
+
 ```typescript
 interface EmailRequest {
   did: string;
@@ -112,6 +116,7 @@ interface EmailRequest {
 ```
 
 **Response:**
+
 ```typescript
 interface EmailResponse {
   success: boolean;
@@ -120,6 +125,7 @@ interface EmailResponse {
 ```
 
 **Status Codes:**
+
 - `200 OK` - Email set successfully
 - `400 Bad Request` - Invalid email format
 - `401 Unauthorized` - Invalid DPoP token
@@ -132,6 +138,7 @@ interface EmailResponse {
 Get user email address (requires valid DPoP token).
 
 **Request:**
+
 ```typescript
 // Headers
 {
@@ -140,6 +147,7 @@ Get user email address (requires valid DPoP token).
 ```
 
 **Response:**
+
 ```typescript
 interface GetEmailResponse {
   email: string | null;
@@ -149,6 +157,7 @@ interface GetEmailResponse {
 ```
 
 **Status Codes:**
+
 - `200 OK` - Email information returned
 - `401 Unauthorized` - Invalid DPoP token
 - `404 Not Found` - No email set for this DID
@@ -160,6 +169,7 @@ interface GetEmailResponse {
 Check storage quota for a DID (requires valid DPoP token).
 
 **Request:**
+
 ```typescript
 // Headers
 {
@@ -168,16 +178,18 @@ Check storage quota for a DID (requires valid DPoP token).
 ```
 
 **Response:**
+
 ```typescript
 interface QuotaResponse {
   did: string;
-  used: number;            // Bytes used
-  limit: number;           // Bytes allowed (default 1GB)
-  percentUsed: number;     // 0-100
+  used: number; // Bytes used
+  limit: number; // Bytes allowed (default 1GB)
+  percentUsed: number; // 0-100
 }
 ```
 
 **Status Codes:**
+
 - `200 OK` - Quota information returned
 - `401 Unauthorized` - Invalid DPoP token
 - `403 Forbidden` - DID mismatch (token DID ≠ requested DID)
@@ -268,9 +280,9 @@ async function generateScopedR2Credentials(
 ```typescript
 async function checkStorageQuota(did: string, env: Env): Promise<QuotaInfo> {
   // Query usage from D1 or KV
-  const usage = await env.QUOTA_DB.prepare(
-    'SELECT used_bytes FROM quotas WHERE did = ?'
-  ).bind(did).first<{ used_bytes: number }>();
+  const usage = await env.QUOTA_DB.prepare('SELECT used_bytes FROM quotas WHERE did = ?')
+    .bind(did)
+    .first<{ used_bytes: number }>();
 
   const used = usage?.used_bytes || 0;
   const limit = 1024 * 1024 * 1024; // 1GB default
@@ -282,15 +294,23 @@ async function checkStorageQuota(did: string, env: Env): Promise<QuotaInfo> {
   };
 }
 
-async function updateStorageUsage(did: string, bytesChanged: number, env: Env): Promise<void> {
+async function updateStorageUsage(
+  did: string,
+  bytesChanged: number,
+  env: Env
+): Promise<void> {
   // Update usage in D1
-  await env.QUOTA_DB.prepare(`
+  await env.QUOTA_DB.prepare(
+    `
     INSERT INTO quotas (did, used_bytes, updated_at)
     VALUES (?, ?, datetime('now'))
     ON CONFLICT(did) DO UPDATE SET
       used_bytes = used_bytes + excluded.used_bytes,
       updated_at = datetime('now')
-  `).bind(did, bytesChanged).run();
+  `
+  )
+    .bind(did, bytesChanged)
+    .run();
 
   // Check if over quota
   const quota = await checkStorageQuota(did, env);
@@ -315,7 +335,7 @@ export default {
     const corsHeaders = {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, DPoP',
+      'Access-Control-Allow-Headers': 'Content-Type, DPoP'
     };
 
     // Handle preflight
@@ -349,15 +369,18 @@ export default {
         // Generate scoped R2 credentials
         const credentials = await generateScopedR2Credentials(did, env);
 
-        return new Response(JSON.stringify({
-          r2Credentials: credentials,
-          storageQuota: quota
-        }), {
-          headers: {
-            ...corsHeaders,
-            'Content-Type': 'application/json'
+        return new Response(
+          JSON.stringify({
+            r2Credentials: credentials,
+            storageQuota: quota
+          }),
+          {
+            headers: {
+              ...corsHeaders,
+              'Content-Type': 'application/json'
+            }
           }
-        });
+        );
       }
 
       // POST /email - Set user email
@@ -385,7 +408,9 @@ export default {
         // Check if email already associated with different DID
         const existing = await env.QUOTA_DB.prepare(
           'SELECT did FROM user_emails WHERE email = ? AND did != ?'
-        ).bind(email, did).first();
+        )
+          .bind(email, did)
+          .first();
 
         if (existing) {
           return new Response('Email already associated with different account', {
@@ -395,24 +420,31 @@ export default {
         }
 
         // Upsert email
-        await env.QUOTA_DB.prepare(`
+        await env.QUOTA_DB.prepare(
+          `
           INSERT INTO user_emails (did, email, product_updates_opt_in, updated_at)
           VALUES (?, ?, ?, datetime('now'))
           ON CONFLICT(did) DO UPDATE SET
             email = excluded.email,
             product_updates_opt_in = excluded.product_updates_opt_in,
             updated_at = datetime('now')
-        `).bind(did, email, productUpdatesOptIn ? 1 : 0).run();
+        `
+        )
+          .bind(did, email, productUpdatesOptIn ? 1 : 0)
+          .run();
 
-        return new Response(JSON.stringify({
-          success: true,
-          email
-        }), {
-          headers: {
-            ...corsHeaders,
-            'Content-Type': 'application/json'
+        return new Response(
+          JSON.stringify({
+            success: true,
+            email
+          }),
+          {
+            headers: {
+              ...corsHeaders,
+              'Content-Type': 'application/json'
+            }
           }
-        });
+        );
       }
 
       // GET /email/:did - Get user email
@@ -438,11 +470,13 @@ export default {
 
         const emailData = await env.QUOTA_DB.prepare(
           'SELECT email, email_verified, product_updates_opt_in FROM user_emails WHERE did = ?'
-        ).bind(did).first<{
-          email: string;
-          email_verified: number;
-          product_updates_opt_in: number;
-        }>();
+        )
+          .bind(did)
+          .first<{
+            email: string;
+            email_verified: number;
+            product_updates_opt_in: number;
+          }>();
 
         if (!emailData) {
           return new Response('No email found', {
@@ -451,16 +485,19 @@ export default {
           });
         }
 
-        return new Response(JSON.stringify({
-          email: emailData.email,
-          emailVerified: emailData.email_verified === 1,
-          productUpdatesOptIn: emailData.product_updates_opt_in === 1
-        }), {
-          headers: {
-            ...corsHeaders,
-            'Content-Type': 'application/json'
+        return new Response(
+          JSON.stringify({
+            email: emailData.email,
+            emailVerified: emailData.email_verified === 1,
+            productUpdatesOptIn: emailData.product_updates_opt_in === 1
+          }),
+          {
+            headers: {
+              ...corsHeaders,
+              'Content-Type': 'application/json'
+            }
           }
-        });
+        );
       }
 
       // GET /quota/:did - Check storage quota
@@ -486,22 +523,24 @@ export default {
 
         const quota = await checkStorageQuota(did, env);
 
-        return new Response(JSON.stringify({
-          did,
-          ...quota
-        }), {
-          headers: {
-            ...corsHeaders,
-            'Content-Type': 'application/json'
+        return new Response(
+          JSON.stringify({
+            did,
+            ...quota
+          }),
+          {
+            headers: {
+              ...corsHeaders,
+              'Content-Type': 'application/json'
+            }
           }
-        });
+        );
       }
 
       return new Response('Not found', {
         status: 404,
         headers: corsHeaders
       });
-
     } catch (error) {
       console.error('Error:', error);
       return new Response(error.message || 'Internal server error', {
@@ -621,32 +660,39 @@ wrangler tail
 ### Cloudflare Pricing
 
 **Workers:**
+
 - Free tier: 100,000 requests/day
 - Paid: $5/month for 10M requests
 
 **R2:**
+
 - Storage: $0.015/GB/month
 - Class A operations (write): $4.50/million
 - Class B operations (read): $0.36/million
 - Egress: Free
 
 **D1:**
+
 - Free tier: 5GB storage, 5M reads/day, 100K writes/day
 - Paid: $0.75/GB/month + per-operation costs
 
 ### Example Cost (10,000 Users)
 
 **Storage (avg 10MB/user = 100GB total):**
+
 - 100GB × $0.015 = $1.50/month
 
 **Operations (avg 100 syncs/user/month):**
+
 - Writes: 1M × $4.50/M = $4.50/month
 - Reads: 1M × $0.36/M = $0.36/month
 
 **Workers:**
+
 - Free tier sufficient
 
 **D1:**
+
 - Free tier sufficient
 
 **Total: ~$6.36/month for 10,000 users**
@@ -668,13 +714,17 @@ async function checkRateLimit(did: string, endpoint: string, env: Env): Promise<
   const window = Math.floor(Date.now() / 60000); // 1-minute windows
   const windowStart = new Date(window * 60000).toISOString();
 
-  const result = await env.QUOTA_DB.prepare(`
+  const result = await env.QUOTA_DB.prepare(
+    `
     INSERT INTO rate_limits (did, endpoint, request_count, window_start)
     VALUES (?, ?, 1, ?)
     ON CONFLICT(did, endpoint, window_start) DO UPDATE SET
       request_count = request_count + 1
     RETURNING request_count
-  `).bind(did, endpoint, windowStart).first<{ request_count: number }>();
+  `
+  )
+    .bind(did, endpoint, windowStart)
+    .first<{ request_count: number }>();
 
   const limit = 60; // 60 requests per minute
   return (result?.request_count || 0) <= limit;

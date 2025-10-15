@@ -133,7 +133,7 @@ async function syncFilesToAutomerge(vaultPath: string): Promise<void> {
     const noteId = parsed.metadata.id || generateNoteId();
     const handle = this.repo.find<FlintNote>(noteId);
 
-    handle.change(doc => {
+    handle.change((doc) => {
       doc.id = noteId;
       doc.metadata = parsed.metadata;
       doc.content = new Automerge.Text(parsed.content);
@@ -180,7 +180,7 @@ async function onExternalFileChange(filePath: string): Promise<void> {
   const noteId = parsed.metadata.id;
 
   const handle = this.repo.find<FlintNote>(noteId);
-  handle.change(doc => {
+  handle.change((doc) => {
     doc.metadata = parsed.metadata;
     doc.content = new Automerge.Text(parsed.content);
   });
@@ -328,6 +328,7 @@ async rebuildDatabaseFromAutomerge(): Promise<void> {
 #### 1. Setup Flint Sync Backend Service
 
 The Flint Sync Service is a lightweight backend that:
+
 - Verifies AT Protocol DID tokens
 - Issues scoped, temporary R2 credentials per user
 - Enforces storage quotas and rate limits
@@ -336,8 +337,8 @@ The Flint Sync Service is a lightweight backend that:
 ```typescript
 // Cloudflare Worker for Flint Sync API
 interface SyncCredentialsRequest {
-  did: string;           // User's AT Protocol DID
-  dpopToken: string;     // DPoP-bound access token from AT Protocol OAuth
+  did: string; // User's AT Protocol DID
+  dpopToken: string; // DPoP-bound access token from AT Protocol OAuth
 }
 
 interface SyncCredentialsResponse {
@@ -346,12 +347,12 @@ interface SyncCredentialsResponse {
     accessKeyId: string;
     secretAccessKey: string;
     bucketName: string;
-    sessionToken: string;     // Temporary token
-    expiration: string;       // ISO timestamp
+    sessionToken: string; // Temporary token
+    expiration: string; // ISO timestamp
   };
   storageQuota: {
-    used: number;              // Bytes used
-    limit: number;             // Bytes allowed
+    used: number; // Bytes used
+    limit: number; // Bytes allowed
   };
 }
 
@@ -372,12 +373,15 @@ export default {
     // Check storage quota
     const quota = await getStorageQuota(did, env);
 
-    return new Response(JSON.stringify({
-      r2Credentials: credentials,
-      storageQuota: quota
-    }), {
-      headers: { 'Content-Type': 'application/json' }
-    });
+    return new Response(
+      JSON.stringify({
+        r2Credentials: credentials,
+        storageQuota: quota
+      }),
+      {
+        headers: { 'Content-Type': 'application/json' }
+      }
+    );
   }
 };
 
@@ -446,7 +450,7 @@ class R2Manager {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'DPoP': dpopToken
+        DPoP: dpopToken
       },
       body: JSON.stringify({ did })
     });
@@ -504,6 +508,7 @@ class R2Manager {
 #### 3. Implement Encryption Layer (Hybrid Approach)
 
 **Design Philosophy:**
+
 - **Default:** Passwordless (device keychain + biometric unlock)
 - **Optional:** Password backup for easier multi-device setup
 - **Zero-knowledge:** Flint never sees vault keys in plaintext
@@ -512,19 +517,19 @@ class R2Manager {
 
 ```typescript
 interface VaultIdentity {
-  vaultId: string;              // Stable UUID for this vault
-  vaultSalt: number[];          // Random salt for key derivation (when using password)
-  created: string;              // ISO timestamp
-  did: string;                  // AT Protocol DID (required)
-  devices: DeviceInfo[];        // Authorized devices
-  hasPasswordBackup: boolean;   // Whether password backup is enabled
+  vaultId: string; // Stable UUID for this vault
+  vaultSalt: number[]; // Random salt for key derivation (when using password)
+  created: string; // ISO timestamp
+  did: string; // AT Protocol DID (required)
+  devices: DeviceInfo[]; // Authorized devices
+  hasPasswordBackup: boolean; // Whether password backup is enabled
 }
 
 interface DeviceInfo {
   deviceId: string;
-  deviceName: string;           // e.g., "Alice's MacBook Pro"
-  publicKey: JsonWebKey;        // For device-to-device key sharing
-  added: string;                // ISO timestamp
+  deviceName: string; // e.g., "Alice's MacBook Pro"
+  publicKey: JsonWebKey; // For device-to-device key sharing
+  added: string; // ISO timestamp
   lastSeen?: string;
 }
 ```
@@ -592,12 +597,14 @@ class EncryptionService {
       vaultId: this.vaultId,
       vaultSalt: Array.from(vaultSalt),
       created: new Date().toISOString(),
-      devices: [{
-        deviceId,
-        deviceName,
-        publicKey: publicKeyJwk,
-        added: new Date().toISOString()
-      }],
+      devices: [
+        {
+          deviceId,
+          deviceName,
+          publicKey: publicKeyJwk,
+          added: new Date().toISOString()
+        }
+      ],
       hasPasswordBackup: false
     };
 
@@ -749,20 +756,17 @@ class EncryptionService {
     const { promisify } = await import('util');
     const scryptAsync = promisify(scrypt);
 
-    const keyMaterial = await scryptAsync(
+    const keyMaterial = (await scryptAsync(
       password,
       salt,
       32, // 256-bit key
       { N: 32768, r: 8, p: 1 }
-    ) as Buffer;
+    )) as Buffer;
 
-    return await crypto.subtle.importKey(
-      'raw',
-      keyMaterial,
-      { name: 'AES-GCM' },
-      false,
-      ['encrypt', 'decrypt']
-    );
+    return await crypto.subtle.importKey('raw', keyMaterial, { name: 'AES-GCM' }, false, [
+      'encrypt',
+      'decrypt'
+    ]);
   }
 
   // ==================================================================
@@ -908,14 +912,22 @@ class IdentityManager {
 
 ```typescript
 import { StorageAdapter } from '@automerge/automerge-repo';
-import { PutObjectCommand, GetObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
+import {
+  PutObjectCommand,
+  GetObjectCommand,
+  ListObjectsV2Command
+} from '@aws-sdk/client-s3';
 
 class EncryptedR2StorageAdapter implements StorageAdapter {
   private r2: R2Manager;
   private encryption: EncryptionService;
   private identityManager: IdentityManager;
 
-  constructor(r2: R2Manager, encryption: EncryptionService, identityManager: IdentityManager) {
+  constructor(
+    r2: R2Manager,
+    encryption: EncryptionService,
+    identityManager: IdentityManager
+  ) {
     this.r2 = r2;
     this.encryption = encryption;
     this.identityManager = identityManager;
@@ -933,16 +945,18 @@ class EncryptedR2StorageAdapter implements StorageAdapter {
 
     // Upload to R2 under /{did}/ prefix
     const key = `${did}/documents/${documentId}.automerge`;
-    await this.r2.client.send(new PutObjectCommand({
-      Bucket: this.r2.config.bucketName,
-      Key: key,
-      Body: encrypted,
-      ContentType: 'application/octet-stream',
-      Metadata: {
-        timestamp: new Date().toISOString(),
-        version: '1'
-      }
-    }));
+    await this.r2.client.send(
+      new PutObjectCommand({
+        Bucket: this.r2.config.bucketName,
+        Key: key,
+        Body: encrypted,
+        ContentType: 'application/octet-stream',
+        Metadata: {
+          timestamp: new Date().toISOString(),
+          version: '1'
+        }
+      })
+    );
   }
 
   async load(documentId: string): Promise<Uint8Array | undefined> {
@@ -955,10 +969,12 @@ class EncryptedR2StorageAdapter implements StorageAdapter {
       const key = `${did}/documents/${documentId}.automerge`;
 
       // Download from R2
-      const response = await this.r2.getClient().send(new GetObjectCommand({
-        Bucket: this.r2.getConfig().bucketName,
-        Key: key
-      }));
+      const response = await this.r2.getClient().send(
+        new GetObjectCommand({
+          Bucket: this.r2.getConfig().bucketName,
+          Key: key
+        })
+      );
 
       if (!response.Body) return undefined;
 
@@ -982,10 +998,12 @@ class EncryptedR2StorageAdapter implements StorageAdapter {
     }
 
     const key = `${did}/documents/${documentId}.automerge`;
-    await this.r2.getClient().send(new DeleteObjectCommand({
-      Bucket: this.r2.getConfig().bucketName,
-      Key: key
-    }));
+    await this.r2.getClient().send(
+      new DeleteObjectCommand({
+        Bucket: this.r2.getConfig().bucketName,
+        Key: key
+      })
+    );
   }
 
   async loadRange(keyPrefix: string[]): Promise<Uint8Array[]> {
@@ -995,10 +1013,12 @@ class EncryptedR2StorageAdapter implements StorageAdapter {
     }
 
     const prefix = `${did}/documents/`;
-    const response = await this.r2.getClient().send(new ListObjectsV2Command({
-      Bucket: this.r2.getConfig().bucketName,
-      Prefix: prefix
-    }));
+    const response = await this.r2.getClient().send(
+      new ListObjectsV2Command({
+        Bucket: this.r2.getConfig().bucketName,
+        Prefix: prefix
+      })
+    );
 
     const documents: Uint8Array[] = [];
 
@@ -1110,11 +1130,7 @@ this.repo = new Repo({
 
   // Add R2 adapter for sync
   network: [
-    new EncryptedR2StorageAdapter(
-      this.r2Manager,
-      this.encryption,
-      this.identityManager
-    )
+    new EncryptedR2StorageAdapter(this.r2Manager, this.encryption, this.identityManager)
   ],
 
   sharePolicy: async () => false
@@ -1208,7 +1224,7 @@ async function handleDeletionConflict(noteId: string): Promise<void> {
 
     if (action === 'keep') {
       // Undelete the note
-      handle.change(doc => {
+      handle.change((doc) => {
         doc.deleted = false;
         doc.metadata.updated = new Date().toISOString();
       });

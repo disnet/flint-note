@@ -3,6 +3,7 @@
 ## Executive Summary
 
 This document outlines a phased approach to adding multi-device sync to Flint using:
+
 - **Automerge CRDTs** for conflict-free document merging
 - **Cloudflare R2** for encrypted cloud storage (Flint-hosted)
 - **AT Protocol** for decentralized identity (**required** for sync)
@@ -24,6 +25,7 @@ This document outlines a phased approach to adding multi-device sync to Flint us
 #### 1. **Primary Path: Passwordless (Recommended)**
 
 **First Device:**
+
 1. User clicks "Enable Sync"
 2. System generates random 256-bit vault key
 3. Vault key stored in OS keychain (biometric-protected)
@@ -31,6 +33,7 @@ This document outlines a phased approach to adding multi-device sync to Flint us
 5. Sync enabled - no password to remember!
 
 **Second Device:**
+
 1. User clicks "Join Vault" → "Authorize from Another Device"
 2. New device generates ephemeral ECDH key pair
 3. Displays 6-character code or QR code
@@ -40,6 +43,7 @@ This document outlines a phased approach to adding multi-device sync to Flint us
 7. New device stores vault key in its keychain
 
 **Advantages:**
+
 - ✅ No password to remember
 - ✅ Biometric unlock (Touch ID, Windows Hello)
 - ✅ Hardware-backed security (OS keychain)
@@ -47,18 +51,21 @@ This document outlines a phased approach to adding multi-device sync to Flint us
 - ✅ Best UX for most users
 
 **Disadvantages:**
+
 - ⚠️ Requires access to existing device for setup
 - ⚠️ If all devices lost without password backup, data unrecoverable
 
 #### 2. **Optional Path: Password Backup**
 
 **Enabling Password Backup:**
+
 1. After sync enabled, user optionally adds password
 2. Vault key encrypted with password-derived key (scrypt)
 3. Encrypted vault key uploaded to R2 as backup
 4. Password never leaves device
 
 **Using Password Backup:**
+
 1. New device: "Join Vault" → "Use Password"
 2. Enter password
 3. Download encrypted vault key from R2
@@ -66,12 +73,14 @@ This document outlines a phased approach to adding multi-device sync to Flint us
 5. Decrypt and store vault key in keychain
 
 **Advantages:**
+
 - ✅ Can set up new devices without existing device
 - ✅ Recovery option if all devices lost
 - ✅ Familiar authentication flow
 - ✅ Still zero-knowledge (password not sent to server)
 
 **Disadvantages:**
+
 - ⚠️ Password to remember
 - ⚠️ Password compromise exposes vault key
 - ⚠️ Must be enabled explicitly
@@ -79,6 +88,7 @@ This document outlines a phased approach to adding multi-device sync to Flint us
 #### 3. **AT Protocol Identity (Required for Sync)**
 
 Users **must** sign in with AT Protocol to enable sync:
+
 - Provides portable DID for identity and authorization
 - DID determines R2 storage namespace (`{did}/vault-identity.json`)
 - Authorization checked by Flint's sync service backend
@@ -88,28 +98,31 @@ Users **must** sign in with AT Protocol to enable sync:
 
 ### Security Properties
 
-| Property | Passwordless | Password Backup | AT Protocol |
-|----------|--------------|-----------------|-------------|
-| Zero-knowledge | ✅ Yes | ✅ Yes | ✅ Yes |
-| Biometric unlock | ✅ Yes | ✅ Yes | ✅ Yes |
-| No password | ✅ Yes | ❌ No | ✅ Yes |
+| Property          | Passwordless       | Password Backup  | AT Protocol        |
+| ----------------- | ------------------ | ---------------- | ------------------ |
+| Zero-knowledge    | ✅ Yes             | ✅ Yes           | ✅ Yes             |
+| Biometric unlock  | ✅ Yes             | ✅ Yes           | ✅ Yes             |
+| No password       | ✅ Yes             | ❌ No            | ✅ Yes             |
 | Easy device setup | ⚠️ Requires device | ✅ Password only | ⚠️ Requires device |
-| Recovery option | ❌ No | ✅ Password | ❌ No |
-| Hardware-backed | ✅ Yes | ✅ Yes | ✅ Yes |
+| Recovery option   | ❌ No              | ✅ Password      | ❌ No              |
+| Hardware-backed   | ✅ Yes             | ✅ Yes           | ✅ Yes             |
 
 ### Recommended Strategy
 
 **For most users:**
+
 1. Sign in with AT Protocol (required for sync)
 2. Start with passwordless (device keychain)
 3. After using for a while, optionally add password backup
 
 **For users who lose devices often:**
+
 1. Sign in with AT Protocol
 2. Enable password backup immediately
 3. Store password in password manager
 
 **For technical users:**
+
 1. Sign in with AT Protocol
 2. Passwordless by default
 3. Export encrypted vault key to file as manual backup
@@ -120,21 +133,25 @@ Users **must** sign in with AT Protocol to enable sync:
 ## Design Principles
 
 ### 1. **Local-First, Sync Optional**
+
 - Flint works perfectly without an account or sync
 - Sync is an optional feature for users with multiple devices
 - Single-device users never see sync UI or prompts
 
 ### 2. **Filesystem as Source of Truth**
+
 - Markdown files in vault folder are canonical
 - Database is a derived cache/index
 - Users can edit files externally (VSCode, git, etc.)
 
 ### 3. **Automerge for Automatic Conflict Resolution**
+
 - No conflict resolution UI needed
 - Trust Automerge's CRDT merging
 - Concurrent edits merge automatically
 
 ### 4. **Encrypted and Private**
+
 - Zero-knowledge encryption (Flint never sees plaintext)
 - Passwordless by default (device keychain + biometric unlock)
 - Optional password backup for easier multi-device setup
@@ -232,7 +249,7 @@ The Flint Sync Service is a lightweight backend deployed as a Cloudflare Worker 
 // Request scoped R2 credentials
 interface CredentialsRequest {
   did: string;
-  dpopToken: string;  // DPoP-bound access token from AT Protocol
+  dpopToken: string; // DPoP-bound access token from AT Protocol
 }
 
 interface CredentialsResponse {
@@ -263,6 +280,7 @@ interface QuotaResponse {
 ### Security Model
 
 **DPoP Token Verification:**
+
 1. Extract JWT from DPoP header
 2. Fetch DID document to get public key
 3. Verify JWT signature using public key
@@ -270,12 +288,14 @@ interface QuotaResponse {
 5. Verify token is bound to request (DPoP proof)
 
 **R2 Credential Scoping:**
+
 - Use Cloudflare R2 temporary access tokens API
 - Scope each token to specific prefix: `/{did}/*`
 - Tokens expire after 1 hour
 - Automatic rotation on client side
 
 **Storage Quota Enforcement:**
+
 - Track usage via Cloudflare D1 or KV
 - Update on each write operation (via R2 notifications or periodic scan)
 - Reject writes exceeding quota
@@ -283,16 +303,19 @@ interface QuotaResponse {
 ### Deployment
 
 **Infrastructure:**
+
 - Cloudflare Worker (edge compute)
 - Cloudflare R2 (object storage)
 - Cloudflare D1 (quota tracking) or KV
 
 **Cost:**
+
 - Workers: Free tier covers most usage (10M requests/day)
 - R2: $0.015/GB/month storage, $4.50/M writes
 - D1: Free tier covers quota tracking
 
 **Scaling:**
+
 - Serverless, auto-scales
 - No server management
 - Global edge deployment
@@ -315,10 +338,10 @@ interface FlintNote {
     title: string;
     filename: string;
     type: string;
-    created: string;      // ISO 8601 timestamp
-    updated: string;      // ISO 8601 timestamp
+    created: string; // ISO 8601 timestamp
+    updated: string; // ISO 8601 timestamp
     tags: string[];
-    [key: string]: any;   // Custom frontmatter fields
+    [key: string]: any; // Custom frontmatter fields
   };
 
   // Markdown content (CRDT for conflict-free merging)
@@ -330,7 +353,7 @@ interface FlintNote {
 
 // Example: Create a note
 const note = Automerge.init<FlintNote>();
-const updatedNote = Automerge.change(note, doc => {
+const updatedNote = Automerge.change(note, (doc) => {
   doc.id = 'n-abc12345';
   doc.metadata = {
     title: 'My Note',
@@ -346,6 +369,7 @@ const updatedNote = Automerge.change(note, doc => {
 ```
 
 **Why separate metadata from content?**
+
 - Better conflict resolution: metadata changes don't conflict with content edits
 - Easier to update frontmatter independently
 - Cleaner mapping to filesystem (frontmatter + content)
@@ -359,6 +383,7 @@ const updatedNote = Automerge.change(note, doc => {
 ### Tasks
 
 #### 1. **Implement File Watching**
+
 - Use `chokidar` for cross-platform file watching
 - Detect: add, change, delete, rename events
 - Debounce rapid changes (100-200ms)
@@ -367,6 +392,7 @@ const updatedNote = Automerge.change(note, doc => {
 **Deliverable:** File watcher service running in Electron main process
 
 #### 2. **Distinguish Internal vs External Changes**
+
 - Track file write operations by Flint
 - Track expected modification times
 - Ignore self-caused file changes
@@ -375,6 +401,7 @@ const updatedNote = Automerge.change(note, doc => {
 **Deliverable:** Change processor that filters internal writes
 
 #### 3. **Handle External Content Changes**
+
 - Read modified files
 - Parse frontmatter + content
 - Update database (notes, search, links)
@@ -383,6 +410,7 @@ const updatedNote = Automerge.change(note, doc => {
 **Deliverable:** External edits reflected in Flint UI
 
 #### 4. **Handle Renames**
+
 - Detect renames (unlink + add with same ID)
 - Update database with new path/filename
 - Update wikilinks in other notes
@@ -391,6 +419,7 @@ const updatedNote = Automerge.change(note, doc => {
 **Deliverable:** Renames handled correctly
 
 #### 5. **Ensure ID Consistency**
+
 - Auto-generate IDs for notes without them
 - Detect and resolve ID conflicts
 - Write IDs back to frontmatter
@@ -399,6 +428,7 @@ const updatedNote = Automerge.change(note, doc => {
 **Deliverable:** All notes have stable, unique IDs
 
 ### Testing
+
 - Edit files in VSCode while Flint is running
 - Rename files in Finder/Explorer
 - Delete and restore files
@@ -406,6 +436,7 @@ const updatedNote = Automerge.change(note, doc => {
 - Check wikilinks update correctly
 
 ### Acceptance Criteria
+
 - ✅ External edits appear in Flint within 1 second
 - ✅ Renames update wikilinks automatically
 - ✅ No duplicate IDs in database
@@ -421,6 +452,7 @@ const updatedNote = Automerge.change(note, doc => {
 ### Tasks
 
 #### 1. **Setup Automerge-Repo**
+
 ```bash
 npm install @automerge/automerge @automerge/automerge-repo @automerge/automerge-repo-storage-indexeddb
 ```
@@ -452,6 +484,7 @@ class AutomergeManager {
 **Deliverable:** Automerge repo initialized per vault
 
 #### 2. **Create Automerge Documents from Files**
+
 - Scan vault directory on startup
 - For each markdown file:
   - Parse frontmatter + content
@@ -470,7 +503,7 @@ async function syncFilesToAutomerge(vaultPath: string): Promise<void> {
     const noteId = parsed.metadata.id || generateNoteId();
     const handle = this.repo.find<FlintNote>(noteId);
 
-    handle.change(doc => {
+    handle.change((doc) => {
       doc.id = noteId;
       doc.metadata = parsed.metadata;
       doc.content = new Automerge.Text(parsed.content);
@@ -485,6 +518,7 @@ async function syncFilesToAutomerge(vaultPath: string): Promise<void> {
 #### 3. **Bidirectional Sync: Automerge ↔ Filesystem**
 
 **Automerge → Filesystem:**
+
 ```typescript
 // When Automerge document changes, write to file
 handle.on('change', async ({ doc }) => {
@@ -507,6 +541,7 @@ handle.on('change', async ({ doc }) => {
 ```
 
 **Filesystem → Automerge:**
+
 ```typescript
 // When file changes externally, update Automerge doc
 async function onExternalFileChange(filePath: string): Promise<void> {
@@ -515,7 +550,7 @@ async function onExternalFileChange(filePath: string): Promise<void> {
   const noteId = parsed.metadata.id;
 
   const handle = this.repo.find<FlintNote>(noteId);
-  handle.change(doc => {
+  handle.change((doc) => {
     doc.metadata = parsed.metadata;
     doc.content = new Automerge.Text(parsed.content);
   });
@@ -637,6 +672,7 @@ async rebuildDatabaseFromAutomerge(): Promise<void> {
 **Deliverable:** Database fully rebuildable from Automerge
 
 ### Testing
+
 - Create, edit, delete notes via Flint
 - Edit files externally (changes propagate through Automerge)
 - Rebuild database - verify consistency
@@ -644,6 +680,7 @@ async rebuildDatabaseFromAutomerge(): Promise<void> {
 - Check performance with 1000+ notes
 
 ### Acceptance Criteria
+
 - ✅ All note operations work via Automerge
 - ✅ Database can be fully rebuilt from Automerge docs
 - ✅ External edits flow through Automerge layer
@@ -661,6 +698,7 @@ async rebuildDatabaseFromAutomerge(): Promise<void> {
 #### 1. **Setup Flint Sync Backend Service**
 
 The Flint Sync Service is a lightweight backend that:
+
 - Verifies AT Protocol DID tokens
 - Issues scoped, temporary R2 credentials per user
 - Enforces storage quotas and rate limits
@@ -669,8 +707,8 @@ The Flint Sync Service is a lightweight backend that:
 ```typescript
 // Cloudflare Worker for Flint Sync API
 interface SyncCredentialsRequest {
-  did: string;           // User's AT Protocol DID
-  dpopToken: string;     // DPoP-bound access token from AT Protocol OAuth
+  did: string; // User's AT Protocol DID
+  dpopToken: string; // DPoP-bound access token from AT Protocol OAuth
 }
 
 interface SyncCredentialsResponse {
@@ -679,12 +717,12 @@ interface SyncCredentialsResponse {
     accessKeyId: string;
     secretAccessKey: string;
     bucketName: string;
-    sessionToken: string;     // Temporary token
-    expiration: string;       // ISO timestamp
+    sessionToken: string; // Temporary token
+    expiration: string; // ISO timestamp
   };
   storageQuota: {
-    used: number;              // Bytes used
-    limit: number;             // Bytes allowed
+    used: number; // Bytes used
+    limit: number; // Bytes allowed
   };
 }
 
@@ -706,12 +744,15 @@ export default {
     // Check storage quota
     const quota = await getStorageQuota(did, env);
 
-    return new Response(JSON.stringify({
-      r2Credentials: credentials,
-      storageQuota: quota
-    }), {
-      headers: { 'Content-Type': 'application/json' }
-    });
+    return new Response(
+      JSON.stringify({
+        r2Credentials: credentials,
+        storageQuota: quota
+      }),
+      {
+        headers: { 'Content-Type': 'application/json' }
+      }
+    );
   }
 };
 
@@ -745,7 +786,10 @@ async function verifyATProtocolToken(dpopToken: string, did: string): Promise<bo
   return true; // Simplified for example
 }
 
-async function getStorageQuota(did: string, env: Env): Promise<{ used: number; limit: number }> {
+async function getStorageQuota(
+  did: string,
+  env: Env
+): Promise<{ used: number; limit: number }> {
   // Query R2 for storage usage under /{did}/ prefix
   // Or maintain usage tracking in Cloudflare KV/D1
   return {
@@ -800,7 +844,7 @@ class R2Manager {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'DPoP': dpopToken
+        DPoP: dpopToken
       },
       body: JSON.stringify({ did })
     });
@@ -858,26 +902,28 @@ class R2Manager {
 #### 3. **Implement Encryption Layer (Hybrid Approach)**
 
 **Design Philosophy:**
+
 - **Default:** Passwordless (device keychain + biometric unlock)
 - **Optional:** Password backup for easier multi-device setup
 - **Zero-knowledge:** Flint never sees vault keys in plaintext
 
 **Vault Identity Structure:**
+
 ```typescript
 interface VaultIdentity {
-  vaultId: string;              // Stable UUID for this vault
-  vaultSalt: number[];          // Random salt for key derivation (when using password)
-  created: string;              // ISO timestamp
-  did: string;                  // AT Protocol DID (required)
-  devices: DeviceInfo[];        // Authorized devices
-  hasPasswordBackup: boolean;   // Whether password backup is enabled
+  vaultId: string; // Stable UUID for this vault
+  vaultSalt: number[]; // Random salt for key derivation (when using password)
+  created: string; // ISO timestamp
+  did: string; // AT Protocol DID (required)
+  devices: DeviceInfo[]; // Authorized devices
+  hasPasswordBackup: boolean; // Whether password backup is enabled
 }
 
 interface DeviceInfo {
   deviceId: string;
-  deviceName: string;           // e.g., "Alice's MacBook Pro"
-  publicKey: JsonWebKey;        // For device-to-device key sharing
-  added: string;                // ISO timestamp
+  deviceName: string; // e.g., "Alice's MacBook Pro"
+  publicKey: JsonWebKey; // For device-to-device key sharing
+  added: string; // ISO timestamp
   lastSeen?: string;
 }
 ```
@@ -945,12 +991,14 @@ class EncryptionService {
       vaultId: this.vaultId,
       vaultSalt: Array.from(vaultSalt),
       created: new Date().toISOString(),
-      devices: [{
-        deviceId,
-        deviceName,
-        publicKey: publicKeyJwk,
-        added: new Date().toISOString()
-      }],
+      devices: [
+        {
+          deviceId,
+          deviceName,
+          publicKey: publicKeyJwk,
+          added: new Date().toISOString()
+        }
+      ],
       hasPasswordBackup: false
     };
 
@@ -1077,12 +1125,10 @@ class EncryptionService {
     );
 
     // Wrap vault key with shared secret
-    const wrappedKey = await crypto.subtle.wrapKey(
-      'raw',
-      this.vaultKey,
-      sharedSecret,
-      { name: 'AES-GCM', iv: crypto.getRandomValues(new Uint8Array(12)) }
-    );
+    const wrappedKey = await crypto.subtle.wrapKey('raw', this.vaultKey, sharedSecret, {
+      name: 'AES-GCM',
+      iv: crypto.getRandomValues(new Uint8Array(12))
+    });
 
     const currentDeviceId = await this.storageManager.get('device-id');
     const authorizerPublicKeyJwk = await crypto.subtle.exportKey(
@@ -1251,20 +1297,17 @@ class EncryptionService {
     const { promisify } = await import('util');
     const scryptAsync = promisify(scrypt);
 
-    const keyMaterial = await scryptAsync(
+    const keyMaterial = (await scryptAsync(
       password,
       salt,
       32, // 256-bit key
       { N: 32768, r: 8, p: 1 }
-    ) as Buffer;
+    )) as Buffer;
 
-    return await crypto.subtle.importKey(
-      'raw',
-      keyMaterial,
-      { name: 'AES-GCM' },
-      false,
-      ['encrypt', 'decrypt']
-    );
+    return await crypto.subtle.importKey('raw', keyMaterial, { name: 'AES-GCM' }, false, [
+      'encrypt',
+      'decrypt'
+    ]);
   }
 
   // ==================================================================
@@ -1435,7 +1478,9 @@ class IdentityManager {
     if (!encryptedSession) return false;
 
     try {
-      const decrypted = safeStorage.decryptString(Buffer.from(encryptedSession, 'base64'));
+      const decrypted = safeStorage.decryptString(
+        Buffer.from(encryptedSession, 'base64')
+      );
       const session = JSON.parse(decrypted);
 
       // Restore session with OAuth client
@@ -1466,14 +1511,22 @@ class IdentityManager {
 
 ```typescript
 import { StorageAdapter } from '@automerge/automerge-repo';
-import { PutObjectCommand, GetObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
+import {
+  PutObjectCommand,
+  GetObjectCommand,
+  ListObjectsV2Command
+} from '@aws-sdk/client-s3';
 
 class EncryptedR2StorageAdapter implements StorageAdapter {
   private r2: R2Manager;
   private encryption: EncryptionService;
   private identityManager: IdentityManager;
 
-  constructor(r2: R2Manager, encryption: EncryptionService, identityManager: IdentityManager) {
+  constructor(
+    r2: R2Manager,
+    encryption: EncryptionService,
+    identityManager: IdentityManager
+  ) {
     this.r2 = r2;
     this.encryption = encryption;
     this.identityManager = identityManager;
@@ -1491,16 +1544,18 @@ class EncryptedR2StorageAdapter implements StorageAdapter {
 
     // Upload to R2 under /{did}/ prefix
     const key = `${did}/documents/${documentId}.automerge`;
-    await this.r2.client.send(new PutObjectCommand({
-      Bucket: this.r2.config.bucketName,
-      Key: key,
-      Body: encrypted,
-      ContentType: 'application/octet-stream',
-      Metadata: {
-        timestamp: new Date().toISOString(),
-        version: '1'
-      }
-    }));
+    await this.r2.client.send(
+      new PutObjectCommand({
+        Bucket: this.r2.config.bucketName,
+        Key: key,
+        Body: encrypted,
+        ContentType: 'application/octet-stream',
+        Metadata: {
+          timestamp: new Date().toISOString(),
+          version: '1'
+        }
+      })
+    );
   }
 
   async load(documentId: string): Promise<Uint8Array | undefined> {
@@ -1513,10 +1568,12 @@ class EncryptedR2StorageAdapter implements StorageAdapter {
       const key = `${did}/documents/${documentId}.automerge`;
 
       // Download from R2
-      const response = await this.r2.getClient().send(new GetObjectCommand({
-        Bucket: this.r2.getConfig().bucketName,
-        Key: key
-      }));
+      const response = await this.r2.getClient().send(
+        new GetObjectCommand({
+          Bucket: this.r2.getConfig().bucketName,
+          Key: key
+        })
+      );
 
       if (!response.Body) return undefined;
 
@@ -1540,10 +1597,12 @@ class EncryptedR2StorageAdapter implements StorageAdapter {
     }
 
     const key = `${did}/documents/${documentId}.automerge`;
-    await this.r2.getClient().send(new DeleteObjectCommand({
-      Bucket: this.r2.getConfig().bucketName,
-      Key: key
-    }));
+    await this.r2.getClient().send(
+      new DeleteObjectCommand({
+        Bucket: this.r2.getConfig().bucketName,
+        Key: key
+      })
+    );
   }
 
   async loadRange(keyPrefix: string[]): Promise<Uint8Array[]> {
@@ -1553,10 +1612,12 @@ class EncryptedR2StorageAdapter implements StorageAdapter {
     }
 
     const prefix = `${did}/documents/`;
-    const response = await this.r2.getClient().send(new ListObjectsV2Command({
-      Bucket: this.r2.getConfig().bucketName,
-      Prefix: prefix
-    }));
+    const response = await this.r2.getClient().send(
+      new ListObjectsV2Command({
+        Bucket: this.r2.getConfig().bucketName,
+        Prefix: prefix
+      })
+    );
 
     const documents: Uint8Array[] = [];
 
@@ -1673,7 +1734,8 @@ User must sign in with AT Protocol before enabling sync.
   }
 
   async function submitPassword() {
-    const password = (document.getElementById('password-input') as HTMLInputElement).value;
+    const password = (document.getElementById('password-input') as HTMLInputElement)
+      .value;
 
     try {
       await window.api.joinVaultWithPassword(password);
@@ -1687,7 +1749,8 @@ User must sign in with AT Protocol before enabling sync.
   }
 
   async function enablePasswordBackup() {
-    const password = (document.getElementById('backup-password') as HTMLInputElement).value;
+    const password = (document.getElementById('backup-password') as HTMLInputElement)
+      .value;
 
     try {
       await window.api.enablePasswordBackup(password);
@@ -1713,7 +1776,10 @@ User must sign in with AT Protocol before enabling sync.
     <!-- Sign in with AT Protocol required -->
     <div class="signin-required">
       <h3>Enable Cloud Sync</h3>
-      <p>Sign in with AT Protocol to sync your notes across multiple devices with end-to-end encryption.</p>
+      <p>
+        Sign in with AT Protocol to sync your notes across multiple devices with
+        end-to-end encryption.
+      </p>
 
       <div class="at-signin">
         <label for="at-handle">AT Protocol Handle</label>
@@ -1732,10 +1798,13 @@ User must sign in with AT Protocol before enabling sync.
 
       <div class="info-box">
         <h4>Why AT Protocol?</h4>
-        <p>AT Protocol provides decentralized identity for secure, portable access to your encrypted notes. Your vault encryption key is separate and never shared with AT Protocol or Flint.</p>
+        <p>
+          AT Protocol provides decentralized identity for secure, portable access to your
+          encrypted notes. Your vault encryption key is separate and never shared with AT
+          Protocol or Flint.
+        </p>
       </div>
     </div>
-
   {:else if !syncEnabled}
     {#if !setupMode}
       <!-- Initial choice -->
@@ -1744,15 +1813,12 @@ User must sign in with AT Protocol before enabling sync.
         <p>Signed in as: <strong>{did}</strong></p>
         <p>Sync your notes across multiple devices with end-to-end encryption.</p>
 
-        <button onclick={startNewVault} class="primary">
-          Set Up New Vault
-        </button>
+        <button onclick={startNewVault} class="primary"> Set Up New Vault </button>
 
         <button onclick={joinExistingVault} class="secondary">
           I Already Have a Vault
         </button>
       </div>
-
     {:else if setupMode === 'new'}
       <!-- New vault setup (passwordless) -->
       <div class="setup-new">
@@ -1779,14 +1845,9 @@ User must sign in with AT Protocol before enabling sync.
           </ul>
         </div>
 
-        <button onclick={enableSyncPasswordless} class="primary">
-          Enable Sync
-        </button>
-        <button onclick={() => setupMode = null} class="secondary">
-          Cancel
-        </button>
+        <button onclick={enableSyncPasswordless} class="primary"> Enable Sync </button>
+        <button onclick={() => (setupMode = null)} class="secondary"> Cancel </button>
       </div>
-
     {:else if setupMode === 'existing'}
       <!-- Join existing vault -->
       <div class="setup-join">
@@ -1802,10 +1863,7 @@ User must sign in with AT Protocol before enabling sync.
             Use Password (if you set one)
           </button>
 
-          <button onclick={() => setupMode = null} class="tertiary">
-            Back
-          </button>
-
+          <button onclick={() => (setupMode = null)} class="tertiary"> Back </button>
         {:else if joinMethod === 'device'}
           <div class="device-auth">
             <h4>Authorize from Another Device</h4>
@@ -1824,11 +1882,15 @@ User must sign in with AT Protocol before enabling sync.
               Waiting for authorization...
             </div>
 
-            <button onclick={() => { joinMethod = null; }} class="secondary">
+            <button
+              onclick={() => {
+                joinMethod = null;
+              }}
+              class="secondary"
+            >
               Cancel
             </button>
           </div>
-
         {:else if joinMethod === 'password'}
           <div class="password-auth">
             <h4>Enter Vault Password</h4>
@@ -1841,18 +1903,20 @@ User must sign in with AT Protocol before enabling sync.
               autocomplete="off"
             />
 
-            <button onclick={submitPassword} class="primary">
-              Join Vault
-            </button>
+            <button onclick={submitPassword} class="primary"> Join Vault </button>
 
-            <button onclick={() => { joinMethod = null; }} class="secondary">
+            <button
+              onclick={() => {
+                joinMethod = null;
+              }}
+              class="secondary"
+            >
               Back
             </button>
           </div>
         {/if}
       </div>
     {/if}
-
   {:else}
     <!-- Sync enabled - show status and options -->
     <div class="sync-status">
@@ -1871,9 +1935,7 @@ User must sign in with AT Protocol before enabling sync.
         <p class="last-sync">Last sync: {lastSyncTime.toLocaleString()}</p>
       {/if}
 
-      <button onclick={manualSync} disabled={syncInProgress}>
-        Sync Now
-      </button>
+      <button onclick={manualSync} disabled={syncInProgress}> Sync Now </button>
 
       {#if !hasPasswordBackup}
         <div class="password-backup-prompt">
@@ -2003,6 +2065,7 @@ class SyncManager {
 **Deliverable:** Background sync every minute
 
 ### Testing
+
 - Deploy Flint Sync Service to Cloudflare Workers
 - Sign in with test AT Protocol account
 - Enable sync on Device A
@@ -2015,6 +2078,7 @@ class SyncManager {
 - Verify local-only mode still works (no sync without AT Protocol sign-in)
 
 ### Acceptance Criteria
+
 - ✅ AT Protocol OAuth login works with DPoP tokens
 - ✅ Flint Sync Service verifies DID and issues scoped R2 credentials
 - ✅ Notes encrypted and uploaded to R2 under /{did}/ prefix
@@ -2041,11 +2105,7 @@ this.repo = new Repo({
 
   // Add R2 adapter for sync
   network: [
-    new EncryptedR2StorageAdapter(
-      this.r2Manager,
-      this.encryption,
-      this.identityManager
-    )
+    new EncryptedR2StorageAdapter(this.r2Manager, this.encryption, this.identityManager)
   ],
 
   sharePolicy: async () => false
@@ -2139,7 +2199,7 @@ async function handleDeletionConflict(noteId: string): Promise<void> {
 
     if (action === 'keep') {
       // Undelete the note
-      handle.change(doc => {
+      handle.change((doc) => {
         doc.deleted = false;
         doc.metadata.updated = new Date().toISOString();
       });
@@ -2203,6 +2263,7 @@ describe('Concurrent Edit Scenarios', () => {
 **Deliverable:** Comprehensive multi-device test suite
 
 ### Testing
+
 - Simulate 2-3 devices syncing simultaneously
 - Edit same note on multiple devices
 - Rename notes concurrently
@@ -2211,6 +2272,7 @@ describe('Concurrent Edit Scenarios', () => {
 - Verify eventual consistency
 
 ### Acceptance Criteria
+
 - ✅ Concurrent edits merge automatically
 - ✅ No data loss in conflict scenarios
 - ✅ Sync works reliably across devices
@@ -2226,36 +2288,42 @@ describe('Concurrent Edit Scenarios', () => {
 ### Tasks
 
 #### 1. **Optimize Sync Performance**
+
 - Batch multiple document changes before syncing
 - Implement incremental sync (only changed docs)
 - Compress Automerge binaries before encryption
 - Add sync progress indicators for large vaults
 
 #### 2. **Error Handling and Recovery**
+
 - Retry failed sync attempts with exponential backoff
 - Handle network interruptions gracefully
 - Detect and recover from corruption
 - Provide manual conflict resolution UI (fallback)
 
 #### 3. **Key Management**
+
 - Store encryption key in OS keychain (Electron safeStorage)
 - Allow password change (re-encrypt all documents)
 - Implement key derivation with user-friendly prompts
 - Add biometric unlock option (Touch ID, Windows Hello)
 
 #### 4. **Settings and Preferences**
+
 - Sync interval configuration
 - Enable/disable sync per vault
 - Bandwidth/data usage settings
 - Manual sync trigger
 
 #### 5. **Monitoring and Logging**
+
 - Track sync success/failure rates
 - Log sync duration and data transferred
 - Provide debug mode for troubleshooting
 - Export sync logs for support
 
 ### Acceptance Criteria
+
 - ✅ Sync feels fast and responsive
 - ✅ Errors handled gracefully with user feedback
 - ✅ Encryption key management is secure
@@ -2267,6 +2335,7 @@ describe('Concurrent Edit Scenarios', () => {
 ## Security Considerations
 
 ### 1. **Zero-Knowledge Encryption**
+
 - Flint never sees plaintext data or vault keys
 - Vault keys stored encrypted in OS keychain (biometric-protected)
 - R2 only stores encrypted blobs
@@ -2275,6 +2344,7 @@ describe('Concurrent Edit Scenarios', () => {
 ### 2. **Key Management**
 
 **Primary Flow (Passwordless):**
+
 - Random 256-bit vault key generated per vault
 - Stored in OS keychain using Electron `safeStorage`
   - macOS: Keychain with Touch ID/password protection
@@ -2284,12 +2354,14 @@ describe('Concurrent Edit Scenarios', () => {
 - Vault keys wrapped with ephemeral shared secrets for device transfer
 
 **Optional Password Backup:**
+
 - Password derives encryption key via scrypt (N=32768, r=8, p=1)
 - Random 32-byte salt stored with encrypted vault key
 - Password-encrypted vault key uploaded to R2 as backup
 - Only used for recovery or easier device setup
 
 ### 3. **Device Authorization Security**
+
 - Each device has unique ECDH key pair (P-256 curve)
 - New devices request authorization via short code (6 chars) or QR code
 - Existing device approves and derives shared secret (ECDH)
@@ -2297,12 +2369,14 @@ describe('Concurrent Edit Scenarios', () => {
 - Authorization codes are single-use and expire after 15 minutes
 
 ### 4. **Biometric Protection**
+
 - OS keychain access gated by biometric (Touch ID, Windows Hello, etc.)
 - Flint never handles biometric data directly
 - OS handles authentication and key unwrapping
 - Fallback to device password if biometric unavailable
 
 ### 5. **Authentication (Required)**
+
 - AT Protocol OAuth for portable identity (required for sync)
 - DPoP token binding for token security
 - Refresh tokens stored in OS keychain
@@ -2311,12 +2385,14 @@ describe('Concurrent Edit Scenarios', () => {
 ### 6. **Data Privacy**
 
 **What Flint Sync Service knows:**
+
 - User's AT Protocol DID
 - Number of documents per DID
 - Storage usage per DID
 - API request patterns and timestamps
 
 **What Flint Sync Service doesn't know:**
+
 - Content of notes (encrypted)
 - Titles or metadata (encrypted)
 - Vault encryption keys
@@ -2324,23 +2400,27 @@ describe('Concurrent Edit Scenarios', () => {
 - Password backups (if enabled)
 
 **What R2 knows:**
+
 - Number of encrypted documents per DID
 - File sizes and upload times
 - Access patterns (IP addresses, request timing)
 - DID associated with each storage namespace
 
 **What R2 doesn't know:**
+
 - Content of notes (encrypted)
 - Titles or metadata (encrypted)
 - Vault encryption keys
 - Relationship between DIDs and real identities (unless correlated externally)
 
 **What AT Protocol PDS knows:**
+
 - User's DID and handle
 - OAuth tokens for authentication
 - That user has authorized Flint app
 
 **What AT Protocol PDS doesn't know:**
+
 - Note data (not stored on PDS)
 - Vault encryption keys
 - R2 storage details
@@ -2349,6 +2429,7 @@ describe('Concurrent Edit Scenarios', () => {
 ### 7. **Threat Model**
 
 **Protected Against:**
+
 - ✅ R2 compromise (data encrypted)
 - ✅ Flint Sync Service compromise (data encrypted, service never sees keys)
 - ✅ Network eavesdropping (TLS + encrypted payloads)
@@ -2359,6 +2440,7 @@ describe('Concurrent Edit Scenarios', () => {
 - ✅ Cross-user data access (enforced by R2 credential scoping)
 
 **Not Protected Against:**
+
 - ❌ Compromised device with unlocked keychain
 - ❌ Malware with keychain access
 - ❌ User sharing password backup with attacker
@@ -2368,21 +2450,25 @@ describe('Concurrent Edit Scenarios', () => {
 ### 8. **Key Rotation and Recovery**
 
 **Password Change:**
+
 - Re-encrypt vault key with new password
 - Update R2 password backup
 - Existing device keys unchanged
 
 **Lost Device:**
+
 - Revoke device from vault identity
 - Remove device's public key from authorized list
 - Device can no longer decrypt new data
 
 **Lost All Devices:**
+
 - If password backup enabled: recover with password
 - If no password backup: data unrecoverable
 - Prominent warnings during setup about this risk
 
 **Compromised Password:**
+
 - Change password immediately
 - Revoke all device authorizations
 - Re-authorize known devices only
@@ -2392,18 +2478,21 @@ describe('Concurrent Edit Scenarios', () => {
 ## Cost Estimates
 
 ### Cloudflare R2 Pricing
+
 - Storage: $0.015/GB/month
 - Class A operations (write): $4.50/million
 - Class B operations (read): $0.36/million
 - Egress: Free
 
 ### Example User (1000 notes @ 10KB each = 10MB)
+
 - Storage: $0.015 × 0.01 GB = **$0.00015/month**
 - Writes (100 edits/day): **$0.00001/month**
 - Reads (500 syncs/month): **$0.00018/month**
 - **Total: ~$0.0003/user/month** (essentially free)
 
 ### Scale
+
 - 10,000 users: ~$3/month
 - 100,000 users: ~$30/month
 
@@ -2412,13 +2501,17 @@ describe('Concurrent Edit Scenarios', () => {
 ## Risks and Mitigations
 
 ### Risk 1: Automerge Performance at Scale
+
 **Mitigation:** Test with large vaults (10,000+ notes). Optimize document size. Consider splitting very large notes.
 
 ### Risk 2: Sync Conflicts Despite CRDT
+
 **Mitigation:** Metadata (title, tags) uses last-write-wins. Content uses Automerge Text CRDT. Accept that some conflicts require user review.
 
 ### Risk 3: Encryption Key Loss
+
 **Mitigation:**
+
 - OS keychain provides reliable storage across device reboots
 - Optional password backup enables recovery
 - Prominent warnings during setup if password backup not enabled
@@ -2426,10 +2519,13 @@ describe('Concurrent Edit Scenarios', () => {
 - Export encrypted vault key to file as manual backup option
 
 ### Risk 4: R2 Costs at Scale
+
 **Mitigation:** Monitor usage. Implement compression. Consider alternative storage backends.
 
 ### Risk 5: AT Protocol Dependency
+
 **Mitigation:**
+
 - Local-only mode works without AT Protocol (no sync)
 - AT Protocol is decentralized (users can choose their PDS)
 - If AT Protocol ecosystem has issues, users still have local access to all notes
@@ -2451,27 +2547,32 @@ describe('Concurrent Edit Scenarios', () => {
 ## Future Enhancements
 
 ### Web Client (Phase 5)
+
 - Browser-based access to notes without Electron
 - Same Automerge + R2 sync infrastructure
 - Progressive Web App (PWA) with offline support
 - See [Web Client Implementation Plan](./WEB-CLIENT-IMPLEMENTATION-PLAN.md) for details
 
 ### Real-Time Sync (Phase 6)
+
 - WebSocket or long-polling for immediate propagation
 - Live cursors for collaborative editing
 - Presence indicators
 
 ### Sharing and Collaboration (Phase 7)
+
 - Share individual notes with other DIDs
 - Real-time collaborative editing
 - Permission management (read/write)
 
 ### Mobile Apps (Phase 8)
+
 - React Native implementation
 - Same Automerge + R2 architecture
 - Platform-specific key storage (Keychain/Keystore)
 
 ### Selective Sync (Phase 9)
+
 - Choose which note types to sync
 - Bandwidth optimization
 - Mobile data usage controls
@@ -2491,6 +2592,7 @@ This plan delivers multi-device sync in 4 focused phases:
 **Total Timeline:** 14-19 weeks (~3.5-5 months)
 
 **Key Outcomes:**
+
 - ✅ Conflict-free multi-device sync via Automerge CRDTs
 - ✅ Zero-knowledge encryption with device keychain
 - ✅ Passwordless by default (biometric unlock)
@@ -2502,12 +2604,14 @@ This plan delivers multi-device sync in 4 focused phases:
 - ✅ Markdown files remain source of truth
 
 **Encryption Model:**
+
 - **Default:** Device keychain + biometric (Touch ID, Windows Hello)
 - **Multi-device:** Device authorization flow (QR code or short code)
 - **Optional:** Password backup for recovery and easier setup
 - **Zero-knowledge:** Flint never sees vault keys or plaintext data
 
 **Identity & Authorization Model:**
+
 - **Identity:** AT Protocol DID (required for sync)
 - **Authorization:** DPoP-bound OAuth tokens
 - **Storage:** Scoped R2 credentials per DID from Flint Sync Service

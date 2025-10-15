@@ -99,6 +99,7 @@ During sync setup, users provide an email address for:
 - **Product updates:** Feature announcements, important changes (opt-in)
 
 **Key Properties:**
+
 - Email collected during initial sync setup flow
 - Stored separately from AT Protocol identity (not part of encryption)
 - Used only for operational communication, never sold or shared
@@ -106,12 +107,14 @@ During sync setup, users provide an email address for:
 - Optional secondary email for account recovery notifications
 
 **Storage:**
+
 - Email stored in Flint Sync Service database (Cloudflare D1)
 - Linked to DID for identification
 - Not used for authentication (AT Protocol handles that)
 - Can be different from email associated with AT Protocol handle
 
 **Privacy:**
+
 - Email only collected when enabling sync (not for local-only usage)
 - Used exclusively for direct communication with user
 - Not shared with third parties except payment processor (Stripe) for billing
@@ -121,15 +124,15 @@ During sync setup, users provide an email address for:
 
 ## Security Properties Comparison
 
-| Property | Passwordless | Password Backup | AT Protocol | Email |
-|----------|--------------|-----------------|-------------|-------|
-| Zero-knowledge | ✅ Yes | ✅ Yes | ✅ Yes | N/A |
-| Biometric unlock | ✅ Yes | ✅ Yes | ✅ Yes | N/A |
-| No password | ✅ Yes | ❌ No | ✅ Yes | ✅ Yes |
-| Easy device setup | ⚠️ Requires device | ✅ Password only | ⚠️ Requires device | N/A |
-| Recovery option | ❌ No | ✅ Password | ❌ No | ⚠️ Notifications only |
-| Hardware-backed | ✅ Yes | ✅ Yes | ✅ Yes | N/A |
-| Purpose | Encryption | Encryption backup | Identity/Auth | Communication |
+| Property          | Passwordless       | Password Backup   | AT Protocol        | Email                 |
+| ----------------- | ------------------ | ----------------- | ------------------ | --------------------- |
+| Zero-knowledge    | ✅ Yes             | ✅ Yes            | ✅ Yes             | N/A                   |
+| Biometric unlock  | ✅ Yes             | ✅ Yes            | ✅ Yes             | N/A                   |
+| No password       | ✅ Yes             | ❌ No             | ✅ Yes             | ✅ Yes                |
+| Easy device setup | ⚠️ Requires device | ✅ Password only  | ⚠️ Requires device | N/A                   |
+| Recovery option   | ❌ No              | ✅ Password       | ❌ No              | ⚠️ Notifications only |
+| Hardware-backed   | ✅ Yes             | ✅ Yes            | ✅ Yes             | N/A                   |
+| Purpose           | Encryption         | Encryption backup | Identity/Auth      | Communication         |
 
 ---
 
@@ -160,19 +163,19 @@ During sync setup, users provide an email address for:
 
 ```typescript
 interface VaultIdentity {
-  vaultId: string;              // Stable UUID for this vault
-  vaultSalt: number[];          // Random salt for key derivation (when using password)
-  created: string;              // ISO timestamp
-  did: string;                  // AT Protocol DID (required)
-  devices: DeviceInfo[];        // Authorized devices
-  hasPasswordBackup: boolean;   // Whether password backup is enabled
+  vaultId: string; // Stable UUID for this vault
+  vaultSalt: number[]; // Random salt for key derivation (when using password)
+  created: string; // ISO timestamp
+  did: string; // AT Protocol DID (required)
+  devices: DeviceInfo[]; // Authorized devices
+  hasPasswordBackup: boolean; // Whether password backup is enabled
 }
 
 interface DeviceInfo {
   deviceId: string;
-  deviceName: string;           // e.g., "Alice's MacBook Pro"
-  publicKey: JsonWebKey;        // For device-to-device key sharing
-  added: string;                // ISO timestamp
+  deviceName: string; // e.g., "Alice's MacBook Pro"
+  publicKey: JsonWebKey; // For device-to-device key sharing
+  added: string; // ISO timestamp
   lastSeen?: string;
 }
 ```
@@ -240,12 +243,14 @@ class EncryptionService {
       vaultSalt: Array.from(vaultSalt),
       created: new Date().toISOString(),
       did: this.identityManager.getDID()!,
-      devices: [{
-        deviceId,
-        deviceName,
-        publicKey: publicKeyJwk,
-        added: new Date().toISOString()
-      }],
+      devices: [
+        {
+          deviceId,
+          deviceName,
+          publicKey: publicKeyJwk,
+          added: new Date().toISOString()
+        }
+      ],
       hasPasswordBackup: false
     };
 
@@ -614,16 +619,19 @@ async decrypt(encrypted: Uint8Array): Promise<Uint8Array> {
 ### Zero-Knowledge Architecture
 
 **What is encrypted:**
+
 - All note content (markdown)
 - All note metadata (titles, tags, frontmatter)
 - Automerge document binaries
 - Everything stored in R2
 
 **Who has encryption keys:**
+
 - User's devices (in OS keychain)
 - Optionally: password-encrypted backup in R2
 
 **Who CANNOT decrypt:**
+
 - Flint servers
 - Cloudflare R2
 - AT Protocol PDS
@@ -633,6 +641,7 @@ async decrypt(encrypted: Uint8Array): Promise<Uint8Array> {
 ### Key Management Security
 
 **Primary Flow (Passwordless):**
+
 - Random 256-bit vault key generated per vault
 - Stored in OS keychain using Electron `safeStorage`
   - macOS: Keychain with Touch ID/password protection
@@ -642,6 +651,7 @@ async decrypt(encrypted: Uint8Array): Promise<Uint8Array> {
 - Vault keys wrapped with ephemeral shared secrets for device transfer
 
 **Optional Password Backup:**
+
 - Password derives encryption key via scrypt (N=32768, r=8, p=1)
 - Random 32-byte salt stored with encrypted vault key
 - Password-encrypted vault key uploaded to R2 as backup

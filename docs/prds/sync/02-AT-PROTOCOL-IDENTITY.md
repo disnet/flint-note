@@ -9,6 +9,7 @@
 This document provides comprehensive guidance on **how AT Protocol identity is integrated** into Flint's sync architecture. While [Identity Alternatives Analysis](./03-IDENTITY-ALTERNATIVES-ANALYSIS.md) explains **why** AT Protocol was chosen, this document focuses on the **practical implementation** of AT Protocol DIDs, authentication flows, and authorization mechanisms.
 
 **Key Points:**
+
 - AT Protocol provides **identity and authorization only**, not encryption
 - User's DID serves as stable identifier for R2 storage namespacing
 - DPoP tokens ensure secure, token-bound authorization
@@ -64,39 +65,45 @@ This document provides comprehensive guidance on **how AT Protocol identity is i
 **Format:** `did:plc:abc123xyz...` or `did:web:example.com`
 
 **Properties:**
+
 - Stable, globally unique identifier
 - User-controlled and portable
 - Resolves to DID document with verification keys
 - Independent of specific services
 
 **Used For:**
+
 - R2 storage namespace: `/{did}/vault-identity.json`
 - Authorization checks by Flint Sync Service
 - Future collaboration features (DID-to-DID sharing)
 
 **Example:**
+
 ```typescript
 interface UserIdentity {
-  did: string;                    // e.g., "did:plc:z72i7hdynmk6r22z27h6tvur"
-  pdsEndpoint: string;            // e.g., "https://bsky.social"
-  handle?: string;                // e.g., "@alice.bsky.social"
+  did: string; // e.g., "did:plc:z72i7hdynmk6r22z27h6tvur"
+  pdsEndpoint: string; // e.g., "https://bsky.social"
+  handle?: string; // e.g., "@alice.bsky.social"
 }
 ```
 
 ### 2. Personal Data Server (PDS)
 
 **Role:**
+
 - Hosts user's AT Protocol data
 - Manages user authentication
 - Issues access tokens and refresh tokens
 - Handles DID document resolution
 
 **Common Providers:**
+
 - Bluesky PDS (`bsky.social`)
 - Self-hosted PDS instances
 - Future: Flint-operated PDS (simplified onboarding)
 
 **Flint's Interaction:**
+
 - OAuth flow redirects to user's PDS
 - Receives access/refresh tokens
 - Verifies tokens with DPoP proofs
@@ -107,6 +114,7 @@ interface UserIdentity {
 **Purpose:** Token binding to prevent token theft and replay attacks
 
 **How It Works:**
+
 ```
 Client generates key pair
      ↓
@@ -118,6 +126,7 @@ Server verifies proof matches token
 ```
 
 **Security Benefits:**
+
 - Stolen tokens useless without private key
 - Each request has unique proof
 - Prevents token replay attacks
@@ -204,8 +213,8 @@ class AtProtocolIdentityManager {
         grant_types: ['authorization_code', 'refresh_token'],
         response_types: ['code'],
         token_endpoint_auth_method: 'none',
-        dpop_bound_access_tokens: true,
-      },
+        dpop_bound_access_tokens: true
+      }
     });
   }
 
@@ -225,7 +234,7 @@ class AtProtocolIdentityManager {
       const authUrl = await this.oauthClient.authorize({
         pdsEndpoint,
         callbackUrl: callbackServer.callbackUrl,
-        scope: 'atproto transition:generic',
+        scope: 'atproto transition:generic'
       });
 
       // Open browser for user authentication
@@ -237,7 +246,7 @@ class AtProtocolIdentityManager {
       // Exchange authorization code for tokens
       const tokenResponse = await this.oauthClient.callback({
         code: callbackParams.code,
-        codeVerifier: callbackParams.state,
+        codeVerifier: callbackParams.state
       });
 
       // Store session
@@ -245,10 +254,10 @@ class AtProtocolIdentityManager {
         did: tokenResponse.sub,
         tokens: {
           access: tokenResponse.access_token,
-          refresh: tokenResponse.refresh_token,
+          refresh: tokenResponse.refresh_token
         },
         dpopKey: tokenResponse.dpopKey,
-        pdsEndpoint,
+        pdsEndpoint
       };
 
       // Persist session securely
@@ -274,7 +283,8 @@ class AtProtocolIdentityManager {
       // Fallback to DID:PLC directory
       const response = await fetch(`https://plc.directory/${handle}`);
       const didDoc = await response.json();
-      return didDoc.service.find((s: any) => s.type === 'AtprotoPersonalDataServer').serviceEndpoint;
+      return didDoc.service.find((s: any) => s.type === 'AtprotoPersonalDataServer')
+        .serviceEndpoint;
     }
   }
 
@@ -285,12 +295,14 @@ class AtProtocolIdentityManager {
     if (did.startsWith('did:plc:')) {
       const response = await fetch(`https://plc.directory/${did}`);
       const didDoc = await response.json();
-      return didDoc.service.find((s: any) => s.type === 'AtprotoPersonalDataServer').serviceEndpoint;
+      return didDoc.service.find((s: any) => s.type === 'AtprotoPersonalDataServer')
+        .serviceEndpoint;
     } else if (did.startsWith('did:web:')) {
       const domain = did.replace('did:web:', '');
       const response = await fetch(`https://${domain}/.well-known/did.json`);
       const didDoc = await response.json();
-      return didDoc.service.find((s: any) => s.type === 'AtprotoPersonalDataServer').serviceEndpoint;
+      return didDoc.service.find((s: any) => s.type === 'AtprotoPersonalDataServer')
+        .serviceEndpoint;
     }
     throw new Error(`Unsupported DID method: ${did}`);
   }
@@ -306,7 +318,7 @@ class AtProtocolIdentityManager {
       did: this.session.did,
       tokens: this.session.tokens,
       dpopKey: await crypto.subtle.exportKey('jwk', this.session.dpopKey.privateKey),
-      pdsEndpoint: this.session.pdsEndpoint,
+      pdsEndpoint: this.session.pdsEndpoint
     });
 
     await this.storageManager.set('at-protocol-session', encrypted);
@@ -334,7 +346,7 @@ class AtProtocolIdentityManager {
       did: decrypted.did,
       tokens: decrypted.tokens,
       dpopKey: { privateKey: dpopPrivateKey } as CryptoKeyPair,
-      pdsEndpoint: decrypted.pdsEndpoint,
+      pdsEndpoint: decrypted.pdsEndpoint
     };
 
     return true;
@@ -517,7 +529,7 @@ async function handleR2CredentialsRequest(request: Request): Promise<Response> {
       proof: dpopProof,
       method: request.method,
       url: request.url,
-      accessToken,
+      accessToken
     });
 
     if (!proofResult.valid) {
@@ -526,7 +538,7 @@ async function handleR2CredentialsRequest(request: Request): Promise<Response> {
 
     // 2. Verify access token and extract DID
     const tokenResult = await verifyAccessToken(accessToken, {
-      expectedPublicKey: proofResult.publicKey,
+      expectedPublicKey: proofResult.publicKey
     });
 
     if (!tokenResult.valid) {
@@ -540,9 +552,8 @@ async function handleR2CredentialsRequest(request: Request): Promise<Response> {
 
     return new Response(JSON.stringify(r2Credentials), {
       status: 200,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' }
     });
-
   } catch (error) {
     console.error('Authorization failed:', error);
     return new Response('Authorization failed', { status: 401 });
@@ -588,28 +599,21 @@ async function issueR2Credentials(did: string): Promise<R2Credentials> {
     Statement: [
       {
         Effect: 'Allow',
-        Action: [
-          's3:GetObject',
-          's3:PutObject',
-          's3:DeleteObject',
-          's3:ListBucket',
-        ],
-        Resource: [
-          `arn:aws:s3:::flint-sync-storage/${did}/*`,
-        ],
+        Action: ['s3:GetObject', 's3:PutObject', 's3:DeleteObject', 's3:ListBucket'],
+        Resource: [`arn:aws:s3:::flint-sync-storage/${did}/*`],
         Condition: {
           StringLike: {
-            's3:prefix': [`${did}/*`],
-          },
-        },
-      },
-    ],
+            's3:prefix': [`${did}/*`]
+          }
+        }
+      }
+    ]
   };
 
   // Generate temporary credentials (1 hour expiry)
   const credentials = await cloudflareR2.generateTemporaryCredentials({
     policy,
-    durationSeconds: 3600,
+    durationSeconds: 3600
   });
 
   return {
@@ -619,7 +623,7 @@ async function issueR2Credentials(did: string): Promise<R2Credentials> {
     endpoint: 'https://r2.flint.app',
     bucket: 'flint-sync-storage',
     prefix: `${did}/`,
-    expiresAt: new Date(Date.now() + 3600 * 1000).toISOString(),
+    expiresAt: new Date(Date.now() + 3600 * 1000).toISOString()
   };
 }
 ```
@@ -631,6 +635,7 @@ async function issueR2Credentials(did: string): Promise<R2Credentials> {
 ### Offline and PDS Unavailability
 
 AT Protocol identity is **only required for**:
+
 1. Initial sync setup (first device)
 2. Authorizing new devices
 3. Refreshing R2 credentials (every 1 hour)
@@ -656,7 +661,7 @@ class SyncService {
         console.warn('Sync credentials unavailable, working offline:', error);
         return {
           status: 'offline',
-          message: 'Working offline - sync will resume when connection restored',
+          message: 'Working offline - sync will resume when connection restored'
         };
       }
     }
@@ -669,7 +674,7 @@ class SyncService {
       console.error('Sync failed:', error);
       return {
         status: 'error',
-        message: error.message,
+        message: error.message
       };
     }
   }
@@ -686,13 +691,13 @@ class SyncService {
 
 ### User Experience During Degradation
 
-| Scenario | User Experience |
-|----------|-----------------|
-| **PDS Down** | Existing devices work normally. New device authorization delayed until PDS available. |
-| **R2 Credentials Expired** | Queue local changes. Sync resumes when credentials refreshed. |
-| **No Internet** | Full offline functionality. Sync queued for later. |
-| **Sync Service Down** | Continue with existing credentials until expiry. Then offline mode. |
-| **DID Resolution Fails** | Use cached DID document. Retry periodically. |
+| Scenario                   | User Experience                                                                       |
+| -------------------------- | ------------------------------------------------------------------------------------- |
+| **PDS Down**               | Existing devices work normally. New device authorization delayed until PDS available. |
+| **R2 Credentials Expired** | Queue local changes. Sync resumes when credentials refreshed.                         |
+| **No Internet**            | Full offline functionality. Sync queued for later.                                    |
+| **Sync Service Down**      | Continue with existing credentials until expiry. Then offline mode.                   |
+| **DID Resolution Fails**   | Use cached DID document. Retry periodically.                                          |
 
 ---
 
@@ -839,6 +844,7 @@ async shareNote(noteId: string, recipientDID: string): Promise<void> {
 ## Implementation Checklist
 
 ### Phase 1: Basic AT Protocol Integration
+
 - [ ] Implement OAuth client with DPoP support
 - [ ] Handle discovery (PDS resolution from handle/DID)
 - [ ] Session management (token storage, refresh)
@@ -846,18 +852,21 @@ async shareNote(noteId: string, recipientDID: string): Promise<void> {
 - [ ] Graceful degradation (offline mode)
 
 ### Phase 2: Sync Service Integration
+
 - [ ] Request R2 credentials from sync service
 - [ ] Verify DPoP proofs on backend
 - [ ] Handle credential expiry and refresh
 - [ ] Monitor and log authorization events
 
 ### Phase 3: Device Management
+
 - [ ] Store device list in vault-identity.json
 - [ ] UI for viewing authorized devices
 - [ ] Device revocation flow
 - [ ] Last seen timestamp updates
 
 ### Phase 4: Polish
+
 - [ ] Onboarding wizard for AT Protocol signup
 - [ ] "Sign in with Bluesky" branding
 - [ ] Help docs explaining AT Protocol benefits
@@ -870,18 +879,22 @@ async shareNote(noteId: string, recipientDID: string): Promise<void> {
 ### Common Issues
 
 **Issue:** "Failed to resolve PDS from handle"
+
 - **Cause:** DNS resolution failed or invalid handle
 - **Solution:** Try with DID directly, check DNS records
 
 **Issue:** "DPoP proof verification failed"
+
 - **Cause:** Clock skew or invalid signature
 - **Solution:** Sync device clock, regenerate DPoP key pair
 
 **Issue:** "Access token expired"
+
 - **Cause:** Token refresh failed or network issue
 - **Solution:** Sign out and sign in again
 
 **Issue:** "Cannot authorize new device"
+
 - **Cause:** PDS unavailable or session expired
 - **Solution:** Refresh session on existing device first
 
@@ -890,18 +903,21 @@ async shareNote(noteId: string, recipientDID: string): Promise<void> {
 ## Testing Strategy
 
 ### Unit Tests
+
 - DID resolution (various formats)
 - DPoP proof generation and verification
 - Token refresh logic
 - Session persistence and recovery
 
 ### Integration Tests
+
 - Full OAuth flow (with mock PDS)
 - R2 credential request flow
 - Device authorization flow
 - Graceful degradation scenarios
 
 ### End-to-End Tests
+
 - Sign in with real Bluesky account
 - Multi-device setup with QR codes
 - Sync across devices

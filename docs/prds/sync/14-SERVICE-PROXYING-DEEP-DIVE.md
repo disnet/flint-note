@@ -20,11 +20,13 @@ This document examines two critical technical questions about the service proxyi
 ### The Fundamental Tension
 
 **Service Proxying Promise:**
+
 - Open Lexicon schemas that any client can implement
 - Server can provide metadata, search, indexing
 - Rich XRPC endpoints with queryable data
 
 **E2EE Reality:**
+
 - Server only sees encrypted blobs
 - No server-side indexing or search
 - Metadata must be either unencrypted (privacy risk) or encrypted (server can't use it)
@@ -82,6 +84,7 @@ This document examines two critical technical questions about the service proxyi
 #### What the Server Can and Cannot Do
 
 **Server CAN:**
+
 - ✅ Verify user identity (via service auth JWT)
 - ✅ Store encrypted blobs
 - ✅ Return encrypted blobs to authenticated user
@@ -89,6 +92,7 @@ This document examines two critical technical questions about the service proxyi
 - ✅ Provide basic pagination (by timestamp only)
 
 **Server CANNOT:**
+
 - ❌ Read note content
 - ❌ Search note text
 - ❌ Index by tags
@@ -112,11 +116,11 @@ This document examines two critical technical questions about the service proxyi
         "notes": {
           "items": {
             "uri": "string",
-            "title": "string",        // ❌ Server can't provide if E2EE
-            "preview": "string",      // ❌ Server can't provide if E2EE
-            "tags": ["string"],       // ❌ Server can't provide if E2EE
-            "createdAt": "datetime",  // ✅ Can provide
-            "updatedAt": "datetime"   // ✅ Can provide
+            "title": "string", // ❌ Server can't provide if E2EE
+            "preview": "string", // ❌ Server can't provide if E2EE
+            "tags": ["string"], // ❌ Server can't provide if E2EE
+            "createdAt": "datetime", // ✅ Can provide
+            "updatedAt": "datetime" // ✅ Can provide
           }
         }
       }
@@ -210,17 +214,20 @@ This document examines two critical technical questions about the service proxyi
 ```
 
 **Pros:**
+
 - ✅ Server can index, search, filter
 - ✅ Rich Lexicon schemas with semantic value
 - ✅ Better UX (server-side search, preview generation)
 
 **Cons:**
+
 - ❌ Metadata visible to server operators
 - ❌ Metadata visible to PDS operators (bsky.social sees your note titles)
 - ❌ Regulatory/privacy concerns (GDPR, subpoenas)
 - ❌ Trust implications ("encrypted" but metadata leaks)
 
 **User Mental Model:**
+
 ```
 User thinks: "My notes are encrypted and private"
 Reality: "Your note content is encrypted, but Bluesky/Flint can see all titles and tags"
@@ -293,6 +300,7 @@ Result: Both edits preserved, no data loss
 **Result:** ✅ Works, but user might see surprising merges
 
 **Example:**
+
 ```
 Device A types: "Project deadline: Friday"
 Device B types: "Project deadline: Monday"
@@ -361,11 +369,11 @@ class FlintSyncClient {
     const response = await this.agent.api.com.flint.note.sync({
       noteId,
       encryptedOps: base64(encryptedOps),
-      opId: generateUniqueId(),
+      opId: generateUniqueId()
     });
 
     // 5. Receive all server operations
-    const serverOps = response.data.serverOps.map(op =>
+    const serverOps = response.data.serverOps.map((op) =>
       this.crypto.decrypt(op.encryptedOps)
     );
 
@@ -382,6 +390,7 @@ class FlintSyncClient {
 **Result:** ✅ Automerge conflict resolution works correctly
 
 **Storage Growth:**
+
 ```
 Initial note: 1KB
 After 1000 edits: 1KB + (1000 × 0.5KB ops) = 501KB
@@ -395,6 +404,7 @@ Need compaction strategy:
 **Solution 2: Operational Transform with Server Coordination (❌ Complex)**
 
 Server tries to merge operations server-side:
+
 - ❌ Can't work with E2EE (server can't read ops)
 - ❌ Requires server to understand Automerge format
 - ❌ Breaks E2EE promise
@@ -585,12 +595,14 @@ Server tries to merge operations server-side:
 ### What Service Proxying Loses with E2EE
 
 **Original Promise:**
+
 - ✅ Client-agnostic data format anyone can implement
 - ✅ Rich Lexicon schemas with semantic metadata
 - ✅ Server-side search and indexing
 - ✅ Ecosystem integration possibilities
 
 **E2EE Reality:**
+
 - ✅ Client-agnostic (still true - anyone can implement encryption)
 - ⚠️ Lexicon schemas are "dumb blob store" (little semantic value)
 - ❌ No server-side search (client must download + decrypt all notes)
@@ -601,6 +613,7 @@ Server tries to merge operations server-side:
 **Scenario:** Third-party developer wants to build "Flint Web Client"
 
 **What they need:**
+
 1. ✅ Implement Lexicon schemas (easy - just blob storage API)
 2. ✅ Implement Automerge document handling (moderate - use Automerge library)
 3. ❌ **Get user's encryption key** (HARD - how?)
@@ -633,6 +646,7 @@ Option D: Key sharing protocol (like Signal's safety numbers)
 ### Automerge Performance Concerns
 
 **Operation accumulation:**
+
 ```
 Day 1: 1 note, 50 edits → 50 ops stored
 Day 30: 1 note, 1500 edits → 1500 ops stored
@@ -661,6 +675,7 @@ if (operationCount % 100 === 0) {
 ```
 
 **Revised sync:**
+
 ```typescript
 async syncNote(noteId: string) {
   // 1. Download latest snapshot (if exists)
@@ -689,38 +704,41 @@ async syncNote(noteId: string) {
 
 ### Current Architecture vs. Service Proxying (with E2EE reality)
 
-| Feature | Current (Direct R2) | Service Proxying (E2EE) |
-|---------|---------------------|------------------------|
-| **E2EE** | ✅ Full E2EE | ✅ Full E2EE |
-| **Automerge** | ✅ Works (operation-based) | ✅ Works (operation-based, needs snapshot strategy) |
-| **Server-side search** | ❌ N/A (direct storage) | ❌ No (encrypted blobs) |
-| **Server-side indexing** | ❌ N/A | ❌ No (encrypted blobs) |
-| **Rich Lexicon metadata** | ❌ N/A | ❌ No (blob store only) |
-| **Client agnosticism** | ❌ Flint-specific format | ⚠️ Theoretically yes, but needs encryption key |
-| **Third-party clients** | ❌ Not practical | ⚠️ Possible but requires key sharing UX |
-| **PDS migration path** | ⚠️ Requires rewrite | ✅ Backend-only change |
-| **Offline support** | ✅ Good (cached R2 creds) | ⚠️ Requires PDS for each sync |
-| **Latency** | ✅ Low (direct R2) | ⚠️ Higher (PDS proxy hop) |
-| **Implementation complexity** | ✅ Lower | ⚠️ Higher (XRPC + Lexicons) |
-| **Development time** | ✅ 3.5-5 months | ⚠️ 5-7 months |
+| Feature                       | Current (Direct R2)        | Service Proxying (E2EE)                             |
+| ----------------------------- | -------------------------- | --------------------------------------------------- |
+| **E2EE**                      | ✅ Full E2EE               | ✅ Full E2EE                                        |
+| **Automerge**                 | ✅ Works (operation-based) | ✅ Works (operation-based, needs snapshot strategy) |
+| **Server-side search**        | ❌ N/A (direct storage)    | ❌ No (encrypted blobs)                             |
+| **Server-side indexing**      | ❌ N/A                     | ❌ No (encrypted blobs)                             |
+| **Rich Lexicon metadata**     | ❌ N/A                     | ❌ No (blob store only)                             |
+| **Client agnosticism**        | ❌ Flint-specific format   | ⚠️ Theoretically yes, but needs encryption key      |
+| **Third-party clients**       | ❌ Not practical           | ⚠️ Possible but requires key sharing UX             |
+| **PDS migration path**        | ⚠️ Requires rewrite        | ✅ Backend-only change                              |
+| **Offline support**           | ✅ Good (cached R2 creds)  | ⚠️ Requires PDS for each sync                       |
+| **Latency**                   | ✅ Low (direct R2)         | ⚠️ Higher (PDS proxy hop)                           |
+| **Implementation complexity** | ✅ Lower                   | ⚠️ Higher (XRPC + Lexicons)                         |
+| **Development time**          | ✅ 3.5-5 months            | ⚠️ 5-7 months                                       |
 
 ### Value Proposition Assessment
 
 **If E2EE is non-negotiable:**
 
 **Service Proxying Advantages Remaining:**
+
 1. ✅ **PDS Migration Path** - When AT Protocol adds native private data, backend switches seamlessly
 2. ⚠️ **Open Specs** - Lexicons are public, but limited to "blob store" semantics
 3. ⚠️ **Ecosystem Alignment** - Uses AT Protocol patterns, but minimal ecosystem value without metadata
 4. ⚠️ **Third-party Clients** - Theoretically possible, but key distribution is major UX hurdle
 
 **Service Proxying Disadvantages:**
+
 1. ❌ **No Rich Metadata** - Server can't provide titles, tags, previews, search
 2. ❌ **Higher Latency** - PDS proxy hop for every operation
 3. ❌ **More Complexity** - XRPC implementation, Lexicon maintenance, service auth
 4. ❌ **Reduced Offline** - Needs PDS connection for sync (can't cache server creds)
 
 **Current Architecture Advantages:**
+
 1. ✅ **Simpler** - Direct R2 access, straightforward credential issuance
 2. ✅ **Faster** - No PDS proxy hop
 3. ✅ **Better Offline** - Cached R2 credentials work without PDS
@@ -754,24 +772,26 @@ Any client implementation can:
 
 ### Comparison: R2 vs Service Proxying for Third-Party Clients
 
-| Requirement | Current R2 Architecture | Service Proxying |
-|-------------|------------------------|------------------|
-| **AT Protocol identity** | ✅ Required | ✅ Required |
-| **Get user authorization** | ✅ OAuth + DPoP token | ✅ OAuth + DPoP token |
-| **Access user's data** | ✅ Request R2 credentials from Flint Service | ✅ Make XRPC calls through PDS |
-| **Implement data format** | ⚠️ Must understand R2 storage layout | ⚠️ Must understand Lexicon schemas |
-| **Get encryption key** | ❌ User must trust third-party client | ❌ User must trust third-party client |
-| **Use standard libraries** | ✅ Automerge + S3-compatible client | ✅ Automerge + XRPC client |
+| Requirement                | Current R2 Architecture                      | Service Proxying                      |
+| -------------------------- | -------------------------------------------- | ------------------------------------- |
+| **AT Protocol identity**   | ✅ Required                                  | ✅ Required                           |
+| **Get user authorization** | ✅ OAuth + DPoP token                        | ✅ OAuth + DPoP token                 |
+| **Access user's data**     | ✅ Request R2 credentials from Flint Service | ✅ Make XRPC calls through PDS        |
+| **Implement data format**  | ⚠️ Must understand R2 storage layout         | ⚠️ Must understand Lexicon schemas    |
+| **Get encryption key**     | ❌ User must trust third-party client        | ❌ User must trust third-party client |
+| **Use standard libraries** | ✅ Automerge + S3-compatible client          | ✅ Automerge + XRPC client            |
 
 **Result:** Both architectures require essentially the same trust and implementation effort for third-party clients.
 
 ### What Makes Something "Open" and "Client-Agnostic"?
 
 **Service Proxying Claim:**
+
 - "Open Lexicon schemas anyone can implement"
 - "Third-party clients can use XRPC endpoints"
 
 **Current R2 Architecture Can Provide Same Thing:**
+
 - **Open storage format specification** - Document R2 layout and Automerge schema
 - **Open sync protocol** - Document R2 credential API
 - **Third-party clients can use R2** - Same credential issuance flow
@@ -782,30 +802,36 @@ Any client implementation can:
 # Flint Notes Storage Format v1.0
 
 ## Overview
+
 Flint uses AT Protocol for identity and R2 for encrypted storage.
 Any client can implement this spec to access user's notes.
 
 ## Authentication
+
 1. User authorizes via AT Protocol OAuth
 2. Client requests R2 credentials: POST https://sync.flint.app/credentials
-3. Server returns scoped credentials for /{user_did}/*
+3. Server returns scoped credentials for /{user_did}/\*
 
 ## Storage Layout
-/{did}/vault-identity.json      - Encrypted vault metadata
-/{did}/documents/{noteId}.am    - Encrypted Automerge document
-/{did}/snapshots/{noteId}.snap  - Periodic snapshots
+
+/{did}/vault-identity.json - Encrypted vault metadata
+/{did}/documents/{noteId}.am - Encrypted Automerge document
+/{did}/snapshots/{noteId}.snap - Periodic snapshots
 
 ## Encryption
+
 - User's encryption key required (derived from password or device keychain)
 - AES-256-GCM encryption
 - See encryption spec: https://docs.flint.app/encryption
 
 ## Automerge Format
+
 - Standard Automerge document format
 - See data model: https://docs.flint.app/data-model
 ```
 
 **Result:** Third-party developers can implement Flint clients using:
+
 - Standard AT Protocol libraries
 - Standard Automerge libraries
 - S3-compatible R2 client
@@ -814,6 +840,7 @@ Any client can implement this spec to access user's notes.
 ### The Only Real Difference: API Style
 
 **Service Proxying:**
+
 ```typescript
 // XRPC-style (AT Protocol native)
 const notes = await agent.api.com.flint.note.list({ limit: 50 });
@@ -821,6 +848,7 @@ await agent.api.com.flint.note.sync({ operations: [...] });
 ```
 
 **Current R2 Architecture:**
+
 ```typescript
 // S3-style (industry standard)
 const creds = await flintSync.getCredentials(did, dpopToken);
@@ -838,6 +866,7 @@ After this realization, service proxying's **only remaining unique benefit** is:
 **Smoother migration to native PDS storage** when AT Protocol adds private data support.
 
 **But:**
+
 - This is **speculative** (timeline unknown)
 - Current architecture can migrate too (just requires updating clients)
 - Trade-off: 30-40% longer development time for speculative future benefit
@@ -845,6 +874,7 @@ After this realization, service proxying's **only remaining unique benefit** is:
 ### Conclusion: R2 Architecture Is Already Client-Agnostic
 
 The current R2 architecture with AT Protocol identity provides:
+
 - ✅ Decentralized identity (AT Protocol)
 - ✅ Open storage format (can document publicly)
 - ✅ Third-party client support (same as service proxying)
@@ -854,10 +884,12 @@ The current R2 architecture with AT Protocol identity provides:
 - ✅ Lower latency
 
 **Service proxying adds:**
+
 - ⚠️ AT Protocol-native API style (aesthetic, not functional difference)
 - ⚠️ Potential easier migration to PDS storage (speculative)
 
 **Service proxying loses:**
+
 - ❌ 30-40% longer development time
 - ❌ Higher operational complexity
 - ❌ Worse offline support
@@ -870,6 +902,7 @@ The current R2 architecture with AT Protocol identity provides:
 ### Recommendation 1: Ship Current Architecture for V1
 
 **Rationale:**
+
 - Service proxying's main value (rich Lexicon metadata, server-side search) is **lost with E2EE**
 - **Current R2 architecture is already client-agnostic** via AT Protocol identity + open storage spec
 - Remaining unique benefit (PDS migration path) is **speculative** - AT Protocol private data timeline unknown
@@ -877,6 +910,7 @@ The current R2 architecture with AT Protocol identity provides:
 - E2EE and Automerge work identically in both approaches
 
 **Action:**
+
 - ✅ Ship V1 with direct R2 access
 - ✅ Implement operation-based Automerge storage (not full document overwrites)
 - ✅ Add snapshot compaction strategy (every 100 ops)
@@ -884,12 +918,14 @@ The current R2 architecture with AT Protocol identity provides:
 ### Recommendation 2: Publish Open Storage Format Specification
 
 **Rationale:**
+
 - Demonstrates commitment to openness and client agnosticism
 - Enables third-party client development
 - Low cost, high trust signal
 - Provides same ecosystem benefits as Lexicons
 
 **Action:**
+
 - ✅ Document R2 storage layout and credential API
 - ✅ Publish Automerge schema and encryption spec
 - ✅ Provide example client implementations
@@ -920,21 +956,24 @@ The current R2 architecture with AT Protocol identity provides:
 ```typescript
 // User preference
 enum PrivacyMode {
-  FULL_E2EE = "full",        // Content + metadata encrypted
-  METADATA_SHARED = "hybrid"  // Only content encrypted
+  FULL_E2EE = 'full', // Content + metadata encrypted
+  METADATA_SHARED = 'hybrid' // Only content encrypted
 }
 ```
 
 **Full E2EE mode:**
+
 - Everything encrypted, local search only
 - "Maximum privacy" badge
 
 **Hybrid mode:**
+
 - Content encrypted, metadata (titles, tags) unencrypted
 - Server-side search, rich Lexicons
 - "Convenience mode" badge
 
 **Marketing:**
+
 - "You choose: Maximum privacy or maximum convenience"
 - Transparent about trade-offs
 
@@ -964,23 +1003,27 @@ enum PrivacyMode {
 ### Final Recommendation
 
 **Ship V1 with current architecture (direct R2)**
+
 - ✅ Implement operation-based Automerge storage
 - ✅ Add snapshot compaction (every 100 ops)
 - ✅ **Publish open storage format specification** - Provides client agnosticism without service proxying overhead
 - ✅ Market as "Open storage, powered by AT Protocol identity"
 
 **Key insight:** Current R2 architecture + published spec provides same client agnosticism benefits as service proxying, with:
+
 - ✅ 30-40% faster time to market
 - ✅ Lower operational complexity
 - ✅ Better offline support
 - ✅ Same E2EE and Automerge properties
 
 **Revisit service proxying only if:**
+
 - AT Protocol private data support ships with compelling benefits
 - Strong ecosystem pressure for XRPC-native APIs emerges
 - Competitive landscape shifts dramatically
 
 **Alternative path (if privacy requirements relax):**
+
 - Offer "hybrid mode" with unencrypted metadata for better UX
 - Makes service proxying's rich Lexicons valuable again
 

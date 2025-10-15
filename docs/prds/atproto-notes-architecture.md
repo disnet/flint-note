@@ -5,6 +5,7 @@
 This document outlines the architecture for a note-taking application that leverages AT Protocol (atproto) for decentralized identity and authentication while storing private note data on a centralized service. This approach mirrors Bluesky's temporary chat/DM implementation and provides a pragmatic solution for building private data applications on atproto today, before native protocol-level private data support is available.
 
 **Key Benefits:**
+
 - Users authenticate with their atproto identity (handle/DID)
 - No need to manage user passwords or create separate accounts
 - Private data remains on a centralized, secure server
@@ -76,41 +77,48 @@ This avoids the problems with encrypting private data and storing it in public r
 ### 1. Client Application
 
 **Responsibilities:**
+
 - User interface for note-taking functionality
 - OAuth authentication flow
 - Making authenticated API requests via service proxying
 - Managing session state
 
 **Key Technologies:**
+
 - OAuth Client Library: [`@atproto/oauth-client`](https://www.npmjs.com/package/@atproto/oauth-client)
 - For browsers: [`@atproto/oauth-client-browser`](https://www.npmjs.com/package/@atproto/oauth-client-browser)
 - For Node.js: [`@atproto/oauth-client-node`](https://www.npmjs.com/package/@atproto/oauth-client-node)
 
 **Documentation:**
+
 - [OAuth for AT Protocol Specification](https://atproto.com/specs/oauth)
 - [OAuth Client Implementation Guide](https://docs.bsky.app/docs/advanced-guides/oauth-client)
 
 ### 2. Notes Service (Backend)
 
 **Responsibilities:**
+
 - Store and manage private note data
 - Validate service authentication JWTs
 - Implement XRPC endpoints defined by your Lexicons
 - Provide DID document at well-known endpoint
 
 **Key Technologies:**
+
 - Any web framework (Express, FastAPI, etc.)
 - Database for note storage (PostgreSQL, MongoDB, etc.)
 - JWT validation library
 - DID resolution library
 
 **Documentation:**
+
 - [HTTP API (XRPC) Specification](https://atproto.com/specs/xrpc)
 - [Service Authentication](https://atproto.com/specs/xrpc#service-authentication)
 
 ### 3. Personal Data Server (PDS)
 
 **Responsibilities:**
+
 - User identity and authentication
 - Repository storage for public data
 - Proxying requests to your notes service
@@ -119,21 +127,25 @@ This avoids the problems with encrypting private data and storing it in public r
 **Note:** Users bring their own PDS - you don't need to operate one. The PDS handles authentication proxying automatically.
 
 **Documentation:**
+
 - [API Hosts and Auth](https://docs.bsky.app/docs/advanced-guides/api-directory)
 - [Protocol Overview](https://atproto.com/guides/overview)
 
 ### 4. Decentralized Identifier (DID)
 
 **For Your Service:**
+
 - Must have a resolvable DID (recommend `did:web`)
 - DID document must include service endpoint
 - Published at `/.well-known/did.json`
 
 **For Users:**
+
 - Users have their own DIDs managed by their PDS
 - Contains cryptographic keys for signing and verification
 
 **Documentation:**
+
 - [Identity Specification](https://atproto.com/specs/did)
 - [DID Web Method](https://w3c-ccg.github.io/did-method-web/)
 
@@ -191,10 +203,12 @@ This avoids the problems with encrypting private data and storing it in public r
 **OAuth Scopes:**
 
 For this application, request the following scopes:
+
 - `atproto` - Required base scope
 - `transition:generic` - Provides standard account permissions
 
 **Documentation:**
+
 - [OAuth for AT Protocol](https://docs.bsky.app/blog/oauth-atproto)
 - [OAuth Specification](https://atproto.com/specs/oauth)
 
@@ -209,6 +223,7 @@ Service proxying is the mechanism that allows your centralized service to receiv
 **Process:**
 
 1. **Client Request**: Client makes XRPC request to user's PDS with special header:
+
    ```
    atproto-proxy: did:web:notes.yourapp.com#atproto_notes
    ```
@@ -247,15 +262,16 @@ Per the [XRPC specification](https://atproto.com/specs/xrpc#service-proxying):
 
 ```json
 {
-  "iss": "did:plc:abc123...",  // User's DID
-  "aud": "did:web:notes.yourapp.com",  // Your service DID
-  "exp": 1698765432,  // Expiration (60s from issue)
-  "iat": 1698765372,  // Issued at
-  "lxm": "com.yourapp.note.create"  // Optional: method binding
+  "iss": "did:plc:abc123...", // User's DID
+  "aud": "did:web:notes.yourapp.com", // Your service DID
+  "exp": 1698765432, // Expiration (60s from issue)
+  "iat": 1698765372, // Issued at
+  "lxm": "com.yourapp.note.create" // Optional: method binding
 }
 ```
 
 **Documentation:**
+
 - [XRPC Service Proxying](https://atproto.com/specs/xrpc#service-proxying)
 - [Service Authentication](https://atproto.com/specs/xrpc#service-authentication)
 - [Service Auth Token Discussion](https://github.com/bluesky-social/atproto/discussions/2687)
@@ -276,6 +292,7 @@ Per the [XRPC specification](https://atproto.com/specs/xrpc#service-proxying):
 ### Lexicon Schema Design
 
 Lexicons are JSON documents that define:
+
 - **Queries** (HTTP GET): Read-only operations
 - **Procedures** (HTTP POST): State-changing operations
 - **Records**: Data structures stored in repositories (not used in this architecture)
@@ -312,7 +329,7 @@ Lexicons are JSON documents that define:
             },
             "tags": {
               "type": "array",
-              "items": {"type": "string"},
+              "items": { "type": "string" },
               "maxLength": 20,
               "description": "Optional tags for categorization"
             }
@@ -342,10 +359,7 @@ Lexicons are JSON documents that define:
           }
         }
       },
-      "errors": [
-        {"name": "InvalidContent"},
-        {"name": "RateLimitExceeded"}
-      ]
+      "errors": [{ "name": "InvalidContent" }, { "name": "RateLimitExceeded" }]
     }
   }
 }
@@ -391,9 +405,9 @@ Lexicons are JSON documents that define:
           "properties": {
             "notes": {
               "type": "array",
-              "items": {"type": "ref", "ref": "#noteView"}
+              "items": { "type": "ref", "ref": "#noteView" }
             },
-            "cursor": {"type": "string"}
+            "cursor": { "type": "string" }
           }
         }
       }
@@ -402,16 +416,16 @@ Lexicons are JSON documents that define:
       "type": "object",
       "required": ["uri", "cid", "title", "createdAt", "updatedAt"],
       "properties": {
-        "uri": {"type": "string", "format": "at-uri"},
-        "cid": {"type": "string", "format": "cid"},
-        "title": {"type": "string"},
-        "content": {"type": "string"},
+        "uri": { "type": "string", "format": "at-uri" },
+        "cid": { "type": "string", "format": "cid" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
         "tags": {
           "type": "array",
-          "items": {"type": "string"}
+          "items": { "type": "string" }
         },
-        "createdAt": {"type": "string", "format": "datetime"},
-        "updatedAt": {"type": "string", "format": "datetime"}
+        "createdAt": { "type": "string", "format": "datetime" },
+        "updatedAt": { "type": "string", "format": "datetime" }
       }
     }
   }
@@ -451,7 +465,7 @@ Lexicons are JSON documents that define:
             },
             "tags": {
               "type": "array",
-              "items": {"type": "string"},
+              "items": { "type": "string" },
               "maxLength": 20
             }
           }
@@ -463,16 +477,13 @@ Lexicons are JSON documents that define:
           "type": "object",
           "required": ["uri", "cid", "updatedAt"],
           "properties": {
-            "uri": {"type": "string", "format": "at-uri"},
-            "cid": {"type": "string", "format": "cid"},
-            "updatedAt": {"type": "string", "format": "datetime"}
+            "uri": { "type": "string", "format": "at-uri" },
+            "cid": { "type": "string", "format": "cid" },
+            "updatedAt": { "type": "string", "format": "datetime" }
           }
         }
       },
-      "errors": [
-        {"name": "NoteNotFound"},
-        {"name": "Unauthorized"}
-      ]
+      "errors": [{ "name": "NoteNotFound" }, { "name": "Unauthorized" }]
     }
   }
 }
@@ -503,9 +514,7 @@ Lexicons are JSON documents that define:
           }
         }
       },
-      "errors": [
-        {"name": "NoteNotFound"}
-      ]
+      "errors": [{ "name": "NoteNotFound" }]
     }
   }
 }
@@ -540,9 +549,7 @@ Lexicons are JSON documents that define:
           "ref": "com.yourapp.note.list#noteView"
         }
       },
-      "errors": [
-        {"name": "NoteNotFound"}
-      ]
+      "errors": [{ "name": "NoteNotFound" }]
     }
   }
 }
@@ -565,6 +572,7 @@ NSIDs (Namespaced Identifiers) use reverse-DNS format:
 4. Keep NSIDs concise but clear
 
 **Documentation:**
+
 - [Lexicon Guide](https://atproto.com/guides/lexicon)
 - [Lexicon Specification](https://atproto.com/specs/lexicon)
 
@@ -579,6 +587,7 @@ Your notes service needs a DID document published at a well-known location.
 **Recommended: `did:web` Method**
 
 For `did:web:notes.yourapp.com`, publish at:
+
 ```
 https://notes.yourapp.com/.well-known/did.json
 ```
@@ -587,14 +596,9 @@ https://notes.yourapp.com/.well-known/did.json
 
 ```json
 {
-  "@context": [
-    "https://www.w3.org/ns/did/v1",
-    "https://w3id.org/security/multikey/v1"
-  ],
+  "@context": ["https://www.w3.org/ns/did/v1", "https://w3id.org/security/multikey/v1"],
   "id": "did:web:notes.yourapp.com",
-  "alsoKnownAs": [
-    "at://notes.yourapp.com"
-  ],
+  "alsoKnownAs": ["at://notes.yourapp.com"],
   "verificationMethod": [
     {
       "id": "did:web:notes.yourapp.com#atproto",
@@ -621,6 +625,7 @@ https://notes.yourapp.com/.well-known/did.json
 - `service[].serviceEndpoint`: Base URL for your XRPC endpoints
 
 **Documentation:**
+
 - [DID Specification](https://atproto.com/specs/did)
 - [DID Web Method Spec](https://w3c-ccg.github.io/did-method-web/)
 
@@ -650,7 +655,7 @@ async function verifyServiceAuth(req, res, next) {
     }
 
     const token = authHeader.substring(7);
-    
+
     // Decode without verification first to get claims
     const decoded = jwt.decode(token, { complete: true });
     if (!decoded) {
@@ -680,10 +685,10 @@ async function verifyServiceAuth(req, res, next) {
 
     // Resolve user's DID document to get signing key
     const didDoc = await resolver.resolveDid(userDid);
-    
+
     // Find the atproto signing key
     const signingKey = didDoc.verificationMethod?.find(
-      vm => vm.id === `${userDid}#atproto`
+      (vm) => vm.id === `${userDid}#atproto`
     );
 
     if (!signingKey) {
@@ -714,7 +719,6 @@ async function verifyServiceAuth(req, res, next) {
     // Authentication successful
     req.userDid = userDid;
     next();
-
   } catch (error) {
     console.error('Auth verification failed:', error);
     return res.status(401).json({
@@ -727,226 +731,206 @@ async function verifyServiceAuth(req, res, next) {
 // Serve DID document
 app.get('/.well-known/did.json', (req, res) => {
   res.json({
-    "@context": ["https://www.w3.org/ns/did/v1"],
-    "id": "did:web:notes.yourapp.com",
-    "service": [{
-      "id": "#atproto_notes",
-      "type": "AtprotoNotesService",
-      "serviceEndpoint": "https://notes.yourapp.com"
-    }]
+    '@context': ['https://www.w3.org/ns/did/v1'],
+    id: 'did:web:notes.yourapp.com',
+    service: [
+      {
+        id: '#atproto_notes',
+        type: 'AtprotoNotesService',
+        serviceEndpoint: 'https://notes.yourapp.com'
+      }
+    ]
   });
 });
 
 // XRPC Endpoints
 
 // Create note
-app.post('/xrpc/com.yourapp.note.create', 
-  verifyServiceAuth,
-  async (req, res) => {
-    try {
-      const { title, content, tags } = req.body;
-      const userDid = req.userDid;
+app.post('/xrpc/com.yourapp.note.create', verifyServiceAuth, async (req, res) => {
+  try {
+    const { title, content, tags } = req.body;
+    const userDid = req.userDid;
 
-      // Validate input
-      if (!title || !content) {
-        return res.status(400).json({
-          error: 'InvalidRequest',
-          message: 'Title and content required'
-        });
-      }
-
-      // Store in database
-      const note = await db.notes.create({
-        userDid,
-        title,
-        content,
-        tags: tags || [],
-        createdAt: new Date(),
-        updatedAt: new Date()
-      });
-
-      // Generate AT URI and CID
-      const uri = `at://${userDid}/com.yourapp.note/${note.id}`;
-      const cid = generateCID(note); // Implement CID generation
-
-      res.json({
-        uri,
-        cid,
-        createdAt: note.createdAt.toISOString()
-      });
-
-    } catch (error) {
-      console.error('Create note error:', error);
-      res.status(500).json({
-        error: 'InternalError',
-        message: 'Failed to create note'
+    // Validate input
+    if (!title || !content) {
+      return res.status(400).json({
+        error: 'InvalidRequest',
+        message: 'Title and content required'
       });
     }
+
+    // Store in database
+    const note = await db.notes.create({
+      userDid,
+      title,
+      content,
+      tags: tags || [],
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+
+    // Generate AT URI and CID
+    const uri = `at://${userDid}/com.yourapp.note/${note.id}`;
+    const cid = generateCID(note); // Implement CID generation
+
+    res.json({
+      uri,
+      cid,
+      createdAt: note.createdAt.toISOString()
+    });
+  } catch (error) {
+    console.error('Create note error:', error);
+    res.status(500).json({
+      error: 'InternalError',
+      message: 'Failed to create note'
+    });
   }
-);
+});
 
 // List notes
-app.get('/xrpc/com.yourapp.note.list',
-  verifyServiceAuth,
-  async (req, res) => {
-    try {
-      const userDid = req.userDid;
-      const { limit = 50, cursor, tag } = req.query;
+app.get('/xrpc/com.yourapp.note.list', verifyServiceAuth, async (req, res) => {
+  try {
+    const userDid = req.userDid;
+    const { limit = 50, cursor, tag } = req.query;
 
-      const query = { userDid };
-      if (tag) query.tags = tag;
-      if (cursor) query._id = { $gt: cursor };
+    const query = { userDid };
+    if (tag) query.tags = tag;
+    if (cursor) query._id = { $gt: cursor };
 
-      const notes = await db.notes
-        .find(query)
-        .limit(parseInt(limit))
-        .sort({ createdAt: -1 });
+    const notes = await db.notes
+      .find(query)
+      .limit(parseInt(limit))
+      .sort({ createdAt: -1 });
 
-      const notesView = notes.map(note => ({
-        uri: `at://${userDid}/com.yourapp.note/${note.id}`,
-        cid: note.cid,
-        title: note.title,
-        content: note.content,
-        tags: note.tags,
-        createdAt: note.createdAt.toISOString(),
-        updatedAt: note.updatedAt.toISOString()
-      }));
+    const notesView = notes.map((note) => ({
+      uri: `at://${userDid}/com.yourapp.note/${note.id}`,
+      cid: note.cid,
+      title: note.title,
+      content: note.content,
+      tags: note.tags,
+      createdAt: note.createdAt.toISOString(),
+      updatedAt: note.updatedAt.toISOString()
+    }));
 
-      res.json({
-        notes: notesView,
-        cursor: notes.length > 0 ? notes[notes.length - 1].id : undefined
-      });
-
-    } catch (error) {
-      console.error('List notes error:', error);
-      res.status(500).json({
-        error: 'InternalError',
-        message: 'Failed to list notes'
-      });
-    }
+    res.json({
+      notes: notesView,
+      cursor: notes.length > 0 ? notes[notes.length - 1].id : undefined
+    });
+  } catch (error) {
+    console.error('List notes error:', error);
+    res.status(500).json({
+      error: 'InternalError',
+      message: 'Failed to list notes'
+    });
   }
-);
+});
 
 // Get specific note
-app.get('/xrpc/com.yourapp.note.get',
-  verifyServiceAuth,
-  async (req, res) => {
-    try {
-      const { uri } = req.query;
-      const userDid = req.userDid;
+app.get('/xrpc/com.yourapp.note.get', verifyServiceAuth, async (req, res) => {
+  try {
+    const { uri } = req.query;
+    const userDid = req.userDid;
 
-      // Parse note ID from URI
-      const noteId = parseNoteIdFromUri(uri);
+    // Parse note ID from URI
+    const noteId = parseNoteIdFromUri(uri);
 
-      const note = await db.notes.findOne({
-        id: noteId,
-        userDid
-      });
+    const note = await db.notes.findOne({
+      id: noteId,
+      userDid
+    });
 
-      if (!note) {
-        return res.status(404).json({
-          error: 'NoteNotFound',
-          message: 'Note does not exist'
-        });
-      }
-
-      res.json({
-        uri,
-        cid: note.cid,
-        title: note.title,
-        content: note.content,
-        tags: note.tags,
-        createdAt: note.createdAt.toISOString(),
-        updatedAt: note.updatedAt.toISOString()
-      });
-
-    } catch (error) {
-      console.error('Get note error:', error);
-      res.status(500).json({
-        error: 'InternalError',
-        message: 'Failed to get note'
+    if (!note) {
+      return res.status(404).json({
+        error: 'NoteNotFound',
+        message: 'Note does not exist'
       });
     }
+
+    res.json({
+      uri,
+      cid: note.cid,
+      title: note.title,
+      content: note.content,
+      tags: note.tags,
+      createdAt: note.createdAt.toISOString(),
+      updatedAt: note.updatedAt.toISOString()
+    });
+  } catch (error) {
+    console.error('Get note error:', error);
+    res.status(500).json({
+      error: 'InternalError',
+      message: 'Failed to get note'
+    });
   }
-);
+});
 
 // Update note
-app.post('/xrpc/com.yourapp.note.update',
-  verifyServiceAuth,
-  async (req, res) => {
-    try {
-      const { uri, title, content, tags } = req.body;
-      const userDid = req.userDid;
+app.post('/xrpc/com.yourapp.note.update', verifyServiceAuth, async (req, res) => {
+  try {
+    const { uri, title, content, tags } = req.body;
+    const userDid = req.userDid;
 
-      const noteId = parseNoteIdFromUri(uri);
+    const noteId = parseNoteIdFromUri(uri);
 
-      const updateData = { updatedAt: new Date() };
-      if (title) updateData.title = title;
-      if (content) updateData.content = content;
-      if (tags !== undefined) updateData.tags = tags;
+    const updateData = { updatedAt: new Date() };
+    if (title) updateData.title = title;
+    if (content) updateData.content = content;
+    if (tags !== undefined) updateData.tags = tags;
 
-      const note = await db.notes.findOneAndUpdate(
-        { id: noteId, userDid },
-        updateData,
-        { new: true }
-      );
+    const note = await db.notes.findOneAndUpdate({ id: noteId, userDid }, updateData, {
+      new: true
+    });
 
-      if (!note) {
-        return res.status(404).json({
-          error: 'NoteNotFound',
-          message: 'Note does not exist'
-        });
-      }
-
-      res.json({
-        uri,
-        cid: generateCID(note),
-        updatedAt: note.updatedAt.toISOString()
-      });
-
-    } catch (error) {
-      console.error('Update note error:', error);
-      res.status(500).json({
-        error: 'InternalError',
-        message: 'Failed to update note'
+    if (!note) {
+      return res.status(404).json({
+        error: 'NoteNotFound',
+        message: 'Note does not exist'
       });
     }
+
+    res.json({
+      uri,
+      cid: generateCID(note),
+      updatedAt: note.updatedAt.toISOString()
+    });
+  } catch (error) {
+    console.error('Update note error:', error);
+    res.status(500).json({
+      error: 'InternalError',
+      message: 'Failed to update note'
+    });
   }
-);
+});
 
 // Delete note
-app.post('/xrpc/com.yourapp.note.delete',
-  verifyServiceAuth,
-  async (req, res) => {
-    try {
-      const { uri } = req.body;
-      const userDid = req.userDid;
+app.post('/xrpc/com.yourapp.note.delete', verifyServiceAuth, async (req, res) => {
+  try {
+    const { uri } = req.body;
+    const userDid = req.userDid;
 
-      const noteId = parseNoteIdFromUri(uri);
+    const noteId = parseNoteIdFromUri(uri);
 
-      const result = await db.notes.deleteOne({
-        id: noteId,
-        userDid
-      });
+    const result = await db.notes.deleteOne({
+      id: noteId,
+      userDid
+    });
 
-      if (result.deletedCount === 0) {
-        return res.status(404).json({
-          error: 'NoteNotFound',
-          message: 'Note does not exist'
-        });
-      }
-
-      res.json({ success: true });
-
-    } catch (error) {
-      console.error('Delete note error:', error);
-      res.status(500).json({
-        error: 'InternalError',
-        message: 'Failed to delete note'
+    if (result.deletedCount === 0) {
+      return res.status(404).json({
+        error: 'NoteNotFound',
+        message: 'Note does not exist'
       });
     }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete note error:', error);
+    res.status(500).json({
+      error: 'InternalError',
+      message: 'Failed to delete note'
+    });
   }
-);
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
@@ -999,53 +983,53 @@ async def resolve_did(did: str):
 # Authentication dependency
 async def verify_service_auth(authorization: str = Header(None)) -> str:
     """Verify service authentication JWT and return user DID"""
-    
+
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(
             status_code=401,
             detail={"error": "AuthenticationRequired", "message": "Bearer token required"}
         )
-    
+
     token = authorization[7:]
-    
+
     try:
         # Decode without verification to get claims
         unverified = jwt.decode(token, options={"verify_signature": False})
-        
+
         user_did = unverified["iss"]
         audience = unverified["aud"]
         exp = unverified.get("exp")
-        
+
         # Verify audience
         if audience != SERVICE_DID:
             raise HTTPException(
                 status_code=403,
                 detail={"error": "InvalidAudience"}
             )
-        
+
         # Check expiration
         if exp and datetime.now().timestamp() >= exp:
             raise HTTPException(
                 status_code=401,
                 detail={"error": "ExpiredToken"}
             )
-        
+
         # Resolve user's DID to get public key
         did_doc = await resolve_did(user_did)
-        
+
         # Extract signing key
         signing_key = next(
             (vm for vm in did_doc.get("verificationMethod", [])
              if vm["id"] == f"{user_did}#atproto"),
             None
         )
-        
+
         if not signing_key:
             raise HTTPException(
                 status_code=401,
                 detail={"error": "InvalidDID"}
             )
-        
+
         # Verify signature (simplified - use proper key conversion)
         public_key = convert_multibase_to_pem(signing_key["publicKeyMultibase"])
         jwt.decode(
@@ -1054,9 +1038,9 @@ async def verify_service_auth(authorization: str = Header(None)) -> str:
             algorithms=["ES256K"],
             audience=SERVICE_DID
         )
-        
+
         return user_did
-        
+
     except jwt.ExpiredSignatureError:
         raise HTTPException(
             status_code=401,
@@ -1096,9 +1080,9 @@ async def create_note(
         "created_at": datetime.now(),
         "updated_at": datetime.now()
     })
-    
+
     uri = f"at://{user_did}/com.yourapp.note/{note.id}"
-    
+
     return {
         "uri": uri,
         "cid": generate_cid(note),
@@ -1116,9 +1100,9 @@ async def list_notes(
     query = {"user_did": user_did}
     if tag:
         query["tags"] = tag
-    
+
     notes = await db.notes.find(query).limit(limit).to_list()
-    
+
     return {
         "notes": [
             NoteView(
@@ -1187,7 +1171,7 @@ async function makeProxiedRequest(
   data?: any
 ) {
   const url = `${session.pdsUrl}/xrpc/${nsid}`;
-  
+
   const options: RequestInit = {
     method,
     headers: {
@@ -1196,18 +1180,18 @@ async function makeProxiedRequest(
       'atproto-proxy': NOTES_SERVICE_DID,
     },
   };
-  
+
   if (data) {
     options.body = JSON.stringify(data);
   }
-  
+
   const response = await fetch(url, options);
-  
+
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.message || 'Request failed');
   }
-  
+
   return response.json();
 }
 
@@ -1237,30 +1221,30 @@ export async function listNotes(
   if (limit) params.append('limit', limit.toString());
   if (cursor) params.append('cursor', cursor);
   if (tag) params.append('tag', tag);
-  
+
   const url = `${session.pdsUrl}/xrpc/com.yourapp.note.list?${params}`;
-  
+
   const response = await fetch(url, {
     headers: {
       'Authorization': `Bearer ${session.accessToken}`,
       'atproto-proxy': NOTES_SERVICE_DID,
     },
   });
-  
+
   return response.json();
 }
 
 export async function getNote(session: any, uri: string) {
   const params = new URLSearchParams({ uri });
   const url = `${session.pdsUrl}/xrpc/com.yourapp.note.get?${params}`;
-  
+
   const response = await fetch(url, {
     headers: {
       'Authorization': `Bearer ${session.accessToken}`,
       'atproto-proxy': NOTES_SERVICE_DID,
     },
   });
-  
+
   return response.json();
 }
 
@@ -1310,10 +1294,10 @@ function NotesApp() {
 
   const handleCreateNote = async (title: string, content: string) => {
     if (!session) return;
-    
+
     const result = await createNote(session, title, content);
     console.log('Created note:', result);
-    
+
     // Refresh notes list
     const notesList = await listNotes(session);
     setNotes(notesList.notes);
@@ -1346,17 +1330,10 @@ Publish at `https://yourapp.com/client-metadata.json`:
   "logo_uri": "https://yourapp.com/logo.png",
   "tos_uri": "https://yourapp.com/terms",
   "policy_uri": "https://yourapp.com/privacy",
-  "redirect_uris": [
-    "https://yourapp.com/oauth/callback"
-  ],
+  "redirect_uris": ["https://yourapp.com/oauth/callback"],
   "scope": "atproto transition:generic",
-  "grant_types": [
-    "authorization_code",
-    "refresh_token"
-  ],
-  "response_types": [
-    "code"
-  ],
+  "grant_types": ["authorization_code", "refresh_token"],
+  "response_types": ["code"],
   "application_type": "web",
   "token_endpoint_auth_method": "none",
   "dpop_bound_access_tokens": true
@@ -1364,6 +1341,7 @@ Publish at `https://yourapp.com/client-metadata.json`:
 ```
 
 **Documentation:**
+
 - [OAuth Client Implementation](https://docs.bsky.app/docs/advanced-guides/oauth-client)
 - [@atproto/oauth-client Documentation](https://www.npmjs.com/package/@atproto/oauth-client)
 
@@ -1407,20 +1385,22 @@ Publish at `https://yourapp.com/client-metadata.json`:
 
 ```javascript
 // Example CORS configuration
-app.use(cors({
-  origin: function(origin, callback) {
-    // Allow requests from any origin since PDSs can be anywhere
-    callback(null, true);
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: [
-    'Content-Type',
-    'Authorization',
-    'atproto-proxy',
-    'atproto-accept-labelers'
-  ]
-}));
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      // Allow requests from any origin since PDSs can be anywhere
+      callback(null, true);
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'atproto-proxy',
+      'atproto-accept-labelers'
+    ]
+  })
+);
 ```
 
 ### 5. Rate Limiting
@@ -1452,13 +1432,15 @@ Always validate and sanitize inputs:
 ```javascript
 const { body, query, validationResult } = require('express-validator');
 
-app.post('/xrpc/com.yourapp.note.create',
+app.post(
+  '/xrpc/com.yourapp.note.create',
   verifyServiceAuth,
   body('title').isString().trim().isLength({ min: 1, max: 300 }),
   body('content').isString().isLength({ min: 1, max: 100000 }),
-  body('tags').optional().isArray().custom(tags => 
-    tags.every(t => typeof t === 'string' && t.length <= 50)
-  ),
+  body('tags')
+    .optional()
+    .isArray()
+    .custom((tags) => tags.every((t) => typeof t === 'string' && t.length <= 50)),
   (req, res, next) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -1477,6 +1459,7 @@ app.post('/xrpc/com.yourapp.note.create',
 ```
 
 **Documentation:**
+
 - [Security Best Practices](https://atproto.com/specs/xrpc#security-considerations)
 
 ---
@@ -1510,7 +1493,7 @@ app.post('/xrpc/com.yourapp.note.create',
          │   Database Cluster   │
          │  (PostgreSQL/MongoDB) │
          └──────────────────────┘
-         
+
          ┌──────────────────────┐
          │   Cache Layer        │
          │  (Redis/Memcached)   │
@@ -1557,37 +1540,37 @@ spec:
         app: notes-service
     spec:
       containers:
-      - name: notes-service
-        image: yourapp/notes-service:latest
-        ports:
-        - containerPort: 3000
-        env:
-        - name: DATABASE_URL
-          valueFrom:
-            secretKeyRef:
-              name: notes-secrets
-              key: database-url
-        - name: SERVICE_DID
-          value: "did:web:notes.yourapp.com"
-        resources:
-          requests:
-            memory: "256Mi"
-            cpu: "250m"
-          limits:
-            memory: "512Mi"
-            cpu: "500m"
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 3000
-          initialDelaySeconds: 30
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /ready
-            port: 3000
-          initialDelaySeconds: 5
-          periodSeconds: 5
+        - name: notes-service
+          image: yourapp/notes-service:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: notes-secrets
+                  key: database-url
+            - name: SERVICE_DID
+              value: 'did:web:notes.yourapp.com'
+          resources:
+            requests:
+              memory: '256Mi'
+              cpu: '250m'
+            limits:
+              memory: '512Mi'
+              cpu: '500m'
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 5
 ---
 apiVersion: v1
 kind: Service
@@ -1597,8 +1580,8 @@ spec:
   selector:
     app: notes-service
   ports:
-  - port: 80
-    targetPort: 3000
+    - port: 80
+      targetPort: 3000
   type: LoadBalancer
 ```
 
@@ -1616,7 +1599,7 @@ CREATE TABLE notes (
   cid TEXT NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  
+
   -- Indexes
   INDEX idx_user_did (user_did),
   INDEX idx_created_at (created_at DESC),
@@ -1624,7 +1607,7 @@ CREATE TABLE notes (
 );
 
 -- Full text search index
-CREATE INDEX idx_notes_fts ON notes 
+CREATE INDEX idx_notes_fts ON notes
   USING GIN (to_tsvector('english', title || ' ' || content));
 ```
 
@@ -1640,10 +1623,10 @@ async function getCachedDidDocument(did) {
   if (cached) {
     return JSON.parse(cached);
   }
-  
+
   const didDoc = await resolveDid(did);
   await redis.setex(`did:${did}`, 3600, JSON.stringify(didDoc)); // 1 hour TTL
-  
+
   return didDoc;
 }
 ```
@@ -1651,18 +1634,21 @@ async function getCachedDidDocument(did) {
 ### Scaling Considerations
 
 **Horizontal Scaling:**
+
 - Run multiple instances behind load balancer
 - Stateless application design (no local state)
 - Use shared cache (Redis) for DID document caching
 - Database connection pooling
 
 **Performance Optimization:**
+
 - Cache DID documents aggressively (they rarely change)
 - Use database indexes on user_did and created_at
 - Implement pagination for list operations
 - Consider read replicas for database
 
 **Monitoring:**
+
 - Application metrics (request rate, error rate, latency)
 - JWT verification metrics
 - Database performance metrics
@@ -1710,6 +1696,7 @@ The atproto team is working on native protocol support for private data. When th
 **Stay Informed:**
 
 Monitor atproto developments:
+
 - [AT Protocol GitHub Discussions](https://github.com/bluesky-social/atproto/discussions)
 - [Bluesky Blog](https://docs.bsky.app/blog)
 - [atproto Specification Updates](https://atproto.com/specs)
