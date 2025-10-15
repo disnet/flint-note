@@ -207,6 +207,13 @@
   <!-- Agent Control Bar -->
   <AgentControlBar />
 
+  <!-- Todo Plan Widget -->
+  {#if todoPlanStore.activePlan}
+    <div class="todo-plan-section">
+      <TodoPlanWidget plan={todoPlanStore.activePlan} />
+    </div>
+  {/if}
+
   <!-- Removed header section as requested -->
   <!-- Task Management Section -->
   <!-- {#if tasks.length > 0}
@@ -259,10 +266,6 @@
     {/each}
     {#if isLoading}
       <LoadingMessage />
-    {/if}
-    <!-- Todo Plan Widget -->
-    {#if todoPlanStore.activePlan}
-      <TodoPlanWidget plan={todoPlanStore.activePlan} />
     {/if}
   </div>
 
@@ -319,6 +322,12 @@
     font-size: 0.875rem;
     font-weight: 600;
     color: var(--text-primary);
+  }
+
+  /* Todo Plan Section */
+  .todo-plan-section {
+    padding: 0 1.25rem;
+    flex-shrink: 0;
   }
 
   /* Chat Section Styles */
