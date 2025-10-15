@@ -27,7 +27,7 @@ export interface ToolCall {
   id: string;
   name: string;
   arguments: Record<string, unknown> | null | undefined;
-  result?: string;
+  result?: string | Record<string, unknown>;
   error?: string;
 }
 

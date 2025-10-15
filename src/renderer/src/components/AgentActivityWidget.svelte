@@ -9,6 +9,26 @@
     isExpanded = !isExpanded;
   }
 
+  function getToolCallStatus(
+    toolCall: ToolCall
+  ): 'pending' | 'running' | 'success' | 'error' {
+    if (toolCall.error) return 'error';
+    if (toolCall.result) {
+      // Check if result is an object with a success field set to false
+      if (
+        typeof toolCall.result === 'object' &&
+        toolCall.result !== null &&
+        'success' in toolCall.result &&
+        toolCall.result.success === false
+      ) {
+        return 'error';
+      }
+      return 'success';
+    }
+    if (toolCall.result === undefined && !toolCall.error) return 'running';
+    return 'pending';
+  }
+
   // Derive status counts from tool calls
   const statusCounts = $derived.by(() => {
     let pending = 0;
@@ -17,15 +37,20 @@
     let error = 0;
 
     toolCalls.forEach((tc) => {
-      if (tc.error) {
-        error++;
-      } else if (tc.result) {
-        success++;
-      } else if (tc.result === undefined && !tc.error) {
-        // Tool call exists but no result yet - could be running or pending
-        running++;
-      } else {
-        pending++;
+      const status = getToolCallStatus(tc);
+      switch (status) {
+        case 'error':
+          error++;
+          break;
+        case 'success':
+          success++;
+          break;
+        case 'running':
+          running++;
+          break;
+        case 'pending':
+          pending++;
+          break;
       }
     });
 
@@ -74,15 +99,6 @@
     };
 
     return iconMap[toolName] || '🔧';
-  }
-
-  function getToolCallStatus(
-    toolCall: ToolCall
-  ): 'pending' | 'running' | 'success' | 'error' {
-    if (toolCall.error) return 'error';
-    if (toolCall.result) return 'success';
-    if (toolCall.result === undefined && !toolCall.error) return 'running';
-    return 'pending';
   }
 
   function getStatusIcon(status: string): string {
