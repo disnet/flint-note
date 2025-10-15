@@ -115,6 +115,16 @@
         return '🔧';
     }
   }
+
+  function copyToClipboard(content: unknown): void {
+    const text = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
+    navigator.clipboard
+      .writeText(text)
+      .then(() => {
+        // Could show toast notification in the future
+      })
+      .catch(console.error);
+  }
 </script>
 
 <div class="agent-activity" class:expanded={isExpanded}>
@@ -140,7 +150,28 @@
 
           {#if toolCall.arguments && Object.keys(toolCall.arguments).length > 0}
             <div class="tool-section">
-              <h5>Arguments</h5>
+              <div class="section-header">
+                <h5>Arguments</h5>
+                <button
+                  class="copy-btn"
+                  onclick={() => copyToClipboard(toolCall.arguments)}
+                  title="Copy arguments to clipboard"
+                  aria-label="Copy arguments to clipboard"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+                    ></path>
+                  </svg>
+                </button>
+              </div>
               <div class="json-container">
                 <JsonViewer value={toolCall.arguments} isRoot={true} />
               </div>
@@ -149,7 +180,28 @@
 
           {#if toolCall.result}
             <div class="tool-section">
-              <h5>Result</h5>
+              <div class="section-header">
+                <h5>Result</h5>
+                <button
+                  class="copy-btn"
+                  onclick={() => copyToClipboard(toolCall.result)}
+                  title="Copy result to clipboard"
+                  aria-label="Copy result to clipboard"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+                    ></path>
+                  </svg>
+                </button>
+              </div>
               <div class="json-container">
                 {#if typeof toolCall.result === 'string'}
                   <div class="result-content">{toolCall.result}</div>
@@ -285,13 +337,43 @@
     margin-top: 0.75rem;
   }
 
+  .tool-section .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+  }
+
   .tool-section h5 {
-    margin: 0 0 0.5rem 0;
+    margin: 0;
     font-size: 0.75rem;
     font-weight: 600;
     color: var(--details-heading-color, #495057);
     text-transform: uppercase;
     letter-spacing: 0.05em;
+  }
+
+  .copy-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.25rem;
+    background: var(--bg-primary, #ffffff);
+    border: 1px solid var(--border-light, #e9ecef);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: var(--text-secondary, #6c757d);
+  }
+
+  .copy-btn:hover {
+    background: var(--bg-hover, #e9ecef);
+    border-color: var(--accent, #007bff);
+    color: var(--accent, #007bff);
+  }
+
+  .copy-btn:active {
+    transform: scale(0.95);
   }
 
   .json-container {
