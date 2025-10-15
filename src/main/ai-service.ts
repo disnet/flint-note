@@ -1436,7 +1436,7 @@ ${
         });
 
         let fullText = '';
-
+        let finalFinishReason: string | undefined;
         let stepCount = 0;
 
         // Use fullStream to get real-time tool call events as they happen
@@ -1447,8 +1447,6 @@ ${
             this.emit('stream-chunk', { requestId, chunk: event.text });
           } else if (event.type === 'tool-call') {
             // Handle tool calls as they arrive (before execution)
-            // Each tool-call event represents a step, so increment counter
-            stepCount++;
             const toolCallData = {
               id: event.toolCallId,
               name: event.toolName,
@@ -1468,8 +1466,26 @@ ${
               error: undefined
             };
             this.emit('stream-tool-result', { requestId, toolCall: toolCallData });
+          } else if (event.type === 'finish-step') {
+            // Track step completion
+            stepCount++;
+            logger.info('Step finished', {
+              requestId,
+              stepCount,
+              finishReason: event.finishReason
+            });
+          } else if (event.type === 'finish') {
+            // Final finish event with overall finishReason
+            finalFinishReason = event.finishReason;
+            logger.info('Stream finished', {
+              requestId,
+              finishReason: event.finishReason,
+              totalUsage: event.totalUsage
+            });
           }
         }
+
+        logger.info('Stream completed', { requestId, finalFinishReason, stepCount });
 
         // Add assistant response to conversation history
         const finalHistory = this.getConversationMessages(this.currentConversationId!);
@@ -1522,11 +1538,20 @@ ${
         );
 
         // Check if we hit the tool call limit
+        // When stopWhen condition (stepCountIs) is triggered, we get:
+        // - finishReason of 'tool-calls' (stopped after executing tools)
+        // - stepCount equals or exceeds our limit
         const maxSteps = 3; // Same as stepCountIs(3)
-        const stoppedAtLimit = stepCount >= maxSteps;
+        const stoppedAtLimit =
+          stepCount >= maxSteps && finalFinishReason === 'tool-calls';
 
         if (stoppedAtLimit) {
-          logger.info('Tool call limit reached', { requestId, stepCount, maxSteps });
+          logger.info('Tool call limit reached', {
+            requestId,
+            stepCount,
+            maxSteps,
+            finalFinishReason
+          });
         }
 
         this.emit('stream-end', {
