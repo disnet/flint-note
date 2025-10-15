@@ -8,6 +8,7 @@ import { logger } from './logger';
 import { NoteService } from './note-service';
 import { ToolService } from './tool-service';
 import { CustomFunctionsApi } from '../server/api/custom-functions-api.js';
+import { TodoPlanService } from './todo-plan-service';
 
 interface CacheConfig {
   enableSystemMessageCaching: boolean;
@@ -64,6 +65,7 @@ export class AIService extends EventEmitter {
   private noteService: NoteService | null;
   private toolService: ToolService;
   private customFunctionsApi: CustomFunctionsApi;
+  private todoPlanService: TodoPlanService;
   private readonly maxConversationHistory = 20;
   private readonly maxConversations = 100;
   private activeAbortControllers: Map<string, AbortController> = new Map();
@@ -97,7 +99,8 @@ export class AIService extends EventEmitter {
     logger.info('AI Service constructed', { model: this.currentModelName });
     this.openrouter = openrouter;
     this.noteService = noteService;
-    this.toolService = new ToolService(noteService, workspaceRoot);
+    this.todoPlanService = new TodoPlanService();
+    this.toolService = new ToolService(noteService, workspaceRoot, this.todoPlanService);
     this.customFunctionsApi = new CustomFunctionsApi(workspaceRoot || process.cwd());
   }
 
@@ -295,6 +298,56 @@ Use these tools to help users manage their notes effectively and answer their qu
   private async getSystemMessage(): Promise<string> {
     const vaultContext = await this.getVaultContext();
     return this.systemPrompt + vaultContext;
+  }
+
+  /**
+   * Get the TodoPlanService instance
+   */
+  getTodoPlanService(): TodoPlanService {
+    return this.todoPlanService;
+  }
+
+  /**
+   * Get plan context for the current conversation
+   */
+  private getPlanContext(): string | null {
+    if (!this.currentConversationId) {
+      return null;
+    }
+    return this.todoPlanService.getPlanContext(this.currentConversationId);
+  }
+
+  /**
+   * Inject plan context into messages if there's an active plan
+   */
+  private getMessagesWithPlanContext(messages: ModelMessage[]): ModelMessage[] {
+    const planContext = this.getPlanContext();
+
+    if (!planContext) {
+      return messages;
+    }
+
+    // Inject plan context as a user message before the last user message
+    const messagesWithContext = [...messages];
+
+    // Find the last user message index
+    let lastUserIndex = -1;
+    for (let i = messagesWithContext.length - 1; i >= 0; i--) {
+      if (messagesWithContext[i].role === 'user') {
+        lastUserIndex = i;
+        break;
+      }
+    }
+
+    if (lastUserIndex >= 0) {
+      // Insert plan context before the last user message
+      messagesWithContext.splice(lastUserIndex, 0, {
+        role: 'user',
+        content: planContext
+      });
+    }
+
+    return messagesWithContext;
   }
 
   private async getSystemMessageWithCaching(): Promise<ModelMessage> {
@@ -1108,6 +1161,9 @@ ${
       // Update conversation history with length management
       this.setConversationHistory(this.currentConversationId!, currentHistory);
 
+      // Set the conversation ID in tool service so tools can access it
+      this.toolService.setCurrentConversationId(this.currentConversationId!);
+
       // Prepare messages for the model
       const systemMessage = await this.getSystemMessageWithCaching();
       const conversationHistory = this.getConversationMessages(
@@ -1115,7 +1171,10 @@ ${
       );
       const cachedHistory = this.prepareCachedMessages(conversationHistory);
 
-      const messages: ModelMessage[] = [systemMessage, ...cachedHistory];
+      let messages: ModelMessage[] = [systemMessage, ...cachedHistory];
+
+      // Inject plan context if there's an active plan
+      messages = this.getMessagesWithPlanContext(messages);
 
       const tools = this.toolService.getTools();
       const result = await generateText({
@@ -1348,6 +1407,9 @@ ${
       // Update conversation history with length management
       this.setConversationHistory(this.currentConversationId!, currentHistory);
 
+      // Set the conversation ID in tool service so tools can access it
+      this.toolService.setCurrentConversationId(this.currentConversationId!);
+
       // Prepare messages for the model
       const systemMessage = await this.getSystemMessageWithCaching();
       const conversationHistory = this.getConversationMessages(
@@ -1355,7 +1417,10 @@ ${
       );
       const cachedHistory = this.prepareCachedMessages(conversationHistory);
 
-      const messages: ModelMessage[] = [systemMessage, ...cachedHistory];
+      let messages: ModelMessage[] = [systemMessage, ...cachedHistory];
+
+      // Inject plan context if there's an active plan
+      messages = this.getMessagesWithPlanContext(messages);
 
       this.emit('stream-start', { requestId });
 

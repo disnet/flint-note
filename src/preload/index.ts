@@ -29,6 +29,27 @@ interface ContextUsage {
   estimatedMessagesRemaining: number;
 }
 
+interface TodoItem {
+  id: string;
+  content: string;
+  activeForm: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'failed';
+  created: Date;
+  updated: Date;
+  result?: unknown;
+  error?: string;
+}
+
+interface TodoPlan {
+  id: string;
+  conversationId: string;
+  goal: string;
+  items: TodoItem[];
+  status: 'active' | 'completed' | 'abandoned';
+  created: Date;
+  updated: Date;
+}
+
 import type { NoteMetadata } from '../server/types';
 
 export type ToolCallData = {
@@ -400,6 +421,13 @@ const api = {
   exportCustomFunctions: () => electronAPI.ipcRenderer.invoke('export-custom-functions'),
   importCustomFunctions: (params: { backupData: string }) =>
     electronAPI.ipcRenderer.invoke('import-custom-functions', params),
+
+  // Todo plan operations
+  todoPlan: {
+    getActive: (params: { conversationId: string }): Promise<TodoPlan | null> =>
+      electronAPI.ipcRenderer.invoke('todo-plan:get-active', params)
+  },
+
   // Daily View operations
   getOrCreateDailyNote: (params: { date: string; vaultId: string }) =>
     electronAPI.ipcRenderer.invoke('get-or-create-daily-note', params),

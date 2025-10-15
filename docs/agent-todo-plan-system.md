@@ -7,11 +7,13 @@ This document outlines the design for adding a **todo/planning system** to Flint
 ## Problem Statement
 
 Flint's agent frequently handles complex, multi-step operations that span multiple turns:
+
 - "Reorganize all meeting notes from Q4"
 - "Create a project dashboard by analyzing all project notes"
 - "Migrate all daily notes to a new format"
 
 Without a planning system, the agent:
+
 - Loses track of what it's done across turns
 - Forgets steps in complex workflows
 - Provides poor visibility into its progress
@@ -44,19 +46,19 @@ Located: `src/main/todo-plan-service.ts`
 ```typescript
 interface TodoItem {
   id: string;
-  content: string;              // Imperative: "Search for all meeting notes"
-  activeForm: string;            // Present continuous: "Searching for all meeting notes"
+  content: string; // Imperative: "Search for all meeting notes"
+  activeForm: string; // Present continuous: "Searching for all meeting notes"
   status: 'pending' | 'in_progress' | 'completed' | 'failed';
   created: Date;
   updated: Date;
-  result?: unknown;             // Optional result data
-  error?: string;                // Error message if failed
+  result?: unknown; // Optional result data
+  error?: string; // Error message if failed
 }
 
 interface TodoPlan {
   id: string;
   conversationId: string;
-  goal: string;                  // High-level goal: "Reorganize Q4 meeting notes"
+  goal: string; // High-level goal: "Reorganize Q4 meeting notes"
   items: TodoItem[];
   status: 'active' | 'completed' | 'abandoned';
   created: Date;
@@ -70,7 +72,7 @@ class TodoPlanService {
   createPlan(conversationId: string, goal: string): TodoPlan;
 
   // Add items to a plan
-  addTodos(planId: string, items: Array<{content: string; activeForm: string}>): void;
+  addTodos(planId: string, items: Array<{ content: string; activeForm: string }>): void;
 
   // Update todo status
   updateTodoStatus(
@@ -109,24 +111,27 @@ const manageTodosTool = tool({
     action: z.enum(['create', 'add', 'update', 'complete', 'get']),
 
     // For 'create' action
-    goal: z.string().optional()
-      .describe('High-level goal (required for create)'),
+    goal: z.string().optional().describe('High-level goal (required for create)'),
 
     // For 'add' action
-    todos: z.array(z.object({
-      content: z.string().describe('Imperative form: "Create summary note"'),
-      activeForm: z.string().describe('Present continuous: "Creating summary note"')
-    })).optional().describe('Todos to add (required for add)'),
+    todos: z
+      .array(
+        z.object({
+          content: z.string().describe('Imperative form: "Create summary note"'),
+          activeForm: z.string().describe('Present continuous: "Creating summary note"')
+        })
+      )
+      .optional()
+      .describe('Todos to add (required for add)'),
 
     // For 'update' action
-    todoId: z.string().optional()
-      .describe('Todo ID to update (required for update)'),
-    status: z.enum(['pending', 'in_progress', 'completed', 'failed']).optional()
+    todoId: z.string().optional().describe('Todo ID to update (required for update)'),
+    status: z
+      .enum(['pending', 'in_progress', 'completed', 'failed'])
+      .optional()
       .describe('New status (required for update)'),
-    result: z.unknown().optional()
-      .describe('Result data (optional for update)'),
-    error: z.string().optional()
-      .describe('Error message if failed (optional for update)')
+    result: z.unknown().optional().describe('Result data (optional for update)'),
+    error: z.string().optional().describe('Error message if failed (optional for update)')
   }),
   execute: async ({ action, goal, todos, todoId, status, result, error }) => {
     // Implementation delegates to TodoPlanService
@@ -144,12 +149,14 @@ Add to `src/main/system-prompt.md`:
 For complex multi-step operations, use the `manage_todos` tool to track your progress:
 
 ### When to Use
+
 - User requests involve 3+ distinct steps
 - Operation spans multiple turns
 - Complex workflows (migrations, bulk operations, analysis)
 - Operations where showing the plan upfront would help user trust
 
 ### When NOT to Use
+
 - Simple single-tool operations
 - Straightforward CRUD operations
 - Quick searches or retrievals
@@ -158,22 +165,24 @@ For complex multi-step operations, use the `manage_todos` tool to track your pro
 
 **Planning Phase:**
 ```
+
 User: "Reorganize all my meeting notes from Q4"
 
 Agent: Let me create a plan for this:
 [Tool: manage_todos({ action: 'create', goal: 'Reorganize all Q4 meeting notes' })]
 [Tool: manage_todos({
-  action: 'add',
-  todos: [
-    { content: 'Search for all meeting notes from Q4 2024', activeForm: 'Searching for Q4 meeting notes' },
-    { content: 'Analyze note structure and content', activeForm: 'Analyzing note structure' },
-    { content: 'Create new organization scheme', activeForm: 'Creating organization scheme' },
-    { content: 'Migrate notes to new structure', activeForm: 'Migrating notes' },
-    { content: 'Verify migration completed successfully', activeForm: 'Verifying migration' }
-  ]
+action: 'add',
+todos: [
+{ content: 'Search for all meeting notes from Q4 2024', activeForm: 'Searching for Q4 meeting notes' },
+{ content: 'Analyze note structure and content', activeForm: 'Analyzing note structure' },
+{ content: 'Create new organization scheme', activeForm: 'Creating organization scheme' },
+{ content: 'Migrate notes to new structure', activeForm: 'Migrating notes' },
+{ content: 'Verify migration completed successfully', activeForm: 'Verifying migration' }
+]
 })]
 
 I've created a plan with 5 steps. Here's what I'll do:
+
 1. Search for all meeting notes from Q4 2024
 2. Analyze note structure and content
 3. Create new organization scheme
@@ -181,25 +190,28 @@ I've created a plan with 5 steps. Here's what I'll do:
 5. Verify migration completed successfully
 
 Should I proceed?
+
 ```
 
 **Execution Phase:**
 ```
+
 User: "Yes, go ahead"
 
 Agent: Starting step 1...
 [Tool: manage_todos({ action: 'update', todoId: 'todo-1', status: 'in_progress' })]
 [Tool: search_notes({ query: 'meeting', dateRange: { start: '2024-10-01', end: '2024-12-31' } })]
 [Tool: manage_todos({
-  action: 'update',
-  todoId: 'todo-1',
-  status: 'completed',
-  result: { notesFound: 47 }
+action: 'update',
+todoId: 'todo-1',
+status: 'completed',
+result: { notesFound: 47 }
 })]
 
 Found 47 meeting notes from Q4. Moving to step 2...
 [Tool: manage_todos({ action: 'update', todoId: 'todo-2', status: 'in_progress' })]
 ...
+
 ```
 
 ### Important Rules
@@ -214,6 +226,7 @@ Found 47 meeting notes from Q4. Moving to step 2...
 The system automatically injects plan context into your conversation when a plan is active:
 
 ```
+
 <active-todo-plan>
 Goal: Reorganize all Q4 meeting notes
 Progress: 2/5 completed
@@ -229,6 +242,7 @@ Pending:
 ⏹ Migrate notes to new structure
 ⏹ Verify migration completed successfully
 </active-todo-plan>
+
 ```
 
 This context helps you:
@@ -264,10 +278,15 @@ class TodoPlanStore {
     return this.activePlan !== null;
   }
 
-  updateTodoStatus(todoId: string, status: string, result?: unknown, error?: string): void {
+  updateTodoStatus(
+    todoId: string,
+    status: string,
+    result?: unknown,
+    error?: string
+  ): void {
     if (!this.activePlan) return;
 
-    const todo = this.activePlan.items.find(t => t.id === todoId);
+    const todo = this.activePlan.items.find((t) => t.id === todoId);
     if (todo) {
       todo.status = status;
       todo.updated = new Date();
@@ -290,15 +309,28 @@ ipcMain.handle('todo-plan:create', async (_, conversationId: string, goal: strin
   return todoPlanService.createPlan(conversationId, goal);
 });
 
-ipcMain.handle('todo-plan:add-todos', async (_, planId: string, todos: Array<{content: string, activeForm: string}>) => {
-  todoPlanService.addTodos(planId, todos);
-  return todoPlanService.getActivePlan(planId);
-});
+ipcMain.handle(
+  'todo-plan:add-todos',
+  async (_, planId: string, todos: Array<{ content: string; activeForm: string }>) => {
+    todoPlanService.addTodos(planId, todos);
+    return todoPlanService.getActivePlan(planId);
+  }
+);
 
-ipcMain.handle('todo-plan:update-todo', async (_, planId: string, todoId: string, status: string, result?: unknown, error?: string) => {
-  todoPlanService.updateTodoStatus(planId, todoId, status, result, error);
-  return todoPlanService.getActivePlan(planId);
-});
+ipcMain.handle(
+  'todo-plan:update-todo',
+  async (
+    _,
+    planId: string,
+    todoId: string,
+    status: string,
+    result?: unknown,
+    error?: string
+  ) => {
+    todoPlanService.updateTodoStatus(planId, todoId, status, result, error);
+    return todoPlanService.getActivePlan(planId);
+  }
+);
 
 ipcMain.handle('todo-plan:get-active', async (_, conversationId: string) => {
   return todoPlanService.getActivePlan(conversationId);
@@ -310,9 +342,15 @@ contextBridge.exposeInMainWorld('api', {
   todoPlan: {
     create: (conversationId: string, goal: string) =>
       ipcRenderer.invoke('todo-plan:create', conversationId, goal),
-    addTodos: (planId: string, todos: Array<{content: string, activeForm: string}>) =>
+    addTodos: (planId: string, todos: Array<{ content: string; activeForm: string }>) =>
       ipcRenderer.invoke('todo-plan:add-todos', planId, todos),
-    updateTodo: (planId: string, todoId: string, status: string, result?: unknown, error?: string) =>
+    updateTodo: (
+      planId: string,
+      todoId: string,
+      status: string,
+      result?: unknown,
+      error?: string
+    ) =>
       ipcRenderer.invoke('todo-plan:update-todo', planId, todoId, status, result, error),
     getActive: (conversationId: string) =>
       ipcRenderer.invoke('todo-plan:get-active', conversationId)
@@ -335,7 +373,7 @@ Located: `src/renderer/src/components/TodoPlanWidget.svelte`
 
   const completedCount = $derived.by(() => {
     if (!plan) return 0;
-    return plan.items.filter(t => t.status === 'completed').length;
+    return plan.items.filter((t) => t.status === 'completed').length;
   });
 
   const totalCount = $derived.by(() => {
@@ -350,18 +388,23 @@ Located: `src/renderer/src/components/TodoPlanWidget.svelte`
 
   function getStatusIcon(status: string): string {
     switch (status) {
-      case 'completed': return '✅';
-      case 'in_progress': return '⏳';
-      case 'failed': return '❌';
-      case 'pending': return '⏹';
-      default: return '•';
+      case 'completed':
+        return '✅';
+      case 'in_progress':
+        return '⏳';
+      case 'failed':
+        return '❌';
+      case 'pending':
+        return '⏹';
+      default:
+        return '•';
     }
   }
 </script>
 
 {#if hasPlan && plan}
   <div class="todo-plan-widget">
-    <button class="plan-header" onclick={() => isExpanded = !isExpanded}>
+    <button class="plan-header" onclick={() => (isExpanded = !isExpanded)}>
       <div class="plan-info">
         <span class="plan-icon">📋</span>
         <span class="plan-goal">{plan.goal}</span>
@@ -378,9 +421,12 @@ Located: `src/renderer/src/components/TodoPlanWidget.svelte`
 
         <div class="todo-list">
           {#each plan.items as todo (todo.id)}
-            <div class="todo-item" class:completed={todo.status === 'completed'}
-                                    class:in-progress={todo.status === 'in_progress'}
-                                    class:failed={todo.status === 'failed'}>
+            <div
+              class="todo-item"
+              class:completed={todo.status === 'completed'}
+              class:in-progress={todo.status === 'in_progress'}
+              class:failed={todo.status === 'failed'}
+            >
               <span class="todo-icon">{getStatusIcon(todo.status)}</span>
               <span class="todo-text">
                 {todo.status === 'in_progress' ? todo.activeForm : todo.content}
@@ -563,11 +609,13 @@ class TodoPlanService {
 ```
 
 **Pros:**
+
 - Simple to implement
 - Fast
 - No schema changes needed
 
 **Cons:**
+
 - Lost on app restart
 - No plan history
 
@@ -601,11 +649,13 @@ async loadConversation(id: string): Promise<Conversation | null> {
 ```
 
 **Pros:**
+
 - Plans survive app restart
 - Can analyze plan history
 - Better UX for long-running tasks
 
 **Cons:**
+
 - More complex implementation
 - Schema changes needed
 
@@ -711,26 +761,89 @@ Agent:
 ### Phase 1: Core Infrastructure (Week 1)
 
 **Backend:**
-- [ ] Create `TodoPlanService` class
-- [ ] Add `manage_todos` tool to `ToolService`
-- [ ] Implement IPC handlers
-- [ ] Add plan context injection to `AIService`
-- [ ] Update system prompt with todo guidelines
+
+- [x] Create `TodoPlanService` class
+- [x] Add `manage_todos` tool to `ToolService`
+- [x] Implement IPC handlers
+- [x] Add plan context injection to `AIService`
+- [x] Update system prompt with todo guidelines
 
 **Frontend:**
+
 - [ ] Create `todoPlanStore.svelte.ts`
 - [ ] Add IPC bindings to preload
 - [ ] Create basic `TodoPlanWidget.svelte`
 - [ ] Integrate widget into `AIAssistant.svelte`
 
 **Testing:**
+
 - [ ] Unit tests for `TodoPlanService`
 - [ ] Integration test for todo tool
 - [ ] Manual testing with multi-step scenarios
 
+## Implementation Progress
+
+### Completed (Phase 1 Backend)
+
+1. **TodoPlanService** (`src/main/todo-plan-service.ts`)
+   - Implemented full CRUD operations for todo plans
+   - Plan lifecycle management (create, update, complete, abandon)
+   - Context injection method for AI messages
+   - Single in-progress todo enforcement
+   - Result tracking and error handling
+
+2. **ToolService Integration** (`src/main/tool-service.ts`)
+   - Added `manage_todos` tool with full action support (create, add, update, complete, get)
+   - Integrated TodoPlanService into ToolService
+   - Added conversation ID tracking for proper plan association
+
+3. **AIService Integration** (`src/main/ai-service.ts`)
+   - Instantiated TodoPlanService in AIService
+   - Implemented automatic plan context injection into AI messages
+   - Added conversation ID synchronization with ToolService
+   - Context injected before last user message to provide plan state
+
+4. **IPC Handlers** (`src/main/index.ts`)
+   - Added `todo-plan:get-active` handler for frontend access
+
+5. **System Prompt** (`src/main/system-prompt.md`)
+   - Added comprehensive todo planning guidelines
+   - Included when-to-use and when-not-to-use guidance
+   - Provided example pattern for create/add/update/complete workflow
+   - Documented important rules (one in_progress, immediate completion marking, etc.)
+
+### Remaining (Phase 1 Frontend)
+
+6. **IPC Bindings** (`src/preload/index.ts`)
+   - Add todoPlan API to preload exposedInMainWorld
+
+7. **Todo Plan Store** (`src/renderer/src/stores/todoPlanStore.svelte.ts`)
+   - Create reactive store for active plan state
+   - Implement setActivePlan, currentPlan, hasPlan getters
+   - Add updateTodoStatus helper
+
+8. **TodoPlanWidget Component** (`src/renderer/src/components/TodoPlanWidget.svelte`)
+   - Create widget UI with collapsible header
+   - Progress bar visualization
+   - Todo list with status icons
+   - Error display for failed todos
+
+9. **AIAssistant Integration** (`src/renderer/src/components/AIAssistant.svelte`)
+   - Import and render TodoPlanWidget
+   - Listen for manage_todos tool calls
+   - Refresh plan from backend on tool use
+   - Update store with latest plan state
+
+10. **Linting and Type Checking**
+    - Run `npm run format`
+    - Run `npm run lint`
+    - Run `npm run typecheck`
+    - Fix any issues
+
 ### Phase 2: UX Polish (Week 2)
 
 **UI Improvements:**
+
 - [ ] Add animations for status changes
 - [ ] Improve progress visualization
 - [ ] Add collapsible completed items
@@ -738,6 +851,7 @@ Agent:
 - [ ] Mobile-responsive design
 
 **Agent Behavior:**
+
 - [ ] Fine-tune system prompt examples
 - [ ] Test with various multi-step scenarios
 - [ ] Gather initial user feedback
@@ -746,12 +860,14 @@ Agent:
 ### Phase 3: Persistence & History (Week 3)
 
 **Backend:**
+
 - [ ] Add plan persistence to conversation storage
 - [ ] Implement plan restoration on load
 - [ ] Add plan history tracking
 - [ ] Create plan analytics
 
 **Frontend:**
+
 - [ ] Add plan history view
 - [ ] Show completed plans in conversation sidebar
 - [ ] Add plan export/sharing
@@ -759,16 +875,19 @@ Agent:
 ### Phase 4: Advanced Features (Future)
 
 **Smart Planning:**
+
 - [ ] Agent auto-suggests creating a plan for complex tasks
 - [ ] Plan templates for common operations
 - [ ] Plan estimation (time, number of API calls)
 
 **Analytics:**
+
 - [ ] Track plan completion rates
 - [ ] Identify common failure points
 - [ ] Optimize system prompts based on plan performance
 
 **Collaboration:**
+
 - [ ] Allow users to modify plans mid-execution
 - [ ] User approval gates for destructive steps
 - [ ] Plan branching (alternate approaches)
@@ -782,12 +901,14 @@ Agent:
 **Decision:** Agent manually decides when to create plans (via system prompt guidance)
 
 **Rationale:**
+
 - Gives agent flexibility for simple tasks
 - Avoids overhead for trivial operations
 - Teaches agent to plan when appropriate
 - Can evolve to auto-creation in Phase 4
 
 **Alternative Considered:**
+
 - Auto-create plan for any task with 3+ tool calls
 - **Rejected:** Too rigid, creates noise for simple workflows
 
@@ -796,12 +917,14 @@ Agent:
 **Decision:** Automatically inject active plan context before each turn
 
 **Rationale:**
+
 - Agent always has current state without asking
 - Reduces tool calls (no need for "get current plan")
 - Ensures agent can't "forget" the plan exists
 - Works seamlessly across conversation turns
 
 **Alternative Considered:**
+
 - Agent calls `manage_todos({ action: 'get' })` when needed
 - **Rejected:** Agent might forget, wastes tokens on tool calls
 
@@ -810,12 +933,14 @@ Agent:
 **Decision:** Enforce exactly ONE todo in_progress at a time
 
 **Rationale:**
+
 - Clear execution order for agent
 - Better UX (users see current focus)
 - Simpler error handling
 - Matches agent's sequential nature
 
 **Alternative Considered:**
+
 - Allow parallel in_progress todos
 - **Rejected:** Confusing UX, doesn't match agent capabilities
 
@@ -824,12 +949,14 @@ Agent:
 **Decision:** Require both imperative and present continuous forms
 
 **Rationale:**
+
 - Matches Claude Code's proven pattern
 - Better UX (shows what's happening vs. what will happen)
 - Forces clarity in planning
 - Minimal overhead (usually just adding "-ing")
 
 **Alternative Considered:**
+
 - Single form, auto-convert to present tense
 - **Rejected:** Linguistic complexity, potential errors
 
@@ -838,12 +965,14 @@ Agent:
 **Decision:** Separate todo plan system from regular message flow
 
 **Rationale:**
+
 - Plans persist across turns
 - Plans are structural, not conversational
 - Easier to query plan state
 - Keeps message history clean
 
 **Alternative Considered:**
+
 - Store plan as special messages in conversation
 - **Rejected:** Pollutes conversation, harder to query
 
@@ -854,18 +983,21 @@ Agent:
 ### Relationship to AgentActivityWidget
 
 **AgentActivityWidget:**
+
 - Shows real-time tool execution
 - Single turn focused
 - Technical detail (tool names, args, results)
 - Always visible during agent response
 
 **TodoPlanWidget:**
+
 - Shows multi-turn progress
 - Task/goal focused
 - High-level progress (steps, not tools)
 - Persists between turns
 
 **They Complement Each Other:**
+
 ```
 [TodoPlanWidget showing: Step 2/5 - Analyzing note structure]
   ↓
@@ -873,6 +1005,7 @@ Agent:
 ```
 
 User sees both:
+
 - **What** the agent is doing overall (TodoPlanWidget)
 - **How** it's doing it technically (AgentActivityWidget)
 
@@ -881,16 +1014,19 @@ User sees both:
 Todo plans consume context tokens. Key considerations:
 
 **Plan Context Size:**
+
 - Each todo: ~50-100 tokens
 - Full plan (5 todos): ~250-500 tokens
 - Negligible compared to 200k context window
 
 **Optimization:**
+
 - Inject only active plan (not completed ones)
 - Truncate completed todos to just results
 - Remove plan context when plan completes
 
 **Example Context Injection:**
+
 ```typescript
 // Compact format for completed todos
 Completed:
@@ -913,12 +1049,14 @@ Pending:
 Todo plan context benefits from prompt caching:
 
 **Strategy:**
+
 - System prompt + vault context (cached)
 - Conversation history (optionally cached)
 - **Active plan context** (NOT cached - changes frequently)
 - Current user message
 
 **Rationale:**
+
 - Plan changes every turn (status updates)
 - Caching would be ineffective
 - Token cost is low anyway
@@ -930,16 +1068,19 @@ Todo plan context benefits from prompt caching:
 ### Agent Behavior Metrics
 
 **Planning Accuracy:**
+
 - % of complex tasks where agent creates a plan
 - False positive rate (plans for simple tasks)
 - Plan completeness (all necessary steps included)
 
 **Execution Adherence:**
+
 - % of todos marked in_progress before work
 - % of todos completed immediately after finishing
 - Average number of in_progress todos (should be ~1.0)
 
 **Error Handling:**
+
 - % of failed todos that are retried
 - % of failed todos marked with error messages
 - Recovery rate after plan failures
@@ -947,16 +1088,19 @@ Todo plan context benefits from prompt caching:
 ### User Experience Metrics
 
 **Transparency:**
+
 - User satisfaction with plan visibility
 - Clarity of progress indicators
 - Usefulness of error messages
 
 **Trust:**
+
 - User confidence in agent's approach
 - Frequency of plan abandonment
 - User intervention rate (asking to change plan)
 
 **Performance:**
+
 - Average plan completion time
 - Success rate for multi-step operations
 - Comparison: with vs. without planning
@@ -976,6 +1120,7 @@ Todo plan context benefits from prompt caching:
 ### Unit Tests
 
 **TodoPlanService Tests:**
+
 ```typescript
 describe('TodoPlanService', () => {
   it('creates a new plan with unique ID');
@@ -989,6 +1134,7 @@ describe('TodoPlanService', () => {
 ```
 
 **Store Tests:**
+
 ```typescript
 describe('TodoPlanStore', () => {
   it('updates plan state reactively');
@@ -1000,6 +1146,7 @@ describe('TodoPlanStore', () => {
 ### Integration Tests
 
 **Tool Integration:**
+
 ```typescript
 describe('manage_todos tool', () => {
   it('creates plan via tool call');
@@ -1011,6 +1158,7 @@ describe('manage_todos tool', () => {
 ```
 
 **AI Service Integration:**
+
 ```typescript
 describe('Plan Context Injection', () => {
   it('injects plan context before user message');
@@ -1023,6 +1171,7 @@ describe('Plan Context Injection', () => {
 ### End-to-End Tests
 
 **User Scenarios:**
+
 1. **Bulk Migration:**
    - Create plan for migration
    - Execute all steps
@@ -1062,12 +1211,14 @@ describe('Plan Context Injection', () => {
 ### Q1: How to Handle Plan Abandonment?
 
 **Options:**
+
 1. Explicit abandon action (agent calls abandon)
 2. Auto-abandon on new plan creation
 3. Auto-abandon after N turns of inactivity
 4. User can manually abandon via UI
 
 **Recommendation:** Hybrid approach
+
 - Auto-abandon when new plan created
 - Auto-abandon after 10 turns with no updates
 - Add manual abandon button in Phase 2
@@ -1075,6 +1226,7 @@ describe('Plan Context Injection', () => {
 ### Q2: Should Users Be Able to Edit Plans?
 
 **Options:**
+
 1. Read-only (agent fully controls)
 2. User can add/remove todos
 3. User can reorder todos
@@ -1083,6 +1235,7 @@ describe('Plan Context Injection', () => {
 **Recommendation:** Phase 1 = read-only, Phase 4 = add user editing
 
 **Rationale:**
+
 - Simpler initial implementation
 - Agent maintains ownership
 - Can add later based on user feedback
@@ -1090,6 +1243,7 @@ describe('Plan Context Injection', () => {
 ### Q3: How Granular Should Todos Be?
 
 **Options:**
+
 1. Very granular ("Get note 1", "Get note 2", ...)
 2. High-level ("Retrieve all notes", "Analyze notes", ...)
 3. Mixed granularity based on task
@@ -1097,6 +1251,7 @@ describe('Plan Context Injection', () => {
 **Recommendation:** High-level with examples in system prompt
 
 **Guidance in System Prompt:**
+
 ```
 Good granularity:
 ✅ "Search for all Q4 meeting notes"
@@ -1117,6 +1272,7 @@ Too broad:
 ### Q4: Should Plans Have Time Estimates?
 
 **Options:**
+
 1. No estimates (current design)
 2. Agent provides estimates
 3. System calculates based on history
@@ -1124,6 +1280,7 @@ Too broad:
 **Recommendation:** No estimates in Phase 1
 
 **Rationale:**
+
 - Hard to estimate accurately
 - Can add in Phase 4 with historical data
 - Focus on progress tracking first
@@ -1133,6 +1290,7 @@ Too broad:
 **Scenario:** User asks to "analyze all 5000 notes"
 
 **Options:**
+
 1. Create 5000 todos (one per note)
 2. Create high-level todos with progress in result
 3. Chunk into batches
@@ -1140,6 +1298,7 @@ Too broad:
 **Recommendation:** Option 2 - high-level with progress
 
 **Example:**
+
 ```typescript
 {
   content: 'Analyze all 5000 notes',
@@ -1167,14 +1326,14 @@ Too broad:
 
 ### Differences
 
-| Aspect | Claude Code | Flint |
-|--------|-------------|-------|
-| **Scope** | General coding tasks | Note management tasks |
-| **Persistence** | Unknown | Planned (Phase 3) |
-| **UI Location** | Inline with messages | Separate widget |
-| **Tool Design** | Single `TodoWrite` tool | Single `manage_todos` tool |
-| **Context Format** | Unknown | Markdown in system message |
-| **Plan Structure** | Flat list | Flat list with optional result data |
+| Aspect             | Claude Code             | Flint                               |
+| ------------------ | ----------------------- | ----------------------------------- |
+| **Scope**          | General coding tasks    | Note management tasks               |
+| **Persistence**    | Unknown                 | Planned (Phase 3)                   |
+| **UI Location**    | Inline with messages    | Separate widget                     |
+| **Tool Design**    | Single `TodoWrite` tool | Single `manage_todos` tool          |
+| **Context Format** | Unknown                 | Markdown in system message          |
+| **Plan Structure** | Flat list               | Flat list with optional result data |
 
 ### Lessons Learned from Claude Code
 
@@ -1191,6 +1350,7 @@ Too broad:
 ### Risk: Agent Doesn't Use Planning
 
 **Mitigation:**
+
 - Strong examples in system prompt
 - Test and iterate on prompting
 - Monitor usage in Phase 2
@@ -1199,6 +1359,7 @@ Too broad:
 ### Risk: Plans Create Too Much Noise
 
 **Mitigation:**
+
 - Clear guidelines on when to use
 - Collapsible UI by default
 - Option to hide completed plans
@@ -1207,6 +1368,7 @@ Too broad:
 ### Risk: Context Overhead
 
 **Mitigation:**
+
 - Compact context format
 - Remove completed plans from context
 - Monitor token usage
@@ -1215,6 +1377,7 @@ Too broad:
 ### Risk: Breaking Changes to Conversations
 
 **Mitigation:**
+
 - In-memory first (no schema changes)
 - Additive changes only for persistence
 - Backward compatible conversation format
@@ -1223,6 +1386,7 @@ Too broad:
 ### Risk: Poor Agent Adherence to Status Updates
 
 **Mitigation:**
+
 - Explicit rules in system prompt
 - Examples showing correct pattern
 - Validation in tool (warn if skipping in_progress)
@@ -1290,6 +1454,7 @@ Agent: Great idea! I'll add that as step 1.
 ### Plan Analytics Dashboard
 
 Show aggregate statistics:
+
 - Most common plan types
 - Success rates by plan complexity
 - Average completion time
@@ -1300,23 +1465,27 @@ Show aggregate statistics:
 ## 16. Migration & Rollout Plan
 
 ### Phase 1: Development (Week 1)
+
 - Build core infrastructure
 - Internal testing
 - Iterate on system prompts
 
 ### Phase 2: Alpha (Week 2)
+
 - Deploy to test users (5-10)
 - Monitor usage patterns
 - Gather qualitative feedback
 - Fix critical bugs
 
 ### Phase 3: Beta (Week 3-4)
+
 - Wider rollout (50+ users)
 - Add persistence
 - Collect metrics
 - Refine UX
 
 ### Phase 4: GA (Week 5+)
+
 - Full release
 - Monitor KPIs
 - Plan Phase 4 features
@@ -1325,6 +1494,7 @@ Show aggregate statistics:
 ### Rollback Strategy
 
 If planning system causes issues:
+
 1. **Immediate:** Remove tool from system prompt
 2. **Quick:** Add feature flag to disable planning
 3. **Revert:** Roll back to previous version
@@ -1342,6 +1512,7 @@ A todo/planning system will significantly improve Flint's agent capabilities for
 - **Foundation for advanced features** like collaborative planning
 
 The phased approach allows us to:
+
 1. Start simple (in-memory, core features)
 2. Validate with users (gather feedback)
 3. Expand thoughtfully (persistence, analytics)

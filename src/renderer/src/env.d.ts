@@ -63,6 +63,27 @@ type ToolCallData = {
   error: string | undefined;
 };
 
+interface TodoItem {
+  id: string;
+  content: string;
+  activeForm: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'failed';
+  created: Date;
+  updated: Date;
+  result?: unknown;
+  error?: string;
+}
+
+interface TodoPlan {
+  id: string;
+  conversationId: string;
+  goal: string;
+  items: TodoItem[];
+  status: 'active' | 'completed' | 'abandoned';
+  created: Date;
+  updated: Date;
+}
+
 interface CursorPosition {
   noteId: string;
   position: number;
@@ -427,6 +448,11 @@ declare global {
         version: string,
         isCanaray: boolean
       ) => Promise<{ success: boolean; changelog?: string; error?: string }>;
+
+      // Todo plan operations
+      todoPlan: {
+        getActive: (params: { conversationId: string }) => Promise<TodoPlan | null>;
+      };
 
       // Daily View operations
       getOrCreateDailyNote: (params: {

@@ -1640,6 +1640,18 @@ app.whenReady().then(async () => {
     }
   );
 
+  // Todo Plan IPC handlers
+  ipcMain.handle(
+    'todo-plan:get-active',
+    async (_event, params: { conversationId: string }) => {
+      if (!aiService) {
+        throw new Error('AI service not available');
+      }
+      const todoPlanService = aiService.getTodoPlanService();
+      return todoPlanService.getActivePlan(params.conversationId);
+    }
+  );
+
   // Daily View IPC handlers
   ipcMain.handle(
     'get-or-create-daily-note',

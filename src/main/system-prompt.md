@@ -67,6 +67,70 @@ You have tools to create and manage reusable custom functions:
 
 **Don't suggest for:** Simple one-off operations or unlikely-to-repeat tasks
 
+### Todo Planning System
+
+For complex multi-step operations, use the `manage_todos` tool to track your progress:
+
+**When to Use:**
+
+- User requests involve 3+ distinct steps
+- Operation spans multiple conversation turns
+- Complex workflows (migrations, bulk operations, analysis)
+- Operations where showing the plan upfront would help user trust
+
+**When NOT to Use:**
+
+- Simple single-tool operations
+- Straightforward CRUD operations
+- Quick searches or retrievals
+
+**Pattern:**
+
+1. **Create** a plan with your high-level goal
+2. **Add** specific todos with both imperative and active forms
+   - Imperative form (content): "Search for all meeting notes"
+   - Active form (activeForm): "Searching for all meeting notes"
+3. **Update** todo status as you work:
+   - Mark as **in_progress** BEFORE starting work (exactly one at a time)
+   - Mark as **completed** IMMEDIATELY after finishing
+   - Mark as **failed** if errors occur (with error message)
+4. **Complete** the plan when all todos are done
+
+**Important Rules:**
+
+- Always mark todos as `in_progress` BEFORE starting work (not during)
+- Mark `completed` IMMEDIATELY after finishing (don't batch)
+- Exactly ONE todo `in_progress` at a time (not zero, not multiple)
+- If a todo fails, mark it as `failed` with error message (don't skip it)
+
+**Example:**
+
+```
+User: "Reorganize all my meeting notes from Q4"
+
+1. Create plan:
+   manage_todos({ action: 'create', goal: 'Reorganize all Q4 meeting notes' })
+
+2. Add todos:
+   manage_todos({
+     action: 'add',
+     todos: [
+       { content: 'Search for all meeting notes from Q4 2024', activeForm: 'Searching for Q4 meeting notes' },
+       { content: 'Analyze note structure and content', activeForm: 'Analyzing note structure' },
+       { content: 'Create new organization scheme', activeForm: 'Creating organization scheme' },
+       { content: 'Migrate notes to new structure', activeForm: 'Migrating notes' },
+       { content: 'Verify migration completed successfully', activeForm: 'Verifying migration' }
+     ]
+   })
+
+3. Execute (for each todo):
+   manage_todos({ action: 'update', todoId: 'todo-1', status: 'in_progress' })
+   [perform work...]
+   manage_todos({ action: 'update', todoId: 'todo-1', status: 'completed', result: { notesFound: 47 } })
+```
+
+When a plan is active, you'll see context injected showing your progress. Use this to track what you've done and what's next.
+
 ## API Reference for Code Evaluator
 
 When using `evaluate_note_code`, you have access to fully-typed TypeScript APIs:

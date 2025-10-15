@@ -8,6 +8,7 @@ import {
 import { CustomFunctionsApi } from '../server/api/custom-functions-api.js';
 import { ContentHashMismatchError } from '../server/utils/content-hash.js';
 import { publishNoteEvent } from './note-events';
+import { TodoPlanService } from './todo-plan-service';
 
 interface ToolResponse {
   success: boolean;
@@ -37,15 +38,23 @@ interface ToolResponse {
 export class ToolService {
   private evaluateNoteCode: EnhancedEvaluateNoteCode;
   private customFunctionsApi: CustomFunctionsApi | null = null;
+  private todoPlanService: TodoPlanService | null = null;
+  private currentConversationId: string | null = null;
 
   constructor(
     private noteService: NoteService | null,
-    workspaceRoot?: string
+    workspaceRoot?: string,
+    todoPlanService?: TodoPlanService
   ) {
     this.evaluateNoteCode = new EnhancedEvaluateNoteCode(noteService, workspaceRoot);
     if (workspaceRoot) {
       this.customFunctionsApi = new CustomFunctionsApi(workspaceRoot);
     }
+    this.todoPlanService = todoPlanService || null;
+  }
+
+  setCurrentConversationId(conversationId: string): void {
+    this.currentConversationId = conversationId;
   }
 
   getTools(): Record<string, Tool> | undefined {
@@ -76,6 +85,11 @@ export class ToolService {
       tools.list_custom_functions = this.listCustomFunctionsTool;
       tools.validate_custom_function = this.validateCustomFunctionTool;
       tools.delete_custom_function = this.deleteCustomFunctionTool;
+    }
+
+    // Add todo plan management tool if available
+    if (this.todoPlanService) {
+      tools.manage_todos = this.manageTodosTool;
     }
 
     return tools;
@@ -1565,6 +1579,172 @@ export class ToolService {
           success: false,
           error: error instanceof Error ? error.message : String(error),
           message: `Failed to delete custom function: ${error instanceof Error ? error.message : String(error)}`
+        };
+      }
+    }
+  });
+
+  private manageTodosTool = tool({
+    description:
+      'Manage a todo plan for complex multi-step operations. Use this when you need to:\n' +
+      '1. Break down a complex task into multiple steps\n' +
+      '2. Track progress across multiple turns\n' +
+      '3. Show users your plan before executing\n\n' +
+      'NOT needed for simple single-tool operations.',
+    inputSchema: z.object({
+      action: z
+        .enum(['create', 'add', 'update', 'complete', 'get'])
+        .describe('Action to perform'),
+      goal: z
+        .string()
+        .optional()
+        .describe('High-level goal (required for create action)'),
+      todos: z
+        .array(
+          z.object({
+            content: z.string().describe('Imperative form: "Create summary note"'),
+            activeForm: z.string().describe('Present continuous: "Creating summary note"')
+          })
+        )
+        .optional()
+        .describe('Todos to add (required for add action)'),
+      todoId: z
+        .string()
+        .optional()
+        .describe('Todo ID to update (required for update action)'),
+      status: z
+        .enum(['pending', 'in_progress', 'completed', 'failed'])
+        .optional()
+        .describe('New status (required for update action)'),
+      result: z.unknown().optional().describe('Result data (optional for update action)'),
+      error: z
+        .string()
+        .optional()
+        .describe('Error message if failed (optional for update action)')
+    }),
+    execute: async ({ action, goal, todos, todoId, status, result, error }) => {
+      if (!this.todoPlanService) {
+        return {
+          success: false,
+          error: 'Todo plan service not available',
+          message: 'Todo plan service not initialized'
+        };
+      }
+
+      try {
+        // Get current conversation ID
+        const conversationId = this.currentConversationId || 'default';
+
+        switch (action) {
+          case 'create': {
+            if (!goal) {
+              return {
+                success: false,
+                error: 'Missing required parameter',
+                message: 'goal is required for create action'
+              };
+            }
+            const plan = this.todoPlanService.createPlan(conversationId, goal);
+            return {
+              success: true,
+              data: { planId: plan.id, goal: plan.goal },
+              message: `Created todo plan: ${goal}`
+            };
+          }
+
+          case 'add': {
+            if (!todos || todos.length === 0) {
+              return {
+                success: false,
+                error: 'Missing required parameter',
+                message: 'todos array is required for add action'
+              };
+            }
+            const plan = this.todoPlanService.getActivePlan(conversationId);
+            if (!plan) {
+              return {
+                success: false,
+                error: 'No active plan',
+                message: 'No active plan found. Create a plan first with action: create'
+              };
+            }
+            this.todoPlanService.addTodos(plan.id, todos);
+            return {
+              success: true,
+              data: { planId: plan.id, todosAdded: todos.length },
+              message: `Added ${todos.length} todo(s) to plan`
+            };
+          }
+
+          case 'update': {
+            if (!todoId || !status) {
+              return {
+                success: false,
+                error: 'Missing required parameters',
+                message: 'todoId and status are required for update action'
+              };
+            }
+            const plan = this.todoPlanService.getActivePlan(conversationId);
+            if (!plan) {
+              return {
+                success: false,
+                error: 'No active plan',
+                message: 'No active plan found'
+              };
+            }
+            this.todoPlanService.updateTodoStatus(plan.id, todoId, status, result, error);
+            return {
+              success: true,
+              data: { planId: plan.id, todoId, status },
+              message: `Updated todo status to: ${status}`
+            };
+          }
+
+          case 'complete': {
+            const plan = this.todoPlanService.getActivePlan(conversationId);
+            if (!plan) {
+              return {
+                success: false,
+                error: 'No active plan',
+                message: 'No active plan found'
+              };
+            }
+            this.todoPlanService.completePlan(plan.id);
+            return {
+              success: true,
+              data: { planId: plan.id },
+              message: 'Completed todo plan'
+            };
+          }
+
+          case 'get': {
+            const plan = this.todoPlanService.getActivePlan(conversationId);
+            if (!plan) {
+              return {
+                success: true,
+                data: null,
+                message: 'No active plan'
+              };
+            }
+            return {
+              success: true,
+              data: plan,
+              message: `Active plan: ${plan.goal}`
+            };
+          }
+
+          default:
+            return {
+              success: false,
+              error: 'Invalid action',
+              message: `Unknown action: ${action}`
+            };
+        }
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+          message: `Failed to manage todos: ${error instanceof Error ? error.message : String(error)}`
         };
       }
     }

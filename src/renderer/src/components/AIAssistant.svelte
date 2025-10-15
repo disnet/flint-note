@@ -3,8 +3,10 @@
   import LoadingMessage from './LoadingMessage.svelte';
   import MessageInput from './MessageInput.svelte';
   import AgentControlBar from './AgentControlBar.svelte';
+  import TodoPlanWidget from './TodoPlanWidget.svelte';
   import type { Message, ContextUsage } from '../services/types';
   import { unifiedChatStore } from '../stores/unifiedChatStore.svelte';
+  import { TodoPlanStore } from '../stores/todoPlanStore.svelte';
 
   interface Props {
     messages: Message[];
@@ -27,10 +29,28 @@
   let chatContainer = $state<HTMLDivElement>();
   let expandedDiscussed = $state<boolean>(true);
 
+  // Todo plan store
+  const todoPlanStore = new TodoPlanStore();
+
   // Track the active thread ID to detect changes
   let lastThreadId = $state<string | null>(null);
   let updateTimeoutId: number | null = null;
   let requestCounter = $state<number>(0);
+
+  // Monitor todo plan for active thread
+  $effect(() => {
+    const currentThreadId = unifiedChatStore.activeThreadId;
+
+    if (currentThreadId) {
+      todoPlanStore.startMonitoring(currentThreadId);
+    } else {
+      todoPlanStore.stopMonitoring();
+    }
+
+    return () => {
+      todoPlanStore.stopMonitoring();
+    };
+  });
 
   // Fetch context usage when conversation changes or messages change
   // Use a simpler approach: track the active thread object directly
@@ -239,6 +259,10 @@
     {/each}
     {#if isLoading}
       <LoadingMessage />
+    {/if}
+    <!-- Todo Plan Widget -->
+    {#if todoPlanStore.activePlan}
+      <TodoPlanWidget plan={todoPlanStore.activePlan} />
     {/if}
   </div>
 
