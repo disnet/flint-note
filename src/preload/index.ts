@@ -18,6 +18,17 @@ interface CacheConfig {
   historySegmentSize: number;
 }
 
+interface ContextUsage {
+  conversationId: string;
+  systemPromptTokens: number;
+  conversationHistoryTokens: number;
+  totalTokens: number;
+  maxTokens: number;
+  percentage: number;
+  warningLevel: 'none' | 'warning' | 'critical' | 'full';
+  estimatedMessagesRemaining: number;
+}
+
 import type { NoteMetadata } from '../server/types';
 
 export type ToolCallData = {
@@ -272,6 +283,15 @@ const api = {
   stopPerformanceMonitoring: () =>
     electronAPI.ipcRenderer.invoke('stop-performance-monitoring'),
   warmupSystemCache: () => electronAPI.ipcRenderer.invoke('warmup-system-cache'),
+
+  // Context usage monitoring operations
+  getContextUsage: (params?: { conversationId?: string }): Promise<ContextUsage> =>
+    electronAPI.ipcRenderer.invoke('get-context-usage', params),
+  canAcceptMessage: (params: {
+    estimatedTokens: number;
+    conversationId?: string;
+  }): Promise<{ canAccept: boolean; reason?: string }> =>
+    electronAPI.ipcRenderer.invoke('can-accept-message', params),
 
   // Global settings storage operations
   loadAppSettings: () => electronAPI.ipcRenderer.invoke('load-app-settings'),

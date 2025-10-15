@@ -31,6 +31,17 @@ export interface ToolCall {
   error?: string;
 }
 
+export interface ContextUsage {
+  conversationId: string;
+  systemPromptTokens: number;
+  conversationHistoryTokens: number;
+  totalTokens: number;
+  maxTokens: number;
+  percentage: number;
+  warningLevel: 'none' | 'warning' | 'critical' | 'full';
+  estimatedMessagesRemaining: number;
+}
+
 export interface Message {
   id: string;
   text: string;

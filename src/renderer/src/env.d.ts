@@ -44,6 +44,17 @@ interface CacheConfig {
   historySegmentSize: number;
 }
 
+interface ContextUsage {
+  conversationId: string;
+  systemPromptTokens: number;
+  conversationHistoryTokens: number;
+  totalTokens: number;
+  maxTokens: number;
+  percentage: number;
+  warningLevel: 'none' | 'warning' | 'critical' | 'full';
+  estimatedMessagesRemaining: number;
+}
+
 type ToolCallData = {
   toolCallId: string;
   name: string;
@@ -231,6 +242,13 @@ declare global {
       startPerformanceMonitoring: (intervalMinutes?: number) => Promise<any>;
       stopPerformanceMonitoring: () => Promise<any>;
       warmupSystemCache: () => Promise<any>;
+
+      // Context usage monitoring operations
+      getContextUsage: (params?: { conversationId?: string }) => Promise<ContextUsage>;
+      canAcceptMessage: (params: {
+        estimatedTokens: number;
+        conversationId?: string;
+      }) => Promise<{ canAccept: boolean; reason?: string }>;
 
       // Usage tracking
       onUsageRecorded: (callback: (usageData: unknown) => void) => void;

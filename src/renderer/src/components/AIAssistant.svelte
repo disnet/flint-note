@@ -3,7 +3,9 @@
   import LoadingMessage from './LoadingMessage.svelte';
   import MessageInput from './MessageInput.svelte';
   import AgentControlBar from './AgentControlBar.svelte';
-  import type { Message } from '../services/types';
+  import ContextUsageBar from './ContextUsageBar.svelte';
+  import type { Message, ContextUsage } from '../services/types';
+  import { unifiedChatStore } from '../stores/unifiedChatStore.svelte';
 
   interface Props {
     messages: Message[];
@@ -14,8 +16,33 @@
 
   let { messages, isLoading = false, onNoteClick, onSendMessage }: Props = $props();
 
+  let contextUsage = $state<ContextUsage | null>(null);
+
   let chatContainer = $state<HTMLDivElement>();
   let expandedDiscussed = $state<boolean>(true);
+
+  // Fetch context usage when conversation changes or messages change
+  $effect(() => {
+    if (unifiedChatStore.activeThreadId && messages.length > 0) {
+      updateContextUsage();
+    }
+  });
+
+  async function updateContextUsage(): Promise<void> {
+    try {
+      const usage = await window.api?.getContextUsage({
+        conversationId: unifiedChatStore.activeThreadId ?? undefined
+      });
+      contextUsage = usage || null;
+    } catch (error) {
+      console.error('Failed to get context usage:', error);
+      contextUsage = null;
+    }
+  }
+
+  function handleContextWarningClick(): void {
+    unifiedChatStore.createThread();
+  }
 
   // Extract notes discussed from messages
   const notesDiscussed = $derived.by<string[]>(() => {
@@ -132,6 +159,9 @@
 
   <!-- Chat Messages Section -->
   <div class="chat-section" bind:this={chatContainer}>
+    {#if contextUsage && messages.length > 0}
+      <ContextUsageBar {contextUsage} onWarningClick={handleContextWarningClick} />
+    {/if}
     {#each messages as message (message.id)}
       <MessageComponent {message} {onNoteClick} />
     {/each}

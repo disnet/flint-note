@@ -20,7 +20,7 @@ This document analyzes the current state of Flint's LLM agent interactions and p
 
 **UI Components**
 
-- `ChatView.svelte`: Main conversation container
+- `AIAssistant.svelte`: Main conversation container
 - `MessageComponent.svelte`: Individual message display
 - `ToolCallComponent.svelte`: Collapsible tool call widget (one per tool call)
 - `ConversationHistory.svelte`: Thread list sidebar

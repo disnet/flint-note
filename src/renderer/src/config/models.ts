@@ -3,7 +3,8 @@ export interface ModelInfo {
   name: string;
   provider: string;
   icon: string;
-  contextLength?: number;
+  contextLength: number;
+  recommendedMaxConversation: number; // 70% of context length
 }
 
 export const SUPPORTED_MODELS: ModelInfo[] = [
@@ -23,14 +24,16 @@ export const SUPPORTED_MODELS: ModelInfo[] = [
     name: 'Claude 4.5 Sonnet',
     provider: 'Anthropic',
     icon: '🧠',
-    contextLength: 200000
+    contextLength: 200000,
+    recommendedMaxConversation: 140000 // 70% of 200k
   },
   {
     id: 'anthropic/claude-3.5-haiku',
     name: 'Claude 3.5 Haiku',
     provider: 'Anthropic',
     icon: '🧠',
-    contextLength: 200000
+    contextLength: 200000,
+    recommendedMaxConversation: 140000 // 70% of 200k
   }
 ];
 

@@ -1199,6 +1199,30 @@ app.whenReady().then(async () => {
     return { success: true };
   });
 
+  // Context usage monitoring handlers
+  ipcMain.handle(
+    'get-context-usage',
+    async (_event, params?: { conversationId?: string }) => {
+      if (!aiService) {
+        throw new Error('AI service not available');
+      }
+      return await aiService.getContextUsage(params?.conversationId);
+    }
+  );
+
+  ipcMain.handle(
+    'can-accept-message',
+    async (_event, params: { estimatedTokens: number; conversationId?: string }) => {
+      if (!aiService) {
+        throw new Error('AI service not available');
+      }
+      return await aiService.canAcceptMessage(
+        params.estimatedTokens,
+        params.conversationId
+      );
+    }
+  );
+
   // Global settings storage handlers
   ipcMain.handle('load-app-settings', async () => {
     if (!settingsStorageService) {

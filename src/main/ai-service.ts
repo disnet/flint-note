@@ -36,6 +36,17 @@ interface CachePerformanceSnapshot {
   recommendedOptimizations: string[];
 }
 
+interface ContextUsage {
+  conversationId: string;
+  systemPromptTokens: number;
+  conversationHistoryTokens: number;
+  totalTokens: number;
+  maxTokens: number;
+  percentage: number;
+  warningLevel: 'none' | 'warning' | 'critical' | 'full';
+  estimatedMessagesRemaining: number;
+}
+
 interface FrontendMessage {
   id: string;
   text: string;
@@ -1194,6 +1205,93 @@ ${
 
   getConversationHistory(): Array<ModelMessage> {
     return [...this.getActiveConversationHistory()];
+  }
+
+  /**
+   * Get context usage information for a conversation
+   */
+  async getContextUsage(conversationId?: string): Promise<ContextUsage> {
+    const targetConversationId = conversationId || this.currentConversationId;
+    if (!targetConversationId) {
+      return {
+        conversationId: 'none',
+        systemPromptTokens: 0,
+        conversationHistoryTokens: 0,
+        totalTokens: 0,
+        maxTokens: 200000,
+        percentage: 0,
+        warningLevel: 'none',
+        estimatedMessagesRemaining: 999
+      };
+    }
+
+    // Get system prompt tokens
+    const systemMessage = await this.getSystemMessage();
+    const systemPromptTokens = this.estimateTokens(systemMessage);
+
+    // Get conversation history tokens
+    const history = this.getConversationMessages(targetConversationId);
+    const conversationHistoryTokens = this.estimateTokens(history);
+
+    // Calculate total
+    const totalTokens = systemPromptTokens + conversationHistoryTokens;
+
+    // Get max tokens for current model (default to 200k for Claude models)
+    const maxTokens = 200000;
+
+    // Calculate percentage
+    const percentage = (totalTokens / maxTokens) * 100;
+
+    // Determine warning level
+    let warningLevel: 'none' | 'warning' | 'critical' | 'full' = 'none';
+    if (percentage >= 95) {
+      warningLevel = 'full';
+    } else if (percentage >= 80) {
+      warningLevel = 'critical';
+    } else if (percentage >= 70) {
+      warningLevel = 'warning';
+    }
+
+    // Estimate messages remaining
+    const averageTokensPerMessage =
+      history.length > 0 ? conversationHistoryTokens / history.length : 500;
+    const remainingTokens = maxTokens - totalTokens;
+    const estimatedMessagesRemaining = Math.floor(
+      remainingTokens / averageTokensPerMessage
+    );
+
+    return {
+      conversationId: targetConversationId,
+      systemPromptTokens,
+      conversationHistoryTokens,
+      totalTokens,
+      maxTokens,
+      percentage,
+      warningLevel,
+      estimatedMessagesRemaining: Math.max(0, estimatedMessagesRemaining)
+    };
+  }
+
+  /**
+   * Check if a message with estimated tokens can fit in the context
+   */
+  async canAcceptMessage(
+    estimatedTokens: number,
+    conversationId?: string
+  ): Promise<{ canAccept: boolean; reason?: string }> {
+    const usage = await this.getContextUsage(conversationId);
+
+    // Reserve 30% of context window for response and tool outputs
+    const safeMaxTokens = usage.maxTokens * 0.7;
+
+    if (usage.totalTokens + estimatedTokens > safeMaxTokens) {
+      return {
+        canAccept: false,
+        reason: `Message would exceed safe context limit (${Math.round(safeMaxTokens)} tokens). Current usage: ${usage.totalTokens} tokens.`
+      };
+    }
+
+    return { canAccept: true };
   }
 
   async sendMessageStream(
