@@ -63,6 +63,7 @@ export class ToolService {
       get_vault_info: this.getVaultInfoTool,
       delete_note: this.deleteNoteTool,
       // Note type management tools
+      get_note_type_details: this.getNoteTypeDetailsTool,
       create_note_type: this.createNoteTypeTool,
       update_note_type: this.updateNoteTypeTool,
       delete_note_type: this.deleteNoteTypeTool
@@ -972,6 +973,70 @@ export class ToolService {
           success: false,
           error: 'DELETE_FAILED',
           message: `Failed to delete note: ${errorMessage}`
+        };
+      }
+    }
+  });
+
+  private getNoteTypeDetailsTool = tool({
+    description:
+      'Get detailed information about a note type including its purpose, full agent instructions, and metadata schema. Use this before creating or working with notes of a specific type to understand how to handle them properly.',
+    inputSchema: z.object({
+      typeName: z.string().describe('Name of the note type to get details for')
+    }),
+    execute: async ({ typeName }) => {
+      if (!this.noteService) {
+        return {
+          success: false,
+          error: 'Note service not available',
+          message: 'Note service not initialized'
+        };
+      }
+
+      try {
+        const currentVault = await this.noteService.getCurrentVault();
+        if (!currentVault) {
+          return {
+            success: false,
+            error: 'NO_ACTIVE_VAULT',
+            message: 'No active vault available'
+          };
+        }
+
+        // Get the note type details from the note service
+        const noteTypeInfo = await this.noteService.getNoteTypeInfo({
+          type_name: typeName,
+          vault_id: currentVault.id
+        });
+
+        return {
+          success: true,
+          data: {
+            name: noteTypeInfo.name,
+            purpose: noteTypeInfo.purpose,
+            agentInstructions: noteTypeInfo.instructions,
+            metadataSchema: noteTypeInfo.metadata_schema
+          },
+          message: `Retrieved details for note type '${typeName}'`
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+
+        if (
+          errorMessage.includes('does not exist') ||
+          errorMessage.includes('not found')
+        ) {
+          return {
+            success: false,
+            error: 'NOTE_TYPE_NOT_FOUND',
+            message: `Note type '${typeName}' not found`
+          };
+        }
+
+        return {
+          success: false,
+          error: 'GET_NOTE_TYPE_FAILED',
+          message: `Failed to get note type details: ${errorMessage}`
         };
       }
     }

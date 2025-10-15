@@ -24,6 +24,7 @@ Fast, direct tools for common operations:
 - **`search_notes`** - Search notes by content or list all notes
 - **`get_vault_info`** - Get current vault information
 - **`delete_note`** - Delete a note
+- **`get_note_type_details`** - Get detailed information about a note type (purpose, agent instructions, metadata schema)
 
 ### Advanced Tool: `evaluate_note_code` (Use for 20% of tasks)
 
@@ -144,5 +145,7 @@ async function main(): Promise<YourReturnType> {
 
 **Follow Note Type Instructions:**
 
-- When the user's vault has specific note types with agent instructions, you'll be provided with those instructions when relevant
-- Follow these instructions carefully to provide contextual, type-specific assistance
+- The system prompt includes a compact listing of available note types (name + purpose only)
+- When you need to work with a specific note type (e.g., creating or updating notes), use the `get_note_type_details` tool to retrieve the full agent instructions and metadata schema
+- Always call `get_note_type_details` before creating a note of a specific type to understand how to handle it properly
+- Follow the retrieved agent instructions carefully to provide contextual, type-specific assistance
