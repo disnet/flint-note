@@ -136,7 +136,7 @@ export class ElectronChatService implements ChatService, NoteService {
     onToolCall?: (toolCall: any) => void,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onToolResult?: (toolCall: any) => void
-  ): void {
+  ): string {
     const requestId = crypto.randomUUID();
 
     window.api.sendMessageStream(
@@ -189,6 +189,8 @@ export class ElectronChatService implements ChatService, NoteService {
           }
         : undefined
     );
+
+    return requestId;
   }
 
   // Conversation sync operations

@@ -37,9 +37,17 @@
     onSend: (text: string) => void;
     contextUsage?: ContextUsage | null;
     onStartNewThread?: () => void;
+    isLoading?: boolean;
+    onCancel?: () => void;
   }
 
-  let { onSend, contextUsage = null, onStartNewThread }: Props = $props();
+  let {
+    onSend,
+    contextUsage = null,
+    onStartNewThread,
+    isLoading = false,
+    onCancel
+  }: Props = $props();
 
   let inputText = $state('');
   let autocompleteComponent = $state<SlashCommandAutocompleteType | null>(null);
@@ -661,9 +669,13 @@
       <ModelSelector />
     </div>
     <ContextUsageWidget {contextUsage} onWarningClick={onStartNewThread} />
-    <button onclick={handleSubmit} disabled={!inputText.trim()} class="send-button">
-      submit ↵
-    </button>
+    {#if isLoading}
+      <button onclick={onCancel} class="send-button cancel-button"> cancel </button>
+    {:else}
+      <button onclick={handleSubmit} disabled={!inputText.trim()} class="send-button">
+        submit ↵
+      </button>
+    {/if}
   </div>
 </div>
 
@@ -744,6 +756,19 @@
   }
 
   .send-button:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  .cancel-button {
+    background: var(--bg-tertiary);
+  }
+
+  .cancel-button:hover {
+    background: var(--bg-secondary);
+    transform: translateY(-1px);
+  }
+
+  .cancel-button:active {
     transform: translateY(0);
   }
 

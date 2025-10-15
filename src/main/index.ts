@@ -427,6 +427,18 @@ app.whenReady().then(async () => {
     return { success: false, error: 'AI service not available' };
   });
 
+  // Cancel streaming message
+  ipcMain.handle(
+    'cancel-message-stream',
+    async (_event, params: { requestId: string }) => {
+      if (aiService) {
+        const cancelled = aiService.cancelStream(params.requestId);
+        return { success: cancelled };
+      }
+      return { success: false, error: 'AI service not available' };
+    }
+  );
+
   // Sync conversation from frontend
   ipcMain.handle(
     'sync-conversation',

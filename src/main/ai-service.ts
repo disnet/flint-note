@@ -66,6 +66,7 @@ export class AIService extends EventEmitter {
   private customFunctionsApi: CustomFunctionsApi;
   private readonly maxConversationHistory = 20;
   private readonly maxConversations = 100;
+  private activeAbortControllers: Map<string, AbortController> = new Map();
   private cacheConfig: CacheConfig = {
     enableSystemMessageCaching: true,
     enableHistoryCaching: false, // Start with system message caching only
@@ -1300,12 +1301,31 @@ ${
     return { canAccept: true };
   }
 
+  /**
+   * Cancel an active streaming request
+   */
+  cancelStream(requestId: string): boolean {
+    const abortController = this.activeAbortControllers.get(requestId);
+    if (abortController) {
+      abortController.abort();
+      this.activeAbortControllers.delete(requestId);
+      logger.info('Cancelled streaming request', { requestId });
+      return true;
+    }
+    logger.warn('No active streaming request found to cancel', { requestId });
+    return false;
+  }
+
   async sendMessageStream(
     userMessage: string,
     requestId: string,
     conversationId?: string,
     modelName?: string
   ): Promise<void> {
+    // Create an abort controller for this request
+    const abortController = new AbortController();
+    this.activeAbortControllers.set(requestId, abortController);
+
     try {
       // Switch model if specified
       if (modelName) {
@@ -1346,7 +1366,8 @@ ${
           model: this.openrouter(this.currentModelName),
           messages,
           tools,
-          stopWhen: stepCountIs(10) // Allow up to 10 steps for multi-turn tool calling
+          stopWhen: stepCountIs(10), // Allow up to 10 steps for multi-turn tool calling
+          abortSignal: abortController.signal
         });
 
         let fullText = '';
@@ -1432,7 +1453,24 @@ ${
         );
 
         this.emit('stream-end', { requestId, fullText });
+
+        // Clean up abort controller
+        this.activeAbortControllers.delete(requestId);
       } catch (streamError: unknown) {
+        // Clean up abort controller on error
+        this.activeAbortControllers.delete(requestId);
+
+        // Check if this was an abort
+        if (
+          streamError &&
+          typeof streamError === 'object' &&
+          'name' in streamError &&
+          streamError.name === 'AbortError'
+        ) {
+          logger.info('Stream aborted by user', { requestId });
+          this.emit('stream-error', { requestId, error: 'Request cancelled by user' });
+          return;
+        }
         // Handle tool input validation errors specifically
         if (
           streamError &&
@@ -1478,7 +1516,22 @@ ${
         throw streamError;
       }
     } catch (error) {
+      // Clean up abort controller
+      this.activeAbortControllers.delete(requestId);
+
       logger.error('AI Service Streaming Error', { error });
+
+      // Check if this was an abort
+      if (
+        error &&
+        typeof error === 'object' &&
+        'name' in error &&
+        error.name === 'AbortError'
+      ) {
+        logger.info('Stream aborted by user', { requestId });
+        this.emit('stream-error', { requestId, error: 'Request cancelled by user' });
+        return;
+      }
 
       // Check if this is an API key authentication error
       if (this.isApiKeyError(error)) {

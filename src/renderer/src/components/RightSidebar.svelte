@@ -10,16 +10,24 @@
     isLoading: boolean;
     onNoteClick: (noteId: string) => void;
     onSendMessage?: (text: string) => void;
+    onCancelMessage?: () => void;
   }
 
-  let { messages, isLoading, onNoteClick, onSendMessage }: Props = $props();
+  let { messages, isLoading, onNoteClick, onSendMessage, onCancelMessage }: Props =
+    $props();
 </script>
 
 <div class="right-sidebar" class:visible={sidebarState.rightSidebar.visible}>
   <div class="sidebar-content">
     {#if sidebarState.rightSidebar.mode === 'ai'}
       <div class="ai-mode">
-        <AIAssistant {messages} {isLoading} {onNoteClick} {onSendMessage} />
+        <AIAssistant
+          {messages}
+          {isLoading}
+          {onNoteClick}
+          {onSendMessage}
+          {onCancelMessage}
+        />
       </div>
     {:else if sidebarState.rightSidebar.mode === 'threads'}
       <div class="threads-mode">

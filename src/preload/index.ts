@@ -155,6 +155,8 @@ const api = {
     electronAPI.ipcRenderer.send('send-message-stream', params);
   },
   clearConversation: () => electronAPI.ipcRenderer.invoke('clear-conversation'),
+  cancelMessageStream: (params: { requestId: string }) =>
+    electronAPI.ipcRenderer.invoke('cancel-message-stream', params),
   syncConversation: (params: { conversationId: string; messages: FrontendMessage[] }) =>
     electronAPI.ipcRenderer.invoke('sync-conversation', params),
   setActiveConversation: (params: {

@@ -11,9 +11,16 @@
     isLoading?: boolean;
     onNoteClick?: (noteId: string) => void;
     onSendMessage?: (text: string) => void;
+    onCancelMessage?: () => void;
   }
 
-  let { messages, isLoading = false, onNoteClick, onSendMessage }: Props = $props();
+  let {
+    messages,
+    isLoading = false,
+    onNoteClick,
+    onSendMessage,
+    onCancelMessage
+  }: Props = $props();
 
   let contextUsage = $state<ContextUsage | null>(null);
 
@@ -265,6 +272,8 @@
       onSend={onSendMessage || (() => {})}
       {contextUsage}
       onStartNewThread={handleContextWarningClick}
+      {isLoading}
+      onCancel={onCancelMessage}
     />
   </div>
 </div>

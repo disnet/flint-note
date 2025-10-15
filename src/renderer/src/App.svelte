@@ -74,6 +74,7 @@
   const messages = $derived(unifiedChatStore.activeThread?.messages || []);
 
   let isLoadingResponse = $state(false);
+  let currentRequestId = $state<string | null>(null);
   let activeSystemView = $state<'inbox' | 'daily' | 'notes' | 'settings' | null>(null);
 
   async function handleNoteSelect(note: NoteMetadata): Promise<void> {
@@ -415,6 +416,28 @@
     return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }
 
+  async function handleCancelMessage(): Promise<void> {
+    if (currentRequestId) {
+      try {
+        await window.api?.cancelMessageStream({ requestId: currentRequestId });
+
+        // Add a system message indicating cancellation
+        const cancellationMessage: Message = {
+          id: generateUniqueId(),
+          text: '_Request cancelled by user._',
+          sender: 'agent',
+          timestamp: new Date()
+        };
+        await unifiedChatStore.addMessage(cancellationMessage);
+
+        isLoadingResponse = false;
+        currentRequestId = null;
+      } catch (error) {
+        console.error('Failed to cancel message:', error);
+      }
+    }
+  }
+
   async function handleSendMessage(text: string): Promise<void> {
     // Check if message fits within context window
     const estimatedTokens = Math.ceil(text.length / 3.5);
@@ -469,7 +492,7 @@
 
       // Use streaming if available, otherwise fall back to regular sendMessage
       if (chatService.sendMessageStream) {
-        chatService.sendMessageStream(
+        currentRequestId = chatService.sendMessageStream(
           text,
           unifiedChatStore.activeThreadId || undefined,
           // onChunk: append text chunks to the current message
@@ -506,6 +529,7 @@
               }
             }
             isLoadingResponse = false;
+            currentRequestId = null;
           },
           // onError: handle streaming errors
           async (error: string) => {
@@ -514,6 +538,7 @@
               text: 'Sorry, I encountered an error while processing your message.'
             });
             isLoadingResponse = false;
+            currentRequestId = null;
           },
           modelStore.selectedModel,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -587,6 +612,7 @@
         });
 
         isLoadingResponse = false;
+        currentRequestId = null;
       }
     } catch (error) {
       console.error('Failed to send message:', error);
@@ -594,6 +620,7 @@
         text: 'Sorry, I encountered an error while processing your message.'
       });
       isLoadingResponse = false;
+      currentRequestId = null;
     }
   }
 
@@ -892,6 +919,7 @@
         isLoading={isLoadingResponse}
         onNoteClick={handleNoteClick}
         onSendMessage={handleSendMessage}
+        onCancelMessage={handleCancelMessage}
       />
     </div>
 
