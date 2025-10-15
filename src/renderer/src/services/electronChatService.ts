@@ -135,7 +135,13 @@ export class ElectronChatService implements ChatService, NoteService {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onToolCall?: (toolCall: any) => void,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    onToolResult?: (toolCall: any) => void
+    onToolResult?: (toolCall: any) => void,
+    onStoppedAtLimit?: (data: {
+      requestId: string;
+      stepCount: number;
+      maxSteps: number;
+      canContinue: boolean;
+    }) => void
   ): string {
     const requestId = crypto.randomUUID();
 
@@ -185,6 +191,14 @@ export class ElectronChatService implements ChatService, NoteService {
             // Handle tool result
             if (data.requestId === requestId) {
               onToolResult(data.toolCall);
+            }
+          }
+        : undefined,
+      onStoppedAtLimit
+        ? (data) => {
+            // Handle stopped at limit event
+            if (data.requestId === requestId) {
+              onStoppedAtLimit(data);
             }
           }
         : undefined

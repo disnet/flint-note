@@ -111,10 +111,26 @@ declare global {
         },
         onStreamStart: (data: { requestId: string }) => void,
         onStreamChunk: (data: { requestId: string; chunk: string }) => void,
-        onStreamEnd: (data: { requestId: string; fullText: string }) => void,
+        onStreamEnd: (data: {
+          requestId: string;
+          fullText: string;
+          stoppedAtLimit?: boolean;
+          stepCount?: number;
+          maxSteps?: number;
+          canContinue?: boolean;
+        }) => void,
         onStreamError: (data: { requestId: string; error: string }) => void,
         onStreamToolCall?: (data: { requestId: string; toolCall: ToolCallData }) => void,
-        onStreamToolResult?: (data: { requestId: string; toolCall: ToolCallData }) => void
+        onStreamToolResult?: (data: {
+          requestId: string;
+          toolCall: ToolCallData;
+        }) => void,
+        onStreamStoppedAtLimit?: (data: {
+          requestId: string;
+          stepCount: number;
+          maxSteps: number;
+          canContinue: boolean;
+        }) => void
       ) => void;
       clearConversation: () => Promise<any>;
       cancelMessageStream: (params: { requestId: string }) => Promise<any>;

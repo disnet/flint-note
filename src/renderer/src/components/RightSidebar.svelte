@@ -11,10 +11,21 @@
     onNoteClick: (noteId: string) => void;
     onSendMessage?: (text: string) => void;
     onCancelMessage?: () => void;
+    toolCallLimitReached?: { stepCount: number; maxSteps: number } | null;
+    onToolCallLimitContinue?: () => void;
+    onToolCallLimitStop?: () => void;
   }
 
-  let { messages, isLoading, onNoteClick, onSendMessage, onCancelMessage }: Props =
-    $props();
+  let {
+    messages,
+    isLoading,
+    onNoteClick,
+    onSendMessage,
+    onCancelMessage,
+    toolCallLimitReached,
+    onToolCallLimitContinue,
+    onToolCallLimitStop
+  }: Props = $props();
 </script>
 
 <div class="right-sidebar" class:visible={sidebarState.rightSidebar.visible}>
@@ -27,6 +38,9 @@
           {onNoteClick}
           {onSendMessage}
           {onCancelMessage}
+          {toolCallLimitReached}
+          {onToolCallLimitContinue}
+          {onToolCallLimitStop}
         />
       </div>
     {:else if sidebarState.rightSidebar.mode === 'threads'}

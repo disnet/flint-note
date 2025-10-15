@@ -1431,11 +1431,13 @@ ${
           model: this.openrouter(this.currentModelName),
           messages,
           tools,
-          stopWhen: stepCountIs(10), // Allow up to 10 steps for multi-turn tool calling
+          stopWhen: stepCountIs(3), // Allow up to 3 steps for multi-turn tool calling (testing)
           abortSignal: abortController.signal
         });
 
         let fullText = '';
+
+        let stepCount = 0;
 
         // Use fullStream to get real-time tool call events as they happen
         for await (const event of result.fullStream) {
@@ -1445,6 +1447,8 @@ ${
             this.emit('stream-chunk', { requestId, chunk: event.text });
           } else if (event.type === 'tool-call') {
             // Handle tool calls as they arrive (before execution)
+            // Each tool-call event represents a step, so increment counter
+            stepCount++;
             const toolCallData = {
               id: event.toolCallId,
               name: event.toolName,
@@ -1517,7 +1521,22 @@ ${
           undefined // Streaming doesn't provide providerMetadata in the same way
         );
 
-        this.emit('stream-end', { requestId, fullText });
+        // Check if we hit the tool call limit
+        const maxSteps = 3; // Same as stepCountIs(3)
+        const stoppedAtLimit = stepCount >= maxSteps;
+
+        if (stoppedAtLimit) {
+          logger.info('Tool call limit reached', { requestId, stepCount, maxSteps });
+        }
+
+        this.emit('stream-end', {
+          requestId,
+          fullText,
+          stoppedAtLimit,
+          stepCount: stoppedAtLimit ? stepCount : undefined,
+          maxSteps: stoppedAtLimit ? maxSteps : undefined,
+          canContinue: stoppedAtLimit ? true : undefined
+        });
 
         // Clean up abort controller
         this.activeAbortControllers.delete(requestId);

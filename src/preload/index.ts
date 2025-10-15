@@ -133,10 +133,23 @@ const api = {
     },
     onStreamStart: (data: { requestId: string }) => void,
     onStreamChunk: (data: { requestId: string; chunk: string }) => void,
-    onStreamEnd: (data: { requestId: string; fullText: string }) => void,
+    onStreamEnd: (data: {
+      requestId: string;
+      fullText: string;
+      stoppedAtLimit?: boolean;
+      stepCount?: number;
+      maxSteps?: number;
+      canContinue?: boolean;
+    }) => void,
     onStreamError: (data: { requestId: string; error: string }) => void,
     onStreamToolCall?: (data: { requestId: string; toolCall: ToolCallData }) => void,
-    onStreamToolResult?: (data: { requestId: string; toolCall: ToolCallData }) => void
+    onStreamToolResult?: (data: { requestId: string; toolCall: ToolCallData }) => void,
+    onStreamStoppedAtLimit?: (data: {
+      requestId: string;
+      stepCount: number;
+      maxSteps: number;
+      canContinue: boolean;
+    }) => void
   ) => {
     // Set up event listeners
     electronAPI.ipcRenderer.on('ai-stream-start', (_event, data) => onStreamStart(data));
@@ -152,6 +165,15 @@ const api = {
       );
     }
     electronAPI.ipcRenderer.on('ai-stream-end', (_event, data) => {
+      // Check if the stream ended due to hitting the tool call limit
+      if (onStreamStoppedAtLimit && data.stoppedAtLimit) {
+        onStreamStoppedAtLimit({
+          requestId: data.requestId,
+          stepCount: data.stepCount!,
+          maxSteps: data.maxSteps!,
+          canContinue: data.canContinue!
+        });
+      }
       onStreamEnd(data);
       // Clean up listeners
       electronAPI.ipcRenderer.removeAllListeners('ai-stream-start');

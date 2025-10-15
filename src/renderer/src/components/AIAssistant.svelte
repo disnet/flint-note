@@ -4,6 +4,7 @@
   import MessageInput from './MessageInput.svelte';
   import AgentControlBar from './AgentControlBar.svelte';
   import TodoPlanWidget from './TodoPlanWidget.svelte';
+  import ToolCallLimitWidget from './ToolCallLimitWidget.svelte';
   import type { Message, ContextUsage } from '../services/types';
   import { unifiedChatStore } from '../stores/unifiedChatStore.svelte';
   import { TodoPlanStore } from '../stores/todoPlanStore.svelte';
@@ -14,6 +15,9 @@
     onNoteClick?: (noteId: string) => void;
     onSendMessage?: (text: string) => void;
     onCancelMessage?: () => void;
+    toolCallLimitReached?: { stepCount: number; maxSteps: number } | null;
+    onToolCallLimitContinue?: () => void;
+    onToolCallLimitStop?: () => void;
   }
 
   let {
@@ -21,7 +25,10 @@
     isLoading = false,
     onNoteClick,
     onSendMessage,
-    onCancelMessage
+    onCancelMessage,
+    toolCallLimitReached,
+    onToolCallLimitContinue,
+    onToolCallLimitStop
   }: Props = $props();
 
   let contextUsage = $state<ContextUsage | null>(null);
@@ -269,6 +276,18 @@
     {/if}
   </div>
 
+  <!-- Tool Call Limit Widget -->
+  {#if toolCallLimitReached}
+    <div class="tool-call-limit-section">
+      <ToolCallLimitWidget
+        stepCount={toolCallLimitReached.stepCount}
+        maxSteps={toolCallLimitReached.maxSteps}
+        onContinue={onToolCallLimitContinue || (() => {})}
+        onStop={onToolCallLimitStop || (() => {})}
+      />
+    </div>
+  {/if}
+
   <!-- Notes Discussed Section -->
   {#if notesDiscussed.length > 0}
     <div class="discussed-section">
@@ -341,6 +360,12 @@
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+  }
+
+  /* Tool Call Limit Section */
+  .tool-call-limit-section {
+    padding: 0 1.25rem 1rem;
+    flex-shrink: 0;
   }
 
   .chat-section::-webkit-scrollbar {

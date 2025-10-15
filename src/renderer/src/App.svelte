@@ -76,6 +76,10 @@
   let isLoadingResponse = $state(false);
   let currentRequestId = $state<string | null>(null);
   let activeSystemView = $state<'inbox' | 'daily' | 'notes' | 'settings' | null>(null);
+  let toolCallLimitReached = $state<{
+    stepCount: number;
+    maxSteps: number;
+  } | null>(null);
 
   async function handleNoteSelect(note: NoteMetadata): Promise<void> {
     await noteNavigationService.openNote(note, 'navigation', openNoteEditor, () => {
@@ -438,7 +442,21 @@
     }
   }
 
+  function handleToolCallLimitContinue(): void {
+    // Clear the limit state and send a message to continue
+    toolCallLimitReached = null;
+    handleSendMessage('Please continue with your previous task.');
+  }
+
+  function handleToolCallLimitStop(): void {
+    // Just clear the limit state
+    toolCallLimitReached = null;
+  }
+
   async function handleSendMessage(text: string): Promise<void> {
+    // Clear any existing limit state when sending a new message
+    toolCallLimitReached = null;
+
     // Check if message fits within context window
     const estimatedTokens = Math.ceil(text.length / 3.5);
     try {
@@ -595,6 +613,13 @@
                 });
               }
             }
+          },
+          (data) => {
+            // Handle tool call limit reached
+            toolCallLimitReached = {
+              stepCount: data.stepCount,
+              maxSteps: data.maxSteps
+            };
           }
         );
       } else {
@@ -920,6 +945,9 @@
         onNoteClick={handleNoteClick}
         onSendMessage={handleSendMessage}
         onCancelMessage={handleCancelMessage}
+        {toolCallLimitReached}
+        onToolCallLimitContinue={handleToolCallLimitContinue}
+        onToolCallLimitStop={handleToolCallLimitStop}
       />
     </div>
 

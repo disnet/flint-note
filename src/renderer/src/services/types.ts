@@ -73,7 +73,13 @@ export interface ChatService {
     onError: (error: string) => void,
     model?: string,
     onToolCall?: (toolCall: ToolCall) => void,
-    onToolResult?: (toolCall: ToolCall) => void
+    onToolResult?: (toolCall: ToolCall) => void,
+    onStoppedAtLimit?: (data: {
+      requestId: string;
+      stepCount: number;
+      maxSteps: number;
+      canContinue: boolean;
+    }) => void
   ): string;
 }
 
