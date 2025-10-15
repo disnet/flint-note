@@ -90,7 +90,9 @@ For complex multi-step operations, use the `manage_todos` tool to track your pro
 2. **Add** specific todos with both imperative and active forms
    - Imperative form (content): "Search for all meeting notes"
    - Active form (activeForm): "Searching for all meeting notes"
+   - The tool returns todo IDs (todo-1, todo-2, etc.) for use in updates
 3. **Update** todo status as you work:
+   - Use the IDs returned from the add action (todo-1, todo-2, etc.)
    - Mark as **in_progress** BEFORE starting work (exactly one at a time)
    - Mark as **completed** IMMEDIATELY after finishing
    - Mark as **failed** if errors occur (with error message)
@@ -111,7 +113,7 @@ User: "Reorganize all my meeting notes from Q4"
 1. Create plan:
    manage_todos({ action: 'create', goal: 'Reorganize all Q4 meeting notes' })
 
-2. Add todos:
+2. Add todos (returns IDs: todo-1, todo-2, todo-3, todo-4, todo-5):
    manage_todos({
      action: 'add',
      todos: [
@@ -123,7 +125,7 @@ User: "Reorganize all my meeting notes from Q4"
      ]
    })
 
-3. Execute (for each todo):
+3. Execute (use returned IDs):
    manage_todos({ action: 'update', todoId: 'todo-1', status: 'in_progress' })
    [perform work...]
    manage_todos({ action: 'update', todoId: 'todo-1', status: 'completed', result: { notesFound: 47 } })

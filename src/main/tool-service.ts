@@ -1668,11 +1668,15 @@ export class ToolService {
                 message: 'No active plan found. Create a plan first with action: create'
               };
             }
-            this.todoPlanService.addTodos(plan.id, todos);
+            const addedTodos = this.todoPlanService.addTodos(plan.id, todos);
             return {
               success: true,
-              data: { planId: plan.id, todosAdded: todos.length },
-              message: `Added ${todos.length} todo(s) to plan`
+              data: {
+                planId: plan.id,
+                todosAdded: todos.length,
+                todoIds: addedTodos.map((t) => t.id)
+              },
+              message: `Added ${todos.length} todo(s) to plan. IDs: ${addedTodos.map((t) => t.id).join(', ')}`
             };
           }
 

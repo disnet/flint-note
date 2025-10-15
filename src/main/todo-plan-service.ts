@@ -50,15 +50,22 @@ export class TodoPlanService {
 
   /**
    * Add todos to an existing plan
+   * Returns the added todo items with their IDs
    */
-  addTodos(planId: string, items: Array<{ content: string; activeForm: string }>): void {
+  addTodos(
+    planId: string,
+    items: Array<{ content: string; activeForm: string }>
+  ): TodoItem[] {
     const plan = this.activePlans.get(planId);
     if (!plan) {
       throw new Error(`Plan ${planId} not found`);
     }
 
-    const newTodos: TodoItem[] = items.map((item) => ({
-      id: randomUUID(),
+    // Generate sequential IDs starting from the next available number
+    const startIndex = plan.items.length + 1;
+
+    const newTodos: TodoItem[] = items.map((item, index) => ({
+      id: `todo-${startIndex + index}`,
       content: item.content,
       activeForm: item.activeForm,
       status: 'pending' as const,
@@ -68,6 +75,8 @@ export class TodoPlanService {
 
     plan.items.push(...newTodos);
     plan.updated = new Date();
+
+    return newTodos;
   }
 
   /**
