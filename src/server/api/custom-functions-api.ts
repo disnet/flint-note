@@ -295,7 +295,7 @@ export class CustomFunctionsApi {
   }
 
   /**
-   * Get custom functions formatted for system prompt
+   * Get custom functions formatted for system prompt (full details)
    */
   async getSystemPromptSection(): Promise<string> {
     const functions = await this.store.list();
@@ -346,6 +346,36 @@ export class CustomFunctionsApi {
       prompt += exampleParams;
       prompt += `);\n\n`;
     }
+
+    return prompt;
+  }
+
+  /**
+   * Get custom functions formatted for system prompt (compact listing only)
+   * Tier 2: Compact registry of available functions without full documentation
+   */
+  async getCompactSystemPromptSection(): Promise<string> {
+    const functions = await this.store.list();
+
+    if (functions.length === 0) {
+      return '';
+    }
+
+    let prompt = '\n## Available Custom Functions\n\n';
+    prompt += `Your vault has ${functions.length} custom function(s) available via \`customFunctions\` namespace:\n`;
+
+    for (const func of functions) {
+      const paramList = Object.entries(func.parameters)
+        .map(([name, param]) => {
+          const optional = param.optional ? '?' : '';
+          return `${name}${optional}: ${param.type}`;
+        })
+        .join(', ');
+
+      prompt += `- **${func.name}(${paramList})**: ${func.description}\n`;
+    }
+
+    prompt += `\nNote: Full function signatures and parameters will be provided when needed.\n`;
 
     return prompt;
   }

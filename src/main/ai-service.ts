@@ -237,7 +237,11 @@ Use these tools to help users manage their notes effectively and answer their qu
     return this.currentModelName.startsWith('anthropic/');
   }
 
-  private async getSystemMessage(): Promise<string> {
+  /**
+   * Get Tier 2 vault context (compact listing of note types and custom functions)
+   * This is designed to be cached efficiently per vault
+   */
+  private async getVaultContext(): Promise<string> {
     const today = new Date().toLocaleDateString('en-US', {
       month: 'long',
       day: 'numeric',
@@ -257,20 +261,14 @@ Use these tools to help users manage their notes effectively and answer their qu
         const currentVault = await this.noteService.getCurrentVault();
         if (currentVault) {
           const noteTypes = await this.noteService.listNoteTypes(currentVault.id);
-          noteTypeInfo = `## User's Current Note Types
-
-  ${noteTypes
-    .map(
-      (nt) => `### ${nt.name}
-
-#### purpose
-${nt.purpose}
-
-#### instructions
-${nt.agentInstructions.map((instruction) => `- ${instruction}`).join('\n')}
-  `
-    )
-    .join('\n')}`;
+          if (noteTypes.length > 0) {
+            noteTypeInfo = `\n## Available Note Types\n\n`;
+            noteTypeInfo += `Your vault has ${noteTypes.length} note type(s):\n`;
+            noteTypeInfo += noteTypes
+              .map((nt) => `- **${nt.name}**: ${nt.purpose || 'No description'}`)
+              .join('\n');
+            noteTypeInfo += `\n\nNote: Full agent instructions for each type will be provided when relevant.\n`;
+          }
         }
       } catch (error) {
         logger.warn('Failed to load note types for system message:', { error });
@@ -278,16 +276,24 @@ ${nt.agentInstructions.map((instruction) => `- ${instruction}`).join('\n')}
       }
     }
 
-    // Add custom functions to system prompt
+    // Add compact custom functions listing to system prompt
     let customFunctionsInfo = '';
     try {
-      customFunctionsInfo = await this.customFunctionsApi.getSystemPromptSection();
+      customFunctionsInfo = await this.customFunctionsApi.getCompactSystemPromptSection();
     } catch (error) {
       logger.warn('Failed to load custom functions for system message:', { error });
       // Continue without custom functions info if loading fails
     }
 
-    return this.systemPrompt + contextualInfo + noteTypeInfo + customFunctionsInfo;
+    return contextualInfo + noteTypeInfo + customFunctionsInfo;
+  }
+
+  /**
+   * Get complete system message (Tier 1 + Tier 2)
+   */
+  private async getSystemMessage(): Promise<string> {
+    const vaultContext = await this.getVaultContext();
+    return this.systemPrompt + vaultContext;
   }
 
   private async getSystemMessageWithCaching(): Promise<ModelMessage> {
