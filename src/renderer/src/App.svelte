@@ -165,11 +165,37 @@
   }
 
   async function handleNoteClick(noteId: string): Promise<void> {
-    // Find the note in the notes store
+    // Find the note in the notes store using the same logic as wikilink resolution
     const notes = notesStore.notes;
-    const note = notes.find(
-      (n) => n.filename === noteId || n.id === noteId || n.title === noteId
-    );
+    const normalizedIdentifier = noteId.toLowerCase().trim();
+
+    // First, try to match by note ID (exact match)
+    let note = notes.find((n) => n.id.toLowerCase() === normalizedIdentifier);
+
+    // Then try to match by type/filename format (e.g., "sketch/what-makes-a-good-thinking-system")
+    if (!note && normalizedIdentifier.includes('/')) {
+      const [type, ...filenameParts] = normalizedIdentifier.split('/');
+      const filename = filenameParts.join('/'); // Handle nested paths if any
+
+      note = notes.find(
+        (n) =>
+          n.type.toLowerCase() === type &&
+          n.filename.toLowerCase().replace(/\.md$/, '').trim() === filename
+      );
+    }
+
+    // Then try to match by title (case-insensitive)
+    if (!note) {
+      note = notes.find((n) => n.title.toLowerCase().trim() === normalizedIdentifier);
+    }
+
+    // Finally, try to match by filename without .md extension
+    if (!note) {
+      note = notes.find(
+        (n) =>
+          n.filename.toLowerCase().replace(/\.md$/, '').trim() === normalizedIdentifier
+      );
+    }
 
     if (note) {
       await noteNavigationService.openNote(note, 'wikilink', openNoteEditor);
