@@ -120,7 +120,6 @@
     width: 24px;
     height: 24px;
     overflow: visible;
-    cursor: help;
   }
 
   .context-widget.warning {
@@ -172,18 +171,6 @@
     opacity: 1;
     pointer-events: auto;
     transform: translateY(0);
-  }
-
-  .tooltip::after {
-    content: '';
-    position: absolute;
-    top: 100%;
-    right: 12px;
-    width: 0;
-    height: 0;
-    border-left: 6px solid transparent;
-    border-right: 6px solid transparent;
-    border-top: 6px solid var(--bg-secondary);
   }
 
   .tooltip-header {
