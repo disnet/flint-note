@@ -390,6 +390,30 @@
   }
 
   async function handleSendMessage(text: string): Promise<void> {
+    // Check if message fits within context window
+    const estimatedTokens = Math.ceil(text.length / 3.5);
+    try {
+      const canAccept = await window.api?.canAcceptMessage({
+        estimatedTokens,
+        conversationId: unifiedChatStore.activeThreadId ?? undefined
+      });
+
+      if (!canAccept?.canAccept) {
+        // Show error message in a new agent message
+        const errorMessage: Message = {
+          id: generateUniqueId(),
+          text: `⚠️ ${canAccept?.reason || 'Your message would exceed the context window limit. Please start a new thread or shorten your message.'}`,
+          sender: 'agent',
+          timestamp: new Date()
+        };
+        await unifiedChatStore.addMessage(errorMessage);
+        return;
+      }
+    } catch (error) {
+      console.error('Failed to check context usage:', error);
+      // Continue anyway if check fails
+    }
+
     const newMessage: Message = {
       id: generateUniqueId(),
       text,
