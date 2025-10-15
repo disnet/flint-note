@@ -74,7 +74,7 @@ export interface ChatService {
     model?: string,
     onToolCall?: (toolCall: ToolCall) => void,
     onToolResult?: (toolCall: ToolCall) => void
-  ): void;
+  ): string;
 }
 
 export interface NoteService {

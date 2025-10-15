@@ -117,6 +117,7 @@ declare global {
         onStreamToolResult?: (data: { requestId: string; toolCall: ToolCallData }) => void
       ) => void;
       clearConversation: () => Promise<any>;
+      cancelMessageStream: (params: { requestId: string }) => Promise<any>;
       syncConversation: (params: {
         conversationId: string;
         messages: FrontendMessage[];
