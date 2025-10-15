@@ -405,11 +405,14 @@ export class ToolService {
 
   // Basic CRUD Tools
   private getNoteTool = tool({
-    description: 'Get notes by IDs',
+    description:
+      'Retrieve one or more notes by their IDs or identifiers. Efficient for bulk retrieval. Use this when you know the specific note IDs or identifiers (e.g., "type/title" format). For finding notes by content or criteria, use search_notes instead.',
     inputSchema: z.object({
       ids: z
         .array(z.string())
-        .describe('Array of note IDs or identifiers (e.g., ["note123", "type/title"])')
+        .describe(
+          'Array of note IDs or identifiers. Examples: ["note-id-123"], ["meeting/Weekly Standup"], ["project/Q4 Planning", "daily/2025-01-15"]'
+        )
     }),
     execute: async ({ ids }) => {
       if (!this.noteService) {
@@ -461,19 +464,31 @@ export class ToolService {
   });
 
   private createNoteTool = tool({
-    description: 'Create a new note',
+    description:
+      'Create a new note with a specified type. Before creating a note, consider using get_note_type_details to understand the note type requirements and agent instructions. Returns the created note including its ID for future reference.',
     inputSchema: z.object({
-      title: z.string().describe('Note title'),
-      content: z.string().optional().describe('Note content (optional)'),
-      noteType: z.string().describe('Note type (required)'),
+      title: z.string().describe('Note title (must be unique within the note type)'),
+      content: z
+        .string()
+        .optional()
+        .describe('Note content in markdown format (optional, defaults to empty)'),
+      noteType: z
+        .string()
+        .describe(
+          'Note type (required). Common types: meeting, project, daily, task. Use get_note_type_details to see available types and their requirements.'
+        ),
       parentId: z
         .string()
         .optional()
-        .describe('Parent note ID for hierarchy placement (optional)'),
+        .describe(
+          'Parent note ID to establish hierarchy (optional). The new note will become a subnote of this parent.'
+        ),
       metadata: z
         .record(z.string(), z.unknown())
         .optional()
-        .describe('Additional metadata (optional)')
+        .describe(
+          'Additional metadata fields (optional). Should match the note type metadata schema. Use get_note_type_details to see required/optional fields.'
+        )
     }),
     execute: async ({ title, content = '', noteType, parentId, metadata = {} }) => {
       if (!this.noteService) {
@@ -573,12 +588,16 @@ export class ToolService {
   });
 
   private updateNoteTool = tool({
-    description: 'Update an existing note (requires content hash from current note)',
+    description:
+      'Update an existing note. Content hash is required when updating content, but optional for metadata-only or title-only updates.',
     inputSchema: z.object({
       id: z.string().describe('Note ID or identifier'),
       contentHash: z
         .string()
-        .describe('Content hash from current note (required for data consistency)'),
+        .optional()
+        .describe(
+          'Content hash from current note (required only when updating content, optional for metadata/title-only updates)'
+        ),
       title: z.string().optional().describe('New title (optional)'),
       content: z.string().optional().describe('New content (optional)'),
       metadata: z
@@ -607,34 +626,42 @@ export class ToolService {
           };
         }
 
-        // Get current note if content is not provided (needed for API requirement)
-        let finalContent = content;
-        if (content === undefined) {
-          try {
-            const currentNote = await flintApi.getNote(currentVault.id, id);
-            finalContent = currentNote.content;
-          } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            if (
-              errorMessage.includes('not found') ||
-              errorMessage.includes('does not exist')
-            ) {
-              return {
-                success: false,
-                error: 'NOTE_NOT_FOUND',
-                message: `Note not found: ${id}`
-              };
-            }
-            throw error; // Re-throw if it's a different error
+        // Validate contentHash requirement: required when updating content
+        if (content !== undefined && !contentHash) {
+          return {
+            success: false,
+            error: 'CONTENT_HASH_REQUIRED',
+            message:
+              'Content hash is required when updating note content. Retrieve the note first to get its current contentHash.'
+          };
+        }
+
+        // Get current note for various operations
+        let currentNote;
+        try {
+          currentNote = await flintApi.getNote(currentVault.id, id);
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          if (
+            errorMessage.includes('not found') ||
+            errorMessage.includes('does not exist')
+          ) {
+            return {
+              success: false,
+              error: 'NOTE_NOT_FOUND',
+              message: `Note not found: ${id}`
+            };
           }
+          throw error; // Re-throw if it's a different error
         }
 
-        // At this point, finalContent is guaranteed to be defined
-        if (!finalContent) {
-          throw new Error('Content is required for note update');
-        }
+        // Determine final content (use provided or keep current)
+        const finalContent = content !== undefined ? content : currentNote.content;
 
-        // Prepare updates using provided content hash
+        // Determine final contentHash (use provided or current)
+        const finalContentHash = contentHash || currentNote.contentHash;
+
+        // Prepare updates
         const updates: {
           identifier: string;
           content: string;
@@ -644,31 +671,12 @@ export class ToolService {
         } = {
           identifier: id,
           content: finalContent,
-          contentHash,
+          contentHash: finalContentHash,
           vaultId: currentVault.id
         };
 
         // Update metadata if provided
         if (metadata !== undefined) {
-          // Get current note only when metadata update is needed
-          let currentNote;
-          try {
-            currentNote = await flintApi.getNote(currentVault.id, id);
-          } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            if (
-              errorMessage.includes('not found') ||
-              errorMessage.includes('does not exist')
-            ) {
-              return {
-                success: false,
-                error: 'NOTE_NOT_FOUND',
-                message: `Note not found: ${id}`
-              };
-            }
-            throw error; // Re-throw if it's a different error
-          }
-
           // Merge with existing metadata, excluding protected fields
           const {
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -690,14 +698,11 @@ export class ToolService {
 
         // Handle title change if provided
         if (title !== undefined) {
-          // Get current note to check if title is actually changing
-          const currentNote = await flintApi.getNote(currentVault.id, id);
-
           if (title !== currentNote.title) {
             const renameResult = await flintApi.renameNote({
               noteId: id,
               newTitle: title,
-              contentHash: contentHash,
+              contentHash: finalContentHash,
               vault_id: currentVault.id
             });
 
@@ -776,7 +781,8 @@ export class ToolService {
   });
 
   private searchNotesTool = tool({
-    description: 'Search notes by title and content, or list all notes',
+    description:
+      'Search notes by title and content, or list all notes with filtering options. Returns notes with content snippets for search queries, or full note metadata for listing.',
     inputSchema: z.object({
       query: z.string().optional().describe('Search query (empty for listing all notes)'),
       limit: z
@@ -784,9 +790,34 @@ export class ToolService {
         .optional()
         .default(20)
         .describe('Maximum number of results (default: 20, max: 100)'),
-      noteType: z.string().optional().describe('Filter by note type (optional)')
+      noteType: z.string().optional().describe('Filter by note type (optional)'),
+      tags: z
+        .array(z.string())
+        .optional()
+        .describe('Filter notes containing any of these tags (optional)'),
+      dateRange: z
+        .object({
+          start: z.string().describe('Start date (ISO format: YYYY-MM-DD)'),
+          end: z.string().describe('End date (ISO format: YYYY-MM-DD)')
+        })
+        .optional()
+        .describe('Filter by creation date range (optional)'),
+      sortBy: z
+        .enum(['created', 'updated', 'title', 'relevance'])
+        .optional()
+        .default('relevance')
+        .describe(
+          'Sort order (default: relevance for searches, created for listings). Use "relevance" for search queries, "created"/"updated"/"title" for sorting lists.'
+        )
     }),
-    execute: async ({ query, limit = 20, noteType }) => {
+    execute: async ({
+      query,
+      limit = 20,
+      noteType,
+      tags,
+      dateRange,
+      sortBy = 'relevance'
+    }) => {
       if (!this.noteService) {
         return {
           success: false,
@@ -820,8 +851,8 @@ export class ToolService {
             vault_id: currentVault.id
           });
 
-          // Convert SearchResult[] to Note-like objects
-          const notes = await Promise.all(
+          // Convert SearchResult[] to Note-like objects and apply filters
+          let notes = await Promise.all(
             results.map(async (result) => {
               try {
                 return await flintApi.getNote(currentVault.id, result.id);
@@ -832,24 +863,45 @@ export class ToolService {
                   title: result.title,
                   type: result.type || 'unknown',
                   content: result.content || '',
-                  snippet: result.snippet
+                  snippet: result.snippet,
+                  metadata: {},
+                  created: '',
+                  updated: ''
                 };
               }
             })
           );
 
+          // Apply client-side filters
+          notes = this.applyFilters(notes, { tags, dateRange });
+
+          // Sort if specified (relevance is default from search)
+          if (sortBy !== 'relevance') {
+            notes = this.sortNotes(notes, sortBy);
+          }
+
           return {
             success: true,
-            data: notes,
-            message: `Found ${results.length} note(s) matching query: ${query}`
+            data: notes.slice(0, clampedLimit),
+            message: `Found ${notes.length} note(s) matching query: ${query}`
           };
         } else {
           // List all notes
-          const noteList = await flintApi.listNotes({
+          let noteList = await flintApi.listNotes({
             typeName: noteType,
-            limit: clampedLimit,
+            limit: clampedLimit * 2, // Get more to account for filtering
             vaultId: currentVault.id
           });
+
+          // Apply client-side filters
+          noteList = this.applyFilters(noteList, { tags, dateRange });
+
+          // Sort (default to 'created' for listings)
+          const effectiveSortBy = sortBy === 'relevance' ? 'created' : sortBy;
+          noteList = this.sortNotes(noteList, effectiveSortBy);
+
+          // Limit after filtering
+          noteList = noteList.slice(0, clampedLimit);
 
           return {
             success: true,
@@ -869,8 +921,83 @@ export class ToolService {
     }
   });
 
+  // Helper method to apply client-side filters
+  private applyFilters<
+    T extends { metadata?: { tags?: string[] }; created?: string; updated?: string }
+  >(
+    notes: T[],
+    filters: {
+      tags?: string[];
+      dateRange?: { start: string; end: string };
+    }
+  ): T[] {
+    let filtered = notes;
+
+    // Filter by tags if specified
+    if (filters.tags && filters.tags.length > 0) {
+      filtered = filtered.filter((note) => {
+        const noteTags = note.metadata?.tags || [];
+        return filters.tags!.some((tag) => noteTags.includes(tag));
+      });
+    }
+
+    // Filter by date range if specified
+    if (filters.dateRange) {
+      const start = new Date(filters.dateRange.start);
+      const end = new Date(filters.dateRange.end);
+      end.setHours(23, 59, 59, 999); // Include the entire end date
+
+      filtered = filtered.filter((note) => {
+        if (!note.created) return false;
+        const noteDate = new Date(note.created);
+        return noteDate >= start && noteDate <= end;
+      });
+    }
+
+    return filtered;
+  }
+
+  // Helper method to sort notes
+  private sortNotes<T extends { title?: string; created?: string; updated?: string }>(
+    notes: T[],
+    sortBy: 'created' | 'updated' | 'title' | 'relevance'
+  ): T[] {
+    const sorted = [...notes];
+
+    switch (sortBy) {
+      case 'title':
+        sorted.sort((a, b) => {
+          const titleA = (a.title || '').toLowerCase();
+          const titleB = (b.title || '').toLowerCase();
+          return titleA.localeCompare(titleB);
+        });
+        break;
+      case 'created':
+        sorted.sort((a, b) => {
+          const dateA = new Date(a.created || 0).getTime();
+          const dateB = new Date(b.created || 0).getTime();
+          return dateB - dateA; // Most recent first
+        });
+        break;
+      case 'updated':
+        sorted.sort((a, b) => {
+          const dateA = new Date(a.updated || 0).getTime();
+          const dateB = new Date(b.updated || 0).getTime();
+          return dateB - dateA; // Most recent first
+        });
+        break;
+      case 'relevance':
+      default:
+        // Already sorted by relevance from search, don't reorder
+        break;
+    }
+
+    return sorted;
+  }
+
   private getVaultInfoTool = tool({
-    description: 'Get current vault information',
+    description:
+      'Get information about the currently active vault including name, path, ID, and available note types. Useful for understanding the workspace context.',
     inputSchema: z.object({}),
     execute: async () => {
       if (!this.noteService) {
@@ -911,9 +1038,14 @@ export class ToolService {
   });
 
   private deleteNoteTool = tool({
-    description: 'Delete a note',
+    description:
+      'Delete a note permanently. This action cannot be undone. Consider confirming with the user before deleting notes, especially if they contain significant content.',
     inputSchema: z.object({
-      id: z.string().describe('Note ID or identifier to delete')
+      id: z
+        .string()
+        .describe(
+          'Note ID or identifier to delete. Examples: "note-id-123" or "meeting/Weekly Standup"'
+        )
     }),
     execute: async ({ id }) => {
       if (!this.noteService) {

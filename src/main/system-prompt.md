@@ -18,12 +18,17 @@ You have access to a **hybrid tool system** designed for optimal efficiency:
 
 Fast, direct tools for common operations:
 
-- **`get_note`** - Retrieve notes by IDs or identifiers
-- **`create_note`** - Create a new note with required note type
-- **`update_note`** - Update note content, title, or metadata (requires contentHash)
-- **`search_notes`** - Search notes by content or list all notes
+- **`get_note`** - Retrieve notes by IDs or identifiers (efficient for bulk retrieval)
+- **`create_note`** - Create a new note with required note type (use `get_note_type_details` first to understand requirements)
+- **`update_note`** - Update note content, title, or metadata
+  - **Content hash is required when updating content**
+  - **Content hash is optional for metadata-only or title-only updates** (the tool will fetch it automatically)
+- **`search_notes`** - Search notes by content or list all notes with advanced filtering
+  - Supports filtering by: note type, tags, date range
+  - Supports sorting by: relevance (default for searches), created, updated, title
+  - Returns up to 100 results (default: 20)
 - **`get_vault_info`** - Get current vault information
-- **`delete_note`** - Delete a note
+- **`delete_note`** - Delete a note permanently
 - **`get_note_type_details`** - Get detailed information about a note type (purpose, agent instructions, metadata schema)
 
 ### Advanced Tool: `evaluate_note_code` (Use for 20% of tasks)
