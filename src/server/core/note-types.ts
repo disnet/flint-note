@@ -112,6 +112,14 @@ export class NoteTypeManager {
       // Validate metadata schema doesn't contain protected fields
       this.#validateNoProtectedFieldsInSchema(metadataSchema);
 
+      // Validate metadata schema structure (strict for new note types)
+      if (metadataSchema) {
+        const validation = MetadataValidator.validateSchema(metadataSchema);
+        if (validation.errors.length > 0) {
+          throw new Error(`Invalid metadata schema: ${validation.errors.join(', ')}`);
+        }
+      }
+
       // Ensure the note type directory exists (but don't create _description.md)
       const typePath = await this.workspace.ensureNoteType(name);
 

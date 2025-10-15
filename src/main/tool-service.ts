@@ -1070,7 +1070,32 @@ export class ToolService {
             default: z
               .union([z.string(), z.number(), z.boolean(), z.array(z.string())])
               .optional()
-              .describe('Default value for this field')
+              .describe('Default value for this field'),
+            constraints: z
+              .object({
+                options: z
+                  .array(z.string())
+                  .optional()
+                  .describe(
+                    'Valid options for select fields (required for select type, e.g., ["active", "inactive", "archived"])'
+                  ),
+                min: z
+                  .number()
+                  .optional()
+                  .describe('Minimum value for number fields or array length'),
+                max: z
+                  .number()
+                  .optional()
+                  .describe('Maximum value for number fields or array length'),
+                pattern: z
+                  .string()
+                  .optional()
+                  .describe('Regex pattern for string validation')
+              })
+              .optional()
+              .describe(
+                'Field constraints. For select fields, options array is required to specify valid values.'
+              )
           })
         )
         .optional()
@@ -1153,7 +1178,32 @@ export class ToolService {
             default: z
               .union([z.string(), z.number(), z.boolean(), z.array(z.string())])
               .optional()
-              .describe('Default value for this field')
+              .describe('Default value for this field'),
+            constraints: z
+              .object({
+                options: z
+                  .array(z.string())
+                  .optional()
+                  .describe(
+                    'Valid options for select fields (required for select type, e.g., ["active", "inactive", "archived"])'
+                  ),
+                min: z
+                  .number()
+                  .optional()
+                  .describe('Minimum value for number fields or array length'),
+                max: z
+                  .number()
+                  .optional()
+                  .describe('Maximum value for number fields or array length'),
+                pattern: z
+                  .string()
+                  .optional()
+                  .describe('Regex pattern for string validation')
+              })
+              .optional()
+              .describe(
+                'Field constraints. For select fields, options array is required to specify valid values.'
+              )
           })
         )
         .optional()

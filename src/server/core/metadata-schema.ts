@@ -313,12 +313,25 @@ export class MetadataValidator {
         break;
 
       case 'select':
-        if (!fieldDef.constraints?.options?.includes(String(value))) {
-          return {
-            field: fieldName,
-            message: `Field '${fieldName}' must be one of: ${fieldDef.constraints?.options?.join(', ')}`,
-            value
-          };
+        // For backward compatibility, accept select fields without options (acts like string)
+        if (!fieldDef.constraints?.options || fieldDef.constraints.options.length === 0) {
+          // Just validate it's a string
+          if (typeof value !== 'string') {
+            return {
+              field: fieldName,
+              message: `Field '${fieldName}' must be a string`,
+              value
+            };
+          }
+        } else {
+          // Options are defined, validate against them
+          if (!fieldDef.constraints.options.includes(String(value))) {
+            return {
+              field: fieldName,
+              message: `Field '${fieldName}' must be one of: ${fieldDef.constraints.options.join(', ')}`,
+              value
+            };
+          }
         }
         break;
     }
@@ -433,8 +446,9 @@ export class MetadataValidator {
         field.type === 'select' &&
         (!field.constraints?.options || field.constraints.options.length === 0)
       ) {
-        warnings.push(
-          `Field '${field.name}' is of type 'select' but has no options defined in constraints.`
+        errors.push(
+          `Field '${field.name}' is of type 'select' but has no options defined in constraints. ` +
+            `Select fields must specify valid options. Use type 'string' instead, or add: constraints: { options: ["value1", "value2"] }`
         );
       }
     }

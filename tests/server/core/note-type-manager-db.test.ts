@@ -153,6 +153,54 @@ describe('NoteTypeManager with Database Storage', () => {
 
       expect(dirExists).toBe(true);
     });
+
+    it('should reject note type with select field without options', async () => {
+      const schema = {
+        fields: [
+          {
+            name: 'status',
+            description: 'Status field',
+            type: 'select' as const,
+            required: false
+          }
+        ]
+      };
+
+      await expect(
+        noteTypeManager.createNoteType('task', 'Task notes', null, schema)
+      ).rejects.toThrow(/has no options defined/);
+    });
+
+    it('should accept note type with select field with options', async () => {
+      const schema = {
+        fields: [
+          {
+            name: 'status',
+            description: 'Status field',
+            type: 'select' as const,
+            required: false,
+            constraints: {
+              options: ['active', 'inactive', 'archived']
+            }
+          }
+        ]
+      };
+
+      await noteTypeManager.createNoteType('task', 'Task notes', null, schema);
+
+      const result = await db.get<NoteTypeDescriptionRow>(
+        'SELECT * FROM note_type_descriptions WHERE vault_id = ? AND type_name = ?',
+        [vaultId, 'task']
+      );
+
+      expect(result).toBeDefined();
+      const parsedSchema = JSON.parse(result?.metadata_schema || '{}');
+      expect(parsedSchema.fields[0].constraints.options).toEqual([
+        'active',
+        'inactive',
+        'archived'
+      ]);
+    });
   });
 
   describe('getNoteTypeDescription', () => {
