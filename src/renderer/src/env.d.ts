@@ -81,7 +81,8 @@ declare global {
         onStreamChunk: (data: { requestId: string; chunk: string }) => void,
         onStreamEnd: (data: { requestId: string; fullText: string }) => void,
         onStreamError: (data: { requestId: string; error: string }) => void,
-        onStreamToolCall?: (data: { requestId: string; toolCall: ToolCallData }) => void
+        onStreamToolCall?: (data: { requestId: string; toolCall: ToolCallData }) => void,
+        onStreamToolResult?: (data: { requestId: string; toolCall: ToolCallData }) => void
       ) => void;
       clearConversation: () => Promise<any>;
       syncConversation: (params: {

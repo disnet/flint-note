@@ -61,7 +61,8 @@ export interface ChatService {
     onComplete: (fullText: string) => void,
     onError: (error: string) => void,
     model?: string,
-    onToolCall?: (toolCall: ToolCall) => void
+    onToolCall?: (toolCall: ToolCall) => void,
+    onToolResult?: (toolCall: ToolCall) => void
   ): void;
 }
 

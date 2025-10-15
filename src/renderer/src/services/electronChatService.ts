@@ -133,7 +133,9 @@ export class ElectronChatService implements ChatService, NoteService {
     onError: (error: string) => void,
     model?: string,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    onToolCall?: (toolCall: any) => void
+    onToolCall?: (toolCall: any) => void,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    onToolResult?: (toolCall: any) => void
   ): void {
     const requestId = crypto.randomUUID();
 
@@ -177,7 +179,15 @@ export class ElectronChatService implements ChatService, NoteService {
             if (data.requestId === requestId) {
               this.handleNoteModifyingTool(data.toolCall);
             }
+          },
+      onToolResult
+        ? (data) => {
+            // Handle tool result
+            if (data.requestId === requestId) {
+              onToolResult(data.toolCall);
+            }
           }
+        : undefined
     );
   }
 

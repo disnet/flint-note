@@ -103,7 +103,8 @@ const api = {
     onStreamChunk: (data: { requestId: string; chunk: string }) => void,
     onStreamEnd: (data: { requestId: string; fullText: string }) => void,
     onStreamError: (data: { requestId: string; error: string }) => void,
-    onStreamToolCall?: (data: { requestId: string; toolCall: ToolCallData }) => void
+    onStreamToolCall?: (data: { requestId: string; toolCall: ToolCallData }) => void,
+    onStreamToolResult?: (data: { requestId: string; toolCall: ToolCallData }) => void
   ) => {
     // Set up event listeners
     electronAPI.ipcRenderer.on('ai-stream-start', (_event, data) => onStreamStart(data));
@@ -113,12 +114,18 @@ const api = {
         onStreamToolCall(data)
       );
     }
+    if (onStreamToolResult) {
+      electronAPI.ipcRenderer.on('ai-stream-tool-result', (_event, data) =>
+        onStreamToolResult(data)
+      );
+    }
     electronAPI.ipcRenderer.on('ai-stream-end', (_event, data) => {
       onStreamEnd(data);
       // Clean up listeners
       electronAPI.ipcRenderer.removeAllListeners('ai-stream-start');
       electronAPI.ipcRenderer.removeAllListeners('ai-stream-chunk');
       electronAPI.ipcRenderer.removeAllListeners('ai-stream-tool-call');
+      electronAPI.ipcRenderer.removeAllListeners('ai-stream-tool-result');
       electronAPI.ipcRenderer.removeAllListeners('ai-stream-end');
       electronAPI.ipcRenderer.removeAllListeners('ai-stream-error');
     });
@@ -128,6 +135,7 @@ const api = {
       electronAPI.ipcRenderer.removeAllListeners('ai-stream-start');
       electronAPI.ipcRenderer.removeAllListeners('ai-stream-chunk');
       electronAPI.ipcRenderer.removeAllListeners('ai-stream-tool-call');
+      electronAPI.ipcRenderer.removeAllListeners('ai-stream-tool-result');
       electronAPI.ipcRenderer.removeAllListeners('ai-stream-end');
       electronAPI.ipcRenderer.removeAllListeners('ai-stream-error');
     });

@@ -406,14 +406,13 @@
       id: agentResponseId,
       text: '',
       sender: 'agent',
-      timestamp: new Date(),
-      toolCalls: []
+      timestamp: new Date()
     };
     await unifiedChatStore.addMessage(agentResponse);
 
     // Track streaming state to handle tool call separation
     let currentMessageId = agentResponseId;
-    let hasToolCalls = false;
+    let toolCallMessageId: string | null = null;
 
     try {
       const chatService = getChatService();
@@ -436,26 +435,24 @@
           },
           // onComplete: streaming finished
           async (_fullText: string) => {
-            // Clean up any empty messages that were created for post-tool-call text
-            if (hasToolCalls) {
-              const thread = unifiedChatStore.activeThread;
-              if (thread) {
-                // Filter out any empty messages (no text and no tool calls)
-                const filteredMessages = thread.messages.filter((message) => {
-                  // Keep messages with text content
-                  if (message.text.trim() !== '') return true;
-                  // Keep messages with tool calls
-                  if (message.toolCalls && message.toolCalls.length > 0) return true;
-                  // Remove empty messages
-                  return false;
-                });
+            // Clean up any empty messages that were created
+            const thread = unifiedChatStore.activeThread;
+            if (thread) {
+              // Filter out any empty messages (no text and no tool calls)
+              const filteredMessages = thread.messages.filter((message) => {
+                // Keep messages with text content
+                if (message.text.trim() !== '') return true;
+                // Keep messages with tool calls
+                if (message.toolCalls && message.toolCalls.length > 0) return true;
+                // Remove empty messages
+                return false;
+              });
 
-                // Only update if we actually removed some messages
-                if (filteredMessages.length !== thread.messages.length) {
-                  await unifiedChatStore.updateThread(thread.id, {
-                    messages: filteredMessages
-                  });
-                }
+              // Only update if we actually removed some messages
+              if (filteredMessages.length !== thread.messages.length) {
+                await unifiedChatStore.updateThread(thread.id, {
+                  messages: filteredMessages
+                });
               }
             }
             isLoadingResponse = false;
@@ -471,28 +468,57 @@
           modelStore.selectedModel,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           async (toolCall: any) => {
-            // Add the tool call to the current message that's receiving streamed text
-            const currentMessage = unifiedChatStore.activeThread?.messages?.find(
-              (m) => m.id === currentMessageId
-            );
-            if (currentMessage) {
-              const updatedToolCalls = [...(currentMessage.toolCalls || []), toolCall];
-              await unifiedChatStore.updateMessage(currentMessageId, {
-                toolCalls: updatedToolCalls
-              });
-              hasToolCalls = true;
+            // On first tool call, create a separate message for tool calls
+            if (!toolCallMessageId) {
+              const toolCallMsg: Message = {
+                id: generateUniqueId(),
+                text: '',
+                sender: 'agent',
+                timestamp: new Date(),
+                toolCalls: [toolCall]
+              };
+              toolCallMessageId = toolCallMsg.id;
+              await unifiedChatStore.addMessage(toolCallMsg);
 
-              // Create a new message for any text that comes after this tool call
+              // Create a new message for any text that arrives after tool calls
               const postToolCallMessageId = generateUniqueId();
               const postToolCallMessage: Message = {
                 id: postToolCallMessageId,
                 text: '',
                 sender: 'agent',
-                timestamp: new Date(),
-                toolCalls: []
+                timestamp: new Date()
               };
               await unifiedChatStore.addMessage(postToolCallMessage);
               currentMessageId = postToolCallMessageId;
+            } else {
+              // Add subsequent tool calls to the tool call message
+              const toolCallMessage = unifiedChatStore.activeThread?.messages?.find(
+                (m) => m.id === toolCallMessageId
+              );
+              if (toolCallMessage) {
+                const updatedToolCalls = [...(toolCallMessage.toolCalls || []), toolCall];
+                await unifiedChatStore.updateMessage(toolCallMessageId, {
+                  toolCalls: updatedToolCalls
+                });
+              }
+            }
+          },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          async (toolResult: any) => {
+            // Update the tool call with its result in the tool call message
+            if (toolCallMessageId) {
+              const toolCallMessage = unifiedChatStore.activeThread?.messages?.find(
+                (m) => m.id === toolCallMessageId
+              );
+              if (toolCallMessage && toolCallMessage.toolCalls) {
+                // Find the tool call by ID and update it with the result
+                const updatedToolCalls = toolCallMessage.toolCalls.map((tc) =>
+                  tc.id === toolResult.id ? { ...tc, result: toolResult.result } : tc
+                );
+                await unifiedChatStore.updateMessage(toolCallMessageId, {
+                  toolCalls: updatedToolCalls
+                });
+              }
             }
           }
         );

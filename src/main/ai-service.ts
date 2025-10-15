@@ -1242,41 +1242,39 @@ ${
           model: this.openrouter(this.currentModelName),
           messages,
           tools,
-          stopWhen: stepCountIs(10), // Allow up to 5 steps for multi-turn tool calling
-          onStepFinish: (step) => {
-            // Handle tool calls from step content (AI SDK might put them in different places)
-            const toolCalls =
-              step.toolCalls ||
-              (step.content
-                ? step.content.filter((item) => item.type === 'tool-call')
-                : []);
-
-            if (toolCalls && toolCalls.length > 0) {
-              toolCalls.forEach((toolCall) => {
-                const toolResults = step.toolResults || [];
-                const toolResult = toolResults.find(
-                  (r) => r.toolCallId === toolCall.toolCallId
-                );
-
-                const toolCallData = {
-                  id: toolCall.toolCallId,
-                  name: toolCall.toolName,
-                  arguments: toolCall.input || {},
-                  result: toolResult?.output,
-                  error: undefined
-                };
-                this.emit('stream-tool-call', { requestId, toolCall: toolCallData });
-              });
-            }
-          }
+          stopWhen: stepCountIs(10) // Allow up to 10 steps for multi-turn tool calling
         });
 
         let fullText = '';
 
-        // Handle text streaming
-        for await (const textChunk of result.textStream) {
-          fullText += textChunk;
-          this.emit('stream-chunk', { requestId, chunk: textChunk });
+        // Use fullStream to get real-time tool call events as they happen
+        for await (const event of result.fullStream) {
+          if (event.type === 'text-delta') {
+            // Handle text streaming
+            fullText += event.text;
+            this.emit('stream-chunk', { requestId, chunk: event.text });
+          } else if (event.type === 'tool-call') {
+            // Handle tool calls as they arrive (before execution)
+            const toolCallData = {
+              id: event.toolCallId,
+              name: event.toolName,
+              arguments: event.input || {},
+              result: undefined,
+              error: undefined
+            };
+            this.emit('stream-tool-call', { requestId, toolCall: toolCallData });
+          } else if (event.type === 'tool-result') {
+            // Update tool call with result when it completes
+            // Note: Frontend should match by toolCallId and update
+            const toolCallData = {
+              id: event.toolCallId,
+              name: event.toolName,
+              arguments: {},
+              result: event.output,
+              error: undefined
+            };
+            this.emit('stream-tool-result', { requestId, toolCall: toolCallData });
+          }
         }
 
         // Add assistant response to conversation history
