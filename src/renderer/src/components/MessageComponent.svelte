@@ -24,7 +24,10 @@
 
   {#if message.toolCalls && message.toolCalls.length > 0}
     <div class="tool-calls">
-      <AgentActivityWidget toolCalls={message.toolCalls} />
+      <AgentActivityWidget
+        toolCalls={message.toolCalls}
+        currentStepIndex={message.currentStepIndex}
+      />
     </div>
   {/if}
 </div>

@@ -2,7 +2,8 @@
   import type { ToolCall } from '../services/types';
   import JsonViewer from './JsonViewer.svelte';
 
-  let { toolCalls }: { toolCalls: ToolCall[] } = $props();
+  let { toolCalls, currentStepIndex }: { toolCalls: ToolCall[]; currentStepIndex?: number } =
+    $props();
   let isExpanded = $state(false);
 
   function toggleExpanded(): void {
@@ -25,9 +26,28 @@
       }
       return 'success';
     }
-    if (toolCall.result === undefined && !toolCall.error) return 'running';
+
+    // Tool calls without results are treated as success
+    // (We only receive tool calls after they complete)
+    if (toolCall.result === undefined && !toolCall.error) {
+      return 'success';
+    }
     return 'pending';
   }
+
+  // Determine if this step is still running
+  // The step is "running" if we have tool calls but haven't moved to the next step yet
+  // (more tool calls might be added to this step)
+  const isStepRunning = $derived.by(() => {
+    if (toolCalls.length === 0) return false;
+    if (currentStepIndex === undefined) return false;
+
+    // Get this message's step index from any of its tools
+    const messageStepIndex = toolCalls[0]?.stepIndex ?? 0;
+
+    // Step is running if we haven't moved past it yet
+    return currentStepIndex === messageStepIndex;
+  });
 
   // Derive status counts from tool calls
   const statusCounts = $derived.by(() => {
@@ -59,7 +79,7 @@
 
   const overallStatus = $derived.by(() => {
     if (statusCounts.error > 0) return 'error';
-    if (statusCounts.running > 0) return 'running';
+    if (isStepRunning) return 'running';
     if (statusCounts.pending > 0) return 'pending';
     return 'success';
   });
@@ -67,17 +87,22 @@
   const summaryText = $derived.by(() => {
     const parts: string[] = [];
 
-    if (statusCounts.success > 0) {
-      parts.push(`${statusCounts.success} completed`);
-    }
-    if (statusCounts.running > 0) {
-      parts.push(`${statusCounts.running} running`);
-    }
-    if (statusCounts.pending > 0) {
-      parts.push(`${statusCounts.pending} pending`);
-    }
-    if (statusCounts.error > 0) {
-      parts.push(`${statusCounts.error} failed`);
+    if (isStepRunning) {
+      parts.push(`${toolCalls.length} running`);
+      // Show failures even while running
+      if (statusCounts.error > 0) {
+        parts.push(`${statusCounts.error} failed`);
+      }
+    } else {
+      if (statusCounts.success > 0) {
+        parts.push(`${statusCounts.success} completed`);
+      }
+      if (statusCounts.pending > 0) {
+        parts.push(`${statusCounts.pending} pending`);
+      }
+      if (statusCounts.error > 0) {
+        parts.push(`${statusCounts.error} failed`);
+      }
     }
 
     return parts.join(', ');
@@ -130,7 +155,22 @@
 <div class="agent-activity" class:expanded={isExpanded}>
   <button class="activity-header" onclick={toggleExpanded}>
     <div class="activity-info">
-      <span class="activity-icon">{getStatusIcon(overallStatus)}</span>
+      <span class="activity-icon">
+        {#if overallStatus === 'running'}
+          <svg class="spinner" width="20" height="20" viewBox="0 0 24 24">
+            <circle
+              class="spinner-circle"
+              cx="12"
+              cy="12"
+              r="10"
+              fill="none"
+              stroke-width="3"
+            ></circle>
+          </svg>
+        {:else}
+          {getStatusIcon(overallStatus)}
+        {/if}
+      </span>
       <span class="activity-title">Agent Activity</span>
       <span class="activity-summary">({summaryText})</span>
     </div>
@@ -405,5 +445,40 @@
     color: var(--error-content-text, #721c24);
     white-space: pre-wrap;
     line-height: 1.5;
+  }
+
+  /* Spinner animations */
+  .spinner {
+    display: inline-block;
+    animation: spin 1s linear infinite;
+  }
+
+  .spinner-circle {
+    stroke: var(--accent, #007bff);
+    stroke-linecap: round;
+    stroke-dasharray: 50, 200;
+    stroke-dashoffset: 0;
+    animation: dash 1.5s ease-in-out infinite;
+  }
+
+  @keyframes spin {
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+
+  @keyframes dash {
+    0% {
+      stroke-dasharray: 1, 200;
+      stroke-dashoffset: 0;
+    }
+    50% {
+      stroke-dasharray: 100, 200;
+      stroke-dashoffset: -35;
+    }
+    100% {
+      stroke-dasharray: 100, 200;
+      stroke-dashoffset: -124;
+    }
   }
 </style>

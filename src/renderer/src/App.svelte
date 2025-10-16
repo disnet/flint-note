@@ -504,6 +504,7 @@
     // Track streaming state to handle tool call separation by step
     let currentMessageId = agentResponseId;
     let toolCallMessageIdsByStep: Map<number, string> = new Map();
+    let highestStepIndexSeen = 0;
 
     try {
       const chatService = getChatService();
@@ -526,6 +527,17 @@
           },
           // onComplete: streaming finished
           async (_fullText: string) => {
+            // Mark the final step as completed
+            if (toolCallMessageIdsByStep.size > 0) {
+              const finalStepMessageId = toolCallMessageIdsByStep.get(highestStepIndexSeen);
+              if (finalStepMessageId) {
+                // Mark with a high index to indicate streaming is done
+                await unifiedChatStore.updateMessage(finalStepMessageId, {
+                  currentStepIndex: highestStepIndexSeen + 1
+                });
+              }
+            }
+
             // Clean up any empty messages that were created
             const thread = unifiedChatStore.activeThread;
             if (thread) {
@@ -564,6 +576,18 @@
             // Group tool calls by step - each step gets its own message/widget
             const stepIndex = toolCall.stepIndex ?? 0;
 
+            // If we've moved to a new step, mark the previous step's message as completed
+            if (stepIndex > highestStepIndexSeen) {
+              // Update the previous step's message with currentStepIndex to mark tools as completed
+              const previousStepMessageId = toolCallMessageIdsByStep.get(highestStepIndexSeen);
+              if (previousStepMessageId) {
+                await unifiedChatStore.updateMessage(previousStepMessageId, {
+                  currentStepIndex: stepIndex
+                });
+              }
+              highestStepIndexSeen = stepIndex;
+            }
+
             // Check if we already have a message for this step
             if (!toolCallMessageIdsByStep.has(stepIndex)) {
               // First tool call of this step - create a new message
@@ -572,7 +596,8 @@
                 text: '',
                 sender: 'agent',
                 timestamp: new Date(),
-                toolCalls: [toolCall]
+                toolCalls: [toolCall],
+                currentStepIndex: stepIndex // Track which step this message is for
               };
               toolCallMessageIdsByStep.set(stepIndex, toolCallMsg.id);
               await unifiedChatStore.addMessage(toolCallMsg);

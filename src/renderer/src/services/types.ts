@@ -29,6 +29,7 @@ export interface ToolCall {
   arguments: Record<string, unknown> | null | undefined;
   result?: string | Record<string, unknown>;
   error?: string;
+  stepIndex?: number;
 }
 
 export interface ContextUsage {
@@ -48,6 +49,7 @@ export interface Message {
   sender: 'user' | 'agent';
   timestamp: Date;
   toolCalls?: ToolCall[];
+  currentStepIndex?: number;
 }
 
 export interface ChatResponse {
