@@ -132,6 +132,18 @@ class SidebarStateStore {
     this.state.leftSidebar.activeSection = section;
     await this.saveToStorage();
   }
+
+  async setLeftSidebarWidth(width: number): Promise<void> {
+    await this.ensureInitialized();
+    this.state.leftSidebar.width = width;
+    await this.saveToStorage();
+  }
+
+  async setRightSidebarWidth(width: number): Promise<void> {
+    await this.ensureInitialized();
+    this.state.rightSidebar.width = width;
+    await this.saveToStorage();
+  }
 }
 
 export const sidebarState = new SidebarStateStore();

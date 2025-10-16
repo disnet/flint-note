@@ -2,6 +2,7 @@
   import SystemViews from './SystemViews.svelte';
   import PinnedNotes from './PinnedNotes.svelte';
   import TemporaryTabs from './TemporaryTabs.svelte';
+  import ResizeHandle from './ResizeHandle.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
   import { notesStore } from '../services/noteStore.svelte';
   import type { NoteMetadata } from '../services/noteStore.svelte';
@@ -24,6 +25,25 @@
 
   // Dropdown state
   let isDropdownOpen = $state(false);
+
+  // Width state - track local width during resize
+  let localWidth = $state<number | null>(null);
+
+  // Use store width when not actively resizing
+  let currentWidth = $derived(localWidth ?? sidebarState.leftSidebar.width);
+
+  function handleResize(width: number): void {
+    localWidth = width;
+
+    // Debounce persisting to storage during resize
+    if (saveTimeout) clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(() => {
+      sidebarState.setLeftSidebarWidth(width);
+      localWidth = null; // Reset to use store value
+    }, 300);
+  }
+
+  let saveTimeout: ReturnType<typeof setTimeout> | null = null;
 
   function toggleDropdown(): void {
     isDropdownOpen = !isDropdownOpen;
@@ -59,78 +79,85 @@
   });
 </script>
 
-<div class="left-sidebar" class:visible={sidebarState.leftSidebar.visible}>
-  <div class="sidebar-content">
-    <SystemViews {onSystemViewSelect} {activeSystemView} />
-    <PinnedNotes {activeNote} {onNoteSelect} />
-    <TemporaryTabs {onNoteSelect} {onCreateNote} />
-  </div>
-  <div class="sidebar-footer">
-    <div class="create-note-button-group">
-      <button
-        class="new-note-button main-button"
-        onclick={() => handleCreateNoteWithType()}
-        disabled={!onCreateNote}
-      >
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <line x1="12" y1="5" x2="12" y2="19"></line>
-          <line x1="5" y1="12" x2="19" y2="12"></line>
-        </svg>
-        New Note
-      </button>
-      <button
-        class="new-note-button dropdown-button"
-        onclick={toggleDropdown}
-        disabled={!onCreateNote}
-        aria-label="Choose note type"
-      >
-        <svg
-          width="12"
-          height="12"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          class:rotated={isDropdownOpen}
-        >
-          <path d="m6 9 6 6 6-6" />
-        </svg>
-      </button>
+<div
+  class="left-sidebar"
+  class:visible={sidebarState.leftSidebar.visible}
+  style="--sidebar-width: {currentWidth}px"
+>
+  <ResizeHandle side="left" onResize={handleResize} minWidth={200} maxWidth={600} />
+  <div class="sidebar-inner">
+    <div class="sidebar-content">
+      <SystemViews {onSystemViewSelect} {activeSystemView} />
+      <PinnedNotes {activeNote} {onNoteSelect} />
+      <TemporaryTabs {onNoteSelect} {onCreateNote} />
     </div>
-
-    {#if isDropdownOpen && notesStore.noteTypes.length > 0}
-      <div class="note-type-dropdown">
-        {#each notesStore.noteTypes as noteType (noteType.name)}
-          <button
-            class="note-type-option"
-            onclick={() => handleCreateNoteWithType(noteType.name)}
+    <div class="sidebar-footer">
+      <div class="create-note-button-group">
+        <button
+          class="new-note-button main-button"
+          onclick={() => handleCreateNoteWithType()}
+          disabled={!onCreateNote}
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
           >
-            <span class="note-type-name">{noteType.name}</span>
-            <span class="note-type-count">({noteType.count})</span>
-          </button>
-        {/each}
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          New Note
+        </button>
+        <button
+          class="new-note-button dropdown-button"
+          onclick={toggleDropdown}
+          disabled={!onCreateNote}
+          aria-label="Choose note type"
+        >
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            class:rotated={isDropdownOpen}
+          >
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </button>
       </div>
-    {/if}
+
+      {#if isDropdownOpen && notesStore.noteTypes.length > 0}
+        <div class="note-type-dropdown">
+          {#each notesStore.noteTypes as noteType (noteType.name)}
+            <button
+              class="note-type-option"
+              onclick={() => handleCreateNoteWithType(noteType.name)}
+            >
+              <span class="note-type-name">{noteType.name}</span>
+              <span class="note-type-count">({noteType.count})</span>
+            </button>
+          {/each}
+        </div>
+      {/if}
+    </div>
   </div>
 </div>
 
 <style>
   .left-sidebar {
+    position: relative;
     height: 100%;
     background: var(--bg-secondary);
     border-right: 1px solid var(--border-light);
     display: flex;
     flex-direction: column;
-    transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    width: 300px;
-    min-width: 300px;
+    width: var(--sidebar-width);
+    min-width: var(--sidebar-width);
     flex-shrink: 0;
     overflow: hidden;
   }
@@ -141,13 +168,20 @@
     border-right: none;
   }
 
+  .sidebar-inner {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow: hidden;
+  }
+
   .sidebar-content {
     flex: 1;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    width: 300px;
-    min-width: 300px;
+    min-width: 0;
   }
 
   /* Custom scrollbar styling */

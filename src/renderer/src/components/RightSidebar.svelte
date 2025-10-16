@@ -2,6 +2,7 @@
   import AIAssistant from './AIAssistant.svelte';
   import ThreadList from './ThreadList.svelte';
   import SidebarNotes from './SidebarNotes.svelte';
+  import ResizeHandle from './ResizeHandle.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
   import type { Message } from '../services/types';
 
@@ -28,10 +29,34 @@
     onToolCallLimitStop,
     refreshCredits = $bindable()
   }: Props = $props();
+
+  // Width state - track local width during resize
+  let localWidth = $state<number | null>(null);
+
+  // Use store width when not actively resizing
+  let currentWidth = $derived(localWidth ?? sidebarState.rightSidebar.width);
+
+  function handleResize(width: number): void {
+    localWidth = width;
+
+    // Debounce persisting to storage during resize
+    if (saveTimeout) clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(() => {
+      sidebarState.setRightSidebarWidth(width);
+      localWidth = null; // Reset to use store value
+    }, 300);
+  }
+
+  let saveTimeout: ReturnType<typeof setTimeout> | null = null;
 </script>
 
-<div class="right-sidebar" class:visible={sidebarState.rightSidebar.visible}>
-  <div class="sidebar-content">
+<div
+  class="right-sidebar"
+  class:visible={sidebarState.rightSidebar.visible}
+  style="--sidebar-width: {currentWidth}px"
+>
+  <ResizeHandle side="right" onResize={handleResize} minWidth={300} maxWidth={800} />
+  <div class="sidebar-inner">
     {#if sidebarState.rightSidebar.mode === 'ai'}
       <div class="ai-mode">
         <AIAssistant
@@ -65,15 +90,15 @@
 
 <style>
   .right-sidebar {
+    position: relative;
     height: 100%;
     max-height: 100vh;
     background: var(--bg-primary);
     border-left: 1px solid var(--border-light);
     display: flex;
     flex-direction: column;
-    transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    width: 450px;
-    min-width: 450px;
+    width: var(--sidebar-width);
+    min-width: var(--sidebar-width);
     flex-shrink: 0;
     overflow: hidden;
   }
@@ -84,14 +109,13 @@
     border-left: none;
   }
 
-  .sidebar-content {
+  .sidebar-inner {
     flex: 1;
-    min-height: 0; /* Critical for proper flexbox height constraint */
+    min-height: 0;
+    min-width: 0;
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    width: 450px;
-    min-width: 450px;
   }
 
   .ai-mode {
