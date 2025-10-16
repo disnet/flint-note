@@ -10,16 +10,6 @@ export interface ModelInfo {
 }
 
 export const SUPPORTED_MODELS: ModelInfo[] = [
-  // OpenAI Models
-  // {
-  //   id: 'openai/gpt-5',
-  //   name: 'GPT-5 Chat',
-  //   provider: 'OpenAI',
-  //   icon: '🤖',
-  //   contextLength: 400000,
-  //   costPerMTokens: { input: 1.25, output: 10.0, cached: 0.13 }
-  // },
-
   // Anthropic Claude Models
   {
     id: 'anthropic/claude-haiku-4.5',
@@ -39,6 +29,45 @@ export const SUPPORTED_MODELS: ModelInfo[] = [
     contextLength: 200000,
     recommendedMaxConversation: 140000, // 70% of 200k
     description: 'Advanced reasoning - only use when you need deeper thinking'
+  },
+
+  // OpenAI Models
+  {
+    id: 'openai/gpt-5',
+    name: 'GPT-5',
+    provider: 'OpenAI',
+    icon: '🤖',
+    contextLength: 400000,
+    recommendedMaxConversation: 280000, // 70% of 400k
+    description: 'Advanced reasoning - only use when you need deeper thinking'
+  },
+  {
+    id: 'openai/gpt-5-mini',
+    name: 'GPT-5 Mini',
+    provider: 'OpenAI',
+    icon: '🤖',
+    contextLength: 400000,
+    recommendedMaxConversation: 280000, // 70% of 400k
+    description: 'Fast and efficient - best for most tasks'
+  },
+  // Google Models
+  {
+    id: 'google/gemini-2.5-pro',
+    name: 'Gemini 2.5 Pro',
+    provider: 'Google',
+    icon: '🤖',
+    contextLength: 1048576,
+    recommendedMaxConversation: 7340032, // 70% of 1048576
+    description: 'Advanced reasoning - only use when you need deeper thinking'
+  },
+  {
+    id: 'google/gemini-2.5-flash',
+    name: 'Gemini 2.5 Flash',
+    provider: 'Google',
+    icon: '🤖',
+    contextLength: 1048576,
+    recommendedMaxConversation: 7340032, // 70% of 1048576
+    description: 'Fast and efficient - best for most tasks'
   }
 ];
 
