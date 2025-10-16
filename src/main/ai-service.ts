@@ -94,7 +94,7 @@ export class AIService extends EventEmitter {
     workspaceRoot?: string
   ) {
     super();
-    this.currentModelName = 'openai/gpt-4o-mini';
+    this.currentModelName = 'anthropic/claude-haiku-4.5';
     this.systemPrompt = this.loadSystemPrompt();
     logger.info('AI Service constructed', { model: this.currentModelName });
     this.openrouter = openrouter;

@@ -28,8 +28,8 @@ export const SUPPORTED_MODELS: ModelInfo[] = [
     recommendedMaxConversation: 140000 // 70% of 200k
   },
   {
-    id: 'anthropic/claude-3.5-haiku',
-    name: 'Claude 3.5 Haiku',
+    id: 'anthropic/claude-haiku-4.5',
+    name: 'Claude 4.5 Haiku',
     provider: 'Anthropic',
     icon: '🧠',
     contextLength: 200000,
@@ -37,7 +37,7 @@ export const SUPPORTED_MODELS: ModelInfo[] = [
   }
 ];
 
-export const DEFAULT_MODEL = 'anthropic/claude-sonnet-4.5';
+export const DEFAULT_MODEL = 'anthropic/claude-haiku-4.5';
 
 export function getModelById(id: string): ModelInfo | undefined {
   return SUPPORTED_MODELS.find((model) => model.id === id);
