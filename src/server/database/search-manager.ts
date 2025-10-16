@@ -268,7 +268,9 @@ export class HybridSearchManager {
 
   /**
    * Escape query string for FTS5 MATCH operator
-   * Returns null if query cannot be safely used with FTS
+   * Wraps the query in double quotes to treat it as a literal string,
+   * escaping any internal double quotes by doubling them (SQL-style).
+   * Returns null if query is empty or invalid.
    */
   private escapeFTSQuery(query: string): string | null {
     if (!query || typeof query !== 'string') {
@@ -281,20 +283,12 @@ export class HybridSearchManager {
       return null;
     }
 
-    // Check for FTS5 special characters that might cause syntax errors
-    // Allow * for prefix matching, but escape others
-    const dangerousChars = /[()@"'-]/;
-    if (dangerousChars.test(trimmed)) {
-      return null; // Fall back to LIKE search
-    }
+    // Escape internal double quotes by doubling them (SQL-style escaping)
+    const escapedQuery = trimmed.replace(/"/g, '""');
 
-    // If query doesn't already end with *, add it for prefix matching
-    // This allows partial word matches like "prog" -> "prog*"
-    if (!trimmed.endsWith('*') && trimmed.length >= 3) {
-      return trimmed + '*';
-    }
-
-    return trimmed;
+    // Wrap in double quotes to treat as literal string
+    // This makes the query safe from FTS5 syntax interpretation
+    return `"${escapedQuery}"`;
   }
 
   async searchNotesAdvanced(options: AdvancedSearchOptions): Promise<SearchResponse> {

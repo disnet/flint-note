@@ -506,6 +506,69 @@ describe('Basic Tools', () => {
       // The actual implementation should clamp to 100, but we can't easily verify
       // the exact limit without creating 101+ notes
     });
+
+    it('should handle special characters in search queries', async () => {
+      const tools = toolService.getTools();
+
+      // Create a note with a path-like content
+      await tools!.create_note.execute({
+        title: 'Special Characters Test',
+        content: 'This note contains general/path and other special characters: @#$%',
+        noteType: 'general'
+      });
+
+      // Wait a moment for potential indexing
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      // Test various special characters that previously caused FTS5 syntax errors
+      const specialQueries = [
+        'general/',
+        'path/to/something',
+        'test@example',
+        'hello-world',
+        'question?',
+        'exclamation!',
+        'hash#tag',
+        'dollar$sign',
+        'percent%value',
+        'caret^symbol',
+        'and&ampersand'
+      ];
+
+      for (const query of specialQueries) {
+        const result = await tools!.search_notes.execute({
+          query,
+          limit: 10
+        });
+
+        // Should not throw an error, even if no results found
+        expect(result.success).toBe(true);
+        expect(result.data).toBeDefined();
+        expect(Array.isArray(result.data)).toBe(true);
+      }
+    });
+
+    it('should fall back to LIKE search for complex queries', async () => {
+      const tools = toolService.getTools();
+
+      // Create test note with forward slash
+      await tools!.create_note.execute({
+        title: 'Fallback Test',
+        content: 'This note is in general/testing directory',
+        noteType: 'general'
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      // This should trigger fallback to LIKE search due to the slash
+      const result = await tools!.search_notes.execute({
+        query: 'general/',
+        limit: 10
+      });
+
+      expect(result.success).toBe(true);
+      expect(Array.isArray(result.data)).toBe(true);
+    });
   });
 
   describe('get_vault_info tool', () => {
