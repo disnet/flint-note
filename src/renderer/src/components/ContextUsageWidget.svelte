@@ -41,34 +41,38 @@
   }
 </script>
 
-{#if contextUsage}
-  <div class="context-widget" class:warning={shouldShowWarning()}>
-    <svg class="progress-circle" viewBox="0 0 36 36">
-      <!-- Background circle -->
-      <circle
-        class="circle-bg"
-        cx="18"
-        cy="18"
-        r="15.5"
-        fill="none"
-        stroke="var(--border-medium)"
-        stroke-width="2"
-      />
-      <!-- Progress circle -->
-      <circle
-        class="circle-progress"
-        cx="18"
-        cy="18"
-        r="15.5"
-        fill="none"
-        stroke={getBarColor()}
-        stroke-width="2"
-        stroke-dasharray="{(contextUsage.percentage / 100) * 97.4}, 97.4"
-        stroke-linecap="round"
-        transform="rotate(-90 18 18)"
-      />
-    </svg>
-    <div class="tooltip">
+<div
+  class="context-widget"
+  class:warning={shouldShowWarning()}
+  class:loading={!contextUsage}
+>
+  <svg class="progress-circle" viewBox="0 0 36 36">
+    <!-- Background circle -->
+    <circle
+      class="circle-bg"
+      cx="18"
+      cy="18"
+      r="15.5"
+      fill="none"
+      stroke="var(--border-medium)"
+      stroke-width="2"
+    />
+    <!-- Progress circle -->
+    <circle
+      class="circle-progress"
+      cx="18"
+      cy="18"
+      r="15.5"
+      fill="none"
+      stroke={getBarColor()}
+      stroke-width="2"
+      stroke-dasharray="{contextUsage ? (contextUsage.percentage / 100) * 97.4 : 0}, 97.4"
+      stroke-linecap="round"
+      transform="rotate(-90 18 18)"
+    />
+  </svg>
+  <div class="tooltip">
+    {#if contextUsage}
       <div class="tooltip-header">
         <span class="tooltip-label">Context Usage</span>
         <span class="tooltip-percentage" style="color: {getBarColor()}">
@@ -110,9 +114,17 @@
           Start New Thread
         </button>
       {/if}
-    </div>
+    {:else}
+      <div class="tooltip-header">
+        <span class="tooltip-label">Context Usage</span>
+        <span class="tooltip-percentage loading-text">Calculating...</span>
+      </div>
+      <div class="tooltip-detail">
+        <span class="detail-label">Loading context information...</span>
+      </div>
+    {/if}
   </div>
-{/if}
+</div>
 
 <style>
   .context-widget {
@@ -126,6 +138,14 @@
     animation: pulse-warning 2s ease-in-out infinite;
   }
 
+  .context-widget.loading {
+    opacity: 0.5;
+  }
+
+  .context-widget.loading .circle-progress {
+    animation: pulse-loading 1.5s ease-in-out infinite;
+  }
+
   @keyframes pulse-warning {
     0%,
     100% {
@@ -133,6 +153,16 @@
     }
     50% {
       opacity: 0.7;
+    }
+  }
+
+  @keyframes pulse-loading {
+    0%,
+    100% {
+      opacity: 0.3;
+    }
+    50% {
+      opacity: 0.6;
     }
   }
 
@@ -191,6 +221,11 @@
   .tooltip-percentage {
     font-weight: 600;
     font-size: 0.875rem;
+  }
+
+  .tooltip-percentage.loading-text {
+    color: var(--text-tertiary);
+    font-style: italic;
   }
 
   .tooltip-detail {

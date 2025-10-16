@@ -810,9 +810,7 @@
   }
 
   .credits-display.credits-ok {
-    background: #efe;
     color: #060;
-    border: 1px solid #cfc;
   }
 
   .credits-tooltip {
