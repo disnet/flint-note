@@ -1,323 +1,162 @@
 <script lang="ts">
-  import { getModelsByProvider } from '../config/models';
   import { modelStore } from '../stores/modelStore.svelte';
-  import type { ModelInfo } from '../config/models';
+  import { SUPPORTED_MODELS } from '../config/models';
 
-  let isOpen = $state(false);
-  let dropdownElement: HTMLDivElement;
-  let selectorButton: HTMLButtonElement;
-  let dropdownPosition = $state<'below' | 'above'>('below');
+  let hoveredModelId = $state<string | null>(null);
+  let tooltipPosition = $state<'above' | 'below'>('above');
+  let segmentElements = new Map<string, HTMLElement>();
 
-  const modelsByProvider = getModelsByProvider();
-  const providerOrder = ['OpenAI', 'Anthropic', 'Google', 'Meta', 'Mistral'];
-
-  function handleModelSelect(model: ModelInfo): void {
-    modelStore.setSelectedModel(model.id);
-    isOpen = false;
-  }
-
-  function toggleDropdown(): void {
-    isOpen = !isOpen;
-    if (isOpen) {
-      // Calculate optimal dropdown position
-      updateDropdownPosition();
+  function handleModelSelect(modelId: string): void {
+    if (modelId !== modelStore.selectedModel) {
+      modelStore.setSelectedModel(modelId);
     }
   }
 
-  function updateDropdownPosition(): void {
-    if (!selectorButton) return;
+  function handleMouseEnter(modelId: string, event: MouseEvent): void {
+    hoveredModelId = modelId;
+    const target = event.currentTarget as HTMLElement;
+    const rect = target.getBoundingClientRect();
+    const tooltipHeight = 100; // Approximate tooltip height
+    const spaceAbove = rect.top;
 
-    const rect = selectorButton.getBoundingClientRect();
-    const viewportHeight = window.innerHeight;
-    const dropdownHeight = 400; // max-height from CSS
-    const buffer = 20; // Extra buffer space from viewport edges
-
-    // Check if there's enough space below (with buffer)
-    const spaceBelow = viewportHeight - rect.bottom - buffer;
-    const spaceAbove = rect.top - buffer;
-
-    // Position above if there's not enough space below but enough above
-    dropdownPosition =
-      spaceBelow < dropdownHeight && spaceAbove > dropdownHeight ? 'above' : 'below';
+    // If not enough space above, show below
+    tooltipPosition = spaceAbove < tooltipHeight ? 'below' : 'above';
   }
 
-  function handleClickOutside(event: MouseEvent): void {
-    if (dropdownElement && !dropdownElement.contains(event.target as Node)) {
-      isOpen = false;
-    }
+  function handleMouseLeave(): void {
+    hoveredModelId = null;
   }
-
-  // Close dropdown when clicking outside
-  $effect(() => {
-    if (isOpen) {
-      document.addEventListener('click', handleClickOutside);
-      return () => document.removeEventListener('click', handleClickOutside);
-    }
-    return () => {};
-  });
-
-  // Close on escape key
-  $effect(() => {
-    function handleKeyDown(event: KeyboardEvent): void {
-      if (event.key === 'Escape' && isOpen) {
-        isOpen = false;
-      }
-    }
-
-    if (isOpen) {
-      document.addEventListener('keydown', handleKeyDown);
-      return () => document.removeEventListener('keydown', handleKeyDown);
-    }
-
-    return () => {};
-  });
-
-  // Reposition dropdown on window resize
-  $effect(() => {
-    function handleResize(): void {
-      if (isOpen) {
-        updateDropdownPosition();
-      }
-    }
-
-    if (isOpen) {
-      window.addEventListener('resize', handleResize);
-      return () => window.removeEventListener('resize', handleResize);
-    }
-    return () => {};
-  });
 </script>
 
-<div class="model-selector" bind:this={dropdownElement}>
-  <button
-    bind:this={selectorButton}
-    class="selector-button"
-    class:open={isOpen}
-    onclick={toggleDropdown}
-    aria-haspopup="listbox"
-    aria-expanded={isOpen}
-  >
-    <span class="model-display">
-      <span class="model-icon">{modelStore.currentModelInfo.icon}</span>
-      <span class="model-name">{modelStore.currentModelInfo.name}</span>
-    </span>
-    <span class="dropdown-arrow" class:rotated={isOpen}> ▼ </span>
-  </button>
-
-  {#if isOpen}
-    <div
-      class="dropdown-menu"
-      class:dropdown-above={dropdownPosition === 'above'}
-      role="listbox"
+<div class="segmented-control" role="group" aria-label="Model selection">
+  {#each SUPPORTED_MODELS as model (model.id)}
+    <button
+      class="segment"
+      class:active={model.id === modelStore.selectedModel}
+      onclick={() => handleModelSelect(model.id)}
+      onmouseenter={(e) => handleMouseEnter(model.id, e)}
+      onmouseleave={handleMouseLeave}
+      aria-pressed={model.id === modelStore.selectedModel}
     >
-      {#each providerOrder as provider (provider)}
-        {#if modelsByProvider[provider]}
-          <div class="provider-section">
-            <div class="provider-header">{provider}</div>
-            {#each modelsByProvider[provider] as model (model.id)}
-              <button
-                class="model-option"
-                class:selected={model.id === modelStore.selectedModel}
-                class:recommended={model.recommended}
-                onclick={() => handleModelSelect(model)}
-                role="option"
-                aria-selected={model.id === modelStore.selectedModel}
-              >
-                <div class="model-info">
-                  <div class="model-main">
-                    <span class="model-icon">{model.icon}</span>
-                    <span class="model-name">{model.name}</span>
-                    {#if model.recommended}
-                      <span class="recommended-badge">Recommended</span>
-                    {/if}
-                    {#if model.id === modelStore.selectedModel}
-                      <span class="checkmark">✓</span>
-                    {/if}
-                  </div>
-                  {#if model.description}
-                    <div class="model-description">{model.description}</div>
-                  {/if}
-                </div>
-              </button>
-            {/each}
-          </div>
-        {/if}
-      {/each}
-    </div>
-  {/if}
+      <span class="model-icon">{model.icon}</span>
+      <span class="model-name">{model.name}</span>
+      {#if hoveredModelId === model.id}
+        <div class="tooltip" class:tooltip-below={tooltipPosition === 'below'}>
+          {model.description}
+        </div>
+      {/if}
+    </button>
+  {/each}
 </div>
 
 <style>
-  .model-selector {
-    position: relative;
-    display: inline-block;
-  }
-
-  .selector-button {
-    display: flex;
-    align-items: center;
-    gap: 0.375rem;
-    padding: 0.375rem 0.5rem;
-    background: var(--bg-primary);
-    border: 1px solid var(--border-light);
+  .segmented-control {
+    display: inline-flex;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-medium);
     border-radius: 0.5rem;
-    font-size: 0.75rem;
-    color: var(--text-primary);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    min-width: 110px;
-    justify-content: space-between;
+    padding: 0.125rem;
+    gap: 0.125rem;
+    overflow: visible;
+    position: relative;
   }
 
-  .selector-button:hover {
-    border-color: var(--accent-primary);
-    background: var(--bg-secondary);
-  }
-
-  .selector-button.open {
-    border-color: var(--accent-primary);
-    box-shadow: 0 0 0 2px var(--accent-light);
-  }
-
-  .model-display {
+  .segment {
     display: flex;
     align-items: center;
     gap: 0.375rem;
+    padding: 0.375rem 0.625rem;
+    background: transparent;
+    border: none;
+    border-radius: 0.375rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+    position: relative;
+    overflow: visible;
+  }
+
+  .segment:hover:not(.active) {
+    background: rgba(var(--accent-primary-rgb, 59, 130, 246), 0.08);
+    color: var(--text-secondary);
+  }
+
+  .segment.active {
+    background: var(--bg-primary);
+    color: var(--accent-primary);
+    font-weight: 600;
+    box-shadow:
+      0 1px 3px rgba(0, 0, 0, 0.12),
+      0 0 0 1px var(--border-light);
+    cursor: default;
+  }
+
+  .segment.active .model-icon {
+    filter: brightness(1.1);
   }
 
   .model-icon {
     font-size: 0.875rem;
     line-height: 1;
+    transition: filter 0.15s ease;
   }
 
   .model-name {
-    font-weight: 500;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    line-height: 1;
   }
 
-  .dropdown-arrow {
-    font-size: 0.625rem;
-    color: var(--text-secondary);
-    transition: transform 0.2s ease;
-  }
-
-  .dropdown-arrow.rotated {
-    transform: rotate(180deg);
-  }
-
-  .dropdown-menu {
+  .tooltip {
     position: absolute;
-    top: 100%;
+    bottom: calc(100% + 8px);
     left: 0;
-    right: 0;
-    z-index: 100;
-    background: var(--bg-primary);
-    border: 1px solid var(--border-medium);
-    border-radius: 0.75rem;
-    box-shadow: 0 4px 12px var(--shadow-medium);
-    margin-top: 0.25rem;
-    max-height: 400px;
-    overflow-y: auto;
-    min-width: 340px;
-  }
-
-  .dropdown-menu.dropdown-above {
-    top: auto;
-    bottom: 100%;
-    margin-top: 0;
-    margin-bottom: 0.25rem;
-  }
-
-  .provider-section:not(:last-child) {
-    border-bottom: 1px solid var(--border-light);
-  }
-
-  .provider-header {
-    padding: 0.75rem 1rem 0.5rem;
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    color: var(--text-secondary);
-    letter-spacing: 0.05em;
-  }
-
-  .model-option {
-    width: 100%;
-    padding: 0.75rem 1rem;
-    background: transparent;
-    border: none;
-    text-align: left;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-    color: var(--text-primary);
-  }
-
-  .model-option:hover {
     background: var(--bg-secondary);
-  }
-
-  .model-option.selected {
-    background: var(--accent-light);
-    color: var(--accent-primary);
-  }
-
-  .model-option.recommended {
-    border-left: 3px solid var(--accent-primary);
-    padding-left: calc(1rem - 3px);
-  }
-
-  .model-info {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-  }
-
-  .model-main {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .recommended-badge {
-    padding: 0.125rem 0.5rem;
-    background: var(--accent-primary);
-    color: white;
-    font-size: 0.625rem;
-    font-weight: 600;
-    border-radius: 0.25rem;
-    text-transform: uppercase;
-    letter-spacing: 0.025em;
-  }
-
-  .model-description {
+    border: 1px solid var(--border-light);
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.75rem;
     font-size: 0.75rem;
-    color: var(--text-secondary);
     line-height: 1.4;
-    margin-top: 0.125rem;
+    color: var(--text-primary);
     white-space: normal;
-    word-wrap: break-word;
+    box-shadow:
+      0 4px 6px -1px rgb(0 0 0 / 0.1),
+      0 2px 4px -2px rgb(0 0 0 / 0.1);
+    z-index: 1000;
+    min-width: 200px;
+    max-width: 250px;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(4px);
+    transition:
+      opacity 0.2s ease,
+      transform 0.2s ease;
   }
 
-  .checkmark {
-    margin-left: auto;
-    color: var(--accent-primary);
-    font-weight: bold;
+  .segment:hover .tooltip {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .tooltip.tooltip-below {
+    bottom: auto;
+    top: calc(100% + 8px);
+    transform: translateY(-4px);
+  }
+
+  .segment:hover .tooltip.tooltip-below {
+    transform: translateY(0);
   }
 
   /* Responsive adjustments */
   @media (max-width: 768px) {
-    .dropdown-menu {
-      min-width: 300px;
-    }
-
-    .selector-button {
-      min-width: 120px;
-    }
-
     .model-name {
-      max-width: 80px;
+      display: none;
+    }
+
+    .segment {
+      padding: 0.375rem 0.5rem;
     }
   }
 </style>

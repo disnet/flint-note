@@ -769,6 +769,7 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    overflow: visible;
   }
 
   .spacer {
