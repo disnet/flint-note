@@ -1089,6 +1089,18 @@ export class ToolService {
           };
         }
 
+        // Get the note first to obtain its actual ID for the event
+        // The input `id` might be in "type/title" format, but we need the canonical UUID
+        let actualNoteId = id;
+        try {
+          const note = await flintApi.getNote(currentVault.id, id);
+          actualNoteId = note.id;
+        } catch (error) {
+          // If we can't get the note, it might not exist or the identifier is invalid
+          // Continue with the original id and let deleteNote handle the error
+          console.warn('[deleteNoteTool] Could not fetch note before deletion:', error);
+        }
+
         const result = await flintApi.deleteNote({
           identifier: id,
           confirm: true,
@@ -1099,7 +1111,7 @@ export class ToolService {
         if (result.deleted) {
           publishNoteEvent({
             type: 'note.deleted',
-            noteId: id
+            noteId: actualNoteId
           });
         }
 
