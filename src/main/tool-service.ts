@@ -1,39 +1,11 @@
 import { Tool, tool } from 'ai';
 import { z } from 'zod';
 import { NoteService } from './note-service';
-import {
-  EnhancedEvaluateNoteCode,
-  enhancedEvaluateCodeSchema
-} from './enhanced-evaluate-note-code';
+import { EnhancedEvaluateNoteCode } from './enhanced-evaluate-note-code';
 import { CustomFunctionsApi } from '../server/api/custom-functions-api.js';
 import { ContentHashMismatchError } from '../server/utils/content-hash.js';
 import { publishNoteEvent } from './note-events';
 import { TodoPlanService } from './todo-plan-service';
-
-interface ToolResponse {
-  success: boolean;
-  data?: unknown;
-  error?: string;
-  message: string;
-  compilation?: {
-    success: boolean;
-    errors: Array<{
-      code: number;
-      message: string;
-      line: number;
-      column: number;
-      source: string;
-      suggestion?: string;
-    }>;
-    warnings: Array<{
-      code: number;
-      message: string;
-      line: number;
-      column: number;
-      source: string;
-    }>;
-  };
-}
 
 export class ToolService {
   private evaluateNoteCode: EnhancedEvaluateNoteCode;
@@ -63,7 +35,6 @@ export class ToolService {
     }
 
     const tools: Record<string, Tool> = {
-      evaluate_note_code: this.evaluateNoteCodeTool,
       // Basic CRUD tools
       get_note: this.getNoteTool,
       create_note: this.createNoteTool,
@@ -71,6 +42,11 @@ export class ToolService {
       search_notes: this.searchNotesTool,
       get_vault_info: this.getVaultInfoTool,
       delete_note: this.deleteNoteTool,
+      // Links API tools
+      get_note_links: this.getNoteLinksTool,
+      get_backlinks: this.getBacklinksTool,
+      find_broken_links: this.findBrokenLinksTool,
+      search_by_links: this.searchByLinksTool,
       // Note type management tools
       get_note_type_details: this.getNoteTypeDetailsTool,
       create_note_type: this.createNoteTypeTool,
@@ -94,17 +70,6 @@ export class ToolService {
 
     return tools;
   }
-
-  private evaluateNoteCodeTool = tool({
-    description:
-      'Execute TypeScript code in secure WebAssembly sandbox with strict type checking and access to FlintNote API. ' +
-      'Provides compile-time type safety and comprehensive error feedback. ' +
-      'Your code must define an async function called main() that returns the result.',
-    inputSchema: enhancedEvaluateCodeSchema,
-    execute: async ({ code, typesOnly = false }) => {
-      return (await this.evaluateNoteCode.execute({ code, typesOnly })) as ToolResponse;
-    }
-  });
 
   private registerCustomFunctionTool = tool({
     description:
@@ -1598,6 +1563,253 @@ export class ToolService {
           success: false,
           error: error instanceof Error ? error.message : String(error),
           message: `Failed to delete custom function: ${error instanceof Error ? error.message : String(error)}`
+        };
+      }
+    }
+  });
+
+  // Links API Tools
+  private getNoteLinksTool = tool({
+    description:
+      "Get all links for a specific note, including outgoing internal wikilinks, outgoing external links, and incoming backlinks. Use this to understand a note's connections and relationships.",
+    inputSchema: z.object({
+      id: z
+        .string()
+        .describe(
+          'Note ID or identifier to get links for. Examples: "note-id-123" or "meeting/Weekly Standup"'
+        )
+    }),
+    execute: async ({ id }) => {
+      if (!this.noteService) {
+        return {
+          success: false,
+          error: 'Note service not available',
+          message: 'Note service not initialized'
+        };
+      }
+
+      try {
+        const flintApi = this.noteService.getFlintNoteApi();
+        const currentVault = await this.noteService.getCurrentVault();
+
+        if (!currentVault) {
+          return {
+            success: false,
+            error: 'NO_ACTIVE_VAULT',
+            message: 'No active vault available'
+          };
+        }
+
+        const links = await flintApi.getNoteLinks(currentVault.id, id);
+
+        return {
+          success: true,
+          data: links,
+          message: `Retrieved links for note: ${id}. Found ${links.outgoing_internal.length} internal, ${links.outgoing_external.length} external, ${links.incoming.length} incoming links`
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+
+        if (
+          errorMessage.includes('not found') ||
+          errorMessage.includes('does not exist')
+        ) {
+          return {
+            success: false,
+            error: 'NOTE_NOT_FOUND',
+            message: `Note not found: ${id}`
+          };
+        }
+
+        return {
+          success: false,
+          error: 'VAULT_ACCESS_ERROR',
+          message: `Failed to get note links: ${errorMessage}`
+        };
+      }
+    }
+  });
+
+  private getBacklinksTool = tool({
+    description:
+      'Get all notes that link to the specified note (backlinks). Returns a list of notes that reference this note through wikilinks.',
+    inputSchema: z.object({
+      id: z
+        .string()
+        .describe(
+          'Note ID or identifier to get backlinks for. Examples: "note-id-123" or "meeting/Weekly Standup"'
+        )
+    }),
+    execute: async ({ id }) => {
+      if (!this.noteService) {
+        return {
+          success: false,
+          error: 'Note service not available',
+          message: 'Note service not initialized'
+        };
+      }
+
+      try {
+        const flintApi = this.noteService.getFlintNoteApi();
+        const currentVault = await this.noteService.getCurrentVault();
+
+        if (!currentVault) {
+          return {
+            success: false,
+            error: 'NO_ACTIVE_VAULT',
+            message: 'No active vault available'
+          };
+        }
+
+        const backlinks = await flintApi.getBacklinks(currentVault.id, id);
+
+        return {
+          success: true,
+          data: backlinks,
+          message: `Found ${backlinks.length} note(s) linking to: ${id}`
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+
+        if (
+          errorMessage.includes('not found') ||
+          errorMessage.includes('does not exist')
+        ) {
+          return {
+            success: false,
+            error: 'NOTE_NOT_FOUND',
+            message: `Note not found: ${id}`
+          };
+        }
+
+        return {
+          success: false,
+          error: 'VAULT_ACCESS_ERROR',
+          message: `Failed to get backlinks: ${errorMessage}`
+        };
+      }
+    }
+  });
+
+  private findBrokenLinksTool = tool({
+    description:
+      'Find all broken wikilinks across the vault. Returns links that point to non-existent notes, helping identify notes that need to be created or links that need to be fixed.',
+    inputSchema: z.object({}),
+    execute: async () => {
+      if (!this.noteService) {
+        return {
+          success: false,
+          error: 'Note service not available',
+          message: 'Note service not initialized'
+        };
+      }
+
+      try {
+        const flintApi = this.noteService.getFlintNoteApi();
+        const currentVault = await this.noteService.getCurrentVault();
+
+        if (!currentVault) {
+          return {
+            success: false,
+            error: 'NO_ACTIVE_VAULT',
+            message: 'No active vault available'
+          };
+        }
+
+        const brokenLinks = await flintApi.findBrokenLinks(currentVault.id);
+
+        return {
+          success: true,
+          data: brokenLinks,
+          message: `Found ${brokenLinks.length} broken link(s) in vault`
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+
+        return {
+          success: false,
+          error: 'VAULT_ACCESS_ERROR',
+          message: `Failed to find broken links: ${errorMessage}`
+        };
+      }
+    }
+  });
+
+  private searchByLinksTool = tool({
+    description:
+      'Search for notes based on their link relationships. Supports multiple search criteria: notes linking to specific notes, notes linked from specific notes, notes with external links to specific domains, or notes with broken links.',
+    inputSchema: z.object({
+      hasLinksTo: z
+        .array(z.string())
+        .optional()
+        .describe(
+          'Find notes that link to any of these note IDs. Example: ["meeting/weekly-standup", "project/Q4-planning"]'
+        ),
+      linkedFrom: z
+        .array(z.string())
+        .optional()
+        .describe(
+          'Find notes that are linked from any of these note IDs. Example: ["daily/2025-01-15"]'
+        ),
+      externalDomains: z
+        .array(z.string())
+        .optional()
+        .describe(
+          'Find notes with external links to these domains. Example: ["github.com", "docs.google.com"]'
+        ),
+      brokenLinks: z
+        .boolean()
+        .optional()
+        .describe('Find notes that contain broken internal links')
+    }),
+    execute: async ({ hasLinksTo, linkedFrom, externalDomains, brokenLinks }) => {
+      if (!this.noteService) {
+        return {
+          success: false,
+          error: 'Note service not available',
+          message: 'Note service not initialized'
+        };
+      }
+
+      try {
+        const flintApi = this.noteService.getFlintNoteApi();
+        const currentVault = await this.noteService.getCurrentVault();
+
+        if (!currentVault) {
+          return {
+            success: false,
+            error: 'NO_ACTIVE_VAULT',
+            message: 'No active vault available'
+          };
+        }
+
+        const notes = await flintApi.searchByLinks({
+          has_links_to: hasLinksTo,
+          linked_from: linkedFrom,
+          external_domains: externalDomains,
+          broken_links: brokenLinks,
+          vault_id: currentVault.id
+        });
+
+        let criteriaDescription = '';
+        if (hasLinksTo) criteriaDescription = `linking to ${hasLinksTo.join(', ')}`;
+        else if (linkedFrom) criteriaDescription = `linked from ${linkedFrom.join(', ')}`;
+        else if (externalDomains)
+          criteriaDescription = `with external links to ${externalDomains.join(', ')}`;
+        else if (brokenLinks) criteriaDescription = 'with broken links';
+
+        return {
+          success: true,
+          data: notes,
+          message: `Found ${notes.length} note(s) ${criteriaDescription}`
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+
+        return {
+          success: false,
+          error: 'VAULT_ACCESS_ERROR',
+          message: `Failed to search by links: ${errorMessage}`
         };
       }
     }

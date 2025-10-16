@@ -31,23 +31,22 @@ Fast, direct tools for common operations:
 - **`delete_note`** - Delete a note permanently
 - **`get_note_type_details`** - Get detailed information about a note type (purpose, agent instructions, metadata schema)
 
-### Advanced Tool: `evaluate_note_code` (Use for 20% of tasks)
+### Links API Tools
 
-A WebAssembly-sandboxed TypeScript execution environment with full FlintNote API access for:
+Tools for managing and querying note relationships through wikilinks:
 
-- Multi-step workflows (3+ API calls)
-- Bulk operations (10+ notes)
-- Complex analysis, filtering, calculations
-- Custom logic and transformations
-- Data aggregation across many notes
+- **`get_note_links`** - Get all links for a specific note (outgoing internal, outgoing external, incoming backlinks)
+- **`get_backlinks`** - Get all notes that link to a specified note
+- **`find_broken_links`** - Find all broken wikilinks across the vault
+- **`search_by_links`** - Search notes by link relationships (linking to, linked from, external domains, broken links)
 
-### Decision Flow
+**When to use Links API:**
 
-1. Simple note operation (single or small batch)? → **Use basic tool**
-2. Simple search or list? → **Use basic tool**
-3. Complex logic or multiple steps? → **Use code evaluator**
-4. Processing many notes? → **Use code evaluator**
-5. Custom calculations or analysis? → **Use code evaluator**
+- Understanding note connections and relationships
+- Finding related content through backlinks
+- Identifying and fixing broken links
+- Discovering notes that reference specific topics
+- Building link-based navigation and discovery features
 
 ### Custom Functions Management
 
@@ -132,67 +131,6 @@ User: "Reorganize all my meeting notes from Q4"
 ```
 
 When a plan is active, you'll see context injected showing your progress. Use this to track what you've done and what's next.
-
-## API Reference for Code Evaluator
-
-When using `evaluate_note_code`, you have access to fully-typed TypeScript APIs:
-
-**Core Objects:**
-
-- `flintApi` - Main API for notes, note types, links, hierarchy, vaults, and relationships
-- `utils` - Utility functions (generateId, parseLinks, formatDate, sanitizeTitle)
-
-**Key Operations:**
-
-- **Notes**: createNote, getNote, updateNote, deleteNote, listNotes, searchNotes, renameNote, moveNote
-- **Note Types**: createNoteType, getNoteType, listNoteTypes, updateNoteType, deleteNoteType
-- **Links**: getNoteLinks, getBacklinks, findBrokenLinks, searchByLinks, migrateLinks
-- **Hierarchy**: addSubnote, removeSubnote, reorderSubnotes, getChildren, getParents, getDescendants, getHierarchyPath
-- **Vaults**: getCurrentVault, listVaults, createVault, switchVault, updateVault, removeVault
-- **Relationships**: getNoteRelationships, getRelatedNotes, findRelationshipPath, getClusteringCoefficient
-
-All APIs are fully typed - use TypeScript type annotations and the API will guide you with compile-time type checking.
-
-## Code Evaluator Usage
-
-**CRITICAL**: Only TypeScript code with proper type annotations is accepted. JavaScript will be rejected.
-
-**REQUIRED**: Define a typed `async function main(): Promise<YourReturnType>` that returns the result.
-
-**TypeScript Requirements:**
-
-- Use explicit type annotations for all variables, parameters, and return types
-- Handle null/undefined with proper type guards (`note?.title`, `if (note) { ... }`)
-- Leverage fully-typed FlintNote API interfaces for compile-time safety
-- All code undergoes strict type checking before execution
-
-**Example Pattern:**
-
-```typescript
-async function main(): Promise<YourReturnType> {
-  try {
-    // Your logic here using flintApi
-    const result = await flintApi.createNote({
-      type: 'meeting',
-      title: 'Weekly Standup',
-      content: '# Meeting Notes\n\n...'
-    });
-    return result;
-  } catch (error) {
-    return {
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined
-    };
-  }
-}
-```
-
-**Key Points:**
-
-- Code executes in WebAssembly sandbox with 10-second timeout
-- Use null-safe operators (`?.`) and type guards for robust code
-- Prefer batch operations for efficiency
-- Always include error handling
 
 ## Communication Style & Behavior
 

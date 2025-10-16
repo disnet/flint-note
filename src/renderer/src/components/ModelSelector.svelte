@@ -4,7 +4,6 @@
 
   let hoveredModelId = $state<string | null>(null);
   let tooltipPosition = $state<'above' | 'below'>('above');
-  let segmentElements = new Map<string, HTMLElement>();
 
   function handleModelSelect(modelId: string): void {
     if (modelId !== modelStore.selectedModel) {
