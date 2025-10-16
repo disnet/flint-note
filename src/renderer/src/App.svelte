@@ -80,6 +80,7 @@
     stepCount: number;
     maxSteps: number;
   } | null>(null);
+  let refreshCredits: (() => Promise<void>) | undefined = $state();
 
   async function handleNoteSelect(note: NoteMetadata): Promise<void> {
     await noteNavigationService.openNote(note, 'navigation', openNoteEditor, () => {
@@ -561,6 +562,11 @@
             }
             isLoadingResponse = false;
             currentRequestId = null;
+
+            // Refresh OpenRouter credits after agent response completes
+            if (refreshCredits) {
+              await refreshCredits();
+            }
           },
           // onError: handle streaming errors
           async (error: string) => {
@@ -983,6 +989,7 @@
         {toolCallLimitReached}
         onToolCallLimitContinue={handleToolCallLimitContinue}
         onToolCallLimitStop={handleToolCallLimitStop}
+        bind:refreshCredits
       />
     </div>
 

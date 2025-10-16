@@ -18,6 +18,7 @@
     toolCallLimitReached?: { stepCount: number; maxSteps: number } | null;
     onToolCallLimitContinue?: () => void;
     onToolCallLimitStop?: () => void;
+    refreshCredits?: () => Promise<void>;
   }
 
   let {
@@ -28,7 +29,8 @@
     onCancelMessage,
     toolCallLimitReached,
     onToolCallLimitContinue,
-    onToolCallLimitStop
+    onToolCallLimitStop,
+    refreshCredits = $bindable()
   }: Props = $props();
 
   let contextUsage = $state<ContextUsage | null>(null);
@@ -320,6 +322,7 @@
       onStartNewThread={handleContextWarningClick}
       {isLoading}
       onCancel={onCancelMessage}
+      bind:refreshCredits
     />
   </div>
 </div>

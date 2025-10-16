@@ -39,6 +39,7 @@
     onStartNewThread?: () => void;
     isLoading?: boolean;
     onCancel?: () => void;
+    refreshCredits?: () => Promise<void>;
   }
 
   let {
@@ -46,7 +47,8 @@
     contextUsage = null,
     onStartNewThread,
     isLoading = false,
-    onCancel
+    onCancel,
+    refreshCredits = $bindable()
   }: Props = $props();
 
   let inputText = $state('');
@@ -466,6 +468,18 @@
     }
   }
 
+  // Expose fetchCredits through bindable prop
+  refreshCredits = fetchCredits;
+
+  // Determine credit status color based on remaining balance
+  const creditsStatusClass = $derived.by(() => {
+    if (!creditsInfo) return '';
+    const remaining = creditsInfo.remaining_credits;
+    if (remaining < 2) return 'credits-critical';
+    if (remaining < 5) return 'credits-warning';
+    return 'credits-ok';
+  });
+
   function createExtensions(): Extension {
     const githubTheme = isDarkMode ? githubDark : githubLight;
 
@@ -693,8 +707,8 @@
       <ModelSelector />
     </div>
     {#if creditsInfo && creditsInfo.remaining_credits !== undefined}
-      <div class="credits-display" title="Credits info">
-        ${creditsInfo.remaining_credits.toFixed(2)} left
+      <div class="credits-display {creditsStatusClass}" title="Credits info">
+        ${Math.round(creditsInfo.remaining_credits)} left
         <div class="credits-tooltip">
           <div class="credits-tooltip-row">
             <span class="credits-label">Total:</span>
@@ -713,6 +727,7 @@
     {:else if creditsLoading}
       <div class="credits-display loading">loading...</div>
     {/if}
+    <div class="spacer"></div>
     <ContextUsageWidget {contextUsage} onWarningClick={onStartNewThread} />
     {#if isLoading}
       <button onclick={onCancel} class="send-button cancel-button"> cancel </button>
@@ -750,11 +765,14 @@
   }
 
   .model-selector-wrapper {
-    flex: 1;
     flex-shrink: 0;
     display: flex;
     align-items: center;
     gap: 0.5rem;
+  }
+
+  .spacer {
+    flex: 1;
   }
 
   .credits-display {
@@ -777,6 +795,24 @@
 
   .credits-display.loading {
     opacity: 0.6;
+  }
+
+  .credits-display.credits-critical {
+    background: #fee;
+    color: #c00;
+    border: 1px solid #fcc;
+  }
+
+  .credits-display.credits-warning {
+    background: #ffc;
+    color: #960;
+    border: 1px solid #fed;
+  }
+
+  .credits-display.credits-ok {
+    background: #efe;
+    color: #060;
+    border: 1px solid #cfc;
   }
 
   .credits-tooltip {

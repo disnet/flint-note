@@ -221,21 +221,20 @@ export class SecureStorageService {
       const data = (await response.json()) as {
         data?: {
           total_credits?: number;
-          usage?: number;
-          limit?: number | null;
+          total_usage?: number;
         };
       };
 
-      // OpenRouter returns: { data: { total_credits, usage, limit } }
-      // We need to calculate remaining from total - usage
       if (!data.data) {
         logger.warn('Unexpected OpenRouter credits response format', { data });
         return null;
       }
 
+      // OpenRouter returns total_credits (total credits) and total_usage (amount spent)
+      // Remaining = total_credits - total_usage
       const totalCredits = data.data.total_credits || 0;
-      const usedCredits = data.data.usage || 0;
-      const remainingCredits = totalCredits - usedCredits;
+      const usedCredits = data.data.total_usage || 0;
+      const remainingCredits = totalCredits > 0 ? totalCredits - usedCredits : 0;
 
       return {
         total_credits: totalCredits,
