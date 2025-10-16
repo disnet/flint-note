@@ -2,8 +2,10 @@
   import type { ToolCall } from '../services/types';
   import JsonViewer from './JsonViewer.svelte';
 
-  let { toolCalls, currentStepIndex }: { toolCalls: ToolCall[]; currentStepIndex?: number } =
-    $props();
+  let {
+    toolCalls,
+    currentStepIndex
+  }: { toolCalls: ToolCall[]; currentStepIndex?: number } = $props();
   let isExpanded = $state(false);
 
   function toggleExpanded(): void {

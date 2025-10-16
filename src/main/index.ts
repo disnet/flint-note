@@ -1128,6 +1128,13 @@ app.whenReady().then(async () => {
     return await secureStorageService.clearAllKeys();
   });
 
+  ipcMain.handle('get-openrouter-credits', async () => {
+    if (!secureStorageService) {
+      throw new Error('Secure storage service not available');
+    }
+    return await secureStorageService.getOpenRouterCredits();
+  });
+
   // Cache performance monitoring handlers
   ipcMain.handle('get-cache-metrics', async () => {
     if (!aiService) {

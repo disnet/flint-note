@@ -310,6 +310,11 @@ const api = {
     electronAPI.ipcRenderer.invoke('test-api-key', params),
   getAllApiKeys: () => electronAPI.ipcRenderer.invoke('get-all-api-keys'),
   clearApiKeys: () => electronAPI.ipcRenderer.invoke('clear-api-keys'),
+  getOpenRouterCredits: (): Promise<{
+    total_credits: number;
+    used_credits: number;
+    remaining_credits: number;
+  } | null> => electronAPI.ipcRenderer.invoke('get-openrouter-credits'),
 
   // Cache monitoring operations
   getCacheMetrics: () => electronAPI.ipcRenderer.invoke('get-cache-metrics'),

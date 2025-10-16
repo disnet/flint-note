@@ -262,6 +262,11 @@ declare global {
       }) => Promise<any>;
       getAllApiKeys: () => Promise<any>;
       clearApiKeys: () => Promise<any>;
+      getOpenRouterCredits: () => Promise<{
+        total_credits: number;
+        used_credits: number;
+        remaining_credits: number;
+      } | null>;
 
       // Pinned notes storage operations
       loadPinnedNotes: (params: { vaultId: string }) => Promise<any>;

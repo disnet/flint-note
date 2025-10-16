@@ -529,7 +529,8 @@
           async (_fullText: string) => {
             // Mark the final step as completed
             if (toolCallMessageIdsByStep.size > 0) {
-              const finalStepMessageId = toolCallMessageIdsByStep.get(highestStepIndexSeen);
+              const finalStepMessageId =
+                toolCallMessageIdsByStep.get(highestStepIndexSeen);
               if (finalStepMessageId) {
                 // Mark with a high index to indicate streaming is done
                 await unifiedChatStore.updateMessage(finalStepMessageId, {
@@ -579,7 +580,8 @@
             // If we've moved to a new step, mark the previous step's message as completed
             if (stepIndex > highestStepIndexSeen) {
               // Update the previous step's message with currentStepIndex to mark tools as completed
-              const previousStepMessageId = toolCallMessageIdsByStep.get(highestStepIndexSeen);
+              const previousStepMessageId =
+                toolCallMessageIdsByStep.get(highestStepIndexSeen);
               if (previousStepMessageId) {
                 await unifiedChatStore.updateMessage(previousStepMessageId, {
                   currentStepIndex: stepIndex

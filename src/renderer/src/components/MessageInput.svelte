@@ -181,6 +181,14 @@
   let slashCommandStart = $state(0);
   let isInParameterMode = $state(false);
 
+  // OpenRouter credits state
+  let creditsInfo = $state<{
+    total_credits: number;
+    used_credits: number;
+    remaining_credits: number;
+  } | null>(null);
+  let creditsLoading = $state(false);
+
   function handleSubmit(): void {
     const text = inputText.trim();
     if (text) {
@@ -445,6 +453,19 @@
     updateEditorTheme();
   }
 
+  async function fetchCredits(): Promise<void> {
+    try {
+      creditsLoading = true;
+      const credits = await window.api?.getOpenRouterCredits();
+      creditsInfo = credits;
+    } catch (error) {
+      console.error('Failed to fetch OpenRouter credits:', error);
+      creditsInfo = null;
+    } finally {
+      creditsLoading = false;
+    }
+  }
+
   function createExtensions(): Extension {
     const githubTheme = isDarkMode ? githubDark : githubLight;
 
@@ -637,6 +658,9 @@
     // Focus the editor
     editorView.focus();
 
+    // Fetch OpenRouter credits
+    fetchCredits();
+
     return () => {
       editorView?.destroy();
     };
@@ -668,6 +692,27 @@
     <div class="model-selector-wrapper">
       <ModelSelector />
     </div>
+    {#if creditsInfo && creditsInfo.remaining_credits !== undefined}
+      <div class="credits-display" title="Credits info">
+        ${creditsInfo.remaining_credits.toFixed(2)} left
+        <div class="credits-tooltip">
+          <div class="credits-tooltip-row">
+            <span class="credits-label">Total:</span>
+            <span class="credits-value">${creditsInfo.total_credits.toFixed(2)}</span>
+          </div>
+          <div class="credits-tooltip-row">
+            <span class="credits-label">Used:</span>
+            <span class="credits-value">${creditsInfo.used_credits.toFixed(2)}</span>
+          </div>
+          <div class="credits-tooltip-row">
+            <span class="credits-label">Remaining:</span>
+            <span class="credits-value">${creditsInfo.remaining_credits.toFixed(2)}</span>
+          </div>
+        </div>
+      </div>
+    {:else if creditsLoading}
+      <div class="credits-display loading">loading...</div>
+    {/if}
     <ContextUsageWidget {contextUsage} onWarningClick={onStartNewThread} />
     {#if isLoading}
       <button onclick={onCancel} class="send-button cancel-button"> cancel </button>
@@ -710,6 +755,76 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
+  }
+
+  .credits-display {
+    position: relative;
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+    padding: 0.25rem 0.5rem;
+    background: var(--bg-tertiary);
+    border-radius: 0.375rem;
+    white-space: nowrap;
+    font-weight: 500;
+    cursor: help;
+    transition: all 0.2s ease;
+  }
+
+  .credits-display:hover {
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+  }
+
+  .credits-display.loading {
+    opacity: 0.6;
+  }
+
+  .credits-tooltip {
+    position: absolute;
+    bottom: calc(100% + 0.5rem);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-primary);
+    border: 1px solid var(--border-medium);
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s ease;
+    pointer-events: none;
+    z-index: 1000;
+    min-width: 180px;
+  }
+
+  .credits-display:hover .credits-tooltip {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .credits-tooltip-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.25rem 0;
+  }
+
+  .credits-tooltip-row:not(:last-child) {
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .credits-label {
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+    font-weight: 500;
+  }
+
+  .credits-value {
+    font-size: 0.75rem;
+    color: var(--text-primary);
+    font-weight: 600;
+    font-family: 'SF Mono', 'Monaco', 'Cascadia Code', monospace;
   }
 
   .editor-field {

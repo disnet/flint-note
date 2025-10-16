@@ -184,4 +184,67 @@ export class SecureStorageService {
   isAvailable(): boolean {
     return safeStorage.isEncryptionAvailable();
   }
+
+  /**
+   * Fetch OpenRouter credits information
+   */
+  async getOpenRouterCredits(): Promise<{
+    total_credits: number;
+    used_credits: number;
+    remaining_credits: number;
+  } | null> {
+    try {
+      const { key } = await this.getApiKey('openrouter');
+
+      if (!key || key.trim() === '') {
+        logger.warn('No OpenRouter API key available for credits check');
+        return null;
+      }
+
+      const response = await fetch('https://openrouter.ai/api/v1/credits', {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${key}`,
+          'HTTP-Referer': 'https://www.flintnote.com',
+          'X-Title': 'Flint'
+        }
+      });
+
+      if (!response.ok) {
+        logger.error('Failed to fetch OpenRouter credits', {
+          status: response.status,
+          statusText: response.statusText
+        });
+        return null;
+      }
+
+      const data = (await response.json()) as {
+        data?: {
+          total_credits?: number;
+          usage?: number;
+          limit?: number | null;
+        };
+      };
+
+      // OpenRouter returns: { data: { total_credits, usage, limit } }
+      // We need to calculate remaining from total - usage
+      if (!data.data) {
+        logger.warn('Unexpected OpenRouter credits response format', { data });
+        return null;
+      }
+
+      const totalCredits = data.data.total_credits || 0;
+      const usedCredits = data.data.usage || 0;
+      const remainingCredits = totalCredits - usedCredits;
+
+      return {
+        total_credits: totalCredits,
+        used_credits: usedCredits,
+        remaining_credits: remainingCredits
+      };
+    } catch (error) {
+      logger.error('Failed to fetch OpenRouter credits', { error });
+      return null;
+    }
+  }
 }

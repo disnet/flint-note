@@ -1545,7 +1545,8 @@ ${
         // - finishReason of 'tool-calls' (stopped after executing tools)
         // - stepIndex equals or exceeds our limit (since we increment after each step)
         const maxSteps = 20; // Same as stepCountIs(20)
-        const stoppedAtLimit = stepIndex >= maxSteps && finalFinishReason === 'tool-calls';
+        const stoppedAtLimit =
+          stepIndex >= maxSteps && finalFinishReason === 'tool-calls';
 
         if (stoppedAtLimit) {
           logger.info('Tool call limit reached', {
