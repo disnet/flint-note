@@ -438,7 +438,6 @@
 
   .note-link {
     display: inline-block;
-    align-items: center;
     padding: 0.5rem 0.75rem;
     background: var(--bg-primary);
     color: var(--accent-primary);
@@ -449,6 +448,7 @@
     cursor: pointer;
     transition: all 0.2s ease;
     text-decoration: none;
+    text-align: left;
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;

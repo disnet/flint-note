@@ -300,6 +300,7 @@
     text-decoration: underline;
     display: inline-flex;
     align-items: center;
+    text-align: left;
     transition: all 0.2s ease;
     font-weight: 600;
   }
