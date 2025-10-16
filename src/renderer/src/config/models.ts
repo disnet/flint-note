@@ -13,22 +13,22 @@ export const SUPPORTED_MODELS: ModelInfo[] = [
   // Anthropic Claude Models
   {
     id: 'anthropic/claude-haiku-4.5',
-    name: 'Haiku',
+    name: 'Normal',
     provider: 'Anthropic',
     icon: '⚡',
     contextLength: 200000,
     recommendedMaxConversation: 140000, // 70% of 200k
     recommended: true,
-    description: 'Recommended for most things - fast and capable'
+    description: 'What you should use most of the time - fast and capable'
   },
   {
     id: 'anthropic/claude-sonnet-4.5',
-    name: 'Sonnet',
+    name: 'Plus Ultra',
     provider: 'Anthropic',
     icon: '🧠',
     contextLength: 200000,
     recommendedMaxConversation: 140000, // 70% of 200k
-    description: 'Extended thinking - for complex reasoning tasks'
+    description: 'When you need Flint to think really hard - slow and expensive'
   }
 ];
 

@@ -67,13 +67,18 @@
     gap: 0.375rem;
     padding: 0.375rem 0.625rem;
     background: transparent;
-    border: none;
+    border: 2px solid transparent;
     border-radius: 0.375rem;
     font-size: 0.75rem;
     font-weight: 500;
     color: var(--text-muted);
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition:
+      background 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+      border-color 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+      color 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+      box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+      transform 0.15s ease;
     white-space: nowrap;
     position: relative;
     overflow: visible;
@@ -88,10 +93,27 @@
     background: var(--bg-primary);
     color: var(--accent-primary);
     font-weight: 600;
-    box-shadow:
-      0 1px 3px rgba(0, 0, 0, 0.12),
-      0 0 0 1px var(--border-light);
+    border-color: var(--accent-primary);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
     cursor: default;
+    transform: scale(1.02);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .segmented-control {
+      background: rgba(0, 0, 0, 0.3);
+      border-color: var(--border-medium);
+    }
+
+    .segment.active {
+      background: var(--bg-secondary);
+      border-color: var(--accent-primary);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+    }
+
+    .segment:hover:not(.active) {
+      background: rgba(var(--accent-primary-rgb, 96, 165, 250), 0.15);
+    }
   }
 
   .segment.active .model-icon {
@@ -101,7 +123,13 @@
   .model-icon {
     font-size: 0.875rem;
     line-height: 1;
-    transition: filter 0.15s ease;
+    transition:
+      filter 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+      transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .segment.active .model-icon {
+    transform: scale(1.1);
   }
 
   .model-name {
