@@ -501,9 +501,9 @@
     };
     await unifiedChatStore.addMessage(agentResponse);
 
-    // Track streaming state to handle tool call separation
+    // Track streaming state to handle tool call separation by step
     let currentMessageId = agentResponseId;
-    let toolCallMessageId: string | null = null;
+    let toolCallMessageIdsByStep: Map<number, string> = new Map();
 
     try {
       const chatService = getChatService();
@@ -561,8 +561,12 @@
           modelStore.selectedModel,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           async (toolCall: any) => {
-            // On first tool call, create a separate message for tool calls
-            if (!toolCallMessageId) {
+            // Group tool calls by step - each step gets its own message/widget
+            const stepIndex = toolCall.stepIndex ?? 0;
+
+            // Check if we already have a message for this step
+            if (!toolCallMessageIdsByStep.has(stepIndex)) {
+              // First tool call of this step - create a new message
               const toolCallMsg: Message = {
                 id: generateUniqueId(),
                 text: '',
@@ -570,10 +574,10 @@
                 timestamp: new Date(),
                 toolCalls: [toolCall]
               };
-              toolCallMessageId = toolCallMsg.id;
+              toolCallMessageIdsByStep.set(stepIndex, toolCallMsg.id);
               await unifiedChatStore.addMessage(toolCallMsg);
 
-              // Create a new message for any text that arrives after tool calls
+              // Create a new message for any text that arrives after this step
               const postToolCallMessageId = generateUniqueId();
               const postToolCallMessage: Message = {
                 id: postToolCallMessageId,
@@ -584,7 +588,8 @@
               await unifiedChatStore.addMessage(postToolCallMessage);
               currentMessageId = postToolCallMessageId;
             } else {
-              // Add subsequent tool calls to the tool call message
+              // Add tool call to the existing message for this step
+              const toolCallMessageId = toolCallMessageIdsByStep.get(stepIndex)!;
               const toolCallMessage = unifiedChatStore.activeThread?.messages?.find(
                 (m) => m.id === toolCallMessageId
               );
@@ -598,7 +603,10 @@
           },
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           async (toolResult: any) => {
-            // Update the tool call with its result in the tool call message
+            // Update the tool call with its result in the appropriate step's message
+            const stepIndex = toolResult.stepIndex ?? 0;
+            const toolCallMessageId = toolCallMessageIdsByStep.get(stepIndex);
+
             if (toolCallMessageId) {
               const toolCallMessage = unifiedChatStore.activeThread?.messages?.find(
                 (m) => m.id === toolCallMessageId

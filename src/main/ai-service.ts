@@ -1431,13 +1431,13 @@ ${
           model: this.openrouter(this.currentModelName),
           messages,
           tools,
-          stopWhen: stepCountIs(3), // Allow up to 3 steps for multi-turn tool calling (testing)
+          stopWhen: stepCountIs(20), // Allow up to 20 steps for multi-turn tool calling
           abortSignal: abortController.signal
         });
 
         let fullText = '';
         let finalFinishReason: string | undefined;
-        let stepCount = 0;
+        let stepIndex = 0; // Current step index (0-based)
 
         // Use fullStream to get real-time tool call events as they happen
         for await (const event of result.fullStream) {
@@ -1447,12 +1447,14 @@ ${
             this.emit('stream-chunk', { requestId, chunk: event.text });
           } else if (event.type === 'tool-call') {
             // Handle tool calls as they arrive (before execution)
+            // Include stepIndex so frontend can group tool calls by step
             const toolCallData = {
               id: event.toolCallId,
               name: event.toolName,
               arguments: event.input || {},
               result: undefined,
-              error: undefined
+              error: undefined,
+              stepIndex // Add step index to group tool calls
             };
             this.emit('stream-tool-call', { requestId, toolCall: toolCallData });
           } else if (event.type === 'tool-result') {
@@ -1463,15 +1465,16 @@ ${
               name: event.toolName,
               arguments: {},
               result: event.output,
-              error: undefined
+              error: undefined,
+              stepIndex // Include step index for consistency
             };
             this.emit('stream-tool-result', { requestId, toolCall: toolCallData });
           } else if (event.type === 'finish-step') {
-            // Track step completion
-            stepCount++;
+            // Step completed - increment for next step
+            stepIndex++;
             logger.info('Step finished', {
               requestId,
-              stepCount,
+              stepIndex,
               finishReason: event.finishReason
             });
           } else if (event.type === 'finish') {
@@ -1485,7 +1488,7 @@ ${
           }
         }
 
-        logger.info('Stream completed', { requestId, finalFinishReason, stepCount });
+        logger.info('Stream completed', { requestId, finalFinishReason, stepIndex });
 
         // Add assistant response to conversation history
         const finalHistory = this.getConversationMessages(this.currentConversationId!);
@@ -1540,15 +1543,14 @@ ${
         // Check if we hit the tool call limit
         // When stopWhen condition (stepCountIs) is triggered, we get:
         // - finishReason of 'tool-calls' (stopped after executing tools)
-        // - stepCount equals or exceeds our limit
-        const maxSteps = 3; // Same as stepCountIs(3)
-        const stoppedAtLimit =
-          stepCount >= maxSteps && finalFinishReason === 'tool-calls';
+        // - stepIndex equals or exceeds our limit (since we increment after each step)
+        const maxSteps = 20; // Same as stepCountIs(20)
+        const stoppedAtLimit = stepIndex >= maxSteps && finalFinishReason === 'tool-calls';
 
         if (stoppedAtLimit) {
           logger.info('Tool call limit reached', {
             requestId,
-            stepCount,
+            stepIndex,
             maxSteps,
             finalFinishReason
           });
@@ -1558,7 +1560,7 @@ ${
           requestId,
           fullText,
           stoppedAtLimit,
-          stepCount: stoppedAtLimit ? stepCount : undefined,
+          stepCount: stoppedAtLimit ? stepIndex : undefined,
           maxSteps: stoppedAtLimit ? maxSteps : undefined,
           canContinue: stoppedAtLimit ? true : undefined
         });
