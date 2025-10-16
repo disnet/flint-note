@@ -80,7 +80,11 @@ export class ContentHashMismatchError extends Error {
  */
 export class MissingContentHashError extends Error {
   constructor(operation: string) {
-    super(`content_hash is required for ${operation} operations`);
+    super(
+      `content_hash is required for ${operation} operations. ` +
+        `To update note content safely, first retrieve the note using get_note to obtain its current content_hash, ` +
+        `then include that hash in your update request. This prevents overwriting changes made by other processes.`
+    );
     this.name = 'MissingContentHashError';
   }
 }

@@ -917,10 +917,6 @@ export class NoteManager {
     bypassProtection: boolean = false
   ): Promise<UpdateResult> {
     try {
-      if (!contentHash) {
-        throw new MissingContentHashError('note metadata update');
-      }
-
       const { notePath } = await this.parseNoteIdentifier(identifier);
 
       // Check if note exists
@@ -934,8 +930,15 @@ export class NoteManager {
       const currentContent = await fs.readFile(notePath, 'utf-8');
       const parsed = this.parseNoteContent(currentContent);
 
-      // Validate content hash to prevent conflicts
-      validateContentHash(parsed.content, contentHash);
+      // Only validate content hash if content is actually changing
+      // This allows metadata-only updates without requiring hash checks
+      if (content !== parsed.content) {
+        if (!contentHash) {
+          throw new MissingContentHashError('note content update');
+        }
+        // Validate content hash to prevent conflicts
+        validateContentHash(parsed.content, contentHash);
+      }
 
       // Check for protected fields unless bypassing protection
       if (!bypassProtection) {
