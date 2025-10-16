@@ -568,10 +568,17 @@ export class ToolService {
           }
         });
 
+        // Construct the canonical link identifier (type/filename-without-extension)
+        const filenameWithoutExt = note.filename.replace(/\.md$/, '');
+        const linkId = `${noteType}/${filenameWithoutExt}`;
+
         return {
           success: true,
-          data: note,
-          message: `Created note: ${note.title}`
+          data: {
+            ...note,
+            linkId // Add canonical reference format for creating wikilinks
+          },
+          message: `Created note: ${note.title}. Reference as [[${linkId}]]`
         };
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);

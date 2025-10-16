@@ -188,6 +188,16 @@
           n.type.toLowerCase() === type &&
           n.filename.toLowerCase().replace(/\.md$/, '').trim() === filename
       );
+
+      // Fallback: try matching by type/title (for when agents use title instead of slugified filename)
+      if (!note) {
+        const titlePart = filenameParts.join('/'); // Reconstruct the title part
+        note = notes.find(
+          (n) =>
+            n.type.toLowerCase() === type &&
+            n.title.toLowerCase().trim() === titlePart.trim()
+        );
+      }
     }
 
     // Then try to match by title (case-insensitive)

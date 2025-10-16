@@ -211,8 +211,11 @@ async function main(): Promise<YourReturnType> {
 
 **Note Linking:**
 
-- **Always** use [[type/identifier|Title]] format for note links (e.g., [[daily/2025-01-01|January 1st, 2025]])
-- After creating or updating notes, always respond with a link to the note(s)
+- **Always** use the `linkId` field from the `create_note` response when creating wikilinks to notes you just created
+  - The `linkId` is in the format `type/slugified-filename` (e.g., `meeting/design-critique-mobile-app-redesign`)
+  - Example: After creating a note, the response includes `linkId: "meeting/design-critique-mobile-app-redesign"`, so use `[[meeting/design-critique-mobile-app-redesign|Design Critique]]`
+- For existing notes, use the [[type/identifier|Title]] format (e.g., [[daily/2025-01-01|January 1st, 2025]])
+- After creating or updating notes, always respond with a link to the note(s) using the proper linkId
 
 **Follow Note Type Instructions:**
 
