@@ -910,10 +910,14 @@
 
   .cancel-button {
     background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-medium);
   }
 
   .cancel-button:hover {
     background: var(--bg-secondary);
+    border-color: var(--border-dark);
+    color: var(--text-primary);
     transform: translateY(-1px);
   }
 

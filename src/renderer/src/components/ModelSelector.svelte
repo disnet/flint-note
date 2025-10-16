@@ -118,6 +118,7 @@
               <button
                 class="model-option"
                 class:selected={model.id === modelStore.selectedModel}
+                class:recommended={model.recommended}
                 onclick={() => handleModelSelect(model)}
                 role="option"
                 aria-selected={model.id === modelStore.selectedModel}
@@ -126,16 +127,15 @@
                   <div class="model-main">
                     <span class="model-icon">{model.icon}</span>
                     <span class="model-name">{model.name}</span>
+                    {#if model.recommended}
+                      <span class="recommended-badge">Recommended</span>
+                    {/if}
                     {#if model.id === modelStore.selectedModel}
                       <span class="checkmark">✓</span>
                     {/if}
                   </div>
-                  {#if model.contextLength}
-                    <div class="model-meta">
-                      <span class="context"
-                        >{(model.contextLength / 1000).toFixed(0)}K ctx</span
-                      >
-                    </div>
+                  {#if model.description}
+                    <div class="model-description">{model.description}</div>
                   {/if}
                 </div>
               </button>
@@ -220,7 +220,7 @@
     margin-top: 0.25rem;
     max-height: 400px;
     overflow-y: auto;
-    min-width: 280px;
+    min-width: 340px;
   }
 
   .dropdown-menu.dropdown-above {
@@ -263,6 +263,11 @@
     color: var(--accent-primary);
   }
 
+  .model-option.recommended {
+    border-left: 3px solid var(--accent-primary);
+    padding-left: calc(1rem - 3px);
+  }
+
   .model-info {
     display: flex;
     flex-direction: column;
@@ -275,27 +280,36 @@
     gap: 0.5rem;
   }
 
+  .recommended-badge {
+    padding: 0.125rem 0.5rem;
+    background: var(--accent-primary);
+    color: white;
+    font-size: 0.625rem;
+    font-weight: 600;
+    border-radius: 0.25rem;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+  }
+
+  .model-description {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+    margin-top: 0.125rem;
+    white-space: normal;
+    word-wrap: break-word;
+  }
+
   .checkmark {
     margin-left: auto;
     color: var(--accent-primary);
     font-weight: bold;
   }
 
-  .model-meta {
-    display: flex;
-    gap: 1rem;
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-  }
-
-  .context {
-    color: var(--text-placeholder);
-  }
-
   /* Responsive adjustments */
   @media (max-width: 768px) {
     .dropdown-menu {
-      min-width: 250px;
+      min-width: 300px;
     }
 
     .selector-button {
