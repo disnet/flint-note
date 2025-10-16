@@ -121,7 +121,6 @@ The application uses modern Svelte 5 runes for reactive state management:
 - Task management with expandable sections
 - Visual progress indicators (✓ completed, ⟳ in-progress, ○ pending)
 - [[Wikilink]] support in conversations
-- "Notes discussed" section tracking referenced notes
 - Contextual note inclusion in AI prompts
 - Streaming response support with real-time updates
 

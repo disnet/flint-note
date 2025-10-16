@@ -36,7 +36,6 @@
   let contextUsage = $state<ContextUsage | null>(null);
 
   let chatContainer = $state<HTMLDivElement>();
-  let expandedDiscussed = $state<boolean>(true);
 
   // Todo plan store
   const todoPlanStore = new TodoPlanStore();
@@ -148,46 +147,6 @@
     unifiedChatStore.createThread();
   }
 
-  // Extract notes discussed from messages
-  const notesDiscussed = $derived.by<string[]>(() => {
-    const noteSet = new Set<string>();
-    messages.forEach((message) => {
-      const wikilinks = extractNotesFromText(message.text);
-      wikilinks.forEach((note) => noteSet.add(note));
-    });
-    return Array.from(noteSet);
-  });
-
-  function extractNotesFromText(text: string): string[] {
-    const wikiLinkRegex = /\[\[([^\]]+)\]\]/g;
-    const matches: string[] = [];
-    let match;
-    while ((match = wikiLinkRegex.exec(text)) !== null) {
-      matches.push(match[1]);
-    }
-    return matches;
-  }
-
-  function parseNoteDisplay(noteRef: string): {
-    identifier: string;
-    displayName: string;
-  } {
-    // Check if it's in the format "identifier|title"
-    const pipeIndex = noteRef.indexOf('|');
-    if (pipeIndex !== -1) {
-      return {
-        identifier: noteRef.substring(0, pipeIndex).trim(),
-        displayName: noteRef.substring(pipeIndex + 1).trim()
-      };
-    } else {
-      // Format: just title/identifier - use same for both
-      return {
-        identifier: noteRef.trim(),
-        displayName: noteRef.trim()
-      };
-    }
-  }
-
   $effect(() => {
     if (chatContainer && (messages.length > 0 || isLoading)) {
       // Use requestAnimationFrame to ensure layout is complete
@@ -290,30 +249,6 @@
     </div>
   {/if}
 
-  <!-- Notes Discussed Section -->
-  {#if notesDiscussed.length > 0}
-    <div class="discussed-section">
-      <button
-        class="section-header"
-        onclick={() => (expandedDiscussed = !expandedDiscussed)}
-        aria-expanded={expandedDiscussed}
-      >
-        <h4 class="section-title">Notes discussed</h4>
-        <span class="expand-icon" class:expanded={expandedDiscussed}>▼</span>
-      </button>
-      {#if expandedDiscussed}
-        <div class="discussed-notes">
-          {#each notesDiscussed as note (note)}
-            {@const parsed = parseNoteDisplay(note)}
-            <button class="note-link" onclick={() => onNoteClick?.(parsed.identifier)}>
-              {parsed.displayName}
-            </button>
-          {/each}
-        </div>
-      {/if}
-    </div>
-  {/if}
-
   <!-- Message Input Area -->
   <div class="input-section">
     <MessageInput
@@ -335,15 +270,6 @@
     max-height: 100%;
     min-height: 0; /* Important for flexbox children to respect parent height */
     overflow: hidden;
-  }
-
-  /* Removed header styles as requested */
-
-  .section-title {
-    margin: 0;
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--text-primary);
   }
 
   /* Todo Plan Section */
@@ -387,77 +313,6 @@
 
   .chat-section::-webkit-scrollbar-thumb:hover {
     background: var(--scrollbar-thumb-hover);
-  }
-
-  /* Notes Discussed Styles */
-  .discussed-section {
-    padding: 1rem 1.25rem;
-    border-top: 1px solid var(--border-light);
-    background: var(--bg-secondary);
-  }
-
-  .section-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    border: none;
-    background: transparent;
-    color: var(--text-primary);
-    cursor: pointer;
-    padding: 0;
-  }
-
-  .discussed-notes {
-    margin-top: 0.75rem;
-    display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    max-height: 200px;
-    overflow-y: auto;
-  }
-
-  .discussed-notes::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  .discussed-notes::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  .discussed-notes::-webkit-scrollbar-thumb {
-    background: var(--scrollbar-thumb);
-    border-radius: 3px;
-    transition: background-color 0.2s ease;
-  }
-
-  .discussed-notes::-webkit-scrollbar-thumb:hover {
-    background: var(--scrollbar-thumb-hover);
-  }
-
-  .note-link {
-    display: inline-block;
-    padding: 0.5rem 0.75rem;
-    background: var(--bg-primary);
-    color: var(--accent-primary);
-    font-size: 0.875rem;
-    font-weight: 500;
-    border: 1px solid var(--border-light);
-    border-radius: 0.375rem;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    text-decoration: none;
-    text-align: left;
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-    max-width: 25ch;
-  }
-
-  .note-link:hover {
-    background: var(--bg-tertiary);
-    border-color: var(--accent-primary);
   }
 
   /* Input Section Styles */
