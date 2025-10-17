@@ -369,8 +369,15 @@ export class LinkExtractor {
   /**
    * Clear all links for a note (used during note deletion)
    */
-  static async clearLinksForNote(noteId: string, db: DatabaseConnection): Promise<void> {
-    await db.run('BEGIN TRANSACTION');
+  static async clearLinksForNote(
+    noteId: string,
+    db: DatabaseConnection,
+    useTransaction: boolean = true
+  ): Promise<void> {
+    // Start transaction if requested
+    if (useTransaction) {
+      await db.run('BEGIN TRANSACTION');
+    }
 
     try {
       // Clear outgoing links
@@ -383,9 +390,13 @@ export class LinkExtractor {
         [noteId]
       );
 
-      await db.run('COMMIT');
+      if (useTransaction) {
+        await db.run('COMMIT');
+      }
     } catch (error) {
-      await db.run('ROLLBACK');
+      if (useTransaction) {
+        await db.run('ROLLBACK');
+      }
       throw error;
     }
   }

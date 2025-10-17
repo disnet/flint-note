@@ -132,8 +132,10 @@ class TestDatabaseManager {
   // Stub methods required by DatabaseManager interface
   async rebuild() {
     // Minimal rebuild implementation for tests
-    // Just ensure notes table exists - migration v1.1.0 needs this
+    // Ensure all necessary tables exist for migration v1.1.0
     const db = await this.connect();
+
+    // Create notes table if it doesn't exist
     const tableExists = await db.get<{ count: number }>(
       "SELECT COUNT(*) as count FROM sqlite_master WHERE type='table' AND name='notes'"
     );
@@ -153,6 +155,45 @@ class TestDatabaseManager {
           updated TEXT NOT NULL,
           size INTEGER,
           UNIQUE(type, filename)
+        )
+      `);
+    }
+
+    // Create link tables for v1.1.0 migration
+    const linkTableExists = await db.get<{ count: number }>(
+      "SELECT COUNT(*) as count FROM sqlite_master WHERE type='table' AND name='note_links'"
+    );
+
+    if (!linkTableExists || linkTableExists.count === 0) {
+      await db.run(`
+        CREATE TABLE note_links (
+          id INTEGER PRIMARY KEY,
+          source_note_id TEXT NOT NULL,
+          target_note_id TEXT,
+          target_title TEXT NOT NULL,
+          link_text TEXT,
+          line_number INTEGER,
+          created DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY(source_note_id) REFERENCES notes(id) ON DELETE CASCADE,
+          FOREIGN KEY(target_note_id) REFERENCES notes(id) ON DELETE SET NULL
+        )
+      `);
+    }
+
+    const externalLinksTableExists = await db.get<{ count: number }>(
+      "SELECT COUNT(*) as count FROM sqlite_master WHERE type='table' AND name='external_links'"
+    );
+
+    if (!externalLinksTableExists || externalLinksTableExists.count === 0) {
+      await db.run(`
+        CREATE TABLE external_links (
+          id INTEGER PRIMARY KEY,
+          note_id TEXT NOT NULL,
+          url TEXT NOT NULL,
+          link_text TEXT,
+          line_number INTEGER,
+          created DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY(note_id) REFERENCES notes(id) ON DELETE CASCADE
         )
       `);
     }

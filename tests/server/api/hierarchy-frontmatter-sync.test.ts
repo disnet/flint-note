@@ -372,12 +372,12 @@ describe('Hierarchy Operations - Frontmatter Sync', () => {
       expect(result.success).toBe(true);
 
       // The hierarchy relationship should exist in database even if sync fails
-      const children = await testSetup.api.getChildren({
+      const childrenResult = await testSetup.api.getChildren({
         vault_id: testVaultId,
         note_id: parent.id
       });
-      expect(children).toHaveLength(1);
-      expect(children[0].child_id).toBe(child.id);
+      expect(childrenResult.children).toHaveLength(1);
+      expect(childrenResult.children[0].child_id).toBe(child.id);
     });
 
     it('should handle notes with existing subnotes in frontmatter', async () => {

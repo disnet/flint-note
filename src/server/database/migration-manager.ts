@@ -1180,12 +1180,12 @@ export class DatabaseMigrationManager {
         try {
           for (const note of batch) {
             try {
-              // Clear any existing links for this note first
-              await LinkExtractor.clearLinksForNote(note.id, db);
+              // Clear any existing links for this note first (no transaction - we're already in one)
+              await LinkExtractor.clearLinksForNote(note.id, db, false);
 
-              // Extract and store new links
+              // Extract and store new links (no transaction - we're already in one)
               const extractionResult = LinkExtractor.extractLinks(note.content);
-              await LinkExtractor.storeLinks(note.id, extractionResult, db);
+              await LinkExtractor.storeLinks(note.id, extractionResult, db, false);
 
               processedCount++;
             } catch (error) {
