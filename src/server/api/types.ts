@@ -96,12 +96,14 @@ export interface GetNoteArgs {
   identifier: string;
   vault_id: string;
   fields?: string[];
+  contentLimit?: ContentLimitOptions;
 }
 
 export interface GetNotesArgs {
   identifiers: string[];
   vault_id: string;
   fields?: string[];
+  contentLimit?: ContentLimitOptions;
 }
 
 export interface UpdateNoteArgs {
@@ -255,16 +257,19 @@ export interface GetHierarchyPathArgs {
 export interface GetDescendantsArgs {
   note_id: string;
   max_depth?: number;
+  max_results?: number;
   vault_id: string;
 }
 
 export interface GetChildrenArgs {
   note_id: string;
+  limit?: number;
   vault_id: string;
 }
 
 export interface GetParentsArgs {
   note_id: string;
+  limit?: number;
   vault_id: string;
 }
 
@@ -280,7 +285,7 @@ export interface GetNoteRelationshipsArgs {
 export interface GetRelatedNotesArgs {
   note_id: string;
   vault_id: string;
-  max_results?: number;
+  max_results?: number; // Default: 50, Max: 200
 }
 
 export interface FindRelationshipPathArgs {
@@ -466,4 +471,80 @@ export interface ValidateCustomFunctionArgs {
 export interface CustomFunctionExecutionStatsArgs {
   functionId?: string;
   vault_id: string;
+}
+
+// ============================================================================
+// Pagination Types
+// ============================================================================
+
+/**
+ * Standard pagination parameters for list/search operations
+ */
+export interface PaginationParams {
+  limit?: number; // Max results per request
+  offset?: number; // Skip N results
+}
+
+/**
+ * Standard paginated response wrapper
+ */
+export interface PaginatedResponse<T> {
+  results: T[];
+  pagination: {
+    total: number; // Total matching results
+    limit: number; // Applied limit
+    offset: number; // Applied offset
+    hasMore: boolean; // More results available
+  };
+}
+
+/**
+ * Content limiting options for note retrieval
+ */
+export interface ContentLimitOptions {
+  maxLines?: number; // Max lines to return (default: 500, max: 2000)
+  offset?: number; // Line offset for pagination
+}
+
+/**
+ * Content metadata for truncated notes
+ */
+export interface ContentMetadata {
+  totalLines: number;
+  returnedLines: number;
+  offset: number;
+  isTruncated: boolean;
+}
+
+// ============================================================================
+// Link Operations Argument Types with Pagination
+// ============================================================================
+
+export interface GetNoteLinksArgs {
+  identifier: string;
+  vault_id: string;
+  limit?: number; // Max 500 per category
+}
+
+export interface GetBacklinksArgs {
+  identifier: string;
+  vault_id: string;
+  limit?: number; // Default: 100, Max: 500
+  offset?: number;
+}
+
+export interface FindBrokenLinksArgs {
+  vault_id: string;
+  limit?: number; // Default: 100, Max: 500
+  offset?: number;
+}
+
+export interface SearchByLinksArgs {
+  has_links_to?: string[];
+  linked_from?: string[];
+  external_domains?: string[];
+  broken_links?: boolean;
+  vault_id: string;
+  limit?: number; // Default: 50, Max: 200
+  offset?: number;
 }

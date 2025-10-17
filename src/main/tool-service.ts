@@ -385,15 +385,27 @@ export class ToolService {
   // Basic CRUD Tools
   private getNoteTool = tool({
     description:
-      'Retrieve one or more notes by their IDs or identifiers. Efficient for bulk retrieval. Use this when you know the specific note IDs or identifiers (e.g., "type/title" format). For finding notes by content or criteria, use search_notes instead.',
+      'Retrieve one or more notes by their IDs or identifiers. Efficient for bulk retrieval. Use this when you know the specific note IDs or identifiers (e.g., "type/title" format). For finding notes by content or criteria, use search_notes instead. Returns up to 500 lines of content by default (max 2000), with pagination support for longer notes.',
     inputSchema: z.object({
       ids: z
         .array(z.string())
         .describe(
           'Array of note IDs or identifiers. Examples: ["note-id-123"], ["meeting/Weekly Standup"], ["project/Q4 Planning", "daily/2025-01-15"]'
+        ),
+      maxLines: z
+        .number()
+        .optional()
+        .describe(
+          'Maximum number of content lines to return per note (default: 500, max: 2000). Useful for limiting large note content.'
+        ),
+      offset: z
+        .number()
+        .optional()
+        .describe(
+          'Line offset for content pagination (default: 0). Use with maxLines to paginate through large notes.'
         )
     }),
-    execute: async ({ ids }) => {
+    execute: async ({ ids, maxLines, offset }) => {
       if (!this.noteService) {
         return {
           success: false,
@@ -422,7 +434,11 @@ export class ToolService {
           };
         }
 
-        const results = await flintApi.getNotes(currentVault.id, ids);
+        const contentLimit =
+          maxLines !== undefined || offset !== undefined
+            ? { maxLines, offset }
+            : undefined;
+        const results = await flintApi.getNotes(currentVault.id, ids, contentLimit);
         const successCount = results.filter((r) => r.success).length;
 
         return {
@@ -1571,15 +1587,21 @@ export class ToolService {
   // Links API Tools
   private getNoteLinksTool = tool({
     description:
-      "Get all links for a specific note, including outgoing internal wikilinks, outgoing external links, and incoming backlinks. Use this to understand a note's connections and relationships.",
+      "Get all links for a specific note, including outgoing internal wikilinks, outgoing external links, and incoming backlinks. Use this to understand a note's connections and relationships. Returns up to 500 links per category by default.",
     inputSchema: z.object({
       id: z
         .string()
         .describe(
           'Note ID or identifier to get links for. Examples: "note-id-123" or "meeting/Weekly Standup"'
+        ),
+      limit: z
+        .number()
+        .optional()
+        .describe(
+          'Maximum number of links to return per category (outgoing internal, outgoing external, incoming). Max: 500 per category.'
         )
     }),
-    execute: async ({ id }) => {
+    execute: async ({ id, limit }) => {
       if (!this.noteService) {
         return {
           success: false,
@@ -1600,12 +1622,16 @@ export class ToolService {
           };
         }
 
-        const links = await flintApi.getNoteLinks(currentVault.id, id);
+        const links = await flintApi.getNoteLinks(currentVault.id, id, limit);
+
+        const limitNote = links.limited
+          ? ` (limited to ${limit || 500} per category, totals: ${links.total_outgoing_internal} internal, ${links.total_outgoing_external} external, ${links.total_incoming} incoming)`
+          : '';
 
         return {
           success: true,
           data: links,
-          message: `Retrieved links for note: ${id}. Found ${links.outgoing_internal.length} internal, ${links.outgoing_external.length} external, ${links.incoming.length} incoming links`
+          message: `Retrieved links for note: ${id}. Found ${links.outgoing_internal.length} internal, ${links.outgoing_external.length} external, ${links.incoming.length} incoming links${limitNote}`
         };
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
@@ -1632,15 +1658,23 @@ export class ToolService {
 
   private getBacklinksTool = tool({
     description:
-      'Get all notes that link to the specified note (backlinks). Returns a list of notes that reference this note through wikilinks.',
+      'Get all notes that link to the specified note (backlinks). Returns a list of notes that reference this note through wikilinks. Returns up to 100 results by default (max 500), with pagination support.',
     inputSchema: z.object({
       id: z
         .string()
         .describe(
           'Note ID or identifier to get backlinks for. Examples: "note-id-123" or "meeting/Weekly Standup"'
-        )
+        ),
+      limit: z
+        .number()
+        .optional()
+        .describe('Maximum number of results to return (default: 100, max: 500)'),
+      offset: z
+        .number()
+        .optional()
+        .describe('Number of results to skip for pagination (default: 0)')
     }),
-    execute: async ({ id }) => {
+    execute: async ({ id, limit, offset }) => {
       if (!this.noteService) {
         return {
           success: false,
@@ -1661,12 +1695,12 @@ export class ToolService {
           };
         }
 
-        const backlinks = await flintApi.getBacklinks(currentVault.id, id);
+        const result = await flintApi.getBacklinks(currentVault.id, id, limit, offset);
 
         return {
           success: true,
-          data: backlinks,
-          message: `Found ${backlinks.length} note(s) linking to: ${id}`
+          data: result,
+          message: `Found ${result.results.length} note(s) linking to: ${id} (total: ${result.pagination.total}, showing ${result.pagination.offset + 1}-${result.pagination.offset + result.results.length})`
         };
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
@@ -1693,9 +1727,18 @@ export class ToolService {
 
   private findBrokenLinksTool = tool({
     description:
-      'Find all broken wikilinks across the vault. Returns links that point to non-existent notes, helping identify notes that need to be created or links that need to be fixed.',
-    inputSchema: z.object({}),
-    execute: async () => {
+      'Find all broken wikilinks across the vault. Returns links that point to non-existent notes, helping identify notes that need to be created or links that need to be fixed. Returns up to 100 results by default (max 500), with pagination support.',
+    inputSchema: z.object({
+      limit: z
+        .number()
+        .optional()
+        .describe('Maximum number of results to return (default: 100, max: 500)'),
+      offset: z
+        .number()
+        .optional()
+        .describe('Number of results to skip for pagination (default: 0)')
+    }),
+    execute: async ({ limit, offset }) => {
       if (!this.noteService) {
         return {
           success: false,
@@ -1716,12 +1759,12 @@ export class ToolService {
           };
         }
 
-        const brokenLinks = await flintApi.findBrokenLinks(currentVault.id);
+        const result = await flintApi.findBrokenLinks(currentVault.id, limit, offset);
 
         return {
           success: true,
-          data: brokenLinks,
-          message: `Found ${brokenLinks.length} broken link(s) in vault`
+          data: result,
+          message: `Found ${result.results.length} broken link(s) in vault (total: ${result.pagination.total}, showing ${result.pagination.offset + 1}-${result.pagination.offset + result.results.length})`
         };
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
@@ -1737,7 +1780,7 @@ export class ToolService {
 
   private searchByLinksTool = tool({
     description:
-      'Search for notes based on their link relationships. Supports multiple search criteria: notes linking to specific notes, notes linked from specific notes, notes with external links to specific domains, or notes with broken links.',
+      'Search for notes based on their link relationships. Supports multiple search criteria: notes linking to specific notes, notes linked from specific notes, notes with external links to specific domains, or notes with broken links. Returns up to 50 results by default (max 200), with pagination support.',
     inputSchema: z.object({
       hasLinksTo: z
         .array(z.string())
@@ -1760,9 +1803,24 @@ export class ToolService {
       brokenLinks: z
         .boolean()
         .optional()
-        .describe('Find notes that contain broken internal links')
+        .describe('Find notes that contain broken internal links'),
+      limit: z
+        .number()
+        .optional()
+        .describe('Maximum number of results to return (default: 50, max: 200)'),
+      offset: z
+        .number()
+        .optional()
+        .describe('Number of results to skip for pagination (default: 0)')
     }),
-    execute: async ({ hasLinksTo, linkedFrom, externalDomains, brokenLinks }) => {
+    execute: async ({
+      hasLinksTo,
+      linkedFrom,
+      externalDomains,
+      brokenLinks,
+      limit,
+      offset
+    }) => {
       if (!this.noteService) {
         return {
           success: false,
@@ -1783,12 +1841,14 @@ export class ToolService {
           };
         }
 
-        const notes = await flintApi.searchByLinks({
+        const result = await flintApi.searchByLinks({
           has_links_to: hasLinksTo,
           linked_from: linkedFrom,
           external_domains: externalDomains,
           broken_links: brokenLinks,
-          vault_id: currentVault.id
+          vault_id: currentVault.id,
+          limit,
+          offset
         });
 
         let criteriaDescription = '';
@@ -1800,8 +1860,8 @@ export class ToolService {
 
         return {
           success: true,
-          data: notes,
-          message: `Found ${notes.length} note(s) ${criteriaDescription}`
+          data: result,
+          message: `Found ${result.results.length} note(s) ${criteriaDescription} (total: ${result.pagination.total}, showing ${result.pagination.offset + 1}-${result.pagination.offset + result.results.length})`
         };
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);

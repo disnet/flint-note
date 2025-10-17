@@ -331,24 +331,104 @@ export class FlintNoteApi {
   }
 
   /**
-   * Get a note by identifier - returns pure Note object
+   * Get a note by identifier - returns pure Note object with optional content limiting
    */
-  async getNote(vaultId: string, identifier: string): Promise<Note> {
+  async getNote(
+    vaultId: string,
+    identifier: string,
+    contentLimit?: { maxLines?: number; offset?: number }
+  ): Promise<Note & { contentMetadata?: import('./types.js').ContentMetadata }> {
     this.ensureInitialized();
     const { noteManager } = await this.getVaultContext(vaultId);
-    return await noteManager.getNote(identifier);
+    const note = await noteManager.getNote(identifier);
+
+    // Apply content limiting if specified
+    if (contentLimit) {
+      const maxLines = Math.min(contentLimit.maxLines ?? 500, 2000);
+      const offset = contentLimit.offset ?? 0;
+
+      const lines = note.content.split('\n');
+      const totalLines = lines.length;
+
+      if (totalLines <= maxLines && offset === 0) {
+        // No truncation needed
+        return note;
+      }
+
+      const truncatedLines = lines.slice(offset, offset + maxLines);
+      const isTruncated = offset + maxLines < totalLines;
+
+      return {
+        ...note,
+        content: truncatedLines.join('\n'),
+        contentMetadata: {
+          totalLines,
+          returnedLines: truncatedLines.length,
+          offset,
+          isTruncated
+        }
+      };
+    }
+
+    return note;
   }
 
   /**
-   * Get multiple notes by identifiers - returns array of results
+   * Get multiple notes by identifiers - returns array of results with optional content limiting
    */
   async getNotes(
     vaultId: string,
-    identifiers: string[]
-  ): Promise<Array<{ success: boolean; note?: Note; error?: string }>> {
+    identifiers: string[],
+    contentLimit?: { maxLines?: number; offset?: number }
+  ): Promise<
+    Array<{
+      success: boolean;
+      note?: Note & { contentMetadata?: import('./types.js').ContentMetadata };
+      error?: string;
+    }>
+  > {
     this.ensureInitialized();
     const { noteManager } = await this.getVaultContext(vaultId);
-    return await noteManager.getNotes(identifiers);
+    const results = await noteManager.getNotes(identifiers);
+
+    // Apply content limiting if specified
+    if (contentLimit) {
+      const maxLines = Math.min(contentLimit.maxLines ?? 500, 2000);
+      const offset = contentLimit.offset ?? 0;
+
+      return results.map((result) => {
+        if (!result.success || !result.note) {
+          return result;
+        }
+
+        const lines = result.note.content.split('\n');
+        const totalLines = lines.length;
+
+        if (totalLines <= maxLines && offset === 0) {
+          // No truncation needed
+          return result;
+        }
+
+        const truncatedLines = lines.slice(offset, offset + maxLines);
+        const isTruncated = offset + maxLines < totalLines;
+
+        return {
+          ...result,
+          note: {
+            ...result.note,
+            content: truncatedLines.join('\n'),
+            contentMetadata: {
+              totalLines,
+              returnedLines: truncatedLines.length,
+              offset,
+              isTruncated
+            }
+          }
+        };
+      });
+    }
+
+    return results;
   }
 
   /**
@@ -850,15 +930,20 @@ export class FlintNoteApi {
   // Link Operations
 
   /**
-   * Get all links for a specific note (outgoing and incoming)
+   * Get all links for a specific note (outgoing and incoming) with optional limiting per category
    */
   async getNoteLinks(
     vaultId: string,
-    identifier: string
+    identifier: string,
+    limit?: number
   ): Promise<{
     outgoing_internal: NoteLinkRow[];
     outgoing_external: ExternalLinkRow[];
     incoming: NoteLinkRow[];
+    limited: boolean;
+    total_outgoing_internal: number;
+    total_outgoing_external: number;
+    total_incoming: number;
   }> {
     this.ensureInitialized();
 
@@ -871,13 +956,65 @@ export class FlintNoteApi {
       throw new Error(`Note not found: ${identifier}`);
     }
 
-    return await LinkExtractor.getLinksForNote(identifier, db);
+    const maxLimit = Math.min(limit ?? 500, 500);
+
+    // Get full counts
+    const outgoingInternalCount = await db.get<{ count: number }>(
+      'SELECT COUNT(*) as count FROM note_links WHERE source_note_id = ?',
+      [identifier]
+    );
+    const outgoingExternalCount = await db.get<{ count: number }>(
+      'SELECT COUNT(*) as count FROM external_links WHERE note_id = ?',
+      [identifier]
+    );
+    const incomingCount = await db.get<{ count: number }>(
+      'SELECT COUNT(*) as count FROM note_links WHERE target_note_id = ?',
+      [identifier]
+    );
+
+    const totalOutgoingInternal = outgoingInternalCount?.count ?? 0;
+    const totalOutgoingExternal = outgoingExternalCount?.count ?? 0;
+    const totalIncoming = incomingCount?.count ?? 0;
+
+    // Get limited results
+    const outgoing_internal = await db.all<NoteLinkRow>(
+      'SELECT * FROM note_links WHERE source_note_id = ? LIMIT ?',
+      [identifier, maxLimit]
+    );
+    const outgoing_external = await db.all<ExternalLinkRow>(
+      'SELECT * FROM external_links WHERE note_id = ? LIMIT ?',
+      [identifier, maxLimit]
+    );
+    const incoming = await db.all<NoteLinkRow>(
+      'SELECT * FROM note_links WHERE target_note_id = ? LIMIT ?',
+      [identifier, maxLimit]
+    );
+
+    const limited =
+      totalOutgoingInternal > maxLimit ||
+      totalOutgoingExternal > maxLimit ||
+      totalIncoming > maxLimit;
+
+    return {
+      outgoing_internal,
+      outgoing_external,
+      incoming,
+      limited,
+      total_outgoing_internal: totalOutgoingInternal,
+      total_outgoing_external: totalOutgoingExternal,
+      total_incoming: totalIncoming
+    };
   }
 
   /**
-   * Get all notes that link to the specified note (backlinks)
+   * Get all notes that link to the specified note (backlinks) with pagination
    */
-  async getBacklinks(vaultId: string, identifier: string): Promise<NoteLinkRow[]> {
+  async getBacklinks(
+    vaultId: string,
+    identifier: string,
+    limit?: number,
+    offset?: number
+  ): Promise<import('./types.js').PaginatedResponse<NoteLinkRow>> {
     this.ensureInitialized();
 
     const { hybridSearchManager } = await this.getVaultContext(vaultId);
@@ -889,23 +1026,80 @@ export class FlintNoteApi {
       throw new Error(`Note not found: ${identifier}`);
     }
 
-    return await LinkExtractor.getBacklinks(identifier, db);
+    const maxLimit = Math.min(limit ?? 100, 500);
+    const pageOffset = offset ?? 0;
+
+    // Get total count
+    const countResult = await db.get<{ total: number }>(
+      'SELECT COUNT(*) as total FROM note_links WHERE target_note_id = ?',
+      [identifier]
+    );
+    const total = countResult?.total ?? 0;
+
+    // Get paginated results
+    const backlinks = await db.all<NoteLinkRow>(
+      'SELECT * FROM note_links WHERE target_note_id = ? ORDER BY source_note_id LIMIT ? OFFSET ?',
+      [identifier, maxLimit, pageOffset]
+    );
+
+    return {
+      results: backlinks,
+      pagination: {
+        total,
+        limit: maxLimit,
+        offset: pageOffset,
+        hasMore: pageOffset + maxLimit < total
+      }
+    };
   }
 
   /**
-   * Find all broken wikilinks (links to non-existent notes)
+   * Find all broken wikilinks (links to non-existent notes) with pagination
    */
-  async findBrokenLinks(vaultId: string): Promise<NoteLinkRow[]> {
+  async findBrokenLinks(
+    vaultId: string,
+    limit?: number,
+    offset?: number
+  ): Promise<import('./types.js').PaginatedResponse<NoteLinkRow>> {
     this.ensureInitialized();
 
     const { hybridSearchManager } = await this.getVaultContext(vaultId);
     const db = await hybridSearchManager.getDatabaseConnection();
 
-    return await LinkExtractor.findBrokenLinks(db);
+    const maxLimit = Math.min(limit ?? 100, 500);
+    const pageOffset = offset ?? 0;
+
+    // Get total count of broken links
+    const countResult = await db.get<{ total: number }>(
+      `SELECT COUNT(*) as total FROM note_links
+       WHERE target_note_id IS NULL OR
+             target_note_id NOT IN (SELECT id FROM notes)`
+    );
+    const total = countResult?.total ?? 0;
+
+    // Get paginated results
+    const brokenLinks = await db.all<NoteLinkRow>(
+      `SELECT * FROM note_links
+       WHERE target_note_id IS NULL OR
+             target_note_id NOT IN (SELECT id FROM notes)
+       ORDER BY source_note_id
+       LIMIT ? OFFSET ?`,
+      [maxLimit, pageOffset]
+    );
+
+    return {
+      results: brokenLinks,
+      pagination: {
+        total,
+        limit: maxLimit,
+        offset: pageOffset,
+        hasMore: pageOffset + maxLimit < total
+      }
+    };
   }
 
   /**
-   * Search for notes based on their link relationships
+   * Search for notes based on their link relationships with pagination
    */
   async searchByLinks(args: {
     has_links_to?: string[];
@@ -913,34 +1107,66 @@ export class FlintNoteApi {
     external_domains?: string[];
     broken_links?: boolean;
     vault_id: string;
-  }): Promise<NoteRow[]> {
+    limit?: number;
+    offset?: number;
+  }): Promise<import('./types.js').PaginatedResponse<NoteRow>> {
     this.ensureInitialized();
 
     const { hybridSearchManager } = await this.getVaultContext(args.vault_id);
     const db = await hybridSearchManager.getDatabaseConnection();
 
+    const limit = Math.min(args.limit ?? 50, 200);
+    const offset = args.offset ?? 0;
+
     let notes: NoteRow[] = [];
+    let total = 0;
 
     // Handle different search criteria
     if (args.has_links_to && args.has_links_to.length > 0) {
       // Find notes that link to any of the specified notes
       const targetIds = args.has_links_to;
       const placeholders = targetIds.map(() => '?').join(',');
-      notes = await db.all(
-        `SELECT DISTINCT n.* FROM notes n
+
+      // Get total count
+      const countResult = await db.get<{ total: number }>(
+        `SELECT COUNT(DISTINCT n.id) as total FROM notes n
          INNER JOIN note_links nl ON n.id = nl.source_note_id
          WHERE nl.target_note_id IN (${placeholders})`,
         targetIds
+      );
+      total = countResult?.total ?? 0;
+
+      // Get paginated results
+      notes = await db.all(
+        `SELECT DISTINCT n.* FROM notes n
+         INNER JOIN note_links nl ON n.id = nl.source_note_id
+         WHERE nl.target_note_id IN (${placeholders})
+         ORDER BY n.updated DESC
+         LIMIT ? OFFSET ?`,
+        [...targetIds, limit, offset]
       );
     } else if (args.linked_from && args.linked_from.length > 0) {
       // Find notes that are linked from any of the specified notes
       const sourceIds = args.linked_from;
       const placeholders = sourceIds.map(() => '?').join(',');
-      notes = await db.all(
-        `SELECT DISTINCT n.* FROM notes n
+
+      // Get total count
+      const countResult = await db.get<{ total: number }>(
+        `SELECT COUNT(DISTINCT n.id) as total FROM notes n
          INNER JOIN note_links nl ON n.id = nl.target_note_id
          WHERE nl.source_note_id IN (${placeholders})`,
         sourceIds
+      );
+      total = countResult?.total ?? 0;
+
+      // Get paginated results
+      notes = await db.all(
+        `SELECT DISTINCT n.* FROM notes n
+         INNER JOIN note_links nl ON n.id = nl.target_note_id
+         WHERE nl.source_note_id IN (${placeholders})
+         ORDER BY n.updated DESC
+         LIMIT ? OFFSET ?`,
+        [...sourceIds, limit, offset]
       );
     } else if (args.external_domains && args.external_domains.length > 0) {
       // Find notes with external links to specified domains
@@ -948,22 +1174,55 @@ export class FlintNoteApi {
         .map(() => 'el.url LIKE ?')
         .join(' OR ');
       const domainParams = args.external_domains.map((domain) => `%${domain}%`);
-      notes = await db.all(
-        `SELECT DISTINCT n.* FROM notes n
+
+      // Get total count
+      const countResult = await db.get<{ total: number }>(
+        `SELECT COUNT(DISTINCT n.id) as total FROM notes n
          INNER JOIN external_links el ON n.id = el.note_id
          WHERE ${domainConditions}`,
         domainParams
       );
-    } else if (args.broken_links) {
-      // Find notes with broken internal links
+      total = countResult?.total ?? 0;
+
+      // Get paginated results
       notes = await db.all(
         `SELECT DISTINCT n.* FROM notes n
+         INNER JOIN external_links el ON n.id = el.note_id
+         WHERE ${domainConditions}
+         ORDER BY n.updated DESC
+         LIMIT ? OFFSET ?`,
+        [...domainParams, limit, offset]
+      );
+    } else if (args.broken_links) {
+      // Find notes with broken internal links
+      // Get total count
+      const countResult = await db.get<{ total: number }>(
+        `SELECT COUNT(DISTINCT n.id) as total FROM notes n
          INNER JOIN note_links nl ON n.id = nl.source_note_id
          WHERE nl.target_note_id IS NULL`
       );
+      total = countResult?.total ?? 0;
+
+      // Get paginated results
+      notes = await db.all(
+        `SELECT DISTINCT n.* FROM notes n
+         INNER JOIN note_links nl ON n.id = nl.source_note_id
+         WHERE nl.target_note_id IS NULL
+         ORDER BY n.updated DESC
+         LIMIT ? OFFSET ?`,
+        [limit, offset]
+      );
     }
 
-    return notes;
+    return {
+      results: notes,
+      pagination: {
+        total,
+        limit,
+        offset,
+        hasMore: offset + limit < total
+      }
+    };
   }
 
   /**
@@ -1260,9 +1519,13 @@ export class FlintNoteApi {
   }
 
   /**
-   * Get all descendant notes up to specified depth
+   * Get all descendant notes up to specified depth with optional result limiting
    */
-  async getDescendants(args: GetDescendantsArgs): Promise<NoteHierarchyRow[]> {
+  async getDescendants(args: GetDescendantsArgs): Promise<{
+    descendants: NoteHierarchyRow[];
+    limited: boolean;
+    total: number;
+  }> {
     this.ensureInitialized();
 
     const { hybridSearchManager } = await this.getVaultContext(args.vault_id);
@@ -1270,13 +1533,31 @@ export class FlintNoteApi {
     const hierarchyManager = new HierarchyManager(db);
 
     const noteId = args.note_id;
-    return await hierarchyManager.getDescendants(noteId, args.max_depth);
+    const maxResults = Math.min(args.max_results ?? 100, 500);
+
+    // Get all descendants first
+    const allDescendants = await hierarchyManager.getDescendants(noteId, args.max_depth);
+    const total = allDescendants.length;
+
+    // Limit results if necessary
+    const descendants =
+      total > maxResults ? allDescendants.slice(0, maxResults) : allDescendants;
+
+    return {
+      descendants,
+      limited: total > maxResults,
+      total
+    };
   }
 
   /**
-   * Get direct children of a note
+   * Get direct children of a note with optional limiting
    */
-  async getChildren(args: GetChildrenArgs): Promise<NoteHierarchyRow[]> {
+  async getChildren(args: GetChildrenArgs): Promise<{
+    children: NoteHierarchyRow[];
+    limited: boolean;
+    total: number;
+  }> {
     this.ensureInitialized();
 
     const { hybridSearchManager } = await this.getVaultContext(args.vault_id);
@@ -1284,13 +1565,30 @@ export class FlintNoteApi {
     const hierarchyManager = new HierarchyManager(db);
 
     const noteId = args.note_id;
-    return await hierarchyManager.getChildren(noteId);
+    const maxLimit = Math.min(args.limit ?? 100, 200);
+
+    // Get all children first
+    const allChildren = await hierarchyManager.getChildren(noteId);
+    const total = allChildren.length;
+
+    // Limit results if necessary
+    const children = total > maxLimit ? allChildren.slice(0, maxLimit) : allChildren;
+
+    return {
+      children,
+      limited: total > maxLimit,
+      total
+    };
   }
 
   /**
-   * Get direct parents of a note
+   * Get direct parents of a note with optional limiting
    */
-  async getParents(args: GetParentsArgs): Promise<NoteHierarchyRow[]> {
+  async getParents(args: GetParentsArgs): Promise<{
+    parents: NoteHierarchyRow[];
+    limited: boolean;
+    total: number;
+  }> {
     this.ensureInitialized();
 
     const { hybridSearchManager } = await this.getVaultContext(args.vault_id);
@@ -1298,7 +1596,20 @@ export class FlintNoteApi {
     const hierarchyManager = new HierarchyManager(db);
 
     const noteId = args.note_id;
-    return await hierarchyManager.getParents(noteId);
+    const maxLimit = Math.min(args.limit ?? 100, 200);
+
+    // Get all parents first
+    const allParents = await hierarchyManager.getParents(noteId);
+    const total = allParents.length;
+
+    // Limit results if necessary
+    const parents = total > maxLimit ? allParents.slice(0, maxLimit) : allParents;
+
+    return {
+      parents,
+      limited: total > maxLimit,
+      total
+    };
   }
 
   // Relationship Analysis Operations
@@ -1335,7 +1646,9 @@ export class FlintNoteApi {
     const relationshipManager = new RelationshipManager(db);
 
     const noteId = args.note_id;
-    return await relationshipManager.getRelatedNotes(noteId, args.max_results);
+    // Apply default of 50 and max of 200
+    const maxResults = Math.min(args.max_results ?? 50, 200);
+    return await relationshipManager.getRelatedNotes(noteId, maxResults);
   }
 
   /**

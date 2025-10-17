@@ -436,12 +436,14 @@ export class NoteService {
 
   async getBacklinks(identifier: string, vaultId: string): Promise<NoteLinkRow[]> {
     this.ensureInitialized();
-    return await this.api.getBacklinks(vaultId, identifier);
+    const result = await this.api.getBacklinks(vaultId, identifier);
+    return result.results;
   }
 
   async findBrokenLinks(vaultId: string): Promise<NoteLinkRow[]> {
     this.ensureInitialized();
-    return await this.api.findBrokenLinks(vaultId);
+    const result = await this.api.findBrokenLinks(vaultId);
+    return result.results;
   }
 
   // Additional helper methods
@@ -555,27 +557,30 @@ export class NoteService {
     maxDepth?: number
   ): Promise<NoteHierarchyRow[]> {
     this.ensureInitialized();
-    return await this.api.getDescendants({
+    const result = await this.api.getDescendants({
       note_id: identifier,
       vault_id: vaultId,
       max_depth: maxDepth
     });
+    return result.descendants;
   }
 
   async getChildren(identifier: string, vaultId: string): Promise<NoteHierarchyRow[]> {
     this.ensureInitialized();
-    return await this.api.getChildren({
+    const result = await this.api.getChildren({
       note_id: identifier,
       vault_id: vaultId
     });
+    return result.children;
   }
 
   async getParents(identifier: string, vaultId: string): Promise<NoteHierarchyRow[]> {
     this.ensureInitialized();
-    return await this.api.getParents({
+    const result = await this.api.getParents({
       note_id: identifier,
       vault_id: vaultId
     });
+    return result.parents;
   }
 
   // Relationship analysis operations
