@@ -4,6 +4,40 @@ All notable changes to the Flint application will be documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.6.0]
+
+### Added
+
+**AI Assistant improvements**
+
+The AI assistant has received significant improvements to make it more powerful and easier to use:
+
+- **Task planning system**: The assistant now creates and tracks structured task lists for complex multi-step requests, showing you exactly what it's working on and what's left to do
+- **Agent activity monitoring**: A new widget displays real-time information about what the assistant is doing, including tool calls and their results, with copy-to-clipboard functionality for easy reference
+- **Context usage tracking**: A visual indicator shows how much of the model's context window is being used, helping you understand when you might need to start a new conversation
+- **Message cancellation**: You can now cancel in-progress assistant messages if they're taking too long or going in the wrong direction
+- **Model selector improvements**: Simplified interface for switching between AI models, with better organization and descriptions
+- **Better models**: Now using Haiku 4.5 by default (it's sooo fast and good), with a toggle for Sonnet when you need more thinking
+
+**Resizable sidebars**
+
+Both the left and right sidebars can now be resized by dragging their edges, allowing you to customize the layout to your preferences.
+
+**Shift+click to add to sidebar**
+
+You can now Shift+click on wikilinks to quickly add the linked note to the sidebar without opening it, making it easier to collect reference notes.
+
+### Changed
+
+- Improved full-text search performance and accuracy
+- Better pagination and context limiting for AI assistant responses
+- Enhanced scrolling behavior in sidebar notes with sticky titles
+- Improved activity widget display during AI assistant steps
+
+### Fixed
+
+- Fixed link text alignment in rendered notes
+
 ## [0.5.0]
 
 ### Added
