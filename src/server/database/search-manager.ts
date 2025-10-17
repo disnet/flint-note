@@ -161,7 +161,8 @@ export class HybridSearchManager {
     query: string | undefined,
     typeFilter: string | null = null,
     limit: number = 10,
-    useRegex: boolean = false
+    useRegex: boolean = false,
+    offset: number = 0
   ): Promise<SearchResponse> {
     const startTime = Date.now();
     const connection = await this.getReadOnlyConnection();
@@ -180,10 +181,10 @@ export class HybridSearchManager {
           FROM notes n
           ${typeFilter ? 'WHERE n.type = ?' : ''}
           ORDER BY n.updated DESC
-          LIMIT ?
+          LIMIT ? OFFSET ?
         `;
         countSql = `SELECT COUNT(*) as total FROM notes n ${typeFilter ? 'WHERE n.type = ?' : ''}`;
-        params = typeFilter ? [typeFilter, limit] : [limit];
+        params = typeFilter ? [typeFilter, limit, offset] : [limit, offset];
       } else if (useRegex) {
         // For regex search, fetch all notes and filter in JavaScript
         sql = `
@@ -203,20 +204,22 @@ export class HybridSearchManager {
           for (const row of allRows) {
             if (regex.test(row.title || '') || regex.test(row.content || '')) {
               filteredRows.push(row);
-              if (filteredRows.length >= limit) break;
             }
           }
         } catch {
           throw new Error(`Invalid regex pattern: ${safeQuery}`);
         }
 
-        const results = await this.convertRowsToResults(filteredRows);
+        // Apply offset and limit to filtered results
+        const total = filteredRows.length;
+        const paginatedRows = filteredRows.slice(offset, offset + limit);
+        const results = await this.convertRowsToResults(paginatedRows);
         const queryTime = Date.now() - startTime;
 
         return {
           results,
-          total: filteredRows.length,
-          has_more: false, // We filtered all and took what we needed
+          total,
+          has_more: offset + results.length < total,
           query_time_ms: queryTime
         };
       } else {
@@ -230,7 +233,7 @@ export class HybridSearchManager {
             FROM notes n
             WHERE (n.title LIKE ? OR n.content LIKE ?)${typeFilter ? ' AND n.type = ?' : ''}
             ORDER BY n.updated DESC
-            LIMIT ?
+            LIMIT ? OFFSET ?
           `;
           countSql = `
             SELECT COUNT(*) as total
@@ -239,8 +242,8 @@ export class HybridSearchManager {
           `;
           const likeQuery = `%${safeQuery}%`;
           params = typeFilter
-            ? [likeQuery, likeQuery, typeFilter, limit]
-            : [likeQuery, likeQuery, limit];
+            ? [likeQuery, likeQuery, typeFilter, limit, offset]
+            : [likeQuery, likeQuery, limit, offset];
         } else {
           sql = `
             SELECT n.*,
@@ -250,7 +253,7 @@ export class HybridSearchManager {
             JOIN notes n ON n.id = fts.id
             WHERE notes_fts MATCH ?${typeFilter ? ' AND n.type = ?' : ''}
             ORDER BY fts.rank
-            LIMIT ?
+            LIMIT ? OFFSET ?
           `;
           countSql = `
             SELECT COUNT(*) as total
@@ -258,12 +261,14 @@ export class HybridSearchManager {
             JOIN notes n ON n.id = fts.id
             WHERE notes_fts MATCH ?${typeFilter ? ' AND n.type = ?' : ''}
           `;
-          params = typeFilter ? [escapedQuery, typeFilter, limit] : [escapedQuery, limit];
+          params = typeFilter
+            ? [escapedQuery, typeFilter, limit, offset]
+            : [escapedQuery, limit, offset];
         }
       }
 
-      // Execute count query (remove limit from params for count)
-      const countParams = params.slice(0, -1); // Remove the limit parameter
+      // Execute count query (remove limit and offset from params for count)
+      const countParams = params.slice(0, -2); // Remove the limit and offset parameters
       const countResult = await connection.get<{ total: number }>(countSql, countParams);
       const total = countResult?.total || 0;
 
@@ -276,7 +281,7 @@ export class HybridSearchManager {
       return {
         results,
         total,
-        has_more: results.length < total,
+        has_more: offset + results.length < total,
         query_time_ms: queryTime
       };
     } catch (error) {

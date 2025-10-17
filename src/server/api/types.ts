@@ -124,6 +124,7 @@ export interface SearchNotesArgs {
   query?: string;
   type_filter?: string;
   limit?: number;
+  offset?: number;
   use_regex?: boolean;
   vault_id: string;
   fields?: string[];

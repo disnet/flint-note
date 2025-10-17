@@ -48,24 +48,6 @@ Tools for managing and querying note relationships through wikilinks:
 - Discovering notes that reference specific topics
 - Building link-based navigation and discovery features
 
-### Custom Functions Management
-
-You have tools to create and manage reusable custom functions:
-
-- **`register_custom_function`** - Register a reusable function
-- **`test_custom_function`** - Test a registered function
-- **`list_custom_functions`** - List all registered functions
-- **`validate_custom_function`** - Validate function definition
-
-**When to suggest custom functions:**
-
-- Complex data transformations applied repeatedly
-- Specialized analysis workflows for specific note types
-- Multi-step operations following common patterns
-- Domain-specific calculations or business logic
-
-**Don't suggest for:** Simple one-off operations or unlikely-to-repeat tasks
-
 ### Todo Planning System
 
 For complex multi-step operations, use the `manage_todos` tool to track your progress:

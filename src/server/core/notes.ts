@@ -1476,11 +1476,12 @@ export class NoteManager {
       );
     }
 
-    return await this.#hybridSearchManager.searchNotes(
+    const response = await this.#hybridSearchManager.searchNotes(
       options.query,
       options.type_filter || null,
       options.limit || 50
     );
+    return response.results;
   }
 
   /**

@@ -266,14 +266,17 @@ export class FlintNoteApi {
   /**
    * Basic search for notes with optional filters
    */
-  async searchNotes(args: SearchNotesArgs): Promise<import('../database/search-manager.js').SearchResponse> {
+  async searchNotes(
+    args: SearchNotesArgs
+  ): Promise<import('../database/search-manager.js').SearchResponse> {
     this.ensureInitialized();
     const { hybridSearchManager } = await this.getVaultContext(args.vault_id);
     const response = await hybridSearchManager.searchNotes(
       args.query,
       args.type_filter,
       args.limit,
-      args.use_regex
+      args.use_regex,
+      args.offset
     );
     return response;
   }
@@ -302,12 +305,13 @@ export class FlintNoteApi {
    * Convenience method for basic text search
    */
   async searchNotesByText(options: SearchNotesByTextOptions): Promise<SearchResult[]> {
-    return await this.searchNotes({
+    const response = await this.searchNotes({
       query: options.query,
       type_filter: options.typeFilter,
       limit: options.limit || 10,
       vault_id: options.vaultId
     });
+    return response.results;
   }
 
   // Note Operations
