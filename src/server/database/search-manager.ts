@@ -1,15 +1,11 @@
-import {
-  DatabaseManager,
-  serializeMetadataValue,
-  deserializeMetadataValue as _deserializeMetadataValue
-} from './schema.js';
-import type { DatabaseConnection, NoteRow, MetadataRow, SearchRow } from './schema.js';
-import type { NoteMetadata, NoteLink as _NoteLink } from '../types/index.js';
+import { DatabaseManager, serializeMetadataValue } from './schema.js';
+import type { DatabaseConnection, NoteRow, SearchRow } from './schema.js';
+import type { NoteMetadata } from '../types/index.js';
 import fs from 'fs/promises';
 import path from 'path';
 import { createHash } from 'crypto';
 import { parseNoteContent as parseNoteContentProper } from '../utils/yaml-parser.js';
-import { toRelativePath, toAbsolutePath } from '../utils/path-utils.js';
+import { toRelativePath } from '../utils/path-utils.js';
 
 /**
  * Helper to handle index rebuilding with progress reporting
@@ -64,17 +60,7 @@ export async function handleIndexRebuild(
 export interface SearchResult {
   id: string;
   title: string;
-  type: string;
-  tags: string[];
-  score: number;
   snippet: string;
-  lastUpdated: string;
-  filename: string;
-  path: string;
-  created: string;
-  modified: string;
-  size: number;
-  metadata: NoteMetadata;
   // Allow additional properties for aggregation results
   [key: string]: unknown;
 }
@@ -170,18 +156,20 @@ export class HybridSearchManager {
     return this.readOnlyConnection;
   }
 
-  // Simple text search (backward compatible)
+  // Simple text search with pagination info
   async searchNotes(
     query: string | undefined,
     typeFilter: string | null = null,
     limit: number = 10,
     useRegex: boolean = false
-  ): Promise<SearchResult[]> {
+  ): Promise<SearchResponse> {
+    const startTime = Date.now();
     const connection = await this.getReadOnlyConnection();
 
     try {
       const safeQuery = (query ?? '').trim();
       let sql: string;
+      let countSql: string;
       let params: (string | number)[] = [];
 
       if (!safeQuery) {
@@ -194,6 +182,7 @@ export class HybridSearchManager {
           ORDER BY n.updated DESC
           LIMIT ?
         `;
+        countSql = `SELECT COUNT(*) as total FROM notes n ${typeFilter ? 'WHERE n.type = ?' : ''}`;
         params = typeFilter ? [typeFilter, limit] : [limit];
       } else if (useRegex) {
         // For regex search, fetch all notes and filter in JavaScript
@@ -221,8 +210,15 @@ export class HybridSearchManager {
           throw new Error(`Invalid regex pattern: ${safeQuery}`);
         }
 
-        const results = await this.convertRowsToResults(filteredRows, connection);
-        return results;
+        const results = await this.convertRowsToResults(filteredRows);
+        const queryTime = Date.now() - startTime;
+
+        return {
+          results,
+          total: filteredRows.length,
+          has_more: false, // We filtered all and took what we needed
+          query_time_ms: queryTime
+        };
       } else {
         // Use FTS for text search with proper escaping
         const escapedQuery = this.escapeFTSQuery(safeQuery);
@@ -232,9 +228,14 @@ export class HybridSearchManager {
             SELECT n.*,
                    1.0 as score
             FROM notes n
-            WHERE (n.title LIKE ? OR n.content LIKE ?)${typeFilter ? 'AND n.type = ?' : ''}
+            WHERE (n.title LIKE ? OR n.content LIKE ?)${typeFilter ? ' AND n.type = ?' : ''}
             ORDER BY n.updated DESC
             LIMIT ?
+          `;
+          countSql = `
+            SELECT COUNT(*) as total
+            FROM notes n
+            WHERE (n.title LIKE ? OR n.content LIKE ?)${typeFilter ? ' AND n.type = ?' : ''}
           `;
           const likeQuery = `%${safeQuery}%`;
           params = typeFilter
@@ -247,18 +248,37 @@ export class HybridSearchManager {
                    snippet(notes_fts, 2, '<mark>', '</mark>', '...', 32) as snippet
             FROM notes_fts fts
             JOIN notes n ON n.id = fts.id
-            WHERE notes_fts MATCH ?${typeFilter ? 'AND n.type = ?' : ''}
+            WHERE notes_fts MATCH ?${typeFilter ? ' AND n.type = ?' : ''}
             ORDER BY fts.rank
             LIMIT ?
+          `;
+          countSql = `
+            SELECT COUNT(*) as total
+            FROM notes_fts fts
+            JOIN notes n ON n.id = fts.id
+            WHERE notes_fts MATCH ?${typeFilter ? ' AND n.type = ?' : ''}
           `;
           params = typeFilter ? [escapedQuery, typeFilter, limit] : [escapedQuery, limit];
         }
       }
 
-      const rows = await connection.all<SearchRow>(sql, params);
-      const results = await this.convertRowsToResults(rows, connection);
+      // Execute count query (remove limit from params for count)
+      const countParams = params.slice(0, -1); // Remove the limit parameter
+      const countResult = await connection.get<{ total: number }>(countSql, countParams);
+      const total = countResult?.total || 0;
 
-      return results;
+      // Execute main query
+      const rows = await connection.all<SearchRow>(sql, params);
+      const results = await this.convertRowsToResults(rows);
+
+      const queryTime = Date.now() - startTime;
+
+      return {
+        results,
+        total,
+        has_more: results.length < total,
+        query_time_ms: queryTime
+      };
     } catch (error) {
       throw new Error(
         `Search failed: ${error instanceof Error ? error.message : 'Unknown error'}`
@@ -469,7 +489,7 @@ export class HybridSearchManager {
       const mainSql = sql + fromClause + orderClause + ' LIMIT ? OFFSET ?';
       const rows = await connection.all<SearchRow>(mainSql, [...params, limit, offset]);
 
-      const results = await this.convertRowsToResults(rows, connection);
+      const results = await this.convertRowsToResults(rows);
       const queryTime = Date.now() - startTime;
 
       return {
@@ -521,27 +541,11 @@ export class HybridSearchManager {
           ...row, // Preserve all custom aggregation columns first
           id: String(row.id || ''),
           title: String(row.title || ''),
-          type: String(row.type || ''),
-          tags: [],
-          score: 1.0,
-          snippet: '',
-          lastUpdated: String(row.updated || ''),
-          filename: String(row.filename || ''),
-          path: String(row.path || ''),
-          created: String(row.created || ''),
-          modified: String(row.updated || ''),
-          size: Number(row.size ?? 0),
-          metadata: {
-            title: String(row.title || ''),
-            type: String(row.type || ''),
-            created: String(row.created || ''),
-            updated: String(row.updated || ''),
-            filename: String(row.filename || '')
-          }
+          snippet: ''
         }));
       } else {
         // For regular note queries, convert to SearchResult format
-        results = await this.convertRowsToResults(rows as SearchRow[], connection);
+        results = await this.convertRowsToResults(rows as SearchRow[]);
       }
 
       const queryTime = Date.now() - startTime;
@@ -680,79 +684,58 @@ export class HybridSearchManager {
       case 'y':
         now.setFullYear(now.getFullYear() - amount);
         break;
+      default:
+        throw new Error(`Unknown date unit: ${unit}`);
     }
 
     return now.toISOString();
   }
 
   // Convert database rows to search results
-  private async convertRowsToResults(
-    rows: SearchRow[],
-    connection: DatabaseConnection
-  ): Promise<SearchResult[]> {
+  private async convertRowsToResults(rows: SearchRow[]): Promise<SearchResult[]> {
     const results: SearchResult[] = [];
 
     for (const row of rows) {
-      // Get metadata for this note
-      const metadataRows = await connection.all<MetadataRow>(
-        'SELECT key, value, value_type FROM note_metadata WHERE note_id = ?',
-        [row.id]
-      );
-
-      // Convert metadata rows to object
-      const metadata: NoteMetadata = {
-        title: row.title,
-        type: row.type,
-        created: row.created,
-        updated: row.updated,
-        filename: row.filename
-      };
-
-      // Add custom metadata
-      for (const metaRow of metadataRows) {
-        metadata[metaRow.key] = _deserializeMetadataValue(
-          metaRow.value,
-          metaRow.value_type
-        ) as
-          | string
-          | number
-          | boolean
-          | object
-          | string[]
-          | _NoteLink[]
-          | null
-          | undefined;
-      }
-
-      // Extract tags from metadata
-      const tags = Array.isArray(metadata.tags) ? metadata.tags : [];
-
       // Generate snippet if not provided
       let snippet = row.snippet || '';
       if (!snippet && row.content) {
         snippet = this.generateSnippet(row.content);
       }
 
-      // Convert relative path from database to absolute path for results
-      const absolutePath = toAbsolutePath(row.path, this.workspacePath);
+      // Find the line where the search term appears for the snippet
+      // (FTS already provides highlighted snippets)
+      if (!row.snippet && row.content) {
+        // Extract the first few lines as snippet, with safety limit
+        const lines = row.content.split('\n');
+        const snippetLines: string[] = [];
+        let charCount = 0;
+        const maxChars = 500; // Safety limit for total characters
 
-      // Get file stats using the absolute path
-      const stats = await this.getFileStats(absolutePath);
+        for (const line of lines) {
+          // Safety check: skip extremely long lines
+          if (line.length > 1000) {
+            snippetLines.push(line.substring(0, 1000) + '...');
+            charCount += 1000;
+          } else {
+            snippetLines.push(line);
+            charCount += line.length;
+          }
+
+          if (charCount >= maxChars || snippetLines.length >= 5) {
+            break;
+          }
+        }
+
+        snippet = snippetLines.join('\n');
+        if (charCount >= maxChars || snippetLines.length < lines.length) {
+          snippet += '\n...';
+        }
+      }
 
       results.push({
         id: row.id,
         title: row.title,
-        type: row.type,
-        tags,
-        score: row.score || 1.0,
-        snippet,
-        lastUpdated: row.updated,
-        filename: row.filename,
-        path: absolutePath, // Return absolute path in results
-        created: stats.created,
-        modified: stats.modified,
-        size: stats.size,
-        metadata
+        snippet
       });
     }
 

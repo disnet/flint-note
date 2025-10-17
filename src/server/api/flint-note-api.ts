@@ -266,16 +266,16 @@ export class FlintNoteApi {
   /**
    * Basic search for notes with optional filters
    */
-  async searchNotes(args: SearchNotesArgs): Promise<SearchResult[]> {
+  async searchNotes(args: SearchNotesArgs): Promise<import('../database/search-manager.js').SearchResponse> {
     this.ensureInitialized();
     const { hybridSearchManager } = await this.getVaultContext(args.vault_id);
-    const results = await hybridSearchManager.searchNotes(
+    const response = await hybridSearchManager.searchNotes(
       args.query,
       args.type_filter,
       args.limit,
       args.use_regex
     );
-    return results;
+    return response;
   }
 
   /**

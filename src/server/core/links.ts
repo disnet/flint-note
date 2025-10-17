@@ -394,21 +394,26 @@ export class LinkManager implements NoteLinkingManager {
     query: string,
     excludeType?: string
   ): Promise<NoteLookupResult[]> {
-    // Use the search manager to find notes
-    const searchResults = await this.#noteManager.searchNotes({
-      query,
-      limit: 20
-    });
+    // Use list notes instead of search to get full note data
+    // This is for internal linking purposes, not the AI tool
+    const allNotes = await this.#noteManager.listNotes(excludeType, 100);
 
-    return searchResults
-      .map((result) => ({
-        filename: path.basename(result.filename, '.md'),
-        title: result.title,
-        type: result.type,
-        path: result.path,
-        exists: true
-      }))
-      .filter((note) => !excludeType || note.type !== excludeType);
+    // If query is provided, filter by title
+    let filteredNotes = allNotes;
+    if (query && query.trim()) {
+      const queryLower = query.toLowerCase();
+      filteredNotes = allNotes.filter((note) =>
+        note.title.toLowerCase().includes(queryLower)
+      );
+    }
+
+    return filteredNotes.slice(0, 20).map((note) => ({
+      filename: path.basename(note.filename, '.md'),
+      title: note.title,
+      type: note.type,
+      path: note.path,
+      exists: true
+    }));
   }
 
   /**
@@ -485,8 +490,8 @@ export class LinkManager implements NoteLinkingManager {
       throw new Error(`Target note not found: ${targetIdentifier}`);
     }
 
-    // Search for all notes that might link to this target
-    const allNotes = await this.#noteManager.searchNotes({ query: '', limit: 1000 });
+    // Get all notes that might link to this target
+    const allNotes = await this.#noteManager.listNotes(undefined, 1000);
     const inboundLinks: NoteLink[] = [];
 
     for (const note of allNotes) {

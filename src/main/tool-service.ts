@@ -784,7 +784,7 @@ export class ToolService {
 
   private searchNotesTool = tool({
     description:
-      'Search notes by title and content, or list all notes with filtering options. Returns notes with content snippets for search queries, or full note metadata for listing.',
+      'Search notes by title and content, or list all notes with filtering options. Returns simplified results (id, title, snippet) for search queries to avoid overwhelming context. Use get_note with specific IDs to retrieve full note content when needed.',
     inputSchema: z.object({
       query: z.string().optional().describe('Search query (empty for listing all notes)'),
       limit: z
@@ -845,47 +845,29 @@ export class ToolService {
 
         let results;
         if (query) {
-          // Perform search
-          results = await flintApi.searchNotes({
+          // Perform search - returns SearchResponse with results and pagination info
+          const searchResponse = await flintApi.searchNotes({
             query,
             type_filter: noteType,
             limit: clampedLimit,
             vault_id: currentVault.id
           });
 
-          // Convert SearchResult[] to Note-like objects and apply filters
-          let notes = await Promise.all(
-            results.map(async (result) => {
-              try {
-                return await flintApi.getNote(currentVault.id, result.id);
-              } catch {
-                // If note can't be retrieved, create a minimal representation
-                return {
-                  id: result.id,
-                  title: result.title,
-                  type: result.type || 'unknown',
-                  content: result.content || '',
-                  snippet: result.snippet,
-                  metadata: {},
-                  created: '',
-                  updated: ''
-                };
-              }
-            })
-          );
+          // Return simplified search results directly - no need to fetch full notes
+          // This prevents overwhelming context with full note content
+          const count = searchResponse.results.length;
+          const total = searchResponse.total;
+          const noteWord = count === 1 ? 'note' : 'notes';
 
-          // Apply client-side filters
-          notes = this.applyFilters(notes, { tags, dateRange });
-
-          // Sort if specified (relevance is default from search)
-          if (sortBy !== 'relevance') {
-            notes = this.sortNotes(notes, sortBy);
+          let message = `Found ${count} ${noteWord} matching query: ${query}`;
+          if (total > count) {
+            message += ` (showing ${count} of ${total} total - use limit parameter to see more, max 100)`;
           }
 
           return {
             success: true,
-            data: notes.slice(0, clampedLimit),
-            message: `Found ${notes.length} note(s) matching query: ${query}`
+            data: searchResponse.results,
+            message
           };
         } else {
           // List all notes
