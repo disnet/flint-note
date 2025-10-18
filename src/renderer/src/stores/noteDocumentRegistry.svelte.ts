@@ -211,6 +211,17 @@ class NoteDocumentRegistryClass {
   // Map of noteId -> NoteDocument
   private documents = $state(new Map<string, NoteDocument>());
 
+  constructor() {
+    // Listen for note.updated events and reload affected documents
+    messageBus.subscribe('note.updated', async (event) => {
+      const doc = this.documents.get(event.noteId);
+      if (doc) {
+        // Only reload if the document is open
+        await doc.reload();
+      }
+    });
+  }
+
   /**
    * Open a note document for a specific editor.
    * If the document is already open, returns the existing instance.
