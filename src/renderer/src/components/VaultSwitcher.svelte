@@ -5,7 +5,6 @@
   import { messageBus } from '../services/messageBus.svelte';
   import { pinnedNotesStore } from '../services/pinnedStore.svelte';
   import { temporaryTabsStore } from '../stores/temporaryTabsStore.svelte';
-  import { unifiedChatStore } from '../stores/unifiedChatStore.svelte';
   import { activeNoteStore } from '../stores/activeNoteStore.svelte';
   import { cursorPositionStore } from '../services/cursorPositionStore.svelte';
   import { inboxStore } from '../stores/inboxStore.svelte';
@@ -90,9 +89,9 @@
       );
 
       // Refresh pinned notes, temporary tabs, conversations, inbox, and daily view for the new vault
+      // Note: unifiedChatStore refreshes automatically via vault.switched event subscription
       await pinnedNotesStore.refreshForVault(vaultId);
       await temporaryTabsStore.refreshForVault(vaultId);
-      await unifiedChatStore.refreshForVault(vaultId);
       await inboxStore.refresh(vaultId);
       await dailyViewStore.reinitialize();
       await cursorPositionStore.endVaultSwitch();
@@ -231,9 +230,9 @@
           }
 
           // Refresh stores for the new vault
+          // Note: unifiedChatStore refreshes automatically via vault.switched event subscription
           await pinnedNotesStore.refreshForVault(nextVault.id);
           await temporaryTabsStore.refreshForVault(nextVault.id);
-          await unifiedChatStore.refreshForVault(nextVault.id);
           await inboxStore.refresh(nextVault.id);
           await dailyViewStore.reinitialize();
           await activeNoteStore.endVaultSwitch();

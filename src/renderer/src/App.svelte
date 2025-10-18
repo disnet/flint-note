@@ -25,9 +25,6 @@
   import { messageBus } from './services/messageBus.svelte';
   import type { NoteEvent } from './services/messageBus.svelte';
 
-  // Initialize unified chat store effects
-  unifiedChatStore.initializeEffects();
-
   // Forward note events from main process to message bus
   $effect(() => {
     const unsubscribe = window.api?.onNoteEvent((event) => {
