@@ -390,15 +390,6 @@ export class ToolService {
 
             // Update identifier for subsequent operations
             updates.identifier = renameResult.new_id || id;
-
-            // Publish note.renamed event
-            if (renameResult.new_id) {
-              publishNoteEvent({
-                type: 'note.renamed',
-                oldId: id,
-                newId: renameResult.new_id
-              });
-            }
           }
         }
 
@@ -406,6 +397,17 @@ export class ToolService {
 
         // Get updated note to return
         const updatedNote = await flintApi.getNote(currentVault.id, updates.identifier);
+
+        // Publish note.renamed event AFTER getting the updated note (if title was changed)
+        if (title !== undefined && title !== currentNote.title) {
+          publishNoteEvent({
+            type: 'note.renamed',
+            oldId: id,
+            newId: updatedNote.id,
+            title: updatedNote.title,
+            filename: updatedNote.filename
+          });
+        }
 
         // Publish note.updated event with full metadata
         publishNoteEvent({

@@ -1,5 +1,6 @@
 import type { NoteMetadata } from '../services/noteStore.svelte';
 import { getChatService } from '../services/chatService';
+import { messageBus } from '../services/messageBus.svelte';
 
 interface ActiveNoteState {
   currentVaultId: string | null;
@@ -19,6 +20,18 @@ class ActiveNoteStore {
 
   constructor() {
     this.initializationPromise = this.initializeVault();
+
+    // Listen for note rename events and update activeNote if it matches
+    messageBus.subscribe('note.renamed', (event) => {
+      if (this.state.activeNote && this.state.activeNote.id === event.oldId) {
+        this.state.activeNote = {
+          ...this.state.activeNote,
+          id: event.newId,
+          title: event.title,
+          filename: event.filename
+        };
+      }
+    });
   }
 
   get activeNote(): NoteMetadata | null {

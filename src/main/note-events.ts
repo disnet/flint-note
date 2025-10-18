@@ -6,7 +6,7 @@ export type NoteEvent =
   | { type: 'note.created'; note: NoteMetadata }
   | { type: 'note.updated'; noteId: string; updates: Partial<NoteMetadata> }
   | { type: 'note.deleted'; noteId: string }
-  | { type: 'note.renamed'; oldId: string; newId: string }
+  | { type: 'note.renamed'; oldId: string; newId: string; title: string; filename: string }
   | { type: 'note.moved'; noteId: string; oldType: string; newType: string }
   | {
       type: 'note.linksChanged';

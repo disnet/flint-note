@@ -639,17 +639,20 @@ app.whenReady().then(async () => {
 
       // Publish event to renderer
       if (result.success && result.new_id) {
-        publishNoteEvent({
-          type: 'note.renamed',
-          oldId: params.identifier,
-          newId: result.new_id
-        });
-
         // Fetch the renamed note to get updated metadata
         try {
           const renamedNote = await noteService.getNote(result.new_id, vaultId);
           if (renamedNote) {
-            // Publish note.updated event with the new metadata
+            // Publish note.renamed event with full metadata
+            publishNoteEvent({
+              type: 'note.renamed',
+              oldId: params.identifier,
+              newId: result.new_id,
+              title: renamedNote.title,
+              filename: renamedNote.filename
+            });
+
+            // Also publish note.updated event with the new metadata
             publishNoteEvent({
               type: 'note.updated',
               noteId: result.new_id,
