@@ -22,7 +22,7 @@ class Logger {
 
     if (isTestEnv || !app || !app.getPath) {
       // In test environment, use silent logger unless DEBUG_TESTS is set
-      const transports = [];
+      const transports: winston.transport[] = [];
 
       // Only add console transport if debugging is enabled
       if (debugTests) {

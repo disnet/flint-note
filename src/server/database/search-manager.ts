@@ -1015,8 +1015,16 @@ export class HybridSearchManager {
       content_hash: string | null;
     }>('SELECT path, file_mtime, content_hash FROM notes');
 
+    // Create a map of relative paths to indexed notes
     const indexedMap = new Map(indexedNotes.map((note) => [note.path, note]));
-    const filesOnDisk = new Set(allNoteFiles);
+
+    // Create a map of relative paths to absolute paths for files on disk
+    const filesOnDiskMap = new Map(
+      allNoteFiles.map((absPath) => [
+        toRelativePath(absPath, this.workspacePath),
+        absPath
+      ])
+    );
 
     // Find files to process
     const filesToAdd: string[] = [];
@@ -1026,16 +1034,16 @@ export class HybridSearchManager {
       dbHash: string | null;
     }> = [];
 
-    for (const filePath of allNoteFiles) {
-      const indexed = indexedMap.get(filePath);
+    for (const [relativePath, absolutePath] of filesOnDiskMap) {
+      const indexed = indexedMap.get(relativePath);
 
       if (!indexed) {
         // New file - not in database
-        filesToAdd.push(filePath);
+        filesToAdd.push(absolutePath);
       } else {
         // File exists in DB - check if it changed
         filesToCheck.push({
-          path: filePath,
+          path: absolutePath,
           dbMtime: indexed.file_mtime,
           dbHash: indexed.content_hash
         });
@@ -1044,9 +1052,9 @@ export class HybridSearchManager {
 
     // Find deleted files (in DB but not on disk)
     const filesToDelete: string[] = [];
-    for (const [path] of indexedMap) {
-      if (!filesOnDisk.has(path)) {
-        filesToDelete.push(path);
+    for (const [relativePath] of indexedMap) {
+      if (!filesOnDiskMap.has(relativePath)) {
+        filesToDelete.push(relativePath);
       }
     }
 
@@ -1065,8 +1073,7 @@ export class HybridSearchManager {
 
         // mtime is newer - check content hash to be sure
         const content = await fs.readFile(path, 'utf-8');
-        const fsHash =
-          'sha256:' + createHash('sha256').update(content, 'utf8').digest('hex');
+        const fsHash = createHash('sha256').update(content, 'utf8').digest('hex');
 
         if (fsHash !== dbHash) {
           // Content actually changed
