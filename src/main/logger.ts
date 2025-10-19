@@ -18,9 +18,24 @@ class Logger {
 
     // Check if we're in a test environment or if app is available
     const isTestEnv = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
+    const debugTests = process.env.DEBUG_TESTS === 'true';
 
     if (isTestEnv || !app || !app.getPath) {
-      // In test environment, use console-only logger
+      // In test environment, use silent logger unless DEBUG_TESTS is set
+      const transports = [];
+
+      // Only add console transport if debugging is enabled
+      if (debugTests) {
+        transports.push(
+          new winston.transports.Console({
+            format: winston.format.combine(
+              winston.format.colorize(),
+              winston.format.simple()
+            )
+          })
+        );
+      }
+
       this.logger = winston.createLogger({
         level: 'info',
         format: winston.format.combine(
@@ -29,14 +44,9 @@ class Logger {
           winston.format.json()
         ),
         defaultMeta: { service: 'flint-main' },
-        transports: [
-          new winston.transports.Console({
-            format: winston.format.combine(
-              winston.format.colorize(),
-              winston.format.simple()
-            )
-          })
-        ]
+        transports,
+        // Suppress all output if no transports are configured
+        silent: transports.length === 0
       });
       return;
     }

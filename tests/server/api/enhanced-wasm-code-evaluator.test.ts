@@ -419,8 +419,6 @@ async function main(): Promise<any> {
       expect(evalResult.success).toBe(true);
       expect(evalResult.compilation?.success).toBe(true);
 
-      console.log('Delete test result:', evalResult.result);
-
       expect(evalResult.result.success).toBe(true);
       if (evalResult.result.success) {
         expect(evalResult.result).toHaveProperty('name', 'test-delete');

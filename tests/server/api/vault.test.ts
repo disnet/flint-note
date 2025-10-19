@@ -29,7 +29,7 @@ async function getAllFiles(dir: string): Promise<string[]> {
   try {
     await walk(dir, dir);
   } catch (error) {
-    console.log('Error reading directory:', error);
+    // Ignore directory walking errors
   }
 
   return files.sort();

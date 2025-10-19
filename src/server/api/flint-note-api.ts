@@ -804,18 +804,15 @@ export class FlintNoteApi {
             // Capture the initial note ID from template application
             initialNoteId = result.initialNoteId;
 
-            console.log(
-              `Template applied: ${result.noteTypesCreated} note types, ${result.notesCreated} notes`
-            );
-            console.log(
-              'Template application result.initialNoteId:',
-              result.initialNoteId
+            logger.info(
+              `Template applied: ${result.noteTypesCreated} note types, ${result.notesCreated} notes`,
+              { initialNoteId: result.initialNoteId }
             );
             if (result.errors.length > 0) {
-              console.warn('Template application errors:', result.errors);
+              logger.warn('Template application errors', { errors: result.errors });
             }
           } catch (error) {
-            console.error('Failed to apply template to new vault:', error);
+            logger.error('Failed to apply template to new vault', { error });
             // Don't throw - template application shouldn't block vault creation
           }
         }
@@ -864,7 +861,6 @@ export class FlintNoteApi {
       isNewVault,
       initialNoteId
     };
-    console.log('createVault returning:', result);
     return result;
   }
 

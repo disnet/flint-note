@@ -76,7 +76,6 @@ export class TestApiSetup {
         await this.api.removeVault({ id: vaultId });
       } catch (error) {
         // Vault might already be removed, ignore error
-        console.warn(`Failed to remove vault ${vaultId}:`, error);
       }
     }
 
@@ -88,7 +87,7 @@ export class TestApiSetup {
       try {
         await this.api.cleanup();
       } catch (error) {
-        console.warn('Failed to cleanup API:', error);
+        // Ignore cleanup errors in tests
       }
     }
 
@@ -99,7 +98,7 @@ export class TestApiSetup {
     try {
       await fs.rm(this.testWorkspacePath, { recursive: true, force: true });
     } catch (error) {
-      console.warn('Failed to clean up test workspace:', error);
+      // Ignore cleanup errors in tests
     }
   }
 
