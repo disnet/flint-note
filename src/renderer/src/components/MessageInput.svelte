@@ -578,7 +578,7 @@
         '.cm-content': {
           padding: '6px 0',
           minHeight: '1.25rem',
-          maxHeight: '120px',
+          maxHeight: '400px',
           caretColor: 'var(--text-secondary)',
           fontFamily:
             "'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace !important"
@@ -868,7 +868,7 @@
     background: transparent;
     color: var(--text-secondary);
     min-height: 1.25rem;
-    max-height: 120px;
+    max-height: 400px;
     overflow: hidden;
   }
 
