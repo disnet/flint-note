@@ -17,9 +17,9 @@ export async function handleIndexRebuild(
   hybridSearchManager: {
     getStats(): Promise<{ noteCount: number }>;
     rebuildIndex(callback: (processed: number, total: number) => void): Promise<void>;
-    syncMissingNotes(
+    syncFileSystemChanges(
       callback: (processed: number, total: number) => void
-    ): Promise<number>;
+    ): Promise<{ added: number; updated: number; deleted: number }>;
   },
   forceRebuild: boolean = false,
   logCallback?: (message: string, isError?: boolean) => void
@@ -54,16 +54,21 @@ export async function handleIndexRebuild(
       log('Hybrid search index rebuilt successfully');
     } else {
       log(`Hybrid search index ready (${stats.noteCount} notes indexed)`);
-      // Even if we're not rebuilding, sync any new notes that were added since last index
-      const syncedCount = await hybridSearchManager.syncMissingNotes(
+      // Sync filesystem changes (new, updated, or deleted files)
+      const result = await hybridSearchManager.syncFileSystemChanges(
         (processed: number, total: number) => {
           if (processed % 5 === 0 || processed === total) {
-            log(`Syncing new notes: ${processed}/${total} notes processed`);
+            log(`Syncing filesystem changes: ${processed}/${total} processed`);
           }
         }
       );
-      if (syncedCount > 0) {
-        log(`Synced ${syncedCount} new notes to search index`);
+      const totalChanges = result.added + result.updated + result.deleted;
+      if (totalChanges > 0) {
+        const parts: string[] = [];
+        if (result.added > 0) parts.push(`${result.added} added`);
+        if (result.updated > 0) parts.push(`${result.updated} updated`);
+        if (result.deleted > 0) parts.push(`${result.deleted} deleted`);
+        log(`Synced filesystem changes: ${parts.join(', ')}`);
       }
     }
   } catch (error) {
@@ -786,19 +791,22 @@ export class HybridSearchManager {
   // Get file statistics
   private async getFileStats(
     filePath: string
-  ): Promise<{ created: string; modified: string; size: number }> {
+  ): Promise<{ created: string; modified: string; size: number; mtimeMs: number }> {
     try {
       const stats = await fs.stat(filePath);
       return {
         created: stats.birthtime.toISOString(),
         modified: stats.mtime.toISOString(),
-        size: stats.size
+        size: stats.size,
+        mtimeMs: Math.floor(stats.mtimeMs)
       };
     } catch {
+      const now = Date.now();
       return {
         created: new Date().toISOString(),
         modified: new Date().toISOString(),
-        size: 0
+        size: 0,
+        mtimeMs: now
       };
     }
   }
@@ -838,7 +846,7 @@ export class HybridSearchManager {
           await connection.run(
             `UPDATE notes SET
              title = ?, content = ?, type = ?, filename = ?, path = ?,
-             updated = ?, size = ?, content_hash = ?
+             updated = ?, size = ?, content_hash = ?, file_mtime = ?
              WHERE id = ?`,
             [
               title,
@@ -849,6 +857,7 @@ export class HybridSearchManager {
               now,
               stats.size,
               contentHash,
+              stats.mtimeMs,
               id
             ]
           );
@@ -857,17 +866,27 @@ export class HybridSearchManager {
           await connection.run(
             `UPDATE notes SET
              title = ?, content = ?, type = ?, filename = ?, path = ?,
-             size = ?, content_hash = ?
+             size = ?, content_hash = ?, file_mtime = ?
              WHERE id = ?`,
-            [title, content, type, filename, relativePath, stats.size, contentHash, id]
+            [
+              title,
+              content,
+              type,
+              filename,
+              relativePath,
+              stats.size,
+              contentHash,
+              stats.mtimeMs,
+              id
+            ]
           );
         }
       } else {
         // Insert new note
         await connection.run(
           `INSERT INTO notes
-           (id, title, content, type, filename, path, created, updated, size, content_hash)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           (id, title, content, type, filename, path, created, updated, size, content_hash, file_mtime)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             id,
             title,
@@ -878,7 +897,8 @@ export class HybridSearchManager {
             stats.created,
             now,
             stats.size,
-            contentHash
+            contentHash,
+            stats.mtimeMs
           ]
         );
       }
@@ -973,58 +993,175 @@ export class HybridSearchManager {
   }
 
   /**
-   * Sync new or missing notes from the filesystem to the database
-   * This is faster than a full rebuild and only indexes notes that aren't already in the database
+   * Sync filesystem changes to database using hybrid mtime + content hash detection
+   * Detects:
+   * 1. New files (not in database)
+   * 2. Changed files (mtime newer + content hash differs)
+   * 3. Deleted files (in database but not on filesystem)
+   *
+   * This is faster than a full rebuild as it uses mtime as a fast filter
+   * and only hashes files that have potentially changed.
    */
-  async syncMissingNotes(
+  async syncFileSystemChanges(
     progressCallback?: (processed: number, total: number) => void
-  ): Promise<number> {
+  ): Promise<{ added: number; updated: number; deleted: number }> {
     const allNoteFiles = await this.scanForNoteFiles();
     const db = await this.getConnection();
 
-    // Get all file paths currently in the database
-    const indexedNotes = await db.all<{ path: string }>('SELECT path FROM notes');
-    const indexedPaths = new Set(indexedNotes.map((note) => note.path));
+    // Get all notes currently in the database with their mtime and content_hash
+    const indexedNotes = await db.all<{
+      path: string;
+      file_mtime: number | null;
+      content_hash: string | null;
+    }>('SELECT path, file_mtime, content_hash FROM notes');
 
-    // Find files that aren't in the database
-    const missingFiles = allNoteFiles.filter((filePath) => !indexedPaths.has(filePath));
+    const indexedMap = new Map(indexedNotes.map((note) => [note.path, note]));
+    const filesOnDisk = new Set(allNoteFiles);
 
-    if (missingFiles.length === 0) {
-      return 0;
+    // Find files to process
+    const filesToAdd: string[] = [];
+    const filesToCheck: Array<{
+      path: string;
+      dbMtime: number | null;
+      dbHash: string | null;
+    }> = [];
+
+    for (const filePath of allNoteFiles) {
+      const indexed = indexedMap.get(filePath);
+
+      if (!indexed) {
+        // New file - not in database
+        filesToAdd.push(filePath);
+      } else {
+        // File exists in DB - check if it changed
+        filesToCheck.push({
+          path: filePath,
+          dbMtime: indexed.file_mtime,
+          dbHash: indexed.content_hash
+        });
+      }
     }
 
-    console.log(`Found ${missingFiles.length} new notes to index`);
-
-    if (progressCallback) {
-      progressCallback(0, missingFiles.length);
+    // Find deleted files (in DB but not on disk)
+    const filesToDelete: string[] = [];
+    for (const [path] of indexedMap) {
+      if (!filesOnDisk.has(path)) {
+        filesToDelete.push(path);
+      }
     }
 
-    // Process files in batches for better performance
-    const batchSize = 10;
+    // Phase 1: Check for changed files using hybrid approach
+    const filesToUpdate: string[] = [];
+
+    for (const { path, dbMtime, dbHash } of filesToCheck) {
+      try {
+        const stats = await fs.stat(path);
+        const fsMtime = Math.floor(stats.mtimeMs);
+
+        // Fast path: if mtime unchanged (or older), skip
+        if (dbMtime !== null && fsMtime <= dbMtime) {
+          continue;
+        }
+
+        // mtime is newer - check content hash to be sure
+        const content = await fs.readFile(path, 'utf-8');
+        const fsHash =
+          'sha256:' + createHash('sha256').update(content, 'utf8').digest('hex');
+
+        if (fsHash !== dbHash) {
+          // Content actually changed
+          filesToUpdate.push(path);
+        } else {
+          // Content unchanged, just mtime touched - update mtime only
+          await db.run('UPDATE notes SET file_mtime = ? WHERE path = ?', [fsMtime, path]);
+        }
+      } catch (error) {
+        console.error(`Failed to check file ${path}:`, error);
+      }
+    }
+
+    const totalToProcess =
+      filesToAdd.length + filesToUpdate.length + filesToDelete.length;
+
+    if (totalToProcess === 0) {
+      return { added: 0, updated: 0, deleted: 0 };
+    }
+
+    console.log(
+      `Syncing filesystem changes: ${filesToAdd.length} new, ${filesToUpdate.length} updated, ${filesToDelete.length} deleted`
+    );
+
     let processed = 0;
 
-    for (let i = 0; i < missingFiles.length; i += batchSize) {
-      const batch = missingFiles.slice(i, i + batchSize);
-
-      // Process batch in parallel
+    // Process new files
+    const batchSize = 10;
+    for (let i = 0; i < filesToAdd.length; i += batchSize) {
+      const batch = filesToAdd.slice(i, i + batchSize);
       await Promise.allSettled(
         batch.map(async (filePath) => {
           try {
             await this.indexNoteFile(filePath);
           } catch (error) {
-            console.error(`Failed to index note file ${filePath}:`, error);
-            // Continue with other files
+            console.error(`Failed to index new file ${filePath}:`, error);
           }
         })
       );
-
       processed += batch.length;
       if (progressCallback) {
-        progressCallback(Math.min(processed, missingFiles.length), missingFiles.length);
+        progressCallback(processed, totalToProcess);
       }
     }
 
-    return missingFiles.length;
+    // Process updated files
+    for (let i = 0; i < filesToUpdate.length; i += batchSize) {
+      const batch = filesToUpdate.slice(i, i + batchSize);
+      await Promise.allSettled(
+        batch.map(async (filePath) => {
+          try {
+            await this.indexNoteFile(filePath);
+          } catch (error) {
+            console.error(`Failed to reindex updated file ${filePath}:`, error);
+          }
+        })
+      );
+      processed += batch.length;
+      if (progressCallback) {
+        progressCallback(processed, totalToProcess);
+      }
+    }
+
+    // Process deleted files
+    for (const filePath of filesToDelete) {
+      try {
+        // Remove from database
+        await db.run('DELETE FROM notes WHERE path = ?', [filePath]);
+        // Also clean up metadata, links, etc.
+        // Note: Foreign key constraints should handle cascade delete
+      } catch (error) {
+        console.error(`Failed to remove deleted file ${filePath}:`, error);
+      }
+      processed++;
+      if (progressCallback) {
+        progressCallback(processed, totalToProcess);
+      }
+    }
+
+    return {
+      added: filesToAdd.length,
+      updated: filesToUpdate.length,
+      deleted: filesToDelete.length
+    };
+  }
+
+  /**
+   * Legacy method - now wraps syncFileSystemChanges
+   * @deprecated Use syncFileSystemChanges instead
+   */
+  async syncMissingNotes(
+    progressCallback?: (processed: number, total: number) => void
+  ): Promise<number> {
+    const result = await this.syncFileSystemChanges(progressCallback);
+    return result.added + result.updated;
   }
 
   // Scan workspace for all note files

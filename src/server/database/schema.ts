@@ -201,7 +201,8 @@ export class DatabaseManager {
           created DATETIME NOT NULL,
           updated DATETIME NOT NULL,
           size INTEGER,
-          content_hash TEXT
+          content_hash TEXT,
+          file_mtime BIGINT
         )
       `);
 
@@ -479,6 +480,7 @@ export interface NoteRow {
   updated: string;
   size: number | null;
   content_hash: string | null;
+  file_mtime: number | null;
 }
 
 export interface MetadataRow {

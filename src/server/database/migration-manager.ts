@@ -993,8 +993,34 @@ async function migrateToV2_1_0(
   }
 }
 
+/**
+ * Migration to v2.3.0: Add file_mtime column for hybrid change detection
+ */
+async function migrateToV2_3_0(db: DatabaseConnection): Promise<void> {
+  console.log('Migrating to v2.3.0: Adding file_mtime column for change detection');
+
+  try {
+    // Check if file_mtime column already exists
+    const columns = await db.all<{ name: string }>(
+      "SELECT name FROM pragma_table_info('notes')"
+    );
+    const hasFileMtime = columns.some((col) => col.name === 'file_mtime');
+
+    if (!hasFileMtime) {
+      console.log('Adding file_mtime column to notes table');
+      await db.run('ALTER TABLE notes ADD COLUMN file_mtime BIGINT');
+      console.log('file_mtime column added successfully');
+    } else {
+      console.log('file_mtime column already exists, skipping');
+    }
+  } catch (error) {
+    console.error('Failed to add file_mtime column:', error);
+    throw error;
+  }
+}
+
 export class DatabaseMigrationManager {
-  private static readonly CURRENT_SCHEMA_VERSION = '2.2.0';
+  private static readonly CURRENT_SCHEMA_VERSION = '2.3.0';
 
   private static readonly MIGRATIONS: DatabaseMigration[] = [
     {
@@ -1032,6 +1058,13 @@ export class DatabaseMigrationManager {
       requiresFullRebuild: false,
       requiresLinkMigration: false,
       migrationFunction: migrateToV2_2_0
+    },
+    {
+      version: '2.3.0',
+      description: 'Add file_mtime column for hybrid change detection',
+      requiresFullRebuild: false,
+      requiresLinkMigration: false,
+      migrationFunction: migrateToV2_3_0
     }
   ];
 

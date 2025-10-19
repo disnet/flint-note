@@ -35,6 +35,70 @@ File operations can fail or be interrupted. The system must handle partial state
 
 ---
 
+## Implementation Status
+
+### ✅ Phase 1: Startup Sync (Implemented - 2025-10-19)
+
+**What's Working:**
+
+Flint now detects and syncs filesystem changes on vault startup using a hybrid mtime + content hash approach.
+
+**Database Changes:**
+
+- Added `file_mtime BIGINT` column to notes table
+- Automatic migration for existing databases
+- All note operations now track filesystem modification time
+
+**Sync Algorithm (`syncFileSystemChanges`):**
+
+1. **Fast Filter (mtime)**: Compare filesystem mtime with stored mtime
+   - Skip files where `fs_mtime <= db_mtime` (no read needed)
+   - Only check files with newer mtime
+
+2. **Reliable Verification (content hash)**: For files with newer mtime
+   - Read file and compute SHA256 hash
+   - Compare with stored content_hash
+   - If hash differs → content changed, reindex
+   - If hash matches → just touched, update mtime only
+
+3. **Comprehensive Detection**:
+   - ✅ New files (not in database) → indexed
+   - ✅ Modified files (content hash changed) → reindexed
+   - ✅ Touched files (mtime changed, content same) → mtime updated
+   - ✅ Deleted files (in DB but not on disk) → removed
+
+**Performance:**
+
+- Fast: Most unchanged files skipped via mtime check
+- Reliable: Content hash catches git operations, clock skew, reverts
+- Efficient: Batch processing with progress callbacks
+
+**Example Startup Logs:**
+
+```
+Hybrid search index ready (150 notes indexed)
+Syncing filesystem changes: 3 new, 2 updated, 1 deleted
+```
+
+**Integration:**
+
+- Runs automatically on vault initialization (unless index empty → full rebuild)
+- Works seamlessly with ID normalization (auto-generates missing IDs)
+- Handles frontmatter normalization (type, id fields)
+
+**Code Locations:**
+
+- `src/server/database/schema.ts` - Database schema and migration
+- `src/server/database/search-manager.ts` - Sync implementation
+  - `syncFileSystemChanges()` - Main sync method
+  - `handleIndexRebuild()` - Startup integration
+
+### 🚧 Phase 2: Real-time Watching (Planned)
+
+The following sections describe the planned implementation for real-time file watching while Flint is running.
+
+---
+
 ## Architecture Overview
 
 ```
@@ -781,19 +845,57 @@ describe('External Edit Integration', () => {
 
 ## Summary
 
-External edit handling requires:
+### Current Implementation (Phase 1)
 
-1. ✅ **File watching** with debouncing and filtering
-2. ✅ **Change detection** distinguishing internal vs external
-3. ✅ **Database updates** to keep cache in sync
-4. ✅ **Link graph maintenance** when titles/filenames change
-5. ✅ **Rename detection** using ID tracking
-6. ✅ **Error handling** for edge cases and corruption
-7. ✅ **UI notifications** for user awareness
+**Implemented ✅:**
 
-This architecture provides the foundation for:
+1. **Startup sync** with hybrid mtime + content hash detection
+2. **Change detection** for new, modified, and deleted files
+3. **Database updates** with automatic migration
+4. **ID normalization** for imported/external notes
+5. **Error handling** for missing files and edge cases
+6. **Performance optimization** via mtime-based filtering
 
-- Reliable single-device operation with external editors
-- Multi-device sync (changes from other devices = filesystem changes)
-- Git workflow compatibility
-- Robust conflict detection and recovery
+**Working Today:**
+
+- ✅ External edits synced on vault startup
+- ✅ Git operations (checkout, pull, merge) detected
+- ✅ Multi-device compatible (detects synced changes)
+- ✅ Handles Readwise imports and external note creation
+- ✅ Graceful handling of clock skew, file touching, content reverts
+
+### Planned Implementation (Phase 2)
+
+**Not Yet Implemented 🚧:**
+
+1. **Real-time file watching** (chokidar) while Flint is running
+2. **Internal vs external change tracking** to avoid self-triggers
+3. **Rename detection** using ID tracking
+4. **Link graph updates** when files are renamed
+5. **UI notifications** for user awareness of external changes
+6. **Conflict resolution** when external edits clash with unsaved local changes
+
+**Phase 2 Benefits:**
+
+- Real-time sync without restarting Flint
+- Immediate UI updates when files change externally
+- Better UX for git workflows (see changes instantly)
+- Live collaboration potential (multiple editors on same vault)
+
+### Architecture Benefits
+
+This two-phase architecture provides:
+
+**Today (Phase 1):**
+
+- ✅ Reliable startup sync for external editors
+- ✅ Git workflow compatibility
+- ✅ Multi-device sync foundation
+- ✅ Import workflow support (Readwise, etc.)
+
+**Future (Phase 2):**
+
+- 🚧 Real-time external edit detection
+- 🚧 Live collaboration support
+- 🚧 Advanced conflict resolution
+- 🚧 Rename and link maintenance
