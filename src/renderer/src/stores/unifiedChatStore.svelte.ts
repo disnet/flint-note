@@ -339,7 +339,8 @@ class UnifiedChatStore {
 
     // If we deleted the active thread, switch to the most recent one
     if (this.state.activeThreadId === threadId) {
-      this.state.activeThreadId = filteredThreads.length > 0 ? filteredThreads[0].id : null;
+      this.state.activeThreadId =
+        filteredThreads.length > 0 ? filteredThreads[0].id : null;
     }
 
     // Explicit save after mutation
@@ -366,7 +367,9 @@ class UnifiedChatStore {
       const chatService = getChatService();
       if ('setActiveConversation' in chatService) {
         // Serialize messages for IPC transfer
-        const serializableMessages = thread.messages.map((msg) => this.serializeMessage(msg));
+        const serializableMessages = thread.messages.map((msg) =>
+          this.serializeMessage(msg)
+        );
 
         // Send as JSON string to avoid IPC cloning issues
         const messagesAsString = JSON.stringify(serializableMessages);
@@ -606,7 +609,10 @@ class UnifiedChatStore {
                 }
               });
             } catch (error) {
-              console.warn(`Failed to migrate conversations for vault ${vaultId}:`, error);
+              console.warn(
+                `Failed to migrate conversations for vault ${vaultId}:`,
+                error
+              );
             }
           }
         }
@@ -834,7 +840,9 @@ class UnifiedChatStore {
 
     // Handle arrays
     if (Array.isArray(obj)) {
-      return obj.map((item) => this.deepCleanObject(item)).filter((item) => item !== undefined);
+      return obj
+        .map((item) => this.deepCleanObject(item))
+        .filter((item) => item !== undefined);
     }
 
     // Handle objects

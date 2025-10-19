@@ -215,7 +215,7 @@ Use these tools to help users manage their notes effectively and answer their qu
     }
   }
 
-  private estimateTokens(content: string | ModelMessage[]): number {
+  public estimateTokens(content: string | ModelMessage[]): number {
     if (typeof content === 'string') {
       // Rough estimate: 1 token ≈ 3-4 characters
       return Math.ceil(content.length / 3.5);
@@ -230,6 +230,40 @@ Use these tools to help users manage their notes effectively and answer their qu
         for (const part of msg.content) {
           if (part.type === 'text') {
             totalLength += part.text.length;
+          } else if (part.type === 'reasoning') {
+            // Reasoning text from models that support chain-of-thought
+            totalLength += part.text.length;
+          } else if (part.type === 'tool-call') {
+            // Account for tool call overhead: tool name + arguments
+            totalLength += part.toolName.length;
+            totalLength += JSON.stringify(part.input || {}).length;
+          } else if (part.type === 'tool-result') {
+            // Account for tool result overhead: tool name + result content
+            totalLength += part.toolName.length;
+            // Tool results can be strings or objects
+            const outputStr =
+              typeof part.output === 'string'
+                ? part.output
+                : JSON.stringify(part.output || '');
+            totalLength += outputStr.length;
+          } else if (part.type === 'image') {
+            // Images: estimate based on typical token cost
+            // Claude vision models charge ~1.3k tokens per image for base64
+            totalLength += 1300 * 3.5; // Convert to character estimate
+          } else if (part.type === 'file') {
+            // Files can be text or binary data
+            // For base64 strings or buffers, estimate size
+            if (typeof part.data === 'string') {
+              // Likely a base64 string or URL
+              totalLength += part.data.length;
+            } else if (part.data instanceof URL) {
+              // URL reference - minimal token cost
+              totalLength += part.data.toString().length;
+            }
+            // Add filename if present
+            if (part.filename) {
+              totalLength += part.filename.length;
+            }
           }
         }
       }
