@@ -3,7 +3,7 @@ import type { DatabaseConnection, NoteRow, SearchRow } from './schema.js';
 import type { NoteMetadata } from '../types/index.js';
 import fs from 'fs/promises';
 import path from 'path';
-import { createHash } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 import { parseNoteContent as parseNoteContentProper } from '../utils/yaml-parser.js';
 import { toRelativePath } from '../utils/path-utils.js';
 
@@ -17,6 +17,9 @@ export async function handleIndexRebuild(
   hybridSearchManager: {
     getStats(): Promise<{ noteCount: number }>;
     rebuildIndex(callback: (processed: number, total: number) => void): Promise<void>;
+    syncMissingNotes(
+      callback: (processed: number, total: number) => void
+    ): Promise<number>;
   },
   forceRebuild: boolean = false,
   logCallback?: (message: string, isError?: boolean) => void
@@ -51,6 +54,17 @@ export async function handleIndexRebuild(
       log('Hybrid search index rebuilt successfully');
     } else {
       log(`Hybrid search index ready (${stats.noteCount} notes indexed)`);
+      // Even if we're not rebuilding, sync any new notes that were added since last index
+      const syncedCount = await hybridSearchManager.syncMissingNotes(
+        (processed: number, total: number) => {
+          if (processed % 5 === 0 || processed === total) {
+            log(`Syncing new notes: ${processed}/${total} notes processed`);
+          }
+        }
+      );
+      if (syncedCount > 0) {
+        log(`Synced ${syncedCount} new notes to search index`);
+      }
     }
   } catch (error) {
     log(`Warning: Failed to initialize hybrid search index on startup: ${error}`, true);
@@ -958,6 +972,61 @@ export class HybridSearchManager {
     }
   }
 
+  /**
+   * Sync new or missing notes from the filesystem to the database
+   * This is faster than a full rebuild and only indexes notes that aren't already in the database
+   */
+  async syncMissingNotes(
+    progressCallback?: (processed: number, total: number) => void
+  ): Promise<number> {
+    const allNoteFiles = await this.scanForNoteFiles();
+    const db = await this.getConnection();
+
+    // Get all file paths currently in the database
+    const indexedNotes = await db.all<{ path: string }>('SELECT path FROM notes');
+    const indexedPaths = new Set(indexedNotes.map((note) => note.path));
+
+    // Find files that aren't in the database
+    const missingFiles = allNoteFiles.filter((filePath) => !indexedPaths.has(filePath));
+
+    if (missingFiles.length === 0) {
+      return 0;
+    }
+
+    console.log(`Found ${missingFiles.length} new notes to index`);
+
+    if (progressCallback) {
+      progressCallback(0, missingFiles.length);
+    }
+
+    // Process files in batches for better performance
+    const batchSize = 10;
+    let processed = 0;
+
+    for (let i = 0; i < missingFiles.length; i += batchSize) {
+      const batch = missingFiles.slice(i, i + batchSize);
+
+      // Process batch in parallel
+      await Promise.allSettled(
+        batch.map(async (filePath) => {
+          try {
+            await this.indexNoteFile(filePath);
+          } catch (error) {
+            console.error(`Failed to index note file ${filePath}:`, error);
+            // Continue with other files
+          }
+        })
+      );
+
+      processed += batch.length;
+      if (progressCallback) {
+        progressCallback(Math.min(processed, missingFiles.length), missingFiles.length);
+      }
+    }
+
+    return missingFiles.length;
+  }
+
   // Scan workspace for all note files
   private async scanForNoteFiles(): Promise<string[]> {
     const noteFiles: string[] = [];
@@ -998,8 +1067,14 @@ export class HybridSearchManager {
       const parsed = this.parseNoteContent(filePath, content);
 
       if (parsed) {
+        // Check if we need to normalize the frontmatter id field (must be done first)
+        await this.normalizeFrontmatterId(filePath, content, parsed);
+
+        // Re-read content if ID was normalized to ensure type normalization works with updated content
+        const updatedContent = await fs.readFile(filePath, 'utf-8');
+
         // Check if we need to normalize the frontmatter type field
-        await this.normalizeFrontmatterType(filePath, content, parsed);
+        await this.normalizeFrontmatterType(filePath, updatedContent, parsed);
 
         await this.upsertNote(
           parsed.id,
@@ -1098,6 +1173,83 @@ export class HybridSearchManager {
       // Log but don't fail the indexing operation if normalization fails
       console.error(
         `Failed to normalize type for ${filePath}:`,
+        error instanceof Error ? error.message : 'Unknown error'
+      );
+    }
+  }
+
+  /**
+   * Normalize the id field in frontmatter if it's missing
+   * Generates and writes an immutable ID back to the file if needed
+   */
+  private async normalizeFrontmatterId(
+    filePath: string,
+    content: string,
+    parsed: {
+      id: string;
+      title: string;
+      content: string;
+      type: string;
+      filename: string;
+      metadata: Record<string, unknown>;
+    }
+  ): Promise<void> {
+    try {
+      const frontmatterId =
+        typeof parsed.metadata.id === 'string' && parsed.metadata.id.startsWith('n-')
+          ? parsed.metadata.id
+          : null;
+
+      // Check if id is missing or is an old-style ID (type/filename)
+      const needsNormalization = !frontmatterId;
+
+      if (needsNormalization) {
+        // Generate a new immutable ID
+        const newId = 'n-' + randomBytes(4).toString('hex');
+
+        console.log(
+          `Normalizing id field in ${filePath}: ${parsed.metadata.id || '(missing)'} → ${newId}`
+        );
+
+        // Parse the original content to get the frontmatter boundary
+        const frontmatterRegex = /^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/;
+        const match = content.match(frontmatterRegex);
+
+        if (!match) {
+          // No frontmatter found - can't normalize
+          console.warn(`Cannot normalize id for ${filePath}: no frontmatter found`);
+          return;
+        }
+
+        const originalFrontmatter = match[1];
+        const bodyContent = match[2];
+
+        // Add or replace the id field in the frontmatter
+        let updatedFrontmatter: string;
+        if (parsed.metadata.id) {
+          // Replace existing id field (e.g., old-style ID)
+          updatedFrontmatter = originalFrontmatter.replace(/^id:.*$/m, `id: ${newId}`);
+        } else {
+          // Add id field at the beginning
+          const lines = originalFrontmatter.split('\n');
+          lines.unshift(`id: ${newId}`);
+          updatedFrontmatter = lines.join('\n');
+        }
+
+        // Reconstruct the file content
+        const updatedContent = `---\n${updatedFrontmatter}\n---\n${bodyContent}`;
+
+        // Write the corrected content back to the file
+        await fs.writeFile(filePath, updatedContent, 'utf-8');
+
+        // Update the parsed object to reflect the correction
+        parsed.id = newId;
+        parsed.metadata.id = newId;
+      }
+    } catch (error) {
+      // Log but don't fail the indexing operation if normalization fails
+      console.error(
+        `Failed to normalize id for ${filePath}:`,
         error instanceof Error ? error.message : 'Unknown error'
       );
     }
