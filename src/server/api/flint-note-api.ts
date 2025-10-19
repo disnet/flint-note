@@ -68,9 +68,12 @@ import { TemplateManager } from '../core/template-manager.js';
 import type { TemplateMetadata } from '../core/template-manager.js';
 import { logger } from '../../main/logger.js';
 import { validateNoSystemFields } from '../core/system-fields.js';
+import { VaultFileWatcher } from '../core/file-watcher.js';
+import type { FileWatcherEvent } from '../core/file-watcher.js';
 
 export interface FlintNoteApiConfig extends ServerConfig {
   configDir?: string;
+  enableFileWatcher?: boolean;
   [key: string]: unknown;
 }
 
@@ -115,6 +118,8 @@ export class FlintNoteApi {
   private globalConfig: GlobalConfigManager;
   private config: FlintNoteApiConfig;
   private initialized = false;
+  private fileWatcher: VaultFileWatcher | null = null;
+  private noteManager: NoteManager | null = null;
 
   constructor(config: FlintNoteApiConfig = {}) {
     this.config = config;
@@ -178,6 +183,36 @@ export class FlintNoteApi {
           shouldRebuild,
           logInitialization
         );
+
+        // Initialize file watcher if enabled (default: true)
+        const enableFileWatcher = this.config.enableFileWatcher !== false;
+        if (enableFileWatcher) {
+          logger.info('Initializing file watcher for vault');
+
+          // Create file watcher first (with null note manager temporarily)
+          this.fileWatcher = new VaultFileWatcher(
+            workspacePath,
+            this.hybridSearchManager,
+            null
+          );
+
+          // Create note manager with file watcher reference
+          this.noteManager = new NoteManager(
+            this.workspace,
+            this.hybridSearchManager,
+            this.fileWatcher
+          );
+
+          // Update file watcher with note manager reference (resolve circular dependency)
+          this.fileWatcher.setNoteManager(this.noteManager);
+
+          await this.fileWatcher.start();
+          logger.info('File watcher started successfully');
+        } else {
+          // Create note manager without file watcher
+          this.noteManager = new NoteManager(this.workspace, this.hybridSearchManager);
+          logger.info('File watcher disabled by configuration');
+        }
 
         logger.info('FlintNoteApi initialized successfully');
         // Note: Template application happens during createVault(), not here
@@ -2245,10 +2280,37 @@ export class FlintNoteApi {
   }
 
   /**
+   * Get the file watcher instance if enabled
+   */
+  getFileWatcher(): VaultFileWatcher | null {
+    return this.fileWatcher;
+  }
+
+  /**
+   * Register a file watcher event handler
+   */
+  onFileWatcherEvent(handler: (event: FileWatcherEvent) => void): (() => void) | null {
+    if (!this.fileWatcher) {
+      return null;
+    }
+    return this.fileWatcher.on(handler);
+  }
+
+  /**
    * Cleanup resources and close database connections
    * Call this when the API instance is no longer needed
    */
   async cleanup(): Promise<void> {
+    // Stop file watcher first
+    if (this.fileWatcher) {
+      try {
+        await this.fileWatcher.stop();
+        this.fileWatcher = null;
+      } catch (error) {
+        console.warn('Error stopping file watcher:', error);
+      }
+    }
+
     if (this.hybridSearchManager) {
       try {
         await this.hybridSearchManager.close();

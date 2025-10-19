@@ -116,7 +116,11 @@ export class NoteManager {
 
   #hybridSearchManager?: HybridSearchManager;
 
-  constructor(workspace: Workspace, hybridSearchManager?: HybridSearchManager) {
+  constructor(
+    workspace: Workspace,
+    hybridSearchManager?: HybridSearchManager,
+    _fileWatcher?: import('./file-watcher.js').VaultFileWatcher
+  ) {
     this.#workspace = workspace;
 
     // Pass database manager to NoteTypeManager if available
@@ -124,6 +128,8 @@ export class NoteManager {
     this.#noteTypeManager = new NoteTypeManager(workspace, dbManager);
 
     this.#hybridSearchManager = hybridSearchManager;
+    // Note: _fileWatcher parameter is reserved for future use to enable
+    // operation tracking. Currently unused.
 
     // Initialize hierarchy manager if we have a database connection
     if (hybridSearchManager) {
@@ -140,6 +146,13 @@ export class NoteManager {
     const db = await hybridSearchManager.getDatabaseConnection();
     this.#hierarchyManager = new HierarchyManager(db);
   }
+
+  /**
+   * Note: File watcher operation tracking methods (#writeFileWithTracking, #deleteFileWithTracking,
+   * #renameFileWithTracking) can be added here in the future to enable tighter integration between
+   * the note manager and file watcher. For now, the file watcher operates passively and detects
+   * changes after they occur via mtime/content hash verification.
+   */
 
   /**
    * Sync subnotes from frontmatter to hierarchy database

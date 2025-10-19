@@ -24,7 +24,13 @@ export type NoteEvent =
   | { type: 'vault.switched'; vaultId: string }
   | { type: 'noteType.created'; typeName: string }
   | { type: 'noteType.updated'; typeName: string }
-  | { type: 'noteType.deleted'; typeName: string };
+  | { type: 'noteType.deleted'; typeName: string }
+  | { type: 'file.external-change'; path: string; noteId?: string }
+  | { type: 'file.external-add'; path: string }
+  | { type: 'file.external-delete'; path: string; noteId?: string }
+  | { type: 'file.external-rename'; oldPath: string; newPath: string; noteId: string }
+  | { type: 'file.sync-started'; fileCount: number }
+  | { type: 'file.sync-completed'; added: number; updated: number; deleted: number };
 
 /**
  * Publishes a note event to all renderer processes

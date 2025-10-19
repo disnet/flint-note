@@ -33,6 +33,8 @@ import type { GetNoteTypeInfoResult } from '../server/api/types.js';
 import type { NoteTypeDescription } from '../server/core/note-types';
 import { getCurrentVaultPath } from '../server/utils/global-config.js';
 import { app } from 'electron';
+import { publishNoteEvent } from './note-events.js';
+import type { FileWatcherEvent } from '../server/core/file-watcher.js';
 
 export class NoteService {
   private api: FlintNoteApi;
@@ -99,6 +101,12 @@ export class NoteService {
         await this.api.initialize();
         this.isInitialized = true;
         this.hasVaultsAvailable = true;
+
+        // Set up file watcher event forwarding
+        this.api.onFileWatcherEvent((event: FileWatcherEvent) => {
+          this.handleFileWatcherEvent(event);
+        });
+
         logger.info('FlintNote API initialized successfully with vault', {
           vaultPath: currentVaultPath
         });
@@ -806,5 +814,67 @@ export class NoteService {
   async saveSlashCommands(commands: unknown): Promise<{ success: boolean }> {
     this.ensureInitialized();
     return await this.api.saveSlashCommands(commands as unknown[]);
+  }
+
+  /**
+   * Handle file watcher events and forward them to the renderer
+   */
+  private handleFileWatcherEvent(event: FileWatcherEvent): void {
+    logger.debug('File watcher event:', event);
+
+    switch (event.type) {
+      case 'external-change':
+        publishNoteEvent({
+          type: 'file.external-change',
+          path: event.path,
+          noteId: event.noteId
+        });
+        break;
+
+      case 'external-add':
+        publishNoteEvent({
+          type: 'file.external-add',
+          path: event.path
+        });
+        break;
+
+      case 'external-delete':
+        publishNoteEvent({
+          type: 'file.external-delete',
+          path: event.path,
+          noteId: event.noteId
+        });
+        break;
+
+      case 'external-rename':
+        publishNoteEvent({
+          type: 'file.external-rename',
+          oldPath: event.oldPath,
+          newPath: event.newPath,
+          noteId: event.noteId
+        });
+        break;
+
+      case 'sync-started':
+        publishNoteEvent({
+          type: 'file.sync-started',
+          fileCount: event.fileCount
+        });
+        break;
+
+      case 'sync-completed':
+        publishNoteEvent({
+          type: 'file.sync-completed',
+          added: event.added,
+          updated: event.updated,
+          deleted: event.deleted
+        });
+        // Trigger a bulk refresh to update the UI
+        publishNoteEvent({
+          type: 'notes.bulkRefresh',
+          notes: []
+        });
+        break;
+    }
   }
 }
