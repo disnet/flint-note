@@ -9,10 +9,8 @@ import chokidar from 'chokidar';
 import type { FSWatcher } from 'chokidar';
 import path from 'path';
 import fs from 'fs/promises';
-import type { Stats } from 'fs';
 import type { HybridSearchManager } from '../database/search-manager.js';
 import type { NoteManager } from './notes.js';
-import { generateContentHash } from '../utils/content-hash.js';
 
 /**
  * Tracks file operations initiated by Flint to distinguish them from external changes
@@ -20,8 +18,6 @@ import { generateContentHash } from '../utils/content-hash.js';
 interface FileOperation {
   type: 'write' | 'rename' | 'delete';
   startedAt: number;
-  expectedMtime?: number;
-  contentHash?: string;
 }
 
 /**
@@ -64,12 +60,14 @@ export class VaultFileWatcher {
   private watcher: FSWatcher | null = null;
   private pendingChanges = new Map<string, NodeJS.Timeout>();
   private internalOperations = new Map<string, FileOperation>();
+  private ongoingWrites = new Set<string>(); // Track writes in progress (set BEFORE write)
   private recentDeletions = new Map<string, RecentDeletion>();
   private eventHandlers: FileWatcherEventHandler[] = [];
 
   private readonly DEBOUNCE_MS: number;
   private readonly RENAME_DETECTION_WINDOW_MS = 1000;
   private readonly OPERATION_CLEANUP_MS = 5000;
+  private readonly WRITE_FLAG_CLEANUP_MS = 500; // Keep write flag for 500ms after completion
 
   constructor(
     private vaultPath: string,
@@ -173,13 +171,38 @@ export class VaultFileWatcher {
     }
     this.pendingChanges.clear();
     this.internalOperations.clear();
+    this.ongoingWrites.clear();
     this.recentDeletions.clear();
 
     console.log('File watcher stopped');
   }
 
   /**
-   * Track a file operation initiated by Flint
+   * Mark the start of a write operation initiated by Flint.
+   * Call this BEFORE writing to prevent the file watcher from treating it as an external change.
+   * This flag-based approach eliminates timing races.
+   */
+  markWriteStarting(filePath: string): void {
+    const absolutePath = path.resolve(this.vaultPath, filePath);
+    this.ongoingWrites.add(absolutePath);
+  }
+
+  /**
+   * Mark the completion of a write operation initiated by Flint.
+   * Call this AFTER the write completes (use try/finally for reliability).
+   * The flag remains set for a brief period to catch delayed file watcher events.
+   */
+  markWriteComplete(filePath: string): void {
+    const absolutePath = path.resolve(this.vaultPath, filePath);
+
+    // Keep the flag set for a brief period to catch any delayed file watcher events
+    setTimeout(() => {
+      this.ongoingWrites.delete(absolutePath);
+    }, this.WRITE_FLAG_CLEANUP_MS);
+  }
+
+  /**
+   * Track a file operation initiated by Flint (delete/rename operations)
    * Call this BEFORE the operation to mark it as internal
    */
   trackOperation(filePath: string, type: 'write' | 'rename' | 'delete'): void {
@@ -188,69 +211,31 @@ export class VaultFileWatcher {
       type,
       startedAt: Date.now()
     });
-  }
 
-  /**
-   * Complete tracking of a file operation initiated by Flint
-   * Call this AFTER the operation with the resulting file stats
-   */
-  async completeOperation(
-    filePath: string,
-    stats?: Stats,
-    contentHash?: string
-  ): Promise<void> {
-    const absolutePath = path.resolve(this.vaultPath, filePath);
-    const op = this.internalOperations.get(absolutePath);
-
-    if (op) {
-      if (stats) {
-        op.expectedMtime = stats.mtimeMs;
-      }
-      if (contentHash) {
-        op.contentHash = contentHash;
-      }
-
-      // Clean up after timeout
-      setTimeout(() => {
-        this.internalOperations.delete(absolutePath);
-      }, this.OPERATION_CLEANUP_MS);
-    }
+    // Clean up after timeout
+    setTimeout(() => {
+      this.internalOperations.delete(absolutePath);
+    }, this.OPERATION_CLEANUP_MS);
   }
 
   /**
    * Check if a file change is from an internal Flint operation
    */
-  private async isInternalChange(filePath: string, stats: Stats): Promise<boolean> {
+  private async isInternalChange(filePath: string): Promise<boolean> {
     const absolutePath = path.resolve(filePath);
+
+    // FIRST: Check if this file is currently being written by Flint
+    // This is the most reliable check as the flag is set BEFORE the write
+    if (this.ongoingWrites.has(absolutePath)) {
+      return true;
+    }
+
+    // SECOND: Check for tracked delete/rename operations
     const op = this.internalOperations.get(absolutePath);
-
-    if (!op) {
-      return false;
-    }
-
-    // Check if modification time matches what we expect
-    if (op.expectedMtime && Math.abs(stats.mtimeMs - op.expectedMtime) < 1000) {
-      this.internalOperations.delete(absolutePath);
-      return true;
-    }
-
-    // Check if operation just started (within 2 seconds)
-    if (Date.now() - op.startedAt < 2000) {
-      return true;
-    }
-
-    // If we have a content hash, verify it matches
-    if (op.contentHash) {
-      try {
-        const content = await fs.readFile(absolutePath, 'utf-8');
-        const currentHash = generateContentHash(content);
-        if (currentHash === op.contentHash) {
-          this.internalOperations.delete(absolutePath);
-          return true;
-        }
-      } catch {
-        // If we can't read the file, assume it's external
-        return false;
+    if (op) {
+      // Check if operation just started (within 2 seconds)
+      if (Date.now() - op.startedAt < 2000) {
+        return true;
       }
     }
 
@@ -287,10 +272,8 @@ export class VaultFileWatcher {
 
     this.debounceChange(filePath, async () => {
       try {
-        const stats = await fs.stat(filePath);
-
         // Check if this is an internal change
-        if (await this.isInternalChange(filePath, stats)) {
+        if (await this.isInternalChange(filePath)) {
           console.log(`[FileWatcher] Ignoring internal add: ${filePath}`);
           return;
         }
@@ -315,14 +298,14 @@ export class VaultFileWatcher {
               newPath: filePath,
               noteId
             });
-            await this.handleFileRename(noteId, recentDeletion.oldPath, filePath);
+            await this.handleFileRename();
             return;
           }
         }
 
         // Not a rename, process as new file
         this.emit({ type: 'external-add', path: filePath });
-        await this.handleFileAdd(filePath);
+        await this.handleFileAdd();
       } catch (error) {
         console.error(`[FileWatcher] Error processing file addition: ${filePath}`, error);
       }
@@ -340,10 +323,8 @@ export class VaultFileWatcher {
 
     this.debounceChange(filePath, async () => {
       try {
-        const stats = await fs.stat(filePath);
-
         // Check if this is an internal change
-        if (await this.isInternalChange(filePath, stats)) {
+        if (await this.isInternalChange(filePath)) {
           console.log(`[FileWatcher] Ignoring internal change: ${filePath}`);
           return;
         }
@@ -353,8 +334,12 @@ export class VaultFileWatcher {
         const content = await fs.readFile(filePath, 'utf-8');
         const noteId = this.extractNoteId(content);
 
-        this.emit({ type: 'external-change', path: filePath, noteId: noteId || undefined });
-        await this.handleFileChange(filePath);
+        this.emit({
+          type: 'external-change',
+          path: filePath,
+          noteId: noteId || undefined
+        });
+        await this.handleFileChange();
       } catch (error) {
         console.error(`[FileWatcher] Error processing file change: ${filePath}`, error);
       }
@@ -414,8 +399,12 @@ export class VaultFileWatcher {
           }
         }
 
-        this.emit({ type: 'external-delete', path: filePath, noteId: noteId || undefined });
-        await this.handleFileDelete(filePath);
+        this.emit({
+          type: 'external-delete',
+          path: filePath,
+          noteId: noteId || undefined
+        });
+        await this.handleFileDelete();
       } catch (error) {
         console.error(`[FileWatcher] Error processing file deletion: ${filePath}`, error);
       }
@@ -464,7 +453,7 @@ export class VaultFileWatcher {
   /**
    * Handle a new file being added
    */
-  private async handleFileAdd(_filePath: string): Promise<void> {
+  private async handleFileAdd(): Promise<void> {
     // Trigger a sync to process the new file
     const result = await this.searchManager.syncFileSystemChanges();
     console.log(
@@ -475,7 +464,7 @@ export class VaultFileWatcher {
   /**
    * Handle a file being changed
    */
-  private async handleFileChange(_filePath: string): Promise<void> {
+  private async handleFileChange(): Promise<void> {
     // Trigger a sync to process the changed file
     const result = await this.searchManager.syncFileSystemChanges();
     console.log(
@@ -486,7 +475,7 @@ export class VaultFileWatcher {
   /**
    * Handle a file being deleted
    */
-  private async handleFileDelete(_filePath: string): Promise<void> {
+  private async handleFileDelete(): Promise<void> {
     // Trigger a sync to process the deletion
     const result = await this.searchManager.syncFileSystemChanges();
     console.log(
@@ -497,11 +486,7 @@ export class VaultFileWatcher {
   /**
    * Handle a file being renamed
    */
-  private async handleFileRename(
-    _noteId: string,
-    _oldPath: string,
-    _newPath: string
-  ): Promise<void> {
+  private async handleFileRename(): Promise<void> {
     // Trigger a sync to process the rename
     const result = await this.searchManager.syncFileSystemChanges();
     console.log(

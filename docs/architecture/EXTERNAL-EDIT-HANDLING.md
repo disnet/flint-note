@@ -121,6 +121,7 @@ ALTER TABLE notes ADD COLUMN file_mtime BIGINT;
 The `syncFileSystemChanges()` method uses a hybrid two-stage approach:
 
 **Stage 1: Fast Filter (mtime comparison)**
+
 ```typescript
 if (fs_mtime <= db_mtime) {
   skip_file(); // No changes detected
@@ -130,6 +131,7 @@ if (fs_mtime <= db_mtime) {
 ```
 
 **Stage 2: Reliable Verification (content hash)**
+
 ```typescript
 const currentHash = computeSHA256(file_content);
 if (currentHash !== db_content_hash) {
@@ -203,6 +205,7 @@ While Flint is running, the file watcher continuously monitors the vault directo
 **Technology**: `chokidar` - Cross-platform file watching library
 
 **Key Features**:
+
 - **Real-time monitoring**: Detects changes as they happen
 - **Event types**: add, change, unlink (delete)
 - **Debouncing**: 100ms debounce to batch rapid changes
@@ -237,22 +240,22 @@ class VaultFileWatcher {
 ```typescript
 chokidar.watch(vaultPath, {
   ignored: [
-    '**/.flint-note/**',    // Flint's internal directory
-    '**/.git/**',           // Git directory
-    '**/node_modules/**',   // Node modules
-    '**/.DS_Store',         // macOS metadata
-    '**/desktop.ini',       // Windows metadata
-    '**/*~',                // Backup files
-    '**/*.swp',             // Vim swap files
-    '**/*.tmp'              // Temporary files
+    '**/.flint-note/**', // Flint's internal directory
+    '**/.git/**', // Git directory
+    '**/node_modules/**', // Node modules
+    '**/.DS_Store', // macOS metadata
+    '**/desktop.ini', // Windows metadata
+    '**/*~', // Backup files
+    '**/*.swp', // Vim swap files
+    '**/*.tmp' // Temporary files
   ],
-  ignoreInitial: true,      // Don't fire for existing files
-  persistent: true,         // Keep process running
+  ignoreInitial: true, // Don't fire for existing files
+  persistent: true, // Keep process running
   awaitWriteFinish: {
     stabilityThreshold: 200, // Wait 200ms of no changes
-    pollInterval: 100        // Check every 100ms
+    pollInterval: 100 // Check every 100ms
   }
-})
+});
 ```
 
 #### Internal vs External Change Detection
@@ -576,8 +579,8 @@ Internal tracking cleaned up after 5 seconds
 
 ### Startup Sync (Phase 1)
 
-| Vault Size | Files Scanned | Files Read | Time |
-|------------|---------------|------------|------|
+| Vault Size | Files Scanned | Files Read | Time   |
+| ---------- | ------------- | ---------- | ------ |
 | 100 notes  | 100           | ~5-10      | ~100ms |
 | 500 notes  | 500           | ~20-40     | ~300ms |
 | 1000 notes | 1000          | ~40-80     | ~600ms |
@@ -587,11 +590,11 @@ Internal tracking cleaned up after 5 seconds
 
 ### Real-Time Watching (Phase 2)
 
-| Operation | Detection Latency | Processing Time |
-|-----------|-------------------|-----------------|
-| Single file edit | ~100ms (debounce) | ~10-50ms |
-| 10 file changes | ~100ms (debounce) | ~50-200ms |
-| Git checkout (100 files) | ~100ms (debounce) | ~500ms-2s |
+| Operation                | Detection Latency | Processing Time |
+| ------------------------ | ----------------- | --------------- |
+| Single file edit         | ~100ms (debounce) | ~10-50ms        |
+| 10 file changes          | ~100ms (debounce) | ~50-200ms       |
+| Git checkout (100 files) | ~100ms (debounce) | ~500ms-2s       |
 
 **Debouncing**: 100ms wait prevents excessive processing during rapid changes.
 
@@ -611,6 +614,7 @@ Internal tracking cleaned up after 5 seconds
 **Problem**: User saves file multiple times quickly (e.g., auto-save in editor).
 
 **Solution**:
+
 - Debounce file change events (100ms)
 - Only process once after changes settle
 - `awaitWriteFinish` ensures file writes are complete
@@ -620,6 +624,7 @@ Internal tracking cleaned up after 5 seconds
 **Problem**: Hundreds of files change simultaneously.
 
 **Solution**:
+
 - Batch process changes in groups of 10
 - Show progress via `sync-started` / `sync-completed` events
 - Efficient mtime filtering reduces reads
@@ -630,6 +635,7 @@ Internal tracking cleaned up after 5 seconds
 **Problem**: User manually edits frontmatter incorrectly.
 
 **Solution**:
+
 - Graceful YAML parsing with fallbacks
 - Log warnings for invalid frontmatter
 - Preserve original file (don't auto-fix)
@@ -641,6 +647,7 @@ Internal tracking cleaned up after 5 seconds
 **Problem**: Note exists without an ID (legacy or manually created).
 
 **Solution**:
+
 - Auto-generate ID during sync
 - Update file with generated ID
 - Track as internal operation to avoid re-triggering
@@ -651,6 +658,7 @@ Internal tracking cleaned up after 5 seconds
 **Problem**: File mtime changes but content doesn't (e.g., git operations, file copies).
 
 **Solution**:
+
 - Two-stage verification: mtime check → content hash check
 - If hash matches, only update mtime (no reindex)
 - Content hash is authoritative source of truth
@@ -660,6 +668,7 @@ Internal tracking cleaned up after 5 seconds
 **Problem**: File systems report renames as separate delete and add events.
 
 **Solution**:
+
 - Track recent deletions with note IDs (1-second window)
 - Match add events with recent deletions by note ID
 - Emit `external-rename` event instead of separate events
@@ -670,6 +679,7 @@ Internal tracking cleaned up after 5 seconds
 **Problem**: File watcher needs note manager, note manager may need file watcher.
 
 **Solution**:
+
 - Create file watcher first with `null` note manager
 - Create note manager with file watcher reference
 - Call `fileWatcher.setNoteManager()` to complete link
@@ -680,6 +690,7 @@ Internal tracking cleaned up after 5 seconds
 **Problem**: Application closes while sync is in progress.
 
 **Solution**:
+
 - `cleanup()` method properly stops file watcher
 - Pending changes are discarded (will be caught on next startup)
 - No database corruption (transactions used)
@@ -800,6 +811,7 @@ await this.#writeFileWithTracking(path, content, contentHash);
 ```
 
 **Benefits**:
+
 - More reliable internal change detection
 - No false positives from timing edge cases
 - Better logging of all file operations
@@ -820,6 +832,7 @@ if (isGitOperation) {
 ```
 
 **Benefits**:
+
 - Better UX during git workflows
 - Single progress indicator for all changes
 - Optimized batch processing
@@ -829,6 +842,7 @@ if (isGitOperation) {
 **Problem**: External edit conflicts with unsaved local changes in Flint.
 
 **Enhancement**:
+
 ```typescript
 if (hasUnsavedChanges && externalChangeDetected) {
   showConflictDialog({
@@ -840,6 +854,7 @@ if (hasUnsavedChanges && externalChangeDetected) {
 ```
 
 **Benefits**:
+
 - Prevents data loss
 - User control over conflict resolution
 - Visual diff view
@@ -859,6 +874,7 @@ if (updateLinks && titleChanged) {
 ```
 
 **Benefits**:
+
 - Maintains link integrity after renames
 - User preference for auto-update vs manual review
 - Bulk link updating
@@ -883,6 +899,7 @@ showToast({
 ```
 
 **Benefits**:
+
 - Recovery from accidental external edits
 - User awareness of changes
 - Non-intrusive notification
@@ -910,18 +927,13 @@ const api = new FlintNoteApi({
 ### File Watcher Configuration
 
 ```typescript
-const watcher = new VaultFileWatcher(
-  vaultPath,
-  searchManager,
-  noteManager,
-  {
-    // Additional ignored patterns
-    ignored: ['**/temp/**'],
+const watcher = new VaultFileWatcher(vaultPath, searchManager, noteManager, {
+  // Additional ignored patterns
+  ignored: ['**/temp/**'],
 
-    // Custom debounce (default: 100ms)
-    debounceMs: 150
-  }
-);
+  // Custom debounce (default: 100ms)
+  debounceMs: 150
+});
 ```
 
 ---

@@ -280,7 +280,10 @@ export class FlintNoteApi {
       await workspace.initialize();
     }
 
-    const noteManager = new NoteManager(workspace, hybridSearchManager);
+    // Pass fileWatcher when creating NoteManager for current vault to enable operation tracking
+    const noteManager = isCurrentVault
+      ? new NoteManager(workspace, hybridSearchManager, this.fileWatcher ?? undefined)
+      : new NoteManager(workspace, hybridSearchManager);
     const noteTypeManager = new NoteTypeManager(
       workspace,
       hybridSearchManager.getDatabaseManager()

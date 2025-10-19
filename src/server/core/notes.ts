@@ -115,11 +115,12 @@ export class NoteManager {
   #hierarchyManager?: HierarchyManager;
 
   #hybridSearchManager?: HybridSearchManager;
+  #fileWatcher?: import('./file-watcher.js').VaultFileWatcher;
 
   constructor(
     workspace: Workspace,
     hybridSearchManager?: HybridSearchManager,
-    _fileWatcher?: import('./file-watcher.js').VaultFileWatcher
+    fileWatcher?: import('./file-watcher.js').VaultFileWatcher
   ) {
     this.#workspace = workspace;
 
@@ -128,8 +129,7 @@ export class NoteManager {
     this.#noteTypeManager = new NoteTypeManager(workspace, dbManager);
 
     this.#hybridSearchManager = hybridSearchManager;
-    // Note: _fileWatcher parameter is reserved for future use to enable
-    // operation tracking. Currently unused.
+    this.#fileWatcher = fileWatcher;
 
     // Initialize hierarchy manager if we have a database connection
     if (hybridSearchManager) {
@@ -148,11 +148,24 @@ export class NoteManager {
   }
 
   /**
-   * Note: File watcher operation tracking methods (#writeFileWithTracking, #deleteFileWithTracking,
-   * #renameFileWithTracking) can be added here in the future to enable tighter integration between
-   * the note manager and file watcher. For now, the file watcher operates passively and detects
-   * changes after they occur via mtime/content hash verification.
+   * Write a file with file watcher tracking to prevent it from being treated as an external change.
+   * This method sets a flag BEFORE writing to eliminate race conditions.
    */
+  async #writeFileWithTracking(filePath: string, content: string): Promise<void> {
+    if (this.#fileWatcher) {
+      // Mark write as starting BEFORE the actual write
+      this.#fileWatcher.markWriteStarting(filePath);
+      try {
+        await fs.writeFile(filePath, content, 'utf-8');
+      } finally {
+        // Always mark as complete, even if write fails
+        this.#fileWatcher.markWriteComplete(filePath);
+      }
+    } else {
+      // No file watcher, just write normally
+      await fs.writeFile(filePath, content, 'utf-8');
+    }
+  }
 
   /**
    * Sync subnotes from frontmatter to hierarchy database
@@ -345,7 +358,7 @@ export class NoteManager {
       );
 
       // Write the note file
-      await fs.writeFile(notePath, noteContent, 'utf-8');
+      await this.#writeFileWithTracking(notePath, noteContent);
 
       // Update search index
       await this.updateSearchIndex(notePath, noteContent);
@@ -810,7 +823,7 @@ export class NoteManager {
       const updatedContent = this.formatUpdatedNoteContent(updatedMetadata, newContent);
 
       // Write updated content
-      await fs.writeFile(notePath, updatedContent, 'utf-8');
+      await this.#writeFileWithTracking(notePath, updatedContent);
 
       // Update search index
       await this.updateSearchIndex(notePath, updatedContent);
@@ -978,7 +991,7 @@ export class NoteManager {
       const formattedContent = this.formatUpdatedNoteContent(updatedMetadata, content);
 
       // Write updated content
-      await fs.writeFile(notePath, formattedContent, 'utf-8');
+      await this.#writeFileWithTracking(notePath, formattedContent);
 
       // Update search index
       await this.updateSearchIndex(notePath, formattedContent);
@@ -1307,7 +1320,7 @@ export class NoteManager {
                         updatedMetadata,
                         parsed.content
                       );
-                      await fs.writeFile(notePath, updatedContent, 'utf-8');
+                      await this.#writeFileWithTracking(notePath, updatedContent);
                     } catch (writeError) {
                       console.error(
                         `Failed to write ID to frontmatter for ${noteType.name}/${filename}:`,
@@ -1706,7 +1719,7 @@ export class NoteManager {
       }
 
       // Write updated content to the file
-      await fs.writeFile(finalNotePath, updatedContent, 'utf-8');
+      await this.#writeFileWithTracking(finalNotePath, updatedContent);
 
       // Update search index with new path and content
       await this.updateSearchIndex(finalNotePath, updatedContent);
@@ -1890,7 +1903,7 @@ export class NoteManager {
       await fs.rename(currentPath, targetPath);
 
       // Write the updated content with new type
-      await fs.writeFile(targetPath, updatedContent, 'utf-8');
+      await this.#writeFileWithTracking(targetPath, updatedContent);
 
       // Update search index at new location
       await this.updateSearchIndex(targetPath, updatedContent);
