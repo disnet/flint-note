@@ -331,5 +331,122 @@ describe('HybridSearchManager - Filesystem Sync', () => {
       expect(response.results.length).toBe(1);
       expect(response.results[0].id).toMatch(/^n-[a-f0-9]{8}$/);
     });
+
+    it('should normalize missing title from filename', async () => {
+      // Create note without title field
+      const noteDir = path.join(testWorkspacePath, 'note');
+      await fs.mkdir(noteDir, { recursive: true });
+
+      const notePath = path.join(noteDir, 'my-awesome-note.md');
+      await fs.writeFile(
+        notePath,
+        '---\nid: n-12345678\ntype: note\n---\n\nContent here.'
+      );
+
+      // Sync should add it and normalize title
+      const result = await searchManager.syncFileSystemChanges();
+
+      expect(result.added).toBe(1);
+
+      // Verify title was generated from filename and written to frontmatter
+      const content = await fs.readFile(notePath, 'utf-8');
+      expect(content).toMatch(/title: My Awesome Note/);
+
+      // Verify it's searchable with generated title
+      const response = await searchManager.searchNotes('My Awesome Note');
+      expect(response.results.length).toBe(1);
+      expect(response.results[0].title).toBe('My Awesome Note');
+    });
+
+    it('should normalize empty title from filename', async () => {
+      // Create note with empty title field
+      const noteDir = path.join(testWorkspacePath, 'note');
+      await fs.mkdir(noteDir, { recursive: true });
+
+      const notePath = path.join(noteDir, 'camelCaseFileName.md');
+      await fs.writeFile(
+        notePath,
+        '---\nid: n-12345678\ntitle:\ntype: note\n---\n\nContent here.'
+      );
+
+      // Sync should add it and normalize title
+      const result = await searchManager.syncFileSystemChanges();
+
+      expect(result.added).toBe(1);
+
+      // Verify title was generated from camelCase filename
+      const content = await fs.readFile(notePath, 'utf-8');
+      expect(content).toMatch(/title: Camel Case File Name/);
+
+      // Verify it's searchable
+      const response = await searchManager.searchNotes('Camel Case');
+      expect(response.results.length).toBe(1);
+      expect(response.results[0].title).toBe('Camel Case File Name');
+    });
+
+    it('should handle filename with underscores and hyphens', async () => {
+      // Create note to test various filename formats
+      const noteDir = path.join(testWorkspacePath, 'note');
+      await fs.mkdir(noteDir, { recursive: true });
+
+      const notePath = path.join(noteDir, 'test_file-name_example.md');
+      await fs.writeFile(notePath, '---\nid: n-12345678\ntype: note\n---\n\nContent.');
+
+      await searchManager.syncFileSystemChanges();
+
+      // Verify title was generated with proper capitalization
+      const content = await fs.readFile(notePath, 'utf-8');
+      expect(content).toMatch(/title: Test File Name Example/);
+    });
+
+    it('should not overwrite existing valid title', async () => {
+      // Create note with existing title
+      const noteDir = path.join(testWorkspacePath, 'note');
+      await fs.mkdir(noteDir, { recursive: true });
+
+      const notePath = path.join(noteDir, 'my-note.md');
+      await fs.writeFile(
+        notePath,
+        '---\nid: n-12345678\ntitle: Custom Title\ntype: note\n---\n\nContent.'
+      );
+
+      await searchManager.syncFileSystemChanges();
+
+      // Verify title was NOT changed
+      const content = await fs.readFile(notePath, 'utf-8');
+      expect(content).toMatch(/title: Custom Title/);
+      expect(content).not.toMatch(/title: My Note/);
+    });
+
+    it('should create frontmatter for notes with no frontmatter at all', async () => {
+      // Create note with NO frontmatter (like external files)
+      const noteDir = path.join(testWorkspacePath, 'note');
+      await fs.mkdir(noteDir, { recursive: true });
+
+      const notePath = path.join(noteDir, 'plain-file.md');
+      await fs.writeFile(
+        notePath,
+        '# Plain File\n\nJust some content with no frontmatter.'
+      );
+
+      // Sync should add it and create frontmatter
+      const result = await searchManager.syncFileSystemChanges();
+
+      expect(result.added).toBe(1);
+
+      // Verify frontmatter was created with id, title, and type
+      const content = await fs.readFile(notePath, 'utf-8');
+      expect(content).toMatch(/^---\n/);
+      expect(content).toMatch(/id: n-[a-f0-9]{8}/);
+      expect(content).toMatch(/title: Plain File/);
+      expect(content).toMatch(/type: note/);
+      expect(content).toMatch(/---\n# Plain File/);
+
+      // Verify it's searchable
+      const response = await searchManager.searchNotes('Plain File');
+      expect(response.results.length).toBe(1);
+      expect(response.results[0].title).toBe('Plain File');
+      expect(response.results[0].id).toMatch(/^n-[a-f0-9]{8}$/);
+    });
   });
 });

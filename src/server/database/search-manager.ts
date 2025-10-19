@@ -54,6 +54,7 @@ export async function handleIndexRebuild(
       log('Hybrid search index rebuilt successfully');
     } else {
       log(`Hybrid search index ready (${stats.noteCount} notes indexed)`);
+      log('Starting filesystem sync (checking for new/updated/deleted files)...');
       // Sync filesystem changes (new, updated, or deleted files)
       const result = await hybridSearchManager.syncFileSystemChanges(
         (processed: number, total: number) => {
@@ -69,8 +70,11 @@ export async function handleIndexRebuild(
         if (result.updated > 0) parts.push(`${result.updated} updated`);
         if (result.deleted > 0) parts.push(`${result.deleted} deleted`);
         log(`Synced filesystem changes: ${parts.join(', ')}`);
+      } else {
+        log('Filesystem sync completed (no changes detected)');
       }
     }
+    log('Index initialization complete - ready for note operations');
   } catch (error) {
     log(`Warning: Failed to initialize hybrid search index on startup: ${error}`, true);
   }
@@ -1214,8 +1218,14 @@ export class HybridSearchManager {
         // Check if we need to normalize the frontmatter id field (must be done first)
         await this.normalizeFrontmatterId(filePath, content, parsed);
 
-        // Re-read content if ID was normalized to ensure type normalization works with updated content
-        const updatedContent = await fs.readFile(filePath, 'utf-8');
+        // Re-read content after ID normalization
+        let updatedContent = await fs.readFile(filePath, 'utf-8');
+
+        // Check if we need to normalize the frontmatter title field
+        await this.normalizeFrontmatterTitle(filePath, updatedContent, parsed);
+
+        // Re-read content after title normalization
+        updatedContent = await fs.readFile(filePath, 'utf-8');
 
         // Check if we need to normalize the frontmatter type field
         await this.normalizeFrontmatterType(filePath, updatedContent, parsed);
@@ -1277,34 +1287,36 @@ export class HybridSearchManager {
         const frontmatterRegex = /^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/;
         const match = content.match(frontmatterRegex);
 
+        let updatedContent: string;
+
         if (!match) {
-          // No frontmatter found - can't normalize
-          console.warn(`Cannot normalize type for ${filePath}: no frontmatter found`);
-          return;
-        }
-
-        const originalFrontmatter = match[1];
-        const bodyContent = match[2];
-
-        // Replace or add the type field in the frontmatter
-        let updatedFrontmatter: string;
-        if (frontmatterType) {
-          // Replace existing type field
-          updatedFrontmatter = originalFrontmatter.replace(
-            /^type:.*$/m,
-            `type: ${parentDir}`
-          );
+          // No frontmatter found - create new frontmatter block with type
+          console.log(`Creating frontmatter for ${filePath} with type: ${parentDir}`);
+          updatedContent = `---\ntype: ${parentDir}\n---\n${content}`;
         } else {
-          // Add type field after id (if it exists) or at the beginning
-          const lines = originalFrontmatter.split('\n');
-          const idLineIndex = lines.findIndex((line) => line.startsWith('id:'));
-          const insertIndex = idLineIndex >= 0 ? idLineIndex + 1 : 0;
-          lines.splice(insertIndex, 0, `type: ${parentDir}`);
-          updatedFrontmatter = lines.join('\n');
-        }
+          const originalFrontmatter = match[1];
+          const bodyContent = match[2];
 
-        // Reconstruct the file content
-        const updatedContent = `---\n${updatedFrontmatter}\n---\n${bodyContent}`;
+          // Replace or add the type field in the frontmatter
+          let updatedFrontmatter: string;
+          if (frontmatterType) {
+            // Replace existing type field
+            updatedFrontmatter = originalFrontmatter.replace(
+              /^type:.*$/m,
+              `type: ${parentDir}`
+            );
+          } else {
+            // Add type field after id (if it exists) or at the beginning
+            const lines = originalFrontmatter.split('\n');
+            const idLineIndex = lines.findIndex((line) => line.startsWith('id:'));
+            const insertIndex = idLineIndex >= 0 ? idLineIndex + 1 : 0;
+            lines.splice(insertIndex, 0, `type: ${parentDir}`);
+            updatedFrontmatter = lines.join('\n');
+          }
+
+          // Reconstruct the file content
+          updatedContent = `---\n${updatedFrontmatter}\n---\n${bodyContent}`;
+        }
 
         // Write the corrected content back to the file
         await fs.writeFile(filePath, updatedContent, 'utf-8');
@@ -1320,6 +1332,28 @@ export class HybridSearchManager {
         error instanceof Error ? error.message : 'Unknown error'
       );
     }
+  }
+
+  /**
+   * Generate a human-readable title from a filename
+   * Example: "my-note-file.md" -> "My Note File"
+   */
+  private generateTitleFromFilename(filename: string): string {
+    // Remove .md extension
+    const nameWithoutExt = filename.replace(/\.md$/, '');
+
+    // Split on hyphens, underscores, or camelCase
+    const words = nameWithoutExt
+      .replace(/([a-z])([A-Z])/g, '$1 $2') // camelCase to spaces
+      .split(/[-_\s]+/) // split on hyphens, underscores, spaces
+      .filter((word) => word.length > 0);
+
+    // Capitalize first letter of each word
+    const titleWords = words.map((word) => {
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    });
+
+    return titleWords.join(' ');
   }
 
   /**
@@ -1359,29 +1393,31 @@ export class HybridSearchManager {
         const frontmatterRegex = /^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/;
         const match = content.match(frontmatterRegex);
 
+        let updatedContent: string;
+
         if (!match) {
-          // No frontmatter found - can't normalize
-          console.warn(`Cannot normalize id for ${filePath}: no frontmatter found`);
-          return;
-        }
-
-        const originalFrontmatter = match[1];
-        const bodyContent = match[2];
-
-        // Add or replace the id field in the frontmatter
-        let updatedFrontmatter: string;
-        if (parsed.metadata.id) {
-          // Replace existing id field (e.g., old-style ID)
-          updatedFrontmatter = originalFrontmatter.replace(/^id:.*$/m, `id: ${newId}`);
+          // No frontmatter found - create new frontmatter block
+          console.log(`Creating frontmatter for ${filePath} with id: ${newId}`);
+          updatedContent = `---\nid: ${newId}\n---\n${content}`;
         } else {
-          // Add id field at the beginning
-          const lines = originalFrontmatter.split('\n');
-          lines.unshift(`id: ${newId}`);
-          updatedFrontmatter = lines.join('\n');
-        }
+          const originalFrontmatter = match[1];
+          const bodyContent = match[2];
 
-        // Reconstruct the file content
-        const updatedContent = `---\n${updatedFrontmatter}\n---\n${bodyContent}`;
+          // Add or replace the id field in the frontmatter
+          let updatedFrontmatter: string;
+          if (parsed.metadata.id) {
+            // Replace existing id field (e.g., old-style ID)
+            updatedFrontmatter = originalFrontmatter.replace(/^id:.*$/m, `id: ${newId}`);
+          } else {
+            // Add id field at the beginning
+            const lines = originalFrontmatter.split('\n');
+            lines.unshift(`id: ${newId}`);
+            updatedFrontmatter = lines.join('\n');
+          }
+
+          // Reconstruct the file content
+          updatedContent = `---\n${updatedFrontmatter}\n---\n${bodyContent}`;
+        }
 
         // Write the corrected content back to the file
         await fs.writeFile(filePath, updatedContent, 'utf-8');
@@ -1394,6 +1430,98 @@ export class HybridSearchManager {
       // Log but don't fail the indexing operation if normalization fails
       console.error(
         `Failed to normalize id for ${filePath}:`,
+        error instanceof Error ? error.message : 'Unknown error'
+      );
+    }
+  }
+
+  /**
+   * Normalize the title field in frontmatter if it's missing
+   * Generates a title from the filename and writes it back to the file if needed
+   */
+  private async normalizeFrontmatterTitle(
+    filePath: string,
+    content: string,
+    parsed: {
+      id: string;
+      title: string;
+      content: string;
+      type: string;
+      filename: string;
+      metadata: Record<string, unknown>;
+    }
+  ): Promise<void> {
+    try {
+      const frontmatterTitle =
+        typeof parsed.metadata.title === 'string' &&
+        parsed.metadata.title.trim().length > 0
+          ? parsed.metadata.title
+          : null;
+
+      // Check if title is missing or empty
+      if (!frontmatterTitle) {
+        // Generate a title from the filename
+        const generatedTitle = this.generateTitleFromFilename(parsed.filename);
+
+        console.log(
+          `Normalizing title field in ${filePath}: ${parsed.metadata.title || '(missing)'} → ${generatedTitle}`
+        );
+
+        // Parse the original content to get the frontmatter boundary
+        const frontmatterRegex = /^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/;
+        const match = content.match(frontmatterRegex);
+
+        let updatedContent: string;
+
+        if (!match) {
+          // No frontmatter found - create new frontmatter block with title
+          console.log(
+            `Creating frontmatter for ${filePath} with title: ${generatedTitle}`
+          );
+          updatedContent = `---\ntitle: ${generatedTitle}\n---\n${content}`;
+        } else {
+          const originalFrontmatter = match[1];
+          const bodyContent = match[2];
+
+          // Add or replace the title field in the frontmatter
+          let updatedFrontmatter: string;
+          if (parsed.metadata.title !== undefined) {
+            // Replace existing empty/whitespace title field
+            updatedFrontmatter = originalFrontmatter.replace(
+              /^title:.*$/m,
+              `title: ${generatedTitle}`
+            );
+          } else {
+            // Add title field after id field (if it exists) or at the beginning
+            const lines = originalFrontmatter.split('\n');
+            const idIndex = lines.findIndex((line) => line.startsWith('id:'));
+
+            if (idIndex >= 0) {
+              // Insert after id
+              lines.splice(idIndex + 1, 0, `title: ${generatedTitle}`);
+            } else {
+              // Insert at the beginning
+              lines.unshift(`title: ${generatedTitle}`);
+            }
+
+            updatedFrontmatter = lines.join('\n');
+          }
+
+          // Reconstruct the file content
+          updatedContent = `---\n${updatedFrontmatter}\n---\n${bodyContent}`;
+        }
+
+        // Write the corrected content back to the file
+        await fs.writeFile(filePath, updatedContent, 'utf-8');
+
+        // Update the parsed object to reflect the correction
+        parsed.title = generatedTitle;
+        parsed.metadata.title = generatedTitle;
+      }
+    } catch (error) {
+      // Log but don't fail the indexing operation if normalization fails
+      console.error(
+        `Failed to normalize title for ${filePath}:`,
         error instanceof Error ? error.message : 'Unknown error'
       );
     }
@@ -1424,8 +1552,11 @@ export class HybridSearchManager {
       const type =
         (typeof metadata.type === 'string' ? metadata.type : null) || parentDir;
 
-      // Determine title from metadata (allow empty/missing titles)
-      const title = typeof metadata.title === 'string' ? metadata.title : '';
+      // Determine title from metadata, fall back to filename-based title
+      const title =
+        typeof metadata.title === 'string' && metadata.title.trim().length > 0
+          ? metadata.title
+          : this.generateTitleFromFilename(filename);
 
       // Get ID from frontmatter (for migrated notes with immutable IDs)
       // Fall back to old-style ID if frontmatter doesn't have one
@@ -1444,13 +1575,7 @@ export class HybridSearchManager {
         content: bodyContent,
         type,
         filename,
-        metadata: {
-          title,
-          type,
-          created: metadata.created || new Date().toISOString(),
-          updated: metadata.updated || new Date().toISOString(),
-          ...metadata
-        }
+        metadata: metadata
       };
     } catch (error) {
       console.error(`Failed to parse note content for ${filePath}:`, error);
