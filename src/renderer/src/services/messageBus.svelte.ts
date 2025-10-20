@@ -20,7 +20,13 @@ export type NoteEvent =
       removedLinks?: string[];
     }
   | { type: 'notes.bulkRefresh'; notes: NoteMetadata[] } // For initial load
-  | { type: 'vault.switched'; vaultId: string };
+  | { type: 'vault.switched'; vaultId: string }
+  | { type: 'file.external-change'; path: string; noteId?: string }
+  | { type: 'file.external-add'; path: string }
+  | { type: 'file.external-delete'; path: string; noteId?: string }
+  | { type: 'file.external-rename'; oldPath: string; newPath: string; noteId: string }
+  | { type: 'file.sync-started'; fileCount: number }
+  | { type: 'file.sync-completed'; added: number; updated: number; deleted: number };
 
 type EventHandler<T extends NoteEvent = NoteEvent> = (event: T) => void;
 

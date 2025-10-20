@@ -68,7 +68,7 @@ export class VaultFileWatcher {
   private readonly DEBOUNCE_MS: number;
   private readonly RENAME_DETECTION_WINDOW_MS = 1000;
   private readonly OPERATION_CLEANUP_MS = 5000;
-  private readonly WRITE_FLAG_CLEANUP_MS = 500; // Keep write flag for 500ms after completion
+  private readonly WRITE_FLAG_CLEANUP_MS = 1000; // Keep write flag for 1000ms after completion to account for awaitWriteFinish (200ms) + debounce (100ms) + FS latency
 
   constructor(
     private vaultPath: string,
@@ -242,11 +242,11 @@ export class VaultFileWatcher {
       return true;
     }
 
-    // SECOND: Check for tracked delete/rename operations
+    // SECOND: Check for tracked operations (write/delete/rename)
     const op = this.internalOperations.get(absolutePath);
     if (op) {
-      // Check if operation just started (within 2 seconds)
-      if (Date.now() - op.startedAt < 2000) {
+      // Check if operation is still within the cleanup window
+      if (Date.now() - op.startedAt < this.OPERATION_CLEANUP_MS) {
         return true;
       }
     }

@@ -213,7 +213,20 @@ class NoteDocumentRegistryClass {
 
   constructor() {
     // Listen for note.updated events and reload affected documents
-    messageBus.subscribe('note.updated', async (event) => {
+    // Note: We don't reload on note.updated because it's typically triggered by
+    // the document saving itself, which would cause unnecessary reloads and cursor position loss.
+    // External changes are handled by file.external-change events instead.
+    // messageBus.subscribe('note.updated', async (event) => {
+    //   const doc = this.documents.get(event.noteId);
+    //   if (doc) {
+    //     // Only reload if the document is open
+    //     await doc.reload();
+    //   }
+    // });
+
+    // Listen for external file changes and reload affected documents
+    messageBus.subscribe('file.external-change', async (event) => {
+      if (!event.noteId) return;
       const doc = this.documents.get(event.noteId);
       if (doc) {
         // Only reload if the document is open

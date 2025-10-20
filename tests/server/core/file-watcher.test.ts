@@ -155,8 +155,9 @@ describe('VaultFileWatcher - Internal vs External Change Detection', () => {
         vaultId: vaultId
       });
 
-      // Clear events from creation
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      // Clear events from creation and wait for write flag to clear
+      // Need to wait > 1000ms (WRITE_FLAG_CLEANUP_MS) to ensure the creation's write flag has cleared
+      await new Promise((resolve) => setTimeout(resolve, 1200));
       capturedEvents.length = 0;
 
       // Get the note's file path
@@ -174,6 +175,7 @@ Modified externally in VSCode!`;
       await fs.writeFile(notePath, externalContent, 'utf-8');
 
       // Wait for file watcher to detect the change
+      // Need to wait for: awaitWriteFinish (200ms) + debounce (100ms) + processing time
       await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Should have detected an external change
@@ -223,8 +225,9 @@ This note was created outside of Flint.`;
         vaultId: vaultId
       });
 
-      // Clear events from creation
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      // Clear events from creation and wait for write flag to clear
+      // Need to wait > 1000ms (WRITE_FLAG_CLEANUP_MS) to ensure the creation's write flag has cleared
+      await new Promise((resolve) => setTimeout(resolve, 1200));
       capturedEvents.length = 0;
 
       // Get the note's file path

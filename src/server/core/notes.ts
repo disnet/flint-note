@@ -153,7 +153,11 @@ export class NoteManager {
    */
   async #writeFileWithTracking(filePath: string, content: string): Promise<void> {
     if (this.#fileWatcher) {
-      // Mark write as starting BEFORE the actual write
+      // Mark write as starting BEFORE the actual write (1 second cleanup)
+      // Note: We only use the short-term write flag, not trackOperation(),
+      // because writes complete quickly and we want to detect actual external
+      // changes soon after. The 1000ms cleanup window is sufficient to handle
+      // file watcher delays (awaitWriteFinish + debounce + FS latency).
       this.#fileWatcher.markWriteStarting(filePath);
       try {
         await fs.writeFile(filePath, content, 'utf-8');

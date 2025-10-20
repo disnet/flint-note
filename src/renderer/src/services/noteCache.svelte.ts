@@ -32,10 +32,26 @@ class NoteCache {
   }
 
   private handleNoteUpdated(event: Extract<NoteEvent, { type: 'note.updated' }>): void {
-    // Update note in array - array reassignment triggers reactivity
-    this.cacheArray = this.cacheArray.map((note) =>
-      note.id === event.noteId ? { ...note, ...event.updates } : note
-    );
+    // Find the existing note to check if updates actually change any values
+    const existingNote = this.cacheArray.find((note) => note.id === event.noteId);
+    if (!existingNote) return;
+
+    // Check if any update value is different from current value
+    let hasChanges = false;
+    for (const [key, value] of Object.entries(event.updates)) {
+      if (existingNote[key as keyof NoteMetadata] !== value) {
+        hasChanges = true;
+        break;
+      }
+    }
+
+    // Only update if there are actual changes to prevent unnecessary re-renders
+    if (hasChanges) {
+      // Update note in array - array reassignment triggers reactivity
+      this.cacheArray = this.cacheArray.map((note) =>
+        note.id === event.noteId ? { ...note, ...event.updates } : note
+      );
+    }
   }
 
   private handleNoteDeleted(event: Extract<NoteEvent, { type: 'note.deleted' }>): void {
