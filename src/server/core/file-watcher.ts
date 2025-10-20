@@ -121,8 +121,6 @@ export class VaultFileWatcher {
       return;
     }
 
-    console.log(`Starting file watcher for vault: ${this.vaultPath}`);
-
     this.watcher = chokidar.watch(this.vaultPath, {
       ignored: [
         '**/.flint-note/**', // Flint's internal directory
@@ -150,8 +148,6 @@ export class VaultFileWatcher {
       .on('change', (filePath) => this.onFileChanged(filePath))
       .on('unlink', (filePath) => this.onFileDeleted(filePath))
       .on('error', (error: unknown) => this.onError(error));
-
-    console.log('File watcher started successfully');
   }
 
   /**
@@ -161,8 +157,6 @@ export class VaultFileWatcher {
     if (!this.watcher) {
       return;
     }
-
-    console.log('Stopping file watcher...');
 
     await this.watcher.close();
     this.watcher = null;
@@ -182,8 +176,6 @@ export class VaultFileWatcher {
     this.internalOperations.clear();
     this.ongoingWrites.clear();
     this.recentDeletions.clear();
-
-    console.log('File watcher stopped');
   }
 
   /**
@@ -314,11 +306,8 @@ export class VaultFileWatcher {
       try {
         // Check if this is an internal change
         if (await this.isInternalChange(filePath)) {
-          console.log(`[FileWatcher] Ignoring internal add: ${filePath}`);
           return;
         }
-
-        console.log(`[FileWatcher] External add detected: ${filePath}`);
 
         // Check if this is a renamed file by reading the note ID
         const content = await fs.readFile(filePath, 'utf-8');
@@ -328,9 +317,6 @@ export class VaultFileWatcher {
           const recentDeletion = this.recentDeletions.get(noteId);
           if (recentDeletion) {
             // This is a rename!
-            console.log(
-              `[FileWatcher] Rename detected: ${recentDeletion.oldPath} → ${filePath}`
-            );
             this.recentDeletions.delete(noteId);
             this.emit({
               type: 'external-rename',
@@ -370,11 +356,8 @@ export class VaultFileWatcher {
       try {
         // Check if this is an internal change
         if (await this.isInternalChange(filePath)) {
-          console.log(`[FileWatcher] Ignoring internal change: ${filePath}`);
           return;
         }
-
-        console.log(`[FileWatcher] External change detected: ${filePath}`);
 
         const content = await fs.readFile(filePath, 'utf-8');
         const noteId = this.extractNoteId(content);
@@ -411,12 +394,9 @@ export class VaultFileWatcher {
         const absolutePath = path.resolve(filePath);
         const op = this.internalOperations.get(absolutePath);
         if (op && op.type === 'delete') {
-          console.log(`[FileWatcher] Ignoring internal delete: ${filePath}`);
           this.internalOperations.delete(absolutePath);
           return;
         }
-
-        console.log(`[FileWatcher] External delete detected: ${filePath}`);
 
         // Try to get the note ID from the database before processing deletion
         const noteId = await this.getNoteIdFromPath(filePath);
@@ -505,10 +485,7 @@ export class VaultFileWatcher {
    */
   private async handleFileAdd(): Promise<void> {
     // Trigger a sync to process the new file
-    const result = await this.searchManager.syncFileSystemChanges();
-    console.log(
-      `[FileWatcher] Sync completed after add: ${result.added} added, ${result.updated} updated, ${result.deleted} deleted`
-    );
+    await this.searchManager.syncFileSystemChanges();
   }
 
   /**
@@ -516,10 +493,7 @@ export class VaultFileWatcher {
    */
   private async handleFileChange(): Promise<void> {
     // Trigger a sync to process the changed file
-    const result = await this.searchManager.syncFileSystemChanges();
-    console.log(
-      `[FileWatcher] Sync completed after change: ${result.added} added, ${result.updated} updated, ${result.deleted} deleted`
-    );
+    await this.searchManager.syncFileSystemChanges();
   }
 
   /**
@@ -527,10 +501,7 @@ export class VaultFileWatcher {
    */
   private async handleFileDelete(): Promise<void> {
     // Trigger a sync to process the deletion
-    const result = await this.searchManager.syncFileSystemChanges();
-    console.log(
-      `[FileWatcher] Sync completed after delete: ${result.added} added, ${result.updated} updated, ${result.deleted} deleted`
-    );
+    await this.searchManager.syncFileSystemChanges();
   }
 
   /**
@@ -538,9 +509,6 @@ export class VaultFileWatcher {
    */
   private async handleFileRename(): Promise<void> {
     // Trigger a sync to process the rename
-    const result = await this.searchManager.syncFileSystemChanges();
-    console.log(
-      `[FileWatcher] Sync completed after rename: ${result.added} added, ${result.updated} updated, ${result.deleted} deleted`
-    );
+    await this.searchManager.syncFileSystemChanges();
   }
 }
