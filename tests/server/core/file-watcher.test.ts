@@ -8,24 +8,11 @@ import fs from 'fs/promises';
 import path from 'path';
 import type { FileWatcherEvent } from '../../../src/server/core/file-watcher.js';
 
-// NOTE: These tests are currently skipped because the test architecture creates vaults
-// as subdirectories (testWorkspace/vaultId/), but the file watcher is initialized for
-// the testWorkspace path. In getVaultContext(), isCurrentVault checks if vault.path
-// matches workspace.rootPath, which fails for subdirectory vaults. This causes a new
-// NoteManager to be created without the fileWatcher reference, so tracking doesn't work.
-//
-// In production, the workspace IS the vault (single vault at workspace root), so this
-// works correctly. The implementation is sound for production use - it just doesn't
-// match the multi-vault test setup architecture.
-//
-// To properly test this, we would need to either:
-// 1. Change test setup to create vault at workspace root (not subdirectory)
-// 2. Update architecture to support file watcher across multiple vault contexts
-// 3. Create a dedicated test harness that initializes vault directly
-describe.skip('VaultFileWatcher - Internal vs External Change Detection', () => {
+describe('VaultFileWatcher - Internal vs External Change Detection', () => {
   let testSetup: TestApiSetup;
-  let testVaultId: string;
+  let vaultId: string;
   let vaultPath: string;
+  let unsubscribe: (() => void) | null = null;
   const capturedEvents: FileWatcherEvent[] = [];
 
   beforeEach(async () => {
@@ -33,24 +20,34 @@ describe.skip('VaultFileWatcher - Internal vs External Change Detection', () => 
     await testSetup.setup();
 
     // Create a test vault
-    testVaultId = await testSetup.createTestVault('test-file-watcher-vault');
-    vaultPath = path.join(testSetup.testWorkspacePath, testVaultId);
+    vaultId = await testSetup.createTestVault('file-watcher-test');
+    vaultPath = path.join(testSetup.testWorkspacePath, vaultId);
 
-    // Give file watcher time to start and settle after vault creation
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    // Subscribe to file watcher events AFTER vault initialization is complete
+    // Subscribe to file watcher events and save the unsubscribe function
     capturedEvents.length = 0;
-    testSetup.api.onFileWatcherEvent((event) => {
+    unsubscribe = testSetup.api.onFileWatcherEvent((event) => {
       capturedEvents.push(event);
     });
 
-    // Additional settling time
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    // Give file watcher time to start and settle
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    // Clear any initialization events
+    capturedEvents.length = 0;
   });
 
   afterEach(async () => {
+    // Unsubscribe from events BEFORE cleanup to avoid cross-test contamination
+    if (unsubscribe) {
+      unsubscribe();
+      unsubscribe = null;
+    }
+
+    // Clean up and wait for file watcher to fully stop
     await testSetup.cleanup();
+
+    // Give extra time for file watcher to fully stop before next test
+    await new Promise((resolve) => setTimeout(resolve, 200));
   });
 
   describe('Internal Changes (should be ignored)', () => {
@@ -60,7 +57,7 @@ describe.skip('VaultFileWatcher - Internal vs External Change Detection', () => 
         type: 'general',
         title: 'Internal Create Test',
         content: 'Created by Flint',
-        vaultId: testVaultId
+        vaultId: vaultId
       });
 
       // Wait for any file watcher events to fire
@@ -71,7 +68,7 @@ describe.skip('VaultFileWatcher - Internal vs External Change Detection', () => 
       expect(externalEvents).toHaveLength(0);
 
       // Verify note was created
-      const retrieved = await testSetup.api.getNote(testVaultId, note.id);
+      const retrieved = await testSetup.api.getNote(vaultId, note.id);
       expect(retrieved).toBeDefined();
       expect(retrieved?.title).toBe('Internal Create Test');
     });
@@ -82,7 +79,7 @@ describe.skip('VaultFileWatcher - Internal vs External Change Detection', () => 
         type: 'general',
         title: 'Internal Update Test',
         content: 'Original content',
-        vaultId: testVaultId
+        vaultId: vaultId
       });
 
       // Clear events from creation
@@ -90,14 +87,14 @@ describe.skip('VaultFileWatcher - Internal vs External Change Detection', () => 
       capturedEvents.length = 0;
 
       // Get the note to obtain content hash
-      const fullNote = await testSetup.api.getNote(testVaultId, note.id);
+      const fullNote = await testSetup.api.getNote(vaultId, note.id);
 
       // Update the note through Flint's API
       await testSetup.api.updateNote({
         identifier: note.id,
         content: 'Updated content by Flint',
         contentHash: fullNote!.content_hash,
-        vaultId: testVaultId
+        vaultId: vaultId
       });
 
       // Wait for any file watcher events
@@ -108,7 +105,7 @@ describe.skip('VaultFileWatcher - Internal vs External Change Detection', () => 
       expect(externalEvents).toHaveLength(0);
 
       // Verify note was updated
-      const retrieved = await testSetup.api.getNote(testVaultId, note.id);
+      const retrieved = await testSetup.api.getNote(vaultId, note.id);
       expect(retrieved?.content).toBe('Updated content by Flint');
     });
 
@@ -118,7 +115,7 @@ describe.skip('VaultFileWatcher - Internal vs External Change Detection', () => 
         type: 'general',
         title: 'Metadata Test',
         content: 'Test content',
-        vaultId: testVaultId
+        vaultId: vaultId
       });
 
       // Clear events from creation
@@ -126,7 +123,7 @@ describe.skip('VaultFileWatcher - Internal vs External Change Detection', () => 
       capturedEvents.length = 0;
 
       // Get the note to obtain content hash
-      const fullNote = await testSetup.api.getNote(testVaultId, note.id);
+      const fullNote = await testSetup.api.getNote(vaultId, note.id);
 
       // Update note through Flint's API (which updates both content and metadata)
       await testSetup.api.updateNote({
@@ -136,7 +133,7 @@ describe.skip('VaultFileWatcher - Internal vs External Change Detection', () => 
         metadata: {
           tags: ['test', 'internal']
         },
-        vaultId: testVaultId
+        vaultId: vaultId
       });
 
       // Wait for any file watcher events
@@ -155,7 +152,7 @@ describe.skip('VaultFileWatcher - Internal vs External Change Detection', () => 
         type: 'general',
         title: 'External Edit Test',
         content: 'Original content',
-        vaultId: testVaultId
+        vaultId: vaultId
       });
 
       // Clear events from creation
@@ -186,7 +183,7 @@ Modified externally in VSCode!`;
       expect(externalChangeEvents.length).toBeGreaterThan(0);
 
       // Verify the change was synced to the database
-      const retrieved = await testSetup.api.getNote(testVaultId, note.id);
+      const retrieved = await testSetup.api.getNote(vaultId, note.id);
       expect(retrieved?.content).toContain('Modified externally');
     });
 
@@ -223,7 +220,7 @@ This note was created outside of Flint.`;
         type: 'general',
         title: 'Delete Test',
         content: 'Will be deleted',
-        vaultId: testVaultId
+        vaultId: vaultId
       });
 
       // Clear events from creation
@@ -258,7 +255,7 @@ This note was created outside of Flint.`;
         type: 'general',
         title: 'Rapid Update Test',
         content: 'Original',
-        vaultId: testVaultId
+        vaultId: vaultId
       });
 
       // Clear events from creation
@@ -266,28 +263,28 @@ This note was created outside of Flint.`;
       capturedEvents.length = 0;
 
       // Perform multiple rapid updates through Flint
-      let currentNote = await testSetup.api.getNote(testVaultId, note.id);
+      let currentNote = await testSetup.api.getNote(vaultId, note.id);
       await testSetup.api.updateNote({
         identifier: note.id,
         content: 'Update 1',
         contentHash: currentNote!.content_hash,
-        vaultId: testVaultId
+        vaultId: vaultId
       });
 
-      currentNote = await testSetup.api.getNote(testVaultId, note.id);
+      currentNote = await testSetup.api.getNote(vaultId, note.id);
       await testSetup.api.updateNote({
         identifier: note.id,
         content: 'Update 2',
         contentHash: currentNote!.content_hash,
-        vaultId: testVaultId
+        vaultId: vaultId
       });
 
-      currentNote = await testSetup.api.getNote(testVaultId, note.id);
+      currentNote = await testSetup.api.getNote(vaultId, note.id);
       await testSetup.api.updateNote({
         identifier: note.id,
         content: 'Update 3',
         contentHash: currentNote!.content_hash,
-        vaultId: testVaultId
+        vaultId: vaultId
       });
 
       // Wait for any file watcher events

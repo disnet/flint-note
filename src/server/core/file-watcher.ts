@@ -61,6 +61,7 @@ export class VaultFileWatcher {
   private pendingChanges = new Map<string, NodeJS.Timeout>();
   private internalOperations = new Map<string, FileOperation>();
   private ongoingWrites = new Set<string>(); // Track writes in progress (set BEFORE write)
+  private writeCleanupTimeouts = new Map<string, NodeJS.Timeout>(); // Track cleanup timeouts per path
   private recentDeletions = new Map<string, RecentDeletion>();
   private eventHandlers: FileWatcherEventHandler[] = [];
 
@@ -125,6 +126,7 @@ export class VaultFileWatcher {
     this.watcher = chokidar.watch(this.vaultPath, {
       ignored: [
         '**/.flint-note/**', // Flint's internal directory
+        '**/_description.md', // Note type description files (internal metadata)
         '**/.git/**', // Git directory
         '**/node_modules/**', // Node modules
         '**/.DS_Store', // macOS metadata
@@ -170,6 +172,13 @@ export class VaultFileWatcher {
       clearTimeout(timeout);
     }
     this.pendingChanges.clear();
+
+    // Clear all write cleanup timeouts
+    for (const timeout of this.writeCleanupTimeouts.values()) {
+      clearTimeout(timeout);
+    }
+    this.writeCleanupTimeouts.clear();
+
     this.internalOperations.clear();
     this.ongoingWrites.clear();
     this.recentDeletions.clear();
@@ -195,10 +204,19 @@ export class VaultFileWatcher {
   markWriteComplete(filePath: string): void {
     const absolutePath = path.resolve(this.vaultPath, filePath);
 
+    // Cancel any existing cleanup timeout for this path
+    const existingTimeout = this.writeCleanupTimeouts.get(absolutePath);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+    }
+
     // Keep the flag set for a brief period to catch any delayed file watcher events
-    setTimeout(() => {
+    const timeout = setTimeout(() => {
       this.ongoingWrites.delete(absolutePath);
+      this.writeCleanupTimeouts.delete(absolutePath);
     }, this.WRITE_FLAG_CLEANUP_MS);
+
+    this.writeCleanupTimeouts.set(absolutePath, timeout);
   }
 
   /**
@@ -222,7 +240,9 @@ export class VaultFileWatcher {
    * Check if a file change is from an internal Flint operation
    */
   private async isInternalChange(filePath: string): Promise<boolean> {
-    const absolutePath = path.resolve(filePath);
+    // Normalize the path the same way we do in markWriteStarting/markWriteComplete
+    // to ensure we're checking the same key that was added to the Set
+    const absolutePath = path.resolve(this.vaultPath, filePath);
 
     // FIRST: Check if this file is currently being written by Flint
     // This is the most reliable check as the flag is set BEFORE the write
@@ -262,11 +282,31 @@ export class VaultFileWatcher {
   }
 
   /**
+   * Check if a file is an internal metadata file that should be ignored
+   */
+  private isMetadataFile(filePath: string): boolean {
+    // Ignore note type description files
+    if (filePath.endsWith('_description.md')) {
+      return true;
+    }
+    // Ignore files in .flint-note directory
+    if (filePath.includes('/.flint-note/')) {
+      return true;
+    }
+    return false;
+  }
+
+  /**
    * Handle file added event
    */
   private async onFileAdded(filePath: string): Promise<void> {
     // Only handle markdown files
     if (!filePath.endsWith('.md')) {
+      return;
+    }
+
+    // Ignore internal metadata files
+    if (this.isMetadataFile(filePath)) {
       return;
     }
 
@@ -321,6 +361,11 @@ export class VaultFileWatcher {
       return;
     }
 
+    // Ignore internal metadata files
+    if (this.isMetadataFile(filePath)) {
+      return;
+    }
+
     this.debounceChange(filePath, async () => {
       try {
         // Check if this is an internal change
@@ -352,6 +397,11 @@ export class VaultFileWatcher {
   private async onFileDeleted(filePath: string): Promise<void> {
     // Only handle markdown files
     if (!filePath.endsWith('.md')) {
+      return;
+    }
+
+    // Ignore internal metadata files
+    if (this.isMetadataFile(filePath)) {
       return;
     }
 

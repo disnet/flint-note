@@ -280,8 +280,13 @@ export class FlintNoteApi {
       await workspace.initialize();
     }
 
-    // Pass fileWatcher when creating NoteManager for current vault to enable operation tracking
-    const noteManager = isCurrentVault
+    // Pass fileWatcher when creating NoteManager if vault is within the workspace
+    // The fileWatcher watches the entire workspace, so it works for subdirectory vaults too
+    const isVaultInWorkspace =
+      this.workspace &&
+      this.fileWatcher &&
+      workspacePath.startsWith(this.workspace.rootPath);
+    const noteManager = isVaultInWorkspace
       ? new NoteManager(workspace, hybridSearchManager, this.fileWatcher ?? undefined)
       : new NoteManager(workspace, hybridSearchManager);
     const noteTypeManager = new NoteTypeManager(
