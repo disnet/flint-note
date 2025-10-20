@@ -14,10 +14,27 @@
   // Track original titles for cancel/revert
   const originalTitles = new Map<string, string>();
 
+  // Track the note IDs to detect changes
+  let previousNoteIds: string[] = [];
+
   // Open documents for all sidebar notes
   $effect(() => {
+    const notes = sidebarNotesStore.notes;
+    const currentNoteIds = notes.map((n) => n.noteId);
+
+    // Only proceed if the note list actually changed
+    const hasChanged =
+      currentNoteIds.length !== previousNoteIds.length ||
+      currentNoteIds.some((id, i) => id !== previousNoteIds[i]);
+
+    if (!hasChanged) {
+      return;
+    }
+
+    previousNoteIds = currentNoteIds;
+
+    // Perform async operations outside the reactive context
     (async () => {
-      const notes = sidebarNotesStore.notes;
       const newDocs = new Map<string, NoteDocument>();
 
       // Open documents for all current sidebar notes
@@ -28,7 +45,8 @@
       }
 
       // Close documents that are no longer in sidebar
-      for (const [noteId] of sidebarDocs) {
+      const oldDocs = sidebarDocs;
+      for (const [noteId] of oldDocs) {
         if (!newDocs.has(noteId)) {
           const editorId = `sidebar-${noteId}`;
           noteDocumentRegistry.close(noteId, editorId);

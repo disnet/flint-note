@@ -40,10 +40,11 @@
   // Todo plan store
   const todoPlanStore = new TodoPlanStore();
 
-  // Track the active thread ID to detect changes
-  let lastThreadId = $state<string | null>(null);
+  // Track the active thread ID to detect changes (not reactive to avoid circular dependencies)
+  let lastThreadId: string | null = null;
   let updateTimeoutId: number | null = null;
-  let requestCounter = $state<number>(0);
+  // Request counter for deduplication (not reactive to avoid triggering effects)
+  let requestCounter = 0;
 
   // Monitor todo plan for active thread
   $effect(() => {
@@ -77,8 +78,8 @@
       }
     }
 
-    // Update whenever the thread or messages change
-    if (currentThread) {
+    // Only update if we have a thread with messages
+    if (currentThread && currentThread.messages.length > 0) {
       // Access the messages array and its length to make this reactive
       const messageCount = currentThread.messages.length;
       const lastActivity = currentThread.lastActivity;
@@ -92,14 +93,14 @@
         clearTimeout(updateTimeoutId);
       }
 
+      // Capture threadId outside to avoid reactive reads in timeout
+      const threadIdForUpdate = currentThreadId;
+
       // Schedule update after 500ms of no changes
       updateTimeoutId = window.setTimeout(() => {
-        updateContextUsage();
+        updateContextUsage(threadIdForUpdate);
         updateTimeoutId = null;
       }, 500);
-    } else if (currentThreadId) {
-      // Thread exists but has no messages yet
-      updateContextUsage();
     }
   });
 
@@ -108,9 +109,12 @@
     let intervalId: number | null = null;
 
     if (isLoading) {
+      // Capture the current thread ID to avoid reactive reads in interval
+      const threadIdForUpdates = unifiedChatStore.activeThreadId;
+
       // Update every 3 seconds while loading
       intervalId = window.setInterval(() => {
-        updateContextUsage();
+        updateContextUsage(threadIdForUpdates);
       }, 3000);
     }
 
@@ -121,13 +125,13 @@
     };
   });
 
-  async function updateContextUsage(): Promise<void> {
+  async function updateContextUsage(conversationId?: string | null): Promise<void> {
     // Increment request counter to track this specific request
     const thisRequestId = ++requestCounter;
 
     try {
       const usage = await window.api?.getContextUsage({
-        conversationId: unifiedChatStore.activeThreadId ?? undefined
+        conversationId: conversationId ?? undefined
       });
 
       // Only update if this is still the most recent request
