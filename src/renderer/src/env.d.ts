@@ -156,6 +156,7 @@ declare global {
         content: string;
         vaultId?: string;
         metadata?: NoteMetadata;
+        silent?: boolean;
       }) => Promise<any>;
       deleteNote: (params: { identifier: string; vaultId?: string }) => Promise<any>;
       renameNote: (params: {
@@ -168,6 +169,14 @@ declare global {
         newType: string;
         vaultId?: string;
       }) => Promise<any>;
+
+      // Note lifecycle tracking (for file watcher)
+      noteOpened: (params: { noteId: string }) => Promise<{ success: boolean }>;
+      noteClosed: (params: { noteId: string }) => Promise<{ success: boolean }>;
+      expectNoteWrite: (params: {
+        noteId: string;
+        contentHash: string;
+      }) => Promise<{ success: boolean }>;
 
       // Search operations
       searchNotes: (params: {

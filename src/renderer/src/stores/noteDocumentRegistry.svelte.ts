@@ -110,16 +110,44 @@ export class NoteDocument {
   }
 
   /**
+   * Compute SHA-256 hash of content for file watcher verification
+   */
+  private async computeContentHash(content: string): Promise<string> {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(content);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+    return hashHex;
+  }
+
+  /**
    * Save the document to the database
    */
   private async save(): Promise<void> {
     try {
       this.error = null;
       const noteService = getChatService();
+
+      // Compute content hash and register expected write with file watcher
+      // This prevents the auto-save from triggering an external change detection
+      const contentHash = await this.computeContentHash(this.content);
+      console.log(
+        `[AutoSave] Saving note ${this.noteId}, hash: ${contentHash.substring(0, 8)}...`
+      );
+
+      await window.api?.expectNoteWrite({
+        noteId: this.noteId,
+        contentHash
+      });
+      console.log(`[AutoSave] Registered expected write for ${this.noteId}`);
+
       await noteService.updateNote({
         identifier: this.noteId,
-        content: this.content
+        content: this.content,
+        silent: true // Don't trigger UI refresh on auto-save
       });
+      console.log(`[AutoSave] Note ${this.noteId} saved successfully`);
     } catch (err) {
       this.error = err instanceof Error ? err.message : 'Failed to save note';
       console.error('Error saving note:', err);

@@ -17,6 +17,7 @@ class ActiveNoteStore {
   private isLoading = $state(true);
   private isInitialized = $state(false);
   private initializationPromise: Promise<void> | null = null;
+  private previousNoteId: string | null = null;
 
   constructor() {
     this.initializationPromise = this.initializeVault();
@@ -30,6 +31,10 @@ class ActiveNoteStore {
           title: event.title,
           filename: event.filename
         };
+        // Update previousNoteId to match the renamed ID
+        if (this.previousNoteId === event.oldId) {
+          this.previousNoteId = event.newId;
+        }
       }
     });
   }
@@ -57,6 +62,24 @@ class ActiveNoteStore {
    */
   async setActiveNote(note: NoteMetadata | null): Promise<void> {
     await this.ensureInitialized();
+
+    // Notify file watcher about note lifecycle changes
+    const oldNoteId = this.previousNoteId;
+    const newNoteId = note?.id || null;
+
+    if (oldNoteId && oldNoteId !== newNoteId) {
+      // Previous note is being closed
+      console.log(`[ActiveNoteStore] Closing note: ${oldNoteId}`);
+      await window.api?.noteClosed({ noteId: oldNoteId });
+    }
+
+    if (newNoteId && newNoteId !== oldNoteId) {
+      // New note is being opened
+      console.log(`[ActiveNoteStore] Opening note: ${newNoteId}`);
+      await window.api?.noteOpened({ noteId: newNoteId });
+    }
+
+    this.previousNoteId = newNoteId;
     this.state.activeNote = note;
     await this.saveToStorage();
   }
@@ -66,6 +89,13 @@ class ActiveNoteStore {
    */
   async clearActiveNote(): Promise<void> {
     await this.ensureInitialized();
+
+    // Notify file watcher that note is being closed
+    if (this.previousNoteId) {
+      await window.api?.noteClosed({ noteId: this.previousNoteId });
+      this.previousNoteId = null;
+    }
+
     this.state.activeNote = null;
     await this.saveToStorage();
   }
@@ -118,7 +148,10 @@ class ActiveNoteStore {
       const noteExists = await service.getNote({ identifier: stored.id });
 
       if (noteExists) {
-        // Note still exists, return the stored metadata
+        // Note still exists, notify file watcher that it's open
+        await window.api?.noteOpened({ noteId: stored.id });
+        this.previousNoteId = stored.id;
+        // Return the stored metadata
         return stored;
       } else {
         // Note doesn't exist anymore, clear it

@@ -221,6 +221,7 @@ const api = {
     content: string;
     vaultId?: string;
     metadata?: NoteMetadata;
+    silent?: boolean;
   }) => electronAPI.ipcRenderer.invoke('update-note', params),
   deleteNote: (params: { identifier: string; vaultId?: string }) =>
     electronAPI.ipcRenderer.invoke('delete-note', params),
@@ -228,6 +229,14 @@ const api = {
     electronAPI.ipcRenderer.invoke('rename-note', params),
   moveNote: (params: { identifier: string; newType: string; vaultId?: string }) =>
     electronAPI.ipcRenderer.invoke('move-note', params),
+
+  // Note lifecycle tracking (for file watcher)
+  noteOpened: (params: { noteId: string }) =>
+    electronAPI.ipcRenderer.invoke('note:opened', params),
+  noteClosed: (params: { noteId: string }) =>
+    electronAPI.ipcRenderer.invoke('note:closed', params),
+  expectNoteWrite: (params: { noteId: string; contentHash: string }) =>
+    electronAPI.ipcRenderer.invoke('note:expect-write', params),
 
   // Search operations
   searchNotes: (params: { query: string; vaultId?: string; limit?: number }) =>

@@ -7,6 +7,7 @@
   import FirstTimeExperience from './components/FirstTimeExperience.svelte';
   import UpdateIndicator from './components/UpdateIndicator.svelte';
   import MessageBusDebugPanel from './components/MessageBusDebugPanel.svelte';
+  import ExternalEditConflictNotification from './components/ExternalEditConflictNotification.svelte';
   import type { Message } from './services/types';
   import type { NoteMetadata } from './services/noteStore.svelte';
   import { getChatService } from './services/chatService';
@@ -1002,6 +1003,9 @@
 
     <!-- Debug Panel (only in development) -->
     <MessageBusDebugPanel />
+
+    <!-- External Edit Conflict Notifications -->
+    <ExternalEditConflictNotification />
   </div>
 {/if}
 

@@ -546,11 +546,16 @@ app.whenReady().then(async () => {
         content: string;
         vaultId?: string;
         metadata?: NoteMetadata;
+        silent?: boolean; // Don't publish events for auto-save
       }
     ) => {
       if (!noteService) {
         throw new Error('Note service not available');
       }
+
+      console.log(
+        `[IPC] update-note called for ${params.identifier}, silent: ${params.silent}`
+      );
 
       let vaultId = params.vaultId;
       if (!vaultId) {
@@ -568,14 +573,19 @@ app.whenReady().then(async () => {
         params.metadata
       );
 
-      // Publish event to renderer
-      publishNoteEvent({
-        type: 'note.updated',
-        noteId: params.identifier,
-        updates: {
-          modified: result.timestamp
-        }
-      });
+      // Only publish event if not a silent update (auto-save)
+      if (!params.silent) {
+        console.log(`[IPC] Publishing note.updated event for ${params.identifier}`);
+        publishNoteEvent({
+          type: 'note.updated',
+          noteId: params.identifier,
+          updates: {
+            modified: result.timestamp
+          }
+        });
+      } else {
+        console.log(`[IPC] Suppressing note.updated event (silent mode)`);
+      }
 
       return result;
     }
@@ -721,6 +731,46 @@ app.whenReady().then(async () => {
       }
 
       return result;
+    }
+  );
+
+  // Note lifecycle tracking (for file watcher)
+  ipcMain.handle('note:opened', async (_event, params: { noteId: string }) => {
+    if (!noteService) {
+      console.warn('Note service not available for note:opened');
+      return { success: false };
+    }
+    const fileWatcher = noteService.getFileWatcher();
+    if (fileWatcher) {
+      fileWatcher.markNoteOpened(params.noteId);
+    }
+    return { success: true };
+  });
+
+  ipcMain.handle('note:closed', async (_event, params: { noteId: string }) => {
+    if (!noteService) {
+      console.warn('Note service not available for note:closed');
+      return { success: false };
+    }
+    const fileWatcher = noteService.getFileWatcher();
+    if (fileWatcher) {
+      fileWatcher.markNoteClosed(params.noteId);
+    }
+    return { success: true };
+  });
+
+  ipcMain.handle(
+    'note:expect-write',
+    async (_event, params: { noteId: string; contentHash: string }) => {
+      if (!noteService) {
+        console.warn('Note service not available for note:expect-write');
+        return { success: false };
+      }
+      const fileWatcher = noteService.getFileWatcher();
+      if (fileWatcher) {
+        fileWatcher.expectWrite(params.noteId, params.contentHash);
+      }
+      return { success: true };
     }
   );
 

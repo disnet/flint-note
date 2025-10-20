@@ -20,7 +20,9 @@
   let isProcessing = $state(false);
 
   $effect(() => {
-    titleValue = value;
+    if (titleValue !== value) {
+      titleValue = value;
+    }
   });
 
   async function handleSave(): Promise<void> {

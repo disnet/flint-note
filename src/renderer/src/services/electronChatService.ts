@@ -276,10 +276,17 @@ export class ElectronChatService implements ChatService, NoteService {
     identifier: string;
     content: string;
     metadata?: NoteMetadata;
+    silent?: boolean;
   }): Promise<UpdateResult> {
-    const { vaultId, identifier, content, metadata } = params;
+    const { vaultId, identifier, content, metadata, silent } = params;
     try {
-      return await window.api.updateNote({ vaultId, identifier, content, metadata });
+      return await window.api.updateNote({
+        vaultId,
+        identifier,
+        content,
+        metadata,
+        silent
+      });
     } catch (error) {
       console.error('Failed to update note:', error);
       throw new Error('Failed to update note. Please try again.');

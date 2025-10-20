@@ -99,6 +99,7 @@ export interface NoteService {
     content: string;
     vaultId?: string;
     metadata?: NoteMetadata;
+    silent?: boolean;
   }): Promise<UpdateResult>;
   deleteNote(params: { identifier: string; vaultId?: string }): Promise<DeleteNoteResult>;
   renameNote(params: {

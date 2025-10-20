@@ -855,6 +855,14 @@ export class NoteService {
         });
         break;
 
+      case 'external-edit-conflict':
+        publishNoteEvent({
+          type: 'file.external-edit-conflict',
+          noteId: event.noteId,
+          path: event.path
+        });
+        break;
+
       case 'sync-started':
         publishNoteEvent({
           type: 'file.sync-started',
@@ -876,5 +884,13 @@ export class NoteService {
         });
         break;
     }
+  }
+
+  /**
+   * Get the file watcher instance (if enabled)
+   * Used for note lifecycle tracking to prevent cursor jumps
+   */
+  getFileWatcher() {
+    return this.api.getFileWatcher();
   }
 }

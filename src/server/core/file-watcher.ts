@@ -9,6 +9,7 @@ import chokidar from 'chokidar';
 import type { FSWatcher } from 'chokidar';
 import path from 'path';
 import fs from 'fs/promises';
+import crypto from 'crypto';
 import type { HybridSearchManager } from '../database/search-manager.js';
 import type { NoteManager } from './notes.js';
 
@@ -31,6 +32,16 @@ interface RecentDeletion {
 }
 
 /**
+ * Tracks expected writes from the editor to distinguish auto-saves from external edits
+ */
+interface ExpectedWrite {
+  noteId: string;
+  contentHash: string;
+  timestamp: number;
+  cleanupTimeout: NodeJS.Timeout;
+}
+
+/**
  * Configuration for the file watcher
  */
 export interface FileWatcherConfig {
@@ -47,6 +58,7 @@ export type FileWatcherEvent =
   | { type: 'external-add'; path: string }
   | { type: 'external-delete'; path: string; noteId?: string }
   | { type: 'external-rename'; oldPath: string; newPath: string; noteId: string }
+  | { type: 'external-edit-conflict'; path: string; noteId: string }
   | { type: 'sync-started'; fileCount: number }
   | { type: 'sync-completed'; added: number; updated: number; deleted: number };
 
@@ -65,10 +77,15 @@ export class VaultFileWatcher {
   private recentDeletions = new Map<string, RecentDeletion>();
   private eventHandlers: FileWatcherEventHandler[] = [];
 
+  // Editor-aware tracking
+  private openNotes = new Set<string>(); // Notes currently open in editor
+  private expectedWrites = new Map<string, ExpectedWrite[]>(); // Expected writes from editor saves (array to handle rapid typing)
+
   private readonly DEBOUNCE_MS: number;
   private readonly RENAME_DETECTION_WINDOW_MS = 1000;
   private readonly OPERATION_CLEANUP_MS = 5000;
   private readonly WRITE_FLAG_CLEANUP_MS = 1000; // Keep write flag for 1000ms after completion to account for awaitWriteFinish (200ms) + debounce (100ms) + FS latency
+  private readonly EXPECTED_WRITE_TIMEOUT_MS = 2000; // Expected writes should complete within 2s
 
   constructor(
     private vaultPath: string,
@@ -121,6 +138,8 @@ export class VaultFileWatcher {
       return;
     }
 
+    console.log(`[FileWatcher] 🚀 Starting file watcher for vault: ${this.vaultPath}`);
+
     this.watcher = chokidar.watch(this.vaultPath, {
       ignored: [
         '**/.flint-note/**', // Flint's internal directory
@@ -147,7 +166,10 @@ export class VaultFileWatcher {
       .on('add', (filePath) => this.onFileAdded(filePath))
       .on('change', (filePath) => this.onFileChanged(filePath))
       .on('unlink', (filePath) => this.onFileDeleted(filePath))
-      .on('error', (error: unknown) => this.onError(error));
+      .on('error', (error: unknown) => this.onError(error))
+      .on('ready', () => {
+        console.log('[FileWatcher] ✅ Chokidar watcher is ready and watching for changes');
+      });
   }
 
   /**
@@ -173,9 +195,18 @@ export class VaultFileWatcher {
     }
     this.writeCleanupTimeouts.clear();
 
+    // Clear expected write cleanup timeouts
+    for (const writes of this.expectedWrites.values()) {
+      for (const write of writes) {
+        clearTimeout(write.cleanupTimeout);
+      }
+    }
+
     this.internalOperations.clear();
     this.ongoingWrites.clear();
     this.recentDeletions.clear();
+    this.openNotes.clear();
+    this.expectedWrites.clear();
   }
 
   /**
@@ -229,9 +260,99 @@ export class VaultFileWatcher {
   }
 
   /**
-   * Check if a file change is from an internal Flint operation
+   * Mark a note as open in the editor.
+   * While open, changes will be verified against expected writes to detect conflicts.
    */
-  private async isInternalChange(filePath: string): Promise<boolean> {
+  markNoteOpened(noteId: string): void {
+    this.openNotes.add(noteId);
+    console.log(`[FileWatcher] Note opened in editor: ${noteId}`);
+    console.log(`[FileWatcher] Open notes now: ${Array.from(this.openNotes).join(', ')}`);
+  }
+
+  /**
+   * Mark a note as closed in the editor.
+   * After closing, changes will be treated as normal external edits.
+   */
+  markNoteClosed(noteId: string): void {
+    this.openNotes.delete(noteId);
+    // Clean up any pending expected writes for this note
+    const expectedWrites = this.expectedWrites.get(noteId);
+    if (expectedWrites) {
+      // Clear all cleanup timeouts
+      for (const write of expectedWrites) {
+        clearTimeout(write.cleanupTimeout);
+      }
+      this.expectedWrites.delete(noteId);
+    }
+    console.log(`[FileWatcher] Note closed in editor: ${noteId}`);
+  }
+
+  /**
+   * Register an expected write from the editor.
+   * This allows distinguishing editor auto-saves from external edits to open notes.
+   * Call this BEFORE the editor saves the note.
+   */
+  expectWrite(noteId: string, contentHash: string): void {
+    // Get or create array of expected writes for this note
+    let expectedWrites = this.expectedWrites.get(noteId);
+    if (!expectedWrites) {
+      expectedWrites = [];
+      this.expectedWrites.set(noteId, expectedWrites);
+    }
+
+    // Create cleanup timeout that removes this specific write
+    const timeout = setTimeout(() => {
+      const writes = this.expectedWrites.get(noteId);
+      if (writes) {
+        const index = writes.findIndex((w) => w.contentHash === contentHash);
+        if (index !== -1) {
+          writes.splice(index, 1);
+          console.log(
+            `[FileWatcher] Expected write timeout for note ${noteId}, hash: ${contentHash.substring(0, 8)}...`
+          );
+          // Clean up empty arrays
+          if (writes.length === 0) {
+            this.expectedWrites.delete(noteId);
+          }
+        }
+      }
+    }, this.EXPECTED_WRITE_TIMEOUT_MS);
+
+    // Add this expected write to the array
+    expectedWrites.push({
+      noteId,
+      contentHash,
+      timestamp: Date.now(),
+      cleanupTimeout: timeout
+    });
+
+    console.log(
+      `[FileWatcher] Expecting write for note ${noteId}, hash: ${contentHash.substring(0, 8)}... (${expectedWrites.length} pending)`
+    );
+  }
+
+  /**
+   * Check if a note is currently open in the editor
+   */
+  private isNoteOpenInEditor(noteId: string): boolean {
+    return this.openNotes.has(noteId);
+  }
+
+  /**
+   * Compute SHA256 hash of content for comparison
+   */
+  private computeContentHash(content: string): string {
+    return crypto.createHash('sha256').update(content, 'utf8').digest('hex');
+  }
+
+  /**
+   * Check if a file change is from an internal Flint operation or handle conflicts
+   * Returns true if the change should be ignored (internal or conflict handled)
+   */
+  private async isInternalChange(
+    filePath: string,
+    content?: string
+  ): Promise<{ isInternal: boolean; isConflict: boolean }> {
     // Normalize the path the same way we do in markWriteStarting/markWriteComplete
     // to ensure we're checking the same key that was added to the Set
     const absolutePath = path.resolve(this.vaultPath, filePath);
@@ -239,7 +360,7 @@ export class VaultFileWatcher {
     // FIRST: Check if this file is currently being written by Flint
     // This is the most reliable check as the flag is set BEFORE the write
     if (this.ongoingWrites.has(absolutePath)) {
-      return true;
+      return { isInternal: true, isConflict: false };
     }
 
     // SECOND: Check for tracked operations (write/delete/rename)
@@ -247,11 +368,91 @@ export class VaultFileWatcher {
     if (op) {
       // Check if operation is still within the cleanup window
       if (Date.now() - op.startedAt < this.OPERATION_CLEANUP_MS) {
-        return true;
+        return { isInternal: true, isConflict: false };
       }
     }
 
-    return false;
+    // THIRD: Editor-aware change detection - check expected writes
+    const noteId = await this.getNoteIdFromPath(filePath);
+    console.log(`[FileWatcher] Checking change for file: ${filePath}`);
+    console.log(`[FileWatcher]   Note ID: ${noteId || 'NOT FOUND'}`);
+    console.log(`[FileWatcher]   Open notes: ${Array.from(this.openNotes).join(', ') || 'NONE'}`);
+
+    if (noteId) {
+      const expectedWrites = this.expectedWrites.get(noteId);
+      console.log(`[FileWatcher]   Expected writes for ${noteId}: ${expectedWrites?.length || 0}`);
+      console.log(`[FileWatcher]   Is note open? ${this.isNoteOpenInEditor(noteId)}`);
+
+      if (expectedWrites && expectedWrites.length > 0) {
+        // We have expected writes for this note - verify content hash
+        const fileContent = content || (await fs.readFile(filePath, 'utf-8'));
+        const actualHash = this.computeContentHash(fileContent);
+
+        console.log(`[FileWatcher] Change detected for note ${noteId}`);
+        console.log(`  Actual hash: ${actualHash.substring(0, 8)}...`);
+        console.log(`  Checking against ${expectedWrites.length} expected writes`);
+
+        // Check if this hash matches ANY expected write
+        const matchIndex = expectedWrites.findIndex((w) => w.contentHash === actualHash);
+
+        if (matchIndex !== -1) {
+          // This is one of the writes we expected - clean up and ignore
+          const matchedWrite = expectedWrites[matchIndex];
+          console.log(
+            `[FileWatcher] ✓ Ignoring expected write for note ${noteId}, hash: ${actualHash.substring(0, 8)}...`
+          );
+
+          // Clear timeout and remove this specific expected write
+          clearTimeout(matchedWrite.cleanupTimeout);
+          expectedWrites.splice(matchIndex, 1);
+
+          // Clean up empty arrays
+          if (expectedWrites.length === 0) {
+            this.expectedWrites.delete(noteId);
+          }
+
+          return { isInternal: true, isConflict: false };
+        } else {
+          // Content doesn't match any expected write!
+          // This is an external edit that happened while we had pending writes
+          console.warn(
+            `[FileWatcher] Hash mismatch - expected one of ${expectedWrites.length} hashes, got ${actualHash.substring(0, 8)}...`
+          );
+
+          if (this.isNoteOpenInEditor(noteId)) {
+            // Conflict: external edit to open note with unexpected content
+            console.warn(
+              `[FileWatcher] External edit conflict detected for open note: ${noteId}`
+            );
+            this.emit({
+              type: 'external-edit-conflict',
+              noteId,
+              path: filePath
+            });
+            return { isInternal: true, isConflict: true }; // Don't auto-sync, emit conflict
+          }
+
+          // Note is not open, treat as external change
+          return { isInternal: false, isConflict: false };
+        }
+      }
+
+      // No expected write, but note is open - unexpected change to open note
+      if (this.isNoteOpenInEditor(noteId)) {
+        console.warn(`[FileWatcher] ⚠️ CONFLICT: Unexpected external edit to open note: ${noteId}`);
+        this.emit({
+          type: 'external-edit-conflict',
+          noteId,
+          path: filePath
+        });
+        return { isInternal: true, isConflict: true }; // Don't auto-sync, emit conflict
+      } else {
+        console.log(`[FileWatcher] Note ${noteId} not open, treating as external change`);
+      }
+    }
+
+    console.log(`[FileWatcher] No noteId found or no special handling, treating as external change`);
+    return { isInternal: false, isConflict: false };
   }
 
   /**
@@ -304,13 +505,15 @@ export class VaultFileWatcher {
 
     this.debounceChange(filePath, async () => {
       try {
+        // Check if this is a renamed file by reading the note ID
+        const content = await fs.readFile(filePath, 'utf-8');
+
         // Check if this is an internal change
-        if (await this.isInternalChange(filePath)) {
+        const changeCheck = await this.isInternalChange(filePath, content);
+        if (changeCheck.isInternal) {
           return;
         }
 
-        // Check if this is a renamed file by reading the note ID
-        const content = await fs.readFile(filePath, 'utf-8');
         const noteId = this.extractNoteId(content);
 
         if (noteId) {
@@ -342,24 +545,32 @@ export class VaultFileWatcher {
    * Handle file changed event
    */
   private async onFileChanged(filePath: string): Promise<void> {
+    console.log(`[FileWatcher] 🔔 chokidar 'change' event fired for: ${filePath}`);
+
     // Only handle markdown files
     if (!filePath.endsWith('.md')) {
+      console.log(`[FileWatcher] Ignoring non-markdown file: ${filePath}`);
       return;
     }
 
     // Ignore internal metadata files
     if (this.isMetadataFile(filePath)) {
+      console.log(`[FileWatcher] Ignoring metadata file: ${filePath}`);
       return;
     }
 
+    console.log(`[FileWatcher] Debouncing change for: ${filePath}`);
     this.debounceChange(filePath, async () => {
       try {
-        // Check if this is an internal change
-        if (await this.isInternalChange(filePath)) {
+        const content = await fs.readFile(filePath, 'utf-8');
+
+        // Check if this is an internal change (including conflict detection)
+        const changeCheck = await this.isInternalChange(filePath, content);
+        if (changeCheck.isInternal) {
+          // If it's a conflict, the event was already emitted in isInternalChange
           return;
         }
 
-        const content = await fs.readFile(filePath, 'utf-8');
         const noteId = this.extractNoteId(content);
 
         this.emit({
@@ -469,13 +680,26 @@ export class VaultFileWatcher {
   private async getNoteIdFromPath(filePath: string): Promise<string | null> {
     try {
       const db = await this.searchManager.getDatabaseConnection();
+
+      // Convert absolute path to relative path (relative to vault root)
+      // The database stores paths relative to the vault root
       const absolutePath = path.resolve(filePath);
+      const relativePath = path.relative(this.vaultPath, absolutePath);
+
+      console.log(`[FileWatcher] Looking up note by path:`);
+      console.log(`[FileWatcher]   Input path: ${filePath}`);
+      console.log(`[FileWatcher]   Absolute path: ${absolutePath}`);
+      console.log(`[FileWatcher]   Relative path: ${relativePath}`);
+
       const note = await db.get<{ id: string }>('SELECT id FROM notes WHERE path = ?', [
-        absolutePath
+        relativePath
       ]);
 
+      console.log(`[FileWatcher]   Found note: ${note ? note.id : 'NULL'}`);
+
       return note?.id || null;
-    } catch {
+    } catch (error) {
+      console.error('[FileWatcher] Error getting note ID from path:', error);
       return null;
     }
   }

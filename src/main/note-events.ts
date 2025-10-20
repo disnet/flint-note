@@ -29,6 +29,7 @@ export type NoteEvent =
   | { type: 'file.external-add'; path: string }
   | { type: 'file.external-delete'; path: string; noteId?: string }
   | { type: 'file.external-rename'; oldPath: string; newPath: string; noteId: string }
+  | { type: 'file.external-edit-conflict'; noteId: string; path: string }
   | { type: 'file.sync-started'; fileCount: number }
   | { type: 'file.sync-completed'; added: number; updated: number; deleted: number };
 
