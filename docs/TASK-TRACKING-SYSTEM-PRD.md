@@ -30,7 +30,7 @@ The Task Tracking System enables collaborative task management between AI agents
 
 ### Non-Goals
 
-1. **Complex Scheduling:** No cron-like syntax or timezone-aware scheduling (initial version)
+1. **Complex Scheduling:** No cron-like syntax for complex schedules (initial version)
 2. **Task Dependencies:** No "task A must complete before task B" logic (can be added later)
 3. **External System Integration:** No calendar, email, or third-party task system sync
 4. **Multi-user Collaboration:** Tasks are scoped to a vault, not shared across users
@@ -105,13 +105,23 @@ interface RecurringSpec {
   dayOfWeek?: number;      // 0-6 for weekly (0=Sunday)
   dayOfMonth?: number;     // 1-31 for monthly
   time?: string;           // Optional "HH:MM" for specific time
+  timezone?: string;       // IANA timezone (e.g., "America/New_York", "Europe/London")
+                          // Defaults to system timezone if not specified
 }
 ```
 
 **Scheduling Logic:**
-- **Daily:** Task is due if 24+ hours have passed since last completion
-- **Weekly:** Task is due if 7+ days have passed AND current day matches `dayOfWeek`
-- **Monthly:** Task is due if 30+ days have passed AND current day matches `dayOfMonth`
+- All time calculations are performed in the task's specified timezone (or system timezone if not specified)
+- When a user specifies "5pm on Sunday", this is interpreted in their current timezone and stored with the task
+- **Daily:** Task is due if 24+ hours have passed since last completion (calculated in task's timezone)
+- **Weekly:** Task is due if 7+ days have passed AND current day matches `dayOfWeek` (in task's timezone)
+- **Monthly:** Task is due if 30+ days have passed AND current day matches `dayOfMonth` (in task's timezone)
+
+**Timezone Handling:**
+- Timezone conversions are handled in application code using a library like `date-fns-tz` or `luxon`
+- SQLite's datetime functions work in UTC; application layer converts to/from task's timezone
+- If no timezone is specified, the system's current timezone is used
+- UI should display task times in the task's configured timezone with a clear indicator (e.g., "5:00 PM EST")
 
 ### FR-3: Supplementary Materials
 
@@ -392,7 +402,7 @@ CREATE TABLE tasks (
   vault_id TEXT NOT NULL,
 
   -- Scheduling
-  recurring_spec TEXT,              -- JSON: {frequency, dayOfWeek?, dayOfMonth?, time?}
+  recurring_spec TEXT,              -- JSON: {frequency, dayOfWeek?, dayOfMonth?, time?, timezone?}
   due_date DATETIME,                -- For one-time tasks
   last_completed DATETIME,          -- Most recent completion
 
@@ -478,6 +488,8 @@ interface RecurringSpec {
   dayOfWeek?: number;               // 0-6 (0=Sunday)
   dayOfMonth?: number;              // 1-31
   time?: string;                    // "HH:MM" format
+  timezone?: string;                // IANA timezone (e.g., "America/New_York")
+                                    // Defaults to system timezone if not specified
 }
 
 interface SupplementaryMaterial {
@@ -1166,9 +1178,12 @@ ipcMain.handle('task:list', async (event, input?: ListTasksInput) => {
    - Example: "Monthly Archive" depends on "Weekly Reviews" being complete
    - Adds significant complexity
 
-5. **Time Zones:** Should recurring tasks be timezone-aware?
-   - Current design: No (runs based on system time)
-   - Alternative: Store timezone with task, adjust for user's current location
+5. **Time Zones:** ✅ **RESOLVED** - Recurring tasks will be timezone-aware
+   - **Decision:** Store timezone with task (IANA timezone identifier)
+   - When user specifies "5pm on Sunday", interpret in their current timezone
+   - Default to system timezone if not explicitly specified
+   - UI displays times with timezone indicator (e.g., "5:00 PM EST")
+   - Application layer handles timezone conversions using `date-fns-tz` or `luxon`
 
 ### Technical Questions
 
@@ -1235,7 +1250,7 @@ ipcMain.handle('task:list', async (event, input?: ListTasksInput) => {
 ### Advanced Scheduling
 - Cron-like syntax for complex schedules
 - "Every 2nd Monday" or "Last Friday of month"
-- Timezone-aware scheduling
+- Multi-timezone task execution (tasks that run in different timezones simultaneously)
 
 ### Task Analytics
 - Completion rate dashboards
@@ -1276,7 +1291,8 @@ ipcMain.handle('task:list', async (event, input?: ListTasksInput) => {
   "recurringSpec": {
     "frequency": "weekly",
     "dayOfWeek": 0,
-    "time": "18:00"
+    "time": "18:00",
+    "timezone": "America/New_York"
   },
   "supplementaryMaterials": [
     {
@@ -1299,7 +1315,8 @@ ipcMain.handle('task:list', async (event, input?: ListTasksInput) => {
   "description": "1. Check daily note for scheduled meetings\n2. For each meeting:\n   - Search for related project/context notes\n   - Create meeting note with pre-populated agenda\n   - Add background links to relevant previous meetings\n   - Flag action items from last meeting with same attendees\n3. Add all meeting notes to today's daily note",
   "recurringSpec": {
     "frequency": "daily",
-    "time": "08:00"
+    "time": "08:00",
+    "timezone": "America/Los_Angeles"
   },
   "supplementaryMaterials": [
     {
@@ -1350,7 +1367,8 @@ ipcMain.handle('task:list', async (event, input?: ListTasksInput) => {
   "recurringSpec": {
     "frequency": "monthly",
     "dayOfMonth": 1,
-    "time": "09:00"
+    "time": "09:00",
+    "timezone": "America/Chicago"
   },
   "supplementaryMaterials": [
     {
@@ -1374,7 +1392,8 @@ ipcMain.handle('task:list', async (event, input?: ListTasksInput) => {
   "recurringSpec": {
     "frequency": "monthly",
     "dayOfMonth": 28,
-    "time": "19:00"
+    "time": "19:00",
+    "timezone": "Europe/London"
   }
 }
 ```
@@ -1424,7 +1443,10 @@ const createTaskSchema = z.object({
     time: z.string()
       .regex(/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/)
       .optional()
-      .describe('Time in HH:MM format (24-hour)')
+      .describe('Time in HH:MM format (24-hour)'),
+    timezone: z.string()
+      .optional()
+      .describe('IANA timezone identifier (e.g., "America/New_York", "Europe/London"). Defaults to system timezone if not specified.')
   }).optional()
     .describe('Recurring schedule specification'),
 
@@ -1522,6 +1544,8 @@ const completeTaskSchema = z.object({
 
 ```sql
 -- Find tasks that should be executed now
+-- Note: This query returns candidates; application layer must convert
+-- to task's timezone and verify actual due status
 SELECT
   t.id,
   t.name,
