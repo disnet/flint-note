@@ -205,16 +205,17 @@
     justify-content: center;
     padding: 2rem;
     text-align: center;
-    color: var(--text-secondary, #666);
+    color: var(--text-muted);
   }
 
   .error {
-    color: var(--error, #e53e3e);
+    color: var(--error);
   }
 
   .empty-hint {
     font-size: 0.875rem;
     margin-top: 0.5rem;
+    color: var(--text-muted);
   }
 
   .workflow-items {
@@ -225,8 +226,8 @@
   }
 
   .workflow-item {
-    background: var(--surface, #fff);
-    border: 1px solid var(--border, #e2e8f0);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
     border-radius: 8px;
     padding: 1rem;
     cursor: pointer;
@@ -234,13 +235,14 @@
   }
 
   .workflow-item:hover {
-    border-color: var(--primary, #3b82f6);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border-color: var(--accent-primary);
+    box-shadow: 0 2px 8px var(--shadow-medium);
+    background: var(--bg-tertiary);
   }
 
   .workflow-item.selected {
-    border-color: var(--primary, #3b82f6);
-    background: var(--surface-hover, #f7fafc);
+    border-color: var(--accent-primary);
+    background: var(--bg-tertiary);
   }
 
   .workflow-header {
@@ -262,7 +264,7 @@
     font-size: 1rem;
     font-weight: 600;
     margin: 0;
-    color: var(--text-primary, #1a202c);
+    color: var(--text-primary);
   }
 
   .badges {
@@ -276,51 +278,60 @@
     padding: 0.25rem 0.5rem;
     border-radius: 4px;
     font-weight: 500;
+    border: 1px solid;
   }
 
   .badge-active {
-    background: var(--success-bg, #d4edda);
-    color: var(--success-text, #155724);
+    background: rgba(34, 197, 94, 0.15);
+    color: #22c55e;
+    border-color: #22c55e;
   }
 
   .badge-paused {
-    background: var(--warning-bg, #fff3cd);
-    color: var(--warning-text, #856404);
+    background: rgba(251, 191, 36, 0.15);
+    color: var(--warning);
+    border-color: var(--warning);
   }
 
   .badge-completed {
-    background: var(--info-bg, #d1ecf1);
-    color: var(--info-text, #0c5460);
+    background: rgba(59, 130, 246, 0.15);
+    color: var(--accent-primary);
+    border-color: var(--accent-primary);
   }
 
   .badge-archived {
-    background: var(--muted-bg, #e2e8f0);
-    color: var(--muted-text, #718096);
+    background: rgba(156, 163, 175, 0.15);
+    color: var(--text-muted);
+    border-color: var(--border-medium);
   }
 
   .badge-backlog {
-    background: var(--purple-bg, #e9d8fd);
-    color: var(--purple-text, #553c9a);
+    background: rgba(168, 85, 247, 0.15);
+    color: #a855f7;
+    border-color: #a855f7;
   }
 
   .badge-overdue {
-    background: var(--error-bg, #fed7d7);
-    color: var(--error-text, #c53030);
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--error);
+    border-color: var(--error);
   }
 
   .badge-due-now {
-    background: var(--warning-bg, #fef3c7);
-    color: var(--warning-text, #92400e);
+    background: rgba(251, 191, 36, 0.15);
+    color: var(--warning);
+    border-color: var(--warning);
   }
 
   .badge-upcoming {
-    background: var(--info-bg, #bfdbfe);
-    color: var(--info-text, #1e40af);
+    background: rgba(59, 130, 246, 0.15);
+    color: var(--accent-primary);
+    border-color: var(--accent-primary);
   }
 
   .workflow-purpose {
     font-size: 0.875rem;
-    color: var(--text-secondary, #4a5568);
+    color: var(--text-secondary);
     margin: 0 0 0.75rem 0;
     line-height: 1.5;
   }
@@ -341,19 +352,19 @@
 
   .info-badge {
     font-size: 0.75rem;
-    color: var(--text-tertiary, #718096);
+    color: var(--text-muted);
     display: flex;
     align-items: center;
     gap: 0.25rem;
   }
 
   .info-badge.recurring {
-    color: var(--primary, #3b82f6);
+    color: var(--accent-primary);
     font-weight: 500;
   }
 
   .info-badge.last-completed {
-    color: var(--text-tertiary, #718096);
+    color: var(--text-muted);
   }
 
   .btn-execute {
@@ -362,8 +373,8 @@
     gap: 0.375rem;
     padding: 0.375rem 0.75rem;
     font-size: 0.875rem;
-    background: var(--primary, #3b82f6);
-    color: white;
+    background: var(--accent-primary);
+    color: var(--text-on-accent);
     border: none;
     border-radius: 4px;
     cursor: pointer;
@@ -371,7 +382,7 @@
   }
 
   .btn-execute:hover {
-    background: var(--primary-dark, #2563eb);
+    background: var(--accent-hover);
   }
 
   .btn-execute:active {

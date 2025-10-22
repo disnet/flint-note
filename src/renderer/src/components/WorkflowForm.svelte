@@ -343,18 +343,19 @@
     display: flex;
     flex-direction: column;
     height: 100%;
-    background: var(--surface, #fff);
+    background: var(--bg-primary);
   }
 
   .form-header {
     padding: 1rem;
-    border-bottom: 1px solid var(--border, #e2e8f0);
+    border-bottom: 1px solid var(--border-light);
   }
 
   .form-header h2 {
     margin: 0;
     font-size: 1.25rem;
     font-weight: 600;
+    color: var(--text-primary);
   }
 
   form {
@@ -379,21 +380,21 @@
     font-size: 0.875rem;
     font-weight: 500;
     margin-bottom: 0.5rem;
-    color: var(--text-primary, #1a202c);
+    color: var(--text-primary);
   }
 
   .required {
-    color: var(--error, #e53e3e);
+    color: var(--error);
   }
 
   .char-count {
     float: right;
     font-size: 0.75rem;
-    color: var(--text-tertiary, #718096);
+    color: var(--text-muted);
   }
 
   .char-count.error {
-    color: var(--error, #e53e3e);
+    color: var(--error);
   }
 
   input[type='text'],
@@ -404,23 +405,25 @@
   textarea {
     width: 100%;
     padding: 0.5rem;
-    border: 1px solid var(--border, #e2e8f0);
+    border: 1px solid var(--border-light);
     border-radius: 4px;
     font-size: 0.875rem;
     font-family: inherit;
     transition: border-color 0.2s;
+    background: var(--bg-primary);
+    color: var(--text-primary);
   }
 
   input:focus,
   select:focus,
   textarea:focus {
     outline: none;
-    border-color: var(--primary, #3b82f6);
+    border-color: var(--accent-primary);
   }
 
   input.invalid,
   textarea.invalid {
-    border-color: var(--error, #e53e3e);
+    border-color: var(--error);
   }
 
   textarea {
@@ -431,14 +434,14 @@
   .field-error {
     display: block;
     font-size: 0.75rem;
-    color: var(--error, #e53e3e);
+    color: var(--error);
     margin-top: 0.25rem;
   }
 
   .field-hint {
     display: block;
     font-size: 0.75rem;
-    color: var(--text-tertiary, #718096);
+    color: var(--text-muted);
     margin-top: 0.25rem;
   }
 
@@ -462,9 +465,9 @@
 
   .schedule-details {
     padding: 1rem;
-    background: var(--surface-secondary, #f7fafc);
+    background: var(--bg-tertiary);
     border-radius: 6px;
-    border: 1px solid var(--border, #e2e8f0);
+    border: 1px solid var(--border-light);
   }
 
   .schedule-details label {
@@ -477,18 +480,19 @@
 
   .form-error {
     padding: 0.75rem;
-    background: var(--error-bg, #fed7d7);
-    color: var(--error-text, #c53030);
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--error);
     border-radius: 4px;
     font-size: 0.875rem;
     margin-top: 1rem;
+    border: 1px solid var(--error);
   }
 
   .form-actions {
     display: flex;
     gap: 0.75rem;
     padding: 1rem;
-    border-top: 1px solid var(--border, #e2e8f0);
+    border-top: 1px solid var(--border-light);
   }
 
   .btn-primary,
@@ -502,12 +506,12 @@
   }
 
   .btn-primary {
-    background: var(--primary, #3b82f6);
-    color: white;
+    background: var(--accent-primary);
+    color: var(--text-on-accent);
   }
 
   .btn-primary:hover:not(:disabled) {
-    background: var(--primary-dark, #2563eb);
+    background: var(--accent-hover);
   }
 
   .btn-primary:disabled {
@@ -516,13 +520,13 @@
   }
 
   .btn-secondary {
-    background: var(--surface-secondary, #f7fafc);
-    color: var(--text-primary, #1a202c);
-    border: 1px solid var(--border, #e2e8f0);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-light);
   }
 
   .btn-secondary:hover:not(:disabled) {
-    background: var(--surface-hover, #edf2f7);
+    background: var(--bg-tertiary);
   }
 
   .btn-secondary:disabled {

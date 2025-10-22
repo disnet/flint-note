@@ -292,7 +292,7 @@
     display: flex;
     flex-direction: column;
     height: 100%;
-    background: var(--surface, #fff);
+    background: var(--bg-primary);
   }
 
   .detail-header {
@@ -300,27 +300,28 @@
     align-items: center;
     justify-content: space-between;
     padding: 1rem;
-    border-bottom: 1px solid var(--border, #e2e8f0);
+    border-bottom: 1px solid var(--border-light);
   }
 
   .detail-header h2 {
     margin: 0;
     font-size: 1.25rem;
     font-weight: 600;
+    color: var(--text-primary);
   }
 
   .btn-close {
     background: none;
     border: none;
     cursor: pointer;
-    color: var(--text-secondary, #718096);
+    color: var(--text-muted);
     padding: 0.25rem;
     border-radius: 4px;
     transition: background 0.2s;
   }
 
   .btn-close:hover {
-    background: var(--surface-hover, #f7fafc);
+    background: var(--accent-light);
   }
 
   .loading,
@@ -331,18 +332,18 @@
     justify-content: center;
     padding: 2rem;
     text-align: center;
-    color: var(--text-secondary, #666);
+    color: var(--text-muted);
   }
 
   .error {
-    color: var(--error, #e53e3e);
+    color: var(--error);
   }
 
   .btn-retry {
     margin-top: 1rem;
     padding: 0.5rem 1rem;
-    background: var(--primary, #3b82f6);
-    color: white;
+    background: var(--accent-primary);
+    color: var(--text-on-accent);
     border: none;
     border-radius: 4px;
     cursor: pointer;
@@ -368,7 +369,7 @@
     margin: 0 0 0.75rem 0;
     font-size: 0.9375rem;
     font-weight: 600;
-    color: var(--text-secondary, #4a5568);
+    color: var(--text-secondary);
   }
 
   .title-row {
@@ -389,44 +390,50 @@
     padding: 0.25rem 0.5rem;
     border-radius: 4px;
     font-weight: 500;
+    border: 1px solid;
   }
 
   .badge-active {
-    background: var(--success-bg, #d4edda);
-    color: var(--success-text, #155724);
+    background: rgba(34, 197, 94, 0.15);
+    color: #22c55e;
+    border-color: #22c55e;
   }
 
   .badge-paused {
-    background: var(--warning-bg, #fff3cd);
-    color: var(--warning-text, #856404);
+    background: rgba(251, 191, 36, 0.15);
+    color: var(--warning);
+    border-color: var(--warning);
   }
 
   .badge-completed {
-    background: var(--info-bg, #d1ecf1);
-    color: var(--info-text, #0c5460);
+    background: rgba(59, 130, 246, 0.15);
+    color: var(--accent-primary);
+    border-color: var(--accent-primary);
   }
 
   .badge-archived {
-    background: var(--muted-bg, #e2e8f0);
-    color: var(--muted-text, #718096);
+    background: rgba(156, 163, 175, 0.15);
+    color: var(--text-muted);
+    border-color: var(--border-medium);
   }
 
   .badge-backlog {
-    background: var(--purple-bg, #e9d8fd);
-    color: var(--purple-text, #553c9a);
+    background: rgba(168, 85, 247, 0.15);
+    color: #a855f7;
+    border-color: #a855f7;
   }
 
   .purpose {
     font-size: 0.9375rem;
-    color: var(--text-secondary, #4a5568);
+    color: var(--text-secondary);
     line-height: 1.5;
   }
 
   .description {
     padding: 1rem;
-    background: var(--surface-secondary, #f7fafc);
+    background: var(--bg-tertiary);
     border-radius: 6px;
-    border: 1px solid var(--border, #e2e8f0);
+    border: 1px solid var(--border-light);
   }
 
   .schedule-info {
@@ -447,9 +454,9 @@
 
   .material-item {
     padding: 0.75rem;
-    background: var(--surface-secondary, #f7fafc);
+    background: var(--bg-tertiary);
     border-radius: 6px;
-    border: 1px solid var(--border, #e2e8f0);
+    border: 1px solid var(--border-light);
   }
 
   .material-header {
@@ -462,15 +469,16 @@
   .material-type {
     font-size: 0.75rem;
     padding: 0.25rem 0.5rem;
-    background: var(--primary-bg, #dbeafe);
-    color: var(--primary-text, #1e40af);
+    background: rgba(59, 130, 246, 0.15);
+    color: var(--accent-primary);
     border-radius: 4px;
     font-weight: 500;
+    border: 1px solid var(--accent-primary);
   }
 
   .material-description {
     font-size: 0.875rem;
-    color: var(--text-secondary, #4a5568);
+    color: var(--text-secondary);
   }
 
   .material-content {
@@ -490,7 +498,7 @@
 
   .material-note-ref {
     font-size: 0.75rem;
-    color: var(--text-tertiary, #718096);
+    color: var(--text-muted);
     margin-top: 0.5rem;
   }
 
@@ -502,9 +510,9 @@
 
   .completion-item {
     padding: 0.75rem;
-    background: var(--surface-secondary, #f7fafc);
+    background: var(--bg-tertiary);
     border-radius: 6px;
-    border: 1px solid var(--border, #e2e8f0);
+    border: 1px solid var(--border-light);
   }
 
   .completion-header {
@@ -517,27 +525,28 @@
   .completion-date {
     font-size: 0.875rem;
     font-weight: 500;
+    color: var(--text-primary);
   }
 
   .completion-duration {
     font-size: 0.75rem;
-    color: var(--text-secondary, #4a5568);
+    color: var(--text-secondary);
   }
 
   .completion-notes {
     font-size: 0.875rem;
     margin: 0.5rem 0 0 0;
-    color: var(--text-secondary, #4a5568);
+    color: var(--text-secondary);
   }
 
   .completion-output {
     font-size: 0.75rem;
-    color: var(--text-tertiary, #718096);
+    color: var(--text-muted);
   }
 
   .metadata {
     font-size: 0.875rem;
-    color: var(--text-secondary, #4a5568);
+    color: var(--text-secondary);
   }
 
   .metadata p {
@@ -548,7 +557,7 @@
     display: flex;
     gap: 0.75rem;
     padding: 1rem;
-    border-top: 1px solid var(--border, #e2e8f0);
+    border-top: 1px solid var(--border-light);
   }
 
   .btn-primary,
@@ -566,35 +575,35 @@
   }
 
   .btn-primary {
-    background: var(--primary, #3b82f6);
-    color: white;
+    background: var(--accent-primary);
+    color: var(--text-on-accent);
   }
 
   .btn-primary:hover {
-    background: var(--primary-dark, #2563eb);
+    background: var(--accent-hover);
   }
 
   .btn-secondary {
-    background: var(--surface-secondary, #f7fafc);
-    color: var(--text-primary, #1a202c);
-    border: 1px solid var(--border, #e2e8f0);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-light);
   }
 
   .btn-secondary:hover {
-    background: var(--surface-hover, #edf2f7);
+    background: var(--bg-tertiary);
   }
 
   .btn-danger {
-    background: var(--error, #e53e3e);
+    background: var(--error);
     color: white;
   }
 
   .btn-danger:hover {
-    background: var(--error-dark, #c53030);
+    background: var(--error-dark);
   }
 
   .btn-danger.confirming {
-    background: var(--error-dark, #c53030);
+    background: var(--error-dark);
     animation: pulse 0.5s ease-in-out;
   }
 

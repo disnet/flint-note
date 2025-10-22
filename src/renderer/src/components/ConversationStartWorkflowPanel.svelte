@@ -26,15 +26,26 @@
   );
 </script>
 
-{#if hasWorkflows}
-  <div class="conversation-start-workflows">
-    <div class="panel-header">
-      <h3>Available Workflows</h3>
-      {#if onViewAll}
-        <button class="btn-view-all" onclick={onViewAll}> View All → </button>
-      {/if}
-    </div>
+<div class="conversation-start-workflows">
+  <div class="panel-header">
+    <h3>Workflows</h3>
+    {#if onViewAll}
+      <button class="btn-view-all" onclick={onViewAll}> View All → </button>
+    {/if}
+  </div>
 
+  <p class="workflow-description">
+    Workflows are automated agents that help you maintain and organize your notes on a
+    schedule or on-demand. They can run tasks like reviewing notes, organizing content,
+    and generating summaries.
+  </p>
+
+  {#if !hasWorkflows}
+    <div class="empty-state">
+      <p class="empty-message">No workflows are currently available.</p>
+      <p class="empty-hint">Create workflows to automate note maintenance tasks.</p>
+    </div>
+  {:else}
     {#if workflowStore.workflowsDueNow.length > 0}
       <section class="workflow-section due-now">
         <h4>Due Now</h4>
@@ -103,16 +114,17 @@
         {/if}
       </section>
     {/if}
-  </div>
-{/if}
+  {/if}
+</div>
 
 <style>
   .conversation-start-workflows {
-    padding: 1rem;
-    background: var(--surface, #fff);
-    border: 1px solid var(--border, #e2e8f0);
+    padding: 1.25rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-light);
     border-radius: 8px;
     margin-bottom: 1rem;
+    box-shadow: 0 1px 3px var(--shadow-light);
   }
 
   .panel-header {
@@ -126,23 +138,56 @@
     margin: 0;
     font-size: 1.125rem;
     font-weight: 600;
-    color: var(--text-primary, #1a202c);
+    color: var(--text-primary);
   }
 
   .btn-view-all {
     background: none;
     border: none;
-    color: var(--primary, #3b82f6);
+    color: var(--accent-primary);
     font-size: 0.875rem;
     font-weight: 500;
     cursor: pointer;
     padding: 0.25rem 0.5rem;
     border-radius: 4px;
-    transition: background 0.2s;
+    transition: all 0.2s;
   }
 
   .btn-view-all:hover {
-    background: var(--surface-hover, #f7fafc);
+    background: var(--accent-light);
+    color: var(--accent-hover);
+  }
+
+  .workflow-description {
+    margin: 0 0 1rem 0;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    line-height: 1.6;
+    padding: 0.75rem;
+    background: var(--bg-tertiary);
+    border-radius: 6px;
+    border-left: 3px solid var(--accent-primary);
+  }
+
+  .empty-state {
+    padding: 2.5rem 1.5rem;
+    text-align: center;
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+    border: 1px dashed var(--border-medium);
+  }
+
+  .empty-message {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+
+  .empty-hint {
+    margin: 0;
+    font-size: 0.8125rem;
+    color: var(--text-muted);
   }
 
   .workflow-section {
@@ -157,13 +202,13 @@
     margin: 0 0 0.75rem 0;
     font-size: 0.875rem;
     font-weight: 600;
-    color: var(--text-secondary, #4a5568);
+    color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.025em;
   }
 
   .workflow-section.due-now h4 {
-    color: var(--error, #e53e3e);
+    color: var(--error);
   }
 
   .workflow-cards {
@@ -176,9 +221,9 @@
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    padding: 0.875rem;
-    background: var(--surface-secondary, #f7fafc);
-    border: 1px solid var(--border, #e2e8f0);
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
     border-radius: 6px;
     cursor: pointer;
     transition: all 0.2s;
@@ -186,9 +231,9 @@
   }
 
   .workflow-card:hover {
-    border-color: var(--primary, #3b82f6);
-    background: var(--surface, #fff);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border-color: var(--accent-primary);
+    background: var(--bg-tertiary);
+    box-shadow: 0 2px 8px var(--shadow-medium);
     transform: translateY(-1px);
   }
 
@@ -208,7 +253,7 @@
   .workflow-name {
     font-size: 0.9375rem;
     font-weight: 600;
-    color: var(--text-primary, #1a202c);
+    color: var(--text-primary);
   }
 
   .badge {
@@ -220,18 +265,20 @@
   }
 
   .badge-due {
-    background: var(--error-bg, #fed7d7);
-    color: var(--error-text, #c53030);
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--error);
+    border: 1px solid var(--error);
   }
 
   .badge-upcoming {
-    background: var(--info-bg, #bfdbfe);
-    color: var(--info-text, #1e40af);
+    background: rgba(59, 130, 246, 0.15);
+    color: var(--accent-primary);
+    border: 1px solid var(--accent-primary);
   }
 
   .workflow-purpose {
     font-size: 0.8125rem;
-    color: var(--text-secondary, #4a5568);
+    color: var(--text-secondary);
     line-height: 1.5;
     margin: 0 0 0.5rem 0;
     flex: 1;
@@ -239,13 +286,13 @@
 
   .last-completed {
     font-size: 0.75rem;
-    color: var(--text-tertiary, #718096);
+    color: var(--text-muted);
   }
 
   .more-hint {
     margin: 0.5rem 0 0 0;
     font-size: 0.75rem;
-    color: var(--text-tertiary, #718096);
+    color: var(--text-muted);
     text-align: center;
   }
 </style>

@@ -220,7 +220,7 @@
     display: flex;
     flex-direction: column;
     height: 100%;
-    background: var(--background, #f7fafc);
+    background: var(--bg-tertiary);
   }
 
   .management-header {
@@ -228,14 +228,15 @@
     align-items: center;
     justify-content: space-between;
     padding: 1rem 1.5rem;
-    background: var(--surface, #fff);
-    border-bottom: 1px solid var(--border, #e2e8f0);
+    background: var(--bg-primary);
+    border-bottom: 1px solid var(--border-light);
   }
 
   .management-header h1 {
     margin: 0;
     font-size: 1.5rem;
     font-weight: 600;
+    color: var(--text-primary);
   }
 
   .header-actions {
@@ -257,31 +258,31 @@
   }
 
   .btn-refresh {
-    background: var(--surface-secondary, #f7fafc);
-    color: var(--text-primary, #1a202c);
-    border: 1px solid var(--border, #e2e8f0);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-light);
     padding: 0.5rem;
   }
 
   .btn-refresh:hover {
-    background: var(--surface-hover, #edf2f7);
+    background: var(--bg-tertiary);
   }
 
   .btn-create {
-    background: var(--primary, #3b82f6);
-    color: white;
+    background: var(--accent-primary);
+    color: var(--text-on-accent);
   }
 
   .btn-create:hover {
-    background: var(--primary-dark, #2563eb);
+    background: var(--accent-hover);
   }
 
   .tabs {
     display: flex;
     gap: 0.5rem;
     padding: 0 1.5rem;
-    background: var(--surface, #fff);
-    border-bottom: 1px solid var(--border, #e2e8f0);
+    background: var(--bg-primary);
+    border-bottom: 1px solid var(--border-light);
   }
 
   .tab {
@@ -295,24 +296,24 @@
     cursor: pointer;
     font-size: 0.875rem;
     font-weight: 500;
-    color: var(--text-secondary, #718096);
+    color: var(--text-muted);
     transition: all 0.2s;
   }
 
   .tab:hover {
-    color: var(--text-primary, #1a202c);
-    background: var(--surface-hover, #f7fafc);
+    color: var(--text-primary);
+    background: var(--accent-light);
   }
 
   .tab.active {
-    color: var(--primary, #3b82f6);
-    border-bottom-color: var(--primary, #3b82f6);
+    color: var(--accent-primary);
+    border-bottom-color: var(--accent-primary);
   }
 
   .tab .badge {
     font-size: 0.75rem;
     padding: 0.125rem 0.5rem;
-    background: var(--error, #e53e3e);
+    background: var(--error);
     color: white;
     border-radius: 12px;
     font-weight: 600;
@@ -322,8 +323,8 @@
     display: flex;
     gap: 1rem;
     padding: 0.75rem 1.5rem;
-    background: var(--surface, #fff);
-    border-bottom: 1px solid var(--border, #e2e8f0);
+    background: var(--bg-primary);
+    border-bottom: 1px solid var(--border-light);
   }
 
   .filter-group {
@@ -339,16 +340,18 @@
   .filter-group label {
     font-size: 0.875rem;
     font-weight: 500;
-    color: var(--text-secondary, #4a5568);
+    color: var(--text-secondary);
   }
 
   .filter-group select,
   .filter-group input {
     padding: 0.375rem 0.75rem;
-    border: 1px solid var(--border, #e2e8f0);
+    border: 1px solid var(--border-light);
     border-radius: 4px;
     font-size: 0.875rem;
     font-family: inherit;
+    background: var(--bg-primary);
+    color: var(--text-primary);
   }
 
   .filter-group input {
@@ -358,7 +361,7 @@
   .filter-group select:focus,
   .filter-group input:focus {
     outline: none;
-    border-color: var(--primary, #3b82f6);
+    border-color: var(--accent-primary);
   }
 
   .management-content {
@@ -372,18 +375,20 @@
   .list-panel {
     flex: 1;
     min-width: 0;
-    background: var(--surface, #fff);
-    border: 1px solid var(--border, #e2e8f0);
+    background: var(--bg-primary);
+    border: 1px solid var(--border-light);
     border-radius: 8px;
     overflow: hidden;
+    box-shadow: 0 1px 3px var(--shadow-light);
   }
 
   .detail-panel {
     width: 400px;
-    background: var(--surface, #fff);
-    border: 1px solid var(--border, #e2e8f0);
+    background: var(--bg-primary);
+    border: 1px solid var(--border-light);
     border-radius: 8px;
     overflow: hidden;
+    box-shadow: 0 1px 3px var(--shadow-light);
   }
 
   @media (max-width: 1024px) {
