@@ -447,4 +447,351 @@ describe('WorkflowManager - Supplementary Materials', () => {
       expect(updated.supplementaryMaterials?.[19].content).toBe('Material 19');
     });
   });
+
+  describe('Material Size Validation', () => {
+    describe('Individual Material Size Limit (50KB)', () => {
+      it('should reject material with content exceeding 50KB', async () => {
+        const workflow = await workflowManager.createWorkflow(testVaultId, {
+          name: 'Test Workflow',
+          purpose: 'Test',
+          description: 'Test'
+        });
+
+        // Create a string slightly over 50KB
+        const largeContent = 'x'.repeat(51 * 1024);
+
+        await expect(
+          workflowManager.addSupplementaryMaterial(workflow.id, {
+            materialType: 'text',
+            content: largeContent,
+            position: 0
+          })
+        ).rejects.toThrow(/Material size.*exceeds maximum allowed size of 50.00 KB/);
+      });
+
+      it('should accept material with content exactly at 50KB limit', async () => {
+        const workflow = await workflowManager.createWorkflow(testVaultId, {
+          name: 'Test Workflow',
+          purpose: 'Test',
+          description: 'Test'
+        });
+
+        // Create a string exactly 50KB
+        const content = 'x'.repeat(50 * 1024);
+
+        const materialId = await workflowManager.addSupplementaryMaterial(workflow.id, {
+          materialType: 'text',
+          content,
+          position: 0
+        });
+
+        expect(materialId).toMatch(/^wm-[a-f0-9]{8}$/);
+      });
+
+      it('should accept material with content just under 50KB limit', async () => {
+        const workflow = await workflowManager.createWorkflow(testVaultId, {
+          name: 'Test Workflow',
+          purpose: 'Test',
+          description: 'Test'
+        });
+
+        // Create a string just under 50KB
+        const content = 'x'.repeat(49 * 1024);
+
+        const materialId = await workflowManager.addSupplementaryMaterial(workflow.id, {
+          materialType: 'text',
+          content,
+          position: 0
+        });
+
+        expect(materialId).toMatch(/^wm-[a-f0-9]{8}$/);
+      });
+
+      it('should include metadata size in validation', async () => {
+        const workflow = await workflowManager.createWorkflow(testVaultId, {
+          name: 'Test Workflow',
+          purpose: 'Test',
+          description: 'Test'
+        });
+
+        // Create content that's just under 50KB
+        const content = 'x'.repeat(49 * 1024);
+        // Add metadata that pushes total over 50KB
+        const metadata = { largeField: 'y'.repeat(2 * 1024) };
+
+        await expect(
+          workflowManager.addSupplementaryMaterial(workflow.id, {
+            materialType: 'code',
+            content,
+            metadata,
+            position: 0
+          })
+        ).rejects.toThrow(/Material size.*exceeds maximum allowed size of 50.00 KB/);
+      });
+
+      it('should reject material during workflow creation if exceeds 50KB', async () => {
+        const largeContent = 'x'.repeat(51 * 1024);
+
+        await expect(
+          workflowManager.createWorkflow(testVaultId, {
+            name: 'Test Workflow',
+            purpose: 'Test',
+            description: 'Test',
+            supplementaryMaterials: [
+              {
+                type: 'text',
+                content: largeContent
+              }
+            ]
+          })
+        ).rejects.toThrow(/Material size.*exceeds maximum allowed size of 50.00 KB/);
+      });
+    });
+
+    describe('Total Materials Size Limit (500KB)', () => {
+      it('should reject adding material that would exceed 500KB total', async () => {
+        const workflow = await workflowManager.createWorkflow(testVaultId, {
+          name: 'Test Workflow',
+          purpose: 'Test',
+          description: 'Test'
+        });
+
+        // Add materials totaling close to 500KB
+        // Add 10 materials of 49KB each = 490KB
+        for (let i = 0; i < 10; i++) {
+          await workflowManager.addSupplementaryMaterial(workflow.id, {
+            materialType: 'text',
+            content: 'x'.repeat(49 * 1024),
+            position: i
+          });
+        }
+
+        // Try to add one more 20KB material (would total 510KB)
+        await expect(
+          workflowManager.addSupplementaryMaterial(workflow.id, {
+            materialType: 'text',
+            content: 'x'.repeat(20 * 1024),
+            position: 10
+          })
+        ).rejects.toThrow(/Adding this material would exceed the total materials size limit/);
+      });
+
+      it('should allow adding material up to 500KB total', async () => {
+        const workflow = await workflowManager.createWorkflow(testVaultId, {
+          name: 'Test Workflow',
+          purpose: 'Test',
+          description: 'Test'
+        });
+
+        // Add materials totaling exactly 500KB
+        // Add 10 materials of 50KB each = 500KB
+        for (let i = 0; i < 10; i++) {
+          const materialId = await workflowManager.addSupplementaryMaterial(workflow.id, {
+            materialType: 'text',
+            content: 'x'.repeat(50 * 1024),
+            position: i
+          });
+          expect(materialId).toMatch(/^wm-[a-f0-9]{8}$/);
+        }
+
+        const updated = await workflowManager.getWorkflow({
+          workflowId: workflow.id,
+          includeSupplementaryMaterials: true
+        });
+
+        expect(updated.supplementaryMaterials).toHaveLength(10);
+      });
+
+      it('should reject workflow creation if total materials exceed 500KB', async () => {
+        // Create 11 materials of 49KB each = 539KB
+        const materials = Array.from({ length: 11 }, (_, i) => ({
+          type: 'text' as const,
+          content: 'x'.repeat(49 * 1024)
+        }));
+
+        await expect(
+          workflowManager.createWorkflow(testVaultId, {
+            name: 'Test Workflow',
+            purpose: 'Test',
+            description: 'Test',
+            supplementaryMaterials: materials
+          })
+        ).rejects.toThrow(/Total materials size.*exceeds maximum allowed size of 500.00 KB/);
+      });
+
+      it('should allow workflow creation with materials just under 500KB', async () => {
+        // Create 10 materials of 49KB each = 490KB
+        const materials = Array.from({ length: 10 }, (_, i) => ({
+          type: 'text' as const,
+          content: 'x'.repeat(49 * 1024),
+          metadata: { index: i }
+        }));
+
+        const workflow = await workflowManager.createWorkflow(testVaultId, {
+          name: 'Test Workflow',
+          purpose: 'Test',
+          description: 'Test',
+          supplementaryMaterials: materials
+        });
+
+        expect(workflow.supplementaryMaterials).toHaveLength(10);
+      });
+
+      it('should correctly calculate total size with mixed material types', async () => {
+        const workflow = await workflowManager.createWorkflow(testVaultId, {
+          name: 'Test Workflow',
+          purpose: 'Test',
+          description: 'Test'
+        });
+
+        // Add 6 text materials of 40KB each = 240KB
+        for (let i = 0; i < 6; i++) {
+          await workflowManager.addSupplementaryMaterial(workflow.id, {
+            materialType: 'text',
+            content: 'x'.repeat(40 * 1024),
+            position: i
+          });
+        }
+
+        // Add 6 code materials of 40KB each = 240KB (total now 480KB)
+        for (let i = 6; i < 12; i++) {
+          await workflowManager.addSupplementaryMaterial(workflow.id, {
+            materialType: 'code',
+            content: 'y'.repeat(40 * 1024),
+            metadata: { language: 'javascript' },
+            position: i
+          });
+        }
+
+        // Should be able to add one more 10KB material (total 490KB)
+        const materialId = await workflowManager.addSupplementaryMaterial(workflow.id, {
+          materialType: 'text',
+          content: 'z'.repeat(10 * 1024),
+          position: 12
+        });
+
+        expect(materialId).toMatch(/^wm-[a-f0-9]{8}$/);
+
+        // Should fail to add another 20KB material (would total 510KB, exceeding 500KB limit)
+        await expect(
+          workflowManager.addSupplementaryMaterial(workflow.id, {
+            materialType: 'text',
+            content: 'a'.repeat(20 * 1024),
+            position: 13
+          })
+        ).rejects.toThrow(/Adding this material would exceed the total materials size limit/);
+      });
+    });
+
+    describe('Note Reference Materials', () => {
+      it('should allow note_reference materials without content (minimal size)', async () => {
+        const workflow = await workflowManager.createWorkflow(testVaultId, {
+          name: 'Test Workflow',
+          purpose: 'Test',
+          description: 'Test'
+        });
+
+        // Add materials totaling just under 500KB
+        // Add 10 materials of 49KB each = 490KB
+        for (let i = 0; i < 10; i++) {
+          await workflowManager.addSupplementaryMaterial(workflow.id, {
+            materialType: 'text',
+            content: 'x'.repeat(49 * 1024),
+            position: i
+          });
+        }
+
+        // Should be able to add note_reference with small metadata (no content)
+        // Metadata size is minimal, so it fits within remaining space
+        const materialId = await workflowManager.addSupplementaryMaterial(workflow.id, {
+          materialType: 'note_reference',
+          noteId: 'n-12345678',
+          metadata: { description: 'Reference to another note' },
+          position: 10
+        });
+
+        expect(materialId).toMatch(/^wm-[a-f0-9]{8}$/);
+      });
+
+      it('should count metadata of note_reference materials', async () => {
+        const workflow = await workflowManager.createWorkflow(testVaultId, {
+          name: 'Test Workflow',
+          purpose: 'Test',
+          description: 'Test'
+        });
+
+        // Note references with large metadata should still be validated
+        // Create metadata that's over 50KB
+        const largeMetadata = {
+          description: 'x'.repeat(51 * 1024)
+        };
+
+        await expect(
+          workflowManager.addSupplementaryMaterial(workflow.id, {
+            materialType: 'note_reference',
+            noteId: 'n-12345678',
+            metadata: largeMetadata,
+            position: 0
+          })
+        ).rejects.toThrow(/Material size.*exceeds maximum allowed size/);
+      });
+    });
+
+    describe('Error Messages', () => {
+      it('should provide clear error message with current and limit sizes', async () => {
+        const workflow = await workflowManager.createWorkflow(testVaultId, {
+          name: 'Test Workflow',
+          purpose: 'Test',
+          description: 'Test'
+        });
+
+        const largeContent = 'x'.repeat(60 * 1024); // 60KB
+
+        try {
+          await workflowManager.addSupplementaryMaterial(workflow.id, {
+            materialType: 'text',
+            content: largeContent,
+            position: 0
+          });
+          expect.fail('Should have thrown error');
+        } catch (error: any) {
+          expect(error.message).toContain('60.00 KB');
+          expect(error.message).toContain('50.00 KB');
+          expect(error.message).toContain('exceeds maximum allowed size');
+        }
+      });
+
+      it('should show current, new, and limit in total size error', async () => {
+        const workflow = await workflowManager.createWorkflow(testVaultId, {
+          name: 'Test Workflow',
+          purpose: 'Test',
+          description: 'Test'
+        });
+
+        // Add 490KB (10 materials of 49KB each)
+        for (let i = 0; i < 10; i++) {
+          await workflowManager.addSupplementaryMaterial(workflow.id, {
+            materialType: 'text',
+            content: 'x'.repeat(49 * 1024),
+            position: i
+          });
+        }
+
+        // Try to add 20KB more (would exceed 500KB total)
+        try {
+          await workflowManager.addSupplementaryMaterial(workflow.id, {
+            materialType: 'text',
+            content: 'x'.repeat(20 * 1024),
+            position: 10
+          });
+          expect.fail('Should have thrown error');
+        } catch (error: any) {
+          expect(error.message).toContain('Current:');
+          expect(error.message).toContain('New material:');
+          expect(error.message).toContain('Limit:');
+          expect(error.message).toContain('500.00 KB');
+        }
+      });
+    });
+  });
 });

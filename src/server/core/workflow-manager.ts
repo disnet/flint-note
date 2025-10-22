@@ -46,6 +46,40 @@ function generateMaterialId(): string {
 }
 
 /**
+ * Size limits for supplementary materials
+ */
+const MAX_INDIVIDUAL_MATERIAL_SIZE = 50 * 1024; // 50KB
+const MAX_TOTAL_MATERIALS_SIZE = 500 * 1024; // 500KB
+
+/**
+ * Calculate the size of a material's content in bytes
+ */
+function calculateMaterialSize(material: { content?: string; metadata?: unknown }): number {
+  let size = 0;
+
+  // Count content size (UTF-8 encoding)
+  if (material.content) {
+    size += Buffer.byteLength(material.content, 'utf8');
+  }
+
+  // Count metadata size when serialized
+  if (material.metadata) {
+    size += Buffer.byteLength(JSON.stringify(material.metadata), 'utf8');
+  }
+
+  return size;
+}
+
+/**
+ * Format bytes as human-readable string
+ */
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} bytes`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+/**
  * Convert workflow row from database to domain model
  */
 function workflowRowToModel(row: WorkflowRow): Workflow {
@@ -186,6 +220,32 @@ export class WorkflowManager {
 
     // Add supplementary materials if provided
     if (input.supplementaryMaterials && input.supplementaryMaterials.length > 0) {
+      // Validate individual material sizes and calculate total
+      let totalSize = 0;
+      for (const material of input.supplementaryMaterials) {
+        const materialSize = calculateMaterialSize({
+          content: material.content,
+          metadata: material.metadata
+        });
+
+        // Validate individual material size
+        if (materialSize > MAX_INDIVIDUAL_MATERIAL_SIZE) {
+          throw new Error(
+            `Material size (${formatBytes(materialSize)}) exceeds maximum allowed size of ${formatBytes(MAX_INDIVIDUAL_MATERIAL_SIZE)}`
+          );
+        }
+
+        totalSize += materialSize;
+      }
+
+      // Validate total materials size
+      if (totalSize > MAX_TOTAL_MATERIALS_SIZE) {
+        throw new Error(
+          `Total materials size (${formatBytes(totalSize)}) exceeds maximum allowed size of ${formatBytes(MAX_TOTAL_MATERIALS_SIZE)}`
+        );
+      }
+
+      // Insert materials
       for (let i = 0; i < input.supplementaryMaterials.length; i++) {
         const material = input.supplementaryMaterials[i];
         const materialId = generateMaterialId();
@@ -568,6 +628,23 @@ export class WorkflowManager {
   }
 
   /**
+   * Get total size of all materials for a workflow
+   */
+  private async getTotalMaterialsSize(workflowId: string): Promise<number> {
+    const materials = await this.db.all<SupplementaryMaterialRow>(
+      'SELECT content, metadata FROM workflow_supplementary_materials WHERE workflow_id = ?',
+      [workflowId]
+    );
+
+    return materials.reduce((total, material) => {
+      return total + calculateMaterialSize({
+        content: material.content || undefined,
+        metadata: material.metadata ? JSON.parse(material.metadata) : undefined
+      });
+    }, 0);
+  }
+
+  /**
    * Add supplementary material to a workflow
    */
   async addSupplementaryMaterial(
@@ -582,6 +659,27 @@ export class WorkflowManager {
 
     if (!workflow) {
       throw new Error(`Workflow not found: ${workflowId}`);
+    }
+
+    // Validate individual material size (for materials with content or metadata)
+    if (material.content || material.metadata) {
+      const materialSize = calculateMaterialSize(material);
+      if (materialSize > MAX_INDIVIDUAL_MATERIAL_SIZE) {
+        throw new Error(
+          `Material size (${formatBytes(materialSize)}) exceeds maximum allowed size of ${formatBytes(MAX_INDIVIDUAL_MATERIAL_SIZE)}`
+        );
+      }
+    }
+
+    // Validate total workflow materials size
+    const currentTotalSize = await this.getTotalMaterialsSize(workflowId);
+    const newMaterialSize = calculateMaterialSize(material);
+    const newTotalSize = currentTotalSize + newMaterialSize;
+
+    if (newTotalSize > MAX_TOTAL_MATERIALS_SIZE) {
+      throw new Error(
+        `Adding this material would exceed the total materials size limit. Current: ${formatBytes(currentTotalSize)}, New material: ${formatBytes(newMaterialSize)}, Limit: ${formatBytes(MAX_TOTAL_MATERIALS_SIZE)}`
+      );
     }
 
     // Get current max position
