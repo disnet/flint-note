@@ -72,6 +72,9 @@ As a user, I want to click a task in the UI and have it send an execution messag
 **US-10: Archive Completed Tasks**
 As a user, I want to archive one-time tasks after completion, so my active task list stays focused.
 
+**US-11: Transparent Backlog Discovery**
+As a user, I want the agent to silently record issues it discovers while doing other work (broken links, inconsistencies, etc.) in a backlog, so I'm not interrupted but can review them later.
+
 ---
 
 ## Functional Requirements
@@ -85,6 +88,7 @@ Each task must contain:
 - **purpose** (string, max 100 chars): One-sentence description of what the task accomplishes
 - **description** (string, unlimited): Detailed step-by-step instructions for execution
 - **status** (enum): `active`, `paused`, `completed`, `archived`
+- **type** (enum): `workflow`, `backlog` (default: `workflow`)
 - **vault_id** (string): Which vault this task belongs to
 - **created_at** (datetime): When task was created
 - **updated_at** (datetime): Last modification time
@@ -94,6 +98,10 @@ Optional fields:
 - **due_date** (datetime): One-time due date for non-recurring tasks
 - **last_completed** (datetime): Most recent completion timestamp
 - **supplementary_materials** (array): Attached context, templates, code snippets
+
+**Task Type Semantics:**
+- **workflow**: Intentional, structured workflows (weekly summaries, meeting prep, etc.). Primary use case. Shows in main task list.
+- **backlog**: Items discovered opportunistically during other work (broken links, cleanup opportunities, agent suggestions). Shows in separate backlog view for later review.
 
 ### FR-2: Recurring Task Specification
 
@@ -184,9 +192,22 @@ Lightweight summary added to vault context:
 
 ### Paused Tasks (2)
 [Not listed in context to save tokens]
+
+### Backlog Items (5)
+[Not listed in context to save tokens - user can review separately]
 ```
 
 **Token Budget:** Max 500 tokens for task index
+
+**Agent Behavior Guidelines:**
+
+When you discover issues during other work (broken links, inconsistencies, potential improvements, cleanup opportunities):
+- Create tasks with `type='backlog'`
+- Do NOT interrupt the user or mention these discoveries
+- Silently record them for later review
+- Continue with your primary task
+
+The user can review backlog items later in a dedicated UI section.
 
 **Tier 2: Task Details (Loaded On-Demand)**
 
@@ -252,6 +273,10 @@ The following tools must be available to agents:
 
 Primary interface for viewing and managing all tasks:
 
+- **Tabs:**
+  - **Workflows** (default): Shows `type='workflow'` tasks
+  - **Backlog**: Shows `type='backlog'` tasks with count badge
+
 - **List View:** Display tasks grouped by status
   - Columns: Name, Purpose, Type (recurring/one-time), Last Completed, Due Date/Schedule
   - Filters: Status (active/paused/completed/archived), Type (recurring/one-time)
@@ -263,6 +288,7 @@ Primary interface for viewing and managing all tasks:
   - Show completion history (last 10 completions)
   - Show supplementary materials (expandable)
   - Actions: Edit, Execute, Pause/Resume, Archive, Delete
+  - Backlog-specific actions: Promote to Workflow, Dismiss
 
 - **Create/Edit Form:**
   - Name input (max 20 chars, real-time validation)
@@ -389,6 +415,8 @@ CREATE TABLE tasks (
   description TEXT NOT NULL,        -- Unlimited markdown
   status TEXT NOT NULL DEFAULT 'active'
     CHECK (status IN ('active', 'paused', 'completed', 'archived')),
+  type TEXT NOT NULL DEFAULT 'workflow'
+    CHECK (type IN ('workflow', 'backlog')),
   vault_id TEXT NOT NULL,
 
   -- Scheduling
@@ -405,6 +433,7 @@ CREATE TABLE tasks (
 
 -- Indexes for common queries
 CREATE INDEX idx_tasks_vault_status ON tasks(vault_id, status);
+CREATE INDEX idx_tasks_vault_type ON tasks(vault_id, type);
 CREATE INDEX idx_tasks_due_date ON tasks(due_date) WHERE due_date IS NOT NULL;
 CREATE INDEX idx_tasks_last_completed ON tasks(last_completed) WHERE last_completed IS NOT NULL;
 CREATE INDEX idx_tasks_vault_recurring ON tasks(vault_id, recurring_spec) WHERE recurring_spec IS NOT NULL;
@@ -455,6 +484,7 @@ interface Task {
   purpose: string;                  // Max 100 chars
   description: string;              // Markdown
   status: TaskStatus;
+  type: TaskType;
   vaultId: string;
 
   // Scheduling
@@ -472,6 +502,7 @@ interface Task {
 }
 
 type TaskStatus = 'active' | 'paused' | 'completed' | 'archived';
+type TaskType = 'workflow' | 'backlog';
 
 interface RecurringSpec {
   frequency: 'daily' | 'weekly' | 'monthly';
@@ -514,6 +545,7 @@ interface TaskListItem {
   name: string;
   purpose: string;
   status: TaskStatus;
+  type: TaskType;
   isRecurring: boolean;
   dueInfo?: {
     type: 'overdue' | 'due_now' | 'upcoming' | 'scheduled';
@@ -529,6 +561,7 @@ interface CreateTaskInput {
   purpose: string;
   description: string;
   status?: TaskStatus;
+  type?: TaskType;  // Default: 'workflow'
   recurringSpec?: RecurringSpec;
   dueDate?: string;
   supplementaryMaterials?: Array<{
@@ -545,6 +578,7 @@ interface UpdateTaskInput {
   purpose?: string;
   description?: string;
   status?: TaskStatus;
+  type?: TaskType;
   recurringSpec?: RecurringSpec | null;
   dueDate?: string | null;
 }
@@ -561,6 +595,7 @@ interface CompleteTaskInput {
 
 interface ListTasksInput {
   status?: TaskStatus | 'all';
+  type?: TaskType | 'all';          // Filter by task type
   dueSoon?: boolean;                // Tasks due in next 7 days
   recurringOnly?: boolean;
   overdueOnly?: boolean;
@@ -1222,6 +1257,27 @@ ipcMain.handle('task:list', async (event, input?: ListTasksInput) => {
 
 ## Future Enhancements (Post-V1)
 
+### Extended Task Types
+Beyond the initial two-type system (`workflow` and `backlog`), consider adding more granular types:
+
+```typescript
+type TaskType =
+  | 'workflow'      // V1: Intentional, structured workflows
+  | 'backlog'       // V1: Discovered items and suggestions
+  | 'maintenance'   // Future: Cleanup, housekeeping, optimization
+  | 'suggestion';   // Future: Agent-proposed, awaiting user approval
+```
+
+**Benefits:**
+- `maintenance`: Separate cleanup tasks from discovered issues
+- `suggestion`: Agent can propose tasks requiring explicit user approval before becoming active
+- Better organization and filtering in UI
+
+**Implementation:**
+- Update CHECK constraint in database
+- Add UI sections for each type
+- System prompt guidance for when to use each type
+
 ### Task Dependencies
 - Define "depends on" relationships between tasks
 - Block execution until dependencies complete
@@ -1379,6 +1435,42 @@ ipcMain.handle('task:list', async (event, input?: ListTasksInput) => {
 }
 ```
 
+### Example 6: Fix Broken Links (Backlog - Discovered)
+
+```json
+{
+  "name": "Fix Broken Links",
+  "purpose": "Repair 5 broken note references found in daily notes",
+  "type": "backlog",
+  "description": "Discovered broken links while summarizing daily notes:\n\n1. Oct 15 daily note:\n   - Link to 'Project Alpha Planning' note (deleted)\n   - Should link to 'Project Alpha/Overview' instead\n\n2. Oct 17 daily note:\n   - Two links to 'Meeting Notes - Q3 Review' (moved)\n   - Now located at 'Archive/2024/Q3/Meeting Notes'\n\n3. Oct 19 daily note:\n   - Link to 'Team Contact Info' (renamed)\n   - New name: 'Team Directory'\n\nFix all references or archive old links with context notes.",
+  "supplementaryMaterials": [
+    {
+      "type": "note_reference",
+      "noteId": "n-daily-2024-10-15",
+      "metadata": {
+        "description": "Daily note with first broken link"
+      }
+    },
+    {
+      "type": "note_reference",
+      "noteId": "n-daily-2024-10-17",
+      "metadata": {
+        "description": "Daily note with moved meeting notes links"
+      }
+    },
+    {
+      "type": "note_reference",
+      "noteId": "n-daily-2024-10-19",
+      "metadata": {
+        "description": "Daily note with renamed contact info link"
+      }
+    }
+  ]
+}
+```
+
+**Note:** This task was created silently while the agent was summarizing weekly notes. The user wasn't interrupted but can review and handle it later from the backlog view.
+
 ---
 
 ## Appendix B: Task Tool Schemas
@@ -1405,6 +1497,11 @@ const createTaskSchema = z.object({
     .optional()
     .default('active')
     .describe('Initial task status'),
+
+  type: z.enum(['workflow', 'backlog'])
+    .optional()
+    .default('workflow')
+    .describe('Task type: "workflow" for intentional tasks, "backlog" for discovered items'),
 
   recurringSpec: z.object({
     frequency: z.enum(['daily', 'weekly', 'monthly'])
@@ -1460,6 +1557,11 @@ const listTasksSchema = z.object({
     .optional()
     .default('active')
     .describe('Filter by task status'),
+
+  type: z.enum(['workflow', 'backlog', 'all'])
+    .optional()
+    .default('all')
+    .describe('Filter by task type'),
 
   dueSoon: z.boolean()
     .optional()
@@ -1642,6 +1744,8 @@ export async function up(db: Database): Promise<void> {
       description TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'active'
         CHECK (status IN ('active', 'paused', 'completed', 'archived')),
+      type TEXT NOT NULL DEFAULT 'workflow'
+        CHECK (type IN ('workflow', 'backlog')),
       vault_id TEXT NOT NULL,
       recurring_spec TEXT,
       due_date DATETIME,
@@ -1656,6 +1760,9 @@ export async function up(db: Database): Promise<void> {
   db.exec(`
     CREATE INDEX idx_tasks_vault_status
       ON tasks(vault_id, status);
+
+    CREATE INDEX idx_tasks_vault_type
+      ON tasks(vault_id, type);
 
     CREATE INDEX idx_tasks_due_date
       ON tasks(due_date)
