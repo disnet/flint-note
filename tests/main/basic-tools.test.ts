@@ -629,6 +629,250 @@ describe('Basic Tools', () => {
     });
   });
 
+  describe('move_note tool', () => {
+    beforeEach(async () => {
+      // Create an 'archive' note type for move tests
+      await testSetup.api.createNoteType({
+        type_name: 'archive',
+        description: 'Archived notes',
+        agent_instructions: [],
+        metadata_schema: { fields: [] },
+        vault_id: testVaultId
+      });
+    });
+
+    it('should move a note to a different type', async () => {
+      const tools = toolService.getTools();
+
+      // Create a note in 'general' type
+      const createResult = await tools!.create_note.execute({
+        title: 'Note to Move',
+        content: 'This note will be moved to archive',
+        noteType: 'general'
+      });
+      expect(createResult.success).toBe(true);
+      const note = createResult.data as any;
+
+      // Move the note to 'archive' type
+      const moveResult = await tools!.move_note.execute({
+        id: note.id,
+        newType: 'archive',
+        contentHash: note.content_hash
+      });
+
+      expect(moveResult.success).toBe(true);
+      expect(moveResult.data).toBeDefined();
+      const moveData = moveResult.data as any;
+      expect(moveData.old_type).toBe('general');
+      expect(moveData.new_type).toBe('archive');
+      expect(moveData.note.type).toBe('archive');
+      expect(moveData.note.title).toBe('Note to Move');
+      expect(moveData.note.content).toBe('This note will be moved to archive');
+
+      // Verify the note is in the new type
+      const getResult = await tools!.get_note.execute({
+        ids: [moveData.new_id]
+      });
+      expect(getResult.success).toBe(true);
+      const results = getResult.data as any[];
+      expect(results).toHaveLength(1);
+      expect(results[0].success).toBe(true);
+      expect(results[0].note.type).toBe('archive');
+    });
+
+    it('should preserve note content and metadata after move', async () => {
+      const tools = toolService.getTools();
+
+      // Create a note with metadata
+      const createResult = await tools!.create_note.execute({
+        title: 'Note with Metadata',
+        content: 'Important content that should be preserved',
+        noteType: 'general',
+        metadata: { priority: 'high', tags: ['important', 'keep'] }
+      });
+      expect(createResult.success).toBe(true);
+      const note = createResult.data as any;
+
+      // Move the note
+      const moveResult = await tools!.move_note.execute({
+        id: note.id,
+        newType: 'archive',
+        contentHash: note.content_hash
+      });
+
+      expect(moveResult.success).toBe(true);
+      const movedNote = moveResult.data.note;
+
+      // Verify content and metadata are preserved
+      expect(movedNote.content).toBe('Important content that should be preserved');
+      expect(movedNote.metadata.priority).toBe('high');
+      expect(movedNote.metadata.tags).toContain('important');
+      expect(movedNote.metadata.tags).toContain('keep');
+    });
+
+    it('should handle note not found', async () => {
+      const tools = toolService.getTools();
+
+      const result = await tools!.move_note.execute({
+        id: 'nonexistent/note',
+        newType: 'archive',
+        contentHash: 'dummy-hash'
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('NOTE_NOT_FOUND');
+      expect(result.message).toContain('not found');
+    });
+
+    it('should handle wrong contentHash', async () => {
+      const tools = toolService.getTools();
+
+      // Create a note first
+      const createResult = await tools!.create_note.execute({
+        title: 'Hash Validation Test',
+        content: 'Test content',
+        noteType: 'general'
+      });
+      expect(createResult.success).toBe(true);
+      const note = createResult.data as any;
+
+      // Try to move with wrong contentHash
+      const moveResult = await tools!.move_note.execute({
+        id: note.id,
+        newType: 'archive',
+        contentHash: 'wrong-hash-value'
+      });
+
+      expect(moveResult.success).toBe(false);
+      expect(moveResult.error).toBe('CONTENT_HASH_MISMATCH');
+    });
+
+    it('should handle target type not found', async () => {
+      const tools = toolService.getTools();
+
+      // Create a note first
+      const createResult = await tools!.create_note.execute({
+        title: 'Type Test Note',
+        content: 'Test content',
+        noteType: 'general'
+      });
+      expect(createResult.success).toBe(true);
+      const note = createResult.data as any;
+
+      // Try to move to non-existent type
+      const moveResult = await tools!.move_note.execute({
+        id: note.id,
+        newType: 'nonexistent-type',
+        contentHash: note.content_hash
+      });
+
+      expect(moveResult.success).toBe(false);
+      expect(moveResult.error).toBe('NOTE_TYPE_NOT_FOUND');
+      expect(moveResult.message).toContain('nonexistent-type');
+    });
+
+    it('should update note path when moved', async () => {
+      const tools = toolService.getTools();
+
+      // Create a note
+      const createResult = await tools!.create_note.execute({
+        title: 'Path Update Test',
+        content: 'Testing path changes',
+        noteType: 'general'
+      });
+      expect(createResult.success).toBe(true);
+      const note = createResult.data as any;
+      const originalPath = note.path;
+
+      // Move the note
+      const moveResult = await tools!.move_note.execute({
+        id: note.id,
+        newType: 'archive',
+        contentHash: note.content_hash
+      });
+
+      expect(moveResult.success).toBe(true);
+      const moveData = moveResult.data as any;
+
+      // Verify path changed
+      expect(moveData.old_path).toBe(originalPath);
+      expect(moveData.new_path).not.toBe(originalPath);
+      expect(moveData.new_path).toContain('archive');
+      expect(moveData.note.path).toBe(moveData.new_path);
+    });
+
+    it('should allow moving to the same type', async () => {
+      const tools = toolService.getTools();
+
+      // Create a note
+      const createResult = await tools!.create_note.execute({
+        title: 'Same Type Test',
+        content: 'Testing move to same type',
+        noteType: 'general'
+      });
+      expect(createResult.success).toBe(true);
+      const note = createResult.data as any;
+
+      // Move to the same type (should work)
+      const moveResult = await tools!.move_note.execute({
+        id: note.id,
+        newType: 'general',
+        contentHash: note.content_hash
+      });
+
+      expect(moveResult.success).toBe(true);
+      expect(moveResult.data.note.type).toBe('general');
+    });
+
+    it('should handle move in complete workflow scenario', async () => {
+      const tools = toolService.getTools();
+
+      // Create a note
+      const createResult = await tools!.create_note.execute({
+        title: 'Workflow Test Note',
+        content: 'Initial content',
+        noteType: 'general',
+        metadata: { status: 'active' }
+      });
+      expect(createResult.success).toBe(true);
+      const note = createResult.data as any;
+
+      // Update the note
+      const updateResult = await tools!.update_note.execute({
+        id: note.id,
+        contentHash: note.content_hash,
+        content: 'Updated content',
+        metadata: { status: 'completed' }
+      });
+      expect(updateResult.success).toBe(true);
+      const updatedNote = updateResult.data as any;
+
+      // Move to archive
+      const moveResult = await tools!.move_note.execute({
+        id: updatedNote.id,
+        newType: 'archive',
+        contentHash: updatedNote.content_hash
+      });
+      expect(moveResult.success).toBe(true);
+      const movedNote = moveResult.data.note;
+
+      // Verify final state
+      expect(movedNote.type).toBe('archive');
+      expect(movedNote.content).toBe('Updated content');
+      expect(movedNote.metadata.status).toBe('completed');
+
+      // Get the note to verify it's accessible in new location
+      const getResult = await tools!.get_note.execute({
+        ids: [moveResult.data.new_id]
+      });
+      expect(getResult.success).toBe(true);
+      const results = getResult.data as any[];
+      expect(results).toHaveLength(1);
+      expect(results[0].success).toBe(true);
+      expect(results[0].note.type).toBe('archive');
+    });
+  });
+
   describe('error handling', () => {
     it('should handle tools when note service is null', () => {
       const toolServiceWithoutNoteService = new ToolService(null);
