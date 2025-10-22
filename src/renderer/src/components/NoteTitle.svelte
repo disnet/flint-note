@@ -15,7 +15,6 @@
     disabled = false
   }: Props = $props();
 
-  // eslint-disable-next-line svelte/prefer-writable-derived
   let titleValue = $state(value);
   let isProcessing = $state(false);
 

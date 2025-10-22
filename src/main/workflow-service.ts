@@ -1,0 +1,178 @@
+/**
+ * Workflow Service
+ *
+ * Main process service for managing workflows through the WorkflowManager.
+ * Provides a high-level interface for workflow operations.
+ */
+
+import { WorkflowManager } from '../server/core/workflow-manager.js';
+import type { NoteService } from './note-service.js';
+import type {
+  Workflow,
+  WorkflowListItem,
+  CreateWorkflowInput,
+  UpdateWorkflowInput,
+  CompleteWorkflowInput,
+  ListWorkflowsInput,
+  GetWorkflowInput,
+  SupplementaryMaterial,
+  WorkflowCompletion
+} from '../server/types/workflow.js';
+import type { DatabaseConnection } from '../server/database/schema.js';
+import { logger } from './logger.js';
+
+export class WorkflowService {
+  private workflowManager: WorkflowManager | null = null;
+
+  constructor(
+    private noteService: NoteService | null,
+    db: DatabaseConnection | null
+  ) {
+    if (db) {
+      this.workflowManager = new WorkflowManager(db);
+      logger.info('WorkflowService initialized with database connection');
+    } else {
+      logger.warn('WorkflowService initialized without database connection');
+    }
+  }
+
+  /**
+   * Get the workflow manager instance
+   */
+  getWorkflowManager(): WorkflowManager | null {
+    if (!this.workflowManager) {
+      logger.warn('WorkflowManager not initialized');
+      return null;
+    }
+    return this.workflowManager;
+  }
+
+  /**
+   * Create a new workflow
+   */
+  async createWorkflow(input: CreateWorkflowInput): Promise<Workflow> {
+    if (!this.workflowManager) {
+      throw new Error('WorkflowService not initialized');
+    }
+
+    const vault = await this.noteService?.getCurrentVault();
+    if (!vault) {
+      throw new Error('No active vault');
+    }
+
+    return this.workflowManager.createWorkflow(vault.id, input);
+  }
+
+  /**
+   * Update an existing workflow
+   */
+  async updateWorkflow(input: UpdateWorkflowInput): Promise<Workflow> {
+    if (!this.workflowManager) {
+      throw new Error('WorkflowService not initialized');
+    }
+
+    return this.workflowManager.updateWorkflow(input);
+  }
+
+  /**
+   * Delete a workflow (soft delete)
+   */
+  async deleteWorkflow(workflowId: string): Promise<void> {
+    if (!this.workflowManager) {
+      throw new Error('WorkflowService not initialized');
+    }
+
+    return this.workflowManager.deleteWorkflow(workflowId);
+  }
+
+  /**
+   * Get a workflow by ID
+   */
+  async getWorkflow(input: GetWorkflowInput): Promise<Workflow> {
+    if (!this.workflowManager) {
+      throw new Error('WorkflowService not initialized');
+    }
+
+    return this.workflowManager.getWorkflow(input);
+  }
+
+  /**
+   * List workflows with filtering
+   */
+  async listWorkflows(input?: ListWorkflowsInput): Promise<WorkflowListItem[]> {
+    if (!this.workflowManager) {
+      throw new Error('WorkflowService not initialized');
+    }
+
+    const vault = await this.noteService?.getCurrentVault();
+    if (!vault) {
+      throw new Error('No active vault');
+    }
+
+    return this.workflowManager.listWorkflows(vault.id, input);
+  }
+
+  /**
+   * Complete a workflow
+   */
+  async completeWorkflow(input: CompleteWorkflowInput): Promise<WorkflowCompletion> {
+    if (!this.workflowManager) {
+      throw new Error('WorkflowService not initialized');
+    }
+
+    return this.workflowManager.completeWorkflow(input);
+  }
+
+  /**
+   * Add supplementary material to a workflow
+   */
+  async addSupplementaryMaterial(
+    workflowId: string,
+    material: Omit<SupplementaryMaterial, 'id' | 'workflowId' | 'createdAt'>
+  ): Promise<string> {
+    if (!this.workflowManager) {
+      throw new Error('WorkflowService not initialized');
+    }
+
+    return this.workflowManager.addSupplementaryMaterial(workflowId, material);
+  }
+
+  /**
+   * Remove supplementary material from a workflow
+   */
+  async removeSupplementaryMaterial(materialId: string): Promise<void> {
+    if (!this.workflowManager) {
+      throw new Error('WorkflowService not initialized');
+    }
+
+    return this.workflowManager.removeSupplementaryMaterial(materialId);
+  }
+
+  /**
+   * Get workflow context for system prompt
+   */
+  async getWorkflowContextForPrompt(): Promise<string> {
+    if (!this.workflowManager) {
+      return '';
+    }
+
+    const vault = await this.noteService?.getCurrentVault();
+    if (!vault) {
+      return '';
+    }
+
+    try {
+      return await this.workflowManager.getWorkflowContextForPrompt(vault.id);
+    } catch (error) {
+      logger.error('Failed to get workflow context for prompt', { error });
+      return '';
+    }
+  }
+
+  /**
+   * Check if the service is initialized
+   */
+  isReady(): boolean {
+    return this.workflowManager !== null;
+  }
+}

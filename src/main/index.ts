@@ -12,6 +12,7 @@ type AIServiceWithPrivateProps = {
   toolService: ToolService;
 };
 import { NoteService } from './note-service';
+import { WorkflowService } from './workflow-service';
 import { SecureStorageService } from './secure-storage-service';
 import { SettingsStorageService } from './settings-storage-service';
 import {
@@ -241,6 +242,17 @@ app.whenReady().then(async () => {
   const vaultDataStorageService = new VaultDataStorageService();
   await vaultDataStorageService.initialize();
 
+  // Initialize Workflow service
+  let workflowService: WorkflowService | null = null;
+  try {
+    const db = noteService ? await noteService.getDatabaseConnection() : null;
+    workflowService = new WorkflowService(noteService, db);
+    logger.info('Workflow Service initialized successfully');
+  } catch (error) {
+    logger.error('Failed to initialize Workflow Service', { error });
+    logger.warn('Workflow operations will not be available');
+  }
+
   // Initialize AI service
   let aiService: AIService | null = null;
   try {
@@ -258,7 +270,12 @@ app.whenReady().then(async () => {
       }
     }
 
-    aiService = await AIService.of(secureStorageService, noteService, workspaceRoot);
+    aiService = await AIService.of(
+      secureStorageService,
+      noteService,
+      workspaceRoot,
+      workflowService
+    );
 
     // Set up global usage tracking listener
     aiService.on('usage-recorded', (usageData) => {

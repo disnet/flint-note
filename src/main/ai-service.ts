@@ -7,6 +7,7 @@ import { SecureStorageService } from './secure-storage-service';
 import { logger } from './logger';
 import { NoteService } from './note-service';
 import { ToolService } from './tool-service';
+import { WorkflowService } from './workflow-service';
 import { CustomFunctionsApi } from '../server/api/custom-functions-api.js';
 import { TodoPlanService } from './todo-plan-service';
 
@@ -63,6 +64,7 @@ export class AIService extends EventEmitter {
   private openrouter: ReturnType<typeof createOpenRouter>;
   private systemPrompt: string;
   private noteService: NoteService | null;
+  private workflowService: WorkflowService | null;
   private toolService: ToolService;
   private customFunctionsApi: CustomFunctionsApi;
   private todoPlanService: TodoPlanService;
@@ -91,7 +93,8 @@ export class AIService extends EventEmitter {
   constructor(
     openrouter: ReturnType<typeof createOpenRouter>,
     noteService: NoteService | null,
-    workspaceRoot?: string
+    workspaceRoot?: string,
+    workflowService?: WorkflowService | null
   ) {
     super();
     this.currentModelName = 'anthropic/claude-haiku-4.5';
@@ -99,8 +102,14 @@ export class AIService extends EventEmitter {
     logger.info('AI Service constructed', { model: this.currentModelName });
     this.openrouter = openrouter;
     this.noteService = noteService;
+    this.workflowService = workflowService || null;
     this.todoPlanService = new TodoPlanService();
-    this.toolService = new ToolService(noteService, workspaceRoot, this.todoPlanService);
+    this.toolService = new ToolService(
+      noteService,
+      workspaceRoot,
+      this.todoPlanService,
+      this.workflowService || undefined
+    );
     this.customFunctionsApi = new CustomFunctionsApi(workspaceRoot || process.cwd());
   }
 
@@ -159,14 +168,15 @@ export class AIService extends EventEmitter {
   static async of(
     _secureStorage: SecureStorageService,
     noteService: NoteService | null = null,
-    workspaceRoot?: string
+    workspaceRoot?: string,
+    workflowService?: WorkflowService | null
   ): Promise<AIService> {
     // Initialize with undefined API key to avoid triggering keychain access on startup
     // secureStorage will be passed to lazy loading methods when needed
     const openrouter = createOpenRouter({
       apiKey: undefined
     });
-    return new AIService(openrouter, noteService, workspaceRoot);
+    return new AIService(openrouter, noteService, workspaceRoot, workflowService);
   }
 
   private switchModel(modelName: string): void {
@@ -323,7 +333,21 @@ Use these tools to help users manage their notes effectively and answer their qu
       // Continue without custom functions info if loading fails
     }
 
-    return contextualInfo + noteTypeInfo + customFunctionsInfo;
+    // Add workflow context to system prompt
+    let workflowInfo = '';
+    if (this.workflowService && this.workflowService.isReady()) {
+      try {
+        workflowInfo = await this.workflowService.getWorkflowContextForPrompt();
+        if (workflowInfo) {
+          workflowInfo = '\n' + workflowInfo;
+        }
+      } catch (error) {
+        logger.warn('Failed to load workflow context for system message:', { error });
+        // Continue without workflow info if loading fails
+      }
+    }
+
+    return contextualInfo + noteTypeInfo + customFunctionsInfo + workflowInfo;
   }
 
   /**

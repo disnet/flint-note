@@ -18,7 +18,7 @@ import type {
   CreateVaultResult
 } from '../server/api/types';
 import type { TemplateMetadata } from '../server/core/template-manager';
-import type { ExternalLinkRow } from '../server/database/schema';
+import type { ExternalLinkRow, DatabaseConnection } from '../server/database/schema';
 import type {
   MetadataFieldDefinition,
   MetadataSchema
@@ -28,6 +28,7 @@ import type {
   NoteHierarchyRow,
   NoteRelationships
 } from '../server/api/types';
+import type { VaultFileWatcher } from '../server/core/file-watcher';
 import { logger } from './logger';
 import type { GetNoteTypeInfoResult } from '../server/api/types.js';
 import type { NoteTypeDescription } from '../server/core/note-types';
@@ -890,7 +891,22 @@ export class NoteService {
    * Get the file watcher instance (if enabled)
    * Used for note lifecycle tracking to prevent cursor jumps
    */
-  getFileWatcher() {
+  getFileWatcher(): VaultFileWatcher | null {
     return this.api.getFileWatcher();
+  }
+
+  /**
+   * Get the database connection for advanced operations
+   * Useful for services that need direct database access (e.g., WorkflowManager)
+   */
+  async getDatabaseConnection(): Promise<DatabaseConnection | null> {
+    this.ensureInitialized();
+
+    try {
+      return await this.api.getDatabaseConnection();
+    } catch (error) {
+      logger.error('Failed to get database connection from NoteService', { error });
+      return null;
+    }
   }
 }

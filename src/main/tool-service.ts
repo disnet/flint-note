@@ -4,17 +4,31 @@ import { NoteService } from './note-service';
 import { ContentHashMismatchError } from '../server/utils/content-hash.js';
 import { publishNoteEvent } from './note-events';
 import { TodoPlanService } from './todo-plan-service';
+import { WorkflowService } from './workflow-service';
+import {
+  createWorkflowSchema,
+  updateWorkflowSchema,
+  deleteWorkflowSchema,
+  listWorkflowsSchema,
+  getWorkflowSchema,
+  completeWorkflowSchema,
+  addWorkflowMaterialSchema,
+  removeWorkflowMaterialSchema
+} from '../server/types/workflow-schemas.js';
 
 export class ToolService {
   private todoPlanService: TodoPlanService | null = null;
+  private workflowService: WorkflowService | null = null;
   private currentConversationId: string | null = null;
 
   constructor(
     private noteService: NoteService | null,
     _workspaceRoot?: string,
-    todoPlanService?: TodoPlanService
+    todoPlanService?: TodoPlanService,
+    workflowService?: WorkflowService
   ) {
     this.todoPlanService = todoPlanService || null;
+    this.workflowService = workflowService || null;
   }
 
   setCurrentConversationId(conversationId: string): void {
@@ -49,6 +63,18 @@ export class ToolService {
     // Add todo plan management tool if available
     if (this.todoPlanService) {
       tools.manage_todos = this.manageTodosTool;
+    }
+
+    // Add workflow management tools if available
+    if (this.workflowService && this.workflowService.isReady()) {
+      tools.create_workflow = this.createWorkflowTool;
+      tools.update_workflow = this.updateWorkflowTool;
+      tools.delete_workflow = this.deleteWorkflowTool;
+      tools.list_workflows = this.listWorkflowsTool;
+      tools.get_workflow = this.getWorkflowTool;
+      tools.complete_workflow = this.completeWorkflowTool;
+      tools.add_workflow_material = this.addWorkflowMaterialTool;
+      tools.remove_workflow_material = this.removeWorkflowMaterialTool;
     }
 
     return tools;
@@ -1645,6 +1671,353 @@ export class ToolService {
           success: false,
           error: error instanceof Error ? error.message : String(error),
           message: `Failed to manage todos: ${error instanceof Error ? error.message : String(error)}`
+        };
+      }
+    }
+  });
+
+  // Workflow Management Tools
+  private createWorkflowTool = tool({
+    description:
+      'Create a new workflow that persists across conversations. Workflows can be recurring (daily/weekly/monthly) or one-time. Use type="backlog" for items discovered during work (broken links, cleanup opportunities) that should be silently recorded without interrupting the user.',
+    inputSchema: createWorkflowSchema,
+    execute: async (input) => {
+      if (!this.workflowService) {
+        return {
+          success: false,
+          error: 'Workflow service not available',
+          message: 'Workflow service not initialized'
+        };
+      }
+
+      try {
+        const workflow = await this.workflowService.createWorkflow(input);
+
+        return {
+          success: true,
+          data: { workflowId: workflow.id, name: workflow.name, type: workflow.type },
+          message:
+            workflow.type === 'backlog'
+              ? `Recorded backlog item: ${workflow.name}`
+              : `Created workflow: ${workflow.name}`
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+
+        if (errorMessage.includes('already exists')) {
+          return {
+            success: false,
+            error: 'DUPLICATE_NAME',
+            message: errorMessage
+          };
+        }
+
+        return {
+          success: false,
+          error: 'CREATE_WORKFLOW_FAILED',
+          message: `Failed to create workflow: ${errorMessage}`
+        };
+      }
+    }
+  });
+
+  private updateWorkflowTool = tool({
+    description:
+      'Update an existing workflow. Can modify name, description, status, schedule, or type.',
+    inputSchema: updateWorkflowSchema,
+    execute: async (input) => {
+      if (!this.workflowService) {
+        return {
+          success: false,
+          error: 'Workflow service not available',
+          message: 'Workflow service not initialized'
+        };
+      }
+
+      try {
+        const workflow = await this.workflowService.updateWorkflow(input);
+
+        return {
+          success: true,
+          data: workflow,
+          message: `Updated workflow: ${workflow.name}`
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+
+        if (errorMessage.includes('not found')) {
+          return {
+            success: false,
+            error: 'WORKFLOW_NOT_FOUND',
+            message: errorMessage
+          };
+        }
+
+        if (errorMessage.includes('already exists')) {
+          return {
+            success: false,
+            error: 'DUPLICATE_NAME',
+            message: errorMessage
+          };
+        }
+
+        return {
+          success: false,
+          error: 'UPDATE_WORKFLOW_FAILED',
+          message: `Failed to update workflow: ${errorMessage}`
+        };
+      }
+    }
+  });
+
+  private deleteWorkflowTool = tool({
+    description: 'Delete a workflow by marking it as archived. This is a soft delete.',
+    inputSchema: deleteWorkflowSchema,
+    execute: async ({ workflowId }) => {
+      if (!this.workflowService) {
+        return {
+          success: false,
+          error: 'Workflow service not available',
+          message: 'Workflow service not initialized'
+        };
+      }
+
+      try {
+        await this.workflowService.deleteWorkflow(workflowId);
+
+        return {
+          success: true,
+          data: { workflowId },
+          message: `Deleted workflow: ${workflowId}`
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+
+        if (errorMessage.includes('not found')) {
+          return {
+            success: false,
+            error: 'WORKFLOW_NOT_FOUND',
+            message: errorMessage
+          };
+        }
+
+        return {
+          success: false,
+          error: 'DELETE_WORKFLOW_FAILED',
+          message: `Failed to delete workflow: ${errorMessage}`
+        };
+      }
+    }
+  });
+
+  private listWorkflowsTool = tool({
+    description:
+      'List workflows with optional filtering and sorting. Returns a lightweight summary of workflows. Use get_workflow to retrieve full details.',
+    inputSchema: listWorkflowsSchema,
+    execute: async (input) => {
+      if (!this.workflowService) {
+        return {
+          success: false,
+          error: 'Workflow service not available',
+          message: 'Workflow service not initialized'
+        };
+      }
+
+      try {
+        const workflows = await this.workflowService.listWorkflows(input);
+
+        let message = `Found ${workflows.length} workflow(s)`;
+        if (input?.type && input.type !== 'all') {
+          message += ` of type: ${input.type}`;
+        }
+        if (input?.status && input.status !== 'all') {
+          message += ` with status: ${input.status}`;
+        }
+
+        return {
+          success: true,
+          data: workflows,
+          message
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+
+        return {
+          success: false,
+          error: 'LIST_WORKFLOWS_FAILED',
+          message: `Failed to list workflows: ${errorMessage}`
+        };
+      }
+    }
+  });
+
+  private getWorkflowTool = tool({
+    description:
+      'Get full details of a specific workflow including description, schedule, and optionally supplementary materials and completion history.',
+    inputSchema: getWorkflowSchema,
+    execute: async (input) => {
+      if (!this.workflowService) {
+        return {
+          success: false,
+          error: 'Workflow service not available',
+          message: 'Workflow service not initialized'
+        };
+      }
+
+      try {
+        const workflow = await this.workflowService.getWorkflow(input);
+
+        return {
+          success: true,
+          data: workflow,
+          message: `Retrieved workflow: ${workflow.name}`
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+
+        if (errorMessage.includes('not found')) {
+          return {
+            success: false,
+            error: 'WORKFLOW_NOT_FOUND',
+            message: errorMessage
+          };
+        }
+
+        return {
+          success: false,
+          error: 'GET_WORKFLOW_FAILED',
+          message: `Failed to get workflow: ${errorMessage}`
+        };
+      }
+    }
+  });
+
+  private completeWorkflowTool = tool({
+    description:
+      'Mark a workflow as completed. For recurring workflows, updates last_completed and keeps status active. For one-time workflows, changes status to completed.',
+    inputSchema: completeWorkflowSchema,
+    execute: async (input) => {
+      if (!this.workflowService) {
+        return {
+          success: false,
+          error: 'Workflow service not available',
+          message: 'Workflow service not initialized'
+        };
+      }
+
+      try {
+        const completion = await this.workflowService.completeWorkflow(input);
+
+        return {
+          success: true,
+          data: completion,
+          message: `Completed workflow at ${completion.completedAt}`
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+
+        if (errorMessage.includes('not found')) {
+          return {
+            success: false,
+            error: 'WORKFLOW_NOT_FOUND',
+            message: errorMessage
+          };
+        }
+
+        return {
+          success: false,
+          error: 'COMPLETE_WORKFLOW_FAILED',
+          message: `Failed to complete workflow: ${errorMessage}`
+        };
+      }
+    }
+  });
+
+  private addWorkflowMaterialTool = tool({
+    description:
+      'Add supplementary material to a workflow. Can be text, code snippet, or note reference.',
+    inputSchema: addWorkflowMaterialSchema,
+    execute: async ({ workflowId, ...material }) => {
+      if (!this.workflowService) {
+        return {
+          success: false,
+          error: 'Workflow service not available',
+          message: 'Workflow service not initialized'
+        };
+      }
+
+      try {
+        const materialId = await this.workflowService.addSupplementaryMaterial(
+          workflowId,
+          {
+            materialType: material.type,
+            content: material.content,
+            noteId: material.noteId,
+            metadata: material.metadata,
+            position: 0 // Position will be auto-assigned by the service
+          }
+        );
+
+        return {
+          success: true,
+          data: { materialId, workflowId },
+          message: `Added ${material.type} material to workflow`
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+
+        if (errorMessage.includes('not found')) {
+          return {
+            success: false,
+            error: 'WORKFLOW_NOT_FOUND',
+            message: errorMessage
+          };
+        }
+
+        return {
+          success: false,
+          error: 'ADD_MATERIAL_FAILED',
+          message: `Failed to add material: ${errorMessage}`
+        };
+      }
+    }
+  });
+
+  private removeWorkflowMaterialTool = tool({
+    description: 'Remove supplementary material from a workflow.',
+    inputSchema: removeWorkflowMaterialSchema,
+    execute: async ({ materialId }) => {
+      if (!this.workflowService) {
+        return {
+          success: false,
+          error: 'Workflow service not available',
+          message: 'Workflow service not initialized'
+        };
+      }
+
+      try {
+        await this.workflowService.removeSupplementaryMaterial(materialId);
+
+        return {
+          success: true,
+          data: { materialId },
+          message: `Removed material: ${materialId}`
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+
+        if (errorMessage.includes('not found')) {
+          return {
+            success: false,
+            error: 'MATERIAL_NOT_FOUND',
+            message: errorMessage
+          };
+        }
+
+        return {
+          success: false,
+          error: 'REMOVE_MATERIAL_FAILED',
+          message: `Failed to remove material: ${errorMessage}`
         };
       }
     }

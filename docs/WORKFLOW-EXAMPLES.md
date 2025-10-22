@@ -11,6 +11,7 @@ This document contains a collection of example workflows demonstrating the versa
 **Purpose**: Compile weekly reading highlights into organized notes
 
 **Description**:
+
 ```
 1. Find all notes tagged "reading", "book", or "article" from past week
 2. Extract highlights and key quotes
@@ -28,6 +29,7 @@ This document contains a collection of example workflows demonstrating the versa
 **Recurring Schedule**: Weekly, Sunday at 17:00
 
 **Supplementary Materials**:
+
 - Reading digest template
 - Example categorization taxonomy
 
@@ -40,6 +42,7 @@ This document contains a collection of example workflows demonstrating the versa
 **Purpose**: Review and evolve ideas in "seedling" status
 
 **Description**:
+
 ```
 1. Find all notes tagged "idea", "seedling", or "brainstorm"
 2. For each idea note:
@@ -63,6 +66,7 @@ This document contains a collection of example workflows demonstrating the versa
 **Purpose**: Review unanswered questions and research opportunities
 
 **Description**:
+
 ```
 1. Find all notes with "?" tag or "question" marker
 2. Categorize questions by domain (technical, personal, business, etc.)
@@ -88,6 +92,7 @@ This document contains a collection of example workflows demonstrating the versa
 **Purpose**: Prepare materials for weekly sprint planning meeting
 
 **Description**:
+
 ```
 1. Review last week's sprint notes and outcomes
 2. Gather list of completed items with links to work
@@ -107,6 +112,7 @@ This document contains a collection of example workflows demonstrating the versa
 **Recurring Schedule**: Weekly, Monday at 09:00
 
 **Supplementary Materials**:
+
 - Sprint planning template
 - Project roadmap reference note
 - Team capacity calculator
@@ -120,6 +126,7 @@ This document contains a collection of example workflows demonstrating the versa
 **Purpose**: Create daily standup summary from yesterday's work
 
 **Description**:
+
 ```
 1. Review yesterday's daily note for work items
 2. Check git commits/PR activity from yesterday
@@ -136,6 +143,7 @@ This document contains a collection of example workflows demonstrating the versa
 **Recurring Schedule**: Daily (weekdays only) at 08:30
 
 **Supplementary Materials**:
+
 - Standup note template
 
 **Use Case**: Remote teams with async standups or preparation for sync standup meetings.
@@ -147,6 +155,7 @@ This document contains a collection of example workflows demonstrating the versa
 **Purpose**: Compile accomplishments for quarterly review
 
 **Description**:
+
 ```
 1. Find all project notes from current quarter
 2. Extract key wins, accomplishments, and delivered features
@@ -166,6 +175,7 @@ This document contains a collection of example workflows demonstrating the versa
 **Recurring Schedule**: Monthly on 1st of quarter-end months (March, June, September, December) at 10:00
 
 **Supplementary Materials**:
+
 - Performance review template
 - Company review guidelines
 
@@ -178,6 +188,7 @@ This document contains a collection of example workflows demonstrating the versa
 **Purpose**: Prepare talking points for recurring 1-on-1s
 
 **Description**:
+
 ```
 1. Review notes from previous 1-on-1 with this person
 2. Check status of action items from last meeting
@@ -195,6 +206,7 @@ This document contains a collection of example workflows demonstrating the versa
 **Recurring Schedule**: Weekly or bi-weekly (user configurable per manager)
 
 **Supplementary Materials**:
+
 - 1-on-1 agenda template
 - Running 1-on-1 log per person
 
@@ -209,6 +221,7 @@ This document contains a collection of example workflows demonstrating the versa
 **Purpose**: Curate week's best insights into newsletter draft
 
 **Description**:
+
 ```
 1. Find all notes tagged "share" or "newsletter" from past week
 2. Review reading notes and interesting discoveries
@@ -226,6 +239,7 @@ This document contains a collection of example workflows demonstrating the versa
 **Recurring Schedule**: Weekly, Thursday at 15:00
 
 **Supplementary Materials**:
+
 - Newsletter template with intro/sections/outro
 - Previous newsletter examples
 - Audience persona guide
@@ -239,6 +253,7 @@ This document contains a collection of example workflows demonstrating the versa
 **Purpose**: Transform interesting notes into blog post outlines
 
 **Description**:
+
 ```
 1. Find notes with high link density (>5 backlinks)
 2. Find notes tagged "interesting" or "deep-dive"
@@ -259,6 +274,7 @@ This document contains a collection of example workflows demonstrating the versa
 **Recurring Schedule**: Monthly on last Sunday at 14:00
 
 **Supplementary Materials**:
+
 - Blog post outline template
 - Content calendar
 
@@ -271,6 +287,7 @@ This document contains a collection of example workflows demonstrating the versa
 **Purpose**: Create week's worth of social content from notes
 
 **Description**:
+
 ```
 1. Extract quotable insights from week's notes
 2. Identify 2-3 topics that could become threads
@@ -287,6 +304,7 @@ This document contains a collection of example workflows demonstrating the versa
 **Recurring Schedule**: Weekly, Sunday at 16:00
 
 **Supplementary Materials**:
+
 - Thread template
 - Posting schedule guide
 - Analytics from past posts
@@ -302,6 +320,7 @@ This document contains a collection of example workflows demonstrating the versa
 **Purpose**: Analyze habit patterns and adjust strategies
 
 **Description**:
+
 ```
 1. Review daily notes for habit checkmarks/tracking
 2. Calculate completion rate for each tracked habit
@@ -321,6 +340,7 @@ This document contains a collection of example workflows demonstrating the versa
 **Recurring Schedule**: Weekly, Sunday at 20:00
 
 **Supplementary Materials**:
+
 - Habit tracking template
 - Behavior design resources
 
@@ -333,6 +353,7 @@ This document contains a collection of example workflows demonstrating the versa
 **Purpose**: Review progress toward quarterly/yearly goals
 
 **Description**:
+
 ```
 1. Review goal notes for all active goals
 2. For each goal:
@@ -354,6 +375,7 @@ This document contains a collection of example workflows demonstrating the versa
 **Recurring Schedule**: Monthly on 1st at 09:00
 
 **Supplementary Materials**:
+
 - Goal tracking template
 - Quarterly goals overview
 
@@ -366,6 +388,7 @@ This document contains a collection of example workflows demonstrating the versa
 **Purpose**: Identify patterns in what brings joy/gratitude
 
 **Description**:
+
 ```
 1. Review all gratitude entries from past month
 2. Categorize themes:
@@ -395,6 +418,7 @@ This document contains a collection of example workflows demonstrating the versa
 **Purpose**: Organize and synthesize research paper notes
 
 **Description**:
+
 ```
 1. Find all notes tagged with research topic
 2. Create or update citation graph showing:
@@ -415,6 +439,7 @@ This document contains a collection of example workflows demonstrating the versa
 **Recurring Schedule**: Monthly on 1st at 14:00
 
 **Supplementary Materials**:
+
 - Literature review template
 - Citation format guide
 
@@ -427,6 +452,7 @@ This document contains a collection of example workflows demonstrating the versa
 **Purpose**: Transform lecture notes into study guides
 
 **Description**:
+
 ```
 1. Gather all notes from current course module
 2. Extract key concepts and definitions
@@ -445,6 +471,7 @@ This document contains a collection of example workflows demonstrating the versa
 **Trigger**: When course module completes
 
 **Supplementary Materials**:
+
 - Study guide template
 - Flashcard format
 
@@ -457,6 +484,7 @@ This document contains a collection of example workflows demonstrating the versa
 **Purpose**: Review and curate reading backlog
 
 **Description**:
+
 ```
 1. Review all notes in "to-read" category
 2. For each item:
@@ -478,6 +506,7 @@ This document contains a collection of example workflows demonstrating the versa
 **Recurring Schedule**: Quarterly on 1st at 15:00
 
 **Supplementary Materials**:
+
 - Reading list template
 - Current learning goals
 
@@ -492,6 +521,7 @@ This document contains a collection of example workflows demonstrating the versa
 **Purpose**: Review sleep data and identify improvement opportunities
 
 **Description**:
+
 ```
 1. Compile sleep notes/data from past week
 2. Calculate:
@@ -514,6 +544,7 @@ This document contains a collection of example workflows demonstrating the versa
 **Recurring Schedule**: Weekly, Monday at 08:00
 
 **Supplementary Materials**:
+
 - Sleep tracking template
 - Sleep hygiene checklist
 
@@ -526,6 +557,7 @@ This document contains a collection of example workflows demonstrating the versa
 **Purpose**: Plan week's meals based on past preferences
 
 **Description**:
+
 ```
 1. Review recipes tried in past month
 2. Note which meals were:
@@ -546,6 +578,7 @@ This document contains a collection of example workflows demonstrating the versa
 **Recurring Schedule**: Weekly, Saturday at 10:00
 
 **Supplementary Materials**:
+
 - Recipe collection
 - Meal planning template
 - Shopping list template
@@ -561,6 +594,7 @@ This document contains a collection of example workflows demonstrating the versa
 **Purpose**: Review and categorize month's expenses
 
 **Description**:
+
 ```
 1. Find all expense notes from past month
 2. Categorize each expense:
@@ -584,6 +618,7 @@ This document contains a collection of example workflows demonstrating the versa
 **Recurring Schedule**: Monthly on 1st at 11:00
 
 **Supplementary Materials**:
+
 - Expense categories
 - Monthly budget template
 
@@ -596,6 +631,7 @@ This document contains a collection of example workflows demonstrating the versa
 **Purpose**: Review portfolio and note rebalancing needs
 
 **Description**:
+
 ```
 1. Gather investment notes and current holdings
 2. Calculate current allocation percentages:
@@ -615,6 +651,7 @@ This document contains a collection of example workflows demonstrating the versa
 **Recurring Schedule**: Quarterly on 1st at 16:00
 
 **Supplementary Materials**:
+
 - Target allocation reference
 - Rebalancing guidelines
 
@@ -629,6 +666,7 @@ This document contains a collection of example workflows demonstrating the versa
 **Purpose**: Create checklist for seasonal home maintenance
 
 **Description**:
+
 ```
 1. Review last season's maintenance notes
 2. Create checklist for current season:
@@ -663,6 +701,7 @@ This document contains a collection of example workflows demonstrating the versa
 **Recurring Schedule**: Seasonal (March 1, June 1, September 1, December 1) at 10:00
 
 **Supplementary Materials**:
+
 - Seasonal checklists
 - Contractor contact list
 - Maintenance history
@@ -676,6 +715,7 @@ This document contains a collection of example workflows demonstrating the versa
 **Purpose**: Gather all research for upcoming trip into itinerary
 
 **Description**:
+
 ```
 1. Find all notes tagged with destination name
 2. Compile recommendations:
@@ -700,6 +740,7 @@ This document contains a collection of example workflows demonstrating the versa
 **Trigger**: When planning a trip
 
 **Supplementary Materials**:
+
 - Packing list template
 - Budget calculator
 - Itinerary template
@@ -715,6 +756,7 @@ This document contains a collection of example workflows demonstrating the versa
 **Purpose**: Compile gift ideas mentioned throughout the year
 
 **Description**:
+
 ```
 1. Search notes for gift-related mentions:
    - "they mentioned wanting..."
@@ -733,6 +775,7 @@ This document contains a collection of example workflows demonstrating the versa
 **Recurring Schedule**: Quarterly on 15th at 14:00
 
 **Supplementary Materials**:
+
 - Contact birthdays/anniversaries
 - Gift tracking template
 
@@ -745,6 +788,7 @@ This document contains a collection of example workflows demonstrating the versa
 **Purpose**: Identify friends to reach out to
 
 **Description**:
+
 ```
 1. Review contact notes for all friends/family
 2. Identify people not contacted in:
@@ -764,6 +808,7 @@ This document contains a collection of example workflows demonstrating the versa
 **Recurring Schedule**: Monthly on 1st Monday at 18:00
 
 **Supplementary Materials**:
+
 - Contact tracking template
 - Message templates
 
@@ -781,6 +826,7 @@ These workflows are created by the agent while doing other work, without interru
 **Purpose**: Merge 3 notes about same topic found during search
 
 **Description**:
+
 ```
 Discovered while searching for React information:
 - "React Hooks Guide" (created 2024-01-15)
@@ -810,6 +856,7 @@ Recommendation:
 **Purpose**: Flag 5 project notes with status but no recent updates
 
 **Description**:
+
 ```
 Found projects marked "active" with no updates in 30+ days:
 
@@ -836,6 +883,7 @@ For each project, review to:
 **Purpose**: Tag untagged notes discovered in recent work
 
 **Description**:
+
 ```
 While working on machine learning research, noticed these related notes
 without proper tags:
@@ -869,6 +917,7 @@ Adding these tags will improve discoverability when searching for ML content.
 **Purpose**: Build hub note for frequently-referenced topic
 
 **Description**:
+
 ```
 Noticed 15+ notes about "API design" without a central index:
 
@@ -906,6 +955,7 @@ Recommend creating "API Design - Overview" as central hub.
 **Purpose**: Flag notes with conflicting information
 
 **Description**:
+
 ```
 While reviewing productivity notes, found contradictory advice:
 
@@ -939,6 +989,7 @@ Recommendation:
 **Purpose**: Fix broken internal links discovered during note access
 
 **Description**:
+
 ```
 Found broken internal links while accessing recent notes:
 
@@ -969,41 +1020,49 @@ Recommend:
 These examples demonstrate several key patterns:
 
 ### 1. Time-based Synthesis
+
 - Weekly summaries, monthly reviews
 - Combining information across time periods
 - Identifying trends and patterns
 
 ### 2. Proactive Preparation
+
 - Meeting prep, sprint planning
 - Anticipating needs before they arise
 - Reducing last-minute scrambling
 
 ### 3. Maintenance & Hygiene
+
 - Link fixing, pruning, archiving
 - Keeping information current and organized
 - Preventing information decay
 
 ### 4. Pattern Recognition
+
 - Habit analysis, spending review
 - Extracting insights from data
 - Identifying correlations
 
 ### 5. Content Transformation
+
 - Notes → newsletter, ideas → outlines
 - Repurposing information for different contexts
 - Value extraction from existing work
 
 ### 6. Relationship Management
+
 - 1-on-1 prep, social outreach
 - Maintaining connections systematically
 - Never losing touch
 
 ### 7. Knowledge Consolidation
+
 - Learning reviews, literature synthesis
 - Building comprehensive understanding
 - Creating reference materials
 
 ### 8. Discovery & Recommendation
+
 - Backlog items from agent observations
 - Opportunistic improvements
 - Leveraging AI pattern recognition
@@ -1022,6 +1081,7 @@ When designing workflows, consider:
 6. **Value**: How much time/effort does this save?
 
 The most valuable workflows are those that:
+
 - Happen regularly but are easy to forget
 - Require gathering information from multiple places
 - Benefit from consistent execution

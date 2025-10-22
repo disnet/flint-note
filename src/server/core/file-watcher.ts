@@ -168,7 +168,9 @@ export class VaultFileWatcher {
       .on('unlink', (filePath) => this.onFileDeleted(filePath))
       .on('error', (error: unknown) => this.onError(error))
       .on('ready', () => {
-        console.log('[FileWatcher] ✅ Chokidar watcher is ready and watching for changes');
+        console.log(
+          '[FileWatcher] ✅ Chokidar watcher is ready and watching for changes'
+        );
       });
   }
 
@@ -376,11 +378,15 @@ export class VaultFileWatcher {
     const noteId = await this.getNoteIdFromPath(filePath);
     console.log(`[FileWatcher] Checking change for file: ${filePath}`);
     console.log(`[FileWatcher]   Note ID: ${noteId || 'NOT FOUND'}`);
-    console.log(`[FileWatcher]   Open notes: ${Array.from(this.openNotes).join(', ') || 'NONE'}`);
+    console.log(
+      `[FileWatcher]   Open notes: ${Array.from(this.openNotes).join(', ') || 'NONE'}`
+    );
 
     if (noteId) {
       const expectedWrites = this.expectedWrites.get(noteId);
-      console.log(`[FileWatcher]   Expected writes for ${noteId}: ${expectedWrites?.length || 0}`);
+      console.log(
+        `[FileWatcher]   Expected writes for ${noteId}: ${expectedWrites?.length || 0}`
+      );
       console.log(`[FileWatcher]   Is note open? ${this.isNoteOpenInEditor(noteId)}`);
 
       if (expectedWrites && expectedWrites.length > 0) {
@@ -439,7 +445,9 @@ export class VaultFileWatcher {
 
       // No expected write, but note is open - unexpected change to open note
       if (this.isNoteOpenInEditor(noteId)) {
-        console.warn(`[FileWatcher] ⚠️ CONFLICT: Unexpected external edit to open note: ${noteId}`);
+        console.warn(
+          `[FileWatcher] ⚠️ CONFLICT: Unexpected external edit to open note: ${noteId}`
+        );
         this.emit({
           type: 'external-edit-conflict',
           noteId,
@@ -451,7 +459,9 @@ export class VaultFileWatcher {
       }
     }
 
-    console.log(`[FileWatcher] No noteId found or no special handling, treating as external change`);
+    console.log(
+      `[FileWatcher] No noteId found or no special handling, treating as external change`
+    );
     return { isInternal: false, isConflict: false };
   }
 

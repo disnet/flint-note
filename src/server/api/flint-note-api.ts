@@ -2305,6 +2305,25 @@ export class FlintNoteApi {
   }
 
   /**
+   * Get the database connection for the current vault
+   * Useful for advanced operations that need direct database access
+   */
+  async getDatabaseConnection(): Promise<
+    import('../database/schema.js').DatabaseConnection | null
+  > {
+    if (!this.initialized || !this.hybridSearchManager) {
+      return null;
+    }
+
+    try {
+      return await this.hybridSearchManager.getDatabaseConnection();
+    } catch (error) {
+      console.error('Failed to get database connection:', error);
+      return null;
+    }
+  }
+
+  /**
    * Cleanup resources and close database connections
    * Call this when the API instance is no longer needed
    */

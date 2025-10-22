@@ -94,12 +94,14 @@ Each workflow must contain:
 - **updated_at** (datetime): Last modification time
 
 Optional fields:
+
 - **recurring_spec** (object): Schedule information for recurring workflows
 - **due_date** (datetime): One-time due date for non-recurring workflows
 - **last_completed** (datetime): Most recent completion timestamp
 - **supplementary_materials** (array): Attached context, templates, code snippets
 
 **Workflow Type Semantics:**
+
 - **workflow**: Intentional, structured workflows (weekly summaries, meeting prep, etc.). Primary use case. Shows in main workflow list.
 - **backlog**: Items discovered opportunistically during other work (broken links, cleanup opportunities, agent suggestions). Shows in separate backlog view for later review.
 
@@ -110,13 +112,14 @@ Recurring workflows must support:
 ```typescript
 interface RecurringSpec {
   frequency: 'daily' | 'weekly' | 'monthly';
-  dayOfWeek?: number;      // 0-6 for weekly (0=Sunday)
-  dayOfMonth?: number;     // 1-31 for monthly
-  time?: string;           // Optional "HH:MM" for specific time
+  dayOfWeek?: number; // 0-6 for weekly (0=Sunday)
+  dayOfMonth?: number; // 1-31 for monthly
+  time?: string; // Optional "HH:MM" for specific time
 }
 ```
 
 **Scheduling Logic:**
+
 - **Daily:** Workflow is due if 24+ hours have passed since last completion
 - **Weekly:** Workflow is due if 7+ days have passed AND current day matches `dayOfWeek`
 - **Monthly:** Workflow is due if 30+ days have passed AND current day matches `dayOfMonth`
@@ -129,10 +132,10 @@ Workflows can include multiple supplementary materials:
 interface SupplementaryMaterial {
   id: string;
   type: 'text' | 'code' | 'note_reference';
-  content: string;              // For text/code types
-  note_id?: string;             // For note_reference type
+  content: string; // For text/code types
+  note_id?: string; // For note_reference type
   metadata?: {
-    language?: string;          // For code type
+    language?: string; // For code type
     description?: string;
     template_type?: string;
   };
@@ -140,6 +143,7 @@ interface SupplementaryMaterial {
 ```
 
 **Storage limits:**
+
 - Individual material: 50KB max
 - Total materials per workflow: 500KB max
 - Note references: No limit (loaded on-demand)
@@ -153,9 +157,9 @@ interface WorkflowCompletion {
   id: string;
   workflow_id: string;
   completed_at: datetime;
-  conversation_id?: string;     // Which conversation executed it
-  notes?: string;               // Agent's notes about execution
-  output_note_id?: string;      // ID of note created (if applicable)
+  conversation_id?: string; // Which conversation executed it
+  notes?: string; // Agent's notes about execution
+  output_note_id?: string; // ID of note created (if applicable)
   metadata?: {
     duration_ms?: number;
     tool_calls_count?: number;
@@ -164,11 +168,13 @@ interface WorkflowCompletion {
 ```
 
 For recurring workflows:
+
 - Completion is recorded in history
 - `last_completed` timestamp is updated
 - Status remains `active` for future occurrences
 
 For one-time workflows:
+
 - Completion is recorded
 - Status changes to `completed`
 - Workflow can be manually re-activated or archived
@@ -183,17 +189,21 @@ Lightweight summary added to vault context:
 ## Available Workflows
 
 ### Due Now
+
 - **Weekly Summary**: Summarize week's daily notes into weekly note (due every Sunday)
 - **Meeting Prep**: Review today's meetings and create prep notes (due daily at 8am)
 
 ### Active Workflows
+
 - **Project Setup**: Create complete structure for new project (on-demand)
 - **Monthly Archive**: Archive completed items and organize vault (due 1st of month)
 
 ### Paused Workflows (2)
+
 [Not listed in context to save tokens]
 
 ### Backlog Items (5)
+
 [Not listed in context to save tokens - user can review separately]
 ```
 
@@ -202,6 +212,7 @@ Lightweight summary added to vault context:
 **Agent Behavior Guidelines:**
 
 When you discover issues during other work (broken links, inconsistencies, potential improvements, cleanup opportunities):
+
 - Create workflows with `type='backlog'`
 - Do NOT interrupt the user or mention these discoveries
 - Silently record them for later review
@@ -212,6 +223,7 @@ The user can review backlog items later in a dedicated UI section.
 **Tier 2: Workflow Details (Loaded On-Demand)**
 
 Full workflow details only loaded when agent uses `get_workflow` tool:
+
 - Complete description
 - Supplementary materials
 - Completion history (if requested)
@@ -221,6 +233,7 @@ Full workflow details only loaded when agent uses `get_workflow` tool:
 The following tools must be available to agents:
 
 **create_workflow**
+
 - Create new workflow with all fields
 - Validate name length, purpose length
 - Validate name is unique within vault (case-insensitive)
@@ -228,6 +241,7 @@ The following tools must be available to agents:
 - Return workflow ID and confirmation
 
 **update_workflow**
+
 - Modify any workflow field except `id`, `created_at`, `vault_id`
 - Require workflow ID
 - Validate name is unique within vault if changing name (case-insensitive)
@@ -235,22 +249,26 @@ The following tools must be available to agents:
 - Return updated workflow
 
 **delete_workflow**
+
 - Soft delete (mark as `archived`)
 - Require confirmation for workflows with completion history
 - Return success confirmation
 
 **list_workflows**
+
 - Filter by status, recurring, due date
 - Sort by due date, created date, name
 - Return lightweight workflow list (name, purpose, status, due info)
 
 **get_workflow**
+
 - Retrieve full workflow details
 - Optionally include supplementary materials
 - Optionally include completion history
 - Return complete workflow object
 
 **complete_workflow**
+
 - Mark workflow as completed
 - Record completion in history
 - Update `last_completed` timestamp
@@ -259,12 +277,14 @@ The following tools must be available to agents:
 - Return completion record
 
 **add_workflow_material**
+
 - Add supplementary material to existing workflow
 - Validate size limits
 - Support all material types
 - Return material ID
 
 **remove_workflow_material**
+
 - Remove supplementary material by ID
 - Require confirmation
 - Return success confirmation
@@ -362,35 +382,42 @@ During conversation, show when agent mentions workflows:
 ### FR-9: Error Handling
 
 **Workflow Not Found:**
+
 - Return clear error message with workflow ID
 - Suggest using `list_workflows` to find available workflows
 
 **Duplicate Workflow Name:**
+
 - Return clear error when creating/updating workflow with name that already exists in vault
 - Error message format: "A workflow named '{name}' already exists in this vault"
 - Suggest choosing a different name or updating the existing workflow
 
 **Invalid Recurring Spec:**
+
 - Validate dayOfWeek (0-6), dayOfMonth (1-31)
 - Validate frequency enum
 - Return validation errors before saving
 
 **Supplementary Material Too Large:**
+
 - Reject materials >50KB with clear error
 - Show current size and limit in error message
 
 **Workflow Execution Failure:**
+
 - Agent should report failure to user
 - Do NOT mark workflow as completed
 - Optionally create failure note in completion history
 
 **Circular Workflow References:**
+
 - If workflow description references itself, warn but allow
 - If supplementary materials create infinite loop, prevent
 
 ### FR-10: Data Migration and Versioning
 
 **Initial Migration:**
+
 - Create `workflows` table
 - Create `workflow_supplementary_materials` table
 - Create `workflow_completion_history` table
@@ -398,11 +425,13 @@ During conversation, show when agent mentions workflows:
 - Add version marker to migration system
 
 **Backwards Compatibility:**
+
 - Gracefully handle missing workflow tables (no workflows exist yet)
 - Agent tools return empty lists if feature not enabled
 - UI shows "coming soon" state if backend version too old
 
 **Future Schema Changes:**
+
 - Use migration system already in place
 - Version workflow data structure
 - Support migration of workflow format changes
@@ -489,18 +518,18 @@ CREATE INDEX idx_workflow_completion_conversation ON workflow_completion_history
 ```typescript
 // Core workflow interface
 interface Workflow {
-  id: string;                       // w-xxxxxxxx
-  name: string;                     // Max 20 chars
-  purpose: string;                  // Max 100 chars
-  description: string;              // Markdown
+  id: string; // w-xxxxxxxx
+  name: string; // Max 20 chars
+  purpose: string; // Max 100 chars
+  description: string; // Markdown
   status: WorkflowStatus;
   type: WorkflowType;
   vaultId: string;
 
   // Scheduling
   recurringSpec?: RecurringSpec;
-  dueDate?: string;                 // ISO datetime
-  lastCompleted?: string;           // ISO datetime
+  dueDate?: string; // ISO datetime
+  lastCompleted?: string; // ISO datetime
 
   // Metadata
   createdAt: string;
@@ -516,19 +545,19 @@ type WorkflowType = 'workflow' | 'backlog';
 
 interface RecurringSpec {
   frequency: 'daily' | 'weekly' | 'monthly';
-  dayOfWeek?: number;               // 0-6 (0=Sunday)
-  dayOfMonth?: number;              // 1-31
-  time?: string;                    // "HH:MM" format
+  dayOfWeek?: number; // 0-6 (0=Sunday)
+  dayOfMonth?: number; // 1-31
+  time?: string; // "HH:MM" format
 }
 
 interface SupplementaryMaterial {
   id: string;
   workflowId: string;
   materialType: 'text' | 'code' | 'note_reference';
-  content?: string;                 // For text/code
-  noteId?: string;                  // For note_reference
+  content?: string; // For text/code
+  noteId?: string; // For note_reference
   metadata?: {
-    language?: string;              // For code
+    language?: string; // For code
     description?: string;
     templateType?: string;
   };
@@ -560,7 +589,7 @@ interface WorkflowListItem {
   dueInfo?: {
     type: 'overdue' | 'due_now' | 'upcoming' | 'scheduled';
     dueDate?: string;
-    recurringSchedule?: string;     // Human-readable: "Every Sunday"
+    recurringSchedule?: string; // Human-readable: "Every Sunday"
   };
   lastCompleted?: string;
 }
@@ -571,7 +600,7 @@ interface CreateWorkflowInput {
   purpose: string;
   description: string;
   status?: WorkflowStatus;
-  type?: WorkflowType;  // Default: 'workflow'
+  type?: WorkflowType; // Default: 'workflow'
   recurringSpec?: RecurringSpec;
   dueDate?: string;
   supplementaryMaterials?: Array<{
@@ -605,8 +634,8 @@ interface CompleteWorkflowInput {
 
 interface ListWorkflowsInput {
   status?: WorkflowStatus | 'all';
-  type?: WorkflowType | 'all';      // Filter by workflow type
-  dueSoon?: boolean;                // Workflows due in next 7 days
+  type?: WorkflowType | 'all'; // Filter by workflow type
+  dueSoon?: boolean; // Workflows due in next 7 days
   recurringOnly?: boolean;
   overdueOnly?: boolean;
   includeArchived?: boolean;
@@ -618,7 +647,7 @@ interface GetWorkflowInput {
   workflowId: string;
   includeSupplementaryMaterials?: boolean;
   includeCompletionHistory?: boolean;
-  completionHistoryLimit?: number;  // Default 10
+  completionHistoryLimit?: number; // Default 10
 }
 ```
 
@@ -632,28 +661,43 @@ class WorkflowManager {
   private workspace: Workspace;
 
   // Core CRUD
-  async createWorkflow(vaultId: string, input: CreateWorkflowInput): Promise<Workflow>
-  async getWorkflow(workflowId: string, options?: GetWorkflowInput): Promise<Workflow | null>
-  async updateWorkflow(workflowId: string, input: UpdateWorkflowInput): Promise<Workflow>
-  async deleteWorkflow(workflowId: string): Promise<void>  // Soft delete
-  async listWorkflows(vaultId: string, input?: ListWorkflowsInput): Promise<WorkflowListItem[]>
+  async createWorkflow(vaultId: string, input: CreateWorkflowInput): Promise<Workflow>;
+  async getWorkflow(
+    workflowId: string,
+    options?: GetWorkflowInput
+  ): Promise<Workflow | null>;
+  async updateWorkflow(workflowId: string, input: UpdateWorkflowInput): Promise<Workflow>;
+  async deleteWorkflow(workflowId: string): Promise<void>; // Soft delete
+  async listWorkflows(
+    vaultId: string,
+    input?: ListWorkflowsInput
+  ): Promise<WorkflowListItem[]>;
 
   // Supplementary materials
-  async addSupplementaryMaterial(workflowId: string, material: SupplementaryMaterial): Promise<string>
-  async removeSupplementaryMaterial(materialId: string): Promise<void>
-  async getSupplementaryMaterials(workflowId: string): Promise<SupplementaryMaterial[]>
+  async addSupplementaryMaterial(
+    workflowId: string,
+    material: SupplementaryMaterial
+  ): Promise<string>;
+  async removeSupplementaryMaterial(materialId: string): Promise<void>;
+  async getSupplementaryMaterials(workflowId: string): Promise<SupplementaryMaterial[]>;
 
   // Completion tracking
-  async completeWorkflow(input: CompleteWorkflowInput): Promise<WorkflowCompletion>
-  async getCompletionHistory(workflowId: string, limit?: number): Promise<WorkflowCompletion[]>
+  async completeWorkflow(input: CompleteWorkflowInput): Promise<WorkflowCompletion>;
+  async getCompletionHistory(
+    workflowId: string,
+    limit?: number
+  ): Promise<WorkflowCompletion[]>;
 
   // Scheduling helpers
-  async getWorkflowsDueNow(vaultId: string): Promise<WorkflowListItem[]>
-  async getUpcomingWorkflows(vaultId: string, daysAhead: number): Promise<WorkflowListItem[]>
-  isWorkflowDue(workflow: Workflow, now?: Date): boolean
+  async getWorkflowsDueNow(vaultId: string): Promise<WorkflowListItem[]>;
+  async getUpcomingWorkflows(
+    vaultId: string,
+    daysAhead: number
+  ): Promise<WorkflowListItem[]>;
+  isWorkflowDue(workflow: Workflow, now?: Date): boolean;
 
   // System prompt generation
-  async getWorkflowContextForPrompt(vaultId: string): Promise<string>
+  async getWorkflowContextForPrompt(vaultId: string): Promise<string>;
 }
 ```
 
@@ -789,8 +833,8 @@ async getWorkflowContextForPrompt(vaultId: string): Promise<string> {
   let statusFilter = $state<WorkflowStatus | 'all'>('active');
 
   const filteredWorkflows = $derived(
-    workflowStore.workflows.filter(w =>
-      statusFilter === 'all' || w.status === statusFilter
+    workflowStore.workflows.filter(
+      (w) => statusFilter === 'all' || w.status === statusFilter
     )
   );
 
@@ -811,7 +855,7 @@ async getWorkflowContextForPrompt(vaultId: string): Promise<string> {
 <div class="workflow-management">
   <header>
     <h1>Workflows</h1>
-    <button onclick={() => showCreateForm = true}>Create Workflow</button>
+    <button onclick={() => (showCreateForm = true)}>Create Workflow</button>
   </header>
 
   <div class="filters">
@@ -828,14 +872,14 @@ async getWorkflowContextForPrompt(vaultId: string): Promise<string> {
     <WorkflowList
       workflows={filteredWorkflows}
       selectedId={selectedWorkflowId}
-      onSelect={(id) => selectedWorkflowId = id}
+      onSelect={(id) => (selectedWorkflowId = id)}
       onExecute={handleExecuteWorkflow}
     />
 
     {#if selectedWorkflowId}
       <WorkflowDetail
         workflowId={selectedWorkflowId}
-        onClose={() => selectedWorkflowId = null}
+        onClose={() => (selectedWorkflowId = null)}
         onExecute={handleExecuteWorkflow}
       />
     {/if}
@@ -844,7 +888,7 @@ async getWorkflowContextForPrompt(vaultId: string): Promise<string> {
   {#if showCreateForm}
     <WorkflowForm
       onSubmit={handleCreateWorkflow}
-      onCancel={() => showCreateForm = false}
+      onCancel={() => (showCreateForm = false)}
     />
   {/if}
 </div>
@@ -925,16 +969,14 @@ class WorkflowStore {
   loading = $state(false);
   error = $state<string | null>(null);
 
-  workflowsDueNow = $derived(
-    this.workflows.filter(w => w.dueInfo?.type === 'due_now')
-  );
+  workflowsDueNow = $derived(this.workflows.filter((w) => w.dueInfo?.type === 'due_now'));
 
   upcomingWorkflows = $derived(
-    this.workflows.filter(w => w.dueInfo?.type === 'upcoming')
+    this.workflows.filter((w) => w.dueInfo?.type === 'upcoming')
   );
 
   onDemandWorkflows = $derived(
-    this.workflows.filter(w => !w.isRecurring && !w.dueInfo)
+    this.workflows.filter((w) => !w.isRecurring && !w.dueInfo)
   );
 
   async loadWorkflows() {
@@ -951,12 +993,12 @@ class WorkflowStore {
 
   async createWorkflow(input: CreateWorkflowInput) {
     const result = await window.api.createWorkflow(input);
-    await this.loadWorkflows();  // Refresh list
+    await this.loadWorkflows(); // Refresh list
     return result.workflowId;
   }
 
   getWorkflowById(id: string): WorkflowListItem | undefined {
-    return this.workflows.find(w => w.id === id);
+    return this.workflows.find((w) => w.id === id);
   }
 
   // ... other methods
@@ -1017,6 +1059,7 @@ ipcMain.handle('workflow:list', async (event, input?: ListWorkflowsInput) => {
 ### Phase 1: Core Infrastructure
 
 **Milestone 1.1: Database & Data Layer**
+
 - [ ] Create migration script for workflow tables
 - [ ] Implement WorkflowManager class with CRUD methods
 - [ ] Write unit tests for WorkflowManager
@@ -1025,6 +1068,7 @@ ipcMain.handle('workflow:list', async (event, input?: ListWorkflowsInput) => {
 - [ ] Test migration on existing vault
 
 **Milestone 1.2: Agent Tools**
+
 - [ ] Define Zod schemas for all tool inputs
 - [ ] Implement create_workflow, update_workflow, delete_workflow tools
 - [ ] Implement list_workflows, get_workflow tools
@@ -1033,6 +1077,7 @@ ipcMain.handle('workflow:list', async (event, input?: ListWorkflowsInput) => {
 - [ ] Write integration tests for tools
 
 **Milestone 1.3: System Prompt Integration**
+
 - [ ] Implement getWorkflowContextForPrompt()
 - [ ] Add workflow context to AIService.getVaultContext()
 - [ ] Test token usage with 10, 50, 100 workflows
@@ -1040,6 +1085,7 @@ ipcMain.handle('workflow:list', async (event, input?: ListWorkflowsInput) => {
 - [ ] Test cache hit rates with workflow context
 
 **Success Criteria:**
+
 - Agent can create, list, and complete workflows
 - Workflow context appears in system prompt
 - Token budget stays under 500 tokens for workflow index
@@ -1047,6 +1093,7 @@ ipcMain.handle('workflow:list', async (event, input?: ListWorkflowsInput) => {
 ### Phase 2: Supplementary Materials
 
 **Milestone 2.1: Material Storage**
+
 - [ ] Implement add/remove material database operations
 - [ ] Implement material loading in get_workflow tool
 - [ ] Add size validation (50KB per material, 500KB total)
@@ -1054,12 +1101,14 @@ ipcMain.handle('workflow:list', async (event, input?: ListWorkflowsInput) => {
 - [ ] Write tests for material operations
 
 **Milestone 2.2: Agent Tool Integration**
+
 - [ ] Implement add_workflow_material tool
 - [ ] Implement remove_workflow_material tool
 - [ ] Test loading materials during workflow execution
 - [ ] Verify note references resolve correctly
 
 **Success Criteria:**
+
 - Agent can attach and load supplementary materials
 - Note references load on-demand
 - Size limits enforced
@@ -1067,6 +1116,7 @@ ipcMain.handle('workflow:list', async (event, input?: ListWorkflowsInput) => {
 ### Phase 3: UI Components
 
 **Milestone 3.1: Workflow Management View**
+
 - [ ] Create WorkflowManagementView component
 - [ ] Create WorkflowList component with filtering
 - [ ] Create WorkflowDetail component
@@ -1076,12 +1126,14 @@ ipcMain.handle('workflow:list', async (event, input?: ListWorkflowsInput) => {
 - [ ] Add routing to workflow management view
 
 **Milestone 3.2: Conversation Start Integration**
+
 - [ ] Create ConversationStartWorkflowPanel component
 - [ ] Integrate with conversation start flow
 - [ ] Implement click-to-execute functionality
 - [ ] Test workflow visibility logic
 
 **Milestone 3.3: Polish & UX**
+
 - [ ] Add loading states
 - [ ] Add error handling and user feedback
 - [ ] Add confirmation dialogs for delete
@@ -1090,6 +1142,7 @@ ipcMain.handle('workflow:list', async (event, input?: ListWorkflowsInput) => {
 - [ ] Add empty states
 
 **Success Criteria:**
+
 - Users can create/edit/delete workflows via UI
 - Users can execute workflows by clicking
 - UI updates when agent completes workflows
@@ -1097,18 +1150,21 @@ ipcMain.handle('workflow:list', async (event, input?: ListWorkflowsInput) => {
 ### Phase 4: Completion Tracking & History
 
 **Milestone 4.1: Completion Recording**
+
 - [ ] Implement completion history storage
 - [ ] Update complete_workflow to record history
 - [ ] Handle recurring vs one-time completion logic
 - [ ] Test completion with metadata
 
 **Milestone 4.2: History Display**
+
 - [ ] Add completion history to WorkflowDetail component
 - [ ] Show last completed time in workflow lists
 - [ ] Add completion statistics (total, average frequency)
 - [ ] Test history with many completions
 
 **Success Criteria:**
+
 - All workflow completions are recorded
 - Users can view completion history
 - Recurring workflows reset properly
@@ -1116,6 +1172,7 @@ ipcMain.handle('workflow:list', async (event, input?: ListWorkflowsInput) => {
 ### Phase 5: Testing & Documentation
 
 **Milestone 5.1: Testing**
+
 - [ ] Write unit tests for WorkflowManager (80% coverage)
 - [ ] Write integration tests for agent tools
 - [ ] Write E2E tests for UI workflows
@@ -1124,6 +1181,7 @@ ipcMain.handle('workflow:list', async (event, input?: ListWorkflowsInput) => {
 - [ ] Performance test with 100+ workflows
 
 **Milestone 5.2: Documentation**
+
 - [ ] Update ARCHITECTURE.md with workflow system
 - [ ] Create WORKFLOW-SYSTEM.md user guide
 - [ ] Add JSDoc comments to all public APIs
@@ -1131,6 +1189,7 @@ ipcMain.handle('workflow:list', async (event, input?: ListWorkflowsInput) => {
 - [ ] Update system prompt docs
 
 **Success Criteria:**
+
 - All tests passing
 - Documentation complete
 - Example workflows ready for users
@@ -1138,6 +1197,7 @@ ipcMain.handle('workflow:list', async (event, input?: ListWorkflowsInput) => {
 ### Phase 6: Beta Release & Iteration
 
 **Milestone 6.1: Beta Testing**
+
 - [ ] Deploy to beta users
 - [ ] Monitor workflow creation patterns
 - [ ] Collect feedback on agent proactiveness
@@ -1145,6 +1205,7 @@ ipcMain.handle('workflow:list', async (event, input?: ListWorkflowsInput) => {
 - [ ] Identify top use cases
 
 **Milestone 6.2: Refinement**
+
 - [ ] Adjust system prompt based on token usage
 - [ ] Tune agent proactiveness settings
 - [ ] Add most-requested features
@@ -1152,6 +1213,7 @@ ipcMain.handle('workflow:list', async (event, input?: ListWorkflowsInput) => {
 - [ ] Optimize database queries
 
 **Success Criteria:**
+
 - Beta users create >5 workflows each
 - <10% token overhead from workflow system
 - Positive feedback on agent proactiveness
@@ -1268,62 +1330,73 @@ ipcMain.handle('workflow:list', async (event, input?: ListWorkflowsInput) => {
 ## Future Enhancements (Post-V1)
 
 ### Extended Workflow Types
+
 Beyond the initial two-type system (`workflow` and `backlog`), consider adding more granular types:
 
 ```typescript
 type WorkflowType =
-  | 'workflow'      // V1: Intentional, structured workflows
-  | 'backlog'       // V1: Discovered items and suggestions
-  | 'maintenance'   // Future: Cleanup, housekeeping, optimization
-  | 'suggestion';   // Future: Agent-proposed, awaiting user approval
+  | 'workflow' // V1: Intentional, structured workflows
+  | 'backlog' // V1: Discovered items and suggestions
+  | 'maintenance' // Future: Cleanup, housekeeping, optimization
+  | 'suggestion'; // Future: Agent-proposed, awaiting user approval
 ```
 
 **Benefits:**
+
 - `maintenance`: Separate cleanup workflows from discovered issues
 - `suggestion`: Agent can propose workflows requiring explicit user approval before becoming active
 - Better organization and filtering in UI
 
 **Implementation:**
+
 - Update CHECK constraint in database
 - Add UI sections for each type
 - System prompt guidance for when to use each type
 
 ### Workflow Dependencies
+
 - Define "depends on" relationships between workflows
 - Block execution until dependencies complete
 - Visualize dependency graph
 
 ### Workflow Templates
+
 - Save workflows as templates
 - Instantiate templates with parameters
 - Share templates between users/vaults
 
 ### Advanced Scheduling
+
 - Cron-like syntax for complex schedules
 - "Every 2nd Monday" or "Last Friday of month"
 - Timezone-aware scheduling
 
 ### Workflow Analytics
+
 - Completion rate dashboards
 - Time-to-complete tracking
 - Workflow effectiveness metrics
 
 ### Collaborative Workflows
+
 - Assign workflows to specific agents/users
 - Workflow handoff between conversations
 - Shared workflow pools for teams
 
 ### Workflow Chains
+
 - Define multi-step workflows as sequences
 - Automatic progression to next workflow
 - Conditional branching ("if X then workflow A, else workflow B")
 
 ### Integration APIs
+
 - Webhook triggers for workflow completion
 - External system integration (Zapier, etc.)
 - Calendar sync for recurring workflows
 
 ### Smart Suggestions
+
 - Agent suggests new workflows based on patterns
 - "You've done X three times, should I create a workflow?"
 - Learn from user behavior
@@ -1489,72 +1562,89 @@ type WorkflowType =
 
 ```typescript
 const createWorkflowSchema = z.object({
-  name: z.string()
+  name: z
+    .string()
     .min(1)
     .max(20)
     .describe('Short workflow name (1-20 characters, e.g., "Weekly Summary")'),
 
-  purpose: z.string()
+  purpose: z
+    .string()
     .min(1)
     .max(100)
     .describe('One-sentence description of what this workflow accomplishes'),
 
-  description: z.string()
+  description: z
+    .string()
     .min(1)
     .describe('Detailed step-by-step instructions for executing this workflow'),
 
-  status: z.enum(['active', 'paused', 'completed', 'archived'])
+  status: z
+    .enum(['active', 'paused', 'completed', 'archived'])
     .optional()
     .default('active')
     .describe('Initial workflow status'),
 
-  type: z.enum(['workflow', 'backlog'])
+  type: z
+    .enum(['workflow', 'backlog'])
     .optional()
     .default('workflow')
-    .describe('Workflow type: "workflow" for intentional workflows, "backlog" for discovered items'),
+    .describe(
+      'Workflow type: "workflow" for intentional workflows, "backlog" for discovered items'
+    ),
 
-  recurringSpec: z.object({
-    frequency: z.enum(['daily', 'weekly', 'monthly'])
-      .describe('How often this workflow should recur'),
-    dayOfWeek: z.number()
-      .int()
-      .min(0)
-      .max(6)
-      .optional()
-      .describe('Day of week for weekly workflows (0=Sunday, 6=Saturday)'),
-    dayOfMonth: z.number()
-      .int()
-      .min(1)
-      .max(31)
-      .optional()
-      .describe('Day of month for monthly workflows (1-31)'),
-    time: z.string()
-      .regex(/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/)
-      .optional()
-      .describe('Time in HH:MM format (24-hour)')
-  }).optional()
+  recurringSpec: z
+    .object({
+      frequency: z
+        .enum(['daily', 'weekly', 'monthly'])
+        .describe('How often this workflow should recur'),
+      dayOfWeek: z
+        .number()
+        .int()
+        .min(0)
+        .max(6)
+        .optional()
+        .describe('Day of week for weekly workflows (0=Sunday, 6=Saturday)'),
+      dayOfMonth: z
+        .number()
+        .int()
+        .min(1)
+        .max(31)
+        .optional()
+        .describe('Day of month for monthly workflows (1-31)'),
+      time: z
+        .string()
+        .regex(/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/)
+        .optional()
+        .describe('Time in HH:MM format (24-hour)')
+    })
+    .optional()
     .describe('Recurring schedule specification'),
 
-  dueDate: z.string()
+  dueDate: z
+    .string()
     .datetime()
     .optional()
     .describe('Due date for one-time workflows (ISO 8601 format)'),
 
-  supplementaryMaterials: z.array(
-    z.object({
-      type: z.enum(['text', 'code', 'note_reference'])
-        .describe('Type of supplementary material'),
-      content: z.string()
-        .optional()
-        .describe('Material content (for text/code types)'),
-      noteId: z.string()
-        .optional()
-        .describe('Note ID to reference (for note_reference type)'),
-      metadata: z.record(z.unknown())
-        .optional()
-        .describe('Additional metadata (language for code, description, etc.)')
-    })
-  ).optional()
+  supplementaryMaterials: z
+    .array(
+      z.object({
+        type: z
+          .enum(['text', 'code', 'note_reference'])
+          .describe('Type of supplementary material'),
+        content: z.string().optional().describe('Material content (for text/code types)'),
+        noteId: z
+          .string()
+          .optional()
+          .describe('Note ID to reference (for note_reference type)'),
+        metadata: z
+          .record(z.unknown())
+          .optional()
+          .describe('Additional metadata (language for code, description, etc.)')
+      })
+    )
+    .optional()
     .describe('Supplementary materials to help execute workflow')
 });
 ```
@@ -1563,37 +1653,31 @@ const createWorkflowSchema = z.object({
 
 ```typescript
 const listWorkflowsSchema = z.object({
-  status: z.enum(['active', 'paused', 'completed', 'archived', 'all'])
+  status: z
+    .enum(['active', 'paused', 'completed', 'archived', 'all'])
     .optional()
     .default('active')
     .describe('Filter by workflow status'),
 
-  type: z.enum(['workflow', 'backlog', 'all'])
+  type: z
+    .enum(['workflow', 'backlog', 'all'])
     .optional()
     .default('all')
     .describe('Filter by workflow type'),
 
-  dueSoon: z.boolean()
-    .optional()
-    .describe('Only show workflows due in next 7 days'),
+  dueSoon: z.boolean().optional().describe('Only show workflows due in next 7 days'),
 
-  recurringOnly: z.boolean()
-    .optional()
-    .describe('Only show recurring workflows'),
+  recurringOnly: z.boolean().optional().describe('Only show recurring workflows'),
 
-  overdueOnly: z.boolean()
-    .optional()
-    .describe('Only show overdue workflows'),
+  overdueOnly: z.boolean().optional().describe('Only show overdue workflows'),
 
-  sortBy: z.enum(['dueDate', 'created', 'name', 'lastCompleted'])
+  sortBy: z
+    .enum(['dueDate', 'created', 'name', 'lastCompleted'])
     .optional()
     .default('dueDate')
     .describe('Field to sort by'),
 
-  sortOrder: z.enum(['asc', 'desc'])
-    .optional()
-    .default('asc')
-    .describe('Sort direction')
+  sortOrder: z.enum(['asc', 'desc']).optional().default('asc').describe('Sort direction')
 });
 ```
 
@@ -1601,27 +1685,29 @@ const listWorkflowsSchema = z.object({
 
 ```typescript
 const completeWorkflowSchema = z.object({
-  workflowId: z.string()
-    .describe('ID of workflow to mark as completed'),
+  workflowId: z.string().describe('ID of workflow to mark as completed'),
 
-  notes: z.string()
-    .optional()
-    .describe('Optional notes about this execution'),
+  notes: z.string().optional().describe('Optional notes about this execution'),
 
-  outputNoteId: z.string()
+  outputNoteId: z
+    .string()
     .optional()
     .describe('ID of note created as result of workflow (if applicable)'),
 
-  metadata: z.object({
-    durationMs: z.number()
-      .int()
-      .optional()
-      .describe('Time taken to execute workflow in milliseconds'),
-    toolCallsCount: z.number()
-      .int()
-      .optional()
-      .describe('Number of tool calls used during execution')
-  }).optional()
+  metadata: z
+    .object({
+      durationMs: z
+        .number()
+        .int()
+        .optional()
+        .describe('Time taken to execute workflow in milliseconds'),
+      toolCallsCount: z
+        .number()
+        .int()
+        .optional()
+        .describe('Number of tool calls used during execution')
+    })
+    .optional()
     .describe('Execution metadata for tracking')
 });
 ```

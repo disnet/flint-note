@@ -1019,8 +1019,152 @@ async function migrateToV2_3_0(db: DatabaseConnection): Promise<void> {
   }
 }
 
+/**
+ * Migration to v2.4.0: Add workflow tables for agent workflow management
+ */
+async function migrateToV2_4_0(db: DatabaseConnection): Promise<void> {
+  console.log('Migrating to v2.4.0: Adding workflow tables');
+
+  try {
+    // Check if workflows table already exists
+    const workflowsTableExists = await db.get<{ count: number }>(`
+      SELECT COUNT(*) as count FROM sqlite_master
+      WHERE type='table' AND name='workflows'
+    `);
+
+    if (workflowsTableExists && workflowsTableExists.count > 0) {
+      console.log('Workflows table already exists, skipping migration');
+      return;
+    }
+
+    console.log('Creating workflows table...');
+
+    // Create workflows table
+    await db.run(`
+      CREATE TABLE workflows (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL CHECK(length(name) >= 1 AND length(name) <= 20),
+        purpose TEXT NOT NULL CHECK(length(purpose) >= 1 AND length(purpose) <= 100),
+        description TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'active'
+          CHECK (status IN ('active', 'paused', 'completed', 'archived')),
+        type TEXT NOT NULL DEFAULT 'workflow'
+          CHECK (type IN ('workflow', 'backlog')),
+        vault_id TEXT NOT NULL,
+        recurring_spec TEXT,
+        due_date DATETIME,
+        last_completed DATETIME,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (vault_id) REFERENCES vaults(id) ON DELETE CASCADE
+      )
+    `);
+
+    // Create unique constraint on name per vault (case-insensitive)
+    await db.run(`
+      CREATE UNIQUE INDEX idx_workflows_vault_name_unique
+        ON workflows(vault_id, LOWER(name))
+    `);
+
+    // Create indexes for common queries
+    await db.run(`
+      CREATE INDEX idx_workflows_vault_status
+        ON workflows(vault_id, status)
+    `);
+
+    await db.run(`
+      CREATE INDEX idx_workflows_vault_type
+        ON workflows(vault_id, type)
+    `);
+
+    await db.run(`
+      CREATE INDEX idx_workflows_due_date
+        ON workflows(due_date)
+        WHERE due_date IS NOT NULL
+    `);
+
+    await db.run(`
+      CREATE INDEX idx_workflows_last_completed
+        ON workflows(last_completed)
+        WHERE last_completed IS NOT NULL
+    `);
+
+    await db.run(`
+      CREATE INDEX idx_workflows_vault_recurring
+        ON workflows(vault_id, recurring_spec)
+        WHERE recurring_spec IS NOT NULL
+    `);
+
+    console.log('Creating workflow_supplementary_materials table...');
+
+    // Create supplementary materials table
+    await db.run(`
+      CREATE TABLE workflow_supplementary_materials (
+        id TEXT PRIMARY KEY,
+        workflow_id TEXT NOT NULL,
+        material_type TEXT NOT NULL
+          CHECK (material_type IN ('text', 'code', 'note_reference')),
+        content TEXT,
+        note_id TEXT,
+        metadata TEXT,
+        position INTEGER NOT NULL DEFAULT 0,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (workflow_id) REFERENCES workflows(id) ON DELETE CASCADE,
+        FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE SET NULL
+      )
+    `);
+
+    await db.run(`
+      CREATE INDEX idx_workflow_materials_workflow
+        ON workflow_supplementary_materials(workflow_id, position)
+    `);
+
+    console.log('Creating workflow_completion_history table...');
+
+    // Create completion history table
+    await db.run(`
+      CREATE TABLE workflow_completion_history (
+        id TEXT PRIMARY KEY,
+        workflow_id TEXT NOT NULL,
+        completed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        conversation_id TEXT,
+        notes TEXT,
+        output_note_id TEXT,
+        metadata TEXT,
+        FOREIGN KEY (workflow_id) REFERENCES workflows(id) ON DELETE CASCADE,
+        FOREIGN KEY (output_note_id) REFERENCES notes(id) ON DELETE SET NULL
+      )
+    `);
+
+    await db.run(`
+      CREATE INDEX idx_workflow_completion_workflow
+        ON workflow_completion_history(workflow_id, completed_at DESC)
+    `);
+
+    await db.run(`
+      CREATE INDEX idx_workflow_completion_conversation
+        ON workflow_completion_history(conversation_id)
+    `);
+
+    // Create trigger to update updated_at
+    await db.run(`
+      CREATE TRIGGER update_workflows_timestamp
+      AFTER UPDATE ON workflows
+      FOR EACH ROW
+      BEGIN
+        UPDATE workflows SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+      END
+    `);
+
+    console.log('Workflow tables created successfully');
+  } catch (error) {
+    console.error('Failed to create workflow tables:', error);
+    throw error;
+  }
+}
+
 export class DatabaseMigrationManager {
-  private static readonly CURRENT_SCHEMA_VERSION = '2.3.0';
+  private static readonly CURRENT_SCHEMA_VERSION = '2.4.0';
 
   private static readonly MIGRATIONS: DatabaseMigration[] = [
     {
@@ -1065,6 +1209,13 @@ export class DatabaseMigrationManager {
       requiresFullRebuild: false,
       requiresLinkMigration: false,
       migrationFunction: migrateToV2_3_0
+    },
+    {
+      version: '2.4.0',
+      description: 'Add workflow tables for agent workflow management',
+      requiresFullRebuild: false,
+      requiresLinkMigration: false,
+      migrationFunction: migrateToV2_4_0
     }
   ];
 
