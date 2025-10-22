@@ -1,4 +1,4 @@
-# Task Tracking System - Product Requirements Document
+# Agent Workflows - Product Requirements Document
 
 **Document Status:** Draft
 **Created:** 2025-10-20
@@ -9,11 +9,11 @@
 
 ## Executive Summary
 
-The Task Tracking System enables collaborative task management between AI agents and users across conversation threads. Tasks are persistent data records containing instructions, context, and supplementary materials that agents can reference and execute. The system supports both one-time and recurring tasks, allowing users to define workflows that agents proactively manage over time.
+Agent Workflows enable collaborative workflow management between AI agents and users across conversation threads. Workflows are persistent data records containing instructions, context, and supplementary materials that agents can reference and execute. The system supports both one-time and recurring workflows, allowing users to define tasks that agents proactively manage over time.
 
 **Core Value Proposition:** Enable users to teach agents persistent workflows that execute consistently across sessions, reducing repetitive instructions and enabling proactive assistance.
 
-**Key Example:** A user creates a "Weekly Summary" task that runs every Sunday. The task contains detailed instructions for synthesizing the week's daily notes into a structured weekly note. Every Sunday, agents across all conversation threads are aware this task is due and can proactively offer to execute it.
+**Key Example:** A user creates a "Weekly Summary" workflow that runs every Sunday. The workflow contains detailed instructions for synthesizing the week's daily notes into a structured weekly note. Every Sunday, agents across all conversation threads are aware this workflow is due and can proactively offer to execute it.
 
 ---
 
@@ -21,20 +21,20 @@ The Task Tracking System enables collaborative task management between AI agents
 
 ### Goals
 
-1. **Persistent Agent Knowledge:** Tasks provide durable context that survives across conversation threads
-2. **Proactive Agent Behavior:** Agents can suggest tasks at appropriate times (due dates, recurring schedules)
-3. **Collaborative Management:** Both users (via UI) and agents (via tools) can create and manage tasks
-4. **Flexible Execution:** Tasks can be executed on-demand or on recurring schedules
+1. **Persistent Agent Knowledge:** Workflows provide durable context that survives across conversation threads
+2. **Proactive Agent Behavior:** Agents can suggest workflows at appropriate times (due dates, recurring schedules)
+3. **Collaborative Management:** Both users (via UI) and agents (via tools) can create and manage workflows
+4. **Flexible Execution:** Workflows can be executed on-demand or on recurring schedules
 5. **Rich Context:** Supplementary materials provide agents with examples, templates, and reference data
-6. **Minimal Prompt Bloat:** Task awareness doesn't significantly increase token usage in system prompts
+6. **Minimal Prompt Bloat:** Workflow awareness doesn't significantly increase token usage in system prompts
 
 ### Non-Goals
 
 1. **Complex Scheduling:** No cron-like syntax or timezone-aware scheduling (initial version)
-2. **Task Dependencies:** No "task A must complete before task B" logic (can be added later)
+2. **Workflow Dependencies:** No "workflow A must complete before workflow B" logic (can be added later)
 3. **External System Integration:** No calendar, email, or third-party task system sync
-4. **Multi-user Collaboration:** Tasks are scoped to a vault, not shared across users
-5. **Advanced Analytics:** No task completion statistics or performance tracking (v1)
+4. **Multi-user Collaboration:** Workflows are scoped to a vault, not shared across users
+5. **Advanced Analytics:** No workflow completion statistics or performance tracking (v1)
 
 ---
 
@@ -42,35 +42,35 @@ The Task Tracking System enables collaborative task management between AI agents
 
 ### Core Workflows
 
-**US-1: Create Recurring Task**
-As a user, I want to create a weekly task for summarizing my notes, so that the agent can automatically perform this workflow every week.
+**US-1: Create Recurring Workflow**
+As a user, I want to create a weekly workflow for summarizing my notes, so that the agent can automatically perform this task every week.
 
 **US-2: Agent Proactive Suggestion**
-As a user, I want the agent to proactively notice when tasks are due and offer to execute them, so I don't have to remember routine workflows.
+As a user, I want the agent to proactively notice when workflows are due and offer to execute them, so I don't have to remember routine tasks.
 
-**US-3: Execute Task On-Demand**
-As a user, I want to manually trigger a task execution even when it's not due, so I can run workflows whenever needed.
+**US-3: Execute Workflow On-Demand**
+As a user, I want to manually trigger a workflow execution even when it's not due, so I can run tasks whenever needed.
 
-**US-4: View Task List**
-As a user, I want to see all my active tasks in one place, so I can understand what automated workflows exist in my vault.
+**US-4: View Workflow List**
+As a user, I want to see all my active workflows in one place, so I can understand what automated tasks exist in my vault.
 
-**US-5: Task with Supplementary Materials**
-As a user, I want to attach templates, examples, and reference notes to a task, so the agent has everything needed to execute it correctly.
+**US-5: Workflow with Supplementary Materials**
+As a user, I want to attach templates, examples, and reference notes to a workflow, so the agent has everything needed to execute it correctly.
 
-**US-6: Agent Creates Task**
-As a user, I want to ask the agent to "set up a weekly review task" in natural language, and have it create the task with appropriate structure.
+**US-6: Agent Creates Workflow**
+As a user, I want to ask the agent to "set up a weekly review workflow" in natural language, and have it create the workflow with appropriate structure.
 
-**US-7: Mark Task Complete**
-As a user, I want the agent to mark a task as completed when executed, so I can track when recurring tasks last ran.
+**US-7: Mark Workflow Complete**
+As a user, I want the agent to mark a workflow as completed when executed, so I can track when recurring workflows last ran.
 
-**US-8: Edit Task**
-As a user, I want to update task instructions after trying them once, so I can refine workflows over time.
+**US-8: Edit Workflow**
+As a user, I want to update workflow instructions after trying them once, so I can refine tasks over time.
 
-**US-9: Quick Task Execution from UI**
-As a user, I want to click a task in the UI and have it send an execution message to the agent, so I can easily trigger workflows.
+**US-9: Quick Workflow Execution from UI**
+As a user, I want to click a workflow in the UI and have it send an execution message to the agent, so I can easily trigger tasks.
 
-**US-10: Archive Completed Tasks**
-As a user, I want to archive one-time tasks after completion, so my active task list stays focused.
+**US-10: Archive Completed Workflows**
+As a user, I want to archive one-time workflows after completion, so my active workflow list stays focused.
 
 **US-11: Transparent Backlog Discovery**
 As a user, I want the agent to silently record issues it discovers while doing other work (broken links, inconsistencies, etc.) in a backlog, so I'm not interrupted but can review them later.
@@ -79,33 +79,33 @@ As a user, I want the agent to silently record issues it discovers while doing o
 
 ## Functional Requirements
 
-### FR-1: Task Data Model
+### FR-1: Workflow Data Model
 
-Each task must contain:
+Each workflow must contain:
 
-- **id** (string, immutable): Unique identifier in format `t-xxxxxxxx`
+- **id** (string, immutable): Unique identifier in format `w-xxxxxxxx`
 - **name** (string, 1-20 chars): Short, memorable name (e.g., "Weekly Summary")
-- **purpose** (string, max 100 chars): One-sentence description of what the task accomplishes
+- **purpose** (string, max 100 chars): One-sentence description of what the workflow accomplishes
 - **description** (string, unlimited): Detailed step-by-step instructions for execution
 - **status** (enum): `active`, `paused`, `completed`, `archived`
 - **type** (enum): `workflow`, `backlog` (default: `workflow`)
-- **vault_id** (string): Which vault this task belongs to
-- **created_at** (datetime): When task was created
+- **vault_id** (string): Which vault this workflow belongs to
+- **created_at** (datetime): When workflow was created
 - **updated_at** (datetime): Last modification time
 
 Optional fields:
-- **recurring_spec** (object): Schedule information for recurring tasks
-- **due_date** (datetime): One-time due date for non-recurring tasks
+- **recurring_spec** (object): Schedule information for recurring workflows
+- **due_date** (datetime): One-time due date for non-recurring workflows
 - **last_completed** (datetime): Most recent completion timestamp
 - **supplementary_materials** (array): Attached context, templates, code snippets
 
-**Task Type Semantics:**
-- **workflow**: Intentional, structured workflows (weekly summaries, meeting prep, etc.). Primary use case. Shows in main task list.
+**Workflow Type Semantics:**
+- **workflow**: Intentional, structured workflows (weekly summaries, meeting prep, etc.). Primary use case. Shows in main workflow list.
 - **backlog**: Items discovered opportunistically during other work (broken links, cleanup opportunities, agent suggestions). Shows in separate backlog view for later review.
 
-### FR-2: Recurring Task Specification
+### FR-2: Recurring Workflow Specification
 
-Recurring tasks must support:
+Recurring workflows must support:
 
 ```typescript
 interface RecurringSpec {
@@ -117,13 +117,13 @@ interface RecurringSpec {
 ```
 
 **Scheduling Logic:**
-- **Daily:** Task is due if 24+ hours have passed since last completion
-- **Weekly:** Task is due if 7+ days have passed AND current day matches `dayOfWeek`
-- **Monthly:** Task is due if 30+ days have passed AND current day matches `dayOfMonth`
+- **Daily:** Workflow is due if 24+ hours have passed since last completion
+- **Weekly:** Workflow is due if 7+ days have passed AND current day matches `dayOfWeek`
+- **Monthly:** Workflow is due if 30+ days have passed AND current day matches `dayOfMonth`
 
 ### FR-3: Supplementary Materials
 
-Tasks can include multiple supplementary materials:
+Workflows can include multiple supplementary materials:
 
 ```typescript
 interface SupplementaryMaterial {
@@ -141,17 +141,17 @@ interface SupplementaryMaterial {
 
 **Storage limits:**
 - Individual material: 50KB max
-- Total materials per task: 500KB max
+- Total materials per workflow: 500KB max
 - Note references: No limit (loaded on-demand)
 
-### FR-4: Task Completion Tracking
+### FR-4: Workflow Completion Tracking
 
-Each task completion must be recorded:
+Each workflow completion must be recorded:
 
 ```typescript
-interface TaskCompletion {
+interface WorkflowCompletion {
   id: string;
-  task_id: string;
+  workflow_id: string;
   completed_at: datetime;
   conversation_id?: string;     // Which conversation executed it
   notes?: string;               // Agent's notes about execution
@@ -163,55 +163,55 @@ interface TaskCompletion {
 }
 ```
 
-For recurring tasks:
+For recurring workflows:
 - Completion is recorded in history
 - `last_completed` timestamp is updated
 - Status remains `active` for future occurrences
 
-For one-time tasks:
+For one-time workflows:
 - Completion is recorded
 - Status changes to `completed`
-- Task can be manually re-activated or archived
+- Workflow can be manually re-activated or archived
 
 ### FR-5: System Prompt Injection
 
-**Tier 1: Task Index (Always Injected)**
+**Tier 1: Workflow Index (Always Injected)**
 
 Lightweight summary added to vault context:
 
 ```markdown
-## Available Tasks
+## Available Workflows
 
 ### Due Now
 - **Weekly Summary**: Summarize week's daily notes into weekly note (due every Sunday)
 - **Meeting Prep**: Review today's meetings and create prep notes (due daily at 8am)
 
-### Active Tasks
+### Active Workflows
 - **Project Setup**: Create complete structure for new project (on-demand)
 - **Monthly Archive**: Archive completed items and organize vault (due 1st of month)
 
-### Paused Tasks (2)
+### Paused Workflows (2)
 [Not listed in context to save tokens]
 
 ### Backlog Items (5)
 [Not listed in context to save tokens - user can review separately]
 ```
 
-**Token Budget:** Max 500 tokens for task index
+**Token Budget:** Max 500 tokens for workflow index
 
 **Agent Behavior Guidelines:**
 
 When you discover issues during other work (broken links, inconsistencies, potential improvements, cleanup opportunities):
-- Create tasks with `type='backlog'`
+- Create workflows with `type='backlog'`
 - Do NOT interrupt the user or mention these discoveries
 - Silently record them for later review
 - Continue with your primary task
 
 The user can review backlog items later in a dedicated UI section.
 
-**Tier 2: Task Details (Loaded On-Demand)**
+**Tier 2: Workflow Details (Loaded On-Demand)**
 
-Full task details only loaded when agent uses `get_task` tool:
+Full workflow details only loaded when agent uses `get_workflow` tool:
 - Complete description
 - Supplementary materials
 - Completion history (if requested)
@@ -220,70 +220,70 @@ Full task details only loaded when agent uses `get_task` tool:
 
 The following tools must be available to agents:
 
-**create_task**
-- Create new task with all fields
+**create_workflow**
+- Create new workflow with all fields
 - Validate name length, purpose length
 - Generate unique ID
-- Return task ID and confirmation
+- Return workflow ID and confirmation
 
-**update_task**
-- Modify any task field except `id`, `created_at`, `vault_id`
-- Require task ID
+**update_workflow**
+- Modify any workflow field except `id`, `created_at`, `vault_id`
+- Require workflow ID
 - Support partial updates
-- Return updated task
+- Return updated workflow
 
-**delete_task**
+**delete_workflow**
 - Soft delete (mark as `archived`)
-- Require confirmation for tasks with completion history
+- Require confirmation for workflows with completion history
 - Return success confirmation
 
-**list_tasks**
+**list_workflows**
 - Filter by status, recurring, due date
 - Sort by due date, created date, name
-- Return lightweight task list (name, purpose, status, due info)
+- Return lightweight workflow list (name, purpose, status, due info)
 
-**get_task**
-- Retrieve full task details
+**get_workflow**
+- Retrieve full workflow details
 - Optionally include supplementary materials
 - Optionally include completion history
-- Return complete task object
+- Return complete workflow object
 
-**complete_task**
-- Mark task as completed
+**complete_workflow**
+- Mark workflow as completed
 - Record completion in history
 - Update `last_completed` timestamp
 - Optionally attach notes and output note ID
 - Handle recurring vs one-time logic
 - Return completion record
 
-**add_task_material**
-- Add supplementary material to existing task
+**add_workflow_material**
+- Add supplementary material to existing workflow
 - Validate size limits
 - Support all material types
 - Return material ID
 
-**remove_task_material**
+**remove_workflow_material**
 - Remove supplementary material by ID
 - Require confirmation
 - Return success confirmation
 
 ### FR-7: UI Requirements
 
-**Task Management View**
+**Workflow Management View**
 
-Primary interface for viewing and managing all tasks:
+Primary interface for viewing and managing all workflows:
 
 - **Tabs:**
-  - **Workflows** (default): Shows `type='workflow'` tasks
-  - **Backlog**: Shows `type='backlog'` tasks with count badge
+  - **Workflows** (default): Shows `type='workflow'` workflows
+  - **Backlog**: Shows `type='backlog'` workflows with count badge
 
-- **List View:** Display tasks grouped by status
+- **List View:** Display workflows grouped by status
   - Columns: Name, Purpose, Type (recurring/one-time), Last Completed, Due Date/Schedule
   - Filters: Status (active/paused/completed/archived), Type (recurring/one-time)
   - Sort: Due date, created date, name, last completed
   - Search: Filter by name or purpose text
 
-- **Task Detail Panel:** Show full task when selected
+- **Workflow Detail Panel:** Show full workflow when selected
   - Display all fields including description
   - Show completion history (last 10 completions)
   - Show supplementary materials (expandable)
@@ -305,63 +305,63 @@ Primary interface for viewing and managing all tasks:
 
 **Conversation Start View**
 
-Quick access to relevant tasks when starting new conversation:
+Quick access to relevant workflows when starting new conversation:
 
-- **Section 1: Tasks Due Now**
-  - Show tasks that are currently due
+- **Section 1: Workflows Due Now**
+  - Show workflows that are currently due
   - Display: Name, purpose, last completed time
-  - Click to send "Execute task: {name}" message to agent
+  - Click to send "Execute workflow: {name}" message to agent
 
-- **Section 2: Upcoming Tasks**
-  - Show tasks due in next 7 days
+- **Section 2: Upcoming Workflows**
+  - Show workflows due in next 7 days
   - Display: Name, purpose, due date/schedule
 
-- **Section 3: On-Demand Tasks**
-  - Show active non-recurring tasks
+- **Section 3: On-Demand Workflows**
+  - Show active non-recurring workflows
   - Display: Name, purpose
   - Click to execute
 
-- **View All Tasks** button → Opens Task Management View
+- **View All Workflows** button → Opens Workflow Management View
 
-**In-Conversation Task Indicators**
+**In-Conversation Workflow Indicators**
 
-During conversation, show when agent mentions tasks:
+During conversation, show when agent mentions workflows:
 
-- Highlight task names as clickable chips
-- Tooltip shows task purpose on hover
-- Click opens task detail panel
+- Highlight workflow names as clickable chips
+- Tooltip shows workflow purpose on hover
+- Click opens workflow detail panel
 
-### FR-8: Task Execution Flow
+### FR-8: Workflow Execution Flow
 
 **User-Initiated Execution:**
 
-1. User clicks task in UI or says "do the weekly summary task"
-2. UI/agent identifies task by name or ID
-3. Agent calls `get_task` with `includeSupplementaryMaterials: true`
+1. User clicks workflow in UI or says "do the weekly summary workflow"
+2. UI/agent identifies workflow by name or ID
+3. Agent calls `get_workflow` with `includeSupplementaryMaterials: true`
 4. Agent follows description step-by-step
-5. Agent calls `complete_task` when finished
+5. Agent calls `complete_workflow` when finished
 6. Agent reports outcome to user
 
 **Agent-Initiated Execution:**
 
-1. Agent checks task index in system prompt
-2. Agent notices task is due based on current date/time
-3. Agent proactively suggests: "I notice your {task name} task is due. Would you like me to {purpose}?"
+1. Agent checks workflow index in system prompt
+2. Agent notices workflow is due based on current date/time
+3. Agent proactively suggests: "I notice your {workflow name} workflow is due. Would you like me to {purpose}?"
 4. If user agrees, proceed with execution flow
 5. If user declines, agent doesn't repeat suggestion for 24 hours
 
 **Execution with Supplementary Materials:**
 
-1. Agent loads task with materials
+1. Agent loads workflow with materials
 2. For `note_reference` type materials, agent loads referenced notes
 3. For `text`/`code` materials, agent includes directly in context
 4. Agent uses materials as templates, examples, or reference during execution
 
 ### FR-9: Error Handling
 
-**Task Not Found:**
-- Return clear error message with task ID
-- Suggest using `list_tasks` to find available tasks
+**Workflow Not Found:**
+- Return clear error message with workflow ID
+- Suggest using `list_workflows` to find available workflows
 
 **Invalid Recurring Spec:**
 - Validate dayOfWeek (0-6), dayOfMonth (1-31)
@@ -372,33 +372,33 @@ During conversation, show when agent mentions tasks:
 - Reject materials >50KB with clear error
 - Show current size and limit in error message
 
-**Task Execution Failure:**
+**Workflow Execution Failure:**
 - Agent should report failure to user
-- Do NOT mark task as completed
+- Do NOT mark workflow as completed
 - Optionally create failure note in completion history
 
-**Circular Task References:**
-- If task description references itself, warn but allow
+**Circular Workflow References:**
+- If workflow description references itself, warn but allow
 - If supplementary materials create infinite loop, prevent
 
 ### FR-10: Data Migration and Versioning
 
 **Initial Migration:**
-- Create `tasks` table
-- Create `task_supplementary_materials` table
-- Create `task_completion_history` table
+- Create `workflows` table
+- Create `workflow_supplementary_materials` table
+- Create `workflow_completion_history` table
 - Create indexes
 - Add version marker to migration system
 
 **Backwards Compatibility:**
-- Gracefully handle missing task tables (no tasks exist yet)
+- Gracefully handle missing workflow tables (no workflows exist yet)
 - Agent tools return empty lists if feature not enabled
 - UI shows "coming soon" state if backend version too old
 
 **Future Schema Changes:**
 - Use migration system already in place
-- Version task data structure
-- Support migration of task format changes
+- Version workflow data structure
+- Support migration of workflow format changes
 
 ---
 
@@ -407,9 +407,9 @@ During conversation, show when agent mentions tasks:
 ### Database Schema
 
 ```sql
--- Core tasks table
-CREATE TABLE tasks (
-  id TEXT PRIMARY KEY,              -- t-xxxxxxxx format
+-- Core workflows table
+CREATE TABLE workflows (
+  id TEXT PRIMARY KEY,              -- w-xxxxxxxx format
   name TEXT NOT NULL,               -- 1-20 chars
   purpose TEXT NOT NULL,            -- Max 100 chars
   description TEXT NOT NULL,        -- Unlimited markdown
@@ -421,7 +421,7 @@ CREATE TABLE tasks (
 
   -- Scheduling
   recurring_spec TEXT,              -- JSON: {frequency, dayOfWeek?, dayOfMonth?, time?}
-  due_date DATETIME,                -- For one-time tasks
+  due_date DATETIME,                -- For one-time workflows
   last_completed DATETIME,          -- Most recent completion
 
   -- Metadata
@@ -432,16 +432,16 @@ CREATE TABLE tasks (
 );
 
 -- Indexes for common queries
-CREATE INDEX idx_tasks_vault_status ON tasks(vault_id, status);
-CREATE INDEX idx_tasks_vault_type ON tasks(vault_id, type);
-CREATE INDEX idx_tasks_due_date ON tasks(due_date) WHERE due_date IS NOT NULL;
-CREATE INDEX idx_tasks_last_completed ON tasks(last_completed) WHERE last_completed IS NOT NULL;
-CREATE INDEX idx_tasks_vault_recurring ON tasks(vault_id, recurring_spec) WHERE recurring_spec IS NOT NULL;
+CREATE INDEX idx_workflows_vault_status ON workflows(vault_id, status);
+CREATE INDEX idx_workflows_vault_type ON workflows(vault_id, type);
+CREATE INDEX idx_workflows_due_date ON workflows(due_date) WHERE due_date IS NOT NULL;
+CREATE INDEX idx_workflows_last_completed ON workflows(last_completed) WHERE last_completed IS NOT NULL;
+CREATE INDEX idx_workflows_vault_recurring ON workflows(vault_id, recurring_spec) WHERE recurring_spec IS NOT NULL;
 
 -- Supplementary materials
-CREATE TABLE task_supplementary_materials (
+CREATE TABLE workflow_supplementary_materials (
   id TEXT PRIMARY KEY,              -- Material ID
-  task_id TEXT NOT NULL,
+  workflow_id TEXT NOT NULL,
   material_type TEXT NOT NULL
     CHECK (material_type IN ('text', 'code', 'note_reference')),
   content TEXT,                     -- For text/code types
@@ -450,41 +450,41 @@ CREATE TABLE task_supplementary_materials (
   position INTEGER NOT NULL DEFAULT 0,  -- Display order
   created_at DATETIME NOT NULL,
 
-  FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+  FOREIGN KEY (workflow_id) REFERENCES workflows(id) ON DELETE CASCADE,
   FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE SET NULL
 );
 
-CREATE INDEX idx_task_materials_task ON task_supplementary_materials(task_id, position);
+CREATE INDEX idx_workflow_materials_workflow ON workflow_supplementary_materials(workflow_id, position);
 
 -- Completion history
-CREATE TABLE task_completion_history (
+CREATE TABLE workflow_completion_history (
   id TEXT PRIMARY KEY,
-  task_id TEXT NOT NULL,
+  workflow_id TEXT NOT NULL,
   completed_at DATETIME NOT NULL,
   conversation_id TEXT,
   notes TEXT,                       -- Agent's notes about execution
   output_note_id TEXT,              -- Note created as result
   metadata TEXT,                    -- JSON: {duration_ms?, tool_calls_count?}
 
-  FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+  FOREIGN KEY (workflow_id) REFERENCES workflows(id) ON DELETE CASCADE,
   FOREIGN KEY (output_note_id) REFERENCES notes(id) ON DELETE SET NULL
 );
 
-CREATE INDEX idx_task_completion_task ON task_completion_history(task_id, completed_at DESC);
-CREATE INDEX idx_task_completion_conversation ON task_completion_history(conversation_id);
+CREATE INDEX idx_workflow_completion_workflow ON workflow_completion_history(workflow_id, completed_at DESC);
+CREATE INDEX idx_workflow_completion_conversation ON workflow_completion_history(conversation_id);
 ```
 
 ### TypeScript Interfaces
 
 ```typescript
-// Core task interface
-interface Task {
-  id: string;                       // t-xxxxxxxx
+// Core workflow interface
+interface Workflow {
+  id: string;                       // w-xxxxxxxx
   name: string;                     // Max 20 chars
   purpose: string;                  // Max 100 chars
   description: string;              // Markdown
-  status: TaskStatus;
-  type: TaskType;
+  status: WorkflowStatus;
+  type: WorkflowType;
   vaultId: string;
 
   // Scheduling
@@ -498,11 +498,11 @@ interface Task {
 
   // Lazy-loaded
   supplementaryMaterials?: SupplementaryMaterial[];
-  completionHistory?: TaskCompletion[];
+  completionHistory?: WorkflowCompletion[];
 }
 
-type TaskStatus = 'active' | 'paused' | 'completed' | 'archived';
-type TaskType = 'workflow' | 'backlog';
+type WorkflowStatus = 'active' | 'paused' | 'completed' | 'archived';
+type WorkflowType = 'workflow' | 'backlog';
 
 interface RecurringSpec {
   frequency: 'daily' | 'weekly' | 'monthly';
@@ -513,7 +513,7 @@ interface RecurringSpec {
 
 interface SupplementaryMaterial {
   id: string;
-  taskId: string;
+  workflowId: string;
   materialType: 'text' | 'code' | 'note_reference';
   content?: string;                 // For text/code
   noteId?: string;                  // For note_reference
@@ -526,9 +526,9 @@ interface SupplementaryMaterial {
   createdAt: string;
 }
 
-interface TaskCompletion {
+interface WorkflowCompletion {
   id: string;
-  taskId: string;
+  workflowId: string;
   completedAt: string;
   conversationId?: string;
   notes?: string;
@@ -539,13 +539,13 @@ interface TaskCompletion {
   };
 }
 
-// Lightweight task list item
-interface TaskListItem {
+// Lightweight workflow list item
+interface WorkflowListItem {
   id: string;
   name: string;
   purpose: string;
-  status: TaskStatus;
-  type: TaskType;
+  status: WorkflowStatus;
+  type: WorkflowType;
   isRecurring: boolean;
   dueInfo?: {
     type: 'overdue' | 'due_now' | 'upcoming' | 'scheduled';
@@ -556,12 +556,12 @@ interface TaskListItem {
 }
 
 // Tool input/output types
-interface CreateTaskInput {
+interface CreateWorkflowInput {
   name: string;
   purpose: string;
   description: string;
-  status?: TaskStatus;
-  type?: TaskType;  // Default: 'workflow'
+  status?: WorkflowStatus;
+  type?: WorkflowType;  // Default: 'workflow'
   recurringSpec?: RecurringSpec;
   dueDate?: string;
   supplementaryMaterials?: Array<{
@@ -572,19 +572,19 @@ interface CreateTaskInput {
   }>;
 }
 
-interface UpdateTaskInput {
-  taskId: string;
+interface UpdateWorkflowInput {
+  workflowId: string;
   name?: string;
   purpose?: string;
   description?: string;
-  status?: TaskStatus;
-  type?: TaskType;
+  status?: WorkflowStatus;
+  type?: WorkflowType;
   recurringSpec?: RecurringSpec | null;
   dueDate?: string | null;
 }
 
-interface CompleteTaskInput {
-  taskId: string;
+interface CompleteWorkflowInput {
+  workflowId: string;
   notes?: string;
   outputNoteId?: string;
   metadata?: {
@@ -593,10 +593,10 @@ interface CompleteTaskInput {
   };
 }
 
-interface ListTasksInput {
-  status?: TaskStatus | 'all';
-  type?: TaskType | 'all';          // Filter by task type
-  dueSoon?: boolean;                // Tasks due in next 7 days
+interface ListWorkflowsInput {
+  status?: WorkflowStatus | 'all';
+  type?: WorkflowType | 'all';      // Filter by workflow type
+  dueSoon?: boolean;                // Workflows due in next 7 days
   recurringOnly?: boolean;
   overdueOnly?: boolean;
   includeArchived?: boolean;
@@ -604,8 +604,8 @@ interface ListTasksInput {
   sortOrder?: 'asc' | 'desc';
 }
 
-interface GetTaskInput {
-  taskId: string;
+interface GetWorkflowInput {
+  workflowId: string;
   includeSupplementaryMaterials?: boolean;
   includeCompletionHistory?: boolean;
   completionHistoryLimit?: number;  // Default 10
@@ -614,75 +614,75 @@ interface GetTaskInput {
 
 ### API Layer
 
-**TaskManager Class:**
+**WorkflowManager Class:**
 
 ```typescript
-class TaskManager {
+class WorkflowManager {
   private db: DatabaseConnection;
   private workspace: Workspace;
 
   // Core CRUD
-  async createTask(vaultId: string, input: CreateTaskInput): Promise<Task>
-  async getTask(taskId: string, options?: GetTaskInput): Promise<Task | null>
-  async updateTask(taskId: string, input: UpdateTaskInput): Promise<Task>
-  async deleteTask(taskId: string): Promise<void>  // Soft delete
-  async listTasks(vaultId: string, input?: ListTasksInput): Promise<TaskListItem[]>
+  async createWorkflow(vaultId: string, input: CreateWorkflowInput): Promise<Workflow>
+  async getWorkflow(workflowId: string, options?: GetWorkflowInput): Promise<Workflow | null>
+  async updateWorkflow(workflowId: string, input: UpdateWorkflowInput): Promise<Workflow>
+  async deleteWorkflow(workflowId: string): Promise<void>  // Soft delete
+  async listWorkflows(vaultId: string, input?: ListWorkflowsInput): Promise<WorkflowListItem[]>
 
   // Supplementary materials
-  async addSupplementaryMaterial(taskId: string, material: SupplementaryMaterial): Promise<string>
+  async addSupplementaryMaterial(workflowId: string, material: SupplementaryMaterial): Promise<string>
   async removeSupplementaryMaterial(materialId: string): Promise<void>
-  async getSupplementaryMaterials(taskId: string): Promise<SupplementaryMaterial[]>
+  async getSupplementaryMaterials(workflowId: string): Promise<SupplementaryMaterial[]>
 
   // Completion tracking
-  async completeTask(input: CompleteTaskInput): Promise<TaskCompletion>
-  async getCompletionHistory(taskId: string, limit?: number): Promise<TaskCompletion[]>
+  async completeWorkflow(input: CompleteWorkflowInput): Promise<WorkflowCompletion>
+  async getCompletionHistory(workflowId: string, limit?: number): Promise<WorkflowCompletion[]>
 
   // Scheduling helpers
-  async getTasksDueNow(vaultId: string): Promise<TaskListItem[]>
-  async getUpcomingTasks(vaultId: string, daysAhead: number): Promise<TaskListItem[]>
-  isTaskDue(task: Task, now?: Date): boolean
+  async getWorkflowsDueNow(vaultId: string): Promise<WorkflowListItem[]>
+  async getUpcomingWorkflows(vaultId: string, daysAhead: number): Promise<WorkflowListItem[]>
+  isWorkflowDue(workflow: Workflow, now?: Date): boolean
 
   // System prompt generation
-  async getTaskContextForPrompt(vaultId: string): Promise<string>
+  async getWorkflowContextForPrompt(vaultId: string): Promise<string>
 }
 ```
 
 **ToolService Integration:**
 
-Add task tools to existing ToolService:
+Add workflow tools to existing ToolService:
 
 ```typescript
 // In ToolService.getTools()
-const taskTools = this.getTaskTools();
+const workflowTools = this.getWorkflowTools();
 return {
   ...existingTools,
-  ...taskTools
+  ...workflowTools
 };
 
-private getTaskTools(): Record<string, Tool> {
+private getWorkflowTools(): Record<string, Tool> {
   return {
-    create_task: tool({
-      description: 'Create a new task that persists across conversations',
-      inputSchema: createTaskSchema,
+    create_workflow: tool({
+      description: 'Create a new workflow that persists across conversations',
+      inputSchema: createWorkflowSchema,
       execute: async (input) => {
-        const taskManager = this.getTaskManager();
+        const workflowManager = this.getWorkflowManager();
         const vault = await this.noteService.getCurrentVault();
-        const task = await taskManager.createTask(vault.id, input);
+        const workflow = await workflowManager.createWorkflow(vault.id, input);
         return {
           success: true,
-          data: { taskId: task.id, name: task.name },
-          message: `Created task "${task.name}"`
+          data: { workflowId: workflow.id, name: workflow.name },
+          message: `Created workflow "${workflow.name}"`
         };
       }
     }),
 
-    update_task: tool({ /* ... */ }),
-    delete_task: tool({ /* ... */ }),
-    list_tasks: tool({ /* ... */ }),
-    get_task: tool({ /* ... */ }),
-    complete_task: tool({ /* ... */ }),
-    add_task_material: tool({ /* ... */ }),
-    remove_task_material: tool({ /* ... */ })
+    update_workflow: tool({ /* ... */ }),
+    delete_workflow: tool({ /* ... */ }),
+    list_workflows: tool({ /* ... */ }),
+    get_workflow: tool({ /* ... */ }),
+    complete_workflow: tool({ /* ... */ }),
+    add_workflow_material: tool({ /* ... */ }),
+    remove_workflow_material: tool({ /* ... */ })
   };
 }
 ```
@@ -695,13 +695,13 @@ private getTaskTools(): Record<string, Tool> {
 async getVaultContext(): Promise<string> {
   let context = await this.getBaseVaultContext();  // Existing logic
 
-  // Add task context
-  if (this.taskManager) {
+  // Add workflow context
+  if (this.workflowManager) {
     const vault = await this.noteService.getCurrentVault();
-    const taskContext = await this.taskManager.getTaskContextForPrompt(vault.id);
+    const workflowContext = await this.workflowManager.getWorkflowContextForPrompt(vault.id);
 
-    if (taskContext) {
-      context += '\n\n' + taskContext;
+    if (workflowContext) {
+      context += '\n\n' + workflowContext;
     }
   }
 
@@ -709,25 +709,25 @@ async getVaultContext(): Promise<string> {
 }
 ```
 
-**TaskManager.getTaskContextForPrompt():**
+**WorkflowManager.getWorkflowContextForPrompt():**
 
 ```typescript
-async getTaskContextForPrompt(vaultId: string): Promise<string> {
-  const dueNow = await this.getTasksDueNow(vaultId);
-  const upcoming = await this.getUpcomingTasks(vaultId, 7);
-  const active = await this.listTasks(vaultId, {
+async getWorkflowContextForPrompt(vaultId: string): Promise<string> {
+  const dueNow = await this.getWorkflowsDueNow(vaultId);
+  const upcoming = await this.getUpcomingWorkflows(vaultId, 7);
+  const active = await this.listWorkflows(vaultId, {
     status: 'active',
     includeArchived: false
   });
 
-  let context = '## Available Tasks\n\n';
+  let context = '## Available Workflows\n\n';
 
   // Due now - highest priority
   if (dueNow.length > 0) {
     context += '### Due Now\n';
-    for (const task of dueNow) {
-      const schedule = task.dueInfo?.recurringSchedule || 'one-time task';
-      context += `- **${task.name}**: ${task.purpose} (${schedule})\n`;
+    for (const workflow of dueNow) {
+      const schedule = workflow.dueInfo?.recurringSchedule || 'one-time workflow';
+      context += `- **${workflow.name}**: ${workflow.purpose} (${schedule})\n`;
     }
     context += '\n';
   }
@@ -735,29 +735,29 @@ async getTaskContextForPrompt(vaultId: string): Promise<string> {
   // Upcoming in next 7 days
   if (upcoming.length > 0) {
     context += '### Upcoming (Next 7 Days)\n';
-    for (const task of upcoming.slice(0, 5)) {  // Max 5 to save tokens
-      context += `- **${task.name}**: ${task.purpose}\n`;
+    for (const workflow of upcoming.slice(0, 5)) {  // Max 5 to save tokens
+      context += `- **${workflow.name}**: ${workflow.purpose}\n`;
     }
     context += '\n';
   }
 
-  // Other active on-demand tasks
-  const onDemand = active.filter(t =>
-    !t.isRecurring &&
-    !dueNow.some(d => d.id === t.id) &&
-    !upcoming.some(u => u.id === t.id)
+  // Other active on-demand workflows
+  const onDemand = active.filter(w =>
+    !w.isRecurring &&
+    !dueNow.some(d => d.id === w.id) &&
+    !upcoming.some(u => u.id === w.id)
   );
 
   if (onDemand.length > 0) {
-    context += '### On-Demand Tasks\n';
-    for (const task of onDemand.slice(0, 5)) {  // Max 5 to save tokens
-      context += `- **${task.name}**: ${task.purpose}\n`;
+    context += '### On-Demand Workflows\n';
+    for (const workflow of onDemand.slice(0, 5)) {  // Max 5 to save tokens
+      context += `- **${workflow.name}**: ${workflow.purpose}\n`;
     }
     context += '\n';
   }
 
   // Add tool hint
-  context += '*Use `get_task` to load full details and `complete_task` when finished.*\n';
+  context += '*Use `get_workflow` to load full details and `complete_workflow` when finished.*\n';
 
   return context;
 }
@@ -765,48 +765,48 @@ async getTaskContextForPrompt(vaultId: string): Promise<string> {
 
 ### UI Components (Svelte 5)
 
-**TaskManagementView.svelte:**
+**WorkflowManagementView.svelte:**
 
 ```svelte
 <script lang="ts">
-  import { taskStore } from '../stores/task-store.svelte';
-  import TaskList from './TaskList.svelte';
-  import TaskDetail from './TaskDetail.svelte';
-  import TaskForm from './TaskForm.svelte';
+  import { workflowStore } from '../stores/workflow-store.svelte';
+  import WorkflowList from './WorkflowList.svelte';
+  import WorkflowDetail from './WorkflowDetail.svelte';
+  import WorkflowForm from './WorkflowForm.svelte';
 
-  let selectedTaskId = $state<string | null>(null);
+  let selectedWorkflowId = $state<string | null>(null);
   let showCreateForm = $state(false);
-  let statusFilter = $state<TaskStatus | 'all'>('active');
+  let statusFilter = $state<WorkflowStatus | 'all'>('active');
 
-  const filteredTasks = $derived(
-    taskStore.tasks.filter(t =>
-      statusFilter === 'all' || t.status === statusFilter
+  const filteredWorkflows = $derived(
+    workflowStore.workflows.filter(w =>
+      statusFilter === 'all' || w.status === statusFilter
     )
   );
 
-  async function handleCreateTask(taskData: CreateTaskInput) {
-    await taskStore.createTask(taskData);
+  async function handleCreateWorkflow(workflowData: CreateWorkflowInput) {
+    await workflowStore.createWorkflow(workflowData);
     showCreateForm = false;
   }
 
-  async function handleExecuteTask(taskId: string) {
-    // Send message to agent to execute task
-    const task = taskStore.getTaskById(taskId);
-    if (task) {
-      await window.api.sendMessage(`Execute task: ${task.name}`);
+  async function handleExecuteWorkflow(workflowId: string) {
+    // Send message to agent to execute workflow
+    const workflow = workflowStore.getWorkflowById(workflowId);
+    if (workflow) {
+      await window.api.sendMessage(`Execute workflow: ${workflow.name}`);
     }
   }
 </script>
 
-<div class="task-management">
+<div class="workflow-management">
   <header>
-    <h1>Tasks</h1>
-    <button onclick={() => showCreateForm = true}>Create Task</button>
+    <h1>Workflows</h1>
+    <button onclick={() => showCreateForm = true}>Create Workflow</button>
   </header>
 
   <div class="filters">
     <select bind:value={statusFilter}>
-      <option value="all">All Tasks</option>
+      <option value="all">All Workflows</option>
       <option value="active">Active</option>
       <option value="paused">Paused</option>
       <option value="completed">Completed</option>
@@ -815,60 +815,60 @@ async getTaskContextForPrompt(vaultId: string): Promise<string> {
   </div>
 
   <div class="content">
-    <TaskList
-      tasks={filteredTasks}
-      selectedId={selectedTaskId}
-      onSelect={(id) => selectedTaskId = id}
-      onExecute={handleExecuteTask}
+    <WorkflowList
+      workflows={filteredWorkflows}
+      selectedId={selectedWorkflowId}
+      onSelect={(id) => selectedWorkflowId = id}
+      onExecute={handleExecuteWorkflow}
     />
 
-    {#if selectedTaskId}
-      <TaskDetail
-        taskId={selectedTaskId}
-        onClose={() => selectedTaskId = null}
-        onExecute={handleExecuteTask}
+    {#if selectedWorkflowId}
+      <WorkflowDetail
+        workflowId={selectedWorkflowId}
+        onClose={() => selectedWorkflowId = null}
+        onExecute={handleExecuteWorkflow}
       />
     {/if}
   </div>
 
   {#if showCreateForm}
-    <TaskForm
-      onSubmit={handleCreateTask}
+    <WorkflowForm
+      onSubmit={handleCreateWorkflow}
       onCancel={() => showCreateForm = false}
     />
   {/if}
 </div>
 ```
 
-**ConversationStartTaskPanel.svelte:**
+**ConversationStartWorkflowPanel.svelte:**
 
 ```svelte
 <script lang="ts">
-  import { taskStore } from '../stores/task-store.svelte';
+  import { workflowStore } from '../stores/workflow-store.svelte';
 
-  const dueNow = $derived(taskStore.tasksDueNow);
-  const upcoming = $derived(taskStore.upcomingTasks);
-  const onDemand = $derived(taskStore.onDemandTasks);
+  const dueNow = $derived(workflowStore.workflowsDueNow);
+  const upcoming = $derived(workflowStore.upcomingWorkflows);
+  const onDemand = $derived(workflowStore.onDemandWorkflows);
 
-  async function executeTask(taskId: string) {
-    const task = taskStore.getTaskById(taskId);
-    if (task) {
-      await window.api.sendMessage(`Execute task: ${task.name}`);
+  async function executeWorkflow(workflowId: string) {
+    const workflow = workflowStore.getWorkflowById(workflowId);
+    if (workflow) {
+      await window.api.sendMessage(`Execute workflow: ${workflow.name}`);
     }
   }
 </script>
 
-<div class="conversation-start-tasks">
+<div class="conversation-start-workflows">
   {#if dueNow.length > 0}
     <section class="due-now">
-      <h3>Tasks Due Now</h3>
-      {#each dueNow as task}
-        <button class="task-card due" onclick={() => executeTask(task.id)}>
-          <div class="task-name">{task.name}</div>
-          <div class="task-purpose">{task.purpose}</div>
-          {#if task.lastCompleted}
+      <h3>Workflows Due Now</h3>
+      {#each dueNow as workflow}
+        <button class="workflow-card due" onclick={() => executeWorkflow(workflow.id)}>
+          <div class="workflow-name">{workflow.name}</div>
+          <div class="workflow-purpose">{workflow.purpose}</div>
+          {#if workflow.lastCompleted}
             <div class="last-completed">
-              Last: {formatRelativeTime(task.lastCompleted)}
+              Last: {formatRelativeTime(workflow.lastCompleted)}
             </div>
           {/if}
         </button>
@@ -878,12 +878,12 @@ async getTaskContextForPrompt(vaultId: string): Promise<string> {
 
   {#if upcoming.length > 0}
     <section class="upcoming">
-      <h3>Upcoming Tasks</h3>
-      {#each upcoming as task}
-        <button class="task-card" onclick={() => executeTask(task.id)}>
-          <div class="task-name">{task.name}</div>
-          <div class="task-purpose">{task.purpose}</div>
-          <div class="due-date">{formatDueDate(task.dueInfo)}</div>
+      <h3>Upcoming Workflows</h3>
+      {#each upcoming as workflow}
+        <button class="workflow-card" onclick={() => executeWorkflow(workflow.id)}>
+          <div class="workflow-name">{workflow.name}</div>
+          <div class="workflow-purpose">{workflow.purpose}</div>
+          <div class="due-date">{formatDueDate(workflow.dueInfo)}</div>
         </button>
       {/each}
     </section>
@@ -891,47 +891,47 @@ async getTaskContextForPrompt(vaultId: string): Promise<string> {
 
   {#if onDemand.length > 0}
     <section class="on-demand">
-      <h3>On-Demand Tasks</h3>
-      {#each onDemand.slice(0, 3) as task}
-        <button class="task-card" onclick={() => executeTask(task.id)}>
-          <div class="task-name">{task.name}</div>
-          <div class="task-purpose">{task.purpose}</div>
+      <h3>On-Demand Workflows</h3>
+      {#each onDemand.slice(0, 3) as workflow}
+        <button class="workflow-card" onclick={() => executeWorkflow(workflow.id)}>
+          <div class="workflow-name">{workflow.name}</div>
+          <div class="workflow-purpose">{workflow.purpose}</div>
         </button>
       {/each}
     </section>
   {/if}
 
-  <a href="/tasks" class="view-all">View All Tasks →</a>
+  <a href="/workflows" class="view-all">View All Workflows →</a>
 </div>
 ```
 
-**task-store.svelte.ts:**
+**workflow-store.svelte.ts:**
 
 ```typescript
-import { type Task, type TaskListItem } from '../types/task';
+import { type Workflow, type WorkflowListItem } from '../types/workflow';
 
-class TaskStore {
-  tasks = $state<TaskListItem[]>([]);
+class WorkflowStore {
+  workflows = $state<WorkflowListItem[]>([]);
   loading = $state(false);
   error = $state<string | null>(null);
 
-  tasksDueNow = $derived(
-    this.tasks.filter(t => t.dueInfo?.type === 'due_now')
+  workflowsDueNow = $derived(
+    this.workflows.filter(w => w.dueInfo?.type === 'due_now')
   );
 
-  upcomingTasks = $derived(
-    this.tasks.filter(t => t.dueInfo?.type === 'upcoming')
+  upcomingWorkflows = $derived(
+    this.workflows.filter(w => w.dueInfo?.type === 'upcoming')
   );
 
-  onDemandTasks = $derived(
-    this.tasks.filter(t => !t.isRecurring && !t.dueInfo)
+  onDemandWorkflows = $derived(
+    this.workflows.filter(w => !w.isRecurring && !w.dueInfo)
   );
 
-  async loadTasks() {
+  async loadWorkflows() {
     this.loading = true;
     try {
-      const result = await window.api.listTasks({ status: 'active' });
-      this.tasks = result.tasks;
+      const result = await window.api.listWorkflows({ status: 'active' });
+      this.workflows = result.workflows;
     } catch (err) {
       this.error = err.message;
     } finally {
@@ -939,20 +939,20 @@ class TaskStore {
     }
   }
 
-  async createTask(input: CreateTaskInput) {
-    const result = await window.api.createTask(input);
-    await this.loadTasks();  // Refresh list
-    return result.taskId;
+  async createWorkflow(input: CreateWorkflowInput) {
+    const result = await window.api.createWorkflow(input);
+    await this.loadWorkflows();  // Refresh list
+    return result.workflowId;
   }
 
-  getTaskById(id: string): TaskListItem | undefined {
-    return this.tasks.find(t => t.id === id);
+  getWorkflowById(id: string): WorkflowListItem | undefined {
+    return this.workflows.find(w => w.id === id);
   }
 
   // ... other methods
 }
 
-export const taskStore = new TaskStore();
+export const workflowStore = new WorkflowStore();
 ```
 
 ### IPC API
@@ -964,20 +964,20 @@ export const taskStore = new TaskStore();
 api: {
   // ... existing methods
 
-  // Task management
-  createTask: (input: CreateTaskInput) => ipcRenderer.invoke('task:create', input),
-  updateTask: (taskId: string, input: UpdateTaskInput) =>
-    ipcRenderer.invoke('task:update', taskId, input),
-  deleteTask: (taskId: string) => ipcRenderer.invoke('task:delete', taskId),
-  listTasks: (input?: ListTasksInput) => ipcRenderer.invoke('task:list', input),
-  getTask: (taskId: string, options?: GetTaskInput) =>
-    ipcRenderer.invoke('task:get', taskId, options),
-  completeTask: (input: CompleteTaskInput) =>
-    ipcRenderer.invoke('task:complete', input),
-  addTaskMaterial: (taskId: string, material: SupplementaryMaterial) =>
-    ipcRenderer.invoke('task:add-material', taskId, material),
-  removeTaskMaterial: (materialId: string) =>
-    ipcRenderer.invoke('task:remove-material', materialId),
+  // Workflow management
+  createWorkflow: (input: CreateWorkflowInput) => ipcRenderer.invoke('workflow:create', input),
+  updateWorkflow: (workflowId: string, input: UpdateWorkflowInput) =>
+    ipcRenderer.invoke('workflow:update', workflowId, input),
+  deleteWorkflow: (workflowId: string) => ipcRenderer.invoke('workflow:delete', workflowId),
+  listWorkflows: (input?: ListWorkflowsInput) => ipcRenderer.invoke('workflow:list', input),
+  getWorkflow: (workflowId: string, options?: GetWorkflowInput) =>
+    ipcRenderer.invoke('workflow:get', workflowId, options),
+  completeWorkflow: (input: CompleteWorkflowInput) =>
+    ipcRenderer.invoke('workflow:complete', input),
+  addWorkflowMaterial: (workflowId: string, material: SupplementaryMaterial) =>
+    ipcRenderer.invoke('workflow:add-material', workflowId, material),
+  removeWorkflowMaterial: (materialId: string) =>
+    ipcRenderer.invoke('workflow:remove-material', materialId),
 }
 ```
 
@@ -985,16 +985,16 @@ api: {
 
 ```typescript
 // Register IPC handlers
-ipcMain.handle('task:create', async (event, input: CreateTaskInput) => {
-  const taskManager = getTaskManager();
+ipcMain.handle('workflow:create', async (event, input: CreateWorkflowInput) => {
+  const workflowManager = getWorkflowManager();
   const vault = await noteService.getCurrentVault();
-  return await taskManager.createTask(vault.id, input);
+  return await workflowManager.createWorkflow(vault.id, input);
 });
 
-ipcMain.handle('task:list', async (event, input?: ListTasksInput) => {
-  const taskManager = getTaskManager();
+ipcMain.handle('workflow:list', async (event, input?: ListWorkflowsInput) => {
+  const workflowManager = getWorkflowManager();
   const vault = await noteService.getCurrentVault();
-  return await taskManager.listTasks(vault.id, input);
+  return await workflowManager.listWorkflows(vault.id, input);
 });
 
 // ... other handlers
@@ -1004,49 +1004,49 @@ ipcMain.handle('task:list', async (event, input?: ListTasksInput) => {
 
 ## Implementation Plan
 
-### Phase 1: Core Infrastructure (Week 1-2)
+### Phase 1: Core Infrastructure
 
 **Milestone 1.1: Database & Data Layer**
-- [ ] Create migration script for task tables
-- [ ] Implement TaskManager class with CRUD methods
-- [ ] Write unit tests for TaskManager
-- [ ] Add task ID generation (t-xxxxxxxx format)
-- [ ] Implement recurring task scheduling logic
+- [ ] Create migration script for workflow tables
+- [ ] Implement WorkflowManager class with CRUD methods
+- [ ] Write unit tests for WorkflowManager
+- [ ] Add workflow ID generation (w-xxxxxxxx format)
+- [ ] Implement recurring workflow scheduling logic
 - [ ] Test migration on existing vault
 
 **Milestone 1.2: Agent Tools**
 - [ ] Define Zod schemas for all tool inputs
-- [ ] Implement create_task, update_task, delete_task tools
-- [ ] Implement list_tasks, get_task tools
-- [ ] Implement complete_task tool
-- [ ] Add task tools to ToolService
+- [ ] Implement create_workflow, update_workflow, delete_workflow tools
+- [ ] Implement list_workflows, get_workflow tools
+- [ ] Implement complete_workflow tool
+- [ ] Add workflow tools to ToolService
 - [ ] Write integration tests for tools
 
 **Milestone 1.3: System Prompt Integration**
-- [ ] Implement getTaskContextForPrompt()
-- [ ] Add task context to AIService.getVaultContext()
-- [ ] Test token usage with 10, 50, 100 tasks
+- [ ] Implement getWorkflowContextForPrompt()
+- [ ] Add workflow context to AIService.getVaultContext()
+- [ ] Test token usage with 10, 50, 100 workflows
 - [ ] Optimize prompt format to minimize tokens
-- [ ] Test cache hit rates with task context
+- [ ] Test cache hit rates with workflow context
 
 **Success Criteria:**
-- Agent can create, list, and complete tasks
-- Task context appears in system prompt
-- Token budget stays under 500 tokens for task index
+- Agent can create, list, and complete workflows
+- Workflow context appears in system prompt
+- Token budget stays under 500 tokens for workflow index
 
-### Phase 2: Supplementary Materials (Week 3)
+### Phase 2: Supplementary Materials
 
 **Milestone 2.1: Material Storage**
 - [ ] Implement add/remove material database operations
-- [ ] Implement material loading in get_task tool
+- [ ] Implement material loading in get_workflow tool
 - [ ] Add size validation (50KB per material, 500KB total)
 - [ ] Support note_reference type with lazy loading
 - [ ] Write tests for material operations
 
 **Milestone 2.2: Agent Tool Integration**
-- [ ] Implement add_task_material tool
-- [ ] Implement remove_task_material tool
-- [ ] Test loading materials during task execution
+- [ ] Implement add_workflow_material tool
+- [ ] Implement remove_workflow_material tool
+- [ ] Test loading materials during workflow execution
 - [ ] Verify note references resolve correctly
 
 **Success Criteria:**
@@ -1054,22 +1054,22 @@ ipcMain.handle('task:list', async (event, input?: ListTasksInput) => {
 - Note references load on-demand
 - Size limits enforced
 
-### Phase 3: UI Components (Week 4-5)
+### Phase 3: UI Components
 
-**Milestone 3.1: Task Management View**
-- [ ] Create TaskManagementView component
-- [ ] Create TaskList component with filtering
-- [ ] Create TaskDetail component
-- [ ] Create TaskForm for create/edit
-- [ ] Implement task-store.svelte.ts
+**Milestone 3.1: Workflow Management View**
+- [ ] Create WorkflowManagementView component
+- [ ] Create WorkflowList component with filtering
+- [ ] Create WorkflowDetail component
+- [ ] Create WorkflowForm for create/edit
+- [ ] Implement workflow-store.svelte.ts
 - [ ] Add IPC handlers in main process
-- [ ] Add routing to task management view
+- [ ] Add routing to workflow management view
 
 **Milestone 3.2: Conversation Start Integration**
-- [ ] Create ConversationStartTaskPanel component
+- [ ] Create ConversationStartWorkflowPanel component
 - [ ] Integrate with conversation start flow
 - [ ] Implement click-to-execute functionality
-- [ ] Test task visibility logic
+- [ ] Test workflow visibility logic
 
 **Milestone 3.3: Polish & UX**
 - [ ] Add loading states
@@ -1080,56 +1080,56 @@ ipcMain.handle('task:list', async (event, input?: ListTasksInput) => {
 - [ ] Add empty states
 
 **Success Criteria:**
-- Users can create/edit/delete tasks via UI
-- Users can execute tasks by clicking
-- UI updates when agent completes tasks
+- Users can create/edit/delete workflows via UI
+- Users can execute workflows by clicking
+- UI updates when agent completes workflows
 
-### Phase 4: Completion Tracking & History (Week 6)
+### Phase 4: Completion Tracking & History
 
 **Milestone 4.1: Completion Recording**
 - [ ] Implement completion history storage
-- [ ] Update complete_task to record history
+- [ ] Update complete_workflow to record history
 - [ ] Handle recurring vs one-time completion logic
 - [ ] Test completion with metadata
 
 **Milestone 4.2: History Display**
-- [ ] Add completion history to TaskDetail component
-- [ ] Show last completed time in task lists
+- [ ] Add completion history to WorkflowDetail component
+- [ ] Show last completed time in workflow lists
 - [ ] Add completion statistics (total, average frequency)
 - [ ] Test history with many completions
 
 **Success Criteria:**
-- All task completions are recorded
+- All workflow completions are recorded
 - Users can view completion history
-- Recurring tasks reset properly
+- Recurring workflows reset properly
 
-### Phase 5: Testing & Documentation (Week 7)
+### Phase 5: Testing & Documentation
 
 **Milestone 5.1: Testing**
-- [ ] Write unit tests for TaskManager (80% coverage)
+- [ ] Write unit tests for WorkflowManager (80% coverage)
 - [ ] Write integration tests for agent tools
 - [ ] Write E2E tests for UI workflows
 - [ ] Test with multiple vaults
 - [ ] Test migration from existing vault
-- [ ] Performance test with 100+ tasks
+- [ ] Performance test with 100+ workflows
 
 **Milestone 5.2: Documentation**
-- [ ] Update ARCHITECTURE.md with task system
-- [ ] Create TASK-SYSTEM.md user guide
+- [ ] Update ARCHITECTURE.md with workflow system
+- [ ] Create WORKFLOW-SYSTEM.md user guide
 - [ ] Add JSDoc comments to all public APIs
-- [ ] Create example tasks for onboarding
+- [ ] Create example workflows for onboarding
 - [ ] Update system prompt docs
 
 **Success Criteria:**
 - All tests passing
 - Documentation complete
-- Example tasks ready for users
+- Example workflows ready for users
 
-### Phase 6: Beta Release & Iteration (Week 8+)
+### Phase 6: Beta Release & Iteration
 
 **Milestone 6.1: Beta Testing**
 - [ ] Deploy to beta users
-- [ ] Monitor task creation patterns
+- [ ] Monitor workflow creation patterns
 - [ ] Collect feedback on agent proactiveness
 - [ ] Track token usage in production
 - [ ] Identify top use cases
@@ -1142,8 +1142,8 @@ ipcMain.handle('task:list', async (event, input?: ListTasksInput) => {
 - [ ] Optimize database queries
 
 **Success Criteria:**
-- Beta users create >5 tasks each
-- <10% token overhead from task system
+- Beta users create >5 workflows each
+- <10% token overhead from workflow system
 - Positive feedback on agent proactiveness
 
 ---
@@ -1152,30 +1152,30 @@ ipcMain.handle('task:list', async (event, input?: ListTasksInput) => {
 
 ### Usage Metrics
 
-- **Tasks Created:** Target 10+ tasks per active user after 1 month
-- **Recurring Tasks:** >50% of tasks should be recurring
-- **Task Executions:** Average 2+ executions per recurring task per period
-- **Agent vs User Creation:** Target 30% agent-created tasks (shows discoverability)
+- **Workflows Created:** Target 10+ workflows per active user after 1 month
+- **Recurring Workflows:** >50% of workflows should be recurring
+- **Workflow Executions:** Average 2+ executions per recurring workflow per period
+- **Agent vs User Creation:** Target 30% agent-created workflows (shows discoverability)
 
 ### Performance Metrics
 
-- **Token Usage:** Task context <500 tokens in system prompt
-- **Cache Hit Rate:** >80% for task-inclusive prompts
-- **Query Performance:** Task list queries <50ms
-- **UI Responsiveness:** Task view loads <200ms
+- **Token Usage:** Workflow context <500 tokens in system prompt
+- **Cache Hit Rate:** >80% for workflow-inclusive prompts
+- **Query Performance:** Workflow list queries <50ms
+- **UI Responsiveness:** Workflow view loads <200ms
 
 ### Quality Metrics
 
-- **Task Completion Rate:** >70% of one-time tasks marked complete
-- **Recurring Adherence:** >60% of recurring tasks executed on schedule
-- **Material Usage:** >40% of tasks include supplementary materials
-- **Task Updates:** >30% of tasks updated after creation (shows refinement)
+- **Workflow Completion Rate:** >70% of one-time workflows marked complete
+- **Recurring Adherence:** >60% of recurring workflows executed on schedule
+- **Material Usage:** >40% of workflows include supplementary materials
+- **Workflow Updates:** >30% of workflows updated after creation (shows refinement)
 
 ### User Satisfaction
 
-- **Feature Adoption:** >50% of active users create at least 1 task
-- **Repeat Usage:** >70% of task creators use feature weekly
-- **Agent Proactiveness:** Positive feedback on task suggestions
+- **Feature Adoption:** >50% of active users create at least 1 workflow
+- **Repeat Usage:** >70% of workflow creators use feature weekly
+- **Agent Proactiveness:** Positive feedback on workflow suggestions
 - **Friction Points:** Identify and address top 3 pain points
 
 ---
@@ -1184,26 +1184,26 @@ ipcMain.handle('task:list', async (event, input?: ListTasksInput) => {
 
 ### Product Questions
 
-1. **Agent Proactiveness Tuning:** How often should agents suggest due tasks without being annoying?
-   - Option A: Suggest once per conversation if task is due
-   - Option B: Suggest once per day per task
-   - Option C: User-configurable per task ("remind me" vs "don't remind")
+1. **Agent Proactiveness Tuning:** How often should agents suggest due workflows without being annoying?
+   - Option A: Suggest once per conversation if workflow is due
+   - Option B: Suggest once per day per workflow
+   - Option C: User-configurable per workflow ("remind me" vs "don't remind")
 
-2. **Task Ownership:** Should tasks support multiple vaults or stay vault-scoped?
+2. **Workflow Ownership:** Should workflows support multiple vaults or stay vault-scoped?
    - Current design: Vault-scoped
-   - Alternative: System-wide tasks that work across vaults
+   - Alternative: System-wide workflows that work across vaults
 
-3. **Task Templates:** Should we support task templates for common workflows?
+3. **Workflow Templates:** Should we support workflow templates for common patterns?
    - Example: "Weekly Review Template" → instantiate with specific parameters
    - Adds complexity but improves discoverability
 
-4. **Task Dependencies:** Should tasks be able to reference other tasks?
+4. **Workflow Dependencies:** Should workflows be able to reference other workflows?
    - Example: "Monthly Archive" depends on "Weekly Reviews" being complete
    - Adds significant complexity
 
-5. **Time Zones:** Should recurring tasks be timezone-aware?
+5. **Time Zones:** Should recurring workflows be timezone-aware?
    - Current design: No (runs based on system time)
-   - Alternative: Store timezone with task, adjust for user's current location
+   - Alternative: Store timezone with workflow, adjust for user's current location
 
 ### Technical Questions
 
@@ -1213,25 +1213,25 @@ ipcMain.handle('task:list', async (event, input?: ListTasksInput) => {
 
 7. **Completion History Limits:** How many completions to keep?
    - Option A: Keep all (could grow indefinitely)
-   - Option B: Keep last 100 per task
+   - Option B: Keep last 100 per workflow
    - Option C: User-configurable retention policy
 
-8. **Task Export/Import:** Should tasks be exportable/importable?
-   - Use case: Share task definitions between users
+8. **Workflow Export/Import:** Should workflows be exportable/importable?
+   - Use case: Share workflow definitions between users
    - Format: JSON, YAML, or custom format?
 
-9. **Task Versioning:** Should we track versions of task descriptions?
+9. **Workflow Versioning:** Should we track versions of workflow descriptions?
    - Use case: Understand how instructions evolved
    - Implementation: Snapshot description on each update
 
-10. **Performance at Scale:** What happens with 1000+ tasks?
+10. **Performance at Scale:** What happens with 1000+ workflows?
     - Do we need pagination in UI?
     - Should system prompt only include subset?
     - What are query optimization requirements?
 
 ### Design Questions
 
-11. **Task Naming Conflicts:** Can multiple tasks have the same name?
+11. **Workflow Naming Conflicts:** Can multiple workflows have the same name?
     - Current design: Yes (ID is unique, name is not)
     - Alternative: Enforce unique names per vault
 
@@ -1240,15 +1240,15 @@ ipcMain.handle('task:list', async (event, input?: ListTasksInput) => {
     - Can archived → active (to restore)?
     - Should we track state transition history?
 
-13. **Bulk Operations:** Should users be able to bulk-edit tasks?
-    - Example: Archive all completed tasks
-    - Example: Pause all recurring tasks temporarily
+13. **Bulk Operations:** Should users be able to bulk-edit workflows?
+    - Example: Archive all completed workflows
+    - Example: Pause all recurring workflows temporarily
 
-14. **Task Search:** Should tasks be searchable by description content?
-    - Adds FTS index for tasks
+14. **Workflow Search:** Should workflows be searchable by description content?
+    - Adds FTS index for workflows
     - Increases complexity but improves discoverability
 
-15. **Notifications:** Should system send notifications for due tasks?
+15. **Notifications:** Should system send notifications for due workflows?
     - In-app notifications?
     - System notifications?
     - Email reminders?
@@ -1257,11 +1257,11 @@ ipcMain.handle('task:list', async (event, input?: ListTasksInput) => {
 
 ## Future Enhancements (Post-V1)
 
-### Extended Task Types
+### Extended Workflow Types
 Beyond the initial two-type system (`workflow` and `backlog`), consider adding more granular types:
 
 ```typescript
-type TaskType =
+type WorkflowType =
   | 'workflow'      // V1: Intentional, structured workflows
   | 'backlog'       // V1: Discovered items and suggestions
   | 'maintenance'   // Future: Cleanup, housekeeping, optimization
@@ -1269,8 +1269,8 @@ type TaskType =
 ```
 
 **Benefits:**
-- `maintenance`: Separate cleanup tasks from discovered issues
-- `suggestion`: Agent can propose tasks requiring explicit user approval before becoming active
+- `maintenance`: Separate cleanup workflows from discovered issues
+- `suggestion`: Agent can propose workflows requiring explicit user approval before becoming active
 - Better organization and filtering in UI
 
 **Implementation:**
@@ -1278,13 +1278,13 @@ type TaskType =
 - Add UI sections for each type
 - System prompt guidance for when to use each type
 
-### Task Dependencies
-- Define "depends on" relationships between tasks
+### Workflow Dependencies
+- Define "depends on" relationships between workflows
 - Block execution until dependencies complete
 - Visualize dependency graph
 
-### Task Templates
-- Save tasks as templates
+### Workflow Templates
+- Save workflows as templates
 - Instantiate templates with parameters
 - Share templates between users/vaults
 
@@ -1293,34 +1293,34 @@ type TaskType =
 - "Every 2nd Monday" or "Last Friday of month"
 - Timezone-aware scheduling
 
-### Task Analytics
+### Workflow Analytics
 - Completion rate dashboards
 - Time-to-complete tracking
-- Task effectiveness metrics
+- Workflow effectiveness metrics
 
-### Collaborative Tasks
-- Assign tasks to specific agents/users
-- Task handoff between conversations
-- Shared task pools for teams
+### Collaborative Workflows
+- Assign workflows to specific agents/users
+- Workflow handoff between conversations
+- Shared workflow pools for teams
 
-### Task Chains
-- Define multi-step workflows as task sequences
-- Automatic progression to next task
-- Conditional branching ("if X then task A, else task B")
+### Workflow Chains
+- Define multi-step workflows as sequences
+- Automatic progression to next workflow
+- Conditional branching ("if X then workflow A, else workflow B")
 
 ### Integration APIs
-- Webhook triggers for task completion
+- Webhook triggers for workflow completion
 - External system integration (Zapier, etc.)
-- Calendar sync for recurring tasks
+- Calendar sync for recurring workflows
 
 ### Smart Suggestions
-- Agent suggests new tasks based on patterns
-- "You've done X three times, should I create a task?"
+- Agent suggests new workflows based on patterns
+- "You've done X three times, should I create a workflow?"
 - Learn from user behavior
 
 ---
 
-## Appendix A: Example Tasks
+## Appendix A: Example Workflows
 
 ### Example 1: Weekly Summary (Recurring)
 
@@ -1473,51 +1473,51 @@ type TaskType =
 
 ---
 
-## Appendix B: Task Tool Schemas
+## Appendix B: Workflow Tool Schemas
 
-### create_task Schema
+### create_workflow Schema
 
 ```typescript
-const createTaskSchema = z.object({
+const createWorkflowSchema = z.object({
   name: z.string()
     .min(1)
     .max(20)
-    .describe('Short task name (1-20 characters, e.g., "Weekly Summary")'),
+    .describe('Short workflow name (1-20 characters, e.g., "Weekly Summary")'),
 
   purpose: z.string()
     .min(1)
     .max(100)
-    .describe('One-sentence description of what this task accomplishes'),
+    .describe('One-sentence description of what this workflow accomplishes'),
 
   description: z.string()
     .min(1)
-    .describe('Detailed step-by-step instructions for executing this task'),
+    .describe('Detailed step-by-step instructions for executing this workflow'),
 
   status: z.enum(['active', 'paused', 'completed', 'archived'])
     .optional()
     .default('active')
-    .describe('Initial task status'),
+    .describe('Initial workflow status'),
 
   type: z.enum(['workflow', 'backlog'])
     .optional()
     .default('workflow')
-    .describe('Task type: "workflow" for intentional tasks, "backlog" for discovered items'),
+    .describe('Workflow type: "workflow" for intentional workflows, "backlog" for discovered items'),
 
   recurringSpec: z.object({
     frequency: z.enum(['daily', 'weekly', 'monthly'])
-      .describe('How often this task should recur'),
+      .describe('How often this workflow should recur'),
     dayOfWeek: z.number()
       .int()
       .min(0)
       .max(6)
       .optional()
-      .describe('Day of week for weekly tasks (0=Sunday, 6=Saturday)'),
+      .describe('Day of week for weekly workflows (0=Sunday, 6=Saturday)'),
     dayOfMonth: z.number()
       .int()
       .min(1)
       .max(31)
       .optional()
-      .describe('Day of month for monthly tasks (1-31)'),
+      .describe('Day of month for monthly workflows (1-31)'),
     time: z.string()
       .regex(/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/)
       .optional()
@@ -1528,7 +1528,7 @@ const createTaskSchema = z.object({
   dueDate: z.string()
     .datetime()
     .optional()
-    .describe('Due date for one-time tasks (ISO 8601 format)'),
+    .describe('Due date for one-time workflows (ISO 8601 format)'),
 
   supplementaryMaterials: z.array(
     z.object({
@@ -1545,35 +1545,35 @@ const createTaskSchema = z.object({
         .describe('Additional metadata (language for code, description, etc.)')
     })
   ).optional()
-    .describe('Supplementary materials to help execute task')
+    .describe('Supplementary materials to help execute workflow')
 });
 ```
 
-### list_tasks Schema
+### list_workflows Schema
 
 ```typescript
-const listTasksSchema = z.object({
+const listWorkflowsSchema = z.object({
   status: z.enum(['active', 'paused', 'completed', 'archived', 'all'])
     .optional()
     .default('active')
-    .describe('Filter by task status'),
+    .describe('Filter by workflow status'),
 
   type: z.enum(['workflow', 'backlog', 'all'])
     .optional()
     .default('all')
-    .describe('Filter by task type'),
+    .describe('Filter by workflow type'),
 
   dueSoon: z.boolean()
     .optional()
-    .describe('Only show tasks due in next 7 days'),
+    .describe('Only show workflows due in next 7 days'),
 
   recurringOnly: z.boolean()
     .optional()
-    .describe('Only show recurring tasks'),
+    .describe('Only show recurring workflows'),
 
   overdueOnly: z.boolean()
     .optional()
-    .describe('Only show overdue tasks'),
+    .describe('Only show overdue workflows'),
 
   sortBy: z.enum(['dueDate', 'created', 'name', 'lastCompleted'])
     .optional()
@@ -1587,12 +1587,12 @@ const listTasksSchema = z.object({
 });
 ```
 
-### complete_task Schema
+### complete_workflow Schema
 
 ```typescript
-const completeTaskSchema = z.object({
-  taskId: z.string()
-    .describe('ID of task to mark as completed'),
+const completeWorkflowSchema = z.object({
+  workflowId: z.string()
+    .describe('ID of workflow to mark as completed'),
 
   notes: z.string()
     .optional()
@@ -1600,13 +1600,13 @@ const completeTaskSchema = z.object({
 
   outputNoteId: z.string()
     .optional()
-    .describe('ID of note created as result of task (if applicable)'),
+    .describe('ID of note created as result of workflow (if applicable)'),
 
   metadata: z.object({
     durationMs: z.number()
       .int()
       .optional()
-      .describe('Time taken to execute task in milliseconds'),
+      .describe('Time taken to execute workflow in milliseconds'),
     toolCallsCount: z.number()
       .int()
       .optional()
@@ -1620,54 +1620,54 @@ const completeTaskSchema = z.object({
 
 ## Appendix C: Database Queries
 
-### Get Tasks Due Now
+### Get Workflows Due Now
 
 ```sql
--- Find tasks that should be executed now
+-- Find workflows that should be executed now
 SELECT
-  t.id,
-  t.name,
-  t.purpose,
-  t.status,
-  t.recurring_spec,
-  t.last_completed
-FROM tasks t
-WHERE t.vault_id = ?
-  AND t.status = 'active'
+  w.id,
+  w.name,
+  w.purpose,
+  w.status,
+  w.recurring_spec,
+  w.last_completed
+FROM workflows w
+WHERE w.vault_id = ?
+  AND w.status = 'active'
   AND (
-    -- One-time tasks with due date in past
-    (t.recurring_spec IS NULL AND t.due_date IS NOT NULL AND t.due_date <= datetime('now'))
+    -- One-time workflows with due date in past
+    (w.recurring_spec IS NULL AND w.due_date IS NOT NULL AND w.due_date <= datetime('now'))
     OR
-    -- Recurring tasks that haven't been completed recently enough
-    (t.recurring_spec IS NOT NULL AND (
+    -- Recurring workflows that haven't been completed recently enough
+    (w.recurring_spec IS NOT NULL AND (
       -- Daily: last completed >24h ago
-      (json_extract(t.recurring_spec, '$.frequency') = 'daily'
-       AND (t.last_completed IS NULL OR datetime(t.last_completed, '+1 day') <= datetime('now')))
+      (json_extract(w.recurring_spec, '$.frequency') = 'daily'
+       AND (w.last_completed IS NULL OR datetime(w.last_completed, '+1 day') <= datetime('now')))
       OR
       -- Weekly: last completed >7d ago AND today is the scheduled day
-      (json_extract(t.recurring_spec, '$.frequency') = 'weekly'
-       AND (t.last_completed IS NULL OR datetime(t.last_completed, '+7 days') <= datetime('now'))
-       AND CAST(strftime('%w', 'now') AS INTEGER) = json_extract(t.recurring_spec, '$.dayOfWeek'))
+      (json_extract(w.recurring_spec, '$.frequency') = 'weekly'
+       AND (w.last_completed IS NULL OR datetime(w.last_completed, '+7 days') <= datetime('now'))
+       AND CAST(strftime('%w', 'now') AS INTEGER) = json_extract(w.recurring_spec, '$.dayOfWeek'))
       OR
       -- Monthly: last completed >30d ago AND today is the scheduled day
-      (json_extract(t.recurring_spec, '$.frequency') = 'monthly'
-       AND (t.last_completed IS NULL OR datetime(t.last_completed, '+30 days') <= datetime('now'))
-       AND CAST(strftime('%d', 'now') AS INTEGER) = json_extract(t.recurring_spec, '$.dayOfMonth'))
+      (json_extract(w.recurring_spec, '$.frequency') = 'monthly'
+       AND (w.last_completed IS NULL OR datetime(w.last_completed, '+30 days') <= datetime('now'))
+       AND CAST(strftime('%d', 'now') AS INTEGER) = json_extract(w.recurring_spec, '$.dayOfMonth'))
     ))
   )
 ORDER BY
   CASE
-    WHEN t.due_date IS NOT NULL THEN t.due_date
-    ELSE t.last_completed
+    WHEN w.due_date IS NOT NULL THEN w.due_date
+    ELSE w.last_completed
   END ASC;
 ```
 
-### Get Task with Materials
+### Get Workflow with Materials
 
 ```sql
--- Get full task details including supplementary materials
+-- Get full workflow details including supplementary materials
 SELECT
-  t.*,
+  w.*,
   json_group_array(
     json_object(
       'id', m.id,
@@ -1678,19 +1678,19 @@ SELECT
       'position', m.position
     )
   ) as supplementary_materials
-FROM tasks t
-LEFT JOIN task_supplementary_materials m ON m.task_id = t.id
-WHERE t.id = ?
-GROUP BY t.id;
+FROM workflows w
+LEFT JOIN workflow_supplementary_materials m ON m.workflow_id = w.id
+WHERE w.id = ?
+GROUP BY w.id;
 ```
 
-### Record Task Completion
+### Record Workflow Completion
 
 ```sql
 -- Insert completion record
-INSERT INTO task_completion_history (
+INSERT INTO workflow_completion_history (
   id,
-  task_id,
+  workflow_id,
   completed_at,
   conversation_id,
   notes,
@@ -1698,14 +1698,14 @@ INSERT INTO task_completion_history (
   metadata
 ) VALUES (?, ?, datetime('now'), ?, ?, ?, ?);
 
--- Update task's last_completed timestamp
-UPDATE tasks
+-- Update workflow's last_completed timestamp
+UPDATE workflows
 SET
   last_completed = datetime('now'),
   updated_at = datetime('now'),
   status = CASE
-    WHEN recurring_spec IS NOT NULL THEN 'active'  -- Keep recurring tasks active
-    ELSE 'completed'  -- Mark one-time tasks as completed
+    WHEN recurring_spec IS NOT NULL THEN 'active'  -- Keep recurring workflows active
+    ELSE 'completed'  -- Mark one-time workflows as completed
   END
 WHERE id = ?;
 ```
@@ -1713,14 +1713,14 @@ WHERE id = ?;
 ### Get Completion History
 
 ```sql
--- Get recent completions for a task
+-- Get recent completions for a workflow
 SELECT
   ch.*,
   n.title as output_note_title,
   n.path as output_note_path
-FROM task_completion_history ch
+FROM workflow_completion_history ch
 LEFT JOIN notes n ON n.id = ch.output_note_id
-WHERE ch.task_id = ?
+WHERE ch.workflow_id = ?
 ORDER BY ch.completed_at DESC
 LIMIT ?;
 ```
@@ -1730,14 +1730,14 @@ LIMIT ?;
 ## Appendix D: Migration Script
 
 ```typescript
-// Migration: 001_create_tasks_tables.ts
+// Migration: 001_create_workflows_tables.ts
 
 import { Database } from 'better-sqlite3';
 
 export async function up(db: Database): Promise<void> {
-  // Create tasks table
+  // Create workflows table
   db.exec(`
-    CREATE TABLE IF NOT EXISTS tasks (
+    CREATE TABLE IF NOT EXISTS workflows (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL CHECK(length(name) >= 1 AND length(name) <= 20),
       purpose TEXT NOT NULL CHECK(length(purpose) >= 1 AND length(purpose) <= 100),
@@ -1758,30 +1758,30 @@ export async function up(db: Database): Promise<void> {
 
   // Create indexes
   db.exec(`
-    CREATE INDEX idx_tasks_vault_status
-      ON tasks(vault_id, status);
+    CREATE INDEX idx_workflows_vault_status
+      ON workflows(vault_id, status);
 
-    CREATE INDEX idx_tasks_vault_type
-      ON tasks(vault_id, type);
+    CREATE INDEX idx_workflows_vault_type
+      ON workflows(vault_id, type);
 
-    CREATE INDEX idx_tasks_due_date
-      ON tasks(due_date)
+    CREATE INDEX idx_workflows_due_date
+      ON workflows(due_date)
       WHERE due_date IS NOT NULL;
 
-    CREATE INDEX idx_tasks_last_completed
-      ON tasks(last_completed)
+    CREATE INDEX idx_workflows_last_completed
+      ON workflows(last_completed)
       WHERE last_completed IS NOT NULL;
 
-    CREATE INDEX idx_tasks_vault_recurring
-      ON tasks(vault_id, recurring_spec)
+    CREATE INDEX idx_workflows_vault_recurring
+      ON workflows(vault_id, recurring_spec)
       WHERE recurring_spec IS NOT NULL;
   `);
 
   // Create supplementary materials table
   db.exec(`
-    CREATE TABLE IF NOT EXISTS task_supplementary_materials (
+    CREATE TABLE IF NOT EXISTS workflow_supplementary_materials (
       id TEXT PRIMARY KEY,
-      task_id TEXT NOT NULL,
+      workflow_id TEXT NOT NULL,
       material_type TEXT NOT NULL
         CHECK (material_type IN ('text', 'code', 'note_reference')),
       content TEXT,
@@ -1789,59 +1789,59 @@ export async function up(db: Database): Promise<void> {
       metadata TEXT,
       position INTEGER NOT NULL DEFAULT 0,
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+      FOREIGN KEY (workflow_id) REFERENCES workflows(id) ON DELETE CASCADE,
       FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE SET NULL
     )
   `);
 
   db.exec(`
-    CREATE INDEX idx_task_materials_task
-      ON task_supplementary_materials(task_id, position);
+    CREATE INDEX idx_workflow_materials_workflow
+      ON workflow_supplementary_materials(workflow_id, position);
   `);
 
   // Create completion history table
   db.exec(`
-    CREATE TABLE IF NOT EXISTS task_completion_history (
+    CREATE TABLE IF NOT EXISTS workflow_completion_history (
       id TEXT PRIMARY KEY,
-      task_id TEXT NOT NULL,
+      workflow_id TEXT NOT NULL,
       completed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       conversation_id TEXT,
       notes TEXT,
       output_note_id TEXT,
       metadata TEXT,
-      FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+      FOREIGN KEY (workflow_id) REFERENCES workflows(id) ON DELETE CASCADE,
       FOREIGN KEY (output_note_id) REFERENCES notes(id) ON DELETE SET NULL
     )
   `);
 
   db.exec(`
-    CREATE INDEX idx_task_completion_task
-      ON task_completion_history(task_id, completed_at DESC);
+    CREATE INDEX idx_workflow_completion_workflow
+      ON workflow_completion_history(workflow_id, completed_at DESC);
 
-    CREATE INDEX idx_task_completion_conversation
-      ON task_completion_history(conversation_id);
+    CREATE INDEX idx_workflow_completion_conversation
+      ON workflow_completion_history(conversation_id);
   `);
 
   // Create trigger to update updated_at
   db.exec(`
-    CREATE TRIGGER update_tasks_timestamp
-    AFTER UPDATE ON tasks
+    CREATE TRIGGER update_workflows_timestamp
+    AFTER UPDATE ON workflows
     FOR EACH ROW
     BEGIN
-      UPDATE tasks SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+      UPDATE workflows SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
     END;
   `);
 
-  console.log('✓ Tasks tables created successfully');
+  console.log('✓ Workflows tables created successfully');
 }
 
 export async function down(db: Database): Promise<void> {
-  db.exec('DROP TRIGGER IF EXISTS update_tasks_timestamp');
-  db.exec('DROP TABLE IF EXISTS task_completion_history');
-  db.exec('DROP TABLE IF EXISTS task_supplementary_materials');
-  db.exec('DROP TABLE IF EXISTS tasks');
+  db.exec('DROP TRIGGER IF EXISTS update_workflows_timestamp');
+  db.exec('DROP TABLE IF EXISTS workflow_completion_history');
+  db.exec('DROP TABLE IF EXISTS workflow_supplementary_materials');
+  db.exec('DROP TABLE IF EXISTS workflows');
 
-  console.log('✓ Tasks tables dropped successfully');
+  console.log('✓ Workflows tables dropped successfully');
 }
 ```
 
