@@ -815,6 +815,213 @@ This is test note ${i}`;
     });
   });
 
+  describe('Workflow tables migration (v2.4.0)', () => {
+    it('should create workflow tables when migrating from v2.3.0', async () => {
+      const db = await dbManager.connect();
+
+      // Create v2.3.0 schema (has file_mtime but no workflow tables)
+      await db.run(`
+        CREATE TABLE notes (
+          id TEXT PRIMARY KEY,
+          type TEXT NOT NULL,
+          filename TEXT NOT NULL,
+          path TEXT NOT NULL,
+          title TEXT,
+          content TEXT,
+          content_hash TEXT,
+          created TEXT NOT NULL,
+          updated TEXT NOT NULL,
+          size INTEGER,
+          file_mtime BIGINT,
+          UNIQUE(type, filename)
+        )
+      `);
+
+      await db.run(`
+        CREATE TABLE note_id_migration (
+          old_identifier TEXT PRIMARY KEY,
+          new_id TEXT NOT NULL UNIQUE,
+          type TEXT NOT NULL,
+          filename TEXT NOT NULL
+        )
+      `);
+
+      await db.run(`
+        CREATE TABLE note_links (
+          id INTEGER PRIMARY KEY,
+          source_note_id TEXT NOT NULL,
+          target_note_id TEXT,
+          target_title TEXT NOT NULL,
+          link_text TEXT,
+          line_number INTEGER,
+          created DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY(source_note_id) REFERENCES notes(id) ON DELETE CASCADE,
+          FOREIGN KEY(target_note_id) REFERENCES notes(id) ON DELETE SET NULL
+        )
+      `);
+
+      await db.run(`
+        CREATE TABLE external_links (
+          id INTEGER PRIMARY KEY,
+          note_id TEXT NOT NULL,
+          url TEXT NOT NULL,
+          title TEXT,
+          line_number INTEGER,
+          link_type TEXT DEFAULT 'url' CHECK (link_type IN ('url', 'image', 'embed')),
+          created DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY(note_id) REFERENCES notes(id) ON DELETE CASCADE
+        )
+      `);
+
+      // Run migration from v2.3.0 to v2.4.0
+      const result = await DatabaseMigrationManager.checkAndMigrate(
+        '2.3.0',
+        dbManager as unknown as DatabaseManager,
+        workspacePath
+      );
+
+      expect(result.migrated).toBe(true);
+      expect(result.executedMigrations).toContain('2.4.0');
+
+      // Verify workflow tables were created
+      const workflowsTableExists = await db.get<{ count: number }>(
+        "SELECT COUNT(*) as count FROM sqlite_master WHERE type='table' AND name='workflows'"
+      );
+      expect(workflowsTableExists?.count).toBe(1);
+
+      const materialsTableExists = await db.get<{ count: number }>(
+        "SELECT COUNT(*) as count FROM sqlite_master WHERE type='table' AND name='workflow_supplementary_materials'"
+      );
+      expect(materialsTableExists?.count).toBe(1);
+
+      const historyTableExists = await db.get<{ count: number }>(
+        "SELECT COUNT(*) as count FROM sqlite_master WHERE type='table' AND name='workflow_completion_history'"
+      );
+      expect(historyTableExists?.count).toBe(1);
+
+      // Verify workflows table schema (especially: NO foreign key to vaults table)
+      const tableInfo = await db.all<{ sql: string }>(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='workflows'"
+      );
+
+      expect(tableInfo.length).toBe(1);
+      const createTableSql = tableInfo[0].sql;
+
+      // Should NOT reference vaults table
+      expect(createTableSql).not.toContain('REFERENCES vaults');
+      expect(createTableSql).not.toContain('vaults(id)');
+
+      // Should have vault_id column but no foreign key
+      expect(createTableSql).toContain('vault_id TEXT NOT NULL');
+    });
+
+    it('should allow creating workflows after v2.4.0 migration', async () => {
+      const db = await dbManager.connect();
+
+      // Create minimal v2.3.0 schema
+      await db.run(`
+        CREATE TABLE notes (
+          id TEXT PRIMARY KEY,
+          type TEXT NOT NULL,
+          filename TEXT NOT NULL,
+          path TEXT NOT NULL,
+          created TEXT NOT NULL,
+          updated TEXT NOT NULL,
+          file_mtime BIGINT,
+          UNIQUE(type, filename)
+        )
+      `);
+
+      // Run migration
+      await DatabaseMigrationManager.checkAndMigrate(
+        '2.3.0',
+        dbManager as unknown as DatabaseManager,
+        workspacePath
+      );
+
+      // Try to create a workflow (should succeed without vaults table)
+      const workflowId = 'w-12345678';
+      const vaultId = 'test-vault-id';
+
+      await db.run(
+        `INSERT INTO workflows (id, name, purpose, description, vault_id, status, type, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          workflowId,
+          'Test Workflow',
+          'Test purpose',
+          'Test description',
+          vaultId,
+          'active',
+          'workflow',
+          new Date().toISOString(),
+          new Date().toISOString()
+        ]
+      );
+
+      // Verify workflow was created
+      const workflow = await db.get<{ id: string; name: string }>(
+        'SELECT id, name FROM workflows WHERE id = ?',
+        [workflowId]
+      );
+
+      expect(workflow).toBeDefined();
+      expect(workflow?.id).toBe(workflowId);
+      expect(workflow?.name).toBe('Test Workflow');
+    });
+
+    it('should skip workflow table creation if tables already exist', async () => {
+      const db = await dbManager.connect();
+
+      // Create v2.3.0 schema
+      await db.run(`
+        CREATE TABLE notes (
+          id TEXT PRIMARY KEY,
+          type TEXT NOT NULL,
+          filename TEXT NOT NULL,
+          path TEXT NOT NULL,
+          created TEXT NOT NULL,
+          updated TEXT NOT NULL,
+          file_mtime BIGINT
+        )
+      `);
+
+      // Manually create workflow tables (simulating partial migration or manual creation)
+      await db.run(`
+        CREATE TABLE workflows (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          purpose TEXT NOT NULL,
+          description TEXT NOT NULL,
+          vault_id TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'active',
+          type TEXT NOT NULL DEFAULT 'workflow',
+          recurring_spec TEXT,
+          due_date DATETIME,
+          last_completed DATETIME,
+          created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      // Run migration - should detect existing table and skip
+      const result = await DatabaseMigrationManager.checkAndMigrate(
+        '2.3.0',
+        dbManager as unknown as DatabaseManager,
+        workspacePath
+      );
+
+      expect(result.migrated).toBe(true);
+      expect(result.executedMigrations).toContain('2.4.0');
+
+      // Verify table still exists (not recreated)
+      const workflowsTableExists = await db.get<{ count: number }>(
+        "SELECT COUNT(*) as count FROM sqlite_master WHERE type='table' AND name='workflows'"
+      );
+      expect(workflowsTableExists?.count).toBe(1);
+    });
+  });
+
   describe('Edge cases', () => {
     it('should preserve existing frontmatter when adding ID', async () => {
       const db = await dbManager.connect();
