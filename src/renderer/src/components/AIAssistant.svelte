@@ -5,6 +5,7 @@
   import AgentControlBar from './AgentControlBar.svelte';
   import TodoPlanWidget from './TodoPlanWidget.svelte';
   import ToolCallLimitWidget from './ToolCallLimitWidget.svelte';
+  import ConversationStartWorkflowPanel from './ConversationStartWorkflowPanel.svelte';
   import type { Message, ContextUsage } from '../services/types';
   import { unifiedChatStore } from '../stores/unifiedChatStore.svelte';
   import { TodoPlanStore } from '../stores/todoPlanStore.svelte';
@@ -19,6 +20,7 @@
     onToolCallLimitContinue?: () => void;
     onToolCallLimitStop?: () => void;
     refreshCredits?: () => Promise<void>;
+    onViewWorkflows?: () => void;
   }
 
   let {
@@ -30,7 +32,8 @@
     toolCallLimitReached,
     onToolCallLimitContinue,
     onToolCallLimitStop,
-    refreshCredits = $bindable()
+    refreshCredits = $bindable(),
+    onViewWorkflows
   }: Props = $props();
 
   let contextUsage = $state<ContextUsage | null>(null);
@@ -151,6 +154,12 @@
     unifiedChatStore.createThread();
   }
 
+  function handleExecuteWorkflow(_workflowId: string, workflowName: string): void {
+    // Send a message to execute the workflow
+    const message = `Execute workflow: ${workflowName}`;
+    onSendMessage?.(message);
+  }
+
   $effect(() => {
     if (chatContainer && (messages.length > 0 || isLoading)) {
       // Use requestAnimationFrame to ensure layout is complete
@@ -233,6 +242,13 @@
 
   <!-- Chat Messages Section -->
   <div class="chat-section" bind:this={chatContainer}>
+    {#if messages.length === 0 && !isLoading}
+      <!-- Show workflow panel when starting a fresh conversation -->
+      <ConversationStartWorkflowPanel
+        onExecuteWorkflow={handleExecuteWorkflow}
+        onViewAll={onViewWorkflows}
+      />
+    {/if}
     {#each messages as message (message.id)}
       <MessageComponent {message} {onNoteClick} />
     {/each}

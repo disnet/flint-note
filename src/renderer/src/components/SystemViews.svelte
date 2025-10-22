@@ -2,15 +2,19 @@
   import { inboxStore } from '../stores/inboxStore.svelte';
 
   interface Props {
-    activeSystemView: 'inbox' | 'daily' | 'notes' | 'settings' | null;
-    onSystemViewSelect: (view: 'inbox' | 'daily' | 'notes' | 'settings' | null) => void;
+    activeSystemView: 'inbox' | 'daily' | 'notes' | 'settings' | 'workflows' | null;
+    onSystemViewSelect: (
+      view: 'inbox' | 'daily' | 'notes' | 'settings' | 'workflows' | null
+    ) => void;
   }
 
   let { onSystemViewSelect, activeSystemView }: Props = $props();
 
   const inboxCount = $derived(inboxStore.count);
 
-  function setActiveView(view: 'inbox' | 'daily' | 'notes' | 'settings'): void {
+  function setActiveView(
+    view: 'inbox' | 'daily' | 'notes' | 'settings' | 'workflows'
+  ): void {
     onSystemViewSelect(view);
   }
 </script>
@@ -60,6 +64,27 @@
         <line x1="3" y1="10" x2="21" y2="10"></line>
       </svg>
       Daily
+    </button>
+
+    <button
+      class="nav-item"
+      class:active={activeSystemView === 'workflows'}
+      onclick={() => setActiveView('workflows')}
+    >
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <path
+          d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"
+        ></path>
+        <circle cx="12" cy="12" r="3"></circle>
+      </svg>
+      Workflows
     </button>
 
     <button

@@ -35,6 +35,7 @@ Added 8 IPC handlers for workflow operations:
 **Location:** `src/main/index.ts:1905-2000`
 
 All handlers include:
+
 - Error logging with context
 - Proper service availability checks
 - Consistent error handling patterns
@@ -115,6 +116,7 @@ This prevents Svelte reactivity metadata from breaking structured cloning in Ele
 Displays workflows in a filterable, searchable list.
 
 **Features:**
+
 - Status badges (active, paused, completed, archived)
 - Due date indicators (overdue, due now, upcoming)
 - Recurring schedule display
@@ -124,6 +126,7 @@ Displays workflows in a filterable, searchable list.
 - Loading state
 
 **Props:**
+
 ```typescript
 {
   selectedId?: string | null;
@@ -138,6 +141,7 @@ Displays workflows in a filterable, searchable list.
 ```
 
 **Visual Design:**
+
 - Card-based layout with hover effects
 - Color-coded badges for status and due dates
 - Icon support for recurring workflows
@@ -152,6 +156,7 @@ Displays workflows in a filterable, searchable list.
 Comprehensive workflow detail view with full information display.
 
 **Features:**
+
 - Full description rendering (Markdown support)
 - Schedule information (recurring spec or due date)
 - Last completed timestamp
@@ -166,11 +171,13 @@ Comprehensive workflow detail view with full information display.
 - Metadata display (ID, created, updated, vault)
 
 **Actions:**
+
 - Execute workflow (if active)
 - Edit workflow
 - Delete workflow (with confirmation)
 
 **Props:**
+
 ```typescript
 {
   workflowId: string;
@@ -216,6 +223,7 @@ Create/edit form with comprehensive validation and scheduling options.
   - Error display
 
 **Props:**
+
 ```typescript
 {
   workflow?: Workflow | null;  // null = create, workflow = edit
@@ -259,6 +267,7 @@ Main workflow management interface - the central hub for workflow operations.
   - Smooth transitions between views
 
 **State Management:**
+
 ```typescript
 let activeTab = $state<'workflows' | 'backlog'>('workflows');
 let selectedWorkflowId = $state<string | null>(null);
@@ -270,6 +279,7 @@ let searchQuery = $state('');
 ```
 
 **Integration Points:**
+
 - Uses WorkflowList for display
 - Uses WorkflowDetail for selected workflow
 - Uses WorkflowForm for create/edit
@@ -302,6 +312,7 @@ Displays relevant workflows when starting a new conversation.
   - "+N more on-demand workflows" hint
 
 **Props:**
+
 ```typescript
 {
   onExecuteWorkflow?: (workflowId: string, workflowName: string) => void;
@@ -310,6 +321,7 @@ Displays relevant workflows when starting a new conversation.
 ```
 
 **Usage Pattern:**
+
 ```svelte
 <ConversationStartWorkflowPanel
   onExecuteWorkflow={(id, name) => {
@@ -328,6 +340,7 @@ Displays relevant workflows when starting a new conversation.
 ### 1. Svelte 5 Runes Pattern
 
 All components use modern Svelte 5 syntax:
+
 - `$state` for reactive variables
 - `$derived` / `$derived.by` for computed values
 - `$props` for component props
@@ -340,6 +353,7 @@ All components use modern Svelte 5 syntax:
 ### 2. Store Pattern
 
 Centralized store for workflow state management:
+
 - Single source of truth for workflow data
 - Consistent API across all components
 - Automatic reactivity propagation
@@ -350,6 +364,7 @@ Centralized store for workflow state management:
 ### 3. IPC Serialization Safety
 
 Critical pattern for Electron IPC:
+
 ```typescript
 const serializableInput = $state.snapshot(input);
 await window.api?.workflow.create(serializableInput);
@@ -360,6 +375,7 @@ await window.api?.workflow.create(serializableInput);
 ### 4. Component Composition
 
 Hierarchical component structure:
+
 ```
 WorkflowManagementView (orchestrator)
 ├── WorkflowList (display)
@@ -374,6 +390,7 @@ ConversationStartWorkflowPanel (standalone)
 ### 5. Progressive Enhancement
 
 Components gracefully handle:
+
 - Missing data (null/undefined checks)
 - Loading states
 - Error states
@@ -433,14 +450,14 @@ All workflow types are defined in `src/server/types/workflow.ts`:
 
 ```typescript
 // Core types
-Workflow, WorkflowListItem, WorkflowStatus, WorkflowType
+(Workflow, WorkflowListItem, WorkflowStatus, WorkflowType);
 
 // Input types
-CreateWorkflowInput, UpdateWorkflowInput, CompleteWorkflowInput
-ListWorkflowsInput, GetWorkflowInput
+(CreateWorkflowInput, UpdateWorkflowInput, CompleteWorkflowInput);
+(ListWorkflowsInput, GetWorkflowInput);
 
 // Supplementary types
-SupplementaryMaterial, WorkflowCompletion, RecurringSpec
+(SupplementaryMaterial, WorkflowCompletion, RecurringSpec);
 ```
 
 ### Error Handling
@@ -474,6 +491,7 @@ try {
 - Screen reader friendly
 
 **Known Warnings:**
+
 - Some buttons need aria-label attributes (close buttons with only icons)
 - Some labels need associated controls (radio groups)
 - Some click handlers need keyboard equivalents
@@ -487,20 +505,24 @@ try {
 ### Linting & Type Checking
 
 ✅ **ESLint:** All passing
+
 - Fixed missing keys in #each blocks
 - No unused variables
 - Proper async/await usage
 
 ✅ **TypeScript:** All passing
+
 - Full type coverage
 - No `any` types (except IPC boundaries)
 - Proper generic usage
 
 ✅ **Prettier:** All formatted
+
 - Consistent code style
 - Auto-formatted on save
 
 ⚠️ **Svelte-check:** 5 warnings
+
 - All accessibility-related
 - Non-blocking
 - Can be addressed in future PR
@@ -665,6 +687,7 @@ src/renderer/src/env.d.ts              (Added workflow types)
 ## Success Criteria
 
 ✅ **Completed:**
+
 - [x] All 5 UI components created
 - [x] Workflow store with full CRUD operations
 - [x] IPC communication layer
@@ -674,6 +697,7 @@ src/renderer/src/env.d.ts              (Added workflow types)
 - [x] Code formatted
 
 ⏳ **Pending:**
+
 - [ ] Manual testing complete
 - [ ] Routing integrated
 - [ ] Conversation start integrated

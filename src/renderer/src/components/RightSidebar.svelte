@@ -15,6 +15,7 @@
     toolCallLimitReached?: { stepCount: number; maxSteps: number } | null;
     onToolCallLimitContinue?: () => void;
     onToolCallLimitStop?: () => void;
+    onViewWorkflows?: () => void;
     refreshCredits?: () => Promise<void>;
   }
 
@@ -27,6 +28,7 @@
     toolCallLimitReached,
     onToolCallLimitContinue,
     onToolCallLimitStop,
+    onViewWorkflows,
     refreshCredits = $bindable()
   }: Props = $props();
 
@@ -68,6 +70,7 @@
           {toolCallLimitReached}
           {onToolCallLimitContinue}
           {onToolCallLimitStop}
+          {onViewWorkflows}
           bind:refreshCredits
         />
       </div>

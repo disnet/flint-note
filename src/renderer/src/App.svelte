@@ -73,7 +73,9 @@
 
   let isLoadingResponse = $state(false);
   let currentRequestId = $state<string | null>(null);
-  let activeSystemView = $state<'inbox' | 'daily' | 'notes' | 'settings' | null>(null);
+  let activeSystemView = $state<
+    'inbox' | 'daily' | 'notes' | 'settings' | 'workflows' | null
+  >(null);
   let toolCallLimitReached = $state<{
     stepCount: number;
     maxSteps: number;
@@ -150,7 +152,7 @@
   }
 
   async function handleSystemViewSelect(
-    view: 'inbox' | 'daily' | 'notes' | 'settings' | null
+    view: 'inbox' | 'daily' | 'notes' | 'settings' | 'workflows' | null
   ): Promise<void> {
     // If clicking the same view that's already active and sidebar is visible, toggle the sidebar
     if (sidebarState.leftSidebar.visible && activeSystemView === view && view !== null) {
@@ -166,6 +168,10 @@
         sidebarState.toggleLeftSidebar();
       }
     }
+  }
+
+  function handleViewWorkflows(): void {
+    handleSystemViewSelect('workflows');
   }
 
   async function handleNoteClick(noteId: string): Promise<void> {
@@ -997,6 +1003,7 @@
         {toolCallLimitReached}
         onToolCallLimitContinue={handleToolCallLimitContinue}
         onToolCallLimitStop={handleToolCallLimitStop}
+        onViewWorkflows={handleViewWorkflows}
         bind:refreshCredits
       />
     </div>

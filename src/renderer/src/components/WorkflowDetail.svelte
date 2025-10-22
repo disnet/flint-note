@@ -123,7 +123,7 @@
       <div class="detail-section">
         <h4>Description</h4>
         <div class="description">
-          <MarkdownRenderer content={workflow.description} />
+          <MarkdownRenderer text={workflow.description} />
         </div>
       </div>
 

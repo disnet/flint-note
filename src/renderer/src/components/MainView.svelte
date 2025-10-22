@@ -4,6 +4,7 @@
   import DailyView from './DailyView.svelte';
   import InboxView from './InboxView.svelte';
   import Settings from './Settings.svelte';
+  import WorkflowManagementView from './WorkflowManagementView.svelte';
   import { ViewRegistry } from '../lib/views';
   import { getChatService } from '../services/chatService.js';
   import type { NoteMetadata, NoteType } from '../services/noteStore.svelte';
@@ -13,7 +14,7 @@
 
   interface Props {
     activeNote: NoteMetadata | null;
-    activeSystemView: 'inbox' | 'daily' | 'notes' | 'settings' | null;
+    activeSystemView: 'inbox' | 'daily' | 'notes' | 'settings' | 'workflows' | null;
     noteTypes: NoteType[];
     onClose: () => void;
     onNoteSelect: (note: NoteMetadata) => void;
@@ -149,6 +150,12 @@
     <div class="system-view-container">
       <div class="system-view-content">
         <Settings />
+      </div>
+    </div>
+  {:else if activeSystemView === 'workflows'}
+    <div class="system-view-container">
+      <div class="system-view-content">
+        <WorkflowManagementView />
       </div>
     </div>
   {:else if activeNote}
