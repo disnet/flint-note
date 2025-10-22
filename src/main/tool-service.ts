@@ -48,6 +48,7 @@ export class ToolService {
       search_notes: this.searchNotesTool,
       get_vault_info: this.getVaultInfoTool,
       delete_note: this.deleteNoteTool,
+      move_note: this.moveNoteTool,
       // Links API tools
       get_note_links: this.getNoteLinksTool,
       get_backlinks: this.getBacklinksTool,
@@ -814,6 +815,133 @@ export class ToolService {
           success: false,
           error: 'DELETE_FAILED',
           message: `Failed to delete note: ${errorMessage}`
+        };
+      }
+    }
+  });
+
+  private moveNoteTool = tool({
+    description:
+      'Move a note to a different note type. This changes the note\'s type and updates its path accordingly. Content hash is required to ensure you are moving the latest version of the note.',
+    inputSchema: z.object({
+      id: z
+        .string()
+        .describe(
+          'Note ID or identifier to move. Examples: "note-id-123" or "meeting/Weekly Standup"'
+        ),
+      newType: z
+        .string()
+        .describe(
+          'Target note type to move the note to. Example: "archive", "project", "daily"'
+        ),
+      contentHash: z
+        .string()
+        .describe(
+          'Content hash from current note (required to ensure you are moving the latest version). Get this from get_note first.'
+        )
+    }),
+    execute: async ({ id, newType, contentHash }) => {
+      if (!this.noteService) {
+        return {
+          success: false,
+          error: 'Note service not available',
+          message: 'Note service not initialized'
+        };
+      }
+
+      try {
+        const flintApi = this.noteService.getFlintNoteApi();
+        const currentVault = await this.noteService.getCurrentVault();
+
+        if (!currentVault) {
+          return {
+            success: false,
+            error: 'NO_ACTIVE_VAULT',
+            message: 'No active vault available'
+          };
+        }
+
+        // Get the note first to obtain its current details
+        let currentNote;
+        try {
+          currentNote = await flintApi.getNote(currentVault.id, id);
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          if (
+            errorMessage.includes('not found') ||
+            errorMessage.includes('does not exist')
+          ) {
+            return {
+              success: false,
+              error: 'NOTE_NOT_FOUND',
+              message: `Note not found: ${id}`
+            };
+          }
+          throw error;
+        }
+
+        // Move the note
+        const result = await flintApi.moveNote({
+          noteId: id,
+          newType,
+          contentHash,
+          vault_id: currentVault.id
+        });
+
+        // Get the updated note to return full details
+        const updatedNote = await flintApi.getNote(currentVault.id, result.new_id);
+
+        // Publish note.moved event
+        publishNoteEvent({
+          type: 'note.renamed', // Reusing renamed event as move also changes the path
+          oldId: currentNote.id,
+          newId: updatedNote.id,
+          title: updatedNote.title,
+          filename: updatedNote.filename
+        });
+
+        return {
+          success: true,
+          data: {
+            ...result,
+            note: updatedNote
+          },
+          message: `Moved note from '${currentNote.type}' to '${newType}': ${updatedNote.title}`
+        };
+      } catch (error) {
+        if (error instanceof ContentHashMismatchError) {
+          return {
+            success: false,
+            error: 'CONTENT_HASH_MISMATCH',
+            message: error.message
+          };
+        }
+
+        const errorMessage = error instanceof Error ? error.message : String(error);
+
+        if (
+          errorMessage.includes('not found') ||
+          errorMessage.includes('does not exist')
+        ) {
+          return {
+            success: false,
+            error: 'NOTE_NOT_FOUND',
+            message: `Note not found: ${id}`
+          };
+        }
+
+        if (errorMessage.includes('type') && errorMessage.includes('not found')) {
+          return {
+            success: false,
+            error: 'NOTE_TYPE_NOT_FOUND',
+            message: `Target note type '${newType}' not found`
+          };
+        }
+
+        return {
+          success: false,
+          error: 'MOVE_FAILED',
+          message: `Failed to move note: ${errorMessage}`
         };
       }
     }
