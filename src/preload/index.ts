@@ -513,6 +513,14 @@ const api = {
       callback(noteEvent);
     electronAPI.ipcRenderer.on('note-event', handler);
     return () => electronAPI.ipcRenderer.removeListener('note-event', handler);
+  },
+
+  // Event listener for workflow events from main process
+  onWorkflowEvent: (callback: (event: unknown) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, workflowEvent: unknown): void =>
+      callback(workflowEvent);
+    electronAPI.ipcRenderer.on('workflow-event', handler);
+    return () => electronAPI.ipcRenderer.removeListener('workflow-event', handler);
   }
 };
 

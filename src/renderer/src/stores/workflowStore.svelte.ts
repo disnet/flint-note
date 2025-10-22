@@ -17,12 +17,52 @@ import type {
   WorkflowType,
   SupplementaryMaterial
 } from '../../../server/types/workflow';
+import { messageBus, type WorkflowEvent } from '../services/messageBus.svelte';
 
 // Store state
 let workflows = $state<WorkflowListItem[]>([]);
 let loading = $state(false);
 let error = $state<string | null>(null);
 let isInitialized = $state(false);
+
+// Subscribe to workflow events for reactive updates
+function handleWorkflowEvent(event: WorkflowEvent): void {
+  switch (event.type) {
+    case 'workflow.created':
+      // Add new workflow to the list
+      workflows = [...workflows, event.workflow];
+      break;
+
+    case 'workflow.updated': {
+      // Update workflow in list - need to refetch to get latest list item format
+      // For now, trigger a refresh
+      loadWorkflows().catch(console.error);
+      break;
+    }
+
+    case 'workflow.deleted':
+      // Remove workflow from list
+      workflows = workflows.filter((w) => w.id !== event.workflowId);
+      break;
+
+    case 'workflow.completed': {
+      // Refresh to get updated workflow state
+      loadWorkflows().catch(console.error);
+      break;
+    }
+
+    case 'workflow.material-added':
+    case 'workflow.material-removed':
+      // Material changes don't affect the list view, can be ignored
+      break;
+  }
+}
+
+// Set up event subscription
+messageBus.subscribe('workflow.created', handleWorkflowEvent);
+messageBus.subscribe('workflow.updated', handleWorkflowEvent);
+messageBus.subscribe('workflow.deleted', handleWorkflowEvent);
+messageBus.subscribe('workflow.completed', handleWorkflowEvent);
 
 // Derived state for different workflow categories
 const workflowsDueNow = $derived(

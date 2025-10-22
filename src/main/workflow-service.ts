@@ -20,6 +20,7 @@ import type {
 } from '../server/types/workflow.js';
 import type { DatabaseConnection } from '../server/database/schema.js';
 import { logger } from './logger.js';
+import { publishWorkflowEvent } from './workflow-events.js';
 
 export class WorkflowService {
   private workflowManager: WorkflowManager | null = null;
@@ -60,7 +61,27 @@ export class WorkflowService {
       throw new Error('No active vault');
     }
 
-    return this.workflowManager.createWorkflow(vault.id, input);
+    const workflow = await this.workflowManager.createWorkflow(vault.id, input);
+
+    // Convert to WorkflowListItem format for event
+    const listItem: WorkflowListItem = {
+      id: workflow.id,
+      name: workflow.name,
+      purpose: workflow.purpose,
+      type: workflow.type,
+      status: workflow.status,
+      isRecurring: !!workflow.recurringSpec,
+      lastCompleted: workflow.lastCompleted
+      // dueInfo will be calculated by the UI store when needed
+    };
+
+    // Publish event for UI updates
+    publishWorkflowEvent({
+      type: 'workflow.created',
+      workflow: listItem
+    });
+
+    return workflow;
   }
 
   /**
@@ -71,7 +92,16 @@ export class WorkflowService {
       throw new Error('WorkflowService not initialized');
     }
 
-    return this.workflowManager.updateWorkflow(input);
+    const workflow = await this.workflowManager.updateWorkflow(input);
+
+    // Publish event for UI updates
+    publishWorkflowEvent({
+      type: 'workflow.updated',
+      workflowId: workflow.id,
+      workflow
+    });
+
+    return workflow;
   }
 
   /**
@@ -82,7 +112,13 @@ export class WorkflowService {
       throw new Error('WorkflowService not initialized');
     }
 
-    return this.workflowManager.deleteWorkflow(workflowId);
+    await this.workflowManager.deleteWorkflow(workflowId);
+
+    // Publish event for UI updates
+    publishWorkflowEvent({
+      type: 'workflow.deleted',
+      workflowId
+    });
   }
 
   /**
@@ -125,7 +161,16 @@ export class WorkflowService {
       throw new Error('WorkflowService not initialized');
     }
 
-    return this.workflowManager.completeWorkflow(input);
+    const completion = await this.workflowManager.completeWorkflow(input);
+
+    // Publish event for UI updates
+    publishWorkflowEvent({
+      type: 'workflow.completed',
+      workflowId: input.workflowId,
+      completion
+    });
+
+    return completion;
   }
 
   /**
@@ -139,7 +184,19 @@ export class WorkflowService {
       throw new Error('WorkflowService not initialized');
     }
 
-    return this.workflowManager.addSupplementaryMaterial(workflowId, material);
+    const materialId = await this.workflowManager.addSupplementaryMaterial(
+      workflowId,
+      material
+    );
+
+    // Publish event for UI updates
+    publishWorkflowEvent({
+      type: 'workflow.material-added',
+      workflowId,
+      materialId
+    });
+
+    return materialId;
   }
 
   /**
@@ -150,7 +207,11 @@ export class WorkflowService {
       throw new Error('WorkflowService not initialized');
     }
 
-    return this.workflowManager.removeSupplementaryMaterial(materialId);
+    await this.workflowManager.removeSupplementaryMaterial(materialId);
+
+    // Note: We don't publish an event here because material changes
+    // don't affect the workflow list view, and we'd need to query
+    // the database to get the workflow ID.
   }
 
   /**

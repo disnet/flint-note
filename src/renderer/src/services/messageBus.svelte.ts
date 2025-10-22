@@ -1,4 +1,9 @@
 import type { NoteMetadata } from './noteStore.svelte';
+import type {
+  WorkflowListItem,
+  Workflow,
+  WorkflowCompletion
+} from '../../../server/types/workflow';
 
 // Event type definitions
 export type NoteEvent =
@@ -29,19 +34,29 @@ export type NoteEvent =
   | { type: 'file.sync-started'; fileCount: number }
   | { type: 'file.sync-completed'; added: number; updated: number; deleted: number };
 
-type EventHandler<T extends NoteEvent = NoteEvent> = (event: T) => void;
+export type WorkflowEvent =
+  | { type: 'workflow.created'; workflow: WorkflowListItem }
+  | { type: 'workflow.updated'; workflowId: string; workflow: Workflow }
+  | { type: 'workflow.deleted'; workflowId: string }
+  | { type: 'workflow.completed'; workflowId: string; completion: WorkflowCompletion }
+  | { type: 'workflow.material-added'; workflowId: string; materialId: string }
+  | { type: 'workflow.material-removed'; workflowId: string; materialId: string };
+
+export type AppEvent = NoteEvent | WorkflowEvent;
+
+type EventHandler<T extends AppEvent = AppEvent> = (event: T) => void;
 
 class MessageBus {
   private subscribers = new Map<string, Set<EventHandler>>();
-  private eventLog: NoteEvent[] = $state([]);
+  private eventLog: AppEvent[] = $state([]);
   private loggingEnabled = $state(false);
 
   /**
    * Subscribe to specific event type
    */
-  subscribe<T extends NoteEvent['type']>(
+  subscribe<T extends AppEvent['type']>(
     eventType: T | '*',
-    handler: EventHandler<Extract<NoteEvent, { type: T }>>
+    handler: EventHandler<Extract<AppEvent, { type: T }>>
   ): () => void {
     if (!this.subscribers.has(eventType)) {
       this.subscribers.set(eventType, new Set());
@@ -55,7 +70,7 @@ class MessageBus {
   /**
    * Publish event to all subscribers
    */
-  publish(event: NoteEvent): void {
+  publish(event: AppEvent): void {
     // Log event if debugging enabled
     if (this.loggingEnabled) {
       this.eventLog.push(event);
@@ -97,7 +112,7 @@ class MessageBus {
   /**
    * Get event log (for debugging)
    */
-  getEventLog(): NoteEvent[] {
+  getEventLog(): AppEvent[] {
     return this.eventLog;
   }
 

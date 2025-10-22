@@ -24,12 +24,23 @@
   import { inboxStore } from './stores/inboxStore.svelte';
   import type { CreateVaultResult } from '@/server/api/types';
   import { messageBus } from './services/messageBus.svelte';
-  import type { NoteEvent } from './services/messageBus.svelte';
+  import type { NoteEvent, WorkflowEvent } from './services/messageBus.svelte';
 
   // Forward note events from main process to message bus
   $effect(() => {
     const unsubscribe = window.api?.onNoteEvent((event) => {
       messageBus.publish(event as NoteEvent);
+    });
+
+    return () => {
+      unsubscribe?.();
+    };
+  });
+
+  // Forward workflow events from main process to message bus
+  $effect(() => {
+    const unsubscribe = window.api?.onWorkflowEvent((event) => {
+      messageBus.publish(event as WorkflowEvent);
     });
 
     return () => {

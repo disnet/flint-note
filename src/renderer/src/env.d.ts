@@ -552,6 +552,9 @@ declare global {
 
       // Event listener for note events from main process
       onNoteEvent: (callback: (event: unknown) => void) => () => void;
+
+      // Event listener for workflow events from main process
+      onWorkflowEvent: (callback: (event: unknown) => void) => () => void;
     };
   }
 }
