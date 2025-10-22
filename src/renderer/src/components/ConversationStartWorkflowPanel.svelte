@@ -56,12 +56,7 @@
                 <span class="workflow-name">{workflow.name}</span>
                 <span class="badge badge-due">Due</span>
               </div>
-              <p class="workflow-purpose">{workflow.purpose}</p>
-              {#if workflow.lastCompleted}
-                <span class="last-completed">
-                  Last: {workflowStore.formatRelativeTime(workflow.lastCompleted)}
-                </span>
-              {/if}
+              <div class="workflow-tooltip">{workflow.purpose}</div>
             </button>
           {/each}
         </div>
@@ -82,7 +77,7 @@
                   </span>
                 {/if}
               </div>
-              <p class="workflow-purpose">{workflow.purpose}</p>
+              <div class="workflow-tooltip">{workflow.purpose}</div>
             </button>
           {/each}
         </div>
@@ -98,7 +93,7 @@
               <div class="card-header">
                 <span class="workflow-name">{workflow.name}</span>
               </div>
-              <p class="workflow-purpose">{workflow.purpose}</p>
+              <div class="workflow-tooltip">{workflow.purpose}</div>
             </button>
           {/each}
         </div>
@@ -218,10 +213,11 @@
   }
 
   .workflow-card {
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    padding: 1rem;
+    padding: 0.75rem;
     background: var(--bg-secondary);
     border: 1px solid var(--border-light);
     border-radius: 6px;
@@ -247,7 +243,6 @@
     justify-content: space-between;
     width: 100%;
     gap: 0.5rem;
-    margin-bottom: 0.5rem;
   }
 
   .workflow-name {
@@ -276,17 +271,50 @@
     border: 1px solid var(--accent-primary);
   }
 
-  .workflow-purpose {
+  .workflow-tooltip {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 0.5rem);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-primary);
+    border: 1px solid var(--border-medium);
+    border-radius: 6px;
+    padding: 0.75rem;
     font-size: 0.8125rem;
-    color: var(--text-secondary);
+    color: var(--text-primary);
     line-height: 1.5;
-    margin: 0 0 0.5rem 0;
-    flex: 1;
+    box-shadow: 0 4px 12px var(--shadow-medium);
+    z-index: 1000;
+    min-width: 200px;
+    max-width: 350px;
+    white-space: normal;
+    text-align: left;
   }
 
-  .last-completed {
-    font-size: 0.75rem;
-    color: var(--text-muted);
+  .workflow-card:hover .workflow-tooltip {
+    display: block;
+  }
+
+  .workflow-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: var(--bg-primary);
+  }
+
+  .workflow-tooltip::before {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 7px solid transparent;
+    border-top-color: var(--border-medium);
+    margin-top: 1px;
   }
 
   .more-hint {
