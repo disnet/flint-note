@@ -54,7 +54,10 @@ const MAX_TOTAL_MATERIALS_SIZE = 500 * 1024; // 500KB
 /**
  * Calculate the size of a material's content in bytes
  */
-function calculateMaterialSize(material: { content?: string; metadata?: unknown }): number {
+function calculateMaterialSize(material: {
+  content?: string;
+  metadata?: unknown;
+}): number {
   let size = 0;
 
   // Count content size (UTF-8 encoding)
@@ -637,10 +640,13 @@ export class WorkflowManager {
     );
 
     return materials.reduce((total, material) => {
-      return total + calculateMaterialSize({
-        content: material.content || undefined,
-        metadata: material.metadata ? JSON.parse(material.metadata) : undefined
-      });
+      return (
+        total +
+        calculateMaterialSize({
+          content: material.content || undefined,
+          metadata: material.metadata ? JSON.parse(material.metadata) : undefined
+        })
+      );
     }, 0);
   }
 

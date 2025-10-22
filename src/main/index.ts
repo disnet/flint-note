@@ -1902,6 +1902,106 @@ app.whenReady().then(async () => {
     }
   );
 
+  // Workflow operations
+  ipcMain.handle('workflow:create', async (_event, input) => {
+    if (!workflowService) {
+      throw new Error('Workflow service not available');
+    }
+    try {
+      return await workflowService.createWorkflow(input);
+    } catch (error) {
+      logger.error('Failed to create workflow', { error, input });
+      throw error;
+    }
+  });
+
+  ipcMain.handle('workflow:update', async (_event, input) => {
+    if (!workflowService) {
+      throw new Error('Workflow service not available');
+    }
+    try {
+      return await workflowService.updateWorkflow(input);
+    } catch (error) {
+      logger.error('Failed to update workflow', { error, input });
+      throw error;
+    }
+  });
+
+  ipcMain.handle('workflow:delete', async (_event, workflowId: string) => {
+    if (!workflowService) {
+      throw new Error('Workflow service not available');
+    }
+    try {
+      return await workflowService.deleteWorkflow(workflowId);
+    } catch (error) {
+      logger.error('Failed to delete workflow', { error, workflowId });
+      throw error;
+    }
+  });
+
+  ipcMain.handle('workflow:list', async (_event, input?) => {
+    if (!workflowService) {
+      throw new Error('Workflow service not available');
+    }
+    try {
+      return await workflowService.listWorkflows(input);
+    } catch (error) {
+      logger.error('Failed to list workflows', { error, input });
+      throw error;
+    }
+  });
+
+  ipcMain.handle('workflow:get', async (_event, input) => {
+    if (!workflowService) {
+      throw new Error('Workflow service not available');
+    }
+    try {
+      return await workflowService.getWorkflow(input);
+    } catch (error) {
+      logger.error('Failed to get workflow', { error, input });
+      throw error;
+    }
+  });
+
+  ipcMain.handle('workflow:complete', async (_event, input) => {
+    if (!workflowService) {
+      throw new Error('Workflow service not available');
+    }
+    try {
+      return await workflowService.completeWorkflow(input);
+    } catch (error) {
+      logger.error('Failed to complete workflow', { error, input });
+      throw error;
+    }
+  });
+
+  ipcMain.handle(
+    'workflow:add-material',
+    async (_event, workflowId: string, material) => {
+      if (!workflowService) {
+        throw new Error('Workflow service not available');
+      }
+      try {
+        return await workflowService.addSupplementaryMaterial(workflowId, material);
+      } catch (error) {
+        logger.error('Failed to add workflow material', { error, workflowId, material });
+        throw error;
+      }
+    }
+  );
+
+  ipcMain.handle('workflow:remove-material', async (_event, materialId: string) => {
+    if (!workflowService) {
+      throw new Error('Workflow service not available');
+    }
+    try {
+      return await workflowService.removeSupplementaryMaterial(materialId);
+    } catch (error) {
+      logger.error('Failed to remove workflow material', { error, materialId });
+      throw error;
+    }
+  });
+
   // Database operations
   ipcMain.handle('rebuild-database', async (_event, params: { vaultId?: string }) => {
     if (!noteService) {

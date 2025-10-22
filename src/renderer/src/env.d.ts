@@ -485,6 +485,18 @@ declare global {
         getActive: (params: { conversationId: string }) => Promise<TodoPlan | null>;
       };
 
+      // Workflow operations
+      workflow: {
+        create: (input: unknown) => Promise<any>;
+        update: (input: unknown) => Promise<any>;
+        delete: (workflowId: string) => Promise<void>;
+        list: (input?: unknown) => Promise<any>;
+        get: (input: unknown) => Promise<any>;
+        complete: (input: unknown) => Promise<any>;
+        addMaterial: (workflowId: string, material: unknown) => Promise<string>;
+        removeMaterial: (materialId: string) => Promise<void>;
+      };
+
       // Daily View operations
       getOrCreateDailyNote: (params: {
         date: string;

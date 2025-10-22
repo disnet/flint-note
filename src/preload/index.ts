@@ -464,6 +464,22 @@ const api = {
       electronAPI.ipcRenderer.invoke('todo-plan:get-active', params)
   },
 
+  // Workflow operations
+  workflow: {
+    create: (input: unknown) => electronAPI.ipcRenderer.invoke('workflow:create', input),
+    update: (input: unknown) => electronAPI.ipcRenderer.invoke('workflow:update', input),
+    delete: (workflowId: string) =>
+      electronAPI.ipcRenderer.invoke('workflow:delete', workflowId),
+    list: (input?: unknown) => electronAPI.ipcRenderer.invoke('workflow:list', input),
+    get: (input: unknown) => electronAPI.ipcRenderer.invoke('workflow:get', input),
+    complete: (input: unknown) =>
+      electronAPI.ipcRenderer.invoke('workflow:complete', input),
+    addMaterial: (workflowId: string, material: unknown) =>
+      electronAPI.ipcRenderer.invoke('workflow:add-material', workflowId, material),
+    removeMaterial: (materialId: string) =>
+      electronAPI.ipcRenderer.invoke('workflow:remove-material', materialId)
+  },
+
   // Daily View operations
   getOrCreateDailyNote: (params: { date: string; vaultId: string }) =>
     electronAPI.ipcRenderer.invoke('get-or-create-daily-note', params),

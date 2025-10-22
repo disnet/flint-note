@@ -573,7 +573,9 @@ describe('WorkflowManager - Supplementary Materials', () => {
             content: 'x'.repeat(20 * 1024),
             position: 10
           })
-        ).rejects.toThrow(/Adding this material would exceed the total materials size limit/);
+        ).rejects.toThrow(
+          /Adding this material would exceed the total materials size limit/
+        );
       });
 
       it('should allow adding material up to 500KB total', async () => {
@@ -616,7 +618,9 @@ describe('WorkflowManager - Supplementary Materials', () => {
             description: 'Test',
             supplementaryMaterials: materials
           })
-        ).rejects.toThrow(/Total materials size.*exceeds maximum allowed size of 500.00 KB/);
+        ).rejects.toThrow(
+          /Total materials size.*exceeds maximum allowed size of 500.00 KB/
+        );
       });
 
       it('should allow workflow creation with materials just under 500KB', async () => {
@@ -679,7 +683,9 @@ describe('WorkflowManager - Supplementary Materials', () => {
             content: 'a'.repeat(20 * 1024),
             position: 13
           })
-        ).rejects.toThrow(/Adding this material would exceed the total materials size limit/);
+        ).rejects.toThrow(
+          /Adding this material would exceed the total materials size limit/
+        );
       });
     });
 
