@@ -554,6 +554,94 @@ async function migrateToImmutableIds(
 }
 
 /**
+ * Create workflow tables (helper function used by both migrations and fresh DB init)
+ */
+async function createWorkflowTables(db: DatabaseConnection): Promise<void> {
+  await db.run(`
+    CREATE TABLE workflows (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      purpose TEXT NOT NULL,
+      description TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'active',
+      type TEXT NOT NULL DEFAULT 'workflow',
+      vault_id TEXT NOT NULL,
+      recurring_spec TEXT,
+      due_date DATETIME,
+      last_completed DATETIME,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await db.run(`
+    CREATE UNIQUE INDEX idx_workflows_vault_name_unique
+      ON workflows(vault_id, LOWER(name))
+  `);
+
+  await db.run(`
+    CREATE INDEX idx_workflows_vault_status
+      ON workflows(vault_id, status)
+  `);
+
+  await db.run(`
+    CREATE INDEX idx_workflows_vault_type
+      ON workflows(vault_id, type)
+  `);
+
+  await db.run(`
+    CREATE INDEX idx_workflows_due_date
+      ON workflows(due_date)
+  `);
+
+  await db.run(`
+    CREATE INDEX idx_workflows_last_completed
+      ON workflows(last_completed)
+  `);
+
+  await db.run(`
+    CREATE INDEX idx_workflows_vault_recurring
+      ON workflows(vault_id, recurring_spec)
+  `);
+
+  await db.run(`
+    CREATE TABLE workflow_supplementary_materials (
+      id TEXT PRIMARY KEY,
+      workflow_id TEXT NOT NULL,
+      material_type TEXT NOT NULL,
+      content TEXT,
+      note_id TEXT,
+      metadata TEXT,
+      position INTEGER NOT NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (workflow_id) REFERENCES workflows(id) ON DELETE CASCADE
+    )
+  `);
+
+  await db.run(`
+    CREATE TABLE workflow_completion_history (
+      id TEXT PRIMARY KEY,
+      workflow_id TEXT NOT NULL,
+      completed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      conversation_id TEXT,
+      notes TEXT,
+      output_note_id TEXT,
+      metadata TEXT,
+      FOREIGN KEY (workflow_id) REFERENCES workflows(id) ON DELETE CASCADE
+    )
+  `);
+
+  await db.run(`
+    CREATE TRIGGER update_workflows_timestamp
+    AFTER UPDATE ON workflows
+    FOR EACH ROW
+    BEGIN
+      UPDATE workflows SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+    END
+  `);
+}
+
+/**
  * Initialize a fresh database with the current schema (v2.0.0)
  */
 async function initializeFreshDatabase(db: DatabaseConnection): Promise<void> {
@@ -564,7 +652,20 @@ async function initializeFreshDatabase(db: DatabaseConnection): Promise<void> {
   `);
 
   if (tableExists && tableExists.count > 0) {
-    // Table already exists, skip initialization
+    // Notes table exists, but we still need to check for workflow tables
+    // (they were added in v2.4.0 and might not exist in existing databases)
+    const workflowsTableExists = await db.get<{ count: number }>(`
+      SELECT COUNT(*) as count FROM sqlite_master
+      WHERE type='table' AND name='workflows'
+    `);
+
+    if (workflowsTableExists && workflowsTableExists.count > 0) {
+      // Both tables exist, nothing to do
+      return;
+    }
+
+    // Notes table exists but workflows don't - create workflow tables only
+    await createWorkflowTables(db);
     return;
   }
 
@@ -616,6 +717,9 @@ async function initializeFreshDatabase(db: DatabaseConnection): Promise<void> {
       FOREIGN KEY(note_id) REFERENCES notes(id) ON DELETE CASCADE
     )
   `);
+
+  // Create workflow tables (added in v2.4.0)
+  await createWorkflowTables(db);
 
   console.log('Fresh database initialized successfully');
 }
