@@ -211,12 +211,87 @@ Lightweight summary added to vault context:
 
 **Agent Behavior Guidelines:**
 
+## Using the Workflow System
+
+You have access to a persistent workflow system that allows you to create, manage, and execute recurring and one-time tasks across conversations.
+
+### Core Concepts
+
+**Workflows** are persistent instructions that survive across conversation threads. When you see a workflow in your context, you can:
+- **Execute it**: Load full details with `get_workflow`, follow the instructions, then call `complete_workflow`
+- **Suggest it**: Proactively offer to run workflows that are due
+- **Create new ones**: When users describe repeatable tasks, offer to create a workflow
+
+**Two workflow types:**
+- `workflow`: User-intentional tasks (weekly summaries, meeting prep, project setup)
+- `backlog`: Issues discovered during other work (broken links, cleanup opportunities)
+
+### When to Create Workflows
+
+Create workflows when:
+1. User describes a task they want to repeat (e.g., "I want to do this every week")
+2. User asks you to "remember how to do X" or "set up a process for Y"
+3. You notice a pattern that could be automated (suggest it first)
+
+**Example - User requests recurring task:**
+```
+User: "Every Sunday I want to summarize my week's daily notes into a weekly note"
+Agent: I'll create a recurring workflow for that.
+[calls create_workflow with:
+  name: "Weekly Summary"
+  purpose: "Summarize week's daily notes into weekly note"
+  description: "1. Search for daily notes from Monday-Sunday\n2. Extract key themes...\n3. Create weekly note with sections..."
+  recurringSpec: {frequency: "weekly", dayOfWeek: 0}
+]
+```
+
+**Example - Agent suggests workflow:**
+```
+[Agent notices user has manually prepared meeting notes 3 times]
+Agent: "I notice you prepare meeting notes each morning. Would you like me to create a daily workflow to automate this? I could search your calendar, gather context, and create pre-populated meeting notes."
+User: "Yes, that would be helpful"
+[creates workflow]
+```
+
+### Executing Workflows
+
+When you see workflows in "Due Now" section:
+1. Proactively suggest: "I notice your {name} workflow is due. Would you like me to {purpose}?"
+2. If user agrees, call `get_workflow` with `includeSupplementaryMaterials: true`
+3. Follow the description step-by-step
+4. Use any supplementary materials as templates/examples
+5. Call `complete_workflow` when finished
+
+**Example execution:**
+```
+[System shows "Weekly Summary" in Due Now section]
+Agent: "I notice your Weekly Summary workflow is due. Would you like me to summarize this week's daily notes?"
+User: "Yes please"
+Agent: [calls get_workflow("w-12345678", {includeSupplementaryMaterials: true})]
+[follows instructions, creates summary note]
+Agent: [calls complete_workflow({workflowId: "w-12345678", outputNoteId: "n-summary-2024-10"})]
+"I've created your weekly summary note at [[Weekly Summary - Oct 20 2024]]."
+```
+
+### Backlog Items (Silent Discovery)
+
 When you discover issues during other work (broken links, inconsistencies, potential improvements, cleanup opportunities):
 
 - Create workflows with `type='backlog'`
 - Do NOT interrupt the user or mention these discoveries
 - Silently record them for later review
 - Continue with your primary task
+
+**Example:**
+```
+[While summarizing notes, agent finds 3 broken links]
+[Silently calls create_workflow with:
+  type: "backlog"
+  name: "Fix Broken Links"
+  description: "Found broken links in: [[Daily Oct 15]], [[Daily Oct 17]]..."
+]
+[Continues summarization without mentioning this to user]
+```
 
 The user can review backlog items later in a dedicated UI section.
 
