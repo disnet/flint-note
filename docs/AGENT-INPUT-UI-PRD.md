@@ -19,14 +19,67 @@ By adding structured input capabilities, agents can:
 3. Gather context dynamically instead of requiring everything upfront
 4. Provide better user control and transparency
 
+## Design Philosophy: Structured Messages vs Tool Calls
+
+This system uses a **structured message approach** instead of custom tool calls, which provides significant advantages:
+
+### Why Structured Messages?
+
+**Simplicity**
+- No custom tool infrastructure needed
+- No Promise-based blocking mechanisms
+- No IPC events or request managers
+- No timeout/cancellation infrastructure
+- Frontend simply parses agent messages and renders UI
+
+**Natural Conversation Flow**
+- Input requests appear naturally in message stream
+- Responses are just messages in the conversation
+- Conversation history automatically includes all context
+- Agent sees full interaction history without special handling
+
+**Works Better with Streaming**
+- Tags detected in real-time as agent streams response
+- No need to pause/resume streaming
+- UI can render immediately when tag appears
+- More responsive user experience
+
+**Easier to Implement**
+- ~70% less code than tool-based approach
+- No main process integration needed
+- All logic in renderer/frontend
+- Easier to test and debug
+
+**More Flexible**
+- Frontend fully controls UI rendering
+- Easy to add new input types (just update parser)
+- Can evolve format without breaking tool contracts
+- Agent learns format through system prompt (no code changes)
+
+### Trade-offs
+
+**Advantages of Structured Messages:**
+- ✅ Simpler implementation
+- ✅ Natural conversation flow
+- ✅ Better streaming support
+- ✅ Easier debugging
+- ✅ Frontend has full control
+
+**Advantages of Tool Calls:**
+- ⚠️ More "proper" AI SDK pattern
+- ⚠️ Explicit blocking/waiting semantics
+- ⚠️ Better type safety (tool schemas)
+
+For our use case, the structured message approach is clearly superior. The agent doesn't need to "wait" for input in the traditional sense—it simply emits a message and receives a response, just like any conversation.
+
 ## Goals
 
 ### Primary Goals
-- ✅ Enable agents to request structured input during execution via tool calls
+- ✅ Enable agents to request structured input during execution via structured messages
 - ✅ Provide rich UI components for different input types (confirm, select, text, etc.)
 - ✅ Support both ad-hoc chat interactions and pre-declared workflow inputs
 - ✅ Maintain conversation flow and context after input is provided
-- ✅ Ensure input requests are cancelable and have reasonable timeouts
+- ✅ Keep implementation simple with no special tool infrastructure
 
 ### Secondary Goals
 - ✅ Support conditional inputs (show input B only if input A has specific value)
@@ -166,131 +219,136 @@ Agent: "Updating App Design Document..."
 │  │ AgentInputModal.svelte (Modal dialogs)              │   │
 │  │ AgentInputInline.svelte (Inline chat inputs)        │   │
 │  │ WorkflowInputForm.svelte (Pre-execution forms)      │   │
+│  │                                                      │   │
+│  │ MessageStreamParser (Detects <input-request> tags)  │   │
+│  │ - Parses agent message stream                       │   │
+│  │ - Extracts input request configurations             │   │
+│  │ - Triggers UI component rendering                   │   │
 │  └─────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────┘
-                            ▲ │
-                            │ │ IPC Events
-                            │ │ - ai-request-input
-                            │ └── submit-agent-input
                             │
+                            │ Direct rendering
+                            │ No IPC needed
+                            ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                    Main Process Layer                        │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │ InputRequestManager (Manages pending requests)      │   │
-│  │ - createInputRequest()                              │   │
-│  │ - resolveInputRequest()                             │   │
-│  │ - timeoutInputRequest()                             │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                            ▲                                 │
-│                            │                                 │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │ ToolService (request_user_input tool)               │   │
-│  │ - Calls InputRequestManager                         │   │
-│  │ - Returns Promise that resolves with user response  │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                            ▲                                 │
-│                            │                                 │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │ AIService (Orchestrates agent execution)            │   │
-│  │ - Detects input tool calls                          │   │
-│  │ - Pauses stream until input received                │   │
-│  └─────────────────────────────────────────────────────┘   │
+│                    Conversation Flow                         │
+│                                                              │
+│  1. Agent streams message with embedded <input-request>     │
+│  2. Frontend detects tag and renders UI component           │
+│  3. User provides input                                     │
+│  4. Frontend sends formatted response as next message       │
+│  5. Agent receives response and continues naturally         │
+│                                                              │
+│  No special infrastructure, IPC, or tool handling needed!   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ### Data Flow
 
-#### 1. Agent Requests Input (Tool-Based)
+#### 1. Agent Outputs Structured Input Request
 
-```typescript
-// Agent calls tool during execution
+The agent emits a special XML-like tag in its message stream:
+
+```markdown
+I found 47 notes from 2024 that haven't been modified in 6+ months.
+
+<input-request id="confirm-archive">
 {
-  "tool": "request_user_input",
-  "arguments": {
-    "prompt": "Should I archive these notes?",
-    "inputType": "confirm",
-    "description": "47 notes will be moved to archive folder"
-  }
+  "type": "confirm",
+  "prompt": "Would you like me to archive these notes?",
+  "description": "This will move 47 notes to the archive folder",
+  "confirmText": "Yes, archive them",
+  "cancelText": "No, keep them"
 }
+</input-request>
 ```
 
-#### 2. Tool Execution Creates Request
+The agent is taught to use this format through system prompt instructions.
+
+#### 2. Frontend Parses Stream and Detects Request
 
 ```typescript
-// ToolService.execute('request_user_input')
-const requestId = generateId('input-req');
-const request: InputRequest = {
-  requestId,
-  conversationId,
-  timestamp: new Date().toISOString(),
-  config: toolArgs,
-  status: 'pending'
-};
+// MessageStreamParser processes agent response chunks
+class MessageStreamParser {
+  parseChunk(chunk: string) {
+    // Detect <input-request> tags in stream
+    const match = chunk.match(/<input-request id="([^"]+)">([\s\S]*?)<\/input-request>/);
 
-// Store request and create promise
-const promise = new Promise((resolve, reject) => {
-  inputRequestManager.register(requestId, resolve, reject);
-});
+    if (match) {
+      const [fullMatch, requestId, jsonContent] = match;
+      const config = JSON.parse(jsonContent);
 
-// Emit to renderer
-window.webContents.send('ai-request-input', request);
+      // Remove tag from visible message
+      const visibleText = chunk.replace(fullMatch, '');
 
-// Wait for user response (blocks tool execution)
-const response = await promise;
-return response;
+      // Trigger UI rendering
+      this.showInputUI(requestId, config);
+
+      return visibleText;
+    }
+
+    return chunk;
+  }
+}
 ```
 
 #### 3. UI Renders Input Component
 
 ```typescript
-// Renderer receives event
-window.api.onAgentInputRequest((request) => {
-  // Show modal or inline component based on config
+// Frontend shows appropriate UI component
+function showInputUI(requestId: string, config: InputConfig) {
   const modal = new AgentInputModal({
     target: document.body,
     props: {
-      config: request.config,
-      onSubmit: async (value) => {
-        await window.api.submitAgentInput(request.requestId, {
-          value,
-          canceled: false
-        });
+      config,
+      onSubmit: (value) => {
+        // Send response back to agent as next message
+        sendResponseToAgent(requestId, value, false);
         modal.$destroy();
       },
-      onCancel: async () => {
-        await window.api.submitAgentInput(request.requestId, {
-          value: null,
-          canceled: true
-        });
+      onCancel: () => {
+        // Send cancellation as next message
+        sendResponseToAgent(requestId, null, true);
         modal.$destroy();
       }
     }
   });
-});
+}
 ```
 
-#### 4. User Response Returns to Tool
+#### 4. User Response Sent as Message
 
 ```typescript
-// Main process receives response
-ipcMain.handle('submit-agent-input', (event, requestId, response) => {
-  inputRequestManager.resolve(requestId, response);
-  return { success: true };
-});
+// Format user's response as a message to the agent
+function sendResponseToAgent(requestId: string, value: any, canceled: boolean) {
+  const responseMessage = canceled
+    ? `<input-response id="${requestId}">CANCELED</input-response>`
+    : `<input-response id="${requestId}">${JSON.stringify(value)}</input-response>`;
 
-// Tool execution resumes
-// AIService continues with tool result
-{
-  "tool": "request_user_input",
-  "result": {
-    "value": true,
-    "canceled": false,
-    "timestamp": "2025-01-15T10:30:00Z"
-  }
+  // Send as regular user message in conversation
+  conversationService.sendMessage({
+    role: 'user',
+    content: responseMessage
+  });
 }
+```
 
-// Agent continues execution
-"User confirmed. Archiving 47 notes..."
+Example response sent to agent:
+```
+<input-response id="confirm-archive">true</input-response>
+```
+
+#### 5. Agent Receives Response and Continues
+
+The agent receives the response as a normal message and continues:
+
+```markdown
+Great! I'll archive those 47 notes now.
+
+[Archives notes...]
+
+Done! I've archived 47 notes to the archive folder and created a
+backup log at notes/backup-2025-01-15.md.
 ```
 
 ### Workflow Pre-Declared Inputs
@@ -661,120 +719,116 @@ ${formatMaterials(workflow.supplementaryMaterials)}
 
 ## API Specification
 
-### Tool Definition
+### Message Format Specification
 
-```typescript
-// Tool: request_user_input
+#### Input Request Format
+
+```xml
+<input-request id="unique-request-id">
 {
-  name: 'request_user_input',
-  description: `Request input from the user with custom UI elements.
-
-  Use this tool when you need:
-  - User confirmation before proceeding
-  - Selection from multiple options
-  - Additional information to complete a task
-  - Resolution of ambiguous references
-
-  The execution will pause until the user responds or the request times out.`,
-
-  parameters: {
-    type: 'object',
-    properties: {
-      prompt: {
-        type: 'string',
-        description: 'Question or prompt to display to the user'
-      },
-      description: {
-        type: 'string',
-        description: 'Additional context or explanation (optional)'
-      },
-      inputType: {
-        type: 'string',
-        enum: ['confirm', 'select', 'multiselect', 'text', 'textarea',
-               'number', 'date', 'slider'],
-        description: 'Type of input to request'
-      },
-      options: {
-        type: 'array',
-        items: {
-          type: 'object',
-          properties: {
-            value: { type: 'string' },
-            label: { type: 'string' },
-            description: { type: 'string' }
-          },
-          required: ['value', 'label']
-        },
-        description: 'Options for select/multiselect/slider (required for those types)'
-      },
-      defaultValue: {
-        description: 'Default value for the input'
-      },
-      validation: {
-        type: 'object',
-        properties: {
-          required: { type: 'boolean' },
-          min: { type: 'number' },
-          max: { type: 'number' },
-          minLength: { type: 'number' },
-          maxLength: { type: 'number' },
-          pattern: { type: 'string' }
-        }
-      },
-      placeholder: {
-        type: 'string',
-        description: 'Placeholder text for text/textarea inputs'
-      },
-      helpText: {
-        type: 'string',
-        description: 'Help text to display below the input'
-      },
-      cancelable: {
-        type: 'boolean',
-        default: true,
-        description: 'Whether the user can cancel this input request'
-      },
-      timeout: {
-        type: 'number',
-        default: 300000,
-        description: 'Timeout in milliseconds (default: 5 minutes)'
-      }
-    },
-    required: ['prompt', 'inputType']
-  }
+  "type": "confirm" | "select" | "multiselect" | "text" | "textarea" | "number" | "date" | "slider",
+  "prompt": "Question to ask the user",
+  "description": "Optional additional context",
+  "options": [                    // Required for select, multiselect, slider
+    {
+      "value": "option-value",
+      "label": "Display label",
+      "description": "Optional description"
+    }
+  ],
+  "defaultValue": any,            // Optional default value
+  "validation": {                 // Optional validation rules
+    "required": boolean,
+    "min": number,
+    "max": number,
+    "minLength": number,
+    "maxLength": number,
+    "pattern": "regex-string"
+  },
+  "placeholder": "Placeholder text",  // For text/textarea
+  "helpText": "Help message",         // Optional guidance
+  "confirmText": "Custom confirm button text",  // Optional
+  "cancelText": "Custom cancel button text"     // Optional
 }
+</input-request>
 ```
 
-### IPC Events
+#### Input Response Format
 
-```typescript
-// Main → Renderer: Request input from user
-interface InputRequestEvent {
-  channel: 'ai-request-input';
-  payload: {
-    requestId: string;           // Unique request identifier
-    conversationId: string;      // Associated conversation
-    timestamp: string;           // ISO datetime
-    config: AgentInputConfig;    // Input configuration
-  }
-}
+```xml
+<input-response id="unique-request-id">VALUE</input-response>
+```
 
-// Renderer → Main: Submit user response
-interface InputResponseEvent {
-  channel: 'submit-agent-input';
-  payload: {
-    requestId: string;
-    response: {
-      value: any;                // User's input value
-      canceled: boolean;         // Whether user canceled
-      timestamp: string;         // ISO datetime
-    }
-  };
-  returns: {
-    success: boolean;
-    error?: string;
-  }
+Or for cancellation:
+```xml
+<input-response id="unique-request-id">CANCELED</input-response>
+```
+
+Where `VALUE` is:
+- For confirm: `true` or `false`
+- For select: The selected option value (string)
+- For multiselect: JSON array of selected values
+- For text/textarea: The text content (string)
+- For number/slider: The numeric value
+- For date: ISO date string (YYYY-MM-DD)
+
+### System Prompt Instructions
+
+The agent's system prompt should include these instructions:
+
+```markdown
+## Requesting User Input
+
+When you need user input during task execution, use the following format:
+
+<input-request id="unique-id">
+{
+  "type": "confirm|select|multiselect|text|textarea|number|date|slider",
+  "prompt": "Your question to the user",
+  "description": "Optional context"
 }
+</input-request>
+
+Examples:
+
+**Confirmation:**
+<input-request id="confirm-1">
+{
+  "type": "confirm",
+  "prompt": "Should I archive these 47 notes?",
+  "description": "This action will move them to the archive folder"
+}
+</input-request>
+
+**Selection:**
+<input-request id="select-1">
+{
+  "type": "select",
+  "prompt": "Which note should I update?",
+  "options": [
+    {"value": "note-1", "label": "Design Doc (updated 2 days ago)"},
+    {"value": "note-2", "label": "Architecture Doc (updated 1 week ago)"}
+  ]
+}
+</input-request>
+
+**Text Input:**
+<input-request id="text-1">
+{
+  "type": "text",
+  "prompt": "What title should I use for this note?",
+  "placeholder": "Enter note title",
+  "validation": {"required": true, "maxLength": 100}
+}
+</input-request>
+
+The user's response will be sent back to you as:
+<input-response id="your-request-id">VALUE</input-response>
+
+If the user cancels, you'll receive:
+<input-response id="your-request-id">CANCELED</input-response>
+
+After receiving the response, continue with your task naturally.
 ```
 
 ### Workflow Schema Extension
@@ -832,22 +886,24 @@ const weeklyReviewWorkflow: Workflow = {
 
 ## Implementation Phases
 
-### Phase 1: Foundation (Week 1)
+### Phase 1: Message Parsing & Confirm Type (Week 1)
 
-**Goal**: Basic infrastructure and confirm input type
+**Goal**: Basic message parsing and confirm input type
 
 **Tasks**:
-1. Create type definitions (`src/server/types/agent-input.ts`)
-2. Implement `InputRequestManager` in main process
-3. Add IPC channels for input requests/responses
+1. Create type definitions (`src/renderer/src/types/agent-input.ts`)
+2. Implement `MessageStreamParser` utility class
+3. Add detection for `<input-request>` tags in streaming responses
 4. Create basic `AgentInputModal.svelte` component
-5. Implement `request_user_input` tool with confirm type only
-6. Add preload API methods
+5. Implement confirm type UI (Yes/No buttons)
+6. Add system prompt instructions to agent context
+7. Format and send `<input-response>` messages
 
 **Deliverables**:
-- ✅ Agents can request confirmation (Yes/No)
-- ✅ UI shows modal dialog with buttons
-- ✅ Tool execution pauses and resumes correctly
+- ✅ Agent can output `<input-request>` tags
+- ✅ Frontend detects tags in stream
+- ✅ Modal shows for confirm inputs
+- ✅ Response sent back as message
 
 ### Phase 2: Core Input Types (Week 2)
 
@@ -859,12 +915,13 @@ const weeklyReviewWorkflow: Workflow = {
 3. Add text input UI with validation
 4. Implement validation logic (required, min/max, pattern)
 5. Add error handling and display
-6. Enhance tool to support all input types
+6. Update message parser to handle all types
 
 **Deliverables**:
 - ✅ Select (single choice) working
 - ✅ Multi-select (multiple choices) working
 - ✅ Text input with basic validation
+- ✅ All inputs format responses correctly
 
 ### Phase 3: Advanced Input Types (Week 3)
 
@@ -876,12 +933,13 @@ const weeklyReviewWorkflow: Workflow = {
 3. Integrate date picker component
 4. Create slider/range component
 5. Add help text and placeholder support
-6. Implement conditional inputs (showIf/showWhen)
+6. Implement inline input option (alternative to modal)
 
 **Deliverables**:
 - ✅ All 8 input types functional
 - ✅ Validation working for all types
 - ✅ Help text and placeholders
+- ✅ Inline display option available
 
 ### Phase 4: Workflow Integration (Week 4)
 
@@ -899,6 +957,7 @@ const weeklyReviewWorkflow: Workflow = {
 - ✅ Workflows can declare required inputs
 - ✅ Input form shows before workflow starts
 - ✅ Agent receives inputs as context
+- ✅ Same input format used for workflows and ad-hoc
 
 ### Phase 5: Polish & Testing (Week 5)
 
@@ -906,8 +965,8 @@ const weeklyReviewWorkflow: Workflow = {
 
 **Tasks**:
 1. Add comprehensive test coverage
-2. Implement timeout handling (5 minute default)
-3. Add request cancellation
+2. Handle edge cases (malformed tags, invalid JSON, etc.)
+3. Add request cancellation UI
 4. Improve error messages
 5. Add loading states and animations
 6. Write user documentation
@@ -915,7 +974,7 @@ const weeklyReviewWorkflow: Workflow = {
 
 **Deliverables**:
 - ✅ Full test coverage
-- ✅ Timeout and cancellation working
+- ✅ Robust parsing and error handling
 - ✅ Polished UI with animations
 - ✅ Documentation complete
 
@@ -1009,52 +1068,54 @@ I found 3 notes matching "design". Which one?
 
 ## Error Handling
 
-### Timeout Errors
+### Parsing Errors
+
+If the `<input-request>` tag contains invalid JSON:
+- Log error to console
+- Show fallback message to user: "The agent sent a malformed input request"
+- Optionally display the raw content for debugging
+- Don't crash the UI
 
 ```typescript
-// After 5 minutes (default)
-{
-  error: 'INPUT_TIMEOUT',
-  message: 'User did not respond within 5 minutes',
-  requestId: 'input-req-abc123'
+try {
+  const config = JSON.parse(jsonContent);
+  showInputUI(requestId, config);
+} catch (error) {
+  console.error('Failed to parse input request:', error);
+  showErrorMessage('Invalid input request format');
 }
 ```
-
-Agent can:
-- Retry with simpler prompt
-- Proceed with default value
-- Cancel operation
-- Ask via different method
 
 ### Cancellation
 
-```typescript
-// User clicks Cancel or closes modal
-{
-  value: null,
-  canceled: true,
-  timestamp: '2025-01-15T10:35:00Z'
-}
+When user clicks Cancel or closes modal:
+
+```xml
+<input-response id="request-id">CANCELED</input-response>
 ```
 
-Agent should:
-- Acknowledge cancellation
+The agent's system prompt teaches it to handle cancellation gracefully:
+- Acknowledge the cancellation
 - Explain what won't happen
 - Offer alternatives if appropriate
 
+Example agent response:
+```
+Understood. I won't archive those notes. Let me know if you'd like me to:
+- Archive only specific notes
+- Review the notes first
+- Do something else with them
+```
+
 ### Validation Errors
 
+Client-side validation before submit:
+
 ```typescript
-// Client-side validation before submit
-{
-  valid: false,
-  errors: [
-    {
-      field: 'value',
-      message: 'Must be at least 1 character',
-      rule: 'minLength'
-    }
-  ]
+interface ValidationError {
+  field: string;
+  message: string;
+  rule: 'required' | 'minLength' | 'maxLength' | 'min' | 'max' | 'pattern';
 }
 ```
 
@@ -1064,41 +1125,47 @@ UI shows:
 - Submit button disabled
 - Error icon with accessible label
 
-### Network/IPC Errors
+### Message Sending Errors
 
-If IPC communication fails:
-- Show error in modal: "Connection error. Please try again."
+If sending the response message fails:
+- Show error in modal: "Failed to send response. Please try again."
 - Provide retry button
 - Log error for debugging
 - Don't lose user's input (keep in form)
+- Consider sending via conversation service retry mechanism
 
 ## Testing Strategy
 
 ### Unit Tests
 
 ```typescript
-// Test InputRequestManager
-describe('InputRequestManager', () => {
-  it('creates requests with unique IDs', () => {});
-  it('resolves promise when response received', () => {});
-  it('rejects promise on timeout', () => {});
-  it('handles concurrent requests', () => {});
+// Test MessageStreamParser
+describe('MessageStreamParser', () => {
+  it('detects <input-request> tags in stream', () => {});
+  it('parses JSON content correctly', () => {});
+  it('handles malformed JSON gracefully', () => {});
+  it('extracts request ID from tag', () => {});
+  it('removes tag from visible message', () => {});
+  it('handles multiple tags in same message', () => {});
 });
 
 // Test AgentInputModal component
 describe('AgentInputModal', () => {
   it('renders confirm type correctly', () => {});
+  it('renders select with radio buttons', () => {});
+  it('renders multiselect with checkboxes', () => {});
   it('validates required fields', () => {});
   it('calls onSubmit with correct value', () => {});
+  it('formats response message correctly', () => {});
   it('handles keyboard shortcuts', () => {});
 });
 
-// Test tool execution
-describe('request_user_input tool', () => {
-  it('pauses execution until response', () => {});
-  it('returns user value', () => {});
-  it('handles cancellation', () => {});
-  it('times out after configured duration', () => {});
+// Test response formatting
+describe('formatInputResponse', () => {
+  it('formats confirm response as true/false', () => {});
+  it('formats select response as value string', () => {});
+  it('formats multiselect as JSON array', () => {});
+  it('formats cancellation as CANCELED', () => {});
 });
 ```
 
@@ -1107,20 +1174,33 @@ describe('request_user_input tool', () => {
 ```typescript
 // Test end-to-end flow
 describe('Agent Input Flow', () => {
-  it('agent requests input → UI shows → user responds → agent continues', async () => {
-    // Start agent with task requiring input
-    const agent = await startAgent('Delete old notes');
+  it('agent outputs tag → parser detects → UI shows → user responds', async () => {
+    // Simulate agent streaming a message with input request
+    const agentMessage = `
+      I found 47 old notes.
+      <input-request id="confirm-1">
+      {"type": "confirm", "prompt": "Archive them?"}
+      </input-request>
+    `;
 
-    // Wait for input request
-    const request = await waitForInputRequest();
-    expect(request.config.inputType).toBe('confirm');
+    // Parse the message
+    const parser = new MessageStreamParser();
+    const result = parser.parseChunk(agentMessage);
+
+    // Verify tag was detected and removed from visible text
+    expect(result.inputRequests).toHaveLength(1);
+    expect(result.inputRequests[0].id).toBe('confirm-1');
+    expect(result.visibleText).not.toContain('<input-request>');
 
     // Simulate user response
-    await submitInput(request.requestId, { value: true });
+    const response = formatInputResponse('confirm-1', true);
+    expect(response).toBe('<input-response id="confirm-1">true</input-response>');
 
-    // Verify agent continued
-    const result = await agent.complete();
-    expect(result.notesDeleted).toBeGreaterThan(0);
+    // Send response as message to agent
+    await conversationService.sendMessage({
+      role: 'user',
+      content: response
+    });
   });
 });
 ```
@@ -1157,42 +1237,58 @@ test('User confirms note deletion via modal', async ({ page }) => {
 
 ### Input Validation
 
-- ✅ Validate all inputs on client side
-- ✅ Re-validate on server side before tool execution
-- ✅ Sanitize text inputs to prevent XSS
+- ✅ Validate all inputs on client side before sending
+- ✅ Sanitize text inputs to prevent XSS in displayed messages
 - ✅ Enforce length limits (prevent memory issues)
 - ✅ Validate option values (only allow declared options)
+- ✅ Escape HTML in user-provided values
+
+### Parsing Security
+
+- ✅ Use safe JSON parsing (try/catch)
+- ✅ Validate input request structure before rendering UI
+- ✅ Limit max size of JSON content (10KB)
+- ✅ Prevent arbitrary code execution via JSON
+- ✅ Don't use `eval()` or `Function()` on parsed content
 
 ### Resource Limits
 
-- ✅ Maximum 5 concurrent input requests per conversation
-- ✅ Timeout after 5 minutes (configurable)
-- ✅ Rate limit: Max 20 input requests per conversation
+- ✅ Maximum 10 input requests per message (prevent spam)
 - ✅ Size limits: Max 10KB per input value
+- ✅ Rate limit: Max 50 input requests per conversation
+- ✅ Timeout modals after 10 minutes of inactivity
 
-### Permission Model
+### Message Integrity
 
-- ✅ Input requests only allowed during active agent execution
-- ✅ Input responses must match pending request ID
-- ✅ Expired requests rejected (after timeout)
-- ✅ Only renderer that initiated conversation can respond
+- ✅ Input responses include request ID for matching
+- ✅ Response format is controlled by frontend (agent can't spoof)
+- ✅ Validate request IDs match expected pattern
+- ✅ Prevent injection attacks via request IDs (alphanumeric only)
 
 ## Performance Considerations
 
+### Parsing Performance
+- Stream parsing should add minimal overhead (<10ms per chunk)
+- Use efficient regex for tag detection
+- Parse JSON only when tag is detected
+- Don't re-parse entire message on each chunk
+
 ### Response Time
-- Modal should appear within 100ms of input request
+- Modal should appear immediately when tag is detected
 - User interactions should feel instant (<50ms)
-- Submission should complete within 200ms
+- Message sending should complete within 200ms
 
 ### Memory
-- Clean up resolved requests from memory
-- Limit stored request history (last 50)
-- Don't store large input values in memory indefinitely
+- Don't store full message history with embedded tags
+- Clean up modal components when closed
+- Limit number of simultaneous modals (max 3)
+- Remove input request tags from stored conversation history
 
 ### Scalability
 - Support multiple concurrent conversations with input requests
 - Each conversation can have independent pending inputs
 - UI efficiently updates only relevant components
+- Parsing scales linearly with message size
 
 ## Future Enhancements (Post-V1)
 
@@ -1259,17 +1355,21 @@ test('User confirms note deletion via modal', async ({ page }) => {
 ## Questions & Decisions
 
 ### Open Questions
-- Should we show input requests in the chat history?
-- How to handle multiple pending input requests (queue vs parallel)?
+- Should we show input request/response tags in chat history (for context) or hide them?
+- How to handle multiple pending input requests (queue vs parallel modals)?
 - Should workflows be able to modify input requirements dynamically?
 - What's the UX for input requests during recurring workflow execution?
+- Should the agent see the input request tags in conversation history or just the responses?
+- How to handle partial tag detection (tag split across stream chunks)?
 
 ### Design Decisions Made
-- ✅ Tool-based approach (not markdown parsing)
+- ✅ **Structured message approach** (not tool calls) - Simpler implementation
+- ✅ XML-like tags with JSON content for easy parsing
 - ✅ Modal dialogs for critical inputs, inline for simple ones
-- ✅ 5-minute default timeout (configurable)
+- ✅ Response sent as regular message in conversation flow
 - ✅ Support both ad-hoc and pre-declared inputs
-- ✅ Client-side validation with server-side re-validation
+- ✅ Client-side validation only (no server-side needed)
+- ✅ Frontend fully controls response format (agent can't manipulate)
 
 ## Appendix
 
@@ -1285,6 +1385,11 @@ test('User confirms note deletion via modal', async ({ page }) => {
 
 ---
 
-**Document Version**: 1.0
-**Last Updated**: 2025-01-15
-**Status**: Draft for Review
+**Document Version**: 2.0
+**Last Updated**: 2025-10-22
+**Status**: Updated - Structured Message Approach
+**Major Changes**:
+- Replaced tool-based approach with structured messages
+- Removed IPC infrastructure requirements
+- Simplified implementation by ~70%
+- Added system prompt instructions for agents
