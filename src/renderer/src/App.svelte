@@ -8,9 +8,13 @@
   import UpdateIndicator from './components/UpdateIndicator.svelte';
   import MessageBusDebugPanel from './components/MessageBusDebugPanel.svelte';
   import ExternalEditConflictNotification from './components/ExternalEditConflictNotification.svelte';
+  import AgentInputModal from './components/AgentInputModal.svelte';
   import type { Message } from './services/types';
   import type { NoteMetadata } from './services/noteStore.svelte';
   import { getChatService } from './services/chatService';
+  import { agentInputStore } from './stores/agentInputStore.svelte';
+  import { formatInputResponse } from './utils/message-stream-parser.svelte';
+  import type { AgentInputResponse } from './types/agent-input';
   import { notesStore } from './services/noteStore.svelte';
   import { modelStore } from './stores/modelStore.svelte';
   import { sidebarState } from './stores/sidebarState.svelte';
@@ -537,17 +541,23 @@
 
       // Use streaming if available, otherwise fall back to regular sendMessage
       if (chatService.sendMessageStream) {
+        // Reset parser for new message stream
+        agentInputStore.resetParser();
+
         currentRequestId = chatService.sendMessageStream(
           text,
           unifiedChatStore.activeThreadId || undefined,
           // onChunk: append text chunks to the current message
           async (chunk: string) => {
+            // Parse chunk for input requests
+            const visibleText = agentInputStore.parseStreamChunk(chunk);
+
             const currentMessage = unifiedChatStore.activeThread?.messages?.find(
               (m) => m.id === currentMessageId
             );
             if (currentMessage) {
               await unifiedChatStore.updateMessage(currentMessageId, {
-                text: currentMessage.text + chunk
+                text: currentMessage.text + visibleText
               });
             }
           },
@@ -793,6 +803,35 @@
       console.error('Failed to reinitialize services after vault creation:', error);
     }
   }
+
+  // Agent Input Modal handlers
+  async function handleAgentInputSubmit(response: AgentInputResponse): Promise<void> {
+    // Update the request state in the store
+    agentInputStore.handleResponse(response);
+
+    // Format and send the response message to the agent
+    const responseMessage = formatInputResponse(
+      response.requestId,
+      response.value,
+      response.canceled
+    );
+
+    // Send as a user message
+    await handleSendMessage(responseMessage);
+  }
+
+  function handleAgentInputCancel(): void {
+    if (agentInputStore.currentModal) {
+      const requestId = agentInputStore.currentModal.id;
+
+      // Update store state
+      agentInputStore.handleCancel(requestId);
+
+      // Send cancellation message to agent
+      const cancelMessage = formatInputResponse(requestId, null, true);
+      handleSendMessage(cancelMessage);
+    }
+  }
 </script>
 
 {#if vaultAvailabilityService.isLoading}
@@ -1024,6 +1063,16 @@
 
     <!-- External Edit Conflict Notifications -->
     <ExternalEditConflictNotification />
+
+    <!-- Agent Input Modal -->
+    {#if agentInputStore.currentModal}
+      <AgentInputModal
+        isOpen={true}
+        config={agentInputStore.currentModal.config}
+        onSubmit={handleAgentInputSubmit}
+        onCancel={handleAgentInputCancel}
+      />
+    {/if}
   </div>
 {/if}
 
