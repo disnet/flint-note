@@ -63,23 +63,20 @@ export class WorkflowService {
 
     const workflow = await this.workflowManager.createWorkflow(vault.id, input);
 
-    // Convert to WorkflowListItem format for event
-    const listItem: WorkflowListItem = {
-      id: workflow.id,
-      name: workflow.name,
-      purpose: workflow.purpose,
-      type: workflow.type,
-      status: workflow.status,
-      isRecurring: !!workflow.recurringSpec,
-      lastCompleted: workflow.lastCompleted
-      // dueInfo will be calculated by the UI store when needed
-    };
-
-    // Publish event for UI updates
-    publishWorkflowEvent({
-      type: 'workflow.created',
-      workflow: listItem
+    // Fetch the workflow as a list item to get properly calculated dueInfo
+    const listItems = await this.workflowManager.listWorkflows(vault.id, {
+      status: 'all',
+      includeArchived: true
     });
+    const listItem = listItems.find((w) => w.id === workflow.id);
+
+    if (listItem) {
+      // Publish event for UI updates with full dueInfo
+      publishWorkflowEvent({
+        type: 'workflow.created',
+        workflow: listItem
+      });
+    }
 
     return workflow;
   }
