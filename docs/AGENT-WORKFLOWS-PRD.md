@@ -263,7 +263,7 @@ User: "Yes, that would be helpful"
 When you see workflows in "Due Now" section:
 
 1. Proactively suggest: "I notice your {name} workflow is due. Would you like me to {purpose}?"
-2. If user agrees, call `get_workflow` with `includeSupplementaryMaterials: true`
+2. If user agrees, call `get_workflow` with workflow name or ID and `includeSupplementaryMaterials: true`
 3. Follow the description step-by-step
 4. Use any supplementary materials as templates/examples
 5. Call `complete_workflow` when finished
@@ -274,7 +274,7 @@ When you see workflows in "Due Now" section:
 [System shows "Weekly Summary" in Due Now section]
 Agent: "I notice your Weekly Summary workflow is due. Would you like me to summarize this week's daily notes?"
 User: "Yes please"
-Agent: [calls get_workflow("w-12345678", {includeSupplementaryMaterials: true})]
+Agent: [calls get_workflow({workflowName: "Weekly Summary", includeSupplementaryMaterials: true})]
 [follows instructions, creates summary note]
 Agent: [calls complete_workflow({workflowId: "w-12345678", outputNoteId: "n-summary-2024-10"})]
 "I've created your weekly summary note at [[Weekly Summary - Oct 20 2024]]."
@@ -305,11 +305,13 @@ The user can review backlog items later in a dedicated UI section.
 
 **Tier 2: Workflow Details (Loaded On-Demand)**
 
-Full workflow details only loaded when agent uses `get_workflow` tool:
+Full workflow details only loaded when agent uses `get_workflow` tool with workflow name or ID:
 
 - Complete description
 - Supplementary materials
 - Completion history (if requested)
+
+Since workflow names are unique per vault, agents can reference workflows by name for more natural conversation (e.g., `get_workflow({workflowName: "Weekly Summary"})`)
 
 ### FR-6: Agent Tools
 
@@ -345,7 +347,7 @@ The following tools must be available to agents:
 
 **get_workflow**
 
-- Retrieve full workflow details
+- Retrieve full workflow details by ID or name (both are unique per vault)
 - Optionally include supplementary materials
 - Optionally include completion history
 - Return complete workflow object
@@ -442,7 +444,7 @@ During conversation, show when agent mentions workflows:
 
 1. User clicks workflow in UI or says "do the weekly summary workflow"
 2. UI/agent identifies workflow by name or ID
-3. Agent calls `get_workflow` with `includeSupplementaryMaterials: true`
+3. Agent calls `get_workflow` with `workflowName` or `workflowId` and `includeSupplementaryMaterials: true`
 4. Agent follows description step-by-step
 5. Agent calls `complete_workflow` when finished
 6. Agent reports outcome to user
@@ -466,8 +468,13 @@ During conversation, show when agent mentions workflows:
 
 **Workflow Not Found:**
 
-- Return clear error message with workflow ID
+- Return clear error message with workflow ID or name that was queried
 - Suggest using `list_workflows` to find available workflows
+
+**Invalid get_workflow Input:**
+
+- Return error if neither `workflowId` nor `workflowName` is provided
+- Error message: "Either workflowId or workflowName must be provided"
 
 **Duplicate Workflow Name:**
 
@@ -727,7 +734,8 @@ interface ListWorkflowsInput {
 }
 
 interface GetWorkflowInput {
-  workflowId: string;
+  workflowId?: string; // Either workflowId or workflowName must be provided
+  workflowName?: string; // Either workflowId or workflowName must be provided
   includeSupplementaryMaterials?: boolean;
   includeCompletionHistory?: boolean;
   completionHistoryLimit?: number; // Default 10
@@ -745,10 +753,7 @@ class WorkflowManager {
 
   // Core CRUD
   async createWorkflow(vaultId: string, input: CreateWorkflowInput): Promise<Workflow>;
-  async getWorkflow(
-    workflowId: string,
-    options?: GetWorkflowInput
-  ): Promise<Workflow | null>;
+  async getWorkflow(vaultId: string, input: GetWorkflowInput): Promise<Workflow | null>;
   async updateWorkflow(workflowId: string, input: UpdateWorkflowInput): Promise<Workflow>;
   async deleteWorkflow(workflowId: string): Promise<void>; // Soft delete
   async listWorkflows(
@@ -816,7 +821,23 @@ private getWorkflowTools(): Record<string, Tool> {
     update_workflow: tool({ /* ... */ }),
     delete_workflow: tool({ /* ... */ }),
     list_workflows: tool({ /* ... */ }),
-    get_workflow: tool({ /* ... */ }),
+    get_workflow: tool({
+      description: 'Get full workflow details by ID or name',
+      inputSchema: getWorkflowSchema,
+      execute: async (input) => {
+        const workflowManager = this.getWorkflowManager();
+        const vault = await this.noteService.getCurrentVault();
+        const workflow = await workflowManager.getWorkflow(vault.id, input);
+        if (!workflow) {
+          const identifier = input.workflowId || input.workflowName;
+          return {
+            success: false,
+            error: `Workflow not found: ${identifier}`
+          };
+        }
+        return { success: true, data: workflow };
+      }
+    }),
     complete_workflow: tool({ /* ... */ }),
     add_workflow_material: tool({ /* ... */ }),
     remove_workflow_material: tool({ /* ... */ })
@@ -1105,8 +1126,8 @@ api: {
     ipcRenderer.invoke('workflow:update', workflowId, input),
   deleteWorkflow: (workflowId: string) => ipcRenderer.invoke('workflow:delete', workflowId),
   listWorkflows: (input?: ListWorkflowsInput) => ipcRenderer.invoke('workflow:list', input),
-  getWorkflow: (workflowId: string, options?: GetWorkflowInput) =>
-    ipcRenderer.invoke('workflow:get', workflowId, options),
+  getWorkflow: (input: GetWorkflowInput) =>
+    ipcRenderer.invoke('workflow:get', input),
   completeWorkflow: (input: CompleteWorkflowInput) =>
     ipcRenderer.invoke('workflow:complete', input),
   addWorkflowMaterial: (workflowId: string, material: SupplementaryMaterial) =>
@@ -1764,6 +1785,46 @@ const listWorkflowsSchema = z.object({
 });
 ```
 
+### get_workflow Schema
+
+```typescript
+const getWorkflowSchema = z
+  .object({
+    workflowId: z
+      .string()
+      .optional()
+      .describe('Workflow ID to retrieve (either workflowId or workflowName required)'),
+
+    workflowName: z
+      .string()
+      .optional()
+      .describe('Workflow name to retrieve (either workflowId or workflowName required)'),
+
+    includeSupplementaryMaterials: z
+      .boolean()
+      .optional()
+      .default(false)
+      .describe('Include supplementary materials in response'),
+
+    includeCompletionHistory: z
+      .boolean()
+      .optional()
+      .default(false)
+      .describe('Include completion history in response'),
+
+    completionHistoryLimit: z
+      .number()
+      .int()
+      .positive()
+      .optional()
+      .default(10)
+      .describe('Maximum number of completion history entries to return')
+  })
+  .refine((data) => data.workflowId || data.workflowName, {
+    message: 'Either workflowId or workflowName must be provided'
+  });
+```
+
 ### complete_workflow Schema
 
 ```typescript
@@ -1845,6 +1906,9 @@ ORDER BY
 
 ```sql
 -- Get full workflow details including supplementary materials
+-- Can lookup by ID or by name (both unique per vault)
+
+-- By ID:
 SELECT
   w.*,
   json_group_array(
@@ -1860,6 +1924,24 @@ SELECT
 FROM workflows w
 LEFT JOIN workflow_supplementary_materials m ON m.workflow_id = w.id
 WHERE w.id = ?
+GROUP BY w.id;
+
+-- By name (case-insensitive):
+SELECT
+  w.*,
+  json_group_array(
+    json_object(
+      'id', m.id,
+      'materialType', m.material_type,
+      'content', m.content,
+      'noteId', m.note_id,
+      'metadata', json(m.metadata),
+      'position', m.position
+    )
+  ) as supplementary_materials
+FROM workflows w
+LEFT JOIN workflow_supplementary_materials m ON m.workflow_id = w.id
+WHERE w.vault_id = ? AND LOWER(w.name) = LOWER(?)
 GROUP BY w.id;
 ```
 

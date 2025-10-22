@@ -35,9 +35,9 @@
   </div>
 
   <p class="workflow-description">
-    Workflows are automated agents that help you maintain and organize your notes on a
-    schedule or on-demand. They can run tasks like reviewing notes, organizing content,
-    and generating summaries.
+    Workflows are automated agents that help you maintain and organize your notes. Below
+    you'll see workflows that are due now, upcoming scheduled workflows, and on-demand
+    workflows you can run anytime.
   </p>
 
   {#if !hasWorkflows}

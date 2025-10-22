@@ -272,7 +272,10 @@ export class WorkflowManager {
     }
 
     // Fetch and return the created workflow
-    return this.getWorkflow({ workflowId: id, includeSupplementaryMaterials: true });
+    return this.getWorkflow(vaultId, {
+      workflowId: id,
+      includeSupplementaryMaterials: true
+    });
   }
 
   /**
@@ -357,7 +360,7 @@ export class WorkflowManager {
 
     if (updateFields.length === 0) {
       // No updates, just return current workflow
-      return this.getWorkflow({ workflowId });
+      return this.getWorkflow(existing.vault_id, { workflowId });
     }
 
     // Add updated_at
@@ -372,7 +375,7 @@ export class WorkflowManager {
       updateValues
     );
 
-    return this.getWorkflow({ workflowId });
+    return this.getWorkflow(existing.vault_id, { workflowId });
   }
 
   /**
@@ -396,22 +399,39 @@ export class WorkflowManager {
   }
 
   /**
-   * Get a workflow by ID with optional related data
+   * Get a workflow by ID or name with optional related data
    */
-  async getWorkflow(input: GetWorkflowInput): Promise<Workflow> {
+  async getWorkflow(vaultId: string, input: GetWorkflowInput): Promise<Workflow> {
     const {
       workflowId,
+      workflowName,
       includeSupplementaryMaterials,
       includeCompletionHistory,
       completionHistoryLimit
     } = input;
 
-    const row = await this.db.get<WorkflowRow>('SELECT * FROM workflows WHERE id = ?', [
-      workflowId
-    ]);
+    // Validate that at least one identifier is provided
+    if (!workflowId && !workflowName) {
+      throw new Error('Either workflowId or workflowName must be provided');
+    }
+
+    // Lookup workflow by ID or name
+    let row: WorkflowRow | undefined;
+
+    if (workflowId) {
+      row = await this.db.get<WorkflowRow>('SELECT * FROM workflows WHERE id = ?', [
+        workflowId
+      ]);
+    } else if (workflowName) {
+      row = await this.db.get<WorkflowRow>(
+        'SELECT * FROM workflows WHERE vault_id = ? AND LOWER(name) = LOWER(?)',
+        [vaultId, workflowName]
+      );
+    }
 
     if (!row) {
-      throw new Error(`Workflow not found: ${workflowId}`);
+      const identifier = workflowId || workflowName;
+      throw new Error(`Workflow not found: ${identifier}`);
     }
 
     const workflow = workflowRowToModel(row);
@@ -420,7 +440,7 @@ export class WorkflowManager {
     if (includeSupplementaryMaterials) {
       const materials = await this.db.all<SupplementaryMaterialRow>(
         'SELECT * FROM workflow_supplementary_materials WHERE workflow_id = ? ORDER BY position',
-        [workflowId]
+        [row.id]
       );
 
       workflow.supplementaryMaterials = materials.map(materialRowToModel);
@@ -431,7 +451,7 @@ export class WorkflowManager {
       const limit = completionHistoryLimit || 10;
       const completions = await this.db.all<WorkflowCompletionRow>(
         'SELECT * FROM workflow_completion_history WHERE workflow_id = ? ORDER BY completed_at DESC LIMIT ?',
-        [workflowId, limit]
+        [row.id, limit]
       );
 
       workflow.completionHistory = completions.map(completionRowToModel);
@@ -513,10 +533,23 @@ export class WorkflowManager {
 
       if (isRecurring && row.recurring_spec) {
         const spec = JSON.parse(row.recurring_spec) as RecurringSpec;
-        const isDue = this.isWorkflowDue(workflowRowToModel(row), now);
+        const workflow = workflowRowToModel(row);
+        const isDue = this.isWorkflowDue(workflow, now);
+
+        // Calculate when workflow will next be due for "upcoming" status
+        let type: 'due_now' | 'upcoming' | 'scheduled' = 'scheduled';
+        if (isDue) {
+          type = 'due_now';
+        } else {
+          // Calculate days until next occurrence
+          const daysUntilNext = this.getDaysUntilNextDue(workflow, now);
+          if (daysUntilNext !== null && daysUntilNext <= 7) {
+            type = 'upcoming';
+          }
+        }
 
         dueInfo = {
-          type: isDue ? 'due_now' : 'scheduled',
+          type,
           recurringSchedule: formatRecurringSchedule(spec)
         };
       } else if (row.due_date) {
@@ -824,6 +857,90 @@ export class WorkflowManager {
     }
 
     return false;
+  }
+
+  /**
+   * Calculate days until a workflow is next due (for recurring workflows)
+   * Returns null if cannot be determined
+   */
+  getDaysUntilNextDue(workflow: Workflow, now?: Date): number | null {
+    const currentTime = now || new Date();
+
+    // Only for recurring workflows
+    if (!workflow.recurringSpec) {
+      return null;
+    }
+
+    const { frequency, dayOfWeek, dayOfMonth } = workflow.recurringSpec;
+
+    // If never completed, it's due now (return 0)
+    if (!workflow.lastCompleted) {
+      return 0;
+    }
+
+    const lastCompleted = new Date(workflow.lastCompleted);
+    const daysSinceCompleted = Math.floor(
+      (currentTime.getTime() - lastCompleted.getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    switch (frequency) {
+      case 'daily': {
+        // Next due date is tomorrow if already completed today
+        const daysUntil = 1 - daysSinceCompleted;
+        return daysUntil < 0 ? 0 : daysUntil;
+      }
+
+      case 'weekly': {
+        if (dayOfWeek === undefined) return null;
+
+        const currentDay = currentTime.getDay();
+        const targetDay = dayOfWeek;
+
+        // Calculate days until target day of week
+        let daysUntilTargetDay = targetDay - currentDay;
+        if (daysUntilTargetDay < 0) {
+          daysUntilTargetDay += 7;
+        }
+        if (daysUntilTargetDay === 0) {
+          daysUntilTargetDay = 7; // Next week if today is the target day
+        }
+
+        // Check if we've already completed it this week
+        if (daysSinceCompleted < 7 && currentDay >= targetDay) {
+          // Completed this week, so next occurrence is next week
+          return daysUntilTargetDay;
+        }
+
+        return daysUntilTargetDay;
+      }
+
+      case 'monthly': {
+        if (dayOfMonth === undefined) return null;
+
+        const currentDay = currentTime.getDate();
+        const targetDay = dayOfMonth;
+
+        // Days until target day this month
+        let daysUntil = targetDay - currentDay;
+
+        // If target day has passed this month, or we've already completed it this month
+        if (daysUntil < 0 || (daysUntil === 0 && daysSinceCompleted < 28)) {
+          // Calculate days until next month's target day
+          const daysInCurrentMonth = new Date(
+            currentTime.getFullYear(),
+            currentTime.getMonth() + 1,
+            0
+          ).getDate();
+          const daysLeftInMonth = daysInCurrentMonth - currentDay;
+          daysUntil = daysLeftInMonth + targetDay;
+        }
+
+        return daysUntil;
+      }
+
+      default:
+        return null;
+    }
   }
 
   /**

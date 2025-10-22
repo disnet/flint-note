@@ -134,7 +134,8 @@ export interface ListWorkflowsInput {
 }
 
 export interface GetWorkflowInput {
-  workflowId: string;
+  workflowId?: string; // Either workflowId or workflowName must be provided
+  workflowName?: string; // Either workflowId or workflowName must be provided
   includeSupplementaryMaterials?: boolean;
   includeCompletionHistory?: boolean;
   completionHistoryLimit?: number; // Default 10

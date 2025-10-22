@@ -40,7 +40,7 @@ describe('WorkflowManager - Supplementary Materials', () => {
 
       expect(materialId).toMatch(/^wm-[a-f0-9]{8}$/);
 
-      const updated = await workflowManager.getWorkflow({
+      const updated = await workflowManager.getWorkflow(testVaultId, {
         workflowId: workflow.id,
         includeSupplementaryMaterials: true
       });
@@ -69,7 +69,7 @@ describe('WorkflowManager - Supplementary Materials', () => {
         position: 0
       });
 
-      const updated = await workflowManager.getWorkflow({
+      const updated = await workflowManager.getWorkflow(testVaultId, {
         workflowId: workflow.id,
         includeSupplementaryMaterials: true
       });
@@ -93,7 +93,7 @@ describe('WorkflowManager - Supplementary Materials', () => {
         position: 0
       });
 
-      const updated = await workflowManager.getWorkflow({
+      const updated = await workflowManager.getWorkflow(testVaultId, {
         workflowId: workflow.id,
         includeSupplementaryMaterials: true
       });
@@ -128,7 +128,7 @@ describe('WorkflowManager - Supplementary Materials', () => {
         position: 2
       });
 
-      const updated = await workflowManager.getWorkflow({
+      const updated = await workflowManager.getWorkflow(testVaultId, {
         workflowId: workflow.id,
         includeSupplementaryMaterials: true
       });
@@ -159,7 +159,7 @@ describe('WorkflowManager - Supplementary Materials', () => {
         position: 1
       });
 
-      const updated = await workflowManager.getWorkflow({
+      const updated = await workflowManager.getWorkflow(testVaultId, {
         workflowId: workflow.id,
         includeSupplementaryMaterials: true
       });
@@ -195,7 +195,7 @@ describe('WorkflowManager - Supplementary Materials', () => {
       });
 
       // Verify it was added
-      let updated = await workflowManager.getWorkflow({
+      let updated = await workflowManager.getWorkflow(testVaultId, {
         workflowId: workflow.id,
         includeSupplementaryMaterials: true
       });
@@ -205,7 +205,7 @@ describe('WorkflowManager - Supplementary Materials', () => {
       await workflowManager.removeSupplementaryMaterial(materialId);
 
       // Verify it was removed
-      updated = await workflowManager.getWorkflow({
+      updated = await workflowManager.getWorkflow(testVaultId, {
         workflowId: workflow.id,
         includeSupplementaryMaterials: true
       });
@@ -240,7 +240,7 @@ describe('WorkflowManager - Supplementary Materials', () => {
       // Remove the middle one
       await workflowManager.removeSupplementaryMaterial(id2);
 
-      const updated = await workflowManager.getWorkflow({
+      const updated = await workflowManager.getWorkflow(testVaultId, {
         workflowId: workflow.id,
         includeSupplementaryMaterials: true
       });
@@ -338,7 +338,7 @@ describe('WorkflowManager - Supplementary Materials', () => {
         position: 0
       });
 
-      const updated = await workflowManager.getWorkflow({
+      const updated = await workflowManager.getWorkflow(testVaultId, {
         workflowId: workflow.id,
         includeSupplementaryMaterials: true
       });
@@ -360,7 +360,7 @@ describe('WorkflowManager - Supplementary Materials', () => {
         position: 0
       });
 
-      const updated = await workflowManager.getWorkflow({
+      const updated = await workflowManager.getWorkflow(testVaultId, {
         workflowId: workflow.id,
         includeSupplementaryMaterials: true
       });
@@ -389,7 +389,7 @@ describe('WorkflowManager - Supplementary Materials', () => {
         position: 0
       });
 
-      const updated = await workflowManager.getWorkflow({
+      const updated = await workflowManager.getWorkflow(testVaultId, {
         workflowId: workflow.id,
         includeSupplementaryMaterials: true
       });
@@ -413,7 +413,7 @@ describe('WorkflowManager - Supplementary Materials', () => {
         position: 0
       });
 
-      const updated = await workflowManager.getWorkflow({
+      const updated = await workflowManager.getWorkflow(testVaultId, {
         workflowId: workflow.id,
         includeSupplementaryMaterials: true
       });
@@ -437,7 +437,7 @@ describe('WorkflowManager - Supplementary Materials', () => {
         });
       }
 
-      const updated = await workflowManager.getWorkflow({
+      const updated = await workflowManager.getWorkflow(testVaultId, {
         workflowId: workflow.id,
         includeSupplementaryMaterials: true
       });
@@ -596,7 +596,7 @@ describe('WorkflowManager - Supplementary Materials', () => {
           expect(materialId).toMatch(/^wm-[a-f0-9]{8}$/);
         }
 
-        const updated = await workflowManager.getWorkflow({
+        const updated = await workflowManager.getWorkflow(testVaultId, {
           workflowId: workflow.id,
           includeSupplementaryMaterials: true
         });

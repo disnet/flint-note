@@ -86,14 +86,19 @@ export class WorkflowService {
   }
 
   /**
-   * Get a workflow by ID
+   * Get a workflow by ID or name
    */
   async getWorkflow(input: GetWorkflowInput): Promise<Workflow> {
     if (!this.workflowManager) {
       throw new Error('WorkflowService not initialized');
     }
 
-    return this.workflowManager.getWorkflow(input);
+    const vault = await this.noteService?.getCurrentVault();
+    if (!vault) {
+      throw new Error('No active vault');
+    }
+
+    return this.workflowManager.getWorkflow(vault.id, input);
   }
 
   /**

@@ -159,24 +159,41 @@ export const listWorkflowsSchema = z.object({
   sortOrder: z.enum(['asc', 'desc']).optional().default('asc').describe('Sort direction')
 });
 
-export const getWorkflowSchema = z.object({
-  workflowId: z.string().describe('ID of the workflow to retrieve'),
-  includeSupplementaryMaterials: z
-    .boolean()
-    .optional()
-    .default(false)
-    .describe('Include supplementary materials in response'),
-  includeCompletionHistory: z
-    .boolean()
-    .optional()
-    .default(false)
-    .describe('Include completion history in response'),
-  completionHistoryLimit: z
-    .number()
-    .optional()
-    .default(10)
-    .describe('Maximum number of completion history entries to return')
-});
+export const getWorkflowSchema = z
+  .object({
+    workflowId: z
+      .string()
+      .optional()
+      .describe('Workflow ID to retrieve (either workflowId or workflowName required)'),
+
+    workflowName: z
+      .string()
+      .optional()
+      .describe('Workflow name to retrieve (either workflowId or workflowName required)'),
+
+    includeSupplementaryMaterials: z
+      .boolean()
+      .optional()
+      .default(false)
+      .describe('Include supplementary materials in response'),
+
+    includeCompletionHistory: z
+      .boolean()
+      .optional()
+      .default(false)
+      .describe('Include completion history in response'),
+
+    completionHistoryLimit: z
+      .number()
+      .int()
+      .positive()
+      .optional()
+      .default(10)
+      .describe('Maximum number of completion history entries to return')
+  })
+  .refine((data) => data.workflowId || data.workflowName, {
+    message: 'Either workflowId or workflowName must be provided'
+  });
 
 export const completeWorkflowSchema = z.object({
   workflowId: z.string().describe('ID of workflow to mark as completed'),

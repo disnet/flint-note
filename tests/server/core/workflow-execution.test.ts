@@ -43,7 +43,9 @@ describe('WorkflowManager - Workflow Execution', () => {
       expect(completion.completedAt).toBeDefined();
 
       // Verify workflow status changed to completed
-      const updated = await workflowManager.getWorkflow({ workflowId: workflow.id });
+      const updated = await workflowManager.getWorkflow(testVaultId, {
+        workflowId: workflow.id
+      });
       expect(updated.status).toBe('completed');
       expect(updated.lastCompleted).toBeDefined();
     });
@@ -61,7 +63,9 @@ describe('WorkflowManager - Workflow Execution', () => {
       });
 
       // Verify workflow status is still active
-      const updated = await workflowManager.getWorkflow({ workflowId: workflow.id });
+      const updated = await workflowManager.getWorkflow(testVaultId, {
+        workflowId: workflow.id
+      });
       expect(updated.status).toBe('active');
       expect(updated.lastCompleted).toBeDefined();
     });
@@ -208,7 +212,7 @@ describe('WorkflowManager - Workflow Execution', () => {
 
       await workflowManager.completeWorkflow({ workflowId: workflow.id });
 
-      const loaded = await workflowManager.getWorkflow({
+      const loaded = await workflowManager.getWorkflow(testVaultId, {
         workflowId: workflow.id,
         includeCompletionHistory: true
       });
@@ -230,7 +234,7 @@ describe('WorkflowManager - Workflow Execution', () => {
         await workflowManager.completeWorkflow({ workflowId: workflow.id });
       }
 
-      const loaded = await workflowManager.getWorkflow({
+      const loaded = await workflowManager.getWorkflow(testVaultId, {
         workflowId: workflow.id,
         includeCompletionHistory: true,
         completionHistoryLimit: 3
@@ -295,7 +299,9 @@ describe('WorkflowManager - Workflow Execution', () => {
         workflow.id
       ]);
 
-      const updated = await workflowManager.getWorkflow({ workflowId: workflow.id });
+      const updated = await workflowManager.getWorkflow(testVaultId, {
+        workflowId: workflow.id
+      });
       const isDue = workflowManager.isWorkflowDue(updated);
       expect(isDue).toBe(true);
     });
@@ -311,7 +317,9 @@ describe('WorkflowManager - Workflow Execution', () => {
       // Complete it now
       await workflowManager.completeWorkflow({ workflowId: workflow.id });
 
-      const updated = await workflowManager.getWorkflow({ workflowId: workflow.id });
+      const updated = await workflowManager.getWorkflow(testVaultId, {
+        workflowId: workflow.id
+      });
       const isDue = workflowManager.isWorkflowDue(updated);
       expect(isDue).toBe(false);
     });
@@ -332,7 +340,9 @@ describe('WorkflowManager - Workflow Execution', () => {
         workflow.id
       ]);
 
-      const updated = await workflowManager.getWorkflow({ workflowId: workflow.id });
+      const updated = await workflowManager.getWorkflow(testVaultId, {
+        workflowId: workflow.id
+      });
       const isDue = workflowManager.isWorkflowDue(updated);
       expect(isDue).toBe(true);
     });
@@ -354,7 +364,9 @@ describe('WorkflowManager - Workflow Execution', () => {
         workflow.id
       ]);
 
-      const updated = await workflowManager.getWorkflow({ workflowId: workflow.id });
+      const updated = await workflowManager.getWorkflow(testVaultId, {
+        workflowId: workflow.id
+      });
       const isDue = workflowManager.isWorkflowDue(updated);
       expect(isDue).toBe(false);
     });
@@ -375,7 +387,9 @@ describe('WorkflowManager - Workflow Execution', () => {
         workflow.id
       ]);
 
-      const updated = await workflowManager.getWorkflow({ workflowId: workflow.id });
+      const updated = await workflowManager.getWorkflow(testVaultId, {
+        workflowId: workflow.id
+      });
       const isDue = workflowManager.isWorkflowDue(updated);
       expect(isDue).toBe(true);
     });

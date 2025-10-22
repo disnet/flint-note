@@ -249,7 +249,9 @@ describe('WorkflowManager - CRUD Operations', () => {
       };
 
       const created = await workflowManager.createWorkflow(testVaultId, input);
-      const retrieved = await workflowManager.getWorkflow({ workflowId: created.id });
+      const retrieved = await workflowManager.getWorkflow(testVaultId, {
+        workflowId: created.id
+      });
 
       expect(retrieved).toBeDefined();
       expect(retrieved.id).toBe(created.id);
@@ -269,7 +271,7 @@ describe('WorkflowManager - CRUD Operations', () => {
       };
 
       const created = await workflowManager.createWorkflow(testVaultId, input);
-      const retrieved = await workflowManager.getWorkflow({
+      const retrieved = await workflowManager.getWorkflow(testVaultId, {
         workflowId: created.id,
         includeSupplementaryMaterials: true
       });
@@ -287,14 +289,61 @@ describe('WorkflowManager - CRUD Operations', () => {
       };
 
       const created = await workflowManager.createWorkflow(testVaultId, input);
-      const retrieved = await workflowManager.getWorkflow({ workflowId: created.id });
+      const retrieved = await workflowManager.getWorkflow(testVaultId, {
+        workflowId: created.id
+      });
 
       expect(retrieved.supplementaryMaterials).toBeUndefined();
     });
 
     it('should throw error for non-existent workflow', async () => {
       await expect(
-        workflowManager.getWorkflow({ workflowId: 'w-nonexist' })
+        workflowManager.getWorkflow(testVaultId, { workflowId: 'w-nonexist' })
+      ).rejects.toThrow(/Workflow not found/);
+    });
+
+    it('should retrieve a workflow by name', async () => {
+      const input = {
+        name: 'Find Me By Name',
+        purpose: 'Test name lookup',
+        description: 'Test workflow'
+      };
+
+      const created = await workflowManager.createWorkflow(testVaultId, input);
+      const retrieved = await workflowManager.getWorkflow(testVaultId, {
+        workflowName: 'Find Me By Name'
+      });
+
+      expect(retrieved).toBeDefined();
+      expect(retrieved.id).toBe(created.id);
+      expect(retrieved.name).toBe(input.name);
+    });
+
+    it('should retrieve a workflow by name (case-insensitive)', async () => {
+      const input = {
+        name: 'Case Sensitive Test',
+        purpose: 'Test case insensitivity',
+        description: 'Test workflow'
+      };
+
+      await workflowManager.createWorkflow(testVaultId, input);
+      const retrieved = await workflowManager.getWorkflow(testVaultId, {
+        workflowName: 'case SENSITIVE test'
+      });
+
+      expect(retrieved).toBeDefined();
+      expect(retrieved.name).toBe(input.name);
+    });
+
+    it('should throw error when neither workflowId nor workflowName provided', async () => {
+      await expect(workflowManager.getWorkflow(testVaultId, {})).rejects.toThrow(
+        /Either workflowId or workflowName must be provided/
+      );
+    });
+
+    it('should throw error for non-existent workflow name', async () => {
+      await expect(
+        workflowManager.getWorkflow(testVaultId, { workflowName: 'Does Not Exist' })
       ).rejects.toThrow(/Workflow not found/);
     });
   });
@@ -492,7 +541,9 @@ describe('WorkflowManager - CRUD Operations', () => {
 
       await workflowManager.deleteWorkflow(created.id);
 
-      const archived = await workflowManager.getWorkflow({ workflowId: created.id });
+      const archived = await workflowManager.getWorkflow(testVaultId, {
+        workflowId: created.id
+      });
       expect(archived.status).toBe('archived');
     });
 

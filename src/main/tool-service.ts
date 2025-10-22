@@ -1853,7 +1853,7 @@ export class ToolService {
 
   private getWorkflowTool = tool({
     description:
-      'Get full details of a specific workflow including description, schedule, and optionally supplementary materials and completion history.',
+      'Get full details of a specific workflow by ID or name. Returns workflow description, schedule, and optionally supplementary materials and completion history. Since workflow names are unique per vault, you can reference workflows by name for more natural conversation.',
     inputSchema: getWorkflowSchema,
     execute: async (input) => {
       if (!this.workflowService) {
