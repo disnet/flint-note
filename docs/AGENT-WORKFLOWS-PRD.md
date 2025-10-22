@@ -84,7 +84,7 @@ As a user, I want the agent to silently record issues it discovers while doing o
 Each workflow must contain:
 
 - **id** (string, immutable): Unique identifier in format `w-xxxxxxxx`
-- **name** (string, 1-20 chars): Short, memorable name (e.g., "Weekly Summary")
+- **name** (string, 1-20 chars): Short, memorable name (e.g., "Weekly Summary"). Must be unique per vault.
 - **purpose** (string, max 100 chars): One-sentence description of what the workflow accomplishes
 - **description** (string, unlimited): Detailed step-by-step instructions for execution
 - **status** (enum): `active`, `paused`, `completed`, `archived`
@@ -223,12 +223,14 @@ The following tools must be available to agents:
 **create_workflow**
 - Create new workflow with all fields
 - Validate name length, purpose length
+- Validate name is unique within vault (case-insensitive)
 - Generate unique ID
 - Return workflow ID and confirmation
 
 **update_workflow**
 - Modify any workflow field except `id`, `created_at`, `vault_id`
 - Require workflow ID
+- Validate name is unique within vault if changing name (case-insensitive)
 - Support partial updates
 - Return updated workflow
 
@@ -363,6 +365,11 @@ During conversation, show when agent mentions workflows:
 - Return clear error message with workflow ID
 - Suggest using `list_workflows` to find available workflows
 
+**Duplicate Workflow Name:**
+- Return clear error when creating/updating workflow with name that already exists in vault
+- Error message format: "A workflow named '{name}' already exists in this vault"
+- Suggest choosing a different name or updating the existing workflow
+
 **Invalid Recurring Spec:**
 - Validate dayOfWeek (0-6), dayOfMonth (1-31)
 - Validate frequency enum
@@ -410,7 +417,7 @@ During conversation, show when agent mentions workflows:
 -- Core workflows table
 CREATE TABLE workflows (
   id TEXT PRIMARY KEY,              -- w-xxxxxxxx format
-  name TEXT NOT NULL,               -- 1-20 chars
+  name TEXT NOT NULL,               -- 1-20 chars, unique per vault (case-insensitive)
   purpose TEXT NOT NULL,            -- Max 100 chars
   description TEXT NOT NULL,        -- Unlimited markdown
   status TEXT NOT NULL DEFAULT 'active'
@@ -430,6 +437,9 @@ CREATE TABLE workflows (
 
   FOREIGN KEY (vault_id) REFERENCES vaults(id) ON DELETE CASCADE
 );
+
+-- Unique constraint on name per vault (case-insensitive)
+CREATE UNIQUE INDEX idx_workflows_vault_name_unique ON workflows(vault_id, LOWER(name));
 
 -- Indexes for common queries
 CREATE INDEX idx_workflows_vault_status ON workflows(vault_id, status);
@@ -1231,9 +1241,9 @@ ipcMain.handle('workflow:list', async (event, input?: ListWorkflowsInput) => {
 
 ### Design Questions
 
-11. **Workflow Naming Conflicts:** Can multiple workflows have the same name?
-    - Current design: Yes (ID is unique, name is not)
-    - Alternative: Enforce unique names per vault
+11. **Workflow Naming Conflicts:** ~~Can multiple workflows have the same name?~~
+    - **RESOLVED:** Enforce unique names per vault (case-insensitive)
+    - Rationale: Improves clarity when referencing workflows by name in conversation and reduces confusion in UI
 
 12. **Status Transitions:** What state transitions are allowed?
     - Can completed → active (to reactivate)?
@@ -1754,6 +1764,12 @@ export async function up(db: Database): Promise<void> {
       updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (vault_id) REFERENCES vaults(id) ON DELETE CASCADE
     )
+  `);
+
+  // Create unique constraint on name per vault (case-insensitive)
+  db.exec(`
+    CREATE UNIQUE INDEX idx_workflows_vault_name_unique
+      ON workflows(vault_id, LOWER(name));
   `);
 
   // Create indexes
