@@ -4,6 +4,12 @@ All notable changes to the Flint application will be documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.7.1]
+
+### Fixed
+
+- Fixed an issue where you could not change any note title
+
 ## [0.7.0]
 
 ### Added
