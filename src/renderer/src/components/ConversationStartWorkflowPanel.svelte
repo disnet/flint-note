@@ -28,22 +28,22 @@
 
 <div class="conversation-start-workflows">
   <div class="panel-header">
-    <h3>Workflows</h3>
+    <h3>Routines</h3>
     {#if onViewAll}
       <button class="btn-view-all" onclick={onViewAll}> View All → </button>
     {/if}
   </div>
 
   <p class="workflow-description">
-    Workflows are automated agents that help you maintain and organize your notes. Below
-    you'll see workflows that are due now, upcoming scheduled workflows, and on-demand
-    workflows you can run anytime.
+    Routines are automated agents that help you maintain and organize your notes. Below
+    you'll see routines that are due now, upcoming scheduled routines, and on-demand
+    routines you can run anytime.
   </p>
 
   {#if !hasWorkflows}
     <div class="empty-state">
-      <p class="empty-message">No workflows are currently available.</p>
-      <p class="empty-hint">Create workflows to automate note maintenance tasks.</p>
+      <p class="empty-message">No routines are currently available.</p>
+      <p class="empty-hint">Create routines to automate note maintenance tasks.</p>
     </div>
   {:else}
     {#if workflowStore.workflowsDueNow.length > 0}
@@ -99,7 +99,7 @@
         </div>
         {#if workflowStore.onDemandWorkflows.length > 3}
           <p class="more-hint">
-            +{workflowStore.onDemandWorkflows.length - 3} more on-demand workflow{workflowStore
+            +{workflowStore.onDemandWorkflows.length - 3} more on-demand routine{workflowStore
               .onDemandWorkflows.length -
               3 >
             1

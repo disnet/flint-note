@@ -14,6 +14,7 @@ Currently, agents in Flint operate autonomously without the ability to request u
 - **Disambiguation**: Resolving ambiguous requests (multiple notes with same name, unclear references)
 
 By adding structured input capabilities, agents can:
+
 1. Make safer decisions with explicit user approval
 2. Handle ambiguous scenarios gracefully
 3. Gather context dynamically instead of requiring everything upfront
@@ -26,6 +27,7 @@ This system uses a **structured message approach** instead of custom tool calls,
 ### Why Structured Messages?
 
 **Simplicity**
+
 - No custom tool infrastructure needed
 - No Promise-based blocking mechanisms
 - No IPC events or request managers
@@ -33,24 +35,28 @@ This system uses a **structured message approach** instead of custom tool calls,
 - Frontend simply parses agent messages and renders UI
 
 **Natural Conversation Flow**
+
 - Input requests appear naturally in message stream
 - Responses are just messages in the conversation
 - Conversation history automatically includes all context
 - Agent sees full interaction history without special handling
 
 **Works Better with Streaming**
+
 - Tags detected in real-time as agent streams response
 - No need to pause/resume streaming
 - UI can render immediately when tag appears
 - More responsive user experience
 
 **Easier to Implement**
+
 - ~70% less code than tool-based approach
 - No main process integration needed
 - All logic in renderer/frontend
 - Easier to test and debug
 
 **More Flexible**
+
 - Frontend fully controls UI rendering
 - Easy to add new input types (just update parser)
 - Can evolve format without breaking tool contracts
@@ -59,6 +65,7 @@ This system uses a **structured message approach** instead of custom tool calls,
 ### Trade-offs
 
 **Advantages of Structured Messages:**
+
 - ✅ Simpler implementation
 - ✅ Natural conversation flow
 - ✅ Better streaming support
@@ -66,6 +73,7 @@ This system uses a **structured message approach** instead of custom tool calls,
 - ✅ Frontend has full control
 
 **Advantages of Tool Calls:**
+
 - ⚠️ More "proper" AI SDK pattern
 - ⚠️ Explicit blocking/waiting semantics
 - ⚠️ Better type safety (tool schemas)
@@ -75,6 +83,7 @@ For our use case, the structured message approach is clearly superior. The agent
 ## Goals
 
 ### Primary Goals
+
 - ✅ Enable agents to request structured input during execution via structured messages
 - ✅ Provide rich UI components for different input types (confirm, select, text, etc.)
 - ✅ Support both ad-hoc chat interactions and pre-declared workflow inputs
@@ -82,12 +91,14 @@ For our use case, the structured message approach is clearly superior. The agent
 - ✅ Keep implementation simple with no special tool infrastructure
 
 ### Secondary Goals
+
 - ✅ Support conditional inputs (show input B only if input A has specific value)
 - ✅ Provide validation and error handling for user inputs
 - ✅ Allow workflows to declare required inputs upfront
 - ✅ Track input requests in conversation history for context
 
 ### Non-Goals
+
 - ❌ Real-time collaboration (multiple users providing input simultaneously)
 - ❌ Complex form builders or visual form designers
 - ❌ Integration with external form systems (Google Forms, Typeform, etc.)
@@ -101,6 +112,7 @@ For our use case, the structured message approach is clearly superior. The agent
 **Context**: User asks agent to "clean up old notes"
 
 **Flow**:
+
 ```
 User: "Clean up my old notes from last year"
 
@@ -120,6 +132,7 @@ Agent: "Archiving 47 notes... Done. Created backup note with list of
 **Context**: User wants to export specific categories
 
 **Flow**:
+
 ```
 User: "Export my notes to markdown"
 
@@ -143,6 +156,7 @@ Agent: "Exporting 457 notes from 3 categories...
 **Context**: Agent needs a title for a generated note
 
 **Flow**:
+
 ```
 User: "Summarize my meeting notes from today"
 
@@ -163,6 +177,7 @@ Agent: "Created note: 'Q1 Planning Meeting Summary'
 **Context**: Weekly review workflow that needs user preferences
 
 **Flow**:
+
 ```
 User: "Run workflow: weekly-review"
 
@@ -192,6 +207,7 @@ Agent: "Starting weekly review with focus on completed tasks,
 **Context**: Multiple notes match a reference
 
 **Flow**:
+
 ```
 User: "Update the design document"
 
@@ -334,6 +350,7 @@ function sendResponseToAgent(requestId: string, value: any, canceled: boolean) {
 ```
 
 Example response sent to agent:
+
 ```
 <input-response id="confirm-archive">true</input-response>
 ```
@@ -454,6 +471,7 @@ ${formatMaterials(workflow.supplementaryMaterials)}
 ```
 
 **UI**:
+
 ```
 ┌─────────────────────────────────┐
 │  Delete 5 notes?                │
@@ -490,6 +508,7 @@ ${formatMaterials(workflow.supplementaryMaterials)}
 ```
 
 **UI**:
+
 ```
 ┌─────────────────────────────────┐
 │  Which note should I update?    │
@@ -528,6 +547,7 @@ ${formatMaterials(workflow.supplementaryMaterials)}
 ```
 
 **UI**:
+
 ```
 ┌─────────────────────────────────┐
 │  Select categories to export    │
@@ -563,6 +583,7 @@ ${formatMaterials(workflow.supplementaryMaterials)}
 ```
 
 **UI**:
+
 ```
 ┌─────────────────────────────────┐
 │  Enter note title               │
@@ -596,6 +617,7 @@ ${formatMaterials(workflow.supplementaryMaterials)}
 ```
 
 **UI**:
+
 ```
 ┌─────────────────────────────────┐
 │  Add notes about this archive   │
@@ -635,6 +657,7 @@ ${formatMaterials(workflow.supplementaryMaterials)}
 ```
 
 **UI**:
+
 ```
 ┌─────────────────────────────────┐
 │  How many days to look back?    │
@@ -667,6 +690,7 @@ ${formatMaterials(workflow.supplementaryMaterials)}
 ```
 
 **UI**:
+
 ```
 ┌─────────────────────────────────┐
 │  Select due date                │
@@ -701,6 +725,7 @@ ${formatMaterials(workflow.supplementaryMaterials)}
 ```
 
 **UI**:
+
 ```
 ┌─────────────────────────────────┐
 │  Set priority level             │
@@ -760,11 +785,13 @@ ${formatMaterials(workflow.supplementaryMaterials)}
 ```
 
 Or for cancellation:
+
 ```xml
 <input-response id="unique-request-id">CANCELED</input-response>
 ```
 
 Where `VALUE` is:
+
 - For confirm: `true` or `false`
 - For select: The selected option value (string)
 - For multiselect: JSON array of selected values
@@ -794,31 +821,31 @@ Examples:
 **Confirmation:**
 <input-request id="confirm-1">
 {
-  "type": "confirm",
-  "prompt": "Should I archive these 47 notes?",
-  "description": "This action will move them to the archive folder"
+"type": "confirm",
+"prompt": "Should I archive these 47 notes?",
+"description": "This action will move them to the archive folder"
 }
 </input-request>
 
 **Selection:**
 <input-request id="select-1">
 {
-  "type": "select",
-  "prompt": "Which note should I update?",
-  "options": [
-    {"value": "note-1", "label": "Design Doc (updated 2 days ago)"},
-    {"value": "note-2", "label": "Architecture Doc (updated 1 week ago)"}
-  ]
+"type": "select",
+"prompt": "Which note should I update?",
+"options": [
+{"value": "note-1", "label": "Design Doc (updated 2 days ago)"},
+{"value": "note-2", "label": "Architecture Doc (updated 1 week ago)"}
+]
 }
 </input-request>
 
 **Text Input:**
 <input-request id="text-1">
 {
-  "type": "text",
-  "prompt": "What title should I use for this note?",
-  "placeholder": "Enter note title",
-  "validation": {"required": true, "maxLength": 100}
+"type": "text",
+"prompt": "What title should I use for this note?",
+"placeholder": "Enter note title",
+"validation": {"required": true, "maxLength": 100}
 }
 </input-request>
 
@@ -891,6 +918,7 @@ const weeklyReviewWorkflow: Workflow = {
 **Goal**: Basic message parsing and confirm input type
 
 **Tasks**:
+
 1. Create type definitions (`src/renderer/src/types/agent-input.ts`)
 2. Implement `MessageStreamParser` utility class
 3. Add detection for `<input-request>` tags in streaming responses
@@ -900,6 +928,7 @@ const weeklyReviewWorkflow: Workflow = {
 7. Format and send `<input-response>` messages
 
 **Deliverables**:
+
 - ✅ Agent can output `<input-request>` tags
 - ✅ Frontend detects tags in stream
 - ✅ Modal shows for confirm inputs
@@ -910,6 +939,7 @@ const weeklyReviewWorkflow: Workflow = {
 **Goal**: Support select, multiselect, text inputs
 
 **Tasks**:
+
 1. Extend `AgentInputModal` with select UI (radio buttons)
 2. Add multiselect UI (checkboxes)
 3. Add text input UI with validation
@@ -918,6 +948,7 @@ const weeklyReviewWorkflow: Workflow = {
 6. Update message parser to handle all types
 
 **Deliverables**:
+
 - ✅ Select (single choice) working
 - ✅ Multi-select (multiple choices) working
 - ✅ Text input with basic validation
@@ -928,6 +959,7 @@ const weeklyReviewWorkflow: Workflow = {
 **Goal**: Add textarea, number, date, slider
 
 **Tasks**:
+
 1. Implement textarea component
 2. Add number input with increment/decrement
 3. Integrate date picker component
@@ -936,6 +968,7 @@ const weeklyReviewWorkflow: Workflow = {
 6. Implement inline input option (alternative to modal)
 
 **Deliverables**:
+
 - ✅ All 8 input types functional
 - ✅ Validation working for all types
 - ✅ Help text and placeholders
@@ -946,6 +979,7 @@ const weeklyReviewWorkflow: Workflow = {
 **Goal**: Pre-declared inputs for workflows
 
 **Tasks**:
+
 1. Extend Workflow schema with `inputRequirements`
 2. Create `WorkflowInputForm.svelte` component
 3. Implement input gathering before workflow execution
@@ -954,6 +988,7 @@ const weeklyReviewWorkflow: Workflow = {
 6. Add migration for existing workflows
 
 **Deliverables**:
+
 - ✅ Workflows can declare required inputs
 - ✅ Input form shows before workflow starts
 - ✅ Agent receives inputs as context
@@ -964,6 +999,7 @@ const weeklyReviewWorkflow: Workflow = {
 **Goal**: Production-ready quality
 
 **Tasks**:
+
 1. Add comprehensive test coverage
 2. Handle edge cases (malformed tags, invalid JSON, etc.)
 3. Add request cancellation UI
@@ -973,6 +1009,7 @@ const weeklyReviewWorkflow: Workflow = {
 7. Performance testing and optimization
 
 **Deliverables**:
+
 - ✅ Full test coverage
 - ✅ Robust parsing and error handling
 - ✅ Polished UI with animations
@@ -1033,27 +1070,32 @@ I found 3 notes matching "design". Which one?
 ### Visual States
 
 **Pending** (waiting for input):
+
 - Modal visible
 - Dim background overlay
 - Agent activity widget shows "Waiting for user input..."
 - Submit button enabled when valid
 
 **Submitting** (processing response):
+
 - Submit button shows spinner
 - Input fields disabled
 - "Submitting..." text
 
 **Completed** (input received):
+
 - Modal closes with fade animation
 - Agent activity widget shows "Received user input"
 - Agent continues execution
 
 **Canceled**:
+
 - Modal closes immediately
 - Agent receives canceled: true
 - Agent can handle gracefully or abort
 
 **Timed out**:
+
 - Modal shows "Request timed out"
 - Auto-closes after 3 seconds
 - Agent receives timeout error
@@ -1071,6 +1113,7 @@ I found 3 notes matching "design". Which one?
 ### Parsing Errors
 
 If the `<input-request>` tag contains invalid JSON:
+
 - Log error to console
 - Show fallback message to user: "The agent sent a malformed input request"
 - Optionally display the raw content for debugging
@@ -1095,11 +1138,13 @@ When user clicks Cancel or closes modal:
 ```
 
 The agent's system prompt teaches it to handle cancellation gracefully:
+
 - Acknowledge the cancellation
 - Explain what won't happen
 - Offer alternatives if appropriate
 
 Example agent response:
+
 ```
 Understood. I won't archive those notes. Let me know if you'd like me to:
 - Archive only specific notes
@@ -1120,6 +1165,7 @@ interface ValidationError {
 ```
 
 UI shows:
+
 - Error message below input
 - Red border on input field
 - Submit button disabled
@@ -1128,6 +1174,7 @@ UI shows:
 ### Message Sending Errors
 
 If sending the response message fails:
+
 - Show error in modal: "Failed to send response. Please try again."
 - Provide retry button
 - Log error for debugging
@@ -1268,23 +1315,27 @@ test('User confirms note deletion via modal', async ({ page }) => {
 ## Performance Considerations
 
 ### Parsing Performance
+
 - Stream parsing should add minimal overhead (<10ms per chunk)
 - Use efficient regex for tag detection
 - Parse JSON only when tag is detected
 - Don't re-parse entire message on each chunk
 
 ### Response Time
+
 - Modal should appear immediately when tag is detected
 - User interactions should feel instant (<50ms)
 - Message sending should complete within 200ms
 
 ### Memory
+
 - Don't store full message history with embedded tags
 - Clean up modal components when closed
 - Limit number of simultaneous modals (max 3)
 - Remove input request tags from stored conversation history
 
 ### Scalability
+
 - Support multiple concurrent conversations with input requests
 - Each conversation can have independent pending inputs
 - UI efficiently updates only relevant components
@@ -1293,6 +1344,7 @@ test('User confirms note deletion via modal', async ({ page }) => {
 ## Future Enhancements (Post-V1)
 
 ### Advanced Input Types
+
 - **File upload**: Let agent request file selection
 - **Image selection**: Choose from note attachments
 - **Note picker**: Visual note selection with preview
@@ -1301,6 +1353,7 @@ test('User confirms note deletion via modal', async ({ page }) => {
 - **Tags input**: Tag selection with autocomplete
 
 ### Enhanced UX
+
 - **Inline editing**: Show inputs directly in chat
 - **Input history**: Remember previous responses
 - **Smart defaults**: Suggest values based on context
@@ -1308,12 +1361,14 @@ test('User confirms note deletion via modal', async ({ page }) => {
 - **Preview mode**: Show what will happen before confirming
 
 ### Workflow Features
+
 - **Input dependencies**: Input B depends on Input A value
 - **Dynamic inputs**: Agent adds inputs during execution
 - **Input templates**: Reusable input configurations
 - **Input validation functions**: Custom validation logic
 
 ### Analytics
+
 - **Track input response times**
 - **Monitor cancellation rates**
 - **Analyze which input types are most used**
@@ -1322,12 +1377,14 @@ test('User confirms note deletion via modal', async ({ page }) => {
 ## Success Metrics
 
 ### Quantitative
+
 - **Adoption**: 70%+ of agents use input requests within first month
 - **Completion rate**: >90% of input requests receive response (not canceled/timed out)
 - **Response time**: Median user response time <30 seconds
 - **Error rate**: <5% validation errors or failed submissions
 
 ### Qualitative
+
 - **User satisfaction**: Positive feedback on control and transparency
 - **Agent capability**: Agents can handle previously impossible tasks
 - **Safety**: Fewer accidental destructive actions
@@ -1336,6 +1393,7 @@ test('User confirms note deletion via modal', async ({ page }) => {
 ## Documentation Requirements
 
 ### User Documentation
+
 1. **Guide**: "Working with Agent Inputs"
    - When agents will ask for input
    - How to respond to different input types
@@ -1347,6 +1405,7 @@ test('User confirms note deletion via modal', async ({ page }) => {
    - Validation options
 
 ### Developer Documentation
+
 1. **API Reference**: Tool parameters and return values
 2. **Component Reference**: Props and events for UI components
 3. **Integration Guide**: How to add input support to custom tools
@@ -1355,6 +1414,7 @@ test('User confirms note deletion via modal', async ({ page }) => {
 ## Questions & Decisions
 
 ### Open Questions
+
 - Should we show input request/response tags in chat history (for context) or hide them?
 - How to handle multiple pending input requests (queue vs parallel modals)?
 - Should workflows be able to modify input requirements dynamically?
@@ -1363,6 +1423,7 @@ test('User confirms note deletion via modal', async ({ page }) => {
 - How to handle partial tag detection (tag split across stream chunks)?
 
 ### Design Decisions Made
+
 - ✅ **Structured message approach** (not tool calls) - Simpler implementation
 - ✅ XML-like tags with JSON content for easy parsing
 - ✅ Modal dialogs for critical inputs, inline for simple ones
@@ -1374,11 +1435,13 @@ test('User confirms note deletion via modal', async ({ page }) => {
 ## Appendix
 
 ### Related Documents
+
 - `docs/AGENT-WORKFLOWS-PRD.md` - Workflow system specification
 - `docs/ARCHITECTURE.md` - Electron architecture overview
 - `docs/DESIGN.md` - UI design guidelines
 
 ### References
+
 - Vercel AI SDK: https://sdk.vercel.ai/docs
 - Electron IPC: https://www.electronjs.org/docs/latest/api/ipc-main
 - Svelte 5 Runes: https://svelte-5-preview.vercel.app/docs/runes
@@ -1389,6 +1452,7 @@ test('User confirms note deletion via modal', async ({ page }) => {
 **Last Updated**: 2025-10-22
 **Status**: Updated - Structured Message Approach
 **Major Changes**:
+
 - Replaced tool-based approach with structured messages
 - Removed IPC infrastructure requirements
 - Simplified implementation by ~70%

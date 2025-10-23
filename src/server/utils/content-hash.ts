@@ -88,3 +88,18 @@ export class MissingContentHashError extends Error {
     this.name = 'MissingContentHashError';
   }
 }
+
+/**
+ * Error thrown when a note type is not found
+ */
+export class NoteTypeNotFoundError extends Error {
+  public readonly noteType: string;
+
+  constructor(noteType: string) {
+    super(
+      `Note type '${noteType}' does not exist. Create the note type first before moving notes to it.`
+    );
+    this.name = 'NoteTypeNotFoundError';
+    this.noteType = noteType;
+  }
+}

@@ -84,7 +84,7 @@
         ></path>
         <circle cx="12" cy="12" r="3"></circle>
       </svg>
-      Workflows
+      Routines
     </button>
 
     <button

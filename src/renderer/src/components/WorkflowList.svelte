@@ -91,11 +91,11 @@
     </div>
   {:else if filteredWorkflows.length === 0}
     <div class="empty-state">
-      <p>No workflows found</p>
+      <p>No routines found</p>
       {#if filter.search}
         <p class="empty-hint">Try adjusting your search or filters</p>
       {:else}
-        <p class="empty-hint">Create a workflow to get started</p>
+        <p class="empty-hint">Create a routine to get started</p>
       {/if}
     </div>
   {:else}

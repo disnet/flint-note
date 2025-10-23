@@ -1,7 +1,10 @@
 import { Tool, tool } from 'ai';
 import { z } from 'zod';
 import { NoteService } from './note-service';
-import { ContentHashMismatchError } from '../server/utils/content-hash.js';
+import {
+  ContentHashMismatchError,
+  NoteTypeNotFoundError
+} from '../server/utils/content-hash.js';
 import { publishNoteEvent } from './note-events';
 import { TodoPlanService } from './todo-plan-service';
 import { WorkflowService } from './workflow-service';
@@ -66,16 +69,16 @@ export class ToolService {
       tools.manage_todos = this.manageTodosTool;
     }
 
-    // Add workflow management tools if available
+    // Add routine management tools if available
     if (this.workflowService && this.workflowService.isReady()) {
-      tools.create_workflow = this.createWorkflowTool;
-      tools.update_workflow = this.updateWorkflowTool;
-      tools.delete_workflow = this.deleteWorkflowTool;
-      tools.list_workflows = this.listWorkflowsTool;
-      tools.get_workflow = this.getWorkflowTool;
-      tools.complete_workflow = this.completeWorkflowTool;
-      tools.add_workflow_material = this.addWorkflowMaterialTool;
-      tools.remove_workflow_material = this.removeWorkflowMaterialTool;
+      tools.create_routine = this.createWorkflowTool;
+      tools.update_routine = this.updateWorkflowTool;
+      tools.delete_routine = this.deleteWorkflowTool;
+      tools.list_routines = this.listWorkflowsTool;
+      tools.get_routine = this.getWorkflowTool;
+      tools.complete_routine = this.completeWorkflowTool;
+      tools.add_routine_material = this.addWorkflowMaterialTool;
+      tools.remove_routine_material = this.removeWorkflowMaterialTool;
     }
 
     return tools;
@@ -822,7 +825,7 @@ export class ToolService {
 
   private moveNoteTool = tool({
     description:
-      'Move a note to a different note type. This changes the note\'s type and updates its path accordingly. Content hash is required to ensure you are moving the latest version of the note.',
+      "Move a note to a different note type. This changes the note's type and updates its path accordingly. Content hash is required to ensure you are moving the latest version of the note.",
     inputSchema: z.object({
       id: z
         .string()
@@ -917,6 +920,14 @@ export class ToolService {
           };
         }
 
+        if (error instanceof NoteTypeNotFoundError) {
+          return {
+            success: false,
+            error: 'NOTE_TYPE_NOT_FOUND',
+            message: error.message
+          };
+        }
+
         const errorMessage = error instanceof Error ? error.message : String(error);
 
         if (
@@ -927,14 +938,6 @@ export class ToolService {
             success: false,
             error: 'NOTE_NOT_FOUND',
             message: `Note not found: ${id}`
-          };
-        }
-
-        if (errorMessage.includes('type') && errorMessage.includes('not found')) {
-          return {
-            success: false,
-            error: 'NOTE_TYPE_NOT_FOUND',
-            message: `Target note type '${newType}' not found`
           };
         }
 
@@ -1804,17 +1807,17 @@ export class ToolService {
     }
   });
 
-  // Workflow Management Tools
+  // Routine Management Tools
   private createWorkflowTool = tool({
     description:
-      'Create a new workflow that persists across conversations. Workflows can be recurring (daily/weekly/monthly) or one-time. Use type="backlog" for items discovered during work (broken links, cleanup opportunities) that should be silently recorded without interrupting the user.',
+      'Create a new routine that persists across conversations. Routines can be recurring (daily/weekly/monthly) or one-time. Use type="backlog" for items discovered during work (broken links, cleanup opportunities) that should be silently recorded without interrupting the user.',
     inputSchema: createWorkflowSchema,
     execute: async (input) => {
       if (!this.workflowService) {
         return {
           success: false,
-          error: 'Workflow service not available',
-          message: 'Workflow service not initialized'
+          error: 'Routine service not available',
+          message: 'Routine service not initialized'
         };
       }
 
@@ -1823,11 +1826,11 @@ export class ToolService {
 
         return {
           success: true,
-          data: { workflowId: workflow.id, name: workflow.name, type: workflow.type },
+          data: { routineId: workflow.id, name: workflow.name, type: workflow.type },
           message:
             workflow.type === 'backlog'
               ? `Recorded backlog item: ${workflow.name}`
-              : `Created workflow: ${workflow.name}`
+              : `Created routine: ${workflow.name}`
         };
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
@@ -1842,8 +1845,8 @@ export class ToolService {
 
         return {
           success: false,
-          error: 'CREATE_WORKFLOW_FAILED',
-          message: `Failed to create workflow: ${errorMessage}`
+          error: 'CREATE_ROUTINE_FAILED',
+          message: `Failed to create routine: ${errorMessage}`
         };
       }
     }
@@ -1851,14 +1854,14 @@ export class ToolService {
 
   private updateWorkflowTool = tool({
     description:
-      'Update an existing workflow. Can modify name, description, status, schedule, or type.',
+      'Update an existing routine. Can modify name, description, status, schedule, or type.',
     inputSchema: updateWorkflowSchema,
     execute: async (input) => {
       if (!this.workflowService) {
         return {
           success: false,
-          error: 'Workflow service not available',
-          message: 'Workflow service not initialized'
+          error: 'Routine service not available',
+          message: 'Routine service not initialized'
         };
       }
 
@@ -1868,7 +1871,7 @@ export class ToolService {
         return {
           success: true,
           data: workflow,
-          message: `Updated workflow: ${workflow.name}`
+          message: `Updated routine: ${workflow.name}`
         };
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
@@ -1876,7 +1879,7 @@ export class ToolService {
         if (errorMessage.includes('not found')) {
           return {
             success: false,
-            error: 'WORKFLOW_NOT_FOUND',
+            error: 'ROUTINE_NOT_FOUND',
             message: errorMessage
           };
         }
@@ -1891,22 +1894,22 @@ export class ToolService {
 
         return {
           success: false,
-          error: 'UPDATE_WORKFLOW_FAILED',
-          message: `Failed to update workflow: ${errorMessage}`
+          error: 'UPDATE_ROUTINE_FAILED',
+          message: `Failed to update routine: ${errorMessage}`
         };
       }
     }
   });
 
   private deleteWorkflowTool = tool({
-    description: 'Delete a workflow by marking it as archived. This is a soft delete.',
+    description: 'Delete a routine by marking it as archived. This is a soft delete.',
     inputSchema: deleteWorkflowSchema,
     execute: async ({ workflowId }) => {
       if (!this.workflowService) {
         return {
           success: false,
-          error: 'Workflow service not available',
-          message: 'Workflow service not initialized'
+          error: 'Routine service not available',
+          message: 'Routine service not initialized'
         };
       }
 
@@ -1915,8 +1918,8 @@ export class ToolService {
 
         return {
           success: true,
-          data: { workflowId },
-          message: `Deleted workflow: ${workflowId}`
+          data: { routineId: workflowId },
+          message: `Deleted routine: ${workflowId}`
         };
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
@@ -1924,15 +1927,15 @@ export class ToolService {
         if (errorMessage.includes('not found')) {
           return {
             success: false,
-            error: 'WORKFLOW_NOT_FOUND',
+            error: 'ROUTINE_NOT_FOUND',
             message: errorMessage
           };
         }
 
         return {
           success: false,
-          error: 'DELETE_WORKFLOW_FAILED',
-          message: `Failed to delete workflow: ${errorMessage}`
+          error: 'DELETE_ROUTINE_FAILED',
+          message: `Failed to delete routine: ${errorMessage}`
         };
       }
     }
@@ -1940,21 +1943,21 @@ export class ToolService {
 
   private listWorkflowsTool = tool({
     description:
-      'List workflows with optional filtering and sorting. Returns a lightweight summary of workflows. Use get_workflow to retrieve full details.',
+      'List routines with optional filtering and sorting. Returns a lightweight summary of routines. Use get_routine to retrieve full details.',
     inputSchema: listWorkflowsSchema,
     execute: async (input) => {
       if (!this.workflowService) {
         return {
           success: false,
-          error: 'Workflow service not available',
-          message: 'Workflow service not initialized'
+          error: 'Routine service not available',
+          message: 'Routine service not initialized'
         };
       }
 
       try {
         const workflows = await this.workflowService.listWorkflows(input);
 
-        let message = `Found ${workflows.length} workflow(s)`;
+        let message = `Found ${workflows.length} routine(s)`;
         if (input?.type && input.type !== 'all') {
           message += ` of type: ${input.type}`;
         }
@@ -1972,8 +1975,8 @@ export class ToolService {
 
         return {
           success: false,
-          error: 'LIST_WORKFLOWS_FAILED',
-          message: `Failed to list workflows: ${errorMessage}`
+          error: 'LIST_ROUTINES_FAILED',
+          message: `Failed to list routines: ${errorMessage}`
         };
       }
     }
@@ -1981,14 +1984,14 @@ export class ToolService {
 
   private getWorkflowTool = tool({
     description:
-      'Get full details of a specific workflow by ID or name. Returns workflow description, schedule, and optionally supplementary materials and completion history. Since workflow names are unique per vault, you can reference workflows by name for more natural conversation.',
+      'Get full details of a specific routine by ID or name. Returns routine description, schedule, and optionally supplementary materials and completion history. Since routine names are unique per vault, you can reference routines by name for more natural conversation.',
     inputSchema: getWorkflowSchema,
     execute: async (input) => {
       if (!this.workflowService) {
         return {
           success: false,
-          error: 'Workflow service not available',
-          message: 'Workflow service not initialized'
+          error: 'Routine service not available',
+          message: 'Routine service not initialized'
         };
       }
 
@@ -1998,7 +2001,7 @@ export class ToolService {
         return {
           success: true,
           data: workflow,
-          message: `Retrieved workflow: ${workflow.name}`
+          message: `Retrieved routine: ${workflow.name}`
         };
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
@@ -2006,15 +2009,15 @@ export class ToolService {
         if (errorMessage.includes('not found')) {
           return {
             success: false,
-            error: 'WORKFLOW_NOT_FOUND',
+            error: 'ROUTINE_NOT_FOUND',
             message: errorMessage
           };
         }
 
         return {
           success: false,
-          error: 'GET_WORKFLOW_FAILED',
-          message: `Failed to get workflow: ${errorMessage}`
+          error: 'GET_ROUTINE_FAILED',
+          message: `Failed to get routine: ${errorMessage}`
         };
       }
     }
@@ -2022,14 +2025,14 @@ export class ToolService {
 
   private completeWorkflowTool = tool({
     description:
-      'Mark a workflow as completed. For recurring workflows, updates last_completed and keeps status active. For one-time workflows, changes status to completed.',
+      'Mark a routine as completed. For recurring routines, updates last_completed and keeps status active. For one-time routines, changes status to completed.',
     inputSchema: completeWorkflowSchema,
     execute: async (input) => {
       if (!this.workflowService) {
         return {
           success: false,
-          error: 'Workflow service not available',
-          message: 'Workflow service not initialized'
+          error: 'Routine service not available',
+          message: 'Routine service not initialized'
         };
       }
 
@@ -2039,7 +2042,7 @@ export class ToolService {
         return {
           success: true,
           data: completion,
-          message: `Completed workflow at ${completion.completedAt}`
+          message: `Completed routine at ${completion.completedAt}`
         };
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
@@ -2047,15 +2050,15 @@ export class ToolService {
         if (errorMessage.includes('not found')) {
           return {
             success: false,
-            error: 'WORKFLOW_NOT_FOUND',
+            error: 'ROUTINE_NOT_FOUND',
             message: errorMessage
           };
         }
 
         return {
           success: false,
-          error: 'COMPLETE_WORKFLOW_FAILED',
-          message: `Failed to complete workflow: ${errorMessage}`
+          error: 'COMPLETE_ROUTINE_FAILED',
+          message: `Failed to complete routine: ${errorMessage}`
         };
       }
     }
@@ -2063,14 +2066,14 @@ export class ToolService {
 
   private addWorkflowMaterialTool = tool({
     description:
-      'Add supplementary material to a workflow. Can be text, code snippet, or note reference.',
+      'Add supplementary material to a routine. Can be text, code snippet, or note reference.',
     inputSchema: addWorkflowMaterialSchema,
     execute: async ({ workflowId, ...material }) => {
       if (!this.workflowService) {
         return {
           success: false,
-          error: 'Workflow service not available',
-          message: 'Workflow service not initialized'
+          error: 'Routine service not available',
+          message: 'Routine service not initialized'
         };
       }
 
@@ -2088,8 +2091,8 @@ export class ToolService {
 
         return {
           success: true,
-          data: { materialId, workflowId },
-          message: `Added ${material.type} material to workflow`
+          data: { materialId, routineId: workflowId },
+          message: `Added ${material.type} material to routine`
         };
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
@@ -2097,7 +2100,7 @@ export class ToolService {
         if (errorMessage.includes('not found')) {
           return {
             success: false,
-            error: 'WORKFLOW_NOT_FOUND',
+            error: 'ROUTINE_NOT_FOUND',
             message: errorMessage
           };
         }
@@ -2112,14 +2115,14 @@ export class ToolService {
   });
 
   private removeWorkflowMaterialTool = tool({
-    description: 'Remove supplementary material from a workflow.',
+    description: 'Remove supplementary material from a routine.',
     inputSchema: removeWorkflowMaterialSchema,
     execute: async ({ materialId }) => {
       if (!this.workflowService) {
         return {
           success: false,
-          error: 'Workflow service not available',
-          message: 'Workflow service not initialized'
+          error: 'Routine service not available',
+          message: 'Routine service not initialized'
         };
       }
 

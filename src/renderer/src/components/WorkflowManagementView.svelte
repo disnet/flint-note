@@ -39,12 +39,12 @@
   }
 
   function handleExecuteWorkflow(workflowId: string): void {
-    // Send message to AI assistant to execute the workflow
+    // Send message to AI assistant to execute the routine
     const workflow = workflowStore.getWorkflowById(workflowId);
     if (workflow && window.api?.sendMessage) {
       window.api
         .sendMessage({
-          message: `Execute workflow: ${workflow.name}`
+          message: `Execute routine: ${workflow.name}`
         })
         .catch(console.error);
     }
@@ -113,7 +113,7 @@
 
 <div class="workflow-management">
   <div class="management-header">
-    <h1>Workflows</h1>
+    <h1>Routines</h1>
     <div class="header-actions">
       <button class="btn-refresh" onclick={handleRefresh} title="Refresh">
         <svg
@@ -141,7 +141,7 @@
           <line x1="12" y1="5" x2="12" y2="19"></line>
           <line x1="5" y1="12" x2="19" y2="12"></line>
         </svg>
-        Create Workflow
+        Create Routine
       </button>
     </div>
   </div>
@@ -152,7 +152,7 @@
       class:active={activeTab === 'workflows'}
       onclick={() => switchTab('workflows')}
     >
-      Workflows
+      Routines
     </button>
     <button
       class="tab"
@@ -179,7 +179,7 @@
     </div>
 
     <div class="filter-group search">
-      <input type="text" placeholder="Search workflows..." bind:value={searchQuery} />
+      <input type="text" placeholder="Search routines..." bind:value={searchQuery} />
     </div>
   </div>
 

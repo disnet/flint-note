@@ -45,12 +45,12 @@ describe('Workflow Tools Integration', () => {
     await testSetup.cleanup();
   });
 
-  describe('create_workflow tool', () => {
+  describe('create_routine tool', () => {
     it('should create a basic workflow', async () => {
       const tools = toolService.getTools();
-      expect(tools?.create_workflow).toBeDefined();
+      expect(tools?.create_routine).toBeDefined();
 
-      const result = await tools!.create_workflow.execute({
+      const result = await tools!.create_routine.execute({
         name: 'Test Workflow',
         purpose: 'Test purpose',
         description: 'This is a test workflow'
@@ -59,14 +59,14 @@ describe('Workflow Tools Integration', () => {
       expect(result.success).toBe(true);
       expect(result.data).toBeDefined();
       expect(result.data.name).toBe('Test Workflow');
-      expect(result.data.workflowId).toMatch(/^w-[a-f0-9]{8}$/);
-      expect(result.message).toContain('Created workflow');
+      expect(result.data.routineId).toMatch(/^w-[a-f0-9]{8}$/);
+      expect(result.message).toContain('Created routine');
     });
 
     it('should create a recurring workflow', async () => {
       const tools = toolService.getTools();
 
-      const result = await tools!.create_workflow.execute({
+      const result = await tools!.create_routine.execute({
         name: 'Daily Task',
         purpose: 'Daily routine',
         description: 'Runs every day',
@@ -80,7 +80,7 @@ describe('Workflow Tools Integration', () => {
     it('should create a backlog item silently', async () => {
       const tools = toolService.getTools();
 
-      const result = await tools!.create_workflow.execute({
+      const result = await tools!.create_routine.execute({
         name: 'Fix Link',
         purpose: 'Broken link found',
         description: 'Fix broken wikilink in note X',
@@ -95,13 +95,13 @@ describe('Workflow Tools Integration', () => {
     it('should reject duplicate workflow names', async () => {
       const tools = toolService.getTools();
 
-      await tools!.create_workflow.execute({
+      await tools!.create_routine.execute({
         name: 'Duplicate',
         purpose: 'Test',
         description: 'First'
       });
 
-      const result = await tools!.create_workflow.execute({
+      const result = await tools!.create_routine.execute({
         name: 'Duplicate',
         purpose: 'Test',
         description: 'Second'
@@ -116,7 +116,7 @@ describe('Workflow Tools Integration', () => {
       const tools = toolService.getTools();
 
       // Name too long
-      const result = await tools!.create_workflow.execute({
+      const result = await tools!.create_routine.execute({
         name: 'This name is way too long for a workflow',
         purpose: 'Test',
         description: 'Test'
@@ -127,24 +127,24 @@ describe('Workflow Tools Integration', () => {
     });
   });
 
-  describe('list_workflows tool', () => {
+  describe('list_routines tool', () => {
     it('should list all workflows', async () => {
       const tools = toolService.getTools();
 
       // Create some workflows
-      await tools!.create_workflow.execute({
+      await tools!.create_routine.execute({
         name: 'First',
         purpose: 'Test 1',
         description: 'Test'
       });
 
-      await tools!.create_workflow.execute({
+      await tools!.create_routine.execute({
         name: 'Second',
         purpose: 'Test 2',
         description: 'Test'
       });
 
-      const result = await tools!.list_workflows.execute({});
+      const result = await tools!.list_routines.execute({});
 
       expect(result.success).toBe(true);
       expect(result.data).toBeDefined();
@@ -155,20 +155,20 @@ describe('Workflow Tools Integration', () => {
     it('should filter by status', async () => {
       const tools = toolService.getTools();
 
-      await tools!.create_workflow.execute({
+      await tools!.create_routine.execute({
         name: 'Active',
         purpose: 'Test',
         description: 'Test'
       });
 
-      const paused = await tools!.create_workflow.execute({
+      const paused = await tools!.create_routine.execute({
         name: 'Paused',
         purpose: 'Test',
         description: 'Test',
         status: 'paused'
       });
 
-      const result = await tools!.list_workflows.execute({
+      const result = await tools!.list_routines.execute({
         status: 'paused'
       });
 
@@ -180,21 +180,21 @@ describe('Workflow Tools Integration', () => {
     it('should filter by type', async () => {
       const tools = toolService.getTools();
 
-      await tools!.create_workflow.execute({
+      await tools!.create_routine.execute({
         name: 'Regular',
         purpose: 'Test',
         description: 'Test',
         type: 'workflow'
       });
 
-      await tools!.create_workflow.execute({
+      await tools!.create_routine.execute({
         name: 'Backlog',
         purpose: 'Test',
         description: 'Test',
         type: 'backlog'
       });
 
-      const result = await tools!.list_workflows.execute({
+      const result = await tools!.list_routines.execute({
         type: 'backlog'
       });
 
@@ -206,23 +206,23 @@ describe('Workflow Tools Integration', () => {
     it('should exclude archived by default', async () => {
       const tools = toolService.getTools();
 
-      await tools!.create_workflow.execute({
+      await tools!.create_routine.execute({
         name: 'Active',
         purpose: 'Test',
         description: 'Test'
       });
 
-      const toArchive = await tools!.create_workflow.execute({
+      const toArchive = await tools!.create_routine.execute({
         name: 'To Archive',
         purpose: 'Test',
         description: 'Test'
       });
 
-      await tools!.delete_workflow.execute({
-        workflowId: toArchive.data.workflowId
+      await tools!.delete_routine.execute({
+        workflowId: toArchive.data.routineId
       });
 
-      const result = await tools!.list_workflows.execute({});
+      const result = await tools!.list_routines.execute({});
 
       expect(result.success).toBe(true);
       expect(result.data.length).toBe(1);
@@ -230,18 +230,18 @@ describe('Workflow Tools Integration', () => {
     });
   });
 
-  describe('get_workflow tool', () => {
+  describe('get_routine tool', () => {
     it('should retrieve workflow details', async () => {
       const tools = toolService.getTools();
 
-      const created = await tools!.create_workflow.execute({
+      const created = await tools!.create_routine.execute({
         name: 'Detailed',
         purpose: 'Full details',
         description: 'Test workflow with details'
       });
 
-      const result = await tools!.get_workflow.execute({
-        workflowId: created.data.workflowId
+      const result = await tools!.get_routine.execute({
+        workflowId: created.data.routineId
       });
 
       expect(result.success).toBe(true);
@@ -254,20 +254,20 @@ describe('Workflow Tools Integration', () => {
     it('should include supplementary materials when requested', async () => {
       const tools = toolService.getTools();
 
-      const created = await tools!.create_workflow.execute({
+      const created = await tools!.create_routine.execute({
         name: 'With Materials',
         purpose: 'Has materials',
         description: 'Test'
       });
 
-      await tools!.add_workflow_material.execute({
-        workflowId: created.data.workflowId,
+      await tools!.add_routine_material.execute({
+        workflowId: created.data.routineId,
         type: 'text',
         content: 'Some context'
       });
 
-      const result = await tools!.get_workflow.execute({
-        workflowId: created.data.workflowId,
+      const result = await tools!.get_routine.execute({
+        workflowId: created.data.routineId,
         includeSupplementaryMaterials: true
       });
 
@@ -280,20 +280,20 @@ describe('Workflow Tools Integration', () => {
     it('should include completion history when requested', async () => {
       const tools = toolService.getTools();
 
-      const created = await tools!.create_workflow.execute({
+      const created = await tools!.create_routine.execute({
         name: 'With History',
         purpose: 'Has completions',
         description: 'Test',
         recurringSpec: { frequency: 'daily' }
       });
 
-      await tools!.complete_workflow.execute({
-        workflowId: created.data.workflowId,
+      await tools!.complete_routine.execute({
+        workflowId: created.data.routineId,
         notes: 'Completed successfully'
       });
 
-      const result = await tools!.get_workflow.execute({
-        workflowId: created.data.workflowId,
+      const result = await tools!.get_routine.execute({
+        workflowId: created.data.routineId,
         includeCompletionHistory: true
       });
 
@@ -306,28 +306,28 @@ describe('Workflow Tools Integration', () => {
     it('should handle non-existent workflow', async () => {
       const tools = toolService.getTools();
 
-      const result = await tools!.get_workflow.execute({
+      const result = await tools!.get_routine.execute({
         workflowId: 'w-nonexist'
       });
 
       expect(result.success).toBe(false);
-      expect(result.error).toBe('WORKFLOW_NOT_FOUND');
+      expect(result.error).toBe('ROUTINE_NOT_FOUND');
       expect(result.message).toContain('not found');
     });
   });
 
-  describe('update_workflow tool', () => {
+  describe('update_routine tool', () => {
     it('should update workflow name', async () => {
       const tools = toolService.getTools();
 
-      const created = await tools!.create_workflow.execute({
+      const created = await tools!.create_routine.execute({
         name: 'Original',
         purpose: 'Test',
         description: 'Test'
       });
 
-      const result = await tools!.update_workflow.execute({
-        workflowId: created.data.workflowId,
+      const result = await tools!.update_routine.execute({
+        workflowId: created.data.routineId,
         name: 'Updated'
       });
 
@@ -338,14 +338,14 @@ describe('Workflow Tools Integration', () => {
     it('should update workflow status', async () => {
       const tools = toolService.getTools();
 
-      const created = await tools!.create_workflow.execute({
+      const created = await tools!.create_routine.execute({
         name: 'Active',
         purpose: 'Test',
         description: 'Test'
       });
 
-      const result = await tools!.update_workflow.execute({
-        workflowId: created.data.workflowId,
+      const result = await tools!.update_routine.execute({
+        workflowId: created.data.routineId,
         status: 'paused'
       });
 
@@ -356,7 +356,7 @@ describe('Workflow Tools Integration', () => {
     it('should update recurring spec', async () => {
       const tools = toolService.getTools();
 
-      const created = await tools!.create_workflow.execute({
+      const created = await tools!.create_routine.execute({
         name: 'Scheduled',
         purpose: 'Test',
         description: 'Test',
@@ -369,8 +369,8 @@ describe('Workflow Tools Integration', () => {
         time: '09:00'
       };
 
-      const result = await tools!.update_workflow.execute({
-        workflowId: created.data.workflowId,
+      const result = await tools!.update_routine.execute({
+        workflowId: created.data.routineId,
         recurringSpec: newSpec
       });
 
@@ -382,20 +382,20 @@ describe('Workflow Tools Integration', () => {
     it('should reject duplicate name on update', async () => {
       const tools = toolService.getTools();
 
-      await tools!.create_workflow.execute({
+      await tools!.create_routine.execute({
         name: 'First',
         purpose: 'Test',
         description: 'Test'
       });
 
-      const second = await tools!.create_workflow.execute({
+      const second = await tools!.create_routine.execute({
         name: 'Second',
         purpose: 'Test',
         description: 'Test'
       });
 
-      const result = await tools!.update_workflow.execute({
-        workflowId: second.data.workflowId,
+      const result = await tools!.update_routine.execute({
+        workflowId: second.data.routineId,
         name: 'First'
       });
 
@@ -404,26 +404,26 @@ describe('Workflow Tools Integration', () => {
     });
   });
 
-  describe('delete_workflow tool', () => {
+  describe('delete_routine tool', () => {
     it('should soft delete a workflow', async () => {
       const tools = toolService.getTools();
 
-      const created = await tools!.create_workflow.execute({
+      const created = await tools!.create_routine.execute({
         name: 'To Delete',
         purpose: 'Will be deleted',
         description: 'Test'
       });
 
-      const result = await tools!.delete_workflow.execute({
-        workflowId: created.data.workflowId
+      const result = await tools!.delete_routine.execute({
+        workflowId: created.data.routineId
       });
 
       expect(result.success).toBe(true);
-      expect(result.message).toContain('Deleted workflow');
+      expect(result.message).toContain('Deleted routine');
 
       // Verify it's archived
-      const retrieved = await tools!.get_workflow.execute({
-        workflowId: created.data.workflowId
+      const retrieved = await tools!.get_routine.execute({
+        workflowId: created.data.routineId
       });
 
       expect(retrieved.data.status).toBe('archived');
@@ -432,35 +432,35 @@ describe('Workflow Tools Integration', () => {
     it('should handle non-existent workflow', async () => {
       const tools = toolService.getTools();
 
-      const result = await tools!.delete_workflow.execute({
+      const result = await tools!.delete_routine.execute({
         workflowId: 'w-nonexist'
       });
 
       expect(result.success).toBe(false);
-      expect(result.error).toBe('WORKFLOW_NOT_FOUND');
+      expect(result.error).toBe('ROUTINE_NOT_FOUND');
     });
   });
 
-  describe('complete_workflow tool', () => {
+  describe('complete_routine tool', () => {
     it('should complete a one-time workflow', async () => {
       const tools = toolService.getTools();
 
-      const created = await tools!.create_workflow.execute({
+      const created = await tools!.create_routine.execute({
         name: 'One-time',
         purpose: 'Complete once',
         description: 'Test'
       });
 
-      const result = await tools!.complete_workflow.execute({
-        workflowId: created.data.workflowId
+      const result = await tools!.complete_routine.execute({
+        workflowId: created.data.routineId
       });
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('Completed');
 
       // Verify status changed to completed
-      const retrieved = await tools!.get_workflow.execute({
-        workflowId: created.data.workflowId
+      const retrieved = await tools!.get_routine.execute({
+        workflowId: created.data.routineId
       });
 
       expect(retrieved.data.status).toBe('completed');
@@ -469,22 +469,22 @@ describe('Workflow Tools Integration', () => {
     it('should complete a recurring workflow and keep it active', async () => {
       const tools = toolService.getTools();
 
-      const created = await tools!.create_workflow.execute({
+      const created = await tools!.create_routine.execute({
         name: 'Recurring',
         purpose: 'Runs daily',
         description: 'Test',
         recurringSpec: { frequency: 'daily' }
       });
 
-      const result = await tools!.complete_workflow.execute({
-        workflowId: created.data.workflowId
+      const result = await tools!.complete_routine.execute({
+        workflowId: created.data.routineId
       });
 
       expect(result.success).toBe(true);
 
       // Verify status is still active
-      const retrieved = await tools!.get_workflow.execute({
-        workflowId: created.data.workflowId
+      const retrieved = await tools!.get_routine.execute({
+        workflowId: created.data.routineId
       });
 
       expect(retrieved.data.status).toBe('active');
@@ -494,22 +494,22 @@ describe('Workflow Tools Integration', () => {
     it('should record completion notes', async () => {
       const tools = toolService.getTools();
 
-      const created = await tools!.create_workflow.execute({
+      const created = await tools!.create_routine.execute({
         name: 'Task',
         purpose: 'Test',
         description: 'Test'
       });
 
-      const result = await tools!.complete_workflow.execute({
-        workflowId: created.data.workflowId,
+      const result = await tools!.complete_routine.execute({
+        workflowId: created.data.routineId,
         notes: 'Completed with extra notes'
       });
 
       expect(result.success).toBe(true);
 
       // Verify notes in history
-      const retrieved = await tools!.get_workflow.execute({
-        workflowId: created.data.workflowId,
+      const retrieved = await tools!.get_routine.execute({
+        workflowId: created.data.routineId,
         includeCompletionHistory: true
       });
 
@@ -521,22 +521,22 @@ describe('Workflow Tools Integration', () => {
     it('should record output note ID', async () => {
       const tools = toolService.getTools();
 
-      const created = await tools!.create_workflow.execute({
+      const created = await tools!.create_routine.execute({
         name: 'Task',
         purpose: 'Test',
         description: 'Test'
       });
 
-      const result = await tools!.complete_workflow.execute({
-        workflowId: created.data.workflowId,
+      const result = await tools!.complete_routine.execute({
+        workflowId: created.data.routineId,
         outputNoteId: 'general/output'
       });
 
       expect(result.success).toBe(true);
 
       // Verify output note in history
-      const retrieved = await tools!.get_workflow.execute({
-        workflowId: created.data.workflowId,
+      const retrieved = await tools!.get_routine.execute({
+        workflowId: created.data.routineId,
         includeCompletionHistory: true
       });
 
@@ -544,18 +544,18 @@ describe('Workflow Tools Integration', () => {
     });
   });
 
-  describe('add_workflow_material tool', () => {
+  describe('add_routine_material tool', () => {
     it('should add text material to workflow', async () => {
       const tools = toolService.getTools();
 
-      const created = await tools!.create_workflow.execute({
+      const created = await tools!.create_routine.execute({
         name: 'Workflow',
         purpose: 'Test',
         description: 'Test'
       });
 
-      const result = await tools!.add_workflow_material.execute({
-        workflowId: created.data.workflowId,
+      const result = await tools!.add_routine_material.execute({
+        workflowId: created.data.routineId,
         type: 'text',
         content: 'Important context information'
       });
@@ -567,14 +567,14 @@ describe('Workflow Tools Integration', () => {
     it('should add code material with metadata', async () => {
       const tools = toolService.getTools();
 
-      const created = await tools!.create_workflow.execute({
+      const created = await tools!.create_routine.execute({
         name: 'Workflow',
         purpose: 'Test',
         description: 'Test'
       });
 
-      const result = await tools!.add_workflow_material.execute({
-        workflowId: created.data.workflowId,
+      const result = await tools!.add_routine_material.execute({
+        workflowId: created.data.routineId,
         type: 'code',
         content: 'function test() { return "test"; }',
         metadata: { language: 'javascript' }
@@ -587,14 +587,14 @@ describe('Workflow Tools Integration', () => {
     it('should add note reference', async () => {
       const tools = toolService.getTools();
 
-      const created = await tools!.create_workflow.execute({
+      const created = await tools!.create_routine.execute({
         name: 'Workflow',
         purpose: 'Test',
         description: 'Test'
       });
 
-      const result = await tools!.add_workflow_material.execute({
-        workflowId: created.data.workflowId,
+      const result = await tools!.add_routine_material.execute({
+        workflowId: created.data.routineId,
         type: 'note_reference',
         noteId: 'general/reference'
       });
@@ -605,34 +605,34 @@ describe('Workflow Tools Integration', () => {
     it('should handle non-existent workflow', async () => {
       const tools = toolService.getTools();
 
-      const result = await tools!.add_workflow_material.execute({
+      const result = await tools!.add_routine_material.execute({
         workflowId: 'w-nonexist',
         type: 'text',
         content: 'Test'
       });
 
       expect(result.success).toBe(false);
-      expect(result.error).toBe('WORKFLOW_NOT_FOUND');
+      expect(result.error).toBe('ROUTINE_NOT_FOUND');
     });
   });
 
-  describe('remove_workflow_material tool', () => {
+  describe('remove_routine_material tool', () => {
     it('should remove material from workflow', async () => {
       const tools = toolService.getTools();
 
-      const created = await tools!.create_workflow.execute({
+      const created = await tools!.create_routine.execute({
         name: 'Workflow',
         purpose: 'Test',
         description: 'Test'
       });
 
-      const material = await tools!.add_workflow_material.execute({
-        workflowId: created.data.workflowId,
+      const material = await tools!.add_routine_material.execute({
+        workflowId: created.data.routineId,
         type: 'text',
         content: 'To be removed'
       });
 
-      const result = await tools!.remove_workflow_material.execute({
+      const result = await tools!.remove_routine_material.execute({
         materialId: material.data.materialId
       });
 
@@ -640,8 +640,8 @@ describe('Workflow Tools Integration', () => {
       expect(result.message).toContain('Removed');
 
       // Verify it was removed
-      const retrieved = await tools!.get_workflow.execute({
-        workflowId: created.data.workflowId,
+      const retrieved = await tools!.get_routine.execute({
+        workflowId: created.data.routineId,
         includeSupplementaryMaterials: true
       });
 
@@ -651,7 +651,7 @@ describe('Workflow Tools Integration', () => {
     it('should handle non-existent material', async () => {
       const tools = toolService.getTools();
 
-      const result = await tools!.remove_workflow_material.execute({
+      const result = await tools!.remove_routine_material.execute({
         materialId: 'wm-nonexist'
       });
 
@@ -660,19 +660,19 @@ describe('Workflow Tools Integration', () => {
     });
   });
 
-  describe('workflow tools availability', () => {
-    it('should include all 8 workflow tools when service is ready', async () => {
+  describe('routine tools availability', () => {
+    it('should include all 8 routine tools when service is ready', async () => {
       const tools = toolService.getTools();
 
       expect(tools).toBeDefined();
-      expect(tools?.create_workflow).toBeDefined();
-      expect(tools?.update_workflow).toBeDefined();
-      expect(tools?.delete_workflow).toBeDefined();
-      expect(tools?.list_workflows).toBeDefined();
-      expect(tools?.get_workflow).toBeDefined();
-      expect(tools?.complete_workflow).toBeDefined();
-      expect(tools?.add_workflow_material).toBeDefined();
-      expect(tools?.remove_workflow_material).toBeDefined();
+      expect(tools?.create_routine).toBeDefined();
+      expect(tools?.update_routine).toBeDefined();
+      expect(tools?.delete_routine).toBeDefined();
+      expect(tools?.list_routines).toBeDefined();
+      expect(tools?.get_routine).toBeDefined();
+      expect(tools?.complete_routine).toBeDefined();
+      expect(tools?.add_routine_material).toBeDefined();
+      expect(tools?.remove_routine_material).toBeDefined();
     });
   });
 });

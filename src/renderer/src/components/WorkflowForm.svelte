@@ -134,7 +134,7 @@
 
 <div class="workflow-form">
   <div class="form-header">
-    <h2>{isEdit ? 'Edit Workflow' : 'Create Workflow'}</h2>
+    <h2>{isEdit ? 'Edit Routine' : 'Create Routine'}</h2>
   </div>
 
   <form
@@ -196,7 +196,7 @@
         <textarea
           id="description"
           bind:value={description}
-          placeholder="Detailed step-by-step instructions for executing this workflow..."
+          placeholder="Detailed step-by-step instructions for executing this routine..."
           rows="8"
           required
           class:invalid={description && !descriptionValid}
@@ -322,7 +322,7 @@
 
     <div class="form-actions">
       <button type="submit" class="btn-primary" disabled={!formValid || submitting}>
-        {submitting ? 'Saving...' : isEdit ? 'Save Changes' : 'Create Workflow'}
+        {submitting ? 'Saving...' : isEdit ? 'Save Changes' : 'Create Routine'}
       </button>
       {#if onCancel}
         <button

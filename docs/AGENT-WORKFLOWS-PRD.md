@@ -1,19 +1,21 @@
-# Agent Workflows - Product Requirements Document
+# Agent Routines - Product Requirements Document
 
 **Document Status:** Draft
 **Created:** 2025-10-20
 **Author:** System Design
-**Version:** 1.0
+**Version:** 1.1 - Terminology Update
+
+**Note:** This document describes the "Routines" feature. While the internal implementation uses "workflow" terminology in database schema, API methods, and code, all user-facing and agent-facing interfaces refer to this feature as "Routines".
 
 ---
 
 ## Executive Summary
 
-Agent Workflows enable collaborative workflow management between AI agents and users across conversation threads. Workflows are persistent data records containing instructions, context, and supplementary materials that agents can reference and execute. The system supports both one-time and recurring workflows, allowing users to define tasks that agents proactively manage over time.
+Agent Routines enable collaborative routine management between AI agents and users across conversation threads. Routines are persistent data records containing instructions, context, and supplementary materials that agents can reference and execute. The system supports both one-time and recurring routines, allowing users to define tasks that agents proactively manage over time.
 
-**Core Value Proposition:** Enable users to teach agents persistent workflows that execute consistently across sessions, reducing repetitive instructions and enabling proactive assistance.
+**Core Value Proposition:** Enable users to teach agents persistent routines that execute consistently across sessions, reducing repetitive instructions and enabling proactive assistance.
 
-**Key Example:** A user creates a "Weekly Summary" workflow that runs every Sunday. The workflow contains detailed instructions for synthesizing the week's daily notes into a structured weekly note. Every Sunday, agents across all conversation threads are aware this workflow is due and can proactively offer to execute it.
+**Key Example:** A user creates a "Weekly Summary" routine that runs every Sunday. The routine contains detailed instructions for synthesizing the week's daily notes into a structured weekly note. Every Sunday, agents across all conversation threads are aware this routine is due and can proactively offer to execute it.
 
 ---
 

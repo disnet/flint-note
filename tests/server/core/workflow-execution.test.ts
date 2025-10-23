@@ -524,20 +524,20 @@ describe('WorkflowManager - Workflow Execution', () => {
 
       const context = await workflowManager.getWorkflowContextForPrompt(testVaultId);
 
-      expect(context).toContain('## Available Workflows');
+      expect(context).toContain('## Available Routines');
       expect(context).toContain('Due Now');
       expect(context).toContain('Upcoming');
-      expect(context).toContain('On Demand');
-      expect(context).toContain('get_workflow');
-      expect(context).toContain('complete_workflow');
+      expect(context).toContain('On-Demand Routines');
+      expect(context).toContain('get_routine');
+      expect(context).toContain('complete_routine');
     });
 
     it('should handle vaults with no workflows', async () => {
       const context = await workflowManager.getWorkflowContextForPrompt(testVaultId);
 
-      expect(context).toContain('## Available Workflows');
+      expect(context).toContain('## Available Routines');
       // Should still have the tool hint even if no workflows
-      expect(context).toContain('get_workflow');
+      expect(context).toContain('get_routine');
     });
 
     it('should include recurring schedule information', async () => {

@@ -954,13 +954,13 @@ export class WorkflowManager {
       includeArchived: false
     });
 
-    let context = '## Available Workflows\n\n';
+    let context = '## Available Routines\n\n';
 
     // Due now - highest priority
     if (dueNow.length > 0) {
       context += '### Due Now\n';
       for (const workflow of dueNow) {
-        const schedule = workflow.dueInfo?.recurringSchedule || 'one-time workflow';
+        const schedule = workflow.dueInfo?.recurringSchedule || 'one-time routine';
         context += `- **${workflow.name}**: ${workflow.purpose} (${schedule})\n`;
       }
       context += '\n';
@@ -986,7 +986,7 @@ export class WorkflowManager {
     );
 
     if (onDemand.length > 0) {
-      context += '### On-Demand Workflows\n';
+      context += '### On-Demand Routines\n';
       for (const workflow of onDemand.slice(0, 5)) {
         // Max 5 to save tokens
         context += `- **${workflow.name}**: ${workflow.purpose}\n`;
@@ -996,7 +996,7 @@ export class WorkflowManager {
 
     // Add tool hint
     context +=
-      '*Use `get_workflow` to load full details and `complete_workflow` when finished.*\n';
+      '*Use `get_routine` to load full details and `complete_routine` when finished.*\n';
 
     return context;
   }

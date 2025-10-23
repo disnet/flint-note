@@ -231,9 +231,18 @@ declare namespace FlintAPI {
   }
 
   interface MoveNoteResult {
-    id: string;
+    success: boolean;
+    old_id: string;
+    new_id: string;
+    old_type: string;
+    new_type: string;
     old_path: string;
     new_path: string;
+    filename: string;
+    title: string;
+    timestamp: string;
+    links_updated: number;
+    notes_with_updated_links: number;
   }
 
   interface SearchNotesOptions {
