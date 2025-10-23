@@ -29,6 +29,7 @@
   const hasWorkflows = $derived(
     workflowStore.workflowsDueNow.length > 0 ||
       workflowStore.upcomingWorkflows.length > 0 ||
+      workflowStore.scheduledWorkflows.length > 0 ||
       workflowStore.onDemandWorkflows.length > 0
   );
 </script>
@@ -91,6 +92,37 @@
             </button>
           {/each}
         </div>
+      </section>
+    {/if}
+
+    {#if workflowStore.scheduledWorkflows.length > 0}
+      <section class="workflow-section scheduled">
+        <h4>Scheduled</h4>
+        <div class="workflow-cards">
+          {#each workflowStore.scheduledWorkflows.slice(0, 3) as workflow (workflow.id)}
+            <button class="workflow-card" onclick={() => handleExecute(workflow)}>
+              <div class="card-header">
+                <span class="workflow-name">{workflow.name}</span>
+                {#if workflow.dueInfo}
+                  <span class="badge badge-scheduled">
+                    {workflowStore.formatDueDate(workflow.dueInfo)}
+                  </span>
+                {/if}
+              </div>
+              <div class="workflow-tooltip">{workflow.purpose}</div>
+            </button>
+          {/each}
+        </div>
+        {#if workflowStore.scheduledWorkflows.length > 3}
+          <p class="more-hint">
+            +{workflowStore.scheduledWorkflows.length - 3} more scheduled routine{workflowStore
+              .scheduledWorkflows.length -
+              3 >
+            1
+              ? 's'
+              : ''}
+          </p>
+        {/if}
       </section>
     {/if}
 
@@ -292,6 +324,12 @@
     background: rgba(59, 130, 246, 0.15);
     color: var(--accent-primary);
     border: 1px solid var(--accent-primary);
+  }
+
+  .badge-scheduled {
+    background: rgba(156, 163, 175, 0.15);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-medium);
   }
 
   .workflow-tooltip {

@@ -79,6 +79,10 @@ const onDemandWorkflows = $derived(
   )
 );
 
+const scheduledWorkflows = $derived(
+  workflows.filter((w) => w.dueInfo?.type === 'scheduled' && w.status === 'active')
+);
+
 const activeWorkflows = $derived(workflows.filter((w) => w.status === 'active'));
 
 const backlogWorkflows = $derived(
@@ -173,6 +177,9 @@ export const workflowStore = {
   },
   get onDemandWorkflows() {
     return onDemandWorkflows;
+  },
+  get scheduledWorkflows() {
+    return scheduledWorkflows;
   },
   get activeWorkflows() {
     return activeWorkflows;

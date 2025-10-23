@@ -154,9 +154,9 @@
     unifiedChatStore.createThread();
   }
 
-  function handleExecuteWorkflow(_workflowId: string, workflowName: string): void {
+  function handleExecuteWorkflow(workflowId: string, _workflowName: string): void {
     // Send a message to execute the workflow
-    const message = `Execute workflow: ${workflowName}`;
+    const message = `Execute routine: ${workflowId}`;
     onSendMessage?.(message);
   }
 
