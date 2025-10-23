@@ -17,10 +17,26 @@
 
   let titleValue = $state(value);
   let isProcessing = $state(false);
+  let inputElement: HTMLInputElement | null = null;
+
+  // Track if user is actively editing to prevent external updates during editing
+  let isEditing = $state(false);
+
+  // Initialize the input value when the element is bound
+  $effect(() => {
+    if (inputElement && inputElement.value === '') {
+      inputElement.value = value;
+    }
+  });
 
   $effect(() => {
-    if (titleValue !== value) {
+    // Only sync external changes when NOT actively editing
+    if (!isEditing && value !== titleValue) {
       titleValue = value;
+      // Manually update the input DOM to avoid re-render flash
+      if (inputElement && document.activeElement !== inputElement) {
+        inputElement.value = value;
+      }
     }
   });
 
@@ -29,6 +45,7 @@
 
     // Allow saving empty titles, but skip if unchanged or processing
     if (trimmedTitle === value || disabled || isProcessing) {
+      isEditing = false;
       return;
     }
 
@@ -40,12 +57,22 @@
       throw error;
     } finally {
       isProcessing = false;
+      isEditing = false;
     }
   }
 
   function handleCancel(): void {
     titleValue = value;
+    isEditing = false;
     onCancel?.();
+  }
+
+  function handleFocus(): void {
+    isEditing = true;
+  }
+
+  function handleBlur(): void {
+    handleSave();
   }
 
   function handleKeydown(event: KeyboardEvent): void {
@@ -61,22 +88,25 @@
   }
 
   export function focus(): void {
-    const input = document.querySelector('.note-title-input') as HTMLInputElement;
-    if (input) {
-      input.focus();
-      input.select();
+    if (inputElement) {
+      inputElement.focus();
+      inputElement.select();
     }
   }
 </script>
 
 <input
-  bind:value={titleValue}
+  bind:this={inputElement}
+  oninput={(e) => {
+    titleValue = (e.target as HTMLInputElement).value;
+  }}
   class="note-title-input"
   class:processing={isProcessing}
   class:empty={!titleValue || titleValue.trim().length === 0}
   type="text"
   onkeydown={handleKeydown}
-  onblur={handleSave}
+  onfocus={handleFocus}
+  onblur={handleBlur}
   {placeholder}
   {disabled}
 />
