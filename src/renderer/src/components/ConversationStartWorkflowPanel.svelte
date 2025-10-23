@@ -114,12 +114,9 @@
 
 <style>
   .conversation-start-workflows {
-    padding: 1.25rem;
-    background: var(--bg-primary);
-    border: 1px solid var(--border-light);
-    border-radius: 8px;
-    margin-bottom: 1rem;
-    box-shadow: 0 1px 3px var(--shadow-light);
+    padding: 1rem 0;
+    background: transparent;
+    margin-bottom: 1.5rem;
   }
 
   .panel-header {
@@ -154,22 +151,16 @@
   }
 
   .workflow-description {
-    margin: 0 0 1rem 0;
+    margin: 0 0 1.25rem 0;
     font-size: 0.875rem;
     color: var(--text-muted);
     line-height: 1.6;
-    padding: 0.75rem;
-    background: var(--bg-tertiary);
-    border-radius: 6px;
-    border-left: 3px solid var(--accent-primary);
   }
 
   .empty-state {
-    padding: 2.5rem 1.5rem;
+    padding: 2rem 1rem;
     text-align: center;
-    background: var(--bg-tertiary);
-    border-radius: 8px;
-    border: 1px dashed var(--border-medium);
+    background: transparent;
   }
 
   .empty-message {
