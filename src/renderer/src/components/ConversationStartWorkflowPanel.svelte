@@ -5,9 +5,10 @@
   interface Props {
     onExecuteWorkflow?: (workflowId: string, workflowName: string) => void;
     onViewAll?: () => void;
+    onSendMessage?: (text: string) => void;
   }
 
-  let { onExecuteWorkflow, onViewAll }: Props = $props();
+  let { onExecuteWorkflow, onViewAll, onSendMessage }: Props = $props();
 
   // Load workflows on mount
   $effect(() => {
@@ -16,6 +17,12 @@
 
   function handleExecute(workflow: WorkflowListItem): void {
     onExecuteWorkflow?.(workflow.id, workflow.name);
+  }
+
+  function handleCreateExampleRoutine(): void {
+    onSendMessage?.(
+      "Create a weekly review routine that runs every Sunday. It should summarize the past week of notes I've worked on"
+    );
   }
 
   // Check if there are any workflows to show
@@ -44,6 +51,9 @@
     <div class="empty-state">
       <p class="empty-message">No routines are currently available.</p>
       <p class="empty-hint">Create routines to automate note maintenance tasks.</p>
+      <button class="btn-create-example" onclick={handleCreateExampleRoutine}>
+        Create Example Routine
+      </button>
     </div>
   {:else}
     {#if workflowStore.workflowsDueNow.length > 0}
@@ -171,9 +181,31 @@
   }
 
   .empty-hint {
-    margin: 0;
+    margin: 0 0 1rem 0;
     font-size: 0.8125rem;
     color: var(--text-muted);
+  }
+
+  .btn-create-example {
+    padding: 0.625rem 1.25rem;
+    background: var(--accent-primary);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-create-example:hover {
+    background: var(--accent-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px var(--shadow-medium);
+  }
+
+  .btn-create-example:active {
+    transform: translateY(0);
   }
 
   .workflow-section {

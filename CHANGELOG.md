@@ -4,6 +4,52 @@ All notable changes to the Flint application will be documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.7.0]
+
+### Added
+
+**AI Assistant Routines**
+
+Flint now supports creating automated routines that the AI assistant can execute on your behalf. Routines can be triggered on a recurring schedule or run on-demand:
+
+- **Create custom routines**: Define multi-step tasks in plain language that the assistant will execute automatically (e.g., "Find all notes tagged 'reading' from the past week and create a weekly digest")
+- **Scheduled execution**: Set up routines to run daily, weekly, monthly, or on custom schedules at specific times
+- **On-demand workflows**: Create routines that you can trigger manually whenever needed
+- **Supplementary materials**: Attach reference notes, templates, and examples to help the assistant execute routines effectively
+- **Routine management UI**: New "Routines" view in the left sidebar for creating, editing, and managing your automated workflows
+- **Backlog discovery**: The assistant can transparently create routine suggestions based on patterns it notices while working (e.g., duplicate notes, stale project statuses, missing tags)
+
+Example use cases include weekly note digests, monthly goal reviews, meeting preparation, content creation pipelines, and knowledge base maintenance tasks.
+
+**Better AI Assistant tool integration**
+
+The AI assistant now has enhanced capabilities for working with your notes:
+
+- **Check and move notes**: The assistant can check if notes exist and move them between folders while preserving links and metadata
+- **Larger message input**: The message input field can now grow taller to accommodate longer requests
+
+**External file change detection**
+
+Flint now watches for changes made to your notes outside the application:
+
+- **Automatic sync**: Changes made in external text editors are automatically detected and synced
+- **Conflict prevention**: The app prevents accidental overwrites when files are modified externally
+- **Index synchronization**: The search index automatically updates when external changes are detected
+- **Missing note detection**: Notes added to vault folders outside Flint are automatically discovered and indexed
+
+### Changed
+
+- Improved context estimation to account for tool calls in the AI assistant
+- Note editor is now reactive to edits made by the AI assistant
+- Enhanced styling for the routines/workflows UI
+
+### Fixed
+
+- Fixed infinite loop when sidebar had zero notes
+- Fixed issue with AI assistant threads not saving correctly during vault switching
+- Fixed reading notes with missing title or frontmatter
+- Fixed rename events not properly updating the active note
+
 ## [0.6.0]
 
 ### Added

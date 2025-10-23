@@ -247,6 +247,7 @@
       <ConversationStartWorkflowPanel
         onExecuteWorkflow={handleExecuteWorkflow}
         onViewAll={onViewWorkflows}
+        {onSendMessage}
       />
     {/if}
     {#each messages as message (message.id)}
