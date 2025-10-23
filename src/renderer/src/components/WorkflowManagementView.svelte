@@ -184,22 +184,24 @@
   </div>
 
   <div class="management-content">
-    <div class="list-panel">
-      {#if showCreateForm || showEditForm}
-        <WorkflowForm
-          workflow={showEditForm ? editingWorkflow : null}
-          onSubmit={handleFormSubmit}
-          onCancel={handleFormCancel}
-        />
-      {:else}
-        <WorkflowList
-          selectedId={selectedWorkflowId}
-          onSelect={handleSelectWorkflow}
-          onExecute={handleExecuteWorkflow}
-          filter={currentFilter}
-        />
-      {/if}
-    </div>
+    {#if !selectedWorkflowId || showCreateForm || showEditForm}
+      <div class="list-panel">
+        {#if showCreateForm || showEditForm}
+          <WorkflowForm
+            workflow={showEditForm ? editingWorkflow : null}
+            onSubmit={handleFormSubmit}
+            onCancel={handleFormCancel}
+          />
+        {:else}
+          <WorkflowList
+            selectedId={selectedWorkflowId}
+            onSelect={handleSelectWorkflow}
+            onExecute={handleExecuteWorkflow}
+            filter={currentFilter}
+          />
+        {/if}
+      </div>
+    {/if}
 
     {#if selectedWorkflowId && !showCreateForm && !showEditForm}
       <div class="detail-panel">
@@ -220,7 +222,6 @@
     display: flex;
     flex-direction: column;
     height: 100%;
-    background: var(--bg-tertiary);
   }
 
   .management-header {
@@ -383,7 +384,7 @@
   }
 
   .detail-panel {
-    width: 400px;
+    flex: 1;
     background: var(--bg-primary);
     border: 1px solid var(--border-light);
     border-radius: 8px;
