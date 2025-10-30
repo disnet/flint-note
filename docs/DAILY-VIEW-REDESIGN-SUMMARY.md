@@ -18,12 +18,14 @@ Complete redesign of the daily view to create a more compact, scannable interfac
 ### 1. Gutter-Based Layout
 
 **Previous Design:**
+
 - Full-width cards for each day
 - Header with background color and borders
 - Day displayed as "Monday, January 27" with "Today" badge
 - Border radius and box shadows on cards
 
 **New Design:**
+
 - CSS Grid layout: 80px gutter column + flexible content column
 - Day labels in sticky gutter (Mon, Tue, Wed, Thu, Fri, Sat, Sun)
 - Labels stick to top as you scroll (single label visible at a time)
@@ -31,21 +33,25 @@ Complete redesign of the daily view to create a more compact, scannable interfac
 - Clickable day labels navigate to full note view
 
 **Implementation:**
+
 - `DaySection.svelte`: Grid layout with `grid-template-columns: 80px 1fr`
 - Sticky positioning on `.day-gutter` with `position: sticky; top: 0`
 - Short day names via `date.toLocaleDateString('en-US', { weekday: 'short' })`
 
 **Files Modified:**
+
 - `src/renderer/src/components/DaySection.svelte` - Complete restructure
 
 ### 2. Smart Height Editors with Animations
 
 **Previous Design:**
+
 - Editors grew naturally with content, no height constraints
 - All days visible at full height simultaneously
 - Could require significant scrolling for weeks with many entries
 
 **New Design:**
+
 - **Unfocused**: Fixed at 5 lines (120px) with fade gradient overlay
 - **Focused**: Expands to large height (10000px) to accommodate content
 - **Smooth transitions**: 0.5s ease-in-out animation on focus/blur
@@ -53,6 +59,7 @@ Complete redesign of the daily view to create a more compact, scannable interfac
 - **Read-only when unfocused**: Cannot edit until you click to focus
 
 **Behavior:**
+
 1. Unfocused editor shows 5 lines with fade gradient
 2. Click anywhere on editor to focus
 3. Editor smoothly expands and becomes editable
@@ -62,6 +69,7 @@ Complete redesign of the daily view to create a more compact, scannable interfac
 **Implementation Details:**
 
 **Height Management:**
+
 ```typescript
 // DailyNoteEditor.svelte
 const maxHeight = $derived.by(() => {
@@ -73,6 +81,7 @@ const maxHeight = $derived.by(() => {
 ```
 
 **CSS Transitions:**
+
 ```css
 /* CodeMirrorEditor.svelte */
 .editor-container {
@@ -81,6 +90,7 @@ const maxHeight = $derived.by(() => {
 ```
 
 **Read-Only State:**
+
 ```typescript
 // DailyNoteEditor.svelte
 readOnly={!isFocused && !isManuallyExpanded}
@@ -95,6 +105,7 @@ editorView.dispatch({
 ```
 
 **Conditional Flex Behavior:**
+
 ```css
 /* CodeMirrorEditor.svelte */
 .editor-container.has-max-height {
@@ -104,12 +115,14 @@ editorView.dispatch({
 ```
 
 **Files Modified:**
+
 - `src/renderer/src/components/DailyNoteEditor.svelte` - Height and read-only logic
 - `src/renderer/src/components/CodeMirrorEditor.svelte` - Transitions and expand controls
 
 ### 3. Fade Gradient & Expand Button
 
 **Visual Design:**
+
 - 80px linear gradient from transparent to background color
 - Expand button positioned at bottom center of gradient
 - Chevron-down icon
@@ -117,6 +130,7 @@ editorView.dispatch({
 - Clicking button focuses editor and expands it
 
 **Implementation:**
+
 ```svelte
 {#if showExpandControls && content}
   <div class="expand-controls">
@@ -129,6 +143,7 @@ editorView.dispatch({
 ```
 
 **Styling:**
+
 ```css
 .fade-gradient {
   height: 80px;
@@ -150,34 +165,41 @@ editorView.dispatch({
 ### 4. Removed "Notes Worked On" Section
 
 **Previous Design:**
+
 - Section below each daily note showing notes created/modified that day
 - "NOTES WORKED ON THIS DAY" header with count badge
 - List of note links with activity labels
 
 **New Design:**
+
 - Section completely removed
 - Cleaner, more focused daily note entries
 - Reduced vertical space per day
 
 **Rationale:**
+
 - Users can find this information through other views
 - Cluttered the daily view unnecessarily
 - Conflicted with goal of minimal chrome
 
 **Files Modified:**
+
 - `src/renderer/src/components/DailyView.svelte` - Removed NotesWorkedOn integration
 
 ### 5. Minimal Dividers
 
 **Previous Design:**
+
 - Full-width border on entire day section card
 
 **New Design:**
+
 - Divider only spans content area (not gutter)
 - Positioned as bottom border within `.day-content`
 - 1rem margin top and bottom for breathing room
 
 **Implementation:**
+
 ```html
 <div class="day-content">
   <DailyNoteEditor ... />
@@ -194,6 +216,7 @@ editorView.dispatch({
 ```
 
 **Visual Result:**
+
 ```
 MON  This is the monday entry...
 
@@ -207,6 +230,7 @@ TUE  This is the tuesday entry...
 ### 6. Responsive Behavior
 
 **Mobile Adjustments:**
+
 - Gutter width: 80px → 60px on screens ≤768px
 - Day label font size: 0.875rem → 0.75rem
 - Reduced padding throughout
@@ -226,12 +250,14 @@ DailyView.svelte
 ### State Management
 
 **DailyNoteEditor.svelte:**
+
 - `isFocused: boolean` - Tracks editor focus state
 - `isManuallyExpanded: boolean` - Tracks manual expansion via button
 - `maxHeight: string` - Derived from focus/expansion state
 - `showExpandControls: boolean` - Derived from focus state
 
 **Focus Events:**
+
 - `onFocusChange` callback propagates focus state from CodeMirrorEditor
 - Uses capture phase event listeners for reliable focus/blur detection
 - Updates read-only state and height constraints reactively
@@ -239,6 +265,7 @@ DailyView.svelte
 ### CSS Architecture
 
 **Key Design Tokens Used:**
+
 - `--bg-primary` - Base background color
 - `--bg-secondary` - Button backgrounds
 - `--border-light` - Dividers and borders
@@ -246,6 +273,7 @@ DailyView.svelte
 - `--accent-primary` - Today indicator
 
 **Layout Approach:**
+
 - CSS Grid for gutter + content layout
 - Flexbox within content areas
 - Sticky positioning for day labels
@@ -263,17 +291,20 @@ DailyView.svelte
 ### Before vs After Metrics
 
 **Vertical Space per Day (with content):**
+
 - Before: ~410px (header + full editor + notes section)
 - After: ~150px unfocused / ~150-600px focused (depends on content)
 - Reduction: 63% when unfocused
 
 **Chrome Removed:**
+
 - Card backgrounds and borders
 - Day header backgrounds (52px → 0px)
 - "Notes worked on" section headers and borders
 - Border radius and box shadows
 
 **Interaction Improvements:**
+
 - Click-to-focus for intentional editing
 - Visual feedback via animations (not instant snapping)
 - Expand button as clear affordance
@@ -298,6 +329,7 @@ DailyView.svelte
 ## Files Modified
 
 ### Core Changes
+
 1. `src/renderer/src/components/DailyView.svelte`
    - Removed NotesWorkedOn integration
    - Adjusted timeline gap and max-width
@@ -322,6 +354,7 @@ DailyView.svelte
    - Conditional flex behavior based on height constraints
 
 ### Testing
+
 - All TypeScript compilation: ✓ (0 errors)
 - ESLint: ✓ (all files pass)
 - Prettier: ✓ (all files formatted)

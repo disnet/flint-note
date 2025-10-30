@@ -27,6 +27,7 @@
     maxHeight?: string;
     showExpandControls?: boolean;
     toggleExpansion?: () => void;
+    readOnly?: boolean;
   }
 
   let {
@@ -40,7 +41,8 @@
     variant = 'default',
     maxHeight,
     showExpandControls = false,
-    toggleExpansion
+    toggleExpansion,
+    readOnly = false
   }: Props = $props();
 
   let editorContainer: Element;
@@ -181,12 +183,16 @@
     if (!editorView) return;
 
     editorView.dispatch({
-      effects: StateEffect.reconfigure.of(editorConfig.getExtensions())
+      effects: StateEffect.reconfigure.of([
+        ...editorConfig.getExtensions(),
+        EditorState.readOnly.of(readOnly)
+      ])
     });
 
     measureAndUpdateMarkerWidths();
   }
 
+  // Update editor config when it changes or when readOnly changes
   $effect(() => {
     updateEditorConfig();
   });
@@ -793,6 +799,7 @@
 
 <div
   class="editor-content"
+  class:read-only={readOnly}
   role="textbox"
   tabindex="-1"
   onclick={handleEditorAreaClick}
@@ -805,7 +812,7 @@
     style:max-height={maxHeight}
   ></div>
 
-  {#if showExpandControls && content}
+  {#if showExpandControls && content && content.split('\n').length > 5}
     <div class="expand-controls">
       <div class="fade-gradient"></div>
       <button
@@ -878,10 +885,18 @@
     position: relative;
   }
 
+  .editor-content.read-only {
+    cursor: text;
+  }
+
+  .editor-content.read-only .editor-container {
+    overflow: hidden !important;
+  }
+
   .editor-container {
     flex: 1;
     overflow: hidden;
-    transition: max-height 0.3s ease;
+    transition: max-height 0.5s ease-in-out;
   }
 
   .editor-container.has-max-height {

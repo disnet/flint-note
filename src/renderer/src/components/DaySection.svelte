@@ -52,7 +52,7 @@
       content={dayData.dailyNote?.content || ''}
       onContentChange={handleDailyNoteContentChange}
     />
-    <div class="day-divider"></div>
+    <!-- <div class="day-divider"></div> -->
   </div>
 </div>
 
@@ -60,7 +60,7 @@
   .day-section {
     display: grid;
     grid-template-columns: 80px 1fr;
-    min-height: 120px;
+    /*min-height: 120px;*/
   }
 
   .day-gutter {
@@ -98,13 +98,13 @@
 
   .day-content {
     padding: 1rem 0;
-    min-height: 120px;
+    /*min-height: 120px;*/
   }
 
   .day-divider {
     border-bottom: 1px solid var(--border-light);
     margin-top: 1rem;
-    margin-bottom: 1rem;
+    margin-bottom: 0;
   }
 
   /* Mobile responsive */

@@ -15,12 +15,12 @@
 
   // Calculate max height based on focus and expansion state
   // 5 lines when unfocused and not expanded: ~120px (24px per line)
-  // No limit when focused or manually expanded - grows to fit content
+  // Large height when focused or manually expanded - effectively no limit but allows CSS transitions
   const maxHeight = $derived.by(() => {
     if (isFocused || isManuallyExpanded) {
-      return undefined; // No height limit - grow to fit content
+      return '10000px'; // Very large height for smooth transition
     }
-    return '120px'; // 5 lines default
+    return '240px'; // 5 lines default
   });
 
   // Show expand button and fade gradient when:
@@ -79,6 +79,7 @@
     {maxHeight}
     {showExpandControls}
     {toggleExpansion}
+    readOnly={!isFocused && !isManuallyExpanded}
   />
 </div>
 
