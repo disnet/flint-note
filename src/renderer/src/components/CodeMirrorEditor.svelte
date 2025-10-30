@@ -20,9 +20,13 @@
       shouldCreate?: boolean,
       shiftKey?: boolean
     ) => Promise<void>;
+    onFocusChange?: (focused: boolean) => void;
     cursorPosition?: CursorPosition | null;
     placeholder?: string;
     variant?: 'default' | 'daily-note' | 'sidebar-note';
+    maxHeight?: string;
+    showExpandControls?: boolean;
+    toggleExpansion?: () => void;
   }
 
   let {
@@ -30,9 +34,13 @@
     onContentChange,
     onCursorChange,
     onWikilinkClick,
+    onFocusChange,
     cursorPosition,
     placeholder,
-    variant = 'default'
+    variant = 'default',
+    maxHeight,
+    showExpandControls = false,
+    toggleExpansion
   }: Props = $props();
 
   let editorContainer: Element;
@@ -263,7 +271,7 @@
   $effect(() => {
     if (!editorView) return;
 
-    const handleFocusChange = (): void => {
+    const handleBlur = (): void => {
       // Close popovers if editor loses focus
       if (!editorView?.hasFocus) {
         actionPopoverVisible = false;
@@ -280,13 +288,23 @@
           leaveTimeout = null;
         }
       }
+
+      // Notify parent of focus change
+      onFocusChange?.(false);
     };
 
-    // Use blur event on the editor to detect focus loss
-    editorView.dom.addEventListener('blur', handleFocusChange);
+    const handleFocus = (): void => {
+      // Notify parent of focus change
+      onFocusChange?.(true);
+    };
+
+    // Use blur and focus events on the editor
+    editorView.dom.addEventListener('blur', handleBlur, true);
+    editorView.dom.addEventListener('focus', handleFocus, true);
 
     return () => {
-      editorView?.dom.removeEventListener('blur', handleFocusChange);
+      editorView?.dom.removeEventListener('blur', handleBlur, true);
+      editorView?.dom.removeEventListener('focus', handleFocus, true);
     };
   });
 
@@ -780,7 +798,41 @@
   onclick={handleEditorAreaClick}
   onkeydown={handleEditorAreaKeydown}
 >
-  <div class="editor-container editor-font" bind:this={editorContainer}></div>
+  <div
+    class="editor-container editor-font"
+    class:has-max-height={!!maxHeight}
+    bind:this={editorContainer}
+    style:max-height={maxHeight}
+  ></div>
+
+  {#if showExpandControls && content}
+    <div class="expand-controls">
+      <div class="fade-gradient"></div>
+      <button
+        class="expand-button"
+        onclick={(e) => {
+          e.stopPropagation();
+          toggleExpansion?.();
+        }}
+        type="button"
+        title="Expand editor"
+        aria-label="Expand editor"
+      >
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="6 9 12 15 18 9"></polyline>
+        </svg>
+      </button>
+    </div>
+  {/if}
 </div>
 
 <div
@@ -823,9 +875,63 @@
     flex: 1;
     display: flex;
     flex-direction: column;
+    position: relative;
   }
 
   .editor-container {
     flex: 1;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+  }
+
+  .editor-container.has-max-height {
+    flex: 0 0 auto;
+    overflow-y: auto;
+  }
+
+  .expand-controls {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    pointer-events: none;
+  }
+
+  .fade-gradient {
+    height: 80px;
+    background: linear-gradient(to bottom, transparent 0%, var(--bg-primary) 100%);
+    pointer-events: none;
+  }
+
+  .expand-button {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    border-radius: 0.375rem;
+    padding: 0.375rem 0.75rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    pointer-events: auto;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  .expand-button:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border-color: var(--border-medium);
+  }
+
+  .expand-button svg {
+    width: 16px;
+    height: 16px;
   }
 </style>

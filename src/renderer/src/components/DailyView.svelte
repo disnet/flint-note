@@ -131,12 +131,12 @@
   }
 
   .timeline {
-    max-width: 800px;
+    max-width: 900px;
     margin: 0 auto;
     padding: 1rem 0 2rem;
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 0;
   }
 
   .error-state {

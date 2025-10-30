@@ -3,6 +3,7 @@
 ## Current Design Analysis
 
 ### Structure
+
 - **WeekNavigation**: Fixed header with week range and prev/next buttons
 - **DaySection (x7)**: One card per day containing:
   - Day header (date + "Today" badge)
@@ -36,9 +37,11 @@
 ### 1. Addressing Scrolling Issues
 
 #### Option A: Collapsible Day Sections ⭐ RECOMMENDED
+
 **Concept**: Add expand/collapse controls to each day
 
 **Features**:
+
 - Collapse icon in day header (chevron or +/-)
 - Auto-collapse past days by default
 - Keep today + next day expanded
@@ -47,11 +50,13 @@
 - Click anywhere on collapsed header to expand
 
 **Benefits**:
+
 - Dramatically reduces scrolling for filled-out weeks
 - User control over what they see
 - Reduces visual clutter (solves problem #2 too)
 
 **Implementation**:
+
 ```typescript
 // Add to DaySection.svelte
 let isExpanded = $state(isToday || isTomorrow);
@@ -64,9 +69,11 @@ function toggleExpanded() {
 ---
 
 #### Option B: Compact Mode Toggle
+
 **Concept**: Global view mode switcher (compact vs. expanded)
 
 **Features**:
+
 - Toggle button in WeekNavigation header
 - Compact mode:
   - Smaller editors (3-4 lines max)
@@ -76,6 +83,7 @@ function toggleExpanded() {
 - Expanded mode: current design
 
 **Benefits**:
+
 - Quick overview vs. detailed view
 - User chooses their preference
 - Single toggle affects all days
@@ -83,9 +91,11 @@ function toggleExpanded() {
 ---
 
 #### Option C: Smart Editor Auto-Height
+
 **Concept**: Editors automatically adjust height based on focus/content
 
 **Features**:
+
 - **Unfocused**: 3-4 line preview max
 - **Focused**: Expand to full content (or larger max like 15 lines)
 - **Empty**: Show placeholder at minimum height (2 lines)
@@ -93,36 +103,40 @@ function toggleExpanded() {
 - Smooth height transitions
 
 **Benefits**:
+
 - Reduces initial page height significantly
 - Natural interaction pattern
 - Keeps full editing capability
 - Works well with current design
 
 **Implementation**:
+
 ```typescript
 // CodeMirrorEditor enhancement
-let editorHeight = $derived(
-  isFocused ? 'auto' : '80px'
-);
+let editorHeight = $derived(isFocused ? 'auto' : '80px');
 ```
 
 ---
 
 #### Option D: Single Day Focus Mode
+
 **Concept**: Show only one day at a time in detail
 
 **Features**:
+
 - Vertical mini-calendar sidebar (7 day boxes)
 - Click day to focus it in main area
 - Show multiple days side-by-side on wide screens (>=1200px)
 - Swipe gestures on mobile to switch days
 
 **Benefits**:
+
 - Eliminates scrolling entirely
 - Clean, focused interface
 - Works great on mobile
 
 **Drawbacks**:
+
 - Loses weekly overview
 - More clicks to see other days
 - Bigger paradigm shift from current design
@@ -132,9 +146,11 @@ let editorHeight = $derived(
 ### 2. Reducing Chrome (UI Elements)
 
 #### Option A: Minimal Headers ⭐ RECOMMENDED
+
 **Concept**: Simplify day headers dramatically
 
 **Changes**:
+
 - Remove background color (or very subtle)
 - Reduce padding: `0.75rem 1rem` → `0.5rem 0.75rem`
 - Use just day name: "Monday" instead of "Monday, Jan 27"
@@ -148,9 +164,11 @@ let editorHeight = $derived(
 ---
 
 #### Option B: Borderless Design
+
 **Concept**: Remove card borders, use subtle dividers
 
 **Changes**:
+
 - Remove `border: 1px solid` from day sections
 - Replace with thin bottom divider (1px)
 - Remove border-radius
@@ -158,6 +176,7 @@ let editorHeight = $derived(
 - Let content breathe without boxes
 
 **Benefits**:
+
 - Cleaner, more modern look
 - Reduces visual noise
 - Focuses attention on content
@@ -165,20 +184,24 @@ let editorHeight = $derived(
 ---
 
 #### Option C: Floating Day Labels in Margin
+
 **Concept**: Remove header entirely, show day as margin label
 
 **Features**:
+
 - Day name appears in left margin/gutter
 - Sticky positioning as you scroll
 - Editor fills full width of container
 - No header background or border
 
 **Benefits**:
+
 - Maximum space for content
 - Unique, clean aesthetic
 - Works well with minimal design
 
 **Challenges**:
+
 - Harder to make days clickable
 - May not work well on mobile
 - Need wider container
@@ -186,9 +209,11 @@ let editorHeight = $derived(
 ---
 
 #### Option D: Integrated Notes Section
+
 **Concept**: Merge daily note and notes-worked-on sections
 
 **Changes**:
+
 - Remove "Notes worked on this day" header
 - Show notes as compact footer inside same container
 - Use simple text: "Also: [[Note 1]] • [[Note 2]]"
@@ -196,6 +221,7 @@ let editorHeight = $derived(
 - No separate border-top
 
 **Benefits**:
+
 - One less section header per day
 - More cohesive feel
 - Reduces vertical space
@@ -205,9 +231,11 @@ let editorHeight = $derived(
 ### 3. Quick Week Navigation
 
 #### Option A: Mini Calendar Picker ⭐ RECOMMENDED
+
 **Concept**: Calendar overlay for date selection
 
 **Features**:
+
 - Calendar icon in WeekNavigation header
 - Click to open calendar overlay
 - Highlight current week
@@ -216,20 +244,24 @@ let editorHeight = $derived(
 - Month/year navigation within calendar
 
 **Benefits**:
+
 - Standard UI pattern users understand
 - Precise navigation to any week
 - Visual representation of time
 
 **Implementation**:
+
 - Use lightweight calendar component
 - Could use native `<input type="date">` as base
 
 ---
 
 #### Option B: Keyboard Shortcuts
+
 **Concept**: Fast navigation without mouse
 
 **Shortcuts**:
+
 - `[` / `]` or `H` / `L` - Previous/next week
 - `T` - Jump to today
 - `1-7` - Jump to specific day of week
@@ -237,11 +269,13 @@ let editorHeight = $derived(
 - `Cmd/Ctrl + Click` on day - Pin/collapse
 
 **Benefits**:
+
 - Power user efficiency
 - No UI changes needed
 - Works well with other features
 
 **Implementation**:
+
 ```typescript
 // Global keyboard handler
 function handleKeyPress(e: KeyboardEvent) {
@@ -255,15 +289,18 @@ function handleKeyPress(e: KeyboardEvent) {
 ---
 
 #### Option C: Week Dropdown Selector
+
 **Concept**: Click week range to open quick-pick dropdown
 
 **Features**:
+
 - Click "Jan 20 - 26" to open dropdown
 - Show: Recent weeks, This week, Next week, Custom date
 - Scrollable list of weeks
 - Search/filter by date range
 
 **Benefits**:
+
 - Compact solution
 - No overlay required
 - Quick access to recent weeks
@@ -271,20 +308,24 @@ function handleKeyPress(e: KeyboardEvent) {
 ---
 
 #### Option D: Relative Date Input
+
 **Concept**: Text input with natural language parsing
 
 **Features**:
+
 - Input field in header or as command palette
 - Type: "last week", "2 weeks ago", "Jan 15", "yesterday"
 - Autocomplete suggestions
 - Jump on Enter
 
 **Benefits**:
+
 - Most flexible option
 - Keyboard-friendly
 - Natural interaction
 
 **Challenges**:
+
 - Requires date parsing library
 - May be confusing for some users
 
@@ -355,6 +396,7 @@ I recommend implementing these together for maximum impact:
 ## Visual Mockup (Text-Based)
 
 ### Current Design (Expanded Day):
+
 ```
 ┌─────────────────────────────────────┐
 │  Monday, January 27         [Today] │ ← 52px header
@@ -371,11 +413,13 @@ I recommend implementing these together for maximum impact:
 └─────────────────────────────────────┘
 ↓ 24px gap
 ```
+
 **Total**: ~410px per day with content
 
 ---
 
 ### Proposed Design (Phase 1):
+
 ```
 ┌─────────────────────────────────────┐
 │  Monday                      [Today] │ ← 32px minimal header
@@ -387,16 +431,19 @@ I recommend implementing these together for maximum impact:
 └─────────────────────────────────────┘
 ↓ 16px gap
 ```
+
 **Total**: ~150px per day (63% reduction!)
 
 ---
 
 ### Proposed Design (Phase 2 - Collapsed):
+
 ```
 ┌─────────────────────────────────────┐
 │  ▶ Monday          Has entry • 3 no │ ← 32px collapsed
 └─────────────────────────────────────┘
 ```
+
 **Total**: ~32px per collapsed day (92% reduction!)
 
 ---
@@ -406,18 +453,21 @@ I recommend implementing these together for maximum impact:
 If you want to think bigger, here are more dramatic departures:
 
 ### Option 1: Kanban-Style Week View
+
 - Horizontal columns for each day
 - Scroll horizontally through week
 - Vertical cards within each day
 - Works great on wide screens
 
 ### Option 2: Timeline View
+
 - Vertical timeline with time markers
 - Days are just labels on the timeline
 - Entries appear at creation time
 - More journal-like feel
 
 ### Option 3: Grid/Calendar Hybrid
+
 - Traditional calendar grid
 - Click cell to expand editor inline
 - Overview of week at a glance
