@@ -21,6 +21,8 @@ import { syntaxTree } from '@codemirror/language';
 import type { NoteMetadata } from '../services/noteStore.svelte';
 import { notesStore } from '../services/noteStore.svelte';
 import { wikilinkTheme } from './wikilink-theme';
+import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 
 /**
  * Inject CSS for note type completion icons
@@ -272,6 +274,113 @@ function findNoteByIdentifier(
 /**
  * Autocomplete function for wikilinks
  */
+/**
+ * Process wikilinks in content - convert them to readable text
+ */
+function processWikilinks(text: string): string {
+  // Replace [[note-id|display text]] with just "display text"
+  // Replace [[note-id]] with just "note-id"
+  return text.replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_, noteId, displayText) => {
+    return displayText || noteId;
+  });
+}
+
+/**
+ * Render markdown content as HTML snippet
+ */
+async function renderMarkdownSnippet(content: string): Promise<string> {
+  if (!content || !content.trim()) {
+    return '<em>(empty note)</em>';
+  }
+
+  // Process wikilinks first
+  const processedContent = processWikilinks(content);
+
+  // Take first few paragraphs (limit content length for performance)
+  const lines = processedContent.split('\n');
+  const limitedContent = lines.slice(0, 10).join('\n');
+
+  // Render markdown to HTML
+  let html: string;
+  const parsedResult = marked.parse(limitedContent);
+  if (typeof parsedResult === 'string') {
+    html = parsedResult;
+  } else {
+    // If it's a promise, await it
+    html = await parsedResult;
+  }
+
+  // Sanitize HTML - allow basic formatting
+  const sanitized = DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: [
+      'p',
+      'strong',
+      'b',
+      'em',
+      'i',
+      'code',
+      'pre',
+      'ul',
+      'ol',
+      'li',
+      'blockquote',
+      'h1',
+      'h2',
+      'h3',
+      'h4',
+      'h5',
+      'h6',
+      'br'
+    ],
+    ALLOWED_ATTR: [],
+    KEEP_CONTENT: true
+  });
+
+  return sanitized;
+}
+
+/**
+ * Async function to fetch note content and create info DOM
+ */
+async function createNoteInfo(
+  noteId: string,
+  noteType: string
+): Promise<{ dom: HTMLElement; destroy?: () => void }> {
+  const container = document.createElement('div');
+  container.className = 'wikilink-completion-info';
+
+  // Add loading indicator
+  const snippetContainer = document.createElement('div');
+  snippetContainer.className = 'wikilink-completion-info-snippet';
+  snippetContainer.textContent = 'Loading...';
+  container.appendChild(snippetContainer);
+
+  // Fetch note content asynchronously
+  try {
+    const result = await window.api?.getNote({ identifier: noteId });
+    if (result) {
+      // renderMarkdownSnippet handles empty content by returning "(empty note)"
+      const renderedHtml = await renderMarkdownSnippet(result.content || '');
+      snippetContainer.innerHTML = renderedHtml;
+
+      // Check if content overflows - if so, show gradient
+      // Use setTimeout to allow DOM to render before checking dimensions
+      setTimeout(() => {
+        if (container.scrollHeight > container.clientHeight) {
+          container.classList.add('has-overflow');
+        }
+      }, 0);
+    } else {
+      snippetContainer.innerHTML = '<em>(unable to load content)</em>';
+    }
+  } catch (error) {
+    console.error('Error fetching note content for autocomplete:', error);
+    snippetContainer.innerHTML = '<em>(error loading content)</em>';
+  }
+
+  return { dom: container };
+}
+
 export function wikilinkCompletion(context: CompletionContext): CompletionResult | null {
   const word = context.matchBefore(/\[\[([^\]]*)/);
 
@@ -335,7 +444,7 @@ export function wikilinkCompletion(context: CompletionContext): CompletionResult
     return {
       label: note.title,
       apply: `${note.id}|${note.title}]]`,
-      info: `ID: ${note.id} • Type: ${note.type || 'unknown'}`,
+      info: () => createNoteInfo(note.id, note.type || 'unknown'),
       type: `note-type-${note.type}` // Use note type as completion type for icon
     };
   });
@@ -348,7 +457,11 @@ export function wikilinkCompletion(context: CompletionContext): CompletionResult
     options.push({
       label: `Create "${query.trim()}"`,
       apply: `${query.trim()}]]`, // For new notes, just use title format until created
-      info: 'Create new note',
+      info: async () => {
+        const container = document.createElement('div');
+        container.textContent = 'Create new note';
+        return { dom: container };
+      },
       type: 'text'
     });
   }

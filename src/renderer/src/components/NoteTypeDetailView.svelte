@@ -147,7 +147,9 @@
         const cleanMetadataSchema =
           metadataSchema && metadataSchema.fields
             ? metadataSchema.fields
-                .filter((field) => field.name.trim() !== '' && !systemFields.has(field.name))
+                .filter(
+                  (field) => field.name.trim() !== '' && !systemFields.has(field.name)
+                )
                 .map((field) => {
                   const cleanField: any = {
                     name: field.name,
