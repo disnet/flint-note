@@ -269,6 +269,12 @@ const api = {
     metadataSchema?: MetadataFieldDefinition[];
     vaultId?: string;
   }) => electronAPI.ipcRenderer.invoke('update-note-type', params),
+  deleteNoteType: (params: {
+    typeName: string;
+    action: 'error' | 'migrate' | 'delete';
+    targetType?: string;
+    vaultId?: string;
+  }) => electronAPI.ipcRenderer.invoke('delete-note-type', params),
   listNotesByType: (params: { type: string; vaultId?: string; limit?: number }) =>
     electronAPI.ipcRenderer.invoke('list-notes-by-type', params),
 

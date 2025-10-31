@@ -211,6 +211,12 @@ declare global {
         metadataSchema?: MetadataFieldDefinition[];
         vaultId?: string;
       }) => Promise<any>;
+      deleteNoteType: (params: {
+        typeName: string;
+        action: 'error' | 'migrate' | 'delete';
+        targetType?: string;
+        vaultId?: string;
+      }) => Promise<any>;
       listNotesByType: (params: {
         type: string;
         vaultId?: string;

@@ -1,12 +1,15 @@
 <script lang="ts">
   import NoteEditor from './NoteEditor.svelte';
   import NotesView from './NotesView.svelte';
+  import NoteTypeDetailView from './NoteTypeDetailView.svelte';
+  import NoteTypeCreateView from './NoteTypeCreateView.svelte';
   import DailyView from './DailyView.svelte';
   import InboxView from './InboxView.svelte';
   import Settings from './Settings.svelte';
   import WorkflowManagementView from './WorkflowManagementView.svelte';
   import { ViewRegistry } from '../lib/views';
   import { getChatService } from '../services/chatService.js';
+  import { notesStore } from '../services/noteStore.svelte';
   import type { NoteMetadata, NoteType } from '../services/noteStore.svelte';
   import type { Note } from '../services/types';
   import type { Component } from 'svelte';
@@ -30,6 +33,8 @@
   let noteContent = $state('');
   let noteData = $state<Note | null>(null);
   let isLoadingNote = $state(false);
+  let selectedNoteType = $state<string | null>(null);
+  let isCreatingType = $state(false);
 
   function focusEditor(): void {
     if (noteEditor && noteEditor.focus) {
@@ -125,6 +130,24 @@
       console.error('Error saving note:', error);
     }
   }
+
+  function handleTypeSelect(typeName: string): void {
+    selectedNoteType = typeName;
+  }
+
+  function handleBackToNoteTypes(): void {
+    selectedNoteType = null;
+    isCreatingType = false;
+  }
+
+  function handleCreateType(): void {
+    isCreatingType = true;
+  }
+
+  async function handleTypeCreated(): Promise<void> {
+    // Reload note types after creation
+    await notesStore.initialize();
+  }
 </script>
 
 <div class="main-view">
@@ -143,7 +166,21 @@
   {:else if activeSystemView === 'notes'}
     <div class="system-view-container">
       <div class="system-view-content">
-        <NotesView {onNoteSelect} {onCreateNote} />
+        {#if isCreatingType}
+          <NoteTypeCreateView
+            onBack={handleBackToNoteTypes}
+            onCreated={handleTypeCreated}
+          />
+        {:else if selectedNoteType}
+          <NoteTypeDetailView
+            typeName={selectedNoteType}
+            onBack={handleBackToNoteTypes}
+            {onNoteSelect}
+            {onCreateNote}
+          />
+        {:else}
+          <NotesView onTypeSelect={handleTypeSelect} onCreateType={handleCreateType} />
+        {/if}
       </div>
     </div>
   {:else if activeSystemView === 'settings'}

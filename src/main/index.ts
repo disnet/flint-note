@@ -931,6 +931,24 @@ app.whenReady().then(async () => {
   );
 
   ipcMain.handle(
+    'delete-note-type',
+    async (
+      _event,
+      params: {
+        typeName: string;
+        action: 'error' | 'migrate' | 'delete';
+        targetType?: string;
+        vaultId: string;
+      }
+    ) => {
+      if (!noteService) {
+        throw new Error('Note service not available');
+      }
+      return await noteService.deleteNoteType(params);
+    }
+  );
+
+  ipcMain.handle(
     'list-notes-by-type',
     async (
       _event,

@@ -374,6 +374,22 @@ export class NoteService {
     });
   }
 
+  async deleteNoteType(params: {
+    typeName: string;
+    action: 'error' | 'migrate' | 'delete';
+    targetType?: string;
+    vaultId: string;
+  }): Promise<{ deleted: boolean; notes_affected: number }> {
+    this.ensureInitialized();
+    return await this.api.deleteNoteType({
+      type_name: params.typeName,
+      action: params.action,
+      target_type: params.targetType,
+      confirm: true,
+      vault_id: params.vaultId
+    });
+  }
+
   async listNotesByType(
     type: string,
     vaultId: string,

@@ -154,6 +154,12 @@ export interface NoteService {
     metadataSchema?: MetadataFieldDefinition[];
     vaultId?: string;
   }): Promise<NoteTypeDescription>;
+  deleteNoteType(params: {
+    typeName: string;
+    action: 'error' | 'migrate' | 'delete';
+    targetType?: string;
+    vaultId?: string;
+  }): Promise<{ deleted: boolean; notesAffected: number }>;
   listNotesByType(params: {
     type: string;
     vaultId?: string;

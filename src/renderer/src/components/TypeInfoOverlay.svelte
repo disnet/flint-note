@@ -6,9 +6,10 @@
   interface Props {
     typeName: string;
     onClose: () => void;
+    standalone?: boolean;
   }
 
-  let { typeName, onClose }: Props = $props();
+  let { typeName, onClose, standalone = false }: Props = $props();
 
   let typeInfo = $state<GetNoteTypeInfoResult | null>(null);
   let loading = $state(false);
@@ -159,24 +160,36 @@
   loadTypeInfo();
 </script>
 
-<div class="type-info-overlay">
-  <div class="overlay-header">
-    <div class="header-left">
-      <h3>{typeName}</h3>
-      <div class="header-actions">
-        {#if !loading && !error && typeInfo}
-          <button
-            class="edit-btn"
-            onclick={toggleEdit}
-            title={isEditing ? 'Cancel editing' : 'Edit note type'}
-          >
-            {isEditing ? '✕' : '✏️'}
-          </button>
-        {/if}
+<div class="type-info-overlay" class:standalone>
+  {#if !standalone}
+    <div class="overlay-header">
+      <div class="header-left">
+        <h3>{typeName}</h3>
+        <div class="header-actions">
+          {#if !loading && !error && typeInfo}
+            <button
+              class="edit-btn"
+              onclick={toggleEdit}
+              title={isEditing ? 'Cancel editing' : 'Edit note type'}
+            >
+              {isEditing ? '✕' : '✏️'}
+            </button>
+          {/if}
+        </div>
       </div>
+      <button class="close-btn" onclick={onClose} title="Close overlay"> ✕ </button>
     </div>
-    <button class="close-btn" onclick={onClose} title="Close overlay"> ✕ </button>
-  </div>
+  {:else if !loading && !error && typeInfo}
+    <div class="standalone-header">
+      <button
+        class="edit-btn"
+        onclick={toggleEdit}
+        title={isEditing ? 'Cancel editing' : 'Edit note type'}
+      >
+        {isEditing ? '✕ Cancel' : '✏️ Edit'}
+      </button>
+    </div>
+  {/if}
 
   <div class="overlay-content">
     {#if loading}
@@ -374,6 +387,13 @@
     animation: slideDown 0.3s ease-out;
   }
 
+  .type-info-overlay.standalone {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    animation: none;
+  }
+
   @keyframes slideDown {
     from {
       opacity: 0;
@@ -383,6 +403,26 @@
       opacity: 1;
       transform: translateY(0);
     }
+  }
+
+  .standalone-header {
+    display: flex;
+    justify-content: flex-end;
+    padding: 0 0 1rem 0;
+  }
+
+  .standalone-header .edit-btn {
+    padding: 0.5rem 1rem;
+    background: var(--accent-primary);
+    color: var(--accent-text);
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    gap: 0.5rem;
+  }
+
+  .standalone-header .edit-btn:hover {
+    background: var(--accent-primary-hover);
   }
 
   .overlay-header {
@@ -437,6 +477,10 @@
 
   .overlay-content {
     padding: 1rem;
+  }
+
+  .standalone .overlay-content {
+    padding: 0;
   }
 
   .loading,

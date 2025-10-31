@@ -17,6 +17,7 @@ export type NoteMetadata = {
 export type NoteType = {
   name: string;
   count: number;
+  purpose: string;
 };
 
 interface NotesStoreState {
@@ -77,7 +78,8 @@ function createNotesStore(): {
       const result = await noteService.listNoteTypes();
       const noteTypes = result.map((typeItem) => ({
         name: typeItem.name,
-        count: typeItem.noteCount
+        count: typeItem.noteCount,
+        purpose: typeItem.purpose || ''
       }));
       state.noteTypes = noteTypes;
       state.loading = false;

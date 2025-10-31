@@ -423,6 +423,24 @@ export class ElectronChatService implements ChatService, NoteService {
     }
   }
 
+  async deleteNoteType(params: {
+    vaultId: string;
+    typeName: string;
+    action: 'error' | 'migrate' | 'delete';
+    targetType?: string;
+  }): Promise<{ deleted: boolean; notesAffected: number }> {
+    try {
+      const result = await window.api.deleteNoteType(params);
+      return {
+        deleted: result.deleted,
+        notesAffected: result.notes_affected
+      };
+    } catch (error) {
+      console.error('Failed to delete note type:', error);
+      throw new Error('Failed to delete note type. Please try again.');
+    }
+  }
+
   async listNotesByType(params: {
     vaultId: string;
     type: string;
