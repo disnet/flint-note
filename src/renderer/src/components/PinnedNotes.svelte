@@ -130,6 +130,25 @@
   function onDragEnd(): void {
     handleDragEnd(dragState);
   }
+
+  // Auto-scroll to active note when it changes
+  $effect(() => {
+    const activeId = activeNote?.id;
+    if (activeId && isNotesReady && !isCollapsed) {
+      // Use setTimeout to ensure DOM has updated
+      setTimeout(() => {
+        const activeElement = document.querySelector(
+          `.pinned-item[data-id="${activeId}"]`
+        ) as HTMLElement;
+        if (activeElement) {
+          activeElement.scrollIntoView({
+            behavior: 'smooth',
+            block: 'nearest'
+          });
+        }
+      }, 50);
+    }
+  });
 </script>
 
 <div class="pinned-notes">

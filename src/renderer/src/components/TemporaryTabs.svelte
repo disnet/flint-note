@@ -188,6 +188,25 @@
   function onDragEnd(): void {
     handleDragEnd(dragState);
   }
+
+  // Auto-scroll to active tab when it changes
+  $effect(() => {
+    const activeId = temporaryTabsStore.activeTabId;
+    if (activeId && isTabsReady) {
+      // Use setTimeout to ensure DOM has updated
+      setTimeout(() => {
+        const activeElement = document.querySelector(
+          `.tab-item[data-id="${activeId}"]`
+        ) as HTMLElement;
+        if (activeElement) {
+          activeElement.scrollIntoView({
+            behavior: 'smooth',
+            block: 'nearest'
+          });
+        }
+      }, 50);
+    }
+  });
 </script>
 
 <div class="temporary-tabs">
