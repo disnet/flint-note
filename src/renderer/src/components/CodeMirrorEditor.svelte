@@ -28,6 +28,7 @@
     showExpandControls?: boolean;
     toggleExpansion?: () => void;
     readOnly?: boolean;
+    isExpanded?: boolean;
   }
 
   let {
@@ -42,7 +43,8 @@
     maxHeight,
     showExpandControls = false,
     toggleExpansion,
-    readOnly = false
+    readOnly = false,
+    isExpanded = false
   }: Props = $props();
 
   let editorContainer: Element;
@@ -808,6 +810,7 @@
   <div
     class="editor-container editor-font"
     class:has-max-height={!!maxHeight}
+    class:collapsing={!isExpanded}
     bind:this={editorContainer}
     style:max-height={maxHeight}
   ></div>
@@ -896,7 +899,13 @@
   .editor-container {
     flex: 1;
     overflow: hidden;
-    transition: max-height 0.5s ease-in-out;
+    /* No transition by default (instant expansion on focus) */
+    transition: none;
+  }
+
+  .editor-container.collapsing {
+    /* Smooth collapse animation only when blurring */
+    transition: max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .editor-container.has-max-height {
@@ -934,7 +943,12 @@
     color: var(--text-secondary);
     font-size: 0.875rem;
     font-weight: 500;
-    transition: all 0.2s ease;
+    /* Smooth hover transitions and subtle scale on hover */
+    transition:
+      background 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+      color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+      border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+      transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     pointer-events: auto;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   }
@@ -943,6 +957,14 @@
     background: var(--bg-tertiary);
     color: var(--text-primary);
     border-color: var(--border-medium);
+    /* Subtle lift on hover */
+    transform: translateX(-50%) translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  }
+
+  .expand-button:active {
+    transform: translateX(-50%) translateY(0);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   }
 
   .expand-button svg {

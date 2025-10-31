@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import CodeMirrorEditor from './CodeMirrorEditor.svelte';
   import { wikilinkService } from '../services/wikilinkService.svelte';
 
@@ -12,6 +13,8 @@
   let editorRef: CodeMirrorEditor;
   let isFocused = $state(false);
   let isManuallyExpanded = $state(false);
+  let showControlsDelayed = $state(true); // Start true so controls show on initial render
+  let controlsTimeout: ReturnType<typeof setTimeout> | null = null;
 
   // Calculate max height based on focus and expansion state
   // 5 lines when unfocused and not expanded: ~120px (24px per line)
@@ -25,7 +28,19 @@
 
   // Show expand button and fade gradient when:
   // - Not focused AND not manually expanded AND has content
-  const showExpandControls = $derived(!isFocused && !isManuallyExpanded);
+  // - Delayed to allow collapse animation to finish
+  const showExpandControls = $derived(
+    !isFocused && !isManuallyExpanded && showControlsDelayed
+  );
+
+  // Cleanup timeout on unmount
+  onMount(() => {
+    return () => {
+      if (controlsTimeout) {
+        clearTimeout(controlsTimeout);
+      }
+    };
+  });
 
   // Wikilink click handler - use centralized wikilink service
   const handleWikilinkClick = async (
@@ -39,9 +54,26 @@
 
   function handleFocusChange(focused: boolean): void {
     isFocused = focused;
-    // Collapse manual expansion when editor loses focus
-    if (!focused) {
+
+    if (focused) {
+      // Hide controls immediately when focusing
+      showControlsDelayed = false;
+      // Clear any pending timeout
+      if (controlsTimeout) {
+        clearTimeout(controlsTimeout);
+        controlsTimeout = null;
+      }
+    } else {
+      // Collapse manual expansion when editor loses focus
       isManuallyExpanded = false;
+      // Show controls after collapse animation finishes (500ms)
+      if (controlsTimeout) {
+        clearTimeout(controlsTimeout);
+      }
+      controlsTimeout = setTimeout(() => {
+        showControlsDelayed = true;
+        controlsTimeout = null;
+      }, 500);
     }
   }
 
@@ -67,7 +99,7 @@
   }
 </script>
 
-<div class="daily-note-editor-wrapper">
+<div class="daily-note-editor-wrapper" class:focused={isFocused || isManuallyExpanded}>
   <CodeMirrorEditor
     bind:this={editorRef}
     {content}
@@ -80,6 +112,7 @@
     {showExpandControls}
     {toggleExpansion}
     readOnly={!isFocused && !isManuallyExpanded}
+    isExpanded={isFocused || isManuallyExpanded}
   />
 </div>
 
@@ -87,5 +120,25 @@
   .daily-note-editor-wrapper {
     position: relative;
     width: 100%;
+    border-radius: 0.5rem;
+    /* Reserve space for border to prevent layout shift */
+    padding: 1px;
+    /* Transparent border by default */
+    border: 1px solid transparent;
+    margin: -1px; /* Compensate for padding to maintain layout */
+    /* Smooth transition for border and glow */
+    transition:
+      border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+      box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .daily-note-editor-wrapper.focused {
+    /* Subtle accent color border with very light glow */
+    border-color: var(--accent-primary);
+    /* Very subtle multi-layer glow - works well in both light and dark mode */
+    box-shadow:
+      0 0 0 1px rgba(99, 102, 241, 0.2),
+      0 0 12px rgba(99, 102, 241, 0.06),
+      0 0 24px rgba(99, 102, 241, 0.03);
   }
 </style>
