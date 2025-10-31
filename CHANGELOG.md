@@ -22,7 +22,6 @@ You can now navigate the daily view entirely with your keyboard:
 - Press `]` to go to the next week
 - Press `Escape` to blur and collapse the currently focused entry
 
-
 ### Fixed
 
 - The note/view you had open should be restored after restarting the app

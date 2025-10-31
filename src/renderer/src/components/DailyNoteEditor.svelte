@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import CodeMirrorEditor from './CodeMirrorEditor.svelte';
   import { wikilinkService } from '../services/wikilinkService.svelte';
+  import { notesStore } from '../services/noteStore.svelte';
 
   interface Props {
     content: string;
@@ -40,6 +41,17 @@
         clearTimeout(controlsTimeout);
       }
     };
+  });
+
+  // Refresh wikilinks when notes store is populated
+  // This fixes the issue where wikilinks appear red on app launch
+  // because the daily view loads before notesStore is initialized
+  $effect(() => {
+    const noteCount = notesStore.notes.length;
+    // Only refresh if we have notes and an editor reference
+    if (noteCount > 0 && editorRef) {
+      editorRef.refreshWikilinks();
+    }
   });
 
   // Wikilink click handler - use centralized wikilink service
