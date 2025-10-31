@@ -141,17 +141,33 @@ export class VaultFileWatcher {
     console.log(`[FileWatcher] 🚀 Starting file watcher for vault: ${this.vaultPath}`);
 
     this.watcher = chokidar.watch(this.vaultPath, {
-      ignored: [
-        '**/.flint-note/**', // Flint's internal directory
-        '**/_description.md', // Note type description files (internal metadata)
-        '**/.git/**', // Git directory
-        '**/node_modules/**', // Node modules
-        '**/.DS_Store', // macOS metadata
-        '**/desktop.ini', // Windows metadata
-        '**/*~', // Backup files
-        '**/*.swp', // Vim swap files
-        '**/*.tmp' // Temporary files
-      ],
+      ignored: (filepath: string) => {
+        // Ignore .flint-note config directories (anywhere in path)
+        if (filepath.includes('/.flint-note/') || filepath.endsWith('/.flint-note')) {
+          return true;
+        }
+        // Ignore note type description files (internal metadata)
+        if (filepath.endsWith('/_description.md')) {
+          return true;
+        }
+        // Ignore .git directories
+        if (filepath.includes('/.git/')) {
+          return true;
+        }
+        // Ignore node_modules
+        if (filepath.includes('/node_modules/')) {
+          return true;
+        }
+        // Ignore OS metadata files
+        if (filepath.endsWith('/.DS_Store') || filepath.endsWith('/desktop.ini')) {
+          return true;
+        }
+        // Ignore backup and temp files
+        if (filepath.endsWith('~') || filepath.endsWith('.swp') || filepath.endsWith('.tmp')) {
+          return true;
+        }
+        return false;
+      },
       ignoreInitial: true, // Don't fire events for existing files
       persistent: true, // Keep process running
       awaitWriteFinish: {
