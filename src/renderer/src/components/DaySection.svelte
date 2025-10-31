@@ -22,6 +22,11 @@
     onDailyNoteTitleClickSidebar
   }: Props = $props();
 
+  // Reference to the daily note editor
+  let editorRef: DailyNoteEditor;
+  // Reference to the container element for scrolling
+  let containerRef: HTMLDivElement;
+
   // Get short day name (Mon, Tue, Wed, etc.)
   const shortDayName = $derived.by(() => {
     const date = parseISODate(dayData.date);
@@ -44,9 +49,22 @@
       onDailyNoteTitleClick?.(dayData.date);
     }
   }
+
+  // Public method to focus this day's editor and scroll into view
+  export function focus(): void {
+    // Scroll the section into view with smooth animation
+    containerRef?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start'
+    });
+    // Focus the editor after a brief delay to allow scroll to start
+    setTimeout(() => {
+      editorRef?.focus();
+    }, 100);
+  }
 </script>
 
-<div class="day-section" class:is-today={isToday}>
+<div bind:this={containerRef} class="day-section" class:is-today={isToday}>
   <div class="day-gutter">
     <button
       class="day-label"
@@ -61,6 +79,7 @@
 
   <div class="day-content">
     <DailyNoteEditor
+      bind:this={editorRef}
       content={dayData.dailyNote?.content || ''}
       onContentChange={handleDailyNoteContentChange}
     />

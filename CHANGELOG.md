@@ -4,6 +4,26 @@ All notable changes to the Flint application will be documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.8.0]
+
+### Changed
+
+Redesigned the daily view to be cleaner and easier to scan. Entries now only show the first 10 lines when unfocused, full content when expanded and focused.
+
+With this design only one entry can be expanded at a time. Let me know if you miss the ability to see full content of multiple entries at once.
+
+### Added
+
+**Daily View Keyboard Shortcuts**
+
+You can now navigate the daily view entirely with your keyboard:
+
+- Press `T` to jump to today's entry
+- Press `1-7` to jump to a specific day of the week (1 = Monday, 7 = Sunday)
+- Press `[` to go to the previous week
+- Press `]` to go to the next week
+- Press `Escape` to blur and collapse the currently focused entry
+
 ## [0.7.1]
 
 ### Fixed

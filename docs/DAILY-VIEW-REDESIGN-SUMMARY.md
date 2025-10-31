@@ -359,15 +359,85 @@ DailyView.svelte
 - ESLint: ✓ (all files pass)
 - Prettier: ✓ (all files formatted)
 
+## Keyboard Shortcuts
+
+**Implementation Date:** 2025-10-31
+
+The daily view now includes comprehensive keyboard shortcuts for efficient navigation and editing:
+
+### Available Shortcuts
+
+| Key      | Action                  | Notes                                   |
+| -------- | ----------------------- | --------------------------------------- |
+| `Escape` | Blur focused editor     | Works even when typing in editor        |
+| `T`      | Focus today's entry     | Expands and focuses today's daily note  |
+| `1-7`    | Focus corresponding day | `1` = first day of week, `7` = last day |
+| `[`      | Previous week           | Navigate to previous week               |
+| `]`      | Next week               | Navigate to next week                   |
+
+### Implementation Details
+
+**Keyboard Event Handling:**
+
+- Global keydown listener in `DailyView.svelte` component
+- Shortcuts disabled when typing in input/textarea/CodeMirror editors
+- Exception: `Escape` works even in editors to allow blurring
+- Prevention of default browser behavior for all shortcuts
+
+**Focus Management:**
+
+- `DaySection` components expose `focus()` method
+- `DailyNoteEditor` already had `focus()` method (reused)
+- Focus chain: `DailyView` → `DaySection` → `DailyNoteEditor` → `CodeMirrorEditor`
+- Array of refs (`daySectionRefs`) maintained for direct day access
+- Smooth scrolling: `scrollIntoView({ behavior: 'smooth', block: 'start' })` automatically scrolls focused entry to top of viewport
+- 100ms delay between scroll initiation and focus to ensure smooth animation
+
+**Week Navigation:**
+
+- Uses existing `dailyViewStore.navigateToPreviousWeek()` and `navigateToNextWeek()`
+- Store methods already implemented, just exposed via keyboard
+
+**Code Locations:**
+
+- Keyboard handler: `src/renderer/src/components/DailyView.svelte:94-157`
+- Focus method with scrolling: `src/renderer/src/components/DaySection.svelte:53-64`
+- Existing focus method: `src/renderer/src/components/DailyNoteEditor.svelte:89-91`
+
+### User Experience
+
+**Benefits:**
+
+1. **Rapid Navigation** - Switch weeks without mouse (`[` / `]`)
+2. **Quick Entry** - Jump to today or any day instantly (`T` / `1-7`)
+3. **Keyboard Flow** - Stay in keyboard mode for entire workflow
+4. **Smart Context** - Shortcuts only active when not typing
+5. **Escape Hatch** - `Escape` always available to exit editing
+
+**Interaction Patterns:**
+
+1. Press `T` to focus today → viewport smoothly scrolls to entry, then editor expands and becomes editable
+2. Type entry → Press `Escape` to save and collapse
+3. Press `]` to move to next week
+4. Press `1-7` to jump to specific day → viewport scrolls to that day
+5. Press `[` to go back
+
+### Accessibility
+
+- Keyboard shortcuts provide full navigation without mouse
+- Visual focus states maintained (existing border/glow on editors)
+- Non-conflicting with CodeMirror's internal shortcuts
+- Standard `Escape` behavior for modal dismissal pattern
+
 ## Future Enhancements (Not Implemented)
 
 These features were explored in the design phase but deferred for later:
 
-1. **Keyboard Shortcuts** - `[`/`]` for week navigation, `T` for today
-2. **Calendar Picker** - Quick jump to any week via calendar overlay
-3. **Collapse All/Expand All** - Bulk controls for day sections
-4. **Compact Mode Toggle** - User preference for view density
-5. **Search Within Week** - Filter days by content
+1. **Calendar Picker** - Quick jump to any week via calendar overlay
+2. **Collapse All/Expand All** - Bulk controls for day sections
+3. **Compact Mode Toggle** - User preference for view density
+4. **Search Within Week** - Filter days by content
+5. **Custom Keyboard Shortcuts** - User-configurable key bindings
 
 ## Lessons Learned
 

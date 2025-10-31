@@ -14,6 +14,9 @@
 
   let { onNoteSelect }: Props = $props();
 
+  // References to day sections for keyboard shortcuts
+  let daySectionRefs = $state<Record<number, DaySection>>({});
+
   // Reactive getters from store
   const weekData = $derived(dailyViewStore.weekData);
   const loading = $derived(dailyViewStore.loading);
@@ -86,6 +89,72 @@
     // and when reactive dependencies change
     dailyViewStore.loadCurrentWeek();
   });
+
+  // Keyboard shortcuts for daily view
+  $effect(() => {
+    function handleKeyDown(event: KeyboardEvent): void {
+      // Don't trigger shortcuts if user is typing in an input/textarea
+      const target = event.target as HTMLElement;
+      const isEditableElement =
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable ||
+        target.closest('.cm-editor'); // CodeMirror editor
+
+      // Escape: blur focused editor (even if in editor)
+      if (event.key === 'Escape') {
+        if (isEditableElement) {
+          event.preventDefault();
+          // Blur the focused element
+          (document.activeElement as HTMLElement)?.blur();
+        }
+        return;
+      }
+
+      // Don't process other shortcuts if typing
+      if (isEditableElement) {
+        return;
+      }
+
+      // T: Focus today's entry
+      if (event.key === 't' || event.key === 'T') {
+        event.preventDefault();
+        const todayIndex = weekData?.days.findIndex((day) => isToday(day.date));
+        if (todayIndex !== undefined && todayIndex !== -1) {
+          daySectionRefs[todayIndex]?.focus();
+        }
+        return;
+      }
+
+      // 1-7: Focus corresponding day (1 = first day of week, 7 = last day)
+      const dayNumber = parseInt(event.key);
+      if (dayNumber >= 1 && dayNumber <= 7) {
+        event.preventDefault();
+        const dayIndex = dayNumber - 1;
+        if (dayIndex < (weekData?.days.length || 0)) {
+          daySectionRefs[dayIndex]?.focus();
+        }
+        return;
+      }
+
+      // [: Previous week
+      if (event.key === '[') {
+        event.preventDefault();
+        dailyViewStore.navigateToPreviousWeek();
+        return;
+      }
+
+      // ]: Next week
+      if (event.key === ']') {
+        event.preventDefault();
+        dailyViewStore.navigateToNextWeek();
+        return;
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  });
 </script>
 
 <div class="daily-view">
@@ -98,8 +167,9 @@
 
     <div class="timeline-container">
       <div class="timeline">
-        {#each weekData.days as dayData (dayData.date)}
+        {#each weekData.days as dayData, index (dayData.date)}
           <DaySection
+            bind:this={daySectionRefs[index]}
             {dayData}
             dayHeader={formatDayHeader(dayData.date)}
             isToday={isToday(dayData.date)}
