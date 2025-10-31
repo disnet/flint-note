@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import { EditorView } from 'codemirror';
   import { EditorState, StateEffect } from '@codemirror/state';
   import { EditorConfig } from '../stores/editorConfig.svelte.js';
@@ -280,31 +280,34 @@
     if (!editorView) return;
 
     const handleBlur = (): void => {
-      // Close popovers if editor loses focus
-      if (!editorView?.hasFocus) {
-        actionPopoverVisible = false;
-        actionPopoverIsFromHover = false;
-        popoverVisible = false;
+      // Use untrack to avoid state mutation errors during component teardown
+      untrack(() => {
+        // Close popovers if editor loses focus
+        if (!editorView?.hasFocus) {
+          actionPopoverVisible = false;
+          actionPopoverIsFromHover = false;
+          popoverVisible = false;
 
-        // Clear any pending timeouts
-        if (hoverTimeout) {
-          clearTimeout(hoverTimeout);
-          hoverTimeout = null;
+          // Clear any pending timeouts
+          if (hoverTimeout) {
+            clearTimeout(hoverTimeout);
+            hoverTimeout = null;
+          }
+          if (leaveTimeout) {
+            clearTimeout(leaveTimeout);
+            leaveTimeout = null;
+          }
         }
-        if (leaveTimeout) {
-          clearTimeout(leaveTimeout);
-          leaveTimeout = null;
-        }
-      }
 
-      // Only notify parent of focus change if the document still has focus
-      // This means focus moved to another element in the app, not that the window lost focus
-      // Use setTimeout to check document.hasFocus after the blur event completes
-      setTimeout(() => {
-        if (document.hasFocus()) {
-          onFocusChange?.(false);
-        }
-      }, 0);
+        // Only notify parent of focus change if the document still has focus
+        // This means focus moved to another element in the app, not that the window lost focus
+        // Use setTimeout to check document.hasFocus after the blur event completes
+        setTimeout(() => {
+          if (document.hasFocus()) {
+            onFocusChange?.(false);
+          }
+        }, 0);
+      });
     };
 
     const handleFocus = (): void => {
