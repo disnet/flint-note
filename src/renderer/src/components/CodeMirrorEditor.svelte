@@ -297,8 +297,14 @@
         }
       }
 
-      // Notify parent of focus change
-      onFocusChange?.(false);
+      // Only notify parent of focus change if the document still has focus
+      // This means focus moved to another element in the app, not that the window lost focus
+      // Use setTimeout to check document.hasFocus after the blur event completes
+      setTimeout(() => {
+        if (document.hasFocus()) {
+          onFocusChange?.(false);
+        }
+      }, 0);
     };
 
     const handleFocus = (): void => {
