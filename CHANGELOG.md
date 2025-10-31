@@ -12,8 +12,6 @@ Redesigned the daily view to be cleaner and easier to scan. Entries now only sho
 
 With this design only one entry can be expanded at a time. Let me know if you miss the ability to see full content of multiple entries at once.
 
-### Added
-
 **Daily View Keyboard Shortcuts**
 
 You can now navigate the daily view entirely with your keyboard:
@@ -23,6 +21,11 @@ You can now navigate the daily view entirely with your keyboard:
 - Press `[` to go to the previous week
 - Press `]` to go to the next week
 - Press `Escape` to blur and collapse the currently focused entry
+
+
+### Fixed
+
+- The note/view you had open should be restored after restarting the app
 
 ## [0.7.1]
 
