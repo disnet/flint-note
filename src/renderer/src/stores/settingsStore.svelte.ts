@@ -81,6 +81,10 @@ async function loadStoredSettings(): Promise<Partial<AppSettings>> {
 // Save settings to file system (non-sensitive data only)
 async function saveStoredSettings(settingsToSave: AppSettings): Promise<void> {
   try {
+    // Load existing settings to preserve fields like sidebarState that we don't manage
+    const currentSettings =
+      ((await window.api?.loadAppSettings()) as Record<string, unknown>) || {};
+
     // Create a copy without API keys for file storage
     const safeSettings = {
       modelPreferences: settingsToSave.modelPreferences,
@@ -89,8 +93,15 @@ async function saveStoredSettings(settingsToSave: AppSettings): Promise<void> {
       advanced: settingsToSave.advanced,
       updates: settingsToSave.updates
     };
+
+    // Merge with existing settings to preserve other fields (like sidebarState)
+    const mergedSettings = {
+      ...currentSettings,
+      ...safeSettings
+    };
+
     // Use $state.snapshot to get a serializable copy
-    const serializableSettings = $state.snapshot(safeSettings);
+    const serializableSettings = $state.snapshot(mergedSettings);
     await window.api?.saveAppSettings(serializableSettings);
   } catch (error) {
     console.warn('Failed to save settings to file system:', error);

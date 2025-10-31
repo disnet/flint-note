@@ -170,10 +170,8 @@
       sidebarState.toggleLeftSidebar();
     } else {
       activeSystemView = view;
-      // Clear active note when switching to system views
-      if (view !== null) {
-        await activeNoteStore.clearActiveNote();
-      }
+      // Save the active view (clears note, sets system view)
+      await activeNoteStore.setActiveSystemView(view);
       // If sidebar is closed, open it when selecting a view
       if (!sidebarState.leftSidebar.visible && view !== null) {
         sidebarState.toggleLeftSidebar();
@@ -258,11 +256,11 @@
     document.documentElement.setAttribute('data-platform', isMacOS ? 'macos' : 'other');
   });
 
-  // Restore active note on app startup
+  // Restore active view (note or system view) on app startup
   $effect(() => {
-    async function restoreNote(): Promise<void> {
+    async function restoreView(): Promise<void> {
       try {
-        // Wait for the notes store to finish loading before restoring the active note
+        // Wait for the notes store to finish loading before restoring the active view
         // This ensures wikilinks have the complete note data for proper resolution
         const checkNotesLoaded = (): Promise<void> => {
           return new Promise((resolve) => {
@@ -277,17 +275,13 @@
 
         await checkNotesLoaded();
 
-        const restoredNote = await activeNoteStore.restoreActiveNote();
-        if (restoredNote) {
-          console.log('Restored active note:', restoredNote.title);
+        const restoredView = await activeNoteStore.restoreActiveView();
 
-          // If we have a restored note and no system view is active,
-          // we don't need to call openNoteEditor since the store already has it
-          if (activeSystemView === null) {
-            // The note is already set in the store, we just need to ensure
-            // the navigation service is informed
+        if (restoredView) {
+          if (restoredView.type === 'note') {
+            // Restore note
             await noteNavigationService.openNote(
-              restoredNote,
+              restoredView.note,
               'navigation',
               () => {
                 // Note is already set in store, no need to set again
@@ -296,14 +290,17 @@
                 activeSystemView = null;
               }
             );
+          } else if (restoredView.type === 'system-view') {
+            // Restore system view
+            activeSystemView = restoredView.viewType;
           }
         }
       } catch (error) {
-        console.warn('Failed to restore active note:', error);
+        console.warn('Failed to restore active view:', error);
       }
     }
 
-    restoreNote();
+    restoreView();
   });
 
   // Global keyboard shortcuts

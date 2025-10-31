@@ -2,18 +2,27 @@ import type { NoteMetadata } from '../services/noteStore.svelte';
 import { getChatService } from '../services/chatService';
 import { messageBus } from '../services/messageBus.svelte';
 
-interface ActiveNoteState {
+type SystemViewType = 'inbox' | 'daily' | 'notes' | 'settings' | 'workflows';
+
+interface ActiveViewState {
   currentVaultId: string | null;
   activeNote: NoteMetadata | null;
+  activeSystemView: SystemViewType | null;
 }
 
-const defaultState: ActiveNoteState = {
+type RestoredView =
+  | { type: 'note'; note: NoteMetadata }
+  | { type: 'system-view'; viewType: SystemViewType }
+  | null;
+
+const defaultState: ActiveViewState = {
   currentVaultId: null,
-  activeNote: null
+  activeNote: null,
+  activeSystemView: null
 };
 
 class ActiveNoteStore {
-  private state = $state<ActiveNoteState>(defaultState);
+  private state = $state<ActiveViewState>(defaultState);
   private isLoading = $state(true);
   private isInitialized = $state(false);
   private initializationPromise: Promise<void> | null = null;
@@ -41,6 +50,10 @@ class ActiveNoteStore {
 
   get activeNote(): NoteMetadata | null {
     return this.state.activeNote;
+  }
+
+  get activeSystemView(): SystemViewType | null {
+    return this.state.activeSystemView;
   }
 
   get loading(): boolean {
@@ -81,6 +94,8 @@ class ActiveNoteStore {
 
     this.previousNoteId = newNoteId;
     this.state.activeNote = note;
+    // Clear system view when setting a note
+    this.state.activeSystemView = null;
     await this.saveToStorage();
   }
 
@@ -101,11 +116,38 @@ class ActiveNoteStore {
   }
 
   /**
-   * Start vault switch - clear active note for vault transition
+   * Set the active system view and persist it
+   */
+  async setActiveSystemView(view: SystemViewType | null): Promise<void> {
+    await this.ensureInitialized();
+
+    // Clear active note when setting system view
+    if (view !== null && this.previousNoteId) {
+      await window.api?.noteClosed({ noteId: this.previousNoteId });
+      this.previousNoteId = null;
+    }
+
+    this.state.activeNote = null;
+    this.state.activeSystemView = view;
+    await this.saveToStorage();
+  }
+
+  /**
+   * Clear the active system view
+   */
+  async clearActiveSystemView(): Promise<void> {
+    await this.ensureInitialized();
+    this.state.activeSystemView = null;
+    await this.saveToStorage();
+  }
+
+  /**
+   * Start vault switch - clear active view for vault transition
    */
   async startVaultSwitch(): Promise<void> {
     await this.ensureInitialized();
     this.state.activeNote = null;
+    this.state.activeSystemView = null;
     await this.saveToStorage();
   }
 
@@ -118,25 +160,31 @@ class ActiveNoteStore {
       const vault = await service.getCurrentVault();
       this.state.currentVaultId = vault?.id || 'default';
 
-      // Clear active note when switching vaults
+      // Clear active view when switching vaults
       this.state.activeNote = null;
+      this.state.activeSystemView = null;
 
       await this.loadFromStorage();
     } catch (error) {
-      console.warn('Failed to switch vault for active note:', error);
+      console.warn('Failed to switch vault for active view:', error);
       this.state.currentVaultId = 'default';
     }
   }
 
   /**
-   * Restore the last active note on app startup
-   * Returns the restored note or null if none found/valid
+   * Restore the last active view (note or system view) on app startup
+   * Returns the restored view or null if none found/valid
    */
-  async restoreActiveNote(): Promise<NoteMetadata | null> {
-    if (!this.isInitialized) {
-      await this.initializeVault();
+  async restoreActiveView(): Promise<RestoredView> {
+    // Wait for any pending initialization to complete
+    await this.ensureInitialized();
+
+    // Check if there's a system view to restore
+    if (this.state.activeSystemView) {
+      return { type: 'system-view', viewType: this.state.activeSystemView };
     }
 
+    // Otherwise, try to restore a note
     const stored = this.state.activeNote;
     if (!stored?.id) {
       return null;
@@ -152,7 +200,7 @@ class ActiveNoteStore {
         await window.api?.noteOpened({ noteId: stored.id });
         this.previousNoteId = stored.id;
         // Return the stored metadata
-        return stored;
+        return { type: 'note', note: stored };
       } else {
         // Note doesn't exist anymore, clear it
         await this.clearActiveNote();
@@ -164,6 +212,19 @@ class ActiveNoteStore {
       await this.clearActiveNote();
       return null;
     }
+  }
+
+  /**
+   * Restore the last active note on app startup (legacy method for backward compatibility)
+   * Returns the restored note or null if none found/valid
+   * @deprecated Use restoreActiveView() instead
+   */
+  async restoreActiveNote(): Promise<NoteMetadata | null> {
+    const restored = await this.restoreActiveView();
+    if (restored?.type === 'note') {
+      return restored.note;
+    }
+    return null;
   }
 
   private async initializeVault(): Promise<void> {
@@ -190,54 +251,67 @@ class ActiveNoteStore {
       const vaultId = this.state.currentVaultId || 'default';
       const stored = await window.api?.loadUIState({
         vaultId,
-        stateKey: 'active_note'
+        stateKey: 'active_view'
       });
 
-      if (stored && typeof stored === 'object' && 'noteId' in stored) {
-        const activeNoteId = stored.noteId as string | null;
+      if (stored && typeof stored === 'object') {
+        // Load system view if present
+        if ('systemView' in stored && stored.systemView) {
+          const systemView = stored.systemView as SystemViewType;
+          this.state.activeSystemView = systemView;
+          this.state.activeNote = null;
+          return;
+        }
 
-        if (activeNoteId) {
-          // Try to get the note directly from the API instead of loading all notes
-          try {
-            const service = getChatService();
-            const note = await service.getNote({ identifier: activeNoteId });
+        // Otherwise, load note if present
+        if ('noteId' in stored) {
+          const activeNoteId = stored.noteId as string | null;
 
-            if (note) {
-              // Build NoteMetadata from the note
-              this.state.activeNote = {
-                id: note.id,
-                type: note.type || 'note',
-                filename: note.filename || `${activeNoteId}.md`,
-                title: note.title || '',
-                created: note.created || new Date().toISOString(),
-                modified: note.modified || new Date().toISOString(),
-                size: note.size || 0,
-                tags: Array.isArray(note.tags) ? note.tags : [],
-                path: note.path || ''
-              };
-            } else {
-              // Note doesn't exist anymore - clear it
-              console.warn(
-                'Active note ID found but note no longer exists:',
-                activeNoteId
-              );
+          if (activeNoteId) {
+            // Try to get the note directly from the API instead of loading all notes
+            try {
+              const service = getChatService();
+              const note = await service.getNote({ identifier: activeNoteId });
+
+              if (note) {
+                // Build NoteMetadata from the note
+                this.state.activeNote = {
+                  id: note.id,
+                  type: note.type || 'note',
+                  filename: note.filename || `${activeNoteId}.md`,
+                  title: note.title || '',
+                  created: note.created || new Date().toISOString(),
+                  modified: note.modified || new Date().toISOString(),
+                  size: note.size || 0,
+                  tags: Array.isArray(note.tags) ? note.tags : [],
+                  path: note.path || ''
+                };
+                this.state.activeSystemView = null;
+              } else {
+                // Note doesn't exist anymore - clear it
+                this.state.activeNote = null;
+                this.state.activeSystemView = null;
+                await this.saveToStorage();
+              }
+            } catch (error) {
+              console.warn('Failed to load active note:', error);
               this.state.activeNote = null;
+              this.state.activeSystemView = null;
               await this.saveToStorage();
             }
-          } catch (error) {
-            console.warn('Failed to load active note:', error);
+          } else {
             this.state.activeNote = null;
-            await this.saveToStorage();
+            this.state.activeSystemView = null;
           }
-        } else {
-          this.state.activeNote = null;
         }
       } else {
         this.state.activeNote = null;
+        this.state.activeSystemView = null;
       }
     } catch (error) {
-      console.warn('Failed to load active note from storage:', error);
+      console.warn('Failed to load active view from storage:', error);
       this.state.activeNote = null;
+      this.state.activeSystemView = null;
     }
   }
 
@@ -246,16 +320,21 @@ class ActiveNoteStore {
 
     try {
       const vaultId = this.state.currentVaultId || 'default';
+      const stateValue = $state.snapshot({
+        noteId: this.state.activeNote?.id || null,
+        systemView: this.state.activeSystemView || null
+      });
       await window.api?.saveUIState({
         vaultId,
-        stateKey: 'active_note',
-        stateValue: $state.snapshot({ noteId: this.state.activeNote?.id || null })
+        stateKey: 'active_view',
+        stateValue
       });
     } catch (error) {
-      console.warn('Failed to save active note to storage:', error);
+      console.warn('Failed to save active view to storage:', error);
       throw error; // Re-throw to let calling code handle
     }
   }
 }
 
 export const activeNoteStore = new ActiveNoteStore();
+export type { SystemViewType, RestoredView };
