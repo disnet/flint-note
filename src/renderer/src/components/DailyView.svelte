@@ -127,7 +127,7 @@
   .timeline-container {
     flex: 1;
     overflow: visible;
-    padding: 0 1.5rem;
+    padding: 0;
   }
 
   .timeline {

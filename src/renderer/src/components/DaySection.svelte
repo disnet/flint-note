@@ -85,6 +85,7 @@
     color: var(--text-secondary);
     transition: color 0.2s ease;
     text-transform: uppercase;
+    text-decoration: underline;
     letter-spacing: 0.05em;
   }
 
