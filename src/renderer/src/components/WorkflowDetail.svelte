@@ -81,7 +81,7 @@
   <div class="detail-header">
     <h2>Workflow Details</h2>
     {#if onClose}
-      <button class="btn-close" onclick={onClose} title="Close">
+      <button class="btn-close" onclick={onClose} title="Close" aria-label="Close">
         <svg
           width="20"
           height="20"

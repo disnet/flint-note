@@ -51,6 +51,13 @@
     onExecute?.(workflow.id);
   }
 
+  function handleKeydown(workflow: WorkflowListItem, event: KeyboardEvent): void {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      handleSelect(workflow);
+    }
+  }
+
   function getStatusBadgeClass(status: WorkflowStatus): string {
     switch (status) {
       case 'active':
@@ -104,7 +111,10 @@
         <div
           class="workflow-item"
           class:selected={workflow.id === selectedId}
+          role="button"
+          tabindex="0"
           onclick={() => handleSelect(workflow)}
+          onkeydown={(e) => handleKeydown(workflow, e)}
         >
           <div class="workflow-header">
             <div class="workflow-name-row">

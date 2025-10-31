@@ -115,7 +115,12 @@
   <div class="management-header">
     <h1>Routines</h1>
     <div class="header-actions">
-      <button class="btn-refresh" onclick={handleRefresh} title="Refresh">
+      <button
+        class="btn-refresh"
+        onclick={handleRefresh}
+        title="Refresh"
+        aria-label="Refresh"
+      >
         <svg
           width="16"
           height="16"

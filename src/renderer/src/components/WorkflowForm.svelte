@@ -233,8 +233,8 @@
       </div>
 
       <!-- Schedule Type -->
-      <div class="form-group">
-        <label>Schedule</label>
+      <fieldset class="form-group">
+        <legend>Schedule</legend>
         <div class="schedule-type-options">
           <label class="radio-option">
             <input
@@ -264,7 +264,7 @@
             One-Time Due Date
           </label>
         </div>
-      </div>
+      </fieldset>
 
       <!-- Recurring Schedule -->
       {#if isRecurring}
@@ -375,12 +375,19 @@
     margin-bottom: 1.25rem;
   }
 
-  .form-group label {
+  .form-group label,
+  .form-group legend {
     display: block;
     font-size: 0.875rem;
     font-weight: 500;
     margin-bottom: 0.5rem;
     color: var(--text-primary);
+  }
+
+  fieldset.form-group {
+    border: none;
+    padding: 0;
+    margin: 0 0 1.25rem 0;
   }
 
   .required {
