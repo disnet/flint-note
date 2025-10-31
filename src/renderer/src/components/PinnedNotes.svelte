@@ -51,15 +51,21 @@
     onNoteSelect(note);
   }
 
-  function getNoteIcon(note: NoteMetadata): string {
-    // Determine icon based on note type or metadata
+  function getNoteIcon(note: NoteMetadata): { type: 'emoji' | 'svg'; value: string } {
+    // Check for custom note type icon first
+    const noteType = notesStore.noteTypes.find((t) => t.name === note.type);
+    if (noteType?.icon) {
+      return { type: 'emoji', value: noteType.icon };
+    }
+
+    // Fall back to smart icon logic based on note metadata
     if (note.title.includes('daily') || note.title.match(/\d{4}-\d{2}-\d{2}/)) {
-      return 'calendar';
+      return { type: 'svg', value: 'calendar' };
     }
     if (note.tags?.includes('project')) {
-      return 'folder';
+      return { type: 'svg', value: 'folder' };
     }
-    return 'document';
+    return { type: 'svg', value: 'document' };
   }
 
   function getIconSvg(iconType: string): string {
@@ -199,8 +205,12 @@
           title={!isNotesReady ? 'Loading...' : note.title}
         >
           <div class="note-icon">
-            <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-            {@html getIconSvg(getNoteIcon(note))}
+            {#if getNoteIcon(note).type === 'emoji'}
+              <span class="emoji-icon">{getNoteIcon(note).value}</span>
+            {:else}
+              <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+              {@html getIconSvg(getNoteIcon(note).value)}
+            {/if}
           </div>
           <span class="note-title">
             {#if note.title}
@@ -328,6 +338,11 @@
     align-items: center;
     color: var(--text-secondary);
     flex-shrink: 0;
+  }
+
+  .emoji-icon {
+    font-size: 14px;
+    line-height: 1;
   }
 
   .note-title {

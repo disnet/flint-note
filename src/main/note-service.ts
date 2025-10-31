@@ -339,6 +339,7 @@ export class NoteService {
     description: string;
     agentInstructions?: string[];
     metadataSchema?: MetadataSchema;
+    icon?: string;
     vaultId: string;
   }): Promise<NoteTypeInfo> {
     this.ensureInitialized();
@@ -347,6 +348,7 @@ export class NoteService {
       description: params.description,
       agent_instructions: params.agentInstructions,
       metadata_schema: params.metadataSchema,
+      icon: params.icon,
       vault_id: params.vaultId
     });
   }
@@ -361,6 +363,7 @@ export class NoteService {
     description?: string;
     instructions?: string[];
     metadataSchema?: MetadataFieldDefinition[];
+    icon?: string;
     vaultId: string;
   }): Promise<NoteTypeDescription> {
     this.ensureInitialized();
@@ -370,6 +373,7 @@ export class NoteService {
       description: params.description,
       instructions: params.instructions,
       metadata_schema: params.metadataSchema,
+      icon: params.icon,
       vault_id: params.vaultId
     });
   }

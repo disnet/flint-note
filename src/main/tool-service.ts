@@ -1016,10 +1016,14 @@ export class ToolService {
 
   private createNoteTypeTool = tool({
     description:
-      'Create a new note type with description, agent instructions, and metadata schema',
+      'Create a new note type with description, agent instructions, metadata schema, and optional icon',
     inputSchema: z.object({
       typeName: z.string().describe('Name of the new note type (valid identifier)'),
       description: z.string().describe('Description of what this note type is for'),
+      icon: z
+        .string()
+        .optional()
+        .describe('Optional emoji icon for this note type (e.g., "📝", "📚", "💡")'),
       agentInstructions: z
         .array(z.string())
         .optional()
@@ -1073,7 +1077,13 @@ export class ToolService {
         .optional()
         .describe('Optional metadata schema definition')
     }),
-    execute: async ({ typeName, description, agentInstructions, metadataSchema }) => {
+    execute: async ({
+      typeName,
+      description,
+      icon,
+      agentInstructions,
+      metadataSchema
+    }) => {
       if (!this.noteService) {
         return {
           success: false,
@@ -1099,6 +1109,7 @@ export class ToolService {
           description,
           agentInstructions,
           metadataSchema: metadataSchemaObj,
+          icon,
           vaultId: currentVault.id
         });
 
@@ -1126,10 +1137,14 @@ export class ToolService {
 
   private updateNoteTypeTool = tool({
     description:
-      'Update an existing note type with new description, instructions, or metadata schema',
+      'Update an existing note type with new description, instructions, metadata schema, or icon',
     inputSchema: z.object({
       typeName: z.string().describe('Name of the note type to update'),
       description: z.string().optional().describe('New description (optional)'),
+      icon: z
+        .string()
+        .optional()
+        .describe('New emoji icon for this note type (optional, e.g., "📝", "📚", "💡")'),
       instructions: z
         .array(z.string())
         .optional()
@@ -1181,7 +1196,7 @@ export class ToolService {
         .optional()
         .describe('New metadata schema definition (optional)')
     }),
-    execute: async ({ typeName, description, instructions, metadataSchema }) => {
+    execute: async ({ typeName, description, icon, instructions, metadataSchema }) => {
       if (!this.noteService) {
         return {
           success: false,
@@ -1205,6 +1220,7 @@ export class ToolService {
           description,
           instructions,
           metadataSchema,
+          icon,
           vaultId: currentVault.id
         });
 

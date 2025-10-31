@@ -1,5 +1,6 @@
 name: concept
 purpose: 'Research concepts, theories, and methodologies'
+icon: '💡'
 agent_instructions:
   - 'Build connections to related concepts and theories'
   - 'Link to papers that introduce or apply this concept'

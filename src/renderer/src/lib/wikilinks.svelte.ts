@@ -22,6 +22,36 @@ import type { NoteMetadata } from '../services/noteStore.svelte';
 import { notesStore } from '../services/noteStore.svelte';
 import { wikilinkTheme } from './wikilink-theme';
 
+/**
+ * Inject CSS for note type completion icons
+ */
+function injectNoteTypeCompletionStyles(): void {
+  const styleId = 'wikilink-completion-icons';
+  let styleElement = document.getElementById(styleId) as HTMLStyleElement;
+
+  if (!styleElement) {
+    styleElement = document.createElement('style');
+    styleElement.id = styleId;
+    document.head.appendChild(styleElement);
+  }
+
+  // Get current note types and generate CSS
+  const noteTypes = notesStore.noteTypes;
+  const cssRules = noteTypes
+    .filter((noteType) => noteType.icon)
+    .map((noteType) => {
+      // Escape the note type name for use in CSS selector
+      const escapedName = CSS.escape(noteType.name);
+      return `.cm-completionIcon-note-type-${escapedName}::before {
+        content: '${noteType.icon}';
+        margin-right: 0.5em;
+      }`;
+    })
+    .join('\n');
+
+  styleElement.textContent = cssRules;
+}
+
 // Regular expression to match wikilinks: [[Note Title]] or [[identifier|title]]
 const WIKILINK_REGEX = /\[\[([^[\]]+)\]\]/g;
 
@@ -253,6 +283,9 @@ export function wikilinkCompletion(context: CompletionContext): CompletionResult
 
   const query = match[1];
 
+  // Inject CSS for note type icons
+  injectNoteTypeCompletionStyles();
+
   // Get current notes from store
   const notes = notesStore.notes;
 
@@ -298,12 +331,14 @@ export function wikilinkCompletion(context: CompletionContext): CompletionResult
     : notes.slice(0, 10);
 
   // Create completion options with the new format [[identifier|title]]
-  const options = filteredNotes.map((note) => ({
-    label: note.title,
-    apply: `${note.id}|${note.title}]]`,
-    info: `ID: ${note.id} • Type: ${note.type || 'unknown'}`,
-    type: 'text'
-  }));
+  const options = filteredNotes.map((note) => {
+    return {
+      label: note.title,
+      apply: `${note.id}|${note.title}]]`,
+      info: `ID: ${note.id} • Type: ${note.type || 'unknown'}`,
+      type: `note-type-${note.type}` // Use note type as completion type for icon
+    };
+  });
 
   // Add option to create new note if query doesn't match exactly
   if (
@@ -356,8 +391,28 @@ class WikilinkWidget extends WidgetType {
         : 'wikilink wikilink-broken';
     }
 
+    // Get note type icon if the note exists
+    if (this.exists && this.noteId) {
+      const notes = notesStore.notes;
+      const note = notes.find((n) => n.id === this.noteId);
+      if (note) {
+        const noteTypes = notesStore.noteTypes;
+        const noteType = noteTypes.find((t) => t.name === note.type);
+        if (noteType?.icon) {
+          const iconSpan = document.createElement('span');
+          iconSpan.className = 'wikilink-icon';
+          iconSpan.textContent = noteType.icon;
+          span.appendChild(iconSpan);
+        }
+      }
+    }
+
     // Display only the title part (no brackets), which is more user-friendly
-    span.textContent = this.title;
+    // Wrap text in a span so we can apply underline only to text, not icon
+    const textSpan = document.createElement('span');
+    textSpan.className = 'wikilink-text';
+    textSpan.textContent = this.title;
+    span.appendChild(textSpan);
 
     span.addEventListener('click', (e) => {
       e.preventDefault();

@@ -140,7 +140,12 @@
               class="note-type-option"
               onclick={() => handleCreateNoteWithType(noteType.name)}
             >
-              <span class="note-type-name">{noteType.name}</span>
+              <div class="note-type-main">
+                {#if noteType.icon}
+                  <span class="note-type-icon">{noteType.icon}</span>
+                {/if}
+                <span class="note-type-name">{noteType.name}</span>
+              </div>
               <span class="note-type-count">({noteType.count})</span>
             </button>
           {/each}
@@ -330,6 +335,17 @@
 
   .note-type-option:last-child {
     border-radius: 0 0 0.5rem 0.5rem;
+  }
+
+  .note-type-main {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .note-type-icon {
+    font-size: 1rem;
+    line-height: 1;
   }
 
   .note-type-name {

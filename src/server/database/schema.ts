@@ -557,6 +557,7 @@ export interface NoteTypeDescriptionRow {
   agent_instructions: string | null;
   metadata_schema: string | null;
   content_hash: string | null;
+  icon: string | null;
   created_at: string;
   updated_at: string;
 }

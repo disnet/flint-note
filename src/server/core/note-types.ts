@@ -44,6 +44,7 @@ export interface NoteTypeDescription {
   parsed: ParsedNoteTypeDescription;
   metadataSchema: MetadataSchema;
   content_hash: string;
+  icon?: string;
 }
 
 export interface NoteTypeListItem {
@@ -54,6 +55,7 @@ export interface NoteTypeListItem {
   hasDescription: boolean;
   noteCount: number;
   lastModified: string;
+  icon?: string;
 }
 
 export interface NoteTypeUpdateRequest {
@@ -101,7 +103,8 @@ export class NoteTypeManager {
     name: string,
     description: string,
     agentInstructions: string[] | null = null,
-    metadataSchema: MetadataSchema | null = null
+    metadataSchema: MetadataSchema | null = null,
+    icon: string | null = null
   ): Promise<NoteTypeInfo> {
     try {
       // Validate note type name
@@ -162,8 +165,8 @@ export class NoteTypeManager {
         // Insert into database
         await db.run(
           `INSERT INTO note_type_descriptions
-           (id, vault_id, type_name, purpose, agent_instructions, metadata_schema, content_hash)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+           (id, vault_id, type_name, purpose, agent_instructions, metadata_schema, content_hash, icon)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             id,
             vaultId,
@@ -171,7 +174,8 @@ export class NoteTypeManager {
             description,
             JSON.stringify(instructions),
             JSON.stringify(schema),
-            contentHash
+            contentHash,
+            icon
           ]
         );
       }
@@ -306,7 +310,8 @@ export class NoteTypeManager {
             description,
             parsed,
             metadataSchema: schema,
-            content_hash: row.content_hash || ''
+            content_hash: row.content_hash || '',
+            icon: row.icon || undefined
           };
         }
       }
@@ -456,7 +461,8 @@ export class NoteTypeManager {
             agentInstructions: instructions,
             hasDescription: true,
             noteCount: 0, // Will be filled below
-            lastModified: row.updated_at || row.created_at
+            lastModified: row.updated_at || row.created_at,
+            icon: row.icon || undefined
           });
         }
       }
@@ -1004,6 +1010,7 @@ export class NoteTypeManager {
       description?: string;
       instructions?: string[];
       metadata_schema?: MetadataSchema;
+      icon?: string;
     }
   ): Promise<NoteTypeDescription> {
     try {
@@ -1044,20 +1051,38 @@ export class NoteTypeManager {
         const contentHash = generateContentHash(hashableContent);
 
         // Update with optimistic locking
-        await db.run(
-          `UPDATE note_type_descriptions
-           SET purpose = ?, agent_instructions = ?, metadata_schema = ?,
-               content_hash = ?, updated_at = CURRENT_TIMESTAMP
-           WHERE vault_id = ? AND type_name = ?`,
-          [
-            newDescription,
-            JSON.stringify(newInstructions),
-            JSON.stringify(newSchema),
-            contentHash,
-            vaultId,
-            typeName
-          ]
-        );
+        if (updates.icon !== undefined) {
+          await db.run(
+            `UPDATE note_type_descriptions
+             SET purpose = ?, agent_instructions = ?, metadata_schema = ?,
+                 content_hash = ?, icon = ?, updated_at = CURRENT_TIMESTAMP
+             WHERE vault_id = ? AND type_name = ?`,
+            [
+              newDescription,
+              JSON.stringify(newInstructions),
+              JSON.stringify(newSchema),
+              contentHash,
+              updates.icon,
+              vaultId,
+              typeName
+            ]
+          );
+        } else {
+          await db.run(
+            `UPDATE note_type_descriptions
+             SET purpose = ?, agent_instructions = ?, metadata_schema = ?,
+                 content_hash = ?, updated_at = CURRENT_TIMESTAMP
+             WHERE vault_id = ? AND type_name = ?`,
+            [
+              newDescription,
+              JSON.stringify(newInstructions),
+              JSON.stringify(newSchema),
+              contentHash,
+              vaultId,
+              typeName
+            ]
+          );
+        }
       }
 
       return await this.getNoteTypeDescription(typeName);

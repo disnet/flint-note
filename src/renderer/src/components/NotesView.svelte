@@ -77,7 +77,12 @@
           onkeydown={(e) => handleTypeKeyDown(e, noteType.name)}
         >
           <div class="card-content">
-            <h2 class="type-name">{noteType.name}</h2>
+            <div class="card-header">
+              {#if noteType.icon}
+                <span class="type-icon">{noteType.icon}</span>
+              {/if}
+              <h2 class="type-name">{noteType.name}</h2>
+            </div>
             {#if noteType.purpose}
               <p class="type-purpose">{noteType.purpose}</p>
             {/if}
@@ -223,6 +228,18 @@
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .type-icon {
+    font-size: 1.5rem;
+    line-height: 1;
+    flex-shrink: 0;
   }
 
   .type-name {

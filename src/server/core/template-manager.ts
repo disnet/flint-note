@@ -37,6 +37,7 @@ export interface TemplateNoteType {
   metadata_schema?: {
     fields: MetadataFieldDefinition[];
   };
+  icon?: string;
 }
 
 /**
@@ -337,7 +338,8 @@ export class TemplateManager {
           noteTypedef.name,
           noteTypedef.purpose,
           noteTypedef.agent_instructions,
-          metadataSchema
+          metadataSchema,
+          noteTypedef.icon || null
         );
 
         noteTypesCreated++;

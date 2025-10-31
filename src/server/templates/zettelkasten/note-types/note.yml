@@ -1,5 +1,6 @@
 name: note
 purpose: "General-purpose notes that don't fit specific Zettelkasten categories"
+icon: '📝'
 agent_instructions:
   - 'Help organize and clarify thoughts'
   - 'Suggest connections to other notes when appropriate'

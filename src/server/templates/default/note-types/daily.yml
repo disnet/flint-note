@@ -1,5 +1,6 @@
 name: daily
 purpose: 'Daily notes for tracking progress and capturing daily thoughts'
+icon: '📅'
 agent_instructions:
   - 'Extract actionable items and suggest appropriate note types for follow-up'
   - 'Identify and link related notes mentioned in daily entries'

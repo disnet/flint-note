@@ -1,5 +1,6 @@
 name: note
 purpose: 'General-purpose notes for thoughts, ideas, and information'
+icon: '📝'
 agent_instructions:
   - 'Identify and create wikilinks to related existing notes'
   - 'Use clear headings and formatting'

@@ -1,5 +1,6 @@
 name: daily
 purpose: 'Daily research log for tracking progress, questions, and insights'
+icon: '📅'
 agent_instructions:
   - 'Extract research questions and hypotheses'
   - 'Link to papers, concepts, and experiments mentioned'

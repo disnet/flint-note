@@ -4,6 +4,7 @@
   import { getChatService } from '../services/chatService';
   import type { GetNoteTypeInfoResult } from '@/server/api/types';
   import type { MetadataSchema, MetadataFieldType } from '@/server/core/metadata-schema';
+  import EmojiPicker from './EmojiPicker.svelte';
 
   interface Props {
     typeName: string;
@@ -25,6 +26,7 @@
   let loadingDetails = $state(false);
   let detailsError = $state<string | null>(null);
   let purpose = $state('');
+  let icon = $state('');
   let instructions = $state<string[]>([]);
   let metadataSchema = $state<MetadataSchema>({ fields: [] });
   let saveTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -104,6 +106,7 @@
         typeInfo = await noteService.getNoteTypeInfo({ typeName });
         if (typeInfo) {
           purpose = typeInfo.purpose || '';
+          icon = typeInfo.icon || '';
           instructions = [...(typeInfo.instructions || [])];
           metadataSchema = typeInfo.metadata_schema
             ? { fields: [...typeInfo.metadata_schema.fields] }
@@ -122,10 +125,29 @@
     try {
       const noteService = getChatService();
       if (await noteService.isReady()) {
+        const currentVault = await noteService.getCurrentVault();
+        if (!currentVault) {
+          detailsError = 'No vault selected';
+          return;
+        }
+
+        // System fields that cannot be redefined in metadata schema
+        const systemFields = new Set([
+          'id',
+          'type',
+          'title',
+          'filename',
+          'created',
+          'modified',
+          'tags',
+          'path',
+          'size'
+        ]);
+
         const cleanMetadataSchema =
           metadataSchema && metadataSchema.fields
             ? metadataSchema.fields
-                .filter((field) => field.name.trim() !== '')
+                .filter((field) => field.name.trim() !== '' && !systemFields.has(field.name))
                 .map((field) => {
                   const cleanField: any = {
                     name: field.name,
@@ -162,12 +184,19 @@
                 })
             : undefined;
 
-        await noteService.updateNoteType({
+        const params = {
           typeName: typeName,
           description: purpose,
+          icon: icon || undefined,
           instructions: $state.snapshot(instructions),
-          metadataSchema: cleanMetadataSchema
-        });
+          metadataSchema: cleanMetadataSchema,
+          vaultId: currentVault.id
+        };
+
+        await noteService.updateNoteType($state.snapshot(params));
+
+        // Refresh the note types store to update the icon in the UI
+        await notesStore.initialize();
       }
     } catch (err) {
       detailsError = err instanceof Error ? err.message : 'Failed to save changes';
@@ -405,6 +434,17 @@
                 placeholder="Brief description of what this note type is for..."
                 rows="3"
               ></textarea>
+            </div>
+
+            <div class="form-section">
+              <label class="form-label">Icon (Optional)</label>
+              <EmojiPicker
+                bind:value={icon}
+                onselect={(emoji) => {
+                  icon = emoji;
+                  scheduleAutoSave();
+                }}
+              />
             </div>
 
             <div class="form-section">

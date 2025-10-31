@@ -592,7 +592,8 @@ export class FlintNoteApi {
       args.type_name,
       args.description,
       args.agent_instructions || null,
-      args.metadata_schema || null
+      args.metadata_schema || null,
+      args.icon || null
     );
   }
 
@@ -622,7 +623,8 @@ export class FlintNoteApi {
       path: desc.path,
       instructions: desc.parsed.agentInstructions,
       metadata_schema: desc.metadataSchema,
-      content_hash: desc.content_hash
+      content_hash: desc.content_hash,
+      icon: desc.icon
     };
   }
 
@@ -634,6 +636,7 @@ export class FlintNoteApi {
     description?: string;
     instructions?: string[];
     metadata_schema?: MetadataFieldDefinition[];
+    icon?: string;
     vault_id: string;
   }): Promise<NoteTypeDescription> {
     this.ensureInitialized();
@@ -662,6 +665,9 @@ export class FlintNoteApi {
     if (args.metadata_schema) {
       // Convert array to MetadataSchema object
       updates.metadata_schema = { fields: args.metadata_schema };
+    }
+    if (args.icon !== undefined) {
+      updates.icon = args.icon;
     }
 
     return await noteTypeManager.updateNoteType(args.type_name, updates);

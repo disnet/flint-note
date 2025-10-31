@@ -119,6 +119,23 @@
     return title.length > maxLength ? title.substring(0, maxLength) + '...' : title;
   }
 
+  function getTabIcon(
+    noteId: string,
+    source: string
+  ): { type: 'emoji' | 'svg'; value: string } {
+    // Check for custom note type icon first
+    const note = notesStore.notes.find((n) => n.id === noteId);
+    if (note) {
+      const noteType = notesStore.noteTypes.find((t) => t.name === note.type);
+      if (noteType?.icon) {
+        return { type: 'emoji', value: noteType.icon };
+      }
+    }
+
+    // Fall back to source-based icon logic
+    return { type: 'svg', value: source };
+  }
+
   function getSourceIcon(source: string): string {
     switch (source) {
       case 'search':
@@ -264,8 +281,12 @@
         >
           <div class="tab-content">
             <div class="tab-icon">
-              <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-              {@html getSourceIcon(tab.source)}
+              {#if getTabIcon(tab.noteId, tab.source).type === 'emoji'}
+                <span class="emoji-icon">{getTabIcon(tab.noteId, tab.source).value}</span>
+              {:else}
+                <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+                {@html getSourceIcon(getTabIcon(tab.noteId, tab.source).value)}
+              {/if}
             </div>
             <span class="tab-title">
               {#if tab.title}
@@ -392,6 +413,11 @@
     align-items: center;
     color: var(--text-secondary);
     flex-shrink: 0;
+  }
+
+  .emoji-icon {
+    font-size: 12px;
+    line-height: 1;
   }
 
   .tab-title {

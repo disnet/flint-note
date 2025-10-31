@@ -75,6 +75,7 @@ export interface CreateNoteTypeArgs {
   description: string;
   agent_instructions?: string[];
   metadata_schema?: import('../core/metadata-schema.js').MetadataSchema;
+  icon?: string;
   vault_id: string;
 }
 
@@ -194,6 +195,7 @@ export interface GetNoteTypeInfoResult {
   instructions: string[];
   metadata_schema: import('../core/metadata-schema.js').MetadataSchema;
   content_hash: string;
+  icon?: string;
 }
 
 export interface CreateVaultArgs {

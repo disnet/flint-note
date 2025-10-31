@@ -141,6 +141,7 @@ export interface NoteService {
     description: string;
     agentInstructions?: string[];
     metadataSchema?: MetadataSchema;
+    icon?: string;
     vaultId?: string;
   }): Promise<NoteTypeInfo>;
   getNoteTypeInfo(params: {
@@ -152,6 +153,7 @@ export interface NoteService {
     description?: string;
     instructions?: string[];
     metadataSchema?: MetadataFieldDefinition[];
+    icon?: string;
     vaultId?: string;
   }): Promise<NoteTypeDescription>;
   deleteNoteType(params: {

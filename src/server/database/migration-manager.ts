@@ -1141,8 +1141,34 @@ async function migrateToV2_4_0(db: DatabaseConnection): Promise<void> {
   }
 }
 
+/**
+ * Migration to v2.5.0: Add icon column to note_type_descriptions table
+ */
+async function migrateToV2_5_0(db: DatabaseConnection): Promise<void> {
+  console.log('Migrating to v2.5.0: Adding icon column to note_type_descriptions');
+
+  try {
+    // Check if icon column already exists
+    const columns = await db.all<{ name: string }>(
+      "SELECT name FROM pragma_table_info('note_type_descriptions')"
+    );
+    const hasIcon = columns.some((col) => col.name === 'icon');
+
+    if (!hasIcon) {
+      console.log('Adding icon column to note_type_descriptions table');
+      await db.run('ALTER TABLE note_type_descriptions ADD COLUMN icon TEXT');
+      console.log('icon column added successfully');
+    } else {
+      console.log('icon column already exists, skipping');
+    }
+  } catch (error) {
+    console.error('Failed to add icon column:', error);
+    throw error;
+  }
+}
+
 export class DatabaseMigrationManager {
-  private static readonly CURRENT_SCHEMA_VERSION = '2.4.0';
+  private static readonly CURRENT_SCHEMA_VERSION = '2.5.0';
 
   private static readonly MIGRATIONS: DatabaseMigration[] = [
     {
@@ -1194,6 +1220,13 @@ export class DatabaseMigrationManager {
       requiresFullRebuild: false,
       requiresLinkMigration: false,
       migrationFunction: migrateToV2_4_0
+    },
+    {
+      version: '2.5.0',
+      description: 'Add icon column to note_type_descriptions table',
+      requiresFullRebuild: false,
+      requiresLinkMigration: false,
+      migrationFunction: migrateToV2_5_0
     }
   ];
 

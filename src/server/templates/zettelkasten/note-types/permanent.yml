@@ -1,5 +1,6 @@
 name: permanent
 purpose: 'Permanent notes containing atomic, evergreen ideas in your own words'
+icon: '💎'
 agent_instructions:
   - 'Ensure each permanent note contains one clear, atomic idea'
   - 'Help create rich connections to related permanent notes'

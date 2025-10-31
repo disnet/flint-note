@@ -1,5 +1,6 @@
 <script lang="ts">
   import { getChatService } from '../services/chatService';
+  import EmojiPicker from './EmojiPicker.svelte';
 
   interface Props {
     onBack: () => void;
@@ -10,6 +11,7 @@
 
   let typeName = $state('');
   let description = $state('');
+  let icon = $state('');
   let loading = $state(false);
   let error = $state<string | null>(null);
 
@@ -38,6 +40,7 @@
         await noteService.createNoteType({
           typeName: sanitizedName,
           description: description.trim() || '',
+          icon: icon || undefined,
           vaultId: currentVault.id
         });
 
@@ -124,6 +127,12 @@
           This will be shown on the note type card and helps users understand when to use
           this type.
         </p>
+      </div>
+
+      <div class="form-group">
+        <label class="label">Icon (Optional)</label>
+        <EmojiPicker bind:value={icon} onselect={(emoji) => (icon = emoji)} />
+        <p class="help-text">Choose an emoji icon to represent this note type.</p>
       </div>
 
       <div class="actions">

@@ -273,6 +273,7 @@ declare namespace FlintAPI {
     description?: string;
     agent_instructions?: string;
     template?: string;
+    icon?: string;
     vaultId?: string;
   }
 
@@ -303,6 +304,7 @@ declare namespace FlintAPI {
     description?: string;
     agent_instructions?: string;
     template?: string;
+    icon?: string;
     vaultId?: string;
   }
 

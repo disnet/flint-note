@@ -14,8 +14,19 @@ export const wikilinkTheme = EditorView.theme({
     fontSize: 'inherit',
     fontFamily: 'inherit',
     fontWeight: '600',
-    textDecoration: 'underline',
     transition: 'all 0.2s ease'
+  },
+
+  '.wikilink-icon': {
+    fontSize: '0.9em',
+    lineHeight: '1',
+    display: 'inline-block',
+    verticalAlign: 'baseline',
+    marginRight: '0.25em'
+  },
+
+  '.wikilink-text': {
+    textDecoration: 'underline'
   },
 
   '.wikilink-exists': {

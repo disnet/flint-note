@@ -1,5 +1,6 @@
 name: literature
 purpose: 'Literature notes for capturing ideas from books, articles, papers, and other external sources'
+icon: '📚'
 agent_instructions:
   - 'Help extract key ideas that could become permanent notes'
   - 'Distinguish between source content and personal insights'

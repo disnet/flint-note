@@ -77,6 +77,11 @@
     aria-haspopup="true"
     aria-expanded={isOpen}
   >
+    {#if availableTypes.find((t) => t.name === currentType)?.icon}
+      <span class="type-icon"
+        >{availableTypes.find((t) => t.name === currentType)?.icon}</span
+      >
+    {/if}
     <span class="type-name">{currentType}</span>
     <span class="dropdown-icon" class:open={isOpen}>▼</span>
   </button>
@@ -91,7 +96,12 @@
           type="button"
           role="menuitem"
         >
-          <span class="item-name">{noteType.name}</span>
+          <div class="item-main">
+            {#if noteType.icon}
+              <span class="item-icon">{noteType.icon}</span>
+            {/if}
+            <span class="item-name">{noteType.name}</span>
+          </div>
           <span class="item-count">{noteType.count}</span>
         </button>
       {/each}
@@ -143,6 +153,11 @@
   .note-type-dropdown.saving .type-button {
     opacity: 0.7;
     cursor: wait;
+  }
+
+  .type-icon {
+    font-size: 1rem;
+    line-height: 1;
   }
 
   .type-name {
@@ -214,6 +229,17 @@
 
   .dropdown-item.selected:hover {
     background: var(--accent-hover);
+  }
+
+  .item-main {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .item-icon {
+    font-size: 1rem;
+    line-height: 1;
   }
 
   .item-name {

@@ -1,5 +1,6 @@
 name: index
 purpose: 'Index notes that serve as entry points and organize related permanent notes by topic or theme'
+icon: '🗂️'
 agent_instructions:
   - 'Help organize permanent notes into thematic structures'
   - 'Suggest permanent notes that could be added to the index'

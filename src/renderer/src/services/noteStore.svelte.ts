@@ -18,6 +18,7 @@ export type NoteType = {
   name: string;
   count: number;
   purpose: string;
+  icon?: string;
 };
 
 interface NotesStoreState {
@@ -79,7 +80,8 @@ function createNotesStore(): {
       const noteTypes = result.map((typeItem) => ({
         name: typeItem.name,
         count: typeItem.noteCount,
-        purpose: typeItem.purpose || ''
+        purpose: typeItem.purpose || '',
+        icon: typeItem.icon
       }));
       state.noteTypes = noteTypes;
       state.loading = false;

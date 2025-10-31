@@ -1,5 +1,6 @@
 name: fleeting
 purpose: 'Fleeting notes for quick capture of thoughts, ideas, and observations that need processing'
+icon: '⚡'
 agent_instructions:
   - 'Help identify when a fleeting note is ready to become a permanent note'
   - 'Suggest connections to existing permanent notes and concepts'

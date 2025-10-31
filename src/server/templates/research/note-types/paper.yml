@@ -1,5 +1,6 @@
 name: paper
 purpose: 'Research papers and academic literature'
+icon: '📄'
 agent_instructions:
   - 'Extract key findings, methodology, and contributions'
   - 'Identify related papers and citation relationships'
