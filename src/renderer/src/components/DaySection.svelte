@@ -10,10 +10,17 @@
     onNoteClick?: (noteId: string) => void;
     onDailyNoteUpdate?: (date: string, content: string) => void;
     onDailyNoteTitleClick?: (date: string) => void;
+    onDailyNoteTitleClickSidebar?: (date: string) => void;
   }
 
-  let { dayData, dayHeader, isToday, onDailyNoteUpdate, onDailyNoteTitleClick }: Props =
-    $props();
+  let {
+    dayData,
+    dayHeader,
+    isToday,
+    onDailyNoteUpdate,
+    onDailyNoteTitleClick,
+    onDailyNoteTitleClickSidebar
+  }: Props = $props();
 
   // Get short day name (Mon, Tue, Wed, etc.)
   const shortDayName = $derived.by(() => {
@@ -28,9 +35,14 @@
     }
   }
 
-  function handleDayLabelClick(): void {
-    // Navigate to the full note view
-    onDailyNoteTitleClick?.(dayData.date);
+  function handleDayLabelClick(event: MouseEvent): void {
+    if (event.shiftKey) {
+      // Shift-click: open in sidebar
+      onDailyNoteTitleClickSidebar?.(dayData.date);
+    } else {
+      // Regular click: open in main view
+      onDailyNoteTitleClick?.(dayData.date);
+    }
   }
 </script>
 
