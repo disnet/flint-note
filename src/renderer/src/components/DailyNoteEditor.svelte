@@ -121,11 +121,7 @@
     position: relative;
     width: 100%;
     border-radius: 0.5rem;
-    /* Reserve space for border to prevent layout shift */
-    padding: 1px;
-    /* Transparent border by default */
-    border: 1px solid transparent;
-    margin: -1px; /* Compensate for padding to maintain layout */
+    border: 2px solid transparent;
     /* Smooth transition for border and glow */
     transition:
       border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
@@ -133,12 +129,9 @@
   }
 
   .daily-note-editor-wrapper.focused {
-    /* Subtle accent color border with very light glow */
+    /* Bold accent color border */
     border-color: var(--accent-primary);
-    /* Very subtle multi-layer glow - works well in both light and dark mode */
-    box-shadow:
-      0 0 0 1px rgba(99, 102, 241, 0.2),
-      0 0 12px rgba(99, 102, 241, 0.06),
-      0 0 24px rgba(99, 102, 241, 0.03);
+    /* Glow effect */
+    box-shadow: 0 0 10px rgba(99, 102, 241, 0.3);
   }
 </style>

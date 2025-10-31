@@ -110,14 +110,9 @@
   }
 
   .day-content {
-    padding: 1rem 0;
-    /*min-height: 120px;*/
-  }
-
-  .day-divider {
-    border-bottom: 1px solid var(--border-light);
-    margin-top: 1rem;
-    margin-bottom: 0;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+    padding-right: 0.5rem;
   }
 
   /* Mobile responsive */
