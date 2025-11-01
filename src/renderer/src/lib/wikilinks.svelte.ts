@@ -439,11 +439,12 @@ export function wikilinkCompletion(context: CompletionContext): CompletionResult
         .slice(0, 10)
     : notes.slice(0, 10);
 
-  // Create completion options with the new format [[identifier|title]]
+  // Create completion options with the correct format [[type/filename|title]]
   const options = filteredNotes.map((note) => {
+    const linkTarget = `${note.type}/${note.filename.replace(/\.md$/, '')}`;
     return {
       label: note.title,
-      apply: `${note.id}|${note.title}]]`,
+      apply: `${linkTarget}|${note.title}]]`,
       info: () => createNoteInfo(note.id, note.type || 'unknown'),
       type: `note-type-${note.type}` // Use note type as completion type for icon
     };
