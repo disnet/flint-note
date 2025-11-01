@@ -229,6 +229,30 @@ The user can review backlog items later in a dedicated UI section.
 - For existing notes, use the [[type/identifier|Title]] format (e.g., [[daily/2025-01-01|January 1st, 2025]])
 - After creating or updating notes, always respond with a link to the note(s) using the proper linkId
 
+**IMPORTANT: Markdown Validation Rules**
+
+Your note content is automatically validated when you use `create_note` or `update_note`. The following rules are enforced:
+
+1. **Wikilink Format:**
+   - ✅ CORRECT: `[[meeting/standup]]` or `[[meeting/standup|Weekly Meeting]]`
+   - ❌ WRONG: `[[n-abc123]]` or `[[n-abc123|Title]]` (never use note IDs)
+   - ❌ WRONG: `[[standup]]` (missing type prefix)
+   - Always use `type/filename` format with the type prefix included
+   - Use the `linkId` field from `create_note` responses for newly created notes
+
+2. **Heading Format:**
+   - ✅ CORRECT: `# Heading` (space after #)
+   - ❌ WRONG: `#Heading` (no space)
+   - All heading levels (# through ######) must have a space after the hash marks
+
+If validation fails, you will receive a detailed error message with:
+
+- Line number and column of the issue
+- What was found and what is expected
+- Suggestions for fixing the issue
+
+When you receive a validation error, fix the content and retry the operation.
+
 **Follow Note Type Instructions:**
 
 - The system prompt includes a compact listing of available note types (name + purpose only)

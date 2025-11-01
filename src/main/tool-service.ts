@@ -215,7 +215,8 @@ export class ToolService {
           title,
           content,
           metadata: metadata as Parameters<typeof flintApi.createNote>[0]['metadata'], // Cast to satisfy type checking for user-provided metadata
-          vaultId: currentVault.id
+          vaultId: currentVault.id,
+          callerContext: 'agent'
         });
 
         // Get the full note object
@@ -372,11 +373,13 @@ export class ToolService {
           contentHash: string;
           vaultId: string;
           metadata?: Record<string, unknown>;
+          callerContext?: 'agent' | 'user';
         } = {
           identifier: id,
           content: finalContent,
           contentHash: finalContentHash,
-          vaultId: currentVault.id
+          vaultId: currentVault.id,
+          callerContext: 'agent'
         };
 
         // Update metadata if provided

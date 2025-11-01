@@ -70,6 +70,8 @@ import { logger } from '../../main/logger.js';
 import { validateNoSystemFields } from '../core/system-fields.js';
 import { VaultFileWatcher } from '../core/file-watcher.js';
 import type { FileWatcherEvent } from '../core/file-watcher.js';
+import { getDefaultLinter } from '../linting/linter-config.js';
+import type { LintContext } from '../linting/lint-rule.js';
 
 export interface FlintNoteApiConfig extends ServerConfig {
   configDir?: string;
@@ -83,6 +85,7 @@ export interface UpdateNoteOptions {
   contentHash: string;
   vaultId: string;
   metadata?: NoteMetadata;
+  callerContext?: 'agent' | 'user';
 }
 
 export interface DeleteNoteOptions {
@@ -110,6 +113,7 @@ export interface CreateSingleNoteOptions {
   content: string;
   metadata?: NoteMetadata;
   vaultId: string;
+  callerContext?: 'agent' | 'user';
 }
 
 export class FlintNoteApi {
@@ -368,6 +372,16 @@ export class FlintNoteApi {
     this.ensureInitialized();
     const { noteManager } = await this.getVaultContext(options.vaultId);
 
+    // Validate content if caller is agent
+    if (options.callerContext === 'agent') {
+      const linter = getDefaultLinter();
+      const lintContext: LintContext = {
+        source: 'agent',
+        noteType: options.type
+      };
+      linter.lintStrict(options.content, lintContext);
+    }
+
     return await noteManager.createNote(
       options.type,
       options.title,
@@ -484,6 +498,15 @@ export class FlintNoteApi {
   async updateNote(options: UpdateNoteOptions): Promise<UpdateResult> {
     this.ensureInitialized();
     const { noteManager } = await this.getVaultContext(options.vaultId);
+
+    // Validate content if caller is agent
+    if (options.callerContext === 'agent') {
+      const linter = getDefaultLinter();
+      const lintContext: LintContext = {
+        source: 'agent'
+      };
+      linter.lintStrict(options.content, lintContext);
+    }
 
     if (options.metadata) {
       return await noteManager.updateNoteWithMetadata(

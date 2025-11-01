@@ -201,7 +201,8 @@ export class NoteService {
       title: identifier,
       content,
       vaultId,
-      metadata
+      metadata,
+      callerContext: 'user'
     });
   }
 
@@ -227,7 +228,8 @@ export class NoteService {
       content,
       metadata,
       contentHash: note.content_hash,
-      vaultId
+      vaultId,
+      callerContext: 'user'
     });
   }
 
