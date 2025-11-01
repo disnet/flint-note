@@ -2,14 +2,9 @@
   import { notesStore } from '../services/noteStore.svelte';
   import { pinnedNotesStore } from '../services/pinnedStore.svelte';
   import type { NoteMetadata } from '../services/noteStore.svelte';
-  import {
-    handleDragStart,
-    handleDragOver,
-    handleDragEnd,
-    calculateDropIndex
-  } from '../utils/dragDrop.svelte';
-  import { handleCrossSectionDrop } from '../utils/crossSectionDrag.svelte';
-  import { globalDragState } from '../stores/dragState.svelte';
+  import { useSectionDragDrop } from '../composables/useSectionDragDrop.svelte';
+  import { useAutoScrollToActive } from '../composables/useAutoScrollToActive.svelte';
+  import NoteIcon from './shared/NoteIcon.svelte';
 
   interface Props {
     activeNote: NoteMetadata | null;
@@ -20,8 +15,6 @@
 
   let isCollapsed = $state(false);
   let pinnedNotes = $state<NoteMetadata[]>([]);
-
-  const dragState = globalDragState;
 
   // Check if notes are ready (for consistency with TemporaryTabs)
   let isNotesReady = $derived(!notesStore.loading);
@@ -38,6 +31,25 @@
     pinnedNotes = result;
   });
 
+  // Drag & drop composable
+  const { dragState, handlers } = useSectionDragDrop({
+    sectionType: 'pinned',
+    items: pinnedNotes,
+    getItemId: (note) => note.id,
+    onReorder: (sourceIndex, targetIndex) =>
+      pinnedNotesStore.reorderNotes(sourceIndex, targetIndex)
+  });
+
+  const { onDragStart, onDragOver, onDrop, onDragEnd } = handlers;
+
+  // Auto-scroll composable
+  useAutoScrollToActive({
+    activeId: activeNote?.id,
+    selector: '.pinned-item',
+    isReady: isNotesReady,
+    isCollapsed
+  });
+
   function toggleCollapsed(): void {
     isCollapsed = !isCollapsed;
   }
@@ -50,111 +62,6 @@
     }
     onNoteSelect(note);
   }
-
-  function getNoteIcon(note: NoteMetadata): { type: 'emoji' | 'svg'; value: string } {
-    // Check for custom note type icon first
-    const noteType = notesStore.noteTypes.find((t) => t.name === note.type);
-    if (noteType?.icon) {
-      return { type: 'emoji', value: noteType.icon };
-    }
-
-    // Fall back to smart icon logic based on note metadata
-    if (note.title.includes('daily') || note.title.match(/\d{4}-\d{2}-\d{2}/)) {
-      return { type: 'svg', value: 'calendar' };
-    }
-    if (note.tags?.includes('project')) {
-      return { type: 'svg', value: 'folder' };
-    }
-    return { type: 'svg', value: 'document' };
-  }
-
-  function getIconSvg(iconType: string): string {
-    switch (iconType) {
-      case 'calendar':
-        return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-          <line x1="16" y1="2" x2="16" y2="6"></line>
-          <line x1="8" y1="2" x2="8" y2="6"></line>
-          <line x1="3" y1="10" x2="21" y2="10"></line>
-        </svg>`;
-      case 'folder':
-        return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"></path>
-        </svg>`;
-      default:
-        return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-          <polyline points="14,2 14,8 20,8"></polyline>
-        </svg>`;
-    }
-  }
-
-  function onDragStart(event: DragEvent, note: NoteMetadata): void {
-    handleDragStart(event, note.id, 'pinned', dragState);
-  }
-
-  function onDragOver(event: DragEvent, index: number, element: HTMLElement): void {
-    handleDragOver(event, index, 'pinned', dragState, element);
-  }
-
-  async function onDrop(event: DragEvent, targetIndex: number): Promise<void> {
-    event.preventDefault();
-
-    const data = event.dataTransfer?.getData('text/plain');
-    if (!data) return;
-
-    const { id, type } = JSON.parse(data);
-    const position = dragState.dragOverPosition || 'bottom';
-
-    // Calculate the actual drop index based on position
-    const sourceIndex =
-      type === 'pinned'
-        ? pinnedNotesStore.notes.findIndex((n) => n.id === id)
-        : undefined;
-    const dropIndex = calculateDropIndex(targetIndex, position, sourceIndex);
-
-    // Handle cross-section drag
-    if (await handleCrossSectionDrop(id, type, 'pinned', dropIndex)) {
-      handleDragEnd(dragState);
-      return;
-    }
-
-    // Handle same-section reorder
-    if (type === 'pinned' && sourceIndex !== undefined) {
-      if (sourceIndex !== dropIndex) {
-        try {
-          await pinnedNotesStore.reorderNotes(sourceIndex, dropIndex);
-        } catch (error) {
-          console.error('Failed to reorder notes:', error);
-        }
-      }
-    }
-
-    handleDragEnd(dragState);
-  }
-
-  function onDragEnd(): void {
-    handleDragEnd(dragState);
-  }
-
-  // Auto-scroll to active note when it changes
-  $effect(() => {
-    const activeId = activeNote?.id;
-    if (activeId && isNotesReady && !isCollapsed) {
-      // Use setTimeout to ensure DOM has updated
-      setTimeout(() => {
-        const activeElement = document.querySelector(
-          `.pinned-item[data-id="${activeId}"]`
-        ) as HTMLElement;
-        if (activeElement) {
-          activeElement.scrollIntoView({
-            behavior: 'smooth',
-            block: 'nearest'
-          });
-        }
-      }, 50);
-    }
-  });
 </script>
 
 <div class="pinned-notes">
@@ -204,14 +111,7 @@
           onclick={() => handleNoteClick(note)}
           title={!isNotesReady ? 'Loading...' : note.title}
         >
-          <div class="note-icon">
-            {#if getNoteIcon(note).type === 'emoji'}
-              <span class="emoji-icon">{getNoteIcon(note).value}</span>
-            {:else}
-              <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-              {@html getIconSvg(getNoteIcon(note).value)}
-            {/if}
-          </div>
+          <NoteIcon note={note} />
           <span class="note-title">
             {#if note.title}
               {note.title}
@@ -331,18 +231,6 @@
     opacity: 0.6;
     cursor: not-allowed;
     pointer-events: none;
-  }
-
-  .note-icon {
-    display: flex;
-    align-items: center;
-    color: var(--text-secondary);
-    flex-shrink: 0;
-  }
-
-  .emoji-icon {
-    font-size: 14px;
-    line-height: 1;
   }
 
   .note-title {

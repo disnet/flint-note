@@ -1,5 +1,8 @@
 import type { DragState } from '../utils/dragDrop.svelte';
 
+// Re-export DragState type for convenience
+export type { DragState };
+
 // Create a global drag state that can be shared between components
 class GlobalDragState {
   private state = $state<DragState>({

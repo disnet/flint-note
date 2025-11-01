@@ -2,14 +2,9 @@
   import { temporaryTabsStore } from '../stores/temporaryTabsStore.svelte';
   import { notesStore } from '../services/noteStore.svelte';
   import type { NoteMetadata } from '../services/noteStore.svelte';
-  import {
-    handleDragStart,
-    handleDragOver,
-    handleDragEnd,
-    calculateDropIndex
-  } from '../utils/dragDrop.svelte';
-  import { handleCrossSectionDrop } from '../utils/crossSectionDrag.svelte';
-  import { globalDragState } from '../stores/dragState.svelte';
+  import { useSectionDragDrop } from '../composables/useSectionDragDrop.svelte';
+  import { useAutoScrollToActive } from '../composables/useAutoScrollToActive.svelte';
+  import NoteIcon from './shared/NoteIcon.svelte';
 
   interface Props {
     onNoteSelect: (note: NoteMetadata) => void;
@@ -17,8 +12,6 @@
   }
 
   let { onNoteSelect }: Props = $props();
-
-  const dragState = globalDragState;
 
   // Check if notes are still loading
   let isNotesLoading = $derived(notesStore.loading);
@@ -54,6 +47,24 @@
       };
     })
   );
+
+  // Drag & drop composable
+  const { dragState, handlers } = useSectionDragDrop({
+    sectionType: 'temporary',
+    items: temporaryTabsStore.tabs,
+    getItemId: (tab) => tab.id,
+    onReorder: (sourceIndex, targetIndex) =>
+      temporaryTabsStore.reorderTabs(sourceIndex, targetIndex)
+  });
+
+  const { onDragStart, onDragOver, onDrop, onDragEnd } = handlers;
+
+  // Auto-scroll composable
+  useAutoScrollToActive({
+    activeId: temporaryTabsStore.activeTabId,
+    selector: '.tab-item',
+    isReady: isTabsReady
+  });
 
   async function handleTabClick(noteId: string): Promise<void> {
     // Don't allow clicks while tabs are not ready
@@ -118,112 +129,6 @@
   function truncateTitle(title: string, maxLength: number = 30): string {
     return title.length > maxLength ? title.substring(0, maxLength) + '...' : title;
   }
-
-  function getTabIcon(
-    noteId: string,
-    source: string
-  ): { type: 'emoji' | 'svg'; value: string } {
-    // Check for custom note type icon first
-    const note = notesStore.notes.find((n) => n.id === noteId);
-    if (note) {
-      const noteType = notesStore.noteTypes.find((t) => t.name === note.type);
-      if (noteType?.icon) {
-        return { type: 'emoji', value: noteType.icon };
-      }
-    }
-
-    // Fall back to source-based icon logic
-    return { type: 'svg', value: source };
-  }
-
-  function getSourceIcon(source: string): string {
-    switch (source) {
-      case 'search':
-        return `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="11" cy="11" r="8"></circle>
-          <path d="m21 21-4.35-4.35"></path>
-        </svg>`;
-      case 'wikilink':
-        return `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-        </svg>`;
-      default:
-        return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-          <polyline points="14,2 14,8 20,8"></polyline>
-        </svg>`;
-    }
-  }
-
-  function onDragStart(
-    event: DragEvent,
-    tab: { id: string; noteId: string; title: string; source: string }
-  ): void {
-    handleDragStart(event, tab.id, 'temporary', dragState);
-  }
-
-  function onDragOver(event: DragEvent, index: number, element: HTMLElement): void {
-    handleDragOver(event, index, 'temporary', dragState, element);
-  }
-
-  async function onDrop(event: DragEvent, targetIndex: number): Promise<void> {
-    event.preventDefault();
-
-    const data = event.dataTransfer?.getData('text/plain');
-    if (!data) return;
-
-    const { id, type } = JSON.parse(data);
-    const position = dragState.dragOverPosition || 'bottom';
-
-    // Handle cross-section drag (no source index adjustment needed)
-    if (type !== 'temporary') {
-      let dropIndex = targetIndex;
-      if (position === 'bottom') {
-        dropIndex = targetIndex + 1;
-      }
-      if (await handleCrossSectionDrop(id, type, 'temporary', dropIndex)) {
-        handleDragEnd(dragState);
-        return;
-      }
-    }
-
-    // Handle same-section reorder for temporary tabs
-    if (type === 'temporary') {
-      const sourceIndex = temporaryTabsStore.tabs.findIndex((t) => t.id === id);
-      if (sourceIndex !== -1) {
-        const finalDropIndex = calculateDropIndex(targetIndex, position, sourceIndex);
-        if (sourceIndex !== finalDropIndex) {
-          await temporaryTabsStore.reorderTabs(sourceIndex, finalDropIndex);
-        }
-      }
-    }
-
-    handleDragEnd(dragState);
-  }
-
-  function onDragEnd(): void {
-    handleDragEnd(dragState);
-  }
-
-  // Auto-scroll to active tab when it changes
-  $effect(() => {
-    const activeId = temporaryTabsStore.activeTabId;
-    if (activeId && isTabsReady) {
-      // Use setTimeout to ensure DOM has updated
-      setTimeout(() => {
-        const activeElement = document.querySelector(
-          `.tab-item[data-id="${activeId}"]`
-        ) as HTMLElement;
-        if (activeElement) {
-          activeElement.scrollIntoView({
-            behavior: 'smooth',
-            block: 'nearest'
-          });
-        }
-      }, 50);
-    }
-  });
 </script>
 
 <div class="temporary-tabs">
@@ -280,14 +185,7 @@
           onkeydown={(e) => e.key === 'Enter' && handleTabClick(tab.noteId)}
         >
           <div class="tab-content">
-            <div class="tab-icon">
-              {#if getTabIcon(tab.noteId, tab.source).type === 'emoji'}
-                <span class="emoji-icon">{getTabIcon(tab.noteId, tab.source).value}</span>
-              {:else}
-                <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-                {@html getSourceIcon(getTabIcon(tab.noteId, tab.source).value)}
-              {/if}
-            </div>
+            <NoteIcon noteId={tab.noteId} source={tab.source} size={12} />
             <span class="tab-title">
               {#if tab.title}
                 {truncateTitle(tab.title)}
@@ -406,18 +304,6 @@
     border-radius: 0.4rem;
     flex: 1;
     min-width: 0;
-  }
-
-  .tab-icon {
-    display: flex;
-    align-items: center;
-    color: var(--text-secondary);
-    flex-shrink: 0;
-  }
-
-  .emoji-icon {
-    font-size: 12px;
-    line-height: 1;
   }
 
   .tab-title {
