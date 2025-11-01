@@ -12,6 +12,8 @@ export interface LintContext {
   noteType?: string;
   /** Path to the note being linted (if known) */
   notePath?: string;
+  /** Set of existing note identifiers for broken link checking (both id and type/filename formats) */
+  existingNoteIdentifiers?: Set<string>;
 }
 
 /**

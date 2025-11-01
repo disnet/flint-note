@@ -276,7 +276,8 @@ export class ToolService {
             ...note,
             linkId // Add canonical reference format for creating wikilinks
           },
-          message: `Created note: ${note.title}. Reference as [[${linkId}]]`
+          message: `Created note: ${note.title}. Reference as [[${linkId}]]`,
+          validationWarnings: noteInfo.validationWarnings
         };
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
@@ -455,7 +456,9 @@ export class ToolService {
           }
         }
 
-        await flintApi.updateNote(updates as Parameters<typeof flintApi.updateNote>[0]); // Cast to satisfy type checking for user-provided metadata
+        const updateResult = await flintApi.updateNote(
+          updates as Parameters<typeof flintApi.updateNote>[0]
+        ); // Cast to satisfy type checking for user-provided metadata
 
         // Get updated note to return
         const updatedNote = await flintApi.getNote(currentVault.id, updates.identifier);
@@ -485,7 +488,8 @@ export class ToolService {
         return {
           success: true,
           data: updatedNote,
-          message: `Updated note: ${updatedNote.title}`
+          message: `Updated note: ${updatedNote.title}`,
+          validationWarnings: updateResult.validationWarnings
         };
       } catch (error) {
         if (error instanceof ContentHashMismatchError) {

@@ -72,6 +72,7 @@ import { VaultFileWatcher } from '../core/file-watcher.js';
 import type { FileWatcherEvent } from '../core/file-watcher.js';
 import { getDefaultLinter } from '../linting/linter-config.js';
 import type { LintContext } from '../linting/lint-rule.js';
+import { formatLintIssues } from '../linting/markdown-linter.js';
 
 export interface FlintNoteApiConfig extends ServerConfig {
   configDir?: string;
@@ -116,6 +117,14 @@ export interface CreateSingleNoteOptions {
   vaultId: string;
   callerContext?: 'agent' | 'user';
   skipValidation?: boolean;
+}
+
+export interface NoteInfoWithWarnings extends NoteInfo {
+  validationWarnings?: string[];
+}
+
+export interface UpdateResultWithWarnings extends UpdateResult {
+  validationWarnings?: string[];
 }
 
 export class FlintNoteApi {
@@ -308,6 +317,32 @@ export class FlintNoteApi {
     };
   }
 
+  /**
+   * Get all existing note identifiers for broken link validation
+   * Returns a Set containing both note IDs and type/filename formats
+   */
+  private async getExistingNoteIdentifiers(vaultId: string): Promise<Set<string>> {
+    const { hybridSearchManager } = await this.getVaultContext(vaultId);
+    const db = hybridSearchManager.getDatabaseManager();
+    const connection = await db.connect();
+
+    const notes = await connection.all<{ id: string; type: string; filename: string }>(
+      'SELECT id, type, filename FROM notes'
+    );
+
+    const identifiers = new Set<string>();
+    for (const note of notes) {
+      // Add the note ID (n-xxxxxxxx format)
+      identifiers.add(note.id);
+
+      // Add the type/filename format (without .md extension)
+      const filenameWithoutExt = note.filename.replace(/\.md$/, '');
+      identifiers.add(`${note.type}/${filenameWithoutExt}`);
+    }
+
+    return identifiers;
+  }
+
   // Core Note Operations (only verified methods)
 
   // Search Operations
@@ -370,27 +405,54 @@ export class FlintNoteApi {
    */
   async createNote(
     options: CreateSingleNoteOptions & { enforceRequiredFields?: boolean }
-  ): Promise<NoteInfo> {
+  ): Promise<NoteInfoWithWarnings> {
     this.ensureInitialized();
     const { noteManager } = await this.getVaultContext(options.vaultId);
+
+    let validationWarnings: string[] | undefined;
 
     // Validate content if caller is agent (unless skipValidation is true)
     if (options.callerContext === 'agent' && !options.skipValidation) {
       const linter = getDefaultLinter();
+
+      // Get existing note identifiers for broken link checking
+      const existingNoteIdentifiers = await this.getExistingNoteIdentifiers(
+        options.vaultId
+      );
+
       const lintContext: LintContext = {
         source: 'agent',
-        noteType: options.type
+        noteType: options.type,
+        existingNoteIdentifiers
       };
-      linter.lintStrict(options.content, lintContext);
+
+      // Use lint() to get warnings, lintStrict() for errors
+      const lintResult = linter.lint(options.content, lintContext);
+
+      // Throw if there are errors
+      if (!lintResult.valid) {
+        const errorMessages = lintResult.errors
+          .map((e) => `Line ${e.line}: ${e.message}`)
+          .join('\n');
+        throw new Error(`Markdown validation failed:\n${errorMessages}`);
+      }
+
+      // Format warnings if any (limit to 10)
+      if (lintResult.warnings.length > 0) {
+        validationWarnings = formatLintIssues(lintResult.warnings, 10);
+      }
     }
 
-    return await noteManager.createNote(
+    const noteInfo = await noteManager.createNote(
       options.type,
       options.title,
       options.content,
       options.metadata || {},
       options.enforceRequiredFields ?? false
     );
+
+    // Return note info with warnings if any
+    return validationWarnings ? { ...noteInfo, validationWarnings } : noteInfo;
   }
 
   /**
@@ -495,35 +557,64 @@ export class FlintNoteApi {
   }
 
   /**
-   * Update a note - returns UpdateResult
+   * Update a note - returns UpdateResult with optional validation warnings
    */
-  async updateNote(options: UpdateNoteOptions): Promise<UpdateResult> {
+  async updateNote(options: UpdateNoteOptions): Promise<UpdateResultWithWarnings> {
     this.ensureInitialized();
     const { noteManager } = await this.getVaultContext(options.vaultId);
+
+    let validationWarnings: string[] | undefined;
 
     // Validate content if caller is agent (unless skipValidation is true)
     if (options.callerContext === 'agent' && !options.skipValidation) {
       const linter = getDefaultLinter();
+
+      // Get existing note identifiers for broken link checking
+      const existingNoteIdentifiers = await this.getExistingNoteIdentifiers(
+        options.vaultId
+      );
+
       const lintContext: LintContext = {
-        source: 'agent'
+        source: 'agent',
+        existingNoteIdentifiers
       };
-      linter.lintStrict(options.content, lintContext);
+
+      // Use lint() to get warnings, lintStrict() for errors
+      const lintResult = linter.lint(options.content, lintContext);
+
+      // Throw if there are errors
+      if (!lintResult.valid) {
+        const errorMessages = lintResult.errors
+          .map((e) => `Line ${e.line}: ${e.message}`)
+          .join('\n');
+        throw new Error(`Markdown validation failed:\n${errorMessages}`);
+      }
+
+      // Format warnings if any (limit to 10)
+      if (lintResult.warnings.length > 0) {
+        validationWarnings = formatLintIssues(lintResult.warnings, 10);
+      }
     }
 
+    let updateResult: UpdateResult;
+
     if (options.metadata) {
-      return await noteManager.updateNoteWithMetadata(
+      updateResult = await noteManager.updateNoteWithMetadata(
         options.identifier,
         options.content,
         options.metadata,
         options.contentHash
       );
     } else {
-      return await noteManager.updateNote(
+      updateResult = await noteManager.updateNote(
         options.identifier,
         options.content,
         options.contentHash
       );
     }
+
+    // Return update result with warnings if any
+    return validationWarnings ? { ...updateResult, validationWarnings } : updateResult;
   }
 
   /**

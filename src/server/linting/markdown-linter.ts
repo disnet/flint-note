@@ -149,3 +149,33 @@ export function getColumnNumber(content: string, offset: number): number {
   const lastNewline = upToOffset.lastIndexOf('\n');
   return lastNewline === -1 ? offset : offset - lastNewline - 1;
 }
+
+/**
+ * Format lint issues for display with optional limits
+ * @param issues Array of lint issues to format
+ * @param limit Maximum number of issues to show (default: 10)
+ * @returns Array of formatted warning messages
+ */
+export function formatLintIssues(issues: LintIssue[], limit: number = 10): string[] {
+  const messages: string[] = [];
+
+  if (issues.length === 0) {
+    return messages;
+  }
+
+  // Take only the first 'limit' issues
+  const displayedIssues = issues.slice(0, limit);
+
+  for (const issue of displayedIssues) {
+    messages.push(`Line ${issue.line}: ${issue.message}`);
+  }
+
+  // Add summary if there are more issues than the limit
+  if (issues.length > limit) {
+    messages.push(
+      `... and ${issues.length - limit} more issue(s) (showing ${limit} out of ${issues.length})`
+    );
+  }
+
+  return messages;
+}
