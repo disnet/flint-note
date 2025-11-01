@@ -251,7 +251,16 @@ If validation fails, you will receive a detailed error message with:
 - What was found and what is expected
 - Suggestions for fixing the issue
 
-When you receive a validation error, fix the content and retry the operation.
+**Handling Validation Errors:**
+
+- **If YOU introduced the error:** Fix the content and retry the operation.
+- **If the error existed BEFORE your changes:** You have two options:
+  1. **Fix the error** in your update (preferred when easy to fix)
+  2. **Use `skipValidation: true`** parameter to bypass validation
+     - Use this ONLY when the pre-existing formatting issues would prevent necessary updates
+     - Create a backlog routine to track the cleanup task (see Backlog Items section)
+     - The backlog routine should be created silently without interrupting the user's flow
+     - Example backlog routine: name="Fix Markdown Formatting in [Note Title]", description="Fix headings without spaces, ID-based wikilinks, etc."
 
 **Follow Note Type Instructions:**
 

@@ -86,6 +86,7 @@ export interface UpdateNoteOptions {
   vaultId: string;
   metadata?: NoteMetadata;
   callerContext?: 'agent' | 'user';
+  skipValidation?: boolean;
 }
 
 export interface DeleteNoteOptions {
@@ -114,6 +115,7 @@ export interface CreateSingleNoteOptions {
   metadata?: NoteMetadata;
   vaultId: string;
   callerContext?: 'agent' | 'user';
+  skipValidation?: boolean;
 }
 
 export class FlintNoteApi {
@@ -372,8 +374,8 @@ export class FlintNoteApi {
     this.ensureInitialized();
     const { noteManager } = await this.getVaultContext(options.vaultId);
 
-    // Validate content if caller is agent
-    if (options.callerContext === 'agent') {
+    // Validate content if caller is agent (unless skipValidation is true)
+    if (options.callerContext === 'agent' && !options.skipValidation) {
       const linter = getDefaultLinter();
       const lintContext: LintContext = {
         source: 'agent',
@@ -499,8 +501,8 @@ export class FlintNoteApi {
     this.ensureInitialized();
     const { noteManager } = await this.getVaultContext(options.vaultId);
 
-    // Validate content if caller is agent
-    if (options.callerContext === 'agent') {
+    // Validate content if caller is agent (unless skipValidation is true)
+    if (options.callerContext === 'agent' && !options.skipValidation) {
       const linter = getDefaultLinter();
       const lintContext: LintContext = {
         source: 'agent'

@@ -185,9 +185,22 @@ export class ToolService {
         .optional()
         .describe(
           'Additional metadata fields (optional). Should match the note type metadata schema. Use get_note_type_details to see required/optional fields.'
+        ),
+      skipValidation: z
+        .boolean()
+        .optional()
+        .describe(
+          'Skip markdown validation (optional). Use ONLY when updating notes with pre-existing formatting issues that you did not introduce. When skipping validation, create a backlog routine to track the cleanup task.'
         )
     }),
-    execute: async ({ title, content = '', noteType, parentId, metadata = {} }) => {
+    execute: async ({
+      title,
+      content = '',
+      noteType,
+      parentId,
+      metadata = {},
+      skipValidation = false
+    }) => {
       if (!this.noteService) {
         return {
           success: false,
@@ -216,7 +229,8 @@ export class ToolService {
           content,
           metadata: metadata as Parameters<typeof flintApi.createNote>[0]['metadata'], // Cast to satisfy type checking for user-provided metadata
           vaultId: currentVault.id,
-          callerContext: 'agent'
+          callerContext: 'agent',
+          skipValidation
         });
 
         // Get the full note object
@@ -308,9 +322,22 @@ export class ToolService {
       metadata: z
         .record(z.string(), z.unknown())
         .optional()
-        .describe('New metadata (optional)')
+        .describe('New metadata (optional)'),
+      skipValidation: z
+        .boolean()
+        .optional()
+        .describe(
+          'Skip markdown validation (optional). Use ONLY when updating notes with pre-existing formatting issues that you did not introduce. When skipping validation, create a backlog routine to track the cleanup task.'
+        )
     }),
-    execute: async ({ id, contentHash, title, content, metadata }) => {
+    execute: async ({
+      id,
+      contentHash,
+      title,
+      content,
+      metadata,
+      skipValidation = false
+    }) => {
       if (!this.noteService) {
         return {
           success: false,
@@ -374,12 +401,14 @@ export class ToolService {
           vaultId: string;
           metadata?: Record<string, unknown>;
           callerContext?: 'agent' | 'user';
+          skipValidation?: boolean;
         } = {
           identifier: id,
           content: finalContent,
           contentHash: finalContentHash,
           vaultId: currentVault.id,
-          callerContext: 'agent'
+          callerContext: 'agent',
+          skipValidation
         };
 
         // Update metadata if provided
