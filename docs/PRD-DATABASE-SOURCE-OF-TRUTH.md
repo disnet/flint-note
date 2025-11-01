@@ -13,12 +13,14 @@ This PRD proposes a fundamental architectural change to how Flint UI handles not
 
 **Key Benefits:**
 - Eliminate false positive "external edit detected" dialogs
+- Fix agent updates not appearing in open editors (critical bug)
 - Reduce code complexity by ~40% in file watching logic
 - Improve search consistency (database always reflects latest edits)
 - Enable future features like real-time collaboration
 
 **User Impact:**
 - No more spurious conflict dialogs while typing
+- Agent modifications immediately visible in editors
 - Faster perceived save performance
 - More reliable external edit detection
 - No breaking changes to user workflows
@@ -46,6 +48,14 @@ Current Flow: Editor → File → DB
 Problem: File write triggers file watcher before DB updates
 Result: Complex logic to determine "was this our write?"
 ```
+
+**4. Agent Updates Don't Sync to Editors** ⚠️ **Critical Bug**
+- Agents can modify notes via tool calls (`update_note`, `create_note`, etc.)
+- These updates go to file + database
+- `note.updated` events ARE published
+- But `noteDocumentRegistry` has the listener **commented out** to avoid cursor jumps
+- Result: Open editors show stale content after agent modifications
+- Users don't see their agent's work until they close and reopen the note!
 
 ### Root Cause Analysis
 
@@ -203,6 +213,308 @@ class FileWriteQueue {
   - Retries on failure
 }
 ```
+
+---
+
+## Agent Updates and Editor Synchronization
+
+### Current Problem: Agent Updates Don't Reload Editors
+
+**Critical Issue Discovered**: The `noteDocumentRegistry` has a commented-out listener for `note.updated` events (line 247-253 in `noteDocumentRegistry.svelte.ts`). This means **when agents modify notes through tool calls, open editors don't reflect the changes!**
+
+**Why It Was Disabled:**
+```typescript
+// We don't reload on note.updated because it's typically triggered by
+// the document saving itself, which would cause unnecessary reloads
+// and cursor position loss.
+```
+
+**The Problem:**
+- User's edit → `note.updated` event → Editor would reload → Cursor position lost ❌
+- So they disabled ALL `note.updated` reloads
+- But this also breaks agent updates! 🐛
+
+**Current Behavior:**
+1. Agent updates note via `update_note` tool
+2. File and database get updated
+3. `publishNoteEvent({ type: 'note.updated', noteId, updates })` is called
+4. `noteCache` updates the cached metadata ✅
+5. **But** `noteDocumentRegistry` ignores the event ❌
+6. Editor continues showing stale content!
+
+### Solution: Distinguish Update Sources
+
+The database-first architecture enables a clean solution: we can distinguish between updates from different sources.
+
+#### Strategy 1: Event Source Tagging
+
+**Enhance `note.updated` events with source information:**
+
+```typescript
+// In tool-service.ts (agent updates)
+publishNoteEvent({
+  type: 'note.updated',
+  noteId: updates.identifier,
+  source: 'agent',  // 🆕 Tag the source
+  updates: {
+    title: updatedNote.title,
+    filename: updatedNote.filename,
+    modified: updatedNote.updated,
+    content: updatedNote.content  // 🆕 Include content for agent updates
+  }
+});
+
+// In noteDocument.save() (user edits)
+publishNoteEvent({
+  type: 'note.updated',
+  noteId: this.noteId,
+  source: 'self',  // 🆕 This editor caused the update
+  editorId: this.currentEditorId,  // 🆕 Which editor
+  updates: { /* ... */ }
+});
+```
+
+**Editor reload logic:**
+```typescript
+class NoteDocumentRegistryClass {
+  constructor() {
+    messageBus.subscribe('note.updated', async (event) => {
+      const doc = this.documents.get(event.noteId);
+      if (!doc) return;
+
+      // Decision tree for reloading
+      if (event.source === 'agent') {
+        // Agent update - ALWAYS reload (agent is authoritative)
+        await doc.reload();
+      } else if (event.source === 'self' && event.editorId !== currentEditorId) {
+        // Another editor instance updated - reload to sync
+        await doc.reload();
+      } else if (event.source === 'self' && event.editorId === currentEditorId) {
+        // This editor saved - don't reload (already current)
+        return;
+      } else if (event.source === 'external') {
+        // External file edit - already handled by file.external-change
+        return;
+      }
+    });
+  }
+}
+```
+
+#### Strategy 2: Check Dirty State Before Reload
+
+**Alternative approach: reload unless editor has unsaved changes**
+
+```typescript
+messageBus.subscribe('note.updated', async (event) => {
+  const doc = this.documents.get(event.noteId);
+  if (!doc) return;
+
+  // Don't reload if user has unsaved changes (would lose work)
+  if (doc.isSaving || doc.hasUnsavedChanges) {
+    // Show notification instead
+    this.showUpdateNotification(event.noteId, 'Agent updated this note');
+    return;
+  }
+
+  // Safe to reload - no unsaved work
+  await doc.reload();
+});
+```
+
+#### Strategy 3: Optimistic Merge (Future Enhancement)
+
+**For advanced use cases: merge updates without losing cursor**
+
+```typescript
+async handleAgentUpdate(event: NoteUpdatedEvent) {
+  const doc = this.documents.get(event.noteId);
+  if (!doc) return;
+
+  // If only content changed and user has no edits, just update content
+  if (event.updates.content && !doc.hasUnsavedChanges) {
+    doc.content = event.updates.content;
+    return; // Cursor position preserved!
+  }
+
+  // If user has edits, show merge UI
+  if (doc.hasUnsavedChanges) {
+    this.showMergeDialog(doc, event.updates);
+    return;
+  }
+
+  // Otherwise full reload
+  await doc.reload();
+}
+```
+
+### Recommended Approach for This PRD
+
+**Use Strategy 1 (Event Source Tagging) with these rules:**
+
+1. **Agent Updates** → Always reload editor
+   - Agents are modifying notes intentionally
+   - User expects to see agent's work
+   - Database is source of truth
+
+2. **Self Updates** → Don't reload same editor
+   - Editor just saved its own content
+   - Reloading would lose cursor position
+   - Content is already current
+
+3. **External Updates** → Handled separately
+   - File watcher events trigger `file.external-change`
+   - Existing conflict detection applies
+
+4. **Other Editor Updates** → Reload to sync
+   - Another editor instance (sidebar, etc.) saved
+   - Current editor should sync to match
+
+### Implementation Changes
+
+#### Add Source Tracking to Events
+
+**In `src/main/note-events.ts`:**
+```typescript
+export type NoteUpdatedEvent = {
+  type: 'note.updated';
+  noteId: string;
+  source: 'agent' | 'user' | 'external' | 'system';
+  editorId?: string;  // Optional: which editor instance
+  updates: {
+    title?: string;
+    filename?: string;
+    modified?: string;
+    content?: string;  // Include for agent updates
+  };
+};
+```
+
+#### Update Agent Tool Calls
+
+**In `src/main/tool-service.ts` (line 478):**
+```typescript
+publishNoteEvent({
+  type: 'note.updated',
+  noteId: updates.identifier,
+  source: 'agent',  // 🆕
+  updates: {
+    title: updatedNote.title,
+    filename: updatedNote.filename,
+    modified: updatedNote.updated,
+    content: updatedNote.content  // 🆕
+  }
+});
+```
+
+#### Update User Edits
+
+**In `src/renderer/src/stores/noteDocumentRegistry.svelte.ts`:**
+```typescript
+private async save(): Promise<void> {
+  // ... existing save logic ...
+
+  await noteService.updateNote({
+    identifier: this.noteId,
+    content: this.content,
+    silent: true  // Don't trigger UI refresh
+  });
+
+  // Publish update event (other editors will reload)
+  messageBus.publish({
+    type: 'note.updated',
+    noteId: this.noteId,
+    source: 'user',  // 🆕
+    editorId: this.currentEditorId,  // 🆕
+    updates: {
+      modified: new Date().toISOString()
+    }
+  });
+}
+```
+
+#### Re-enable Editor Reload
+
+**In `src/renderer/src/stores/noteDocumentRegistry.svelte.ts` (line 242):**
+```typescript
+constructor() {
+  // 🆕 Re-enable note.updated listener with smart reload logic
+  messageBus.subscribe('note.updated', async (event) => {
+    const doc = this.documents.get(event.noteId);
+    if (!doc) return;
+
+    // Decision matrix for reloading
+    const shouldReload =
+      event.source === 'agent' ||  // Always reload agent updates
+      event.source === 'system' ||  // System updates (migrations, etc.)
+      (event.source === 'user' && event.editorId !== doc.currentEditorId);  // Other editor
+
+    if (shouldReload && !doc.hasUnsavedChanges) {
+      await doc.reload();
+    } else if (shouldReload && doc.hasUnsavedChanges) {
+      // Show notification that note was updated elsewhere
+      this.showConflictNotification(event.noteId);
+    }
+  });
+
+  // Keep existing external-change listener
+  messageBus.subscribe('file.external-change', async (event) => {
+    // ... existing logic ...
+  });
+}
+```
+
+### User Experience
+
+**Agent Updates:**
+1. User asks agent: "Update my meeting notes with action items"
+2. Agent calls `update_note` tool
+3. Database updated immediately
+4. `note.updated` event published with `source: 'agent'`
+5. If note is open in editor → **Reloads to show agent's changes**
+6. If user has unsaved edits → **Shows notification** (optional: merge UI)
+
+**User Edits:**
+1. User types in editor
+2. After 500ms, autosave triggers
+3. Database updated (DB-first)
+4. `note.updated` event published with `source: 'user', editorId`
+5. Same editor → **Ignores event** (already current)
+6. Other editors → **Reload to sync**
+
+**External Edits:**
+1. External tool modifies file
+2. File watcher detects change
+3. `file.external-change` event published
+4. Existing conflict detection logic applies
+
+### Testing Requirements
+
+**Unit Tests:**
+```typescript
+describe('NoteDocumentRegistry - Agent Updates', () => {
+  it('reloads editor when agent updates note')
+  it('preserves cursor when user edits same note')
+  it('syncs between multiple editor instances')
+  it('shows notification when reload would lose unsaved work')
+})
+```
+
+**Integration Tests:**
+```typescript
+describe('Agent-Editor Synchronization', () => {
+  it('agent update reflects in open editor immediately')
+  it('user edit + agent edit = conflict notification')
+  it('closed note + agent update = no reload needed')
+  it('sidebar editor + main editor stay in sync')
+})
+```
+
+**Manual Testing Scenarios:**
+1. Open note, ask agent to update it, verify editor reloads
+2. Type in editor, verify cursor position preserved
+3. Open note in sidebar and main editor, edit in one, verify sync
+4. Agent updates note while user typing, verify notification shown
 
 ---
 
@@ -476,6 +788,40 @@ async handleFileWatcherEvent(event: FileWatcherEvent) {
 
 **Risk**: Medium (changes user-facing behavior)
 
+### Phase 6: Agent Update Synchronization 🤖 (Critical Fix)
+
+**Goal**: Make agent updates immediately visible in open editors
+
+**Changes:**
+1. Add `source` field to `NoteUpdatedEvent` type in `note-events.ts`
+2. Update `publishNoteEvent()` calls in `tool-service.ts` to include `source: 'agent'`
+3. Update `NoteDocument.save()` to publish events with `source: 'user'`
+4. Re-enable `note.updated` listener in `noteDocumentRegistry` constructor
+5. Implement smart reload logic (reload for agent, skip for self)
+6. Add `hasUnsavedChanges` property to `NoteDocument` class
+7. Add notification UI for concurrent edit conflicts
+
+**Testing:**
+- Test agent updates reload open editors
+- Test user edits don't cause cursor jumps
+- Test multiple editor instances stay in sync
+- Test conflict notification when both user and agent edit
+- Test closed notes don't reload unnecessarily
+
+**Manual Scenarios:**
+1. Open note, ask agent to update it, verify content reloads
+2. Type while agent updating → verify notification shown
+3. Open same note in sidebar and main editor, verify sync
+4. Agent updates title/metadata → verify all UI elements update
+
+**Risk**: Medium (re-enables previously disabled functionality)
+
+**Validation:**
+- No cursor position loss during user typing
+- Agent updates visible within 100ms
+- Notification shown for true conflicts
+- No performance regression with multiple open notes
+
 ---
 
 ## Success Metrics
@@ -496,6 +842,8 @@ async handleFileWatcherEvent(event: FileWatcherEvent) {
 - [ ] Zero false positive external edit dialogs in testing
 - [ ] 100% of external edits detected correctly
 - [ ] No data loss during app crashes (with flush-on-close)
+- [ ] 100% of agent updates visible in open editors within 100ms
+- [ ] Zero cursor position losses during user editing
 
 ### Qualitative Metrics
 
@@ -508,6 +856,8 @@ async handleFileWatcherEvent(event: FileWatcherEvent) {
 - [ ] No spurious conflict dialogs reported in issues
 - [ ] Faster perceived save performance
 - [ ] Transparent auto-reload of external edits
+- [ ] Agent updates immediately visible in open editors
+- [ ] No interruption to typing flow during agent updates
 
 ---
 
@@ -709,20 +1059,29 @@ for (let i = 0; i < 1000; i++) {
 - [ ] Update all tests
 - [ ] Code review and refinement
 
-### Sprint 4 (Week 4): Phase 5 + Polish
+### Sprint 4 (Week 4): Phase 5 + 6
 - [ ] Implement enhanced external edit UX
 - [ ] Add user preferences
-- [ ] Comprehensive integration testing
-- [ ] Documentation updates
+- [ ] Implement agent update synchronization (Phase 6)
+- [ ] Add event source tagging
+- [ ] Re-enable smart note.updated listeners
 
-### Sprint 5 (Week 5): Beta + Launch
+### Sprint 5 (Week 5): Testing + Polish
+- [ ] Comprehensive integration testing (all phases)
+- [ ] Agent-editor sync testing
+- [ ] Performance validation
+- [ ] Documentation updates
+- [ ] Code review and refinement
+
+### Sprint 6 (Week 6): Beta + Launch
 - [ ] Deploy to internal beta users
 - [ ] Monitor telemetry and bug reports
+- [ ] Test agent updates with real workflows
 - [ ] Fix any critical issues
 - [ ] Enable feature flag for all users
 - [ ] Write release notes
 
-**Total Duration**: 5 weeks
+**Total Duration**: 6 weeks (extended for agent sync work)
 
 ---
 
