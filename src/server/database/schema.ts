@@ -328,6 +328,7 @@ export class DatabaseManager {
           agent_instructions TEXT,
           metadata_schema TEXT,
           content_hash TEXT,
+          icon TEXT,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           UNIQUE(vault_id, type_name)

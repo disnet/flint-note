@@ -723,6 +723,28 @@ async function initializeFreshDatabase(db: DatabaseConnection): Promise<void> {
   // Create workflow tables (added in v2.4.0)
   await createWorkflowTables(db);
 
+  // Create note_type_descriptions table (added in v2.2.0, icon added in v2.5.0)
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS note_type_descriptions (
+      id TEXT PRIMARY KEY,
+      vault_id TEXT NOT NULL,
+      type_name TEXT NOT NULL,
+      purpose TEXT,
+      agent_instructions TEXT,
+      metadata_schema TEXT,
+      content_hash TEXT,
+      icon TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(vault_id, type_name)
+    )
+  `);
+
+  await db.run(`
+    CREATE INDEX IF NOT EXISTS idx_note_type_descriptions_vault
+    ON note_type_descriptions(vault_id)
+  `);
+
   console.log('Fresh database initialized successfully');
 }
 
@@ -895,6 +917,28 @@ async function migrateToV2_2_0(
   workspacePath: string
 ): Promise<void> {
   console.log('Starting note type descriptions migration to database...');
+
+  // First, create the note_type_descriptions table if it doesn't exist
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS note_type_descriptions (
+      id TEXT PRIMARY KEY,
+      vault_id TEXT NOT NULL,
+      type_name TEXT NOT NULL,
+      purpose TEXT,
+      agent_instructions TEXT,
+      metadata_schema TEXT,
+      content_hash TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(vault_id, type_name)
+    )
+  `);
+
+  // Create index for performance
+  await db.run(`
+    CREATE INDEX IF NOT EXISTS idx_note_type_descriptions_vault
+    ON note_type_descriptions(vault_id)
+  `);
 
   const path = await import('path');
 
@@ -1148,6 +1192,37 @@ async function migrateToV2_5_0(db: DatabaseConnection): Promise<void> {
   console.log('Migrating to v2.5.0: Adding icon column to note_type_descriptions');
 
   try {
+    // First ensure the note_type_descriptions table exists
+    // (in case migration is from a version that skipped v2.2.0)
+    const tableExists = await db.get<{ count: number }>(`
+      SELECT COUNT(*) as count FROM sqlite_master
+      WHERE type='table' AND name='note_type_descriptions'
+    `);
+
+    if (!tableExists || tableExists.count === 0) {
+      console.log(
+        'Creating note_type_descriptions table (missing from previous migrations)'
+      );
+      await db.run(`
+        CREATE TABLE note_type_descriptions (
+          id TEXT PRIMARY KEY,
+          vault_id TEXT NOT NULL,
+          type_name TEXT NOT NULL,
+          purpose TEXT,
+          agent_instructions TEXT,
+          metadata_schema TEXT,
+          content_hash TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(vault_id, type_name)
+        )
+      `);
+      await db.run(`
+        CREATE INDEX IF NOT EXISTS idx_note_type_descriptions_vault
+        ON note_type_descriptions(vault_id)
+      `);
+    }
+
     // Check if icon column already exists
     const columns = await db.all<{ name: string }>(
       "SELECT name FROM pragma_table_info('note_type_descriptions')"

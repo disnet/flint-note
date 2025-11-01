@@ -109,7 +109,6 @@
     '🏐': 'volleyball sport',
     '🎱': 'pool billiards 8 ball',
     '🏓': 'ping pong table tennis',
-    '🎯': 'bullseye target dart',
     '🎮': 'game controller video gaming',
     '🎲': 'dice game',
     '🎰': 'slot machine casino',

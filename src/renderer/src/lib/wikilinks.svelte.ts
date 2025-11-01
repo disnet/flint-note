@@ -344,7 +344,7 @@ async function renderMarkdownSnippet(content: string): Promise<string> {
  */
 async function createNoteInfo(
   noteId: string,
-  noteType: string
+  _noteType: string
 ): Promise<{ dom: HTMLElement; destroy?: () => void }> {
   const container = document.createElement('div');
   container.className = 'wikilink-completion-info';

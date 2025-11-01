@@ -163,7 +163,11 @@ export class VaultFileWatcher {
           return true;
         }
         // Ignore backup and temp files
-        if (filepath.endsWith('~') || filepath.endsWith('.swp') || filepath.endsWith('.tmp')) {
+        if (
+          filepath.endsWith('~') ||
+          filepath.endsWith('.swp') ||
+          filepath.endsWith('.tmp')
+        ) {
           return true;
         }
         return false;
