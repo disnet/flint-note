@@ -3,7 +3,12 @@
   import { pinnedNotesStore } from '../services/pinnedStore.svelte';
   import { getChatService } from '../services/chatService';
   import type { GetNoteTypeInfoResult } from '@/server/api/types';
-  import type { MetadataSchema, MetadataFieldType } from '@/server/core/metadata-schema';
+  import type {
+    MetadataSchema,
+    MetadataFieldType,
+    MetadataFieldDefinition,
+    MetadataFieldConstraints
+  } from '@/server/core/metadata-schema';
   import EmojiPicker from './EmojiPicker.svelte';
 
   interface Props {
@@ -151,7 +156,7 @@
                   (field) => field.name.trim() !== '' && !systemFields.has(field.name)
                 )
                 .map((field) => {
-                  const cleanField: any = {
+                  const cleanField: MetadataFieldDefinition = {
                     name: field.name,
                     type: field.type as MetadataFieldType,
                     description: field.description || undefined,
@@ -160,7 +165,7 @@
 
                   // Include constraints if they exist
                   if (field.constraints) {
-                    const cleanConstraints: any = {};
+                    const cleanConstraints: Partial<MetadataFieldConstraints> = {};
                     if (field.constraints.min !== undefined)
                       cleanConstraints.min = field.constraints.min;
                     if (field.constraints.max !== undefined)
@@ -273,15 +278,17 @@
 
     // Handle different value types
     if (constraintKey === 'min' || constraintKey === 'max') {
-      (field.constraints as any)[constraintKey] = value ? Number(value) : undefined;
+      field.constraints[constraintKey] = value ? Number(value) : undefined;
     } else if (constraintKey === 'options') {
       // Parse comma-separated string into array
-      (field.constraints as any)[constraintKey] = value
+      field.constraints.options = value
         .split(',')
         .map((s) => s.trim())
         .filter(Boolean);
-    } else {
-      (field.constraints as any)[constraintKey] = value || undefined;
+    } else if (constraintKey === 'pattern') {
+      field.constraints.pattern = value || undefined;
+    } else if (constraintKey === 'format') {
+      field.constraints.format = value || undefined;
     }
 
     metadataSchema = { ...metadataSchema };
@@ -439,7 +446,7 @@
             </div>
 
             <div class="form-section">
-              <label class="form-label">Icon (Optional)</label>
+              <div class="form-label" role="heading" aria-level="3">Icon (Optional)</div>
               <EmojiPicker
                 bind:value={icon}
                 onselect={(emoji) => {
@@ -747,9 +754,22 @@
   </div>
 
   {#if showDeleteConfirm}
-    <div class="modal-overlay" onclick={handleCancelDelete}>
-      <div class="modal" onclick={(e) => e.stopPropagation()}>
-        <h2 class="modal-title">Delete Note Type</h2>
+    <div
+      class="modal-overlay"
+      onclick={handleCancelDelete}
+      onkeydown={(e) => e.key === 'Escape' && handleCancelDelete()}
+      role="presentation"
+    >
+      <div
+        class="modal"
+        onclick={(e) => e.stopPropagation()}
+        onkeydown={(e) => e.key === 'Escape' && handleCancelDelete()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title"
+        tabindex="-1"
+      >
+        <h2 class="modal-title" id="modal-title">Delete Note Type</h2>
 
         {#if deleteError}
           <div class="error-banner">

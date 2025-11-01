@@ -428,7 +428,13 @@
   </button>
 
   {#if isOpen}
-    <div class="emoji-picker-dropdown" onkeydown={handleKeydown}>
+    <div
+      class="emoji-picker-dropdown"
+      onkeydown={handleKeydown}
+      role="dialog"
+      aria-label="Emoji picker"
+      tabindex="-1"
+    >
       <div class="search-box">
         <input
           type="text"

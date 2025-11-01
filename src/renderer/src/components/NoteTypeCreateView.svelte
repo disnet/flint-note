@@ -105,7 +105,6 @@
           bind:value={typeName}
           placeholder="e.g., meeting-notes"
           disabled={loading}
-          autofocus
         />
         <p class="help-text">
           Use lowercase letters, numbers, and hyphens. Spaces will be converted to
@@ -130,7 +129,7 @@
       </div>
 
       <div class="form-group">
-        <label class="label">Icon (Optional)</label>
+        <div class="label" role="heading" aria-level="2">Icon (Optional)</div>
         <EmojiPicker bind:value={icon} onselect={(emoji) => (icon = emoji)} />
         <p class="help-text">Choose an emoji icon to represent this note type.</p>
       </div>
