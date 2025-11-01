@@ -2110,6 +2110,31 @@ app.whenReady().then(async () => {
   });
 });
 
+// Flush pending file writes before quitting
+// Part of Phase 1: Database-first architecture
+app.on('before-quit', async (event) => {
+  logger.info('App quitting, flushing pending file writes');
+
+  try {
+    // Prevent immediate quit to allow flush to complete
+    event.preventDefault();
+
+    // Flush all pending writes from the file write queue
+    const api = noteService?.getFlintNoteApi();
+    if (api) {
+      await api.flushPendingWrites();
+      logger.info('All pending file writes flushed successfully');
+    }
+
+    // Now actually quit
+    app.quit();
+  } catch (error) {
+    logger.error('Error flushing pending writes on quit', { error });
+    // Quit anyway to avoid hanging
+    app.quit();
+  }
+});
+
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.

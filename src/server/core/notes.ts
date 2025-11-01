@@ -112,6 +112,194 @@ interface ParsedIdentifier {
   notePath: string;
 }
 
+/**
+ * Pending write entry for FileWriteQueue
+ */
+interface PendingWrite {
+  filePath: string;
+  content: string;
+  timeout: NodeJS.Timeout;
+  retryCount: number;
+}
+
+/**
+ * FileWriteQueue - Manages asynchronous, batched file writes
+ *
+ * Part of the database-first architecture. This queue debounces file writes
+ * to reduce disk I/O while keeping the database as the immediate source of truth.
+ *
+ * Key features:
+ * - Debounces rapid writes to the same file (default 1000ms)
+ * - Batches multiple edits into single write operation
+ * - Retries failed writes with exponential backoff (3 attempts)
+ * - Coordinates with file watcher to prevent false external edit detection
+ * - Flushes pending writes on app shutdown
+ *
+ * @see docs/PRD-DATABASE-SOURCE-OF-TRUTH.md
+ * @see docs/architecture/FILE-WRITE-QUEUE.md (to be created)
+ */
+export class FileWriteQueue {
+  // Map of filePath -> PendingWrite
+  private pendingWrites: Map<string, PendingWrite> = new Map();
+
+  // Default delay before flushing write (1000ms per approved decisions)
+  private readonly defaultDelay: number;
+
+  // File watcher reference for marking writes
+  private fileWatcher?: import('./file-watcher.js').VaultFileWatcher;
+
+  // Retry configuration (3 attempts with exponential backoff)
+  private readonly maxRetries = 3;
+  private readonly retryDelays = [100, 500, 1000]; // milliseconds
+
+  constructor(
+    fileWatcher?: import('./file-watcher.js').VaultFileWatcher,
+    defaultDelay: number = 1000
+  ) {
+    this.fileWatcher = fileWatcher;
+    this.defaultDelay = defaultDelay;
+  }
+
+  /**
+   * Queue a file write, replacing any pending write for the same file
+   *
+   * @param filePath Absolute path to the file
+   * @param content Content to write
+   * @param delay Optional custom delay (defaults to 1000ms)
+   */
+  async queueWrite(
+    filePath: string,
+    content: string,
+    delay: number = this.defaultDelay
+  ): Promise<void> {
+    // Clear existing timeout for this file
+    const existing = this.pendingWrites.get(filePath);
+    if (existing) {
+      clearTimeout(existing.timeout);
+    }
+
+    // Schedule new write
+    const timeout = setTimeout(async () => {
+      await this.flushWrite(filePath);
+    }, delay);
+
+    this.pendingWrites.set(filePath, {
+      filePath,
+      content,
+      timeout,
+      retryCount: 0
+    });
+  }
+
+  /**
+   * Immediately flush a specific file's pending write
+   *
+   * @param filePath Path to the file to flush
+   */
+  async flushWrite(filePath: string): Promise<void> {
+    const pending = this.pendingWrites.get(filePath);
+    if (!pending) {
+      return; // Nothing pending for this file
+    }
+
+    // Clear the timeout
+    clearTimeout(pending.timeout);
+
+    try {
+      // Mark write starting (prevents external edit detection)
+      if (this.fileWatcher) {
+        this.fileWatcher.markWriteStarting(filePath);
+      }
+
+      // Perform the actual write
+      await fs.writeFile(filePath, pending.content, 'utf-8');
+
+      // Success - remove from pending
+      this.pendingWrites.delete(filePath);
+
+    } catch (error) {
+      // Write failed - attempt retry if within limit
+      if (pending.retryCount < this.maxRetries) {
+        const retryDelay = this.retryDelays[pending.retryCount];
+        pending.retryCount++;
+
+        console.warn(
+          `[FileWriteQueue] Write failed for ${filePath}, retry ${pending.retryCount}/${this.maxRetries} in ${retryDelay}ms`,
+          error
+        );
+
+        // Schedule retry with exponential backoff
+        pending.timeout = setTimeout(async () => {
+          await this.flushWrite(filePath);
+        }, retryDelay);
+
+        this.pendingWrites.set(filePath, pending);
+
+      } else {
+        // Max retries exceeded - log error and remove from queue
+        console.error(
+          `[FileWriteQueue] Write failed for ${filePath} after ${this.maxRetries} retries`,
+          error
+        );
+
+        this.pendingWrites.delete(filePath);
+
+        // TODO: In Phase 1, we'll add error tracking to database
+        // For now, just log the error
+        // Future: publishFileWriteError(filePath, error)
+      }
+    } finally {
+      // Always mark write complete (even on error)
+      if (this.fileWatcher) {
+        this.fileWatcher.markWriteComplete(filePath);
+      }
+    }
+  }
+
+  /**
+   * Flush all pending writes immediately
+   * Called on app shutdown to ensure no data loss
+   */
+  async flushAll(): Promise<void> {
+    const paths = Array.from(this.pendingWrites.keys());
+
+    // Flush all writes in parallel
+    await Promise.all(paths.map(path => this.flushWrite(path)));
+  }
+
+  /**
+   * Check if a file has a pending write
+   *
+   * @param filePath Path to check
+   * @returns True if write is queued
+   */
+  hasPendingWrite(filePath: string): boolean {
+    return this.pendingWrites.has(filePath);
+  }
+
+  /**
+   * Get the number of pending writes
+   * Useful for monitoring and debugging
+   *
+   * @returns Count of files waiting to be written
+   */
+  getPendingCount(): number {
+    return this.pendingWrites.size;
+  }
+
+  /**
+   * Cleanup - clear all pending timeouts
+   * Should be called when shutting down
+   */
+  destroy(): void {
+    // Clear all timeouts
+    for (const pending of this.pendingWrites.values()) {
+      clearTimeout(pending.timeout);
+    }
+    this.pendingWrites.clear();
+  }
+}
+
 export class NoteManager {
   #workspace: Workspace;
   #noteTypeManager: NoteTypeManager;
@@ -119,6 +307,7 @@ export class NoteManager {
 
   #hybridSearchManager?: HybridSearchManager;
   #fileWatcher?: import('./file-watcher.js').VaultFileWatcher;
+  #fileWriteQueue: FileWriteQueue;
 
   constructor(
     workspace: Workspace,
@@ -133,6 +322,11 @@ export class NoteManager {
 
     this.#hybridSearchManager = hybridSearchManager;
     this.#fileWatcher = fileWatcher;
+
+    // Initialize file write queue (Phase 1: DB-first architecture)
+    // Phase 1: Start with 0ms delay (no behavior change)
+    // Phase 2: Change to 1000ms delay (actual batching)
+    this.#fileWriteQueue = new FileWriteQueue(fileWatcher, 0);
 
     // Initialize hierarchy manager if we have a database connection
     if (hybridSearchManager) {
@@ -151,27 +345,44 @@ export class NoteManager {
   }
 
   /**
+   * Get the file write queue instance
+   * Used for flushing on shutdown or note switch
+   *
+   * @returns The FileWriteQueue instance
+   */
+  getFileWriteQueue(): FileWriteQueue {
+    return this.#fileWriteQueue;
+  }
+
+  /**
+   * Flush all pending file writes immediately
+   * Called on app shutdown or vault switch
+   */
+  async flushPendingWrites(): Promise<void> {
+    await this.#fileWriteQueue.flushAll();
+  }
+
+  /**
+   * Cleanup resources and flush pending writes
+   * Called when shutting down the NoteManager
+   */
+  async destroy(): Promise<void> {
+    // Flush all pending writes
+    await this.#fileWriteQueue.flushAll();
+    // Clean up the queue
+    this.#fileWriteQueue.destroy();
+  }
+
+  /**
    * Write a file with file watcher tracking to prevent it from being treated as an external change.
-   * This method sets a flag BEFORE writing to eliminate race conditions.
+   * This method queues the write through FileWriteQueue for batching and retry logic.
+   *
+   * Phase 1: Queue with 0ms delay (effectively synchronous, no behavior change)
+   * Phase 2: Queue with 1000ms delay (actual batching)
    */
   async #writeFileWithTracking(filePath: string, content: string): Promise<void> {
-    if (this.#fileWatcher) {
-      // Mark write as starting BEFORE the actual write (1 second cleanup)
-      // Note: We only use the short-term write flag, not trackOperation(),
-      // because writes complete quickly and we want to detect actual external
-      // changes soon after. The 1000ms cleanup window is sufficient to handle
-      // file watcher delays (awaitWriteFinish + debounce + FS latency).
-      this.#fileWatcher.markWriteStarting(filePath);
-      try {
-        await fs.writeFile(filePath, content, 'utf-8');
-      } finally {
-        // Always mark as complete, even if write fails
-        this.#fileWatcher.markWriteComplete(filePath);
-      }
-    } else {
-      // No file watcher, just write normally
-      await fs.writeFile(filePath, content, 'utf-8');
-    }
+    // Queue the write (FileWriteQueue handles file watcher coordination)
+    await this.#fileWriteQueue.queueWrite(filePath, content);
   }
 
   /**

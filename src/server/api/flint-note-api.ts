@@ -2417,6 +2417,24 @@ export class FlintNoteApi {
   }
 
   /**
+   * Flush all pending file writes immediately
+   * Part of Phase 1: Database-first architecture
+   * Called on app shutdown to ensure no data loss
+   */
+  async flushPendingWrites(): Promise<void> {
+    if (!this.noteManager) {
+      return; // No note manager initialized
+    }
+
+    try {
+      await this.noteManager.flushPendingWrites();
+    } catch (error) {
+      console.error('[FlintNoteApi] Error flushing pending writes:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Register a file watcher event handler
    */
   onFileWatcherEvent(handler: (event: FileWatcherEvent) => void): (() => void) | null {
