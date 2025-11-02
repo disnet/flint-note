@@ -756,43 +756,22 @@ export class NoteManager {
   }
 
   /**
-   * Get a specific note by identifier
+   * Get a specific note by identifier (Phase 2.5: DB-first reads)
+   * Reads from database for immediate consistency, falls back to file system if needed
    */
   async getNote(identifier: string): Promise<Note> {
     try {
-      let typeName: string;
-      let filename: string;
-      let notePath: string;
       let noteId: string;
 
       // Check if identifier is an immutable ID (format: n-xxxxxxxx)
       if (identifier.startsWith('n-')) {
-        // Look up note in database to get type and filename
-        if (!this.#hybridSearchManager) {
-          throw new Error('Database not initialized');
-        }
-        const db = await this.#hybridSearchManager.getDatabaseConnection();
-        const dbNote = await db.get<{ id: string; type: string; filename: string }>(
-          'SELECT id, type, filename FROM notes WHERE id = ?',
-          [identifier]
-        );
-
-        if (!dbNote) {
-          throw new Error(`Note not found: ${identifier}`);
-        }
-
-        noteId = dbNote.id;
-        typeName = dbNote.type;
-        filename = dbNote.filename;
-        notePath = path.join(this.#workspace.rootPath, typeName, filename);
+        noteId = identifier;
       } else {
-        // Old-style identifier (type/filename)
+        // Old-style identifier (type/filename) - look up ID from database
         const parsed = await this.parseNoteIdentifier(identifier);
-        typeName = parsed.typeName;
-        filename = parsed.filename;
-        notePath = parsed.notePath;
+        const typeName = parsed.typeName;
+        const filename = parsed.filename;
 
-        // For old-style identifiers, look up the actual ID from database
         if (this.#hybridSearchManager) {
           const db = await this.#hybridSearchManager.getDatabaseConnection();
           const dbNote = await db.get<{ id: string }>(
@@ -805,6 +784,49 @@ export class NoteManager {
         }
       }
 
+      // Phase 2.5: Read from database first for immediate read-after-write consistency
+      if (this.#hybridSearchManager) {
+        try {
+          const dbNote = await this.#hybridSearchManager.getNoteById(noteId);
+
+          if (dbNote) {
+            // Successfully read from database - return immediately
+            // Generate content hash for optimistic locking
+            const contentHash = generateContentHash(dbNote.content);
+
+            return {
+              id: dbNote.id,
+              type: dbNote.type,
+              filename: dbNote.filename,
+              path: dbNote.path,
+              title: dbNote.title || '',
+              content: dbNote.content,
+              content_hash: contentHash,
+              metadata: dbNote.metadata as NoteMetadata,
+              created: dbNote.created,
+              modified: dbNote.updated,
+              updated: dbNote.updated,
+              size: dbNote.size
+            };
+          }
+        } catch (error) {
+          // Log but don't fail - fall through to file system fallback
+          console.warn(
+            `Failed to read note from database, falling back to file system:`,
+            error
+          );
+        }
+      }
+
+      // Fallback to file system if:
+      // 1. Database not available
+      // 2. Note not found in database (migration/sync case)
+      // 3. Database read failed
+      const parsed = await this.parseNoteIdentifier(identifier);
+      const typeName = parsed.typeName;
+      const filename = parsed.filename;
+      const notePath = parsed.notePath;
+
       // Check if note exists
       try {
         await fs.access(notePath);
@@ -812,28 +834,28 @@ export class NoteManager {
         throw new Error(`Note not found: ${identifier}`);
       }
 
-      // Read note content
+      // Read note content from file
       const content = await fs.readFile(notePath, 'utf-8');
       const stats = await fs.stat(notePath);
 
       // Parse frontmatter and content
-      const parsed = this.parseNoteContent(content);
+      const parsedContent = this.parseNoteContent(content);
 
       // Generate content hash for optimistic locking
-      const contentHash = generateContentHash(parsed.content);
+      const contentHash = generateContentHash(parsedContent.content);
 
       return {
         id: noteId,
         type: typeName,
         filename,
         path: notePath,
-        title: parsed.metadata.title || '',
-        content: parsed.content,
+        title: parsedContent.metadata.title || '',
+        content: parsedContent.content,
         content_hash: contentHash,
-        metadata: parsed.metadata,
-        created: parsed.metadata.created || stats.birthtime.toISOString(),
-        modified: parsed.metadata.updated || stats.mtime.toISOString(),
-        updated: parsed.metadata.updated || stats.mtime.toISOString(),
+        metadata: parsedContent.metadata,
+        created: parsedContent.metadata.created || stats.birthtime.toISOString(),
+        modified: parsedContent.metadata.updated || stats.mtime.toISOString(),
+        updated: parsedContent.metadata.updated || stats.mtime.toISOString(),
         size: stats.size
       };
     } catch (error) {
@@ -876,7 +898,8 @@ export class NoteManager {
   }
 
   /**
-   * Get a note by file path
+   * Get a note by file path (Phase 2.5: DB-first reads)
+   * Reads from database for immediate consistency, falls back to file system if needed
    */
   async getNoteByPath(filePath: string): Promise<Note | null> {
     try {
@@ -884,6 +907,45 @@ export class NoteManager {
       if (!this.#workspace.isPathInWorkspace(filePath)) {
         throw new Error('Path is outside workspace');
       }
+
+      // Phase 2.5: Read from database first for immediate read-after-write consistency
+      if (this.#hybridSearchManager) {
+        try {
+          const dbNote = await this.#hybridSearchManager.getNoteByPath(filePath);
+
+          if (dbNote) {
+            // Successfully read from database - return immediately
+            // Generate content hash for optimistic locking
+            const contentHash = generateContentHash(dbNote.content);
+
+            return {
+              id: dbNote.id,
+              type: dbNote.type,
+              filename: dbNote.filename,
+              path: dbNote.path,
+              title: dbNote.title || '',
+              content: dbNote.content,
+              content_hash: contentHash,
+              metadata: dbNote.metadata as NoteMetadata,
+              created: dbNote.created,
+              modified: dbNote.updated,
+              updated: dbNote.updated,
+              size: dbNote.size
+            };
+          }
+        } catch (error) {
+          // Log but don't fail - fall through to file system fallback
+          console.warn(
+            `Failed to read note from database, falling back to file system:`,
+            error
+          );
+        }
+      }
+
+      // Fallback to file system if:
+      // 1. Database not available
+      // 2. Note not found in database (migration/sync case)
+      // 3. Database read failed
 
       // Check if note exists
       try {
@@ -899,7 +961,7 @@ export class NoteManager {
       const filename = pathParts.slice(1).join(path.sep);
       const identifier = `${typeName}/${filename}`;
 
-      // Read note content
+      // Read note content from file
       const content = await fs.readFile(filePath, 'utf-8');
       const stats = await fs.stat(filePath);
 
@@ -1002,7 +1064,7 @@ export class NoteManager {
   }
 
   /**
-   * Update an existing note
+   * Update an existing note (Phase 2.5: DB-first reads for validation)
    */
   async updateNote(
     identifier: string,
@@ -1014,25 +1076,20 @@ export class NoteManager {
         throw new MissingContentHashError('note update');
       }
 
-      const { notePath } = await this.parseNoteIdentifier(identifier);
-
-      // Check if note exists
-      try {
-        await fs.access(notePath);
-      } catch {
+      // Phase 2.5: Get current note from database for validation (faster + current data)
+      const currentNote = await this.getNote(identifier);
+      if (!currentNote) {
         throw new Error(`Note '${identifier}' does not exist`);
       }
 
-      // Read current content to preserve metadata
-      const currentContent = await fs.readFile(notePath, 'utf-8');
-      const parsed = this.parseNoteContent(currentContent);
+      // Validate content hash to prevent conflicts (using DB content, not file)
+      validateContentHash(currentNote.content, contentHash);
 
-      // Validate content hash to prevent conflicts
-      validateContentHash(parsed.content, contentHash);
+      const { notePath } = await this.parseNoteIdentifier(identifier);
 
       // Update the content while preserving metadata
       const updatedMetadata = {
-        ...parsed.metadata,
+        ...currentNote.metadata,
         updated: new Date().toISOString()
       };
 
@@ -1150,7 +1207,7 @@ export class NoteManager {
   }
 
   /**
-   * Update a note with custom metadata, avoiding duplicate frontmatter
+   * Update a note with custom metadata, avoiding duplicate frontmatter (Phase 2.5: DB-first reads)
    */
   async updateNoteWithMetadata(
     identifier: string,
@@ -1160,27 +1217,22 @@ export class NoteManager {
     bypassProtection: boolean = false
   ): Promise<UpdateResult> {
     try {
-      const { notePath } = await this.parseNoteIdentifier(identifier);
-
-      // Check if note exists
-      try {
-        await fs.access(notePath);
-      } catch {
+      // Phase 2.5: Get current note from database for validation (faster + current data)
+      const currentNote = await this.getNote(identifier);
+      if (!currentNote) {
         throw new Error(`Note '${identifier}' does not exist`);
       }
 
-      // Read current content to preserve existing metadata
-      const currentContent = await fs.readFile(notePath, 'utf-8');
-      const parsed = this.parseNoteContent(currentContent);
+      const { notePath } = await this.parseNoteIdentifier(identifier);
 
       // Only validate content hash if content is actually changing
       // This allows metadata-only updates without requiring hash checks
-      if (content !== parsed.content) {
+      if (content !== currentNote.content) {
         if (!contentHash) {
           throw new MissingContentHashError('note content update');
         }
-        // Validate content hash to prevent conflicts
-        validateContentHash(parsed.content, contentHash);
+        // Validate content hash to prevent conflicts (using DB content, not file)
+        validateContentHash(currentNote.content, contentHash);
       }
 
       // Check for protected fields unless bypassing protection
@@ -1191,7 +1243,7 @@ export class NoteManager {
       // Merge metadata with existing metadata
       // Handle undefined values explicitly to allow removing fields
       const updatedMetadata = {
-        ...parsed.metadata,
+        ...currentNote.metadata,
         updated: new Date().toISOString()
       };
 
@@ -1331,10 +1383,45 @@ export class NoteManager {
   }
 
   /**
-   * Find incoming links to a note
+   * Find incoming links to a note (Phase 2.5: DB-first reads)
+   * Queries database link table for fast lookups
    */
   async findIncomingLinks(identifier: string): Promise<string[]> {
     try {
+      // Phase 2.5: Query database link table (much faster than reading files)
+      if (this.#hybridSearchManager) {
+        try {
+          // Get the note ID for identifier lookup
+          let noteId = identifier;
+          if (!identifier.startsWith('n-')) {
+            // Old-style identifier - look up ID
+            const note = await this.getNote(identifier);
+            if (note) {
+              noteId = note.id;
+            }
+          }
+
+          const db = await this.#hybridSearchManager.getDatabaseConnection();
+
+          // Query note_links table for links targeting this note
+          const links = await db.all<{ source_note_id: string; type: string; filename: string }>(
+            `SELECT DISTINCT nl.source_note_id, n.type, n.filename
+             FROM note_links nl
+             JOIN notes n ON nl.source_note_id = n.id
+             WHERE nl.target_note_id = ? OR nl.target_title = ?`,
+            [noteId, identifier]
+          );
+
+          return links.map((link) => `${link.type}/${link.filename}`);
+        } catch (error) {
+          console.warn(
+            `Failed to query incoming links from database, falling back to file scan:`,
+            error
+          );
+        }
+      }
+
+      // Fallback to file system scan if database not available
       const incomingLinks: string[] = [];
       const notes = await this.listNotes();
 
@@ -1457,10 +1544,29 @@ export class NoteManager {
   }
 
   /**
-   * List notes in a specific type
+   * List notes in a specific type (Phase 2.5: DB-first reads)
+   * Queries database for immediate consistency, falls back to file system if needed
    */
   async listNotes(typeName?: string, limit?: number): Promise<NoteListItem[]> {
     try {
+      // Phase 2.5: Query database first for immediate read-after-write consistency
+      if (this.#hybridSearchManager) {
+        try {
+          const dbNotes = await this.#hybridSearchManager.listNotes({
+            type: typeName,
+            limit
+          });
+
+          // Successfully read from database - return immediately
+          return dbNotes;
+        } catch (error) {
+          // Log but don't fail - fall through to file system fallback
+          console.warn(`Failed to list notes from database, falling back to file system:`, error);
+        }
+      }
+
+      // Fallback to file system if database not available or failed
+      // This provides backward compatibility and migration support
       const notes: NoteListItem[] = [];
       let noteTypes: Array<{ name: string; path: string }> = [];
 
@@ -1509,64 +1615,11 @@ export class NoteManager {
             const content = await fs.readFile(notePath, 'utf-8');
             const parsed = this.parseNoteContent(content);
 
-            // Get ID from frontmatter (for migrated notes) or look up from database
-            let noteId: string;
-            if (typeof parsed.metadata.id === 'string') {
-              noteId = parsed.metadata.id;
-            } else {
-              // Try to look up ID from database if frontmatter is missing it
-              if (this.#hybridSearchManager) {
-                try {
-                  const db = await this.#hybridSearchManager.getDatabaseConnection();
-                  const dbNote = await db.get<{ id: string }>(
-                    'SELECT id FROM notes WHERE type = ? AND filename = ?',
-                    [noteType.name, filename]
-                  );
-                  if (dbNote) {
-                    noteId = dbNote.id;
-                    // Frontmatter is missing ID but database has it - write it back to frontmatter
-                    console.log(
-                      `Fixing missing ID in frontmatter for note ${noteType.name}/${filename} (ID: ${noteId})`
-                    );
-                    try {
-                      const updatedMetadata = {
-                        ...parsed.metadata,
-                        id: noteId
-                      };
-                      const updatedContent = this.formatUpdatedNoteContent(
-                        updatedMetadata,
-                        parsed.content
-                      );
-                      await this.#writeFileWithTracking(notePath, updatedContent);
-                    } catch (writeError) {
-                      console.error(
-                        `Failed to write ID to frontmatter for ${noteType.name}/${filename}:`,
-                        writeError
-                      );
-                      // Continue anyway - we have the ID from the database
-                    }
-                  } else {
-                    // Not in database yet, skip this note (it will be indexed later)
-                    console.warn(
-                      `Note ${noteType.name}/${filename} has no ID in frontmatter and is not in database - skipping`
-                    );
-                    continue;
-                  }
-                } catch (error) {
-                  console.warn(
-                    `Failed to look up ID for note ${noteType.name}/${filename}:`,
-                    error
-                  );
-                  continue;
-                }
-              } else {
-                // No database available, skip this note
-                console.warn(
-                  `Note ${noteType.name}/${filename} has no ID in frontmatter and no database available - skipping`
-                );
-                continue;
-              }
-            }
+            // Generate a temporary ID if missing (shouldn't happen with indexed notes)
+            const noteId =
+              typeof parsed.metadata.id === 'string'
+                ? parsed.metadata.id
+                : `${noteType.name}/${filename}`;
 
             notes.push({
               id: noteId,
@@ -1671,24 +1724,34 @@ export class NoteManager {
   }
 
   /**
-   * Remove note from search index
+   * Remove note from search index (Phase 2.5: Required for DB-first reads)
    */
   async removeFromSearchIndex(notePath: string): Promise<void> {
-    // Skip search index removal during tests
-    if (process.env.NODE_ENV === 'test' || process.env.VITEST === 'true') {
-      return;
-    }
-
     try {
       // Remove from hybrid search index if available
       if (this.#hybridSearchManager) {
-        const content = await fs.readFile(notePath, 'utf-8');
-        const parsed = parseNoteContent(content);
-        // Get ID from frontmatter (for migrated notes) or generate if missing (legacy notes)
-        const noteId =
-          typeof parsed.metadata.id === 'string'
-            ? parsed.metadata.id
-            : this.generateNoteId();
+        // Phase 2.5: Try to read from database first for ID lookup
+        const dbNote = await this.#hybridSearchManager.getNoteByPath(notePath);
+
+        let noteId: string;
+        if (dbNote) {
+          // Found in database - use that ID
+          noteId = dbNote.id;
+        } else {
+          // Fallback: read from file if not in database yet
+          try {
+            const content = await fs.readFile(notePath, 'utf-8');
+            const parsed = parseNoteContent(content);
+            noteId =
+              typeof parsed.metadata.id === 'string'
+                ? parsed.metadata.id
+                : this.generateNoteId();
+          } catch {
+            // Can't read file either - skip removal
+            console.warn(`Could not determine note ID for removal: ${notePath}`);
+            return;
+          }
+        }
 
         // Clear links for this note
         const db = await this.#hybridSearchManager.getDatabaseConnection();

@@ -1603,6 +1603,259 @@ export class HybridSearchManager {
     await this.ensureInitialized();
   }
 
+  /**
+   * Get a note by ID from the database (Phase 2.5: DB-first reads)
+   * Returns the full note with content and metadata
+   */
+  async getNoteById(
+    id: string
+  ): Promise<{
+    id: string;
+    title: string;
+    content: string;
+    type: string;
+    filename: string;
+    path: string;
+    created: string;
+    updated: string;
+    size: number;
+    content_hash: string | null;
+    metadata: Record<string, unknown>;
+  } | null> {
+    const connection = await this.getConnection();
+
+    try {
+      // Query note from database
+      const note = await connection.get<NoteRow>('SELECT * FROM notes WHERE id = ?', [id]);
+
+      if (!note) {
+        return null;
+      }
+
+      // Query metadata
+      const metadataRows = await connection.all<{
+        key: string;
+        value: string;
+        value_type: 'string' | 'number' | 'date' | 'boolean' | 'array';
+      }>('SELECT key, value, value_type FROM note_metadata WHERE note_id = ?', [id]);
+
+      // Reconstruct metadata object
+      const metadata: Record<string, unknown> = {};
+      for (const row of metadataRows) {
+        metadata[row.key] = this.deserializeMetadataValue(row.value, row.value_type);
+      }
+
+      // Convert relative path to absolute path
+      const absolutePath = path.isAbsolute(note.path)
+        ? note.path
+        : path.join(this.workspacePath, note.path);
+
+      return {
+        id: note.id,
+        title: note.title,
+        content: note.content || '',
+        type: note.type,
+        filename: note.filename,
+        path: absolutePath,
+        created: note.created,
+        updated: note.updated,
+        size: note.size || 0,
+        content_hash: note.content_hash,
+        metadata
+      };
+    } catch (error) {
+      throw new Error(
+        `Failed to get note by ID: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }
+
+  /**
+   * Get a note by file path from the database (Phase 2.5: DB-first reads)
+   * Returns the full note with content and metadata
+   */
+  async getNoteByPath(filePath: string): Promise<{
+    id: string;
+    title: string;
+    content: string;
+    type: string;
+    filename: string;
+    path: string;
+    created: string;
+    updated: string;
+    size: number;
+    content_hash: string | null;
+    metadata: Record<string, unknown>;
+  } | null> {
+    const connection = await this.getConnection();
+
+    try {
+      // Convert absolute path to relative path for query
+      const relativePath = toRelativePath(filePath, this.workspacePath);
+
+      // Query note from database
+      const note = await connection.get<NoteRow>('SELECT * FROM notes WHERE path = ?', [
+        relativePath
+      ]);
+
+      if (!note) {
+        return null;
+      }
+
+      // Query metadata
+      const metadataRows = await connection.all<{
+        key: string;
+        value: string;
+        value_type: 'string' | 'number' | 'date' | 'boolean' | 'array';
+      }>('SELECT key, value, value_type FROM note_metadata WHERE note_id = ?', [note.id]);
+
+      // Reconstruct metadata object
+      const metadata: Record<string, unknown> = {};
+      for (const row of metadataRows) {
+        metadata[row.key] = this.deserializeMetadataValue(row.value, row.value_type);
+      }
+
+      // Convert relative path back to absolute path
+      const absolutePath = path.isAbsolute(note.path)
+        ? note.path
+        : path.join(this.workspacePath, note.path);
+
+      return {
+        id: note.id,
+        title: note.title,
+        content: note.content || '',
+        type: note.type,
+        filename: note.filename,
+        path: absolutePath,
+        created: note.created,
+        updated: note.updated,
+        size: note.size || 0,
+        content_hash: note.content_hash,
+        metadata
+      };
+    } catch (error) {
+      throw new Error(
+        `Failed to get note by path: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }
+
+  /**
+   * List notes from the database with optional filtering (Phase 2.5: DB-first reads)
+   * Returns notes with minimal metadata for list views
+   */
+  async listNotes(options: {
+    type?: string;
+    limit?: number;
+    offset?: number;
+  } = {}): Promise<
+    Array<{
+      id: string;
+      type: string;
+      filename: string;
+      title: string;
+      created: string;
+      modified: string;
+      size: number;
+      tags: string[];
+      path: string;
+    }>
+  > {
+    const connection = await this.getConnection();
+
+    try {
+      let query = 'SELECT * FROM notes';
+      const params: (string | number)[] = [];
+
+      if (options.type) {
+        query += ' WHERE type = ?';
+        params.push(options.type);
+      }
+
+      query += ' ORDER BY updated DESC';
+
+      if (options.limit) {
+        query += ' LIMIT ?';
+        params.push(options.limit);
+      }
+
+      if (options.offset) {
+        query += ' OFFSET ?';
+        params.push(options.offset);
+      }
+
+      const notes = await connection.all<NoteRow>(query, params);
+
+      // For each note, get the tags from metadata
+      const results = await Promise.all(
+        notes.map(async (note) => {
+          // Query tags metadata
+          const tagsRow = await connection.get<{ value: string; value_type: string }>(
+            "SELECT value, value_type FROM note_metadata WHERE note_id = ? AND key = 'tags'",
+            [note.id]
+          );
+
+          let tags: string[] = [];
+          if (tagsRow) {
+            const deserializedTags = this.deserializeMetadataValue(
+              tagsRow.value,
+              tagsRow.value_type as 'string' | 'number' | 'date' | 'boolean' | 'array'
+            );
+            tags = Array.isArray(deserializedTags) ? deserializedTags : [];
+          }
+
+          // Convert relative path to absolute path
+          const absolutePath = path.isAbsolute(note.path)
+            ? note.path
+            : path.join(this.workspacePath, note.path);
+
+          return {
+            id: note.id,
+            type: note.type,
+            filename: note.filename,
+            title: note.title,
+            created: note.created,
+            modified: note.updated, // Use 'updated' as 'modified' for consistency
+            size: note.size || 0,
+            tags,
+            path: absolutePath
+          };
+        })
+      );
+
+      return results;
+    } catch (error) {
+      throw new Error(
+        `Failed to list notes: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }
+
+  /**
+   * Helper to deserialize metadata values from database
+   */
+  private deserializeMetadataValue(
+    value: string,
+    type: 'string' | 'number' | 'date' | 'boolean' | 'array'
+  ): unknown {
+    switch (type) {
+      case 'boolean':
+        return value === 'true';
+      case 'number':
+        return parseFloat(value);
+      case 'array':
+        try {
+          return JSON.parse(value);
+        } catch {
+          return [];
+        }
+      case 'date':
+        return value;
+      default:
+        return value;
+    }
+  }
+
   async close(): Promise<void> {
     if (this.connection) {
       await this.connection.close();
