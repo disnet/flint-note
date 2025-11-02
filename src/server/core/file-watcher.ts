@@ -13,13 +13,8 @@ import crypto from 'crypto';
 import type { HybridSearchManager } from '../database/search-manager.js';
 import type { NoteManager } from './notes.js';
 
-/**
- * Tracks file operations initiated by Flint to distinguish them from external changes
- */
-interface FileOperation {
-  type: 'write' | 'rename' | 'delete';
-  startedAt: number;
-}
+// Phase 4: Removed FileOperation interface - no longer tracking individual operations
+// FileWriteQueue's ongoingWrites flag is now the single source of truth
 
 /**
  * Tracks recently deleted files to detect renames
@@ -63,7 +58,7 @@ export type FileWatcherEventHandler = (event: FileWatcherEvent) => void;
 export class VaultFileWatcher {
   private watcher: FSWatcher | null = null;
   private pendingChanges = new Map<string, NodeJS.Timeout>();
-  private internalOperations = new Map<string, FileOperation>();
+  // Phase 4: Removed internalOperations Map - FileWriteQueue's ongoingWrites is sufficient
   private ongoingWrites = new Set<string>(); // Track writes in progress (set BEFORE write)
   private writeCleanupTimeouts = new Map<string, NodeJS.Timeout>(); // Track cleanup timeouts per path
   private recentDeletions = new Map<string, RecentDeletion>();
@@ -73,7 +68,7 @@ export class VaultFileWatcher {
 
   private readonly DEBOUNCE_MS: number;
   private readonly RENAME_DETECTION_WINDOW_MS = 1000;
-  private readonly OPERATION_CLEANUP_MS = 5000;
+  // Phase 4: Removed OPERATION_CLEANUP_MS - no longer tracking individual operations
   private readonly WRITE_FLAG_CLEANUP_MS = 1000; // Keep write flag for 1000ms after completion to account for awaitWriteFinish (200ms) + debounce (100ms) + FS latency
 
   constructor(
@@ -207,8 +202,8 @@ export class VaultFileWatcher {
     this.writeCleanupTimeouts.clear();
 
     // Phase 3: Removed expected write cleanup - no longer tracking
+    // Phase 4: Removed internalOperations cleanup - no longer used
 
-    this.internalOperations.clear();
     this.ongoingWrites.clear();
     this.recentDeletions.clear();
   }
@@ -246,25 +241,11 @@ export class VaultFileWatcher {
     this.writeCleanupTimeouts.set(absolutePath, timeout);
   }
 
-  /**
-   * Track a file operation initiated by Flint (delete/rename operations)
-   * Call this BEFORE the operation to mark it as internal
-   */
-  trackOperation(filePath: string, type: 'write' | 'rename' | 'delete'): void {
-    const absolutePath = path.resolve(this.vaultPath, filePath);
-    this.internalOperations.set(absolutePath, {
-      type,
-      startedAt: Date.now()
-    });
-
-    // Clean up after timeout
-    setTimeout(() => {
-      this.internalOperations.delete(absolutePath);
-    }, this.OPERATION_CLEANUP_MS);
-  }
-
   // Phase 3: Removed markNoteOpened, markNoteClosed, expectWrite, and isNoteOpenInEditor
   // FileWriteQueue now handles all internal writes, making these tracking methods unnecessary
+
+  // Phase 4: Removed trackOperation() method - FileWriteQueue's ongoingWrites is sufficient
+  // No need to separately track delete/rename operations
 
   /**
    * Compute SHA256 hash of content for comparison
@@ -274,37 +255,24 @@ export class VaultFileWatcher {
   }
 
   /**
-   * Check if a file change is from an internal Flint operation or handle conflicts
-   * Returns true if the change should be ignored (internal or conflict handled)
+   * Determine if a file change is internal (initiated by Flint) or external
+   * Phase 4: Simplified to only check ongoingWrites flag
    */
   private async isInternalChange(
     filePath: string,
     content?: string
   ): Promise<{ isInternal: boolean; isConflict: boolean }> {
     // Normalize the path the same way we do in markWriteStarting/markWriteComplete
-    // to ensure we're checking the same key that was added to the Set
     const absolutePath = path.resolve(this.vaultPath, filePath);
 
-    // FIRST: Check if this file is currently being written by Flint
-    // This is the most reliable check as the flag is set BEFORE the write
+    // Phase 4: FileWriteQueue's ongoingWrites flag is the single source of truth
+    // If the flag is set, this is an internal write - ignore it
+    // If not set, this is an external change - sync to database
     if (this.ongoingWrites.has(absolutePath)) {
       return { isInternal: true, isConflict: false };
     }
 
-    // SECOND: Check for tracked operations (write/delete/rename)
-    const op = this.internalOperations.get(absolutePath);
-    if (op) {
-      // Check if operation is still within the cleanup window
-      if (Date.now() - op.startedAt < this.OPERATION_CLEANUP_MS) {
-        return { isInternal: true, isConflict: false };
-      }
-    }
-
-    // Phase 3: Removed editor-aware change detection (THIRD section)
-    // FileWriteQueue handles all internal writes via ongoingWrites flag (checked first)
-    // All other changes are considered external
-
-    console.log(`[FileWatcher] No internal operation flags set, treating as external change: ${filePath}`);
+    // All other changes are external
     return { isInternal: false, isConflict: false };
   }
 
@@ -454,13 +422,8 @@ export class VaultFileWatcher {
 
     this.debounceChange(filePath, async () => {
       try {
-        // Check if this is an internal operation
-        const absolutePath = path.resolve(filePath);
-        const op = this.internalOperations.get(absolutePath);
-        if (op && op.type === 'delete') {
-          this.internalOperations.delete(absolutePath);
-          return;
-        }
+        // Phase 4: Removed internal delete tracking - all deletes treated as external
+        // If NoteManager calls deleteNote(), it will handle DB cleanup directly
 
         // Try to get the note ID from the database before processing deletion
         const noteId = await this.getNoteIdFromPath(filePath);
