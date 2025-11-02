@@ -2079,26 +2079,52 @@ app.whenReady().then(async () => {
 
 // Flush pending file writes before quitting
 // Part of Phase 1: Database-first architecture
+let hasCompletedCleanup = false; // Phase 6 fix: Track cleanup completion
 app.on('before-quit', async (event) => {
+  // Phase 6 fix: If cleanup is done, allow immediate quit
+  if (hasCompletedCleanup) {
+    logger.info('Cleanup already completed, allowing quit');
+    return; // Don't prevent default, let it quit
+  }
+
+  // First time through - do cleanup
   logger.info('App quitting, flushing pending file writes');
+  event.preventDefault(); // Prevent quit until cleanup is done
 
   try {
-    // Prevent immediate quit to allow flush to complete
-    event.preventDefault();
-
-    // Flush all pending writes from the file write queue
     const api = noteService?.getFlintNoteApi();
     if (api) {
+      // Phase 6 fix: Stop file watcher FIRST to prevent infinite loop
+      // This prevents the watcher from reacting to flush writes during shutdown
+      const fileWatcher = api.getFileWatcher();
+      if (fileWatcher) {
+        logger.info('Stopping file watcher before flush');
+        await fileWatcher.stop();
+      }
+
+      // Now flush all pending writes from the file write queue
       await api.flushPendingWrites();
       logger.info('All pending file writes flushed successfully');
     }
 
-    // Now actually quit
+    // Mark cleanup as complete
+    hasCompletedCleanup = true;
+
+    // Close all windows explicitly before quitting
+    logger.info('Closing all browser windows');
+    BrowserWindow.getAllWindows().forEach(window => {
+      window.destroy(); // Force close without waiting for renderer
+    });
+
+    logger.info('Triggering final quit');
+    // Now quit - this will trigger before-quit again, but we'll allow it through
     app.quit();
   } catch (error) {
     logger.error('Error flushing pending writes on quit', { error });
-    // Quit anyway to avoid hanging
-    app.quit();
+    hasCompletedCleanup = true;
+    // Force quit anyway to avoid hanging
+    BrowserWindow.getAllWindows().forEach(window => window.destroy());
+    app.exit(0); // Force exit immediately
   }
 });
 

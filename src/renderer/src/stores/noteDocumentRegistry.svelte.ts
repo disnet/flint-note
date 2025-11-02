@@ -285,6 +285,13 @@ class NoteDocumentRegistryClass {
       // 3. If source is 'user' with different editorId, reload (other editor updated)
       // 4. But always respect dirty state - don't reload if user has unsaved changes
 
+      // Phase 6 fix: Prevent processing during shutdown
+      // If no editors are viewing this document, skip reload (document is being cleaned up)
+      if (doc.activeEditors.size === 0) {
+        console.log('[Registry] Skipping reload for document with no active editors:', event.noteId);
+        return;
+      }
+
       const isSelfUpdate =
         event.source === 'user' && event.editorId === doc['primaryEditorId'];
 
@@ -315,18 +322,25 @@ class NoteDocumentRegistryClass {
           `[Registry] Note updated by ${sourceLabel}, auto-reloading:`,
           event.noteId
         );
-        await doc.reload();
 
-        // Show toast notification
-        messageBus.publish({
-          type: 'toast.show',
-          message:
-            event.source === 'agent'
-              ? 'Note reloaded (updated by agent)'
-              : 'Note reloaded (updated in another editor)',
-          duration: 3000,
-          variant: 'info'
-        });
+        // Wrap reload in try-catch to handle shutdown gracefully
+        try {
+          await doc.reload();
+
+          // Show toast notification
+          messageBus.publish({
+            type: 'toast.show',
+            message:
+              event.source === 'agent'
+                ? 'Note reloaded (updated by agent)'
+                : 'Note reloaded (updated in another editor)',
+            duration: 3000,
+            variant: 'info'
+          });
+        } catch (error) {
+          // Silently fail during shutdown or if document is no longer valid
+          console.log('[Registry] Failed to reload document (likely shutting down):', error);
+        }
       }
     });
 
