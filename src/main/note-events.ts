@@ -4,7 +4,13 @@ import type { NoteMetadata } from '../server/types';
 // Event type definitions - must match renderer's NoteEvent type
 export type NoteEvent =
   | { type: 'note.created'; note: NoteMetadata }
-  | { type: 'note.updated'; noteId: string; updates: Partial<NoteMetadata> }
+  | {
+      type: 'note.updated';
+      noteId: string;
+      updates: Partial<NoteMetadata>;
+      source: 'agent' | 'user';
+      editorId?: string;
+    }
   | { type: 'note.deleted'; noteId: string }
   | {
       type: 'note.renamed';

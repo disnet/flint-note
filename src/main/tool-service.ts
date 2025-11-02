@@ -474,7 +474,7 @@ export class ToolService {
           });
         }
 
-        // Publish note.updated event with full metadata
+        // Phase 6: Publish note.updated event with source: 'agent' for agent-editor sync
         publishNoteEvent({
           type: 'note.updated',
           noteId: updates.identifier,
@@ -482,7 +482,8 @@ export class ToolService {
             title: updatedNote.title,
             filename: updatedNote.filename,
             modified: updatedNote.updated
-          }
+          },
+          source: 'agent'
         });
 
         return {

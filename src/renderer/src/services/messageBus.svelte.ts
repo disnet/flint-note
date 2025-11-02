@@ -8,7 +8,13 @@ import type {
 // Event type definitions
 export type NoteEvent =
   | { type: 'note.created'; note: NoteMetadata }
-  | { type: 'note.updated'; noteId: string; updates: Partial<NoteMetadata> }
+  | {
+      type: 'note.updated';
+      noteId: string;
+      updates: Partial<NoteMetadata>;
+      source: 'agent' | 'user';
+      editorId?: string;
+    }
   | { type: 'note.deleted'; noteId: string }
   | {
       type: 'note.renamed';

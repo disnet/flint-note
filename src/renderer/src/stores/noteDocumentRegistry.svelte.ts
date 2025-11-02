@@ -16,6 +16,10 @@ export class NoteDocument {
   // Format: 'main' | 'sidebar-0' | 'sidebar-1' etc.
   activeEditors = $state<Set<string>>(new Set());
 
+  // Phase 6: Track the primary editor ID (the first editor to register)
+  // Used to identify which editor made the change for smart reload logic
+  private primaryEditorId: string | null = null;
+
   // Single autosave instance for this document
   private autoSave: AutoSave;
 
@@ -123,6 +127,7 @@ export class NoteDocument {
 
   /**
    * Save the document to the database
+   * Phase 6: Publishes note.updated event with source: 'user' for agent-editor sync
    */
   private async save(): Promise<void> {
     try {
@@ -136,12 +141,26 @@ export class NoteDocument {
         `[AutoSave] Saving note ${this.noteId}, hash: ${contentHash.substring(0, 8)}...`
       );
 
-      await noteService.updateNote({
+      const result = await noteService.updateNote({
         identifier: this.noteId,
         content: this.content,
         silent: true // Don't trigger UI refresh on auto-save
       });
       console.log(`[AutoSave] Note ${this.noteId} saved successfully`);
+
+      // Phase 6: Publish note.updated event with source: 'user' for multi-editor sync
+      // This allows other editors viewing the same note to reload
+      if (result) {
+        messageBus.publish({
+          type: 'note.updated',
+          noteId: this.noteId,
+          updates: {
+            modified: new Date().toISOString()
+          },
+          source: 'user',
+          editorId: this.primaryEditorId || undefined
+        });
+      }
     } catch (err) {
       this.error = err instanceof Error ? err.message : 'Failed to save note';
       console.error('Error saving note:', err);
@@ -183,16 +202,28 @@ export class NoteDocument {
 
   /**
    * Register an editor component as viewing/editing this document
+   * Phase 6: Track the first editor as the primary editor for source identification
    */
   registerEditor(editorId: string): void {
     this.activeEditors.add(editorId);
+    // Set primary editor if this is the first editor
+    if (this.primaryEditorId === null) {
+      this.primaryEditorId = editorId;
+    }
   }
 
   /**
    * Unregister an editor component from this document
+   * Phase 6: Clear primary editor if it's being unregistered
    */
   unregisterEditor(editorId: string): void {
     this.activeEditors.delete(editorId);
+    // If the primary editor is closing, reset it
+    if (this.primaryEditorId === editorId) {
+      // Set to the first remaining editor, or null if none
+      this.primaryEditorId =
+        this.activeEditors.size > 0 ? Array.from(this.activeEditors)[0] : null;
+    }
   }
 
   /**
@@ -242,17 +273,62 @@ class NoteDocumentRegistryClass {
   private documents = $state(new Map<string, NoteDocument>());
 
   constructor() {
-    // Listen for note.updated events and reload affected documents
-    // Note: We don't reload on note.updated because it's typically triggered by
-    // the document saving itself, which would cause unnecessary reloads and cursor position loss.
-    // External changes are handled by file.external-change events instead.
-    // messageBus.subscribe('note.updated', async (event) => {
-    //   const doc = this.documents.get(event.noteId);
-    //   if (doc) {
-    //     // Only reload if the document is open
-    //     await doc.reload();
-    //   }
-    // });
+    // Phase 6: Listen for note.updated events with smart reload logic
+    // This enables agent-editor sync and multi-editor sync
+    messageBus.subscribe('note.updated', async (event) => {
+      const doc = this.documents.get(event.noteId);
+      if (!doc) return;
+
+      // Smart reload logic:
+      // 1. If source is 'user' and editorId matches this document's primary editor, skip (self-update)
+      // 2. If source is 'agent', reload (agent updates should always sync)
+      // 3. If source is 'user' with different editorId, reload (other editor updated)
+      // 4. But always respect dirty state - don't reload if user has unsaved changes
+
+      const isSelfUpdate =
+        event.source === 'user' && event.editorId === doc['primaryEditorId'];
+
+      if (isSelfUpdate) {
+        // This editor made the change - don't reload to avoid cursor position loss
+        console.log('[Registry] Skipping reload for self-update:', event.noteId);
+        return;
+      }
+
+      // Check if document has unsaved changes
+      const isDirty = doc.isDirty;
+
+      if (isDirty) {
+        // Document has unsaved changes - emit conflict event
+        console.log(
+          '[Registry] Note updated externally but has unsaved changes, showing conflict:',
+          event.noteId
+        );
+        messageBus.publish({
+          type: 'file.external-edit-conflict',
+          noteId: event.noteId,
+          path: '' // Path not available in note.updated events
+        });
+      } else {
+        // Document is clean - auto-reload
+        const sourceLabel = event.source === 'agent' ? 'agent' : 'another editor';
+        console.log(
+          `[Registry] Note updated by ${sourceLabel}, auto-reloading:`,
+          event.noteId
+        );
+        await doc.reload();
+
+        // Show toast notification
+        messageBus.publish({
+          type: 'toast.show',
+          message:
+            event.source === 'agent'
+              ? 'Note reloaded (updated by agent)'
+              : 'Note reloaded (updated in another editor)',
+          duration: 3000,
+          variant: 'info'
+        });
+      }
+    });
 
     // Listen for external file changes and handle based on dirty state
     // Phase 5: Auto-reload clean documents, show conflict for dirty documents

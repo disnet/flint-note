@@ -600,7 +600,8 @@ app.whenReady().then(async () => {
           noteId: params.identifier,
           updates: {
             modified: result.timestamp
-          }
+          },
+          source: 'user' // This comes from the UI, not the agent
         });
       } else {
         console.log(`[IPC] Suppressing note.updated event (silent mode)`);
@@ -689,7 +690,8 @@ app.whenReady().then(async () => {
                 title: renamedNote.title,
                 filename: renamedNote.filename,
                 modified: renamedNote.updated
-              }
+              },
+              source: 'user' // This comes from the UI, not the agent
             });
           }
         } catch (error) {
