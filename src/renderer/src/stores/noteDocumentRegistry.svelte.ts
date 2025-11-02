@@ -129,18 +129,12 @@ export class NoteDocument {
       this.error = null;
       const noteService = getChatService();
 
-      // Compute content hash and register expected write with file watcher
-      // This prevents the auto-save from triggering an external change detection
+      // Phase 3: Removed expectWrite tracking - FileWriteQueue handles all internal writes
+      // Compute content hash for optimistic locking
       const contentHash = await this.computeContentHash(this.content);
       console.log(
         `[AutoSave] Saving note ${this.noteId}, hash: ${contentHash.substring(0, 8)}...`
       );
-
-      await window.api?.expectNoteWrite({
-        noteId: this.noteId,
-        contentHash
-      });
-      console.log(`[AutoSave] Registered expected write for ${this.noteId}`);
 
       await noteService.updateNote({
         identifier: this.noteId,

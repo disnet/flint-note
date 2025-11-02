@@ -80,16 +80,13 @@ class ActiveNoteStore {
     const oldNoteId = this.previousNoteId;
     const newNoteId = note?.id || null;
 
+    // Phase 3: Removed noteOpened/noteClosed tracking - not needed with FileWriteQueue
     if (oldNoteId && oldNoteId !== newNoteId) {
-      // Previous note is being closed
       console.log(`[ActiveNoteStore] Closing note: ${oldNoteId}`);
-      await window.api?.noteClosed({ noteId: oldNoteId });
     }
 
     if (newNoteId && newNoteId !== oldNoteId) {
-      // New note is being opened
       console.log(`[ActiveNoteStore] Opening note: ${newNoteId}`);
-      await window.api?.noteOpened({ noteId: newNoteId });
     }
 
     this.previousNoteId = newNoteId;
@@ -105,9 +102,8 @@ class ActiveNoteStore {
   async clearActiveNote(): Promise<void> {
     await this.ensureInitialized();
 
-    // Notify file watcher that note is being closed
+    // Phase 3: Removed noteClosed tracking - not needed with FileWriteQueue
     if (this.previousNoteId) {
-      await window.api?.noteClosed({ noteId: this.previousNoteId });
       this.previousNoteId = null;
     }
 
@@ -122,8 +118,8 @@ class ActiveNoteStore {
     await this.ensureInitialized();
 
     // Clear active note when setting system view
+    // Phase 3: Removed noteClosed tracking - not needed with FileWriteQueue
     if (view !== null && this.previousNoteId) {
-      await window.api?.noteClosed({ noteId: this.previousNoteId });
       this.previousNoteId = null;
     }
 
@@ -196,8 +192,8 @@ class ActiveNoteStore {
       const noteExists = await service.getNote({ identifier: stored.id });
 
       if (noteExists) {
-        // Note still exists, notify file watcher that it's open
-        await window.api?.noteOpened({ noteId: stored.id });
+        // Note still exists
+        // Phase 3: Removed noteOpened tracking - not needed with FileWriteQueue
         this.previousNoteId = stored.id;
         // Return the stored metadata
         return { type: 'note', note: stored };

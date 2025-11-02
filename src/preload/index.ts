@@ -231,12 +231,8 @@ const api = {
     electronAPI.ipcRenderer.invoke('move-note', params),
 
   // Note lifecycle tracking (for file watcher)
-  noteOpened: (params: { noteId: string }) =>
-    electronAPI.ipcRenderer.invoke('note:opened', params),
-  noteClosed: (params: { noteId: string }) =>
-    electronAPI.ipcRenderer.invoke('note:closed', params),
-  expectNoteWrite: (params: { noteId: string; contentHash: string }) =>
-    electronAPI.ipcRenderer.invoke('note:expect-write', params),
+  // Phase 3: Removed noteOpened, noteClosed, and expectNoteWrite
+  // FileWriteQueue now handles all internal write tracking
 
   // Search operations
   searchNotes: (params: { query: string; vaultId?: string; limit?: number }) =>

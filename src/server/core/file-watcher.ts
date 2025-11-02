@@ -31,15 +31,7 @@ interface RecentDeletion {
   contentHash: string;
 }
 
-/**
- * Tracks expected writes from the editor to distinguish auto-saves from external edits
- */
-interface ExpectedWrite {
-  noteId: string;
-  contentHash: string;
-  timestamp: number;
-  cleanupTimeout: NodeJS.Timeout;
-}
+// Phase 3: Removed ExpectedWrite interface - no longer needed with FileWriteQueue
 
 /**
  * Configuration for the file watcher
@@ -77,15 +69,12 @@ export class VaultFileWatcher {
   private recentDeletions = new Map<string, RecentDeletion>();
   private eventHandlers: FileWatcherEventHandler[] = [];
 
-  // Editor-aware tracking
-  private openNotes = new Set<string>(); // Notes currently open in editor
-  private expectedWrites = new Map<string, ExpectedWrite[]>(); // Expected writes from editor saves (array to handle rapid typing)
+  // Phase 3: Removed openNotes and expectedWrites tracking - FileWriteQueue handles all internal writes
 
   private readonly DEBOUNCE_MS: number;
   private readonly RENAME_DETECTION_WINDOW_MS = 1000;
   private readonly OPERATION_CLEANUP_MS = 5000;
   private readonly WRITE_FLAG_CLEANUP_MS = 1000; // Keep write flag for 1000ms after completion to account for awaitWriteFinish (200ms) + debounce (100ms) + FS latency
-  private readonly EXPECTED_WRITE_TIMEOUT_MS = 2000; // Expected writes should complete within 2s
 
   constructor(
     private vaultPath: string,
@@ -217,18 +206,11 @@ export class VaultFileWatcher {
     }
     this.writeCleanupTimeouts.clear();
 
-    // Clear expected write cleanup timeouts
-    for (const writes of this.expectedWrites.values()) {
-      for (const write of writes) {
-        clearTimeout(write.cleanupTimeout);
-      }
-    }
+    // Phase 3: Removed expected write cleanup - no longer tracking
 
     this.internalOperations.clear();
     this.ongoingWrites.clear();
     this.recentDeletions.clear();
-    this.openNotes.clear();
-    this.expectedWrites.clear();
   }
 
   /**
@@ -281,84 +263,8 @@ export class VaultFileWatcher {
     }, this.OPERATION_CLEANUP_MS);
   }
 
-  /**
-   * Mark a note as open in the editor.
-   * While open, changes will be verified against expected writes to detect conflicts.
-   */
-  markNoteOpened(noteId: string): void {
-    this.openNotes.add(noteId);
-    console.log(`[FileWatcher] Note opened in editor: ${noteId}`);
-    console.log(`[FileWatcher] Open notes now: ${Array.from(this.openNotes).join(', ')}`);
-  }
-
-  /**
-   * Mark a note as closed in the editor.
-   * After closing, changes will be treated as normal external edits.
-   */
-  markNoteClosed(noteId: string): void {
-    this.openNotes.delete(noteId);
-    // Clean up any pending expected writes for this note
-    const expectedWrites = this.expectedWrites.get(noteId);
-    if (expectedWrites) {
-      // Clear all cleanup timeouts
-      for (const write of expectedWrites) {
-        clearTimeout(write.cleanupTimeout);
-      }
-      this.expectedWrites.delete(noteId);
-    }
-    console.log(`[FileWatcher] Note closed in editor: ${noteId}`);
-  }
-
-  /**
-   * Register an expected write from the editor.
-   * This allows distinguishing editor auto-saves from external edits to open notes.
-   * Call this BEFORE the editor saves the note.
-   */
-  expectWrite(noteId: string, contentHash: string): void {
-    // Get or create array of expected writes for this note
-    let expectedWrites = this.expectedWrites.get(noteId);
-    if (!expectedWrites) {
-      expectedWrites = [];
-      this.expectedWrites.set(noteId, expectedWrites);
-    }
-
-    // Create cleanup timeout that removes this specific write
-    const timeout = setTimeout(() => {
-      const writes = this.expectedWrites.get(noteId);
-      if (writes) {
-        const index = writes.findIndex((w) => w.contentHash === contentHash);
-        if (index !== -1) {
-          writes.splice(index, 1);
-          console.log(
-            `[FileWatcher] Expected write timeout for note ${noteId}, hash: ${contentHash.substring(0, 8)}...`
-          );
-          // Clean up empty arrays
-          if (writes.length === 0) {
-            this.expectedWrites.delete(noteId);
-          }
-        }
-      }
-    }, this.EXPECTED_WRITE_TIMEOUT_MS);
-
-    // Add this expected write to the array
-    expectedWrites.push({
-      noteId,
-      contentHash,
-      timestamp: Date.now(),
-      cleanupTimeout: timeout
-    });
-
-    console.log(
-      `[FileWatcher] Expecting write for note ${noteId}, hash: ${contentHash.substring(0, 8)}... (${expectedWrites.length} pending)`
-    );
-  }
-
-  /**
-   * Check if a note is currently open in the editor
-   */
-  private isNoteOpenInEditor(noteId: string): boolean {
-    return this.openNotes.has(noteId);
-  }
+  // Phase 3: Removed markNoteOpened, markNoteClosed, expectWrite, and isNoteOpenInEditor
+  // FileWriteQueue now handles all internal writes, making these tracking methods unnecessary
 
   /**
    * Compute SHA256 hash of content for comparison
@@ -394,94 +300,11 @@ export class VaultFileWatcher {
       }
     }
 
-    // THIRD: Editor-aware change detection - check expected writes
-    const noteId = await this.getNoteIdFromPath(filePath);
-    console.log(`[FileWatcher] Checking change for file: ${filePath}`);
-    console.log(`[FileWatcher]   Note ID: ${noteId || 'NOT FOUND'}`);
-    console.log(
-      `[FileWatcher]   Open notes: ${Array.from(this.openNotes).join(', ') || 'NONE'}`
-    );
+    // Phase 3: Removed editor-aware change detection (THIRD section)
+    // FileWriteQueue handles all internal writes via ongoingWrites flag (checked first)
+    // All other changes are considered external
 
-    if (noteId) {
-      const expectedWrites = this.expectedWrites.get(noteId);
-      console.log(
-        `[FileWatcher]   Expected writes for ${noteId}: ${expectedWrites?.length || 0}`
-      );
-      console.log(`[FileWatcher]   Is note open? ${this.isNoteOpenInEditor(noteId)}`);
-
-      if (expectedWrites && expectedWrites.length > 0) {
-        // We have expected writes for this note - verify content hash
-        const fileContent = content || (await fs.readFile(filePath, 'utf-8'));
-        const actualHash = this.computeContentHash(fileContent);
-
-        console.log(`[FileWatcher] Change detected for note ${noteId}`);
-        console.log(`  Actual hash: ${actualHash.substring(0, 8)}...`);
-        console.log(`  Checking against ${expectedWrites.length} expected writes`);
-
-        // Check if this hash matches ANY expected write
-        const matchIndex = expectedWrites.findIndex((w) => w.contentHash === actualHash);
-
-        if (matchIndex !== -1) {
-          // This is one of the writes we expected - clean up and ignore
-          const matchedWrite = expectedWrites[matchIndex];
-          console.log(
-            `[FileWatcher] ✓ Ignoring expected write for note ${noteId}, hash: ${actualHash.substring(0, 8)}...`
-          );
-
-          // Clear timeout and remove this specific expected write
-          clearTimeout(matchedWrite.cleanupTimeout);
-          expectedWrites.splice(matchIndex, 1);
-
-          // Clean up empty arrays
-          if (expectedWrites.length === 0) {
-            this.expectedWrites.delete(noteId);
-          }
-
-          return { isInternal: true, isConflict: false };
-        } else {
-          // Content doesn't match any expected write!
-          // This is an external edit that happened while we had pending writes
-          console.warn(
-            `[FileWatcher] Hash mismatch - expected one of ${expectedWrites.length} hashes, got ${actualHash.substring(0, 8)}...`
-          );
-
-          if (this.isNoteOpenInEditor(noteId)) {
-            // Conflict: external edit to open note with unexpected content
-            console.warn(
-              `[FileWatcher] External edit conflict detected for open note: ${noteId}`
-            );
-            this.emit({
-              type: 'external-edit-conflict',
-              noteId,
-              path: filePath
-            });
-            return { isInternal: true, isConflict: true }; // Don't auto-sync, emit conflict
-          }
-
-          // Note is not open, treat as external change
-          return { isInternal: false, isConflict: false };
-        }
-      }
-
-      // No expected write, but note is open - unexpected change to open note
-      if (this.isNoteOpenInEditor(noteId)) {
-        console.warn(
-          `[FileWatcher] ⚠️ CONFLICT: Unexpected external edit to open note: ${noteId}`
-        );
-        this.emit({
-          type: 'external-edit-conflict',
-          noteId,
-          path: filePath
-        });
-        return { isInternal: true, isConflict: true }; // Don't auto-sync, emit conflict
-      } else {
-        console.log(`[FileWatcher] Note ${noteId} not open, treating as external change`);
-      }
-    }
-
-    console.log(
-      `[FileWatcher] No noteId found or no special handling, treating as external change`
-    );
+    console.log(`[FileWatcher] No internal operation flags set, treating as external change: ${filePath}`);
     return { isInternal: false, isConflict: false };
   }
 

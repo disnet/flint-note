@@ -753,45 +753,8 @@ app.whenReady().then(async () => {
     }
   );
 
-  // Note lifecycle tracking (for file watcher)
-  ipcMain.handle('note:opened', async (_event, params: { noteId: string }) => {
-    if (!noteService) {
-      console.warn('Note service not available for note:opened');
-      return { success: false };
-    }
-    const fileWatcher = noteService.getFileWatcher();
-    if (fileWatcher) {
-      fileWatcher.markNoteOpened(params.noteId);
-    }
-    return { success: true };
-  });
-
-  ipcMain.handle('note:closed', async (_event, params: { noteId: string }) => {
-    if (!noteService) {
-      console.warn('Note service not available for note:closed');
-      return { success: false };
-    }
-    const fileWatcher = noteService.getFileWatcher();
-    if (fileWatcher) {
-      fileWatcher.markNoteClosed(params.noteId);
-    }
-    return { success: true };
-  });
-
-  ipcMain.handle(
-    'note:expect-write',
-    async (_event, params: { noteId: string; contentHash: string }) => {
-      if (!noteService) {
-        console.warn('Note service not available for note:expect-write');
-        return { success: false };
-      }
-      const fileWatcher = noteService.getFileWatcher();
-      if (fileWatcher) {
-        fileWatcher.expectWrite(params.noteId, params.contentHash);
-      }
-      return { success: true };
-    }
-  );
+  // Phase 3: Removed note:opened, note:closed, and note:expect-write IPC handlers
+  // FileWriteQueue now handles all internal write tracking
 
   // Search operations
   ipcMain.handle(

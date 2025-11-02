@@ -171,12 +171,8 @@ declare global {
       }) => Promise<any>;
 
       // Note lifecycle tracking (for file watcher)
-      noteOpened: (params: { noteId: string }) => Promise<{ success: boolean }>;
-      noteClosed: (params: { noteId: string }) => Promise<{ success: boolean }>;
-      expectNoteWrite: (params: {
-        noteId: string;
-        contentHash: string;
-      }) => Promise<{ success: boolean }>;
+      // Phase 3: Removed noteOpened, noteClosed, and expectNoteWrite
+      // FileWriteQueue now handles all internal write tracking
 
       // Search operations
       searchNotes: (params: {
