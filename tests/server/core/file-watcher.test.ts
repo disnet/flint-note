@@ -17,11 +17,12 @@ describe('VaultFileWatcher - Internal vs External Change Detection', () => {
 
   beforeEach(async () => {
     testSetup = new TestApiSetup();
-    await testSetup.setup();
 
-    // Create a test vault
-    vaultId = await testSetup.createTestVault('file-watcher-test');
-    vaultPath = path.join(testSetup.testWorkspacePath, vaultId);
+    // Set up with a direct vault path (single-vault mode)
+    // This ensures the API's workspace, database, and file watcher all point to the same location
+    vaultId = 'file-watcher-test';
+    await testSetup.setupWithVault(vaultId);
+    vaultPath = testSetup.testWorkspacePath; // In single-vault mode, workspace = vault
 
     // Subscribe to file watcher events and save the unsubscribe function
     capturedEvents.length = 0;

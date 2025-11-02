@@ -40,6 +40,46 @@ export class TestApiSetup {
     await new Promise((resolve) => setTimeout(resolve, 200));
   }
 
+  /**
+   * Set up with a single vault (workspace IS the vault)
+   * This is the simpler setup for tests that don't need multiple vaults
+   */
+  async setupWithVault(vaultId: string): Promise<void> {
+    // Create a temporary directory for the vault
+    const uniqueId = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+    this.testWorkspacePath = await fs.mkdtemp(
+      path.join(os.tmpdir(), `flint-test-${uniqueId}-`)
+    );
+
+    // Set up isolated global config directory for this test instance
+    const testConfigDir = path.join(this.testWorkspacePath, 'config');
+    process.env.XDG_CONFIG_HOME = testConfigDir;
+
+    // Initialize API with the vault path directly (single-vault mode)
+    this.api = new FlintNoteApi({
+      workspacePath: this.testWorkspacePath
+    });
+
+    // Initialize the API - this sets up the database and file watcher for this vault
+    await this.api.initialize();
+
+    // Register the vault in global config so API calls with vaultId work
+    const vaultConfig = {
+      id: vaultId,
+      name: `Test Vault ${vaultId}`,
+      path: this.testWorkspacePath, // Vault path = workspace path in single-vault mode
+      description: `Test vault for ${vaultId}`,
+      initialize: false, // Already initialized
+      skipTemplate: true,
+      switch_to: false
+    };
+    await this.api.createVault(vaultConfig);
+    this.createdVaultIds.push(vaultId);
+
+    // Wait a bit to ensure database is fully initialized and all locks released
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+
   async createTestVault(
     vaultId: string,
     options?: { initialize?: boolean; skipTemplate?: boolean }

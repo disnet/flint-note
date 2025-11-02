@@ -504,16 +504,9 @@ export class VaultFileWatcher {
       const absolutePath = path.resolve(filePath);
       const relativePath = path.relative(this.vaultPath, absolutePath);
 
-      console.log(`[FileWatcher] Looking up note by path:`);
-      console.log(`[FileWatcher]   Input path: ${filePath}`);
-      console.log(`[FileWatcher]   Absolute path: ${absolutePath}`);
-      console.log(`[FileWatcher]   Relative path: ${relativePath}`);
-
       const note = await db.get<{ id: string }>('SELECT id FROM notes WHERE path = ?', [
         relativePath
       ]);
-
-      console.log(`[FileWatcher]   Found note: ${note ? note.id : 'NULL'}`);
 
       return note?.id || null;
     } catch (error) {
