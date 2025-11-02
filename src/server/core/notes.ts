@@ -322,7 +322,9 @@ export class NoteManager {
     // Initialize file write queue (Phase 2: DB-first architecture)
     // Using 1000ms delay for actual write batching and I/O reduction
     // This achieves 50%+ file I/O reduction during rapid editing
-    this.#fileWriteQueue = new FileWriteQueue(fileWatcher, 1000);
+    // In test environment, use 0ms delay for synchronous behavior
+    const queueDelay = process.env.NODE_ENV === 'test' || process.env.VITEST ? 0 : 1000;
+    this.#fileWriteQueue = new FileWriteQueue(fileWatcher, queueDelay);
 
     // Initialize hierarchy manager if we have a database connection
     if (hybridSearchManager) {
