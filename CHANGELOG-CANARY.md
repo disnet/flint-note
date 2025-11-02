@@ -4,6 +4,30 @@ All notable changes to the Flint application canary builds will be documented in
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.0-canary.1]
+
+### Added
+
+- Note linting for agents
+- Broken link validation warnings to agent updates
+- Skip validation option to note updates
+- Note type icons
+- Scroll to open note in sidebar
+
+### Changed
+
+- Redesigned all notes view to note types using card layout
+- Improved autocomplete info details
+- Improved directory ignoring for file watcher
+
+### Fixed
+
+- Autocomplete using wrong link format
+- Broken wikilinks on first load
+- Daily view entries losing focus when window loses focus
+- Mutation errors on teardown
+- Migration tests
+
 ## [0.3.1-canary.3]
 
 ### Changed
