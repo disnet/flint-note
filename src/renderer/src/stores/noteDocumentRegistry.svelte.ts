@@ -288,7 +288,6 @@ class NoteDocumentRegistryClass {
       // Phase 6 fix: Prevent processing during shutdown
       // If no editors are viewing this document, skip reload (document is being cleaned up)
       if (doc.activeEditors.size === 0) {
-        console.log('[Registry] Skipping reload for document with no active editors:', event.noteId);
         return;
       }
 
@@ -297,7 +296,6 @@ class NoteDocumentRegistryClass {
 
       if (isSelfUpdate) {
         // This editor made the change - don't reload to avoid cursor position loss
-        console.log('[Registry] Skipping reload for self-update:', event.noteId);
         return;
       }
 
@@ -306,10 +304,6 @@ class NoteDocumentRegistryClass {
 
       if (isDirty) {
         // Document has unsaved changes - emit conflict event
-        console.log(
-          '[Registry] Note updated externally but has unsaved changes, showing conflict:',
-          event.noteId
-        );
         messageBus.publish({
           type: 'file.external-edit-conflict',
           noteId: event.noteId,
@@ -317,13 +311,6 @@ class NoteDocumentRegistryClass {
         });
       } else {
         // Document is clean - auto-reload
-        const sourceLabel = event.source === 'agent' ? 'agent' : 'another editor';
-        console.log(
-          `[Registry] Note updated by ${sourceLabel}, auto-reloading:`,
-          event.noteId
-        );
-
-        // Wrap reload in try-catch to handle shutdown gracefully
         try {
           await doc.reload();
 
@@ -339,7 +326,7 @@ class NoteDocumentRegistryClass {
           });
         } catch (error) {
           // Silently fail during shutdown or if document is no longer valid
-          console.log('[Registry] Failed to reload document (likely shutting down):', error);
+          console.warn('[Registry] Failed to reload document:', error);
         }
       }
     });
@@ -356,10 +343,6 @@ class NoteDocumentRegistryClass {
 
       if (isDirty) {
         // Document has unsaved changes - emit conflict event for user to resolve
-        console.log(
-          '[Registry] External change detected on dirty document, showing conflict:',
-          event.noteId
-        );
         messageBus.publish({
           type: 'file.external-edit-conflict',
           noteId: event.noteId,
@@ -367,10 +350,6 @@ class NoteDocumentRegistryClass {
         });
       } else {
         // Document is clean - auto-reload and show toast notification
-        console.log(
-          '[Registry] External change detected on clean document, auto-reloading:',
-          event.noteId
-        );
         await doc.reload();
 
         // Emit toast notification event

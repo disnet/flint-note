@@ -2112,7 +2112,7 @@ app.on('before-quit', async (event) => {
 
     // Close all windows explicitly before quitting
     logger.info('Closing all browser windows');
-    BrowserWindow.getAllWindows().forEach(window => {
+    BrowserWindow.getAllWindows().forEach((window) => {
       window.destroy(); // Force close without waiting for renderer
     });
 
@@ -2123,7 +2123,7 @@ app.on('before-quit', async (event) => {
     logger.error('Error flushing pending writes on quit', { error });
     hasCompletedCleanup = true;
     // Force quit anyway to avoid hanging
-    BrowserWindow.getAllWindows().forEach(window => window.destroy());
+    BrowserWindow.getAllWindows().forEach((window) => window.destroy());
     app.exit(0); // Force exit immediately
   }
 });

@@ -129,3 +129,4 @@ Test files have relaxed ESLint rules allowing:
 
 - when planning migrations or breaking changes don't use progressive rollout strategy since we don't have that capability yet
 - we we need to deal with breaking changes to the DB schema we have version aware migration code in the migration-manager
+- do not try to run the app (e.g. npm run dev). ask the user to run it if you need to check something
