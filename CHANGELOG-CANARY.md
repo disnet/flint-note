@@ -4,6 +4,12 @@ All notable changes to the Flint application canary builds will be documented in
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.0-canary.2]
+
+### fixed
+
+- reworked external change detection, should be fewer spurious "external edit detected" messages
+
 ## [0.9.0-canary.1]
 
 ### Added
