@@ -13,6 +13,7 @@
 **Question**: What should the default file write queue delay be?
 
 **Options**:
+
 - **500ms**: Faster durability, less batching
 - **1000ms**: Balanced (PRD recommendation)
 - **1500ms**: More batching, slower durability
@@ -27,15 +28,16 @@
 | 2000ms | Highest | Slowest | May feel laggy | Frustrating |
 
 **Context**:
+
 - Database writes are ~1ms, so user always sees instant save in UI
 - File delay only affects: external editors, git status, file-based tools
 - Longer delays = more batching = fewer disk writes during rapid editing
 
 **Recommendation**: Start with 1000ms, make configurable in settings
 
-**Decision**: [ ] 500ms  [ ] 1000ms  [ ] 1500ms  [ ] 2000ms  [ ] Other: ___ms
+**Decision**: [ ] 500ms [ ] 1000ms [ ] 1500ms [ ] 2000ms [ ] Other: \_\_\_ms
 
-**Make configurable?**: [ ] Yes  [ ] No  [ ] Later
+**Make configurable?**: [ ] Yes [ ] No [ ] Later
 
 ---
 
@@ -48,6 +50,7 @@
 **Options**:
 
 **A) Show Conflict Dialog (Conservative)**
+
 ```
 ┌─────────────────────────────────────────┐
 │  Note Updated by Agent                  │
@@ -58,39 +61,46 @@
 │  [View Agent Changes] [Keep Typing]     │
 └─────────────────────────────────────────┘
 ```
+
 - ✅ Prevents data loss
 - ✅ User always in control
 - ❌ Interrupts user flow
 - ❌ May be annoying for frequent agent updates
 
 **B) Silent Notification (Non-Blocking)**
+
 ```
 ┌─────────────────────────────────────────┐
 │ 🤖 Agent updated this note              │  ← Toast notification
 └─────────────────────────────────────────┘
 ```
+
 - ✅ Doesn't interrupt typing
 - ✅ User can finish their thought
 - ⚠️ User's changes will overwrite agent's on save (last write wins)
 - ❌ Potential confusion about final state
 
 **C) Auto-Merge with Notification**
+
 ```
 Try to merge changes automatically:
 - Agent modified line 5-10
 - User modified line 20-25
 → Both changes kept, user continues typing
 ```
+
 - ✅ Best UX - no interruption, no data loss
 - ✅ Works for non-overlapping edits
 - ❌ Complex to implement correctly
 - ❌ Out of scope for initial version
 
 **D) Queue Agent Update (Deferred)**
+
 ```
 - User has unsaved changes → Agent update queued
 - User saves → Apply queued agent update → Reload editor
 ```
+
 - ✅ No data loss
 - ⚠️ Agent update delayed until user saves
 - ❌ Complex state management
@@ -98,9 +108,9 @@ Try to merge changes automatically:
 
 **Recommendation**: Start with Option A (Conflict Dialog), add Option C (Auto-Merge) in future
 
-**Decision**: [ ] A - Conflict Dialog  [ ] B - Silent Notification  [ ] C - Auto-Merge  [ ] D - Queue Update
+**Decision**: [ ] A - Conflict Dialog [ ] B - Silent Notification [ ] C - Auto-Merge [ ] D - Queue Update
 
-**Fallback for complex cases**: [ ] Always show dialog  [ ] Always queue
+**Fallback for complex cases**: [ ] Always show dialog [ ] Always queue
 
 ---
 
@@ -115,12 +125,14 @@ Try to merge changes automatically:
 **Proposed Behavior**: Auto-reload silently (no dialog)
 
 **User Impact**:
+
 - ✅ Fewer interruptions for users who use multiple editors
 - ✅ More like modern IDEs (VSCode, IntelliJ)
 - ⚠️ Cursor position might jump to start of file
 - ⚠️ Unexpected for users used to current behavior
 
 **Options**:
+
 1. **Always auto-reload** (PRD recommendation)
    - Simple, predictable
    - Matches VSCode behavior
@@ -135,12 +147,13 @@ Try to merge changes automatically:
    │ Note reloaded (modified externally)     │  ← 2-second toast
    └─────────────────────────────────────────┘
    ```
+
    - User knows what happened
    - Not blocking/annoying
 
 **Recommendation**: Option 3 (auto-reload + subtle notification)
 
-**Decision**: [ ] Always auto-reload (silent)  [ ] Auto-reload with notification  [ ] User preference  [ ] Keep current behavior
+**Decision**: [ ] Always auto-reload (silent) [ ] Auto-reload with notification [ ] User preference [ ] Keep current behavior
 
 ---
 
@@ -151,30 +164,34 @@ Try to merge changes automatically:
 **Options**:
 
 **A) Preserve Cursor Position**
+
 - Try to keep cursor at same line/column
 - ✅ Less jarring for user
 - ⚠️ Might not make sense if agent changed surrounding text
 - 🔧 Medium complexity (need to map old position to new content)
 
 **B) Move to Start of File**
+
 - Cursor goes to line 1, column 0
 - ✅ Simple, predictable
 - ❌ Annoying if user was deep in document
 - 🔧 Trivial to implement
 
 **C) Move to Start of Changed Region**
+
 - Diff old vs new content, jump to first changed line
 - ✅ User sees what agent changed
 - ⚠️ May be confusing if multiple changes
 - 🔧 High complexity (need diffing algorithm)
 
 **D) User Preference**
+
 - Setting: "After agent update: [Preserve cursor] [Start of file] [Changed region]"
 - 🔧 Most complex
 
 **Recommendation**: Start with A (Preserve), fallback to B if position invalid
 
-**Decision**: [ ] A - Preserve  [ ] B - Start of file  [ ] C - Changed region  [ ] D - User preference
+**Decision**: [ ] A - Preserve [ ] B - Start of file [ ] C - Changed region [ ] D - User preference
 
 ---
 
@@ -189,30 +206,35 @@ Try to merge changes automatically:
 **Additional Flush Points to Consider**:
 
 **A) Note Switch**
+
 - User navigates from Note A to Note B
 - Should we flush Note A to disk immediately?
 - ✅ Ensures file is saved when switching context
 - ❌ Negates some batching benefits
 
 **B) Vault Switch**
+
 - User switches vaults
 - Should we flush all pending writes?
 - ✅ Clean state when switching contexts
 - ⚠️ Multiple vaults might share file system
 
 **C) Git Operation Request**
+
 - User clicks "Commit" or opens git panel
 - Should we flush all pending writes?
 - ✅ Ensures git sees current state
 - 🔧 Requires git integration awareness
 
 **D) Explicit "Sync Now" Command**
+
 - Add command palette: "Flint: Sync All Notes to Disk"
 - ✅ User control for paranoia/"just to be sure" moments
 - ✅ Good for before external operations
 - 🔧 Requires UI/command addition
 
 **E) System Suspend/Hibernate**
+
 - OS is about to sleep
 - Should we flush everything?
 - ✅ Prevents data loss on crash during sleep
@@ -221,12 +243,13 @@ Try to merge changes automatically:
 **Recommendation**: Implement A (note switch), D (explicit command), E (system suspend)
 
 **Decision**:
+
 - [ ] A - Note Switch
 - [ ] B - Vault Switch
 - [ ] C - Git Operation
 - [ ] D - Explicit "Sync Now" Command
 - [ ] E - System Suspend
-- [ ] Other: _________________
+- [ ] Other: ********\_********
 
 ---
 
@@ -239,6 +262,7 @@ Try to merge changes automatically:
 **Options**:
 
 **A) Silent Logging Only**
+
 - Log error to console/file
 - Show no UI
 - ✅ Doesn't interrupt user
@@ -246,15 +270,18 @@ Try to merge changes automatically:
 - ❌ Files out of sync indefinitely
 
 **B) Status Bar Indicator**
+
 ```
 Bottom right corner:
 [⚠️ 3 notes pending sync]  ← Clickable
 ```
+
 - ✅ Visible but non-blocking
 - ✅ User can investigate when convenient
 - 🔧 Requires status bar UI
 
 **C) Notification Toast**
+
 ```
 ┌─────────────────────────────────────────┐
 │ ⚠️ Failed to sync note to disk          │
@@ -263,31 +290,36 @@ Bottom right corner:
 │ [Retry Now] [Details] [Dismiss]         │
 └─────────────────────────────────────────┘
 ```
+
 - ✅ User immediately aware
 - ⚠️ May interrupt flow
 - ⚠️ Multiple failures = multiple toasts (annoying)
 
 **D) Error Log UI**
+
 ```
 Settings → Advanced → Sync Errors
 Shows list of failed writes with timestamps
 ```
+
 - ✅ Non-intrusive
 - ❌ User may never check
 - 🔧 Requires new settings panel
 
 **Recommendation**: Combination:
+
 - First failure: Option C (notification toast)
 - Subsequent failures for same file: Option B (status bar)
 - Always log to Option D (error log)
 
-**Decision**: [ ] A - Silent  [ ] B - Status bar  [ ] C - Toast  [ ] D - Error log  [ ] Combination (specify): _______
+**Decision**: [ ] A - Silent [ ] B - Status bar [ ] C - Toast [ ] D - Error log [ ] Combination (specify): **\_\_\_**
 
 **Retry Strategy**:
+
 - [ ] 3 retries with exponential backoff (PRD recommendation)
 - [ ] 5 retries
 - [ ] Retry indefinitely with increasing delays
-- [ ] Other: _________________
+- [ ] Other: ********\_********
 
 ---
 
@@ -300,37 +332,44 @@ Shows list of failed writes with timestamps
 **Options**:
 
 **A) Random UUID per Editor Instance**
+
 ```typescript
 class NoteDocument {
   private editorId = crypto.randomUUID(); // 'a3f2b8c9-...'
 }
 ```
+
 - ✅ Guaranteed unique
 - ✅ Works across windows/tabs
 - ❌ Not human-readable for debugging
 
 **B) Semantic IDs**
+
 ```typescript
-const editorId = 'main-editor';  // or 'sidebar-0', 'sidebar-1'
+const editorId = 'main-editor'; // or 'sidebar-0', 'sidebar-1'
 ```
+
 - ✅ Easy to debug
 - ✅ Matches UI structure
 - ⚠️ Need to ensure uniqueness
 
 **C) Combination: Semantic + Instance Number**
+
 ```typescript
 let instanceCounter = 0;
-const editorId = `main-${++instanceCounter}`;  // 'main-1', 'main-2'
+const editorId = `main-${++instanceCounter}`; // 'main-1', 'main-2'
 ```
+
 - ✅ Human-readable
 - ✅ Unique
 - ⚠️ Counter resets on app restart (might cause issues?)
 
 **Recommendation**: Option B (Semantic IDs) with careful uniqueness management
 
-**Decision**: [ ] A - UUID  [ ] B - Semantic  [ ] C - Combination
+**Decision**: [ ] A - UUID [ ] B - Semantic [ ] C - Combination
 
 **How to pass editorId to backend?**
+
 - [ ] Include in every IPC call (e.g., `updateNote({ editorId, ... })`)
 - [ ] Store in session state (backend tracks which editor is "active")
 - [ ] Only use for event publishing (renderer-side only)
@@ -344,6 +383,7 @@ const editorId = `main-${++instanceCounter}`;  // 'main-1', 'main-2'
 **Options**:
 
 **A) Feature Flag - Gradual Rollout**
+
 ```typescript
 const USE_DB_FIRST = config.get('features.dbFirst.enabled', false);
 
@@ -353,6 +393,7 @@ if (USE_DB_FIRST) {
   // Old code path
 }
 ```
+
 - ✅ Can enable for internal users first
 - ✅ Easy rollback if issues found
 - ✅ A/B testing possible
@@ -360,6 +401,7 @@ if (USE_DB_FIRST) {
 - ❌ More complexity
 
 **B) All Users, Single Release**
+
 - Deploy to everyone at once
 - ✅ Simpler codebase
 - ✅ Faster to ship
@@ -367,6 +409,7 @@ if (USE_DB_FIRST) {
 - ❌ No easy rollback without reverting release
 
 **C) Phased by Platform**
+
 - Week 1: macOS only
 - Week 2: Windows
 - Week 3: Linux
@@ -375,12 +418,13 @@ if (USE_DB_FIRST) {
 
 **Recommendation**: Option A (Feature Flag) for first 2-3 weeks, then remove flag
 
-**Decision**: [ ] A - Feature Flag  [ ] B - All at once  [ ] C - Phased by platform
+**Decision**: [ ] A - Feature Flag [ ] B - All at once [ ] C - Phased by platform
 
 **If using feature flag**:
-- Default state: [ ] Enabled  [ ] Disabled
-- Internal testing duration: [ ] 1 week  [ ] 2 weeks  [ ] 4 weeks
-- Rollout plan: [ ] 10% → 50% → 100%  [ ] Internal → Beta → All
+
+- Default state: [ ] Enabled [ ] Disabled
+- Internal testing duration: [ ] 1 week [ ] 2 weeks [ ] 4 weeks
+- Rollout plan: [ ] 10% → 50% → 100% [ ] Internal → Beta → All
 
 ---
 
@@ -391,11 +435,13 @@ if (USE_DB_FIRST) {
 **Question**: What are acceptable latency targets for DB writes?
 
 **Current PRD Targets**:
+
 - p50: < 1ms
 - p95: < 5ms
 - p99: < 10ms
 
 **Questions**:
+
 - Are these targets realistic? (Need benchmarking)
 - What happens if we miss targets?
   - [ ] Block until performance improved
@@ -403,6 +449,7 @@ if (USE_DB_FIRST) {
   - [ ] Add performance degradation handling
 
 **Should we add**:
+
 - Telemetry to track actual performance in production?
   - [ ] Yes, track all writes
   - [ ] Yes, sample 1% of writes
@@ -425,12 +472,13 @@ if (USE_DB_FIRST) {
 **Proposed Behavior with 1000ms queue**: ~60 file writes (50% reduction)
 
 **Is this enough?**
+
 - [ ] Yes, 50% is good target
 - [ ] No, aim for 75% reduction (2000ms delay)
 - [ ] No, aim for 90% reduction (5000ms delay)
 - [ ] Need to benchmark first
 
-**Decision**: _____________
+**Decision**: ******\_******
 
 ---
 
@@ -441,12 +489,14 @@ if (USE_DB_FIRST) {
 **Question**: How should we notify users about note updates?
 
 **Scenarios Needing Notification**:
+
 1. Agent updated note (no conflict)
 2. Agent updated note (conflict - user has unsaved changes)
 3. External edit (no conflict, auto-reloaded)
 4. File write failed
 
 **Design Constraints**:
+
 - Don't block/interrupt typing
 - Clear who/what made the change
 - Actionable (user can respond)
@@ -454,6 +504,7 @@ if (USE_DB_FIRST) {
 **Notification Types**:
 
 **A) Toast Notifications (Temporary)**
+
 ```
 ┌──────────────────────────────────────┐
 │ 🤖 Agent updated "Meeting Notes"     │
@@ -461,9 +512,11 @@ if (USE_DB_FIRST) {
 │ [View Changes] [Dismiss]             │
 └──────────────────────────────────────┘
 ```
-- Duration: [ ] 3 seconds  [ ] 5 seconds  [ ] 10 seconds  [ ] Until dismissed
+
+- Duration: [ ] 3 seconds [ ] 5 seconds [ ] 10 seconds [ ] Until dismissed
 
 **B) Inline Banner (Persistent)**
+
 ```
 ┌──────────────────────────────────────┐
 │ Note Editor                          │
@@ -475,24 +528,27 @@ if (USE_DB_FIRST) {
 ```
 
 **C) Status Bar Indicator**
+
 ```
 Bottom right:
 [🤖 Updated] ← Clickable for details
 ```
 
 **Recommendation**:
+
 - Scenario 1 (agent, no conflict): Toast (5s) or Status Bar
 - Scenario 2 (agent, conflict): Modal Dialog (blocking)
 - Scenario 3 (external, auto-reload): Toast (3s)
 - Scenario 4 (write failed): Toast (persistent) + Status Bar
 
 **Decision**:
-- Agent update (no conflict): [ ] Toast  [ ] Banner  [ ] Status  [ ] None
-- Agent update (conflict): [ ] Modal  [ ] Banner  [ ] Skip (handled in Q2)
-- External auto-reload: [ ] Toast  [ ] Banner  [ ] Status  [ ] None
-- File write failed: [ ] Toast  [ ] Banner  [ ] Status  [ ] Modal
 
-**Toast duration for non-blocking notifications**: [ ] 3s  [ ] 5s  [ ] 10s  [ ] Custom: ___s
+- Agent update (no conflict): [ ] Toast [ ] Banner [ ] Status [ ] None
+- Agent update (conflict): [ ] Modal [ ] Banner [ ] Skip (handled in Q2)
+- External auto-reload: [ ] Toast [ ] Banner [ ] Status [ ] None
+- File write failed: [ ] Toast [ ] Banner [ ] Status [ ] Modal
+
+**Toast duration for non-blocking notifications**: [ ] 3s [ ] 5s [ ] 10s [ ] Custom: \_\_\_s
 
 ---
 
@@ -502,25 +558,26 @@ Bottom right:
 
 **Potentially Configurable Settings**:
 
-| Setting | Fixed | Configurable | Notes |
-|---------|-------|--------------|-------|
-| File write queue delay | | | Default: 1000ms, Range: 100ms-5000ms |
-| Auto-reload external edits | | | Default: Yes, Option: Show dialog |
-| Agent update behavior | | | Default: Auto-reload, Option: Always ask |
-| Cursor preservation | | | Default: Yes, Option: Jump to changes |
-| Notification style | | | Default: Toast, Options: Banner/Status/None |
-| Sync on note switch | | | Default: Yes |
-| Sync errors visibility | | | Default: Toast + Log, Option: Silent |
+| Setting                    | Fixed | Configurable | Notes                                       |
+| -------------------------- | ----- | ------------ | ------------------------------------------- |
+| File write queue delay     |       |              | Default: 1000ms, Range: 100ms-5000ms        |
+| Auto-reload external edits |       |              | Default: Yes, Option: Show dialog           |
+| Agent update behavior      |       |              | Default: Auto-reload, Option: Always ask    |
+| Cursor preservation        |       |              | Default: Yes, Option: Jump to changes       |
+| Notification style         |       |              | Default: Toast, Options: Banner/Status/None |
+| Sync on note switch        |       |              | Default: Yes                                |
+| Sync errors visibility     |       |              | Default: Toast + Log, Option: Silent        |
 
 **Recommendation**: Start with all fixed, add top 3 requested settings after launch
 
 **Settings to include in MVP**:
+
 - [ ] File write queue delay
 - [ ] Auto-reload external edits
 - [ ] Agent update behavior
 - [ ] None (keep simple for v1)
 
-**Decision**: Start with [ ] 0 settings  [ ] 3 settings  [ ] All settings
+**Decision**: Start with [ ] 0 settings [ ] 3 settings [ ] All settings
 
 ---
 
@@ -533,18 +590,21 @@ Bottom right:
 **Options**:
 
 **A) Internal Team Only (1-2 weeks)**
+
 - Developers + PMs use it daily
 - ✅ Fast feedback cycle
 - ❌ Limited diverse workflows
 - ❌ May miss edge cases
 
 **B) Power Users (2-3 weeks)**
+
 - Invite 10-20 active users from community
 - ✅ Real-world usage patterns
 - ✅ Diverse workflows (note-taking, coding, research)
 - ⚠️ Need beta program infrastructure
 
 **C) Open Beta (4+ weeks)**
+
 - Anyone can opt-in via settings flag
 - ✅ Maximum coverage
 - ❌ More support burden
@@ -552,16 +612,17 @@ Bottom right:
 
 **Recommendation**: A (internal) → B (power users) → C (open beta opt-in)
 
-**Decision**: [ ] A only  [ ] A + B  [ ] A + B + C
+**Decision**: [ ] A only [ ] A + B [ ] A + B + C
 
-**Minimum beta duration before general release**: [ ] 1 week  [ ] 2 weeks  [ ] 4 weeks
+**Minimum beta duration before general release**: [ ] 1 week [ ] 2 weeks [ ] 4 weeks
 
 **Beta exit criteria** (all must be true):
+
 - [ ] Zero P0 bugs (data loss, crashes)
 - [ ] < 5 P1 bugs (major functionality broken)
 - [ ] Positive feedback from >80% of beta users
 - [ ] Performance targets met (DB writes, I/O reduction)
-- [ ] Other: _________________
+- [ ] Other: ********\_********
 
 ---
 
@@ -570,24 +631,27 @@ Bottom right:
 **Question**: What triggers a rollback and how fast can we execute?
 
 **Rollback Triggers** (any one triggers rollback):
+
 - [ ] Data loss reported (P0)
 - [ ] Widespread crashes (>5% of users affected)
 - [ ] Database corruption
 - [ ] Performance regression (>50% slower)
 - [ ] Critical security issue
-- [ ] >20% of users disable feature via flag
+- [ ] > 20% of users disable feature via flag
 
 **Rollback Mechanism**:
+
 - [ ] Feature flag flip (instant, if using feature flag)
 - [ ] Hotfix release (4-8 hours)
 - [ ] Full revert release (next day)
 
 **Rollback Testing**:
+
 - [ ] Test rollback procedure before launch
 - [ ] Document rollback runbook
 - [ ] Designate on-call person for rollback decision
 
-**Decision**: Rollback triggers: ____________, Mechanism: ____________
+**Decision**: Rollback triggers: ****\_\_\_\_****, Mechanism: ****\_\_\_\_****
 
 ---
 
@@ -599,22 +663,23 @@ Bottom right:
 
 **Feature Classification**:
 
-| Feature | Essential (MVP) | Nice-to-Have | Future Version |
-|---------|-----------------|--------------|----------------|
-| FileWriteQueue (Phase 1) | ✅ | | |
-| DB-first writes (Phase 2) | ✅ | | |
-| Remove expected writes (Phase 3) | ✅ | | |
-| Simplify file watcher (Phase 4) | ✅ | | |
-| Auto-reload external edits (Phase 5) | | | |
-| Agent update sync (Phase 6) | | | |
-| Conflict notification UI | | | |
-| User preferences/settings | | | |
-| Optimistic merge (Strategy 3) | | | |
-| Diff-based cursor positioning | | | |
-| "Sync Now" command | | | |
-| Sync error UI panel | | | |
+| Feature                              | Essential (MVP) | Nice-to-Have | Future Version |
+| ------------------------------------ | --------------- | ------------ | -------------- |
+| FileWriteQueue (Phase 1)             | ✅              |              |                |
+| DB-first writes (Phase 2)            | ✅              |              |                |
+| Remove expected writes (Phase 3)     | ✅              |              |                |
+| Simplify file watcher (Phase 4)      | ✅              |              |                |
+| Auto-reload external edits (Phase 5) |                 |              |                |
+| Agent update sync (Phase 6)          |                 |              |                |
+| Conflict notification UI             |                 |              |                |
+| User preferences/settings            |                 |              |                |
+| Optimistic merge (Strategy 3)        |                 |              |                |
+| Diff-based cursor positioning        |                 |              |                |
+| "Sync Now" command                   |                 |              |                |
+| Sync error UI panel                  |                 |              |                |
 
 **Questions**:
+
 1. Is Phase 6 (Agent Updates) essential or can it ship separately?
    - [ ] Essential - blocks MVP release
    - [ ] Important - include if time allows
@@ -626,11 +691,12 @@ Bottom right:
    - [ ] Risky - defer to v2
 
 **Minimum viable release** (check all required):
+
 - [ ] Phases 1-4 only (eliminate false positives, simplify code)
 - [ ] Phases 1-4 + Phase 5 (add auto-reload UX)
 - [ ] Phases 1-6 (complete solution including agent sync)
 
-**Decision**: MVP includes phases _____ through _____
+**Decision**: MVP includes phases **\_** through **\_**
 
 ---
 
@@ -641,6 +707,7 @@ Bottom right:
 **Current Plan**: 6 sprints (1 week each)
 
 **Risk Scenarios**:
+
 - What if Phase 1-2 takes longer than expected?
   - [ ] Extend timeline
   - [ ] Cut Phase 5 or 6
@@ -652,11 +719,12 @@ Bottom right:
   - [ ] Delay release indefinitely
 
 **Flexibility Questions**:
-- Hard deadline? [ ] Yes: ______  [ ] No, ship when ready
-- Buffer time included? [ ] Yes: ___ days  [ ] No
-- Approval needed to extend timeline? [ ] Yes, from: _______  [ ] No
 
-**Decision**: Timeline is [ ] Fixed  [ ] Flexible  [ ] Fixed with 1-week buffer
+- Hard deadline? [ ] Yes: **\_\_** [ ] No, ship when ready
+- Buffer time included? [ ] Yes: \_\_\_ days [ ] No
+- Approval needed to extend timeline? [ ] Yes, from: **\_\_\_** [ ] No
+
+**Decision**: Timeline is [ ] Fixed [ ] Flexible [ ] Fixed with 1-week buffer
 
 ---
 
@@ -667,6 +735,7 @@ Bottom right:
 **Question**: How do we communicate changes to users?
 
 **Channels**:
+
 - [ ] Release notes (in-app)
 - [ ] Blog post
 - [ ] Email to users
@@ -675,17 +744,19 @@ Bottom right:
 - [ ] Video demo
 
 **Key Messages to Communicate**:
+
 1. What's changing? (DB-first, auto-reload, agent sync)
 2. Why it's better? (fewer dialogs, faster, more reliable)
 3. Any action required? (probably none)
 4. How to report issues? (GitHub, Discord, email)
 
 **Communication Timing**:
+
 - [ ] Announce before beta (transparency)
 - [ ] Announce with beta release (opt-in messaging)
 - [ ] Announce with general release only
 
-**Decision**: Channels: _______, Timing: _______
+**Decision**: Channels: **\_\_\_**, Timing: **\_\_\_**
 
 ---
 
@@ -694,6 +765,7 @@ Bottom right:
 **Question**: What developer docs need updating?
 
 **Documents to Update**:
+
 - [ ] `docs/ARCHITECTURE.md` - Add DB-first section
 - [ ] `docs/architecture/EXTERNAL-EDIT-HANDLING.md` - Rewrite completely
 - [ ] Create new: `docs/architecture/FILE-WRITE-QUEUE.md`
@@ -703,11 +775,12 @@ Bottom right:
 - [ ] API documentation - Update if API changes
 
 **When to update**:
+
 - [ ] Before implementation (prevents confusion)
 - [ ] During implementation (keeps docs in sync)
 - [ ] After implementation (cleanup)
 
-**Decision**: Update docs _______ (before/during/after)
+**Decision**: Update docs **\_\_\_** (before/during/after)
 
 ---
 
@@ -716,20 +789,16 @@ Bottom right:
 ### Must Answer Before Starting (Sprint 1)
 
 High Priority (Blocks Start):
+
 1. **Q1: File write queue delay** → Affects implementation
 2. **Q2: Agent conflict behavior** → Affects UX design
 3. **Q15: MVP scope** → Determines what we build
 
-Medium Priority (Needed Soon):
-4. **Q8: Migration strategy** → Affects how we ship
-5. **Q11: Notification design** → Needs design time
+Medium Priority (Needed Soon): 4. **Q8: Migration strategy** → Affects how we ship 5. **Q11: Notification design** → Needs design time
 
 ### Can Decide During Implementation
 
-Low Priority (Can Wait):
-6. **Q5: Additional flush triggers** → Can add incrementally
-7. **Q12: User settings** → Can add post-launch
-8. **Q14: Rollback strategy** → Define before beta
+Low Priority (Can Wait): 6. **Q5: Additional flush triggers** → Can add incrementally 7. **Q12: User settings** → Can add post-launch 8. **Q14: Rollback strategy** → Define before beta
 
 ### Nice to Clarify But Not Blocking
 
@@ -765,6 +834,7 @@ Low Priority (Can Wait):
 ---
 
 **Next Steps**:
+
 1. Schedule stakeholder meeting to review these questions
 2. Prioritize which decisions must be made before Sprint 1
 3. Assign DRIs (Directly Responsible Individuals) for each decision

@@ -28,6 +28,9 @@ import { logger } from './logger';
 import { AutoUpdaterService } from './auto-updater-service';
 import { publishNoteEvent } from './note-events';
 
+// Module-level service references
+let noteService: NoteService | null = null;
+
 interface FrontendMessage {
   id: string;
   text: string;
@@ -196,7 +199,6 @@ app.whenReady().then(async () => {
   });
 
   // Initialize Note service
-  let noteService: NoteService | null = null;
   try {
     noteService = new NoteService();
     await noteService.initialize();

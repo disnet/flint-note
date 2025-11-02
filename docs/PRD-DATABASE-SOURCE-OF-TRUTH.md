@@ -12,6 +12,7 @@
 This PRD proposes a fundamental architectural change to how Flint UI handles note synchronization between the editor, database, and file system. By making the SQLite database the primary source of truth and deferring file writes to a background queue, we can eliminate the complex external edit detection system that currently causes false positive conflict dialogs.
 
 **Key Benefits:**
+
 - Eliminate false positive "external edit detected" dialogs
 - Fix agent updates not appearing in open editors (critical bug)
 - Reduce code complexity by ~40% in file watching logic
@@ -19,6 +20,7 @@ This PRD proposes a fundamental architectural change to how Flint UI handles not
 - Enable future features like real-time collaboration
 
 **User Impact:**
+
 - No more spurious conflict dialogs while typing
 - Agent modifications immediately visible in editors
 - Faster perceived save performance
@@ -32,17 +34,20 @@ This PRD proposes a fundamental architectural change to how Flint UI handles not
 ### Current Issues
 
 **1. False Positive Conflict Dialogs**
+
 - Users occasionally see "external edit detected" dialogs while typing
 - No external edit has occurred - this is a bug in our detection system
 - Disrupts user flow and reduces confidence in the application
 
 **2. Complex Race Condition Management**
+
 - Three separate tracking systems: write flags, operation tracking, expected writes
 - Content hash matching between editor and file watcher
 - Multiple timing windows (1s, 2s, 5s) that can misalign
 - Path normalization inconsistencies (absolute vs relative)
 
 **3. Architecture Limitations**
+
 ```
 Current Flow: Editor → File → DB
 Problem: File write triggers file watcher before DB updates
@@ -50,6 +55,7 @@ Result: Complex logic to determine "was this our write?"
 ```
 
 **4. Agent Updates Don't Sync to Editors** ⚠️ **Critical Bug**
+
 - Agents can modify notes via tool calls (`update_note`, `create_note`, etc.)
 - These updates go to file + database
 - `note.updated` events ARE published
@@ -109,6 +115,7 @@ Problems:
 ### Complexity Metrics
 
 **Files Involved in External Edit Detection:**
+
 - `src/server/core/file-watcher.ts` (768 lines)
 - `src/server/core/notes.ts` (writeFileWithTracking)
 - `src/renderer/src/stores/noteDocumentRegistry.svelte.ts` (expectWrite logic)
@@ -116,11 +123,13 @@ Problems:
 - `src/preload/index.ts` (IPC bindings)
 
 **State Management:**
+
 - 3 separate tracking mechanisms (write flags, operations, expected writes)
 - 5 timeout values (100ms, 200ms, 1000ms, 2000ms, 5000ms)
 - Multiple cleanup timers and maps
 
 **Test Coverage Gaps:**
+
 - Limited testing of edge cases
 - Difficult to reproduce race conditions
 - Hard to test timing-dependent logic
@@ -180,6 +189,7 @@ Benefits:
 ### Key Changes
 
 **1. Reverse Write Order**
+
 ```typescript
 // OLD: File → DB
 await fs.writeFile(path, content);
@@ -191,6 +201,7 @@ await fileWriteQueue.queue(path, content);
 ```
 
 **2. Simplified External Edit Detection**
+
 ```typescript
 // OLD: 3 tracking systems + hash matching
 if (ongoingWrites.has(path)) return 'internal';
@@ -204,6 +215,7 @@ return 'external';
 ```
 
 **3. File Write Queue**
+
 ```typescript
 class FileWriteQueue {
   - Debounces file writes (1-2s)
@@ -223,6 +235,7 @@ class FileWriteQueue {
 **Critical Issue Discovered**: The `noteDocumentRegistry` has a commented-out listener for `note.updated` events (line 247-253 in `noteDocumentRegistry.svelte.ts`). This means **when agents modify notes through tool calls, open editors don't reflect the changes!**
 
 **Why It Was Disabled:**
+
 ```typescript
 // We don't reload on note.updated because it's typically triggered by
 // the document saving itself, which would cause unnecessary reloads
@@ -230,11 +243,13 @@ class FileWriteQueue {
 ```
 
 **The Problem:**
+
 - User's edit → `note.updated` event → Editor would reload → Cursor position lost ❌
 - So they disabled ALL `note.updated` reloads
 - But this also breaks agent updates! 🐛
 
 **Current Behavior:**
+
 1. Agent updates note via `update_note` tool
 2. File and database get updated
 3. `publishNoteEvent({ type: 'note.updated', noteId, updates })` is called
@@ -255,12 +270,12 @@ The database-first architecture enables a clean solution: we can distinguish bet
 publishNoteEvent({
   type: 'note.updated',
   noteId: updates.identifier,
-  source: 'agent',  // 🆕 Tag the source
+  source: 'agent', // 🆕 Tag the source
   updates: {
     title: updatedNote.title,
     filename: updatedNote.filename,
     modified: updatedNote.updated,
-    content: updatedNote.content  // 🆕 Include content for agent updates
+    content: updatedNote.content // 🆕 Include content for agent updates
   }
 });
 
@@ -268,13 +283,16 @@ publishNoteEvent({
 publishNoteEvent({
   type: 'note.updated',
   noteId: this.noteId,
-  source: 'self',  // 🆕 This editor caused the update
-  editorId: this.currentEditorId,  // 🆕 Which editor
-  updates: { /* ... */ }
+  source: 'self', // 🆕 This editor caused the update
+  editorId: this.currentEditorId, // 🆕 Which editor
+  updates: {
+    /* ... */
+  }
 });
 ```
 
 **Editor reload logic:**
+
 ```typescript
 class NoteDocumentRegistryClass {
   constructor() {
@@ -375,17 +393,18 @@ async handleAgentUpdate(event: NoteUpdatedEvent) {
 #### Add Source Tracking to Events
 
 **In `src/main/note-events.ts`:**
+
 ```typescript
 export type NoteUpdatedEvent = {
   type: 'note.updated';
   noteId: string;
   source: 'agent' | 'user' | 'external' | 'system';
-  editorId?: string;  // Optional: which editor instance
+  editorId?: string; // Optional: which editor instance
   updates: {
     title?: string;
     filename?: string;
     modified?: string;
-    content?: string;  // Include for agent updates
+    content?: string; // Include for agent updates
   };
 };
 ```
@@ -393,16 +412,17 @@ export type NoteUpdatedEvent = {
 #### Update Agent Tool Calls
 
 **In `src/main/tool-service.ts` (line 478):**
+
 ```typescript
 publishNoteEvent({
   type: 'note.updated',
   noteId: updates.identifier,
-  source: 'agent',  // 🆕
+  source: 'agent', // 🆕
   updates: {
     title: updatedNote.title,
     filename: updatedNote.filename,
     modified: updatedNote.updated,
-    content: updatedNote.content  // 🆕
+    content: updatedNote.content // 🆕
   }
 });
 ```
@@ -410,6 +430,7 @@ publishNoteEvent({
 #### Update User Edits
 
 **In `src/renderer/src/stores/noteDocumentRegistry.svelte.ts`:**
+
 ```typescript
 private async save(): Promise<void> {
   // ... existing save logic ...
@@ -436,6 +457,7 @@ private async save(): Promise<void> {
 #### Re-enable Editor Reload
 
 **In `src/renderer/src/stores/noteDocumentRegistry.svelte.ts` (line 242):**
+
 ```typescript
 constructor() {
   // 🆕 Re-enable note.updated listener with smart reload logic
@@ -467,6 +489,7 @@ constructor() {
 ### User Experience
 
 **Agent Updates:**
+
 1. User asks agent: "Update my meeting notes with action items"
 2. Agent calls `update_note` tool
 3. Database updated immediately
@@ -475,6 +498,7 @@ constructor() {
 6. If user has unsaved edits → **Shows notification** (optional: merge UI)
 
 **User Edits:**
+
 1. User types in editor
 2. After 500ms, autosave triggers
 3. Database updated (DB-first)
@@ -483,6 +507,7 @@ constructor() {
 6. Other editors → **Reload to sync**
 
 **External Edits:**
+
 1. External tool modifies file
 2. File watcher detects change
 3. `file.external-change` event published
@@ -491,26 +516,29 @@ constructor() {
 ### Testing Requirements
 
 **Unit Tests:**
+
 ```typescript
 describe('NoteDocumentRegistry - Agent Updates', () => {
-  it('reloads editor when agent updates note')
-  it('preserves cursor when user edits same note')
-  it('syncs between multiple editor instances')
-  it('shows notification when reload would lose unsaved work')
-})
+  it('reloads editor when agent updates note');
+  it('preserves cursor when user edits same note');
+  it('syncs between multiple editor instances');
+  it('shows notification when reload would lose unsaved work');
+});
 ```
 
 **Integration Tests:**
+
 ```typescript
 describe('Agent-Editor Synchronization', () => {
-  it('agent update reflects in open editor immediately')
-  it('user edit + agent edit = conflict notification')
-  it('closed note + agent update = no reload needed')
-  it('sidebar editor + main editor stay in sync')
-})
+  it('agent update reflects in open editor immediately');
+  it('user edit + agent edit = conflict notification');
+  it('closed note + agent update = no reload needed');
+  it('sidebar editor + main editor stay in sync');
+});
 ```
 
 **Manual Testing Scenarios:**
+
 1. Open note, ask agent to update it, verify editor reloads
 2. Type in editor, verify cursor position preserved
 3. Open note in sidebar and main editor, edit in one, verify sync
@@ -527,6 +555,7 @@ describe('Agent-Editor Synchronization', () => {
 **Purpose**: Manage asynchronous, batched file writes
 
 **Interface:**
+
 ```typescript
 class FileWriteQueue {
   constructor(fileWatcher?: VaultFileWatcher);
@@ -549,6 +578,7 @@ class FileWriteQueue {
 ```
 
 **Behavior:**
+
 - Default delay: 1000ms (configurable)
 - Replaces pending write if same file queued again
 - Always calls `markWriteStarting()` before write
@@ -558,6 +588,7 @@ class FileWriteQueue {
 #### 2. `NoteManager.updateNote()` (Modified)
 
 **Changes:**
+
 ```typescript
 async updateNote(identifier: string, newContent: string, contentHash: string) {
   // 1-2: Same (read, validate)
@@ -574,6 +605,7 @@ async updateNote(identifier: string, newContent: string, contentHash: string) {
 ```
 
 **Impact:**
+
 - Faster perceived save time (don't wait for file I/O)
 - Database always reflects latest content
 - File writes batched automatically
@@ -581,6 +613,7 @@ async updateNote(identifier: string, newContent: string, contentHash: string) {
 #### 3. `VaultFileWatcher.isInternalChange()` (Simplified)
 
 **Changes:**
+
 ```typescript
 // BEFORE: 50+ lines of logic
 async isInternalChange(filePath: string, content?: string) {
@@ -621,6 +654,7 @@ async isInternalChange(filePath: string) {
 ```
 
 **Removals:**
+
 - ❌ `openNotes` Set
 - ❌ `expectedWrites` Map
 - ❌ `expectWrite()` method
@@ -631,6 +665,7 @@ async isInternalChange(filePath: string) {
 #### 4. `NoteDocumentRegistry` (Simplified)
 
 **Removals:**
+
 ```typescript
 // Remove from save() method:
 - ❌ await this.computeContentHash(this.content)
@@ -639,6 +674,7 @@ async isInternalChange(filePath: string) {
 ```
 
 **Impact:**
+
 - Simpler save flow
 - Less IPC overhead
 - Fewer moving parts
@@ -646,6 +682,7 @@ async isInternalChange(filePath: string) {
 #### 5. IPC Handlers (Removed)
 
 **Delete from `src/main/index.ts`:**
+
 ```typescript
 - ipcMain.handle('note:opened', ...)
 - ipcMain.handle('note:closed', ...)
@@ -653,6 +690,7 @@ async isInternalChange(filePath: string) {
 ```
 
 **Delete from `src/preload/index.ts`:**
+
 ```typescript
 - noteOpened: (params) => invoke('note:opened', params)
 - noteClosed: (params) => invoke('note:closed', params)
@@ -662,6 +700,7 @@ async isInternalChange(filePath: string) {
 #### 6. External Edit Handling (Enhanced)
 
 **New logic in `NoteService.handleFileWatcherEvent()`:**
+
 ```typescript
 async handleFileWatcherEvent(event: FileWatcherEvent) {
   if (event.type === 'external-change') {
@@ -690,6 +729,7 @@ async handleFileWatcherEvent(event: FileWatcherEvent) {
 ```
 
 **User-Facing Behavior:**
+
 - **No unsaved changes**: External edits auto-reload in editor (no dialog)
 - **Unsaved changes**: Show conflict dialog (existing behavior)
 - **Result**: Fewer conflict dialogs, only when truly needed
@@ -703,6 +743,7 @@ async handleFileWatcherEvent(event: FileWatcherEvent) {
 **Goal**: Introduce queue without changing behavior
 
 **Changes:**
+
 1. Add `FileWriteQueue` class to `notes.ts`
 2. Initialize queue in `NoteManager` constructor
 3. Replace direct `fs.writeFile()` calls with `queue.queueWrite()`
@@ -710,6 +751,7 @@ async handleFileWatcherEvent(event: FileWatcherEvent) {
 5. Add app shutdown handler to flush queue
 
 **Testing:**
+
 - All existing tests pass
 - Manual testing of normal edit flow
 - Verify files written correctly
@@ -721,17 +763,20 @@ async handleFileWatcherEvent(event: FileWatcherEvent) {
 **Goal**: Update database before queuing file write
 
 **Changes:**
+
 1. In `updateNote()`, call `updateSearchIndex()` before `queueWrite()`
 2. Increase queue delay to 500ms
 3. Update tests to expect DB-first order
 
 **Testing:**
+
 - Verify search reflects latest content immediately
 - Test rapid edits batch correctly
 - Test app close flushes pending writes
 - Test file system reflects changes within 500ms
 
 **Validation:**
+
 - Monitor for increased IPC latency (shouldn't happen)
 - Check file write batching reduces I/O operations
 
@@ -742,12 +787,14 @@ async handleFileWatcherEvent(event: FileWatcherEvent) {
 **Goal**: Simplify file watcher by removing hash matching
 
 **Changes:**
+
 1. Remove `expectWrite()` calls from `NoteDocument.save()`
 2. Remove `openNotes`, `expectedWrites` from `VaultFileWatcher`
 3. Remove IPC handlers (note:opened, note:closed, note:expect-write)
 4. Remove preload API bindings
 
 **Testing:**
+
 - Verify external edits still detected
 - Verify internal writes not flagged as external
 - Check for any broken references
@@ -759,12 +806,14 @@ async handleFileWatcherEvent(event: FileWatcherEvent) {
 **Goal**: Reduce `isInternalChange()` to simple flag check
 
 **Changes:**
+
 1. Simplify `isInternalChange()` to only check `ongoingWrites`
 2. Remove conflict detection logic from watcher
 3. Move conflict detection to event handler
 4. Update related tests
 
 **Testing:**
+
 - Test external edit detection still works
 - Test no false positives during internal writes
 - Test conflict detection in new location
@@ -776,12 +825,14 @@ async handleFileWatcherEvent(event: FileWatcherEvent) {
 **Goal**: Only show conflict dialog when user has unsaved work
 
 **Changes:**
+
 1. Update `handleFileWatcherEvent()` to check dirty state
 2. Auto-reload editor for non-conflicting external edits
 3. Update `ExternalEditConflictNotification` component
 4. Add user preference for auto-reload behavior
 
 **Testing:**
+
 - Test external edit with no unsaved changes → silent reload
 - Test external edit with unsaved changes → conflict dialog
 - Test rapid external changes handled correctly
@@ -793,6 +844,7 @@ async handleFileWatcherEvent(event: FileWatcherEvent) {
 **Goal**: Make agent updates immediately visible in open editors
 
 **Changes:**
+
 1. Add `source` field to `NoteUpdatedEvent` type in `note-events.ts`
 2. Update `publishNoteEvent()` calls in `tool-service.ts` to include `source: 'agent'`
 3. Update `NoteDocument.save()` to publish events with `source: 'user'`
@@ -802,6 +854,7 @@ async handleFileWatcherEvent(event: FileWatcherEvent) {
 7. Add notification UI for concurrent edit conflicts
 
 **Testing:**
+
 - Test agent updates reload open editors
 - Test user edits don't cause cursor jumps
 - Test multiple editor instances stay in sync
@@ -809,6 +862,7 @@ async handleFileWatcherEvent(event: FileWatcherEvent) {
 - Test closed notes don't reload unnecessarily
 
 **Manual Scenarios:**
+
 1. Open note, ask agent to update it, verify content reloads
 2. Type while agent updating → verify notification shown
 3. Open same note in sidebar and main editor, verify sync
@@ -817,6 +871,7 @@ async handleFileWatcherEvent(event: FileWatcherEvent) {
 **Risk**: Medium (re-enables previously disabled functionality)
 
 **Validation:**
+
 - No cursor position loss during user typing
 - Agent updates visible within 100ms
 - Notification shown for true conflicts
@@ -829,16 +884,19 @@ async handleFileWatcherEvent(event: FileWatcherEvent) {
 ### Quantitative Metrics
 
 **Code Complexity:**
+
 - [ ] Reduce file-watcher LOC by 30%+ (768 → <540 lines)
 - [ ] Remove 100+ lines of tracking logic
 - [ ] Reduce active timers from 5 types to 2 types
 
 **Performance:**
+
 - [ ] DB write latency < 5ms (p95)
 - [ ] File write batching reduces I/O by 50%+ during rapid edits
 - [ ] IPC call latency unchanged (< 1ms)
 
 **Reliability:**
+
 - [ ] Zero false positive external edit dialogs in testing
 - [ ] 100% of external edits detected correctly
 - [ ] No data loss during app crashes (with flush-on-close)
@@ -848,11 +906,13 @@ async handleFileWatcherEvent(event: FileWatcherEvent) {
 ### Qualitative Metrics
 
 **Developer Experience:**
+
 - [ ] External edit detection logic easier to understand
 - [ ] Fewer timing-dependent test failures
 - [ ] Easier to onboard new contributors
 
 **User Experience:**
+
 - [ ] No spurious conflict dialogs reported in issues
 - [ ] Faster perceived save performance
 - [ ] Transparent auto-reload of external edits
@@ -872,6 +932,7 @@ async handleFileWatcherEvent(event: FileWatcherEvent) {
 **Impact**: High (user loses recent edits)
 
 **Mitigation:**
+
 1. **Flush on app close**: Register `before-quit` handler to flush queue
 2. **Reduce queue delay**: Default 1s (vs 2s+) for faster durability
 3. **Flush on navigation**: Flush current note when switching notes
@@ -888,6 +949,7 @@ async handleFileWatcherEvent(event: FileWatcherEvent) {
 **Impact**: Medium (external tools see stale content)
 
 **Mitigation:**
+
 1. **Retry logic**: Retry failed writes up to 3 times
 2. **Error tracking**: Log failed writes to DB (add `sync_status` column)
 3. **Reconciliation**: On app start, compare DB hashes to file hashes
@@ -904,6 +966,7 @@ async handleFileWatcherEvent(event: FileWatcherEvent) {
 **Impact**: Medium (perceived save latency)
 
 **Mitigation:**
+
 1. **Benchmarking**: Measure DB write perf before/after
 2. **Monitoring**: Add telemetry for DB write times
 3. **Fallback**: Can revert to synchronous file writes if needed
@@ -919,6 +982,7 @@ async handleFileWatcherEvent(event: FileWatcherEvent) {
 **Impact**: Low (1-2s delay is acceptable)
 
 **Mitigation:**
+
 1. **Documentation**: Update docs to mention async file sync
 2. **Force flush**: Add command to immediately flush all writes
 3. **Configuration**: Make queue delay configurable
@@ -934,6 +998,7 @@ async handleFileWatcherEvent(event: FileWatcherEvent) {
 **Impact**: High (could cause data loss or corruption)
 
 **Mitigation:**
+
 1. **Phased rollout**: 5 phases, each independently testable
 2. **Feature flag**: Add `USE_DB_FIRST` flag for gradual rollout
 3. **Comprehensive testing**: Unit, integration, and manual QA
@@ -949,33 +1014,35 @@ async handleFileWatcherEvent(event: FileWatcherEvent) {
 ### Unit Tests
 
 **New Tests:**
+
 ```typescript
 // FileWriteQueue tests
 describe('FileWriteQueue', () => {
-  it('debounces rapid writes to same file')
-  it('batches multiple edits')
-  it('flushes on demand')
-  it('flushes all on shutdown')
-  it('retries failed writes')
-  it('sets write flags correctly')
-})
+  it('debounces rapid writes to same file');
+  it('batches multiple edits');
+  it('flushes on demand');
+  it('flushes all on shutdown');
+  it('retries failed writes');
+  it('sets write flags correctly');
+});
 
 // NoteManager tests
 describe('NoteManager.updateNote (DB-first)', () => {
-  it('updates database before queuing file write')
-  it('returns immediately without waiting for file write')
-  it('file write completes within queue delay')
-})
+  it('updates database before queuing file write');
+  it('returns immediately without waiting for file write');
+  it('file write completes within queue delay');
+});
 
 // VaultFileWatcher tests
 describe('VaultFileWatcher.isInternalChange (simplified)', () => {
-  it('returns true when write flag set')
-  it('returns false when no write flag')
-  it('does not use hash matching')
-})
+  it('returns true when write flag set');
+  it('returns false when no write flag');
+  it('does not use hash matching');
+});
 ```
 
 **Modified Tests:**
+
 - Update timing assumptions in existing tests
 - Remove tests for deleted functionality (expectedWrites)
 - Add async assertions for queued writes
@@ -983,6 +1050,7 @@ describe('VaultFileWatcher.isInternalChange (simplified)', () => {
 ### Integration Tests
 
 **Scenarios:**
+
 1. **Rapid typing**: User types continuously for 5 seconds
    - Expected: Single file write, DB always current
 2. **External edit (no unsaved)**: External tool modifies file
@@ -997,31 +1065,37 @@ describe('VaultFileWatcher.isInternalChange (simplified)', () => {
 ### Manual Testing Checklist
 
 **Phase 1 (Queue Added):**
+
 - [ ] Normal editing works
 - [ ] Files written correctly
 - [ ] No perceived latency change
 
 **Phase 2 (DB-First):**
+
 - [ ] Search reflects latest edits immediately
 - [ ] Files written within delay window
 - [ ] App close flushes queue
 
 **Phase 3 (Remove Expected Writes):**
+
 - [ ] External edits detected
 - [ ] No false positives
 - [ ] IPC handlers removed
 
 **Phase 4 (Simplify Watcher):**
+
 - [ ] External edits still work
 - [ ] Internal writes not flagged
 
 **Phase 5 (Enhanced UX):**
+
 - [ ] Silent reloads work correctly
 - [ ] Conflict dialog only when needed
 
 ### Performance Testing
 
 **Benchmarks:**
+
 ```typescript
 // Measure DB write latency
 for (let i = 0; i < 1000; i++) {
@@ -1041,12 +1115,14 @@ for (let i = 0; i < 1000; i++) {
 ## Timeline
 
 ### Sprint 1 (Week 1): Foundation
+
 - [ ] Write PRD (this document)
 - [ ] Review and approve PRD with team
 - [ ] Set up feature flag infrastructure
 - [ ] Add telemetry for write performance
 
 ### Sprint 2 (Week 2): Phase 1 + 2
+
 - [ ] Implement FileWriteQueue class
 - [ ] Add unit tests for queue
 - [ ] Integration tests for queue behavior
@@ -1054,12 +1130,14 @@ for (let i = 0; i < 1000; i++) {
 - [ ] Manual testing and bug fixes
 
 ### Sprint 3 (Week 3): Phase 3 + 4
+
 - [ ] Remove expected write tracking
 - [ ] Simplify file watcher logic
 - [ ] Update all tests
 - [ ] Code review and refinement
 
 ### Sprint 4 (Week 4): Phase 5 + 6
+
 - [ ] Implement enhanced external edit UX
 - [ ] Add user preferences
 - [ ] Implement agent update synchronization (Phase 6)
@@ -1067,6 +1145,7 @@ for (let i = 0; i < 1000; i++) {
 - [ ] Re-enable smart note.updated listeners
 
 ### Sprint 5 (Week 5): Testing + Polish
+
 - [ ] Comprehensive integration testing (all phases)
 - [ ] Agent-editor sync testing
 - [ ] Performance validation
@@ -1074,6 +1153,7 @@ for (let i = 0; i < 1000; i++) {
 - [ ] Code review and refinement
 
 ### Sprint 6 (Week 6): Beta + Launch
+
 - [ ] Deploy to internal beta users
 - [ ] Monitor telemetry and bug reports
 - [ ] Test agent updates with real workflows
@@ -1090,12 +1170,14 @@ for (let i = 0; i < 1000; i++) {
 ### User-Facing
 
 **Update `docs/USER-GUIDE.md`:**
+
 - Explain that edits are saved to database immediately
 - File system sync happens within 1-2 seconds
 - External edits auto-reload when safe
 - Conflict dialog only shows when unsaved changes exist
 
 **Update `docs/EXTERNAL-EDITORS.md`:**
+
 - Document async file sync behavior
 - Explain that search is always current
 - Note that file changes detected within 2-3 seconds
@@ -1103,18 +1185,21 @@ for (let i = 0; i < 1000; i++) {
 ### Developer-Facing
 
 **Update `docs/ARCHITECTURE.md`:**
+
 - Document database-first architecture
 - Explain FileWriteQueue design
 - Update data flow diagrams
 - Document external edit detection logic
 
 **Update `docs/architecture/EXTERNAL-EDIT-HANDLING.md`:**
+
 - Rewrite to reflect simplified design
 - Remove expected write tracking section
 - Add FileWriteQueue section
 - Update conflict detection explanation
 
 **Create `docs/architecture/FILE-WRITE-QUEUE.md`:**
+
 - Detailed design of queue implementation
 - Failure handling and retry logic
 - Performance characteristics
@@ -1127,26 +1212,31 @@ for (let i = 0; i < 1000; i++) {
 Once this architecture is in place, it enables:
 
 ### 1. Real-Time Collaboration
+
 - Database can broadcast changes to multiple clients
 - File writes become "export" operation
 - Operational transformation becomes feasible
 
 ### 2. Version History
+
 - Database can store previous versions
 - Enable undo/redo across sessions
 - Time-travel debugging
 
 ### 3. Conflict-Free Editing
+
 - Multiple editors share same NoteDocument
 - Changes merge automatically in DB
 - File reflects merged result
 
 ### 4. Cloud Sync
+
 - Sync database to cloud service
 - Files are local cache
 - Offline-first architecture
 
 ### 5. Better Mobile Support
+
 - Database-first works well on mobile
 - File writes can be deferred during low battery
 - Reduced I/O = better battery life
@@ -1217,18 +1307,22 @@ Total:                    ~710 lines (-238 lines, -25%)
 ### Expected Performance Characteristics
 
 **Database Write (WAL Mode):**
+
 - p50: < 1ms
 - p95: < 5ms
 - p99: < 10ms
 
 **File Write (Queued):**
+
 - Delay: 1000ms (configurable)
 - Batching: 10-50x reduction in writes during rapid editing
 
 **IPC Latency:**
+
 - No change expected (< 1ms)
 
 **Search Consistency:**
+
 - Before: Up to 500ms delay (after autosave)
 - After: < 5ms (database updated immediately)
 
@@ -1262,18 +1356,21 @@ async function benchmarkSaveLatency() {
 ### If Critical Issues Found
 
 **Phase 1-2 Issues (Queue + DB-First):**
+
 1. Set feature flag `USE_DB_FIRST = false`
 2. Revert `updateNote()` to file-first order
 3. Keep FileWriteQueue code (unused)
 4. Release hotfix within 24 hours
 
 **Phase 3-4 Issues (Simplified Watcher):**
+
 1. Set feature flag `USE_SIMPLIFIED_WATCHER = false`
 2. Re-enable expected write tracking
 3. Keep simplified code (unused)
 4. Release hotfix within 24 hours
 
 **Phase 5 Issues (Enhanced UX):**
+
 1. Set feature flag `AUTO_RELOAD_EXTERNAL_EDITS = false`
 2. Always show conflict dialog (old behavior)
 3. No code revert needed
@@ -1282,16 +1379,19 @@ async function benchmarkSaveLatency() {
 ### Criteria for Rollback
 
 **Severity 1 (Immediate Rollback):**
+
 - Data loss or corruption
 - App crashes or freezes
 - Files not written to disk
 
 **Severity 2 (Rollback if Not Fixed in 48h):**
+
 - False positive conflict dialogs return
 - External edits not detected
 - Significant performance regression
 
 **Severity 3 (Fix Forward):**
+
 - Minor UI issues
 - Edge case bugs
 - Performance optimization opportunities
@@ -1301,17 +1401,19 @@ async function benchmarkSaveLatency() {
 ## Sign-Off
 
 **Stakeholders:**
+
 - [ ] Engineering Lead
 - [ ] Product Manager
 - [ ] QA Lead
 - [ ] Technical Writer
 
 **Approvals:**
+
 - [ ] Architecture Review
 - [ ] Security Review (if applicable)
 - [ ] Performance Review
 
-**Ready for Implementation**: ⬜ Yes  ⬜ No  ⬜ Needs Changes
+**Ready for Implementation**: ⬜ Yes ⬜ No ⬜ Needs Changes
 
 ---
 

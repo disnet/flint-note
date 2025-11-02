@@ -216,7 +216,6 @@ export class FileWriteQueue {
 
       // Success - remove from pending
       this.pendingWrites.delete(filePath);
-
     } catch (error) {
       // Write failed - attempt retry if within limit
       if (pending.retryCount < this.maxRetries) {
@@ -234,7 +233,6 @@ export class FileWriteQueue {
         }, retryDelay);
 
         this.pendingWrites.set(filePath, pending);
-
       } else {
         // Max retries exceeded - log error and remove from queue
         console.error(
@@ -264,7 +262,7 @@ export class FileWriteQueue {
     const paths = Array.from(this.pendingWrites.keys());
 
     // Flush all writes in parallel
-    await Promise.all(paths.map(path => this.flushWrite(path)));
+    await Promise.all(paths.map((path) => this.flushWrite(path)));
   }
 
   /**
@@ -306,7 +304,6 @@ export class NoteManager {
   #hierarchyManager?: HierarchyManager;
 
   #hybridSearchManager?: HybridSearchManager;
-  #fileWatcher?: import('./file-watcher.js').VaultFileWatcher;
   #fileWriteQueue: FileWriteQueue;
 
   constructor(
@@ -321,7 +318,6 @@ export class NoteManager {
     this.#noteTypeManager = new NoteTypeManager(workspace, dbManager);
 
     this.#hybridSearchManager = hybridSearchManager;
-    this.#fileWatcher = fileWatcher;
 
     // Initialize file write queue (Phase 1: DB-first architecture)
     // Phase 1: Start with 0ms delay (no behavior change)

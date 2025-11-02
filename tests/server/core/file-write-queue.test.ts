@@ -54,7 +54,7 @@ describe('FileWriteQueue', () => {
       await queue.queueWrite(filePath, content);
 
       // Wait for write to complete (0ms delay + small buffer)
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise((resolve) => setTimeout(resolve, 50));
 
       const written = await fs.readFile(filePath, 'utf-8');
       expect(written).toBe(content);
@@ -73,7 +73,7 @@ describe('FileWriteQueue', () => {
       expect(queue.getPendingCount()).toBe(3);
 
       // Wait for all writes
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       const content1 = await fs.readFile(file1, 'utf-8');
       const content2 = await fs.readFile(file2, 'utf-8');
@@ -102,7 +102,7 @@ describe('FileWriteQueue', () => {
       expect(queue.getPendingCount()).toBe(1);
 
       // Wait for write to complete
-      await new Promise(resolve => setTimeout(resolve, 150));
+      await new Promise((resolve) => setTimeout(resolve, 150));
 
       // Should have written the second content (latest wins)
       const written = await fs.readFile(filePath, 'utf-8');
@@ -125,7 +125,7 @@ describe('FileWriteQueue', () => {
       expect(queue.getPendingCount()).toBe(1);
 
       // Wait for write
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Should have written the last edit
       const written = await fs.readFile(filePath, 'utf-8');
@@ -142,11 +142,11 @@ describe('FileWriteQueue', () => {
       await queue.queueWrite(filePath, 'Custom delay content', 200);
 
       // Wait 150ms - should still be pending
-      await new Promise(resolve => setTimeout(resolve, 150));
+      await new Promise((resolve) => setTimeout(resolve, 150));
       expect(queue.hasPendingWrite(filePath)).toBe(true);
 
       // Wait another 100ms - should be complete
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
       expect(queue.hasPendingWrite(filePath)).toBe(false);
 
       const written = await fs.readFile(filePath, 'utf-8');
@@ -225,7 +225,7 @@ describe('FileWriteQueue', () => {
 
       // Wait for all retries to complete
       // 0ms initial + 100ms retry1 + 500ms retry2 + 1000ms retry3 = ~1600ms + buffer
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, 2000));
 
       // Should have logged 3 warnings (for retries) + 1 error (for final failure)
       expect(warnSpy).toHaveBeenCalledTimes(3);
@@ -256,13 +256,13 @@ describe('FileWriteQueue', () => {
       await queue.queueWrite(filePath, 'Should eventually succeed');
 
       // Wait a bit for first retry
-      await new Promise(resolve => setTimeout(resolve, 150));
+      await new Promise((resolve) => setTimeout(resolve, 150));
 
       // Fix the permission
       await fs.chmod(filePath, 0o644);
 
       // Wait for retry to succeed
-      await new Promise(resolve => setTimeout(resolve, 700));
+      await new Promise((resolve) => setTimeout(resolve, 700));
 
       // Should have succeeded on retry
       const written = await fs.readFile(filePath, 'utf-8');
@@ -291,7 +291,7 @@ describe('FileWriteQueue', () => {
       await queue.queueWrite(filePath, 'Test content');
 
       // Wait for write
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise((resolve) => setTimeout(resolve, 50));
 
       expect(mockFileWatcher.markWriteStarting).toHaveBeenCalledWith(filePath);
       expect(mockFileWatcher.markWriteStarting).toHaveBeenCalledTimes(1);
@@ -311,7 +311,7 @@ describe('FileWriteQueue', () => {
       await queue.queueWrite(filePath, 'Test content');
 
       // Wait for write
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise((resolve) => setTimeout(resolve, 50));
 
       expect(mockFileWatcher.markWriteComplete).toHaveBeenCalledWith(filePath);
       expect(mockFileWatcher.markWriteComplete).toHaveBeenCalledTimes(1);
@@ -334,7 +334,7 @@ describe('FileWriteQueue', () => {
       await queue.queueWrite(badPath, 'Will fail');
 
       // Wait for all retries
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, 2000));
 
       // Should have been called (3 retries + 1 final = 4 times)
       expect(mockFileWatcher.markWriteComplete).toHaveBeenCalledTimes(4);
@@ -371,7 +371,7 @@ describe('FileWriteQueue', () => {
       queue.destroy();
 
       // Wait longer than the delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await new Promise((resolve) => setTimeout(resolve, 1500));
 
       // File should not exist (write was cancelled)
       await expect(fs.access(filePath)).rejects.toThrow();
@@ -383,7 +383,7 @@ describe('FileWriteQueue', () => {
       const filePath = path.join(tempDir, 'empty.txt');
 
       await queue.queueWrite(filePath, '');
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise((resolve) => setTimeout(resolve, 50));
 
       const written = await fs.readFile(filePath, 'utf-8');
       expect(written).toBe('');
@@ -394,7 +394,7 @@ describe('FileWriteQueue', () => {
       const largeContent = 'x'.repeat(1024 * 1024); // 1MB of 'x'
 
       await queue.queueWrite(filePath, largeContent);
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       const written = await fs.readFile(filePath, 'utf-8');
       expect(written).toBe(largeContent);
@@ -406,7 +406,7 @@ describe('FileWriteQueue', () => {
       const specialContent = '🎉 Special chars: "quotes" & \'apostrophes\' \n\t\r\\';
 
       await queue.queueWrite(filePath, specialContent);
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise((resolve) => setTimeout(resolve, 50));
 
       const written = await fs.readFile(filePath, 'utf-8');
       expect(written).toBe(specialContent);
@@ -417,7 +417,7 @@ describe('FileWriteQueue', () => {
       const unicodeContent = '你好世界 🌍 Привет мир مرحبا بالعالم';
 
       await queue.queueWrite(filePath, unicodeContent);
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise((resolve) => setTimeout(resolve, 50));
 
       const written = await fs.readFile(filePath, 'utf-8');
       expect(written).toBe(unicodeContent);
@@ -430,7 +430,7 @@ describe('FileWriteQueue', () => {
       await fs.mkdir(path.dirname(nestedPath), { recursive: true });
 
       await queue.queueWrite(nestedPath, 'Nested content');
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise((resolve) => setTimeout(resolve, 50));
 
       const written = await fs.readFile(nestedPath, 'utf-8');
       expect(written).toBe('Nested content');
@@ -457,7 +457,7 @@ describe('FileWriteQueue', () => {
       expect(queue.getPendingCount()).toBe(3);
 
       // Wait for all to complete
-      await new Promise(resolve => setTimeout(resolve, 150));
+      await new Promise((resolve) => setTimeout(resolve, 150));
       expect(queue.getPendingCount()).toBe(0);
 
       queue.destroy();
@@ -482,7 +482,7 @@ describe('FileWriteQueue', () => {
       expect(queue.hasPendingWrite(file2)).toBe(true);
 
       // Wait for completion
-      await new Promise(resolve => setTimeout(resolve, 150));
+      await new Promise((resolve) => setTimeout(resolve, 150));
 
       expect(queue.hasPendingWrite(file1)).toBe(false);
       expect(queue.hasPendingWrite(file2)).toBe(false);
