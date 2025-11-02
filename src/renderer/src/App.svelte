@@ -8,6 +8,7 @@
   import UpdateIndicator from './components/UpdateIndicator.svelte';
   import MessageBusDebugPanel from './components/MessageBusDebugPanel.svelte';
   import ExternalEditConflictNotification from './components/ExternalEditConflictNotification.svelte';
+  import ToastNotification from './components/ToastNotification.svelte';
   import type { Message } from './services/types';
   import type { NoteMetadata } from './services/noteStore.svelte';
   import { getChatService } from './services/chatService';
@@ -1021,6 +1022,9 @@
 
     <!-- External Edit Conflict Notifications -->
     <ExternalEditConflictNotification />
+
+    <!-- Toast Notifications -->
+    <ToastNotification />
   </div>
 {/if}
 

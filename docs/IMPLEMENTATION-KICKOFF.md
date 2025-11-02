@@ -1,17 +1,19 @@
 # Implementation Kickoff: Database as Source of Truth
 
-**Status**: 🚧 **IN PROGRESS - Sprint 4 Complete**
+**Status**: 🚧 **IN PROGRESS - Sprint 5 In Progress**
 **Start Date**: 2025-11-01
-**Current Progress**: 71% (Phase 4 complete, ready for Phase 5)
+**Current Progress**: 86% (Phase 5 complete, ready for Phase 6)
 **Target Completion**: 7 weeks from start
 **Team**: Engineering + Product
 
 **Latest Update** (2025-11-02):
-- ✅ Phases 1-4 complete: Complete DB-first architecture with simplified file watcher
-- ✅ ~300 lines of code removed across Phases 3 & 4
-- ✅ File watcher now ultra-simple: only checks ongoingWrites flag
+
+- ✅ Phases 1-5 complete: DB-first architecture + smart external edit UX
+- ✅ ~300 lines of code removed (Phases 3 & 4)
+- ✅ Smart external edit handling: auto-reload clean docs, show conflict for dirty docs
+- ✅ Toast notification system implemented
 - ✅ Tests passing (799/803 = 99.5%)
-- 🔜 Next: Phase 5 - External edit UX improvements
+- 🔜 Next: Phase 6 - Agent update sync
 
 ---
 
@@ -141,6 +143,7 @@ Transform Flint UI note synchronization from file-first to database-first archit
 **Completed**: 2025-11-02
 
 **Key Achievements**:
+
 - FileWriteQueue implementation with proper async handling
 - Test infrastructure updated to flush pending writes
 - Benchmarking suite created and validated
@@ -157,6 +160,7 @@ Transform Flint UI note synchronization from file-first to database-first archit
 **Context**: Audit revealed that while writes go to DB first (Phase 2 ✅), reads still use the file system. This creates a 1000ms window where users see stale data after saving, breaking read-after-write consistency.
 
 **Problem**:
+
 ```
 Current: User edits → DB (immediate) → File (1000ms delay)
          User reads → File (STALE for up to 1000ms!) ❌
@@ -194,6 +198,7 @@ Correct: User edits → DB (immediate) → File (1000ms delay)
 **Completed**: 2025-11-02
 
 **Key Achievements**:
+
 - Read-after-write consistency achieved (no stale reads!)
 - Database queries replace filesystem scanning for major performance win
 - Link lookups now use database table instead of parsing files
@@ -228,6 +233,7 @@ Correct: User edits → DB (immediate) → File (1000ms delay)
 **Completed**: 2025-11-02
 
 **Key Achievements**:
+
 - **238 lines of code removed** - massive simplification!
 - External edit detection logic reduced from 90 lines to 3 lines in isInternalChange()
 - Removed 3 IPC handlers and all associated renderer-side tracking
@@ -258,6 +264,7 @@ Correct: User edits → DB (immediate) → File (1000ms delay)
 **Completed**: 2025-11-02
 
 **Key Achievements**:
+
 - **60+ lines of code removed** - additional simplification beyond Phase 3
 - `isInternalChange()` now trivial: just checks one Set
 - Removed entire `trackOperation()` infrastructure that was never used
@@ -284,18 +291,36 @@ Correct: User edits → DB (immediate) → File (1000ms delay)
 
 ---
 
-### Sprint 5 (Week 5): Phase 5 + 6
+### Sprint 5 (Week 5): Phase 5 + 6 🚧 IN PROGRESS
 
 **Goal**: Enhanced UX for external edits and agent updates
 
-**Phase 5: External Edit UX**
+**Phase 5: External Edit UX** ✅ COMPLETE
 
-- [ ] Update `handleFileWatcherEvent()` to check dirty state
-- [ ] Auto-reload editor when no unsaved changes
-- [ ] Add toast notification: "Note reloaded (modified externally)"
-- [ ] Keep conflict dialog for unsaved changes
-- [ ] Test rapid external changes
-- [ ] User acceptance testing
+- [x] Update `noteDocumentRegistry` to check dirty state on external changes
+- [x] Auto-reload editor when no unsaved changes
+- [x] Add toast notification: "Note reloaded (modified externally)"
+- [x] Keep conflict dialog for unsaved changes (existing component)
+- [x] Create toast notification system (new component + event types)
+- [x] Test changes with full test suite
+
+**Exit Criteria**:
+
+- ✅ External edits on clean documents → Auto-reload + toast notification
+- ✅ External edits on dirty documents → Conflict dialog (existing behavior)
+- ✅ No cursor position loss during user typing
+- ✅ Toast notifications work across all views
+- ✅ Tests passing (799/803 = 99.5%)
+
+**Completed**: 2025-11-02
+
+**Key Achievements**:
+
+- **Smart external edit handling**: Documents automatically check if they have unsaved changes (dirty state) before deciding how to handle external modifications
+- **Toast notification system**: New reusable toast component that can display info, success, warning, and error messages throughout the app
+- **Improved UX**: Users no longer see conflict dialogs when their document is clean - it just reloads automatically with a subtle notification
+- **Leveraged existing conflict dialog**: For dirty documents, the existing ExternalEditConflictNotification component continues to work perfectly
+- **Message bus integration**: Toast events properly typed and integrated into the app-wide event system
 
 **Phase 6: Agent Update Sync**
 

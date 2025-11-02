@@ -1404,7 +1404,11 @@ export class NoteManager {
           const db = await this.#hybridSearchManager.getDatabaseConnection();
 
           // Query note_links table for links targeting this note
-          const links = await db.all<{ source_note_id: string; type: string; filename: string }>(
+          const links = await db.all<{
+            source_note_id: string;
+            type: string;
+            filename: string;
+          }>(
             `SELECT DISTINCT nl.source_note_id, n.type, n.filename
              FROM note_links nl
              JOIN notes n ON nl.source_note_id = n.id
@@ -1561,7 +1565,10 @@ export class NoteManager {
           return dbNotes;
         } catch (error) {
           // Log but don't fail - fall through to file system fallback
-          console.warn(`Failed to list notes from database, falling back to file system:`, error);
+          console.warn(
+            `Failed to list notes from database, falling back to file system:`,
+            error
+          );
         }
       }
 

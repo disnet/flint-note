@@ -222,6 +222,14 @@ export class NoteDocument {
   get isSaving(): boolean {
     return this.autoSave.isSaving;
   }
+
+  /**
+   * Get whether the document has unsaved changes (dirty state)
+   * Used for smart external edit handling
+   */
+  get isDirty(): boolean {
+    return this.autoSave.hasChanges || this.autoSave.isSaving;
+  }
 }
 
 /**
@@ -246,13 +254,42 @@ class NoteDocumentRegistryClass {
     //   }
     // });
 
-    // Listen for external file changes and reload affected documents
+    // Listen for external file changes and handle based on dirty state
+    // Phase 5: Auto-reload clean documents, show conflict for dirty documents
     messageBus.subscribe('file.external-change', async (event) => {
       if (!event.noteId) return;
       const doc = this.documents.get(event.noteId);
-      if (doc) {
-        // Only reload if the document is open
+      if (!doc) return;
+
+      // Check if document has unsaved changes
+      const isDirty = doc.isDirty;
+
+      if (isDirty) {
+        // Document has unsaved changes - emit conflict event for user to resolve
+        console.log(
+          '[Registry] External change detected on dirty document, showing conflict:',
+          event.noteId
+        );
+        messageBus.publish({
+          type: 'file.external-edit-conflict',
+          noteId: event.noteId,
+          path: event.path
+        });
+      } else {
+        // Document is clean - auto-reload and show toast notification
+        console.log(
+          '[Registry] External change detected on clean document, auto-reloading:',
+          event.noteId
+        );
         await doc.reload();
+
+        // Emit toast notification event
+        messageBus.publish({
+          type: 'toast.show',
+          message: 'Note reloaded (modified externally)',
+          duration: 3000,
+          variant: 'info'
+        });
       }
     });
   }

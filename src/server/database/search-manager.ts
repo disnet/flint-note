@@ -1607,9 +1607,7 @@ export class HybridSearchManager {
    * Get a note by ID from the database (Phase 2.5: DB-first reads)
    * Returns the full note with content and metadata
    */
-  async getNoteById(
-    id: string
-  ): Promise<{
+  async getNoteById(id: string): Promise<{
     id: string;
     title: string;
     content: string;
@@ -1626,7 +1624,9 @@ export class HybridSearchManager {
 
     try {
       // Query note from database
-      const note = await connection.get<NoteRow>('SELECT * FROM notes WHERE id = ?', [id]);
+      const note = await connection.get<NoteRow>('SELECT * FROM notes WHERE id = ?', [
+        id
+      ]);
 
       if (!note) {
         return null;
@@ -1744,11 +1744,13 @@ export class HybridSearchManager {
    * List notes from the database with optional filtering (Phase 2.5: DB-first reads)
    * Returns notes with minimal metadata for list views
    */
-  async listNotes(options: {
-    type?: string;
-    limit?: number;
-    offset?: number;
-  } = {}): Promise<
+  async listNotes(
+    options: {
+      type?: string;
+      limit?: number;
+      offset?: number;
+    } = {}
+  ): Promise<
     Array<{
       id: string;
       type: string;

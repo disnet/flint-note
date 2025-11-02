@@ -142,6 +142,7 @@ Try to merge changes automatically:
    - More complexity, but accommodates different workflows
 
 3. **Show subtle notification after reload**
+
    ```
    ┌─────────────────────────────────────────┐
    │ Note reloaded (modified externally)     │  ← 2-second toast
@@ -249,7 +250,7 @@ Try to merge changes automatically:
 - [ ] C - Git Operation
 - [ ] D - Explicit "Sync Now" Command
 - [ ] E - System Suspend
-- [ ] Other: ********\_********
+- [ ] Other: **\*\*\*\***\_**\*\*\*\***
 
 ---
 
@@ -319,7 +320,7 @@ Shows list of failed writes with timestamps
 - [ ] 3 retries with exponential backoff (PRD recommendation)
 - [ ] 5 retries
 - [ ] Retry indefinitely with increasing delays
-- [ ] Other: ********\_********
+- [ ] Other: **\*\*\*\***\_**\*\*\*\***
 
 ---
 
@@ -478,7 +479,7 @@ if (USE_DB_FIRST) {
 - [ ] No, aim for 90% reduction (5000ms delay)
 - [ ] Need to benchmark first
 
-**Decision**: ******\_******
+**Decision**: **\*\***\_**\*\***
 
 ---
 
@@ -622,7 +623,7 @@ Bottom right:
 - [ ] < 5 P1 bugs (major functionality broken)
 - [ ] Positive feedback from >80% of beta users
 - [ ] Performance targets met (DB writes, I/O reduction)
-- [ ] Other: ********\_********
+- [ ] Other: **\*\*\*\***\_**\*\*\*\***
 
 ---
 
@@ -651,7 +652,7 @@ Bottom right:
 - [ ] Document rollback runbook
 - [ ] Designate on-call person for rollback decision
 
-**Decision**: Rollback triggers: ****\_\_\_\_****, Mechanism: ****\_\_\_\_****
+**Decision**: Rollback triggers: \***\*\_\_\_\_\*\***, Mechanism: \***\*\_\_\_\_\*\***
 
 ---
 

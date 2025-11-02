@@ -9,7 +9,6 @@ import chokidar from 'chokidar';
 import type { FSWatcher } from 'chokidar';
 import path from 'path';
 import fs from 'fs/promises';
-import crypto from 'crypto';
 import type { HybridSearchManager } from '../database/search-manager.js';
 import type { NoteManager } from './notes.js';
 
@@ -246,21 +245,14 @@ export class VaultFileWatcher {
 
   // Phase 4: Removed trackOperation() method - FileWriteQueue's ongoingWrites is sufficient
   // No need to separately track delete/rename operations
-
-  /**
-   * Compute SHA256 hash of content for comparison
-   */
-  private computeContentHash(content: string): string {
-    return crypto.createHash('sha256').update(content, 'utf8').digest('hex');
-  }
+  // Phase 5: Removed computeContentHash() - no longer needed after conflict detection simplification
 
   /**
    * Determine if a file change is internal (initiated by Flint) or external
    * Phase 4: Simplified to only check ongoingWrites flag
    */
   private async isInternalChange(
-    filePath: string,
-    content?: string
+    filePath: string
   ): Promise<{ isInternal: boolean; isConflict: boolean }> {
     // Normalize the path the same way we do in markWriteStarting/markWriteComplete
     const absolutePath = path.resolve(this.vaultPath, filePath);
@@ -330,7 +322,7 @@ export class VaultFileWatcher {
         const content = await fs.readFile(filePath, 'utf-8');
 
         // Check if this is an internal change
-        const changeCheck = await this.isInternalChange(filePath, content);
+        const changeCheck = await this.isInternalChange(filePath);
         if (changeCheck.isInternal) {
           return;
         }
@@ -385,10 +377,10 @@ export class VaultFileWatcher {
       try {
         const content = await fs.readFile(filePath, 'utf-8');
 
-        // Check if this is an internal change (including conflict detection)
-        const changeCheck = await this.isInternalChange(filePath, content);
+        // Check if this is an internal change
+        const changeCheck = await this.isInternalChange(filePath);
         if (changeCheck.isInternal) {
-          // If it's a conflict, the event was already emitted in isInternalChange
+          // Internal change - ignore (file watcher should not process)
           return;
         }
 

@@ -42,7 +42,14 @@ export type WorkflowEvent =
   | { type: 'workflow.material-added'; workflowId: string; materialId: string }
   | { type: 'workflow.material-removed'; workflowId: string; materialId: string };
 
-export type AppEvent = NoteEvent | WorkflowEvent;
+export type ToastEvent = {
+  type: 'toast.show';
+  message: string;
+  duration?: number;
+  variant?: 'info' | 'success' | 'warning' | 'error';
+};
+
+export type AppEvent = NoteEvent | WorkflowEvent | ToastEvent;
 
 type EventHandler<T extends AppEvent = AppEvent> = (event: T) => void;
 
