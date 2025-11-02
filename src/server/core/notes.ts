@@ -178,20 +178,6 @@ export class FileWriteQueue {
       clearTimeout(existing.timeout);
     }
 
-    // Special case: 0ms delay means write immediately (synchronous for tests)
-    if (delay === 0) {
-      // Store temporarily so we can track it
-      this.pendingWrites.set(filePath, {
-        filePath,
-        content,
-        timeout: undefined as any, // Will be removed immediately anyway
-        retryCount: 0
-      });
-      // Write immediately without setTimeout
-      await this.flushWrite(filePath);
-      return;
-    }
-
     // Schedule new write with delay
     const timeout = setTimeout(async () => {
       await this.flushWrite(filePath);

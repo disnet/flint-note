@@ -85,6 +85,9 @@ export class TestApiSetup {
     // Clean up API resources and database connections
     if (this.api) {
       try {
+        // Flush any pending file writes before cleanup (Phase 2: DB-first architecture)
+        // This ensures all queued writes complete before we delete temp directories
+        await this.api.flushPendingWrites();
         await this.api.cleanup();
       } catch (error) {
         // Ignore cleanup errors in tests
