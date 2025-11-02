@@ -2,15 +2,16 @@
 
 **Status**: 🚧 **IN PROGRESS - Sprint 2 Complete**
 **Start Date**: 2025-11-01
-**Current Progress**: 33% (Sprint 2 of 6 complete)
-**Target Completion**: 6 weeks from start
+**Current Progress**: 29% (Sprint 2 of 7 complete)
+**Target Completion**: 7 weeks from start
 **Team**: Engineering + Product
 
 **Latest Update** (2025-11-02):
-- ✅ Phase 1 & 2 complete: FileWriteQueue + DB-first architecture
+- ✅ Phase 1 & 2 complete: FileWriteQueue + DB-first writes
 - ✅ Performance targets exceeded (98% I/O reduction, <1ms DB writes)
 - ✅ All tests passing (800/803 = 99.6%)
-- 🔜 Next: Phase 3 - Remove expected write tracking
+- 🚧 AUDIT FINDING: Read operations still use file system (stale data risk)
+- 🔜 Next: Phase 2.5 - Database-first read operations
 
 ---
 
@@ -84,7 +85,7 @@ Transform Flint UI note synchronization from file-first to database-first archit
 
 ---
 
-## 🗓️ 6-Week Timeline
+## 🗓️ 7-Week Timeline
 
 ### Sprint 1 (Week 1): Foundation ✅ COMPLETE
 
@@ -147,7 +148,66 @@ Transform Flint UI note synchronization from file-first to database-first archit
 
 ---
 
-### Sprint 3 (Week 3): Phase 3 + 4 🔜 NEXT UP
+### Sprint 3 (Week 3): Phase 2.5 🔜 NEXT UP
+
+**Goal**: Database-first read operations (read-after-write consistency)
+
+**Phase 2.5: Database-First Reads**
+
+**Context**: Audit revealed that while writes go to DB first (Phase 2 ✅), reads still use the file system. This creates a 1000ms window where users see stale data after saving, breaking read-after-write consistency.
+
+**Problem**:
+```
+Current: User edits → DB (immediate) → File (1000ms delay)
+         User reads → File (STALE for up to 1000ms!) ❌
+
+Correct: User edits → DB (immediate) → File (1000ms delay)
+         User reads → DB (always current) ✅
+```
+
+**Tasks**:
+
+- [ ] Add database read methods to `HybridSearchManager`:
+  - [ ] `getNoteById(id)` - Query notes table by ID
+  - [ ] `getNoteByPath(path)` - Query notes table by path
+  - [ ] `listNotes(type?, limit?)` - Query with pagination
+- [ ] Update `NoteManager.getNote()` to read from DB:
+  - [ ] Primary: Query database by ID
+  - [ ] Fallback: Read from file if not in DB (migration case)
+  - [ ] Return full Note object with content from DB
+- [ ] Update `NoteManager.getNoteByPath()` to read from DB
+- [ ] Update `NoteManager.listNotes()` to query DB instead of scanning filesystem
+- [ ] Update validation in `updateNote()`/`updateNoteWithMetadata()`:
+  - [ ] Read current content from DB for hash validation (not file)
+- [ ] Update `findIncomingLinks()` to use database link tables
+- [ ] Update `findNotesMatchingCriteria()` to use database queries
+- [ ] Integration tests for DB-first reads:
+  - [ ] Test read-after-write consistency (immediate)
+  - [ ] Test read returns current data (not stale file)
+  - [ ] Test fallback to file when note not in DB
+- [ ] Performance validation:
+  - [ ] Benchmark DB read performance (target: <5ms p95)
+  - [ ] Verify 98% file I/O reduction (reads + writes)
+
+**Exit Criteria**:
+
+- ✅ All read operations use database as primary source
+- ✅ File system only accessed for queued writes (and migration fallback)
+- ✅ Read-after-write consistency: users see edits immediately
+- ✅ All existing tests pass
+- ✅ Read performance targets met (<5ms p95)
+- ✅ No regressions in external edit detection
+
+**Impact**:
+- Eliminates 1000ms stale read window
+- Enables instant read-after-write consistency
+- Reduces file I/O by ~98% (reads + writes combined)
+- Foundation for offline-first architecture
+- Critical for correct external edit detection
+
+---
+
+### Sprint 4 (Week 4): Phase 3 + 4
 
 **Goal**: Simplify external edit detection
 
@@ -178,7 +238,7 @@ Transform Flint UI note synchronization from file-first to database-first archit
 
 ---
 
-### Sprint 4 (Week 4): Phase 5 + 6
+### Sprint 5 (Week 5): Phase 5 + 6
 
 **Goal**: Enhanced UX for external edits and agent updates
 
@@ -216,7 +276,7 @@ Transform Flint UI note synchronization from file-first to database-first archit
 
 ---
 
-### Sprint 5 (Week 5): Testing + Polish
+### Sprint 6 (Week 6): Testing + Polish
 
 **Goal**: Comprehensive testing and documentation
 
@@ -258,11 +318,11 @@ Transform Flint UI note synchronization from file-first to database-first archit
 
 ---
 
-### Sprint 6 (Week 6): Beta + Launch
+### Sprint 7 (Week 7): Beta + Launch
 
 **Goal**: Beta testing and general release
 
-**Week 6.1: Internal Beta**
+**Week 7.1: Internal Beta**
 
 - [ ] Deploy to internal team (5-10 people)
 - [ ] Daily check-ins
@@ -270,7 +330,7 @@ Transform Flint UI note synchronization from file-first to database-first archit
 - [ ] Performance monitoring
 - [ ] Exit criteria check
 
-**Week 6.2-6.3: Power User Beta**
+**Week 7.2-7.3: Power User Beta**
 
 - [ ] Invite 10-20 community members
 - [ ] Discord beta channel
@@ -278,7 +338,7 @@ Transform Flint UI note synchronization from file-first to database-first archit
 - [ ] Bug fixes and polish
 - [ ] Exit criteria check
 
-**Week 6.4: General Release**
+**Week 7.4: General Release**
 
 - [ ] Final QA pass
 - [ ] Release notes finalized
@@ -376,8 +436,8 @@ Transform Flint UI note synchronization from file-first to database-first archit
 
 ### External
 
-- **Beta announcement**: Week 6.1
-- **Release announcement**: Week 6.4
+- **Beta announcement**: Week 7.1
+- **Release announcement**: Week 7.4
 - **User support**: GitHub issues + Discord
 
 ### Escalation
@@ -392,8 +452,9 @@ Transform Flint UI note synchronization from file-first to database-first archit
 
 ### Code
 
-- [ ] FileWriteQueue class
-- [ ] DB-first updateNote() implementation
+- [x] FileWriteQueue class
+- [x] DB-first updateNote() implementation (writes)
+- [ ] DB-first read operations (Phase 2.5)
 - [ ] Simplified VaultFileWatcher
 - [ ] Smart note.updated listener
 - [ ] Agent update synchronization
@@ -443,10 +504,17 @@ Transform Flint UI note synchronization from file-first to database-first archit
 
 ### Week 2 (Sprint 2)
 
-1. [ ] Complete Phase 1 (FileWriteQueue)
-2. [ ] Complete Phase 2 (DB-first)
-3. [ ] Run performance benchmarks
-4. [ ] Validate targets met
+1. [x] Complete Phase 1 (FileWriteQueue)
+2. [x] Complete Phase 2 (DB-first writes)
+3. [x] Run performance benchmarks
+4. [x] Validate targets met
+
+### Week 3 (Sprint 3)
+
+1. [ ] Complete Phase 2.5 (DB-first reads)
+2. [ ] Test read-after-write consistency
+3. [ ] Validate no stale reads
+4. [ ] Performance benchmarks for reads
 
 ---
 
@@ -492,10 +560,12 @@ _Next Review: End of Sprint 2_
 
 ## 🚀 Let's Ship This!
 
-**Timeline**: 6 weeks
-**Scope**: Complete solution (all 6 phases)
+**Timeline**: 7 weeks
+**Scope**: Complete solution (all phases including 2.5)
 **Goal**: Eliminate false positives + enable agent-editor sync
 **Confidence**: High (well-planned, tested approach)
+
+**Recent Update**: Added Phase 2.5 after audit revealed read-after-write consistency gap
 
 **Team rallying cry**: "Database-first or bust!" 💪
 
