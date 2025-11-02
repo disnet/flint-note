@@ -334,20 +334,25 @@ export class VaultFileWatcher {
           if (recentDeletion) {
             // This is a rename!
             this.recentDeletions.delete(noteId);
+
+            // Phase 6 fix: Sync to database FIRST, then emit event
+            await this.handleFileRename();
+
             this.emit({
               type: 'external-rename',
               oldPath: recentDeletion.oldPath,
               newPath: filePath,
               noteId
             });
-            await this.handleFileRename();
             return;
           }
         }
 
         // Not a rename, process as new file
-        this.emit({ type: 'external-add', path: filePath });
+        // Phase 6 fix: Sync to database FIRST, then emit event
         await this.handleFileAdd();
+
+        this.emit({ type: 'external-add', path: filePath });
       } catch (error) {
         console.error(`[FileWatcher] Error processing file addition: ${filePath}`, error);
       }
@@ -386,12 +391,15 @@ export class VaultFileWatcher {
 
         const noteId = this.extractNoteId(content);
 
+        // Phase 6 fix: Sync to database FIRST, then emit event
+        // This ensures the database has the latest content when editors reload
+        await this.handleFileChange();
+
         this.emit({
           type: 'external-change',
           path: filePath,
           noteId: noteId || undefined
         });
-        await this.handleFileChange();
       } catch (error) {
         console.error(`[FileWatcher] Error processing file change: ${filePath}`, error);
       }
@@ -448,12 +456,14 @@ export class VaultFileWatcher {
           }
         }
 
+        // Phase 6 fix: Sync to database FIRST, then emit event
+        await this.handleFileDelete();
+
         this.emit({
           type: 'external-delete',
           path: filePath,
           noteId: noteId || undefined
         });
-        await this.handleFileDelete();
       } catch (error) {
         console.error(`[FileWatcher] Error processing file deletion: ${filePath}`, error);
       }
