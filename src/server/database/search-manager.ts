@@ -1,6 +1,6 @@
 import { DatabaseManager, serializeMetadataValue } from './schema.js';
 import type { DatabaseConnection, NoteRow, SearchRow } from './schema.js';
-import type { NoteMetadata } from '../types/index.js';
+import type { NoteMetadata, WikiLink } from '../types/index.js';
 import fs from 'fs/promises';
 import path from 'path';
 import { createHash, randomBytes } from 'crypto';
@@ -1230,6 +1230,12 @@ export class HybridSearchManager {
         // Check if we need to normalize the frontmatter type field
         await this.normalizeFrontmatterType(filePath, updatedContent, parsed);
 
+        // Re-read content after type normalization
+        updatedContent = await fs.readFile(filePath, 'utf-8');
+
+        // Normalize wikilinks to ID-based format
+        await this.normalizeWikilinks(filePath, updatedContent, parsed);
+
         await this.upsertNote(
           parsed.id,
           parsed.title,
@@ -1522,6 +1528,109 @@ export class HybridSearchManager {
       // Log but don't fail the indexing operation if normalization fails
       console.error(
         `Failed to normalize title for ${filePath}:`,
+        error instanceof Error ? error.message : 'Unknown error'
+      );
+    }
+  }
+
+  /**
+   * Normalize wikilinks to ID-based format [[n-xxxxxxxx|display]]
+   * Converts legacy [[Title]] and [[type/filename]] formats to ID-based links
+   */
+  private async normalizeWikilinks(
+    filePath: string,
+    content: string,
+    parsed: {
+      id: string;
+      title: string;
+      content: string;
+      type: string;
+      filename: string;
+      metadata: Record<string, unknown>;
+    }
+  ): Promise<void> {
+    try {
+      // Import dependencies
+      const { WikilinkParser } = await import('../core/wikilink-parser.js');
+      const { LinkExtractor } = await import('../core/link-extractor.js');
+      const db = await this.getConnection();
+
+      // Parse all wikilinks in the content
+      const parseResult = WikilinkParser.parseWikilinks(parsed.content);
+
+      // Build replacement list with resolved IDs
+      const replacements: Array<{
+        link: WikiLink;
+        normalizedLink: string;
+      }> = [];
+
+      // Process each wikilink
+      for (const link of parseResult.wikilinks) {
+        // Skip if already in ID format
+        if (link.noteId) {
+          continue;
+        }
+
+        // Resolve title/type/filename to note ID
+        const targetNoteId = await LinkExtractor.findNoteByTitle(link.target, db);
+
+        if (targetNoteId) {
+          // Convert to ID-based format, preserving original display text
+          const displayText = link.display !== link.target ? link.display : link.target;
+          const normalizedLink = WikilinkParser.createIdWikilink(
+            targetNoteId,
+            displayText
+          );
+
+          replacements.push({ link, normalizedLink });
+        }
+        // If we can't resolve the link, leave it as-is (it's a broken link)
+      }
+
+      // If no changes needed, return early
+      if (replacements.length === 0) {
+        return;
+      }
+
+      console.log(
+        `Normalizing ${replacements.length} wikilink(s) in ${filePath} to ID-based format`
+      );
+
+      // Replace wikilinks in content by position (descending to avoid position shifts)
+      let normalizedContent = parsed.content;
+      const sortedReplacements = replacements.sort(
+        (a, b) => b.link.position.start - a.link.position.start
+      );
+
+      for (const { link, normalizedLink } of sortedReplacements) {
+        normalizedContent =
+          normalizedContent.slice(0, link.position.start) +
+          normalizedLink +
+          normalizedContent.slice(link.position.end);
+      }
+
+      // Parse the full file content to preserve frontmatter
+      const frontmatterRegex = /^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/;
+      const match = content.match(frontmatterRegex);
+
+      let updatedFileContent: string;
+      if (match) {
+        const frontmatter = match[1];
+        updatedFileContent = `---\n${frontmatter}\n---\n${normalizedContent}`;
+      } else {
+        // No frontmatter, just use the normalized content
+        updatedFileContent = normalizedContent;
+      }
+
+      // Write the normalized content back to the file
+      await fs.writeFile(filePath, updatedFileContent, 'utf-8');
+
+      // Update the parsed object to reflect the normalized content
+      parsed.content = normalizedContent;
+    } catch (error) {
+      // Log but don't fail the indexing operation if normalization fails
+      console.error(
+        `Failed to normalize wikilinks for ${filePath}:`,
         error instanceof Error ? error.message : 'Unknown error'
       );
     }

@@ -75,10 +75,11 @@ export interface BaseConfig {
 
 // Wikilink types
 export interface WikiLink {
-  target: string; // type/filename format
+  target: string; // note ID (n-xxxxxxxx) or type/filename format or title
   display: string; // Display text
-  type?: string; // Target note type
-  filename?: string; // Target filename
+  noteId?: string; // Resolved note ID (if target is ID format)
+  type?: string; // Target note type (for type/filename format)
+  filename?: string; // Target filename (for type/filename format)
   raw: string; // Original wikilink text
   position: {
     start: number;

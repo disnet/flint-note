@@ -394,7 +394,7 @@ This is test note ${i}`;
       // Verify migration result
       expect(result.migrated).toBe(true);
       expect(result.fromVersion).toBe('1.1.0');
-      expect(result.toVersion).toBe('2.5.0');
+      expect(result.toVersion).toBe('2.6.0');
       expect(result.executedMigrations).toContain('2.0.0');
       expect(result.executedMigrations).toContain('2.0.1');
       expect(result.executedMigrations).toContain('2.1.0');
@@ -652,7 +652,7 @@ This is test note ${i}`;
 
       // Run migration again (with current version)
       const result = await DatabaseMigrationManager.checkAndMigrate(
-        '2.5.0',
+        '2.6.0',
         dbManager as unknown as DatabaseManager,
         workspacePath
       );
@@ -1874,6 +1874,355 @@ metadata:
       // Path should remain unchanged
       const notes = await db.all<{ path: string }>('SELECT path FROM notes');
       expect(notes[0].path).toBe('note/test.md');
+    });
+  });
+
+  describe('v2.6.0 migration - ID-based wikilinks', () => {
+    it('should convert title-based wikilinks to ID-based format', async () => {
+      const uniqueId = crypto.randomBytes(8).toString('hex');
+      const testDbPath = path.join(os.tmpdir(), `test-db-${uniqueId}.db`);
+      const workspacePath = await fs.mkdtemp(
+        path.join(os.tmpdir(), `test-workspace-${uniqueId}-`)
+      );
+
+      const dbManager = new TestDatabaseManager(testDbPath, workspacePath);
+      const db = await dbManager.connect();
+
+      try {
+        // Create schema at v2.5.0
+        await db.run(`CREATE TABLE schema_version (version TEXT NOT NULL)`);
+        await db.run(`INSERT INTO schema_version (version) VALUES ('2.5.0')`);
+
+        await db.run(`
+          CREATE TABLE notes (
+            id TEXT PRIMARY KEY,
+            type TEXT NOT NULL,
+            title TEXT NOT NULL,
+            filename TEXT NOT NULL,
+            path TEXT NOT NULL,
+            content TEXT NOT NULL,
+            created TEXT NOT NULL,
+            updated TEXT NOT NULL
+          )
+        `);
+
+        await db.run(`
+          CREATE TABLE note_links (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_note_id TEXT NOT NULL,
+            target_note_id TEXT,
+            target_title TEXT NOT NULL,
+            link_text TEXT,
+            line_number INTEGER NOT NULL,
+            created TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+          )
+        `);
+
+        // Create target note
+        const targetNoteDir = path.join(workspacePath, 'general');
+        await fs.mkdir(targetNoteDir, { recursive: true });
+        const targetNotePath = path.join(targetNoteDir, 'target.md');
+        const targetNoteContent =
+          '---\nid: n-aaaabbbb\ntitle: Target Note\ntype: general\n---\n# Target Note\n\nTarget content.';
+        await fs.writeFile(targetNotePath, targetNoteContent);
+
+        await db.run(
+          `INSERT INTO notes (id, type, title, filename, path, content, created, updated)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            'n-aaaabbbb',
+            'general',
+            'Target Note',
+            'target.md',
+            'general/target.md',
+            targetNoteContent,
+            '2025-01-01T00:00:00.000Z',
+            '2025-01-01T00:00:00.000Z'
+          ]
+        );
+
+        // Create source note with title-based wikilinks
+        const sourceNoteDir = path.join(workspacePath, 'general');
+        const sourceNotePath = path.join(sourceNoteDir, 'source.md');
+        const sourceNoteContent =
+          '---\nid: n-ccccdddd\ntitle: Source Note\ntype: general\n---\n# Source Note\n\nSee [[Target Note]] and [[Target Note|custom display]] for details.';
+        await fs.writeFile(sourceNotePath, sourceNoteContent);
+
+        await db.run(
+          `INSERT INTO notes (id, type, title, filename, path, content, created, updated)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            'n-ccccdddd',
+            'general',
+            'Source Note',
+            'source.md',
+            'general/source.md',
+            sourceNoteContent,
+            '2025-01-01T00:00:00.000Z',
+            '2025-01-01T00:00:00.000Z'
+          ]
+        );
+
+        // Run migration
+        const result = await DatabaseMigrationManager.checkAndMigrate(
+          '2.5.0',
+          dbManager as unknown as DatabaseManager,
+          workspacePath
+        );
+
+        expect(result.migrated).toBe(true);
+        expect(result.toVersion).toBe('2.6.0');
+
+        // Verify file content was updated to ID-based
+        const updatedContent = await fs.readFile(sourceNotePath, 'utf-8');
+        expect(updatedContent).toContain('[[n-aaaabbbb|Target Note]]');
+        expect(updatedContent).toContain('[[n-aaaabbbb|custom display]]');
+        expect(updatedContent).not.toContain('See [[Target Note]]');
+
+        // Verify database content was updated
+        const note = await db.get<{ content: string }>(
+          'SELECT content FROM notes WHERE id = ?',
+          ['n-ccccdddd']
+        );
+        expect(note?.content).toContain('[[n-aaaabbbb|Target Note]]');
+      } finally {
+        await dbManager.close();
+        await fs.rm(workspacePath, { recursive: true, force: true });
+        await fs.unlink(testDbPath).catch(() => {});
+      }
+    });
+
+    it('should preserve unresolvable wikilinks during migration', async () => {
+      const uniqueId = crypto.randomBytes(8).toString('hex');
+      const testDbPath = path.join(os.tmpdir(), `test-db-${uniqueId}.db`);
+      const workspacePath = await fs.mkdtemp(
+        path.join(os.tmpdir(), `test-workspace-${uniqueId}-`)
+      );
+
+      const dbManager = new TestDatabaseManager(testDbPath, workspacePath);
+      const db = await dbManager.connect();
+
+      try {
+        // Create schema
+        await db.run(`CREATE TABLE schema_version (version TEXT NOT NULL)`);
+        await db.run(`INSERT INTO schema_version (version) VALUES ('2.5.0')`);
+
+        await db.run(`
+          CREATE TABLE notes (
+            id TEXT PRIMARY KEY,
+            type TEXT NOT NULL,
+            title TEXT NOT NULL,
+            filename TEXT NOT NULL,
+            path TEXT NOT NULL,
+            content TEXT NOT NULL,
+            created TEXT NOT NULL,
+            updated TEXT NOT NULL
+          )
+        `);
+
+        // Create note with link to non-existent note
+        const noteDir = path.join(workspacePath, 'general');
+        await fs.mkdir(noteDir, { recursive: true });
+        const notePath = path.join(noteDir, 'source.md');
+        const originalContent =
+          '---\nid: n-11111111\ntitle: Source\ntype: general\n---\n# Source\n\nSee [[Missing Note]] for details.';
+        await fs.writeFile(notePath, originalContent);
+
+        await db.run(
+          `INSERT INTO notes (id, type, title, filename, path, content, created, updated)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            'n-11111111',
+            'general',
+            'Source',
+            'source.md',
+            'general/source.md',
+            originalContent,
+            '2025-01-01T00:00:00.000Z',
+            '2025-01-01T00:00:00.000Z'
+          ]
+        );
+
+        // Run migration
+        await DatabaseMigrationManager.checkAndMigrate(
+          '2.5.0',
+          dbManager as unknown as DatabaseManager,
+          workspacePath
+        );
+
+        // Verify unresolvable link was preserved
+        const content = await fs.readFile(notePath, 'utf-8');
+        expect(content).toContain('[[Missing Note]]');
+      } finally {
+        await dbManager.close();
+        await fs.rm(workspacePath, { recursive: true, force: true });
+        await fs.unlink(testDbPath).catch(() => {});
+      }
+    });
+
+    it('should handle type/filename wikilinks during migration', async () => {
+      const uniqueId = crypto.randomBytes(8).toString('hex');
+      const testDbPath = path.join(os.tmpdir(), `test-db-${uniqueId}.db`);
+      const workspacePath = await fs.mkdtemp(
+        path.join(os.tmpdir(), `test-workspace-${uniqueId}-`)
+      );
+
+      const dbManager = new TestDatabaseManager(testDbPath, workspacePath);
+      const db = await dbManager.connect();
+
+      try {
+        // Create schema
+        await db.run(`CREATE TABLE schema_version (version TEXT NOT NULL)`);
+        await db.run(`INSERT INTO schema_version (version) VALUES ('2.5.0')`);
+
+        await db.run(`
+          CREATE TABLE notes (
+            id TEXT PRIMARY KEY,
+            type TEXT NOT NULL,
+            title TEXT NOT NULL,
+            filename TEXT NOT NULL,
+            path TEXT NOT NULL,
+            content TEXT NOT NULL,
+            created TEXT NOT NULL,
+            updated TEXT NOT NULL
+          )
+        `);
+
+        // Create target note
+        const meetingDir = path.join(workspacePath, 'meeting');
+        await fs.mkdir(meetingDir, { recursive: true });
+        const targetPath = path.join(meetingDir, 'standup.md');
+        const targetContent =
+          '---\nid: n-99999999\ntitle: Daily Standup\ntype: meeting\nfilename: standup\n---\n# Standup\n\nNotes.';
+        await fs.writeFile(targetPath, targetContent);
+
+        await db.run(
+          `INSERT INTO notes (id, type, title, filename, path, content, created, updated)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            'n-99999999',
+            'meeting',
+            'Daily Standup',
+            'standup.md',
+            'meeting/standup.md',
+            targetContent,
+            '2025-01-01T00:00:00.000Z',
+            '2025-01-01T00:00:00.000Z'
+          ]
+        );
+
+        // Create source with type/filename wikilink
+        const generalDir = path.join(workspacePath, 'general');
+        await fs.mkdir(generalDir, { recursive: true });
+        const sourcePath = path.join(generalDir, 'notes.md');
+        const sourceContent =
+          '---\nid: n-88888888\ntitle: Notes\ntype: general\n---\n# Notes\n\nSee [[meeting/standup]] for standup.';
+        await fs.writeFile(sourcePath, sourceContent);
+
+        await db.run(
+          `INSERT INTO notes (id, type, title, filename, path, content, created, updated)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            'n-88888888',
+            'general',
+            'Notes',
+            'notes.md',
+            'general/notes.md',
+            sourceContent,
+            '2025-01-01T00:00:00.000Z',
+            '2025-01-01T00:00:00.000Z'
+          ]
+        );
+
+        // Run migration
+        await DatabaseMigrationManager.checkAndMigrate(
+          '2.5.0',
+          dbManager as unknown as DatabaseManager,
+          workspacePath
+        );
+
+        // Verify type/filename link was converted to ID-based
+        const content = await fs.readFile(sourcePath, 'utf-8');
+        expect(content).toContain('[[n-99999999|meeting/standup]]');
+        expect(content).not.toContain('See [[meeting/standup]]');
+      } finally {
+        await dbManager.close();
+        await fs.rm(workspacePath, { recursive: true, force: true });
+        await fs.unlink(testDbPath).catch(() => {});
+      }
+    });
+
+    it('should not modify notes without wikilinks', async () => {
+      const uniqueId = crypto.randomBytes(8).toString('hex');
+      const testDbPath = path.join(os.tmpdir(), `test-db-${uniqueId}.db`);
+      const workspacePath = await fs.mkdtemp(
+        path.join(os.tmpdir(), `test-workspace-${uniqueId}-`)
+      );
+
+      const dbManager = new TestDatabaseManager(testDbPath, workspacePath);
+      const db = await dbManager.connect();
+
+      try {
+        // Create schema
+        await db.run(`CREATE TABLE schema_version (version TEXT NOT NULL)`);
+        await db.run(`INSERT INTO schema_version (version) VALUES ('2.5.0')`);
+
+        await db.run(`
+          CREATE TABLE notes (
+            id TEXT PRIMARY KEY,
+            type TEXT NOT NULL,
+            title TEXT NOT NULL,
+            filename TEXT NOT NULL,
+            path TEXT NOT NULL,
+            content TEXT NOT NULL,
+            created TEXT NOT NULL,
+            updated TEXT NOT NULL
+          )
+        `);
+
+        // Create note without wikilinks
+        const noteDir = path.join(workspacePath, 'general');
+        await fs.mkdir(noteDir, { recursive: true });
+        const notePath = path.join(noteDir, 'plain.md');
+        const originalContent =
+          '---\nid: n-12121212\ntitle: Plain Note\ntype: general\n---\n# Plain Note\n\nJust plain text.';
+        await fs.writeFile(notePath, originalContent);
+
+        await db.run(
+          `INSERT INTO notes (id, type, title, filename, path, content, created, updated)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            'n-12121212',
+            'general',
+            'Plain Note',
+            'plain.md',
+            'general/plain.md',
+            originalContent,
+            '2025-01-01T00:00:00.000Z',
+            '2025-01-01T00:00:00.000Z'
+          ]
+        );
+
+        // Get original mtime
+        const statsBefore = await fs.stat(notePath);
+
+        // Run migration
+        await DatabaseMigrationManager.checkAndMigrate(
+          '2.5.0',
+          dbManager as unknown as DatabaseManager,
+          workspacePath
+        );
+
+        // Verify content unchanged
+        const content = await fs.readFile(notePath, 'utf-8');
+        expect(content).toBe(originalContent);
+
+        // Note: mtime might change even if content doesn't, so we just verify content
+      } finally {
+        await dbManager.close();
+        await fs.rm(workspacePath, { recursive: true, force: true });
+        await fs.unlink(testDbPath).catch(() => {});
+      }
     });
   });
 });

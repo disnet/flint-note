@@ -14,10 +14,10 @@ describe('skipValidation functionality', () => {
   linter.registerRules([new WikilinkFormatRule(), new HeadingFormatRule()]);
 
   const invalidContent = `#Heading without space
-See [[n-abc123]] for details.`;
+See [[meeting/standup]] for details.`;
 
   const validContent = `# Heading with space
-See [[meeting/standup]] for details.`;
+See [[n-12345678|Standup Meeting]] for details.`;
 
   describe('Agent context validation', () => {
     const agentContext: LintContext = { source: 'agent' };
@@ -50,7 +50,7 @@ See [[meeting/standup]] for details.`;
 
     it('should catch wikilink format errors', () => {
       const contentWithBadWikilink =
-        '# Valid Heading\n\nSee [[n-abc123|Title]] for info.';
+        '# Valid Heading\n\nSee [[meeting/standup|Title]] for info.';
 
       try {
         linter.lintStrict(contentWithBadWikilink, agentContext);
@@ -83,7 +83,7 @@ See [[meeting/standup]] for details.`;
 
     it('should catch multiple errors at once', () => {
       const contentWithMultipleErrors = `##BadHeading
-[[n-abc123]]
+[[meeting/notes]]
 ###AnotherBad
 [[missing-type]]`;
 
@@ -190,7 +190,7 @@ See [[meeting/standup]] for details.`;
     const agentContext: LintContext = { source: 'agent' };
 
     it('should provide helpful suggestions for wikilink errors', () => {
-      const content = 'See [[n-abc123|Meeting]] for details.';
+      const content = 'See [[meeting/standup|Meeting]] for details.';
 
       try {
         linter.lintStrict(content, agentContext);
@@ -200,7 +200,7 @@ See [[meeting/standup]] for details.`;
           const wikilinkError = error.issues.find((i) => i.ruleId === 'wikilink-format');
           expect(wikilinkError).toBeDefined();
           expect(wikilinkError?.suggestion).toBeDefined();
-          expect(wikilinkError?.found).toBe('[[n-abc123|Meeting]]');
+          expect(wikilinkError?.found).toBe('[[meeting/standup|Meeting]]');
         }
       }
     });
@@ -224,7 +224,7 @@ See [[meeting/standup]] for details.`;
     it('should include line and column information', () => {
       const content = `Line 1
 Line 2
-[[n-abc123]] on line 3`;
+[[meeting/notes]] on line 3`;
 
       try {
         linter.lintStrict(content, agentContext);
@@ -253,7 +253,7 @@ Line 2
 
 ## Section
 
-See [[meeting/standup|Weekly Meeting]] for details.
+See [[n-12345678|Weekly Meeting]] for details.
 
 ### Subsection
 

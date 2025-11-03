@@ -13,11 +13,14 @@ import type {
 } from '../types/index.js';
 
 export class WikilinkParser {
-  // Regex to match wikilinks in format [[type/filename|Display Name]] or [[filename|Display Name]]
+  // Regex to match wikilinks in format [[type/filename|Display Name]] or [[filename|Display Name]] or [[n-xxxxxxxx|Display]]
   private static readonly WIKILINK_REGEX = /\[\[([^\]|]+)(\|([^\]]+))?\]\]/g;
 
   // Regex to extract type/filename format
   private static readonly TYPE_FILENAME_REGEX = /^([^/]+)\/([^/]+)$/;
+
+  // Regex to validate note ID format (n- followed by 8 hex characters)
+  private static readonly NOTE_ID_REGEX = /^n-[0-9a-f]{8}$/;
 
   /**
    * Parse all wikilinks from content
@@ -36,11 +39,13 @@ export class WikilinkParser {
         end: match.index + fullMatch.length
       };
 
-      const parsedTarget = this.parseTarget(target);
+      const trimmedTarget = target.trim();
+      const parsedTarget = this.parseTarget(trimmedTarget);
 
       wikilinks.push({
-        target: target.trim(),
-        display: display?.trim() || target.trim(),
+        target: trimmedTarget,
+        display: display?.trim() || trimmedTarget,
+        noteId: parsedTarget.noteId,
         type: parsedTarget.type,
         filename: parsedTarget.filename,
         raw: fullMatch,
@@ -55,11 +60,23 @@ export class WikilinkParser {
   }
 
   /**
-   * Parse target to extract type and filename
+   * Parse target to extract note ID, type, and filename
    */
-  private static parseTarget(target: string): { type?: string; filename: string } {
-    const match = target.match(this.TYPE_FILENAME_REGEX);
+  private static parseTarget(target: string): {
+    noteId?: string;
+    type?: string;
+    filename: string;
+  } {
+    // Check if target is a note ID
+    if (this.isNoteId(target)) {
+      return {
+        noteId: target,
+        filename: target // Use ID as filename placeholder
+      };
+    }
 
+    // Check for type/filename format
+    const match = target.match(this.TYPE_FILENAME_REGEX);
     if (match) {
       return {
         type: match[1],
@@ -67,10 +84,17 @@ export class WikilinkParser {
       };
     }
 
-    // If no type specified, just return filename
+    // If no type specified, just return filename/title
     return {
       filename: target
     };
+  }
+
+  /**
+   * Check if a string is a valid note ID
+   */
+  static isNoteId(str: string): boolean {
+    return this.NOTE_ID_REGEX.test(str);
   }
 
   /**
@@ -81,11 +105,21 @@ export class WikilinkParser {
   }
 
   /**
-   * Create a properly formatted wikilink
+   * Create a properly formatted wikilink with type/filename
    */
   static createWikilink(type: string, filename: string, display?: string): string {
     const target = `${type}/${filename}`;
     return display ? `[[${target}|${display}]]` : `[[${target}]]`;
+  }
+
+  /**
+   * Create an ID-based wikilink
+   */
+  static createIdWikilink(noteId: string, display?: string): string {
+    if (!this.isNoteId(noteId)) {
+      throw new Error(`Invalid note ID format: ${noteId}. Expected format: n-xxxxxxxx`);
+    }
+    return display ? `[[${noteId}|${display}]]` : `[[${noteId}]]`;
   }
 
   /**

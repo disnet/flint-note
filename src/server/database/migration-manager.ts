@@ -7,6 +7,7 @@
 
 import type { DatabaseConnection } from './schema.js';
 import type { DatabaseManager } from './schema.js';
+import type { WikiLink } from '../types/index.js';
 import { LinkExtractor } from '../core/link-extractor.js';
 import crypto from 'crypto';
 import fs from 'fs/promises';
@@ -1242,8 +1243,175 @@ async function migrateToV2_5_0(db: DatabaseConnection): Promise<void> {
   }
 }
 
+/**
+ * Migration function to convert all wikilinks to ID-based format
+ */
+async function migrateToV2_6_0(
+  db: DatabaseConnection,
+  _dbManager: DatabaseManager,
+  workspacePath: string
+): Promise<void> {
+  console.log('Migrating to v2.6.0: Converting wikilinks to ID-based format');
+
+  try {
+    const { WikilinkParser } = await import('../core/wikilink-parser.js');
+
+    // Check if content column exists (it should, but be defensive for tests)
+    const tableInfo = await db.all<{ name: string }>('PRAGMA table_info(notes)');
+    const hasContentColumn = tableInfo.some((col) => col.name === 'content');
+
+    if (!hasContentColumn) {
+      console.log(
+        'Skipping wikilink migration - content column not found (test environment?)'
+      );
+      return;
+    }
+
+    // Get all notes from the database
+    const notes = await db.all<{ id: string; path: string; content: string }>(
+      'SELECT id, path, content FROM notes'
+    );
+
+    console.log(`Processing ${notes.length} notes for wikilink migration...`);
+
+    let updatedCount = 0;
+    let errorCount = 0;
+    const updatedNoteIds = new Set<string>();
+
+    for (const note of notes) {
+      try {
+        // Parse wikilinks from content
+        const parseResult = WikilinkParser.parseWikilinks(note.content);
+
+        // Build replacement list with resolved IDs
+        const replacements: Array<{
+          link: WikiLink;
+          normalizedLink: string;
+        }> = [];
+
+        for (const link of parseResult.wikilinks) {
+          // Skip if already in ID format
+          if (link.noteId) {
+            continue;
+          }
+
+          // Resolve title/filename to note ID
+          const targetNoteId = await LinkExtractor.findNoteByTitle(link.target, db);
+
+          if (targetNoteId) {
+            // Convert to ID-based format, preserving original display text
+            const displayText = link.display !== link.target ? link.display : link.target;
+            const normalizedLink = WikilinkParser.createIdWikilink(
+              targetNoteId,
+              displayText
+            );
+
+            replacements.push({ link, normalizedLink });
+          }
+          // If we can't resolve the link, leave it as-is (broken link)
+        }
+
+        // If no changes needed, skip this note
+        if (replacements.length === 0) {
+          continue;
+        }
+
+        // Replace wikilinks in content by position (descending to avoid position shifts)
+        let normalizedContent = note.content;
+        const sortedReplacements = replacements.sort(
+          (a, b) => b.link.position.start - a.link.position.start
+        );
+
+        for (const { link, normalizedLink } of sortedReplacements) {
+          normalizedContent =
+            normalizedContent.slice(0, link.position.start) +
+            normalizedLink +
+            normalizedContent.slice(link.position.end);
+        }
+
+        // Update the note content in the database
+        await db.run(
+          'UPDATE notes SET content = ?, updated = CURRENT_TIMESTAMP WHERE id = ?',
+          [normalizedContent, note.id]
+        );
+
+        // Write the updated content back to the file
+        const absolutePath = toAbsolutePath(note.path, workspacePath);
+        const fileContent = await fs.readFile(absolutePath, 'utf-8');
+
+        // Parse frontmatter and body to preserve frontmatter
+        const frontmatterRegex = /^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/;
+        const match = fileContent.match(frontmatterRegex);
+
+        let updatedFileContent: string;
+        if (match) {
+          const frontmatter = match[1];
+          updatedFileContent = `---\n${frontmatter}\n---\n${normalizedContent}`;
+        } else {
+          // No frontmatter, just use normalized content
+          updatedFileContent = normalizedContent;
+        }
+
+        await fs.writeFile(absolutePath, updatedFileContent, 'utf-8');
+
+        updatedCount++;
+        updatedNoteIds.add(note.id);
+      } catch (error) {
+        console.error(
+          `Failed to migrate wikilinks for note ${note.id}:`,
+          error instanceof Error ? error.message : 'Unknown error'
+        );
+        errorCount++;
+      }
+    }
+
+    console.log(
+      `Wikilink migration complete: ${updatedCount} notes updated, ${errorCount} errors`
+    );
+
+    // Re-extract links only for notes that were updated
+    if (updatedNoteIds.size > 0) {
+      console.log(`Re-extracting links for ${updatedNoteIds.size} updated notes...`);
+      for (const note of notes) {
+        // Skip notes that weren't updated
+        if (!updatedNoteIds.has(note.id)) {
+          continue;
+        }
+
+        try {
+          const absolutePath = toAbsolutePath(note.path, workspacePath);
+          const fileContent = await fs.readFile(absolutePath, 'utf-8');
+
+          // Parse frontmatter and body
+          const frontmatterRegex = /^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/;
+          const match = fileContent.match(frontmatterRegex);
+          const content = match ? match[2] : fileContent;
+
+          const extractionResult = LinkExtractor.extractLinks(content);
+          await LinkExtractor.storeLinks(note.id, extractionResult, db, false);
+        } catch (error) {
+          console.error(
+            `Failed to re-extract links for note ${note.id}:`,
+            error instanceof Error ? error.message : 'Unknown error'
+          );
+        }
+      }
+
+      console.log('Link re-extraction complete');
+    } else {
+      console.log('No notes updated, skipping link re-extraction');
+    }
+  } catch (error) {
+    console.error(
+      'Fatal error during wikilink migration:',
+      error instanceof Error ? error.message : 'Unknown error'
+    );
+    throw error;
+  }
+}
+
 export class DatabaseMigrationManager {
-  private static readonly CURRENT_SCHEMA_VERSION = '2.5.0';
+  private static readonly CURRENT_SCHEMA_VERSION = '2.6.0';
 
   private static readonly MIGRATIONS: DatabaseMigration[] = [
     {
@@ -1302,6 +1470,13 @@ export class DatabaseMigrationManager {
       requiresFullRebuild: false,
       requiresLinkMigration: false,
       migrationFunction: migrateToV2_5_0
+    },
+    {
+      version: '2.6.0',
+      description: 'Convert wikilinks to ID-based format [[n-xxxxxxxx|display]]',
+      requiresFullRebuild: false,
+      requiresLinkMigration: false, // Don't re-extract all links, just update wikilinks in content
+      migrationFunction: migrateToV2_6_0
     }
   ];
 
@@ -1424,6 +1599,17 @@ export class DatabaseMigrationManager {
     _workspacePath: string
   ): Promise<boolean> {
     try {
+      // Check if content column exists (it should, but be defensive for tests)
+      const tableInfo = await db.all<{ name: string }>('PRAGMA table_info(notes)');
+      const hasContentColumn = tableInfo.some((col) => col.name === 'content');
+
+      if (!hasContentColumn) {
+        console.log(
+          'Skipping link migration - content column not found (test environment?)'
+        );
+        return false;
+      }
+
       // Get all existing notes from database
       const notes = await db.all<{ id: string; content: string }>(
         'SELECT id, content FROM notes WHERE content IS NOT NULL'

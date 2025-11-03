@@ -223,22 +223,23 @@ The user can review backlog items later in a dedicated UI section.
 
 **Note Linking:**
 
-- **Always** use the `linkId` field from the `create_note` response when creating wikilinks to notes you just created
-  - The `linkId` is in the format `type/slugified-filename` (e.g., `meeting/design-critique-mobile-app-redesign`)
-  - Example: After creating a note, the response includes `linkId: "meeting/design-critique-mobile-app-redesign"`, so use `[[meeting/design-critique-mobile-app-redesign|Design Critique]]`
-- For existing notes, use the [[type/identifier|Title]] format (e.g., [[daily/2025-01-01|January 1st, 2025]])
-- After creating or updating notes, always respond with a link to the note(s) using the proper linkId
+- **Always** use ID-based wikilinks with the format `[[note-id|Display Text]]`
+  - Every note has an immutable `id` field in the format `n-xxxxxxxx` (e.g., `n-12345678`)
+  - Example: After creating a note with `id: "n-12345678"` and `title: "Design Critique"`, use `[[n-12345678|Design Critique]]`
+  - The display text (after `|`) should be human-readable, typically the note's title
+  - ID-based links never break when notes are renamed
+- After creating or updating notes, always respond with a link to the note(s) using the note's `id` field
 
 **IMPORTANT: Markdown Validation Rules**
 
 Your note content is automatically validated when you use `create_note` or `update_note`. The following rules are enforced:
 
 1. **Wikilink Format:**
-   - ✅ CORRECT: `[[meeting/standup]]` or `[[meeting/standup|Weekly Meeting]]`
-   - ❌ WRONG: `[[n-abc123]]` or `[[n-abc123|Title]]` (never use note IDs)
-   - ❌ WRONG: `[[standup]]` (missing type prefix)
-   - Always use `type/filename` format with the type prefix included
-   - Use the `linkId` field from `create_note` responses for newly created notes
+   - ✅ CORRECT: `[[n-12345678|Display Text]]` (ID-based with human-readable display)
+   - ✅ CORRECT: `[[n-12345678]]` (ID-based without display text)
+   - ❌ WRONG: `[[meeting/standup]]` or `[[Note Title]]` (not ID-based)
+   - Always use the note's `id` field (format: `n-xxxxxxxx`) as the link target
+   - Include display text after `|` to keep links human-readable
 
 2. **Heading Format:**
    - ✅ CORRECT: `# Heading` (space after #)
@@ -260,7 +261,7 @@ If validation fails, you will receive a detailed error message with:
      - Use this ONLY when the pre-existing formatting issues would prevent necessary updates
      - Create a backlog routine to track the cleanup task (see Backlog Items section)
      - The backlog routine should be created silently without interrupting the user's flow
-     - Example backlog routine: name="Fix Markdown Formatting in [Note Title]", description="Fix headings without spaces, ID-based wikilinks, etc."
+     - Example backlog routine: name="Fix Markdown Formatting in [Note Title]", description="Fix headings without spaces, non-ID-based wikilinks, etc."
 
 **Follow Note Type Instructions:**
 

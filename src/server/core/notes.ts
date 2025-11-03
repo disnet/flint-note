@@ -1966,10 +1966,6 @@ export class NoteManager {
       // Note ID remains unchanged - it's immutable and stored in frontmatter
       const noteId = currentNote.id;
 
-      // Track old filename for wikilink updates
-      const oldFilename = currentNote.filename.replace(/\.md$/, '');
-      const newFilename = finalBaseFilename;
-
       // Update the metadata with new title and filename
       const updatedMetadata = {
         ...currentNote.metadata,
@@ -2030,41 +2026,8 @@ export class NoteManager {
           // Continue with operation - broken link updates are not critical
         }
 
-        // Update wikilinks for filename changes (if filename changed)
-        // Note: ID stays the same, but we need to update the wikilink text in markdown
-        if (oldFilename !== newFilename) {
-          try {
-            const moveResult = await LinkExtractor.updateWikilinksForMovedNote(
-              noteId,
-              noteId,
-              trimmedTitle,
-              db,
-              this.#workspace.rootPath
-            );
-            wikilinksResult.notesUpdated += moveResult.notesUpdated;
-            wikilinksResult.linksUpdated += moveResult.linksUpdated;
-          } catch (error) {
-            console.warn('Failed to update wikilinks for renamed note:', error);
-            // Continue with operation - wikilink updates are not critical for core functionality
-          }
-        }
-
-        // Always update wikilinks for title changes
-        try {
-          const renameResult = await LinkExtractor.updateWikilinksForRenamedNote(
-            noteId,
-            currentNote.title,
-            trimmedTitle,
-            noteId,
-            db,
-            this.#workspace.rootPath
-          );
-          wikilinksResult.notesUpdated += renameResult.notesUpdated;
-          wikilinksResult.linksUpdated += renameResult.linksUpdated;
-        } catch (error) {
-          console.warn('Failed to update wikilinks for renamed note:', error);
-          // Continue with operation - wikilink updates are not critical for core functionality
-        }
+        // Note: With ID-based wikilinks, we no longer need to update links
+        // when notes are renamed. The ID remains constant, so all links continue to work.
       }
 
       return {
@@ -2215,20 +2178,10 @@ export class NoteManager {
 
     // Update links if search manager is available
     if (this.#hybridSearchManager) {
-      const db = await this.#hybridSearchManager.getDatabaseConnection();
-
-      // Update all links that reference the old path
-      // Note: ID stays the same, but wikilink text needs to update to new type/filename
-      const result = await LinkExtractor.updateWikilinksForMovedNote(
-        noteId,
-        noteId,
-        currentNote.title,
-        db,
-        this.#workspace.rootPath
-      );
-
-      linksUpdated = result.linksUpdated;
-      notesWithUpdatedLinks = result.notesUpdated;
+      // Note: With ID-based wikilinks, we no longer need to update links
+      // when notes are moved to a different type. The ID remains constant.
+      linksUpdated = 0;
+      notesWithUpdatedLinks = 0;
     }
 
     const timestamp = new Date().toISOString();

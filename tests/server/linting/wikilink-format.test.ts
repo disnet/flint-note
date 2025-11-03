@@ -18,118 +18,117 @@ describe('WikilinkFormatRule', () => {
     userSeverity: 'off'
   };
 
-  describe('valid wikilinks', () => {
-    it('should accept type/filename format', () => {
-      const content = 'See [[meeting/standup]] for details.';
+  describe('valid wikilinks for agents (ID-based)', () => {
+    it('should accept ID-based wikilink without display text', () => {
+      const content = 'See [[n-12345678]] for details.';
       const issues = rule.validate(content, agentContext, agentConfig);
       expect(issues).toHaveLength(0);
     });
 
-    it('should accept type/filename with display text', () => {
-      const content = 'See [[meeting/standup|Weekly Standup]] for details.';
+    it('should accept ID-based wikilink with display text', () => {
+      const content = 'See [[n-12345678|My Note Title]] for details.';
       const issues = rule.validate(content, agentContext, agentConfig);
       expect(issues).toHaveLength(0);
     });
 
-    it('should accept multiple valid links', () => {
+    it('should accept multiple ID-based wikilinks', () => {
       const content = `
 # Meeting Notes
 
-See [[meeting/standup|Weekly Standup]] and [[project/alpha|Alpha Project]].
-Also reference [[daily/2025-01-01]] for context.
+See [[n-12345678|Weekly Standup]] and [[n-abcdef00|Alpha Project]].
+Also reference [[n-11111111|Daily Note]] for context.
       `;
       const issues = rule.validate(content, agentContext, agentConfig);
       expect(issues).toHaveLength(0);
     });
 
-    it('should accept links with hyphens and numbers', () => {
-      const content =
-        '[[project/alpha-2-launch]] and [[meeting/q4-2024-planning|Q4 Planning]].';
+    it('should accept ID-based links with special characters in display', () => {
+      const content = '[[n-12345678|Note: Meeting (2024-01-01)]]';
+      const issues = rule.validate(content, agentContext, agentConfig);
+      expect(issues).toHaveLength(0);
+    });
+
+    it('should accept all lowercase hex IDs', () => {
+      const content = '[[n-abcdef12]] and [[n-deadbeef|Another]] and [[n-00112233]]';
       const issues = rule.validate(content, agentContext, agentConfig);
       expect(issues).toHaveLength(0);
     });
   });
 
-  describe('invalid wikilinks - note IDs', () => {
-    it('should reject bare note ID', () => {
-      const content = 'See [[n-abc123]] for details.';
+  describe('invalid wikilinks for agents (non-ID-based)', () => {
+    it('should reject bare title without ID', () => {
+      const content = 'See [[My Note]] for details.';
       const issues = rule.validate(content, agentContext, agentConfig);
       expect(issues).toHaveLength(1);
       expect(issues[0].ruleId).toBe('wikilink-format');
       expect(issues[0].severity).toBe('error');
-      expect(issues[0].message).toContain('note IDs');
-      expect(issues[0].found).toBe('[[n-abc123]]');
+      expect(issues[0].message).toContain('ID-based wikilinks');
+      expect(issues[0].found).toBe('[[My Note]]');
     });
 
-    it('should reject note ID with display text', () => {
-      const content = 'See [[n-abc123|Meeting Notes]] for details.';
+    it('should reject type/filename format', () => {
+      const content = 'See [[meeting/standup]] for details.';
       const issues = rule.validate(content, agentContext, agentConfig);
       expect(issues).toHaveLength(1);
       expect(issues[0].ruleId).toBe('wikilink-format');
-      expect(issues[0].message).toContain('note IDs');
-      expect(issues[0].found).toBe('[[n-abc123|Meeting Notes]]');
+      expect(issues[0].message).toContain('ID-based wikilinks');
+      expect(issues[0].found).toBe('[[meeting/standup]]');
     });
 
-    it('should reject uppercase note ID', () => {
-      const content = 'See [[N-ABC123]] for details.';
+    it('should reject type/filename with display text', () => {
+      const content = 'See [[meeting/standup|Weekly Standup]] for details.';
       const issues = rule.validate(content, agentContext, agentConfig);
       expect(issues).toHaveLength(1);
-    });
-  });
-
-  describe('invalid wikilinks - missing type prefix', () => {
-    it('should reject link without type prefix', () => {
-      const content = 'See [[standup]] for details.';
-      const issues = rule.validate(content, agentContext, agentConfig);
-      expect(issues).toHaveLength(1);
-      expect(issues[0].ruleId).toBe('wikilink-format');
-      expect(issues[0].message).toContain('type prefix');
-      expect(issues[0].found).toBe('[[standup]]');
+      expect(issues[0].message).toContain('ID-based wikilinks');
     });
 
-    it('should reject link without type prefix but with display text', () => {
-      const content = 'See [[standup|Weekly Standup]] for details.';
+    it('should reject invalid ID formats', () => {
+      const content = `
+- [[n-123]] (too short)
+- [[n-12345678901]] (too long)
+- [[n-ABCDEF12]] (uppercase)
+- [[n-1234567g]] (invalid hex)
+- [[note-12345678]] (wrong prefix)
+      `;
       const issues = rule.validate(content, agentContext, agentConfig);
-      expect(issues).toHaveLength(1);
-      expect(issues[0].message).toContain('type prefix');
-    });
-  });
-
-  describe('invalid wikilinks - multiple slashes', () => {
-    it('should reject link with multiple slashes', () => {
-      const content = 'See [[meeting/2025/standup]] for details.';
-      const issues = rule.validate(content, agentContext, agentConfig);
-      expect(issues).toHaveLength(1);
-      expect(issues[0].message).toContain('single slash');
+      expect(issues.length).toBeGreaterThan(0);
+      // All of these should be rejected
+      expect(issues.length).toBe(5);
     });
   });
 
   describe('multiple issues', () => {
-    it('should report all issues in content', () => {
+    it('should report all non-ID-based links', () => {
       const content = `
 # Notes
 
-- [[n-abc123|Note with ID]]
-- [[missing-type]]
-- [[meeting/standup|Valid Link]]
-- [[n-def456]]
+- [[My Note]] (bare title)
+- [[meeting/standup|Valid Link]] (type/filename)
+- [[n-12345678|Correct]] (ID-based - valid)
+- [[Another Note]] (bare title)
       `;
       const issues = rule.validate(content, agentContext, agentConfig);
-      expect(issues).toHaveLength(3); // Two ID-based, one missing type
+      expect(issues).toHaveLength(3); // Three non-ID-based links
     });
   });
 
   describe('context sensitivity', () => {
     it('should not validate for user context', () => {
-      const content = 'See [[n-abc123]] and [[missing-type]] for details.';
+      const content = 'See [[My Note]] and [[meeting/standup]] for details.';
       const issues = rule.validate(content, userContext, agentConfig);
       expect(issues).toHaveLength(0); // userSeverity is 'off'
     });
 
     it('should validate for agent context', () => {
-      const content = 'See [[n-abc123]] for details.';
+      const content = 'See [[My Note]] for details.';
       const issues = rule.validate(content, agentContext, agentConfig);
       expect(issues).toHaveLength(1);
+    });
+
+    it('should allow users to use ID-based links too', () => {
+      const content = 'See [[n-12345678|My Note]] for details.';
+      const issues = rule.validate(content, userContext, agentConfig);
+      expect(issues).toHaveLength(0);
     });
   });
 
@@ -137,7 +136,7 @@ Also reference [[daily/2025-01-01]] for context.
     it('should report correct line number', () => {
       const content = `Line 1
 Line 2
-[[n-abc123]] on line 3
+[[My Note]] on line 3
 Line 4`;
       const issues = rule.validate(content, agentContext, agentConfig);
       expect(issues).toHaveLength(1);
@@ -145,7 +144,7 @@ Line 4`;
     });
 
     it('should report column number', () => {
-      const content = 'Some text [[n-abc123]] more text';
+      const content = 'Some text [[My Note]] more text';
       const issues = rule.validate(content, agentContext, agentConfig);
       expect(issues).toHaveLength(1);
       expect(issues[0].column).toBe(10); // Position of [[ in the string
@@ -171,9 +170,17 @@ Line 4`;
     });
 
     it('should handle wikilinks with whitespace', () => {
-      const content = '[[  meeting/standup  ]]';
+      const content = '[[  n-12345678  ]]';
       const issues = rule.validate(content, agentContext, agentConfig);
-      expect(issues).toHaveLength(0); // Trimmed to valid format
+      // Should be valid after trimming
+      expect(issues).toHaveLength(0);
+    });
+
+    it('should handle wikilinks with whitespace in non-ID format', () => {
+      const content = '[[  My Note  ]]';
+      const issues = rule.validate(content, agentContext, agentConfig);
+      // Should be invalid (not ID-based)
+      expect(issues).toHaveLength(1);
     });
   });
 });

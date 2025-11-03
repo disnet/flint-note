@@ -449,4 +449,190 @@ describe('HybridSearchManager - Filesystem Sync', () => {
       expect(response.results[0].id).toMatch(/^n-[a-f0-9]{8}$/);
     });
   });
+
+  describe('wikilink normalization on external edits', () => {
+    it('should normalize title-based wikilinks to ID-based on external edit', async () => {
+      // Create target note first
+      const noteDir = path.join(testWorkspacePath, 'general');
+      await fs.mkdir(noteDir, { recursive: true });
+
+      const targetPath = path.join(noteDir, 'target.md');
+      await fs.writeFile(
+        targetPath,
+        '---\nid: n-12345678\ntitle: Target Note\ntype: general\n---\n# Target Note\n\nTarget content.'
+      );
+
+      // Create source note with title-based wikilink
+      const sourcePath = path.join(noteDir, 'source.md');
+      await fs.writeFile(
+        sourcePath,
+        '---\nid: n-87654321\ntitle: Source Note\ntype: general\n---\n# Source Note\n\nSee [[Target Note]] for details.'
+      );
+
+      // Index both notes
+      await searchManager.rebuildIndex();
+
+      // Wait a bit to ensure mtime differs
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Externally edit source to add another title-based link
+      await fs.writeFile(
+        sourcePath,
+        '---\nid: n-87654321\ntitle: Source Note\ntype: general\n---\n# Source Note\n\nSee [[Target Note]] and [[Target Note|custom display]] for details.'
+      );
+
+      // Sync filesystem changes - should trigger normalization
+      await searchManager.syncFileSystemChanges();
+
+      // Verify wikilinks were normalized to ID-based
+      const content = await fs.readFile(sourcePath, 'utf-8');
+      expect(content).toContain('[[n-12345678|Target Note]]');
+      expect(content).toContain('[[n-12345678|custom display]]');
+      expect(content).not.toContain('See [[Target Note]]'); // Original should be replaced
+    });
+
+    it('should handle type/filename wikilinks and normalize them', async () => {
+      // Create target note
+      const meetingDir = path.join(testWorkspacePath, 'meeting');
+      await fs.mkdir(meetingDir, { recursive: true });
+
+      const targetPath = path.join(meetingDir, 'standup.md');
+      await fs.writeFile(
+        targetPath,
+        '---\nid: n-aaaabbbb\ntitle: Daily Standup\ntype: meeting\nfilename: standup\n---\n# Daily Standup\n\nStandup notes.'
+      );
+
+      // Create source note with type/filename wikilink
+      const generalDir = path.join(testWorkspacePath, 'general');
+      await fs.mkdir(generalDir, { recursive: true });
+
+      const sourcePath = path.join(generalDir, 'notes.md');
+      await fs.writeFile(
+        sourcePath,
+        '---\nid: n-ccccdddd\ntitle: My Notes\ntype: general\n---\n# My Notes\n\nSee [[meeting/standup]] for standup.'
+      );
+
+      // Index both notes
+      await searchManager.rebuildIndex();
+
+      // Wait a bit
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Externally edit source
+      await fs.writeFile(
+        sourcePath,
+        '---\nid: n-ccccdddd\ntitle: My Notes\ntype: general\n---\n# My Notes\n\nSee [[meeting/standup]] for standup.\nAlso [[meeting/standup|Custom Display]].'
+      );
+
+      // Sync should normalize
+      await searchManager.syncFileSystemChanges();
+
+      // Verify normalization
+      const content = await fs.readFile(sourcePath, 'utf-8');
+      expect(content).toContain('[[n-aaaabbbb|meeting/standup]]');
+      expect(content).toContain('[[n-aaaabbbb|Custom Display]]');
+    });
+
+    it('should preserve wikilinks that cannot be resolved', async () => {
+      // Create source note with link to non-existent note
+      const noteDir = path.join(testWorkspacePath, 'general');
+      await fs.mkdir(noteDir, { recursive: true });
+
+      const sourcePath = path.join(noteDir, 'source.md');
+      await fs.writeFile(
+        sourcePath,
+        '---\nid: n-11111111\ntitle: Source\ntype: general\n---\n# Source\n\nSee [[Nonexistent Note]] for details.'
+      );
+
+      // Index
+      await searchManager.rebuildIndex();
+
+      // Wait a bit
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Externally edit
+      await fs.writeFile(
+        sourcePath,
+        '---\nid: n-11111111\ntitle: Source\ntype: general\n---\n# Source\n\nSee [[Nonexistent Note]] and [[Another Missing]] for details.'
+      );
+
+      // Sync
+      await searchManager.syncFileSystemChanges();
+
+      // Verify broken links are preserved as-is
+      const content = await fs.readFile(sourcePath, 'utf-8');
+      expect(content).toContain('[[Nonexistent Note]]');
+      expect(content).toContain('[[Another Missing]]');
+    });
+
+    it('should normalize only resolvable links in mixed content', async () => {
+      // Create one target note
+      const noteDir = path.join(testWorkspacePath, 'general');
+      await fs.mkdir(noteDir, { recursive: true });
+
+      const targetPath = path.join(noteDir, 'existing.md');
+      await fs.writeFile(
+        targetPath,
+        '---\nid: n-99999999\ntitle: Existing Note\ntype: general\n---\n# Existing Note\n\nExists.'
+      );
+
+      // Create source with mix of resolvable and broken links
+      const sourcePath = path.join(noteDir, 'mixed.md');
+      await fs.writeFile(
+        sourcePath,
+        '---\nid: n-88888888\ntitle: Mixed\ntype: general\n---\n# Mixed\n\nSee [[Existing Note]] and [[Missing Note]].'
+      );
+
+      // Index
+      await searchManager.rebuildIndex();
+
+      // Wait
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // External edit
+      await fs.writeFile(
+        sourcePath,
+        '---\nid: n-88888888\ntitle: Mixed\ntype: general\n---\n# Mixed\n\nSee [[Existing Note]] and [[Missing Note]] here.'
+      );
+
+      // Sync
+      await searchManager.syncFileSystemChanges();
+
+      // Verify only resolvable link was normalized
+      const content = await fs.readFile(sourcePath, 'utf-8');
+      expect(content).toContain('[[n-99999999|Existing Note]]');
+      expect(content).toContain('[[Missing Note]]'); // Unchanged
+    });
+
+    it('should not normalize already ID-based wikilinks', async () => {
+      // Create source note with already ID-based link
+      const noteDir = path.join(testWorkspacePath, 'general');
+      await fs.mkdir(noteDir, { recursive: true });
+
+      const sourcePath = path.join(noteDir, 'source.md');
+      const originalContent =
+        '---\nid: n-11111111\ntitle: Source\ntype: general\n---\n# Source\n\nSee [[n-12345678|Already ID-based]] for details.';
+
+      await fs.writeFile(sourcePath, originalContent);
+
+      // Index
+      await searchManager.rebuildIndex();
+
+      // Wait
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // External edit (just add a word)
+      await fs.writeFile(
+        sourcePath,
+        '---\nid: n-11111111\ntitle: Source\ntype: general\n---\n# Source\n\nSee [[n-12345678|Already ID-based]] for more details.'
+      );
+
+      // Sync
+      await searchManager.syncFileSystemChanges();
+
+      // Verify ID-based link is unchanged
+      const content = await fs.readFile(sourcePath, 'utf-8');
+      expect(content).toContain('[[n-12345678|Already ID-based]]');
+    });
+  });
 });

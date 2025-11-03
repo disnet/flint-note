@@ -93,7 +93,7 @@ describe('MarkdownLinter', () => {
       const linter = new MarkdownLinter();
       linter.registerRule(new WikilinkFormatRule());
 
-      const content = 'See [[meeting/standup]] for details.';
+      const content = 'See [[n-12345678|Meeting Notes]] for details.';
       const context: LintContext = { source: 'agent' };
 
       const result = linter.lint(content, context);
@@ -169,7 +169,7 @@ describe('MarkdownLinter', () => {
       const linter = new MarkdownLinter();
       linter.registerRule(new WikilinkFormatRule());
 
-      const content = 'See [[meeting/standup]] for details.';
+      const content = 'See [[n-12345678|Meeting Notes]] for details.';
       const context: LintContext = { source: 'agent' };
 
       expect(() => {

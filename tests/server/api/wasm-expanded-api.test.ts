@@ -866,17 +866,17 @@ describe('WASMCodeEvaluator - Phase 2C: Expanded API', () => {
         code: `
           async function main() {
             try {
-              // Create related notes
-              const note1 = await flintApi.createNote({
-                type: 'general',
-                title: 'Relationship Test Note 1',
-                content: 'This note is related to [[Relationship Test Note 2]]'
-              });
-
+              // Create related notes (note2 first to get its ID for the wikilink)
               const note2 = await flintApi.createNote({
                 type: 'general',
                 title: 'Relationship Test Note 2',
                 content: 'This note is related back'
+              });
+
+              const note1 = await flintApi.createNote({
+                type: 'general',
+                title: 'Relationship Test Note 1',
+                content: \`This note is related to [[\${note2.id}|Relationship Test Note 2]]\`
               });
 
               // Get comprehensive relationships for note1

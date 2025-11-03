@@ -1,6 +1,6 @@
 /**
  * Wikilink format validation rule
- * Ensures wikilinks use type/filename format instead of note IDs
+ * Ensures wikilinks use ID-based format for AI agents
  */
 
 import type { LintContext, LintIssue, LintRule, LintRuleConfig } from '../lint-rule.js';
@@ -15,17 +15,22 @@ const WIKILINK_REGEX = /\[\[([^\]|]+)(\|([^\]]+))?\]\]/g;
 /**
  * Regular expression for note ID format (n-xxxxxxxx)
  */
-const NOTE_ID_REGEX = /^n-[a-f0-9]+$/i;
+const NOTE_ID_REGEX = /^n-[a-f0-9]{8}$/;
 
 /**
  * Validates that wikilinks use the correct format:
- * - Must use type/filename format (e.g., [[meeting/standup]])
- * - Must NOT use note IDs (e.g., [[n-abc123]])
- * - May optionally include display text (e.g., [[meeting/standup|Weekly Meeting]])
+ * - Agents MUST use ID-based format (e.g., [[n-12345678|Display Text]])
+ * - Users can use any format (validation disabled for user edits)
+ *
+ * Why ID-based links for agents:
+ * - Note titles can change, but IDs are immutable
+ * - Links never break when notes are renamed
+ * - Simpler implementation (no need to update links across all notes)
  */
 export class WikilinkFormatRule implements LintRule {
   readonly id = 'wikilink-format';
-  readonly description = 'Wikilinks must use type/filename format, not note IDs';
+  readonly description =
+    'AI agents must use ID-based wikilinks (e.g., [[n-12345678|Title]])';
   readonly defaultConfig: LintRuleConfig = {
     agentSeverity: 'error',
     userSeverity: 'off', // Users can use whatever format they want
@@ -49,57 +54,27 @@ export class WikilinkFormatRule implements LintRule {
     for (const match of matches) {
       const fullMatch = match[0]; // [[...]]
       const target = match[1].trim(); // The part before |
-      const displayText = match[3]; // The part after | (if present)
       const offset = match.index!;
 
-      // Check if this is an ID-based link
+      // Check if this is an ID-based link (which is what we want for agents)
       if (NOTE_ID_REGEX.test(target)) {
-        issues.push({
-          ruleId: this.id,
-          severity,
-          message: 'Wikilinks should use type/filename format, not note IDs',
-          line: getLineNumber(content, offset),
-          column: getColumnNumber(content, offset),
-          found: fullMatch,
-          expected: 'type/filename format (e.g., [[meeting/standup|Title]])',
-          suggestion: displayText
-            ? 'Use the linkId field from create_note response, which provides the correct type/filename format'
-            : 'Replace note ID with type/filename format'
-        });
+        // This is correct format for agents - no issue
         continue;
       }
 
-      // Check if this is missing type prefix (no slash)
-      if (!target.includes('/')) {
-        issues.push({
-          ruleId: this.id,
-          severity,
-          message: 'Wikilinks should include type prefix (e.g., meeting/filename)',
-          line: getLineNumber(content, offset),
-          column: getColumnNumber(content, offset),
-          found: fullMatch,
-          expected: 'type/filename format with type prefix',
-          suggestion:
-            'Add the appropriate note type prefix (e.g., meeting/, daily/, project/)'
-        });
-        continue;
-      }
-
-      // Validate type/filename format structure
-      const parts = target.split('/');
-      if (parts.length > 2) {
-        // More than one slash - might be a path with subdirectories
-        issues.push({
-          ruleId: this.id,
-          severity,
-          message: 'Wikilink target should have format type/filename (single slash)',
-          line: getLineNumber(content, offset),
-          column: getColumnNumber(content, offset),
-          found: fullMatch,
-          expected: 'type/filename with single slash',
-          suggestion: 'Use only one slash to separate type and filename'
-        });
-      }
+      // If we reach here, the link is NOT ID-based, which is an error for agents
+      issues.push({
+        ruleId: this.id,
+        severity,
+        message:
+          'AI agents must use ID-based wikilinks (format: [[n-xxxxxxxx|Display Text]])',
+        line: getLineNumber(content, offset),
+        column: getColumnNumber(content, offset),
+        found: fullMatch,
+        expected: 'ID-based wikilink (e.g., [[n-12345678|Display Text]])',
+        suggestion:
+          'Use the note.id field when creating wikilinks. The display text (after |) should be human-readable.'
+      });
     }
 
     return issues;
