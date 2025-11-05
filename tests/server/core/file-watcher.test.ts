@@ -237,10 +237,25 @@ This note was created outside of Flint.`;
       // Delete the file EXTERNALLY
       await fs.unlink(notePath);
 
-      // Wait for file watcher to detect the deletion
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      // Poll for the external-delete event with a timeout
+      // This is more reliable than a fixed wait time
+      const maxWaitMs = 2000;
+      const pollIntervalMs = 100;
+      const startTime = Date.now();
 
-      // Should have detected an external delete
+      while (Date.now() - startTime < maxWaitMs) {
+        const externalDeleteEvents = capturedEvents.filter(
+          (e) => e.type === 'external-delete'
+        );
+        if (externalDeleteEvents.length > 0) {
+          // Event detected!
+          expect(externalDeleteEvents.length).toBeGreaterThan(0);
+          return;
+        }
+        await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+      }
+
+      // Timeout - event was not detected
       const externalDeleteEvents = capturedEvents.filter(
         (e) => e.type === 'external-delete'
       );
