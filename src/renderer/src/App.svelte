@@ -9,6 +9,7 @@
   import MessageBusDebugPanel from './components/MessageBusDebugPanel.svelte';
   import ExternalEditConflictNotification from './components/ExternalEditConflictNotification.svelte';
   import ToastNotification from './components/ToastNotification.svelte';
+  import QuickEntryModal from './components/QuickEntryModal.svelte';
   import type { Message } from './services/types';
   import type { NoteMetadata } from './services/noteStore.svelte';
   import { getChatService } from './services/chatService';
@@ -93,6 +94,7 @@
     maxSteps: number;
   } | null>(null);
   let refreshCredits: (() => Promise<void>) | undefined = $state();
+  let isQuickEntryOpen = $state(false);
 
   async function handleNoteSelect(note: NoteMetadata): Promise<void> {
     await noteNavigationService.openNote(note, 'navigation', openNoteEditor, () => {
@@ -307,7 +309,13 @@
   // Global keyboard shortcuts
   $effect(() => {
     function handleKeyDown(event: KeyboardEvent): void {
-      // Ctrl/Cmd + Shift + N to create new note
+      // Ctrl/Cmd + N to open quick entry modal
+      if (event.key === 'n' && (event.ctrlKey || event.metaKey) && !event.shiftKey) {
+        event.preventDefault();
+        isQuickEntryOpen = true;
+      }
+
+      // Ctrl/Cmd + Shift + N to create new note directly
       if (event.key === 'n' && (event.ctrlKey || event.metaKey) && event.shiftKey) {
         event.preventDefault();
         handleCreateNote(undefined, true);
@@ -1025,6 +1033,9 @@
 
     <!-- Toast Notifications -->
     <ToastNotification />
+
+    <!-- Quick Entry Modal -->
+    <QuickEntryModal isOpen={isQuickEntryOpen} onClose={() => (isQuickEntryOpen = false)} />
   </div>
 {/if}
 
