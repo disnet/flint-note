@@ -635,4 +635,220 @@ describe('HybridSearchManager - Filesystem Sync', () => {
       expect(content).toContain('[[n-12345678|Already ID-based]]');
     });
   });
+
+  describe('upsert conflict detection and resolution', () => {
+    it('should detect and resolve ID conflict when same (type, filename) exists with different ID', async () => {
+      const noteDir = path.join(testWorkspacePath, 'general');
+      await fs.mkdir(noteDir, { recursive: true });
+      const testPath = path.join(noteDir, 'conflict-test.md');
+
+      // First, create a note with a specific ID in the database
+      const oldId = 'n-oldid123';
+      const db = await searchManager.getDatabaseConnection();
+      await db.run(
+        `INSERT INTO notes (id, type, filename, path, title, content, created, updated, size, content_hash)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          oldId,
+          'general',
+          'conflict-test.md',
+          'conflict-test.md',
+          'Old Title',
+          'Old content',
+          '2024-01-01',
+          '2024-01-01',
+          100,
+          'oldhash'
+        ]
+      );
+
+      // Verify the old note exists
+      let notes = await db.all('SELECT id, title FROM notes WHERE filename = ?', [
+        'conflict-test.md'
+      ]);
+      expect(notes).toHaveLength(1);
+      expect(notes[0].id).toBe(oldId);
+      expect(notes[0].title).toBe('Old Title');
+
+      // Now create a file with a DIFFERENT ID in frontmatter but same (type, filename)
+      const newId = 'n-newidabc';
+      await fs.writeFile(
+        testPath,
+        `---
+id: ${newId}
+title: New Title
+type: general
+---
+# New Title
+
+New content with different ID.`
+      );
+
+      // Sync - this should detect the conflict and resolve it
+      await searchManager.syncFileSystemChanges();
+
+      // Verify the old note was deleted and new one inserted
+      notes = await db.all('SELECT id, title FROM notes WHERE filename = ?', [
+        'conflict-test.md'
+      ]);
+      expect(notes).toHaveLength(1);
+      expect(notes[0].id).toBe(newId); // Should use the file's ID
+      expect(notes[0].title).toBe('New Title'); // Should use the file's content
+    });
+
+    it('should update existing note when ID matches', async () => {
+      const noteDir = path.join(testWorkspacePath, 'general');
+      await fs.mkdir(noteDir, { recursive: true });
+      const testPath = path.join(noteDir, 'update-test.md');
+      const noteId = 'n-12345678';
+
+      // Create initial note
+      await fs.writeFile(
+        testPath,
+        `---
+id: ${noteId}
+title: Original Title
+type: general
+---
+# Original Title
+
+Original content.`
+      );
+
+      await searchManager.syncFileSystemChanges();
+
+      // Verify initial note
+      const db = await searchManager.getDatabaseConnection();
+      let notes = await db.all('SELECT id, title FROM notes WHERE id = ?', [noteId]);
+      expect(notes).toHaveLength(1);
+      expect(notes[0].title).toBe('Original Title');
+
+      // Update the file
+      await fs.writeFile(
+        testPath,
+        `---
+id: ${noteId}
+title: Updated Title
+type: general
+---
+# Updated Title
+
+Updated content.`
+      );
+
+      await searchManager.syncFileSystemChanges();
+
+      // Verify note was updated (not duplicated)
+      notes = await db.all('SELECT id, title FROM notes WHERE id = ?', [noteId]);
+      expect(notes).toHaveLength(1);
+      expect(notes[0].title).toBe('Updated Title');
+
+      // Verify no duplicate with same filename
+      const allNotes = await db.all('SELECT id FROM notes WHERE filename = ?', [
+        'update-test.md'
+      ]);
+      expect(allNotes).toHaveLength(1);
+    });
+
+    it('should handle conflict when file type changes but filename stays same', async () => {
+      const generalDir = path.join(testWorkspacePath, 'general');
+      const meetingDir = path.join(testWorkspacePath, 'meeting');
+      await fs.mkdir(generalDir, { recursive: true });
+      await fs.mkdir(meetingDir, { recursive: true });
+
+      const oldId = 'n-oldtype1';
+      const newId = 'n-newtype2';
+
+      // Create note in database with type 'general'
+      const db = await searchManager.getDatabaseConnection();
+      await db.run(
+        `INSERT INTO notes (id, type, filename, path, title, content, created, updated, size, content_hash)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          oldId,
+          'general',
+          'type-change.md',
+          'general/type-change.md',
+          'Original',
+          'Content',
+          '2024-01-01',
+          '2024-01-01',
+          100,
+          'hash1'
+        ]
+      );
+
+      // Create file in MEETING directory with different ID (simulating a move + type change)
+      const newPath = path.join(meetingDir, 'type-change.md');
+      await fs.writeFile(
+        newPath,
+        `---
+id: ${newId}
+title: Changed Type
+type: meeting
+---
+# Changed Type
+
+Changed to meeting type.`
+      );
+
+      await searchManager.syncFileSystemChanges();
+
+      // Verify old note is gone (was in general/, no longer exists)
+      const oldNotes = await db.all('SELECT id FROM notes WHERE id = ?', [oldId]);
+      expect(oldNotes).toHaveLength(0);
+
+      // Verify new note exists with correct type
+      const newNotes = await db.all(
+        'SELECT id, type, title, path FROM notes WHERE id = ?',
+        [newId]
+      );
+      expect(newNotes).toHaveLength(1);
+      expect(newNotes[0].type).toBe('meeting');
+      expect(newNotes[0].title).toBe('Changed Type');
+      expect(newNotes[0].path).toBe('meeting/type-change.md');
+
+      // Verify no duplicates for this filename (checking across all types)
+      const allNotes = await db.all(
+        'SELECT id, type, path FROM notes WHERE filename = ?',
+        ['type-change.md']
+      );
+      expect(allNotes).toHaveLength(1);
+      expect(allNotes[0].type).toBe('meeting');
+    });
+
+    it('should not create duplicate when upserting note with existing (type, filename)', async () => {
+      const noteDir = path.join(testWorkspacePath, 'general');
+      await fs.mkdir(noteDir, { recursive: true });
+      const testPath = path.join(noteDir, 'no-dup.md');
+      const noteId = 'n-nodup123';
+
+      // Create note via sync
+      await fs.writeFile(
+        testPath,
+        `---
+id: ${noteId}
+title: Original
+type: general
+---
+# Original
+
+Content.`
+      );
+
+      await searchManager.syncFileSystemChanges();
+
+      const db = await searchManager.getDatabaseConnection();
+
+      // Try to upsert the same note again (simulating another sync)
+      await searchManager.syncFileSystemChanges();
+
+      // Verify no duplicate created
+      const notes = await db.all('SELECT id FROM notes WHERE filename = ?', [
+        'no-dup.md'
+      ]);
+      expect(notes).toHaveLength(1);
+      expect(notes[0].id).toBe(noteId);
+    });
+  });
 });

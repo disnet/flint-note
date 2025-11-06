@@ -835,15 +835,34 @@ export class HybridSearchManager {
       // Convert absolute path to relative path for storage
       const relativePath = toRelativePath(filePath, this.workspacePath);
 
-      // Check if note exists
-      const existing = await connection.get<NoteRow>(
+      // Check if note exists by ID
+      const existingById = await connection.get<NoteRow>(
         'SELECT id, content_hash FROM notes WHERE id = ?',
         [id]
       );
 
-      if (existing) {
+      // Also check for conflicts with the UNIQUE constraint on (type, filename)
+      const existingByTypeFilename = await connection.get<NoteRow>(
+        'SELECT id, content_hash FROM notes WHERE type = ? AND filename = ?',
+        [type, filename]
+      );
+
+      // Handle conflict: same (type, filename) but different ID
+      if (existingByTypeFilename && existingByTypeFilename.id !== id) {
+        console.warn(
+          `Note ID mismatch detected: File has ID ${id} but database has ${existingByTypeFilename.id} for ${type}/${filename}. ` +
+            `Deleting old entry and using file's ID.`
+        );
+        // Delete the old note with the conflicting (type, filename)
+        await connection.run('DELETE FROM notes WHERE id = ?', [
+          existingByTypeFilename.id
+        ]);
+        // Now proceed to insert with the new ID
+      }
+
+      if (existingById) {
         // Only update the 'updated' timestamp if content has actually changed
-        const contentChanged = existing.content_hash !== contentHash;
+        const contentChanged = existingById.content_hash !== contentHash;
 
         if (contentChanged) {
           // Content has changed, update with new timestamp

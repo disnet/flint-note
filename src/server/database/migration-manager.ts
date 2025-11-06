@@ -321,22 +321,44 @@ async function migrateToImmutableIds(
   `);
 
   // 6. Migrate notes data using ID mapping
-  await db.run(`
-    INSERT INTO notes (id, type, filename, path, title, content, content_hash, created, updated, size)
-    SELECT
-      m.new_id,
-      b.type,
-      b.filename,
-      b.path,
-      b.title,
-      b.content,
-      b.content_hash,
-      b.created,
-      b.updated,
-      b.size
-    FROM notes_backup b
-    JOIN note_id_migration m ON b.id = m.old_identifier
-  `);
+  // Handle (type, filename) duplicates by keeping the most recently updated version
+  // First, find the most recent entry for each (type, filename) pair
+  const deduplicatedIds = await db.all<{ id: string }>(
+    `SELECT b.id
+     FROM notes_backup b
+     INNER JOIN (
+       SELECT type, filename, MAX(updated) as max_updated
+       FROM notes_backup
+       GROUP BY type, filename
+     ) latest ON b.type = latest.type AND b.filename = latest.filename AND b.updated = latest.max_updated`
+  );
+
+  console.log(
+    `Deduplicating: ${existingNotes.length} original notes -> ${deduplicatedIds.length} unique (type, filename) pairs`
+  );
+
+  if (deduplicatedIds.length === 0) {
+    console.warn('WARNING: No notes to migrate after deduplication!');
+  } else {
+    // Now insert only the deduplicated notes
+    await db.run(`
+      INSERT INTO notes (id, type, filename, path, title, content, content_hash, created, updated, size)
+      SELECT
+        m.new_id,
+        b.type,
+        b.filename,
+        b.path,
+        b.title,
+        b.content,
+        b.content_hash,
+        b.created,
+        b.updated,
+        b.size
+      FROM notes_backup b
+      JOIN note_id_migration m ON b.id = m.old_identifier
+      WHERE b.id IN (${deduplicatedIds.map((r) => `'${r.id}'`).join(',')})
+    `);
+  }
 
   // Verify migration succeeded
   const migratedCount = await db.get<{ count: number }>(

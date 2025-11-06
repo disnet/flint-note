@@ -2225,4 +2225,223 @@ metadata:
       }
     });
   });
+
+  describe('Duplicate (type, filename) Handling', () => {
+    it('should deduplicate notes with same (type, filename) during migration', async () => {
+      const workspacePath = await fs.mkdtemp(
+        path.join(os.tmpdir(), 'flint-test-dedup-migration-')
+      );
+      const testDbPath = path.join(workspacePath, 'notes.db');
+
+      try {
+        const dbManager = new TestDatabaseManager(testDbPath, workspacePath);
+        const db = await dbManager.connect();
+
+        // Create old schema without UNIQUE constraint
+        await db.run('DROP TABLE IF EXISTS notes');
+        await db.run(`
+          CREATE TABLE notes (
+            id TEXT PRIMARY KEY,
+            type TEXT NOT NULL,
+            filename TEXT NOT NULL,
+            path TEXT NOT NULL,
+            title TEXT,
+            content TEXT,
+            content_hash TEXT,
+            created TEXT NOT NULL,
+            updated TEXT NOT NULL,
+            size INTEGER
+          )
+        `);
+
+        // Insert duplicate entries - same (type, filename) but different IDs
+        const now = new Date().toISOString();
+        const older = new Date(Date.now() - 100000).toISOString();
+
+        await db.run(
+          `INSERT INTO notes (id, type, filename, path, title, content, content_hash, created, updated, size)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            'type/old-id',
+            'general',
+            'duplicate.md',
+            'general/duplicate.md',
+            'Duplicate Old',
+            'Old content',
+            'hash1',
+            older,
+            older,
+            100
+          ]
+        );
+
+        await db.run(
+          `INSERT INTO notes (id, type, filename, path, title, content, content_hash, created, updated, size)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            'type/new-id',
+            'general',
+            'duplicate.md',
+            'general/duplicate.md',
+            'Duplicate New',
+            'New content',
+            'hash2',
+            now,
+            now,
+            200
+          ]
+        );
+
+        // Add another non-duplicate note
+        await db.run(
+          `INSERT INTO notes (id, type, filename, path, title, content, content_hash, created, updated, size)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            'type/unique',
+            'general',
+            'unique.md',
+            'general/unique.md',
+            'Unique',
+            'Unique content',
+            'hash3',
+            now,
+            now,
+            300
+          ]
+        );
+
+        // Set version to trigger migration
+        await db.run(
+          `CREATE TABLE IF NOT EXISTS schema_version (version TEXT PRIMARY KEY, applied_at TEXT)`
+        );
+        await db.run(`INSERT INTO schema_version (version, applied_at) VALUES (?, ?)`, [
+          '1.0.0',
+          older
+        ]);
+
+        await dbManager.close();
+
+        // Run migration
+        await DatabaseMigrationManager.checkAndMigrate(
+          '1.0.0',
+          dbManager as unknown as DatabaseManager,
+          workspacePath
+        );
+
+        // Verify only 2 notes exist (1 deduplicated, 1 unique)
+        const dbManager2 = new TestDatabaseManager(testDbPath, workspacePath);
+        const db2 = await dbManager2.connect();
+
+        const notes = await db2.all(
+          'SELECT id, type, filename, title, updated FROM notes ORDER BY filename'
+        );
+
+        expect(notes).toHaveLength(2);
+
+        // Verify the duplicate was deduplicated (kept most recent)
+        const duplicateNote = notes.find((n) => n.filename === 'duplicate.md');
+        expect(duplicateNote).toBeDefined();
+        expect(duplicateNote?.title).toBe('Duplicate New'); // Should keep the newer one
+        expect(duplicateNote?.id).toMatch(/^n-[a-f0-9]{8}$/); // Should have new immutable ID
+
+        // Verify the unique note is still there
+        const uniqueNote = notes.find((n) => n.filename === 'unique.md');
+        expect(uniqueNote).toBeDefined();
+        expect(uniqueNote?.title).toBe('Unique');
+
+        await dbManager2.close();
+      } finally {
+        await fs.rm(workspacePath, { recursive: true, force: true });
+        await fs.unlink(testDbPath).catch(() => {});
+      }
+    });
+
+    it('should keep the most recently updated note when deduplicating', async () => {
+      const workspacePath = await fs.mkdtemp(
+        path.join(os.tmpdir(), 'flint-test-dedup-recent-')
+      );
+      const testDbPath = path.join(workspacePath, 'notes.db');
+
+      try {
+        const dbManager = new TestDatabaseManager(testDbPath, workspacePath);
+        const db = await dbManager.connect();
+
+        // Create old schema
+        await db.run('DROP TABLE IF EXISTS notes');
+        await db.run(`
+          CREATE TABLE notes (
+            id TEXT PRIMARY KEY,
+            type TEXT NOT NULL,
+            filename TEXT NOT NULL,
+            path TEXT NOT NULL,
+            title TEXT,
+            content TEXT,
+            content_hash TEXT,
+            created TEXT NOT NULL,
+            updated TEXT NOT NULL,
+            size INTEGER
+          )
+        `);
+
+        // Insert 3 duplicates with different update times
+        const times = [
+          new Date('2024-01-01').toISOString(),
+          new Date('2024-01-03').toISOString(), // Most recent - should be kept
+          new Date('2024-01-02').toISOString()
+        ];
+
+        for (let i = 0; i < times.length; i++) {
+          await db.run(
+            `INSERT INTO notes (id, type, filename, path, title, content, content_hash, created, updated, size)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              `type/dup-${i}`,
+              'meeting',
+              'standup.md',
+              'meeting/standup.md',
+              `Version ${i}`,
+              `Content ${i}`,
+              `hash${i}`,
+              times[i],
+              times[i],
+              100 + i
+            ]
+          );
+        }
+
+        // Set version
+        await db.run(
+          `CREATE TABLE IF NOT EXISTS schema_version (version TEXT PRIMARY KEY, applied_at TEXT)`
+        );
+        await db.run(`INSERT INTO schema_version (version, applied_at) VALUES (?, ?)`, [
+          '1.0.0',
+          times[0]
+        ]);
+
+        await dbManager.close();
+
+        // Run migration
+        await DatabaseMigrationManager.checkAndMigrate(
+          '1.0.0',
+          dbManager as unknown as DatabaseManager,
+          workspacePath
+        );
+
+        // Verify only 1 note exists and it's the most recent one
+        const dbManager2 = new TestDatabaseManager(testDbPath, workspacePath);
+        const db2 = await dbManager2.connect();
+
+        const notes = await db2.all('SELECT id, type, filename, title FROM notes');
+
+        expect(notes).toHaveLength(1);
+        expect(notes[0].title).toBe('Version 1'); // Index 1 had the most recent timestamp
+        expect(notes[0].filename).toBe('standup.md');
+
+        await dbManager2.close();
+      } finally {
+        await fs.rm(workspacePath, { recursive: true, force: true });
+        await fs.unlink(testDbPath).catch(() => {});
+      }
+    });
+  });
 });

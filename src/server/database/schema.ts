@@ -202,7 +202,8 @@ export class DatabaseManager {
           updated DATETIME NOT NULL,
           size INTEGER,
           content_hash TEXT,
-          file_mtime BIGINT
+          file_mtime BIGINT,
+          UNIQUE(type, filename)
         )
       `);
 
