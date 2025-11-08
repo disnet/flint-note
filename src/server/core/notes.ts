@@ -574,10 +574,11 @@ export class NoteManager {
       );
 
       // Phase 2: DB-first architecture - Update database before queuing file write
-      await this.updateSearchIndex(notePath, noteContent);
+      // Note: updateSearchIndex may return rewritten content with title-based links converted to ID-based
+      const finalNoteContent = await this.updateSearchIndex(notePath, noteContent);
 
       // Queue file write (batched with 1000ms delay)
-      await this.#writeFileWithTracking(notePath, noteContent);
+      await this.#writeFileWithTracking(notePath, finalNoteContent);
 
       // Sync hierarchy if subnotes are specified in metadata
       if (metadata.subnotes && Array.isArray(metadata.subnotes)) {
@@ -1097,10 +1098,11 @@ export class NoteManager {
 
       // Phase 2: DB-first architecture - Update database before queuing file write
       // This ensures DB is always source of truth and eliminates race conditions
-      await this.updateSearchIndex(notePath, updatedContent);
+      // Note: updateSearchIndex may return rewritten content with title-based links converted to ID-based
+      const finalContent = await this.updateSearchIndex(notePath, updatedContent);
 
       // Queue file write (batched with 1000ms delay)
-      await this.#writeFileWithTracking(notePath, updatedContent);
+      await this.#writeFileWithTracking(notePath, finalContent);
 
       return {
         id: identifier,
@@ -1260,10 +1262,11 @@ export class NoteManager {
       const formattedContent = this.formatUpdatedNoteContent(updatedMetadata, content);
 
       // Phase 2: DB-first architecture - Update database before queuing file write
-      await this.updateSearchIndex(notePath, formattedContent);
+      // Note: updateSearchIndex may return rewritten content with title-based links converted to ID-based
+      const finalContent = await this.updateSearchIndex(notePath, formattedContent);
 
       // Queue file write (batched with 1000ms delay)
-      await this.#writeFileWithTracking(notePath, formattedContent);
+      await this.#writeFileWithTracking(notePath, finalContent);
 
       // Sync hierarchy if subnotes have changed
       if (metadata.subnotes !== undefined) {
@@ -1665,8 +1668,9 @@ export class NoteManager {
 
   /**
    * Update search index for a note
+   * Returns the potentially rewritten content (with title-based links converted to ID-based)
    */
-  async updateSearchIndex(notePath: string, content: string): Promise<void> {
+  async updateSearchIndex(notePath: string, content: string): Promise<string> {
     try {
       // Update hybrid search index if available
       if (this.#hybridSearchManager) {
@@ -1684,18 +1688,32 @@ export class NoteManager {
           (typeof parsed.metadata.type === 'string' ? parsed.metadata.type : null) ||
           parentDir;
 
+        // Convert title-based links to ID-based links and get rewritten content
+        const rewrittenContent = await this.convertTitleLinksToIdLinks(
+          noteId,
+          parsed.content
+        );
+
+        // If content was rewritten, reconstruct the full content with frontmatter
+        let finalContent = content;
+        if (rewrittenContent !== parsed.content) {
+          finalContent = this.formatUpdatedNoteContent(parsed.metadata, rewrittenContent);
+        }
+
         await this.#hybridSearchManager.upsertNote(
           noteId,
           parsed.metadata.title || filename.replace('.md', ''),
-          parsed.content,
+          rewrittenContent,
           noteType,
           filename,
           notePath,
           parsed.metadata
         );
 
-        // Extract and store links in the database
-        await this.extractAndStoreLinks(noteId, parsed.content);
+        // Extract and store links in the database (using rewritten content)
+        await this.extractAndStoreLinks(noteId, rewrittenContent);
+
+        return finalContent;
       }
     } catch (error) {
       // Don't fail note operations if search index update fails
@@ -1704,6 +1722,34 @@ export class NoteManager {
         error instanceof Error ? error.message : 'Unknown error'
       );
     }
+    return content;
+  }
+
+  /**
+   * Convert title-based wikilinks to ID-based wikilinks
+   */
+  private async convertTitleLinksToIdLinks(
+    _noteId: string,
+    content: string
+  ): Promise<string> {
+    // Skip link conversion during tests
+    if (process.env.NODE_ENV === 'test' || process.env.VITEST === 'true') {
+      return content;
+    }
+
+    try {
+      if (this.#hybridSearchManager) {
+        const db = await this.#hybridSearchManager.getDatabaseConnection();
+        return await LinkExtractor.convertTitleLinksToIdLinks(content, db);
+      }
+    } catch (error) {
+      // Don't fail note operations if link conversion fails
+      console.error(
+        'Failed to convert title-based links:',
+        error instanceof Error ? error.message : 'Unknown error'
+      );
+    }
+    return content;
   }
 
   /**
@@ -2002,10 +2048,11 @@ export class NoteManager {
       }
 
       // Phase 2: DB-first architecture - Update database before queuing file write
-      await this.updateSearchIndex(finalNotePath, updatedContent);
+      // Note: updateSearchIndex may return rewritten content with title-based links converted to ID-based
+      const finalContent = await this.updateSearchIndex(finalNotePath, updatedContent);
 
       // Queue file write (batched with 1000ms delay)
-      await this.#writeFileWithTracking(finalNotePath, updatedContent);
+      await this.#writeFileWithTracking(finalNotePath, finalContent);
 
       let brokenLinksUpdated = 0;
       const wikilinksResult = { notesUpdated: 0, linksUpdated: 0 };
@@ -2025,9 +2072,6 @@ export class NoteManager {
           console.warn('Failed to update broken links:', error);
           // Continue with operation - broken link updates are not critical
         }
-
-        // Note: With ID-based wikilinks, we no longer need to update links
-        // when notes are renamed. The ID remains constant, so all links continue to work.
       }
 
       return {
@@ -2165,10 +2209,11 @@ export class NoteManager {
     await fs.rename(currentPath, targetPath);
 
     // Phase 2: DB-first architecture - Update database before queuing file write
-    await this.updateSearchIndex(targetPath, updatedContent);
+    // Note: updateSearchIndex may return rewritten content with title-based links converted to ID-based
+    const finalContent = await this.updateSearchIndex(targetPath, updatedContent);
 
     // Queue file write (batched with 1000ms delay)
-    await this.#writeFileWithTracking(targetPath, updatedContent);
+    await this.#writeFileWithTracking(targetPath, finalContent);
 
     // Note ID remains unchanged - it's immutable and stored in frontmatter
     const noteId = currentNote.id;

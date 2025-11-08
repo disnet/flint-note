@@ -219,7 +219,7 @@ You have access to comprehensive note management tools including:
 - Handling note links and relationships
 - Advanced search capabilities with SQL queries
 
-When responding be sure to format references to notes in wikilinks syntax. For example, [[Note Title]] or [[daily/2023-09-25|September 25th, 2023]]
+When responding be sure to format references to notes using ID-only wikilinks. For example, [[n-12345678]] (where n-12345678 is the note's ID). The UI will automatically display the note's current title.
 
 Use these tools to help users manage their notes effectively and answer their questions.`;
     }

@@ -7,6 +7,7 @@
   import { measureMarkerWidths, updateCSSCustomProperties } from '../lib/textMeasurement';
   import { forceWikilinkRefresh, getSelectedWikilink } from '../lib/wikilinks.svelte.js';
   import { ScrollAutoService } from '../stores/scrollAutoService.svelte.js';
+  import { notesStore } from '../services/noteStore.svelte';
   import WikilinkPopover from './WikilinkPopover.svelte';
   import WikilinkActionPopover from './WikilinkActionPopover.svelte';
 
@@ -282,8 +283,25 @@
     const handleBlur = (): void => {
       // Use untrack to avoid state mutation errors during component teardown
       untrack(() => {
-        // Close popovers if editor loses focus
+        // Close popovers if editor loses focus (but not if the popover itself has focus)
         if (!editorView?.hasFocus) {
+          // Don't close edit popover if it has focus or is about to gain focus
+          // We need a small delay to allow the popover's input to receive focus
+          if (popoverVisible || (popoverRef && popoverRef.hasFocus())) {
+            setTimeout(() => {
+              if (popoverRef && popoverRef.hasFocus()) {
+                return;
+              }
+              // If popover still doesn't have focus after delay, close it
+              if (!editorView?.hasFocus) {
+                actionPopoverVisible = false;
+                actionPopoverIsFromHover = false;
+                popoverVisible = false;
+              }
+            }, 50);
+            return;
+          }
+
           actionPopoverVisible = false;
           actionPopoverIsFromHover = false;
           popoverVisible = false;
@@ -311,8 +329,22 @@
     };
 
     const handleFocus = (): void => {
-      // Notify parent of focus change
-      onFocusChange?.(true);
+      // Use untrack to avoid state mutation errors during component teardown
+      untrack(() => {
+        // Close edit popover when editor gains focus (unless popover has focus)
+        if (popoverVisible && popoverRef && !popoverRef.hasFocus()) {
+          popoverVisible = false;
+        }
+
+        // Close action popover when editor gains focus
+        if (actionPopoverVisible) {
+          actionPopoverVisible = false;
+          actionPopoverIsFromHover = false;
+        }
+
+        // Notify parent of focus change
+        onFocusChange?.(true);
+      });
     };
 
     // Use blur and focus events on the editor
@@ -721,7 +753,22 @@
 
     // Set the edit popover data from the action popover's stored wikilink data
     popoverIdentifier = actionPopoverWikilinkData.identifier;
-    popoverDisplayText = actionPopoverWikilinkData.title;
+
+    // For ID-only links ([[n-id]]), show the note's title instead of the ID
+    // For links with display text, show the display text
+    if (actionPopoverWikilinkData.identifier === actionPopoverWikilinkData.title) {
+      // ID-only link - get the note's current title
+      if (actionPopoverWikilinkData.noteId && actionPopoverWikilinkData.exists) {
+        const notes = notesStore.notes;
+        const note = notes.find((n) => n.id === actionPopoverWikilinkData!.noteId);
+        popoverDisplayText = note?.title || actionPopoverWikilinkData.title;
+      } else {
+        popoverDisplayText = actionPopoverWikilinkData.title;
+      }
+    } else {
+      // Link with display text - use it as-is
+      popoverDisplayText = actionPopoverWikilinkData.title;
+    }
 
     // Get the wikilink position for the edit popover
     const selected = getSelectedWikilink(editorView);

@@ -124,9 +124,8 @@
       if ('isCreateOption' in option && option.isCreateOption) {
         onSelect(option.title); // No noteId for new notes
       } else {
-        // Use the correct format: type/filename|title
-        const linkTarget = `${option.type}/${option.filename.replace(/\.md$/, '')}`;
-        onSelect(`${linkTarget}|${option.title}`, option.id);
+        // Use ID-only format: [[n-id]] - UI will render current title
+        onSelect(option.id, option.id);
       }
     }
   }

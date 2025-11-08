@@ -1,6 +1,7 @@
 <script lang="ts">
   import { marked } from 'marked';
   import DOMPurify from 'dompurify';
+  import { notesStore } from '../services/noteStore.svelte';
 
   interface Props {
     text: string;
@@ -58,7 +59,14 @@
       if (match[1]) {
         // [[note-id]] or [[note-id|display text]] format
         noteId = match[1];
-        displayText = match[2] || match[1];
+        if (match[2]) {
+          // Has display text
+          displayText = match[2];
+        } else {
+          // ID-only link - look up the note's title
+          const note = notesStore.notes.find((n) => n.id === noteId);
+          displayText = note?.title || noteId;
+        }
       } else if (match[3]) {
         // [note-id] format
         noteId = match[3];

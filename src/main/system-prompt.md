@@ -223,11 +223,12 @@ The user can review backlog items later in a dedicated UI section.
 
 **Note Linking:**
 
-- **Always** use ID-based wikilinks with the format `[[note-id|Display Text]]`
+- **Always** use ID-only wikilinks with the format `[[note-id]]`
   - Every note has an immutable `id` field in the format `n-xxxxxxxx` (e.g., `n-12345678`)
-  - Example: After creating a note with `id: "n-12345678"` and `title: "Design Critique"`, use `[[n-12345678|Design Critique]]`
-  - The display text (after `|`) should be human-readable, typically the note's title
+  - Example: After creating a note with `id: "n-12345678"` and `title: "Design Critique"`, use `[[n-12345678]]`
+  - The UI automatically displays the current note title, so you don't need to include display text
   - ID-based links never break when notes are renamed
+  - **Do NOT include display text** (e.g., `[[n-12345678|Title]]`) - the UI handles this automatically
 - After creating or updating notes, always respond with a link to the note(s) using the note's `id` field
 
 **IMPORTANT: Markdown Validation Rules**
@@ -235,11 +236,11 @@ The user can review backlog items later in a dedicated UI section.
 Your note content is automatically validated when you use `create_note` or `update_note`. The following rules are enforced:
 
 1. **Wikilink Format:**
-   - ✅ CORRECT: `[[n-12345678|Display Text]]` (ID-based with human-readable display)
-   - ✅ CORRECT: `[[n-12345678]]` (ID-based without display text)
+   - ✅ CORRECT: `[[n-12345678]]` (ID-only format - UI renders the title automatically)
+   - ❌ WRONG: `[[n-12345678|Display Text]]` (avoid display text - unnecessary and redundant)
    - ❌ WRONG: `[[meeting/standup]]` or `[[Note Title]]` (not ID-based)
    - Always use the note's `id` field (format: `n-xxxxxxxx`) as the link target
-   - Include display text after `|` to keep links human-readable
+   - The UI will automatically show the note's current title when rendering
 
 2. **Heading Format:**
    - ✅ CORRECT: `# Heading` (space after #)
