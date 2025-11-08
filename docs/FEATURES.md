@@ -26,6 +26,7 @@ A comprehensive guide to all features in Flint, the AI-powered note-taking appli
 **Purpose:** Create and manage markdown notes with optional YAML frontmatter.
 
 **Key Features:**
+
 - Create notes with customizable note types
 - Full markdown support with live preview
 - YAML frontmatter for structured metadata
@@ -33,12 +34,14 @@ A comprehensive guide to all features in Flint, the AI-powered note-taking appli
 - Automatic save functionality
 
 **Usage:**
+
 - Press `Ctrl+Shift+N` to create a new note
 - Select note type from dropdown
 - Write content in markdown
 - Metadata automatically saved
 
 **Technical Details:**
+
 - Notes stored as `.md` files in type-specific directories
 - SQLite database tracks metadata and indexes
 - Content hash prevents concurrent edit conflicts
@@ -49,6 +52,7 @@ A comprehensive guide to all features in Flint, the AI-powered note-taking appli
 **Purpose:** Define schemas and behaviors for different categories of notes.
 
 **Key Features:**
+
 - Custom note type creation
 - Metadata schemas with validation
 - Agent instructions per type
@@ -56,6 +60,7 @@ A comprehensive guide to all features in Flint, the AI-powered note-taking appli
 - Template support for new notes
 
 **Built-in Types:**
+
 - **General** - Default note type for any content
 - **Daily** - Daily journal entries
 - **Meeting** - Meeting notes with attendees
@@ -64,12 +69,14 @@ A comprehensive guide to all features in Flint, the AI-powered note-taking appli
 
 **Custom Type Creation:**
 Via AI assistant or Settings:
+
 ```
 "Create a new note type called 'book-notes' with fields for author,
 publication date, and rating"
 ```
 
 **Technical Details:**
+
 - Defined in `{vault}/.note-types/` directory
 - Markdown format with structured sections
 - Location: `src/server/core/note-type-manager.ts`
@@ -79,6 +86,7 @@ publication date, and rating"
 **Purpose:** Edit structured note metadata using YAML frontmatter.
 
 **Key Features:**
+
 - Visual YAML editor with syntax highlighting
 - Real-time validation
 - Field-specific types (string, number, date, array, boolean)
@@ -87,19 +95,21 @@ publication date, and rating"
 - Auto-save on changes
 
 **Supported Field Types:**
+
 ```yaml
 ---
-title: "My Note"
+title: 'My Note'
 created: 2024-01-15T10:30:00Z
 tags: ['important', 'project']
 priority: 5
 completed: false
 due_date: 2024-01-20
-custom_field: "Any value"
+custom_field: 'Any value'
 ---
 ```
 
 **Technical Details:**
+
 - Component: `src/renderer/src/components/MetadataEditor.svelte`
 - Uses `js-yaml` for parsing
 - Validates against note type schemas
@@ -113,6 +123,7 @@ custom_field: "Any value"
 **Purpose:** Natural language interaction with AI for note operations and thinking assistance.
 
 **Key Features:**
+
 - Streaming responses with real-time updates
 - Conversation history per vault
 - Context-aware suggestions
@@ -126,6 +137,7 @@ custom_field: "Any value"
 The AI has access to comprehensive note operations via MCP:
 
 **Note Operations:**
+
 - `create_note` - Create new notes
 - `read_note` - Read note content
 - `update_note` - Modify existing notes
@@ -136,16 +148,19 @@ The AI has access to comprehensive note operations via MCP:
 - `move_note` - Change note type
 
 **Note Type Operations:**
+
 - `create_note_type` - Define new types
 - `list_note_types` - View available types
 - `update_note_type` - Modify type schemas
 
 **Link Operations:**
+
 - `get_backlinks` - Find notes linking to current note
 - `find_broken_links` - Detect broken wikilinks
 - `get_note_links` - Get all links for a note
 
 **Vault Operations:**
+
 - `list_vaults` - View all vaults
 - `switch_vault` - Change active vault
 - `create_vault` - Initialize new workspace
@@ -164,6 +179,7 @@ AI: [Searches and lists relevant notes]
 ```
 
 **Technical Details:**
+
 - Service: `src/main/ai-service.ts`
 - MCP Client connects to `@flint-note/server` via stdio
 - Streaming via AI SDK
@@ -174,6 +190,7 @@ AI: [Searches and lists relevant notes]
 **Purpose:** Track AI agent tasks and their execution status.
 
 **Key Features:**
+
 - Automatic task extraction from tool calls
 - Visual status indicators:
   - ✓ Completed
@@ -200,6 +217,7 @@ AI executes two tasks:
 ```
 
 **Technical Details:**
+
 - Extracted from MCP tool calls
 - Displayed in `AIAssistant.svelte`
 - Stored in conversation history
@@ -209,6 +227,7 @@ AI executes two tasks:
 **Purpose:** Reduce costs and latency by caching system prompts and conversation history.
 
 **Key Features:**
+
 - Automatic system message caching
 - Conversation history caching
 - Cache hit tracking and metrics
@@ -217,12 +236,14 @@ AI executes two tasks:
 - Performance recommendations
 
 **Cache Metrics:**
+
 - Cache hits vs misses
 - Tokens saved
 - Cost savings in micro-cents
 - Optimization suggestions
 
 **Technical Details:**
+
 - Service: `src/main/ai-service.ts`
 - Uses Anthropic's prompt caching API
 - Configurable via settings
@@ -234,6 +255,7 @@ AI executes two tasks:
 **Purpose:** Create repeatable AI-assisted automation sequences.
 
 **Key Features:**
+
 - Visual workflow builder (planned)
 - Pre-built workflows for common tasks
 - Step-by-step execution
@@ -244,6 +266,7 @@ AI executes two tasks:
 **Built-in Workflows:**
 
 **Daily Review:**
+
 ```
 1. Search for notes created today
 2. AI summarizes key points
@@ -252,6 +275,7 @@ AI executes two tasks:
 ```
 
 **Weekly Planning:**
+
 ```
 1. Review incomplete tasks
 2. AI suggests priorities
@@ -260,6 +284,7 @@ AI executes two tasks:
 ```
 
 **Research Synthesis:**
+
 ```
 1. Gather notes by tag
 2. AI identifies themes
@@ -270,6 +295,7 @@ AI executes two tasks:
 **Creating Custom Workflows:**
 
 Via AI assistant:
+
 ```
 User: "Create a workflow called 'monthly-review' that finds all
        notes from the past month, groups them by type, and creates
@@ -277,6 +303,7 @@ User: "Create a workflow called 'monthly-review' that finds all
 ```
 
 **Technical Details:**
+
 - Service: `src/main/workflow-service.ts`
 - Store: `src/renderer/src/stores/workflowStore.svelte.ts`
 - UI: `src/renderer/src/components/ConversationStartWorkflowPanel.svelte`
@@ -288,6 +315,7 @@ User: "Create a workflow called 'monthly-review' that finds all
 **Purpose:** User-defined JavaScript functions that extend AI capabilities.
 
 **Key Features:**
+
 - Write custom JavaScript functions
 - Available as tools to AI
 - Secure sandbox execution (QuickJS)
@@ -322,12 +350,14 @@ AI: [Calls custom function with note content]
 ```
 
 **Security:**
+
 - Sandboxed execution prevents file system access
 - Limited API surface
 - Timeout protection
 - Memory limits
 
 **Technical Details:**
+
 - Evaluation: `src/main/enhanced-evaluate-note-code.ts`
 - Storage: `src/renderer/src/stores/customFunctionsStore.svelte.ts`
 - Editor: `src/renderer/src/components/custom-functions/`
@@ -341,6 +371,7 @@ AI: [Calls custom function with note content]
 **Purpose:** Quick access to frequently used notes.
 
 **Key Features:**
+
 - Pin/unpin any note
 - Persistent across sessions
 - Visual indicators by note type
@@ -349,11 +380,13 @@ AI: [Calls custom function with note content]
 - Quick navigation
 
 **Usage:**
+
 - Right-click note → "Pin to Sidebar"
 - Drag to reorder
 - Click to open
 
 **Technical Details:**
+
 - Stored in `{userData}/pinned-notes/{vaultId}.json`
 - Store: `src/renderer/src/stores/sidebarNotesStore.svelte.ts`
 
@@ -362,6 +395,7 @@ AI: [Calls custom function with note content]
 **Purpose:** Arc browser-style temporary note access for recently viewed notes.
 
 **Key Features:**
+
 - Automatic tab creation on note open
 - Source tracking (search, wikilink, navigation)
 - Individual close buttons
@@ -372,15 +406,18 @@ AI: [Calls custom function with note content]
 **How It Works:**
 
 Opening a note from:
+
 - **Search** → Creates temporary tab
 - **Wikilink** → Creates temporary tab
 - **Pinned note** → Opens directly, no tab
 - **Temporary tab** → Reuses tab
 
 **Making Permanent:**
+
 - Pin the note to remove from temporary tabs
 
 **Technical Details:**
+
 - Service: `src/renderer/src/stores/temporaryTabsStore.svelte.ts`
 - Persisted: `vault-data/{vaultId}/temporary-tabs.json`
 - Cleanup: Runs on app start and periodically
@@ -390,6 +427,7 @@ Opening a note from:
 **Purpose:** Browser-style back/forward navigation through notes.
 
 **Key Features:**
+
 - Full history stack
 - Forward/back buttons (planned)
 - Jump to specific history entry
@@ -398,6 +436,7 @@ Opening a note from:
 - Persistent across sessions
 
 **Technical Details:**
+
 - Store: `src/renderer/src/stores/navigationHistoryStore.svelte.ts`
 - Persisted: `vault-data/{vaultId}/navigation-history.json`
 
@@ -410,6 +449,7 @@ Opening a note from:
 **Purpose:** Find notes by content, title, or metadata.
 
 **Key Features:**
+
 - Fast SQLite FTS5 search
 - Fuzzy matching
 - Type filtering
@@ -434,6 +474,7 @@ created:>2024-01-01  - Date range
 **Advanced Search:**
 
 Via API or AI assistant:
+
 ```typescript
 await api.searchNotesAdvanced({
   query: 'project planning',
@@ -445,6 +486,7 @@ await api.searchNotesAdvanced({
 ```
 
 **Technical Details:**
+
 - Manager: `src/server/core/hybrid-search-manager.ts`
 - SQLite FTS5 for full-text indexing
 - Keyboard shortcut: `Ctrl+O`
@@ -454,6 +496,7 @@ await api.searchNotesAdvanced({
 **Purpose:** Quick note access from anywhere.
 
 **Key Features:**
+
 - Keyboard-activated (`Ctrl+O`)
 - Instant search results
 - Fuzzy title matching
@@ -462,6 +505,7 @@ await api.searchNotesAdvanced({
 - ESC to close
 
 **Technical Details:**
+
 - Component: `src/renderer/src/components/SearchOverlay.svelte` (likely)
 - Overlays entire application
 
@@ -476,17 +520,20 @@ await api.searchNotesAdvanced({
 **Syntax:**
 
 **Title-based links:**
+
 ```markdown
 [[Note Title]]
 ```
 
 **Path-based links:**
+
 ```markdown
 [[type/filename|Display Text]]
 [[projects/website-redesign|Website Project]]
 ```
 
 **Features:**
+
 - Click-to-navigate
 - Automatic backlink tracking
 - Broken link detection
@@ -498,6 +545,7 @@ await api.searchNotesAdvanced({
 **Purpose:** Discover notes that reference the current note.
 
 **Key Features:**
+
 - Automatic backlink tracking
 - Visual backlink panel
 - Context snippets
@@ -505,6 +553,7 @@ await api.searchNotesAdvanced({
 - Real-time updates
 
 **Display:**
+
 ```
 Backlinks (3):
 - projects/website-redesign
@@ -514,6 +563,7 @@ Backlinks (3):
 ```
 
 **Technical Details:**
+
 - Component: `src/renderer/src/components/Backlinks.svelte`
 - Database table: `note_links`
 - Auto-populated on note update
@@ -523,12 +573,14 @@ Backlinks (3):
 **Purpose:** Find and fix wikilinks to non-existent notes.
 
 **Features:**
+
 - Automatic detection
 - Broken link report
 - Suggestions for fixes
 - Bulk operations (via AI)
 
 **Technical Details:**
+
 - Query: `findBrokenLinks()` in API
 - Highlighted in editor
 
@@ -539,6 +591,7 @@ Backlinks (3):
 **Purpose:** Dedicated interface for daily journal entries.
 
 **Key Features:**
+
 - Calendar-style day navigation
 - Automatic daily note creation
 - Day sections (Morning, Afternoon, Evening)
@@ -556,18 +609,22 @@ date: 2024-01-15
 ---
 
 ## Morning
+
 - Started project planning
 - Team standup meeting
 
 ## Afternoon
+
 - [[Website Redesign]] progress
 - Code review
 
 ## Evening
+
 - Planning for tomorrow
 ```
 
 **Features:**
+
 - Navigate by calendar
 - Quick add button
 - Section templates
@@ -575,6 +632,7 @@ date: 2024-01-15
 - Activity timeline
 
 **Technical Details:**
+
 - View: `src/renderer/src/components/DailyView.svelte`
 - Store: `src/renderer/src/stores/dailyViewStore.svelte.ts`
 - Note type: `daily`
@@ -586,6 +644,7 @@ date: 2024-01-15
 **Purpose:** Frictionless note capture with gradual organization.
 
 **Key Features:**
+
 - Quick capture interface
 - Zero-friction note creation
 - "Inbox Zero" workflow
@@ -613,6 +672,7 @@ AI: [Reviews inbox notes]
 ```
 
 **Technical Details:**
+
 - View: `src/renderer/src/components/InboxView.svelte`
 - Store: `src/renderer/src/stores/inboxStore.svelte.ts`
 - Note type: `inbox`
@@ -624,6 +684,7 @@ AI: [Reviews inbox notes]
 **Purpose:** Separate workspaces for different contexts (work, personal, etc.).
 
 **Key Features:**
+
 - Multiple isolated vaults
 - Independent note collections
 - Separate settings per vault
@@ -632,12 +693,14 @@ AI: [Reviews inbox notes]
 - Vault metadata (name, description)
 
 **Use Cases:**
+
 - **Work** - Professional notes
 - **Personal** - Personal journal
 - **Research** - Academic research
 - **Projects** - Specific project workspaces
 
 **Vault Isolation:**
+
 - Separate directories
 - Independent databases
 - Isolated search indexes
@@ -647,17 +710,20 @@ AI: [Reviews inbox notes]
 **Creating Vaults:**
 
 Via UI:
+
 1. Click vault selector
 2. "Create New Vault"
 3. Choose location and name
 4. Initialize with default types
 
 Via AI:
+
 ```
 User: "Create a new vault called 'Research' for academic notes"
 ```
 
 **Technical Details:**
+
 - Manager: `src/server/core/workspace-manager.ts`
 - Vault registry: `{userData}/vaults.json`
 - Each vault has own directory and SQLite database
@@ -671,6 +737,7 @@ User: "Create a new vault called 'Research' for academic notes"
 **Purpose:** Professional-grade markdown editing experience.
 
 **Key Features:**
+
 - Syntax highlighting
 - Line numbers (optional)
 - Code folding
@@ -681,6 +748,7 @@ User: "Create a new vault called 'Research' for academic notes"
 - Theme support (light/dark)
 
 **Markdown Features:**
+
 - Live syntax highlighting
 - Link detection
 - Code block highlighting
@@ -689,6 +757,7 @@ User: "Create a new vault called 'Research' for academic notes"
 - Table support
 
 **Customization:**
+
 - Font size adjustment
 - Line height control
 - Theme selection
@@ -696,6 +765,7 @@ User: "Create a new vault called 'Research' for academic notes"
 - Emacs keybindings (optional)
 
 **Technical Details:**
+
 - Component: `src/renderer/src/components/CodeMirrorEditor.svelte`
 - Store: `src/renderer/src/stores/editorConfig.svelte.ts`
 - Extensions: CodeMirror 6 packages
@@ -705,6 +775,7 @@ User: "Create a new vault called 'Research' for academic notes"
 **Purpose:** Never lose work with automatic saving.
 
 **Key Features:**
+
 - Debounced saves (reduces writes)
 - Visual save indicators
 - Conflict detection
@@ -712,12 +783,14 @@ User: "Create a new vault called 'Research' for academic notes"
 - Error recovery
 
 **Behavior:**
+
 - Saves after 1 second of inactivity
 - Shows "Saving..." indicator
 - Shows "Saved" confirmation
 - Handles concurrent edits
 
 **Technical Details:**
+
 - Store: `src/renderer/src/stores/autoSave.svelte.ts`
 - Debounce time: 1000ms
 
@@ -726,6 +799,7 @@ User: "Create a new vault called 'Research' for academic notes"
 **Purpose:** Handle notes edited outside the application.
 
 **Key Features:**
+
 - File system watching
 - Conflict notification
 - Choose which version to keep
@@ -733,11 +807,13 @@ User: "Create a new vault called 'Research' for academic notes"
 - Auto-reload option
 
 **Conflict Resolution:**
+
 - Keep app version
 - Use file version
 - Merge manually
 
 **Technical Details:**
+
 - Component: `src/renderer/src/components/ExternalEditConflictNotification.svelte`
 - Watcher: `chokidar` library
 
@@ -750,6 +826,7 @@ User: "Create a new vault called 'Research' for academic notes"
 **Purpose:** Seamless application updates.
 
 **Key Features:**
+
 - Automatic update checking
 - Background downloads
 - Update notifications
@@ -759,10 +836,12 @@ User: "Create a new vault called 'Research' for academic notes"
 - Channel support (stable, canary)
 
 **Update Channels:**
+
 - **Stable** - Production releases
 - **Canary** - Bleeding edge features
 
 **User Experience:**
+
 1. App checks for updates on start
 2. Downloads in background if available
 3. Shows notification when ready
@@ -770,6 +849,7 @@ User: "Create a new vault called 'Research' for academic notes"
 5. Update applies on restart
 
 **Technical Details:**
+
 - Service: `src/main/auto-updater-service.ts`
 - Uses `electron-updater`
 - Component: `src/renderer/src/components/ChangelogViewer.svelte`
@@ -779,6 +859,7 @@ User: "Create a new vault called 'Research' for academic notes"
 **Purpose:** Centralized application configuration.
 
 **Key Features:**
+
 - Global settings (all vaults)
 - Vault-specific settings
 - API key management (secure)
@@ -790,28 +871,33 @@ User: "Create a new vault called 'Research' for academic notes"
 **Settings Categories:**
 
 **Appearance:**
+
 - Theme (light/dark/system)
 - Font size
 - Layout preferences
 - Sidebar visibility defaults
 
 **Editor:**
+
 - Line numbers
 - Word wrap
 - Tab size
 - Auto-save interval
 
 **AI:**
+
 - Default model
 - Model per vault
 - Cache preferences
 - Cost limits (planned)
 
 **Privacy:**
+
 - Telemetry (opt-in)
 - Crash reports
 
 **Technical Details:**
+
 - Store: `src/renderer/src/stores/settingsStore.svelte.ts`
 - Persisted: `settings/app-settings.json`
 - Secure keys: OS keychain via `secure-storage-service`
@@ -821,6 +907,7 @@ User: "Create a new vault called 'Research' for academic notes"
 **Purpose:** Quick actions via `/` commands.
 
 **Key Features:**
+
 - Custom command creation
 - Predefined commands
 - Command templates
@@ -828,6 +915,7 @@ User: "Create a new vault called 'Research' for academic notes"
 - AI integration
 
 **Built-in Commands:**
+
 ```
 /today        - Open today's daily note
 /inbox        - Jump to inbox
@@ -838,6 +926,7 @@ User: "Create a new vault called 'Research' for academic notes"
 **Custom Commands:**
 
 Create via settings:
+
 ```
 Command: /standup
 Action: Create a note with standup template
@@ -850,6 +939,7 @@ Template:
 ```
 
 **Technical Details:**
+
 - Store: `src/renderer/src/stores/slashCommandsStore.svelte.ts`
 - Persisted: `settings/slash-commands.json`
 
@@ -858,6 +948,7 @@ Template:
 **Purpose:** Onboard new users smoothly.
 
 **Key Features:**
+
 - Welcome wizard
 - Vault setup
 - Sample notes
@@ -866,6 +957,7 @@ Template:
 - API key setup help
 
 **Flow:**
+
 1. Welcome screen
 2. Create first vault
 3. Optional sample content
@@ -874,6 +966,7 @@ Template:
 6. Start using Flint
 
 **Technical Details:**
+
 - Component: `src/renderer/src/components/FirstTimeExperience.svelte`
 - Tracks completion state
 
@@ -882,6 +975,7 @@ Template:
 **Purpose:** Track AI agent activity and system operations.
 
 **Key Features:**
+
 - Real-time activity feed
 - Operation history
 - Error logging
@@ -889,12 +983,14 @@ Template:
 - Debug information
 
 **Widget Display:**
+
 - Current operations
 - Recent completions
 - Error notifications
 - Resource usage
 
 **Technical Details:**
+
 - Component: `src/renderer/src/components/AgentActivityWidget.svelte`
 - Real-time updates via IPC events
 
@@ -907,6 +1003,7 @@ Template:
 **Purpose:** Execute JavaScript code in notes safely.
 
 **Key Features:**
+
 - Secure sandboxed execution
 - QuickJS runtime
 - Timeout protection
@@ -915,12 +1012,14 @@ Template:
 - Return structured data
 
 **Use Cases:**
+
 - Data transformations
 - Calculations
 - Custom logic
 - Report generation
 
 **Technical Details:**
+
 - Service: `src/main/enhanced-evaluate-note-code.ts`
 - Sandbox: QuickJS WebAssembly
 
@@ -929,6 +1028,7 @@ Template:
 **Purpose:** Development and debugging capabilities.
 
 **Key Features:**
+
 - Message bus inspector
 - IPC message logging
 - Store state viewer
@@ -936,6 +1036,7 @@ Template:
 - Error tracking
 
 **Technical Details:**
+
 - Component: `src/renderer/src/components/MessageBusDebugPanel.svelte`
 
 ---
@@ -945,6 +1046,7 @@ Template:
 Flint provides a comprehensive feature set for AI-assisted note-taking:
 
 **Core Strengths:**
+
 - ✅ Powerful AI integration via MCP
 - ✅ Flexible organization (types, vaults, links)
 - ✅ Automation (workflows, custom functions)

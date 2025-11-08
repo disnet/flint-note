@@ -20,12 +20,15 @@ class WorkflowService {
   private aiService: AIService;
 
   // Workflow execution
-  async executeWorkflow(workflowId: string, context: WorkflowContext): Promise<WorkflowResult>
+  async executeWorkflow(
+    workflowId: string,
+    context: WorkflowContext
+  ): Promise<WorkflowResult>;
 
   // Workflow management
-  async createWorkflow(definition: WorkflowDefinition): Promise<Workflow>
-  async listWorkflows(): Promise<Workflow[]>
-  async deleteWorkflow(id: string): Promise<void>
+  async createWorkflow(definition: WorkflowDefinition): Promise<Workflow>;
+  async listWorkflows(): Promise<Workflow[]>;
+  async deleteWorkflow(id: string): Promise<void>;
 }
 ```
 
@@ -47,18 +50,18 @@ interface WorkflowStep {
   action: string;
   params: Record<string, any>;
   onSuccess?: string; // Next step ID
-  onError?: string;   // Error handler step ID
+  onError?: string; // Error handler step ID
 }
 
 type StepType =
-  | 'search'          // Search for notes
-  | 'filter'          // Filter results
-  | 'ai-process'      // AI processing
-  | 'create-note'     // Create new note
-  | 'update-note'     // Update existing note
+  | 'search' // Search for notes
+  | 'filter' // Filter results
+  | 'ai-process' // AI processing
+  | 'create-note' // Create new note
+  | 'update-note' // Update existing note
   | 'custom-function' // Execute custom function
-  | 'conditional'     // Conditional branching
-  | 'loop';           // Iteration
+  | 'conditional' // Conditional branching
+  | 'loop'; // Iteration
 
 interface WorkflowTrigger {
   type: 'schedule' | 'event' | 'manual';
@@ -155,9 +158,9 @@ class WorkflowStore {
   private activeWorkflow = $state<string | null>(null);
   private executionStatus = $state<WorkflowExecutionStatus | null>(null);
 
-  async loadWorkflows(): Promise<void>
-  async executeWorkflow(id: string): Promise<void>
-  async createWorkflow(definition: WorkflowDefinition): Promise<void>
+  async loadWorkflows(): Promise<void>;
+  async executeWorkflow(id: string): Promise<void>;
+  async createWorkflow(definition: WorkflowDefinition): Promise<void>;
 
   get currentExecution() {
     return this.executionStatus;
@@ -189,26 +192,28 @@ class ToolService {
   async initialize(
     todoPlanService: TodoPlanService,
     workflowService: WorkflowService
-  ): Promise<void>
+  ): Promise<void>;
 
   // Custom function management
-  async registerCustomFunction(fn: CustomFunction): Promise<void>
-  async executeCustomFunction(name: string, args: any[]): Promise<any>
+  async registerCustomFunction(fn: CustomFunction): Promise<void>;
+  async executeCustomFunction(name: string, args: any[]): Promise<any>;
 
   // Tool availability for AI
-  getAvailableTools(): ToolDefinition[]
+  getAvailableTools(): ToolDefinition[];
 }
 ```
 
 #### Tool Categories
 
 **Built-in Tools:**
+
 - Note operations (via MCP)
 - Search operations
 - Link management
 - Vault operations
 
 **Extended Tools:**
+
 - Workflow execution
 - Custom function calls
 - Todo/plan management
@@ -303,10 +308,10 @@ function calculateTotalWords(noteIds) {
 class CustomFunctionsStore {
   private functions = $state<CustomFunction[]>([]);
 
-  async loadFunctions(): Promise<void>
-  async saveFunction(fn: CustomFunction): Promise<void>
-  async deleteFunction(name: string): Promise<void>
-  async testFunction(name: string, args: any[]): Promise<any>
+  async loadFunctions(): Promise<void>;
+  async saveFunction(fn: CustomFunction): Promise<void>;
+  async deleteFunction(name: string): Promise<void>;
+  async testFunction(name: string, args: any[]): Promise<any>;
 }
 ```
 
@@ -324,10 +329,14 @@ Manages AI agent task planning and tracking.
 class TodoPlanService {
   private plans: Map<string, TodoPlan> = new Map();
 
-  async createPlan(conversationId: string): Promise<TodoPlan>
-  async addTask(planId: string, task: TodoTask): Promise<void>
-  async updateTaskStatus(planId: string, taskId: string, status: TaskStatus): Promise<void>
-  async getPlan(conversationId: string): Promise<TodoPlan | null>
+  async createPlan(conversationId: string): Promise<TodoPlan>;
+  async addTask(planId: string, task: TodoTask): Promise<void>;
+  async updateTaskStatus(
+    planId: string,
+    taskId: string,
+    status: TaskStatus
+  ): Promise<void>;
+  async getPlan(conversationId: string): Promise<TodoPlan | null>;
 }
 
 interface TodoPlan {
@@ -342,9 +351,9 @@ interface TodoTask {
   id: string;
   description: string;
   status: 'pending' | 'in_progress' | 'completed' | 'failed';
-  toolCall?: string;      // Associated tool call ID
-  result?: any;           // Task result
-  error?: string;         // Error message if failed
+  toolCall?: string; // Associated tool call ID
+  result?: any; // Task result
+  error?: string; // Error message if failed
   created: string;
   completed?: string;
 }
@@ -416,7 +425,7 @@ async function evaluateNoteCode(
   code: string,
   context: EvaluationContext,
   options: EvaluationOptions
-): Promise<EvaluationResult>
+): Promise<EvaluationResult>;
 
 interface EvaluationContext {
   noteId?: string;
@@ -426,8 +435,8 @@ interface EvaluationContext {
 }
 
 interface EvaluationOptions {
-  timeout?: number;      // Milliseconds (default: 5000)
-  memoryLimit?: number;  // Bytes (default: 10MB)
+  timeout?: number; // Milliseconds (default: 5000)
+  memoryLimit?: number; // Bytes (default: 10MB)
   allowedAPIs?: string[]; // Whitelist of allowed functions
 }
 
@@ -445,6 +454,7 @@ interface EvaluationResult {
 The evaluation runs in a QuickJS sandbox with restricted capabilities:
 
 **Allowed:**
+
 - Pure JavaScript operations
 - Math operations
 - String manipulation
@@ -453,6 +463,7 @@ The evaluation runs in a QuickJS sandbox with restricted capabilities:
 - Limited note API (read-only)
 
 **Blocked:**
+
 - File system access
 - Network requests
 - Process operations
@@ -466,14 +477,22 @@ The evaluation runs in a QuickJS sandbox with restricted capabilities:
 // Inside sandbox
 const api = {
   // Read note data
-  getNote(id) { /* ... */ },
+  getNote(id) {
+    /* ... */
+  },
 
   // Search notes (limited)
-  searchNotes(query, limit) { /* ... */ },
+  searchNotes(query, limit) {
+    /* ... */
+  },
 
   // Utility functions
-  parseYAML(text) { /* ... */ },
-  formatDate(date) { /* ... */ },
+  parseYAML(text) {
+    /* ... */
+  },
+  formatDate(date) {
+    /* ... */
+  }
 
   // No write operations allowed
 };
@@ -486,7 +505,7 @@ const api = {
 ```javascript
 // In a note
 const data = [1, 2, 3, 4, 5];
-const result = data.map(x => x * 2).reduce((a, b) => a + b, 0);
+const result = data.map((x) => x * 2).reduce((a, b) => a + b, 0);
 // result: 30
 ```
 
@@ -516,9 +535,7 @@ function generateWeeklyReport() {
   return {
     total: notes.length,
     byType,
-    mostActive: Object.keys(byType).sort((a, b) =>
-      byType[b] - byType[a]
-    )[0]
+    mostActive: Object.keys(byType).sort((a, b) => byType[b] - byType[a])[0]
   };
 }
 ```
@@ -665,24 +682,28 @@ try {
 ### Planned Features
 
 **Workflow Builder UI:**
+
 - Visual workflow designer
 - Drag-and-drop step composition
 - Real-time validation
 - Template marketplace
 
 **Advanced Custom Functions:**
+
 - npm package imports (sandboxed)
 - TypeScript support
 - Debugging interface
 - Performance profiling
 
 **Enhanced Tool System:**
+
 - Custom MCP servers
 - External API integrations (with user approval)
 - Shared tool library
 - Tool versioning
 
 **Improved Execution:**
+
 - Distributed workflow execution
 - Workflow scheduling
 - Event-driven triggers

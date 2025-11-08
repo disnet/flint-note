@@ -92,18 +92,21 @@ flint-ui/
 ## Technology Stack
 
 ### Frontend
+
 - **Svelte 5** - Modern reactive UI framework with runes
 - **TypeScript** - Type-safe development
 - **CodeMirror 6** - Advanced code/markdown editor
 - **CSS Grid** - Responsive layout system
 
 ### Backend
+
 - **Electron** - Cross-platform desktop framework
 - **Node.js** - JavaScript runtime
 - **SQLite** - Local database for notes and metadata
 - **AI SDK** - AI provider integration via Gateway
 
 ### AI Integration
+
 - **Model Context Protocol (MCP)** - Standardized AI tool integration
 - **Multi-provider Support** - Anthropic, OpenAI, OpenRouter
 - **Streaming Responses** - Real-time AI interactions
@@ -127,17 +130,20 @@ flint-ui/
 ## Architecture Highlights
 
 ### Three-Column Layout
+
 - **Left Sidebar** - Navigation, pinned notes, temporary tabs
 - **Main View** - Note editor with CodeMirror
 - **Right Sidebar** - AI assistant, metadata editor, backlinks
 
 ### Modern Svelte 5 Patterns
+
 - **Runes** - `$state`, `$derived`, `$effect` for reactivity
 - **Props** - Modern `$props()` syntax
 - **Event Handlers** - Native `onclick` vs legacy `on:click`
 - **File System Persistence** - All state saved to disk
 
 ### Electron Architecture
+
 - **Main Process** - Service coordination, AI integration, storage
 - **Renderer Process** - Svelte UI with isolated context
 - **Preload Bridge** - Secure IPC communication
@@ -146,21 +152,25 @@ flint-ui/
 ## Documentation
 
 ### For New Developers
+
 - **[Getting Started](docs/GETTING-STARTED.md)** - Step-by-step setup guide
 - **[Features Guide](docs/FEATURES.md)** - Comprehensive feature documentation
 - **[CLAUDE.md](CLAUDE.md)** - AI coding assistant guidelines
 
 ### Philosophy and Vision
+
 - **[Flint Overview](docs/FLINT-OVERVIEW.md)** - Philosophy and core beliefs
 - **[Core Concepts](docs/architecture/CORE-CONCEPTS.md)** - Fundamental concepts
 
 ### Technical Architecture
+
 - **[Architecture](docs/architecture/ARCHITECTURE.md)** - System architecture
 - **[Design](docs/architecture/DESIGN.md)** - UI design and components
 - **[FlintNote API](docs/architecture/FLINT-NOTE-API.md)** - Server API reference
 - **[Database Architecture](docs/architecture/DATABASE-ARCHITECTURE.md)** - Data persistence
 
 ### Feature-Specific Docs
+
 - See `docs/architecture/` for detailed documentation on:
   - Workflows and automation
   - Custom functions
@@ -174,12 +184,14 @@ flint-ui/
 Flint is open source and welcomes contributions! Key guidelines:
 
 ### Coding Standards
+
 - **Modern Svelte 5** - Use runes (`$state`, `$derived`, etc.)
 - **TypeScript** - Avoid `any` types
 - **Format First** - Run `npm run format` before commits
 - **Test Coverage** - Write tests for new features
 
 ### Development Workflow
+
 1. Create a feature branch
 2. Make changes with clear commits
 3. Run `npm run check` to validate
@@ -187,6 +199,7 @@ Flint is open source and welcomes contributions! Key guidelines:
 5. Submit pull request with description
 
 ### Important Notes
+
 - Don't run `npm run dev` during automated tasks
 - Handle backward compatibility for existing users
 - Use migration system for breaking DB changes

@@ -66,6 +66,7 @@ npm run dev
 ```
 
 This will:
+
 1. Start the Electron application in development mode
 2. Enable hot reload for the Svelte UI
 3. Watch for changes in main process code
@@ -91,6 +92,7 @@ flint-ui/
 The main process is the heart of the Electron application:
 
 **Key Files:**
+
 - `index.ts` - Application entry point, window management, IPC handlers
 - `ai-service.ts` - AI integration via Model Context Protocol
 - `note-service.ts` - Note CRUD operations wrapper
@@ -102,6 +104,7 @@ The main process is the heart of the Electron application:
 - `settings-storage-service.ts` - Global settings
 
 **Service Initialization Order:**
+
 1. Note Service
 2. Secure Storage Service
 3. AI Service (depends on Note Service and Secure Storage)
@@ -121,6 +124,7 @@ The preload script creates a secure bridge between main and renderer:
 The Svelte 5 UI application:
 
 **Directory Structure:**
+
 ```
 renderer/src/
 ├── components/        # Svelte components
@@ -133,6 +137,7 @@ renderer/src/
 ```
 
 **Key Components:**
+
 - `App.svelte` - Root component
 - `LeftSidebar.svelte` - Navigation
 - `MainView.svelte` - Note editor
@@ -141,6 +146,7 @@ renderer/src/
 - `CodeMirrorEditor.svelte` - Note editor
 
 **Key Stores (Svelte 5 Runes):**
+
 - `notesStore.svelte.ts` - Note data (not persisted)
 - `activeNoteStore.svelte.ts` - Active note tracking
 - `unifiedChatStore.svelte.ts` - AI conversations
@@ -287,6 +293,7 @@ This ensures consistent code style across the project.
 All application state is persisted to the file system:
 
 **File System Structure:**
+
 ```
 {userData}/
 ├── secure/                    # Encrypted API keys
@@ -304,6 +311,7 @@ All application state is persisted to the file system:
 ```
 
 **Store Pattern:**
+
 ```typescript
 class PersistedStore {
   private data = $state(defaultData);
@@ -371,10 +379,7 @@ touch src/renderer/src/components/MyNewComponent.svelte
   import MyNewComponent from './MyNewComponent.svelte';
 </script>
 
-<MyNewComponent
-  title="Hello"
-  onAction={() => console.log('Action!')}
-/>
+<MyNewComponent title="Hello" onAction={() => console.log('Action!')} />
 ```
 
 ### Example: Adding an IPC Handler
@@ -474,12 +479,14 @@ describe('NoteManager', () => {
 #### Renderer Process
 
 Use Chrome DevTools:
+
 - Press `Cmd+Option+I` (macOS) or `Ctrl+Shift+I` (Windows/Linux)
 - Or add `debugger;` statements in renderer code
 
 #### Main Process
 
 Add breakpoints in VS Code:
+
 1. Add `"node": ["--inspect=5858"]` to `electron-vite.config.ts`
 2. Use VS Code's debugger with Node.js configuration
 3. Or use `console.log()` statements
@@ -517,6 +524,7 @@ Workflows are AI-assisted automation sequences:
 **Frontend Store:** `src/renderer/src/stores/workflowStore.svelte.ts`
 
 **Example Workflow:**
+
 ```typescript
 {
   id: 'daily-review',
@@ -545,6 +553,7 @@ Functions are evaluated in a secure sandbox using QuickJS.
 ### Build Errors
 
 **Problem:** TypeScript errors after pulling changes
+
 ```bash
 # Clean and reinstall
 npm run clean
@@ -553,6 +562,7 @@ npm install
 ```
 
 **Problem:** Electron won't start
+
 ```bash
 # Rebuild native modules
 npm rebuild
@@ -561,16 +571,19 @@ npm rebuild
 ### Runtime Issues
 
 **Problem:** IPC methods not working
+
 - Check preload script exposes the method
 - Verify IPC handler exists in main process
 - Check for typos in method names
 
 **Problem:** State not persisting
+
 - Ensure you're using `$state.snapshot()` for IPC
 - Check file permissions in userData directory
 - Verify storage service is initialized
 
 **Problem:** AI features not working
+
 - Check API keys are set in settings
 - Verify MCP server is running (check logs)
 - Ensure note service initialized before AI service

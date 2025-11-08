@@ -104,7 +104,18 @@
     let result = html;
 
     noteLinks.forEach((noteLink) => {
-      const buttonHtml = `<button class="note-link" data-note-id="${noteLink.noteId}" title="Click to open note">${noteLink.displayText}</button>`;
+      // Look up the note and its type to get the icon
+      const note = notesStore.notes.find((n) => n.id === noteLink.noteId);
+      let iconHtml = '';
+
+      if (note) {
+        const noteType = notesStore.noteTypes.find((t) => t.name === note.type);
+        if (noteType?.icon) {
+          iconHtml = `<span class="note-link-icon">${noteType.icon}</span>`;
+        }
+      }
+
+      const buttonHtml = `<button class="note-link" data-note-id="${noteLink.noteId}" title="Click to open note">${iconHtml}${noteLink.displayText}</button>`;
       result = result.replaceAll(noteLink.id, buttonHtml);
     });
 
@@ -156,7 +167,8 @@
         'h5',
         'h6',
         'br',
-        'button'
+        'button',
+        'span'
       ],
       ALLOWED_ATTR: ['class', 'data-note-id', 'title'],
       ALLOW_DATA_ATTR: true,
@@ -311,6 +323,14 @@
     text-align: left;
     transition: all 0.2s ease;
     font-weight: 600;
+  }
+
+  .markdown-content :global(.note-link-icon) {
+    font-size: 0.9em;
+    line-height: 1;
+    display: inline-block;
+    vertical-align: baseline;
+    margin-right: 0.25em;
   }
 
   .markdown-content :global(.note-link:hover) {
