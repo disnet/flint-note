@@ -26,7 +26,9 @@ describe('LinkExtractor - ID-based links', () => {
     type?: string;
   }) {
     const db = await getDb();
-    const id = options.id || `n-${Math.random().toString(36).substr(2, 8)}`;
+    // Generate valid hex ID format (n-xxxxxxxx)
+    const id =
+      options.id || `n-${Math.random().toString(16).substring(2, 10).padEnd(8, '0')}`;
     const now = Date.now();
 
     await db.run(
@@ -388,6 +390,113 @@ Third line with [[n-33333333]].`;
         (l) => l.target_title === 'Missing Note'
       );
       expect(titleLink?.target_note_id).toBe(newNote.id);
+    });
+  });
+
+  describe('convertTitleLinksToIdLinks', () => {
+    it('should convert title-based link without display text to bare ID-based link', async () => {
+      const db = await getDb();
+
+      // Create target note
+      const targetNote = await insertTestNote({
+        title: 'My Target Note',
+        content: 'Target content'
+      });
+
+      const content = 'See [[My Target Note]] for details.';
+      const rewritten = await LinkExtractor.convertTitleLinksToIdLinks(content, db);
+
+      expect(rewritten).toBe(`See [[${targetNote.id}]] for details.`);
+    });
+
+    it('should convert title-based link with custom display text, preserving the display text', async () => {
+      const db = await getDb();
+
+      // Create target note
+      const targetNote = await insertTestNote({
+        title: 'Long Note Title',
+        content: 'Content'
+      });
+
+      const content = 'See [[Long Note Title|Short Name]] for details.';
+      const rewritten = await LinkExtractor.convertTitleLinksToIdLinks(content, db);
+
+      expect(rewritten).toBe(`See [[${targetNote.id}|Short Name]] for details.`);
+    });
+
+    it('should convert multiple title-based links, preserving custom display text', async () => {
+      const db = await getDb();
+
+      const note1 = await insertTestNote({
+        title: 'First Note',
+        content: 'Content 1'
+      });
+
+      const note2 = await insertTestNote({
+        title: 'Second Note',
+        content: 'Content 2'
+      });
+
+      const content = 'See [[First Note]] and [[Second Note|Second]].';
+      const rewritten = await LinkExtractor.convertTitleLinksToIdLinks(content, db);
+
+      expect(rewritten).toBe(`See [[${note1.id}]] and [[${note2.id}|Second]].`);
+    });
+
+    it('should leave ID-based links unchanged', async () => {
+      const db = await getDb();
+
+      const content = 'See [[n-12345678|My Link]] for details.';
+      const rewritten = await LinkExtractor.convertTitleLinksToIdLinks(content, db);
+
+      expect(rewritten).toBe(content);
+    });
+
+    it('should leave broken links unchanged', async () => {
+      const db = await getDb();
+
+      const content = 'See [[Nonexistent Note]] for details.';
+      const rewritten = await LinkExtractor.convertTitleLinksToIdLinks(content, db);
+
+      expect(rewritten).toBe(content);
+    });
+
+    it('should handle mix of ID-based, title-based, and broken links', async () => {
+      const db = await getDb();
+
+      const targetNote = await insertTestNote({
+        title: 'Existing Note',
+        content: 'Content'
+      });
+
+      const content = 'See [[n-12345678|ID Link]], [[Existing Note]], and [[Missing]].';
+      const rewritten = await LinkExtractor.convertTitleLinksToIdLinks(content, db);
+
+      expect(rewritten).toBe(
+        `See [[n-12345678|ID Link]], [[${targetNote.id}]], and [[Missing]].`
+      );
+    });
+
+    it('should handle type/filename format links', async () => {
+      const db = await getDb();
+
+      const targetNote = await insertTestNote({
+        id: 'n-abcd1234',
+        title: 'Meeting Notes',
+        type: 'meeting',
+        content: 'Meeting content'
+      });
+
+      // Insert note with filename matching type/filename pattern
+      await db.run('UPDATE notes SET filename = ? WHERE id = ?', [
+        'standup.md',
+        targetNote.id
+      ]);
+
+      const content = 'See [[meeting/standup]] for details.';
+      const rewritten = await LinkExtractor.convertTitleLinksToIdLinks(content, db);
+
+      expect(rewritten).toBe(`See [[${targetNote.id}]] for details.`);
     });
   });
 });

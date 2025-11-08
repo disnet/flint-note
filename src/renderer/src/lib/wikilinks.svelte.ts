@@ -439,12 +439,12 @@ export function wikilinkCompletion(context: CompletionContext): CompletionResult
         .slice(0, 10)
     : notes.slice(0, 10);
 
-  // Create completion options with the correct format [[type/filename|title]]
+  // Create completion options with ID-only format [[n-id]]
+  // UI will render the current title automatically
   const options = filteredNotes.map((note) => {
-    const linkTarget = `${note.type}/${note.filename.replace(/\.md$/, '')}`;
     return {
       label: note.title,
-      apply: `${linkTarget}|${note.title}]]`,
+      apply: `${note.id}]]`,
       info: () => createNoteInfo(note.id, note.type || 'unknown'),
       type: `note-type-${note.type}` // Use note type as completion type for icon
     };
@@ -505,11 +505,27 @@ class WikilinkWidget extends WidgetType {
         : 'wikilink wikilink-broken';
     }
 
-    // Get note type icon if the note exists
+    // Determine the display text to show
+    let displayText = this.title; // Default to markdown title
+
+    // Get note type icon and current title if the note exists
     if (this.exists && this.noteId) {
       const notes = notesStore.notes;
       const note = notes.find((n) => n.id === this.noteId);
       if (note) {
+        // Option 1: Pure UI-based display
+        // Determine if this link has custom display text or should show current title
+        if (this.identifier === this.title) {
+          // No display text provided (ID-only format like [[n-id]]) -> show current title
+          displayText = note.title;
+        } else if (this.title === note.title) {
+          // Display text matches current title -> show current title (auto-update)
+          displayText = note.title;
+        } else {
+          // Display text differs from current title -> custom display text, preserve it
+          displayText = this.title;
+        }
+
         const noteTypes = notesStore.noteTypes;
         const noteType = noteTypes.find((t) => t.name === note.type);
         if (noteType?.icon) {
@@ -521,11 +537,11 @@ class WikilinkWidget extends WidgetType {
       }
     }
 
-    // Display only the title part (no brackets), which is more user-friendly
+    // Display the determined text (no brackets), which is more user-friendly
     // Wrap text in a span so we can apply underline only to text, not icon
     const textSpan = document.createElement('span');
     textSpan.className = 'wikilink-text';
-    textSpan.textContent = this.title;
+    textSpan.textContent = displayText;
     span.appendChild(textSpan);
 
     span.addEventListener('click', (e) => {

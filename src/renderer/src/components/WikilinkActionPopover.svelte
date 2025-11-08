@@ -46,6 +46,11 @@
     onEdit();
   }
 
+  function handleMouseDown(e: MouseEvent): void {
+    // Prevent the mousedown from blurring the editor
+    e.preventDefault();
+  }
+
   // Adjust position when visible to avoid covering the link
   $effect(() => {
     if (visible && popoverElement && linkRect) {
@@ -79,11 +84,21 @@
         <span class="link-value">{displayLabel}</span>
       </div>
       <div class="actions">
-        <button type="button" class="action-button" onclick={handleOpenClick}>
+        <button
+          type="button"
+          class="action-button"
+          onclick={handleOpenClick}
+          onmousedown={handleMouseDown}
+        >
           <span>Open</span>
           <kbd>{cmdKey}↵</kbd>
         </button>
-        <button type="button" class="action-button" onclick={handleEditClick}>
+        <button
+          type="button"
+          class="action-button"
+          onclick={handleEditClick}
+          onmousedown={handleMouseDown}
+        >
           <span>Edit</span>
           <kbd>{altKey}↵</kbd>
         </button>

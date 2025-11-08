@@ -29,6 +29,7 @@ export interface ExtractedExternalLink {
 export interface LinkExtractionResult {
   wikilinks: ExtractedWikilink[];
   external_links: ExtractedExternalLink[];
+  rewritten_content?: string; // Optional: content with title-based links converted to ID-based
 }
 
 export class LinkExtractor {
@@ -73,6 +74,67 @@ export class LinkExtractor {
     }
 
     return { wikilinks, external_links };
+  }
+
+  /**
+   * Convert title-based wikilinks to ID-based wikilinks
+   * Returns rewritten content with [[Title]] -> [[n-id]] or [[Title|Custom]] -> [[n-id|Custom]]
+   */
+  static async convertTitleLinksToIdLinks(
+    content: string,
+    db: DatabaseConnection
+  ): Promise<string> {
+    const parseResult = WikilinkParser.parseWikilinks(content);
+
+    // Collect replacements: map from original raw link to new ID-based link
+    const replacements = new Map<string, string>();
+
+    for (const wikilink of parseResult.wikilinks) {
+      // Skip links that are already ID-based
+      if (wikilink.noteId) {
+        continue;
+      }
+
+      // Try to resolve the title to a note ID
+      const noteId = await this.findNoteByTitle(wikilink.target, db);
+
+      if (noteId) {
+        // Determine if this link has custom display text
+        // If display text differs from target title, preserve it
+        const hasCustomDisplay = wikilink.display !== wikilink.target;
+        const displayText = hasCustomDisplay ? wikilink.display : undefined;
+
+        // Create the new ID-based wikilink, preserving custom display text
+        const newLink = WikilinkParser.createIdWikilink(noteId, displayText);
+        replacements.set(wikilink.raw, newLink);
+      }
+    }
+
+    // Apply replacements using WikilinkParser.replaceWikilinks
+    // But we need to map by target, not by raw link text
+    // Let's do manual replacement instead
+    if (replacements.size === 0) {
+      return content;
+    }
+
+    let rewrittenContent = content;
+
+    // Sort by position (descending) to avoid position shifts during replacement
+    const sortedLinks = parseResult.wikilinks
+      .filter((link) => replacements.has(link.raw))
+      .sort((a, b) => b.position.start - a.position.start);
+
+    for (const link of sortedLinks) {
+      const replacement = replacements.get(link.raw);
+      if (replacement) {
+        rewrittenContent =
+          rewrittenContent.slice(0, link.position.start) +
+          replacement +
+          rewrittenContent.slice(link.position.end);
+      }
+    }
+
+    return rewrittenContent;
   }
 
   /**
