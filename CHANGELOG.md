@@ -4,6 +4,38 @@ All notable changes to the Flint application will be documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.0]
+
+### Added
+
+**Note Type Icons**
+
+You can now assign icons to note types to make them easier to identify at a glance. Icons appear throughout the interface including in the sidebar, tabs, wikilink autocomplete, and when the AI assistant references notes.
+
+**Redesigned Note Types View**
+
+The "All Notes" view has been redesigned and renamed to "Note Types". Each note type now displays as a card showing its icon, description, and count of notes. Click on a type to see all notes of that type in a cleaner, more organized layout.
+
+**ID-based Wikilinks**
+
+Wikilinks now use note IDs internally instead of filenames, making your links more robust. When you rename a note, all links to it automatically stay up to date without requiring any manual fixes. The AI assistant also uses this system when creating and referencing notes.
+
+**AI Assistant Link Validation**
+
+The AI assistant now validates wikilinks when updating notes and will warn you if it detects broken links, helping maintain the integrity of your note connections.
+
+### Changed
+
+- The active note in the sidebar now automatically scrolls into view when opened
+- Improved autocomplete information display when creating wikilinks
+
+### Fixed
+
+- Fixed wikilinks not displaying correctly on first load of the application
+- Fixed AI assistant edits not immediately reflecting in the note editor
+- Fixed external file changes not properly updating in the application
+- Fixed daily view entries losing focus when the window loses focus
+
 ## [0.8.0]
 
 ### Changed
