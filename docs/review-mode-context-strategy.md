@@ -1,6 +1,25 @@
 # Review Mode: Context Management Strategy
 
-## Problem Statement
+## UPDATED: Agent-Driven Approach
+
+**Status:** This document has been superseded by the decision to use an **agent-driven review approach** with **full note content**.
+
+**New approach (see revised prototype spec):**
+- Agent receives **full content** of all notes due for review (no truncation)
+- Agent autonomously chooses review strategy
+- Tool-based context fetching (agent pulls additional context as needed)
+- Estimated cost: ~$0.07/session with Sonnet (very affordable)
+
+**This document remains as reference** for the analysis that led to the decision, but the recommended MVP strategy is now:
+- **Include full main note content** - no truncation
+- **Agent-driven prompts** - no predetermined categories
+- **On-demand tool calls** - fetch related notes only if agent needs them
+
+See `review-mode-prototype.md` for the current specification.
+
+---
+
+## Original Problem Statement
 
 The review mode requires AI to generate synthesis prompts and analyze user responses. This involves accessing note content from potentially large knowledge graphs. We **cannot** simply dump all related notes into the LLM context window because:
 
@@ -11,6 +30,8 @@ The review mode requires AI to generate synthesis prompts and analyze user respo
 5. **Scale** - User vaults may have hundreds or thousands of notes
 
 We need a smart context management strategy that provides enough information for high-quality prompts while staying within practical limits.
+
+**UPDATE:** After analysis, we determined that including full note content is both feasible and necessary for quality prompts. Cost is acceptable (~$0.07/session).
 
 ## Current Approach in Prototype Spec
 
