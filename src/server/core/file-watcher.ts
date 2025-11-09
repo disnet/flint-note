@@ -363,21 +363,16 @@ export class VaultFileWatcher {
    * Handle file changed event
    */
   private async onFileChanged(filePath: string): Promise<void> {
-    console.log(`[FileWatcher] 🔔 chokidar 'change' event fired for: ${filePath}`);
-
     // Only handle markdown files
     if (!filePath.endsWith('.md')) {
-      console.log(`[FileWatcher] Ignoring non-markdown file: ${filePath}`);
       return;
     }
 
     // Ignore internal metadata files
     if (this.isMetadataFile(filePath)) {
-      console.log(`[FileWatcher] Ignoring metadata file: ${filePath}`);
       return;
     }
 
-    console.log(`[FileWatcher] Debouncing change for: ${filePath}`);
     this.debounceChange(filePath, async () => {
       try {
         const content = await fs.readFile(filePath, 'utf-8');

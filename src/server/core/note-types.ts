@@ -65,10 +65,42 @@ export interface NoteTypeUpdateRequest {
 export class NoteTypeManager {
   private workspace: Workspace;
   private dbManager: DatabaseManager | null = null;
+  private fileWatcher: {
+    markWriteStarting(path: string): void;
+    markWriteComplete(path: string): void;
+  } | null = null;
 
-  constructor(workspace: Workspace, dbManager?: DatabaseManager) {
+  constructor(
+    workspace: Workspace,
+    dbManager?: DatabaseManager,
+    fileWatcher?: {
+      markWriteStarting(path: string): void;
+      markWriteComplete(path: string): void;
+    }
+  ) {
     this.workspace = workspace;
     this.dbManager = dbManager || null;
+    this.fileWatcher = fileWatcher || null;
+  }
+
+  /**
+   * Write a file with file watcher tracking to prevent false external edit detection
+   * IMPORTANT: Always use this method instead of fs.writeFile for markdown files
+   */
+  async #writeFileWithTracking(filePath: string, content: string): Promise<void> {
+    // Mark write starting (prevents external edit detection)
+    if (this.fileWatcher) {
+      this.fileWatcher.markWriteStarting(filePath);
+    }
+
+    try {
+      await fs.writeFile(filePath, content, 'utf-8');
+    } finally {
+      // Always mark write complete (even on error)
+      if (this.fileWatcher) {
+        this.fileWatcher.markWriteComplete(filePath);
+      }
+    }
   }
 
   /**
@@ -576,7 +608,7 @@ export class NoteTypeManager {
           typeName,
           updates.description
         );
-        await fs.writeFile(descriptionPath, newDescription, 'utf-8');
+        await this.#writeFileWithTracking(descriptionPath, newDescription);
       }
 
       return await this.getNoteTypeDescription(typeName);
@@ -898,7 +930,7 @@ export class NoteTypeManager {
 
         // Write to new location
         const newPath = path.join(targetTypePath, note.filename);
-        await fs.writeFile(newPath, updatedContent, 'utf-8');
+        await this.#writeFileWithTracking(newPath, updatedContent);
       }
     } catch (error) {
       throw new Error(

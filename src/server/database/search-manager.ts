@@ -137,10 +137,44 @@ export class HybridSearchManager {
   private connection: DatabaseConnection | null = null;
   private readOnlyConnection: DatabaseConnection | null = null;
   private isInitialized = false;
+  private fileWatcher: {
+    markWriteStarting(path: string): void;
+    markWriteComplete(path: string): void;
+  } | null = null;
 
   constructor(workspacePath: string) {
     this.workspacePath = workspacePath;
     this.dbManager = new DatabaseManager(workspacePath);
+  }
+
+  /**
+   * Set the file watcher reference (called after initialization to resolve circular dependency)
+   */
+  setFileWatcher(fileWatcher: {
+    markWriteStarting(path: string): void;
+    markWriteComplete(path: string): void;
+  }): void {
+    this.fileWatcher = fileWatcher;
+  }
+
+  /**
+   * Write a file with file watcher tracking to prevent false external edit detection
+   * IMPORTANT: Always use this method instead of fs.writeFile for markdown files
+   */
+  private async writeFileWithTracking(filePath: string, content: string): Promise<void> {
+    // Mark write starting (prevents external edit detection)
+    if (this.fileWatcher) {
+      this.fileWatcher.markWriteStarting(filePath);
+    }
+
+    try {
+      await fs.writeFile(filePath, content, 'utf-8');
+    } finally {
+      // Always mark write complete (even on error)
+      if (this.fileWatcher) {
+        this.fileWatcher.markWriteComplete(filePath);
+      }
+    }
   }
 
   private async ensureInitialized(): Promise<void> {
@@ -1344,7 +1378,7 @@ export class HybridSearchManager {
         }
 
         // Write the corrected content back to the file
-        await fs.writeFile(filePath, updatedContent, 'utf-8');
+        await this.writeFileWithTracking(filePath, updatedContent);
 
         // Update the parsed object to reflect the correction
         parsed.type = parentDir;
@@ -1445,7 +1479,7 @@ export class HybridSearchManager {
         }
 
         // Write the corrected content back to the file
-        await fs.writeFile(filePath, updatedContent, 'utf-8');
+        await this.writeFileWithTracking(filePath, updatedContent);
 
         // Update the parsed object to reflect the correction
         parsed.id = newId;
@@ -1537,7 +1571,7 @@ export class HybridSearchManager {
         }
 
         // Write the corrected content back to the file
-        await fs.writeFile(filePath, updatedContent, 'utf-8');
+        await this.writeFileWithTracking(filePath, updatedContent);
 
         // Update the parsed object to reflect the correction
         parsed.title = generatedTitle;
@@ -1642,7 +1676,7 @@ export class HybridSearchManager {
       }
 
       // Write the normalized content back to the file
-      await fs.writeFile(filePath, updatedFileContent, 'utf-8');
+      await this.writeFileWithTracking(filePath, updatedFileContent);
 
       // Update the parsed object to reflect the normalized content
       parsed.content = normalizedContent;

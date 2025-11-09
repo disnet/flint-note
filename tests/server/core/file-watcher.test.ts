@@ -313,5 +313,56 @@ This note was created outside of Flint.`;
       const externalEvents = capturedEvents.filter((e) => e.type.startsWith('external-'));
       expect(externalEvents).toHaveLength(0);
     });
+
+    it('should handle rapid typing pattern without false external change events', async () => {
+      // This test mimics the real-world typing pattern that triggers the race condition:
+      // - Autosave triggers every 500ms during active typing
+      // - Write flag cleanup is 1000ms
+      // - Multiple saves occur within the cleanup window, causing flag interference
+
+      const note = await testSetup.api.createNote({
+        type: 'general',
+        title: 'Rapid Typing Test',
+        content: 'Initial',
+        vaultId: vaultId
+      });
+
+      // Wait for creation to settle and clear events
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      capturedEvents.length = 0;
+
+      // Simulate typing pattern: 5 rapid edits with 400ms intervals
+      // 400ms interval is more aggressive and closer to real typing patterns
+      // This creates multiple overlapping cleanup windows
+      for (let i = 0; i < 5; i++) {
+        const fullNote = await testSetup.api.getNote(vaultId, note.id);
+        await testSetup.api.updateNote({
+          identifier: note.id,
+          content: `Edit ${i + 1} - simulating active typing`,
+          contentHash: fullNote!.content_hash,
+          vaultId: vaultId
+        });
+
+        // Wait 400ms (much less than 1000ms cleanup window) to create more overlap
+        await new Promise((resolve) => setTimeout(resolve, 400));
+      }
+
+      // Wait for all file watcher events to settle
+      // Need extra time to ensure any delayed chokidar events have fired
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      // Should have ZERO external change events - all edits were internal
+      const externalEvents = capturedEvents.filter((e) => e.type.startsWith('external-'));
+
+      if (externalEvents.length > 0) {
+        console.error('[Test] FALSE POSITIVE external events detected:', externalEvents);
+      }
+
+      expect(externalEvents).toHaveLength(0);
+
+      // Verify final content was saved correctly (should be Edit 5, which is index 4)
+      const retrieved = await testSetup.api.getNote(vaultId, note.id);
+      expect(retrieved?.content).toBe('Edit 5 - simulating active typing');
+    });
   });
 });
