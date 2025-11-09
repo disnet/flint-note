@@ -43,16 +43,30 @@ The review mode should support the three-stage process of knowledge accumulation
 
 ### Thinking-First, Not Automation-First
 
-**Anti-Pattern: AI Generates Review Materials**
-- ❌ AI creates flashcards from your notes
-- ❌ AI generates quiz questions automatically
-- ❌ AI tells you what you "should" remember
+**The Key Insight: Deep Processing vs. Shallow Recognition**
 
-**Flint Pattern: AI Assists Your Review Process**
-- ✅ AI suggests notes that might benefit from review based on patterns
-- ✅ AI helps you identify connections during review
-- ✅ You decide what's worth reviewing and when
-- ✅ You create your own retrieval cues and questions
+The goal is to force **active cognitive engagement**, not passive recognition. Research shows:
+- Retrieval practice strengthens memory through *effort*
+- Elaborative encoding requires *reconstructing* understanding
+- "Desirable difficulties" make learning harder but more effective
+
+AI-generated review materials can be powerful IF they force deep processing rather than surface recognition.
+
+**Anti-Pattern: Shallow Recognition Prompts**
+- ❌ "What is elaborative encoding?" → Reveals definition
+- ❌ Generic flashcards from note definitions
+- ❌ Multiple choice that tests recognition, not understanding
+- ❌ Prompts that can be answered without real thought
+
+**Flint Pattern: AI-Generated Deep Processing Prompts**
+- ✅ **Synthesis prompts**: "How do your notes on [[X]] and [[Y]] connect?"
+- ✅ **Application prompts**: "Apply this concept to [your project]"
+- ✅ **Explanation prompts**: "Explain this to someone who knows [[prerequisite]]"
+- ✅ **Connection prompts**: "Should this link to [[related-note]]? Why?"
+- ✅ **Extension prompts**: "What questions does this raise?"
+- ✅ **Reconstruction prompts**: "Explain the argument without looking"
+
+The AI generates the *prompt* (leveraging your knowledge graph), you generate the *response* (doing the thinking).
 
 ### User Agency and Control
 
@@ -66,6 +80,227 @@ The review mode should support the three-stage process of knowledge accumulation
 - Simple review workflow for beginners
 - Advanced scheduling options for power users
 - Metadata visible but not required
+
+## AI-Generated Review Prompts: Deep Dive
+
+### Why AI-Generated Prompts Are Powerful for Review
+
+Traditional flashcards test isolated facts. But your notes form a **knowledge graph** with rich connections. AI can:
+
+1. **Leverage your entire knowledge base** - Generate prompts that span multiple notes
+2. **Identify implicit connections** - Suggest relationships you haven't made explicit
+3. **Adapt to your progress** - Harder questions as understanding deepens
+4. **Create context-specific challenges** - Reference your projects, recent work, other notes
+5. **Force reconstruction** - Require explanation, not recognition
+
+This aligns perfectly with crystallized intelligence principles: knowledge isn't isolated facts, it's an integrated, networked understanding.
+
+### Types of AI-Generated Review Prompts
+
+#### 1. Synthesis Prompts (Connect Multiple Notes)
+
+**Example:**
+```
+Your notes [[elaborative-encoding]] and [[schema-formation]] both
+discuss memory organization. Explain how elaborative encoding
+helps build schemas. What's the mechanism?
+```
+
+**Why it works:**
+- Requires retrieving concepts from multiple notes
+- Forces identification of relationships
+- Can't be answered by recognition alone
+- Builds connections in your knowledge graph
+
+#### 2. Application Prompts (Connect to User's Work)
+
+**Example:**
+```
+You wrote about retrieval practice in this note. Looking at
+your daily note from yesterday, you mentioned working on
+[[project-website-redesign]]. How could you apply retrieval
+practice to learning the new framework?
+```
+
+**Why it works:**
+- Bridges abstract concepts to concrete situations
+- Requires transfer of learning
+- Makes knowledge personally relevant
+- Shows whether you truly understand or just memorized
+
+#### 3. Explanation Prompts (Teach to Learn)
+
+**Example:**
+```
+You have a note on [[working-memory]] that explains basic
+concepts. Now explain elaborative encoding to someone who
+understands working memory but hasn't read this note. What's
+new here? How do they relate?
+```
+
+**Why it works:**
+- Teaching is the deepest form of understanding
+- Requires identifying prerequisites
+- Forces clear articulation
+- Reveals gaps in understanding
+
+#### 4. Connection Discovery Prompts
+
+**Example:**
+```
+This note on [[spaced-repetition]] doesn't link to your note
+on [[memory-consolidation]], but they're related through sleep
+and consolidation timing. Should they be connected? Explain
+the relationship and decide if you want to create a link.
+```
+
+**Why it works:**
+- Identifies potential connections AI found
+- User evaluates and decides (maintains agency)
+- Strengthens knowledge graph
+- Makes implicit connections explicit
+
+#### 5. Critical Analysis Prompts
+
+**Example:**
+```
+You wrote this note 3 months ago. Since then, you've created
+12 related notes about learning science. Does anything in this
+note need updating? What would you add now that you know more?
+```
+
+**Why it works:**
+- Encourages growth and refinement
+- Shows knowledge evolution
+- Identifies misconceptions
+- Promotes active maintenance of knowledge
+
+#### 6. Reconstruction Prompts (Hardest Mode)
+
+**Example:**
+```
+Without looking at the note content, explain the main argument
+of this note in your own words. What are the 2-3 key ideas?
+How do they connect? Then check: what did you miss?
+```
+
+**Why it works:**
+- Pure retrieval practice
+- No recognition cues
+- Reveals actual retention
+- Most effortful, most effective
+
+#### 7. Extension/Question-Generation Prompts
+
+**Example:**
+```
+This note discusses how elaborative encoding works. What
+questions does it raise? What would you need to research to
+extend this idea? What's the next note you should write?
+```
+
+**Why it works:**
+- Promotes active curiosity
+- Identifies knowledge gaps
+- Generates future learning goals
+- Turns passive review into active exploration
+
+### Prompt Difficulty Adaptation
+
+AI adjusts prompt difficulty based on review history:
+
+**First Review (Easiest):**
+- Simple reconstruction: "Summarize the main points"
+- Context provided: Shows linked notes
+- Low pressure: Can reveal note if stuck
+
+**Confident Reviews (2-3 times at high confidence):**
+- Synthesis across multiple notes
+- Application to new contexts
+- Critical analysis and extension
+
+**Struggling Reviews (Low confidence ratings):**
+- Simplify: Break into smaller pieces
+- Provide scaffolding: "You mentioned X in this note. How does it relate to Y?"
+- Offer context: Show related notes upfront
+
+### Prompt Generation Algorithm
+
+```typescript
+async function generateReviewPrompt(
+  note: Note,
+  context: ReviewContext
+): Promise<ReviewPrompt> {
+
+  // Gather knowledge graph context
+  const linkedNotes = await getLinkedNotes(note.id);
+  const recentNotes = await getRecentNotes(7); // last week
+  const reviewHistory = await getReviewHistory(note.id);
+  const userProjects = await extractProjectsFromDailyNotes();
+  const relatedNotes = await findSemanticallySimilar(note.id, 5);
+
+  // Determine prompt type based on:
+  // - Review count (first time vs. confident)
+  // - Previous confidence ratings
+  // - Knowledge graph density (how connected)
+  // - Recent activity (what user is working on)
+
+  const promptType = selectPromptType({
+    reviewCount: reviewHistory.count,
+    avgConfidence: reviewHistory.avgConfidence,
+    lastConfidence: reviewHistory.lastConfidence,
+    hasRichConnections: linkedNotes.length > 3,
+    hasRecentRelatedActivity: checkRecentActivity(note, recentNotes),
+    hasApplicationContext: userProjects.length > 0
+  });
+
+  // Generate context-aware prompt
+  const prompt = await generateWithAI({
+    type: promptType,
+    note: note,
+    linkedNotes: linkedNotes,
+    relatedNotes: relatedNotes,
+    userContext: {
+      recentWork: recentNotes,
+      activeProjects: userProjects,
+      knowledgeGraph: await getLocalGraph(note.id, depth=2)
+    },
+    constraints: {
+      requiresSynthesis: true,
+      avoidSimpleRecall: true,
+      referenceUserContent: true,
+      adaptDifficulty: reviewHistory.avgConfidence
+    }
+  });
+
+  return {
+    type: promptType,
+    prompt: prompt.text,
+    difficulty: prompt.difficulty,
+    relatedNotes: prompt.references,
+    editable: true, // User can modify prompt
+    hints: prompt.hints, // Progressive hints if user is stuck
+    expectedResponseType: 'explanation' | 'synthesis' | 'application'
+  };
+}
+```
+
+### User Control Over AI Prompts
+
+**Users can:**
+- Edit prompts before answering
+- Request different prompt type ("Give me an application prompt instead")
+- Save favorite prompts as templates
+- Disable AI prompts per note (use manual review instead)
+- Rate prompt quality (feedback loop for improvement)
+
+**Progressive hints:**
+If user is stuck on a difficult prompt, they can request hints:
+1. First hint: "Consider how this connects to [[related-note]]"
+2. Second hint: "You wrote about X in this note. How does it relate to Y?"
+3. Final hint: Show note content
+
+This maintains cognitive effort while preventing frustration.
 
 ## Review Mode Architecture Options
 
@@ -313,31 +548,119 @@ interface ReviewSchedule {
 Review Session (Note 1 of 3):
 ┌─────────────────────────────────────────────────────────┐
 │ permanent/elaborative-encoding                          │
-│ Last reviewed: 7 days ago (Jan 8)                      │
+│ Last reviewed: 7 days ago (Jan 8) · Review #3          │
+├─────────────────────────────────────────────────────────┤
 │                                                         │
+│ 🤔 AI-Generated Review Prompt:                         │
+│                                                         │
+│ "You have notes on both [[elaborative-encoding]] and   │
+│  [[schema-formation]]. Explain how elaborative encoding│
+│  helps build and strengthen schemas. What's the        │
+│  mechanism that connects these two concepts?"          │
+│                                                         │
+│ Related notes: [[schema-formation]], [[retrieval]]     │
+│                                                         │
+│ ──────────────────────────────────────────────────────│
+│                                                         │
+│ [Show Note Content] [Edit Prompt] [Need a Hint?]      │
+│                                                         │
+│ Your Response:                                         │
+│ ┌─────────────────────────────────────────────────┐   │
+│ │ Type your explanation here...                   │   │
+│ │                                                 │   │
+│ │ (This is where you think through the answer    │   │
+│ │  before checking the note)                      │   │
+│ └─────────────────────────────────────────────────┘   │
+│                                                         │
+│ [Check My Understanding] [Skip] [⏭️ Next]              │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+
+After user writes their response:
+┌─────────────────────────────────────────────────────────┐
+│ permanent/elaborative-encoding                          │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│ Your Response:                                         │
+│ "Elaborative encoding creates connections between      │
+│  new information and existing knowledge. These         │
+│  connections form the structure of schemas..."         │
+│                                                         │
+│ ──────────────────────────────────────────────────────│
+│                                                         │
+│ 📄 Note Content:                                       │
 │ ┌─────────────────────────────────────────────────┐   │
 │ │ # Elaborative Encoding Strengthens Memory       │   │
 │ │                                                 │   │
 │ │ Elaborative encoding involves connecting new   │   │
-│ │ information to existing knowledge...           │   │
-│ │                                                 │   │
-│ │ Links: [[schema-formation]], [[retrieval]]     │   │
+│ │ information to existing knowledge through      │   │
+│ │ semantic processing...                          │   │
 │ └─────────────────────────────────────────────────┘   │
 │                                                         │
-│ Questions to consider:                                 │
-│ • What other notes connect to this concept?            │
-│ • How has your understanding evolved?                  │
-│ • Can you explain this in your own words?              │
+│ 💡 AI Analysis:                                        │
+│ "Good explanation! You captured the key mechanism.     │
+│  Consider also how this relates to [[memory-           │
+│  consolidation]] - the connections you create during   │
+│  encoding make consolidation more effective."          │
 │                                                         │
 │ ──────────────────────────────────────────────────────│
-│ How well do you understand this concept?               │
+│ How well could you answer this prompt?                 │
 │                                                         │
 │ [1] [2] [3] [4] [5]                                    │
-│ Hard     OK    Easy                                    │
+│ Struggled  OK  Confident                               │
 │                                                         │
-│ [🔗 Review Connections] [✏️ Edit Note] [⏭️ Skip]       │
+│ [Create Connection to [[memory-consolidation]]]        │
+│ [Review Connections] [✏️ Edit Note] [⏭️ Next]          │
 └─────────────────────────────────────────────────────────┘
 ```
+
+### Multi-Note Synthesis Review
+
+**AI identifies themes across notes and creates synthesis prompts:**
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ 🧩 Synthesis Review: Learning & Memory                 │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│ AI identified a theme across your recent notes:        │
+│                                                         │
+│ • [[spaced-repetition]] (reviewed 3 days ago)          │
+│ • [[retrieval-practice]] (reviewed 7 days ago)         │
+│ • [[elaborative-encoding]] (reviewing now)             │
+│ • [[memory-consolidation]] (never reviewed)            │
+│                                                         │
+│ ──────────────────────────────────────────────────────│
+│                                                         │
+│ 🤔 Synthesis Prompt:                                   │
+│                                                         │
+│ "These four notes form a coherent framework for        │
+│  effective learning. Explain how they work together:   │
+│                                                         │
+│  1. Which concept is most fundamental?                 │
+│  2. How do the other three build on it?                │
+│  3. What's the ideal sequence for learning something   │
+│     new, given these principles?"                      │
+│                                                         │
+│ Your Response:                                         │
+│ ┌─────────────────────────────────────────────────┐   │
+│ │                                                 │   │
+│ │                                                 │   │
+│ │                                                 │   │
+│ └─────────────────────────────────────────────────┘   │
+│                                                         │
+│ 💡 Suggestion: Consider creating an index note to      │
+│    capture this synthesis: [[index/learning-science]]  │
+│                                                         │
+│ [Check Understanding] [Create Index Note] [Skip]       │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Why this is powerful:**
+- Forces integration across multiple notes
+- Builds higher-order understanding
+- Creates opportunities for index notes
+- Makes knowledge graph structure explicit
 
 ### Review Connection Mode
 
@@ -565,6 +888,60 @@ review_defaults:
   }
 }
 
+// Generate review prompt (NEW - KEY FEATURE)
+{
+  name: "generate_review_prompt",
+  description: "Generate an AI-powered review prompt for a note",
+  inputSchema: {
+    note_id: string,
+    prompt_type: "synthesis" | "application" | "explanation" |
+                 "connection" | "reconstruction" | "extension" | "auto",
+    difficulty: "easy" | "medium" | "hard" | "adaptive",
+    context: {
+      include_recent_notes: boolean,
+      include_projects: boolean,
+      related_note_count: number
+    }
+  },
+  outputSchema: {
+    prompt: string,
+    type: string,
+    difficulty: string,
+    related_notes: string[],
+    hints: string[],  // Progressive hints if user gets stuck
+    editable: boolean
+  }
+}
+
+// Regenerate prompt
+{
+  name: "regenerate_review_prompt",
+  description: "Generate a different prompt for the same note",
+  inputSchema: {
+    note_id: string,
+    previous_prompt: string,
+    feedback: "too_easy" | "too_hard" | "not_relevant" | "different_type"
+  }
+}
+
+// Analyze review response
+{
+  name: "analyze_review_response",
+  description: "AI analyzes user's response to review prompt",
+  inputSchema: {
+    note_id: string,
+    prompt: string,
+    user_response: string,
+    note_content: string
+  },
+  outputSchema: {
+    analysis: string,  // Feedback on understanding
+    gaps_identified: string[],  // What was missed
+    suggested_connections: string[],  // New notes to link
+    confidence_estimate: 1 | 2 | 3 | 4 | 5
+  }
+}
+
 // Review analytics
 {
   name: "get_review_analytics",
@@ -576,7 +953,7 @@ review_defaults:
 }
 ```
 
-**AI Conversation Examples:**
+**AI Conversation Examples with Generated Prompts:**
 
 ```
 User: "Which of my notes should I review today?"
@@ -588,33 +965,65 @@ AI: [Calls get_notes_for_review]
     2. [[schema-formation]] (last reviewed 14 days ago)
     3. [[retrieval-practice]] (last reviewed 3 days ago, marked as 'hard')
 
-    Would you like to start a review session?"
+    Would you like to start a review session with AI-generated prompts?"
 
 User: "Yes, let's review them. Start with retrieval-practice since
        I marked it as hard last time."
 
-AI: [Opens review session, presents note]
-    "Here's [[retrieval-practice]]. Take a moment to read and recall.
+AI: [Calls generate_review_prompt with difficulty="adaptive"]
+    "I've generated a prompt for [[retrieval-practice]].
 
-    Last time you rated this as 2/5 (hard to recall). As you review,
-    consider:
-    - What was difficult about this concept?
-    - How does it connect to [[elaborative-encoding]]?
-    - Can you think of a personal example?
+    Since you struggled with this last time, I've created an
+    application prompt that connects it to your recent work:
 
-    Let me know when you're ready to rate your understanding."
+    🤔 Prompt:
+    'Looking at your daily notes, you've been learning React this
+     week. How could you use retrieval practice to help learn React's
+     hooks? Give a concrete example of how you'd apply this technique.'
 
-User: "I understand it better now. I realized it connects to the
-       Cornell method I've been using. Rating: 4"
+    Take your time to think through your answer. Type it out when ready,
+    or say 'hint' if you'd like a nudge in the right direction."
+
+User: "I could create practice exercises where I try to write hooks
+       from memory without looking at docs. Then check my work. Also
+       after reading docs, I could close them and try to explain what
+       I just learned."
+
+AI: [Calls analyze_review_response]
+    "Excellent application! You've captured two key aspects:
+
+    ✓ Writing from memory (pure retrieval)
+    ✓ Explaining after reading (elaborative encoding + retrieval)
+
+    I notice you also mentioned [[elaborative-encoding]] in your
+    answer. Your notes are actually connected - retrieval practice
+    becomes even more effective when combined with elaboration.
+
+    Would you like to create a link between these notes?
+
+    How confident do you feel about retrieval practice now? (1-5)"
+
+User: "Yes, link them. Confidence: 4"
 
 AI: [Calls complete_review with confidence: 4]
-    [Calls suggest_review_connections]
+    [Creates link between notes]
 
-    "Great! I've scheduled the next review for 14 days from now.
+    "Great! Scheduled next review for 14 days. The link has been
+    created. Ready for the next note?"
 
-    I noticed you mentioned the Cornell method. You have a note
-    [[cornell-notes]] that might be worth linking here. Would you
-    like me to show it so you can review the connection?"
+User: "Yes, but make the prompt harder this time."
+
+AI: [Calls generate_review_prompt with difficulty="hard"]
+    "For [[elaborative-encoding]], I'll create a synthesis prompt:
+
+    🤔 Prompt:
+    'You have notes on [[elaborative-encoding]], [[schema-formation]],
+     and [[memory-consolidation]]. Explain how these three concepts
+     work together in a complete learning cycle. What's the mechanism
+     connecting them? Use your notes on sleep and consolidation timing
+     to support your explanation.'
+
+    This requires synthesizing across three notes. Take your time!"
 ```
 
 ### Custom Functions for Review
@@ -1011,23 +1420,32 @@ CREATE INDEX idx_review_sessions_vault ON review_sessions(vault_id, started_at);
 
 **Time Estimate**: 2-3 weeks
 
-### Phase 3: AI Integration
+### Phase 3: AI Integration & Generated Prompts
 
-**Goal**: AI assists review process
+**Goal**: AI generates intelligent review prompts that force deep processing
 
 **Scope:**
-1. MCP tools for review operations
-2. AI suggests connections during review
-3. AI helps identify notes worth reviewing
-4. Conversational review (via AI assistant)
-5. AI-powered insights in analytics
+1. **AI-generated review prompts** - Core feature
+   - Synthesis prompts (connect multiple notes)
+   - Application prompts (apply to user's projects)
+   - Explanation prompts (teach concepts)
+   - Connection discovery prompts
+   - Difficulty adaptation based on history
+2. MCP tools for review operations
+3. AI suggests connections during review
+4. AI helps identify notes worth reviewing
+5. Conversational review (via AI assistant)
+6. AI analysis of user responses
+7. Progressive hints when stuck
 
 **Success Criteria:**
-- AI can answer "what should I review today?"
-- AI suggests relevant connections during review
-- AI helps interpret review patterns
+- AI generates contextual prompts from user's knowledge graph
+- Prompts require synthesis, not just recognition
+- User can edit or regenerate prompts
+- AI adapts difficulty based on confidence history
+- Prompts reference user's projects and recent work
 
-**Time Estimate**: 1-2 weeks
+**Time Estimate**: 2-3 weeks (increased due to prompt generation)
 
 ### Phase 4: Advanced Features
 
@@ -1272,13 +1690,26 @@ CREATE INDEX idx_review_sessions_vault ON review_sessions(vault_id, started_at);
 
 **Flint approach**: Review emphasizes connections and understanding, not rote recall
 
-### ❌ AI Does the Thinking
+### ❌ Shallow Recognition Prompts (Not Deep Processing)
 
-**Problem**: AI generates review materials automatically
+**Problem**: AI generates simple flashcards that test recognition, not understanding
 
-**Why it's wrong**: Violates "humans think, AI assists" philosophy
+**Examples of bad prompts:**
+- "What is elaborative encoding?" (definition recall)
+- Multiple choice questions (recognition-based)
+- Fill-in-the-blank from note text (surface details)
 
-**Flint approach**: User decides what to review, AI suggests connections
+**Why it's wrong**:
+- Recognition is easier than recall, less effective for learning
+- Doesn't force reconstruction or synthesis
+- Tests memory of text, not understanding
+- Doesn't leverage your knowledge graph
+
+**Flint approach**:
+- AI generates prompts that force synthesis across notes
+- Prompts require explanation, application, or connection-making
+- User generates the response (does the thinking)
+- AI provides the challenge, user provides the understanding
 
 ### ❌ Mandatory Daily Grind
 
@@ -1350,6 +1781,76 @@ CREATE INDEX idx_review_sessions_vault ON review_sessions(vault_id, started_at);
 - Index notes linking to reviewed notes
 - Daily notes mentioning reviewed concepts
 
+## What Makes Flint Review Different?
+
+### Compared to Anki/Mnemosyne (Traditional SRS)
+
+**Anki's Approach:**
+- User creates flashcards manually
+- Isolated question/answer pairs
+- Tests memorization of specific facts
+- Knowledge is fragmented
+- No context or connections
+
+**Flint's Approach:**
+- AI generates prompts from your knowledge graph
+- Prompts connect multiple notes
+- Tests understanding and synthesis
+- Knowledge is integrated
+- Rich context from your entire vault
+
+**Key Difference**: Anki is for memorizing facts. Flint is for developing understanding.
+
+### Compared to RemNote (Outliner + SRS)
+
+**RemNote's Approach:**
+- Flashcards created from outline items
+- Bi-directional linking
+- Some context from hierarchy
+- Still flashcard-based (recognize/recall)
+
+**Flint's Approach:**
+- Notes are the unit, not cards
+- AI generates synthesis prompts across notes
+- Context from entire knowledge graph
+- Deep processing required (explain, apply, synthesize)
+
+**Key Difference**: RemNote adds SRS to outlining. Flint uses AI to create intelligent review challenges.
+
+### Compared to Obsidian + Spaced Repetition Plugin
+
+**Obsidian Plugin Approach:**
+- Flashcards in markdown files
+- Manual card creation
+- Basic spaced repetition
+- Limited AI integration
+
+**Flint's Approach:**
+- Whole-note review with AI prompts
+- Zero manual card creation
+- Prompts leverage your recent work and projects
+- Deep AI integration with response analysis
+
+**Key Difference**: Obsidian plugin brings flashcards to Obsidian. Flint reimagines what review means for a PKM system.
+
+### The Core Innovation: Knowledge Graph-Aware AI Prompts
+
+**What no other tool does:**
+
+1. **Context-aware synthesis**: "Your notes X, Y, and Z form a theme. Explain how they connect."
+
+2. **Project application**: "You're working on [project from daily notes]. How does this concept apply?"
+
+3. **Prerequisite-based explanation**: "Explain this to someone who knows [related note] but not this."
+
+4. **Connection discovery**: "This note and [that note] seem related through [mechanism]. Should they link?"
+
+5. **Knowledge evolution**: "You wrote this 3 months ago. With what you know now, what would you add?"
+
+6. **Adaptive difficulty**: Prompts get harder as confidence grows, forcing continued growth
+
+**The result**: Review becomes a tool for developing crystallized intelligence, not just memory maintenance.
+
 ## Conclusion and Recommendations
 
 ### Recommended Approach
@@ -1362,19 +1863,22 @@ CREATE INDEX idx_review_sessions_vault ON review_sessions(vault_id, started_at);
 
 ### Core Principles to Maintain
 
-1. **User Agency**: Review is opt-in and controllable
-2. **Thinking First**: AI suggests, user decides
-3. **Connection Focus**: Review builds knowledge graph, not just memory
-4. **Flexible, Not Rigid**: Adapt to user patterns, don't enforce one way
-5. **Transparent**: Scheduling and algorithms understandable
+1. **User Agency**: Review is opt-in and controllable, prompts are editable
+2. **Deep Processing Over Recognition**: AI generates prompts that require synthesis, not just recall
+3. **Knowledge Graph Integration**: Prompts leverage connections across user's entire vault
+4. **Context-Aware**: Prompts reference user's projects, recent work, and knowledge state
+5. **Connection Focus**: Review builds knowledge graph, not just memory
+6. **Flexible, Not Rigid**: Adapt to user patterns, don't enforce one way
+7. **Transparent**: Scheduling and algorithms understandable, prompts explainable
 
 ### Alignment with Flint Philosophy
 
-✅ **Humans think, AI assists**: Review prompts thinking, AI helps connect
+✅ **Humans think, AI assists**: AI generates the challenge (prompt), user does the thinking (response)
 ✅ **Local-first**: Review data stays local, no cloud dependency
-✅ **Frictionless capture, gradual organization**: Review fits this flow
-✅ **Opinionated but flexible**: Sensible defaults, customizable by power users
-✅ **Thinking-first design**: Review enhances understanding, not just recall
+✅ **Frictionless capture, gradual organization**: Review fits this flow naturally
+✅ **Opinionated but flexible**: Smart defaults (AI prompts), but fully customizable
+✅ **Thinking-first design**: Prompts force deep processing, not passive recognition
+✅ **AI augments cognition**: Leverages your knowledge graph in ways manual review can't
 
 ### Next Steps
 
@@ -1386,6 +1890,10 @@ CREATE INDEX idx_review_sessions_vault ON review_sessions(vault_id, started_at);
 
 ---
 
-**Document Status**: Draft for discussion
-**Last Updated**: 2025-01-15
+**Document Status**: Draft for discussion (REVISED - AI-generated prompts emphasized)
+**Last Updated**: 2025-01-15 (Revision 2)
 **Next Review**: After initial feedback round
+
+**Revision History**:
+- v1 (2025-01-15): Initial brainstorm with basic review concepts
+- v2 (2025-01-15): Major revision emphasizing AI-generated prompts that force deep processing rather than recognition. Added detailed prompt types, examples, and comparisons to existing tools.
