@@ -70,19 +70,10 @@ build schemas. What's the mechanism connecting them?
 - **Complexity:** Parser for daily notes, project detection logic
 - **Decision:** Save for Phase 2, use synthesis for MVP
 
-### Decision 3: Review Trigger - How to Start Review? 🤔 NEEDS DECISION
+### Decision 3: Review Trigger - How to Start Review? ✅ DECIDED
 
-**Option A: Button in Note Editor**
-```
-┌─────────────────────────────────────────┐
-│ [Save] [Metadata] [Review This Note] ← │
-└─────────────────────────────────────────┘
-```
-- Clicking opens review modal for current note
-- Simple, discoverable
-- **Problem:** Only reviews one note at a time, not session-based
+**Choice: New "Review" Main View (Option B)**
 
-**Option B: New "Review" Main View**
 ```
 Main Navigation:
 - Inbox
@@ -91,284 +82,147 @@ Main Navigation:
 - All Notes
 - AI Assistant
 ```
-- Shows "X notes due for review"
-- Click to start review session
-- More intentional, batch-oriented
-- **Problem:** More complex to build, requires navigation changes
 
-**Option C: AI Chat Command**
-```
-User: "Review my notes"
-AI: "You have 3 notes due for review. Let's start with..."
-```
-- Natural language interface
-- Uses existing chat UI
-- **Problem:** Less discoverable, requires knowing command
-
-**RECOMMENDATION: Start with Option B (Review view)**
+**Rationale:**
 - Most aligned with long-term vision
-- Clear entry point for feature
+- Clear, dedicated entry point for feature
 - Supports session-based review
-- Can add A and C later
+- More intentional than ad-hoc button clicks
 
-**Fallback if too complex:** Option A (button) → modal
+### Decision 4: Review UI - Where Does Review Happen? ✅ DECIDED
 
-### Decision 4: Review UI - Where Does Review Happen? 🤔 NEEDS DECISION
+**Choice: Dedicated Full-Screen Review View**
 
-**Option A: Modal Overlay**
 ```
 ┌─────────────────────────────────────────────────┐
-│ [X]                                             │
-│ Review: [[note-title]]                          │
+│ Review: [[elaborative-encoding]]          [X]   │
+├─────────────────────────────────────────────────┤
 │                                                 │
-│ 🤔 Prompt: [AI-generated synthesis prompt]     │
+│ 🤔 Synthesis Prompt:                            │
 │                                                 │
-│ Your Response:                                  │
-│ [Text area for user to type]                   │
-│                                                 │
-│ [Show Note] [Check Understanding]               │
-└─────────────────────────────────────────────────┘
-```
-
-**Pros:**
-- Focus mode, no distractions
-- Easy to implement (reuse modal component)
-- Clear workflow
-
-**Cons:**
-- Blocks rest of UI
-- Can't reference other notes easily
-
-**Option B: Dedicated Review View (Split Screen)**
-```
-┌──────────────────┬──────────────────────────┐
-│ Review Queue (3) │ Current Review           │
-│                  │                          │
-│ ● Note 1        │ 🤔 Prompt:               │
-│ ○ Note 2        │ [synthesis prompt]       │
-│ ○ Note 3        │                          │
-│                  │ Your Response:           │
-│                  │ [text area]              │
-│                  │                          │
-│                  │ [Show Note] [Rate 1-5]   │
-└──────────────────┴──────────────────────────┘
-```
-
-**Pros:**
-- Can see queue of notes
-- More context visible
-- Better for multiple notes
-
-**Cons:**
-- More complex layout
-- Requires new view component
-
-**Option C: In-Place (Note Editor Transforms)**
-```
-[When review button clicked, note editor shows:]
-
-┌─────────────────────────────────────────────────┐
-│ 🤔 REVIEW MODE                                  │
-│                                                 │
-│ Prompt: [synthesis prompt]                     │
-│                                                 │
-│ [Text area for response]                       │
+│ Your notes [[elaborative-encoding]] and         │
+│ [[schema-formation]] both discuss memory...     │
 │                                                 │
 │ ──────────────────────────────────────────────│
-│ [Show Note Content Below] [Rate 1-5] [Exit]   │
+│                                                 │
+│ Your Response:                                  │
+│ ┌───────────────────────────────────────────┐ │
+│ │ [User types explanation here]             │ │
+│ │                                           │ │
+│ │                                           │ │
+│ └───────────────────────────────────────────┘ │
+│                                                 │
+│ [Show Note Content] [Submit]                    │
 └─────────────────────────────────────────────────┘
 ```
 
-**Pros:**
-- Uses familiar editor space
-- No new UI paradigm
-- Can easily reference note below
+**Rationale:**
+- Dedicated system view (like Inbox, Daily)
+- Focus mode for review
+- Full screen real estate for typing
+- Clear workflow separation from editing
+- Can show note content below when revealed
 
-**Cons:**
-- Conflates editing and reviewing
-- Harder to do multi-note sessions
+### Decision 5: Prompt Generation - When? ✅ DECIDED
 
-**RECOMMENDATION: Option A (Modal) for MVP**
-- Simplest to implement
-- Clear separation from editing
-- Can show note content in modal when user clicks "Show Note"
-- Can upgrade to Option B later
+**Choice: Generate During Review (On-Demand)**
 
-### Decision 5: Prompt Generation - When? 🤔 NEEDS DECISION
-
-**Option A: Generate During Review (On-Demand)**
 ```
-User clicks "Start Review"
+User clicks "Review Now"
   → Load note
+  → Show loading state
   → Call AI to generate prompt
-  → Show prompt to user (shows loading state)
+  → Display prompt and response area
 ```
 
-**Pros:**
+**Rationale:**
 - Always fresh, uses latest knowledge graph
-- No pre-generation overhead
-- Can adapt based on user context at review time
+- Simpler implementation (no background jobs)
+- Prompts reflect user's current context
+- 2-3 second wait is acceptable with good loading UX
 
-**Cons:**
-- User waits for AI (2-3 seconds per note)
-- More expensive (API calls during review)
-- Requires AI connection during review
-
-**Option B: Pre-Generate (Background)**
+**Loading State:**
 ```
-When note becomes due for review:
-  → Background task generates prompt
-  → Stores in database
-  → Shows pre-generated prompt instantly
-```
-
-**Pros:**
-- Instant review start (no waiting)
-- Can batch API calls (cheaper)
-- Works offline after generation
-
-**Cons:**
-- Prompt may be stale (doesn't reflect recent notes)
-- More complex (background job system)
-- Storage overhead
-
-**RECOMMENDATION: Option A (On-Demand) for MVP**
-- Simpler implementation
-- Always relevant
-- Acceptable UX (show loading spinner)
-- Can add pre-generation later as optimization
-
-**UX consideration:** Show loading state clearly
-```
-"Analyzing your knowledge graph and generating review prompt..."
+Analyzing your knowledge graph...
+Generating synthesis prompt...
 [Spinner]
 ```
 
-### Decision 6: Response Capture - How Does User Answer? 🤔 NEEDS DECISION
+### Decision 6: Response Capture - How Does User Answer? ✅ DECIDED
 
-**Option A: Text Box (Type Response)**
+**Choice: Required Text Response**
+
 ```
-🤔 Prompt: [synthesis question]
+🤔 Synthesis Prompt: [AI-generated question]
 
 Your Response:
 ┌─────────────────────────────────────────┐
-│ [User types their explanation here]     │
+│ [User must type their explanation]      │
 │                                         │
 │                                         │
 └─────────────────────────────────────────┘
 
-[Check Understanding]
+[Submit Response]
 ```
 
-**Pros:**
-- Forces articulation (stronger learning)
-- AI can analyze response
-- Creates record of thinking
+**Rationale:**
+- **Forces articulation** → Stronger learning through generation
+- **Enables AI analysis** → AI can provide feedback on understanding
+- **Creates engagement** → User must actually think, not just click through
+- **Records thinking** → Can track understanding evolution over time
 
-**Cons:**
-- More friction (typing takes time)
-- Some users won't want to type
-- What if user's answer is wrong? (awkward)
-
-**Option B: Mental Answer (Just Think)**
-```
-🤔 Prompt: [synthesis question]
-
-Take a moment to think through your answer.
-
-[I've Thought About It] [Show Note]
-```
-
-**Pros:**
-- Less friction (fast)
-- No wrong answer anxiety
-- More like meditation/reflection
-
-**Cons:**
-- No AI analysis possible
-- Easier to skip without real thought
-- No record of understanding
-
-**Option C: Hybrid (Optional Text)**
-```
-🤔 Prompt: [synthesis question]
-
-Think through your answer, optionally write it down:
-┌─────────────────────────────────────────┐
-│ [Optional text area]                    │
-└─────────────────────────────────────────┘
-
-[Continue] [Show Note]
-```
-
-**Pros:**
-- Flexibility for different users
-- Can add AI analysis for those who type
-- Lower friction than required typing
-
-**Cons:**
-- Unclear UX (optional fields are confusing)
-- Most users probably skip typing
-
-**RECOMMENDATION: Option B (Mental) for MVP**
-- Lowest friction = higher adoption
-- Focus on prompts quality, not response capture
-- Can add Option A in Phase 2 for power users
-- Aligns with "review should be fast"
-
-**Implementation:**
-```
-1. Show prompt
-2. [Show Note Content] button → reveals note below
-3. User reads note, compares to their mental model
-4. Rate confidence 1-5
-5. Next note
-```
+**UX Considerations:**
+- Large text area for comfort
+- Can click [Show Note Content] if stuck
+- No "wrong answer" - AI provides constructive feedback
+- User can edit response before submitting
 
 ### Decision 7: Confidence Rating - How to Measure? ✅ DECIDED
 
-**Choice: Simple 1-5 scale after seeing note**
+**Choice: Pass/Fail (Binary Rating)**
 
 ```
-After revealing note content:
+After AI provides feedback on response:
 
-How well did you understand the connection?
+Did you understand this concept well enough?
 
-[1] [2] [3] [4] [5]
-Struggled    OK    Confident
+[Pass] [Fail]
 ```
 
 **Rationale:**
-- Simple, familiar (like Anki)
-- User rates their understanding, not recall speed
-- Can map to SM-2 algorithm intervals
+- **Simpler decision** → Less cognitive overhead than 1-5 scale
+- **Clear outcome** → Either you got it or you didn't
+- **Easier scheduling** → Two intervals instead of five
+- **Reduces analysis paralysis** → No "is this a 3 or a 4?"
+- **User decides** → Self-assessment after seeing AI feedback
 
-**Wording matters:**
-- NOT "How well did you remember?" (emphasizes memory)
-- YES "How well did you understand the connection?" (emphasizes synthesis)
+**Intervals:**
+- **Pass** → Next review in 7 days (standard interval)
+- **Fail** → Next review in 1 day (quick retry)
+
+**Note:** Can upgrade to SM-2 adaptive algorithm in Phase 1
 
 ### Decision 8: Scheduling Algorithm ✅ DECIDED
 
-**Choice: Simple fixed intervals for MVP, upgrade to SM-2 in Phase 1**
+**Choice: Simple binary intervals for MVP**
 
-**MVP (simplest possible):**
+**MVP Schedule:**
 ```
-First review: 1 day after enabling
-Second review: 3 days after first
-Third review: 7 days after second
-Fourth+: 14 days
+First review: 1 day after enabling review
+If Pass: 7 days until next review
+If Fail: 1 day until retry
 ```
-
-Fixed, no adaptation. Just demonstrates the concept.
-
-**Phase 1 (add SM-2):**
-- Adapt intervals based on confidence ratings
-- Standard spaced repetition
 
 **Rationale:**
-- Fixed intervals = no algorithm complexity in MVP
-- Still demonstrates value of review
-- Can upgrade without changing UI
+- Minimal complexity (two intervals only)
+- Pass/fail aligns with binary rating
+- Still demonstrates spaced repetition value
+- Can upgrade to SM-2 in Phase 1 without UI changes
+
+**Future (Phase 1):**
+- Add SM-2 adaptive algorithm
+- Multiple intervals based on review history
+- Confidence tracking over time
 
 ### Decision 9: Scope - Single Note or Session? ✅ DECIDED
 
@@ -400,30 +254,37 @@ Click next note → Repeat
   → Session summary at end
 ```
 
-### Decision 10: AI Analysis of Response? 🤔 NEEDS DECISION
+### Decision 10: AI Analysis of Response? ✅ DECIDED
 
-**Context:** If we go with mental-only answers (Decision 6), this is moot. But worth deciding the principle.
+**Choice: AI Analyzes Written Response (Required for MVP)**
 
-**Option A: No AI Analysis (MVP)**
-- User rates themselves
-- AI doesn't see response
-- Simple, fast, cheap
-
-**Option B: AI Analyzes Written Response**
 ```
-After user types response:
-"Good explanation! You captured X.
-Consider also: Y connects to [[other-note]]"
-```
-- Helpful feedback
-- Can suggest new connections
-- Educational
+After user submits typed response:
 
-**RECOMMENDATION: Option A (No Analysis) for MVP**
-- Consistent with mental-only responses
-- Reduces complexity and cost
-- Focus on prompt quality
-- Can add in Phase 3 when we add text responses
+💡 AI Feedback:
+"Good explanation! You captured the key mechanism
+of how elaborative encoding creates connections.
+
+Consider also: This relates to [[memory-consolidation]]
+- the connections you create during encoding make
+consolidation more effective. Would you like to create
+a link?"
+
+[Pass] [Fail]
+```
+
+**Rationale:**
+- **Required** since we're collecting typed responses
+- **Provides value** - AI feedback helps user learn
+- **Suggests connections** - Builds knowledge graph
+- **Justifies typing effort** - User gets immediate benefit
+- **Enables improvement** - AI can identify gaps
+
+**Analysis includes:**
+- What user got right
+- What could be added or refined
+- Suggested connections to other notes
+- Optional: Offer to create links automatically
 
 ## Prototype Specification
 
@@ -509,11 +370,11 @@ understanding through spaced repetition.
 └─────────────────────────────────────────────┘
 ```
 
-**Step 2: Prompt Shown**
+**Step 2: Prompt Shown + Response Entry**
 ```
 ┌─────────────────────────────────────────────┐
 │ Review: [[elaborative-encoding]]            │
-│ Last reviewed: 7 days ago                   │
+│ Last reviewed: 7 days ago · Review #2       │
 ├─────────────────────────────────────────────┤
 │                                             │
 │ 🤔 Synthesis Prompt:                        │
@@ -524,53 +385,79 @@ understanding through spaced repetition.
 │ elaborative encoding helps build schemas.   │
 │ What's the mechanism connecting them?       │
 │                                             │
-│ Related notes:                              │
-│ • [[schema-formation]]                      │
-│ • [[memory-consolidation]]                  │
+│ Related: [[schema-formation]], [[memory]]   │
 │                                             │
 │ ───────────────────────────────────────────│
 │                                             │
-│ Take a moment to think through your answer. │
+│ Your Response:                              │
+│ ┌─────────────────────────────────────────┐ │
+│ │ [Type your explanation here...]         │ │
+│ │                                         │ │
+│ │                                         │ │
+│ │                                         │ │
+│ └─────────────────────────────────────────┘ │
 │                                             │
-│ [Show Note Content]                         │
+│ [Show Note Content] [Submit Response]       │
 │                                             │
 └─────────────────────────────────────────────┘
 ```
 
-**Step 3: Note Revealed**
+**Step 3: AI Analysis + Note Content**
 ```
 ┌─────────────────────────────────────────────┐
 │ Review: [[elaborative-encoding]]            │
 ├─────────────────────────────────────────────┤
 │                                             │
-│ 🤔 Prompt: [collapsed, click to re-read]   │
+│ Your Response:                              │
+│ "Elaborative encoding creates connections   │
+│ between new info and existing knowledge.    │
+│ These connections form schemas..."          │
 │                                             │
 │ ───────────────────────────────────────────│
 │                                             │
-│ 📄 Note Content:                            │
+│ 💡 AI Analysis:                             │
 │                                             │
-│ # Elaborative Encoding Strengthens Memory  │
+│ Great! You captured the core mechanism.     │
+│ Elaborative encoding creates the links,     │
+│ and those links become schema structure.    │
 │                                             │
-│ Elaborative encoding involves connecting   │
-│ new information to existing knowledge...   │
+│ Consider: This also connects to             │
+│ [[memory-consolidation]] - the connections  │
+│ you create during encoding strengthen       │
+│ during consolidation.                       │
 │                                             │
-│ [Full note content shown here]             │
+│ [Create link to [[memory-consolidation]]?]  │
 │                                             │
 │ ───────────────────────────────────────────│
 │                                             │
-│ How well did you understand this concept?  │
+│ 📄 Note Content: [Click to show/hide]      │
 │                                             │
-│ [1] [2] [3] [4] [5]                        │
-│ Struggled    OK    Confident               │
+│ ───────────────────────────────────────────│
+│                                             │
+│ Did you understand this concept well?       │
+│                                             │
+│ [Pass] [Fail]                               │
 │                                             │
 └─────────────────────────────────────────────┘
 ```
 
-**Step 4: Rated**
+**Step 4: Complete**
 ```
 ✓ Review complete!
 
 Next review: January 22 (in 7 days)
+
+[Close] [Review Another Note]
+```
+
+*If user clicks [Fail]:*
+```
+✓ Review saved
+
+We'll review this again tomorrow so you can
+reinforce your understanding.
+
+Next review: Tomorrow
 
 [Close] [Review Another Note]
 ```
@@ -583,14 +470,14 @@ CREATE TABLE review_items (
   note_id TEXT NOT NULL UNIQUE,
   vault_id TEXT NOT NULL,
 
-  -- Scheduling (simple fixed intervals for MVP)
+  -- Scheduling (simple pass/fail intervals for MVP)
   enabled BOOLEAN DEFAULT TRUE,
   last_reviewed TEXT,
   next_review TEXT NOT NULL,
   review_count INTEGER DEFAULT 0,
 
-  -- User feedback history (JSON array)
-  confidence_history TEXT, -- JSON: [{"date": "...", "rating": 3}, ...]
+  -- Review history (JSON array)
+  review_history TEXT, -- JSON: [{"date": "...", "passed": true, "response": "..."}]
 
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
@@ -601,7 +488,10 @@ CREATE TABLE review_items (
 CREATE INDEX idx_review_next_review ON review_items(next_review, enabled);
 ```
 
-**No review_history or review_sessions tables in MVP** - keep it simple.
+**Simplified schema:**
+- Pass/fail tracked in `review_history` JSON
+- User responses stored for future reference
+- No complex review_sessions table in MVP
 
 #### 5. Prompt Generation System
 
@@ -687,59 +577,55 @@ async function generateSynthesisPrompt(noteId: string) {
 - If AI generation fails: Template-based prompt
 - If note has no content: Skip review
 
-#### 6. Fixed Interval Scheduler
+#### 6. Pass/Fail Scheduler
 
 ```typescript
-function getNextReviewDate(reviewCount: number, confidence: number): Date {
+function getNextReviewDate(passed: boolean): Date {
   const now = new Date();
 
-  // Simple fixed intervals (MVP)
-  const intervals = {
-    0: 1,   // First review: 1 day
-    1: 3,   // Second: 3 days
-    2: 7,   // Third: 1 week
-    3: 14   // Fourth+: 2 weeks
-  };
-
-  const daysToAdd = intervals[Math.min(reviewCount, 3)] || 14;
-
-  return addDays(now, daysToAdd);
+  // Simple binary intervals (MVP)
+  if (passed) {
+    return addDays(now, 7);  // Pass: review in 7 days
+  } else {
+    return addDays(now, 1);  // Fail: retry tomorrow
+  }
 }
 
-function completeReview(noteId: string, confidence: number) {
+function completeReview(noteId: string, passed: boolean, userResponse: string) {
   const item = getReviewItem(noteId);
 
   // Update review record
   item.review_count++;
   item.last_reviewed = now();
-  item.next_review = getNextReviewDate(item.review_count, confidence);
+  item.next_review = getNextReviewDate(passed);
 
-  // Append to confidence history
-  const history = JSON.parse(item.confidence_history || '[]');
+  // Append to review history
+  const history = JSON.parse(item.review_history || '[]');
   history.push({
     date: now(),
-    rating: confidence
+    passed: passed,
+    response: userResponse  // Store for future reference
   });
-  item.confidence_history = JSON.stringify(history);
+  item.review_history = JSON.stringify(history);
 
   save(item);
 }
 ```
 
-**Note:** Confidence rating is captured but not yet used for scheduling. Phase 1 will add SM-2 algorithm that adapts based on ratings.
+**Note:** Phase 1 will add SM-2 algorithm with adaptive intervals based on review history.
 
 ### What's Explicitly NOT in MVP
 
-1. **Multiple prompt types** - Only synthesis, no application/explanation/etc.
-2. **AI response analysis** - No feedback on user's thinking
-3. **Session mode** - No auto-advance or session tracking
-4. **Analytics dashboard** - No charts or statistics
-5. **Workflow integration** - No automated triggers
-6. **Custom prompts** - No user editing of prompt templates
-7. **Adaptive scheduling** - Fixed intervals, no SM-2 yet
-8. **Connection suggestions** - AI doesn't suggest new links
-9. **Progressive hints** - No hint system if user is stuck
-10. **Review from chat** - No conversational interface
+1. **Multiple prompt types** - Only synthesis, no application/explanation/reconstruction/etc.
+2. **Session mode** - No auto-advance through multiple notes
+3. **Analytics dashboard** - No charts, statistics, or retention metrics
+4. **Workflow integration** - No automated triggers or workflow-based review
+5. **Custom prompts** - No user editing of prompt templates
+6. **Adaptive scheduling** - Fixed pass/fail intervals, no SM-2 yet
+7. **Progressive hints** - No hint system if user is stuck (just "show note")
+8. **Review from chat** - No conversational interface, UI-only
+9. **Prompt regeneration** - Can't ask for different prompt (single attempt)
+10. **Multiple difficulty levels** - All prompts same difficulty (no easy/hard modes)
 
 ## Implementation Checklist
 
@@ -749,12 +635,17 @@ function completeReview(noteId: string, confidence: number) {
 - [ ] API: `enableReview(noteId)` → Sets `review: true` in frontmatter
 - [ ] API: `disableReview(noteId)` → Sets `review: false` in frontmatter
 - [ ] API: `getNotesForReview()` → Returns notes where `next_review <= today`
-- [ ] API: `completeReview(noteId, confidence)` → Updates schedule
+- [ ] API: `completeReview(noteId, passed, userResponse)` → Updates schedule
 - [ ] Prompt generation: `generateSynthesisPrompt(noteId)`
   - Get linked notes
   - Fallback to tag-based similarity
   - Call AI to generate prompt
   - Handle errors gracefully
+- [ ] Response analysis: `analyzeReviewResponse(noteId, prompt, userResponse)`
+  - AI analyzes user's explanation
+  - Identifies what was captured well
+  - Suggests additional connections
+  - Returns constructive feedback
 
 ### Frontend (Renderer)
 
@@ -769,31 +660,45 @@ function completeReview(noteId: string, confidence: number) {
   - List notes due for review
   - Show "upcoming" section
   - Empty state message
-- [ ] Review modal component
-  - Step 1: Loading state
-  - Step 2: Show prompt
-  - Step 3: Show note content
-  - Step 4: Confidence rating
-  - Step 5: Completion message
+  - Full-screen review interface (not modal)
+- [ ] Review flow UI
+  - Step 1: Loading state with spinner
+  - Step 2: Show prompt + response text area
+  - Step 3: AI analysis + note content (collapsible)
+  - Step 4: Pass/Fail buttons
+  - Step 5: Completion message with next review date
 - [ ] Store: Review state management
-  - Track current review
-  - Handle modal open/close
+  - Track current review state
   - Cache prompts
+  - Store user responses
+  - Handle pass/fail submission
 
 ### AI Integration
 
 - [ ] MCP tool: `generate_synthesis_prompt`
-- [ ] System prompt for prompt generation
+  - System prompt for creating synthesis questions
+  - Context: note content + related notes
+  - Returns: prompt text + related note IDs
+- [ ] MCP tool: `analyze_review_response`
+  - System prompt for analyzing user responses
+  - Context: prompt + user response + note content
+  - Returns: feedback text + suggested connections
 - [ ] Error handling for AI failures
-- [ ] Fallback prompts (templates)
+  - Fallback prompts (templates) if generation fails
+  - Graceful degradation if analysis fails
+  - Timeout handling (10s max)
 
 ### Polish
 
-- [ ] Loading states (spinners)
-- [ ] Error messages (AI timeout, no related notes)
-- [ ] Toast notifications (review enabled, completed)
-- [ ] Keyboard shortcuts (rate 1-5 with number keys)
-- [ ] Responsive design (modal works on smaller screens)
+- [ ] Loading states (spinners for prompt generation and analysis)
+- [ ] Error messages (AI timeout, no related notes, generation failed)
+- [ ] Toast notifications (review enabled, completed, link created)
+- [ ] Keyboard shortcuts
+  - `Cmd/Ctrl+Enter` to submit response
+  - `P` for Pass, `F` for Fail
+- [ ] Responsive design (full-screen view on all sizes)
+- [ ] Empty state when no notes are due
+- [ ] Smooth transitions between review steps
 
 ## Success Metrics for Prototype
 
@@ -801,19 +706,24 @@ function completeReview(noteId: string, confidence: number) {
 - % of users who enable review for at least 1 note
 - % of due reviews that get completed (completion rate)
 - Average time spent per review
-- Average confidence ratings
+- Pass rate (% reviews marked as passed)
+- Average response length (words)
 
 ### Qualitative Feedback
-- Do users find prompts valuable?
-- Is the flow intuitive?
-- Are prompts too hard? Too easy?
+- Do users find AI-generated prompts valuable vs. annoying?
+- Is the typing requirement acceptable or too much friction?
+- Is AI feedback helpful or unnecessary?
+- Are prompts appropriate difficulty?
 - Would users use this regularly?
+- Do pass/fail feel sufficient or do users want more granularity?
 
 ### Technical Validation
-- Does prompt generation work reliably?
-- Are intervals reasonable?
-- Does the fixed schedule make sense?
-- Database schema sufficient?
+- Does prompt generation work reliably (>95% success rate)?
+- Does AI analysis provide useful feedback?
+- Are pass/fail intervals reasonable (7 days / 1 day)?
+- Do users find enough related notes for synthesis?
+- Database schema sufficient for tracking?
+- Performance acceptable (2-3s for prompt, 3-4s for analysis)?
 
 ## Migration Path to Full Feature
 
