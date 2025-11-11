@@ -209,10 +209,17 @@ Implemented a complete AI-powered note suggestions feature that provides context
    - Generate suggestions
    - Verify config affects generation
 
-### Automated Testing (TODO)
-- Unit tests for SuggestionService
-- Integration tests for API endpoints
-- UI component tests for NoteSuggestions.svelte
+### Automated Testing
+- ✅ **Unit tests for SuggestionService** - Comprehensive test suite with 18 test cases
+  - Getting and caching suggestions
+  - Saving and updating suggestions
+  - Dismissing individual suggestions
+  - Clearing suggestions
+  - Checking enable status
+  - Note type configuration
+  - Integration workflows
+- TODO: Integration tests for API endpoints
+- TODO: UI component tests for NoteSuggestions.svelte
 
 ## Migration Notes
 
@@ -232,17 +239,18 @@ Implemented a complete AI-powered note suggestions feature that provides context
 ### Created
 - `src/server/core/suggestion-service.ts` (348 lines)
 - `src/renderer/src/components/NoteSuggestions.svelte` (429 lines)
+- `tests/server/core/suggestion-service.test.ts` (517 lines)
 - `docs/implementation-summary-note-suggestions.md` (this file)
 
 ### Modified
-- `src/server/types/index.ts` (+56 lines)
+- `src/server/types/index.ts` (+56 lines, removed regenerate_threshold)
 - `src/server/database/migration-manager.ts` (+138 lines)
-- `src/main/ai-service.ts` (+78 lines)
+- `src/main/ai-service.ts` (+78 lines, using agent_instructions)
 - `src/server/api/flint-note-api.ts` (+135 lines)
 - `src/preload/index.ts` (+19 lines)
 - `src/main/index.ts` (+147 lines)
 
-**Total Lines Added**: ~1,350 lines
+**Total Lines Added**: ~1,867 lines (including tests)
 
 ## Commit Message
 
