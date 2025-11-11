@@ -874,7 +874,7 @@ app.whenReady().then(async () => {
         noteData.type,
         {
           purpose: noteTypeInfo?.description?.parsed?.purpose,
-          template: noteTypeInfo?.description?.parsed?.template
+          agentInstructions: noteTypeInfo?.description?.parsed?.agent_instructions
         },
         noteTypeInfo?.description?.parsed?.suggestions_config?.prompt_guidance ||
           'Provide helpful suggestions to improve this note.'

@@ -1833,7 +1833,7 @@ ${
   async generateNoteSuggestions(
     noteContent: string,
     noteType: string,
-    noteTypeDescription: { purpose?: string; template?: string },
+    noteTypeDescription: { purpose?: string; agentInstructions?: string },
     promptGuidance: string
   ): Promise<Array<{
     id: string;
@@ -1848,7 +1848,7 @@ ${
 
 ${noteTypeDescription.purpose ? `Note Type Purpose: ${noteTypeDescription.purpose}` : ''}
 
-${noteTypeDescription.template ? `Note Type Template:\n${noteTypeDescription.template}` : ''}
+${noteTypeDescription.agentInstructions ? `Agent Instructions for this note type:\n${noteTypeDescription.agentInstructions}` : ''}
 
 ${promptGuidance}
 
