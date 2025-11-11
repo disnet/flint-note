@@ -226,3 +226,60 @@ export interface HierarchyOperationResult {
   hierarchyUpdated: boolean;
   error?: string;
 }
+
+// ============================================================================
+// Note Suggestions Types
+// ============================================================================
+
+/**
+ * Individual suggestion for a note
+ */
+export interface NoteSuggestion {
+  id: string; // Unique ID for this suggestion
+  type: string; // Type depends on note type (e.g., "action", "link", "metadata", "content")
+  text: string; // The suggestion text
+  priority?: 'high' | 'medium' | 'low';
+  data?: Record<string, unknown>; // Type-specific data (e.g., link target, metadata key/value)
+  reasoning?: string; // Why this suggestion was made
+}
+
+/**
+ * Configuration for note type suggestions
+ */
+export interface NoteTypeSuggestionConfig {
+  enabled: boolean;
+  prompt_guidance: string; // Instructions for how agent should make suggestions
+  regenerate_threshold: number; // Content change threshold (0-1), default 0.15
+  suggestion_types?: string[]; // Allowed suggestion types for this note type
+}
+
+/**
+ * Stored suggestions for a note
+ */
+export interface NoteSuggestionRecord {
+  id: number;
+  note_id: string;
+  suggestions: NoteSuggestion[]; // JSON array of suggestion objects
+  content_hash: string; // Hash of note content when generated
+  generated_at: string;
+  model_version?: string; // Track which model generated suggestions
+  dismissed_ids?: string[]; // IDs of dismissed suggestions
+}
+
+/**
+ * Result from getting suggestions
+ */
+export interface GetSuggestionsResult {
+  suggestions: NoteSuggestion[];
+  generated_at?: string;
+  model_version?: string;
+}
+
+/**
+ * Result from generating suggestions
+ */
+export interface GenerateSuggestionsResult {
+  suggestions: NoteSuggestion[];
+  generated_at: string;
+  model_version: string;
+}

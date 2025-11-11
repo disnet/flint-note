@@ -1826,4 +1826,82 @@ ${
       this.emit('stream-error', { requestId, error: errorMessage });
     }
   }
+
+  /**
+   * Generate suggestions for a note
+   */
+  async generateNoteSuggestions(
+    noteContent: string,
+    noteType: string,
+    noteTypeDescription: { purpose?: string; template?: string },
+    promptGuidance: string
+  ): Promise<Array<{
+    id: string;
+    type: string;
+    text: string;
+    priority?: 'high' | 'medium' | 'low';
+    data?: Record<string, unknown>;
+    reasoning?: string;
+  }>> {
+    try {
+      const systemPrompt = `You are analyzing a note of type "${noteType}".
+
+${noteTypeDescription.purpose ? `Note Type Purpose: ${noteTypeDescription.purpose}` : ''}
+
+${noteTypeDescription.template ? `Note Type Template:\n${noteTypeDescription.template}` : ''}
+
+${promptGuidance}
+
+Analyze the note and provide specific, actionable suggestions as a JSON array.
+Each suggestion should have: id, type, text, priority (optional), data (optional), reasoning (optional).
+
+Return ONLY a valid JSON array with no additional text or markdown formatting.`;
+
+      const response = await generateText({
+        model: this.openrouter(this.currentModelName),
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: noteContent }
+        ],
+        maxTokens: 2000
+      });
+
+      // Parse the response
+      let suggestions;
+      try {
+        // Try to parse as JSON directly
+        suggestions = JSON.parse(response.text);
+      } catch {
+        // If that fails, try to extract JSON from markdown code blocks
+        const jsonMatch = response.text.match(/```json\s*([\s\S]*?)\s*```/);
+        if (jsonMatch) {
+          suggestions = JSON.parse(jsonMatch[1]);
+        } else {
+          // Try to find JSON array in the text
+          const arrayMatch = response.text.match(/\[[\s\S]*\]/);
+          if (arrayMatch) {
+            suggestions = JSON.parse(arrayMatch[0]);
+          } else {
+            throw new Error('Could not parse suggestions from AI response');
+          }
+        }
+      }
+
+      // Validate that we got an array
+      if (!Array.isArray(suggestions)) {
+        throw new Error('AI response was not a valid array');
+      }
+
+      // Ensure each suggestion has an id
+      suggestions = suggestions.map((s, index) => ({
+        ...s,
+        id: s.id || `suggestion-${Date.now()}-${index}`
+      }));
+
+      return suggestions;
+    } catch (error) {
+      logger.error('Failed to generate note suggestions', { error });
+      throw error;
+    }
+  }
 }

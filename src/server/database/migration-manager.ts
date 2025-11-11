@@ -746,7 +746,7 @@ async function initializeFreshDatabase(db: DatabaseConnection): Promise<void> {
   // Create workflow tables (added in v2.4.0)
   await createWorkflowTables(db);
 
-  // Create note_type_descriptions table (added in v2.2.0, icon added in v2.5.0)
+  // Create note_type_descriptions table (added in v2.2.0, icon added in v2.5.0, suggestions_config added in v2.7.0)
   await db.run(`
     CREATE TABLE IF NOT EXISTS note_type_descriptions (
       id TEXT PRIMARY KEY,
@@ -757,6 +757,7 @@ async function initializeFreshDatabase(db: DatabaseConnection): Promise<void> {
       metadata_schema TEXT,
       content_hash TEXT,
       icon TEXT,
+      suggestions_config TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       UNIQUE(vault_id, type_name)
@@ -766,6 +767,28 @@ async function initializeFreshDatabase(db: DatabaseConnection): Promise<void> {
   await db.run(`
     CREATE INDEX IF NOT EXISTS idx_note_type_descriptions_vault
     ON note_type_descriptions(vault_id)
+  `);
+
+  // Create note_suggestions table (added in v2.7.0)
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS note_suggestions (
+      id INTEGER PRIMARY KEY,
+      note_id TEXT NOT NULL UNIQUE,
+      suggestions TEXT NOT NULL,
+      content_hash TEXT NOT NULL,
+      generated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      model_version TEXT,
+      dismissed_ids TEXT,
+      FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
+    )
+  `);
+
+  await db.run(`
+    CREATE INDEX IF NOT EXISTS idx_note_suggestions_note_id ON note_suggestions(note_id)
+  `);
+
+  await db.run(`
+    CREATE INDEX IF NOT EXISTS idx_note_suggestions_generated_at ON note_suggestions(generated_at)
   `);
 
   console.log('Fresh database initialized successfully');
@@ -1560,6 +1583,81 @@ async function migrateToV2_6_0(
   }
 }
 
+/**
+ * Migration to v2.7.0: Add note suggestions support
+ */
+async function migrateToV2_8_0(db: DatabaseConnection): Promise<void> {
+  console.log('Migrating to v2.8.0: Adding note suggestions support');
+
+  try {
+    // Check if note_suggestions table already exists
+    const tableExists = await db.get<{ count: number }>(`
+      SELECT COUNT(*) as count FROM sqlite_master
+      WHERE type='table' AND name='note_suggestions'
+    `);
+
+    if (!tableExists || tableExists.count === 0) {
+      console.log('Creating note_suggestions table');
+      await db.run(`
+        CREATE TABLE note_suggestions (
+          id INTEGER PRIMARY KEY,
+          note_id TEXT NOT NULL UNIQUE,
+          suggestions TEXT NOT NULL,
+          content_hash TEXT NOT NULL,
+          generated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          model_version TEXT,
+          dismissed_ids TEXT,
+          FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
+        )
+      `);
+
+      await db.run(`
+        CREATE INDEX idx_note_suggestions_note_id ON note_suggestions(note_id)
+      `);
+
+      await db.run(`
+        CREATE INDEX idx_note_suggestions_generated_at ON note_suggestions(generated_at)
+      `);
+
+      console.log('note_suggestions table created successfully');
+    } else {
+      console.log('note_suggestions table already exists, skipping');
+    }
+
+    // Check if suggestions_config column exists in note_type_descriptions table
+    const noteTypeTableExists = await db.get<{ count: number }>(`
+      SELECT COUNT(*) as count FROM sqlite_master
+      WHERE type='table' AND name='note_type_descriptions'
+    `);
+
+    if (noteTypeTableExists && noteTypeTableExists.count > 0) {
+      const columns = await db.all<{ name: string }>(
+        "SELECT name FROM pragma_table_info('note_type_descriptions')"
+      );
+      const hasSuggestionsConfig = columns.some(
+        (col) => col.name === 'suggestions_config'
+      );
+
+      if (!hasSuggestionsConfig) {
+        console.log('Adding suggestions_config column to note_type_descriptions table');
+        await db.run(
+          'ALTER TABLE note_type_descriptions ADD COLUMN suggestions_config TEXT'
+        );
+        console.log('suggestions_config column added successfully');
+      } else {
+        console.log('suggestions_config column already exists, skipping');
+      }
+    } else {
+      console.log(
+        'note_type_descriptions table does not exist, skipping column addition'
+      );
+    }
+  } catch (error) {
+    console.error('Failed to add note suggestions support:', error);
+    throw error;
+  }
+}
+
 export class DatabaseMigrationManager {
   private static readonly CURRENT_SCHEMA_VERSION = '2.7.0';
 
@@ -1634,6 +1732,13 @@ export class DatabaseMigrationManager {
       requiresFullRebuild: false,
       requiresLinkMigration: false,
       migrationFunction: migrateToV2_7_0
+    },
+    {
+      version: '2.8.0',
+      description: 'Add note suggestions support',
+      requiresFullRebuild: false,
+      requiresLinkMigration: false,
+      migrationFunction: migrateToV2_8_0
     }
   ];
 

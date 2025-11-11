@@ -2556,6 +2556,138 @@ export class FlintNoteApi {
   }
 
   /**
+   * Get suggestions for a note
+   */
+  async getNoteSuggestions(
+    noteId: string,
+    vaultId: string
+  ): Promise<import('../types/index.js').GetSuggestionsResult> {
+    if (!this.initialized) {
+      throw new Error('API not initialized');
+    }
+
+    const { SuggestionService } = await import('../core/suggestion-service.js');
+    const suggestionService = new SuggestionService(
+      this.hybridSearchManager.getDatabaseManager()
+    );
+
+    return suggestionService.getSuggestions(noteId);
+  }
+
+  /**
+   * Save generated suggestions for a note
+   */
+  async saveNoteSuggestions(
+    noteId: string,
+    suggestions: import('../types/index.js').NoteSuggestion[],
+    contentHash: string,
+    modelVersion: string,
+    vaultId: string
+  ): Promise<import('../types/index.js').GenerateSuggestionsResult> {
+    if (!this.initialized) {
+      throw new Error('API not initialized');
+    }
+
+    const { SuggestionService } = await import('../core/suggestion-service.js');
+    const suggestionService = new SuggestionService(
+      this.hybridSearchManager.getDatabaseManager()
+    );
+
+    return suggestionService.saveSuggestions(noteId, suggestions, contentHash, modelVersion);
+  }
+
+  /**
+   * Clear suggestions for a note
+   */
+  async clearNoteSuggestions(noteId: string, vaultId: string): Promise<void> {
+    if (!this.initialized) {
+      throw new Error('API not initialized');
+    }
+
+    const { SuggestionService } = await import('../core/suggestion-service.js');
+    const suggestionService = new SuggestionService(
+      this.hybridSearchManager.getDatabaseManager()
+    );
+
+    return suggestionService.clearSuggestions(noteId);
+  }
+
+  /**
+   * Dismiss a specific suggestion
+   */
+  async dismissNoteSuggestion(
+    noteId: string,
+    suggestionId: string,
+    vaultId: string
+  ): Promise<void> {
+    if (!this.initialized) {
+      throw new Error('API not initialized');
+    }
+
+    const { SuggestionService } = await import('../core/suggestion-service.js');
+    const suggestionService = new SuggestionService(
+      this.hybridSearchManager.getDatabaseManager()
+    );
+
+    return suggestionService.dismissSuggestion(noteId, suggestionId);
+  }
+
+  /**
+   * Get note data for suggestion generation
+   */
+  async getNoteForSuggestions(
+    noteId: string,
+    vaultId: string
+  ): Promise<{ content: string; contentHash: string; type: string } | null> {
+    if (!this.initialized) {
+      throw new Error('API not initialized');
+    }
+
+    const { SuggestionService } = await import('../core/suggestion-service.js');
+    const suggestionService = new SuggestionService(
+      this.hybridSearchManager.getDatabaseManager()
+    );
+
+    return suggestionService.getNoteForSuggestions(noteId);
+  }
+
+  /**
+   * Check if suggestions are enabled for a note
+   */
+  async areSuggestionsEnabled(noteId: string, vaultId: string): Promise<boolean> {
+    if (!this.initialized) {
+      throw new Error('API not initialized');
+    }
+
+    const { SuggestionService } = await import('../core/suggestion-service.js');
+    const suggestionService = new SuggestionService(
+      this.hybridSearchManager.getDatabaseManager()
+    );
+
+    return suggestionService.areSuggestionsEnabled(noteId);
+  }
+
+  /**
+   * Update note type suggestion configuration
+   */
+  async updateNoteTypeSuggestionConfig(
+    noteType: string,
+    config: import('../types/index.js').NoteTypeSuggestionConfig,
+    vaultId: string
+  ): Promise<void> {
+    if (!this.initialized) {
+      throw new Error('API not initialized');
+    }
+
+    const { SuggestionService } = await import('../core/suggestion-service.js');
+    const suggestionService = new SuggestionService(
+      this.hybridSearchManager.getDatabaseManager()
+    );
+
+    return suggestionService.updateNoteTypeSuggestionConfig(noteType, config);
+  }
+
+  /**
    * Cleanup resources and close database connections
    * Call this when the API instance is no longer needed
    */

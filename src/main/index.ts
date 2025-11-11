@@ -818,6 +818,154 @@ app.whenReady().then(async () => {
     }
   );
 
+  // Note suggestions operations
+  ipcMain.handle(
+    'note:getSuggestions',
+    async (_event, params: { noteId: string; vaultId?: string }) => {
+      if (!noteService) {
+        throw new Error('Note service not available');
+      }
+      let vaultId = params.vaultId;
+      if (!vaultId) {
+        const currentVault = await noteService.getCurrentVault();
+        if (!currentVault) {
+          throw new Error('No vault available');
+        }
+        vaultId = currentVault.id;
+      }
+
+      const api = await noteService.getFlintNoteApi(vaultId);
+      return await api.getNoteSuggestions(params.noteId, vaultId);
+    }
+  );
+
+  ipcMain.handle(
+    'note:generateSuggestions',
+    async (_event, params: { noteId: string; vaultId?: string }) => {
+      if (!noteService || !aiService) {
+        throw new Error('Note service or AI service not available');
+      }
+      let vaultId = params.vaultId;
+      if (!vaultId) {
+        const currentVault = await noteService.getCurrentVault();
+        if (!currentVault) {
+          throw new Error('No vault available');
+        }
+        vaultId = currentVault.id;
+      }
+
+      const api = await noteService.getFlintNoteApi(vaultId);
+
+      // Get note data for suggestions
+      const noteData = await api.getNoteForSuggestions(params.noteId, vaultId);
+      if (!noteData) {
+        throw new Error('Note not found');
+      }
+
+      // Get note type description
+      const noteTypeInfo = await api.getNoteTypeInfo({
+        typeName: noteData.type,
+        vaultId
+      });
+
+      // Generate suggestions using AI
+      const suggestions = await aiService.generateNoteSuggestions(
+        noteData.content,
+        noteData.type,
+        {
+          purpose: noteTypeInfo?.description?.parsed?.purpose,
+          template: noteTypeInfo?.description?.parsed?.template
+        },
+        noteTypeInfo?.description?.parsed?.suggestions_config?.prompt_guidance ||
+          'Provide helpful suggestions to improve this note.'
+      );
+
+      // Save suggestions
+      return await api.saveNoteSuggestions(
+        params.noteId,
+        suggestions,
+        noteData.contentHash,
+        'current', // TODO: Get actual model version
+        vaultId
+      );
+    }
+  );
+
+  ipcMain.handle(
+    'note:dismissSuggestion',
+    async (
+      _event,
+      params: { noteId: string; suggestionId: string; vaultId?: string }
+    ) => {
+      if (!noteService) {
+        throw new Error('Note service not available');
+      }
+      let vaultId = params.vaultId;
+      if (!vaultId) {
+        const currentVault = await noteService.getCurrentVault();
+        if (!currentVault) {
+          throw new Error('No vault available');
+        }
+        vaultId = currentVault.id;
+      }
+
+      const api = await noteService.getFlintNoteApi(vaultId);
+      return await api.dismissNoteSuggestion(params.noteId, params.suggestionId, vaultId);
+    }
+  );
+
+  ipcMain.handle(
+    'note:clearSuggestions',
+    async (_event, params: { noteId: string; vaultId?: string }) => {
+      if (!noteService) {
+        throw new Error('Note service not available');
+      }
+      let vaultId = params.vaultId;
+      if (!vaultId) {
+        const currentVault = await noteService.getCurrentVault();
+        if (!currentVault) {
+          throw new Error('No vault available');
+        }
+        vaultId = currentVault.id;
+      }
+
+      const api = await noteService.getFlintNoteApi(vaultId);
+      return await api.clearNoteSuggestions(params.noteId, vaultId);
+    }
+  );
+
+  ipcMain.handle(
+    'note:updateSuggestionConfig',
+    async (
+      _event,
+      params: {
+        noteType: string;
+        config: {
+          enabled: boolean;
+          prompt_guidance: string;
+          regenerate_threshold?: number;
+          suggestion_types?: string[];
+        };
+        vaultId?: string;
+      }
+    ) => {
+      if (!noteService) {
+        throw new Error('Note service not available');
+      }
+      let vaultId = params.vaultId;
+      if (!vaultId) {
+        const currentVault = await noteService.getCurrentVault();
+        if (!currentVault) {
+          throw new Error('No vault available');
+        }
+        vaultId = currentVault.id;
+      }
+
+      const api = await noteService.getFlintNoteApi(vaultId);
+      return await api.updateNoteTypeSuggestionConfig(params.noteType, params.config, vaultId);
+    }
+  );
+
   // Note type operations
   ipcMain.handle('list-note-types', async (_event, params?: { vaultId: string }) => {
     if (!noteService) {

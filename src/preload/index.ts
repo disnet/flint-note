@@ -230,6 +230,26 @@ const api = {
   moveNote: (params: { identifier: string; newType: string; vaultId?: string }) =>
     electronAPI.ipcRenderer.invoke('move-note', params),
 
+  // Note suggestions operations
+  getNoteSuggestions: (params: { noteId: string; vaultId?: string }) =>
+    electronAPI.ipcRenderer.invoke('note:getSuggestions', params),
+  generateNoteSuggestions: (params: { noteId: string; vaultId?: string }) =>
+    electronAPI.ipcRenderer.invoke('note:generateSuggestions', params),
+  dismissNoteSuggestion: (params: { noteId: string; suggestionId: string; vaultId?: string }) =>
+    electronAPI.ipcRenderer.invoke('note:dismissSuggestion', params),
+  clearNoteSuggestions: (params: { noteId: string; vaultId?: string }) =>
+    electronAPI.ipcRenderer.invoke('note:clearSuggestions', params),
+  updateNoteTypeSuggestionConfig: (params: {
+    noteType: string;
+    config: {
+      enabled: boolean;
+      prompt_guidance: string;
+      regenerate_threshold?: number;
+      suggestion_types?: string[];
+    };
+    vaultId?: string;
+  }) => electronAPI.ipcRenderer.invoke('note:updateSuggestionConfig', params),
+
   // Note lifecycle tracking (for file watcher)
   // Phase 3: Removed noteOpened, noteClosed, and expectNoteWrite
   // FileWriteQueue now handles all internal write tracking
