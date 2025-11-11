@@ -834,8 +834,8 @@ app.whenReady().then(async () => {
         vaultId = currentVault.id;
       }
 
-      const api = await noteService.getFlintNoteApi(vaultId);
-      return await api.getNoteSuggestions(params.noteId, vaultId);
+      const api = noteService.getFlintNoteApi();
+      return await api.getNoteSuggestions(params.noteId);
     }
   );
 
@@ -854,18 +854,18 @@ app.whenReady().then(async () => {
         vaultId = currentVault.id;
       }
 
-      const api = await noteService.getFlintNoteApi(vaultId);
+      const api = noteService.getFlintNoteApi();
 
       // Get note data for suggestions
-      const noteData = await api.getNoteForSuggestions(params.noteId, vaultId);
+      const noteData = await api.getNoteForSuggestions(params.noteId);
       if (!noteData) {
         throw new Error('Note not found');
       }
 
       // Get note type description
       const noteTypeInfo = await api.getNoteTypeInfo({
-        typeName: noteData.type,
-        vaultId
+        type_name: noteData.type,
+        vault_id: vaultId
       });
 
       // Generate suggestions using AI
@@ -873,10 +873,10 @@ app.whenReady().then(async () => {
         noteData.content,
         noteData.type,
         {
-          purpose: noteTypeInfo?.description?.parsed?.purpose,
-          agentInstructions: noteTypeInfo?.description?.parsed?.agent_instructions
+          purpose: noteTypeInfo?.purpose,
+          agentInstructions: noteTypeInfo?.instructions?.join('\n')
         },
-        noteTypeInfo?.description?.parsed?.suggestions_config?.prompt_guidance ||
+        noteTypeInfo?.suggestions_config?.prompt_guidance ||
           'Provide helpful suggestions to improve this note.'
       );
 
@@ -884,8 +884,7 @@ app.whenReady().then(async () => {
       return await api.saveNoteSuggestions(
         params.noteId,
         suggestions,
-        'current', // TODO: Get actual model version
-        vaultId
+        'current' // TODO: Get actual model version
       );
     }
   );
@@ -908,8 +907,8 @@ app.whenReady().then(async () => {
         vaultId = currentVault.id;
       }
 
-      const api = await noteService.getFlintNoteApi(vaultId);
-      return await api.dismissNoteSuggestion(params.noteId, params.suggestionId, vaultId);
+      const api = noteService.getFlintNoteApi();
+      return await api.dismissNoteSuggestion(params.noteId, params.suggestionId);
     }
   );
 
@@ -928,8 +927,8 @@ app.whenReady().then(async () => {
         vaultId = currentVault.id;
       }
 
-      const api = await noteService.getFlintNoteApi(vaultId);
-      return await api.clearNoteSuggestions(params.noteId, vaultId);
+      const api = noteService.getFlintNoteApi();
+      return await api.clearNoteSuggestions(params.noteId);
     }
   );
 
@@ -959,8 +958,8 @@ app.whenReady().then(async () => {
         vaultId = currentVault.id;
       }
 
-      const api = await noteService.getFlintNoteApi(vaultId);
-      return await api.updateNoteTypeSuggestionConfig(params.noteType, params.config, vaultId);
+      const api = noteService.getFlintNoteApi();
+      return await api.updateNoteTypeSuggestionConfig(params.noteType, params.config);
     }
   );
 

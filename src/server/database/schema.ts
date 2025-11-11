@@ -585,6 +585,7 @@ export interface NoteTypeDescriptionRow {
   metadata_schema: string | null;
   content_hash: string | null;
   icon: string | null;
+  suggestions_config: string | null;
   created_at: string;
   updated_at: string;
 }

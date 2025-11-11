@@ -253,15 +253,15 @@ export interface NoteTypeSuggestionConfig {
 }
 
 /**
- * Stored suggestions for a note
+ * Stored suggestions for a note (as stored in database with JSON strings)
  */
 export interface NoteSuggestionRecord {
   id: number;
   note_id: string;
-  suggestions: NoteSuggestion[]; // JSON array of suggestion objects
+  suggestions: string; // JSON string of NoteSuggestion[]
   generated_at: string;
   model_version?: string; // Track which model generated suggestions
-  dismissed_ids?: string[]; // IDs of dismissed suggestions
+  dismissed_ids?: string; // JSON string of string[] or null
 }
 
 /**

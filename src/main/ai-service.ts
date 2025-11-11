@@ -1835,14 +1835,16 @@ ${
     noteType: string,
     noteTypeDescription: { purpose?: string; agentInstructions?: string },
     promptGuidance: string
-  ): Promise<Array<{
-    id: string;
-    type: string;
-    text: string;
-    priority?: 'high' | 'medium' | 'low';
-    data?: Record<string, unknown>;
-    reasoning?: string;
-  }>> {
+  ): Promise<
+    Array<{
+      id: string;
+      type: string;
+      text: string;
+      priority?: 'high' | 'medium' | 'low';
+      data?: Record<string, unknown>;
+      reasoning?: string;
+    }>
+  > {
     try {
       const systemPrompt = `You are analyzing a note of type "${noteType}".
 
@@ -1862,8 +1864,7 @@ Return ONLY a valid JSON array with no additional text or markdown formatting.`;
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: noteContent }
-        ],
-        maxTokens: 2000
+        ]
       });
 
       // Parse the response

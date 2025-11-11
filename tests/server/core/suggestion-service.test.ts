@@ -6,28 +6,25 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { SuggestionService } from '../../../src/server/core/suggestion-service.js';
-import { TestApiSetup } from '../api/test-setup.js';
+import { Workspace } from '../../../src/server/core/workspace.js';
+import { DatabaseManager } from '../../../src/server/database/schema.js';
+import type { DatabaseConnection } from '../../../src/server/database/schema.js';
 import type {
   NoteSuggestion,
   NoteTypeSuggestionConfig
 } from '../../../src/server/types/index.js';
+import fs from 'fs/promises';
+import path from 'path';
+import os from 'os';
 
 describe('SuggestionService', () => {
-  let testSetup: TestApiSetup;
-  let testVaultId: string;
+  let workspace: Workspace;
+  let dbManager: DatabaseManager;
+  let db: DatabaseConnection;
   let suggestionService: SuggestionService;
   let testNoteId: string;
-
-  // Helper to get database connection and service
-  async function getDb() {
-    const { hybridSearchManager } = await (testSetup.api as any).getVaultContext(testVaultId);
-    return await hybridSearchManager.getDatabaseConnection();
-  }
-
-  async function getDatabaseManager() {
-    const { hybridSearchManager } = await (testSetup.api as any).getVaultContext(testVaultId);
-    return hybridSearchManager.getDatabaseManager();
-  }
+  let testVaultPath: string;
+  let vaultId: string;
 
   // Helper to insert a test note
   async function insertTestNote(options: {
@@ -36,7 +33,6 @@ describe('SuggestionService', () => {
     content: string;
     type?: string;
   }) {
-    const db = await getDb();
     const id =
       options.id || `n-${Math.random().toString(16).substring(2, 10).padEnd(8, '0')}`;
     const now = new Date().toISOString();
@@ -61,25 +57,35 @@ describe('SuggestionService', () => {
   }
 
   // Helper to create a note type with suggestion config
-  async function createNoteTypeWithConfig(typeName: string, config: NoteTypeSuggestionConfig) {
-    const db = await getDb();
+  async function createNoteTypeWithConfig(
+    typeName: string,
+    config: NoteTypeSuggestionConfig
+  ) {
     const id = `type-${typeName}`;
     const now = new Date().toISOString();
 
     await db.run(
       `INSERT INTO note_type_descriptions (id, vault_id, type_name, purpose, suggestions_config, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [id, testVaultId, typeName, 'Test type', JSON.stringify(config), now, now]
+      [id, vaultId, typeName, 'Test type', JSON.stringify(config), now, now]
     );
   }
 
   beforeEach(async () => {
-    testSetup = new TestApiSetup();
-    await testSetup.setup();
-    testVaultId = await testSetup.createTestVault('suggestion-test');
+    // Create temporary vault directory
+    testVaultPath = await fs.mkdtemp(path.join(os.tmpdir(), 'suggestion-service-test-'));
+    vaultId = testVaultPath; // Use vault path as ID
 
-    const dbManager = await getDatabaseManager();
+    // Create .flint-note directory
+    await fs.mkdir(path.join(testVaultPath, '.flint-note'), { recursive: true });
+
+    // Initialize workspace and database - this runs migrations
+    dbManager = new DatabaseManager(testVaultPath);
+    workspace = new Workspace(testVaultPath, dbManager);
+    await workspace.initialize();
+
     suggestionService = new SuggestionService(dbManager);
+    db = await dbManager.connect();
 
     // Create a test note
     const note = await insertTestNote({
@@ -90,7 +96,8 @@ describe('SuggestionService', () => {
   });
 
   afterEach(async () => {
-    await testSetup.cleanup();
+    await db.close();
+    await fs.rm(testVaultPath, { recursive: true, force: true });
   });
 
   describe('getSuggestions', () => {
@@ -183,6 +190,12 @@ describe('SuggestionService', () => {
 
   describe('saveSuggestions', () => {
     it('should save new suggestions', async () => {
+      // Enable suggestions for note type
+      await createNoteTypeWithConfig('general', {
+        enabled: true,
+        prompt_guidance: 'Test'
+      });
+
       const testSuggestions: NoteSuggestion[] = [
         {
           id: 'sug-1',
@@ -196,7 +209,6 @@ describe('SuggestionService', () => {
       const result = await suggestionService.saveSuggestions(
         testNoteId,
         testSuggestions,
-        'hash-456',
         'gpt-4'
       );
 
@@ -210,11 +222,16 @@ describe('SuggestionService', () => {
     });
 
     it('should update existing suggestions', async () => {
+      // Enable suggestions for note type
+      await createNoteTypeWithConfig('general', {
+        enabled: true,
+        prompt_guidance: 'Test'
+      });
+
       // Save initial suggestions
       await suggestionService.saveSuggestions(
         testNoteId,
         [{ id: 'sug-1', type: 'action', text: 'Original' }],
-        'hash-1',
         'model-1'
       );
 
@@ -233,6 +250,12 @@ describe('SuggestionService', () => {
     });
 
     it('should clear dismissed IDs when saving new suggestions', async () => {
+      // Enable suggestions for note type
+      await createNoteTypeWithConfig('general', {
+        enabled: true,
+        prompt_guidance: 'Test'
+      });
+
       // Save and dismiss
       await suggestionService.saveSuggestions(
         testNoteId,
@@ -240,7 +263,6 @@ describe('SuggestionService', () => {
           { id: 'sug-1', type: 'action', text: 'First' },
           { id: 'sug-2', type: 'action', text: 'Second' }
         ],
-        'hash-1',
         'model-1'
       );
       await suggestionService.dismissSuggestion(testNoteId, 'sug-1');
@@ -249,7 +271,6 @@ describe('SuggestionService', () => {
       await suggestionService.saveSuggestions(
         testNoteId,
         [{ id: 'sug-3', type: 'action', text: 'Third' }],
-        'hash-2',
         'model-1'
       );
 
@@ -262,6 +283,12 @@ describe('SuggestionService', () => {
 
   describe('dismissSuggestion', () => {
     it('should dismiss a single suggestion', async () => {
+      // Enable suggestions for note type
+      await createNoteTypeWithConfig('general', {
+        enabled: true,
+        prompt_guidance: 'Test'
+      });
+
       await suggestionService.saveSuggestions(
         testNoteId,
         [
@@ -280,6 +307,12 @@ describe('SuggestionService', () => {
     });
 
     it('should handle dismissing multiple suggestions', async () => {
+      // Enable suggestions for note type
+      await createNoteTypeWithConfig('general', {
+        enabled: true,
+        prompt_guidance: 'Test'
+      });
+
       await suggestionService.saveSuggestions(
         testNoteId,
         [
@@ -312,7 +345,6 @@ describe('SuggestionService', () => {
       await suggestionService.dismissSuggestion(testNoteId, 'sug-1');
 
       // Check database directly
-      const db = await getDb();
       const record = await db.get<{ dismissed_ids: string }>(
         'SELECT dismissed_ids FROM note_suggestions WHERE note_id = ?',
         [testNoteId]
@@ -376,7 +408,6 @@ describe('SuggestionService', () => {
       });
 
       // Add per-note override
-      const db = await getDb();
       await db.run(
         `INSERT INTO note_metadata (note_id, key, value, value_type)
          VALUES (?, '_suggestions_disabled', 'true', 'string')`,
@@ -425,7 +456,6 @@ describe('SuggestionService', () => {
       await suggestionService.updateNoteTypeSuggestionConfig('general', newConfig);
 
       // Verify update
-      const db = await getDb();
       const record = await db.get<{ suggestions_config: string }>(
         'SELECT suggestions_config FROM note_type_descriptions WHERE type_name = ?',
         ['general']

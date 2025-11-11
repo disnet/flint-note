@@ -13,6 +13,7 @@ Implemented a complete AI-powered note suggestions feature that provides context
 ### ✅ Completed Components
 
 #### 1. Database Layer (v2.7.0 Migration)
+
 - **File**: `src/server/database/migration-manager.ts`
 - Added `note_suggestions` table with the following schema:
   - `id` (PRIMARY KEY)
@@ -27,6 +28,7 @@ Implemented a complete AI-powered note suggestions feature that provides context
 - Updated schema version to 2.7.0
 
 #### 2. Type Definitions
+
 - **File**: `src/server/types/index.ts`
 - Added comprehensive TypeScript interfaces:
   - `NoteSuggestion` - Individual suggestion structure
@@ -36,6 +38,7 @@ Implemented a complete AI-powered note suggestions feature that provides context
   - `GenerateSuggestionsResult` - Generation response types
 
 #### 3. Core Service Layer
+
 - **File**: `src/server/core/suggestion-service.ts`
 - Implemented `SuggestionService` class with methods:
   - `getSuggestions()` - Retrieve cached suggestions with dismissed filtering
@@ -48,6 +51,7 @@ Implemented a complete AI-powered note suggestions feature that provides context
   - `getNoteForSuggestions()` - Fetch note data for generation
 
 #### 4. AI Integration
+
 - **File**: `src/main/ai-service.ts`
 - Added `generateNoteSuggestions()` method:
   - Accepts note content, type, and prompt guidance
@@ -56,6 +60,7 @@ Implemented a complete AI-powered note suggestions feature that provides context
   - Error handling and logging
 
 #### 5. API Endpoints
+
 - **File**: `src/server/api/flint-note-api.ts`
 - Added REST-style methods to `FlintNoteApi` class:
   - `getNoteSuggestions()` - GET suggestions for a note
@@ -67,6 +72,7 @@ Implemented a complete AI-powered note suggestions feature that provides context
   - `updateNoteTypeSuggestionConfig()` - PUT type configuration
 
 #### 6. IPC Bridge
+
 - **File**: `src/preload/index.ts`
 - Exposed suggestion methods to renderer:
   - `getNoteSuggestions()`
@@ -76,6 +82,7 @@ Implemented a complete AI-powered note suggestions feature that provides context
   - `updateNoteTypeSuggestionConfig()`
 
 #### 7. IPC Handlers
+
 - **File**: `src/main/index.ts`
 - Registered IPC handlers for all suggestion operations:
   - `note:getSuggestions` - Fetch suggestions
@@ -85,6 +92,7 @@ Implemented a complete AI-powered note suggestions feature that provides context
   - `note:updateSuggestionConfig` - Update configuration
 
 #### 8. UI Component
+
 - **File**: `src/renderer/src/components/NoteSuggestions.svelte`
 - Created full-featured Svelte 5 component:
   - Collapsible panel with suggestion count badge
@@ -103,22 +111,26 @@ Implemented a complete AI-powered note suggestions feature that provides context
 ## Architecture Highlights
 
 ### Database Design
+
 - **Caching Strategy**: Suggestions stored per-note, persist until manually regenerated
 - **Dismissal Tracking**: Dismissed IDs stored as JSON array, allowing undo in future
 - **Foreign Keys**: CASCADE DELETE ensures orphan cleanup
 - **Indexing**: Optimized for note_id and generated_at queries
 
 ### Service Layer
+
 - **Separation of Concerns**: SuggestionService handles data, AIService handles generation
 - **Configuration Hierarchy**: Type-level defaults with per-note overrides
 - **Manual Regeneration**: User controls when suggestions are regenerated
 
 ### IPC Architecture
+
 - **Type Safety**: All parameters and returns are typed
 - **Vault Context**: Automatic vault ID resolution in handlers
 - **Error Handling**: Graceful fallbacks and user-friendly messages
 
 ### UI/UX
+
 - **Progressive Disclosure**: Collapsible panel, collapsible reasoning
 - **Visual Hierarchy**: Priority colors, type badges, spacing
 - **Loading States**: Clear feedback for async operations
@@ -127,6 +139,7 @@ Implemented a complete AI-powered note suggestions feature that provides context
 ## Key Features
 
 ### Smart Suggestions
+
 - **Context-Aware**: Uses note type purpose and template
 - **Configurable**: Per-type prompt guidance
 - **Structured**: Typed suggestions (action, link, metadata, content)
@@ -134,12 +147,14 @@ Implemented a complete AI-powered note suggestions feature that provides context
 - **Reasoned**: Optional reasoning for transparency
 
 ### User Control
+
 - **Enable/Disable**: Global (type) and local (note) controls
 - **Dismissal**: Persistent per-suggestion dismissal
 - **Regeneration**: Manual on-demand regeneration only
 - **Configuration**: Customizable prompts per note type
 
 ### Performance
+
 - **Lazy Loading**: Only load when panel expanded
 - **Caching**: Avoid redundant AI calls until manual regeneration
 - **Indexed Queries**: Fast database lookups
@@ -148,6 +163,7 @@ Implemented a complete AI-powered note suggestions feature that provides context
 ## Configuration Examples
 
 ### Meeting Notes Type
+
 ```json
 {
   "enabled": true,
@@ -156,6 +172,7 @@ Implemented a complete AI-powered note suggestions feature that provides context
 ```
 
 ### Research Notes Type
+
 ```json
 {
   "enabled": true,
@@ -166,6 +183,7 @@ Implemented a complete AI-powered note suggestions feature that provides context
 ## Future Enhancements
 
 ### Phase 2 (Not Implemented)
+
 - [ ] Integration with NoteEditor UI
 - [ ] Note type configuration UI in settings
 - [ ] Suggestion action handlers (create link, add content)
@@ -174,6 +192,7 @@ Implemented a complete AI-powered note suggestions feature that provides context
 - [ ] Contextual suggestions using vault structure
 
 ### Phase 3 (Future)
+
 - [ ] Streaming suggestions as they generate
 - [ ] Suggestion templates library
 - [ ] Cross-note suggestions
@@ -183,6 +202,7 @@ Implemented a complete AI-powered note suggestions feature that provides context
 ## Testing Recommendations
 
 ### Manual Testing
+
 1. **Database Migration**
    - Start app with existing vault
    - Verify migration runs successfully
@@ -210,6 +230,7 @@ Implemented a complete AI-powered note suggestions feature that provides context
    - Verify config affects generation
 
 ### Automated Testing
+
 - ✅ **Unit tests for SuggestionService** - Comprehensive test suite with 18 test cases
   - Getting and caching suggestions
   - Saving and updating suggestions
@@ -224,12 +245,14 @@ Implemented a complete AI-powered note suggestions feature that provides context
 ## Migration Notes
 
 ### Database Changes
+
 - **Version**: 2.6.0 → 2.7.0
 - **Breaking Changes**: None
 - **Data Loss**: None
 - **Backward Compatibility**: Full (new features disabled by default)
 
 ### User Impact
+
 - Existing users: No changes, feature opt-in
 - New users: Feature available but disabled
 - Configuration: Per note type
@@ -237,12 +260,14 @@ Implemented a complete AI-powered note suggestions feature that provides context
 ## Files Modified
 
 ### Created
+
 - `src/server/core/suggestion-service.ts` (348 lines)
 - `src/renderer/src/components/NoteSuggestions.svelte` (429 lines)
 - `tests/server/core/suggestion-service.test.ts` (517 lines)
 - `docs/implementation-summary-note-suggestions.md` (this file)
 
 ### Modified
+
 - `src/server/types/index.ts` (+56 lines, removed regenerate_threshold)
 - `src/server/database/migration-manager.ts` (+138 lines)
 - `src/main/ai-service.ts` (+78 lines, using agent_instructions)

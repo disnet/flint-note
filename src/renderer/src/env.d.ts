@@ -170,6 +170,31 @@ declare global {
         vaultId?: string;
       }) => Promise<any>;
 
+      // Note suggestion operations
+      getNoteSuggestions: (params: { noteId: string; vaultId?: string }) => Promise<any>;
+      generateNoteSuggestions: (params: {
+        noteId: string;
+        vaultId?: string;
+      }) => Promise<any>;
+      dismissNoteSuggestion: (params: {
+        noteId: string;
+        suggestionId: string;
+        vaultId?: string;
+      }) => Promise<any>;
+      clearNoteSuggestions: (params: {
+        noteId: string;
+        vaultId?: string;
+      }) => Promise<any>;
+      updateNoteSuggestionConfig: (params: {
+        noteType: string;
+        config: {
+          enabled: boolean;
+          prompt_guidance: string;
+          suggestion_types?: string[];
+        };
+        vaultId?: string;
+      }) => Promise<any>;
+
       // Note lifecycle tracking (for file watcher)
       // Phase 3: Removed noteOpened, noteClosed, and expectNoteWrite
 

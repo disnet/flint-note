@@ -45,6 +45,7 @@ export interface NoteTypeDescription {
   metadataSchema: MetadataSchema;
   content_hash: string;
   icon?: string;
+  suggestions_config?: import('../types/index.js').NoteTypeSuggestionConfig;
 }
 
 export interface NoteTypeListItem {
@@ -336,6 +337,16 @@ export class NoteTypeManager {
 
           const parsed = this.parseNoteTypeDescription(description);
 
+          // Parse suggestions_config if present
+          let suggestionsConfig;
+          if (row.suggestions_config) {
+            try {
+              suggestionsConfig = JSON.parse(row.suggestions_config);
+            } catch (error) {
+              console.warn('Failed to parse suggestions_config:', error);
+            }
+          }
+
           return {
             name: typeName,
             path: typePath,
@@ -343,7 +354,8 @@ export class NoteTypeManager {
             parsed,
             metadataSchema: schema,
             content_hash: row.content_hash || '',
-            icon: row.icon || undefined
+            icon: row.icon || undefined,
+            suggestions_config: suggestionsConfig
           };
         }
       }

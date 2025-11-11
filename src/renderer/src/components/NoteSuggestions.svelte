@@ -12,10 +12,9 @@
 
   interface Props {
     noteId: string;
-    contentHash?: string;
   }
 
-  let { noteId, contentHash }: Props = $props();
+  let { noteId }: Props = $props();
 
   let suggestions = $state<NoteSuggestion[]>([]);
   let loading = $state(false);
@@ -34,7 +33,7 @@
     loadSuggestions();
   });
 
-  async function loadSuggestions() {
+  async function loadSuggestions(): Promise<void> {
     if (!noteId) return;
 
     loading = true;
@@ -50,7 +49,7 @@
     }
   }
 
-  async function dismissSuggestion(suggestionId: string) {
+  async function dismissSuggestion(suggestionId: string): Promise<void> {
     try {
       await window.api?.dismissNoteSuggestion({ noteId, suggestionId });
       suggestions = suggestions.filter((s) => s.id !== suggestionId);
@@ -59,7 +58,7 @@
     }
   }
 
-  async function regenerate() {
+  async function regenerate(): Promise<void> {
     generating = true;
     error = null;
     try {
@@ -73,7 +72,7 @@
     }
   }
 
-  function toggleExpanded() {
+  function toggleExpanded(): void {
     expanded = !expanded;
   }
 
@@ -131,7 +130,9 @@
       {:else if suggestions.length === 0}
         <div class="empty">
           <p>No suggestions available</p>
-          <button class="generate-button" onclick={regenerate}>Generate Suggestions</button>
+          <button class="generate-button" onclick={regenerate}
+            >Generate Suggestions</button
+          >
         </div>
       {:else}
         <ul class="suggestions-list">

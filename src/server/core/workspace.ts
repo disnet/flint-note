@@ -302,7 +302,9 @@ export class Workspace {
       workspace_root: '.',
       default_note_type: 'daily',
       database: {
-        schema_version: DatabaseMigrationManager.getCurrentSchemaVersion(),
+        // Don't set schema_version here - let migrations run first
+        // The version will be set after migrations complete
+        schema_version: undefined as unknown as string,
         last_migration: new Date().toISOString()
       },
       mcp_server: {

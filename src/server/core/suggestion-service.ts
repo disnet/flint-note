@@ -5,7 +5,6 @@
  * and dismissal of suggestions based on note type configuration.
  */
 
-import crypto from 'crypto';
 import type { DatabaseManager, DatabaseConnection } from '../database/schema.js';
 import type {
   NoteSuggestion,
@@ -174,10 +173,7 @@ export class SuggestionService {
    * Check if suggestions are enabled for a note
    * Checks both note type configuration and per-note override
    */
-  async areSuggestionsEnabled(
-    noteId: string,
-    db?: DatabaseConnection
-  ): Promise<boolean> {
+  async areSuggestionsEnabled(noteId: string, db?: DatabaseConnection): Promise<boolean> {
     const connection = db || (await this.dbManager.connect());
 
     try {
@@ -239,10 +235,10 @@ export class SuggestionService {
       }
 
       // Update the database
-      await db.run(
-        'UPDATE note_suggestions SET dismissed_ids = ? WHERE note_id = ?',
-        [JSON.stringify(dismissedIds), noteId]
-      );
+      await db.run('UPDATE note_suggestions SET dismissed_ids = ? WHERE note_id = ?', [
+        JSON.stringify(dismissedIds),
+        noteId
+      ]);
     } catch (error) {
       console.error('Failed to dismiss suggestion:', error);
       throw error;

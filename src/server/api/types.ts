@@ -197,6 +197,7 @@ export interface GetNoteTypeInfoResult {
   metadata_schema: import('../core/metadata-schema.js').MetadataSchema;
   content_hash: string;
   icon?: string;
+  suggestions_config?: import('../types/index.js').NoteTypeSuggestionConfig;
 }
 
 export interface CreateVaultArgs {

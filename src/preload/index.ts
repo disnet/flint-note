@@ -235,8 +235,11 @@ const api = {
     electronAPI.ipcRenderer.invoke('note:getSuggestions', params),
   generateNoteSuggestions: (params: { noteId: string; vaultId?: string }) =>
     electronAPI.ipcRenderer.invoke('note:generateSuggestions', params),
-  dismissNoteSuggestion: (params: { noteId: string; suggestionId: string; vaultId?: string }) =>
-    electronAPI.ipcRenderer.invoke('note:dismissSuggestion', params),
+  dismissNoteSuggestion: (params: {
+    noteId: string;
+    suggestionId: string;
+    vaultId?: string;
+  }) => electronAPI.ipcRenderer.invoke('note:dismissSuggestion', params),
   clearNoteSuggestions: (params: { noteId: string; vaultId?: string }) =>
     electronAPI.ipcRenderer.invoke('note:clearSuggestions', params),
   updateNoteTypeSuggestionConfig: (params: {

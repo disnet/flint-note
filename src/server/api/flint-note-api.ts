@@ -750,7 +750,8 @@ export class FlintNoteApi {
       instructions: desc.parsed.agentInstructions,
       metadata_schema: desc.metadataSchema,
       content_hash: desc.content_hash,
-      icon: desc.icon
+      icon: desc.icon,
+      suggestions_config: desc.suggestions_config
     };
   }
 
@@ -2559,8 +2560,7 @@ export class FlintNoteApi {
    * Get suggestions for a note
    */
   async getNoteSuggestions(
-    noteId: string,
-    vaultId: string
+    noteId: string
   ): Promise<import('../types/index.js').GetSuggestionsResult> {
     if (!this.initialized) {
       throw new Error('API not initialized');
@@ -2580,8 +2580,7 @@ export class FlintNoteApi {
   async saveNoteSuggestions(
     noteId: string,
     suggestions: import('../types/index.js').NoteSuggestion[],
-    modelVersion: string,
-    vaultId: string
+    modelVersion: string
   ): Promise<import('../types/index.js').GenerateSuggestionsResult> {
     if (!this.initialized) {
       throw new Error('API not initialized');
@@ -2598,7 +2597,7 @@ export class FlintNoteApi {
   /**
    * Clear suggestions for a note
    */
-  async clearNoteSuggestions(noteId: string, vaultId: string): Promise<void> {
+  async clearNoteSuggestions(noteId: string): Promise<void> {
     if (!this.initialized) {
       throw new Error('API not initialized');
     }
@@ -2614,11 +2613,7 @@ export class FlintNoteApi {
   /**
    * Dismiss a specific suggestion
    */
-  async dismissNoteSuggestion(
-    noteId: string,
-    suggestionId: string,
-    vaultId: string
-  ): Promise<void> {
+  async dismissNoteSuggestion(noteId: string, suggestionId: string): Promise<void> {
     if (!this.initialized) {
       throw new Error('API not initialized');
     }
@@ -2635,8 +2630,7 @@ export class FlintNoteApi {
    * Get note data for suggestion generation
    */
   async getNoteForSuggestions(
-    noteId: string,
-    vaultId: string
+    noteId: string
   ): Promise<{ content: string; type: string } | null> {
     if (!this.initialized) {
       throw new Error('API not initialized');
@@ -2653,7 +2647,7 @@ export class FlintNoteApi {
   /**
    * Check if suggestions are enabled for a note
    */
-  async areSuggestionsEnabled(noteId: string, vaultId: string): Promise<boolean> {
+  async areSuggestionsEnabled(noteId: string): Promise<boolean> {
     if (!this.initialized) {
       throw new Error('API not initialized');
     }
@@ -2671,8 +2665,7 @@ export class FlintNoteApi {
    */
   async updateNoteTypeSuggestionConfig(
     noteType: string,
-    config: import('../types/index.js').NoteTypeSuggestionConfig,
-    vaultId: string
+    config: import('../types/index.js').NoteTypeSuggestionConfig
   ): Promise<void> {
     if (!this.initialized) {
       throw new Error('API not initialized');

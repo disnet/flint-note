@@ -37,12 +37,12 @@ CREATE INDEX idx_note_suggestions_generated_at ON note_suggestions(generated_at)
 
 ```typescript
 interface NoteSuggestion {
-  id: string;                    // Unique ID for this suggestion
-  type: string;                  // Type depends on note type (e.g., "action", "link", "metadata", "content")
-  text: string;                  // The suggestion text
+  id: string; // Unique ID for this suggestion
+  type: string; // Type depends on note type (e.g., "action", "link", "metadata", "content")
+  text: string; // The suggestion text
   priority?: 'high' | 'medium' | 'low';
   data?: Record<string, unknown>; // Type-specific data (e.g., link target, metadata key/value)
-  reasoning?: string;            // Why this suggestion was made
+  reasoning?: string; // Why this suggestion was made
 }
 ```
 
@@ -58,15 +58,16 @@ ADD COLUMN suggestions_config TEXT;  -- JSON configuration for suggestions
 ```typescript
 interface NoteTypeSuggestionConfig {
   enabled: boolean;
-  prompt_guidance: string;       // Instructions for how agent should make suggestions
-  regenerate_threshold: number;  // Content change threshold (0-1), default 0.15
-  suggestion_types?: string[];   // Allowed suggestion types for this note type
+  prompt_guidance: string; // Instructions for how agent should make suggestions
+  regenerate_threshold: number; // Content change threshold (0-1), default 0.15
+  suggestion_types?: string[]; // Allowed suggestion types for this note type
 }
 ```
 
 #### Per-Note Override: `note_metadata`
 
 Use existing metadata system with reserved keys:
+
 - `_suggestions_disabled`: boolean - User override to disable suggestions for this note
 
 ### Content Change Detection
@@ -87,7 +88,8 @@ function shouldRegenerateSuggestions(
   }
 
   // If length changed by more than threshold percentage, regenerate
-  const lengthChange = Math.abs(currentContent.length - cachedContent.length) / cachedContent.length;
+  const lengthChange =
+    Math.abs(currentContent.length - cachedContent.length) / cachedContent.length;
   return lengthChange >= threshold;
 }
 ```
@@ -240,7 +242,7 @@ Create: `src/renderer/src/components/NoteSuggestions.svelte`
 
   async function dismissSuggestion(suggestionId: string) {
     await window.api?.dismissNoteSuggestion(noteId, suggestionId);
-    suggestions = suggestions.filter(s => s.id !== suggestionId);
+    suggestions = suggestions.filter((s) => s.id !== suggestionId);
   }
 
   async function regenerate() {
@@ -257,9 +259,7 @@ Create: `src/renderer/src/components/NoteSuggestions.svelte`
 <div class="suggestions-panel">
   <div class="suggestions-header">
     <h3>Suggestions</h3>
-    <button onclick={regenerate} disabled={loading}>
-      Regenerate
-    </button>
+    <button onclick={regenerate} disabled={loading}> Regenerate </button>
   </div>
 
   {#if loading}
@@ -282,8 +282,8 @@ Create: `src/renderer/src/components/NoteSuggestions.svelte`
           <button
             class="dismiss-button"
             onclick={() => dismissSuggestion(suggestion.id)}
-            title="Dismiss"
-          >×</button>
+            title="Dismiss">×</button
+          >
         </li>
       {/each}
     </ul>
@@ -297,10 +297,7 @@ Update `NoteEditor.svelte` to include suggestions panel in right sidebar:
 
 ```svelte
 {#if currentNote && suggestionsEnabled}
-  <NoteSuggestions
-    noteId={currentNote.id}
-    contentHash={currentNote.content_hash}
-  />
+  <NoteSuggestions noteId={currentNote.id} contentHash={currentNote.content_hash} />
 {/if}
 ```
 
@@ -338,7 +335,8 @@ Update `NoteTypeDetailView.svelte` to add suggestions configuration:
           step="0.05"
         />
         <span class="help-text">
-          Minimum content change (0-1) to regenerate suggestions. Default: 0.15 (15% change)
+          Minimum content change (0-1) to regenerate suggestions. Default: 0.15 (15%
+          change)
         </span>
       </label>
     </div>
@@ -390,24 +388,28 @@ Focus on helping the user complete the task efficiently and thoroughly.
 ## Implementation Phases
 
 ### Phase 1: Core Infrastructure
+
 - [ ] Create database schema and migrations
 - [ ] Implement SuggestionService
 - [ ] Add AI integration for suggestion generation
 - [ ] Create API endpoints
 
 ### Phase 2: UI Integration
+
 - [ ] Build NoteSuggestions component
 - [ ] Integrate with NoteEditor
 - [ ] Add note type configuration UI
 - [ ] Style and polish
 
 ### Phase 3: Smart Features
+
 - [ ] Content change detection and auto-regeneration
 - [ ] Per-note override controls
 - [ ] Suggestion dismissal persistence
 - [ ] Loading states and error handling
 
 ### Phase 4: Refinement
+
 - [ ] Performance optimization
 - [ ] Add example prompt guidance for common note types
 - [ ] Documentation
