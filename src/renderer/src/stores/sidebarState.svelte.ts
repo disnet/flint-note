@@ -7,7 +7,7 @@ interface SidebarState {
   rightSidebar: {
     visible: boolean;
     width: number;
-    mode: 'ai' | 'threads' | 'notes';
+    mode: 'ai' | 'threads' | 'notes' | 'suggestions';
   };
 }
 
@@ -121,7 +121,9 @@ class SidebarStateStore {
     await this.saveToStorage();
   }
 
-  async setRightSidebarMode(mode: 'ai' | 'threads' | 'notes'): Promise<void> {
+  async setRightSidebarMode(
+    mode: 'ai' | 'threads' | 'notes' | 'suggestions'
+  ): Promise<void> {
     await this.ensureInitialized();
     this.state.rightSidebar.mode = mode;
     await this.saveToStorage();

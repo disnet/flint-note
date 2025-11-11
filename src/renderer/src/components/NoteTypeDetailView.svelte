@@ -34,6 +34,8 @@
   let icon = $state('');
   let instructions = $state<string[]>([]);
   let metadataSchema = $state<MetadataSchema>({ fields: [] });
+  let suggestionsEnabled = $state(false);
+  let suggestionsPromptGuidance = $state('');
   let saveTimeout: ReturnType<typeof setTimeout> | null = null;
 
   const notes = $derived.by(() => {
@@ -116,6 +118,8 @@
           metadataSchema = typeInfo.metadata_schema
             ? { fields: [...typeInfo.metadata_schema.fields] }
             : { fields: [] };
+          suggestionsEnabled = typeInfo.suggestions_config?.enabled || false;
+          suggestionsPromptGuidance = typeInfo.suggestions_config?.prompt_guidance || '';
         }
       }
     } catch (err) {
@@ -211,12 +215,44 @@
     }
   }
 
+  async function saveSuggestionsConfig(): Promise<void> {
+    try {
+      const currentVault = await getChatService().getCurrentVault();
+      if (!currentVault) {
+        detailsError = 'No vault selected';
+        return;
+      }
+
+      await window.api?.updateNoteSuggestionConfig({
+        noteType: typeName,
+        config: {
+          enabled: suggestionsEnabled,
+          prompt_guidance: suggestionsPromptGuidance
+        },
+        vaultId: currentVault.id
+      });
+    } catch (err) {
+      detailsError =
+        err instanceof Error ? err.message : 'Failed to save suggestions config';
+      console.error('Error saving suggestions config:', err);
+    }
+  }
+
   function scheduleAutoSave(): void {
     if (saveTimeout) {
       clearTimeout(saveTimeout);
     }
     saveTimeout = setTimeout(() => {
       saveTypeInfo();
+    }, 1000);
+  }
+
+  function scheduleSuggestionsAutoSave(): void {
+    if (saveTimeout) {
+      clearTimeout(saveTimeout);
+    }
+    saveTimeout = setTimeout(() => {
+      saveSuggestionsConfig();
     }, 1000);
   }
 
@@ -687,6 +723,43 @@
                 </div>
               {:else}
                 <p class="empty-text">No metadata fields defined</p>
+              {/if}
+            </div>
+
+            <div class="form-section">
+              <h3 class="section-title">AI Suggestions</h3>
+              <p class="section-description">
+                Configure whether AI-powered suggestions are enabled for notes of this
+                type.
+              </p>
+
+              <label class="checkbox-label suggestions-enable-label">
+                <input
+                  type="checkbox"
+                  bind:checked={suggestionsEnabled}
+                  onchange={() => scheduleSuggestionsAutoSave()}
+                />
+                Enable AI suggestions for this note type
+              </label>
+
+              {#if suggestionsEnabled}
+                <div class="suggestions-config">
+                  <label for="suggestions-guidance" class="form-label">
+                    Suggestion Guidance
+                  </label>
+                  <textarea
+                    id="suggestions-guidance"
+                    class="form-textarea"
+                    bind:value={suggestionsPromptGuidance}
+                    onblur={scheduleSuggestionsAutoSave}
+                    placeholder="Instructions for how the AI should analyze notes and make suggestions...&#10;&#10;Example: Analyze this note and suggest:&#10;1. Action items that need tracking&#10;2. People to follow up with&#10;3. Related notes to link&#10;4. Key decisions to document"
+                    rows="6"
+                  ></textarea>
+                  <p class="help-text">
+                    Provide specific instructions for the types of suggestions you want
+                    the AI to generate for notes of this type.
+                  </p>
+                </div>
               {/if}
             </div>
           </div>
@@ -1488,5 +1561,43 @@
   .cancel-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+
+  .section-description {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    margin: 0 0 0.75rem 0;
+    line-height: 1.5;
+  }
+
+  .suggestions-enable-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    cursor: pointer;
+    padding: 0.5rem 0;
+    font-weight: 500;
+  }
+
+  .suggestions-enable-label input[type='checkbox'] {
+    cursor: pointer;
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .suggestions-config {
+    margin-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .help-text {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin: 0.25rem 0 0 0;
+    line-height: 1.4;
   }
 </style>

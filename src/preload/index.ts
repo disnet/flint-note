@@ -242,7 +242,7 @@ const api = {
   }) => electronAPI.ipcRenderer.invoke('note:dismissSuggestion', params),
   clearNoteSuggestions: (params: { noteId: string; vaultId?: string }) =>
     electronAPI.ipcRenderer.invoke('note:clearSuggestions', params),
-  updateNoteTypeSuggestionConfig: (params: {
+  updateNoteSuggestionConfig: (params: {
     noteType: string;
     config: {
       enabled: boolean;

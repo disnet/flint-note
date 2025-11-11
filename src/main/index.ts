@@ -845,6 +845,15 @@ app.whenReady().then(async () => {
       if (!noteService || !aiService) {
         throw new Error('Note service or AI service not available');
       }
+
+      // Ensure API key is loaded before attempting to generate
+      const apiKeyLoaded = await aiService.ensureApiKeyLoaded(secureStorageService);
+      if (!apiKeyLoaded) {
+        throw new Error(
+          'OpenRouter API key not configured. Please add your API key in Settings.'
+        );
+      }
+
       let vaultId = params.vaultId;
       if (!vaultId) {
         const currentVault = await noteService.getCurrentVault();

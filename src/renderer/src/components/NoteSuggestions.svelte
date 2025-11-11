@@ -22,6 +22,16 @@
   let error = $state<string | null>(null);
   let expanded = $state(true);
 
+  // Sort suggestions by priority (high -> medium -> low -> undefined)
+  let sortedSuggestions = $derived(
+    [...suggestions].sort((a, b) => {
+      const priorityOrder = { high: 0, medium: 1, low: 2 };
+      const aPriority = a.priority ? priorityOrder[a.priority] : 3;
+      const bPriority = b.priority ? priorityOrder[b.priority] : 3;
+      return aPriority - bPriority;
+    })
+  );
+
   onMount(() => {
     loadSuggestions();
   });
@@ -136,7 +146,7 @@
         </div>
       {:else}
         <ul class="suggestions-list">
-          {#each suggestions as suggestion (suggestion.id)}
+          {#each sortedSuggestions as suggestion (suggestion.id)}
             <li class="suggestion-item {getPriorityClass(suggestion.priority)}">
               <div class="suggestion-content">
                 <div class="suggestion-header">
@@ -175,7 +185,9 @@
     border: 1px solid var(--border-color);
     border-radius: 8px;
     overflow: hidden;
-    margin-bottom: 1rem;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
   }
 
   .suggestions-header {
@@ -185,6 +197,7 @@
     padding: 0.75rem 1rem;
     background: var(--bg-tertiary);
     border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
   }
 
   .expand-button {
@@ -246,6 +259,9 @@
 
   .suggestions-content {
     padding: 1rem;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
   }
 
   .loading,

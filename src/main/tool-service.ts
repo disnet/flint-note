@@ -1184,7 +1184,7 @@ export class ToolService {
 
   private updateNoteTypeTool = tool({
     description:
-      'Update an existing note type with new description, instructions, metadata schema, or icon',
+      'Update an existing note type with new description, instructions, metadata schema, icon, or suggestions configuration',
     inputSchema: z.object({
       typeName: z.string().describe('Name of the note type to update'),
       description: z.string().optional().describe('New description (optional)'),
@@ -1241,9 +1241,33 @@ export class ToolService {
           })
         )
         .optional()
-        .describe('New metadata schema definition (optional)')
+        .describe('New metadata schema definition (optional)'),
+      suggestionsConfig: z
+        .object({
+          enabled: z
+            .boolean()
+            .describe('Whether to enable AI-powered suggestions for notes of this type'),
+          prompt_guidance: z
+            .string()
+            .describe(
+              'Instructions for how the AI should analyze notes and generate suggestions. Example: "Suggest action items, follow-ups, and related concepts."'
+            ),
+          suggestion_types: z
+            .array(z.string())
+            .optional()
+            .describe('Allowed suggestion types (e.g., ["action", "link", "metadata"])')
+        })
+        .optional()
+        .describe('Configuration for AI-powered note suggestions (optional)')
     }),
-    execute: async ({ typeName, description, icon, instructions, metadataSchema }) => {
+    execute: async ({
+      typeName,
+      description,
+      icon,
+      instructions,
+      metadataSchema,
+      suggestionsConfig
+    }) => {
       if (!this.noteService) {
         return {
           success: false,
@@ -1270,6 +1294,14 @@ export class ToolService {
           icon,
           vaultId: currentVault.id
         });
+
+        // Update suggestions config if provided
+        if (suggestionsConfig) {
+          await this.noteService.updateNoteTypeSuggestionConfig({
+            noteType: typeName,
+            config: suggestionsConfig
+          });
+        }
 
         // Publish noteType.updated event
         publishNoteEvent({

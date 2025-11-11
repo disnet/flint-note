@@ -396,6 +396,18 @@ export class NoteService {
     });
   }
 
+  async updateNoteTypeSuggestionConfig(params: {
+    noteType: string;
+    config: {
+      enabled: boolean;
+      prompt_guidance: string;
+      suggestion_types?: string[];
+    };
+  }): Promise<void> {
+    this.ensureInitialized();
+    return await this.api.updateNoteTypeSuggestionConfig(params.noteType, params.config);
+  }
+
   async listNotesByType(
     type: string,
     vaultId: string,
