@@ -2,7 +2,7 @@ import type { NoteMetadata } from '../services/noteStore.svelte';
 import { getChatService } from '../services/chatService';
 import { messageBus } from '../services/messageBus.svelte';
 
-type SystemViewType = 'inbox' | 'daily' | 'notes' | 'settings' | 'workflows';
+type SystemViewType = 'inbox' | 'daily' | 'notes' | 'settings' | 'workflows' | 'review';
 
 interface ActiveViewState {
   currentVaultId: string | null;

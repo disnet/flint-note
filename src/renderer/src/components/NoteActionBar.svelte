@@ -4,10 +4,13 @@
     metadataExpanded: boolean;
     isInSidebar: boolean;
     previewMode: boolean;
+    reviewEnabled?: boolean;
+    isLoadingReview?: boolean;
     onPinToggle: () => Promise<void>;
     onMetadataToggle: () => void;
     onAddToSidebar: () => Promise<void>;
     onPreviewToggle: () => void;
+    onReviewToggle?: () => Promise<void>;
   }
 
   let {
@@ -15,10 +18,13 @@
     metadataExpanded,
     isInSidebar,
     previewMode,
+    reviewEnabled = false,
+    isLoadingReview = false,
     onPinToggle,
     onMetadataToggle,
     onAddToSidebar,
-    onPreviewToggle
+    onPreviewToggle,
+    onReviewToggle
   }: Props = $props();
 </script>
 
@@ -60,6 +66,24 @@
   >
     {previewMode ? '✏️ Edit' : '👁 Preview'}
   </button>
+  {#if onReviewToggle}
+    <button
+      class="action-button"
+      class:active={reviewEnabled}
+      onclick={onReviewToggle}
+      type="button"
+      title={reviewEnabled
+        ? 'Disable review for this note'
+        : 'Enable review for this note'}
+      disabled={isLoadingReview}
+    >
+      {isLoadingReview
+        ? '⏳ ...'
+        : reviewEnabled
+          ? '🔁 Review Enabled'
+          : '🔁 Enable Review'}
+    </button>
+  {/if}
 </div>
 
 <style>

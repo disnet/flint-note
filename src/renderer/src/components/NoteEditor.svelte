@@ -9,6 +9,7 @@
   import { pinnedNotesStore } from '../services/pinnedStore.svelte.js';
   import { sidebarNotesStore } from '../stores/sidebarNotesStore.svelte.js';
   import { sidebarState } from '../stores/sidebarState.svelte.js';
+  import { reviewStore } from '../stores/reviewStore.svelte.js';
   import {
     CursorPositionManager,
     type CursorPosition
@@ -41,6 +42,8 @@
   let editorRef = $state<CodeMirrorEditor | undefined>(undefined);
   let headerRef = $state<{ focusTitle?: () => void } | null>(null);
   let pendingCursorPosition = $state<CursorPosition | null>(null);
+  let reviewEnabled = $state(false);
+  let isLoadingReview = $state(false);
 
   const cursorManager = new CursorPositionManager();
 
@@ -353,6 +356,37 @@
     }
   }
 
+  async function handleReviewToggle(): Promise<void> {
+    isLoadingReview = true;
+    try {
+      if (reviewEnabled) {
+        await reviewStore.disableReview(note.id);
+        reviewEnabled = false;
+      } else {
+        await reviewStore.enableReview(note.id);
+        reviewEnabled = true;
+      }
+    } catch (err) {
+      console.error('Error toggling review:', err);
+    } finally {
+      isLoadingReview = false;
+    }
+  }
+
+  // Load review status when note changes
+  $effect(() => {
+    (async () => {
+      if (note?.id) {
+        try {
+          reviewEnabled = await reviewStore.isReviewEnabled(note.id);
+        } catch (err) {
+          console.error('Failed to load review status:', err);
+          reviewEnabled = false;
+        }
+      }
+    })();
+  });
+
   async function handleBacklinkSelect(
     selectedNote: NoteMetadata,
     lineNumber?: number
@@ -432,10 +466,13 @@
       isInSidebar={sidebarNotesStore.isInSidebar(note.id)}
       {metadataExpanded}
       {previewMode}
+      {reviewEnabled}
+      {isLoadingReview}
       onPinToggle={handlePinToggle}
       onAddToSidebar={handleAddToSidebar}
       onMetadataToggle={toggleMetadata}
       onPreviewToggle={togglePreview}
+      onReviewToggle={handleReviewToggle}
     />
 
     <ErrorBanner error={doc.error} />

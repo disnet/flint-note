@@ -31,12 +31,13 @@ This document specifies a **minimal viable prototype** for Flint's AI-powered re
 ```yaml
 ---
 type: permanent
-title: "My Note"
-review: true  # Simple boolean to opt-in
+title: 'My Note'
+review: true # Simple boolean to opt-in
 ---
 ```
 
 **Rationale:**
+
 - Minimal complexity
 - Git-friendly
 - User-visible and editable
@@ -44,6 +45,7 @@ review: true  # Simple boolean to opt-in
 - Can migrate to database later if needed
 
 **Database backing:**
+
 - When `review: true` is set, create entry in `review_items` table
 - Tracks: last_reviewed, next_review, review_count, confidence history
 - Frontmatter is source of truth for "enabled", database manages scheduling
@@ -53,11 +55,13 @@ review: true  # Simple boolean to opt-in
 **Choice: AI agent autonomously chooses review approach**
 
 Instead of predetermined prompt types, the agent receives:
+
 - **Full content** of all notes ready for review
 - **Guidelines** on effective review strategies
 - **Full tool access** to fetch additional context as needed
 
 **The agent decides:**
+
 - Which review strategy to use (synthesis, application, explanation, reconstruction, etc.)
 - Whether to review notes individually or find thematic connections
 - What additional context to fetch (daily notes, related notes, backlinks)
@@ -66,6 +70,7 @@ Instead of predetermined prompt types, the agent receives:
 **Example strategies the agent might choose:**
 
 **Synthesis (connect multiple notes):**
+
 ```
 Your notes [[elaborative-encoding]] and [[schema-formation]]
 both discuss memory. Explain how elaborative encoding helps
@@ -73,6 +78,7 @@ build schemas. What's the mechanism connecting them?
 ```
 
 **Application (connect to user's work):**
+
 ```
 Looking at your daily notes, you've been learning React. How could
 you apply retrieval practice to learning React hooks? Give a concrete
@@ -80,12 +86,14 @@ example.
 ```
 
 **Reconstruction (memory test):**
+
 ```
 Without looking at the note, explain the main argument in your own
 words. Then we'll compare.
 ```
 
 **Thematic review (multiple notes with shared theme):**
+
 ```
 I noticed these three notes due today all relate to learning theory.
 Rather than review them separately, let's synthesize: how do they
@@ -93,6 +101,7 @@ work together as a system?
 ```
 
 **Rationale:**
+
 - **More flexible** - Agent adapts to note characteristics and user context
 - **More intelligent** - Can discover connections and patterns
 - **More natural** - Conversational flow rather than rigid templates
@@ -114,6 +123,7 @@ Main Navigation:
 ```
 
 **Rationale:**
+
 - Most aligned with long-term vision
 - Clear, dedicated entry point for feature
 - Supports session-based review
@@ -158,6 +168,7 @@ Review happens through natural conversation with the AI agent, similar to the AI
 ```
 
 After user responds:
+
 ```
 ┌─────────────────────────────────────────────────┐
 │ You: Elaborative encoding creates connections   │
@@ -179,6 +190,7 @@ After user responds:
 ```
 
 **Rationale:**
+
 - **Natural conversation** - More engaging than rigid forms
 - **Agent-driven flow** - AI guides the review experience
 - **Flexible interaction** - User can ask questions, request hints
@@ -205,6 +217,7 @@ User clicks "Start Review"
 ```
 
 **Initial Context Structure:**
+
 ```typescript
 {
   notesForReview: [
@@ -235,6 +248,7 @@ User clicks "Start Review"
 ```
 
 **Rationale:**
+
 - **Full context** - Agent sees complete notes, makes better decisions
 - **On-demand tool calls** - Agent fetches additional context only if needed
 - **Adaptive** - Agent can change strategy mid-review if needed
@@ -260,12 +274,14 @@ Your Response:
 ```
 
 **Rationale:**
+
 - **Forces articulation** → Stronger learning through generation
 - **Enables AI analysis** → AI can provide feedback on understanding
 - **Creates engagement** → User must actually think, not just click through
 - **Records thinking** → Can track understanding evolution over time
 
 **UX Considerations:**
+
 - Large text area for comfort
 - Can click [Show Note Content] if stuck
 - No "wrong answer" - AI provides constructive feedback
@@ -284,6 +300,7 @@ Did you understand this concept well enough?
 ```
 
 **Rationale:**
+
 - **Simpler decision** → Less cognitive overhead than 1-5 scale
 - **Clear outcome** → Either you got it or you didn't
 - **Easier scheduling** → Two intervals instead of five
@@ -291,6 +308,7 @@ Did you understand this concept well enough?
 - **User decides** → Self-assessment after seeing AI feedback
 
 **Intervals:**
+
 - **Pass** → Next review in 7 days (standard interval)
 - **Fail** → Next review in 1 day (quick retry)
 
@@ -301,6 +319,7 @@ Did you understand this concept well enough?
 **Choice: Simple binary intervals for MVP**
 
 **MVP Schedule:**
+
 ```
 First review: 1 day after enabling review
 If Pass: 7 days until next review
@@ -308,12 +327,14 @@ If Fail: 1 day until retry
 ```
 
 **Rationale:**
+
 - Minimal complexity (two intervals only)
 - Pass/fail aligns with binary rating
 - Still demonstrates spaced repetition value
 - Can upgrade to SM-2 in Phase 1 without UI changes
 
 **Future (Phase 1):**
+
 - Add SM-2 adaptive algorithm
 - Multiple intervals based on review history
 - Confidence tracking over time
@@ -323,6 +344,7 @@ If Fail: 1 day until retry
 **Choice: Single-note review for MVP, session mode in Phase 2**
 
 **MVP Flow:**
+
 ```
 Review View shows: "3 notes due for review"
 Click note → Review modal opens for that note
@@ -331,16 +353,19 @@ Click next note → Repeat
 ```
 
 **NOT in MVP:**
+
 - Auto-advance to next note
 - Session tracking
 - "Complete session" button
 
 **Rationale:**
+
 - Simpler state management
 - User controls pace
 - Can add session flow later
 
 **Phase 2 addition:**
+
 ```
 [Start Review Session] button
   → Auto-advances through all notes
@@ -368,6 +393,7 @@ a link?"
 ```
 
 **Rationale:**
+
 - **Required** since we're collecting typed responses
 - **Provides value** - AI feedback helps user learn
 - **Suggests connections** - Builds knowledge graph
@@ -375,6 +401,7 @@ a link?"
 - **Enables improvement** - AI can identify gaps
 
 **Analysis includes:**
+
 - What user got right
 - What could be added or refined
 - Suggested connections to other notes
@@ -395,12 +422,14 @@ a link?"
 ```
 
 **Behavior:**
+
 - Clicking toggles `review: true/false` in frontmatter
 - Creates/deletes entry in `review_items` table
 - Sets `next_review` to tomorrow if newly enabled
 - Shows toast: "Review enabled. First review in 1 day"
 
 **Visual state:**
+
 - Enabled: "★ Review Enabled" (filled star, highlighted)
 - Disabled: "☆ Enable Review" (empty star, normal)
 
@@ -409,6 +438,7 @@ a link?"
 **Location:** New main navigation item
 
 **Shows:**
+
 ```
 ┌─────────────────────────────────────────────┐
 │ 📚 Review                                   │
@@ -436,6 +466,7 @@ a link?"
 ```
 
 **Empty state:**
+
 ```
 No notes enabled for review yet.
 
@@ -454,6 +485,7 @@ understanding through spaced repetition.
 The review session opens in a chat-like interface where the agent guides the user through reviewing notes.
 
 **Step 1: Session Initialization**
+
 ```
 ┌─────────────────────────────────────────────┐
 │ Review Session                        [X]   │
@@ -467,6 +499,7 @@ The review session opens in a chat-like interface where the agent guides the use
 ```
 
 **Step 2: Agent Analyzes and Proposes Strategy**
+
 ```
 ┌─────────────────────────────────────────────┐
 │ Review Session                        [X]   │
@@ -496,6 +529,7 @@ The review session opens in a chat-like interface where the agent guides the use
 ```
 
 **Step 3: Agent Poses Review Challenge**
+
 ```
 ┌─────────────────────────────────────────────┐
 │ AI: Perfect. Here's your challenge:         │
@@ -525,6 +559,7 @@ The review session opens in a chat-like interface where the agent guides the use
 ```
 
 **Step 4: Agent Analyzes Response**
+
 ```
 ┌─────────────────────────────────────────────┐
 │ You: [User's typed explanation...]          │
@@ -554,6 +589,7 @@ The review session opens in a chat-like interface where the agent guides the use
 ```
 
 **Step 5: Completion and Next Steps**
+
 ```
 ┌─────────────────────────────────────────────┐
 │ AI: ✓ Review complete!                      │
@@ -573,6 +609,7 @@ The review session opens in a chat-like interface where the agent guides the use
 **Flexible Interaction:**
 
 User can also:
+
 - Ask for hints: "Can you give me a hint?"
 - Request different approach: "Too hard, can we review these separately?"
 - Show note content anytime: "Show me the elaborative encoding note"
@@ -607,6 +644,7 @@ CREATE INDEX idx_review_next_review ON review_items(next_review, enabled);
 ```
 
 **Simplified schema:**
+
 - Pass/fail tracked in `review_history` JSON
 - User responses stored for future reference
 - No complex review_sessions table in MVP
@@ -761,9 +799,9 @@ function getNextReviewDate(passed: boolean): Date {
 
   // Simple binary intervals (MVP)
   if (passed) {
-    return addDays(now, 7);  // Pass: review in 7 days
+    return addDays(now, 7); // Pass: review in 7 days
   } else {
-    return addDays(now, 1);  // Fail: retry tomorrow
+    return addDays(now, 1); // Fail: retry tomorrow
   }
 }
 
@@ -780,7 +818,7 @@ function completeReview(noteId: string, passed: boolean, userResponse: string) {
   history.push({
     date: now(),
     passed: passed,
-    response: userResponse  // Store for future reference
+    response: userResponse // Store for future reference
   });
   item.review_history = JSON.stringify(history);
 
@@ -898,6 +936,7 @@ function completeReview(noteId: string, passed: boolean, userResponse: string) {
 ## Success Metrics for Prototype
 
 ### Usage Metrics
+
 - % of users who enable review for at least 1 note
 - % of due reviews that get completed (completion rate)
 - Average time spent per review session
@@ -907,6 +946,7 @@ function completeReview(noteId: string, passed: boolean, userResponse: string) {
 - Link creation rate (connections made during review)
 
 ### Qualitative Feedback
+
 - Do users find agent-driven review valuable vs. rigid prompts?
 - Is the conversational interface intuitive?
 - Is the typing requirement acceptable or too much friction?
@@ -917,6 +957,7 @@ function completeReview(noteId: string, passed: boolean, userResponse: string) {
 - Is agent feedback helpful and encouraging?
 
 ### Technical Validation
+
 - Does agent successfully generate review strategies (>95% success rate)?
 - Are agent's chosen strategies appropriate for the notes?
 - Does agent effectively use tools (fetch related notes, search daily notes)?
@@ -929,6 +970,7 @@ function completeReview(noteId: string, passed: boolean, userResponse: string) {
 ## Migration Path to Full Feature
 
 ### Phase 1: Enhanced Agent Capabilities
+
 - Add SM-2 adaptive scheduling (replace fixed intervals)
 - Embedding-based note similarity (beyond links and tags)
 - More sophisticated daily note parsing (project extraction)
@@ -936,6 +978,7 @@ function completeReview(noteId: string, passed: boolean, userResponse: string) {
 - Multi-turn conversations (user can ask followup questions)
 
 ### Phase 2: Enhanced UX
+
 - Auto-advance through multiple notes in session
 - Review dashboard with basic stats
 - Review history browser
@@ -943,6 +986,7 @@ function completeReview(noteId: string, passed: boolean, userResponse: string) {
 - Mobile-optimized review interface
 
 ### Phase 3: Advanced Features
+
 - Custom review strategies (user-defined prompt templates)
 - Workflow integration (scheduled review sessions)
 - Review analytics and insights
@@ -950,6 +994,7 @@ function completeReview(noteId: string, passed: boolean, userResponse: string) {
 - Export review data
 
 ### Phase 4: Intelligence & Optimization
+
 - Agent learns from review patterns
 - Personalized difficulty adaptation
 - Optimal review timing predictions
@@ -961,6 +1006,7 @@ function completeReview(noteId: string, passed: boolean, userResponse: string) {
 ### Context Budget per Review Session
 
 **Initial context (passed to agent):**
+
 - Notes for review: 3 notes × ~2,000 tokens each = 6,000 tokens
 - Recent daily notes: 7 days × ~300 tokens = 2,100 tokens
 - Review guidelines: ~1,000 tokens
@@ -968,11 +1014,13 @@ function completeReview(noteId: string, passed: boolean, userResponse: string) {
 - **Total input: ~9,600 tokens**
 
 **Agent output:**
+
 - Review conversation: ~1,000-1,500 tokens
 - Analysis and feedback: ~500 tokens
 - **Total output: ~1,500 tokens**
 
 **Tool calls (if agent uses them):**
+
 - `get_linked_notes`: ~500 tokens (titles + summaries)
 - `search_daily_notes`: ~1,000 tokens (if searching)
 - Additional notes fetched: ~2,000 tokens each
@@ -982,6 +1030,7 @@ function completeReview(noteId: string, passed: boolean, userResponse: string) {
 ### Cost Estimates
 
 **With Sonnet ($3/MTok input, $15/MTok output):**
+
 - Input: 12,000 tokens × $3/MTok = $0.036
 - Output: 1,500 tokens × $15/MTok = $0.0225
 - Tool calls: ~3,000 tokens × $3/MTok = $0.009
@@ -989,6 +1038,7 @@ function completeReview(noteId: string, passed: boolean, userResponse: string) {
 - **Per note: ~$0.02-0.03**
 
 **With Haiku ($0.25/MTok input, $1.25/MTok output):**
+
 - Input: 12,000 tokens × $0.25/MTok = $0.003
 - Output: 1,500 tokens × $1.25/MTok = $0.0019
 - Tool calls: ~3,000 tokens × $0.25/MTok = $0.0008
@@ -998,6 +1048,7 @@ function completeReview(noteId: string, passed: boolean, userResponse: string) {
 **Recommendation:** Start with Sonnet for better agent reasoning, evaluate if Haiku is sufficient.
 
 **Monthly cost (100 review sessions):**
+
 - Sonnet: ~$7/month
 - Haiku: ~$0.60/month
 
@@ -1028,34 +1079,40 @@ Very affordable compared to value provided!
 ## Risk Mitigation
 
 ### Risk: Agent-generated strategies are poor quality
+
 - **Mitigation:** Test agent with real user notes before launch
 - **Mitigation:** Include diverse strategy examples in system prompt
 - **Fallback:** Simple template-based prompts if agent fails
 - **Escape hatch:** Users can disable review per note
 
 ### Risk: Users don't understand the value
+
 - **Mitigation:** Clear onboarding explanation with example
 - **Mitigation:** "Learn More" link demonstrating agent capabilities
 - **Escape hatch:** Feature is opt-in, non-intrusive
 
 ### Risk: Conversational interface confusing
+
 - **Mitigation:** Keep agent instructions clear and explicit
 - **Mitigation:** Use familiar chat UI patterns
 - **Testing:** Extensive user testing with MVP
 - **Fallback:** Can revert to rigid flow if needed
 
 ### Risk: AI costs too high with full note content
+
 - **Mitigation:** Cost estimates show ~$0.07/session (affordable)
 - **Mitigation:** Can switch to Haiku (~$0.006/session) if needed
 - **Monitoring:** Track actual costs in production
 - **Cap:** Set per-user monthly limits if necessary
 
 ### Risk: Not enough related notes for synthesis
+
 - **Mitigation:** Agent can choose single-note reconstruction instead
 - **Mitigation:** Agent adapts strategy to available context
 - **Mitigation:** Only suggest review for notes with some connections
 
 ### Risk: Agent takes too long to respond
+
 - **Mitigation:** Set strict timeouts (15s max)
 - **Fallback:** Simple template prompt if agent times out
 - **UX:** Show typing indicator so user knows agent is working
@@ -1065,6 +1122,7 @@ Very affordable compared to value provided!
 ### Compared to Predetermined Prompts
 
 **Agent-Driven (Chosen Approach):**
+
 - ✅ **Adaptive** - Chooses best strategy for each note/context
 - ✅ **Intelligent** - Discovers connections and themes
 - ✅ **Contextual** - Incorporates user's current work/projects
@@ -1075,6 +1133,7 @@ Very affordable compared to value provided!
 - ✅ **Future-proof** - Easy to add new strategies without UI changes
 
 **Predetermined Prompts (Original Spec):**
+
 - ❌ Fixed strategy per note type
 - ❌ Limited context (200-char summaries)
 - ❌ Rigid UI flow
@@ -1101,18 +1160,21 @@ Very affordable compared to value provided!
 ## Timeline Estimate
 
 **Week 1: Backend & MCP Tools**
+
 - Database schema and migrations
 - API endpoints (getNotesForReview, completeReview, etc.)
 - MCP tools for agent (get_note, get_linked_notes, search_daily_notes, etc.)
 - Agent system prompt and review guidelines
 
 **Week 2: Frontend & Agent Integration**
+
 - Review view (list of due notes)
 - Enable review toggle
 - Conversational review interface (chat UI)
 - Agent initialization and context loading
 
 **Week 3: Polish & Testing**
+
 - Error handling and fallbacks
 - Loading states and UX polish
 - User testing with real notes
@@ -1134,8 +1196,9 @@ Very affordable compared to value provided!
 **Created:** 2025-01-15
 **Revised:** 2025-01-15 (Major revision: agent-driven review with full context)
 **Key Changes:**
+
 - Agent chooses review strategy instead of predetermined prompts
 - Full note content instead of truncated summaries
 - Conversational interface instead of rigid modal flow
 - Tool-based context fetching instead of pre-computed context
-**Next Step:** Review with team, test agent prompt, begin implementation
+  **Next Step:** Review with team, test agent prompt, begin implementation

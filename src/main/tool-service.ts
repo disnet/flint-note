@@ -8,6 +8,7 @@ import {
 import { publishNoteEvent } from './note-events';
 import { TodoPlanService } from './todo-plan-service';
 import { WorkflowService } from './workflow-service';
+import { ReviewTools } from './review-tools.js';
 import {
   createWorkflowSchema,
   updateWorkflowSchema,
@@ -22,6 +23,7 @@ import {
 export class ToolService {
   private todoPlanService: TodoPlanService | null = null;
   private workflowService: WorkflowService | null = null;
+  private reviewTools: ReviewTools | null = null;
   private currentConversationId: string | null = null;
 
   constructor(
@@ -32,6 +34,7 @@ export class ToolService {
   ) {
     this.todoPlanService = todoPlanService || null;
     this.workflowService = workflowService || null;
+    this.reviewTools = noteService ? new ReviewTools(noteService) : null;
   }
 
   setCurrentConversationId(conversationId: string): void {
@@ -82,6 +85,18 @@ export class ToolService {
     }
 
     return tools;
+  }
+
+  /**
+   * Get review-specific tools for AI agent conducting review sessions
+   * These tools are used during spaced repetition review
+   */
+  getReviewTools(): Record<string, Tool> | undefined {
+    if (!this.reviewTools) {
+      return undefined;
+    }
+
+    return this.reviewTools.getTools();
   }
 
   // Basic CRUD Tools

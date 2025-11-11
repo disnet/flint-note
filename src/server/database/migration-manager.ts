@@ -1266,6 +1266,134 @@ async function migrateToV2_5_0(db: DatabaseConnection): Promise<void> {
 }
 
 /**
+ * Migration to v2.7.0: Add review_items table for spaced repetition
+ */
+async function migrateToV2_7_0(
+  db: DatabaseConnection,
+  _dbManager: DatabaseManager,
+  workspacePath: string
+): Promise<void> {
+  console.log('Migrating to v2.7.0: Adding review_items table');
+
+  try {
+    // Check if table already exists (idempotency)
+    const tableExists = await db.get<{ count: number }>(`
+      SELECT COUNT(*) as count FROM sqlite_master
+      WHERE type='table' AND name='review_items'
+    `);
+
+    if (tableExists && tableExists.count > 0) {
+      console.log('review_items table already exists, skipping creation');
+      return;
+    }
+
+    // Create review_items table
+    await db.run(`
+      CREATE TABLE review_items (
+        id TEXT PRIMARY KEY,
+        note_id TEXT NOT NULL UNIQUE,
+        vault_id TEXT NOT NULL,
+        enabled BOOLEAN DEFAULT TRUE,
+        last_reviewed TEXT,
+        next_review TEXT NOT NULL,
+        review_count INTEGER DEFAULT 0,
+        review_history TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
+      )
+    `);
+
+    // Create indexes
+    await db.run(
+      'CREATE INDEX idx_review_next_review ON review_items(next_review, enabled)'
+    );
+    await db.run('CREATE INDEX idx_review_vault ON review_items(vault_id)');
+
+    console.log('review_items table created successfully');
+
+    // Scan existing notes for review: true in frontmatter
+    console.log('Scanning existing notes for review metadata...');
+
+    // Check if content column exists in notes table
+    const contentColumnExists = await db.get<{ count: number }>(`
+      SELECT COUNT(*) as count
+      FROM pragma_table_info('notes')
+      WHERE name='content'
+    `);
+
+    // Only scan notes if content column exists
+    if (!contentColumnExists || contentColumnExists.count === 0) {
+      console.log('Content column does not exist yet, skipping note scan');
+      return;
+    }
+
+    const notes = await db.all<{ id: string; path: string; content: string }>(
+      'SELECT id, path, content FROM notes'
+    );
+
+    let migratedCount = 0;
+
+    for (const note of notes) {
+      try {
+        // Check if note content has review: true in frontmatter
+        const frontmatterRegex = /^---\r?\n([\s\S]*?)\r?\n---\r?\n/;
+        const match = note.content?.match(frontmatterRegex);
+
+        if (match) {
+          const frontmatterText = match[1];
+          const parsed = yaml.load(frontmatterText);
+
+          if (
+            parsed &&
+            typeof parsed === 'object' &&
+            'review' in parsed &&
+            parsed.review === true
+          ) {
+            // Create review item for this note
+            const reviewId = `rev-${crypto.randomBytes(4).toString('hex')}`;
+            const now = new Date().toISOString();
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const nextReview = tomorrow.toISOString().split('T')[0]; // YYYY-MM-DD
+
+            await db.run(
+              `INSERT OR IGNORE INTO review_items
+               (id, note_id, vault_id, enabled, last_reviewed, next_review, review_count, review_history, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              [
+                reviewId,
+                note.id,
+                workspacePath,
+                1, // enabled
+                null, // never reviewed yet
+                nextReview,
+                0,
+                null,
+                now,
+                now
+              ]
+            );
+
+            migratedCount++;
+          }
+        }
+      } catch (error) {
+        console.warn(
+          `Failed to check review status for note ${note.id}:`,
+          error instanceof Error ? error.message : 'Unknown error'
+        );
+      }
+    }
+
+    console.log(`Migrated ${migratedCount} existing notes with review enabled`);
+  } catch (error) {
+    console.error('Failed to create review_items table:', error);
+    throw error;
+  }
+}
+
+/**
  * Migration function to convert all wikilinks to ID-based format
  */
 async function migrateToV2_6_0(
@@ -1433,7 +1561,7 @@ async function migrateToV2_6_0(
 }
 
 export class DatabaseMigrationManager {
-  private static readonly CURRENT_SCHEMA_VERSION = '2.6.0';
+  private static readonly CURRENT_SCHEMA_VERSION = '2.7.0';
 
   private static readonly MIGRATIONS: DatabaseMigration[] = [
     {
@@ -1499,6 +1627,13 @@ export class DatabaseMigrationManager {
       requiresFullRebuild: false,
       requiresLinkMigration: false, // Don't re-extract all links, just update wikilinks in content
       migrationFunction: migrateToV2_6_0
+    },
+    {
+      version: '2.7.0',
+      description: 'Add review_items table for spaced repetition review system',
+      requiresFullRebuild: false,
+      requiresLinkMigration: false,
+      migrationFunction: migrateToV2_7_0
     }
   ];
 

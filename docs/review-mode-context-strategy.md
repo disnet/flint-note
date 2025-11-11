@@ -5,12 +5,14 @@
 **Status:** This document has been superseded by the decision to use an **agent-driven review approach** with **full note content**.
 
 **New approach (see revised prototype spec):**
+
 - Agent receives **full content** of all notes due for review (no truncation)
 - Agent autonomously chooses review strategy
 - Tool-based context fetching (agent pulls additional context as needed)
 - Estimated cost: ~$0.07/session with Sonnet (very affordable)
 
 **This document remains as reference** for the analysis that led to the decision, but the recommended MVP strategy is now:
+
 - **Include full main note content** - no truncation
 - **Agent-driven prompts** - no predetermined categories
 - **On-demand tool calls** - fetch related notes only if agent needs them
@@ -52,6 +54,7 @@ context: {
 ```
 
 **Analysis:**
+
 - 200 characters per note ≈ 30-50 tokens
 - For main note + 2-3 related notes = ~150-200 tokens of context
 - Very conservative, minimal cost
@@ -62,11 +65,13 @@ context: {
 ### 1. Generating Synthesis Prompts
 
 **What we need:**
+
 - Main note: Enough content to understand core concept
 - Related notes (2-3): Enough to identify connections
 - Metadata: Titles, tags, relationships
 
 **What we DON'T need:**
+
 - Full text of all notes
 - Unrelated notes
 - Historical versions
@@ -77,12 +82,14 @@ context: {
 ### 2. Analyzing User Responses
 
 **What we need:**
+
 - The prompt that was asked
 - User's typed response
 - Main note content (to compare understanding)
 - Related notes mentioned in the prompt
 
 **What we DON'T need:**
+
 - Other notes in vault
 - Full backlink context
 - Note history
@@ -94,6 +101,7 @@ context: {
 ### Option 1: Simple Truncation (Current Prototype Approach)
 
 **How it works:**
+
 - Extract first N characters from each note
 - Fixed limit (e.g., 200 characters)
 
@@ -104,12 +112,14 @@ function extractSummary(content: string, maxLength: number): string {
 ```
 
 **Pros:**
+
 - Dead simple to implement
 - Predictable token usage
 - Very fast
 - No additional AI calls
 
 **Cons:**
+
 - May cut off mid-sentence
 - Might miss key information if it's not at the start
 - No intelligence about what's important
@@ -122,6 +132,7 @@ function extractSummary(content: string, maxLength: number): string {
 ### Option 2: Intelligent Truncation (Start + End)
 
 **How it works:**
+
 - Take first N characters + last N/2 characters
 - Gives both introduction and conclusion
 
@@ -132,18 +143,18 @@ function extractSummary(content: string, maxLength: number): string {
   const startChars = Math.floor(maxLength * 0.7);
   const endChars = maxLength - startChars - 3; // 3 for "..."
 
-  return content.slice(0, startChars) +
-         "..." +
-         content.slice(-endChars);
+  return content.slice(0, startChars) + '...' + content.slice(-endChars);
 }
 ```
 
 **Pros:**
+
 - Better than just start
 - Captures conclusions/summaries often at end
 - Still very fast
 
 **Cons:**
+
 - Middle content lost
 - Still no intelligence about importance
 
@@ -154,6 +165,7 @@ function extractSummary(content: string, maxLength: number): string {
 ### Option 3: Markdown-Aware Summary
 
 **How it works:**
+
 - Parse markdown structure
 - Prioritize: title → headings → first paragraph under each heading
 - Build hierarchical summary
@@ -184,12 +196,14 @@ function extractMarkdownSummary(content: string, maxTokens: number): string {
 ```
 
 **Pros:**
+
 - Leverages note structure
 - More meaningful than arbitrary truncation
 - Preserves document hierarchy
 - Still deterministic and fast
 
 **Cons:**
+
 - Assumes well-structured notes
 - More complex implementation
 - May miss important details in body text
@@ -201,6 +215,7 @@ function extractMarkdownSummary(content: string, maxTokens: number): string {
 ### Option 4: Token-Budget Allocation
 
 **How it works:**
+
 - Set total token budget (e.g., 3000 tokens)
 - Allocate proportionally: main note 60%, related notes 40%
 - Use smart truncation within each allocation
@@ -220,28 +235,24 @@ function buildContext(
   return {
     mainNote: {
       title: mainNote.title,
-      content: truncateToTokens(
-        mainNote.content,
-        budget.mainNoteTokens
-      )
+      content: truncateToTokens(mainNote.content, budget.mainNoteTokens)
     },
-    relatedNotes: relatedNotes.map(n => ({
+    relatedNotes: relatedNotes.map((n) => ({
       title: n.title,
-      content: truncateToTokens(
-        n.content,
-        budget.perRelatedNoteTokens
-      )
+      content: truncateToTokens(n.content, budget.perRelatedNoteTokens)
     }))
   };
 }
 ```
 
 **Pros:**
+
 - Predictable cost control
 - Flexible - can adjust budget by operation
 - Balances coverage vs. depth
 
 **Cons:**
+
 - Requires token counting
 - Still uses truncation underneath
 
@@ -252,6 +263,7 @@ function buildContext(
 ### Option 5: AI-Powered Summarization
 
 **How it works:**
+
 - Use AI to summarize each note before including in context
 - Cache summaries to avoid repeated calls
 - Multiple summary lengths for different contexts
@@ -271,8 +283,7 @@ async function getSummary(
   // Generate new summary
   const note = await getNote(noteId);
   const summary = await generateSummary(note.content, {
-    maxLength: targetLength === 'short' ? 100 :
-               targetLength === 'medium' ? 300 : 500,
+    maxLength: targetLength === 'short' ? 100 : targetLength === 'medium' ? 300 : 500,
     style: 'factual',
     preserveKeyTerms: true
   });
@@ -285,11 +296,13 @@ async function getSummary(
 ```
 
 **Pros:**
+
 - Highest quality summaries
 - Intelligently extracts key points
 - Can be tuned for different use cases
 
 **Cons:**
+
 - Expensive (extra AI calls)
 - Slower (requires summarization step)
 - Summaries might lose important details
@@ -302,6 +315,7 @@ async function getSummary(
 ### Option 6: Embedding-Based Retrieval
 
 **How it works:**
+
 - Pre-compute embeddings for all note paragraphs
 - When generating prompt, retrieve most relevant chunks
 - Only include relevant portions of notes
@@ -336,12 +350,14 @@ async function getRelevantContext(
 ```
 
 **Pros:**
+
 - Only includes relevant portions
 - Scales to very long notes
 - Can handle many related notes
 - Precision over recall
 
 **Cons:**
+
 - Requires embedding infrastructure
 - Pre-processing overhead
 - May miss context that's relevant but not semantically similar
@@ -354,6 +370,7 @@ async function getRelevantContext(
 ### Option 7: Hybrid Approach (RECOMMENDED)
 
 **How it works:**
+
 - Combine multiple strategies based on operation and note size
 - Use simple truncation for short notes
 - Use markdown-aware extraction for longer notes
@@ -366,9 +383,10 @@ function buildPromptContext(
   operation: 'generate_prompt' | 'analyze_response'
 ): PromptContext {
   // Set token budget based on operation
-  const budget = operation === 'generate_prompt'
-    ? { total: 3000, main: 1800, perRelated: 400 }
-    : { total: 4000, main: 2500, perRelated: 500 };
+  const budget =
+    operation === 'generate_prompt'
+      ? { total: 3000, main: 1800, perRelated: 400 }
+      : { total: 4000, main: 2500, perRelated: 500 };
 
   // Extract main note context
   const mainContext = extractNoteContext(mainNote, budget.main);
@@ -376,7 +394,7 @@ function buildPromptContext(
   // Extract related notes context
   const relatedContext = relatedNotes
     .slice(0, 3) // Max 3 related notes
-    .map(note => extractNoteContext(note, budget.perRelated));
+    .map((note) => extractNoteContext(note, budget.perRelated));
 
   return {
     mainNote: mainContext,
@@ -424,21 +442,22 @@ function smartTruncate(content: string, maxChars: number): string {
 
   // Find last paragraph break in start
   const lastBreak = startPortion.lastIndexOf('\n\n');
-  const start = lastBreak > maxChars * 0.5
-    ? startPortion.slice(0, lastBreak)
-    : startPortion;
+  const start =
+    lastBreak > maxChars * 0.5 ? startPortion.slice(0, lastBreak) : startPortion;
 
   return start + '\n\n[...]\n\n' + endPortion;
 }
 ```
 
 **Pros:**
+
 - Adapts to note characteristics
 - Balance of simplicity and intelligence
 - Predictable costs
 - Good results for most notes
 
 **Cons:**
+
 - More complex than single strategy
 - Needs careful testing
 
@@ -481,16 +500,19 @@ Total budget: 5,000 tokens
 ### Phase 1: Start Simple
 
 **For prompt generation:**
+
 1. Use markdown-aware extraction (Option 3)
 2. Budget: Main note 500 chars, related notes 300 chars each
 3. Hard limit: 3 related notes maximum
 
 **For response analysis:**
+
 1. Include full main note content (up to 5000 chars)
 2. Include related note titles + 400 char summaries
 3. User response (full text)
 
 **Implementation:**
+
 ```typescript
 // Prompt generation context
 const promptContext = {
@@ -499,7 +521,7 @@ const promptContext = {
     summary: extractMarkdownSummary(mainNote.content, 500),
     tags: mainNote.metadata.tags
   },
-  relatedNotes: relatedNotes.slice(0, 3).map(n => ({
+  relatedNotes: relatedNotes.slice(0, 3).map((n) => ({
     title: n.title,
     summary: extractMarkdownSummary(n.content, 300),
     relationship: n.linkType || 'related'
@@ -515,7 +537,7 @@ const analysisContext = {
     content: mainNote.content.slice(0, 5000), // full or first 5k chars
     tags: mainNote.metadata.tags
   },
-  relatedNotes: relatedNotes.slice(0, 3).map(n => ({
+  relatedNotes: relatedNotes.slice(0, 3).map((n) => ({
     title: n.title,
     summary: extractMarkdownSummary(n.content, 400)
   }))
@@ -523,6 +545,7 @@ const analysisContext = {
 ```
 
 **Estimated costs:**
+
 - Prompt generation: ~2,000 tokens per call
 - Response analysis: ~4,000 tokens per call
 - Total per review: ~6,000 tokens
@@ -538,6 +561,7 @@ After MVP, analyze actual performance:
 3. **Check context sufficiency** - Are summaries too short?
 
 Potential improvements:
+
 - Increase context budgets if quality suffers
 - Add AI summarization for long notes (>5000 chars)
 - Implement caching for frequently accessed notes
@@ -557,11 +581,13 @@ For power users with large vaults:
 ### When context is insufficient:
 
 **For prompt generation:**
+
 - If related notes too long, use title-only synthesis
 - Fallback to single-note prompts if no good related notes
 - Use generic templates if AI generation fails
 
 **For response analysis:**
+
 - If note too long, prioritize sections mentioned in response
 - Skip detailed feedback if context unclear
 - Provide encouraging but generic feedback
@@ -569,9 +595,7 @@ For power users with large vaults:
 ### Error handling:
 
 ```typescript
-async function generateSynthesisPrompt(
-  noteId: string
-): Promise<ReviewPrompt> {
+async function generateSynthesisPrompt(noteId: string): Promise<ReviewPrompt> {
   try {
     const context = buildPromptContext(noteId);
 
@@ -582,7 +606,6 @@ async function generateSynthesisPrompt(
 
     const prompt = await callAI(context);
     return prompt;
-
   } catch (error) {
     if (error.code === 'CONTEXT_TOO_LARGE') {
       // Reduce context and retry
@@ -600,6 +623,7 @@ async function generateSynthesisPrompt(
 ### 1. Summary Caching
 
 Pre-compute and cache summaries:
+
 ```typescript
 interface SummaryCache {
   noteId: string;
@@ -613,6 +637,7 @@ interface SummaryCache {
 ```
 
 Invalidate when note changes:
+
 - Watch for note edits
 - Regenerate summaries in background
 - Keep old summaries for recent history
@@ -620,6 +645,7 @@ Invalidate when note changes:
 ### 2. Hierarchical Context
 
 Build context in layers:
+
 ```
 Layer 1: Titles + tags (always include)
 Layer 2: First paragraph summaries (include if budget allows)
@@ -630,6 +656,7 @@ Layer 4: Full content (only for main note in analysis)
 ### 3. Relevance Scoring
 
 Score each piece of context:
+
 ```typescript
 function scoreRelevance(
   chunk: string,
@@ -656,6 +683,7 @@ Include only highest-scoring chunks until budget exhausted.
 ### 4. User Preferences
 
 Let users control trade-offs:
+
 ```yaml
 review:
   context_strategy: 'balanced' # 'minimal' | 'balanced' | 'comprehensive'
@@ -667,15 +695,15 @@ review:
 
 ## Comparison Table
 
-| Strategy | Quality | Cost | Speed | Complexity | Scalability |
-|----------|---------|------|-------|------------|-------------|
-| Simple truncation (200 chars) | ⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐ | ⭐⭐⭐⭐⭐ |
-| Smart truncation (start+end) | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐ | ⭐⭐⭐⭐⭐ |
-| Markdown-aware | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐ | ⭐⭐⭐⭐ |
-| Token budgets | ⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐ | ⭐⭐⭐⭐ |
-| AI summarization | ⭐⭐⭐⭐⭐ | ⭐⭐ | ⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ |
-| Embedding retrieval | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
-| Hybrid (recommended) | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐ |
+| Strategy                      | Quality    | Cost       | Speed      | Complexity | Scalability |
+| ----------------------------- | ---------- | ---------- | ---------- | ---------- | ----------- |
+| Simple truncation (200 chars) | ⭐⭐       | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐         | ⭐⭐⭐⭐⭐  |
+| Smart truncation (start+end)  | ⭐⭐⭐     | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐         | ⭐⭐⭐⭐⭐  |
+| Markdown-aware                | ⭐⭐⭐⭐   | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐   | ⭐⭐       | ⭐⭐⭐⭐    |
+| Token budgets                 | ⭐⭐⭐     | ⭐⭐⭐⭐   | ⭐⭐⭐⭐   | ⭐⭐       | ⭐⭐⭐⭐    |
+| AI summarization              | ⭐⭐⭐⭐⭐ | ⭐⭐       | ⭐⭐       | ⭐⭐⭐     | ⭐⭐⭐      |
+| Embedding retrieval           | ⭐⭐⭐⭐⭐ | ⭐⭐⭐     | ⭐⭐⭐     | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐  |
+| Hybrid (recommended)          | ⭐⭐⭐⭐   | ⭐⭐⭐⭐   | ⭐⭐⭐⭐   | ⭐⭐⭐     | ⭐⭐⭐⭐    |
 
 ## Implementation Checklist
 
@@ -736,12 +764,14 @@ review:
 ## Conclusion
 
 **For MVP:** Start with hybrid approach (Option 7)
+
 - Markdown-aware extraction
 - Fixed token budgets
 - Simple and predictable
 - Good enough for most notes
 
 **Monitor and iterate:**
+
 - Collect metrics on prompt/analysis quality
 - Adjust budgets based on real usage
 - Add more sophisticated strategies as needed

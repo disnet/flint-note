@@ -5,6 +5,7 @@
 This document explores how to implement a **Review Mode** in Flint that supports crystallized intelligence development through evidence-based learning principles while maintaining Flint's core philosophy: **humans think, AI assists**.
 
 The review mode should support the three-stage process of knowledge accumulation:
+
 1. **Encoding** - Active processing during note creation
 2. **Consolidation** - Integration with existing knowledge through review
 3. **Retrieval** - Strengthening memory traces through active recall
@@ -14,27 +15,32 @@ The review mode should support the three-stage process of knowledge accumulation
 ### The Science Behind Review
 
 **Multiple Exposures Matter**
+
 - Vocabulary research shows 12-17 exposures needed for retention
 - Single encounters, no matter how intense, rarely produce lasting knowledge
 - Review creates the repeated exposure necessary for consolidation
 
 **Retrieval Practice Outperforms Passive Review**
+
 - Testing serves as a learning tool, not just assessment
 - Effort of retrieval strengthens memory traces
 - Active recall >> passive re-reading
 
 **Spaced Repetition > Massed Practice**
+
 - Gradually increasing intervals between reviews
 - Initially more difficult but produces superior long-term retention
 - Engages both synaptic (hours) and systems (weeks-months) consolidation
 
 **Elaborative Encoding During Review**
+
 - Connecting to existing knowledge during review
 - Making relationships explicit
 - Explaining concepts in your own words
 - Building schema representations
 
 **Sleep and Consolidation**
+
 - Memory consolidation occurs during rest periods
 - Reviews should be scheduled with consolidation periods in mind
 - Not just about timing reviews, but respecting biological processes
@@ -46,19 +52,22 @@ The review mode should support the three-stage process of knowledge accumulation
 **The Key Insight: Deep Processing vs. Shallow Recognition**
 
 The goal is to force **active cognitive engagement**, not passive recognition. Research shows:
-- Retrieval practice strengthens memory through *effort*
-- Elaborative encoding requires *reconstructing* understanding
+
+- Retrieval practice strengthens memory through _effort_
+- Elaborative encoding requires _reconstructing_ understanding
 - "Desirable difficulties" make learning harder but more effective
 
 AI-generated review materials can be powerful IF they force deep processing rather than surface recognition.
 
 **Anti-Pattern: Shallow Recognition Prompts**
+
 - ❌ "What is elaborative encoding?" → Reveals definition
 - ❌ Generic flashcards from note definitions
 - ❌ Multiple choice that tests recognition, not understanding
 - ❌ Prompts that can be answered without real thought
 
 **Flint Pattern: AI-Generated Deep Processing Prompts**
+
 - ✅ **Synthesis prompts**: "How do your notes on [[X]] and [[Y]] connect?"
 - ✅ **Application prompts**: "Apply this concept to [your project]"
 - ✅ **Explanation prompts**: "Explain this to someone who knows [[prerequisite]]"
@@ -66,17 +75,19 @@ AI-generated review materials can be powerful IF they force deep processing rath
 - ✅ **Extension prompts**: "What questions does this raise?"
 - ✅ **Reconstruction prompts**: "Explain the argument without looking"
 
-The AI generates the *prompt* (leveraging your knowledge graph), you generate the *response* (doing the thinking).
+The AI generates the _prompt_ (leveraging your knowledge graph), you generate the _response_ (doing the thinking).
 
 ### User Agency and Control
 
 **Explicit vs. Implicit Review**
+
 - Users should understand WHY a note is being suggested
 - Review intervals should be transparent and adjustable
 - Opt-in, not mandatory
 - No gamification that creates artificial pressure
 
 **Progressive Disclosure**
+
 - Simple review workflow for beginners
 - Advanced scheduling options for power users
 - Metadata visible but not required
@@ -100,6 +111,7 @@ This aligns perfectly with crystallized intelligence principles: knowledge isn't
 #### 1. Synthesis Prompts (Connect Multiple Notes)
 
 **Example:**
+
 ```
 Your notes [[elaborative-encoding]] and [[schema-formation]] both
 discuss memory organization. Explain how elaborative encoding
@@ -107,6 +119,7 @@ helps build schemas. What's the mechanism?
 ```
 
 **Why it works:**
+
 - Requires retrieving concepts from multiple notes
 - Forces identification of relationships
 - Can't be answered by recognition alone
@@ -115,6 +128,7 @@ helps build schemas. What's the mechanism?
 #### 2. Application Prompts (Connect to User's Work)
 
 **Example:**
+
 ```
 You wrote about retrieval practice in this note. Looking at
 your daily note from yesterday, you mentioned working on
@@ -123,6 +137,7 @@ practice to learning the new framework?
 ```
 
 **Why it works:**
+
 - Bridges abstract concepts to concrete situations
 - Requires transfer of learning
 - Makes knowledge personally relevant
@@ -131,6 +146,7 @@ practice to learning the new framework?
 #### 3. Explanation Prompts (Teach to Learn)
 
 **Example:**
+
 ```
 You have a note on [[working-memory]] that explains basic
 concepts. Now explain elaborative encoding to someone who
@@ -139,6 +155,7 @@ new here? How do they relate?
 ```
 
 **Why it works:**
+
 - Teaching is the deepest form of understanding
 - Requires identifying prerequisites
 - Forces clear articulation
@@ -147,6 +164,7 @@ new here? How do they relate?
 #### 4. Connection Discovery Prompts
 
 **Example:**
+
 ```
 This note on [[spaced-repetition]] doesn't link to your note
 on [[memory-consolidation]], but they're related through sleep
@@ -155,6 +173,7 @@ the relationship and decide if you want to create a link.
 ```
 
 **Why it works:**
+
 - Identifies potential connections AI found
 - User evaluates and decides (maintains agency)
 - Strengthens knowledge graph
@@ -163,6 +182,7 @@ the relationship and decide if you want to create a link.
 #### 5. Critical Analysis Prompts
 
 **Example:**
+
 ```
 You wrote this note 3 months ago. Since then, you've created
 12 related notes about learning science. Does anything in this
@@ -170,6 +190,7 @@ note need updating? What would you add now that you know more?
 ```
 
 **Why it works:**
+
 - Encourages growth and refinement
 - Shows knowledge evolution
 - Identifies misconceptions
@@ -178,6 +199,7 @@ note need updating? What would you add now that you know more?
 #### 6. Reconstruction Prompts (Hardest Mode)
 
 **Example:**
+
 ```
 Without looking at the note content, explain the main argument
 of this note in your own words. What are the 2-3 key ideas?
@@ -185,6 +207,7 @@ How do they connect? Then check: what did you miss?
 ```
 
 **Why it works:**
+
 - Pure retrieval practice
 - No recognition cues
 - Reveals actual retention
@@ -193,6 +216,7 @@ How do they connect? Then check: what did you miss?
 #### 7. Extension/Question-Generation Prompts
 
 **Example:**
+
 ```
 This note discusses how elaborative encoding works. What
 questions does it raise? What would you need to research to
@@ -200,6 +224,7 @@ extend this idea? What's the next note you should write?
 ```
 
 **Why it works:**
+
 - Promotes active curiosity
 - Identifies knowledge gaps
 - Generates future learning goals
@@ -210,16 +235,19 @@ extend this idea? What's the next note you should write?
 AI adjusts prompt difficulty based on review history:
 
 **First Review (Easiest):**
+
 - Simple reconstruction: "Summarize the main points"
 - Context provided: Shows linked notes
 - Low pressure: Can reveal note if stuck
 
 **Confident Reviews (2-3 times at high confidence):**
+
 - Synthesis across multiple notes
 - Application to new contexts
 - Critical analysis and extension
 
 **Struggling Reviews (Low confidence ratings):**
+
 - Simplify: Break into smaller pieces
 - Provide scaffolding: "You mentioned X in this note. How does it relate to Y?"
 - Offer context: Show related notes upfront
@@ -231,7 +259,6 @@ async function generateReviewPrompt(
   note: Note,
   context: ReviewContext
 ): Promise<ReviewPrompt> {
-
   // Gather knowledge graph context
   const linkedNotes = await getLinkedNotes(note.id);
   const recentNotes = await getRecentNotes(7); // last week
@@ -263,7 +290,7 @@ async function generateReviewPrompt(
     userContext: {
       recentWork: recentNotes,
       activeProjects: userProjects,
-      knowledgeGraph: await getLocalGraph(note.id, depth=2)
+      knowledgeGraph: await getLocalGraph(note.id, (depth = 2))
     },
     constraints: {
       requiresSynthesis: true,
@@ -288,6 +315,7 @@ async function generateReviewPrompt(
 ### User Control Over AI Prompts
 
 **Users can:**
+
 - Edit prompts before answering
 - Request different prompt type ("Give me an application prompt instead")
 - Save favorite prompts as templates
@@ -296,6 +324,7 @@ async function generateReviewPrompt(
 
 **Progressive hints:**
 If user is stuck on a difficult prompt, they can request hints:
+
 1. First hint: "Consider how this connects to [[related-note]]"
 2. Second hint: "You wrote about X in this note. How does it relate to Y?"
 3. Final hint: Show note content
@@ -311,7 +340,7 @@ This maintains cognitive effort while preventing frustration.
 ```yaml
 ---
 type: permanent
-title: "Elaborative Encoding Strengthens Memory"
+title: 'Elaborative Encoding Strengthens Memory'
 created: 2024-01-15
 review:
   enabled: true
@@ -319,23 +348,26 @@ review:
   next_review: 2024-01-27
   review_count: 2
   interval_days: 7
-  ease_factor: 2.5  # SM-2 algorithm compatibility
-  confidence: 4     # User-rated 1-5
+  ease_factor: 2.5 # SM-2 algorithm compatibility
+  confidence: 4 # User-rated 1-5
 ---
 ```
 
 **Pros:**
+
 - Granular control per note
 - Works with existing metadata system
 - Transparent and user-editable
 - Git-friendly (plain text)
 
 **Cons:**
+
 - Clutters frontmatter
 - Not all notes need review
 - Manual scheduling complex
 
 **Best For:**
+
 - Permanent notes (Zettelkasten workflow)
 - Concept notes
 - Learning materials
@@ -345,6 +377,7 @@ review:
 **Concept**: Review data stored separately from note content
 
 **Database Schema:**
+
 ```sql
 CREATE TABLE review_items (
   id TEXT PRIMARY KEY,
@@ -381,17 +414,20 @@ CREATE TABLE review_history (
 ```
 
 **Pros:**
+
 - Keeps note content clean
 - Efficient queries for "what to review today"
 - Rich historical data for analytics
 - Can track review sessions
 
 **Cons:**
+
 - Additional database complexity
 - Review data separated from notes
 - Migration concerns
 
 **Best For:**
+
 - Users with many notes to review
 - Analytics and insights
 - Workflow automation
@@ -408,19 +444,21 @@ CREATE TABLE review_history (
 ```yaml
 ---
 type: permanent
-review: true  # Simple opt-in
+review: true # Simple opt-in
 ---
 ```
 
 Database automatically creates review_item when `review: true` detected.
 
 **Pros:**
+
 - Simple for basic users
 - Powerful for advanced users
 - Best of both approaches
 - Backward compatible (review metadata is optional)
 
 **Cons:**
+
 - More complex implementation
 - Two sources of truth (reconciliation needed)
 
@@ -429,11 +467,13 @@ Database automatically creates review_item when `review: true` detected.
 ### SuperMemo SM-2 Algorithm (Classic)
 
 **How it works:**
+
 - After review, user rates quality (1-5)
 - Algorithm adjusts ease factor and interval
 - Proven algorithm used by Anki and many others
 
 **Intervals:**
+
 ```
 First review: 1 day
 Second review: 6 days
@@ -441,16 +481,19 @@ Subsequent: interval * ease_factor
 ```
 
 **Ease factor adjustment:**
+
 ```
 EF' = EF + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02))
 ```
 
 **Pros:**
+
 - Well-tested and proven
 - Simple to implement
 - Lots of research backing
 
 **Cons:**
+
 - Fixed intervals may not suit all note types
 - Some notes need irregular review (context-dependent)
 
@@ -459,35 +502,42 @@ EF' = EF + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02))
 **Concept**: Different note types have different review patterns
 
 **Permanent Notes (Zettelkasten)**
+
 - Standard spaced repetition (SM-2 based)
 - Reviews focus on connections and elaboration
 - 1 day → 7 days → 30 days → 90 days → 180 days
 
 **Literature Notes**
+
 - Review when creating related permanent notes
 - AI suggests: "You read about this in [[literature/book-x]]"
 - Less frequent scheduled review
 
 **Project Notes**
+
 - Review tied to project lifecycle, not fixed schedule
 - "Review weekly while project is active"
 - Suspend review when project archived
 
 **Daily Notes**
+
 - Weekly review (last 7 days)
 - Monthly review (synthesize month)
 - No long-term spaced repetition
 
 **Fleeting Notes (Zettelkasten)**
+
 - Review within 48 hours or flag as stale
 - Should be processed into permanent notes, not reviewed long-term
 
 **Pros:**
+
 - Respects different purposes of notes
 - More intelligent than one-size-fits-all
 - Aligns with actual usage patterns
 
 **Cons:**
+
 - More complex to implement and explain
 - Requires note type awareness
 - Users may want custom schedules
@@ -502,16 +552,16 @@ interface ReviewSchedule {
 
   // For spaced-repetition
   algorithm?: 'sm2' | 'sm17' | 'fsrs';
-  intervals?: number[];  // Custom intervals
+  intervals?: number[]; // Custom intervals
 
   // For periodic
   frequency?: 'daily' | 'weekly' | 'monthly';
-  day_of_week?: number;  // For weekly
+  day_of_week?: number; // For weekly
   day_of_month?: number; // For monthly
 
   // For context-based
   trigger_conditions?: {
-    when_note_types_created?: string[];  // Review when related notes created
+    when_note_types_created?: string[]; // Review when related notes created
     when_tags_used?: string[];
     when_linked_notes_reviewed?: boolean;
   };
@@ -528,6 +578,7 @@ interface ReviewSchedule {
 ### Daily Review Workflow
 
 **Entry Points:**
+
 1. **Dedicated Review View** (new main view)
 2. **Daily Note Integration** - "3 notes ready for review today"
 3. **Inbox Processing** - "Review and process 5 fleeting notes"
@@ -657,6 +708,7 @@ After user writes their response:
 ```
 
 **Why this is powerful:**
+
 - Forces integration across multiple notes
 - Builds higher-order understanding
 - Creates opportunities for index notes
@@ -691,6 +743,7 @@ After user writes their response:
 ```
 
 **Philosophy:**
+
 - Review isn't just re-reading
 - It's about strengthening connections
 - AI suggests but doesn't auto-link
@@ -720,11 +773,13 @@ After user writes their response:
 **Alternative: Binary + Optional Detail**
 
 Simple mode:
+
 - **Again** (didn't recall well)
 - **Good** (recalled successfully)
 - **Easy** (trivial to recall)
 
 Advanced mode:
+
 - Add notes about what was difficult
 - Tag specific concepts that need work
 - Set custom next review date
@@ -736,68 +791,71 @@ Advanced mode:
 **Built-in Review Workflows:**
 
 **Morning Review Workflow:**
+
 ```yaml
-name: "morning-review"
-description: "Start your day with note review"
+name: 'morning-review'
+description: 'Start your day with note review'
 steps:
-  - type: "query"
-    action: "find-notes-due-for-review"
+  - type: 'query'
+    action: 'find-notes-due-for-review'
     params:
       limit: 5
 
-  - type: "present"
-    action: "start-review-session"
+  - type: 'present'
+    action: 'start-review-session'
 
-  - type: "ai-assist"
-    prompt: "After reviewing these notes, suggest connections
-             or patterns across them"
+  - type: 'ai-assist'
+    prompt: 'After reviewing these notes, suggest connections
+      or patterns across them'
 ```
 
 **Weekly Synthesis Workflow:**
+
 ```yaml
-name: "weekly-synthesis"
-description: "Review and synthesize the week"
+name: 'weekly-synthesis'
+description: 'Review and synthesize the week'
 steps:
-  - type: "query"
-    action: "find-notes"
+  - type: 'query'
+    action: 'find-notes'
     params:
-      created_after: "7 days ago"
-      types: ["permanent", "literature"]
+      created_after: '7 days ago'
+      types: ['permanent', 'literature']
 
-  - type: "review"
-    action: "connection-review"
-    prompt: "For each note, consider:
-             - What did I learn this week?
-             - How do new ideas connect to existing knowledge?
-             - What questions emerged?"
+  - type: 'review'
+    action: 'connection-review'
+    prompt: 'For each note, consider:
+      - What did I learn this week?
+      - How do new ideas connect to existing knowledge?
+      - What questions emerged?'
 
-  - type: "create-note"
-    template: "weekly-synthesis"
+  - type: 'create-note'
+    template: 'weekly-synthesis'
     params:
-      type: "index"
-      title: "Week of {{date}}"
+      type: 'index'
+      title: 'Week of {{date}}'
 ```
 
 **Fleeting Note Processing:**
+
 ```yaml
-name: "process-fleeting"
-description: "Transform fleeting notes into permanent knowledge"
+name: 'process-fleeting'
+description: 'Transform fleeting notes into permanent knowledge'
 steps:
-  - type: "query"
-    action: "find-notes"
+  - type: 'query'
+    action: 'find-notes'
     params:
-      type: "fleeting"
-      created_before: "2 days ago"
-      review_status: "pending"
+      type: 'fleeting'
+      created_before: '2 days ago'
+      review_status: 'pending'
 
-  - type: "ai-assist"
-    prompt: "For each fleeting note:
-             1. Is this worth keeping?
-             2. Can it be combined with existing notes?
-             3. Should it become a permanent note?"
+  - type: 'ai-assist'
+    prompt: 'For each fleeting note:
+      1. Is this worth keeping?
+      2. Can it be combined with existing notes?
+      3. Should it become a permanent note?'
 
-  - type: "user-process"
-    actions: ["convert-to-permanent", "merge-with", "delete"]
+  - type: 'user-process'
+    actions: ['convert-to-permanent', 'merge-with', 'delete']
 ```
 
 ### Note Types with Review Support
@@ -824,10 +882,10 @@ review_defaults:
     max_interval: 180
 
   prompts:
-    - "Can you explain this concept in your own words?"
-    - "What other notes connect to this idea?"
-    - "How has your understanding evolved since writing this?"
-    - "What questions does this raise?"
+    - 'Can you explain this concept in your own words?'
+    - 'What other notes connect to this idea?'
+    - 'How has your understanding evolved since writing this?'
+    - 'What questions does this raise?'
 ```
 
 **Note types opt into review with sensible defaults:**
@@ -1043,9 +1101,9 @@ function shouldReviewNote(note, context) {
     const tags = metadata.tags || [];
     const recentNotes = context.getRecentNotes(7); // last 7 days
 
-    const hasRelatedActivity = recentNotes.some(recent => {
+    const hasRelatedActivity = recentNotes.some((recent) => {
       const recentTags = recent.metadata.tags || [];
-      return recentTags.some(tag => tags.includes(tag));
+      return recentTags.some((tag) => tags.includes(tag));
     });
 
     return hasRelatedActivity;
@@ -1093,7 +1151,7 @@ function calculateReviewPriority(note, reviewData) {
 ```yaml
 ---
 type: permanent
-title: "My Concept Note"
+title: 'My Concept Note'
 review: true
 ---
 ```
@@ -1105,7 +1163,7 @@ Database automatically manages scheduling.
 ```yaml
 ---
 type: permanent
-title: "My Concept Note"
+title: 'My Concept Note'
 
 review:
   enabled: true
@@ -1124,19 +1182,20 @@ review:
 
   # Optional user notes
   review_notes:
-    - "2024-01-20: Connected to [[schema-formation]]"
-    - "2024-01-13: Still confused about applications"
+    - '2024-01-20: Connected to [[schema-formation]]'
+    - '2024-01-13: Still confused about applications'
 
   # Custom review prompts
   prompts:
-    - "How does this apply to my current project?"
-    - "What examples demonstrate this concept?"
+    - 'How does this apply to my current project?'
+    - 'What examples demonstrate this concept?'
 ---
 ```
 
 ### Database Schema (Backend)
 
 **review_items table:**
+
 ```sql
 CREATE TABLE review_items (
   id TEXT PRIMARY KEY,
@@ -1179,6 +1238,7 @@ CREATE INDEX idx_review_vault ON review_items(vault_id, status);
 ```
 
 **review_history table:**
+
 ```sql
 CREATE TABLE review_history (
   id TEXT PRIMARY KEY,
@@ -1216,6 +1276,7 @@ CREATE INDEX idx_review_history_session ON review_history(session_id);
 ```
 
 **review_sessions table:**
+
 ```sql
 CREATE TABLE review_sessions (
   id TEXT PRIMARY KEY,
@@ -1251,6 +1312,7 @@ CREATE INDEX idx_review_sessions_vault ON review_sessions(vault_id, started_at);
 ### New Main View: Review
 
 **Add "Review" to main navigation alongside:**
+
 - Inbox
 - Daily
 - All Notes
@@ -1382,6 +1444,7 @@ CREATE INDEX idx_review_sessions_vault ON review_sessions(vault_id, started_at);
 **Goal**: Basic review system that works
 
 **Scope:**
+
 1. Database schema for review_items and review_history
 2. Simple opt-in: `review: true` in frontmatter
 3. SM-2 algorithm implementation
@@ -1393,6 +1456,7 @@ CREATE INDEX idx_review_sessions_vault ON review_sessions(vault_id, started_at);
 **No AI integration yet** - Just the mechanics
 
 **Success Criteria:**
+
 - Users can mark notes for review
 - System schedules reviews with spaced repetition
 - Users can complete reviews and rate confidence
@@ -1405,6 +1469,7 @@ CREATE INDEX idx_review_sessions_vault ON review_sessions(vault_id, started_at);
 **Goal**: Make review actually pleasant to use
 
 **Scope:**
+
 1. Dedicated Review view in main navigation
 2. Review dashboard with stats
 3. Review session flow (multiple notes)
@@ -1414,6 +1479,7 @@ CREATE INDEX idx_review_sessions_vault ON review_sessions(vault_id, started_at);
 7. Basic analytics (streak, completion rate)
 
 **Success Criteria:**
+
 - Daily review feels smooth and quick
 - Users can see their progress
 - Connection review helps strengthen knowledge network
@@ -1425,6 +1491,7 @@ CREATE INDEX idx_review_sessions_vault ON review_sessions(vault_id, started_at);
 **Goal**: AI generates intelligent review prompts that force deep processing
 
 **Scope:**
+
 1. **AI-generated review prompts** - Core feature
    - Synthesis prompts (connect multiple notes)
    - Application prompts (apply to user's projects)
@@ -1439,6 +1506,7 @@ CREATE INDEX idx_review_sessions_vault ON review_sessions(vault_id, started_at);
 7. Progressive hints when stuck
 
 **Success Criteria:**
+
 - AI generates contextual prompts from user's knowledge graph
 - Prompts require synthesis, not just recognition
 - User can edit or regenerate prompts
@@ -1452,6 +1520,7 @@ CREATE INDEX idx_review_sessions_vault ON review_sessions(vault_id, started_at);
 **Goal**: Power user features and customization
 
 **Scope:**
+
 1. Custom review schedules per note type
 2. Multiple algorithm support (FSRS)
 3. Custom functions for review logic
@@ -1461,6 +1530,7 @@ CREATE INDEX idx_review_sessions_vault ON review_sessions(vault_id, started_at);
 7. Export review data
 
 **Success Criteria:**
+
 - Power users can customize review behavior
 - Workflows can trigger review sessions
 - Review integrates with other Flint features
@@ -1472,6 +1542,7 @@ CREATE INDEX idx_review_sessions_vault ON review_sessions(vault_id, started_at);
 **Goal**: System learns and adapts
 
 **Scope:**
+
 1. Advanced analytics and insights
 2. Note difficulty estimation
 3. Optimal scheduling based on user patterns
@@ -1480,6 +1551,7 @@ CREATE INDEX idx_review_sessions_vault ON review_sessions(vault_id, started_at);
 6. Retention prediction
 
 **Success Criteria:**
+
 - System adapts to user's learning patterns
 - Analytics provide actionable insights
 - Review scheduling feels intelligent
@@ -1491,17 +1563,20 @@ CREATE INDEX idx_review_sessions_vault ON review_sessions(vault_id, started_at);
 ### Q1: Gamification - Yes or No?
 
 **Arguments For:**
+
 - Streaks motivate consistency
 - Progress bars give satisfaction
 - Achievements celebrate milestones
 
 **Arguments Against:**
+
 - Can create unhealthy pressure
 - Focus shifts from learning to metrics
 - Not aligned with "thinking first" philosophy
 - Anki-style gamification has mixed reception
 
 **Recommendation:**
+
 - **Minimal gamification**
 - Show streak but don't make it prominent
 - No achievements or badges
@@ -1511,16 +1586,19 @@ CREATE INDEX idx_review_sessions_vault ON review_sessions(vault_id, started_at);
 ### Q2: Review Notifications - Push or Pull?
 
 **Push (Notifications):**
+
 - Daily reminder: "3 notes ready for review"
 - Overdue alerts
 - Streak about to break warnings
 
 **Pull (User-Initiated):**
+
 - Review badge/count in UI
 - User checks when ready
 - No interruptions
 
 **Recommendation:**
+
 - **Opt-in push notifications**
 - Default: Badge/count only (pull)
 - User can enable daily reminder
@@ -1531,16 +1609,19 @@ CREATE INDEX idx_review_sessions_vault ON review_sessions(vault_id, started_at);
 **Consideration**: Review on mobile vs. desktop
 
 **Desktop Review:**
+
 - Better for connection-making
 - Easier to edit notes
 - More screen space for context
 
 **Mobile Review:**
+
 - Quick review on the go
 - Good for simple recall checks
 - Limited editing capability
 
 **Recommendation:**
+
 - **Desktop-first for Phase 1-4**
 - Mobile as separate consideration
 - Simple mobile review mode (view + rate, no editing)
@@ -1549,14 +1630,17 @@ CREATE INDEX idx_review_sessions_vault ON review_sessions(vault_id, started_at);
 ### Q4: Mandatory vs. Optional Review
 
 **Mandatory:**
+
 - All permanent notes automatically enrolled
 - System assumes you want to remember
 
 **Optional:**
+
 - User explicitly enables review per note
 - Opt-in philosophy
 
 **Recommendation:**
+
 - **Optional with smart prompts**
 - When creating permanent note: "Enable review for this note?"
 - Bulk enable: "Enable review for all permanent notes?"
@@ -1566,16 +1650,19 @@ CREATE INDEX idx_review_sessions_vault ON review_sessions(vault_id, started_at);
 ### Q5: Review During Editing vs. Separate Review Mode
 
 **During Editing:**
+
 - Review metadata visible in note editor
 - "Mark as reviewed" button while editing
 - Inline review workflow
 
 **Separate Review Mode:**
+
 - Dedicated review session UI
 - Focus mode for reviewing
 - Batch processing
 
 **Recommendation:**
+
 - **Both options**
 - Separate review mode for focused sessions
 - Quick "mark as reviewed" available in editor
@@ -1584,16 +1671,19 @@ CREATE INDEX idx_review_sessions_vault ON review_sessions(vault_id, started_at);
 ### Q6: Algorithm Choice - Simple vs. Advanced
 
 **Simple (SM-2 only):**
+
 - One algorithm, well-tested
 - Easy to understand
 - Less choice paralysis
 
 **Advanced (Multiple algorithms):**
+
 - SM-2, FSRS, custom
 - Power users can optimize
 - More complexity
 
 **Recommendation:**
+
 - **Start simple (SM-2), expand later**
 - Phase 1-3: SM-2 only
 - Phase 4: Add FSRS as option
@@ -1605,15 +1695,18 @@ CREATE INDEX idx_review_sessions_vault ON review_sessions(vault_id, started_at);
 **Question**: Should Flint integrate with Anki/RemNote/etc?
 
 **Export to Anki:**
+
 - Could export notes as Anki flashcards
 - Leverage Anki's mature algorithm
 - Good for users already using Anki
 
 **Import from Anki:**
+
 - Import existing spaced repetition data
 - Migrate from Anki to Flint review
 
 **Recommendation:**
+
 - **Phase 1-4: No integration**
 - **Phase 5: Consider export format**
 - Don't try to replace Anki
@@ -1623,15 +1716,18 @@ CREATE INDEX idx_review_sessions_vault ON review_sessions(vault_id, started_at);
 ### Q8: Review Scope - What Types of Content?
 
 **Just Notes:**
+
 - Only whole notes are reviewed
 - Simple and clear
 
 **Granular (Blocks/Sections):**
+
 - Review specific sections
 - More like traditional flashcards
 - Much more complex
 
 **Recommendation:**
+
 - **Note-level only**
 - Aligns with Flint's note-centric design
 - If users want flashcards, they should use Anki
@@ -1640,42 +1736,50 @@ CREATE INDEX idx_review_sessions_vault ON review_sessions(vault_id, started_at);
 ## Alignment with Crystallized Intelligence Principles
 
 ### ✅ Multiple Exposures
+
 - Spaced repetition ensures 10+ exposures over time
 - Each review is an additional exposure
 - Intervals ensure spacing, not cramming
 
 ### ✅ Retrieval Practice
+
 - Active recall during review (before revealing note)
 - Confidence rating forces metacognition
 - Connection review emphasizes retrieval paths
 
 ### ✅ Elaborative Encoding
+
 - Review prompts encourage elaboration
 - Connection review creates associations
 - AI suggestions spark new connections
 - User writes their own connections
 
 ### ✅ Schema Formation
+
 - Reviewing connections builds schema
 - Index notes serve as schema representations
 - Knowledge graph analysis reveals structure
 
 ### ✅ Spaced Intervals
+
 - SM-2 algorithm implements optimal spacing
 - Gradually increasing intervals
 - Respects consolidation periods
 
 ### ✅ Context and Integration
+
 - Review emphasizes connections, not isolation
 - Backlinks provide context
 - AI suggests related notes
 
 ### ✅ Metacognition
+
 - Confidence ratings develop self-awareness
 - Review history shows learning progress
 - Analytics reveal strengths/weaknesses
 
 ### ✅ Sleep and Consolidation
+
 - Reviews scheduled across days (respects sleep cycles)
 - Not all reviews due immediately (allows consolidation)
 - Weekly reviews allow longer consolidation
@@ -1695,17 +1799,20 @@ CREATE INDEX idx_review_sessions_vault ON review_sessions(vault_id, started_at);
 **Problem**: AI generates simple flashcards that test recognition, not understanding
 
 **Examples of bad prompts:**
+
 - "What is elaborative encoding?" (definition recall)
 - Multiple choice questions (recognition-based)
 - Fill-in-the-blank from note text (surface details)
 
 **Why it's wrong**:
+
 - Recognition is easier than recall, less effective for learning
 - Doesn't force reconstruction or synthesis
 - Tests memory of text, not understanding
 - Doesn't leverage your knowledge graph
 
 **Flint approach**:
+
 - AI generates prompts that force synthesis across notes
 - Prompts require explanation, application, or connection-making
 - User generates the response (does the thinking)
@@ -1748,17 +1855,20 @@ CREATE INDEX idx_review_sessions_vault ON review_sessions(vault_id, started_at);
 ### User Behavior Metrics
 
 **Engagement:**
+
 - % of users who enable review
 - Daily active reviewers
 - Review session completion rate
 - Average reviews per session
 
 **Retention:**
+
 - 7-day review streak rate
 - 30-day active reviewer retention
 - Review feature abandonment rate
 
 **Quality:**
+
 - Average confidence ratings over time
 - Connections created during review
 - Notes edited during review
@@ -1767,16 +1877,19 @@ CREATE INDEX idx_review_sessions_vault ON review_sessions(vault_id, started_at);
 ### Learning Outcome Metrics (Harder to Measure)
 
 **Knowledge Integration:**
+
 - Growth in note connections over time
 - Clustering coefficient of knowledge graph
 - Notes with increasing confidence ratings
 
 **Long-term Retention:**
+
 - Notes maintained at high confidence (4-5)
 - Successful transitions from low → high confidence
 - Stable review intervals (indicating mastery)
 
 **Knowledge Application:**
+
 - References to reviewed notes in new notes
 - Index notes linking to reviewed notes
 - Daily notes mentioning reviewed concepts
@@ -1786,6 +1899,7 @@ CREATE INDEX idx_review_sessions_vault ON review_sessions(vault_id, started_at);
 ### Compared to Anki/Mnemosyne (Traditional SRS)
 
 **Anki's Approach:**
+
 - User creates flashcards manually
 - Isolated question/answer pairs
 - Tests memorization of specific facts
@@ -1793,6 +1907,7 @@ CREATE INDEX idx_review_sessions_vault ON review_sessions(vault_id, started_at);
 - No context or connections
 
 **Flint's Approach:**
+
 - AI generates prompts from your knowledge graph
 - Prompts connect multiple notes
 - Tests understanding and synthesis
@@ -1804,12 +1919,14 @@ CREATE INDEX idx_review_sessions_vault ON review_sessions(vault_id, started_at);
 ### Compared to RemNote (Outliner + SRS)
 
 **RemNote's Approach:**
+
 - Flashcards created from outline items
 - Bi-directional linking
 - Some context from hierarchy
 - Still flashcard-based (recognize/recall)
 
 **Flint's Approach:**
+
 - Notes are the unit, not cards
 - AI generates synthesis prompts across notes
 - Context from entire knowledge graph
@@ -1820,12 +1937,14 @@ CREATE INDEX idx_review_sessions_vault ON review_sessions(vault_id, started_at);
 ### Compared to Obsidian + Spaced Repetition Plugin
 
 **Obsidian Plugin Approach:**
+
 - Flashcards in markdown files
 - Manual card creation
 - Basic spaced repetition
 - Limited AI integration
 
 **Flint's Approach:**
+
 - Whole-note review with AI prompts
 - Zero manual card creation
 - Prompts leverage your recent work and projects
@@ -1895,5 +2014,6 @@ CREATE INDEX idx_review_sessions_vault ON review_sessions(vault_id, started_at);
 **Next Review**: After initial feedback round
 
 **Revision History**:
+
 - v1 (2025-01-15): Initial brainstorm with basic review concepts
 - v2 (2025-01-15): Major revision emphasizing AI-generated prompts that force deep processing rather than recognition. Added detailed prompt types, examples, and comparisons to existing tools.

@@ -234,6 +234,17 @@ const api = {
   // Phase 3: Removed noteOpened, noteClosed, and expectNoteWrite
   // FileWriteQueue now handles all internal write tracking
 
+  // Review operations (spaced repetition)
+  enableReview: (noteId: string) =>
+    electronAPI.ipcRenderer.invoke('enable-review', noteId),
+  disableReview: (noteId: string) =>
+    electronAPI.ipcRenderer.invoke('disable-review', noteId),
+  isReviewEnabled: (noteId: string) =>
+    electronAPI.ipcRenderer.invoke('is-review-enabled', noteId),
+  getReviewStats: () => electronAPI.ipcRenderer.invoke('get-review-stats'),
+  getNotesForReview: (date: string) =>
+    electronAPI.ipcRenderer.invoke('get-notes-for-review', date),
+
   // Search operations
   searchNotes: (params: { query: string; vaultId?: string; limit?: number }) =>
     electronAPI.ipcRenderer.invoke('search-notes', params),

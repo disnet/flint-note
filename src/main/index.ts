@@ -942,6 +942,68 @@ app.whenReady().then(async () => {
     }
   );
 
+  // Review operations (spaced repetition)
+  ipcMain.handle('enable-review', async (_event, noteId: string) => {
+    if (!noteService) {
+      throw new Error('Note service not available');
+    }
+    const flintApi = noteService.getFlintNoteApi();
+    const vault = await noteService.getCurrentVault();
+    if (!vault) {
+      throw new Error('No active vault');
+    }
+    return await flintApi.enableReview({ noteId, vaultId: vault.id });
+  });
+
+  ipcMain.handle('disable-review', async (_event, noteId: string) => {
+    if (!noteService) {
+      throw new Error('Note service not available');
+    }
+    const flintApi = noteService.getFlintNoteApi();
+    const vault = await noteService.getCurrentVault();
+    if (!vault) {
+      throw new Error('No active vault');
+    }
+    return await flintApi.disableReview({ noteId, vaultId: vault.id });
+  });
+
+  ipcMain.handle('is-review-enabled', async (_event, noteId: string) => {
+    if (!noteService) {
+      throw new Error('Note service not available');
+    }
+    const flintApi = noteService.getFlintNoteApi();
+    const vault = await noteService.getCurrentVault();
+    if (!vault) {
+      throw new Error('No active vault');
+    }
+    const result = await flintApi.isReviewEnabled({ noteId, vaultId: vault.id });
+    return { enabled: result };
+  });
+
+  ipcMain.handle('get-review-stats', async () => {
+    if (!noteService) {
+      throw new Error('Note service not available');
+    }
+    const flintApi = noteService.getFlintNoteApi();
+    const vault = await noteService.getCurrentVault();
+    if (!vault) {
+      throw new Error('No active vault');
+    }
+    return await flintApi.getReviewStats({ vaultId: vault.id });
+  });
+
+  ipcMain.handle('get-notes-for-review', async (_event, date: string) => {
+    if (!noteService) {
+      throw new Error('Note service not available');
+    }
+    const flintApi = noteService.getFlintNoteApi();
+    const vault = await noteService.getCurrentVault();
+    if (!vault) {
+      throw new Error('No active vault');
+    }
+    return await flintApi.getNotesForReview({ date, vaultId: vault.id });
+  });
+
   // Vault operations
   ipcMain.handle('list-vaults', async () => {
     if (!noteService) {

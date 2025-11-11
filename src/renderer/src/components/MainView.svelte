@@ -7,6 +7,7 @@
   import InboxView from './InboxView.svelte';
   import Settings from './Settings.svelte';
   import WorkflowManagementView from './WorkflowManagementView.svelte';
+  import ReviewView from './ReviewView.svelte';
   import { ViewRegistry } from '../lib/views';
   import { getChatService } from '../services/chatService.js';
   import { notesStore } from '../services/noteStore.svelte';
@@ -17,15 +18,29 @@
 
   interface Props {
     activeNote: NoteMetadata | null;
-    activeSystemView: 'inbox' | 'daily' | 'notes' | 'settings' | 'workflows' | null;
+    activeSystemView:
+      | 'inbox'
+      | 'daily'
+      | 'notes'
+      | 'settings'
+      | 'workflows'
+      | 'review'
+      | null;
     noteTypes: NoteType[];
     onClose: () => void;
     onNoteSelect: (note: NoteMetadata) => void;
     onCreateNote: (noteType?: string) => void;
+    onStartReview?: (noteId: string, noteTitle: string) => void;
   }
 
-  let { activeNote, activeSystemView, onClose, onNoteSelect, onCreateNote }: Props =
-    $props();
+  let {
+    activeNote,
+    activeSystemView,
+    onClose,
+    onNoteSelect,
+    onCreateNote,
+    onStartReview
+  }: Props = $props();
 
   let noteEditor = $state<{ focus?: () => void } | null>(null);
   let customView = $state<{ component: Component<NoteViewProps> } | null>(null);
@@ -193,6 +208,12 @@
     <div class="system-view-container">
       <div class="system-view-content">
         <WorkflowManagementView />
+      </div>
+    </div>
+  {:else if activeSystemView === 'review'}
+    <div class="system-view-container">
+      <div class="system-view-content">
+        <ReviewView {onStartReview} />
       </div>
     </div>
   {:else if activeNote}

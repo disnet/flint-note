@@ -1,5 +1,5 @@
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
-import { generateText, streamText, ModelMessage, stepCountIs } from 'ai';
+import { generateText, streamText, ModelMessage, stepCountIs, Tool } from 'ai';
 import { EventEmitter } from 'events';
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -63,6 +63,7 @@ export class AIService extends EventEmitter {
   private currentConversationId: string | null = null;
   private openrouter: ReturnType<typeof createOpenRouter>;
   private systemPrompt: string;
+  private reviewPrompt: string;
   private noteService: NoteService | null;
   private workflowService: WorkflowService | null;
   private toolService: ToolService;
@@ -71,6 +72,8 @@ export class AIService extends EventEmitter {
   private readonly maxConversationHistory = 20;
   private readonly maxConversations = 100;
   private activeAbortControllers: Map<string, AbortController> = new Map();
+  private inReviewMode: boolean = false;
+  private currentReviewNoteId: string | null = null;
   private cacheConfig: CacheConfig = {
     enableSystemMessageCaching: true,
     enableHistoryCaching: false, // Start with system message caching only
@@ -99,6 +102,7 @@ export class AIService extends EventEmitter {
     super();
     this.currentModelName = 'anthropic/claude-haiku-4.5';
     this.systemPrompt = this.loadSystemPrompt();
+    this.reviewPrompt = this.loadReviewPrompt();
     logger.info('AI Service constructed', { model: this.currentModelName });
     this.openrouter = openrouter;
     this.noteService = noteService;
@@ -223,6 +227,73 @@ When responding be sure to format references to notes using ID-only wikilinks. F
 
 Use these tools to help users manage their notes effectively and answer their questions.`;
     }
+  }
+
+  private loadReviewPrompt(): string {
+    try {
+      // Try multiple possible locations for the review prompt file
+      const possiblePaths = [
+        join(__dirname, 'review-agent-prompt.ts'),
+        join(__dirname, '..', '..', 'src', 'main', 'review-agent-prompt.ts'),
+        join(process.cwd(), 'src', 'main', 'review-agent-prompt.ts')
+      ];
+
+      for (const promptPath of possiblePaths) {
+        try {
+          // Read the TypeScript file and extract the prompt string
+          const fileContent = readFileSync(promptPath, 'utf-8');
+          // Extract the prompt from the export statement
+          const match = fileContent.match(
+            /export const REVIEW_AGENT_PROMPT = `([\s\S]*?)`;/
+          );
+          if (match && match[1]) {
+            return match[1].trim();
+          }
+        } catch {
+          // Continue to next path
+        }
+      }
+
+      throw new Error('Review prompt file not found in any expected location');
+    } catch (error) {
+      logger.error('Failed to load review prompt file', { error });
+      // Fallback to inline prompt
+      return `You are conducting a spaced repetition review session in Flint. Your goal is to help the user deeply engage with their notes through active recall and elaboration.`;
+    }
+  }
+
+  /**
+   * Detect if a message is starting a review session
+   * Format: "Review note: {noteId}"
+   */
+  private detectReviewMode(message: string): { isReview: boolean; noteId?: string } {
+    const reviewMatch = message.match(/^Review note:\s*(.+)$/i);
+    if (reviewMatch) {
+      return {
+        isReview: true,
+        noteId: reviewMatch[1].trim()
+      };
+    }
+    return { isReview: false };
+  }
+
+  /**
+   * Enter review mode for a specific note
+   */
+  private enterReviewMode(noteId: string): void {
+    this.inReviewMode = true;
+    this.currentReviewNoteId = noteId;
+    logger.info('Entered review mode', { noteId });
+  }
+
+  /**
+   * Get appropriate tools based on current mode (review vs normal)
+   */
+  private getAppropriateTools(): Record<string, Tool> | undefined {
+    if (this.inReviewMode) {
+      return this.toolService.getReviewTools();
+    }
+    return this.toolService.getTools();
   }
 
   public estimateTokens(content: string | ModelMessage[]): number {
@@ -352,8 +423,34 @@ Use these tools to help users manage their notes effectively and answer their qu
 
   /**
    * Get complete system message (Tier 1 + Tier 2)
+   * In review mode, returns review prompt + note context instead
    */
   private async getSystemMessage(): Promise<string> {
+    if (this.inReviewMode && this.currentReviewNoteId) {
+      // In review mode, get the note content and use review prompt
+      let noteContext = '';
+      try {
+        if (this.noteService) {
+          const flintApi = this.noteService.getFlintNoteApi();
+          const currentVault = await this.noteService.getCurrentVault();
+          if (currentVault) {
+            const note = await flintApi.getNote(
+              currentVault.id,
+              this.currentReviewNoteId
+            );
+            noteContext = `\n\n# Note to Review\n\nTitle: ${note.title}\nID: ${note.id}\nType: ${note.type}\n\nContent:\n${note.content}`;
+          }
+        }
+      } catch (error) {
+        logger.error('Failed to load note for review', {
+          error,
+          noteId: this.currentReviewNoteId
+        });
+      }
+      return this.reviewPrompt + noteContext;
+    }
+
+    // Normal mode - return standard system prompt with vault context
     const vaultContext = await this.getVaultContext();
     return this.systemPrompt + vaultContext;
   }
@@ -1210,6 +1307,12 @@ ${
         this.createConversation();
       }
 
+      // Detect review mode from message
+      const reviewDetection = this.detectReviewMode(userMessage);
+      if (reviewDetection.isReview && reviewDetection.noteId) {
+        this.enterReviewMode(reviewDetection.noteId);
+      }
+
       // Get conversation history
       const currentHistory = this.getConversationMessages(this.currentConversationId!);
 
@@ -1234,7 +1337,7 @@ ${
       // Inject plan context if there's an active plan
       messages = this.getMessagesWithPlanContext(messages);
 
-      const tools = this.toolService.getTools();
+      const tools = this.getAppropriateTools();
       const result = await generateText({
         model: this.openrouter(this.currentModelName),
         messages,
@@ -1456,6 +1559,12 @@ ${
         this.createConversation();
       }
 
+      // Detect review mode from message
+      const reviewDetection = this.detectReviewMode(userMessage);
+      if (reviewDetection.isReview && reviewDetection.noteId) {
+        this.enterReviewMode(reviewDetection.noteId);
+      }
+
       // Get conversation history
       const currentHistory = this.getConversationMessages(this.currentConversationId!);
 
@@ -1482,7 +1591,7 @@ ${
 
       this.emit('stream-start', { requestId });
 
-      const tools = this.toolService.getTools();
+      const tools = this.getAppropriateTools();
 
       try {
         const result = streamText({

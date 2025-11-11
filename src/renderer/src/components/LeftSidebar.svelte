@@ -9,10 +9,17 @@
 
   interface Props {
     activeNote: NoteMetadata | null;
-    activeSystemView: 'inbox' | 'daily' | 'notes' | 'settings' | 'workflows' | null;
+    activeSystemView:
+      | 'inbox'
+      | 'daily'
+      | 'notes'
+      | 'settings'
+      | 'workflows'
+      | 'review'
+      | null;
     onNoteSelect: (note: NoteMetadata) => void;
     onSystemViewSelect: (
-      view: 'inbox' | 'daily' | 'notes' | 'settings' | 'workflows' | null
+      view: 'inbox' | 'daily' | 'notes' | 'settings' | 'workflows' | 'review' | null
     ) => void;
     onCreateNote?: (noteType?: string) => void;
   }

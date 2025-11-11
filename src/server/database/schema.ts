@@ -404,6 +404,31 @@ export class DatabaseManager {
       'CREATE INDEX IF NOT EXISTS idx_note_type_descriptions_vault ON note_type_descriptions(vault_id)'
     );
 
+    // Create review_items table for spaced repetition
+    await connection.run(`
+        CREATE TABLE IF NOT EXISTS review_items (
+          id TEXT PRIMARY KEY,
+          note_id TEXT NOT NULL UNIQUE,
+          vault_id TEXT NOT NULL,
+          enabled BOOLEAN DEFAULT TRUE,
+          last_reviewed TEXT,
+          next_review TEXT NOT NULL,
+          review_count INTEGER DEFAULT 0,
+          review_history TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
+        )
+      `);
+
+    // Create indexes for review_items table
+    await connection.run(
+      'CREATE INDEX IF NOT EXISTS idx_review_next_review ON review_items(next_review, enabled)'
+    );
+    await connection.run(
+      'CREATE INDEX IF NOT EXISTS idx_review_vault ON review_items(vault_id)'
+    );
+
     // Create triggers to keep FTS table in sync
     await connection.run(`
         CREATE TRIGGER IF NOT EXISTS notes_fts_insert AFTER INSERT ON notes BEGIN
@@ -560,6 +585,19 @@ export interface NoteTypeDescriptionRow {
   metadata_schema: string | null;
   content_hash: string | null;
   icon: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ReviewItemRow {
+  id: string;
+  note_id: string;
+  vault_id: string;
+  enabled: number; // SQLite boolean (0 or 1)
+  last_reviewed: string | null;
+  next_review: string;
+  review_count: number;
+  review_history: string | null; // JSON array
   created_at: string;
   updated_at: string;
 }

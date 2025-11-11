@@ -86,7 +86,7 @@
   let isLoadingResponse = $state(false);
   let currentRequestId = $state<string | null>(null);
   let activeSystemView = $state<
-    'inbox' | 'daily' | 'notes' | 'settings' | 'workflows' | null
+    'inbox' | 'daily' | 'notes' | 'settings' | 'workflows' | 'review' | null
   >(null);
   let toolCallLimitReached = $state<{
     stepCount: number;
@@ -164,7 +164,7 @@
   }
 
   async function handleSystemViewSelect(
-    view: 'inbox' | 'daily' | 'notes' | 'settings' | 'workflows' | null
+    view: 'inbox' | 'daily' | 'notes' | 'settings' | 'workflows' | 'review' | null
   ): Promise<void> {
     // If clicking the same view that's already active and sidebar is visible, toggle the sidebar
     if (sidebarState.leftSidebar.visible && activeSystemView === view && view !== null) {
@@ -730,6 +730,24 @@
     }
   }
 
+  /**
+   * Start a review session for a note
+   * Opens the AI assistant and sends a message to start the review
+   */
+  function handleStartReview(noteId: string, _noteTitle: string): void {
+    // Close the system view
+    activeSystemView = null;
+
+    // Open the AI assistant if not already open
+    if (!sidebarState.rightSidebar.visible || sidebarState.rightSidebar.mode !== 'ai') {
+      setRightSidebarMode('ai');
+    }
+
+    // Send a message to start the review
+    const reviewMessage = `Review note: ${noteId}`;
+    handleSendMessage(reviewMessage);
+  }
+
   // Window control functions
   function minimizeWindow(): void {
     window.electron?.ipcRenderer.send('window-minimize');
@@ -1001,6 +1019,7 @@
         onClose={closeNoteEditor}
         onNoteSelect={handleNoteSelect}
         onCreateNote={handleCreateNote}
+        onStartReview={handleStartReview}
       />
 
       <RightSidebar

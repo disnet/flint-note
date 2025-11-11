@@ -23,29 +23,35 @@ Knowledge becomes crystallized through three stages: encoding → consolidation 
 ## Evidence-Based Building Strategies
 
 ### Vocabulary as Foundation
+
 - Mastering new words requires **12-17 exposures across multiple contexts**
 - Use semantic mapping to connect new terms to existing knowledge
 - Learn morphemic analysis (roots, prefixes, suffixes)
 - Practice contextual analysis using surrounding text clues
 
 ### Lifestyle Factors
+
 **Physical activity** stands out as the most powerful intervention:
+
 - 150+ minutes weekly of moderate aerobic exercise
 - Increases BDNF, neurogenesis, cerebral blood flow
 - Expands cortical surface area across 32 brain regions
 - Consistency matters more than intensity
 
 **Screen time management**:
+
 - Excessive passive consumption reduces cortical surface area
 - Distinguish passive (scrolling) from active use (educational content)
 - Balance with reading and physical activity
 
 **Reading fundamentals**:
+
 - Wide, diverse reading across genres
 - Must accompany with discussion, note-taking, active processing
 - Target: 30 minutes daily minimum
 
 ### Cognitive Strategies
+
 - **Elaborative rehearsal**: Connect new info to existing knowledge, create personal examples, explain in your own words
 - **Retrieval practice**: Testing strengthens memory more than simple review
 - **Spaced repetition**: Gradually increase intervals between practice sessions
@@ -54,16 +60,19 @@ Knowledge becomes crystallized through three stages: encoding → consolidation 
 ## Critical Limitations
 
 ### Theoretical Challenges
+
 - CHC theory combines incompatible frameworks (Horn rejected general intelligence; Carroll insisted on it)
 - Neither theorist formally endorsed the integration
 - Cross-battery assessment methods face criticism as "statistically flawed"
 
 ### Cultural Bias
+
 - Tests remain culturally loaded despite claims of culture-fairness
 - Applying British norms to Moroccan children misclassified 15.68% as "intellectually impaired"
 - What constitutes valued knowledge varies fundamentally across cultures
 
 ### The Compensation Myth Debunked
+
 Recent research challenges traditional wisdom: **individuals with steeper fluid intelligence losses also show smaller Gc gains or even Gc losses**. About 60% of aging-related cognitive changes affect both types of intelligence. Maintaining cognitive health requires addressing both, not relying on one to compensate.
 
 ## Knowledge Management Systems
@@ -71,6 +80,7 @@ Recent research challenges traditional wisdom: **individuals with steeper fluid 
 External note-taking systems can accelerate crystallized intelligence development through:
 
 ### Universal Success Factors
+
 - Write in your own words (no copying)
 - Make connections explicit through links
 - Regular review and retrieval practice
@@ -79,29 +89,36 @@ External note-taking systems can accelerate crystallized intelligence developmen
 ### System Options
 
 **Zettelkasten**: Atomic notes with unique identifiers, linked through associations
+
 - Best for: Long-term knowledge development, creative work
 - Engages elaborative encoding and schema building
 
 **Progressive Summarization**: Four layers of compression over time
+
 - Best for: Managing diverse information across projects
 - Creates spaced repetition effects automatically
 
 **Cornell Method**: Notes, questions/keywords, summary sections
+
 - Best for: Structured educational environments, exam prep
 - Builds retrieval practice into format
 
 **Digital PKM** (Obsidian, Roam, Notion): Bi-directional linking, graph visualization
+
 - Best for: Flexibility and technological affordances
 - Market projected to grow from $667B (2024) to $3T (2033)
 
 ### Why Systems Work
+
 They align with cognitive processes:
+
 - **Enhanced encoding**: Active processing during note creation
 - **Schema development**: Networks mirror semantic memory organization
 - **Retrieval enhancement**: Multiple access paths via links/tags
 - **Knowledge integration**: Explicit connections promote transfer
 
 ### Common Pitfalls to Avoid
+
 - Collector's fallacy (accumulating without processing)
 - Perfectionism paralysis (perfect systems upfront)
 - Tool hopping (constantly switching)

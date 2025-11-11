@@ -64,6 +64,7 @@ export interface VaultContext {
   noteManager: import('../core/notes.js').NoteManager;
   noteTypeManager: import('../core/note-types.js').NoteTypeManager;
   hybridSearchManager: import('../database/search-manager.js').HybridSearchManager;
+  reviewManager: import('../core/review-manager.js').ReviewManager;
 }
 
 // ============================================================================

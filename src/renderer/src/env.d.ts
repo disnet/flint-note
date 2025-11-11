@@ -172,6 +172,27 @@ declare global {
 
       // Note lifecycle tracking (for file watcher)
       // Phase 3: Removed noteOpened, noteClosed, and expectNoteWrite
+
+      // Review operations (spaced repetition)
+      enableReview: (noteId: string) => Promise<{ success: boolean }>;
+      disableReview: (noteId: string) => Promise<{ success: boolean }>;
+      isReviewEnabled: (noteId: string) => Promise<{ enabled: boolean }>;
+      getReviewStats: () => Promise<{
+        dueToday: number;
+        dueThisWeek: number;
+        totalEnabled: number;
+      }>;
+      getNotesForReview: (date: string) => Promise<
+        Array<{
+          id: string;
+          title: string;
+          content: string | null;
+          reviewItem: {
+            reviewCount: number;
+            nextReview: string;
+          };
+        }>
+      >;
       // FileWriteQueue now handles all internal write tracking
 
       // Search operations

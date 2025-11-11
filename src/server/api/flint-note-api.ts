@@ -73,6 +73,8 @@ import type { FileWatcherEvent } from '../core/file-watcher.js';
 import { getDefaultLinter } from '../linting/linter-config.js';
 import type { LintContext } from '../linting/lint-rule.js';
 import { formatLintIssues } from '../linting/markdown-linter.js';
+import { ReviewManager } from '../core/review-manager.js';
+import type { ReviewNote, ReviewStats, ReviewItem } from '../core/review-manager.js';
 
 export interface FlintNoteApiConfig extends ServerConfig {
   configDir?: string;
@@ -312,11 +314,16 @@ export class FlintNoteApi {
       hybridSearchManager.getDatabaseManager()
     );
 
+    // Create ReviewManager for spaced repetition
+    const db = await hybridSearchManager.getDatabaseConnection();
+    const reviewManager = new ReviewManager(db, vaultId);
+
     return {
       workspace,
       noteManager,
       noteTypeManager,
-      hybridSearchManager
+      hybridSearchManager,
+      reviewManager
     };
   }
 
@@ -2464,6 +2471,88 @@ export class FlintNoteApi {
       console.error('Failed to get database connection:', error);
       return null;
     }
+  }
+
+  // ============================================================================
+  // Review API Methods (Spaced Repetition)
+  // ============================================================================
+
+  /**
+   * Enable review for a note
+   */
+  async enableReview(args: { noteId: string; vaultId: string }): Promise<ReviewItem> {
+    this.ensureInitialized();
+    const { reviewManager } = await this.getVaultContext(args.vaultId);
+    return await reviewManager.enableReview(args.noteId);
+  }
+
+  /**
+   * Disable review for a note
+   */
+  async disableReview(args: { noteId: string; vaultId: string }): Promise<void> {
+    this.ensureInitialized();
+    const { reviewManager } = await this.getVaultContext(args.vaultId);
+    await reviewManager.disableReview(args.noteId);
+  }
+
+  /**
+   * Get notes due for review on a specific date
+   */
+  async getNotesForReview(args: {
+    vaultId: string;
+    date: string;
+  }): Promise<ReviewNote[]> {
+    this.ensureInitialized();
+    const { reviewManager } = await this.getVaultContext(args.vaultId);
+    return await reviewManager.getNotesForReview(args.date);
+  }
+
+  /**
+   * Complete a review session
+   */
+  async completeReview(args: {
+    noteId: string;
+    vaultId: string;
+    passed: boolean;
+    userResponse?: string;
+  }): Promise<{ nextReviewDate: string; reviewCount: number }> {
+    this.ensureInitialized();
+    const { reviewManager } = await this.getVaultContext(args.vaultId);
+    return await reviewManager.completeReview(
+      args.noteId,
+      args.passed,
+      args.userResponse
+    );
+  }
+
+  /**
+   * Get review statistics for a vault
+   */
+  async getReviewStats(args: { vaultId: string }): Promise<ReviewStats> {
+    this.ensureInitialized();
+    const { reviewManager } = await this.getVaultContext(args.vaultId);
+    return await reviewManager.getReviewStats();
+  }
+
+  /**
+   * Get review item for a note (check if review is enabled and get metadata)
+   */
+  async getReviewItem(args: {
+    noteId: string;
+    vaultId: string;
+  }): Promise<ReviewItem | null> {
+    this.ensureInitialized();
+    const { reviewManager } = await this.getVaultContext(args.vaultId);
+    return await reviewManager.getReviewItem(args.noteId);
+  }
+
+  /**
+   * Check if review is enabled for a note
+   */
+  async isReviewEnabled(args: { noteId: string; vaultId: string }): Promise<boolean> {
+    this.ensureInitialized();
+    const { reviewManager } = await this.getVaultContext(args.vaultId);
+    return await reviewManager.isReviewEnabled(args.noteId);
   }
 
   /**

@@ -1,19 +1,28 @@
 <script lang="ts">
   import { inboxStore } from '../stores/inboxStore.svelte';
+  import { reviewStore } from '../stores/reviewStore.svelte';
 
   interface Props {
-    activeSystemView: 'inbox' | 'daily' | 'notes' | 'settings' | 'workflows' | null;
+    activeSystemView:
+      | 'inbox'
+      | 'daily'
+      | 'notes'
+      | 'settings'
+      | 'workflows'
+      | 'review'
+      | null;
     onSystemViewSelect: (
-      view: 'inbox' | 'daily' | 'notes' | 'settings' | 'workflows' | null
+      view: 'inbox' | 'daily' | 'notes' | 'settings' | 'workflows' | 'review' | null
     ) => void;
   }
 
   let { onSystemViewSelect, activeSystemView }: Props = $props();
 
   const inboxCount = $derived(inboxStore.count);
+  const reviewDueCount = $derived(reviewStore.stats.dueToday);
 
   function setActiveView(
-    view: 'inbox' | 'daily' | 'notes' | 'settings' | 'workflows'
+    view: 'inbox' | 'daily' | 'notes' | 'settings' | 'workflows' | 'review'
   ): void {
     onSystemViewSelect(view);
   }
@@ -64,6 +73,29 @@
         <line x1="3" y1="10" x2="21" y2="10"></line>
       </svg>
       Daily
+    </button>
+
+    <button
+      class="nav-item"
+      class:active={activeSystemView === 'review'}
+      onclick={() => setActiveView('review')}
+    >
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <path
+          d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"
+        ></path>
+      </svg>
+      Review
+      {#if reviewDueCount > 0}
+        <span class="count-badge">{reviewDueCount}</span>
+      {/if}
     </button>
 
     <button
