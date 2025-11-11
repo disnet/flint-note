@@ -886,7 +886,8 @@ app.whenReady().then(async () => {
           agentInstructions: noteTypeInfo?.instructions?.join('\n')
         },
         noteTypeInfo?.suggestions_config?.prompt_guidance ||
-          'Provide helpful suggestions to improve this note.'
+          'Provide helpful suggestions to improve this note.',
+        noteData.metadata
       );
 
       // Save suggestions

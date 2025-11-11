@@ -18,7 +18,7 @@
   /**
    * Refresh review data
    */
-  function refresh() {
+  function refresh(): void {
     reviewStore.loadStats();
     reviewStore.loadNotesForReview();
   }
@@ -26,14 +26,14 @@
   /**
    * Toggle showing all notes vs today's notes
    */
-  function toggleShowAll() {
+  function toggleShowAll(): void {
     reviewStore.toggleShowAll();
   }
 
   /**
    * Start reviewing a note
    */
-  function handleStartReview(note: ReviewNote) {
+  function handleStartReview(note: ReviewNote): void {
     onStartReview?.(note.id, note.title);
   }
 </script>
@@ -146,8 +146,7 @@
     margin-bottom: 2rem;
   }
 
-  .review-header h1,
-  .review-header h2 {
+  .review-header h1 {
     margin: 0;
     font-size: 1.75rem;
     font-weight: 600;
@@ -160,8 +159,7 @@
   }
 
   .refresh-button,
-  .toggle-button,
-  .exit-button {
+  .toggle-button {
     padding: 0.5rem 1rem;
     border-radius: 0.5rem;
     border: 1px solid var(--color-border);
@@ -173,8 +171,7 @@
   }
 
   .refresh-button:hover,
-  .toggle-button:hover,
-  .exit-button:hover {
+  .toggle-button:hover {
     background: var(--color-background-hover);
   }
 
@@ -305,47 +302,5 @@
     display: flex;
     justify-content: center;
     padding: 1.5rem 0;
-  }
-
-  .start-review-button {
-    padding: 0.75rem 2rem;
-    border-radius: 0.5rem;
-    border: none;
-    background: var(--color-primary);
-    color: white;
-    font-size: 1rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .start-review-button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  }
-
-  .start-review-button:active {
-    transform: translateY(0);
-  }
-
-  .review-session {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .review-session .review-header {
-    padding: 1rem 1.5rem;
-    border-bottom: 1px solid var(--color-border);
-    flex-shrink: 0;
-  }
-
-  .review-session .review-header h2 {
-    font-size: 1.25rem;
-  }
-
-  .review-assistant {
-    flex: 1;
-    overflow: hidden;
   }
 </style>

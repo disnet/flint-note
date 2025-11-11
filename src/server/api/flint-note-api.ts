@@ -2629,9 +2629,11 @@ export class FlintNoteApi {
   /**
    * Get note data for suggestion generation
    */
-  async getNoteForSuggestions(
-    noteId: string
-  ): Promise<{ content: string; type: string } | null> {
+  async getNoteForSuggestions(noteId: string): Promise<{
+    content: string;
+    type: string;
+    metadata?: Record<string, unknown>;
+  } | null> {
     if (!this.initialized) {
       throw new Error('API not initialized');
     }

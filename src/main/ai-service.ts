@@ -1834,7 +1834,8 @@ ${
     noteContent: string,
     noteType: string,
     noteTypeDescription: { purpose?: string; agentInstructions?: string },
-    promptGuidance: string
+    promptGuidance: string,
+    metadata?: Record<string, unknown>
   ): Promise<
     Array<{
       id: string;
@@ -1846,6 +1847,11 @@ ${
     }>
   > {
     try {
+      // Format metadata for the prompt
+      const metadataSection = metadata
+        ? `\n\nNote Metadata:\n${JSON.stringify(metadata, null, 2)}`
+        : '';
+
       const systemPrompt = `You are analyzing a note of type "${noteType}".
 
 ${noteTypeDescription.purpose ? `Note Type Purpose: ${noteTypeDescription.purpose}` : ''}
@@ -1859,11 +1865,13 @@ Each suggestion should have: id, type, text, priority (optional), data (optional
 
 Return ONLY a valid JSON array with no additional text or markdown formatting.`;
 
+      const userMessage = `${noteContent}${metadataSection}`;
+
       const response = await generateText({
         model: this.openrouter(this.currentModelName),
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: noteContent }
+          { role: 'user', content: userMessage }
         ]
       });
 

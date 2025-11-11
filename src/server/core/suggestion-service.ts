@@ -295,6 +295,7 @@ export class SuggestionService {
   async getNoteForSuggestions(noteId: string): Promise<{
     content: string;
     type: string;
+    metadata?: Record<string, unknown>;
   } | null> {
     const db = await this.dbManager.connect();
 
@@ -308,9 +309,25 @@ export class SuggestionService {
         return null;
       }
 
+      // Get metadata for the note
+      const metadataRows = await db.all<{ key: string; value: string }>(
+        'SELECT key, value FROM note_metadata WHERE note_id = ?',
+        [noteId]
+      );
+
+      const metadata: Record<string, unknown> = {};
+      for (const row of metadataRows) {
+        try {
+          metadata[row.key] = JSON.parse(row.value);
+        } catch {
+          metadata[row.key] = row.value;
+        }
+      }
+
       return {
         content: note.content || '',
-        type: note.type
+        type: note.type,
+        metadata: Object.keys(metadata).length > 0 ? metadata : undefined
       };
     } catch (error) {
       console.error('Failed to get note for suggestions:', error);
