@@ -249,7 +249,6 @@ export interface NoteSuggestion {
 export interface NoteTypeSuggestionConfig {
   enabled: boolean;
   prompt_guidance: string; // Instructions for how agent should make suggestions
-  regenerate_threshold: number; // Content change threshold (0-1), default 0.15
   suggestion_types?: string[]; // Allowed suggestion types for this note type
 }
 

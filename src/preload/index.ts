@@ -244,7 +244,6 @@ const api = {
     config: {
       enabled: boolean;
       prompt_guidance: string;
-      regenerate_threshold?: number;
       suggestion_types?: string[];
     };
     vaultId?: string;

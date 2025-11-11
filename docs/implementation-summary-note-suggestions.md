@@ -103,7 +103,7 @@ Implemented a complete AI-powered note suggestions feature that provides context
 ## Architecture Highlights
 
 ### Database Design
-- **Caching Strategy**: Suggestions stored per-note with content hash for invalidation
+- **Caching Strategy**: Suggestions stored per-note, persist until manually regenerated
 - **Dismissal Tracking**: Dismissed IDs stored as JSON array, allowing undo in future
 - **Foreign Keys**: CASCADE DELETE ensures orphan cleanup
 - **Indexing**: Optimized for note_id and generated_at queries
@@ -111,7 +111,7 @@ Implemented a complete AI-powered note suggestions feature that provides context
 ### Service Layer
 - **Separation of Concerns**: SuggestionService handles data, AIService handles generation
 - **Configuration Hierarchy**: Type-level defaults with per-note overrides
-- **Smart Caching**: Content hash comparison to minimize regeneration
+- **Manual Regeneration**: User controls when suggestions are regenerated
 
 ### IPC Architecture
 - **Type Safety**: All parameters and returns are typed
@@ -136,14 +136,14 @@ Implemented a complete AI-powered note suggestions feature that provides context
 ### User Control
 - **Enable/Disable**: Global (type) and local (note) controls
 - **Dismissal**: Persistent per-suggestion dismissal
-- **Regeneration**: On-demand regeneration with threshold
+- **Regeneration**: Manual on-demand regeneration only
 - **Configuration**: Customizable prompts per note type
 
 ### Performance
 - **Lazy Loading**: Only load when panel expanded
-- **Caching**: Avoid redundant AI calls
+- **Caching**: Avoid redundant AI calls until manual regeneration
 - **Indexed Queries**: Fast database lookups
-- **Debouncing**: Prevent excessive regeneration
+- **Manual Control**: User decides when to regenerate
 
 ## Configuration Examples
 
@@ -151,8 +151,7 @@ Implemented a complete AI-powered note suggestions feature that provides context
 ```json
 {
   "enabled": true,
-  "prompt_guidance": "Analyze this meeting note and suggest:\n1. Action items that need tracking\n2. People to follow up with\n3. Related notes to link\n4. Key decisions to document\n5. Unclear points needing clarification",
-  "regenerate_threshold": 0.15
+  "prompt_guidance": "Analyze this meeting note and suggest:\n1. Action items that need tracking\n2. People to follow up with\n3. Related notes to link\n4. Key decisions to document\n5. Unclear points needing clarification"
 }
 ```
 
@@ -160,8 +159,7 @@ Implemented a complete AI-powered note suggestions feature that provides context
 ```json
 {
   "enabled": true,
-  "prompt_guidance": "Analyze this research note and suggest:\n1. Related concepts to explore\n2. Open questions or hypotheses\n3. Next experimental steps\n4. Connections to other research\n5. Key insights to extract",
-  "regenerate_threshold": 0.2
+  "prompt_guidance": "Analyze this research note and suggest:\n1. Related concepts to explore\n2. Open questions or hypotheses\n3. Next experimental steps\n4. Connections to other research\n5. Key insights to extract"
 }
 ```
 
@@ -262,11 +260,11 @@ Key changes:
 - NoteSuggestions Svelte component with full UX
 
 Features:
-- Smart caching with content-hash invalidation
+- Smart caching with manual regeneration
 - Per-type configuration with custom prompts
 - Individual suggestion dismissal
 - Priority and reasoning display
-- Regeneration on demand
+- Manual on-demand regeneration
 
 See docs/implementation-summary-note-suggestions.md for details.
 ```

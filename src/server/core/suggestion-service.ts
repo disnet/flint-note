@@ -138,55 +138,23 @@ export class SuggestionService {
   }
 
   /**
-   * Check if suggestions should be regenerated based on content changes
+   * Check if suggestions should be regenerated
+   * Note: Regeneration is now manual-only. This method just checks if suggestions exist.
    */
-  async shouldRegenerate(noteId: string, currentContentHash: string): Promise<boolean> {
+  async shouldRegenerate(noteId: string): Promise<boolean> {
     const db = await this.dbManager.connect();
 
     try {
-      // Get cached suggestions
-      const cached = await db.get<NoteSuggestionRecord>(
-        'SELECT content_hash FROM note_suggestions WHERE note_id = ?',
+      // Check if suggestions exist
+      const cached = await db.get<{ id: number }>(
+        'SELECT id FROM note_suggestions WHERE note_id = ?',
         [noteId]
       );
 
-      // If no cache, should generate
-      if (!cached) {
-        return true;
-      }
-
-      // If hash unchanged, no regeneration needed
-      if (cached.content_hash === currentContentHash) {
-        return false;
-      }
-
-      // Get note type configuration to check threshold
-      const note = await db.get<NoteRecord>(
-        'SELECT type, content FROM notes WHERE id = ?',
-        [noteId]
-      );
-
-      if (!note) {
-        return false;
-      }
-
-      const config = await this.getNoteTypeSuggestionConfig(note.type, db);
-      const threshold = config?.regenerate_threshold || 0.15;
-
-      // Get current content and cached content to compare
-      const currentContent = note.content || '';
-
-      // For simplicity, we'll use content length change as a proxy for significant change
-      // In a more sophisticated version, we could store the original content or use edit distance
-      // Since we only have the hash, we'll regenerate if hash changed
-      // A better approach would be to get the old content from note history if available
-
-      // For now, any hash change means regenerate (conservative approach)
-      // TODO: Could enhance this with actual content comparison if we store previous content
-      return true;
+      // If no cache exists, user can generate
+      return !cached;
     } catch (error) {
-      console.error('Failed to check if regeneration needed:', error);
-      // On error, default to regenerating
+      console.error('Failed to check if suggestions exist:', error);
       return true;
     }
   }
