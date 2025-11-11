@@ -884,7 +884,6 @@ app.whenReady().then(async () => {
       return await api.saveNoteSuggestions(
         params.noteId,
         suggestions,
-        noteData.contentHash,
         'current', // TODO: Get actual model version
         vaultId
       );

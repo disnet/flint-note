@@ -2580,7 +2580,6 @@ export class FlintNoteApi {
   async saveNoteSuggestions(
     noteId: string,
     suggestions: import('../types/index.js').NoteSuggestion[],
-    contentHash: string,
     modelVersion: string,
     vaultId: string
   ): Promise<import('../types/index.js').GenerateSuggestionsResult> {
@@ -2593,7 +2592,7 @@ export class FlintNoteApi {
       this.hybridSearchManager.getDatabaseManager()
     );
 
-    return suggestionService.saveSuggestions(noteId, suggestions, contentHash, modelVersion);
+    return suggestionService.saveSuggestions(noteId, suggestions, modelVersion);
   }
 
   /**
@@ -2638,7 +2637,7 @@ export class FlintNoteApi {
   async getNoteForSuggestions(
     noteId: string,
     vaultId: string
-  ): Promise<{ content: string; contentHash: string; type: string } | null> {
+  ): Promise<{ content: string; type: string } | null> {
     if (!this.initialized) {
       throw new Error('API not initialized');
     }

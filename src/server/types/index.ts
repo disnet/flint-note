@@ -259,7 +259,6 @@ export interface NoteSuggestionRecord {
   id: number;
   note_id: string;
   suggestions: NoteSuggestion[]; // JSON array of suggestion objects
-  content_hash: string; // Hash of note content when generated
   generated_at: string;
   model_version?: string; // Track which model generated suggestions
   dismissed_ids?: string[]; // IDs of dismissed suggestions

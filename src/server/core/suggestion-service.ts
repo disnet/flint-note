@@ -61,7 +61,7 @@ export class SuggestionService {
 
       // Get cached suggestions if available
       const cached = await db.get<NoteSuggestionRecord>(
-        `SELECT id, note_id, suggestions, content_hash, generated_at, model_version, dismissed_ids
+        `SELECT id, note_id, suggestions, generated_at, model_version, dismissed_ids
          FROM note_suggestions
          WHERE note_id = ?`,
         [noteId]
@@ -88,14 +88,11 @@ export class SuggestionService {
   }
 
   /**
-   * Generate new suggestions via AI
-   * Note: This method signature expects AI service to be passed in,
-   * as the service is in the main process and suggestion-service is in server core
+   * Save generated suggestions for a note
    */
   async saveSuggestions(
     noteId: string,
     suggestions: NoteSuggestion[],
-    contentHash: string,
     modelVersion: string
   ): Promise<GenerateSuggestionsResult> {
     const db = await this.dbManager.connect();
@@ -113,16 +110,16 @@ export class SuggestionService {
         // Update existing suggestions
         await db.run(
           `UPDATE note_suggestions
-           SET suggestions = ?, content_hash = ?, generated_at = ?, model_version = ?, dismissed_ids = NULL
+           SET suggestions = ?, generated_at = ?, model_version = ?, dismissed_ids = NULL
            WHERE note_id = ?`,
-          [JSON.stringify(suggestions), contentHash, now, modelVersion, noteId]
+          [JSON.stringify(suggestions), now, modelVersion, noteId]
         );
       } else {
         // Insert new suggestions
         await db.run(
-          `INSERT INTO note_suggestions (note_id, suggestions, content_hash, generated_at, model_version)
-           VALUES (?, ?, ?, ?, ?)`,
-          [noteId, JSON.stringify(suggestions), contentHash, now, modelVersion]
+          `INSERT INTO note_suggestions (note_id, suggestions, generated_at, model_version)
+           VALUES (?, ?, ?, ?)`,
+          [noteId, JSON.stringify(suggestions), now, modelVersion]
         );
       }
 
@@ -297,18 +294,17 @@ export class SuggestionService {
   }
 
   /**
-   * Get note content and hash for suggestion generation
+   * Get note content for suggestion generation
    */
   async getNoteForSuggestions(noteId: string): Promise<{
     content: string;
-    contentHash: string;
     type: string;
   } | null> {
     const db = await this.dbManager.connect();
 
     try {
       const note = await db.get<NoteRecord>(
-        'SELECT id, content, content_hash, type FROM notes WHERE id = ?',
+        'SELECT id, content, type FROM notes WHERE id = ?',
         [noteId]
       );
 
@@ -318,7 +314,6 @@ export class SuggestionService {
 
       return {
         content: note.content || '',
-        contentHash: note.content_hash || '',
         type: note.type
       };
     } catch (error) {

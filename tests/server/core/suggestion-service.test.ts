@@ -129,12 +129,7 @@ describe('SuggestionService', () => {
       ];
 
       // Save suggestions
-      await suggestionService.saveSuggestions(
-        testNoteId,
-        testSuggestions,
-        'hash-123',
-        'test-model'
-      );
+      await suggestionService.saveSuggestions(testNoteId, testSuggestions, 'test-model');
 
       // Retrieve suggestions
       const result = await suggestionService.getSuggestions(testNoteId);
@@ -161,12 +156,7 @@ describe('SuggestionService', () => {
         { id: 'sug-3', type: 'action', text: 'Suggestion 3' }
       ];
 
-      await suggestionService.saveSuggestions(
-        testNoteId,
-        testSuggestions,
-        'hash-123',
-        'test-model'
-      );
+      await suggestionService.saveSuggestions(testNoteId, testSuggestions, 'test-model');
 
       // Dismiss one suggestion
       await suggestionService.dismissSuggestion(testNoteId, 'sug-2');
@@ -233,7 +223,7 @@ describe('SuggestionService', () => {
         { id: 'sug-2', type: 'link', text: 'Updated suggestion' }
       ];
 
-      await suggestionService.saveSuggestions(testNoteId, newSuggestions, 'hash-2', 'model-2');
+      await suggestionService.saveSuggestions(testNoteId, newSuggestions, 'model-2');
 
       // Verify update
       const result = await suggestionService.getSuggestions(testNoteId);
@@ -453,7 +443,6 @@ describe('SuggestionService', () => {
       expect(result).toBeDefined();
       expect(result?.content).toBe('This is a test note with some content.');
       expect(result?.type).toBe('general');
-      expect(result?.contentHash).toBe('test-hash');
     });
 
     it('should return null for non-existent note', async () => {
