@@ -10,6 +10,7 @@ import { ToolService } from './tool-service';
 import { WorkflowService } from './workflow-service';
 import { CustomFunctionsApi } from '../server/api/custom-functions-api.js';
 import { TodoPlanService } from './todo-plan-service';
+import { REVIEW_AGENT_SYSTEM_PROMPT } from './review-agent-prompt';
 
 interface CacheConfig {
   enableSystemMessageCaching: boolean;
@@ -230,36 +231,7 @@ Use these tools to help users manage their notes effectively and answer their qu
   }
 
   private loadReviewPrompt(): string {
-    try {
-      // Try multiple possible locations for the review prompt file
-      const possiblePaths = [
-        join(__dirname, 'review-agent-prompt.ts'),
-        join(__dirname, '..', '..', 'src', 'main', 'review-agent-prompt.ts'),
-        join(process.cwd(), 'src', 'main', 'review-agent-prompt.ts')
-      ];
-
-      for (const promptPath of possiblePaths) {
-        try {
-          // Read the TypeScript file and extract the prompt string
-          const fileContent = readFileSync(promptPath, 'utf-8');
-          // Extract the prompt from the export statement
-          const match = fileContent.match(
-            /export const REVIEW_AGENT_PROMPT = `([\s\S]*?)`;/
-          );
-          if (match && match[1]) {
-            return match[1].trim();
-          }
-        } catch {
-          // Continue to next path
-        }
-      }
-
-      throw new Error('Review prompt file not found in any expected location');
-    } catch (error) {
-      logger.error('Failed to load review prompt file', { error });
-      // Fallback to inline prompt
-      return `You are conducting a spaced repetition review session in Flint. Your goal is to help the user deeply engage with their notes through active recall and elaboration.`;
-    }
+    return REVIEW_AGENT_SYSTEM_PROMPT;
   }
 
   /**
