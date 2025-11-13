@@ -330,6 +330,7 @@ export class DatabaseManager {
           metadata_schema TEXT,
           content_hash TEXT,
           icon TEXT,
+          suggestions_config TEXT,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           UNIQUE(vault_id, type_name)
@@ -427,6 +428,27 @@ export class DatabaseManager {
     );
     await connection.run(
       'CREATE INDEX IF NOT EXISTS idx_review_vault ON review_items(vault_id)'
+    );
+
+    // Create note_suggestions table for AI-generated note suggestions
+    await connection.run(`
+        CREATE TABLE IF NOT EXISTS note_suggestions (
+          id INTEGER PRIMARY KEY,
+          note_id TEXT NOT NULL UNIQUE,
+          suggestions TEXT NOT NULL,
+          generated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          model_version TEXT,
+          dismissed_ids TEXT,
+          FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
+        )
+      `);
+
+    // Create indexes for note_suggestions table
+    await connection.run(
+      'CREATE INDEX IF NOT EXISTS idx_note_suggestions_note_id ON note_suggestions(note_id)'
+    );
+    await connection.run(
+      'CREATE INDEX IF NOT EXISTS idx_note_suggestions_generated_at ON note_suggestions(generated_at)'
     );
 
     // Create triggers to keep FTS table in sync

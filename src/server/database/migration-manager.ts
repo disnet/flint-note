@@ -1657,7 +1657,7 @@ async function migrateToV2_8_0(db: DatabaseConnection): Promise<void> {
 }
 
 export class DatabaseMigrationManager {
-  private static readonly CURRENT_SCHEMA_VERSION = '2.7.0';
+  private static readonly CURRENT_SCHEMA_VERSION = '2.8.0';
 
   private static readonly MIGRATIONS: DatabaseMigration[] = [
     {
