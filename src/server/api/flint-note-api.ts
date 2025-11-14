@@ -226,11 +226,22 @@ export class FlintNoteApi {
           // Update file watcher with note manager reference (resolve circular dependency)
           this.fileWatcher.setNoteManager(this.noteManager);
 
+          // Update hybrid search manager with file write queue reference
+          // This ensures all file writes (including normalization) go through the shared queue
+          this.hybridSearchManager.setFileWriteQueue(
+            this.noteManager.getFileWriteQueue()
+          );
+
           await this.fileWatcher.start();
           logger.info('File watcher started successfully');
         } else {
           // Create note manager without file watcher
           this.noteManager = new NoteManager(this.workspace, this.hybridSearchManager);
+
+          // Update hybrid search manager with file write queue reference even without file watcher
+          this.hybridSearchManager.setFileWriteQueue(
+            this.noteManager.getFileWriteQueue()
+          );
           logger.info('File watcher disabled by configuration');
         }
 

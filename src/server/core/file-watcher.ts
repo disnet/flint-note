@@ -9,6 +9,7 @@ import chokidar from 'chokidar';
 import type { FSWatcher } from 'chokidar';
 import path from 'path';
 import fs from 'fs/promises';
+import { generateContentHash } from '../utils/content-hash.js';
 import type { HybridSearchManager } from '../database/search-manager.js';
 import type { NoteManager } from './notes.js';
 
@@ -213,6 +214,7 @@ export class VaultFileWatcher {
    * This flag-based approach eliminates timing races.
    */
   markWriteStarting(filePath: string): void {
+    // Use path.resolve for consistency - when filePath is absolute, it returns it unchanged
     const absolutePath = path.resolve(this.vaultPath, filePath);
     this.ongoingWrites.add(absolutePath);
   }
@@ -249,22 +251,51 @@ export class VaultFileWatcher {
 
   /**
    * Determine if a file change is internal (initiated by Flint) or external
-   * Phase 4: Simplified to only check ongoingWrites flag
+   * Phase 6: Content-based verification - not timing-dependent
    */
   private async isInternalChange(
     filePath: string
   ): Promise<{ isInternal: boolean; isConflict: boolean }> {
-    // Normalize the path the same way we do in markWriteStarting/markWriteComplete
     const absolutePath = path.resolve(this.vaultPath, filePath);
 
-    // Phase 4: FileWriteQueue's ongoingWrites flag is the single source of truth
-    // If the flag is set, this is an internal write - ignore it
-    // If not set, this is an external change - sync to database
+    // Fast path: Check ongoingWrites flag (still useful for immediate detection)
     if (this.ongoingWrites.has(absolutePath)) {
+      console.log(`[FileWatcher] ✓ Internal (flag): ${path.basename(absolutePath)}`);
       return { isInternal: true, isConflict: false };
     }
 
-    // All other changes are external
+    // Robust path: Content verification
+    // Read the file and check if its content matches what we expect to write
+    // This works even if timing is off or file watcher is delayed
+    if (this.noteManager) {
+      try {
+        const content = await fs.readFile(absolutePath, 'utf-8');
+        const contentHash = generateContentHash(content);
+
+        console.log(
+          `[FileWatcher] Check: ${path.basename(absolutePath)} hash=${contentHash.slice(0, 8)}...`
+        );
+
+        // Check if this content hash matches what we're expecting to write
+        const fileWriteQueue = this.noteManager.getFileWriteQueue();
+        if (fileWriteQueue.isContentExpected(absolutePath, contentHash)) {
+          console.log(
+            `[FileWatcher] ✓ Internal (content): ${path.basename(absolutePath)}`
+          );
+          return { isInternal: true, isConflict: false };
+        } else {
+          console.warn(
+            `[FileWatcher] ✗ EXTERNAL: ${path.basename(absolutePath)} hash=${contentHash.slice(0, 8)}... NOT in expected set`
+          );
+        }
+      } catch (error) {
+        console.warn(
+          `[FileWatcher] Error reading ${absolutePath}:`,
+          error instanceof Error ? error.message : 'Unknown error'
+        );
+      }
+    }
+
     return { isInternal: false, isConflict: false };
   }
 

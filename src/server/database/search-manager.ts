@@ -1,6 +1,7 @@
 import { DatabaseManager, serializeMetadataValue } from './schema.js';
 import type { DatabaseConnection, NoteRow, SearchRow } from './schema.js';
 import type { NoteMetadata, WikiLink } from '../types/index.js';
+import type { FileWriteQueue } from '../core/notes.js';
 import fs from 'fs/promises';
 import path from 'path';
 import { createHash, randomBytes } from 'crypto';
@@ -141,6 +142,7 @@ export class HybridSearchManager {
     markWriteStarting(path: string): void;
     markWriteComplete(path: string): void;
   } | null = null;
+  private fileWriteQueue: FileWriteQueue | null = null;
 
   constructor(workspacePath: string) {
     this.workspacePath = workspacePath;
@@ -158,10 +160,36 @@ export class HybridSearchManager {
   }
 
   /**
-   * Write a file with file watcher tracking to prevent false external edit detection
+   * Set the file write queue reference (called after initialization to resolve circular dependency)
+   * This allows the search manager to use the shared write queue from NoteManager,
+   * ensuring all file writes are properly debounced and tracked.
+   */
+  setFileWriteQueue(fileWriteQueue: FileWriteQueue): void {
+    this.fileWriteQueue = fileWriteQueue;
+  }
+
+  /**
+   * Write a file with file watcher tracking to prevent false external edit detection.
+   * Uses the shared FileWriteQueue from NoteManager to ensure all writes are properly
+   * debounced and tracked, eliminating race conditions between normalization writes
+   * and user edits.
+   *
    * IMPORTANT: Always use this method instead of fs.writeFile for markdown files
    */
   private async writeFileWithTracking(filePath: string, content: string): Promise<void> {
+    // Use the shared file write queue if available (preferred approach)
+    if (this.fileWriteQueue) {
+      await this.fileWriteQueue.queueWrite(filePath, content);
+      return;
+    }
+
+    // Fallback to immediate write with manual tracking (legacy behavior)
+    // This path should rarely be hit after proper initialization
+    console.warn(
+      '[HybridSearchManager] FileWriteQueue not set, falling back to immediate write. ' +
+        'This may cause race conditions with external edit detection.'
+    );
+
     // Mark write starting (prevents external edit detection)
     if (this.fileWatcher) {
       this.fileWatcher.markWriteStarting(filePath);
