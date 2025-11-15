@@ -1,128 +1,355 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { reviewStore } from '../stores/reviewStore.svelte';
-  import type { ReviewNote } from '../stores/reviewStore.svelte';
+  import ReviewStats from './review/ReviewStats.svelte';
+  import ReviewPrompt from './review/ReviewPrompt.svelte';
+  import ReviewFeedback from './review/ReviewFeedback.svelte';
+  import ReviewSessionSummaryComponent from './review/ReviewSessionSummary.svelte';
+  import NoteContentDrawer from './review/NoteContentDrawer.svelte';
+  import type {
+    ReviewSessionState,
+    ReviewResult,
+    ReviewSessionSummary,
+    SessionReviewNote,
+    AgentFeedback
+  } from '../types/review';
 
-  interface Props {
-    onStartReview?: (noteId: string, noteTitle: string) => void;
-  }
+  // State machine
+  let sessionState = $state<ReviewSessionState>('idle');
 
-  let { onStartReview }: Props = $props();
+  // Session data
+  let notesToReview = $state<SessionReviewNote[]>([]);
+  let currentNoteIndex = $state(0);
+  let currentPrompt = $state('');
+  let userResponse = $state('');
+  let agentFeedback = $state<AgentFeedback | null>(null);
+  let sessionResults = $state<ReviewResult[]>([]);
+  let sessionStartTime = $state<Date | null>(null);
+
+  // Note drawer
+  let isNoteDrawerOpen = $state(false);
+
+  // Loading states
+  let isGeneratingPrompt = $state(false);
+  let isAnalyzingResponse = $state(false);
+  let isCompletingReview = $state(false);
+
+  // Derived values
+  const currentNote = $derived(notesToReview[currentNoteIndex]);
+  const totalNotes = $derived(notesToReview.length);
 
   // Load review data on mount
   onMount(() => {
     reviewStore.loadStats();
-    reviewStore.loadNotesForReview();
   });
 
   /**
-   * Refresh review data
+   * Start a new review session
    */
-  function refresh(): void {
+  async function startReviewSession() {
+    try {
+      sessionState = 'loading';
+      sessionStartTime = new Date();
+      sessionResults = [];
+      currentNoteIndex = 0;
+
+      // Load today's notes
+      const today = new Date().toISOString().split('T')[0];
+      const notes = await window.api?.getNotesForReview(today);
+
+      if (!notes || notes.length === 0) {
+        sessionState = 'idle';
+        return;
+      }
+
+      notesToReview = notes.map((note) => ({
+        ...note,
+        skipped: false
+      }));
+
+      // Start with the first note
+      await loadNextNote();
+    } catch (error) {
+      console.error('Failed to start review session:', error);
+      sessionState = 'idle';
+    }
+  }
+
+  /**
+   * Load the current note and generate a review prompt
+   */
+  async function loadNextNote() {
+    if (!currentNote) {
+      // No more notes - complete the session
+      completeSession();
+      return;
+    }
+
+    try {
+      sessionState = 'loading';
+      isGeneratingPrompt = true;
+
+      // Generate review prompt for the current note
+      const response = await window.api?.generateReviewPrompt(currentNote.id);
+
+      if (!response?.success) {
+        console.error('Failed to generate prompt:', response?.error);
+        // Use fallback prompt
+        currentPrompt =
+          response?.prompt || 'Explain the main concepts in this note in your own words.';
+      } else {
+        currentPrompt = response.prompt || '';
+      }
+
+      userResponse = '';
+      agentFeedback = null;
+      sessionState = 'prompting';
+    } catch (error) {
+      console.error('Error generating prompt:', error);
+      currentPrompt = 'Explain the main concepts in this note in your own words.';
+      sessionState = 'prompting';
+    } finally {
+      isGeneratingPrompt = false;
+    }
+  }
+
+  /**
+   * Submit user's response for analysis
+   */
+  async function submitResponse() {
+    if (!userResponse.trim() || !currentNote) return;
+
+    try {
+      isAnalyzingResponse = true;
+
+      const response = await window.api?.analyzeReviewResponse({
+        noteId: currentNote.id,
+        prompt: currentPrompt,
+        userResponse: userResponse
+      });
+
+      if (!response?.success || !response.feedback) {
+        console.error('Failed to analyze response:', response?.error);
+        agentFeedback = {
+          feedback: 'Thank you for your response.',
+          suggestedLinks: []
+        };
+      } else {
+        agentFeedback = response.feedback;
+      }
+
+      sessionState = 'feedback';
+    } catch (error) {
+      console.error('Error analyzing response:', error);
+      agentFeedback = {
+        feedback: 'Thank you for your response.',
+        suggestedLinks: []
+      };
+      sessionState = 'feedback';
+    } finally {
+      isAnalyzingResponse = false;
+    }
+  }
+
+  /**
+   * Mark current note as passed or failed and advance
+   */
+  async function markPassFail(passed: boolean) {
+    if (!currentNote) return;
+
+    try {
+      isCompletingReview = true;
+
+      // Call API to complete the review
+      await window.api?.completeReview({
+        noteId: currentNote.id,
+        passed,
+        userResponse
+      });
+
+      // Calculate next review date
+      const nextDate = new Date();
+      if (passed) {
+        nextDate.setDate(nextDate.getDate() + 7);
+      } else {
+        nextDate.setDate(nextDate.getDate() + 1);
+      }
+
+      // Record the result
+      const result: ReviewResult = {
+        noteId: currentNote.id,
+        noteTitle: currentNote.title,
+        passed,
+        userResponse,
+        agentFeedback: agentFeedback?.feedback || '',
+        timestamp: new Date().toISOString(),
+        scheduledFor: nextDate.toISOString().split('T')[0]
+      };
+      sessionResults.push(result);
+
+      // Mark note as reviewed
+      notesToReview[currentNoteIndex] = {
+        ...currentNote,
+        reviewedAt: new Date().toISOString()
+      };
+
+      // Move to next note
+      currentNoteIndex++;
+
+      // Brief transition state
+      sessionState = 'transition';
+      setTimeout(() => {
+        loadNextNote();
+      }, 300);
+    } catch (error) {
+      console.error('Error completing review:', error);
+    } finally {
+      isCompletingReview = false;
+    }
+  }
+
+  /**
+   * Skip the current note
+   */
+  function skipNote() {
+    if (!currentNote) return;
+
+    // Mark note as skipped
+    notesToReview[currentNoteIndex] = {
+      ...currentNote,
+      skipped: true
+    };
+
+    // Move to next note
+    currentNoteIndex++;
+    loadNextNote();
+  }
+
+  /**
+   * End the session early
+   */
+  function endSession() {
+    if (sessionResults.length > 0) {
+      completeSession();
+    } else {
+      // No reviews completed - just go back to idle
+      backToDashboard();
+    }
+  }
+
+  /**
+   * Complete the session and show summary
+   */
+  function completeSession() {
+    sessionState = 'complete';
+  }
+
+  /**
+   * Return to dashboard and reload stats
+   */
+  function backToDashboard() {
+    sessionState = 'idle';
+    notesToReview = [];
+    currentNoteIndex = 0;
+    sessionResults = [];
     reviewStore.loadStats();
-    reviewStore.loadNotesForReview();
   }
 
   /**
-   * Toggle showing all notes vs today's notes
+   * Show/hide note content drawer
    */
-  function toggleShowAll(): void {
-    reviewStore.toggleShowAll();
+  function toggleNoteDrawer() {
+    isNoteDrawerOpen = !isNoteDrawerOpen;
   }
 
   /**
-   * Start reviewing a note
+   * Calculate session summary
    */
-  function handleStartReview(note: ReviewNote): void {
-    onStartReview?.(note.id, note.title);
-  }
+  const sessionSummary = $derived<ReviewSessionSummary>({
+    totalNotes: sessionResults.length,
+    passedCount: sessionResults.filter((r) => r.passed).length,
+    failedCount: sessionResults.filter((r) => !r.passed).length,
+    skippedCount: notesToReview.filter((n) => n.skipped).length,
+    startTime: sessionStartTime?.toISOString() || '',
+    endTime: new Date().toISOString(),
+    durationMinutes: sessionStartTime
+      ? Math.round((Date.now() - sessionStartTime.getTime()) / 60000)
+      : 0,
+    results: sessionResults
+  });
 </script>
 
 <div class="review-view">
-  <!-- Review dashboard -->
-  <div class="review-dashboard">
-    <div class="review-header">
-      <h1>Review Mode</h1>
-      <div class="header-buttons">
-        <button class="toggle-button" onclick={toggleShowAll}>
-          {reviewStore.showAllNotes ? 'Show Today Only' : 'Show All Notes'}
-        </button>
-        <button class="refresh-button" onclick={refresh}>Refresh</button>
-      </div>
+  {#if sessionState === 'idle'}
+    <!-- Stats dashboard -->
+    <ReviewStats stats={reviewStore.stats} onStartReview={startReviewSession} />
+  {:else if sessionState === 'loading'}
+    <!-- Loading state -->
+    <div class="loading-container">
+      <div class="loading-spinner"></div>
+      <p>
+        {isGeneratingPrompt
+          ? 'Analyzing note and generating review prompt...'
+          : 'Loading your notes...'}
+      </p>
     </div>
-
-    {#if reviewStore.error}
-      <div class="error-banner">
-        <p>{reviewStore.error}</p>
+  {:else if sessionState === 'transition'}
+    <!-- Brief transition between notes -->
+    <div class="transition-container">
+      <div class="progress-bar">
+        <div
+          class="progress-fill"
+          style="width: {(currentNoteIndex / totalNotes) * 100}%"
+        ></div>
       </div>
+      <p>Note {currentNoteIndex} of {totalNotes}</p>
+    </div>
+  {:else if sessionState === 'prompting'}
+    <!-- Review prompt and response -->
+    {#if currentNote}
+      <ReviewPrompt
+        noteTitle={currentNote.title}
+        currentIndex={currentNoteIndex}
+        {totalNotes}
+        prompt={currentPrompt}
+        {userResponse}
+        onResponseChange={(value) => (userResponse = value)}
+        onSubmit={submitResponse}
+        onShowNote={toggleNoteDrawer}
+        onSkip={skipNote}
+        onEndSession={endSession}
+        isSubmitting={isAnalyzingResponse}
+      />
     {/if}
+  {:else if sessionState === 'feedback'}
+    <!-- Agent feedback and pass/fail -->
+    {#if currentNote && agentFeedback}
+      <ReviewFeedback
+        prompt={currentPrompt}
+        {userResponse}
+        feedback={agentFeedback.feedback}
+        onPass={() => markPassFail(true)}
+        onFail={() => markPassFail(false)}
+        isProcessing={isCompletingReview}
+      />
+    {/if}
+  {:else if sessionState === 'complete'}
+    <!-- Session summary -->
+    <ReviewSessionSummaryComponent
+      summary={sessionSummary}
+      onBackToDashboard={backToDashboard}
+    />
+  {/if}
 
-    <!-- Review Statistics -->
-    <div class="review-stats">
-      <div class="stat-card">
-        <div class="stat-value">{reviewStore.stats.dueToday}</div>
-        <div class="stat-label">Due Today</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-value">{reviewStore.stats.dueThisWeek}</div>
-        <div class="stat-label">Due This Week</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-value">{reviewStore.stats.totalEnabled}</div>
-        <div class="stat-label">Total in Review</div>
-      </div>
-    </div>
-
-    <!-- Notes due for review -->
-    <div class="review-queue">
-      <h2>{reviewStore.showAllNotes ? 'All Review Notes' : 'Notes Due Today'}</h2>
-
-      {#if reviewStore.isLoadingNotes}
-        <div class="loading-state">
-          <p>Loading notes...</p>
-        </div>
-      {:else if reviewStore.notesForReview.length === 0}
-        <div class="empty-state">
-          {#if reviewStore.showAllNotes}
-            <p>📚 No notes in review system</p>
-            <p class="empty-state-subtitle">
-              Enable review on notes by clicking the review button when editing them.
-            </p>
-          {:else}
-            <p>🎉 No notes due for review today!</p>
-            <p class="empty-state-subtitle">
-              Great job staying on top of your reviews. Check back tomorrow or add more
-              notes to your review system.
-            </p>
-          {/if}
-        </div>
-      {:else}
-        <div class="notes-list">
-          {#each reviewStore.notesForReview as note (note.id)}
-            <button class="note-item" onclick={() => handleStartReview(note)}>
-              <div class="note-info">
-                <div class="note-title">{note.title}</div>
-                <div class="note-meta">
-                  {#if note.reviewCount === 0}
-                    <span class="badge new">First Review</span>
-                  {:else}
-                    <span class="badge">Reviewed {note.reviewCount} times</span>
-                  {/if}
-                </div>
-              </div>
-            </button>
-          {/each}
-        </div>
-
-        <div class="review-actions">
-          <p class="review-hint">
-            Click on a note to start reviewing it with the AI Assistant. The AI will guide
-            you through an interactive review session with personalized prompts.
-          </p>
-        </div>
-      {/if}
-    </div>
-  </div>
+  <!-- Note content drawer (available during prompting state) -->
+  {#if currentNote}
+    <NoteContentDrawer
+      isOpen={isNoteDrawerOpen}
+      noteTitle={currentNote.title}
+      noteContent={currentNote.content || ''}
+      onClose={toggleNoteDrawer}
+    />
+  {/if}
 </div>
 
 <style>
@@ -130,177 +357,53 @@
     height: 100%;
     display: flex;
     flex-direction: column;
+    overflow-y: auto;
+    background: var(--color-background-primary);
+  }
+
+  .loading-container,
+  .transition-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 1rem;
+    padding: 2rem;
+  }
+
+  .loading-spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid var(--color-border);
+    border-top-color: var(--color-accent);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .loading-container p,
+  .transition-container p {
+    color: var(--color-text-secondary);
+    font-size: 1rem;
+  }
+
+  .progress-bar {
+    width: 300px;
+    height: 8px;
+    background: var(--color-background-secondary);
+    border-radius: 4px;
     overflow: hidden;
   }
 
-  .review-dashboard {
+  .progress-fill {
     height: 100%;
-    padding: 2rem;
-    overflow-y: auto;
-  }
-
-  .review-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 2rem;
-  }
-
-  .review-header h1 {
-    margin: 0;
-    font-size: 1.75rem;
-    font-weight: 600;
-    color: var(--color-text);
-  }
-
-  .header-buttons {
-    display: flex;
-    gap: 0.5rem;
-  }
-
-  .refresh-button,
-  .toggle-button {
-    padding: 0.5rem 1rem;
-    border-radius: 0.5rem;
-    border: 1px solid var(--color-border);
-    background: var(--color-background-secondary);
-    color: var(--color-text);
-    font-size: 0.875rem;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .refresh-button:hover,
-  .toggle-button:hover {
-    background: var(--color-background-hover);
-  }
-
-  .error-banner {
-    margin-bottom: 1rem;
-    padding: 1rem;
-    border-radius: 0.5rem;
-    background: var(--color-error-background, #fee);
-    border: 1px solid var(--color-error-border, #fcc);
-    color: var(--color-error-text, #c00);
-  }
-
-  .review-stats {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1rem;
-    margin-bottom: 2rem;
-  }
-
-  .stat-card {
-    padding: 1.5rem;
-    border-radius: 0.75rem;
-    background: var(--color-background-secondary);
-    border: 1px solid var(--color-border);
-    text-align: center;
-  }
-
-  .stat-value {
-    font-size: 2.5rem;
-    font-weight: 700;
-    color: var(--color-primary);
-    margin-bottom: 0.5rem;
-  }
-
-  .stat-label {
-    font-size: 0.875rem;
-    color: var(--color-text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  .review-queue h2 {
-    font-size: 1.25rem;
-    font-weight: 600;
-    margin-bottom: 1rem;
-    color: var(--color-text);
-  }
-
-  .empty-state {
-    text-align: center;
-    padding: 3rem 1rem;
-    color: var(--color-text-secondary);
-  }
-
-  .empty-state p:first-child {
-    font-size: 1.5rem;
-    margin-bottom: 0.5rem;
-  }
-
-  .empty-state-subtitle {
-    font-size: 0.875rem;
-    max-width: 500px;
-    margin: 0 auto;
-  }
-
-  .notes-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    margin-bottom: 1.5rem;
-  }
-
-  .note-item {
-    width: 100%;
-    padding: 1rem;
-    border-radius: 0.5rem;
-    background: var(--color-background-secondary);
-    border: 1px solid var(--color-border);
-    transition: all 0.2s;
-    cursor: pointer;
-    text-align: left;
-  }
-
-  .note-item:hover {
-    border-color: var(--color-primary);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    transform: translateY(-1px);
-  }
-
-  .note-item:active {
-    transform: translateY(0);
-  }
-
-  .note-info {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .note-title {
-    font-size: 1rem;
-    font-weight: 500;
-    color: var(--color-text);
-  }
-
-  .note-meta {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-  }
-
-  .badge {
-    display: inline-block;
-    padding: 0.25rem 0.75rem;
-    border-radius: 1rem;
-    font-size: 0.75rem;
-    background: var(--color-background-tertiary);
-    color: var(--color-text-secondary);
-  }
-
-  .badge.new {
-    background: var(--color-primary-faded, #e3f2fd);
-    color: var(--color-primary);
-    font-weight: 500;
-  }
-
-  .review-actions {
-    display: flex;
-    justify-content: center;
-    padding: 1.5rem 0;
+    background: var(--color-accent);
+    transition: width 0.3s ease-out;
   }
 </style>

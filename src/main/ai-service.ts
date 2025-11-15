@@ -1885,4 +1885,313 @@ Return ONLY a valid JSON array with no additional text or markdown formatting.`;
       throw error;
     }
   }
+
+  /**
+   * Generate a review prompt for a specific note
+   * Uses the review agent with tools to create a contextual review challenge
+   */
+  async generateReviewPrompt(
+    noteId: string
+  ): Promise<{ prompt: string; error?: string }> {
+    logger.info('generateReviewPrompt called', { noteId });
+
+    try {
+      if (!this.noteService) {
+        throw new Error('Note service not available');
+      }
+
+      const flintApi = this.noteService.getFlintNoteApi();
+      const currentVault = await this.noteService.getCurrentVault();
+      if (!currentVault) {
+        throw new Error('No active vault');
+      }
+
+      // Get the note content
+      const note = await flintApi.getNote(currentVault.id, noteId);
+      logger.info('Retrieved note for review prompt generation', {
+        noteId,
+        noteTitle: note.title,
+        contentLength: note.content?.length || 0
+      });
+
+      // Build minimal context - agent will fetch full content via tools to avoid context window issues
+      const noteContext = `# Note to Review
+
+Title: ${note.title}
+ID: ${note.id}
+Type: ${note.type}
+
+The note has ${note.content?.length || 0} characters of content. Use the get_note_full tool to retrieve the full content.`;
+
+      // Use review tools to allow agent to fetch additional context
+      const tools = this.toolService.getReviewTools();
+
+      // Ask the agent to generate a review prompt using streamText for proper tool handling
+      // Use a minimal system prompt to avoid context window issues
+      const minimalSystemPrompt = `You generate review prompts for notes.
+
+After using get_note_full to read the note, create a challenging question that tests understanding.
+
+You can include thinking/context before the question if helpful, but MUST wrap your final question in <question> tags.
+
+Example output:
+I'll examine the note about elaborative encoding and create a question connecting it to programming.
+
+<question>
+How would you apply the concept of elaborative encoding to improve retention when learning a new programming language?
+</question>
+
+The <question> tags are REQUIRED.`;
+
+      const userMessage =
+        noteContext +
+        '\n\nUse get_note_full to read the note content, explore connections with other tools if helpful, then output a review prompt question.';
+
+      // Log request details before sending
+      logger.info('Review prompt generation - request details', {
+        noteId,
+        systemPromptLength: minimalSystemPrompt.length,
+        userMessageLength: userMessage.length,
+        toolCount: tools ? Object.keys(tools).length : 0,
+        toolNames: tools ? Object.keys(tools) : [],
+        toolDefinitionsSize: tools ? JSON.stringify(tools).length : 0
+      });
+
+      const result = streamText({
+        model: this.openrouter(this.currentModelName),
+        messages: [
+          {
+            role: 'system',
+            content: minimalSystemPrompt
+          },
+          {
+            role: 'user',
+            content: userMessage
+          }
+        ],
+        tools,
+        stopWhen: stepCountIs(10), // Allow up to 10 steps for tool calling
+        abortSignal: AbortSignal.timeout(30000) // 30 second timeout for tool calls
+      });
+
+      // Collect the final text from the stream
+      let fullText = '';
+      for await (const chunk of result.textStream) {
+        fullText += chunk;
+      }
+
+      // Wait for completion to get metadata
+      const finalResult = await result;
+
+      // Log the raw response from the agent
+      logger.info('Review prompt generation - raw response', {
+        noteId,
+        rawText: fullText,
+        textLength: fullText.length,
+        finishReason: finalResult.finishReason,
+        usage: finalResult.usage
+      });
+
+      // Extract the question from <question> tags
+      let prompt = fullText.trim();
+
+      // Try to extract content from <question> tags
+      const questionMatch = prompt.match(/<question>\s*([\s\S]*?)\s*<\/question>/i);
+      if (questionMatch) {
+        prompt = questionMatch[1].trim();
+        logger.info('Extracted question from tags', {
+          noteId,
+          originalLength: fullText.length,
+          extractedLength: prompt.length
+        });
+      } else {
+        logger.warn('No <question> tags found in response, using full text', {
+          noteId,
+          responsePreview: fullText.substring(0, 200)
+        });
+      }
+
+      logger.info('Review prompt generation - final result', {
+        noteId,
+        finalPrompt: prompt,
+        promptLength: prompt.length
+      });
+
+      return { prompt: prompt.trim() };
+    } catch (error) {
+      logger.error('Failed to generate review prompt', { error, noteId });
+
+      // Provide a fallback simple prompt if agent fails
+      const fallbackPrompt =
+        'Explain the main concepts in this note in your own words. What are the key ideas and how do they relate to each other?';
+
+      return {
+        prompt: fallbackPrompt,
+        error: 'Agent timed out or failed, using simple fallback prompt'
+      };
+    }
+  }
+
+  /**
+   * Analyze a user's review response and provide feedback
+   * Uses the review agent to evaluate understanding and suggest connections
+   */
+  async analyzeReviewResponse(
+    noteId: string,
+    prompt: string,
+    userResponse: string
+  ): Promise<{ feedback: string; suggestedLinks?: string[]; error?: string }> {
+    logger.info('analyzeReviewResponse called', {
+      noteId,
+      promptLength: prompt.length,
+      userResponseLength: userResponse.length
+    });
+
+    try {
+      if (!this.noteService) {
+        throw new Error('Note service not available');
+      }
+
+      const flintApi = this.noteService.getFlintNoteApi();
+      const currentVault = await this.noteService.getCurrentVault();
+      if (!currentVault) {
+        throw new Error('No active vault');
+      }
+
+      // Get the note content for context
+      const note = await flintApi.getNote(currentVault.id, noteId);
+      logger.info('Retrieved note for feedback generation', {
+        noteId,
+        noteTitle: note.title
+      });
+
+      // Build minimal context - agent will fetch full content via tools to avoid context window issues
+      const noteContext = `# Note Being Reviewed
+
+Title: ${note.title}
+ID: ${note.id}
+
+The note has ${note.content?.length || 0} characters. Use get_note_full if you need the full content.
+
+---
+
+# Review Prompt That Was Asked
+
+${prompt}
+
+---
+
+# User's Response
+
+${userResponse}`;
+
+      // Use review tools to allow agent to suggest connections
+      const tools = this.toolService.getReviewTools();
+
+      // Ask the agent to analyze the response using streamText for proper tool handling
+      // Use a minimal system prompt to avoid context window issues
+      const minimalFeedbackPrompt = `Analyze a user's review response.
+
+You can include thinking before your feedback if helpful, but MUST wrap your final feedback in <feedback> tags.
+
+Your feedback should:
+1. Acknowledge what they got right
+2. Point out gaps or areas to expand
+3. Suggest connections to other notes (use [[note-id]] wikilinks)
+4. Be encouraging and supportive
+
+Example output:
+I'll analyze their understanding of the concept...
+
+<feedback>
+Great explanation! You correctly identified the key mechanism. To deepen your understanding, consider how this connects to [[related-concept]]. Could you explore the implications for real-world applications?
+</feedback>
+
+The <feedback> tags are REQUIRED.`;
+
+      const result = streamText({
+        model: this.openrouter(this.currentModelName),
+        messages: [
+          {
+            role: 'system',
+            content: minimalFeedbackPrompt
+          },
+          {
+            role: 'user',
+            content: noteContext
+          }
+        ],
+        tools,
+        stopWhen: stepCountIs(10), // Allow up to 10 steps for tool calling
+        abortSignal: AbortSignal.timeout(30000) // 30 second timeout for tool calls
+      });
+
+      // Collect the final text from the stream
+      let fullText = '';
+      for await (const chunk of result.textStream) {
+        fullText += chunk;
+      }
+
+      // Wait for completion to get metadata
+      const finalResult = await result;
+
+      // Log the raw response
+      logger.info('Review feedback - raw response', {
+        noteId,
+        rawText: fullText,
+        textLength: fullText.length,
+        finishReason: finalResult.finishReason,
+        usage: finalResult.usage
+      });
+
+      // Extract the feedback from <feedback> tags
+      let feedback = fullText.trim();
+
+      // Try to extract content from <feedback> tags
+      const feedbackMatch = feedback.match(/<feedback>\s*([\s\S]*?)\s*<\/feedback>/i);
+      if (feedbackMatch) {
+        feedback = feedbackMatch[1].trim();
+        logger.info('Extracted feedback from tags', {
+          noteId,
+          originalLength: fullText.length,
+          extractedLength: feedback.length
+        });
+      } else {
+        logger.warn('No <feedback> tags found in response, using full text', {
+          noteId,
+          responsePreview: fullText.substring(0, 200)
+        });
+      }
+
+      // Extract wikilinks from the feedback to identify suggested links
+      const wikilinkPattern = /\[\[([^\]]+)\]\]/g;
+      const suggestedLinks: string[] = [];
+      let match;
+      while ((match = wikilinkPattern.exec(feedback)) !== null) {
+        suggestedLinks.push(match[1]);
+      }
+
+      logger.info('Review feedback - final result', {
+        noteId,
+        feedbackLength: feedback.length,
+        suggestedLinksCount: suggestedLinks.length
+      });
+
+      return {
+        feedback: feedback.trim(),
+        suggestedLinks: suggestedLinks.length > 0 ? suggestedLinks : undefined
+      };
+    } catch (error) {
+      logger.error('Failed to analyze review response', { error, noteId });
+
+      // Provide fallback feedback if agent fails
+      const fallbackFeedback =
+        'Thank you for your response. Your explanation shows engagement with the material. Consider reviewing the note content to deepen your understanding.';
+
+      return {
+        feedback: fallbackFeedback,
+        error: 'Agent timed out or failed, using simple fallback feedback'
+      };
+    }
+  }
 }

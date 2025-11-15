@@ -218,6 +218,28 @@ declare global {
           };
         }>
       >;
+      generateReviewPrompt: (noteId: string) => Promise<{
+        success: boolean;
+        prompt?: string;
+        error?: string;
+      }>;
+      analyzeReviewResponse: (params: {
+        noteId: string;
+        prompt: string;
+        userResponse: string;
+      }) => Promise<{
+        success: boolean;
+        feedback?: {
+          feedback: string;
+          suggestedLinks?: string[];
+        };
+        error?: string;
+      }>;
+      completeReview: (params: {
+        noteId: string;
+        passed: boolean;
+        userResponse?: string;
+      }) => Promise<{ success: boolean }>;
       // FileWriteQueue now handles all internal write tracking
 
       // Search operations

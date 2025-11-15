@@ -1159,6 +1159,99 @@ app.whenReady().then(async () => {
     return await flintApi.getNotesForReview({ date, vaultId: vault.id });
   });
 
+  ipcMain.handle('generate-review-prompt', async (_event, noteId: string) => {
+    if (!aiService) {
+      throw new Error('AI service not available');
+    }
+    try {
+      // Ensure API key is loaded before attempting to generate
+      const apiKeyLoaded = await aiService.ensureApiKeyLoaded(secureStorageService);
+      if (!apiKeyLoaded) {
+        return {
+          success: false,
+          error: 'API key not configured',
+          prompt: 'Explain the main concepts in this note in your own words.'
+        };
+      }
+
+      const result = await aiService.generateReviewPrompt(noteId);
+      return { success: true, ...result };
+    } catch (error) {
+      logger.error('Failed to generate review prompt', { error, noteId });
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        prompt: 'Explain the main concepts in this note in your own words.'
+      };
+    }
+  });
+
+  ipcMain.handle(
+    'analyze-review-response',
+    async (_event, params: { noteId: string; prompt: string; userResponse: string }) => {
+      if (!aiService) {
+        throw new Error('AI service not available');
+      }
+      try {
+        // Ensure API key is loaded before attempting to analyze
+        const apiKeyLoaded = await aiService.ensureApiKeyLoaded(secureStorageService);
+        if (!apiKeyLoaded) {
+          return {
+            success: false,
+            error: 'API key not configured',
+            feedback: {
+              feedback: 'Thank you for your response.',
+              error: 'Analysis failed - API key not configured'
+            }
+          };
+        }
+
+        const result = await aiService.analyzeReviewResponse(
+          params.noteId,
+          params.prompt,
+          params.userResponse
+        );
+        return { success: true, feedback: result };
+      } catch (error) {
+        logger.error('Failed to analyze review response', {
+          error,
+          noteId: params.noteId
+        });
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error',
+          feedback: {
+            feedback: 'Thank you for your response.',
+            error: 'Analysis failed'
+          }
+        };
+      }
+    }
+  );
+
+  ipcMain.handle(
+    'complete-review',
+    async (
+      _event,
+      params: { noteId: string; passed: boolean; userResponse?: string }
+    ) => {
+      if (!noteService) {
+        throw new Error('Note service not available');
+      }
+      const flintApi = noteService.getFlintNoteApi();
+      const vault = await noteService.getCurrentVault();
+      if (!vault) {
+        throw new Error('No active vault');
+      }
+      return await flintApi.completeReview({
+        noteId: params.noteId,
+        vaultId: vault.id,
+        passed: params.passed,
+        userResponse: params.userResponse
+      });
+    }
+  );
+
   // Vault operations
   ipcMain.handle('list-vaults', async () => {
     if (!noteService) {

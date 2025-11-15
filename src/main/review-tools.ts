@@ -223,10 +223,21 @@ export class ReviewTools {
           limit
         });
 
+        // Return only metadata to avoid bloating context
+        const noteSummaries = searchResults.map((note) => ({
+          id: note.id,
+          title: note.title,
+          type: note.type,
+          created: note.created,
+          modified: note.modified,
+          contentPreview:
+            typeof note.content === 'string' ? note.content.substring(0, 100) + '...' : ''
+        }));
+
         return {
           success: true,
-          notes: searchResults,
-          count: searchResults.length
+          notes: noteSummaries,
+          count: noteSummaries.length
         };
       } catch (error) {
         return {
@@ -302,10 +313,19 @@ export class ReviewTools {
           results = filteredNotes.filter((note) => searchIds.has(note.id));
         }
 
+        // Return only metadata to avoid bloating context
+        // Note: NoteListItem doesn't include content, only metadata
+        const dailySummaries = results.map((note) => ({
+          id: note.id,
+          title: note.title,
+          date: note.created.split('T')[0],
+          type: note.type
+        }));
+
         return {
           success: true,
-          dailyNotes: results,
-          count: results.length,
+          dailyNotes: dailySummaries,
+          count: dailySummaries.length,
           dateRange: {
             start: startDate.toISOString().split('T')[0],
             end: endDate.toISOString().split('T')[0]

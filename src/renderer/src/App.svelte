@@ -730,24 +730,6 @@
     }
   }
 
-  /**
-   * Start a review session for a note
-   * Opens the AI assistant and sends a message to start the review
-   */
-  function handleStartReview(noteId: string, _noteTitle: string): void {
-    // Close the system view
-    activeSystemView = null;
-
-    // Open the AI assistant if not already open
-    if (!sidebarState.rightSidebar.visible || sidebarState.rightSidebar.mode !== 'ai') {
-      setRightSidebarMode('ai');
-    }
-
-    // Send a message to start the review
-    const reviewMessage = `Review note: ${noteId}`;
-    handleSendMessage(reviewMessage);
-  }
-
   // Window control functions
   function minimizeWindow(): void {
     window.electron?.ipcRenderer.send('window-minimize');
@@ -1038,7 +1020,6 @@
         onClose={closeNoteEditor}
         onNoteSelect={handleNoteSelect}
         onCreateNote={handleCreateNote}
-        onStartReview={handleStartReview}
       />
 
       <RightSidebar

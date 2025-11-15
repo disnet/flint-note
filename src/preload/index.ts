@@ -266,6 +266,15 @@ const api = {
   getReviewStats: () => electronAPI.ipcRenderer.invoke('get-review-stats'),
   getNotesForReview: (date: string) =>
     electronAPI.ipcRenderer.invoke('get-notes-for-review', date),
+  generateReviewPrompt: (noteId: string) =>
+    electronAPI.ipcRenderer.invoke('generate-review-prompt', noteId),
+  analyzeReviewResponse: (params: {
+    noteId: string;
+    prompt: string;
+    userResponse: string;
+  }) => electronAPI.ipcRenderer.invoke('analyze-review-response', params),
+  completeReview: (params: { noteId: string; passed: boolean; userResponse?: string }) =>
+    electronAPI.ipcRenderer.invoke('complete-review', params),
 
   // Search operations
   searchNotes: (params: { query: string; vaultId?: string; limit?: number }) =>

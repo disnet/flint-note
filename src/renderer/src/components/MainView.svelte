@@ -30,17 +30,10 @@
     onClose: () => void;
     onNoteSelect: (note: NoteMetadata) => void;
     onCreateNote: (noteType?: string) => void;
-    onStartReview?: (noteId: string, noteTitle: string) => void;
   }
 
-  let {
-    activeNote,
-    activeSystemView,
-    onClose,
-    onNoteSelect,
-    onCreateNote,
-    onStartReview
-  }: Props = $props();
+  let { activeNote, activeSystemView, onClose, onNoteSelect, onCreateNote }: Props =
+    $props();
 
   let noteEditor = $state<{ focus?: () => void } | null>(null);
   let customView = $state<{ component: Component<NoteViewProps> } | null>(null);
@@ -213,7 +206,7 @@
   {:else if activeSystemView === 'review'}
     <div class="system-view-container">
       <div class="system-view-content">
-        <ReviewView {onStartReview} />
+        <ReviewView />
       </div>
     </div>
   {:else if activeNote}
