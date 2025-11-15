@@ -218,6 +218,17 @@ declare global {
           };
         }>
       >;
+      getAllReviewableNotes: () => Promise<
+        Array<{
+          id: string;
+          title: string;
+          content: string | null;
+          reviewItem: {
+            reviewCount: number;
+            nextReview: string;
+          };
+        }>
+      >;
       generateReviewPrompt: (noteId: string) => Promise<{
         success: boolean;
         prompt?: string;

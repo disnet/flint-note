@@ -1,5 +1,6 @@
 <script lang="ts">
-  import MessageComponent from './MessageComponent.svelte';
+  import ConversationContainer from './conversation/ConversationContainer.svelte';
+  import ConversationMessage from './conversation/ConversationMessage.svelte';
   import LoadingMessage from './LoadingMessage.svelte';
   import MessageInput from './MessageInput.svelte';
   import AgentControlBar from './AgentControlBar.svelte';
@@ -37,8 +38,6 @@
   }: Props = $props();
 
   let contextUsage = $state<ContextUsage | null>(null);
-
-  let chatContainer = $state<HTMLDivElement>();
 
   // Todo plan store
   const todoPlanStore = new TodoPlanStore();
@@ -159,153 +158,82 @@
     const message = `Execute routine: ${workflowId}`;
     onSendMessage?.(message);
   }
-
-  $effect(() => {
-    if (chatContainer && (messages.length > 0 || isLoading)) {
-      // Use requestAnimationFrame to ensure layout is complete
-      requestAnimationFrame(() => {
-        if (chatContainer) {
-          chatContainer.scrollTop = chatContainer.scrollHeight;
-        }
-      });
-    }
-  });
-
-  // Additional effect to handle scrolling during message streaming
-  $effect(() => {
-    if (chatContainer && messages.length > 0) {
-      // Scroll to bottom when message text changes (streaming)
-      requestAnimationFrame(() => {
-        if (chatContainer) {
-          chatContainer.scrollTop = chatContainer.scrollHeight;
-        }
-      });
-    }
-  });
 </script>
 
-<div class="ai-assistant">
-  <!-- Agent Control Bar -->
-  <AgentControlBar />
+<ConversationContainer autoScroll={true}>
+  {#snippet header()}
+    <!-- Agent Control Bar -->
+    <AgentControlBar />
 
-  <!-- Todo Plan Widget -->
-  {#if todoPlanStore.activePlan}
-    <div class="todo-plan-section">
-      <TodoPlanWidget plan={todoPlanStore.activePlan} />
-    </div>
-  {/if}
-
-  <!-- Removed header section as requested -->
-  <!-- Task Management Section -->
-  <!-- {#if tasks.length > 0}
-    <div class="tasks-section">
-      <h4 class="section-title">Tasks</h4>
-      <div class="task-list">
-        {#each tasks as task (task.id)}
-          <div class="task-item" class:completed={task.status === 'completed'}>
-            <button
-              class="task-header"
-              onclick={() => toggleTask(task.id)}
-              aria-expanded={expandedTasks.has(task.id)}
-            >
-              <span class="task-icon" class:completed={task.status === 'completed'}>
-                {getTaskIcon(task.status)}
-              </span>
-              <span class="task-title">{task.title}</span>
-              <span class="expand-icon" class:expanded={expandedTasks.has(task.id)}>
-                ▼
-              </span>
-            </button>
-            {#if expandedTasks.has(task.id) && task.description}
-              <div class="task-details">
-                <pre class="task-description">{task.description}</pre>
-                {#if task.relatedNotes && task.relatedNotes.length > 0}
-                  <div class="task-notes">
-                    {#each task.relatedNotes as note (note)}
-                      {@const parsed = parseNoteDisplay(note)}
-                      <button
-                        class="note-link"
-                        onclick={() => onNoteClick?.(parsed.identifier)}
-                      >
-                        {parsed.displayName}
-                      </button>
-                    {/each}
-                  </div>
-                {/if}
-              </div>
-            {/if}
-          </div>
-        {/each}
+    <!-- Todo Plan Widget -->
+    {#if todoPlanStore.activePlan}
+      <div class="todo-plan-section">
+        <TodoPlanWidget plan={todoPlanStore.activePlan} />
       </div>
-    </div>
-  {/if} -->
-
-  <!-- Chat Messages Section -->
-  <div class="chat-section" bind:this={chatContainer}>
-    {#if messages.length === 0 && !isLoading}
-      <!-- Show workflow panel when starting a fresh conversation -->
-      <ConversationStartWorkflowPanel
-        onExecuteWorkflow={handleExecuteWorkflow}
-        onViewAll={onViewWorkflows}
-        {onSendMessage}
-      />
     {/if}
-    {#each messages as message (message.id)}
-      <MessageComponent {message} {onNoteClick} />
-    {/each}
-    {#if isLoading}
-      <LoadingMessage />
-    {/if}
-  </div>
+  {/snippet}
 
-  <!-- Tool Call Limit Widget -->
-  {#if toolCallLimitReached}
-    <div class="tool-call-limit-section">
-      <ToolCallLimitWidget
-        stepCount={toolCallLimitReached.stepCount}
-        maxSteps={toolCallLimitReached.maxSteps}
-        onContinue={onToolCallLimitContinue || (() => {})}
-        onStop={onToolCallLimitStop || (() => {})}
+  {#snippet content()}
+    <div class="chat-messages">
+      {#if messages.length === 0 && !isLoading}
+        <!-- Show workflow panel when starting a fresh conversation -->
+        <ConversationStartWorkflowPanel
+          onExecuteWorkflow={handleExecuteWorkflow}
+          onViewAll={onViewWorkflows}
+          {onSendMessage}
+        />
+      {/if}
+      {#each messages as message (message.id)}
+        <ConversationMessage
+          content={message.text}
+          role={message.sender}
+          variant="bubble"
+          toolCalls={message.toolCalls}
+          currentStepIndex={message.currentStepIndex}
+          {onNoteClick}
+        />
+      {/each}
+      {#if isLoading}
+        <LoadingMessage />
+      {/if}
+    </div>
+  {/snippet}
+
+  {#snippet controls()}
+    <!-- Tool Call Limit Widget -->
+    {#if toolCallLimitReached}
+      <div class="tool-call-limit-section">
+        <ToolCallLimitWidget
+          stepCount={toolCallLimitReached.stepCount}
+          maxSteps={toolCallLimitReached.maxSteps}
+          onContinue={onToolCallLimitContinue || (() => {})}
+          onStop={onToolCallLimitStop || (() => {})}
+        />
+      </div>
+    {/if}
+
+    <!-- Message Input Area -->
+    <div class="input-section">
+      <MessageInput
+        onSend={onSendMessage || (() => {})}
+        {contextUsage}
+        onStartNewThread={handleContextWarningClick}
+        {isLoading}
+        onCancel={onCancelMessage}
+        bind:refreshCredits
       />
     </div>
-  {/if}
-
-  <!-- Message Input Area -->
-  <div class="input-section">
-    <MessageInput
-      onSend={onSendMessage || (() => {})}
-      {contextUsage}
-      onStartNewThread={handleContextWarningClick}
-      {isLoading}
-      onCancel={onCancelMessage}
-      bind:refreshCredits
-    />
-  </div>
-</div>
+  {/snippet}
+</ConversationContainer>
 
 <style>
-  .ai-assistant {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    max-height: 100%;
-    min-height: 0; /* Important for flexbox children to respect parent height */
-    overflow: hidden;
-  }
-
   /* Todo Plan Section */
   .todo-plan-section {
     padding: 0 1.25rem;
-    flex-shrink: 0;
   }
 
-  /* Chat Section Styles */
-  .chat-section {
-    flex: 1;
-    min-height: 0; /* Important for flex item to scroll properly */
-    max-height: 100%; /* Force height constraint */
-    overflow-y: auto;
-    overflow-x: hidden;
+  /* Chat Messages */
+  .chat-messages {
     padding: 1rem 1.25rem;
     display: flex;
     flex-direction: column;
@@ -315,25 +243,6 @@
   /* Tool Call Limit Section */
   .tool-call-limit-section {
     padding: 0 1.25rem 1rem;
-    flex-shrink: 0;
-  }
-
-  .chat-section::-webkit-scrollbar {
-    width: 8px;
-  }
-
-  .chat-section::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  .chat-section::-webkit-scrollbar-thumb {
-    background: var(--scrollbar-thumb);
-    border-radius: 4px;
-    transition: background-color 0.2s ease;
-  }
-
-  .chat-section::-webkit-scrollbar-thumb:hover {
-    background: var(--scrollbar-thumb-hover);
   }
 
   /* Input Section Styles */
