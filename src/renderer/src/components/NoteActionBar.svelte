@@ -6,11 +6,15 @@
     previewMode: boolean;
     reviewEnabled?: boolean;
     isLoadingReview?: boolean;
+    suggestionsEnabled?: boolean;
+    hasSuggestions?: boolean;
+    isGeneratingSuggestions?: boolean;
     onPinToggle: () => Promise<void>;
     onMetadataToggle: () => void;
     onAddToSidebar: () => Promise<void>;
     onPreviewToggle: () => void;
     onReviewToggle?: () => Promise<void>;
+    onGenerateSuggestions?: () => Promise<void>;
   }
 
   let {
@@ -20,11 +24,15 @@
     previewMode,
     reviewEnabled = false,
     isLoadingReview = false,
+    suggestionsEnabled = false,
+    hasSuggestions = false,
+    isGeneratingSuggestions = false,
     onPinToggle,
     onMetadataToggle,
     onAddToSidebar,
     onPreviewToggle,
-    onReviewToggle
+    onReviewToggle,
+    onGenerateSuggestions
   }: Props = $props();
 </script>
 
@@ -82,6 +90,21 @@
         : reviewEnabled
           ? '🔁 Review Enabled'
           : '🔁 Enable Review'}
+    </button>
+  {/if}
+  {#if suggestionsEnabled && onGenerateSuggestions}
+    <button
+      class="action-button"
+      onclick={onGenerateSuggestions}
+      type="button"
+      title={hasSuggestions ? 'Regenerate suggestions' : 'Generate suggestions'}
+      disabled={isGeneratingSuggestions}
+    >
+      {isGeneratingSuggestions
+        ? '⏳ Generating...'
+        : hasSuggestions
+          ? '💡 Regenerate Suggestions'
+          : '💡 Generate Suggestions'}
     </button>
   {/if}
 </div>

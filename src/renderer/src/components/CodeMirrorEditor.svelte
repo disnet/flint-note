@@ -922,7 +922,13 @@
 
   // Update suggestions in the editor when they change
   $effect(() => {
+    console.log('CodeMirrorEditor: suggestions effect triggered', {
+      editorView: !!editorView,
+      suggestions,
+      suggestionsLength: suggestions?.length
+    });
     if (editorView && suggestions) {
+      console.log('CodeMirrorEditor: dispatching updateSuggestionsEffect');
       editorView.dispatch({
         effects: updateSuggestionsEffect.of(suggestions)
       });

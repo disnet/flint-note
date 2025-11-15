@@ -75,11 +75,18 @@ class CommentMarkersPlugin implements PluginValue {
     this.updateMarkers(view);
   }
 
-  update(update: ViewUpdate) {
+  update(update: ViewUpdate): void {
     // Update markers if suggestions changed, document changed, or viewport changed
     const stateChanged = update.transactions.some((tr) =>
       tr.effects.some((e) => e.is(updateSuggestionsEffect) || e.is(setExpandedEffect))
     );
+
+    console.log('CommentMarkerPlugin: update', {
+      stateChanged,
+      docChanged: update.docChanged,
+      viewportChanged: update.viewportChanged,
+      geometryChanged: update.geometryChanged
+    });
 
     if (
       stateChanged ||
@@ -87,6 +94,7 @@ class CommentMarkersPlugin implements PluginValue {
       update.viewportChanged ||
       update.geometryChanged
     ) {
+      console.log('CommentMarkerPlugin: requesting measure');
       // Use requestMeasure to properly separate read and write phases
       update.view.requestMeasure({
         read: (view) => this.readMarkerPositions(view),
@@ -95,9 +103,19 @@ class CommentMarkersPlugin implements PluginValue {
     }
   }
 
-  readMarkerPositions(view: EditorView) {
+  readMarkerPositions(view: EditorView): Array<{
+    lineNumber: number;
+    suggestions: NoteSuggestion[];
+    priority: 'high' | 'medium' | 'low';
+    isExpanded: boolean;
+    top: number;
+  }> {
     const state = view.state.field(commentStateField);
     const { suggestions, expanded } = state;
+    console.log('CommentMarkerPlugin: readMarkerPositions', {
+      suggestionsCount: suggestions.length,
+      suggestions
+    });
 
     // Group suggestions by line number
     const suggestionsByLine = new Map<number, NoteSuggestion[]>();
@@ -157,7 +175,11 @@ class CommentMarkersPlugin implements PluginValue {
       isExpanded: boolean;
       top: number;
     }>
-  ) {
+  ): void {
+    console.log('CommentMarkerPlugin: writeMarkers', {
+      positionsCount: positions.length,
+      positions
+    });
     // Clear existing markers
     this.container.innerHTML = '';
 
@@ -198,12 +220,12 @@ class CommentMarkersPlugin implements PluginValue {
   }
 
   // Legacy method for initial render (when not in a transaction)
-  updateMarkers(view: EditorView) {
+  updateMarkers(view: EditorView): void {
     const positions = this.readMarkerPositions(view);
     this.writeMarkers(positions);
   }
 
-  destroy() {
+  destroy(): void {
     this.container.remove();
   }
 }

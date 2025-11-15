@@ -50,6 +50,7 @@
   let suggestions = $state<NoteSuggestion[]>([]);
   let expandedSuggestions = $state<Set<string>>(new Set());
   let isGeneratingSuggestions = $state(false);
+  let suggestionsEnabled = $state(false);
 
   const cursorManager = new CursorPositionManager();
 
@@ -143,17 +144,27 @@
       const noteService = getChatService();
 
       if (await noteService.isReady()) {
-        // Load full note data and cursor position
-        const [noteResult, cursorPosition] = await Promise.all([
+        // Load full note data, cursor position, and note type info
+        const [noteResult, cursorPosition, noteTypeInfo] = await Promise.all([
           noteService.getNote({ identifier: note.id }),
-          cursorManager.getCursorPosition(note.id)
+          cursorManager.getCursorPosition(note.id),
+          window.api?.getNoteTypeInfo({ typeName: note.type })
         ]);
 
         noteData = noteResult;
         pendingCursorPosition = cursorPosition;
 
-        // Load suggestions for this note
-        await loadSuggestions(note.id);
+        // Check if suggestions are enabled for this note type
+        console.log('NoteEditor: noteTypeInfo:', noteTypeInfo);
+        console.log('NoteEditor: suggestions_config:', noteTypeInfo?.suggestions_config);
+        if (noteTypeInfo?.suggestions_config?.enabled) {
+          console.log('NoteEditor: suggestions enabled, loading...');
+          suggestionsEnabled = true;
+          await loadSuggestions(note.id);
+        } else {
+          console.log('NoteEditor: suggestions not enabled');
+          suggestionsEnabled = false;
+        }
       } else {
         throw new Error('Note service not ready');
       }
@@ -165,8 +176,10 @@
   async function loadSuggestions(noteId: string): Promise<void> {
     try {
       const result = await window.api?.getNoteSuggestions({ noteId });
+      console.log('NoteEditor: loadSuggestions result:', result);
       if (result) {
         suggestions = result.suggestions || [];
+        console.log('NoteEditor: loaded suggestions:', suggestions);
       } else {
         suggestions = [];
       }
@@ -209,25 +222,6 @@
       console.error('Error dismissing suggestion:', err);
     }
   }
-
-  function toggleShowAllSuggestions(): void {
-    if (expandedSuggestions.size > 0) {
-      // Hide all
-      expandedSuggestions = new Set();
-    } else {
-      // Show all
-      expandedSuggestions = new Set(suggestions.map((s) => s.id));
-    }
-  }
-
-  // Computed value for button text
-  const showAllButtonText = $derived.by(() => {
-    if (suggestions.length === 0) return '';
-    if (expandedSuggestions.size > 0) {
-      return 'Hide All Suggestions';
-    }
-    return `Show ${suggestions.length} Suggestion${suggestions.length > 1 ? 's' : ''}`;
-  });
 
   async function saveCurrentCursorPositionForNote(
     targetNote: NoteMetadata
@@ -544,11 +538,15 @@
       {previewMode}
       {reviewEnabled}
       {isLoadingReview}
+      {suggestionsEnabled}
+      hasSuggestions={suggestions.length > 0}
+      {isGeneratingSuggestions}
       onPinToggle={handlePinToggle}
       onAddToSidebar={handleAddToSidebar}
       onMetadataToggle={toggleMetadata}
       onPreviewToggle={togglePreview}
       onReviewToggle={handleReviewToggle}
+      onGenerateSuggestions={generateSuggestions}
     />
 
     <ErrorBanner error={doc.error} />
@@ -560,21 +558,6 @@
         onMetadataUpdate={handleMetadataUpdate}
       />
     </div>
-
-    {#if suggestions.length > 0 && !previewMode}
-      <div class="suggestions-controls">
-        <button class="show-all-button" onclick={toggleShowAllSuggestions}>
-          {showAllButtonText}
-        </button>
-        <button
-          class="regenerate-button"
-          onclick={generateSuggestions}
-          disabled={isGeneratingSuggestions}
-        >
-          {isGeneratingSuggestions ? 'Generating...' : 'Regenerate'}
-        </button>
-      </div>
-    {/if}
 
     {#if previewMode}
       <div class="preview-content">
@@ -620,52 +603,5 @@
   .preview-content {
     padding: 0.75rem;
     line-height: 1.6;
-  }
-
-  .suggestions-controls {
-    display: flex;
-    gap: 8px;
-    padding: 8px 0;
-    align-items: center;
-  }
-
-  .show-all-button,
-  .regenerate-button {
-    font-size: 12px;
-    font-weight: 500;
-    padding: 6px 12px;
-    border-radius: 4px;
-    border: 1px solid #d1d5db;
-    background: white;
-    color: #374151;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .show-all-button:hover,
-  .regenerate-button:hover {
-    background: #f9fafb;
-    border-color: #9ca3af;
-  }
-
-  .regenerate-button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  /* Dark mode */
-  @media (prefers-color-scheme: dark) {
-    .show-all-button,
-    .regenerate-button {
-      background: #1f2937;
-      border-color: #374151;
-      color: #e5e7eb;
-    }
-
-    .show-all-button:hover,
-    .regenerate-button:hover {
-      background: #374151;
-      border-color: #4b5563;
-    }
   }
 </style>
