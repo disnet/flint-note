@@ -11,7 +11,7 @@
   let { isOpen, noteTitle, noteContent, onClose }: Props = $props();
 
   // Handle escape key to close drawer
-  function handleKeyDown(event: KeyboardEvent) {
+  function handleKeyDown(event: KeyboardEvent): void {
     if (event.key === 'Escape' && isOpen) {
       onClose();
     }
@@ -74,7 +74,7 @@
   .drawer {
     width: 600px;
     max-width: 90vw;
-    background: var(--color-background-primary);
+    background: var(--bg-primary);
     box-shadow: -4px 0 24px rgba(0, 0, 0, 0.3);
     display: flex;
     flex-direction: column;
@@ -95,14 +95,14 @@
     align-items: center;
     justify-content: space-between;
     padding: 1.5rem;
-    border-bottom: 2px solid var(--color-border);
-    background: var(--color-background-secondary);
+    border-bottom: 2px solid var(--border);
+    background: var(--bg-secondary);
   }
 
   .drawer-header h3 {
     margin: 0;
     font-size: 1.25rem;
-    color: var(--color-text-primary);
+    color: var(--text-primary);
     flex: 1;
   }
 
@@ -110,7 +110,7 @@
     background: transparent;
     border: none;
     font-size: 1.5rem;
-    color: var(--color-text-secondary);
+    color: var(--text-secondary);
     cursor: pointer;
     padding: 0.25rem 0.5rem;
     border-radius: 4px;
@@ -119,15 +119,15 @@
   }
 
   .close-btn:hover {
-    background: var(--color-background-tertiary);
-    color: var(--color-text-primary);
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
   }
 
   .drawer-content {
     flex: 1;
     overflow-y: auto;
     padding: 2rem;
-    color: var(--color-text-primary);
+    color: var(--text-primary);
     line-height: 1.6;
   }
 
@@ -137,15 +137,15 @@
   }
 
   .drawer-content::-webkit-scrollbar-track {
-    background: var(--color-background-secondary);
+    background: var(--bg-secondary);
   }
 
   .drawer-content::-webkit-scrollbar-thumb {
-    background: var(--color-border);
+    background: var(--border);
     border-radius: 4px;
   }
 
   .drawer-content::-webkit-scrollbar-thumb:hover {
-    background: var(--color-text-tertiary);
+    background: var(--text-tertiary);
   }
 </style>

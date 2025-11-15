@@ -74,7 +74,7 @@
     <details class="session-details">
       <summary>View Session Details</summary>
       <div class="results-list">
-        {#each summary.results as result}
+        {#each summary.results as result (result.noteId)}
           <div
             class="result-item"
             class:passed={result.passed}
@@ -114,12 +114,12 @@
   .header h2 {
     margin: 0 0 0.5rem 0;
     font-size: 2rem;
-    color: var(--color-text-primary);
+    color: var(--text-primary);
   }
 
   .subtitle {
     margin: 0;
-    color: var(--color-text-secondary);
+    color: var(--text-secondary);
     font-size: 1rem;
   }
 
@@ -130,8 +130,8 @@
   }
 
   .stat-item {
-    background: var(--color-background-secondary);
-    border: 2px solid var(--color-border);
+    background: var(--bg-secondary);
+    border: 2px solid var(--border);
     border-radius: 8px;
     padding: 1.5rem;
     text-align: center;
@@ -143,43 +143,43 @@
   }
 
   .stat-item.success {
-    border-color: var(--color-success);
+    border-color: var(--success);
   }
 
   .stat-item.warning {
-    border-color: var(--color-warning);
+    border-color: var(--warning);
   }
 
   .stat-item.secondary {
-    border-color: var(--color-text-tertiary);
+    border-color: var(--text-tertiary);
   }
 
   .stat-value {
     font-size: 2rem;
     font-weight: 700;
-    color: var(--color-text-primary);
+    color: var(--text-primary);
     line-height: 1;
     margin-bottom: 0.5rem;
   }
 
   .stat-item.success .stat-value {
-    color: var(--color-success);
+    color: var(--success);
   }
 
   .stat-item.warning .stat-value {
-    color: var(--color-warning);
+    color: var(--warning);
   }
 
   .stat-label {
     font-size: 0.75rem;
-    color: var(--color-text-secondary);
+    color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
 
   .next-review {
-    background: var(--color-background-secondary);
-    border-left: 4px solid var(--color-warning);
+    background: var(--bg-secondary);
+    border-left: 4px solid var(--warning);
     padding: 1rem 1.5rem;
     border-radius: 4px;
     display: flex;
@@ -189,11 +189,11 @@
 
   .next-review-label {
     font-weight: 600;
-    color: var(--color-text-primary);
+    color: var(--text-primary);
   }
 
   .next-review-value {
-    color: var(--color-warning);
+    color: var(--warning);
     font-weight: 700;
     font-size: 1.125rem;
   }
@@ -204,8 +204,8 @@
   }
 
   .back-btn {
-    background: var(--color-accent);
-    color: white;
+    background: var(--accent-primary);
+    color: var(--bg-primary);
     border: none;
     border-radius: 8px;
     padding: 1rem 2rem;
@@ -216,28 +216,28 @@
   }
 
   .back-btn:hover {
-    background: var(--color-accent-hover);
+    background: var(--accent-hover);
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   }
 
   .session-details {
-    border: 1px solid var(--color-border);
+    border: 1px solid var(--border);
     border-radius: 8px;
     padding: 1rem;
-    background: var(--color-background-secondary);
+    background: var(--bg-secondary);
   }
 
   .session-details summary {
     cursor: pointer;
     font-weight: 600;
-    color: var(--color-text-primary);
+    color: var(--text-primary);
     padding: 0.5rem;
     user-select: none;
   }
 
   .session-details summary:hover {
-    color: var(--color-accent);
+    color: var(--accent-primary);
   }
 
   .results-list {
@@ -254,13 +254,13 @@
   }
 
   .result-item.passed {
-    background: rgba(0, 200, 100, 0.1);
-    border-left-color: var(--color-success);
+    background: var(--success-background, rgba(0, 200, 100, 0.1));
+    border-left-color: var(--success);
   }
 
   .result-item.failed {
-    background: rgba(255, 165, 0, 0.1);
-    border-left-color: var(--color-warning);
+    background: var(--warning-background, rgba(255, 165, 0, 0.1));
+    border-left-color: var(--warning);
   }
 
   .result-header {
@@ -275,21 +275,21 @@
   }
 
   .result-item.passed .result-icon {
-    color: var(--color-success);
+    color: var(--success);
   }
 
   .result-item.failed .result-icon {
-    color: var(--color-warning);
+    color: var(--warning);
   }
 
   .result-title {
     flex: 1;
-    color: var(--color-text-primary);
+    color: var(--text-primary);
     font-weight: 500;
   }
 
   .result-schedule {
     font-size: 0.875rem;
-    color: var(--color-text-secondary);
+    color: var(--text-secondary);
   }
 </style>

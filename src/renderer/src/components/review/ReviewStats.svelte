@@ -56,8 +56,8 @@
   }
 
   .stat-card {
-    background: var(--color-background-secondary);
-    border: 1px solid var(--color-border);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
     border-radius: 8px;
     padding: 1.5rem;
     text-align: center;
@@ -72,35 +72,35 @@
   }
 
   .stat-card.today {
-    border-left: 4px solid var(--color-accent);
+    border-left: 4px solid var(--accent-primary);
   }
 
   .stat-card.week {
-    border-left: 4px solid var(--color-accent-secondary);
+    border-left: 4px solid var(--accent-secondary);
   }
 
   .stat-card.total {
-    border-left: 4px solid var(--color-text-secondary);
+    border-left: 4px solid var(--text-secondary);
   }
 
   .stat-value {
     font-size: 2.5rem;
     font-weight: 700;
-    color: var(--color-text-primary);
+    color: var(--text-primary);
     line-height: 1;
     margin-bottom: 0.5rem;
   }
 
   .stat-label {
     font-size: 0.875rem;
-    color: var(--color-text-secondary);
+    color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
 
   .start-review-btn {
-    background: var(--color-accent);
-    color: white;
+    background: var(--accent-primary);
+    color: var(--bg-primary);
     border: none;
     border-radius: 8px;
     padding: 1rem 2rem;
@@ -113,7 +113,7 @@
   }
 
   .start-review-btn:hover {
-    background: var(--color-accent-hover);
+    background: var(--accent-hover);
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   }
@@ -125,19 +125,19 @@
   .no-reviews {
     text-align: center;
     padding: 2rem;
-    background: var(--color-background-secondary);
+    background: var(--bg-secondary);
     border-radius: 8px;
-    border: 1px dashed var(--color-border);
+    border: 1px dashed var(--border);
   }
 
   .no-reviews p {
     margin: 0.5rem 0;
     font-size: 1.125rem;
-    color: var(--color-text-primary);
+    color: var(--text-primary);
   }
 
   .upcoming {
     font-size: 0.875rem !important;
-    color: var(--color-text-secondary) !important;
+    color: var(--text-secondary) !important;
   }
 </style>

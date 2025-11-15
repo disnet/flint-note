@@ -1,5 +1,6 @@
 <script lang="ts">
   import MarkdownRenderer from '../MarkdownRenderer.svelte';
+  import CodeMirrorEditor from '../CodeMirrorEditor.svelte';
 
   interface Props {
     noteTitle: string;
@@ -29,10 +30,8 @@
     isSubmitting = false
   }: Props = $props();
 
-  let textareaRef: HTMLTextAreaElement;
-
   // Handle keyboard shortcuts
-  function handleKeyDown(event: KeyboardEvent) {
+  function handleKeyDown(event: KeyboardEvent): void {
     if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
       event.preventDefault();
       if (!isSubmitting && userResponse.trim()) {
@@ -44,11 +43,12 @@
     }
   }
 
-  // Auto-focus textarea when component mounts
+  // Set up keyboard listener
   $effect(() => {
-    if (textareaRef) {
-      textareaRef.focus();
-    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   });
 </script>
 
@@ -66,19 +66,19 @@
   </div>
 
   <div class="response-section">
-    <label for="response-textarea" class="response-label">Your Response:</label>
-    <textarea
-      id="response-textarea"
-      bind:this={textareaRef}
-      bind:value={userResponse}
-      oninput={(e) => onResponseChange((e.target as HTMLTextAreaElement).value)}
-      onkeydown={handleKeyDown}
-      placeholder="Type your explanation here..."
-      rows="8"
-      disabled={isSubmitting}
-    ></textarea>
+    <div class="response-label">Your Response:</div>
+    <div class="editor-wrapper">
+      <CodeMirrorEditor
+        content={userResponse}
+        onContentChange={onResponseChange}
+        placeholder="Type your explanation here... You can use [[wikilinks]] to reference other notes."
+        variant="default"
+        readOnly={isSubmitting}
+      />
+    </div>
     <div class="response-hint">
-      Tip: Press Cmd/Ctrl+Enter to submit · Escape to end session
+      Tip: Press Cmd/Ctrl+Enter to submit · Escape to end session · Use [[wikilinks]] to
+      link notes
     </div>
   </div>
 
@@ -119,33 +119,33 @@
     justify-content: space-between;
     align-items: center;
     padding-bottom: 1rem;
-    border-bottom: 2px solid var(--color-border);
+    border-bottom: 2px solid var(--border);
   }
 
   .header h2 {
     margin: 0;
     font-size: 1.5rem;
-    color: var(--color-text-primary);
+    color: var(--text-primary);
   }
 
   .progress {
     font-size: 0.875rem;
-    color: var(--color-text-secondary);
-    background: var(--color-background-secondary);
+    color: var(--text-secondary);
+    background: var(--bg-secondary);
     padding: 0.5rem 1rem;
     border-radius: 4px;
   }
 
   .prompt-section {
-    background: var(--color-background-secondary);
-    border-left: 4px solid var(--color-accent);
+    background: var(--bg-secondary);
+    border-left: 4px solid var(--accent-primary);
     padding: 1.5rem;
     border-radius: 4px;
   }
 
   .prompt-label {
     font-weight: 600;
-    color: var(--color-accent);
+    color: var(--accent-primary);
     margin-bottom: 1rem;
     text-transform: uppercase;
     font-size: 0.875rem;
@@ -153,7 +153,7 @@
   }
 
   .prompt-content {
-    color: var(--color-text-primary);
+    color: var(--text-primary);
     line-height: 1.6;
   }
 
@@ -165,38 +165,26 @@
 
   .response-label {
     font-weight: 600;
-    color: var(--color-text-primary);
+    color: var(--text-primary);
     font-size: 0.875rem;
   }
 
-  textarea {
-    width: 100%;
-    padding: 1rem;
-    border: 2px solid var(--color-border);
+  .editor-wrapper {
+    border: 2px solid var(--border);
     border-radius: 4px;
-    background: var(--color-background-primary);
-    color: var(--color-text-primary);
-    font-family: inherit;
-    font-size: 1rem;
-    line-height: 1.6;
-    resize: vertical;
-    min-height: 150px;
+    min-height: 200px;
+    max-height: 400px;
+    overflow: auto;
     transition: border-color 0.2s;
   }
 
-  textarea:focus {
-    outline: none;
-    border-color: var(--color-accent);
-  }
-
-  textarea:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
+  .editor-wrapper:focus-within {
+    border-color: var(--accent-primary);
   }
 
   .response-hint {
     font-size: 0.75rem;
-    color: var(--color-text-tertiary);
+    color: var(--text-tertiary);
     font-style: italic;
   }
 
@@ -206,7 +194,7 @@
     align-items: center;
     gap: 1rem;
     padding-top: 1rem;
-    border-top: 1px solid var(--color-border);
+    border-top: 1px solid var(--border);
   }
 
   .secondary-actions {
@@ -225,12 +213,12 @@
   }
 
   .action-btn.primary {
-    background: var(--color-accent);
-    color: white;
+    background: var(--accent-primary);
+    color: var(--bg-primary);
   }
 
   .action-btn.primary:hover:not(:disabled) {
-    background: var(--color-accent-hover);
+    background: var(--accent-hover);
     transform: translateY(-1px);
   }
 
@@ -241,13 +229,13 @@
 
   .action-btn.secondary {
     background: transparent;
-    color: var(--color-text-secondary);
-    border: 1px solid var(--color-border);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
   }
 
   .action-btn.secondary:hover:not(:disabled) {
-    background: var(--color-background-secondary);
-    color: var(--color-text-primary);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
   }
 
   .action-btn.secondary:disabled {

@@ -46,7 +46,7 @@
   /**
    * Start a new review session
    */
-  async function startReviewSession() {
+  async function startReviewSession(): Promise<void> {
     try {
       sessionState = 'loading';
       sessionStartTime = new Date();
@@ -78,7 +78,7 @@
   /**
    * Load the current note and generate a review prompt
    */
-  async function loadNextNote() {
+  async function loadNextNote(): Promise<void> {
     if (!currentNote) {
       // No more notes - complete the session
       completeSession();
@@ -116,7 +116,7 @@
   /**
    * Submit user's response for analysis
    */
-  async function submitResponse() {
+  async function submitResponse(): Promise<void> {
     if (!userResponse.trim() || !currentNote) return;
 
     try {
@@ -154,7 +154,7 @@
   /**
    * Mark current note as passed or failed and advance
    */
-  async function markPassFail(passed: boolean) {
+  async function markPassFail(passed: boolean): Promise<void> {
     if (!currentNote) return;
 
     try {
@@ -211,7 +211,7 @@
   /**
    * Skip the current note
    */
-  function skipNote() {
+  function skipNote(): void {
     if (!currentNote) return;
 
     // Mark note as skipped
@@ -228,7 +228,7 @@
   /**
    * End the session early
    */
-  function endSession() {
+  function endSession(): void {
     if (sessionResults.length > 0) {
       completeSession();
     } else {
@@ -240,14 +240,14 @@
   /**
    * Complete the session and show summary
    */
-  function completeSession() {
+  function completeSession(): void {
     sessionState = 'complete';
   }
 
   /**
    * Return to dashboard and reload stats
    */
-  function backToDashboard() {
+  function backToDashboard(): void {
     sessionState = 'idle';
     notesToReview = [];
     currentNoteIndex = 0;
@@ -258,7 +258,7 @@
   /**
    * Show/hide note content drawer
    */
-  function toggleNoteDrawer() {
+  function toggleNoteDrawer(): void {
     isNoteDrawerOpen = !isNoteDrawerOpen;
   }
 

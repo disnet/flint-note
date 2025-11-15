@@ -20,7 +20,7 @@
   }: Props = $props();
 
   // Handle keyboard shortcuts
-  function handleKeyDown(event: KeyboardEvent) {
+  function handleKeyDown(event: KeyboardEvent): void {
     if (isProcessing) return;
 
     if (event.key === 'p' || event.key === 'P') {
@@ -105,22 +105,22 @@
   .feedback-section {
     padding: 1.5rem;
     border-radius: 4px;
-    border-left: 4px solid var(--color-border);
+    border-left: 4px solid var(--border);
   }
 
   .prompt-section.collapsed {
-    background: var(--color-background-tertiary);
-    border-left-color: var(--color-text-tertiary);
+    background: var(--bg-tertiary);
+    border-left-color: var(--text-tertiary);
   }
 
   .response-section {
-    background: var(--color-background-secondary);
-    border-left-color: var(--color-accent-secondary);
+    background: var(--bg-secondary);
+    border-left-color: var(--accent-secondary);
   }
 
   .feedback-section {
-    background: var(--color-background-secondary);
-    border-left-color: var(--color-success);
+    background: var(--bg-secondary);
+    border-left-color: var(--success);
   }
 
   .section-label {
@@ -129,11 +129,11 @@
     text-transform: uppercase;
     letter-spacing: 0.05em;
     margin-bottom: 1rem;
-    color: var(--color-text-secondary);
+    color: var(--text-secondary);
   }
 
   .section-content {
-    color: var(--color-text-primary);
+    color: var(--text-primary);
     line-height: 1.6;
   }
 
@@ -148,15 +148,15 @@
     align-items: center;
     gap: 1.5rem;
     padding: 2rem;
-    background: var(--color-background-secondary);
+    background: var(--bg-secondary);
     border-radius: 8px;
-    border: 2px solid var(--color-border);
+    border: 2px solid var(--border);
   }
 
   .rating-prompt {
     font-size: 1.125rem;
     font-weight: 600;
-    color: var(--color-text-primary);
+    color: var(--text-primary);
   }
 
   .rating-buttons {
@@ -172,7 +172,7 @@
     padding: 1.5rem 2rem;
     border: 2px solid;
     border-radius: 8px;
-    background: var(--color-background-primary);
+    background: var(--bg-primary);
     cursor: pointer;
     transition: all 0.2s;
     min-width: 150px;
@@ -190,31 +190,31 @@
 
   .rating-btn .schedule {
     font-size: 0.75rem;
-    color: var(--color-text-secondary);
+    color: var(--text-secondary);
   }
 
   .fail-btn {
-    border-color: var(--color-warning);
-    color: var(--color-warning);
+    border-color: var(--warning);
+    color: var(--warning);
   }
 
   .fail-btn:hover:not(:disabled) {
-    background: var(--color-warning);
-    color: white;
+    background: var(--warning);
+    color: var(--bg-primary);
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(255, 165, 0, 0.3);
+    box-shadow: 0 4px 12px var(--warning-shadow, rgba(255, 165, 0, 0.3));
   }
 
   .pass-btn {
-    border-color: var(--color-success);
-    color: var(--color-success);
+    border-color: var(--success);
+    color: var(--success);
   }
 
   .pass-btn:hover:not(:disabled) {
-    background: var(--color-success);
-    color: white;
+    background: var(--success);
+    color: var(--bg-primary);
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 200, 100, 0.3);
+    box-shadow: 0 4px 12px var(--success-shadow, rgba(0, 200, 100, 0.3));
   }
 
   .rating-btn:disabled {
@@ -228,7 +228,7 @@
 
   .keyboard-hint {
     font-size: 0.75rem;
-    color: var(--color-text-tertiary);
+    color: var(--text-tertiary);
     font-style: italic;
   }
 </style>
