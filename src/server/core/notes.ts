@@ -154,11 +154,11 @@ export class FileWriteQueue {
   private readonly retryDelays = [100, 500, 1000]; // milliseconds
 
   // How long to remember expected content after write completes
-  // 1 second provides buffer for chokidar's awaitWriteFinish (200ms) + debounce (100ms) + processing delays
+  // 2 seconds provides buffer for chokidar's awaitWriteFinish (200ms) + debounce (100ms) + processing delays
   // while preventing memory accumulation during long editing sessions
   private readonly expectedContentTTL: number;
 
-  constructor(defaultDelay: number = 1000, expectedContentTTL: number = 1000) {
+  constructor(defaultDelay: number = 1000, expectedContentTTL: number = 2000) {
     this.defaultDelay = defaultDelay;
     this.expectedContentTTL = expectedContentTTL;
   }
