@@ -157,9 +157,9 @@ export class FileWriteQueue {
   private readonly retryDelays = [100, 500, 1000]; // milliseconds
 
   // How long to remember expected content after write completes
-  // VERY long TTL - memory cost is minimal (just hash strings)
-  // Better to keep forever than have false positives
-  private readonly expectedContentTTL = 600000; // 10 minutes
+  // 30 seconds gives plenty of buffer for delayed filesystem events
+  // while preventing memory accumulation during long editing sessions
+  private readonly expectedContentTTL = 30000; // 30 seconds
 
   constructor(
     fileWatcher?: import('./file-watcher.js').VaultFileWatcher,
@@ -188,21 +188,6 @@ export class FileWriteQueue {
     // Compute hash of content we're about to write
     const contentHash = generateContentHash(content);
 
-    // DEBUG: Log state BEFORE modifying Map
-    const beforeHas = this.expectedContent.has(normalizedPath);
-    const beforeHashes = beforeHas
-      ? Array.from(this.expectedContent.get(normalizedPath)!)
-          .map((h) => h.slice(0, 12))
-          .join(', ')
-      : 'NONE';
-    console.log(
-      `[FileWriteQueue] Queue START: ${path.basename(normalizedPath)}`,
-      `\n  New hash: ${contentHash.slice(0, 12)}`,
-      `\n  Map has path: ${beforeHas}`,
-      `\n  Existing hashes: [${beforeHashes}]`,
-      `\n  Map size: ${this.expectedContent.size}`
-    );
-
     // Track this content as expected for this file
     // NOTE: Cleanup timer is set in flushWrite after write completes
     // This ensures the timer starts when chokidar's timer starts (file actually changes)
@@ -210,15 +195,6 @@ export class FileWriteQueue {
       this.expectedContent.set(normalizedPath, new Set());
     }
     this.expectedContent.get(normalizedPath)!.add(contentHash);
-
-    const allHashes = Array.from(this.expectedContent.get(normalizedPath)!)
-      .map((h) => h.slice(0, 12))
-      .join(', ');
-    console.log(
-      `[FileWriteQueue] Queue: ${path.basename(normalizedPath)} hash=${contentHash.slice(0, 12)}`,
-      `\n  Path: ${normalizedPath}`,
-      `\n  Tracked (${this.expectedContent.get(normalizedPath)!.size}): [${allHashes}]`
-    );
 
     // Clear existing timeout for this file
     const existing = this.pendingWrites.get(normalizedPath);
@@ -237,19 +213,6 @@ export class FileWriteQueue {
       timeout,
       retryCount: 0
     });
-
-    // VERIFY: Confirm hash is still in Map at end of queueWrite
-    const verify = this.expectedContent.get(normalizedPath);
-    if (!verify || !verify.has(contentHash)) {
-      console.error(
-        `[FileWriteQueue] CORRUPTION: Hash missing at end of queueWrite!`,
-        `\n  Path: ${normalizedPath}`,
-        `\n  Hash: ${contentHash.slice(0, 12)}`,
-        `\n  Map has path: ${this.expectedContent.has(normalizedPath)}`,
-        `\n  Set size: ${verify?.size ?? 'N/A'}`,
-        `\n  Map size: ${this.expectedContent.size}`
-      );
-    }
   }
 
   /**
@@ -283,50 +246,13 @@ export class FileWriteQueue {
       // Schedule cleanup of expected content hash
       // Timer starts NOW (when file actually changed) to align with chokidar's timing
       const contentHash = generateContentHash(pending.content);
-      console.log(
-        `[FileWriteQueue] Flush: ${path.basename(normalizedPath)} hash=${contentHash.slice(0, 8)}... cleanup in ${this.expectedContentTTL}ms`
-      );
       setTimeout(() => {
         const hashes = this.expectedContent.get(normalizedPath);
-
-        // Log current state before cleanup
-        const before = hashes
-          ? Array.from(hashes)
-              .map((h) => h.slice(0, 12))
-              .join(', ')
-          : 'PATH_NOT_IN_MAP';
-        console.log(
-          `[FileWriteQueue] Cleanup START: ${path.basename(normalizedPath)}`,
-          `\n  Cleaning: ${contentHash.slice(0, 12)}`,
-          `\n  Before: [${before}]`,
-          `\n  Map size: ${this.expectedContent.size}`
-        );
-
         if (hashes) {
-          const hadHash = hashes.has(contentHash);
           hashes.delete(contentHash);
-
-          const after =
-            Array.from(hashes)
-              .map((h) => h.slice(0, 12))
-              .join(', ') || 'EMPTY';
-          console.log(
-            `[FileWriteQueue] Cleanup DONE: ${path.basename(normalizedPath)}`,
-            `\n  Was present: ${hadHash}`,
-            `\n  After: [${after}]`,
-            `\n  Remaining: ${hashes.size}`
-          );
-
           if (hashes.size === 0) {
-            console.log(
-              `[FileWriteQueue] Cleanup: Deleting path from Map (was last hash)`
-            );
             this.expectedContent.delete(normalizedPath);
           }
-        } else {
-          console.log(
-            `[FileWriteQueue] Cleanup SKIPPED: Path not in Map (already cleaned up)`
-          );
         }
       }, this.expectedContentTTL);
     } catch (error) {
@@ -379,6 +305,26 @@ export class FileWriteQueue {
   }
 
   /**
+   * Cancel all pending operations for a specific file path
+   * Used when a file is being moved/renamed to prevent orphaned state
+   *
+   * @param filePath Path to cancel operations for
+   */
+  async cancelPendingOperations(filePath: string): Promise<void> {
+    const normalizedPath = path.resolve(filePath);
+
+    // Flush any pending write immediately
+    if (this.pendingWrites.has(normalizedPath)) {
+      await this.flushWrite(normalizedPath);
+    }
+
+    // Clear any expected content hashes for this path
+    if (this.expectedContent.has(normalizedPath)) {
+      this.expectedContent.delete(normalizedPath);
+    }
+  }
+
+  /**
    * Check if a file has a pending write
    *
    * @param filePath Path to check
@@ -413,30 +359,7 @@ export class FileWriteQueue {
     const normalizedPath = path.resolve(filePath);
 
     const expectedHashes = this.expectedContent.get(normalizedPath);
-    const allHashes = expectedHashes
-      ? Array.from(expectedHashes)
-          .map((h) => h.slice(0, 12))
-          .join(', ')
-      : 'NONE';
     const result = expectedHashes ? expectedHashes.has(contentHash) : false;
-
-    // If not found and Map is not empty, show what paths ARE in the Map
-    let mapPaths = '';
-    if (!result && this.expectedContent.size > 0) {
-      mapPaths =
-        '\n  Paths in Map: ' +
-        Array.from(this.expectedContent.keys())
-          .map((p) => path.basename(p))
-          .join(', ');
-    }
-
-    console.log(
-      `[FileWriteQueue] isExpected? ${path.basename(normalizedPath)} hash=${contentHash.slice(0, 12)}`,
-      `\n  Path: ${normalizedPath}`,
-      `\n  Expected hashes: [${allHashes}]`,
-      `\n  Map has ${this.expectedContent.size} entries${mapPaths}`,
-      `\n  Result: ${result}`
-    );
 
     return result;
   }
@@ -2199,6 +2122,10 @@ export class NoteManager {
 
       // Rename the physical file if path is changing
       if (finalNotePath !== currentPath) {
+        // CRITICAL: Cancel any pending writes/expected content for the old path
+        // before moving the file to prevent orphaned state in FileWriteQueue
+        await this.#fileWriteQueue.cancelPendingOperations(currentPath);
+
         await fs.rename(currentPath, finalNotePath);
         wasFileRenamed = true;
       }
@@ -2347,6 +2274,10 @@ export class NoteManager {
 
     // Remove from search index at old location
     await this.removeFromSearchIndex(currentPath);
+
+    // CRITICAL: Cancel any pending writes/expected content for the old path
+    // before moving the file to prevent orphaned state in FileWriteQueue
+    await this.#fileWriteQueue.cancelPendingOperations(currentPath);
 
     // Update the metadata with new type and timestamp
     const updatedMetadata = {

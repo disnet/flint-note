@@ -311,14 +311,11 @@ export class FlintNoteApi {
       await workspace.initialize();
     }
 
-    // Pass fileWatcher when creating NoteManager if vault is within the workspace
-    // The fileWatcher watches the entire workspace, so it works for subdirectory vaults too
-    const isVaultInWorkspace =
-      this.workspace &&
-      this.fileWatcher &&
-      workspacePath.startsWith(this.workspace.rootPath);
-    const noteManager = isVaultInWorkspace
-      ? new NoteManager(workspace, hybridSearchManager, this.fileWatcher ?? undefined)
+    // CRITICAL FIX: Reuse the existing NoteManager if we're working with the current vault
+    // Creating new NoteManager instances creates new FileWriteQueue instances, which breaks
+    // external edit detection since writes are tracked in one queue but checked in another
+    const noteManager = isCurrentVault
+      ? this.noteManager!
       : new NoteManager(workspace, hybridSearchManager);
     const noteTypeManager = new NoteTypeManager(
       workspace,

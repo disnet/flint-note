@@ -260,7 +260,6 @@ export class VaultFileWatcher {
 
     // Fast path: Check ongoingWrites flag (still useful for immediate detection)
     if (this.ongoingWrites.has(absolutePath)) {
-      console.log(`[FileWatcher] ✓ Internal (flag): ${path.basename(absolutePath)}`);
       return { isInternal: true, isConflict: false };
     }
 
@@ -272,21 +271,10 @@ export class VaultFileWatcher {
         const content = await fs.readFile(absolutePath, 'utf-8');
         const contentHash = generateContentHash(content);
 
-        console.log(
-          `[FileWatcher] Check: ${path.basename(absolutePath)} hash=${contentHash.slice(0, 8)}...`
-        );
-
         // Check if this content hash matches what we're expecting to write
         const fileWriteQueue = this.noteManager.getFileWriteQueue();
         if (fileWriteQueue.isContentExpected(absolutePath, contentHash)) {
-          console.log(
-            `[FileWatcher] ✓ Internal (content): ${path.basename(absolutePath)}`
-          );
           return { isInternal: true, isConflict: false };
-        } else {
-          console.warn(
-            `[FileWatcher] ✗ EXTERNAL: ${path.basename(absolutePath)} hash=${contentHash.slice(0, 8)}... NOT in expected set`
-          );
         }
       } catch (error) {
         console.warn(
