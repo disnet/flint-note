@@ -81,20 +81,12 @@ class CommentMarkersPlugin implements PluginValue {
       tr.effects.some((e) => e.is(updateSuggestionsEffect) || e.is(setExpandedEffect))
     );
 
-    console.log('CommentMarkerPlugin: update', {
-      stateChanged,
-      docChanged: update.docChanged,
-      viewportChanged: update.viewportChanged,
-      geometryChanged: update.geometryChanged
-    });
-
     if (
       stateChanged ||
       update.docChanged ||
       update.viewportChanged ||
       update.geometryChanged
     ) {
-      console.log('CommentMarkerPlugin: requesting measure');
       // Use requestMeasure to properly separate read and write phases
       update.view.requestMeasure({
         read: (view) => this.readMarkerPositions(view),
@@ -112,10 +104,6 @@ class CommentMarkersPlugin implements PluginValue {
   }> {
     const state = view.state.field(commentStateField);
     const { suggestions, expanded } = state;
-    console.log('CommentMarkerPlugin: readMarkerPositions', {
-      suggestionsCount: suggestions.length,
-      suggestions
-    });
 
     // Group suggestions by line number
     const suggestionsByLine = new Map<number, NoteSuggestion[]>();
@@ -176,10 +164,6 @@ class CommentMarkersPlugin implements PluginValue {
       top: number;
     }>
   ): void {
-    console.log('CommentMarkerPlugin: writeMarkers', {
-      positionsCount: positions.length,
-      positions
-    });
     // Clear existing markers
     this.container.innerHTML = '';
 

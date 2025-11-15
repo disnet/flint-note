@@ -155,14 +155,10 @@
         pendingCursorPosition = cursorPosition;
 
         // Check if suggestions are enabled for this note type
-        console.log('NoteEditor: noteTypeInfo:', noteTypeInfo);
-        console.log('NoteEditor: suggestions_config:', noteTypeInfo?.suggestions_config);
         if (noteTypeInfo?.suggestions_config?.enabled) {
-          console.log('NoteEditor: suggestions enabled, loading...');
           suggestionsEnabled = true;
           await loadSuggestions(note.id);
         } else {
-          console.log('NoteEditor: suggestions not enabled');
           suggestionsEnabled = false;
         }
       } else {
@@ -176,10 +172,8 @@
   async function loadSuggestions(noteId: string): Promise<void> {
     try {
       const result = await window.api?.getNoteSuggestions({ noteId });
-      console.log('NoteEditor: loadSuggestions result:', result);
       if (result) {
         suggestions = result.suggestions || [];
-        console.log('NoteEditor: loaded suggestions:', suggestions);
       } else {
         suggestions = [];
       }

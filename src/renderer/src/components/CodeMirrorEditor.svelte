@@ -208,13 +208,24 @@
   function updateEditorConfig(): void {
     if (!editorView) return;
 
-    editorView.dispatch({
-      effects: StateEffect.reconfigure.of([
+    // Reconfigure creates new StateField instances, so we need to re-apply state
+    const effects: StateEffect<unknown>[] = [
+      StateEffect.reconfigure.of([
         ...editorConfig.getExtensions(),
         commentDecorations(handleCommentMarkerClick),
         EditorState.readOnly.of(readOnly)
       ])
-    });
+    ];
+
+    // Re-apply suggestions and expanded state after reconfiguration
+    if (suggestions && suggestions.length > 0) {
+      effects.push(updateSuggestionsEffect.of(suggestions));
+    }
+    if (expandedSuggestions && expandedSuggestions.size > 0) {
+      effects.push(setExpandedEffect.of(expandedSuggestions));
+    }
+
+    editorView.dispatch({ effects });
 
     measureAndUpdateMarkerWidths();
   }
@@ -922,13 +933,7 @@
 
   // Update suggestions in the editor when they change
   $effect(() => {
-    console.log('CodeMirrorEditor: suggestions effect triggered', {
-      editorView: !!editorView,
-      suggestions,
-      suggestionsLength: suggestions?.length
-    });
     if (editorView && suggestions) {
-      console.log('CodeMirrorEditor: dispatching updateSuggestionsEffect');
       editorView.dispatch({
         effects: updateSuggestionsEffect.of(suggestions)
       });
