@@ -331,8 +331,6 @@ export class VaultFileWatcher {
     this.debounceChange(filePath, async () => {
       try {
         const content = await fs.readFile(filePath, 'utf-8');
-        const contentHash = generateContentHash(content);
-        const absolutePath = path.resolve(this.vaultPath, filePath);
 
         // Check if this is an internal change
         const changeCheck = await this.isInternalChange(filePath);
