@@ -149,24 +149,18 @@ export class FileWriteQueue {
   // Default delay before flushing write (1000ms per approved decisions)
   private readonly defaultDelay: number;
 
-  // File watcher reference for marking writes
-  private fileWatcher?: import('./file-watcher.js').VaultFileWatcher;
-
   // Retry configuration (3 attempts with exponential backoff)
   private readonly maxRetries = 3;
   private readonly retryDelays = [100, 500, 1000]; // milliseconds
 
   // How long to remember expected content after write completes
-  // 30 seconds gives plenty of buffer for delayed filesystem events
+  // 1 second provides buffer for chokidar's awaitWriteFinish (200ms) + debounce (100ms) + processing delays
   // while preventing memory accumulation during long editing sessions
-  private readonly expectedContentTTL = 30000; // 30 seconds
+  private readonly expectedContentTTL: number;
 
-  constructor(
-    fileWatcher?: import('./file-watcher.js').VaultFileWatcher,
-    defaultDelay: number = 1000
-  ) {
-    this.fileWatcher = fileWatcher;
+  constructor(defaultDelay: number = 1000, expectedContentTTL: number = 1000) {
     this.defaultDelay = defaultDelay;
+    this.expectedContentTTL = expectedContentTTL;
   }
 
   /**
@@ -232,11 +226,6 @@ export class FileWriteQueue {
     clearTimeout(pending.timeout);
 
     try {
-      // Mark write starting (prevents external edit detection)
-      if (this.fileWatcher) {
-        this.fileWatcher.markWriteStarting(normalizedPath);
-      }
-
       // Perform the actual write
       await fs.writeFile(normalizedPath, pending.content, 'utf-8');
 
@@ -284,11 +273,6 @@ export class FileWriteQueue {
         // TODO: In Phase 1, we'll add error tracking to database
         // For now, just log the error
         // Future: publishFileWriteError(filePath, error)
-      }
-    } finally {
-      // Always mark write complete (even on error)
-      if (this.fileWatcher) {
-        this.fileWatcher.markWriteComplete(normalizedPath);
       }
     }
   }
@@ -385,16 +369,12 @@ export class NoteManager {
   #hybridSearchManager?: HybridSearchManager;
   #fileWriteQueue: FileWriteQueue;
 
-  constructor(
-    workspace: Workspace,
-    hybridSearchManager?: HybridSearchManager,
-    fileWatcher?: import('./file-watcher.js').VaultFileWatcher
-  ) {
+  constructor(workspace: Workspace, hybridSearchManager?: HybridSearchManager) {
     this.#workspace = workspace;
 
-    // Pass database manager and file watcher to NoteTypeManager if available
+    // Pass database manager to NoteTypeManager if available
     const dbManager = hybridSearchManager?.getDatabaseManager();
-    this.#noteTypeManager = new NoteTypeManager(workspace, dbManager, fileWatcher);
+    this.#noteTypeManager = new NoteTypeManager(workspace, dbManager);
 
     this.#hybridSearchManager = hybridSearchManager;
 
@@ -403,7 +383,7 @@ export class NoteManager {
     // This achieves 50%+ file I/O reduction during rapid editing
     // In test environment, use 0ms delay for synchronous behavior
     const queueDelay = process.env.NODE_ENV === 'test' || process.env.VITEST ? 0 : 1000;
-    this.#fileWriteQueue = new FileWriteQueue(fileWatcher, queueDelay);
+    this.#fileWriteQueue = new FileWriteQueue(queueDelay);
 
     // Initialize hierarchy manager if we have a database connection
     if (hybridSearchManager) {

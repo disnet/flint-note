@@ -21,7 +21,7 @@ describe('FileWriteQueue', () => {
     await fs.mkdir(tempDir, { recursive: true });
 
     // Create queue with 0ms delay for deterministic testing
-    queue = new FileWriteQueue(undefined, 0);
+    queue = new FileWriteQueue(0);
   });
 
   afterEach(async () => {
@@ -88,7 +88,7 @@ describe('FileWriteQueue', () => {
 
   describe('Debouncing and Batching', () => {
     it('should replace pending write when same file queued again', async () => {
-      const queue = new FileWriteQueue(undefined, 100); // 100ms delay for this test
+      const queue = new FileWriteQueue(100); // 100ms delay for this test
       const filePath = path.join(tempDir, 'debounce.txt');
 
       // Queue first write
@@ -112,7 +112,7 @@ describe('FileWriteQueue', () => {
     });
 
     it('should batch rapid writes to same file', async () => {
-      const queue = new FileWriteQueue(undefined, 50); // 50ms delay
+      const queue = new FileWriteQueue(50); // 50ms delay
       const filePath = path.join(tempDir, 'batch.txt');
 
       // Simulate rapid typing - 10 edits in quick succession
@@ -135,7 +135,7 @@ describe('FileWriteQueue', () => {
     });
 
     it('should respect custom delay parameter', async () => {
-      const queue = new FileWriteQueue(undefined, 100); // Default 100ms
+      const queue = new FileWriteQueue(100); // Default 100ms
       const filePath = path.join(tempDir, 'custom-delay.txt');
 
       // Queue with custom 200ms delay
@@ -158,7 +158,7 @@ describe('FileWriteQueue', () => {
 
   describe('Flush Operations', () => {
     it('should flush a specific file immediately', async () => {
-      const queue = new FileWriteQueue(undefined, 1000); // Long delay
+      const queue = new FileWriteQueue(1000); // Long delay
       const filePath = path.join(tempDir, 'flush-test.txt');
 
       await queue.queueWrite(filePath, 'Flush me now');
@@ -176,7 +176,7 @@ describe('FileWriteQueue', () => {
     });
 
     it('should flush all pending writes', async () => {
-      const queue = new FileWriteQueue(undefined, 1000); // Long delay
+      const queue = new FileWriteQueue(1000); // Long delay
       const file1 = path.join(tempDir, 'flush-all-1.txt');
       const file2 = path.join(tempDir, 'flush-all-2.txt');
       const file3 = path.join(tempDir, 'flush-all-3.txt');
@@ -214,7 +214,7 @@ describe('FileWriteQueue', () => {
 
   describe('Retry Logic', () => {
     it('should retry failed writes with exponential backoff', async () => {
-      const queue = new FileWriteQueue(undefined, 0);
+      const queue = new FileWriteQueue(0);
       const badPath = '/nonexistent/directory/file.txt';
 
       // Mock console.warn and console.error to avoid test output noise
@@ -241,7 +241,7 @@ describe('FileWriteQueue', () => {
 
     it('should succeed on retry if error is transient', async () => {
       // This test simulates a transient error (permission issue) that resolves
-      const queue = new FileWriteQueue(undefined, 0);
+      const queue = new FileWriteQueue(0);
       const filePath = path.join(tempDir, 'retry-success.txt');
 
       // Write the file to set it up
@@ -277,77 +277,9 @@ describe('FileWriteQueue', () => {
     });
   });
 
-  describe('File Watcher Coordination', () => {
-    it('should call markWriteStarting before write', async () => {
-      const mockFileWatcher = {
-        markWriteStarting: vi.fn(),
-        markWriteComplete: vi.fn()
-      };
-
-      // Type assertion to satisfy TypeScript
-      const queue = new FileWriteQueue(mockFileWatcher as any, 0);
-      const filePath = path.join(tempDir, 'watcher-test.txt');
-
-      await queue.queueWrite(filePath, 'Test content');
-
-      // Wait for write
-      await new Promise((resolve) => setTimeout(resolve, 50));
-
-      expect(mockFileWatcher.markWriteStarting).toHaveBeenCalledWith(filePath);
-      expect(mockFileWatcher.markWriteStarting).toHaveBeenCalledTimes(1);
-
-      queue.destroy();
-    });
-
-    it('should call markWriteComplete after write', async () => {
-      const mockFileWatcher = {
-        markWriteStarting: vi.fn(),
-        markWriteComplete: vi.fn()
-      };
-
-      const queue = new FileWriteQueue(mockFileWatcher as any, 0);
-      const filePath = path.join(tempDir, 'watcher-complete.txt');
-
-      await queue.queueWrite(filePath, 'Test content');
-
-      // Wait for write
-      await new Promise((resolve) => setTimeout(resolve, 50));
-
-      expect(mockFileWatcher.markWriteComplete).toHaveBeenCalledWith(filePath);
-      expect(mockFileWatcher.markWriteComplete).toHaveBeenCalledTimes(1);
-
-      queue.destroy();
-    });
-
-    it('should call markWriteComplete even on write failure', async () => {
-      const mockFileWatcher = {
-        markWriteStarting: vi.fn(),
-        markWriteComplete: vi.fn()
-      };
-
-      const queue = new FileWriteQueue(mockFileWatcher as any, 0);
-      const badPath = '/nonexistent/directory/file.txt';
-
-      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
-      await queue.queueWrite(badPath, 'Will fail');
-
-      // Wait for all retries
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      // Should have been called (3 retries + 1 final = 4 times)
-      expect(mockFileWatcher.markWriteComplete).toHaveBeenCalledTimes(4);
-
-      errorSpy.mockRestore();
-      warnSpy.mockRestore();
-      queue.destroy();
-    });
-  });
-
   describe('Cleanup and Destroy', () => {
     it('should clear all pending writes on destroy', async () => {
-      const queue = new FileWriteQueue(undefined, 1000); // Long delay
+      const queue = new FileWriteQueue(1000); // Long delay
       const file1 = path.join(tempDir, 'destroy-1.txt');
       const file2 = path.join(tempDir, 'destroy-2.txt');
 
@@ -362,7 +294,7 @@ describe('FileWriteQueue', () => {
     });
 
     it('should cancel pending timeouts on destroy', async () => {
-      const queue = new FileWriteQueue(undefined, 1000); // Long delay
+      const queue = new FileWriteQueue(1000); // Long delay
       const filePath = path.join(tempDir, 'cancel-test.txt');
 
       await queue.queueWrite(filePath, 'Should not be written');
@@ -439,7 +371,7 @@ describe('FileWriteQueue', () => {
 
   describe('Monitoring and Debugging', () => {
     it('should track pending write count accurately', async () => {
-      const queue = new FileWriteQueue(undefined, 100);
+      const queue = new FileWriteQueue(100);
 
       expect(queue.getPendingCount()).toBe(0);
 
@@ -464,7 +396,7 @@ describe('FileWriteQueue', () => {
     });
 
     it('should correctly report hasPendingWrite for specific files', async () => {
-      const queue = new FileWriteQueue(undefined, 100);
+      const queue = new FileWriteQueue(100);
       const file1 = path.join(tempDir, 'pending-1.txt');
       const file2 = path.join(tempDir, 'pending-2.txt');
 

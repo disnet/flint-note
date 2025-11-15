@@ -138,25 +138,11 @@ export class HybridSearchManager {
   private connection: DatabaseConnection | null = null;
   private readOnlyConnection: DatabaseConnection | null = null;
   private isInitialized = false;
-  private fileWatcher: {
-    markWriteStarting(path: string): void;
-    markWriteComplete(path: string): void;
-  } | null = null;
   private fileWriteQueue: FileWriteQueue | null = null;
 
   constructor(workspacePath: string) {
     this.workspacePath = workspacePath;
     this.dbManager = new DatabaseManager(workspacePath);
-  }
-
-  /**
-   * Set the file watcher reference (called after initialization to resolve circular dependency)
-   */
-  setFileWatcher(fileWatcher: {
-    markWriteStarting(path: string): void;
-    markWriteComplete(path: string): void;
-  }): void {
-    this.fileWatcher = fileWatcher;
   }
 
   /**
@@ -183,26 +169,14 @@ export class HybridSearchManager {
       return;
     }
 
-    // Fallback to immediate write with manual tracking (legacy behavior)
+    // Fallback to immediate write (legacy behavior)
     // This path should rarely be hit after proper initialization
     console.warn(
       '[HybridSearchManager] FileWriteQueue not set, falling back to immediate write. ' +
         'This may cause race conditions with external edit detection.'
     );
 
-    // Mark write starting (prevents external edit detection)
-    if (this.fileWatcher) {
-      this.fileWatcher.markWriteStarting(filePath);
-    }
-
-    try {
-      await fs.writeFile(filePath, content, 'utf-8');
-    } finally {
-      // Always mark write complete (even on error)
-      if (this.fileWatcher) {
-        this.fileWatcher.markWriteComplete(filePath);
-      }
-    }
+    await fs.writeFile(filePath, content, 'utf-8');
   }
 
   private async ensureInitialized(): Promise<void> {

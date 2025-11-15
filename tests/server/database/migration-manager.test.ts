@@ -394,7 +394,7 @@ This is test note ${i}`;
       // Verify migration result
       expect(result.migrated).toBe(true);
       expect(result.fromVersion).toBe('1.1.0');
-      expect(result.toVersion).toBe('2.7.0');
+      expect(result.toVersion).toBe('2.8.0');
       expect(result.executedMigrations).toContain('2.0.0');
       expect(result.executedMigrations).toContain('2.0.1');
       expect(result.executedMigrations).toContain('2.1.0');
@@ -404,6 +404,7 @@ This is test note ${i}`;
       expect(result.executedMigrations).toContain('2.5.0');
       expect(result.executedMigrations).toContain('2.6.0');
       expect(result.executedMigrations).toContain('2.7.0');
+      expect(result.executedMigrations).toContain('2.8.0');
 
       // Verify database state
       await verifyMigration(originalNotes);
@@ -654,7 +655,7 @@ This is test note ${i}`;
 
       // Run migration again (with current version)
       const result = await DatabaseMigrationManager.checkAndMigrate(
-        '2.7.0',
+        '2.8.0',
         dbManager as unknown as DatabaseManager,
         workspacePath
       );
@@ -1973,7 +1974,7 @@ metadata:
         );
 
         expect(result.migrated).toBe(true);
-        expect(result.toVersion).toBe('2.7.0');
+        expect(result.toVersion).toBe('2.8.0');
 
         // Verify file content was updated to ID-based
         const updatedContent = await fs.readFile(sourceNotePath, 'utf-8');

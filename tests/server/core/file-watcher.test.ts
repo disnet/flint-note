@@ -156,9 +156,10 @@ describe('VaultFileWatcher - Internal vs External Change Detection', () => {
         vaultId: vaultId
       });
 
-      // Clear events from creation and wait for write flag to clear
-      // Need to wait > 1000ms (WRITE_FLAG_CLEANUP_MS) to ensure the creation's write flag has cleared
-      await new Promise((resolve) => setTimeout(resolve, 1200));
+      // Clear events from creation and wait for expected content hash to clear
+      // FileWriteQueue cleanup timer is 1000ms (expectedContentTTL)
+      // Write happens after 1000ms default delay, then 1000ms cleanup = 2000ms total
+      await new Promise((resolve) => setTimeout(resolve, 2500));
       capturedEvents.length = 0;
 
       // Get the note's file path
@@ -226,9 +227,10 @@ This note was created outside of Flint.`;
         vaultId: vaultId
       });
 
-      // Clear events from creation and wait for write flag to clear
-      // Need to wait > 1000ms (WRITE_FLAG_CLEANUP_MS) to ensure the creation's write flag has cleared
-      await new Promise((resolve) => setTimeout(resolve, 1200));
+      // Clear events from creation and wait for expected content hash to clear
+      // FileWriteQueue cleanup timer is 1000ms (expectedContentTTL)
+      // Write happens after 1000ms default delay, then 1000ms cleanup = 2000ms total
+      await new Promise((resolve) => setTimeout(resolve, 2500));
       capturedEvents.length = 0;
 
       // Get the note's file path

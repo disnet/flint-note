@@ -213,15 +213,8 @@ export class FlintNoteApi {
             null
           );
 
-          // Update hybrid search manager with file watcher reference (for write tracking)
-          this.hybridSearchManager.setFileWatcher(this.fileWatcher);
-
-          // Create note manager with file watcher reference
-          this.noteManager = new NoteManager(
-            this.workspace,
-            this.hybridSearchManager,
-            this.fileWatcher
-          );
+          // Create note manager
+          this.noteManager = new NoteManager(this.workspace, this.hybridSearchManager);
 
           // Update file watcher with note manager reference (resolve circular dependency)
           this.fileWatcher.setNoteManager(this.noteManager);

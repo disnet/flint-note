@@ -66,42 +66,18 @@ export interface NoteTypeUpdateRequest {
 export class NoteTypeManager {
   private workspace: Workspace;
   private dbManager: DatabaseManager | null = null;
-  private fileWatcher: {
-    markWriteStarting(path: string): void;
-    markWriteComplete(path: string): void;
-  } | null = null;
 
-  constructor(
-    workspace: Workspace,
-    dbManager?: DatabaseManager,
-    fileWatcher?: {
-      markWriteStarting(path: string): void;
-      markWriteComplete(path: string): void;
-    }
-  ) {
+  constructor(workspace: Workspace, dbManager?: DatabaseManager) {
     this.workspace = workspace;
     this.dbManager = dbManager || null;
-    this.fileWatcher = fileWatcher || null;
   }
 
   /**
-   * Write a file with file watcher tracking to prevent false external edit detection
-   * IMPORTANT: Always use this method instead of fs.writeFile for markdown files
+   * Write a file for note type descriptions
+   * Note: Description files are written infrequently (only when creating/updating note types)
    */
   async #writeFileWithTracking(filePath: string, content: string): Promise<void> {
-    // Mark write starting (prevents external edit detection)
-    if (this.fileWatcher) {
-      this.fileWatcher.markWriteStarting(filePath);
-    }
-
-    try {
-      await fs.writeFile(filePath, content, 'utf-8');
-    } finally {
-      // Always mark write complete (even on error)
-      if (this.fileWatcher) {
-        this.fileWatcher.markWriteComplete(filePath);
-      }
-    }
+    await fs.writeFile(filePath, content, 'utf-8');
   }
 
   /**

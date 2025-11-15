@@ -58,18 +58,11 @@ export type FileWatcherEventHandler = (event: FileWatcherEvent) => void;
 export class VaultFileWatcher {
   private watcher: FSWatcher | null = null;
   private pendingChanges = new Map<string, NodeJS.Timeout>();
-  // Phase 4: Removed internalOperations Map - FileWriteQueue's ongoingWrites is sufficient
-  private ongoingWrites = new Set<string>(); // Track writes in progress (set BEFORE write)
-  private writeCleanupTimeouts = new Map<string, NodeJS.Timeout>(); // Track cleanup timeouts per path
   private recentDeletions = new Map<string, RecentDeletion>();
   private eventHandlers: FileWatcherEventHandler[] = [];
 
-  // Phase 3: Removed openNotes and expectedWrites tracking - FileWriteQueue handles all internal writes
-
   private readonly DEBOUNCE_MS: number;
   private readonly RENAME_DETECTION_WINDOW_MS = 1000;
-  // Phase 4: Removed OPERATION_CLEANUP_MS - no longer tracking individual operations
-  private readonly WRITE_FLAG_CLEANUP_MS = 1000; // Keep write flag for 1000ms after completion to account for awaitWriteFinish (200ms) + debounce (100ms) + FS latency
 
   constructor(
     private vaultPath: string,
@@ -195,77 +188,20 @@ export class VaultFileWatcher {
     }
     this.pendingChanges.clear();
 
-    // Clear all write cleanup timeouts
-    for (const timeout of this.writeCleanupTimeouts.values()) {
-      clearTimeout(timeout);
-    }
-    this.writeCleanupTimeouts.clear();
-
-    // Phase 3: Removed expected write cleanup - no longer tracking
-    // Phase 4: Removed internalOperations cleanup - no longer used
-
-    this.ongoingWrites.clear();
     this.recentDeletions.clear();
   }
 
   /**
-   * Mark the start of a write operation initiated by Flint.
-   * Call this BEFORE writing to prevent the file watcher from treating it as an external change.
-   * This flag-based approach eliminates timing races.
-   */
-  markWriteStarting(filePath: string): void {
-    // Use path.resolve for consistency - when filePath is absolute, it returns it unchanged
-    const absolutePath = path.resolve(this.vaultPath, filePath);
-    this.ongoingWrites.add(absolutePath);
-  }
-
-  /**
-   * Mark the completion of a write operation initiated by Flint.
-   * Call this AFTER the write completes (use try/finally for reliability).
-   * The flag remains set for a brief period to catch delayed file watcher events.
-   */
-  markWriteComplete(filePath: string): void {
-    const absolutePath = path.resolve(this.vaultPath, filePath);
-
-    // Cancel any existing cleanup timeout for this path
-    const existingTimeout = this.writeCleanupTimeouts.get(absolutePath);
-    if (existingTimeout) {
-      clearTimeout(existingTimeout);
-    }
-
-    // Keep the flag set for a brief period to catch any delayed file watcher events
-    const timeout = setTimeout(() => {
-      this.ongoingWrites.delete(absolutePath);
-      this.writeCleanupTimeouts.delete(absolutePath);
-    }, this.WRITE_FLAG_CLEANUP_MS);
-
-    this.writeCleanupTimeouts.set(absolutePath, timeout);
-  }
-
-  // Phase 3: Removed markNoteOpened, markNoteClosed, expectWrite, and isNoteOpenInEditor
-  // FileWriteQueue now handles all internal writes, making these tracking methods unnecessary
-
-  // Phase 4: Removed trackOperation() method - FileWriteQueue's ongoingWrites is sufficient
-  // No need to separately track delete/rename operations
-  // Phase 5: Removed computeContentHash() - no longer needed after conflict detection simplification
-
-  /**
    * Determine if a file change is internal (initiated by Flint) or external
-   * Phase 6: Content-based verification - not timing-dependent
+   * Uses content-based verification by comparing file hash against expected writes
    */
   private async isInternalChange(
     filePath: string
   ): Promise<{ isInternal: boolean; isConflict: boolean }> {
     const absolutePath = path.resolve(this.vaultPath, filePath);
 
-    // Fast path: Check ongoingWrites flag (still useful for immediate detection)
-    if (this.ongoingWrites.has(absolutePath)) {
-      return { isInternal: true, isConflict: false };
-    }
-
-    // Robust path: Content verification
-    // Read the file and check if its content matches what we expect to write
-    // This works even if timing is off or file watcher is delayed
+    // Content verification: Read file and check if hash matches expected writes
+    // This approach is robust and not timing-dependent
     if (this.noteManager) {
       try {
         const content = await fs.readFile(absolutePath, 'utf-8');
