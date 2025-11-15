@@ -331,11 +331,16 @@ export class VaultFileWatcher {
     this.debounceChange(filePath, async () => {
       try {
         const content = await fs.readFile(filePath, 'utf-8');
+        const contentHash = generateContentHash(content);
+        const absolutePath = path.resolve(this.vaultPath, filePath);
 
         // Check if this is an internal change
         const changeCheck = await this.isInternalChange(filePath);
         if (changeCheck.isInternal) {
-          // Internal change - ignore (file watcher should not process)
+          // Internal change - ignore (timeout-based cleanup will remove hash)
+          // NOTE: We don't call markContentConsumed() because chokidar may detect
+          // the same change multiple times, and we need the hash to remain valid
+          // for all detections within the cleanup window
           return;
         }
 

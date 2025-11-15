@@ -153,9 +153,10 @@ export class FileWriteQueue {
   private readonly maxRetries = 3;
   private readonly retryDelays = [100, 500, 1000]; // milliseconds
 
-  // How long to remember expected content after write completes
+  // Fallback timeout to clean up expected content hashes
+  // Primary cleanup happens immediately via markContentConsumed() when file watcher processes the change
+  // This timeout is a safety net for edge cases (file watcher stopped, chokidar miss, etc.)
   // 2 seconds provides buffer for chokidar's awaitWriteFinish (200ms) + debounce (100ms) + processing delays
-  // while preventing memory accumulation during long editing sessions
   private readonly expectedContentTTL: number;
 
   constructor(defaultDelay: number = 1000, expectedContentTTL: number = 2000) {
@@ -179,18 +180,7 @@ export class FileWriteQueue {
     // File watcher uses path.resolve(), so we must too
     const normalizedPath = path.resolve(filePath);
 
-    // Compute hash of content we're about to write
-    const contentHash = generateContentHash(content);
-
-    // Track this content as expected for this file
-    // NOTE: Cleanup timer is set in flushWrite after write completes
-    // This ensures the timer starts when chokidar's timer starts (file actually changes)
-    if (!this.expectedContent.has(normalizedPath)) {
-      this.expectedContent.set(normalizedPath, new Set());
-    }
-    this.expectedContent.get(normalizedPath)!.add(contentHash);
-
-    // Clear existing timeout for this file
+    // Clear existing timeout for this file (if rapid edits, only last one writes)
     const existing = this.pendingWrites.get(normalizedPath);
     if (existing) {
       clearTimeout(existing.timeout);
@@ -225,6 +215,14 @@ export class FileWriteQueue {
     // Clear the timeout
     clearTimeout(pending.timeout);
 
+    // Compute hash and track as expected BEFORE writing
+    // This ensures file watcher will find it when chokidar detects the change
+    const contentHash = generateContentHash(pending.content);
+    if (!this.expectedContent.has(normalizedPath)) {
+      this.expectedContent.set(normalizedPath, new Set());
+    }
+    this.expectedContent.get(normalizedPath)!.add(contentHash);
+
     try {
       // Perform the actual write
       await fs.writeFile(normalizedPath, pending.content, 'utf-8');
@@ -232,9 +230,9 @@ export class FileWriteQueue {
       // Success - remove from pending
       this.pendingWrites.delete(normalizedPath);
 
-      // Schedule cleanup of expected content hash
-      // Timer starts NOW (when file actually changed) to align with chokidar's timing
-      const contentHash = generateContentHash(pending.content);
+      // Schedule fallback cleanup of expected content hash
+      // Primary cleanup happens immediately when file watcher detects internal change
+      // This timeout is a safety net for edge cases (file watcher stopped, etc.)
       setTimeout(() => {
         const hashes = this.expectedContent.get(normalizedPath);
         if (hashes) {
@@ -269,6 +267,15 @@ export class FileWriteQueue {
         );
 
         this.pendingWrites.delete(normalizedPath);
+
+        // Clean up expected content hash since write never succeeded
+        const hashes = this.expectedContent.get(normalizedPath);
+        if (hashes) {
+          hashes.delete(contentHash);
+          if (hashes.size === 0) {
+            this.expectedContent.delete(normalizedPath);
+          }
+        }
 
         // TODO: In Phase 1, we'll add error tracking to database
         // For now, just log the error
