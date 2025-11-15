@@ -41,52 +41,56 @@
 </script>
 
 <div class="review-feedback">
-  <div class="prompt-section collapsed">
-    <div class="section-label">Review Prompt:</div>
-    <div class="section-content">
-      <MarkdownRenderer text={prompt} />
+  <div class="feedback-content">
+    <div class="prompt-section collapsed">
+      <div class="section-label">Review Prompt:</div>
+      <div class="section-content">
+        <MarkdownRenderer text={prompt} />
+      </div>
+    </div>
+
+    <div class="response-section">
+      <div class="section-label">Your Response:</div>
+      <div class="section-content user-response">
+        {userResponse}
+      </div>
+    </div>
+
+    <div class="feedback-section">
+      <div class="section-label">Feedback:</div>
+      <div class="section-content">
+        <MarkdownRenderer text={feedback} />
+      </div>
     </div>
   </div>
 
-  <div class="response-section">
-    <div class="section-label">Your Response:</div>
-    <div class="section-content user-response">
-      {userResponse}
+  <div class="feedback-controls">
+    <div class="rating-section">
+      <div class="rating-prompt">Did you understand this concept well?</div>
+      <div class="rating-buttons">
+        <button
+          class="rating-btn fail-btn"
+          onclick={onFail}
+          disabled={isProcessing}
+          title="Press F"
+        >
+          <span class="icon">✗</span>
+          <span class="label">Fail</span>
+          <span class="schedule">Review tomorrow</span>
+        </button>
+        <button
+          class="rating-btn pass-btn"
+          onclick={onPass}
+          disabled={isProcessing}
+          title="Press P"
+        >
+          <span class="icon">✓</span>
+          <span class="label">Pass</span>
+          <span class="schedule">Review in 7 days</span>
+        </button>
+      </div>
+      <div class="keyboard-hint">Keyboard shortcuts: P for Pass · F for Fail</div>
     </div>
-  </div>
-
-  <div class="feedback-section">
-    <div class="section-label">Feedback:</div>
-    <div class="section-content">
-      <MarkdownRenderer text={feedback} />
-    </div>
-  </div>
-
-  <div class="rating-section">
-    <div class="rating-prompt">Did you understand this concept well?</div>
-    <div class="rating-buttons">
-      <button
-        class="rating-btn fail-btn"
-        onclick={onFail}
-        disabled={isProcessing}
-        title="Press F"
-      >
-        <span class="icon">✗</span>
-        <span class="label">Fail</span>
-        <span class="schedule">Review tomorrow</span>
-      </button>
-      <button
-        class="rating-btn pass-btn"
-        onclick={onPass}
-        disabled={isProcessing}
-        title="Press P"
-      >
-        <span class="icon">✓</span>
-        <span class="label">Pass</span>
-        <span class="schedule">Review in 7 days</span>
-      </button>
-    </div>
-    <div class="keyboard-hint">Keyboard shortcuts: P for Pass · F for Fail</div>
   </div>
 </div>
 
@@ -94,10 +98,24 @@
   .review-feedback {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
-    padding: 2rem;
+    height: 100%;
     max-width: 900px;
     margin: 0 auto;
+    padding: 2rem;
+  }
+
+  .feedback-content {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+    min-height: 0;
+  }
+
+  .feedback-controls {
+    flex-shrink: 0;
   }
 
   .prompt-section,
