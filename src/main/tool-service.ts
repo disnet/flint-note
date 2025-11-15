@@ -51,6 +51,7 @@ export class ToolService {
       get_note: this.getNoteTool,
       create_note: this.createNoteTool,
       update_note: this.updateNoteTool,
+      update_note_with_diff: this.updateNoteWithDiffTool,
       search_notes: this.searchNotesTool,
       get_vault_info: this.getVaultInfoTool,
       delete_note: this.deleteNoteTool,
@@ -528,6 +529,261 @@ export class ToolService {
           success: false,
           error: 'VAULT_ACCESS_ERROR',
           message: `Failed to update note: ${errorMessage}`
+        };
+      }
+    }
+  });
+
+  private updateNoteWithDiffTool = tool({
+    description:
+      'Efficiently update a note by applying targeted patches instead of replacing entire content. Use this when making small changes to large notes. Each patch is a search-and-replace operation. Content hash is required to ensure you are editing the latest version.',
+    inputSchema: z.object({
+      id: z.string().describe('Note ID or identifier'),
+      contentHash: z
+        .string()
+        .describe(
+          'Content hash from current note (required to ensure you are editing the latest version). Get this from get_note first.'
+        ),
+      patches: z
+        .array(
+          z.object({
+            old_string: z
+              .string()
+              .describe(
+                'Exact text to find and replace. Must be unique within the note content to avoid ambiguous replacements.'
+              ),
+            new_string: z
+              .string()
+              .describe('Text to replace it with (can be empty string to delete)')
+          })
+        )
+        .describe(
+          'Array of patches to apply in order. Each patch finds and replaces a unique string in the note content.'
+        ),
+      title: z.string().optional().describe('New title (optional)'),
+      metadata: z
+        .record(z.string(), z.unknown())
+        .optional()
+        .describe('New metadata (optional)'),
+      skipValidation: z
+        .boolean()
+        .optional()
+        .describe(
+          'Skip markdown validation (optional). Use ONLY when updating notes with pre-existing formatting issues that you did not introduce.'
+        )
+    }),
+    execute: async ({
+      id,
+      contentHash,
+      patches,
+      title,
+      metadata,
+      skipValidation = false
+    }) => {
+      if (!this.noteService) {
+        return {
+          success: false,
+          error: 'Note service not available',
+          message: 'Note service not initialized'
+        };
+      }
+
+      try {
+        const flintApi = this.noteService.getFlintNoteApi();
+        const currentVault = await this.noteService.getCurrentVault();
+
+        if (!currentVault) {
+          return {
+            success: false,
+            error: 'NO_ACTIVE_VAULT',
+            message: 'No active vault available'
+          };
+        }
+
+        // Get current note
+        let currentNote;
+        try {
+          currentNote = await flintApi.getNote(currentVault.id, id);
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          if (
+            errorMessage.includes('not found') ||
+            errorMessage.includes('does not exist')
+          ) {
+            return {
+              success: false,
+              error: 'NOTE_NOT_FOUND',
+              message: `Note not found: ${id}`
+            };
+          }
+          throw error;
+        }
+
+        // Verify content hash matches
+        if (currentNote.content_hash !== contentHash) {
+          return {
+            success: false,
+            error: 'CONTENT_HASH_MISMATCH',
+            message:
+              'Content hash mismatch. The note has been modified since you last read it. Please fetch the latest version and try again.'
+          };
+        }
+
+        // Apply patches to content
+        let patchedContent = currentNote.content;
+        const appliedPatches: string[] = [];
+
+        for (let i = 0; i < patches.length; i++) {
+          const patch = patches[i];
+          const { old_string, new_string } = patch;
+
+          // Check if old_string exists in content
+          if (!patchedContent.includes(old_string)) {
+            return {
+              success: false,
+              error: 'PATCH_NOT_FOUND',
+              message: `Patch ${i + 1}: Could not find text to replace. The old_string may not exist in the note or may have already been modified by a previous patch.`
+            };
+          }
+
+          // Check if old_string is unique
+          const occurrences = patchedContent.split(old_string).length - 1;
+          if (occurrences > 1) {
+            return {
+              success: false,
+              error: 'PATCH_AMBIGUOUS',
+              message: `Patch ${i + 1}: The old_string appears ${occurrences} times in the note. Please provide a longer, unique string to avoid ambiguous replacements.`
+            };
+          }
+
+          // Apply the patch
+          patchedContent = patchedContent.replace(old_string, new_string);
+          appliedPatches.push(
+            `${old_string.substring(0, 50)}... → ${new_string.substring(0, 50)}...`
+          );
+        }
+
+        // Prepare updates
+        const updates: {
+          identifier: string;
+          content: string;
+          contentHash: string;
+          vaultId: string;
+          metadata?: Record<string, unknown>;
+          callerContext?: 'agent' | 'user';
+          skipValidation?: boolean;
+        } = {
+          identifier: id,
+          content: patchedContent,
+          contentHash: contentHash,
+          vaultId: currentVault.id,
+          callerContext: 'agent',
+          skipValidation
+        };
+
+        // Update metadata if provided
+        if (metadata !== undefined) {
+          const {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            id: _id,
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            type: _type,
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            title: _metaTitle,
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            filename: _filename,
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            created: _created,
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            updated: _updated,
+            ...userMetadata
+          } = currentNote.metadata;
+          updates.metadata = { ...userMetadata, ...metadata };
+        }
+
+        // Handle title change if provided
+        if (title !== undefined && title !== currentNote.title) {
+          const renameResult = await flintApi.renameNote({
+            noteId: id,
+            newTitle: title,
+            contentHash: contentHash,
+            vault_id: currentVault.id
+          });
+
+          if (!renameResult.success) {
+            return {
+              success: false,
+              error: 'RENAME_FAILED',
+              message: 'Failed to rename note'
+            };
+          }
+
+          updates.identifier = renameResult.new_id || id;
+        }
+
+        // Apply the update
+        const updateResult = await flintApi.updateNote(
+          updates as Parameters<typeof flintApi.updateNote>[0]
+        );
+
+        // Get updated note to return
+        const updatedNote = await flintApi.getNote(currentVault.id, updates.identifier);
+
+        // Publish note.renamed event if title was changed
+        if (title !== undefined && title !== currentNote.title) {
+          publishNoteEvent({
+            type: 'note.renamed',
+            oldId: id,
+            newId: updatedNote.id,
+            title: updatedNote.title,
+            filename: updatedNote.filename
+          });
+        }
+
+        // Publish note.updated event
+        publishNoteEvent({
+          type: 'note.updated',
+          noteId: updatedNote.id,
+          updates: {
+            title: updatedNote.title,
+            filename: updatedNote.filename,
+            modified: updatedNote.updated
+          },
+          source: 'agent'
+        });
+
+        return {
+          success: true,
+          data: updatedNote,
+          message: `Applied ${patches.length} patch(es) to note: ${updatedNote.title}`,
+          validationWarnings: updateResult.validationWarnings
+        };
+      } catch (error) {
+        if (error instanceof ContentHashMismatchError) {
+          return {
+            success: false,
+            error: 'CONTENT_HASH_MISMATCH',
+            message: error.message
+          };
+        }
+
+        const errorMessage = error instanceof Error ? error.message : String(error);
+
+        if (
+          errorMessage.includes('not found') ||
+          errorMessage.includes('does not exist')
+        ) {
+          return {
+            success: false,
+            error: 'NOTE_NOT_FOUND',
+            message: `Note not found: ${id}`
+          };
+        }
+
+        return {
+          success: false,
+          error: 'VAULT_ACCESS_ERROR',
+          message: `Failed to update note with diff: ${errorMessage}`
         };
       }
     }
