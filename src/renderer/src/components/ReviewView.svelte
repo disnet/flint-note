@@ -2,10 +2,12 @@
   import { onMount } from 'svelte';
   import { reviewStore } from '../stores/reviewStore.svelte';
   import ReviewStats from './review/ReviewStats.svelte';
-  import ReviewPrompt from './review/ReviewPrompt.svelte';
-  import ReviewFeedback from './review/ReviewFeedback.svelte';
   import ReviewSessionSummaryComponent from './review/ReviewSessionSummary.svelte';
   import NoteContentDrawer from './review/NoteContentDrawer.svelte';
+  import ConversationContainer from './conversation/ConversationContainer.svelte';
+  import ConversationMessage from './conversation/ConversationMessage.svelte';
+  import CodeMirrorEditor from './CodeMirrorEditor.svelte';
+  import { wikilinkService } from '../services/wikilinkService.svelte.js';
   import type {
     ReviewSessionState,
     ReviewResult,
@@ -37,6 +39,89 @@
   // Derived values
   const currentNote = $derived(notesToReview[currentNoteIndex]);
   const totalNotes = $derived(notesToReview.length);
+
+  // Build messages array based on state
+  interface ReviewMessage {
+    role: 'user' | 'agent';
+    content: string;
+    label?: string;
+    collapsed?: boolean;
+  }
+
+  const messages = $derived.by<ReviewMessage[]>(() => {
+    const msgs: ReviewMessage[] = [];
+
+    if (sessionState === 'prompting' || sessionState === 'feedback') {
+      // Always show the challenge prompt
+      msgs.push({
+        role: 'agent',
+        content: currentPrompt,
+        label: 'Review Challenge:',
+        collapsed: sessionState === 'feedback' // Collapse in feedback state
+      });
+    }
+
+    if (sessionState === 'feedback' && userResponse.trim()) {
+      // Show user's response
+      msgs.push({
+        role: 'user',
+        content: userResponse,
+        label: 'Your Response:'
+      });
+
+      // Show feedback if available
+      if (agentFeedback) {
+        msgs.push({
+          role: 'agent',
+          content: agentFeedback.feedback,
+          label: 'Feedback:'
+        });
+      }
+    }
+
+    return msgs;
+  });
+
+  // Handle wikilink clicks for autocomplete
+  async function handleWikilinkClick(
+    noteId: string,
+    title: string,
+    shouldCreate?: boolean,
+    shiftKey?: boolean
+  ): Promise<void> {
+    await wikilinkService.handleWikilinkClick(noteId, title, shouldCreate, shiftKey);
+  }
+
+  // Handle keyboard shortcuts
+  function handleKeyDown(event: KeyboardEvent): void {
+    if (sessionState === 'prompting') {
+      if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+        event.preventDefault();
+        if (!isAnalyzingResponse && userResponse.trim()) {
+          submitResponse();
+        }
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        endSession();
+      }
+    } else if (sessionState === 'feedback' && !isCompletingReview) {
+      if (event.key === 'p' || event.key === 'P') {
+        event.preventDefault();
+        markPassFail(true);
+      } else if (event.key === 'f' || event.key === 'F') {
+        event.preventDefault();
+        markPassFail(false);
+      }
+    }
+  }
+
+  // Set up keyboard listener
+  $effect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  });
 
   // Load review data on mount
   onMount(() => {
@@ -71,6 +156,37 @@
       await loadNextNote();
     } catch (error) {
       console.error('Failed to start review session:', error);
+      sessionState = 'idle';
+    }
+  }
+
+  /**
+   * Start a practice review session (all reviewable notes, not just due)
+   */
+  async function startPracticeReviewSession(): Promise<void> {
+    try {
+      sessionState = 'loading';
+      sessionStartTime = new Date();
+      sessionResults = [];
+      currentNoteIndex = 0;
+
+      // Load all reviewable notes
+      const notes = await window.api?.getAllReviewableNotes();
+
+      if (!notes || notes.length === 0) {
+        sessionState = 'idle';
+        return;
+      }
+
+      notesToReview = notes.map((note) => ({
+        ...note,
+        skipped: false
+      }));
+
+      // Start with the first note
+      await loadNextNote();
+    } catch (error) {
+      console.error('Failed to start practice review session:', error);
       sessionState = 'idle';
     }
   }
@@ -282,7 +398,11 @@
 <div class="review-view">
   {#if sessionState === 'idle'}
     <!-- Stats dashboard -->
-    <ReviewStats stats={reviewStore.stats} onStartReview={startReviewSession} />
+    <ReviewStats
+      stats={reviewStore.stats}
+      onStartReview={startReviewSession}
+      onStartPracticeReview={startPracticeReviewSession}
+    />
   {:else if sessionState === 'loading'}
     <!-- Loading state -->
     {#if isGeneratingPrompt && currentNote}
@@ -343,78 +463,138 @@
       </div>
       <p>Note {currentNoteIndex} of {totalNotes}</p>
     </div>
-  {:else if sessionState === 'prompting'}
-    <!-- Review prompt and response -->
+  {:else if sessionState === 'prompting' || sessionState === 'feedback'}
+    <!-- Review conversation (prompt, response, feedback) -->
     {#if currentNote}
-      {#if isAnalyzingResponse}
-        <!-- Loading skeleton while analyzing response -->
-        <div class="review-feedback-skeleton">
-          <div class="skeleton-content">
-            <div class="prompt-section collapsed">
-              <div class="section-label">Review Prompt:</div>
-              <div class="skeleton-text-line"></div>
+      <div class="review-conversation">
+        <ConversationContainer>
+          {#snippet header()}
+            <div class="review-header">
+              <h2>Reviewing: {currentNote.title}</h2>
+              <div class="progress">Note {currentNoteIndex + 1} of {totalNotes}</div>
             </div>
+          {/snippet}
 
-            <div class="response-section">
-              <div class="section-label">Your Response:</div>
-              <div class="skeleton-text-block">{userResponse}</div>
+          {#snippet content()}
+            <div class="messages-container">
+              <!-- Render conversation messages -->
+              {#each messages as message}
+                <ConversationMessage
+                  content={message.content}
+                  role={message.role}
+                  label={message.label}
+                  collapsed={message.collapsed}
+                  variant="section"
+                  noAnimation={sessionState === 'feedback'}
+                />
+              {/each}
+
+              <!-- User response editor (only in prompting state) -->
+              {#if sessionState === 'prompting' && !isAnalyzingResponse}
+                <div class="response-editor">
+                  <div class="editor-label">Your Response:</div>
+                  <div class="editor-wrapper">
+                    <CodeMirrorEditor
+                      content={userResponse}
+                      onContentChange={(value) => (userResponse = value)}
+                      onWikilinkClick={handleWikilinkClick}
+                      placeholder="Type your explanation here... You can use [[wikilinks]] to reference other notes."
+                      variant="default"
+                      readOnly={false}
+                    />
+                  </div>
+                </div>
+              {/if}
+
+              <!-- Loading indicator while analyzing -->
+              {#if isAnalyzingResponse}
+                <div class="analyzing-section">
+                  <div class="section-label">Analyzing your response...</div>
+                  <div class="loading-content">
+                    <div class="loading-spinner"></div>
+                  </div>
+                </div>
+              {/if}
             </div>
+          {/snippet}
 
-            <div class="feedback-section loading">
-              <div class="section-label">Feedback:</div>
-              <div class="loading-content">
-                <div class="loading-spinner"></div>
-                <p>Analyzing your response...</p>
+          {#snippet controls()}
+            {#if sessionState === 'prompting'}
+              <!-- Prompting controls -->
+              <div class="review-controls">
+                <div class="response-hint">
+                  Tip: Press Cmd/Ctrl+Enter to submit · Escape to end session · Use
+                  [[wikilinks]] to link notes
+                </div>
+                <div class="actions">
+                  <div class="secondary-actions">
+                    <button
+                      class="action-btn secondary"
+                      onclick={toggleNoteDrawer}
+                      disabled={isAnalyzingResponse}
+                    >
+                      Show Note Content
+                    </button>
+                    <button
+                      class="action-btn secondary"
+                      onclick={skipNote}
+                      disabled={isAnalyzingResponse}
+                    >
+                      Skip
+                    </button>
+                    <button
+                      class="action-btn secondary"
+                      onclick={endSession}
+                      disabled={isAnalyzingResponse}
+                    >
+                      End Session
+                    </button>
+                  </div>
+                  <button
+                    class="action-btn primary"
+                    onclick={submitResponse}
+                    disabled={isAnalyzingResponse || !userResponse.trim()}
+                  >
+                    {isAnalyzingResponse ? 'Submitting...' : 'Submit Response'}
+                  </button>
+                </div>
               </div>
-            </div>
-          </div>
-
-          <div class="skeleton-controls">
-            <div class="rating-section disabled">
-              <div class="rating-prompt">Did you understand this concept well?</div>
-              <div class="rating-buttons">
-                <button class="rating-btn fail-btn" disabled>
-                  <span class="icon">✗</span>
-                  <span class="label">Fail</span>
-                  <span class="schedule">Review tomorrow</span>
-                </button>
-                <button class="rating-btn pass-btn" disabled>
-                  <span class="icon">✓</span>
-                  <span class="label">Pass</span>
-                  <span class="schedule">Review in 7 days</span>
-                </button>
+            {:else if sessionState === 'feedback'}
+              <!-- Feedback controls (Pass/Fail) -->
+              <div class="feedback-controls">
+                <div class="rating-section">
+                  <div class="rating-prompt">Did you understand this concept well?</div>
+                  <div class="rating-buttons">
+                    <button
+                      class="rating-btn fail-btn"
+                      onclick={() => markPassFail(false)}
+                      disabled={isCompletingReview}
+                      title="Press F"
+                    >
+                      <span class="icon">✗</span>
+                      <span class="label">Fail</span>
+                      <span class="schedule">Review tomorrow</span>
+                    </button>
+                    <button
+                      class="rating-btn pass-btn"
+                      onclick={() => markPassFail(true)}
+                      disabled={isCompletingReview}
+                      title="Press P"
+                    >
+                      <span class="icon">✓</span>
+                      <span class="label">Pass</span>
+                      <span class="schedule">Review in 7 days</span>
+                    </button>
+                  </div>
+                  <div class="keyboard-hint">
+                    Keyboard shortcuts: P for Pass · F for Fail
+                  </div>
+                </div>
               </div>
-              <div class="keyboard-hint">Keyboard shortcuts: P for Pass · F for Fail</div>
-            </div>
-          </div>
-        </div>
-      {:else}
-        <ReviewPrompt
-          noteTitle={currentNote.title}
-          currentIndex={currentNoteIndex}
-          {totalNotes}
-          prompt={currentPrompt}
-          {userResponse}
-          onResponseChange={(value) => (userResponse = value)}
-          onSubmit={submitResponse}
-          onShowNote={toggleNoteDrawer}
-          onSkip={skipNote}
-          onEndSession={endSession}
-          isSubmitting={isAnalyzingResponse}
-        />
-      {/if}
-    {/if}
-  {:else if sessionState === 'feedback'}
-    <!-- Agent feedback and pass/fail -->
-    {#if currentNote && agentFeedback}
-      <ReviewFeedback
-        prompt={currentPrompt}
-        {userResponse}
-        feedback={agentFeedback.feedback}
-        onPass={() => markPassFail(true)}
-        onFail={() => markPassFail(false)}
-        isProcessing={isCompletingReview}
-      />
+            {/if}
+          {/snippet}
+        </ConversationContainer>
+      </div>
     {/if}
   {:else if sessionState === 'complete'}
     <!-- Session summary -->
@@ -845,6 +1025,297 @@
   }
 
   .review-feedback-skeleton .keyboard-hint {
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+    font-style: italic;
+  }
+
+  /* Review conversation styles */
+  .review-conversation {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .review-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1.5rem 2rem;
+    border-bottom: 2px solid var(--border);
+  }
+
+  .review-header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: var(--text-primary);
+    flex: 1;
+    min-width: 0;
+    word-wrap: break-word;
+  }
+
+  .review-header .progress {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    background: var(--bg-secondary);
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  .messages-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 2rem;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  /* Response editor */
+  .response-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .response-editor .editor-label {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+  }
+
+  .response-editor .editor-wrapper {
+    border: 2px solid var(--border);
+    border-radius: 4px;
+    min-height: 80px;
+    max-height: 400px;
+    overflow: auto;
+    transition: border-color 0.2s;
+  }
+
+  .response-editor .editor-wrapper :global(.cm-editor) {
+    height: auto;
+    min-height: 80px;
+  }
+
+  .response-editor .editor-wrapper :global(.cm-scroller) {
+    overflow-y: visible;
+    min-height: 80px;
+  }
+
+  .response-editor .editor-wrapper :global(.cm-content) {
+    min-height: 80px;
+  }
+
+  .response-editor .editor-wrapper:focus-within {
+    border-color: var(--accent-primary);
+  }
+
+  /* Analyzing section */
+  .analyzing-section {
+    padding: 1.5rem;
+    border-radius: 4px;
+    border-left: 4px solid var(--success);
+    background: var(--bg-secondary);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .analyzing-section .section-label {
+    font-weight: 600;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+  }
+
+  .analyzing-section .loading-content {
+    display: flex;
+    justify-content: center;
+    padding: 1rem;
+  }
+
+  .analyzing-section .loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba(0, 0, 0, 0.1);
+    border-top-color: var(--success);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .analyzing-section .loading-spinner {
+      border-color: rgba(255, 255, 255, 0.1);
+      border-top-color: var(--success);
+    }
+  }
+
+  /* Review controls (prompting state) */
+  .review-controls {
+    border-top: 1px solid var(--border);
+    background: var(--bg-primary);
+    padding: 1rem 2rem;
+  }
+
+  .review-controls .response-hint {
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+    font-style: italic;
+    margin-bottom: 0.75rem;
+    text-align: center;
+  }
+
+  .review-controls .actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .review-controls .secondary-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .review-controls .action-btn {
+    padding: 0.75rem 1.5rem;
+    border-radius: 4px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+    font-size: 0.875rem;
+  }
+
+  .review-controls .action-btn.primary {
+    background: var(--accent-primary);
+    color: var(--bg-primary);
+  }
+
+  .review-controls .action-btn.primary:hover:not(:disabled) {
+    background: var(--accent-hover);
+    transform: translateY(-1px);
+  }
+
+  .review-controls .action-btn.primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .review-controls .action-btn.secondary {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+  }
+
+  .review-controls .action-btn.secondary:hover:not(:disabled) {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+  }
+
+  .review-controls .action-btn.secondary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Feedback controls (feedback state) */
+  .feedback-controls {
+    background: var(--bg-primary);
+    padding: 1rem 2rem;
+  }
+
+  .feedback-controls .rating-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 2rem;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    border: 2px solid var(--border);
+  }
+
+  .feedback-controls .rating-prompt {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .feedback-controls .rating-buttons {
+    display: flex;
+    gap: 1rem;
+  }
+
+  .feedback-controls .rating-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1.5rem 2rem;
+    border: 2px solid;
+    border-radius: 8px;
+    background: var(--bg-primary);
+    cursor: pointer;
+    transition: all 0.2s;
+    min-width: 150px;
+  }
+
+  .feedback-controls .rating-btn .icon {
+    font-size: 2rem;
+    font-weight: bold;
+  }
+
+  .feedback-controls .rating-btn .label {
+    font-size: 1.125rem;
+    font-weight: 600;
+  }
+
+  .feedback-controls .rating-btn .schedule {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+  }
+
+  .feedback-controls .fail-btn {
+    border-color: var(--warning);
+    color: var(--warning);
+  }
+
+  .feedback-controls .fail-btn:hover:not(:disabled) {
+    background: var(--warning);
+    color: var(--bg-primary);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px var(--warning-shadow, rgba(255, 165, 0, 0.3));
+  }
+
+  .feedback-controls .pass-btn {
+    border-color: var(--success);
+    color: var(--success);
+  }
+
+  .feedback-controls .pass-btn:hover:not(:disabled) {
+    background: var(--success);
+    color: var(--bg-primary);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px var(--success-shadow, rgba(0, 200, 100, 0.3));
+  }
+
+  .feedback-controls .rating-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .feedback-controls .rating-btn:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  .feedback-controls .keyboard-hint {
     font-size: 0.75rem;
     color: var(--text-tertiary);
     font-style: italic;

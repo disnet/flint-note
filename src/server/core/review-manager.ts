@@ -134,6 +134,105 @@ export class ReviewManager {
   }
 
   /**
+   * Get all notes with review enabled (for practice mode)
+   */
+  async getAllReviewableNotes(): Promise<ReviewNote[]> {
+    // Define the shape of the joined query result
+    interface JoinedRow {
+      // Note fields
+      id: string;
+      title: string;
+      content: string | null;
+      type: string;
+      filename: string;
+      path: string;
+      created: string;
+      updated: string;
+      size: number | null;
+      content_hash: string | null;
+      file_mtime: number | null;
+      // Review item fields with aliases
+      review_id: string;
+      note_id: string;
+      vault_id: string;
+      enabled: number;
+      last_reviewed: string | null;
+      next_review: string;
+      review_count: number;
+      review_history: string | null;
+      review_created_at: string;
+      review_updated_at: string;
+    }
+
+    const rows = await this.db.all<JoinedRow>(
+      `SELECT
+        n.id,
+        n.title,
+        n.content,
+        n.type,
+        n.filename,
+        n.path,
+        n.created,
+        n.updated,
+        n.size,
+        n.content_hash,
+        n.file_mtime,
+        ri.id as review_id,
+        ri.note_id,
+        ri.vault_id,
+        ri.enabled,
+        ri.last_reviewed,
+        ri.next_review,
+        ri.review_count,
+        ri.review_history,
+        ri.created_at as review_created_at,
+        ri.updated_at as review_updated_at
+       FROM notes n
+       INNER JOIN review_items ri ON n.id = ri.note_id
+       WHERE ri.vault_id = ?
+         AND ri.enabled = 1
+       ORDER BY RANDOM()`,
+      [this.vaultId]
+    );
+
+    return rows.map((row) => {
+      // Extract note fields
+      const note: NoteRow = {
+        id: row.id,
+        title: row.title,
+        content: row.content,
+        type: row.type,
+        filename: row.filename,
+        path: row.path,
+        created: row.created,
+        updated: row.updated,
+        size: row.size,
+        content_hash: row.content_hash,
+        file_mtime: row.file_mtime
+      };
+
+      // Extract review item fields
+      const reviewItem: ReviewItem = {
+        id: row.review_id,
+        noteId: row.note_id,
+        vaultId: row.vault_id,
+        enabled: row.enabled === 1,
+        lastReviewed: row.last_reviewed,
+        nextReview: row.next_review,
+        reviewCount: row.review_count,
+        reviewHistory: parseReviewHistory(row.review_history),
+        createdAt: row.review_created_at,
+        updatedAt: row.review_updated_at
+      };
+
+      return {
+        ...note,
+        reviewItem
+      };
+    });
+  }
+
+  /**
    * Get notes due for review on a specific date
    */
   async getNotesForReview(date: string): Promise<ReviewNote[]> {

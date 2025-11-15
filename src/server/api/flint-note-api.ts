@@ -2510,6 +2510,15 @@ export class FlintNoteApi {
   }
 
   /**
+   * Get all notes with review enabled (for practice mode)
+   */
+  async getAllReviewableNotes(args: { vaultId: string }): Promise<ReviewNote[]> {
+    this.ensureInitialized();
+    const { reviewManager } = await this.getVaultContext(args.vaultId);
+    return await reviewManager.getAllReviewableNotes();
+  }
+
+  /**
    * Complete a review session
    */
   async completeReview(args: {

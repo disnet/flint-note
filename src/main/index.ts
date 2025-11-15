@@ -1159,6 +1159,18 @@ app.whenReady().then(async () => {
     return await flintApi.getNotesForReview({ date, vaultId: vault.id });
   });
 
+  ipcMain.handle('get-all-reviewable-notes', async () => {
+    if (!noteService) {
+      throw new Error('Note service not available');
+    }
+    const flintApi = noteService.getFlintNoteApi();
+    const vault = await noteService.getCurrentVault();
+    if (!vault) {
+      throw new Error('No active vault');
+    }
+    return await flintApi.getAllReviewableNotes({ vaultId: vault.id });
+  });
+
   ipcMain.handle('generate-review-prompt', async (_event, noteId: string) => {
     if (!aiService) {
       throw new Error('AI service not available');

@@ -4,9 +4,10 @@
   interface Props {
     stats: ReviewStats;
     onStartReview: () => void;
+    onStartPracticeReview: () => void;
   }
 
-  let { stats, onStartReview }: Props = $props();
+  let { stats, onStartReview, onStartPracticeReview }: Props = $props();
 </script>
 
 <div class="review-stats">
@@ -27,18 +28,26 @@
     </div>
   </div>
 
-  {#if stats.dueToday > 0}
-    <button class="start-review-btn" onclick={onStartReview}>
-      Start Today's Review ({stats.dueToday})
-    </button>
-  {:else}
-    <div class="no-reviews">
-      <p>No notes due for review today! 🎉</p>
-      {#if stats.dueThisWeek > 0}
-        <p class="upcoming">Next review: {stats.dueThisWeek} notes this week</p>
-      {/if}
-    </div>
-  {/if}
+  <div class="review-actions">
+    {#if stats.dueToday > 0}
+      <button class="start-review-btn primary" onclick={onStartReview}>
+        Start Today's Review ({stats.dueToday})
+      </button>
+    {:else}
+      <div class="no-reviews">
+        <p>No notes due for review today! 🎉</p>
+        {#if stats.dueThisWeek > 0}
+          <p class="upcoming">Next review: {stats.dueThisWeek} notes this week</p>
+        {/if}
+      </div>
+    {/if}
+
+    {#if stats.totalEnabled > 0}
+      <button class="start-review-btn secondary" onclick={onStartPracticeReview}>
+        Practice Review (All {stats.totalEnabled} notes)
+      </button>
+    {/if}
+  </div>
 </div>
 
 <style>
@@ -98,9 +107,14 @@
     letter-spacing: 0.05em;
   }
 
+  .review-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    align-items: center;
+  }
+
   .start-review-btn {
-    background: var(--accent-primary);
-    color: var(--bg-primary);
     border: none;
     border-radius: 8px;
     padding: 1rem 2rem;
@@ -108,14 +122,33 @@
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
-    align-self: center;
+    width: 100%;
+    max-width: 400px;
+  }
+
+  .start-review-btn.primary {
+    background: var(--accent-primary);
+    color: var(--bg-primary);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   }
 
-  .start-review-btn:hover {
+  .start-review-btn.primary:hover {
     background: var(--accent-hover);
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  .start-review-btn.secondary {
+    background: transparent;
+    color: var(--text-primary);
+    border: 2px solid var(--border);
+    font-size: 1rem;
+  }
+
+  .start-review-btn.secondary:hover {
+    background: var(--bg-secondary);
+    border-color: var(--accent-primary);
+    transform: translateY(-2px);
   }
 
   .start-review-btn:active {

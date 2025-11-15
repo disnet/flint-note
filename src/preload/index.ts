@@ -266,6 +266,7 @@ const api = {
   getReviewStats: () => electronAPI.ipcRenderer.invoke('get-review-stats'),
   getNotesForReview: (date: string) =>
     electronAPI.ipcRenderer.invoke('get-notes-for-review', date),
+  getAllReviewableNotes: () => electronAPI.ipcRenderer.invoke('get-all-reviewable-notes'),
   generateReviewPrompt: (noteId: string) =>
     electronAPI.ipcRenderer.invoke('generate-review-prompt', noteId),
   analyzeReviewResponse: (params: {
