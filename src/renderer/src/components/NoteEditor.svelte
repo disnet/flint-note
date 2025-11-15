@@ -25,6 +25,7 @@
   import Backlinks from './Backlinks.svelte';
   import NoteActionBar from './NoteActionBar.svelte';
   import MarkdownRenderer from './MarkdownRenderer.svelte';
+  import type { NoteSuggestion } from '@/server/types';
 
   interface Props {
     note: NoteMetadata;
@@ -44,6 +45,11 @@
   let pendingCursorPosition = $state<CursorPosition | null>(null);
   let reviewEnabled = $state(false);
   let isLoadingReview = $state(false);
+
+  // Suggestions state
+  let suggestions = $state<NoteSuggestion[]>([]);
+  let expandedSuggestions = $state<Set<string>>(new Set());
+  let isGeneratingSuggestions = $state(false);
 
   const cursorManager = new CursorPositionManager();
 
@@ -145,6 +151,9 @@
 
         noteData = noteResult;
         pendingCursorPosition = cursorPosition;
+
+        // Load suggestions for this note
+        await loadSuggestions(note.id);
       } else {
         throw new Error('Note service not ready');
       }
@@ -152,6 +161,73 @@
       console.error('Error loading note metadata:', err);
     }
   }
+
+  async function loadSuggestions(noteId: string): Promise<void> {
+    try {
+      const result = await window.api?.getNoteSuggestions({ noteId });
+      if (result) {
+        suggestions = result.suggestions || [];
+      } else {
+        suggestions = [];
+      }
+    } catch (err) {
+      console.error('Error loading suggestions:', err);
+      suggestions = [];
+    }
+  }
+
+  async function generateSuggestions(): Promise<void> {
+    if (!note?.id) return;
+
+    try {
+      isGeneratingSuggestions = true;
+      const result = await window.api?.generateNoteSuggestions({ noteId: note.id });
+      if (result) {
+        suggestions = result.suggestions || [];
+        // Clear expanded state when regenerating
+        expandedSuggestions = new Set();
+      }
+    } catch (err) {
+      console.error('Error generating suggestions:', err);
+    } finally {
+      isGeneratingSuggestions = false;
+    }
+  }
+
+  async function dismissSuggestion(suggestionId: string): Promise<void> {
+    if (!note?.id) return;
+
+    try {
+      await window.api?.dismissNoteSuggestion({ noteId: note.id, suggestionId });
+      // Remove from local state
+      suggestions = suggestions.filter((s) => s.id !== suggestionId);
+      // Remove from expanded if it was expanded
+      const newExpanded = new Set(expandedSuggestions);
+      newExpanded.delete(suggestionId);
+      expandedSuggestions = newExpanded;
+    } catch (err) {
+      console.error('Error dismissing suggestion:', err);
+    }
+  }
+
+  function toggleShowAllSuggestions(): void {
+    if (expandedSuggestions.size > 0) {
+      // Hide all
+      expandedSuggestions = new Set();
+    } else {
+      // Show all
+      expandedSuggestions = new Set(suggestions.map((s) => s.id));
+    }
+  }
+
+  // Computed value for button text
+  const showAllButtonText = $derived.by(() => {
+    if (suggestions.length === 0) return '';
+    if (expandedSuggestions.size > 0) {
+      return 'Hide All Suggestions';
+    }
+    return `Show ${suggestions.length} Suggestion${suggestions.length > 1 ? 's' : ''}`;
+  });
 
   async function saveCurrentCursorPositionForNote(
     targetNote: NoteMetadata
@@ -485,6 +561,21 @@
       />
     </div>
 
+    {#if suggestions.length > 0 && !previewMode}
+      <div class="suggestions-controls">
+        <button class="show-all-button" onclick={toggleShowAllSuggestions}>
+          {showAllButtonText}
+        </button>
+        <button
+          class="regenerate-button"
+          onclick={generateSuggestions}
+          disabled={isGeneratingSuggestions}
+        >
+          {isGeneratingSuggestions ? 'Generating...' : 'Regenerate'}
+        </button>
+      </div>
+    {/if}
+
     {#if previewMode}
       <div class="preview-content">
         <MarkdownRenderer text={doc.content} onNoteClick={handlePreviewWikilinkClick} />
@@ -498,6 +589,9 @@
         onWikilinkClick={handleWikilinkClick}
         cursorPosition={pendingCursorPosition}
         placeholder="Write, type [[ to make links..."
+        {suggestions}
+        {expandedSuggestions}
+        onDismissSuggestion={dismissSuggestion}
       />
     {/if}
 
@@ -526,5 +620,52 @@
   .preview-content {
     padding: 0.75rem;
     line-height: 1.6;
+  }
+
+  .suggestions-controls {
+    display: flex;
+    gap: 8px;
+    padding: 8px 0;
+    align-items: center;
+  }
+
+  .show-all-button,
+  .regenerate-button {
+    font-size: 12px;
+    font-weight: 500;
+    padding: 6px 12px;
+    border-radius: 4px;
+    border: 1px solid #d1d5db;
+    background: white;
+    color: #374151;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .show-all-button:hover,
+  .regenerate-button:hover {
+    background: #f9fafb;
+    border-color: #9ca3af;
+  }
+
+  .regenerate-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Dark mode */
+  @media (prefers-color-scheme: dark) {
+    .show-all-button,
+    .regenerate-button {
+      background: #1f2937;
+      border-color: #374151;
+      color: #e5e7eb;
+    }
+
+    .show-all-button:hover,
+    .regenerate-button:hover {
+      background: #374151;
+      border-color: #4b5563;
+    }
   }
 </style>

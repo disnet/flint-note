@@ -1816,6 +1816,7 @@ ${
       priority?: 'high' | 'medium' | 'low';
       data?: Record<string, unknown>;
       reasoning?: string;
+      lineNumber?: number;
     }>
   > {
     try {
@@ -1823,6 +1824,12 @@ ${
       const metadataSection = metadata
         ? `\n\nNote Metadata:\n${JSON.stringify(metadata, null, 2)}`
         : '';
+
+      // Add line numbers to note content
+      const numberedContent = noteContent
+        .split('\n')
+        .map((line, index) => `${index + 1}: ${line}`)
+        .join('\n');
 
       const systemPrompt = `You are analyzing a note of type "${noteType}".
 
@@ -1832,12 +1839,16 @@ ${noteTypeDescription.agentInstructions ? `Agent Instructions for this note type
 
 ${promptGuidance}
 
+The note content is provided with line numbers. When making suggestions that relate to a specific line or section,
+include the line number using the "lineNumber" field. For general suggestions that don't relate to a specific line,
+omit the lineNumber field.
+
 Analyze the note and provide specific, actionable suggestions as a JSON array.
-Each suggestion should have: id, type, text, priority (optional), data (optional), reasoning (optional).
+Each suggestion should have: id, type, text, priority (optional), data (optional), reasoning (optional), lineNumber (optional).
 
 Return ONLY a valid JSON array with no additional text or markdown formatting.`;
 
-      const userMessage = `${noteContent}${metadataSection}`;
+      const userMessage = `${numberedContent}${metadataSection}`;
 
       const response = await generateText({
         model: this.openrouter(this.currentModelName),

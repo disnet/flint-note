@@ -10,6 +10,14 @@
   import { notesStore } from '../services/noteStore.svelte';
   import WikilinkPopover from './WikilinkPopover.svelte';
   import WikilinkActionPopover from './WikilinkActionPopover.svelte';
+  import InlineCommentPopover from './InlineCommentPopover.svelte';
+  import {
+    commentDecorations,
+    updateSuggestionsEffect,
+    setExpandedEffect,
+    getSuggestionsForLine
+  } from '../lib/commentDecorations.svelte';
+  import type { NoteSuggestion } from '../../../server/types';
 
   interface Props {
     content: string;
@@ -30,6 +38,9 @@
     toggleExpansion?: () => void;
     readOnly?: boolean;
     isExpanded?: boolean;
+    suggestions?: NoteSuggestion[];
+    expandedSuggestions?: Set<string>;
+    onDismissSuggestion?: (suggestionId: string) => void;
   }
 
   let {
@@ -45,7 +56,10 @@
     showExpandControls = false,
     toggleExpansion,
     readOnly = false,
-    isExpanded = false
+    isExpanded = false,
+    suggestions = [],
+    expandedSuggestions = new Set(),
+    onDismissSuggestion
   }: Props = $props();
 
   let editorContainer: Element;
@@ -84,6 +98,12 @@
     height: number;
     left: number;
   } | null>(null);
+
+  // Comment popover state
+  let commentPopoverVisible = $state(false);
+  let commentPopoverX = $state(0);
+  let commentPopoverY = $state(0);
+  let commentPopoverSuggestions = $state<NoteSuggestion[]>([]);
 
   const editorConfig = new EditorConfig({
     onWikilinkClick,
@@ -132,7 +152,10 @@
 
     const startState = EditorState.create({
       doc: '',
-      extensions: editorConfig.getExtensions()
+      extensions: [
+        ...editorConfig.getExtensions(),
+        commentDecorations(handleCommentMarkerClick)
+      ]
     });
 
     editorView = new EditorView({
@@ -188,6 +211,7 @@
     editorView.dispatch({
       effects: StateEffect.reconfigure.of([
         ...editorConfig.getExtensions(),
+        commentDecorations(handleCommentMarkerClick),
         EditorState.readOnly.of(readOnly)
       ])
     });
@@ -853,6 +877,66 @@
     }
     return false; // Not consumed
   }
+
+  // Handle comment marker click
+  function handleCommentMarkerClick(lineNumber: number): void {
+    if (!editorView) return;
+
+    // Get suggestions for this line
+    const lineSuggestions = getSuggestionsForLine(editorView, lineNumber);
+
+    if (lineSuggestions.length === 0) return;
+
+    // Get the line position to place the popover
+    try {
+      const line = editorView.state.doc.line(lineNumber);
+      const coords = editorView.coordsAtPos(line.from);
+      const editorRect = editorView.dom.getBoundingClientRect();
+
+      if (coords) {
+        commentPopoverSuggestions = lineSuggestions;
+        // Position popover to the left of the right-side gutter
+        commentPopoverX = editorRect.right - 380; // 380px = popover width (350px) + gutter width (30px)
+        commentPopoverY = coords.top;
+        commentPopoverVisible = true;
+      }
+    } catch (error) {
+      console.error('Error showing comment popover:', error);
+    }
+  }
+
+  function handleCommentPopoverClose(): void {
+    commentPopoverVisible = false;
+  }
+
+  function handleCommentDismiss(suggestionId: string): void {
+    onDismissSuggestion?.(suggestionId);
+    // If all suggestions for this line are dismissed, close the popover
+    const remainingSuggestions = commentPopoverSuggestions.filter(
+      (s) => s.id !== suggestionId
+    );
+    if (remainingSuggestions.length === 0) {
+      commentPopoverVisible = false;
+    }
+  }
+
+  // Update suggestions in the editor when they change
+  $effect(() => {
+    if (editorView && suggestions) {
+      editorView.dispatch({
+        effects: updateSuggestionsEffect.of(suggestions)
+      });
+    }
+  });
+
+  // Update expanded state in the editor when it changes
+  $effect(() => {
+    if (editorView && expandedSuggestions) {
+      editorView.dispatch({
+        effects: setExpandedEffect.of(expandedSuggestions)
+      });
+    }
+  });
 </script>
 
 <div
@@ -935,6 +1019,15 @@
     onEdit={handleActionPopoverEdit}
   />
 </div>
+
+<InlineCommentPopover
+  bind:visible={commentPopoverVisible}
+  x={commentPopoverX}
+  y={commentPopoverY}
+  suggestions={commentPopoverSuggestions}
+  onDismiss={handleCommentDismiss}
+  onClose={handleCommentPopoverClose}
+/>
 
 <style>
   .editor-content {

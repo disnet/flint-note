@@ -2,10 +2,8 @@
   import AIAssistant from './AIAssistant.svelte';
   import ThreadList from './ThreadList.svelte';
   import SidebarNotes from './SidebarNotes.svelte';
-  import NoteSuggestions from './NoteSuggestions.svelte';
   import ResizeHandle from './ResizeHandle.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
-  import { activeNoteStore } from '../stores/activeNoteStore.svelte';
   import type { Message } from '../services/types';
 
   interface Props {
@@ -89,16 +87,6 @@
       <div class="notes-mode">
         <SidebarNotes />
       </div>
-    {:else if sidebarState.rightSidebar.mode === 'suggestions'}
-      <div class="suggestions-mode">
-        {#if activeNoteStore.activeNote}
-          <NoteSuggestions noteId={activeNoteStore.activeNote.id} />
-        {:else}
-          <div class="empty-state">
-            <p>Open a note to see suggestions</p>
-          </div>
-        {/if}
-      </div>
     {/if}
   </div>
 </div>
@@ -155,28 +143,5 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
-  }
-
-  .suggestions-mode {
-    flex: 1;
-    min-height: 0;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .empty-state {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--text-secondary);
-    padding: 2rem;
-    text-align: center;
-  }
-
-  .empty-state p {
-    margin: 0;
-    font-size: 0.875rem;
   }
 </style>

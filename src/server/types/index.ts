@@ -241,6 +241,7 @@ export interface NoteSuggestion {
   priority?: 'high' | 'medium' | 'low';
   data?: Record<string, unknown>; // Type-specific data (e.g., link target, metadata key/value)
   reasoning?: string; // Why this suggestion was made
+  lineNumber?: number; // Optional line number this suggestion relates to (1-indexed)
 }
 
 /**
