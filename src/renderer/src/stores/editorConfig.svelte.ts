@@ -98,7 +98,8 @@ export class EditorConfig {
         marginBottom: '25vh',
         overflow: 'visible',
         fontFamily:
-          "'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace !important"
+          "'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace !important",
+        paddingRight: '40px'
       },
       '.cm-scroller::-webkit-scrollbar': {
         width: '12px'

@@ -66,7 +66,7 @@ class CommentMarkersPlugin implements PluginValue {
   constructor(view: EditorView, onMarkerClick: (lineNumber: number) => void) {
     this.onMarkerClick = onMarkerClick;
 
-    // Create container for markers
+    // Create container inside the editor, positioned on the right
     this.container = document.createElement('div');
     this.container.className = 'cm-comment-markers-container';
     view.dom.appendChild(this.container);
@@ -118,9 +118,6 @@ class CommentMarkersPlugin implements PluginValue {
       top: number;
     }> = [];
 
-    const editorRect = view.dom.getBoundingClientRect();
-    const scrollTop = view.scrollDOM.scrollTop;
-
     for (const [lineNumber, lineSuggestions] of suggestionsByLine) {
       try {
         const line = view.state.doc.line(lineNumber);
@@ -132,12 +129,17 @@ class CommentMarkersPlugin implements PluginValue {
         const priority = getHighestPriority(lineSuggestions);
         const isExpanded = hasExpandedSuggestion(suggestionIds, expanded);
 
+        // coords.top is viewport position
+        // We need position relative to the editor
+        const editorTop = view.dom.getBoundingClientRect().top;
+        const relativeTop = coords.top - editorTop;
+
         positions.push({
           lineNumber,
           suggestions: lineSuggestions,
           priority,
           isExpanded,
-          top: coords.top - editorRect.top + scrollTop
+          top: relativeTop
         });
       } catch (error) {
         console.warn(`Line ${lineNumber} is out of range`, error);
@@ -211,16 +213,19 @@ class CommentMarkersPlugin implements PluginValue {
  */
 const commentTheme = EditorView.baseTheme({
   '.cm-editor': {
+    position: 'relative', // For absolute positioning
     '& .cm-scroller': {
-      paddingRight: '40px' // Make room for the right-side markers
+      paddingRight: '48px' // Make room for markers
     }
   },
   '.cm-comment-markers-container': {
     position: 'absolute',
-    right: '4px',
+    right: '0',
     top: '0',
-    width: '32px',
+    bottom: '0',
+    width: '40px',
     pointerEvents: 'none',
+    overflow: 'visible',
     zIndex: '100'
   },
   '.cm-comment-marker': {
