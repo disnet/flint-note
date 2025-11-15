@@ -81,7 +81,9 @@ describe('update_note_with_diff tool', () => {
 
       expect(updateResult.success).toBe(true);
       const updatedNote = updateResult.data as any;
-      expect(updatedNote.content).toBe('This is the updated content that needs updating.');
+      expect(updatedNote.content).toBe(
+        'This is the updated content that needs updating.'
+      );
       expect(updateResult.message).toContain('Applied 1 patch');
     });
 
@@ -115,8 +117,8 @@ Second paragraph with more old data.`,
             new_string: 'Details'
           },
           {
-            old_string: 'old data',
-            new_string: 'new data'
+            old_string: 'First paragraph with old data',
+            new_string: 'First paragraph with new data'
           }
         ]
       });
@@ -521,7 +523,8 @@ Line 3 - Modified`);
       const tools = toolService.getTools();
 
       // Create a note with long content
-      const longContent = 'Start of document.\n' + 'Middle section.\n'.repeat(1000) + 'End of document.';
+      const longContent =
+        'Start of document.\n' + 'Middle section.\n'.repeat(1000) + 'End of document.';
       const createResult = await tools!.create_note.execute({
         title: 'Long Content Test',
         content: longContent,

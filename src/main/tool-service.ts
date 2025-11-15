@@ -572,7 +572,14 @@ export class ToolService {
           'Skip markdown validation (optional). Use ONLY when updating notes with pre-existing formatting issues that you did not introduce.'
         )
     }),
-    execute: async ({ id, contentHash, patches, title, metadata, skipValidation = false }) => {
+    execute: async ({
+      id,
+      contentHash,
+      patches,
+      title,
+      metadata,
+      skipValidation = false
+    }) => {
       if (!this.noteService) {
         return {
           success: false,
@@ -613,7 +620,7 @@ export class ToolService {
         }
 
         // Verify content hash matches
-        if (currentNote.contentHash !== contentHash) {
+        if (currentNote.content_hash !== contentHash) {
           return {
             success: false,
             error: 'CONTENT_HASH_MISMATCH',
