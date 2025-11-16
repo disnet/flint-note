@@ -45,6 +45,7 @@
   let pendingCursorPosition = $state<CursorPosition | null>(null);
   let reviewEnabled = $state(false);
   let isLoadingReview = $state(false);
+  let isHeaderHovering = $state(false);
 
   // Suggestions state
   let suggestions = $state<NoteSuggestion[]>([]);
@@ -516,32 +517,40 @@
     tabindex="-1"
     onkeydown={handleKeyDown}
   >
-    <EditorHeader
-      bind:this={headerRef}
-      title={doc.title}
-      noteType={note.type}
-      onTitleChange={handleTitleChange}
-      onTypeChange={handleTypeChange}
-      disabled={doc.isSaving}
-    />
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      class="header-container"
+      onmouseenter={() => (isHeaderHovering = true)}
+      onmouseleave={() => (isHeaderHovering = false)}
+    >
+      <EditorHeader
+        bind:this={headerRef}
+        title={doc.title}
+        noteType={note.type}
+        onTitleChange={handleTitleChange}
+        onTypeChange={handleTypeChange}
+        disabled={doc.isSaving}
+      />
 
-    <NoteActionBar
-      isPinned={pinnedNotesStore.isPinned(note.id)}
-      isInSidebar={sidebarNotesStore.isInSidebar(note.id)}
-      {metadataExpanded}
-      {previewMode}
-      {reviewEnabled}
-      {isLoadingReview}
-      {suggestionsEnabled}
-      hasSuggestions={suggestions.length > 0}
-      {isGeneratingSuggestions}
-      onPinToggle={handlePinToggle}
-      onAddToSidebar={handleAddToSidebar}
-      onMetadataToggle={toggleMetadata}
-      onPreviewToggle={togglePreview}
-      onReviewToggle={handleReviewToggle}
-      onGenerateSuggestions={generateSuggestions}
-    />
+      <NoteActionBar
+        isHovering={isHeaderHovering}
+        isPinned={pinnedNotesStore.isPinned(note.id)}
+        isInSidebar={sidebarNotesStore.isInSidebar(note.id)}
+        {metadataExpanded}
+        {previewMode}
+        {reviewEnabled}
+        {isLoadingReview}
+        {suggestionsEnabled}
+        hasSuggestions={suggestions.length > 0}
+        {isGeneratingSuggestions}
+        onPinToggle={handlePinToggle}
+        onAddToSidebar={handleAddToSidebar}
+        onMetadataToggle={toggleMetadata}
+        onPreviewToggle={togglePreview}
+        onReviewToggle={handleReviewToggle}
+        onGenerateSuggestions={generateSuggestions}
+      />
+    </div>
 
     <ErrorBanner error={doc.error} />
 
