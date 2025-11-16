@@ -36,7 +36,7 @@ export class ReviewTools {
    */
   private getNoteFullTool = tool({
     description:
-      'Retrieve the complete content of a note by its ID. Use this during review sessions to access the full note text that the user is reviewing. Returns the entire note content, metadata, and links.',
+      'Retrieve the complete content of a note by its ID. Use this during review sessions to access the full note text that the user is reviewing. Returns the note content (truncated to 10000 characters if longer), metadata, and links.',
     inputSchema: z.object({
       noteId: z
         .string()
@@ -72,9 +72,26 @@ export class ReviewTools {
           };
         }
 
+        const note = result.note;
+        const MAX_CONTENT_LENGTH = 10000;
+
+        // Truncate content if too long to prevent context overflow
+        if (note && note.content && note.content.length > MAX_CONTENT_LENGTH) {
+          const truncated = note.content.substring(0, MAX_CONTENT_LENGTH);
+          return {
+            success: true,
+            note: {
+              ...note,
+              content: truncated,
+              _truncated: true,
+              _originalLength: note.content.length
+            }
+          };
+        }
+
         return {
           success: true,
-          note: result.note
+          note
         };
       } catch (error) {
         return {
@@ -90,7 +107,7 @@ export class ReviewTools {
    */
   private getLinkedNotesTool = tool({
     description:
-      'Get notes that are linked to or from a specific note. Use this to understand the knowledge graph context around a note being reviewed. Returns both outbound links (notes this note references) and inbound links (notes that reference this note).',
+      'Get notes that are linked to or from a specific note. Use this to understand the knowledge graph context around a note being reviewed. Returns both outbound links (notes this note references) and inbound links (notes that reference this note). Content is truncated to 500 characters per note to prevent context overflow.',
     inputSchema: z.object({
       noteId: z.string().describe('The note ID to get links for'),
       includeContent: z
@@ -98,10 +115,15 @@ export class ReviewTools {
         .optional()
         .default(false)
         .describe(
-          'Whether to include full content of linked notes (default: false, only titles)'
-        )
+          'Whether to include content preview of linked notes (default: false, only titles). Content is truncated to 500 characters.'
+        ),
+      limit: z
+        .number()
+        .optional()
+        .default(20)
+        .describe('Maximum number of linked notes to return (default: 20, max: 50)')
     }),
-    execute: async ({ noteId, includeContent }) => {
+    execute: async ({ noteId, includeContent, limit = 20 }) => {
       if (!this.noteService) {
         return {
           success: false,
@@ -120,24 +142,29 @@ export class ReviewTools {
           };
         }
 
+        // Enforce max limit
+        const maxLimit = Math.min(limit, 50);
+        const MAX_CONTENT_PREVIEW = 500;
+
         // Get outbound and inbound links
         const outboundLinks = await flintApi.getNoteLinks(currentVault.id, noteId);
 
         const backlinks = await flintApi.getBacklinks(currentVault.id, noteId);
 
-        // If includeContent, fetch full note details
-        let outboundNotes = outboundLinks.outgoing_internal;
-        let inboundNotes = backlinks.results;
+        // Limit the number of links returned
+        const limitedOutbound = outboundLinks.outgoing_internal.slice(0, maxLimit);
+        const limitedInbound = backlinks.results.slice(0, maxLimit);
 
-        if (
-          includeContent &&
-          (outboundLinks.outgoing_internal.length > 0 || backlinks.results.length > 0)
-        ) {
+        // If includeContent, fetch note details with truncated content
+        let outboundNotes = limitedOutbound;
+        let inboundNotes = limitedInbound;
+
+        if (includeContent && (limitedOutbound.length > 0 || limitedInbound.length > 0)) {
           const allLinkIds = [
-            ...outboundLinks.outgoing_internal
+            ...limitedOutbound
               .map((l) => l.target_note_id)
               .filter((id): id is string => !!id),
-            ...backlinks.results.map((l) => l.source_note_id)
+            ...limitedInbound.map((l) => l.source_note_id)
           ];
 
           const uniqueIds = [...new Set(allLinkIds)];
@@ -146,16 +173,27 @@ export class ReviewTools {
           const notesMap = new Map(
             noteResults
               .filter((r) => r.success && r.note)
-              .map((r) => [r.note!.id, r.note!])
+              .map((r) => {
+                const note = r.note!;
+                // Truncate content to prevent context overflow
+                const truncatedNote = {
+                  ...note,
+                  content:
+                    note.content && note.content.length > MAX_CONTENT_PREVIEW
+                      ? note.content.substring(0, MAX_CONTENT_PREVIEW) + '...'
+                      : note.content
+                };
+                return [note.id, truncatedNote];
+              })
           );
 
-          // Enrich link objects with note content
-          outboundNotes = outboundLinks.outgoing_internal.map((link) => ({
+          // Enrich link objects with truncated note content
+          outboundNotes = limitedOutbound.map((link) => ({
             ...link,
             note: link.target_note_id ? notesMap.get(link.target_note_id) : undefined
           }));
 
-          inboundNotes = backlinks.results.map((link) => ({
+          inboundNotes = limitedInbound.map((link) => ({
             ...link,
             note: notesMap.get(link.source_note_id)
           }));
@@ -166,7 +204,10 @@ export class ReviewTools {
           outbound: outboundNotes,
           inbound: inboundNotes,
           outboundCount: outboundLinks.outgoing_internal.length,
-          inboundCount: backlinks.results.length
+          inboundCount: backlinks.results.length,
+          _limited:
+            outboundLinks.outgoing_internal.length > maxLimit ||
+            backlinks.results.length > maxLimit
         };
       } catch (error) {
         return {

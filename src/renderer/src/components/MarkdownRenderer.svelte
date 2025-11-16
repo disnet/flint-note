@@ -5,7 +5,7 @@
 
   interface Props {
     text: string;
-    onNoteClick?: (noteId: string) => void;
+    onNoteClick?: (noteId: string, shiftKey?: boolean) => void;
   }
 
   let { text, onNoteClick }: Props = $props();
@@ -183,7 +183,8 @@
     if (target.classList.contains('note-link')) {
       const noteId = target.getAttribute('data-note-id');
       if (noteId) {
-        onNoteClick?.(noteId);
+        const mouseEvent = event as MouseEvent;
+        onNoteClick?.(noteId, mouseEvent.shiftKey);
       }
     }
   }

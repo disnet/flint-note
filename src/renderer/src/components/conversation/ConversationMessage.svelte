@@ -26,7 +26,7 @@
     /** Current step index for tool calls */
     currentStepIndex?: number;
     /** Callback for note clicks in markdown */
-    onNoteClick?: (noteId: string) => void;
+    onNoteClick?: (noteId: string, shiftKey?: boolean) => void;
     /** Disable slide-in animation */
     noAnimation?: boolean;
   }
@@ -85,12 +85,7 @@
 
   {#if content.trim()}
     <div class="message-content">
-      {#if role === 'user' && variant === 'section'}
-        <!-- Plain text for user responses in review mode -->
-        <div class="user-text">{content}</div>
-      {:else}
-        <MarkdownRenderer text={content} {onNoteClick} />
-      {/if}
+      <MarkdownRenderer text={content} {onNoteClick} />
     </div>
   {/if}
 
@@ -163,11 +158,6 @@
   .section-variant .message-content {
     color: var(--text-primary);
     line-height: 1.6;
-  }
-
-  .section-variant .user-text {
-    white-space: pre-wrap;
-    font-family: inherit;
   }
 
   /* Tool calls */

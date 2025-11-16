@@ -8,6 +8,7 @@
   import ConversationMessage from './conversation/ConversationMessage.svelte';
   import CodeMirrorEditor from './CodeMirrorEditor.svelte';
   import { wikilinkService } from '../services/wikilinkService.svelte.js';
+  import { notesStore } from '../services/noteStore.svelte';
   import type {
     ReviewSessionState,
     ReviewResult,
@@ -92,6 +93,20 @@
     await wikilinkService.handleWikilinkClick(noteId, title, shouldCreate, shiftKey);
   }
 
+  // Handle note clicks in rendered markdown (simpler signature for MarkdownRenderer)
+  async function handleNoteClick(noteId: string, shiftKey?: boolean): Promise<void> {
+    // Use wikilinkService to handle navigation and sidebar logic
+    const existingNote = notesStore.notes.find((n) => n.id === noteId);
+    if (existingNote) {
+      await wikilinkService.handleWikilinkClick(
+        noteId,
+        existingNote.title,
+        false,
+        shiftKey
+      );
+    }
+  }
+
   // Handle keyboard shortcuts
   function handleKeyDown(event: KeyboardEvent): void {
     if (sessionState === 'prompting') {
@@ -123,16 +138,79 @@
     };
   });
 
+  // Auto-save session state whenever it changes
+  $effect(() => {
+    // Watch these values for changes by accessing them
+    void [
+      sessionState,
+      currentNoteIndex,
+      currentPrompt,
+      userResponse,
+      agentFeedback,
+      sessionResults
+    ];
+
+    // Only save if we're in an active review state
+    if (
+      sessionState !== 'idle' &&
+      sessionState !== 'complete' &&
+      sessionState !== 'loading' &&
+      sessionState !== 'transition' &&
+      sessionStartTime !== null
+    ) {
+      saveCurrentSession();
+    }
+  });
+
   // Load review data on mount
   onMount(() => {
     reviewStore.loadStats();
   });
 
   /**
+   * Save current session state for later restoration
+   */
+  function saveCurrentSession(): void {
+    reviewStore.saveSession({
+      sessionState,
+      notesToReview,
+      currentNoteIndex,
+      currentPrompt,
+      userResponse,
+      agentFeedback,
+      sessionResults,
+      sessionStartTime: sessionStartTime?.toISOString() || new Date().toISOString()
+    });
+  }
+
+  /**
+   * Restore a previously saved session
+   */
+  function restoreSession(): void {
+    const saved = reviewStore.restoreSession();
+    if (!saved) return;
+
+    sessionState = saved.sessionState;
+    notesToReview = saved.notesToReview;
+    currentNoteIndex = saved.currentNoteIndex;
+    currentPrompt = saved.currentPrompt;
+    userResponse = saved.userResponse;
+    agentFeedback = saved.agentFeedback;
+    sessionResults = saved.sessionResults;
+    sessionStartTime = new Date(saved.sessionStartTime);
+
+    // Clear the saved session after restoring
+    reviewStore.clearSavedSession();
+  }
+
+  /**
    * Start a new review session
    */
   async function startReviewSession(): Promise<void> {
     try {
+      // Clear any saved session when starting fresh
+      reviewStore.clearSavedSession();
+
       sessionState = 'loading';
       sessionStartTime = new Date();
       sessionResults = [];
@@ -165,6 +243,9 @@
    */
   async function startPracticeReviewSession(): Promise<void> {
     try {
+      // Clear any saved session when starting fresh
+      reviewStore.clearSavedSession();
+
       sessionState = 'loading';
       sessionStartTime = new Date();
       sessionResults = [];
@@ -402,6 +483,8 @@
       stats={reviewStore.stats}
       onStartReview={startReviewSession}
       onStartPracticeReview={startPracticeReviewSession}
+      onResumeSession={restoreSession}
+      hasSavedSession={reviewStore.hasSavedSession()}
     />
   {:else if sessionState === 'loading'}
     <!-- Loading state -->
@@ -486,6 +569,7 @@
                   collapsed={message.collapsed}
                   variant="section"
                   noAnimation={sessionState === 'feedback'}
+                  onNoteClick={handleNoteClick}
                 />
               {/each}
 
@@ -1111,10 +1195,10 @@
   }
 
   .feedback-controls .fail-btn:hover:not(:disabled) {
-    background: var(--warning);
-    color: var(--bg-primary);
+    background: var(--warning-hover);
+    color: #ffffff;
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px var(--warning-shadow, rgba(255, 165, 0, 0.3));
+    box-shadow: 0 4px 12px rgba(217, 119, 6, 0.4);
   }
 
   .feedback-controls .pass-btn {
@@ -1123,10 +1207,10 @@
   }
 
   .feedback-controls .pass-btn:hover:not(:disabled) {
-    background: var(--success);
-    color: var(--bg-primary);
+    background: var(--success-hover);
+    color: #ffffff;
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px var(--success-shadow, rgba(0, 200, 100, 0.3));
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
   }
 
   .feedback-controls .rating-btn:disabled {

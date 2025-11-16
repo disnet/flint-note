@@ -5,6 +5,13 @@
  * Handles review queue, statistics, and review session state.
  */
 
+import type {
+  ReviewSessionState,
+  ReviewResult,
+  SessionReviewNote,
+  AgentFeedback
+} from '../types/review';
+
 export interface ReviewStats {
   dueToday: number;
   dueThisWeek: number;
@@ -16,6 +23,20 @@ export interface ReviewNote {
   title: string;
   content: string;
   reviewCount: number;
+}
+
+/**
+ * Saved review session state for restoration
+ */
+export interface SavedReviewSession {
+  sessionState: ReviewSessionState;
+  notesToReview: SessionReviewNote[];
+  currentNoteIndex: number;
+  currentPrompt: string;
+  userResponse: string;
+  agentFeedback: AgentFeedback | null;
+  sessionResults: ReviewResult[];
+  sessionStartTime: string; // ISO datetime
 }
 
 class ReviewStore {
@@ -41,6 +62,9 @@ class ReviewStore {
 
   // Show all notes flag (for testing/debugging)
   showAllNotes = $state(false);
+
+  // Saved review session (for resuming after navigation)
+  savedSession = $state<SavedReviewSession | null>(null);
 
   /**
    * Load review statistics from the backend
@@ -167,6 +191,34 @@ class ReviewStore {
   }
 
   /**
+   * Save current review session state for later restoration
+   */
+  saveSession(session: SavedReviewSession): void {
+    this.savedSession = session;
+  }
+
+  /**
+   * Restore saved review session
+   */
+  restoreSession(): SavedReviewSession | null {
+    return this.savedSession;
+  }
+
+  /**
+   * Clear saved session
+   */
+  clearSavedSession(): void {
+    this.savedSession = null;
+  }
+
+  /**
+   * Check if there's a saved session that can be resumed
+   */
+  hasSavedSession(): boolean {
+    return this.savedSession !== null;
+  }
+
+  /**
    * Clear all state
    */
   clear(): void {
@@ -179,6 +231,7 @@ class ReviewStore {
     this.currentReviewNote = null;
     this.error = null;
     this.showAllNotes = false;
+    this.savedSession = null;
   }
 }
 

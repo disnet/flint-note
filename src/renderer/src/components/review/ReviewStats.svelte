@@ -5,9 +5,17 @@
     stats: ReviewStats;
     onStartReview: () => void;
     onStartPracticeReview: () => void;
+    onResumeSession?: () => void;
+    hasSavedSession?: boolean;
   }
 
-  let { stats, onStartReview, onStartPracticeReview }: Props = $props();
+  let {
+    stats,
+    onStartReview,
+    onStartPracticeReview,
+    onResumeSession,
+    hasSavedSession = false
+  }: Props = $props();
 </script>
 
 <div class="review-stats">
@@ -29,6 +37,15 @@
   </div>
 
   <div class="review-actions">
+    {#if hasSavedSession && onResumeSession}
+      <div class="saved-session-notice">
+        <p class="notice-text">You have a paused review session</p>
+        <button class="start-review-btn resume" onclick={onResumeSession}>
+          Resume Session
+        </button>
+      </div>
+    {/if}
+
     {#if stats.dueToday > 0}
       <button class="start-review-btn primary" onclick={onStartReview}>
         Start Today's Review ({stats.dueToday})
@@ -114,6 +131,26 @@
     align-items: center;
   }
 
+  .saved-session-notice {
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+    padding: 1.5rem;
+    background: var(--accent-light);
+    border: 2px solid var(--accent-primary);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .notice-text {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--accent-primary);
+  }
+
   .start-review-btn {
     border: none;
     border-radius: 8px;
@@ -149,6 +186,18 @@
     background: var(--bg-secondary);
     border-color: var(--accent-primary);
     transform: translateY(-2px);
+  }
+
+  .start-review-btn.resume {
+    background: var(--accent-primary);
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .start-review-btn.resume:hover {
+    background: var(--accent-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   }
 
   .start-review-btn:active {

@@ -217,10 +217,10 @@
   }
 
   .fail-btn:hover:not(:disabled) {
-    background: var(--warning);
-    color: var(--bg-primary);
+    background: var(--warning-hover);
+    color: #ffffff;
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px var(--warning-shadow, rgba(255, 165, 0, 0.3));
+    box-shadow: 0 4px 12px rgba(217, 119, 6, 0.4);
   }
 
   .pass-btn {
@@ -229,10 +229,10 @@
   }
 
   .pass-btn:hover:not(:disabled) {
-    background: var(--success);
-    color: var(--bg-primary);
+    background: var(--success-hover);
+    color: #ffffff;
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px var(--success-shadow, rgba(0, 200, 100, 0.3));
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
   }
 
   .rating-btn:disabled {
