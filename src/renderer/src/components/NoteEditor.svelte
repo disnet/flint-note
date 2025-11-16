@@ -24,6 +24,7 @@
   import MetadataView from './MetadataView.svelte';
   import Backlinks from './Backlinks.svelte';
   import NoteActionBar from './NoteActionBar.svelte';
+  import NoteTypeDropdown from './NoteTypeDropdown.svelte';
   import MarkdownRenderer from './MarkdownRenderer.svelte';
   import type { NoteSuggestion } from '@/server/types';
 
@@ -520,29 +521,35 @@
       <EditorHeader
         bind:this={headerRef}
         title={doc.title}
-        noteType={note.type}
         onTitleChange={handleTitleChange}
-        onTypeChange={handleTypeChange}
         disabled={doc.isSaving}
       />
 
-      <NoteActionBar
-        isPinned={pinnedNotesStore.isPinned(note.id)}
-        isInSidebar={sidebarNotesStore.isInSidebar(note.id)}
-        {metadataExpanded}
-        {previewMode}
-        {reviewEnabled}
-        {isLoadingReview}
-        {suggestionsEnabled}
-        hasSuggestions={suggestions.length > 0}
-        {isGeneratingSuggestions}
-        onPinToggle={handlePinToggle}
-        onAddToSidebar={handleAddToSidebar}
-        onMetadataToggle={toggleMetadata}
-        onPreviewToggle={togglePreview}
-        onReviewToggle={handleReviewToggle}
-        onGenerateSuggestions={generateSuggestions}
-      />
+      <div class="controls-row">
+        <NoteTypeDropdown
+          currentType={note.type}
+          onTypeChange={handleTypeChange}
+          disabled={doc.isSaving}
+        />
+
+        <NoteActionBar
+          isPinned={pinnedNotesStore.isPinned(note.id)}
+          isInSidebar={sidebarNotesStore.isInSidebar(note.id)}
+          {metadataExpanded}
+          {previewMode}
+          {reviewEnabled}
+          {isLoadingReview}
+          {suggestionsEnabled}
+          hasSuggestions={suggestions.length > 0}
+          {isGeneratingSuggestions}
+          onPinToggle={handlePinToggle}
+          onAddToSidebar={handleAddToSidebar}
+          onMetadataToggle={toggleMetadata}
+          onPreviewToggle={togglePreview}
+          onReviewToggle={handleReviewToggle}
+          onGenerateSuggestions={generateSuggestions}
+        />
+      </div>
     </div>
 
     <ErrorBanner error={doc.error} />
@@ -587,6 +594,19 @@
     max-width: 75ch;
     width: 100%;
     padding: 0;
+  }
+
+  .header-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .controls-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
   }
 
   .metadata-section-container {

@@ -1,22 +1,13 @@
 <script lang="ts">
   import NoteTitle from './NoteTitle.svelte';
-  import NoteTypeDropdown from './NoteTypeDropdown.svelte';
 
   interface Props {
     title: string;
-    noteType: string;
     onTitleChange: (newTitle: string) => Promise<void>;
-    onTypeChange: (newType: string) => Promise<void>;
     disabled?: boolean;
   }
 
-  let {
-    title,
-    noteType,
-    onTitleChange,
-    onTypeChange,
-    disabled = false
-  }: Props = $props();
+  let { title, onTitleChange, disabled = false }: Props = $props();
 
   let titleComponent: { focus?: () => void } | null = null;
 
@@ -27,38 +18,12 @@
   }
 </script>
 
-<div class="editor-header">
-  <div class="header-type-row">
-    <NoteTypeDropdown currentType={noteType} {onTypeChange} {disabled} />
-  </div>
-  <div class="header-title-row" role="group" aria-label="Note title">
-    <NoteTitle
-      bind:this={titleComponent}
-      value={title}
-      onSave={onTitleChange}
-      {disabled}
-    />
-  </div>
+<div class="editor-header" role="group" aria-label="Note title">
+  <NoteTitle bind:this={titleComponent} value={title} onSave={onTitleChange} {disabled} />
 </div>
 
 <style>
   .editor-header {
-    display: flex;
-    flex-direction: column;
-    background: var(--bg-primary);
-    width: 100%;
-    gap: 0.25rem;
-  }
-
-  .header-type-row {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    width: 100%;
-    min-height: 1.5rem;
-  }
-
-  .header-title-row {
     display: flex;
     width: 100%;
     min-width: 0;
