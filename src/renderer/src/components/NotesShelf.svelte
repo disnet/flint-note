@@ -1,15 +1,15 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { sidebarNotesStore } from '../stores/sidebarNotesStore.svelte';
+  import { notesShelfStore } from '../stores/notesShelfStore.svelte';
   import { wikilinkService } from '../services/wikilinkService.svelte';
   import {
     noteDocumentRegistry,
     type NoteDocument
   } from '../stores/noteDocumentRegistry.svelte';
-  import SidebarNoteItem from './SidebarNoteItem.svelte';
+  import NotesShelfItem from './NotesShelfItem.svelte';
 
-  // Map of noteId -> NoteDocument for sidebar notes
-  let sidebarDocs = $state<Map<string, NoteDocument>>(new Map());
+  // Map of noteId -> NoteDocument for notes shelf
+  let shelfDocs = $state<Map<string, NoteDocument>>(new Map());
 
   // Track original titles for cancel/revert
   const originalTitles = new Map<string, string>();
@@ -17,9 +17,9 @@
   // Track the note IDs to detect changes
   let previousNoteIds: string[] = [];
 
-  // Open documents for all sidebar notes
+  // Open documents for all notes on shelf
   $effect(() => {
-    const notes = sidebarNotesStore.notes;
+    const notes = notesShelfStore.notes;
     const currentNoteIds = notes.map((n) => n.noteId);
 
     // Only proceed if the note list actually changed
@@ -37,50 +37,50 @@
     (async () => {
       const newDocs = new Map<string, NoteDocument>();
 
-      // Open documents for all current sidebar notes
+      // Open documents for all current notes on shelf
       for (const note of notes) {
-        const editorId = `sidebar-${note.noteId}`;
+        const editorId = `shelf-${note.noteId}`;
         const doc = await noteDocumentRegistry.open(note.noteId, editorId);
         newDocs.set(note.noteId, doc);
       }
 
-      // Close documents that are no longer in sidebar
-      const oldDocs = sidebarDocs;
+      // Close documents that are no longer on shelf
+      const oldDocs = shelfDocs;
       for (const [noteId] of oldDocs) {
         if (!newDocs.has(noteId)) {
-          const editorId = `sidebar-${noteId}`;
+          const editorId = `shelf-${noteId}`;
           noteDocumentRegistry.close(noteId, editorId);
         }
       }
 
-      sidebarDocs = newDocs;
+      shelfDocs = newDocs;
     })();
   });
 
   // Cleanup: close all documents when component is destroyed
   onMount(() => {
     return () => {
-      for (const [noteId] of sidebarDocs) {
-        const editorId = `sidebar-${noteId}`;
+      for (const [noteId] of shelfDocs) {
+        const editorId = `shelf-${noteId}`;
         noteDocumentRegistry.close(noteId, editorId);
       }
     };
   });
 
   function handleDisclosureToggle(noteId: string): void {
-    sidebarNotesStore.toggleExpanded(noteId);
+    notesShelfStore.toggleExpanded(noteId);
   }
 
   async function handleRemoveNote(noteId: string): Promise<void> {
-    // Close the document before removing from sidebar
-    const editorId = `sidebar-${noteId}`;
+    // Close the document before removing from shelf
+    const editorId = `shelf-${noteId}`;
     noteDocumentRegistry.close(noteId, editorId);
 
-    await sidebarNotesStore.removeNote(noteId);
+    await notesShelfStore.removeNote(noteId);
   }
 
   function handleContentChange(noteId: string, content: string): void {
-    const doc = sidebarDocs.get(noteId);
+    const doc = shelfDocs.get(noteId);
     if (doc) {
       // Update shared document - this automatically syncs to other editors
       doc.updateContent(content);
@@ -95,7 +95,7 @@
   async function handleTitleBlur(noteId: string, newTitle: string): Promise<void> {
     const originalTitle = originalTitles.get(noteId);
     if (originalTitle !== undefined && newTitle !== originalTitle) {
-      const doc = sidebarDocs.get(noteId);
+      const doc = shelfDocs.get(noteId);
       if (doc) {
         // Update shared document - this automatically syncs to other editors
         // Note: With immutable note IDs, the ID never changes during a rename
@@ -133,22 +133,22 @@
   }
 </script>
 
-<div class="sidebar-notes">
-  <div class="sidebar-notes-header">
+<div class="notes-shelf">
+  <div class="notes-shelf-header">
     <h3>Notes Shelf</h3>
   </div>
 
   <div class="notes-list">
-    {#if sidebarNotesStore.notes.length === 0}
+    {#if notesShelfStore.notes.length === 0}
       <div class="empty-state">
         <p>No notes on shelf</p>
         <p class="hint">Use "Add to Shelf" in the note editor to add notes here</p>
       </div>
     {:else}
-      {#each sidebarNotesStore.notes as note (note.noteId)}
-        {@const doc = sidebarDocs.get(note.noteId)}
+      {#each notesShelfStore.notes as note (note.noteId)}
+        {@const doc = shelfDocs.get(note.noteId)}
         {#if doc}
-          <SidebarNoteItem
+          <NotesShelfItem
             {doc}
             isExpanded={note.isExpanded}
             onDisclosureToggle={() => handleDisclosureToggle(note.noteId)}
@@ -166,20 +166,20 @@
 </div>
 
 <style>
-  .sidebar-notes {
+  .notes-shelf {
     display: flex;
     flex-direction: column;
     height: 100%;
     overflow: hidden;
   }
 
-  .sidebar-notes-header {
+  .notes-shelf-header {
     padding: 1rem;
     border-bottom: 1px solid var(--border-light);
     flex-shrink: 0;
   }
 
-  .sidebar-notes-header h3 {
+  .notes-shelf-header h3 {
     margin: 0;
     font-size: 1rem;
     font-weight: 600;

@@ -1,7 +1,7 @@
 <script lang="ts">
   import AIAssistant from './AIAssistant.svelte';
   import ThreadList from './ThreadList.svelte';
-  import SidebarNotes from './SidebarNotes.svelte';
+  import NotesShelf from './NotesShelf.svelte';
   import ResizeHandle from './ResizeHandle.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
   import type { Message } from '../services/types';
@@ -85,7 +85,7 @@
       </div>
     {:else if sidebarState.rightSidebar.mode === 'notes'}
       <div class="notes-mode">
-        <SidebarNotes />
+        <NotesShelf />
       </div>
     {/if}
   </div>

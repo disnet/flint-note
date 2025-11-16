@@ -5,7 +5,7 @@
   import { dailyViewStore } from '../stores/dailyViewStore.svelte';
   import { formatDayHeader, isToday } from '../utils/dateUtils.svelte';
   import type { NoteMetadata } from '../services/noteStore.svelte';
-  import { sidebarNotesStore } from '../stores/sidebarNotesStore.svelte';
+  import { notesShelfStore } from '../stores/notesShelfStore.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
 
   interface Props {
@@ -56,19 +56,15 @@
     }
   }
 
-  async function handleDailyNoteTitleClickSidebar(date: string): Promise<void> {
+  async function handleDailyNoteTitleClickShelf(date: string): Promise<void> {
     // Open/create the daily note
     const dailyNote = await dailyViewStore.openDailyNote(date);
     if (!dailyNote) return;
 
-    // Add to sidebar
-    await sidebarNotesStore.addNote(
-      dailyNote.id,
-      dailyNote.title,
-      dailyNote.content || ''
-    );
+    // Add to shelf
+    await notesShelfStore.addNote(dailyNote.id, dailyNote.title, dailyNote.content || '');
 
-    // Open the sidebar if it's not already visible or not in notes mode
+    // Open the right sidebar if it's not already visible or not in notes mode
     if (
       !sidebarState.rightSidebar.visible ||
       sidebarState.rightSidebar.mode !== 'notes'
@@ -176,7 +172,7 @@
             onNoteClick={handleNoteClick}
             onDailyNoteUpdate={handleDailyNoteUpdate}
             onDailyNoteTitleClick={handleDailyNoteTitleClick}
-            onDailyNoteTitleClickSidebar={handleDailyNoteTitleClickSidebar}
+            onDailyNoteTitleClickSidebar={handleDailyNoteTitleClickShelf}
           />
         {/each}
       </div>

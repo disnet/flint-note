@@ -32,7 +32,7 @@
     onFocusChange?: (focused: boolean) => void;
     cursorPosition?: CursorPosition | null;
     placeholder?: string;
-    variant?: 'default' | 'daily-note' | 'sidebar-note';
+    variant?: 'default' | 'daily-note' | 'shelf-note';
     maxHeight?: string;
     showExpandControls?: boolean;
     toggleExpansion?: () => void;

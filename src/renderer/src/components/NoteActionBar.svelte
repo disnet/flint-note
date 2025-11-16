@@ -7,7 +7,7 @@
     disabled?: boolean;
     isPinned: boolean;
     metadataExpanded: boolean;
-    isInSidebar: boolean;
+    isOnShelf: boolean;
     previewMode: boolean;
     reviewEnabled?: boolean;
     isLoadingReview?: boolean;
@@ -16,7 +16,7 @@
     isGeneratingSuggestions?: boolean;
     onPinToggle: () => Promise<void>;
     onMetadataToggle: () => void;
-    onAddToSidebar: () => Promise<void>;
+    onAddToShelf: () => Promise<void>;
     onPreviewToggle: () => void;
     onReviewToggle?: () => Promise<void>;
     onGenerateSuggestions?: () => Promise<void>;
@@ -28,7 +28,7 @@
     disabled = false,
     isPinned,
     metadataExpanded,
-    isInSidebar,
+    isOnShelf,
     previewMode,
     reviewEnabled = false,
     isLoadingReview = false,
@@ -37,7 +37,7 @@
     isGeneratingSuggestions = false,
     onPinToggle,
     onMetadataToggle,
-    onAddToSidebar,
+    onAddToShelf,
     onPreviewToggle,
     onReviewToggle,
     onGenerateSuggestions
@@ -76,13 +76,13 @@
   </button>
   <button
     class="action-button"
-    class:active={isInSidebar}
-    onclick={onAddToSidebar}
+    class:active={isOnShelf}
+    onclick={onAddToShelf}
     type="button"
-    title={isInSidebar ? 'Already on shelf' : 'Add to shelf'}
-    disabled={isInSidebar}
+    title={isOnShelf ? 'Already on shelf' : 'Add to shelf'}
+    disabled={isOnShelf}
   >
-    {isInSidebar ? '📋 On Shelf' : '📋 Shelf'}
+    {isOnShelf ? '📋 On Shelf' : '📋 Shelf'}
   </button>
   <div class="overflow-menu-container">
     <button

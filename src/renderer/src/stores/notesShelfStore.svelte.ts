@@ -1,23 +1,23 @@
 import { getChatService } from '../services/chatService';
 import { messageBus } from '../services/messageBus.svelte';
 
-export interface SidebarNote {
+export interface ShelfNote {
   noteId: string;
   title: string;
   content: string;
   isExpanded: boolean;
 }
 
-interface SidebarNotesState {
-  notes: SidebarNote[];
+interface NotesShelfState {
+  notes: ShelfNote[];
 }
 
-const defaultState: SidebarNotesState = {
+const defaultState: NotesShelfState = {
   notes: []
 };
 
-class SidebarNotesStore {
-  private state = $state<SidebarNotesState>(defaultState);
+class NotesShelfStore {
+  private state = $state<NotesShelfState>(defaultState);
   private isLoading = $state(true);
   private isInitialized = $state(false);
   private initializationPromise: Promise<void> | null = null;
@@ -26,13 +26,13 @@ class SidebarNotesStore {
   constructor() {
     this.initializationPromise = this.initialize();
 
-    // Subscribe to vault.switched events to reload sidebar notes for the new vault
+    // Subscribe to vault.switched events to reload notes shelf for the new vault
     messageBus.subscribe('vault.switched', async (event) => {
       await this.refreshForVault(event.vaultId);
     });
   }
 
-  get notes(): SidebarNote[] {
+  get notes(): ShelfNote[] {
     return this.state.notes;
   }
 
@@ -64,11 +64,11 @@ class SidebarNotesStore {
       const vault = await service.getCurrentVault();
       this.currentVaultId = vault?.id || 'default';
 
-      // Load sidebar notes for this vault
+      // Load notes shelf for this vault
       const notes = await this.loadFromStorage();
       this.state.notes = notes;
     } catch (error) {
-      console.warn('Failed to initialize sidebar notes:', error);
+      console.warn('Failed to initialize notes shelf:', error);
       this.currentVaultId = 'default';
       const notes = await this.loadFromStorage();
       this.state.notes = notes;
@@ -80,9 +80,9 @@ class SidebarNotesStore {
   }
 
   /**
-   * Load sidebar notes from storage for the current vault
+   * Load notes shelf from storage for the current vault
    */
-  private async loadFromStorage(vaultId?: string): Promise<SidebarNote[]> {
+  private async loadFromStorage(vaultId?: string): Promise<ShelfNote[]> {
     try {
       const vault = vaultId || this.currentVaultId || 'default';
       const stored = await window.api.loadUIState({
@@ -96,11 +96,11 @@ class SidebarNotesStore {
         'notes' in stored &&
         Array.isArray(stored.notes)
       ) {
-        return stored.notes as SidebarNote[];
+        return stored.notes as ShelfNote[];
       }
       return [];
     } catch (error) {
-      console.warn('Failed to load sidebar notes from storage:', error);
+      console.warn('Failed to load notes shelf from storage:', error);
       return [];
     }
   }
@@ -122,25 +122,25 @@ class SidebarNotesStore {
         stateValue: stateSnapshot
       });
     } catch (error) {
-      console.error('Failed to save sidebar notes to storage:', error);
+      console.error('Failed to save notes shelf to storage:', error);
     }
   }
 
   /**
-   * Check if a note is in the sidebar
+   * Check if a note is on the shelf
    */
-  isInSidebar(noteId: string): boolean {
+  isOnShelf(noteId: string): boolean {
     return this.state.notes.some((note) => note.noteId === noteId);
   }
 
   /**
-   * Add a note to the sidebar
+   * Add a note to the shelf
    */
   async addNote(noteId: string, title: string, content: string): Promise<void> {
     await this.ensureInitialized();
 
     // Don't add if already exists
-    if (this.isInSidebar(noteId)) {
+    if (this.isOnShelf(noteId)) {
       return;
     }
 
@@ -155,7 +155,7 @@ class SidebarNotesStore {
   }
 
   /**
-   * Remove a note from the sidebar
+   * Remove a note from the shelf
    */
   async removeNote(noteId: string): Promise<void> {
     await this.ensureInitialized();
@@ -166,19 +166,19 @@ class SidebarNotesStore {
   }
 
   /**
-   * Update a note's title and/or content in the sidebar store
+   * Update a note's title and/or content in the notes shelf store
    * Note: With the shared document model, this is primarily for maintaining
-   * the sidebar's internal state. Content sync happens through NoteDocument.
+   * the shelf's internal state. Content sync happens through NoteDocument.
    */
   async updateNote(
     noteId: string,
-    updates: Partial<Pick<SidebarNote, 'title' | 'content'>>
+    updates: Partial<Pick<ShelfNote, 'title' | 'content'>>
   ): Promise<void> {
     await this.ensureInitialized();
 
     const note = this.state.notes.find((n) => n.noteId === noteId);
     if (note) {
-      // Update the sidebar note copy (used for display state)
+      // Update the shelf note copy (used for display state)
       if (updates.title !== undefined) {
         note.title = updates.title;
       }
@@ -204,7 +204,7 @@ class SidebarNotesStore {
   }
 
   /**
-   * Refresh sidebar notes for a new vault
+   * Refresh notes shelf for a new vault
    * Called when the vault is switched
    */
   async refreshForVault(vaultId?: string): Promise<void> {
@@ -224,11 +224,11 @@ class SidebarNotesStore {
       const notes = await this.loadFromStorage();
       this.state.notes = notes;
     } catch (error) {
-      console.warn('Failed to refresh vault for sidebar notes:', error);
+      console.warn('Failed to refresh vault for notes shelf:', error);
     } finally {
       this.isLoading = false;
     }
   }
 }
 
-export const sidebarNotesStore = new SidebarNotesStore();
+export const notesShelfStore = new NotesShelfStore();

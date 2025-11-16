@@ -1,6 +1,6 @@
 import { getChatService } from './chatService.js';
 import { notesStore, type NoteMetadata } from './noteStore.svelte';
-import { sidebarNotesStore } from '../stores/sidebarNotesStore.svelte';
+import { notesShelfStore } from '../stores/notesShelfStore.svelte';
 import { sidebarState } from '../stores/sidebarState.svelte';
 
 /**
@@ -97,9 +97,9 @@ class WikilinkService {
       const chatService = getChatService();
       const noteContent = await chatService.getNote({ identifier: note.id });
 
-      // Add to sidebar (only proceed if we successfully fetched the note)
+      // Add to shelf (only proceed if we successfully fetched the note)
       if (noteContent) {
-        await sidebarNotesStore.addNote(note.id, note.title, noteContent.content);
+        await notesShelfStore.addNote(note.id, note.title, noteContent.content);
 
         // Open the right sidebar in notes mode if not already visible
         if (

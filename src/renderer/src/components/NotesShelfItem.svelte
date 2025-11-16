@@ -107,7 +107,7 @@
   }
 </script>
 
-<div class="sidebar-note">
+<div class="shelf-note">
   <div class="note-header">
     <button
       class="disclosure-button"
@@ -174,14 +174,14 @@
         {onContentChange}
         {onWikilinkClick}
         placeholder="Note content..."
-        variant="sidebar-note"
+        variant="shelf-note"
       />
     </div>
   {/if}
 </div>
 
 <style>
-  .sidebar-note {
+  .shelf-note {
     margin-bottom: 0.5rem;
     border: 1px solid var(--border-light);
     border-radius: 0.375rem;

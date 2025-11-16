@@ -7,7 +7,7 @@
   import { getChatService } from '../services/chatService.js';
   import { wikilinkService } from '../services/wikilinkService.svelte.js';
   import { pinnedNotesStore } from '../services/pinnedStore.svelte.js';
-  import { sidebarNotesStore } from '../stores/sidebarNotesStore.svelte.js';
+  import { notesShelfStore } from '../stores/notesShelfStore.svelte.js';
   import { sidebarState } from '../stores/sidebarState.svelte.js';
   import { reviewStore } from '../stores/reviewStore.svelte.js';
   import {
@@ -401,12 +401,12 @@
     await pinnedNotesStore.togglePin(note.id);
   }
 
-  async function handleAddToSidebar(): Promise<void> {
+  async function handleAddToShelf(): Promise<void> {
     if (!doc) return;
 
-    await sidebarNotesStore.addNote(note.id, doc.title, doc.content);
+    await notesShelfStore.addNote(note.id, doc.title, doc.content);
 
-    // Open the sidebar if it's not already visible
+    // Open the right sidebar if it's not already visible
     if (
       !sidebarState.rightSidebar.visible ||
       sidebarState.rightSidebar.mode !== 'notes'
@@ -529,7 +529,7 @@
         onTypeChange={handleTypeChange}
         disabled={doc.isSaving}
         isPinned={pinnedNotesStore.isPinned(note.id)}
-        isInSidebar={sidebarNotesStore.isInSidebar(note.id)}
+        isOnShelf={notesShelfStore.isOnShelf(note.id)}
         {metadataExpanded}
         {previewMode}
         {reviewEnabled}
@@ -538,7 +538,7 @@
         hasSuggestions={suggestions.length > 0}
         {isGeneratingSuggestions}
         onPinToggle={handlePinToggle}
-        onAddToSidebar={handleAddToSidebar}
+        onAddToShelf={handleAddToShelf}
         onMetadataToggle={toggleMetadata}
         onPreviewToggle={togglePreview}
         onReviewToggle={handleReviewToggle}

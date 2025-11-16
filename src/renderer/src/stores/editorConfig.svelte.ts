@@ -35,7 +35,7 @@ export interface EditorConfigOptions {
   onHoverPopoverEnter?: () => boolean;
   onHoverPopoverAltEnter?: () => boolean;
   placeholder?: string;
-  variant?: 'default' | 'daily-note' | 'backlink-context' | 'sidebar-note';
+  variant?: 'default' | 'daily-note' | 'backlink-context' | 'shelf-note';
 }
 
 export class EditorConfig {
@@ -209,8 +209,8 @@ export class EditorConfig {
     });
   }
 
-  // Sidebar note variant theme (compact multi-line editor)
-  private getSidebarNoteTheme(): Extension {
+  // Shelf note variant theme (compact multi-line editor)
+  private getShelfNoteTheme(): Extension {
     return EditorView.theme({
       '&.cm-editor': {
         border: 'none',
@@ -220,7 +220,7 @@ export class EditorConfig {
         width: '100%',
         scrollbarWidth: 'thin',
         scrollbarColor: 'rgba(0, 0, 0, 0.2) transparent',
-        marginBottom: '0', // NO 25vh margin for sidebar notes
+        marginBottom: '0', // NO 25vh margin for shelf notes
         overflow: 'visible',
         fontFamily:
           "'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace !important"
@@ -347,8 +347,8 @@ export class EditorConfig {
         ? this.getDailyNoteTheme()
         : this.options.variant === 'backlink-context'
           ? this.getBacklinkContextTheme()
-          : this.options.variant === 'sidebar-note'
-            ? this.getSidebarNoteTheme()
+          : this.options.variant === 'shelf-note'
+            ? this.getShelfNoteTheme()
             : this.getDefaultTheme(),
       markdownListStyling,
       listStylingTheme,
