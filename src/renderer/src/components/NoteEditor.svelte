@@ -45,7 +45,6 @@
   let pendingCursorPosition = $state<CursorPosition | null>(null);
   let reviewEnabled = $state(false);
   let isLoadingReview = $state(false);
-  let isHeaderHovering = $state(false);
 
   // Suggestions state
   let suggestions = $state<NoteSuggestion[]>([]);
@@ -517,12 +516,7 @@
     tabindex="-1"
     onkeydown={handleKeyDown}
   >
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div
-      class="header-container"
-      onmouseenter={() => (isHeaderHovering = true)}
-      onmouseleave={() => (isHeaderHovering = false)}
-    >
+    <div class="header-container">
       <EditorHeader
         bind:this={headerRef}
         title={doc.title}
@@ -533,7 +527,6 @@
       />
 
       <NoteActionBar
-        isHovering={isHeaderHovering}
         isPinned={pinnedNotesStore.isPinned(note.id)}
         isInSidebar={sidebarNotesStore.isInSidebar(note.id)}
         {metadataExpanded}

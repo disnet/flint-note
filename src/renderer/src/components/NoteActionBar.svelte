@@ -1,6 +1,5 @@
 <script lang="ts">
   interface Props {
-    isHovering: boolean;
     isPinned: boolean;
     metadataExpanded: boolean;
     isInSidebar: boolean;
@@ -19,7 +18,6 @@
   }
 
   let {
-    isHovering,
     isPinned,
     metadataExpanded,
     isInSidebar,
@@ -48,7 +46,7 @@
   }
 </script>
 
-<div class="note-action-bar" class:visible={isHovering}>
+<div class="note-action-bar">
   <button
     class="action-button"
     class:active={isPinned}
@@ -150,20 +148,12 @@
     display: flex;
     gap: 0.5rem;
     padding: 0.25rem 0;
-    opacity: 0;
-    transition: opacity 0.2s ease;
-    pointer-events: none;
-  }
-
-  .note-action-bar.visible {
-    opacity: 1;
-    pointer-events: auto;
   }
 
   .action-button {
     padding: 0.25rem 0.5rem;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-light);
+    background: transparent;
+    border: 1px solid transparent;
     border-radius: 0.25rem;
     cursor: pointer;
     font-size: 0.8rem;
@@ -175,19 +165,19 @@
   }
 
   .action-button:hover {
-    background: var(--bg-primary);
-    border-color: var(--border-medium);
+    background: var(--bg-secondary);
+    border-color: var(--border-light);
     color: var(--text-primary);
   }
 
   .action-button.active {
-    background: var(--accent-primary);
+    background: var(--bg-secondary);
     border-color: var(--accent-primary);
-    color: white;
+    color: var(--text-primary);
   }
 
   .action-button.active:hover {
-    filter: brightness(0.9);
+    background: var(--bg-primary);
   }
 
   .action-button:disabled {
@@ -251,8 +241,9 @@
   }
 
   .popover-item.active {
-    background: var(--accent-primary);
-    color: white;
+    background: var(--bg-primary);
+    border-left: 2px solid var(--accent-primary);
+    padding-left: calc(0.875rem - 2px);
   }
 
   .popover-item:disabled {
