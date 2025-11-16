@@ -17,7 +17,7 @@
 
   let titleValue = $state(value);
   let isProcessing = $state(false);
-  let inputElement: HTMLInputElement | null = null;
+  let inputElement: HTMLTextAreaElement | null = null;
 
   // Track if user is actively editing to prevent external updates during editing
   let isEditing = $state(false);
@@ -26,6 +26,7 @@
   $effect(() => {
     if (inputElement && inputElement.value === '') {
       inputElement.value = value;
+      adjustHeight();
     }
   });
 
@@ -36,9 +37,18 @@
       // Manually update the input DOM to avoid re-render flash
       if (inputElement && document.activeElement !== inputElement) {
         inputElement.value = value;
+        adjustHeight();
       }
     }
   });
+
+  function adjustHeight(): void {
+    if (!inputElement) return;
+    // Reset height to auto to get the correct scrollHeight
+    inputElement.style.height = 'auto';
+    // Set height to scrollHeight to fit content
+    inputElement.style.height = inputElement.scrollHeight + 'px';
+  }
 
   async function handleSave(): Promise<void> {
     const trimmedTitle = titleValue.trim();
@@ -95,21 +105,22 @@
   }
 </script>
 
-<input
+<textarea
   bind:this={inputElement}
   oninput={(e) => {
-    titleValue = (e.target as HTMLInputElement).value;
+    titleValue = (e.target as HTMLTextAreaElement).value;
+    adjustHeight();
   }}
   class="note-title-input"
   class:processing={isProcessing}
   class:empty={!titleValue || titleValue.trim().length === 0}
-  type="text"
   onkeydown={handleKeydown}
   onfocus={handleFocus}
   onblur={handleBlur}
   {placeholder}
   {disabled}
-/>
+  rows="1"
+></textarea>
 
 <style>
   .note-title-input {
@@ -126,6 +137,10 @@
     outline: none;
     width: 100%;
     min-width: 200px;
+    resize: none;
+    overflow: hidden;
+    line-height: 1.3;
+    min-height: 1.95rem;
   }
 
   .note-title-input::placeholder {

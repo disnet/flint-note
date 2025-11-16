@@ -28,17 +28,16 @@
 </script>
 
 <div class="editor-header">
-  <div class="header-top-row">
+  <div class="header-type-row">
     <NoteTypeDropdown currentType={noteType} {onTypeChange} {disabled} />
-    <span class="separator">/</span>
-    <div class="title-wrapper" role="group" aria-label="Note title">
-      <NoteTitle
-        bind:this={titleComponent}
-        value={title}
-        onSave={onTitleChange}
-        {disabled}
-      />
-    </div>
+  </div>
+  <div class="header-title-row" role="group" aria-label="Note title">
+    <NoteTitle
+      bind:this={titleComponent}
+      value={title}
+      onSave={onTitleChange}
+      {disabled}
+    />
   </div>
 </div>
 
@@ -48,14 +47,21 @@
     flex-direction: column;
     background: var(--bg-primary);
     width: 100%;
+    gap: 0.25rem;
   }
 
-  .header-top-row {
+  .header-type-row {
     display: flex;
     align-items: center;
     gap: 0.5rem;
     width: 100%;
-    min-height: 2rem;
+    min-height: 1.5rem;
+  }
+
+  .header-title-row {
+    display: flex;
+    width: 100%;
+    min-width: 0;
   }
 
   .separator {
@@ -64,10 +70,5 @@
     font-size: 1rem;
     font-weight: 300;
     margin: 0 0.125rem;
-  }
-
-  .title-wrapper {
-    flex: 1;
-    min-width: 0;
   }
 </style>
