@@ -23,6 +23,7 @@
   import { vaultAvailabilityService } from './services/vaultAvailabilityService.svelte';
   import { dailyViewStore } from './stores/dailyViewStore.svelte';
   import { inboxStore } from './stores/inboxStore.svelte';
+  import { reviewStore } from './stores/reviewStore.svelte';
   import type { CreateVaultResult } from '@/server/api/types';
   import { messageBus } from './services/messageBus.svelte';
   import type { NoteEvent, WorkflowEvent } from './services/messageBus.svelte';
@@ -74,6 +75,16 @@
       }
     }
     initializeInbox();
+
+    // Initialize review stats
+    async function initializeReviewStats(): Promise<void> {
+      try {
+        await reviewStore.loadStats();
+      } catch (error) {
+        console.error('Failed to initialize review stats:', error);
+      }
+    }
+    initializeReviewStats();
 
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
