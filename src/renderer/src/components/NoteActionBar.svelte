@@ -1,5 +1,10 @@
 <script lang="ts">
+  import NoteTypeDropdown from './NoteTypeDropdown.svelte';
+
   interface Props {
+    noteType: string;
+    onTypeChange: (newType: string) => Promise<void>;
+    disabled?: boolean;
     isPinned: boolean;
     metadataExpanded: boolean;
     isInSidebar: boolean;
@@ -18,6 +23,9 @@
   }
 
   let {
+    noteType,
+    onTypeChange,
+    disabled = false,
     isPinned,
     metadataExpanded,
     isInSidebar,
@@ -47,6 +55,7 @@
 </script>
 
 <div class="note-action-bar">
+  <NoteTypeDropdown currentType={noteType} {onTypeChange} {disabled} />
   <button
     class="action-button"
     class:active={isPinned}
@@ -157,6 +166,7 @@
     border-radius: 0.25rem;
     cursor: pointer;
     font-size: 0.8rem;
+    line-height: 1.5;
     color: var(--text-secondary);
     transition: all 0.2s ease;
     display: flex;

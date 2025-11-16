@@ -118,31 +118,29 @@
   .type-button {
     display: flex;
     align-items: center;
-    gap: 0.375rem;
-    padding: 0.25rem 0.625rem;
-    background: var(--accent-primary);
-    border: 1px solid var(--accent-primary);
-    border-radius: 1rem;
+    gap: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 0.25rem;
     cursor: pointer;
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: white;
+    font-size: 0.8rem;
+    line-height: 1.5;
+    height: 100%;
+    color: var(--text-secondary);
     transition: all 0.2s ease;
     white-space: nowrap;
-    letter-spacing: 0.01em;
   }
 
   .type-button:hover {
-    background: var(--accent-hover);
-    border-color: var(--accent-hover);
-    filter: brightness(1.1);
+    background: var(--bg-secondary);
+    border-color: var(--border-light);
+    color: var(--text-primary);
   }
 
   .type-button:focus {
     outline: none;
-    box-shadow:
-      0 0 0 2px var(--bg-primary),
-      0 0 0 4px var(--accent-primary);
+    background: transparent;
   }
 
   .type-button:disabled {
@@ -161,7 +159,6 @@
   }
 
   .type-name {
-    font-weight: 600;
     text-transform: capitalize;
   }
 
