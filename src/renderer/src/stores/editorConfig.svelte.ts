@@ -99,7 +99,7 @@ export class EditorConfig {
         overflow: 'visible',
         fontFamily:
           "'iA Writer Quattro', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace !important",
-        paddingRight: '40px'
+        paddingRight: '20px'
       },
       '.cm-scroller::-webkit-scrollbar': {
         width: '12px'

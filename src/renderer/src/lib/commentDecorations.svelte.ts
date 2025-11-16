@@ -168,7 +168,7 @@ class CommentMarkersPlugin implements PluginValue {
     this.container.innerHTML = '';
 
     // Create markers
-    for (const { lineNumber, suggestions, priority, isExpanded, top } of positions) {
+    for (const { lineNumber, priority, isExpanded, top } of positions) {
       const marker = document.createElement('div');
 
       marker.className = `cm-comment-marker priority-${priority}`;
@@ -183,14 +183,6 @@ class CommentMarkersPlugin implements PluginValue {
       icon.className = 'cm-comment-icon';
       icon.textContent = 'ⓘ';
       marker.appendChild(icon);
-
-      // Add count badge if multiple suggestions
-      if (suggestions.length > 1) {
-        const badge = document.createElement('span');
-        badge.className = 'cm-comment-count';
-        badge.textContent = String(suggestions.length);
-        marker.appendChild(badge);
-      }
 
       // Add click handler
       marker.onclick = (e) => {
@@ -229,7 +221,7 @@ const commentTheme = EditorView.baseTheme({
     right: '0',
     top: '0',
     bottom: '0',
-    width: '40px',
+    width: '20px',
     pointerEvents: 'none',
     overflow: 'visible',
     zIndex: '100'
@@ -245,7 +237,7 @@ const commentTheme = EditorView.baseTheme({
     borderRadius: '3px',
     padding: '2px',
     transition: 'background-color 0.2s',
-    opacity: '0.6',
+    // opacity: '0.6',
     pointerEvents: 'auto',
     height: '20px',
     width: '100%',

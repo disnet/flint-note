@@ -941,25 +941,6 @@
                 ></path>
               </svg>
             </button>
-            <button
-              class="pillbox-btn pillbox-btn-right"
-              class:active={sidebarState.rightSidebar.visible &&
-                sidebarState.rightSidebar.mode === 'suggestions'}
-              onclick={() => setRightSidebarMode('suggestions')}
-              aria-label="Note Suggestions"
-              title="Note Suggestions"
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <path d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-              </svg>
-            </button>
           </div>
 
           <!-- Window controls for non-macOS platforms -->
@@ -1238,11 +1219,6 @@
   .pillbox-btn-left {
     border-top-left-radius: 0.375rem;
     border-bottom-left-radius: 0.375rem;
-  }
-
-  .pillbox-btn-right {
-    border-top-right-radius: 0.375rem;
-    border-bottom-right-radius: 0.375rem;
   }
 
   .pillbox-btn.active + .pillbox-btn,

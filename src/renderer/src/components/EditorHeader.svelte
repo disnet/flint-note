@@ -63,12 +63,4 @@
     width: 100%;
     min-width: 0;
   }
-
-  .separator {
-    color: var(--text-secondary);
-    opacity: 0.4;
-    font-size: 1rem;
-    font-weight: 300;
-    margin: 0 0.125rem;
-  }
 </style>
