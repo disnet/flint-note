@@ -79,10 +79,10 @@
     class:active={isInSidebar}
     onclick={onAddToSidebar}
     type="button"
-    title={isInSidebar ? 'Already in sidebar' : 'Add to sidebar'}
+    title={isInSidebar ? 'Already on shelf' : 'Add to shelf'}
     disabled={isInSidebar}
   >
-    {isInSidebar ? '📋 In Sidebar' : '📋 Sidebar'}
+    {isInSidebar ? '📋 On Shelf' : '📋 Shelf'}
   </button>
   <div class="overflow-menu-container">
     <button

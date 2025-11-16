@@ -936,8 +936,8 @@
               class:active={sidebarState.rightSidebar.visible &&
                 sidebarState.rightSidebar.mode === 'notes'}
               onclick={() => setRightSidebarMode('notes')}
-              aria-label="Sidebar Notes"
-              title="Sidebar Notes"
+              aria-label="Notes Shelf"
+              title="Notes Shelf"
             >
               <svg
                 width="14"

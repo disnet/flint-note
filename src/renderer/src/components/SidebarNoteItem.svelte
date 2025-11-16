@@ -151,7 +151,7 @@
       class="remove-button"
       onclick={onRemove}
       aria-label="Remove note"
-      title="Remove from sidebar"
+      title="Remove from shelf"
     >
       <svg
         width="14"

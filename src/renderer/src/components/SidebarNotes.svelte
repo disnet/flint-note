@@ -135,14 +135,14 @@
 
 <div class="sidebar-notes">
   <div class="sidebar-notes-header">
-    <h3>Sidebar Notes</h3>
+    <h3>Notes Shelf</h3>
   </div>
 
   <div class="notes-list">
     {#if sidebarNotesStore.notes.length === 0}
       <div class="empty-state">
-        <p>No notes in sidebar</p>
-        <p class="hint">Use "Add to Sidebar" in the note editor to add notes here</p>
+        <p>No notes on shelf</p>
+        <p class="hint">Use "Add to Shelf" in the note editor to add notes here</p>
       </div>
     {:else}
       {#each sidebarNotesStore.notes as note (note.noteId)}
