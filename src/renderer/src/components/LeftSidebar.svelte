@@ -38,6 +38,10 @@
   // Width state - track local width during resize
   let localWidth = $state<number | null>(null);
 
+  // Track if content is scrollable and not at bottom
+  let showShadow = $state(false);
+  let contentElement: HTMLDivElement | null = $state(null);
+
   // Use store width when not actively resizing
   let currentWidth = $derived(localWidth ?? sidebarState.leftSidebar.width);
 
@@ -69,6 +73,55 @@
     closeDropdown();
   }
 
+  // Check if content is scrollable and show shadow when not at bottom
+  $effect(() => {
+    function checkShadow(): void {
+      if (contentElement) {
+        const isScrollable = contentElement.scrollHeight > contentElement.clientHeight;
+        const isAtBottom =
+          contentElement.scrollHeight - contentElement.scrollTop - contentElement.clientHeight <
+          1; // Small threshold for rounding
+        showShadow = isScrollable && !isAtBottom;
+      }
+    }
+
+    // Initial check
+    checkShadow();
+
+    // Check again after a short delay to ensure content is fully rendered
+    const timeoutId = setTimeout(checkShadow, 100);
+
+    // Re-check on scroll
+    if (contentElement) {
+      contentElement.addEventListener('scroll', checkShadow);
+    }
+
+    // Re-check on resize
+    const resizeObserver = new ResizeObserver(checkShadow);
+    if (contentElement) {
+      resizeObserver.observe(contentElement);
+    }
+
+    // Re-check when child elements are added/removed/modified
+    const mutationObserver = new MutationObserver(checkShadow);
+    if (contentElement) {
+      mutationObserver.observe(contentElement, {
+        childList: true,
+        subtree: true,
+        attributes: false
+      });
+    }
+
+    return () => {
+      clearTimeout(timeoutId);
+      if (contentElement) {
+        contentElement.removeEventListener('scroll', checkShadow);
+      }
+      resizeObserver.disconnect();
+      mutationObserver.disconnect();
+    };
+  });
+
   // Close dropdown when clicking outside
   $effect(() => {
     function handleClickOutside(event: MouseEvent): void {
@@ -95,12 +148,12 @@
 >
   <ResizeHandle side="left" onResize={handleResize} minWidth={200} maxWidth={600} />
   <div class="sidebar-inner">
-    <div class="sidebar-content">
+    <div class="sidebar-content" bind:this={contentElement}>
       <SystemViews {onSystemViewSelect} {activeSystemView} />
       <PinnedNotes {activeNote} {onNoteSelect} />
       <TemporaryTabs {onNoteSelect} {onCreateNote} />
     </div>
-    <div class="sidebar-footer">
+    <div class="sidebar-footer" class:has-scroll={showShadow}>
       <div class="create-note-button-group">
         <button
           class="new-note-button main-button"
@@ -253,6 +306,18 @@
     background: var(--bg-secondary);
     flex-shrink: 0;
     position: relative;
+    box-shadow: none;
+    transition: box-shadow 0.2s ease;
+  }
+
+  .sidebar-footer.has-scroll {
+    box-shadow: 0 -4px 8px rgba(0, 0, 0, 0.06);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .sidebar-footer.has-scroll {
+      box-shadow: 0 -4px 8px rgba(0, 0, 0, 0.3);
+    }
   }
 
   .create-note-button-group {

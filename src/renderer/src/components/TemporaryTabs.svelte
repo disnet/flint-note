@@ -325,6 +325,7 @@
   .temporary-tabs {
     display: flex;
     flex-direction: column;
+    padding-bottom: 0.5rem;
   }
 
   .separator {
