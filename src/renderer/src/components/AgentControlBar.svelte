@@ -22,6 +22,15 @@
     showConversationList = false;
   }
 
+  async function handleArchiveThread(threadId: string, event: MouseEvent): Promise<void> {
+    event.stopPropagation();
+    await unifiedChatStore.archiveThread(threadId);
+    // Close dropdown if we archived the active thread
+    if (unifiedChatStore.activeThreadId === threadId) {
+      showConversationList = false;
+    }
+  }
+
   function formatTimestamp(date: Date): string {
     const now = new Date();
     const diff = now.getTime() - date.getTime();
@@ -131,23 +140,43 @@
           <div class="conversation-items">
             {#if recentThreads.length > 0}
               {#each recentThreads as thread (thread.id)}
-                <button
+                <div
                   class="conversation-item"
                   class:active={unifiedChatStore.activeThreadId === thread.id}
                   onclick={() => selectConversation(thread)}
+                  onkeydown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      selectConversation(thread);
+                    }
+                  }}
+                  role="button"
+                  tabindex="0"
                 >
-                  <div class="conversation-title">{thread.title}</div>
-                  <div class="conversation-meta">
-                    <span class="conversation-time"
-                      >{formatTimestamp(thread.lastActivity)}</span
-                    >
-                    {#if thread.messages.length > 0}
-                      <span class="conversation-count"
-                        >{thread.messages.length} messages</span
+                  <div class="conversation-main">
+                    <div class="conversation-title">{thread.title}</div>
+                    <div class="conversation-meta">
+                      <span class="conversation-time"
+                        >{formatTimestamp(thread.lastActivity)}</span
                       >
-                    {/if}
+                      {#if thread.messages.length > 0}
+                        <span class="conversation-count"
+                          >{thread.messages.length} messages</span
+                        >
+                      {/if}
+                    </div>
                   </div>
-                </button>
+
+                  <div class="conversation-actions">
+                    <button
+                      class="action-btn archive-btn"
+                      onclick={(e) => handleArchiveThread(thread.id, e)}
+                      title="Archive thread"
+                    >
+                      📁
+                    </button>
+                  </div>
+                </div>
               {/each}
             {:else}
               <div class="no-conversations">No recent conversations</div>
@@ -279,6 +308,9 @@
   }
 
   .conversation-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     width: 100%;
     padding: 0.75rem 1rem;
     background: transparent;
@@ -308,6 +340,60 @@
 
   .conversation-item.active .conversation-meta {
     color: rgba(255, 255, 255, 0.8);
+  }
+
+  .conversation-main {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .conversation-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-left: 0.5rem;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+
+  .conversation-item:hover .conversation-actions {
+    opacity: 1;
+  }
+
+  .action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    padding: 0;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    border-radius: 0.25rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 1rem;
+    filter: grayscale(0.3) brightness(1.1);
+  }
+
+  .action-btn:hover {
+    background: var(--bg-primary);
+    border-color: var(--border-medium);
+    filter: grayscale(0) brightness(1.2);
+    transform: scale(1.05);
+  }
+
+  .conversation-item.active .action-btn {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.25);
+    filter: grayscale(0) brightness(1.3);
+  }
+
+  .conversation-item.active .action-btn:hover {
+    background: rgba(255, 255, 255, 0.25);
+    border-color: rgba(255, 255, 255, 0.4);
+    filter: grayscale(0) brightness(1.4);
   }
 
   .conversation-title {
