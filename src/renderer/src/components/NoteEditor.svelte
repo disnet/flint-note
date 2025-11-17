@@ -25,6 +25,7 @@
   import Backlinks from './Backlinks.svelte';
   import NoteActionBar from './NoteActionBar.svelte';
   import MarkdownRenderer from './MarkdownRenderer.svelte';
+  import ConfirmationModal from './ConfirmationModal.svelte';
   import type { NoteSuggestion } from '@/server/types';
 
   interface Props {
@@ -51,6 +52,9 @@
   let expandedSuggestions = $state<Set<string>>(new Set());
   let isGeneratingSuggestions = $state(false);
   let suggestionsEnabled = $state(false);
+
+  // Archive confirmation modal state
+  let showArchiveConfirmation = $state(false);
 
   const cursorManager = new CursorPositionManager();
 
@@ -437,6 +441,31 @@
     }
   }
 
+  async function handleArchiveNote(): Promise<void> {
+    showArchiveConfirmation = true;
+  }
+
+  async function confirmArchiveNote(): Promise<void> {
+    try {
+      const noteService = getChatService();
+      await noteService.deleteNote({
+        identifier: note.id
+      });
+
+      // Close the modal and editor after archiving
+      showArchiveConfirmation = false;
+      onClose();
+    } catch (err) {
+      console.error('Error archiving note:', err);
+      showArchiveConfirmation = false;
+      // Optionally show an error message to the user
+    }
+  }
+
+  function cancelArchiveNote(): void {
+    showArchiveConfirmation = false;
+  }
+
   // Load review status when note changes
   $effect(() => {
     (async () => {
@@ -543,6 +572,7 @@
         onPreviewToggle={togglePreview}
         onReviewToggle={handleReviewToggle}
         onGenerateSuggestions={generateSuggestions}
+        onArchiveNote={handleArchiveNote}
       />
     </div>
 
@@ -578,6 +608,17 @@
     <Backlinks noteId={note.id} onNoteSelect={handleBacklinkSelect} />
   </div>
 {/if}
+
+<ConfirmationModal
+  isOpen={showArchiveConfirmation}
+  title="Archive Note"
+  message="Are you sure you want to archive this note? A backup will be created in .flint-note/backups/ before deletion."
+  confirmText="Archive"
+  cancelText="Cancel"
+  confirmStyle="danger"
+  onConfirm={confirmArchiveNote}
+  onCancel={cancelArchiveNote}
+/>
 
 <style>
   .note-editor {

@@ -20,6 +20,7 @@
     onPreviewToggle: () => void;
     onReviewToggle?: () => Promise<void>;
     onGenerateSuggestions?: () => Promise<void>;
+    onArchiveNote?: () => Promise<void>;
   }
 
   let {
@@ -40,7 +41,8 @@
     onAddToShelf,
     onPreviewToggle,
     onReviewToggle,
-    onGenerateSuggestions
+    onGenerateSuggestions,
+    onArchiveNote
   }: Props = $props();
 
   let showPopover = $state(false);
@@ -144,6 +146,18 @@
               : hasSuggestions
                 ? '💡 Regenerate Suggestions'
                 : '💡 Generate Suggestions'}
+          </button>
+        {/if}
+        {#if onArchiveNote}
+          <button
+            class="popover-item"
+            onclick={() => {
+              onArchiveNote?.();
+              closePopover();
+            }}
+            type="button"
+          >
+            🗄️ Archive Note
           </button>
         {/if}
       </div>
