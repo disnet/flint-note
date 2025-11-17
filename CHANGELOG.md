@@ -4,17 +4,33 @@ All notable changes to the Flint application will be documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [Unreleased]
+## [0.10.0]
 
 ### Added
 
 **Review Mode**
 
-A new AI-powered review mode helps you maintain and improve your notes. The agent can analyze your notes and generate intelligent suggestions for improvements, expansions, or connections. Access review mode from the dashboard to get contextual prompts for working with your notes.
+Review Mode helps you retain and deepen your understanding of the notes that matter most.
+
+How it works:
+
+1. Click "Enable Review" on any note you want to remember
+1. When it's due, you'll get a thoughtful question designed to make you think, not just recognize
+1. You answer and get feedback
+1. You rate yourself Pass or Fail
+1. Flint reschedules automatically—passes get scheduled further out, fails come back sooner
+
+Active recall (actually retrieving what you know) sticks better than re-reading. Review Mode uses your entire knowledge graph to ask questions that require real thinking: connecting ideas, applying concepts to your work, explaining what you've learned.
 
 **Note Suggestions**
 
-The agent can now generate suggestions for individual notes, providing targeted prompts and ideas for expanding or improving specific notes. Suggestions can be manually regenerated to get fresh perspectives on how to develop your notes.
+The agent can now generate suggestions for individual notes, providing targeted prompts and ideas for expanding or improving specific notes.
+
+Suggestions are enabled per note type so to get started go into the Note Types view, select a note type, and enable suggestions for that note type. You can optionally add a custom prompt to guide the agent's suggestions.
+
+Then when viewing notes of that type click the "Generate Suggestions" button to get a list of suggestions tailored to that note type. Suggestions will be displayed along the side of the note as comments.
+
+At the moment suggestions are only generated once when you click the "Generate Suggestions" button. If you make changes to the note you will need to click the button again to regenerate the suggestions.
 
 **Archive Notes**
 
@@ -26,16 +42,15 @@ Added theme customization in settings, allowing you to switch between light and 
 
 **Agent Thread Management**
 
-- Archive button added to agent thread recents for better organization
-- "Show all" option in agent threads to view your complete conversation history
+Redesigned agent conversation thread management. Consolidated the separate thread view into the main agent interface. Click the "Show All" button in the history dropdown to view all threads.
 
 **Diff Update Tool**
 
-The agent now has a diff-based update tool that allows it to make more precise edits to your notes by showing exactly what changed.
+The agent now has a diff-based update tool that allows it to make more precise edits to your notes. Edits should now be faster and use fewer tokens.
 
 **Shelf Enhancements**
 
-Shift+click on notes in the sidebar to quickly add them to your shelf (formerly "sidebar notes") without opening them.
+Shift+click on notes everywhere to quickly add them to your shelf (formerly "sidebar notes") without opening them.
 
 ### Changed
 
