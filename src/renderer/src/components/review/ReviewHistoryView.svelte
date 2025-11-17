@@ -15,7 +15,7 @@
     await loadAllHistory();
   });
 
-  async function loadAllHistory() {
+  async function loadAllHistory(): Promise<void> {
     isLoading = true;
     try {
       allReviewHistory = await reviewStore.getAllReviewHistory();
@@ -110,7 +110,7 @@
     }
   }
 
-  async function handleNoteClick(noteId: string) {
+  async function handleNoteClick(noteId: string): Promise<void> {
     // Navigate to the note using wikilinkService
     const note = notesStore.notes.find((n) => n.id === noteId);
     if (note) {
@@ -118,7 +118,7 @@
     }
   }
 
-  function clearFilters() {
+  function clearFilters(): void {
     filterText = '';
     filterStatus = 'all';
   }
@@ -190,7 +190,7 @@
         >
       </div>
 
-      {#each filteredHistory as item}
+      {#each filteredHistory as item (`${item.noteId}-${item.historyEntry.date}`)}
         <div class="history-item">
           <div class="item-header">
             <button class="note-title" onclick={() => handleNoteClick(item.noteId)}>

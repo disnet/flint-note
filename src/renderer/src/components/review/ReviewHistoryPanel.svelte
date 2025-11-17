@@ -11,7 +11,7 @@
   // Track which entries are expanded
   let expandedEntries = $state<Set<number>>(new Set());
 
-  function toggleEntry(index: number) {
+  function toggleEntry(index: number): void {
     const newExpanded = new Set(expandedEntries);
     if (newExpanded.has(index)) {
       newExpanded.delete(index);
@@ -56,7 +56,7 @@
     </div>
   {:else}
     <div class="history-list">
-      {#each history as entry, index}
+      {#each history as entry, index (entry.date)}
         <div class="history-entry" class:expanded={expandedEntries.has(index)}>
           <button
             class="entry-header"
