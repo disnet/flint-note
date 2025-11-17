@@ -218,6 +218,132 @@
       </div>
     {/if}
 
+    <!-- Appearance Section -->
+    <section class="settings-section">
+      <h3>
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          class="section-icon"
+        >
+          <circle cx="12" cy="12" r="5"></circle>
+          <line x1="12" y1="1" x2="12" y2="3"></line>
+          <line x1="12" y1="21" x2="12" y2="23"></line>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+          <line x1="1" y1="12" x2="3" y2="12"></line>
+          <line x1="21" y1="12" x2="23" y2="12"></line>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+        Appearance
+      </h3>
+      <p class="section-description">
+        Customize the visual appearance of Flint. Choose between light mode, dark mode, or
+        automatically follow your system settings.
+      </p>
+
+      <div class="theme-selector">
+        <label class="theme-option">
+          <input
+            type="radio"
+            name="theme"
+            value="light"
+            checked={settingsStore.settings.appearance.theme === 'light'}
+            onchange={async () => {
+              await settingsStore.updateTheme('light');
+            }}
+          />
+          <div class="theme-option-content">
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <circle cx="12" cy="12" r="5"></circle>
+              <line x1="12" y1="1" x2="12" y2="3"></line>
+              <line x1="12" y1="21" x2="12" y2="23"></line>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+              <line x1="1" y1="12" x2="3" y2="12"></line>
+              <line x1="21" y1="12" x2="23" y2="12"></line>
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+            </svg>
+            <div class="theme-option-text">
+              <strong>Light</strong>
+              <span>Always use light mode</span>
+            </div>
+          </div>
+        </label>
+
+        <label class="theme-option">
+          <input
+            type="radio"
+            name="theme"
+            value="dark"
+            checked={settingsStore.settings.appearance.theme === 'dark'}
+            onchange={async () => {
+              await settingsStore.updateTheme('dark');
+            }}
+          />
+          <div class="theme-option-content">
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+            <div class="theme-option-text">
+              <strong>Dark</strong>
+              <span>Always use dark mode</span>
+            </div>
+          </div>
+        </label>
+
+        <label class="theme-option">
+          <input
+            type="radio"
+            name="theme"
+            value="system"
+            checked={settingsStore.settings.appearance.theme === 'system'}
+            onchange={async () => {
+              await settingsStore.updateTheme('system');
+            }}
+          />
+          <div class="theme-option-content">
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+              <line x1="8" y1="21" x2="16" y2="21"></line>
+              <line x1="12" y1="17" x2="12" y2="21"></line>
+            </svg>
+            <div class="theme-option-text">
+              <strong>Auto</strong>
+              <span>Follow system settings</span>
+            </div>
+          </div>
+        </label>
+      </div>
+    </section>
+
     <!-- Auto-Updater Section -->
     <section class="settings-section">
       <h3>📦 Application Updates</h3>
@@ -683,5 +809,71 @@
     border-radius: 0.75rem;
     overflow: hidden;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Theme selector styles */
+  .theme-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .theme-option {
+    position: relative;
+    display: block;
+    cursor: pointer;
+  }
+
+  .theme-option input[type='radio'] {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .theme-option-content {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    background: var(--bg-secondary);
+    border: 2px solid var(--border-light);
+    border-radius: 0.75rem;
+    transition: all 0.2s ease;
+  }
+
+  .theme-option:hover .theme-option-content {
+    border-color: var(--accent-primary);
+    background: var(--bg-tertiary);
+  }
+
+  .theme-option input[type='radio']:checked + .theme-option-content {
+    border-color: var(--accent-primary);
+    background: var(--accent-light);
+  }
+
+  .theme-option-content svg {
+    flex-shrink: 0;
+    color: var(--text-secondary);
+  }
+
+  .theme-option input[type='radio']:checked + .theme-option-content svg {
+    color: var(--accent-primary);
+  }
+
+  .theme-option-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .theme-option-text strong {
+    color: var(--text-primary);
+    font-weight: 600;
+    font-size: 0.9375rem;
+  }
+
+  .theme-option-text span {
+    color: var(--text-secondary);
+    font-size: 0.8125rem;
   }
 </style>

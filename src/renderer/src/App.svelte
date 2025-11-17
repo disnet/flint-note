@@ -27,6 +27,7 @@
   import type { CreateVaultResult } from '@/server/api/types';
   import { messageBus } from './services/messageBus.svelte';
   import type { NoteEvent, WorkflowEvent } from './services/messageBus.svelte';
+  import { settingsStore } from './stores/settingsStore.svelte';
 
   // Forward note events from main process to message bus
   $effect(() => {
@@ -266,6 +267,21 @@
     // Set data attribute for platform detection
     const isMacOS = navigator.platform.includes('Mac');
     document.documentElement.setAttribute('data-platform', isMacOS ? 'macos' : 'other');
+  });
+
+  // Theme application
+  $effect(() => {
+    const theme = settingsStore.settings.appearance.theme;
+
+    // Apply theme based on user preference
+    if (theme === 'light') {
+      document.documentElement.setAttribute('data-theme', 'light');
+    } else if (theme === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    } else {
+      // System/auto mode - remove the attribute to use CSS media query
+      document.documentElement.removeAttribute('data-theme');
+    }
   });
 
   // Restore active view (note or system view) on app startup

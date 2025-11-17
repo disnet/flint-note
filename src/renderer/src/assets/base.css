@@ -91,8 +91,9 @@
   --settings-btn-danger-hover-bg: #fbb6ce;
 }
 
+/* Dark mode when system prefers dark (auto mode) - but not when manually set to light */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     /* Dark theme colors */
     --bg-primary: #1a1a1a;
     --bg-secondary: #2d2d2d;
@@ -184,6 +185,100 @@
     --settings-btn-danger-border: #7f1d1d;
     --settings-btn-danger-hover-bg: #7c2d2d;
   }
+}
+
+/* Dark mode when manually set to dark */
+:root[data-theme='dark'] {
+  /* Dark theme colors */
+  --bg-primary: #1a1a1a;
+  --bg-secondary: #2d2d2d;
+  --bg-tertiary: #262626;
+  --text-primary: #ffffff;
+  --text-secondary: #e5e7eb;
+  --text-muted: #9ca3af;
+  --text-placeholder: #6b7280;
+  --border-light: #374151;
+  --border-medium: #4b5563;
+  --shadow-light: rgba(0, 0, 0, 0.3);
+  --shadow-medium: rgba(0, 0, 0, 0.5);
+  --accent-primary: #60a5fa;
+  --accent-hover: #3b82f6;
+  --accent-light: rgba(96, 165, 250, 0.1);
+  --warning: #fbbf24;
+  --warning-hover: #f59e0b;
+  --error: #f87171;
+  --error-dark: #ef4444;
+  --success: #34d399;
+  --success-hover: #10b981;
+  --text-on-accent: #1a1a1a;
+  --message-user-bg: #60a5fa;
+  --message-user-text: #1a1a1a;
+  --message-agent-bg: transparent;
+  --message-agent-text: #e5e7eb;
+  --message-agent-border: transparent;
+  --scrollbar-thumb: #6b7280;
+  --scrollbar-thumb-hover: #9ca3af;
+
+  /* Tool call / Agent activity components */
+  --tool-call-bg: #262626;
+  --tool-call-border: #374151;
+  --tool-call-border-hover: #4b5563;
+  --tool-call-header-hover: #2d2d2d;
+  --tool-call-details-bg: #1a1a1a;
+  --tool-name-color: #e5e7eb;
+  --expand-icon-color: #9ca3af;
+  --details-heading-color: #9ca3af;
+  --bg-hover: #374151;
+  --code-bg: #262626;
+  --code-border: #374151;
+  --result-bg: #262626;
+  --result-border: #374151;
+  --result-text: #e5e7eb;
+  --error-border: #7f1d1d;
+  --error-bg-light: #2d1717;
+  --error-content-bg: #3f1c1c;
+  --error-content-border: #7f1d1d;
+  --error-content-text: #fca5a5;
+
+  /* JSON viewer */
+  --json-hover-bg: rgba(255, 255, 255, 0.05);
+  --json-expand-color: #9ca3af;
+  --json-key-color: #60a5fa;
+  --json-bracket-color: #9ca3af;
+  --json-size-hint-color: #6b7280;
+  --json-string-color: #a5d6ff;
+  --json-number-color: #79c0ff;
+  --json-boolean-color: #d2a8ff;
+  --json-null-color: #6b7280;
+  --json-indent-border: #374151;
+
+  /* Changelog viewer */
+  --bg-color: #1a1a1a;
+  --text-color: #ffffff;
+  --border-color: #374151;
+  --bg-secondary-color: #262626;
+  --text-muted-color: #9ca3af;
+  --hover-bg-color: #374151;
+  --error-color: #f87171;
+  --primary-color: #60a5fa;
+  --code-bg-color: #262626;
+
+  /* Settings component */
+  --settings-info-bg: linear-gradient(135deg, #1e3a5f 0%, #2d1b3d 100%);
+  --settings-info-border: #4b5563;
+  --settings-danger-bg: #3d2817;
+  --settings-danger-border: #92400e;
+  --settings-danger-text: #fca5a5;
+  --settings-message-error-bg: #3f1c1c;
+  --settings-message-error-text: #fca5a5;
+  --settings-message-error-border: #7f1d1d;
+  --settings-message-success-bg: #1a3d2e;
+  --settings-message-success-text: #6ee7b7;
+  --settings-message-success-border: #065f46;
+  --settings-btn-danger-bg: #5a1f1f;
+  --settings-btn-danger-text: #fca5a5;
+  --settings-btn-danger-border: #7f1d1d;
+  --settings-btn-danger-hover-bg: #7c2d2d;
 }
 
 *,
