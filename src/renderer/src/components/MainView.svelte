@@ -162,7 +162,7 @@
   {#if activeSystemView === 'inbox'}
     <div class="system-view-container">
       <div class="system-view-content">
-        <InboxView {onNoteSelect} />
+        <InboxView />
       </div>
     </div>
   {:else if activeSystemView === 'daily'}

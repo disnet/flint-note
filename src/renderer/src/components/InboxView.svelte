@@ -2,13 +2,7 @@
   import { inboxStore } from '../stores/inboxStore.svelte';
   import { getChatService } from '../services/chatService';
   import { notesStore } from '../services/noteStore.svelte';
-  import type { NoteMetadata } from '../services/noteStore.svelte';
-
-  interface Props {
-    onNoteSelect?: (note: NoteMetadata) => void;
-  }
-
-  let { onNoteSelect }: Props = $props();
+  import { wikilinkService } from '../services/wikilinkService.svelte';
 
   let newNoteTitle = $state('');
   let isCreatingNote = $state(false);
@@ -19,6 +13,40 @@
   const loading = $derived(inboxStore.isLoading);
   const error = $derived(inboxStore.error);
   const showProcessed = $derived(inboxStore.showProcessed);
+
+  // Helper function to format relative time
+  function formatRelativeTime(dateString: string): string {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) {
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+      if (diffHours === 0) {
+        const diffMins = Math.floor(diffMs / (1000 * 60));
+        if (diffMins < 1) return 'just now';
+        return `${diffMins} min ago`;
+      }
+      if (diffHours === 1) return '1 hour ago';
+      return `${diffHours} hours ago`;
+    } else if (diffDays === 1) {
+      return 'yesterday';
+    } else if (diffDays < 7) {
+      return `${diffDays} days ago`;
+    } else if (diffDays < 30) {
+      const weeks = Math.floor(diffDays / 7);
+      return `${weeks} week${weeks > 1 ? 's' : ''} ago`;
+    } else {
+      return date.toLocaleDateString();
+    }
+  }
+
+  // Helper function to get type icon
+  function getTypeIcon(typeName: string): string | undefined {
+    const noteType = notesStore.noteTypes.find((t) => t.name === typeName);
+    return noteType?.icon;
+  }
 
   // Load inbox notes when component mounts
   $effect(() => {
@@ -106,11 +134,11 @@
     await inboxStore.markAllAsUnprocessed(currentVaultId);
   }
 
-  function handleNoteClick(noteId: string): void {
+  function handleNoteClick(noteId: string, event: MouseEvent): void {
     // Find the full note metadata
     const note = notesStore.notes.find((n) => n.id === noteId);
-    if (note && onNoteSelect) {
-      onNoteSelect(note);
+    if (note) {
+      wikilinkService.handleWikilinkClick(noteId, note.title, false, event.shiftKey);
     }
   }
 </script>
@@ -182,38 +210,42 @@
       {:else if notes.length > 0}
         <div class="notes-list">
           {#each notes as note (note.id)}
-            <div class="note-item">
-              <button
-                class="note-content"
-                onclick={() => handleNoteClick(note.id)}
-                title="Open note"
-              >
-                <div class="note-title">
+            <div class="note-card">
+              <div class="note-header">
+                <button
+                  class="note-title"
+                  onclick={(e) => handleNoteClick(note.id, e)}
+                  title="Open note"
+                >
                   {note.title || 'Untitled'}
-                </div>
-                <div class="note-meta">
-                  {new Date(note.created).toLocaleDateString()} • {note.type}
-                </div>
-              </button>
-              {#if showProcessed}
-                <button
-                  class="process-button"
-                  onclick={() => handleUnmarkAsProcessed(note.id)}
-                  title="Unmark as processed"
-                  aria-label="Unmark note as processed"
-                >
-                  ✕
                 </button>
-              {:else}
-                <button
-                  class="process-button"
-                  onclick={() => handleMarkAsProcessed(note.id)}
-                  title="Mark as processed"
-                  aria-label="Mark note as processed"
-                >
-                  ✓
-                </button>
-              {/if}
+                {#if showProcessed}
+                  <button
+                    class="check-button"
+                    onclick={() => handleUnmarkAsProcessed(note.id)}
+                    title="Move back to unprocessed"
+                    aria-label="Move note back to unprocessed"
+                  >
+                    ↻
+                  </button>
+                {:else}
+                  <button
+                    class="check-button"
+                    onclick={() => handleMarkAsProcessed(note.id)}
+                    title="Mark as processed"
+                    aria-label="Mark note as processed"
+                  >
+                    ✓
+                  </button>
+                {/if}
+              </div>
+              <div class="note-meta">
+                <span class="meta-date">{formatRelativeTime(note.created)}</span>
+                {#if getTypeIcon(note.type)}
+                  <span class="type-icon">{getTypeIcon(note.type)}</span>
+                {/if}
+                <span class="type-name">{note.type}</span>
+              </div>
             </div>
           {/each}
         </div>
@@ -350,6 +382,7 @@
     overflow-y: auto;
     display: flex;
     flex-direction: column;
+    padding: 0 0.5rem;
   }
 
   .quick-create {
@@ -391,7 +424,7 @@
   .notes-list {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.75rem;
     animation: fadeIn 0.2s ease-in-out;
   }
 
@@ -404,67 +437,89 @@
     }
   }
 
-  .note-item {
-    display: flex;
-    align-items: stretch;
+  .note-card {
     background: var(--bg-secondary);
-    border-radius: 0.5rem;
-    overflow: hidden;
-    transition: all 0.2s ease;
-    border: 1px solid var(--border-light);
+    border: 2px solid transparent;
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    transition: all 0.2s;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   }
 
-  .note-item:hover {
+  .note-card:hover {
     border-color: var(--accent-primary);
-    box-shadow: 0 2px 4px var(--shadow-light);
   }
 
-  .note-content {
-    flex: 1;
+  .note-header {
     display: flex;
-    flex-direction: column;
     align-items: flex-start;
-    padding: 0.75rem;
-    border: none;
-    background: transparent;
-    cursor: pointer;
-    text-align: left;
-    transition: background-color 0.2s ease;
-  }
-
-  .note-content:hover {
-    background: var(--bg-tertiary);
-  }
-
-  .note-title {
-    font-weight: 500;
-    color: var(--text-primary);
+    justify-content: space-between;
+    gap: 0.75rem;
     margin-bottom: 0.25rem;
   }
 
-  .note-meta {
-    font-size: 0.75rem;
-    color: var(--text-secondary);
+  .note-title {
+    margin: 0;
+    padding: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.4;
+    flex: 1;
+    background: transparent;
+    border: none;
+    text-align: left;
+    cursor: pointer;
+    transition: color 0.2s;
   }
 
-  .process-button {
+  .note-title:hover {
+    color: var(--accent-primary);
+    text-decoration: underline;
+  }
+
+  .check-button {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 0 1rem;
-    border: none;
-    border-left: 1px solid var(--border-light);
-    background: transparent;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border: 1px solid var(--border-medium);
+    border-radius: 0.375rem;
+    background: var(--bg-tertiary);
     color: var(--text-secondary);
-    font-size: 1.25rem;
+    font-size: 1rem;
     cursor: pointer;
     transition: all 0.2s ease;
-    min-width: 3rem;
+    flex-shrink: 0;
   }
 
-  .process-button:hover {
+  .check-button:hover {
     background: var(--accent-light);
+    border-color: var(--accent-primary);
     color: var(--accent-primary);
+  }
+
+  .note-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+  }
+
+  .meta-date {
+    font-weight: 500;
+  }
+
+  .type-icon {
+    font-size: 0.875rem;
+  }
+
+  .type-name {
+    font-weight: 500;
+    text-transform: capitalize;
   }
 
   .empty-state {

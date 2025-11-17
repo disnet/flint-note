@@ -2184,6 +2184,7 @@ export class FlintNoteApi {
       LEFT JOIN processed_notes pn ON n.id = pn.note_id
       WHERE n.created >= ?
         AND pn.note_id IS NULL
+        AND n.archived = 0
       ORDER BY n.created DESC
     `,
       [thresholdDate]
@@ -2225,6 +2226,7 @@ export class FlintNoteApi {
       SELECT n.* FROM notes n
       INNER JOIN processed_notes pn ON n.id = pn.note_id
       WHERE pn.processed_at >= ?
+        AND n.archived = 0
       ORDER BY pn.processed_at DESC
     `,
       [thresholdDate]
