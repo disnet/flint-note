@@ -126,7 +126,7 @@ const selectedWikilinkField = StateField.define<SelectedWikilink | null>({
 
     // Find all wikilinks in the document
     const text = tr.state.doc.toString();
-    const notes = notesStore.notes;
+    const notes = notesStore.allNotes;
     const wikilinks = parseWikilinks(text, notes);
 
     // Check if cursor is adjacent to any wikilink (at from or to position)
@@ -396,7 +396,7 @@ export function wikilinkCompletion(context: CompletionContext): CompletionResult
   injectNoteTypeCompletionStyles();
 
   // Get current notes from store
-  const notes = notesStore.notes;
+  const notes = notesStore.allNotes;
 
   // Filter and sort notes based on query
   const filteredNotes = query.trim()
@@ -494,6 +494,14 @@ class WikilinkWidget extends WidgetType {
   toDOM(_view: EditorView): HTMLElement {
     const span = document.createElement('span');
 
+    // Check if the note is archived
+    let isArchived = false;
+    if (this.exists && this.noteId) {
+      const notes = notesStore.allNotes;
+      const note = notes.find((n) => n.id === this.noteId);
+      isArchived = note?.archived === true;
+    }
+
     // Determine class based on selection state and existence
     if (this.isSelected) {
       span.className = this.exists
@@ -505,12 +513,17 @@ class WikilinkWidget extends WidgetType {
         : 'wikilink wikilink-broken';
     }
 
+    // Add archived class if note is archived
+    if (isArchived) {
+      span.className += ' wikilink-archived';
+    }
+
     // Determine the display text to show
     let displayText = this.title; // Default to markdown title
 
     // Get note type icon and current title if the note exists
     if (this.exists && this.noteId) {
-      const notes = notesStore.notes;
+      const notes = notesStore.allNotes;
       const note = notes.find((n) => n.id === this.noteId);
       if (note) {
         // Option 1: Pure UI-based display
@@ -668,7 +681,7 @@ function decorateWikilinks(state: EditorState): DecorationSet {
   const text = state.doc.toString();
 
   // Get current notes from store
-  const notes = notesStore.notes; // Immediately unsubscribe since we just want current value
+  const notes = notesStore.allNotes; // Immediately unsubscribe since we just want current value
 
   // Get current handlers
   const clickHandler = state.field(wikilinkHandlerField, false) || null;

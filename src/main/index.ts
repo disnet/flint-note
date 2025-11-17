@@ -758,6 +758,60 @@ app.whenReady().then(async () => {
   // Phase 3: Removed note:opened, note:closed, and note:expect-write IPC handlers
   // FileWriteQueue now handles all internal write tracking
 
+  ipcMain.handle(
+    'archive-note',
+    async (_event, params: { identifier: string; vaultId?: string }) => {
+      if (!noteService) {
+        throw new Error('Note service not available');
+      }
+      let vaultId = params.vaultId;
+      if (!vaultId) {
+        const currentVault = await noteService.getCurrentVault();
+        if (!currentVault) {
+          throw new Error('No vault available');
+        }
+        vaultId = currentVault.id;
+      }
+
+      const result = await noteService.archiveNote(params.identifier, vaultId);
+
+      // Publish event to renderer
+      publishNoteEvent({
+        type: 'note.archived',
+        noteId: result.id
+      });
+
+      return result;
+    }
+  );
+
+  ipcMain.handle(
+    'unarchive-note',
+    async (_event, params: { identifier: string; vaultId?: string }) => {
+      if (!noteService) {
+        throw new Error('Note service not available');
+      }
+      let vaultId = params.vaultId;
+      if (!vaultId) {
+        const currentVault = await noteService.getCurrentVault();
+        if (!currentVault) {
+          throw new Error('No vault available');
+        }
+        vaultId = currentVault.id;
+      }
+
+      const result = await noteService.unarchiveNote(params.identifier, vaultId);
+
+      // Publish event to renderer
+      publishNoteEvent({
+        type: 'note.unarchived',
+        noteId: result.id
+      });
+
+      return result;
+    }
+  );
+
   // Search operations
   ipcMain.handle(
     'search-notes',
@@ -1078,6 +1132,7 @@ app.whenReady().then(async () => {
         type: string;
         vaultId?: string;
         limit?: number;
+        includeArchived?: boolean;
       }
     ) => {
       if (!noteService) {
@@ -1093,7 +1148,12 @@ app.whenReady().then(async () => {
         vaultId = currentVault.id;
       }
 
-      return await noteService.listNotesByType(params.type, vaultId, params.limit);
+      return await noteService.listNotesByType(
+        params.type,
+        vaultId,
+        params.limit,
+        params.includeArchived
+      );
     }
   );
 

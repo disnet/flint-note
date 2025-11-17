@@ -169,6 +169,14 @@ declare global {
         newType: string;
         vaultId?: string;
       }) => Promise<any>;
+      archiveNote: (params: {
+        identifier: string;
+        vaultId?: string;
+      }) => Promise<{ id: string; archived: boolean; timestamp: string }>;
+      unarchiveNote: (params: {
+        identifier: string;
+        vaultId?: string;
+      }) => Promise<{ id: string; archived: boolean; timestamp: string }>;
 
       // Note suggestion operations
       getNoteSuggestions: (params: { noteId: string; vaultId?: string }) => Promise<any>;
@@ -302,6 +310,7 @@ declare global {
         type: string;
         vaultId?: string;
         limit?: number;
+        includeArchived?: boolean;
       }) => Promise<any>;
 
       // Vault operations

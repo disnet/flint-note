@@ -59,6 +59,16 @@ export const wikilinkTheme = EditorView.theme({
     color: '#cb2431'
   },
 
+  // Archived wikilinks (muted colors to indicate archived status)
+  '.wikilink-archived': {
+    opacity: '0.6',
+    fontStyle: 'italic'
+  },
+
+  '.wikilink-archived:hover': {
+    opacity: '0.8'
+  },
+
   // Dark mode using CSS media queries
   '@media (prefers-color-scheme: dark)': {
     '.wikilink-exists': {

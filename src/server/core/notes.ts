@@ -104,6 +104,13 @@ export interface NoteListItem {
   size: number;
   tags: string[];
   path: string;
+  archived?: boolean;
+}
+
+export interface ArchiveNoteResult {
+  id: string;
+  archived: boolean;
+  timestamp: string;
 }
 
 interface ParsedIdentifier {
@@ -1620,14 +1627,19 @@ export class NoteManager {
    * List notes in a specific type (Phase 2.5: DB-first reads)
    * Queries database for immediate consistency, falls back to file system if needed
    */
-  async listNotes(typeName?: string, limit?: number): Promise<NoteListItem[]> {
+  async listNotes(
+    typeName?: string,
+    limit?: number,
+    includeArchived?: boolean
+  ): Promise<NoteListItem[]> {
     try {
       // Phase 2.5: Query database first for immediate read-after-write consistency
       if (this.#hybridSearchManager) {
         try {
           const dbNotes = await this.#hybridSearchManager.listNotes({
             type: typeName,
-            limit
+            limit,
+            includeArchived
           });
 
           // Successfully read from database - return immediately
@@ -2326,5 +2338,95 @@ export class NoteManager {
    */
   async syncHierarchyToFrontmatter(noteId: string): Promise<void> {
     await this.#syncHierarchyToSubnotes(noteId);
+  }
+
+  /**
+   * Archive a note by setting the archived flag in frontmatter and database
+   */
+  async archiveNote(identifier: string): Promise<ArchiveNoteResult> {
+    try {
+      const { notePath } = await this.parseNoteIdentifier(identifier);
+
+      // Read current note
+      const note = await this.getNote(identifier);
+
+      // Update metadata to add archived: true
+      const timestamp = new Date().toISOString();
+      const updatedMetadata: NoteMetadata = {
+        ...note.metadata,
+        archived: true,
+        updated: timestamp
+      };
+
+      // Format updated content with archived flag
+      const updatedContent = this.formatUpdatedNoteContent(updatedMetadata, note.content);
+
+      // Update database first (database-first architecture)
+      if (this.#hybridSearchManager) {
+        const db = await this.#hybridSearchManager.getDatabaseConnection();
+        await db.run('UPDATE notes SET archived = 1, updated = ? WHERE id = ?', [
+          timestamp,
+          note.id
+        ]);
+      }
+
+      // Queue file write (batched with 1000ms delay)
+      await this.#writeFileWithTracking(notePath, updatedContent);
+
+      return {
+        id: note.id,
+        archived: true,
+        timestamp
+      };
+    } catch (error) {
+      throw new Error(
+        `Failed to archive note: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }
+
+  /**
+   * Unarchive a note by removing the archived flag from frontmatter and database
+   */
+  async unarchiveNote(identifier: string): Promise<ArchiveNoteResult> {
+    try {
+      const { notePath } = await this.parseNoteIdentifier(identifier);
+
+      // Read current note
+      const note = await this.getNote(identifier);
+
+      // Update metadata to remove archived flag (set to undefined to remove from frontmatter)
+      const timestamp = new Date().toISOString();
+      const updatedMetadata: NoteMetadata = {
+        ...note.metadata,
+        archived: undefined,
+        updated: timestamp
+      };
+
+      // Format updated content without archived flag
+      const updatedContent = this.formatUpdatedNoteContent(updatedMetadata, note.content);
+
+      // Update database first (database-first architecture)
+      if (this.#hybridSearchManager) {
+        const db = await this.#hybridSearchManager.getDatabaseConnection();
+        await db.run('UPDATE notes SET archived = 0, updated = ? WHERE id = ?', [
+          timestamp,
+          note.id
+        ]);
+      }
+
+      // Queue file write (batched with 1000ms delay)
+      await this.#writeFileWithTracking(notePath, updatedContent);
+
+      return {
+        id: note.id,
+        archived: false,
+        timestamp
+      };
+    } catch (error) {
+      throw new Error(
+        `Failed to unarchive note: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
   }
 }

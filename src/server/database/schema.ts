@@ -513,6 +513,7 @@ export interface NoteRow {
   size: number | null;
   content_hash: string | null;
   file_mtime: number | null;
+  archived: number; // SQLite boolean (0 or 1)
 }
 
 export interface MetadataRow {

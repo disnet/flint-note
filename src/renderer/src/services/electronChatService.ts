@@ -339,6 +339,32 @@ export class ElectronChatService implements ChatService, NoteService {
     }
   }
 
+  async archiveNote(params: {
+    vaultId: string;
+    identifier: string;
+  }): Promise<{ id: string; archived: boolean; timestamp: string }> {
+    const { vaultId, identifier } = params;
+    try {
+      return await window.api.archiveNote({ vaultId, identifier });
+    } catch (error) {
+      console.error('Failed to archive note:', error);
+      throw new Error('Failed to archive note. Please try again.');
+    }
+  }
+
+  async unarchiveNote(params: {
+    vaultId: string;
+    identifier: string;
+  }): Promise<{ id: string; archived: boolean; timestamp: string }> {
+    const { vaultId, identifier } = params;
+    try {
+      return await window.api.unarchiveNote({ vaultId, identifier });
+    } catch (error) {
+      console.error('Failed to unarchive note:', error);
+      throw new Error('Failed to unarchive note. Please try again.');
+    }
+  }
+
   // Search operations
   async searchNotes(params: {
     vaultId: string;
@@ -445,10 +471,11 @@ export class ElectronChatService implements ChatService, NoteService {
     vaultId: string;
     type: string;
     limit?: number;
+    includeArchived?: boolean;
   }): Promise<NoteListItem[]> {
-    const { vaultId, type, limit } = params;
+    const { vaultId, type, limit, includeArchived } = params;
     try {
-      return await window.api.listNotesByType({ vaultId, type, limit });
+      return await window.api.listNotesByType({ vaultId, type, limit, includeArchived });
     } catch (error) {
       console.error('Failed to list notes by type:', error);
       throw new Error('Failed to list notes by type. Please try again.');

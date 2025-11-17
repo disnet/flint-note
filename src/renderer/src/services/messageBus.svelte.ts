@@ -24,6 +24,8 @@ export type NoteEvent =
       filename: string;
     }
   | { type: 'note.moved'; noteId: string; oldType: string; newType: string }
+  | { type: 'note.archived'; noteId: string }
+  | { type: 'note.unarchived'; noteId: string }
   | {
       type: 'note.linksChanged';
       noteId: string;

@@ -34,6 +34,12 @@
 
   let editorRef = $state<CodeMirrorEditor | undefined>(undefined);
 
+  // Check if note is archived - reactively look up from store
+  const isArchived = $derived.by(() => {
+    const note = notesStore.allNotes.find((n) => n.id === doc.noteId);
+    return note?.archived === true;
+  });
+
   // Watch for changes in notes store and refresh wikilinks
   // This is the same pattern as NoteEditor.svelte lines 94-109
   $effect(() => {
@@ -107,7 +113,7 @@
   }
 </script>
 
-<div class="shelf-note">
+<div class="shelf-note" class:archived={isArchived}>
   <div class="note-header">
     <button
       class="disclosure-button"
@@ -145,6 +151,7 @@
       onblur={(e) => onTitleBlur(e.currentTarget.value)}
       onkeydown={onTitleKeyDown}
       placeholder="Untitled"
+      readonly={isArchived}
     />
 
     <button
@@ -175,6 +182,7 @@
         {onWikilinkClick}
         placeholder="Note content..."
         variant="shelf-note"
+        readOnly={isArchived}
       />
     </div>
   {/if}
@@ -186,6 +194,14 @@
     border: 1px solid var(--border-light);
     border-radius: 0.375rem;
     background: var(--bg-secondary);
+  }
+
+  .shelf-note.archived {
+    opacity: 0.6;
+  }
+
+  .shelf-note.archived .title-input {
+    font-style: italic;
   }
 
   .note-header {

@@ -102,6 +102,7 @@ export interface ListNotesOptions {
   typeName?: string;
   limit?: number;
   vaultId: string;
+  includeArchived?: boolean;
 }
 
 export interface SearchNotesByTextOptions {
@@ -643,7 +644,7 @@ export class FlintNoteApi {
   async listNotes(options: ListNotesOptions): Promise<NoteListItem[]> {
     this.ensureInitialized();
     const { noteManager } = await this.getVaultContext(options.vaultId);
-    return await noteManager.listNotes(options.typeName, options.limit);
+    return await noteManager.listNotes(options.typeName, options.limit, options.includeArchived);
   }
 
   /**
@@ -2635,6 +2636,34 @@ export class FlintNoteApi {
     );
 
     return suggestionService.updateNoteTypeSuggestionConfig(noteType, config);
+  }
+
+  /**
+   * Archive a note
+   */
+  async archiveNote(params: {
+    identifier: string;
+    vaultId: string;
+  }): Promise<import('../core/notes.js').ArchiveNoteResult> {
+    if (!this.initialized || !this.noteManager) {
+      throw new Error('API not initialized');
+    }
+
+    return await this.noteManager.archiveNote(params.identifier);
+  }
+
+  /**
+   * Unarchive a note
+   */
+  async unarchiveNote(params: {
+    identifier: string;
+    vaultId: string;
+  }): Promise<import('../core/notes.js').ArchiveNoteResult> {
+    if (!this.initialized || !this.noteManager) {
+      throw new Error('API not initialized');
+    }
+
+    return await this.noteManager.unarchiveNote(params.identifier);
   }
 
   /**

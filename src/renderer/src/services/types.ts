@@ -102,6 +102,14 @@ export interface NoteService {
     silent?: boolean;
   }): Promise<UpdateResult>;
   deleteNote(params: { identifier: string; vaultId?: string }): Promise<DeleteNoteResult>;
+  archiveNote(params: {
+    identifier: string;
+    vaultId: string;
+  }): Promise<{ id: string; archived: boolean; timestamp: string }>;
+  unarchiveNote(params: {
+    identifier: string;
+    vaultId: string;
+  }): Promise<{ id: string; archived: boolean; timestamp: string }>;
   renameNote(params: {
     identifier: string;
     newIdentifier: string;
@@ -166,6 +174,7 @@ export interface NoteService {
     type: string;
     vaultId?: string;
     limit?: number;
+    includeArchived?: boolean;
   }): Promise<NoteListItem[]>;
 
   // Vault operations

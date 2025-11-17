@@ -411,13 +411,15 @@ export class NoteService {
   async listNotesByType(
     type: string,
     vaultId: string,
-    limit?: number
+    limit?: number,
+    includeArchived?: boolean
   ): Promise<NoteListItem[]> {
     this.ensureInitialized();
     return await this.api.listNotes({
       typeName: type,
       limit,
-      vaultId
+      vaultId,
+      includeArchived
     });
   }
 
@@ -908,6 +910,34 @@ export class NoteService {
         });
         break;
     }
+  }
+
+  /**
+   * Archive a note
+   */
+  async archiveNote(
+    identifier: string,
+    vaultId: string
+  ): Promise<import('../server/core/notes').ArchiveNoteResult> {
+    this.ensureInitialized();
+    return await this.api.archiveNote({
+      identifier,
+      vaultId
+    });
+  }
+
+  /**
+   * Unarchive a note
+   */
+  async unarchiveNote(
+    identifier: string,
+    vaultId: string
+  ): Promise<import('../server/core/notes').ArchiveNoteResult> {
+    this.ensureInitialized();
+    return await this.api.unarchiveNote({
+      identifier,
+      vaultId
+    });
   }
 
   /**

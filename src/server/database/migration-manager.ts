@@ -709,6 +709,7 @@ async function initializeFreshDatabase(db: DatabaseConnection): Promise<void> {
       created TEXT NOT NULL,
       updated TEXT NOT NULL,
       size INTEGER,
+      archived INTEGER DEFAULT 0,
       UNIQUE(type, filename)
     )
   `);
@@ -1682,8 +1683,42 @@ async function migrateToV2_9_0(db: DatabaseConnection): Promise<void> {
   }
 }
 
+/**
+ * Migration to v2.10.0: Add archived column to notes table for archive functionality
+ */
+async function migrateToV2_10_0(db: DatabaseConnection): Promise<void> {
+  console.log('Migrating to v2.10.0: Adding archived column to notes table');
+
+  try {
+    // Check if archived column already exists
+    const columns = await db.all<{ name: string }>(
+      "SELECT name FROM pragma_table_info('notes')"
+    );
+    const hasArchived = columns.some((col) => col.name === 'archived');
+
+    if (!hasArchived) {
+      console.log('Adding archived column to notes table');
+      await db.run('ALTER TABLE notes ADD COLUMN archived INTEGER DEFAULT 0');
+      console.log('archived column added successfully');
+
+      // Create indexes for performance
+      console.log('Creating indexes for archived column');
+      await db.run('CREATE INDEX IF NOT EXISTS idx_notes_archived ON notes(archived)');
+      await db.run(
+        'CREATE INDEX IF NOT EXISTS idx_notes_type_archived ON notes(type, archived)'
+      );
+      console.log('Indexes created successfully');
+    } else {
+      console.log('archived column already exists, skipping');
+    }
+  } catch (error) {
+    console.error('Failed to add archived column:', error);
+    throw error;
+  }
+}
+
 export class DatabaseMigrationManager {
-  private static readonly CURRENT_SCHEMA_VERSION = '2.9.0';
+  private static readonly CURRENT_SCHEMA_VERSION = '2.10.0';
 
   private static readonly MIGRATIONS: DatabaseMigration[] = [
     {
@@ -1770,6 +1805,13 @@ export class DatabaseMigrationManager {
       requiresFullRebuild: false,
       requiresLinkMigration: false,
       migrationFunction: migrateToV2_9_0
+    },
+    {
+      version: '2.10.0',
+      description: 'Add archived column to notes table for archive functionality',
+      requiresFullRebuild: false,
+      requiresLinkMigration: false,
+      migrationFunction: migrateToV2_10_0
     }
   ];
 

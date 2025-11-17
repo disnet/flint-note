@@ -151,6 +151,7 @@ export class ReviewManager {
       size: number | null;
       content_hash: string | null;
       file_mtime: number | null;
+      archived: number;
       // Review item fields with aliases
       review_id: string;
       note_id: string;
@@ -177,6 +178,7 @@ export class ReviewManager {
         n.size,
         n.content_hash,
         n.file_mtime,
+        n.archived,
         ri.id as review_id,
         ri.note_id,
         ri.vault_id,
@@ -208,7 +210,8 @@ export class ReviewManager {
         updated: row.updated,
         size: row.size,
         content_hash: row.content_hash,
-        file_mtime: row.file_mtime
+        file_mtime: row.file_mtime,
+        archived: row.archived || 0
       };
 
       // Extract review item fields
@@ -250,6 +253,7 @@ export class ReviewManager {
       size: number | null;
       content_hash: string | null;
       file_mtime: number | null;
+      archived: number;
       // Review item fields with aliases
       review_id: string;
       note_id: string;
@@ -276,6 +280,7 @@ export class ReviewManager {
         n.size,
         n.content_hash,
         n.file_mtime,
+        n.archived,
         ri.id as review_id,
         ri.note_id,
         ri.vault_id,
@@ -308,7 +313,8 @@ export class ReviewManager {
         updated: row.updated,
         size: row.size,
         content_hash: row.content_hash,
-        file_mtime: row.file_mtime
+        file_mtime: row.file_mtime,
+        archived: row.archived || 0
       };
 
       // Extract review item fields

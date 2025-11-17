@@ -1913,6 +1913,7 @@ export class HybridSearchManager {
       type?: string;
       limit?: number;
       offset?: number;
+      includeArchived?: boolean;
     } = {}
   ): Promise<
     Array<{
@@ -1925,6 +1926,7 @@ export class HybridSearchManager {
       size: number;
       tags: string[];
       path: string;
+      archived?: boolean;
     }>
   > {
     const connection = await this.getConnection();
@@ -1933,9 +1935,19 @@ export class HybridSearchManager {
       let query = 'SELECT * FROM notes';
       const params: (string | number)[] = [];
 
+      // Filter out archived notes by default (unless includeArchived is true)
+      const conditions: string[] = [];
+      if (!options.includeArchived) {
+        conditions.push('archived = 0');
+      }
+
       if (options.type) {
-        query += ' WHERE type = ?';
+        conditions.push('type = ?');
         params.push(options.type);
+      }
+
+      if (conditions.length > 0) {
+        query += ' WHERE ' + conditions.join(' AND ');
       }
 
       query += ' ORDER BY updated DESC';
@@ -1984,7 +1996,8 @@ export class HybridSearchManager {
             modified: note.updated, // Use 'updated' as 'modified' for consistency
             size: note.size || 0,
             tags,
-            path: absolutePath
+            path: absolutePath,
+            archived: note.archived === 1
           };
         })
       );

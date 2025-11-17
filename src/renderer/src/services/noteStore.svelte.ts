@@ -12,6 +12,7 @@ export type NoteMetadata = {
   size: number;
   tags: string[];
   path: string;
+  archived?: boolean;
 };
 
 export type NoteType = {
@@ -30,6 +31,7 @@ interface NotesStoreState {
 
 function createNotesStore(): {
   readonly notes: NoteMetadata[];
+  readonly allNotes: NoteMetadata[];
   readonly noteTypes: NoteType[];
   readonly loading: boolean;
   readonly error: string | null;
@@ -45,18 +47,23 @@ function createNotesStore(): {
     initializationPromise: null
   });
 
-  // Derived: notes come from cache, not local state
-  const notes = $derived.by(() => {
-    const allNotes = noteCache.getAllNotes();
+  // Derived: all notes including archived (for wikilink resolution)
+  const allNotes = $derived.by(() => {
+    const notes = noteCache.getAllNotes();
     console.log(
       '[noteStore] $derived re-running, got',
-      allNotes.length,
+      notes.length,
       'notes from cache'
     );
-    return allNotes;
+    return notes;
   });
 
-  // Derived: grouped notes by type
+  // Derived: active notes (excluding archived, for display in lists)
+  const notes = $derived.by(() => {
+    return allNotes.filter((note) => !note.archived);
+  });
+
+  // Derived: grouped notes by type (only active notes)
   const groupedNotes = $derived.by(() => {
     const grouped: Record<string, NoteMetadata[]> = {};
 
@@ -97,9 +104,14 @@ function createNotesStore(): {
   }
 
   // Load notes of a specific type from API (without fetching full content)
+  // Note: includeArchived is always true to support wikilink resolution to archived notes
   async function loadNotesOfType(type: string, vaultId: string): Promise<NoteMetadata[]> {
     try {
-      const result = await noteService.listNotesByType({ vaultId, type });
+      const result = await noteService.listNotesByType({
+        vaultId,
+        type,
+        includeArchived: true
+      });
       if (result && Array.isArray(result)) {
         return result.map((note) => ({
           id: note.id,
@@ -110,7 +122,8 @@ function createNotesStore(): {
           modified: note.modified || new Date().toISOString(),
           size: note.size || 0,
           tags: note.tags || [],
-          path: note.path || ''
+          path: note.path || '',
+          archived: note.archived || false
         }));
       } else {
         throw new Error(`Invalid response from listNotesByType API for type: ${type}`);
@@ -200,6 +213,9 @@ function createNotesStore(): {
   return {
     get notes() {
       return notes;
+    },
+    get allNotes() {
+      return allNotes;
     },
     get noteTypes() {
       return state.noteTypes;

@@ -30,8 +30,8 @@
   $effect(() => {
     const result = pinnedNotesStore.notes
       .map((pinnedInfo) => {
-        // Find the corresponding note in notesStore
-        return notesStore.notes.find((note) => note.id === pinnedInfo.id);
+        // Find the corresponding note in notesStore (use allNotes to support archived notes)
+        return notesStore.allNotes.find((note) => note.id === pinnedInfo.id);
       })
       .filter((note): note is NoteMetadata => note !== undefined);
 
@@ -188,6 +188,7 @@
           class="pinned-item"
           class:active={activeNote?.id === note.id}
           class:loading={!isNotesReady}
+          class:archived={note.archived}
           class:dragging={dragState.draggedId === note.id}
           class:drag-over-top={dragState.dragOverIndex === index &&
             dragState.dragOverSection === 'pinned' &&
@@ -331,6 +332,18 @@
     opacity: 0.6;
     cursor: not-allowed;
     pointer-events: none;
+  }
+
+  .pinned-item.archived {
+    opacity: 0.6;
+  }
+
+  .pinned-item.archived:hover {
+    opacity: 0.8;
+  }
+
+  .pinned-item.archived .note-title {
+    font-style: italic;
   }
 
   .note-icon {

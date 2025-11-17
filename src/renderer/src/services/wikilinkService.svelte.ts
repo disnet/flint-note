@@ -71,7 +71,8 @@ class WikilinkService {
       }
     } else {
       // Navigate to existing note or add to sidebar
-      const existingNote = notesStore.notes.find((n) => n.id === noteId);
+      // Use allNotes to support navigation to archived notes
+      const existingNote = notesStore.allNotes.find((n) => n.id === noteId);
       if (existingNote) {
         if (shiftKey) {
           // Add to sidebar instead of navigating

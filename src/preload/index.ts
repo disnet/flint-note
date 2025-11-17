@@ -229,6 +229,10 @@ const api = {
     electronAPI.ipcRenderer.invoke('rename-note', params),
   moveNote: (params: { identifier: string; newType: string; vaultId?: string }) =>
     electronAPI.ipcRenderer.invoke('move-note', params),
+  archiveNote: (params: { identifier: string; vaultId?: string }) =>
+    electronAPI.ipcRenderer.invoke('archive-note', params),
+  unarchiveNote: (params: { identifier: string; vaultId?: string }) =>
+    electronAPI.ipcRenderer.invoke('unarchive-note', params),
 
   // Note suggestions operations
   getNoteSuggestions: (params: { noteId: string; vaultId?: string }) =>
@@ -321,8 +325,12 @@ const api = {
     targetType?: string;
     vaultId?: string;
   }) => electronAPI.ipcRenderer.invoke('delete-note-type', params),
-  listNotesByType: (params: { type: string; vaultId?: string; limit?: number }) =>
-    electronAPI.ipcRenderer.invoke('list-notes-by-type', params),
+  listNotesByType: (params: {
+    type: string;
+    vaultId?: string;
+    limit?: number;
+    includeArchived?: boolean;
+  }) => electronAPI.ipcRenderer.invoke('list-notes-by-type', params),
 
   // Vault operations
   listVaults: () => electronAPI.ipcRenderer.invoke('list-vaults'),

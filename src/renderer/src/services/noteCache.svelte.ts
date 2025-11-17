@@ -17,6 +17,8 @@ class NoteCache {
     messageBus.subscribe('note.deleted', (e) => this.handleNoteDeleted(e));
     messageBus.subscribe('note.renamed', (e) => this.handleNoteRenamed(e));
     messageBus.subscribe('note.moved', (e) => this.handleNoteMoved(e));
+    messageBus.subscribe('note.archived', (e) => this.handleNoteArchived(e));
+    messageBus.subscribe('note.unarchived', (e) => this.handleNoteUnarchived(e));
     messageBus.subscribe('notes.bulkRefresh', (e) => this.handleBulkRefresh(e));
     // NOTE: vault.switched listener removed to prevent race conditions
     // Cache is now cleared and repopulated via notes.bulkRefresh event during vault switch
@@ -72,6 +74,20 @@ class NoteCache {
     // Update note type in array - array reassignment triggers reactivity
     this.cacheArray = this.cacheArray.map((note) =>
       note.id === event.noteId ? { ...note, type: event.newType } : note
+    );
+  }
+
+  private handleNoteArchived(event: Extract<NoteEvent, { type: 'note.archived' }>): void {
+    // Keep note in cache but mark as archived (needed for wikilink resolution)
+    this.cacheArray = this.cacheArray.map((note) =>
+      note.id === event.noteId ? { ...note, archived: true } : note
+    );
+  }
+
+  private handleNoteUnarchived(event: Extract<NoteEvent, { type: 'note.unarchived' }>): void {
+    // Update note to mark as not archived
+    this.cacheArray = this.cacheArray.map((note) =>
+      note.id === event.noteId ? { ...note, archived: false } : note
     );
   }
 

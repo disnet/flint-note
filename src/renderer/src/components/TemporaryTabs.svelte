@@ -29,7 +29,7 @@
   // Hydrate tabs with metadata from notesStore
   let hydratedTabs = $derived(
     temporaryTabsStore.tabs.map((tab) => {
-      const note = notesStore.notes.find((n) => n.id === tab.noteId);
+      const note = notesStore.allNotes.find((n) => n.id === tab.noteId);
       if (!note && !isNotesLoading && isTabsReady) {
         // Only warn if we're supposedly ready but still missing notes
         console.warn('[TemporaryTabs] Tab hydration failed - note not found:', {
@@ -38,11 +38,11 @@
           source: tab.source,
           openedAt: tab.openedAt,
           lastAccessed: tab.lastAccessed,
-          totalNotesInStore: notesStore.notes.length,
-          availableNoteIds: notesStore.notes.map((n) => n.id).slice(0, 5),
+          totalNotesInStore: notesStore.allNotes.length,
+          availableNoteIds: notesStore.allNotes.map((n) => n.id).slice(0, 5),
           reactivityCheck: {
             storeTabsLength: temporaryTabsStore.tabs.length,
-            notesStoreLength: notesStore.notes.length,
+            notesStoreLength: notesStore.allNotes.length,
             isNotesLoading,
             isTabsReady
           }
@@ -50,7 +50,8 @@
       }
       return {
         ...tab,
-        title: note?.title || ''
+        title: note?.title || '',
+        archived: note?.archived || false
       };
     })
   );
@@ -65,7 +66,7 @@
     }
 
     console.log('[TemporaryTabs] Tab clicked:', { noteId });
-    const note = notesStore.notes.find((n) => n.id === noteId);
+    const note = notesStore.allNotes.find((n) => n.id === noteId);
     if (note) {
       console.log('[TemporaryTabs] Note found, opening:', {
         noteId: note.id,
@@ -84,9 +85,9 @@
           noteId,
           notesStoreState: {
             loading: notesStore.loading,
-            totalNotes: notesStore.notes.length,
+            totalNotes: notesStore.allNotes.length,
             noteTypes: notesStore.noteTypes,
-            firstTenNoteIds: notesStore.notes.map((n) => n.id).slice(0, 10)
+            firstTenNoteIds: notesStore.allNotes.map((n) => n.id).slice(0, 10)
           },
           tabInfo: temporaryTabsStore.tabs.find((t) => t.noteId === noteId),
           allTabs: temporaryTabsStore.tabs.map((t) => ({ id: t.id, noteId: t.noteId }))
@@ -124,7 +125,7 @@
     source: string
   ): { type: 'emoji' | 'svg'; value: string } {
     // Check for custom note type icon first
-    const note = notesStore.notes.find((n) => n.id === noteId);
+    const note = notesStore.allNotes.find((n) => n.id === noteId);
     if (note) {
       const noteType = notesStore.noteTypes.find((t) => t.name === note.type);
       if (noteType?.icon) {
@@ -260,6 +261,7 @@
           class="tab-item"
           class:active={tab.id === temporaryTabsStore.activeTabId}
           class:loading={!isTabsReady}
+          class:archived={tab.archived}
           class:dragging={dragState.draggedId === tab.id}
           class:drag-over-top={dragState.dragOverIndex === index &&
             dragState.dragOverSection === 'temporary' &&
@@ -397,6 +399,18 @@
     opacity: 0.6;
     cursor: not-allowed;
     pointer-events: none;
+  }
+
+  .tab-item.archived {
+    opacity: 0.6;
+  }
+
+  .tab-item.archived:hover {
+    opacity: 0.8;
+  }
+
+  .tab-item.archived .tab-title {
+    font-style: italic;
   }
 
   .tab-content {

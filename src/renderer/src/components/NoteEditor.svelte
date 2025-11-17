@@ -41,6 +41,12 @@
   let noteData = $state<Note | null>(null);
   let metadataExpanded = $state(false);
   let previewMode = $state(false);
+
+  // Check if note is archived - reactively look up from store to ensure immediate updates
+  const isArchived = $derived.by(() => {
+    const latestNote = notesStore.allNotes.find((n) => n.id === note.id);
+    return latestNote?.archived === true;
+  });
   let editorRef = $state<CodeMirrorEditor | undefined>(undefined);
   let headerRef = $state<{ focusTitle?: () => void } | null>(null);
   let pendingCursorPosition = $state<CursorPosition | null>(null);
@@ -448,13 +454,18 @@
   async function confirmArchiveNote(): Promise<void> {
     try {
       const noteService = getChatService();
-      await noteService.deleteNote({
+      const vault = await noteService.getCurrentVault();
+      if (!vault) {
+        console.error('No vault available');
+        return;
+      }
+      await noteService.archiveNote({
+        vaultId: vault.id,
         identifier: note.id
       });
 
-      // Close the modal and editor after archiving
+      // Close the modal - note stays open in read-only archived state
       showArchiveConfirmation = false;
-      onClose();
     } catch (err) {
       console.error('Error archiving note:', err);
       showArchiveConfirmation = false;
@@ -464,6 +475,25 @@
 
   function cancelArchiveNote(): void {
     showArchiveConfirmation = false;
+  }
+
+  async function handleUnarchiveNote(): Promise<void> {
+    try {
+      const noteService = getChatService();
+      const vault = await noteService.getCurrentVault();
+      if (!vault) {
+        console.error('No vault available');
+        return;
+      }
+      await noteService.unarchiveNote({
+        vaultId: vault.id,
+        identifier: note.id
+      });
+      // Note will automatically update via event system
+    } catch (err) {
+      console.error('Error unarchiving note:', err);
+      // Optionally show an error message to the user
+    }
   }
 
   // Load review status when note changes
@@ -578,6 +608,16 @@
 
     <ErrorBanner error={doc.error} />
 
+    {#if isArchived}
+      <div class="archived-banner">
+        <span class="archived-icon">🗄️</span>
+        <span class="archived-text">This note is archived (read-only)</span>
+        <button class="unarchive-btn" onclick={handleUnarchiveNote} type="button">
+          Unarchive Note
+        </button>
+      </div>
+    {/if}
+
     <div class="metadata-section-container">
       <MetadataView
         note={noteData}
@@ -599,6 +639,7 @@
         onWikilinkClick={handleWikilinkClick}
         cursorPosition={pendingCursorPosition}
         placeholder="Write, type [[ to make links..."
+        readOnly={isArchived}
         {suggestions}
         {expandedSuggestions}
         onDismissSuggestion={dismissSuggestion}
@@ -612,10 +653,10 @@
 <ConfirmationModal
   isOpen={showArchiveConfirmation}
   title="Archive Note"
-  message="Are you sure you want to archive this note? A backup will be created in .flint-note/backups/ before deletion."
+  message="Archive this note? It will be hidden from search and lists, but wikilinks will still work. You can unarchive it later."
   confirmText="Archive"
   cancelText="Cancel"
-  confirmStyle="danger"
+  confirmStyle="primary"
   onConfirm={confirmArchiveNote}
   onCancel={cancelArchiveNote}
 />
@@ -647,5 +688,41 @@
   .preview-content {
     padding: 0.75rem;
     line-height: 1.6;
+  }
+
+  .archived-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-medium);
+    border-radius: 0.375rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .archived-icon {
+    font-size: 1.25rem;
+  }
+
+  .archived-text {
+    flex: 1;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+  }
+
+  .unarchive-btn {
+    padding: 0.375rem 0.75rem;
+    background: var(--accent-primary);
+    color: white;
+    border: none;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: background-color 0.15s ease;
+  }
+
+  .unarchive-btn:hover {
+    background: var(--accent-primary-hover);
   }
 </style>
