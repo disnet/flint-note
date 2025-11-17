@@ -497,15 +497,15 @@
   }
 
   .message.error {
-    background: #fee;
-    color: #c53030;
-    border: 1px solid #fca5a5;
+    background: var(--settings-message-error-bg);
+    color: var(--settings-message-error-text);
+    border: 1px solid var(--settings-message-error-border);
   }
 
   .message.success {
-    background: #f0fff4;
-    color: #38a169;
-    border: 1px solid #9ae6b4;
+    background: var(--settings-message-success-bg);
+    color: var(--settings-message-success-text);
+    border: 1px solid var(--settings-message-success-border);
   }
 
   .settings-section {
@@ -585,8 +585,8 @@
     gap: 1rem;
     padding: 1.25rem;
     margin-bottom: 2rem;
-    background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
-    border: 1px solid #bbdefb;
+    background: var(--settings-info-bg);
+    border: 1px solid var(--settings-info-border);
     border-radius: 0.75rem;
     align-items: flex-start;
   }
@@ -686,13 +686,13 @@
   }
 
   .btn-danger {
-    background: #fed7d7;
-    color: #c53030;
-    border: 1px solid #fca5a5;
+    background: var(--settings-btn-danger-bg);
+    color: var(--settings-btn-danger-text);
+    border: 1px solid var(--settings-btn-danger-border);
   }
 
   .btn-danger:hover:not(:disabled) {
-    background: #fbb6ce;
+    background: var(--settings-btn-danger-hover-bg);
   }
 
   .btn-secondary:disabled,
@@ -704,14 +704,14 @@
   .danger-zone {
     margin-top: 2rem;
     padding: 1.5rem;
-    background: #fef5e7;
-    border: 1px solid #f6ad55;
+    background: var(--settings-danger-bg);
+    border: 1px solid var(--settings-danger-border);
     border-radius: 0.75rem;
   }
 
   .danger-zone h4 {
     margin: 0 0 1rem 0;
-    color: #c53030;
+    color: var(--settings-danger-text);
     font-weight: 600;
   }
 

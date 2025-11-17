@@ -61,6 +61,34 @@
   --json-boolean-color: #8250df;
   --json-null-color: #8b949e;
   --json-indent-border: #e1e4e8;
+
+  /* Changelog viewer */
+  --bg-color: #ffffff;
+  --text-color: #1a1a1a;
+  --border-color: #e5e7eb;
+  --bg-secondary-color: #f8f9fa;
+  --text-muted-color: #6b7280;
+  --hover-bg-color: #e9ecef;
+  --error-color: #ef4444;
+  --primary-color: #3b82f6;
+  --code-bg-color: #f8f9fa;
+
+  /* Settings component */
+  --settings-info-bg: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+  --settings-info-border: #bbdefb;
+  --settings-danger-bg: #fef5e7;
+  --settings-danger-border: #f6ad55;
+  --settings-danger-text: #c53030;
+  --settings-message-error-bg: #fee;
+  --settings-message-error-text: #c53030;
+  --settings-message-error-border: #fca5a5;
+  --settings-message-success-bg: #f0fff4;
+  --settings-message-success-text: #38a169;
+  --settings-message-success-border: #9ae6b4;
+  --settings-btn-danger-bg: #fed7d7;
+  --settings-btn-danger-text: #c53030;
+  --settings-btn-danger-border: #fca5a5;
+  --settings-btn-danger-hover-bg: #fbb6ce;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -127,6 +155,34 @@
     --json-boolean-color: #d2a8ff;
     --json-null-color: #6b7280;
     --json-indent-border: #374151;
+
+    /* Changelog viewer */
+    --bg-color: #1a1a1a;
+    --text-color: #ffffff;
+    --border-color: #374151;
+    --bg-secondary-color: #262626;
+    --text-muted-color: #9ca3af;
+    --hover-bg-color: #374151;
+    --error-color: #f87171;
+    --primary-color: #60a5fa;
+    --code-bg-color: #262626;
+
+    /* Settings component */
+    --settings-info-bg: linear-gradient(135deg, #1e3a5f 0%, #2d1b3d 100%);
+    --settings-info-border: #4b5563;
+    --settings-danger-bg: #3d2817;
+    --settings-danger-border: #92400e;
+    --settings-danger-text: #fca5a5;
+    --settings-message-error-bg: #3f1c1c;
+    --settings-message-error-text: #fca5a5;
+    --settings-message-error-border: #7f1d1d;
+    --settings-message-success-bg: #1a3d2e;
+    --settings-message-success-text: #6ee7b7;
+    --settings-message-success-border: #065f46;
+    --settings-btn-danger-bg: #5a1f1f;
+    --settings-btn-danger-text: #fca5a5;
+    --settings-btn-danger-border: #7f1d1d;
+    --settings-btn-danger-hover-bg: #7c2d2d;
   }
 }
 
