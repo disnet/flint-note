@@ -84,7 +84,9 @@ class NoteCache {
     );
   }
 
-  private handleNoteUnarchived(event: Extract<NoteEvent, { type: 'note.unarchived' }>): void {
+  private handleNoteUnarchived(
+    event: Extract<NoteEvent, { type: 'note.unarchived' }>
+  ): void {
     // Update note to mark as not archived
     this.cacheArray = this.cacheArray.map((note) =>
       note.id === event.noteId ? { ...note, archived: false } : note

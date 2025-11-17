@@ -37,10 +37,19 @@
   let suggestionsEnabled = $state(false);
   let suggestionsPromptGuidance = $state('');
   let saveTimeout: ReturnType<typeof setTimeout> | null = null;
+  let showArchived = $state(false);
 
   const notes = $derived.by(() => {
-    const grouped = notesStore.groupedNotes;
-    return grouped[typeName] || [];
+    // Get all notes of this type
+    const allNotes = notesStore.allNotes.filter((n) => n.type === typeName);
+
+    if (showArchived) {
+      // Show only archived notes
+      return allNotes.filter((n) => n.archived);
+    } else {
+      // Show only active notes (exclude archived)
+      return allNotes.filter((n) => !n.archived);
+    }
   });
 
   function handleNoteClick(note: NoteMetadata): void {
@@ -767,11 +776,18 @@
       </div>
     {:else if activeTab === 'notes'}
       <div class="notes-tab">
+        <div class="notes-tab-header">
+          <label class="checkbox-label archive-filter-label">
+            <input type="checkbox" bind:checked={showArchived} />
+            Show archived notes
+          </label>
+        </div>
         {#if notes.length > 0}
           <div class="notes-list">
             {#each notes as note, index (note.id || `${typeName}-${index}`)}
               <div
                 class="note-item"
+                class:archived={note.archived}
                 role="button"
                 tabindex="0"
                 onclick={() => handleNoteClick(note)}
@@ -1261,6 +1277,17 @@
     max-width: 800px;
   }
 
+  .notes-tab-header {
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .archive-filter-label {
+    font-size: 0.875rem;
+    color: var(--text-primary);
+  }
+
   .notes-list {
     display: flex;
     flex-direction: column;
@@ -1283,6 +1310,18 @@
   .note-item:focus {
     outline: 2px solid var(--accent-primary);
     outline-offset: -2px;
+  }
+
+  .note-item.archived {
+    opacity: 0.6;
+  }
+
+  .note-item.archived:hover {
+    opacity: 0.8;
+  }
+
+  .note-item.archived .note-title {
+    font-style: italic;
   }
 
   .note-title {

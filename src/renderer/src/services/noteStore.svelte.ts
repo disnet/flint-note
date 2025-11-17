@@ -50,11 +50,7 @@ function createNotesStore(): {
   // Derived: all notes including archived (for wikilink resolution)
   const allNotes = $derived.by(() => {
     const notes = noteCache.getAllNotes();
-    console.log(
-      '[noteStore] $derived re-running, got',
-      notes.length,
-      'notes from cache'
-    );
+    console.log('[noteStore] $derived re-running, got', notes.length, 'notes from cache');
     return notes;
   });
 

@@ -644,7 +644,11 @@ export class FlintNoteApi {
   async listNotes(options: ListNotesOptions): Promise<NoteListItem[]> {
     this.ensureInitialized();
     const { noteManager } = await this.getVaultContext(options.vaultId);
-    return await noteManager.listNotes(options.typeName, options.limit, options.includeArchived);
+    return await noteManager.listNotes(
+      options.typeName,
+      options.limit,
+      options.includeArchived
+    );
   }
 
   /**
