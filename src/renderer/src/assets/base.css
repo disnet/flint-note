@@ -56,9 +56,9 @@
     --text-on-accent: #1a1a1a;
     --message-user-bg: #60a5fa;
     --message-user-text: #1a1a1a;
-    --message-agent-bg: #374151;
+    --message-agent-bg: transparent;
     --message-agent-text: #e5e7eb;
-    --message-agent-border: #4b5563;
+    --message-agent-border: transparent;
     --scrollbar-thumb: #6b7280;
     --scrollbar-thumb-hover: #9ca3af;
   }

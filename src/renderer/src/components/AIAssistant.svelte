@@ -237,7 +237,9 @@
     padding: 1rem 1.25rem;
     display: flex;
     flex-direction: column;
+    justify-content: flex-end;
     gap: 0.5rem;
+    min-height: 100%;
   }
 
   /* Tool Call Limit Section */
