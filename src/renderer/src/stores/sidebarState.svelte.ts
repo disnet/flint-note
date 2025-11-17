@@ -121,9 +121,7 @@ class SidebarStateStore {
     await this.saveToStorage();
   }
 
-  async setRightSidebarMode(
-    mode: 'ai' | 'threads' | 'notes' | 'suggestions'
-  ): Promise<void> {
+  async setRightSidebarMode(mode: 'ai' | 'notes'): Promise<void> {
     await this.ensureInitialized();
     this.state.rightSidebar.mode = mode;
     await this.saveToStorage();

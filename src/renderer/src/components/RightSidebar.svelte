@@ -1,6 +1,5 @@
 <script lang="ts">
   import AIAssistant from './AIAssistant.svelte';
-  import ThreadList from './ThreadList.svelte';
   import NotesShelf from './NotesShelf.svelte';
   import ResizeHandle from './ResizeHandle.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
@@ -74,15 +73,6 @@
           bind:refreshCredits
         />
       </div>
-    {:else if sidebarState.rightSidebar.mode === 'threads'}
-      <div class="threads-mode">
-        <ThreadList
-          onThreadSelect={(_threadId) => {
-            // Switch to AI mode when thread is selected to show conversation
-            sidebarState.setRightSidebarMode('ai');
-          }}
-        />
-      </div>
     {:else if sidebarState.rightSidebar.mode === 'notes'}
       <div class="notes-mode">
         <NotesShelf />
@@ -127,14 +117,6 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-  }
-
-  .threads-mode {
-    flex: 1;
-    min-height: 0;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
   }
 
   .notes-mode {
