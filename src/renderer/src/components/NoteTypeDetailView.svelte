@@ -502,6 +502,43 @@
             </div>
 
             <div class="form-section">
+              <h3 class="section-title">AI Suggestions</h3>
+              <p class="section-description">
+                Configure whether AI-powered suggestions are enabled for notes of this
+                type.
+              </p>
+
+              <label class="checkbox-label suggestions-enable-label">
+                <input
+                  type="checkbox"
+                  bind:checked={suggestionsEnabled}
+                  onchange={() => scheduleSuggestionsAutoSave()}
+                />
+                Enable AI suggestions for this note type
+              </label>
+
+              {#if suggestionsEnabled}
+                <div class="suggestions-config">
+                  <label for="suggestions-guidance" class="form-label">
+                    Suggestion Guidance
+                  </label>
+                  <textarea
+                    id="suggestions-guidance"
+                    class="form-textarea"
+                    bind:value={suggestionsPromptGuidance}
+                    onblur={scheduleSuggestionsAutoSave}
+                    placeholder="Instructions for how the AI should analyze notes and make suggestions...&#10;&#10;Example: Analyze this note and suggest:&#10;1. Action items that need tracking&#10;2. People to follow up with&#10;3. Related notes to link&#10;4. Key decisions to document"
+                    rows="6"
+                  ></textarea>
+                  <p class="help-text">
+                    Provide specific instructions for the types of suggestions you want
+                    the AI to generate for notes of this type.
+                  </p>
+                </div>
+              {/if}
+            </div>
+
+            <div class="form-section">
               <div class="section-header">
                 <h3 class="section-title">Agent Instructions</h3>
                 <button class="add-btn" onclick={addInstruction}>+ Add</button>
@@ -732,43 +769,6 @@
                 </div>
               {:else}
                 <p class="empty-text">No metadata fields defined</p>
-              {/if}
-            </div>
-
-            <div class="form-section">
-              <h3 class="section-title">AI Suggestions</h3>
-              <p class="section-description">
-                Configure whether AI-powered suggestions are enabled for notes of this
-                type.
-              </p>
-
-              <label class="checkbox-label suggestions-enable-label">
-                <input
-                  type="checkbox"
-                  bind:checked={suggestionsEnabled}
-                  onchange={() => scheduleSuggestionsAutoSave()}
-                />
-                Enable AI suggestions for this note type
-              </label>
-
-              {#if suggestionsEnabled}
-                <div class="suggestions-config">
-                  <label for="suggestions-guidance" class="form-label">
-                    Suggestion Guidance
-                  </label>
-                  <textarea
-                    id="suggestions-guidance"
-                    class="form-textarea"
-                    bind:value={suggestionsPromptGuidance}
-                    onblur={scheduleSuggestionsAutoSave}
-                    placeholder="Instructions for how the AI should analyze notes and make suggestions...&#10;&#10;Example: Analyze this note and suggest:&#10;1. Action items that need tracking&#10;2. People to follow up with&#10;3. Related notes to link&#10;4. Key decisions to document"
-                    rows="6"
-                  ></textarea>
-                  <p class="help-text">
-                    Provide specific instructions for the types of suggestions you want
-                    the AI to generate for notes of this type.
-                  </p>
-                </div>
               {/if}
             </div>
           </div>
