@@ -5,7 +5,7 @@
    * ConversationContainer - Reusable container for conversation-style UIs
    *
    * Implements the critical flexbox pattern for fixed header + scrollable content + fixed controls.
-   * This pattern is used across AIAssistant, ReviewMode, and other conversation interfaces.
+   * This pattern is used across Agent, ReviewMode, and other conversation interfaces.
    *
    * Key CSS trick: min-height: 0 on scrollable content allows flex items to scroll properly.
    */

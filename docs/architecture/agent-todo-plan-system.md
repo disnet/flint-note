@@ -510,9 +510,9 @@ Located: `src/renderer/src/components/TodoPlanWidget.svelte`
 </style>
 ```
 
-### Integration with AIAssistant
+### Integration with Agent
 
-Located: `src/renderer/src/components/AIAssistant.svelte`
+Located: `src/renderer/src/components/Agent.svelte`
 
 ```svelte
 <script lang="ts">
@@ -773,7 +773,7 @@ Agent:
 - [ ] Create `todoPlanStore.svelte.ts`
 - [ ] Add IPC bindings to preload
 - [ ] Create basic `TodoPlanWidget.svelte`
-- [ ] Integrate widget into `AIAssistant.svelte`
+- [ ] Integrate widget into `Agent.svelte`
 
 **Testing:**
 
@@ -828,7 +828,7 @@ Agent:
    - Todo list with status icons
    - Error display for failed todos
 
-9. **AIAssistant Integration** (`src/renderer/src/components/AIAssistant.svelte`)
+9. **Agent Integration** (`src/renderer/src/components/Agent.svelte`)
    - Import and render TodoPlanWidget
    - Listen for manage_todos tool calls
    - Refresh plan from backend on tool use

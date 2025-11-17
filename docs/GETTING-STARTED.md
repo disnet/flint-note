@@ -142,7 +142,7 @@ renderer/src/
 - `LeftSidebar.svelte` - Navigation
 - `MainView.svelte` - Note editor
 - `RightSidebar.svelte` - AI assistant
-- `AIAssistant.svelte` - Chat interface
+- `Agent.svelte` - Chat interface
 - `CodeMirrorEditor.svelte` - Note editor
 
 **Key Stores (Svelte 5 Runes):**

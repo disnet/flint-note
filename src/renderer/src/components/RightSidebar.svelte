@@ -1,5 +1,5 @@
 <script lang="ts">
-  import AIAssistant from './AIAssistant.svelte';
+  import Agent from './Agent.svelte';
   import NotesShelf from './NotesShelf.svelte';
   import ResizeHandle from './ResizeHandle.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
@@ -60,7 +60,7 @@
   <div class="sidebar-inner">
     {#if sidebarState.rightSidebar.mode === 'ai'}
       <div class="ai-mode">
-        <AIAssistant
+        <Agent
           {messages}
           {isLoading}
           {onNoteClick}

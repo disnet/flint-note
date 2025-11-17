@@ -282,7 +282,7 @@ App.svelte (Root)
 ├── MainView.svelte
 │   └── NoteEditor.svelte
 └── RightSidebar.svelte
-    ├── AIAssistant.svelte
+    ├── Agent.svelte
     │   ├── MessageComponent.svelte
     │   ├── MessageInput.svelte
     │   ├── ToolCallComponent.svelte

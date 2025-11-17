@@ -63,7 +63,7 @@ Mobile Layout (<768px):
 **RightSidebar.svelte** - Contextual assistance panel
 
 - Tabbed interface: AI Assistant / Metadata
-- `AIAssistant` component with task management
+- `Agent` component with task management
 - `MetadataEditor` component with YAML frontmatter editing
 
 ### State Management

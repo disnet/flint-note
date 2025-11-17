@@ -219,7 +219,7 @@ AI executes two tasks:
 **Technical Details:**
 
 - Extracted from MCP tool calls
-- Displayed in `AIAssistant.svelte`
+- Displayed in `Agent.svelte`
 - Stored in conversation history
 
 ### Prompt Caching
