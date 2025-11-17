@@ -28,6 +28,39 @@
   --message-agent-border: #f3f4f6;
   --scrollbar-thumb: #d1d5db;
   --scrollbar-thumb-hover: #9ca3af;
+
+  /* Tool call / Agent activity components */
+  --tool-call-bg: #f8f9fa;
+  --tool-call-border: #e9ecef;
+  --tool-call-border-hover: #dee2e6;
+  --tool-call-header-hover: #f1f3f4;
+  --tool-call-details-bg: #ffffff;
+  --tool-name-color: #495057;
+  --expand-icon-color: #6c757d;
+  --details-heading-color: #495057;
+  --bg-hover: #e9ecef;
+  --code-bg: #f8f9fa;
+  --code-border: #e9ecef;
+  --result-bg: #f8f9fa;
+  --result-border: #e9ecef;
+  --result-text: #495057;
+  --error-border: #f5c2c7;
+  --error-bg-light: #fff5f5;
+  --error-content-bg: #f8d7da;
+  --error-content-border: #f5c2c7;
+  --error-content-text: #721c24;
+
+  /* JSON viewer */
+  --json-hover-bg: rgba(0, 0, 0, 0.05);
+  --json-expand-color: #6c757d;
+  --json-key-color: #0969da;
+  --json-bracket-color: #6c757d;
+  --json-size-hint-color: #8b949e;
+  --json-string-color: #032f62;
+  --json-number-color: #0550ae;
+  --json-boolean-color: #8250df;
+  --json-null-color: #8b949e;
+  --json-indent-border: #e1e4e8;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -61,6 +94,39 @@
     --message-agent-border: transparent;
     --scrollbar-thumb: #6b7280;
     --scrollbar-thumb-hover: #9ca3af;
+
+    /* Tool call / Agent activity components */
+    --tool-call-bg: #262626;
+    --tool-call-border: #374151;
+    --tool-call-border-hover: #4b5563;
+    --tool-call-header-hover: #2d2d2d;
+    --tool-call-details-bg: #1a1a1a;
+    --tool-name-color: #e5e7eb;
+    --expand-icon-color: #9ca3af;
+    --details-heading-color: #9ca3af;
+    --bg-hover: #374151;
+    --code-bg: #262626;
+    --code-border: #374151;
+    --result-bg: #262626;
+    --result-border: #374151;
+    --result-text: #e5e7eb;
+    --error-border: #7f1d1d;
+    --error-bg-light: #2d1717;
+    --error-content-bg: #3f1c1c;
+    --error-content-border: #7f1d1d;
+    --error-content-text: #fca5a5;
+
+    /* JSON viewer */
+    --json-hover-bg: rgba(255, 255, 255, 0.05);
+    --json-expand-color: #9ca3af;
+    --json-key-color: #60a5fa;
+    --json-bracket-color: #9ca3af;
+    --json-size-hint-color: #6b7280;
+    --json-string-color: #a5d6ff;
+    --json-number-color: #79c0ff;
+    --json-boolean-color: #d2a8ff;
+    --json-null-color: #6b7280;
+    --json-indent-border: #374151;
   }
 }
 
