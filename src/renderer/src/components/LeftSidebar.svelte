@@ -79,7 +79,9 @@
       if (contentElement) {
         const isScrollable = contentElement.scrollHeight > contentElement.clientHeight;
         const isAtBottom =
-          contentElement.scrollHeight - contentElement.scrollTop - contentElement.clientHeight <
+          contentElement.scrollHeight -
+            contentElement.scrollTop -
+            contentElement.clientHeight <
           1; // Small threshold for rounding
         showShadow = isScrollable && !isAtBottom;
       }

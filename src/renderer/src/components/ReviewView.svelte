@@ -72,14 +72,16 @@
       });
     }
 
-    if (sessionState === 'feedback' && userResponse.trim()) {
-      // Show user's response
+    // Show user's response when analyzing or in feedback state
+    if ((sessionState === 'feedback' || isAnalyzingResponse) && userResponse.trim()) {
       msgs.push({
         role: 'user',
         content: userResponse,
         label: 'Your Response:'
       });
+    }
 
+    if (sessionState === 'feedback') {
       // Show feedback if available
       if (agentFeedback) {
         msgs.push({
@@ -545,42 +547,24 @@
   {:else if sessionState === 'loading'}
     <!-- Loading state -->
     {#if isGeneratingPrompt && currentNote}
-      <!-- Show skeleton of review screen while generating prompt -->
-      <div class="review-prompt-skeleton">
-        <div class="header">
+      <!-- Show box-style loading while generating prompt -->
+      <div class="review-loading-container">
+        <div class="loading-header">
           <h2>Reviewing: {currentNote.title}</h2>
           <div class="progress">Note {currentNoteIndex + 1} of {totalNotes}</div>
         </div>
 
-        <div class="content-area">
-          <div class="prompt-section loading">
-            <div class="prompt-label">Review Challenge:</div>
-            <div class="loading-content">
-              <div class="loading-spinner"></div>
-              <p>Generating review challenge...</p>
+        <div class="loading-content-area">
+          <div class="challenge-loading-box">
+            <div class="challenge-label">Review Challenge:</div>
+            <div class="generating-message">
+              <span>Generating review</span>
+              <div class="loading-dots">
+                <span class="dot"></span>
+                <span class="dot"></span>
+                <span class="dot"></span>
+              </div>
             </div>
-          </div>
-
-          <div class="response-section disabled">
-            <div class="response-label">Your Response:</div>
-            <div class="editor-placeholder">
-              <p>Waiting for review challenge...</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="bottom-bar">
-          <div class="response-hint">
-            Tip: Press Cmd/Ctrl+Enter to submit · Escape to end session · Use
-            [[wikilinks]] to link notes
-          </div>
-          <div class="actions disabled">
-            <div class="secondary-actions">
-              <button class="action-btn secondary" disabled>Show Note Content</button>
-              <button class="action-btn secondary" disabled>Skip</button>
-              <button class="action-btn secondary" disabled>End Session</button>
-            </div>
-            <button class="action-btn primary" disabled>Submit Response</button>
           </div>
         </div>
       </div>
@@ -648,7 +632,7 @@
               {/if}
 
               <!-- Review History Panel (collapsible) - shown below response box -->
-              {#if currentNoteReviewHistory.length > 0 && sessionState === 'prompting'}
+              {#if currentNoteReviewHistory.length > 0 && sessionState === 'prompting' && !isAnalyzingResponse}
                 <div class="review-history-section">
                   <button
                     class="history-toggle"
@@ -686,10 +670,14 @@
 
               <!-- Loading indicator while analyzing -->
               {#if isAnalyzingResponse}
-                <div class="analyzing-section">
-                  <div class="section-label">Analyzing your response...</div>
-                  <div class="loading-content">
-                    <div class="loading-spinner"></div>
+                <div class="feedback-loading">
+                  <div class="generating-message">
+                    <span>Generating feedback</span>
+                    <div class="loading-dots">
+                      <span class="dot"></span>
+                      <span class="dot"></span>
+                      <span class="dot"></span>
+                    </div>
                   </div>
                 </div>
               {/if}
@@ -860,6 +848,19 @@
     }
   }
 
+  @keyframes pulse {
+    0%,
+    80%,
+    100% {
+      opacity: 0.4;
+      transform: scale(1);
+    }
+    40% {
+      opacity: 1;
+      transform: scale(1.2);
+    }
+  }
+
   .loading-container p,
   .transition-container p {
     color: var(--text-secondary);
@@ -880,18 +881,17 @@
     transition: width 0.3s ease-out;
   }
 
-  /* Review prompt skeleton styles */
-  .review-prompt-skeleton {
+  /* Review loading container - box style */
+  .review-loading-container {
     display: flex;
     flex-direction: column;
     height: 100%;
     max-width: 900px;
     margin: 0 auto;
     padding: 2rem;
-    gap: 0;
   }
 
-  .review-prompt-skeleton .header {
+  .review-loading-container .loading-header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
@@ -902,17 +902,7 @@
     flex-shrink: 0;
   }
 
-  .review-prompt-skeleton .content-area {
-    flex: 1;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-    margin-bottom: 1.5rem;
-    min-height: 0;
-  }
-
-  .review-prompt-skeleton .header h2 {
+  .review-loading-container .loading-header h2 {
     margin: 0;
     font-size: 1.5rem;
     color: var(--text-primary);
@@ -921,7 +911,7 @@
     word-wrap: break-word;
   }
 
-  .review-prompt-skeleton .progress {
+  .review-loading-container .progress {
     font-size: 0.875rem;
     color: var(--text-secondary);
     background: var(--bg-secondary);
@@ -931,21 +921,25 @@
     white-space: nowrap;
   }
 
-  .review-prompt-skeleton .prompt-section {
+  .review-loading-container .loading-content-area {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .review-loading-container .challenge-loading-box {
     background: var(--bg-secondary);
     border-left: 4px solid var(--accent-primary);
     padding: 1.5rem;
     border-radius: 4px;
-    min-height: 150px;
-  }
-
-  .review-prompt-skeleton .prompt-section.loading {
     display: flex;
     flex-direction: column;
     gap: 1rem;
   }
 
-  .review-prompt-skeleton .prompt-label {
+  .review-loading-container .challenge-label {
     font-weight: 600;
     color: var(--accent-primary);
     text-transform: uppercase;
@@ -953,114 +947,40 @@
     letter-spacing: 0.05em;
   }
 
-  .review-prompt-skeleton .loading-content {
+  .review-loading-container .generating-message {
     display: flex;
-    flex-direction: column;
     align-items: center;
-    justify-content: center;
-    gap: 1rem;
-    padding: 2rem;
-    flex: 1;
-  }
-
-  .review-prompt-skeleton .loading-content p {
+    gap: 0.5rem;
     color: var(--text-secondary);
     font-size: 0.875rem;
-    font-style: italic;
   }
 
-  .review-prompt-skeleton .loading-content .loading-spinner {
-    width: 40px;
-    height: 40px;
-    border: 4px solid rgba(0, 0, 0, 0.1);
-    border-top-color: var(--accent-primary);
+  .review-loading-container .loading-dots {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    height: 1.25rem;
+  }
+
+  .review-loading-container .dot {
+    width: 0.375rem;
+    height: 0.375rem;
+    background: var(--text-muted);
     border-radius: 50%;
-    animation: spin 1s linear infinite;
+    animation: pulse 1.4s infinite ease-in-out;
+    opacity: 0.4;
   }
 
-  @media (prefers-color-scheme: dark) {
-    .review-prompt-skeleton .loading-content .loading-spinner {
-      border-color: rgba(255, 255, 255, 0.1);
-      border-top-color: var(--accent-primary);
-    }
+  .review-loading-container .dot:nth-child(1) {
+    animation-delay: 0s;
   }
 
-  .review-prompt-skeleton .response-section {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    opacity: 0.5;
+  .review-loading-container .dot:nth-child(2) {
+    animation-delay: 0.2s;
   }
 
-  .review-prompt-skeleton .response-label {
-    font-weight: 600;
-    color: var(--text-primary);
-    font-size: 0.875rem;
-  }
-
-  .review-prompt-skeleton .editor-placeholder {
-    border: 2px solid var(--border);
-    border-radius: 4px;
-    min-height: 80px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--bg-secondary);
-  }
-
-  .review-prompt-skeleton .editor-placeholder p {
-    color: var(--text-tertiary);
-    font-style: italic;
-  }
-
-  .review-prompt-skeleton .bottom-bar {
-    flex-shrink: 0;
-    background: var(--bg-primary);
-    border-top: 1px solid var(--border);
-    padding-top: 0.75rem;
-  }
-
-  .review-prompt-skeleton .response-hint {
-    font-size: 0.75rem;
-    color: var(--text-tertiary);
-    font-style: italic;
-    margin-bottom: 0.75rem;
-    text-align: center;
-    opacity: 0.5;
-  }
-
-  .review-prompt-skeleton .actions {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 1rem;
-    opacity: 0.5;
-  }
-
-  .review-prompt-skeleton .secondary-actions {
-    display: flex;
-    gap: 0.5rem;
-  }
-
-  .review-prompt-skeleton .action-btn {
-    padding: 0.75rem 1.5rem;
-    border-radius: 4px;
-    font-weight: 500;
-    cursor: not-allowed;
-    border: none;
-    font-size: 0.875rem;
-  }
-
-  .review-prompt-skeleton .action-btn.primary {
-    background: var(--accent-primary);
-    color: var(--bg-primary);
-    opacity: 0.5;
-  }
-
-  .review-prompt-skeleton .action-btn.secondary {
-    background: transparent;
-    color: var(--text-secondary);
-    border: 1px solid var(--border);
+  .review-loading-container .dot:nth-child(3) {
+    animation-delay: 0.4s;
   }
 
   /* Review conversation styles */
@@ -1145,46 +1065,47 @@
     border-color: var(--accent-primary);
   }
 
-  /* Analyzing section */
-  .analyzing-section {
-    padding: 1.5rem;
-    border-radius: 4px;
-    border-left: 4px solid var(--success);
-    background: var(--bg-secondary);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1rem;
-  }
-
-  .analyzing-section .section-label {
-    font-weight: 600;
-    font-size: 0.875rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--text-secondary);
-  }
-
-  .analyzing-section .loading-content {
+  /* Feedback loading - conversation style */
+  .feedback-loading {
     display: flex;
     justify-content: center;
-    padding: 1rem;
+    padding: 2rem 1.5rem;
   }
 
-  .analyzing-section .loading-spinner {
-    width: 40px;
-    height: 40px;
-    border: 4px solid rgba(0, 0, 0, 0.1);
-    border-top-color: var(--success);
+  .feedback-loading .generating-message {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+  }
+
+  .feedback-loading .loading-dots {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    height: 1.25rem;
+  }
+
+  .feedback-loading .dot {
+    width: 0.375rem;
+    height: 0.375rem;
+    background: var(--text-muted);
     border-radius: 50%;
-    animation: spin 1s linear infinite;
+    animation: pulse 1.4s infinite ease-in-out;
+    opacity: 0.4;
   }
 
-  @media (prefers-color-scheme: dark) {
-    .analyzing-section .loading-spinner {
-      border-color: rgba(255, 255, 255, 0.1);
-      border-top-color: var(--success);
-    }
+  .feedback-loading .dot:nth-child(1) {
+    animation-delay: 0s;
+  }
+
+  .feedback-loading .dot:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+
+  .feedback-loading .dot:nth-child(3) {
+    animation-delay: 0.4s;
   }
 
   /* Review controls (prompting state) */
