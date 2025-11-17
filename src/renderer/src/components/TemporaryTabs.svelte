@@ -10,6 +10,9 @@
   } from '../utils/dragDrop.svelte';
   import { handleCrossSectionDrop } from '../utils/crossSectionDrag.svelte';
   import { globalDragState } from '../stores/dragState.svelte';
+  import { getChatService } from '../services/chatService';
+  import { notesShelfStore } from '../stores/notesShelfStore.svelte';
+  import { sidebarState } from '../stores/sidebarState.svelte';
 
   interface Props {
     onNoteSelect: (note: NoteMetadata) => void;
@@ -56,7 +59,10 @@
     })
   );
 
-  async function handleTabClick(noteId: string): Promise<void> {
+  async function handleTabClick(
+    event: MouseEvent | KeyboardEvent,
+    noteId: string
+  ): Promise<void> {
     // Don't allow clicks while tabs are not ready
     if (!isTabsReady || isNotesLoading) {
       console.log(
@@ -68,6 +74,34 @@
     console.log('[TemporaryTabs] Tab clicked:', { noteId });
     const note = notesStore.allNotes.find((n) => n.id === noteId);
     if (note) {
+      // If shift key is pressed, add to shelf instead of navigating
+      if (event.shiftKey) {
+        try {
+          // Fetch the note content
+          const chatService = getChatService();
+          const noteContent = await chatService.getNote({ identifier: note.id });
+
+          // Add to shelf (only proceed if we successfully fetched the note)
+          if (noteContent) {
+            await notesShelfStore.addNote(note.id, note.title, noteContent.content);
+
+            // Open the right sidebar in notes mode if not already visible
+            if (
+              !sidebarState.rightSidebar.visible ||
+              sidebarState.rightSidebar.mode !== 'notes'
+            ) {
+              await sidebarState.setRightSidebarMode('notes');
+              if (!sidebarState.rightSidebar.visible) {
+                await sidebarState.toggleRightSidebar();
+              }
+            }
+          }
+        } catch (error) {
+          console.error('[TemporaryTabs] Failed to add note to shelf:', error);
+        }
+        return;
+      }
+
       console.log('[TemporaryTabs] Note found, opening:', {
         noteId: note.id,
         title: note.title
@@ -275,11 +309,11 @@
           ondragover={(e) => onDragOver(e, index, e.currentTarget)}
           ondrop={(e) => onDrop(e, index)}
           ondragend={onDragEnd}
-          onclick={() => handleTabClick(tab.noteId)}
+          onclick={(e) => handleTabClick(e, tab.noteId)}
           title={!isTabsReady ? 'Loading...' : tab.title}
           role="button"
           tabindex={!isTabsReady ? -1 : 0}
-          onkeydown={(e) => e.key === 'Enter' && handleTabClick(tab.noteId)}
+          onkeydown={(e) => e.key === 'Enter' && handleTabClick(e, tab.noteId)}
         >
           <div class="tab-content">
             <div class="tab-icon">

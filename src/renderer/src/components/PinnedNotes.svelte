@@ -10,6 +10,9 @@
   } from '../utils/dragDrop.svelte';
   import { handleCrossSectionDrop } from '../utils/crossSectionDrag.svelte';
   import { globalDragState } from '../stores/dragState.svelte';
+  import { getChatService } from '../services/chatService';
+  import { notesShelfStore } from '../stores/notesShelfStore.svelte';
+  import { sidebarState } from '../stores/sidebarState.svelte';
 
   interface Props {
     activeNote: NoteMetadata | null;
@@ -42,12 +45,41 @@
     isCollapsed = !isCollapsed;
   }
 
-  function handleNoteClick(note: NoteMetadata): void {
+  async function handleNoteClick(event: MouseEvent, note: NoteMetadata): Promise<void> {
     // Don't allow clicks while notes are loading
     if (!isNotesReady) {
       console.log('[PinnedNotes] Click blocked - notes are not ready');
       return;
     }
+
+    // If shift key is pressed, add to shelf instead of navigating
+    if (event.shiftKey) {
+      try {
+        // Fetch the note content
+        const chatService = getChatService();
+        const noteContent = await chatService.getNote({ identifier: note.id });
+
+        // Add to shelf (only proceed if we successfully fetched the note)
+        if (noteContent) {
+          await notesShelfStore.addNote(note.id, note.title, noteContent.content);
+
+          // Open the right sidebar in notes mode if not already visible
+          if (
+            !sidebarState.rightSidebar.visible ||
+            sidebarState.rightSidebar.mode !== 'notes'
+          ) {
+            await sidebarState.setRightSidebarMode('notes');
+            if (!sidebarState.rightSidebar.visible) {
+              await sidebarState.toggleRightSidebar();
+            }
+          }
+        }
+      } catch (error) {
+        console.error('[PinnedNotes] Failed to add note to shelf:', error);
+      }
+      return;
+    }
+
     onNoteSelect(note);
   }
 
@@ -202,7 +234,7 @@
           ondragover={(e) => onDragOver(e, index, e.currentTarget)}
           ondrop={(e) => onDrop(e, index)}
           ondragend={onDragEnd}
-          onclick={() => handleNoteClick(note)}
+          onclick={(e) => handleNoteClick(e, note)}
           title={!isNotesReady ? 'Loading...' : note.title}
         >
           <div class="note-icon">
