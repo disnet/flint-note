@@ -214,6 +214,46 @@ describe('Review Scheduler', () => {
         expect(history.length).toBe(1);
         expect(history[0].passed).toBe(true);
       });
+
+      it('should include prompt when provided', () => {
+        const prompt = 'How does this concept relate to your current project?';
+        const updated = appendToReviewHistory(null, true, 'My response', prompt);
+
+        const history = parseReviewHistory(updated);
+        expect(history[0].prompt).toBe(prompt);
+      });
+
+      it('should omit prompt when not provided', () => {
+        const updated = appendToReviewHistory(null, false, 'My response');
+
+        const history = parseReviewHistory(updated);
+        expect(history[0].prompt).toBeUndefined();
+      });
+
+      it('should store both prompt and response', () => {
+        const prompt = 'Explain this concept in your own words';
+        const response = 'Here is my explanation...';
+        const updated = appendToReviewHistory(null, true, response, prompt);
+
+        const history = parseReviewHistory(updated);
+        expect(history[0].prompt).toBe(prompt);
+        expect(history[0].response).toBe(response);
+        expect(history[0].passed).toBe(true);
+      });
+
+      it('should maintain prompts when appending multiple entries', async () => {
+        let history = appendToReviewHistory(null, true, 'First response', 'First prompt');
+
+        const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+        await wait(10);
+
+        history = appendToReviewHistory(history, false, 'Second response', 'Second prompt');
+
+        const parsed = parseReviewHistory(history);
+        expect(parsed.length).toBe(2);
+        expect(parsed[0].prompt).toBe('First prompt');
+        expect(parsed[1].prompt).toBe('Second prompt');
+      });
     });
   });
 

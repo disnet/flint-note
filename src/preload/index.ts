@@ -274,8 +274,12 @@ const api = {
     prompt: string;
     userResponse: string;
   }) => electronAPI.ipcRenderer.invoke('analyze-review-response', params),
-  completeReview: (params: { noteId: string; passed: boolean; userResponse?: string }) =>
-    electronAPI.ipcRenderer.invoke('complete-review', params),
+  completeReview: (params: {
+    noteId: string;
+    passed: boolean;
+    userResponse?: string;
+    prompt?: string;
+  }) => electronAPI.ipcRenderer.invoke('complete-review', params),
 
   // Search operations
   searchNotes: (params: { query: string; vaultId?: string; limit?: number }) =>

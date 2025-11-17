@@ -361,7 +361,8 @@
       await window.api?.completeReview({
         noteId: currentNote.id,
         passed,
-        userResponse
+        userResponse,
+        prompt: currentPrompt
       });
 
       // Calculate next review date

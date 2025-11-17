@@ -339,7 +339,8 @@ export class ReviewManager {
   async completeReview(
     noteId: string,
     passed: boolean,
-    userResponse?: string
+    userResponse?: string,
+    prompt?: string
   ): Promise<{ nextReviewDate: string; reviewCount: number }> {
     // Get current review item
     const reviewItem = await this.db.get<ReviewItemRow>(
@@ -358,7 +359,8 @@ export class ReviewManager {
     const updatedHistory = appendToReviewHistory(
       reviewItem.review_history,
       passed,
-      userResponse
+      userResponse,
+      prompt
     );
 
     // Update review item

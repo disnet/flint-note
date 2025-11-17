@@ -9,6 +9,7 @@ export interface ReviewHistoryEntry {
   date: string;
   passed: boolean;
   response?: string;
+  prompt?: string;
 }
 
 /**
@@ -36,12 +37,14 @@ export function getNextReviewDate(passed: boolean, baseDate?: Date): string {
  */
 export function createReviewHistoryEntry(
   passed: boolean,
-  userResponse?: string
+  userResponse?: string,
+  prompt?: string
 ): ReviewHistoryEntry {
   return {
     date: new Date().toISOString(),
     passed,
-    response: userResponse
+    response: userResponse,
+    prompt
   };
 }
 
@@ -74,10 +77,11 @@ export function serializeReviewHistory(history: ReviewHistoryEntry[]): string {
 export function appendToReviewHistory(
   existingHistoryJson: string | null,
   passed: boolean,
-  userResponse?: string
+  userResponse?: string,
+  prompt?: string
 ): string {
   const history = parseReviewHistory(existingHistoryJson);
-  const newEntry = createReviewHistoryEntry(passed, userResponse);
+  const newEntry = createReviewHistoryEntry(passed, userResponse, prompt);
   history.push(newEntry);
   return serializeReviewHistory(history);
 }

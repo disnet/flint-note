@@ -1898,6 +1898,57 @@ Return ONLY a valid JSON array with no additional text or markdown formatting.`;
   }
 
   /**
+   * Select relevant review history entries using smart selection:
+   * - All failed reviews (to focus on struggle areas)
+   * - Last 3-5 successful reviews (to build on understanding)
+   * Returns up to 7 most relevant entries
+   */
+  private selectRelevantHistory(
+    history: Array<{ date: string; passed: boolean; response?: string; prompt?: string }>
+  ): Array<{ date: string; passed: boolean; response?: string; prompt?: string }> {
+    // Separate passed and failed reviews
+    const failed = history.filter((entry) => !entry.passed);
+    const passed = history.filter((entry) => entry.passed);
+
+    // Take all failed reviews + last 3-5 passed reviews
+    const recentPassed = passed.slice(-5);
+
+    // Combine and sort by date (most recent last)
+    const selected = [...failed, ...recentPassed].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+
+    // Limit to 7 entries to avoid context bloat
+    return selected.slice(-7);
+  }
+
+  /**
+   * Format review history for agent context
+   */
+  private formatReviewHistory(
+    history: Array<{ date: string; passed: boolean; response?: string; prompt?: string }>
+  ): string {
+    if (history.length === 0) {
+      return 'This is the first review for this note.';
+    }
+
+    const entries = history
+      .map((entry, index) => {
+        const date = new Date(entry.date).toLocaleDateString();
+        const outcome = entry.passed ? 'Passed' : 'Failed';
+        const prompt = entry.prompt ? `\nChallenge: ${entry.prompt}` : '';
+        const response = entry.response
+          ? `\nUser Response: ${entry.response.substring(0, 200)}${entry.response.length > 200 ? '...' : ''}`
+          : '';
+
+        return `Review ${index + 1} (${date}) - ${outcome}${prompt}${response}`;
+      })
+      .join('\n\n');
+
+    return `# Previous Review History\n\n${entries}`;
+  }
+
+  /**
    * Generate a review prompt for a specific note
    * Uses the review agent with tools to create a contextual review challenge
    */
@@ -1925,6 +1976,23 @@ Return ONLY a valid JSON array with no additional text or markdown formatting.`;
         contentLength: note.content?.length || 0
       });
 
+      // Get review history for this note
+      const reviewItem = await flintApi.getReviewItem({
+        noteId,
+        vaultId: currentVault.id
+      });
+      const reviewHistory = reviewItem ? reviewItem.reviewHistory : [];
+
+      // Select and format relevant history
+      const relevantHistory = this.selectRelevantHistory(reviewHistory);
+      const formattedHistory = this.formatReviewHistory(relevantHistory);
+
+      logger.info('Review history retrieved', {
+        noteId,
+        totalHistoryCount: reviewHistory.length,
+        relevantHistoryCount: relevantHistory.length
+      });
+
       // Build minimal context - agent will fetch full content via tools to avoid context window issues
       const noteContext = `# Note to Review
 
@@ -1932,21 +2000,31 @@ Title: ${note.title}
 ID: ${note.id}
 Type: ${note.type}
 
-The note has ${note.content?.length || 0} characters of content. Use the get_note_full tool to retrieve the full content.`;
+The note has ${note.content?.length || 0} characters of content. Use the get_note_full tool to retrieve the full content.
+
+${formattedHistory}`;
 
       // Use review tools to allow agent to fetch additional context
       const tools = this.toolService.getReviewTools();
 
       // Ask the agent to generate a review prompt using streamText for proper tool handling
-      // Use a minimal system prompt to avoid context window issues
-      const minimalSystemPrompt = `You generate review prompts for notes.
+      // Enhanced system prompt with review history guidance
+      const minimalSystemPrompt = `You generate review prompts for notes using spaced repetition principles.
 
 After using get_note_full to read the note, create a challenging question that tests understanding.
+
+IMPORTANT - Use the review history provided to:
+1. **Avoid repetition**: Don't ask questions similar to previous challenges
+2. **Focus on struggle areas**: If the user failed previous reviews, target those concepts
+3. **Build progressively**: Reference or extend what was covered in earlier reviews
+4. **Track progress**: Consider how their understanding has evolved
+
+If this is the first review, create a foundational question. If there's history showing failed reviews, focus on those weak areas with a different approach.
 
 You can include thinking/context before the question if helpful, but MUST wrap your final question in <question> tags.
 
 Example output:
-I'll examine the note about elaborative encoding and create a question connecting it to programming.
+I see this is the third review. Previous challenges focused on theory, but the user struggled. Let me create a practical application question instead.
 
 <question>
 How would you apply the concept of elaborative encoding to improve retention when learning a new programming language?

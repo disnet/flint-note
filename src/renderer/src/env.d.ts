@@ -250,6 +250,7 @@ declare global {
         noteId: string;
         passed: boolean;
         userResponse?: string;
+        prompt?: string;
       }) => Promise<{ success: boolean }>;
       // FileWriteQueue now handles all internal write tracking
 

@@ -1245,7 +1245,7 @@ app.whenReady().then(async () => {
     'complete-review',
     async (
       _event,
-      params: { noteId: string; passed: boolean; userResponse?: string }
+      params: { noteId: string; passed: boolean; userResponse?: string; prompt?: string }
     ) => {
       if (!noteService) {
         throw new Error('Note service not available');
@@ -1259,7 +1259,8 @@ app.whenReady().then(async () => {
         noteId: params.noteId,
         vaultId: vault.id,
         passed: params.passed,
-        userResponse: params.userResponse
+        userResponse: params.userResponse,
+        prompt: params.prompt
       });
     }
   );

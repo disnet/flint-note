@@ -2526,13 +2526,15 @@ export class FlintNoteApi {
     vaultId: string;
     passed: boolean;
     userResponse?: string;
+    prompt?: string;
   }): Promise<{ nextReviewDate: string; reviewCount: number }> {
     this.ensureInitialized();
     const { reviewManager } = await this.getVaultContext(args.vaultId);
     return await reviewManager.completeReview(
       args.noteId,
       args.passed,
-      args.userResponse
+      args.userResponse,
+      args.prompt
     );
   }
 
