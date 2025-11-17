@@ -1,10 +1,12 @@
 <script lang="ts">
   import type { ReviewStats } from '../../../../server/core/review-manager';
+  import ReviewNotesTable from './ReviewNotesTable.svelte';
 
   interface Props {
     stats: ReviewStats;
     onStartReview: () => void;
     onResumeSession?: () => void;
+    onReviewNote: (noteId: string) => void;
     hasSavedSession?: boolean;
   }
 
@@ -12,8 +14,24 @@
     stats,
     onStartReview,
     onResumeSession,
+    onReviewNote,
     hasSavedSession = false
   }: Props = $props();
+
+  let showNotesTable = $state(false);
+  let searchQuery = $state('');
+
+  function handleSearchChange(query: string): void {
+    searchQuery = query;
+    // Auto-expand table when searching
+    if (query.trim()) {
+      showNotesTable = true;
+    }
+  }
+
+  function toggleNotesTable(): void {
+    showNotesTable = !showNotesTable;
+  }
 </script>
 
 <div class="review-stats">
@@ -54,6 +72,45 @@
         {#if stats.dueThisWeek > 0}
           <p class="upcoming">Next review: {stats.dueThisWeek} notes this week</p>
         {/if}
+      </div>
+    {/if}
+  </div>
+
+  <!-- All notes table (collapsible) -->
+  <div class="notes-table-section">
+    <button class="section-toggle" onclick={toggleNotesTable}>
+      <svg
+        class="toggle-icon"
+        class:expanded={showNotesTable}
+        xmlns="http://www.w3.org/2000/svg"
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <polyline points="6 9 12 15 18 9"></polyline>
+      </svg>
+      <span class="section-title">All Review Notes ({stats.totalEnabled})</span>
+    </button>
+
+    {#if showNotesTable}
+      <div class="table-content">
+        <div class="filter-bar">
+          <label for="note-filter" class="filter-label">Filter:</label>
+          <input
+            id="note-filter"
+            type="text"
+            class="filter-input"
+            placeholder="Search notes..."
+            bind:value={searchQuery}
+            oninput={() => handleSearchChange(searchQuery)}
+          />
+        </div>
+        <ReviewNotesTable {onReviewNote} {searchQuery} />
       </div>
     {/if}
   </div>
@@ -200,5 +257,86 @@
   .upcoming {
     font-size: 0.875rem !important;
     color: var(--text-secondary) !important;
+  }
+
+  /* Notes table section */
+  .notes-table-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .section-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 1.5rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 1rem;
+  }
+
+  .section-toggle:hover {
+    background: var(--bg-hover);
+    border-color: var(--accent-primary);
+  }
+
+  .toggle-icon {
+    transition: transform 0.2s;
+    color: var(--text-secondary);
+  }
+
+  .toggle-icon.expanded {
+    transform: rotate(180deg);
+  }
+
+  .section-title {
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .table-content {
+    padding: 0;
+  }
+
+  .filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .filter-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    white-space: nowrap;
+  }
+
+  .filter-input {
+    flex: 1;
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    font-family: inherit;
+    transition: all 0.2s;
+  }
+
+  .filter-input:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 2px rgba(var(--accent-primary-rgb, 59, 130, 246), 0.1);
+  }
+
+  .filter-input::placeholder {
+    color: var(--text-tertiary);
   }
 </style>

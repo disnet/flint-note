@@ -14,6 +14,7 @@
     onShowNote: () => void;
     onSkip: () => void;
     onEndSession: () => void;
+    onRegenerateChallenge: () => void;
     isSubmitting?: boolean;
   }
 
@@ -28,6 +29,7 @@
     onShowNote,
     onSkip,
     onEndSession,
+    onRegenerateChallenge,
     isSubmitting = false
   }: Props = $props();
 
@@ -72,7 +74,17 @@
 
   <div class="content-area">
     <div class="prompt-section">
-      <div class="prompt-label">Review Challenge:</div>
+      <div class="prompt-header">
+        <div class="prompt-label">Review Challenge:</div>
+        <button
+          class="regenerate-btn"
+          onclick={onRegenerateChallenge}
+          disabled={isSubmitting}
+          aria-label="Regenerate challenge"
+        >
+          Regenerate
+        </button>
+      </div>
       <div class="prompt-content">
         <MarkdownRenderer text={prompt} />
       </div>
@@ -183,13 +195,45 @@
     border-radius: 4px;
   }
 
+  .prompt-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    gap: 1rem;
+  }
+
   .prompt-label {
     font-weight: 600;
     color: var(--accent-primary);
-    margin-bottom: 1rem;
     text-transform: uppercase;
     font-size: 0.875rem;
     letter-spacing: 0.05em;
+  }
+
+  .regenerate-btn {
+    padding: 0.375rem 0.75rem;
+    border-radius: 4px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .regenerate-btn:hover:not(:disabled) {
+    background: var(--bg-primary);
+    color: var(--accent-primary);
+    border-color: var(--accent-primary);
+  }
+
+  .regenerate-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   .prompt-content {

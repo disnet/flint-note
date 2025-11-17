@@ -8,6 +8,7 @@
   import ConversationContainer from './conversation/ConversationContainer.svelte';
   import ConversationMessage from './conversation/ConversationMessage.svelte';
   import CodeMirrorEditor from './CodeMirrorEditor.svelte';
+  import MarkdownRenderer from './MarkdownRenderer.svelte';
   import { wikilinkService } from '../services/wikilinkService.svelte.js';
   import { notesStore } from '../services/noteStore.svelte';
   import type {
@@ -251,6 +252,65 @@
   }
 
   /**
+   * Start a review session for a single specific note
+   */
+  async function startSingleNoteReview(noteId: string): Promise<void> {
+    try {
+      // Clear any saved session when starting fresh
+      reviewStore.clearSavedSession();
+
+      sessionState = 'loading';
+      sessionStartTime = new Date();
+      sessionResults = [];
+      currentNoteIndex = 0;
+
+      // Load the specific note metadata
+      const noteMeta = notesStore.notes.find((n) => n.id === noteId);
+      if (!noteMeta) {
+        console.error('Note not found:', noteId);
+        sessionState = 'idle';
+        return;
+      }
+
+      // Get the full note with content
+      const noteWithContent = await window.api?.getNote({ identifier: noteId });
+      if (!noteWithContent) {
+        console.error('Failed to load note content:', noteId);
+        sessionState = 'idle';
+        return;
+      }
+
+      // Get review item data for the note
+      const reviewItem = await reviewStore.getReviewItem(noteId);
+      if (!reviewItem) {
+        console.error('Review item not found for note:', noteId);
+        sessionState = 'idle';
+        return;
+      }
+
+      // Create a session with just this one note
+      notesToReview = [
+        {
+          id: noteMeta.id,
+          title: noteMeta.title,
+          content: noteWithContent.content || '',
+          reviewItem: {
+            reviewCount: reviewItem.reviewCount,
+            nextReview: reviewItem.nextReview
+          },
+          skipped: false
+        }
+      ];
+
+      // Start with the note
+      await loadNextNote();
+    } catch (error) {
+      console.error('Failed to start single note review:', error);
+      sessionState = 'idle';
+    }
+  }
+
+  /**
    * Load review history for the current note
    */
   async function loadCurrentNoteHistory(): Promise<void> {
@@ -305,6 +365,31 @@
       console.error('Error generating prompt:', error);
       currentPrompt = 'Explain the main concepts in this note in your own words.';
       sessionState = 'prompting';
+    } finally {
+      isGeneratingPrompt = false;
+    }
+  }
+
+  /**
+   * Regenerate the challenge prompt for the current note
+   */
+  async function regenerateChallenge(): Promise<void> {
+    if (!currentNote) return;
+
+    try {
+      isGeneratingPrompt = true;
+
+      // Generate a new review prompt
+      const response = await window.api?.generateReviewPrompt(currentNote.id);
+
+      if (!response?.success) {
+        console.error('Failed to regenerate prompt:', response?.error);
+        // Keep the current prompt if regeneration fails
+      } else {
+        currentPrompt = response.prompt || currentPrompt;
+      }
+    } catch (error) {
+      console.error('Error regenerating prompt:', error);
     } finally {
       isGeneratingPrompt = false;
     }
@@ -504,6 +589,7 @@
         stats={reviewStore.stats}
         onStartReview={startReviewSession}
         onResumeSession={restoreSession}
+        onReviewNote={startSingleNoteReview}
         hasSavedSession={reviewStore.hasSavedSession()}
       />
     {:else if activeTab === 'history'}
@@ -565,8 +651,55 @@
 
           {#snippet content()}
             <div class="messages-container">
-              <!-- Render conversation messages -->
-              {#each messages as message, index (`${message.role}-${index}`)}
+              <!-- Challenge section with regenerate button -->
+              {#if sessionState === 'prompting' || sessionState === 'feedback'}
+                <div
+                  class="challenge-section"
+                  class:collapsed={sessionState === 'feedback'}
+                >
+                  <div class="challenge-header">
+                    <div class="challenge-label">Review Challenge:</div>
+                    {#if sessionState === 'prompting'}
+                      <button
+                        class="regenerate-btn"
+                        onclick={regenerateChallenge}
+                        disabled={isGeneratingPrompt || isAnalyzingResponse}
+                        aria-label="Regenerate challenge"
+                        title="Generate a new challenge for this note"
+                      >
+                        {#if isGeneratingPrompt}
+                          <span>Generating</span>
+                          <div class="loading-dots">
+                            <span class="dot"></span>
+                            <span class="dot"></span>
+                            <span class="dot"></span>
+                          </div>
+                        {:else}
+                          Regenerate
+                        {/if}
+                      </button>
+                    {/if}
+                  </div>
+                  {#if isGeneratingPrompt}
+                    <div class="challenge-loading">
+                      <div class="loading-message">
+                        <div class="loading-dots">
+                          <span class="dot"></span>
+                          <span class="dot"></span>
+                          <span class="dot"></span>
+                        </div>
+                      </div>
+                    </div>
+                  {:else}
+                    <div class="challenge-content">
+                      <MarkdownRenderer text={currentPrompt} />
+                    </div>
+                  {/if}
+                </div>
+              {/if}
+
+              <!-- Render other conversation messages (response and feedback) -->
+              {#each messages.slice(1) as message, index (`${message.role}-${index + 1}`)}
                 <ConversationMessage
                   content={message.content}
                   role={message.role}
@@ -991,6 +1124,134 @@
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+  }
+
+  /* Challenge section with regenerate button */
+  .challenge-section {
+    background: var(--bg-secondary);
+    border-left: 4px solid var(--accent-primary);
+    padding: 1.5rem;
+    border-radius: 4px;
+  }
+
+  .challenge-section.collapsed {
+    opacity: 0.7;
+  }
+
+  .challenge-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    gap: 1rem;
+  }
+
+  .challenge-label {
+    font-weight: 600;
+    color: var(--accent-primary);
+    text-transform: uppercase;
+    font-size: 0.875rem;
+    letter-spacing: 0.05em;
+  }
+
+  .challenge-section .regenerate-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: 4px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .challenge-section .regenerate-btn:hover:not(:disabled) {
+    background: var(--bg-primary);
+    color: var(--accent-primary);
+    border-color: var(--accent-primary);
+  }
+
+  .challenge-section .regenerate-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .challenge-section .regenerate-btn .loading-dots {
+    display: flex;
+    align-items: center;
+    gap: 0.15rem;
+    height: 0.75rem;
+  }
+
+  .challenge-section .regenerate-btn .dot {
+    width: 0.25rem;
+    height: 0.25rem;
+    background: currentColor;
+    border-radius: 50%;
+    animation: pulse 1.4s infinite ease-in-out;
+    opacity: 0.4;
+  }
+
+  .challenge-section .regenerate-btn .dot:nth-child(1) {
+    animation-delay: 0s;
+  }
+
+  .challenge-section .regenerate-btn .dot:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+
+  .challenge-section .regenerate-btn .dot:nth-child(3) {
+    animation-delay: 0.4s;
+  }
+
+  .challenge-loading {
+    display: flex;
+    justify-content: center;
+    padding: 2rem;
+  }
+
+  .challenge-loading .loading-message {
+    display: flex;
+    align-items: center;
+  }
+
+  .challenge-loading .loading-dots {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    height: 1.25rem;
+  }
+
+  .challenge-loading .dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    background: var(--accent-primary);
+    border-radius: 50%;
+    animation: pulse 1.4s infinite ease-in-out;
+    opacity: 0.4;
+  }
+
+  .challenge-loading .dot:nth-child(1) {
+    animation-delay: 0s;
+  }
+
+  .challenge-loading .dot:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+
+  .challenge-loading .dot:nth-child(3) {
+    animation-delay: 0.4s;
+  }
+
+  .challenge-content {
+    color: var(--text-primary);
+    line-height: 1.6;
   }
 
   /* Response editor */
