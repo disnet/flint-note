@@ -251,40 +251,6 @@
   }
 
   /**
-   * Start a practice review session (all reviewable notes, not just due)
-   */
-  async function startPracticeReviewSession(): Promise<void> {
-    try {
-      // Clear any saved session when starting fresh
-      reviewStore.clearSavedSession();
-
-      sessionState = 'loading';
-      sessionStartTime = new Date();
-      sessionResults = [];
-      currentNoteIndex = 0;
-
-      // Load all reviewable notes
-      const notes = await window.api?.getAllReviewableNotes();
-
-      if (!notes || notes.length === 0) {
-        sessionState = 'idle';
-        return;
-      }
-
-      notesToReview = notes.map((note) => ({
-        ...note,
-        skipped: false
-      }));
-
-      // Start with the first note
-      await loadNextNote();
-    } catch (error) {
-      console.error('Failed to start practice review session:', error);
-      sessionState = 'idle';
-    }
-  }
-
-  /**
    * Load review history for the current note
    */
   async function loadCurrentNoteHistory(): Promise<void> {
@@ -537,7 +503,6 @@
       <ReviewStats
         stats={reviewStore.stats}
         onStartReview={startReviewSession}
-        onStartPracticeReview={startPracticeReviewSession}
         onResumeSession={restoreSession}
         hasSavedSession={reviewStore.hasSavedSession()}
       />

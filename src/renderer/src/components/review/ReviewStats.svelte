@@ -4,7 +4,6 @@
   interface Props {
     stats: ReviewStats;
     onStartReview: () => void;
-    onStartPracticeReview: () => void;
     onResumeSession?: () => void;
     hasSavedSession?: boolean;
   }
@@ -12,7 +11,6 @@
   let {
     stats,
     onStartReview,
-    onStartPracticeReview,
     onResumeSession,
     hasSavedSession = false
   }: Props = $props();
@@ -57,12 +55,6 @@
           <p class="upcoming">Next review: {stats.dueThisWeek} notes this week</p>
         {/if}
       </div>
-    {/if}
-
-    {#if stats.totalEnabled > 0}
-      <button class="start-review-btn secondary" onclick={onStartPracticeReview}>
-        Practice Review (All {stats.totalEnabled} notes)
-      </button>
     {/if}
   </div>
 </div>
@@ -173,19 +165,6 @@
     background: var(--accent-hover);
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  }
-
-  .start-review-btn.secondary {
-    background: transparent;
-    color: var(--text-primary);
-    border: 2px solid var(--border);
-    font-size: 1rem;
-  }
-
-  .start-review-btn.secondary:hover {
-    background: var(--bg-secondary);
-    border-color: var(--accent-primary);
-    transform: translateY(-2px);
   }
 
   .start-review-btn.resume {
