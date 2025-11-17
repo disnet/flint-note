@@ -3,6 +3,43 @@
  */
 
 /**
+ * Entry in a note's review history
+ * Note: Must match server-side ReviewHistoryEntry in review-scheduler.ts
+ */
+export interface ReviewHistoryEntry {
+  date: string; // ISO datetime
+  passed: boolean;
+  response?: string;
+  prompt?: string;
+  feedback?: string;
+}
+
+/**
+ * Review item (metadata for a reviewable note)
+ */
+export interface ReviewItem {
+  id: string;
+  noteId: string;
+  vaultId: string;
+  enabled: boolean;
+  lastReviewed: string | null;
+  nextReview: string; // YYYY-MM-DD
+  reviewCount: number;
+  reviewHistory: ReviewHistoryEntry[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Review statistics
+ */
+export interface ReviewStats {
+  dueToday: number;
+  dueThisWeek: number;
+  totalEnabled: number;
+}
+
+/**
  * Review session state machine states
  */
 export type ReviewSessionState =

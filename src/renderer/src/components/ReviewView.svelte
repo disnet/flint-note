@@ -3,6 +3,7 @@
   import { reviewStore } from '../stores/reviewStore.svelte';
   import ReviewStats from './review/ReviewStats.svelte';
   import ReviewSessionSummaryComponent from './review/ReviewSessionSummary.svelte';
+  import ReviewHistoryView from './review/ReviewHistoryView.svelte';
   import NoteContentDrawer from './review/NoteContentDrawer.svelte';
   import ConversationContainer from './conversation/ConversationContainer.svelte';
   import ConversationMessage from './conversation/ConversationMessage.svelte';
@@ -14,11 +15,16 @@
     ReviewResult,
     ReviewSessionSummary,
     SessionReviewNote,
-    AgentFeedback
+    AgentFeedback,
+    ReviewHistoryEntry
   } from '../types/review';
+  import ReviewHistoryPanel from './review/ReviewHistoryPanel.svelte';
 
   // State machine
   let sessionState = $state<ReviewSessionState>('idle');
+
+  // Tab navigation (only shown when sessionState === 'idle')
+  let activeTab = $state<'dashboard' | 'history'>('dashboard');
 
   // Session data
   let notesToReview = $state<SessionReviewNote[]>([]);
@@ -31,6 +37,10 @@
 
   // Note drawer
   let isNoteDrawerOpen = $state(false);
+
+  // Review history for current note
+  let currentNoteReviewHistory = $state<ReviewHistoryEntry[]>([]);
+  let isHistoryExpanded = $state(false);
 
   // Loading states
   let isGeneratingPrompt = $state(false);
@@ -273,6 +283,25 @@
   }
 
   /**
+   * Load review history for the current note
+   */
+  async function loadCurrentNoteHistory(): Promise<void> {
+    if (!currentNote) {
+      currentNoteReviewHistory = [];
+      return;
+    }
+
+    try {
+      const reviewItem = await reviewStore.getReviewItem(currentNote.id);
+      currentNoteReviewHistory = reviewItem?.reviewHistory || [];
+      isHistoryExpanded = false; // Collapse by default
+    } catch (error) {
+      console.error('Failed to load review history:', error);
+      currentNoteReviewHistory = [];
+    }
+  }
+
+  /**
    * Load the current note and generate a review prompt
    */
   async function loadNextNote(): Promise<void> {
@@ -285,6 +314,9 @@
     try {
       sessionState = 'loading';
       isGeneratingPrompt = true;
+
+      // Load review history for the current note
+      await loadCurrentNoteHistory();
 
       // Generate review prompt for the current note
       const response = await window.api?.generateReviewPrompt(currentNote.id);
@@ -362,7 +394,8 @@
         noteId: currentNote.id,
         passed,
         userResponse,
-        prompt: currentPrompt
+        prompt: currentPrompt,
+        feedback: agentFeedback?.feedback
       });
 
       // Calculate next review date
@@ -479,14 +512,36 @@
 
 <div class="review-view">
   {#if sessionState === 'idle'}
-    <!-- Stats dashboard -->
-    <ReviewStats
-      stats={reviewStore.stats}
-      onStartReview={startReviewSession}
-      onStartPracticeReview={startPracticeReviewSession}
-      onResumeSession={restoreSession}
-      hasSavedSession={reviewStore.hasSavedSession()}
-    />
+    <!-- Tab Navigation -->
+    <div class="tab-nav">
+      <button
+        class="tab-btn"
+        class:active={activeTab === 'dashboard'}
+        onclick={() => (activeTab = 'dashboard')}
+      >
+        Dashboard
+      </button>
+      <button
+        class="tab-btn"
+        class:active={activeTab === 'history'}
+        onclick={() => (activeTab = 'history')}
+      >
+        History
+      </button>
+    </div>
+
+    <!-- Tab Content -->
+    {#if activeTab === 'dashboard'}
+      <ReviewStats
+        stats={reviewStore.stats}
+        onStartReview={startReviewSession}
+        onStartPracticeReview={startPracticeReviewSession}
+        onResumeSession={restoreSession}
+        hasSavedSession={reviewStore.hasSavedSession()}
+      />
+    {:else if activeTab === 'history'}
+      <ReviewHistoryView />
+    {/if}
   {:else if sessionState === 'loading'}
     <!-- Loading state -->
     {#if isGeneratingPrompt && currentNote}
@@ -586,8 +641,46 @@
                       placeholder="Type your explanation here... You can use [[wikilinks]] to reference other notes."
                       variant="default"
                       readOnly={false}
+                      noBottomMargin={true}
                     />
                   </div>
+                </div>
+              {/if}
+
+              <!-- Review History Panel (collapsible) - shown below response box -->
+              {#if currentNoteReviewHistory.length > 0 && sessionState === 'prompting'}
+                <div class="review-history-section">
+                  <button
+                    class="history-toggle"
+                    onclick={() => (isHistoryExpanded = !isHistoryExpanded)}
+                    aria-expanded={isHistoryExpanded}
+                  >
+                    <svg
+                      class="expand-icon"
+                      class:expanded={isHistoryExpanded}
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                    <span>Previous Attempts ({currentNoteReviewHistory.length})</span>
+                  </button>
+
+                  {#if isHistoryExpanded}
+                    <div class="history-content">
+                      <ReviewHistoryPanel
+                        history={currentNoteReviewHistory}
+                        compact={true}
+                      />
+                    </div>
+                  {/if}
                 </div>
               {/if}
 
@@ -707,6 +800,38 @@
     flex-direction: column;
     overflow-y: auto;
     background: var(--bg-primary);
+  }
+
+  .tab-nav {
+    display: flex;
+    gap: 0.5rem;
+    padding: 1rem 2rem 0 2rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-primary);
+  }
+
+  .tab-btn {
+    padding: 0.75rem 1.5rem;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    bottom: -1px;
+  }
+
+  .tab-btn:hover {
+    color: var(--text-primary);
+    background: var(--bg-secondary);
+  }
+
+  .tab-btn.active {
+    color: var(--accent-primary);
+    border-bottom-color: var(--accent-primary);
   }
 
   .loading-container,
@@ -999,7 +1124,6 @@
   .response-editor .editor-wrapper {
     border: 2px solid var(--border);
     border-radius: 4px;
-    min-height: 80px;
     max-height: 400px;
     overflow: auto;
     transition: border-color 0.2s;
@@ -1007,16 +1131,14 @@
 
   .response-editor .editor-wrapper :global(.cm-editor) {
     height: auto;
-    min-height: 80px;
   }
 
   .response-editor .editor-wrapper :global(.cm-scroller) {
     overflow-y: visible;
-    min-height: 80px;
   }
 
   .response-editor .editor-wrapper :global(.cm-content) {
-    min-height: 80px;
+    min-height: fit-content;
   }
 
   .response-editor .editor-wrapper:focus-within {
@@ -1227,5 +1349,50 @@
     font-size: 0.75rem;
     color: var(--text-tertiary);
     font-style: italic;
+  }
+
+  /* Review History Panel */
+  .review-history-section {
+    margin: 1.5rem 0;
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+
+  .history-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.5rem;
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.2s;
+    border-radius: 4px;
+  }
+
+  .history-toggle:hover {
+    background: var(--bg-hover);
+  }
+
+  .history-toggle .expand-icon {
+    transition: transform 0.2s;
+    color: var(--text-secondary);
+  }
+
+  .history-toggle .expand-icon.expanded {
+    transform: rotate(180deg);
+  }
+
+  .history-content {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-light);
   }
 </style>

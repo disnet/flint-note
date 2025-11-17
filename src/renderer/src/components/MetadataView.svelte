@@ -2,6 +2,8 @@
   import type { Note } from '@/server/core/notes';
   import { getChatService } from '../services/chatService';
   import type { GetNoteTypeInfoResult } from '@/server/api/types';
+  import type { ReviewItem } from '../types/review';
+  import ReviewHistoryPanel from './review/ReviewHistoryPanel.svelte';
 
   interface Props {
     note: Note | null;
@@ -16,6 +18,8 @@
   let noteTypeInfo = $state<GetNoteTypeInfoResult | null>(null);
   let loadingSchema = $state(false);
   let currentNoteType = $state<string | null>(null);
+  let reviewItem = $state<ReviewItem | null>(null);
+  let loadingReviewHistory = $state(false);
 
   // System fields that are read-only (managed by the system, not user-editable)
   // NOTE: This must be kept in sync with SYSTEM_FIELDS in src/server/core/system-fields.ts
@@ -300,10 +304,15 @@
         tags: note.metadata?.tags ? [...(note.metadata.tags as string[])] : [],
         ...note.metadata
       };
+      // Load review history if expanded
+      if (expanded) {
+        loadReviewHistory(note.id);
+      }
     } else {
       // Reset when note is cleared
       currentNoteType = null;
       noteTypeInfo = null;
+      reviewItem = null;
     }
   });
 
@@ -330,6 +339,20 @@
       noteTypeInfo = null;
     } finally {
       loadingSchema = false;
+    }
+  }
+
+  async function loadReviewHistory(noteId: string): Promise<void> {
+    if (loadingReviewHistory || !noteId) return;
+
+    try {
+      loadingReviewHistory = true;
+      reviewItem = await window.api?.getReviewItem(noteId);
+    } catch (err) {
+      console.error('Error loading review history:', err);
+      reviewItem = null;
+    } finally {
+      loadingReviewHistory = false;
     }
   }
 
@@ -507,6 +530,13 @@
           </div>
         {/each}
       </div>
+
+      {#if reviewItem && reviewItem.reviewHistory.length > 0}
+        <div class="review-history-section">
+          <h3 class="review-history-title">Review History</h3>
+          <ReviewHistoryPanel history={reviewItem.reviewHistory} compact={true} />
+        </div>
+      {/if}
     </div>
   {:else if expanded && !hasMetadata}
     <div id="metadata-content" class="metadata-content">
@@ -744,6 +774,21 @@
     font-style: italic;
     text-align: center;
     padding: 1rem 0;
+  }
+
+  .review-history-section {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-light);
+  }
+
+  .review-history-title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 0 0 0.75rem 0;
   }
 
   /* Responsive adjustments */

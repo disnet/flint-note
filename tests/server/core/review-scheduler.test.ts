@@ -247,7 +247,12 @@ describe('Review Scheduler', () => {
         const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
         await wait(10);
 
-        history = appendToReviewHistory(history, false, 'Second response', 'Second prompt');
+        history = appendToReviewHistory(
+          history,
+          false,
+          'Second response',
+          'Second prompt'
+        );
 
         const parsed = parseReviewHistory(history);
         expect(parsed.length).toBe(2);

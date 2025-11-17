@@ -280,6 +280,9 @@ const api = {
     userResponse?: string;
     prompt?: string;
   }) => electronAPI.ipcRenderer.invoke('complete-review', params),
+  getReviewItem: (noteId: string) =>
+    electronAPI.ipcRenderer.invoke('get-review-item', noteId),
+  getAllReviewHistory: () => electronAPI.ipcRenderer.invoke('get-all-review-history'),
 
   // Search operations
   searchNotes: (params: { query: string; vaultId?: string; limit?: number }) =>

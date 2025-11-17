@@ -9,7 +9,8 @@ import type {
   ReviewSessionState,
   ReviewResult,
   SessionReviewNote,
-  AgentFeedback
+  AgentFeedback,
+  ReviewItem
 } from '../types/review';
 
 export interface ReviewStats {
@@ -216,6 +217,34 @@ class ReviewStore {
    */
   hasSavedSession(): boolean {
     return this.savedSession !== null;
+  }
+
+  /**
+   * Get review item (metadata and history) for a specific note
+   */
+  async getReviewItem(noteId: string): Promise<ReviewItem | null> {
+    try {
+      const reviewItem = await window.api?.getReviewItem(noteId);
+      return reviewItem || null;
+    } catch (err) {
+      console.error('Failed to get review item:', err);
+      this.error = err instanceof Error ? err.message : 'Failed to get review item';
+      return null;
+    }
+  }
+
+  /**
+   * Get all review history for the current vault
+   */
+  async getAllReviewHistory(): Promise<ReviewItem[]> {
+    try {
+      const history = await window.api?.getAllReviewHistory();
+      return history || [];
+    } catch (err) {
+      console.error('Failed to get review history:', err);
+      this.error = err instanceof Error ? err.message : 'Failed to get review history';
+      return [];
+    }
   }
 
   /**

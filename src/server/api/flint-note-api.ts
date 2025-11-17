@@ -2527,6 +2527,7 @@ export class FlintNoteApi {
     passed: boolean;
     userResponse?: string;
     prompt?: string;
+    feedback?: string;
   }): Promise<{ nextReviewDate: string; reviewCount: number }> {
     this.ensureInitialized();
     const { reviewManager } = await this.getVaultContext(args.vaultId);
@@ -2534,7 +2535,8 @@ export class FlintNoteApi {
       args.noteId,
       args.passed,
       args.userResponse,
-      args.prompt
+      args.prompt,
+      args.feedback
     );
   }
 
@@ -2566,6 +2568,15 @@ export class FlintNoteApi {
     this.ensureInitialized();
     const { reviewManager } = await this.getVaultContext(args.vaultId);
     return await reviewManager.isReviewEnabled(args.noteId);
+  }
+
+  /**
+   * Get all review history for a vault
+   */
+  async getAllReviewHistory(args: { vaultId: string }): Promise<ReviewItem[]> {
+    this.ensureInitialized();
+    const { reviewManager } = await this.getVaultContext(args.vaultId);
+    return await reviewManager.getAllReviewHistory();
   }
 
   /**

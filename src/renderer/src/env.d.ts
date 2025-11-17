@@ -251,7 +251,12 @@ declare global {
         passed: boolean;
         userResponse?: string;
         prompt?: string;
+        feedback?: string;
       }) => Promise<{ success: boolean }>;
+      getReviewItem: (
+        noteId: string
+      ) => Promise<import('./types/review').ReviewItem | null>;
+      getAllReviewHistory: () => Promise<import('./types/review').ReviewItem[]>;
       // FileWriteQueue now handles all internal write tracking
 
       // Search operations

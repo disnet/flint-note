@@ -1245,7 +1245,13 @@ app.whenReady().then(async () => {
     'complete-review',
     async (
       _event,
-      params: { noteId: string; passed: boolean; userResponse?: string; prompt?: string }
+      params: {
+        noteId: string;
+        passed: boolean;
+        userResponse?: string;
+        prompt?: string;
+        feedback?: string;
+      }
     ) => {
       if (!noteService) {
         throw new Error('Note service not available');
@@ -1260,10 +1266,35 @@ app.whenReady().then(async () => {
         vaultId: vault.id,
         passed: params.passed,
         userResponse: params.userResponse,
-        prompt: params.prompt
+        prompt: params.prompt,
+        feedback: params.feedback
       });
     }
   );
+
+  ipcMain.handle('get-review-item', async (_event, noteId: string) => {
+    if (!noteService) {
+      throw new Error('Note service not available');
+    }
+    const flintApi = noteService.getFlintNoteApi();
+    const vault = await noteService.getCurrentVault();
+    if (!vault) {
+      throw new Error('No active vault');
+    }
+    return await flintApi.getReviewItem({ noteId, vaultId: vault.id });
+  });
+
+  ipcMain.handle('get-all-review-history', async () => {
+    if (!noteService) {
+      throw new Error('Note service not available');
+    }
+    const flintApi = noteService.getFlintNoteApi();
+    const vault = await noteService.getCurrentVault();
+    if (!vault) {
+      throw new Error('No active vault');
+    }
+    return await flintApi.getAllReviewHistory({ vaultId: vault.id });
+  });
 
   // Vault operations
   ipcMain.handle('list-vaults', async () => {

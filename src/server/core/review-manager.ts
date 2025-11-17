@@ -340,7 +340,8 @@ export class ReviewManager {
     noteId: string,
     passed: boolean,
     userResponse?: string,
-    prompt?: string
+    prompt?: string,
+    feedback?: string
   ): Promise<{ nextReviewDate: string; reviewCount: number }> {
     // Get current review item
     const reviewItem = await this.db.get<ReviewItemRow>(
@@ -360,7 +361,8 @@ export class ReviewManager {
       reviewItem.review_history,
       passed,
       userResponse,
-      prompt
+      prompt,
+      feedback
     );
 
     // Update review item
@@ -444,5 +446,20 @@ export class ReviewManager {
     );
 
     return row ? row.enabled === 1 : false;
+  }
+
+  /**
+   * Get all review items with their history
+   * Returns all review items for the vault, ordered by last_reviewed DESC (most recent first)
+   */
+  async getAllReviewHistory(): Promise<ReviewItem[]> {
+    const rows = await this.db.all<ReviewItemRow>(
+      `SELECT * FROM review_items
+       WHERE vault_id = ? AND enabled = 1
+       ORDER BY last_reviewed DESC NULLS LAST`,
+      [this.vaultId]
+    );
+
+    return rows.map(reviewRowToModel);
   }
 }

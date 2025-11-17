@@ -41,6 +41,7 @@
     suggestions?: NoteSuggestion[];
     expandedSuggestions?: Set<string>;
     onDismissSuggestion?: (suggestionId: string) => void;
+    noBottomMargin?: boolean;
   }
 
   let {
@@ -59,7 +60,8 @@
     isExpanded = false,
     suggestions = [],
     expandedSuggestions = new Set(),
-    onDismissSuggestion
+    onDismissSuggestion,
+    noBottomMargin = false
   }: Props = $props();
 
   let editorContainer: Element;
@@ -962,6 +964,7 @@
     class="editor-container editor-font"
     class:has-max-height={!!maxHeight}
     class:collapsing={!isExpanded}
+    class:no-bottom-margin={noBottomMargin}
     bind:this={editorContainer}
     style:max-height={maxHeight}
   ></div>
@@ -1071,6 +1074,10 @@
   .editor-container.has-max-height {
     flex: 0 0 auto;
     overflow-y: auto;
+  }
+
+  .editor-container.no-bottom-margin :global(.cm-scroller) {
+    margin-bottom: 0 !important;
   }
 
   .expand-controls {
