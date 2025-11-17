@@ -215,16 +215,30 @@ class UnifiedChatStore {
 
   // Get sorted threads for current vault (non-archived, recent first)
   get sortedThreads(): UnifiedThread[] {
+    const getLastMessageTime = (thread: UnifiedThread): number => {
+      if (thread.messages.length === 0) {
+        return thread.lastActivity.getTime();
+      }
+      return thread.messages[thread.messages.length - 1].timestamp.getTime();
+    };
+
     return this.getThreadsForCurrentVault()
       .filter((thread) => !thread.isArchived)
-      .sort((a, b) => b.lastActivity.getTime() - a.lastActivity.getTime());
+      .sort((a, b) => getLastMessageTime(b) - getLastMessageTime(a));
   }
 
   // Get archived threads for current vault
   get archivedThreads(): UnifiedThread[] {
+    const getLastMessageTime = (thread: UnifiedThread): number => {
+      if (thread.messages.length === 0) {
+        return thread.lastActivity.getTime();
+      }
+      return thread.messages[thread.messages.length - 1].timestamp.getTime();
+    };
+
     return this.getThreadsForCurrentVault()
       .filter((thread) => thread.isArchived)
-      .sort((a, b) => b.lastActivity.getTime() - a.lastActivity.getTime());
+      .sort((a, b) => getLastMessageTime(b) - getLastMessageTime(a));
   }
 
   // Thread CRUD operations

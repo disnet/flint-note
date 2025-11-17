@@ -7,6 +7,7 @@
   import TodoPlanWidget from './TodoPlanWidget.svelte';
   import ToolCallLimitWidget from './ToolCallLimitWidget.svelte';
   import ConversationStartWorkflowPanel from './ConversationStartWorkflowPanel.svelte';
+  import ThreadListView from './ThreadListView.svelte';
   import type { Message, ContextUsage } from '../services/types';
   import { unifiedChatStore } from '../stores/unifiedChatStore.svelte';
   import { TodoPlanStore } from '../stores/todoPlanStore.svelte';
@@ -38,6 +39,8 @@
   }: Props = $props();
 
   let contextUsage = $state<ContextUsage | null>(null);
+  let showingThreadListView = $state(false);
+  let previousThreadId = $state<string | null>(null);
 
   // Todo plan store
   const todoPlanStore = new TodoPlanStore();
@@ -158,71 +161,106 @@
     const message = `Execute routine: ${workflowId}`;
     onSendMessage?.(message);
   }
+
+  function handleShowAllThreads(): void {
+    previousThreadId = unifiedChatStore.activeThreadId;
+    showingThreadListView = true;
+  }
+
+  function handleBackFromThreadList(): void {
+    showingThreadListView = false;
+    // Return to the previous thread if it was set
+    if (previousThreadId && unifiedChatStore.activeThreadId !== previousThreadId) {
+      unifiedChatStore.switchToThread(previousThreadId);
+    }
+  }
+
+  async function handleNewThreadFromList(): Promise<void> {
+    await unifiedChatStore.createThread();
+    showingThreadListView = false;
+  }
+
+  function handleSelectThreadFromList(threadId: string): void {
+    unifiedChatStore.switchToThread(threadId);
+    showingThreadListView = false;
+  }
 </script>
 
 <ConversationContainer autoScroll={true}>
   {#snippet header()}
-    <!-- Agent Control Bar -->
-    <AgentControlBar />
+    {#if !showingThreadListView}
+      <!-- Agent Control Bar -->
+      <AgentControlBar onShowAll={handleShowAllThreads} />
 
-    <!-- Todo Plan Widget -->
-    {#if todoPlanStore.activePlan}
-      <div class="todo-plan-section">
-        <TodoPlanWidget plan={todoPlanStore.activePlan} />
-      </div>
+      <!-- Todo Plan Widget -->
+      {#if todoPlanStore.activePlan}
+        <div class="todo-plan-section">
+          <TodoPlanWidget plan={todoPlanStore.activePlan} />
+        </div>
+      {/if}
     {/if}
   {/snippet}
 
   {#snippet content()}
-    <div class="chat-messages">
-      {#if messages.length === 0 && !isLoading}
-        <!-- Show workflow panel when starting a fresh conversation -->
-        <ConversationStartWorkflowPanel
-          onExecuteWorkflow={handleExecuteWorkflow}
-          onViewAll={onViewWorkflows}
-          {onSendMessage}
-        />
-      {/if}
-      {#each messages as message (message.id)}
-        <ConversationMessage
-          content={message.text}
-          role={message.sender}
-          variant="bubble"
-          toolCalls={message.toolCalls}
-          currentStepIndex={message.currentStepIndex}
-          {onNoteClick}
-        />
-      {/each}
-      {#if isLoading}
-        <LoadingMessage />
-      {/if}
-    </div>
+    {#if showingThreadListView}
+      <ThreadListView
+        onBack={handleBackFromThreadList}
+        onNewThread={handleNewThreadFromList}
+        onSelectThread={handleSelectThreadFromList}
+      />
+    {:else}
+      <div class="chat-messages">
+        {#if messages.length === 0 && !isLoading}
+          <!-- Show workflow panel when starting a fresh conversation -->
+          <ConversationStartWorkflowPanel
+            onExecuteWorkflow={handleExecuteWorkflow}
+            onViewAll={onViewWorkflows}
+            {onSendMessage}
+          />
+        {/if}
+        {#each messages as message (message.id)}
+          <ConversationMessage
+            content={message.text}
+            role={message.sender}
+            variant="bubble"
+            toolCalls={message.toolCalls}
+            currentStepIndex={message.currentStepIndex}
+            {onNoteClick}
+          />
+        {/each}
+        {#if isLoading}
+          <LoadingMessage />
+        {/if}
+      </div>
+    {/if}
   {/snippet}
 
   {#snippet controls()}
-    <!-- Tool Call Limit Widget -->
-    {#if toolCallLimitReached}
-      <div class="tool-call-limit-section">
-        <ToolCallLimitWidget
-          stepCount={toolCallLimitReached.stepCount}
-          maxSteps={toolCallLimitReached.maxSteps}
-          onContinue={onToolCallLimitContinue || (() => {})}
-          onStop={onToolCallLimitStop || (() => {})}
+    {#if !showingThreadListView}
+      <!-- Tool Call Limit Widget -->
+      {#if toolCallLimitReached}
+        <div class="tool-call-limit-section">
+          <ToolCallLimitWidget
+            stepCount={toolCallLimitReached.stepCount}
+            maxSteps={toolCallLimitReached.maxSteps}
+            onContinue={onToolCallLimitContinue || (() => {})}
+            onStop={onToolCallLimitStop || (() => {})}
+          />
+        </div>
+      {/if}
+
+      <!-- Message Input Area -->
+      <div class="input-section">
+        <MessageInput
+          onSend={onSendMessage || (() => {})}
+          {contextUsage}
+          onStartNewThread={handleContextWarningClick}
+          {isLoading}
+          onCancel={onCancelMessage}
+          bind:refreshCredits
         />
       </div>
     {/if}
-
-    <!-- Message Input Area -->
-    <div class="input-section">
-      <MessageInput
-        onSend={onSendMessage || (() => {})}
-        {contextUsage}
-        onStartNewThread={handleContextWarningClick}
-        {isLoading}
-        onCancel={onCancelMessage}
-        bind:refreshCredits
-      />
-    </div>
   {/snippet}
 </ConversationContainer>
 

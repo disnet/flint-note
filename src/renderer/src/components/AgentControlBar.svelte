@@ -2,11 +2,17 @@
   import { unifiedChatStore } from '../stores/unifiedChatStore.svelte';
   import type { UnifiedThread } from '../stores/unifiedChatStore.svelte';
 
+  interface Props {
+    onShowAll?: () => void;
+  }
+
+  let { onShowAll }: Props = $props();
+
   let showConversationList = $state(false);
   let dropdownButton: HTMLButtonElement;
   let dropdownList = $state<HTMLDivElement>();
 
-  const recentThreads = $derived(unifiedChatStore.sortedThreads.slice(0, 10));
+  const recentThreads = $derived(unifiedChatStore.sortedThreads.slice(0, 5));
 
   async function createNewThread(): Promise<void> {
     // Create a new thread without archiving the current one
@@ -29,22 +35,6 @@
     if (unifiedChatStore.activeThreadId === threadId) {
       showConversationList = false;
     }
-  }
-
-  function formatTimestamp(date: Date): string {
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const minutes = Math.floor(diff / (1000 * 60));
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-
-    if (minutes < 1) return 'Just now';
-    if (minutes < 60) return `${minutes}m ago`;
-    if (hours < 24) return `${hours}h ago`;
-    if (days === 1) return 'Yesterday';
-    if (days < 7) return `${days}d ago`;
-
-    return date.toLocaleDateString();
   }
 
   // Close conversation list when clicking outside
@@ -155,16 +145,6 @@
                 >
                   <div class="conversation-main">
                     <div class="conversation-title">{thread.title}</div>
-                    <div class="conversation-meta">
-                      <span class="conversation-time"
-                        >{formatTimestamp(thread.lastActivity)}</span
-                      >
-                      {#if thread.messages.length > 0}
-                        <span class="conversation-count"
-                          >{thread.messages.length} messages</span
-                        >
-                      {/if}
-                    </div>
                   </div>
 
                   <div class="conversation-actions">
@@ -178,6 +158,19 @@
                   </div>
                 </div>
               {/each}
+
+              <div class="separator"></div>
+
+              <button
+                class="show-all-btn"
+                onclick={() => {
+                  showConversationList = false;
+                  onShowAll?.();
+                }}
+                title="Show all conversations"
+              >
+                Show all
+              </button>
             {:else}
               <div class="no-conversations">No recent conversations</div>
             {/if}
@@ -288,6 +281,7 @@
   .conversation-items {
     max-height: 320px;
     overflow-y: auto;
+    padding-bottom: 0.375rem;
   }
 
   .conversation-items::-webkit-scrollbar {
@@ -312,17 +306,12 @@
     align-items: center;
     justify-content: space-between;
     width: 100%;
-    padding: 0.75rem 1rem;
+    padding: 0.375rem 1rem;
     background: transparent;
     border: none;
     text-align: left;
     cursor: pointer;
     transition: background-color 0.2s ease;
-    border-bottom: 1px solid var(--border-light);
-  }
-
-  .conversation-item:last-child {
-    border-bottom: none;
   }
 
   .conversation-item:hover {
@@ -336,10 +325,6 @@
 
   .conversation-item.active .conversation-title {
     color: var(--bg-primary);
-  }
-
-  .conversation-item.active .conversation-meta {
-    color: rgba(255, 255, 255, 0.8);
   }
 
   .conversation-main {
@@ -400,26 +385,9 @@
     font-size: 0.875rem;
     font-weight: 500;
     color: var(--text-primary);
-    margin-bottom: 0.25rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-
-  .conversation-meta {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.75rem;
-    color: var(--text-tertiary);
-  }
-
-  .conversation-time {
-    font-weight: 500;
-  }
-
-  .conversation-count {
-    opacity: 0.8;
   }
 
   .no-conversations {
@@ -427,5 +395,30 @@
     text-align: center;
     color: var(--text-tertiary);
     font-size: 0.875rem;
+  }
+
+  .separator {
+    height: 1px;
+    background: var(--border-light);
+    margin: 0.5rem 0;
+  }
+
+  .show-all-btn {
+    display: block;
+    width: 100%;
+    padding: 0.375rem 1rem;
+    background: transparent;
+    border: none;
+    text-align: left;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .show-all-btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
   }
 </style>
