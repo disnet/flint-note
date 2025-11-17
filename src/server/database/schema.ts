@@ -203,6 +203,7 @@ export class DatabaseManager {
           size INTEGER,
           content_hash TEXT,
           file_mtime BIGINT,
+          archived INTEGER DEFAULT 0,
           UNIQUE(type, filename)
         )
       `);

@@ -39,7 +39,8 @@ describe('ReviewManager', () => {
         updated TEXT NOT NULL,
         size INTEGER,
         content_hash TEXT,
-        file_mtime INTEGER
+        file_mtime INTEGER,
+        archived INTEGER DEFAULT 0
       )
     `);
 
