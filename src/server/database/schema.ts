@@ -307,18 +307,6 @@ export class DatabaseManager {
         )
       `);
 
-    // Create slash commands table for storing global slash commands
-    await connection.run(`
-        CREATE TABLE IF NOT EXISTS slash_commands (
-          id TEXT PRIMARY KEY,
-          name TEXT NOT NULL UNIQUE,
-          instruction TEXT NOT NULL,
-          parameters TEXT,
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-      `);
-
     // Create note type descriptions table for storing note type metadata
     await connection.run(`
         CREATE TABLE IF NOT EXISTS note_type_descriptions (
@@ -393,11 +381,6 @@ export class DatabaseManager {
     // Create index for processed notes table
     await connection.run(
       'CREATE INDEX IF NOT EXISTS idx_processed_notes_note_id ON processed_notes(note_id)'
-    );
-
-    // Create index for slash commands table
-    await connection.run(
-      'CREATE INDEX IF NOT EXISTS idx_slash_commands_name ON slash_commands(name)'
     );
 
     // Create index for note type descriptions table

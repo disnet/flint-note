@@ -1656,8 +1656,34 @@ async function migrateToV2_8_0(db: DatabaseConnection): Promise<void> {
   }
 }
 
+/**
+ * Migration to v2.9.0: Remove slash commands feature
+ */
+async function migrateToV2_9_0(db: DatabaseConnection): Promise<void> {
+  console.log('Migrating to v2.9.0: Removing slash commands feature');
+
+  try {
+    // Check if slash_commands table exists
+    const tableExists = await db.get<{ count: number }>(`
+      SELECT COUNT(*) as count FROM sqlite_master
+      WHERE type='table' AND name='slash_commands'
+    `);
+
+    if (tableExists && tableExists.count > 0) {
+      console.log('Dropping slash_commands table');
+      await db.run('DROP TABLE IF EXISTS slash_commands');
+      console.log('slash_commands table dropped successfully');
+    } else {
+      console.log('slash_commands table does not exist, skipping');
+    }
+  } catch (error) {
+    console.error('Failed to remove slash commands feature:', error);
+    throw error;
+  }
+}
+
 export class DatabaseMigrationManager {
-  private static readonly CURRENT_SCHEMA_VERSION = '2.8.0';
+  private static readonly CURRENT_SCHEMA_VERSION = '2.9.0';
 
   private static readonly MIGRATIONS: DatabaseMigration[] = [
     {
@@ -1737,6 +1763,13 @@ export class DatabaseMigrationManager {
       requiresFullRebuild: false,
       requiresLinkMigration: false,
       migrationFunction: migrateToV2_8_0
+    },
+    {
+      version: '2.9.0',
+      description: 'Remove slash commands feature',
+      requiresFullRebuild: false,
+      requiresLinkMigration: false,
+      migrationFunction: migrateToV2_9_0
     }
   ];
 

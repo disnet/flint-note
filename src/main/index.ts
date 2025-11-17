@@ -1694,30 +1694,6 @@ app.whenReady().then(async () => {
     return await settingsStorageService.saveSidebarState(collapsed);
   });
 
-  ipcMain.handle('load-slash-commands', async () => {
-    if (!noteService) {
-      throw new Error('Note service not available');
-    }
-    try {
-      return await noteService.loadSlashCommands();
-    } catch (error) {
-      logger.error('Failed to load slash commands', { error });
-      return [];
-    }
-  });
-
-  ipcMain.handle('save-slash-commands', async (_event, commands: unknown) => {
-    if (!noteService) {
-      throw new Error('Note service not available');
-    }
-    try {
-      return await noteService.saveSlashCommands(commands);
-    } catch (error) {
-      logger.error('Failed to save slash commands', { error });
-      throw error;
-    }
-  });
-
   ipcMain.handle(
     'get-cursor-position',
     async (_event, params: { vaultId: string; noteId: string }) => {

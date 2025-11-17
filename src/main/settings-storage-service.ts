@@ -72,20 +72,4 @@ export class SettingsStorageService extends BaseStorageService {
     const filePath = this.getStoragePath('settings', 'sidebar-state.json');
     await this.writeJsonFile(filePath, { collapsed });
   }
-
-  /**
-   * Load slash commands from file
-   */
-  async loadSlashCommands<T>(defaultValue: T): Promise<T> {
-    const filePath = this.getStoragePath('settings', 'slash-commands.json');
-    return await this.readJsonFile(filePath, defaultValue);
-  }
-
-  /**
-   * Save slash commands to file
-   */
-  async saveSlashCommands<T>(commands: T): Promise<void> {
-    const filePath = this.getStoragePath('settings', 'slash-commands.json');
-    await this.writeJsonFile(filePath, commands);
-  }
 }

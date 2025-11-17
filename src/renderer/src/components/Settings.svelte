@@ -1,7 +1,6 @@
 <script lang="ts">
   import { settingsStore } from '../stores/settingsStore.svelte';
   import { secureStorageService } from '../services/secureStorageService';
-  import SlashCommands from './SlashCommands.svelte';
   import CustomFunctionsManager from './custom-functions/CustomFunctionsManager.svelte';
   import ChangelogViewer from './ChangelogViewer.svelte';
 
@@ -397,30 +396,6 @@
         Use this to rebuild the database from your markdown files on disk. This can help
         fix search issues or sync problems.
       </p>
-    </section>
-
-    <section class="settings-section">
-      <h3>
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          class="section-icon"
-        >
-          <path d="M10 3l-7 7 7 7"></path>
-          <path d="M21 3l-7 7 7 7"></path>
-        </svg>
-        Slash Commands
-      </h3>
-      <p class="section-description">
-        Create custom slash commands to quickly insert templated prompts into your AI
-        conversations.
-      </p>
-
-      <SlashCommands />
     </section>
 
     <section class="settings-section">

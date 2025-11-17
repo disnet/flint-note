@@ -414,9 +414,6 @@ const api = {
   loadSidebarState: () => electronAPI.ipcRenderer.invoke('load-sidebar-state'),
   saveSidebarState: (collapsed: boolean) =>
     electronAPI.ipcRenderer.invoke('save-sidebar-state', collapsed),
-  loadSlashCommands: () => electronAPI.ipcRenderer.invoke('load-slash-commands'),
-  saveSlashCommands: (commands: unknown) =>
-    electronAPI.ipcRenderer.invoke('save-slash-commands', commands),
 
   // Cursor position management
   getCursorPosition: (params: { vaultId: string; noteId: string }) =>
