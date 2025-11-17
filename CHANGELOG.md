@@ -4,6 +4,55 @@ All notable changes to the Flint application will be documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased]
+
+### Added
+
+**Review Mode**
+
+A new AI-powered review mode helps you maintain and improve your notes. The agent can analyze your notes and generate intelligent suggestions for improvements, expansions, or connections. Access review mode from the dashboard to get contextual prompts for working with your notes.
+
+**Note Suggestions**
+
+The agent can now generate suggestions for individual notes, providing targeted prompts and ideas for expanding or improving specific notes. Suggestions can be manually regenerated to get fresh perspectives on how to develop your notes.
+
+**Archive Notes**
+
+You can now archive notes to hide them from your main workspace while keeping them in your vault. Archived notes can be accessed through the note types view when needed.
+
+**Theme Settings**
+
+Added theme customization in settings, allowing you to switch between light and dark modes. Dark mode styling has been improved across the entire interface.
+
+**Agent Thread Management**
+
+- Archive button added to agent thread recents for better organization
+- "Show all" option in agent threads to view your complete conversation history
+
+**Diff Update Tool**
+
+The agent now has a diff-based update tool that allows it to make more precise edits to your notes by showing exactly what changed.
+
+**Shelf Enhancements**
+
+Shift+click on notes in the sidebar to quickly add them to your shelf (formerly "sidebar notes") without opening them.
+
+### Changed
+
+- Renamed "AI Assistant" to "Agent" throughout the application
+- Renamed "Sidebar Notes" to "Shelf" for clearer terminology
+- Cleaned up inbox design with improved styling and layout
+
+### Removed
+
+- Slash commands feature has been removed
+- Custom functions in settings have been removed
+
+### Fixed
+
+- Fixed dark mode styling issues across various components including tool calls
+- Fixed spurious "external edit detected" messages that could appear incorrectly
+
 ## [0.9.0]
 
 ### Added
