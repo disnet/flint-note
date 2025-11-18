@@ -4,6 +4,13 @@ All notable changes to the Flint application will be documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.10.1]
+
+### Added
+
+- ability for agents to toggle review mode
+- setting on note type to default enable review mode for new notes of that type
+
 ## [0.10.0]
 
 ### Added
