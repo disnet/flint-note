@@ -709,7 +709,8 @@ export class FlintNoteApi {
 
     // Check if review was enabled before the move (to preserve it)
     const wasReviewEnabled = await reviewManager.isReviewEnabled(args.noteId);
-    let reviewItemBeforeMove: import('../core/review-manager.js').ReviewItem | null = null;
+    let reviewItemBeforeMove: import('../core/review-manager.js').ReviewItem | null =
+      null;
     if (wasReviewEnabled) {
       // Save the review state before moving
       reviewItemBeforeMove = await reviewManager.getReviewItem(args.noteId);

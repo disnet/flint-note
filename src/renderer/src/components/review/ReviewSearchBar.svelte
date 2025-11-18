@@ -43,7 +43,7 @@
       const items = await reviewStore.getAllReviewHistory();
 
       searchableNotes = items.map((item) => {
-        const note = notesStore.notes.find((n) => n.id === item.noteId);
+        const note = notesStore.allNotes.find((n) => n.id === item.noteId);
         return {
           id: item.id,
           noteId: item.noteId,

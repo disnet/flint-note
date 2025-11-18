@@ -26,12 +26,6 @@
     }
   }
 
-  // Get note title from noteId
-  function getNoteTitle(noteId: string): string {
-    const note = notesStore.notes.find((n) => n.id === noteId);
-    return note?.title || noteId;
-  }
-
   // Filter and flatten all history entries
   const filteredHistory = $derived.by(() => {
     if (!allReviewHistory || allReviewHistory.length === 0) {
@@ -53,7 +47,8 @@
     }> = [];
 
     for (const reviewItem of allReviewHistory) {
-      const noteTitle = getNoteTitle(reviewItem.noteId);
+      const note = notesStore.allNotes.find((n) => n.id === reviewItem.noteId);
+      const noteTitle = note?.title || reviewItem.noteId;
 
       // Skip if doesn't match filter text
       if (filterText && !noteTitle.toLowerCase().includes(filterText.toLowerCase())) {
@@ -111,8 +106,8 @@
   }
 
   async function handleNoteClick(noteId: string): Promise<void> {
-    // Navigate to the note using wikilinkService
-    const note = notesStore.notes.find((n) => n.id === noteId);
+    // Navigate to the note using wikilinkService (use allNotes to include archived)
+    const note = notesStore.allNotes.find((n) => n.id === noteId);
     if (note) {
       await wikilinkService.handleWikilinkClick(noteId, note.title, false, false);
     }

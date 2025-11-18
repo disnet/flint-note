@@ -322,24 +322,30 @@ export class ReviewManager {
     weekFromNow.setDate(weekFromNow.getDate() + 7);
     const weekDate = weekFromNow.toISOString().split('T')[0];
 
-    // Due today
+    // Due today (excluding archived notes)
     const dueToday = await this.db.get<{ count: number }>(
-      `SELECT COUNT(*) as count FROM review_items
-       WHERE vault_id = ? AND enabled = 1 AND next_review <= ?`,
+      `SELECT COUNT(*) as count FROM review_items ri
+       INNER JOIN notes n ON ri.note_id = n.id
+       WHERE ri.vault_id = ? AND ri.enabled = 1 AND ri.next_review <= ?
+       AND (n.archived = 0 OR n.archived IS NULL)`,
       [this.vaultId, today]
     );
 
-    // Due this week
+    // Due this week (excluding archived notes)
     const dueThisWeek = await this.db.get<{ count: number }>(
-      `SELECT COUNT(*) as count FROM review_items
-       WHERE vault_id = ? AND enabled = 1 AND next_review <= ?`,
+      `SELECT COUNT(*) as count FROM review_items ri
+       INNER JOIN notes n ON ri.note_id = n.id
+       WHERE ri.vault_id = ? AND ri.enabled = 1 AND ri.next_review <= ?
+       AND (n.archived = 0 OR n.archived IS NULL)`,
       [this.vaultId, weekDate]
     );
 
-    // Total enabled
+    // Total enabled (excluding archived notes)
     const totalEnabled = await this.db.get<{ count: number }>(
-      `SELECT COUNT(*) as count FROM review_items
-       WHERE vault_id = ? AND enabled = 1`,
+      `SELECT COUNT(*) as count FROM review_items ri
+       INNER JOIN notes n ON ri.note_id = n.id
+       WHERE ri.vault_id = ? AND ri.enabled = 1
+       AND (n.archived = 0 OR n.archived IS NULL)`,
       [this.vaultId]
     );
 
@@ -376,13 +382,15 @@ export class ReviewManager {
 
   /**
    * Get all review items with their history
-   * Returns all review items for the vault, ordered by last_reviewed DESC (most recent first)
+   * Returns all review items for the vault (excluding archived notes), ordered by last_reviewed DESC (most recent first)
    */
   async getAllReviewHistory(): Promise<ReviewItem[]> {
     const rows = await this.db.all<ReviewItemRow>(
-      `SELECT * FROM review_items
-       WHERE vault_id = ? AND enabled = 1
-       ORDER BY last_reviewed DESC NULLS LAST`,
+      `SELECT ri.* FROM review_items ri
+       INNER JOIN notes n ON ri.note_id = n.id
+       WHERE ri.vault_id = ? AND ri.enabled = 1
+       AND (n.archived = 0 OR n.archived IS NULL)
+       ORDER BY ri.last_reviewed DESC NULLS LAST`,
       [this.vaultId]
     );
 

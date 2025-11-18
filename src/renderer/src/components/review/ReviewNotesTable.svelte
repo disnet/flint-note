@@ -51,7 +51,7 @@
       const today = new Date().toISOString().split('T')[0];
 
       reviewItems = items.map((item) => {
-        const note = notesStore.notes.find((n) => n.id === item.noteId);
+        const note = notesStore.allNotes.find((n) => n.id === item.noteId);
         const lastHistoryEntry =
           item.reviewHistory.length > 0
             ? item.reviewHistory[item.reviewHistory.length - 1]
@@ -62,11 +62,11 @@
           noteTitle: note?.title || 'Unknown Note',
           isOverdue: item.nextReview < today,
           isDueToday: item.nextReview === today,
-          lastResult: lastHistoryEntry
+          lastResult: (lastHistoryEntry
             ? lastHistoryEntry.passed
               ? 'passed'
               : 'failed'
-            : null
+            : null) as 'passed' | 'failed' | null
         };
       });
     } catch (error) {
@@ -97,7 +97,7 @@
   }
 
   function openNote(noteId: string, event: MouseEvent): void {
-    const note = notesStore.notes.find((n) => n.id === noteId);
+    const note = notesStore.allNotes.find((n) => n.id === noteId);
     if (note) {
       wikilinkService.handleWikilinkClick(noteId, note.title, false, event.shiftKey);
     }
