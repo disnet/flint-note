@@ -36,6 +36,7 @@
   let metadataSchema = $state<MetadataSchema>({ fields: [] });
   let suggestionsEnabled = $state(false);
   let suggestionsPromptGuidance = $state('');
+  let defaultReviewMode = $state(false);
   let saveTimeout: ReturnType<typeof setTimeout> | null = null;
   let showArchived = $state(false);
 
@@ -129,6 +130,7 @@
             : { fields: [] };
           suggestionsEnabled = typeInfo.suggestions_config?.enabled || false;
           suggestionsPromptGuidance = typeInfo.suggestions_config?.prompt_guidance || '';
+          defaultReviewMode = typeInfo.default_review_mode || false;
         }
       }
     } catch (err) {
@@ -244,6 +246,26 @@
       detailsError =
         err instanceof Error ? err.message : 'Failed to save suggestions config';
       console.error('Error saving suggestions config:', err);
+    }
+  }
+
+  async function saveDefaultReviewMode(): Promise<void> {
+    try {
+      const currentVault = await getChatService().getCurrentVault();
+      if (!currentVault) {
+        detailsError = 'No vault selected';
+        return;
+      }
+
+      await window.api?.updateNoteTypeDefaultReviewMode({
+        noteType: typeName,
+        defaultReviewMode,
+        vaultId: currentVault.id
+      });
+    } catch (err) {
+      detailsError =
+        err instanceof Error ? err.message : 'Failed to save default review mode';
+      console.error('Error saving default review mode:', err);
     }
   }
 
@@ -499,6 +521,22 @@
                   scheduleAutoSave();
                 }}
               />
+            </div>
+
+            <div class="form-section">
+              <h3 class="section-title">Review Mode</h3>
+              <p class="section-description">
+                Automatically schedule notes of this type for review when created.
+              </p>
+
+              <label class="checkbox-label review-enable-label">
+                <input
+                  type="checkbox"
+                  bind:checked={defaultReviewMode}
+                  onchange={() => saveDefaultReviewMode()}
+                />
+                Enable review mode by default for new notes
+              </label>
             </div>
 
             <div class="form-section">
@@ -1609,7 +1647,8 @@
     line-height: 1.5;
   }
 
-  .suggestions-enable-label {
+  .suggestions-enable-label,
+  .review-enable-label {
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -1620,7 +1659,8 @@
     font-weight: 500;
   }
 
-  .suggestions-enable-label input[type='checkbox'] {
+  .suggestions-enable-label input[type='checkbox'],
+  .review-enable-label input[type='checkbox'] {
     cursor: pointer;
     width: 1rem;
     height: 1rem;

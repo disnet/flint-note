@@ -747,7 +747,7 @@ async function initializeFreshDatabase(db: DatabaseConnection): Promise<void> {
   // Create workflow tables (added in v2.4.0)
   await createWorkflowTables(db);
 
-  // Create note_type_descriptions table (added in v2.2.0, icon added in v2.5.0, suggestions_config added in v2.7.0)
+  // Create note_type_descriptions table (added in v2.2.0, icon added in v2.5.0, suggestions_config added in v2.7.0, default_review_mode added in v2.11.0)
   await db.run(`
     CREATE TABLE IF NOT EXISTS note_type_descriptions (
       id TEXT PRIMARY KEY,
@@ -759,6 +759,7 @@ async function initializeFreshDatabase(db: DatabaseConnection): Promise<void> {
       content_hash TEXT,
       icon TEXT,
       suggestions_config TEXT,
+      default_review_mode INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       UNIQUE(vault_id, type_name)
@@ -1717,8 +1718,51 @@ async function migrateToV2_10_0(db: DatabaseConnection): Promise<void> {
   }
 }
 
+/**
+ * Migration to v2.11.0: Add default_review_mode column to note_type_descriptions table
+ */
+async function migrateToV2_11_0(db: DatabaseConnection): Promise<void> {
+  console.log(
+    'Migrating to v2.11.0: Adding default_review_mode column to note_type_descriptions table'
+  );
+
+  try {
+    // First ensure the note_type_descriptions table exists
+    const tableExists = await db.get<{ count: number }>(`
+      SELECT COUNT(*) as count FROM sqlite_master
+      WHERE type='table' AND name='note_type_descriptions'
+    `);
+
+    if (!tableExists || tableExists.count === 0) {
+      console.log('note_type_descriptions table does not exist, skipping migration');
+      return;
+    }
+
+    // Check if default_review_mode column already exists
+    const columns = await db.all<{ name: string }>(
+      "SELECT name FROM pragma_table_info('note_type_descriptions')"
+    );
+    const hasDefaultReviewMode = columns.some(
+      (col) => col.name === 'default_review_mode'
+    );
+
+    if (!hasDefaultReviewMode) {
+      console.log('Adding default_review_mode column to note_type_descriptions table');
+      await db.run(
+        'ALTER TABLE note_type_descriptions ADD COLUMN default_review_mode INTEGER DEFAULT 0'
+      );
+      console.log('default_review_mode column added successfully');
+    } else {
+      console.log('default_review_mode column already exists, skipping');
+    }
+  } catch (error) {
+    console.error('Failed to add default_review_mode column:', error);
+    throw error;
+  }
+}
+
 export class DatabaseMigrationManager {
-  private static readonly CURRENT_SCHEMA_VERSION = '2.10.0';
+  private static readonly CURRENT_SCHEMA_VERSION = '2.11.0';
 
   private static readonly MIGRATIONS: DatabaseMigration[] = [
     {
@@ -1812,6 +1856,13 @@ export class DatabaseMigrationManager {
       requiresFullRebuild: false,
       requiresLinkMigration: false,
       migrationFunction: migrateToV2_10_0
+    },
+    {
+      version: '2.11.0',
+      description: 'Add default_review_mode column to note_type_descriptions table',
+      requiresFullRebuild: false,
+      requiresLinkMigration: false,
+      migrationFunction: migrateToV2_11_0
     }
   ];
 

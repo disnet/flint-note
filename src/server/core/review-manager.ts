@@ -85,7 +85,14 @@ export class ReviewManager {
    * Creates review_items entry in database
    * Note: Frontmatter must be updated separately by caller
    */
-  async enableReview(noteId: string): Promise<ReviewItem> {
+  async enableReview(
+    noteId: string,
+    options?: {
+      nextReview?: string;
+      reviewCount?: number;
+      reviewHistory?: string | null;
+    }
+  ): Promise<ReviewItem> {
     // Check if review already enabled
     const existing = await this.db.get<ReviewItemRow>(
       'SELECT * FROM review_items WHERE note_id = ?',
@@ -100,15 +107,30 @@ export class ReviewManager {
     // Create new review item
     const reviewId = generateReviewId();
     const now = new Date().toISOString();
+
+    // Use provided values or defaults
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    const nextReview = tomorrow.toISOString().split('T')[0];
+    const nextReview = options?.nextReview || tomorrow.toISOString().split('T')[0];
+    const reviewCount = options?.reviewCount ?? 0;
+    const reviewHistory = options?.reviewHistory ?? null;
 
     await this.db.run(
       `INSERT INTO review_items
        (id, note_id, vault_id, enabled, last_reviewed, next_review, review_count, review_history, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [reviewId, noteId, this.vaultId, 1, null, nextReview, 0, null, now, now]
+      [
+        reviewId,
+        noteId,
+        this.vaultId,
+        1,
+        null,
+        nextReview,
+        reviewCount,
+        reviewHistory,
+        now,
+        now
+      ]
     );
 
     const created = await this.db.get<ReviewItemRow>(

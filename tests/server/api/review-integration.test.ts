@@ -427,4 +427,257 @@ describe('Review System Integration', () => {
       expect(stats2.totalEnabled).toBe(0);
     });
   });
+
+  describe('default review mode for note types', () => {
+    it('should automatically enable review for notes when note type has default_review_mode enabled', async () => {
+      // Create a note type with default_review_mode enabled
+      await api.createNoteType({
+        vault_id: vaultId,
+        type_name: 'task',
+        description: 'Task notes with automatic review'
+      });
+
+      // Enable default review mode for this note type
+      await api.updateNoteTypeDefaultReviewMode(vaultId, 'task', true);
+
+      // Create a note of this type
+      const note = await api.createNote({
+        vaultId,
+        type: 'task',
+        identifier: 'test-task',
+        content: '# Test Task\n\nThis should automatically have review enabled.'
+      });
+
+      // Verify review was automatically enabled
+      const reviewEnabled = await api.isReviewEnabled({ noteId: note.id, vaultId });
+      expect(reviewEnabled).toBe(true);
+
+      // Verify review item exists
+      const reviewItem = await api.getReviewItem({ noteId: note.id, vaultId });
+      expect(reviewItem).toBeDefined();
+      expect(reviewItem?.noteId).toBe(note.id);
+    });
+
+    it('should not enable review for notes when note type has default_review_mode disabled', async () => {
+      // Create a note type with default_review_mode disabled (default state)
+      await api.createNoteType({
+        vault_id: vaultId,
+        type_name: 'article',
+        description: 'Article notes without automatic review'
+      });
+
+      // Explicitly set default_review_mode to false (should be default anyway)
+      await api.updateNoteTypeDefaultReviewMode(vaultId, 'article', false);
+
+      // Create a note of this type
+      const note = await api.createNote({
+        vaultId,
+        type: 'article',
+        identifier: 'test-article',
+        content: '# Test Article\n\nThis should not have review enabled.'
+      });
+
+      // Verify review was not automatically enabled
+      const reviewEnabled = await api.isReviewEnabled({ noteId: note.id, vaultId });
+      expect(reviewEnabled).toBe(false);
+
+      // Verify no review item exists
+      const reviewItem = await api.getReviewItem({ noteId: note.id, vaultId });
+      expect(reviewItem).toBeNull();
+    });
+
+    it('should toggle default_review_mode and affect newly created notes', async () => {
+      // Create a note type
+      await api.createNoteType({
+        vault_id: vaultId,
+        type_name: 'journal',
+        description: 'Journal entries'
+      });
+
+      // Create a note without default review mode
+      const note1 = await api.createNote({
+        vaultId,
+        type: 'journal',
+        identifier: 'journal-1',
+        content: '# Entry 1'
+      });
+
+      // Verify review is not enabled
+      expect(await api.isReviewEnabled({ noteId: note1.id, vaultId })).toBe(false);
+
+      // Enable default review mode
+      await api.updateNoteTypeDefaultReviewMode(vaultId, 'journal', true);
+
+      // Create a new note - should have review enabled
+      const note2 = await api.createNote({
+        vaultId,
+        type: 'journal',
+        identifier: 'journal-2',
+        content: '# Entry 2'
+      });
+
+      // Verify review is enabled for the new note
+      expect(await api.isReviewEnabled({ noteId: note2.id, vaultId })).toBe(true);
+
+      // Verify the first note is still not in review (setting doesn't affect existing notes)
+      expect(await api.isReviewEnabled({ noteId: note1.id, vaultId })).toBe(false);
+    });
+
+    it('should return default_review_mode in getNoteTypeInfo', async () => {
+      // Create a note type
+      await api.createNoteType({
+        vault_id: vaultId,
+        type_name: 'meeting',
+        description: 'Meeting notes'
+      });
+
+      // Get initial state
+      let typeInfo = await api.getNoteTypeInfo({
+        vault_id: vaultId,
+        type_name: 'meeting'
+      });
+      expect(typeInfo.default_review_mode).toBe(false);
+
+      // Enable default review mode
+      await api.updateNoteTypeDefaultReviewMode(vaultId, 'meeting', true);
+
+      // Verify it's reflected in the type info
+      typeInfo = await api.getNoteTypeInfo({ vault_id: vaultId, type_name: 'meeting' });
+      expect(typeInfo.default_review_mode).toBe(true);
+
+      // Disable it again
+      await api.updateNoteTypeDefaultReviewMode(vaultId, 'meeting', false);
+
+      // Verify it's updated
+      typeInfo = await api.getNoteTypeInfo({ vault_id: vaultId, type_name: 'meeting' });
+      expect(typeInfo.default_review_mode).toBe(false);
+    });
+
+    it('should enable review when moving note to type with default_review_mode enabled', async () => {
+      // Create two note types: source without review, target with review
+      await api.createNoteType({
+        vault_id: vaultId,
+        type_name: 'draft',
+        description: 'Draft notes without review'
+      });
+
+      await api.createNoteType({
+        vault_id: vaultId,
+        type_name: 'published',
+        description: 'Published notes with review'
+      });
+
+      // Enable default review mode for published type only
+      await api.updateNoteTypeDefaultReviewMode(vaultId, 'published', true);
+
+      // Create a note in draft type
+      const note = await api.createNote({
+        vaultId,
+        type: 'draft',
+        identifier: 'test-draft',
+        content: '# Test Draft\n\nThis is a draft note.'
+      });
+
+      // Verify review is not enabled initially
+      expect(await api.isReviewEnabled({ noteId: note.id, vaultId })).toBe(false);
+
+      // Get content hash for the note
+      const noteDetails = await api.getNote(vaultId, note.id);
+
+      // Move note to published type
+      await api.moveNote({
+        noteId: note.id,
+        newType: 'published',
+        vault_id: vaultId,
+        contentHash: noteDetails.content_hash
+      });
+
+      // Verify review is now enabled
+      expect(await api.isReviewEnabled({ noteId: note.id, vaultId })).toBe(true);
+
+      // Verify review item exists
+      const reviewItem = await api.getReviewItem({ noteId: note.id, vaultId });
+      expect(reviewItem).toBeDefined();
+      expect(reviewItem?.noteId).toBe(note.id);
+    });
+
+    it('should not enable review when moving note to type without default_review_mode', async () => {
+      // Create two note types: both without default review mode
+      await api.createNoteType({
+        vault_id: vaultId,
+        type_name: 'inbox',
+        description: 'Inbox notes'
+      });
+
+      await api.createNoteType({
+        vault_id: vaultId,
+        type_name: 'archive',
+        description: 'Archived notes'
+      });
+
+      // Create a note in inbox type
+      const note = await api.createNote({
+        vaultId,
+        type: 'inbox',
+        identifier: 'test-inbox',
+        content: '# Test Inbox\n\nThis is an inbox note.'
+      });
+
+      // Get content hash
+      const noteDetails = await api.getNote(vaultId, note.id);
+
+      // Move note to archive type
+      await api.moveNote({
+        noteId: note.id,
+        newType: 'archive',
+        vault_id: vaultId,
+        contentHash: noteDetails.content_hash
+      });
+
+      // Verify review is still not enabled
+      expect(await api.isReviewEnabled({ noteId: note.id, vaultId })).toBe(false);
+    });
+
+    it('should keep existing review enabled when moving between types', async () => {
+      // Create two note types
+      await api.createNoteType({
+        vault_id: vaultId,
+        type_name: 'typeA',
+        description: 'Type A'
+      });
+
+      await api.createNoteType({
+        vault_id: vaultId,
+        type_name: 'typeB',
+        description: 'Type B'
+      });
+
+      // Create a note and manually enable review
+      const note = await api.createNote({
+        vaultId,
+        type: 'typeA',
+        identifier: 'test-note-review',
+        content: '# Test Note\n\nThis note has review enabled.'
+      });
+
+      await api.enableReview({ noteId: note.id, vaultId });
+
+      // Verify review is enabled
+      expect(await api.isReviewEnabled({ noteId: note.id, vaultId })).toBe(true);
+
+      // Get content hash
+      const noteDetails = await api.getNote(vaultId, note.id);
+
+      // Move note to another type
+      await api.moveNote({
+        noteId: note.id,
+        newType: 'typeB',
+        vault_id: vaultId,
+        contentHash: noteDetails.content_hash
+      });
+
+      // Verify review is still enabled
+      expect(await api.isReviewEnabled({ noteId: note.id, vaultId })).toBe(true);
+    });
+  });
 });

@@ -202,6 +202,11 @@ declare global {
         };
         vaultId?: string;
       }) => Promise<any>;
+      updateNoteTypeDefaultReviewMode: (params: {
+        noteType: string;
+        defaultReviewMode: boolean;
+        vaultId?: string;
+      }) => Promise<any>;
 
       // Note lifecycle tracking (for file watcher)
       // Phase 3: Removed noteOpened, noteClosed, and expectNoteWrite

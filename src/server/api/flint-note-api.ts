@@ -463,6 +463,16 @@ export class FlintNoteApi {
       options.enforceRequiredFields ?? false
     );
 
+    // Check if note type has default review mode enabled
+    const { noteTypeManager, reviewManager } = await this.getVaultContext(
+      options.vaultId
+    );
+    const noteTypeDesc = await noteTypeManager.getNoteTypeDescription(options.type);
+    if (noteTypeDesc.default_review_mode) {
+      // Enable review for this note
+      await reviewManager.enableReview(noteInfo.id);
+    }
+
     // Return note info with warnings if any
     return validationWarnings ? { ...noteInfo, validationWarnings } : noteInfo;
   }
@@ -693,8 +703,44 @@ export class FlintNoteApi {
    */
   async moveNote(args: MoveNoteArgs & { vault_id: string }): Promise<MoveNoteResult> {
     this.ensureInitialized();
-    const { noteManager } = await this.getVaultContext(args.vault_id);
-    return await noteManager.moveNote(args.noteId, args.newType, args.contentHash);
+    const { noteManager, noteTypeManager, reviewManager } = await this.getVaultContext(
+      args.vault_id
+    );
+
+    // Check if review was enabled before the move (to preserve it)
+    const wasReviewEnabled = await reviewManager.isReviewEnabled(args.noteId);
+    let reviewItemBeforeMove: import('../core/review-manager.js').ReviewItem | null = null;
+    if (wasReviewEnabled) {
+      // Save the review state before moving
+      reviewItemBeforeMove = await reviewManager.getReviewItem(args.noteId);
+    }
+
+    const result = await noteManager.moveNote(
+      args.noteId,
+      args.newType,
+      args.contentHash
+    );
+
+    // Restore review state if it was enabled before, or enable if target type has default review mode
+    const noteTypeDesc = await noteTypeManager.getNoteTypeDescription(args.newType);
+    if (wasReviewEnabled && reviewItemBeforeMove) {
+      // Restore the review item with the same state
+      await reviewManager.enableReview(result.new_id, {
+        nextReview: reviewItemBeforeMove.nextReview,
+        reviewCount: reviewItemBeforeMove.reviewCount,
+        reviewHistory: reviewItemBeforeMove.reviewHistory
+          ? JSON.stringify(reviewItemBeforeMove.reviewHistory)
+          : null
+      });
+    } else if (wasReviewEnabled) {
+      // Fallback: just enable review
+      await reviewManager.enableReview(result.new_id);
+    } else if (noteTypeDesc.default_review_mode) {
+      // Enable review for this note since target type has default review mode
+      await reviewManager.enableReview(result.new_id);
+    }
+
+    return result;
   }
 
   // Note Type Operations
@@ -757,7 +803,8 @@ export class FlintNoteApi {
       metadata_schema: desc.metadataSchema,
       content_hash: desc.content_hash,
       icon: desc.icon,
-      suggestions_config: desc.suggestions_config
+      suggestions_config: desc.suggestions_config,
+      default_review_mode: desc.default_review_mode
     };
   }
 
@@ -2633,6 +2680,19 @@ export class FlintNoteApi {
     );
 
     return suggestionService.updateNoteTypeSuggestionConfig(noteType, config);
+  }
+
+  /**
+   * Update the default review mode setting for a note type
+   */
+  async updateNoteTypeDefaultReviewMode(
+    vaultId: string,
+    noteType: string,
+    defaultReviewMode: boolean
+  ): Promise<void> {
+    this.ensureInitialized();
+    const { noteTypeManager } = await this.getVaultContext(vaultId);
+    return noteTypeManager.updateNoteTypeDefaultReviewMode(noteType, defaultReviewMode);
   }
 
   /**

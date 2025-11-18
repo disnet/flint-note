@@ -1027,6 +1027,37 @@ app.whenReady().then(async () => {
     }
   );
 
+  ipcMain.handle(
+    'note:updateDefaultReviewMode',
+    async (
+      _event,
+      params: {
+        noteType: string;
+        defaultReviewMode: boolean;
+        vaultId?: string;
+      }
+    ) => {
+      if (!noteService) {
+        throw new Error('Note service not available');
+      }
+      let vaultId = params.vaultId;
+      if (!vaultId) {
+        const currentVault = await noteService.getCurrentVault();
+        if (!currentVault) {
+          throw new Error('No vault available');
+        }
+        vaultId = currentVault.id;
+      }
+
+      const api = noteService.getFlintNoteApi();
+      return await api.updateNoteTypeDefaultReviewMode(
+        vaultId,
+        params.noteType,
+        params.defaultReviewMode
+      );
+    }
+  );
+
   // Note type operations
   ipcMain.handle('list-note-types', async (_event, params?: { vaultId: string }) => {
     if (!noteService) {

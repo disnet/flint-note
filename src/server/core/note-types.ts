@@ -46,6 +46,7 @@ export interface NoteTypeDescription {
   content_hash: string;
   icon?: string;
   suggestions_config?: import('../types/index.js').NoteTypeSuggestionConfig;
+  default_review_mode?: boolean;
 }
 
 export interface NoteTypeListItem {
@@ -331,7 +332,8 @@ export class NoteTypeManager {
             metadataSchema: schema,
             content_hash: row.content_hash || '',
             icon: row.icon || undefined,
-            suggestions_config: suggestionsConfig
+            suggestions_config: suggestionsConfig,
+            default_review_mode: row.default_review_mode === 1
           };
         }
       }
@@ -1109,6 +1111,35 @@ export class NoteTypeManager {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       throw new Error(`Failed to update note type '${typeName}': ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Update the default review mode setting for a note type
+   */
+  async updateNoteTypeDefaultReviewMode(
+    typeName: string,
+    defaultReviewMode: boolean
+  ): Promise<void> {
+    try {
+      if (!this.dbManager) {
+        throw new Error('Database manager not available');
+      }
+
+      const db = await this.dbManager.connect();
+      const vaultId = this.workspace.rootPath;
+
+      await db.run(
+        `UPDATE note_type_descriptions
+         SET default_review_mode = ?, updated_at = CURRENT_TIMESTAMP
+         WHERE vault_id = ? AND type_name = ?`,
+        [defaultReviewMode ? 1 : 0, vaultId, typeName]
+      );
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      throw new Error(
+        `Failed to update default review mode for note type '${typeName}': ${errorMessage}`
+      );
     }
   }
 }

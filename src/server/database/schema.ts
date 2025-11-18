@@ -593,6 +593,7 @@ export interface NoteTypeDescriptionRow {
   content_hash: string | null;
   icon: string | null;
   suggestions_config: string | null;
+  default_review_mode: number | null; // SQLite boolean (0 or 1)
   created_at: string;
   updated_at: string;
 }

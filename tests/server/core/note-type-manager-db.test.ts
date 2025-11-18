@@ -566,4 +566,114 @@ describe('NoteTypeManager with Database Storage', () => {
       expect(parsedSchema.fields[0].name).toBe('mood');
     });
   });
+
+  describe('updateNoteTypeDefaultReviewMode', () => {
+    beforeEach(async () => {
+      // Create directory for note type
+      await fs.mkdir(path.join(testVaultPath, 'note'), { recursive: true });
+
+      await db.run(
+        `INSERT INTO note_type_descriptions
+         (id, vault_id, type_name, purpose, agent_instructions, metadata_schema, content_hash, default_review_mode)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          'type-001',
+          vaultId,
+          'note',
+          'General notes',
+          '[]',
+          JSON.stringify({ fields: [] }),
+          'hash',
+          0
+        ]
+      );
+    });
+
+    it('should update default_review_mode to true', async () => {
+      await noteTypeManager.updateNoteTypeDefaultReviewMode('note', true);
+
+      const result = await db.get<NoteTypeDescriptionRow>(
+        'SELECT * FROM note_type_descriptions WHERE vault_id = ? AND type_name = ?',
+        [vaultId, 'note']
+      );
+
+      expect(result?.default_review_mode).toBe(1);
+    });
+
+    it('should update default_review_mode to false', async () => {
+      // First set to true
+      await db.run(
+        'UPDATE note_type_descriptions SET default_review_mode = ? WHERE vault_id = ? AND type_name = ?',
+        [1, vaultId, 'note']
+      );
+
+      // Then update to false
+      await noteTypeManager.updateNoteTypeDefaultReviewMode('note', false);
+
+      const result = await db.get<NoteTypeDescriptionRow>(
+        'SELECT * FROM note_type_descriptions WHERE vault_id = ? AND type_name = ?',
+        [vaultId, 'note']
+      );
+
+      expect(result?.default_review_mode).toBe(0);
+    });
+
+    it('should update the updated_at timestamp', async () => {
+      const beforeUpdate = await db.get<NoteTypeDescriptionRow>(
+        'SELECT updated_at FROM note_type_descriptions WHERE vault_id = ? AND type_name = ?',
+        [vaultId, 'note']
+      );
+
+      // Wait to ensure timestamp changes (SQLite uses second precision)
+      await new Promise((resolve) => setTimeout(resolve, 1100));
+
+      await noteTypeManager.updateNoteTypeDefaultReviewMode('note', true);
+
+      const afterUpdate = await db.get<NoteTypeDescriptionRow>(
+        'SELECT updated_at FROM note_type_descriptions WHERE vault_id = ? AND type_name = ?',
+        [vaultId, 'note']
+      );
+
+      expect(afterUpdate?.updated_at).not.toBe(beforeUpdate?.updated_at);
+    });
+  });
+
+  describe('getNoteTypeDescription with default_review_mode', () => {
+    beforeEach(async () => {
+      await fs.mkdir(path.join(testVaultPath, 'task'), { recursive: true });
+
+      await db.run(
+        `INSERT INTO note_type_descriptions
+         (id, vault_id, type_name, purpose, agent_instructions, metadata_schema, content_hash, default_review_mode)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          'type-002',
+          vaultId,
+          'task',
+          'Task tracking',
+          '[]',
+          JSON.stringify({ fields: [] }),
+          'hash',
+          1
+        ]
+      );
+    });
+
+    it('should return default_review_mode as true when set to 1', async () => {
+      const description = await noteTypeManager.getNoteTypeDescription('task');
+
+      expect(description.default_review_mode).toBe(true);
+    });
+
+    it('should return default_review_mode as false when set to 0', async () => {
+      await db.run(
+        'UPDATE note_type_descriptions SET default_review_mode = ? WHERE vault_id = ? AND type_name = ?',
+        [0, vaultId, 'task']
+      );
+
+      const description = await noteTypeManager.getNoteTypeDescription('task');
+
+      expect(description.default_review_mode).toBe(false);
+    });
+  });
 });

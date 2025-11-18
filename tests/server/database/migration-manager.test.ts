@@ -394,7 +394,7 @@ This is test note ${i}`;
       // Verify migration result
       expect(result.migrated).toBe(true);
       expect(result.fromVersion).toBe('1.1.0');
-      expect(result.toVersion).toBe('2.10.0');
+      expect(result.toVersion).toBe('2.11.0');
       expect(result.executedMigrations).toContain('2.0.0');
       expect(result.executedMigrations).toContain('2.0.1');
       expect(result.executedMigrations).toContain('2.1.0');
@@ -407,6 +407,7 @@ This is test note ${i}`;
       expect(result.executedMigrations).toContain('2.8.0');
       expect(result.executedMigrations).toContain('2.9.0');
       expect(result.executedMigrations).toContain('2.10.0');
+      expect(result.executedMigrations).toContain('2.11.0');
 
       // Verify database state
       await verifyMigration(originalNotes);
@@ -657,7 +658,7 @@ This is test note ${i}`;
 
       // Run migration again (with current version)
       const result = await DatabaseMigrationManager.checkAndMigrate(
-        '2.10.0',
+        '2.11.0',
         dbManager as unknown as DatabaseManager,
         workspacePath
       );
@@ -1976,7 +1977,7 @@ metadata:
         );
 
         expect(result.migrated).toBe(true);
-        expect(result.toVersion).toBe('2.10.0');
+        expect(result.toVersion).toBe('2.11.0');
 
         // Verify file content was updated to ID-based
         const updatedContent = await fs.readFile(sourceNotePath, 'utf-8');
@@ -2447,6 +2448,145 @@ metadata:
         await fs.rm(workspacePath, { recursive: true, force: true });
         await fs.unlink(testDbPath).catch(() => {});
       }
+    });
+  });
+
+  describe('v2.11.0 migration', () => {
+    it('should add default_review_mode column to note_type_descriptions table', async () => {
+      const db = await dbManager.connect();
+
+      // Create note_type_descriptions table without default_review_mode (v2.10.0 schema)
+      await db.run(`
+        CREATE TABLE note_type_descriptions (
+          id TEXT PRIMARY KEY,
+          vault_id TEXT NOT NULL,
+          type_name TEXT NOT NULL,
+          purpose TEXT,
+          agent_instructions TEXT,
+          metadata_schema TEXT,
+          content_hash TEXT,
+          icon TEXT,
+          suggestions_config TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(vault_id, type_name)
+        )
+      `);
+
+      // Insert a test note type
+      await db.run(
+        `INSERT INTO note_type_descriptions (id, vault_id, type_name, purpose)
+         VALUES (?, ?, ?, ?)`,
+        ['type-1', workspacePath, 'note', 'General notes']
+      );
+
+      // Set version to 2.10.0
+      await db.run(
+        `CREATE TABLE IF NOT EXISTS schema_version (version TEXT PRIMARY KEY, applied_at TEXT)`
+      );
+      await db.run(`INSERT INTO schema_version (version, applied_at) VALUES (?, ?)`, [
+        '2.10.0',
+        new Date().toISOString()
+      ]);
+
+      // Run migration
+      await DatabaseMigrationManager.checkAndMigrate(
+        '2.10.0',
+        dbManager as unknown as DatabaseManager,
+        workspacePath
+      );
+
+      // Verify default_review_mode column was added
+      const columns = await db.all<{ name: string }>(
+        "SELECT name FROM pragma_table_info('note_type_descriptions')"
+      );
+
+      const columnNames = columns.map((c) => c.name);
+      expect(columnNames).toContain('default_review_mode');
+
+      // Verify existing note types have default value of 0
+      const noteType = await db.get<{ default_review_mode: number }>(
+        'SELECT default_review_mode FROM note_type_descriptions WHERE id = ?',
+        ['type-1']
+      );
+
+      expect(noteType?.default_review_mode).toBe(0);
+    });
+
+    it('should be idempotent when run multiple times', async () => {
+      const db = await dbManager.connect();
+
+      // Create note_type_descriptions table without default_review_mode
+      await db.run(`
+        CREATE TABLE note_type_descriptions (
+          id TEXT PRIMARY KEY,
+          vault_id TEXT NOT NULL,
+          type_name TEXT NOT NULL,
+          purpose TEXT,
+          agent_instructions TEXT,
+          metadata_schema TEXT,
+          content_hash TEXT,
+          icon TEXT,
+          suggestions_config TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(vault_id, type_name)
+        )
+      `);
+
+      await db.run(
+        `CREATE TABLE IF NOT EXISTS schema_version (version TEXT PRIMARY KEY, applied_at TEXT)`
+      );
+      await db.run(`INSERT INTO schema_version (version, applied_at) VALUES (?, ?)`, [
+        '2.10.0',
+        new Date().toISOString()
+      ]);
+
+      // Run migration first time
+      await DatabaseMigrationManager.checkAndMigrate(
+        '2.10.0',
+        dbManager as unknown as DatabaseManager,
+        workspacePath
+      );
+
+      // Run migration second time (should not error)
+      await DatabaseMigrationManager.checkAndMigrate(
+        '2.11.0',
+        dbManager as unknown as DatabaseManager,
+        workspacePath
+      );
+
+      // Verify column still exists and only one instance
+      const columns = await db.all<{ name: string }>(
+        "SELECT name FROM pragma_table_info('note_type_descriptions')"
+      );
+
+      const defaultReviewModeColumns = columns.filter(
+        (c) => c.name === 'default_review_mode'
+      );
+      expect(defaultReviewModeColumns).toHaveLength(1);
+    });
+
+    it('should skip migration if note_type_descriptions table does not exist', async () => {
+      const db = await dbManager.connect();
+
+      await db.run(
+        `CREATE TABLE IF NOT EXISTS schema_version (version TEXT PRIMARY KEY, applied_at TEXT)`
+      );
+      await db.run(`INSERT INTO schema_version (version, applied_at) VALUES (?, ?)`, [
+        '2.10.0',
+        new Date().toISOString()
+      ]);
+
+      // Run migration without creating note_type_descriptions table
+      // Should not error
+      await expect(
+        DatabaseMigrationManager.checkAndMigrate(
+          '2.10.0',
+          dbManager as unknown as DatabaseManager,
+          workspacePath
+        )
+      ).resolves.toBeDefined();
     });
   });
 });
