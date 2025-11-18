@@ -65,7 +65,11 @@ export class ToolService {
       get_note_type_details: this.getNoteTypeDetailsTool,
       create_note_type: this.createNoteTypeTool,
       update_note_type: this.updateNoteTypeTool,
-      delete_note_type: this.deleteNoteTypeTool
+      delete_note_type: this.deleteNoteTypeTool,
+      // Review management tools
+      enable_review: this.enableReviewTool,
+      disable_review: this.disableReviewTool,
+      is_review_enabled: this.isReviewEnabledTool
     };
 
     // Add todo plan management tool if available
@@ -1692,6 +1696,219 @@ export class ToolService {
           success: false,
           error: 'DELETE_NOTE_TYPE_FAILED',
           message: `Failed to delete note type: ${errorMessage}`
+        };
+      }
+    }
+  });
+
+  // Review Management Tools
+  private enableReviewTool = tool({
+    description:
+      'Enable spaced repetition review for a note. This adds the note to the review system and schedules it for periodic review sessions. The note will appear in review queues and can be practiced using AI-generated prompts.',
+    inputSchema: z.object({
+      noteId: z
+        .string()
+        .describe(
+          'Note ID or identifier to enable review for. Examples: "note-id-123" or "concept/Spaced Repetition"'
+        )
+    }),
+    execute: async ({ noteId }) => {
+      if (!this.noteService) {
+        return {
+          success: false,
+          error: 'Note service not available',
+          message: 'Note service not initialized'
+        };
+      }
+
+      try {
+        const flintApi = this.noteService.getFlintNoteApi();
+        const currentVault = await this.noteService.getCurrentVault();
+
+        if (!currentVault) {
+          return {
+            success: false,
+            error: 'NO_ACTIVE_VAULT',
+            message: 'No active vault available'
+          };
+        }
+
+        const result = await flintApi.enableReview({
+          noteId,
+          vaultId: currentVault.id
+        });
+
+        return {
+          success: true,
+          data: {
+            reviewItemId: result.id,
+            noteId: result.noteId,
+            nextReview: result.nextReview
+          },
+          message: `Enabled review for note: ${noteId}. Next review: ${result.nextReview}`
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+
+        if (
+          errorMessage.includes('not found') ||
+          errorMessage.includes('does not exist')
+        ) {
+          return {
+            success: false,
+            error: 'NOTE_NOT_FOUND',
+            message: `Note not found: ${noteId}`
+          };
+        }
+
+        if (errorMessage.includes('already enabled')) {
+          return {
+            success: false,
+            error: 'REVIEW_ALREADY_ENABLED',
+            message: `Review is already enabled for note: ${noteId}`
+          };
+        }
+
+        return {
+          success: false,
+          error: 'ENABLE_REVIEW_FAILED',
+          message: `Failed to enable review: ${errorMessage}`
+        };
+      }
+    }
+  });
+
+  private disableReviewTool = tool({
+    description:
+      'Disable spaced repetition review for a note. This removes the note from the review system, deletes its review history, and stops it from appearing in review queues. Use this when a note is no longer relevant for spaced repetition practice.',
+    inputSchema: z.object({
+      noteId: z
+        .string()
+        .describe(
+          'Note ID or identifier to disable review for. Examples: "note-id-123" or "concept/Spaced Repetition"'
+        )
+    }),
+    execute: async ({ noteId }) => {
+      if (!this.noteService) {
+        return {
+          success: false,
+          error: 'Note service not available',
+          message: 'Note service not initialized'
+        };
+      }
+
+      try {
+        const flintApi = this.noteService.getFlintNoteApi();
+        const currentVault = await this.noteService.getCurrentVault();
+
+        if (!currentVault) {
+          return {
+            success: false,
+            error: 'NO_ACTIVE_VAULT',
+            message: 'No active vault available'
+          };
+        }
+
+        await flintApi.disableReview({
+          noteId,
+          vaultId: currentVault.id
+        });
+
+        return {
+          success: true,
+          data: { noteId },
+          message: `Disabled review for note: ${noteId}`
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+
+        if (
+          errorMessage.includes('not found') ||
+          errorMessage.includes('does not exist')
+        ) {
+          return {
+            success: false,
+            error: 'NOTE_NOT_FOUND',
+            message: `Note not found: ${noteId}`
+          };
+        }
+
+        if (errorMessage.includes('not enabled')) {
+          return {
+            success: false,
+            error: 'REVIEW_NOT_ENABLED',
+            message: `Review is not enabled for note: ${noteId}`
+          };
+        }
+
+        return {
+          success: false,
+          error: 'DISABLE_REVIEW_FAILED',
+          message: `Failed to disable review: ${errorMessage}`
+        };
+      }
+    }
+  });
+
+  private isReviewEnabledTool = tool({
+    description:
+      'Check if spaced repetition review is enabled for a note. Returns true if the note is in the review system, false otherwise. Use this before enabling/disabling review to check current status.',
+    inputSchema: z.object({
+      noteId: z
+        .string()
+        .describe(
+          'Note ID or identifier to check. Examples: "note-id-123" or "concept/Spaced Repetition"'
+        )
+    }),
+    execute: async ({ noteId }) => {
+      if (!this.noteService) {
+        return {
+          success: false,
+          error: 'Note service not available',
+          message: 'Note service not initialized'
+        };
+      }
+
+      try {
+        const flintApi = this.noteService.getFlintNoteApi();
+        const currentVault = await this.noteService.getCurrentVault();
+
+        if (!currentVault) {
+          return {
+            success: false,
+            error: 'NO_ACTIVE_VAULT',
+            message: 'No active vault available'
+          };
+        }
+
+        const enabled = await flintApi.isReviewEnabled({
+          noteId,
+          vaultId: currentVault.id
+        });
+
+        return {
+          success: true,
+          data: { enabled },
+          message: `Review is ${enabled ? 'enabled' : 'disabled'} for note: ${noteId}`
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+
+        if (
+          errorMessage.includes('not found') ||
+          errorMessage.includes('does not exist')
+        ) {
+          return {
+            success: false,
+            error: 'NOTE_NOT_FOUND',
+            message: `Note not found: ${noteId}`
+          };
+        }
+
+        return {
+          success: false,
+          error: 'CHECK_REVIEW_FAILED',
+          message: `Failed to check review status: ${errorMessage}`
         };
       }
     }
