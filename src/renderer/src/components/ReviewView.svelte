@@ -525,6 +525,8 @@
    * Complete the session and show summary
    */
   function completeSession(): void {
+    // Clear saved session since we're done
+    reviewStore.clearSavedSession();
     sessionState = 'complete';
   }
 
@@ -532,6 +534,8 @@
    * Return to dashboard and reload stats
    */
   function backToDashboard(): void {
+    // Ensure saved session is cleared when returning to dashboard
+    reviewStore.clearSavedSession();
     sessionState = 'idle';
     notesToReview = [];
     currentNoteIndex = 0;
