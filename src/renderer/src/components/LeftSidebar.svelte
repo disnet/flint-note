@@ -111,6 +111,7 @@
 <div
   class="left-sidebar"
   class:visible={sidebarState.leftSidebar.visible}
+  class:resizing={localWidth !== null}
   style="--sidebar-width: {currentWidth}px"
 >
   <ResizeHandle side="left" onResize={handleResize} minWidth={200} maxWidth={600} />
@@ -144,12 +145,28 @@
     min-width: var(--sidebar-width);
     flex-shrink: 0;
     overflow: hidden;
+    transition:
+      width 0.2s ease-out,
+      min-width 0.2s ease-out;
+  }
+
+  .left-sidebar.resizing {
+    transition: none;
   }
 
   .left-sidebar:not(.visible) {
     width: 0;
     min-width: 0;
-    border-right: none;
+    border-right: 1px solid transparent;
+  }
+
+  .left-sidebar .sidebar-inner {
+    opacity: 1;
+    transition: opacity 0.15s ease-out;
+  }
+
+  .left-sidebar:not(.visible) .sidebar-inner {
+    opacity: 0;
   }
 
   .sidebar-inner {

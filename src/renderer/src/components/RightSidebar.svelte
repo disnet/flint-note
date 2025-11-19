@@ -54,6 +54,7 @@
 <div
   class="right-sidebar"
   class:visible={sidebarState.rightSidebar.visible}
+  class:resizing={localWidth !== null}
   style="--sidebar-width: {currentWidth}px"
 >
   <ResizeHandle side="right" onResize={handleResize} minWidth={300} maxWidth={800} />
@@ -94,12 +95,28 @@
     min-width: var(--sidebar-width);
     flex-shrink: 0;
     overflow: hidden;
+    transition:
+      width 0.2s ease-out,
+      min-width 0.2s ease-out;
+  }
+
+  .right-sidebar.resizing {
+    transition: none;
   }
 
   .right-sidebar:not(.visible) {
     width: 0;
     min-width: 0;
-    border-left: none;
+    border-left: 1px solid transparent;
+  }
+
+  .right-sidebar .sidebar-inner {
+    opacity: 1;
+    transition: opacity 0.15s ease-out;
+  }
+
+  .right-sidebar:not(.visible) .sidebar-inner {
+    opacity: 0;
   }
 
   .sidebar-inner {
