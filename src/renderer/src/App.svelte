@@ -364,6 +364,19 @@
         event.preventDefault();
         // Settings are now handled via system views in left sidebar
       }
+
+      // Ctrl/Cmd + 1-9 to switch workspaces
+      if ((event.ctrlKey || event.metaKey) && !event.shiftKey && !event.altKey) {
+        const num = parseInt(event.key);
+        if (num >= 1 && num <= 9) {
+          const workspaces = workspacesStore.workspaces;
+          const targetIndex = num - 1;
+          if (targetIndex < workspaces.length) {
+            event.preventDefault();
+            workspacesStore.switchWorkspace(workspaces[targetIndex].id);
+          }
+        }
+      }
     }
 
     document.addEventListener('keydown', handleKeyDown);

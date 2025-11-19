@@ -11,6 +11,13 @@
 
   let isPopoverOpen = $state(false);
 
+  function getWorkspaceTooltip(name: string, index: number): string {
+    if (index < 9) {
+      return `${name} (Ctrl+${index + 1})`;
+    }
+    return name;
+  }
+
   function handleWorkspaceClick(workspaceId: string): void {
     if (workspacesStore.activeWorkspaceId === workspaceId) {
       // Clicking active workspace opens popover
@@ -32,15 +39,15 @@
 
 <div class="workspace-bar" class:shadow={showShadow}>
   <div class="workspace-icons">
-    {#each workspacesStore.workspaces as workspace (workspace.id)}
+    {#each workspacesStore.workspaces as workspace, index (workspace.id)}
       <button
         class="workspace-icon"
         class:active={workspacesStore.activeWorkspaceId === workspace.id}
         onclick={() => handleWorkspaceClick(workspace.id)}
-        title={workspace.name}
         style={workspace.color ? `--workspace-color: ${workspace.color}` : ''}
       >
         {workspace.icon}
+        <span class="tooltip">{getWorkspaceTooltip(workspace.name, index)}</span>
       </button>
     {/each}
     <button
@@ -95,6 +102,7 @@
   }
 
   .workspace-icon {
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -103,20 +111,52 @@
     padding: 0;
     border: 2px solid transparent;
     border-radius: 0.5rem;
-    background: var(--bg-primary);
+    background: transparent;
     font-size: 1rem;
     cursor: pointer;
     transition: all 0.2s ease;
   }
 
   .workspace-icon:hover {
-    background: var(--bg-tertiary);
+    background: var(--bg-primary);
     border-color: var(--border-medium);
   }
 
   .workspace-icon.active {
     border-color: var(--accent-primary);
     background: var(--accent-light);
+  }
+
+  .tooltip {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 0.375rem 0.5rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-medium);
+    border-radius: 0.375rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    margin-bottom: 0.5rem;
+    z-index: 1000;
+  }
+
+  /* Prevent tooltip from clipping at left edge */
+  .workspace-icon:first-child .tooltip {
+    left: 0;
+    transform: translateX(0);
+  }
+
+  .workspace-icon:hover .tooltip {
+    opacity: 1;
+    visibility: visible;
   }
 
   .add-workspace-button {

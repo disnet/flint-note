@@ -78,15 +78,6 @@
     isCreatingWorkspace = false;
   }
 
-  function startEditingWorkspace(event: Event): void {
-    event.stopPropagation();
-    if (!activeWorkspace) return;
-    isEditingWorkspace = true;
-    editWorkspaceName = activeWorkspace.name;
-    editWorkspaceIcon = activeWorkspace.icon;
-    editWorkspaceColor = activeWorkspace.color || '';
-  }
-
   async function saveWorkspaceEdit(): Promise<void> {
     if (!activeWorkspace || !editWorkspaceName.trim()) return;
 
@@ -101,23 +92,6 @@
 
   function cancelEditWorkspace(): void {
     isEditingWorkspace = false;
-  }
-
-  async function deleteWorkspace(): Promise<void> {
-    if (!activeWorkspace) return;
-
-    if (workspacesStore.workspaces.length <= 1) {
-      alert('Cannot delete the last workspace');
-      return;
-    }
-
-    const confirmed = confirm(
-      `Delete workspace "${activeWorkspace.name}"? This will remove all pinned notes and tabs from this workspace.`
-    );
-    if (!confirmed) return;
-
-    await workspacesStore.deleteWorkspace(activeWorkspace.id);
-    onClose();
   }
 
   function handleEmojiSelect(emoji: string): void {
@@ -259,17 +233,27 @@
     </div>
   {:else}
     <!-- Main popover menu -->
-    {#if activeWorkspace}
-      <div class="workspace-header">
-        <span class="workspace-icon-large">{activeWorkspace.icon}</span>
-        <span class="workspace-name">{activeWorkspace.name}</span>
-      </div>
-    {/if}
-
     <div class="popover-section">
+      <button class="action-button" onclick={(e) => startCreatingWorkspace(e)}>
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <rect x="3" y="3" width="7" height="7" rx="1"></rect>
+          <rect x="14" y="3" width="7" height="7" rx="1"></rect>
+          <rect x="3" y="14" width="7" height="7" rx="1"></rect>
+          <rect x="14" y="14" width="7" height="7" rx="1"></rect>
+        </svg>
+        New Workspace
+      </button>
+
       <div class="create-note-button-group">
         <button
-          class="new-note-button main-button"
+          class="action-button main-button"
           onclick={() => handleCreateNote()}
           disabled={!onCreateNote}
         >
@@ -281,13 +265,15 @@
             stroke="currentColor"
             stroke-width="2"
           >
-            <line x1="12" y1="5" x2="12" y2="19"></line>
-            <line x1="5" y1="12" x2="19" y2="12"></line>
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
           </svg>
           New Note
         </button>
         <button
-          class="new-note-button dropdown-button"
+          class="dropdown-button"
           onclick={toggleTypeDropdown}
           disabled={!onCreateNote}
           aria-label="Choose note type"
@@ -325,58 +311,6 @@
         </div>
       {/if}
     </div>
-
-    <div class="popover-divider"></div>
-
-    <div class="popover-section workspace-actions">
-      <button class="action-button" onclick={(e) => startEditingWorkspace(e)}>
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
-        </svg>
-        Edit
-      </button>
-      <button
-        class="action-button danger"
-        onclick={deleteWorkspace}
-        disabled={workspacesStore.workspaces.length <= 1}
-      >
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <polyline points="3 6 5 6 21 6"></polyline>
-          <path
-            d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
-          ></path>
-        </svg>
-        Delete
-      </button>
-      <button class="action-button" onclick={(e) => startCreatingWorkspace(e)}>
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <line x1="12" y1="5" x2="12" y2="19"></line>
-          <line x1="5" y1="12" x2="19" y2="12"></line>
-        </svg>
-        New Workspace
-      </button>
-    </div>
   {/if}
 </div>
 
@@ -396,31 +330,11 @@
     overflow-y: auto;
   }
 
-  .workspace-header {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem;
-    border-bottom: 1px solid var(--border-light);
-  }
-
-  .workspace-icon-large {
-    font-size: 1.25rem;
-  }
-
-  .workspace-name {
-    font-weight: 500;
-    color: var(--text-primary);
-  }
-
   .popover-section {
     padding: 0.5rem;
-  }
-
-  .popover-divider {
-    height: 1px;
-    background: var(--border-light);
-    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
   }
 
   .create-note-button-group {
@@ -428,45 +342,37 @@
     width: 100%;
   }
 
-  .new-note-button {
+  .action-button.main-button {
+    flex: 1;
+    border-radius: 0.5rem 0 0 0.5rem;
+    justify-content: flex-start;
+    padding-left: 0.75rem;
+  }
+
+  .dropdown-button {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1rem;
-    border: 1px solid var(--border-medium);
+    padding: 0.5rem 0.625rem;
+    border: none;
+    border-radius: 0 0.5rem 0.5rem 0;
     background: var(--bg-secondary);
-    color: var(--text-primary);
-    font-size: 0.875rem;
-    font-weight: 500;
+    color: var(--text-secondary);
     cursor: pointer;
     transition: all 0.2s ease;
   }
 
-  .new-note-button.main-button {
-    flex: 1;
-    border-radius: 0.5rem 0 0 0.5rem;
-    border-right: none;
-  }
-
-  .new-note-button.dropdown-button {
-    padding: 0.5rem;
-    border-radius: 0 0.5rem 0.5rem 0;
-    min-width: 2rem;
-    width: 2rem;
-  }
-
-  .new-note-button:hover:not(:disabled) {
+  .dropdown-button:hover:not(:disabled) {
     background: var(--bg-tertiary);
-    border-color: var(--accent-primary);
+    color: var(--text-primary);
   }
 
-  .new-note-button:disabled {
+  .dropdown-button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
   }
 
-  .new-note-button .rotated {
+  .dropdown-button .rotated {
     transform: rotate(180deg);
   }
 
@@ -525,30 +431,27 @@
     font-size: 0.75rem;
   }
 
-  .workspace-actions {
-    display: flex;
-    gap: 0.25rem;
-  }
-
   .action-button {
-    flex: 1;
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 0.25rem;
-    padding: 0.5rem;
+    gap: 0.5rem;
+    padding: 0.625rem 0.75rem;
     border: none;
-    border-radius: 0.375rem;
-    background: transparent;
-    color: var(--text-secondary);
-    font-size: 0.75rem;
+    border-radius: 0.5rem;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 0.8125rem;
+    font-weight: 500;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.15s ease;
   }
 
   .action-button:hover:not(:disabled) {
-    background: var(--bg-secondary);
-    color: var(--text-primary);
+    background: var(--bg-tertiary);
+  }
+
+  .action-button:active:not(:disabled) {
+    transform: scale(0.98);
   }
 
   .action-button:disabled {
@@ -556,9 +459,12 @@
     cursor: not-allowed;
   }
 
-  .action-button.danger:hover:not(:disabled) {
-    background: var(--error-bg, rgba(239, 68, 68, 0.1));
-    color: var(--error-text, #ef4444);
+  .action-button svg {
+    opacity: 0.7;
+  }
+
+  .action-button:hover:not(:disabled) svg {
+    opacity: 1;
   }
 
   /* Form styles */
