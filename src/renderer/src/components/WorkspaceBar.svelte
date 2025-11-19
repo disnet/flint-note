@@ -10,6 +10,12 @@
   let { onCreateNote, showShadow = false }: Props = $props();
 
   let isPopoverOpen = $state(false);
+  let editingWorkspaceId = $state<string | null>(null);
+
+  // Context menu state
+  let contextMenuOpen = $state(false);
+  let contextMenuWorkspaceId = $state<string | null>(null);
+  let contextMenuPosition = $state({ x: 0, y: 0 });
 
   function getWorkspaceTooltip(name: string, index: number): string {
     if (index < 9) {
@@ -34,8 +40,78 @@
 
   function closePopover(): void {
     isPopoverOpen = false;
+    editingWorkspaceId = null;
+  }
+
+  function handleContextMenu(event: MouseEvent, workspaceId: string): void {
+    event.preventDefault();
+    contextMenuWorkspaceId = workspaceId;
+
+    // Calculate position with viewport bounds checking
+    const menuWidth = 120;
+    const menuHeight = 80;
+    const padding = 8;
+
+    let x = event.clientX;
+    let y = event.clientY;
+
+    // Adjust if menu would overflow right edge
+    if (x + menuWidth + padding > window.innerWidth) {
+      x = window.innerWidth - menuWidth - padding;
+    }
+
+    // Adjust if menu would overflow bottom edge
+    if (y + menuHeight + padding > window.innerHeight) {
+      y = window.innerHeight - menuHeight - padding;
+    }
+
+    // Ensure menu doesn't go off left or top edge
+    x = Math.max(padding, x);
+    y = Math.max(padding, y);
+
+    contextMenuPosition = { x, y };
+    contextMenuOpen = true;
+  }
+
+  function closeContextMenu(): void {
+    contextMenuOpen = false;
+    contextMenuWorkspaceId = null;
+  }
+
+  function handleEditWorkspace(): void {
+    if (contextMenuWorkspaceId) {
+      editingWorkspaceId = contextMenuWorkspaceId;
+      isPopoverOpen = true;
+    }
+    closeContextMenu();
+  }
+
+  async function handleDeleteWorkspace(): Promise<void> {
+    if (contextMenuWorkspaceId) {
+      await workspacesStore.deleteWorkspace(contextMenuWorkspaceId);
+    }
+    closeContextMenu();
+  }
+
+  // Close context menu on click outside
+  function handleGlobalClick(event: MouseEvent): void {
+    if (contextMenuOpen) {
+      const target = event.target as Element;
+      if (!target.closest('.context-menu')) {
+        closeContextMenu();
+      }
+    }
+  }
+
+  // Close context menu on escape
+  function handleKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape' && contextMenuOpen) {
+      closeContextMenu();
+    }
   }
 </script>
+
+<svelte:window onclick={handleGlobalClick} onkeydown={handleKeydown} />
 
 <div class="workspace-bar" class:shadow={showShadow}>
   <div class="workspace-icons">
@@ -44,6 +120,7 @@
         class="workspace-icon"
         class:active={workspacesStore.activeWorkspaceId === workspace.id}
         onclick={() => handleWorkspaceClick(workspace.id)}
+        oncontextmenu={(e) => handleContextMenu(e, workspace.id)}
         style={workspace.color ? `--workspace-color: ${workspace.color}` : ''}
       >
         {workspace.icon}
@@ -70,7 +147,51 @@
   </div>
 
   {#if isPopoverOpen}
-    <WorkspacePopover {onCreateNote} onClose={closePopover} />
+    <WorkspacePopover {onCreateNote} onClose={closePopover} {editingWorkspaceId} />
+  {/if}
+
+  {#if contextMenuOpen}
+    <div
+      class="context-menu"
+      style="left: {contextMenuPosition.x}px; top: {contextMenuPosition.y}px;"
+      role="menu"
+    >
+      <button class="context-menu-item" onclick={handleEditWorkspace} role="menuitem">
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+        </svg>
+        Edit
+      </button>
+      <button
+        class="context-menu-item danger"
+        onclick={handleDeleteWorkspace}
+        role="menuitem"
+        disabled={workspacesStore.workspaces.length <= 1}
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <polyline points="3 6 5 6 21 6"></polyline>
+          <path
+            d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+          ></path>
+        </svg>
+        Delete
+      </button>
+    </div>
   {/if}
 </div>
 
@@ -179,5 +300,55 @@
     background: var(--bg-tertiary);
     border-color: var(--accent-primary);
     color: var(--accent-primary);
+  }
+
+  /* Context menu styles */
+  .context-menu {
+    position: fixed;
+    z-index: 1000;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-medium);
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 12px var(--shadow-medium);
+    padding: 0.25rem;
+    min-width: 120px;
+  }
+
+  .context-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: none;
+    border-radius: 0.375rem;
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 0.8125rem;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+    text-align: left;
+  }
+
+  .context-menu-item:hover {
+    background: var(--bg-secondary);
+  }
+
+  .context-menu-item.danger {
+    color: var(--error);
+  }
+
+  .context-menu-item.danger:hover:not(:disabled) {
+    background: rgba(239, 68, 68, 0.1);
+  }
+
+  .context-menu-item:disabled {
+    color: var(--text-tertiary);
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+  .context-menu-item svg {
+    opacity: 0.7;
   }
 </style>

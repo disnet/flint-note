@@ -6,14 +6,20 @@
   interface Props {
     onCreateNote?: (noteType?: string) => void;
     onClose: () => void;
+    editingWorkspaceId?: string | null;
   }
 
-  let { onCreateNote, onClose }: Props = $props();
+  let { onCreateNote, onClose, editingWorkspaceId = null }: Props = $props();
 
   // State
   let isTypeDropdownOpen = $state(false);
   let isCreatingWorkspace = $state(false);
   let isEditingWorkspace = $state(false);
+
+  // Note type search
+  let noteTypeSearchQuery = $state('');
+  let noteTypeSearchInputRef = $state<HTMLInputElement | null>(null);
+  let highlightedNoteTypeIndex = $state(0);
 
   // New workspace form
   let newWorkspaceName = $state('');
@@ -27,17 +33,31 @@
 
   const activeWorkspace = $derived(workspacesStore.activeWorkspace);
 
-  // Color options for appearance
-  const colorOptions = [
-    { value: '', label: 'Default' },
-    { value: '#ef4444', label: 'Red' },
-    { value: '#f97316', label: 'Orange' },
-    { value: '#eab308', label: 'Yellow' },
-    { value: '#22c55e', label: 'Green' },
-    { value: '#3b82f6', label: 'Blue' },
-    { value: '#8b5cf6', label: 'Purple' },
-    { value: '#ec4899', label: 'Pink' }
-  ];
+  // Filtered note types based on search
+  const filteredNoteTypes = $derived.by(() => {
+    if (!noteTypeSearchQuery.trim()) {
+      return notesStore.noteTypes;
+    }
+    const query = noteTypeSearchQuery.toLowerCase().trim();
+    return notesStore.noteTypes.filter((noteType) =>
+      noteType.name.toLowerCase().includes(query)
+    );
+  });
+
+  // Initialize edit mode if editingWorkspaceId is provided
+  $effect(() => {
+    if (editingWorkspaceId) {
+      const workspace = workspacesStore.workspaces.find(
+        (w) => w.id === editingWorkspaceId
+      );
+      if (workspace) {
+        editWorkspaceName = workspace.name;
+        editWorkspaceIcon = workspace.icon;
+        editWorkspaceColor = workspace.color || '';
+        isEditingWorkspace = true;
+      }
+    }
+  });
 
   function handleCreateNote(noteType?: string): void {
     if (onCreateNote) {
@@ -48,7 +68,60 @@
 
   function toggleTypeDropdown(): void {
     isTypeDropdownOpen = !isTypeDropdownOpen;
+    if (isTypeDropdownOpen) {
+      noteTypeSearchQuery = '';
+      highlightedNoteTypeIndex = 0;
+      setTimeout(() => {
+        noteTypeSearchInputRef?.focus();
+      }, 50);
+    }
   }
+
+  function handleNoteTypeKeyDown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      isTypeDropdownOpen = false;
+      noteTypeSearchQuery = '';
+      highlightedNoteTypeIndex = 0;
+      event.preventDefault();
+      return;
+    }
+
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      const noteType = filteredNoteTypes[highlightedNoteTypeIndex];
+      if (noteType) {
+        handleCreateNote(noteType.name);
+      }
+      return;
+    }
+
+    // Arrow Down or Ctrl+N
+    if (event.key === 'ArrowDown' || (event.ctrlKey && event.key === 'n')) {
+      event.preventDefault();
+      if (filteredNoteTypes.length > 0) {
+        highlightedNoteTypeIndex =
+          (highlightedNoteTypeIndex + 1) % filteredNoteTypes.length;
+      }
+      return;
+    }
+
+    // Arrow Up or Ctrl+P
+    if (event.key === 'ArrowUp' || (event.ctrlKey && event.key === 'p')) {
+      event.preventDefault();
+      if (filteredNoteTypes.length > 0) {
+        highlightedNoteTypeIndex =
+          (highlightedNoteTypeIndex - 1 + filteredNoteTypes.length) %
+          filteredNoteTypes.length;
+      }
+      return;
+    }
+  }
+
+  // Reset highlighted index when search query changes
+  $effect(() => {
+    noteTypeSearchQuery;
+    highlightedNoteTypeIndex = 0;
+  });
 
   function startCreatingWorkspace(event: Event): void {
     event.stopPropagation();
@@ -79,15 +152,17 @@
   }
 
   async function saveWorkspaceEdit(): Promise<void> {
-    if (!activeWorkspace || !editWorkspaceName.trim()) return;
+    const workspaceId = editingWorkspaceId || activeWorkspace?.id;
+    if (!workspaceId || !editWorkspaceName.trim()) return;
 
-    await workspacesStore.updateWorkspace(activeWorkspace.id, {
+    await workspacesStore.updateWorkspace(workspaceId, {
       name: editWorkspaceName.trim(),
       icon: editWorkspaceIcon,
       color: editWorkspaceColor || undefined
     });
 
     isEditingWorkspace = false;
+    onClose();
   }
 
   function cancelEditWorkspace(): void {
@@ -162,19 +237,6 @@
         />
       </div>
 
-      <div class="form-row">
-        <label for="new-workspace-color">Color</label>
-        <select
-          id="new-workspace-color"
-          bind:value={newWorkspaceColor}
-          class="form-select"
-        >
-          {#each colorOptions as option (option.value)}
-            <option value={option.value}>{option.label}</option>
-          {/each}
-        </select>
-      </div>
-
       <div class="form-actions">
         <button class="btn-secondary" onclick={cancelCreateWorkspace}>Cancel</button>
         <button
@@ -205,19 +267,6 @@
           placeholder="Workspace name"
           class="form-input"
         />
-      </div>
-
-      <div class="form-row">
-        <label for="edit-workspace-color">Color</label>
-        <select
-          id="edit-workspace-color"
-          bind:value={editWorkspaceColor}
-          class="form-select"
-        >
-          {#each colorOptions as option (option.value)}
-            <option value={option.value}>{option.label}</option>
-          {/each}
-        </select>
       </div>
 
       <div class="form-actions">
@@ -294,20 +343,62 @@
 
       {#if isTypeDropdownOpen && notesStore.noteTypes.length > 0}
         <div class="note-type-list">
-          {#each notesStore.noteTypes as noteType (noteType.name)}
-            <button
-              class="note-type-option"
-              onclick={() => handleCreateNote(noteType.name)}
-            >
-              <div class="note-type-main">
-                {#if noteType.icon}
-                  <span class="note-type-icon">{noteType.icon}</span>
-                {/if}
-                <span class="note-type-name">{noteType.name}</span>
-              </div>
-              <span class="note-type-count">({noteType.count})</span>
-            </button>
-          {/each}
+          <div class="search-container">
+            <input
+              bind:this={noteTypeSearchInputRef}
+              type="text"
+              class="search-input"
+              placeholder="Search types..."
+              bind:value={noteTypeSearchQuery}
+              onclick={(e) => e.stopPropagation()}
+              onkeydown={handleNoteTypeKeyDown}
+            />
+            {#if noteTypeSearchQuery}
+              <button
+                class="clear-search"
+                onclick={(e) => {
+                  e.stopPropagation();
+                  noteTypeSearchQuery = '';
+                  noteTypeSearchInputRef?.focus();
+                }}
+                aria-label="Clear search"
+                type="button"
+              >
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M18 6 6 18" />
+                  <path d="m6 6 12 12" />
+                </svg>
+              </button>
+            {/if}
+          </div>
+          {#if filteredNoteTypes.length === 0}
+            <div class="note-type-option no-results">No matching types</div>
+          {:else}
+            {#each filteredNoteTypes as noteType, index (noteType.name)}
+              <button
+                class="note-type-option"
+                class:highlighted={index === highlightedNoteTypeIndex}
+                onclick={() => handleCreateNote(noteType.name)}
+              >
+                <div class="note-type-main">
+                  {#if noteType.icon}
+                    <span class="note-type-icon">{noteType.icon}</span>
+                  {/if}
+                  <span class="note-type-name">{noteType.name}</span>
+                </div>
+                <span class="note-type-count">({noteType.count})</span>
+              </button>
+            {/each}
+          {/if}
         </div>
       {/if}
     </div>
@@ -384,6 +475,74 @@
     overflow-y: auto;
   }
 
+  .note-type-list::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .note-type-list::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .note-type-list::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 3px;
+    transition: background-color 0.2s ease;
+  }
+
+  .note-type-list::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+  }
+
+  .search-container {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--bg-primary);
+    padding: 0.5rem;
+    border-bottom: 1px solid var(--border-light);
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .search-input {
+    flex: 1;
+    padding: 0.375rem 0.5rem;
+    border: 1px solid var(--border-light);
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    outline: none;
+    transition: border-color 0.2s ease;
+  }
+
+  .search-input::placeholder {
+    color: var(--text-tertiary);
+  }
+
+  .search-input:focus {
+    border-color: var(--accent-primary);
+  }
+
+  .clear-search {
+    padding: 0.25rem;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: 0.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+  }
+
+  .clear-search:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
   .note-type-option {
     width: 100%;
     display: flex;
@@ -399,8 +558,20 @@
     text-align: left;
   }
 
-  .note-type-option:hover {
+  .note-type-option:hover,
+  .note-type-option.highlighted {
     background: var(--bg-secondary);
+  }
+
+  .note-type-option.no-results {
+    color: var(--text-secondary);
+    cursor: default;
+    font-style: italic;
+    justify-content: center;
+  }
+
+  .note-type-option.no-results:hover {
+    background: transparent;
   }
 
   .note-type-option:first-child {
@@ -492,8 +663,7 @@
     color: var(--text-secondary);
   }
 
-  .form-input,
-  .form-select {
+  .form-input {
     padding: 0.5rem;
     border: 1px solid var(--border-light);
     border-radius: 0.375rem;
@@ -502,8 +672,7 @@
     font-size: 0.875rem;
   }
 
-  .form-input:focus,
-  .form-select:focus {
+  .form-input:focus {
     outline: none;
     border-color: var(--accent-primary);
   }
