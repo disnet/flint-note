@@ -2345,10 +2345,10 @@ export class NoteManager {
    */
   async archiveNote(identifier: string): Promise<ArchiveNoteResult> {
     try {
-      const { notePath } = await this.parseNoteIdentifier(identifier);
-
-      // Read current note
+      // Read current note first - this uses database-first with file system fallback
+      // and properly handles both immutable IDs (n-xxx) and old-style identifiers
       const note = await this.getNote(identifier);
+      const notePath = note.path;
 
       // Update metadata to add archived: true
       const timestamp = new Date().toISOString();
@@ -2390,10 +2390,10 @@ export class NoteManager {
    */
   async unarchiveNote(identifier: string): Promise<ArchiveNoteResult> {
     try {
-      const { notePath } = await this.parseNoteIdentifier(identifier);
-
-      // Read current note
+      // Read current note first - this uses database-first with file system fallback
+      // and properly handles both immutable IDs (n-xxx) and old-style identifiers
       const note = await this.getNote(identifier);
+      const notePath = note.path;
 
       // Update metadata to remove archived flag (set to undefined to remove from frontmatter)
       const timestamp = new Date().toISOString();
