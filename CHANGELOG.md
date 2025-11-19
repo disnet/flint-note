@@ -4,6 +4,25 @@ All notable changes to the Flint application will be documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.11.2]
+
+### Added
+
+- Ability to rearrange workspaces by dragging
+- Move notes to different workspaces via context menu
+- Context menu for rendered links in notes
+- Agent message drafts are now saved automatically
+- Changelog item added to Help menu
+
+### Changed
+
+- Removed word highlighting in editor
+- Arrow indicator for submit button
+
+### Fixed
+
+- Fixed review query mismatch issue
+
 ## [0.11.1]
 
 ### Added
