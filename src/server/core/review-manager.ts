@@ -565,7 +565,12 @@ export class ReviewManager {
     const currentSession = await this.getCurrentSessionNumber();
     const config = await this.getReviewConfig();
 
-    // Due this session (excluding archived notes)
+    // Calculate minimum date for minIntervalDays filter (same as getNotesForReview)
+    const minDate = new Date();
+    minDate.setDate(minDate.getDate() - config.minIntervalDays);
+    const minDateStr = minDate.toISOString();
+
+    // Due this session (excluding archived notes and recently reviewed notes)
     const dueThisSessionCount = await this.db.get<{ count: number }>(
       `SELECT COUNT(*) as count FROM review_items ri
        INNER JOIN notes n ON ri.note_id = n.id
@@ -573,8 +578,9 @@ export class ReviewManager {
          AND ri.enabled = 1
          AND ri.status = 'active'
          AND ri.next_session_number <= ?
+         AND (ri.last_reviewed IS NULL OR ri.last_reviewed < ?)
          AND (n.archived = 0 OR n.archived IS NULL)`,
-      [this.vaultId, currentSession]
+      [this.vaultId, currentSession, minDateStr]
     );
 
     // Cap due count by session size to show actual notes that will be reviewed
