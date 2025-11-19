@@ -52,7 +52,10 @@
     isCollapsed = !isCollapsed;
   }
 
-  async function handleNoteClick(event: MouseEvent, note: NoteMetadata): Promise<void> {
+  async function handleNoteClick(
+    event: MouseEvent | KeyboardEvent,
+    note: NoteMetadata
+  ): Promise<void> {
     // Don't allow clicks while notes are loading
     if (!isNotesReady) {
       console.log('[PinnedNotes] Click blocked - notes are not ready');
@@ -109,6 +112,43 @@
     // Adjust if menu would overflow right edge
     if (x + menuWidth + padding > window.innerWidth) {
       x = window.innerWidth - menuWidth - padding;
+    }
+
+    // Adjust if menu would overflow bottom edge
+    if (y + menuHeight + padding > window.innerHeight) {
+      y = window.innerHeight - menuHeight - padding;
+    }
+
+    // Ensure menu doesn't go off left or top edge
+    x = Math.max(padding, x);
+    y = Math.max(padding, y);
+
+    contextMenuPosition = { x, y };
+    contextMenuOpen = true;
+  }
+
+  async function handleMenuButtonClick(event: MouseEvent, noteId: string): Promise<void> {
+    event.stopPropagation();
+    contextMenuNoteId = noteId;
+
+    // Capture button position before any async operations
+    const button = event.currentTarget as HTMLElement;
+    const rect = button.getBoundingClientRect();
+
+    // Check review status for this note
+    contextMenuReviewEnabled = await reviewStore.isReviewEnabled(noteId);
+
+    // Position menu relative to the button
+    const menuWidth = 180;
+    const menuHeight = 160;
+    const padding = 8;
+
+    let x = rect.right;
+    let y = rect.top;
+
+    // Adjust if menu would overflow right edge
+    if (x + menuWidth + padding > window.innerWidth) {
+      x = rect.left - menuWidth;
     }
 
     // Adjust if menu would overflow bottom edge
@@ -358,7 +398,7 @@
   {#if !isCollapsed}
     <div class="pinned-list">
       {#each pinnedNotes as note, index (note.id)}
-        <button
+        <div
           class="pinned-item"
           class:active={activeNote?.id === note.id}
           class:loading={!isNotesReady}
@@ -379,6 +419,9 @@
           onclick={(e) => handleNoteClick(e, note)}
           oncontextmenu={(e) => handleContextMenu(e, note.id)}
           title={!isNotesReady ? 'Loading...' : note.title}
+          role="button"
+          tabindex={!isNotesReady ? -1 : 0}
+          onkeydown={(e) => e.key === 'Enter' && handleNoteClick(e, note)}
         >
           <div class="note-icon">
             {#if getNoteIcon(note).type === 'emoji'}
@@ -395,7 +438,18 @@
               <span class="untitled-text">Untitled</span>
             {/if}
           </span>
-        </button>
+          <button
+            class="menu-button"
+            onclick={(e) => handleMenuButtonClick(e, note.id)}
+            aria-label="More options"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <circle cx="5" cy="12" r="2"></circle>
+              <circle cx="12" cy="12" r="2"></circle>
+              <circle cx="19" cy="12" r="2"></circle>
+            </svg>
+          </button>
+        </div>
       {:else}
         <div
           class="empty-state"
@@ -447,37 +501,6 @@
     style="left: {contextMenuPosition.x}px; top: {contextMenuPosition.y}px;"
     role="menu"
   >
-    <button class="context-menu-item" onclick={handleOpenInShelf} role="menuitem">
-      <svg
-        width="14"
-        height="14"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-      >
-        <rect x="3" y="3" width="7" height="7"></rect>
-        <rect x="14" y="3" width="7" height="7"></rect>
-        <rect x="14" y="14" width="7" height="7"></rect>
-        <rect x="3" y="14" width="7" height="7"></rect>
-      </svg>
-      Open in Shelf
-    </button>
-    <button class="context-menu-item" onclick={handleArchive} role="menuitem">
-      <svg
-        width="14"
-        height="14"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-      >
-        <polyline points="21 8 21 21 3 21 3 8"></polyline>
-        <rect x="1" y="3" width="22" height="5"></rect>
-        <line x1="10" y1="12" x2="14" y2="12"></line>
-      </svg>
-      Archive
-    </button>
     <button class="context-menu-item" onclick={handleUnpin} role="menuitem">
       <svg
         width="14"
@@ -493,7 +516,25 @@
         ></path>
         <line x1="2" y1="2" x2="22" y2="22"></line>
       </svg>
-      Unpin
+      <span class="menu-item-label">Unpin</span>
+      <span class="menu-item-shortcut">⌘⇧P</span>
+    </button>
+    <button class="context-menu-item" onclick={handleOpenInShelf} role="menuitem">
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <rect x="3" y="3" width="7" height="7"></rect>
+        <rect x="14" y="3" width="7" height="7"></rect>
+        <rect x="14" y="14" width="7" height="7"></rect>
+        <rect x="3" y="14" width="7" height="7"></rect>
+      </svg>
+      <span class="menu-item-label">Open in Shelf</span>
+      <span class="menu-item-shortcut">⇧Click</span>
     </button>
     <button class="context-menu-item" onclick={handleToggleReview} role="menuitem">
       <svg
@@ -508,6 +549,21 @@
         <polyline points="22 4 12 14.01 9 11.01"></polyline>
       </svg>
       {contextMenuReviewEnabled ? 'Disable Review' : 'Enable Review'}
+    </button>
+    <button class="context-menu-item" onclick={handleArchive} role="menuitem">
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <polyline points="21 8 21 21 3 21 3 8"></polyline>
+        <rect x="1" y="3" width="22" height="5"></rect>
+        <line x1="10" y1="12" x2="14" y2="12"></line>
+      </svg>
+      Archive
     </button>
   </div>
 {/if}
@@ -621,6 +677,29 @@
     font-style: italic;
   }
 
+  .menu-button {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 0.25rem;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-radius: 0.25rem;
+    flex-shrink: 0;
+  }
+
+  .pinned-item:hover .menu-button {
+    display: flex;
+  }
+
+  .menu-button:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+  }
+
   .empty-state {
     padding: 1.5rem 1.25rem;
     text-align: center;
@@ -717,5 +796,15 @@
   .context-menu-item svg {
     flex-shrink: 0;
     color: var(--text-secondary);
+  }
+
+  .menu-item-label {
+    flex: 1;
+  }
+
+  .menu-item-shortcut {
+    font-size: 0.6875rem;
+    color: var(--text-muted);
+    margin-left: auto;
   }
 </style>

@@ -194,6 +194,43 @@
     contextMenuOpen = true;
   }
 
+  async function handleMenuButtonClick(event: MouseEvent, noteId: string): Promise<void> {
+    event.stopPropagation();
+    contextMenuNoteId = noteId;
+
+    // Capture button position before any async operations
+    const button = event.currentTarget as HTMLElement;
+    const rect = button.getBoundingClientRect();
+
+    // Check review status for this note
+    contextMenuReviewEnabled = await reviewStore.isReviewEnabled(noteId);
+
+    // Position menu relative to the button
+    const menuWidth = 180;
+    const menuHeight = 160;
+    const padding = 8;
+
+    let x = rect.right;
+    let y = rect.top;
+
+    // Adjust if menu would overflow right edge
+    if (x + menuWidth + padding > window.innerWidth) {
+      x = rect.left - menuWidth;
+    }
+
+    // Adjust if menu would overflow bottom edge
+    if (y + menuHeight + padding > window.innerHeight) {
+      y = window.innerHeight - menuHeight - padding;
+    }
+
+    // Ensure menu doesn't go off left or top edge
+    x = Math.max(padding, x);
+    y = Math.max(padding, y);
+
+    contextMenuPosition = { x, y };
+    contextMenuOpen = true;
+  }
+
   function closeContextMenu(): void {
     contextMenuOpen = false;
     contextMenuNoteId = null;
@@ -475,6 +512,17 @@
             </span>
           </div>
           <button
+            class="menu-button"
+            onclick={(e) => handleMenuButtonClick(e, tab.noteId)}
+            aria-label="More options"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <circle cx="5" cy="12" r="2"></circle>
+              <circle cx="12" cy="12" r="2"></circle>
+              <circle cx="19" cy="12" r="2"></circle>
+            </svg>
+          </button>
+          <button
             class="close-tab"
             onclick={(e) => handleCloseTab(tab.id, e)}
             aria-label="Close tab"
@@ -507,6 +555,23 @@
     style="left: {contextMenuPosition.x}px; top: {contextMenuPosition.y}px;"
     role="menu"
   >
+    <button class="context-menu-item" onclick={handlePin} role="menuitem">
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <path d="M12 17v5"></path>
+        <path
+          d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"
+        ></path>
+      </svg>
+      <span class="menu-item-label">Pin</span>
+      <span class="menu-item-shortcut">⌘⇧P</span>
+    </button>
     <button class="context-menu-item" onclick={handleOpenInShelf} role="menuitem">
       <svg
         width="14"
@@ -521,7 +586,22 @@
         <rect x="14" y="14" width="7" height="7"></rect>
         <rect x="3" y="14" width="7" height="7"></rect>
       </svg>
-      Open in Shelf
+      <span class="menu-item-label">Open in Shelf</span>
+      <span class="menu-item-shortcut">⇧Click</span>
+    </button>
+    <button class="context-menu-item" onclick={handleToggleReview} role="menuitem">
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+      </svg>
+      {contextMenuReviewEnabled ? 'Disable Review' : 'Enable Review'}
     </button>
     <button class="context-menu-item" onclick={handleArchive} role="menuitem">
       <svg
@@ -537,36 +617,6 @@
         <line x1="10" y1="12" x2="14" y2="12"></line>
       </svg>
       Archive
-    </button>
-    <button class="context-menu-item" onclick={handlePin} role="menuitem">
-      <svg
-        width="14"
-        height="14"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-      >
-        <path d="M12 17v5"></path>
-        <path
-          d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"
-        ></path>
-      </svg>
-      Pin
-    </button>
-    <button class="context-menu-item" onclick={handleToggleReview} role="menuitem">
-      <svg
-        width="14"
-        height="14"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-      >
-        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-        <polyline points="22 4 12 14.01 9 11.01"></polyline>
-      </svg>
-      {contextMenuReviewEnabled ? 'Disable Review' : 'Enable Review'}
     </button>
   </div>
 {/if}
@@ -698,6 +748,7 @@
     font-style: italic;
   }
 
+  .menu-button,
   .close-tab {
     display: none;
     align-items: center;
@@ -712,10 +763,12 @@
     flex-shrink: 0;
   }
 
+  .tab-item:hover .menu-button,
   .tab-item:hover .close-tab {
     display: flex;
   }
 
+  .menu-button:hover,
   .close-tab:hover {
     background: var(--bg-tertiary);
     color: var(--text-primary);
@@ -786,5 +839,15 @@
   .context-menu-item svg {
     flex-shrink: 0;
     color: var(--text-secondary);
+  }
+
+  .menu-item-label {
+    flex: 1;
+  }
+
+  .menu-item-shortcut {
+    font-size: 0.6875rem;
+    color: var(--text-muted);
+    margin-left: auto;
   }
 </style>
