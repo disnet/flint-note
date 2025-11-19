@@ -738,6 +738,7 @@
   .search-container {
     position: sticky;
     top: 0;
+    z-index: 1;
     background: var(--bg-primary);
     padding: 0.5rem;
     border-bottom: 1px solid var(--border-light);
