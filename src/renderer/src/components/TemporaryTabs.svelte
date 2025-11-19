@@ -29,6 +29,10 @@
   let contextMenuNoteId = $state<string | null>(null);
   let contextMenuPosition = $state({ x: 0, y: 0 });
   let contextMenuReviewEnabled = $state(false);
+  let moveSubmenuOpen = $state(false);
+
+  // Get all workspaces for move menu (current one will be shown as disabled)
+  let allWorkspaces = $derived(workspacesStore.workspaces);
 
   // Check if notes are still loading
   let isNotesLoading = $derived(notesStore.loading);
@@ -234,6 +238,7 @@
   function closeContextMenu(): void {
     contextMenuOpen = false;
     contextMenuNoteId = null;
+    moveSubmenuOpen = false;
   }
 
   function handleGlobalClick(event: MouseEvent): void {
@@ -327,6 +332,18 @@
       }
     } catch (error) {
       console.error('[TemporaryTabs] Failed to toggle review:', error);
+    }
+
+    closeContextMenu();
+  }
+
+  async function handleMoveToWorkspace(workspaceId: string): Promise<void> {
+    if (!contextMenuNoteId) return;
+
+    try {
+      await workspacesStore.moveNoteToWorkspace(contextMenuNoteId, workspaceId);
+    } catch (error) {
+      console.error('[TemporaryTabs] Failed to move note to workspace:', error);
     }
 
     closeContextMenu();
@@ -589,6 +606,61 @@
       <span class="menu-item-label">Open in Shelf</span>
       <span class="menu-item-shortcut">⇧Click</span>
     </button>
+    {#if allWorkspaces.length > 1}
+      <div
+        class="context-menu-item submenu-trigger"
+        role="menuitem"
+        tabindex="0"
+        onmouseenter={() => (moveSubmenuOpen = true)}
+        onmouseleave={() => (moveSubmenuOpen = false)}
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+          <polyline points="10 17 15 12 10 7"></polyline>
+          <line x1="15" y1="12" x2="3" y2="12"></line>
+        </svg>
+        <span class="menu-item-label">Move to Workspace</span>
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          class="submenu-arrow"
+        >
+          <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+        {#if moveSubmenuOpen}
+          <div class="submenu" role="menu">
+            {#each allWorkspaces as workspace (workspace.id)}
+              <button
+                class="context-menu-item"
+                class:disabled={workspace.id === workspacesStore.activeWorkspaceId}
+                onclick={() =>
+                  workspace.id !== workspacesStore.activeWorkspaceId &&
+                  handleMoveToWorkspace(workspace.id)}
+                role="menuitem"
+                disabled={workspace.id === workspacesStore.activeWorkspaceId}
+              >
+                <span class="workspace-icon">{workspace.icon}</span>
+                <span class="menu-item-label">{workspace.name}</span>
+                {#if workspace.id === workspacesStore.activeWorkspaceId}
+                  <span class="current-indicator">(current)</span>
+                {/if}
+              </button>
+            {/each}
+          </div>
+        {/if}
+      </div>
+    {/if}
     <button class="context-menu-item" onclick={handleToggleReview} role="menuitem">
       <svg
         width="14"
@@ -846,6 +918,51 @@
   }
 
   .menu-item-shortcut {
+    font-size: 0.6875rem;
+    color: var(--text-muted);
+    margin-left: auto;
+  }
+
+  /* Submenu styles */
+  .submenu-trigger {
+    position: relative;
+    cursor: pointer;
+  }
+
+  .submenu-arrow {
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+
+  .submenu {
+    position: absolute;
+    left: 100%;
+    top: 0;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-medium);
+    border-radius: 0.375rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    min-width: 140px;
+    padding: 0.25rem;
+    z-index: 1001;
+  }
+
+  .workspace-icon {
+    font-size: 14px;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+
+  .context-menu-item.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .context-menu-item.disabled:hover {
+    background: transparent;
+  }
+
+  .current-indicator {
     font-size: 0.6875rem;
     color: var(--text-muted);
     margin-left: auto;

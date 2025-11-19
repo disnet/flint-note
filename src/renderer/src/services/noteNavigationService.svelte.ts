@@ -120,6 +120,15 @@ class NoteNavigationService {
   }
 
   /**
+   * Refresh pinned notes tracking to match current state
+   * Call this after operations that modify pinned notes outside of normal pin/unpin flow
+   * (e.g., moving notes between workspaces)
+   */
+  refreshPinnedTracking(): void {
+    this.previousPinnedIds = workspacesStore.pinnedNotes.map((note) => note.id);
+  }
+
+  /**
    * Start vault switch - notify all stores
    */
   async startVaultSwitch(): Promise<void> {

@@ -195,6 +195,12 @@ class WorkspacesStore {
     this.state.activeWorkspaceId = workspaceId;
     this.activeTabId = null;
     await this.saveToStorage();
+
+    // Refresh navigation service's pinned tracking for the new workspace
+    const { noteNavigationService } = await import(
+      '../services/noteNavigationService.svelte'
+    );
+    noteNavigationService.refreshPinnedTracking();
   }
 
   async reorderWorkspaces(sourceIndex: number, targetIndex: number): Promise<void> {
@@ -381,6 +387,7 @@ class WorkspacesStore {
 
     const index = workspace.temporaryTabs.findIndex((tab) => tab.id === tabId);
     if (index !== -1) {
+      const removedTab = workspace.temporaryTabs[index];
       workspace.temporaryTabs.splice(index, 1);
 
       // Reassign order values
@@ -392,6 +399,12 @@ class WorkspacesStore {
       if (this.activeTabId === tabId) {
         this.activeTabId =
           workspace.temporaryTabs.length > 0 ? workspace.temporaryTabs[0].id : null;
+      }
+
+      // Clear the active note if it's the one being closed
+      const { activeNoteStore } = await import('./activeNoteStore.svelte');
+      if (activeNoteStore.activeNote?.id === removedTab.noteId) {
+        await activeNoteStore.clearActiveNote();
       }
     }
 
@@ -405,10 +418,22 @@ class WorkspacesStore {
     const workspace = this.activeWorkspace;
     if (!workspace) return;
 
+    // Check if active note is in the tabs being cleared
+    const { activeNoteStore } = await import('./activeNoteStore.svelte');
+    const activeNoteId = activeNoteStore.activeNote?.id;
+    const wasInTabs = activeNoteId
+      ? workspace.temporaryTabs.some((tab) => tab.noteId === activeNoteId)
+      : false;
+
     workspace.temporaryTabs = [];
     this.activeTabId = null;
     workspace.updatedAt = new Date().toISOString();
     await this.saveToStorage();
+
+    // Clear active note if it was in the cleared tabs
+    if (wasInTabs) {
+      await activeNoteStore.clearActiveNote();
+    }
   }
 
   async setActiveTab(tabId: string): Promise<void> {
@@ -925,6 +950,83 @@ class WorkspacesStore {
         }
       }
     }
+  }
+
+  // Move note to another workspace
+  async moveNoteToWorkspace(noteId: string, targetWorkspaceId: string): Promise<void> {
+    await this.ensureInitialized();
+
+    // Don't move to the same workspace
+    if (targetWorkspaceId === this.state.activeWorkspaceId) {
+      return;
+    }
+
+    const currentWorkspace = this.activeWorkspace;
+    const targetWorkspace = this.state.workspaces.find((w) => w.id === targetWorkspaceId);
+
+    if (!currentWorkspace || !targetWorkspace) {
+      console.warn('[workspacesStore] Cannot move note - workspace not found');
+      return;
+    }
+
+    // Remove from current workspace's pinned notes
+    const pinnedIndex = currentWorkspace.pinnedNotes.findIndex(
+      (note) => note.id === noteId
+    );
+    if (pinnedIndex !== -1) {
+      currentWorkspace.pinnedNotes.splice(pinnedIndex, 1);
+      // Reassign order values
+      currentWorkspace.pinnedNotes.forEach((note, i) => {
+        note.order = i;
+      });
+    }
+
+    // Remove from current workspace's temporary tabs
+    const tabIndex = currentWorkspace.temporaryTabs.findIndex(
+      (tab) => tab.noteId === noteId
+    );
+    if (tabIndex !== -1) {
+      const removedTab = currentWorkspace.temporaryTabs[tabIndex];
+      // Clear active tab if we're removing it
+      if (this.activeTabId === removedTab.id) {
+        this.activeTabId = null;
+      }
+      currentWorkspace.temporaryTabs.splice(tabIndex, 1);
+      // Reassign order values
+      currentWorkspace.temporaryTabs.forEach((tab, i) => {
+        tab.order = i;
+      });
+    }
+
+    currentWorkspace.updatedAt = new Date().toISOString();
+
+    // Add to target workspace as a temporary tab (always unpinned in destination)
+    // Check if it already exists in target workspace
+    const existsInTarget =
+      targetWorkspace.pinnedNotes.some((note) => note.id === noteId) ||
+      targetWorkspace.temporaryTabs.some((tab) => tab.noteId === noteId);
+
+    if (!existsInTarget) {
+      const newTab: TemporaryTab = {
+        id: `tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        noteId,
+        openedAt: new Date(),
+        lastAccessed: new Date(),
+        source: 'navigation',
+        order: targetWorkspace.temporaryTabs.length
+      };
+      targetWorkspace.temporaryTabs.push(newTab);
+      targetWorkspace.updatedAt = new Date().toISOString();
+    }
+
+    await this.saveToStorage();
+
+    // Refresh navigation service's pinned tracking to prevent the moved note
+    // from being re-added to tabs when navigating to another note
+    const { noteNavigationService } = await import(
+      '../services/noteNavigationService.svelte'
+    );
+    noteNavigationService.refreshPinnedTracking();
   }
 }
 
