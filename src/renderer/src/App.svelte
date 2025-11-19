@@ -134,6 +134,12 @@
           // Dispatch event for NoteEditor to handle
           document.dispatchEvent(new CustomEvent('menu-toggle-metadata'));
           break;
+        case 'toggle-agent':
+          setRightSidebarMode('ai');
+          break;
+        case 'toggle-shelf':
+          setRightSidebarMode('notes');
+          break;
         case 'toggle-pin':
           if (activeNoteStore.activeNote) {
             await workspacesStore.togglePin(activeNoteStore.activeNote.id);

@@ -236,6 +236,21 @@ export function createApplicationMenu(): Menu {
           }
         },
         { type: 'separator' },
+        {
+          label: 'Toggle Agent Panel',
+          accelerator: 'CmdOrCtrl+Shift+A',
+          click: (): void => {
+            sendToRenderer('menu-action', 'toggle-agent');
+          }
+        },
+        {
+          label: 'Toggle Notes Shelf',
+          accelerator: 'CmdOrCtrl+Shift+L',
+          click: (): void => {
+            sendToRenderer('menu-action', 'toggle-shelf');
+          }
+        },
+        { type: 'separator' },
         { role: 'resetZoom' },
         { role: 'zoomIn' },
         { role: 'zoomOut' },
