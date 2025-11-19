@@ -15,7 +15,7 @@
   import { notesStore } from './services/noteStore.svelte';
   import { modelStore } from './stores/modelStore.svelte';
   import { sidebarState } from './stores/sidebarState.svelte';
-  import { temporaryTabsStore } from './stores/temporaryTabsStore.svelte';
+  import { workspacesStore } from './stores/workspacesStore.svelte';
   import { unifiedChatStore } from './stores/unifiedChatStore.svelte';
   import { noteNavigationService } from './services/noteNavigationService.svelte';
   import { activeNoteStore } from './stores/activeNoteStore.svelte';
@@ -409,7 +409,7 @@
             noteId,
             title: note.title
           });
-          await temporaryTabsStore.addTab(noteId, 'navigation');
+          await workspacesStore.addTab(noteId, 'navigation');
         } else {
           console.warn('[App] Skipping unpinned note - not found in notes store:', {
             noteId,
@@ -804,7 +804,7 @@
         console.log('App.svelte: vault.initialNoteId =', vault.initialNoteId);
         if (vault.isNewVault && vault.initialNoteId) {
           console.log('App.svelte: Adding initial note to tabs:', vault.initialNoteId);
-          await temporaryTabsStore.addTutorialNoteTabs([vault.initialNoteId]);
+          await workspacesStore.addTutorialNoteTabs([vault.initialNoteId]);
           console.log('App.svelte: Initial note added to tabs');
         } else {
           console.log('App.svelte: NOT adding initial note - conditions not met');

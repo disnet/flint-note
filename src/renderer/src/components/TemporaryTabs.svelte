@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { temporaryTabsStore } from '../stores/temporaryTabsStore.svelte';
+  import { workspacesStore } from '../stores/workspacesStore.svelte';
   import { notesStore } from '../services/noteStore.svelte';
   import type { NoteMetadata } from '../services/noteStore.svelte';
   import {
@@ -27,11 +27,11 @@
   let isNotesLoading = $derived(notesStore.loading);
 
   // Check if tabs are ready to display (validated and hydrated)
-  let isTabsReady = $derived(temporaryTabsStore.isReady);
+  let isTabsReady = $derived(workspacesStore.isReady);
 
   // Hydrate tabs with metadata from notesStore
   let hydratedTabs = $derived(
-    temporaryTabsStore.tabs.map((tab) => {
+    workspacesStore.temporaryTabs.map((tab) => {
       const note = notesStore.allNotes.find((n) => n.id === tab.noteId);
       if (!note && !isNotesLoading && isTabsReady) {
         // Only warn if we're supposedly ready but still missing notes
@@ -44,7 +44,7 @@
           totalNotesInStore: notesStore.allNotes.length,
           availableNoteIds: notesStore.allNotes.map((n) => n.id).slice(0, 5),
           reactivityCheck: {
-            storeTabsLength: temporaryTabsStore.tabs.length,
+            storeTabsLength: workspacesStore.temporaryTabs.length,
             notesStoreLength: notesStore.allNotes.length,
             isNotesLoading,
             isTabsReady
@@ -108,9 +108,9 @@
       });
       onNoteSelect(note);
       // Find the tab ID that corresponds to this note ID
-      const tab = temporaryTabsStore.tabs.find((t) => t.noteId === noteId);
+      const tab = workspacesStore.temporaryTabs.find((t) => t.noteId === noteId);
       if (tab) {
-        await temporaryTabsStore.setActiveTab(tab.id);
+        await workspacesStore.setActiveTab(tab.id);
       }
     } else {
       console.error(
@@ -123,8 +123,11 @@
             noteTypes: notesStore.noteTypes,
             firstTenNoteIds: notesStore.allNotes.map((n) => n.id).slice(0, 10)
           },
-          tabInfo: temporaryTabsStore.tabs.find((t) => t.noteId === noteId),
-          allTabs: temporaryTabsStore.tabs.map((t) => ({ id: t.id, noteId: t.noteId }))
+          tabInfo: workspacesStore.temporaryTabs.find((t) => t.noteId === noteId),
+          allTabs: workspacesStore.temporaryTabs.map((t) => ({
+            id: t.id,
+            noteId: t.noteId
+          }))
         }
       );
 
@@ -143,11 +146,11 @@
 
   async function handleCloseTab(tabId: string, event: Event): Promise<void> {
     event.stopPropagation();
-    await temporaryTabsStore.removeTab(tabId);
+    await workspacesStore.removeTab(tabId);
   }
 
   async function handleClearAll(): Promise<void> {
-    await temporaryTabsStore.clearAllTabs();
+    await workspacesStore.clearAllTabs();
   }
 
   function truncateTitle(title: string, maxLength: number = 30): string {
@@ -225,11 +228,11 @@
 
     // Handle same-section reorder for temporary tabs
     if (type === 'temporary') {
-      const sourceIndex = temporaryTabsStore.tabs.findIndex((t) => t.id === id);
+      const sourceIndex = workspacesStore.temporaryTabs.findIndex((t) => t.id === id);
       if (sourceIndex !== -1) {
         const finalDropIndex = calculateDropIndex(targetIndex, position, sourceIndex);
         if (sourceIndex !== finalDropIndex) {
-          await temporaryTabsStore.reorderTabs(sourceIndex, finalDropIndex);
+          await workspacesStore.reorderTabs(sourceIndex, finalDropIndex);
         }
       }
     }
@@ -243,7 +246,7 @@
 
   // Auto-scroll to active tab when it changes
   $effect(() => {
-    const activeId = temporaryTabsStore.activeTabId;
+    const activeId = workspacesStore.currentActiveTabId;
     if (activeId && isTabsReady) {
       // Use setTimeout to ensure DOM has updated
       setTimeout(() => {
@@ -264,7 +267,7 @@
 <div class="temporary-tabs">
   <div class="tabs-header">
     <div class="separator"></div>
-    {#if temporaryTabsStore.tabs.length > 0 && isTabsReady}
+    {#if workspacesStore.temporaryTabs.length > 0 && isTabsReady}
       <button class="clear-all" onclick={handleClearAll}>
         <svg
           width="12"
@@ -293,7 +296,7 @@
       {#each hydratedTabs as tab, index (tab.id)}
         <div
           class="tab-item"
-          class:active={tab.id === temporaryTabsStore.activeTabId}
+          class:active={tab.id === workspacesStore.currentActiveTabId}
           class:loading={!isTabsReady}
           class:archived={tab.archived}
           class:dragging={dragState.draggedId === tab.id}

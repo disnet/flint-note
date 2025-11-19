@@ -6,7 +6,7 @@
   import type { Note } from '@/server/core/notes';
   import { getChatService } from '../services/chatService.js';
   import { wikilinkService } from '../services/wikilinkService.svelte.js';
-  import { pinnedNotesStore } from '../services/pinnedStore.svelte.js';
+  import { workspacesStore } from '../stores/workspacesStore.svelte.js';
   import { notesShelfStore } from '../stores/notesShelfStore.svelte.js';
   import { sidebarState } from '../stores/sidebarState.svelte.js';
   import { reviewStore } from '../stores/reviewStore.svelte.js';
@@ -408,7 +408,7 @@
   }
 
   async function handlePinToggle(): Promise<void> {
-    await pinnedNotesStore.togglePin(note.id);
+    await workspacesStore.togglePin(note.id);
   }
 
   async function handleAddToShelf(): Promise<void> {
@@ -587,7 +587,7 @@
         noteType={note.type}
         onTypeChange={handleTypeChange}
         disabled={doc.isSaving}
-        isPinned={pinnedNotesStore.isPinned(note.id)}
+        isPinned={workspacesStore.isPinned(note.id)}
         isOnShelf={notesShelfStore.isOnShelf(note.id)}
         {metadataExpanded}
         {previewMode}

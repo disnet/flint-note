@@ -1,6 +1,5 @@
 import type { NoteMetadata } from './noteStore.svelte';
-import { pinnedNotesStore } from './pinnedStore.svelte';
-import { temporaryTabsStore } from '../stores/temporaryTabsStore.svelte';
+import { workspacesStore } from '../stores/workspacesStore.svelte';
 import { navigationHistoryStore } from '../stores/navigationHistoryStore.svelte';
 import { activeNoteStore } from '../stores/activeNoteStore.svelte';
 
@@ -20,7 +19,7 @@ class NoteNavigationService {
 
   constructor() {
     // Initialize with current pinned notes
-    this.previousPinnedIds = pinnedNotesStore.notes.map((note) => note.id);
+    this.previousPinnedIds = workspacesStore.pinnedNotes.map((note) => note.id);
   }
 
   /**
@@ -47,15 +46,15 @@ class NoteNavigationService {
     // Clear system views if requested
     onSystemViewClear?.();
 
-    const isPinned = pinnedNotesStore.isPinned(note.id);
+    const isPinned = workspacesStore.isPinned(note.id);
 
     if (isPinned) {
       // Pinned note: clear recent list highlighting, don't add to recent list
-      await temporaryTabsStore.clearActiveTab();
+      await workspacesStore.clearActiveTab();
     } else {
       // Regular note: add to recent list
       console.log('[noteNavigationService] Adding note to temporary tabs:', note.id);
-      await temporaryTabsStore.addTab(note.id, source);
+      await workspacesStore.addTab(note.id, source);
     }
 
     // Add to navigation history (unless this is already a history navigation)
@@ -141,7 +140,7 @@ class NoteNavigationService {
     await activeNoteStore.endVaultSwitch();
     // Reinitialize with the new vault's pinned notes
     // This ensures future pin/unpin comparisons are within the same vault
-    this.previousPinnedIds = pinnedNotesStore.notes.map((note) => note.id);
+    this.previousPinnedIds = workspacesStore.pinnedNotes.map((note) => note.id);
   }
 
   /**
@@ -167,7 +166,7 @@ class NoteNavigationService {
    * Manually check for pinned notes changes (to be called periodically)
    */
   async checkPinnedNotesChanges(): Promise<void> {
-    await this.handlePinnedNotesChange(pinnedNotesStore.notes);
+    await this.handlePinnedNotesChange(workspacesStore.pinnedNotes);
   }
 
   /**
@@ -179,7 +178,7 @@ class NoteNavigationService {
     const currentPinnedIds = pinnedNotes.map((note) => note.id);
 
     // Remove newly pinned notes from recent list
-    await temporaryTabsStore.removeTabsByNoteIds(currentPinnedIds);
+    await workspacesStore.removeTabsByNoteIds(currentPinnedIds);
 
     // Find notes that were unpinned
     const unpinnedIds = this.previousPinnedIds.filter(

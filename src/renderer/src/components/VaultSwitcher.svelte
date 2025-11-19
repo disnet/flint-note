@@ -3,8 +3,7 @@
   import type { CreateVaultResult } from '@/server/api/types';
   import { getChatService } from '../services/chatService';
   import { messageBus } from '../services/messageBus.svelte';
-  import { pinnedNotesStore } from '../services/pinnedStore.svelte';
-  import { temporaryTabsStore } from '../stores/temporaryTabsStore.svelte';
+  import { workspacesStore } from '../stores/workspacesStore.svelte';
   import { activeNoteStore } from '../stores/activeNoteStore.svelte';
   import { cursorPositionStore } from '../services/cursorPositionStore.svelte';
   import { inboxStore } from '../stores/inboxStore.svelte';
@@ -64,7 +63,7 @@
       isLoading = true;
 
       // Start vault switch mode - this clears tabs and blocks new ones
-      await temporaryTabsStore.startVaultSwitch();
+      await workspacesStore.startVaultSwitch();
       await activeNoteStore.startVaultSwitch();
       await cursorPositionStore.startVaultSwitch();
       await noteNavigationService.startVaultSwitch();
@@ -103,10 +102,9 @@
         'notes'
       );
 
-      // Refresh pinned notes, temporary tabs, conversations, inbox, and daily view for the new vault
+      // Refresh workspaces, conversations, inbox, and daily view for the new vault
       // Note: unifiedChatStore refreshes automatically via vault.switched event subscription
-      await pinnedNotesStore.refreshForVault(vaultId);
-      await temporaryTabsStore.refreshForVault(vaultId);
+      await workspacesStore.refreshForVault(vaultId);
       await inboxStore.refresh(vaultId);
       await dailyViewStore.reinitialize();
       await cursorPositionStore.endVaultSwitch();
@@ -114,13 +112,13 @@
       await noteNavigationService.endVaultSwitch();
 
       // End vault switch mode
-      temporaryTabsStore.endVaultSwitch();
+      workspacesStore.endVaultSwitch();
 
       isDropdownOpen = false;
     } catch (error) {
       console.error('Failed to switch vault:', error);
       // Make sure we end vault switch mode even on error
-      temporaryTabsStore.endVaultSwitch();
+      workspacesStore.endVaultSwitch();
     } finally {
       isLoading = false;
     }
@@ -199,7 +197,7 @@
         // Only pin welcome note and tutorial notes for newly created vaults
         if (vaultInfo.isNewVault) {
           try {
-            await pinnedNotesStore.pinWelcomeNote();
+            await workspacesStore.pinWelcomeNote();
           } catch (error) {
             console.warn('Failed to pin onboarding notes:', error);
             // Non-blocking - don't fail the vault creation flow
@@ -212,12 +210,12 @@
                 'VaultSwitcher: Adding initial note from template:',
                 vaultInfo.initialNoteId
               );
-              await temporaryTabsStore.addTutorialNoteTabs([vaultInfo.initialNoteId]);
+              await workspacesStore.addTutorialNoteTabs([vaultInfo.initialNoteId]);
             } else {
               console.log(
                 'VaultSwitcher: No initial note from template, adding tutorial notes'
               );
-              await temporaryTabsStore.addTutorialNoteTabs();
+              await workspacesStore.addTutorialNoteTabs();
             }
           } catch (error) {
             console.warn('Failed to add tutorial notes to tabs:', error);
@@ -255,7 +253,7 @@
         // If there's another vault available, switch to it first
         if (nextVault?.id) {
           // Start vault switch mode - this clears tabs and blocks new ones
-          await temporaryTabsStore.startVaultSwitch();
+          await workspacesStore.startVaultSwitch();
           await activeNoteStore.startVaultSwitch();
           await noteNavigationService.startVaultSwitch();
 
@@ -286,15 +284,14 @@
 
           // Refresh stores for the new vault
           // Note: unifiedChatStore refreshes automatically via vault.switched event subscription
-          await pinnedNotesStore.refreshForVault(nextVault.id);
-          await temporaryTabsStore.refreshForVault(nextVault.id);
+          await workspacesStore.refreshForVault(nextVault.id);
           await inboxStore.refresh(nextVault.id);
           await dailyViewStore.reinitialize();
           await activeNoteStore.endVaultSwitch();
           await noteNavigationService.endVaultSwitch();
 
           // End vault switch mode
-          temporaryTabsStore.endVaultSwitch();
+          workspacesStore.endVaultSwitch();
         }
       }
 
@@ -308,7 +305,7 @@
     } catch (error) {
       console.error('Failed to archive vault:', error);
       // Make sure we end vault switch mode even on error
-      temporaryTabsStore.endVaultSwitch();
+      workspacesStore.endVaultSwitch();
       // Could show an error notification here
     } finally {
       isLoading = false;

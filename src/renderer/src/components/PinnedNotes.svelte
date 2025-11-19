@@ -1,6 +1,6 @@
 <script lang="ts">
   import { notesStore } from '../services/noteStore.svelte';
-  import { pinnedNotesStore } from '../services/pinnedStore.svelte';
+  import { workspacesStore } from '../stores/workspacesStore.svelte';
   import type { NoteMetadata } from '../services/noteStore.svelte';
   import {
     handleDragStart,
@@ -27,11 +27,11 @@
   const dragState = globalDragState;
 
   // Check if notes are ready (for consistency with TemporaryTabs)
-  let isNotesReady = $derived(!notesStore.loading);
+  let isNotesReady = $derived(!notesStore.loading && workspacesStore.isReady);
 
-  // Use $effect to update pinnedNotes when pinnedNotesStore or notesStore changes
+  // Use $effect to update pinnedNotes when workspacesStore or notesStore changes
   $effect(() => {
-    const result = pinnedNotesStore.notes
+    const result = workspacesStore.pinnedNotes
       .map((pinnedInfo) => {
         // Find the corresponding note in notesStore (use allNotes to support archived notes)
         return notesStore.allNotes.find((note) => note.id === pinnedInfo.id);
@@ -141,7 +141,7 @@
     // Calculate the actual drop index based on position
     const sourceIndex =
       type === 'pinned'
-        ? pinnedNotesStore.notes.findIndex((n) => n.id === id)
+        ? workspacesStore.pinnedNotes.findIndex((n) => n.id === id)
         : undefined;
     const dropIndex = calculateDropIndex(targetIndex, position, sourceIndex);
 
@@ -155,7 +155,7 @@
     if (type === 'pinned' && sourceIndex !== undefined) {
       if (sourceIndex !== dropIndex) {
         try {
-          await pinnedNotesStore.reorderNotes(sourceIndex, dropIndex);
+          await workspacesStore.reorderPinnedNotes(sourceIndex, dropIndex);
         } catch (error) {
           console.error('Failed to reorder notes:', error);
         }

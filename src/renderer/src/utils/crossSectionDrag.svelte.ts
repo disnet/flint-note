@@ -1,6 +1,4 @@
-import { temporaryTabsStore } from '../stores/temporaryTabsStore.svelte';
-import { pinnedNotesStore } from '../services/pinnedStore.svelte';
-import type { PinnedNoteInfo } from '../services/types';
+import { workspacesStore, type PinnedNoteInfo } from '../stores/workspacesStore.svelte';
 
 export async function handleCrossSectionDrop(
   draggedId: string,
@@ -10,7 +8,7 @@ export async function handleCrossSectionDrop(
 ): Promise<boolean> {
   // Handle temporary → pinned conversion
   if (draggedType === 'temporary' && targetSection === 'pinned') {
-    const tab = temporaryTabsStore.tabs.find((t) => t.id === draggedId);
+    const tab = workspacesStore.temporaryTabs.find((t) => t.id === draggedId);
     if (!tab) return false;
 
     // Create pinned note from temporary tab
@@ -22,11 +20,11 @@ export async function handleCrossSectionDrop(
 
     try {
       // Add to pinned notes at specific position (this triggers fade-in animation)
-      await pinnedNotesStore.addNoteAtPosition(pinnedNote, targetIndex);
+      await workspacesStore.addPinnedNoteAtPosition(pinnedNote, targetIndex);
 
       // Clear active tab if this tab was active (to prevent auto-selecting another tab)
-      if (temporaryTabsStore.activeTabId === tab.id) {
-        await temporaryTabsStore.clearActiveTab();
+      if (workspacesStore.currentActiveTabId === tab.id) {
+        await workspacesStore.clearActiveTab();
       }
 
       // Animate removal from temporary tabs
@@ -34,15 +32,15 @@ export async function handleCrossSectionDrop(
         import('./dragDrop.svelte.js')
           .then(({ animateItemRemove }) => {
             animateItemRemove(tab.id, '.tabs-list', async () => {
-              await temporaryTabsStore.removeTab(tab.id);
+              await workspacesStore.removeTab(tab.id);
             });
           })
           .catch(async () => {
             // Fallback to immediate removal
-            await temporaryTabsStore.removeTab(tab.id);
+            await workspacesStore.removeTab(tab.id);
           });
       } else {
-        await temporaryTabsStore.removeTab(tab.id);
+        await workspacesStore.removeTab(tab.id);
       }
 
       return true;
@@ -54,7 +52,7 @@ export async function handleCrossSectionDrop(
 
   // Handle pinned → temporary conversion
   if (draggedType === 'pinned' && targetSection === 'temporary') {
-    const pinnedNote = pinnedNotesStore.notes.find((n) => n.id === draggedId);
+    const pinnedNote = workspacesStore.pinnedNotes.find((n) => n.id === draggedId);
     if (!pinnedNote) return false;
 
     // Create temporary tab from pinned note
@@ -65,7 +63,7 @@ export async function handleCrossSectionDrop(
     };
 
     // Add to temporary tabs at specific position (this triggers fade-in animation)
-    await temporaryTabsStore.addTabAtPosition(tempTab, targetIndex);
+    await workspacesStore.addTabAtPosition(tempTab, targetIndex);
 
     // Animate removal from pinned notes
     if (typeof window !== 'undefined') {
@@ -73,7 +71,8 @@ export async function handleCrossSectionDrop(
         .then(({ animateItemRemove }) => {
           animateItemRemove(pinnedNote.id, '.pinned-list', async () => {
             try {
-              await pinnedNotesStore.unpinNote(pinnedNote.id);
+              // Use unpinNote with addToTabs=false since we already added the tab
+              await workspacesStore.unpinNote(pinnedNote.id, false);
             } catch (error) {
               console.error('Failed to unpin note:', error);
             }
@@ -82,14 +81,14 @@ export async function handleCrossSectionDrop(
         .catch(async () => {
           // Fallback to immediate removal
           try {
-            await pinnedNotesStore.unpinNote(pinnedNote.id);
+            await workspacesStore.unpinNote(pinnedNote.id, false);
           } catch (error) {
             console.error('Failed to unpin note:', error);
           }
         });
     } else {
       try {
-        await pinnedNotesStore.unpinNote(pinnedNote.id);
+        await workspacesStore.unpinNote(pinnedNote.id, false);
       } catch (error) {
         console.error('Failed to unpin note:', error);
         return false;

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { notesStore, type NoteMetadata } from '../services/noteStore.svelte';
-  import { pinnedNotesStore } from '../services/pinnedStore.svelte';
+  import { workspacesStore } from '../stores/workspacesStore.svelte';
   import { getChatService } from '../services/chatService';
   import type { GetNoteTypeInfoResult } from '@/server/api/types';
   import type {
@@ -832,7 +832,7 @@
                 onkeydown={(e) => handleNoteKeyDown(e, note)}
               >
                 <div class="note-title">
-                  {#if pinnedNotesStore.isPinned(note.id)}
+                  {#if workspacesStore.isPinned(note.id)}
                     <span class="pin-indicator" title="Pinned note">📌</span>
                   {/if}
                   {#if note.title}
