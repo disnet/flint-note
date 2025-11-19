@@ -20,6 +20,9 @@ export interface UnifiedThread {
   // Messages and conversation
   messages: Message[];
 
+  // Draft message for this thread
+  draftText?: string;
+
   // Threading features
   notesDiscussed: string[];
   isArchived?: boolean;
@@ -44,6 +47,7 @@ interface SerializedThread {
   title: string;
   vaultId: string;
   messages: SerializedMessage[];
+  draftText?: string;
   notesDiscussed: string[];
   isArchived?: boolean;
   createdAt: string | Date;

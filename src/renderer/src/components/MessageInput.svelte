@@ -27,6 +27,8 @@
     isLoading?: boolean;
     onCancel?: () => void;
     refreshCredits?: () => Promise<void>;
+    initialText?: string;
+    onDraftChange?: (text: string) => void;
   }
 
   let {
@@ -35,10 +37,15 @@
     onStartNewThread,
     isLoading = false,
     onCancel,
-    refreshCredits = $bindable()
+    refreshCredits = $bindable(),
+    initialText = '',
+    onDraftChange
   }: Props = $props();
 
-  let inputText = $state('');
+  let inputText = $state(initialText);
+
+  // Track last external initialText to detect external changes (thread switching)
+  let lastInitialText = initialText;
   let editorContainer: HTMLDivElement;
   let editorView: EditorView | null = null;
 
@@ -54,6 +61,62 @@
   } | null>(null);
   let creditsLoading = $state(false);
 
+  // Sync editor content when initialText changes externally (thread switching)
+  $effect(() => {
+    if (initialText !== lastInitialText) {
+      lastInitialText = initialText;
+      inputText = initialText;
+      // Update the editor content if it exists
+      if (editorView) {
+        const currentContent = editorView.state.doc.toString();
+        if (currentContent !== initialText) {
+          editorView.dispatch({
+            changes: { from: 0, to: editorView.state.doc.length, insert: initialText }
+          });
+        }
+      }
+    }
+  });
+
+  // Notify parent of draft changes (debounced to avoid excessive updates)
+  let draftChangeTimeout: number | null = null;
+  let lastSavedDraft = initialText;
+
+  $effect(() => {
+    // Capture inputText in effect
+    const text = inputText;
+
+    // Clear any pending timeout
+    if (draftChangeTimeout !== null) {
+      clearTimeout(draftChangeTimeout);
+    }
+
+    // Debounce the draft change notification
+    draftChangeTimeout = window.setTimeout(() => {
+      onDraftChange?.(text);
+      lastSavedDraft = text;
+      draftChangeTimeout = null;
+    }, 300);
+
+    // Cleanup on effect re-run
+    return () => {
+      if (draftChangeTimeout !== null) {
+        clearTimeout(draftChangeTimeout);
+      }
+    };
+  });
+
+  // Save draft immediately when component unmounts (e.g., switching to shelf)
+  onDestroy(() => {
+    if (draftChangeTimeout !== null) {
+      clearTimeout(draftChangeTimeout);
+    }
+    // Save current draft if it's different from last saved
+    if (inputText !== lastSavedDraft) {
+      onDraftChange?.(inputText);
+    }
+  });
+
   function handleSubmit(): void {
     const text = inputText.trim();
     if (text) {
@@ -65,6 +128,8 @@
           changes: { from: 0, to: editorView.state.doc.length, insert: '' }
         });
       }
+      // Immediately clear the draft (don't wait for debounce)
+      onDraftChange?.('');
     }
   }
 
@@ -217,7 +282,7 @@
     mediaQuery.addEventListener('change', handleThemeChange);
 
     const startState = EditorState.create({
-      doc: '',
+      doc: inputText,
       extensions: createExtensions()
     });
 
@@ -279,8 +344,17 @@
     {#if isLoading}
       <button onclick={onCancel} class="send-button cancel-button"> cancel </button>
     {:else}
-      <button onclick={handleSubmit} disabled={!inputText.trim()} class="send-button">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <button onclick={handleSubmit} disabled={!inputText.trim()} class="send-button" aria-label="Send message">
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
           <line x1="12" y1="19" x2="12" y2="5"></line>
           <polyline points="5 12 12 5 19 12"></polyline>
         </svg>

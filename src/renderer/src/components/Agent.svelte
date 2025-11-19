@@ -45,6 +45,23 @@
   // Todo plan store
   const todoPlanStore = new TodoPlanStore();
 
+  // Get current draft from active thread
+  let currentDraft = $derived(unifiedChatStore.activeThread?.draftText ?? '');
+
+  // Handle draft changes from MessageInput
+  function handleDraftChange(text: string): void {
+    const thread = unifiedChatStore.activeThread;
+    if (thread) {
+      // Only update if draft actually changed to avoid unnecessary saves
+      const newDraft = text.length === 0 ? undefined : text;
+      if (thread.draftText !== newDraft) {
+        unifiedChatStore.updateThread(thread.id, {
+          draftText: newDraft
+        });
+      }
+    }
+  }
+
   // Track the active thread ID to detect changes (not reactive to avoid circular dependencies)
   let lastThreadId: string | null = null;
   let updateTimeoutId: number | null = null;
@@ -258,6 +275,8 @@
           {isLoading}
           onCancel={onCancelMessage}
           bind:refreshCredits
+          initialText={currentDraft}
+          onDraftChange={handleDraftChange}
         />
       </div>
     {/if}
