@@ -4,6 +4,44 @@ All notable changes to the Flint application will be documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.11.0]
+
+### Added
+
+**Workspaces**
+
+You can now create workspaces to organize different contexts within a vault. Workspaces let you save and switch between different sets of open notes and shelf items, making it easy to context-switch between projects or workflows.
+
+**Vault and Type Switcher Search**
+
+Added a search bar to the vault and note type switchers, making it faster to find and switch between vaults and note types in large collections.
+
+**Context Menus**
+
+Right-click context menus are now available throughout the application:
+
+- Notes in the sidebar and shelf have context menu actions
+- Agent conversations have context menu options
+- Menu items show relevant keyboard shortcuts
+
+**Keyboard Shortcut Hints**
+
+Popovers now display keyboard shortcuts for available actions, making it easier to learn and use shortcuts.
+
+### Changed
+
+- Improved tab handling and switching behavior
+- Added smooth animations for sidebar interactions
+- Better handling of truncated text in various views
+- Improved title padding and spacing
+
+### Fixed
+
+- Fixed archive status not being set correctly when creating new notes
+- Fixed daily review limit not being applied correctly
+- Fixed z-index issue with type switcher search bar
+- Fixed bug in link extractor that could cause foreign key violations
+
 ## [0.10.2]
 
 ### Changed
