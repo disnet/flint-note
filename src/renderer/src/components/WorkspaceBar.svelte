@@ -169,6 +169,7 @@
       class="add-workspace-button"
       onclick={handleAddClick}
       title="New note or workspace"
+      aria-label="New note or workspace"
     >
       <svg
         width="14"

@@ -4,7 +4,7 @@ All notable changes to the Flint application will be documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [0.11.0]
+## [0.11.1]
 
 ### Added
 

@@ -123,7 +123,7 @@
 
   // Reset highlighted index when search query changes
   $effect(() => {
-    noteTypeSearchQuery;
+    void noteTypeSearchQuery; // dependency
     highlightedNoteTypeIndex = 0;
   });
 

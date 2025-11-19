@@ -347,7 +347,7 @@
 
   // Reset highlighted index when search query changes
   $effect(() => {
-    searchQuery; // dependency
+    void searchQuery; // dependency
     highlightedIndex = 0;
   });
 
