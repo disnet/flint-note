@@ -85,7 +85,6 @@
   let actionPopoverVisible = $state(false);
   let actionPopoverX = $state(0);
   let actionPopoverY = $state(0);
-  let actionPopoverIdentifier = $state('');
   let actionPopoverIsFromHover = $state(false); // Track if popover is from hover vs cursor
   let actionPopoverWikilinkData = $state<{
     identifier: string;
@@ -107,25 +106,6 @@
   let commentPopoverY = $state(0);
   let commentPopoverSuggestions = $state<NoteSuggestion[]>([]);
 
-  // Context menu state
-  let contextMenuVisible = $state(false);
-  let contextMenuX = $state(0);
-  let contextMenuY = $state(0);
-  let contextMenuWikilinkData = $state<{
-    identifier: string;
-    displayText: string;
-    from: number;
-    to: number;
-    exists: boolean;
-    noteId?: string;
-  } | null>(null);
-
-  // Detect if we're on macOS for showing the right symbol
-  const isMac =
-    typeof navigator !== 'undefined' && /Mac|iPhone|iPod|iPad/.test(navigator.platform);
-  const cmdKey = isMac ? '⌘' : 'Ctrl';
-  const altKey = isMac ? '⌥' : 'Alt';
-
   const editorConfig = new EditorConfig({
     onWikilinkClick,
     onContentChange,
@@ -134,7 +114,6 @@
     variant,
     onWikilinkHover: handleWikilinkHover,
     onWikilinkEdit: handleActionPopoverEdit,
-    onWikilinkContextMenu: handleWikilinkContextMenu,
     onHoverPopoverEnter: handleHoverPopoverEnter,
     onHoverPopoverAltEnter: handleHoverPopoverAltEnter
   });
@@ -291,7 +270,6 @@
         // Position popup near the selected wikilink
         const coords = editorView.coordsAtPos(selected.from);
         if (coords) {
-          actionPopoverIdentifier = selected.identifier;
           actionPopoverWikilinkData = {
             identifier: selected.identifier,
             title: selected.title,
@@ -567,7 +545,6 @@
         }
 
         // Update popover data and position immediately
-        actionPopoverIdentifier = data.identifier;
         actionPopoverWikilinkData = {
           identifier: data.identifier,
           title: data.displayText,
@@ -620,7 +597,6 @@
           return;
         }
 
-        actionPopoverIdentifier = data.identifier;
         actionPopoverWikilinkData = {
           identifier: data.identifier,
           title: data.displayText,
@@ -798,6 +774,22 @@
     actionPopoverVisible = false;
   }
 
+  function handleActionPopoverOpenInShelf(): void {
+    if (!onWikilinkClick || !actionPopoverWikilinkData) return;
+
+    const data = actionPopoverWikilinkData;
+    if (data.exists && data.noteId) {
+      // Open in shelf by passing shiftKey=true
+      onWikilinkClick(data.noteId, data.title, false, true);
+    } else {
+      // Handle broken link - create new note and open in shelf
+      onWikilinkClick(data.identifier, data.title, true, true);
+    }
+
+    // Hide the action popover after opening
+    actionPopoverVisible = false;
+  }
+
   function handleActionPopoverEdit(): void {
     if (!editorView || !actionPopoverWikilinkData || !linkRect) return;
 
@@ -942,148 +934,6 @@
     commentPopoverVisible = false;
   }
 
-  // Context menu handlers
-  function handleWikilinkContextMenu(data: {
-    identifier: string;
-    displayText: string;
-    from: number;
-    to: number;
-    x: number;
-    y: number;
-    exists: boolean;
-    noteId?: string;
-  }): void {
-    // Calculate position with viewport bounds checking
-    const menuWidth = 180;
-    const menuHeight = 140;
-    const padding = 8;
-
-    let x = data.x;
-    let y = data.y;
-
-    // Adjust if menu would overflow right edge
-    if (x + menuWidth + padding > window.innerWidth) {
-      x = window.innerWidth - menuWidth - padding;
-    }
-
-    // Adjust if menu would overflow bottom edge
-    if (y + menuHeight + padding > window.innerHeight) {
-      y = window.innerHeight - menuHeight - padding;
-    }
-
-    // Ensure menu doesn't go off left or top edge
-    x = Math.max(padding, x);
-    y = Math.max(padding, y);
-
-    contextMenuX = x;
-    contextMenuY = y;
-    contextMenuWikilinkData = {
-      identifier: data.identifier,
-      displayText: data.displayText,
-      from: data.from,
-      to: data.to,
-      exists: data.exists,
-      noteId: data.noteId
-    };
-    contextMenuVisible = true;
-  }
-
-  function closeContextMenu(): void {
-    contextMenuVisible = false;
-    contextMenuWikilinkData = null;
-  }
-
-  function handleContextMenuGlobalClick(event: MouseEvent): void {
-    if (contextMenuVisible) {
-      const target = event.target as Element;
-      if (!target.closest('.wikilink-context-menu')) {
-        closeContextMenu();
-      }
-    }
-  }
-
-  function handleContextMenuKeydown(event: KeyboardEvent): void {
-    if (event.key === 'Escape' && contextMenuVisible) {
-      closeContextMenu();
-    }
-  }
-
-  function handleContextMenuOpen(): void {
-    if (!onWikilinkClick || !contextMenuWikilinkData) return;
-
-    const data = contextMenuWikilinkData;
-    if (data.exists && data.noteId) {
-      onWikilinkClick(data.noteId, data.displayText);
-    } else {
-      onWikilinkClick(data.identifier, data.displayText, true);
-    }
-
-    closeContextMenu();
-  }
-
-  function handleContextMenuOpenInShelf(): void {
-    if (!onWikilinkClick || !contextMenuWikilinkData) return;
-
-    const data = contextMenuWikilinkData;
-    if (data.exists && data.noteId) {
-      onWikilinkClick(data.noteId, data.displayText, false, true);
-    } else {
-      onWikilinkClick(data.identifier, data.displayText, true, true);
-    }
-
-    closeContextMenu();
-  }
-
-  function handleContextMenuEdit(): void {
-    if (!editorView || !contextMenuWikilinkData) return;
-
-    // Save the current selection before opening the edit popover
-    const selection = editorView.state.selection.main;
-    savedSelection = { anchor: selection.anchor, head: selection.head };
-
-    // Get the link rect from the stored data
-    const from = contextMenuWikilinkData.from;
-    const to = contextMenuWikilinkData.to;
-    const coords = editorView.coordsAtPos(from);
-    const toCoords = editorView.coordsAtPos(to);
-
-    if (coords && toCoords) {
-      linkRect = {
-        top: coords.top,
-        bottom: coords.bottom,
-        height: coords.bottom - coords.top,
-        left: coords.left
-      };
-
-      popoverIdentifier = contextMenuWikilinkData.identifier;
-
-      // For ID-only links, show the note's title instead of the ID
-      if (contextMenuWikilinkData.identifier === contextMenuWikilinkData.displayText) {
-        if (contextMenuWikilinkData.noteId && contextMenuWikilinkData.exists) {
-          const notes = notesStore.notes;
-          const note = notes.find((n) => n.id === contextMenuWikilinkData!.noteId);
-          if (note) {
-            popoverDisplayText = note.title;
-          } else {
-            popoverDisplayText = contextMenuWikilinkData.displayText;
-          }
-        } else {
-          popoverDisplayText = contextMenuWikilinkData.displayText;
-        }
-      } else {
-        popoverDisplayText = contextMenuWikilinkData.displayText;
-      }
-
-      popoverFrom = from;
-      popoverTo = to;
-      popoverX = toCoords.right + 8;
-      popoverY = coords.top;
-      popoverVisible = true;
-    }
-
-    closeContextMenu();
-  }
-
   function handleCommentDismiss(suggestionId: string): void {
     onDismissSuggestion?.(suggestionId);
     // If all suggestions for this line are dismissed, close the popover
@@ -1171,7 +1021,6 @@
     bind:visible={popoverVisible}
     x={popoverX}
     y={popoverY}
-    identifier={popoverIdentifier}
     displayText={popoverDisplayText}
     {linkRect}
     onSave={handlePopoverSave}
@@ -1189,9 +1038,9 @@
     bind:visible={actionPopoverVisible}
     x={actionPopoverX}
     y={actionPopoverY}
-    identifier={actionPopoverIdentifier}
     {linkRect}
     onOpen={handleActionPopoverOpen}
+    onOpenInShelf={handleActionPopoverOpenInShelf}
     onEdit={handleActionPopoverEdit}
   />
 </div>
@@ -1204,74 +1053,6 @@
   onDismiss={handleCommentDismiss}
   onClose={handleCommentPopoverClose}
 />
-
-<!-- Global event listeners for context menu -->
-<svelte:window
-  onclick={handleContextMenuGlobalClick}
-  onkeydown={handleContextMenuKeydown}
-/>
-
-<!-- Wikilink context menu -->
-{#if contextMenuVisible}
-  <div
-    class="wikilink-context-menu"
-    style="left: {contextMenuX}px; top: {contextMenuY}px;"
-    role="menu"
-  >
-    <button class="context-menu-item" onclick={handleContextMenuOpen} role="menuitem">
-      <svg
-        width="14"
-        height="14"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-      >
-        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-        <polyline points="15 3 21 3 21 9"></polyline>
-        <line x1="10" y1="14" x2="21" y2="3"></line>
-      </svg>
-      <span>Open</span>
-      <kbd>{cmdKey}↵</kbd>
-    </button>
-    <button
-      class="context-menu-item"
-      onclick={handleContextMenuOpenInShelf}
-      role="menuitem"
-    >
-      <svg
-        width="14"
-        height="14"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-      >
-        <rect x="3" y="3" width="7" height="7"></rect>
-        <rect x="14" y="3" width="7" height="7"></rect>
-        <rect x="14" y="14" width="7" height="7"></rect>
-        <rect x="3" y="14" width="7" height="7"></rect>
-      </svg>
-      <span>Open in Shelf</span>
-      <kbd>⇧{cmdKey}↵</kbd>
-    </button>
-    <button class="context-menu-item" onclick={handleContextMenuEdit} role="menuitem">
-      <svg
-        width="14"
-        height="14"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-      >
-        <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path>
-        <path d="m15 5 4 4"></path>
-      </svg>
-      <span>Edit Display Text</span>
-      <kbd>{altKey}↵</kbd>
-    </button>
-  </div>
-{/if}
 
 <style>
   .editor-content {
@@ -1367,56 +1148,5 @@
   .expand-button svg {
     width: 16px;
     height: 16px;
-  }
-
-  /* Context menu styles */
-  .wikilink-context-menu {
-    position: fixed;
-    z-index: 1000;
-    background: var(--bg-primary);
-    border: 1px solid var(--border-medium);
-    border-radius: 0.375rem;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    min-width: 180px;
-    padding: 0.25rem;
-  }
-
-  .wikilink-context-menu .context-menu-item {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 0.75rem;
-    border: none;
-    background: transparent;
-    color: var(--text-primary);
-    font-size: 0.8125rem;
-    cursor: pointer;
-    border-radius: 0.25rem;
-    text-align: left;
-    transition: background-color 0.15s ease;
-  }
-
-  .wikilink-context-menu .context-menu-item:hover {
-    background: var(--bg-secondary);
-  }
-
-  .wikilink-context-menu .context-menu-item svg {
-    flex-shrink: 0;
-    color: var(--text-secondary);
-  }
-
-  .wikilink-context-menu .context-menu-item span {
-    flex: 1;
-  }
-
-  .wikilink-context-menu .context-menu-item kbd {
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-light);
-    border-radius: 3px;
-    padding: 2px 5px;
-    font-family: inherit;
-    font-size: 0.6875rem;
-    color: var(--text-secondary);
   }
 </style>

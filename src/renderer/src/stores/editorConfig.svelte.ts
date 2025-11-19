@@ -17,7 +17,6 @@ import {
   wikilinksExtension,
   type WikilinkHoverHandler,
   type WikilinkEditHandler,
-  type WikilinkContextMenuHandler,
   getSelectedWikilink
 } from '../lib/wikilinks.svelte.js';
 
@@ -30,7 +29,6 @@ export interface EditorConfigOptions {
   ) => Promise<void>;
   onWikilinkHover?: WikilinkHoverHandler;
   onWikilinkEdit?: WikilinkEditHandler;
-  onWikilinkContextMenu?: WikilinkContextMenuHandler;
   onContentChange?: (content: string) => void;
   onCursorChange?: () => void;
   onEnterKey?: () => void;
@@ -359,8 +357,7 @@ export class EditorConfig {
             wikilinksExtension(
               this.options.onWikilinkClick,
               this.options.onWikilinkHover,
-              this.options.onWikilinkEdit,
-              this.options.onWikilinkContextMenu
+              this.options.onWikilinkEdit
             )
           ]
         : []),
