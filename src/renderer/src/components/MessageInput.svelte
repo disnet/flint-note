@@ -343,7 +343,12 @@
     {#if isLoading}
       <button onclick={onCancel} class="send-button cancel-button"> cancel </button>
     {:else}
-      <button onclick={handleSubmit} disabled={!inputText.trim()} class="send-button" aria-label="Send message">
+      <button
+        onclick={handleSubmit}
+        disabled={!inputText.trim()}
+        class="send-button"
+        aria-label="Send message"
+      >
         <svg
           width="16"
           height="16"
