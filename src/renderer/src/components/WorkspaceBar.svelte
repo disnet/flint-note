@@ -109,6 +109,44 @@
       closeContextMenu();
     }
   }
+
+  // Handle workspace menu events from app menu
+  function handleMenuNewWorkspace(): void {
+    editingWorkspaceId = null;
+    isPopoverOpen = true;
+  }
+
+  function handleMenuEditWorkspace(): void {
+    // Edit the currently active workspace
+    editingWorkspaceId = workspacesStore.activeWorkspaceId;
+    isPopoverOpen = true;
+  }
+
+  async function handleMenuDeleteWorkspace(): Promise<void> {
+    // Delete the currently active workspace
+    if (workspacesStore.workspaces.length > 1) {
+      await workspacesStore.deleteWorkspace(workspacesStore.activeWorkspaceId);
+    }
+  }
+
+  // Listen for menu events
+  $effect(() => {
+    const handleNew = (): void => handleMenuNewWorkspace();
+    const handleEdit = (): void => handleMenuEditWorkspace();
+    const handleDelete = (): void => {
+      handleMenuDeleteWorkspace();
+    };
+
+    document.addEventListener('workspace-menu-new', handleNew);
+    document.addEventListener('workspace-menu-edit', handleEdit);
+    document.addEventListener('workspace-menu-delete', handleDelete);
+
+    return () => {
+      document.removeEventListener('workspace-menu-new', handleNew);
+      document.removeEventListener('workspace-menu-edit', handleEdit);
+      document.removeEventListener('workspace-menu-delete', handleDelete);
+    };
+  });
 </script>
 
 <svelte:window onclick={handleGlobalClick} onkeydown={handleKeydown} />

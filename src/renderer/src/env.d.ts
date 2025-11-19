@@ -675,10 +675,16 @@ declare global {
 
       // Menu event listeners
       onMenuNavigate: (callback: (view: string) => void) => () => void;
-      onMenuAction: (callback: (action: string) => void) => () => void;
+      onMenuAction: (
+        callback: (action: string, ...args: unknown[]) => void
+      ) => () => void;
 
       // Update menu state
       setMenuActiveNote: (isActive: boolean) => void;
+      setMenuWorkspaces: (data: {
+        workspaces: Array<{ id: string; name: string; icon: string }>;
+        activeWorkspaceId: string;
+      }) => void;
     };
   }
 }

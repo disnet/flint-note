@@ -5,6 +5,18 @@ const isMac = process.platform === 'darwin';
 // Track whether a note is currently active
 let hasActiveNote = false;
 
+// Track whether multiple workspaces exist (for delete menu item)
+let hasMultipleWorkspaces = false;
+
+// Track workspace list for dynamic menu items
+interface WorkspaceMenuItem {
+  id: string;
+  name: string;
+  icon: string;
+}
+let workspaceList: WorkspaceMenuItem[] = [];
+let activeWorkspaceId: string = '';
+
 // Check if we should show developer tools
 function shouldShowDevTools(): boolean {
   const isDev = !app.isPackaged;
@@ -38,6 +50,18 @@ const menuIcons = {
   ),
   archive: createMenuIcon(
     '<polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line>'
+  ),
+  workspace: createMenuIcon(
+    '<rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect>'
+  ),
+  workspaceNew: createMenuIcon(
+    '<rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect><line x1="17.5" y1="14" x2="17.5" y2="21"></line><line x1="14" y1="17.5" x2="21" y2="17.5"></line>'
+  ),
+  workspaceEdit: createMenuIcon(
+    '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>'
+  ),
+  workspaceDelete: createMenuIcon(
+    '<polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>'
   )
 };
 
@@ -274,6 +298,54 @@ export function createApplicationMenu(): Menu {
       ]
     },
 
+    // Workspace Menu
+    {
+      label: 'Workspace',
+      submenu: [
+        {
+          label: 'New Workspace...',
+          icon: menuIcons.workspaceNew,
+          click: (): void => {
+            sendToRenderer('menu-action', 'new-workspace');
+          }
+        },
+        {
+          label: 'Edit Current Workspace...',
+          icon: menuIcons.workspaceEdit,
+          click: (): void => {
+            sendToRenderer('menu-action', 'edit-workspace');
+          }
+        },
+        {
+          label: 'Delete Current Workspace',
+          icon: menuIcons.workspaceDelete,
+          enabled: hasMultipleWorkspaces,
+          click: (): void => {
+            sendToRenderer('menu-action', 'delete-workspace');
+          }
+        },
+        ...(workspaceList.length > 0
+          ? [
+              { type: 'separator' as const },
+              ...workspaceList.map((workspace, index) => ({
+                label: `${workspace.icon} ${workspace.name}`,
+                type: 'checkbox' as const,
+                checked: workspace.id === activeWorkspaceId,
+                accelerator:
+                  index < 9
+                    ? isMac
+                      ? `Ctrl+${index + 1}`
+                      : `Alt+${index + 1}`
+                    : undefined,
+                click: (): void => {
+                  sendToRenderer('menu-action', 'switch-workspace', workspace.id);
+                }
+              }))
+            ]
+          : [])
+      ]
+    },
+
     // Note Menu
     {
       label: 'Note',
@@ -402,4 +474,30 @@ export function setupApplicationMenu(): void {
       Menu.setApplicationMenu(updatedMenu);
     }
   });
+
+  // Listen for workspace list changes from renderer
+  ipcMain.on(
+    'menu-set-workspaces',
+    (
+      _event,
+      data: {
+        workspaces: WorkspaceMenuItem[];
+        activeWorkspaceId: string;
+      }
+    ) => {
+      const newHasMultiple = data.workspaces.length > 1;
+      const listChanged =
+        JSON.stringify(workspaceList) !== JSON.stringify(data.workspaces) ||
+        activeWorkspaceId !== data.activeWorkspaceId;
+
+      if (hasMultipleWorkspaces !== newHasMultiple || listChanged) {
+        hasMultipleWorkspaces = newHasMultiple;
+        workspaceList = data.workspaces;
+        activeWorkspaceId = data.activeWorkspaceId;
+        // Rebuild menu with updated state
+        const updatedMenu = createApplicationMenu();
+        Menu.setApplicationMenu(updatedMenu);
+      }
+    }
+  );
 }

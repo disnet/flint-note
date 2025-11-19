@@ -603,9 +603,14 @@ const api = {
     return () => electronAPI.ipcRenderer.removeListener('menu-navigate', handler);
   },
 
-  onMenuAction: (callback: (action: string) => void): (() => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, action: string): void =>
-      callback(action);
+  onMenuAction: (
+    callback: (action: string, ...args: unknown[]) => void
+  ): (() => void) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      action: string,
+      ...args: unknown[]
+    ): void => callback(action, ...args);
     electronAPI.ipcRenderer.on('menu-action', handler);
     return () => electronAPI.ipcRenderer.removeListener('menu-action', handler);
   },
@@ -613,6 +618,14 @@ const api = {
   // Update menu state for active note
   setMenuActiveNote: (isActive: boolean): void => {
     electronAPI.ipcRenderer.send('menu-set-active-note', isActive);
+  },
+
+  // Update menu state for workspaces (enables/disables delete, shows workspace list)
+  setMenuWorkspaces: (data: {
+    workspaces: Array<{ id: string; name: string; icon: string }>;
+    activeWorkspaceId: string;
+  }): void => {
+    electronAPI.ipcRenderer.send('menu-set-workspaces', data);
   }
 };
 

@@ -59,6 +59,17 @@
     window.api?.setMenuActiveNote(hasActiveNote);
   });
 
+  // Update menu state when workspaces change
+  $effect(() => {
+    const workspaces = workspacesStore.workspaces.map((w) => ({
+      id: w.id,
+      name: w.name,
+      icon: w.icon
+    }));
+    const activeId = workspacesStore.activeWorkspaceId;
+    window.api?.setMenuWorkspaces({ workspaces, activeWorkspaceId: activeId });
+  });
+
   // Handle menu navigation events
   $effect(() => {
     const unsubscribe = window.api?.onMenuNavigate((view) => {
@@ -91,7 +102,7 @@
 
   // Handle menu action events
   $effect(() => {
-    const unsubscribe = window.api?.onMenuAction(async (action) => {
+    const unsubscribe = window.api?.onMenuAction(async (action, ...args) => {
       switch (action) {
         case 'new-note':
           await handleCreateNote(undefined, true);
@@ -212,6 +223,20 @@
           break;
         case 'show-about':
           // TODO: Show about dialog
+          break;
+        case 'new-workspace':
+          document.dispatchEvent(new CustomEvent('workspace-menu-new'));
+          break;
+        case 'edit-workspace':
+          document.dispatchEvent(new CustomEvent('workspace-menu-edit'));
+          break;
+        case 'delete-workspace':
+          document.dispatchEvent(new CustomEvent('workspace-menu-delete'));
+          break;
+        case 'switch-workspace':
+          if (args[0] && typeof args[0] === 'string') {
+            await workspacesStore.switchWorkspace(args[0]);
+          }
           break;
       }
     });
