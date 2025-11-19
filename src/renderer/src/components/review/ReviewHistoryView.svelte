@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import type { ReviewItem } from '../../types/review';
+  import { RATING_LABELS } from '../../types/review';
   import { reviewStore } from '../../stores/reviewStore.svelte';
   import { notesStore } from '../../services/noteStore.svelte';
   import { wikilinkService } from '../../services/wikilinkService.svelte.js';
@@ -39,7 +40,8 @@
       reviewCount: number;
       historyEntry: {
         date: string;
-        passed: boolean;
+        rating: 1 | 2 | 3 | 4;
+        sessionNumber: number;
         response?: string;
         prompt?: string;
         feedback?: string;
@@ -58,8 +60,10 @@
       // Add each history entry for this note
       for (const entry of reviewItem.reviewHistory) {
         // Skip if doesn't match status filter
-        if (filterStatus === 'passed' && !entry.passed) continue;
-        if (filterStatus === 'failed' && entry.passed) continue;
+        // Rating >= 2 is considered "passed" (productive, familiar, or processed)
+        const isPassed = entry.rating >= 2;
+        if (filterStatus === 'passed' && !isPassed) continue;
+        if (filterStatus === 'failed' && isPassed) continue;
 
         flatHistory.push({
           noteId: reviewItem.noteId,
@@ -193,11 +197,11 @@
             </button>
             <div class="item-meta">
               <span
-                class="badge"
-                class:passed={item.historyEntry.passed}
-                class:failed={!item.historyEntry.passed}
+                class="badge rating-{item.historyEntry.rating}"
+                class:passed={item.historyEntry.rating >= 2}
+                class:failed={item.historyEntry.rating < 2}
               >
-                {item.historyEntry.passed ? 'Pass' : 'Fail'}
+                {RATING_LABELS[item.historyEntry.rating]}
               </span>
               <span class="timestamp">{formatTimestamp(item.historyEntry.date)}</span>
             </div>

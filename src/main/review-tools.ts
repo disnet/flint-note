@@ -386,20 +386,22 @@ export class ReviewTools {
    */
   private completeReviewTool = tool({
     description:
-      'Mark a note review as complete with pass/fail outcome. This updates the review schedule: passing moves the next review to 7 days from now, failing schedules it for tomorrow. Use this after the user has responded to the review prompt and you have provided feedback.',
+      'Mark a note review as complete with a rating (1-4). Rating 1=Need more time, 2=Productive, 3=Already familiar, 4=Fully processed (retire). Use this after the user has responded to the review prompt and you have provided feedback.',
     inputSchema: z.object({
       noteId: z.string().describe('The note ID that was reviewed'),
-      passed: z
-        .boolean()
+      rating: z
+        .number()
+        .min(1)
+        .max(4)
         .describe(
-          'Whether the user passed the review (true) or failed/struggled (false)'
+          'Rating 1-4: 1=Need more time (see sooner), 2=Productive (normal), 3=Already familiar (see later), 4=Fully processed (retire)'
         ),
       userResponse: z
         .string()
         .optional()
         .describe("The user's written response to the review prompt (stored for history)")
     }),
-    execute: async ({ noteId, passed, userResponse }) => {
+    execute: async ({ noteId, rating, userResponse }) => {
       if (!this.noteService) {
         return {
           success: false,
@@ -421,16 +423,27 @@ export class ReviewTools {
         const result = await flintApi.completeReview({
           noteId,
           vaultId: currentVault.id,
-          passed,
+          rating: rating as 1 | 2 | 3 | 4,
           userResponse
         });
 
+        const ratingLabels = [
+          '',
+          'Need more time',
+          'Productive',
+          'Already familiar',
+          'Fully processed'
+        ];
         return {
           success: true,
+          nextSessionNumber: result.nextSessionNumber,
           nextReviewDate: result.nextReviewDate,
           reviewCount: result.reviewCount,
-          outcome: passed ? 'passed' : 'failed',
-          message: `Review completed. Next review: ${result.nextReviewDate} (${passed ? '7 days' : 'tomorrow'})`
+          retired: result.retired,
+          outcome: ratingLabels[rating],
+          message: result.retired
+            ? `Note retired from review rotation.`
+            : `Review completed. Next session: ${result.nextSessionNumber}`
         };
       } catch (error) {
         return {

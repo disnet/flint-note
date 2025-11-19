@@ -1,25 +1,39 @@
 <script lang="ts">
-  import type { ReviewStats } from '../../../../server/core/review-manager';
+  import type { ReviewStats, SchedulingConfig } from '../../types/review';
   import ReviewNotesTable from './ReviewNotesTable.svelte';
 
   interface Props {
     stats: ReviewStats;
+    config: SchedulingConfig;
     onStartReview: () => void;
     onResumeSession?: () => void;
     onReviewNote: (noteId: string) => void;
+    onIncrementSession: () => void;
+    onUpdateConfig: (config: Partial<SchedulingConfig>) => Promise<boolean>;
     hasSavedSession?: boolean;
   }
 
   let {
     stats,
+    config,
     onStartReview,
     onResumeSession,
     onReviewNote,
+    onIncrementSession,
+    onUpdateConfig,
     hasSavedSession = false
   }: Props = $props();
 
   let showNotesTable = $state(false);
+  let showSettings = $state(false);
   let searchQuery = $state('');
+
+  async function handleConfigChange(
+    key: keyof SchedulingConfig,
+    value: number
+  ): Promise<void> {
+    await onUpdateConfig({ [key]: value });
+  }
 
   function handleSearchChange(query: string): void {
     searchQuery = query;
@@ -32,23 +46,43 @@
   function toggleNotesTable(): void {
     showNotesTable = !showNotesTable;
   }
+
+  function getOrdinal(n: number): string {
+    const s = ['th', 'st', 'nd', 'rd'];
+    const v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+  }
 </script>
 
 <div class="review-stats">
   <div class="stats-cards">
-    <div class="stat-card today">
-      <div class="stat-value">{stats.dueToday}</div>
-      <div class="stat-label">Due Today</div>
+    <div class="stat-card session">
+      <div class="stat-value">{getOrdinal(stats.currentSessionNumber)}</div>
+      <div class="stat-label">Session</div>
+      {#if stats.dueThisSession === 0}
+        <button
+          class="new-session-btn"
+          onclick={onIncrementSession}
+          title="Start next session early"
+        >
+          Start Early
+        </button>
+      {/if}
     </div>
 
-    <div class="stat-card week">
-      <div class="stat-value">{stats.dueThisWeek}</div>
-      <div class="stat-label">This Week</div>
+    <div class="stat-card today">
+      <div class="stat-value">{stats.dueThisSession}</div>
+      <div class="stat-label">Due Now</div>
     </div>
 
     <div class="stat-card total">
       <div class="stat-value">{stats.totalEnabled}</div>
-      <div class="stat-label">Total Notes</div>
+      <div class="stat-label">Active</div>
+    </div>
+
+    <div class="stat-card retired">
+      <div class="stat-value">{stats.retired}</div>
+      <div class="stat-label">Retired</div>
     </div>
   </div>
 
@@ -62,16 +96,161 @@
       </div>
     {/if}
 
-    {#if stats.dueToday > 0}
+    {#if stats.dueThisSession > 0}
       <button class="start-review-btn primary" onclick={onStartReview}>
-        Start Today's Review ({stats.dueToday})
+        Start Review ({stats.dueThisSession})
       </button>
     {:else}
       <div class="no-reviews">
-        <p>No notes due for review today! 🎉</p>
-        {#if stats.dueThisWeek > 0}
-          <p class="upcoming">Next review: {stats.dueThisWeek} notes this week</p>
-        {/if}
+        <p>No notes due for review!</p>
+        <p class="upcoming">Complete more sessions to see more notes</p>
+      </div>
+    {/if}
+  </div>
+
+  <!-- How it works section -->
+  <div class="how-it-works-section">
+    <div class="how-it-works-content">
+      <div class="explanation-block">
+        <h4>Deep Engagement Over Time</h4>
+        <p>
+          Review mode helps you <strong>deeply engage</strong> with your notes on a recurring
+          basis. The goal isn't memorization - it's to actively work with ideas until they
+          become part of how you think. Each review challenges you to explain, connect, and
+          apply what you've captured.
+        </p>
+      </div>
+
+      <div class="explanation-block">
+        <h4>Rate Your Engagement</h4>
+        <p>After each review, reflect on how the session went:</p>
+        <ul class="rating-list">
+          <li>
+            <span class="rating-badge need-more">1</span>
+            <strong>Need more time</strong> - This idea needs more work. You'll see it again
+            soon.
+          </li>
+          <li>
+            <span class="rating-badge productive">2</span>
+            <strong>Productive</strong> - Good engagement. The idea is developing well.
+          </li>
+          <li>
+            <span class="rating-badge familiar">3</span>
+            <strong>Already familiar</strong> - You know this well. Less frequent review needed.
+          </li>
+          <li>
+            <span class="rating-badge processed">4</span>
+            <strong>Fully processed</strong> - This idea is now part of your thinking. Stop
+            reviewing it.
+          </li>
+        </ul>
+      </div>
+
+      <div class="explanation-block">
+        <h4>Work at Your Own Pace</h4>
+        <p>
+          Sessions are flexible - complete them daily, weekly, or whenever you have time.
+          Notes that need more attention appear more frequently. As ideas become
+          integrated, they naturally fade from review, making room for new material.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings section (collapsible) -->
+  <div class="settings-section">
+    <button class="section-toggle" onclick={() => (showSettings = !showSettings)}>
+      <svg
+        class="toggle-icon"
+        class:expanded={showSettings}
+        xmlns="http://www.w3.org/2000/svg"
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <polyline points="6 9 12 15 18 9"></polyline>
+      </svg>
+      <span class="section-title">Settings</span>
+    </button>
+
+    {#if showSettings}
+      <div class="settings-content">
+        <div class="setting-item">
+          <label for="session-size">
+            <span class="setting-label">Notes per session</span>
+            <span class="setting-description"
+              >Lower for shorter, more frequent sessions. Higher if you prefer longer, deeper review periods.</span
+            >
+          </label>
+          <input
+            id="session-size"
+            type="number"
+            min="1"
+            max="50"
+            value={config.sessionSize}
+            onchange={(e) =>
+              handleConfigChange('sessionSize', parseInt(e.currentTarget.value))}
+          />
+        </div>
+
+        <div class="setting-item">
+          <label for="sessions-per-week">
+            <span class="setting-label">Sessions per week</span>
+            <span class="setting-description"
+              >Used to estimate review dates. Increase if you review daily, decrease for weekly reviews.</span
+            >
+          </label>
+          <input
+            id="sessions-per-week"
+            type="number"
+            min="1"
+            max="14"
+            value={config.sessionsPerWeek}
+            onchange={(e) =>
+              handleConfigChange('sessionsPerWeek', parseInt(e.currentTarget.value))}
+          />
+        </div>
+
+        <div class="setting-item">
+          <label for="max-interval">
+            <span class="setting-label">Max interval (sessions)</span>
+            <span class="setting-description"
+              >Caps how long between reviews. Lower keeps notes fresher, higher lets well-known ideas rest longer.</span
+            >
+          </label>
+          <input
+            id="max-interval"
+            type="number"
+            min="1"
+            max="100"
+            value={config.maxIntervalSessions}
+            onchange={(e) =>
+              handleConfigChange('maxIntervalSessions', parseInt(e.currentTarget.value))}
+          />
+        </div>
+
+        <div class="setting-item">
+          <label for="min-interval-days">
+            <span class="setting-label">Min interval (days)</span>
+            <span class="setting-description"
+              >Prevents seeing the same note too soon. Useful if you do multiple sessions per day.</span
+            >
+          </label>
+          <input
+            id="min-interval-days"
+            type="number"
+            min="0"
+            max="30"
+            value={config.minIntervalDays}
+            onchange={(e) =>
+              handleConfigChange('minIntervalDays', parseInt(e.currentTarget.value))}
+          />
+        </div>
       </div>
     {/if}
   </div>
@@ -126,13 +305,13 @@
 
   .stats-cards {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     gap: 1rem;
   }
 
   .stat-card {
     background: var(--bg-secondary);
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-light);
     border-radius: 8px;
     padding: 1.5rem;
     text-align: center;
@@ -146,16 +325,39 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   }
 
+  .stat-card.session {
+    border-left: 4px solid var(--text-muted);
+  }
+
   .stat-card.today {
     border-left: 4px solid var(--accent-primary);
   }
 
-  .stat-card.week {
-    border-left: 4px solid var(--accent-secondary);
+  .new-session-btn {
+    margin-top: 0.75rem;
+    padding: 0.375rem 0.75rem;
+    background: transparent;
+    border: 1px solid var(--border-light);
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .new-session-btn:hover {
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
+    color: var(--text-on-accent);
   }
 
   .stat-card.total {
-    border-left: 4px solid var(--text-secondary);
+    border-left: 4px solid var(--success);
+  }
+
+  .stat-card.retired {
+    border-left: 4px solid var(--text-muted);
   }
 
   .stat-value {
@@ -245,7 +447,7 @@
     padding: 2rem;
     background: var(--bg-secondary);
     border-radius: 8px;
-    border: 1px dashed var(--border);
+    border: 1px dashed var(--border-light);
   }
 
   .no-reviews p {
@@ -272,7 +474,7 @@
     gap: 0.75rem;
     padding: 1rem 1.5rem;
     background: var(--bg-secondary);
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-light);
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.2s;
@@ -308,7 +510,7 @@
     gap: 0.75rem;
     padding: 1rem;
     background: var(--bg-secondary);
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--border-light);
   }
 
   .filter-label {
@@ -322,7 +524,7 @@
     flex: 1;
     padding: 0.5rem 0.75rem;
     background: var(--bg-primary);
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-light);
     border-radius: 6px;
     font-size: 0.875rem;
     color: var(--text-primary);
@@ -337,6 +539,148 @@
   }
 
   .filter-input::placeholder {
-    color: var(--text-tertiary);
+    color: var(--text-muted);
+  }
+
+  /* How it works section */
+  .how-it-works-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .how-it-works-content {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .explanation-block h4 {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .explanation-block p {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+
+  .rating-list {
+    margin: 0.75rem 0 0 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .rating-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.625rem;
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+  }
+
+  .rating-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: 4px;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-top: 0.125rem;
+  }
+
+  .rating-badge.need-more {
+    background: var(--warning);
+    color: #ffffff;
+  }
+
+  .rating-badge.productive {
+    background: var(--success);
+    color: #ffffff;
+  }
+
+  .rating-badge.familiar {
+    background: var(--accent-primary);
+    color: #ffffff;
+  }
+
+  .rating-badge.processed {
+    background: var(--text-muted);
+    color: #ffffff;
+  }
+
+  /* Settings section */
+  .settings-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .settings-content {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .setting-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .setting-item label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    flex: 1;
+  }
+
+  .setting-label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .setting-description {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+  }
+
+  .setting-item input[type='number'] {
+    width: 80px;
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-light);
+    border-radius: 6px;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    font-family: inherit;
+    text-align: center;
+  }
+
+  .setting-item input[type='number']:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 2px rgba(var(--accent-primary-rgb, 59, 130, 246), 0.1);
   }
 </style>

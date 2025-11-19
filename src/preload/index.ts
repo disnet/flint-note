@@ -273,8 +273,7 @@ const api = {
   isReviewEnabled: (noteId: string) =>
     electronAPI.ipcRenderer.invoke('is-review-enabled', noteId),
   getReviewStats: () => electronAPI.ipcRenderer.invoke('get-review-stats'),
-  getNotesForReview: (date: string) =>
-    electronAPI.ipcRenderer.invoke('get-notes-for-review', date),
+  getNotesForReview: () => electronAPI.ipcRenderer.invoke('get-notes-for-review'),
   generateReviewPrompt: (noteId: string) =>
     electronAPI.ipcRenderer.invoke('generate-review-prompt', noteId),
   analyzeReviewResponse: (params: {
@@ -284,13 +283,25 @@ const api = {
   }) => electronAPI.ipcRenderer.invoke('analyze-review-response', params),
   completeReview: (params: {
     noteId: string;
-    passed: boolean;
+    rating: 1 | 2 | 3 | 4;
     userResponse?: string;
     prompt?: string;
   }) => electronAPI.ipcRenderer.invoke('complete-review', params),
   getReviewItem: (noteId: string) =>
     electronAPI.ipcRenderer.invoke('get-review-item', noteId),
   getAllReviewHistory: () => electronAPI.ipcRenderer.invoke('get-all-review-history'),
+  getCurrentSession: () => electronAPI.ipcRenderer.invoke('get-current-session'),
+  incrementSession: () => electronAPI.ipcRenderer.invoke('increment-session'),
+  getReviewConfig: () => electronAPI.ipcRenderer.invoke('get-review-config'),
+  updateReviewConfig: (params: {
+    sessionSize?: number;
+    sessionsPerWeek?: number;
+    maxIntervalSessions?: number;
+    minIntervalDays?: number;
+  }) => electronAPI.ipcRenderer.invoke('update-review-config', params),
+  reactivateNote: (noteId: string) =>
+    electronAPI.ipcRenderer.invoke('reactivate-note', noteId),
+  getRetiredItems: () => electronAPI.ipcRenderer.invoke('get-retired-items'),
 
   // Search operations
   searchNotes: (params: { query: string; vaultId?: string; limit?: number }) =>

@@ -75,6 +75,7 @@ import type { LintContext } from '../linting/lint-rule.js';
 import { formatLintIssues } from '../linting/markdown-linter.js';
 import { ReviewManager } from '../core/review-manager.js';
 import type { ReviewNote, ReviewStats, ReviewItem } from '../core/review-manager.js';
+import type { ReviewRating, SchedulingConfig } from '../core/review-scheduler.js';
 
 export interface FlintNoteApiConfig extends ServerConfig {
   configDir?: string;
@@ -2486,37 +2487,110 @@ export class FlintNoteApi {
   }
 
   /**
-   * Get notes due for review on a specific date
+   * Get notes due for review in current session
    */
-  async getNotesForReview(args: {
-    vaultId: string;
-    date: string;
-  }): Promise<ReviewNote[]> {
+  async getNotesForReview(args: { vaultId: string }): Promise<ReviewNote[]> {
     this.ensureInitialized();
     const { reviewManager } = await this.getVaultContext(args.vaultId);
-    return await reviewManager.getNotesForReview(args.date);
+    return await reviewManager.getNotesForReview();
   }
 
   /**
-   * Complete a review session
+   * Complete a review with rating
    */
   async completeReview(args: {
     noteId: string;
     vaultId: string;
-    passed: boolean;
+    rating: ReviewRating;
     userResponse?: string;
     prompt?: string;
     feedback?: string;
-  }): Promise<{ nextReviewDate: string; reviewCount: number }> {
+  }): Promise<{
+    nextSessionNumber: number;
+    nextReviewDate: string;
+    reviewCount: number;
+    retired: boolean;
+  }> {
     this.ensureInitialized();
     const { reviewManager } = await this.getVaultContext(args.vaultId);
     return await reviewManager.completeReview(
       args.noteId,
-      args.passed,
+      args.rating,
       args.userResponse,
       args.prompt,
       args.feedback
     );
+  }
+
+  /**
+   * Get current session number
+   */
+  async getCurrentSession(args: { vaultId: string }): Promise<{ sessionNumber: number }> {
+    this.ensureInitialized();
+    const { reviewManager } = await this.getVaultContext(args.vaultId);
+    const sessionNumber = await reviewManager.getCurrentSessionNumber();
+    return { sessionNumber };
+  }
+
+  /**
+   * Increment session number (complete a session)
+   */
+  async incrementSession(args: { vaultId: string }): Promise<{ sessionNumber: number }> {
+    this.ensureInitialized();
+    const { reviewManager } = await this.getVaultContext(args.vaultId);
+    const sessionNumber = await reviewManager.incrementSessionNumber();
+    return { sessionNumber };
+  }
+
+  /**
+   * Get review configuration
+   */
+  async getReviewConfig(args: { vaultId: string }): Promise<SchedulingConfig> {
+    this.ensureInitialized();
+    const { reviewManager } = await this.getVaultContext(args.vaultId);
+    return await reviewManager.getReviewConfig();
+  }
+
+  /**
+   * Update review configuration
+   */
+  async updateReviewConfig(args: {
+    vaultId: string;
+    config: Partial<SchedulingConfig>;
+  }): Promise<SchedulingConfig> {
+    this.ensureInitialized();
+    const { reviewManager } = await this.getVaultContext(args.vaultId);
+    return await reviewManager.updateReviewConfig(args.config);
+  }
+
+  /**
+   * Retire a note (fully processed)
+   */
+  async retireNote(args: { noteId: string; vaultId: string }): Promise<void> {
+    this.ensureInitialized();
+    const { reviewManager } = await this.getVaultContext(args.vaultId);
+    await reviewManager.retireNote(args.noteId);
+  }
+
+  /**
+   * Reactivate a retired note
+   */
+  async reactivateNote(args: {
+    noteId: string;
+    vaultId: string;
+  }): Promise<ReviewItem | null> {
+    this.ensureInitialized();
+    const { reviewManager } = await this.getVaultContext(args.vaultId);
+    return await reviewManager.reactivateNote(args.noteId);
+  }
+
+  /**
+   * Get all retired review items
+   */
+  async getRetiredItems(args: { vaultId: string }): Promise<ReviewItem[]> {
+    this.ensureInitialized();
+    const { reviewManager } = await this.getVaultContext(args.vaultId);
+    return await reviewManager.getRetiredItems();
   }
 
   /**

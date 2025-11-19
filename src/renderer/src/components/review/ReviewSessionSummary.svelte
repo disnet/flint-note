@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { ReviewSessionSummary } from '../../types/review';
+  import { RATING_LABELS } from '../../types/review';
 
   interface Props {
     summary: ReviewSessionSummary;
@@ -7,20 +8,13 @@
   }
 
   let { summary, onBackToDashboard }: Props = $props();
-
-  // Calculate success rate
-  const successRate = $derived(
-    summary.totalNotes > 0
-      ? Math.round((summary.passedCount / summary.totalNotes) * 100)
-      : 0
-  );
 </script>
 
 <div class="session-summary">
   <div class="header">
     <div class="icon">🎉</div>
     <h2>Review Session Complete!</h2>
-    <p class="subtitle">Great work on building your understanding</p>
+    <p class="subtitle">Session #{summary.sessionNumber + 1} finished</p>
   </div>
 
   <div class="stats-grid">
@@ -29,20 +23,27 @@
       <div class="stat-label">Notes Reviewed</div>
     </div>
 
-    <div class="stat-item success">
-      <div class="stat-value">{summary.passedCount}</div>
-      <div class="stat-label">Passed</div>
+    <div class="stat-item need-more">
+      <div class="stat-value">{summary.ratingCounts[1]}</div>
+      <div class="stat-label">Need More Time</div>
     </div>
 
-    <div class="stat-item warning">
-      <div class="stat-value">{summary.failedCount}</div>
-      <div class="stat-label">For Review Tomorrow</div>
+    <div class="stat-item productive">
+      <div class="stat-value">{summary.ratingCounts[2]}</div>
+      <div class="stat-label">Productive</div>
     </div>
 
-    <div class="stat-item">
-      <div class="stat-value">{successRate}%</div>
-      <div class="stat-label">Success Rate</div>
+    <div class="stat-item familiar">
+      <div class="stat-value">{summary.ratingCounts[3]}</div>
+      <div class="stat-label">Already Familiar</div>
     </div>
+
+    {#if summary.ratingCounts[4] > 0}
+      <div class="stat-item retired">
+        <div class="stat-value">{summary.ratingCounts[4]}</div>
+        <div class="stat-label">Retired</div>
+      </div>
+    {/if}
 
     <div class="stat-item">
       <div class="stat-value">{summary.durationMinutes}</div>
@@ -57,15 +58,6 @@
     {/if}
   </div>
 
-  {#if summary.failedCount > 0}
-    <div class="next-review">
-      <div class="next-review-label">Tomorrow's Review:</div>
-      <div class="next-review-value">
-        {summary.failedCount} note{summary.failedCount === 1 ? '' : 's'}
-      </div>
-    </div>
-  {/if}
-
   <div class="actions">
     <button class="back-btn" onclick={onBackToDashboard}> Back to Dashboard </button>
   </div>
@@ -75,15 +67,11 @@
       <summary>View Session Details</summary>
       <div class="results-list">
         {#each summary.results as result (result.noteId)}
-          <div
-            class="result-item"
-            class:passed={result.passed}
-            class:failed={!result.passed}
-          >
+          <div class="result-item rating-{result.rating}">
             <div class="result-header">
-              <span class="result-icon">{result.passed ? '✓' : '✗'}</span>
+              <span class="result-rating">{result.rating}</span>
               <span class="result-title">{result.noteTitle}</span>
-              <span class="result-schedule">Next: {result.scheduledFor}</span>
+              <span class="result-label">{RATING_LABELS[result.rating]}</span>
             </div>
           </div>
         {/each}
@@ -142,12 +130,20 @@
     transform: translateY(-2px);
   }
 
-  .stat-item.success {
+  .stat-item.need-more {
+    border-color: var(--warning);
+  }
+
+  .stat-item.productive {
     border-color: var(--success);
   }
 
-  .stat-item.warning {
-    border-color: var(--warning);
+  .stat-item.familiar {
+    border-color: var(--accent-secondary);
+  }
+
+  .stat-item.retired {
+    border-color: var(--text-tertiary);
   }
 
   .stat-item.secondary {
@@ -162,12 +158,16 @@
     margin-bottom: 0.5rem;
   }
 
-  .stat-item.success .stat-value {
+  .stat-item.need-more .stat-value {
+    color: var(--warning);
+  }
+
+  .stat-item.productive .stat-value {
     color: var(--success);
   }
 
-  .stat-item.warning .stat-value {
-    color: var(--warning);
+  .stat-item.familiar .stat-value {
+    color: var(--accent-secondary);
   }
 
   .stat-label {
@@ -175,27 +175,6 @@
     color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.05em;
-  }
-
-  .next-review {
-    background: var(--bg-secondary);
-    border-left: 4px solid var(--warning);
-    padding: 1rem 1.5rem;
-    border-radius: 4px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .next-review-label {
-    font-weight: 600;
-    color: var(--text-primary);
-  }
-
-  .next-review-value {
-    color: var(--warning);
-    font-weight: 700;
-    font-size: 1.125rem;
   }
 
   .actions {
@@ -251,16 +230,23 @@
     padding: 0.75rem 1rem;
     border-radius: 4px;
     border-left: 3px solid;
+    background: var(--bg-primary);
   }
 
-  .result-item.passed {
-    background: var(--success-background, rgba(0, 200, 100, 0.1));
+  .result-item.rating-1 {
+    border-left-color: var(--warning);
+  }
+
+  .result-item.rating-2 {
     border-left-color: var(--success);
   }
 
-  .result-item.failed {
-    background: var(--warning-background, rgba(255, 165, 0, 0.1));
-    border-left-color: var(--warning);
+  .result-item.rating-3 {
+    border-left-color: var(--accent-secondary);
+  }
+
+  .result-item.rating-4 {
+    border-left-color: var(--text-tertiary);
   }
 
   .result-header {
@@ -269,17 +255,37 @@
     gap: 0.75rem;
   }
 
-  .result-icon {
+  .result-rating {
     font-weight: bold;
-    font-size: 1.125rem;
+    font-size: 0.875rem;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
   }
 
-  .result-item.passed .result-icon {
-    color: var(--success);
+  .result-item.rating-1 .result-rating {
+    background: var(--warning);
+    color: white;
   }
 
-  .result-item.failed .result-icon {
-    color: var(--warning);
+  .result-item.rating-2 .result-rating {
+    background: var(--success);
+    color: white;
+  }
+
+  .result-item.rating-3 .result-rating {
+    background: var(--accent-secondary);
+    color: white;
+  }
+
+  .result-item.rating-4 .result-rating {
+    background: var(--text-tertiary);
+    color: white;
   }
 
   .result-title {
@@ -288,8 +294,8 @@
     font-weight: 500;
   }
 
-  .result-schedule {
-    font-size: 0.875rem;
+  .result-label {
+    font-size: 0.75rem;
     color: var(--text-secondary);
   }
 </style>

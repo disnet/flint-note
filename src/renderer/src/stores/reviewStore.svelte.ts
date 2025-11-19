@@ -1,8 +1,8 @@
 /**
  * Review Store
  *
- * Manages state for the spaced repetition review system.
- * Handles review queue, statistics, and review session state.
+ * Manages state for the session-based spaced engagement review system.
+ * Handles review queue, statistics, configuration, and review session state.
  */
 
 import type {
@@ -10,20 +10,19 @@ import type {
   ReviewResult,
   SessionReviewNote,
   AgentFeedback,
-  ReviewItem
+  ReviewItem,
+  ReviewStats,
+  SchedulingConfig,
+  ReviewRating
 } from '../types/review';
-
-export interface ReviewStats {
-  dueToday: number;
-  dueThisWeek: number;
-  totalEnabled: number;
-}
 
 export interface ReviewNote {
   id: string;
   title: string;
   content: string;
   reviewCount: number;
+  nextSessionNumber: number;
+  currentInterval: number;
 }
 
 /**
@@ -43,12 +42,21 @@ export interface SavedReviewSession {
 class ReviewStore {
   // Review statistics
   stats = $state<ReviewStats>({
-    dueToday: 0,
-    dueThisWeek: 0,
-    totalEnabled: 0
+    dueThisSession: 0,
+    totalEnabled: 0,
+    retired: 0,
+    currentSessionNumber: 0
   });
 
-  // Notes due for review today
+  // Review configuration
+  config = $state<SchedulingConfig>({
+    sessionSize: 5,
+    sessionsPerWeek: 7,
+    maxIntervalSessions: 15,
+    minIntervalDays: 1
+  });
+
+  // Notes due for review in current session
   notesForReview = $state<ReviewNote[]>([]);
 
   // Currently selected note in review view
@@ -57,12 +65,10 @@ class ReviewStore {
   // Loading states
   isLoadingStats = $state(false);
   isLoadingNotes = $state(false);
+  isLoadingConfig = $state(false);
 
   // Error state
   error = $state<string | null>(null);
-
-  // Show all notes flag (for testing/debugging)
-  showAllNotes = $state(false);
 
   // Saved review session (for resuming after navigation)
   savedSession = $state<SavedReviewSession | null>(null);
@@ -89,25 +95,63 @@ class ReviewStore {
   }
 
   /**
-   * Load notes that are due for review today (or all if showAllNotes is true)
+   * Load review configuration
+   */
+  async loadConfig(): Promise<void> {
+    this.isLoadingConfig = true;
+    this.error = null;
+
+    try {
+      const config = await window.api?.getReviewConfig();
+      if (config) {
+        this.config = config;
+      }
+    } catch (err) {
+      console.error('Failed to load review config:', err);
+      this.error =
+        err instanceof Error ? err.message : 'Failed to load review configuration';
+    } finally {
+      this.isLoadingConfig = false;
+    }
+  }
+
+  /**
+   * Update review configuration
+   */
+  async updateConfig(config: Partial<SchedulingConfig>): Promise<boolean> {
+    try {
+      const updated = await window.api?.updateReviewConfig(config);
+      if (updated) {
+        this.config = updated;
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error('Failed to update review config:', err);
+      this.error =
+        err instanceof Error ? err.message : 'Failed to update review configuration';
+      return false;
+    }
+  }
+
+  /**
+   * Load notes that are due for review in current session
    */
   async loadNotesForReview(): Promise<void> {
     this.isLoadingNotes = true;
     this.error = null;
 
     try {
-      // If showAllNotes is true, use a far future date to get all notes
-      const date = this.showAllNotes
-        ? '9999-12-31'
-        : new Date().toISOString().split('T')[0];
-      const notes = await window.api?.getNotesForReview(date);
+      const notes = await window.api?.getNotesForReview();
 
       if (notes) {
         this.notesForReview = notes.map((note) => ({
           id: note.id,
           title: note.title,
           content: note.content || '',
-          reviewCount: note.reviewItem.reviewCount
+          reviewCount: note.reviewItem.reviewCount,
+          nextSessionNumber: note.reviewItem.nextSessionNumber,
+          currentInterval: note.reviewItem.currentInterval
         }));
       }
     } catch (err) {
@@ -115,6 +159,72 @@ class ReviewStore {
       this.error = err instanceof Error ? err.message : 'Failed to load review notes';
     } finally {
       this.isLoadingNotes = false;
+    }
+  }
+
+  /**
+   * Get current session number
+   */
+  async getCurrentSession(): Promise<number> {
+    try {
+      const result = await window.api?.getCurrentSession();
+      return result?.sessionNumber || 0;
+    } catch (err) {
+      console.error('Failed to get current session:', err);
+      return 0;
+    }
+  }
+
+  /**
+   * Increment session number (complete a session)
+   */
+  async incrementSession(): Promise<number> {
+    try {
+      const result = await window.api?.incrementSession();
+      if (result?.sessionNumber !== undefined) {
+        // Update stats with new session number
+        this.stats = { ...this.stats, currentSessionNumber: result.sessionNumber };
+        return result.sessionNumber;
+      }
+      return this.stats.currentSessionNumber;
+    } catch (err) {
+      console.error('Failed to increment session:', err);
+      this.error = err instanceof Error ? err.message : 'Failed to complete session';
+      return this.stats.currentSessionNumber;
+    }
+  }
+
+  /**
+   * Complete a review with rating
+   */
+  async completeReview(
+    noteId: string,
+    rating: ReviewRating,
+    userResponse?: string,
+    prompt?: string
+  ): Promise<{
+    nextSessionNumber: number;
+    nextReviewDate: string;
+    reviewCount: number;
+    retired: boolean;
+  } | null> {
+    try {
+      const result = await window.api?.completeReview({
+        noteId,
+        rating,
+        userResponse,
+        prompt
+      });
+      if (result) {
+        // Reload stats after completing review
+        await this.loadStats();
+        return result;
+      }
+      return null;
+    } catch (err) {
+      console.error('Failed to complete review:', err);
+      this.error = err instanceof Error ? err.message : 'Failed to complete review';
+      return null;
     }
   }
 
@@ -157,6 +267,39 @@ class ReviewStore {
   }
 
   /**
+   * Reactivate a retired note
+   */
+  async reactivateNote(noteId: string): Promise<boolean> {
+    try {
+      const result = await window.api?.reactivateNote(noteId);
+      if (result?.success) {
+        // Reload stats after reactivating
+        await this.loadStats();
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error('Failed to reactivate note:', err);
+      this.error = err instanceof Error ? err.message : 'Failed to reactivate note';
+      return false;
+    }
+  }
+
+  /**
+   * Get all retired items
+   */
+  async getRetiredItems(): Promise<ReviewItem[]> {
+    try {
+      const items = await window.api?.getRetiredItems();
+      return items || [];
+    } catch (err) {
+      console.error('Failed to get retired items:', err);
+      this.error = err instanceof Error ? err.message : 'Failed to get retired items';
+      return [];
+    }
+  }
+
+  /**
    * Check if review is enabled for a note
    */
   async isReviewEnabled(noteId: string): Promise<boolean> {
@@ -181,14 +324,6 @@ class ReviewStore {
    */
   removeFromQueue(noteId: string): void {
     this.notesForReview = this.notesForReview.filter((n) => n.id !== noteId);
-  }
-
-  /**
-   * Toggle between showing all notes and today's notes
-   */
-  async toggleShowAll(): Promise<void> {
-    this.showAllNotes = !this.showAllNotes;
-    await this.loadNotesForReview();
   }
 
   /**
@@ -252,14 +387,20 @@ class ReviewStore {
    */
   clear(): void {
     this.stats = {
-      dueToday: 0,
-      dueThisWeek: 0,
-      totalEnabled: 0
+      dueThisSession: 0,
+      totalEnabled: 0,
+      retired: 0,
+      currentSessionNumber: 0
+    };
+    this.config = {
+      sessionSize: 5,
+      sessionsPerWeek: 7,
+      maxIntervalSessions: 15,
+      minIntervalDays: 1
     };
     this.notesForReview = [];
     this.currentReviewNote = null;
     this.error = null;
-    this.showAllNotes = false;
     this.savedSession = null;
   }
 }

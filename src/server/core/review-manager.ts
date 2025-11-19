@@ -1,17 +1,27 @@
 /**
  * Review Manager
  *
- * Handles review scheduling and management for spaced repetition system.
- * Manages the review_items table and synchronizes with note frontmatter.
+ * Handles review scheduling and management for session-based spaced engagement system.
+ * Manages the review_items, review_state, and review_config tables.
  */
 
 import crypto from 'crypto';
-import type { DatabaseConnection, ReviewItemRow, NoteRow } from '../database/schema.js';
+import type {
+  DatabaseConnection,
+  ReviewItemRow,
+  ReviewStateRow,
+  ReviewConfigRow,
+  NoteRow
+} from '../database/schema.js';
 import {
+  calculateNextSession,
   getNextReviewDate,
   appendToReviewHistory,
   parseReviewHistory,
-  type ReviewHistoryEntry
+  DEFAULT_SCHEDULING_CONFIG,
+  type ReviewHistoryEntry,
+  type ReviewRating,
+  type SchedulingConfig
 } from './review-scheduler.js';
 
 /**
@@ -20,6 +30,11 @@ import {
 export function generateReviewId(): string {
   return 'rev-' + crypto.randomBytes(4).toString('hex');
 }
+
+/**
+ * Review item status
+ */
+export type ReviewStatus = 'active' | 'retired';
 
 /**
  * Review item domain model
@@ -31,6 +46,9 @@ export interface ReviewItem {
   enabled: boolean;
   lastReviewed: string | null;
   nextReview: string;
+  nextSessionNumber: number;
+  currentInterval: number;
+  status: ReviewStatus;
   reviewCount: number;
   reviewHistory: ReviewHistoryEntry[];
   createdAt: string;
@@ -48,9 +66,10 @@ export interface ReviewNote extends NoteRow {
  * Review statistics
  */
 export interface ReviewStats {
-  dueToday: number;
-  dueThisWeek: number;
+  dueThisSession: number;
   totalEnabled: number;
+  retired: number;
+  currentSessionNumber: number;
 }
 
 /**
@@ -64,6 +83,9 @@ function reviewRowToModel(row: ReviewItemRow): ReviewItem {
     enabled: row.enabled === 1,
     lastReviewed: row.last_reviewed,
     nextReview: row.next_review,
+    nextSessionNumber: row.next_session_number,
+    currentInterval: row.current_interval,
+    status: (row.status as ReviewStatus) || 'active',
     reviewCount: row.review_count,
     reviewHistory: parseReviewHistory(row.review_history),
     createdAt: row.created_at,
@@ -79,6 +101,104 @@ export class ReviewManager {
     private db: DatabaseConnection,
     private vaultId: string
   ) {}
+
+  /**
+   * Get current session number
+   */
+  async getCurrentSessionNumber(): Promise<number> {
+    const state = await this.db.get<ReviewStateRow>(
+      'SELECT * FROM review_state WHERE id = 1'
+    );
+
+    if (!state) {
+      // Initialize state if it doesn't exist
+      await this.db.run(
+        'INSERT INTO review_state (id, current_session_number) VALUES (1, 1)'
+      );
+      return 1;
+    }
+
+    return state.current_session_number;
+  }
+
+  /**
+   * Increment session number (called when a session is completed)
+   */
+  async incrementSessionNumber(): Promise<number> {
+    const currentSession = await this.getCurrentSessionNumber();
+    const newSession = currentSession + 1;
+    const now = new Date().toISOString();
+
+    await this.db.run(
+      `UPDATE review_state
+       SET current_session_number = ?,
+           last_session_completed_at = ?,
+           updated_at = ?
+       WHERE id = 1`,
+      [newSession, now, now]
+    );
+
+    return newSession;
+  }
+
+  /**
+   * Get review configuration
+   */
+  async getReviewConfig(): Promise<SchedulingConfig> {
+    const config = await this.db.get<ReviewConfigRow>(
+      'SELECT * FROM review_config WHERE id = 1'
+    );
+
+    if (!config) {
+      // Initialize config with defaults if it doesn't exist
+      await this.db.run(
+        `INSERT INTO review_config (id, session_size, sessions_per_week, max_interval_sessions, min_interval_days)
+         VALUES (1, ?, ?, ?, ?)`,
+        [
+          DEFAULT_SCHEDULING_CONFIG.sessionSize,
+          DEFAULT_SCHEDULING_CONFIG.sessionsPerWeek,
+          DEFAULT_SCHEDULING_CONFIG.maxIntervalSessions,
+          DEFAULT_SCHEDULING_CONFIG.minIntervalDays
+        ]
+      );
+      return DEFAULT_SCHEDULING_CONFIG;
+    }
+
+    return {
+      sessionSize: config.session_size,
+      sessionsPerWeek: config.sessions_per_week,
+      maxIntervalSessions: config.max_interval_sessions,
+      minIntervalDays: config.min_interval_days
+    };
+  }
+
+  /**
+   * Update review configuration
+   */
+  async updateReviewConfig(config: Partial<SchedulingConfig>): Promise<SchedulingConfig> {
+    const current = await this.getReviewConfig();
+    const updated = { ...current, ...config };
+    const now = new Date().toISOString();
+
+    await this.db.run(
+      `UPDATE review_config
+       SET session_size = ?,
+           sessions_per_week = ?,
+           max_interval_sessions = ?,
+           min_interval_days = ?,
+           updated_at = ?
+       WHERE id = 1`,
+      [
+        updated.sessionSize,
+        updated.sessionsPerWeek,
+        updated.maxIntervalSessions,
+        updated.minIntervalDays,
+        now
+      ]
+    );
+
+    return updated;
+  }
 
   /**
    * Enable review for a note
@@ -107,6 +227,7 @@ export class ReviewManager {
     // Create new review item
     const reviewId = generateReviewId();
     const now = new Date().toISOString();
+    const currentSession = await this.getCurrentSessionNumber();
 
     // Use provided values or defaults
     const tomorrow = new Date();
@@ -115,10 +236,15 @@ export class ReviewManager {
     const reviewCount = options?.reviewCount ?? 0;
     const reviewHistory = options?.reviewHistory ?? null;
 
+    // New notes are due in current session (immediately available) with interval of 1
+    const nextSessionNumber = currentSession;
+    const currentInterval = 1;
+
     await this.db.run(
       `INSERT INTO review_items
-       (id, note_id, vault_id, enabled, last_reviewed, next_review, review_count, review_history, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (id, note_id, vault_id, enabled, last_reviewed, next_review, review_count, review_history,
+        next_session_number, current_interval, status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         reviewId,
         noteId,
@@ -128,6 +254,9 @@ export class ReviewManager {
         nextReview,
         reviewCount,
         reviewHistory,
+        nextSessionNumber,
+        currentInterval,
+        'active',
         now,
         now
       ]
@@ -156,9 +285,53 @@ export class ReviewManager {
   }
 
   /**
-   * Get notes due for review on a specific date
+   * Retire a note (rating 4 - fully processed)
    */
-  async getNotesForReview(date: string): Promise<ReviewNote[]> {
+  async retireNote(noteId: string): Promise<void> {
+    const now = new Date().toISOString();
+
+    await this.db.run(
+      `UPDATE review_items
+       SET status = 'retired',
+           updated_at = ?
+       WHERE note_id = ?`,
+      [now, noteId]
+    );
+  }
+
+  /**
+   * Reactivate a retired note
+   */
+  async reactivateNote(noteId: string): Promise<ReviewItem | null> {
+    const currentSession = await this.getCurrentSessionNumber();
+    const now = new Date().toISOString();
+
+    // Reactivate with next session and reset interval
+    await this.db.run(
+      `UPDATE review_items
+       SET status = 'active',
+           next_session_number = ?,
+           current_interval = 1,
+           updated_at = ?
+       WHERE note_id = ?`,
+      [currentSession + 1, now, noteId]
+    );
+
+    return this.getReviewItem(noteId);
+  }
+
+  /**
+   * Get notes due for review in current session
+   */
+  async getNotesForReview(): Promise<ReviewNote[]> {
+    const currentSession = await this.getCurrentSessionNumber();
+    const config = await this.getReviewConfig();
+
+    // Calculate minimum date for minIntervalDays filter
+    const minDate = new Date();
+    minDate.setDate(minDate.getDate() - config.minIntervalDays);
+    const minDateStr = minDate.toISOString();
+
     // Define the shape of the joined query result
     interface JoinedRow {
       // Note fields
@@ -181,6 +354,9 @@ export class ReviewManager {
       enabled: number;
       last_reviewed: string | null;
       next_review: string;
+      next_session_number: number;
+      current_interval: number;
+      status: string;
       review_count: number;
       review_history: string | null;
       review_created_at: string;
@@ -207,6 +383,9 @@ export class ReviewManager {
         ri.enabled,
         ri.last_reviewed,
         ri.next_review,
+        ri.next_session_number,
+        ri.current_interval,
+        ri.status,
         ri.review_count,
         ri.review_history,
         ri.created_at as review_created_at,
@@ -215,9 +394,13 @@ export class ReviewManager {
        INNER JOIN review_items ri ON n.id = ri.note_id
        WHERE ri.vault_id = ?
          AND ri.enabled = 1
-         AND ri.next_review <= ?
-       ORDER BY ri.next_review ASC`,
-      [this.vaultId, date]
+         AND ri.status = 'active'
+         AND ri.next_session_number <= ?
+         AND (ri.last_reviewed IS NULL OR ri.last_reviewed < ?)
+         AND (n.archived = 0 OR n.archived IS NULL)
+       ORDER BY (? - ri.next_session_number) DESC
+       LIMIT ?`,
+      [this.vaultId, currentSession, minDateStr, currentSession, config.sessionSize]
     );
 
     return rows.map((row) => {
@@ -245,6 +428,9 @@ export class ReviewManager {
         enabled: row.enabled === 1,
         lastReviewed: row.last_reviewed,
         nextReview: row.next_review,
+        nextSessionNumber: row.next_session_number,
+        currentInterval: row.current_interval,
+        status: (row.status as ReviewStatus) || 'active',
         reviewCount: row.review_count,
         reviewHistory: parseReviewHistory(row.review_history),
         createdAt: row.review_created_at,
@@ -259,16 +445,21 @@ export class ReviewManager {
   }
 
   /**
-   * Complete a review session
+   * Complete a review with rating
    * Updates schedule and stores review history
    */
   async completeReview(
     noteId: string,
-    passed: boolean,
+    rating: ReviewRating,
     userResponse?: string,
     prompt?: string,
     feedback?: string
-  ): Promise<{ nextReviewDate: string; reviewCount: number }> {
+  ): Promise<{
+    nextSessionNumber: number;
+    nextReviewDate: string;
+    reviewCount: number;
+    retired: boolean;
+  }> {
     // Get current review item
     const reviewItem = await this.db.get<ReviewItemRow>(
       'SELECT * FROM review_items WHERE note_id = ?',
@@ -279,36 +470,91 @@ export class ReviewManager {
       throw new Error(`Review item not found for note ${noteId}`);
     }
 
-    // Calculate next review date
-    const nextReviewDate = getNextReviewDate(passed);
+    const currentSession = await this.getCurrentSessionNumber();
+    const config = await this.getReviewConfig();
+
+    // Calculate next session
+    const result = calculateNextSession(
+      currentSession,
+      reviewItem.current_interval,
+      rating,
+      config
+    );
 
     // Update review history
     const updatedHistory = appendToReviewHistory(
       reviewItem.review_history,
-      passed,
+      currentSession,
+      rating,
       userResponse,
       prompt,
       feedback
     );
 
-    // Update review item
     const now = new Date().toISOString();
     const newReviewCount = reviewItem.review_count + 1;
 
+    if (result === 'retired') {
+      // Rating 4 - retire the note
+      const nextReviewDate = '9999-12-31';
+
+      await this.db.run(
+        `UPDATE review_items
+         SET last_reviewed = ?,
+             next_review = ?,
+             next_session_number = ?,
+             status = 'retired',
+             review_count = ?,
+             review_history = ?,
+             updated_at = ?
+         WHERE note_id = ?`,
+        [now, nextReviewDate, 999999, newReviewCount, updatedHistory, now, noteId]
+      );
+
+      return {
+        nextSessionNumber: -1,
+        nextReviewDate,
+        reviewCount: newReviewCount,
+        retired: true
+      };
+    }
+
+    // Calculate next review date for backward compatibility
+    const nextReviewDate = getNextReviewDate(
+      rating,
+      reviewItem.current_interval,
+      currentSession,
+      config
+    );
+
+    // Update review item with new session-based scheduling
     await this.db.run(
       `UPDATE review_items
        SET last_reviewed = ?,
            next_review = ?,
+           next_session_number = ?,
+           current_interval = ?,
            review_count = ?,
            review_history = ?,
            updated_at = ?
        WHERE note_id = ?`,
-      [now, nextReviewDate, newReviewCount, updatedHistory, now, noteId]
+      [
+        now,
+        nextReviewDate,
+        result.nextSession,
+        result.interval,
+        newReviewCount,
+        updatedHistory,
+        now,
+        noteId
+      ]
     );
 
     return {
+      nextSessionNumber: result.nextSession,
       nextReviewDate,
-      reviewCount: newReviewCount
+      reviewCount: newReviewCount,
+      retired: false
     };
   }
 
@@ -316,43 +562,47 @@ export class ReviewManager {
    * Get review statistics for the vault
    */
   async getReviewStats(): Promise<ReviewStats> {
-    const today = new Date().toISOString().split('T')[0];
+    const currentSession = await this.getCurrentSessionNumber();
 
-    const weekFromNow = new Date();
-    weekFromNow.setDate(weekFromNow.getDate() + 7);
-    const weekDate = weekFromNow.toISOString().split('T')[0];
-
-    // Due today (excluding archived notes)
-    const dueToday = await this.db.get<{ count: number }>(
+    // Due this session (excluding archived notes)
+    const dueThisSession = await this.db.get<{ count: number }>(
       `SELECT COUNT(*) as count FROM review_items ri
        INNER JOIN notes n ON ri.note_id = n.id
-       WHERE ri.vault_id = ? AND ri.enabled = 1 AND ri.next_review <= ?
-       AND (n.archived = 0 OR n.archived IS NULL)`,
-      [this.vaultId, today]
+       WHERE ri.vault_id = ?
+         AND ri.enabled = 1
+         AND ri.status = 'active'
+         AND ri.next_session_number <= ?
+         AND (n.archived = 0 OR n.archived IS NULL)`,
+      [this.vaultId, currentSession]
     );
 
-    // Due this week (excluding archived notes)
-    const dueThisWeek = await this.db.get<{ count: number }>(
-      `SELECT COUNT(*) as count FROM review_items ri
-       INNER JOIN notes n ON ri.note_id = n.id
-       WHERE ri.vault_id = ? AND ri.enabled = 1 AND ri.next_review <= ?
-       AND (n.archived = 0 OR n.archived IS NULL)`,
-      [this.vaultId, weekDate]
-    );
-
-    // Total enabled (excluding archived notes)
+    // Total enabled active (excluding archived notes)
     const totalEnabled = await this.db.get<{ count: number }>(
       `SELECT COUNT(*) as count FROM review_items ri
        INNER JOIN notes n ON ri.note_id = n.id
-       WHERE ri.vault_id = ? AND ri.enabled = 1
-       AND (n.archived = 0 OR n.archived IS NULL)`,
+       WHERE ri.vault_id = ?
+         AND ri.enabled = 1
+         AND ri.status = 'active'
+         AND (n.archived = 0 OR n.archived IS NULL)`,
+      [this.vaultId]
+    );
+
+    // Retired notes (excluding archived notes)
+    const retired = await this.db.get<{ count: number }>(
+      `SELECT COUNT(*) as count FROM review_items ri
+       INNER JOIN notes n ON ri.note_id = n.id
+       WHERE ri.vault_id = ?
+         AND ri.enabled = 1
+         AND ri.status = 'retired'
+         AND (n.archived = 0 OR n.archived IS NULL)`,
       [this.vaultId]
     );
 
     return {
-      dueToday: dueToday?.count || 0,
-      dueThisWeek: dueThisWeek?.count || 0,
-      totalEnabled: totalEnabled?.count || 0
+      dueThisSession: dueThisSession?.count || 0,
+      totalEnabled: totalEnabled?.count || 0,
+      retired: retired?.count || 0,
+      currentSessionNumber: currentSession
     };
   }
 
@@ -382,15 +632,31 @@ export class ReviewManager {
 
   /**
    * Get all review items with their history
-   * Returns all review items for the vault (excluding archived notes), ordered by last_reviewed DESC (most recent first)
+   * Returns all active review items for the vault (excluding archived notes)
    */
   async getAllReviewHistory(): Promise<ReviewItem[]> {
     const rows = await this.db.all<ReviewItemRow>(
       `SELECT ri.* FROM review_items ri
        INNER JOIN notes n ON ri.note_id = n.id
-       WHERE ri.vault_id = ? AND ri.enabled = 1
+       WHERE ri.vault_id = ? AND ri.enabled = 1 AND ri.status = 'active'
        AND (n.archived = 0 OR n.archived IS NULL)
        ORDER BY ri.last_reviewed DESC NULLS LAST`,
+      [this.vaultId]
+    );
+
+    return rows.map(reviewRowToModel);
+  }
+
+  /**
+   * Get all retired review items
+   */
+  async getRetiredItems(): Promise<ReviewItem[]> {
+    const rows = await this.db.all<ReviewItemRow>(
+      `SELECT ri.* FROM review_items ri
+       INNER JOIN notes n ON ri.note_id = n.id
+       WHERE ri.vault_id = ? AND ri.enabled = 1 AND ri.status = 'retired'
+       AND (n.archived = 0 OR n.archived IS NULL)
+       ORDER BY ri.updated_at DESC`,
       [this.vaultId]
     );
 

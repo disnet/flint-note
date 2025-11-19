@@ -1,82 +1,152 @@
 /**
  * Review Scheduler Tests
  *
- * Tests for the spaced repetition scheduling algorithm
+ * Tests for the session-based spaced engagement scheduling algorithm
  */
 
 import { describe, it, expect } from 'vitest';
 import {
+  calculateNextSession,
+  estimateSessionDate,
   getNextReviewDate,
-  appendToReviewHistory,
+  createReviewHistoryEntry,
   parseReviewHistory,
-  serializeReviewHistory
+  serializeReviewHistory,
+  DEFAULT_SCHEDULING_CONFIG,
+  RATING_MULTIPLIERS
 } from '../../../src/server/core/review-scheduler.js';
 
 describe('Review Scheduler', () => {
-  describe('getNextReviewDate', () => {
-    it('should return 7 days from now when review passed', () => {
-      const baseDate = new Date('2025-01-01T12:00:00Z');
-      const nextReview = getNextReviewDate(true, baseDate);
+  describe('calculateNextSession', () => {
+    it('should schedule closer with rating 1 (Need more time)', () => {
+      const result = calculateNextSession(10, 4, 1);
 
-      expect(nextReview).toBe('2025-01-08');
+      expect(result).not.toBe('retired');
+      if (result !== 'retired') {
+        // 4 * 0.5 = 2
+        expect(result.interval).toBe(2);
+        expect(result.nextSession).toBe(12);
+      }
     });
 
-    it('should return 1 day from now when review failed', () => {
-      const baseDate = new Date('2025-01-01T12:00:00Z');
-      const nextReview = getNextReviewDate(false, baseDate);
+    it('should schedule further with rating 2 (Productive)', () => {
+      const result = calculateNextSession(10, 4, 2);
 
-      expect(nextReview).toBe('2025-01-02');
+      expect(result).not.toBe('retired');
+      if (result !== 'retired') {
+        // 4 * 1.5 = 6
+        expect(result.interval).toBe(6);
+        expect(result.nextSession).toBe(16);
+      }
+    });
+
+    it('should schedule much further with rating 3 (Already familiar)', () => {
+      const result = calculateNextSession(10, 4, 3);
+
+      expect(result).not.toBe('retired');
+      if (result !== 'retired') {
+        // 4 * 2.5 = 10
+        expect(result.interval).toBe(10);
+        expect(result.nextSession).toBe(20);
+      }
+    });
+
+    it('should retire note with rating 4 (Fully processed)', () => {
+      const result = calculateNextSession(10, 4, 4);
+      expect(result).toBe('retired');
+    });
+
+    it('should respect minimum interval of 1', () => {
+      // With interval 1 and rating 1 (0.5x), should get at least 1
+      const result = calculateNextSession(10, 1, 1);
+
+      expect(result).not.toBe('retired');
+      if (result !== 'retired') {
+        expect(result.interval).toBe(1);
+        expect(result.nextSession).toBe(11);
+      }
+    });
+
+    it('should cap interval at maxIntervalSessions', () => {
+      const config = { ...DEFAULT_SCHEDULING_CONFIG, maxIntervalSessions: 10 };
+      const result = calculateNextSession(10, 20, 3, config);
+
+      expect(result).not.toBe('retired');
+      if (result !== 'retired') {
+        // 20 * 2.5 = 50, but capped at 10
+        expect(result.interval).toBe(10);
+        expect(result.nextSession).toBe(20);
+      }
+    });
+
+    it('should use default config when not provided', () => {
+      const result = calculateNextSession(1, 1, 2);
+      expect(result).not.toBe('retired');
+    });
+  });
+
+  describe('estimateSessionDate', () => {
+    it('should estimate date based on sessions per week', () => {
+      const baseDate = new Date('2025-01-01T12:00:00Z');
+      // 7 sessions away with 7 sessions per week = 1 week = 7 days
+      const date = estimateSessionDate(8, 1, 7, baseDate);
+
+      expect(date.toISOString().split('T')[0]).toBe('2025-01-08');
+    });
+
+    it('should handle fractional weeks', () => {
+      const baseDate = new Date('2025-01-01T12:00:00Z');
+      // 3 sessions away with 7 sessions per week = ~3 days
+      const date = estimateSessionDate(4, 1, 7, baseDate);
+
+      expect(date.toISOString().split('T')[0]).toBe('2025-01-04');
     });
 
     it('should use current date when baseDate not provided', () => {
-      const beforeCall = new Date();
-      beforeCall.setHours(0, 0, 0, 0); // Normalize to start of day
+      const date = estimateSessionDate(8, 1, 7);
+      expect(date).toBeInstanceOf(Date);
+      expect(date.getTime()).toBeGreaterThan(Date.now() - 1000);
+    });
+  });
 
-      const nextReview = getNextReviewDate(true);
+  describe('getNextReviewDate', () => {
+    it('should return date string for ratings 1-3', () => {
+      const baseDate = new Date('2025-01-01T12:00:00Z');
+      const date = getNextReviewDate(2, 4, 10, DEFAULT_SCHEDULING_CONFIG, baseDate);
 
-      const afterCall = new Date();
-      afterCall.setHours(23, 59, 59, 999); // Normalize to end of day
-
-      // Should be 7 days from today
-      const expectedMin = new Date(beforeCall);
-      expectedMin.setDate(expectedMin.getDate() + 7);
-      const expectedMax = new Date(afterCall);
-      expectedMax.setDate(expectedMax.getDate() + 7);
-
-      const minDate = expectedMin.toISOString().split('T')[0];
-      const maxDate = expectedMax.toISOString().split('T')[0];
-
-      expect(nextReview >= minDate).toBe(true);
-      expect(nextReview <= maxDate).toBe(true);
+      expect(date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     });
 
-    it('should return date in YYYY-MM-DD format', () => {
-      const baseDate = new Date('2025-01-15T12:00:00Z');
-      const nextReview = getNextReviewDate(true, baseDate);
+    it('should return far future date for retired items', () => {
+      const baseDate = new Date('2025-01-01T12:00:00Z');
+      const date = getNextReviewDate(4, 4, 10, DEFAULT_SCHEDULING_CONFIG, baseDate);
 
-      expect(nextReview).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-      expect(nextReview).toBe('2025-01-22');
+      expect(date).toBe('9999-12-31');
+    });
+  });
+
+  describe('createReviewHistoryEntry', () => {
+    it('should create entry with rating', () => {
+      const entry = createReviewHistoryEntry(5, 2, 'My response', 'The prompt');
+
+      expect(entry.sessionNumber).toBe(5);
+      expect(entry.rating).toBe(2);
+      expect(entry.response).toBe('My response');
+      expect(entry.prompt).toBe('The prompt');
+      expect(entry.date).toBeDefined();
     });
 
-    it('should handle month boundaries correctly', () => {
-      const baseDate = new Date('2025-01-31T12:00:00Z');
-      const nextReview = getNextReviewDate(true, baseDate);
-
-      expect(nextReview).toBe('2025-02-07');
+    it('should include feedback when provided', () => {
+      const entry = createReviewHistoryEntry(5, 3, 'Response', 'Prompt', 'AI feedback');
+      expect(entry.feedback).toBe('AI feedback');
     });
 
-    it('should handle year boundaries correctly', () => {
-      const baseDate = new Date('2024-12-30T12:00:00Z');
-      const nextReview = getNextReviewDate(true, baseDate);
+    it('should omit optional fields when not provided', () => {
+      const entry = createReviewHistoryEntry(5, 1);
 
-      expect(nextReview).toBe('2025-01-06');
-    });
-
-    it('should handle leap year correctly', () => {
-      const baseDate = new Date('2024-02-28T12:00:00Z');
-      const nextReview = getNextReviewDate(true, baseDate);
-
-      expect(nextReview).toBe('2024-03-06');
+      expect(entry.response).toBeUndefined();
+      expect(entry.prompt).toBeUndefined();
+      expect(entry.feedback).toBeUndefined();
     });
   });
 
@@ -92,22 +162,37 @@ describe('Review Scheduler', () => {
         expect(history).toEqual([]);
       });
 
-      it('should parse valid JSON history', () => {
+      it('should parse valid JSON history with ratings', () => {
         const json = JSON.stringify([
-          { timestamp: '2025-01-01T10:00:00Z', passed: true },
+          { date: '2025-01-01T10:00:00Z', rating: 2, sessionNumber: 1 },
           {
-            timestamp: '2025-01-08T10:00:00Z',
-            passed: false,
-            userResponse: 'Some response'
+            date: '2025-01-08T10:00:00Z',
+            rating: 1,
+            sessionNumber: 2,
+            response: 'Some response'
           }
         ]);
 
         const history = parseReviewHistory(json);
 
         expect(history.length).toBe(2);
-        expect(history[0].passed).toBe(true);
-        expect(history[1].passed).toBe(false);
-        expect(history[1].userResponse).toBe('Some response');
+        expect(history[0].rating).toBe(2);
+        expect(history[1].rating).toBe(1);
+        expect(history[1].response).toBe('Some response');
+      });
+
+      it('should handle legacy passed/failed format', () => {
+        const json = JSON.stringify([
+          { date: '2025-01-01T10:00:00Z', passed: true },
+          { date: '2025-01-08T10:00:00Z', passed: false }
+        ]);
+
+        const history = parseReviewHistory(json);
+
+        // Should convert passed to rating
+        expect(history.length).toBe(2);
+        expect(history[0].rating).toBe(2); // passed -> 2
+        expect(history[1].rating).toBe(1); // failed -> 1
       });
 
       it('should return empty array for invalid JSON', () => {
@@ -129,8 +214,8 @@ describe('Review Scheduler', () => {
 
       it('should format history entries as JSON string', () => {
         const history = [
-          { date: '2025-01-01T10:00:00Z', passed: true },
-          { date: '2025-01-08T10:00:00Z', passed: false }
+          { date: '2025-01-01T10:00:00Z', rating: 2 as const, sessionNumber: 1 },
+          { date: '2025-01-08T10:00:00Z', rating: 1 as const, sessionNumber: 2 }
         ];
 
         const formatted = serializeReviewHistory(history);
@@ -138,176 +223,70 @@ describe('Review Scheduler', () => {
 
         const parsed = JSON.parse(formatted);
         expect(parsed.length).toBe(2);
-        expect(parsed[0].passed).toBe(true);
-        expect(parsed[1].passed).toBe(false);
-      });
-    });
-
-    describe('appendToReviewHistory', () => {
-      it('should create new history from null', () => {
-        const updated = appendToReviewHistory(null, true);
-
-        const history = parseReviewHistory(updated);
-        expect(history.length).toBe(1);
-        expect(history[0].passed).toBe(true);
-        expect(history[0].date).toBeDefined();
-      });
-
-      it('should append to existing history', () => {
-        const existing = JSON.stringify([{ date: '2025-01-01T10:00:00Z', passed: true }]);
-
-        const updated = appendToReviewHistory(existing, false, 'User response');
-
-        const history = parseReviewHistory(updated);
-        expect(history.length).toBe(2);
-        expect(history[0].passed).toBe(true);
-        expect(history[1].passed).toBe(false);
-        expect(history[1].response).toBe('User response');
-      });
-
-      it('should include response when provided', () => {
-        const updated = appendToReviewHistory(null, true, 'My thoughts on this note');
-
-        const history = parseReviewHistory(updated);
-        expect(history[0].response).toBe('My thoughts on this note');
-      });
-
-      it('should omit response when not provided', () => {
-        const updated = appendToReviewHistory(null, false);
-
-        const history = parseReviewHistory(updated);
-        expect(history[0].response).toBeUndefined();
-      });
-
-      it('should add date timestamp to new entry', () => {
-        const beforeTime = new Date().toISOString();
-        const updated = appendToReviewHistory(null, true);
-        const afterTime = new Date().toISOString();
-
-        const history = parseReviewHistory(updated);
-        expect(history[0].date).toBeDefined();
-        expect(history[0].date >= beforeTime).toBe(true);
-        expect(history[0].date <= afterTime).toBe(true);
-      });
-
-      it('should maintain chronological order', async () => {
-        let history = appendToReviewHistory(null, true);
-
-        // Wait a tiny bit to ensure different timestamps
-        const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-        await wait(10);
-        history = appendToReviewHistory(history, false);
-        await wait(10);
-        history = appendToReviewHistory(history, true);
-
-        const parsed = parseReviewHistory(history);
-        expect(parsed.length).toBe(3);
-        expect(parsed[0].date < parsed[1].date).toBe(true);
-        expect(parsed[1].date < parsed[2].date).toBe(true);
-      });
-
-      it('should handle invalid existing history gracefully', () => {
-        const updated = appendToReviewHistory('invalid json', true);
-
-        const history = parseReviewHistory(updated);
-        expect(history.length).toBe(1);
-        expect(history[0].passed).toBe(true);
-      });
-
-      it('should include prompt when provided', () => {
-        const prompt = 'How does this concept relate to your current project?';
-        const updated = appendToReviewHistory(null, true, 'My response', prompt);
-
-        const history = parseReviewHistory(updated);
-        expect(history[0].prompt).toBe(prompt);
-      });
-
-      it('should omit prompt when not provided', () => {
-        const updated = appendToReviewHistory(null, false, 'My response');
-
-        const history = parseReviewHistory(updated);
-        expect(history[0].prompt).toBeUndefined();
-      });
-
-      it('should store both prompt and response', () => {
-        const prompt = 'Explain this concept in your own words';
-        const response = 'Here is my explanation...';
-        const updated = appendToReviewHistory(null, true, response, prompt);
-
-        const history = parseReviewHistory(updated);
-        expect(history[0].prompt).toBe(prompt);
-        expect(history[0].response).toBe(response);
-        expect(history[0].passed).toBe(true);
-      });
-
-      it('should maintain prompts when appending multiple entries', async () => {
-        let history = appendToReviewHistory(null, true, 'First response', 'First prompt');
-
-        const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-        await wait(10);
-
-        history = appendToReviewHistory(
-          history,
-          false,
-          'Second response',
-          'Second prompt'
-        );
-
-        const parsed = parseReviewHistory(history);
-        expect(parsed.length).toBe(2);
-        expect(parsed[0].prompt).toBe('First prompt');
-        expect(parsed[1].prompt).toBe('Second prompt');
+        expect(parsed[0].rating).toBe(2);
+        expect(parsed[1].rating).toBe(1);
       });
     });
   });
 
-  describe('binary scheduling algorithm', () => {
-    it('should consistently schedule pass reviews at 7 days', () => {
-      const baseDates = [
-        new Date('2025-01-01'),
-        new Date('2025-06-15'),
-        new Date('2025-12-31')
-      ];
+  describe('rating multipliers', () => {
+    it('should have correct multiplier values', () => {
+      expect(RATING_MULTIPLIERS[1]).toBe(0.5);
+      expect(RATING_MULTIPLIERS[2]).toBe(1.5);
+      expect(RATING_MULTIPLIERS[3]).toBe(2.5);
+    });
 
-      for (const base of baseDates) {
-        const nextReview = getNextReviewDate(true, base);
-        const expected = new Date(base);
-        expected.setDate(expected.getDate() + 7);
-        expect(nextReview).toBe(expected.toISOString().split('T')[0]);
+    it('should apply multipliers correctly to intervals', () => {
+      const baseInterval = 4;
+
+      // Rating 1: closer review
+      const result1 = calculateNextSession(10, baseInterval, 1);
+      expect(result1).not.toBe('retired');
+      if (result1 !== 'retired') {
+        expect(result1.interval).toBe(Math.round(baseInterval * 0.5));
+      }
+
+      // Rating 2: standard progression
+      const result2 = calculateNextSession(10, baseInterval, 2);
+      expect(result2).not.toBe('retired');
+      if (result2 !== 'retired') {
+        expect(result2.interval).toBe(Math.round(baseInterval * 1.5));
+      }
+
+      // Rating 3: faster progression
+      const result3 = calculateNextSession(10, baseInterval, 3);
+      expect(result3).not.toBe('retired');
+      if (result3 !== 'retired') {
+        expect(result3.interval).toBe(Math.round(baseInterval * 2.5));
+      }
+    });
+  });
+
+  describe('scheduling edge cases', () => {
+    it('should handle session 0 correctly', () => {
+      const result = calculateNextSession(0, 1, 2);
+      expect(result).not.toBe('retired');
+      if (result !== 'retired') {
+        expect(result.nextSession).toBe(2); // 0 + round(1 * 1.5) = 2
       }
     });
 
-    it('should consistently schedule fail reviews at 1 day', () => {
-      const baseDates = [
-        new Date('2025-01-01'),
-        new Date('2025-06-15'),
-        new Date('2025-12-31')
-      ];
-
-      for (const base of baseDates) {
-        const nextReview = getNextReviewDate(false, base);
-        const expected = new Date(base);
-        expected.setDate(expected.getDate() + 1);
-        expect(nextReview).toBe(expected.toISOString().split('T')[0]);
+    it('should round intervals to whole numbers', () => {
+      // 3 * 1.5 = 4.5 -> 5
+      const result = calculateNextSession(10, 3, 2);
+      expect(result).not.toBe('retired');
+      if (result !== 'retired') {
+        expect(result.interval).toBe(5);
       }
     });
 
-    it('should not consider review history (simple binary algorithm)', () => {
-      // The algorithm doesn't use review history - it's purely binary
-      // This test documents that behavior
-
-      const base = new Date('2025-01-01');
-
-      // Multiple passes still schedule 7 days out
-      const pass1 = getNextReviewDate(true, base);
-      const pass2 = getNextReviewDate(true, base);
-      expect(pass1).toBe(pass2);
-
-      // Multiple fails still schedule 1 day out
-      const fail1 = getNextReviewDate(false, base);
-      const fail2 = getNextReviewDate(false, base);
-      expect(fail1).toBe(fail2);
+    it('should handle large intervals without overflow', () => {
+      const config = { ...DEFAULT_SCHEDULING_CONFIG, maxIntervalSessions: 1000 };
+      const result = calculateNextSession(10, 100, 3, config);
+      expect(result).not.toBe('retired');
+      if (result !== 'retired') {
+        expect(result.interval).toBe(250); // 100 * 2.5
+      }
     });
   });
 });

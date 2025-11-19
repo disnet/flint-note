@@ -1899,22 +1899,34 @@ Return ONLY a valid JSON array with no additional text or markdown formatting.`;
 
   /**
    * Select relevant review history entries using smart selection:
-   * - All failed reviews (to focus on struggle areas)
-   * - Last 3-5 successful reviews (to build on understanding)
+   * - All reviews with rating 1 (Need more time - to focus on struggle areas)
+   * - Last 3-5 reviews with ratings 2-3 (to build on understanding)
    * Returns up to 7 most relevant entries
    */
   private selectRelevantHistory(
-    history: Array<{ date: string; passed: boolean; response?: string; prompt?: string }>
-  ): Array<{ date: string; passed: boolean; response?: string; prompt?: string }> {
-    // Separate passed and failed reviews
-    const failed = history.filter((entry) => !entry.passed);
-    const passed = history.filter((entry) => entry.passed);
+    history: Array<{
+      date: string;
+      rating: 1 | 2 | 3 | 4;
+      sessionNumber: number;
+      response?: string;
+      prompt?: string;
+    }>
+  ): Array<{
+    date: string;
+    rating: 1 | 2 | 3 | 4;
+    sessionNumber: number;
+    response?: string;
+    prompt?: string;
+  }> {
+    // Separate by rating: 1 = struggled, 2-3 = productive, 4 = retired
+    const struggled = history.filter((entry) => entry.rating === 1);
+    const productive = history.filter((entry) => entry.rating >= 2 && entry.rating <= 3);
 
-    // Take all failed reviews + last 3-5 passed reviews
-    const recentPassed = passed.slice(-5);
+    // Take all struggled reviews + last 3-5 productive reviews
+    const recentProductive = productive.slice(-5);
 
     // Combine and sort by date (most recent last)
-    const selected = [...failed, ...recentPassed].sort(
+    const selected = [...struggled, ...recentProductive].sort(
       (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
     );
 
@@ -1926,16 +1938,29 @@ Return ONLY a valid JSON array with no additional text or markdown formatting.`;
    * Format review history for agent context
    */
   private formatReviewHistory(
-    history: Array<{ date: string; passed: boolean; response?: string; prompt?: string }>
+    history: Array<{
+      date: string;
+      rating: 1 | 2 | 3 | 4;
+      sessionNumber: number;
+      response?: string;
+      prompt?: string;
+    }>
   ): string {
     if (history.length === 0) {
       return 'This is the first review for this note.';
     }
 
+    const ratingLabels: Record<number, string> = {
+      1: 'Need more time',
+      2: 'Productive',
+      3: 'Already familiar',
+      4: 'Fully processed'
+    };
+
     const entries = history
       .map((entry, index) => {
         const date = new Date(entry.date).toLocaleDateString();
-        const outcome = entry.passed ? 'Passed' : 'Failed';
+        const outcome = ratingLabels[entry.rating] || 'Unknown';
         const prompt = entry.prompt ? `\nChallenge: ${entry.prompt}` : '';
         const response = entry.response
           ? `\nUser Response: ${entry.response.substring(0, 200)}${entry.response.length > 200 ? '...' : ''}`

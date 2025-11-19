@@ -1238,7 +1238,7 @@ app.whenReady().then(async () => {
     return await flintApi.getReviewStats({ vaultId: vault.id });
   });
 
-  ipcMain.handle('get-notes-for-review', async (_event, date: string) => {
+  ipcMain.handle('get-notes-for-review', async () => {
     if (!noteService) {
       throw new Error('Note service not available');
     }
@@ -1247,7 +1247,7 @@ app.whenReady().then(async () => {
     if (!vault) {
       throw new Error('No active vault');
     }
-    return await flintApi.getNotesForReview({ date, vaultId: vault.id });
+    return await flintApi.getNotesForReview({ vaultId: vault.id });
   });
 
   ipcMain.handle('generate-review-prompt', async (_event, noteId: string) => {
@@ -1326,7 +1326,7 @@ app.whenReady().then(async () => {
       _event,
       params: {
         noteId: string;
-        passed: boolean;
+        rating: 1 | 2 | 3 | 4;
         userResponse?: string;
         prompt?: string;
         feedback?: string;
@@ -1343,13 +1343,96 @@ app.whenReady().then(async () => {
       return await flintApi.completeReview({
         noteId: params.noteId,
         vaultId: vault.id,
-        passed: params.passed,
+        rating: params.rating,
         userResponse: params.userResponse,
         prompt: params.prompt,
         feedback: params.feedback
       });
     }
   );
+
+  ipcMain.handle('get-current-session', async () => {
+    if (!noteService) {
+      throw new Error('Note service not available');
+    }
+    const flintApi = noteService.getFlintNoteApi();
+    const vault = await noteService.getCurrentVault();
+    if (!vault) {
+      throw new Error('No active vault');
+    }
+    return await flintApi.getCurrentSession({ vaultId: vault.id });
+  });
+
+  ipcMain.handle('increment-session', async () => {
+    if (!noteService) {
+      throw new Error('Note service not available');
+    }
+    const flintApi = noteService.getFlintNoteApi();
+    const vault = await noteService.getCurrentVault();
+    if (!vault) {
+      throw new Error('No active vault');
+    }
+    return await flintApi.incrementSession({ vaultId: vault.id });
+  });
+
+  ipcMain.handle('get-review-config', async () => {
+    if (!noteService) {
+      throw new Error('Note service not available');
+    }
+    const flintApi = noteService.getFlintNoteApi();
+    const vault = await noteService.getCurrentVault();
+    if (!vault) {
+      throw new Error('No active vault');
+    }
+    return await flintApi.getReviewConfig({ vaultId: vault.id });
+  });
+
+  ipcMain.handle(
+    'update-review-config',
+    async (
+      _event,
+      config: {
+        sessionSize?: number;
+        sessionsPerWeek?: number;
+        maxIntervalSessions?: number;
+        minIntervalDays?: number;
+      }
+    ) => {
+      if (!noteService) {
+        throw new Error('Note service not available');
+      }
+      const flintApi = noteService.getFlintNoteApi();
+      const vault = await noteService.getCurrentVault();
+      if (!vault) {
+        throw new Error('No active vault');
+      }
+      return await flintApi.updateReviewConfig({ vaultId: vault.id, config });
+    }
+  );
+
+  ipcMain.handle('reactivate-note', async (_event, noteId: string) => {
+    if (!noteService) {
+      throw new Error('Note service not available');
+    }
+    const flintApi = noteService.getFlintNoteApi();
+    const vault = await noteService.getCurrentVault();
+    if (!vault) {
+      throw new Error('No active vault');
+    }
+    return await flintApi.reactivateNote({ noteId, vaultId: vault.id });
+  });
+
+  ipcMain.handle('get-retired-items', async () => {
+    if (!noteService) {
+      throw new Error('Note service not available');
+    }
+    const flintApi = noteService.getFlintNoteApi();
+    const vault = await noteService.getCurrentVault();
+    if (!vault) {
+      throw new Error('No active vault');
+    }
+    return await flintApi.getRetiredItems({ vaultId: vault.id });
+  });
 
   ipcMain.handle('get-review-item', async (_event, noteId: string) => {
     if (!noteService) {

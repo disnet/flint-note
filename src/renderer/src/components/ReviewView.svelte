@@ -17,8 +17,10 @@
     ReviewSessionSummary,
     SessionReviewNote,
     AgentFeedback,
-    ReviewHistoryEntry
+    ReviewHistoryEntry,
+    ReviewRating
   } from '../types/review';
+  import { RATING_LABELS, RATING_DESCRIPTIONS } from '../types/review';
   import ReviewHistoryPanel from './review/ReviewHistoryPanel.svelte';
 
   // State machine
@@ -133,12 +135,10 @@
         endSession();
       }
     } else if (sessionState === 'feedback' && !isCompletingReview) {
-      if (event.key === 'p' || event.key === 'P') {
+      // Number keys 1-4 for ratings
+      if (event.key >= '1' && event.key <= '4') {
         event.preventDefault();
-        markPassFail(true);
-      } else if (event.key === 'f' || event.key === 'F') {
-        event.preventDefault();
-        markPassFail(false);
+        rateReview(parseInt(event.key) as ReviewRating);
       }
     }
   }
@@ -178,6 +178,7 @@
   // Load review data on mount
   onMount(() => {
     reviewStore.loadStats();
+    reviewStore.loadConfig();
   });
 
   /**
@@ -229,9 +230,8 @@
       sessionResults = [];
       currentNoteIndex = 0;
 
-      // Load today's notes
-      const today = new Date().toISOString().split('T')[0];
-      const notes = await window.api?.getNotesForReview(today);
+      // Load notes for current session
+      const notes = await window.api?.getNotesForReview();
 
       if (!notes || notes.length === 0) {
         sessionState = 'idle';
@@ -239,7 +239,14 @@
       }
 
       notesToReview = notes.map((note) => ({
-        ...note,
+        id: note.id,
+        title: note.title,
+        content: note.content,
+        reviewItem: {
+          reviewCount: note.reviewItem.reviewCount,
+          nextSessionNumber: note.reviewItem.nextSessionNumber,
+          currentInterval: note.reviewItem.currentInterval
+        },
         skipped: false
       }));
 
@@ -296,7 +303,8 @@
           content: noteWithContent.content || '',
           reviewItem: {
             reviewCount: reviewItem.reviewCount,
-            nextReview: reviewItem.nextReview
+            nextSessionNumber: reviewItem.nextSessionNumber,
+            currentInterval: reviewItem.currentInterval
           },
           skipped: false
         }
@@ -434,47 +442,39 @@
   }
 
   /**
-   * Mark current note as passed or failed and advance
+   * Rate current note and advance
    */
-  async function markPassFail(passed: boolean): Promise<void> {
+  async function rateReview(rating: ReviewRating): Promise<void> {
     if (!currentNote) return;
 
     try {
       isCompletingReview = true;
 
-      // Call API to complete the review
-      await window.api?.completeReview({
+      // Call API to complete the review with rating
+      const reviewResult = await window.api?.completeReview({
         noteId: currentNote.id,
-        passed,
+        rating,
         userResponse,
-        prompt: currentPrompt,
-        feedback: agentFeedback?.feedback
+        prompt: currentPrompt
       });
-
-      // Calculate next review date
-      const nextDate = new Date();
-      if (passed) {
-        nextDate.setDate(nextDate.getDate() + 7);
-      } else {
-        nextDate.setDate(nextDate.getDate() + 1);
-      }
 
       // Record the result
       const result: ReviewResult = {
         noteId: currentNote.id,
         noteTitle: currentNote.title,
-        passed,
+        rating,
         userResponse,
         agentFeedback: agentFeedback?.feedback || '',
         timestamp: new Date().toISOString(),
-        scheduledFor: nextDate.toISOString().split('T')[0]
+        scheduledForSession: reviewResult?.nextSessionNumber || -1
       };
       sessionResults.push(result);
 
       // Mark note as reviewed
       notesToReview[currentNoteIndex] = {
         ...currentNote,
-        reviewedAt: new Date().toISOString()
+        reviewedAt: new Date().toISOString(),
+        rating
       };
 
       // Move to next note
@@ -544,6 +544,14 @@
   }
 
   /**
+   * Increment session number (start next session early)
+   */
+  async function incrementSession(): Promise<void> {
+    await reviewStore.incrementSession();
+    reviewStore.loadStats();
+  }
+
+  /**
    * Show/hide note content drawer
    */
   function toggleNoteDrawer(): void {
@@ -555,15 +563,20 @@
    */
   const sessionSummary = $derived<ReviewSessionSummary>({
     totalNotes: sessionResults.length,
-    passedCount: sessionResults.filter((r) => r.passed).length,
-    failedCount: sessionResults.filter((r) => !r.passed).length,
+    ratingCounts: {
+      1: sessionResults.filter((r) => r.rating === 1).length,
+      2: sessionResults.filter((r) => r.rating === 2).length,
+      3: sessionResults.filter((r) => r.rating === 3).length,
+      4: sessionResults.filter((r) => r.rating === 4).length
+    },
     skippedCount: notesToReview.filter((n) => n.skipped).length,
     startTime: sessionStartTime?.toISOString() || '',
     endTime: new Date().toISOString(),
     durationMinutes: sessionStartTime
       ? Math.round((Date.now() - sessionStartTime.getTime()) / 60000)
       : 0,
-    results: sessionResults
+    results: sessionResults,
+    sessionNumber: reviewStore.stats.currentSessionNumber
   });
 </script>
 
@@ -591,9 +604,12 @@
     {#if activeTab === 'dashboard'}
       <ReviewStats
         stats={reviewStore.stats}
+        config={reviewStore.config}
         onStartReview={startReviewSession}
         onResumeSession={restoreSession}
         onReviewNote={startSingleNoteReview}
+        onIncrementSession={incrementSession}
+        onUpdateConfig={(config) => reviewStore.updateConfig(config)}
         hasSavedSession={reviewStore.hasSavedSession()}
       />
     {:else if activeTab === 'history'}
@@ -828,35 +844,53 @@
                 </div>
               </div>
             {:else if sessionState === 'feedback'}
-              <!-- Feedback controls (Pass/Fail) -->
+              <!-- Feedback controls (4-point rating) -->
               <div class="feedback-controls">
                 <div class="rating-section">
-                  <div class="rating-prompt">Did you understand this concept well?</div>
+                  <div class="rating-prompt">How was this review session?</div>
                   <div class="rating-buttons">
                     <button
-                      class="rating-btn fail-btn"
-                      onclick={() => markPassFail(false)}
+                      class="rating-btn need-more-btn"
+                      onclick={() => rateReview(1)}
                       disabled={isCompletingReview}
-                      title="Press F"
+                      title="Press 1"
                     >
-                      <span class="icon">✗</span>
-                      <span class="label">Fail</span>
-                      <span class="schedule">Review tomorrow</span>
+                      <span class="key-hint">1</span>
+                      <span class="label">{RATING_LABELS[1]}</span>
+                      <span class="schedule">{RATING_DESCRIPTIONS[1]}</span>
                     </button>
                     <button
-                      class="rating-btn pass-btn"
-                      onclick={() => markPassFail(true)}
+                      class="rating-btn productive-btn"
+                      onclick={() => rateReview(2)}
                       disabled={isCompletingReview}
-                      title="Press P"
+                      title="Press 2"
                     >
-                      <span class="icon">✓</span>
-                      <span class="label">Pass</span>
-                      <span class="schedule">Review in 7 days</span>
+                      <span class="key-hint">2</span>
+                      <span class="label">{RATING_LABELS[2]}</span>
+                      <span class="schedule">{RATING_DESCRIPTIONS[2]}</span>
+                    </button>
+                    <button
+                      class="rating-btn familiar-btn"
+                      onclick={() => rateReview(3)}
+                      disabled={isCompletingReview}
+                      title="Press 3"
+                    >
+                      <span class="key-hint">3</span>
+                      <span class="label">{RATING_LABELS[3]}</span>
+                      <span class="schedule">{RATING_DESCRIPTIONS[3]}</span>
+                    </button>
+                    <button
+                      class="rating-btn processed-btn"
+                      onclick={() => rateReview(4)}
+                      disabled={isCompletingReview}
+                      title="Press 4"
+                    >
+                      <span class="key-hint">4</span>
+                      <span class="label">{RATING_LABELS[4]}</span>
+                      <span class="schedule">{RATING_DESCRIPTIONS[4]}</span>
                     </button>
                   </div>
-                  <div class="keyboard-hint">
-                    Keyboard shortcuts: P for Pass · F for Fail
-                  </div>
+                  <div class="keyboard-hint">Press 1-4 to rate</div>
                 </div>
               </div>
             {/if}
@@ -1431,60 +1465,91 @@
 
   .feedback-controls .rating-buttons {
     display: flex;
-    gap: 1rem;
+    gap: 0.5rem;
+    justify-content: center;
   }
 
   .feedback-controls .rating-btn {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.5rem;
-    padding: 1.5rem 2rem;
+    gap: 0.25rem;
+    padding: 0.75rem 0.875rem;
     border: 2px solid;
     border-radius: 8px;
     background: var(--bg-primary);
     cursor: pointer;
     transition: all 0.2s;
-    min-width: 150px;
+    min-width: 100px;
+    flex: 1;
+    max-width: 140px;
   }
 
-  .feedback-controls .rating-btn .icon {
-    font-size: 2rem;
-    font-weight: bold;
+  .feedback-controls .rating-btn .key-hint {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.125rem 0.375rem;
+    border-radius: 4px;
+    background: var(--bg-tertiary);
+    color: var(--text-tertiary);
   }
 
   .feedback-controls .rating-btn .label {
-    font-size: 1.125rem;
+    font-size: 0.875rem;
     font-weight: 600;
   }
 
   .feedback-controls .rating-btn .schedule {
-    font-size: 0.75rem;
+    font-size: 0.6875rem;
     color: var(--text-secondary);
   }
 
-  .feedback-controls .fail-btn {
+  .feedback-controls .need-more-btn {
     border-color: var(--warning);
     color: var(--warning);
   }
 
-  .feedback-controls .fail-btn:hover:not(:disabled) {
+  .feedback-controls .need-more-btn:hover:not(:disabled) {
     background: var(--warning-hover);
     color: #ffffff;
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(217, 119, 6, 0.4);
   }
 
-  .feedback-controls .pass-btn {
+  .feedback-controls .productive-btn {
     border-color: var(--success);
     color: var(--success);
   }
 
-  .feedback-controls .pass-btn:hover:not(:disabled) {
+  .feedback-controls .productive-btn:hover:not(:disabled) {
     background: var(--success-hover);
     color: #ffffff;
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+  }
+
+  .feedback-controls .familiar-btn {
+    border-color: var(--accent-secondary);
+    color: var(--accent-secondary);
+  }
+
+  .feedback-controls .familiar-btn:hover:not(:disabled) {
+    background: var(--accent-secondary);
+    color: #ffffff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+  }
+
+  .feedback-controls .processed-btn {
+    border-color: var(--text-tertiary);
+    color: var(--text-tertiary);
+  }
+
+  .feedback-controls .processed-btn:hover:not(:disabled) {
+    background: var(--text-tertiary);
+    color: #ffffff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(107, 114, 128, 0.4);
   }
 
   .feedback-controls .rating-btn:disabled {

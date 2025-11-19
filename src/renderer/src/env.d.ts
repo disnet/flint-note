@@ -216,18 +216,20 @@ declare global {
       disableReview: (noteId: string) => Promise<{ success: boolean }>;
       isReviewEnabled: (noteId: string) => Promise<{ enabled: boolean }>;
       getReviewStats: () => Promise<{
-        dueToday: number;
-        dueThisWeek: number;
+        dueThisSession: number;
         totalEnabled: number;
+        retired: number;
+        currentSessionNumber: number;
       }>;
-      getNotesForReview: (date: string) => Promise<
+      getNotesForReview: () => Promise<
         Array<{
           id: string;
           title: string;
           content: string | null;
           reviewItem: {
             reviewCount: number;
-            nextReview: string;
+            nextSessionNumber: number;
+            currentInterval: number;
           };
         }>
       >;
@@ -250,15 +252,40 @@ declare global {
       }>;
       completeReview: (params: {
         noteId: string;
-        passed: boolean;
+        rating: 1 | 2 | 3 | 4;
         userResponse?: string;
         prompt?: string;
-        feedback?: string;
-      }) => Promise<{ success: boolean }>;
+      }) => Promise<{
+        nextSessionNumber: number;
+        nextReviewDate: string;
+        reviewCount: number;
+        retired: boolean;
+      }>;
       getReviewItem: (
         noteId: string
       ) => Promise<import('./types/review').ReviewItem | null>;
       getAllReviewHistory: () => Promise<import('./types/review').ReviewItem[]>;
+      getCurrentSession: () => Promise<{ sessionNumber: number }>;
+      incrementSession: () => Promise<{ sessionNumber: number }>;
+      getReviewConfig: () => Promise<{
+        sessionSize: number;
+        sessionsPerWeek: number;
+        maxIntervalSessions: number;
+        minIntervalDays: number;
+      }>;
+      updateReviewConfig: (params: {
+        sessionSize?: number;
+        sessionsPerWeek?: number;
+        maxIntervalSessions?: number;
+        minIntervalDays?: number;
+      }) => Promise<{
+        sessionSize: number;
+        sessionsPerWeek: number;
+        maxIntervalSessions: number;
+        minIntervalDays: number;
+      }>;
+      reactivateNote: (noteId: string) => Promise<{ success: boolean }>;
+      getRetiredItems: () => Promise<import('./types/review').ReviewItem[]>;
       // FileWriteQueue now handles all internal write tracking
 
       // Search operations

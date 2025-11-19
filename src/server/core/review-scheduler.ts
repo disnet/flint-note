@@ -1,50 +1,146 @@
 /**
  * Review Scheduler
  *
- * Handles scheduling logic for spaced repetition review system.
- * MVP implementation uses simple binary intervals: 1 day (fail) or 7 days (pass).
+ * Handles scheduling logic for session-based spaced engagement system.
+ * Uses a 4-point rating scale and session-based intervals instead of dates.
  */
+
+/**
+ * Review rating scale (1-4)
+ */
+export type ReviewRating = 1 | 2 | 3 | 4;
+
+/**
+ * Scheduling configuration
+ */
+export interface SchedulingConfig {
+  sessionSize: number;
+  sessionsPerWeek: number;
+  maxIntervalSessions: number;
+  minIntervalDays: number;
+}
+
+/**
+ * Default scheduling configuration
+ */
+export const DEFAULT_SCHEDULING_CONFIG: SchedulingConfig = {
+  sessionSize: 5,
+  sessionsPerWeek: 7,
+  maxIntervalSessions: 15,
+  minIntervalDays: 1
+};
+
+/**
+ * Rating multipliers for interval calculation
+ */
+export const RATING_MULTIPLIERS: Record<1 | 2 | 3, number> = {
+  1: 0.5, // Need more time
+  2: 1.5, // Productive
+  3: 2.5 // Already familiar
+};
 
 export interface ReviewHistoryEntry {
   date: string;
-  passed: boolean;
+  sessionNumber: number;
+  rating: ReviewRating;
   response?: string;
   prompt?: string;
   feedback?: string;
 }
 
 /**
- * Calculate the next review date based on pass/fail outcome
- * MVP: Simple binary intervals (1 day fail / 7 days pass)
+ * Result of calculating next session
  */
-export function getNextReviewDate(passed: boolean, baseDate?: Date): string {
-  const now = baseDate || new Date();
-  const nextDate = new Date(now);
+export interface NextSessionResult {
+  nextSession: number;
+  interval: number;
+}
 
-  if (passed) {
-    // Pass: review in 7 days
-    nextDate.setDate(nextDate.getDate() + 7);
-  } else {
-    // Fail: retry tomorrow
-    nextDate.setDate(nextDate.getDate() + 1);
+/**
+ * Calculate the next session number based on rating
+ * Returns 'retired' for rating 4 (fully processed)
+ */
+export function calculateNextSession(
+  currentSession: number,
+  currentInterval: number,
+  rating: ReviewRating,
+  config: SchedulingConfig = DEFAULT_SCHEDULING_CONFIG
+): NextSessionResult | 'retired' {
+  if (rating === 4) {
+    return 'retired';
   }
 
-  // Return as YYYY-MM-DD format
-  return nextDate.toISOString().split('T')[0];
+  const multiplier = RATING_MULTIPLIERS[rating];
+  const newInterval = Math.max(1, Math.round(currentInterval * multiplier));
+  const cappedInterval = Math.min(newInterval, config.maxIntervalSessions);
+
+  return {
+    nextSession: currentSession + cappedInterval,
+    interval: cappedInterval
+  };
+}
+
+/**
+ * Calculate approximate date for a future session
+ * Used for UI display purposes
+ */
+export function estimateSessionDate(
+  sessionNumber: number,
+  currentSession: number,
+  sessionsPerWeek: number,
+  baseDate?: Date
+): Date {
+  const now = baseDate || new Date();
+  const sessionsAway = sessionNumber - currentSession;
+  const daysAway = Math.round((sessionsAway / sessionsPerWeek) * 7);
+  const targetDate = new Date(now);
+  targetDate.setDate(targetDate.getDate() + daysAway);
+  return targetDate;
+}
+
+/**
+ * Calculate the next review date based on rating
+ * This is a helper for backward compatibility - converts session to date
+ * @deprecated Use calculateNextSession for new code
+ */
+export function getNextReviewDate(
+  rating: ReviewRating,
+  currentInterval: number,
+  currentSession: number,
+  config: SchedulingConfig = DEFAULT_SCHEDULING_CONFIG,
+  baseDate?: Date
+): string {
+  const result = calculateNextSession(currentSession, currentInterval, rating, config);
+
+  if (result === 'retired') {
+    // Return far future date for retired items
+    return '9999-12-31';
+  }
+
+  const targetDate = estimateSessionDate(
+    result.nextSession,
+    currentSession,
+    config.sessionsPerWeek,
+    baseDate
+  );
+
+  return targetDate.toISOString().split('T')[0];
 }
 
 /**
  * Create a review history entry
  */
 export function createReviewHistoryEntry(
-  passed: boolean,
+  sessionNumber: number,
+  rating: ReviewRating,
   userResponse?: string,
   prompt?: string,
   feedback?: string
 ): ReviewHistoryEntry {
   return {
     date: new Date().toISOString(),
-    passed,
+    sessionNumber,
+    rating,
     response: userResponse,
     prompt,
     feedback
@@ -53,6 +149,7 @@ export function createReviewHistoryEntry(
 
 /**
  * Parse review history from JSON string
+ * Handles legacy format with `passed: boolean` by converting to `rating`
  */
 export function parseReviewHistory(historyJson: string | null): ReviewHistoryEntry[] {
   if (!historyJson) {
@@ -61,7 +158,31 @@ export function parseReviewHistory(historyJson: string | null): ReviewHistoryEnt
 
   try {
     const parsed = JSON.parse(historyJson);
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    // Convert legacy format if needed
+    return parsed.map((entry) => {
+      // If already has rating, return as-is
+      if ('rating' in entry) {
+        return entry;
+      }
+
+      // Convert legacy passed/failed to rating
+      // passed: true -> rating 2 (Productive)
+      // passed: false -> rating 1 (Need more time)
+      const rating = entry.passed ? 2 : 1;
+
+      return {
+        date: entry.date || entry.timestamp,
+        rating,
+        sessionNumber: entry.sessionNumber || 0,
+        response: entry.response || entry.userResponse,
+        prompt: entry.prompt,
+        feedback: entry.feedback
+      };
+    });
   } catch {
     return [];
   }
@@ -79,13 +200,43 @@ export function serializeReviewHistory(history: ReviewHistoryEntry[]): string {
  */
 export function appendToReviewHistory(
   existingHistoryJson: string | null,
-  passed: boolean,
+  sessionNumber: number,
+  rating: ReviewRating,
   userResponse?: string,
   prompt?: string,
   feedback?: string
 ): string {
   const history = parseReviewHistory(existingHistoryJson);
-  const newEntry = createReviewHistoryEntry(passed, userResponse, prompt, feedback);
+  const newEntry = createReviewHistoryEntry(
+    sessionNumber,
+    rating,
+    userResponse,
+    prompt,
+    feedback
+  );
   history.push(newEntry);
   return serializeReviewHistory(history);
+}
+
+/**
+ * Get rating statistics from review history
+ */
+export function getHistoryStats(history: ReviewHistoryEntry[]): {
+  totalReviews: number;
+  ratingCounts: Record<ReviewRating, number>;
+  averageRating: number;
+} {
+  const ratingCounts: Record<ReviewRating, number> = { 1: 0, 2: 0, 3: 0, 4: 0 };
+  let totalRating = 0;
+
+  for (const entry of history) {
+    ratingCounts[entry.rating]++;
+    totalRating += entry.rating;
+  }
+
+  return {
+    totalReviews: history.length,
+    ratingCounts,
+    averageRating: history.length > 0 ? totalRating / history.length : 0
+  };
 }

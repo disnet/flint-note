@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { ReviewHistoryEntry } from '../../types/review';
+  import { RATING_LABELS } from '../../types/review';
 
   interface Props {
     history: ReviewHistoryEntry[];
@@ -64,12 +65,8 @@
             aria-expanded={expandedEntries.has(index)}
           >
             <div class="header-left">
-              <span
-                class="badge"
-                class:passed={entry.passed}
-                class:failed={!entry.passed}
-              >
-                {entry.passed ? 'Pass' : 'Fail'}
+              <span class="badge rating-{entry.rating}">
+                {RATING_LABELS[entry.rating]}
               </span>
               <span class="timestamp">{formatTimestamp(entry.date)}</span>
             </div>
@@ -189,17 +186,26 @@
     border-radius: 12px;
     font-size: 0.75rem;
     font-weight: 600;
-    text-transform: uppercase;
     letter-spacing: 0.05em;
   }
 
-  .badge.passed {
+  .badge.rating-1 {
+    background: var(--warning);
+    color: #ffffff;
+  }
+
+  .badge.rating-2 {
     background: var(--success);
     color: #ffffff;
   }
 
-  .badge.failed {
-    background: var(--warning);
+  .badge.rating-3 {
+    background: var(--accent-secondary);
+    color: #ffffff;
+  }
+
+  .badge.rating-4 {
+    background: var(--text-tertiary);
     color: #ffffff;
   }
 

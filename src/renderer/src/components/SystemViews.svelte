@@ -19,7 +19,7 @@
   let { onSystemViewSelect, activeSystemView }: Props = $props();
 
   const inboxCount = $derived(inboxStore.count);
-  const reviewDueCount = $derived(reviewStore.stats.dueToday);
+  const reviewDueCount = $derived(reviewStore.stats.dueThisSession);
 
   function setActiveView(
     view: 'inbox' | 'daily' | 'notes' | 'settings' | 'workflows' | 'review'

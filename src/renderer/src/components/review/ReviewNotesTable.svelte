@@ -63,7 +63,7 @@
           isOverdue: item.nextReview < today,
           isDueToday: item.nextReview === today,
           lastResult: (lastHistoryEntry
-            ? lastHistoryEntry.passed
+            ? lastHistoryEntry.rating >= 2
               ? 'passed'
               : 'failed'
             : null) as 'passed' | 'failed' | null

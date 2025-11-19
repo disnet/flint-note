@@ -1,7 +1,7 @@
 /**
  * Review Manager Tests
  *
- * Tests for the spaced repetition review system
+ * Tests for the session-based spaced engagement review system
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -44,7 +44,7 @@ describe('ReviewManager', () => {
       )
     `);
 
-    // Create review_items table
+    // Create review_items table with new session-based columns
     await db.run(`
       CREATE TABLE IF NOT EXISTS review_items (
         id TEXT PRIMARY KEY,
@@ -53,6 +53,9 @@ describe('ReviewManager', () => {
         enabled BOOLEAN DEFAULT TRUE,
         last_reviewed TEXT,
         next_review TEXT NOT NULL,
+        next_session_number INTEGER NOT NULL DEFAULT 1,
+        current_interval INTEGER NOT NULL DEFAULT 1,
+        status TEXT NOT NULL DEFAULT 'active',
         review_count INTEGER DEFAULT 0,
         review_history TEXT,
         created_at TEXT NOT NULL,
@@ -61,8 +64,32 @@ describe('ReviewManager', () => {
       )
     `);
 
+    // Create review_state table
+    await db.run(`
+      CREATE TABLE IF NOT EXISTS review_state (
+        id INTEGER PRIMARY KEY DEFAULT 1,
+        current_session_number INTEGER NOT NULL DEFAULT 1,
+        last_session_completed_at TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    `);
+
+    // Create review_config table
+    await db.run(`
+      CREATE TABLE IF NOT EXISTS review_config (
+        id INTEGER PRIMARY KEY DEFAULT 1,
+        session_size INTEGER NOT NULL DEFAULT 5,
+        sessions_per_week INTEGER NOT NULL DEFAULT 7,
+        max_interval_sessions INTEGER NOT NULL DEFAULT 15,
+        min_interval_days INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    `);
+
     await db.run(
-      'CREATE INDEX IF NOT EXISTS idx_review_next_review ON review_items(next_review, enabled)'
+      'CREATE INDEX IF NOT EXISTS idx_review_next_session ON review_items(next_session_number, enabled)'
     );
     await db.run('CREATE INDEX IF NOT EXISTS idx_review_vault ON review_items(vault_id)');
 
@@ -106,13 +133,9 @@ describe('ReviewManager', () => {
       expect(reviewItem.enabled).toBe(true);
       expect(reviewItem.reviewCount).toBe(0);
       expect(reviewItem.lastReviewed).toBeNull();
-      expect(reviewItem.nextReview).toBeDefined();
-
-      // Verify next review is tomorrow
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const expectedDate = tomorrow.toISOString().split('T')[0];
-      expect(reviewItem.nextReview).toBe(expectedDate);
+      expect(reviewItem.nextSessionNumber).toBe(1);
+      expect(reviewItem.currentInterval).toBe(1);
+      expect(reviewItem.status).toBe('active');
     });
 
     it('should return existing review item if already enabled', async () => {
@@ -209,21 +232,18 @@ describe('ReviewManager', () => {
     beforeEach(async () => {
       const db = await dbManager.connect();
 
-      // Create test notes
+      // Initialize session state
+      await db.run(
+        `INSERT INTO review_state (id, current_session_number, created_at, updated_at)
+         VALUES (?, ?, ?, ?)`,
+        [1, 5, new Date().toISOString(), new Date().toISOString()]
+      );
+
+      // Create test notes with different session numbers
       const notes = [
-        { id: 'n-past-001', title: 'Past Due', nextReview: '2024-01-01' },
-        {
-          id: 'n-today-001',
-          title: 'Due Today',
-          nextReview: new Date().toISOString().split('T')[0]
-        },
-        {
-          id: 'n-future-001',
-          title: 'Future Review',
-          nextReview: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-            .toISOString()
-            .split('T')[0]
-        }
+        { id: 'n-past-001', title: 'Past Due', nextSession: 3 }, // Due (session 3 <= 5)
+        { id: 'n-today-001', title: 'Due Now', nextSession: 5 }, // Due (session 5 <= 5)
+        { id: 'n-future-001', title: 'Future Review', nextSession: 10 } // Not due
       ];
 
       for (const note of notes) {
@@ -242,14 +262,17 @@ describe('ReviewManager', () => {
         );
 
         await db.run(
-          `INSERT INTO review_items (id, note_id, vault_id, enabled, next_review, review_count, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO review_items (id, note_id, vault_id, enabled, next_review, next_session_number, current_interval, status, review_count, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             `rev-${note.id}`,
             note.id,
             vaultId,
             1,
-            note.nextReview,
+            '2025-01-01',
+            note.nextSession,
+            1,
+            'active',
             0,
             new Date().toISOString(),
             new Date().toISOString()
@@ -258,9 +281,8 @@ describe('ReviewManager', () => {
       }
     });
 
-    it('should return notes due on or before the specified date', async () => {
-      const today = new Date().toISOString().split('T')[0];
-      const notes = await reviewManager.getNotesForReview(today);
+    it('should return notes due for current session', async () => {
+      const notes = await reviewManager.getNotesForReview();
 
       expect(notes.length).toBe(2);
       expect(notes.map((n) => n.id)).toContain('n-past-001');
@@ -269,8 +291,7 @@ describe('ReviewManager', () => {
     });
 
     it('should include review metadata with each note', async () => {
-      const today = new Date().toISOString().split('T')[0];
-      const notes = await reviewManager.getNotesForReview(today);
+      const notes = await reviewManager.getNotesForReview();
 
       expect(notes.length).toBeGreaterThan(0);
       const note = notes[0];
@@ -278,17 +299,11 @@ describe('ReviewManager', () => {
       expect(note.reviewItem).toBeDefined();
       expect(note.reviewItem.noteId).toBe(note.id);
       expect(note.reviewItem.reviewCount).toBeDefined();
-      expect(note.reviewItem.nextReview).toBeDefined();
+      expect(note.reviewItem.nextSessionNumber).toBeDefined();
+      expect(note.reviewItem.currentInterval).toBeDefined();
     });
 
-    it('should return empty array if no notes are due', async () => {
-      const pastDate = '2020-01-01';
-      const notes = await reviewManager.getNotesForReview(pastDate);
-
-      expect(notes).toEqual([]);
-    });
-
-    it('should only return enabled review items', async () => {
+    it('should only return enabled and active review items', async () => {
       const db = await dbManager.connect();
 
       // Disable one of the review items
@@ -296,10 +311,22 @@ describe('ReviewManager', () => {
         'n-past-001'
       ]);
 
-      const today = new Date().toISOString().split('T')[0];
-      const notes = await reviewManager.getNotesForReview(today);
+      const notes = await reviewManager.getNotesForReview();
 
       expect(notes.map((n) => n.id)).not.toContain('n-past-001');
+    });
+
+    it('should not return retired items', async () => {
+      const db = await dbManager.connect();
+
+      // Retire one of the review items
+      await db.run("UPDATE review_items SET status = 'retired' WHERE note_id = ?", [
+        'n-today-001'
+      ]);
+
+      const notes = await reviewManager.getNotesForReview();
+
+      expect(notes.map((n) => n.id)).not.toContain('n-today-001');
     });
   });
 
@@ -307,6 +334,13 @@ describe('ReviewManager', () => {
     beforeEach(async () => {
       const db = await dbManager.connect();
       const noteId = 'n-review-001';
+
+      // Initialize session state
+      await db.run(
+        `INSERT INTO review_state (id, current_session_number, created_at, updated_at)
+         VALUES (?, ?, ?, ?)`,
+        [1, 5, new Date().toISOString(), new Date().toISOString()]
+      );
 
       await db.run(
         'INSERT INTO notes (id, title, content, type, filename, path, created, updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
@@ -325,35 +359,56 @@ describe('ReviewManager', () => {
       await reviewManager.enableReview(noteId);
     });
 
-    it('should schedule next review 7 days out when passed', async () => {
+    it('should schedule closer with rating 1 (Need more time)', async () => {
       const noteId = 'n-review-001';
-      const result = await reviewManager.completeReview(noteId, true);
+      const result = await reviewManager.completeReview(noteId, 1);
 
-      const expectedDate = new Date();
-      expectedDate.setDate(expectedDate.getDate() + 7);
-      const expected = expectedDate.toISOString().split('T')[0];
-
-      expect(result.nextReviewDate).toBe(expected);
+      // Initial interval is 1, rating 1 multiplier is 0.5, min is 1
+      // Next session = current(5) + interval(1) = 6
+      expect(result.nextSessionNumber).toBe(6);
       expect(result.reviewCount).toBe(1);
+      expect(result.retired).toBe(false);
     });
 
-    it('should schedule next review 1 day out when failed', async () => {
+    it('should schedule further with rating 2 (Productive)', async () => {
       const noteId = 'n-review-001';
-      const result = await reviewManager.completeReview(noteId, false);
+      const result = await reviewManager.completeReview(noteId, 2);
 
-      const expectedDate = new Date();
-      expectedDate.setDate(expectedDate.getDate() + 1);
-      const expected = expectedDate.toISOString().split('T')[0];
-
-      expect(result.nextReviewDate).toBe(expected);
+      // Initial interval is 1, rating 2 multiplier is 1.5 -> 2
+      // Next session = current(5) + interval(2) = 7
+      expect(result.nextSessionNumber).toBe(7);
       expect(result.reviewCount).toBe(1);
+      expect(result.retired).toBe(false);
+    });
+
+    it('should schedule much further with rating 3 (Already familiar)', async () => {
+      const noteId = 'n-review-001';
+      const result = await reviewManager.completeReview(noteId, 3);
+
+      // Initial interval is 1, rating 3 multiplier is 2.5 -> 3
+      // Next session = current(5) + interval(3) = 8
+      expect(result.nextSessionNumber).toBe(8);
+      expect(result.reviewCount).toBe(1);
+      expect(result.retired).toBe(false);
+    });
+
+    it('should retire note with rating 4 (Fully processed)', async () => {
+      const noteId = 'n-review-001';
+      const result = await reviewManager.completeReview(noteId, 4);
+
+      expect(result.retired).toBe(true);
+      expect(result.reviewCount).toBe(1);
+
+      // Verify status is updated in database
+      const reviewItem = await reviewManager.getReviewItem(noteId);
+      expect(reviewItem?.status).toBe('retired');
     });
 
     it('should increment review count', async () => {
       const noteId = 'n-review-001';
 
-      await reviewManager.completeReview(noteId, true);
-      const result = await reviewManager.completeReview(noteId, true);
+      await reviewManager.completeReview(noteId, 2);
+      const result = await reviewManager.completeReview(noteId, 2);
 
       expect(result.reviewCount).toBe(2);
     });
@@ -362,7 +417,7 @@ describe('ReviewManager', () => {
       const noteId = 'n-review-001';
       const beforeTime = new Date().toISOString();
 
-      await reviewManager.completeReview(noteId, true);
+      await reviewManager.completeReview(noteId, 2);
 
       const reviewItem = await reviewManager.getReviewItem(noteId);
       expect(reviewItem).not.toBeNull();
@@ -370,21 +425,21 @@ describe('ReviewManager', () => {
       expect(reviewItem!.lastReviewed! >= beforeTime).toBe(true);
     });
 
-    it('should store review history', async () => {
+    it('should store review history with ratings', async () => {
       const noteId = 'n-review-001';
 
-      await reviewManager.completeReview(noteId, true, 'First review response');
-      await reviewManager.completeReview(noteId, false, 'Second review response');
+      await reviewManager.completeReview(noteId, 2, 'First review response');
+      await reviewManager.completeReview(noteId, 1, 'Second review response');
 
       const reviewItem = await reviewManager.getReviewItem(noteId);
       expect(reviewItem).not.toBeNull();
       expect(reviewItem!.reviewHistory.length).toBe(2);
-      expect(reviewItem!.reviewHistory[0].passed).toBe(true);
-      expect(reviewItem!.reviewHistory[1].passed).toBe(false);
+      expect(reviewItem!.reviewHistory[0].rating).toBe(2);
+      expect(reviewItem!.reviewHistory[1].rating).toBe(1);
     });
 
     it('should throw error if note not found', async () => {
-      await expect(reviewManager.completeReview('nonexistent', true)).rejects.toThrow(
+      await expect(reviewManager.completeReview('nonexistent', 2)).rejects.toThrow(
         'Review item not found'
       );
     });
@@ -394,22 +449,19 @@ describe('ReviewManager', () => {
     beforeEach(async () => {
       const db = await dbManager.connect();
 
+      // Initialize session state at session 5
+      await db.run(
+        `INSERT INTO review_state (id, current_session_number, created_at, updated_at)
+         VALUES (?, ?, ?, ?)`,
+        [1, 5, new Date().toISOString(), new Date().toISOString()]
+      );
+
       // Create test notes with different schedules
       const notes = [
-        { id: 'n-stat-001', nextReview: '2024-01-01' }, // Past
-        { id: 'n-stat-002', nextReview: new Date().toISOString().split('T')[0] }, // Today
-        {
-          id: 'n-stat-003',
-          nextReview: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)
-            .toISOString()
-            .split('T')[0]
-        }, // 3 days
-        {
-          id: 'n-stat-004',
-          nextReview: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000)
-            .toISOString()
-            .split('T')[0]
-        } // 10 days
+        { id: 'n-stat-001', nextSession: 3, status: 'active' }, // Due (past)
+        { id: 'n-stat-002', nextSession: 5, status: 'active' }, // Due (current)
+        { id: 'n-stat-003', nextSession: 8, status: 'active' }, // Not due
+        { id: 'n-stat-004', nextSession: 1, status: 'retired' } // Retired
       ];
 
       for (const note of notes) {
@@ -428,14 +480,17 @@ describe('ReviewManager', () => {
         );
 
         await db.run(
-          `INSERT INTO review_items (id, note_id, vault_id, enabled, next_review, review_count, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO review_items (id, note_id, vault_id, enabled, next_review, next_session_number, current_interval, status, review_count, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             `rev-${note.id}`,
             note.id,
             vaultId,
             1,
-            note.nextReview,
+            '2025-01-01',
+            note.nextSession,
+            1,
+            note.status,
             0,
             new Date().toISOString(),
             new Date().toISOString()
@@ -444,22 +499,28 @@ describe('ReviewManager', () => {
       }
     });
 
-    it('should return correct counts for due today', async () => {
+    it('should return correct counts for due this session', async () => {
       const stats = await reviewManager.getReviewStats();
 
-      expect(stats.dueToday).toBe(2); // Past + Today
-    });
-
-    it('should return correct counts for due this week', async () => {
-      const stats = await reviewManager.getReviewStats();
-
-      expect(stats.dueThisWeek).toBe(3); // Past + Today + 3 days
+      expect(stats.dueThisSession).toBe(2); // Past + Current session
     });
 
     it('should return correct total enabled count', async () => {
       const stats = await reviewManager.getReviewStats();
 
-      expect(stats.totalEnabled).toBe(4);
+      expect(stats.totalEnabled).toBe(3); // Active items only
+    });
+
+    it('should return correct retired count', async () => {
+      const stats = await reviewManager.getReviewStats();
+
+      expect(stats.retired).toBe(1);
+    });
+
+    it('should return current session number', async () => {
+      const stats = await reviewManager.getReviewStats();
+
+      expect(stats.currentSessionNumber).toBe(5);
     });
 
     it('should exclude disabled review items', async () => {
@@ -471,8 +532,150 @@ describe('ReviewManager', () => {
 
       const stats = await reviewManager.getReviewStats();
 
-      expect(stats.dueToday).toBe(1); // Only today
-      expect(stats.totalEnabled).toBe(3);
+      expect(stats.dueThisSession).toBe(1); // Only current session note
+      expect(stats.totalEnabled).toBe(2);
+    });
+  });
+
+  describe('session management', () => {
+    it('should get current session number', async () => {
+      const db = await dbManager.connect();
+
+      await db.run(
+        `INSERT INTO review_state (id, current_session_number, created_at, updated_at)
+         VALUES (?, ?, ?, ?)`,
+        [1, 10, new Date().toISOString(), new Date().toISOString()]
+      );
+
+      const session = await reviewManager.getCurrentSessionNumber();
+      expect(session).toBe(10);
+    });
+
+    it('should initialize session number to 1 if not exists', async () => {
+      const session = await reviewManager.getCurrentSessionNumber();
+      expect(session).toBe(1);
+    });
+
+    it('should increment session number', async () => {
+      const db = await dbManager.connect();
+
+      await db.run(
+        `INSERT INTO review_state (id, current_session_number, created_at, updated_at)
+         VALUES (?, ?, ?, ?)`,
+        [1, 5, new Date().toISOString(), new Date().toISOString()]
+      );
+
+      const newSession = await reviewManager.incrementSessionNumber();
+      expect(newSession).toBe(6);
+
+      // Verify persisted
+      const session = await reviewManager.getCurrentSessionNumber();
+      expect(session).toBe(6);
+    });
+  });
+
+  describe('retired notes management', () => {
+    it('should reactivate a retired note', async () => {
+      const db = await dbManager.connect();
+      const noteId = 'n-retired-001';
+
+      // Initialize session state
+      await db.run(
+        `INSERT INTO review_state (id, current_session_number, created_at, updated_at)
+         VALUES (?, ?, ?, ?)`,
+        [1, 5, new Date().toISOString(), new Date().toISOString()]
+      );
+
+      await db.run(
+        'INSERT INTO notes (id, title, content, type, filename, path, created, updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+          noteId,
+          'Retired Note',
+          'Content',
+          'note',
+          'retired.md',
+          'note/retired.md',
+          new Date().toISOString(),
+          new Date().toISOString()
+        ]
+      );
+
+      // Create retired review item
+      await db.run(
+        `INSERT INTO review_items (id, note_id, vault_id, enabled, next_review, next_session_number, current_interval, status, review_count, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          `rev-${noteId}`,
+          noteId,
+          vaultId,
+          1,
+          '9999-12-31',
+          999,
+          1,
+          'retired',
+          5,
+          new Date().toISOString(),
+          new Date().toISOString()
+        ]
+      );
+
+      const reactivated = await reviewManager.reactivateNote(noteId);
+
+      expect(reactivated.status).toBe('active');
+      expect(reactivated.nextSessionNumber).toBe(6); // Current session + 1
+      expect(reactivated.currentInterval).toBe(1);
+    });
+
+    it('should get all retired items', async () => {
+      const db = await dbManager.connect();
+
+      // Create test notes
+      const notes = [
+        { id: 'n-ret-001', status: 'retired' },
+        { id: 'n-ret-002', status: 'retired' },
+        { id: 'n-act-001', status: 'active' }
+      ];
+
+      for (const note of notes) {
+        await db.run(
+          'INSERT INTO notes (id, title, content, type, filename, path, created, updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+          [
+            note.id,
+            `Note ${note.id}`,
+            'Content',
+            'note',
+            `${note.id}.md`,
+            `note/${note.id}.md`,
+            new Date().toISOString(),
+            new Date().toISOString()
+          ]
+        );
+
+        await db.run(
+          `INSERT INTO review_items (id, note_id, vault_id, enabled, next_review, next_session_number, current_interval, status, review_count, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            `rev-${note.id}`,
+            note.id,
+            vaultId,
+            1,
+            '2025-01-01',
+            1,
+            1,
+            note.status,
+            0,
+            new Date().toISOString(),
+            new Date().toISOString()
+          ]
+        );
+      }
+
+      const retired = await reviewManager.getRetiredItems();
+
+      expect(retired.length).toBe(2);
+      expect(retired.map((r) => r.noteId)).toContain('n-ret-001');
+      expect(retired.map((r) => r.noteId)).toContain('n-ret-002');
+      expect(retired.map((r) => r.noteId)).not.toContain('n-act-001');
     });
   });
 

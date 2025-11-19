@@ -1761,8 +1761,211 @@ async function migrateToV2_11_0(db: DatabaseConnection): Promise<void> {
   }
 }
 
+/**
+ * Migration to v2.12.0: Session-based review scheduling
+ * Converts from date-based to session-based spaced repetition
+ */
+async function migrateToV2_12_0(db: DatabaseConnection): Promise<void> {
+  console.log('Migrating to v2.12.0: Session-based review scheduling');
+
+  try {
+    // Check if review_items table exists
+    const reviewItemsExists = await db.get<{ count: number }>(`
+      SELECT COUNT(*) as count FROM sqlite_master
+      WHERE type='table' AND name='review_items'
+    `);
+
+    const hasReviewItems = reviewItemsExists && reviewItemsExists.count > 0;
+
+    // 1. Add new columns to review_items table (if it exists)
+    if (hasReviewItems) {
+      const reviewItemColumns = await db.all<{ name: string }>(
+        "SELECT name FROM pragma_table_info('review_items')"
+      );
+
+      const hasNextSessionNumber = reviewItemColumns.some(
+        (col) => col.name === 'next_session_number'
+      );
+      const hasCurrentInterval = reviewItemColumns.some(
+        (col) => col.name === 'current_interval'
+      );
+      const hasStatus = reviewItemColumns.some((col) => col.name === 'status');
+
+      if (!hasNextSessionNumber) {
+        console.log('Adding next_session_number column to review_items');
+        await db.run(
+          'ALTER TABLE review_items ADD COLUMN next_session_number INTEGER DEFAULT 1'
+        );
+      }
+
+      if (!hasCurrentInterval) {
+        console.log('Adding current_interval column to review_items');
+        await db.run(
+          'ALTER TABLE review_items ADD COLUMN current_interval INTEGER DEFAULT 1'
+        );
+      }
+
+      if (!hasStatus) {
+        console.log('Adding status column to review_items');
+        await db.run("ALTER TABLE review_items ADD COLUMN status TEXT DEFAULT 'active'");
+      }
+    } else {
+      console.log('review_items table does not exist, skipping column additions');
+    }
+
+    // 2. Create review_state table
+    const reviewStateExists = await db.get<{ count: number }>(`
+      SELECT COUNT(*) as count FROM sqlite_master
+      WHERE type='table' AND name='review_state'
+    `);
+
+    if (!reviewStateExists || reviewStateExists.count === 0) {
+      console.log('Creating review_state table');
+      await db.run(`
+        CREATE TABLE review_state (
+          id INTEGER PRIMARY KEY DEFAULT 1,
+          current_session_number INTEGER DEFAULT 0,
+          last_session_completed_at TEXT,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      // Initialize with session 1
+      await db.run(`
+        INSERT INTO review_state (id, current_session_number)
+        VALUES (1, 1)
+      `);
+    }
+
+    // 3. Create review_config table
+    const reviewConfigExists = await db.get<{ count: number }>(`
+      SELECT COUNT(*) as count FROM sqlite_master
+      WHERE type='table' AND name='review_config'
+    `);
+
+    if (!reviewConfigExists || reviewConfigExists.count === 0) {
+      console.log('Creating review_config table');
+      await db.run(`
+        CREATE TABLE review_config (
+          id INTEGER PRIMARY KEY DEFAULT 1,
+          session_size INTEGER DEFAULT 5,
+          sessions_per_week INTEGER DEFAULT 7,
+          max_interval_sessions INTEGER DEFAULT 15,
+          min_interval_days INTEGER DEFAULT 1,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      // Initialize with defaults
+      await db.run(`
+        INSERT INTO review_config (id, session_size, sessions_per_week, max_interval_sessions, min_interval_days)
+        VALUES (1, 5, 7, 15, 1)
+      `);
+    }
+
+    // 4. Migrate existing review items data (only if table exists)
+    if (hasReviewItems) {
+      console.log('Migrating existing review items to session-based scheduling...');
+
+      // Get current date for calculations
+      const now = new Date();
+      const currentSession = 1; // Start at session 1
+
+      // Update all existing review items
+      const existingItems = await db.all<{
+        id: string;
+        next_review: string;
+        review_history: string | null;
+      }>('SELECT id, next_review, review_history FROM review_items');
+
+      let migratedCount = 0;
+
+      for (const item of existingItems) {
+        // Convert next_review date to approximate session number
+        const nextReviewDate = new Date(item.next_review);
+        const daysUntilReview = Math.max(
+          0,
+          Math.ceil((nextReviewDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+        );
+
+        // Assume daily sessions for conversion
+        const nextSessionNumber = currentSession + daysUntilReview;
+
+        // Estimate current interval from review history or default to 1
+        let currentInterval = 1;
+        if (item.review_history) {
+          try {
+            const history = JSON.parse(item.review_history);
+            if (Array.isArray(history) && history.length >= 2) {
+              // Estimate from gap between last two reviews
+              const lastReview = new Date(history[history.length - 1].date);
+              const prevReview = new Date(history[history.length - 2].date);
+              const daysBetween = Math.ceil(
+                (lastReview.getTime() - prevReview.getTime()) / (1000 * 60 * 60 * 24)
+              );
+              currentInterval = Math.max(1, daysBetween);
+            }
+          } catch {
+            // Use default if parsing fails
+          }
+        }
+
+        // Migrate review history entries to new format (add sessionNumber, convert passed to rating)
+        let updatedHistory: string | null = null;
+        if (item.review_history) {
+          try {
+            const history = JSON.parse(item.review_history);
+            if (Array.isArray(history)) {
+              const migratedHistory = history.map(
+                (entry: { passed?: boolean; date: string; [key: string]: unknown }) => ({
+                  ...entry,
+                  sessionNumber: 0, // Unknown for old entries
+                  rating: entry.passed ? 2 : 1 // Map pass→Productive(2), fail→Need more time(1)
+                })
+              );
+              updatedHistory = JSON.stringify(migratedHistory);
+            }
+          } catch {
+            // Keep original if parsing fails
+          }
+        }
+
+        await db.run(
+          `UPDATE review_items
+         SET next_session_number = ?,
+             current_interval = ?,
+             status = 'active'
+             ${updatedHistory ? ', review_history = ?' : ''}
+         WHERE id = ?`,
+          updatedHistory
+            ? [nextSessionNumber, currentInterval, updatedHistory, item.id]
+            : [nextSessionNumber, currentInterval, item.id]
+        );
+
+        migratedCount++;
+      }
+
+      // Create index for session-based queries
+      await db.run(
+        'CREATE INDEX IF NOT EXISTS idx_review_session ON review_items(next_session_number, status, enabled)'
+      );
+
+      console.log(
+        `Session-based review scheduling migration completed: ${migratedCount} items migrated`
+      );
+    } else {
+      console.log('No review_items table found, skipping data migration');
+    }
+  } catch (error) {
+    console.error('Failed to migrate to session-based scheduling:', error);
+    throw error;
+  }
+}
+
 export class DatabaseMigrationManager {
-  private static readonly CURRENT_SCHEMA_VERSION = '2.11.0';
+  private static readonly CURRENT_SCHEMA_VERSION = '2.12.0';
 
   private static readonly MIGRATIONS: DatabaseMigration[] = [
     {
@@ -1863,6 +2066,13 @@ export class DatabaseMigrationManager {
       requiresFullRebuild: false,
       requiresLinkMigration: false,
       migrationFunction: migrateToV2_11_0
+    },
+    {
+      version: '2.12.0',
+      description: 'Session-based review scheduling with 4-point rating scale',
+      requiresFullRebuild: false,
+      requiresLinkMigration: false,
+      migrationFunction: migrateToV2_12_0
     }
   ];
 

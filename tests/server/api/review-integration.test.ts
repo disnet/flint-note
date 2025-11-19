@@ -1,7 +1,7 @@
 /**
  * Review Integration Tests
  *
- * End-to-end tests for the review system through the API layer
+ * End-to-end tests for the session-based review system through the API layer
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -41,6 +41,9 @@ describe('Review System Integration', () => {
       expect(reviewItem.noteId).toBe(note.id);
       expect(reviewItem.enabled).toBe(true);
       expect(reviewItem.reviewCount).toBe(0);
+      expect(reviewItem.nextSessionNumber).toBe(1);
+      expect(reviewItem.currentInterval).toBe(1);
+      expect(reviewItem.status).toBe('active');
     });
 
     it('should disable review for a note', async () => {
@@ -130,7 +133,8 @@ describe('Review System Integration', () => {
       expect(reviewItem!.noteId).toBe(note.id);
       expect(reviewItem!.vaultId).toBe(vaultId);
       expect(reviewItem!.reviewCount).toBe(0);
-      expect(reviewItem!.nextReview).toBeDefined();
+      expect(reviewItem!.nextSessionNumber).toBeDefined();
+      expect(reviewItem!.currentInterval).toBeDefined();
     });
 
     it('should return null for note without review', async () => {
@@ -148,7 +152,7 @@ describe('Review System Integration', () => {
 
   describe('getting notes for review', () => {
     let pastNoteId: string;
-    let todayNoteId: string;
+    let currentNoteId: string;
 
     beforeEach(async () => {
       // Create notes with different review schedules
@@ -161,40 +165,47 @@ describe('Review System Integration', () => {
       pastNoteId = pastNote.id;
       await api.enableReview({ noteId: pastNote.id, vaultId });
 
-      const todayNote = await api.createNote({
+      const currentNote = await api.createNote({
         vaultId,
         type: 'note',
-        identifier: 'due-today',
-        content: '# Due Today\nContent'
+        identifier: 'current-session',
+        content: '# Current Session\nContent'
       });
-      todayNoteId = todayNote.id;
-      await api.enableReview({ noteId: todayNote.id, vaultId });
+      currentNoteId = currentNote.id;
+      await api.enableReview({ noteId: currentNote.id, vaultId });
 
-      // Complete reviews to set them to past dates, then update manually via SQL
-      // We need to access the internal database connection
+      // Set up session-based scheduling via SQL
       const vaultContext = await (api as any).getVaultContext(vaultId);
       const db = await vaultContext.hybridSearchManager.getDatabaseConnection();
-      await db.run('UPDATE review_items SET next_review = ? WHERE note_id = ?', [
-        '2024-01-01',
+
+      // Set current session to 5
+      await db.run(
+        `INSERT OR REPLACE INTO review_state (id, current_session_number, created_at, updated_at)
+         VALUES (?, ?, ?, ?)`,
+        [1, 5, new Date().toISOString(), new Date().toISOString()]
+      );
+
+      // Set past note to session 3 (due)
+      await db.run('UPDATE review_items SET next_session_number = ? WHERE note_id = ?', [
+        3,
         pastNote.id
       ]);
-      await db.run('UPDATE review_items SET next_review = ? WHERE note_id = ?', [
-        new Date().toISOString().split('T')[0],
-        todayNote.id
+      // Set current note to session 5 (due)
+      await db.run('UPDATE review_items SET next_session_number = ? WHERE note_id = ?', [
+        5,
+        currentNote.id
       ]);
     });
 
-    it('should return notes due for review', async () => {
-      const today = new Date().toISOString().split('T')[0];
-      const notes = await api.getNotesForReview({ date: today, vaultId });
+    it('should return notes due for current session', async () => {
+      const notes = await api.getNotesForReview({ vaultId });
 
       expect(notes.length).toBe(2);
       expect(notes.every((n) => n.reviewItem)).toBe(true);
     });
 
     it('should include note content and metadata', async () => {
-      const today = new Date().toISOString().split('T')[0];
-      const notes = await api.getNotesForReview({ date: today, vaultId });
+      const notes = await api.getNotesForReview({ vaultId });
 
       expect(notes.length).toBeGreaterThan(0);
       const note = notes[0];
@@ -204,13 +215,32 @@ describe('Review System Integration', () => {
       expect(note.content).toBeDefined();
       expect(note.reviewItem).toBeDefined();
       expect(note.reviewItem.reviewCount).toBeDefined();
+      expect(note.reviewItem.nextSessionNumber).toBeDefined();
+      expect(note.reviewItem.currentInterval).toBeDefined();
     });
 
-    it('should return empty array when no notes are due', async () => {
-      const pastDate = '2020-01-01';
-      const notes = await api.getNotesForReview({ date: pastDate, vaultId });
+    it('should not return notes scheduled for future sessions', async () => {
+      // Create a future note
+      const futureNote = await api.createNote({
+        vaultId,
+        type: 'note',
+        identifier: 'future-note',
+        content: '# Future\nContent'
+      });
+      await api.enableReview({ noteId: futureNote.id, vaultId });
 
-      expect(notes).toEqual([]);
+      const vaultContext = await (api as any).getVaultContext(vaultId);
+      const db = await vaultContext.hybridSearchManager.getDatabaseConnection();
+
+      // Set to session 10 (future)
+      await db.run('UPDATE review_items SET next_session_number = ? WHERE note_id = ?', [
+        10,
+        futureNote.id
+      ]);
+
+      const notes = await api.getNotesForReview({ vaultId });
+
+      expect(notes.map((n) => n.id)).not.toContain(futureNote.id);
     });
   });
 
@@ -229,43 +259,60 @@ describe('Review System Integration', () => {
       await api.enableReview({ noteId, vaultId });
     });
 
-    it('should update schedule when review passes', async () => {
+    it('should schedule closer with rating 1 (Need more time)', async () => {
       const result = await api.completeReview({
         noteId,
         vaultId,
-        passed: true
+        rating: 1
       });
 
-      expect(result.nextReviewDate).toBeDefined();
+      expect(result.nextSessionNumber).toBeDefined();
       expect(result.reviewCount).toBe(1);
-
-      // Verify next review is 7 days out
-      const expected = new Date();
-      expected.setDate(expected.getDate() + 7);
-      const expectedDate = expected.toISOString().split('T')[0];
-      expect(result.nextReviewDate).toBe(expectedDate);
+      expect(result.retired).toBe(false);
     });
 
-    it('should update schedule when review fails', async () => {
+    it('should schedule further with rating 2 (Productive)', async () => {
       const result = await api.completeReview({
         noteId,
         vaultId,
-        passed: false
+        rating: 2
       });
 
-      expect(result.nextReviewDate).toBeDefined();
+      expect(result.nextSessionNumber).toBeDefined();
+      expect(result.reviewCount).toBe(1);
+      expect(result.retired).toBe(false);
+    });
+
+    it('should schedule much further with rating 3 (Already familiar)', async () => {
+      const result = await api.completeReview({
+        noteId,
+        vaultId,
+        rating: 3
+      });
+
+      expect(result.nextSessionNumber).toBeDefined();
+      expect(result.reviewCount).toBe(1);
+      expect(result.retired).toBe(false);
+    });
+
+    it('should retire note with rating 4 (Fully processed)', async () => {
+      const result = await api.completeReview({
+        noteId,
+        vaultId,
+        rating: 4
+      });
+
+      expect(result.retired).toBe(true);
       expect(result.reviewCount).toBe(1);
 
-      // Verify next review is 1 day out
-      const expected = new Date();
-      expected.setDate(expected.getDate() + 1);
-      const expectedDate = expected.toISOString().split('T')[0];
-      expect(result.nextReviewDate).toBe(expectedDate);
+      // Verify status is updated
+      const reviewItem = await api.getReviewItem({ noteId, vaultId });
+      expect(reviewItem?.status).toBe('retired');
     });
 
     it('should increment review count', async () => {
-      await api.completeReview({ noteId, vaultId, passed: true });
-      const result = await api.completeReview({ noteId, vaultId, passed: true });
+      await api.completeReview({ noteId, vaultId, rating: 2 });
+      const result = await api.completeReview({ noteId, vaultId, rating: 2 });
 
       expect(result.reviewCount).toBe(2);
     });
@@ -274,7 +321,7 @@ describe('Review System Integration', () => {
       await api.completeReview({
         noteId,
         vaultId,
-        passed: true,
+        rating: 2,
         userResponse: 'My reflection on this note'
       });
 
@@ -283,12 +330,22 @@ describe('Review System Integration', () => {
       expect(reviewItem!.reviewHistory[0].response).toBe('My reflection on this note');
     });
 
+    it('should store review history with rating', async () => {
+      await api.completeReview({ noteId, vaultId, rating: 2 });
+      await api.completeReview({ noteId, vaultId, rating: 1 });
+
+      const reviewItem = await api.getReviewItem({ noteId, vaultId });
+      expect(reviewItem!.reviewHistory.length).toBe(2);
+      expect(reviewItem!.reviewHistory[0].rating).toBe(2);
+      expect(reviewItem!.reviewHistory[1].rating).toBe(1);
+    });
+
     it('should throw error for non-existent note', async () => {
       await expect(
         api.completeReview({
           noteId: 'nonexistent',
           vaultId,
-          passed: true
+          rating: 2
         })
       ).rejects.toThrow();
     });
@@ -298,23 +355,22 @@ describe('Review System Integration', () => {
     beforeEach(async () => {
       // Create notes with different schedules
       const notes = [
-        { id: 'past', date: '2024-01-01' },
-        { id: 'today', date: new Date().toISOString().split('T')[0] },
-        {
-          id: 'week',
-          date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-        },
-        {
-          id: 'future',
-          date: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000)
-            .toISOString()
-            .split('T')[0]
-        }
+        { id: 'past', session: 3, status: 'active' },
+        { id: 'current', session: 5, status: 'active' },
+        { id: 'future', session: 10, status: 'active' },
+        { id: 'retired', session: 1, status: 'retired' }
       ];
 
       // Get database connection from vault context
       const vaultContext = await (api as any).getVaultContext(vaultId);
       const db = await vaultContext.hybridSearchManager.getDatabaseConnection();
+
+      // Set current session to 5
+      await db.run(
+        `INSERT OR REPLACE INTO review_state (id, current_session_number, created_at, updated_at)
+         VALUES (?, ?, ?, ?)`,
+        [1, 5, new Date().toISOString(), new Date().toISOString()]
+      );
 
       for (const noteData of notes) {
         const note = await api.createNote({
@@ -326,19 +382,20 @@ describe('Review System Integration', () => {
 
         await api.enableReview({ noteId: note.id, vaultId });
 
-        await db.run('UPDATE review_items SET next_review = ? WHERE note_id = ?', [
-          noteData.date,
-          note.id
-        ]);
+        await db.run(
+          'UPDATE review_items SET next_session_number = ?, status = ? WHERE note_id = ?',
+          [noteData.session, noteData.status, note.id]
+        );
       }
     });
 
     it('should return correct statistics', async () => {
       const stats = await api.getReviewStats({ vaultId });
 
-      expect(stats.dueToday).toBe(2); // past + today
-      expect(stats.dueThisWeek).toBe(3); // past + today + week
-      expect(stats.totalEnabled).toBe(4);
+      expect(stats.dueThisSession).toBe(2); // past + current
+      expect(stats.totalEnabled).toBe(3); // active items only
+      expect(stats.retired).toBe(1);
+      expect(stats.currentSessionNumber).toBe(5);
     });
 
     it('should return zero counts when no reviews enabled', async () => {
@@ -351,11 +408,28 @@ describe('Review System Integration', () => {
         vaultId: emptyVaultId
       });
 
-      expect(stats.dueToday).toBe(0);
-      expect(stats.dueThisWeek).toBe(0);
+      expect(stats.dueThisSession).toBe(0);
       expect(stats.totalEnabled).toBe(0);
+      expect(stats.retired).toBe(0);
+      expect(stats.currentSessionNumber).toBe(1);
 
       await emptySetup.cleanup();
+    });
+  });
+
+  describe('session management', () => {
+    it('should get current session number', async () => {
+      const result = await api.getCurrentSession({ vaultId });
+      expect(result.sessionNumber).toBe(1); // Default
+    });
+
+    it('should increment session number', async () => {
+      const result = await api.incrementSession({ vaultId });
+      expect(result.sessionNumber).toBe(2);
+
+      // Verify it persisted
+      const current = await api.getCurrentSession({ vaultId });
+      expect(current.sessionNumber).toBe(2);
     });
   });
 

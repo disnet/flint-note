@@ -7,6 +7,7 @@ This document describes the redesign of Flint's review mode scheduling algorithm
 ## Problem Statement
 
 The current review scheduling algorithm is extremely basic:
+
 - Pass = review in 7 days
 - Fail = review in 1 day
 
@@ -38,6 +39,7 @@ This approach has several problems:
 **Decision**: Schedule notes relative to review sessions, not calendar dates.
 
 **Rationale**:
+
 - Prevents backlog accumulation when users take breaks
 - Creates sustainable, predictable review load
 - Intervals measured in "engagement units" rather than time
@@ -50,6 +52,7 @@ This approach has several problems:
 **Decision**: Replace binary pass/fail with four engagement-quality ratings.
 
 **Rationale**:
+
 - Binary is too coarse for adaptive scheduling
 - Ratings reflect engagement quality, not recall accuracy
 - Includes explicit "graduate" option for fully processed notes
@@ -59,6 +62,7 @@ This approach has several problems:
 **Decision**: Make key scheduling parameters user-configurable with sensible defaults.
 
 **Rationale**:
+
 - Different users have different review capacities and preferences
 - Defaults should work well for most users without configuration
 - Power users can tune the system to their needs
@@ -67,21 +71,21 @@ This approach has several problems:
 
 ### Rating Scale
 
-| Rating | Label | Multiplier | Description |
-|--------|-------|------------|-------------|
-| 1 | Need more time | ×0.5 | Struggled with this note, need to revisit sooner |
-| 2 | Productive | ×1.5 | Good engagement, appropriate timing |
-| 3 | Already familiar | ×2.5 | Could have waited longer, push out further |
-| 4 | Fully processed | — | No more reviews needed, retire from rotation |
+| Rating | Label            | Multiplier | Description                                      |
+| ------ | ---------------- | ---------- | ------------------------------------------------ |
+| 1      | Need more time   | ×0.5       | Struggled with this note, need to revisit sooner |
+| 2      | Productive       | ×1.5       | Good engagement, appropriate timing              |
+| 3      | Already familiar | ×2.5       | Could have waited longer, push out further       |
+| 4      | Fully processed  | —          | No more reviews needed, retire from rotation     |
 
 ### Configuration Options
 
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `sessionSize` | 5 | Maximum notes per review session |
-| `sessionsPerWeek` | 7 | Expected sessions per week (for time estimates) |
-| `maxIntervalSessions` | 15 | Maximum interval cap (~30 days at daily sessions) |
-| `minIntervalDays` | 1 | Minimum days between reviewing the same note |
+| Setting               | Default | Description                                       |
+| --------------------- | ------- | ------------------------------------------------- |
+| `sessionSize`         | 5       | Maximum notes per review session                  |
+| `sessionsPerWeek`     | 7       | Expected sessions per week (for time estimates)   |
+| `maxIntervalSessions` | 15      | Maximum interval cap (~30 days at daily sessions) |
+| `minIntervalDays`     | 1       | Minimum days between reviewing the same note      |
 
 ### Scheduling Algorithm
 
@@ -97,13 +101,13 @@ const DEFAULT_CONFIG: SchedulingConfig = {
   sessionSize: 5,
   sessionsPerWeek: 7,
   maxIntervalSessions: 15,
-  minIntervalDays: 1,
+  minIntervalDays: 1
 };
 
 const RATING_MULTIPLIERS = {
-  1: 0.5,   // Need more time
-  2: 1.5,   // Productive
-  3: 2.5,   // Already familiar
+  1: 0.5, // Need more time
+  2: 1.5, // Productive
+  3: 2.5 // Already familiar
 };
 
 function calculateNextSession(
@@ -122,7 +126,7 @@ function calculateNextSession(
 
   return {
     nextSession: currentSession + cappedInterval,
-    interval: cappedInterval,
+    interval: cappedInterval
   };
 }
 ```
@@ -148,14 +152,16 @@ function getSessionNotes(
   minDate.setDate(minDate.getDate() - config.minIntervalDays);
 
   return allItems
-    .filter(item =>
-      item.status === 'active' &&
-      item.enabled &&
-      item.nextSessionNumber <= currentSession &&
-      new Date(item.lastReviewed) < minDate
+    .filter(
+      (item) =>
+        item.status === 'active' &&
+        item.enabled &&
+        item.nextSessionNumber <= currentSession &&
+        new Date(item.lastReviewed) < minDate
     )
-    .sort((a, b) =>
-      (currentSession - a.nextSessionNumber) - (currentSession - b.nextSessionNumber)
+    .sort(
+      (a, b) =>
+        currentSession - a.nextSessionNumber - (currentSession - b.nextSessionNumber)
     )
     .slice(0, config.sessionSize);
 }
@@ -164,6 +170,7 @@ function getSessionNotes(
 ### New Note Behavior
 
 When a note is added to review:
+
 - `nextSessionNumber = currentSessionNumber + 1` (due next session)
 - `currentInterval = 1`
 - `status = 'active'`
@@ -171,11 +178,13 @@ When a note is added to review:
 ### Retiring and Reactivating Notes
 
 **Retiring**: When user selects "Fully processed" (rating 4):
+
 - Set `status = 'retired'`
 - Note no longer appears in review sessions
 - History is preserved
 
 **Reactivating**: User can manually reactivate a retired note:
+
 - Set `status = 'active'`
 - Set `nextSessionNumber = currentSessionNumber + 1`
 - Set `currentInterval = 1` (start fresh)
@@ -197,7 +206,7 @@ interface ReviewItem {
 
   // Tracking
   reviewCount: number;
-  lastReviewed: string;         // ISO datetime
+  lastReviewed: string; // ISO datetime
   reviewHistory: ReviewHistoryEntry[];
 
   // Timestamps
@@ -206,12 +215,12 @@ interface ReviewItem {
 }
 
 interface ReviewHistoryEntry {
-  date: string;                 // ISO datetime
+  date: string; // ISO datetime
   sessionNumber: number;
   rating: 1 | 2 | 3 | 4;
-  response?: string;            // User's written response
-  prompt?: string;              // AI prompt shown
-  feedback?: string;            // AI feedback given
+  response?: string; // User's written response
+  prompt?: string; // AI prompt shown
+  feedback?: string; // AI feedback given
 }
 ```
 
@@ -220,7 +229,7 @@ interface ReviewHistoryEntry {
 ```typescript
 interface ReviewState {
   currentSessionNumber: number;
-  lastSessionCompletedAt: string;  // ISO datetime
+  lastSessionCompletedAt: string; // ISO datetime
 }
 ```
 
@@ -275,7 +284,8 @@ function migrateReviewItem(
 ): Partial<ReviewItem> {
   // Convert next_review date to approximate session number
   const nextReviewDate = new Date(item.next_review);
-  const daysUntilReview = Math.max(0,
+  const daysUntilReview = Math.max(
+    0,
     Math.ceil((nextReviewDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24))
   );
 
@@ -289,17 +299,15 @@ function migrateReviewItem(
   return {
     nextSessionNumber,
     currentInterval,
-    status: 'active',
+    status: 'active'
   };
 }
 
-function migrateHistoryEntry(
-  entry: OldHistoryEntry
-): ReviewHistoryEntry {
+function migrateHistoryEntry(entry: OldHistoryEntry): ReviewHistoryEntry {
   return {
     ...entry,
     sessionNumber: 0, // Unknown for old entries
-    rating: entry.passed ? 2 : 1, // Map pass→Productive, fail→Need more time
+    rating: entry.passed ? 2 : 1 // Map pass→Productive, fail→Need more time
   };
 }
 ```
@@ -335,6 +343,7 @@ Add settings panel for configuration:
 ### Review Dashboard
 
 Update to show:
+
 - Current session number
 - Notes due this session
 - Notes retired

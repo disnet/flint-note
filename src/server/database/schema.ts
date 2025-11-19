@@ -400,6 +400,9 @@ export class DatabaseManager {
           next_review TEXT NOT NULL,
           review_count INTEGER DEFAULT 0,
           review_history TEXT,
+          next_session_number INTEGER DEFAULT 1,
+          current_interval INTEGER DEFAULT 1,
+          status TEXT DEFAULT 'active',
           created_at TEXT NOT NULL,
           updated_at TEXT NOT NULL,
           FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
@@ -413,6 +416,33 @@ export class DatabaseManager {
     await connection.run(
       'CREATE INDEX IF NOT EXISTS idx_review_vault ON review_items(vault_id)'
     );
+    await connection.run(
+      'CREATE INDEX IF NOT EXISTS idx_review_session ON review_items(next_session_number, status, enabled)'
+    );
+
+    // Create review_state table for global session tracking
+    await connection.run(`
+        CREATE TABLE IF NOT EXISTS review_state (
+          id INTEGER PRIMARY KEY DEFAULT 1,
+          current_session_number INTEGER DEFAULT 0,
+          last_session_completed_at TEXT,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+    // Create review_config table for user preferences
+    await connection.run(`
+        CREATE TABLE IF NOT EXISTS review_config (
+          id INTEGER PRIMARY KEY DEFAULT 1,
+          session_size INTEGER DEFAULT 5,
+          sessions_per_week INTEGER DEFAULT 7,
+          max_interval_sessions INTEGER DEFAULT 15,
+          min_interval_days INTEGER DEFAULT 1,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
 
     // Create note_suggestions table for AI-generated note suggestions
     await connection.run(`
@@ -607,6 +637,27 @@ export interface ReviewItemRow {
   next_review: string;
   review_count: number;
   review_history: string | null; // JSON array
+  next_session_number: number;
+  current_interval: number;
+  status: string; // 'active' | 'retired'
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ReviewStateRow {
+  id: number;
+  current_session_number: number;
+  last_session_completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ReviewConfigRow {
+  id: number;
+  session_size: number;
+  sessions_per_week: number;
+  max_interval_sessions: number;
+  min_interval_days: number;
   created_at: string;
   updated_at: string;
 }
