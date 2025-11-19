@@ -236,9 +236,17 @@ export class LinkExtractor {
     const resolved: ExtractedWikilink[] = [];
 
     for (const wikilink of wikilinks) {
-      // If target_note_id is already set (ID-based link), no need to resolve
+      // If target_note_id is already set (ID-based link), validate it exists
       if (wikilink.target_note_id) {
-        resolved.push(wikilink);
+        // Validate that the target note exists in the database
+        const note = await db.get<{ id: string }>('SELECT id FROM notes WHERE id = ?', [
+          wikilink.target_note_id
+        ]);
+        resolved.push({
+          ...wikilink,
+          // Set to null if note doesn't exist (broken link)
+          target_note_id: note?.id
+        });
         continue;
       }
 

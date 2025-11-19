@@ -128,8 +128,15 @@ Third line with [[n-33333333]].`;
   });
 
   describe('resolveWikilinks - ID-based links', () => {
-    it('should skip resolution for ID-based links', async () => {
+    it('should validate ID-based links exist in database', async () => {
       const db = await getDb();
+
+      // Create a note with a specific ID that the wikilink references
+      const targetNote = await insertTestNote({
+        id: 'n-12345678',
+        title: 'Target Note',
+        content: 'Target content'
+      });
 
       const wikilinks = [
         {
@@ -144,14 +151,42 @@ Third line with [[n-33333333]].`;
       expect(resolved).toHaveLength(1);
       expect(resolved[0]).toMatchObject({
         target_title: 'n-12345678',
-        target_note_id: 'n-12345678'
+        target_note_id: targetNote.id
       });
     });
 
-    it('should resolve title-based links but keep ID-based links unchanged', async () => {
+    it('should set target_note_id to undefined for non-existent ID-based links', async () => {
       const db = await getDb();
 
-      // Create a note to resolve to
+      // Don't create a note - the ID doesn't exist
+      const wikilinks = [
+        {
+          target_title: 'n-12345678',
+          line_number: 1,
+          target_note_id: 'n-12345678'
+        }
+      ];
+
+      const resolved = await LinkExtractor.resolveWikilinks(wikilinks, db);
+
+      expect(resolved).toHaveLength(1);
+      expect(resolved[0]).toMatchObject({
+        target_title: 'n-12345678'
+      });
+      // Non-existent ID should become undefined (broken link)
+      expect(resolved[0].target_note_id).toBeUndefined();
+    });
+
+    it('should resolve title-based links and validate ID-based links', async () => {
+      const db = await getDb();
+
+      // Create both notes - one for the ID-based link and one for title-based
+      const idNote = await insertTestNote({
+        id: 'n-12345678',
+        title: 'ID Note',
+        content: 'ID content'
+      });
+
       const note = await testSetup.api.createNote({
         vaultId: testVaultId,
         type: 'meeting',
@@ -175,9 +210,9 @@ Third line with [[n-33333333]].`;
 
       expect(resolved).toHaveLength(2);
 
-      // ID-based link unchanged
+      // ID-based link validated and preserved
       expect(resolved[0]).toMatchObject({
-        target_note_id: 'n-12345678'
+        target_note_id: idNote.id
       });
 
       // Title-based link resolved
