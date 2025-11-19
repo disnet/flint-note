@@ -4,6 +4,24 @@ All notable changes to the Flint application will be documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.10.2]
+
+### Changed
+
+**Improved Review Mode Scheduling**
+
+Review mode now uses an enhanced scheduling algorithm that better adapts to your learning patterns:
+
+- Performance ratings now directly influence scheduling instead of just pass/fail
+- Notes you're struggling with are prioritized and shown more frequently
+- The system tracks review streaks and adjusts intervals based on your consistency
+- Better load balancing distributes reviews more evenly across days
+
+### Fixed
+
+- Archived notes are now properly excluded from review mode
+- Fixed issue where review sessions weren't clearing correctly
+
 ## [0.10.1]
 
 ### Added
