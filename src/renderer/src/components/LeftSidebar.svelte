@@ -1,10 +1,12 @@
 <script lang="ts">
+  import { fly } from 'svelte/transition';
   import SystemViews from './SystemViews.svelte';
   import PinnedNotes from './PinnedNotes.svelte';
   import TemporaryTabs from './TemporaryTabs.svelte';
   import ResizeHandle from './ResizeHandle.svelte';
   import WorkspaceBar from './WorkspaceBar.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
+  import { workspacesStore } from '../stores/workspacesStore.svelte';
   import type { NoteMetadata } from '../services/noteStore.svelte';
 
   interface Props {
@@ -37,6 +39,30 @@
 
   // Use store width when not actively resizing
   let currentWidth = $derived(localWidth ?? sidebarState.leftSidebar.width);
+
+  // Track workspace changes for slide direction (use non-reactive variable for previous)
+  let previousWorkspaceId: string | null = null;
+  let slideDirection = $state(1); // 1 = slide left (going right), -1 = slide right (going left)
+
+  // Update slide direction when workspace changes
+  $effect.pre(() => {
+    const currentId = workspacesStore.activeWorkspaceId;
+
+    if (previousWorkspaceId && currentId && previousWorkspaceId !== currentId) {
+      const prevIndex = workspacesStore.workspaces.findIndex(
+        (w) => w.id === previousWorkspaceId
+      );
+      const currentIndex = workspacesStore.workspaces.findIndex(
+        (w) => w.id === currentId
+      );
+
+      if (prevIndex >= 0 && currentIndex >= 0) {
+        slideDirection = currentIndex > prevIndex ? 1 : -1;
+      }
+    }
+
+    previousWorkspaceId = currentId;
+  });
 
   // Shadow state for workspace bar
   let showShadow = $state(false);
@@ -91,8 +117,16 @@
   <div class="sidebar-inner">
     <div class="sidebar-content" bind:this={contentElement} onscroll={updateShadow}>
       <SystemViews {onSystemViewSelect} {activeSystemView} />
-      <PinnedNotes {activeNote} {onNoteSelect} />
-      <TemporaryTabs {onNoteSelect} {onCreateNote} />
+      {#key workspacesStore.activeWorkspaceId}
+        <div
+          class="workspace-content"
+          in:fly={{ x: slideDirection * 50, duration: 150, delay: 75 }}
+          out:fly={{ x: slideDirection * -50, duration: 75 }}
+        >
+          <PinnedNotes {activeNote} {onNoteSelect} />
+          <TemporaryTabs {onNoteSelect} {onCreateNote} />
+        </div>
+      {/key}
     </div>
     <WorkspaceBar {onCreateNote} {showShadow} />
   </div>
@@ -129,9 +163,17 @@
   .sidebar-content {
     flex: 1;
     overflow-y: auto;
+    overflow-x: hidden;
     display: flex;
     flex-direction: column;
     min-width: 0;
+    scrollbar-gutter: stable;
+  }
+
+  .workspace-content {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
   }
 
   /* Custom scrollbar styling */
