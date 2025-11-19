@@ -563,9 +563,10 @@ export class ReviewManager {
    */
   async getReviewStats(): Promise<ReviewStats> {
     const currentSession = await this.getCurrentSessionNumber();
+    const config = await this.getReviewConfig();
 
     // Due this session (excluding archived notes)
-    const dueThisSession = await this.db.get<{ count: number }>(
+    const dueThisSessionCount = await this.db.get<{ count: number }>(
       `SELECT COUNT(*) as count FROM review_items ri
        INNER JOIN notes n ON ri.note_id = n.id
        WHERE ri.vault_id = ?
@@ -575,6 +576,9 @@ export class ReviewManager {
          AND (n.archived = 0 OR n.archived IS NULL)`,
       [this.vaultId, currentSession]
     );
+
+    // Cap due count by session size to show actual notes that will be reviewed
+    const dueThisSession = Math.min(dueThisSessionCount?.count || 0, config.sessionSize);
 
     // Total enabled active (excluding archived notes)
     const totalEnabled = await this.db.get<{ count: number }>(
@@ -599,7 +603,7 @@ export class ReviewManager {
     );
 
     return {
-      dueThisSession: dueThisSession?.count || 0,
+      dueThisSession,
       totalEnabled: totalEnabled?.count || 0,
       retired: retired?.count || 0,
       currentSessionNumber: currentSession
