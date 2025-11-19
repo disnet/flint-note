@@ -65,7 +65,20 @@
     type="button"
     title={isPinned ? 'Unpin note' : 'Pin note'}
   >
-    {isPinned ? '📌 Pinned' : '📌 Pin'}
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+    >
+      <path d="M12 17v5"></path>
+      <path
+        d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"
+      ></path>
+    </svg>
+    {isPinned ? 'Pinned' : 'Pin'}
   </button>
   <button
     class="action-button"
@@ -74,7 +87,19 @@
     type="button"
     title={metadataExpanded ? 'Hide metadata' : 'Show metadata'}
   >
-    {metadataExpanded ? '▼ Metadata' : '▶ Metadata'}
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      class="chevron"
+      class:expanded={metadataExpanded}
+    >
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+    Metadata
   </button>
   <button
     class="action-button"
@@ -84,7 +109,20 @@
     title={isOnShelf ? 'Already on shelf' : 'Add to shelf'}
     disabled={isOnShelf}
   >
-    {isOnShelf ? '📋 On Shelf' : '📋 Shelf'}
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+    >
+      <rect x="3" y="3" width="7" height="7"></rect>
+      <rect x="14" y="3" width="7" height="7"></rect>
+      <rect x="14" y="14" width="7" height="7"></rect>
+      <rect x="3" y="14" width="7" height="7"></rect>
+    </svg>
+    {isOnShelf ? 'On Shelf' : 'Shelf'}
   </button>
   <div class="overflow-menu-container">
     <button
@@ -111,7 +149,33 @@
           }}
           type="button"
         >
-          {previewMode ? '✏️ Edit Mode' : '👁 Preview Mode'}
+          {#if previewMode}
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path>
+              <path d="m15 5 4 4"></path>
+            </svg>
+            Edit Mode
+          {:else}
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+            Preview Mode
+          {/if}
         </button>
         {#if onReviewToggle}
           <button
@@ -124,11 +188,33 @@
             type="button"
             disabled={isLoadingReview}
           >
-            {isLoadingReview
-              ? '⏳ Loading...'
-              : reviewEnabled
-                ? '🔁 Review Enabled'
-                : '🔁 Enable Review'}
+            {#if isLoadingReview}
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                class="spinner"
+              >
+                <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+              </svg>
+              Loading...
+            {:else}
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+              </svg>
+              {reviewEnabled ? 'Review Enabled' : 'Enable Review'}
+            {/if}
           </button>
         {/if}
         {#if suggestionsEnabled && onGenerateSuggestions}
@@ -141,11 +227,36 @@
             type="button"
             disabled={isGeneratingSuggestions}
           >
-            {isGeneratingSuggestions
-              ? '⏳ Generating...'
-              : hasSuggestions
-                ? '💡 Regenerate Suggestions'
-                : '💡 Generate Suggestions'}
+            {#if isGeneratingSuggestions}
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                class="spinner"
+              >
+                <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+              </svg>
+              Generating...
+            {:else}
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"
+                ></path>
+                <path d="M9 18h6"></path>
+                <path d="M10 22h4"></path>
+              </svg>
+              {hasSuggestions ? 'Regenerate Suggestions' : 'Generate Suggestions'}
+            {/if}
           </button>
         {/if}
         {#if onArchiveNote}
@@ -157,7 +268,19 @@
             }}
             type="button"
           >
-            🗄️ Archive Note
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <polyline points="21 8 21 21 3 21 3 8"></polyline>
+              <rect x="1" y="3" width="22" height="5"></rect>
+              <line x1="10" y1="12" x2="14" y2="12"></line>
+            </svg>
+            Archive Note
           </button>
         {/if}
       </div>
@@ -277,5 +400,34 @@
 
   .popover-item:not(:last-child) {
     border-bottom: 1px solid var(--border-light);
+  }
+
+  /* Chevron rotation for metadata toggle */
+  .chevron {
+    transition: transform 0.2s ease;
+  }
+
+  .chevron.expanded {
+    transform: rotate(90deg);
+  }
+
+  /* Spinner animation for loading states */
+  .spinner {
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  /* SVG icon styling */
+  .action-button svg,
+  .popover-item svg {
+    flex-shrink: 0;
   }
 </style>

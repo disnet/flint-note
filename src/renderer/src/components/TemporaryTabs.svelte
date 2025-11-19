@@ -13,6 +13,7 @@
   import { getChatService } from '../services/chatService';
   import { notesShelfStore } from '../stores/notesShelfStore.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
+  import { reviewStore } from '../stores/reviewStore.svelte';
 
   interface Props {
     onNoteSelect: (note: NoteMetadata) => void;
@@ -22,6 +23,12 @@
   let { onNoteSelect }: Props = $props();
 
   const dragState = globalDragState;
+
+  // Context menu state
+  let contextMenuOpen = $state(false);
+  let contextMenuNoteId = $state<string | null>(null);
+  let contextMenuPosition = $state({ x: 0, y: 0 });
+  let contextMenuReviewEnabled = $state(false);
 
   // Check if notes are still loading
   let isNotesLoading = $derived(notesStore.loading);
@@ -151,6 +158,141 @@
 
   async function handleClearAll(): Promise<void> {
     await workspacesStore.clearAllTabs();
+  }
+
+  // Context menu handlers
+  async function handleContextMenu(event: MouseEvent, noteId: string): Promise<void> {
+    event.preventDefault();
+    contextMenuNoteId = noteId;
+
+    // Check review status for this note
+    contextMenuReviewEnabled = await reviewStore.isReviewEnabled(noteId);
+
+    // Calculate position with viewport bounds checking
+    const menuWidth = 180;
+    const menuHeight = 160;
+    const padding = 8;
+
+    let x = event.clientX;
+    let y = event.clientY;
+
+    // Adjust if menu would overflow right edge
+    if (x + menuWidth + padding > window.innerWidth) {
+      x = window.innerWidth - menuWidth - padding;
+    }
+
+    // Adjust if menu would overflow bottom edge
+    if (y + menuHeight + padding > window.innerHeight) {
+      y = window.innerHeight - menuHeight - padding;
+    }
+
+    // Ensure menu doesn't go off left or top edge
+    x = Math.max(padding, x);
+    y = Math.max(padding, y);
+
+    contextMenuPosition = { x, y };
+    contextMenuOpen = true;
+  }
+
+  function closeContextMenu(): void {
+    contextMenuOpen = false;
+    contextMenuNoteId = null;
+  }
+
+  function handleGlobalClick(event: MouseEvent): void {
+    if (contextMenuOpen) {
+      const target = event.target as Element;
+      if (!target.closest('.context-menu')) {
+        closeContextMenu();
+      }
+    }
+  }
+
+  function handleKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape' && contextMenuOpen) {
+      closeContextMenu();
+    }
+  }
+
+  async function handleOpenInShelf(): Promise<void> {
+    if (!contextMenuNoteId) return;
+
+    try {
+      const note = notesStore.allNotes.find((n) => n.id === contextMenuNoteId);
+      if (!note) return;
+
+      const chatService = getChatService();
+      const noteContent = await chatService.getNote({ identifier: note.id });
+
+      if (noteContent) {
+        await notesShelfStore.addNote(note.id, note.title, noteContent.content);
+
+        // Open the right sidebar in notes mode if not already visible
+        if (
+          !sidebarState.rightSidebar.visible ||
+          sidebarState.rightSidebar.mode !== 'notes'
+        ) {
+          await sidebarState.setRightSidebarMode('notes');
+          if (!sidebarState.rightSidebar.visible) {
+            await sidebarState.toggleRightSidebar();
+          }
+        }
+      }
+    } catch (error) {
+      console.error('[TemporaryTabs] Failed to add note to shelf:', error);
+    }
+
+    closeContextMenu();
+  }
+
+  async function handleArchive(): Promise<void> {
+    if (!contextMenuNoteId) return;
+
+    try {
+      const chatService = getChatService();
+      const vault = await chatService.getCurrentVault();
+      if (!vault) {
+        console.error('No vault available');
+        return;
+      }
+
+      await chatService.archiveNote({
+        vaultId: vault.id,
+        identifier: contextMenuNoteId
+      });
+    } catch (error) {
+      console.error('[TemporaryTabs] Failed to archive note:', error);
+    }
+
+    closeContextMenu();
+  }
+
+  async function handlePin(): Promise<void> {
+    if (!contextMenuNoteId) return;
+
+    try {
+      await workspacesStore.pinNote(contextMenuNoteId);
+    } catch (error) {
+      console.error('[TemporaryTabs] Failed to pin note:', error);
+    }
+
+    closeContextMenu();
+  }
+
+  async function handleToggleReview(): Promise<void> {
+    if (!contextMenuNoteId) return;
+
+    try {
+      if (contextMenuReviewEnabled) {
+        await reviewStore.disableReview(contextMenuNoteId);
+      } else {
+        await reviewStore.enableReview(contextMenuNoteId);
+      }
+    } catch (error) {
+      console.error('[TemporaryTabs] Failed to toggle review:', error);
+    }
+
+    closeContextMenu();
   }
 
   function truncateTitle(title: string, maxLength: number = 30): string {
@@ -313,6 +455,7 @@
           ondrop={(e) => onDrop(e, index)}
           ondragend={onDragEnd}
           onclick={(e) => handleTabClick(e, tab.noteId)}
+          oncontextmenu={(e) => handleContextMenu(e, tab.noteId)}
           title={!isTabsReady ? 'Loading...' : tab.title}
           role="button"
           tabindex={!isTabsReady ? -1 : 0}
@@ -357,6 +500,80 @@
     </div>
   {/if}
 </div>
+
+<!-- Global event listeners for context menu -->
+<svelte:window onclick={handleGlobalClick} onkeydown={handleKeydown} />
+
+<!-- Context menu -->
+{#if contextMenuOpen}
+  <div
+    class="context-menu"
+    style="left: {contextMenuPosition.x}px; top: {contextMenuPosition.y}px;"
+    role="menu"
+  >
+    <button class="context-menu-item" onclick={handleOpenInShelf} role="menuitem">
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <rect x="3" y="3" width="7" height="7"></rect>
+        <rect x="14" y="3" width="7" height="7"></rect>
+        <rect x="14" y="14" width="7" height="7"></rect>
+        <rect x="3" y="14" width="7" height="7"></rect>
+      </svg>
+      Open in Shelf
+    </button>
+    <button class="context-menu-item" onclick={handleArchive} role="menuitem">
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <polyline points="21 8 21 21 3 21 3 8"></polyline>
+        <rect x="1" y="3" width="22" height="5"></rect>
+        <line x1="10" y1="12" x2="14" y2="12"></line>
+      </svg>
+      Archive
+    </button>
+    <button class="context-menu-item" onclick={handlePin} role="menuitem">
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <path d="M12 17v5"></path>
+        <path
+          d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"
+        ></path>
+      </svg>
+      Pin
+    </button>
+    <button class="context-menu-item" onclick={handleToggleReview} role="menuitem">
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+      </svg>
+      {contextMenuReviewEnabled ? 'Disable Review' : 'Enable Review'}
+    </button>
+  </div>
+{/if}
 
 <style>
   .temporary-tabs {
@@ -536,5 +753,42 @@
   .loading-text {
     font-size: 0.75rem;
     opacity: 0.7;
+  }
+
+  /* Context menu styles */
+  .context-menu {
+    position: fixed;
+    z-index: 1000;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-medium);
+    border-radius: 0.375rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    min-width: 160px;
+    padding: 0.25rem;
+  }
+
+  .context-menu-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border: none;
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 0.8125rem;
+    cursor: pointer;
+    border-radius: 0.25rem;
+    text-align: left;
+    transition: background-color 0.15s ease;
+  }
+
+  .context-menu-item:hover {
+    background: var(--bg-secondary);
+  }
+
+  .context-menu-item svg {
+    flex-shrink: 0;
+    color: var(--text-secondary);
   }
 </style>
