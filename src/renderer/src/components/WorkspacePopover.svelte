@@ -33,6 +33,10 @@
 
   const activeWorkspace = $derived(workspacesStore.activeWorkspace);
 
+  // Detect platform for keyboard shortcut display
+  const isMac = $derived(navigator.platform.toLowerCase().includes('mac'));
+  const modifierKey = $derived(isMac ? '⌘' : 'Ctrl');
+
   // Filtered note types based on search
   const filteredNoteTypes = $derived.by(() => {
     if (!noteTypeSearchQuery.trim()) {
@@ -319,7 +323,8 @@
             <line x1="16" y1="13" x2="8" y2="13"></line>
             <line x1="16" y1="17" x2="8" y2="17"></line>
           </svg>
-          New Note
+          <span class="button-text">New Note</span>
+          <span class="shortcut">{modifierKey}⇧N</span>
         </button>
         <button
           class="dropdown-button"
@@ -422,10 +427,10 @@
   }
 
   .popover-section {
-    padding: 0.5rem;
+    padding: 0.75rem;
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
+    gap: 0.5rem;
   }
 
   .create-note-button-group {
@@ -438,6 +443,24 @@
     border-radius: 0.5rem 0 0 0.5rem;
     justify-content: flex-start;
     padding-left: 0.75rem;
+  }
+
+  .button-text {
+    flex: 1;
+    text-align: left;
+  }
+
+  .shortcut {
+    font-size: 0.6875rem;
+    color: var(--text-tertiary);
+    font-weight: 400;
+    letter-spacing: 0.025em;
+    opacity: 0.5;
+  }
+
+  .action-button:hover:not(:disabled) .shortcut {
+    color: var(--text-secondary);
+    opacity: 0.7;
   }
 
   .dropdown-button {
