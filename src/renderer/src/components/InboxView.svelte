@@ -3,10 +3,35 @@
   import { getChatService } from '../services/chatService';
   import { notesStore } from '../services/noteStore.svelte';
   import { wikilinkService } from '../services/wikilinkService.svelte';
+  import { workspacesStore } from '../stores/workspacesStore.svelte';
+  import { notesShelfStore } from '../stores/notesShelfStore.svelte';
+  import { sidebarState } from '../stores/sidebarState.svelte';
+  import { reviewStore } from '../stores/reviewStore.svelte';
 
   let newNoteTitle = $state('');
   let isCreatingNote = $state(false);
   let currentVaultId = $state<string | null>(null);
+
+  // Context menu state
+  let contextMenuOpen = $state(false);
+  let contextMenuNoteId = $state<string | null>(null);
+  let contextMenuPosition = $state({ x: 0, y: 0 });
+  let contextMenuReviewEnabled = $state(false);
+  let moveSubmenuOpen = $state(false);
+  let submenuOpenLeft = $state(false);
+
+  // Get all workspaces for move menu
+  let allWorkspaces = $derived(workspacesStore.workspaces);
+
+  function handleSubmenuEnter(event: MouseEvent): void {
+    const target = event.currentTarget as HTMLElement;
+    const rect = target.getBoundingClientRect();
+    const submenuWidth = 150; // approximate width
+
+    // Check if submenu would overflow right edge
+    submenuOpenLeft = rect.right + submenuWidth > window.innerWidth;
+    moveSubmenuOpen = true;
+  }
 
   // Reactive getters from store
   const notes = $derived(inboxStore.notes);
@@ -141,6 +166,184 @@
       wikilinkService.handleWikilinkClick(noteId, note.title, false, event.shiftKey);
     }
   }
+
+  // Context menu handlers
+  async function handleContextMenu(event: MouseEvent, noteId: string): Promise<void> {
+    event.preventDefault();
+    contextMenuNoteId = noteId;
+
+    // Check review status for this note
+    contextMenuReviewEnabled = await reviewStore.isReviewEnabled(noteId);
+
+    // Calculate position with viewport bounds checking
+    const menuWidth = 180;
+    const menuHeight = 200;
+    const padding = 8;
+
+    let x = event.clientX;
+    let y = event.clientY;
+
+    // Adjust if menu would overflow right edge
+    if (x + menuWidth + padding > window.innerWidth) {
+      x = window.innerWidth - menuWidth - padding;
+    }
+
+    // Adjust if menu would overflow bottom edge
+    if (y + menuHeight + padding > window.innerHeight) {
+      y = window.innerHeight - menuHeight - padding;
+    }
+
+    // Ensure menu doesn't go off left or top edge
+    x = Math.max(padding, x);
+    y = Math.max(padding, y);
+
+    contextMenuPosition = { x, y };
+    contextMenuOpen = true;
+  }
+
+  async function handleMenuButtonClick(event: MouseEvent, noteId: string): Promise<void> {
+    event.stopPropagation();
+    contextMenuNoteId = noteId;
+
+    // Capture button position before any async operations
+    const button = event.currentTarget as HTMLElement;
+    const rect = button.getBoundingClientRect();
+
+    // Check review status for this note
+    contextMenuReviewEnabled = await reviewStore.isReviewEnabled(noteId);
+
+    // Position menu relative to the button
+    const menuWidth = 180;
+    const menuHeight = 200;
+    const padding = 8;
+
+    let x = rect.right;
+    let y = rect.top;
+
+    // Adjust if menu would overflow right edge
+    if (x + menuWidth + padding > window.innerWidth) {
+      x = rect.left - menuWidth;
+    }
+
+    // Adjust if menu would overflow bottom edge
+    if (y + menuHeight + padding > window.innerHeight) {
+      y = window.innerHeight - menuHeight - padding;
+    }
+
+    // Ensure menu doesn't go off left or top edge
+    x = Math.max(padding, x);
+    y = Math.max(padding, y);
+
+    contextMenuPosition = { x, y };
+    contextMenuOpen = true;
+  }
+
+  function closeContextMenu(): void {
+    contextMenuOpen = false;
+    contextMenuNoteId = null;
+    moveSubmenuOpen = false;
+  }
+
+  function handleGlobalClick(event: MouseEvent): void {
+    if (contextMenuOpen) {
+      const target = event.target as Element;
+      if (!target.closest('.context-menu')) {
+        closeContextMenu();
+      }
+    }
+  }
+
+  function handleKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape' && contextMenuOpen) {
+      closeContextMenu();
+    }
+  }
+
+  // Context menu action handlers
+  async function handleOpenInShelf(): Promise<void> {
+    if (!contextMenuNoteId) return;
+
+    try {
+      const note = notes.find((n) => n.id === contextMenuNoteId);
+      if (!note) return;
+
+      const chatService = getChatService();
+      const noteContent = await chatService.getNote({ identifier: note.id });
+
+      if (noteContent) {
+        await notesShelfStore.addNote(note.id, note.title, noteContent.content);
+
+        // Open the right sidebar in notes mode if not already visible
+        if (
+          !sidebarState.rightSidebar.visible ||
+          sidebarState.rightSidebar.mode !== 'notes'
+        ) {
+          await sidebarState.setRightSidebarMode('notes');
+          if (!sidebarState.rightSidebar.visible) {
+            await sidebarState.toggleRightSidebar();
+          }
+        }
+      }
+    } catch (error) {
+      console.error('[InboxView] Failed to add note to shelf:', error);
+    }
+
+    closeContextMenu();
+  }
+
+  async function handleArchive(): Promise<void> {
+    if (!contextMenuNoteId || !currentVaultId) return;
+
+    try {
+      const chatService = getChatService();
+      await chatService.archiveNote({
+        vaultId: currentVaultId,
+        identifier: contextMenuNoteId
+      });
+
+      // Refresh inbox after archiving
+      await inboxStore.refresh(currentVaultId);
+    } catch (error) {
+      console.error('[InboxView] Failed to archive note:', error);
+    }
+
+    closeContextMenu();
+  }
+
+  async function handleToggleReview(): Promise<void> {
+    if (!contextMenuNoteId) return;
+
+    try {
+      if (contextMenuReviewEnabled) {
+        await reviewStore.disableReview(contextMenuNoteId);
+      } else {
+        await reviewStore.enableReview(contextMenuNoteId);
+      }
+    } catch (error) {
+      console.error('[InboxView] Failed to toggle review:', error);
+    }
+
+    closeContextMenu();
+  }
+
+  async function handleOpenInWorkspace(workspaceId: string): Promise<void> {
+    if (!contextMenuNoteId) return;
+
+    try {
+      const note = notes.find((n) => n.id === contextMenuNoteId);
+      if (!note) return;
+
+      // Switch to the target workspace
+      await workspacesStore.switchWorkspace(workspaceId);
+
+      // Add the note to temporary tabs in that workspace
+      await workspacesStore.addTab(note.id, 'navigation');
+    } catch (error) {
+      console.error('[InboxView] Failed to open note in workspace:', error);
+    }
+
+    closeContextMenu();
+  }
 </script>
 
 <div class="inbox-view">
@@ -210,7 +413,8 @@
       {:else if notes.length > 0}
         <div class="notes-list">
           {#each notes as note (note.id)}
-            <div class="note-card">
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <div class="note-card" oncontextmenu={(e) => handleContextMenu(e, note.id)}>
               <div class="note-header">
                 <button
                   class="note-title"
@@ -219,25 +423,39 @@
                 >
                   {note.title || 'Untitled'}
                 </button>
-                {#if showProcessed}
+                <div class="note-actions">
                   <button
-                    class="check-button"
-                    onclick={() => handleUnmarkAsProcessed(note.id)}
-                    title="Move back to unprocessed"
-                    aria-label="Move note back to unprocessed"
+                    class="menu-button"
+                    onclick={(e) => handleMenuButtonClick(e, note.id)}
+                    title="More options"
+                    aria-label="More options"
                   >
-                    ↻
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                      <circle cx="12" cy="5" r="2"></circle>
+                      <circle cx="12" cy="12" r="2"></circle>
+                      <circle cx="12" cy="19" r="2"></circle>
+                    </svg>
                   </button>
-                {:else}
-                  <button
-                    class="check-button"
-                    onclick={() => handleMarkAsProcessed(note.id)}
-                    title="Mark as processed"
-                    aria-label="Mark note as processed"
-                  >
-                    ✓
-                  </button>
-                {/if}
+                  {#if showProcessed}
+                    <button
+                      class="check-button"
+                      onclick={() => handleUnmarkAsProcessed(note.id)}
+                      title="Move back to unprocessed"
+                      aria-label="Move note back to unprocessed"
+                    >
+                      ↻
+                    </button>
+                  {:else}
+                    <button
+                      class="check-button"
+                      onclick={() => handleMarkAsProcessed(note.id)}
+                      title="Mark as processed"
+                      aria-label="Mark note as processed"
+                    >
+                      ✓
+                    </button>
+                  {/if}
+                </div>
               </div>
               <div class="note-meta">
                 <span class="meta-date">{formatRelativeTime(note.created)}</span>
@@ -262,6 +480,113 @@
     </div>
   </div>
 </div>
+
+<!-- Global event listeners for context menu -->
+<svelte:window onclick={handleGlobalClick} onkeydown={handleKeydown} />
+
+<!-- Context menu -->
+{#if contextMenuOpen}
+  <div
+    class="context-menu"
+    style="left: {contextMenuPosition.x}px; top: {contextMenuPosition.y}px;"
+    role="menu"
+  >
+    <button class="context-menu-item" onclick={handleOpenInShelf} role="menuitem">
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <rect x="3" y="3" width="7" height="7"></rect>
+        <rect x="14" y="3" width="7" height="7"></rect>
+        <rect x="14" y="14" width="7" height="7"></rect>
+        <rect x="3" y="14" width="7" height="7"></rect>
+      </svg>
+      <span class="menu-item-label">Open in Shelf</span>
+      <span class="menu-item-shortcut">⇧Click</span>
+    </button>
+    {#if allWorkspaces.length > 0}
+      <div
+        class="context-menu-item submenu-trigger"
+        role="menuitem"
+        tabindex="0"
+        onmouseenter={handleSubmenuEnter}
+        onmouseleave={() => (moveSubmenuOpen = false)}
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+          <polyline points="10 17 15 12 10 7"></polyline>
+          <line x1="15" y1="12" x2="3" y2="12"></line>
+        </svg>
+        <span class="menu-item-label">Open in Workspace</span>
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          class="submenu-arrow"
+        >
+          <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+        {#if moveSubmenuOpen}
+          <div class="submenu" class:submenu-left={submenuOpenLeft} role="menu">
+            {#each allWorkspaces as workspace (workspace.id)}
+              <button
+                class="context-menu-item"
+                onclick={() => handleOpenInWorkspace(workspace.id)}
+                role="menuitem"
+              >
+                <span class="workspace-icon">{workspace.icon}</span>
+                <span class="menu-item-label">{workspace.name}</span>
+              </button>
+            {/each}
+          </div>
+        {/if}
+      </div>
+    {/if}
+    <button class="context-menu-item" onclick={handleToggleReview} role="menuitem">
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+      </svg>
+      {contextMenuReviewEnabled ? 'Disable Review' : 'Enable Review'}
+    </button>
+    <button class="context-menu-item" onclick={handleArchive} role="menuitem">
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <polyline points="21 8 21 21 3 21 3 8"></polyline>
+        <rect x="1" y="3" width="22" height="5"></rect>
+        <line x1="10" y1="12" x2="14" y2="12"></line>
+      </svg>
+      Archive
+    </button>
+  </div>
+{/if}
 
 <style>
   .inbox-view {
@@ -546,5 +871,118 @@
   .empty-hint {
     font-size: 0.875rem;
     opacity: 0.7;
+  }
+
+  /* Note actions container */
+  .note-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    flex-shrink: 0;
+  }
+
+  /* Menu button */
+  .menu-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border: 1px solid var(--border-medium);
+    border-radius: 0.375rem;
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+  }
+
+  .menu-button:hover {
+    background: var(--accent-light);
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+  }
+
+  /* Context menu styles */
+  .context-menu {
+    position: fixed;
+    z-index: 1000;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-medium);
+    border-radius: 0.375rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    min-width: 160px;
+    padding: 0.25rem;
+  }
+
+  .context-menu-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border: none;
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 0.8125rem;
+    cursor: pointer;
+    border-radius: 0.25rem;
+    text-align: left;
+    transition: background-color 0.15s ease;
+  }
+
+  .context-menu-item:hover {
+    background: var(--bg-secondary);
+  }
+
+  .context-menu-item svg {
+    flex-shrink: 0;
+    color: var(--text-secondary);
+  }
+
+  .menu-item-label {
+    flex: 1;
+  }
+
+  .menu-item-shortcut {
+    font-size: 0.6875rem;
+    color: var(--text-muted);
+    margin-left: auto;
+  }
+
+  /* Submenu styles */
+  .submenu-trigger {
+    position: relative;
+    cursor: pointer;
+  }
+
+  .submenu-arrow {
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+
+  .submenu {
+    position: absolute;
+    left: 100%;
+    top: 0;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-medium);
+    border-radius: 0.375rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    min-width: 140px;
+    padding: 0.25rem;
+    z-index: 1001;
+  }
+
+  .submenu.submenu-left {
+    left: auto;
+    right: 100%;
+  }
+
+  .workspace-icon {
+    font-size: 14px;
+    line-height: 1;
+    flex-shrink: 0;
   }
 </style>
