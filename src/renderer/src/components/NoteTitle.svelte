@@ -138,14 +138,14 @@
     background: transparent;
     border: 1px solid transparent;
     border-radius: 0.25rem;
-    padding: 0;
+    padding: 0.1em 0;
     outline: none;
     width: 100%;
     min-width: 200px;
     resize: none;
     overflow: hidden;
-    line-height: 1.3;
-    min-height: 1.95rem;
+    line-height: 1.4;
+    min-height: 1.4em;
   }
 
   .note-title-input::placeholder {
