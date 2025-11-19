@@ -8,7 +8,7 @@ import {
   historyKeymap,
   indentWithTab
 } from '@codemirror/commands';
-import { highlightSelectionMatches, searchKeymap } from '@codemirror/search';
+import { searchKeymap } from '@codemirror/search';
 import { markdown } from '@codemirror/lang-markdown';
 import { githubLight } from '@fsegurai/codemirror-theme-github-light';
 import { githubDark } from '@fsegurai/codemirror-theme-github-dark';
@@ -335,7 +335,6 @@ export class EditorConfig {
       indentOnInput(),
       history(),
       keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap, indentWithTab]),
-      highlightSelectionMatches(),
       markdown(),
       EditorView.lineWrapping,
       this.isDarkMode ? githubDark : githubLight,

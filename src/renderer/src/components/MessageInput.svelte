@@ -15,7 +15,7 @@
     rectangularSelection,
     crosshairCursor
   } from '@codemirror/view';
-  import { searchKeymap, highlightSelectionMatches } from '@codemirror/search';
+  import { searchKeymap } from '@codemirror/search';
   import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
   import { wikilinksExtension } from '../lib/wikilinks.svelte.js';
   import { wikilinkService } from '../services/wikilinkService.svelte.js';
@@ -206,7 +206,6 @@
       drawSelection(),
       rectangularSelection(),
       crosshairCursor(),
-      highlightSelectionMatches(),
       // Now add default keymaps AFTER our custom ones
       keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap]),
       placeholder('Ask Flint anything...use [[ to link notes'),
