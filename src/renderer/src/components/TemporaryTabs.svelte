@@ -295,10 +295,6 @@
     closeContextMenu();
   }
 
-  function truncateTitle(title: string, maxLength: number = 30): string {
-    return title.length > maxLength ? title.substring(0, maxLength) + '...' : title;
-  }
-
   function getTabIcon(
     noteId: string,
     source: string
@@ -472,7 +468,7 @@
             </div>
             <span class="tab-title">
               {#if tab.title}
-                {truncateTitle(tab.title)}
+                {tab.title}
               {:else}
                 <span class="untitled-text">Untitled</span>
               {/if}
