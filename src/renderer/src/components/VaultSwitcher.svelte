@@ -350,6 +350,27 @@
     searchQuery; // dependency
     highlightedIndex = 0;
   });
+
+  // Listen for menu events to open switcher or create modal
+  $effect(() => {
+    function handleOpenSwitcher(): void {
+      if (!isDropdownOpen) {
+        toggleDropdown();
+      }
+    }
+
+    function handleOpenCreateModal(): void {
+      openCreateModal();
+    }
+
+    document.addEventListener('vault-switcher-open', handleOpenSwitcher);
+    document.addEventListener('vault-create-modal-open', handleOpenCreateModal);
+
+    return () => {
+      document.removeEventListener('vault-switcher-open', handleOpenSwitcher);
+      document.removeEventListener('vault-create-modal-open', handleOpenCreateModal);
+    };
+  });
 </script>
 
 <div class="vault-switcher">

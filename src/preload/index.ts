@@ -593,6 +593,26 @@ const api = {
       callback(workflowEvent);
     electronAPI.ipcRenderer.on('workflow-event', handler);
     return () => electronAPI.ipcRenderer.removeListener('workflow-event', handler);
+  },
+
+  // Menu event listeners
+  onMenuNavigate: (callback: (view: string) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, view: string): void =>
+      callback(view);
+    electronAPI.ipcRenderer.on('menu-navigate', handler);
+    return () => electronAPI.ipcRenderer.removeListener('menu-navigate', handler);
+  },
+
+  onMenuAction: (callback: (action: string) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, action: string): void =>
+      callback(action);
+    electronAPI.ipcRenderer.on('menu-action', handler);
+    return () => electronAPI.ipcRenderer.removeListener('menu-action', handler);
+  },
+
+  // Update menu state for active note
+  setMenuActiveNote: (isActive: boolean): void => {
+    electronAPI.ipcRenderer.send('menu-set-active-note', isActive);
   }
 };
 

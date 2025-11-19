@@ -306,11 +306,6 @@
     }
   }
 
-  function handleKeyDown(event: KeyboardEvent): void {
-    if (event.key === 'Escape') {
-      onClose();
-    }
-  }
 
   async function handleWikilinkClick(
     noteId: string,
@@ -510,6 +505,33 @@
     })();
   });
 
+  // Listen for menu events
+  $effect(() => {
+    function handleMenuFocusTitle(): void {
+      if (headerRef && headerRef.focusTitle) {
+        headerRef.focusTitle();
+      }
+    }
+
+    function handleMenuTogglePreview(): void {
+      togglePreview();
+    }
+
+    function handleMenuToggleMetadata(): void {
+      toggleMetadata();
+    }
+
+    document.addEventListener('menu-focus-title', handleMenuFocusTitle);
+    document.addEventListener('menu-toggle-preview', handleMenuTogglePreview);
+    document.addEventListener('menu-toggle-metadata', handleMenuToggleMetadata);
+
+    return () => {
+      document.removeEventListener('menu-focus-title', handleMenuFocusTitle);
+      document.removeEventListener('menu-toggle-preview', handleMenuTogglePreview);
+      document.removeEventListener('menu-toggle-metadata', handleMenuToggleMetadata);
+    };
+  });
+
   async function handleBacklinkSelect(
     selectedNote: NoteMetadata,
     lineNumber?: number
@@ -573,7 +595,6 @@
     role="dialog"
     aria-labelledby="note-editor-title"
     tabindex="-1"
-    onkeydown={handleKeyDown}
   >
     <div class="header-container">
       <EditorHeader

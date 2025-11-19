@@ -24,6 +24,8 @@
   import { dailyViewStore } from './stores/dailyViewStore.svelte';
   import { inboxStore } from './stores/inboxStore.svelte';
   import { reviewStore } from './stores/reviewStore.svelte';
+  import { notesShelfStore } from './stores/notesShelfStore.svelte';
+  import { noteDocumentRegistry } from './stores/noteDocumentRegistry.svelte';
   import type { CreateVaultResult } from '@/server/api/types';
   import { messageBus } from './services/messageBus.svelte';
   import type { NoteEvent, WorkflowEvent } from './services/messageBus.svelte';
@@ -44,6 +46,163 @@
   $effect(() => {
     const unsubscribe = window.api?.onWorkflowEvent((event) => {
       messageBus.publish(event as WorkflowEvent);
+    });
+
+    return () => {
+      unsubscribe?.();
+    };
+  });
+
+  // Update menu state when active note changes
+  $effect(() => {
+    const hasActiveNote = activeNoteStore.activeNote !== null;
+    window.api?.setMenuActiveNote(hasActiveNote);
+  });
+
+  // Handle menu navigation events
+  $effect(() => {
+    const unsubscribe = window.api?.onMenuNavigate((view) => {
+      const viewMap: Record<string, typeof activeSystemView> = {
+        inbox: 'inbox',
+        daily: 'daily',
+        review: 'review',
+        routines: 'workflows',
+        'note-types': 'notes',
+        settings: 'settings'
+      };
+      const mappedView = viewMap[view];
+      if (mappedView) {
+        handleSystemViewSelect(mappedView);
+
+        // For daily view, dispatch event to focus on today's entry
+        // Delay to ensure the component is mounted and listener is registered
+        if (view === 'daily') {
+          setTimeout(() => {
+            document.dispatchEvent(new CustomEvent('daily-view-focus-today'));
+          }, 150);
+        }
+      }
+    });
+
+    return () => {
+      unsubscribe?.();
+    };
+  });
+
+  // Handle menu action events
+  $effect(() => {
+    const unsubscribe = window.api?.onMenuAction(async (action) => {
+      switch (action) {
+        case 'new-note':
+          await handleCreateNote(undefined, true);
+          break;
+        case 'new-vault':
+          document.dispatchEvent(new CustomEvent('vault-create-modal-open'));
+          break;
+        case 'switch-vault':
+          document.dispatchEvent(new CustomEvent('vault-switcher-open'));
+          break;
+        case 'show-in-finder':
+          if (activeNoteStore.activeNote) {
+            const chatService = getChatService();
+            const note = await chatService.getNote({
+              identifier: activeNoteStore.activeNote.id
+            });
+            if (note?.path) {
+              await window.api?.showItemInFolder({ path: note.path });
+            }
+          }
+          break;
+        case 'find': {
+          // Focus the search bar
+          const searchInput = document.getElementById('global-search');
+          searchInput?.focus();
+          break;
+        }
+        case 'toggle-sidebar':
+          sidebarState.toggleLeftSidebar();
+          break;
+        case 'focus-title':
+          // Dispatch event for NoteEditor to handle
+          document.dispatchEvent(new CustomEvent('menu-focus-title'));
+          break;
+        case 'toggle-preview':
+          // Dispatch event for NoteEditor to handle
+          document.dispatchEvent(new CustomEvent('menu-toggle-preview'));
+          break;
+        case 'toggle-metadata':
+          // Dispatch event for NoteEditor to handle
+          document.dispatchEvent(new CustomEvent('menu-toggle-metadata'));
+          break;
+        case 'toggle-pin':
+          if (activeNoteStore.activeNote) {
+            await workspacesStore.togglePin(activeNoteStore.activeNote.id);
+          }
+          break;
+        case 'add-to-shelf':
+          if (activeNoteStore.activeNote) {
+            const noteId = activeNoteStore.activeNote.id;
+            const doc = noteDocumentRegistry.get(noteId);
+            if (doc) {
+              await notesShelfStore.addNote(noteId, doc.title, doc.content);
+              // Open the right sidebar in notes mode
+              if (!sidebarState.rightSidebar.visible || sidebarState.rightSidebar.mode !== 'notes') {
+                if (!sidebarState.rightSidebar.visible) {
+                  await sidebarState.toggleRightSidebar();
+                }
+                if (sidebarState.rightSidebar.mode !== 'notes') {
+                  await sidebarState.setRightSidebarMode('notes');
+                }
+              }
+            }
+          }
+          break;
+        case 'toggle-review':
+          if (activeNoteStore.activeNote) {
+            const noteId = activeNoteStore.activeNote.id;
+            const result = await window.api?.isReviewEnabled(noteId);
+            if (result?.enabled) {
+              await reviewStore.disableReview(noteId);
+            } else {
+              await reviewStore.enableReview(noteId);
+            }
+          }
+          break;
+        case 'change-type':
+          // Dispatch event for NoteEditor to handle
+          document.dispatchEvent(new CustomEvent('menu-change-type'));
+          break;
+        case 'generate-suggestions':
+          if (activeNoteStore.activeNote) {
+            await window.api?.generateNoteSuggestions({ noteId: activeNoteStore.activeNote.id });
+          }
+          break;
+        case 'archive-note':
+          if (activeNoteStore.activeNote) {
+            const chatService = getChatService();
+            const vault = await chatService.getCurrentVault();
+            if (vault) {
+              await chatService.archiveNote({
+                vaultId: vault.id,
+                identifier: activeNoteStore.activeNote.id
+              });
+            }
+          }
+          break;
+        case 'show-shortcuts':
+          // TODO: Show keyboard shortcuts modal
+          break;
+        case 'check-updates':
+          try {
+            await window.api?.checkForUpdates();
+          } catch (error) {
+            console.error('Failed to check for updates:', error);
+          }
+          break;
+        case 'show-about':
+          // TODO: Show about dialog
+          break;
+      }
     });
 
     return () => {
@@ -332,21 +491,10 @@
   });
 
   // Global keyboard shortcuts
+  // Note: Many shortcuts are now handled by the application menu (Cmd+N, Cmd+O, Cmd+1-6, etc.)
+  // These are supplementary shortcuts not covered by the menu
   $effect(() => {
     function handleKeyDown(event: KeyboardEvent): void {
-      // Ctrl/Cmd + Shift + N to create new note
-      if (event.key === 'n' && (event.ctrlKey || event.metaKey) && event.shiftKey) {
-        event.preventDefault();
-        handleCreateNote(undefined, true);
-      }
-
-      // Ctrl/Cmd + O to focus search
-      if (event.key === 'o' && (event.ctrlKey || event.metaKey)) {
-        event.preventDefault();
-        const searchInput = document.getElementById('global-search');
-        searchInput?.focus();
-      }
-
       // Ctrl/Cmd + Shift + [ to go back
       if (event.key === '[' && (event.ctrlKey || event.metaKey) && event.shiftKey) {
         event.preventDefault();
@@ -359,14 +507,14 @@
         handleNavigationForward();
       }
 
-      // Ctrl/Cmd + , to open settings (handled by system views now)
-      if (event.key === ',' && (event.ctrlKey || event.metaKey)) {
-        event.preventDefault();
-        // Settings are now handled via system views in left sidebar
-      }
+      // Workspace switching: Ctrl+1-9 on macOS, Alt+1-9 on Windows/Linux
+      // (Regular Cmd+1-6 is now used for system views via menu)
+      const isMacOS = navigator.platform.includes('Mac');
+      const isWorkspaceShortcut = isMacOS
+        ? event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey
+        : event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey;
 
-      // Ctrl/Cmd + 1-9 to switch workspaces
-      if ((event.ctrlKey || event.metaKey) && !event.shiftKey && !event.altKey) {
+      if (isWorkspaceShortcut) {
         const num = parseInt(event.key);
         if (num >= 1 && num <= 9) {
           const workspaces = workspacesStore.workspaces;

@@ -27,6 +27,7 @@ import type { NoteMetadata } from '../server/types';
 import { logger } from './logger';
 import { AutoUpdaterService } from './auto-updater-service';
 import { publishNoteEvent } from './note-events';
+import { setupApplicationMenu } from './menu';
 
 // Module-level service references
 let noteService: NoteService | null = null;
@@ -50,7 +51,6 @@ function createWindow(): void {
     width: 1600,
     height: 900,
     show: false,
-    autoHideMenuBar: true,
     frame: false,
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : undefined,
     backgroundColor: getThemeBackgroundColor(), // Dynamic theme background to prevent flash
@@ -158,6 +158,16 @@ app.whenReady().then(async () => {
 
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.flintnote.flint');
+
+  // Set up About panel
+  app.setAboutPanelOptions({
+    applicationName: 'Flint',
+    applicationVersion: app.getVersion(),
+    version: ''
+  });
+
+  // Set up the application menu
+  setupApplicationMenu();
 
   // Initialize auto-updater service
   const autoUpdaterService = new AutoUpdaterService();

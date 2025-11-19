@@ -64,6 +64,20 @@
     highlightedIndex = 0;
   });
 
+  // Listen for menu event to open dropdown
+  $effect(() => {
+    function handleMenuChangeType(): void {
+      if (!disabled && !isSaving) {
+        isOpen = true;
+      }
+    }
+
+    document.addEventListener('menu-change-type', handleMenuChangeType);
+    return () => {
+      document.removeEventListener('menu-change-type', handleMenuChangeType);
+    };
+  });
+
   function toggleDropdown(): void {
     if (!disabled && !isSaving) {
       isOpen = !isOpen;
@@ -94,6 +108,7 @@
       searchQuery = '';
       highlightedIndex = 0;
       event.preventDefault();
+      event.stopPropagation();
       return;
     }
 

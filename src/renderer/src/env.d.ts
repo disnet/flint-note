@@ -672,6 +672,13 @@ declare global {
 
       // Event listener for workflow events from main process
       onWorkflowEvent: (callback: (event: unknown) => void) => () => void;
+
+      // Menu event listeners
+      onMenuNavigate: (callback: (view: string) => void) => () => void;
+      onMenuAction: (callback: (action: string) => void) => () => void;
+
+      // Update menu state
+      setMenuActiveNote: (isActive: boolean) => void;
     };
   }
 }

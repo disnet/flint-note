@@ -78,12 +78,39 @@
     }
   }
 
+  // Focus today's entry
+  function focusToday(): void {
+    const todayIndex = weekData?.days.findIndex((day) => isToday(day.date));
+    if (todayIndex !== undefined && todayIndex !== -1) {
+      daySectionRefs[todayIndex]?.focus();
+    }
+  }
+
   // Reload data when the component becomes active
   // This ensures fresh data when navigating back to daily view
   $effect(() => {
     // This effect runs when the component is mounted/re-mounted
     // and when reactive dependencies change
     dailyViewStore.loadCurrentWeek();
+  });
+
+  // Listen for focus-today event (triggered by menu navigation)
+  $effect(() => {
+    function handleFocusToday(): void {
+      // Wait for data to load, then focus
+      const attemptFocus = (attempts = 0): void => {
+        if (weekData && weekData.days.length > 0) {
+          focusToday();
+        } else if (attempts < 10) {
+          // Retry up to 10 times (1 second total)
+          setTimeout(() => attemptFocus(attempts + 1), 100);
+        }
+      };
+      attemptFocus();
+    }
+
+    document.addEventListener('daily-view-focus-today', handleFocusToday);
+    return () => document.removeEventListener('daily-view-focus-today', handleFocusToday);
   });
 
   // Keyboard shortcuts for daily view
@@ -115,21 +142,7 @@
       // T: Focus today's entry
       if (event.key === 't' || event.key === 'T') {
         event.preventDefault();
-        const todayIndex = weekData?.days.findIndex((day) => isToday(day.date));
-        if (todayIndex !== undefined && todayIndex !== -1) {
-          daySectionRefs[todayIndex]?.focus();
-        }
-        return;
-      }
-
-      // 1-7: Focus corresponding day (1 = first day of week, 7 = last day)
-      const dayNumber = parseInt(event.key);
-      if (dayNumber >= 1 && dayNumber <= 7) {
-        event.preventDefault();
-        const dayIndex = dayNumber - 1;
-        if (dayIndex < (weekData?.days.length || 0)) {
-          daySectionRefs[dayIndex]?.focus();
-        }
+        focusToday();
         return;
       }
 
