@@ -184,7 +184,8 @@
           <label for="session-size">
             <span class="setting-label">Notes per session</span>
             <span class="setting-description"
-              >Lower for shorter, more frequent sessions. Higher if you prefer longer, deeper review periods.</span
+              >Lower for shorter, more frequent sessions. Higher if you prefer longer,
+              deeper review periods.</span
             >
           </label>
           <input
@@ -202,7 +203,8 @@
           <label for="sessions-per-week">
             <span class="setting-label">Sessions per week</span>
             <span class="setting-description"
-              >Used to estimate review dates. Increase if you review daily, decrease for weekly reviews.</span
+              >Used to estimate review dates. Increase if you review daily, decrease for
+              weekly reviews.</span
             >
           </label>
           <input
@@ -220,7 +222,8 @@
           <label for="max-interval">
             <span class="setting-label">Max interval (sessions)</span>
             <span class="setting-description"
-              >Caps how long between reviews. Lower keeps notes fresher, higher lets well-known ideas rest longer.</span
+              >Caps how long between reviews. Lower keeps notes fresher, higher lets
+              well-known ideas rest longer.</span
             >
           </label>
           <input
@@ -238,7 +241,8 @@
           <label for="min-interval-days">
             <span class="setting-label">Min interval (days)</span>
             <span class="setting-description"
-              >Prevents seeing the same note too soon. Useful if you do multiple sessions per day.</span
+              >Prevents seeing the same note too soon. Useful if you do multiple sessions
+              per day.</span
             >
           </label>
           <input

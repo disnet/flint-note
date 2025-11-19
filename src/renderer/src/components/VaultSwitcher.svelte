@@ -25,8 +25,22 @@
   let isDropdownOpen = $state(false);
   let isCreateModalOpen = $state(false);
   let confirmingArchive = $state<VaultInfo | null>(null);
+  let searchQuery = $state('');
+  let searchInputRef = $state<HTMLInputElement | null>(null);
 
   const service = getChatService();
+
+  const filteredVaults = $derived.by(() => {
+    if (!searchQuery.trim()) {
+      return allVaults;
+    }
+    const query = searchQuery.toLowerCase().trim();
+    return allVaults.filter(
+      (vault) =>
+        vault.name.toLowerCase().includes(query) ||
+        (vault.description && vault.description.toLowerCase().includes(query))
+    );
+  });
 
   async function loadVaults(): Promise<void> {
     try {
@@ -117,6 +131,7 @@
 
   function closeDropdown(): void {
     isDropdownOpen = false;
+    searchQuery = '';
   }
 
   function openCreateModal(): void {
@@ -282,6 +297,15 @@
     }
     return () => {};
   });
+
+  // Focus search input when dropdown opens
+  $effect(() => {
+    if (isDropdownOpen && searchInputRef) {
+      setTimeout(() => {
+        searchInputRef?.focus();
+      }, 50);
+    }
+  });
 </script>
 
 <div class="vault-switcher">
@@ -339,10 +363,51 @@
 
   {#if isDropdownOpen}
     <div class="dropdown" role="listbox">
-      {#if allVaults.length === 0}
-        <div class="dropdown-item disabled">No vaults available</div>
+      <div class="search-container">
+        <input
+          bind:this={searchInputRef}
+          type="text"
+          class="search-input"
+          placeholder="Search projects..."
+          bind:value={searchQuery}
+          onclick={(e) => e.stopPropagation()}
+        />
+        {#if searchQuery}
+          <button
+            class="clear-search"
+            onclick={(e) => {
+              e.stopPropagation();
+              searchQuery = '';
+              searchInputRef?.focus();
+            }}
+            aria-label="Clear search"
+          >
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M18 6 6 18" />
+              <path d="m6 6 12 12" />
+            </svg>
+          </button>
+        {/if}
+      </div>
+      {#if filteredVaults.length === 0}
+        <div class="dropdown-item disabled">
+          {#if allVaults.length === 0}
+            No vaults available
+          {:else}
+            No matching projects
+          {/if}
+        </div>
       {:else}
-        {#each allVaults as vault (vault.id)}
+        {#each filteredVaults as vault (vault.id)}
           <div class="vault-item-container">
             <button
               class="dropdown-item vault-main-button"
@@ -617,6 +682,59 @@
     max-height: 400px;
     overflow-y: auto;
     min-width: 280px;
+  }
+
+  .search-container {
+    position: sticky;
+    top: 0;
+    background: var(--bg-primary);
+    padding: 0.5rem;
+    border-bottom: 1px solid var(--border-light);
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .search-input {
+    flex: 1;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border-light);
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    outline: none;
+    transition: border-color 0.2s ease;
+  }
+
+  .search-input::placeholder {
+    color: var(--text-tertiary);
+  }
+
+  .search-input:focus {
+    border-color: var(--accent-primary);
+  }
+
+  .clear-search {
+    padding: 0.25rem;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: 0.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+  }
+
+  .clear-search:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
+  .clear-search svg {
+    stroke: currentColor;
   }
 
   .dropdown::-webkit-scrollbar {
