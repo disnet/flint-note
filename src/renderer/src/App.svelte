@@ -9,6 +9,7 @@
   import MessageBusDebugPanel from './components/MessageBusDebugPanel.svelte';
   import ExternalEditConflictNotification from './components/ExternalEditConflictNotification.svelte';
   import ToastNotification from './components/ToastNotification.svelte';
+  import ChangelogViewer from './components/ChangelogViewer.svelte';
   import type { Message } from './services/types';
   import type { NoteMetadata } from './services/noteStore.svelte';
   import { getChatService } from './services/chatService';
@@ -221,6 +222,9 @@
             console.error('Failed to check for updates:', error);
           }
           break;
+        case 'show-changelog':
+          showChangelog = true;
+          break;
         case 'show-about':
           // TODO: Show about dialog
           break;
@@ -300,6 +304,26 @@
     maxSteps: number;
   } | null>(null);
   let refreshCredits: (() => Promise<void>) | undefined = $state();
+
+  // Changelog modal state
+  let showChangelog = $state(false);
+  let appVersion = $state('');
+  let isCanary = $state(false);
+
+  // Load app version for changelog
+  $effect(() => {
+    (async () => {
+      try {
+        const versionInfo = await window.api?.getAppVersion();
+        if (versionInfo) {
+          appVersion = versionInfo.version;
+          isCanary = versionInfo.channel === 'canary';
+        }
+      } catch (error) {
+        console.error('Failed to load app version:', error);
+      }
+    })();
+  });
 
   async function handleNoteSelect(note: NoteMetadata): Promise<void> {
     await noteNavigationService.openNote(note, 'navigation', openNoteEditor, () => {
@@ -1229,6 +1253,23 @@
     <!-- Toast Notifications -->
     <ToastNotification />
   </div>
+
+  <!-- Changelog Modal -->
+  {#if showChangelog}
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div class="changelog-modal-overlay" onclick={() => (showChangelog = false)}>
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div class="changelog-modal-content" onclick={(e) => e.stopPropagation()}>
+        <ChangelogViewer
+          version={appVersion}
+          {isCanary}
+          onClose={() => (showChangelog = false)}
+        />
+      </div>
+    </div>
+  {/if}
 {/if}
 
 <style>
@@ -1477,5 +1518,29 @@
   /* Show title bar on all platforms when using custom frame */
   .title-bar {
     display: block;
+  }
+
+  /* Changelog modal styles */
+  .changelog-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+
+  .changelog-modal-content {
+    width: 90%;
+    max-width: 800px;
+    height: 80vh;
+    background: var(--bg-primary);
+    border-radius: 0.75rem;
+    overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   }
 </style>

@@ -432,6 +432,12 @@ export function createApplicationMenu(): Menu {
             await shell.openExternal('https://flintnote.com');
           }
         },
+        {
+          label: "What's New",
+          click: (): void => {
+            sendToRenderer('menu-action', 'show-changelog');
+          }
+        },
         ...(!isMac
           ? [
               { type: 'separator' as const },
