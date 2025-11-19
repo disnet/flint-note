@@ -6,7 +6,6 @@
   import VaultSwitcher from './components/VaultSwitcher.svelte';
   import FirstTimeExperience from './components/FirstTimeExperience.svelte';
   import UpdateIndicator from './components/UpdateIndicator.svelte';
-  import MessageBusDebugPanel from './components/MessageBusDebugPanel.svelte';
   import ExternalEditConflictNotification from './components/ExternalEditConflictNotification.svelte';
   import ToastNotification from './components/ToastNotification.svelte';
   import ChangelogViewer from './components/ChangelogViewer.svelte';
@@ -1243,9 +1242,6 @@
         bind:refreshCredits
       />
     </div>
-
-    <!-- Debug Panel (only in development) -->
-    <MessageBusDebugPanel />
 
     <!-- External Edit Conflict Notifications -->
     <ExternalEditConflictNotification />

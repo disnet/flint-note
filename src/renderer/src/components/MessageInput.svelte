@@ -280,7 +280,10 @@
       <button onclick={onCancel} class="send-button cancel-button"> cancel </button>
     {:else}
       <button onclick={handleSubmit} disabled={!inputText.trim()} class="send-button">
-        submit ↵
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="19" x2="12" y2="5"></line>
+          <polyline points="5 12 12 5 19 12"></polyline>
+        </svg>
       </button>
     {/if}
   </div>
@@ -426,7 +429,7 @@
   }
 
   .send-button {
-    padding: 0.375rem 0.75rem;
+    padding: 0.5rem;
     background: var(--accent-primary);
     color: white;
     border: none;
@@ -435,7 +438,6 @@
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
-    min-width: 50px;
     display: flex;
     align-items: center;
     justify-content: center;
