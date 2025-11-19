@@ -306,7 +306,6 @@
     }
   }
 
-
   async function handleWikilinkClick(
     noteId: string,
     title: string,
@@ -601,6 +600,7 @@
         bind:this={headerRef}
         title={doc.title}
         onTitleChange={handleTitleChange}
+        onTabToContent={() => editorRef?.focus()}
         disabled={doc.isSaving}
       />
 

@@ -146,7 +146,10 @@
             if (doc) {
               await notesShelfStore.addNote(noteId, doc.title, doc.content);
               // Open the right sidebar in notes mode
-              if (!sidebarState.rightSidebar.visible || sidebarState.rightSidebar.mode !== 'notes') {
+              if (
+                !sidebarState.rightSidebar.visible ||
+                sidebarState.rightSidebar.mode !== 'notes'
+              ) {
                 if (!sidebarState.rightSidebar.visible) {
                   await sidebarState.toggleRightSidebar();
                 }
@@ -174,7 +177,9 @@
           break;
         case 'generate-suggestions':
           if (activeNoteStore.activeNote) {
-            await window.api?.generateNoteSuggestions({ noteId: activeNoteStore.activeNote.id });
+            await window.api?.generateNoteSuggestions({
+              noteId: activeNoteStore.activeNote.id
+            });
           }
           break;
         case 'archive-note':

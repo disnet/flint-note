@@ -3,6 +3,7 @@
     value: string;
     onSave: (newTitle: string) => Promise<void>;
     onCancel?: () => void;
+    onTabToContent?: () => void;
     placeholder?: string;
     disabled?: boolean;
   }
@@ -11,6 +12,7 @@
     value,
     onSave,
     onCancel,
+    onTabToContent,
     placeholder = 'Title...',
     disabled = false
   }: Props = $props();
@@ -94,6 +96,9 @@
     } else if (event.key === 'Escape') {
       event.preventDefault();
       handleCancel();
+    } else if (event.key === 'Tab' && !event.shiftKey) {
+      event.preventDefault();
+      onTabToContent?.();
     }
   }
 

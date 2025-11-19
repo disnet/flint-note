@@ -4,10 +4,11 @@
   interface Props {
     title: string;
     onTitleChange: (newTitle: string) => Promise<void>;
+    onTabToContent?: () => void;
     disabled?: boolean;
   }
 
-  let { title, onTitleChange, disabled = false }: Props = $props();
+  let { title, onTitleChange, onTabToContent, disabled = false }: Props = $props();
 
   let titleComponent: { focus?: () => void } | null = null;
 
@@ -19,7 +20,13 @@
 </script>
 
 <div class="editor-header" role="group" aria-label="Note title">
-  <NoteTitle bind:this={titleComponent} value={title} onSave={onTitleChange} {disabled} />
+  <NoteTitle
+    bind:this={titleComponent}
+    value={title}
+    onSave={onTitleChange}
+    {onTabToContent}
+    {disabled}
+  />
 </div>
 
 <style>
