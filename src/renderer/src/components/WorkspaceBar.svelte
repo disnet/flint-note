@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { flip } from 'svelte/animate';
   import { workspacesStore } from '../stores/workspacesStore.svelte';
   import WorkspacePopover from './WorkspacePopover.svelte';
 
@@ -16,6 +17,21 @@
   let contextMenuOpen = $state(false);
   let contextMenuWorkspaceId = $state<string | null>(null);
   let contextMenuPosition = $state({ x: 0, y: 0 });
+
+  // Drag and drop state
+  let draggedId = $state<string | null>(null);
+  let previewOrder = $state<string[]>([]);
+  let isDragging = $state(false);
+
+  // Computed workspace order for display (uses preview during drag)
+  let displayWorkspaces = $derived.by(() => {
+    if (isDragging && previewOrder.length > 0) {
+      return previewOrder
+        .map((id) => workspacesStore.workspaces.find((w) => w.id === id))
+        .filter((w): w is (typeof workspacesStore.workspaces)[0] => w !== undefined);
+    }
+    return workspacesStore.workspaces;
+  });
 
   function getWorkspaceTooltip(name: string, index: number): string {
     if (index < 9) {
@@ -110,6 +126,74 @@
     }
   }
 
+  // Drag and drop handlers
+  function handleDragStart(event: DragEvent, workspaceId: string): void {
+    draggedId = workspaceId;
+    isDragging = true;
+    previewOrder = workspacesStore.workspaces.map((w) => w.id);
+
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', workspaceId);
+
+      // Create invisible drag image to hide the ghost
+      const emptyImg = document.createElement('div');
+      emptyImg.style.width = '1px';
+      emptyImg.style.height = '1px';
+      emptyImg.style.opacity = '0';
+      document.body.appendChild(emptyImg);
+      event.dataTransfer.setDragImage(emptyImg, 0, 0);
+      // Clean up after drag starts
+      setTimeout(() => document.body.removeChild(emptyImg), 0);
+    }
+  }
+
+  function handleDragEnd(): void {
+    isDragging = false;
+    draggedId = null;
+    previewOrder = [];
+  }
+
+  function handleDragOver(event: DragEvent, targetId: string): void {
+    event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'move';
+    }
+
+    if (draggedId && draggedId !== targetId) {
+      // Update preview order to show item in new position
+      const currentOrder = [...previewOrder];
+      const draggedIdx = currentOrder.indexOf(draggedId);
+      const targetIdx = currentOrder.indexOf(targetId);
+
+      if (draggedIdx !== -1 && targetIdx !== -1) {
+        // Remove dragged item and insert at target position
+        currentOrder.splice(draggedIdx, 1);
+        currentOrder.splice(targetIdx, 0, draggedId);
+        previewOrder = currentOrder;
+      }
+    }
+  }
+
+  async function handleDrop(event: DragEvent): Promise<void> {
+    event.preventDefault();
+
+    if (draggedId && previewOrder.length > 0) {
+      // Find the original and new indices
+      const originalOrder = workspacesStore.workspaces.map((w) => w.id);
+      const sourceIndex = originalOrder.indexOf(draggedId);
+      const targetIndex = previewOrder.indexOf(draggedId);
+
+      if (sourceIndex !== -1 && targetIndex !== -1 && sourceIndex !== targetIndex) {
+        await workspacesStore.reorderWorkspaces(sourceIndex, targetIndex);
+      }
+    }
+
+    isDragging = false;
+    draggedId = null;
+    previewOrder = [];
+  }
+
   // Handle workspace menu events from app menu
   function handleMenuNewWorkspace(): void {
     editingWorkspaceId = null;
@@ -153,13 +237,20 @@
 
 <div class="workspace-bar" class:shadow={showShadow}>
   <div class="workspace-icons">
-    {#each workspacesStore.workspaces as workspace, index (workspace.id)}
+    {#each displayWorkspaces as workspace, index (workspace.id)}
       <button
         class="workspace-icon"
         class:active={workspacesStore.activeWorkspaceId === workspace.id}
+        class:dragging={draggedId === workspace.id}
         onclick={() => handleWorkspaceClick(workspace.id)}
         oncontextmenu={(e) => handleContextMenu(e, workspace.id)}
+        draggable="true"
+        ondragstart={(e) => handleDragStart(e, workspace.id)}
+        ondragend={handleDragEnd}
+        ondragover={(e) => handleDragOver(e, workspace.id)}
+        ondrop={handleDrop}
         style={workspace.color ? `--workspace-color: ${workspace.color}` : ''}
+        animate:flip={{ duration: 200 }}
       >
         {workspace.icon}
         <span class="tooltip">{getWorkspaceTooltip(workspace.name, index)}</span>
@@ -285,6 +376,12 @@
   .workspace-icon.active {
     border-color: var(--accent-primary);
     background: var(--accent-light);
+  }
+
+  .workspace-icon.dragging {
+    opacity: 0.6;
+    transform: scale(1.05);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   }
 
   .tooltip {
