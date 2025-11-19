@@ -91,6 +91,19 @@ export interface WikilinkEditHandler {
   (): void;
 }
 
+export interface WikilinkContextMenuHandler {
+  (data: {
+    identifier: string;
+    displayText: string;
+    from: number;
+    to: number;
+    x: number;
+    y: number;
+    exists: boolean;
+    noteId?: string;
+  }): void;
+}
+
 // Effect to update wikilink click handler
 const setWikilinkHandler = StateEffect.define<WikilinkClickHandler>();
 
@@ -99,6 +112,9 @@ const setWikilinkHoverHandler = StateEffect.define<WikilinkHoverHandler>();
 
 // Effect to update wikilink edit handler
 const setWikilinkEditHandler = StateEffect.define<WikilinkEditHandler>();
+
+// Effect to update wikilink context menu handler
+const setWikilinkContextMenuHandler = StateEffect.define<WikilinkContextMenuHandler>();
 
 // Effect to force wikilink re-rendering (when notes store updates)
 const forceWikilinkUpdate = StateEffect.define<boolean>();
@@ -185,6 +201,20 @@ const wikilinkEditHandlerField = StateField.define<WikilinkEditHandler | null>({
     return value;
   }
 });
+
+// State field to store the current context menu handler
+const wikilinkContextMenuHandlerField =
+  StateField.define<WikilinkContextMenuHandler | null>({
+    create: () => null,
+    update: (value, tr) => {
+      for (const effect of tr.effects) {
+        if (effect.is(setWikilinkContextMenuHandler)) {
+          return effect.value;
+        }
+      }
+      return value;
+    }
+  });
 
 /**
  * Parse wikilinks from text content
@@ -484,6 +514,7 @@ class WikilinkWidget extends WidgetType {
     private noteId: string | undefined,
     private clickHandler: WikilinkClickHandler | null,
     private hoverHandler: WikilinkHoverHandler | null,
+    private contextMenuHandler: WikilinkContextMenuHandler | null,
     private from: number,
     private to: number,
     private isSelected: boolean
@@ -598,6 +629,25 @@ class WikilinkWidget extends WidgetType {
       }
     });
 
+    // Add context menu event listener
+    span.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (this.contextMenuHandler) {
+        this.contextMenuHandler({
+          identifier: this.identifier,
+          displayText: this.title,
+          from: this.from,
+          to: this.to,
+          x: e.clientX,
+          y: e.clientY,
+          exists: this.exists,
+          noteId: this.noteId
+        });
+      }
+    });
+
     return span;
   }
 
@@ -686,6 +736,7 @@ function decorateWikilinks(state: EditorState): DecorationSet {
   // Get current handlers
   const clickHandler = state.field(wikilinkHandlerField, false) || null;
   const hoverHandler = state.field(wikilinkHoverHandlerField, false) || null;
+  const contextMenuHandler = state.field(wikilinkContextMenuHandlerField, false) || null;
 
   // Get currently selected wikilink
   const selectedWikilink = state.field(selectedWikilinkField, false) || null;
@@ -711,6 +762,7 @@ function decorateWikilinks(state: EditorState): DecorationSet {
       wikilink.noteId,
       clickHandler,
       hoverHandler,
+      contextMenuHandler,
       wikilink.from,
       wikilink.to,
       isSelected
@@ -737,13 +789,15 @@ function decorateWikilinks(state: EditorState): DecorationSet {
 export function wikilinksWithoutAutocomplete(
   clickHandler: WikilinkClickHandler,
   hoverHandler?: WikilinkHoverHandler,
-  editHandler?: WikilinkEditHandler
+  editHandler?: WikilinkEditHandler,
+  contextMenuHandler?: WikilinkContextMenuHandler
 ): Extension {
   return [
     wikilinkTheme,
     wikilinkHandlerField.init(() => clickHandler),
     wikilinkHoverHandlerField.init(() => hoverHandler || null),
     wikilinkEditHandlerField.init(() => editHandler || null),
+    wikilinkContextMenuHandlerField.init(() => contextMenuHandler || null),
     selectedWikilinkField,
     wikilinkField,
     // Add Cmd/Ctrl-Enter key handler to open selected wikilinks
@@ -776,6 +830,31 @@ export function wikilinksWithoutAutocomplete(
               const handler = view.state.field(wikilinkEditHandlerField, false);
               if (handler) {
                 handler();
+                return true; // Prevent default behavior
+              }
+            }
+            return false; // Allow normal behavior
+          }
+        },
+        {
+          key: 'Mod-Shift-Enter',
+          run: (view) => {
+            const selectedWikilink = view.state.field(selectedWikilinkField, false);
+            if (selectedWikilink) {
+              const handler = view.state.field(wikilinkHandlerField, false);
+              if (handler) {
+                if (selectedWikilink.exists && selectedWikilink.noteId) {
+                  // Open in shelf by passing shiftKey=true
+                  handler(selectedWikilink.noteId, selectedWikilink.title, false, true);
+                } else {
+                  // Handle broken link - create new note and open in shelf
+                  handler(
+                    selectedWikilink.identifier,
+                    selectedWikilink.title,
+                    true,
+                    true
+                  );
+                }
                 return true; // Prevent default behavior
               }
             }
@@ -832,6 +911,14 @@ export function wikilinksWithoutAutocomplete(
           effects: setWikilinkEditHandler.of(editHandler)
         });
       }
+      if (
+        contextMenuHandler &&
+        update.view.state.field(wikilinkContextMenuHandlerField) !== contextMenuHandler
+      ) {
+        update.view.dispatch({
+          effects: setWikilinkContextMenuHandler.of(contextMenuHandler)
+        });
+      }
     })
   ];
 }
@@ -839,12 +926,14 @@ export function wikilinksWithoutAutocomplete(
 export function wikilinksExtension(
   clickHandler: WikilinkClickHandler,
   hoverHandler?: WikilinkHoverHandler,
-  editHandler?: WikilinkEditHandler
+  editHandler?: WikilinkEditHandler,
+  contextMenuHandler?: WikilinkContextMenuHandler
 ): Extension {
   const baseExtensions = wikilinksWithoutAutocomplete(
     clickHandler,
     hoverHandler,
-    editHandler
+    editHandler,
+    contextMenuHandler
   );
   return [
     ...(Array.isArray(baseExtensions) ? baseExtensions : [baseExtensions]),
