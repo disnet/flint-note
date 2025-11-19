@@ -27,6 +27,7 @@
   let confirmingArchive = $state<VaultInfo | null>(null);
   let searchQuery = $state('');
   let searchInputRef = $state<HTMLInputElement | null>(null);
+  let highlightedIndex = $state(0);
 
   const service = getChatService();
 
@@ -132,6 +133,45 @@
   function closeDropdown(): void {
     isDropdownOpen = false;
     searchQuery = '';
+    highlightedIndex = 0;
+  }
+
+  function handleKeyDown(event: KeyboardEvent): void {
+    if (!isDropdownOpen) return;
+
+    if (event.key === 'Escape') {
+      closeDropdown();
+      event.preventDefault();
+      return;
+    }
+
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      const vault = filteredVaults[highlightedIndex];
+      if (vault?.id && !isLoading && currentVault?.id !== vault.id) {
+        switchVault(vault.id);
+      }
+      return;
+    }
+
+    // Ctrl+N or Arrow Down - move down
+    if ((event.ctrlKey && event.key === 'n') || event.key === 'ArrowDown') {
+      event.preventDefault();
+      if (filteredVaults.length > 0) {
+        highlightedIndex = (highlightedIndex + 1) % filteredVaults.length;
+      }
+      return;
+    }
+
+    // Ctrl+P or Arrow Up - move up
+    if ((event.ctrlKey && event.key === 'p') || event.key === 'ArrowUp') {
+      event.preventDefault();
+      if (filteredVaults.length > 0) {
+        highlightedIndex =
+          (highlightedIndex - 1 + filteredVaults.length) % filteredVaults.length;
+      }
+      return;
+    }
   }
 
   function openCreateModal(): void {
@@ -298,13 +338,20 @@
     return () => {};
   });
 
-  // Focus search input when dropdown opens
+  // Focus search input and reset highlighted index when dropdown opens
   $effect(() => {
     if (isDropdownOpen && searchInputRef) {
+      highlightedIndex = 0;
       setTimeout(() => {
         searchInputRef?.focus();
       }, 50);
     }
+  });
+
+  // Reset highlighted index when search query changes
+  $effect(() => {
+    searchQuery; // dependency
+    highlightedIndex = 0;
   });
 </script>
 
@@ -371,6 +418,7 @@
           placeholder="Search projects..."
           bind:value={searchQuery}
           onclick={(e) => e.stopPropagation()}
+          onkeydown={handleKeyDown}
         />
         {#if searchQuery}
           <button
@@ -407,8 +455,11 @@
           {/if}
         </div>
       {:else}
-        {#each filteredVaults as vault (vault.id)}
-          <div class="vault-item-container">
+        {#each filteredVaults as vault, index (vault.id)}
+          <div
+            class="vault-item-container"
+            class:highlighted={index === highlightedIndex}
+          >
             <button
               class="dropdown-item vault-main-button"
               class:active={currentVault?.id === vault.id}
@@ -792,11 +843,13 @@
   }
 
   /* Unified hover state for vault items */
-  .vault-item-container:hover .vault-main-button:not(.disabled) {
+  .vault-item-container:hover .vault-main-button:not(.disabled),
+  .vault-item-container.highlighted .vault-main-button:not(.disabled) {
     background: var(--bg-secondary);
   }
 
-  .vault-item-container:hover .archive-button:not(:disabled) {
+  .vault-item-container:hover .archive-button:not(:disabled),
+  .vault-item-container.highlighted .archive-button:not(:disabled) {
     background: var(--bg-secondary);
     opacity: 1;
   }

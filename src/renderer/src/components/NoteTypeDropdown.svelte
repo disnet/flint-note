@@ -12,14 +12,29 @@
   let isOpen = $state(false);
   let isSaving = $state(false);
   let dropdownRef = $state<HTMLDivElement | null>(null);
+  let searchQuery = $state('');
+  let searchInputRef = $state<HTMLInputElement | null>(null);
+  let highlightedIndex = $state(0);
 
   // Get available note types from the store
   let availableTypes = $derived(notesStore.noteTypes);
+
+  const filteredTypes = $derived.by(() => {
+    if (!searchQuery.trim()) {
+      return availableTypes;
+    }
+    const query = searchQuery.toLowerCase().trim();
+    return availableTypes.filter((noteType) =>
+      noteType.name.toLowerCase().includes(query)
+    );
+  });
 
   // Close dropdown when clicking outside
   function handleClickOutside(event: MouseEvent): void {
     if (dropdownRef && !dropdownRef.contains(event.target as Node)) {
       isOpen = false;
+      searchQuery = '';
+      highlightedIndex = 0;
     }
   }
 
@@ -31,6 +46,22 @@
       };
     }
     return undefined;
+  });
+
+  // Focus search input and reset highlighted index when dropdown opens
+  $effect(() => {
+    if (isOpen && searchInputRef) {
+      highlightedIndex = 0;
+      setTimeout(() => {
+        searchInputRef?.focus();
+      }, 50);
+    }
+  });
+
+  // Reset highlighted index when search query changes
+  $effect(() => {
+    searchQuery; // dependency
+    highlightedIndex = 0;
   });
 
   function toggleDropdown(): void {
@@ -45,6 +76,8 @@
     try {
       isSaving = true;
       isOpen = false;
+      searchQuery = '';
+      highlightedIndex = 0;
       await onTypeChange(type);
     } catch (error) {
       console.error('Failed to change type:', error);
@@ -54,8 +87,42 @@
   }
 
   function handleKeyDown(event: KeyboardEvent): void {
+    if (!isOpen) return;
+
     if (event.key === 'Escape') {
       isOpen = false;
+      searchQuery = '';
+      highlightedIndex = 0;
+      event.preventDefault();
+      return;
+    }
+
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      const noteType = filteredTypes[highlightedIndex];
+      if (noteType) {
+        selectType(noteType.name);
+      }
+      return;
+    }
+
+    // Ctrl+N or Arrow Down - move down
+    if ((event.ctrlKey && event.key === 'n') || event.key === 'ArrowDown') {
+      event.preventDefault();
+      if (filteredTypes.length > 0) {
+        highlightedIndex = (highlightedIndex + 1) % filteredTypes.length;
+      }
+      return;
+    }
+
+    // Ctrl+P or Arrow Up - move up
+    if ((event.ctrlKey && event.key === 'p') || event.key === 'ArrowUp') {
+      event.preventDefault();
+      if (filteredTypes.length > 0) {
+        highlightedIndex =
+          (highlightedIndex - 1 + filteredTypes.length) % filteredTypes.length;
+      }
+      return;
     }
   }
 </script>
@@ -66,7 +133,6 @@
   class="note-type-dropdown"
   class:disabled
   class:saving={isSaving}
-  onkeydown={handleKeyDown}
 >
   <button
     class="type-button"
@@ -88,23 +154,65 @@
 
   {#if isOpen}
     <div class="dropdown-menu" role="menu">
-      {#each availableTypes as noteType (noteType.name)}
-        <button
-          class="dropdown-item"
-          class:selected={noteType.name === currentType}
-          onclick={() => selectType(noteType.name)}
-          type="button"
-          role="menuitem"
-        >
-          <div class="item-main">
-            {#if noteType.icon}
-              <span class="item-icon">{noteType.icon}</span>
-            {/if}
-            <span class="item-name">{noteType.name}</span>
-          </div>
-          <span class="item-count">{noteType.count}</span>
-        </button>
-      {/each}
+      <div class="search-container">
+        <input
+          bind:this={searchInputRef}
+          type="text"
+          class="search-input"
+          placeholder="Search types..."
+          bind:value={searchQuery}
+          onclick={(e) => e.stopPropagation()}
+          onkeydown={handleKeyDown}
+        />
+        {#if searchQuery}
+          <button
+            class="clear-search"
+            onclick={(e) => {
+              e.stopPropagation();
+              searchQuery = '';
+              searchInputRef?.focus();
+            }}
+            aria-label="Clear search"
+            type="button"
+          >
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M18 6 6 18" />
+              <path d="m6 6 12 12" />
+            </svg>
+          </button>
+        {/if}
+      </div>
+      {#if filteredTypes.length === 0}
+        <div class="dropdown-item no-results">No matching types</div>
+      {:else}
+        {#each filteredTypes as noteType, index (noteType.name)}
+          <button
+            class="dropdown-item"
+            class:selected={noteType.name === currentType}
+            class:highlighted={index === highlightedIndex}
+            onclick={() => selectType(noteType.name)}
+            type="button"
+            role="menuitem"
+          >
+            <div class="item-main">
+              {#if noteType.icon}
+                <span class="item-icon">{noteType.icon}</span>
+              {/if}
+              <span class="item-name">{noteType.name}</span>
+            </div>
+            <span class="item-count">{noteType.count}</span>
+          </button>
+        {/each}
+      {/if}
     </div>
   {/if}
 </div>
@@ -188,6 +296,69 @@
     overflow-x: hidden;
   }
 
+  .search-container {
+    position: sticky;
+    top: 0;
+    background: var(--bg-primary);
+    padding: 0.5rem;
+    border-bottom: 1px solid var(--border-light);
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .search-input {
+    flex: 1;
+    padding: 0.375rem 0.5rem;
+    border: 1px solid var(--border-light);
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    outline: none;
+    transition: border-color 0.2s ease;
+  }
+
+  .search-input::placeholder {
+    color: var(--text-tertiary);
+  }
+
+  .search-input:focus {
+    border-color: var(--accent-primary);
+  }
+
+  .clear-search {
+    padding: 0.25rem;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: 0.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+  }
+
+  .clear-search:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
+  .clear-search svg {
+    stroke: currentColor;
+  }
+
+  .no-results {
+    color: var(--text-secondary);
+    cursor: default;
+    font-style: italic;
+  }
+
+  .no-results:hover {
+    background: transparent;
+  }
+
   @keyframes slideDown {
     from {
       opacity: 0;
@@ -215,7 +386,8 @@
     text-align: left;
   }
 
-  .dropdown-item:hover {
+  .dropdown-item:hover,
+  .dropdown-item.highlighted {
     background: var(--bg-secondary);
   }
 
@@ -224,7 +396,8 @@
     color: white;
   }
 
-  .dropdown-item.selected:hover {
+  .dropdown-item.selected:hover,
+  .dropdown-item.selected.highlighted {
     background: var(--accent-hover);
   }
 
