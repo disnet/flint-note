@@ -3,10 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Flint - A thinking system</title>
+    <title>Flint - A system for deep thinking</title>
     <meta
       name="description"
-      content="A note-taking tool designed to extend and amplify human thinking. Plain text markdown notes with thoughtful AI assistance."
+      content="Externalize your thoughts. Internalize what matters. Resurface systematically through spaced repetition. Other apps store notes. Flint enables deep thinking."
     />
     <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png" />
@@ -14,29 +14,376 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <header>
+    <!-- Section 1: Hero -->
+    <header class="hero">
       <div class="container">
-        <img src="apple-touch-icon.png" alt="Flint logo" class="header-logo" />
-        <h1>Flint</h1>
-        <p class="tagline">Deepen your understanding with better notes</p>
+        <img src="apple-touch-icon.png" alt="Flint logo" class="hero-logo" />
+        <h1>A system for deep thinking</h1>
+        <p class="hero-subheadline">
+          Externalize your thoughts. Internalize what matters. Resurface through spaced
+          repetition.
+        </p>
+        <div class="hero-cta">
+          <a href="#signup" class="button primary">Try Flint</a>
+          <a href="#how-it-works" class="button secondary">See how it works</a>
+        </div>
       </div>
     </header>
 
     <main>
-      <section class="screenshot">
+      <!-- Section 2: The Problem -->
+      <section class="problem">
         <div class="container">
-          <img
-            src="demo-shot.png"
-            alt="Flint application screenshot showing daily notes with AI assistance"
-            class="demo-image"
-          />
+          <h2>Most note-taking apps are passive filing cabinets</h2>
+          <p class="problem-intro">
+            They solve <em>capturing</em> thoughts but not the hard parts: making
+            knowledge yours through reflection and connection, and forcing repeated
+            encounters with ideas at optimal intervals so they stick.
+          </p>
+
+          <div class="comparison">
+            <div class="comparison-item comparison-highlight">
+              <h3>Flint</h3>
+              <p>teaches you to think better</p>
+            </div>
+          </div>
+
+          <p class="problem-conclusion">
+            Externalization alone doesn't build deep understanding. You need systematic
+            internalization and resurfacing.
+          </p>
         </div>
       </section>
 
-      <section class="download">
+      <!-- Section 3: Three Core Pillars -->
+      <section id="how-it-works" class="pillars">
         <div class="container">
-          <h2>Beta Coming Soon</h2>
-          <p class="subscribe-tagline">Subscribe to get notified when it's ready</p>
+          <h2>The complete learning cycle</h2>
+
+          <div class="pillars-grid">
+            <!-- Pillar 1: Externalize -->
+            <div class="pillar">
+              <div class="pillar-number">1</div>
+              <h3>Externalize Intelligently</h3>
+              <p class="pillar-concept">
+                Structured capture through note types and agent guidance
+              </p>
+              <ul class="pillar-features">
+                <li>
+                  Note types encode different thinking patterns (daily, evergreen,
+                  predictions)
+                </li>
+                <li>
+                  Agent suggests inline as you write, deepening thinking through semantic
+                  understanding
+                </li>
+                <li>
+                  Metadata schemas per type guide what questions you ask as you capture
+                </li>
+              </ul>
+              <p class="pillar-outcome">
+                <strong>Outcome:</strong> You externalize not just <em>what</em> you're
+                thinking, but you're thinking <em>deeper</em> in the moment of capture
+              </p>
+            </div>
+
+            <!-- Pillar 2: Internalize -->
+            <div class="pillar">
+              <div class="pillar-number">2</div>
+              <h3>Internalize Continuously</h3>
+              <p class="pillar-concept">
+                Routines, agent partnership, connections made visible
+              </p>
+              <ul class="pillar-features">
+                <li>
+                  Routines systematize recurring reflection (daily reviews, weekly
+                  syntheses)
+                </li>
+                <li>
+                  Agent understands note types and relationships, providing type-aware
+                  assistance
+                </li>
+                <li>
+                  Wikilinks and backlinks make connections explicit and discoverable
+                </li>
+              </ul>
+              <p class="pillar-outcome">
+                <strong>Outcome:</strong> You're not just storing knowledge—you're
+                continuously synthesizing and connecting it
+              </p>
+            </div>
+
+            <!-- Pillar 3: Resurface -->
+            <div class="pillar">
+              <div class="pillar-number">3</div>
+              <h3>Resurface Systematically</h3>
+              <p class="pillar-concept">
+                Spaced repetition scheduling, forced recall, agent-generated prompts
+              </p>
+              <ul class="pillar-features">
+                <li>
+                  Review system brings notes back at calculated intervals based on
+                  performance
+                </li>
+                <li>Backlinks surface where ideas recur, forcing pattern recognition</li>
+                <li>Agent generates contextual prompts to test active recall</li>
+              </ul>
+              <p class="pillar-outcome">
+                <strong>Outcome:</strong> Ideas become part of how you think, not just
+                what you know
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 4: The Complete Cycle in Action -->
+      <section class="cycle-demo">
+        <div class="container">
+          <h2>Deep thinking in action</h2>
+          <p class="cycle-intro">Here's what the complete learning cycle looks like:</p>
+
+          <div class="cycle-steps">
+            <div class="cycle-step">
+              <div class="step-number">1</div>
+              <div class="step-content">
+                <h4>Capture</h4>
+                <p>
+                  You read an article on a topic. You highlight a key passage in your
+                  Reading note, capture it with context.
+                </p>
+              </div>
+            </div>
+
+            <div class="cycle-step">
+              <div class="step-number">2</div>
+              <div class="step-content">
+                <h4>Connect</h4>
+                <p>
+                  Agent analyzes the note, suggests three related concepts from your
+                  existing evergreen notes.
+                </p>
+              </div>
+            </div>
+
+            <div class="cycle-step">
+              <div class="step-number">3</div>
+              <div class="step-content">
+                <h4>Reflect</h4>
+                <p>
+                  You create wikilinks to those concepts. A connection emerges you hadn't
+                  seen before—you capture a new insight.
+                </p>
+              </div>
+            </div>
+
+            <div class="cycle-step">
+              <div class="step-number">4</div>
+              <div class="step-content">
+                <h4>Synthesize</h4>
+                <p>
+                  Your weekly synthesis routine runs. It surfaces this reading and the
+                  connections you made, prompts you to synthesize into a bigger principle.
+                </p>
+              </div>
+            </div>
+
+            <div class="cycle-step">
+              <div class="step-number">5</div>
+              <div class="step-content">
+                <h4>Resurface</h4>
+                <p>
+                  Two weeks later, spaced repetition brings back that synthesized
+                  principle. Your brain must retrieve it from memory first, reinforcing
+                  the learning.
+                </p>
+              </div>
+            </div>
+
+            <div class="cycle-step">
+              <div class="step-number">6</div>
+              <div class="step-content">
+                <h4>Realize</h4>
+                <p>
+                  Days or weeks later, in conversation or on a new project, you realize
+                  you're applying this principle instinctively. It's become part of how
+                  you think.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Feature Demonstrations -->
+      <section class="features-demo">
+        <div class="container">
+          <h2>See Flint in action</h2>
+
+          <div class="feature-demo">
+            <div class="feature-demo-content">
+              <h3>Agent in Action</h3>
+              <p>
+                Your thinking partner suggests connections, asks clarifying questions, and
+                helps you synthesize ideas as you write.
+              </p>
+            </div>
+            <div class="feature-demo-image">
+              <img src="agent-dialog.png" alt="Agent suggesting connections" />
+              <!-- Screenshot: Agent suggesting connections -->
+            </div>
+          </div>
+
+          <div class="feature-demo">
+            <div class="feature-demo-content">
+              <h3>Connected Knowledge</h3>
+              <p>
+                See how your notes connect together, building a knowledge network rather
+                than isolated documents.
+              </p>
+            </div>
+            <div class="feature-demo-image">
+              <!-- Screenshot: Note linking and graph -->
+            </div>
+          </div>
+
+          <div class="feature-demo">
+            <div class="feature-demo-content">
+              <h3>Review Mode</h3>
+              <p>
+                A clean, distraction-free interface for spaced repetition practice.
+                Resurface your best ideas at optimal intervals.
+              </p>
+            </div>
+            <div class="feature-demo-image">
+              <!-- Screenshot: Review interface -->
+              <img src="review-mode.png" alt="Review interface" />
+            </div>
+          </div>
+
+          <div class="feature-demo">
+            <div class="feature-demo-content">
+              <h3>Quick Capture</h3>
+              <p>Low-friction daily notes entry. Focus on thinking, not formatting.</p>
+            </div>
+            <div class="feature-demo-image">
+              <!-- Screenshot: Daily notes entry -->
+              <img src="daily-view.png" alt="Daily notes entry" />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 5: The Agent System -->
+      <section class="agent-system">
+        <div class="container">
+          <h2>An integrated AI agent, not just another chatbot</h2>
+          <p class="agent-intro">
+            This isn't ChatGPT plugged into your notes. It's a fundamentally different
+            approach.
+          </p>
+
+          <div class="agent-features">
+            <div class="agent-feature">
+              <h4>Semantic Understanding</h4>
+              <p>
+                Your agent is integrated with your learning system through a semantic API.
+                It understands note types, relationships, and your thinking patterns.
+              </p>
+            </div>
+
+            <div class="agent-feature">
+              <h4>Type-Aware Assistance</h4>
+              <p>
+                Different guidance for evergreen notes vs predictions vs daily notes. The
+                agent knows the purpose of each and assists accordingly.
+              </p>
+            </div>
+
+            <div class="agent-feature">
+              <h4>Resurfacing, Not Generating</h4>
+              <p>
+                The agent is not generating new thoughts—it's making sure your best
+                thinking resurfaces at optimal intervals.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 6: Trust & Autonomy -->
+      <section class="trust">
+        <div class="container">
+          <h2>Your thinking stays yours</h2>
+
+          <div class="trust-grid">
+            <div class="trust-item">
+              <h4>Local First</h4>
+              <p>
+                Your vault is files on your computer—markdown, portable, yours forever.
+              </p>
+            </div>
+
+            <div class="trust-item">
+              <h4>No Lock-In</h4>
+              <p>You're not trapped in a cloud service or dependent on Flint's future.</p>
+            </div>
+
+            <div class="trust-item">
+              <h4>Open Format</h4>
+              <p>Switch AI providers or run inference locally as models improve.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 7: Who This Is For -->
+      <section class="personas">
+        <div class="container">
+          <h2>Built for people who think deeply</h2>
+
+          <div class="personas-grid">
+            <div class="persona">
+              <h4>Researchers</h4>
+              <p>
+                Track papers, extract highlights, surface connections between research
+                threads, resurface at optimal intervals to synthesize novel insights.
+              </p>
+            </div>
+
+            <div class="persona">
+              <h4>Product Builders</h4>
+              <p>
+                Capture strategy and design thinking, track competitors and patterns,
+                resurface assumptions for calibration and adjustment.
+              </p>
+            </div>
+
+            <div class="persona">
+              <h4>Writers</h4>
+              <p>
+                Develop ideas over time, surface relevant thinking during drafting,
+                resurface past writing to avoid repetition and build on prior thinking.
+              </p>
+            </div>
+
+            <div class="persona">
+              <h4>Lifelong Learners</h4>
+              <p>
+                Build deep understanding through spaced repetition, connect ideas across
+                disciplines, watch thinking evolve over months and years.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 8: CTA Section -->
+      <section id="signup" class="final-cta">
+        <div class="container">
+          <h2>Start learning deeply</h2>
+          <p class="cta-tagline">Full access, no credit card required</p>
+
           <form
             action="https://buttondown.com/api/emails/embed-subscribe/flintnote"
             method="post"
@@ -44,9 +391,14 @@
             onsubmit="window.open('https://buttondown.com/flintnote', 'popupwindow')"
             class="embeddable-buttondown-form"
           >
-            <label for="bd-email">Enter your email</label>
-            <input type="email" name="email" id="bd-email" />
-            <input type="submit" value="Subscribe" />
+            <label for="bd-email">Get notified when Flint is ready</label>
+            <input
+              type="email"
+              name="email"
+              id="bd-email"
+              placeholder="you@example.com"
+            />
+            <input type="submit" value="Join the waitlist" />
             <p>
               <a href="https://buttondown.com/refer/flintnote" target="_blank">
                 Powered by Buttondown.
