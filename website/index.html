@@ -69,9 +69,15 @@
           </p>
 
           <div class="problem-list">
-            <p>Your notes pile up</p>
-            <p>You never look at them again</p>
-            <p>They don't change how you think</p>
+            <div class="problem-card">
+              <p>Your notes pile up</p>
+            </div>
+            <div class="problem-card">
+              <p>You never look at them again</p>
+            </div>
+            <div class="problem-card">
+              <p>They don't change how you think</p>
+            </div>
           </div>
 
           <p class="problem-hard">
@@ -79,16 +85,22 @@
             have a beautiful knowledge graph and still never <em>know</em> anything.
           </p>
 
-          <p class="problem-hard">
+          <blockquote class="problem-pullquote">
             The hard part is making ideas actually <em>yours</em>—integrating them into
             your mental models, retrieving them at the right moment, applying them without
             thinking.
-          </p>
+          </blockquote>
 
           <div class="problem-failures">
-            <p>Reading something doesn't mean understanding it</p>
-            <p>Writing something down doesn't mean remembering it</p>
-            <p>Having it doesn't mean using it</p>
+            <div class="failure-card">
+              <p>Reading something doesn't mean understanding it</p>
+            </div>
+            <div class="failure-card">
+              <p>Writing something down doesn't mean remembering it</p>
+            </div>
+            <div class="failure-card">
+              <p>Having it doesn't mean using it</p>
+            </div>
           </div>
 
           <p class="problem-conclusion">
@@ -287,60 +299,73 @@
         <div class="container">
           <h2>See Flint in action</h2>
 
-          <div class="feature-demo">
-            <div class="feature-demo-content">
-              <h3>Agent in Action</h3>
-              <p>
-                Your thinking partner suggests connections, asks clarifying questions, and
-                helps you synthesize ideas as you write.
-              </p>
+          <div class="tabs">
+            <div class="tab-buttons">
+              <button class="tab-button active" data-tab="agent">
+                Agent in Action
+              </button>
+              <button class="tab-button" data-tab="review">Review Mode</button>
+              <button class="tab-button" data-tab="capture">Quick Capture</button>
             </div>
-            <div class="feature-demo-image">
-              <img src="agent-dialog.png" alt="Agent suggesting connections" />
-              <!-- Screenshot: Agent suggesting connections -->
-            </div>
-          </div>
 
-          <div class="feature-demo">
-            <div class="feature-demo-content">
-              <h3>Note Linking & Connections</h3>
-              <p>
-                Build a knowledge network rather than isolated documents. Wikilinks and
-                backlinks make connections explicit and discoverable.
-              </p>
+            <div class="tab-content active" data-tab="agent">
+              <div class="tab-description">
+                <p>
+                  Your thinking partner suggests connections, asks clarifying questions, and
+                  helps you synthesize ideas as you write.
+                </p>
+              </div>
+              <div class="tab-image">
+                <img src="agent-dialog.png" alt="Agent suggesting connections" />
+              </div>
             </div>
-            <div class="feature-demo-image">
-              <!-- Screenshot: Note linking & graph view -->
-              <img src="note-linking.png" alt="Note linking and knowledge graph" />
-            </div>
-          </div>
 
-          <div class="feature-demo">
-            <div class="feature-demo-content">
-              <h3>Review Mode</h3>
-              <p>
-                A clean, distraction-free interface for spaced repetition practice.
-                Resurface your best ideas at optimal intervals.
-              </p>
+            <div class="tab-content" data-tab="review">
+              <div class="tab-description">
+                <p>
+                  A clean, distraction-free interface for spaced repetition practice.
+                  Resurface your best ideas at optimal intervals.
+                </p>
+              </div>
+              <div class="tab-image">
+                <img src="review-mode.png" alt="Review interface" />
+              </div>
             </div>
-            <div class="feature-demo-image">
-              <!-- Screenshot: Review interface -->
-              <img src="review-mode.png" alt="Review interface" />
-            </div>
-          </div>
 
-          <div class="feature-demo">
-            <div class="feature-demo-content">
-              <h3>Quick Capture</h3>
-              <p>Low-friction daily notes entry. Focus on thinking, not formatting.</p>
-            </div>
-            <div class="feature-demo-image">
-              <!-- Screenshot: Daily notes entry -->
-              <img src="daily-view.png" alt="Daily notes entry" />
+            <div class="tab-content" data-tab="capture">
+              <div class="tab-description">
+                <p>Low-friction daily notes entry. Focus on thinking, not formatting.</p>
+              </div>
+              <div class="tab-image">
+                <img src="daily-view.png" alt="Daily notes entry" />
+              </div>
             </div>
           </div>
         </div>
       </section>
+
+      <script>
+        (function () {
+          const tabButtons = document.querySelectorAll('.tab-button');
+          const tabContents = document.querySelectorAll('.tab-content');
+
+          tabButtons.forEach((button) => {
+            button.addEventListener('click', () => {
+              const targetTab = button.getAttribute('data-tab');
+
+              // Remove active class from all buttons and contents
+              tabButtons.forEach((btn) => btn.classList.remove('active'));
+              tabContents.forEach((content) => content.classList.remove('active'));
+
+              // Add active class to clicked button and corresponding content
+              button.classList.add('active');
+              document
+                .querySelector(`.tab-content[data-tab="${targetTab}"]`)
+                .classList.add('active');
+            });
+          });
+        })();
+      </script>
 
       <!-- Section 5: The Agent System -->
       <section class="agent-system">
