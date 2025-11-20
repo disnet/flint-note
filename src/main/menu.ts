@@ -120,7 +120,7 @@ export function createApplicationMenu(): Menu {
       submenu: [
         {
           label: 'New Note',
-          accelerator: 'CmdOrCtrl+N',
+          accelerator: 'CmdOrCtrl+Shift+N',
           click: (): void => {
             sendToRenderer('menu-action', 'new-note');
           }
