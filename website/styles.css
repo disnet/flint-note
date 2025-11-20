@@ -135,6 +135,28 @@ body {
   flex-wrap: wrap;
 }
 
+/* Hero Screenshot */
+.hero-screenshot {
+  padding: 3rem 0 4rem;
+  background: var(--color-bg);
+}
+
+.hero-screenshot .container {
+  max-width: 1200px;
+}
+
+.main-screenshot {
+  width: 100%;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+  border-radius: 0.75rem;
+  box-shadow:
+    0 10px 25px rgba(0, 0, 0, 0.1),
+    0 4px 10px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--color-border);
+}
+
 /* Problem Section */
 .problem {
   padding: 4rem 0;
@@ -227,6 +249,26 @@ body {
   line-height: 1.7;
   padding-top: 1.5rem;
   border-top: 1px solid var(--color-border);
+}
+
+/* Infographic Section */
+.infographic-section {
+  padding: 4rem 0;
+  background: var(--color-bg-tertiary);
+  border-top: 1px solid var(--color-border);
+}
+
+.infographic-section .container {
+  max-width: 1200px;
+}
+
+.infographic {
+  width: 100%;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 /* Pillars Section */
@@ -552,7 +594,7 @@ body {
 
 .trust-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 1.5rem;
   margin-bottom: 2rem;
 }
@@ -799,6 +841,30 @@ footer p {
     font-size: 1.125rem;
   }
 
+  .hero-screenshot {
+    padding: 2rem 0 3rem;
+  }
+
+  .hero-screenshot .container {
+    padding: 0 1rem;
+  }
+
+  .main-screenshot {
+    border-radius: 0.5rem;
+  }
+
+  .infographic-section {
+    padding: 3rem 0;
+  }
+
+  .infographic-section .container {
+    padding: 0 1rem;
+  }
+
+  .infographic {
+    border-radius: 0.5rem;
+  }
+
   .problem h2,
   .pillars h2,
   .cycle-demo h2,
@@ -874,6 +940,10 @@ footer p {
 
   .hero-cta .button {
     justify-content: center;
+  }
+
+  .hero-screenshot {
+    padding: 1.5rem 0 2rem;
   }
 
   .problem,
