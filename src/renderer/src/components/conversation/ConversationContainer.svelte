@@ -21,6 +21,8 @@
     content: Snippet;
     /** Optional controls snippet */
     controls?: Snippet;
+    /** Optional dependency to track for triggering auto-scroll (e.g., messages array) */
+    scrollDependency?: unknown;
   }
 
   let {
@@ -28,20 +30,42 @@
     class: className = '',
     header,
     content,
-    controls
+    controls,
+    scrollDependency
   }: Props = $props();
 
   let contentContainer = $state<HTMLDivElement>();
 
   // Auto-scroll effect when content changes
   $effect(() => {
-    if (autoScroll && contentContainer) {
-      requestAnimationFrame(() => {
-        if (contentContainer) {
-          contentContainer.scrollTop = contentContainer.scrollHeight;
-        }
-      });
-    }
+    if (!autoScroll || !contentContainer) return;
+
+    // Track the scroll dependency to detect content changes
+    void scrollDependency;
+
+    // Scroll to bottom immediately
+    const scrollToBottom = (): void => {
+      if (contentContainer) {
+        contentContainer.scrollTop = contentContainer.scrollHeight;
+      }
+    };
+
+    requestAnimationFrame(scrollToBottom);
+
+    // Set up MutationObserver to watch for DOM changes (streaming text updates)
+    const observer = new MutationObserver(() => {
+      requestAnimationFrame(scrollToBottom);
+    });
+
+    observer.observe(contentContainer, {
+      childList: true,
+      subtree: true,
+      characterData: true
+    });
+
+    return () => {
+      observer.disconnect();
+    };
   });
 </script>
 

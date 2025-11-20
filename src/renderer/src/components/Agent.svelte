@@ -203,7 +203,7 @@
   }
 </script>
 
-<ConversationContainer autoScroll={true}>
+<ConversationContainer autoScroll={true} scrollDependency={messages}>
   {#snippet header()}
     {#if !showingThreadListView}
       <!-- Agent Control Bar -->
