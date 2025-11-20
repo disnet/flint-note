@@ -3,10 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Flint - A system for deep thinking</title>
+    <title>Flint - Master ideas, don't just store them</title>
     <meta
       name="description"
-      content="Externalize your thoughts. Internalize what matters. Resurface systematically through spaced repetition. Other apps store notes. Flint enables deep thinking."
+      content="Flint is a note-taking app for those who want to master ideas, not just store them. Capture is easy. Learning is hard. Most apps stop at capture. Flint keeps going."
     />
     <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png" />
@@ -14,14 +14,32 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
+    <!-- Navigation -->
+    <nav class="navbar">
+      <div class="container">
+        <div class="nav-left">
+          <a href="/" class="nav-brand">
+            <img src="apple-touch-icon.png" alt="Flint" class="nav-logo" />
+            <span>Flint</span>
+          </a>
+          <a href="/download" class="nav-link">Download</a>
+          <a href="/docs" class="nav-link">Docs</a>
+          <a href="/updates" class="nav-link">Updates</a>
+        </div>
+        <div class="nav-right">
+          <a href="https://discord.gg/flint" class="nav-link">Community</a>
+        </div>
+      </div>
+    </nav>
+
     <!-- Section 1: Hero -->
     <header class="hero">
       <div class="container">
-        <img src="apple-touch-icon.png" alt="Flint logo" class="hero-logo" />
-        <h1>A system for deep thinking</h1>
+        <h1>Master ideas, don't just store them</h1>
         <p class="hero-subheadline">
-          Externalize your thoughts. Internalize what matters. Resurface through spaced
-          repetition.
+          Flint is a note-taking app that helps you master ideas by making it easy to
+          capture your thoughts, connect them over time, and bring them back when you need
+          them.
         </p>
         <div class="hero-cta">
           <a href="#signup" class="button primary">Try Flint</a>
@@ -34,23 +52,33 @@
       <!-- Section 2: The Problem -->
       <section class="problem">
         <div class="container">
-          <h2>Most note-taking apps are passive filing cabinets</h2>
+          <h2>You capture. Then what?</h2>
           <p class="problem-intro">
-            They solve <em>capturing</em> thoughts but not the hard parts: making
-            knowledge yours through reflection and connection, and forcing repeated
-            encounters with ideas at optimal intervals so they stick.
+            Most apps optimize for getting thoughts out of your head. That's the easy
+            part.
           </p>
 
-          <div class="comparison">
-            <div class="comparison-item comparison-highlight">
-              <h3>Flint</h3>
-              <p>teaches you to think better</p>
-            </div>
+          <div class="problem-list">
+            <p>Your notes pile up</p>
+            <p>You never look at them again</p>
+            <p>They don't change how you think</p>
+          </div>
+
+          <p class="problem-hard">
+            The hard part is making ideas actually <em>yours</em>—integrating them into
+            your mental models, retrieving them at the right moment, applying them without
+            thinking.
+          </p>
+
+          <div class="problem-failures">
+            <p>Reading something doesn't mean understanding it</p>
+            <p>Writing something down doesn't mean remembering it</p>
+            <p>Having it doesn't mean using it</p>
           </div>
 
           <p class="problem-conclusion">
-            Externalization alone doesn't build deep understanding. You need systematic
-            internalization and resurfacing.
+            If you're going to take notes at all, they should make you smarter over time.
+            Flint is designed so they do.
           </p>
         </div>
       </section>
@@ -236,19 +264,6 @@
 
           <div class="feature-demo">
             <div class="feature-demo-content">
-              <h3>Connected Knowledge</h3>
-              <p>
-                See how your notes connect together, building a knowledge network rather
-                than isolated documents.
-              </p>
-            </div>
-            <div class="feature-demo-image">
-              <!-- Screenshot: Note linking and graph -->
-            </div>
-          </div>
-
-          <div class="feature-demo">
-            <div class="feature-demo-content">
               <h3>Review Mode</h3>
               <p>
                 A clean, distraction-free interface for spaced repetition practice.
@@ -311,7 +326,38 @@
         </div>
       </section>
 
-      <!-- Section 6: Trust & Autonomy -->
+      <!-- Section 6: Positioning Against Link-Focused Tools -->
+      <section class="differentiation">
+        <div class="container">
+          <h2>More than just linking</h2>
+          <p class="differentiation-intro">Connection-making alone isn't learning.</p>
+
+          <div class="differentiation-content">
+            <p class="differentiation-point">
+              Link-focused tools optimize for <strong>discovery</strong>—finding
+              connections. But you can have a beautiful knowledge graph and still never
+              actually internalize anything.
+            </p>
+
+            <p class="differentiation-point">
+              Flint optimizes for the <strong>complete cycle</strong>: Capture → Connect →
+              Systematically Resurface.
+            </p>
+
+            <p class="differentiation-point">
+              Linking is a <em>feature</em> in Flint, not the product. The product is
+              learning.
+            </p>
+
+            <p class="differentiation-conclusion">
+              The unglamorous work—spaced repetition, forced recall, routine reflection—is
+              where real learning happens. Most tools stop before this. Flint keeps going.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 7: Trust & Autonomy -->
       <section class="trust">
         <div class="container">
           <h2>Your thinking stays yours</h2>
@@ -337,7 +383,7 @@
         </div>
       </section>
 
-      <!-- Section 7: Who This Is For -->
+      <!-- Section 8: Who This Is For -->
       <section class="personas">
         <div class="container">
           <h2>Built for people who think deeply</h2>
@@ -378,7 +424,7 @@
         </div>
       </section>
 
-      <!-- Section 8: CTA Section -->
+      <!-- Section 9: CTA Section -->
       <section id="signup" class="final-cta">
         <div class="container">
           <h2>Start learning deeply</h2>

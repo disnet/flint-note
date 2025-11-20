@@ -50,9 +50,58 @@ body {
   padding: 0 2rem;
 }
 
+/* Navbar */
+.navbar {
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.navbar .container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.nav-left {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.nav-right {
+  display: flex;
+  align-items: center;
+}
+
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  color: var(--color-text);
+  font-weight: 600;
+  font-size: 1.125rem;
+}
+
+.nav-logo {
+  width: 24px;
+  height: 24px;
+}
+
+.nav-link {
+  color: var(--color-text-muted);
+  text-decoration: none;
+  font-size: 0.9375rem;
+  transition: color 0.2s ease;
+}
+
+.nav-link:hover {
+  color: var(--color-text);
+}
+
 /* Hero Section */
 .hero {
-  padding: 6rem 0 4rem;
+  padding: 4rem 0;
   text-align: center;
   border-bottom: 1px solid var(--color-border);
 }
@@ -112,53 +161,54 @@ body {
   color: var(--color-text);
 }
 
-.comparison {
-  display: flex;
-  justify-content: center;
-  gap: 2rem;
-  margin-bottom: 2.5rem;
-  flex-wrap: wrap;
+.problem-list {
+  margin: 2rem 0;
 }
 
-.comparison-item {
-  padding: 1.5rem 2rem;
-  border-radius: 0.5rem;
-  background: var(--color-bg-secondary);
-  border: 1px solid var(--color-border);
-}
-
-.comparison-item h3 {
+.problem-list p {
   font-size: 1.125rem;
-  font-weight: 600;
-  margin-bottom: 0.25rem;
-}
-
-.comparison-item p {
   color: var(--color-text-muted);
-  font-size: 0.9375rem;
+  margin-bottom: 0.5rem;
 }
 
-.comparison-highlight {
-  background: var(--color-primary-light);
-  border-color: var(--color-primary);
+.problem-hard {
+  font-size: 1.125rem;
+  max-width: 640px;
+  margin: 0 auto 2rem;
+  line-height: 1.7;
 }
 
-.comparison-highlight h3,
-.comparison-highlight p {
+.problem-hard em {
+  font-style: italic;
   color: var(--color-primary);
+  font-weight: 500;
 }
 
-@media (prefers-color-scheme: dark) {
-  .comparison-highlight h3,
-  .comparison-highlight p {
-    color: var(--color-primary);
-  }
+.problem-failures {
+  margin: 2rem 0;
+  padding: 1.5rem;
+  background: var(--color-bg-secondary);
+  border-radius: 0.5rem;
+  max-width: 480px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.problem-failures p {
+  font-size: 0.9375rem;
+  color: var(--color-text-muted);
+  margin-bottom: 0.5rem;
+}
+
+.problem-failures p:last-child {
+  margin-bottom: 0;
 }
 
 .problem-conclusion {
   font-size: 1rem;
-  color: var(--color-text-muted);
   font-weight: 500;
+  max-width: 540px;
+  margin: 0 auto;
 }
 
 /* Pillars Section */
@@ -415,6 +465,60 @@ body {
   line-height: 1.6;
 }
 
+/* Differentiation Section */
+.differentiation {
+  padding: 4rem 0;
+  background: var(--color-bg-secondary);
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.differentiation h2 {
+  font-size: 2rem;
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: 1rem;
+  letter-spacing: -0.01em;
+}
+
+.differentiation-intro {
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 1.25rem;
+  font-weight: 500;
+  margin-bottom: 2.5rem;
+}
+
+.differentiation-content {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.differentiation-point {
+  font-size: 1rem;
+  line-height: 1.7;
+  margin-bottom: 1.5rem;
+  color: var(--color-text);
+}
+
+.differentiation-point strong {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.differentiation-point em {
+  font-style: italic;
+}
+
+.differentiation-conclusion {
+  font-size: 1rem;
+  line-height: 1.7;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text);
+  font-weight: 500;
+}
+
 /* Trust Section */
 .trust {
   padding: 4rem 0;
@@ -657,6 +761,14 @@ footer p {
     padding: 0 1.5rem;
   }
 
+  .nav-left {
+    gap: 1rem;
+  }
+
+  .nav-link {
+    font-size: 0.875rem;
+  }
+
   .hero {
     padding: 4rem 0 3rem;
   }
@@ -674,6 +786,7 @@ footer p {
   .cycle-demo h2,
   .features-demo h2,
   .agent-system h2,
+  .differentiation h2,
   .trust h2,
   .personas h2,
   .final-cta h2 {
@@ -750,6 +863,7 @@ footer p {
   .cycle-demo,
   .features-demo,
   .agent-system,
+  .differentiation,
   .trust,
   .personas,
   .final-cta {
