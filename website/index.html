@@ -50,11 +50,14 @@
     <!-- Hero Screenshot -->
     <section class="hero-screenshot">
       <div class="container">
-        <img
-          src="main.png"
-          alt="Flint main interface showing a note on Spaced Repetition with wikilinks and structured content"
-          class="main-screenshot"
-        />
+        <picture>
+          <source srcset="main-dark.png" media="(prefers-color-scheme: dark)">
+          <img
+            src="main-light.png"
+            alt="Flint main interface showing a note on Spaced Repetition with wikilinks and structured content"
+            class="main-screenshot"
+          />
+        </picture>
       </div>
     </section>
 
@@ -314,7 +317,10 @@
                 </p>
               </div>
               <div class="tab-image">
-                <img src="agent-dialog.png" alt="Agent suggesting connections" />
+                <picture>
+                  <source srcset="agent-dark.png" media="(prefers-color-scheme: dark)">
+                  <img src="agent-light.png" alt="Agent suggesting connections" />
+                </picture>
               </div>
             </div>
 
@@ -326,7 +332,10 @@
                 </p>
               </div>
               <div class="tab-image">
-                <img src="review-mode.png" alt="Review interface" />
+                <picture>
+                  <source srcset="review-dark.png" media="(prefers-color-scheme: dark)">
+                  <img src="review-light.png" alt="Review interface" />
+                </picture>
               </div>
             </div>
 
@@ -335,7 +344,10 @@
                 <p>Low-friction daily notes entry. Focus on thinking, not formatting.</p>
               </div>
               <div class="tab-image">
-                <img src="daily-view.png" alt="Daily notes entry" />
+                <picture>
+                  <source srcset="daily-dark.png" media="(prefers-color-scheme: dark)">
+                  <img src="daily-light.png" alt="Daily notes entry" />
+                </picture>
               </div>
             </div>
           </div>
