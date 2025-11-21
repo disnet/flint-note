@@ -268,6 +268,8 @@ declare global {
       getAllReviewHistory: () => Promise<import('./types/review').ReviewItem[]>;
       getCurrentSession: () => Promise<{ sessionNumber: number }>;
       incrementSession: () => Promise<{ sessionNumber: number }>;
+      isNewSessionAvailable: () => Promise<{ available: boolean }>;
+      getNextSessionAvailableAt: () => Promise<{ nextAvailableAt: string | null }>;
       getReviewConfig: () => Promise<{
         sessionSize: number;
         sessionsPerWeek: number;

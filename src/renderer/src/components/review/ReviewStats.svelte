@@ -8,9 +8,9 @@
     onStartReview: () => void;
     onResumeSession?: () => void;
     onReviewNote: (noteId: string) => void;
-    onIncrementSession: () => void;
     onUpdateConfig: (config: Partial<SchedulingConfig>) => Promise<boolean>;
     hasSavedSession?: boolean;
+    nextSessionAvailableAt?: Date | null;
   }
 
   let {
@@ -19,9 +19,9 @@
     onStartReview,
     onResumeSession,
     onReviewNote,
-    onIncrementSession,
     onUpdateConfig,
-    hasSavedSession = false
+    hasSavedSession = false,
+    nextSessionAvailableAt = null
   }: Props = $props();
 
   let showNotesTable = $state(false);
@@ -59,15 +59,6 @@
     <div class="stat-card session">
       <div class="stat-value">{getOrdinal(stats.currentSessionNumber)}</div>
       <div class="stat-label">Session</div>
-      {#if stats.dueThisSession === 0}
-        <button
-          class="new-session-btn"
-          onclick={onIncrementSession}
-          title="Start next session early"
-        >
-          Start Early
-        </button>
-      {/if}
     </div>
 
     <div class="stat-card today">
@@ -103,7 +94,11 @@
     {:else}
       <div class="no-reviews">
         <p>No notes due for review!</p>
-        <p class="upcoming">Complete more sessions to see more notes</p>
+        {#if nextSessionAvailableAt}
+          <p class="upcoming">Next session tomorrow</p>
+        {:else}
+          <p class="upcoming">Complete more sessions to see more notes</p>
+        {/if}
       </div>
     {/if}
   </div>
@@ -335,25 +330,6 @@
 
   .stat-card.today {
     border-left: 4px solid var(--accent-primary);
-  }
-
-  .new-session-btn {
-    margin-top: 0.75rem;
-    padding: 0.375rem 0.75rem;
-    background: transparent;
-    border: 1px solid var(--border-light);
-    border-radius: 4px;
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: var(--text-secondary);
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .new-session-btn:hover {
-    background: var(--accent-primary);
-    border-color: var(--accent-primary);
-    color: var(--text-on-accent);
   }
 
   .stat-card.total {

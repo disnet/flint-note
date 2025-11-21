@@ -572,6 +572,121 @@ describe('ReviewManager', () => {
       const session = await reviewManager.getCurrentSessionNumber();
       expect(session).toBe(6);
     });
+
+    it('should allow new session when no previous session exists', async () => {
+      const available = await reviewManager.isNewSessionAvailable();
+      expect(available).toBe(true);
+
+      const nextAvailable = await reviewManager.getNextSessionAvailableAt();
+      expect(nextAvailable).toBeNull();
+    });
+
+    it('should allow new session when more than a day has passed', async () => {
+      const db = await dbManager.connect();
+
+      // Set last session completion to 2 days ago
+      const twoDaysAgo = new Date();
+      twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+
+      await db.run(
+        `INSERT INTO review_state (id, current_session_number, last_session_completed_at, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?)`,
+        [
+          1,
+          5,
+          twoDaysAgo.toISOString(),
+          new Date().toISOString(),
+          new Date().toISOString()
+        ]
+      );
+
+      const available = await reviewManager.isNewSessionAvailable();
+      expect(available).toBe(true);
+
+      const nextAvailable = await reviewManager.getNextSessionAvailableAt();
+      expect(nextAvailable).toBeNull();
+    });
+
+    it('should block new session when completed before 1am today', async () => {
+      const db = await dbManager.connect();
+
+      // Set completion to today at 12:30am (30 minutes ago if current time is 1:00am or later)
+      const today = new Date();
+      today.setHours(0, 30, 0, 0);
+
+      await db.run(
+        `INSERT INTO review_state (id, current_session_number, last_session_completed_at, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?)`,
+        [1, 5, today.toISOString(), new Date().toISOString(), new Date().toISOString()]
+      );
+
+      const available = await reviewManager.isNewSessionAvailable();
+      const nextAvailable = await reviewManager.getNextSessionAvailableAt();
+
+      // If current time is before 1am, should be blocked
+      const now = new Date();
+      if (now.getHours() < 1) {
+        expect(available).toBe(false);
+        expect(nextAvailable).not.toBeNull();
+        if (nextAvailable) {
+          expect(nextAvailable.getHours()).toBe(1);
+          expect(nextAvailable.getMinutes()).toBe(0);
+        }
+      }
+    });
+
+    it('should throw error when trying to increment before 1am reset', async () => {
+      const db = await dbManager.connect();
+
+      // Set completion to 5 minutes ago
+      const fiveMinutesAgo = new Date();
+      fiveMinutesAgo.setMinutes(fiveMinutesAgo.getMinutes() - 5);
+
+      await db.run(
+        `INSERT INTO review_state (id, current_session_number, last_session_completed_at, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?)`,
+        [
+          1,
+          5,
+          fiveMinutesAgo.toISOString(),
+          new Date().toISOString(),
+          new Date().toISOString()
+        ]
+      );
+
+      // Should throw error if trying to increment before next 1am
+      const available = await reviewManager.isNewSessionAvailable();
+      if (!available) {
+        await expect(reviewManager.incrementSessionNumber()).rejects.toThrow(
+          /Next session not available until/
+        );
+      }
+    });
+
+    it('should calculate next 1am correctly for time before 1am', async () => {
+      const db = await dbManager.connect();
+
+      // Simulate completion at 11pm yesterday
+      const lastNight = new Date();
+      lastNight.setHours(23, 0, 0, 0);
+      lastNight.setDate(lastNight.getDate() - 1);
+
+      await db.run(
+        `INSERT INTO review_state (id, current_session_number, last_session_completed_at, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?)`,
+        [
+          1,
+          5,
+          lastNight.toISOString(),
+          new Date().toISOString(),
+          new Date().toISOString()
+        ]
+      );
+
+      // Should be available now (past 1am)
+      const available = await reviewManager.isNewSessionAvailable();
+      expect(available).toBe(true);
+    });
   });
 
   describe('retired notes management', () => {

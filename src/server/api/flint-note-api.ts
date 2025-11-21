@@ -2543,6 +2543,31 @@ export class FlintNoteApi {
   }
 
   /**
+   * Check if a new session is available (based on 1am daily reset)
+   */
+  async isNewSessionAvailable(args: {
+    vaultId: string;
+  }): Promise<{ available: boolean }> {
+    this.ensureInitialized();
+    const { reviewManager } = await this.getVaultContext(args.vaultId);
+    const available = await reviewManager.isNewSessionAvailable();
+    return { available };
+  }
+
+  /**
+   * Get when the next session will be available
+   * Returns null if session is currently available
+   */
+  async getNextSessionAvailableAt(args: {
+    vaultId: string;
+  }): Promise<{ nextAvailableAt: string | null }> {
+    this.ensureInitialized();
+    const { reviewManager } = await this.getVaultContext(args.vaultId);
+    const nextAvailable = await reviewManager.getNextSessionAvailableAt();
+    return { nextAvailableAt: nextAvailable ? nextAvailable.toISOString() : null };
+  }
+
+  /**
    * Get review configuration
    */
   async getReviewConfig(args: { vaultId: string }): Promise<SchedulingConfig> {

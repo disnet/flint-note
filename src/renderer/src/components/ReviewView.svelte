@@ -181,6 +181,34 @@
     reviewStore.loadConfig();
   });
 
+  // Automatic session availability refresh
+  // This effect sets a timer to reload stats exactly when the next session becomes available
+  $effect(() => {
+    const nextAvailable = reviewStore.nextSessionAvailableAt;
+
+    if (!nextAvailable) {
+      return; // No timer needed if session is currently available
+    }
+
+    const msUntilAvailable = nextAvailable.getTime() - Date.now();
+
+    if (msUntilAvailable <= 0) {
+      // Session should already be available, reload stats
+      reviewStore.loadStats();
+      return;
+    }
+
+    // Set timer to reload stats exactly when session becomes available
+    const timerId = setTimeout(() => {
+      reviewStore.loadStats();
+    }, msUntilAvailable);
+
+    // Cleanup function
+    return () => {
+      clearTimeout(timerId);
+    };
+  });
+
   /**
    * Save current session state for later restoration
    */
@@ -545,14 +573,6 @@
   }
 
   /**
-   * Increment session number (start next session early)
-   */
-  async function incrementSession(): Promise<void> {
-    await reviewStore.incrementSession();
-    reviewStore.loadStats();
-  }
-
-  /**
    * Show/hide note content drawer
    */
   function toggleNoteDrawer(): void {
@@ -609,9 +629,9 @@
         onStartReview={startReviewSession}
         onResumeSession={restoreSession}
         onReviewNote={startSingleNoteReview}
-        onIncrementSession={incrementSession}
         onUpdateConfig={(config) => reviewStore.updateConfig(config)}
         hasSavedSession={reviewStore.hasSavedSession()}
+        nextSessionAvailableAt={reviewStore.nextSessionAvailableAt}
       />
     {:else if activeTab === 'history'}
       <ReviewHistoryView />

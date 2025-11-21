@@ -122,9 +122,79 @@ export class ReviewManager {
   }
 
   /**
+   * Get the next 1am after a given date (in local timezone)
+   * This is when the next session becomes available
+   */
+  private getNext1AM(fromDate: Date): Date {
+    const next1AM = new Date(fromDate);
+    next1AM.setHours(1, 0, 0, 0);
+
+    // If the calculated 1am is not after fromDate, move to next day
+    if (next1AM <= fromDate) {
+      next1AM.setDate(next1AM.getDate() + 1);
+    }
+
+    return next1AM;
+  }
+
+  /**
+   * Check if a new session is available based on daily 1am reset
+   */
+  async isNewSessionAvailable(): Promise<boolean> {
+    const state = await this.db.get<ReviewStateRow>(
+      'SELECT * FROM review_state WHERE id = 1'
+    );
+
+    if (!state || !state.last_session_completed_at) {
+      return true; // No previous session, so available
+    }
+
+    const lastCompleted = new Date(state.last_session_completed_at);
+    const nextReset = this.getNext1AM(lastCompleted);
+    const now = new Date();
+
+    return now >= nextReset;
+  }
+
+  /**
+   * Get when the next session will be available (next 1am after last completion)
+   * Returns null if a session is currently available
+   */
+  async getNextSessionAvailableAt(): Promise<Date | null> {
+    const state = await this.db.get<ReviewStateRow>(
+      'SELECT * FROM review_state WHERE id = 1'
+    );
+
+    if (!state || !state.last_session_completed_at) {
+      return null; // Available now
+    }
+
+    const lastCompleted = new Date(state.last_session_completed_at);
+    const nextReset = this.getNext1AM(lastCompleted);
+    const now = new Date();
+
+    // If we're past the next reset, session is available now
+    if (now >= nextReset) {
+      return null;
+    }
+
+    return nextReset;
+  }
+
+  /**
    * Increment session number (called when a session is completed)
+   * Only allows incrementing once per day (at 1am local time reset)
    */
   async incrementSessionNumber(): Promise<number> {
+    const canIncrement = await this.isNewSessionAvailable();
+
+    if (!canIncrement) {
+      const nextAvailable = await this.getNextSessionAvailableAt();
+      throw new Error(
+        `Next session not available until ${nextAvailable?.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`
+      );
+    }
+
     const currentSession = await this.getCurrentSessionNumber();
     const newSession = currentSession + 1;
     const now = new Date().toISOString();

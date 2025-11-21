@@ -293,6 +293,9 @@ const api = {
   getAllReviewHistory: () => electronAPI.ipcRenderer.invoke('get-all-review-history'),
   getCurrentSession: () => electronAPI.ipcRenderer.invoke('get-current-session'),
   incrementSession: () => electronAPI.ipcRenderer.invoke('increment-session'),
+  isNewSessionAvailable: () => electronAPI.ipcRenderer.invoke('is-new-session-available'),
+  getNextSessionAvailableAt: () =>
+    electronAPI.ipcRenderer.invoke('get-next-session-available-at'),
   getReviewConfig: () => electronAPI.ipcRenderer.invoke('get-review-config'),
   updateReviewConfig: (params: {
     sessionSize?: number;

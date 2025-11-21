@@ -1385,6 +1385,30 @@ app.whenReady().then(async () => {
     return await flintApi.incrementSession({ vaultId: vault.id });
   });
 
+  ipcMain.handle('is-new-session-available', async () => {
+    if (!noteService) {
+      throw new Error('Note service not available');
+    }
+    const flintApi = noteService.getFlintNoteApi();
+    const vault = await noteService.getCurrentVault();
+    if (!vault) {
+      throw new Error('No active vault');
+    }
+    return await flintApi.isNewSessionAvailable({ vaultId: vault.id });
+  });
+
+  ipcMain.handle('get-next-session-available-at', async () => {
+    if (!noteService) {
+      throw new Error('Note service not available');
+    }
+    const flintApi = noteService.getFlintNoteApi();
+    const vault = await noteService.getCurrentVault();
+    if (!vault) {
+      throw new Error('No active vault');
+    }
+    return await flintApi.getNextSessionAvailableAt({ vaultId: vault.id });
+  });
+
   ipcMain.handle('get-review-config', async () => {
     if (!noteService) {
       throw new Error('Note service not available');

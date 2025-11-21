@@ -48,6 +48,10 @@ class ReviewStore {
     currentSessionNumber: 0
   });
 
+  // Session availability
+  isSessionAvailable = $state(true);
+  nextSessionAvailableAt = $state<Date | null>(null);
+
   // Review configuration
   config = $state<SchedulingConfig>({
     sessionSize: 5,
@@ -85,12 +89,35 @@ class ReviewStore {
       if (stats) {
         this.stats = stats;
       }
+      // Also load session availability
+      await this.loadSessionAvailability();
     } catch (err) {
       console.error('Failed to load review stats:', err);
       this.error =
         err instanceof Error ? err.message : 'Failed to load review statistics';
     } finally {
       this.isLoadingStats = false;
+    }
+  }
+
+  /**
+   * Load session availability information
+   */
+  async loadSessionAvailability(): Promise<void> {
+    try {
+      const availabilityResult = await window.api?.isNewSessionAvailable();
+      if (availabilityResult) {
+        this.isSessionAvailable = availabilityResult.available;
+      }
+
+      const nextAvailableResult = await window.api?.getNextSessionAvailableAt();
+      if (nextAvailableResult) {
+        this.nextSessionAvailableAt = nextAvailableResult.nextAvailableAt
+          ? new Date(nextAvailableResult.nextAvailableAt)
+          : null;
+      }
+    } catch (err) {
+      console.error('Failed to load session availability:', err);
     }
   }
 
@@ -184,6 +211,8 @@ class ReviewStore {
       if (result?.sessionNumber !== undefined) {
         // Update stats with new session number
         this.stats = { ...this.stats, currentSessionNumber: result.sessionNumber };
+        // Reload session availability after incrementing
+        await this.loadSessionAvailability();
         return result.sessionNumber;
       }
       return this.stats.currentSessionNumber;
@@ -402,6 +431,8 @@ class ReviewStore {
     this.currentReviewNote = null;
     this.error = null;
     this.savedSession = null;
+    this.isSessionAvailable = true;
+    this.nextSessionAvailableAt = null;
   }
 }
 
