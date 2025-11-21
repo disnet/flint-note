@@ -5,6 +5,7 @@ This guide covers setting up Microsoft Trusted Signing for code signing Windows 
 ## Overview
 
 Microsoft Trusted Signing is a cloud-based code signing service that provides:
+
 - Instant SmartScreen reputation (like EV certificates)
 - Pay-as-you-go pricing (~$10-13/month for typical usage)
 - No certificate files or hardware tokens to manage
@@ -44,11 +45,13 @@ Microsoft Trusted Signing is a cloud-based code signing service that provides:
 ### Step 3: Identity Verification
 
 Microsoft will verify your business identity. This process:
+
 - Takes 3-5 business days typically
 - Requires business documentation (similar to EV certificate verification)
 - You'll receive emails about verification status
 
 **Documents typically needed:**
+
 - Business registration documents
 - Proof of business address
 - Government-issued ID for authorized representative
@@ -82,6 +85,7 @@ Once verified, collect these values from Azure Portal:
 ## Part 2: Local Configuration (Automated)
 
 The code configuration has been set up with:
+
 - Custom signing script at `build/azure-sign.js`
 - Updated electron-builder configurations
 - Required npm dependencies
@@ -106,11 +110,13 @@ The release workflow is **ready but signing is currently disabled** until you ad
 ### Current Behavior
 
 **Without Azure credentials:**
+
 - ✅ Builds complete successfully
-- ⚠️  Installers are **unsigned** (Windows shows "Unknown Publisher" warnings)
+- ⚠️ Installers are **unsigned** (Windows shows "Unknown Publisher" warnings)
 - 📝 Build logs show: "Azure Trusted Signing credentials not configured - skipping code signing"
 
 **With Azure credentials:**
+
 - ✅ Builds complete successfully
 - ✅ Installers are **signed** (No Windows warnings)
 - 📝 Build logs show: "Successfully signed {file}"
@@ -121,17 +127,18 @@ The release workflow is **ready but signing is currently disabled** until you ad
 2. Click **Settings** → **Secrets and variables** → **Actions**
 3. Click **New repository secret** and add each of these:
 
-| Secret Name | Value | Description |
-|------------|-------|-------------|
-| `AZURE_TENANT_ID` | Your Azure tenant ID | From app registration |
-| `AZURE_CLIENT_ID` | Your Azure client ID | From app registration |
-| `AZURE_CLIENT_SECRET` | Your client secret value | From app registration |
-| `AZURE_SIGNING_ENDPOINT` | `https://xxx.codesigning.azure.net` | From Trusted Signing account |
-| `AZURE_CERTIFICATE_PROFILE` | `FlintCodeSigning` | Your certificate profile name |
+| Secret Name                 | Value                               | Description                   |
+| --------------------------- | ----------------------------------- | ----------------------------- |
+| `AZURE_TENANT_ID`           | Your Azure tenant ID                | From app registration         |
+| `AZURE_CLIENT_ID`           | Your Azure client ID                | From app registration         |
+| `AZURE_CLIENT_SECRET`       | Your client secret value            | From app registration         |
+| `AZURE_SIGNING_ENDPOINT`    | `https://xxx.codesigning.azure.net` | From Trusted Signing account  |
+| `AZURE_CERTIFICATE_PROFILE` | `FlintCodeSigning`                  | Your certificate profile name |
 
 ### Workflow Configuration
 
 The GitHub Actions workflow (`.github/workflows/release.yml`) is already configured to:
+
 - Build on `windows-latest` runner (required for SignTool)
 - Load Azure credentials from secrets
 - Sign Windows installers during release builds
@@ -148,6 +155,7 @@ git push origin v0.11.3-canary.1
 ```
 
 The workflow will:
+
 1. Build the Windows installer on Windows runner
 2. Sign it using Azure Trusted Signing
 3. Upload to your canary R2 bucket
@@ -186,6 +194,7 @@ The signing will happen automatically during the build process.
 - **Per signature**: $0.30 (Standard tier) or $0.50 (Premium tier)
 
 **Example costs:**
+
 - 4 releases/month = $9.99 + (4 × $0.30) = ~$11/month
 - 10 releases/month = $9.99 + (10 × $0.30) = ~$13/month
 
@@ -194,15 +203,18 @@ Much cheaper than traditional EV certificates at $400-600/year!
 ## Troubleshooting
 
 ### "Authentication failed"
+
 - Verify your Azure credentials are correct
 - Check that the app registration has the correct permissions
 - Ensure client secret hasn't expired
 
 ### "Certificate profile not found"
+
 - Verify the certificate profile name matches exactly
 - Check that identity verification is complete
 
 ### "Access denied"
+
 - Verify the app registration has "Trusted Signing Certificate Profile Signer" role
 - Check that permissions have propagated (can take a few minutes)
 

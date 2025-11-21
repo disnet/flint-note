@@ -8,3 +8,5 @@ out
 .env.local
 *.tsbuildinfo
 .wrangler
+website/docs
+docs-src/.vitepress/cache

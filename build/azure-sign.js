@@ -49,12 +49,14 @@ export default async function sign(configuration) {
     'AZURE_CERTIFICATE_PROFILE'
   ];
 
-  const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
+  const missingVars = requiredEnvVars.filter((varName) => !process.env[varName]);
 
   if (missingVars.length > 0) {
-    console.warn('⚠️  Azure Trusted Signing credentials not configured - skipping code signing');
+    console.warn(
+      '⚠️  Azure Trusted Signing credentials not configured - skipping code signing'
+    );
     console.warn('   Missing environment variables:');
-    missingVars.forEach(varName => console.warn(`   - ${varName}`));
+    missingVars.forEach((varName) => console.warn(`   - ${varName}`));
     console.warn('\n   The installer will be built but NOT signed.');
     console.warn('   Windows will show "Unknown Publisher" warnings.');
     console.warn('   See docs/WINDOWS-SIGNING-SETUP.md for setup instructions.\n');
@@ -70,7 +72,9 @@ export default async function sign(configuration) {
     );
 
     // Get access token
-    const tokenResponse = await credential.getToken('https://codesigning.azure.net/.default');
+    const tokenResponse = await credential.getToken(
+      'https://codesigning.azure.net/.default'
+    );
 
     if (!tokenResponse || !tokenResponse.token) {
       throw new Error('Failed to obtain Azure access token');
@@ -102,17 +106,24 @@ async function signWithSignTool(filePath, accessToken) {
     // SignTool command for Azure Trusted Signing
     const args = [
       'sign',
-      '/fd', 'SHA256',
-      '/tr', 'http://timestamp.digicert.com',
-      '/td', 'SHA256',
-      '/dlib', 'azure.codesigning.dlib',
-      '/dmdf', JSON.stringify({
+      '/fd',
+      'SHA256',
+      '/tr',
+      'http://timestamp.digicert.com',
+      '/td',
+      'SHA256',
+      '/dlib',
+      'azure.codesigning.dlib',
+      '/dmdf',
+      JSON.stringify({
         Endpoint: process.env.AZURE_SIGNING_ENDPOINT,
         CodeSigningAccountName: extractAccountName(process.env.AZURE_SIGNING_ENDPOINT),
         CertificateProfileName: process.env.AZURE_CERTIFICATE_PROFILE
       }),
-      '/du', 'https://flintnote.com',
-      '/d', 'Flint',
+      '/du',
+      'https://flintnote.com',
+      '/d',
+      'Flint',
       filePath
     ];
 
@@ -165,8 +176,8 @@ async function signWithRestApi(filePath, accessToken) {
 
   throw new Error(
     'REST API signing is not yet implemented. ' +
-    'Please build Windows installers on a Windows machine with SignTool available, ' +
-    'or implement REST API signing. See docs/WINDOWS-SIGNING-SETUP.md for details.'
+      'Please build Windows installers on a Windows machine with SignTool available, ' +
+      'or implement REST API signing. See docs/WINDOWS-SIGNING-SETUP.md for details.'
   );
 }
 
