@@ -9,7 +9,8 @@ Capture is easy. Learning is hard. Most apps stop at capture. Flint keeps going.
 **Simplified positioning for general audiences**: "Flint helps you learn better by making it easy to capture your thoughts, connect them over time, and bring them back when you need them."
 
 **Target audience**:
-- **Primary**: People who care about *how* they think and learn deeply—researchers, writers, product builders, builders of systems who want to internalize ideas so they become part of their mental models.
+
+- **Primary**: People who care about _how_ they think and learn deeply—researchers, writers, product builders, builders of systems who want to internalize ideas so they become part of their mental models.
 - **Secondary**: Anyone interested in note-taking apps who wants their notes to actually stick and influence how they think, not just pile up in storage
 
 ## Landing Page Structure
@@ -41,12 +42,13 @@ Capture is easy. Learning is hard. Most apps stop at capture. Flint keeps going.
 **Goal**: Resonate with the target audience's pain point—they capture obsessively but rarely internalize
 
 **Structure**:
+
 - **Hook**: "You capture. Then what?"
-- **The Gap**: Most apps optimize for *getting thoughts out of your head*. That's the easy part.
+- **The Gap**: Most apps optimize for _getting thoughts out of your head_. That's the easy part.
   - Your notes pile up
   - You never look at them again
   - They don't change how you think
-- **The Hard Part**: Making captured ideas actually *yours*—integrating them into your mental models, retrieving them at the right moment, applying them without thinking
+- **The Hard Part**: Making captured ideas actually _yours_—integrating them into your mental models, retrieving them at the right moment, applying them without thinking
 - **Why Capture Alone Fails**:
   - Reading something doesn't mean understanding it
   - Writing something down doesn't mean remembering it
@@ -67,15 +69,17 @@ Capture is easy. Learning is hard. Most apps stop at capture. Flint keeps going.
 **Structure**: Three visual cards or sections (could be interactive/expandable)
 
 #### Pillar 1: Externalize Intelligently
+
 - **Concept**: Structured capture through note types and agent guidance
 - **Why It Matters**: How you capture shapes what and how you think
 - **Features**:
   - Note types encode different thinking patterns (daily, evergreen, predictions, etc.)
   - Agent suggests inline as you write, deepening thinking through semantic understanding
   - Metadata schemas per type guide what questions you ask as you capture
-- **Outcome**: You externalize not just *what* you're thinking, but you're thinking *deeper* in the moment of capture
+- **Outcome**: You externalize not just _what_ you're thinking, but you're thinking _deeper_ in the moment of capture
 
 #### Pillar 2: Internalize Continuously
+
 - **Concept**: Routines, agent partnership, connections made visible
 - **Why It Matters**: Deep learning happens through reflection and connection-making, not passive storage
 - **Features**:
@@ -86,6 +90,7 @@ Capture is easy. Learning is hard. Most apps stop at capture. Flint keeps going.
 - **Outcome**: You're not just storing knowledge—you're continuously synthesizing and connecting it
 
 #### Pillar 3: Resurface Systematically
+
 - **Concept**: Spaced repetition scheduling, forced recall, agent-generated prompts
 - **Why It Matters**: Repeated encounters at optimal intervals cement ideas into how you think
 - **Features**:
@@ -106,6 +111,7 @@ Capture is easy. Learning is hard. Most apps stop at capture. Flint keeps going.
 **Structure**: Animated or step-by-step walkthrough
 
 **Example Journey**:
+
 1. **Capture**: You read an article on a topic. You highlight a key passage in your Reading note, capture it with context.
 2. **Connect**: Agent analyzes the note, suggests three related concepts from your existing evergreen notes.
 3. **Reflect**: You create wikilinks to those concepts. A connection emerges you hadn't seen before—you capture a new insight.
@@ -126,6 +132,7 @@ Capture is easy. Learning is hard. Most apps stop at capture. Flint keeps going.
 **Structure**: Dedicated section or callout within Pillar 2
 
 **Key Messages**:
+
 - Your agent is integrated with your learning system through a semantic API
 - It understands note types, relationships, and your thinking patterns
 - It provides type-aware assistance (different guidance for evergreen vs predictions vs daily notes)
@@ -145,19 +152,21 @@ Capture is easy. Learning is hard. Most apps stop at capture. Flint keeps going.
 **The Core Differentiation**: Connection-making alone isn't learning.
 
 **Key Messages**:
+
 - **Link-focused tools optimize for discovery** (finding connections), not retention (making sure those connections stick in your brain)
 - You can have a beautiful knowledge graph and still never actually internalize anything
 - **Flint optimizes for the complete cycle**: Capture → Connect → Systematically Resurface
-- Linking is a *feature* in Flint, not the product. The product is learning.
+- Linking is a _feature_ in Flint, not the product. The product is learning.
 - The unglamorous work—spaced repetition, forced recall, routine reflection—is where real learning happens. Most tools stop before this.
 
 **What They'd Encounter**: "Doesn't Flint have linking?"
 
-**Answer**: "Yes. But linking is just one component of a complete learning system. The real differentiator is what happens *after* you make connections—how do we ensure those connections become part of how you think?"
+**Answer**: "Yes. But linking is just one component of a complete learning system. The real differentiator is what happens _after_ you make connections—how do we ensure those connections become part of how you think?"
 
 **Honest Positioning**: "If all you're doing is making connections, you're not actually learning—you're just visualizing confusion."
 
 **In Copy**:
+
 - Avoid: "Better than other graph-based tools"
 - Instead: "Most note apps stop at capture. Some add connections. Flint keeps going—we systematically resurface ideas so they become part of how you think."
 
@@ -172,6 +181,7 @@ Capture is easy. Learning is hard. Most apps stop at capture. Flint keeps going.
 **Structure**: Visual callout or trust section
 
 **Messages**:
+
 - Your vault is files on your computer—markdown, portable, yours forever
 - ID-based wikilinks never break when you rename notes
 - You're not trapped in a cloud service or dependent on Flint's future
@@ -191,6 +201,7 @@ Capture is easy. Learning is hard. Most apps stop at capture. Flint keeps going.
 **Structure**: 3-4 concrete personas or use cases
 
 **Examples**:
+
 - **Researchers**: Track papers, extract highlights, surface connections between research threads, resurface at optimal intervals to synthesize novel insights
 - **Product Builders**: Capture strategy and design thinking, track competitors and patterns, resurface assumptions for calibration and adjustment
 - **Writers**: Develop ideas over time, surface relevant thinking during drafting, resurface past writing to avoid repetition and build on prior thinking
@@ -209,6 +220,7 @@ Capture is easy. Learning is hard. Most apps stop at capture. Flint keeps going.
 **Primary CTA**: "Start Free" or "Try Flint" (no credit card required)
 
 **Secondary CTAs**:
+
 - "See a demo" (video or interactive walkthrough)
 - "Read the philosophy" (blog post or docs link)
 - "Join the community" (Discord/community link)
@@ -253,6 +265,7 @@ Show off core capabilities through real examples:
 ## Messaging Guardrails
 
 ### What NOT to Say
+
 - "The best note app" (you're not—you're different)
 - "AI writes for you" (misleading and against philosophy)
 - "Stores everything" (not the differentiator)
@@ -261,6 +274,7 @@ Show off core capabilities through real examples:
 - "PKM" or "knowledge graph" (jargon, turns off target audience)
 
 ### What TO Say
+
 - **For general audiences**: "Learn better," "ideas that stick," "making connections," "bringing ideas back when you need them"
 - **For technically literate audiences**: "Deep learning" and "spaced repetition" (your actual outcome)
 - "Systematic thinking" (your philosophy)

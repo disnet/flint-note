@@ -455,7 +455,8 @@
         noteId: currentNote.id,
         rating,
         userResponse,
-        prompt: currentPrompt
+        prompt: currentPrompt,
+        feedback: agentFeedback?.feedback
       });
 
       // Record the result

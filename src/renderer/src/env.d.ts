@@ -255,6 +255,7 @@ declare global {
         rating: 1 | 2 | 3 | 4;
         userResponse?: string;
         prompt?: string;
+        feedback?: string;
       }) => Promise<{
         nextSessionNumber: number;
         nextReviewDate: string;

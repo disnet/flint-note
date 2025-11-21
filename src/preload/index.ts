@@ -286,6 +286,7 @@ const api = {
     rating: 1 | 2 | 3 | 4;
     userResponse?: string;
     prompt?: string;
+    feedback?: string;
   }) => electronAPI.ipcRenderer.invoke('complete-review', params),
   getReviewItem: (noteId: string) =>
     electronAPI.ipcRenderer.invoke('get-review-item', noteId),
