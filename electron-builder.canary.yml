@@ -19,12 +19,20 @@ extraResources:
 win:
   executableName: flint-canary
   icon: 'build/icon.png'
-  # Windows code signing is configured via environment variables:
-  # CSC_LINK - Path to .p12 certificate file or base64-encoded certificate
-  # CSC_KEY_PASSWORD - Certificate password
+  # Using Azure Trusted Signing (cloud-based code signing)
+  # See docs/WINDOWS-SIGNING-SETUP.md for setup instructions
+  # Environment variables required:
+  # - AZURE_TENANT_ID
+  # - AZURE_CLIENT_ID
+  # - AZURE_CLIENT_SECRET
+  # - AZURE_SIGNING_ENDPOINT
+  # - AZURE_CERTIFICATE_PROFILE
+  sign: './build/azure-sign.js'
+  signingHashAlgorithms: ['sha256']
   publisherName: 'Timothy Disney'
-  # Disabled until we obtain Windows code signing certificate
-  # Set to true once you have a certificate to verify update signatures
+  # Disabled until Azure Trusted Signing is configured
+  # Enable this once you have Azure credentials set up and signing is working
+  # This ensures auto-updates verify signature authenticity
   verifyUpdateCodeSignature: false
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
