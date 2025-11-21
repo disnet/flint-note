@@ -50,6 +50,11 @@ export type WorkflowEvent =
   | { type: 'workflow.material-added'; workflowId: string; materialId: string }
   | { type: 'workflow.material-removed'; workflowId: string; materialId: string };
 
+export type ReviewEvent =
+  | { type: 'review.enabled'; noteId: string }
+  | { type: 'review.disabled'; noteId: string }
+  | { type: 'review.completed'; noteId: string };
+
 export type ToastEvent = {
   type: 'toast.show';
   message: string;
@@ -57,7 +62,7 @@ export type ToastEvent = {
   variant?: 'info' | 'success' | 'warning' | 'error';
 };
 
-export type AppEvent = NoteEvent | WorkflowEvent | ToastEvent;
+export type AppEvent = NoteEvent | WorkflowEvent | ReviewEvent | ToastEvent;
 
 type EventHandler<T extends AppEvent = AppEvent> = (event: T) => void;
 

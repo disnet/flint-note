@@ -27,6 +27,7 @@ import type { NoteMetadata } from '../server/types';
 import { logger } from './logger';
 import { AutoUpdaterService } from './auto-updater-service';
 import { publishNoteEvent } from './note-events';
+import { publishReviewEvent } from './review-events';
 import { setupApplicationMenu } from './menu';
 
 // Module-level service references
@@ -541,6 +542,15 @@ app.whenReady().then(async () => {
           path: result.path
         }
       });
+
+      // If review was auto-enabled, publish review.enabled event
+      if ('reviewAutoEnabled' in result && result.reviewAutoEnabled) {
+        console.log(`[IPC] Publishing review.enabled event for ${result.id}`);
+        publishReviewEvent({
+          type: 'review.enabled',
+          noteId: result.id
+        });
+      }
 
       return result;
     }
@@ -1208,7 +1218,15 @@ app.whenReady().then(async () => {
     if (!vault) {
       throw new Error('No active vault');
     }
-    return await flintApi.enableReview({ noteId, vaultId: vault.id });
+    const result = await flintApi.enableReview({ noteId, vaultId: vault.id });
+
+    // Publish event to renderer
+    publishReviewEvent({
+      type: 'review.enabled',
+      noteId
+    });
+
+    return result;
   });
 
   ipcMain.handle('disable-review', async (_event, noteId: string) => {
@@ -1220,7 +1238,15 @@ app.whenReady().then(async () => {
     if (!vault) {
       throw new Error('No active vault');
     }
-    return await flintApi.disableReview({ noteId, vaultId: vault.id });
+    const result = await flintApi.disableReview({ noteId, vaultId: vault.id });
+
+    // Publish event to renderer
+    publishReviewEvent({
+      type: 'review.disabled',
+      noteId
+    });
+
+    return result;
   });
 
   ipcMain.handle('is-review-enabled', async (_event, noteId: string) => {

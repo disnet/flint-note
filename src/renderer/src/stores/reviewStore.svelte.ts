@@ -15,6 +15,7 @@ import type {
   SchedulingConfig,
   ReviewRating
 } from '../types/review';
+import { messageBus } from '../services/messageBus.svelte';
 
 export interface ReviewNote {
   id: string;
@@ -76,6 +77,24 @@ class ReviewStore {
 
   // Saved review session (for resuming after navigation)
   savedSession = $state<SavedReviewSession | null>(null);
+
+  constructor() {
+    // Subscribe to review events to keep stats in sync
+    messageBus.subscribe('review.enabled', () => {
+      console.log('[ReviewStore] Review enabled event received, reloading stats');
+      this.loadStats();
+    });
+
+    messageBus.subscribe('review.disabled', () => {
+      console.log('[ReviewStore] Review disabled event received, reloading stats');
+      this.loadStats();
+    });
+
+    messageBus.subscribe('review.completed', () => {
+      console.log('[ReviewStore] Review completed event received, reloading stats');
+      this.loadStats();
+    });
+  }
 
   /**
    * Load review statistics from the backend

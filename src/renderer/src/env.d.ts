@@ -676,6 +676,9 @@ declare global {
       // Event listener for workflow events from main process
       onWorkflowEvent: (callback: (event: unknown) => void) => () => void;
 
+      // Event listener for review events from main process
+      onReviewEvent: (callback: (event: unknown) => void) => () => void;
+
       // Menu event listeners
       onMenuNavigate: (callback: (view: string) => void) => () => void;
       onMenuAction: (

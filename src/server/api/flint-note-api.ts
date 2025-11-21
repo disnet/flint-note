@@ -125,6 +125,7 @@ export interface CreateSingleNoteOptions {
 
 export interface NoteInfoWithWarnings extends NoteInfo {
   validationWarnings?: string[];
+  reviewAutoEnabled?: boolean;
 }
 
 export interface UpdateResultWithWarnings extends UpdateResult {
@@ -469,13 +470,32 @@ export class FlintNoteApi {
       options.vaultId
     );
     const noteTypeDesc = await noteTypeManager.getNoteTypeDescription(options.type);
+    console.log(
+      `[createNote] Checking auto-enable review for note ${noteInfo.id}, type: ${options.type}, default_review_mode: ${noteTypeDesc.default_review_mode}`
+    );
+    let reviewAutoEnabled = false;
     if (noteTypeDesc.default_review_mode) {
-      // Enable review for this note
-      await reviewManager.enableReview(noteInfo.id);
+      try {
+        console.log(`[createNote] Auto-enabling review for note ${noteInfo.id}`);
+        await reviewManager.enableReview(noteInfo.id);
+        console.log(`[createNote] Successfully enabled review for note ${noteInfo.id}`);
+        reviewAutoEnabled = true;
+      } catch (error) {
+        console.error(
+          `[createNote] Failed to auto-enable review for note ${noteInfo.id}:`,
+          error
+        );
+        // Don't fail the entire note creation if review enablement fails
+        // Log the error but continue
+      }
     }
 
-    // Return note info with warnings if any
-    return validationWarnings ? { ...noteInfo, validationWarnings } : noteInfo;
+    // Return note info with warnings and auto-enable flag if any
+    return {
+      ...noteInfo,
+      ...(validationWarnings && { validationWarnings }),
+      ...(reviewAutoEnabled && { reviewAutoEnabled })
+    };
   }
 
   /**

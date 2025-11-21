@@ -599,6 +599,14 @@ const api = {
     return () => electronAPI.ipcRenderer.removeListener('workflow-event', handler);
   },
 
+  // Event listener for review events from main process
+  onReviewEvent: (callback: (event: unknown) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, reviewEvent: unknown): void =>
+      callback(reviewEvent);
+    electronAPI.ipcRenderer.on('review-event', handler);
+    return () => electronAPI.ipcRenderer.removeListener('review-event', handler);
+  },
+
   // Menu event listeners
   onMenuNavigate: (callback: (view: string) => void): (() => void) => {
     const handler = (_event: Electron.IpcRendererEvent, view: string): void =>

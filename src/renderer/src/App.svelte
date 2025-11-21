@@ -28,7 +28,11 @@
   import { noteDocumentRegistry } from './stores/noteDocumentRegistry.svelte';
   import type { CreateVaultResult } from '@/server/api/types';
   import { messageBus } from './services/messageBus.svelte';
-  import type { NoteEvent, WorkflowEvent } from './services/messageBus.svelte';
+  import type {
+    NoteEvent,
+    WorkflowEvent,
+    ReviewEvent
+  } from './services/messageBus.svelte';
   import { settingsStore } from './stores/settingsStore.svelte';
 
   // Forward note events from main process to message bus
@@ -46,6 +50,17 @@
   $effect(() => {
     const unsubscribe = window.api?.onWorkflowEvent((event) => {
       messageBus.publish(event as WorkflowEvent);
+    });
+
+    return () => {
+      unsubscribe?.();
+    };
+  });
+
+  // Forward review events from main process to message bus
+  $effect(() => {
+    const unsubscribe = window.api?.onReviewEvent((event) => {
+      messageBus.publish(event as ReviewEvent);
     });
 
     return () => {
