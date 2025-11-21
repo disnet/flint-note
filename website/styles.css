@@ -145,6 +145,11 @@ body {
   max-width: 1200px;
 }
 
+.hero em {
+  font-style: normal;
+  color: var(--color-primary);
+}
+
 .main-screenshot {
   width: 100%;
   height: auto;
@@ -218,6 +223,11 @@ body {
   font-style: italic;
   color: var(--color-primary);
   font-weight: 500;
+}
+
+.problem-conclusion em {
+  font-style: normal;
+  color: var(--color-primary);
 }
 
 .problem-pullquote {
