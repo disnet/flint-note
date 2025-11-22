@@ -1,190 +1,600 @@
-# Configuration
+# Settings and Configuration
 
-Learn how to configure Flint to match your preferences and workflow.
+Configure Flint to match your preferences and workflow.
 
-## Opening Settings
+## Accessing Settings
 
-Access settings by:
+**Click the Settings icon:**
+- Located in the top-right corner of Flint
+- Gear/cog icon
+- Opens settings panel
 
-- Menu: Flint > Settings (Mac) or File > Settings (Windows/Linux)
-- Keyboard shortcut: `Cmd+,` (Mac) / `Ctrl+,` (Windows/Linux)
+**Keyboard shortcut:**
+- `Ctrl+,` (Windows/Linux) or `Cmd+,` (Mac)
 
-## General Settings
+## Settings Sections
 
-### Notes Directory
+Settings are organized into categories:
 
-Choose where Flint stores your notes:
+1. **Appearance** - Theme and visual preferences
+2. **API Keys** - AI provider credentials
+3. **Database** - Vault database management
+4. **Application Updates** - Update settings and changelog
 
-1. Open Settings > General
-2. Click "Change Notes Directory"
-3. Select your preferred location
+## Appearance
 
-**Note:** Moving the notes directory will not automatically move existing notes. You'll need to manually copy them to the new location.
+Customize how Flint looks.
 
-### Startup Behavior
+### Theme
 
-Configure what happens when Flint launches:
+**Three theme options:**
 
-- Open to last viewed note
-- Open to daily note
-- Open to notes list
+**Light Mode:**
+- Always use light theme
+- Regardless of system settings
+- High contrast, bright background
 
-### Interface
+**Dark Mode:**
+- Always use dark theme
+- Regardless of system settings
+- Low light, dark background
 
-- **Theme**: Light, Dark, or System (follows OS theme)
-- **Font Size**: Adjust editor and interface text size
-- **Show/Hide Sidebar**: Toggle sidebar visibility on startup
+**Auto (System):**
+- Follow your OS theme
+- macOS: Uses system Dark Mode setting
+- Windows: Uses system theme preference
+- Switches automatically when OS changes
 
-## AI Configuration
+**Setting your theme:**
 
-### Provider Selection
+1. Settings → Appearance
+2. Select theme option:
+   - Light
+   - Dark
+   - Auto
+3. Theme applies immediately
 
-Choose your AI provider:
+### Future Appearance Settings
 
-1. Open Settings > AI
-2. Select a provider:
-   - **OpenAI**: GPT-3.5, GPT-4
-   - **Anthropic**: Claude models
-   - **OpenRouter**: Access to multiple models
+Planned customizations:
 
-### API Keys
+**Font settings:**
+- Editor font family
+- Editor font size
+- UI font size
 
-Configure API keys for your chosen provider:
+**Layout:**
+- Sidebar default width
+- Editor line height
+- Code block styling
 
-#### OpenAI
+**Colors:**
+- Accent color
+- Syntax highlighting theme
 
-1. Get an API key from [platform.openai.com](https://platform.openai.com)
-2. Enter it in Settings > AI > OpenAI API Key
+## API Keys
 
-#### Anthropic
+Configure AI provider access.
 
-1. Get an API key from [console.anthropic.com](https://console.anthropic.com)
-2. Enter it in Settings > AI > Anthropic API Key
+### Supported Providers
 
-#### OpenRouter
+**OpenRouter (Recommended):**
+- Access to multiple models
+- One API key for many providers
+- Flexible model selection
+- Cost-effective
 
-1. Get an API key from [openrouter.ai](https://openrouter.ai)
-2. Enter it in Settings > AI > OpenRouter API Key
+**Direct providers** (future):
+- Anthropic (Claude directly)
+- OpenAI (GPT models directly)
 
-### Model Selection
+### Adding an API Key
 
-Choose which model to use:
+**OpenRouter setup:**
 
-- Balance between speed and capability
-- Consider cost per request
-- Select based on your typical tasks
+1. Visit [openrouter.ai](https://openrouter.ai)
+2. Create account
+3. Generate API key
+4. Copy the key
+
+**In Flint:**
+
+1. Settings → API Keys
+2. Paste key in "OpenRouter API Key" field
+3. Key validated automatically
+4. Green checkmark when valid
+
+**Auto-save:**
+- Key saves after 1 second of no typing
+- "Saved" message appears
+- Stored securely in OS keychain
+
+### API Key Storage
+
+**Secure storage:**
+- Keys stored in your OS keychain
+- macOS: Keychain Access
+- Windows: Credential Manager
+- Linux: Secret Service / libsecret
+
+**Encryption:**
+- Your OS encrypts the keys
+- Flint never stores keys in plain text
+- Only accessible to Flint
+
+**macOS Keychain Prompt:**
+
+When you first save an API key on macOS:
+
+```
+"Flint" wants to access your keychain
+
+[Password field]
+
+[ Deny ]  [ Always Allow ]
+```
+
+**Click "Always Allow"** to avoid repeated prompts.
+
+This is normal - Flint is using your OS's secure storage.
+
+### Validating Keys
+
+**Automatic validation:**
+- Green ✓ = Valid key
+- Red ❌ = Invalid key
+
+**Testing:**
+1. Add key
+2. Open AI assistant
+3. Send test message
+4. If responds = key works
+
+**If invalid:**
+- Check for typos
+- Verify key is active on provider site
+- Generate new key if needed
+
+### Managing API Keys
+
+**Viewing keys:**
+- Keys displayed as password field (hidden)
+- Can't copy from settings
+- Retrieve from provider site if needed
+
+**Changing keys:**
+1. Delete existing key (clear field)
+2. Paste new key
+3. Validates and saves automatically
+
+**Clearing all keys:**
+
+**Danger Zone section:**
+1. Click "Clear All API Keys"
+2. Confirm action
+3. All keys removed from keychain
+
+**Use with caution** - cannot be undone!
+
+### API Key Security
+
+**Best practices:**
+
+**DO:**
+- Store only in Flint (secure storage)
+- Rotate keys periodically
+- Use separate keys for different apps
+- Monitor usage on provider site
+
+**DON'T:**
+- Share keys with others
+- Commit keys to git repositories
+- Store in plain text files
+- Use same key across many apps
+
+**If compromised:**
+1. Revoke key on provider site immediately
+2. Generate new key
+3. Update in Flint
+4. Monitor billing for unusual activity
+
+## Database
+
+Manage your vault's database.
+
+### What is the Database?
+
+Flint uses **SQLite** to index your notes:
+
+**Stores:**
+- Note metadata (titles, types, dates)
+- Full-text search index (FTS5)
+- Wikilinks and backlinks
+- Tags and fields
+- Review schedules
+
+**Doesn't store:**
+- Note content (that's in .md files)
+- Binary files (images, PDFs)
+
+**Location:**
+- `.flint/database.db` in your vault folder
+
+### Rebuilding Database
+
+**When to rebuild:**
+
+**Search not working:**
+- Can't find notes you know exist
+- Search results seem incomplete
+
+**Notes missing:**
+- Notes created externally don't appear
+- Recently created notes not showing
+
+**After corruption:**
+- Database errors
+- App crashes related to database
+
+**How to rebuild:**
+
+1. Settings → Database
+2. Click "Rebuild Database"
+3. Confirm action
+4. Flint scans all .md files
+5. Rebuilds index from scratch
+6. "Rebuild complete" message
+
+**What happens:**
+- All .md files in vault scanned
+- Metadata extracted
+- Search index recreated
+- Links reprocessed
+- Takes a few seconds to minutes (depends on vault size)
+
+**Safe to do:**
+- Non-destructive (doesn't touch .md files)
+- Can rebuild anytime
+- Good for troubleshooting
+
+### Database Statistics
+
+**View stats** (future):
+```
+Database info:
+- Total notes: 342
+- Last rebuilt: 2 hours ago
+- Database size: 5.2 MB
+- Index size: 12.3 MB
+- FTS index: Current
+```
+
+### Backup and Recovery
+
+**Database is reconstructible:**
+- If database.db deleted or corrupted
+- Flint rebuilds from .md files automatically
+- No permanent data loss
+
+**Backup strategy:**
+- Backup vault folder (includes database)
+- Or just backup .md files
+- Database can be regenerated
+
+## Application Updates
+
+Manage Flint updates.
+
+### Auto-Update System
+
+**How it works:**
+
+1. **Background check** - Flint checks for updates on startup
+2. **Download** - New version downloads in background
+3. **Notification** - Green dot appears when ready
+4. **Install** - Restart to update
+
+**Update channels:**
+
+**Stable:**
+- Production releases
+- Thoroughly tested
+- Recommended for most users
+
+**Canary:**
+- Bleeding edge features
+- Latest development
+- May have bugs
+- For early adopters
+
+### Checking for Updates
+
+**Automatic:**
+- Checks on every app launch
+- Checks periodically while running
+
+**Manual check:**
+1. Settings → Application Updates
+2. Click "Check Now"
+3. Status appears
+
+**Results:**
+```
+✓ You're up to date (v1.2.3)
+
+or
+
+🔄 Update available (v1.3.0)
+   Downloading in background...
+
+or
+
+⬇ Update ready to install
+   Restart to update
+```
+
+### Viewing Changelog
+
+**See what's new:**
+
+1. Settings → Application Updates
+2. Click "View Changelog"
+3. Changelog modal opens
+
+**Shows:**
+- Current version
+- All previous versions
+- Changes in each version
+- New features, bug fixes
+
+**Useful for:**
+- Understanding new features
+- Seeing what changed
+- Reporting bugs ("since version X")
+
+### Update Notifications
+
+**Green dot indicator:**
+- Appears in top bar when update ready
+- Click to see update details
+
+**Update banner** (future):
+- In-app notification
+- "Update available - Restart to install"
+- Dismiss or install
+
+### Installing Updates
+
+**To update:**
+1. Save any work
+2. Quit Flint
+3. Relaunch Flint
+4. Update applies automatically
+
+**Or:**
+- Click "Restart to Update" if available
+- Flint closes and reopens with new version
+
+**Update process:**
+- Preserves all data
+- Settings maintained
+- Notes untouched
+- Conversation history kept
+
+### Troubleshooting Updates
+
+**Update not downloading:**
+
+1. Check internet connection
+2. Check for firewall/proxy issues
+3. Manually download from website
+4. Install new version over old
+
+**Update failed:**
+
+1. Download installer manually
+2. Quit Flint
+3. Run installer
+4. Relaunch
+
+**Rollback** (if needed):
+
+1. Download previous version
+2. Install over current version
+3. Report issue on GitHub
+
+## Future Settings
+
+Planned configuration options:
+
+### Editor Settings
+
+**Preferences:**
+- Line numbers (on/off)
+- Word wrap (on/off)
+- Tab size (2, 4 spaces)
+- Auto-save interval
+- Spell check (enable/disable)
+
+### AI Settings
+
+**Per-vault model:**
+- Default model for vault
+- Model selection preferences
+- Cost limits/warnings
+- Context window size
+
+### Review Settings
+
+**Scheduling:**
+- Custom intervals (not just 1 day / 7 days)
+- Review time limits
+- Daily review reminders
 
 ### Privacy Settings
 
-- **Local Processing**: Use local models (if available)
-- **Disable AI**: Turn off AI features completely
-- **Clear Conversation History**: Remove stored AI conversations
+**Telemetry:**
+- Opt-in crash reporting
+- Anonymous usage statistics
+- What data is collected
 
-## Review System
+### Keyboard Shortcuts
 
-### Schedule Configuration
+**Customization:**
+- Change default shortcuts
+- Add custom shortcuts
+- Export/import keybindings
 
-Customize spaced repetition intervals:
+## Best Practices
 
-- **New Card Intervals**: Initial review timing
-- **Graduating Intervals**: When cards move to long-term review
-- **Maximum Interval**: Longest time between reviews
-- **Ease Factor**: How difficulty affects scheduling
+### API Keys
 
-### Review Limits
+**Security:**
+- Never share keys
+- Rotate periodically
+- Monitor usage
+- Use OpenRouter for flexibility
 
-- **Daily Review Limit**: Maximum reviews per day
-- **New Cards Per Day**: Limit on new material
+**Cost management:**
+- Choose appropriate models
+- Monitor spending on provider site
+- Use caching (automatic in Claude)
+- Start fresh conversations to reduce context
 
-### Review Behavior
+### Database
 
-- **Show Answer Timer**: Display time to answer
-- **Auto-advance**: Move to next card automatically
-- **Review Order**: Random, Due date, or Custom
+**Maintenance:**
+- Rebuild if search seems off
+- Rebuild after major external edits
+- Rebuild if weird behavior occurs
 
-## Editor Settings
+**Don't worry:**
+- Database is reconstructible
+- Can't lose data by rebuilding
+- When in doubt, rebuild
 
-### Markdown
+### Updates
 
-- **Auto-pair brackets**: Automatically close brackets and quotes
-- **Smart lists**: Continue lists automatically
-- **Indentation**: Spaces or tabs, indent size
+**Stay current:**
+- Enable auto-updates
+- Update promptly
+- Read changelogs
+- Report issues
 
-### Formatting
+**If unstable:**
+- Switch from Canary to Stable
+- Wait for next stable release
+- Report bugs to help improve
 
-- **Line wrapping**: Wrap long lines or scroll horizontally
-- **Line numbers**: Show/hide line numbers
-- **Whitespace**: Show invisible characters
+### Theme
 
-### Shortcuts
+**Personal preference:**
+- No right answer
+- Try each option
+- Consider lighting conditions
+- Auto mode is convenient
 
-Customize keyboard shortcuts:
+**Dark mode benefits:**
+- Reduced eye strain in low light
+- Battery saving (OLED screens)
+- Popular among developers
 
-1. Open Settings > Shortcuts
-2. Click on a command to record a new shortcut
-3. Press your desired key combination
+**Light mode benefits:**
+- Better in bright environments
+- Higher contrast
+- Traditional reading experience
 
-## Templates
+## Exporting Settings
 
-### Daily Note Template
+**Future feature:**
 
-Customize the template for daily notes:
+Export your configuration:
 
-1. Open Settings > Templates
-2. Edit the "Daily Note Template"
-3. Use variables like `{date}`, `{day}`, `{weather}`
+```json
+{
+  "theme": "dark",
+  "editor": {
+    "lineNumbers": true,
+    "wordWrap": false,
+    "fontSize": 14
+  },
+  "ai": {
+    "defaultModel": "claude-3-opus"
+  }
+}
+```
 
-### Custom Templates
+Import on new machine or after reinstall.
 
-Create reusable templates:
+## Resetting to Defaults
 
-1. Click "Add Template"
-2. Name your template
-3. Define the content
-4. Use templates via command palette
+**If settings corrupted or want fresh start:**
 
-## Data & Privacy
+**Manual reset:**
+1. Quit Flint
+2. Delete `{userData}/settings/app-settings.json`
+3. Relaunch Flint
+4. Settings reset to defaults
 
-### Backup
+**Or future UI:**
+- Settings → Advanced → Reset to Defaults
+- Confirm action
+- App restarts with default settings
 
-Configure automatic backups:
+**Doesn't affect:**
+- Vaults
+- Notes
+- API keys (stored separately)
+- Database
 
-- **Backup Location**: Where to store backups
-- **Backup Frequency**: How often to backup
-- **Keep Backups**: How many backups to retain
+## Settings Files
 
-### Export
+**Where settings are stored:**
 
-Export your data:
+**macOS:**
+```
+~/Library/Application Support/Flint/
+├── settings/
+│   └── app-settings.json
+└── vault-data/
+    └── {vaultId}/
+        ├── pinned-notes.json
+        └── temporary-tabs.json
+```
 
-- **Export All Notes**: Download as markdown files
-- **Export Database**: Full database export for migration
+**Windows:**
+```
+%APPDATA%\Flint\
+├── settings\
+│   └── app-settings.json
+└── vault-data\
+    └── {vaultId}\
+        ├── pinned-notes.json
+        └── temporary-tabs.json
+```
 
-### Sync
+**Linux:**
+```
+~/.config/Flint/
+├── settings/
+│   └── app-settings.json
+└── vault-data/
+    └── {vaultId}/
+        ├── pinned-notes.json
+        └── temporary-tabs.json
+```
 
-(Future feature - documentation to be added)
+**Vault registry:**
+- Tracks all vaults
+- Location: `{userData}/vaults.json`
 
-## Advanced
+## Next Steps
 
-### Developer Tools
+- **[Getting Started](/getting-started)** - Initial setup
+- **[AI Assistant](/features/agent)** - Configure AI models
+- **[Multi-Vault](/features/vaults)** - Manage multiple vaults
+- **[User Interface](/guides/interface)** - Customize your workspace
 
-- **Enable Developer Tools**: Access browser dev tools
-- **Debug Mode**: Show additional logging
+---
 
-### Performance
-
-- **Database Optimization**: Rebuild database indexes
-- **Clear Cache**: Remove cached data
-
-### Reset
-
-- **Reset Settings**: Restore default settings
-- **Reset Database**: Clear all data (use with caution!)
-
-## Troubleshooting
-
-If you encounter issues with your configuration:
-
-1. Try resetting to defaults
-2. Check the logs in Help > Show Logs
-3. Contact support or file an issue on GitHub
+**Pro tip:** Start with defaults and adjust as you discover preferences. Most users only need to set theme and API key. The rest can stay default unless you have specific needs.
