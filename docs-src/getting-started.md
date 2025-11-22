@@ -196,8 +196,8 @@ See [Configuration](/guides/configuration) for all settings.
 | ----------------- | --------------- | --------------- |
 | New note          | `Cmd+Shift+N`   | `Ctrl+Shift+N`  |
 | Quick search      | `Cmd+O`         | `Ctrl+O`        |
-| AI agent          | `Cmd+K`         | `Ctrl+K`        |
-| Today's daily     | `Cmd+Shift+D`   | `Ctrl+Shift+D`  |
+| AI agent          | `Cmd+Shift+A`   | `Ctrl+Shift+A`  |
+| Dail view         | `Cmd+2`         | `Ctrl+2`        |
 | Command palette   | `Cmd+Shift+P`   | `Ctrl+Shift+P`  |
 
 See [Shortcuts](/guides/shortcuts) for the complete list.
@@ -247,20 +247,12 @@ Before diving deeper, review these core ideas:
 
 ## Tips for Success
 
-::: tip Start Simple
-Don't try every feature at once. Start by creating notes and linking ideas. Add AI assistance, routines, and review practice as you need them.
-:::
-
 ::: tip Capture Without Friction
 Don't worry about perfect organization upfront. Capture freely, then organize later with AI help. The [inbox](/features/organization#inbox) catches everything.
 :::
 
 ::: tip Your Notes Are Portable
 Your notes are plain markdown in a folder. You can open them in any text editor, sync with cloud storage, back them up, search with command-line tools, or process with scripts. You're never locked in.
-:::
-
-::: tip Trust the Cycle
-The complete cycle builds knowledge: **capture** fluidly (externalize) → **connect** with links (internalize) → **process** periodically (internalize) → **review** on schedule (resurface) → **synthesize** with AI (internalize).
 :::
 
 ---

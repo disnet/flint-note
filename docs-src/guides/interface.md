@@ -2,68 +2,38 @@
 
 This guide walks you through Flint's interface, explaining each component and how to use it effectively.
 
-## Overview: Three-Column Layout
+## Overview
 
-Flint uses a **three-column layout** designed for efficient note-taking with AI assistance:
-
-```
-┌───────────────────────────────────────────────────────────────┐
-│  Workspace Bar (Top)                                          │
-├──────────────┬─────────────────────┬─────────────────────────┤
-│              │                     │                         │
-│   Left       │   Main View         │   Right Sidebar        │
-│   Sidebar    │   (Editor)          │                         │
-│              │                     │   ┌─────────────────┐  │
-│  ┌────────┐  │  ┌──────────────┐   │   │                 │  │
-│  │Pinned  │  │  │ Note Title   │   │   │  AI Agent       │  │
-│  │Notes   │  │  ├──────────────┤   │   │                 │  │
-│  │        │  │  │              │   │   │  [Chat input]   │  │
-│  │ • Note │  │  │   Editor     │   │   │                 │  │
-│  │ • Note │  │  │   Content    │   │   └─────────────────┘  │
-│  │        │  │  │              │   │                         │
-│  └────────┘  │  │              │   │   Metadata Editor      │
-│              │  │              │   │   Backlinks            │
-│  ┌────────┐  │  │              │   │   Suggestions          │
-│  │Temp    │  │  │              │   │                         │
-│  │Tabs    │  │  └──────────────┘   │                         │
-│  │        │  │                     │                         │
-│  │ × Tab  │  │                     │                         │
-│  │ × Tab  │  │                     │                         │
-│  └────────┘  │                     │                         │
-│              │                     │                         │
-└──────────────┴─────────────────────┴─────────────────────────┘
-```
+![Flint Interface](../ui.png)
 
 ### Key Areas
 
-1. **Workspace Bar** (top) - Vault selector, new note, search, settings
-2. **Left Sidebar** - Navigation, pinned notes, temporary tabs
+1. **Top Bar** - Vault selector, navigation, search
+2. **Left Sidebar** - System views, pinned notes, workspaces
 3. **Main View** - Note editor where you write
-4. **Right Sidebar** - AI agent, metadata, backlinks
+4. **Right Sidebar** - AI agent for assistance and insights
 
 You can **resize** these sections by dragging the dividers between them.
 
-## Workspace Bar
+## Top Bar
 
-The workspace bar at the top provides global actions and navigation.
+The top bar provides global actions and navigation.
 
 ### Components
 
 **Left side:**
 
-- **Vault Selector** - Switch between vaults
-- **System Views** - Access Daily, Inbox, Review, Workflows
+- **Menu** - Application menu
+- **Vault Selector** - Switch between vaults (e.g., "Main")
+- **Navigation** - Back/forward arrows
 
 **Center:**
 
-- **Current note title** - Shows the active note
+- **Search** (`⌘O` / `Ctrl+O`) - Quick search across all notes
 
 **Right side:**
 
-- **New Note** (`Ctrl+Shift+N` / `Cmd+Shift+N`) - Create a note
-- **Search** (`Ctrl+O` / `Cmd+O`) - Quick search overlay
-- **Settings** - Application settings
-- **Update Indicator** - Shows when updates are available
+- **Agent/Shelf** - Toggle between AI agent and shelf
 
 ### Vault Selector
 
@@ -73,94 +43,47 @@ Click the vault name in the top-left to:
 - Switch to a different vault
 - Create a new vault
 
-Each vault is completely isolated with its own:
-
-- Notes and database
-- AI conversation history
-- Settings and preferences
-- Pinned notes and tabs
-
 ## Left Sidebar: Navigation
 
-The left sidebar provides quick access to your notes.
-
-### Pinned Notes Section
-
-**What are pinned notes?**
-
-Pinned notes are notes you want constant access to. They appear at the top of the sidebar.
-
-**How to pin a note:**
-
-1. Right-click on a note anywhere in Flint
-2. Select "Pin to Sidebar"
-3. The note appears in the pinned section
-
-Or click the pin icon when viewing a note.
-
-**Organizing pinned notes:**
-
-- **Drag to reorder** - Click and drag notes to change order
-- **Unpin** - Right-click and select "Unpin"
-- **Visual indicators** - Note type icons help identify notes
-
-**Best practices:**
-
-Pin notes you reference frequently:
-
-- Today's daily note
-- Active project notes
-- Reference materials (style guide, templates)
-- Important documents
-
-**Limit to 5-10 pins** - Too many defeats the purpose of quick access.
-
-### Temporary Tabs Section
-
-**What are temporary tabs?**
-
-Temporary tabs are like Arc browser's temporary tabs - ephemeral access to recently viewed notes.
-
-**How they work:**
-
-When you open a note via:
-
-- **Search** (`Ctrl+O`) → Creates temporary tab
-- **Wikilink** → Creates temporary tab
-- **Pinned note** → Opens directly, no tab
-- **Existing temporary tab** → Reuses that tab
-
-**Features:**
-
-- **Individual close buttons** - Click `×` to close a tab
-- **"Close All" button** - Clear all temporary tabs at once
-- **24-hour auto-cleanup** - Old tabs are removed automatically
-- **Source tracking** - Remember how you opened each note
-
-**Converting to permanent:**
-
-If you want to keep a note accessible:
-
-1. Right-click the temporary tab
-2. Select "Pin to Sidebar"
-3. It moves from temporary to pinned
-
-**Why use temporary tabs?**
-
-They keep your navigation history visible without cluttering your pinned notes. Perfect for:
-
-- Notes you're referencing while writing
-- Following a chain of wikilinks
-- Working through search results
+The left sidebar provides quick access to your notes and system views.
 
 ### System Views
 
-Below pinned notes and tabs, you'll find quick access to:
+At the top of the sidebar, you'll find quick access to:
 
-- **Daily** - Jump to today's daily note
-- **Inbox** - View uncategorized notes
-- **Review** - Access spaced repetition review
-- **Workflows** - Manage workflows and automations
+- **Inbox** - Recently created notes notes (shows count badge)
+- **Daily** - Weekly view of daily notes
+- **Review** - Access spaced repetition review (shows count badge)
+- **Routines** - Manage agent routines and workflows
+- **Note Types** - Configure note types
+- **Settings** - Application settings
+
+### Pinned Notes and Recent Notes
+
+The left sidebar has two note sections below the system views:
+
+**Pinned Notes:**
+
+Notes you want permanent quick access to. These stay in the sidebar until you unpin them.
+
+- Click the "Pinned" button in the note toolbar to pin a note
+- Drag and drop to reorder pinned notes
+- Visual indicators show note type (💎 for Evergreen, 📄 for regular notes, etc.)
+
+**Recent Notes:**
+
+Notes you've recently accessed. These appear below pinned notes.
+
+- When you click a wikilink, the note opens in the Recent section
+- Click "close all" to clear all recent notes
+- Drag and drop to reorder recent notes
+- To make a recent note permanent, click the "Pinned" button to move it to the Pinned section
+
+**Best practices:**
+
+- **Pin** notes you reference frequently: active projects, learning notes, reference materials
+- **Recent** notes are temporary - let them accumulate as you navigate, then "close all" when done
+- **Limit pinned notes to 5-10** - Too many defeats the purpose of quick access
 
 ### Workspaces Bar
 
@@ -171,29 +94,13 @@ Below pinned notes and tabs, you'll find quick access to:
 Workspaces are independent contexts that each have their own:
 
 - Pinned notes
-- Temporary tabs
-- Visual identity (icon and name)
-
-**Why use workspaces?**
-
-Switch between projects, workflows, or focus areas without losing your place. Each workspace maintains its own set of open notes.
+- Active view state
+- Visual identity (icon)
 
 **Quick actions:**
 
 - **Click workspace icon** - Switch to that workspace
-- **Right-click workspace** - Edit or delete
-- **Drag workspace icons** - Reorder
 - **Click `+` button** - Create new workspace
-- **Keyboard shortcuts** - `Ctrl+1` through `Ctrl+9` (or `Cmd` on Mac) switch to first 9 workspaces
-
-**Examples:**
-
-```
-[📋] [📱] [🌐] [+]
- ↑    ↑    ↑    ↑
-Daily Mobile Web  Add
-(active)
-```
 
 **Learn more:** See the [Workspaces feature guide](/features/workspaces) for detailed information.
 
@@ -201,280 +108,64 @@ Daily Mobile Web  Add
 
 The main view is where you create and edit notes.
 
-### Editor Header
+### Note Title and Toolbar
 
 At the top of the editor:
 
-**Left side:**
-
-- **Note title** - Editable inline, press Enter to confirm
-- **Note type dropdown** - Change the note's type
-- **Type indicator** - Visual icon showing current type
-
-**Right side:**
-
-- **Pin button** - Pin/unpin this note
-- **More actions** - Additional note operations
+- **Note title** - Large, prominent title (e.g., "Spaced Repetition")
+- **Note toolbar** - Quick actions for the current note:
+  - **Note type** - Note type indicator (click to change)
+  - **Pinned** - Pin/unpin this note
+  - **Metadata** - Edit YAML frontmatter
+  - **Shelf** - Open note in the shelf (for quick reference)
+  - **...** - More actions (Preview, Mark for review, Archive)
 
 ### Editor Area
 
-The editor uses **CodeMirror 6** for professional editing:
-
 **Features:**
 
-- **Markdown syntax highlighting**
-- **Auto-save** - Changes saved automatically after 1 second
-- **Wikilink autocomplete** - Type `[[` to search for notes
-- **Wikilink navigation** - Click links to follow them
-- **Multi-cursor editing** - Hold `Ctrl/Cmd` to add cursors
-- **Find/Replace** - `Ctrl+F` / `Cmd+F` to search
+- **Markdown syntax highlighting** - Headers, bold, italic, code blocks
+- **Auto-save** - Changes saved automatically
+- **Wikilink autocomplete** - Type `[[` to search for notes (shown in screenshot as `[[The forgetting curve]]`)
+- **Wikilink navigation** - Click links to follow them (e.g., `[[Hermann Ebbinghaus]]`)
 
-**Visual feedback:**
+## Right Sidebar: AI Agent
 
-- **Saving indicator** - Shows "Saving..." when saving
-- **Saved confirmation** - Brief "Saved" message
-- **Conflict warning** - Alert if file changed externally
+The right sidebar features Flint's AI agent for assistance and insights.
 
-### Markdown Editing Tips
+### Agent Interface
 
-**Headers:**
+The agent provides intelligent assistance as you work:
 
-```markdown
-# Large Header
+**Conversation view:**
 
-## Medium Header
+- View selector dropdown (e.g., "History")
+- **New** button to start fresh conversations
+- Scrollable conversation history
+- Your questions and the agent's responses
 
-### Smaller Header
-```
 
-**Text formatting:**
+**What can the agent do?**
 
-```markdown
-**bold text**
-_italic text_
-`inline code`
-```
+The agent can help you:
 
-**Lists:**
-
-```markdown
-- Bullet item
-- Another item
-  - Nested item
-
-1. Numbered item
-2. Another item
-```
-
-**Code blocks:**
-
-````markdown
-```javascript
-function hello() {
-  console.log('Hello!');
-}
-```
-````
-
-**Wikilinks:**
-
-```markdown
-[[Note Title]]
-[[type/filename|Display Text]]
-```
-
-**Tables:**
-
-```markdown
-| Header 1 | Header 2 |
-| -------- | -------- |
-| Cell 1   | Cell 2   |
-```
-
-## Right Sidebar: Agent and Metadata
-
-The right sidebar contains tools for AI assistance and note management.
-
-### Tabs
-
-The right sidebar has multiple tabs:
-
-1. **Agent** - AI agent chat
-2. **Metadata** - YAML frontmatter editor
-3. **Backlinks** - Notes linking to this note
-4. **Suggestions** - AI-generated suggestions (if enabled)
-
-Click the tab headers to switch between them.
-
-### Agent Tab
-
-The AI agent appears in this tab.
-
-**Components:**
-
-**Chat history:**
-
-- Scrollable conversation with the AI
-- Your messages and AI responses
-- Tool calls shown inline with results
-
-**Message input:**
-
-- Text area for your messages
-- `Ctrl+Enter` / `Cmd+Enter` to send
-- Supports multi-line input
-
-**Model selector:**
-
-- Dropdown to choose AI model
-- Shows current model and provider
-- Cost estimates per message
-
-**Conversation controls:**
-
-- **New conversation** - Start fresh
-- **Clear history** - Remove all messages
-- **Export** - Save conversation
-
-**Example usage:**
-
-```
-You: Find all meeting notes from last week
-
-AI: [Searches notes]
-    I found 3 meeting notes from last week:
-
-    1. Team Standup (Jan 8)
-    2. Client Review (Jan 9)
-    3. Planning Session (Jan 12)
-
-    Would you like me to summarize them?
-
-You: Yes, create a summary note
-
-AI: [Creates note]
-    I've created "Weekly Meeting Summary" with key points...
-```
+- Find and summarize recent work
+- Answer questions about your notes
+- Create connections between ideas
+- Organize and structure information
+- Track what you've been working on
 
 See [AI Agent](/features/agent) for detailed capabilities.
 
-### Metadata Tab
+## Search
 
-The metadata editor lets you edit YAML frontmatter visually.
+The top bar features a prominent search field for quick access to all your notes.
 
-**Features:**
+**How to search:**
 
-- **Syntax highlighting** - YAML syntax colored
-- **Real-time validation** - Errors highlighted instantly
-- **Auto-save** - Changes saved on blur
-- **Field types** - Strings, numbers, dates, arrays, booleans
-- **Type hints** - Suggestions based on note type schema
-
-**Example metadata:**
-
-```yaml
----
-title: Team Standup
-type: meeting
-date: 2024-01-15
-attendees: [Sarah, John, Maria]
-priority: high
-tags: [weekly, standup]
----
-```
-
-**Common operations:**
-
-**Add a field:**
-
-```yaml
-new_field: value
-```
-
-**Add a tag:**
-
-```yaml
-tags: [existing-tag, new-tag]
-```
-
-**Change date:**
-
-```yaml
-date: 2024-01-16
-```
-
-**Add array:**
-
-```yaml
-attendees:
-  - Sarah
-  - John
-```
-
-**Errors:**
-
-If you make a syntax error (invalid YAML), the editor highlights the line and shows an error message. Fix the syntax to save.
-
-### Backlinks Tab
-
-Shows notes that link to the current note.
-
-**What you see:**
-
-For each backlink:
-
-- **Note title** - Clickable to open
-- **Context snippet** - Surrounding text showing how it links
-- **Note type** - Visual indicator
-
-**Example:**
-
-```
-Backlinks (3)
-
-📄 Project Overview
-  "...discussed in [[Team Standup]] meeting..."
-
-✓ Action Items
-  "...follow up from [[Team Standup]]..."
-
-📅 Weekly Summary
-  "...key points from [[Team Standup]]..."
-```
-
-**Why backlinks matter:**
-
-They help you:
-
-- See where this note is referenced
-- Discover related context
-- Navigate between connected ideas
-- Find notes you forgot about
-
-### Suggestions Tab
-
-If the note type has AI suggestions enabled, this tab shows suggestions.
-
-**What are suggestions?**
-
-AI-generated recommendations for:
-
-- Related notes to link
-- Missing metadata to add
-- Tasks to create
-- Content to expand
-
-**Actions:**
-
-- **Accept** - Apply the suggestion
-- **Dismiss** - Hide this suggestion
-- **Regenerate** - Get new suggestions
-
-See [Note Suggestions](/features/notes#suggestions) for more.
-
-## Search Overlay
-
-Press `Ctrl+O` / `Cmd+O` to open the global search overlay.
+1. Click the search field or press `⌘O` / `Ctrl+O`
+2. Type to search across note titles and content
+3. Select a note to open it
 
 **Features:**
 
@@ -482,134 +173,32 @@ Press `Ctrl+O` / `Cmd+O` to open the global search overlay.
 - **Fuzzy matching** - Finds notes even with typos
 - **Title and content** - Searches both
 - **Keyboard navigation** - Arrow keys to select, Enter to open
-- **ESC to close** - Quick dismissal
 
-**Search operators:**
+See [Search and Discovery](/features/search) for advanced search operators and techniques.
 
-```
-type:meeting          Find meetings
-tag:important         Find tagged notes
-created:today         Today's notes
-created:>2024-01-01   Notes after date
-"exact phrase"        Exact match
-```
+## Settings
 
-**Example workflow:**
+Access application settings from the left sidebar's **Settings** option.
 
-1. Press `Ctrl+O`
-2. Type "project"
-3. See all notes with "project" in title or content
-4. Arrow down to select
-5. Press Enter to open
-6. Temporary tab created
+**Available settings:**
 
-See [Search and Discovery](/features/search) for advanced search.
-
-## Settings Panel
-
-Click the **Settings** icon to access application settings.
-
-### Settings Sections
-
-**Appearance:**
-
-- Theme (light/dark/system)
-- Font preferences
-- Layout settings
-
-**API Keys:**
-
-- OpenRouter API key
-- Secure keychain storage
-- Validation indicators
-
-**Database:**
-
-- Rebuild database from files
-- Database statistics
-
-**Updates:**
-
-- Current version
-- Check for updates
-- View changelog
-- Update channel (stable/canary)
+- **Appearance** - Theme, fonts, layout
+- **API Keys** - Configure AI model access
+- **Database** - Manage your note database
+- **Updates** - Check for new versions
 
 See [Configuration](/guides/configuration) for detailed settings.
-
-## Status Indicators
-
-Visual feedback throughout the interface:
-
-### Saving Indicators
-
-**In editor header:**
-
-- **"Saving..."** - Note is being saved
-- **"Saved"** - Save completed successfully
-- **"Conflict"** - External edit detected
-
-### Update Indicator
-
-**In workspace bar:**
-
-- **Green dot** - Update available
-- **Click to view** - Shows update details
-
-### AI Activity
-
-**In Agent tab:**
-
-- **Typing indicator** - AI is responding
-- **Tool execution** - Shows which tool is running
-- **Progress bars** - For long operations
-
-## Keyboard Shortcuts
-
-Essential shortcuts for productivity:
-
-### Global
-
-| Shortcut                       | Action          |
-| ------------------------------ | --------------- |
-| `Ctrl+Shift+N` / `Cmd+Shift+N` | New note        |
-| `Ctrl+O` / `Cmd+O`             | Search overlay  |
-| `Ctrl+K` / `Cmd+K`             | Toggle AI agent |
-| `Ctrl+,` / `Cmd+,`             | Settings        |
-
-### Editor
-
-| Shortcut                   | Action                        |
-| -------------------------- | ----------------------------- |
-| `Ctrl+F` / `Cmd+F`         | Find in note                  |
-| `Ctrl+H` / `Cmd+H`         | Replace                       |
-| `Ctrl+S` / `Cmd+S`         | Save (auto-save handles this) |
-| `Ctrl+Enter` / `Cmd+Enter` | Submit (in chat/review)       |
-
-### Navigation
-
-| Shortcut           | Action      |
-| ------------------ | ----------- |
-| `Ctrl+[` / `Cmd+[` | Go back     |
-| `Ctrl+]` / `Cmd+]` | Go forward  |
-| Click wikilink     | Follow link |
 
 ## Customization
 
 ### Resizing Panels
 
-**Drag dividers** between sections:
+Drag the dividers between sections to resize:
 
-- Between left sidebar and main view
-- Between main view and right sidebar
+- Left sidebar width
+- Right sidebar width
 
-Your preferred sizes are saved per vault.
-
-### Collapsing Sidebars
-
-- Click the chevron icons to collapse sidebars
-- Double-click divider to toggle
-- Focus on writing when you need it
+Your preferred sizes are saved automatically.
 
 ### Theme
 
@@ -617,50 +206,29 @@ Choose your theme in Settings:
 
 - **Light** - Always light mode
 - **Dark** - Always dark mode
-- **System** - Follow OS preference
+- **System** - Follow OS preference (as shown in screenshot)
 
-## Tips for Effective Use
+### Navigation Workflow
 
-### Left Sidebar
+A typical workflow using pinned and recent notes:
 
-- Keep **5-10 pinned notes** maximum
-- Use temporary tabs for exploration
-- Pin your daily note and active projects
-- Close temporary tabs when done
+1. **Pin your core notes** - Daily note, active projects, key references
+2. **Navigate freely** - Click wikilinks to explore, notes appear in Recent
+3. **Work across notes** - Recent notes stay accessible as you navigate
+4. **Promote important notes** - Click "Pinned" on a recent note to keep it permanently
+5. **Clean up** - Click "close all" when you're done exploring to clear recent notes
 
-### Main View
-
-- Use **full-width** when writing
-- Collapse sidebars for focused work
-- Use wikilinks liberally as you write
-- Let auto-save handle saving
-
-### Right Sidebar
-
-- Keep **Agent tab** open when organizing
-- Switch to **Metadata** when adding structure
-- Check **Backlinks** to find connections
-- Use **Suggestions** for ideas
-
-### Keyboard-First
-
-Power users can work mostly keyboard-driven:
-
-1. `Ctrl+Shift+N` - New note
-2. Write with markdown and wikilinks
-3. `Ctrl+K` - Ask AI to organize
-4. `Ctrl+O` - Search for next note
-5. Repeat
+This keeps your sidebar organized: permanent notes at the top, temporary navigation below.
 
 ## Next Steps
 
 Now that you understand the interface:
 
-- **[Note Management](/features/notes)** - Learn about note types and metadata
-- **[Search and Discovery](/features/search)** - Master search techniques
-- **[AI Agent](/features/agent)** - Use AI effectively
+- **[AI Agent](/features/agent)** - Learn what the AI agent can do
+- **[Note Types](/features/notes)** - Understand different note types (Evergreen, Daily, etc.)
 - **[Wikilinks](/features/wikilinks)** - Build connected knowledge
+- **[Search and Discovery](/features/search)** - Master search techniques
 
 ---
 
-**Remember:** The interface is designed to stay out of your way. Focus on capturing and connecting ideas—the tools are there when you need them.
+**Remember:** Flint's interface is designed to stay out of your way. Focus on capturing and connecting ideas—the tools are there when you need them.
