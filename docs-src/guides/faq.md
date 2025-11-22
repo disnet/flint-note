@@ -294,10 +294,9 @@ created:2024-01-01..2024-01-31
 
 ### What AI models are available?
 
-**Through OpenRouter:**
-- Claude (Anthropic)
-- GPT-4 (OpenAI)
-- And many others
+**Two models available:**
+- **Normal** (Claude Haiku 4.5) - Fast and economical, great for most tasks
+- **Plus Ultra** (Claude Sonnet 4.5) - Enhanced reasoning, but slower and more expensive
 
 **Choose model** in conversation.
 

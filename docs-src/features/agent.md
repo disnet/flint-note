@@ -124,18 +124,15 @@ AI: I'll update the note with those details.
 **Choose your AI model:**
 - Dropdown at top of chat
 - Shows current model
-- Displays cost per message (approximate)
 
-**Available models** (via OpenRouter):
-- **Claude** (Anthropic) - Best for reasoning and long context
-- **GPT-4** (OpenAI) - Strong general capability
-- **GPT-3.5** (OpenAI) - Fast and economical
-- Many more models available
+**Available models:**
+- **Normal** (Claude Haiku 4.5) - Fast and economical, great for just about everything
+- **Plus Ultra** (Claude Sonnet 4.5) - Extra reasoning power when you really need it
 
 **Model selection tips:**
-- **Complex tasks** → Use Claude Opus or GPT-4
-- **Quick tasks** → Use Claude Haiku or GPT-3.5
-- **Long conversations** → Use models with large context windows
+- **Normal** is the recommended choice for most tasks
+- **Plus Ultra** provides enhanced reasoning capabilities but is much slower and more expensive
+- Only switch to Plus Ultra when you need the extra reasoning power
 
 ## What the AI Can Do
 
@@ -599,9 +596,9 @@ This message: ~$0.03
 
 **Tips to reduce costs:**
 
-1. **Use economical models:**
-   - Claude Haiku vs Claude Opus
-   - GPT-3.5 vs GPT-4
+1. **Use the Normal model:**
+   - Normal (Claude Haiku 4.5) is great for most tasks
+   - Only use Plus Ultra when you need extra reasoning power
 
 2. **Start fresh conversations:**
    - Long conversations = more context tokens
@@ -787,9 +784,9 @@ See [Privacy and Security](/guides/privacy) for more details.
 
 **Solutions:**
 
-1. **Use cheaper models:**
-   - Switch to Haiku or GPT-3.5
-   - Reserve expensive models for complex tasks
+1. **Use the Normal model:**
+   - Normal (Claude Haiku 4.5) handles most tasks well
+   - Reserve Plus Ultra (Claude Sonnet 4.5) for when you truly need enhanced reasoning
 
 2. **Start fresh conversations:**
    - Long conversations accumulate context

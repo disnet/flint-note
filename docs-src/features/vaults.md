@@ -554,20 +554,6 @@ zip -r MyVault-Archive.zip MyVault/
 }
 ```
 
-### AI Model Per Vault
-
-**Use different models:**
-
-Work vault → GPT-4 (coding/technical)
-Personal vault → Claude (writing)
-Research vault → Opus (deep reasoning)
-
-**Set per vault:**
-1. Switch to vault
-2. Open AI agent
-3. Select model from dropdown
-4. Preference saved for this vault
-
 ## Best Practices
 
 ### When to Create a New Vault
