@@ -1,6 +1,6 @@
-# AI Assistant
+# Agent
 
-The AI assistant in Flint helps you organize, search, and manage your notes through natural conversation.
+The Agent in Flint helps you organize, search, and manage your notes through natural conversation.
 
 ## Philosophy: Assistant, Not Replacement
 
@@ -13,22 +13,20 @@ The AI in Flint is designed to **amplify your thinking**, not replace it.
 - Answers questions about your notes
 
 **What the AI doesn't do:**
-- Generate insights for you
-- Think through problems
-- Make creative connections
+- Think for you
 - Replace your judgment
 
 You remain in control of your content and thinking. The AI is a powerful organizational tool.
 
-## Opening the Assistant
+## Opening the Agent
 
 **Keyboard shortcut:**
-- `Ctrl+K` (Windows/Linux) or `Cmd+K` (Mac)
+- `Ctrl+Shift+A` (Windows/Linux) or `Cmd+Shift+A` (Mac)
 
-**Click the AI button:**
+**Click the agent button:**
 - In the top-right corner of the window
 
-**The assistant appears:**
+**The agent appears:**
 - In the right sidebar
 - As a chat interface
 - Persistent conversation history per vault

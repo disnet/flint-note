@@ -34,30 +34,61 @@ export default defineConfig({
       { text: 'Home', link: '/' },
       { text: 'Getting Started', link: '/getting-started' },
       { text: 'Features', link: '/features/notes' },
-      { text: 'Guides', link: '/guides/installation' }
+      { text: 'Guides', link: '/guides/core-concepts' }
     ],
 
     sidebar: [
       {
         text: 'Introduction',
+        items: [{ text: 'Getting Started', link: '/getting-started' }]
+      },
+      {
+        text: 'Core Concepts',
         items: [
-          { text: 'What is Flint?', link: '/' },
-          { text: 'Getting Started', link: '/getting-started' }
+          { text: 'Understanding Flint', link: '/guides/core-concepts' },
+          { text: 'User Interface', link: '/guides/interface' }
         ]
       },
       {
         text: 'Features',
+        collapsed: false,
         items: [
-          { text: 'Notes & Organization', link: '/features/notes' },
-          { text: 'AI Agent', link: '/features/agent' },
-          { text: 'Review System', link: '/features/review-system' }
+          { text: 'Notes & Markdown', link: '/features/notes' },
+          { text: 'Search', link: '/features/search' },
+          { text: 'Wikilinks & Backlinks', link: '/features/wikilinks' },
+          { text: 'Agent', link: '/features/agent' },
+          { text: 'Daily Notes', link: '/features/daily-notes' },
+          { text: 'Review System', link: '/features/review-system' },
+          { text: 'Organization', link: '/features/organization' },
+          { text: 'Multi-Vault', link: '/features/vaults' },
+          { text: 'Editor', link: '/features/editor' }
+        ]
+      },
+      {
+        text: 'Advanced Features',
+        collapsed: true,
+        items: [
+          { text: 'Workflows & Automation', link: '/features/workflows' },
+          { text: 'Custom Functions', link: '/features/custom-functions' }
         ]
       },
       {
         text: 'Guides',
+        collapsed: true,
         items: [
           { text: 'Installation', link: '/guides/installation' },
-          { text: 'Configuration', link: '/guides/configuration' }
+          { text: 'Configuration', link: '/guides/configuration' },
+          { text: 'Keyboard Shortcuts', link: '/guides/shortcuts' },
+          { text: 'Best Practices', link: '/guides/best-practices' },
+          { text: 'Privacy & Security', link: '/guides/privacy-security' }
+        ]
+      },
+      {
+        text: 'Help',
+        collapsed: true,
+        items: [
+          { text: 'Troubleshooting', link: '/guides/troubleshooting' },
+          { text: 'FAQ', link: '/guides/faq' }
         ]
       }
     ],
