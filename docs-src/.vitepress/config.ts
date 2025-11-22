@@ -94,8 +94,6 @@ export default defineConfig({
       }
     ],
 
-    socialLinks: [{ icon: 'github', link: 'https://github.com/yourusername/flint' }],
-
     footer: {
       copyright: 'Copyright © 2025'
     }

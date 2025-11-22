@@ -597,9 +597,9 @@ Monthly: Archive backup (versioned)
 **Before installing:**
 
 - Review what tool accesses
-- Check source code if available
 - Understand data flow
 - Only install from trusted sources
+- Research the tool's reputation
 
 ## Compliance
 

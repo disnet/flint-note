@@ -446,7 +446,6 @@ or
 
 1. Download previous version
 2. Install over current version
-3. Report issue on GitHub
 
 ## Future Settings
 

@@ -33,10 +33,10 @@ Download the latest release for your platform:
 
 - **macOS**: Download `.dmg` → Open → Drag to Applications
 - **Windows**: Download `.exe` → Run installer → Launch from Start menu
-- **Linux**: Download `.AppImage` → `chmod +x Flint-*.AppImage` → Run, or use `.deb` package
+- **Linux**: Download `.AppImage` → `chmod +x Flint-*.AppImage` → Run
 
 ::: tip
-Visit [flint.app/download](https://flint.app/download) for the latest releases
+Visit [flintnote.com](https://flintnote.com/#download) for the latest releases
 :::
 
 See [Installation Guide](/guides/installation) for detailed platform-specific instructions.
@@ -191,36 +191,6 @@ First save prompts for keychain access. Click **"Always Allow"** to avoid repeat
 
 See [Configuration](/guides/configuration) for all settings.
 
-## Building Your Practice
-
-### Week 1: Capture Freely
-
-- Create notes without worrying about organization
-- Add `[[wikilinks]]` between related ideas
-- Let the [inbox](/features/organization#inbox) catch everything
-- Focus on externalizing thoughts
-
-### Week 2: Make Connections
-
-- Process your inbox—review and link notes
-- Try different [note types](/features/notes#note-types) (daily, meeting, project)
-- Use the [AI agent](/features/agent) to suggest connections
-- Practice internalizing through linking
-
-### Week 3: Add Structure
-
-- Create a [workspace](/features/workspaces) for your main project
-- Set up a weekly [routine](/features/workflows#routines) for synthesis
-- Mark important notes [for review](/features/review-system)
-- Build resurfacing habits
-
-### Week 4: Deepen Practice
-
-- Refine your note types based on what you're learning
-- Build more sophisticated routines (reading processing, prediction calibration)
-- Trust the complete cycle: externalize → internalize → resurface
-- Let your system grow organically
-
 ## Essential Keyboard Shortcuts
 
 | Action            | macOS           | Windows/Linux   |
@@ -275,7 +245,6 @@ Before diving deeper, review these core ideas:
 - **[FAQ](/guides/faq)** - Common questions and answers
 - **[Troubleshooting](/guides/troubleshooting)** - Solve common issues
 - **[Privacy & Security](/guides/privacy-security)** - How your data is handled
-- **GitHub**: [Report bugs](https://github.com/flint-org/flint-ui/issues) or [ask questions](https://github.com/flint-org/flint-ui/discussions)
 
 ## Tips for Success
 

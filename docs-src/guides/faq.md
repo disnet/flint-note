@@ -16,7 +16,7 @@ Common questions about Flint, answered concisely.
 - **Local-first** - Your data stays on your computer
 - **Simple** - Focused feature set, not overwhelming
 - **Plain markdown** - Standard format, no lock-in
-- **Free and open source** - No subscription required (except AI provider)
+- **No subscription** - Free to download (AI provider costs separate)
 
 **Similar to:**
 
@@ -25,7 +25,7 @@ Common questions about Flint, answered concisely.
 
 ### Is Flint free?
 
-**Flint itself: Yes, free and open source.**
+**Flint itself: Yes, free to download and use.**
 
 **AI features:** Requires API key from AI provider (OpenRouter, etc.)
 
@@ -42,14 +42,6 @@ Common questions about Flint, answered concisely.
 - Linux (AppImage)
 
 **Future:** iOS/Android planned
-
-### Is Flint open source?
-
-**Yes.** Source code available on GitHub:
-
-- [github.com/anthropics/flint-ui](https://github.com/anthropics/flint-ui)
-- MIT license (permissive)
-- Contributions welcome
 
 ## Installation and Setup
 
@@ -559,7 +551,7 @@ git commit -m "Initial commit"
 - Full history
 - Revert changes
 - Branch for experiments
-- Remote backups (GitHub, etc.)
+- Remote backups
 
 **For developers** - highly recommended.
 
@@ -723,7 +715,6 @@ Content here...
 
 - Built-in AI (not plugin)
 - Simpler, more focused
-- Open source
 
 **Obsidian advantages:**
 
@@ -785,7 +776,6 @@ Content here...
 2. **Reinstall Flint**
 3. **Check system requirements**
 4. **Check logs** (see Troubleshooting guide)
-5. **Report issue** on GitHub
 
 **Most issues** resolve with reinstall.
 
@@ -819,14 +809,10 @@ Settings → Database → Rebuild Database
 
 ### How do I report a bug?
 
-**GitHub Issues:**
+**When reporting issues, include:**
 
-1. Visit [github.com/anthropics/flint-ui/issues](https://github.com/anthropics/flint-ui/issues)
-2. Search existing issues
-3. Create new issue if not found
-4. Include:
-   - Flint version
-   - Operating system
+- Flint version (Help → About)
+- Operating system
    - Steps to reproduce
    - Error messages
    - Screenshots
@@ -889,40 +875,21 @@ Settings → Database → Rebuild Database
 
 **Resources:**
 
-- **Documentation** - [docs.flint.ai](https://docs.flint.ai)
-- **GitHub Issues** - Bug reports and questions
-- **Discord** - Community chat (if available)
-- **Email** - support@flint.example (hypothetical)
+- **Documentation** - Check the full docs
+- **FAQ** - Common questions answered
+- **Troubleshooting Guide** - Solve common issues
 
-### How can I contribute?
+### What's planned for future releases?
 
-**Ways to help:**
+**Planned features:**
 
-- **Report bugs** - GitHub Issues
-- **Suggest features** - GitHub Discussions
-- **Write documentation** - Improve docs
-- **Contribute code** - Pull requests welcome
-- **Share Flint** - Tell others
-
-**Open source** thrives on community.
-
-### Is there a roadmap?
-
-**Check GitHub:**
-
-- Issues labeled "enhancement"
-- Project boards
-- Discussions
-
-**Common requests:**
-
-- Mobile apps
+- Mobile apps (iOS/Android)
 - Plugin system
 - More AI providers
 - Advanced search
 - Collaboration features
 
-**Priorities** driven by community needs.
+**Development priorities** are driven by user feedback.
 
 ## Next Steps
 
@@ -933,4 +900,4 @@ Settings → Database → Rebuild Database
 
 ---
 
-**Still have questions?** Check the full documentation or ask in GitHub Discussions. The community is here to help!
+**Still have questions?** Check the full documentation and troubleshooting guide for more help.

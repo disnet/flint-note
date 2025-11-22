@@ -19,22 +19,10 @@ Common issues and solutions for Flint.
 
 **Documentation:**
 
-- Search docs.flint.ai (this site)
+- Search the docs (this site)
 - Check relevant guide sections
 - Review feature documentation
-
-**GitHub Issues:**
-
-- [github.com/anthropics/flint-ui/issues](https://github.com/anthropics/flint-ui/issues)
-- Search existing issues
-- Create new issue if needed
-- Include error details
-
-**Community:**
-
-- Discord (if available)
-- Reddit (if available)
-- User forums (if available)
+- Check the FAQ for common questions
 
 ## Installation Issues
 
@@ -1123,7 +1111,6 @@ Linux: ~/.config/Flint/logs/
 - **[Best Practices](/guides/best-practices)** - Avoid issues
 - **[Privacy & Security](/guides/privacy-security)** - Protect data
 - **[FAQ](/guides/faq)** - Common questions
-- **[GitHub Issues](https://github.com/anthropics/flint-ui/issues)** - Report bugs
 
 ---
 

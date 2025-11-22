@@ -76,8 +76,6 @@ dmg:
 linux:
   target:
     - AppImage
-    - snap
-    - deb
   maintainer: Timothy Disney
   category: Utility
 appImage:

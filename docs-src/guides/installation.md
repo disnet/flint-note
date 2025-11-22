@@ -6,8 +6,7 @@ This guide will help you install Flint on your system.
 
 Get the latest version of Flint from:
 
-- [GitHub Releases](https://github.com/yourusername/flint/releases)
-- Official website: [flint.example.com](https://flint.example.com)
+- Official website: [flintnote.com](https://flintnote.com/#download)
 
 Choose the appropriate installer for your platform.
 
@@ -46,27 +45,39 @@ On first launch, you may see a security warning. To allow Flint to run:
 
 ### Linux
 
-#### AppImage (Universal)
+Flint for Linux is distributed as an **AppImage**, a universal format that works on all modern Linux distributions.
 
-1. Download the `.AppImage` file
+1. Download the `.AppImage` file from the website
 2. Make it executable: `chmod +x Flint-*.AppImage`
 3. Run: `./Flint-*.AppImage`
 
-#### Debian/Ubuntu (.deb)
+**Optional - Integrate with your system:**
 
-1. Download the `.deb` file
-2. Install: `sudo dpkg -i flint_*.deb`
-3. Launch from your applications menu or run `flint`
+```bash
+# Move to a standard location
+mkdir -p ~/.local/bin
+mv Flint-*.AppImage ~/.local/bin/flint
+chmod +x ~/.local/bin/flint
 
-#### Fedora/RHEL (.rpm)
+# Now you can run 'flint' from anywhere
+```
 
-1. Download the `.rpm` file
-2. Install: `sudo rpm -i flint-*.rpm`
-3. Launch from your applications menu or run `flint`
+**Optional - Create desktop entry:**
+
+Create `~/.local/share/applications/flint.desktop`:
+```desktop
+[Desktop Entry]
+Name=Flint
+Exec=/home/YOUR_USERNAME/.local/bin/flint
+Type=Application
+Categories=Utility;
+```
+
+Replace `YOUR_USERNAME` with your actual username.
 
 **Requirements:**
 
-- Modern Linux distribution (2020 or later)
+- Modern Linux distribution (Ubuntu 18.04 or later, or equivalent)
 - 200 MB disk space
 
 ## First Run
@@ -106,9 +117,9 @@ Drag Flint from Applications to the Trash.
 
 ### Linux
 
-- AppImage: Delete the file
-- Debian/Ubuntu: `sudo apt remove flint`
-- Fedora/RHEL: `sudo rpm -e flint`
+Delete the AppImage file and any desktop integration you created:
+- Remove the AppImage: `rm ~/.local/bin/flint` (or wherever you placed it)
+- Remove desktop entry: `rm ~/.local/share/applications/flint.desktop` (if created)
 
 Your notes are stored separately and will not be deleted during uninstallation.
 
