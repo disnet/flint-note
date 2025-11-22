@@ -36,7 +36,7 @@ Download the latest release for your platform:
 - **Linux**: Download `.AppImage` → `chmod +x Flint-*.AppImage` → Run
 
 ::: tip
-Visit [flintnote.com](https://flintnote.com/#download) for the latest releases
+Visit [flintnote.com](https://www.flintnote.com/#download) for the latest releases
 :::
 
 See [Installation Guide](/guides/installation) for detailed platform-specific instructions.
@@ -47,7 +47,7 @@ A **vault** is a folder containing your notes. You can have multiple vaults for 
 
 **Creating your first vault:**
 
-1. Choose a location (we recommend `~/Documents/Flint Notes/My Vault`)
+1. Choose a location (e.g. `~/Documents/Flint Notes/My Vault`)
 2. Name it ("Personal Notes", "Work", "Research")
 3. Flint creates the folder structure and default configuration
 
@@ -59,11 +59,11 @@ See [Vaults](/features/vaults) for managing multiple vaults.
 
 ## The Interface
 
-Flint uses a **three-column layout**:
+Flint uses a three-column layout:
 
-- **Left Sidebar**: Pinned notes and recent tabs for quick access
+- **Left Sidebar**: Pinned and recent notes for quick access
 - **Main View**: Note editor where you write
-- **Right Sidebar**: AI agent, metadata, and backlinks
+- **Right Sidebar**: AI agent, notes shelf
 
 See the [User Interface Guide](/guides/interface) for a detailed walkthrough.
 
@@ -72,8 +72,7 @@ See the [User Interface Guide](/guides/interface) for a detailed walkthrough.
 **Create a note:**
 
 1. Click **"New Note"** or press `Cmd+Shift+N` (Mac) / `Ctrl+Shift+N` (Windows/Linux)
-2. Choose **"General"** type (start simple)
-3. Start writing
+1. Start writing
 
 **Example:**
 
@@ -108,18 +107,18 @@ See [Note Management](/features/notes) for markdown syntax, metadata, and advanc
 - Press Enter to open
 
 **Pin important notes:**
-- Right-click note → "Pin to Sidebar"
+- Right-click note → "Pin"
 - Drag to reorder
-- Perfect for daily notes, active projects, reference materials
+- Perfect for active projects, reference materials, etc.
 
 **Workspaces:**
-- Group pinned notes by project
+- Create groups of pinned and recent notes
 - Switch between contexts without losing your place
 - See [Workspaces](/features/workspaces)
 
 **Daily notes:**
-- Click today's date in sidebar
-- Automatic creation if doesn't exist
+- Click "Daily" in sidebar
+- See list of notes for each day of the week.
 - Great for journaling and daily capture
 - See [Daily Notes](/features/daily-notes)
 
@@ -148,7 +147,7 @@ See [Wikilinks and Backlinks](/features/wikilinks) for advanced patterns.
 
 ## Using the AI Agent
 
-Open the agent with the **AI button** or `Cmd+K` / `Ctrl+K`.
+Open the agent with the **AI button** or `Cmd+Shift+A` / `Ctrl+Shift+A`.
 
 **What the agent can do:**
 
@@ -178,9 +177,9 @@ See [AI Agent](/features/agent) for detailed capabilities and [Workflows](/featu
 
 ### Setting Up API Keys
 
-The AI agent requires an API key. **We recommend OpenRouter** (supports multiple models).
+The AI agent requires an OpenRouter API key.
 
-1. Visit [openrouter.ai](https://openrouter.ai) and create an account
+1. Visit [openrouter.ai](https://openrouter.ai) and create an account and purchase credits
 2. Generate an API key
 3. In Flint: Settings → API Keys → Paste key
 4. Key stored securely in system keychain

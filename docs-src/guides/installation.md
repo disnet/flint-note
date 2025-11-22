@@ -6,7 +6,7 @@ This guide will help you install Flint on your system.
 
 Get the latest version of Flint from:
 
-- Official website: [flintnote.com](https://flintnote.com/#download)
+- Official website: [flintnote.com](https://www.flintnote.com/#download)
 
 Choose the appropriate installer for your platform.
 
@@ -80,30 +80,9 @@ Replace `YOUR_USERNAME` with your actual username.
 - Modern Linux distribution (Ubuntu 18.04 or later, or equivalent)
 - 200 MB disk space
 
-## First Run
-
-After installation:
-
-1. Launch Flint
-2. The app will create a default notes directory in your home folder
-3. You can change this location in Settings if desired
-
-## Data Location
-
-By default, Flint stores your notes in:
-
-- **Windows**: `%USERPROFILE%\Documents\Flint Notes`
-- **macOS**: `~/Documents/Flint Notes`
-- **Linux**: `~/Documents/Flint Notes`
-
-You can change this location in Settings > General > Notes Directory.
-
 ## Updates
 
-Flint will automatically check for updates and notify you when a new version is available. You can:
-
-- Download and install updates automatically
-- Disable automatic update checks in Settings
+Flint will automatically check for updates and notify you when a new version is available.
 
 ## Uninstallation
 
@@ -122,17 +101,3 @@ Delete the AppImage file and any desktop integration you created:
 - Remove desktop entry: `rm ~/.local/share/applications/flint.desktop` (if created)
 
 Your notes are stored separately and will not be deleted during uninstallation.
-
-## Troubleshooting
-
-### Application Won't Launch
-
-(Documentation to be added)
-
-### Database Errors
-
-(Documentation to be added)
-
-### Performance Issues
-
-(Documentation to be added)
