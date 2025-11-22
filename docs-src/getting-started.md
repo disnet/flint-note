@@ -4,14 +4,22 @@ Welcome to Flint! This guide will help you install Flint, set up your first vaul
 
 ## What is Flint?
 
-Flint is a **local-first, AI-powered note-taking application** designed to extend and amplify human thinking. It combines:
+Flint is a **local-first, AI-powered note-taking application** designed to build deep knowledge through the complete learning cycle.
 
-- **Plain-text markdown notes** that you own and control
-- **AI agent** that helps with organization and automation
-- **Spaced repetition** to strengthen your understanding
-- **Powerful organization** with links, tags, and custom note types
+**The Core Philosophy:**
 
-Your notes stay on your machine in simple markdown files. The AI helps you structure and connect ideas, but you remain in control of your thinking and content.
+Flint supports **externalizing** (getting ideas out), **internalizing** (making them yours), and **resurfacing** (bringing them back repeatedly over time to ground memory).
+
+**How it works:**
+
+- **Frictionless capture** - Get ideas out without worrying about organization. Notes as first-class abstractions mean you think in ideas, not files
+- **Connected thinking** - Wikilinks and backlinks surface relationships. See how ideas connect across time
+- **AI learning partner** - An agent that helps you capture better, connect deeper, and resurface at the right moments
+- **Active recall practice** - Spaced repetition with AI-generated review prompts builds deep retention
+- **Type-guided thinking** - Note types encode different patterns (synthesis, prediction, reflection)
+- **Systematic resurfacing** - Routines and search bring past ideas back into focus
+
+Your notes stay on your machine in plain markdown files. You own and control everything. The AI assists your learning process, but the insights come from you.
 
 ## System Requirements
 

@@ -1,447 +1,288 @@
 # Core Concepts
 
-This guide explains Flint's fundamental concepts and mental model. Understanding these ideas will help you get the most out of Flint.
+This guide explains Flint's fundamental philosophy and how its features work together to support deep knowledge building.
 
-## Philosophy: AI That Assists, Not Replaces
+## The Core Philosophy
 
-Flint is designed around a core belief:
+**Flint builds deep knowledge by supporting the complete cycle of externalizing (getting ideas out), internalizing (making them yours), and resurfacing (bringing them back repeatedly over time to ground memory).**
 
-> **AI should help you think better, not think for you.**
+Most tools optimize for one part of this cycle:
 
-The AI agent in Flint handles structural tasks—organizing, linking, scheduling, searching. But **you** remain responsible for:
+- **Capture tools** (quick notes, voice memos) focus on externalizing but offer little support for processing or retention
+- **Study tools** (flashcards, spaced repetition) focus on resurfacing but make initial capture painful
+- **Writing tools** (Notion, Google Docs) focus on structured output but don't help with learning or recall
 
-- Creating content and insights
-- Making connections between ideas
-- Deciding what's important
-- Doing the actual thinking
+**Flint optimizes for the entire process.** Reducing friction in all three areas is critical—but the philosophy is fundamentally about building deep knowledge itself.
 
-This partnership allows you to focus on high-value cognitive work while the AI handles the mechanical aspects of note management.
+## The Three Phases of Deep Knowledge
 
-## Notes: The Basic Unit
+### Externalizing: Getting Ideas Out
 
-### What is a Note?
+**The problem:** Most note systems create friction at the moment of capture because you worry about organization—"Where does this go? What should I name it? How do I tag it?"
 
-A **note** in Flint is:
+**Flint's approach:**
 
-- A **plain-text markdown file** stored on your computer
-- Contains **content** (your writing) and optional **metadata** (structured data)
-- Can link to other notes via **wikilinks**
-- Has a unique **ID** that never changes
+- **Frictionless capture** - The system handles organization through note types and relationships
+- **No premature structure** - You don't need to decide on folder hierarchies before thinking through material
+- **Trust the process** - Quick capture now, organize later with confidence
 
-**Example note file:**
+**How it works:**
 
-```markdown
----
-title: Project Ideas
-type: general
-created: 2024-01-15T10:30:00Z
-tags: [brainstorming, projects]
----
+- Notes as first-class abstractions—you think in terms of ideas, not files or folders
+- Note types guide what and how you capture without imposing rigid structure
+- Inbox provides a safety net so nothing gets lost
 
-# Project Ideas
+### Internalizing: Making Knowledge Yours
 
-## Website Redesign
+**The problem:** Highlighting, re-reading, and passive review don't build deep understanding. Real learning requires active engagement, connection-making, and synthesis.
 
-Thinking about modernizing the company website. Key goals:
+**Flint's approach:**
 
-- Improve mobile experience
-- Faster load times
-- Better SEO
+- **Connection as learning** - Wikilinks and backlinks force you to see relationships between ideas
+- **Type-guided thinking** - Different note types encode different thinking patterns (synthesis, prediction, reflection)
+- **AI as thought partner** - The agent helps you process, connect, and refine without replacing your thinking
+- **Active recall** - Review system tests understanding, not just recognition
 
-Related: [[Marketing Strategy]]
+**How it works:**
 
-## Mobile App
+- Backlinks show where ideas have been applied across time
+- Note types shape how you think about material (evergreen → synthesis, prediction → calibration)
+- Agent suggestions provide real-time feedback during writing
+- Review system with AI-generated prompts for active recall practice
 
-Could we build a companion mobile app? See [[Technical Feasibility Study]]
-```
+### Resurfacing: Building Long-Term Memory
 
-### Notes Are Just Files
+**The problem:** Most notes get written once and never seen again. Without systematic resurfacing, knowledge fades.
 
-One of Flint's core principles is **data ownership**. Your notes are:
+**Flint's approach:**
 
-- **Portable**: Standard markdown that works in any text editor
-- **Yours**: Stored locally on your machine, not in a proprietary format
-- **Hackable**: You can process them with scripts, sync with cloud storage, back them up
-- **Future-proof**: Readable without Flint
+- **Spaced repetition built in** - Review system reschedules notes based on performance
+- **Routines for synthesis** - Regular practices (weekly reviews, reading processing) become habitual
+- **Semantic discovery** - Search and backlinks make past thinking discoverable
+- **Connection-based recall** - Related notes surface automatically through the link structure
 
-You can open your vault folder in VS Code, Vim, Obsidian, or any text editor and work with your notes directly.
+**How it works:**
 
-## Note Types: Schemas for Different Content
+- Mark notes for review; AI generates test prompts on schedule
+- Routines automate recurring workflows (weekly synthesis, prediction calibration)
+- Search works on ideas and connections, not just keywords
+- Backlinks and suggestions resurface related concepts as you work
 
-### Why Note Types?
+## How Features Support the Cycle
 
-Different kinds of notes need different structures:
+### Notes as First-Class Abstractions
 
-- **Meeting notes** need attendees and action items
-- **Tasks** need due dates and status
-- **Book notes** need author and publication info
-- **General notes** are freeform
+**Philosophy:** Notes are the unit of thinking, not files or implementation details.
 
-**Note types** define these structures and help the AI assist you better.
+**What this means:**
 
-### Built-in Note Types
+- You never think about where files live, how to name them, or folder structures
+- Notes have stable IDs independent of titles—rename freely without breaking connections
+- The system handles storage; you focus on ideas
 
-Flint comes with several note types:
+**Supports:**
 
-| Type        | Purpose               | Key Fields                 |
-| ----------- | --------------------- | -------------------------- |
-| **General** | Any content           | None (freeform)            |
-| **Daily**   | Daily journal entries | date                       |
-| **Meeting** | Meeting notes         | date, attendees            |
-| **Task**    | Action items          | status, due_date, priority |
-| **Project** | Project documentation | status, start_date         |
-| **Inbox**   | Quick capture         | None                       |
+- **Externalizing** - Capture friction eliminated; the system handles organization
+- **Internalizing** - Wikilinks and backlinks surface relationships
+- **Resurfacing** - Semantic abstraction makes thinking discoverable
 
-### Custom Note Types
+### Note Types System
 
-You can create your own note types for specific needs:
+**Philosophy:** Different types of knowledge need different thinking patterns.
 
-**Examples:**
+**What this means:**
 
-- `book-notes` with fields for author, rating, publication year
-- `recipe` with fields for servings, prep time, dietary restrictions
-- `research-paper` with fields for authors, journal, DOI
-- `client` with fields for contact info, industry, projects
+- Note types are organizational primitives AND cognitive guides
+- Evergreen notes guide synthesis and universalization
+- Predictions force falsifiable claims with calibration
+- Daily notes structure reflection and progress tracking
+- Meeting notes capture action items and context
 
-See [Note Management](/features/notes#note-types) for how to create custom types.
+**Supports:**
 
-### How Note Types Help
+- **Externalizing** - Types guide what and how you capture
+- **Internalizing** - Agent instructions per type help consistent processing
+- **Resurfacing** - Type structure enables pattern discovery
 
-1. **Structure**: Templates ensure consistent formatting
-2. **AI Guidance**: The AI knows what fields to populate
-3. **Organization**: Notes are stored in type-specific folders
-4. **Filtering**: Search and filter by type
+### Wikilinks & Backlinks
 
-## Vaults: Isolated Workspaces
+**Philosophy:** Making connections explicit is how learning deepens.
 
-### What is a Vault?
+**What this means:**
 
-A **vault** is a completely isolated collection of notes. Think of it as a separate workspace or notebook.
+- [[Links]] force you to externalize relationships as you write
+- Backlinks show where ideas have been applied, revealing patterns
+- Build a knowledge graph that mirrors how you actually think
 
-**Key properties:**
+**Supports:**
 
-- Separate **folder** on your computer
-- Separate **database** for metadata and search
-- Separate **conversation history** with the AI
-- Separate **settings** and configuration
-- Independent **note types**
+- **Externalizing** - Forces relationship thinking during writing
+- **Internalizing** - Backlinks surface connections across time
+- **Resurfacing** - Navigate by association; discover unexpected links
 
-### Why Use Multiple Vaults?
+### The AI Agent System
 
-**Common use cases:**
+**Philosophy:** Not generating thoughts, but intelligently supporting all three learning phases.
 
-**Work / Personal Separation**
+**What this means:**
 
-```
-Work Vault:
-- Meeting notes with colleagues
-- Project documentation
-- Client information
+- Conversational partner with semantic access to your full note system
+- Understands note types, relationships, content, and learning patterns
+- Helps you capture better, connect deeper, resurface at right moments
+- Type-aware assistance—creates evergreen notes differently than predictions
 
-Personal Vault:
-- Journal entries
-- Personal goals
-- Book notes
-- Recipes
-```
+**Supports all three phases:**
 
-**Project-Based**
+- **Externalizing** - Helps structure and capture ideas conversationally
+- **Internalizing** - Suggests connections, provides feedback, helps synthesize
+- **Resurfacing** - Executes routines, generates review prompts, surfaces related notes
 
-```
-Research Vault:
-- Academic papers
-- Literature notes
-- Experiment logs
+### Review System (Spaced Repetition)
 
-Startup Vault:
-- Business planning
-- Product ideas
-- Customer research
-```
+**Philosophy:** Active recall is the most effective learning mechanism, but writing test prompts creates friction.
 
-**Privacy Levels**
+**What this means:**
 
-```
-Public Vault:
-- Blog drafts
-- Public notes
-- Shareable content
+- Mark notes "for review" with one button click
+- Agent generates contextual test prompts from note content
+- Answer, get feedback, rate performance
+- System reschedules based on how well you recalled
 
-Private Vault:
-- Personal reflections
-- Sensitive information
-```
+**Supports:**
 
-### Switching Vaults
+- **Internalizing** - Active recall builds deep understanding
+- **Resurfacing** - Spaced repetition brings notes back on optimal schedule
 
-Click the **vault selector** in the top-left corner to switch between vaults. Each vault maintains its own state—you can have different notes open, different AI conversations, different settings.
+### Routines
 
-## Wikilinks: Connecting Ideas
+**Philosophy:** Systematizing recurring workflows creates regular practices for learning.
 
-### What are Wikilinks?
+**What this means:**
 
-**Wikilinks** are Flint's way of connecting notes together. They create a web of knowledge.
+- Scheduled skills for the agent (weekly reviews, reading processing, prediction calibration)
+- Reduces friction by automating scheduling and execution
+- Build sustainable learning habits without discipline burden
 
-**Syntax:**
+**Supports:**
 
-```markdown
-[[Note Title]]
-[[type/filename|Display Text]]
-```
+- **Externalizing** - Structured review prompts during routine execution
+- **Internalizing** - Regular synthesis sessions
+- **Resurfacing** - Recurring reflection makes it habitual
 
-**Example:**
+### Reference Shelf
 
-```markdown
-I'm working on the [[Website Redesign]] project.
+**Philosophy:** Keep context available without losing focus.
 
-The design direction relates to our [[brand/visual-identity|Brand Guidelines]].
-```
+**What this means:**
 
-### Bidirectional Links
+- Add multiple notes to sidebar while editing main note
+- Live editors on each reference note
+- Mirrors how writers use physical reference materials on a desk
 
-When you create a wikilink, Flint automatically tracks it in **both directions**:
+**Supports:**
 
-1. **Forward link**: You can click to navigate to the target note
-2. **Backlink**: The target note shows that your note references it
+- **Externalizing** - Maintain context while developing ideas
+- **Internalizing** - Draw connections without switching contexts
 
-This creates a network of connections that helps you discover relationships between ideas.
+### Pinned Notes & Spatial Memory
 
-**Example:**
+**Philosophy:** Messiness during exploration is okay; the system makes cleanup easy.
 
-If `Note A` links to `Note B`:
+**What this means:**
 
-- In Note A: `[[Note B]]` is clickable
-- In Note B: Backlinks panel shows "Referenced by Note A"
+- Pinned notes provide stable anchor for active work
+- Recent notes track exploration without losing thread
+- Drag-and-drop manual positioning (not auto-sorted)
+- Trust that you can make a mess and restore order
 
-### Why Link Notes?
+**Supports:**
 
-**Build a knowledge graph:**
+- **Externalizing** - Fluid exploration without organization anxiety
+- **Internalizing** - Spatial memory works like a messy desk—you know where things are
+- **Resurfacing** - Easy return to context after exploring
 
-- See how ideas connect
-- Discover unexpected relationships
-- Find related context
+### Inbox
 
-**Better than folders:**
+**Philosophy:** Removes "will I find this later?" anxiety during capture.
 
-- A note can relate to multiple topics
-- Connections reflect how you actually think
-- Navigate by association, not hierarchy
+**What this means:**
 
-See [Wikilinks and Backlinks](/features/wikilinks) for advanced patterns.
+- All recent notes listed in one place
+- Mark as processed when reviewed
+- Lightweight routine for confirming you're happy with captures
 
-## Metadata: Structured Data
+**Supports:**
 
-### What is Metadata?
+- **Externalizing** - Capture fluidly without worry
+- **Internalizing** - Processing inbox becomes entry point for reflection
 
-**Metadata** is structured information about your note, stored in YAML frontmatter at the top of the file.
+## Key Design Principles
 
-**Example:**
+### Notes, Not Files
 
-```markdown
----
-title: Team Standup
-type: meeting
-date: 2024-01-15
-attendees: [Sarah, John, Maria]
-priority: high
-tags: [weekly, standup]
----
+You work with notes and their connections. The system handles:
 
-# Meeting content goes here...
-```
+- File naming and storage
+- Folder organization
+- Metadata structure
+- Link management
 
-### Why Use Metadata?
+You see ideas; the system handles implementation.
 
-**AI Understanding:**
+### Type-Guided Thinking
 
-- The AI knows what fields mean
-- Can search and filter by metadata
-- Can suggest appropriate values
+Note types aren't just organizational—they shape how you think:
 
-**Powerful Search:**
+- Creating an evergreen note prompts synthesis
+- Creating a prediction forces falsifiable framing
+- Creating a daily note structures reflection
 
-- Find all meetings with specific attendees
-- Filter tasks by due date or priority
-- Search notes created in a date range
+The type itself is a cognitive tool.
 
-**Automation:**
+### Immutable Identity
 
-- Workflows can act on metadata
-- Generate reports based on fields
-- Trigger actions when conditions match
+Notes have stable IDs independent of titles:
 
-### Types of Metadata
+- Rename freely without breaking links
+- Reorganize without fear
+- Refactor structure as understanding evolves
 
-**System fields** (automatically managed):
+### Content-Centric Organization
 
-- `title` - Note title
-- `type` - Note type
-- `created` - Creation timestamp
-- `updated` - Last modified timestamp
+How notes are organized emerges from content and relationships:
 
-**Type-specific fields** (defined by note type):
+- Not predetermined folder hierarchies
+- Connections reflect actual thinking patterns
+- Structure becomes clear through use
 
-- Meeting: `date`, `attendees`
-- Task: `status`, `due_date`, `priority`
-- Project: `start_date`, `status`
+## Contrast With Other Tools
 
-**Custom fields** (you define):
+| Tool      | Optimization Focus         | Flint's Difference                               |
+| --------- | -------------------------- | ------------------------------------------------ |
+| Obsidian  | Linked notes + file access | Abstracts away files; type-guided thinking       |
+| Roam      | Bidirectional linking      | AI agent; complete learning cycle                |
+| Notion    | Structured databases       | Frictionless capture; resurfacing built in       |
+| Anki      | Spaced repetition          | AI-generated prompts; full capture→recall cycle |
+| Evernote  | Capture everything         | Connection-making; active learning               |
+| Bear      | Beautiful writing          | Learning-focused; review + routines              |
 
-- Any field name you want
-- Values can be: strings, numbers, dates, arrays, booleans
+**Flint is the only tool designed around the complete externalize → internalize → resurface cycle.**
 
-## Tags: Flexible Organization
+## Mental Model
 
-### How Tags Work
+Think of Flint as:
 
-**Tags** are labels you add to notes for organization. They can appear in:
+- **A thinking system** that grows with you
+- **A learning partner** that handles mechanical tasks
+- **A knowledge graph** that reflects how your mind actually works
+- **A practice system** that builds sustainable learning habits
 
-1. **Frontmatter** (recommended):
+It's NOT:
 
-```markdown
----
-tags: [important, project, api]
----
-```
-
-2. **Content** (inline):
-
-```markdown
-This is about #api design and #architecture
-```
-
-### Tags vs Note Types
-
-| Feature     | Note Types            | Tags          |
-| ----------- | --------------------- | ------------- |
-| **Purpose** | Define structure      | Add labels    |
-| **Count**   | One per note          | Many per note |
-| **Schema**  | Yes (defines fields)  | No            |
-| **Storage** | Type-specific folders | Mixed         |
-
-**When to use what:**
-
-- **Note Type**: "This is a meeting note"
-- **Tags**: "This meeting is about #api and #design and is #important"
-
-## The AI Agent: Your Organizational Partner
-
-### What the AI Can Do
-
-The AI agent has access to tools that let it:
-
-**Note Operations:**
-
-- Create, read, update, and delete notes
-- Search across all notes
-- Move and rename notes
-- Manage metadata
-
-**Organization:**
-
-- Create and manage note types
-- Find and fix broken links
-- Suggest tags and connections
-- Organize your inbox
-
-**Analysis:**
-
-- Answer questions about your notes
-- Summarize content
-- Find patterns and themes
-- Generate reports
-
-### What the AI Cannot Do
-
-The AI **cannot**:
-
-- Think for you
-- Generate original insights (only you can connect dots)
-- Replace your judgment about what's important
-- Make decisions about your work
-
-It's a tool to amplify your thinking, not replace it.
-
-### Model Context Protocol (MCP)
-
-Flint uses the **Model Context Protocol** to give the AI access to your notes:
-
-- **Standardized tools**: Create note, search notes, get backlinks, etc.
-- **Transparent**: You can see what tools the AI uses
-- **Controlled**: The AI can only do what the tools allow
-- **Local**: All operations happen on your machine
-
-## Local-First: Your Data, Your Control
-
-### What Does Local-First Mean?
-
-**Local-first** means:
-
-1. **Notes stored locally** on your computer, not on someone else's server
-2. **Works offline** - no internet required for note-taking
-3. **You own the data** - plain markdown files you can access anytime
-4. **Privacy by default** - nothing leaves your machine except AI requests
-
-### What Gets Sent to AI Providers?
-
-When you use the AI agent:
-
-**Sent to AI provider:**
-
-- Your message to the AI
-- Relevant note content (when needed for context)
-- Conversation history
-
-**NOT sent:**
-
-- Your entire vault
-- Notes you didn't mention
-- Any data when you're not using AI
-
-**You control:**
-
-- Which AI provider to use
-- Your API keys (stored securely in OS keychain)
-- When to use AI vs work locally
-
-## How These Concepts Work Together
-
-Here's how it all fits:
-
-```
-┌─────────────────────────────────────────────────┐
-│                    VAULT                        │
-│  (Isolated workspace)                           │
-│                                                 │
-│  ┌──────────────┐  ┌──────────────┐            │
-│  │  Note Type   │  │  Note Type   │            │
-│  │  "Meeting"   │  │  "General"   │            │
-│  │              │  │              │            │
-│  │  ┌────────┐  │  │  ┌────────┐ │            │
-│  │  │  Note  │  │  │  │  Note  │ │            │
-│  │  │        │──┼──┼─→│        │ │  Wikilink  │
-│  │  │metadata│  │  │  │metadata│ │            │
-│  │  │content │  │  │  │content │ │            │
-│  │  │tags    │  │  │  │tags    │ │            │
-│  │  └────────┘  │  │  └────────┘ │            │
-│  └──────────────┘  └──────────────┘            │
-│                                                 │
-│  AI agent can:                                  │
-│  - Search notes                                 │
-│  - Create/modify notes                          │
-│  - Manage types                                 │
-│  - Find links                                   │
-└─────────────────────────────────────────────────┘
-```
-
-**Workflow example:**
-
-1. You create notes throughout the day (possibly in Inbox)
-2. Notes link to each other via wikilinks
-3. Metadata helps organize and filter
-4. Tags provide flexible categorization
-5. AI helps process and organize periodically
-6. You review, refine, and think about the connections
+- A filing cabinet (organization emerges, not imposed)
+- A chatbot (AI assists thinking, doesn't replace it)
+- A writing tool (focus is learning, not output)
+- A database (structure follows content, not schema)
 
 ## Best Practices
 
@@ -449,42 +290,51 @@ Here's how it all fits:
 
 Don't try to use every feature immediately:
 
-1. **Week 1**: Just create notes and link them
-2. **Week 2**: Add some tags, try metadata
-3. **Week 3**: Use AI to help organize
-4. **Week 4**: Try workflows and custom types
+1. **Week 1**: Create notes, add wikilinks
+2. **Week 2**: Try note types, use the inbox
+3. **Week 3**: Use AI agent for organization
+4. **Week 4**: Add routines and review practice
 
 ### Let Structure Emerge
 
-Don't over-plan your organizational system:
+Don't over-plan your system:
 
 - Start with general notes
-- Notice patterns in what you write
+- Notice patterns in your thinking
 - Create note types as needs become clear
-- Use tags for themes that emerge
-- Let the AI help identify structure
+- Use the agent to help identify structure
 
 ### Trust the Process
 
-Flint's philosophy is about **gradual refinement**:
+The complete cycle builds knowledge:
 
-1. **Capture** ideas quickly without friction
-2. **Connect** related ideas with wikilinks
-3. **Organize** periodically with AI help
-4. **Refine** structure as patterns emerge
-5. **Think** about the connections and insights
+1. **Capture** fluidly without friction (externalize)
+2. **Connect** related ideas with links (internalize)
+3. **Process** periodically with routines (internalize)
+4. **Review** on schedule (resurface)
+5. **Synthesize** insights through agent assistance (internalize)
 
-The goal is a **thinking system** that grows with you, not a perfect filing cabinet.
+### Use the Agent as Partner
+
+The AI is most powerful when you:
+
+- Ask it to find connections between notes
+- Use it to process your inbox
+- Let it generate review prompts
+- Have it execute your routines
+- Request synthesis of themes across notes
+
+But remember: the insights come from **you**.
 
 ## Next Steps
 
-Now that you understand the concepts:
+Now that you understand the philosophy:
 
 - **[User Interface Guide](/guides/interface)** - Learn the interface in detail
-- **[Note Management](/features/notes)** - Deep dive into notes and types
-- **[Wikilinks](/features/wikilinks)** - Master bidirectional linking
-- **[AI Agent](/features/agent)** - Learn what the AI can do for you
+- **[AI Agent](/features/agent)** - See what the agent can do
+- **[Review System](/features/review-system)** - Build active recall practice
+- **[Workflows](/features/workflows)** - Automate recurring learning tasks
 
 ---
 
-**Remember:** Flint is a tool to amplify your thinking. The concepts work together to help you capture, connect, and develop ideas—but the insights come from you.
+**Remember:** Flint supports the complete cycle of learning—externalizing ideas, internalizing understanding, and resurfacing knowledge. All features work together toward building deep, lasting knowledge.

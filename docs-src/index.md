@@ -3,8 +3,8 @@ layout: home
 
 hero:
   name: Flint
-  text: Note-taking with AI
-  tagline: A modern note-taking app built for deep knowledge
+  text: Build Deep Knowledge
+  tagline: Support the complete cycle of externalizing ideas, internalizing understanding, and resurfacing insights
   actions:
     - theme: brand
       text: Get Started
@@ -12,21 +12,21 @@ hero:
 
 features:
   - icon: 📝
-    title: Powerful Note-Taking
-    details: Create and organize your notes with a clean, distraction-free interface. Support for markdown, tags, and linking between notes.
+    title: Frictionless Capture
+    details: Get ideas out of your head without worrying about organization. Notes as first-class abstractions—think in ideas, not files.
+  - icon: 🔗
+    title: Connected Thinking
+    details: Wikilinks and backlinks surface relationships between notes. See where ideas have been applied and built upon across time.
   - icon: 🤖
-    title: AI Agent
-    details: Built-in AI agent that can help you write, brainstorm, and process information directly within your notes.
+    title: AI Learning Partner
+    details: An agent that supports all three phases—helping you capture better, connect deeper, and resurface at the right moments.
   - icon: 🔄
-    title: Spaced Repetition
-    details: Review system with spaced repetition algorithms to help you remember important information over time.
-  - icon: 📅
-    title: Daily Notes
-    details: Quick access to daily notes with automatic organization and journaling support.
+    title: Active Recall Practice
+    details: AI-generated review prompts with spaced repetition. Build deep retention without the overhead of maintaining flashcards.
+  - icon: 🎯
+    title: Type-Guided Thinking
+    details: Note types encode different thinking patterns. Evergreen notes guide synthesis; predictions force calibration; daily notes structure reflection.
   - icon: 🔍
-    title: Full-Text Search
-    details: Fast, comprehensive search across all your notes to find what you need instantly.
-  - icon: 🎨
-    title: Customizable
-    details: Dark mode, custom templates, and flexible configuration to match your workflow.
+    title: Intelligent Resurfacing
+    details: Search and routines bring past ideas back into focus. Regular practices for synthesis and reflection reduce friction in building knowledge.
 ---
