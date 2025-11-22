@@ -178,7 +178,7 @@ tag:important api design
 type:project created:>2024-01-01
 ```
 
-### Search via AI Assistant
+### Search via AI Agent
 
 Ask the AI to search for you:
 
@@ -521,7 +521,7 @@ created:>=2024-01-01 created:<2024-02-01
 ## Next Steps
 
 - **[Wikilinks and Backlinks](/features/wikilinks)** - Navigate by connections
-- **[AI Assistant](/features/agent)** - Use AI for complex searches
+- **[AI Agent](/features/agent)** - Use AI for complex searches
 - **[Note Management](/features/notes)** - Organize for better findability
 - **[Tags](/features/notes#tags)** - Tag strategically for search
 

@@ -146,7 +146,7 @@ This is normal - Flint is using your OS's secure storage.
 
 **Testing:**
 1. Add key
-2. Open AI assistant
+2. Open AI agent
 3. Send test message
 4. If responds = key works
 
@@ -591,7 +591,7 @@ Import on new machine or after reinstall.
 ## Next Steps
 
 - **[Getting Started](/getting-started)** - Initial setup
-- **[AI Assistant](/features/agent)** - Configure AI models
+- **[AI Agent](/features/agent)** - Configure AI models
 - **[Multi-Vault](/features/vaults)** - Manage multiple vaults
 - **[User Interface](/guides/interface)** - Customize your workspace
 

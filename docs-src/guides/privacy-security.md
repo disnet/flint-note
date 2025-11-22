@@ -101,7 +101,7 @@ Managed by keyring daemon
 
 ### Conversation Context
 
-**When you use AI assistant:**
+**When you use AI agent:**
 
 **Sent to AI provider:**
 - Your messages in conversation
@@ -397,7 +397,7 @@ Linux: eCryptfs
 ```
 1. Generate new key on provider website
 2. Update in Flint: Settings → API Keys
-3. Test with AI assistant
+3. Test with AI agent
 4. Delete old key on provider website
 ```
 
@@ -636,7 +636,7 @@ A: Only what you explicitly send to it in conversations.
 A: Not by default. Use OS disk encryption for protection.
 
 **Q: Can I use Flint offline?**
-A: Yes, for all features except AI assistant.
+A: Yes, for all features except AI agent.
 
 **Q: Where are API keys stored?**
 A: In your OS's secure keychain, encrypted.

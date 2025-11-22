@@ -789,7 +789,7 @@ Whatever serves your thinking.
 - **[Inbox System](/features/inbox)** - Capture before organizing
 - **[Review System](/features/review-system)** - Review past daily notes
 - **[Note Management](/features/notes)** - Link daily notes to projects
-- **[AI Assistant](/features/agent)** - Analyze daily patterns
+- **[AI Agent](/features/agent)** - Analyze daily patterns
 
 ---
 

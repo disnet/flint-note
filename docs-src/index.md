@@ -16,7 +16,7 @@ features:
     details: Create and organize your notes with a clean, distraction-free interface. Support for markdown, tags, and linking between notes.
   - icon: 🤖
     title: AI Agent
-    details: Built-in AI assistant that can help you write, brainstorm, and process information directly within your notes.
+    details: Built-in AI agent that can help you write, brainstorm, and process information directly within your notes.
   - icon: 🔄
     title: Spaced Repetition
     details: Review system with spaced repetition algorithms to help you remember important information over time.

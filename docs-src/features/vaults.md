@@ -564,7 +564,7 @@ Research vault → Opus (deep reasoning)
 
 **Set per vault:**
 1. Switch to vault
-2. Open AI assistant
+2. Open AI agent
 3. Select model from dropdown
 4. Preference saved for this vault
 
@@ -742,7 +742,7 @@ Project-Template/
 
 - **[Daily Notes](/features/daily-notes)** - Use daily notes in each vault
 - **[Note Management](/features/notes)** - Organize within vaults
-- **[AI Assistant](/features/agent)** - Vault-specific AI conversations
+- **[AI Agent](/features/agent)** - Vault-specific AI conversations
 - **[Settings](/guides/configuration)** - Configure vault settings
 
 ---

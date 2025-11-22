@@ -15,7 +15,7 @@ Flint uses a **three-column layout** designed for efficient note-taking with AI 
 │   Sidebar    │   (Editor)          │                         │
 │              │                     │   ┌─────────────────┐  │
 │  ┌────────┐  │  ┌──────────────┐   │   │                 │  │
-│  │Pinned  │  │  │ Note Title   │   │   │  AI Assistant   │  │
+│  │Pinned  │  │  │ Note Title   │   │   │  AI Agent       │  │
 │  │Notes   │  │  ├──────────────┤   │   │                 │  │
 │  │        │  │  │              │   │   │  [Chat input]   │  │
 │  │ • Note │  │  │   Editor     │   │   │                 │  │
@@ -39,7 +39,7 @@ Flint uses a **three-column layout** designed for efficient note-taking with AI 
 1. **Workspace Bar** (top) - Vault selector, new note, search, settings
 2. **Left Sidebar** - Navigation, pinned notes, temporary tabs
 3. **Main View** - Note editor where you write
-4. **Right Sidebar** - AI assistant, metadata, backlinks
+4. **Right Sidebar** - AI agent, metadata, backlinks
 
 You can **resize** these sections by dragging the dividers between them.
 
@@ -236,7 +236,7 @@ function hello() {
 | Cell 1   | Cell 2   |
 ```
 
-## Right Sidebar: Assistant and Metadata
+## Right Sidebar: Agent and Metadata
 
 The right sidebar contains tools for AI assistance and note management.
 
@@ -244,7 +244,7 @@ The right sidebar contains tools for AI assistance and note management.
 
 The right sidebar has multiple tabs:
 
-1. **Agent** - AI assistant chat
+1. **Agent** - AI agent chat
 2. **Metadata** - YAML frontmatter editor
 3. **Backlinks** - Notes linking to this note
 4. **Suggestions** - AI-generated suggestions (if enabled)
@@ -253,7 +253,7 @@ Click the tab headers to switch between them.
 
 ### Agent Tab
 
-The AI assistant appears in this tab.
+The AI agent appears in this tab.
 
 **Components:**
 
@@ -297,7 +297,7 @@ AI: [Creates note]
     I've created "Weekly Meeting Summary" with key points...
 ```
 
-See [AI Assistant](/features/agent) for detailed capabilities.
+See [AI Agent](/features/agent) for detailed capabilities.
 
 ### Metadata Tab
 
@@ -501,7 +501,7 @@ Essential shortcuts for productivity:
 |----------|--------|
 | `Ctrl+Shift+N` / `Cmd+Shift+N` | New note |
 | `Ctrl+O` / `Cmd+O` | Search overlay |
-| `Ctrl+K` / `Cmd+K` | Toggle AI assistant |
+| `Ctrl+K` / `Cmd+K` | Toggle AI agent |
 | `Ctrl+,` / `Cmd+,` | Settings |
 
 ### Editor
@@ -582,7 +582,7 @@ Now that you understand the interface:
 
 - **[Note Management](/features/notes)** - Learn about note types and metadata
 - **[Search and Discovery](/features/search)** - Master search techniques
-- **[AI Assistant](/features/agent)** - Use AI effectively
+- **[AI Agent](/features/agent)** - Use AI effectively
 - **[Wikilinks](/features/wikilinks)** - Build connected knowledge
 
 ---

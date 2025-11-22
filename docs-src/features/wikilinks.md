@@ -684,7 +684,7 @@ This connects to [[Behavior Change Framework]]
 
 - **[Note Management](/features/notes)** - Create linkable notes
 - **[Search](/features/search)** - Find notes to link
-- **[AI Assistant](/features/agent)** - AI-assisted linking
+- **[AI Agent](/features/agent)** - AI-assisted linking
 - **[Daily Notes](/features/daily-notes)** - Link from daily journal
 
 ---

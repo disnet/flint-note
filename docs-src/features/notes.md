@@ -339,7 +339,7 @@ Flint includes several default types:
 
 You can create custom note types for specific needs.
 
-**Via AI Assistant:**
+**Via AI Agent:**
 
 ```
 You: Create a note type called "book-notes" with fields for:
@@ -892,7 +892,7 @@ tags: [topic]
 
 - **[Wikilinks and Backlinks](/features/wikilinks)** - Master bidirectional linking
 - **[Search and Discovery](/features/search)** - Find anything instantly
-- **[AI Assistant](/features/agent)** - Let AI help organize
+- **[AI Agent](/features/agent)** - Let AI help organize
 - **[Daily Notes](/features/daily-notes)** - Use the daily journaling system
 
 ---

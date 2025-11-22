@@ -694,7 +694,7 @@ Deeper understanding than surface recall.
 ## Next Steps
 
 - **[Daily Notes](/features/daily-notes)** - Track review progress daily
-- **[AI Assistant](/features/agent)** - Generate review questions
+- **[AI Agent](/features/agent)** - Generate review questions
 - **[Note Management](/features/notes)** - Create reviewable notes
 - **[Workflows](/features/workflows)** - Automate review processes
 

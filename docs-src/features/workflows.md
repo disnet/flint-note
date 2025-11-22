@@ -740,7 +740,7 @@ AI: Last execution of "Weekly Review" (Jan 22):
 
 ## Next Steps
 
-- **[AI Assistant](/features/agent)** - AI executes workflows
+- **[AI Agent](/features/agent)** - AI executes workflows
 - **[Daily Notes](/features/daily-notes)** - Common workflow output
 - **[Custom Functions](/features/custom-functions)** - Advanced automation
 - **[Templates](/features/templates)** - Create workflow materials

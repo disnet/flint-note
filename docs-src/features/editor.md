@@ -527,7 +527,7 @@ iA Writer Quattro
 ### With AI
 
 **AI can edit:**
-- AI assistant can modify note content
+- AI agent can modify note content
 - Uses diff-based updates
 - Preserves cursor position
 - Shows changes clearly

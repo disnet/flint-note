@@ -8,7 +8,7 @@ Flint is designed around a core belief:
 
 > **AI should help you think better, not think for you.**
 
-The AI assistant in Flint handles structural tasks—organizing, linking, scheduling, searching. But **you** remain responsible for:
+The AI agent in Flint handles structural tasks—organizing, linking, scheduling, searching. But **you** remain responsible for:
 
 - Creating content and insights
 - Making connections between ideas
@@ -304,11 +304,11 @@ This is about #api design and #architecture
 - **Note Type**: "This is a meeting note"
 - **Tags**: "This meeting is about #api and #design and is #important"
 
-## The AI Assistant: Your Organizational Partner
+## The AI Agent: Your Organizational Partner
 
 ### What the AI Can Do
 
-The AI assistant has access to tools that let it:
+The AI agent has access to tools that let it:
 
 **Note Operations:**
 - Create, read, update, and delete notes
@@ -360,7 +360,7 @@ Flint uses the **Model Context Protocol** to give the AI access to your notes:
 
 ### What Gets Sent to AI Providers?
 
-When you use the AI assistant:
+When you use the AI agent:
 
 **Sent to AI provider:**
 - Your message to the AI
@@ -399,7 +399,7 @@ Here's how it all fits:
 │  │  └────────┘  │  │  └────────┘ │            │
 │  └──────────────┘  └──────────────┘            │
 │                                                 │
-│  AI Assistant can:                              │
+│  AI agent can:                                  │
 │  - Search notes                                 │
 │  - Create/modify notes                          │
 │  - Manage types                                 │
@@ -456,7 +456,7 @@ Now that you understand the concepts:
 - **[User Interface Guide](/guides/interface)** - Learn the interface in detail
 - **[Note Management](/features/notes)** - Deep dive into notes and types
 - **[Wikilinks](/features/wikilinks)** - Master bidirectional linking
-- **[AI Assistant](/features/agent)** - Learn what the AI can do for you
+- **[AI Agent](/features/agent)** - Learn what the AI can do for you
 
 ---
 

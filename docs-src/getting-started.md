@@ -7,7 +7,7 @@ Welcome to Flint! This guide will help you install Flint, set up your first vaul
 Flint is a **local-first, AI-powered note-taking application** designed to extend and amplify human thinking. It combines:
 
 - **Plain-text markdown notes** that you own and control
-- **AI assistant** that helps with organization and automation
+- **AI agent** that helps with organization and automation
 - **Spaced repetition** to strengthen your understanding
 - **Powerful organization** with links, tags, and custom note types
 
@@ -104,7 +104,7 @@ Flint uses a **three-column layout**:
 
 - **Left Sidebar**: Quick access to pinned notes and recent tabs
 - **Main View**: The note editor where you write
-- **Right Sidebar**: AI assistant, metadata editor, and backlinks
+- **Right Sidebar**: AI agent, metadata editor, and backlinks
 
 See the [User Interface Guide](/guides/interface) for a detailed walkthrough.
 
@@ -182,16 +182,16 @@ Access today's daily note:
 
 Daily notes are great for journaling, logging ideas, and capturing thoughts throughout the day.
 
-## Using the AI Assistant
+## Using the AI Agent
 
-Flint includes a built-in AI assistant that can help you with note operations.
+Flint includes a built-in AI agent that can help you with note operations.
 
-### Opening the Assistant
+### Opening the Agent
 
 - Click the **AI button** in the top-right corner, or
 - Press `Ctrl+K` (Windows/Linux) or `Cmd+K` (Mac)
 
-The assistant appears in the right sidebar.
+The agent appears in the right sidebar.
 
 ### What Can the AI Do?
 
@@ -222,12 +222,12 @@ AI: I've updated the meeting note with attendees.
 ```
 
 ::: tip
-The AI has access to all your notes and can perform operations on your behalf. See [AI Assistant](/features/agent) for detailed capabilities.
+The AI has access to all your notes and can perform operations on your behalf. See [AI Agent](/features/agent) for detailed capabilities.
 :::
 
 ### Setting Up Your API Key
 
-To use the AI assistant, you'll need an API key from an AI provider.
+To use the AI agent, you'll need an API key from an AI provider.
 
 **Recommended: OpenRouter** (supports multiple models)
 
@@ -297,7 +297,7 @@ Now that you're set up, explore these guides:
 - **[Multi-Vault](/features/vaults)** - Separate work, personal, and other contexts
 
 ### AI Automation
-- **[AI Assistant](/features/agent)** - Deep dive into AI capabilities
+- **[AI Agent](/features/agent)** - Deep dive into AI capabilities
 - **[Workflows](/features/workflows)** - Automate repetitive tasks
 - **[Custom Functions](/features/custom-functions)** - Extend AI with custom code
 

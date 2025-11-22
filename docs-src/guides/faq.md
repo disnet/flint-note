@@ -11,7 +11,7 @@ Common questions about Flint, answered concisely.
 ### How is Flint different from Obsidian/Notion/Roam?
 
 **Key differences:**
-- **Built-in AI** - Native AI assistant, not a plugin
+- **Built-in AI** - Native AI agent, not a plugin
 - **Local-first** - Your data stays on your computer
 - **Simple** - Focused feature set, not overwhelming
 - **Plain markdown** - Standard format, no lock-in
@@ -70,7 +70,7 @@ Common questions about Flint, answered concisely.
 - ✓ Search notes
 - ✓ Link notes
 - ✓ Organize notes
-- ❌ AI assistant
+- ❌ AI agent
 
 **Get API key from:**
 - OpenRouter (recommended)
@@ -276,7 +276,7 @@ modified:2024-01
 created:2024-01-01..2024-01-31
 ```
 
-## AI Assistant
+## AI Agent
 
 ### What can the AI do?
 
@@ -683,7 +683,7 @@ Content here...
 - Local-first
 - Markdown files
 - Personal knowledge management
-- AI assistant
+- AI agent
 - Free (except AI)
 
 **Choose Flint if:** You want local control and markdown.

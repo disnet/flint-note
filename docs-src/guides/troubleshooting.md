@@ -364,11 +364,11 @@ Common issues and solutions for Flint.
    Resets search state
    ```
 
-## AI Assistant Issues
+## AI Agent Issues
 
 ### AI Not Responding
 
-**Problem:** AI assistant doesn't respond to messages.
+**Problem:** AI agent doesn't respond to messages.
 
 **Solutions:**
 

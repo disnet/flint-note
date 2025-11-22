@@ -2,7 +2,7 @@
 
 The Agent in Flint helps you organize, search, and manage your notes through natural conversation.
 
-## Philosophy: Assistant, Not Replacement
+## Philosophy: Agent, Not Replacement
 
 The AI in Flint is designed to **amplify your thinking**, not replace it.
 
@@ -17,6 +17,31 @@ The AI in Flint is designed to **amplify your thinking**, not replace it.
 - Replace your judgment
 
 You remain in control of your content and thinking. The AI is a powerful organizational tool.
+
+## The Agent Understands Your Notes
+
+What makes the agent powerful is its deep integration with your note system.
+
+**The agent knows about:**
+- **Note types** - Understands the difference between daily notes, meeting notes, tasks, projects, and your custom types
+- **Wikilinks** - Can follow connections between notes, understanding your knowledge graph
+- **Note structure** - Reads frontmatter metadata, sections, and content to understand context
+- **Your vault** - Has access to all your notes when it needs them for context
+
+**This means the agent can:**
+- Read one note and follow wikilinks to related notes automatically
+- Understand the metadata and fields specific to each note type
+- Plan and execute changes across multiple interconnected notes
+- Suggest connections based on content across your entire vault
+
+For example, if you ask the agent to "summarize my project notes about the API redesign," it can:
+1. Find all project notes mentioning the API redesign
+2. Follow wikilinks to related design documents
+3. Read meeting notes that reference those projects
+4. Synthesize information from across your vault
+5. Create a comprehensive summary with proper links
+
+The agent doesn't just perform isolated operations—it understands the relationships in your notes and can work with your entire knowledge system.
 
 ## Opening the Agent
 
@@ -85,8 +110,8 @@ AI: I'll update the note with those details.
 **Text area:**
 - Type your message
 - Supports multi-line input
-- Press Enter for new line
-- `Ctrl+Enter` / `Cmd+Enter` to send
+- Press Enter to send
+- `Shift+Enter` for new line
 
 **What to ask:**
 - Natural language requests

@@ -870,7 +870,7 @@ function findDuplicates(items: any[]): any[] {
 ## Next Steps
 
 - **[Workflows](/features/workflows)** - Use functions in workflows
-- **[AI Assistant](/features/agent)** - AI creates and uses functions
+- **[AI Agent](/features/agent)** - AI creates and uses functions
 - **[TypeScript Guide](/guides/typescript)** - Learn TypeScript syntax
 - **[Advanced Automation](/guides/automation)** - Combine features
 

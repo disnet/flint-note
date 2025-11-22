@@ -171,7 +171,7 @@ created:today       → Search by creation date
 modified:this-week  → Search by modified date
 ```
 
-## AI Assistant Shortcuts
+## AI Agent Shortcuts
 
 ### Chat Interface
 
@@ -207,7 +207,7 @@ modified:this-week  → Search by modified date
 |----------|--------|-------|
 | `Mod+1` | Focus Sidebar | Jump to sidebar (future) |
 | `Mod+2` | Focus Editor | Jump to editor |
-| `Mod+3` | Focus Agent | Jump to AI assistant (future) |
+| `Mod+3` | Focus Agent | Jump to AI agent (future) |
 | `Mod+0` | Focus Search | Jump to search (future) |
 
 ## Daily Note Shortcuts
