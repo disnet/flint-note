@@ -1,340 +1,244 @@
 # Core Concepts
 
-This guide explains Flint's fundamental philosophy and how its features work together to support deep knowledge building.
+Flint's fundamental philosophy and how its features work together to build deep knowledge.
 
 ## The Core Philosophy
 
 **Flint builds deep knowledge by supporting the complete cycle of externalizing (getting ideas out), internalizing (making them yours), and resurfacing (bringing them back repeatedly over time to ground memory).**
 
-Most tools optimize for one part of this cycle:
+Most tools optimize for just one part:
 
-- **Capture tools** (quick notes, voice memos) focus on externalizing but offer little support for processing or retention
-- **Study tools** (flashcards, spaced repetition) focus on resurfacing but make initial capture painful
-- **Writing tools** (Notion, Google Docs) focus on structured output but don't help with learning or recall
+- **Capture tools** focus on externalizing but don't help with retention
+- **Study tools** focus on resurfacing but make capture painful
+- **Writing tools** focus on output but don't help with learning
 
-**Flint optimizes for the entire process.** Reducing friction in all three areas is critical—but the philosophy is fundamentally about building deep knowledge itself.
+**Flint optimizes for the entire process.**
 
-## The Three Phases of Deep Knowledge
+## The Three Phases
 
 ### Externalizing: Getting Ideas Out
 
-**The problem:** Most note systems create friction at the moment of capture because you worry about organization—"Where does this go? What should I name it? How do I tag it?"
+**The problem:** Worrying about "where does this go?" creates capture friction.
 
-**Flint's approach:**
+**Flint's solution:** Capture freely. The system handles organization through [note types](/features/notes#note-types) and relationships. Process later with confidence using the [inbox](/features/organization#inbox).
 
-- **Frictionless capture** - The system handles organization through note types and relationships
-- **No premature structure** - You don't need to decide on folder hierarchies before thinking through material
-- **Trust the process** - Quick capture now, organize later with confidence
-
-**How it works:**
-
-- Notes as first-class abstractions—you think in terms of ideas, not files or folders
-- Note types guide what and how you capture without imposing rigid structure
-- Inbox provides a safety net so nothing gets lost
+**Example:** Create a meeting note without deciding its folder, tags, or final structure. Mark it processed later when you've extracted action items and linked related concepts.
 
 ### Internalizing: Making Knowledge Yours
 
-**The problem:** Highlighting, re-reading, and passive review don't build deep understanding. Real learning requires active engagement, connection-making, and synthesis.
+**The problem:** Passive re-reading doesn't build understanding. Real learning requires active engagement.
 
-**Flint's approach:**
+**Flint's solution:**
+- [Wikilinks](/features/wikilinks) force you to see relationships
+- [Note types](/features/notes#note-types) guide different thinking patterns
+- The [AI agent](/features/agent) helps connect and synthesize
+- [Review system](/features/review-system) tests actual understanding
 
-- **Connection as learning** - Wikilinks and backlinks force you to see relationships between ideas
-- **Type-guided thinking** - Different note types encode different thinking patterns (synthesis, prediction, reflection)
-- **AI as thought partner** - The agent helps you process, connect, and refine without replacing your thinking
-- **Active recall** - Review system tests understanding, not just recognition
-
-**How it works:**
-
-- Backlinks show where ideas have been applied across time
-- Note types shape how you think about material (evergreen → synthesis, prediction → calibration)
-- Agent suggestions provide real-time feedback during writing
-- Review system with AI-generated prompts for active recall practice
+**Example:** While writing about a project decision, linking to `[[past-failures]]` and `[[design-principles]]` helps you internalize why certain approaches work. The act of linking deepens understanding.
 
 ### Resurfacing: Building Long-Term Memory
 
-**The problem:** Most notes get written once and never seen again. Without systematic resurfacing, knowledge fades.
+**The problem:** Most notes are written once and never seen again.
 
-**Flint's approach:**
+**Flint's solution:**
+- [Spaced repetition](/features/review-system) brings notes back on schedule
+- [Routines](/features/workflows#routines) automate recurring synthesis
+- [Backlinks](/features/wikilinks#backlinks) surface past connections
+- [Search](/features/search) works on ideas, not just keywords
 
-- **Spaced repetition built in** - Review system reschedules notes based on performance
-- **Routines for synthesis** - Regular practices (weekly reviews, reading processing) become habitual
-- **Semantic discovery** - Search and backlinks make past thinking discoverable
-- **Connection-based recall** - Related notes surface automatically through the link structure
-
-**How it works:**
-
-- Mark notes for review; AI generates test prompts on schedule
-- Routines automate recurring workflows (weekly synthesis, prediction calibration)
-- Search works on ideas and connections, not just keywords
-- Backlinks and suggestions resurface related concepts as you work
+**Example:** A weekly routine prompts: "Review this week's daily notes and extract insights." The [review system](/features/review-system) tests your recall of key concepts on an optimal schedule.
 
 ## How Features Support the Cycle
 
 ### Notes as First-Class Abstractions
 
-**Philosophy:** Notes are the unit of thinking, not files or implementation details.
+You think in ideas, not files. The system handles file naming, folder structure, and organization.
 
-**What this means:**
+- **Stable IDs** - Rename freely without breaking links
+- **Type-driven** - Organization emerges from content and relationships
+- **Frictionless** - No decisions about "where does this go?"
 
-- You never think about where files live, how to name them, or folder structures
-- Notes have stable IDs independent of titles—rename freely without breaking connections
-- The system handles storage; you focus on ideas
+See [Note Management](/features/notes) for details.
 
-**Supports:**
+### Note Types
 
-- **Externalizing** - Capture friction eliminated; the system handles organization
-- **Internalizing** - Wikilinks and backlinks surface relationships
-- **Resurfacing** - Semantic abstraction makes thinking discoverable
+Different knowledge needs different thinking patterns. Types aren't just organizational—they're cognitive guides.
 
-### Note Types System
+- **Evergreen notes** → synthesis and universal principles
+- **Predictions** → falsifiable claims with calibration
+- **Daily notes** → structured reflection
+- **Meeting notes** → action items and context
 
-**Philosophy:** Different types of knowledge need different thinking patterns.
+The type itself shapes how you think.
 
-**What this means:**
+**Supports:** Externalizing (guides capture) · Internalizing (structures processing) · Resurfacing (enables patterns)
 
-- Note types are organizational primitives AND cognitive guides
-- Evergreen notes guide synthesis and universalization
-- Predictions force falsifiable claims with calibration
-- Daily notes structure reflection and progress tracking
-- Meeting notes capture action items and context
-
-**Supports:**
-
-- **Externalizing** - Types guide what and how you capture
-- **Internalizing** - Agent instructions per type help consistent processing
-- **Resurfacing** - Type structure enables pattern discovery
+See [Note Types](/features/notes#note-types) and [Daily Notes](/features/daily-notes).
 
 ### Wikilinks & Backlinks
 
-**Philosophy:** Making connections explicit is how learning deepens.
+Making connections explicit deepens learning.
 
-**What this means:**
+- `[[Link]]` as you write → externalizes relationships
+- Backlinks panel → shows where ideas have been applied
+- Knowledge graph → mirrors how you actually think
 
-- [[Links]] force you to externalize relationships as you write
-- Backlinks show where ideas have been applied, revealing patterns
-- Build a knowledge graph that mirrors how you actually think
+**Supports:** Externalizing (relationship thinking) · Internalizing (connection discovery) · Resurfacing (associative navigation)
 
-**Supports:**
+See [Wikilinks and Backlinks](/features/wikilinks).
 
-- **Externalizing** - Forces relationship thinking during writing
-- **Internalizing** - Backlinks surface connections across time
-- **Resurfacing** - Navigate by association; discover unexpected links
+### AI Agent
 
-### The AI Agent System
+A learning partner with semantic access to your notes—not generating thoughts, but supporting all three phases.
 
-**Philosophy:** Not generating thoughts, but intelligently supporting all three learning phases.
+- Helps structure capture conversationally
+- Suggests connections and provides feedback
+- Executes [routines](/features/workflows#routines) and generates [review prompts](/features/review-system)
+- Type-aware assistance (creates evergreen notes differently than predictions)
 
-**What this means:**
+**Supports all three phases.**
 
-- Conversational partner with semantic access to your full note system
-- Understands note types, relationships, content, and learning patterns
-- Helps you capture better, connect deeper, resurface at right moments
-- Type-aware assistance—creates evergreen notes differently than predictions
+See [AI Agent](/features/agent) and [Workflows](/features/workflows).
 
-**Supports all three phases:**
+### Review System
 
-- **Externalizing** - Helps structure and capture ideas conversationally
-- **Internalizing** - Suggests connections, provides feedback, helps synthesize
-- **Resurfacing** - Executes routines, generates review prompts, surfaces related notes
+Spaced repetition with AI-generated prompts removes the friction of writing flashcards.
 
-### Review System (Spaced Repetition)
+1. Mark note "for review"
+2. AI generates contextual test prompt
+3. Answer, get feedback, rate performance
+4. System reschedules based on recall
 
-**Philosophy:** Active recall is the most effective learning mechanism, but writing test prompts creates friction.
+**Supports:** Internalizing (active recall) · Resurfacing (optimal scheduling)
 
-**What this means:**
-
-- Mark notes "for review" with one button click
-- Agent generates contextual test prompts from note content
-- Answer, get feedback, rate performance
-- System reschedules based on how well you recalled
-
-**Supports:**
-
-- **Internalizing** - Active recall builds deep understanding
-- **Resurfacing** - Spaced repetition brings notes back on optimal schedule
+See [Review System](/features/review-system).
 
 ### Routines
 
-**Philosophy:** Systematizing recurring workflows creates regular practices for learning.
+Scheduled practices for recurring workflows—weekly reviews, reading processing, prediction calibration.
 
-**What this means:**
+Removes discipline burden by automating when and what to do. Build sustainable learning habits.
 
-- Scheduled skills for the agent (weekly reviews, reading processing, prediction calibration)
-- Reduces friction by automating scheduling and execution
-- Build sustainable learning habits without discipline burden
+**Supports:** Externalizing (structured prompts) · Internalizing (regular synthesis) · Resurfacing (recurring reflection)
 
-**Supports:**
-
-- **Externalizing** - Structured review prompts during routine execution
-- **Internalizing** - Regular synthesis sessions
-- **Resurfacing** - Recurring reflection makes it habitual
+See [Workflows](/features/workflows#routines).
 
 ### Reference Shelf
 
-**Philosophy:** Keep context available without losing focus.
+Keep multiple notes visible while editing. Live editors on each, toggle to show/hide. Works like physical reference materials on a desk.
 
-**What this means:**
+**Supports:** Externalizing (maintain context) · Internalizing (draw connections)
 
-- Add multiple notes to sidebar while editing main note
-- Live editors on each reference note
-- Mirrors how writers use physical reference materials on a desk
+See [Organization](/features/organization#reference-shelf).
 
-**Supports:**
+### Pinned Notes & Workspaces
 
-- **Externalizing** - Maintain context while developing ideas
-- **Internalizing** - Draw connections without switching contexts
+Manual positioning, not auto-sorted. Spatial memory—you know where things are by position. Make a mess during exploration; cleanup is easy.
 
-### Pinned Notes & Spatial Memory
+[Workspaces](/features/workspaces) group pinned notes for different projects. Switch contexts without losing your place.
 
-**Philosophy:** Messiness during exploration is okay; the system makes cleanup easy.
+**Supports:** Externalizing (fluid exploration) · Internalizing (spatial memory) · Resurfacing (easy context switching)
 
-**What this means:**
-
-- Pinned notes provide stable anchor for active work
-- Recent notes track exploration without losing thread
-- Drag-and-drop manual positioning (not auto-sorted)
-- Trust that you can make a mess and restore order
-
-**Supports:**
-
-- **Externalizing** - Fluid exploration without organization anxiety
-- **Internalizing** - Spatial memory works like a messy desk—you know where things are
-- **Resurfacing** - Easy return to context after exploring
+See [Workspaces](/features/workspaces) and [Organization](/features/organization).
 
 ### Inbox
 
-**Philosophy:** Removes "will I find this later?" anxiety during capture.
+All recent notes in one place. Mark as processed when reviewed. Removes "will I find this later?" anxiety.
 
-**What this means:**
+**Supports:** Externalizing (capture without worry) · Internalizing (lightweight processing routine)
 
-- All recent notes listed in one place
-- Mark as processed when reviewed
-- Lightweight routine for confirming you're happy with captures
-
-**Supports:**
-
-- **Externalizing** - Capture fluidly without worry
-- **Internalizing** - Processing inbox becomes entry point for reflection
+See [Organization](/features/organization#inbox).
 
 ## Key Design Principles
 
 ### Notes, Not Files
 
-You work with notes and their connections. The system handles:
-
-- File naming and storage
-- Folder organization
-- Metadata structure
-- Link management
-
-You see ideas; the system handles implementation.
+You see ideas and connections. The system handles file naming, storage, folders, and metadata.
 
 ### Type-Guided Thinking
 
-Note types aren't just organizational—they shape how you think:
-
-- Creating an evergreen note prompts synthesis
-- Creating a prediction forces falsifiable framing
-- Creating a daily note structures reflection
-
-The type itself is a cognitive tool.
+Note types shape how you think. Creating an evergreen note prompts synthesis. Creating a prediction forces falsifiable framing.
 
 ### Immutable Identity
 
-Notes have stable IDs independent of titles:
+Stable IDs mean rename freely, reorganize without fear, refactor as understanding evolves.
 
-- Rename freely without breaking links
-- Reorganize without fear
-- Refactor structure as understanding evolves
+### Emergent Organization
 
-### Content-Centric Organization
+Structure emerges from content and relationships—not predetermined hierarchies imposed before you've thought through the material.
 
-How notes are organized emerges from content and relationships:
+## What Makes Flint Different
 
-- Not predetermined folder hierarchies
-- Connections reflect actual thinking patterns
-- Structure becomes clear through use
+| Tool      | Focus                 | Flint's Approach                           |
+| --------- | --------------------- | ------------------------------------------ |
+| Obsidian  | Linked notes          | Abstracts files; type-guided thinking      |
+| Roam      | Bidirectional links   | AI agent; complete learning cycle          |
+| Notion    | Structured databases  | Frictionless capture; resurfacing built in |
+| Anki      | Spaced repetition     | AI prompts; full capture→recall cycle     |
+| Evernote  | Capture everything    | Connection-making; active learning         |
 
-## Contrast With Other Tools
-
-| Tool      | Optimization Focus         | Flint's Difference                               |
-| --------- | -------------------------- | ------------------------------------------------ |
-| Obsidian  | Linked notes + file access | Abstracts away files; type-guided thinking       |
-| Roam      | Bidirectional linking      | AI agent; complete learning cycle                |
-| Notion    | Structured databases       | Frictionless capture; resurfacing built in       |
-| Anki      | Spaced repetition          | AI-generated prompts; full capture→recall cycle |
-| Evernote  | Capture everything         | Connection-making; active learning               |
-| Bear      | Beautiful writing          | Learning-focused; review + routines              |
-
-**Flint is the only tool designed around the complete externalize → internalize → resurface cycle.**
+**Only Flint optimizes for the complete externalize → internalize → resurface cycle.**
 
 ## Mental Model
 
-Think of Flint as:
+**Think of Flint as:**
+- A thinking system that grows with you
+- A learning partner handling mechanical tasks
+- A knowledge graph reflecting how your mind works
+- A practice system building sustainable habits
 
-- **A thinking system** that grows with you
-- **A learning partner** that handles mechanical tasks
-- **A knowledge graph** that reflects how your mind actually works
-- **A practice system** that builds sustainable learning habits
-
-It's NOT:
-
-- A filing cabinet (organization emerges, not imposed)
-- A chatbot (AI assists thinking, doesn't replace it)
+**Not:**
+- A filing cabinet (organization emerges)
+- A chatbot (AI assists, doesn't replace thinking)
 - A writing tool (focus is learning, not output)
-- A database (structure follows content, not schema)
+
+## Getting Started
+
+### Week 1: Capture & Connect
+- Create notes freely using [different types](/features/notes#note-types)
+- Add `[[wikilinks]]` between related ideas
+- Use the [inbox](/features/organization#inbox) for quick captures
+
+### Week 2: Process & Structure
+- Try the [AI agent](/features/agent) for organization help
+- Set up a [workspace](/features/workspaces) for your main project
+- Process your inbox—link and refine notes
+
+### Week 3: Routines & Review
+- Create a weekly [routine](/features/workflows#routines) for synthesis
+- Mark important notes [for review](/features/review-system)
+- Let structure emerge from your patterns
+
+### Week 4: Deepen the Practice
+- Refine note types based on what you're learning
+- Build more sophisticated routines
+- Trust the complete cycle
 
 ## Best Practices
 
-### Start Simple
+**Let structure emerge.** Don't over-plan. Start with general notes, notice patterns, create types as needs become clear.
 
-Don't try to use every feature immediately:
+**Trust the process.** Capture fluidly (externalize) → connect with links (internalize) → process periodically (internalize) → review on schedule (resurface) → synthesize with AI (internalize).
 
-1. **Week 1**: Create notes, add wikilinks
-2. **Week 2**: Try note types, use the inbox
-3. **Week 3**: Use AI agent for organization
-4. **Week 4**: Add routines and review practice
-
-### Let Structure Emerge
-
-Don't over-plan your system:
-
-- Start with general notes
-- Notice patterns in your thinking
-- Create note types as needs become clear
-- Use the agent to help identify structure
-
-### Trust the Process
-
-The complete cycle builds knowledge:
-
-1. **Capture** fluidly without friction (externalize)
-2. **Connect** related ideas with links (internalize)
-3. **Process** periodically with routines (internalize)
-4. **Review** on schedule (resurface)
-5. **Synthesize** insights through agent assistance (internalize)
-
-### Use the Agent as Partner
-
-The AI is most powerful when you:
-
-- Ask it to find connections between notes
-- Use it to process your inbox
-- Let it generate review prompts
-- Have it execute your routines
-- Request synthesis of themes across notes
-
-But remember: the insights come from **you**.
+**Use the agent as partner.** Ask it to find connections, process your inbox, generate review prompts, execute routines, synthesize themes. But remember: insights come from you.
 
 ## Next Steps
 
-Now that you understand the philosophy:
+**Core Features:**
+- [User Interface](/guides/interface) - Detailed interface walkthrough
+- [Note Management](/features/notes) - Notes, types, and organization
+- [Wikilinks](/features/wikilinks) - Build connected knowledge
 
-- **[User Interface Guide](/guides/interface)** - Learn the interface in detail
-- **[AI Agent](/features/agent)** - See what the agent can do
-- **[Review System](/features/review-system)** - Build active recall practice
-- **[Workflows](/features/workflows)** - Automate recurring learning tasks
+**Learning System:**
+- [AI Agent](/features/agent) - What the agent can do
+- [Review System](/features/review-system) - Active recall practice
+- [Workflows](/features/workflows) - Routines and automation
+
+**Organization:**
+- [Search](/features/search) - Find anything quickly
+- [Workspaces](/features/workspaces) - Manage multiple contexts
+- [Daily Notes](/features/daily-notes) - Daily journaling workflow
 
 ---
 
-**Remember:** Flint supports the complete cycle of learning—externalizing ideas, internalizing understanding, and resurfacing knowledge. All features work together toward building deep, lasting knowledge.
+**Remember:** All features work together to support the complete learning cycle—externalizing, internalizing, and resurfacing. That's how you build deep, lasting knowledge.
