@@ -5,11 +5,13 @@ Configure Flint to match your preferences and workflow.
 ## Accessing Settings
 
 **Click the Settings icon:**
+
 - Located in the top-right corner of Flint
 - Gear/cog icon
 - Opens settings panel
 
 **Keyboard shortcut:**
+
 - `Ctrl+,` (Windows/Linux) or `Cmd+,` (Mac)
 
 ## Settings Sections
@@ -30,16 +32,19 @@ Customize how Flint looks.
 **Three theme options:**
 
 **Light Mode:**
+
 - Always use light theme
 - Regardless of system settings
 - High contrast, bright background
 
 **Dark Mode:**
+
 - Always use dark theme
 - Regardless of system settings
 - Low light, dark background
 
 **Auto (System):**
+
 - Follow your OS theme
 - macOS: Uses system Dark Mode setting
 - Windows: Uses system theme preference
@@ -59,16 +64,19 @@ Customize how Flint looks.
 Planned customizations:
 
 **Font settings:**
+
 - Editor font family
 - Editor font size
 - UI font size
 
 **Layout:**
+
 - Sidebar default width
 - Editor line height
 - Code block styling
 
 **Colors:**
+
 - Accent color
 - Syntax highlighting theme
 
@@ -79,12 +87,14 @@ Configure AI provider access.
 ### Supported Providers
 
 **OpenRouter (Recommended):**
+
 - Access to multiple models
 - One API key for many providers
 - Flexible model selection
 - Cost-effective
 
 **Direct providers** (future):
+
 - Anthropic (Claude directly)
 - OpenAI (GPT models directly)
 
@@ -105,6 +115,7 @@ Configure AI provider access.
 4. Green checkmark when valid
 
 **Auto-save:**
+
 - Key saves after 1 second of no typing
 - "Saved" message appears
 - Stored securely in OS keychain
@@ -112,12 +123,14 @@ Configure AI provider access.
 ### API Key Storage
 
 **Secure storage:**
+
 - Keys stored in your OS keychain
 - macOS: Keychain Access
 - Windows: Credential Manager
 - Linux: Secret Service / libsecret
 
 **Encryption:**
+
 - Your OS encrypts the keys
 - Flint never stores keys in plain text
 - Only accessible to Flint
@@ -141,16 +154,19 @@ This is normal - Flint is using your OS's secure storage.
 ### Validating Keys
 
 **Automatic validation:**
+
 - Green ✓ = Valid key
 - Red ❌ = Invalid key
 
 **Testing:**
+
 1. Add key
 2. Open AI agent
 3. Send test message
 4. If responds = key works
 
 **If invalid:**
+
 - Check for typos
 - Verify key is active on provider site
 - Generate new key if needed
@@ -158,11 +174,13 @@ This is normal - Flint is using your OS's secure storage.
 ### Managing API Keys
 
 **Viewing keys:**
+
 - Keys displayed as password field (hidden)
 - Can't copy from settings
 - Retrieve from provider site if needed
 
 **Changing keys:**
+
 1. Delete existing key (clear field)
 2. Paste new key
 3. Validates and saves automatically
@@ -170,6 +188,7 @@ This is normal - Flint is using your OS's secure storage.
 **Clearing all keys:**
 
 **Danger Zone section:**
+
 1. Click "Clear All API Keys"
 2. Confirm action
 3. All keys removed from keychain
@@ -181,18 +200,21 @@ This is normal - Flint is using your OS's secure storage.
 **Best practices:**
 
 **DO:**
+
 - Store only in Flint (secure storage)
 - Rotate keys periodically
 - Use separate keys for different apps
 - Monitor usage on provider site
 
 **DON'T:**
+
 - Share keys with others
 - Commit keys to git repositories
 - Store in plain text files
 - Use same key across many apps
 
 **If compromised:**
+
 1. Revoke key on provider site immediately
 2. Generate new key
 3. Update in Flint
@@ -207,6 +229,7 @@ Manage your vault's database.
 Flint uses **SQLite** to index your notes:
 
 **Stores:**
+
 - Note metadata (titles, types, dates)
 - Full-text search index (FTS5)
 - Wikilinks and backlinks
@@ -214,10 +237,12 @@ Flint uses **SQLite** to index your notes:
 - Review schedules
 
 **Doesn't store:**
+
 - Note content (that's in .md files)
 - Binary files (images, PDFs)
 
 **Location:**
+
 - `.flint/database.db` in your vault folder
 
 ### Rebuilding Database
@@ -225,14 +250,17 @@ Flint uses **SQLite** to index your notes:
 **When to rebuild:**
 
 **Search not working:**
+
 - Can't find notes you know exist
 - Search results seem incomplete
 
 **Notes missing:**
+
 - Notes created externally don't appear
 - Recently created notes not showing
 
 **After corruption:**
+
 - Database errors
 - App crashes related to database
 
@@ -246,6 +274,7 @@ Flint uses **SQLite** to index your notes:
 6. "Rebuild complete" message
 
 **What happens:**
+
 - All .md files in vault scanned
 - Metadata extracted
 - Search index recreated
@@ -253,6 +282,7 @@ Flint uses **SQLite** to index your notes:
 - Takes a few seconds to minutes (depends on vault size)
 
 **Safe to do:**
+
 - Non-destructive (doesn't touch .md files)
 - Can rebuild anytime
 - Good for troubleshooting
@@ -260,6 +290,7 @@ Flint uses **SQLite** to index your notes:
 ### Database Statistics
 
 **View stats** (future):
+
 ```
 Database info:
 - Total notes: 342
@@ -272,11 +303,13 @@ Database info:
 ### Backup and Recovery
 
 **Database is reconstructible:**
+
 - If database.db deleted or corrupted
 - Flint rebuilds from .md files automatically
 - No permanent data loss
 
 **Backup strategy:**
+
 - Backup vault folder (includes database)
 - Or just backup .md files
 - Database can be regenerated
@@ -297,11 +330,13 @@ Manage Flint updates.
 **Update channels:**
 
 **Stable:**
+
 - Production releases
 - Thoroughly tested
 - Recommended for most users
 
 **Canary:**
+
 - Bleeding edge features
 - Latest development
 - May have bugs
@@ -310,15 +345,18 @@ Manage Flint updates.
 ### Checking for Updates
 
 **Automatic:**
+
 - Checks on every app launch
 - Checks periodically while running
 
 **Manual check:**
+
 1. Settings → Application Updates
 2. Click "Check Now"
 3. Status appears
 
 **Results:**
+
 ```
 ✓ You're up to date (v1.2.3)
 
@@ -342,12 +380,14 @@ or
 3. Changelog modal opens
 
 **Shows:**
+
 - Current version
 - All previous versions
 - Changes in each version
 - New features, bug fixes
 
 **Useful for:**
+
 - Understanding new features
 - Seeing what changed
 - Reporting bugs ("since version X")
@@ -355,10 +395,12 @@ or
 ### Update Notifications
 
 **Green dot indicator:**
+
 - Appears in top bar when update ready
 - Click to see update details
 
 **Update banner** (future):
+
 - In-app notification
 - "Update available - Restart to install"
 - Dismiss or install
@@ -366,16 +408,19 @@ or
 ### Installing Updates
 
 **To update:**
+
 1. Save any work
 2. Quit Flint
 3. Relaunch Flint
 4. Update applies automatically
 
 **Or:**
+
 - Click "Restart to Update" if available
 - Flint closes and reopens with new version
 
 **Update process:**
+
 - Preserves all data
 - Settings maintained
 - Notes untouched
@@ -410,6 +455,7 @@ Planned configuration options:
 ### Editor Settings
 
 **Preferences:**
+
 - Line numbers (on/off)
 - Word wrap (on/off)
 - Tab size (2, 4 spaces)
@@ -419,6 +465,7 @@ Planned configuration options:
 ### AI Settings
 
 **Per-vault model:**
+
 - Default model for vault
 - Model selection preferences
 - Cost limits/warnings
@@ -427,6 +474,7 @@ Planned configuration options:
 ### Review Settings
 
 **Scheduling:**
+
 - Custom intervals (not just 1 day / 7 days)
 - Review time limits
 - Daily review reminders
@@ -434,6 +482,7 @@ Planned configuration options:
 ### Privacy Settings
 
 **Telemetry:**
+
 - Opt-in crash reporting
 - Anonymous usage statistics
 - What data is collected
@@ -441,6 +490,7 @@ Planned configuration options:
 ### Keyboard Shortcuts
 
 **Customization:**
+
 - Change default shortcuts
 - Add custom shortcuts
 - Export/import keybindings
@@ -450,12 +500,14 @@ Planned configuration options:
 ### API Keys
 
 **Security:**
+
 - Never share keys
 - Rotate periodically
 - Monitor usage
 - Use OpenRouter for flexibility
 
 **Cost management:**
+
 - Choose appropriate models
 - Monitor spending on provider site
 - Use caching (automatic in Claude)
@@ -464,11 +516,13 @@ Planned configuration options:
 ### Database
 
 **Maintenance:**
+
 - Rebuild if search seems off
 - Rebuild after major external edits
 - Rebuild if weird behavior occurs
 
 **Don't worry:**
+
 - Database is reconstructible
 - Can't lose data by rebuilding
 - When in doubt, rebuild
@@ -476,12 +530,14 @@ Planned configuration options:
 ### Updates
 
 **Stay current:**
+
 - Enable auto-updates
 - Update promptly
 - Read changelogs
 - Report issues
 
 **If unstable:**
+
 - Switch from Canary to Stable
 - Wait for next stable release
 - Report bugs to help improve
@@ -489,17 +545,20 @@ Planned configuration options:
 ### Theme
 
 **Personal preference:**
+
 - No right answer
 - Try each option
 - Consider lighting conditions
 - Auto mode is convenient
 
 **Dark mode benefits:**
+
 - Reduced eye strain in low light
 - Battery saving (OLED screens)
 - Popular among developers
 
 **Light mode benefits:**
+
 - Better in bright environments
 - Higher contrast
 - Traditional reading experience
@@ -531,17 +590,20 @@ Import on new machine or after reinstall.
 **If settings corrupted or want fresh start:**
 
 **Manual reset:**
+
 1. Quit Flint
 2. Delete `{userData}/settings/app-settings.json`
 3. Relaunch Flint
 4. Settings reset to defaults
 
 **Or future UI:**
+
 - Settings → Advanced → Reset to Defaults
 - Confirm action
 - App restarts with default settings
 
 **Doesn't affect:**
+
 - Vaults
 - Notes
 - API keys (stored separately)
@@ -552,6 +614,7 @@ Import on new machine or after reinstall.
 **Where settings are stored:**
 
 **macOS:**
+
 ```
 ~/Library/Application Support/Flint/
 ├── settings/
@@ -563,6 +626,7 @@ Import on new machine or after reinstall.
 ```
 
 **Windows:**
+
 ```
 %APPDATA%\Flint\
 ├── settings\
@@ -574,6 +638,7 @@ Import on new machine or after reinstall.
 ```
 
 **Linux:**
+
 ```
 ~/.config/Flint/
 ├── settings/
@@ -585,6 +650,7 @@ Import on new machine or after reinstall.
 ```
 
 **Vault registry:**
+
 - Tracks all vaults
 - Location: `{userData}/vaults.json`
 

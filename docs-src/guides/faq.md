@@ -11,6 +11,7 @@ Common questions about Flint, answered concisely.
 ### How is Flint different from Obsidian/Notion/Roam?
 
 **Key differences:**
+
 - **Built-in AI** - Native AI agent, not a plugin
 - **Local-first** - Your data stays on your computer
 - **Simple** - Focused feature set, not overwhelming
@@ -18,6 +19,7 @@ Common questions about Flint, answered concisely.
 - **Free and open source** - No subscription required (except AI provider)
 
 **Similar to:**
+
 - **Obsidian** - Local markdown, linking
 - **Different** - Built-in AI, simpler feature set
 
@@ -26,6 +28,7 @@ Common questions about Flint, answered concisely.
 **Flint itself: Yes, free and open source.**
 
 **AI features:** Requires API key from AI provider (OpenRouter, etc.)
+
 - You pay the AI provider directly
 - Typically $5-20/month depending on usage
 - No subscription to Flint
@@ -33,6 +36,7 @@ Common questions about Flint, answered concisely.
 ### What platforms does Flint support?
 
 **Currently:**
+
 - macOS 10.15+
 - Windows 10+
 - Linux (AppImage)
@@ -42,6 +46,7 @@ Common questions about Flint, answered concisely.
 ### Is Flint open source?
 
 **Yes.** Source code available on GitHub:
+
 - [github.com/anthropics/flint-ui](https://github.com/anthropics/flint-ui)
 - MIT license (permissive)
 - Contributions welcome
@@ -51,12 +56,14 @@ Common questions about Flint, answered concisely.
 ### How do I install Flint?
 
 **Download installer from website:**
+
 1. Visit flint.ai (hypothetical)
 2. Download for your platform
 3. Run installer
 4. Launch Flint
 
 **First-time setup:**
+
 1. Create or open vault
 2. Add API key (Settings → API Keys)
 3. Start taking notes
@@ -66,6 +73,7 @@ Common questions about Flint, answered concisely.
 **For AI features: Yes.**
 
 **Without API key:**
+
 - ✓ Create and edit notes
 - ✓ Search notes
 - ✓ Link notes
@@ -73,12 +81,14 @@ Common questions about Flint, answered concisely.
 - ❌ AI agent
 
 **Get API key from:**
+
 - OpenRouter (recommended)
 - Direct providers (future)
 
 ### How do I get an API key?
 
 **OpenRouter (recommended):**
+
 1. Visit [openrouter.ai](https://openrouter.ai)
 2. Create account
 3. Add payment method
@@ -91,6 +101,7 @@ Common questions about Flint, answered concisely.
 ### Can I use Flint without AI?
 
 **Yes!** Flint works great without AI:
+
 - Full note editor
 - Wikilinks and backlinks
 - Search
@@ -107,6 +118,7 @@ Common questions about Flint, answered concisely.
 **In a folder on your computer:**
 
 **Example:**
+
 ```
 ~/Documents/MyVault/
 ├── general/
@@ -124,6 +136,7 @@ Common questions about Flint, answered concisely.
 **Yes!** Notes are standard markdown.
 
 **Edit with:**
+
 - Any text editor (VS Code, Sublime, Vim, etc.)
 - Other markdown apps
 - Mobile editors (if syncing)
@@ -135,12 +148,14 @@ Common questions about Flint, answered concisely.
 **A vault is a folder containing your notes.**
 
 **One vault = one folder:**
+
 - All your notes inside
 - Database for indexing
 - Configuration files
 - Self-contained workspace
 
 **Multiple vaults** for separation:
+
 - Work vs Personal
 - Different projects
 - Shared vs Private
@@ -150,6 +165,7 @@ Common questions about Flint, answered concisely.
 **Practically unlimited.**
 
 **Performance:**
+
 - 1,000 notes: Excellent
 - 5,000 notes: Good
 - 10,000 notes: Acceptable
@@ -160,16 +176,19 @@ Common questions about Flint, answered concisely.
 ### Can I import from Obsidian/Notion/etc?
 
 **From Obsidian:**
+
 - ✓ Direct import (both use markdown)
 - ✓ Wikilinks compatible
 - ✓ Open Obsidian vault as Flint vault
 
 **From Notion:**
+
 - Export as markdown
 - Import files to Flint vault
 - May need link cleanup
 
 **From other apps:**
+
 - Export to markdown
 - Copy files to Flint vault
 - Rebuild database
@@ -195,6 +214,7 @@ I'm working on [[Project Alpha]]
 **Wikilink appears red/orange** (broken link).
 
 **Click to create note:**
+
 - Opens new note with that title
 - Link updates automatically
 - Now working link
@@ -212,11 +232,13 @@ I'm working on [[Project Alpha]]
 ### How do backlinks work?
 
 **Automatic:**
+
 - Note A links to Note B: `[[Note B]]`
 - Note B shows backlink from Note A
 - See in right sidebar
 
 **Benefits:**
+
 - Discover unexpected connections
 - See who references this note
 - Build knowledge graph
@@ -226,23 +248,27 @@ I'm working on [[Project Alpha]]
 ### How do I search?
 
 **Quick search:**
+
 - Press `Cmd/Ctrl+O`
 - Type search term
 - Select result, press Enter
 
 **In-note search:**
+
 - `Cmd/Ctrl+F` in editor
 - Searches current note only
 
 ### What can I search for?
 
 **Everything:**
+
 - Note titles
 - Note content
 - Tags
 - Metadata fields
 
 **Operators:**
+
 ```
 type:daily          - Filter by note type
 tag:important       - Filter by tag
@@ -251,6 +277,7 @@ modified:this-week  - By modified date
 ```
 
 **Combine operators:**
+
 ```
 type:daily created:this-week
 ```
@@ -258,6 +285,7 @@ type:daily created:this-week
 ### How do I search by date?
 
 **Relative dates:**
+
 ```
 created:today
 created:yesterday
@@ -266,12 +294,14 @@ created:this-month
 ```
 
 **Absolute dates:**
+
 ```
 created:2024-01-15
 modified:2024-01
 ```
 
 **Ranges:**
+
 ```
 created:2024-01-01..2024-01-31
 ```
@@ -281,6 +311,7 @@ created:2024-01-01..2024-01-31
 ### What can the AI do?
 
 **AI can:**
+
 - Answer questions about your notes
 - Summarize content
 - Create new notes
@@ -295,12 +326,14 @@ created:2024-01-01..2024-01-31
 ### What AI models are available?
 
 **Two models available:**
+
 - **Normal** (Claude Haiku 4.5) - Fast and economical, great for most tasks
 - **Plus Ultra** (Claude Sonnet 4.5) - Enhanced reasoning, but slower and more expensive
 
 **Choose model** in conversation.
 
 **Different models:**
+
 - Different capabilities
 - Different costs
 - Different speeds
@@ -312,11 +345,13 @@ created:2024-01-01..2024-01-31
 **Pay-as-you-go** through provider:
 
 **Typical costs:**
+
 - Light usage: $5-10/month
 - Medium usage: $10-20/month
 - Heavy usage: $20-50/month
 
 **Depends on:**
+
 - Model used (some more expensive)
 - Conversation length
 - Frequency of use
@@ -326,11 +361,13 @@ created:2024-01-01..2024-01-31
 ### Can AI see all my notes?
 
 **No.** AI only sees:
+
 - Current conversation
 - Notes you explicitly reference
 - Search results AI retrieves
 
 **AI doesn't see:**
+
 - Other vaults
 - Notes not mentioned
 - Your API keys
@@ -343,6 +380,7 @@ created:2024-01-01..2024-01-31
 **No.** AI requires internet connection.
 
 **Other features** work offline:
+
 - Note editing
 - Search
 - Organization
@@ -355,6 +393,7 @@ created:2024-01-01..2024-01-31
 **One note per day** for journaling and logging.
 
 **Automatically created** with date-based structure:
+
 - Morning section
 - Afternoon section
 - Evening section
@@ -367,6 +406,7 @@ created:2024-01-01..2024-01-31
 **No.** Completely optional.
 
 **Many users find them useful** for:
+
 - Daily journaling
 - Capturing thoughts throughout day
 - Meeting notes
@@ -379,11 +419,13 @@ created:2024-01-01..2024-01-31
 **Yes.**
 
 **Edit template:**
+
 1. Navigate to `.note-types/daily/daily.md`
 2. Modify template section
 3. New daily notes use updated template
 
 **Customize:**
+
 - Sections
 - Frontmatter fields
 - Structure
@@ -396,6 +438,7 @@ created:2024-01-01..2024-01-31
 **Persistent task definitions** AI can execute.
 
 **Examples:**
+
 - Daily standup note generation
 - Weekly review process
 - Monthly report compilation
@@ -420,17 +463,20 @@ AI: [Creates workflow]
 ### Can workflows run automatically?
 
 **Yes**, on schedule:
+
 - Daily at specific time
 - Weekly on specific day
 - Monthly on specific date
 
 **Or on-demand:**
+
 - Ask AI to run workflow
 - Manual execution
 
 ### What's the difference between workflows and custom functions?
 
 **Workflows:**
+
 - High-level procedures
 - AI-executed
 - Multiple steps
@@ -438,6 +484,7 @@ AI: [Creates workflow]
 - Example: "Create weekly review"
 
 **Custom Functions:**
+
 - Low-level operations
 - Code-based (TypeScript)
 - Reusable utilities
@@ -452,6 +499,7 @@ AI: [Creates workflow]
 **Use cloud storage:**
 
 1. **Move vault to cloud folder:**
+
    ```
    ~/Dropbox/FlintVaults/MyVault/
    ```
@@ -461,6 +509,7 @@ AI: [Creates workflow]
 3. **Cloud service syncs automatically**
 
 **Important:**
+
 - Don't edit simultaneously on multiple devices
 - Close Flint before switching devices
 - Let sync complete
@@ -468,6 +517,7 @@ AI: [Creates workflow]
 ### Can I use iCloud/Dropbox/Google Drive?
 
 **Yes**, any cloud storage works:
+
 - iCloud Drive
 - Dropbox
 - Google Drive
@@ -480,11 +530,13 @@ AI: [Creates workflow]
 ### How do I backup my notes?
 
 **Automatic backups:**
+
 1. **Cloud sync** - Continuous
 2. **Time Machine** (macOS) - Hourly
 3. **File History** (Windows) - Regular
 
 **Manual backups:**
+
 1. Copy vault folder
 2. Store elsewhere
 3. Regular schedule (weekly/monthly)
@@ -503,6 +555,7 @@ git commit -m "Initial commit"
 ```
 
 **Benefits:**
+
 - Full history
 - Revert changes
 - Branch for experiments
@@ -515,10 +568,12 @@ git commit -m "Initial commit"
 ### Is my data secure?
 
 **Your data never leaves your computer** except:
+
 - When you ask AI to process it
 - When you sync with cloud storage
 
 **Flint doesn't:**
+
 - Send data to our servers (we don't have servers)
 - Track your usage
 - Collect analytics
@@ -543,6 +598,7 @@ git commit -m "Initial commit"
 **No.** Your notes are on your computer.
 
 **We never see:**
+
 - Your note content
 - Your vault structure
 - Your API keys
@@ -557,6 +613,7 @@ git commit -m "Initial commit"
 **No telemetry, no analytics, no tracking.**
 
 **We don't know:**
+
 - How many notes you have
 - What features you use
 - How often you use Flint
@@ -571,6 +628,7 @@ git commit -m "Initial commit"
 **Standard markdown (.md files).**
 
 **With YAML frontmatter:**
+
 ```markdown
 ---
 title: Note Title
@@ -590,6 +648,7 @@ Content here...
 **Your data is already exported!**
 
 **Notes are markdown files** in vault folder:
+
 - Copy folder anywhere
 - Open in any text editor
 - Import to other apps
@@ -602,12 +661,14 @@ Content here...
 **SQLite** for metadata and search index.
 
 **Database contains:**
+
 - Note metadata (titles, dates, types)
 - Search index (FTS5)
 - Backlinks
 - Tags
 
 **Database doesn't contain:**
+
 - Note content (that's in .md files)
 - Anything you can't regenerate
 
@@ -620,6 +681,7 @@ Content here...
 **Two options:**
 
 1. **Open folder as vault:**
+
    ```
    Flint → Open Existing Vault → Select folder
    Flint indexes existing .md files
@@ -642,6 +704,7 @@ Content here...
 **Planned:** iOS and Android apps
 
 **Meanwhile:**
+
 - Sync vault to cloud
 - Edit with mobile markdown app
 - Changes sync back to Flint
@@ -651,16 +714,19 @@ Content here...
 ### Flint vs Obsidian?
 
 **Similar:**
+
 - Local markdown notes
 - Wikilinks and backlinks
 - Plugin ecosystem (Obsidian has more)
 
 **Flint advantages:**
+
 - Built-in AI (not plugin)
 - Simpler, more focused
 - Open source
 
 **Obsidian advantages:**
+
 - More mature
 - Larger plugin ecosystem
 - Mobile apps available
@@ -672,6 +738,7 @@ Content here...
 **Very different:**
 
 **Notion:**
+
 - Cloud-based
 - Proprietary format
 - Team collaboration
@@ -679,6 +746,7 @@ Content here...
 - Subscription required
 
 **Flint:**
+
 - Local-first
 - Markdown files
 - Personal knowledge management
@@ -692,12 +760,14 @@ Content here...
 **Different approaches:**
 
 **Logseq/Roam:**
+
 - Outliner-based
 - Block references
 - Daily notes centered
 - Bi-directional linking
 
 **Flint:**
+
 - Document-based
 - Note references
 - AI assistance
@@ -742,6 +812,7 @@ Settings → Database → Rebuild Database
 5. ✓ Account has credits?
 
 **If all yes** and still broken:
+
 - Try new conversation
 - Restart Flint
 - Check provider status page
@@ -749,6 +820,7 @@ Settings → Database → Rebuild Database
 ### How do I report a bug?
 
 **GitHub Issues:**
+
 1. Visit [github.com/anthropics/flint-ui/issues](https://github.com/anthropics/flint-ui/issues)
 2. Search existing issues
 3. Create new issue if not found
@@ -780,16 +852,19 @@ Settings → Database → Rebuild Database
 ### What's the best way to organize notes?
 
 **Start simple:**
+
 - Just create notes
 - Link related notes
 - Let structure emerge
 
 **Don't pre-organize:**
+
 - No elaborate folder systems
 - No complex tagging schemes
 - No rigid templates
 
 **Trust:**
+
 - Search is powerful
 - Wikilinks create structure
 - AI helps organize
@@ -813,6 +888,7 @@ Settings → Database → Rebuild Database
 ### Where can I get help?
 
 **Resources:**
+
 - **Documentation** - [docs.flint.ai](https://docs.flint.ai)
 - **GitHub Issues** - Bug reports and questions
 - **Discord** - Community chat (if available)
@@ -833,11 +909,13 @@ Settings → Database → Rebuild Database
 ### Is there a roadmap?
 
 **Check GitHub:**
+
 - Issues labeled "enhancement"
 - Project boards
 - Discussions
 
 **Common requests:**
+
 - Mobile apps
 - Plugin system
 - More AI providers

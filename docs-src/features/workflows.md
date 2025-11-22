@@ -7,6 +7,7 @@ Automate recurring tasks and create reusable workflows with Flint's AI-powered r
 **Workflows** (also called **routines**) are persistent, AI-executable task definitions that can be run on-demand or on a schedule.
 
 **Key capabilities:**
+
 - **Define once, run many times** - Create reusable task patterns
 - **Scheduled or on-demand** - Daily, weekly, monthly, or manual execution
 - **AI-executed** - The AI agent can complete workflows autonomously
@@ -14,6 +15,7 @@ Automate recurring tasks and create reusable workflows with Flint's AI-powered r
 - **Completion tracking** - Historical record of each execution
 
 **Use cases:**
+
 - Daily standup note generation
 - Weekly review processes
 - Monthly report compilation
@@ -25,12 +27,14 @@ Automate recurring tasks and create reusable workflows with Flint's AI-powered r
 ### Regular Workflows
 
 **Standard task definitions:**
+
 - Created for specific purposes
 - Can be one-time or recurring
 - Agent executes when triggered
 - Completion tracked with metadata
 
 **Example workflows:**
+
 ```
 "Daily Standup"
 - Purpose: Create today's standup note
@@ -51,12 +55,14 @@ Automate recurring tasks and create reusable workflows with Flint's AI-powered r
 ### Backlogs
 
 **Special workflow type for task queues:**
+
 - Type: `backlog`
 - Collection of tasks to work through
 - No specific schedule
 - Work on when convenient
 
 **Example backlogs:**
+
 ```
 "Reading List"
 - Purpose: Books and articles to read
@@ -72,6 +78,7 @@ Automate recurring tasks and create reusable workflows with Flint's AI-powered r
 ```
 
 **Difference from regular workflows:**
+
 - Regular workflows: Execute specific procedure
 - Backlogs: Accumulation of tasks to process
 
@@ -102,11 +109,13 @@ AI: I'll create that daily standup routine for you.
 ### Workflow Properties
 
 **Required:**
+
 - **Name** - Max 20 characters, unique within vault
 - **Purpose** - Max 100 characters, concise description
 - **Description** - Detailed markdown instructions for AI
 
 **Optional:**
+
 - **Status** - `active`, `paused`, `completed`, `archived`
 - **Type** - `workflow` (default) or `backlog`
 - **Schedule** - Recurring specification
@@ -118,12 +127,14 @@ AI: I'll create that daily standup routine for you.
 **Recurring workflows support:**
 
 **Daily:**
+
 ```
 Frequency: daily
 Optional time: "09:00"
 ```
 
 **Weekly:**
+
 ```
 Frequency: weekly
 Day of week: Monday (0=Sunday, 1=Monday, ..., 6=Saturday)
@@ -131,6 +142,7 @@ Optional time: "14:00"
 ```
 
 **Monthly:**
+
 ```
 Frequency: monthly
 Day of month: 15 (1-31)
@@ -138,6 +150,7 @@ Optional time: "17:00"
 ```
 
 **Examples:**
+
 ```
 Every day at 9am:
   { frequency: 'daily', time: '09:00' }
@@ -159,6 +172,7 @@ Every Friday (no specific time):
 ### Material Types
 
 **Text:**
+
 - Instructions or guidelines
 - Templates
 - Reference information
@@ -176,6 +190,7 @@ AI: [Adds text material to workflow]
 ```
 
 **Code:**
+
 - Code snippets
 - Scripts to reference
 - Examples
@@ -192,6 +207,7 @@ AI: [Adds code material]
 ```
 
 **Note References:**
+
 - Links to existing notes
 - Pull information from notes during execution
 
@@ -209,10 +225,12 @@ AI: [Adds note reference]
 ### Size Limits
 
 **Materials have size constraints:**
+
 - Individual material: 50 KB max
 - Total materials per workflow: 500 KB max
 
 **Best practices:**
+
 - Use note references for large content
 - Keep templates concise
 - Reference external notes rather than copying content
@@ -284,6 +302,7 @@ AI: Good morning! I notice you have 2 routines due today:
 5. **Record completion** - Track execution metadata
 
 **The AI has access to:**
+
 - Workflow description (instructions)
 - All supplementary materials
 - Content of referenced notes
@@ -319,6 +338,7 @@ AI: Completion history for "Daily Standup":
 ```
 
 **Completion metadata:**
+
 - Completion timestamp
 - Output note (if created)
 - Execution notes
@@ -382,6 +402,7 @@ AI: [Updates workflow description]
 ### Pausing and Archiving
 
 **Pause workflows:**
+
 ```
 You: Pause the daily standup for this week
 
@@ -393,6 +414,7 @@ AI: [Sets status to 'paused']
 ```
 
 **Archive completed workflows:**
+
 ```
 You: Archive the "Q1 Planning" workflow
 
@@ -419,6 +441,7 @@ AI: [Archives workflow]
 ```
 
 **Why soft delete:**
+
 - Preserves completion history
 - Can reference past executions
 - Reversible if needed
@@ -428,6 +451,7 @@ AI: [Archives workflow]
 ### Common Workflow Patterns
 
 **Daily Review:**
+
 ```yaml
 Name: Daily Review
 Purpose: Review today's notes and plan tomorrow
@@ -443,6 +467,7 @@ Materials:
 ```
 
 **Weekly Cleanup:**
+
 ```yaml
 Name: Weekly Cleanup
 Purpose: Archive completed tasks and organize notes
@@ -457,6 +482,7 @@ Materials:
 ```
 
 **Meeting Prep:**
+
 ```yaml
 Name: 1-on-1 Prep
 Purpose: Prepare for weekly 1-on-1 meeting
@@ -473,6 +499,7 @@ Materials:
 ```
 
 **Content Creation:**
+
 ```yaml
 Name: Blog Post Draft
 Purpose: Create weekly blog post from ideas
@@ -496,6 +523,7 @@ Materials:
 **Write clear descriptions:**
 
 **Good:**
+
 ```
 1. Open today's daily note
 2. List all completed tasks (marked with [x])
@@ -505,11 +533,13 @@ Materials:
 ```
 
 **Bad:**
+
 ```
 Review the day and make a summary
 ```
 
 **Be specific:**
+
 - Step-by-step instructions
 - Explicit inputs and outputs
 - Clear success criteria
@@ -519,6 +549,7 @@ Review the day and make a summary
 **Use materials effectively:**
 
 **Templates as code materials:**
+
 ```
 Type: Code (Markdown)
 Content: Full note template
@@ -526,6 +557,7 @@ Language: markdown
 ```
 
 **Guidelines as text materials:**
+
 ```
 Type: Text
 Content: "When creating summaries, focus on impact
@@ -533,6 +565,7 @@ Content: "When creating summaries, focus on impact
 ```
 
 **Dynamic data as note references:**
+
 ```
 Type: Note Reference
 Note: [[Project Tracking]]
@@ -543,11 +576,13 @@ Reason: Content changes frequently, reference is better
 ### Scheduling Strategy
 
 **Don't over-schedule:**
+
 - Too many daily routines = overwhelm
 - Use on-demand for occasional tasks
 - Pause routines during vacation
 
 **Timing considerations:**
+
 ```
 Good: Daily standup at 9am (start of work)
 Good: Weekly review at 5pm Friday (end of week)
@@ -567,6 +602,7 @@ Bad: Weekly planning at 2am Sunday (asleep)
 6. **Optimize schedule** if timing is off
 
 **Iterate:**
+
 - Workflows improve over time
 - Don't expect perfection initially
 - Adjust based on actual usage
@@ -668,6 +704,7 @@ Cleanup Workflow:
 ### Workflows + AI Conversations
 
 **Workflows are AI-executed:**
+
 - Run workflows in conversation
 - Workflows have full access to tools
 - Can ask clarifying questions during execution
@@ -679,13 +716,16 @@ Cleanup Workflow:
 **Problem:** Scheduled workflow didn't execute.
 
 **Solutions:**
+
 1. **Check status:** Might be paused
+
    ```
    You: Why didn't my daily standup run?
    AI: The "Daily Standup" workflow is paused.
    ```
 
 2. **Check schedule:** Might be misconfigured
+
    ```
    You: Show schedule for daily standup
    AI: Schedule: Every weekday at 9am
@@ -704,6 +744,7 @@ Cleanup Workflow:
 **Problem:** Workflow ran but didn't complete successfully.
 
 **Check completion notes:**
+
 ```
 You: What happened with the last weekly review?
 
@@ -720,13 +761,16 @@ AI: Last execution of "Weekly Review" (Jan 22):
 **Problem:** Overwhelmed by workflow notifications.
 
 **Solutions:**
+
 1. **Pause occasional workflows:**
+
    ```
    You: Pause all monthly workflows until Q2
    AI: [Pauses workflows]
    ```
 
 2. **Archive old workflows:**
+
    ```
    You: Archive completed Q1 workflows
    AI: [Archives completed workflows from Q1]

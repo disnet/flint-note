@@ -7,12 +7,15 @@ Learn everything about creating, organizing, and managing notes in Flint.
 ### Quick Creation
 
 **Keyboard shortcut:**
+
 - Press `Ctrl+Shift+N` (Windows/Linux) or `Cmd+Shift+N` (Mac)
 
 **From workspace bar:**
+
 - Click the "New Note" button in the top-right
 
 **Via AI:**
+
 ```
 You: Create a project note for the website redesign
 
@@ -22,6 +25,7 @@ AI: [Creates projects/website-redesign.md with appropriate metadata]
 ### Choosing a Note Type
 
 When creating a note, you'll select a **note type** that determines:
+
 - Which folder the note is stored in
 - What metadata fields are available
 - Any template content
@@ -41,6 +45,7 @@ Flint automatically saves your notes:
 **External edit detection:**
 
 If you edit a note outside Flint (in another editor), Flint detects the change and prompts you to:
+
 - Keep the app version
 - Use the file version
 - Manually merge changes
@@ -52,26 +57,32 @@ Flint notes use **standard markdown** syntax.
 ### Basic Formatting
 
 **Text styles:**
+
 ```markdown
 **bold text**
-*italic text*
+_italic text_
 ~~strikethrough~~
 `inline code`
 ```
 
-Result: **bold text**, *italic text*, ~~strikethrough~~, `inline code`
+Result: **bold text**, _italic text_, ~~strikethrough~~, `inline code`
 
 **Headers:**
+
 ```markdown
 # H1 - Largest Header
+
 ## H2 - Section Header
+
 ### H3 - Subsection
+
 #### H4 - Smaller
 ```
 
 ### Lists
 
 **Bullet lists:**
+
 ```markdown
 - First item
 - Second item
@@ -81,6 +92,7 @@ Result: **bold text**, *italic text*, ~~strikethrough~~, `inline code`
 ```
 
 **Numbered lists:**
+
 ```markdown
 1. First step
 2. Second step
@@ -90,6 +102,7 @@ Result: **bold text**, *italic text*, ~~strikethrough~~, `inline code`
 ```
 
 **Task lists:**
+
 ```markdown
 - [ ] Incomplete task
 - [x] Completed task
@@ -99,18 +112,21 @@ Result: **bold text**, *italic text*, ~~strikethrough~~, `inline code`
 ### Links
 
 **Wikilinks** (to other notes):
+
 ```markdown
 [[Note Title]]
 [[type/filename|Display Text]]
 ```
 
 **External links:**
+
 ```markdown
 [Link text](https://example.com)
-[Link with title](https://example.com "Hover title")
+[Link with title](https://example.com 'Hover title')
 ```
 
 **Images:**
+
 ```markdown
 ![Alt text](path/to/image.png)
 ```
@@ -118,11 +134,13 @@ Result: **bold text**, *italic text*, ~~strikethrough~~, `inline code`
 ### Code
 
 **Inline code:**
+
 ```markdown
 Use the `createNote()` function.
 ```
 
 **Code blocks:**
+
 ````markdown
 ```javascript
 function greet(name) {
@@ -132,6 +150,7 @@ function greet(name) {
 ````
 
 **Supported languages:**
+
 - JavaScript, TypeScript, Python, Go, Rust
 - JSON, YAML, Markdown, HTML, CSS
 - And many more...
@@ -140,13 +159,13 @@ function greet(name) {
 
 ```markdown
 | Header 1 | Header 2 | Header 3 |
-|----------|----------|----------|
+| -------- | -------- | -------- |
 | Cell 1   | Cell 2   | Cell 3   |
 | Cell 4   | Cell 5   | Cell 6   |
 
-Left-aligned  | Center-aligned | Right-aligned
-:---          | :---:          | ---:
-Left          | Center         | Right
+| Left-aligned | Center-aligned | Right-aligned |
+| :----------- | :------------: | ------------: |
+| Left         |     Center     |         Right |
 ```
 
 ### Quotes
@@ -162,8 +181,10 @@ Left          | Center         | Right
 
 ```markdown
 ---
-***
-___
+
+---
+
+---
 ```
 
 All create horizontal lines.
@@ -209,31 +230,35 @@ Notes from today's standup...
 ### Common Metadata Fields
 
 **System fields** (auto-managed):
+
 ```yaml
-title: Note Title        # Note title
-type: general           # Note type
+title: Note Title # Note title
+type: general # Note type
 created: 2024-01-15T... # Creation timestamp
 updated: 2024-01-15T... # Last modified
-filename: my-note.md    # File name
+filename: my-note.md # File name
 ```
 
 **Organizational fields:**
+
 ```yaml
-tags: [tag1, tag2]      # Tags array
-priority: high          # Priority level
-status: active          # Current status
+tags: [tag1, tag2] # Tags array
+priority: high # Priority level
+status: active # Current status
 ```
 
 **Date fields:**
+
 ```yaml
-date: 2024-01-15        # ISO date
-due_date: 2024-01-20    # Due date
-start_date: 2024-01-10  # Start date
+date: 2024-01-15 # ISO date
+due_date: 2024-01-20 # Due date
+start_date: 2024-01-10 # Start date
 ```
 
 **Custom fields:**
 
 You can add any field you want:
+
 ```yaml
 author: Sarah
 rating: 4.5
@@ -247,24 +272,28 @@ related_projects: [proj1, proj2]
 YAML supports multiple data types:
 
 **String:**
+
 ```yaml
 title: My Note
 description: A longer description
 ```
 
 **Number:**
+
 ```yaml
 priority: 5
 rating: 4.5
 ```
 
 **Boolean:**
+
 ```yaml
 completed: true
 archived: false
 ```
 
 **Array:**
+
 ```yaml
 tags: [tag1, tag2, tag3]
 # Or multi-line:
@@ -275,12 +304,14 @@ attendees:
 ```
 
 **Date:**
+
 ```yaml
 date: 2024-01-15
 created: 2024-01-15T10:30:00Z
 ```
 
 **Object** (nested):
+
 ```yaml
 metadata:
   source: meeting
@@ -297,17 +328,20 @@ Note types define schemas and behaviors for different categories of notes.
 Flint includes several default types:
 
 #### General
+
 - **Purpose**: Any content that doesn't fit other types
 - **Fields**: Just title and tags
 - **Use for**: Ideas, thoughts, general notes
 
 #### Daily
+
 - **Purpose**: Daily journal entries
 - **Fields**: date (auto-set to today)
 - **Use for**: Journaling, daily logs
 - **Special**: Integrated with Daily View
 
 #### Meeting
+
 - **Purpose**: Meeting notes
 - **Fields**:
   - `date` - Meeting date
@@ -315,6 +349,7 @@ Flint includes several default types:
 - **Use for**: Meeting minutes, standups, reviews
 
 #### Task
+
 - **Purpose**: Action items and todos
 - **Fields**:
   - `status` - pending/in-progress/completed
@@ -323,6 +358,7 @@ Flint includes several default types:
 - **Use for**: Tasks, action items
 
 #### Project
+
 - **Purpose**: Project documentation
 - **Fields**:
   - `status` - active/on-hold/completed
@@ -330,6 +366,7 @@ Flint includes several default types:
 - **Use for**: Project overviews, plans
 
 #### Inbox
+
 - **Purpose**: Quick capture without organization
 - **Fields**: Minimal (title only)
 - **Use for**: Rapid idea capture
@@ -372,7 +409,7 @@ AI: I'll create the book-notes type with those fields.
 
 Create a file at `.note-types/[type-name]/[type-name].md`:
 
-```markdown
+````markdown
 # Book Notes
 
 ## Description
@@ -384,11 +421,12 @@ Template for book reading notes with metadata for tracking reading progress.
 ```yaml
 author: string
 publication_year: number
-rating: number  # 1-5 scale
+rating: number # 1-5 scale
 genre: array
 finished_reading: boolean
 current_page: number
 ```
+````
 
 ## Template
 
@@ -407,28 +445,24 @@ finished_reading: false
 
 ## Summary
 
-
-
 ## Key Takeaways
 
 -
 
 ## Quotes
 
-
-
 ## My Thoughts
-
-
 ```
 
 ## Agent Instructions
 
 When helping with book-notes:
+
 - Suggest related books to link
 - Track reading progress
 - Generate summaries
 - Find quotes and key points
+
 ```
 
 ### Note Type Organization
@@ -436,24 +470,26 @@ When helping with book-notes:
 **Storage structure:**
 
 ```
+
 vault/
 ├── .note-types/
-│   ├── general/
-│   │   └── general.md
-│   ├── meeting/
-│   │   └── meeting.md
-│   └── book-notes/
-│       └── book-notes.md
+│ ├── general/
+│ │ └── general.md
+│ ├── meeting/
+│ │ └── meeting.md
+│ └── book-notes/
+│ └── book-notes.md
 ├── general/
-│   ├── note1.md
-│   └── note2.md
+│ ├── note1.md
+│ └── note2.md
 ├── meetings/
-│   ├── 2024-01-15-standup.md
-│   └── 2024-01-16-review.md
+│ ├── 2024-01-15-standup.md
+│ └── 2024-01-16-review.md
 └── book-notes/
-    ├── atomic-habits.md
-    └── deep-work.md
-```
+├── atomic-habits.md
+└── deep-work.md
+
+````
 
 Each note type gets its own folder for organization.
 
@@ -469,9 +505,10 @@ Tags provide flexible, cross-cutting organization.
 title: My Note
 tags: [important, project, api-design]
 ---
-```
+````
 
 **In content** (inline):
+
 ```markdown
 This note is about #api-design and #architecture.
 ```
@@ -481,16 +518,19 @@ Both methods work, but frontmatter is more structured and searchable.
 ### Tag Conventions
 
 **Lowercase with hyphens:**
+
 ```yaml
 tags: [api-design, project-alpha, high-priority]
 ```
 
 **Hierarchical tags:**
+
 ```yaml
 tags: [project/alpha, project/beta, status/active]
 ```
 
 **Use sparingly:**
+
 - Too many tags = no organization
 - Aim for 3-5 tags per note
 - Tags for themes, not just keywords
@@ -498,12 +538,14 @@ tags: [project/alpha, project/beta, status/active]
 ### Filtering by Tags
 
 **In search:**
+
 ```
 tag:important
 tag:project AND tag:api-design
 ```
 
 **Via AI:**
+
 ```
 You: Find all notes tagged with 'project' and 'urgent'
 
@@ -517,11 +559,13 @@ Create connections between notes with **wikilinks**.
 ### Basic Syntax
 
 **Link by title:**
+
 ```markdown
 I discussed this in [[My Other Note]].
 ```
 
 **Link by path with custom text:**
+
 ```markdown
 See the [[projects/website-redesign|Website Project]] for details.
 ```
@@ -529,12 +573,14 @@ See the [[projects/website-redesign|Website Project]] for details.
 ### Creating Links
 
 **Manual:**
+
 - Type `[[` to trigger autocomplete
 - Start typing the note title
 - Select from suggestions
 - Press Enter or `]]` to complete
 
 **Via AI:**
+
 ```
 You: What notes should I link from here?
 
@@ -547,11 +593,13 @@ AI: Based on the content, you might want to link:
 ### Following Links
 
 **Click to navigate:**
+
 - Click any wikilink to open that note
 - Creates a temporary tab
 - Adds to navigation history
 
 **Link to non-existent notes:**
+
 - Links show in different color
 - Click to create the note
 - Useful for outlining before writing
@@ -563,11 +611,13 @@ When you link to a note, that note automatically shows the backlink.
 **Example:**
 
 `Note A.md`:
+
 ```markdown
 This relates to [[Note B]].
 ```
 
 `Note B.md` will show in its Backlinks tab:
+
 ```
 Backlinks (1)
 
@@ -576,6 +626,7 @@ Backlinks (1)
 ```
 
 **Why backlinks matter:**
+
 - See all references to current note
 - Discover connections you forgot
 - Navigate your knowledge graph
@@ -588,16 +639,19 @@ See [Wikilinks and Backlinks](/features/wikilinks) for advanced usage.
 ### Renaming Notes
 
 **Edit the title:**
+
 1. Click the note title in the editor
 2. Type the new name
 3. Press Enter
 
 **What happens:**
+
 - File is renamed
 - All wikilinks are updated automatically
 - No broken links
 
 **Via AI:**
+
 ```
 You: Rename this note to "Website Redesign Phase 2"
 
@@ -607,11 +661,13 @@ AI: [Renames note and updates all linking notes]
 ### Moving Notes (Changing Type)
 
 **Change note type:**
+
 1. Click the type dropdown in editor
 2. Select new type
 3. Note moves to new type's folder
 
 **What happens:**
+
 - File moves to new folder
 - Metadata `type` field updates
 - Wikilinks remain valid
@@ -621,17 +677,20 @@ AI: [Renames note and updates all linking notes]
 **Caution:** Deleting is permanent.
 
 **How to delete:**
+
 1. Right-click the note
 2. Select "Delete Note"
 3. Confirm the action
 
 **What happens:**
+
 - Note file deleted
 - Removed from database
 - Wikilinks become broken (shown in red)
 - Backlinks removed
 
 **Best practice:**
+
 - Archive instead of delete (add `archived: true` to metadata)
 - Or move to an `archive` note type
 
@@ -642,12 +701,14 @@ Your notes are just markdown files. You can edit them outside Flint.
 ### Using External Editors
 
 **Popular combinations:**
+
 - Flint for AI assistance and organization
 - VS Code for bulk editing
 - Vim/Emacs for power users
 - iA Writer for distraction-free writing
 
 **How it works:**
+
 1. Open your vault folder in another editor
 2. Edit any `.md` file
 3. Save the file
@@ -658,6 +719,7 @@ Your notes are just markdown files. You can edit them outside Flint.
 If a note is changed externally while open in Flint:
 
 **Flint shows a conflict notification:**
+
 - "This note was modified externally"
 - Options:
   1. **Keep app version** - Discard external changes
@@ -665,6 +727,7 @@ If a note is changed externally while open in Flint:
   3. **View both** - See diff (planned)
 
 **Recommendation:**
+
 - If you made both changes: Copy your Flint changes, then reload
 - If only external: Use file version
 - If only Flint: Keep app version
@@ -674,12 +737,14 @@ If a note is changed externally while open in Flint:
 Flint watches your vault folder for changes:
 
 **Detects:**
+
 - Modified notes
 - New notes created externally
 - Deleted notes
 - Renamed files
 
 **Updates:**
+
 - Database automatically
 - Search index
 - UI in real-time
@@ -691,6 +756,7 @@ Some note types can have AI-generated suggestions enabled.
 ### What are Suggestions?
 
 The AI analyzes your note and suggests:
+
 - Related notes to link
 - Missing metadata to fill in
 - Tasks to extract
@@ -700,6 +766,7 @@ The AI analyzes your note and suggests:
 ### Viewing Suggestions
 
 **Suggestions tab** (right sidebar):
+
 - Shows current suggestions for this note
 - Each suggestion has:
   - Type (link, metadata, task, etc.)
@@ -709,8 +776,10 @@ The AI analyzes your note and suggests:
 ### Enabling Suggestions
 
 **Via note type settings:**
+
 1. Edit the note type definition
 2. Add suggestions configuration:
+
 ```yaml
 suggestions_enabled: true
 suggestion_types: [links, metadata, tasks]
@@ -722,6 +791,7 @@ prompt_guidance: |
 ```
 
 **Per note:**
+
 ```yaml
 ---
 suggestions_enabled: true
@@ -731,16 +801,19 @@ suggestions_enabled: true
 ### Managing Suggestions
 
 **Accept:**
+
 - Applies the suggestion
 - Updates the note
 - Removes from list
 
 **Dismiss:**
+
 - Hides this suggestion
 - Doesn't apply it
 - Won't show again
 
 **Regenerate:**
+
 - Ask AI for new suggestions
 - Based on current note content
 
@@ -753,6 +826,7 @@ Note types can include template content for new notes.
 When you create a note of a specific type, the template is applied:
 
 **Meeting template:**
+
 ```markdown
 ---
 title: ${TITLE}
@@ -765,15 +839,11 @@ attendees: []
 
 ## Attendees
 
-
-
 ## Agenda
 
 -
 
 ## Notes
-
-
 
 ## Action Items
 
@@ -789,13 +859,14 @@ Define templates in your note type:
 ```markdown
 ## Template
 
-\`\`\`markdown
----
+## \`\`\`markdown
+
 title: ${TITLE}
 type: recipe
 servings:
 prep_time:
 cook_time:
+
 ---
 
 # ${TITLE}
@@ -810,7 +881,6 @@ cook_time:
 
 ## Notes
 
-
 \`\`\`
 ```
 
@@ -821,12 +891,14 @@ See [Note Types](#note-types) for details on creating types with templates.
 ### Capture Quickly, Organize Later
 
 **Don't overthink on capture:**
+
 1. Create note (possibly in Inbox)
 2. Write your thoughts
 3. Add basic links as you think of them
 4. Move on
 
 **Organize periodically:**
+
 - Use AI to suggest organization
 - Add proper metadata
 - Move from Inbox to appropriate type
@@ -836,11 +908,13 @@ See [Note Types](#note-types) for details on creating types with templates.
 ### Use Wikilinks Liberally
 
 **Link as you write:**
+
 - Mention another note? Link it
 - Reference a concept? Link to its note
 - Don't worry about "over-linking"
 
 **Benefits:**
+
 - Builds your knowledge graph
 - Creates discoverable connections
 - Lets you navigate by association
@@ -848,11 +922,13 @@ See [Note Types](#note-types) for details on creating types with templates.
 ### Let Note Types Emerge
 
 **Start simple:**
+
 - Use General type initially
 - Notice patterns in what you write
 - When you have 10+ similar notes, create a type
 
 **Example evolution:**
+
 1. Week 1: All general notes
 2. Week 3: Notice lots of book notes → create book-notes type
 3. Week 5: Notice project planning notes → create project type
@@ -861,6 +937,7 @@ See [Note Types](#note-types) for details on creating types with templates.
 ### Metadata is Optional
 
 **Start minimal:**
+
 ```yaml
 ---
 title: My Note
@@ -869,6 +946,7 @@ tags: [topic]
 ```
 
 **Add more as needed:**
+
 - Add fields when they'd be useful for search
 - Skip fields that don't matter
 - Let AI suggest what's missing
@@ -876,14 +954,17 @@ tags: [topic]
 ### Keep Tags Focused
 
 **Too few:**
+
 - Hard to find related notes
 - Miss connections
 
 **Too many:**
+
 - Tags become meaningless
 - Defeats purpose
 
 **Just right:**
+
 - 3-5 tags per note
 - Consistent naming
 - Meaningful categories

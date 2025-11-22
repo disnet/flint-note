@@ -7,12 +7,14 @@ Proven strategies for getting the most out of Flint's note-taking and AI capabil
 ### Start Simple, Evolve Gradually
 
 **Don't over-organize upfront:**
+
 - Begin with basic notes
 - Let structure emerge naturally
 - Add complexity only when needed
 - Trust the process
 
 **Example progression:**
+
 ```
 Week 1:  Just write notes, use general type
 Week 2:  Start linking with [[wikilinks]]
@@ -24,12 +26,14 @@ Month 3: Develop personal system
 ### Notes Are for Thinking, Not Storage
 
 **Active vs passive:**
+
 - **Good:** Notes that help you think
 - **Good:** Notes that connect ideas
 - **Bad:** Copy-paste dumps
 - **Bad:** Information you'll never revisit
 
 **Questions to ask:**
+
 - "Will I actually use this?"
 - "Does this help me think?"
 - "Am I adding value or just copying?"
@@ -37,12 +41,14 @@ Month 3: Develop personal system
 ### Let the AI Assist, Not Replace
 
 **AI is a tool, not a replacement:**
+
 - Use AI to help organize, not dictate structure
 - Have AI suggest, you decide
 - Maintain your voice and thinking
 - Don't outsource judgment
 
 **Good AI usage:**
+
 ```
 You: Help me organize these meeting notes
 
@@ -63,24 +69,28 @@ AI: [Organizes with your structure]
 ### The Three-Layer System
 
 **Layer 1: Capture**
+
 - Daily notes for immediate capture
 - Inbox for quick thoughts
 - No organization needed
 - Focus on getting ideas down
 
 **Layer 2: Process**
+
 - Review daily notes weekly
 - Extract important ideas
 - Create permanent notes
 - Link related concepts
 
 **Layer 3: Structure**
+
 - Hub notes for major topics
 - Index notes for projects
 - MOCs (Maps of Content)
 - Curated collections
 
 **Don't skip layers:**
+
 - Capture first, organize later
 - Process regularly (weekly)
 - Structure emerges from processing
@@ -90,30 +100,35 @@ AI: [Organizes with your structure]
 **Use types to indicate intent:**
 
 **General** - Default for most notes
+
 ```
 Use when: Not sure what type yet
 Examples: Quick thoughts, meeting notes, ideas
 ```
 
 **Permanent** - Refined knowledge
+
 ```
 Use when: Extracted from daily notes, polished
 Examples: Concepts, principles, insights
 ```
 
 **Literature** - From external sources
+
 ```
 Use when: Reading books, articles, papers
 Examples: Book notes, article summaries
 ```
 
 **Project** - Active work
+
 ```
 Use when: Coordinating a project
 Examples: Project plans, status, resources
 ```
 
 **Custom** - Domain-specific
+
 ```
 Create when: Repeated pattern emerges
 Examples: Bug reports, client notes, recipes
@@ -122,12 +137,14 @@ Examples: Bug reports, client notes, recipes
 ### Wikilink Guidelines
 
 **Link liberally:**
+
 - Don't overthink linking
 - Link when you mention a concept
 - Create notes for future ideas
 - Trust that connections will be useful
 
 **Good linking:**
+
 ```markdown
 Discussed [[API Design Principles]] with the team.
 Need to update [[System Architecture]] based on
@@ -135,24 +152,29 @@ the new [[Authentication Flow]].
 ```
 
 **Create hub notes:**
+
 ```markdown
 # Project Alpha
 
 ## Overview
+
 [[Project Alpha Overview]]
 
 ## Technical
+
 - [[Architecture Decisions]]
 - [[Database Schema]]
 - [[API Endpoints]]
 
 ## Management
+
 - [[Timeline]]
 - [[Team Assignments]]
 - [[Risk Register]]
 ```
 
 **Bi-directional thinking:**
+
 - Every link creates a backlink
 - Backlinks show unexpected connections
 - Review backlinks regularly
@@ -161,12 +183,14 @@ the new [[Authentication Flow]].
 ### Avoid Over-Organization
 
 **Don't create folders/hierarchies:**
+
 - Flint uses types, not folders
 - Links are better than hierarchies
 - Search is powerful
 - Trust flat structure + wikilinks
 
 **Don't pre-create structure:**
+
 ```
 ❌ Bad:
 Create 20 empty notes for a system you haven't built
@@ -179,6 +203,7 @@ Let structure emerge
 ```
 
 **Don't tag everything:**
+
 ```
 ❌ Bad: [[Tag: todo]] [[Tag: important]] [[Tag: review]] [[Tag: project]]
 
@@ -196,14 +221,17 @@ Let structure emerge
 ## Morning
 
 ### Today's Focus
+
 - Main priority: [[Feature X]] implementation
 - Secondary: Review [[Pull Requests]]
 
 ### Schedule
+
 - 9am: [[Team Standup]]
 - 2pm: [[Client Meeting]]
 
 ### Energy Check
+
 Feeling: Focused
 Energy: High
 ```
@@ -213,17 +241,15 @@ Energy: High
 ### Throughout the Day
 
 **Capture continuously:**
+
 ```markdown
 ## Afternoon
 
 14:30 - Interesting idea from [[Sarah]]: What if we
-       approached [[Problem X]] using [[Pattern Y]]?
-       Need to explore this.
+approached [[Problem X]] using [[Pattern Y]]?
+Need to explore this.
 
-15:00 - [[Client Meeting]] notes:
-       - Happy with progress
-       - Wants [[Feature Z]] prioritized
-       - Deadline: [[2024-02-15]]
+15:00 - [[Client Meeting]] notes: - Happy with progress - Wants [[Feature Z]] prioritized - Deadline: [[2024-02-15]]
 ```
 
 **Don't wait until evening - you'll forget details.**
@@ -236,15 +262,18 @@ Energy: High
 ## Evening
 
 ### Accomplished
+
 - ✅ Completed [[Feature X]] implementation
 - ✅ Reviewed 3 PRs
 - ✅ Client meeting went well
 
 ### Tomorrow
+
 - Start [[Feature Z]] (client priority)
 - Follow up on [[Sarah]]'s idea about [[Problem X]]
 
 ### Notes
+
 - Realized [[Architecture Decision]] needs revisiting
 - Created [[Feature Z Spec]] based on client feedback
 ```
@@ -256,6 +285,7 @@ Energy: High
 ### Effective Prompting
 
 **Be specific about context:**
+
 ```
 ❌ Bad: "Summarize this"
 
@@ -264,6 +294,7 @@ Energy: High
 ```
 
 **Specify format:**
+
 ```
 ❌ Bad: "Create a project note"
 
@@ -276,6 +307,7 @@ Energy: High
 ```
 
 **Iterate, don't expect perfection:**
+
 ```
 You: Create a weekly review template
 
@@ -291,6 +323,7 @@ You: Perfect, now use this for this week's review
 ### AI as Research Assistant
 
 **Let AI gather information:**
+
 ```
 You: Find all notes where I discussed [[API Design]]
 
@@ -312,6 +345,7 @@ AI: Common themes across your API design discussions:
 ### AI as Writing Partner
 
 **Draft, then refine:**
+
 ```
 You: Help me write an email to the client about
      the timeline change
@@ -333,6 +367,7 @@ AI: [Adds example]
 ### What NOT to Ask AI
 
 **Don't outsource thinking:**
+
 ```
 ❌ "Decide which approach I should take"
 ✓ "Here are three approaches I'm considering,
@@ -340,12 +375,14 @@ AI: [Adds example]
 ```
 
 **Don't delegate judgment:**
+
 ```
 ❌ "Is this a good idea?"
 ✓ "What are the potential issues with this approach?"
 ```
 
 **Don't replace expertise:**
+
 ```
 ❌ "Write production code for me"
 ✓ "Help me sketch out the structure for this feature"
@@ -356,6 +393,7 @@ AI: [Adds example]
 ### Use Search Operators
 
 **Filter by type:**
+
 ```
 type:daily
 type:project
@@ -363,12 +401,14 @@ type:permanent
 ```
 
 **Filter by tag:**
+
 ```
 tag:important
 tag:review
 ```
 
 **Filter by date:**
+
 ```
 created:today
 created:this-week
@@ -376,6 +416,7 @@ modified:this-month
 ```
 
 **Combine operators:**
+
 ```
 type:daily created:this-week
 tag:important modified:today
@@ -384,22 +425,26 @@ tag:important modified:today
 ### Full-Text Search
 
 **Search for phrases:**
+
 ```
 "exact phrase"
 ```
 
 **Search for concepts:**
+
 ```
 authentication security
 ```
 
 **Search in specific notes:**
+
 - Open note
 - Use Cmd/Ctrl+F for in-note search
 
 ### Search Workflow
 
 **Weekly review search:**
+
 ```
 1. created:this-week → See what you created
 2. modified:this-week → See what you updated
@@ -407,6 +452,7 @@ authentication security
 ```
 
 **Project search:**
+
 ```
 [[Project Name]] → All notes mentioning project
 type:project → All project notes
@@ -418,6 +464,7 @@ tag:project-name → Tagged project notes
 ### Single Vault vs Multiple
 
 **Most users: One vault**
+
 ```
 Advantages:
 - Everything searchable
@@ -427,6 +474,7 @@ Advantages:
 ```
 
 **Use multiple vaults when:**
+
 ```
 - Work vs Personal (privacy/separation)
 - Different domains (writing vs coding vs research)
@@ -435,6 +483,7 @@ Advantages:
 ```
 
 **Don't over-split:**
+
 ```
 ❌ Bad: 10+ vaults for minor separations
 ✓ Good: 2-3 vaults for major contexts
@@ -443,6 +492,7 @@ Advantages:
 ### Vault Hygiene
 
 **Regular maintenance:**
+
 ```
 Weekly:
 - Review inbox notes
@@ -467,12 +517,14 @@ Quarterly:
 ### When to Create Workflows
 
 **Create workflow when:**
+
 - You do something more than 3 times
 - Process is clearly defined
 - AI can execute it
 - Saves significant time
 
 **Don't create workflow when:**
+
 - Process is still evolving
 - Requires human judgment
 - One-off or rare task
@@ -481,6 +533,7 @@ Quarterly:
 ### Workflow Design Principles
 
 **Start simple:**
+
 ```
 v1: "Create daily note with sections"
 v2: "Create daily note, copy incomplete tasks"
@@ -490,6 +543,7 @@ v3: "Create daily note, copy tasks, add calendar"
 **Iterate based on results.**
 
 **Clear instructions:**
+
 ```
 ❌ Bad: "Process the weekly stuff"
 
@@ -502,6 +556,7 @@ v3: "Create daily note, copy tasks, add calendar"
 ```
 
 **Include examples:**
+
 ```
 Example output:
 
@@ -518,6 +573,7 @@ Example output:
 ### Workflow Scheduling
 
 **Don't over-schedule:**
+
 ```
 ✓ Good:
 - 1-2 daily workflows
@@ -531,6 +587,7 @@ Example output:
 ```
 
 **Timing matters:**
+
 ```
 Good: Daily standup at 9am (start of day)
 Bad: Daily standup at 11pm (might miss it)
@@ -544,12 +601,14 @@ Bad: Weekly review Tuesday 2am (asleep)
 ### What to Review
 
 **Review concepts, not facts:**
+
 ```
 ✓ Good: Core principles, frameworks, processes
 ❌ Bad: Specific data points, lookupable facts
 ```
 
 **Review what you use:**
+
 ```
 ✓ Good: Skills you're actively developing
 ❌ Bad: Information you never apply
@@ -558,12 +617,14 @@ Bad: Weekly review Tuesday 2am (asleep)
 ### Review Rhythm
 
 **Consistency over marathon sessions:**
+
 ```
 ✓ Good: 10 minutes daily
 ❌ Bad: 2 hours once a month
 ```
 
 **Time of day:**
+
 ```
 Morning: Review before meetings
 Afternoon: Review during low-energy periods
@@ -575,6 +636,7 @@ Evening: Review to consolidate day's learning
 ### Review Responses
 
 **Explain, don't memorize:**
+
 ```
 ❌ Bad: "REST has 6 principles: client-server,
         stateless, cacheable, layered, code-on-demand,
@@ -594,11 +656,13 @@ Evening: Review to consolidate day's learning
 ### Backup Strategy
 
 **3-2-1 rule:**
+
 - 3 copies of data
 - 2 different media types
 - 1 off-site
 
 **For Flint:**
+
 ```
 Copy 1: Vault folder (working copy)
 Copy 2: Cloud backup (Dropbox/iCloud/Google Drive)
@@ -606,6 +670,7 @@ Copy 3: External drive backup (weekly)
 ```
 
 **Automate backups:**
+
 - Cloud sync: Automatic
 - Time Machine (macOS): Automatic
 - Manual backup: Weekly reminder
@@ -613,6 +678,7 @@ Copy 3: External drive backup (weekly)
 ### Version Control
 
 **Use Git for important vaults:**
+
 ```bash
 cd ~/Documents/MyVault
 git init
@@ -625,6 +691,7 @@ git commit -m "Notes from this week"
 ```
 
 **Benefits:**
+
 - Full history of changes
 - Can revert mistakes
 - See how thinking evolved
@@ -635,12 +702,14 @@ git commit -m "Notes from this week"
 ### Data Portability
 
 **Flint data is portable:**
+
 - Notes are markdown files
 - Readable in any text editor
 - Not locked to Flint
 - Future-proof format
 
 **To export:**
+
 - Copy vault folder
 - All notes included
 - Use anywhere
@@ -650,12 +719,14 @@ git commit -m "Notes from this week"
 ### API Key Security
 
 **Never share API keys:**
+
 - Treat like passwords
 - Don't commit to Git
 - Don't share screenshots containing keys
 - Rotate periodically
 
 **Flint stores securely:**
+
 - OS keychain (macOS)
 - Credential Manager (Windows)
 - Secret Service (Linux)
@@ -664,12 +735,14 @@ git commit -m "Notes from this week"
 ### Sensitive Information
 
 **Be cautious in notes:**
+
 - Don't store passwords in notes
 - Be careful with personal information
 - Consider vault encryption for sensitive data
 - Remember: AI sees note content
 
 **For very sensitive information:**
+
 - Use separate encrypted vault
 - Don't enable AI for that vault
 - Or use different tool entirely
@@ -677,17 +750,20 @@ git commit -m "Notes from this week"
 ### AI Privacy
 
 **What AI sees:**
+
 - Current conversation
 - Notes you explicitly reference
 - Vault context you provide
 
 **What AI doesn't see:**
+
 - Other vaults
 - Notes not in conversation
 - Your API keys
 - System information
 
 **Data transmission:**
+
 - Sent to AI provider (OpenRouter/Claude/etc.)
 - Encrypted in transit
 - Subject to provider's privacy policy
@@ -697,6 +773,7 @@ git commit -m "Notes from this week"
 ### Keep Vaults Manageable
 
 **Size guidelines:**
+
 ```
 Small: < 1,000 notes (excellent performance)
 Medium: 1,000 - 5,000 notes (good performance)
@@ -709,6 +786,7 @@ Very Large: > 10,000 notes (consider splitting)
 ### Note Size
 
 **Optimal note size:**
+
 ```
 ✓ Good: 100-500 lines (easy to work with)
 ⚠ Okay: 500-1,000 lines (still manageable)
@@ -716,6 +794,7 @@ Very Large: > 10,000 notes (consider splitting)
 ```
 
 **Split large notes:**
+
 ```
 Before:
 - "Everything About Project Alpha" (3,000 lines)
@@ -730,12 +809,14 @@ After:
 ### Database Maintenance
 
 **Rebuild database if:**
+
 - Search seems slow
 - Notes missing from search
 - After importing many notes
 - Once a month as maintenance
 
 **How:**
+
 ```
 Settings → Database → Rebuild Database
 ```
@@ -747,11 +828,13 @@ Settings → Database → Rebuild Database
 ### Over-Organization
 
 **Symptom:**
+
 - Spending more time organizing than writing
 - Creating elaborate systems before content
 - Analysis paralysis
 
 **Solution:**
+
 - Write first, organize later
 - Let structure emerge
 - Start simple
@@ -759,11 +842,13 @@ Settings → Database → Rebuild Database
 ### Under-Linking
 
 **Symptom:**
+
 - Notes feel isolated
 - No connections emerging
 - Not seeing relationships
 
 **Solution:**
+
 - Link when you mention concepts
 - Review backlinks regularly
 - Create hub notes for topics
@@ -771,11 +856,13 @@ Settings → Database → Rebuild Database
 ### Inconsistent Practice
 
 **Symptom:**
+
 - Using Flint sporadically
 - Forgetting to capture
 - No rhythm established
 
 **Solution:**
+
 - Set daily reminder
 - Start with just daily notes
 - Build habit before expanding
@@ -783,11 +870,13 @@ Settings → Database → Rebuild Database
 ### AI Over-Reliance
 
 **Symptom:**
+
 - Asking AI for everything
 - Not thinking independently
 - AI becomes crutch
 
 **Solution:**
+
 - Write first draft yourself
 - Use AI to refine, not create
 - Develop your thinking skills
@@ -795,6 +884,7 @@ Settings → Database → Rebuild Database
 ## Progress Over Perfection
 
 **Remember:**
+
 - Notes don't need to be perfect
 - Organization evolves over time
 - Mistakes are learning opportunities

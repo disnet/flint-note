@@ -49,10 +49,12 @@ Visit [flint.app/download](https://flint.app/download) for the latest releases
 ### Install on Linux
 
 **Using AppImage:**
+
 1. Make the file executable: `chmod +x Flint-*.AppImage`
 2. Run the AppImage: `./Flint-*.AppImage`
 
 **Using .deb package:**
+
 1. Install with: `sudo dpkg -i Flint-*.deb`
 2. Launch from your application menu or run `flint` in terminal
 
@@ -133,7 +135,7 @@ Let's create your first note:
 This is a **markdown** note with:
 
 - Bullet points
-- **Bold** and *italic* text
+- **Bold** and _italic_ text
 - Links to other notes: [[Another Note]]
 
 ## Ideas
@@ -150,11 +152,13 @@ See the [Note Management](/features/notes) guide to learn about markdown, frontm
 ### Opening Notes
 
 **Search for notes** (`Ctrl+O` / `Cmd+O`):
+
 - Opens a quick search overlay
 - Type to find notes by title or content
 - Press Enter to open the selected note
 
 **Use the sidebar**:
+
 - Click on pinned notes for instant access
 - Click on temporary tabs for recently viewed notes
 
@@ -168,6 +172,7 @@ To keep a note easily accessible:
 4. Drag to reorder pinned notes
 
 Pinned notes are perfect for:
+
 - Your daily note
 - Active project notes
 - Reference materials you check frequently
@@ -246,17 +251,17 @@ When you first save an API key, macOS may prompt you to allow "Flint" access to 
 
 Flint notes use standard markdown:
 
-| Syntax | Result |
-|--------|--------|
-| `**bold**` | **bold** |
-| `*italic*` | *italic* |
-| `# Heading` | Large heading |
-| `## Subheading` | Smaller heading |
-| `- List item` | Bullet list |
-| `1. Numbered` | Numbered list |
-| `[[Note Title]]` | Link to another note |
-| `` `code` `` | Inline code |
-| ` ```code block``` ` | Code block |
+| Syntax               | Result               |
+| -------------------- | -------------------- |
+| `**bold**`           | **bold**             |
+| `*italic*`           | _italic_             |
+| `# Heading`          | Large heading        |
+| `## Subheading`      | Smaller heading      |
+| `- List item`        | Bullet list          |
+| `1. Numbered`        | Numbered list        |
+| `[[Note Title]]`     | Link to another note |
+| `` `code` ``         | Inline code          |
+| ` ```code block``` ` | Code block           |
 
 ## Linking Notes
 
@@ -269,11 +274,13 @@ I discussed this in [[My Other Note]]
 ```
 
 **What happens:**
+
 - Click the link to open "My Other Note"
 - The other note automatically shows this note in its backlinks
 - If the note doesn't exist, you can create it by clicking
 
 **Why link notes?**
+
 - Build a web of connected knowledge
 - Discover unexpected connections
 - See all references to a concept in one place
@@ -285,18 +292,21 @@ See [Wikilinks and Backlinks](/features/wikilinks) for advanced linking patterns
 Now that you're set up, explore these guides:
 
 ### Essential Features
+
 - **[Core Concepts](/guides/core-concepts)** - Understand Flint's mental model
 - **[User Interface](/guides/interface)** - Detailed interface walkthrough
 - **[Note Management](/features/notes)** - Master note types, metadata, and organization
 - **[Search](/features/search)** - Find anything quickly
 
 ### Power Features
+
 - **[Wikilinks](/features/wikilinks)** - Build connected knowledge
 - **[Daily Notes](/features/daily-notes)** - Daily journaling workflow
 - **[Review System](/features/review-system)** - Strengthen understanding with spaced repetition
 - **[Multi-Vault](/features/vaults)** - Separate work, personal, and other contexts
 
 ### AI Automation
+
 - **[AI Agent](/features/agent)** - Deep dive into AI capabilities
 - **[Workflows](/features/workflows)** - Automate repetitive tasks
 - **[Custom Functions](/features/custom-functions)** - Extend AI with custom code
@@ -313,6 +323,7 @@ Need assistance?
 
 ::: tip Start Simple
 Don't try to use every feature at once. Start by:
+
 1. Creating notes as you think
 2. Linking related ideas together
 3. Using the AI when you need help organizing
@@ -326,6 +337,7 @@ Don't worry about perfect organization upfront. Capture ideas quickly, then orga
 
 ::: tip Your Notes Are Just Files
 Remember: your notes are plain markdown files in a folder. You can:
+
 - Open them in any text editor
 - Sync with cloud storage
 - Back them up like any other files

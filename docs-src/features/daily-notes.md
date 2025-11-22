@@ -13,6 +13,7 @@ A dedicated system for daily journaling, logging, and thought capture in Flint.
 - Daily review and planning
 
 **Key features:**
+
 - One note per day (automatic)
 - Calendar-style navigation
 - Time-organized sections
@@ -24,14 +25,17 @@ A dedicated system for daily journaling, logging, and thought capture in Flint.
 ### Quick Access
 
 **From sidebar:**
+
 - Look for "Daily" in the left sidebar
 - Click today's date
 - Note opens (created if doesn't exist)
 
 **Keyboard shortcut:**
+
 - Future: `Ctrl+D` / `Cmd+D` for today's note
 
 **Via AI:**
+
 ```
 You: Open today's daily note
 
@@ -45,10 +49,12 @@ AI: [Opens daily/2024-01-15.md]
 Flint includes a dedicated **Daily View** for working with daily notes.
 
 **Access Daily View:**
+
 1. Click "Daily" in the workspace bar
 2. Or navigate to Daily section in sidebar
 
 **What you see:**
+
 - Calendar navigation
 - Current day's note
 - Day sections (Morning, Afternoon, Evening)
@@ -72,41 +78,38 @@ date: 2024-01-15
 
 ## Morning
 
-
-
 ## Afternoon
-
-
 
 ## Evening
 
-
-
 ## Notes
-
 ```
 
 ### Day Sections
 
 **Morning section:**
+
 - Captures early thoughts
 - Planning for the day
 - Morning meetings
 - Initial ideas
 
 **Afternoon section:**
+
 - Midday activities
 - Progress updates
 - Afternoon meetings
 - Ongoing thoughts
 
 **Evening section:**
+
 - End-of-day reflections
 - What went well
 - What to improve
 - Tomorrow's prep
 
 **Notes section:**
+
 - Miscellaneous items
 - Links to related notes
 - References
@@ -125,13 +128,14 @@ date: 2024-01-15
 ```markdown
 ## Template
 
-\`\`\`markdown
----
+## \`\`\`markdown
+
 title: ${DATE}
 type: daily
 date: ${DATE}
 weather:
 mood:
+
 ---
 
 # ${DATE_FULL}
@@ -139,26 +143,24 @@ mood:
 ## 🌅 Morning
 
 ### Plan for Today
+
 -
 
 ### Morning Activities
-
 
 ## 🌞 Afternoon
 
 ### Progress
 
-
 ## 🌙 Evening
 
 ### Reflections
 
-
 ### Gratitude
+
 -
 
 ## 📌 Quick Notes
-
 
 ## 🔗 References
 
@@ -166,6 +168,7 @@ mood:
 ```
 
 **Variables available:**
+
 - `${DATE}` - ISO date (2024-01-15)
 - `${DATE_FULL}` - Full date (Monday, January 15, 2024)
 - `${TITLE}` - Note title
@@ -177,16 +180,19 @@ The Daily View provides a calendar-based interface for daily notes.
 ### Calendar Navigation
 
 **Navigate days:**
+
 - **Arrow buttons** - Previous/next day
 - **Today button** - Jump to today
 - **Calendar picker** - Select any date
 
 **Week view:**
+
 - See current week
 - Click any day to navigate
 - Highlighted: today, notes with content
 
 **Month view:**
+
 - Navigate by month
 - Quick jump to specific day
 - Visual indicators for days with notes
@@ -194,11 +200,13 @@ The Daily View provides a calendar-based interface for daily notes.
 ### Day Sections
 
 **Collapsible sections:**
+
 - Each section (Morning, Afternoon, Evening) can collapse
 - Focus on current section
 - Expand all to see full day
 
 **Section timestamps:**
+
 - Optional timestamps per entry
 - Automatic or manual
 - Track when thoughts occurred
@@ -206,12 +214,14 @@ The Daily View provides a calendar-based interface for daily notes.
 ### Quick Entry
 
 **Quick add buttons:**
+
 - "Add to Morning"
 - "Add to Afternoon"
 - "Add to Evening"
 - "Add to Notes"
 
 **Behavior:**
+
 - Cursor positioned in that section
 - Start typing immediately
 - Auto-save as usual
@@ -226,6 +236,7 @@ The Daily View provides a calendar-based interface for daily notes.
 ## Morning
 
 Woke up with an idea about [[Project Alpha]]. Need to:
+
 - Review yesterday's progress in [[Work Log]]
 - Schedule meeting with [[Team Lead]]
 - Follow up on [[Client Proposal]]
@@ -239,11 +250,13 @@ Feeling: Focused and energized
 ## Evening
 
 Good progress today on [[Project Alpha]]. Completed:
+
 - ✅ Design mockups
 - ✅ Client meeting (went well!)
 - ✅ Code review
 
 Tomorrow:
+
 - Start implementation
 - Follow up with [[Sarah]] about timeline
 
@@ -263,11 +276,13 @@ What to improve: Less context switching
 Attendees: [[Sarah]], [[John]], [[Maria]]
 
 Updates:
+
 - [[Sarah]]: Working on [[API Integration]]
 - [[John]]: Testing [[New Feature]]
 - Me: Finishing [[Project Docs]]
 
 Action items:
+
 - [ ] Review John's PR
 - [ ] Schedule design sync
 ```
@@ -301,6 +316,7 @@ Reading [[Book: Atomic Habits]]. Key insight about
 ## Afternoon
 
 Made progress on [[Website Redesign]]:
+
 - Completed homepage mockup
 - Got feedback from [[Design Team]]
 - Updated [[Project Timeline]]
@@ -331,15 +347,18 @@ Daily notes become a chronological log of project progress.
 **Focus:** [[Project Alpha]] implementation
 
 High priority:
+
 1. Complete [[API Integration]]
 2. Review [[Design Feedback]]
 3. Update [[Project Status]]
 
 Meetings:
+
 - 10am: [[Team Standup]]
 - 2pm: [[Client Check-in]]
 
 Goals:
+
 - Ship feature X
 - Clear inbox to zero
 ```
@@ -360,19 +379,23 @@ Goals:
 ## Evening
 
 ### Accomplishments
+
 - ✅ Completed API integration
 - ✅ Resolved 3 bugs
 - ✅ Updated documentation
 
 ### Challenges
+
 - Integration took longer than expected
 - Need more [[Testing Resources]]
 
 ### Follow-ups
+
 - Created [[Bug: Timeout Issue]] to track
 - Need to discuss [[Resource Allocation]] with team
 
 ### Tomorrow
+
 - Start [[Feature B]]
 - Finish [[Documentation Updates]]
 ```
@@ -418,15 +441,18 @@ AI: [Reads daily notes from past 7 days]
 [[Project Alpha]] Update:
 
 Progress:
+
 - Implemented authentication flow
 - Added error handling
 - Updated tests
 
 Blockers:
+
 - Waiting on [[API Keys]] from client
 - [[Design Assets]] not ready
 
 Next steps:
+
 - Continue with other features
 - Follow up on blockers tomorrow
 
@@ -452,6 +478,7 @@ All project updates chronologically logged.
 ```
 
 **Benefits:**
+
 - Track when thoughts occurred
 - Measure time on tasks
 - Understand daily patterns
@@ -471,6 +498,7 @@ energy: high
 ```
 
 **Over time:**
+
 ```
 You: Analyze my mood patterns over the past month
 
@@ -502,6 +530,7 @@ AI: [Reads mood field from daily notes]
 ## Evening
 
 ### Habits Today
+
 - [x] Morning exercise
 - [x] Meditation
 - [x] Reading
@@ -530,11 +559,13 @@ habits:
 ## Afternoon
 
 Created tasks:
+
 - [[Task: Review PR #123]]
 - [[Task: Update documentation]]
 - [[Task: Follow up with client]]
 
 Completed:
+
 - ✅ [[Task: Fix bug in API]]
 - ✅ [[Task: Deploy to staging]]
 ```
@@ -546,15 +577,18 @@ Links to task notes for detailed tracking.
 ### Navigation
 
 **Sequential navigation:**
+
 - Previous/next day buttons
 - Keyboard: arrow keys (future)
 
 **Calendar jumping:**
+
 - Click calendar icon
 - Select any date
 - Jump to that day's note
 
 **Via search:**
+
 ```
 type:daily created:last-week
 ```
@@ -636,12 +670,15 @@ AI: [Reads all January daily notes, creates summary]
 
 ```markdown
 ## Morning
+
 Ideas while making coffee...
 
 ## Afternoon
+
 Update after meeting...
 
 ## Evening
+
 Reflect on the day...
 ```
 
@@ -650,12 +687,14 @@ Don't wait until end of day - you'll forget details.
 ### Link Liberally
 
 **Connect daily notes to:**
+
 - Project notes: `[[Project Alpha]]`
 - People: `[[Sarah Johnson]]`
 - Concepts: `[[API Design]]`
 - Other daily notes: `[[daily/2024-01-14]]`
 
 **Benefits:**
+
 - Build knowledge graph
 - See project timelines
 - Track conversations
@@ -664,11 +703,13 @@ Don't wait until end of day - you'll forget details.
 ### Use Consistent Structure
 
 **Stick to template:**
+
 - Easier to scan past notes
 - Establish routines
 - AI can analyze patterns
 
 **Customize once, use forever:**
+
 - Modify template to fit your needs
 - Then use consistently
 - Adjust only when necessary
@@ -676,16 +717,19 @@ Don't wait until end of day - you'll forget details.
 ### Review Regularly
 
 **Daily review (evening):**
+
 - What happened today?
 - What did I learn?
 - What's important for tomorrow?
 
 **Weekly review:**
+
 - Read past week's notes
 - Identify patterns
 - Plan next week
 
 **Monthly review:**
+
 - Skim each day
 - Extract key insights
 - Create summary note
@@ -693,19 +737,24 @@ Don't wait until end of day - you'll forget details.
 ### Keep it Low-Friction
 
 **Don't overthink:**
+
 - Capture quickly
 - Refine later if needed
 - Perfect is enemy of done
 
 **Short entries are fine:**
+
 ```markdown
 ## Afternoon
+
 Productive meeting with client. Created [[Action Items]].
 ```
 
 **Long entries are fine too:**
+
 ```markdown
 ## Evening
+
 Lots to reflect on today...
 (detailed thoughts)
 ```
@@ -717,16 +766,19 @@ Whatever serves your thinking.
 ### Daily Notes vs Inbox
 
 **Daily notes:**
+
 - Chronological organization
 - Daily review built-in
 - Structured by time
 
 **Inbox:**
+
 - No organization
 - Process later
 - Quick capture
 
 **Use both:**
+
 - Quick captures → Inbox
 - Daily thoughts → Daily note
 - Process inbox → Move to appropriate notes/daily
@@ -734,6 +786,7 @@ Whatever serves your thinking.
 ### Daily Notes vs Journals
 
 **Same thing!**
+
 - Daily notes = digital journal
 - More structured (sections, links)
 - Integrated with other notes
@@ -741,16 +794,19 @@ Whatever serves your thinking.
 ### Daily Notes vs Meeting Notes
 
 **Daily notes:**
+
 - Quick inline meeting notes
 - Conversational flow
 - Part of daily context
 
 **Meeting notes:**
+
 - Dedicated meeting note
 - Detailed minutes
 - Shared with team
 
 **Use both:**
+
 - Quick summary in daily note
 - Detailed notes in meeting note
 - Link between them
@@ -762,6 +818,7 @@ Whatever serves your thinking.
 **Problem:** Today's note doesn't exist.
 
 **Solution:**
+
 1. Click "Daily" in sidebar
 2. Note creates automatically
 3. Or create manually: new note, type "daily", name with today's date
@@ -771,6 +828,7 @@ Whatever serves your thinking.
 **Problem:** Can't locate a specific day.
 
 **Solutions:**
+
 1. Use calendar navigation in Daily View
 2. Search: `type:daily created:2024-01-15`
 3. Browse `daily/` folder directly
@@ -780,6 +838,7 @@ Whatever serves your thinking.
 **Problem:** Daily note doesn't have expected structure.
 
 **Solution:**
+
 1. Check `.note-types/daily/daily.md` template
 2. Manually add structure this time
 3. Fix template for future notes

@@ -7,6 +7,7 @@ Common issues and solutions for Flint.
 ### Before Troubleshooting
 
 **Quick fixes to try first:**
+
 1. Save your work (auto-save should handle this)
 2. Restart Flint
 3. Check for updates
@@ -17,17 +18,20 @@ Common issues and solutions for Flint.
 ### Where to Get Help
 
 **Documentation:**
+
 - Search docs.flint.ai (this site)
 - Check relevant guide sections
 - Review feature documentation
 
 **GitHub Issues:**
+
 - [github.com/anthropics/flint-ui/issues](https://github.com/anthropics/flint-ui/issues)
 - Search existing issues
 - Create new issue if needed
 - Include error details
 
 **Community:**
+
 - Discord (if available)
 - Reddit (if available)
 - User forums (if available)
@@ -39,6 +43,7 @@ Common issues and solutions for Flint.
 **Problem:** "Flint can't be opened because it is from an unidentified developer"
 
 **Solution:**
+
 ```
 1. Right-click Flint.app
 2. Select "Open"
@@ -54,6 +59,7 @@ Common issues and solutions for Flint.
 **Problem:** "Windows protected your PC" message
 
 **Solution:**
+
 ```
 1. Click "More info"
 2. Click "Run anyway"
@@ -73,6 +79,7 @@ Common issues and solutions for Flint.
    - 500MB disk space
 
 2. **Check logs:**
+
    ```
    macOS: ~/Library/Logs/Flint/
    Windows: %APPDATA%\Flint\logs\
@@ -80,6 +87,7 @@ Common issues and solutions for Flint.
    ```
 
 3. **Reset application data:**
+
    ```
    Quit Flint
    Rename/delete settings folder (backup first!)
@@ -102,6 +110,7 @@ Common issues and solutions for Flint.
 **Solutions:**
 
 1. **Check folder permissions:**
+
    ```
    Ensure you have read/write access to vault folder
    macOS: Get Info → Sharing & Permissions
@@ -109,6 +118,7 @@ Common issues and solutions for Flint.
    ```
 
 2. **Check folder exists:**
+
    ```
    Vault folder may have been moved or deleted
    Browse to expected location
@@ -116,6 +126,7 @@ Common issues and solutions for Flint.
    ```
 
 3. **Database corruption:**
+
    ```
    Settings → Database → Rebuild Database
    Reconstructs from markdown files
@@ -134,12 +145,14 @@ Common issues and solutions for Flint.
 **Solutions:**
 
 1. **Rebuild database:**
+
    ```
    Settings → Database → Rebuild Database
    Rescans all markdown files
    ```
 
 2. **Check note type filters:**
+
    ```
    Ensure no filters hiding notes
    Click "All Notes" or "General"
@@ -158,12 +171,14 @@ Common issues and solutions for Flint.
 **Solutions:**
 
 1. **Check folder permissions:**
+
    ```
    Must have write access to parent folder
    Choose different location if needed
    ```
 
 2. **Check disk space:**
+
    ```
    Ensure sufficient free space
    500MB minimum recommended
@@ -182,6 +197,7 @@ Common issues and solutions for Flint.
 **Solutions:**
 
 1. **Re-add vault:**
+
    ```
    Vault selector → "Open Existing Vault"
    Browse to vault folder
@@ -189,6 +205,7 @@ Common issues and solutions for Flint.
    ```
 
 2. **Search for vault:**
+
    ```
    Vault may have been moved
    Search computer for .flint folder
@@ -210,18 +227,21 @@ Common issues and solutions for Flint.
 **Solutions:**
 
 1. **Check auto-save:**
+
    ```
    Wait for "Saved" indicator
    May be temporary delay
    ```
 
 2. **Check file permissions:**
+
    ```
    Ensure write access to note file
    Check folder permissions
    ```
 
 3. **Check disk space:**
+
    ```
    Ensure free space available
    Clear space if needed
@@ -240,18 +260,21 @@ Common issues and solutions for Flint.
 **Solutions:**
 
 1. **Check undo:**
+
    ```
    Cmd/Ctrl+Z to undo recent changes
    May recover content
    ```
 
 2. **Check file directly:**
+
    ```
    Open .md file in text editor
    Content may be there but not showing in Flint
    ```
 
 3. **Restore from backup:**
+
    ```
    Time Machine / File History
    Cloud storage previous versions
@@ -271,12 +294,14 @@ Common issues and solutions for Flint.
 **Solutions:**
 
 1. **Check file permissions:**
+
    ```
    May not have delete permissions
    Check folder permissions
    ```
 
 2. **File may be open elsewhere:**
+
    ```
    Close other editors
    Close Flint and reopen
@@ -296,6 +321,7 @@ Common issues and solutions for Flint.
 **Solutions:**
 
 1. **Rebuild database:**
+
    ```
    Settings → Database → Rebuild Database
    Resolves index issues
@@ -316,18 +342,21 @@ Common issues and solutions for Flint.
 **Solutions:**
 
 1. **Rebuild database:**
+
    ```
    Settings → Database → Rebuild Database
    Rebuilds search index
    ```
 
 2. **Check search syntax:**
+
    ```
    Ensure using correct operators
    type:general not types:general
    ```
 
 3. **Check note type filter:**
+
    ```
    May be filtering to wrong type
    Click "All Notes"
@@ -347,12 +376,14 @@ Common issues and solutions for Flint.
 **Solutions:**
 
 1. **Rebuild database:**
+
    ```
    Settings → Database → Rebuild Database
    Optimizes search index
    ```
 
 2. **Check vault size:**
+
    ```
    Very large vaults (10,000+ notes) slower
    Consider splitting into multiple vaults
@@ -373,6 +404,7 @@ Common issues and solutions for Flint.
 **Solutions:**
 
 1. **Check API key:**
+
    ```
    Settings → API Keys
    Verify key is entered and valid
@@ -380,18 +412,21 @@ Common issues and solutions for Flint.
    ```
 
 2. **Check internet connection:**
+
    ```
    AI requires internet connection
    Test connection in browser
    ```
 
 3. **Check API provider status:**
+
    ```
    Visit openrouter.ai or provider website
    Check for outages
    ```
 
 4. **Try new conversation:**
+
    ```
    Close current conversation
    Start new one
@@ -409,6 +444,7 @@ Common issues and solutions for Flint.
 **Problem:** AI responses incomplete or truncated.
 
 **Causes:**
+
 - Model token limit reached
 - Connection interrupted
 - Provider timeout
@@ -416,12 +452,14 @@ Common issues and solutions for Flint.
 **Solutions:**
 
 1. **Ask to continue:**
+
    ```
    "Please continue"
    AI will resume from where it stopped
    ```
 
 2. **Shorter context:**
+
    ```
    Start new conversation
    Provide less context
@@ -440,6 +478,7 @@ Common issues and solutions for Flint.
 **Common errors:**
 
 **"Invalid API key":**
+
 ```
 Solution:
 1. Settings → API Keys
@@ -448,6 +487,7 @@ Solution:
 ```
 
 **"Rate limit exceeded":**
+
 ```
 Solution:
 1. Wait a few minutes
@@ -456,6 +496,7 @@ Solution:
 ```
 
 **"Context too long":**
+
 ```
 Solution:
 1. Start new conversation
@@ -464,6 +505,7 @@ Solution:
 ```
 
 **"Model not available":**
+
 ```
 Solution:
 1. Try different model
@@ -478,18 +520,21 @@ Solution:
 **Solutions:**
 
 1. **Check key format:**
+
    ```
    Copy entire key from provider
    No extra spaces or newlines
    ```
 
 2. **Keychain access (macOS):**
+
    ```
    Click "Always Allow" when prompted
    Grants Flint keychain access
    ```
 
 3. **Generate new key:**
+
    ```
    Visit provider website
    Generate fresh API key
@@ -510,6 +555,7 @@ Solution:
 **Problem:** Cursor moves while typing.
 
 **Causes:**
+
 - Auto-save during typing
 - External file changes
 - Sync conflict
@@ -517,6 +563,7 @@ Solution:
 **Solutions:**
 
 1. **Wait for auto-save:**
+
    ```
    Pause typing briefly
    Wait for "Saved" indicator
@@ -524,6 +571,7 @@ Solution:
    ```
 
 2. **Close external editors:**
+
    ```
    Don't edit note in multiple places
    Close other text editors
@@ -542,18 +590,21 @@ Solution:
 **Solutions:**
 
 1. **Check note size:**
+
    ```
    Very large notes (2,000+ lines) may be slow
    Consider splitting note
    ```
 
 2. **Restart Flint:**
+
    ```
    Clears editor cache
    Resets state
    ```
 
 3. **Check system resources:**
+
    ```
    Close other applications
    Free up RAM
@@ -573,6 +624,7 @@ Solution:
 **Solutions:**
 
 1. **Check syntax:**
+
    ```
    [[Note Title]]  ✓ Correct
    [ [Note Title]]  ❌ Space
@@ -580,12 +632,14 @@ Solution:
    ```
 
 2. **Refresh note:**
+
    ```
    Close and reopen note
    Cmd/Ctrl+R to reload
    ```
 
 3. **Rebuild database:**
+
    ```
    Settings → Database → Rebuild Database
    Refreshes wikilink index
@@ -604,12 +658,14 @@ Solution:
 **Solutions:**
 
 1. **Check syntax:**
+
    ```
    Ensure proper markdown syntax
    **bold** not *bold*
    ```
 
 2. **Restart editor:**
+
    ```
    Close and reopen note
    Refreshes rendering
@@ -628,12 +684,14 @@ Solution:
 **Problem:** Multiple versions of note after syncing.
 
 **Causes:**
+
 - Edited on multiple devices simultaneously
 - Sync conflict
 
 **Solutions:**
 
 1. **Manually merge:**
+
    ```
    Open conflict files
    Copy content to main note
@@ -641,6 +699,7 @@ Solution:
    ```
 
 2. **Choose one version:**
+
    ```
    Decide which is correct
    Delete other version
@@ -660,12 +719,14 @@ Solution:
 **Solutions:**
 
 1. **Don't sync database:**
+
    ```
    Add .flint/ to sync ignore
    Let each device rebuild own database
    ```
 
 2. **Rebuild on all devices:**
+
    ```
    Settings → Database → Rebuild Database
    Do this on each device
@@ -686,6 +747,7 @@ Solution:
 **Solutions:**
 
 1. **Restart Flint:**
+
    ```
    Closes all notes
    Clears caches
@@ -693,12 +755,14 @@ Solution:
    ```
 
 2. **Close unused notes:**
+
    ```
    Close temporary tabs
    Close notes not actively editing
    ```
 
 3. **Check note size:**
+
    ```
    Large notes use more memory
    Split if needed
@@ -717,6 +781,7 @@ Solution:
 **Solutions:**
 
 1. **Check for loops:**
+
    ```
    AI conversation stuck?
    Workflow running continuously?
@@ -724,6 +789,7 @@ Solution:
    ```
 
 2. **Rebuild database:**
+
    ```
    Database indexing may be stuck
    Settings → Database → Rebuild
@@ -742,18 +808,21 @@ Solution:
 **Solutions:**
 
 1. **Check vault size:**
+
    ```
    Large vaults slower to load
    Normal for 5,000+ notes
    ```
 
 2. **Check auto-open notes:**
+
    ```
    Many open tabs slow startup
    Close tabs before quitting
    ```
 
 3. **Rebuild database:**
+
    ```
    Corrupted database slows startup
    Settings → Database → Rebuild
@@ -771,6 +840,7 @@ Solution:
 ### macOS Issues
 
 **Keychain Access Prompts:**
+
 ```
 Problem: Repeated keychain password requests
 
@@ -780,6 +850,7 @@ Grants permanent access to Flint
 ```
 
 **App Not in Applications:**
+
 ```
 Problem: Downloaded app not installing
 
@@ -789,6 +860,7 @@ Don't run from Downloads
 ```
 
 **Spotlight Not Finding Flint:**
+
 ```
 Problem: Cmd+Space doesn't show Flint
 
@@ -800,6 +872,7 @@ Or launch from Applications folder once
 ### Windows Issues
 
 **App Won't Uninstall:**
+
 ```
 Problem: Uninstaller doesn't work
 
@@ -809,6 +882,7 @@ Or use third-party uninstaller
 ```
 
 **Missing DLL Errors:**
+
 ```
 Problem: "VCRUNTIME140.dll missing"
 
@@ -818,6 +892,7 @@ Download from Microsoft
 ```
 
 **Antivirus Blocking:**
+
 ```
 Problem: Antivirus quarantines Flint
 
@@ -829,6 +904,7 @@ Whitelist application
 ### Linux Issues
 
 **Permission Denied:**
+
 ```
 Problem: Can't launch after installation
 
@@ -838,6 +914,7 @@ Make executable
 ```
 
 **Missing Dependencies:**
+
 ```
 Problem: Library errors on launch
 
@@ -853,6 +930,7 @@ Check error message for specifics
 **Strategies:**
 
 1. **Check backups:**
+
    ```
    Time Machine (macOS)
    File History (Windows)
@@ -860,12 +938,14 @@ Check error message for specifics
    ```
 
 2. **Check trash/recycle bin:**
+
    ```
    May have been deleted
    Can restore if recent
    ```
 
 3. **Check vault folder directly:**
+
    ```
    Open in file browser
    Look for .md files
@@ -884,12 +964,14 @@ Check error message for specifics
 **Steps:**
 
 1. **Copy vault folder:**
+
    ```
    Make backup before trying fixes
    Copy entire folder elsewhere
    ```
 
 2. **Try rebuilding database:**
+
    ```
    Delete .flint/database.db
    Open vault in Flint
@@ -897,6 +979,7 @@ Check error message for specifics
    ```
 
 3. **Create new vault:**
+
    ```
    Create fresh vault
    Copy .md files from old vault
@@ -929,6 +1012,7 @@ Check error message for specifics
 ### Logs and Diagnostics
 
 **Log locations:**
+
 ```
 macOS: ~/Library/Logs/Flint/
 Windows: %APPDATA%\Flint\logs\
@@ -936,6 +1020,7 @@ Linux: ~/.config/Flint/logs/
 ```
 
 **Include logs when reporting:**
+
 - main.log - Application logs
 - renderer.log - UI logs
 - error.log - Error details
@@ -945,12 +1030,14 @@ Linux: ~/.config/Flint/logs/
 **For complex bugs:**
 
 1. **Create test vault:**
+
    ```
    New vault with minimal content
    Try to reproduce issue
    ```
 
 2. **Eliminate variables:**
+
    ```
    Disable custom functions
    Remove workflows
@@ -973,6 +1060,7 @@ Linux: ~/.config/Flint/logs/
 **Nuclear options:**
 
 1. **Reset all settings:**
+
    ```
    Quit Flint
    Rename settings folder (backup first)
@@ -981,6 +1069,7 @@ Linux: ~/.config/Flint/logs/
    ```
 
 2. **Reinstall:**
+
    ```
    Uninstall Flint completely
    Delete application data (backup first)
@@ -1014,6 +1103,7 @@ Linux: ~/.config/Flint/logs/
 ### Best Practices
 
 **Prevent issues:**
+
 - ✓ Regular backups
 - ✓ Close Flint before syncing
 - ✓ Don't edit notes externally while Flint open
@@ -1022,6 +1112,7 @@ Linux: ~/.config/Flint/logs/
 - ✓ Use version control (Git)
 
 **Avoid:**
+
 - ❌ Editing on multiple devices simultaneously
 - ❌ Moving vault folder while Flint open
 - ❌ Running out of disk space

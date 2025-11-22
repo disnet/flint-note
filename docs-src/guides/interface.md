@@ -50,13 +50,16 @@ The workspace bar at the top provides global actions and navigation.
 ### Components
 
 **Left side:**
+
 - **Vault Selector** - Switch between vaults
 - **System Views** - Access Daily, Inbox, Review, Workflows
 
 **Center:**
+
 - **Current note title** - Shows the active note
 
 **Right side:**
+
 - **New Note** (`Ctrl+Shift+N` / `Cmd+Shift+N`) - Create a note
 - **Search** (`Ctrl+O` / `Cmd+O`) - Quick search overlay
 - **Settings** - Application settings
@@ -65,11 +68,13 @@ The workspace bar at the top provides global actions and navigation.
 ### Vault Selector
 
 Click the vault name in the top-left to:
+
 - See all your vaults
 - Switch to a different vault
 - Create a new vault
 
 Each vault is completely isolated with its own:
+
 - Notes and database
 - AI conversation history
 - Settings and preferences
@@ -102,6 +107,7 @@ Or click the pin icon when viewing a note.
 **Best practices:**
 
 Pin notes you reference frequently:
+
 - Today's daily note
 - Active project notes
 - Reference materials (style guide, templates)
@@ -118,6 +124,7 @@ Temporary tabs are like Arc browser's temporary tabs - ephemeral access to recen
 **How they work:**
 
 When you open a note via:
+
 - **Search** (`Ctrl+O`) → Creates temporary tab
 - **Wikilink** → Creates temporary tab
 - **Pinned note** → Opens directly, no tab
@@ -133,6 +140,7 @@ When you open a note via:
 **Converting to permanent:**
 
 If you want to keep a note accessible:
+
 1. Right-click the temporary tab
 2. Select "Pin to Sidebar"
 3. It moves from temporary to pinned
@@ -140,6 +148,7 @@ If you want to keep a note accessible:
 **Why use temporary tabs?**
 
 They keep your navigation history visible without cluttering your pinned notes. Perfect for:
+
 - Notes you're referencing while writing
 - Following a chain of wikilinks
 - Working through search results
@@ -153,6 +162,41 @@ Below pinned notes and tabs, you'll find quick access to:
 - **Review** - Access spaced repetition review
 - **Workflows** - Manage workflows and automations
 
+### Workspaces Bar
+
+**At the bottom of the left sidebar**, the workspaces bar lets you organize different contexts within your vault.
+
+**What are workspaces?**
+
+Workspaces are independent contexts that each have their own:
+
+- Pinned notes
+- Temporary tabs
+- Visual identity (icon and name)
+
+**Why use workspaces?**
+
+Switch between projects, workflows, or focus areas without losing your place. Each workspace maintains its own set of open notes.
+
+**Quick actions:**
+
+- **Click workspace icon** - Switch to that workspace
+- **Right-click workspace** - Edit or delete
+- **Drag workspace icons** - Reorder
+- **Click `+` button** - Create new workspace
+- **Keyboard shortcuts** - `Ctrl+1` through `Ctrl+9` (or `Cmd` on Mac) switch to first 9 workspaces
+
+**Examples:**
+
+```
+[📋] [📱] [🌐] [+]
+ ↑    ↑    ↑    ↑
+Daily Mobile Web  Add
+(active)
+```
+
+**Learn more:** See the [Workspaces feature guide](/features/workspaces) for detailed information.
+
 ## Main View: Note Editor
 
 The main view is where you create and edit notes.
@@ -162,11 +206,13 @@ The main view is where you create and edit notes.
 At the top of the editor:
 
 **Left side:**
+
 - **Note title** - Editable inline, press Enter to confirm
 - **Note type dropdown** - Change the note's type
 - **Type indicator** - Visual icon showing current type
 
 **Right side:**
+
 - **Pin button** - Pin/unpin this note
 - **More actions** - Additional note operations
 
@@ -175,6 +221,7 @@ At the top of the editor:
 The editor uses **CodeMirror 6** for professional editing:
 
 **Features:**
+
 - **Markdown syntax highlighting**
 - **Auto-save** - Changes saved automatically after 1 second
 - **Wikilink autocomplete** - Type `[[` to search for notes
@@ -191,20 +238,25 @@ The editor uses **CodeMirror 6** for professional editing:
 ### Markdown Editing Tips
 
 **Headers:**
+
 ```markdown
 # Large Header
+
 ## Medium Header
+
 ### Smaller Header
 ```
 
 **Text formatting:**
+
 ```markdown
 **bold text**
-*italic text*
+_italic text_
 `inline code`
 ```
 
 **Lists:**
+
 ```markdown
 - Bullet item
 - Another item
@@ -215,24 +267,27 @@ The editor uses **CodeMirror 6** for professional editing:
 ```
 
 **Code blocks:**
+
 ````markdown
 ```javascript
 function hello() {
-  console.log("Hello!");
+  console.log('Hello!');
 }
 ```
 ````
 
 **Wikilinks:**
+
 ```markdown
 [[Note Title]]
 [[type/filename|Display Text]]
 ```
 
 **Tables:**
+
 ```markdown
 | Header 1 | Header 2 |
-|----------|----------|
+| -------- | -------- |
 | Cell 1   | Cell 2   |
 ```
 
@@ -258,21 +313,25 @@ The AI agent appears in this tab.
 **Components:**
 
 **Chat history:**
+
 - Scrollable conversation with the AI
 - Your messages and AI responses
 - Tool calls shown inline with results
 
 **Message input:**
+
 - Text area for your messages
 - `Ctrl+Enter` / `Cmd+Enter` to send
 - Supports multi-line input
 
 **Model selector:**
+
 - Dropdown to choose AI model
 - Shows current model and provider
 - Cost estimates per message
 
 **Conversation controls:**
+
 - **New conversation** - Start fresh
 - **Clear history** - Remove all messages
 - **Export** - Save conversation
@@ -327,21 +386,25 @@ tags: [weekly, standup]
 **Common operations:**
 
 **Add a field:**
+
 ```yaml
 new_field: value
 ```
 
 **Add a tag:**
+
 ```yaml
 tags: [existing-tag, new-tag]
 ```
 
 **Change date:**
+
 ```yaml
 date: 2024-01-16
 ```
 
 **Add array:**
+
 ```yaml
 attendees:
   - Sarah
@@ -359,6 +422,7 @@ Shows notes that link to the current note.
 **What you see:**
 
 For each backlink:
+
 - **Note title** - Clickable to open
 - **Context snippet** - Surrounding text showing how it links
 - **Note type** - Visual indicator
@@ -381,6 +445,7 @@ Backlinks (3)
 **Why backlinks matter:**
 
 They help you:
+
 - See where this note is referenced
 - Discover related context
 - Navigate between connected ideas
@@ -393,6 +458,7 @@ If the note type has AI suggestions enabled, this tab shows suggestions.
 **What are suggestions?**
 
 AI-generated recommendations for:
+
 - Related notes to link
 - Missing metadata to add
 - Tasks to create
@@ -446,20 +512,24 @@ Click the **Settings** icon to access application settings.
 ### Settings Sections
 
 **Appearance:**
+
 - Theme (light/dark/system)
 - Font preferences
 - Layout settings
 
 **API Keys:**
+
 - OpenRouter API key
 - Secure keychain storage
 - Validation indicators
 
 **Database:**
+
 - Rebuild database from files
 - Database statistics
 
 **Updates:**
+
 - Current version
 - Check for updates
 - View changelog
@@ -474,6 +544,7 @@ Visual feedback throughout the interface:
 ### Saving Indicators
 
 **In editor header:**
+
 - **"Saving..."** - Note is being saved
 - **"Saved"** - Save completed successfully
 - **"Conflict"** - External edit detected
@@ -481,12 +552,14 @@ Visual feedback throughout the interface:
 ### Update Indicator
 
 **In workspace bar:**
+
 - **Green dot** - Update available
 - **Click to view** - Shows update details
 
 ### AI Activity
 
 **In Agent tab:**
+
 - **Typing indicator** - AI is responding
 - **Tool execution** - Shows which tool is running
 - **Progress bars** - For long operations
@@ -497,35 +570,36 @@ Essential shortcuts for productivity:
 
 ### Global
 
-| Shortcut | Action |
-|----------|--------|
-| `Ctrl+Shift+N` / `Cmd+Shift+N` | New note |
-| `Ctrl+O` / `Cmd+O` | Search overlay |
-| `Ctrl+K` / `Cmd+K` | Toggle AI agent |
-| `Ctrl+,` / `Cmd+,` | Settings |
+| Shortcut                       | Action          |
+| ------------------------------ | --------------- |
+| `Ctrl+Shift+N` / `Cmd+Shift+N` | New note        |
+| `Ctrl+O` / `Cmd+O`             | Search overlay  |
+| `Ctrl+K` / `Cmd+K`             | Toggle AI agent |
+| `Ctrl+,` / `Cmd+,`             | Settings        |
 
 ### Editor
 
-| Shortcut | Action |
-|----------|--------|
-| `Ctrl+F` / `Cmd+F` | Find in note |
-| `Ctrl+H` / `Cmd+H` | Replace |
-| `Ctrl+S` / `Cmd+S` | Save (auto-save handles this) |
-| `Ctrl+Enter` / `Cmd+Enter` | Submit (in chat/review) |
+| Shortcut                   | Action                        |
+| -------------------------- | ----------------------------- |
+| `Ctrl+F` / `Cmd+F`         | Find in note                  |
+| `Ctrl+H` / `Cmd+H`         | Replace                       |
+| `Ctrl+S` / `Cmd+S`         | Save (auto-save handles this) |
+| `Ctrl+Enter` / `Cmd+Enter` | Submit (in chat/review)       |
 
 ### Navigation
 
-| Shortcut | Action |
-|----------|--------|
-| `Ctrl+[` / `Cmd+[` | Go back |
-| `Ctrl+]` / `Cmd+]` | Go forward |
-| Click wikilink | Follow link |
+| Shortcut           | Action      |
+| ------------------ | ----------- |
+| `Ctrl+[` / `Cmd+[` | Go back     |
+| `Ctrl+]` / `Cmd+]` | Go forward  |
+| Click wikilink     | Follow link |
 
 ## Customization
 
 ### Resizing Panels
 
 **Drag dividers** between sections:
+
 - Between left sidebar and main view
 - Between main view and right sidebar
 
@@ -540,6 +614,7 @@ Your preferred sizes are saved per vault.
 ### Theme
 
 Choose your theme in Settings:
+
 - **Light** - Always light mode
 - **Dark** - Always dark mode
 - **System** - Follow OS preference
@@ -570,6 +645,7 @@ Choose your theme in Settings:
 ### Keyboard-First
 
 Power users can work mostly keyboard-driven:
+
 1. `Ctrl+Shift+N` - New note
 2. Write with markdown and wikilinks
 3. `Ctrl+K` - Ask AI to organize

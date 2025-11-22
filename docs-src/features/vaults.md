@@ -7,6 +7,7 @@ Organize your notes into separate, isolated workspaces with Flint's multi-vault 
 A **vault** is a completely isolated collection of notes stored in a folder on your computer.
 
 **Each vault has:**
+
 - Its own **folder** on your file system
 - Separate **database** for metadata and search
 - Independent **note types**
@@ -15,6 +16,7 @@ A **vault** is a completely isolated collection of notes stored in a folder on y
 - Isolated **pinned notes and tabs**
 
 **Think of vaults as:**
+
 - Different notebooks
 - Separate workspaces
 - Isolated contexts
@@ -25,6 +27,7 @@ A **vault** is a completely isolated collection of notes stored in a folder on y
 ### Separation of Contexts
 
 **Work vs Personal:**
+
 ```
 Work Vault:
 ├── Meeting notes
@@ -42,6 +45,7 @@ Personal Vault:
 ```
 
 **Benefits:**
+
 - Keep work and personal separate
 - Different AI conversations for each context
 - Search doesn't mix contexts
@@ -50,6 +54,7 @@ Personal Vault:
 ### Project-Based Organization
 
 **Different projects:**
+
 ```
 Startup Vault:
 ├── Business plans
@@ -73,6 +78,7 @@ Writing Vault:
 ### Privacy Levels
 
 **Public vs Private:**
+
 ```
 Public Vault:
 ├── Blog drafts
@@ -90,6 +96,7 @@ Private Vault:
 ### Learning and Knowledge Domains
 
 **Subject-based:**
+
 ```
 Programming Vault:
 ├── Code snippets
@@ -115,6 +122,7 @@ Business Vault:
 ### Via UI
 
 **First time:**
+
 1. Launch Flint
 2. First-Time Experience guides you
 3. Choose location for your vault
@@ -122,6 +130,7 @@ Business Vault:
 5. Vault is initialized
 
 **Additional vaults:**
+
 1. Click **vault selector** (top-left)
 2. Click **"Create New Vault"**
 3. Choose a **folder location**
@@ -129,6 +138,7 @@ Business Vault:
 5. Click **"Create"**
 
 **What happens:**
+
 - Folder created at chosen location
 - Database initialized
 - Default note types created
@@ -178,6 +188,7 @@ MyVault/
 ```
 
 **Important:**
+
 - `.flint/` contains Flint-specific data
 - All other files are standard markdown
 - You can edit notes with any text editor
@@ -188,11 +199,13 @@ MyVault/
 ### Vault Selector
 
 **Click vault name** (top-left corner):
+
 - Shows list of all vaults
 - Current vault highlighted
 - Click another vault to switch
 
 **What happens on switch:**
+
 - Current vault state saved
 - New vault loaded
 - Different notes appear
@@ -200,6 +213,7 @@ MyVault/
 - Different pinned notes
 
 **Quick switch:**
+
 - All vaults listed alphabetically
 - Recently used vaults at top
 - One-click switching
@@ -207,6 +221,7 @@ MyVault/
 ### Keyboard Shortcuts
 
 Future feature - keyboard shortcuts for vault switching:
+
 ```
 Ctrl+Shift+V  - Open vault selector
 Ctrl+1-9      - Switch to vault 1-9
@@ -230,10 +245,12 @@ AI: [Switches vault]
 ### Listing Vaults
 
 **Via vault selector:**
+
 - Click vault name
 - See all vaults
 
 **Via AI:**
+
 ```
 You: What vaults do I have?
 
@@ -263,6 +280,7 @@ AI: You have 4 vaults:
 ### Vault Information
 
 **View vault details:**
+
 ```
 You: Tell me about my current vault
 
@@ -284,12 +302,14 @@ AI: Current vault: Personal Notes
 ### Renaming Vaults
 
 **Via vault selector:**
+
 1. Click vault name
 2. Right-click vault to rename
 3. Enter new name
 4. Press Enter
 
 **Via file system:**
+
 - Renaming the folder works too
 - Flint detects the new location
 - Vault registry updates
@@ -299,17 +319,20 @@ AI: Current vault: Personal Notes
 **Important:** Removing from Flint doesn't delete files.
 
 **Via vault selector:**
+
 1. Click vault name
 2. Right-click vault
 3. Select "Remove from Flint"
 4. Confirm
 
 **What happens:**
+
 - Vault removed from registry
 - Files remain on disk (not deleted!)
 - Can re-add later if needed
 
 **To permanently delete:**
+
 1. Remove from Flint
 2. Delete the folder manually
 
@@ -320,21 +343,25 @@ AI: Current vault: Personal Notes
 **Each vault has separate:**
 
 **Notes and Database:**
+
 - Completely different note collections
 - Separate search indexes
 - Independent metadata
 
 **AI Conversations:**
+
 - Different conversation history
 - No cross-vault context
 - Separate cost tracking
 
 **Settings:**
+
 - Can use different AI models per vault
 - Different UI preferences
 - Independent note types
 
 **UI State:**
+
 - Different pinned notes
 - Separate temporary tabs
 - Independent navigation history
@@ -342,11 +369,13 @@ AI: Current vault: Personal Notes
 **Examples:**
 
 Work vault:
+
 - Pinned: "Current Sprint", "Team Directory"
 - AI: GPT-4 for coding help
 - Daily notes enabled
 
 Personal vault:
+
 - Pinned: "Today's Journal", "Goals"
 - AI: Claude for writing
 - Daily notes enabled with different template
@@ -354,11 +383,13 @@ Personal vault:
 ### What's Shared
 
 **Global settings:**
+
 - API keys (stored in OS keychain)
 - Application theme
 - Update preferences
 
 **Application state:**
+
 - Window size/position
 - Sidebar visibility
 
@@ -367,6 +398,7 @@ Personal vault:
 ### Personal Knowledge Management
 
 **Single vault approach:**
+
 ```
 Everything Vault:
 ├── Areas of life (work, health, learning, etc.)
@@ -376,6 +408,7 @@ Everything Vault:
 ```
 
 **Multi-vault approach:**
+
 ```
 Work Vault (professional knowledge)
 Personal Vault (life management)
@@ -388,6 +421,7 @@ Choose based on preference for separation.
 ### Client Work
 
 **One vault per client:**
+
 ```
 Client-Acme/
 ├── Meeting notes
@@ -403,6 +437,7 @@ Client-BetaCorp/
 ```
 
 **Benefits:**
+
 - Complete isolation
 - Easy to archive when project ends
 - Simple backup/sharing
@@ -411,6 +446,7 @@ Client-BetaCorp/
 ### Research Projects
 
 **One vault per research topic:**
+
 ```
 ML-Research/
 ├── Papers
@@ -426,6 +462,7 @@ Web3-Research/
 ```
 
 **Transition to main vault:**
+
 - When research complete
 - Export key findings
 - Create summary in main vault
@@ -434,6 +471,7 @@ Web3-Research/
 ### Writing Projects
 
 **One vault per book/project:**
+
 ```
 Novel-Draft/
 ├── Characters
@@ -451,6 +489,7 @@ Nonfiction-Book/
 ```
 
 **Benefits:**
+
 - Focused context
 - Project-specific notes
 - Easy to share with editors/collaborators
@@ -461,6 +500,7 @@ Nonfiction-Book/
 ### Backup Strategy
 
 **Each vault is a folder:**
+
 - Copy the entire folder to backup
 - Use any backup software
 - Cloud sync works (with caveats)
@@ -468,6 +508,7 @@ Nonfiction-Book/
 **Recommended approach:**
 
 1. **Local backup:**
+
    ```bash
    cp -r ~/Documents/MyVault ~/Backups/MyVault-2024-01-15
    ```
@@ -489,6 +530,7 @@ Nonfiction-Book/
 **Cloud storage sync:**
 
 1. **Move vault to cloud folder:**
+
    ```
    ~/Dropbox/FlintVaults/PersonalNotes/
    ```
@@ -498,11 +540,13 @@ Nonfiction-Book/
 3. **Cloud service handles sync**
 
 **Caveats:**
+
 - **Don't open vault on multiple devices simultaneously**
 - Database conflicts can occur
 - Close Flint before switching devices
 
 **Alternative - Manual sync:**
+
 - Work on device A
 - Close Flint
 - Cloud syncs
@@ -521,12 +565,14 @@ Nonfiction-Book/
 4. Recipient can add to their Flint
 
 **Example:**
+
 ```bash
 cd ~/Documents
 zip -r MyVault-Archive.zip MyVault/
 ```
 
 **Importing:**
+
 1. Unzip to desired location
 2. Add vault in Flint
 3. All notes, metadata, types preserved
@@ -536,15 +582,18 @@ zip -r MyVault-Archive.zip MyVault/
 ### Per-Vault Configuration
 
 **Settings stored in vault:**
+
 - `.flint/config.json`
 
 **Configurable per vault:**
+
 - Default note type
 - Daily note template
 - Review settings
 - Custom note types
 
 **Example config:**
+
 ```json
 {
   "defaultNoteType": "general",
@@ -559,17 +608,20 @@ zip -r MyVault-Archive.zip MyVault/
 ### When to Create a New Vault
 
 **Good reasons:**
+
 - Fundamentally different context (work/personal)
 - Client projects (one vault per client)
 - Major research projects
 - Privacy isolation needed
 
 **Don't overdo it:**
+
 - Too many vaults = fragmentation
 - Harder to find information
 - Connections across vaults lost
 
 **General guidance:**
+
 - **1-3 vaults:** Most people
 - **5-10 vaults:** Power users with distinct contexts
 - **10+ vaults:** Usually too many
@@ -577,6 +629,7 @@ zip -r MyVault-Archive.zip MyVault/
 ### Vault Naming
 
 **Descriptive names:**
+
 ```
 ✓ Personal Notes
 ✓ Work - Acme Corp
@@ -591,12 +644,14 @@ zip -r MyVault-Archive.zip MyVault/
 ### Archive Old Vaults
 
 **When project complete:**
+
 1. Export important findings to main vault
 2. Create archive vault or folder
 3. Remove from active vaults
 4. Keep folder as backup
 
 **Example:**
+
 ```
 ~/Documents/FlintVaults/
 ├── Active/
@@ -610,6 +665,7 @@ zip -r MyVault-Archive.zip MyVault/
 ### Regular Maintenance
 
 **Periodically review:**
+
 - Which vaults are actively used?
 - Can any be archived?
 - Are backups current?
@@ -622,6 +678,7 @@ zip -r MyVault-Archive.zip MyVault/
 **Problem:** Vault disappeared from selector.
 
 **Solutions:**
+
 1. **Check if folder moved:**
    - Locate the folder manually
    - Re-add to Flint
@@ -640,6 +697,7 @@ zip -r MyVault-Archive.zip MyVault/
 **Problem:** Vault database corrupted.
 
 **Solutions:**
+
 1. **Rebuild database:**
    - Settings → Database → Rebuild
    - Flint re-indexes from markdown files
@@ -654,6 +712,7 @@ zip -r MyVault-Archive.zip MyVault/
 **Problem:** Edited same note on two devices.
 
 **Solutions:**
+
 1. **Don't sync simultaneously:**
    - Close Flint on device A
    - Wait for cloud sync
@@ -684,6 +743,7 @@ Main Vault (permanent knowledge)
 ```
 
 **Workflow:**
+
 1. Work in satellite vaults
 2. Periodically export key notes to main vault
 3. Archive satellite vaults when done
@@ -701,6 +761,7 @@ Inbox Vault:
 ```
 
 **Benefits:**
+
 - Frictionless capture
 - No thinking about organization
 - Batch processing later
@@ -720,6 +781,7 @@ Project-Template/
 ```
 
 **For new projects:**
+
 1. Copy template vault
 2. Rename
 3. Start with structure in place

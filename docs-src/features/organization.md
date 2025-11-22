@@ -7,16 +7,19 @@ Master Flint's organizational tools: pinned notes, temporary tabs, and navigatio
 Flint provides multiple ways to organize and access your notes:
 
 **Pinned Notes:**
+
 - Permanent quick access
 - Most important notes
 - Manually curated
 
 **Temporary Tabs:**
+
 - Arc browser-style ephemeral tabs
 - Recently accessed notes
 - Automatic management
 
 **Navigation History:**
+
 - Browser-style back/forward
 - Track your path through notes
 - Jump to previous contexts
@@ -30,6 +33,7 @@ Together, these create a flexible system for both permanent structure and fluid 
 ### What to Pin
 
 **Good candidates:**
+
 - Your daily note
 - Active project notes
 - Reference materials (style guides, templates)
@@ -37,6 +41,7 @@ Together, these create a flexible system for both permanent structure and fluid 
 - Current focus areas
 
 **Examples:**
+
 ```
 Pinned:
 - Today's Daily Note
@@ -47,12 +52,14 @@ Pinned:
 ```
 
 **Don't pin:**
+
 - Everything (defeats the purpose)
 - Archived projects
 - Rarely accessed notes
 - Notes you'll find via search
 
 **Sweet spot: 5-10 pins**
+
 - Enough for quick access
 - Not so many you can't scan them
 - Easy to find what you need
@@ -90,6 +97,7 @@ Drag from temporary tabs to pinned section.
 **Location:** Top of left sidebar
 
 **Display:**
+
 ```
 📌 PINNED
    📅 Today's Daily Note
@@ -100,6 +108,7 @@ Drag from temporary tabs to pinned section.
 ```
 
 **Features:**
+
 - Note type icons
 - Note titles
 - Visual grouping
@@ -151,6 +160,7 @@ Reference:
 ### Unpinning Notes
 
 **When to unpin:**
+
 - Project completed
 - No longer accessing frequently
 - Replaced by something more relevant
@@ -162,9 +172,11 @@ Reference:
 3. Note removed from pinned section
 
 **Or:**
+
 - Click pin icon again (toggles off)
 
 **Note still exists:**
+
 - Just not in sidebar
 - Find via search
 - Still in note collection
@@ -172,16 +184,19 @@ Reference:
 ### Pinned Notes Persistence
 
 **Per vault:**
+
 - Each vault has its own pinned notes
 - Switch vaults = different pins
 - Appropriate for context
 
 **Stored locally:**
+
 - `{userData}/pinned-notes/{vaultId}.json`
 - Survives app restarts
 - Syncs with vault data
 
 **Backup included:**
+
 - Part of vault data
 - Backed up automatically if syncing vault
 
@@ -192,18 +207,21 @@ Reference:
 ### What are Temporary Tabs?
 
 **Ephemeral quick access:**
+
 - Notes you've recently opened
 - Automatically created
 - Automatically cleaned up
 - Convertible to pinned
 
 **The Arc browser model:**
+
 - Tabs for exploration
 - Don't clutter permanent structure
 - Auto-cleanup after 24 hours
 - Pin what matters
 
 **In Flint:**
+
 - Open note via search → Creates temporary tab
 - Open note via wikilink → Creates temporary tab
 - Open from pinned note → Opens directly, no tab
@@ -214,6 +232,7 @@ Reference:
 **Automatic creation:**
 
 **From search (`Ctrl+O`):**
+
 ```
 1. Press Ctrl+O
 2. Search for "project"
@@ -223,6 +242,7 @@ Reference:
 ```
 
 **From wikilinks:**
+
 ```
 Reading Note A
 Click [[Note B]]
@@ -231,6 +251,7 @@ Temporary tab created for Note B
 ```
 
 **From AI:**
+
 ```
 You: Open the project overview note
 
@@ -238,6 +259,7 @@ AI: [Opens note, creates temporary tab]
 ```
 
 **Reusing existing tabs:**
+
 - If tab already exists for that note
 - Clicking it again just opens it
 - Doesn't create duplicate
@@ -247,6 +269,7 @@ AI: [Opens note, creates temporary tab]
 **Location:** Left sidebar, below pinned notes
 
 **Display:**
+
 ```
 🕒 TEMPORARY
    × General Ideas
@@ -257,6 +280,7 @@ AI: [Opens note, creates temporary tab]
 ```
 
 **Features:**
+
 - Individual close buttons (`×`)
 - "Close All" button
 - Source tracking (where tab came from)
@@ -286,6 +310,7 @@ AI: [Opens note, creates temporary tab]
 4. Now permanent quick access
 
 **Or:**
+
 - Click pin icon while note is open
 
 ### Source Tracking
@@ -293,12 +318,14 @@ AI: [Opens note, creates temporary tab]
 Temporary tabs remember how they were created:
 
 **Metadata stored:**
+
 - Created from search
 - Created from wikilink (which note)
 - Created from AI action
 - Timestamp
 
 **View source** (future):
+
 - Hover over tab
 - See "Opened from: [[Previous Note]]"
 - Understand your navigation path
@@ -306,34 +333,40 @@ Temporary tabs remember how they were created:
 ### Automatic Cleanup
 
 **24-hour rule:**
+
 - Tabs older than 24 hours are removed
 - Cleanup happens on app start
 - Also periodic cleanup while running
 
 **Why cleanup:**
+
 - Prevent clutter
 - Keep only recent exploration
 - Encourage pinning what's important
 
 **Preservation:**
+
 - Pin before 24 hours if you want to keep it
 - Or just reopen later (will create new tab)
 
 ### Temporary Tabs Best Practices
 
 **Use for exploration:**
+
 - Following wikilink chains
 - Search results
 - Quick references
 - Temporary context
 
 **Pin when:**
+
 - Accessing note multiple times
 - Part of current work
 - Want permanent access
 - Important reference
 
 **Don't worry about cleanup:**
+
 - Let the system clean up
 - Reopen if needed later
 - Trust the process
@@ -360,12 +393,14 @@ Track your path through notes with browser-style navigation.
 ### How It Works
 
 **Every navigation tracked:**
+
 - Opening a note
 - Following a wikilink
 - Searching and opening
 - AI opening a note
 
 **Stack maintained:**
+
 - Current position in history
 - Can go back to previous notes
 - Can go forward if you went back
@@ -386,14 +421,17 @@ Track your path through notes with browser-style navigation.
 ### Navigation Controls
 
 **Back button** (future UI):
+
 - Go to previous note
 - Keyboard: `Ctrl+[` / `Cmd+[`
 
 **Forward button** (future UI):
+
 - Go to next note (if you went back)
 - Keyboard: `Ctrl+]` / `Cmd+]`
 
 **History dropdown** (future):
+
 - See full history
 - Click any entry to jump there
 
@@ -411,21 +449,25 @@ AI: [Navigates to previous note in history]
 ```
 
 **Navigation shortcuts:**
+
 - Pinned notes bypass history (direct access)
 - Temporary tabs reopen notes (adds to history)
 
 ### History Persistence
 
 **Per vault:**
+
 - Each vault has separate history
 - Switch vaults = switch history context
 
 **Stored locally:**
+
 - `vault-data/{vaultId}/navigation-history.json`
 - Survives app restarts
 - Recent history maintained
 
 **Limits:**
+
 - Last 100 navigations stored
 - Older history dropped
 - Keeps memory usage reasonable
@@ -435,6 +477,7 @@ AI: [Navigates to previous note in history]
 ### The Three-Tier System
 
 **Tier 1: Pinned (Permanent Structure)**
+
 ```
 What: 5-10 most important notes
 When: Always visible
@@ -442,6 +485,7 @@ Use: Current focus, references, daily notes
 ```
 
 **Tier 2: Temporary Tabs (Active Exploration)**
+
 ```
 What: Recently accessed notes
 When: Within 24 hours
@@ -449,6 +493,7 @@ Use: Following links, search results, current research
 ```
 
 **Tier 3: Search (Everything Else)**
+
 ```
 What: All other notes
 When: As needed
@@ -556,11 +601,13 @@ Workflow:
 ### Keep Pinned Notes Lean
 
 **Regularly review:**
+
 - Weekly: Check if all pins still relevant
 - Monthly: Major cleanup
 - Project end: Unpin completed work
 
 **Questions to ask:**
+
 - "Have I accessed this in the past week?"
 - "Is this for current work or future reference?"
 - "Can I find this easily via search?"
@@ -570,11 +617,13 @@ Workflow:
 ### Trust Temporary Tabs
 
 **Don't manually manage them:**
+
 - Let them accumulate during exploration
 - Pin what proves important
 - Let cleanup happen automatically
 
 **Don't pre-emptively pin:**
+
 - Access note a few times first
 - If keeps coming up, then pin
 - Avoid "just in case" pins
@@ -582,11 +631,13 @@ Workflow:
 ### Use Navigation History
 
 **Think in paths:**
+
 - "How did I get here?"
 - "What was I looking at before?"
 - "Retrace my steps"
 
 **Navigate intentionally:**
+
 - Back to context
 - Forward to destination
 - Jump via history
@@ -594,6 +645,7 @@ Workflow:
 ### Establish Routines
 
 **Morning routine:**
+
 ```
 1. Pin today's daily note (if not auto-pinned)
 2. Check temporary tabs from yesterday
@@ -602,6 +654,7 @@ Workflow:
 ```
 
 **End of day:**
+
 ```
 1. Review temporary tabs
 2. Pin important discoveries
@@ -610,6 +663,7 @@ Workflow:
 ```
 
 **Weekly review:**
+
 ```
 1. Review all pins
 2. Unpin completed projects
@@ -624,6 +678,7 @@ Workflow:
 **Problem:** 20+ pinned notes, can't find anything.
 
 **Solution:**
+
 1. Ask: "Which have I accessed this week?"
 2. Unpin the rest
 3. Target: 10 or fewer
@@ -634,6 +689,7 @@ Workflow:
 **Problem:** Old tabs still visible after 24 hours.
 
 **Solution:**
+
 1. Restart Flint (triggers cleanup)
 2. Check if notes were recently accessed (resets timer)
 3. Manually close with "Close All"
@@ -643,6 +699,7 @@ Workflow:
 **Problem:** Can't remember which notes I was working with.
 
 **Solutions:**
+
 1. Check temporary tabs (recent access)
 2. Check navigation history (via AI)
 3. Search for recent notes: `created:today`
@@ -672,11 +729,13 @@ Switch to Project B:
 ### Progressive Pinning
 
 **Start minimal:**
+
 - Begin with daily note only
 - Let needs emerge
 - Pin as patterns become clear
 
 **Example evolution:**
+
 ```
 Week 1: Just daily note
 Week 2: + Current project
@@ -688,6 +747,7 @@ Month 2: Stable set of 7-8 pins
 ### Tab Archaeology
 
 **Before cleanup:**
+
 ```
 Review temporary tabs:
 - What did I explore today?

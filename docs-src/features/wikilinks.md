@@ -7,6 +7,7 @@ Build a web of connected knowledge with bidirectional links between your notes.
 **Wikilinks** are Flint's way of connecting notes together. They're inspired by wikis (like Wikipedia) where every page links to related pages.
 
 **Key features:**
+
 - Simple `[[Note Title]]` syntax
 - Clickable navigation
 - Automatic backlink tracking
@@ -14,6 +15,7 @@ Build a web of connected knowledge with bidirectional links between your notes.
 - Non-existent note creation
 
 **Why use wikilinks?**
+
 - Build a knowledge graph of connected ideas
 - Navigate by association, not folder hierarchy
 - Discover unexpected connections
@@ -32,12 +34,14 @@ Related concepts: [[API Design]], [[System Architecture]]
 ```
 
 **How it works:**
+
 - Type `[[` to trigger autocomplete
 - Start typing the note title
 - Select from suggestions (or keep typing)
 - Type `]]` to close (or press Enter in autocomplete)
 
 **Matching:**
+
 - Finds notes by title
 - Fuzzy matching helps with typos
 - Case-insensitive
@@ -51,11 +55,13 @@ See [[projects/website-redesign]] for details.
 ```
 
 **Format:**
+
 ```
 [[type/filename]]
 ```
 
 **Examples:**
+
 ```markdown
 [[meetings/2024-01-15-standup]]
 [[projects/mobile-app]]
@@ -63,6 +69,7 @@ See [[projects/website-redesign]] for details.
 ```
 
 **When to use:**
+
 - Multiple notes with similar titles
 - More explicit about which note
 - Clearer in documentation
@@ -78,16 +85,19 @@ See [[API Design Principles|our design principles]].
 ```
 
 **Syntax:**
+
 ```
 [[target|Display Text]]
 ```
 
 **Use cases:**
+
 - Better reading flow
 - Different context needs different phrasing
 - Abbreviations or full names
 
 **Examples:**
+
 ```markdown
 [[daily/2024-01-15|yesterday's note]]
 [[team-members/sarah-johnson|Sarah]]
@@ -157,12 +167,14 @@ AI: [Searches, adds wikilinks]
 ### Click to Navigate
 
 **Click any wikilink:**
+
 - Opens the target note
 - Creates a temporary tab
 - Adds to navigation history
 - Preserves your current note
 
 **Keyboard navigation:**
+
 - `Ctrl+Click` / `Cmd+Click` - Open in new tab (future)
 - Regular click - Open in main view
 
@@ -171,6 +183,7 @@ AI: [Searches, adds wikilinks]
 **Red/broken links** indicate the note doesn't exist yet.
 
 **Click a broken link:**
+
 1. Flint prompts: "Note doesn't exist. Create it?"
 2. Choose note type
 3. Note created with that title
@@ -182,11 +195,13 @@ AI: [Searches, adds wikilinks]
 # Project Plan
 
 ## Research Phase
+
 - [[Market Analysis]] (create later)
 - [[Competitor Research]] (create later)
 - [[User Interviews]] (create later)
 
 ## Design Phase
+
 - [[Wireframes]] (create later)
 - [[Design System]] (create later)
 ```
@@ -196,6 +211,7 @@ Create the structure first, fill in details later.
 ### Link Popup (Hover)
 
 **Hover over a wikilink** (future feature):
+
 - Shows note preview
 - Quick actions: Open, Edit, Delete
 - Metadata preview
@@ -207,6 +223,7 @@ Create the structure first, fill in details later.
 ### Viewing Backlinks
 
 **Backlinks tab** (right sidebar):
+
 - Shows all notes linking to current note
 - Context snippet around each link
 - Click to navigate
@@ -232,16 +249,19 @@ Backlinks (4)
 ### Why Backlinks Matter
 
 **Discover connections:**
+
 - See where a concept is referenced
 - Find related context you forgot
 - Understand note's importance (many backlinks = central concept)
 
 **Navigate your graph:**
+
 - Jump between connected ideas
 - Follow thought trails
 - Explore relationships
 
 **Verify orphans:**
+
 - Notes with no backlinks might be disconnected
 - Consider linking them to related notes
 - Or archive if no longer relevant
@@ -256,6 +276,7 @@ implementing authentication..."
 ```
 
 **Benefits:**
+
 - Remember why the link was made
 - Understand the connection
 - Decide if it's worth navigating
@@ -273,6 +294,7 @@ When you rename a note, **all wikilinks update automatically**.
 3. All 5 links automatically update to `[[Mobile App Project]]`
 
 **What updates:**
+
 - Title-based links
 - Path-based links (if filename changes)
 - Display text (optional - you can keep old display)
@@ -299,12 +321,14 @@ AI: I found 3 broken wikilinks:
 **Fix broken links:**
 
 1. **Create the notes:**
+
    ```
    You: Create those missing notes
    AI: [Creates them with basic structure]
    ```
 
 2. **Update the links:**
+
    ```
    You: Change [[Team Structure]] to [[Organization Chart]]
    AI: [Updates the link]
@@ -327,6 +351,7 @@ Future feature - typed relationships:
 ```
 
 This would enable:
+
 - Semantic connections
 - Relationship filtering
 - Graph analysis
@@ -365,11 +390,13 @@ Each link is a potential path for future discovery.
 If A relates to B, mention it in both:
 
 **Note A:**
+
 ```markdown
 This concept connects to [[Note B]].
 ```
 
 **Note B:**
+
 ```markdown
 Related to [[Note A]], but different because...
 ```
@@ -384,25 +411,30 @@ Create **hub notes** (also called MOCs - Maps of Content):
 # API Design Hub
 
 ## Core Principles
+
 - [[REST Principles]]
 - [[API Versioning]]
 - [[Error Handling]]
 
 ## Authentication
+
 - [[JWT Implementation]]
 - [[OAuth Flow]]
 - [[API Keys]]
 
 ## Documentation
+
 - [[API Documentation Guide]]
 - [[OpenAPI Spec]]
 
 ## Examples
+
 - [[User API Example]]
 - [[Product API Example]]
 ```
 
 **Benefits:**
+
 - Entry point for a topic
 - Overview of related concepts
 - Curated organization
@@ -413,6 +445,7 @@ Create **hub notes** (also called MOCs - Maps of Content):
 Flint works great for Zettelkasten:
 
 **1. Atomic notes:**
+
 ```markdown
 # Atomic Note Example
 
@@ -467,6 +500,7 @@ aliases: [WP, WebProj, Web Redesign]
 ```
 
 Now linkable via any alias:
+
 ```markdown
 [[WP]]
 [[WebProj]]
@@ -487,6 +521,7 @@ Visual representation of your knowledge graph:
 - Orphans = Disconnected notes
 
 **Interactions:**
+
 - Click node → Open note
 - Zoom in/out
 - Filter by type/tag
@@ -518,11 +553,13 @@ AI: Your vault has:
 ### Link Generously
 
 **Don't overthink linking:**
+
 - If you mention a concept that has a note, link it
 - If unsure, err on the side of linking
 - You can always remove links later
 
 **Example:**
+
 ```markdown
 ❌ Today I worked on the authentication system.
 
@@ -541,6 +578,7 @@ AI: Your vault has:
 ### Use Descriptive Titles
 
 **Good titles:**
+
 ```
 [[Authentication System Architecture]]
 [[User Interview - Sarah Johnson]]
@@ -548,6 +586,7 @@ AI: Your vault has:
 ```
 
 **Avoid:**
+
 ```
 [[Notes]]
 [[Stuff]]
@@ -559,11 +598,13 @@ Descriptive titles make links meaningful.
 ### Review Backlinks Regularly
 
 **Periodically check backlinks:**
+
 - Discover forgotten connections
 - Find notes to expand
 - Identify important concepts (many backlinks)
 
 **Workflow:**
+
 ```
 1. Open a note
 2. Check Backlinks tab
@@ -581,9 +622,11 @@ Create **evergreen notes** (permanent, refined notes):
 (Timeless principles, regularly updated)
 
 ## Principle 1: Consistency
+
 ...
 
 ## Principle 2: Simplicity
+
 ...
 ```
 
@@ -607,6 +650,7 @@ Evergreen notes become hubs of knowledge.
 Project: [[Website Redesign]]
 
 Action items:
+
 - Update [[Design System]]
 - Review [[User Feedback]]
 ```
@@ -617,6 +661,7 @@ Action items:
 # Website Redesign Project
 
 ## Tasks
+
 - [[Task: Update Homepage]]
 - [[Task: Implement Search]]
 - [[Task: Mobile Optimization]]
@@ -638,12 +683,14 @@ This connects to [[Behavior Change Framework]]
 # Programming Languages Index
 
 ## Languages
+
 - [[JavaScript]]
 - [[Python]]
 - [[Rust]]
 - [[Go]]
 
 ## Concepts
+
 - [[Type Systems]]
 - [[Memory Management]]
 ```
@@ -655,6 +702,7 @@ This connects to [[Behavior Change Framework]]
 **Problem:** Wikilink doesn't navigate.
 
 **Solutions:**
+
 1. Check spelling of note title
 2. Verify note exists (search for it)
 3. Use path-based link: `[[type/filename]]`
@@ -665,6 +713,7 @@ This connects to [[Behavior Change Framework]]
 **Problem:** Expected backlinks missing.
 
 **Solutions:**
+
 1. Verify the link exists (search for it in the source note)
 2. Rebuild database: Settings → Database → Rebuild
 3. Check that both notes are in current vault
@@ -676,6 +725,7 @@ This connects to [[Behavior Change Framework]]
 **This shouldn't happen!** Flint auto-updates links.
 
 **If it does:**
+
 1. Report the bug
 2. Manually update links (or use AI to help)
 3. Verify file wasn't renamed externally

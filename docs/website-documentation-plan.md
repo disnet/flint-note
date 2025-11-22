@@ -7,11 +7,13 @@ This document outlines a comprehensive plan for documenting Flint's features on 
 ## Current State
 
 **Existing Documentation:**
+
 - Getting Started (basic)
 - Features: Notes, Agent, Review System (all very minimal)
 - Guides: Installation, Configuration (stub)
 
 **Implementation Features Not Documented:**
+
 - Note types system
 - Workflows automation
 - Custom functions
@@ -30,6 +32,7 @@ This document outlines a comprehensive plan for documenting Flint's features on 
 
 **Current:** Basic installation and first steps
 **Add:**
+
 - System requirements
 - Download links for each platform
 - First-time setup wizard walkthrough
@@ -43,6 +46,7 @@ This document outlines a comprehensive plan for documenting Flint's features on 
 **Purpose:** Help users understand Flint's mental model
 
 **Topics:**
+
 - What are notes?
 - What are note types?
 - What are vaults?
@@ -56,6 +60,7 @@ This document outlines a comprehensive plan for documenting Flint's features on 
 **Purpose:** Detailed walkthrough of the interface
 
 **Topics:**
+
 - Three-column layout
   - Left sidebar: Navigation and quick access
   - Main view: Note editor
@@ -69,6 +74,7 @@ This document outlines a comprehensive plan for documenting Flint's features on 
 
 **Current:** Basic markdown and tagging
 **Add:**
+
 - Creating and editing notes
 - Markdown syntax support
 - YAML frontmatter/metadata
@@ -87,6 +93,7 @@ This document outlines a comprehensive plan for documenting Flint's features on 
 **Purpose:** How to organize and navigate notes
 
 **Topics:**
+
 - Pinned notes
   - Pinning/unpinning
   - Reordering
@@ -109,6 +116,7 @@ This document outlines a comprehensive plan for documenting Flint's features on 
 **Purpose:** Understanding bidirectional linking
 
 **Topics:**
+
 - Wikilink syntax
   - Title-based: `[[Note Title]]`
   - Path-based: `[[type/filename|Display Text]]`
@@ -126,6 +134,7 @@ This document outlines a comprehensive plan for documenting Flint's features on 
 **Purpose:** Finding notes quickly
 
 **Topics:**
+
 - Global search overlay (`Ctrl+O` / `Cmd+O`)
 - Full-text search
   - FTS5 indexing
@@ -143,6 +152,7 @@ This document outlines a comprehensive plan for documenting Flint's features on 
 **Purpose:** Managing multiple isolated note collections
 
 **Topics:**
+
 - What are vaults?
 - When to use multiple vaults
   - Work vs personal
@@ -158,6 +168,7 @@ This document outlines a comprehensive plan for documenting Flint's features on 
 **Purpose:** Using the daily journaling system
 
 **Topics:**
+
 - What are daily notes?
 - Daily view interface
   - Calendar navigation
@@ -174,6 +185,7 @@ This document outlines a comprehensive plan for documenting Flint's features on 
 **Purpose:** Frictionless capture and gradual organization
 
 **Topics:**
+
 - Inbox workflow philosophy
 - Quick capture without organization
 - Reviewing inbox periodically
@@ -188,6 +200,7 @@ This document outlines a comprehensive plan for documenting Flint's features on 
 
 **Current:** Basic overview
 **Add:**
+
 - Opening the assistant
 - Conversation interface
   - Streaming responses
@@ -216,6 +229,7 @@ This document outlines a comprehensive plan for documenting Flint's features on 
 **Purpose:** Creating repeatable AI-assisted sequences
 
 **Topics:**
+
 - What are workflows?
 - Built-in workflows
 - Creating custom workflows
@@ -242,6 +256,7 @@ This document outlines a comprehensive plan for documenting Flint's features on 
 **Purpose:** Extending AI capabilities with custom code
 
 **Topics:**
+
 - What are custom functions?
 - Use cases
   - Data transformations
@@ -264,6 +279,7 @@ This document outlines a comprehensive plan for documenting Flint's features on 
 
 **Current:** Basic overview
 **Add:**
+
 - Spaced repetition explained
 - Enabling review for notes
   - Marking entire notes
@@ -296,6 +312,7 @@ This document outlines a comprehensive plan for documenting Flint's features on 
 **Purpose:** Getting the most out of the editor
 
 **Topics:**
+
 - CodeMirror integration
 - Markdown features
   - Syntax highlighting
@@ -317,6 +334,7 @@ This document outlines a comprehensive plan for documenting Flint's features on 
 
 **Current:** Stub
 **Add:**
+
 - Accessing settings
 - Appearance
   - Theme (light/dark/system)
@@ -342,6 +360,7 @@ This document outlines a comprehensive plan for documenting Flint's features on 
 **Purpose:** Quick reference for power users
 
 **Topics:**
+
 - Global shortcuts
   - `Ctrl+Shift+N` - New note
   - `Ctrl+O` / `Cmd+O` - Search
@@ -357,6 +376,7 @@ This document outlines a comprehensive plan for documenting Flint's features on 
 **Purpose:** Power user features and edge cases
 
 **Topics:**
+
 - External editing
   - Using external editors
   - Conflict resolution
@@ -376,6 +396,7 @@ This document outlines a comprehensive plan for documenting Flint's features on 
 **Purpose:** Recommended workflows and patterns
 
 **Topics:**
+
 - Note-taking philosophy
   - Agent assistance vs replacement
   - Frictionless capture
@@ -401,6 +422,7 @@ This document outlines a comprehensive plan for documenting Flint's features on 
 **Purpose:** Understanding data storage and privacy
 
 **Topics:**
+
 - Local-first architecture
 - Where data is stored
 - API key security (OS keychain)
@@ -414,6 +436,7 @@ This document outlines a comprehensive plan for documenting Flint's features on 
 **Purpose:** Common issues and solutions
 
 **Topics:**
+
 - Search not working → Database rebuild
 - Notes not syncing → External edit conflicts
 - AI not responding → Check API keys
@@ -426,6 +449,7 @@ This document outlines a comprehensive plan for documenting Flint's features on 
 **Purpose:** Quick answers to common questions
 
 **Topics:**
+
 - Can I use my own markdown editor? (Yes, with external edit detection)
 - Can I sync across devices? (Manual sync via cloud storage)
 - What AI providers are supported? (OpenRouter, Anthropic, OpenAI)
@@ -437,6 +461,7 @@ This document outlines a comprehensive plan for documenting Flint's features on 
 ## Implementation Priority
 
 ### Phase 1: Essential User Journey (High Priority)
+
 1. Getting Started (enhance)
 2. Core Concepts (new)
 3. User Interface Guide (new)
@@ -445,6 +470,7 @@ This document outlines a comprehensive plan for documenting Flint's features on 
 6. AI Assistant (enhance)
 
 ### Phase 2: Power Features (Medium Priority)
+
 7. Wikilinks and Backlinks (new)
 8. Multi-Vault Workspaces (new)
 9. Daily Notes (new)
@@ -453,6 +479,7 @@ This document outlines a comprehensive plan for documenting Flint's features on 
 12. Settings and Configuration (enhance)
 
 ### Phase 3: Advanced Features (Lower Priority)
+
 13. Workflow Automation (new)
 14. Custom Functions (new)
 15. Editor Features (new)
@@ -460,6 +487,7 @@ This document outlines a comprehensive plan for documenting Flint's features on 
 17. Advanced Topics (new)
 
 ### Phase 4: Supporting Content
+
 18. Best Practices (new)
 19. Privacy and Security (new)
 20. Troubleshooting (new)
@@ -468,6 +496,7 @@ This document outlines a comprehensive plan for documenting Flint's features on 
 ## Documentation Style Guide
 
 ### Writing Principles
+
 - **User-focused:** Write for end users, not developers
 - **Clear and concise:** Avoid jargon, explain technical terms
 - **Practical:** Include concrete examples and use cases
@@ -476,6 +505,7 @@ This document outlines a comprehensive plan for documenting Flint's features on 
 - **Searchable:** Use clear headings and keywords
 
 ### Format
+
 - Use VitePress markdown
 - Include code examples with proper syntax highlighting
 - Use callouts for tips, warnings, and notes
@@ -483,7 +513,9 @@ This document outlines a comprehensive plan for documenting Flint's features on 
 - Include "Next Steps" sections
 
 ### Examples Over Theory
+
 Every feature should include:
+
 1. What it is (brief)
 2. Why you'd use it (use cases)
 3. How to use it (step-by-step)

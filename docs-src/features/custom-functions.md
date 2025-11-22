@@ -7,6 +7,7 @@ Extend the AI agent's capabilities with custom TypeScript functions that persist
 **Custom Functions** allow the AI agent to create, register, and reuse TypeScript functions that extend its capabilities beyond built-in tools.
 
 **Key features:**
+
 - **AI-created** - Agent writes functions in TypeScript
 - **Persistent** - Functions saved across sessions
 - **Reusable** - Call functions multiple times
@@ -14,6 +15,7 @@ Extend the AI agent's capabilities with custom TypeScript functions that persist
 - **Validated** - Security and performance checks
 
 **Use cases:**
+
 - Complex data transformations
 - Custom note processing logic
 - Specialized calculations
@@ -25,6 +27,7 @@ Extend the AI agent's capabilities with custom TypeScript functions that persist
 ### The Lifecycle
 
 **1. AI identifies need:**
+
 ```
 You: I need to calculate compound interest for my
      financial planning notes
@@ -34,6 +37,7 @@ AI: I can create a custom function for compound interest
 ```
 
 **2. AI writes function:**
+
 ```typescript
 function calculateCompoundInterest(
   principal: number,
@@ -41,10 +45,8 @@ function calculateCompoundInterest(
   years: number,
   compoundsPerYear: number = 12
 ): { total: number; interest: number } {
-  const amount = principal * Math.pow(
-    (1 + rate / compoundsPerYear),
-    compoundsPerYear * years
-  );
+  const amount =
+    principal * Math.pow(1 + rate / compoundsPerYear, compoundsPerYear * years);
 
   return {
     total: amount,
@@ -54,6 +56,7 @@ function calculateCompoundInterest(
 ```
 
 **3. Function registered:**
+
 ```
 AI: ✓ Created custom function: calculateCompoundInterest
 
@@ -69,6 +72,7 @@ AI: ✓ Created custom function: calculateCompoundInterest
 ```
 
 **4. AI uses function:**
+
 ```
 You: Calculate the value of $10,000 at 5% for 10 years
 
@@ -83,6 +87,7 @@ AI: [Calls calculateCompoundInterest(10000, 0.05, 10)]
 ### Function Registration
 
 **Functions are registered with:**
+
 - **Unique ID** - Generated identifier
 - **Name** - Function name (must be valid TypeScript identifier)
 - **Description** - What the function does
@@ -93,6 +98,7 @@ AI: [Calls calculateCompoundInterest(10000, 0.05, 10)]
 - **Metadata** - Creation date, usage count, version
 
 **Storage:**
+
 - Persisted to vault database
 - Available across all conversations
 - Survives app restarts
@@ -116,10 +122,7 @@ AI: [Calls calculateCompoundInterest(10000, 0.05, 10)]
  *
  * Returns: string - Table of contents markdown
  */
-function processNoteContent(
-  content: string,
-  maxDepth: number = 3
-): string {
+function processNoteContent(content: string, maxDepth: number = 3): string {
   const lines = content.split('\n');
   const headers = [];
 
@@ -136,9 +139,7 @@ function processNoteContent(
     }
   }
 
-  return headers
-    .map(h => `${'  '.repeat(h.level - 1)}- ${h.text}`)
-    .join('\n');
+  return headers.map((h) => `${'  '.repeat(h.level - 1)}- ${h.text}`).join('\n');
 }
 ```
 
@@ -147,33 +148,45 @@ function processNoteContent(
 **Supported types:**
 
 **Primitives:**
+
 ```typescript
-string
-number
-boolean
+string;
+number;
+boolean;
 ```
 
 **Objects:**
+
 ```typescript
-object
-Record<string, any>
-{ key: string; value: number }
+object;
+Record<string, any>;
+{
+  key: string;
+  value: number;
+}
 ```
 
 **Arrays:**
+
 ```typescript
 string[]
 Array<{ id: string; data: any }>
 ```
 
 **Complex types:**
+
 ```typescript
-"strict" | "loose"  // Union types
-((item: any) => boolean) | null  // Function types
-Promise<{ processed: number; results: any[] }>  // Promises
+'strict' |
+  'loose'(
+    // Union types
+    (item: any) => boolean
+  ) |
+  null; // Function types
+Promise<{ processed: number; results: any[] }>; // Promises
 ```
 
 **Optional parameters:**
+
 ```typescript
 Parameters {
   required: { type: 'string' },
@@ -188,6 +201,7 @@ Parameters {
 ### Return Types
 
 **Can return:**
+
 - Primitives: `string`, `number`, `boolean`
 - Objects: `{ key: value }`
 - Arrays: `any[]`
@@ -195,14 +209,15 @@ Parameters {
 - Complex nested types
 
 **Type safety enforced:**
+
 ```typescript
 // Return type must match implementation
 function getCount(): number {
-  return "5";  // ❌ Type error
+  return '5'; // ❌ Type error
 }
 
 function getCount(): number {
-  return 5;  // ✓ Valid
+  return 5; // ✓ Valid
 }
 ```
 
@@ -236,7 +251,7 @@ AI: [Creates function]
 
 **Explicit request:**
 
-```
+````
 You: Create a function that calculates the reading time
      for a markdown note based on word count
 
@@ -264,7 +279,7 @@ AI: I'll create a reading time calculator.
     ✓ Created function: calculateReadingTime
     - Default: 200 words per minute
     - Returns word count and reading time
-```
+````
 
 ## Using Custom Functions
 
@@ -284,6 +299,7 @@ AI: [Calls calculateReadingTime on note content]
 ```
 
 **Functions are tools:**
+
 - Listed with built-in tools
 - AI selects when appropriate
 - Can chain multiple function calls
@@ -358,6 +374,7 @@ AI: I'll update formatDate to handle full datetimes.
 ```
 
 **Version tracking:**
+
 - Each update increments version
 - Usage count preserved
 - Previous version archived
@@ -381,6 +398,7 @@ AI: [Deletes function]
 ```
 
 **Caution:**
+
 - Deletion is permanent
 - Check usage count first
 - Consider archiving instead
@@ -395,11 +413,13 @@ Tags: ["finance", "calculator", "interest"]
 ```
 
 **Benefits:**
+
 - Group related functions
 - Aid discovery
 - Filter by category
 
 **Common tag patterns:**
+
 - By domain: `finance`, `dates`, `formatting`
 - By type: `calculator`, `parser`, `formatter`
 - By purpose: `note-processing`, `data-analysis`
@@ -411,6 +431,7 @@ Tags: ["finance", "calculator", "interest"]
 **Functions are checked for unsafe operations:**
 
 **Blocked patterns:**
+
 ```typescript
 // ❌ eval() calls
 eval('malicious code');
@@ -429,6 +450,7 @@ global.malicious = 'value';
 ```
 
 **Allowed patterns:**
+
 ```typescript
 // ✓ Standard JavaScript
 Math.sqrt(16);
@@ -437,7 +459,7 @@ Math.sqrt(16);
 text.split(' ');
 
 // ✓ Array operations
-items.filter(x => x.value > 0);
+items.filter((x) => x.value > 0);
 
 // ✓ Object operations
 Object.keys(data);
@@ -449,6 +471,7 @@ JSON.parse('{}');
 ### Syntax Validation
 
 **TypeScript compilation:**
+
 - Code must be valid TypeScript
 - Type errors caught before registration
 - Helpful error messages
@@ -469,6 +492,7 @@ AI: Unable to create function - validation errors:
 **Functions are checked for:**
 
 **Warning patterns:**
+
 ```typescript
 // ⚠ Infinite loops
 while (true) { ... }
@@ -483,6 +507,7 @@ for (let i = 0; i < 1000; i++) {
 ```
 
 **Recommendations provided:**
+
 ```
 AI: Function created, but I noticed a potential performance issue:
     - Line 12: Loop may iterate many times
@@ -495,6 +520,7 @@ AI: Function created, but I noticed a potential performance issue:
 ### Date Utilities
 
 **Parse relative dates:**
+
 ```typescript
 function parseRelativeDate(input: string): Date {
   const today = new Date();
@@ -516,6 +542,7 @@ function parseRelativeDate(input: string): Date {
 ```
 
 **Usage:**
+
 ```
 You: Create a note for next week's meeting
 
@@ -528,6 +555,7 @@ AI: [Calls parseRelativeDate("next week")]
 ### Note Processing
 
 **Extract wikilinks:**
+
 ```typescript
 function extractWikilinks(content: string): string[] {
   const wikilinks: string[] = [];
@@ -543,6 +571,7 @@ function extractWikilinks(content: string): string[] {
 ```
 
 **Usage:**
+
 ```
 You: List all notes referenced in my project note
 
@@ -559,23 +588,25 @@ AI: [Reads note]
 ### Data Transformation
 
 **Parse markdown tables:**
+
 ```typescript
-function parseMarkdownTable(
-  markdown: string
-): Array<Record<string, string>> {
+function parseMarkdownTable(markdown: string): Array<Record<string, string>> {
   const lines = markdown.trim().split('\\n');
 
   // Extract headers
   const headers = lines[0]
     .split('|')
-    .map(h => h.trim())
-    .filter(h => h);
+    .map((h) => h.trim())
+    .filter((h) => h);
 
   // Skip separator line
   const rows = lines.slice(2);
 
-  return rows.map(row => {
-    const cells = row.split('|').map(c => c.trim()).filter(c => c);
+  return rows.map((row) => {
+    const cells = row
+      .split('|')
+      .map((c) => c.trim())
+      .filter((c) => c);
     const obj: Record<string, string> = {};
     headers.forEach((header, i) => {
       obj[header] = cells[i] || '';
@@ -586,6 +617,7 @@ function parseMarkdownTable(
 ```
 
 **Usage:**
+
 ```
 You: Convert the table in my data note to a summary
 
@@ -654,6 +686,7 @@ function createDailyNoteTitle(offset: number = 0): string {
 ```
 
 **AI can chain calls:**
+
 ```
 AI: [Calls createDailyNoteTitle(1)]
     [Which calls formatDate(...)]
@@ -697,6 +730,7 @@ function processNoteBatch(
 **Clear, descriptive names:**
 
 **Good:**
+
 ```
 calculateReadingTime
 parseMarkdownTable
@@ -705,6 +739,7 @@ extractWikilinks
 ```
 
 **Bad:**
+
 ```
 calc
 process
@@ -717,6 +752,7 @@ utils
 **Keep functions focused:**
 
 **Good:** One function, one purpose
+
 ```typescript
 function countWords(text: string): number {
   return text.trim().split(/\\s+/).length;
@@ -728,6 +764,7 @@ function calculateReadingTime(text: string, wpm: number = 200): number {
 ```
 
 **Bad:** Doing too much
+
 ```typescript
 function processEverything(text: string): any {
   // Counts words
@@ -743,9 +780,7 @@ function processEverything(text: string): any {
 **Handle errors gracefully:**
 
 ```typescript
-function safeJSONParse(
-  json: string
-): { success: boolean; data?: any; error?: string } {
+function safeJSONParse(json: string): { success: boolean; data?: any; error?: string } {
   try {
     const data = JSON.parse(json);
     return { success: true, data };
@@ -759,6 +794,7 @@ function safeJSONParse(
 ```
 
 **Better than throwing:**
+
 - AI can handle failures gracefully
 - Provides informative error messages
 - Doesn't crash workflow
@@ -799,6 +835,7 @@ function calculateCompoundInterest(
 **Solutions:**
 
 1. **Check if function exists:**
+
    ```
    You: List custom functions
    AI: [Shows functions]
@@ -818,6 +855,7 @@ function calculateCompoundInterest(
 **Problem:** Function won't register due to errors.
 
 **Check error message:**
+
 ```
 AI: Cannot create function - validation errors:
 
@@ -828,6 +866,7 @@ AI: Cannot create function - validation errors:
 ```
 
 **Common issues:**
+
 - Missing closing braces
 - Type mismatches
 - Security violations
@@ -837,6 +876,7 @@ AI: Cannot create function - validation errors:
 **Problem:** Function takes too long to execute.
 
 **Optimize:**
+
 ```typescript
 // ❌ Slow: Nested loops
 function findDuplicates(items: any[]): any[] {

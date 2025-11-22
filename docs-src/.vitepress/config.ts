@@ -60,6 +60,7 @@ export default defineConfig({
           { text: 'Daily Notes', link: '/features/daily-notes' },
           { text: 'Review System', link: '/features/review-system' },
           { text: 'Organization', link: '/features/organization' },
+          { text: 'Workspaces', link: '/features/workspaces' },
           { text: 'Multi-Vault', link: '/features/vaults' },
           { text: 'Editor', link: '/features/editor' }
         ]
