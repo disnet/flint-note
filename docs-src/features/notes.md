@@ -232,146 +232,45 @@ AI: I'll create the book-notes type with those fields.
 
 Once the type is created, you can further customize it by adding metadata schema and agent instructions content.
 
-**Manual creation:**
+### Customizing Agent Behavior with Instructions
 
-Create a file at `.note-types/[type-name]/[type-name].md`:
+Each note type can include **agent instructions** that guide how the AI agent interacts with notes of that type. Instructions tell the AI agent:
 
-````markdown
-# Book Notes
+- What actions to take when working with this note type
+- What suggestions to make
+- What patterns to look for
+- What connections to create
 
-## Description
+**How it works:**
 
-Template for book reading notes with metadata for tracking reading progress.
+When you ask the agent to help with a note, it first reads the agent instructions from that note's type definition. This gives the agent context-specific knowledge about how to best help you.
 
-## Metadata Schema
-
-```yaml
-author: string
-publication_year: number
-rating: number # 1-5 scale
-genre: array
-finished_reading: boolean
-current_page: number
-```
-````
-
-## Template
+**Example (book-notes type):**
 
 ```markdown
----
-title: ${TITLE}
-type: book-notes
-author:
-publication_year:
-rating:
-genre: []
-finished_reading: false
----
-
-# ${TITLE}
-
-## Summary
-
-## Key Takeaways
-
--
-
-## Quotes
-
-## My Thoughts
+- Suggest related books to link based on genre and themes
+- Track reading progress using the current_page field
+- Generate summaries from the content
+- Extract and highlight notable quotes
+- Identify key takeaways and concepts
+- Link to other notes about similar topics
 ```
 
-## Agent Instructions
+**In practice:**
 
-When helping with book-notes:
+With these instructions, when you ask "Help me organize this book note," the agent knows to:
 
-- Suggest related books to link
-- Track reading progress
-- Generate summaries
-- Find quotes and key points
+1. Check if metadata fields like `author` and `genre` are filled
+2. Look for related books in your vault to suggest linking
+3. Extract key takeaways from your notes
+4. Update `current_page` or `finished_reading` based on your content
 
-```
+**Writing effective instructions:**
 
-### Note Type Organization
-
-**Storage structure:**
-
-```
-vault/
-├── .note-types/
-│ ├── note/
-│ │ └── note.md
-│ ├── daily/
-│ │ └── daily.md
-│ └── book-notes/          # Custom type
-│   └── book-notes.md
-├── notes/
-│ ├── idea-1.md
-│ └── reference.md
-├── daily/
-│ ├── 2024-01-15.md
-│ └── 2024-01-16.md
-└── book-notes/             # Custom type folder
-  ├── atomic-habits.md
-  └── deep-work.md
-```
-
-Each note type gets its own folder for organization.
-
-## Tags
-
-Tags provide flexible, cross-cutting organization across note types.
-
-### Adding Tags
-
-Add tags in the metadata editor:
-
-```yaml
-tags: [important, project, api-design]
-```
-
-You can also use inline tags in your content:
-
-```markdown
-This note is about #api-design and #architecture.
-```
-
-### Tag Conventions
-
-**Lowercase with hyphens:**
-
-```yaml
-tags: [api-design, project-alpha, high-priority]
-```
-
-**Hierarchical tags:**
-
-```yaml
-tags: [project/alpha, project/beta, status/active]
-```
-
-**Use sparingly:**
-
-- Too many tags = no organization
-- Aim for 3-5 tags per note
-- Tags for themes, not just keywords
-
-### Filtering by Tags
-
-**In search:**
-
-```
-tag:important
-tag:project AND tag:api-design
-```
-
-**Via AI:**
-
-```
-You: Find all notes tagged with 'project' and 'urgent'
-
-AI: [Searches for notes with both tags]
-```
+- **Be specific**: "Extract action items and create task notes" is better than "help with tasks"
+- **Describe patterns**: Tell the agent what to look for in the content
+- **Define workflows**: Explain multi-step processes for this note type
+- **Reference metadata**: Tell the agent which fields to use and when
 
 ## Linking Notes (Wikilinks)
 
@@ -383,12 +282,6 @@ Create connections between notes with **wikilinks**.
 
 ```markdown
 I discussed this in [[My Other Note]].
-```
-
-**Link by path with custom text:**
-
-```markdown
-See the [[projects/website-redesign|Website Project]] for details.
 ```
 
 ### Creating Links
@@ -411,20 +304,6 @@ AI: Based on the content, you might want to link:
     - [[Team Decisions]] - related decisions
 ```
 
-### Following Links
-
-**Click to navigate:**
-
-- Click any wikilink to open that note
-- Creates a temporary tab
-- Adds to navigation history
-
-**Link to non-existent notes:**
-
-- Links show in different color
-- Click to create the note
-- Useful for outlining before writing
-
 ### Backlinks
 
 When you link to a note, that note automatically shows the backlink.
@@ -437,14 +316,7 @@ When you link to a note, that note automatically shows the backlink.
 This relates to [[Note B]].
 ```
 
-`Note B.md` will show in its Backlinks tab:
-
-```
-Backlinks (1)
-
-📄 Note A
-  "This relates to [[Note B]]."
-```
+`Note B.md` will show in its Backlinks widget.
 
 **Why backlinks matter:**
 
@@ -469,7 +341,6 @@ See [Wikilinks and Backlinks](/features/wikilinks) for advanced usage.
 
 - File is renamed
 - All wikilinks are updated automatically
-- No broken links
 
 **Via AI:**
 
@@ -483,7 +354,7 @@ AI: [Renames note and updates all linking notes]
 
 **Change note type:**
 
-1. Click the type dropdown in editor
+1. Click the type dropdown in editor (`Cmd+Shift+M`/`Ctrl+Shift+M`)
 2. Select new type
 3. Note moves to new type's folder
 
@@ -492,28 +363,6 @@ AI: [Renames note and updates all linking notes]
 - File moves to new folder
 - Metadata `type` field updates
 - Wikilinks remain valid
-
-### Deleting Notes
-
-**Caution:** Deleting is permanent.
-
-**How to delete:**
-
-1. Right-click the note
-2. Select "Delete Note"
-3. Confirm the action
-
-**What happens:**
-
-- Note file deleted
-- Removed from database
-- Wikilinks become broken (shown in red)
-- Backlinks removed
-
-**Best practice:**
-
-- Archive instead of delete (add `archived: true` to metadata)
-- Or move to an `archive` note type
 
 ## External Editing
 
@@ -535,260 +384,31 @@ Your notes are just markdown files. You can edit them outside Flint.
 3. Save the file
 4. Flint detects the change
 
-### Conflict Resolution
-
-If a note is changed externally while open in Flint:
-
-**Flint shows a conflict notification:**
-
-- "This note was modified externally"
-- Options:
-  1. **Keep app version** - Discard external changes
-  2. **Use file version** - Reload from disk
-  3. **View both** - See diff (planned)
-
-**Recommendation:**
-
-- If you made both changes: Copy your Flint changes, then reload
-- If only external: Use file version
-- If only Flint: Keep app version
-
-### File Watching
-
-Flint watches your vault folder for changes:
-
-**Detects:**
-
-- Modified notes
-- New notes created externally
-- Deleted notes
-- Renamed files
-
-**Updates:**
-
-- Database automatically
-- Search index
-- UI in real-time
-
 ## Note Suggestions
 
-Some note types can have AI-generated suggestions enabled.
+Note types can have AI-generated suggestions enabled.
 
 ### What are Suggestions?
 
-The AI analyzes your note and suggests:
+The AI analyzes your note and suggests makes suggestions for improvement to display along with your note. Suggestions are enabled by note type and can be guided by a prompt.
 
-- Related notes to link
-- Missing metadata to fill in
-- Tasks to extract
-- Content to expand
-- Tags to add
-
-### Viewing Suggestions
-
-**Suggestions tab** (right sidebar):
-
-- Shows current suggestions for this note
-- Each suggestion has:
-  - Type (link, metadata, task, etc.)
-  - Description
-  - Actions (Accept, Dismiss)
+Once enabled for a note type you will need to click a button for each note to generate suggestions.
 
 ### Enabling Suggestions
 
-**Via note type settings:**
+**Edit a note type via note type settings:**
 
-1. Edit the note type definition
-2. Add suggestions configuration:
+1. Open a note type in the Note Types system view
+2. Check "Enable AI Suggestions"
+3. Optionally fill out the custom prompt
 
-```yaml
-suggestions_enabled: true
-suggestion_types: [links, metadata, tasks]
-prompt_guidance: |
-  Look for:
-  - Related notes to link
-  - Missing metadata fields
-  - Action items to extract
-```
+### Viewing Suggestions
 
-**Per note:**
+When viewing a note click the "Generate suggestions" button in the action bar. This will:
 
-```yaml
----
-suggestions_enabled: true
----
-```
+- Send the note to the agent with the suggestion prompt
+- Shows agent suggestions as comments along the side of the editor
 
-### Managing Suggestions
-
-**Accept:**
-
-- Applies the suggestion
-- Updates the note
-- Removes from list
-
-**Dismiss:**
-
-- Hides this suggestion
-- Doesn't apply it
-- Won't show again
-
-**Regenerate:**
-
-- Ask AI for new suggestions
-- Based on current note content
-
-## Templates
-
-Note types can include template content for new notes.
-
-### Default Templates
-
-When you create a note of a specific type, the template is applied:
-
-**Example custom template (meeting-notes type):**
-
-```markdown
----
-title: ${TITLE}
-type: meeting-notes
-date: ${DATE}
-attendees: []
----
-
-# ${TITLE}
-
-## Attendees
-
-## Agenda
-
--
-
-## Notes
-
-## Action Items
-
-- [ ]
-```
-
-Variables like `${TITLE}` and `${DATE}` are replaced automatically.
-
-### Custom Templates
-
-Define templates in your note type:
-
-```markdown
-## Template
-
-## \`\`\`markdown
-
-title: ${TITLE}
-type: recipe
-servings:
-prep_time:
-cook_time:
-
----
-
-# ${TITLE}
-
-## Ingredients
-
--
-
-## Instructions
-
-1.
-
-## Notes
-
-\`\`\`
-```
-
-See [Note Types](#note-types) for details on creating types with templates.
-
-## Best Practices
-
-### Capture Quickly, Organize Later
-
-**Don't overthink on capture:**
-
-1. Create a note
-2. Write your thoughts
-3. Add basic links as you think of them
-4. Move on
-
-**Organize periodically:**
-
-- Use AI to suggest organization
-- Add proper metadata
-- Create custom note types as patterns emerge
-- Add more wikilinks
-- Refine tags
-
-### Use Wikilinks Liberally
-
-**Link as you write:**
-
-- Mention another note? Link it
-- Reference a concept? Link to its note
-- Don't worry about "over-linking"
-
-**Benefits:**
-
-- Builds your knowledge graph
-- Creates discoverable connections
-- Lets you navigate by association
-
-### Let Note Types Emerge
-
-**Start simple:**
-
-- Use the Note type initially for everything
-- Notice patterns in what you write
-- When you have 10+ similar notes, create a custom type
-
-**Example evolution:**
-
-1. Week 1: All notes use the Note type
-2. Week 3: Notice lots of book notes → create book-notes type
-3. Week 5: Notice project planning notes → create projects type
-4. Month 3: System reflects your actual needs
-
-### Metadata is Optional
-
-**Start minimal:**
-
-```yaml
----
-title: My Note
-tags: [topic]
----
-```
-
-**Add more as needed:**
-
-- Add fields when they'd be useful for search
-- Skip fields that don't matter
-- Let AI suggest what's missing
-
-### Keep Tags Focused
-
-**Too few:**
-
-- Hard to find related notes
-- Miss connections
-
-**Too many:**
-
-- Tags become meaningless
-- Defeats purpose
-
-**Just right:**
-
-- 3-5 tags per note
-- Consistent naming
-- Meaningful categories
 
 ## Next Steps
 
