@@ -11,17 +11,6 @@ Proven strategies for getting the most out of Flint's note-taking and AI capabil
 - Begin with basic notes
 - Let structure emerge naturally
 - Add complexity only when needed
-- Trust the process
-
-**Example progression:**
-
-```
-Week 1:  Just write notes, use general type
-Week 2:  Start linking with [[wikilinks]]
-Month 1: Create custom note types
-Month 2: Add workflows and automation
-Month 3: Develop personal system
-```
 
 ### Notes Are for Thinking, Not Storage
 
@@ -99,7 +88,7 @@ AI: [Organizes with your structure]
 
 **Use types to indicate intent:**
 
-**General** - Default for most notes
+**Notes** - Default for most notes
 
 ```
 Use when: Not sure what type yet
@@ -127,13 +116,6 @@ Use when: Coordinating a project
 Examples: Project plans, status, resources
 ```
 
-**Custom** - Domain-specific
-
-```
-Create when: Repeated pattern emerges
-Examples: Bug reports, client notes, recipes
-```
-
 ### Wikilink Guidelines
 
 **Link liberally:**
@@ -141,7 +123,6 @@ Examples: Bug reports, client notes, recipes
 - Don't overthink linking
 - Link when you mention a concept
 - Create notes for future ideas
-- Trust that connections will be useful
 
 **Good linking:**
 
@@ -177,39 +158,7 @@ the new [[Authentication Flow]].
 
 - Every link creates a backlink
 - Backlinks show unexpected connections
-- Review backlinks regularly
 - Discover emergent patterns
-
-### Avoid Over-Organization
-
-**Don't create folders/hierarchies:**
-
-- Flint uses types, not folders
-- Links are better than hierarchies
-- Search is powerful
-- Trust flat structure + wikilinks
-
-**Don't pre-create structure:**
-
-```
-❌ Bad:
-Create 20 empty notes for a system you haven't built
-Create elaborate templates before understanding needs
-
-✓ Good:
-Create notes as you need them
-Develop templates after repetition
-Let structure emerge
-```
-
-**Don't tag everything:**
-
-```
-❌ Bad: [[Tag: todo]] [[Tag: important]] [[Tag: review]] [[Tag: project]]
-
-✓ Good: #important (for filtering)
-        [[Project Alpha]] (for grouping)
-```
 
 ## Daily Note Practices
 

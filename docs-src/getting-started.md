@@ -90,21 +90,25 @@ See [Notes](/features/notes) for markdown syntax, metadata, and advanced feature
 ## Basic Navigation
 
 **Quick search** (`Cmd+O` / `Ctrl+O`):
+
 - Opens overlay
 - Type to find notes by title or content
 - Press Enter to open
 
 **Pin important notes:**
+
 - Right-click note → "Pin"
 - Drag to reorder
 - Perfect for active projects, reference materials, etc.
 
 **Workspaces:**
+
 - Create groups of pinned and recent notes
 - Switch between contexts without losing your place
 - See [Workspaces](/guides/interface#workspaces-bar)
 
 **Daily notes:**
+
 - Click "Daily" in sidebar
 - See list of notes for each day of the week.
 - Great for journaling and daily capture
@@ -176,12 +180,12 @@ First save prompts for keychain access. Click **"Always Allow"** to avoid repeat
 
 ## Essential Keyboard Shortcuts
 
-| Action            | macOS           | Windows/Linux   |
-| ----------------- | --------------- | --------------- |
-| New note          | `Cmd+Shift+N`   | `Ctrl+Shift+N`  |
-| Quick search      | `Cmd+O`         | `Ctrl+O`        |
-| AI agent          | `Cmd+Shift+A`   | `Ctrl+Shift+A`  |
-| Daily view        | `Cmd+2`         | `Ctrl+2`        |
+| Action       | macOS         | Windows/Linux  |
+| ------------ | ------------- | -------------- |
+| New note     | `Cmd+Shift+N` | `Ctrl+Shift+N` |
+| Quick search | `Cmd+O`       | `Ctrl+O`       |
+| AI agent     | `Cmd+Shift+A` | `Ctrl+Shift+A` |
+| Daily view   | `Cmd+2`       | `Ctrl+2`       |
 
 See [Shortcuts](/guides/shortcuts) for the complete list.
 
@@ -194,7 +198,6 @@ Before diving deeper, review these core ideas:
 **[Note Types](/features/notes#note-types)** - Different types guide different thinking patterns
 
 **[Review System](/features/review-system)** - Active recall builds deep retention
-
 
 ## Next Steps
 

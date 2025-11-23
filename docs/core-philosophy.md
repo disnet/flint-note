@@ -1,7 +1,9 @@
 ## Overview
+
 Map existing and planned features to Flint's core philosophy: a system for deep knowledge that supports the complete cycle of externalizing, internalizing, and resurfacing.
 
 ## Core Philosophy Reference
+
 **Flint builds deep knowledge by supporting the complete cycle of externalizing (getting ideas out), internalizing (making them yours), and resurfacing (bringing them back repeatedly over time to ground memory). Reducing friction in all three areas is critical—but the philosophy is fundamentally about building deep knowledge itself.**
 
 Most tools optimize for one part of this cycle; Flint optimizes for the entire process.
@@ -11,18 +13,19 @@ Most tools optimize for one part of this cycle; Flint optimizes for the entire p
 ## Existing Features
 
 ### Notes as First-Class Abstraction
-- **Philosophy Connection**: Notes are the unit of thinking, not files, folders, or low-level implementation details. By elevating notes to first-class abstractions, Flint removes cognitive burden—you think in terms of *ideas and their connections*, not storage mechanics
+
+- **Philosophy Connection**: Notes are the unit of thinking, not files, folders, or low-level implementation details. By elevating notes to first-class abstractions, Flint removes cognitive burden—you think in terms of _ideas and their connections_, not storage mechanics
 - **Design Choice**: Flint abstracts away filesystem concerns entirely. Users never think about where files live, how to name them, or where they should go. The system handles organization through note types and relationships while you focus entirely on thinking
 - **Core Insight**: ID-based notes with stable, immutable identities persist independently of titles or locations. This eliminates the fear of breaking organizational schemes when renaming or reorganizing—you can capture and refactor freely without worrying about breaking connections
 
 #### How It Supports Deep Knowledge:
 
-- **Externalizing**: Capture friction is eliminated because the system handles where ideas belong (through note types) and how they're stored. You externalize thoughts directly into notes without worrying about file naming conventions, folder hierarchies, or metadata tagging. The act of choosing a note type guides *what* and *how* you capture, subtly shaping the thinking process
+- **Externalizing**: Capture friction is eliminated because the system handles where ideas belong (through note types) and how they're stored. You externalize thoughts directly into notes without worrying about file naming conventions, folder hierarchies, or metadata tagging. The act of choosing a note type guides _what_ and _how_ you capture, subtly shaping the thinking process
 
 - **Internalizing**: The system surfaces relationships between notes through multiple mechanisms:
   - **Wikilinks & Backlinks**: See where ideas have been applied, referenced, and built upon across your notes
   - **Note Types**: Different types encode different thinking patterns. An "evergreen" note guides synthesis and universalization; a "prediction" note forces falsifiable claims with calibration; a "daily" note structures reflection and progress tracking. The note type itself shapes how you think about the material
-  - **Semantic Discovery**: Search works on ideas and connections, not file paths. You discover patterns in your thinking through the *structure of ideas*, not metadata gymnastics
+  - **Semantic Discovery**: Search works on ideas and connections, not file paths. You discover patterns in your thinking through the _structure of ideas_, not metadata gymnastics
 
 - **Resurfacing**: The semantic abstraction makes your thinking inherently discoverable. Related notes surface through backlinks and search because connections are encoded in the system, not lost in nested folders
 
@@ -30,7 +33,7 @@ Most tools optimize for one part of this cycle; Flint optimizes for the entire p
 
 - **Immutable Identity**: Each note has a stable ID independent of its title or location. This allows you to rename, move, or reorganize notes without breaking connections
 - **Content-Centric Organization**: How notes are organized emerges from content structure and relationships, not predetermined folder hierarchies imposed before you've thought through the material
-- **Type-Guided Thinking**: Note types encode patterns for different kinds of thinking. They're organizational primitives *and* cognitive guides that shape how you approach different types of knowledge
+- **Type-Guided Thinking**: Note types encode patterns for different kinds of thinking. They're organizational primitives _and_ cognitive guides that shape how you approach different types of knowledge
 
 - **Contrast**:
   - **Obsidian/Roam** expose markdown and folder structures—you must manage file naming and hierarchies
@@ -48,8 +51,9 @@ Most tools optimize for one part of this cycle; Flint optimizes for the entire p
 - **Planned Enhancements**: [To be added]
 
 ### Note Types System
+
 - **Philosophy Connection**: Organizational primitives that encode different thinking patterns for different types of learning
-- **Externalizing**: Different note types guide *what* and *how* you capture (daily thoughts vs long-form evergreen ideas vs project-specific thinking)
+- **Externalizing**: Different note types guide _what_ and _how_ you capture (daily thoughts vs long-form evergreen ideas vs project-specific thinking)
 - **Internalizing**: Agent instructions per type help you process and reflect on information consistently
 - **Resurfacing**: Note types structure information so patterns can be discovered and connections made over time
 - **Current Implementation**: note types as organizational primitives, note icons to help with recognition and memory
@@ -67,6 +71,7 @@ Most tools optimize for one part of this cycle; Flint optimizes for the entire p
 - **Future Enhancement**: **Workspaces**—groups of pinned notes organized for different projects/workflows. Switch between workspaces to context-switch between entirely different sets of work while keeping everything recoverable.
 
 ### Wikilinks & Backlinks
+
 - **Philosophy Connection**: Making connections explicit is how learning deepens
 - **Externalizing**: Forces you to externalize relationships between ideas as you write
 - **Internalizing**: Backlinks surface where ideas have been applied/referenced, showing connections across time
@@ -75,6 +80,7 @@ Most tools optimize for one part of this cycle; Flint optimizes for the entire p
 - **Planned Enhancements**: [To be added]
 
 ### The Agent System
+
 - **Philosophy Connection**: The core of Flint—not generating new thoughts, but intelligently supporting all three phases of deep learning (externalizing, internalizing, resurfacing) through conversational interaction
 - **Core Concept**: A conversational AI assistant with access to your full note system through a semantic API. The agent understands note types, relationships, content, and your learning patterns. It's your collaborative partner for thinking—helping you capture better, connect deeper, and resurface at the right moments
 - **Which Phases Does It Support**: Externalizing / Internalizing / Resurfacing (all three)
@@ -93,6 +99,7 @@ Most tools optimize for one part of this cycle; Flint optimizes for the entire p
 - **Planned Enhancements**: [To be added]
 
 ### Search & Filtering
+
 - **Philosophy Connection**: Making your thinking discoverable and enabling resurfacing
 - **Externalizing**: [How?]
 - **Internalizing**: [How?]
@@ -101,6 +108,7 @@ Most tools optimize for one part of this cycle; Flint optimizes for the entire p
 - **Planned Enhancements**: [To be added]
 
 ### Routines
+
 - **Philosophy Connection**: Systematizing recurring workflows creates regular practices for internalization and resurfacing. Reduces friction by automating the scheduling and direction of these workflows—the agent executes according to user-defined patterns
 - **Concept**: Scheduled skills for the agent. You define a routine with a schedule (daily, weekly, monthly, etc.), a clear purpose, and detailed step-by-step instructions for the agent to follow. The system tracks when routines were last executed and surfaces overdue routines in the UI
 - **Which Phases Does It Support**: Externalizing / Internalizing / Resurfacing
@@ -118,6 +126,7 @@ Most tools optimize for one part of this cycle; Flint optimizes for the entire p
 - **Planned Enhancements**: [To be added]
 
 ### Reference Shelf
+
 - **Philosophy Connection**: Reduces friction during the externalizing and internalizing phases by keeping relevant context immediately available without losing focus on primary work
 - **Which Phase Does It Support**: Externalizing / Internalizing
 - **How It Works**: Add multiple notes to a live "shelf" in the right sidebar while editing a note in the main editor. Each shelf note includes a live editor and can be toggled to show/hide content. The shelf is a personal workspace—notes are manually arranged and serve as reference material while you develop thinking in the main editor
@@ -127,6 +136,7 @@ Most tools optimize for one part of this cycle; Flint optimizes for the entire p
 - **Planned Enhancements**: Consider better naming (current name "sidebar notes" is descriptive but generic)
 
 ### Review System (Spaced Repetition with AI-Generated Prompts)
+
 - [[n-720af481]]
 - **Philosophy Connection**: Systematizes the resurfacing phase by making active recall practice automatic and low-friction. The agent handles prompt generation, freeing you to focus on learning
 - **Which Phase Does It Support**: Resurfacing / Internalizing
@@ -137,6 +147,7 @@ Most tools optimize for one part of this cycle; Flint optimizes for the entire p
 - **Planned Enhancements**: [To be added]
 
 ### Inbox
+
 - **Philosophy Connection**: Reduces cognitive load during the externalizing phase by resolving the concern "will I find this note later?" Processing the inbox becomes a lightweight routine for confirming you're happy with recent captures
 - **Which Phase Does It Support**: Externalizing / Internalizing
 - **How It Works**: (1) The Inbox view lists all recently created notes in reverse chronological order. (2) Each note has a "Mark as Processed" button. (3) When you mark a note as processed, it's removed from the inbox view. (4) The inbox becomes a regular spot to review what you've created and ensure nothing important is forgotten or left in limbo
@@ -150,6 +161,7 @@ Most tools optimize for one part of this cycle; Flint optimizes for the entire p
 ## Planned Features
 
 ### Note Suggestions (Inline Agent Feedback)
+
 - **Philosophy Connection**: Supports the internalizing phase by providing continuous, low-friction feedback on note quality, structure, and thinking. The agent acts as a collaborative editor—not replacing your judgment, but surfacing opportunities to deepen, connect, or refine your thinking before you move forward
 - **Which Phase Does It Support**: Internalizing (primarily) / Externalizing (secondary)
 - **Core Concept**: Note types can be configured to enable "agent suggestions." When suggestions are enabled for a type, the agent analyzes notes of that type as they're being edited and returns a list of contextual suggestions displayed alongside the note content (similar to Google Docs comments). Suggestions are opt-in per note type, with optional custom instructions to guide the agent's analysis
@@ -162,7 +174,7 @@ Most tools optimize for one part of this cycle; Flint optimizes for the entire p
 - **Suggestion Types**: Examples include "action_item" (capture tasks that emerged), "connection" (link to related notes), "clarification" (reword for clarity), "structure" (reorganize sections), "expand" (develop a concept further), "source" (find supporting reference), "generalize" (extract universal principle)
 - **Design Rationale**:
   - The agent is already deeply integrated with note types through agent instructions. Suggestions extend this to provide real-time feedback during writing
-  - Unlike a general writing assistant that makes unsolicited changes, suggestions are *shown alongside* the note, respecting user control and creative autonomy
+  - Unlike a general writing assistant that makes unsolicited changes, suggestions are _shown alongside_ the note, respecting user control and creative autonomy
   - By allowing custom prompt guidance per note type, different note types get different kinds of suggestions (evergreen notes get connection suggestions, predictions get calibration suggestions, meetings get action items)
   - Suggestions are dismissable and don't interfere with the writing flow—they're collaborative nudges, not automated rewrites
 - **User Benefit**:
@@ -177,7 +189,7 @@ Most tools optimize for one part of this cycle; Flint optimizes for the entire p
   - Accept/dismiss/ignore buttons per suggestion
   - Configuration UI in note type settings (toggle, prompt guidance text input)
   - Optional: Cache suggestions and only regenerate when note content changes significantly
-- **Differentiation from Other Features**: Unlike the Review System (which focuses on active recall after a note is complete), suggestions happen *during* the writing process to shape thinking. Unlike Routines (which are scheduled), suggestions are triggered by user action (opening the note)
+- **Differentiation from Other Features**: Unlike the Review System (which focuses on active recall after a note is complete), suggestions happen _during_ the writing process to shape thinking. Unlike Routines (which are scheduled), suggestions are triggered by user action (opening the note)
 - **Future Enhancements**:
   - Machine learning on accepted vs ignored suggestions to personalize suggestion types per user
   - Suggestion history showing what suggestions have been made and accepted over time

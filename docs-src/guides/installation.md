@@ -65,6 +65,7 @@ chmod +x ~/.local/bin/flint
 **Optional - Create desktop entry:**
 
 Create `~/.local/share/applications/flint.desktop`:
+
 ```desktop
 [Desktop Entry]
 Name=Flint
@@ -97,6 +98,7 @@ Drag Flint from Applications to the Trash.
 ### Linux
 
 Delete the AppImage file and any desktop integration you created:
+
 - Remove the AppImage: `rm ~/.local/bin/flint` (or wherever you placed it)
 - Remove desktop entry: `rm ~/.local/share/applications/flint.desktop` (if created)
 

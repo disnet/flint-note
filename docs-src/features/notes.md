@@ -164,7 +164,6 @@ function greet(name) {
 
 ```markdown
 ---
-
 ---
 
 ---
@@ -224,8 +223,8 @@ AI: I'll create the book-notes type with those fields.
 **Via Note Types:**
 
 1. Go to Note Types system view
-3. Click "+ Note Type"
-4. Define:
+2. Click "+ Note Type"
+3. Define:
    - Type name
    - Description
    - Icon
@@ -325,7 +324,6 @@ This relates to [[Note B]].
 - Navigate your knowledge graph
 - Find related context
 
-
 ## Moving and Renaming Notes
 
 ### Renaming Notes
@@ -407,7 +405,6 @@ When viewing a note click the "Generate suggestions" button in the action bar. T
 
 - Send the note to the agent with the suggestion prompt
 - Shows agent suggestions as comments along the side of the editor
-
 
 ## Next Steps
 

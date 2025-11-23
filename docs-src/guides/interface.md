@@ -169,7 +169,6 @@ The agent provides intelligent assistance as you work:
 - Scrollable conversation history
 - Your questions and the agent's responses
 
-
 **What can the agent do?**
 
 The agent can help you:
@@ -198,7 +197,6 @@ The top bar features a prominent search field for quick access to all your notes
 - **Fuzzy matching** - Finds notes even with typos
 - **Title and content** - Searches both
 - **Keyboard navigation** - Arrow keys to select, Enter to open
-
 
 ## Settings
 

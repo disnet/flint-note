@@ -7,25 +7,28 @@ Transform passive note-taking into active learning through spaced repetition.
 **The problem with traditional notes:** You write them, they sit in a folder, you never look at them again. Even if you do revisit them, passive re-reading creates an illusion of knowledge—it feels like you know something, but you can't actually recall or apply it when needed.
 
 **The science:** Research shows that:
+
 - **Active recall** (testing yourself) is far more effective than passive review
 - **Spaced repetition** (reviewing at increasing intervals) optimizes long-term retention
 - **Immediate feedback** helps correct misconceptions and deepen understanding
 
 **How Flint helps:**
+
 1. Mark notes for review
 2. AI generates contextual challenges testing your understanding
 3. You respond from memory (active recall)
 4. AI provides feedback on your response
 5. Schedule next review based on performance (spaced repetition)
 
-
 ## Quick Start
 
 **Enable review on a note:**
+
 - Click the "Review" button on any note
 - Or ask the AI: "Enable review for this note"
 
 **Review your notes:**
+
 - Click "Review" in the sidebar when you have notes due
 - Answer the AI-generated challenge
 - Rate your confidence to schedule the next review
@@ -35,6 +38,7 @@ That's it. The interface guides you through the rest.
 ## What to Review (and What to Skip)
 
 **Review notes that:**
+
 - Contain core concepts you need to internalize
 - Explain technical knowledge (APIs, architectures, patterns, algorithms)
 - Document important decisions and their rationale
@@ -42,6 +46,7 @@ That's it. The interface guides you through the rest.
 - Describe processes you need to remember but don't use daily
 
 **Don't review notes that:**
+
 - Are pure reference material (just search when needed)
 - You naturally revisit often in your work
 - Are temporary or time-sensitive
@@ -56,6 +61,7 @@ That's it. The interface guides you through the rest.
 When the AI challenges you, resist the urge to peek at the note. The discomfort of trying to recall is what builds understanding.
 
 **Good response:**
+
 ```
 REST principles include:
 1. Client-Server: Separation of concerns between UI and data
@@ -68,6 +74,7 @@ handle requests independently.
 ```
 
 **Poor response:**
+
 ```
 I know this
 ```

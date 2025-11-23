@@ -249,8 +249,8 @@ modified:this-week  → Search by modified date
 
 ### Workflow Management
 
-| Shortcut      | Action       | Notes                             |
-| ------------- | ------------ | --------------------------------- |
+| Shortcut      | Action       | Notes                              |
+| ------------- | ------------ | ---------------------------------- |
 | `Mod+Shift+R` | Run Workflow | Execute selected workflow (future) |
 
 ## Organization Shortcuts

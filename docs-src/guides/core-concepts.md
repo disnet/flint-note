@@ -29,7 +29,8 @@ Most tools optimize for just one part:
 **The problem:** Passive re-reading doesn't build understanding. Real learning requires active engagement.
 
 **Flint's solution:**
-- Wikilinks force you to see relationships
+
+- Wikilinks encourage you to see relationships
 - [Note types](/features/notes#note-types) guide different thinking patterns
 - The [AI agent](/features/agent) helps connect and synthesize
 - [Review system](/features/review-system) tests actual understanding
@@ -41,10 +42,10 @@ Most tools optimize for just one part:
 **The problem:** Most notes are written once and never seen again.
 
 **Flint's solution:**
+
 - [Spaced repetition](/features/review-system) brings notes back on schedule
 - Routines automate recurring synthesis
 - Backlinks surface past connections
-- Search works on ideas, not just keywords
 
 **Example:** A weekly routine prompts: "Review this week's daily notes and extract insights." The [review system](/features/review-system) tests your recall of key concepts on an optimal schedule.
 
@@ -57,7 +58,7 @@ You think in ideas, not files. The system handles file naming, folder structure,
 - **Type-driven** - Organization emerges from content and relationships
 - **Frictionless** - No decisions about "where does this go?"
 
-See [Note Management](/features/notes) for details.
+See [Notes](/features/notes) for details.
 
 ### Note Types
 
@@ -140,20 +141,6 @@ All recent notes in one place. Mark as processed when reviewed. Removes "will I 
 
 **Supports:** Externalizing (capture without worry) · Internalizing (lightweight processing routine)
 
-## Key Design Principles
-
-### Notes, Not Files
-
-You see ideas and connections. The system handles file naming, storage, folders, and metadata.
-
-### Type-Guided Thinking
-
-Note types shape how you think. Creating an evergreen note prompts synthesis. Creating a prediction forces falsifiable framing.
-
-### Emergent Organization
-
-Structure emerges from content and relationships—not predetermined hierarchies imposed before you've thought through the material.
-
 ## Best Practices
 
 **Let structure emerge.** Don't over-plan. Start with general notes, notice patterns, create types as needs become clear.
@@ -163,14 +150,17 @@ Structure emerges from content and relationships—not predetermined hierarchies
 ## Next Steps
 
 **Core Features:**
+
 - [User Interface](/guides/interface) - Detailed interface walkthrough
 - [Note Management](/features/notes) - Notes, types, and organization
 
 **Learning System:**
+
 - [AI Agent](/features/agent) - What the agent can do
 - [Review System](/features/review-system) - Active recall practice
 
 **Organization:**
+
 - [Workspaces](/guides/interface#workspaces-bar) - Manage multiple contexts
 - [Daily Notes](/features/daily-notes) - Daily journaling workflow
 
