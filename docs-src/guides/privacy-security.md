@@ -731,9 +731,6 @@ A: No. It never leaves your computer except AI requests.
 ## Next Steps
 
 - **[Best Practices](/guides/best-practices)** - Use Flint securely
-- **[Settings](/guides/configuration)** - Configure security settings
-- **[Backup Guide](/guides/backup)** - Protect your data (future)
-- **[Troubleshooting](/guides/troubleshooting)** - Resolve security issues
 
 ---
 

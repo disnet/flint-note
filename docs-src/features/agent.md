@@ -644,7 +644,6 @@ See [Privacy and Security](/guides/privacy) for more details.
 
 ## Next Steps
 
-- **[Workflows](/features/workflows)** - Automate repetitive AI tasks
 - **[Note Management](/features/notes)** - Organize with AI help
 
 ---

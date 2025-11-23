@@ -10,15 +10,6 @@ Flint is a **local-first, AI-powered note-taking application** designed to build
 
 Flint supports **externalizing** (getting ideas out), **internalizing** (making them yours), and **resurfacing** (bringing them back repeatedly over time to ground memory).
 
-**How it works:**
-
-- **Frictionless capture** - Get ideas out without worrying about organization. Notes as first-class abstractions mean you think in ideas, not files
-- **Connected thinking** - Wikilinks and backlinks surface relationships. See how ideas connect across time
-- **AI learning partner** - An agent that helps you capture better, connect deeper, and resurface at the right moments
-- **Active recall practice** - Spaced repetition with AI-generated review prompts builds deep retention
-- **Type-guided thinking** - Note types encode different patterns (synthesis, prediction, reflection)
-- **Systematic resurfacing** - Routines and search bring past ideas back into focus
-
 Your notes stay on your machine in plain markdown files. You own and control everything. The AI assists your learning process, but the insights come from you.
 
 ## System Requirements
@@ -94,7 +85,7 @@ This is about [[productivity]] and [[learning]]
 - `[[Links]]` become clickable (creates notes if they don't exist)
 - Backlinks panel shows incoming connections
 
-See [Note Management](/features/notes) for markdown syntax, metadata, and advanced features.
+See [Notes](/features/notes) for markdown syntax, metadata, and advanced features.
 
 ## Basic Navigation
 
@@ -168,7 +159,7 @@ AI: Added link to [[projects/website-redesign]]
     and updated backlinks
 ```
 
-See [AI Agent](/features/agent) for detailed capabilities and [Workflows](/features/workflows) for routines.
+See [AI Agent](/features/agent) for detailed capabilities.
 
 ### Setting Up API Keys
 
@@ -183,8 +174,6 @@ The AI agent requires an OpenRouter API key.
 First save prompts for keychain access. Click **"Always Allow"** to avoid repeated prompts.
 :::
 
-See [Configuration](/guides/configuration) for all settings.
-
 ## Essential Keyboard Shortcuts
 
 | Action            | macOS           | Windows/Linux   |
@@ -192,8 +181,7 @@ See [Configuration](/guides/configuration) for all settings.
 | New note          | `Cmd+Shift+N`   | `Ctrl+Shift+N`  |
 | Quick search      | `Cmd+O`         | `Ctrl+O`        |
 | AI agent          | `Cmd+Shift+A`   | `Ctrl+Shift+A`  |
-| Dail view         | `Cmd+2`         | `Ctrl+2`        |
-| Command palette   | `Cmd+Shift+P`   | `Ctrl+Shift+P`  |
+| Daily view        | `Cmd+2`         | `Ctrl+2`        |
 
 See [Shortcuts](/guides/shortcuts) for the complete list.
 
@@ -207,7 +195,6 @@ Before diving deeper, review these core ideas:
 
 **[Review System](/features/review-system)** - Active recall builds deep retention
 
-**[Routines](/features/workflows#routines)** - Systematize recurring learning practices
 
 ## Next Steps
 
@@ -220,18 +207,15 @@ Before diving deeper, review these core ideas:
 
 - **[AI Agent](/features/agent)** - Deep dive into AI capabilities and tools
 - **[Review System](/features/review-system)** - Build active recall practice with spaced repetition
-- **[Workflows](/features/workflows)** - Automate recurring tasks with routines
 - **[Daily Notes](/features/daily-notes)** - Daily journaling and reflection workflow
 
 ### Advanced
 
 - **[Workspaces](/guides/interface#workspaces-bar)** - Manage multiple projects and contexts
-- **[Configuration](/guides/configuration)** - Customize Flint to match your workflow
 
 ## Getting Help
 
 - **[FAQ](/guides/faq)** - Common questions and answers
-- **[Troubleshooting](/guides/troubleshooting)** - Solve common issues
 - **[Privacy & Security](/guides/privacy-security)** - How your data is handled
 
 ## Tips for Success

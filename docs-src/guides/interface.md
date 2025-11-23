@@ -54,7 +54,7 @@ At the top of the sidebar, you'll find quick access to:
 - **Inbox** - Recently created notes notes (shows count badge)
 - **Daily** - Weekly view of daily notes
 - **Review** - Access spaced repetition review (shows count badge)
-- **Routines** - Manage agent routines and workflows
+- **Routines** - Manage agent routines
 - **Note Types** - Configure note types
 - **Settings** - Application settings
 
@@ -210,8 +210,6 @@ Access application settings from the left sidebar's **Settings** option.
 - **API Keys** - Configure AI model access
 - **Database** - Manage your note database
 - **Updates** - Check for new versions
-
-See [Configuration](/guides/configuration) for detailed settings.
 
 ## Customization
 

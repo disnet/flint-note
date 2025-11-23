@@ -60,16 +60,9 @@ export default defineConfig({
         ]
       },
       {
-        text: 'Advanced Features',
-        collapsed: true,
-        items: [{ text: 'Workflows & Automation', link: '/features/workflows' }]
-      },
-      {
         text: 'Guides',
         collapsed: true,
         items: [
-          { text: 'Installation', link: '/guides/installation' },
-          { text: 'Configuration', link: '/guides/configuration' },
           { text: 'Keyboard Shortcuts', link: '/guides/shortcuts' },
           { text: 'Best Practices', link: '/guides/best-practices' },
           { text: 'Privacy & Security', link: '/guides/privacy-security' }
@@ -78,10 +71,7 @@ export default defineConfig({
       {
         text: 'Help',
         collapsed: true,
-        items: [
-          { text: 'Troubleshooting', link: '/guides/troubleshooting' },
-          { text: 'FAQ', link: '/guides/faq' }
-        ]
+        items: [{ text: 'FAQ', link: '/guides/faq' }]
       }
     ],
 

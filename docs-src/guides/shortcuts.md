@@ -249,10 +249,9 @@ modified:this-week  → Search by modified date
 
 ### Workflow Management
 
-| Shortcut      | Action         | Notes                              |
-| ------------- | -------------- | ---------------------------------- |
-| `Mod+Shift+W` | Open Workflows | View all workflows (future)        |
-| `Mod+Shift+R` | Run Workflow   | Execute selected workflow (future) |
+| Shortcut      | Action       | Notes                             |
+| ------------- | ------------ | --------------------------------- |
+| `Mod+Shift+R` | Run Workflow | Execute selected workflow (future) |
 
 ## Organization Shortcuts
 
@@ -538,8 +537,6 @@ Escape → Close search
 ## Next Steps
 
 - **[Interface Guide](/guides/interface)** - Understand UI layout
-- **[Workflows](/features/workflows)** - Automate with shortcuts
-- **[Settings](/guides/configuration)** - Customize Flint
 
 ---
 

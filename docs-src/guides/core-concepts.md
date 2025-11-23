@@ -4,7 +4,7 @@ Flint's fundamental philosophy and how its features work together to build deep 
 
 ## The Core Philosophy
 
-**Flint builds deep knowledge by supporting the complete cycle of externalizing (getting ideas out), internalizing (making them yours), and resurfacing (bringing them back repeatedly over time to ground memory).**
+**Flint builds deep knowledge by supporting the complete learning cycle of externalizing (getting ideas out), internalizing (making them yours), and resurfacing (bringing them back repeatedly over time to ground memory).**
 
 Most tools optimize for just one part:
 
@@ -42,7 +42,7 @@ Most tools optimize for just one part:
 
 **Flint's solution:**
 - [Spaced repetition](/features/review-system) brings notes back on schedule
-- [Routines](/features/workflows#routines) automate recurring synthesis
+- Routines automate recurring synthesis
 - Backlinks surface past connections
 - Search works on ideas, not just keywords
 
@@ -54,7 +54,6 @@ Most tools optimize for just one part:
 
 You think in ideas, not files. The system handles file naming, folder structure, and organization.
 
-- **Stable IDs** - Rename freely without breaking links
 - **Type-driven** - Organization emerges from content and relationships
 - **Frictionless** - No decisions about "where does this go?"
 
@@ -91,12 +90,12 @@ A learning partner with semantic access to your notes—not generating thoughts,
 
 - Helps structure capture conversationally
 - Suggests connections and provides feedback
-- Executes [routines](/features/workflows#routines) and generates [review prompts](/features/review-system)
+- Executes routines and generates [review prompts](/features/review-system)
 - Type-aware assistance (creates evergreen notes differently than predictions)
 
 **Supports all three phases.**
 
-See [AI Agent](/features/agent) and [Workflows](/features/workflows).
+See [AI Agent](/features/agent).
 
 ### Review System
 
@@ -118,8 +117,6 @@ Scheduled practices for recurring workflows—weekly reviews, reading processing
 Removes discipline burden by automating when and what to do. Build sustainable learning habits.
 
 **Supports:** Externalizing (structured prompts) · Internalizing (regular synthesis) · Resurfacing (recurring reflection)
-
-See [Workflows](/features/workflows#routines).
 
 ### Reference Shelf
 
@@ -153,68 +150,15 @@ You see ideas and connections. The system handles file naming, storage, folders,
 
 Note types shape how you think. Creating an evergreen note prompts synthesis. Creating a prediction forces falsifiable framing.
 
-### Immutable Identity
-
-Stable IDs mean rename freely, reorganize without fear, refactor as understanding evolves.
-
 ### Emergent Organization
 
 Structure emerges from content and relationships—not predetermined hierarchies imposed before you've thought through the material.
-
-## What Makes Flint Different
-
-| Tool      | Focus                 | Flint's Approach                           |
-| --------- | --------------------- | ------------------------------------------ |
-| Obsidian  | Linked notes          | Abstracts files; type-guided thinking      |
-| Roam      | Bidirectional links   | AI agent; complete learning cycle          |
-| Notion    | Structured databases  | Frictionless capture; resurfacing built in |
-| Anki      | Spaced repetition     | AI prompts; full capture→recall cycle     |
-| Evernote  | Capture everything    | Connection-making; active learning         |
-
-**Only Flint optimizes for the complete externalize → internalize → resurface cycle.**
-
-## Mental Model
-
-**Think of Flint as:**
-- A thinking system that grows with you
-- A learning partner handling mechanical tasks
-- A knowledge graph reflecting how your mind works
-- A practice system building sustainable habits
-
-**Not:**
-- A filing cabinet (organization emerges)
-- A chatbot (AI assists, doesn't replace thinking)
-- A writing tool (focus is learning, not output)
-
-## Getting Started
-
-### Week 1: Capture & Connect
-- Create notes freely using [different types](/features/notes#note-types)
-- Add `[[wikilinks]]` between related ideas
-- Create quick captures without worrying about organization
-
-### Week 2: Process & Structure
-- Try the [AI agent](/features/agent) for organization help
-- Set up a [workspace](/guides/interface#workspaces-bar) for your main project
-- Process your inbox—link and refine notes
-
-### Week 3: Routines & Review
-- Create a weekly [routine](/features/workflows#routines) for synthesis
-- Mark important notes [for review](/features/review-system)
-- Let structure emerge from your patterns
-
-### Week 4: Deepen the Practice
-- Refine note types based on what you're learning
-- Build more sophisticated routines
-- Trust the complete cycle
 
 ## Best Practices
 
 **Let structure emerge.** Don't over-plan. Start with general notes, notice patterns, create types as needs become clear.
 
-**Trust the process.** Capture fluidly (externalize) → connect with links (internalize) → process periodically (internalize) → review on schedule (resurface) → synthesize with AI (internalize).
-
-**Use the agent as partner.** Ask it to find connections, process your inbox, generate review prompts, execute routines, synthesize themes. But remember: insights come from you.
+**Trust the process.** Capture (externalize) → connect (internalize) → process (internalize) → review (resurface).
 
 ## Next Steps
 
@@ -225,7 +169,6 @@ Structure emerges from content and relationships—not predetermined hierarchies
 **Learning System:**
 - [AI Agent](/features/agent) - What the agent can do
 - [Review System](/features/review-system) - Active recall practice
-- [Workflows](/features/workflows) - Routines and automation
 
 **Organization:**
 - [Workspaces](/guides/interface#workspaces-bar) - Manage multiple contexts

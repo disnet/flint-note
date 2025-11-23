@@ -897,7 +897,6 @@ Settings → Database → Rebuild Database
 - **[Core Concepts](/guides/core-concepts)** - Understand Flint's philosophy
 - **[Getting Started](/getting-started)** - Begin your practice
 - **[Daily Notes](/features/daily-notes)** - Start with daily journaling
-- **[Workflows](/features/workflows)** - Automate when ready
 
 ---
 
