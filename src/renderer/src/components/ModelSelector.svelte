@@ -1,9 +1,15 @@
 <script lang="ts">
   import { modelStore } from '../stores/modelStore.svelte';
-  import { SUPPORTED_MODELS } from '../config/models';
+  import { getModelsByProvider } from '../config/models';
+  import { settingsStore } from '../stores/settingsStore.svelte';
 
   let hoveredModelId = $state<string | null>(null);
   let tooltipPosition = $state<'above' | 'below'>('above');
+
+  // Only show models for the currently selected provider
+  const providerModels = $derived(
+    getModelsByProvider(settingsStore.settings.aiProvider.selected)
+  );
 
   function handleModelSelect(modelId: string): void {
     if (modelId !== modelStore.selectedModel) {
@@ -28,7 +34,7 @@
 </script>
 
 <div class="segmented-control" role="group" aria-label="Model selection">
-  {#each SUPPORTED_MODELS as model (model.id)}
+  {#each providerModels as model (model.id)}
     <button
       class="segment"
       class:active={model.id === modelStore.selectedModel}

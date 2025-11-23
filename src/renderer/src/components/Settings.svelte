@@ -8,12 +8,15 @@
 
   // Local form state for API keys
   let openrouterKey = $state('');
+  let anthropicKey = $state('');
 
   // Validation states
   let openrouterKeyValid = $state(false);
+  let anthropicKeyValid = $state(false);
 
   // Auto-save debounce timers
   let openrouterSaveTimer;
+  let anthropicSaveTimer;
 
   // App version state
   let appVersion = $state('');
@@ -33,12 +36,17 @@
 
         // Then populate the local form state
         const keys = await secureStorageService.getAllApiKeys();
-        openrouterKey = keys.openrouter;
+        openrouterKey = keys.openrouter || '';
+        anthropicKey = keys.anthropic || '';
 
         // Update validation
         openrouterKeyValid = secureStorageService.validateApiKey(
           'openrouter',
           openrouterKey
+        );
+        anthropicKeyValid = secureStorageService.validateApiKey(
+          'anthropic',
+          anthropicKey
         );
 
         // Load app version
@@ -54,9 +62,8 @@
 
     // Cleanup function
     return () => {
-      if (openrouterSaveTimer) {
-        clearTimeout(openrouterSaveTimer);
-      }
+      if (openrouterSaveTimer) clearTimeout(openrouterSaveTimer);
+      if (anthropicSaveTimer) clearTimeout(anthropicSaveTimer);
     };
   });
 
@@ -77,7 +84,7 @@
   }
 
   async function autoSaveApiKey(
-    provider: 'openrouter',
+    provider: 'openrouter' | 'anthropic',
     key: string,
     orgId?: string
   ): Promise<void> {
@@ -98,7 +105,11 @@
       await settingsStore.updateApiKey(provider, key, orgId);
 
       // Show subtle success indication
-      showSuccess(`${provider} API key saved`);
+      const providerNames = {
+        openrouter: 'OpenRouter',
+        anthropic: 'Anthropic'
+      };
+      showSuccess(`${providerNames[provider]} API key saved`);
     } catch (error) {
       console.error(`Failed to auto-save ${provider} API key:`, error);
       showError(`Failed to save ${provider} API key`);
@@ -117,6 +128,18 @@
     }, 1000); // 1 second debounce
   }
 
+  function debounceAnthropicSave(): void {
+    if (anthropicSaveTimer) {
+      clearTimeout(anthropicSaveTimer);
+    }
+
+    anthropicSaveTimer = setTimeout(() => {
+      if (anthropicKey && anthropicKeyValid) {
+        autoSaveApiKey('anthropic', anthropicKey);
+      }
+    }, 1000);
+  }
+
   async function clearAllApiKeys(): Promise<void> {
     if (
       !confirm(
@@ -129,11 +152,14 @@
     try {
       await secureStorageService.clearAllApiKeys();
       openrouterKey = '';
+      anthropicKey = '';
       openrouterKeyValid = false;
+      anthropicKeyValid = false;
 
       await settingsStore.updateSettings({
         apiKeys: {
-          openrouter: ''
+          openrouter: '',
+          anthropic: ''
         }
       });
 
@@ -142,6 +168,42 @@
       showError(
         `Failed to clear API keys: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
+    }
+  }
+
+  async function handleProviderChange(
+    newProvider: 'openrouter' | 'anthropic'
+  ): Promise<void> {
+    try {
+      // Update the settings store
+      await settingsStore.updateProvider(newProvider);
+
+      // Get the current model and map it to the new provider
+      const { mapModelToProvider } = await import('../config/models');
+      const { modelStore } = await import('../stores/modelStore.svelte');
+      const currentModelId = settingsStore.settings.modelPreferences.defaultModel;
+      const mappedModel = mapModelToProvider(currentModelId, newProvider);
+
+      if (mappedModel) {
+        // Update the default model in settings
+        await settingsStore.updateDefaultModel(mappedModel.id);
+
+        // Update the active model in the model store (updates UI immediately)
+        await modelStore.setSelectedModel(mappedModel.id);
+
+        // Notify the backend to switch provider
+        await window.api?.switchAiProvider({
+          provider: newProvider,
+          modelName: mappedModel.id
+        });
+
+        showSuccess(`Switched to ${newProvider}`);
+      } else {
+        showError('Failed to map model to new provider');
+      }
+    } catch (error) {
+      console.error('Failed to switch provider:', error);
+      showError('Failed to switch provider');
     }
   }
 
@@ -435,6 +497,33 @@
         </div>
       </div>
 
+      <div class="provider-selection">
+        <div class="provider-label"><strong>AI Provider</strong></div>
+        <div class="provider-options">
+          <label class="provider-option">
+            <input
+              type="radio"
+              name="provider"
+              value="openrouter"
+              checked={settingsStore.settings.aiProvider.selected === 'openrouter'}
+              onchange={() => handleProviderChange('openrouter')}
+            />
+            <span>OpenRouter</span>
+          </label>
+          <label class="provider-option">
+            <input
+              type="radio"
+              name="provider"
+              value="anthropic"
+              checked={settingsStore.settings.aiProvider.selected === 'anthropic'}
+              onchange={() => handleProviderChange('anthropic')}
+            />
+            <span>Anthropic</span>
+          </label>
+        </div>
+        <small>The selected provider will be used for all AI operations.</small>
+      </div>
+
       <div class="api-key-group">
         <label for="openrouter-key-input">
           <strong>OpenRouter API Key</strong>
@@ -461,7 +550,38 @@
         <small
           >Get your OpenRouter API key from <a
             target="_blank"
-            href="https://openrouter.ai">openrouter.ai</a
+            href="https://openrouter.ai/settings/keys">openrouter.ai</a
+          >.</small
+        >
+      </div>
+
+      <div class="api-key-group">
+        <label for="anthropic-key-input">
+          <strong>Anthropic API Key</strong>
+          <span class="validation-indicator" class:valid={anthropicKeyValid}>
+            {anthropicKeyValid ? '✓' : '❌'}
+          </span>
+        </label>
+        <div class="input-group">
+          <input
+            id="anthropic-key-input"
+            type="password"
+            bind:value={anthropicKey}
+            placeholder="Your Anthropic API key"
+            class="api-key-input"
+            oninput={() => {
+              anthropicKeyValid = secureStorageService.validateApiKey(
+                'anthropic',
+                anthropicKey
+              );
+              debounceAnthropicSave();
+            }}
+          />
+        </div>
+        <small
+          >Get your Anthropic API key from <a
+            target="_blank"
+            href="https://console.anthropic.com/settings/keys">console.anthropic.com</a
           >.</small
         >
       </div>
@@ -685,6 +805,66 @@
     margin: 0;
     color: var(--text-secondary);
     line-height: 1.5;
+    font-size: 0.875rem;
+  }
+
+  .provider-selection {
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    background: var(--bg-secondary);
+    border-radius: 0.75rem;
+    border: 1px solid var(--border-light);
+  }
+
+  .provider-label {
+    display: block;
+    margin-bottom: 1rem;
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+
+  .provider-options {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .provider-option {
+    flex: 1;
+    padding: 0.75rem;
+    border: 2px solid var(--border-light);
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--bg-primary);
+  }
+
+  .provider-option:hover {
+    border-color: var(--accent-primary);
+    background: var(--bg-secondary);
+  }
+
+  .provider-option input[type='radio'] {
+    cursor: pointer;
+    margin: 0;
+  }
+
+  .provider-option input[type='radio']:checked + span {
+    font-weight: 600;
+    color: var(--accent-primary);
+  }
+
+  .provider-option span {
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+
+  .provider-selection small {
+    display: block;
+    color: var(--text-secondary);
     font-size: 0.875rem;
   }
 

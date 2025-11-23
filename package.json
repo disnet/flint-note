@@ -37,6 +37,7 @@
     "docs:preview": "vitepress preview docs-src"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^2.0.45",
     "@ai-sdk/gateway": "^1.0.0",
     "@codemirror/autocomplete": "^6.18.7",
     "@codemirror/commands": "^6.8.1",
@@ -59,7 +60,7 @@
     "sqlite3": "^5.1.7",
     "typescript": "^5.9.2",
     "winston": "^3.17.0",
-    "zod": "^4.0.0"
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "@azure/core-client": "^1.10.1",

@@ -1,4 +1,5 @@
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
+import { createAnthropic } from '@ai-sdk/anthropic';
 import { generateText, streamText, ModelMessage, stepCountIs, Tool } from 'ai';
 import { EventEmitter } from 'events';
 import { readFileSync } from 'fs';
@@ -11,6 +12,11 @@ import { WorkflowService } from './workflow-service';
 import { CustomFunctionsApi } from '../server/api/custom-functions-api.js';
 import { TodoPlanService } from './todo-plan-service';
 import { REVIEW_AGENT_SYSTEM_PROMPT } from './review-agent-prompt';
+
+export type AIProvider = 'openrouter' | 'anthropic';
+type ProviderClient =
+  | ReturnType<typeof createOpenRouter>
+  | ReturnType<typeof createAnthropic>;
 
 interface CacheConfig {
   enableSystemMessageCaching: boolean;
@@ -60,9 +66,10 @@ interface FrontendMessage {
 
 export class AIService extends EventEmitter {
   private currentModelName: string;
+  private currentProvider: AIProvider;
   private conversationHistories: Map<string, ModelMessage[]> = new Map();
   private currentConversationId: string | null = null;
-  private openrouter: ReturnType<typeof createOpenRouter>;
+  private providerClient: ProviderClient;
   private systemPrompt: string;
   private reviewPrompt: string;
   private noteService: NoteService | null;
@@ -95,17 +102,22 @@ export class AIService extends EventEmitter {
   private performanceMonitoringInterval?: NodeJS.Timeout;
 
   constructor(
-    openrouter: ReturnType<typeof createOpenRouter>,
+    providerClient: ProviderClient,
+    provider: AIProvider,
     noteService: NoteService | null,
     workspaceRoot?: string,
     workflowService?: WorkflowService | null
   ) {
     super();
-    this.currentModelName = 'anthropic/claude-haiku-4.5';
+    this.currentProvider = provider;
+    this.currentModelName = 'anthropic/claude-haiku-4.5'; // Default for OpenRouter
     this.systemPrompt = this.loadSystemPrompt();
     this.reviewPrompt = this.loadReviewPrompt();
-    logger.info('AI Service constructed', { model: this.currentModelName });
-    this.openrouter = openrouter;
+    logger.info('AI Service constructed', {
+      provider: this.currentProvider,
+      model: this.currentModelName
+    });
+    this.providerClient = providerClient;
     this.noteService = noteService;
     this.workflowService = workflowService || null;
     this.todoPlanService = new TodoPlanService();
@@ -119,16 +131,33 @@ export class AIService extends EventEmitter {
   }
 
   /**
-   * Refresh the OpenRouter client with new API key
+   * Create a provider client based on the provider type
+   */
+  private static createProviderClient(
+    provider: AIProvider,
+    apiKey?: string
+  ): ProviderClient {
+    switch (provider) {
+      case 'openrouter':
+        return createOpenRouter({ apiKey });
+      case 'anthropic':
+        return createAnthropic({ apiKey });
+      default:
+        throw new Error(`Unknown provider: ${provider}`);
+    }
+  }
+
+  /**
+   * Refresh the provider client with new API key
    * Called when API keys are updated to ensure the service uses the latest credentials
    */
   async refreshApiKey(secureStorage: SecureStorageService): Promise<void> {
     try {
-      const { key } = await secureStorage.getApiKey('openrouter');
-      this.openrouter = createOpenRouter({
-        apiKey: key
+      const { key } = await secureStorage.getApiKey(this.currentProvider);
+      this.providerClient = AIService.createProviderClient(this.currentProvider, key);
+      logger.info('AI Service API key refreshed successfully', {
+        provider: this.currentProvider
       });
-      logger.info('AI Service API key refreshed successfully');
     } catch (error) {
       logger.error('Failed to refresh AI Service API key', { error });
       throw error;
@@ -136,12 +165,36 @@ export class AIService extends EventEmitter {
   }
 
   /**
-   * Check if a valid API key is available
-   * Returns true if we have a valid OpenRouter API key, false otherwise
+   * Switch to a different provider
+   * Updates both the provider client and the current model
+   */
+  async switchProvider(
+    provider: AIProvider,
+    modelName: string,
+    secureStorage: SecureStorageService
+  ): Promise<void> {
+    try {
+      const { key } = await secureStorage.getApiKey(provider);
+      this.currentProvider = provider;
+      this.providerClient = AIService.createProviderClient(provider, key);
+      this.currentModelName = modelName;
+      logger.info('Switched AI provider', {
+        provider: this.currentProvider,
+        model: this.currentModelName
+      });
+    } catch (error) {
+      logger.error('Failed to switch AI provider', { error });
+      throw error;
+    }
+  }
+
+  /**
+   * Check if a valid API key is available for the current provider
+   * Returns true if we have a valid API key, false otherwise
    */
   async hasValidApiKey(secureStorage: SecureStorageService): Promise<boolean> {
     try {
-      const { key } = await secureStorage.getApiKey('openrouter');
+      const { key } = await secureStorage.getApiKey(this.currentProvider);
       return !!(key && key.trim() !== '');
     } catch (error) {
       logger.warn('Failed to check API key availability', { error });
@@ -157,11 +210,13 @@ export class AIService extends EventEmitter {
     try {
       const hasKey = await this.hasValidApiKey(secureStorage);
       if (!hasKey) {
-        logger.info('No valid API key found, cannot proceed with AI operations');
+        logger.info('No valid API key found, cannot proceed with AI operations', {
+          provider: this.currentProvider
+        });
         return false;
       }
 
-      // Refresh the key to make sure it's loaded in the OpenRouter client
+      // Refresh the key to make sure it's loaded in the provider client
       await this.refreshApiKey(secureStorage);
       return true;
     } catch (error) {
@@ -174,14 +229,33 @@ export class AIService extends EventEmitter {
     _secureStorage: SecureStorageService,
     noteService: NoteService | null = null,
     workspaceRoot?: string,
-    workflowService?: WorkflowService | null
+    workflowService?: WorkflowService | null,
+    provider: AIProvider = 'openrouter'
   ): Promise<AIService> {
     // Initialize with undefined API key to avoid triggering keychain access on startup
     // secureStorage will be passed to lazy loading methods when needed
-    const openrouter = createOpenRouter({
-      apiKey: undefined
-    });
-    return new AIService(openrouter, noteService, workspaceRoot, workflowService);
+    const providerClient = AIService.createProviderClient(provider, undefined);
+    return new AIService(
+      providerClient,
+      provider,
+      noteService,
+      workspaceRoot,
+      workflowService
+    );
+  }
+
+  /**
+   * Get the current provider
+   */
+  getCurrentProvider(): AIProvider {
+    return this.currentProvider;
+  }
+
+  /**
+   * Get the current model name
+   */
+  getCurrentModel(): string {
+    return this.currentModelName;
   }
 
   private switchModel(modelName: string): void {
@@ -324,8 +398,18 @@ Use these tools to help users manage their notes effectively and answer their qu
     return Math.ceil(totalLength / 3.5);
   }
 
+  /**
+   * Check if the current model supports Anthropic-specific features (like prompt caching)
+   * Returns true for:
+   * - Direct Anthropic provider
+   * - OpenRouter using Anthropic models
+   */
   private isAnthropicModel(): boolean {
-    return this.currentModelName.startsWith('anthropic/');
+    return (
+      this.currentProvider === 'anthropic' ||
+      (this.currentProvider === 'openrouter' &&
+        this.currentModelName.startsWith('anthropic/'))
+    );
   }
 
   /**
@@ -1311,7 +1395,7 @@ ${
 
       const tools = this.getAppropriateTools();
       const result = await generateText({
-        model: this.openrouter(this.currentModelName),
+        model: this.providerClient(this.currentModelName),
         messages,
         tools,
         onStepFinish: (step) => {
@@ -1567,7 +1651,7 @@ ${
 
       try {
         const result = streamText({
-          model: this.openrouter(this.currentModelName),
+          model: this.providerClient(this.currentModelName),
           messages,
           tools,
           stopWhen: stepCountIs(20), // Allow up to 20 steps for multi-turn tool calling
@@ -1851,7 +1935,7 @@ Return ONLY a valid JSON array with no additional text or markdown formatting.`;
       const userMessage = `${numberedContent}${metadataSection}`;
 
       const response = await generateText({
-        model: this.openrouter(this.currentModelName),
+        model: this.providerClient(this.currentModelName),
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userMessage }
@@ -2072,7 +2156,7 @@ The <question> tags are REQUIRED.`;
       });
 
       const result = streamText({
-        model: this.openrouter(this.currentModelName),
+        model: this.providerClient(this.currentModelName),
         messages: [
           {
             role: 'system',
@@ -2224,7 +2308,7 @@ Great explanation! You correctly identified the key mechanism. To deepen your un
 The <feedback> tags are REQUIRED.`;
 
       const result = streamText({
-        model: this.openrouter(this.currentModelName),
+        model: this.providerClient(this.currentModelName),
         messages: [
           {
             role: 'system',

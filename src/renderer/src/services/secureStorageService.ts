@@ -1,3 +1,5 @@
+import type { AIProvider } from '../config/models';
+
 // Service for interacting with secure storage through IPC
 export class SecureStorageService {
   private static instance: SecureStorageService;
@@ -18,7 +20,7 @@ export class SecureStorageService {
     }
   }
 
-  async storeApiKey(provider: 'openrouter', key: string, orgId?: string): Promise<void> {
+  async storeApiKey(provider: AIProvider, key: string, orgId?: string): Promise<void> {
     try {
       await window.api.storeApiKey({ provider, key, orgId });
     } catch (error) {
@@ -27,7 +29,7 @@ export class SecureStorageService {
     }
   }
 
-  async getApiKey(provider: 'openrouter'): Promise<{ key: string; orgId?: string }> {
+  async getApiKey(provider: AIProvider): Promise<{ key: string; orgId?: string }> {
     try {
       return await window.api.getApiKey({ provider });
     } catch (error) {
@@ -38,18 +40,20 @@ export class SecureStorageService {
 
   async getAllApiKeys(): Promise<{
     openrouter: string;
+    anthropic: string;
   }> {
     try {
       return await window.api.getAllApiKeys();
     } catch (error) {
       console.error('Failed to get all API keys:', error);
       return {
-        openrouter: ''
+        openrouter: '',
+        anthropic: ''
       };
     }
   }
 
-  async testApiKey(provider: 'openrouter'): Promise<boolean> {
+  async testApiKey(provider: AIProvider): Promise<boolean> {
     try {
       return await window.api.testApiKey({ provider });
     } catch (error) {
@@ -67,11 +71,21 @@ export class SecureStorageService {
     }
   }
 
-  validateApiKey(provider: 'openrouter', key: string): boolean {
-    if (provider === 'openrouter') {
-      return key.startsWith('sk-') && key.length > 20; // OpenRouter keys start with sk-
+  validateApiKey(provider: AIProvider, key: string): boolean {
+    if (!key || key.length === 0) {
+      return false;
     }
-    return false;
+
+    switch (provider) {
+      case 'openrouter':
+        // OpenRouter keys start with sk-or- or sk-
+        return (key.startsWith('sk-or-') || key.startsWith('sk-')) && key.length > 20;
+      case 'anthropic':
+        // Anthropic keys start with sk-ant-
+        return key.startsWith('sk-ant-') && key.length > 20;
+      default:
+        return false;
+    }
   }
 }
 

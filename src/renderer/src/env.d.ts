@@ -134,6 +134,10 @@ declare global {
       ) => void;
       clearConversation: () => Promise<any>;
       cancelMessageStream: (params: { requestId: string }) => Promise<any>;
+      switchAiProvider: (params: {
+        provider: 'openrouter' | 'anthropic';
+        modelName: string;
+      }) => Promise<{ success: boolean; error?: string }>;
       syncConversation: (params: {
         conversationId: string;
         messages: FrontendMessage[];
@@ -379,16 +383,12 @@ declare global {
       // Secure storage operations
       secureStorageAvailable: () => Promise<any>;
       storeApiKey: (params: {
-        provider: 'anthropic' | 'openai' | 'openrouter';
+        provider: 'anthropic' | 'openrouter';
         key: string;
         orgId?: string;
       }) => Promise<any>;
-      getApiKey: (params: {
-        provider: 'anthropic' | 'openai' | 'openrouter';
-      }) => Promise<any>;
-      testApiKey: (params: {
-        provider: 'anthropic' | 'openai' | 'openrouter';
-      }) => Promise<any>;
+      getApiKey: (params: { provider: 'anthropic' | 'openrouter' }) => Promise<any>;
+      testApiKey: (params: { provider: 'anthropic' | 'openrouter' }) => Promise<any>;
       getAllApiKeys: () => Promise<any>;
       clearApiKeys: () => Promise<any>;
       getOpenRouterCredits: () => Promise<{

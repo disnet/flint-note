@@ -1,10 +1,14 @@
-import { DEFAULT_MODEL, getModelById } from '../config/models';
+import { DEFAULT_MODEL, getModelById, type AIProvider } from '../config/models';
 import { secureStorageService } from '../services/secureStorageService';
 
 // Settings interface
 export interface AppSettings {
+  aiProvider: {
+    selected: AIProvider;
+  };
   apiKeys: {
     openrouter: string;
+    anthropic: string;
   };
   modelPreferences: {
     defaultModel: string;
@@ -31,8 +35,12 @@ export interface AppSettings {
 
 // Default settings
 const DEFAULT_SETTINGS: AppSettings = {
+  aiProvider: {
+    selected: 'openrouter' // Default to OpenRouter for backward compatibility
+  },
   apiKeys: {
-    openrouter: ''
+    openrouter: '',
+    anthropic: ''
   },
   modelPreferences: {
     defaultModel: DEFAULT_MODEL,
@@ -87,6 +95,7 @@ async function saveStoredSettings(settingsToSave: AppSettings): Promise<void> {
 
     // Create a copy without API keys for file storage
     const safeSettings = {
+      aiProvider: settingsToSave.aiProvider,
       modelPreferences: settingsToSave.modelPreferences,
       appearance: settingsToSave.appearance,
       dataAndPrivacy: settingsToSave.dataAndPrivacy,
@@ -143,7 +152,8 @@ async function loadApiKeysFromSecureStorage(): Promise<void> {
     settings = {
       ...settings,
       apiKeys: {
-        openrouter: keys.openrouter
+        openrouter: keys.openrouter || '',
+        anthropic: keys.anthropic || ''
       }
     };
   } catch (error) {
@@ -190,6 +200,9 @@ export const settingsStore = {
     };
 
     // Deep merge nested objects
+    if (newSettings.aiProvider) {
+      updatedSettings.aiProvider = { ...settings.aiProvider, ...newSettings.aiProvider };
+    }
     if (newSettings.apiKeys) {
       updatedSettings.apiKeys = { ...settings.apiKeys, ...newSettings.apiKeys };
     }
@@ -219,18 +232,24 @@ export const settingsStore = {
     await saveStoredSettings(settings);
   },
 
-  async updateApiKey(
-    provider: 'openrouter',
-    key: string,
-    _orgId?: string
-  ): Promise<void> {
+  async updateApiKey(provider: AIProvider, key: string, _orgId?: string): Promise<void> {
     const apiKeys = { ...settings.apiKeys };
 
     if (provider === 'openrouter') {
       apiKeys.openrouter = key;
+    } else if (provider === 'anthropic') {
+      apiKeys.anthropic = key;
     }
 
     await this.updateSettings({ apiKeys });
+  },
+
+  async updateProvider(provider: AIProvider): Promise<void> {
+    await this.updateSettings({
+      aiProvider: {
+        selected: provider
+      }
+    });
   },
 
   async updateDefaultModel(modelId: string): Promise<void> {
@@ -273,6 +292,7 @@ export const settingsStore = {
   exportSettings(): string {
     // Export all settings except API keys
     const exportableSettings = {
+      aiProvider: settings.aiProvider,
       modelPreferences: settings.modelPreferences,
       appearance: settings.appearance,
       dataAndPrivacy: settings.dataAndPrivacy,
@@ -297,11 +317,21 @@ export const settingsStore = {
   },
 
   // Validation helpers
-  validateApiKey(provider: 'openrouter', key: string): boolean {
-    if (provider === 'openrouter') {
-      return key.startsWith('sk-') && key.length > 20; // OpenRouter keys start with sk-
+  validateApiKey(provider: AIProvider, key: string): boolean {
+    if (!key || key.length === 0) {
+      return false;
     }
-    return false;
+
+    switch (provider) {
+      case 'openrouter':
+        // OpenRouter keys start with sk-or- or sk-
+        return (key.startsWith('sk-or-') || key.startsWith('sk-')) && key.length > 20;
+      case 'anthropic':
+        // Anthropic keys start with sk-ant-
+        return key.startsWith('sk-ant-') && key.length > 20;
+      default:
+        return false;
+    }
   },
 
   // Update tracking helpers

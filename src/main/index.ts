@@ -283,11 +283,28 @@ app.whenReady().then(async () => {
       }
     }
 
+    // Load provider from settings (default to openrouter for backward compatibility)
+    let provider: 'openrouter' | 'anthropic' = 'openrouter';
+    try {
+      const settings = await settingsStorageService?.loadAppSettings({});
+      if (settings && typeof settings === 'object' && 'aiProvider' in settings) {
+        const aiProvider = (settings as { aiProvider?: { selected?: string } })
+          .aiProvider;
+        if (aiProvider?.selected) {
+          provider = aiProvider.selected as 'openrouter' | 'anthropic';
+          logger.info('Loaded AI provider from settings', { provider });
+        }
+      }
+    } catch (error) {
+      logger.warn('Failed to load provider from settings, using default', { error });
+    }
+
     aiService = await AIService.of(
       secureStorageService,
       noteService,
       workspaceRoot,
-      workflowService
+      workflowService,
+      provider
     );
 
     // Set up global usage tracking listener
@@ -464,6 +481,30 @@ app.whenReady().then(async () => {
       if (aiService) {
         const cancelled = aiService.cancelStream(params.requestId);
         return { success: cancelled };
+      }
+      return { success: false, error: 'AI service not available' };
+    }
+  );
+
+  // Switch AI provider
+  ipcMain.handle(
+    'switch-ai-provider',
+    async (
+      _event,
+      params: { provider: 'openrouter' | 'anthropic'; modelName: string }
+    ) => {
+      if (aiService) {
+        try {
+          await aiService.switchProvider(
+            params.provider,
+            params.modelName,
+            secureStorageService
+          );
+          return { success: true };
+        } catch (error) {
+          logger.error('Failed to switch AI provider', { error });
+          return { success: false, error: 'Failed to switch provider' };
+        }
       }
       return { success: false, error: 'AI service not available' };
     }
@@ -1692,7 +1733,7 @@ app.whenReady().then(async () => {
     async (
       _event,
       params: {
-        provider: 'anthropic' | 'openai' | 'openrouter';
+        provider: 'anthropic' | 'openrouter';
         key: string;
         orgId?: string;
       }
@@ -1702,7 +1743,7 @@ app.whenReady().then(async () => {
       }
 
       // Update the API key in secure storage
-      await secureStorageService.updateApiKey(params.provider, params.key, params.orgId);
+      await secureStorageService.updateApiKey(params.provider, params.key);
 
       // If this is an OpenRouter key update and AI service is available, refresh it
       if (params.provider === 'openrouter' && aiService) {
@@ -1721,7 +1762,7 @@ app.whenReady().then(async () => {
 
   ipcMain.handle(
     'get-api-key',
-    async (_event, params: { provider: 'anthropic' | 'openai' | 'openrouter' }) => {
+    async (_event, params: { provider: 'anthropic' | 'openrouter' }) => {
       if (!secureStorageService) {
         throw new Error('Secure storage service not available');
       }
@@ -1731,7 +1772,7 @@ app.whenReady().then(async () => {
 
   ipcMain.handle(
     'test-api-key',
-    async (_event, params: { provider: 'anthropic' | 'openai' | 'openrouter' }) => {
+    async (_event, params: { provider: 'anthropic' | 'openrouter' }) => {
       if (!secureStorageService) {
         throw new Error('Secure storage service not available');
       }
@@ -1746,8 +1787,6 @@ app.whenReady().then(async () => {
     const secureData = await secureStorageService.retrieveSecureData();
     return {
       anthropic: secureData.anthropicApiKey || '',
-      openai: secureData.openaiApiKey || '',
-      openaiOrgId: secureData.openaiOrgId || '',
       openrouter: secureData.openrouterApiKey || ''
     };
   });

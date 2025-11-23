@@ -200,6 +200,10 @@ const api = {
   clearConversation: () => electronAPI.ipcRenderer.invoke('clear-conversation'),
   cancelMessageStream: (params: { requestId: string }) =>
     electronAPI.ipcRenderer.invoke('cancel-message-stream', params),
+  switchAiProvider: (params: {
+    provider: 'openrouter' | 'anthropic';
+    modelName: string;
+  }) => electronAPI.ipcRenderer.invoke('switch-ai-provider', params),
   syncConversation: (params: { conversationId: string; messages: FrontendMessage[] }) =>
     electronAPI.ipcRenderer.invoke('sync-conversation', params),
   setActiveConversation: (params: {
@@ -388,13 +392,13 @@ const api = {
   secureStorageAvailable: () =>
     electronAPI.ipcRenderer.invoke('secure-storage-available'),
   storeApiKey: (params: {
-    provider: 'anthropic' | 'openai' | 'openrouter';
+    provider: 'anthropic' | 'openrouter';
     key: string;
     orgId?: string;
   }) => electronAPI.ipcRenderer.invoke('store-api-key', params),
-  getApiKey: (params: { provider: 'anthropic' | 'openai' | 'openrouter' }) =>
+  getApiKey: (params: { provider: 'anthropic' | 'openrouter' }) =>
     electronAPI.ipcRenderer.invoke('get-api-key', params),
-  testApiKey: (params: { provider: 'anthropic' | 'openai' | 'openrouter' }) =>
+  testApiKey: (params: { provider: 'anthropic' | 'openrouter' }) =>
     electronAPI.ipcRenderer.invoke('test-api-key', params),
   getAllApiKeys: () => electronAPI.ipcRenderer.invoke('get-all-api-keys'),
   clearApiKeys: () => electronAPI.ipcRenderer.invoke('clear-api-keys'),

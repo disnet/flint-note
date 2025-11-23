@@ -6,8 +6,6 @@ import { logger } from './logger';
 
 export interface SecureData {
   anthropicApiKey?: string;
-  openaiApiKey?: string;
-  openaiOrgId?: string;
   openrouterApiKey?: string;
 }
 
@@ -81,22 +79,13 @@ export class SecureStorageService {
   /**
    * Update a specific API key
    */
-  async updateApiKey(
-    provider: 'anthropic' | 'openai' | 'openrouter',
-    key: string,
-    orgId?: string
-  ): Promise<void> {
+  async updateApiKey(provider: 'anthropic' | 'openrouter', key: string): Promise<void> {
     try {
       const existingData = await this.retrieveSecureData();
       const updatedData = { ...existingData };
 
       if (provider === 'anthropic') {
         updatedData.anthropicApiKey = key || undefined;
-      } else if (provider === 'openai') {
-        updatedData.openaiApiKey = key || undefined;
-        if (orgId !== undefined) {
-          updatedData.openaiOrgId = orgId || undefined;
-        }
       } else if (provider === 'openrouter') {
         updatedData.openrouterApiKey = key || undefined;
       }
@@ -112,7 +101,7 @@ export class SecureStorageService {
    * Get a specific API key
    */
   async getApiKey(
-    provider: 'anthropic' | 'openai' | 'openrouter' | 'gateway'
+    provider: 'anthropic' | 'openrouter' | 'gateway'
   ): Promise<{ key: string; orgId?: string }> {
     try {
       const data = await this.retrieveSecureData();
@@ -121,11 +110,6 @@ export class SecureStorageService {
         return {
           key: data.anthropicApiKey || '',
           orgId: undefined
-        };
-      } else if (provider === 'openai') {
-        return {
-          key: data.openaiApiKey || '',
-          orgId: data.openaiOrgId || undefined
         };
       } else if (provider === 'openrouter') {
         return {
@@ -157,16 +141,12 @@ export class SecureStorageService {
   /**
    * Test if an API key is stored and valid format
    */
-  async testApiKey(
-    provider: 'anthropic' | 'openai' | 'openrouter' | 'gateway'
-  ): Promise<boolean> {
+  async testApiKey(provider: 'anthropic' | 'openrouter' | 'gateway'): Promise<boolean> {
     try {
       const { key } = await this.getApiKey(provider);
 
       if (provider === 'anthropic') {
         return key.startsWith('sk-ant-') && key.length > 20;
-      } else if (provider === 'openai') {
-        return key.startsWith('sk-') && key.length > 20;
       } else if (provider === 'openrouter') {
         return key.startsWith('sk-') && key.length > 20;
       }
