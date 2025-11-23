@@ -116,7 +116,7 @@ At the top of the editor:
 - **Note toolbar** - Quick actions for the current note:
   - **Note type** - Note type indicator (click to change)
   - **Pinned** - Pin/unpin this note
-  - **Metadata** - Edit YAML frontmatter
+  - **Metadata** - Expand metadata editor (fields defined by note type)
   - **Shelf** - Open note in the shelf (for quick reference)
   - **...** - More actions (Preview, Mark for review, Archive)
 

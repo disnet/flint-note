@@ -12,7 +12,7 @@ Learn everything about creating, organizing, and managing notes in Flint.
 
 **From workspace bar:**
 
-- Click the "New Note" button in the top-right
+- Click the "New Note" button in the workspace bar
 
 **Via AI:**
 
@@ -32,23 +32,6 @@ When creating a note, you'll select a **note type** that determines:
 - AI instructions for helping with this type
 
 See [Note Types](#note-types) below for details.
-
-### Auto-Save
-
-Flint automatically saves your notes:
-
-- **Trigger**: 1 second after you stop typing
-- **Indicator**: Brief "Saving..." message
-- **Confirmation**: "Saved" appears when complete
-- **No manual save needed**: Just write and move on
-
-**External edit detection:**
-
-If you edit a note outside Flint (in another editor), Flint detects the change and prompts you to:
-
-- Keep the app version
-- Use the file version
-- Manually merge changes
 
 ## Writing in Markdown
 
@@ -189,135 +172,13 @@ function greet(name) {
 
 All create horizontal lines.
 
-## Note Metadata (Frontmatter)
+## Note Metadata
 
-Metadata provides **structured data** about your note using YAML frontmatter.
+Metadata provides **structured data** about your notes - things like dates, tags, status, and custom fields.
 
-### What is Frontmatter?
+**Editing metadata:**
 
-YAML frontmatter appears at the **very start** of your note, enclosed in `---`:
-
-```markdown
----
-title: Team Standup
-type: meeting
-date: 2024-01-15
-attendees: [Sarah, John, Maria]
-priority: high
-tags: [weekly, standup]
----
-
-# Meeting content starts here
-
-Notes from today's standup...
-```
-
-### Editing Metadata
-
-**Two ways to edit:**
-
-1. **Metadata tab** (right sidebar):
-   - Visual YAML editor
-   - Syntax highlighting
-   - Real-time validation
-   - Auto-complete for fields
-
-2. **Directly in note**:
-   - Edit the YAML at the top
-   - Syntax must be valid
-   - Changes save automatically
-
-### Common Metadata Fields
-
-**System fields** (auto-managed):
-
-```yaml
-title: Note Title # Note title
-type: general # Note type
-created: 2024-01-15T... # Creation timestamp
-updated: 2024-01-15T... # Last modified
-filename: my-note.md # File name
-```
-
-**Organizational fields:**
-
-```yaml
-tags: [tag1, tag2] # Tags array
-priority: high # Priority level
-status: active # Current status
-```
-
-**Date fields:**
-
-```yaml
-date: 2024-01-15 # ISO date
-due_date: 2024-01-20 # Due date
-start_date: 2024-01-10 # Start date
-```
-
-**Custom fields:**
-
-You can add any field you want:
-
-```yaml
-author: Sarah
-rating: 4.5
-category: technical
-is_public: true
-related_projects: [proj1, proj2]
-```
-
-### Field Types
-
-YAML supports multiple data types:
-
-**String:**
-
-```yaml
-title: My Note
-description: A longer description
-```
-
-**Number:**
-
-```yaml
-priority: 5
-rating: 4.5
-```
-
-**Boolean:**
-
-```yaml
-completed: true
-archived: false
-```
-
-**Array:**
-
-```yaml
-tags: [tag1, tag2, tag3]
-# Or multi-line:
-attendees:
-  - Sarah
-  - John
-  - Maria
-```
-
-**Date:**
-
-```yaml
-date: 2024-01-15
-created: 2024-01-15T10:30:00Z
-```
-
-**Object** (nested):
-
-```yaml
-metadata:
-  source: meeting
-  location: office
-  duration: 60
-```
+Click the **Metadata** button in the note toolbar to expand the metadata editor. The available fields are defined by your note type.
 
 ## Note Types
 
@@ -325,52 +186,20 @@ Note types define schemas and behaviors for different categories of notes.
 
 ### Built-in Note Types
 
-Flint includes several default types:
+Flint includes two default types:
 
-#### General
+#### Note
 
-- **Purpose**: Any content that doesn't fit other types
-- **Fields**: Just title and tags
-- **Use for**: Ideas, thoughts, general notes
+- **Purpose**: General-purpose notes for any content
+- **Fields**: Basic metadata (title, tags, dates)
+- **Use for**: Ideas, thoughts, reference materials, anything
 
 #### Daily
 
 - **Purpose**: Daily journal entries
 - **Fields**: date (auto-set to today)
-- **Use for**: Journaling, daily logs
-- **Special**: Integrated with Daily View
-
-#### Meeting
-
-- **Purpose**: Meeting notes
-- **Fields**:
-  - `date` - Meeting date
-  - `attendees` - Array of participants
-- **Use for**: Meeting minutes, standups, reviews
-
-#### Task
-
-- **Purpose**: Action items and todos
-- **Fields**:
-  - `status` - pending/in-progress/completed
-  - `due_date` - When it's due
-  - `priority` - Importance level
-- **Use for**: Tasks, action items
-
-#### Project
-
-- **Purpose**: Project documentation
-- **Fields**:
-  - `status` - active/on-hold/completed
-  - `start_date` - Project start
-- **Use for**: Project overviews, plans
-
-#### Inbox
-
-- **Purpose**: Quick capture without organization
-- **Fields**: Minimal (title only)
-- **Use for**: Rapid idea capture
-- **Special**: Integrated with Inbox View
+- **Use for**: Journaling, daily logs, daily planning
+- **Special**: Integrated with Daily view
 
 ### Creating Custom Note Types
 
@@ -387,23 +216,21 @@ You: Create a note type called "book-notes" with fields for:
      - finished_reading (boolean)
 
 AI: I'll create the book-notes type with those fields.
-    [Creates .note-types/book-notes/book-notes.md]
 
     The new type is ready. Create a book note with:
     "Create a book-notes note for [book title]"
 ```
 
-**Via Settings:**
+**Via Note Types:**
 
-1. Go to Settings
-2. Navigate to "Note Types"
-3. Click "Create Note Type"
+1. Go to Note Types system view
+3. Click "+ Note Type"
 4. Define:
    - Type name
    - Description
-   - Metadata schema
-   - Template content
-   - AI instructions
+   - Icon
+
+Once the type is created, you can further customize it by adding metadata schema and agent instructions content.
 
 **Manual creation:**
 
@@ -470,50 +297,44 @@ When helping with book-notes:
 **Storage structure:**
 
 ```
-
 vault/
 ├── .note-types/
-│ ├── general/
-│ │ └── general.md
-│ ├── meeting/
-│ │ └── meeting.md
-│ └── book-notes/
-│ └── book-notes.md
-├── general/
-│ ├── note1.md
-│ └── note2.md
-├── meetings/
-│ ├── 2024-01-15-standup.md
-│ └── 2024-01-16-review.md
-└── book-notes/
-├── atomic-habits.md
-└── deep-work.md
-
-````
+│ ├── note/
+│ │ └── note.md
+│ ├── daily/
+│ │ └── daily.md
+│ └── book-notes/          # Custom type
+│   └── book-notes.md
+├── notes/
+│ ├── idea-1.md
+│ └── reference.md
+├── daily/
+│ ├── 2024-01-15.md
+│ └── 2024-01-16.md
+└── book-notes/             # Custom type folder
+  ├── atomic-habits.md
+  └── deep-work.md
+```
 
 Each note type gets its own folder for organization.
 
 ## Tags
 
-Tags provide flexible, cross-cutting organization.
+Tags provide flexible, cross-cutting organization across note types.
 
 ### Adding Tags
 
-**In frontmatter** (recommended):
-```markdown
----
-title: My Note
-tags: [important, project, api-design]
----
-````
+Add tags in the metadata editor:
 
-**In content** (inline):
+```yaml
+tags: [important, project, api-design]
+```
+
+You can also use inline tags in your content:
 
 ```markdown
 This note is about #api-design and #architecture.
 ```
-
-Both methods work, but frontmatter is more structured and searchable.
 
 ### Tag Conventions
 
@@ -825,12 +646,12 @@ Note types can include template content for new notes.
 
 When you create a note of a specific type, the template is applied:
 
-**Meeting template:**
+**Example custom template (meeting-notes type):**
 
 ```markdown
 ---
 title: ${TITLE}
-type: meeting
+type: meeting-notes
 date: ${DATE}
 attendees: []
 ---
@@ -892,7 +713,7 @@ See [Note Types](#note-types) for details on creating types with templates.
 
 **Don't overthink on capture:**
 
-1. Create note (possibly in Inbox)
+1. Create a note
 2. Write your thoughts
 3. Add basic links as you think of them
 4. Move on
@@ -901,7 +722,7 @@ See [Note Types](#note-types) for details on creating types with templates.
 
 - Use AI to suggest organization
 - Add proper metadata
-- Move from Inbox to appropriate type
+- Create custom note types as patterns emerge
 - Add more wikilinks
 - Refine tags
 
@@ -923,15 +744,15 @@ See [Note Types](#note-types) for details on creating types with templates.
 
 **Start simple:**
 
-- Use General type initially
+- Use the Note type initially for everything
 - Notice patterns in what you write
-- When you have 10+ similar notes, create a type
+- When you have 10+ similar notes, create a custom type
 
 **Example evolution:**
 
-1. Week 1: All general notes
+1. Week 1: All notes use the Note type
 2. Week 3: Notice lots of book notes → create book-notes type
-3. Week 5: Notice project planning notes → create project type
+3. Week 5: Notice project planning notes → create projects type
 4. Month 3: System reflects your actual needs
 
 ### Metadata is Optional
