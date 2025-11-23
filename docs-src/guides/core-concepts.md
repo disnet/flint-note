@@ -20,7 +20,7 @@ Most tools optimize for just one part:
 
 **The problem:** Worrying about "where does this go?" creates capture friction.
 
-**Flint's solution:** Capture freely. The system handles organization through [note types](/features/notes#note-types) and relationships. Process later with confidence using the [inbox](/features/organization#inbox).
+**Flint's solution:** Capture freely. The system handles organization through [note types](/features/notes#note-types) and relationships.
 
 **Example:** Create a meeting note without deciding its folder, tags, or final structure. Mark it processed later when you've extracted action items and linked related concepts.
 
@@ -127,25 +127,21 @@ Keep multiple notes visible while editing. Live editors on each, toggle to show/
 
 **Supports:** Externalizing (maintain context) · Internalizing (draw connections)
 
-See [Organization](/features/organization#reference-shelf).
-
 ### Pinned Notes & Workspaces
 
 Manual positioning, not auto-sorted. Spatial memory—you know where things are by position. Make a mess during exploration; cleanup is easy.
 
-[Workspaces](/features/workspaces) group pinned notes for different projects. Switch contexts without losing your place.
+[Workspaces](/guides/interface#workspaces-bar) group pinned notes for different projects. Switch contexts without losing your place.
 
 **Supports:** Externalizing (fluid exploration) · Internalizing (spatial memory) · Resurfacing (easy context switching)
 
-See [Workspaces](/features/workspaces) and [Organization](/features/organization).
+See [Workspaces](/guides/interface#workspaces-bar).
 
 ### Inbox
 
 All recent notes in one place. Mark as processed when reviewed. Removes "will I find this later?" anxiety.
 
 **Supports:** Externalizing (capture without worry) · Internalizing (lightweight processing routine)
-
-See [Organization](/features/organization#inbox).
 
 ## Key Design Principles
 
@@ -195,11 +191,11 @@ Structure emerges from content and relationships—not predetermined hierarchies
 ### Week 1: Capture & Connect
 - Create notes freely using [different types](/features/notes#note-types)
 - Add `[[wikilinks]]` between related ideas
-- Use the [inbox](/features/organization#inbox) for quick captures
+- Create quick captures without worrying about organization
 
 ### Week 2: Process & Structure
 - Try the [AI agent](/features/agent) for organization help
-- Set up a [workspace](/features/workspaces) for your main project
+- Set up a [workspace](/guides/interface#workspaces-bar) for your main project
 - Process your inbox—link and refine notes
 
 ### Week 3: Routines & Review
@@ -232,7 +228,7 @@ Structure emerges from content and relationships—not predetermined hierarchies
 - [Workflows](/features/workflows) - Routines and automation
 
 **Organization:**
-- [Workspaces](/features/workspaces) - Manage multiple contexts
+- [Workspaces](/guides/interface#workspaces-bar) - Manage multiple contexts
 - [Daily Notes](/features/daily-notes) - Daily journaling workflow
 
 ---

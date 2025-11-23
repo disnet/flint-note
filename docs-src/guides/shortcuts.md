@@ -537,7 +537,6 @@ Escape → Close search
 
 ## Next Steps
 
-- **[Editor Features](/features/editor)** - Learn editor capabilities
 - **[Interface Guide](/guides/interface)** - Understand UI layout
 - **[Workflows](/features/workflows)** - Automate with shortcuts
 - **[Settings](/guides/configuration)** - Customize Flint

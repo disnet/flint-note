@@ -21,23 +21,6 @@ Flint's **Review System** uses **spaced repetition** to help you remember and un
 - **AI feedback** - Contextual explanations and guidance
 - **Progress tracking** - See your learning over time
 
-## The Science: Spaced Repetition
-
-**Spaced repetition** is a learning technique where you review information at increasing intervals.
-
-**Why it works:**
-
-- Timing reviews just before you forget strengthens memory
-- Spread out reviews = better long-term retention
-- More efficient than cramming
-
-**Flint's algorithm:**
-
-- **Pass review** → Next review in 7 days
-- **Fail review** → Next review in 1 day
-
-Simple but effective for building long-term understanding.
-
 ## Enabling Review for Notes
 
 ### Mark Entire Notes
@@ -45,18 +28,9 @@ Simple but effective for building long-term understanding.
 **Enable review on a note:**
 
 1. Open the note
-2. Click "Review" button (or right-click menu)
+2. Click "Review" button
 3. Note marked for review
 4. Appears in review queue
-
-**Via metadata:**
-
-```markdown
----
-title: Important Concept
-review_enabled: true
----
-```
 
 **Via AI:**
 
@@ -69,51 +43,11 @@ AI: [Updates metadata: review_enabled: true]
     First review scheduled for tomorrow
 ```
 
-### Mark Specific Sections
-
-**Future feature** - Mark individual sections:
-
-```markdown
-## Key Concept
-
-<!-- review:start -->
-
-This is the important part I want to remember.
-
-Key points:
-
-- Point 1
-- Point 2
-<!-- review:end -->
-```
-
-Only that section appears in reviews.
-
-### Bulk Enabling
-
-**Enable review for multiple notes:**
-
-```
-You: Enable review for all my notes tagged "important"
-
-AI: [Searches tag:important, enables review]
-
-    Enabled review for 12 notes:
-    - API Design Principles
-    - System Architecture
-    - Security Guidelines
-    ... (9 more)
-
-    All scheduled for review tomorrow
-```
-
 ## Review Interface
 
 ### Starting a Review Session
 
-**Access Review:**
 
-- Click "Review" in the workspace bar
 - Or click "Review" in sidebar
 
 **What you see:**

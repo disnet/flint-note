@@ -657,7 +657,6 @@ Import on new machine or after reinstall.
 
 - **[Getting Started](/getting-started)** - Initial setup
 - **[AI Agent](/features/agent)** - Configure AI models
-- **[Multi-Vault](/features/vaults)** - Manage multiple vaults
 - **[User Interface](/guides/interface)** - Customize your workspace
 
 ---

@@ -54,22 +54,15 @@ export default defineConfig({
         collapsed: false,
         items: [
           { text: 'Notes', link: '/features/notes' },
-          { text: 'Agent', link: '/features/agent' },
           { text: 'Daily Notes', link: '/features/daily-notes' },
-          { text: 'Review System', link: '/features/review-system' },
-          { text: 'Organization', link: '/features/organization' },
-          { text: 'Workspaces', link: '/features/workspaces' },
-          { text: 'Multi-Vault', link: '/features/vaults' },
-          { text: 'Editor', link: '/features/editor' }
+          { text: 'Agent', link: '/features/agent' },
+          { text: 'Review', link: '/features/review-system' }
         ]
       },
       {
         text: 'Advanced Features',
         collapsed: true,
-        items: [
-          { text: 'Workflows & Automation', link: '/features/workflows' },
-          { text: 'Custom Functions', link: '/features/custom-functions' }
-        ]
+        items: [{ text: 'Workflows & Automation', link: '/features/workflows' }]
       },
       {
         text: 'Guides',

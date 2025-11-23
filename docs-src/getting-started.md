@@ -55,8 +55,6 @@ A **vault** is a folder containing your notes. You can have multiple vaults for 
 Your vault is just a folder of markdown files. Back it up, sync it with cloud storage (Dropbox, iCloud), or open files in any text editor.
 :::
 
-See [Vaults](/features/vaults) for managing multiple vaults.
-
 ## The Interface
 
 Flint uses a three-column layout:
@@ -95,7 +93,6 @@ This is about [[productivity]] and [[learning]]
 - Saves automatically as you type
 - `[[Links]]` become clickable (creates notes if they don't exist)
 - Backlinks panel shows incoming connections
-- Appears in your [inbox](/features/organization#inbox) for processing later
 
 See [Note Management](/features/notes) for markdown syntax, metadata, and advanced features.
 
@@ -114,7 +111,7 @@ See [Note Management](/features/notes) for markdown syntax, metadata, and advanc
 **Workspaces:**
 - Create groups of pinned and recent notes
 - Switch between contexts without losing your place
-- See [Workspaces](/features/workspaces)
+- See [Workspaces](/guides/interface#workspaces-bar)
 
 **Daily notes:**
 - Click "Daily" in sidebar
@@ -218,7 +215,6 @@ Before diving deeper, review these core ideas:
 
 - **[User Interface](/guides/interface)** - Detailed walkthrough of all UI elements
 - **[Note Management](/features/notes)** - Master notes, types, metadata, and organization
-- **[Organization](/features/organization)** - Inbox, reference shelf, and spatial organization
 
 ### Learning System
 
@@ -229,9 +225,7 @@ Before diving deeper, review these core ideas:
 
 ### Advanced
 
-- **[Workspaces](/features/workspaces)** - Manage multiple projects and contexts
-- **[Vaults](/features/vaults)** - Separate work, personal, and other collections
-- **[Custom Functions](/features/custom-functions)** - Extend the AI with custom code
+- **[Workspaces](/guides/interface#workspaces-bar)** - Manage multiple projects and contexts
 - **[Configuration](/guides/configuration)** - Customize Flint to match your workflow
 
 ## Getting Help
@@ -243,7 +237,7 @@ Before diving deeper, review these core ideas:
 ## Tips for Success
 
 ::: tip Capture Without Friction
-Don't worry about perfect organization upfront. Capture freely, then organize later with AI help. The [inbox](/features/organization#inbox) catches everything.
+Don't worry about perfect organization upfront. Capture freely, then organize later with AI help.
 :::
 
 ::: tip Your Notes Are Portable

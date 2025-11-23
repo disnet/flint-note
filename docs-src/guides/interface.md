@@ -91,18 +91,43 @@ Notes you've recently accessed. These appear below pinned notes.
 
 **What are workspaces?**
 
-Workspaces are independent contexts that each have their own:
+Workspaces are UI-level organization within your vault. Each workspace maintains its own:
 
-- Pinned notes
-- Active view state
-- Visual identity (icon)
+- **Pinned notes** - Different pins for each workspace
+- **Recent notes** - Separate recent notes
+- **Active note** - Switching clears the active note
+- **Visual identity** - Icon and name for quick recognition
 
-**Quick actions:**
+**Creating workspaces:**
 
-- **Click workspace icon** - Switch to that workspace
-- **Click `+` button** - Create new workspace
+1. Click the `+` button in the workspace bar
+2. Choose an icon (emoji picker)
+3. Enter a name
+4. Click "Create"
 
-**Learn more:** See the [Workspaces feature guide](/features/workspaces) for detailed information.
+**Switching workspaces:**
+
+- **Click** any workspace icon to switch
+- **Keyboard shortcuts**: `Ctrl+1` through `Ctrl+9` (Mac) or `Alt+1` through `Alt+9` (Win) for first 9 workspaces
+
+**Managing workspaces:**
+
+- **Edit**: Right-click workspace icon → Edit (change name, icon)
+- **Reorder**: Drag and drop workspace icons
+- **Delete**: Right-click → Delete (requires at least one workspace to remain)
+- **Move notes**: Right-click note → Move to Workspace
+
+**When to use workspaces vs. vaults:**
+
+- **Use workspaces** for different projects in same domain, context switching within one knowledge base
+- **Use separate vaults** for completely separate contexts (work/personal), different security requirements
+
+**Best practices:**
+
+- Start with 2-3 workspaces, add as patterns emerge
+- Keep 3-7 total workspaces for easy scanning
+- Place most-used workspaces in positions 1-3 for keyboard shortcuts
+- Use clear, descriptive names (e.g., "Mobile App" not "Project X")
 
 ## Main View: Note Editor
 
