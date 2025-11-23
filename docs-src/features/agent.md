@@ -646,7 +646,6 @@ See [Privacy and Security](/guides/privacy) for more details.
 
 - **[Workflows](/features/workflows)** - Automate repetitive AI tasks
 - **[Custom Functions](/features/custom-functions)** - Extend AI capabilities
-- **[Search](/features/search)** - Combine AI with search
 - **[Note Management](/features/notes)** - Organize with AI help
 
 ---

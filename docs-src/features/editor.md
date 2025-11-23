@@ -775,7 +775,6 @@ Bad: See [[this]]
 ## Next Steps
 
 - **[Markdown Guide](/guides/markdown)** - Complete markdown syntax
-- **[Wikilinks](/features/wikilinks)** - Deep dive into wikilinks
 - **[Keyboard Shortcuts](/guides/shortcuts)** - Full shortcut reference
 - **[Notes](/features/notes)** - Note management
 

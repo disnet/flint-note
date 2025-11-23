@@ -325,7 +325,6 @@ This relates to [[Note B]].
 - Navigate your knowledge graph
 - Find related context
 
-See [Wikilinks and Backlinks](/features/wikilinks) for advanced usage.
 
 ## Moving and Renaming Notes
 
@@ -412,8 +411,6 @@ When viewing a note click the "Generate suggestions" button in the action bar. T
 
 ## Next Steps
 
-- **[Wikilinks and Backlinks](/features/wikilinks)** - Master bidirectional linking
-- **[Search and Discovery](/features/search)** - Find anything instantly
 - **[AI Agent](/features/agent)** - Let AI help organize
 - **[Daily Notes](/features/daily-notes)** - Use the daily journaling system
 

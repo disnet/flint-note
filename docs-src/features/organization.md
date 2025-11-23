@@ -769,9 +769,7 @@ Builds awareness of your thinking patterns.
 ## Next Steps
 
 - **[User Interface Guide](/guides/interface)** - Understand sidebar sections
-- **[Search](/features/search)** - Find notes to access
 - **[Daily Notes](/features/daily-notes)** - Pin your daily note
-- **[Wikilinks](/features/wikilinks)** - Navigate creating temporary tabs
 
 ---
 

@@ -174,7 +174,6 @@ The top bar features a prominent search field for quick access to all your notes
 - **Title and content** - Searches both
 - **Keyboard navigation** - Arrow keys to select, Enter to open
 
-See [Search and Discovery](/features/search) for advanced search operators and techniques.
 
 ## Settings
 
@@ -226,8 +225,6 @@ Now that you understand the interface:
 
 - **[AI Agent](/features/agent)** - Learn what the AI agent can do
 - **[Note Types](/features/notes)** - Understand different note types (Evergreen, Daily, etc.)
-- **[Wikilinks](/features/wikilinks)** - Build connected knowledge
-- **[Search and Discovery](/features/search)** - Master search techniques
 
 ---
 

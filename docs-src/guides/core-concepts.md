@@ -29,7 +29,7 @@ Most tools optimize for just one part:
 **The problem:** Passive re-reading doesn't build understanding. Real learning requires active engagement.
 
 **Flint's solution:**
-- [Wikilinks](/features/wikilinks) force you to see relationships
+- Wikilinks force you to see relationships
 - [Note types](/features/notes#note-types) guide different thinking patterns
 - The [AI agent](/features/agent) helps connect and synthesize
 - [Review system](/features/review-system) tests actual understanding
@@ -43,8 +43,8 @@ Most tools optimize for just one part:
 **Flint's solution:**
 - [Spaced repetition](/features/review-system) brings notes back on schedule
 - [Routines](/features/workflows#routines) automate recurring synthesis
-- [Backlinks](/features/wikilinks#backlinks) surface past connections
-- [Search](/features/search) works on ideas, not just keywords
+- Backlinks surface past connections
+- Search works on ideas, not just keywords
 
 **Example:** A weekly routine prompts: "Review this week's daily notes and extract insights." The [review system](/features/review-system) tests your recall of key concepts on an optimal schedule.
 
@@ -84,8 +84,6 @@ Making connections explicit deepens learning.
 - Knowledge graph → mirrors how you actually think
 
 **Supports:** Externalizing (relationship thinking) · Internalizing (connection discovery) · Resurfacing (associative navigation)
-
-See [Wikilinks and Backlinks](/features/wikilinks).
 
 ### AI Agent
 
@@ -227,7 +225,6 @@ Structure emerges from content and relationships—not predetermined hierarchies
 **Core Features:**
 - [User Interface](/guides/interface) - Detailed interface walkthrough
 - [Note Management](/features/notes) - Notes, types, and organization
-- [Wikilinks](/features/wikilinks) - Build connected knowledge
 
 **Learning System:**
 - [AI Agent](/features/agent) - What the agent can do
@@ -235,7 +232,6 @@ Structure emerges from content and relationships—not predetermined hierarchies
 - [Workflows](/features/workflows) - Routines and automation
 
 **Organization:**
-- [Search](/features/search) - Find anything quickly
 - [Workspaces](/features/workspaces) - Manage multiple contexts
 - [Daily Notes](/features/daily-notes) - Daily journaling workflow
 

@@ -143,8 +143,6 @@ Related: [[project-ideas]] and [[design-principles]]
 - Discover unexpected relationships
 - See all references to a concept in one place
 
-See [Wikilinks and Backlinks](/features/wikilinks) for advanced patterns.
-
 ## Using the AI Agent
 
 Open the agent with the **AI button** or `Cmd+Shift+A` / `Ctrl+Shift+A`.
@@ -210,8 +208,6 @@ Before diving deeper, review these core ideas:
 
 **[Note Types](/features/notes#note-types)** - Different types guide different thinking patterns
 
-**[Wikilinks](/features/wikilinks)** - Making connections explicit is how learning deepens
-
 **[Review System](/features/review-system)** - Active recall builds deep retention
 
 **[Routines](/features/workflows#routines)** - Systematize recurring learning practices
@@ -222,7 +218,6 @@ Before diving deeper, review these core ideas:
 
 - **[User Interface](/guides/interface)** - Detailed walkthrough of all UI elements
 - **[Note Management](/features/notes)** - Master notes, types, metadata, and organization
-- **[Search](/features/search)** - Find anything quickly with semantic search
 - **[Organization](/features/organization)** - Inbox, reference shelf, and spatial organization
 
 ### Learning System

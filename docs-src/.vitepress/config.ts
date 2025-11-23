@@ -53,9 +53,7 @@ export default defineConfig({
         text: 'Features',
         collapsed: false,
         items: [
-          { text: 'Notes & Markdown', link: '/features/notes' },
-          { text: 'Search', link: '/features/search' },
-          { text: 'Wikilinks & Backlinks', link: '/features/wikilinks' },
+          { text: 'Notes', link: '/features/notes' },
           { text: 'Agent', link: '/features/agent' },
           { text: 'Daily Notes', link: '/features/daily-notes' },
           { text: 'Review System', link: '/features/review-system' },
