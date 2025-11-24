@@ -1,12 +1,11 @@
-# Flint
-
-**Ignite Deep Knowledge**
+<h1 align="center">Flint</h1>
+<h4 align="center">Ignite Deep Knowledge</h4>
 
 Flint is a note-taking app that helps you capture ideas, connect them together, and make them part of how you think.
 
-- **[Download](https://flintnote.com#download)**
-- **[Documentation](https://flintnote.com/docs)**
-- **[Community](https://discord.gg/flint-note)**
+<div align="center">
+  <a href="https://flintnote.com@#download">Download</a> | <a href="https://flintnote.com/docs">Documentation</a> | <a href="https://discord.gg/flint-note">Community</a>
+</div>
 
 ![Flint Screenshot](./website/main-light.png)
 
