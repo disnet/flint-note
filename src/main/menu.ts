@@ -429,7 +429,7 @@ export function createApplicationMenu(): Menu {
         {
           label: 'Documentation',
           click: async (): Promise<void> => {
-            await shell.openExternal('https://flintnote.com');
+            await shell.openExternal('https://www.flintnote.com/docs');
           }
         },
         {

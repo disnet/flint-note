@@ -4,6 +4,23 @@ All notable changes to the Flint application will be documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.11.3]
+
+### Added
+
+- Anthropic AI provider support
+
+### Changed
+
+- Review status updates are now reactive, providing immediate feedback when review states change
+
+### Fixed
+
+- Fixed auto-scrolling behavior during agent message streaming
+- Fixed new note keyboard shortcut not working correctly
+- Fixed review scheduling issues
+- Fixed agent feedback not being stored correctly during review sessions
+
 ## [0.11.2]
 
 ### Added
