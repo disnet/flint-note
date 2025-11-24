@@ -146,7 +146,7 @@ jobs:
           files-folder: ${{ github.workspace }}/dist
           files-folder-filter: exe
           file-digest: SHA256
-          timestamp-rfc3161: http://timestamp.aadb2c.microsoftonline.com
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
           timestamp-digest: SHA256
 
       - name: Build Electron app (Linux)
