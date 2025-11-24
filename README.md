@@ -58,79 +58,12 @@ npm install
 # Start development server
 npm run dev
 
+# Run linter and TypeScript checks
+npm run check
+
 # Run tests
-npm run test
-
-# Build for production
-npm run build
+npm run test:run
 ```
-
-## Project Structure
-
-```
-flint-note/
-├── src/
-│   ├── main/                   # Electron main process
-│   │   ├── index.ts           # Main entry point
-│   │   ├── ai-service.ts      # AI/MCP integration
-│   │   ├── note-service.ts    # Note management
-│   │   ├── tool-service.ts    # Agent tool system
-│   │   ├── workflow-service.ts # Workflow automation
-│   │   └── ...                # Storage, auto-update, etc.
-│   ├── preload/               # Electron preload scripts
-│   │   └── index.ts          # IPC bridge
-│   ├── renderer/              # Svelte UI application
-│   │   └── src/
-│   │       ├── components/    # Svelte 5 components
-│   │       ├── stores/        # State management (runes)
-│   │       ├── services/      # Frontend services
-│   │       └── utils/         # Utility functions
-│   └── server/                # Integrated note server
-│       ├── api/               # FlintNoteApi
-│       ├── core/              # Core note logic
-│       ├── database/          # SQLite management
-│       └── types/             # Type definitions
-├── docs/                      # Comprehensive documentation
-│   ├── GETTING-STARTED.md    # New developer guide
-│   ├── FEATURES.md           # Feature documentation
-│   ├── FLINT-OVERVIEW.md     # Philosophy and vision
-│   └── architecture/         # Technical architecture docs
-├── tests/                     # Vitest test suite
-└── package.json              # Single package configuration
-```
-
-## Development Commands
-
-### Building and Running
-
-- `npm run dev` - Start development server with hot reload
-- `npm run build` - Build the complete application
-- `npm run check` - Run lint and typecheck
-- `npm run test` - Run tests in watch mode
-- `npm run test:run` - Run tests once
-
-### Building Distributions
-
-- `npm run build:mac` - Build macOS application
-- `npm run build:win` - Build Windows application
-- `npm run build:linux` - Build Linux application
-- `npm run build:unpack` - Build without packaging (testing)
-- `npm run clean` - Remove build artifacts and caches
-
-## Technology Stack
-
-### Frontend
-
-- **Svelte 5**
-- **TypeScript**
-- **CodeMirror 6**
-
-### Backend
-
-- **Electron** - Cross-platform desktop framework
-- **Node.js** - JavaScript runtime
-- **SQLite** - Local database for notes and metadata
-- **AI SDK** - AI provider integration via Gateway
 
 ## Documentation
 
