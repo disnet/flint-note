@@ -9,6 +9,9 @@ hero:
     - theme: brand
       text: Get Started
       link: /getting-started
+    - theme: alt
+      text: View on GitHub
+      link: https://github.com/disnet/flint-note
 
 features:
   - icon: 📝
@@ -23,4 +26,7 @@ features:
   - icon: 🔄
     title: Active Recall Practice
     details: Review your notes with spaced repetition. Build deep retention without the overhead of maintaining flashcards.
+  - icon: 🌟
+    title: Open Source
+    details: Fully open source and transparent. View the code, contribute, and help shape the future of Flint on GitHub.
 ---

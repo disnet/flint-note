@@ -150,8 +150,9 @@ Flint is licensed under the [GNU General Public License v3.0](LICENSE).
 
 ## Community & Support
 
+- **GitHub** - [github.com/disnet/flint-note](https://github.com/disnet/flint-note)
 - **Website** - [flintnote.com](https://flintnote.com)
 - **Documentation** - [flintnote.com/docs](https://flintnote.com/docs)
 - **Discord** - [Join the community](https://discord.gg/flint-note)
-- **Issues** - Report bugs and request features on GitHub Issues
-- **Discussions** - Ask questions and share ideas on GitHub Discussions
+- **Issues** - Report bugs and request features on [GitHub Issues](https://github.com/disnet/flint-note/issues)
+- **Discussions** - Ask questions and share ideas on [GitHub Discussions](https://github.com/disnet/flint-note/discussions)

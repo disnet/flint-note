@@ -17,6 +17,15 @@ Common questions about Flint, answered concisely.
 - You pay the AI provider directly
 - Typically $5-20/month depending on usage
 
+### Where can I find the source code?
+
+**GitHub:** [github.com/disnet/flint-note](https://github.com/disnet/flint-note)
+
+- View all source code
+- Report bugs and request features
+- Contribute to development
+- See what's being worked on
+
 ### What platforms does Flint support?
 
 **Currently:**
