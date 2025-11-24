@@ -4,6 +4,13 @@ All notable changes to the Flint application will be documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.11.11]
+
+### Fixed
+
+- Fixed review session not advancing properly to the next review item
+- Fixed note title re-rendering when editing, improving editor performance
+
 ## [0.11.3]
 
 ### Added
