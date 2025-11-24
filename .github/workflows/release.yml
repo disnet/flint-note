@@ -120,6 +120,19 @@ jobs:
 
           echo "Notarization complete!"
 
+      - name: Install Windows SDK (for SignTool)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          # Download and install Windows SDK for SignTool
+          choco install windows-sdk-10-version-2004-all -y
+
+          # Add SignTool to PATH
+          $sdkPath = "C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64"
+          if (Test-Path $sdkPath) {
+            echo "$sdkPath" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          }
+
       - name: Build Electron app (Windows)
         if: matrix.os == 'windows-latest'
         shell: bash
