@@ -69,7 +69,10 @@ export class ToolService {
       // Review management tools
       enable_review: this.enableReviewTool,
       disable_review: this.disableReviewTool,
-      is_review_enabled: this.isReviewEnabledTool
+      is_review_enabled: this.isReviewEnabledTool,
+      // Archive management tools
+      archive_note: this.archiveNoteTool,
+      unarchive_note: this.unarchiveNoteTool
     };
 
     // Add todo plan management tool if available
@@ -1909,6 +1912,223 @@ export class ToolService {
           success: false,
           error: 'CHECK_REVIEW_FAILED',
           message: `Failed to check review status: ${errorMessage}`
+        };
+      }
+    }
+  });
+
+  // Archive Management Tools
+  private archiveNoteTool = tool({
+    description:
+      'Archive one or more notes. Archived notes are hidden from the main note list but remain accessible for wikilink resolution and can be unarchived later. Use this to declutter your workspace without permanently deleting notes.',
+    inputSchema: z.object({
+      ids: z
+        .array(z.string())
+        .describe(
+          'Array of note IDs or identifiers to archive. Examples: ["note-id-123"], ["meeting/Weekly Standup", "project/Old Project"]'
+        )
+    }),
+    execute: async ({ ids }) => {
+      if (!this.noteService) {
+        return {
+          success: false,
+          error: 'Note service not available',
+          message: 'Note service not initialized'
+        };
+      }
+
+      if (ids.length === 0) {
+        return {
+          success: true,
+          data: [],
+          message: 'No note IDs provided'
+        };
+      }
+
+      try {
+        const flintApi = this.noteService.getFlintNoteApi();
+        const currentVault = await this.noteService.getCurrentVault();
+
+        if (!currentVault) {
+          return {
+            success: false,
+            error: 'NO_ACTIVE_VAULT',
+            message: 'No active vault available'
+          };
+        }
+
+        const results: Array<{
+          id: string;
+          success: boolean;
+          archived?: boolean;
+          timestamp?: string;
+          error?: string;
+        }> = [];
+
+        for (const id of ids) {
+          try {
+            // Get the note first to obtain its actual ID for the event
+            let actualNoteId = id;
+            try {
+              const note = await flintApi.getNote(currentVault.id, id);
+              actualNoteId = note.id;
+            } catch (error) {
+              console.warn(
+                '[archiveNoteTool] Could not fetch note before archiving:',
+                error
+              );
+            }
+
+            const result = await flintApi.archiveNote({
+              identifier: id,
+              vaultId: currentVault.id
+            });
+
+            // Publish note.archived event
+            publishNoteEvent({
+              type: 'note.archived',
+              noteId: actualNoteId
+            });
+
+            results.push({
+              id: result.id,
+              success: true,
+              archived: result.archived,
+              timestamp: result.timestamp
+            });
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            results.push({
+              id,
+              success: false,
+              error: errorMessage
+            });
+          }
+        }
+
+        const successCount = results.filter((r) => r.success).length;
+        const noteWord = successCount === 1 ? 'note' : 'notes';
+
+        return {
+          success: successCount > 0,
+          data: results,
+          message: `Archived ${successCount} of ${ids.length} ${noteWord}`
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+
+        return {
+          success: false,
+          error: 'ARCHIVE_FAILED',
+          message: `Failed to archive notes: ${errorMessage}`
+        };
+      }
+    }
+  });
+
+  private unarchiveNoteTool = tool({
+    description:
+      'Unarchive one or more previously archived notes. This restores the notes to the main note list, making them visible again in searches and listings.',
+    inputSchema: z.object({
+      ids: z
+        .array(z.string())
+        .describe(
+          'Array of note IDs or identifiers to unarchive. Examples: ["note-id-123"], ["meeting/Weekly Standup", "project/Old Project"]'
+        )
+    }),
+    execute: async ({ ids }) => {
+      if (!this.noteService) {
+        return {
+          success: false,
+          error: 'Note service not available',
+          message: 'Note service not initialized'
+        };
+      }
+
+      if (ids.length === 0) {
+        return {
+          success: true,
+          data: [],
+          message: 'No note IDs provided'
+        };
+      }
+
+      try {
+        const flintApi = this.noteService.getFlintNoteApi();
+        const currentVault = await this.noteService.getCurrentVault();
+
+        if (!currentVault) {
+          return {
+            success: false,
+            error: 'NO_ACTIVE_VAULT',
+            message: 'No active vault available'
+          };
+        }
+
+        const results: Array<{
+          id: string;
+          success: boolean;
+          archived?: boolean;
+          timestamp?: string;
+          error?: string;
+        }> = [];
+
+        for (const id of ids) {
+          try {
+            // Get the note first to obtain its actual ID for the event
+            let actualNoteId = id;
+            try {
+              const note = await flintApi.getNote(currentVault.id, id);
+              actualNoteId = note.id;
+            } catch (error) {
+              console.warn(
+                '[unarchiveNoteTool] Could not fetch note before unarchiving:',
+                error
+              );
+            }
+
+            const result = await flintApi.unarchiveNote({
+              identifier: id,
+              vaultId: currentVault.id
+            });
+
+            // Publish note.unarchived event
+            publishNoteEvent({
+              type: 'note.unarchived',
+              noteId: actualNoteId
+            });
+
+            results.push({
+              id: result.id,
+              success: true,
+              archived: result.archived,
+              timestamp: result.timestamp
+            });
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            results.push({
+              id,
+              success: false,
+              error: errorMessage
+            });
+          }
+        }
+
+        const successCount = results.filter((r) => r.success).length;
+        const noteWord = successCount === 1 ? 'note' : 'notes';
+
+        return {
+          success: successCount > 0,
+          data: results,
+          message: `Unarchived ${successCount} of ${ids.length} ${noteWord}`
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+
+        return {
+          success: false,
+          error: 'UNARCHIVE_FAILED',
+          message: `Failed to unarchive notes: ${errorMessage}`
         };
       }
     }
