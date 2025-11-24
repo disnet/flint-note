@@ -640,7 +640,7 @@ Flint displays your remaining credits in the chat interface.
 - Keys not stored in plain text
 - Can be cleared at any time
 
-See [Privacy and Security](/guides/privacy) for more details.
+See [Privacy and Security](/guides/privacy-security) for more details.
 
 ## Next Steps
 
