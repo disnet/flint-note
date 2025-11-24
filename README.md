@@ -1,3 +1,6 @@
+<p align="center">
+<img style="align:center;" src="./resources/icon.png" alt="Flint Logo" width="100" />
+</p>
 <h1 align="center">Flint</h1>
 <h4 align="center">Ignite Deep Knowledge</h4>
 
