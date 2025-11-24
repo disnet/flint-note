@@ -120,53 +120,7 @@ jobs:
 
           echo "Notarization complete!"
 
-      - name: Install Windows SDK and Azure Trusted Signing tools
-        if: matrix.os == 'windows-latest'
-        shell: pwsh
-        run: |
-          # Download and install Windows SDK for SignTool
-          choco install windows-sdk-10-version-2004-all -y
-
-          # Add SignTool to PATH
-          $sdkPath = "C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64"
-          if (Test-Path $sdkPath) {
-            echo "$sdkPath" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          }
-
-          # Download and install Azure Trusted Signing dlib
-          $dlibVersion = "1.0.60"
-          $dlibUrl = "https://www.nuget.org/api/v2/package/Microsoft.Trusted.Signing.Client/$dlibVersion"
-          $dlibZip = "$env:TEMP\TrustedSigning.zip"
-          $dlibExtract = "$env:TEMP\TrustedSigning"
-
-          Write-Host "Downloading Azure Trusted Signing dlib..."
-          Invoke-WebRequest -Uri $dlibUrl -OutFile $dlibZip
-
-          Write-Host "Extracting dlib..."
-          Expand-Archive -Path $dlibZip -DestinationPath $dlibExtract -Force
-
-          # Show extracted structure
-          Write-Host "Extracted package structure:"
-          Get-ChildItem $dlibExtract -Recurse -File | Select-Object FullName
-
-          # Find the dlib files (they might be in different locations depending on package structure)
-          $dlibFile = Get-ChildItem -Path $dlibExtract -Recurse -Filter "azure.codesigning.dlib.dll" -File | Select-Object -First 1
-
-          if ($dlibFile) {
-            Write-Host "Found dlib at: $($dlibFile.FullName)"
-            $dlibDir = $dlibFile.DirectoryName
-
-            Write-Host "Copying dlib files from $dlibDir to $sdkPath"
-            Copy-Item "$dlibDir\*" -Destination $sdkPath -Force -Verbose
-
-            Write-Host "Verifying dlib installation:"
-            Get-ChildItem $sdkPath -Filter "*.dlib.dll"
-          } else {
-            Write-Host "ERROR: Could not find azure.codesigning.dlib.dll in package"
-            exit 1
-          }
-
-      - name: Build Electron app (Windows)
+      - name: Build Electron app (Windows - unsigned)
         if: matrix.os == 'windows-latest'
         shell: bash
         run: |
@@ -176,14 +130,24 @@ jobs:
             npm run build:win:production
           fi
         env:
-          # Azure Trusted Signing credentials (optional - signing is skipped if not set)
-          # To enable signing, add these secrets in GitHub Settings -> Secrets and variables -> Actions
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          AZURE_SIGNING_ENDPOINT: ${{ secrets.AZURE_SIGNING_ENDPOINT }}
-          AZURE_SIGNING_ACCOUNT_NAME: ${{ secrets.AZURE_SIGNING_ACCOUNT_NAME }}
-          AZURE_CERTIFICATE_PROFILE: ${{ secrets.AZURE_CERTIFICATE_PROFILE }}
+          # Build without signing - we'll sign afterwards with Azure action
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Sign Windows binaries with Azure Trusted Signing
+        if: matrix.os == 'windows-latest'
+        uses: azure/trusted-signing-action@v0.4.0
+        with:
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          endpoint: ${{ secrets.AZURE_SIGNING_ENDPOINT }}
+          trusted-signing-account-name: ${{ secrets.AZURE_SIGNING_ACCOUNT_NAME }}
+          certificate-profile-name: ${{ secrets.AZURE_CERTIFICATE_PROFILE }}
+          files-folder: ${{ github.workspace }}/dist
+          files-folder-filter: exe
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.aadb2c.microsoftonline.com
+          timestamp-digest: SHA256
 
       - name: Build Electron app (Linux)
         if: matrix.os == 'ubuntu-latest'

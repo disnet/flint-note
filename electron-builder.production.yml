@@ -19,20 +19,10 @@ extraResources:
 win:
   executableName: flint
   icon: 'build/icon.png'
-  # Using Azure Trusted Signing (cloud-based code signing)
-  # See docs/WINDOWS-SIGNING-SETUP.md for setup instructions
-  # Environment variables required:
-  # - AZURE_TENANT_ID
-  # - AZURE_CLIENT_ID
-  # - AZURE_CLIENT_SECRET
-  # - AZURE_SIGNING_ENDPOINT
-  # - AZURE_CERTIFICATE_PROFILE
-  sign: './build/azure-sign.js'
-  signingHashAlgorithms: ['sha256']
+  # Code signing is handled by Azure Trusted Signing GitHub Action after build
+  # See .github/workflows/release.yml for signing configuration
   publisherName: 'Timothy Disney'
-  # Disabled until Azure Trusted Signing is configured
-  # Enable this once you have Azure credentials set up and signing is working
-  # This ensures auto-updates verify signature authenticity
+  # Enable this once signing is working to verify update authenticity
   verifyUpdateCodeSignature: false
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
