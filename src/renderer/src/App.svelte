@@ -658,16 +658,6 @@
     return () => document.removeEventListener('notes-unpinned', handleNotesUnpinned);
   });
 
-  // Handle browser navigation (back/forward buttons)
-  $effect(() => {
-    function handlePopState(event: PopStateEvent): void {
-      noteNavigationService.handlePopState(event);
-    }
-
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  });
-
   // Handle history navigation events from navigation service
   $effect(() => {
     async function handleHistoryNavigate(event: CustomEvent): Promise<void> {

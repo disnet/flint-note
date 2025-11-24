@@ -25,7 +25,6 @@ const defaultState: NavigationHistoryState = {
 
 class NavigationHistoryStore {
   private state = $state<NavigationHistoryState>(defaultState);
-  private useWebHistory = true;
   private isNavigating = false;
   private isVaultSwitching = false;
   private isLoading = $state(true);
@@ -84,9 +83,9 @@ class NavigationHistoryStore {
       return;
     }
 
-    // Don't add duplicate consecutive entries
-    const lastEntry = this.state.customHistory[this.state.customHistory.length - 1];
-    if (lastEntry && lastEntry.noteId === noteId) {
+    // Don't add duplicate consecutive entries - check CURRENT entry, not last
+    const currentEntry = this.state.customHistory[this.state.currentIndex];
+    if (currentEntry && currentEntry.noteId === noteId) {
       return;
     }
 
@@ -98,7 +97,16 @@ class NavigationHistoryStore {
       vaultId: this.state.currentVaultId || undefined
     };
 
-    // Add to custom history for vault isolation and metadata
+    // Truncate forward history when adding from middle position
+    // This matches standard browser behavior: going back then navigating discards forward history
+    if (this.state.currentIndex < this.state.customHistory.length - 1) {
+      this.state.customHistory = this.state.customHistory.slice(
+        0,
+        this.state.currentIndex + 1
+      );
+    }
+
+    // Add to custom history
     this.state.customHistory.push(entry);
     this.state.currentIndex = this.state.customHistory.length - 1;
 
@@ -106,23 +114,6 @@ class NavigationHistoryStore {
     if (this.state.customHistory.length > this.state.maxHistorySize) {
       this.state.customHistory.shift();
       this.state.currentIndex = this.state.customHistory.length - 1;
-    }
-
-    // Use web history for browser integration
-    if (this.useWebHistory && typeof window !== 'undefined') {
-      try {
-        const url = `#/note/${noteId}`;
-        const state = { noteId, title, source, vaultId: this.state.currentVaultId };
-
-        // Update browser history
-        window.history.pushState(state, title, url);
-
-        // Update document title
-        document.title = `${title} - Flint`;
-      } catch (error) {
-        console.warn('Failed to update browser history:', error);
-        this.useWebHistory = false;
-      }
     }
 
     await this.saveToStorage();
@@ -138,34 +129,12 @@ class NavigationHistoryStore {
 
     this.isNavigating = true;
 
-    // Use custom history navigation for reliability
-    if (this.state.currentIndex > 0) {
-      this.state.currentIndex--;
-      const entry = this.state.customHistory[this.state.currentIndex];
-
-      // Update browser history if using web history
-      if (this.useWebHistory && typeof window !== 'undefined') {
-        try {
-          const url = `#/note/${entry.noteId}`;
-          const state = {
-            noteId: entry.noteId,
-            title: entry.title,
-            source: 'history',
-            vaultId: entry.vaultId
-          };
-          window.history.replaceState(state, entry.title, url);
-          document.title = `${entry.title} - Flint`;
-        } catch (error) {
-          console.warn('Failed to update browser history on goBack:', error);
-        }
-      }
-
-      this.isNavigating = false;
-      return entry;
-    }
+    this.state.currentIndex--;
+    const entry = this.state.customHistory[this.state.currentIndex];
 
     this.isNavigating = false;
-    return null;
+    this.saveToStorage();
+    return entry;
   }
 
   /**
@@ -178,73 +147,12 @@ class NavigationHistoryStore {
 
     this.isNavigating = true;
 
-    // Use custom history navigation for reliability
-    if (this.state.currentIndex < this.state.customHistory.length - 1) {
-      this.state.currentIndex++;
-      const entry = this.state.customHistory[this.state.currentIndex];
-
-      // Update browser history if using web history
-      if (this.useWebHistory && typeof window !== 'undefined') {
-        try {
-          const url = `#/note/${entry.noteId}`;
-          const state = {
-            noteId: entry.noteId,
-            title: entry.title,
-            source: 'history',
-            vaultId: entry.vaultId
-          };
-          window.history.replaceState(state, entry.title, url);
-          document.title = `${entry.title} - Flint`;
-        } catch (error) {
-          console.warn('Failed to update browser history on goForward:', error);
-        }
-      }
-
-      this.isNavigating = false;
-      return entry;
-    }
+    this.state.currentIndex++;
+    const entry = this.state.customHistory[this.state.currentIndex];
 
     this.isNavigating = false;
-    return null;
-  }
-
-  /**
-   * Handle popstate events from browser navigation
-   */
-  handlePopState(event: PopStateEvent): NavigationEntry | null {
-    this.isNavigating = true;
-
-    try {
-      if (event.state?.noteId) {
-        // Find the entry in our custom history
-        const entry = this.state.customHistory.find(
-          (e) =>
-            e.noteId === event.state.noteId && e.vaultId === this.state.currentVaultId
-        );
-
-        if (entry) {
-          // Update our current index to match
-          const index = this.state.customHistory.indexOf(entry);
-          if (index !== -1) {
-            this.state.currentIndex = index;
-            return entry;
-          }
-        }
-
-        // If not found in custom history, create a temporary entry
-        return {
-          noteId: event.state.noteId,
-          title: event.state.title || 'Unknown Note',
-          source: 'history',
-          timestamp: Date.now(),
-          vaultId: event.state.vaultId
-        };
-      }
-    } finally {
-      this.isNavigating = false;
-    }
-
-    return null;
+    this.saveToStorage();
+    return entry;
   }
 
   /**

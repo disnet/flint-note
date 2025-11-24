@@ -90,18 +90,6 @@ class NoteNavigationService {
   }
 
   /**
-   * Handle browser popstate events
-   */
-  handlePopState(event: PopStateEvent): boolean {
-    const entry = navigationHistoryStore.handlePopState(event);
-    if (entry) {
-      this.openNoteFromHistory(entry);
-      return true;
-    }
-    return false;
-  }
-
-  /**
    * Get navigation state for UI
    */
   get canGoBack(): boolean {
