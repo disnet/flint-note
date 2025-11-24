@@ -2,27 +2,36 @@
 
 ## Executive Summary
 
-This document describes the current architecture and design of the Flint GUI, a modern note-taking interface built with Svelte 5 and Electron. The application features a three-column layout with left sidebar navigation, central note editing, and contextual right sidebar for AI assistance and metadata editing. The design maintains Flint's agent-first philosophy while providing an intuitive and scalable interface that adapts to different screen sizes.
+This document describes the current architecture and design of the Flint GUI, a comprehensive note-taking and knowledge management system built with Svelte 5 and Electron. The application features a three-column layout with multi-workspace navigation, intelligent note editing with AI assistance, and a unique spaced repetition review system. The design maintains Flint's agent-first philosophy while providing powerful organizational features including workspaces, daily journals, workflow automation, and a flexible notes shelf for quick reference. The interface adapts seamlessly across different screen sizes and provides enterprise-grade features for professional knowledge workers.
 
 ## Current Architecture
 
 ### Core Layout System
 
-The application uses a responsive three-column grid layout with a custom title bar on macOS for a native feel:
+The application uses a responsive three-column grid layout with a custom title bar and integrated workspace management:
 
 ```
 Desktop Layout (>1400px) with Custom Title Bar:
-┌─────────────────────────────────────────┐
-│ Custom Title Bar (macOS traffic lights) │
-├─────────────────────────────────────────┤
-│ Left Sidebar │ Main View │ Right Sidebar │
-│ (Navigation) │ (Editor)  │ (AI/Metadata) │
-│             │           │               │
-│ • Vault     │ Note      │ • AI Assistant│
-│ • System    │ Title     │ • Task Mgmt   │
-│ • Pinned    │ Content   │ • Notes       │
-│ • Temp Tabs │ Editor    │ • Metadata    │
-└─────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│ Custom Title Bar (Window Controls + Vault + AI Toggle) │
+├─────────────────────────────────────────────────────────┤
+│ Left Sidebar    │ Main View        │ Right Sidebar      │
+│ (200-600px)     │ (Flexible)       │ (300-800px)        │
+│                 │                  │                    │
+│ System Views:   │ System Views:    │ AI Mode:           │
+│ • Inbox (badge) │ • InboxView      │ • Thread-based AI  │
+│ • Daily         │ • DailyView      │ • Tool calls       │
+│ • Review (badge)│ • ReviewView     │ • Context widget   │
+│ • Routines      │ • WorkflowView   │ • Todo monitor     │
+│ • Note Types    │ • NotesView      │ • Model selector   │
+│ • Settings      │ • Settings       │                    │
+│                 │                  │ Notes Shelf Mode:  │
+│ Workspace:      │ Note Editor:     │ • Multi-note panel │
+│ • Pinned Notes  │ • Editor header  │ • Quick reference  │
+│ • Temp Tabs     │ • CodeMirror     │ • Preview/Edit     │
+│                 │ • Metadata       │                    │
+│ Workspace Bar   │ • Backlinks      │                    │
+└─────────────────────────────────────────────────────────┘
 
 Mobile Layout (<768px):
 ┌─────────────────────────┐
@@ -37,149 +46,481 @@ Mobile Layout (<768px):
 
 ### Primary Components
 
-**App.svelte** - Root application component with state management and event handling
+**App.svelte** (1,558 lines) - Root application component with comprehensive state management
 
-- Custom title bar with macOS traffic light integration
-- Three-column responsive grid layout
-- Platform-specific styling and behavior
-- Global keyboard shortcuts (Ctrl+N, Ctrl+O)
-- Message passing between AI service and UI
-- Note navigation and temporary tab management
+- Custom title bar with platform-specific window controls and vault switcher
+- Three-column responsive grid layout with resizable sidebars (200-600px left, 300-800px right)
+- Global keyboard shortcuts (Ctrl+Shift+N for new note, Ctrl+O for search, browser-style back/forward navigation)
+- Event forwarding from main process (note open, workflow execute, review trigger)
+- Vault initialization and switching with multi-vault support
+- Navigation history management (back/forward with Cmd+[ and Cmd+])
+- Menu integration for macOS/Windows with context-aware actions
+- Message bus for cross-component communication
 
-**LeftSidebar.svelte** - Primary navigation hub
+**LeftSidebar.svelte** (245 lines) - Multi-workspace navigation hub
 
-- `SystemViews` component (Inbox, All notes, Search, Settings)
-- `PinnedNotes` component with visual note type indicators
-- `TemporaryTabs` component with Arc-style tab management
-- Clean, minimal layout focused purely on content sections
+- **System Views** (6 permanent navigation items):
+  - Inbox with unprocessed count badge
+  - Daily journal with calendar icon
+  - Review with due items count badge
+  - Routines (workflow automation)
+  - Note Types (schema browser)
+  - Settings (API keys, themes, models)
 
-**MainView.svelte** - Central note editing interface
+- **Workspace Content** (with slide animation on workspace switch):
+  - `PinnedNotes` component (928 lines) with drag & drop reordering, context menus, multi-workspace support
+  - `TemporaryTabs` component (971 lines) with session-based auto-close, source tracking, drag & drop
 
-- Note type selector dropdown
-- Full-width markdown editor using CodeMirror
-- Clean typography and responsive design
-- Empty state with helpful prompts
+- **WorkspaceBar** (bottom) - Workspace switcher with create/edit/delete functionality
+- Resizable (200-600px), collapsible sections, auto-scroll to active item
 
-**RightSidebar.svelte** - Contextual assistance panel
+**MainView.svelte** (396 lines) - Dynamic view container with six system views and note editor
 
-- Tabbed interface: AI Assistant / Metadata
-- `Agent` component with task management
-- `MetadataEditor` component with YAML frontmatter editing
+- **System Views**:
+  - `InboxView` - Quick capture system with process/unprocess functionality
+  - `DailyView` - Week-based journal with daily note creation and timeline
+  - `ReviewView` - Spaced repetition system with AI prompts, ratings, stats, and history
+  - `WorkflowManagementView` - Automation with workflow creation, execution, and backlog management
+  - `NotesView` - Note type browser with grid layout and type management
+  - `Settings` - Configuration for API keys, themes, models, and custom functions
+
+- **NoteEditor** - Rich markdown editor with:
+  - `EditorHeader` - Emoji picker, title editing, type selection, pin/metadata/preview toggles
+  - `CodeMirrorEditor` - Wikilink autocomplete, live preview, cursor persistence
+  - `MetadataView` - Frontmatter editing with validation
+  - `Backlinks` - Reverse link panel
+  - Action bar - Archive, review toggle, pin, add to shelf buttons
+
+**RightSidebar.svelte** (147 lines) - Dual-mode contextual panel
+
+- **AI Mode** - `Agent` component with:
+  - Thread-based conversations with conversation history
+  - Streaming responses with real-time updates
+  - Tool call visualization grouped by step
+  - Context usage widget with token tracking
+  - Todo plan monitoring from AI tasks
+  - Model selector and thread management
+  - Draft persistence per thread
+  - Message cancellation support
+
+- **Notes Shelf Mode** - `NotesShelf` component with:
+  - Multiple notes open simultaneously for quick reference
+  - Markdown preview and edit modes
+  - Individual note close or clear all functionality
+  - Shift+click from anywhere to add notes to shelf
+
+- Resizable (300-800px), mode toggle persistence, visibility toggle
+
+### Component Catalog
+
+The application includes 82 components totaling over 32,000 lines of code, organized by functionality:
+
+**Core Layout (4 components):**
+- App.svelte (1,558 lines) - Main application shell
+- LeftSidebar.svelte (245 lines) - Navigation hub
+- RightSidebar.svelte (147 lines) - Contextual panel
+- MainView.svelte (396 lines) - Dynamic view container
+
+**Note Components (9 components):**
+- NoteEditor.svelte - Main editor wrapper
+- EditorHeader.svelte - Title, icon, type, actions
+- CodeMirrorEditor.svelte - CodeMirror 6 integration
+- MarkdownRenderer.svelte - Preview mode rendering
+- MetadataView.svelte - YAML frontmatter editor
+- Backlinks.svelte - Reverse link panel
+- WikilinkAutocomplete.svelte - Link completion UI
+- NoteSuggestions.svelte - AI-generated related notes
+- InlineCommentPopover.svelte - Comment annotations
+
+**Navigation Components (6 components):**
+- PinnedNotes.svelte (928 lines) - Workspace pins with drag & drop
+- TemporaryTabs.svelte (971 lines) - Session tabs management
+- WorkspaceBar.svelte - Workspace switcher
+- SearchBar.svelte - Global search overlay
+- VaultSwitcher.svelte - Multi-vault selection
+- NotesShelf.svelte - Quick reference panel
+
+**System View Components (5 components):**
+- InboxView.svelte - Quick capture interface
+- DailyView.svelte - Week-based journal
+- NotesView.svelte - Note type browser
+- Settings.svelte - Configuration panel
+- WorkflowManagementView.svelte - Automation management
+
+**Review System Components (7 components):**
+- ReviewView.svelte - Main review interface
+- ReviewDashboard.svelte - Stats and session start
+- ReviewSession.svelte - Active review flow
+- ReviewHistory.svelte - Past sessions browser
+- ReviewPrompt.svelte - AI-generated question display
+- ReviewResponse.svelte - User answer input
+- ReviewFeedback.svelte - AI feedback display
+
+**Workflow Components (3 components):**
+- WorkflowList.svelte - Workflow browser
+- WorkflowDetail.svelte - Individual workflow view
+- WorkflowForm.svelte - Create/edit workflow
+
+**AI Components (7 components):**
+- Agent.svelte - Main AI assistant interface
+- ConversationContainer.svelte - Chat layout
+- MessageInput.svelte - Input with attachment support
+- ToolCallGroup.svelte - Tool call visualization
+- ContextUsageWidget.svelte - Token tracking
+- TodoPlanMonitor.svelte - AI task tracking
+- ThreadSelector.svelte - Conversation history
+
+**Custom Functions Components (5 components):**
+- CustomFunctionsManager.svelte - Function management UI
+- FunctionList.svelte - Available functions browser
+- FunctionEditor.svelte - Function creation/editing
+- FunctionTester.svelte - Test function execution
+- FunctionDocumentation.svelte - Usage guide
+
+**UI Primitives (20+ components):**
+- Modal.svelte - Dialog container
+- ConfirmationModal.svelte - Confirm actions
+- ToastNotification.svelte - Toast messages
+- DropdownMenu.svelte - Context menus
+- Button.svelte - Styled button
+- Input.svelte - Form input
+- Textarea.svelte - Multiline input
+- Select.svelte - Dropdown selector
+- Checkbox.svelte - Checkbox input
+- EmojiPicker.svelte - Emoji selection
+- DatePicker.svelte - Date selection
+- ColorPicker.svelte - Color selection
+- Tooltip.svelte - Hover tooltips
+- Badge.svelte - Count indicators
+- Spinner.svelte - Loading states
+- ProgressBar.svelte - Progress indicators
+- Tabs.svelte - Tab navigation
+- Accordion.svelte - Collapsible sections
+- ResizeHandle.svelte - Sidebar resizing
+- DragHandle.svelte - Drag & drop handles
+
+**Utility Components (10+ components):**
+- FirstTimeExperience.svelte - Onboarding flow
+- UpdateNotification.svelte - Update alerts
+- UpdateIndicator.svelte - Update badge
+- ChangelogViewer.svelte - Release notes
+- ErrorBoundary.svelte - Error handling
+- LoadingState.svelte - Loading UI
+- EmptyState.svelte - No content states
+- RelativeTime.svelte - Time formatting
+- MarkdownPreview.svelte - Markdown rendering
+- CodeBlock.svelte - Syntax highlighting
 
 ### State Management
 
-The application uses modern Svelte 5 runes for reactive state management:
+The application uses modern Svelte 5 runes for reactive state management with 20 specialized stores:
 
-**Core Stores:**
+**Navigation & View Stores:**
 
-- `sidebarState.svelte.ts` - Left/right sidebar visibility and modes
-- `temporaryTabsStore.svelte.ts` - Arc-style temporary note tabs
-- `notesStore.svelte.ts` - Note data and vault management (existing)
-- `modelStore.svelte.ts` - AI model selection (existing)
-- `settingsStore.svelte.ts` - Application preferences (existing)
+- `activeNoteStore.svelte.ts` - Current note or system view tracking
+- `sidebarState.svelte.ts` - Left/right sidebar visibility, modes, and sizes
+- `navigationHistoryStore.svelte.ts` - Browser-style back/forward navigation stack
+- `workspacesStore.svelte.ts` - Multi-workspace management with pins and tabs
 
-**Additional Stores:**
+**Note Organization Stores:**
 
-- `searchOverlay.svelte.ts` - Global search overlay state
+- `temporaryTabsStore.svelte.ts` - Session-based tabs with auto-close and source tracking
+- `notesShelfStore.svelte.ts` - Quick reference shelf for multiple notes
+- `inboxStore.svelte.ts` - Unprocessed notes for quick capture
+- `dailyViewStore.svelte.ts` - Week navigation and daily note management
+
+**AI & Communication Stores:**
+
+- `unifiedChatStore.svelte.ts` - Thread-based AI conversations with history
+- `modelStore.svelte.ts` - AI model selection and configuration
+- `todoPlanStore.svelte.ts` - Todo tracking from AI tool calls
+- `customFunctionsStore.svelte.ts` - User-defined functions for AI
+
+**Feature Stores:**
+
+- `reviewStore.svelte.ts` - Spaced repetition state, stats, and scheduling
+- `workflowStore.svelte.ts` - Workflow automation and backlog management
+- `settingsStore.svelte.ts` - User preferences (API keys, themes, etc.)
+
+**Editor & Document Stores:**
+
+- `noteDocumentRegistry.svelte.ts` - Shared CodeMirror document model for collaborative editing
+- `cursorPositionManager.svelte.ts` - Cursor position persistence per note
+- `editorConfig.svelte.ts` - Editor preferences and configuration
+
+**Core Data Store:**
+
+- `noteStore.svelte.ts` - Note metadata cache with vault-scoped data
+
+**UI State Stores:**
+
+- `dragState.svelte.ts` - Drag & drop state management
+- `autoSave.svelte.ts` - Auto-save coordination and status
 
 ## Key Features
 
-### 1. Custom Title Bar Integration
+### 1. Multi-Workspace Organization
 
-**Native macOS Experience:**
+**Workspace System:**
 
-- Hidden Electron title bar with custom implementation
-- Proper traffic light button positioning and spacing
-- Draggable area for window management
-- Platform detection for appropriate styling
-- Integrated hamburger menu and vault switcher in title bar
-- AI assistant toggle button positioned on the right side for easy access with visual indicator for active state
+- Multiple workspaces for different contexts (work, personal, projects)
+- Per-workspace pinned notes with drag & drop reordering
+- Shared temporary tabs across workspaces for session continuity
+- WorkspaceBar for quick switching with create/edit/delete functionality
+- Smooth slide animations on workspace transitions
+- Persistent workspace state across application restarts
 
-**Cross-Platform Compatibility:**
+**Pinned Notes (928 lines):**
 
-- Automatic detection of macOS vs other platforms
-- Platform-specific CSS styling via data attributes
-- Fallback behavior for non-macOS systems
-- Consistent interface regardless of platform
+- Permanent pins per workspace for curated organization
+- Drag & drop reordering within workspace
+- Context menu: unpin, move to different workspace, toggle review, archive, open in shelf
+- Smart icons (emoji or SVG) based on note type
+- Shift+click to quickly add to notes shelf
+- Visual active state highlighting
 
-### 2. Sidebar-Based Navigation
+**Temporary Tabs (971 lines):**
 
-**Left Sidebar Structure:**
+- Arc-style session tabs that auto-close when switching workspaces
+- Source tracking (search, wikilink, navigation, history)
+- Drag & drop reordering
+- Context menu: pin to workspace, move to workspace, toggle review, archive, open in shelf
+- "Clear all" functionality for quick cleanup
+- Shift+click to add to notes shelf
 
-- **System Views**:
-  - Inbox for quick note capture
-  - All notes with hierarchical organization
-  - Global search functionality
-  - Settings configuration
-- **Pinned Notes**: User-curated favorites with type-specific icons
-- **Temporary Tabs**: Recently accessed notes with individual close buttons
+### 2. Spaced Repetition Review System
 
-### 2. Advanced AI Integration
+**Review Dashboard:**
+
+- Daily stats (due items, completed today, current streak)
+- Visual progress tracking with animated counters
+- Quick access to start review session
+- Review history panel with past sessions
+
+**Review Sessions:**
+
+- AI-generated prompts based on note content
+- User response input with markdown support
+- AI feedback with explanations and insights
+- 5-star rating system for interval adjustment
+- Session summary with completion stats
+- Note content drawer for reference
+- Tab navigation between dashboard and history
+
+**Review Scheduling:**
+
+- Spaced repetition algorithm (SM-2 based)
+- Automatic interval adjustment based on ratings
+- Due date tracking with badge indicators
+- Review toggle on any note via context menu or action bar
+
+### 3. Daily Journal System
+
+**Week View:**
+
+- Week navigation with previous/next/today shortcuts
+- Seven-day grid layout with current day highlighting
+- Daily note auto-creation on first access
+- Inline editing per day with full markdown support
+
+**Daily Note Features:**
+
+- Automatic note creation with daily note type
+- Timeline of notes created or modified that day
+- Click any note in timeline to open in editor
+- Shift+click timeline notes to add to shelf
+- Persistent week position across sessions
+
+### 4. Workflow Automation
+
+**Workflow Management:**
+
+- Create workflows with custom prompts and instructions
+- Active/completed/archived workflow states
+- Workflow execution via AI assistant
+- Backlog management for queued workflows
+- Tab navigation: workflows vs backlog
+- Filter by state (all/active/completed/archived)
+
+**Workflow Features:**
+
+- Rich text descriptions with markdown
+- AI execution context with full note access
+- Workflow detail view with edit capability
+- Quick actions: execute, edit, archive, delete
+- Integration with AI assistant for natural language execution
+
+### 5. Advanced AI Integration
+
+**Thread-Based Conversations:**
+
+- Multiple conversation threads with history
+- Thread switching preserves conversation state
+- Draft persistence per thread (never lose a message)
+- Conversation history browser with thread management
+- Message cancellation during streaming
 
 **AI Assistant Features:**
 
-- Task management with expandable sections
-- Visual progress indicators (✓ completed, ⟳ in-progress, ○ pending)
-- [[Wikilink]] support in conversations
-- Contextual note inclusion in AI prompts
-- Streaming response support with real-time updates
+- Streaming responses with real-time updates
+- Tool call visualization grouped by step
+- Context usage widget with token tracking
+- Todo plan monitoring from AI tasks
+- Tool call limit warnings to prevent runaway operations
+- Model selector with multiple provider support
+- Custom functions for extended AI capabilities
 
-**Task Management:**
+**Contextual Note Integration:**
 
-- Automatic task extraction from tool calls
-- Expandable task details with related note links
-- Status-based visual organization
-- Click-to-navigate for all note references
+- [[Wikilink]] support in AI conversations
+- Automatic note inclusion in AI prompts
+- Click wikilinks in AI responses to navigate
+- Notes shelf for multi-note AI context
 
-### 3. Professional Metadata Editing
+### 6. Notes Shelf - Quick Reference Panel
 
-**YAML Frontmatter Editor:**
+**Multi-Note Panel:**
 
-- Real-time validation with line-specific error reporting
-- Support for all YAML data types (strings, numbers, booleans, arrays, dates)
-- Custom field management with add/remove functionality
-- Auto-save with visual change indicators
-- Comprehensive help system with examples
+- Open multiple notes simultaneously for quick reference
+- Shift+click from anywhere (pins, tabs, timeline, backlinks) to add to shelf
+- Markdown preview and edit modes per note
+- Individual note close or "clear all" functionality
+- Integrated with AI for multi-note context
+- Persistent across sessions
 
-**Metadata Features:**
+**Use Cases:**
 
-- Automatic frontmatter generation from note properties
-- Field-specific validation for common metadata
-- Visual parsing preview with interactive editing
-- Integration with note update system
+- Research with multiple source notes
+- Writing with reference materials
+- AI conversations with multiple note context
+- Quick comparison between notes
 
-### 4. Note Management System
+### 7. Inbox System
 
-**Temporary Tabs:**
+**Quick Capture:**
 
-- Arc-style tab behavior with automatic population
-- Source tracking (search, wikilink, navigation)
-- 24-hour automatic cleanup
-- Individual and bulk close options
-- Persistence across application sessions
+- Dedicated inbox system view in left sidebar
+- Unprocessed notes badge count
+- Create new inbox notes with one click
+- Mark notes as processed/unprocessed
+- Filter toggle to show/hide processed items
+- Context menus: pin, shelf, move to workspace, review, archive
 
-**Note Navigation:**
+**Inbox Workflow:**
 
-- Wikilink support with click-to-navigate
-- Multiple note opening sources (search, pinned, navigation)
-- Active note highlighting and state management
-- Integration with AI conversation context
+- Capture ideas quickly without organization overhead
+- Process inbox items into proper workspaces
+- Visual separation of processed vs unprocessed
+- Relative time display ("2 hours ago", "yesterday")
 
-### 5. Advanced Search and Discovery
+### 8. Professional Note Editing
 
-**Global Search:**
+**CodeMirror 6 Editor:**
 
-- Keyboard shortcut activation (Ctrl+O)
+- Full markdown editing with syntax highlighting
+- Wikilink autocomplete with fuzzy matching
+- Live preview mode toggle
+- Cursor position persistence per note
+- External edit conflict detection
+- Auto-save with visual indicators
+- Shared document model for performance
+
+**Editor Header:**
+
+- Emoji picker for note icon
+- Inline title editing with auto-save
+- Note type selection dropdown
+- Pin/unpin button
+- Metadata panel toggle
+- Preview mode toggle
+- Note info (word count, character count)
+
+**Metadata & Backlinks:**
+
+- YAML frontmatter editing with validation
+- Automatic frontmatter generation
+- Backlinks panel showing reverse references
+- Click backlinks to navigate
+- Metadata sync with note properties
+
+**Note Actions:**
+
+- Archive with confirmation dialog
+- Toggle review for spaced repetition
+- Pin to current workspace
+- Add to notes shelf
+- Note suggestions (AI-generated related notes)
+
+### 9. Note Type System
+
+**Type Management:**
+
+- Custom note types with schemas
+- Type browser grid view with counts
+- Visual type indicators (icons) throughout UI
+- Type-specific metadata fields
+- Create new types via Settings
+- Type selection in note editor header
+
+**System Types:**
+
+- Daily notes (journal entries)
+- Inbox notes (quick capture)
+- Standard notes (general)
+- Custom types defined by user
+
+### 10. Navigation & Discovery
+
+**Browser-Style Navigation:**
+
+- Back/forward navigation (Cmd+[ and Cmd+])
+- Navigation history stack
+- Active note highlighting in sidebar
+- Auto-scroll to active item
+
+**Search:**
+
+- Global search overlay (Ctrl+O)
 - Full-text search with fuzzy matching
-- Search result integration with temporary tabs
-- Overlay interface that doesn't disrupt workflow
+- Search results open in temporary tabs
+- Search integration with note navigation
 
-**Note Organization:**
+**Wikilink System:**
 
-- Visual note type indicators (calendar, folder, document icons)
-- Hierarchical note display in system views
-- Pinned notes for quick access to favorites
-- Collapsible sections with smooth animations
+- [[Note Title]] syntax for linking
+- Click to navigate with history tracking
+- Autocomplete while typing wikilinks
+- Backlinks panel for reverse links
+- Wikilink support in AI conversations
+
+### 11. Settings & Configuration
+
+**API Configuration:**
+
+- Anthropic API key management
+- OpenRouter API key for alternative models
+- Secure storage with encryption
+
+**Theme System:**
+
+- Light/dark/auto theme selection
+- System preference detection
+- CSS custom properties for theming
+- Smooth theme transitions
+
+**Model Configuration:**
+
+- Multiple AI model support
+- Provider selection (Anthropic, OpenRouter)
+- Model-specific settings
+- Custom functions management (5-component system)
+
+**Update Management:**
+
+- Automatic update checking
+- Update notifications with changelog
+- Version display in settings
+- Manual check for updates option
 
 ## Technical Implementation
 
@@ -227,19 +568,28 @@ $effect(() => {
 
 ### Service Layer Architecture
 
-**Chat Service Integration:**
+**Core Services:**
 
-- Streaming message support with real-time updates
-- Tool call handling for task management
-- Model selection integration via `modelStore`
-- Error handling with graceful fallbacks
+- `noteStore.svelte.ts` - Note metadata cache with reactive updates and vault isolation
+- `chatService.ts` - AI communication with streaming, tool calls, and error handling
+- `electronChatService.ts` - Electron IPC wrapper for main process AI integration
+- `noteNavigationService.ts` - History stack management for back/forward navigation
+- `wikilinkService.ts` - Wikilink resolution and autocomplete with fuzzy matching
+- `messageBus.ts` - Event pub/sub for cross-component communication
+- `cursorPositionStore.ts` - Cursor position persistence across sessions
+- `vaultAvailabilityService.ts` - Vault detection and initialization
+- `noteCache.ts` - Performance optimization for note loading
+- `migrationService.ts` - Database schema migrations with version tracking
+- `secureStorageService.ts` - Encrypted storage for API keys
 
-**Note Service Integration:**
+**Service Integration:**
 
-- CRUD operations for note management
-- Vault switching and note type changes
-- Metadata updates with frontmatter synchronization
-- Search and discovery capabilities
+- Message bus for decoupled component communication
+- Shared document model for collaborative CodeMirror editing
+- Vault-scoped data isolation across all services
+- IPC communication with Electron main process
+- Auto-save coordination with debouncing
+- External edit conflict detection and resolution
 
 ## User Experience Features
 
@@ -261,15 +611,19 @@ $effect(() => {
 
 **Global Shortcuts:**
 
-- `Ctrl+Shift+N` - Create new note
-- `Ctrl+O` - Open global search
-- `Ctrl+,` - Access settings (via system views)
+- `Ctrl+Shift+N` / `Cmd+Shift+N` - Create new note
+- `Ctrl+O` / `Cmd+O` - Open global search overlay
+- `Ctrl+,` / `Cmd+,` - Open settings
+- `Cmd+[` - Navigate back in history (macOS)
+- `Cmd+]` - Navigate forward in history (macOS)
 
 **Navigation:**
 
 - Wikilink navigation with [[Note Title]] syntax
-- Click-to-navigate for all note references
-- Tab management for recently accessed notes
+- Click-to-navigate for all note references and backlinks
+- Shift+click anywhere to add note to shelf
+- Browser-style back/forward with history stack
+- Auto-scroll to active note in sidebar
 
 ### Visual Design
 
@@ -329,35 +683,49 @@ The color system automatically adapts between light and dark themes using `@medi
 
 ## Design Principles
 
-### 1. Agent-First Philosophy
+### 1. Agent Philosophy
 
-- AI assistant remains central to the workflow
-- Natural language commands drive operations
-- Contextual note inclusion enhances AI responses
-- Task-oriented interface for productivity
+- Natural language commands for complex operations (workflows, reviews)
+- Contextual note inclusion via wikilinks and notes shelf
+- Thread-based conversations preserve AI context
+- Custom functions extend AI capabilities
+- Tool call visualization for transparency
 
-### 2. Clean, Focused Interface
+### 2. Multi-Modal Organization
+
+- Workspaces for context separation
+- Pins for permanent organization
+- Temporary tabs for session continuity
+- Notes shelf for quick reference
+- Inbox for capture-first workflow
+- Daily journal for time-based organization
+
+### 3. Learning & Knowledge Retention
+
+- Spaced repetition review system with AI prompts
+- Automatic scheduling based on user performance
+- Review history and streak tracking
+- Integration with note organization (review any note)
+- AI-generated feedback for deeper learning
+
+### 4. Clean, Focused Interface
 
 - Minimal cognitive load with contextual UI
 - Distraction-free editing environment
 - Information hierarchy that guides attention
 - Progressive disclosure of advanced features
+- Smooth animations and transitions
+- Consistent design language across all views
 
-### 3. Responsive and Accessible
+### 5. Responsive and Accessible
 
-- Mobile-first design approach
+- Resizable sidebars adapt to user preferences
 - Full keyboard navigation support
-- Screen reader compatibility
-- High contrast mode support
+- Mobile-responsive layout with overlays
+- High contrast support via theme system
+- Clear visual hierarchy and iconography
 
-### 4. Professional Note Management
-
-- Enterprise-grade metadata capabilities
-- Robust search and discovery features
-- Reliable auto-save and data persistence
-- Comprehensive error handling and recovery
-
-## Technical Architecture Benefits
+## Technical Architecture
 
 ### Modern Technology Stack
 
@@ -379,20 +747,3 @@ The color system automatically adapts between light and dark themes using `@medi
 - Debounced operations to prevent excessive API calls
 - Graceful error handling and user feedback
 - Persistent user preferences and session management
-
-## Conclusion
-
-The current Flint GUI successfully implements a modern, professional note-taking interface that maintains the agent-first philosophy while providing powerful organizational and editing capabilities. The sidebar-based architecture provides clear separation between navigation, content creation, and AI assistance, creating an intuitive workflow for users across all device types.
-
-The implementation represents a significant evolution from the original tab-based design, offering improved scalability, better information architecture, and enhanced user experience. The combination of advanced AI integration, professional metadata management, and responsive design creates a comprehensive note-taking solution suitable for both casual and professional use cases.
-
-Key achievements include:
-
-- Modern three-column layout with responsive behavior
-- Advanced AI assistant with task management and contextual note integration
-- Professional metadata editing with YAML frontmatter support
-- Arc-style temporary tab management for improved workflow
-- Comprehensive search and discovery capabilities
-- Enterprise-grade reliability with auto-save and error handling
-
-The architecture is well-positioned for future enhancements while maintaining stability and performance for current users.

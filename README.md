@@ -10,22 +10,40 @@ Flint is a note-taking app that helps you capture ideas, connect them together, 
 
 ---
 
-## Philosophy
+## Status
 
-Flint is built on core principles:
+Flint is currently in **beta**. Expect some bugs and unfinished polish as development continues. We welcome feedback and contributions!
 
-2. **Frictionless Capture** - No barriers to writing things down
-1. **AI but good** - AI to help with structural tasks while humans remain responsible for thinking
-3. **Plain Text First** - Markdown files you own, no proprietary formats
-4. **Local-First** - Your data stays on your machine
-5. **Open Source** - No vendor lock-in, community-driven development
+## The Deep Knowledge Cycle
 
-For a deeper understanding, read [docs/FLINT-OVERVIEW.md](docs/FLINT-OVERVIEW.md).
+**Flint aim is to build deep knowledge by supporting the complete learning cycle of externalizing (getting ideas out), internalizing (making them yours), and resurfacing (bringing them back repeatedly over time to ground memory).**
+
+Most tools optimize for one part of this cycle. Flint optimizes for the entire process.
+
+### 1. Externalize
+Getting ideas out of your head without barriers. The system handles organization so you can focus on thinking.
+
+### 2. Internalize
+Making ideas yours through connection and reflection. This is where notes become knowledge.
+
+### 3. Resurface
+Active recall brings past ideas back at optimal intervals, grounding them in memory.
+
+## Core Principles
+
+- **Notes as thinking units** - Think in ideas and connections, not files and folders
+- **Agent assistance, not replacement** - AI helps with structural tasks while you think
+- **Frictionless capture** - No barriers to writing things down
+- **Plain text first** - Markdown files you own, no proprietary formats
+- **Local-first** - Your data stays on your machine
+- **Open source** - No vendor lock-in, community-driven development
+
+Read [docs/FLINT-OVERVIEW.md](docs/FLINT-OVERVIEW.md) for a deeper understanding of Flint's philosophy.
 
 
 ## Quick start
 
-Flint is built with Electron, Svelte 5, and TypeScript as a local-first desktop application.
+Flint is built with Electron, Svelte 5, and TypeScript.
 
 ## Quick Start
 
@@ -113,67 +131,25 @@ flint-note/
 ## Documentation
 
 - **[Getting Started](docs/GETTING-STARTED.md)** - Step-by-step setup guide
-- **[Features Guide](docs/FEATURES.md)** - Comprehensive feature documentation
 - **[Flint Overview](docs/FLINT-OVERVIEW.md)** - Philosophy and core beliefs
 - **[Core Concepts](docs/architecture/CORE-CONCEPTS.md)** - Fundamental concepts
 - **[Architecture](docs/architecture/ARCHITECTURE.md)** - System architecture
 - **[Design](docs/architecture/DESIGN.md)** - UI design and components
-- **[FlintNote API](docs/architecture/FLINT-NOTE-API.md)** - Server API reference
-- **[Database Architecture](docs/architecture/DATABASE-ARCHITECTURE.md)** - Data persistence
 
 ## Contributing
 
-Flint is open source and welcomes contributions!
+Flint is open source and welcomes contributions! Whether you want to fix bugs, add features, or improve documentation, we'd love your help.
 
-### Development Workflow
-
-1. Create a feature branch
-2. Make changes with clear commits
-3. Run `npm run check` to validate
-4. Test manually and with automated tests
-5. Submit pull request with description
-
-### Important Notes
-
-- Don't run `npm run dev` during automated tasks
-- Handle backward compatibility for existing users
-- Use migration system for breaking DB changes
-- Follow the agent-first philosophy
-
-## Philosophy
-
-Flint is built around core principles:
-
-1. **Agent Assistance, Not Replacement** - AI helps humans think, doesn't replace thinking
-2. **Frictionless Capture** - No barriers to writing things down
-3. **Plain Text First** - Data portability and user control
-4. **Local-First** - Privacy and ownership
-5. **Open Source** - No vendor lock-in
-
-For a deeper understanding, read [docs/FLINT-OVERVIEW.md](docs/FLINT-OVERVIEW.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 
 ## License
 
 Flint is licensed under the [GNU General Public License v3.0](LICENSE).
 
-This means:
-- ✅ You can use, study, modify, and distribute Flint
-- ✅ You can use Flint commercially
-- ⚠️ If you distribute modified versions, they must also be open source under GPL-3.0
-- ⚠️ No warranty is provided
-
 ## Community & Support
 
 - **Website** - [flintnote.com](https://flintnote.com)
 - **Documentation** - [flintnote.com/docs](https://flintnote.com/docs)
-- **Discord** - [Join the community](https://discord.gg/flint)
+- **Discord** - [Join the community](https://discord.gg/flint-note)
 - **Issues** - Report bugs and request features on GitHub Issues
 - **Discussions** - Ask questions and share ideas on GitHub Discussions
-
-## Status
-
-Flint is currently in **open beta**. Expect some bugs and unfinished polish as development continues. We welcome feedback and contributions!
-
----
-
-**Built with care for people who think deeply.**

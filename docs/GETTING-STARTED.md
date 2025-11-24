@@ -607,10 +607,8 @@ Now that you're set up:
 
 ## Additional Resources
 
-- **[FEATURES.md](FEATURES.md)** - Detailed feature documentation
 - **[Architecture](architecture/ARCHITECTURE.md)** - System architecture
 - **[Design](architecture/DESIGN.md)** - UI design guidelines
-- **[FlintNote API](architecture/FLINT-NOTE-API.md)** - Server API reference
 - **[Svelte 5 Docs](https://svelte.dev/docs)** - Official Svelte documentation
 - **[Electron Docs](https://www.electronjs.org/docs)** - Official Electron documentation
 

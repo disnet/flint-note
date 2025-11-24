@@ -1,38 +1,67 @@
-# Flint: Agent-Human Collaborative Note-Taking System
+# Flint: Building Deep Knowledge
 
 ## Executive Summary
 
-Flint is a note-taking application designed as a **thinking system** - a tool that extends and amplifies human cognition rather than replacing it. Built around the core insight that effective thinking requires both structured capture and fluid connection-making, Flint combines plain-text markdown notes with AI agents that assist (but never replace) the human thinking process.
+Flint is a note-taking application designed to build **deep knowledge** through the complete learning cycle. Most tools optimize for getting thoughts out of your head. That's the easy part. But then your notes pile up and you never look at them again. They fail to accomplish the most important goal: **changing how you think**.
+
+Deep knowledge requires writing, reflection, connection-making, and active recall to turn information into understanding. Your notes should make you smarter over time. Flint is designed so they do.
+
+## Core Philosophy
+
+**Flint builds deep knowledge by supporting the complete cycle of externalizing (getting ideas out), internalizing (making them yours), and resurfacing (bringing them back repeatedly over time to ground memory).**
+
+Most tools optimize for one part of this cycle. Flint optimizes for the entire process.
+
+### The Deep Knowledge Cycle
+
+#### 1. Externalize - Structured capture with minimal friction
+Getting ideas out of your head and into notes without barriers. The system handles organization so you can focus on thinking.
+
+**Key principle:** No friction when creating a note. Don't make users think about where it goes or how to structure it upfront.
+
+#### 2. Internalize - Making ideas yours through connection and reflection
+Integrating ideas into your mental models through writing, linking, and systematic reflection. This is where notes become knowledge.
+
+**Key principle:** Connections made explicit through wikilinks, backlinks, and agent assistance. Regular reflection practices systematized through routines.
+
+#### 3. Resurface - Active recall brings knowledge back
+Spaced repetition and contextual resurfacing bring past ideas back at optimal intervals, grounding them in memory and making them automatically retrievable.
+
+**Key principle:** The system schedules and prompts review. The agent generates contextual prompts for deep re-engagement.
 
 ## Philosophy & Core Beliefs
 
-### The Note as Fundamental Unit
+### Notes as First-Class Abstraction
 
-- Notes consist of: title, content (plain text/markdown), type, and metadata
-- Content is just text - no complex block structures that add cognitive overhead
-- [[Wikilink]] syntax for frictionless linking between notes
-- File system serves as externalized memory that both humans and AI can read/write
+**Core Insight:** Notes are the unit of thinking, not files, folders, or implementation details. By elevating notes to first-class abstractions, Flint removes cognitive burden—you think in terms of *ideas and their connections*, not storage mechanics.
+
+- **Content-centric organization**: How notes organize emerges from content and relationships, not predetermined folder hierarchies
+- **Type-guided thinking**: Note types encode patterns for different kinds of thinking and guide both you and the agent
+- **Plain text foundation**: Standard markdown with YAML frontmatter—portable, yours forever
 
 ### Agent Assistance, Not Replacement
 
-- AI agents help with **metadata management**, **connection discovery**, and **structural tasks**
-- Humans remain responsible for **thinking**, **content creation**, and **insight generation**
-- Purpose of a thinking system is to enhance human cognition, not outsource it
-- Agents should never get in the way of simply writing things down
+AI agents help with **structural tasks** while humans remain responsible for **thinking**, **content creation**, and **insight generation**.
+
+The agent is deeply integrated with your note system and operates within the philosophy of supporting deep learning, not replacing your thinking:
+- **Semantic understanding**: The agent understands note types, relationships, and your learning patterns
+- **Type-aware assistance**: Different note types get different kinds of help
+- **Conversational partner**: Helps you capture better, connect deeper, and resurface at the right moments
 
 ### Frictionless Capture
 
-- **No friction when creating a note** - don't make users think about where it goes
-- **Easy context switching** - capture ideas without losing current focus
+Reducing friction in capture is critical for externalizing effectively:
+- **No barriers to writing things down** - don't make users think about where notes belong
 - **Gradual structure addition** - start messy, add organization as patterns emerge
-- **Spatial note organization** - humans are good at remembering loose spatial relationships
+- **Spatial organization** - pinned notes and manual sorting mirror how humans organize physical spaces
+- **The trust model** - make a mess while exploring; cleanup is easy
 
-### Enshittification Resistance
+### Local-First & Open
 
-- Plain text, markdown files - data is always portable and readable
-- Open source to prevent vendor lock-in and maintain user control
-- Local-first architecture where possible
-- Clear business model that aligns with user interests
+- **Your data stays yours**: Plain text markdown files on your computer—portable, readable forever
+- **No lock-in**: Switch AI providers, run inference locally, or stop using Flint entirely
+- **Open source**: Community-driven development, no vendor lock-in
+- **Privacy**: Your notes never leave your machine unless you choose to sync them
 
 ## Architecture & Implementation
 
@@ -60,7 +89,7 @@ NoteType {
 
 ### Three-Column UI Layout
 
-- **Left Sidebar**: System views, pinned notes, temporary notes (spatial organization)
+- **Left Sidebar**: System views, pinned & recent notes (spatial organization)
 - **Main View**: Note editor or system views
 - **Right Sidebar**: AI chat interface for agent interaction
 
@@ -80,34 +109,6 @@ Note types provide structure without constraint:
 3. **Content Structuring**: Help organize information, create templates
 4. **Workflow Assistance**: Handle recurring tasks like daily notes, habit tracking
 5. **Search & Retrieval**: Advanced queries, content synthesis
-
-## Key Differentiators
-
-### vs. Obsidian
-
-- **Abstraction Level**: Works with notes (not files), types (not folders)
-- **Agent Integration**: Built-in AI assistance vs. plugin ecosystem
-- **Opinion**: Opinionated about thinking workflows vs. general-purpose
-- **Business Model**: Open source with sustainable funding vs. proprietary
-
-### vs. Notion
-
-- **Complexity**: Simple text notes vs. complex block-based documents
-- **Control**: Local-first vs. cloud-dependent
-- **Focus**: Individual thinking vs. team collaboration
-- **AI Integration**: Thinking assistance vs. content generation
-
-### vs. Roam Research
-
-- **Stability**: Reliable, performant interface vs. experimental features
-- **Structure**: Balanced structure vs. complete fluidity
-- **Agent Role**: Explicit AI assistance vs. purely manual workflows
-
-### vs. Other AI Note Tools
-
-- **Human Agency**: AI assists thinking vs. AI does thinking
-- **Data Ownership**: Local files vs. cloud-dependent
-- **Thinking Focus**: Designed for cognition vs. document production
 
 ## Technical Implementation Details
 
@@ -156,34 +157,3 @@ Note types provide structure without constraint:
 - **Pattern Recognition**: Identify themes, connections, recurring elements
 - **Workflow Automation**: Handle routine tasks like note templates, reviews
 - **Context Provision**: Surface relevant information during writing/thinking
-
-## Future Vision
-
-### Computational Text
-
-Text that can respond and interact - marginalia, embedded agents, context-aware assistance integrated directly into the reading/writing experience.
-
-### Thinking Amplification
-
-Tools that make human thinking more powerful rather than replacing it - better pattern recognition, enhanced memory, improved connection-making.
-
-### Sustainable Development
-
-Open source core with business model aligned with user interests - no enshittification pressure, long-term viability, community-driven evolution.
-
-## Getting Started (For Developers)
-
-### Agent Development Guidelines
-
-1. **Respect Human Agency**: Assist, don't replace human thinking
-2. **Understand Note Types**: Each type has specific purpose and optimal workflows
-3. **Maintain Context**: Be aware of vault structure and note relationships
-4. **Minimize Friction**: Any agent action should reduce, not increase, cognitive load
-5. **Preserve Data**: Always use content hashes, validate operations, handle errors gracefully
-
-### Contributing Principles
-
-- **Thinking-First Design**: Every feature should enhance human cognition
-- **Simplicity Bias**: Prefer simple solutions that don't add cognitive overhead
-- **Performance Matters**: Tool should feel like extension of mind, not external system
-- **Data Ownership**: Users must maintain full control over their notes and data
