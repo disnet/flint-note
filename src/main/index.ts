@@ -735,24 +735,15 @@ app.whenReady().then(async () => {
           const renamedNote = await noteService.getNote(result.new_id, vaultId);
           if (renamedNote) {
             // Publish note.renamed event with full metadata
+            // Note: We don't publish note.updated here because it would trigger
+            // unnecessary reloads in the noteDocumentRegistry. The note.renamed
+            // event is sufficient to update the note cache.
             publishNoteEvent({
               type: 'note.renamed',
               oldId: params.identifier,
               newId: result.new_id,
               title: renamedNote.title,
               filename: renamedNote.filename
-            });
-
-            // Also publish note.updated event with the new metadata
-            publishNoteEvent({
-              type: 'note.updated',
-              noteId: result.new_id,
-              updates: {
-                title: renamedNote.title,
-                filename: renamedNote.filename,
-                modified: renamedNote.updated
-              },
-              source: 'user' // This comes from the UI, not the agent
             });
           }
         } catch (error) {

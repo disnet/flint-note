@@ -24,21 +24,12 @@
   // Track if user is actively editing to prevent external updates during editing
   let isEditing = $state(false);
 
-  // Initialize the input value when the element is bound
   $effect(() => {
-    if (inputElement && inputElement.value === '') {
-      inputElement.value = value;
-      adjustHeight();
-    }
-  });
-
-  $effect(() => {
-    // Only sync external changes when NOT actively editing
-    if (!isEditing && value !== titleValue) {
+    // Only sync external changes when NOT actively editing or processing
+    if (!isEditing && !isProcessing && value !== titleValue) {
       titleValue = value;
-      // Manually update the input DOM to avoid re-render flash
-      if (inputElement && document.activeElement !== inputElement) {
-        inputElement.value = value;
+      // Adjust height after value changes
+      if (inputElement) {
         adjustHeight();
       }
     }
@@ -64,6 +55,8 @@
     try {
       isProcessing = true;
       await onSave(trimmedTitle);
+      // Sync titleValue with the saved value to prevent flash when reactive update comes back
+      titleValue = trimmedTitle;
     } catch (error) {
       titleValue = value;
       throw error;
@@ -112,8 +105,8 @@
 
 <textarea
   bind:this={inputElement}
-  oninput={(e) => {
-    titleValue = (e.target as HTMLTextAreaElement).value;
+  bind:value={titleValue}
+  oninput={() => {
     adjustHeight();
   }}
   class="note-title-input"

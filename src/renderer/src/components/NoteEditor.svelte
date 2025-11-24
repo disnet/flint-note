@@ -74,11 +74,15 @@
 
   // Track previous note to save cursor position before switching
   let previousNote: NoteMetadata | null = null;
+  let previousNoteId: string | null = null;
 
   $effect(() => {
     (async () => {
+      // Only process if note ID has actually changed
+      const hasNoteChanged = previousNoteId !== note.id;
+
       // Save cursor position for previous note before switching
-      if (previousNote && previousNote.id !== note.id) {
+      if (previousNote && hasNoteChanged) {
         try {
           await saveCurrentCursorPositionForNote(previousNote);
         } catch (error) {
@@ -87,18 +91,21 @@
       }
 
       // Close previous document if switching notes
-      if (previousNote && previousNote.id !== note.id && doc) {
-        noteDocumentRegistry.close(previousNote.id, editorId);
+      if (previousNoteId && hasNoteChanged && doc) {
+        noteDocumentRegistry.close(previousNoteId, editorId);
       }
 
       // Open the shared document for this note
       doc = await noteDocumentRegistry.open(note.id, editorId);
 
-      // Load full note data for metadata
-      await loadNoteMetadata(note);
+      // Only load metadata when actually switching notes, not on every note object update
+      if (hasNoteChanged) {
+        await loadNoteMetadata(note);
+      }
 
-      // Update previous note reference
+      // Update previous note references
       previousNote = note;
+      previousNoteId = note.id;
     })();
   });
 
@@ -601,13 +608,11 @@
         title={doc.title}
         onTitleChange={handleTitleChange}
         onTabToContent={() => editorRef?.focus()}
-        disabled={doc.isSaving}
       />
 
       <NoteActionBar
         noteType={note.type}
         onTypeChange={handleTypeChange}
-        disabled={doc.isSaving}
         isPinned={workspacesStore.isPinned(note.id)}
         isOnShelf={notesShelfStore.isOnShelf(note.id)}
         {metadataExpanded}
