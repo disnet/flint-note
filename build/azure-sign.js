@@ -18,6 +18,7 @@ import { spawn } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import os from 'os';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -102,7 +103,7 @@ export default async function sign(configuration) {
  * Sign using Windows SignTool with Azure credentials
  */
 async function signWithSignTool(filePath, accessToken) {
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     // SignTool command for Azure Trusted Signing
     const metadata = {
       Endpoint: process.env.AZURE_SIGNING_ENDPOINT,
@@ -111,6 +112,16 @@ async function signWithSignTool(filePath, accessToken) {
     };
 
     console.log('SignTool metadata:', JSON.stringify(metadata, null, 2));
+
+    // Write metadata to a temporary file (SignTool expects a file path for /dmdf)
+    const metadataFile = path.join(os.tmpdir(), 'azure-signing-metadata.json');
+    try {
+      await writeFile(metadataFile, JSON.stringify(metadata));
+      console.log('Wrote metadata to:', metadataFile);
+    } catch (error) {
+      reject(new Error(`Failed to write metadata file: ${error.message}`));
+      return;
+    }
 
     const args = [
       'sign',
@@ -125,7 +136,7 @@ async function signWithSignTool(filePath, accessToken) {
       '/dlib',
       'azure.codesigning.dlib',
       '/dmdf',
-      JSON.stringify(metadata),
+      metadataFile, // Pass file path instead of inline JSON
       '/du',
       'https://flintnote.com',
       '/d',
