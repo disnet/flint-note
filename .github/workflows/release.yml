@@ -145,14 +145,25 @@ jobs:
           Write-Host "Extracting dlib..."
           Expand-Archive -Path $dlibZip -DestinationPath $dlibExtract -Force
 
-          # Copy the dlib files to SignTool directory
-          $dlibSource = "$dlibExtract\bin\x64"
-          if (Test-Path $dlibSource) {
-            Write-Host "Copying dlib files to SignTool directory..."
-            Copy-Item "$dlibSource\*" -Destination $sdkPath -Force -Verbose
+          # Show extracted structure
+          Write-Host "Extracted package structure:"
+          Get-ChildItem $dlibExtract -Recurse -File | Select-Object FullName
+
+          # Find the dlib files (they might be in different locations depending on package structure)
+          $dlibFile = Get-ChildItem -Path $dlibExtract -Recurse -Filter "azure.codesigning.dlib.dll" -File | Select-Object -First 1
+
+          if ($dlibFile) {
+            Write-Host "Found dlib at: $($dlibFile.FullName)"
+            $dlibDir = $dlibFile.DirectoryName
+
+            Write-Host "Copying dlib files from $dlibDir to $sdkPath"
+            Copy-Item "$dlibDir\*" -Destination $sdkPath -Force -Verbose
+
+            Write-Host "Verifying dlib installation:"
+            Get-ChildItem $sdkPath -Filter "*.dlib.dll"
           } else {
-            Write-Host "Warning: Could not find dlib files at $dlibSource"
-            Get-ChildItem $dlibExtract -Recurse
+            Write-Host "ERROR: Could not find azure.codesigning.dlib.dll in package"
+            exit 1
           }
 
       - name: Build Electron app (Windows)

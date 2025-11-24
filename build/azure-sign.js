@@ -104,8 +104,18 @@ export default async function sign(configuration) {
 async function signWithSignTool(filePath, accessToken) {
   return new Promise((resolve, reject) => {
     // SignTool command for Azure Trusted Signing
+    const metadata = {
+      Endpoint: process.env.AZURE_SIGNING_ENDPOINT,
+      CodeSigningAccountName: extractAccountName(process.env.AZURE_SIGNING_ENDPOINT),
+      CertificateProfileName: process.env.AZURE_CERTIFICATE_PROFILE
+    };
+
+    console.log('SignTool metadata:', JSON.stringify(metadata, null, 2));
+
     const args = [
       'sign',
+      '/v', // Verbose output
+      '/debug', // Debug output
       '/fd',
       'SHA256',
       '/tr',
@@ -115,17 +125,15 @@ async function signWithSignTool(filePath, accessToken) {
       '/dlib',
       'azure.codesigning.dlib',
       '/dmdf',
-      JSON.stringify({
-        Endpoint: process.env.AZURE_SIGNING_ENDPOINT,
-        CodeSigningAccountName: extractAccountName(process.env.AZURE_SIGNING_ENDPOINT),
-        CertificateProfileName: process.env.AZURE_CERTIFICATE_PROFILE
-      }),
+      JSON.stringify(metadata),
       '/du',
       'https://flintnote.com',
       '/d',
       'Flint',
       filePath
     ];
+
+    console.log('SignTool command:', 'signtool', args.join(' '));
 
     // Set access token as environment variable for SignTool
     const env = {
