@@ -47,6 +47,7 @@ export default async function sign(configuration) {
     'AZURE_CLIENT_ID',
     'AZURE_CLIENT_SECRET',
     'AZURE_SIGNING_ENDPOINT',
+    'AZURE_SIGNING_ACCOUNT_NAME',
     'AZURE_CERTIFICATE_PROFILE'
   ];
 
@@ -107,7 +108,7 @@ async function signWithSignTool(filePath, accessToken) {
     // SignTool command for Azure Trusted Signing
     const metadata = {
       Endpoint: process.env.AZURE_SIGNING_ENDPOINT,
-      CodeSigningAccountName: extractAccountName(process.env.AZURE_SIGNING_ENDPOINT),
+      CodeSigningAccountName: process.env.AZURE_SIGNING_ACCOUNT_NAME,
       CertificateProfileName: process.env.AZURE_CERTIFICATE_PROFILE
     };
 
