@@ -371,7 +371,7 @@
   async function loadNextNote(): Promise<void> {
     if (!currentNote) {
       // No more notes - complete the session
-      completeSession();
+      await completeSession();
       return;
     }
 
@@ -541,35 +541,57 @@
   /**
    * End the session early
    */
-  function endSession(): void {
+  async function endSession(): Promise<void> {
     if (sessionResults.length > 0) {
-      completeSession();
+      await completeSession();
     } else {
       // No reviews completed - just go back to idle
-      backToDashboard();
+      await backToDashboard();
     }
   }
 
   /**
    * Complete the session and show summary
    */
-  function completeSession(): void {
+  async function completeSession(): Promise<void> {
     // Clear saved session since we're done
     reviewStore.clearSavedSession();
+
+    // Advance the session if we completed ALL notes
+    // This happens immediately when the last review is completed,
+    // regardless of whether the user clicks "Back to Dashboard"
+    const completedAllNotes = currentNoteIndex >= notesToReview.length;
+    const completedAtLeastOne = sessionResults.length > 0;
+
+    if (completedAllNotes && completedAtLeastOne) {
+      try {
+        await reviewStore.incrementSession();
+      } catch (error) {
+        // This might fail if session was already incremented or not available yet
+        // We catch and log the error but don't block the UI
+        console.error('Failed to increment session:', error);
+      }
+    }
+
     sessionState = 'complete';
   }
 
   /**
    * Return to dashboard and reload stats
    */
-  function backToDashboard(): void {
+  async function backToDashboard(): Promise<void> {
     // Ensure saved session is cleared when returning to dashboard
     reviewStore.clearSavedSession();
+
+    // Reset state
     sessionState = 'idle';
     notesToReview = [];
     currentNoteIndex = 0;
     sessionResults = [];
-    reviewStore.loadStats();
+
+    // Reload stats and session availability to reflect the updated state
+    await reviewStore.loadStats();
+    await reviewStore.loadSessionAvailability();
   }
 
   /**
