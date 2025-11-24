@@ -8,7 +8,7 @@ Flint is a note-taking app that helps you capture ideas, connect them together, 
 - **[Documentation](https://flintnote.com/docs)**
 - **[Community](https://discord.gg/flint-note)**
 
----
+![Flint Screenshot](./website/main-light.png)
 
 ## Status
 
@@ -21,12 +21,15 @@ Flint is currently in **beta**. Expect some bugs and unfinished polish as develo
 Most tools optimize for one part of this cycle. Flint optimizes for the entire process.
 
 ### 1. Externalize
+
 Getting ideas out of your head without barriers. The system handles organization so you can focus on thinking.
 
 ### 2. Internalize
+
 Making ideas yours through connection and reflection. This is where notes become knowledge.
 
 ### 3. Resurface
+
 Active recall brings past ideas back at optimal intervals, grounding them in memory.
 
 ## Core Principles
@@ -39,7 +42,6 @@ Active recall brings past ideas back at optimal intervals, grounding them in mem
 - **Open source** - No vendor lock-in, community-driven development
 
 Read [docs/FLINT-OVERVIEW.md](docs/FLINT-OVERVIEW.md) for a deeper understanding of Flint's philosophy.
-
 
 ## Quick start
 

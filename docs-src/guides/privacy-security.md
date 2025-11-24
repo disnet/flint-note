@@ -7,6 +7,7 @@ Understanding how Flint protects your data and what you need to know about priva
 **Flint's privacy principles:**
 
 - **Local-first** - Your notes stay on your computer
+- **Open source** - Code is transparent and auditable
 - **You control AI usage** - Choose when to send data to AI
 - **Transparent** - Clear about what goes where
 - **Secure storage** - Industry-standard encryption

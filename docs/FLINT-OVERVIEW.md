@@ -15,16 +15,19 @@ Most tools optimize for one part of this cycle. Flint optimizes for the entire p
 ### The Deep Knowledge Cycle
 
 #### 1. Externalize - Structured capture with minimal friction
+
 Getting ideas out of your head and into notes without barriers. The system handles organization so you can focus on thinking.
 
 **Key principle:** No friction when creating a note. Don't make users think about where it goes or how to structure it upfront.
 
 #### 2. Internalize - Making ideas yours through connection and reflection
+
 Integrating ideas into your mental models through writing, linking, and systematic reflection. This is where notes become knowledge.
 
 **Key principle:** Connections made explicit through wikilinks, backlinks, and agent assistance. Regular reflection practices systematized through routines.
 
 #### 3. Resurface - Active recall brings knowledge back
+
 Spaced repetition and contextual resurfacing bring past ideas back at optimal intervals, grounding them in memory and making them automatically retrievable.
 
 **Key principle:** The system schedules and prompts review. The agent generates contextual prompts for deep re-engagement.
@@ -33,7 +36,7 @@ Spaced repetition and contextual resurfacing bring past ideas back at optimal in
 
 ### Notes as First-Class Abstraction
 
-**Core Insight:** Notes are the unit of thinking, not files, folders, or implementation details. By elevating notes to first-class abstractions, Flint removes cognitive burden—you think in terms of *ideas and their connections*, not storage mechanics.
+**Core Insight:** Notes are the unit of thinking, not files, folders, or implementation details. By elevating notes to first-class abstractions, Flint removes cognitive burden—you think in terms of _ideas and their connections_, not storage mechanics.
 
 - **Content-centric organization**: How notes organize emerges from content and relationships, not predetermined folder hierarchies
 - **Type-guided thinking**: Note types encode patterns for different kinds of thinking and guide both you and the agent
@@ -44,6 +47,7 @@ Spaced repetition and contextual resurfacing bring past ideas back at optimal in
 AI agents help with **structural tasks** while humans remain responsible for **thinking**, **content creation**, and **insight generation**.
 
 The agent is deeply integrated with your note system and operates within the philosophy of supporting deep learning, not replacing your thinking:
+
 - **Semantic understanding**: The agent understands note types, relationships, and your learning patterns
 - **Type-aware assistance**: Different note types get different kinds of help
 - **Conversational partner**: Helps you capture better, connect deeper, and resurface at the right moments
@@ -51,6 +55,7 @@ The agent is deeply integrated with your note system and operates within the phi
 ### Frictionless Capture
 
 Reducing friction in capture is critical for externalizing effectively:
+
 - **No barriers to writing things down** - don't make users think about where notes belong
 - **Gradual structure addition** - start messy, add organization as patterns emerge
 - **Spatial organization** - pinned notes and manual sorting mirror how humans organize physical spaces

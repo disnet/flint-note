@@ -4,7 +4,7 @@ layout: home
 hero:
   name: Flint
   text: Ignite Deep Knowledge
-  tagline: Flint is a local-first, AI-powered note-taking application designed to build deep knowledge through the complete learning cycle.
+  tagline: Flint is an open source, local-first, AI-powered note-taking application designed to build deep knowledge through the complete learning cycle.
   actions:
     - theme: brand
       text: Get Started

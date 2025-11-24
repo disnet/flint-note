@@ -4,7 +4,7 @@ Welcome to Flint! This guide will help you install Flint, set up your first vaul
 
 ## What is Flint?
 
-Flint is a **local-first, AI-powered note-taking application** designed to build deep knowledge through the complete learning cycle.
+Flint is an **open source, local-first, AI-powered note-taking application** designed to build deep knowledge through the complete learning cycle.
 
 **The Core Philosophy:**
 

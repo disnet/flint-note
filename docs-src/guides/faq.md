@@ -6,11 +6,11 @@ Common questions about Flint, answered concisely.
 
 ### What is Flint?
 
-**Flint is a local-first note-taking app with integrated AI assistance.** Your notes are markdown files stored on your computer, and you can optionally use AI to help organize, search, and work with your notes.
+**Flint is an open source, local-first note-taking app with integrated AI assistance.** Your notes are markdown files stored on your computer, and you can optionally use AI to help organize, search, and work with your notes.
 
 ### Is Flint free?
 
-**Flint itself: Yes, free to download and use.**
+**Flint itself: Yes, free and open source.**
 
 **AI features:** Requires API key from AI provider (OpenRouter, etc.)
 

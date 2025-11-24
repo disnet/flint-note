@@ -19,6 +19,7 @@ Read [docs/FLINT-OVERVIEW.md](docs/FLINT-OVERVIEW.md) for a deeper understanding
 ### 🐛 Report Bugs
 
 Found a bug? Please report it on GitHub Issues with:
+
 - Clear description of the problem
 - Steps to reproduce
 - Expected vs actual behavior
@@ -28,6 +29,7 @@ Found a bug? Please report it on GitHub Issues with:
 ### 💡 Suggest Features
 
 Have an idea? We'd love to hear it! Open a GitHub Discussion or Issue with:
+
 - Clear description of the feature
 - Use cases and examples
 - How it aligns with Flint's philosophy
@@ -36,6 +38,7 @@ Have an idea? We'd love to hear it! Open a GitHub Discussion or Issue with:
 ### 📝 Improve Documentation
 
 Documentation improvements are always welcome:
+
 - Fix typos or unclear explanations
 - Add examples or clarifications
 - Write guides or tutorials
@@ -206,6 +209,7 @@ flint-note/
 - `website/` - Static website (deployed to Cloudflare Pages)
 
 To build documentation:
+
 ```bash
 npm run docs:dev      # Development server
 npm run docs:build    # Build documentation
@@ -220,6 +224,7 @@ npm run docs:build    # Build documentation
 - Reference issue numbers when applicable
 
 Examples:
+
 ```
 Add spaced repetition review system
 Fix wikilink parsing for special characters
@@ -244,12 +249,14 @@ Remove deprecated API endpoints (#123)
 We are committed to providing a welcoming and inclusive environment. Please be respectful and considerate in all interactions.
 
 Expected behavior:
+
 - Be respectful and constructive
 - Focus on what's best for the project and community
 - Show empathy towards others
 - Accept constructive criticism gracefully
 
 Unacceptable behavior:
+
 - Harassment or discrimination
 - Trolling or inflammatory comments
 - Personal attacks

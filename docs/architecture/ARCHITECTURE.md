@@ -595,29 +595,31 @@ Flint uses a centralized event bus for frontend event coordination:
 ```typescript
 // Note Events
 type NoteEvent =
-  | { type: 'note:created', data: { noteId: string, noteType: string } }
-  | { type: 'note:updated', data: { noteId: string, content: string } }
-  | { type: 'note:deleted', data: { noteId: string } }
-  | { type: 'note:renamed', data: { oldId: string, newId: string } }
-  | { type: 'note:moved', data: { noteId: string, newPath: string } }
-  | { type: 'note:archived', data: { noteId: string } };
+  | { type: 'note:created'; data: { noteId: string; noteType: string } }
+  | { type: 'note:updated'; data: { noteId: string; content: string } }
+  | { type: 'note:deleted'; data: { noteId: string } }
+  | { type: 'note:renamed'; data: { oldId: string; newId: string } }
+  | { type: 'note:moved'; data: { noteId: string; newPath: string } }
+  | { type: 'note:archived'; data: { noteId: string } };
 
 // Workflow Events
 type WorkflowEvent =
-  | { type: 'workflow:created', data: { workflowId: string } }
-  | { type: 'workflow:updated', data: { workflowId: string } }
-  | { type: 'workflow:completed', data: { workflowId: string } }
-  | { type: 'workflow:deleted', data: { workflowId: string } };
+  | { type: 'workflow:created'; data: { workflowId: string } }
+  | { type: 'workflow:updated'; data: { workflowId: string } }
+  | { type: 'workflow:completed'; data: { workflowId: string } }
+  | { type: 'workflow:deleted'; data: { workflowId: string } };
 
 // Review Events
 type ReviewEvent =
-  | { type: 'review:enabled', data: { noteId: string } }
-  | { type: 'review:disabled', data: { noteId: string } }
-  | { type: 'review:completed', data: { noteId: string } };
+  | { type: 'review:enabled'; data: { noteId: string } }
+  | { type: 'review:disabled'; data: { noteId: string } }
+  | { type: 'review:completed'; data: { noteId: string } };
 
 // Toast Events
-type ToastEvent =
-  | { type: 'toast:show', data: { message: string, variant: 'success' | 'error' | 'info' } };
+type ToastEvent = {
+  type: 'toast:show';
+  data: { message: string; variant: 'success' | 'error' | 'info' };
+};
 ```
 
 **Usage Pattern**:

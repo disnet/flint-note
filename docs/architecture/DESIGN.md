@@ -116,12 +116,14 @@ Mobile Layout (<768px):
 The application includes 82 components totaling over 32,000 lines of code, organized by functionality:
 
 **Core Layout (4 components):**
+
 - App.svelte (1,558 lines) - Main application shell
 - LeftSidebar.svelte (245 lines) - Navigation hub
 - RightSidebar.svelte (147 lines) - Contextual panel
 - MainView.svelte (396 lines) - Dynamic view container
 
 **Note Components (9 components):**
+
 - NoteEditor.svelte - Main editor wrapper
 - EditorHeader.svelte - Title, icon, type, actions
 - CodeMirrorEditor.svelte - CodeMirror 6 integration
@@ -133,6 +135,7 @@ The application includes 82 components totaling over 32,000 lines of code, organ
 - InlineCommentPopover.svelte - Comment annotations
 
 **Navigation Components (6 components):**
+
 - PinnedNotes.svelte (928 lines) - Workspace pins with drag & drop
 - TemporaryTabs.svelte (971 lines) - Session tabs management
 - WorkspaceBar.svelte - Workspace switcher
@@ -141,6 +144,7 @@ The application includes 82 components totaling over 32,000 lines of code, organ
 - NotesShelf.svelte - Quick reference panel
 
 **System View Components (5 components):**
+
 - InboxView.svelte - Quick capture interface
 - DailyView.svelte - Week-based journal
 - NotesView.svelte - Note type browser
@@ -148,6 +152,7 @@ The application includes 82 components totaling over 32,000 lines of code, organ
 - WorkflowManagementView.svelte - Automation management
 
 **Review System Components (7 components):**
+
 - ReviewView.svelte - Main review interface
 - ReviewDashboard.svelte - Stats and session start
 - ReviewSession.svelte - Active review flow
@@ -157,11 +162,13 @@ The application includes 82 components totaling over 32,000 lines of code, organ
 - ReviewFeedback.svelte - AI feedback display
 
 **Workflow Components (3 components):**
+
 - WorkflowList.svelte - Workflow browser
 - WorkflowDetail.svelte - Individual workflow view
 - WorkflowForm.svelte - Create/edit workflow
 
 **AI Components (7 components):**
+
 - Agent.svelte - Main AI assistant interface
 - ConversationContainer.svelte - Chat layout
 - MessageInput.svelte - Input with attachment support
@@ -171,6 +178,7 @@ The application includes 82 components totaling over 32,000 lines of code, organ
 - ThreadSelector.svelte - Conversation history
 
 **Custom Functions Components (5 components):**
+
 - CustomFunctionsManager.svelte - Function management UI
 - FunctionList.svelte - Available functions browser
 - FunctionEditor.svelte - Function creation/editing
@@ -178,6 +186,7 @@ The application includes 82 components totaling over 32,000 lines of code, organ
 - FunctionDocumentation.svelte - Usage guide
 
 **UI Primitives (20+ components):**
+
 - Modal.svelte - Dialog container
 - ConfirmationModal.svelte - Confirm actions
 - ToastNotification.svelte - Toast messages
@@ -200,6 +209,7 @@ The application includes 82 components totaling over 32,000 lines of code, organ
 - DragHandle.svelte - Drag & drop handles
 
 **Utility Components (10+ components):**
+
 - FirstTimeExperience.svelte - Onboarding flow
 - UpdateNotification.svelte - Update alerts
 - UpdateIndicator.svelte - Update badge
