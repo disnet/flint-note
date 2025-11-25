@@ -19,9 +19,12 @@ extraResources:
   - CHANGELOG-CANARY.md
 win:
   executableName: flint
-  # Windows code signing is configured via environment variables:
-  # CSC_LINK - Path to .p12 certificate file or base64-encoded certificate
-  # CSC_KEY_PASSWORD - Certificate password
+  # Code signing via custom script using Azure Trusted Signing
+  # For local builds, set environment variables:
+  # AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET,
+  # AZURE_SIGNING_ENDPOINT, AZURE_SIGNING_ACCOUNT_NAME, AZURE_CERTIFICATE_PROFILE
+  # If not set, build proceeds without signing
+  sign: build/azure-sign.js
   publisherName: 'Timothy Disney'
   verifyUpdateCodeSignature: true
 nsis:

@@ -65,7 +65,9 @@
    * Takes into account session size limits and session availability
    */
   function calculateQueueAdjustedDates(
-    items: Array<ReviewItem & { noteTitle: string; lastResult: 'passed' | 'failed' | null }>,
+    items: Array<
+      ReviewItem & { noteTitle: string; lastResult: 'passed' | 'failed' | null }
+    >,
     currentSession: number,
     sessionSize: number,
     sessionsPerWeek: number,
@@ -218,7 +220,9 @@
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const diffDays = Math.round((date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    const diffDays = Math.round(
+      (date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+    );
 
     // Past or today - just show "Due"
     if (diffDays <= 0) return 'Due';

@@ -120,7 +120,11 @@ jobs:
 
           echo "Notarization complete!"
 
-      - name: Build Electron app (Windows - unsigned)
+      - name: Install AzureSignTool (Windows)
+        if: matrix.os == 'windows-latest'
+        run: dotnet tool install --global AzureSignTool
+
+      - name: Build Electron app (Windows)
         if: matrix.os == 'windows-latest'
         shell: bash
         run: |
@@ -130,24 +134,13 @@ jobs:
             npm run build:win:production
           fi
         env:
-          # Build without signing - we'll sign afterwards with Azure action
-          CSC_IDENTITY_AUTO_DISCOVERY: false
-
-      - name: Sign Windows binaries with Azure Trusted Signing
-        if: matrix.os == 'windows-latest'
-        uses: azure/trusted-signing-action@v0.4.0
-        with:
-          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
-          endpoint: ${{ secrets.AZURE_SIGNING_ENDPOINT }}
-          trusted-signing-account-name: ${{ secrets.AZURE_SIGNING_ACCOUNT_NAME }}
-          certificate-profile-name: ${{ secrets.AZURE_CERTIFICATE_PROFILE }}
-          files-folder: ${{ github.workspace }}/dist
-          files-folder-filter: exe
-          file-digest: SHA256
-          timestamp-rfc3161: http://timestamp.acs.microsoft.com
-          timestamp-digest: SHA256
+          # Azure Trusted Signing credentials for build-time signing
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_SIGNING_ENDPOINT: ${{ secrets.AZURE_SIGNING_ENDPOINT }}
+          AZURE_SIGNING_ACCOUNT_NAME: ${{ secrets.AZURE_SIGNING_ACCOUNT_NAME }}
+          AZURE_CERTIFICATE_PROFILE: ${{ secrets.AZURE_CERTIFICATE_PROFILE }}
 
       - name: Build Electron app (Linux)
         if: matrix.os == 'ubuntu-latest'

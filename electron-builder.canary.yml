@@ -19,11 +19,12 @@ extraResources:
 win:
   executableName: flint-canary
   icon: 'build/icon.png'
-  # Code signing is handled by Azure Trusted Signing GitHub Action after build
-  # See .github/workflows/release.yml for signing configuration
+  # Code signing via custom script using Azure Trusted Signing
+  # The sign script is called during the build to sign executables BEFORE packaging
+  sign: build/azure-sign.js
   publisherName: 'Timothy Disney'
-  # Enable this once signing is working to verify update authenticity
-  verifyUpdateCodeSignature: false
+  # Verify update signatures - enabled since we sign during build
+  verifyUpdateCodeSignature: true
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}
