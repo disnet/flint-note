@@ -4,6 +4,17 @@ All notable changes to the Flint application will be documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.11.12]
+
+### Added
+
+- Agent can now archive and unarchive notes directly
+
+### Fixed
+
+- Fixed review scheduling display and statistics
+- Fixed navigation inconsistencies when switching between notes
+
 ## [0.11.11]
 
 ### Fixed
