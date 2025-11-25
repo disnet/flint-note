@@ -4,6 +4,8 @@
  * This script signs Windows executables using Microsoft Trusted Signing service.
  * It's called by electron-builder during the Windows build process.
  *
+ * Uses the Invoke-TrustedSigning PowerShell cmdlet (same as azure/trusted-signing-action).
+ *
  * Environment variables required:
  * - AZURE_TENANT_ID: Azure tenant ID
  * - AZURE_CLIENT_ID: Azure application (client) ID
@@ -16,7 +18,7 @@
 import { spawn } from 'child_process';
 
 /**
- * Sign a file using Azure Trusted Signing via AzureSignTool
+ * Sign a file using Azure Trusted Signing
  * @param {Object} configuration - Signing configuration from electron-builder
  */
 export default async function sign(configuration) {
@@ -47,8 +49,13 @@ export default async function sign(configuration) {
     return; // Skip signing, don't throw error
   }
 
+  // Validate file path
+  if (!filePath || typeof filePath !== 'string') {
+    throw new Error(`Invalid file path: ${filePath}`);
+  }
+
   try {
-    await signWithAzureSignTool(filePath);
+    await signWithTrustedSigning(filePath);
     console.log(`✅ Successfully signed ${filePath}\n`);
   } catch (error) {
     console.error('❌ Signing failed:', error.message);
@@ -57,96 +64,79 @@ export default async function sign(configuration) {
 }
 
 /**
- * Sign using AzureSignTool
- * AzureSignTool is a standalone tool for Azure Trusted Signing that handles
- * authentication and signing in one step.
+ * Sign using Invoke-TrustedSigning PowerShell cmdlet
+ * This is the same method used by azure/trusted-signing-action
  */
-async function signWithAzureSignTool(filePath) {
+async function signWithTrustedSigning(filePath) {
   return new Promise((resolve, reject) => {
-    // Validate file path
-    if (!filePath || typeof filePath !== 'string') {
-      reject(new Error(`Invalid file path: ${filePath}`));
-      return;
-    }
+    // PowerShell script to install module and sign file
+    const psScript = `
+$ErrorActionPreference = 'Stop'
 
-    const args = [
-      'sign',
-      // File to sign (must come right after 'sign' command for AzureSignTool v5+)
-      filePath,
-      // Azure authentication
-      '--azure-key-vault-tenant-id',
-      process.env.AZURE_TENANT_ID,
-      '--azure-key-vault-client-id',
-      process.env.AZURE_CLIENT_ID,
-      '--azure-key-vault-client-secret',
-      process.env.AZURE_CLIENT_SECRET,
-      // Trusted Signing configuration
-      '--trusted-signing-endpoint',
-      process.env.AZURE_SIGNING_ENDPOINT,
-      '--trusted-signing-account',
-      process.env.AZURE_SIGNING_ACCOUNT_NAME,
-      '--trusted-signing-certificate-profile',
-      process.env.AZURE_CERTIFICATE_PROFILE,
-      // Signing options
-      '--file-digest',
-      'sha256',
-      '--timestamp-rfc3161',
-      'http://timestamp.acs.microsoft.com',
-      '--timestamp-digest',
-      'sha256',
-      // Description
-      '--description',
-      'Flint - A note-taking app',
-      '--description-url',
-      'https://www.flintnote.com',
-      // Verbose output
-      '--verbose'
-    ];
+# Install TrustedSigning module if not present
+if (-not (Get-Module -ListAvailable -Name TrustedSigning)) {
+    Write-Host "Installing TrustedSigning module..."
+    Install-Module -Name TrustedSigning -Force -Scope CurrentUser -Repository PSGallery
+}
 
-    console.log('Running: AzureSignTool sign', filePath.split(/[\\/]/).pop(), '...');
-    console.log('   Full path:', filePath);
+Import-Module TrustedSigning
 
-    const signTool = spawn('AzureSignTool', args, {
-      stdio: ['ignore', 'pipe', 'pipe']
-    });
+# Sign the file
+Write-Host "Signing file: ${filePath.replace(/\\/g, '\\\\')}"
+
+Invoke-TrustedSigning \`
+    -Endpoint "$env:AZURE_SIGNING_ENDPOINT" \`
+    -TrustedSigningAccountName "$env:AZURE_SIGNING_ACCOUNT_NAME" \`
+    -CertificateProfileName "$env:AZURE_CERTIFICATE_PROFILE" \`
+    -Files "${filePath.replace(/\\/g, '\\\\')}" \`
+    -FileDigest SHA256 \`
+    -TimestampRfc3161 "http://timestamp.acs.microsoft.com" \`
+    -TimestampDigest SHA256 \`
+    -Verbose
+
+Write-Host "Signing completed successfully"
+`;
+
+    console.log('Running: Invoke-TrustedSigning via PowerShell...');
+    console.log('   File:', filePath.split(/[\\/]/).pop());
+
+    const powershell = spawn(
+      'powershell.exe',
+      ['-NoProfile', '-NonInteractive', '-Command', psScript],
+      {
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env: process.env
+      }
+    );
 
     let stdout = '';
     let stderr = '';
 
-    signTool.stdout.on('data', (data) => {
+    powershell.stdout.on('data', (data) => {
       stdout += data.toString();
-      // Print progress
       const lines = data.toString().split('\n').filter(Boolean);
       lines.forEach((line) => console.log(`   ${line}`));
     });
 
-    signTool.stderr.on('data', (data) => {
+    powershell.stderr.on('data', (data) => {
       stderr += data.toString();
       console.error(`   ${data.toString()}`);
     });
 
-    signTool.on('close', (code) => {
+    powershell.on('close', (code) => {
       if (code === 0) {
         resolve();
       } else {
         reject(
           new Error(
-            `AzureSignTool failed with code ${code}\nstdout: ${stdout}\nstderr: ${stderr}`
+            `PowerShell signing failed with code ${code}\nstdout: ${stdout}\nstderr: ${stderr}`
           )
         );
       }
     });
 
-    signTool.on('error', (error) => {
-      if (error.code === 'ENOENT') {
-        reject(
-          new Error(
-            'AzureSignTool not found. Install it with: dotnet tool install --global AzureSignTool'
-          )
-        );
-      } else {
-        reject(new Error(`Failed to execute AzureSignTool: ${error.message}`));
-      }
+    powershell.on('error', (error) => {
+      reject(new Error(`Failed to execute PowerShell: ${error.message}`));
     });
   });
 }
