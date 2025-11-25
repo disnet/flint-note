@@ -77,7 +77,7 @@ async function signWithAzureSignTool(filePath) {
       process.env.AZURE_SIGNING_ENDPOINT,
       '--trusted-signing-account',
       process.env.AZURE_SIGNING_ACCOUNT_NAME,
-      '--trusted-signing-cert-profile',
+      '--trusted-signing-certificate-profile',
       process.env.AZURE_CERTIFICATE_PROFILE,
       // Signing options
       '--file-digest',
