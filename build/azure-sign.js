@@ -86,7 +86,7 @@ Write-Host "Signing file: ${filePath.replace(/\\/g, '\\\\')}"
 
 Invoke-TrustedSigning \`
     -Endpoint "$env:AZURE_SIGNING_ENDPOINT" \`
-    -TrustedSigningAccountName "$env:AZURE_SIGNING_ACCOUNT_NAME" \`
+    -CodeSigningAccountName "$env:AZURE_SIGNING_ACCOUNT_NAME" \`
     -CertificateProfileName "$env:AZURE_CERTIFICATE_PROFILE" \`
     -Files "${filePath.replace(/\\/g, '\\\\')}" \`
     -FileDigest SHA256 \`
