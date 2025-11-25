@@ -1,0 +1,36 @@
+name: epub
+purpose: 'EPUB ebook reading notes - read and annotate digital books'
+icon: '📚'
+agent_instructions:
+  - 'Help summarize key concepts and themes from the book'
+  - 'Create wikilinks to related notes and concepts'
+  - 'Help organize reading notes by chapter or topic'
+  - 'Suggest connections to other books and ideas in the vault'
+  - 'Extract quotes and key passages when the user highlights them'
+  - 'Help build a reading log with key takeaways'
+metadata_schema:
+  fields:
+    - name: 'epubPath'
+      type: 'string'
+      description: 'Relative path to the EPUB file in the vault'
+      required: true
+    - name: 'epubTitle'
+      type: 'string'
+      description: 'Title of the book from EPUB metadata'
+      required: false
+    - name: 'epubAuthor'
+      type: 'string'
+      description: 'Author of the book from EPUB metadata'
+      required: false
+    - name: 'currentCfi'
+      type: 'string'
+      description: 'CFI position for reading progress'
+      required: false
+    - name: 'progress'
+      type: 'number'
+      description: 'Reading progress percentage (0-100)'
+      required: false
+    - name: 'lastRead'
+      type: 'date'
+      description: 'Last time the book was read'
+      required: false

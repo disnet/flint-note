@@ -670,6 +670,10 @@ declare global {
       getMigrationMapping: () => Promise<Record<string, string> | null>;
       clearVaultUIState: (params: { vaultId: string }) => Promise<void>;
 
+      // EPUB operations
+      importEpub: () => Promise<{ filename: string; path: string } | null>;
+      readEpubFile: (params: { relativePath: string }) => Promise<Uint8Array>;
+
       // Event listener for note events from main process
       onNoteEvent: (callback: (event: unknown) => void) => () => void;
 

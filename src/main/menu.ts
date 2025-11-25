@@ -126,6 +126,12 @@ export function createApplicationMenu(): Menu {
           }
         },
         {
+          label: 'Import EPUB...',
+          click: (): void => {
+            sendToRenderer('menu-action', 'import-epub');
+          }
+        },
+        {
           label: 'New Vault...',
           click: (): void => {
             sendToRenderer('menu-action', 'new-vault');

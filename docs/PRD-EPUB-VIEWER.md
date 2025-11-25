@@ -48,7 +48,7 @@ Integrate an EPUB reader into Flint Note using the custom view system, allowing 
 
 **foliate-js** - Modern, actively maintained EPUB rendering library
 
-- GitHub: https://github.com/johnfactotum/foliate-js
+- GitHub: <https://github.com/johnfactotum/foliate-js>
 - Lightweight, clean API
 - Good rendering quality
 - Supports CFI (Canonical Fragment Identifiers) for position tracking
@@ -80,6 +80,7 @@ src/renderer/src/lib/views/
 ### File Storage
 
 EPUB files stored in vault:
+
 ```
 vault/
 ├── attachments/
@@ -128,18 +129,18 @@ ipcMain.handle('read-epub-file', async (_event, relativePath: string) => {
 interface EpubNote {
   id: string;
   type: 'epub';
-  title: string;           // Book title (from EPUB metadata or user override)
-  filename: string;        // e.g., "the-great-gatsby.md"
-  content: string;         // User's markdown notes about the book
+  title: string; // Book title (from EPUB metadata or user override)
+  filename: string; // e.g., "the-great-gatsby.md"
+  content: string; // User's markdown notes about the book
   metadata: {
-    epubPath: string;      // Relative path: "attachments/epubs/book.epub"
-    epubTitle: string;     // Title from EPUB metadata
-    epubAuthor: string;    // Author from EPUB metadata
-    epubCover?: string;    // Base64 cover image or path
-    currentCfi: string;    // CFI position for reading progress
-    progress: number;      // 0-100 percentage
-    totalLocations: number;// Total locations in book (for progress calc)
-    lastRead: string;      // ISO timestamp
+    epubPath: string; // Relative path: "attachments/epubs/book.epub"
+    epubTitle: string; // Title from EPUB metadata
+    epubAuthor: string; // Author from EPUB metadata
+    epubCover?: string; // Base64 cover image or path
+    currentCfi: string; // CFI position for reading progress
+    progress: number; // 0-100 percentage
+    totalLocations: number; // Total locations in book (for progress calc)
+    lastRead: string; // ISO timestamp
   };
 }
 ```
@@ -150,13 +151,12 @@ interface EpubNote {
 ---
 type: epub
 epubPath: attachments/epubs/deep-work.epub
-epubTitle: "Deep Work"
-epubAuthor: "Cal Newport"
-currentCfi: "epubcfi(/6/4[chapter1]!/4/2/1:0)"
+epubTitle: 'Deep Work'
+epubAuthor: 'Cal Newport'
+currentCfi: 'epubcfi(/6/4[chapter1]!/4/2/1:0)'
 progress: 34
 lastRead: 2025-01-15T10:30:00Z
 ---
-
 # My Notes on Deep Work
 
 ## Chapter 1 Thoughts
@@ -240,6 +240,7 @@ The distinction between deep and shallow work resonates with [[productivity]] id
 ### Empty State
 
 When note has no content yet:
+
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                         Notes Panel                             │
@@ -311,9 +312,13 @@ Features to consider post-MVP:
 ## Open Questions
 
 1. **Panel resize** - Should users be able to resize reader/notes split?
+   [yes, should be able to resize the split]
 2. **Mobile/responsive** - Stack panels vertically on narrow screens?
+   [don't bother for now]
 3. **Multiple EPUBs open** - Tabs? Or one at a time?
+   [just like normal notes, only one at a time]
 4. **Cover display** - Show cover in note list/search results?
+   [not for now]
 
 ## Success Metrics
 

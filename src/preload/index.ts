@@ -587,6 +587,12 @@ const api = {
   clearVaultUIState: (params: { vaultId: string }) =>
     electronAPI.ipcRenderer.invoke('clear-vault-ui-state', params),
 
+  // EPUB operations
+  importEpub: (): Promise<{ filename: string; path: string } | null> =>
+    electronAPI.ipcRenderer.invoke('import-epub'),
+  readEpubFile: (params: { relativePath: string }): Promise<Uint8Array> =>
+    electronAPI.ipcRenderer.invoke('read-epub-file', params),
+
   // Event listener for note events from main process
   onNoteEvent: (callback: (event: unknown) => void): (() => void) => {
     const handler = (_event: Electron.IpcRendererEvent, noteEvent: unknown): void =>

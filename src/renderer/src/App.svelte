@@ -257,6 +257,9 @@
             await workspacesStore.switchWorkspace(args[0]);
           }
           break;
+        case 'import-epub':
+          await handleImportEpub();
+          break;
       }
     });
 
@@ -344,6 +347,74 @@
     await noteNavigationService.openNote(note, 'navigation', openNoteEditor, () => {
       activeSystemView = null;
     });
+  }
+
+  async function handleImportEpub(): Promise<void> {
+    try {
+      // Open file picker and import EPUB
+      const result = await window.api?.importEpub();
+      if (!result) {
+        // User cancelled the file picker
+        return;
+      }
+
+      // Get the current vault
+      const chatService = getChatService();
+      const currentVault = await chatService.getCurrentVault();
+      if (!currentVault) {
+        console.error('No current vault available for EPUB import');
+        return;
+      }
+
+      // Create the epub note with metadata
+      const bookName = result.filename.replace(/\.epub$/i, '');
+      const identifier = bookName; // Use book name as identifier
+
+      // Create note with epub metadata
+      const createdNote = await chatService.createNote({
+        type: 'epub',
+        identifier,
+        content: `# Notes on ${bookName}\n\n`,
+        vaultId: currentVault.id
+      });
+
+      // Update the note with EPUB-specific metadata
+      await chatService.updateNote({
+        identifier: createdNote.id,
+        content: `# Notes on ${bookName}\n\n`,
+        vaultId: currentVault.id,
+        metadata: {
+          epubPath: result.path,
+          progress: 0,
+          lastRead: new Date().toISOString()
+        }
+      });
+
+      // Convert to NoteMetadata format and open
+      const noteMetadata: NoteMetadata = {
+        id: createdNote.id,
+        type: createdNote.type,
+        title: createdNote.title,
+        filename: createdNote.filename,
+        path: createdNote.path,
+        created: createdNote.created,
+        modified: createdNote.created,
+        size: 0,
+        tags: []
+      };
+
+      // Open the note
+      await noteNavigationService.openNote(
+        noteMetadata,
+        'navigation',
+        openNoteEditor,
+        () => {
+          activeSystemView = null;
+        }
+      );
+    } catch (error) {
+      console.error('Failed to import EPUB:', error);
+    }
   }
 
   async function handleCreateNote(

@@ -1,6 +1,7 @@
 import { app, shell, BrowserWindow, ipcMain, Menu, dialog, nativeTheme } from 'electron';
-import { join } from 'path';
+import { join, basename } from 'path';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
+import { promises as fsPromises } from 'fs';
 import icon from '../../resources/icon.png?asset';
 import { AIService } from './ai-service';
 import { CustomFunctionsApi } from '../server/api/custom-functions-api.js';
@@ -2622,6 +2623,92 @@ app.whenReady().then(async () => {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
       };
+    }
+  });
+
+  // EPUB operations
+  ipcMain.handle('import-epub', async () => {
+    try {
+      const result = await dialog.showOpenDialog({
+        filters: [{ name: 'EPUB', extensions: ['epub'] }],
+        properties: ['openFile']
+      });
+
+      if (result.canceled || result.filePaths.length === 0) {
+        return null;
+      }
+
+      const sourcePath = result.filePaths[0];
+      const filename = basename(sourcePath);
+
+      // Get current vault path
+      if (!noteService) {
+        throw new Error('Note service not available');
+      }
+      const currentVault = await noteService.getCurrentVault();
+      if (!currentVault) {
+        throw new Error('No vault available');
+      }
+
+      // Ensure attachments/epubs directory exists
+      const epubsDir = join(currentVault.path, 'attachments', 'epubs');
+      await fsPromises.mkdir(epubsDir, { recursive: true });
+
+      // Copy the EPUB file to vault
+      const destPath = join(epubsDir, filename);
+
+      // Check if file already exists, add suffix if needed
+      let finalPath = destPath;
+      let finalFilename = filename;
+      let counter = 1;
+      while (true) {
+        try {
+          await fsPromises.access(finalPath);
+          // File exists, try with a counter suffix
+          const baseName = filename.replace(/\.epub$/i, '');
+          finalFilename = `${baseName}-${counter}.epub`;
+          finalPath = join(epubsDir, finalFilename);
+          counter++;
+        } catch {
+          // File doesn't exist, we can use this path
+          break;
+        }
+      }
+
+      await fsPromises.copyFile(sourcePath, finalPath);
+
+      logger.info('EPUB imported successfully', {
+        filename: finalFilename,
+        path: finalPath
+      });
+      return {
+        filename: finalFilename,
+        path: `attachments/epubs/${finalFilename}`
+      };
+    } catch (error) {
+      logger.error('Failed to import EPUB', { error });
+      throw error;
+    }
+  });
+
+  ipcMain.handle('read-epub-file', async (_event, params: { relativePath: string }) => {
+    try {
+      if (!noteService) {
+        throw new Error('Note service not available');
+      }
+      const currentVault = await noteService.getCurrentVault();
+      if (!currentVault) {
+        throw new Error('No vault available');
+      }
+
+      const fullPath = join(currentVault.path, params.relativePath);
+      const buffer = await fsPromises.readFile(fullPath);
+
+      // Return as Uint8Array for transfer to renderer
+      return new Uint8Array(buffer);
+    } catch (error) {
+      logger.error('Failed to read EPUB file', { error, path: params.relativePath });
+      throw error;
     }
   });
 
