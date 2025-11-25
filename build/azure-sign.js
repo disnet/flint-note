@@ -63,8 +63,16 @@ export default async function sign(configuration) {
  */
 async function signWithAzureSignTool(filePath) {
   return new Promise((resolve, reject) => {
+    // Validate file path
+    if (!filePath || typeof filePath !== 'string') {
+      reject(new Error(`Invalid file path: ${filePath}`));
+      return;
+    }
+
     const args = [
       'sign',
+      // File to sign (must come right after 'sign' command for AzureSignTool v5+)
+      filePath,
       // Azure authentication
       '--azure-key-vault-tenant-id',
       process.env.AZURE_TENANT_ID,
@@ -92,12 +100,11 @@ async function signWithAzureSignTool(filePath) {
       '--description-url',
       'https://www.flintnote.com',
       // Verbose output
-      '--verbose',
-      // File to sign
-      filePath
+      '--verbose'
     ];
 
-    console.log('Running: AzureSignTool', args.slice(0, 3).join(' '), '...');
+    console.log('Running: AzureSignTool sign', filePath.split(/[\\/]/).pop(), '...');
+    console.log('   Full path:', filePath);
 
     const signTool = spawn('AzureSignTool', args, {
       stdio: ['ignore', 'pipe', 'pipe']
