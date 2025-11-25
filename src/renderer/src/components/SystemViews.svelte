@@ -19,7 +19,10 @@
   let { onSystemViewSelect, activeSystemView }: Props = $props();
 
   const inboxCount = $derived(inboxStore.count);
-  const reviewDueCount = $derived(reviewStore.stats.dueThisSession);
+  // Only show due count if session is available (not waiting for next day reset)
+  const reviewDueCount = $derived(
+    reviewStore.nextSessionAvailableAt ? 0 : reviewStore.stats.dueThisSession
+  );
 
   function setActiveView(
     view: 'inbox' | 'daily' | 'notes' | 'settings' | 'workflows' | 'review'

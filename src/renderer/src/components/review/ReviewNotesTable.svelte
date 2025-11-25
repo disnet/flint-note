@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import { reviewStore } from '../../stores/reviewStore.svelte';
   import { notesStore } from '../../services/noteStore.svelte';
   import { wikilinkService } from '../../services/wikilinkService.svelte';
@@ -18,13 +17,15 @@
     isOverdue: boolean;
     isDueToday: boolean;
     lastResult: 'passed' | 'failed' | null;
+    estimatedDueDate: string; // Queue-adjusted estimated due date
+    queuePosition: number; // Position in the review queue
   }
 
   let reviewItems = $state<EnrichedReviewItem[]>([]);
   let isLoading = $state(false);
   let expandedNoteId = $state<string | null>(null);
 
-  // Filtered and sorted items (always sorted by due date, ascending)
+  // Filtered and sorted items (always sorted by estimated due date, ascending)
   const filteredItems = $derived.by(() => {
     let items = reviewItems;
 
@@ -34,23 +35,122 @@
       items = items.filter((item) => item.noteTitle.toLowerCase().includes(query));
     }
 
-    // Always sort by next review date (ascending - soonest first)
-    items = [...items].sort((a, b) => a.nextReview.localeCompare(b.nextReview));
+    // Sort by estimated due date (queue-adjusted), then by queue position
+    items = [...items].sort((a, b) => {
+      const dateCompare = a.estimatedDueDate.localeCompare(b.estimatedDueDate);
+      if (dateCompare !== 0) return dateCompare;
+      return a.queuePosition - b.queuePosition;
+    });
 
     return items;
   });
 
-  onMount(() => {
-    loadReviewItems();
+  // Load and reload when session availability or stats change
+  $effect(() => {
+    // Access reactive values to create dependencies - reading them creates the dependency
+    const isAvailable = reviewStore.isSessionAvailable;
+    const sessionNumber = reviewStore.stats.currentSessionNumber;
+    const isLoading = reviewStore.isLoadingStats;
+
+    // Only load once stats have been fetched and are not still loading
+    // This ensures we have the correct isSessionAvailable value from the backend
+    if (!isLoading && sessionNumber > 0) {
+      void isAvailable; // Ensure we track this dependency
+      loadReviewItems();
+    }
   });
+
+  /**
+   * Calculate queue-adjusted due dates for all items
+   * Takes into account session size limits and session availability
+   */
+  function calculateQueueAdjustedDates(
+    items: Array<ReviewItem & { noteTitle: string; lastResult: 'passed' | 'failed' | null }>,
+    currentSession: number,
+    sessionSize: number,
+    sessionsPerWeek: number,
+    isSessionAvailable: boolean
+  ): EnrichedReviewItem[] {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStr = today.toISOString().split('T')[0];
+
+    // Sort items by priority: session number first, then by how overdue (most overdue first)
+    const sortedItems = [...items].sort((a, b) => {
+      // First by session number
+      if (a.nextSessionNumber !== b.nextSessionNumber) {
+        return a.nextSessionNumber - b.nextSessionNumber;
+      }
+      // Then by next review date (earlier = more overdue = higher priority)
+      return a.nextReview.localeCompare(b.nextReview);
+    });
+
+    // Group items by which session they'll actually be reviewed in
+    // accounting for session size limits
+    const result: EnrichedReviewItem[] = [];
+
+    // If session is not available (completed for today), next available is tomorrow
+    // So we start counting from session + 1, and base date is tomorrow
+    const baseSession = isSessionAvailable ? currentSession : currentSession + 1;
+    const baseDate = new Date(today);
+    if (!isSessionAvailable) {
+      baseDate.setDate(baseDate.getDate() + 1);
+    }
+
+    let currentQueueSession = baseSession;
+    let itemsInCurrentSession = 0;
+
+    for (let i = 0; i < sortedItems.length; i++) {
+      const item = sortedItems[i];
+
+      // Determine the earliest session this item could be reviewed
+      const itemEarliestSession = Math.max(item.nextSessionNumber, baseSession);
+
+      // If this item's earliest session is beyond our current queue session, jump to it
+      if (itemEarliestSession > currentQueueSession) {
+        currentQueueSession = itemEarliestSession;
+        itemsInCurrentSession = 0;
+      }
+
+      // If we've filled the current session, move to the next
+      if (itemsInCurrentSession >= sessionSize) {
+        currentQueueSession++;
+        itemsInCurrentSession = 0;
+      }
+
+      // Calculate estimated date based on which session this item will actually be in
+      const sessionsAway = currentQueueSession - baseSession;
+      const daysAway = Math.round((sessionsAway / sessionsPerWeek) * 7);
+      const estimatedDate = new Date(baseDate);
+      estimatedDate.setDate(estimatedDate.getDate() + daysAway);
+      // Use local date string to avoid timezone issues (YYYY-MM-DD in local time)
+      const estimatedDueDate = `${estimatedDate.getFullYear()}-${String(estimatedDate.getMonth() + 1).padStart(2, '0')}-${String(estimatedDate.getDate()).padStart(2, '0')}`;
+
+      result.push({
+        ...item,
+        isOverdue: item.nextSessionNumber < currentSession || item.nextReview < todayStr,
+        isDueToday: estimatedDueDate === todayStr && isSessionAvailable,
+        estimatedDueDate,
+        queuePosition: i + 1
+      });
+
+      itemsInCurrentSession++;
+    }
+
+    return result;
+  }
 
   async function loadReviewItems(): Promise<void> {
     isLoading = true;
     try {
       const items = await reviewStore.getAllReviewHistory();
-      const today = new Date().toISOString().split('T')[0];
+      const currentSession = reviewStore.stats.currentSessionNumber;
+      const sessionSize = reviewStore.config.sessionSize;
+      const sessionsPerWeek = reviewStore.config.sessionsPerWeek;
+      const isSessionAvailable = reviewStore.isSessionAvailable;
 
-      reviewItems = items.map((item) => {
+      // First pass: add note titles and last result
+      const enrichedItems = items.map((item) => {
         const note = notesStore.allNotes.find((n) => n.id === item.noteId);
         const lastHistoryEntry =
           item.reviewHistory.length > 0
@@ -60,8 +160,6 @@
         return {
           ...item,
           noteTitle: note?.title || 'Unknown Note',
-          isOverdue: item.nextReview < today,
-          isDueToday: item.nextReview === today,
           lastResult: (lastHistoryEntry
             ? lastHistoryEntry.rating >= 2
               ? 'passed'
@@ -69,6 +167,15 @@
             : null) as 'passed' | 'failed' | null
         };
       });
+
+      // Calculate queue-adjusted dates
+      reviewItems = calculateQueueAdjustedDates(
+        enrichedItems,
+        currentSession,
+        sessionSize,
+        sessionsPerWeek,
+        isSessionAvailable
+      );
     } catch (error) {
       console.error('Failed to load review items:', error);
     } finally {
@@ -104,19 +211,26 @@
   }
 
   function formatDate(dateString: string): string {
-    const date = new Date(dateString);
+    // Parse YYYY-MM-DD as local date (not UTC)
+    const [year, month, day] = dateString.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+
     const today = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    today.setHours(0, 0, 0, 0);
 
-    const dateStr = date.toISOString().split('T')[0];
-    const todayStr = today.toISOString().split('T')[0];
-    const tomorrowStr = tomorrow.toISOString().split('T')[0];
+    const diffDays = Math.round((date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
-    if (dateStr === todayStr) return 'Today';
-    if (dateStr === tomorrowStr) return 'Tomorrow';
+    // Past or today - just show "Due"
+    if (diffDays <= 0) return 'Due';
 
-    // Format as "Dec 25" or "Jan 3"
+    // Future dates - show relative
+    if (diffDays === 1) return 'Tomorrow';
+    if (diffDays <= 6) return `In ${diffDays} days`;
+    if (diffDays <= 13) return 'Next week';
+    if (diffDays <= 20) return 'In 2 weeks';
+    if (diffDays <= 27) return 'In 3 weeks';
+
+    // Further out - show month
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   }
 </script>
@@ -182,7 +296,7 @@
               class:overdue={item.isOverdue}
               class:today={item.isDueToday}
             >
-              {formatDate(item.nextReview)}
+              {formatDate(item.estimatedDueDate)}
             </span>
 
             {#if item.lastResult}

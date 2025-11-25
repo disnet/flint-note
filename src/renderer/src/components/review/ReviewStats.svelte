@@ -62,7 +62,7 @@
     </div>
 
     <div class="stat-card today">
-      <div class="stat-value">{stats.dueThisSession}</div>
+      <div class="stat-value">{nextSessionAvailableAt ? 0 : stats.dueThisSession}</div>
       <div class="stat-label">Due Now</div>
     </div>
 
@@ -87,18 +87,19 @@
       </div>
     {/if}
 
-    {#if stats.dueThisSession > 0}
+    {#if stats.dueThisSession > 0 && !nextSessionAvailableAt}
       <button class="start-review-btn primary" onclick={onStartReview}>
         Start Review ({stats.dueThisSession})
       </button>
+    {:else if nextSessionAvailableAt}
+      <div class="no-reviews">
+        <p>Session complete!</p>
+        <p class="upcoming">Next session available tomorrow</p>
+      </div>
     {:else}
       <div class="no-reviews">
         <p>No notes due for review!</p>
-        {#if nextSessionAvailableAt}
-          <p class="upcoming">Next session tomorrow</p>
-        {:else}
-          <p class="upcoming">Complete more sessions to see more notes</p>
-        {/if}
+        <p class="upcoming">Complete more sessions to see more notes</p>
       </div>
     {/if}
   </div>
