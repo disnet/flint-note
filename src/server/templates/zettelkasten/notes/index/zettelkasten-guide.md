@@ -96,6 +96,28 @@ Your Zettelkasten will grow organically as you develop ideas. Don't worry about 
 
 As you work, Flint will help you stay organized by showing you note type counts in the sidebar, so you can see at a glance how many fleeting notes need processing or how your permanent notes are growing.
 
+## Spaced Repetition Review
+
+A Zettelkasten grows more powerful when you regularly revisit your permanent notes. Flint includes a spaced repetition system that schedules reviews at optimal intervals.
+
+**Why review matters:**
+
+- Strengthens memory of key concepts
+- Surfaces connections you may have forgotten
+- Prompts you to update notes with new understanding
+- Keeps your knowledge network active, not dormant
+
+**How to use it:**
+
+1. Enable review on permanent notes you want to internalize
+2. Flint schedules the note for periodic review
+3. During review, the AI helps you actively engage with the content
+4. Notes you know well get reviewed less often; challenging ones more frequently
+
+Not every permanent note needs review—focus on ideas you want to deeply internalize or concepts central to your thinking.
+
+Ask the AI to "enable review for this note" when you've written something worth remembering long-term.
+
 ## The Zettelkasten Philosophy
 
 **Bottom-up, not top-down** - Don't create elaborate folder systems or category hierarchies before you have notes. Let structure emerge from the connections between ideas.

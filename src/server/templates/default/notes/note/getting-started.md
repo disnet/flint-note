@@ -54,6 +54,35 @@ As your vault grows, you might want to create custom note types for different pu
 
 Create custom note types to give your notes structure and get tailored AI assistance.
 
+## Spaced Repetition Review
+
+Want to remember important ideas long-term? Flint includes a spaced repetition system that helps you review notes at optimal intervals.
+
+**How it works:**
+
+1. Enable review on any note you want to remember
+2. Flint schedules the note for periodic review sessions
+3. During review, the AI helps you actively recall and engage with the content
+4. Based on how well you remember, the next review is scheduled
+
+This is perfect for:
+
+- Key concepts you're learning
+- Important meeting takeaways
+- Ideas you want to internalize
+
+Ask the AI assistant to "enable review for this note" or find it in the note's menu.
+
+## Archiving Notes
+
+As your vault grows, you may want to declutter without deleting. **Archiving** hides notes from your main list while keeping them accessible:
+
+- Archived notes still resolve wikilinks
+- You can search for and unarchive them anytime
+- Great for completed projects, outdated references, or notes you might need later
+
+Ask the AI to "archive this note" or use the note menu.
+
 ## Tips for Success
 
 **Start Messy**: Don't worry about perfect organization from day one. Capture thoughts first, organize later.
