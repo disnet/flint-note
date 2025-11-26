@@ -84,7 +84,7 @@
     "@types/js-yaml": "^4.0.0",
     "@types/node": "^22.18.11",
     "@types/sqlite3": "^3.1.11",
-    "@vitest/ui": "^3.2.4",
+    "@vitest/ui": "^4.0.14",
     "codemirror": "^6.0.2",
     "dotenv": "^17.2.3",
     "electron": "^39.2.4",
@@ -92,7 +92,6 @@
     "electron-vite": "^3.1.0",
     "eslint": "^9.24.0",
     "eslint-plugin-svelte": "^3.5.1",
-    "happy-dom": "^18.0.1",
     "jsdom": "^26.1.0",
     "prettier": "^3.5.3",
     "prettier-plugin-svelte": "^3.3.3",
@@ -101,6 +100,6 @@
     "tsx": "^4.20.3",
     "vite": "^6.2.6",
     "vitepress": "^1.6.4",
-    "vitest": "^3.2.4"
+    "vitest": "^4.0.14"
   }
 }
