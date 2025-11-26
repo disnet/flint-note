@@ -33,11 +33,6 @@
   let highlights = $state<EpubHighlight[]>([]);
   let currentSelection = $state<SelectionInfo | null>(null);
 
-  // Split panel state
-  let splitRatio = $state(60); // Left panel percentage
-  let isDragging = $state(false);
-  let containerRef: HTMLDivElement | null = $state(null);
-
   // Debounce timer for metadata updates
   let metadataUpdateTimer: ReturnType<typeof setTimeout> | null = null;
   let lastSavedProgress = $state(0);
@@ -315,31 +310,6 @@
     }
   }
 
-  // Split panel drag handlers
-  function handleMouseDown(e: MouseEvent): void {
-    e.preventDefault();
-    isDragging = true;
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-  }
-
-  function handleMouseMove(e: MouseEvent): void {
-    if (!isDragging || !containerRef) return;
-
-    const rect = containerRef.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const newRatio = (x / rect.width) * 100;
-
-    // Clamp between 30% and 80%
-    splitRatio = Math.max(30, Math.min(80, newRatio));
-  }
-
-  function handleMouseUp(): void {
-    isDragging = false;
-    document.removeEventListener('mousemove', handleMouseMove);
-    document.removeEventListener('mouseup', handleMouseUp);
-  }
-
   // Initialize with saved CFI
   let initialCfi = $derived((metadata.currentCfi as string) || '');
 
@@ -363,7 +333,10 @@
   {onMetadataChange}
   {onSave}
 >
-  {#snippet children({ handleContentChange, handleSave })}
+  {#snippet children({
+    handleContentChange: _handleContentChange,
+    handleSave: _handleSave
+  })}
     <div class="epub-note-view">
       <!-- Header bar -->
       <div class="epub-header">
@@ -417,7 +390,7 @@
       </div>
 
       <!-- Main content area -->
-      <div class="epub-content" bind:this={containerRef}>
+      <div class="epub-content">
         <!-- TOC sidebar (overlay) -->
         {#if showToc}
           <div class="toc-overlay">
@@ -463,82 +436,42 @@
           </div>
         {/if}
 
-        <!-- Split panel container -->
-        <div class="split-container">
-          <!-- Reader panel -->
-          <div class="reader-panel" style="width: {splitRatio}%">
-            {#if epubPath}
-              <EpubReader
-                bind:this={epubReader}
-                {epubPath}
-                {initialCfi}
-                {highlights}
-                onRelocate={handleRelocate}
-                onTocLoaded={handleTocLoaded}
-                onMetadataLoaded={handleMetadataLoaded}
-                onTextSelected={handleTextSelected}
-                onError={handleEpubError}
-              />
-            {:else}
-              <div class="no-epub">
-                <div class="no-epub-icon">
-                  <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-                    <path
-                      d="M8 6C8 4.89543 8.89543 4 10 4H30L40 14V42C40 43.1046 39.1046 44 38 44H10C8.89543 44 8 43.1046 8 42V6Z"
-                      stroke="currentColor"
-                      stroke-width="2"
-                    />
-                    <path d="M30 4V14H40" stroke="currentColor" stroke-width="2" />
-                    <path
-                      d="M16 24H32M16 30H28M16 36H24"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                    />
-                  </svg>
-                </div>
-                <p>No EPUB file linked to this note</p>
-                <p class="hint">Import an EPUB file to get started</p>
+        <!-- Reader panel -->
+        <div class="reader-panel">
+          {#if epubPath}
+            <EpubReader
+              bind:this={epubReader}
+              {epubPath}
+              {initialCfi}
+              {highlights}
+              onRelocate={handleRelocate}
+              onTocLoaded={handleTocLoaded}
+              onMetadataLoaded={handleMetadataLoaded}
+              onTextSelected={handleTextSelected}
+              onError={handleEpubError}
+            />
+          {:else}
+            <div class="no-epub">
+              <div class="no-epub-icon">
+                <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                  <path
+                    d="M8 6C8 4.89543 8.89543 4 10 4H30L40 14V42C40 43.1046 39.1046 44 38 44H10C8.89543 44 8 43.1046 8 42V6Z"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  />
+                  <path d="M30 4V14H40" stroke="currentColor" stroke-width="2" />
+                  <path
+                    d="M16 24H32M16 30H28M16 36H24"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                  />
+                </svg>
               </div>
-            {/if}
-          </div>
-
-          <!-- Resize handle -->
-          <div
-            class="resize-handle"
-            class:dragging={isDragging}
-            onmousedown={handleMouseDown}
-            role="separator"
-            aria-valuenow={splitRatio}
-            aria-valuemin={30}
-            aria-valuemax={80}
-          ></div>
-
-          <!-- Notes panel -->
-          <div class="notes-panel" style="width: {100 - splitRatio}%">
-            <div class="notes-header">
-              <h3>Notes</h3>
-              <button class="save-button" onclick={handleSave}> Save </button>
+              <p>No EPUB file linked to this note</p>
+              <p class="hint">Import an EPUB file to get started</p>
             </div>
-            <div class="notes-content">
-              {#if noteContent || noteContent === ''}
-                <textarea
-                  class="notes-editor"
-                  value={noteContent}
-                  oninput={(e) =>
-                    handleContentChange((e.target as HTMLTextAreaElement).value)}
-                  placeholder="Start taking notes about this book..."
-                ></textarea>
-              {:else}
-                <div class="empty-notes">
-                  <p>Start taking notes about this book...</p>
-                  <button onclick={() => handleContentChange('# My Notes\n\n')}>
-                    Start Writing
-                  </button>
-                </div>
-              {/if}
-            </div>
-          </div>
+          {/if}
         </div>
       </div>
 
@@ -672,119 +605,11 @@
     border-color: rgba(255, 235, 59, 0.8);
   }
 
-  .split-container {
-    display: flex;
-    height: 100%;
-  }
-
   .reader-panel {
     height: 100%;
-    overflow: hidden;
-    background: var(--bg-primary, #fff);
-  }
-
-  .resize-handle {
-    width: 6px;
-    background: var(--border-light, #e0e0e0);
-    cursor: col-resize;
-    transition: background 0.15s ease;
-    flex-shrink: 0;
-  }
-
-  .resize-handle:hover,
-  .resize-handle.dragging {
-    background: var(--accent-primary, #007bff);
-  }
-
-  .notes-panel {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    background: var(--bg-primary, #fff);
-    border-left: 1px solid var(--border-light, #e0e0e0);
-  }
-
-  .notes-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.75rem 1rem;
-    border-bottom: 1px solid var(--border-light, #e0e0e0);
-  }
-
-  .notes-header h3 {
-    margin: 0;
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--text-primary, #333);
-  }
-
-  .save-button {
-    padding: 0.375rem 0.75rem;
-    background: var(--accent-primary, #007bff);
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.75rem;
-    font-weight: 500;
-  }
-
-  .save-button:hover {
-    background: var(--accent-hover, #0056b3);
-  }
-
-  .notes-content {
-    flex: 1;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .notes-editor {
-    flex: 1;
     width: 100%;
-    padding: 1rem;
-    border: none;
-    resize: none;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    font-size: 0.875rem;
-    line-height: 1.6;
-    color: var(--text-primary, #333);
+    overflow: hidden;
     background: var(--bg-primary, #fff);
-  }
-
-  .notes-editor:focus {
-    outline: none;
-  }
-
-  .notes-editor::placeholder {
-    color: var(--text-muted, #999);
-  }
-
-  .empty-notes {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 1rem;
-    color: var(--text-muted, #999);
-    padding: 2rem;
-    text-align: center;
-  }
-
-  .empty-notes button {
-    padding: 0.5rem 1rem;
-    background: var(--accent-primary, #007bff);
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-  }
-
-  .empty-notes button:hover {
-    background: var(--accent-hover, #0056b3);
   }
 
   /* No EPUB state */
