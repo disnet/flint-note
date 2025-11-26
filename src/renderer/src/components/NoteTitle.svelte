@@ -13,7 +13,7 @@
     onSave,
     onCancel,
     onTabToContent,
-    placeholder = 'Title...',
+    placeholder = 'Untitled',
     disabled = false
   }: Props = $props();
 

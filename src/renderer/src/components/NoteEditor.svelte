@@ -329,16 +329,9 @@
   }
 
   export function focus(): void {
-    // Focus on title if it's empty, otherwise focus on content
-    const title = doc?.title || '';
-    if (!title || title.trim().length === 0) {
-      if (headerRef && headerRef.focusTitle) {
-        headerRef.focusTitle();
-      }
-    } else {
-      if (editorRef) {
-        editorRef.focus();
-      }
+    // Always focus on content editor
+    if (editorRef) {
+      editorRef.focus();
     }
   }
 

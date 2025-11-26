@@ -1780,7 +1780,7 @@ export class NoteManager {
 
         await this.#hybridSearchManager.upsertNote(
           noteId,
-          parsed.metadata.title || filename.replace('.md', ''),
+          parsed.metadata.title || '',
           rewrittenContent,
           noteType,
           filename,
@@ -2016,8 +2016,9 @@ export class NoteManager {
     if (!identifier) {
       throw new Error('Note identifier is required');
     }
-    if (!newTitle?.trim()) {
-      throw new Error('New title is required');
+    // Allow empty titles - they will use 'untitled.md' as filename
+    if (newTitle === undefined || newTitle === null) {
+      throw new Error('New title parameter is required (can be empty string)');
     }
     if (!contentHash) {
       throw new Error('Content hash is required for optimistic locking');

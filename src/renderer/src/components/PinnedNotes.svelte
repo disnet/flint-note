@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { notesStore } from '../services/noteStore.svelte';
   import { workspacesStore } from '../stores/workspacesStore.svelte';
   import type { NoteMetadata } from '../services/noteStore.svelte';
@@ -14,6 +15,7 @@
   import { notesShelfStore } from '../stores/notesShelfStore.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
   import { reviewStore } from '../stores/reviewStore.svelte';
+  import { messageBus } from '../services/messageBus.svelte';
 
   interface Props {
     activeNote: NoteMetadata | null;
@@ -35,6 +37,9 @@
   // Get all workspaces for move menu (current one will be shown as disabled)
   let allWorkspaces = $derived(workspacesStore.workspaces);
 
+  // Content previews for untitled notes
+  let contentPreviews = $state<Map<string, string>>(new Map());
+
   const dragState = globalDragState;
 
   // Check if notes are ready (for consistency with TemporaryTabs)
@@ -51,6 +56,63 @@
 
     pinnedNotes = result;
   });
+
+  // Helper to fetch and update content preview for a note
+  async function fetchContentPreview(noteId: string): Promise<void> {
+    const chatService = getChatService();
+    const noteContent = await chatService.getNote({ identifier: noteId });
+    const content = (noteContent?.content || '').trim();
+    if (content.length > 0) {
+      const preview = content.slice(0, 50) + (content.length > 50 ? '…' : '');
+      contentPreviews = new Map(contentPreviews).set(noteId, preview);
+    } else {
+      // Content is empty, remove any existing preview so "Untitled" shows
+      const newMap = new Map(contentPreviews);
+      newMap.delete(noteId);
+      contentPreviews = newMap;
+    }
+  }
+
+  // Fetch content previews for untitled notes
+  $effect(() => {
+    const untitledNotes = pinnedNotes.filter((note) => !note.title);
+
+    for (const note of untitledNotes) {
+      // Skip if we already have a preview for this note
+      // Use untrack to avoid creating a dependency on contentPreviews
+      const hasPreview = untrack(() => contentPreviews.has(note.id));
+      if (hasPreview) continue;
+
+      // Fetch content asynchronously
+      fetchContentPreview(note.id);
+    }
+  });
+
+  // Subscribe to note updates to refresh previews reactively
+  $effect(() => {
+    const unsubscribe = messageBus.subscribe('note.updated', (event) => {
+      // Check if this note is an untitled pinned note that needs preview refresh
+      const note = pinnedNotes.find((n) => n.id === event.noteId && !n.title);
+      if (note) {
+        // Re-fetch the preview for this note
+        fetchContentPreview(event.noteId);
+      }
+    });
+
+    return unsubscribe;
+  });
+
+  // Helper to get display text for a note
+  function getNoteDisplayText(note: NoteMetadata): { text: string; isPreview: boolean } {
+    if (note.title) {
+      return { text: note.title, isPreview: false };
+    }
+    const preview = contentPreviews.get(note.id);
+    if (preview) {
+      return { text: preview, isPreview: true };
+    }
+    return { text: 'Untitled', isPreview: true };
+  }
 
   function toggleCollapsed(): void {
     isCollapsed = !isCollapsed;
@@ -448,12 +510,11 @@
               {@html getIconSvg(getNoteIcon(note).value)}
             {/if}
           </div>
-          <span class="note-title">
-            {#if note.title}
-              {note.title}
-            {:else}
-              <span class="untitled-text">Untitled</span>
-            {/if}
+          <span
+            class="note-title"
+            class:untitled-text={getNoteDisplayText(note).isPreview}
+          >
+            {getNoteDisplayText(note).text}
           </span>
           <button
             class="menu-button"

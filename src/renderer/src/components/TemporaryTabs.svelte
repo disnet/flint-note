@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { workspacesStore } from '../stores/workspacesStore.svelte';
   import { notesStore } from '../services/noteStore.svelte';
   import type { NoteMetadata } from '../services/noteStore.svelte';
@@ -14,6 +15,7 @@
   import { notesShelfStore } from '../stores/notesShelfStore.svelte';
   import { sidebarState } from '../stores/sidebarState.svelte';
   import { reviewStore } from '../stores/reviewStore.svelte';
+  import { messageBus } from '../services/messageBus.svelte';
 
   interface Props {
     onNoteSelect: (note: NoteMetadata) => void;
@@ -33,6 +35,9 @@
 
   // Get all workspaces for move menu (current one will be shown as disabled)
   let allWorkspaces = $derived(workspacesStore.workspaces);
+
+  // Content previews for untitled notes
+  let contentPreviews = $state<Map<string, string>>(new Map());
 
   // Check if notes are still loading
   let isNotesLoading = $derived(notesStore.loading);
@@ -69,6 +74,66 @@
       };
     })
   );
+
+  // Helper to fetch and update content preview for a note
+  async function fetchContentPreview(noteId: string): Promise<void> {
+    const chatService = getChatService();
+    const noteContent = await chatService.getNote({ identifier: noteId });
+    const content = (noteContent?.content || '').trim();
+    if (content.length > 0) {
+      const preview = content.slice(0, 50) + (content.length > 50 ? '…' : '');
+      contentPreviews = new Map(contentPreviews).set(noteId, preview);
+    } else {
+      // Content is empty, remove any existing preview so "Untitled" shows
+      const newMap = new Map(contentPreviews);
+      newMap.delete(noteId);
+      contentPreviews = newMap;
+    }
+  }
+
+  // Fetch content previews for untitled notes
+  $effect(() => {
+    const untitledTabs = hydratedTabs.filter((tab) => !tab.title);
+
+    for (const tab of untitledTabs) {
+      // Skip if we already have a preview for this note
+      // Use untrack to avoid creating a dependency on contentPreviews
+      const hasPreview = untrack(() => contentPreviews.has(tab.noteId));
+      if (hasPreview) continue;
+
+      // Fetch content asynchronously
+      fetchContentPreview(tab.noteId);
+    }
+  });
+
+  // Subscribe to note updates to refresh previews reactively
+  $effect(() => {
+    const unsubscribe = messageBus.subscribe('note.updated', (event) => {
+      // Check if this note is an untitled tab that needs preview refresh
+      const tab = hydratedTabs.find((t) => t.noteId === event.noteId && !t.title);
+      if (tab) {
+        // Re-fetch the preview for this note
+        fetchContentPreview(event.noteId);
+      }
+    });
+
+    return unsubscribe;
+  });
+
+  // Helper to get display text for a tab
+  function getTabDisplayText(tab: { noteId: string; title: string }): {
+    text: string;
+    isPreview: boolean;
+  } {
+    if (tab.title) {
+      return { text: tab.title, isPreview: false };
+    }
+    const preview = contentPreviews.get(tab.noteId);
+    if (preview) {
+      return { text: preview, isPreview: true };
+    }
+    return { text: 'Untitled', isPreview: true };
+  }
 
   async function handleTabClick(
     event: MouseEvent | KeyboardEvent,
@@ -520,12 +585,11 @@
                 {@html getSourceIcon(getTabIcon(tab.noteId, tab.source).value)}
               {/if}
             </div>
-            <span class="tab-title">
-              {#if tab.title}
-                {tab.title}
-              {:else}
-                <span class="untitled-text">Untitled</span>
-              {/if}
+            <span
+              class="tab-title"
+              class:untitled-text={getTabDisplayText(tab).isPreview}
+            >
+              {getTabDisplayText(tab).text}
             </span>
           </div>
           <button

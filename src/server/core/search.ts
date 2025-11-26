@@ -739,8 +739,7 @@ export class SearchManager {
 
                   index.notes[notePath] = {
                     content: content,
-                    title:
-                      parsed.metadata.title || this.extractTitleFromFilename(filename),
+                    title: parsed.metadata.title || '',
                     type: parsed.metadata.type || entry.name,
                     tags: parsed.metadata.tags || [],
                     updated: new Date().toISOString(),
@@ -886,9 +885,7 @@ export class SearchManager {
         // Add to index
         index.notes[notePath] = {
           content: searchableContent,
-          title:
-            parsed.metadata.title ||
-            this.extractTitleFromFilename(path.basename(notePath)),
+          title: parsed.metadata.title || '',
           type: parsed.metadata.type || path.basename(path.dirname(notePath)),
           tags: parsed.metadata.tags || [],
           updated: new Date().toISOString(),

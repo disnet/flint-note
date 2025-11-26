@@ -332,7 +332,7 @@ describe('HybridSearchManager - Filesystem Sync', () => {
       expect(response.results[0].id).toMatch(/^n-[a-f0-9]{8}$/);
     });
 
-    it('should normalize missing title from filename', async () => {
+    it('should keep missing title empty (not generate from filename)', async () => {
       // Create note without title field
       const noteDir = path.join(testWorkspacePath, 'note');
       await fs.mkdir(noteDir, { recursive: true });
@@ -343,22 +343,22 @@ describe('HybridSearchManager - Filesystem Sync', () => {
         '---\nid: n-12345678\ntype: note\n---\n\nContent here.'
       );
 
-      // Sync should add it and normalize title
+      // Sync should add it without modifying title
       const result = await searchManager.syncFileSystemChanges();
 
       expect(result.added).toBe(1);
 
-      // Verify title was generated from filename and written to frontmatter
+      // Verify title was NOT generated from filename (file unchanged for title)
       const content = await fs.readFile(notePath, 'utf-8');
-      expect(content).toMatch(/title: My Awesome Note/);
+      expect(content).not.toMatch(/title:/);
 
-      // Verify it's searchable with generated title
-      const response = await searchManager.searchNotes('My Awesome Note');
+      // Note should still be indexed with empty title
+      const response = await searchManager.searchNotes('Content here');
       expect(response.results.length).toBe(1);
-      expect(response.results[0].title).toBe('My Awesome Note');
+      expect(response.results[0].title).toBe('');
     });
 
-    it('should normalize empty title from filename', async () => {
+    it('should keep empty title empty (not generate from filename)', async () => {
       // Create note with empty title field
       const noteDir = path.join(testWorkspacePath, 'note');
       await fs.mkdir(noteDir, { recursive: true });
@@ -369,34 +369,36 @@ describe('HybridSearchManager - Filesystem Sync', () => {
         '---\nid: n-12345678\ntitle:\ntype: note\n---\n\nContent here.'
       );
 
-      // Sync should add it and normalize title
+      // Sync should add it without modifying title
       const result = await searchManager.syncFileSystemChanges();
 
       expect(result.added).toBe(1);
 
-      // Verify title was generated from camelCase filename
+      // Verify title field was NOT modified (still empty)
       const content = await fs.readFile(notePath, 'utf-8');
-      expect(content).toMatch(/title: Camel Case File Name/);
+      expect(content).toMatch(/title:\n/);
+      expect(content).not.toMatch(/title: Camel/);
 
-      // Verify it's searchable
-      const response = await searchManager.searchNotes('Camel Case');
+      // Note should still be indexed with empty title
+      const response = await searchManager.searchNotes('Content here');
       expect(response.results.length).toBe(1);
-      expect(response.results[0].title).toBe('Camel Case File Name');
+      expect(response.results[0].title).toBe('');
     });
 
-    it('should handle filename with underscores and hyphens', async () => {
-      // Create note to test various filename formats
+    it('should not modify file for missing title field', async () => {
+      // Create note to test that files are not modified for missing titles
       const noteDir = path.join(testWorkspacePath, 'note');
       await fs.mkdir(noteDir, { recursive: true });
 
       const notePath = path.join(noteDir, 'test_file-name_example.md');
-      await fs.writeFile(notePath, '---\nid: n-12345678\ntype: note\n---\n\nContent.');
+      const originalContent = '---\nid: n-12345678\ntype: note\n---\n\nContent.';
+      await fs.writeFile(notePath, originalContent);
 
       await searchManager.syncFileSystemChanges();
 
-      // Verify title was generated with proper capitalization
+      // Verify file was not modified for title
       const content = await fs.readFile(notePath, 'utf-8');
-      expect(content).toMatch(/title: Test File Name Example/);
+      expect(content).not.toMatch(/title:/);
     });
 
     it('should not overwrite existing valid title', async () => {
@@ -434,18 +436,19 @@ describe('HybridSearchManager - Filesystem Sync', () => {
 
       expect(result.added).toBe(1);
 
-      // Verify frontmatter was created with id, title, and type
+      // Verify frontmatter was created with id and type (but no title - empty titles allowed)
       const content = await fs.readFile(notePath, 'utf-8');
       expect(content).toMatch(/^---\n/);
       expect(content).toMatch(/id: n-[a-f0-9]{8}/);
-      expect(content).toMatch(/title: Plain File/);
       expect(content).toMatch(/type: note/);
       expect(content).toMatch(/---\n# Plain File/);
+      // Title should NOT be generated from filename
+      expect(content).not.toMatch(/title: Plain File/);
 
-      // Verify it's searchable
-      const response = await searchManager.searchNotes('Plain File');
+      // Verify it's searchable by content
+      const response = await searchManager.searchNotes('Just some content');
       expect(response.results.length).toBe(1);
-      expect(response.results[0].title).toBe('Plain File');
+      expect(response.results[0].title).toBe('');
       expect(response.results[0].id).toMatch(/^n-[a-f0-9]{8}$/);
     });
   });
