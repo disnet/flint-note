@@ -1,21 +1,37 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import type { TocItem, EpubMetadata, EpubLocation } from './types';
+  import type { TocItem, EpubMetadata, EpubLocation, EpubHighlight } from './types';
+
+  // Selection info for highlight popup
+  export interface SelectionInfo {
+    text: string;
+    cfi: string;
+    range: Range;
+    // Position relative to the EpubReader container
+    position: {
+      x: number; // center x of selection
+      y: number; // bottom y of selection
+    };
+  }
 
   // Props
   let {
     epubPath = '',
     initialCfi = '',
+    highlights = [],
     onRelocate = (_cfi: string, _progress: number, _location: EpubLocation) => {},
     onTocLoaded = (_toc: TocItem[]) => {},
     onMetadataLoaded = (_metadata: EpubMetadata) => {},
+    onTextSelected = (_selection: SelectionInfo | null) => {},
     onError = (_error: Error) => {}
   }: {
     epubPath: string;
     initialCfi?: string;
+    highlights?: EpubHighlight[];
     onRelocate?: (cfi: string, progress: number, location: EpubLocation) => void;
     onTocLoaded?: (toc: TocItem[]) => void;
     onMetadataLoaded?: (metadata: EpubMetadata) => void;
+    onTextSelected?: (selection: SelectionInfo | null) => void;
     onError?: (error: Error) => void;
   } = $props();
 
@@ -28,6 +44,11 @@
         goToFraction: (fraction: number) => Promise<void>;
         prev: () => Promise<void>;
         next: () => Promise<void>;
+        addAnnotation: (
+          annotation: { value: string },
+          remove?: boolean
+        ) => Promise<{ index: number; label: string } | undefined>;
+        getCFI: (index: number, range: Range) => string;
         book?: {
           toc?: TocItem[];
           metadata?: EpubMetadata;
@@ -35,18 +56,34 @@
         };
         renderer?: {
           setStyles?: (styles: string) => void;
+          addEventListener?: (event: string, handler: (e: unknown) => void) => void;
+          removeEventListener?: (event: string, handler: (e: unknown) => void) => void;
+          getContents?: () => Array<{ doc?: Document; index?: number }>;
         };
       })
     | null = $state(null);
   let isLoading = $state(true);
   let loadError = $state<string | null>(null);
   let totalSections = $state(0);
+  let currentSelection = $state<SelectionInfo | null>(null);
+  let selectionCheckInterval: ReturnType<typeof setInterval> | null = null;
+
+  // Overlayer class from foliate-js for drawing highlights
+  let Overlayer: {
+    highlight: (
+      rects: Array<{ left: number; top: number; height: number; width: number }>,
+      options?: { color?: string; padding?: number }
+    ) => SVGGElement;
+  } | null = null;
 
   // Dynamic import of foliate-js view module
   async function initializeFoliateView(): Promise<void> {
     try {
       // Import the view module to register the custom element
       await import('foliate-js/view.js');
+      // Import Overlayer for highlight drawing
+      const overlayerModule = await import('foliate-js/overlayer.js');
+      Overlayer = overlayerModule.Overlayer;
     } catch (err) {
       console.error('Failed to load foliate-js:', err);
       throw new Error('Failed to initialize EPUB reader');
@@ -129,6 +166,19 @@
       // Set up event listeners
       view!.addEventListener('relocate', handleRelocate as (event: Event) => void);
       view!.addEventListener('load', handleSectionLoad as (event: Event) => void);
+      view!.addEventListener(
+        'draw-annotation',
+        handleDrawAnnotation as (event: Event) => void
+      );
+
+      // Set up selection checking - poll for selection changes
+      // foliate-js doesn't expose selection events, so we check periodically
+      startSelectionChecking();
+
+      // Apply any existing highlights
+      if (highlights.length > 0) {
+        applyHighlights(highlights);
+      }
 
       isLoading = false;
     } catch (err) {
@@ -165,6 +215,169 @@
     // Section loaded - could be used for progress indication
   }
 
+  // Handle annotation drawing - this is called by foliate-js when an annotation needs to be rendered
+  function handleDrawAnnotation(
+    event: CustomEvent<{
+      draw: (
+        drawFn: (
+          rects: Array<{ left: number; top: number; height: number; width: number }>,
+          options?: { color?: string }
+        ) => SVGGElement,
+        options?: { color?: string }
+      ) => void;
+      annotation: { value: string };
+    }>
+  ): void {
+    const { draw } = event.detail;
+    if (Overlayer) {
+      draw(Overlayer.highlight, { color: '#ffeb3b' });
+    }
+  }
+
+  // Start checking for text selection
+  function startSelectionChecking(): void {
+    // Stop any existing interval
+    if (selectionCheckInterval) {
+      clearInterval(selectionCheckInterval);
+    }
+
+    // Check for selection changes every 200ms
+    selectionCheckInterval = setInterval(() => {
+      checkForSelection();
+    }, 200);
+
+    // Also add mouseup listener to container for quicker response
+    container?.addEventListener('mouseup', handleMouseUp);
+  }
+
+  function stopSelectionChecking(): void {
+    if (selectionCheckInterval) {
+      clearInterval(selectionCheckInterval);
+      selectionCheckInterval = null;
+    }
+    container?.removeEventListener('mouseup', handleMouseUp);
+  }
+
+  function handleMouseUp(): void {
+    // Small delay to let the selection complete
+    setTimeout(() => {
+      checkForSelection();
+    }, 50);
+  }
+
+  // Calculate selection position relative to our container
+  function calculateSelectionPosition(
+    range: Range,
+    doc: Document
+  ): { x: number; y: number } {
+    const rangeRect = range.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+
+    // The range rect is relative to the iframe's viewport
+    // We need to find the iframe and add its offset
+    const iframe = doc.defaultView?.frameElement as HTMLIFrameElement | null;
+    let iframeOffsetX = 0;
+    let iframeOffsetY = 0;
+
+    if (iframe) {
+      const iframeRect = iframe.getBoundingClientRect();
+      iframeOffsetX = iframeRect.left - containerRect.left;
+      iframeOffsetY = iframeRect.top - containerRect.top;
+    }
+
+    return {
+      x: iframeOffsetX + rangeRect.left + rangeRect.width / 2,
+      y: iframeOffsetY + rangeRect.bottom
+    };
+  }
+
+  function checkForSelection(): void {
+    if (!view) return;
+
+    try {
+      // Get the renderer and its contents directly - this bypasses closed shadow roots
+      const v = view as unknown as Record<string, unknown>;
+      const renderer = v.renderer as
+        | {
+            getContents?: () => Array<{ doc?: Document; index?: number }>;
+          }
+        | undefined;
+
+      if (!renderer?.getContents) return;
+
+      const contents = renderer.getContents();
+
+      for (const content of contents) {
+        try {
+          const doc = content.doc;
+          if (!doc) continue;
+
+          const selection = doc.getSelection();
+          if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
+            const range = selection.getRangeAt(0);
+            const text = range.toString().trim();
+            if (text && text.length > 0) {
+              // Calculate position relative to our container
+              const position = calculateSelectionPosition(range, doc);
+
+              // Try to get CFI
+              try {
+                const sectionIndex = content.index ?? 0;
+                const cfi = view.getCFI(sectionIndex, range);
+
+                if (
+                  !currentSelection ||
+                  currentSelection.text !== text ||
+                  currentSelection.cfi !== cfi
+                ) {
+                  currentSelection = { text, cfi, range, position };
+                  onTextSelected(currentSelection);
+                }
+                return;
+              } catch {
+                // Even without CFI, we can still show selection
+                if (!currentSelection || currentSelection.text !== text) {
+                  currentSelection = { text, cfi: '', range, position };
+                  onTextSelected(currentSelection);
+                }
+                return;
+              }
+            }
+          }
+        } catch {
+          // Cross-origin or other access error, ignore
+        }
+      }
+
+      // No selection found, clear if we had one
+      if (currentSelection) {
+        currentSelection = null;
+        onTextSelected(null);
+      }
+    } catch {
+      // Ignore errors in selection checking
+    }
+  }
+
+  // Apply highlights to the view
+  function applyHighlights(highlightsToApply: EpubHighlight[]): void {
+    if (!view) return;
+
+    for (const highlight of highlightsToApply) {
+      try {
+        view.addAnnotation({ value: highlight.cfi });
+        highlightRemoveFunctions.set(highlight.id, () => {
+          view?.addAnnotation({ value: highlight.cfi }, true);
+        });
+      } catch (e) {
+        console.warn('[EPUB] Failed to apply highlight:', highlight.cfi, e);
+      }
+    }
+  }
+
+  // Store remove functions for highlights
+  const highlightRemoveFunctions = new Map<string, () => void>();
+
   // Public methods exposed to parent
   export async function goToCfi(cfi: string): Promise<void> {
     if (view) {
@@ -200,6 +413,44 @@
     return view;
   }
 
+  // Add a highlight at the current selection
+  export function addHighlight(id: string): boolean {
+    if (!view || !currentSelection) {
+      return false;
+    }
+
+    try {
+      const cfi = currentSelection.cfi;
+      view.addAnnotation({ value: cfi });
+      highlightRemoveFunctions.set(id, () => {
+        view?.addAnnotation({ value: cfi }, true);
+      });
+      currentSelection = null;
+      onTextSelected(null);
+      return true;
+    } catch (e) {
+      console.error('[EPUB] Failed to add highlight:', e);
+      return false;
+    }
+  }
+
+  // Remove a highlight by ID
+  export function removeHighlight(id: string): boolean {
+    const remove = highlightRemoveFunctions.get(id);
+    if (remove) {
+      remove();
+      highlightRemoveFunctions.delete(id);
+      return true;
+    }
+    return false;
+  }
+
+  // Clear current selection
+  export function clearSelection(): void {
+    currentSelection = null;
+    onTextSelected(null);
+  }
+
   // Watch for epubPath changes
   $effect(() => {
     if (epubPath) {
@@ -212,10 +463,16 @@
   });
 
   onDestroy(() => {
+    stopSelectionChecking();
     if (view) {
       view.removeEventListener('relocate', handleRelocate as (event: Event) => void);
       view.removeEventListener('load', handleSectionLoad as (event: Event) => void);
+      view.removeEventListener(
+        'draw-annotation',
+        handleDrawAnnotation as (event: Event) => void
+      );
     }
+    highlightRemoveFunctions.clear();
   });
 </script>
 

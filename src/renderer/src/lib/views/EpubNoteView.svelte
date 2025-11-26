@@ -2,10 +2,12 @@
   import { onMount, onDestroy } from 'svelte';
   import BaseNoteView from './BaseNoteView.svelte';
   import type { NoteViewProps } from './ViewRegistry';
-  import EpubReader from './epub/EpubReader.svelte';
-  import type { TocItem, EpubMetadata, EpubLocation } from './epub/types';
+  import EpubReader, { type SelectionInfo } from './epub/EpubReader.svelte';
+  import type { TocItem, EpubMetadata, EpubLocation, EpubHighlight } from './epub/types';
+  import { parseHighlightsFromContent, updateContentWithHighlights } from './epub/types';
   import EpubToc from './epub/EpubToc.svelte';
   import EpubProgress from './epub/EpubProgress.svelte';
+  import EpubHighlights from './epub/EpubHighlights.svelte';
 
   let {
     activeNote,
@@ -21,10 +23,15 @@
   let toc = $state<TocItem[]>([]);
   let epubMetadata = $state<EpubMetadata | null>(null);
   let showToc = $state(false);
+  let showHighlights = $state(false);
   let currentCfi = $state('');
   let progress = $state(0);
   let currentSection = $state(0);
   let totalSections = $state(0);
+
+  // Highlight state
+  let highlights = $state<EpubHighlight[]>([]);
+  let currentSelection = $state<SelectionInfo | null>(null);
 
   // Split panel state
   let splitRatio = $state(60); // Left panel percentage
@@ -52,6 +59,13 @@
     // Only update if it's for our mounted note
     if (activeNote?.id === mountedNoteId) {
       latestNoteContent = noteContent || '';
+    }
+  });
+
+  // Parse highlights from note content on mount
+  $effect(() => {
+    if (noteContent) {
+      highlights = parseHighlightsFromContent(noteContent);
     }
   });
 
@@ -230,6 +244,57 @@
     console.error('EPUB error:', error);
   }
 
+  // Highlight handlers
+  function handleTextSelected(selection: SelectionInfo | null): void {
+    currentSelection = selection;
+  }
+
+  function addHighlight(): void {
+    if (!currentSelection || !epubReader) return;
+
+    const id = `h-${Date.now().toString(36)}`;
+    const newHighlight: EpubHighlight = {
+      id,
+      cfi: currentSelection.cfi,
+      text: currentSelection.text,
+      createdAt: new Date().toISOString()
+    };
+
+    // Add to reader
+    epubReader.addHighlight(id);
+
+    // Update highlights array
+    highlights = [...highlights, newHighlight];
+
+    // Update note content with new highlight
+    const newContent = updateContentWithHighlights(noteContent || '', highlights);
+    onContentChange(newContent);
+
+    // Clear selection
+    currentSelection = null;
+  }
+
+  function deleteHighlight(id: string): void {
+    // Remove from reader
+    if (epubReader) {
+      epubReader.removeHighlight(id);
+    }
+
+    // Update highlights array
+    highlights = highlights.filter((h) => h.id !== id);
+
+    // Update note content
+    const newContent = updateContentWithHighlights(noteContent || '', highlights);
+    onContentChange(newContent);
+  }
+
+  async function navigateToHighlight(cfi: string): Promise<void> {
+    if (epubReader) {
+      await epubReader.goToCfi(cfi);
+      showHighlights = false;
+    }
+  }
+
   // Navigation handlers
   async function handleTocNavigate(href: string): Promise<void> {
     if (epubReader) {
@@ -311,8 +376,31 @@
         <div class="header-actions">
           <button
             class="header-button"
+            class:active={showHighlights}
+            onclick={() => {
+              showHighlights = !showHighlights;
+              if (showHighlights) showToc = false;
+            }}
+            aria-label="Toggle highlights"
+          >
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path
+                d="M3 4H17V16H3V4Z"
+                stroke="currentColor"
+                stroke-width="2"
+                fill="rgba(255, 235, 59, 0.3)"
+              />
+              <path d="M5 8H15M5 12H12" stroke="currentColor" stroke-width="2" />
+            </svg>
+            <span>Highlights ({highlights.length})</span>
+          </button>
+          <button
+            class="header-button"
             class:active={showToc}
-            onclick={() => (showToc = !showToc)}
+            onclick={() => {
+              showToc = !showToc;
+              if (showToc) showHighlights = false;
+            }}
             aria-label="Toggle table of contents"
           >
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -342,6 +430,39 @@
           </div>
         {/if}
 
+        <!-- Highlights sidebar (overlay) -->
+        {#if showHighlights}
+          <div class="highlights-overlay">
+            <EpubHighlights
+              {highlights}
+              onNavigate={navigateToHighlight}
+              onDelete={deleteHighlight}
+              onClose={() => (showHighlights = false)}
+            />
+          </div>
+        {/if}
+
+        <!-- Selection popup for adding highlights -->
+        {#if currentSelection}
+          <div
+            class="selection-popup"
+            style="left: {currentSelection.position.x}px; top: {currentSelection.position
+              .y + 8}px;"
+          >
+            <button class="highlight-button" onclick={addHighlight}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path
+                  d="M2 3H14V13H2V3Z"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  fill="rgba(255, 235, 59, 0.5)"
+                />
+              </svg>
+              Highlight
+            </button>
+          </div>
+        {/if}
+
         <!-- Split panel container -->
         <div class="split-container">
           <!-- Reader panel -->
@@ -351,9 +472,11 @@
                 bind:this={epubReader}
                 {epubPath}
                 {initialCfi}
+                {highlights}
                 onRelocate={handleRelocate}
                 onTocLoaded={handleTocLoaded}
                 onMetadataLoaded={handleMetadataLoaded}
+                onTextSelected={handleTextSelected}
                 onError={handleEpubError}
               />
             {:else}
@@ -508,7 +631,8 @@
     overflow: hidden;
   }
 
-  .toc-overlay {
+  .toc-overlay,
+  .highlights-overlay {
     position: absolute;
     left: 0;
     top: 0;
@@ -516,6 +640,36 @@
     width: 280px;
     z-index: 10;
     box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .selection-popup {
+    position: absolute;
+    transform: translateX(-50%);
+    z-index: 20;
+    background: var(--bg-primary, #fff);
+    border: 1px solid var(--border-medium, #ccc);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    padding: 0.5rem;
+  }
+
+  .highlight-button {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: rgba(255, 235, 59, 0.2);
+    border: 1px solid rgba(255, 235, 59, 0.5);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    color: var(--text-primary, #333);
+    transition: all 0.15s ease;
+  }
+
+  .highlight-button:hover {
+    background: rgba(255, 235, 59, 0.4);
+    border-color: rgba(255, 235, 59, 0.8);
   }
 
   .split-container {
