@@ -428,6 +428,151 @@ Third line with [[n-33333333]].`;
     });
   });
 
+  describe('getNotesWithBrokenLinkToTitle', () => {
+    it('should find notes with broken links to a specific title', async () => {
+      const db = await getDb();
+
+      // Create a source note with a broken link
+      const sourceNote = await insertTestNote({
+        title: 'Source Note',
+        content: 'Check out [[Missing Note]] for info.'
+      });
+
+      // Extract and store links (will be broken since Missing Note doesn't exist)
+      const extractionResult = LinkExtractor.extractLinks(sourceNote.content);
+      await LinkExtractor.storeLinks(sourceNote.id, extractionResult, db);
+
+      // Find notes with broken links to "Missing Note"
+      const noteIds = await LinkExtractor.getNotesWithBrokenLinkToTitle(
+        'Missing Note',
+        db
+      );
+
+      expect(noteIds).toHaveLength(1);
+      expect(noteIds[0]).toBe(sourceNote.id);
+    });
+
+    it('should return empty array when no broken links match the title', async () => {
+      const db = await getDb();
+
+      // Create a note with a broken link to a different title
+      const sourceNote = await insertTestNote({
+        title: 'Source Note',
+        content: 'Check out [[Other Note]] for info.'
+      });
+
+      const extractionResult = LinkExtractor.extractLinks(sourceNote.content);
+      await LinkExtractor.storeLinks(sourceNote.id, extractionResult, db);
+
+      // Search for a different title
+      const noteIds = await LinkExtractor.getNotesWithBrokenLinkToTitle(
+        'Missing Note',
+        db
+      );
+
+      expect(noteIds).toHaveLength(0);
+    });
+
+    it('should use case-insensitive matching', async () => {
+      const db = await getDb();
+
+      const sourceNote = await insertTestNote({
+        title: 'Source Note',
+        content: 'Check out [[missing note]] for info.'
+      });
+
+      const extractionResult = LinkExtractor.extractLinks(sourceNote.content);
+      await LinkExtractor.storeLinks(sourceNote.id, extractionResult, db);
+
+      // Search with different case
+      const noteIds = await LinkExtractor.getNotesWithBrokenLinkToTitle(
+        'Missing Note',
+        db
+      );
+
+      expect(noteIds).toHaveLength(1);
+      expect(noteIds[0]).toBe(sourceNote.id);
+    });
+
+    it('should find multiple notes with broken links to the same title', async () => {
+      const db = await getDb();
+
+      const sourceNote1 = await insertTestNote({
+        title: 'Source Note 1',
+        content: 'Check out [[Missing Note]] for info.'
+      });
+
+      const sourceNote2 = await insertTestNote({
+        title: 'Source Note 2',
+        content: 'Also see [[Missing Note]] here.'
+      });
+
+      const extraction1 = LinkExtractor.extractLinks(sourceNote1.content);
+      await LinkExtractor.storeLinks(sourceNote1.id, extraction1, db);
+
+      const extraction2 = LinkExtractor.extractLinks(sourceNote2.content);
+      await LinkExtractor.storeLinks(sourceNote2.id, extraction2, db);
+
+      const noteIds = await LinkExtractor.getNotesWithBrokenLinkToTitle(
+        'Missing Note',
+        db
+      );
+
+      expect(noteIds).toHaveLength(2);
+      expect(noteIds).toContain(sourceNote1.id);
+      expect(noteIds).toContain(sourceNote2.id);
+    });
+
+    it('should not include notes with resolved links', async () => {
+      const db = await getDb();
+
+      // Create target note first
+      const targetNote = await insertTestNote({
+        title: 'Existing Note',
+        content: 'Target content'
+      });
+
+      // Create source note with a link to existing note
+      const sourceNote = await insertTestNote({
+        title: 'Source Note',
+        content: 'Check out [[Existing Note]] for info.'
+      });
+
+      const extractionResult = LinkExtractor.extractLinks(sourceNote.content);
+      await LinkExtractor.storeLinks(sourceNote.id, extractionResult, db);
+
+      // Should not find any broken links
+      const noteIds = await LinkExtractor.getNotesWithBrokenLinkToTitle(
+        'Existing Note',
+        db
+      );
+
+      expect(noteIds).toHaveLength(0);
+    });
+
+    it('should return distinct note IDs even with multiple broken links to same title', async () => {
+      const db = await getDb();
+
+      // Create a note with multiple broken links to the same title
+      const sourceNote = await insertTestNote({
+        title: 'Source Note',
+        content: 'See [[Missing Note]] and again [[Missing Note|Different Text]].'
+      });
+
+      const extractionResult = LinkExtractor.extractLinks(sourceNote.content);
+      await LinkExtractor.storeLinks(sourceNote.id, extractionResult, db);
+
+      const noteIds = await LinkExtractor.getNotesWithBrokenLinkToTitle(
+        'Missing Note',
+        db
+      );
+
+      // Should only return the source note once (DISTINCT)
+      expect(noteIds).toHaveLength(1);
+      expect(noteIds[0]).toBe(sourceNote.id);
+    });
+  });
+
   describe('convertTitleLinksToIdLinks', () => {
     it('should convert title-based link without display text to bare ID-based link', async () => {
       const db = await getDb();

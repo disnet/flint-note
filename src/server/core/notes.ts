@@ -658,6 +658,10 @@ export class NoteManager {
         await this.#syncSubnotesToHierarchy(noteId, metadata.subnotes as string[]);
       }
 
+      // Rewrite broken links in other notes that were linking to this title
+      // This converts [[title]] to [[n-id]] in notes that had broken links
+      await this.rewriteBrokenLinksAfterNoteCreation(noteId, trimmedTitle);
+
       return {
         id: noteId,
         type: typeName,
@@ -1810,11 +1814,6 @@ export class NoteManager {
     _noteId: string,
     content: string
   ): Promise<string> {
-    // Skip link conversion during tests
-    if (process.env.NODE_ENV === 'test' || process.env.VITEST === 'true') {
-      return content;
-    }
-
     try {
       if (this.#hybridSearchManager) {
         const db = await this.#hybridSearchManager.getDatabaseConnection();
@@ -1834,11 +1833,6 @@ export class NoteManager {
    * Extract and store links for a note
    */
   private async extractAndStoreLinks(noteId: string, content: string): Promise<void> {
-    // Skip link extraction during tests
-    if (process.env.NODE_ENV === 'test' || process.env.VITEST === 'true') {
-      return;
-    }
-
     try {
       if (this.#hybridSearchManager) {
         const db = await this.#hybridSearchManager.getDatabaseConnection();
@@ -1851,6 +1845,105 @@ export class NoteManager {
         'Failed to extract and store links:',
         error instanceof Error ? error.message : 'Unknown error'
       );
+    }
+  }
+
+  /**
+   * Rewrite broken links in source notes after a new note is created
+   * This converts [[title]] to [[n-id]] in notes that were linking to a non-existent note
+   */
+  private async rewriteBrokenLinksAfterNoteCreation(
+    newNoteId: string,
+    newNoteTitle: string
+  ): Promise<{ notesUpdated: number; linksUpdated: number }> {
+    if (!this.#hybridSearchManager) {
+      return { notesUpdated: 0, linksUpdated: 0 };
+    }
+
+    try {
+      const db = await this.#hybridSearchManager.getDatabaseConnection();
+
+      // Find source notes that have broken links matching this title
+      const sourceNoteIds = await LinkExtractor.getNotesWithBrokenLinkToTitle(
+        newNoteTitle,
+        db
+      );
+
+      if (sourceNoteIds.length === 0) {
+        return { notesUpdated: 0, linksUpdated: 0 };
+      }
+
+      // Update broken links in the database
+      const linksUpdated = await LinkExtractor.updateBrokenLinks(
+        newNoteId,
+        newNoteTitle,
+        db
+      );
+
+      let notesUpdated = 0;
+
+      // Rewrite each source note's content
+      for (const sourceNoteId of sourceNoteIds) {
+        try {
+          // Get the source note from database
+          const sourceNote = await this.#hybridSearchManager.getNoteById(sourceNoteId);
+          if (!sourceNote) {
+            continue;
+          }
+
+          // Read the current file content to get full frontmatter
+          const currentContent = await fs.readFile(sourceNote.path, 'utf-8');
+          const parsed = parseNoteContent(currentContent);
+
+          // Convert title-based links to ID-based (now the new note exists)
+          const rewrittenContent = await LinkExtractor.convertTitleLinksToIdLinks(
+            parsed.content,
+            db
+          );
+
+          // If content changed, update the file and database
+          if (rewrittenContent !== parsed.content) {
+            const finalContent = this.formatUpdatedNoteContent(
+              parsed.metadata,
+              rewrittenContent
+            );
+
+            // Update database
+            await this.#hybridSearchManager.upsertNote(
+              sourceNoteId,
+              sourceNote.title,
+              rewrittenContent,
+              sourceNote.type,
+              sourceNote.filename,
+              sourceNote.path,
+              parsed.metadata
+            );
+
+            // Update links in database
+            const extractionResult = LinkExtractor.extractLinks(rewrittenContent);
+            await LinkExtractor.storeLinks(sourceNoteId, extractionResult, db);
+
+            // Write updated file
+            await this.#writeFileWithTracking(sourceNote.path, finalContent);
+
+            notesUpdated++;
+          }
+        } catch (error) {
+          console.warn(
+            `Failed to rewrite links in note ${sourceNoteId}:`,
+            error instanceof Error ? error.message : 'Unknown error'
+          );
+          // Continue with other notes
+        }
+      }
+
+      return { notesUpdated, linksUpdated };
+    } catch (error) {
+      console.error(
+        'Failed to rewrite broken links after note creation:',
+        error instanceof Error ? error.message : 'Unknown error'
+      );
+      return { notesUpdated: 0, linksUpdated: 0 };
     }
   }
 

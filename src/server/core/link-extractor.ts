@@ -453,6 +453,22 @@ export class LinkExtractor {
   }
 
   /**
+   * Get source note IDs that have broken links to a specific title
+   * Used to find notes that need content rewriting when a new note is created
+   */
+  static async getNotesWithBrokenLinkToTitle(
+    title: string,
+    db: DatabaseConnection
+  ): Promise<string[]> {
+    const results = await db.all<{ source_note_id: string }>(
+      `SELECT DISTINCT source_note_id FROM note_links
+       WHERE target_note_id IS NULL AND target_title = ? COLLATE NOCASE`,
+      [title]
+    );
+    return results.map((r) => r.source_note_id);
+  }
+
+  /**
    * Clear all links for a note (used during note deletion)
    */
   static async clearLinksForNote(

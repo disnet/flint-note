@@ -573,4 +573,153 @@ It has multiple references to [[Original Title]] in the content.`,
       expect(updatedNote?.content).toBe(originalContent);
     });
   });
+
+  describe('broken link rewriting on note creation', () => {
+    it('should rewrite broken links when creating a note that matches the link title', async () => {
+      // Step 1: Create a note with a broken wikilink
+      const sourceNote = await testSetup.api.createNote({
+        type: 'note',
+        title: 'Source Note',
+        content: 'Check out [[Target Note]] for more info.',
+        vaultId: testVaultId
+      });
+
+      // Verify the source note was created with the broken link
+      const sourceBeforeTarget = await testSetup.api.getNote(testVaultId, sourceNote.id);
+      expect(sourceBeforeTarget?.content).toContain('[[Target Note]]');
+
+      // Step 2: Create the target note (this should trigger broken link rewriting)
+      const targetNote = await testSetup.api.createNote({
+        type: 'note',
+        title: 'Target Note',
+        content: 'This is the target note content.',
+        vaultId: testVaultId
+      });
+
+      // Step 3: Verify the source note's content was rewritten to use the target's ID
+      const sourceAfterTarget = await testSetup.api.getNote(testVaultId, sourceNote.id);
+
+      // The link should now be ID-based: [[n-xxxxxxxx]] instead of [[Target Note]]
+      expect(sourceAfterTarget?.content).not.toContain('[[Target Note]]');
+      expect(sourceAfterTarget?.content).toContain(`[[${targetNote.id}]]`);
+    });
+
+    it('should rewrite multiple broken links across multiple notes', async () => {
+      // Create two notes with broken links to the same target
+      const sourceNote1 = await testSetup.api.createNote({
+        type: 'note',
+        title: 'Source Note 1',
+        content: 'First reference to [[New Topic]].',
+        vaultId: testVaultId
+      });
+
+      const sourceNote2 = await testSetup.api.createNote({
+        type: 'note',
+        title: 'Source Note 2',
+        content: 'Second reference to [[New Topic]] here.',
+        vaultId: testVaultId
+      });
+
+      // Create the target note
+      const targetNote = await testSetup.api.createNote({
+        type: 'note',
+        title: 'New Topic',
+        content: 'The new topic content.',
+        vaultId: testVaultId
+      });
+
+      // Verify both source notes were updated
+      const source1After = await testSetup.api.getNote(testVaultId, sourceNote1.id);
+      const source2After = await testSetup.api.getNote(testVaultId, sourceNote2.id);
+
+      expect(source1After?.content).toContain(`[[${targetNote.id}]]`);
+      expect(source1After?.content).not.toContain('[[New Topic]]');
+
+      expect(source2After?.content).toContain(`[[${targetNote.id}]]`);
+      expect(source2After?.content).not.toContain('[[New Topic]]');
+    });
+
+    it('should preserve custom display text when rewriting broken links', async () => {
+      // Create a note with a broken link that has custom display text
+      const sourceNote = await testSetup.api.createNote({
+        type: 'note',
+        title: 'Source Note',
+        content: 'See [[My Long Title|short name]] for details.',
+        vaultId: testVaultId
+      });
+
+      // Create the target note
+      const targetNote = await testSetup.api.createNote({
+        type: 'note',
+        title: 'My Long Title',
+        content: 'Target content.',
+        vaultId: testVaultId
+      });
+
+      // Verify the link was rewritten but display text preserved
+      const sourceAfter = await testSetup.api.getNote(testVaultId, sourceNote.id);
+
+      expect(sourceAfter?.content).toContain(`[[${targetNote.id}|short name]]`);
+      expect(sourceAfter?.content).not.toContain('[[My Long Title|short name]]');
+    });
+
+    it('should use case-insensitive matching for broken link titles', async () => {
+      // Create a note with a broken link using different case
+      const sourceNote = await testSetup.api.createNote({
+        type: 'note',
+        title: 'Source Note',
+        content: 'Check out [[target note]] for info.',
+        vaultId: testVaultId
+      });
+
+      // Create the target with different casing
+      const targetNote = await testSetup.api.createNote({
+        type: 'note',
+        title: 'Target Note',
+        content: 'Target content.',
+        vaultId: testVaultId
+      });
+
+      // Verify the link was rewritten despite case difference
+      const sourceAfter = await testSetup.api.getNote(testVaultId, sourceNote.id);
+
+      expect(sourceAfter?.content).toContain(`[[${targetNote.id}]]`);
+      expect(sourceAfter?.content).not.toContain('[[target note]]');
+    });
+
+    it('should not affect existing valid links when rewriting broken links', async () => {
+      // Create an existing note first
+      const existingNote = await testSetup.api.createNote({
+        type: 'note',
+        title: 'Existing Note',
+        content: 'Already exists.',
+        vaultId: testVaultId
+      });
+
+      // Create a source note with both a valid link and a broken link
+      const sourceNote = await testSetup.api.createNote({
+        type: 'note',
+        title: 'Source Note',
+        content: `See [[${existingNote.id}|Existing]] and [[Future Note]].`,
+        vaultId: testVaultId
+      });
+
+      // Create the target for the broken link
+      const futureNote = await testSetup.api.createNote({
+        type: 'note',
+        title: 'Future Note',
+        content: 'Future content.',
+        vaultId: testVaultId
+      });
+
+      // Verify both links are correct
+      const sourceAfter = await testSetup.api.getNote(testVaultId, sourceNote.id);
+
+      // Existing link should be unchanged
+      expect(sourceAfter?.content).toContain(`[[${existingNote.id}|Existing]]`);
+      // Broken link should be rewritten
+      expect(sourceAfter?.content).toContain(`[[${futureNote.id}]]`);
+      expect(sourceAfter?.content).not.toContain('[[Future Note]]');
+    });
+  });
 });
