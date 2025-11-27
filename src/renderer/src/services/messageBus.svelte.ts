@@ -4,6 +4,7 @@ import type {
   Workflow,
   WorkflowCompletion
 } from '../../../server/types/workflow';
+import { logger } from '../utils/logger';
 
 // Event type definitions
 export type NoteEvent =
@@ -94,7 +95,7 @@ class MessageBus {
     // Log event if debugging enabled
     if (this.loggingEnabled) {
       this.eventLog.push(event);
-      console.log('[MessageBus]', event);
+      logger.debug('[MessageBus]', event);
     }
 
     // Notify specific event type subscribers

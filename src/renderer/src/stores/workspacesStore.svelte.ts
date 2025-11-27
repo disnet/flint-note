@@ -1,5 +1,6 @@
 import { getChatService } from '../services/chatService';
 import { messageBus } from '../services/messageBus.svelte';
+import { logger } from '../utils/logger';
 
 export interface PinnedNoteInfo {
   id: string;
@@ -747,7 +748,7 @@ class WorkspacesStore {
             (stored as WorkspacesState).activeWorkspaceId || workspaces[0].id
         };
 
-        console.log('[workspacesStore] Loaded workspaces:', {
+        logger.debug('[workspacesStore] Loaded workspaces:', {
           count: this.state.workspaces.length,
           activeId: this.state.activeWorkspaceId
         });
@@ -764,7 +765,7 @@ class WorkspacesStore {
   private async migrateFromOldStores(): Promise<void> {
     if (!this.currentVaultId) return;
 
-    console.log('[workspacesStore] Migrating from old stores...');
+    logger.debug('[workspacesStore] Migrating from old stores...');
 
     // Load old pinned notes
     let pinnedNotes: PinnedNoteInfo[] = [];
@@ -829,7 +830,7 @@ class WorkspacesStore {
 
     await this.saveToStorage();
 
-    console.log('[workspacesStore] Migration complete:', {
+    logger.debug('[workspacesStore] Migration complete:', {
       pinnedCount: pinnedNotes.length,
       tabsCount: temporaryTabs.length
     });

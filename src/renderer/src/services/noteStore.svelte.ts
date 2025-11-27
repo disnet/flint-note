@@ -1,6 +1,7 @@
 import { getChatService } from './chatService';
 import { noteCache } from './noteCache.svelte';
 import { messageBus } from './messageBus.svelte';
+import { logger } from '../utils/logger';
 
 export type NoteMetadata = {
   id: string;
@@ -50,7 +51,11 @@ function createNotesStore(): {
   // Derived: all notes including archived (for wikilink resolution)
   const allNotes = $derived.by(() => {
     const notes = noteCache.getAllNotes();
-    console.log('[noteStore] $derived re-running, got', notes.length, 'notes from cache');
+    logger.debug(
+      '[noteStore] $derived re-running, got',
+      notes.length,
+      'notes from cache'
+    );
     return notes;
   });
 
@@ -137,7 +142,7 @@ function createNotesStore(): {
   async function initialize(): Promise<void> {
     // If already initializing, return the existing promise
     if (state.initializationPromise) {
-      console.log(
+      logger.debug(
         '[noteStore] Initialization already in progress, awaiting existing promise'
       );
       return state.initializationPromise;
@@ -171,7 +176,7 @@ function createNotesStore(): {
         );
 
         // Publish bulk refresh event to populate cache
-        console.log(
+        logger.debug(
           `[noteStore] Publishing bulk refresh with ${sortedNotes.length} notes`
         );
         messageBus.publish({
@@ -180,7 +185,7 @@ function createNotesStore(): {
         });
 
         state.loading = false;
-        console.log('[noteStore] Initialization complete');
+        logger.debug('[noteStore] Initialization complete');
       } catch (err) {
         const errorMessage =
           err instanceof Error ? err.message : 'Failed to load all notes';

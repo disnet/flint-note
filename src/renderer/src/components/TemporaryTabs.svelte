@@ -16,6 +16,7 @@
   import { sidebarState } from '../stores/sidebarState.svelte';
   import { reviewStore } from '../stores/reviewStore.svelte';
   import { messageBus } from '../services/messageBus.svelte';
+  import { logger } from '../utils/logger';
 
   interface Props {
     onNoteSelect: (note: NoteMetadata) => void;
@@ -143,13 +144,13 @@
   ): Promise<void> {
     // Don't allow clicks while tabs are not ready
     if (!isTabsReady || isNotesLoading) {
-      console.log(
+      logger.debug(
         '[TemporaryTabs] Click blocked - tabs not ready or notes still loading'
       );
       return;
     }
 
-    console.log('[TemporaryTabs] Tab clicked:', { noteId });
+    logger.debug('[TemporaryTabs] Tab clicked:', { noteId });
     const note = notesStore.allNotes.find((n) => n.id === noteId);
     if (note) {
       // If shift key is pressed, add to shelf instead of navigating
@@ -180,7 +181,7 @@
         return;
       }
 
-      console.log('[TemporaryTabs] Note found, opening:', {
+      logger.debug('[TemporaryTabs] Note found, opening:', {
         noteId: note.id,
         title: note.title
       });

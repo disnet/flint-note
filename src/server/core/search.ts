@@ -10,6 +10,7 @@ import fs from 'fs/promises';
 import { Workspace } from './workspace.js';
 import { parseFrontmatter, parseNoteContent } from '../utils/yaml-parser.js';
 import type { NoteMetadata } from '../types/index.js';
+import { logger } from '../../main/logger.js';
 
 interface SearchIndex {
   version: string;
@@ -336,7 +337,7 @@ export class SearchManager {
       if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
         // Try to rebuild index if file doesn't exist
         try {
-          console.log('Search index missing, attempting to rebuild...');
+          logger.info('Search index missing, attempting to rebuild...');
           await this.rebuildSearchIndex();
           const indexContent = await fs.readFile(
             this.#workspace.searchIndexPath,

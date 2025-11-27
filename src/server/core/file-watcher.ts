@@ -12,6 +12,7 @@ import fs from 'fs/promises';
 import { generateContentHash } from '../utils/content-hash.js';
 import type { HybridSearchManager } from '../database/search-manager.js';
 import type { NoteManager } from './notes.js';
+import { logger } from '../../main/logger.js';
 
 // Phase 4: Removed FileOperation interface - no longer tracking individual operations
 // FileWriteQueue's ongoingWrites flag is now the single source of truth
@@ -115,7 +116,9 @@ export class VaultFileWatcher {
       return;
     }
 
-    console.log(`[FileWatcher] 🚀 Starting file watcher for vault: ${this.vaultPath}`);
+    logger.info(
+      `[FileWatcher] 🚀 Starting file watcher for vault: ${this.vaultPath}`
+    );
 
     this.watcher = chokidar.watch(this.vaultPath, {
       ignored: (filepath: string) => {
@@ -165,7 +168,7 @@ export class VaultFileWatcher {
       .on('unlink', (filePath) => this.onFileDeleted(filePath))
       .on('error', (error: unknown) => this.onError(error))
       .on('ready', () => {
-        console.log(
+        logger.info(
           '[FileWatcher] ✅ Chokidar watcher is ready and watching for changes'
         );
       });

@@ -1,6 +1,7 @@
 import { getChatService } from '../services/chatService';
 import { AutoSave } from './autoSave.svelte';
 import { messageBus } from '../services/messageBus.svelte';
+import { logger } from '../utils/logger';
 
 /**
  * Represents a single note document that can be shared across multiple editor components.
@@ -138,7 +139,7 @@ export class NoteDocument {
       // Phase 3: Removed expectWrite tracking - FileWriteQueue handles all internal writes
       // Compute content hash for optimistic locking
       const contentHash = await this.computeContentHash(this.content);
-      console.log(
+      logger.debug(
         `[AutoSave] Saving note ${this.noteId}, hash: ${contentHash.substring(0, 8)}...`
       );
 
@@ -147,7 +148,7 @@ export class NoteDocument {
         content: this.content,
         silent: true // Don't trigger UI refresh on auto-save
       });
-      console.log(`[AutoSave] Note ${this.noteId} saved successfully`);
+      logger.debug(`[AutoSave] Note ${this.noteId} saved successfully`);
 
       // Phase 6: Publish note.updated event with source: 'user' for multi-editor sync
       // This allows other editors viewing the same note to reload

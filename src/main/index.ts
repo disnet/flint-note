@@ -595,7 +595,7 @@ app.whenReady().then(async () => {
 
       // If review was auto-enabled, publish review.enabled event
       if ('reviewAutoEnabled' in result && result.reviewAutoEnabled) {
-        console.log(`[IPC] Publishing review.enabled event for ${result.id}`);
+        logger.debug(`[IPC] Publishing review.enabled event for ${result.id}`);
         publishReviewEvent({
           type: 'review.enabled',
           noteId: result.id
@@ -642,7 +642,7 @@ app.whenReady().then(async () => {
         throw new Error('Note service not available');
       }
 
-      console.log(
+      logger.debug(
         `[IPC] update-note called for ${params.identifier}, silent: ${params.silent}`
       );
 
@@ -664,7 +664,7 @@ app.whenReady().then(async () => {
 
       // Only publish event if not a silent update (auto-save)
       if (!params.silent) {
-        console.log(`[IPC] Publishing note.updated event for ${params.identifier}`);
+        logger.debug(`[IPC] Publishing note.updated event for ${params.identifier}`);
         publishNoteEvent({
           type: 'note.updated',
           noteId: params.identifier,
@@ -674,7 +674,7 @@ app.whenReady().then(async () => {
           source: 'user' // This comes from the UI, not the agent
         });
       } else {
-        console.log(`[IPC] Suppressing note.updated event (silent mode)`);
+        logger.debug(`[IPC] Suppressing note.updated event (silent mode)`);
       }
 
       return result;

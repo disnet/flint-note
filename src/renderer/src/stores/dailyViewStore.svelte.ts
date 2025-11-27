@@ -1,6 +1,7 @@
 import type { NoteMetadata } from '../services/noteStore.svelte';
 import { getCurrentWeek, getPreviousWeek, getNextWeek } from '../utils/dateUtils';
 import { messageBus } from '../services/messageBus.svelte';
+import { logger } from '../utils/logger';
 
 // Types for daily view data structures
 export interface DailyNote extends NoteMetadata {
@@ -152,7 +153,7 @@ class DailyViewStore {
       const currentVaultId = vaultId || (await this.getCurrentVaultId());
       if (!currentVaultId) {
         // During first-time setup, no vault may be available yet
-        console.log('No vault available for daily view, waiting for vault setup');
+        logger.debug('No vault available for daily view, waiting for vault setup');
         this.state.currentWeek = null;
         return;
       }
