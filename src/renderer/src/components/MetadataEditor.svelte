@@ -10,8 +10,46 @@
 
   let { activeNote, onMetadataUpdate }: Props = $props();
 
+  // System fields that are read-only (managed by the system, not user-editable)
+  // NOTE: This must be kept in sync with SYSTEM_FIELDS in src/server/core/system-fields.ts
+  const SYSTEM_FIELDS = new Set([
+    // New flint_* prefixed fields
+    'flint_id',
+    'flint_type',
+    'flint_kind',
+    'flint_title',
+    'flint_filename',
+    'flint_created',
+    'flint_updated',
+    'flint_path',
+    'flint_content',
+    'flint_content_hash',
+    'flint_size',
+    'flint_archived',
+    // EPUB-specific system fields (managed by the epub reader)
+    'flint_epubPath',
+    'flint_epubTitle',
+    'flint_epubAuthor',
+    'flint_currentCfi',
+    'flint_progress',
+    'flint_lastRead',
+    // Legacy fields
+    'id',
+    'type',
+    'title',
+    'filename',
+    'created',
+    'updated',
+    'path',
+    'content',
+    'content_hash',
+    'size',
+    'archived'
+  ]);
+
   let noteContent = $state<string>('');
   let frontmatterText = $state<string>('');
+  let systemFrontmatterText = $state<string>('');
   let bodyContent = $state<string>('');
   let isLoading = $state(false);
   let isSaving = $state(false);
@@ -21,6 +59,7 @@
 
   // Editor state
   let parsedMetadata = $state<Record<string, unknown>>({});
+  let parsedSystemMetadata = $state<Record<string, unknown>>({});
   let validationError = $state<string | null>(null);
 
   // Load note content when active note changes
@@ -58,15 +97,57 @@
     const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
 
     if (frontmatterMatch) {
-      frontmatterText = frontmatterMatch[1] || '';
+      const fullFrontmatter = frontmatterMatch[1] || '';
       bodyContent = frontmatterMatch[2] || '';
+
+      // Separate system fields from user-editable fields
+      const { systemLines, userLines } = separateSystemFields(fullFrontmatter);
+      systemFrontmatterText = systemLines;
+      frontmatterText = userLines;
     } else {
       // No frontmatter exists, create default based on note metadata
       frontmatterText = generateDefaultFrontmatter();
+      systemFrontmatterText = '';
       bodyContent = content;
     }
 
     parseYamlFrontmatter();
+  }
+
+  // Separate system fields from user-editable fields in frontmatter
+  function separateSystemFields(frontmatter: string): {
+    systemLines: string;
+    userLines: string;
+  } {
+    const lines = frontmatter.split('\n');
+    const systemLines: string[] = [];
+    const userLines: string[] = [];
+
+    let currentKey: string | null = null;
+    let isSystemKey = false;
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+
+      // Check if this is a new key-value pair
+      const colonIndex = trimmed.indexOf(':');
+      if (colonIndex > 0 && !trimmed.startsWith('-')) {
+        currentKey = trimmed.substring(0, colonIndex).trim();
+        isSystemKey = SYSTEM_FIELDS.has(currentKey);
+      }
+
+      // Route line to appropriate bucket
+      if (isSystemKey) {
+        systemLines.push(line);
+      } else {
+        userLines.push(line);
+      }
+    }
+
+    return {
+      systemLines: systemLines.join('\n').trim(),
+      userLines: userLines.join('\n').trim()
+    };
   }
 
   function generateDefaultFrontmatter(): string {
@@ -92,112 +173,125 @@
       .join('\n');
   }
 
+  // Helper to parse YAML-like frontmatter text (simplified parser)
+  function parseYamlText(text: string, validateKeys = true): Record<string, unknown> {
+    const lines = text.split('\n');
+    const parsed: Record<string, unknown> = {};
+
+    let currentKey: string | null = null;
+    let currentArray: string[] = [];
+    let lineNumber = 0;
+
+    for (const line of lines) {
+      lineNumber++;
+      const trimmed = line.trim();
+
+      // Skip empty lines
+      if (!trimmed) continue;
+
+      // Skip comments
+      if (trimmed.startsWith('#')) continue;
+
+      // Array item
+      if (trimmed.startsWith('- ')) {
+        if (!currentKey) {
+          if (validateKeys) {
+            throw new Error(`Line ${lineNumber}: Array item found without a key`);
+          }
+          continue;
+        }
+        const item = trimmed.substring(2).trim();
+        // Handle quoted array items
+        const cleanItem = item.replace(/^["']|["']$/g, '');
+        currentArray.push(cleanItem);
+        continue;
+      }
+
+      // Key-value pair
+      const colonIndex = trimmed.indexOf(':');
+      if (colonIndex > 0) {
+        // Save previous array if exists
+        if (currentKey && currentArray.length > 0) {
+          parsed[currentKey] = [...currentArray];
+          currentArray = [];
+        }
+
+        currentKey = trimmed.substring(0, colonIndex).trim();
+        const value = trimmed.substring(colonIndex + 1).trim();
+
+        // Validate key format (only for user-editable fields)
+        if (validateKeys && !currentKey.match(/^[a-zA-Z][a-zA-Z0-9_-]*$/)) {
+          throw new Error(
+            `Line ${lineNumber}: Invalid key format "${currentKey}". Keys must start with a letter and contain only letters, numbers, underscores, or hyphens.`
+          );
+        }
+
+        if (value === '[]') {
+          parsed[currentKey] = [];
+        } else if (value === '') {
+          // Key with no value, expect array items to follow
+          continue;
+        } else if (value) {
+          // Handle different value types
+          let cleanValue = value;
+
+          // Boolean values
+          if (value === 'true') {
+            parsed[currentKey] = true;
+          } else if (value === 'false') {
+            parsed[currentKey] = false;
+          }
+          // Null values
+          else if (value === 'null' || value === '~') {
+            parsed[currentKey] = null;
+          }
+          // Numbers
+          else if (/^-?\d+$/.test(value)) {
+            parsed[currentKey] = parseInt(value, 10);
+          } else if (/^-?\d*\.\d+$/.test(value)) {
+            parsed[currentKey] = parseFloat(value);
+          }
+          // String values (remove quotes)
+          else {
+            cleanValue = value.replace(/^["']|["']$/g, '');
+
+            // Validate ISO date strings if they look like dates
+            if (
+              validateKeys &&
+              cleanValue.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?$/)
+            ) {
+              const date = new Date(cleanValue);
+              if (isNaN(date.getTime())) {
+                throw new Error(
+                  `Line ${lineNumber}: Invalid date format "${cleanValue}". Use ISO 8601 format (YYYY-MM-DDTHH:mm:ss.sssZ)`
+                );
+              }
+            }
+
+            parsed[currentKey] = cleanValue;
+          }
+        }
+      } else if (colonIndex === -1 && trimmed && validateKeys) {
+        throw new Error(
+          `Line ${lineNumber}: Invalid syntax "${trimmed}". Expected "key: value" format.`
+        );
+      }
+    }
+
+    // Save final array if exists
+    if (currentKey && currentArray.length > 0) {
+      parsed[currentKey] = [...currentArray];
+    }
+
+    return parsed;
+  }
+
   function parseYamlFrontmatter(): void {
     validationError = null;
 
     try {
-      // Enhanced YAML parsing with better error handling
-      const lines = frontmatterText.split('\n');
-      const parsed: Record<string, unknown> = {};
-
-      let currentKey: string | null = null;
-      let currentArray: string[] = [];
-      let lineNumber = 0;
-
-      for (const line of lines) {
-        lineNumber++;
-        const trimmed = line.trim();
-
-        // Skip empty lines
-        if (!trimmed) continue;
-
-        // Skip comments
-        if (trimmed.startsWith('#')) continue;
-
-        // Array item
-        if (trimmed.startsWith('- ')) {
-          if (!currentKey) {
-            throw new Error(`Line ${lineNumber}: Array item found without a key`);
-          }
-          const item = trimmed.substring(2).trim();
-          // Handle quoted array items
-          const cleanItem = item.replace(/^["']|["']$/g, '');
-          currentArray.push(cleanItem);
-          continue;
-        }
-
-        // Key-value pair
-        const colonIndex = trimmed.indexOf(':');
-        if (colonIndex > 0) {
-          // Save previous array if exists
-          if (currentKey && currentArray.length > 0) {
-            parsed[currentKey] = [...currentArray];
-            currentArray = [];
-          }
-
-          currentKey = trimmed.substring(0, colonIndex).trim();
-          const value = trimmed.substring(colonIndex + 1).trim();
-
-          // Validate key format
-          if (!currentKey.match(/^[a-zA-Z][a-zA-Z0-9_-]*$/)) {
-            throw new Error(
-              `Line ${lineNumber}: Invalid key format "${currentKey}". Keys must start with a letter and contain only letters, numbers, underscores, or hyphens.`
-            );
-          }
-
-          if (value === '[]') {
-            parsed[currentKey] = [];
-          } else if (value === '') {
-            // Key with no value, expect array items to follow
-            continue;
-          } else if (value) {
-            // Handle different value types
-            let cleanValue = value;
-
-            // Boolean values
-            if (value === 'true') {
-              parsed[currentKey] = true;
-            } else if (value === 'false') {
-              parsed[currentKey] = false;
-            }
-            // Null values
-            else if (value === 'null' || value === '~') {
-              parsed[currentKey] = null;
-            }
-            // Numbers
-            else if (/^-?\d+$/.test(value)) {
-              parsed[currentKey] = parseInt(value, 10);
-            } else if (/^-?\d*\.\d+$/.test(value)) {
-              parsed[currentKey] = parseFloat(value);
-            }
-            // String values (remove quotes)
-            else {
-              cleanValue = value.replace(/^["']|["']$/g, '');
-
-              // Validate ISO date strings if they look like dates
-              if (cleanValue.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?$/)) {
-                const date = new Date(cleanValue);
-                if (isNaN(date.getTime())) {
-                  throw new Error(
-                    `Line ${lineNumber}: Invalid date format "${cleanValue}". Use ISO 8601 format (YYYY-MM-DDTHH:mm:ss.sssZ)`
-                  );
-                }
-              }
-
-              parsed[currentKey] = cleanValue;
-            }
-          }
-        } else if (colonIndex === -1 && trimmed) {
-          throw new Error(
-            `Line ${lineNumber}: Invalid syntax "${trimmed}". Expected "key: value" format.`
-          );
-        }
-      }
-
-      // Save final array if exists
-      if (currentKey && currentArray.length > 0) {
-        parsed[currentKey] = [...currentArray];
-      }
+      // Parse user-editable fields with validation
+      const parsed = parseYamlText(frontmatterText, true);
 
       // Additional validation for common metadata fields
       if (parsed.aliases && !Array.isArray(parsed.aliases)) {
@@ -219,6 +313,13 @@
       }
 
       parsedMetadata = parsed;
+
+      // Parse system fields (without strict validation)
+      if (systemFrontmatterText.trim()) {
+        parsedSystemMetadata = parseYamlText(systemFrontmatterText, false);
+      } else {
+        parsedSystemMetadata = {};
+      }
     } catch (err) {
       validationError = err instanceof Error ? err.message : 'Invalid YAML syntax';
       parsedMetadata = {};
@@ -238,9 +339,13 @@
       isSaving = true;
       error = null;
 
-      // Reconstruct full note content
-      const newContent = frontmatterText.trim()
-        ? `---\n${frontmatterText}\n---\n${bodyContent}`
+      // Reconstruct full note content, including system fields first, then user-editable fields
+      const combinedFrontmatter = [systemFrontmatterText.trim(), frontmatterText.trim()]
+        .filter(Boolean)
+        .join('\n');
+
+      const newContent = combinedFrontmatter
+        ? `---\n${combinedFrontmatter}\n---\n${bodyContent}`
         : bodyContent;
 
       const noteService = getChatService();
@@ -279,8 +384,10 @@
   function resetEditor(): void {
     noteContent = '';
     frontmatterText = '';
+    systemFrontmatterText = '';
     bodyContent = '';
     parsedMetadata = {};
+    parsedSystemMetadata = {};
     hasChanges = false;
     error = null;
     validationError = null;
@@ -294,8 +401,15 @@
   function addCustomField(): void {
     const key = prompt('Enter field name:');
     if (key && key.trim()) {
-      const value = prompt('Enter field value:');
       const cleanKey = key.trim().toLowerCase().replace(/\s+/g, '_');
+
+      // Prevent adding system fields
+      if (SYSTEM_FIELDS.has(cleanKey)) {
+        alert(`"${cleanKey}" is a system field and cannot be added manually.`);
+        return;
+      }
+
+      const value = prompt('Enter field value:');
       const cleanValue = value || '';
 
       // Add to frontmatter
@@ -386,9 +500,30 @@
           </div>
         </div>
 
+        <!-- System Fields (Read-only) -->
+        {#if Object.keys(parsedSystemMetadata).length > 0}
+          <div class="metadata-section">
+            <h4>System Fields (Read-only)</h4>
+            <div class="system-fields-list">
+              {#each Object.entries(parsedSystemMetadata) as [key, value] (key)}
+                <div class="system-field-item">
+                  <span class="system-field-key">{key}</span>
+                  <span class="system-field-value">
+                    {#if typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2}T/)}
+                      {new Date(value).toLocaleString()}
+                    {:else}
+                      {String(value)}
+                    {/if}
+                  </span>
+                </div>
+              {/each}
+            </div>
+          </div>
+        {/if}
+
         <!-- YAML Frontmatter Editor -->
         <div class="metadata-section">
-          <h4>YAML Frontmatter</h4>
+          <h4>Custom Metadata</h4>
           {#if validationError}
             <div class="validation-error">
               <strong>Validation Error:</strong>
@@ -399,7 +534,7 @@
             <textarea
               bind:value={frontmatterText}
               oninput={onFrontmatterChange}
-              placeholder="Enter YAML frontmatter..."
+              placeholder="Enter custom YAML frontmatter..."
               rows="10"
               spellcheck="false"
             ></textarea>
@@ -617,6 +752,44 @@ published: false</code
     color: var(--text-primary);
     text-transform: uppercase;
     letter-spacing: 0.05em;
+  }
+
+  .system-fields-list {
+    background: var(--bg-tertiary);
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .system-field-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.25rem 0;
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .system-field-item:last-child {
+    border-bottom: none;
+  }
+
+  .system-field-key {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  }
+
+  .system-field-value {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    text-align: right;
+    max-width: 60%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .metadata-field {

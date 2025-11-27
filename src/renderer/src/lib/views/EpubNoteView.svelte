@@ -91,6 +91,14 @@
     'flint_content_hash',
     'flint_size',
     'flint_filename',
+    'flint_archived',
+    // EPUB-specific system fields (managed by the epub reader)
+    'flint_epubPath',
+    'flint_epubTitle',
+    'flint_epubAuthor',
+    'flint_currentCfi',
+    'flint_progress',
+    'flint_lastRead',
     // Legacy fields
     'id',
     'title',
@@ -101,7 +109,8 @@
     'content',
     'content_hash',
     'size',
-    'filename'
+    'filename',
+    'archived'
   ];
 
   // Helper to filter out system fields from metadata

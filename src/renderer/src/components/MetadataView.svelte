@@ -36,6 +36,14 @@
     'flint_content',
     'flint_content_hash',
     'flint_size',
+    'flint_archived',
+    // EPUB-specific system fields (managed by the epub reader)
+    'flint_epubPath',
+    'flint_epubTitle',
+    'flint_epubAuthor',
+    'flint_currentCfi',
+    'flint_progress',
+    'flint_lastRead',
     // Legacy fields
     'id',
     'type',
@@ -46,7 +54,8 @@
     'path',
     'content',
     'content_hash',
-    'size'
+    'size',
+    'archived'
   ]);
 
   let formattedMetadata = $derived.by(() => {
@@ -187,6 +196,13 @@
       'flint_content_hash',
       'flint_size',
       'flint_archived',
+      // EPUB-specific system fields (managed by the epub reader)
+      'flint_epubPath',
+      'flint_epubTitle',
+      'flint_epubAuthor',
+      'flint_currentCfi',
+      'flint_progress',
+      'flint_lastRead',
       // Legacy fields
       'id',
       'title',
