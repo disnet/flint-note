@@ -191,7 +191,7 @@ async function migrateToImmutableIds(
     } catch (error) {
       // Skip files that don't exist (e.g., paths changed due to user migration)
       if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
-        console.warn(
+        logger.warn(
           `Skipping note ${oldIdentifier} (file not found at ${filepath}) - will be reindexed from disk later`
         );
         skippedCount++;
@@ -1152,7 +1152,7 @@ async function migrateToV2_1_0(
         convertedCount++;
       } catch {
         // File doesn't exist at expected location - try to remap
-        console.warn(
+        logger.warn(
           `File not found at expected location for note ${note.id}: ${newAbsolutePath}`
         );
 
@@ -1169,7 +1169,7 @@ async function migrateToV2_1_0(
           remappedCount++;
         } catch {
           // Can't find file anywhere - keep old absolute path and log warning
-          console.warn(
+          logger.warn(
             `Could not locate file for note ${note.id} (${note.type}/${note.filename}) - keeping absolute path`
           );
           skippedCount++;
@@ -1567,10 +1567,9 @@ async function migrateToV2_6_0(
           const extractionResult = LinkExtractor.extractLinks(content);
           await LinkExtractor.storeLinks(note.id, extractionResult, db, false);
         } catch (error) {
-          console.error(
-            `Failed to re-extract links for note ${note.id}:`,
-            error instanceof Error ? error.message : 'Unknown error'
-          );
+          logger.error(`Failed to re-extract links for note ${note.id}`, {
+            error: error instanceof Error ? error.message : 'Unknown error'
+          });
         }
       }
 
@@ -1922,7 +1921,7 @@ async function migrateToV2_12_0(db: DatabaseConnection): Promise<void> {
             const history = JSON.parse(item.review_history);
             if (Array.isArray(history)) {
               const migratedHistory = history.map(
-                (entry: { passed?: boolean; date: string;[key: string]: unknown }) => ({
+                (entry: { passed?: boolean; date: string; [key: string]: unknown }) => ({
                   ...entry,
                   sessionNumber: 0, // Unknown for old entries
                   rating: entry.passed ? 2 : 1 // Map pass→Productive(2), fail→Need more time(1)
@@ -2157,11 +2156,11 @@ async function migrateToV2_14_0(db: DatabaseConnection): Promise<void> {
         migratedCount++;
       } catch (error) {
         if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
-          console.warn(`Skipping note ${note.id} (file not found at ${note.path})`);
+          logger.warn(`Skipping note ${note.id} (file not found at ${note.path})`);
           skippedCount++;
           continue;
         }
-        console.error(`Failed to migrate note ${note.id}:`, error);
+        logger.error(`Failed to migrate note ${note.id}`, { error });
         // Continue with other notes
         skippedCount++;
       }
