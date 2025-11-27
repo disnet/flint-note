@@ -976,9 +976,24 @@ export class HybridSearchManager {
       // Update metadata
       await connection.run('DELETE FROM note_metadata WHERE note_id = ?', [id]);
 
+      // Legacy fields that should be skipped if their flint_* equivalent exists
+      const LEGACY_TO_FLINT: Record<string, string> = {
+        id: 'flint_id',
+        type: 'flint_type',
+        title: 'flint_title',
+        filename: 'flint_filename',
+        created: 'flint_created',
+        updated: 'flint_updated'
+      };
+
       for (const [key, value] of Object.entries(metadata)) {
         if (value != null && key !== 'filename') {
-          // Skip null values and filename
+          // Skip legacy fields if their flint_* equivalent exists in metadata
+          const flintEquivalent = LEGACY_TO_FLINT[key];
+          if (flintEquivalent && metadata[flintEquivalent] !== undefined) {
+            continue;
+          }
+
           const { value: serializedValue, type: valueType } =
             serializeMetadataValue(value);
           await connection.run(

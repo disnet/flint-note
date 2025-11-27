@@ -817,16 +817,6 @@ export class NoteManager {
     formattedContent += `flint_created: ${timestamp}\n`;
     formattedContent += `flint_updated: ${timestamp}\n`;
 
-    // Write legacy fields for backward compatibility
-    formattedContent += `id: ${id}\n`;
-    if (title && title.trim().length > 0) {
-      formattedContent += `title: "${title}"\n`;
-    }
-    formattedContent += `filename: "${baseFilename}"\n`;
-    formattedContent += `type: ${typeName}\n`;
-    formattedContent += `created: ${timestamp}\n`;
-    formattedContent += `updated: ${timestamp}\n`;
-
     // Add custom metadata fields
     for (const [key, value] of Object.entries(metadata)) {
       // Skip system fields (both old and new prefixed versions)
@@ -1225,12 +1215,11 @@ export class NoteManager {
 
       const { notePath } = await this.parseNoteIdentifier(identifier);
 
-      // Update the content while preserving metadata (both flint_* and legacy versions)
+      // Update the content while preserving metadata (flint_* prefixed fields only)
       const updateTime = new Date().toISOString();
       const updatedMetadata = {
         ...currentNote.metadata,
-        flint_updated: updateTime,
-        updated: updateTime
+        flint_updated: updateTime
       };
 
       const updatedContent = this.formatUpdatedNoteContent(updatedMetadata, newContent);
@@ -1246,7 +1235,7 @@ export class NoteManager {
       return {
         id: identifier,
         updated: true,
-        timestamp: updatedMetadata.updated
+        timestamp: updateTime
       };
     } catch (error) {
       if (
@@ -1264,11 +1253,28 @@ export class NoteManager {
    * Format updated note content with preserved metadata
    */
   formatUpdatedNoteContent(metadata: NoteMetadata, newContent: string): string {
+    // Legacy fields that should be skipped if their flint_* equivalent exists
+    // This prevents writing both legacy and flint_* fields to the frontmatter
+    const LEGACY_TO_FLINT: Record<string, string> = {
+      id: 'flint_id',
+      type: 'flint_type',
+      title: 'flint_title',
+      filename: 'flint_filename',
+      created: 'flint_created',
+      updated: 'flint_updated'
+    };
+
     let formattedContent = '---\n';
 
     for (const [key, value] of Object.entries(metadata)) {
       // Skip undefined values (used to explicitly remove properties from frontmatter)
       if (value === undefined) {
+        continue;
+      }
+
+      // Skip legacy fields if their flint_* equivalent exists in metadata
+      const flintEquivalent = LEGACY_TO_FLINT[key];
+      if (flintEquivalent && metadata[flintEquivalent] !== undefined) {
         continue;
       }
 
@@ -1381,13 +1387,12 @@ export class NoteManager {
         this.#validateNoProtectedFields(metadata);
       }
 
-      // Merge metadata with existing metadata (both flint_* and legacy versions)
+      // Merge metadata with existing metadata (flint_* prefixed fields only)
       // Handle undefined values explicitly to allow removing fields
       const updateTime = new Date().toISOString();
       const updatedMetadata = {
         ...currentNote.metadata,
-        flint_updated: updateTime,
-        updated: updateTime
+        flint_updated: updateTime
       };
 
       // Apply new metadata, explicitly deleting undefined values
@@ -1418,7 +1423,7 @@ export class NoteManager {
       return {
         id: identifier,
         updated: true,
-        timestamp: updatedMetadata.updated
+        timestamp: updateTime
       };
     } catch (error) {
       if (
@@ -2252,16 +2257,13 @@ export class NoteManager {
       // Note ID remains unchanged - it's immutable and stored in frontmatter
       const noteId = currentNote.id;
 
-      // Update the metadata with new title and filename (both flint_* and legacy versions)
+      // Update the metadata with new title and filename (flint_* prefixed fields only)
       const timestamp = new Date().toISOString();
       const updatedMetadata = {
         ...currentNote.metadata,
         flint_title: trimmedTitle,
-        title: trimmedTitle,
         flint_filename: finalBaseFilename,
-        filename: finalBaseFilename,
-        flint_updated: timestamp,
-        updated: timestamp
+        flint_updated: timestamp
       };
 
       // Create the updated content
@@ -2524,7 +2526,7 @@ export class NoteManager {
       const updatedMetadata: NoteMetadata = {
         ...note.metadata,
         archived: true,
-        updated: timestamp
+        flint_updated: timestamp
       };
 
       // Format updated content with archived flag
@@ -2569,7 +2571,7 @@ export class NoteManager {
       const updatedMetadata: NoteMetadata = {
         ...note.metadata,
         archived: undefined,
-        updated: timestamp
+        flint_updated: timestamp
       };
 
       // Format updated content without archived flag

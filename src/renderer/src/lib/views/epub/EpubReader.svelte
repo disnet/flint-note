@@ -37,6 +37,7 @@
 
   // State
   let container: HTMLDivElement;
+  let isMounted = $state(false);
   let isDarkMode = $state(false);
   let view:
     | (HTMLElement & {
@@ -140,7 +141,7 @@
   }
 
   async function loadEpub(): Promise<void> {
-    if (!epubPath || !container) return;
+    if (!epubPath || !container || !isMounted) return;
 
     isLoading = true;
     loadError = null;
@@ -148,6 +149,12 @@
     try {
       // Initialize foliate-js
       await initializeFoliateView();
+
+      // Check if component was unmounted during async operation
+      if (!isMounted || !container) {
+        console.log('[EPUB] Component unmounted during initialization, aborting load');
+        return;
+      }
 
       // Create the foliate-view element
       const foliateView = document.createElement('foliate-view') as typeof view;
@@ -170,6 +177,13 @@
 
       // Load the EPUB file
       const epubData = await window.api?.readEpubFile({ relativePath: epubPath });
+
+      // Check if component was unmounted during file read
+      if (!isMounted || !container) {
+        console.log('[EPUB] Component unmounted during file read, aborting load');
+        return;
+      }
+
       if (!epubData) {
         throw new Error('Failed to read EPUB file');
       }
@@ -185,6 +199,12 @@
 
       // Open the book
       await view!.open(file);
+
+      // Check if component was unmounted during book open
+      if (!isMounted || !container) {
+        console.log('[EPUB] Component unmounted during book open, aborting load');
+        return;
+      }
 
       // Get book metadata and TOC
       if (view!.book) {
@@ -529,6 +549,8 @@
   }
 
   onMount(() => {
+    isMounted = true;
+
     // Watch for data-theme attribute changes
     themeObserver = new MutationObserver((mutations) => {
       for (const mutation of mutations) {
@@ -545,6 +567,7 @@
   });
 
   onDestroy(() => {
+    isMounted = false;
     stopSelectionChecking();
     themeObserver?.disconnect();
     mediaQueryList?.removeEventListener('change', handleThemeChange);

@@ -196,6 +196,7 @@ export class DatabaseManager {
           title TEXT,
           content TEXT,
           type TEXT NOT NULL,
+          flint_kind TEXT DEFAULT 'markdown',
           filename TEXT NOT NULL,
           path TEXT NOT NULL,
           created DATETIME NOT NULL,
@@ -328,6 +329,9 @@ export class DatabaseManager {
 
     // Create indexes for performance
     await connection.run('CREATE INDEX IF NOT EXISTS idx_notes_type ON notes(type)');
+    await connection.run(
+      'CREATE INDEX IF NOT EXISTS idx_notes_flint_kind ON notes(flint_kind)'
+    );
     await connection.run(
       'CREATE INDEX IF NOT EXISTS idx_notes_updated ON notes(updated)'
     );

@@ -2013,8 +2013,172 @@ async function migrateToV2_13_0(db: DatabaseConnection): Promise<void> {
   }
 }
 
+/**
+ * Mapping from legacy field names to flint_* prefixed names
+ * (duplicated from system-fields.ts to avoid circular dependency)
+ */
+const LEGACY_TO_FLINT_MIGRATION: Record<string, string> = {
+  id: 'flint_id',
+  type: 'flint_type',
+  title: 'flint_title',
+  filename: 'flint_filename',
+  created: 'flint_created',
+  updated: 'flint_updated'
+};
+
+/**
+ * Add flint_* prefixed fields to frontmatter from legacy fields
+ * Used during migration to ensure all notes have flint_* fields
+ */
+function addFlintPrefixedFields(content: string): string {
+  // Match frontmatter - consistent with yaml-parser.ts
+  const frontmatterRegex = /^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/;
+  const match = content.match(frontmatterRegex);
+
+  if (!match) {
+    // No frontmatter, nothing to migrate
+    return content;
+  }
+
+  const frontmatterText = match[1];
+  const body = match[2];
+
+  let existingFrontmatter: Record<string, unknown> = {};
+
+  try {
+    const parsed = yaml.load(frontmatterText);
+    if (parsed && typeof parsed === 'object') {
+      existingFrontmatter = parsed as Record<string, unknown>;
+    }
+  } catch (error) {
+    console.warn('Failed to parse frontmatter during flint prefix migration:', error);
+    return content;
+  }
+
+  // Add flint_* fields for any legacy fields that don't have them
+  let modified = false;
+  for (const [legacyField, flintField] of Object.entries(LEGACY_TO_FLINT_MIGRATION)) {
+    // Only copy if legacy field exists and flint_* field doesn't
+    if (
+      existingFrontmatter[legacyField] !== undefined &&
+      existingFrontmatter[flintField] === undefined
+    ) {
+      existingFrontmatter[flintField] = existingFrontmatter[legacyField];
+      modified = true;
+    }
+  }
+
+  if (!modified) {
+    return content;
+  }
+
+  // Serialize back to YAML
+  const newFrontmatter = yaml.dump(existingFrontmatter, {
+    lineWidth: -1,
+    noRefs: true,
+    sortKeys: false
+  });
+
+  return `---\n${newFrontmatter}---\n${body}`;
+}
+
+/**
+ * Migration to v2.14.0: Add flint_* prefixed fields to existing notes
+ * Ensures all notes have flint_* fields for system metadata
+ */
+async function migrateToV2_14_0(db: DatabaseConnection): Promise<void> {
+  console.log('Migrating to v2.14.0: Adding flint_* prefixed fields to existing notes');
+
+  try {
+    // Check if notes table exists first
+    const tables = await db.all<{ name: string }>(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='notes'"
+    );
+    if (tables.length === 0) {
+      console.log('notes table does not exist, skipping flint_* field migration');
+      return;
+    }
+
+    // Get all notes from the database
+    const notes = await db.all<{
+      id: string;
+      path: string;
+      type: string;
+      filename: string;
+    }>('SELECT id, path, type, filename FROM notes');
+
+    console.log(`Processing ${notes.length} notes for flint_* field migration...`);
+
+    let migratedCount = 0;
+    let skippedCount = 0;
+
+    for (const note of notes) {
+      try {
+        const content = await fs.readFile(note.path, 'utf-8');
+
+        // Parse frontmatter to check for legacy fields
+        const frontmatterRegex = /^---\r?\n([\s\S]*?)\r?\n---\r?\n/;
+        const match = content.match(frontmatterRegex);
+
+        if (!match) {
+          skippedCount++;
+          continue;
+        }
+
+        let metadata: Record<string, unknown> = {};
+        try {
+          const parsed = yaml.load(match[1]);
+          if (parsed && typeof parsed === 'object') {
+            metadata = parsed as Record<string, unknown>;
+          }
+        } catch {
+          skippedCount++;
+          continue;
+        }
+
+        // Check if any legacy fields need migration
+        let needsMigration = false;
+        for (const [legacyField, flintField] of Object.entries(
+          LEGACY_TO_FLINT_MIGRATION
+        )) {
+          if (metadata[legacyField] !== undefined && metadata[flintField] === undefined) {
+            needsMigration = true;
+            break;
+          }
+        }
+
+        if (!needsMigration) {
+          skippedCount++;
+          continue;
+        }
+
+        // Add flint_* fields
+        const updatedContent = addFlintPrefixedFields(content);
+        await fs.writeFile(note.path, updatedContent);
+        migratedCount++;
+      } catch (error) {
+        if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+          console.warn(`Skipping note ${note.id} (file not found at ${note.path})`);
+          skippedCount++;
+          continue;
+        }
+        console.error(`Failed to migrate note ${note.id}:`, error);
+        // Continue with other notes
+        skippedCount++;
+      }
+    }
+
+    console.log(
+      `flint_* field migration completed: ${migratedCount} notes migrated, ${skippedCount} skipped`
+    );
+  } catch (error) {
+    console.error('Failed to migrate to flint_* prefixed fields:', error);
+    throw error;
+  }
+}
+
 export class DatabaseMigrationManager {
-  private static readonly CURRENT_SCHEMA_VERSION = '2.13.0';
+  private static readonly CURRENT_SCHEMA_VERSION = '2.14.0';
 
   private static readonly MIGRATIONS: DatabaseMigration[] = [
     {
@@ -2129,6 +2293,13 @@ export class DatabaseMigrationManager {
       requiresFullRebuild: false,
       requiresLinkMigration: false,
       migrationFunction: migrateToV2_13_0
+    },
+    {
+      version: '2.14.0',
+      description: 'Add flint_* prefixed fields to existing notes from legacy fields',
+      requiresFullRebuild: false,
+      requiresLinkMigration: false,
+      migrationFunction: migrateToV2_14_0
     }
   ];
 

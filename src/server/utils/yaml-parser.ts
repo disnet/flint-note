@@ -9,6 +9,32 @@ import yaml from 'js-yaml';
 import type { NoteMetadata, NoteLink } from '../types/index.js';
 
 /**
+ * Mapping from flint_* prefixed names to legacy field names
+ * Used to populate legacy fields when reading notes that only have flint_* fields
+ */
+const FLINT_TO_LEGACY: Record<string, string> = {
+  flint_id: 'id',
+  flint_type: 'type',
+  flint_title: 'title',
+  flint_filename: 'filename',
+  flint_created: 'created',
+  flint_updated: 'updated'
+};
+
+/**
+ * Mapping from legacy field names to flint_* prefixed names
+ * Used to populate flint_* fields when reading notes that only have legacy fields
+ */
+const LEGACY_TO_FLINT: Record<string, string> = {
+  id: 'flint_id',
+  type: 'flint_type',
+  title: 'flint_title',
+  filename: 'flint_filename',
+  created: 'flint_created',
+  updated: 'flint_updated'
+};
+
+/**
  * Parse YAML frontmatter string into NoteMetadata
  *
  * @param frontmatter - Raw YAML frontmatter string
@@ -95,6 +121,22 @@ export function parseFrontmatter(
         // Convert Date objects to ISO strings for consistency
         metadata[key] = value.toISOString();
       }
+    }
+  }
+
+  // Normalize: populate legacy fields from flint_* fields for backward compatibility
+  // This ensures code expecting legacy field names (title, created, etc.) still works
+  for (const [flintField, legacyField] of Object.entries(FLINT_TO_LEGACY)) {
+    if (metadata[flintField] !== undefined && metadata[legacyField] === undefined) {
+      metadata[legacyField] = metadata[flintField];
+    }
+  }
+
+  // Normalize: populate flint_* fields from legacy fields for forward compatibility
+  // This ensures code expecting flint_* field names works with legacy notes
+  for (const [legacyField, flintField] of Object.entries(LEGACY_TO_FLINT)) {
+    if (metadata[legacyField] !== undefined && metadata[flintField] === undefined) {
+      metadata[flintField] = metadata[legacyField];
     }
   }
 

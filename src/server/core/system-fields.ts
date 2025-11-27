@@ -10,8 +10,8 @@
  *
  * Field naming conventions:
  * - New fields use the flint_* prefix (e.g., flint_id, flint_type)
- * - Legacy fields (id, type, etc.) are kept for backward compatibility
- * - Both old and new field names are written to frontmatter
+ * - Legacy fields (id, type, etc.) are supported for backward compatibility on read
+ * - Only flint_* prefixed fields are written to frontmatter for new notes/updates
  * - When reading, prefer flint_* fields, fallback to legacy
  */
 

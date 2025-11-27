@@ -350,7 +350,7 @@ describe('HybridSearchManager - Filesystem Sync', () => {
 
       // Verify title was NOT generated from filename (file unchanged for title)
       const content = await fs.readFile(notePath, 'utf-8');
-      expect(content).not.toMatch(/title:/);
+      expect(content).not.toMatch(/flint_title:/);
 
       // Note should still be indexed with empty title
       const response = await searchManager.searchNotes('Content here');
@@ -376,8 +376,8 @@ describe('HybridSearchManager - Filesystem Sync', () => {
 
       // Verify title field was NOT modified (still empty)
       const content = await fs.readFile(notePath, 'utf-8');
-      expect(content).toMatch(/title:\n/);
-      expect(content).not.toMatch(/title: Camel/);
+      expect(content).toMatch(/flint_title:\n/);
+      expect(content).not.toMatch(/flint_title: Camel/);
 
       // Note should still be indexed with empty title
       const response = await searchManager.searchNotes('Content here');
@@ -398,7 +398,7 @@ describe('HybridSearchManager - Filesystem Sync', () => {
 
       // Verify file was not modified for title
       const content = await fs.readFile(notePath, 'utf-8');
-      expect(content).not.toMatch(/title:/);
+      expect(content).not.toMatch(/flint_title:/);
     });
 
     it('should not overwrite existing valid title', async () => {
@@ -436,7 +436,7 @@ describe('HybridSearchManager - Filesystem Sync', () => {
 
       expect(result.added).toBe(1);
 
-      // Verify frontmatter was created with id and type (but no title - empty titles allowed)
+      // Verify frontmatter was created with id and type (but no flint_title - empty titles allowed)
       const content = await fs.readFile(notePath, 'utf-8');
       expect(content).toMatch(/^---\n/);
       expect(content).toMatch(/id: n-[a-f0-9]{8}/);
