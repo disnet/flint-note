@@ -1495,9 +1495,7 @@ export class HybridSearchManager {
 
         if (!match) {
           // No frontmatter found - create new frontmatter block with flint_id
-          logger.info(
-            `Creating frontmatter for ${filePath} with flint_id: ${newId}`
-          );
+          logger.info(`Creating frontmatter for ${filePath} with flint_id: ${newId}`);
           updatedContent = `---\nflint_id: ${newId}\n---\n${content}`;
         } else {
           const originalFrontmatter = match[1];

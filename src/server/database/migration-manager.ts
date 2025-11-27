@@ -337,7 +337,7 @@ async function migrateToImmutableIds(
     `Deduplicating: ${existingNotes.length} original notes -> ${deduplicatedIds.length} unique (type, filename) pairs`
   );
 
-  if (deduplicatedIds.length === 0) {
+  if (deduplicatedIds.length === 0 && existingNotes.length > 0) {
     console.warn('WARNING: No notes to migrate after deduplication!');
   } else {
     // Now insert only the deduplicated notes
@@ -1009,9 +1009,7 @@ async function migrateToV2_2_0(
       entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'node_modules'
   );
 
-  logger.info(
-    `Found ${noteTypeDirectories.length} potential note type directories`
-  );
+  logger.info(`Found ${noteTypeDirectories.length} potential note type directories`);
 
   let migratedCount = 0;
   let skippedCount = 0;
@@ -1550,9 +1548,7 @@ async function migrateToV2_6_0(
 
     // Re-extract links only for notes that were updated
     if (updatedNoteIds.size > 0) {
-      logger.info(
-        `Re-extracting links for ${updatedNoteIds.size} updated notes...`
-      );
+      logger.info(`Re-extracting links for ${updatedNoteIds.size} updated notes...`);
       for (const note of notes) {
         // Skip notes that weren't updated
         if (!updatedNoteIds.has(note.id)) {
@@ -1646,9 +1642,7 @@ async function migrateToV2_8_0(db: DatabaseConnection): Promise<void> {
       );
 
       if (!hasSuggestionsConfig) {
-        logger.info(
-          'Adding suggestions_config column to note_type_descriptions table'
-        );
+        logger.info('Adding suggestions_config column to note_type_descriptions table');
         await db.run(
           'ALTER TABLE note_type_descriptions ADD COLUMN suggestions_config TEXT'
         );
@@ -1743,9 +1737,7 @@ async function migrateToV2_11_0(db: DatabaseConnection): Promise<void> {
     `);
 
     if (!tableExists || tableExists.count === 0) {
-      logger.info(
-        'note_type_descriptions table does not exist, skipping migration'
-      );
+      logger.info('note_type_descriptions table does not exist, skipping migration');
       return;
     }
 
@@ -1758,9 +1750,7 @@ async function migrateToV2_11_0(db: DatabaseConnection): Promise<void> {
     );
 
     if (!hasDefaultReviewMode) {
-      logger.info(
-        'Adding default_review_mode column to note_type_descriptions table'
-      );
+      logger.info('Adding default_review_mode column to note_type_descriptions table');
       await db.run(
         'ALTER TABLE note_type_descriptions ADD COLUMN default_review_mode INTEGER DEFAULT 0'
       );
@@ -2096,10 +2086,7 @@ function addFlintPrefixedFields(content: string): string {
  * Ensures all notes have flint_* fields for system metadata
  */
 async function migrateToV2_14_0(db: DatabaseConnection): Promise<void> {
-  console.log('Migrating to v2.14.0: Adding flint_* prefixed fields to existing notes');
-  logger.info(
-    'Migrating to v2.14.0: Adding flint_* prefixed fields to existing notes'
-  );
+  logger.info('Migrating to v2.14.0: Adding flint_* prefixed fields to existing notes');
 
   try {
     // Check if notes table exists first
@@ -2204,9 +2191,7 @@ async function migrateToV2_15_0(db: DatabaseConnection): Promise<void> {
       "SELECT name FROM sqlite_master WHERE type='table' AND name='note_metadata'"
     );
     if (tables.length === 0) {
-      logger.info(
-        'note_metadata table does not exist, skipping tags key migration'
-      );
+      logger.info('note_metadata table does not exist, skipping tags key migration');
       return;
     }
 
@@ -2215,9 +2200,7 @@ async function migrateToV2_15_0(db: DatabaseConnection): Promise<void> {
       "UPDATE note_metadata SET key = 'flint_tags' WHERE key = 'tags'"
     );
 
-    logger.info(
-      `tags key migration completed: ${result.changes || 0} rows updated`
-    );
+    logger.info(`tags key migration completed: ${result.changes || 0} rows updated`);
   } catch (error) {
     console.error("Failed to rename 'tags' to 'flint_tags':", error);
     throw error;
