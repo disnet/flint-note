@@ -821,10 +821,16 @@ export class NoteManager {
       archived: 'flint_archived'
     };
 
+    // EPUB-specific system fields that should be written during creation
+    // These are "write-once" fields: set at creation, immutable afterward
+    // Only flint_epubPath is a true system field; others can be updated via API
+    const EPUB_WRITE_ONCE_FIELDS = new Set(['flint_epubPath']);
+
     // Add custom metadata fields
     for (const [key, value] of Object.entries(metadata)) {
       // Skip system fields (both old and new prefixed versions)
-      if (SYSTEM_FIELDS.has(key)) {
+      // But allow EPUB-specific write-once fields to be set during creation
+      if (SYSTEM_FIELDS.has(key) && !EPUB_WRITE_ONCE_FIELDS.has(key)) {
         continue;
       }
 

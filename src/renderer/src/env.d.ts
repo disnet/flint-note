@@ -154,6 +154,7 @@ declare global {
         identifier: string;
         content: string;
         vaultId?: string;
+        metadata?: NoteMetadata;
       }) => Promise<any>;
       getNote: (params: { identifier: string; vaultId?: string }) => Promise<any>;
       updateNote: (params: {

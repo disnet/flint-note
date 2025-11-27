@@ -85,10 +85,10 @@ export const SYSTEM_FIELDS = new Set([
   'flint_content_hash',
   'flint_size',
   'flint_archived',
-  // EPUB-specific system fields (immutable metadata about the EPUB file)
+  // EPUB-specific system field (immutable path to the EPUB file)
   'flint_epubPath',
-  'flint_epubTitle',
-  'flint_epubAuthor',
+  // Note: flint_epubTitle, flint_epubAuthor are NOT system fields because they're
+  // derived from the EPUB file when first opened and need to be settable via the API
   // Note: flint_currentCfi, flint_progress, flint_lastRead are NOT system fields
   // because they track user reading state and need to be updated via the API
   // Legacy fields (for backward compatibility)

@@ -370,18 +370,11 @@
       const bookName = result.filename.replace(/\.epub$/i, '');
       const identifier = bookName; // Use book name as identifier
 
-      // Create note with 'note' type and 'epub' kind
+      // Create note with 'note' type and 'epub' kind, including EPUB-specific metadata
       const createdNote = await chatService.createNote({
         type: 'note',
         kind: 'epub',
         identifier,
-        content: `# Notes on ${bookName}\n\n`,
-        vaultId: currentVault.id
-      });
-
-      // Update the note with EPUB-specific metadata
-      await chatService.updateNote({
-        identifier: createdNote.id,
         content: `# Notes on ${bookName}\n\n`,
         vaultId: currentVault.id,
         metadata: {

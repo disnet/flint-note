@@ -561,6 +561,7 @@ app.whenReady().then(async () => {
         identifier: string;
         content: string;
         vaultId: string;
+        metadata?: NoteMetadata;
       }
     ) => {
       if (!noteService) {
@@ -571,7 +572,8 @@ app.whenReady().then(async () => {
         params.identifier,
         params.content,
         params.vaultId,
-        params.kind
+        params.kind,
+        params.metadata
       );
 
       // Publish event to renderer

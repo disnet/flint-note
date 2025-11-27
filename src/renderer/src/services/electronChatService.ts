@@ -252,10 +252,18 @@ export class ElectronChatService implements ChatService, NoteService {
     kind?: 'markdown' | 'epub' | string;
     identifier: string;
     content: string;
+    metadata?: NoteMetadata;
   }): Promise<NoteInfo> {
-    const { vaultId, type, kind, identifier, content } = params;
+    const { vaultId, type, kind, identifier, content, metadata } = params;
     try {
-      return await window.api.createNote({ vaultId, type, kind, identifier, content });
+      return await window.api.createNote({
+        vaultId,
+        type,
+        kind,
+        identifier,
+        content,
+        metadata
+      });
     } catch (error) {
       console.error('Failed to create note:', error);
       throw new Error('Failed to create note. Please try again.');

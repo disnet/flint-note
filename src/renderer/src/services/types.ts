@@ -93,6 +93,7 @@ export interface NoteService {
     identifier: string;
     content: string;
     vaultId?: string;
+    metadata?: NoteMetadata;
   }): Promise<NoteInfo>;
   getNote(params: { identifier: string; vaultId?: string }): Promise<Note | null>;
   updateNote(params: {

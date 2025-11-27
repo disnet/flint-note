@@ -214,9 +214,11 @@ const api = {
   // Note operations
   createNote: (params: {
     type: string;
+    kind?: 'markdown' | 'epub' | string;
     identifier: string;
     content: string;
     vaultId?: string;
+    metadata?: NoteMetadata;
   }) => electronAPI.ipcRenderer.invoke('create-note', params),
   getNote: (params: { identifier: string; vaultId?: string }) =>
     electronAPI.ipcRenderer.invoke('get-note', params),
