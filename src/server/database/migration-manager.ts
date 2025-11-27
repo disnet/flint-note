@@ -98,8 +98,9 @@ function addOrUpdateFrontmatter(
  * Migration function to convert notes to use immutable IDs
  */
 async function migrateToImmutableIds(
-  db: DatabaseConnection
-  // dbManager and workspacePath are not currently used but required by interface signature
+  db: DatabaseConnection,
+  _dbManager: DatabaseManager,
+  workspacePath: string
 ): Promise<void> {
   console.log('Starting immutable ID migration...');
 
@@ -171,7 +172,7 @@ async function migrateToImmutableIds(
     idMapping.set(oldIdentifier, newId);
 
     // Write ID to frontmatter - this is the source of truth
-    const filepath = note.path;
+    const filepath = toAbsolutePath(note.path, workspacePath);
     try {
       const content = await fs.readFile(filepath, 'utf-8');
       const updatedContent = addOrUpdateFrontmatter(content, {
@@ -804,11 +805,12 @@ async function initializeFreshDatabase(db: DatabaseConnection): Promise<void> {
  * Combined migration for version 2.0.0
  */
 async function migrateToV2(
-  db: DatabaseConnection
-  // dbManager and workspacePath are not currently used but required by interface signature
+  db: DatabaseConnection,
+  dbManager: DatabaseManager,
+  workspacePath: string
 ): Promise<void> {
   // First migrate to immutable IDs
-  await migrateToImmutableIds(db);
+  await migrateToImmutableIds(db, dbManager, workspacePath);
 
   // Then add UI state table
   console.log('Adding UI state table...');
@@ -2086,7 +2088,11 @@ function addFlintPrefixedFields(content: string): string {
  * Migration to v2.14.0: Add flint_* prefixed fields to existing notes
  * Ensures all notes have flint_* fields for system metadata
  */
-async function migrateToV2_14_0(db: DatabaseConnection): Promise<void> {
+async function migrateToV2_14_0(
+  db: DatabaseConnection,
+  _dbManager: DatabaseManager,
+  workspacePath: string
+): Promise<void> {
   console.log('Migrating to v2.14.0: Adding flint_* prefixed fields to existing notes');
 
   try {
@@ -2113,8 +2119,9 @@ async function migrateToV2_14_0(db: DatabaseConnection): Promise<void> {
     let skippedCount = 0;
 
     for (const note of notes) {
+      const absolutePath = toAbsolutePath(note.path, workspacePath);
       try {
-        const content = await fs.readFile(note.path, 'utf-8');
+        const content = await fs.readFile(absolutePath, 'utf-8');
 
         // Parse frontmatter to check for legacy fields
         const frontmatterRegex = /^---\r?\n([\s\S]*?)\r?\n---\r?\n/;
@@ -2154,11 +2161,11 @@ async function migrateToV2_14_0(db: DatabaseConnection): Promise<void> {
 
         // Add flint_* fields
         const updatedContent = addFlintPrefixedFields(content);
-        await fs.writeFile(note.path, updatedContent);
+        await fs.writeFile(absolutePath, updatedContent);
         migratedCount++;
       } catch (error) {
         if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
-          console.warn(`Skipping note ${note.id} (file not found at ${note.path})`);
+          console.warn(`Skipping note ${note.id} (file not found at ${absolutePath})`);
           skippedCount++;
           continue;
         }
