@@ -8,6 +8,14 @@
   import EpubToc from './epub/EpubToc.svelte';
   import EpubProgress from './epub/EpubProgress.svelte';
   import EpubHighlights from './epub/EpubHighlights.svelte';
+  import EditorHeader from '../../components/EditorHeader.svelte';
+  import NoteActionBar from '../../components/NoteActionBar.svelte';
+  import MetadataView from '../../components/MetadataView.svelte';
+  import { workspacesStore } from '../../stores/workspacesStore.svelte.js';
+  import { notesShelfStore } from '../../stores/notesShelfStore.svelte.js';
+  import { reviewStore } from '../../stores/reviewStore.svelte.js';
+  import { getChatService } from '../../services/chatService.js';
+  import type { Note } from '@/server/core/notes';
 
   let {
     activeNote,
@@ -327,16 +335,165 @@
   // Initialize with saved CFI
   let initialCfi = $derived((metadata.currentCfi as string) || '');
 
-  // Book display info
-  let bookTitle = $derived(
-    (metadata.epubTitle as string) ||
-      epubMetadata?.title ||
-      (activeNote.title as string) ||
-      'Untitled'
-  );
+  // Book display info (author shown in EPUB actions bar)
   let bookAuthor = $derived(
     (metadata.epubAuthor as string) || extractAuthorName(epubMetadata?.author) || ''
   );
+
+  // Note title (editable) - use activeNote.title directly
+  let noteTitle = $derived((activeNote.title as string) || 'Untitled');
+
+  // Action bar state
+  let metadataExpanded = $state(false);
+  let reviewEnabled = $state(false);
+  let isLoadingReview = $state(false);
+  let noteData = $state<Note | null>(null);
+
+  // Load note data and review status when note changes
+  $effect(() => {
+    (async () => {
+      const noteId = activeNote?.id as string;
+      if (noteId) {
+        try {
+          const noteService = getChatService();
+          if (await noteService.isReady()) {
+            const [noteResult, isReviewEnabled] = await Promise.all([
+              noteService.getNote({ identifier: noteId }),
+              reviewStore.isReviewEnabled(noteId)
+            ]);
+            noteData = noteResult;
+            reviewEnabled = isReviewEnabled;
+          }
+        } catch (err) {
+          console.error('Failed to load note data:', err);
+          reviewEnabled = false;
+        }
+      }
+    })();
+  });
+
+  // Title change handler - uses renameNote since title is a system field
+  async function handleTitleChange(newTitle: string): Promise<void> {
+    const noteId = activeNote?.id as string;
+    if (!noteId) return;
+
+    // Skip if unchanged
+    if (newTitle === activeNote.title) return;
+
+    try {
+      const noteService = getChatService();
+      const vault = await noteService.getCurrentVault();
+      if (!vault) {
+        console.error('No vault available');
+        return;
+      }
+
+      await noteService.renameNote({
+        vaultId: vault.id,
+        identifier: noteId,
+        newIdentifier: newTitle
+      });
+    } catch (err) {
+      console.error('Error renaming note:', err);
+    }
+  }
+
+  // Action bar handlers
+  async function handlePinToggle(): Promise<void> {
+    const noteId = activeNote?.id as string;
+    if (noteId) {
+      await workspacesStore.togglePin(noteId);
+    }
+  }
+
+  async function handleAddToShelf(): Promise<void> {
+    const noteId = activeNote?.id as string;
+    if (noteId) {
+      await notesShelfStore.addNote(noteId, noteTitle, noteContent || '');
+    }
+  }
+
+  function toggleMetadata(): void {
+    metadataExpanded = !metadataExpanded;
+  }
+
+  async function handleReviewToggle(): Promise<void> {
+    const noteId = activeNote?.id as string;
+    if (!noteId) return;
+
+    isLoadingReview = true;
+    try {
+      if (reviewEnabled) {
+        await reviewStore.disableReview(noteId);
+        reviewEnabled = false;
+      } else {
+        await reviewStore.enableReview(noteId);
+        reviewEnabled = true;
+      }
+    } catch (err) {
+      console.error('Error toggling review:', err);
+    } finally {
+      isLoadingReview = false;
+    }
+  }
+
+  async function handleArchiveNote(): Promise<void> {
+    const noteId = activeNote?.id as string;
+    if (!noteId) return;
+
+    try {
+      const noteService = getChatService();
+      const vault = await noteService.getCurrentVault();
+      if (!vault) {
+        console.error('No vault available');
+        return;
+      }
+      await noteService.archiveNote({
+        vaultId: vault.id,
+        identifier: noteId
+      });
+    } catch (err) {
+      console.error('Error archiving note:', err);
+    }
+  }
+
+  async function handleTypeChange(newType: string): Promise<void> {
+    const noteId = activeNote?.id as string;
+    if (!noteId) return;
+
+    try {
+      const noteService = getChatService();
+      await noteService.moveNote({
+        identifier: noteId,
+        newType: newType
+      });
+    } catch (err) {
+      console.error('Error changing note type:', err);
+    }
+  }
+
+  async function handleMetadataUpdate(
+    updatedMetadata: Record<string, unknown>
+  ): Promise<void> {
+    const noteId = activeNote?.id as string;
+    if (!noteId || !noteData) return;
+
+    try {
+      const noteService = getChatService();
+      await noteService.updateNote({
+        identifier: noteId,
+        content: noteContent || '',
+        metadata: $state.snapshot(updatedMetadata) as import('@/server/types').NoteMetadata
+      });
+
+      // Refresh note data
+      const result = await noteService.getNote({ identifier: noteId });
+      noteData = result;
+    } catch (err) {
+      console.error('Error updating metadata:', err);
+      throw err;
+    }
+  }
 </script>
 
 <BaseNoteView
@@ -352,17 +509,46 @@
     handleSave: _handleSave
   })}
     <div class="epub-note-view">
-      <!-- Header bar -->
-      <div class="epub-header">
-        <div class="book-info">
-          <h2 class="book-title">{bookTitle}</h2>
-          {#if bookAuthor}
-            <span class="book-author">by {bookAuthor}</span>
-          {/if}
-        </div>
-        <div class="header-actions">
+      <!-- Standard note header -->
+      <div class="header-container">
+        <EditorHeader title={noteTitle} onTitleChange={handleTitleChange} />
+
+        <NoteActionBar
+          noteType={activeNote.type as string}
+          onTypeChange={handleTypeChange}
+          isPinned={workspacesStore.isPinned(activeNote.id as string)}
+          isOnShelf={notesShelfStore.isOnShelf(activeNote.id as string)}
+          {metadataExpanded}
+          previewMode={false}
+          {reviewEnabled}
+          {isLoadingReview}
+          suggestionsEnabled={false}
+          onPinToggle={handlePinToggle}
+          onAddToShelf={handleAddToShelf}
+          onMetadataToggle={toggleMetadata}
+          onPreviewToggle={() => {}}
+          onReviewToggle={handleReviewToggle}
+          onArchiveNote={handleArchiveNote}
+        />
+      </div>
+
+      <!-- Metadata section -->
+      <div class="metadata-section-container">
+        <MetadataView
+          note={noteData}
+          expanded={metadataExpanded}
+          onMetadataUpdate={handleMetadataUpdate}
+        />
+      </div>
+
+      <!-- EPUB-specific actions bar -->
+      <div class="epub-actions">
+        {#if bookAuthor}
+          <span class="book-author">by {bookAuthor}</span>
+        {/if}
+        <div class="epub-buttons">
           <button
-            class="header-button"
+            class="epub-button"
             class:active={showHighlights}
             onclick={() => {
               showHighlights = !showHighlights;
@@ -370,7 +556,7 @@
             }}
             aria-label="Toggle highlights"
           >
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
               <path
                 d="M3 4H17V16H3V4Z"
                 stroke="currentColor"
@@ -382,7 +568,7 @@
             <span>Highlights ({highlights.length})</span>
           </button>
           <button
-            class="header-button"
+            class="epub-button"
             class:active={showToc}
             onclick={() => {
               showToc = !showToc;
@@ -390,7 +576,7 @@
             }}
             aria-label="Toggle table of contents"
           >
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
               <path
                 d="M3 5H17M3 10H17M3 15H12"
                 stroke="currentColor"
@@ -511,64 +697,67 @@
     background: var(--bg-primary, #fff);
   }
 
-  /* Header */
-  .epub-header {
+  /* Header container */
+  .header-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0 0.5rem;
+  }
+
+  /* Metadata section */
+  .metadata-section-container {
+    display: flex;
+    justify-content: flex-start;
+    width: 100%;
+    padding: 0 0.5rem;
+  }
+
+  /* EPUB-specific actions bar */
+  .epub-actions {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0.75rem 1rem;
-    background: var(--bg-secondary, #f5f5f5);
+    padding: 0.25rem 0.5rem;
     border-bottom: 1px solid var(--border-light, #e0e0e0);
-    gap: 1rem;
-  }
-
-  .book-info {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .book-title {
-    margin: 0;
-    font-size: 1rem;
-    font-weight: 600;
-    color: var(--text-primary, #333);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    gap: 0.5rem;
   }
 
   .book-author {
-    font-size: 0.875rem;
+    font-size: 0.8rem;
     color: var(--text-secondary, #666);
+    font-style: italic;
   }
 
-  .header-actions {
+  .epub-buttons {
     display: flex;
     gap: 0.5rem;
   }
 
-  .header-button {
+  .epub-button {
     display: flex;
     align-items: center;
     gap: 0.25rem;
-    padding: 0.5rem 0.75rem;
-    background: var(--bg-primary, #fff);
-    border: 1px solid var(--border-medium, #ccc);
-    border-radius: 4px;
+    padding: 0.25rem 0.5rem;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 0.25rem;
     cursor: pointer;
-    color: var(--text-primary, #333);
-    font-size: 0.875rem;
+    color: var(--text-secondary, #666);
+    font-size: 0.8rem;
     transition: all 0.15s ease;
   }
 
-  .header-button:hover {
-    background: var(--bg-hover, #e0e0e0);
+  .epub-button:hover {
+    background: var(--bg-secondary, #f5f5f5);
+    border-color: var(--border-light, #e0e0e0);
+    color: var(--text-primary, #333);
   }
 
-  .header-button.active {
-    background: var(--accent-primary, #007bff);
-    color: white;
+  .epub-button.active {
+    background: var(--bg-secondary, #f5f5f5);
     border-color: var(--accent-primary, #007bff);
+    color: var(--text-primary, #333);
   }
 
   /* Main content */
