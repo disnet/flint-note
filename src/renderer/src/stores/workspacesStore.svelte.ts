@@ -197,9 +197,8 @@ class WorkspacesStore {
     await this.saveToStorage();
 
     // Refresh navigation service's pinned tracking for the new workspace
-    const { noteNavigationService } = await import(
-      '../services/noteNavigationService.svelte'
-    );
+    const { noteNavigationService } =
+      await import('../services/noteNavigationService.svelte');
     noteNavigationService.refreshPinnedTracking();
   }
 
@@ -1023,9 +1022,8 @@ class WorkspacesStore {
 
     // Refresh navigation service's pinned tracking to prevent the moved note
     // from being re-added to tabs when navigating to another note
-    const { noteNavigationService } = await import(
-      '../services/noteNavigationService.svelte'
-    );
+    const { noteNavigationService } =
+      await import('../services/noteNavigationService.svelte');
     noteNavigationService.refreshPinnedTracking();
   }
 }

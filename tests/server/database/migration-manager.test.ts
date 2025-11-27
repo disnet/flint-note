@@ -1104,9 +1104,8 @@ This is a tutorial note with complex frontmatter.`;
       const migratedContent = await fs.readFile(filepath, 'utf-8');
 
       // Parse using the same parser the app uses
-      const { parseNoteContent } = await import(
-        '../../../src/server/utils/yaml-parser.js'
-      );
+      const { parseNoteContent } =
+        await import('../../../src/server/utils/yaml-parser.js');
       const parsed = parseNoteContent(migratedContent);
 
       // Verify metadata was preserved correctly
@@ -1187,9 +1186,8 @@ metadata:
 
       // Read and parse migrated file
       const migratedContent = await fs.readFile(filepath, 'utf-8');
-      const { parseNoteContent } = await import(
-        '../../../src/server/utils/yaml-parser.js'
-      );
+      const { parseNoteContent } =
+        await import('../../../src/server/utils/yaml-parser.js');
       const parsed = parseNoteContent(migratedContent);
 
       // Verify all YAML types are preserved correctly

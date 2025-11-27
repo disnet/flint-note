@@ -2,6 +2,8 @@
   import BaseNoteView from './BaseNoteView.svelte';
   import type { NoteViewProps } from './ViewRegistry';
 
+  type MetadataRecord = Record<string, unknown>;
+
   let {
     activeNote,
     noteContent,
@@ -107,17 +109,16 @@
           <div class="image-preview">
             <img src={imageUrl} alt={(metadata.title as string) || 'Image'} />
             <div class="image-metadata">
-              {#if metadata.title || (metadata.metadata as Record<string, unknown>)?.title}
+              {#if metadata.title || (metadata.metadata as MetadataRecord)?.title}
                 <h3>
                   {(metadata.title as string) ||
-                    ((metadata.metadata as Record<string, unknown>)?.title as string)}
+                    ((metadata.metadata as MetadataRecord)?.title as string)}
                 </h3>
               {/if}
-              {#if metadata.description || (metadata.metadata as Record<string, unknown>)?.description}
+              {#if metadata.description || (metadata.metadata as MetadataRecord)?.description}
                 <p class="description">
                   {(metadata.description as string) ||
-                    ((metadata.metadata as Record<string, unknown>)
-                      ?.description as string)}
+                    ((metadata.metadata as MetadataRecord)?.description as string)}
                 </p>
               {/if}
             </div>
