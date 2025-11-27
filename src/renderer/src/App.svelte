@@ -1478,8 +1478,8 @@
     gap: 0;
   }
 
-  /* Hide window controls on macOS */
-  :global(html[data-platform='macos']) .window-controls {
+  /* Hide custom window controls - macOS uses traffic lights, Windows/Linux use native frame */
+  .window-controls {
     display: none;
   }
 

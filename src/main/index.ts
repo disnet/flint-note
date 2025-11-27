@@ -48,12 +48,16 @@ function getThemeBackgroundColor(): string {
 
 function createWindow(): void {
   // Create the browser window.
+  // On macOS: Use frameless window with hiddenInset title bar (traffic lights visible)
+  // On Windows/Linux: Use native frame to show menu bar and window controls
+  const isMac = process.platform === 'darwin';
+
   const mainWindow = new BrowserWindow({
     width: 1600,
     height: 900,
     show: false,
-    frame: false,
-    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : undefined,
+    frame: !isMac, // Frameless on macOS, native frame on Windows/Linux for menu bar
+    titleBarStyle: isMac ? 'hiddenInset' : undefined,
     backgroundColor: getThemeBackgroundColor(), // Dynamic theme background to prevent flash
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
