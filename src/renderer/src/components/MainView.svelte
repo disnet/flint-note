@@ -118,11 +118,16 @@
       await noteService.updateNote({
         identifier: activeNote.id,
         content: noteContent,
-        metadata: newMetadata as NoteMetadata
+        metadata: newMetadata as NoteMetadata,
+        silent: true // Metadata updates are internal state changes, not user content edits
       });
 
-      // Update local noteData - merge the new metadata into noteData.metadata
-      noteData = { ...noteData, metadata: newMetadata as NoteMetadata };
+      // Update local noteData - merge new metadata into existing metadata
+      // This preserves system fields (like flint_title) that were filtered out by the caller
+      noteData = {
+        ...noteData,
+        metadata: { ...noteData.metadata, ...newMetadata } as NoteMetadata
+      };
     } catch (error) {
       console.error('Error updating metadata:', error);
     }

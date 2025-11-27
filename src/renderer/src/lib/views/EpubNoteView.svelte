@@ -74,7 +74,7 @@
   });
 
   // Extract EPUB path from metadata
-  let epubPath = $derived((metadata.epubPath as string) || '');
+  let epubPath = $derived((metadata.flint_epubPath as string) || '');
 
   // System fields that cannot be modified through metadata update
   // NOTE: This must be kept in sync with SYSTEM_FIELDS in src/server/core/system-fields.ts
@@ -167,9 +167,9 @@
 
     const updatedMetadata = {
       ...baseMetadata,
-      currentCfi: cfi,
-      progress: Math.round(validProgress),
-      lastRead: new Date().toISOString()
+      flint_currentCfi: cfi,
+      flint_progress: Math.round(validProgress),
+      flint_lastRead: new Date().toISOString()
     };
 
     lastSavedProgress = validProgress;
@@ -245,14 +245,14 @@
     epubMetadata = meta;
 
     // Update note metadata with EPUB metadata if not already set
-    if (!metadata.epubTitle && meta.title) {
+    if (!metadata.flint_epubTitle && meta.title) {
       // Use $state.snapshot() to ensure the object is serializable for IPC
       // Filter out system fields that can't be modified
       const baseMetadata = filterSystemFields($state.snapshot(metadata));
       const updatedMetadata = {
         ...baseMetadata,
-        epubTitle: meta.title,
-        epubAuthor: extractAuthorName(meta.author)
+        flint_epubTitle: meta.title,
+        flint_epubAuthor: extractAuthorName(meta.author)
       };
       onMetadataChange(updatedMetadata);
     }
@@ -334,11 +334,11 @@
   }
 
   // Initialize with saved CFI
-  let initialCfi = $derived((metadata.currentCfi as string) || '');
+  let initialCfi = $derived((metadata.flint_currentCfi as string) || '');
 
   // Book display info (author shown in EPUB actions bar)
   let bookAuthor = $derived(
-    (metadata.epubAuthor as string) || extractAuthorName(epubMetadata?.author) || ''
+    (metadata.flint_epubAuthor as string) || extractAuthorName(epubMetadata?.author) || ''
   );
 
   // Note title (editable) - use flint_title from metadata as canonical source

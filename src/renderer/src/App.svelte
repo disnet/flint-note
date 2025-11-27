@@ -385,9 +385,9 @@
         content: `# Notes on ${bookName}\n\n`,
         vaultId: currentVault.id,
         metadata: {
-          epubPath: result.path,
-          progress: 0,
-          lastRead: new Date().toISOString()
+          flint_epubPath: result.path,
+          flint_progress: 0,
+          flint_lastRead: new Date().toISOString()
         }
       });
 
