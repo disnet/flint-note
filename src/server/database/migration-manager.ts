@@ -12,7 +12,7 @@ import { LinkExtractor } from '../core/link-extractor.js';
 import crypto from 'crypto';
 import fs from 'fs/promises';
 import yaml from 'js-yaml';
-import { toRelativePath, toAbsolutePath } from '../utils/path-utils.js';
+import { toRelativePath, toAbsolutePath, isAbsolutePath } from '../utils/path-utils.js';
 
 export interface DatabaseMigration {
   version: string;
@@ -172,7 +172,10 @@ async function migrateToImmutableIds(
     idMapping.set(oldIdentifier, newId);
 
     // Write ID to frontmatter - this is the source of truth
-    const filepath = toAbsolutePath(note.path, workspacePath);
+    // Handle both relative paths (after v2.1.0) and absolute paths (before v2.1.0 or in tests)
+    const filepath = isAbsolutePath(note.path)
+      ? note.path
+      : toAbsolutePath(note.path, workspacePath);
     try {
       const content = await fs.readFile(filepath, 'utf-8');
       const updatedContent = addOrUpdateFrontmatter(content, {
@@ -2119,7 +2122,10 @@ async function migrateToV2_14_0(
     let skippedCount = 0;
 
     for (const note of notes) {
-      const absolutePath = toAbsolutePath(note.path, workspacePath);
+      // Handle both relative paths (after v2.1.0) and absolute paths (before v2.1.0 or in tests)
+      const absolutePath = isAbsolutePath(note.path)
+        ? note.path
+        : toAbsolutePath(note.path, workspacePath);
       try {
         const content = await fs.readFile(absolutePath, 'utf-8');
 
@@ -2216,7 +2222,7 @@ async function migrateToV2_15_0(db: DatabaseConnection): Promise<void> {
 }
 
 export class DatabaseMigrationManager {
-  private static readonly CURRENT_SCHEMA_VERSION = '2.15.0';
+  private static readonly CURRENT_SCHEMA_VERSION = '2.16.0';
 
   private static readonly MIGRATIONS: DatabaseMigration[] = [
     {
@@ -2345,6 +2351,13 @@ export class DatabaseMigrationManager {
       requiresFullRebuild: false,
       requiresLinkMigration: false,
       migrationFunction: migrateToV2_15_0
+    },
+    {
+      version: '2.16.0',
+      description: 'Re-run flint_* field migration (fixes path resolution bug in 2.14.0)',
+      requiresFullRebuild: false,
+      requiresLinkMigration: false,
+      migrationFunction: migrateToV2_14_0
     }
   ];
 

@@ -394,7 +394,7 @@ This is test note ${i}`;
       // Verify migration result
       expect(result.migrated).toBe(true);
       expect(result.fromVersion).toBe('1.1.0');
-      expect(result.toVersion).toBe('2.15.0');
+      expect(result.toVersion).toBe('2.16.0');
       expect(result.executedMigrations).toContain('2.0.0');
       expect(result.executedMigrations).toContain('2.0.1');
       expect(result.executedMigrations).toContain('2.1.0');
@@ -412,6 +412,7 @@ This is test note ${i}`;
       expect(result.executedMigrations).toContain('2.13.0');
       expect(result.executedMigrations).toContain('2.14.0');
       expect(result.executedMigrations).toContain('2.15.0');
+      expect(result.executedMigrations).toContain('2.16.0');
 
       // Verify database state
       await verifyMigration(originalNotes);
@@ -662,7 +663,7 @@ This is test note ${i}`;
 
       // Run migration again (with current version)
       const result = await DatabaseMigrationManager.checkAndMigrate(
-        '2.15.0',
+        '2.16.0',
         dbManager as unknown as DatabaseManager,
         workspacePath
       );
@@ -1981,7 +1982,7 @@ metadata:
         );
 
         expect(result.migrated).toBe(true);
-        expect(result.toVersion).toBe('2.15.0');
+        expect(result.toVersion).toBe('2.16.0');
 
         // Verify file content was updated to ID-based
         const updatedContent = await fs.readFile(sourceNotePath, 'utf-8');
@@ -2223,11 +2224,15 @@ metadata:
           workspacePath
         );
 
-        // Verify content unchanged
+        // Verify content - no wikilink changes but flint_* fields may be added by v2.14.0/v2.16.0 migration
         const content = await fs.readFile(notePath, 'utf-8');
-        expect(content).toBe(originalContent);
+        // Should still have original content structure
+        expect(content).toContain('# Plain Note');
+        expect(content).toContain('Just plain text.');
+        // No wikilinks should have been added
+        expect(content).not.toContain('[[');
 
-        // Note: mtime might change even if content doesn't, so we just verify content
+        // Note: flint_* fields may be added by the v2.14.0/v2.16.0 migration
       } finally {
         await dbManager.close();
         await fs.rm(workspacePath, { recursive: true, force: true });
