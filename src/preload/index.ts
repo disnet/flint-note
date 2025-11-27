@@ -642,6 +642,11 @@ const api = {
     electronAPI.ipcRenderer.send('menu-set-active-note', isActive);
   },
 
+  // Update menu state for active epub (enables reader navigation shortcuts)
+  setMenuActiveEpub: (isActive: boolean): void => {
+    electronAPI.ipcRenderer.send('menu-set-active-epub', isActive);
+  },
+
   // Update menu state for workspaces (enables/disables delete, shows workspace list)
   setMenuWorkspaces: (data: {
     workspaces: Array<{ id: string; name: string; icon: string }>;

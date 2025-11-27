@@ -692,6 +692,7 @@ declare global {
 
       // Update menu state
       setMenuActiveNote: (isActive: boolean) => void;
+      setMenuActiveEpub: (isActive: boolean) => void;
       setMenuWorkspaces: (data: {
         workspaces: Array<{ id: string; name: string; icon: string }>;
         activeWorkspaceId: string;

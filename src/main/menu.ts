@@ -5,6 +5,9 @@ const isMac = process.platform === 'darwin';
 // Track whether a note is currently active
 let hasActiveNote = false;
 
+// Track whether an epub is currently being viewed
+let hasActiveEpub = false;
+
 // Track whether multiple workspaces exist (for delete menu item)
 let hasMultipleWorkspaces = false;
 
@@ -62,7 +65,9 @@ const menuIcons = {
   ),
   workspaceDelete: createMenuIcon(
     '<polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>'
-  )
+  ),
+  readerPrev: createMenuIcon('<polyline points="15 18 9 12 15 6"></polyline>'),
+  readerNext: createMenuIcon('<polyline points="9 18 15 12 9 6"></polyline>')
 };
 
 /**
@@ -407,6 +412,25 @@ export function createApplicationMenu(): Menu {
           click: (): void => {
             sendToRenderer('menu-action', 'archive-note');
           }
+        },
+        { type: 'separator' },
+        {
+          label: 'Previous Page',
+          accelerator: 'Left',
+          icon: menuIcons.readerPrev,
+          enabled: hasActiveEpub,
+          click: (): void => {
+            sendToRenderer('menu-action', 'reader-prev');
+          }
+        },
+        {
+          label: 'Next Page',
+          accelerator: 'Right',
+          icon: menuIcons.readerNext,
+          enabled: hasActiveEpub,
+          click: (): void => {
+            sendToRenderer('menu-action', 'reader-next');
+          }
         }
       ]
     },
@@ -481,6 +505,16 @@ export function setupApplicationMenu(): void {
   ipcMain.on('menu-set-active-note', (_event, isActive: boolean) => {
     if (hasActiveNote !== isActive) {
       hasActiveNote = isActive;
+      // Rebuild menu with updated state
+      const updatedMenu = createApplicationMenu();
+      Menu.setApplicationMenu(updatedMenu);
+    }
+  });
+
+  // Listen for active epub state changes from renderer
+  ipcMain.on('menu-set-active-epub', (_event, isActive: boolean) => {
+    if (hasActiveEpub !== isActive) {
+      hasActiveEpub = isActive;
       // Rebuild menu with updated state
       const updatedMenu = createApplicationMenu();
       Menu.setApplicationMenu(updatedMenu);

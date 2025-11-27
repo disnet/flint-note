@@ -32,16 +32,9 @@
         stroke-linejoin="round"
       />
     </svg>
-    <span>Prev</span>
   </button>
 
   <div class="progress-center">
-    <div class="section-info">
-      {#if totalSections > 0}
-        Section {currentSection + 1} of {totalSections}
-      {/if}
-    </div>
-
     <div class="progress-bar-container">
       <div class="progress-bar">
         <div class="progress-fill" style="width: {progressPercent}%"></div>
@@ -56,7 +49,6 @@
     aria-label="Next page"
     disabled={currentSection >= totalSections - 1 && progress >= 100}
   >
-    <span>Next</span>
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
       <path
         d="M6 4L10 8L6 12"
@@ -73,33 +65,34 @@
   .epub-progress {
     display: flex;
     align-items: center;
-    gap: 1rem;
-    padding: 0.75rem 1rem;
-    background: var(--bg-secondary, #f5f5f5);
-    border-top: 1px solid var(--border-light, #e0e0e0);
+    gap: 0.75rem;
+    padding: 0.5rem 1rem;
+    opacity: 0;
+    transition: opacity 0.2s ease;
   }
 
   .nav-button {
     display: flex;
     align-items: center;
-    gap: 0.25rem;
-    padding: 0.5rem 0.75rem;
-    background: var(--bg-primary, #fff);
-    border: 1px solid var(--border-medium, #ccc);
-    border-radius: 4px;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: 50%;
     cursor: pointer;
-    color: var(--text-primary, #333);
-    font-size: 0.875rem;
+    color: var(--text-secondary, #666);
     transition: all 0.15s ease;
   }
 
   .nav-button:hover:not(:disabled) {
-    background: var(--bg-hover, #e0e0e0);
-    border-color: var(--border-dark, #999);
+    background: var(--bg-hover, rgba(0, 0, 0, 0.05));
+    color: var(--text-primary, #333);
   }
 
   .nav-button:disabled {
-    opacity: 0.5;
+    opacity: 0.3;
     cursor: not-allowed;
   }
 
@@ -110,14 +103,7 @@
   .progress-center {
     flex: 1;
     display: flex;
-    flex-direction: column;
     align-items: center;
-    gap: 0.25rem;
-  }
-
-  .section-info {
-    font-size: 0.75rem;
-    color: var(--text-secondary, #666);
   }
 
   .progress-bar-container {
@@ -126,38 +112,28 @@
     gap: 0.5rem;
     width: 100%;
     max-width: 400px;
+    margin: 0 auto;
   }
 
   .progress-bar {
     flex: 1;
-    height: 6px;
-    background: var(--bg-primary, #fff);
-    border-radius: 3px;
+    height: 4px;
+    background: var(--border-light, rgba(0, 0, 0, 0.1));
+    border-radius: 2px;
     overflow: hidden;
-    border: 1px solid var(--border-light, #e0e0e0);
   }
 
   .progress-fill {
     height: 100%;
     background: var(--accent-primary, #007bff);
     transition: width 0.3s ease;
-    border-radius: 3px;
+    border-radius: 2px;
   }
 
   .progress-text {
-    font-size: 0.75rem;
-    color: var(--text-secondary, #666);
-    min-width: 36px;
+    font-size: 0.7rem;
+    color: var(--text-muted, #999);
+    min-width: 32px;
     text-align: right;
-  }
-
-  @media (max-width: 480px) {
-    .nav-button span {
-      display: none;
-    }
-
-    .nav-button {
-      padding: 0.5rem;
-    }
   }
 </style>

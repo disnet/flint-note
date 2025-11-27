@@ -51,11 +51,26 @@
   let mountedNoteId: string | null = null;
   // Track the latest content for this note (updated via effect)
   let latestNoteContent: string = '';
+  // Cleanup function for menu action listener
+  let cleanupMenuListener: (() => void) | null = null;
 
   onMount(() => {
     mountedNoteId = (activeNote?.id as string) || null;
     latestNoteContent = noteContent || '';
     console.log('[EPUB] Component mounted for note:', mountedNoteId);
+
+    // Enable epub menu items
+    window.api?.setMenuActiveEpub(true);
+
+    // Listen for menu actions
+    cleanupMenuListener =
+      window.api?.onMenuAction((action: string) => {
+        if (action === 'reader-prev') {
+          handlePrev();
+        } else if (action === 'reader-next') {
+          handleNext();
+        }
+      }) || null;
   });
 
   // Keep track of the latest content while the component is mounted
@@ -244,6 +259,12 @@
       console.log('[EPUB] Saving final position on unmount for note:', mountedNoteId);
       saveMetadata(currentCfi, progress, true);
     }
+    // Disable epub menu items
+    window.api?.setMenuActiveEpub(false);
+    // Cleanup menu listener
+    if (cleanupMenuListener) {
+      cleanupMenuListener();
+    }
   });
 
   function handleTocLoaded(tocItems: TocItem[]): void {
@@ -345,7 +366,10 @@
   // Initialize with saved CFI
   let initialCfi = $derived((metadata.flint_currentCfi as string) || '');
 
-  // Book display info (author shown in EPUB actions bar)
+  // Book display info (shown in EPUB actions bar)
+  let bookTitle = $derived(
+    (metadata.flint_epubTitle as string) || epubMetadata?.title || ''
+  );
   let bookAuthor = $derived(
     (metadata.flint_epubAuthor as string) || extractAuthorName(epubMetadata?.author) || ''
   );
@@ -573,9 +597,14 @@
 
       <!-- EPUB-specific actions bar -->
       <div class="epub-actions">
-        {#if bookAuthor}
-          <span class="book-author">by {bookAuthor}</span>
-        {/if}
+        <div class="book-info">
+          {#if bookTitle}
+            <span class="book-title">{bookTitle}</span>
+          {/if}
+          {#if bookAuthor}
+            <span class="book-author">by {bookAuthor}</span>
+          {/if}
+        </div>
         <div class="epub-buttons">
           <button
             class="epub-button"
@@ -703,18 +732,20 @@
             </div>
           {/if}
         </div>
-      </div>
 
-      <!-- Footer with progress -->
-      {#if epubPath}
-        <EpubProgress
-          {progress}
-          {currentSection}
-          {totalSections}
-          onPrev={handlePrev}
-          onNext={handleNext}
-        />
-      {/if}
+        <!-- Footer with progress (overlay, shows on hover) -->
+        {#if epubPath}
+          <div class="progress-overlay">
+            <EpubProgress
+              {progress}
+              {currentSection}
+              {totalSections}
+              onPrev={handlePrev}
+              onNext={handleNext}
+            />
+          </div>
+        {/if}
+      </div>
     </div>
   {/snippet}
 </BaseNoteView>
@@ -753,10 +784,29 @@
     gap: 0.5rem;
   }
 
+  .book-info {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .book-title {
+    font-size: 0.85rem;
+    color: var(--text-primary, #333);
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   .book-author {
     font-size: 0.8rem;
     color: var(--text-secondary, #666);
     font-style: italic;
+    white-space: nowrap;
+    flex-shrink: 0;
   }
 
   .epub-buttons {
@@ -776,6 +826,8 @@
     color: var(--text-secondary, #666);
     font-size: 0.8rem;
     transition: all 0.15s ease;
+    white-space: nowrap;
+    flex-shrink: 0;
   }
 
   .epub-button:hover {
@@ -806,6 +858,24 @@
     width: 280px;
     z-index: 10;
     box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Progress overlay - shows on hover */
+  .progress-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 5;
+    pointer-events: none;
+  }
+
+  .progress-overlay :global(.epub-progress) {
+    pointer-events: auto;
+  }
+
+  .epub-content:hover .progress-overlay :global(.epub-progress) {
+    opacity: 1;
   }
 
   .selection-popup {
