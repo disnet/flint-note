@@ -310,6 +310,10 @@ export class VaultFileWatcher {
 
         this.emit({ type: 'external-add', path: filePath });
       } catch (error) {
+        // ENOENT is expected when file is deleted before we can read it (race condition)
+        if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+          return;
+        }
         console.error(`[FileWatcher] Error processing file addition: ${filePath}`, error);
       }
     });
@@ -355,6 +359,10 @@ export class VaultFileWatcher {
           noteId: noteId || undefined
         });
       } catch (error) {
+        // ENOENT is expected when file is deleted before we can read it (race condition)
+        if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+          return;
+        }
         console.error(`[FileWatcher] Error processing file change: ${filePath}`, error);
       }
     });
@@ -419,6 +427,10 @@ export class VaultFileWatcher {
           noteId: noteId || undefined
         });
       } catch (error) {
+        // ENOENT is expected when vault directory is removed during cleanup (race condition)
+        if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+          return;
+        }
         console.error(`[FileWatcher] Error processing file deletion: ${filePath}`, error);
       }
     });

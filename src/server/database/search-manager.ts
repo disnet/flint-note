@@ -173,7 +173,7 @@ export class HybridSearchManager {
 
     // Fallback to immediate write (legacy behavior)
     // This path should rarely be hit after proper initialization
-    console.warn(
+    logger.warn(
       '[HybridSearchManager] FileWriteQueue not set, falling back to immediate write. ' +
         'This may cause race conditions with external edit detection.'
     );
@@ -887,7 +887,7 @@ export class HybridSearchManager {
 
       // Handle conflict: same (type, filename) but different ID
       if (existingByTypeFilename && existingByTypeFilename.id !== id) {
-        console.warn(
+        logger.warn(
           `Note ID mismatch detected: File has ID ${id} but database has ${existingByTypeFilename.id} for ${type}/${filename}. ` +
             `Deleting old entry and using file's ID.`
         );
@@ -1233,6 +1233,15 @@ export class HybridSearchManager {
         // Also clean up metadata, links, etc.
         // Note: Foreign key constraints should handle cascade delete
       } catch (error) {
+        // SQLITE_CORRUPT/SQLITE_READONLY expected when database is closed during cleanup (race condition)
+        if (
+          error instanceof Error &&
+          'code' in error &&
+          (error.code === 'SQLITE_CORRUPT' || error.code === 'SQLITE_READONLY')
+        ) {
+          // Silently ignore - database is being cleaned up
+          continue;
+        }
         console.error(`Failed to remove deleted file ${filePath}:`, error);
       }
       processed++;
@@ -1278,6 +1287,10 @@ export class HybridSearchManager {
               .filter((file) => file.endsWith('.md') && file !== '_description.md')
               .map((file) => path.join(dirPath, file));
           } catch (error) {
+            // ENOENT is expected when directory is deleted during scan (race condition)
+            if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+              return [];
+            }
             console.error(`Error scanning directory ${entry.name}:`, error);
             return [];
           }
@@ -1286,6 +1299,10 @@ export class HybridSearchManager {
       const results = await Promise.all(dirPromises);
       noteFiles.push(...results.flat());
     } catch (error) {
+      // ENOENT is expected when vault directory is removed during cleanup (race condition)
+      if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+        return noteFiles;
+      }
       console.error('Error scanning for note files:', error);
     }
 
@@ -1472,7 +1489,7 @@ export class HybridSearchManager {
           [frontmatterId]
         );
         if (existingNote && existingNote.path !== relativePath) {
-          console.warn(
+          logger.warn(
             `ID clash detected: ${filePath} has ID ${frontmatterId} which belongs to existing note at ${existingNote.path}. Generating new ID.`
           );
           needsNormalization = true;
