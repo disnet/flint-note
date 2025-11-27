@@ -1,6 +1,4 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-
   // Discriminated union for menu items
   type MenuItem =
     | {
@@ -10,8 +8,6 @@
         action?: string;
         role?: string;
         enabled?: boolean;
-        checked?: boolean;
-        submenu?: MenuItem[];
       }
     | {
         type: 'separator';
@@ -21,6 +17,13 @@
     label: string;
     items: MenuItem[];
   }
+
+  interface Props {
+    open: boolean;
+    onClose: () => void;
+  }
+
+  let { open, onClose }: Props = $props();
 
   // Menu definitions matching the Electron menu structure
   const menus: MenuDefinition[] = [
@@ -137,77 +140,16 @@
     }
   ];
 
-  let containerRef: HTMLDivElement | null = $state(null);
-  let openMenuIndex = $state<number | null>(null);
-  let visibleMenuCount = $state(menus.length);
-  let menuWidths: number[] = $state([]);
-
-  // Measure menu widths on mount
-  onMount(() => {
-    measureMenuWidths();
-    const resizeObserver = new ResizeObserver(() => {
-      calculateVisibleMenus();
-    });
-    if (containerRef) {
-      resizeObserver.observe(containerRef);
-    }
-    return () => resizeObserver.disconnect();
-  });
-
-  function measureMenuWidths(): void {
-    // Estimate width based on label length (approximately 8px per character + padding)
-    menuWidths = menus.map((menu) => menu.label.length * 8 + 24);
-    calculateVisibleMenus();
-  }
-
-  function calculateVisibleMenus(): void {
-    if (!containerRef) return;
-
-    const availableWidth = containerRef.clientWidth;
-    const overflowButtonWidth = 40; // Width of "..." button
-    let totalWidth = 0;
-    let count = 0;
-
-    for (let i = 0; i < menus.length; i++) {
-      const menuWidth = menuWidths[i] || 60;
-      if (totalWidth + menuWidth <= availableWidth - overflowButtonWidth) {
-        totalWidth += menuWidth;
-        count++;
-      } else {
-        break;
-      }
-    }
-
-    // If all menus fit, show them all
-    if (totalWidth + (menuWidths[count] || 0) <= availableWidth) {
-      count = menus.length;
-    }
-
-    visibleMenuCount = Math.max(0, count);
-  }
-
-  function handleMenuClick(index: number): void {
-    if (openMenuIndex === index) {
-      openMenuIndex = null;
-    } else {
-      openMenuIndex = index;
-    }
-  }
-
-  function handleMenuHover(index: number): void {
-    if (openMenuIndex !== null) {
-      openMenuIndex = index;
-    }
-  }
+  let expandedMenu = $state<string | null>(null);
+  let menuRef: HTMLDivElement | null = $state(null);
 
   function handleItemClick(item: MenuItem): void {
-    openMenuIndex = null;
-
     // Type guard: separators don't have role or action
     if (item.type === 'separator') return;
 
+    onClose();
+
     if (item.role) {
-      // Handle native roles
       switch (item.role) {
         case 'quit':
           window.electron?.ipcRenderer.send('window-close');
@@ -232,11 +174,11 @@
         case 'zoomOut':
         case 'togglefullscreen':
         case 'zoom':
-          // These are handled by Electron's native menu
+          // These need to go through IPC
+          window.api?.triggerMenuAction(item.role);
           break;
       }
     } else if (item.action) {
-      // Handle custom actions
       if (item.action.startsWith('navigate:')) {
         const view = item.action.replace('navigate:', '');
         window.api?.triggerMenuNavigate(view);
@@ -248,24 +190,31 @@
     }
   }
 
+  function toggleSubmenu(label: string): void {
+    expandedMenu = expandedMenu === label ? null : label;
+  }
+
   function handleClickOutside(event: MouseEvent): void {
-    if (containerRef && !containerRef.contains(event.target as Node)) {
-      openMenuIndex = null;
+    if (menuRef && !menuRef.contains(event.target as Node)) {
+      onClose();
     }
   }
 
   function handleKeyDown(event: KeyboardEvent): void {
     if (event.key === 'Escape') {
-      openMenuIndex = null;
+      onClose();
     }
   }
 
-  // Global click listener to close menu
   $effect(() => {
-    if (openMenuIndex !== null) {
-      document.addEventListener('click', handleClickOutside);
-      document.addEventListener('keydown', handleKeyDown);
+    if (open) {
+      // Small delay to avoid the click that opened the menu from immediately closing it
+      const timeout = setTimeout(() => {
+        document.addEventListener('click', handleClickOutside);
+        document.addEventListener('keydown', handleKeyDown);
+      }, 10);
       return () => {
+        clearTimeout(timeout);
         document.removeEventListener('click', handleClickOutside);
         document.removeEventListener('keydown', handleKeyDown);
       };
@@ -273,177 +222,121 @@
     return undefined;
   });
 
-  const visibleMenus = $derived(menus.slice(0, visibleMenuCount));
-  const overflowMenus = $derived(menus.slice(visibleMenuCount));
+  // Reset expanded menu when closed
+  $effect(() => {
+    if (!open) {
+      expandedMenu = null;
+    }
+  });
 </script>
 
-<div class="title-bar-menu" bind:this={containerRef}>
-  {#each visibleMenus as menu, index (menu.label)}
-    <div class="menu-item-wrapper">
-      <button
-        class="menu-button"
-        class:active={openMenuIndex === index}
-        onclick={(e) => {
-          e.stopPropagation();
-          handleMenuClick(index);
-        }}
-        onmouseenter={() => handleMenuHover(index)}
-      >
-        {menu.label}
-      </button>
-      {#if openMenuIndex === index}
-        <div class="menu-dropdown">
-          {#each menu.items as item, itemIdx (item.type === 'separator' ? `sep-${itemIdx}` : item.label)}
-            {#if item.type === 'separator'}
-              <div class="menu-separator"></div>
-            {:else}
-              <button
-                class="menu-dropdown-item"
-                class:disabled={item.enabled === false}
-                onclick={(e) => {
-                  e.stopPropagation();
-                  handleItemClick(item);
-                }}
-              >
-                <span class="menu-item-label">{item.label}</span>
-                {#if item.accelerator}
-                  <span class="menu-item-shortcut">{item.accelerator}</span>
-                {/if}
-              </button>
-            {/if}
-          {/each}
-        </div>
-      {/if}
-    </div>
-  {/each}
-
-  {#if overflowMenus.length > 0}
-    <div class="menu-item-wrapper">
-      <button
-        class="menu-button overflow-button"
-        class:active={openMenuIndex === visibleMenuCount}
-        onclick={(e) => {
-          e.stopPropagation();
-          handleMenuClick(visibleMenuCount);
-        }}
-        onmouseenter={() => handleMenuHover(visibleMenuCount)}
-      >
-        ...
-      </button>
-      {#if openMenuIndex === visibleMenuCount}
-        <div class="menu-dropdown overflow-dropdown">
-          {#each overflowMenus as menu, menuIdx (menu.label)}
-            <div class="overflow-menu-group">
-              <div class="overflow-menu-header">{menu.label}</div>
-              {#each menu.items as item, itemIdx (item.type === 'separator' ? `sep-${itemIdx}` : item.label)}
-                {#if item.type === 'separator'}
-                  <div class="menu-separator"></div>
-                {:else}
-                  <button
-                    class="menu-dropdown-item"
-                    class:disabled={item.enabled === false}
-                    onclick={(e) => {
-                      e.stopPropagation();
-                      handleItemClick(item);
-                    }}
-                  >
-                    <span class="menu-item-label">{item.label}</span>
-                    {#if item.accelerator}
-                      <span class="menu-item-shortcut">{item.accelerator}</span>
-                    {/if}
-                  </button>
-                {/if}
-              {/each}
-            </div>
-            {#if menuIdx < overflowMenus.length - 1}
-              <div class="menu-separator thick"></div>
-            {/if}
-          {/each}
-        </div>
-      {/if}
-    </div>
-  {/if}
-</div>
+{#if open}
+  <div class="hamburger-menu" bind:this={menuRef}>
+    {#each menus as menu (menu.label)}
+      <div class="menu-section">
+        <button class="menu-header" onclick={() => toggleSubmenu(menu.label)}>
+          <span>{menu.label}</span>
+          <svg
+            class="chevron"
+            class:expanded={expandedMenu === menu.label}
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="m9 18 6-6-6-6" />
+          </svg>
+        </button>
+        {#if expandedMenu === menu.label}
+          <div class="menu-items">
+            {#each menu.items as item, itemIdx (item.type === 'separator' ? `sep-${itemIdx}` : item.label)}
+              {#if item.type === 'separator'}
+                <div class="menu-separator"></div>
+              {:else}
+                <button
+                  class="menu-item"
+                  class:disabled={item.enabled === false}
+                  onclick={() => handleItemClick(item)}
+                >
+                  <span class="item-label">{item.label}</span>
+                  {#if item.accelerator}
+                    <span class="item-shortcut">{item.accelerator}</span>
+                  {/if}
+                </button>
+              {/if}
+            {/each}
+          </div>
+        {/if}
+      </div>
+    {/each}
+  </div>
+{/if}
 
 <style>
-  .title-bar-menu {
-    display: flex;
-    align-items: center;
-    height: 100%;
-    gap: 0;
-    flex-shrink: 1;
-    min-width: 0;
-    overflow: hidden;
-  }
-
-  .menu-item-wrapper {
-    position: relative;
-    height: 100%;
-    display: flex;
-    align-items: center;
-  }
-
-  .menu-button {
-    height: 100%;
-    padding: 0 12px;
-    border: none;
-    background: transparent;
-    color: var(--text-secondary);
-    font-size: 12px;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: background-color 0.15s ease;
-  }
-
-  .menu-button:hover,
-  .menu-button.active {
-    background: var(--bg-tertiary);
-    color: var(--text-primary);
-  }
-
-  .overflow-button {
-    font-weight: bold;
-    letter-spacing: 1px;
-  }
-
-  .menu-dropdown {
+  .hamburger-menu {
     position: absolute;
     top: 100%;
     left: 0;
-    min-width: 220px;
+    min-width: 280px;
+    max-height: calc(100vh - 50px);
+    overflow-y: auto;
     background: var(--bg-secondary);
     border: 1px solid var(--border-light);
-    border-radius: 0 0 6px 6px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-radius: 0 0 8px 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
     z-index: 1000;
-    padding: 4px 0;
   }
 
-  .overflow-dropdown {
-    min-width: 260px;
-    max-height: 400px;
-    overflow-y: auto;
+  .menu-section {
+    border-bottom: 1px solid var(--border-light);
   }
 
-  .overflow-menu-group {
-    padding: 4px 0;
+  .menu-section:last-child {
+    border-bottom: none;
   }
 
-  .overflow-menu-header {
-    padding: 6px 12px 4px;
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--text-tertiary);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-
-  .menu-dropdown-item {
+  .menu-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     width: 100%;
-    padding: 6px 12px;
+    padding: 10px 14px;
+    border: none;
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 500;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+  }
+
+  .menu-header:hover {
+    background: var(--bg-tertiary);
+  }
+
+  .chevron {
+    transition: transform 0.2s ease;
+    color: var(--text-tertiary);
+  }
+
+  .chevron.expanded {
+    transform: rotate(90deg);
+  }
+
+  .menu-items {
+    padding: 4px 0;
+    background: var(--bg-primary);
+  }
+
+  .menu-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 8px 14px 8px 24px;
     border: none;
     background: transparent;
     color: var(--text-primary);
@@ -453,44 +346,33 @@
     transition: background-color 0.1s ease;
   }
 
-  .menu-dropdown-item:hover:not(.disabled) {
+  .menu-item:hover:not(.disabled) {
     background: var(--accent-primary);
     color: white;
   }
 
-  .menu-dropdown-item.disabled {
+  .menu-item:hover:not(.disabled) .item-shortcut {
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  .menu-item.disabled {
     color: var(--text-tertiary);
     cursor: not-allowed;
   }
 
-  .menu-item-label {
+  .item-label {
     flex: 1;
   }
 
-  .menu-item-shortcut {
-    margin-left: 24px;
+  .item-shortcut {
+    margin-left: 16px;
     font-size: 11px;
     color: var(--text-tertiary);
   }
 
-  .menu-dropdown-item:hover:not(.disabled) .menu-item-shortcut {
-    color: rgba(255, 255, 255, 0.7);
-  }
-
   .menu-separator {
     height: 1px;
-    margin: 4px 8px;
+    margin: 4px 14px 4px 24px;
     background: var(--border-light);
-  }
-
-  .menu-separator.thick {
-    height: 1px;
-    margin: 8px 0;
-    background: var(--border-medium);
-  }
-
-  /* Hide on macOS */
-  :global(html[data-platform='macos']) .title-bar-menu {
-    display: none;
   }
 </style>

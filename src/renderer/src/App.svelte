@@ -9,7 +9,7 @@
   import ExternalEditConflictNotification from './components/ExternalEditConflictNotification.svelte';
   import ToastNotification from './components/ToastNotification.svelte';
   import ChangelogViewer from './components/ChangelogViewer.svelte';
-  import TitleBarMenu from './components/TitleBarMenu.svelte';
+  import HamburgerMenu from './components/HamburgerMenu.svelte';
   import type { Message } from './services/types';
   import type { NoteMetadata } from './services/noteStore.svelte';
   import { getChatService } from './services/chatService';
@@ -967,8 +967,25 @@
     }
   }
 
-  function toggleLeftSidebar(): void {
-    sidebarState.toggleLeftSidebar();
+  // Hamburger menu state (for Windows/Linux)
+  let hamburgerMenuOpen = $state(false);
+  const isMacOS = $derived(
+    typeof document !== 'undefined' &&
+      document.documentElement.dataset.platform === 'macos'
+  );
+
+  function handleHamburgerClick(): void {
+    if (isMacOS) {
+      // On macOS, toggle the sidebar (menu is in system menu bar)
+      sidebarState.toggleLeftSidebar();
+    } else {
+      // On Windows/Linux, toggle the hamburger menu
+      hamburgerMenuOpen = !hamburgerMenuOpen;
+    }
+  }
+
+  function closeHamburgerMenu(): void {
+    hamburgerMenuOpen = false;
   }
 
   function setRightSidebarMode(mode: 'ai' | 'notes'): void {
@@ -1067,26 +1084,28 @@
         <!-- Traffic light spacing for macOS -->
         <div class="traffic-light-spacer"></div>
         <div class="title-bar-left">
-          <button
-            class="hamburger-button"
-            onclick={toggleLeftSidebar}
-            aria-label="Toggle sidebar"
-          >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
+          <div class="hamburger-wrapper">
+            <button
+              class="hamburger-button"
+              onclick={handleHamburgerClick}
+              aria-label={isMacOS ? 'Toggle sidebar' : 'Open menu'}
             >
-              <line x1="3" y1="6" x2="21" y2="6"></line>
-              <line x1="3" y1="12" x2="21" y2="12"></line>
-              <line x1="3" y1="18" x2="21" y2="18"></line>
-            </svg>
-          </button>
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="18" x2="21" y2="18"></line>
+              </svg>
+            </button>
+            <HamburgerMenu open={hamburgerMenuOpen} onClose={closeHamburgerMenu} />
+          </div>
           <VaultSwitcher onNoteClose={closeNoteEditor} />
-          <TitleBarMenu />
           <div class="navigation-controls">
             <button
               class="nav-btn"
@@ -1359,6 +1378,13 @@
     -webkit-app-region: no-drag;
   }
 
+  .hamburger-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: 100%;
+  }
+
   .hamburger-button {
     display: flex;
     align-items: center;
@@ -1378,7 +1404,7 @@
   }
 
   /* Add padding around hamburger menu on Windows */
-  :global(html[data-platform='other']) .hamburger-button {
+  :global(html[data-platform='other']) .hamburger-wrapper {
     margin-left: 0.5rem;
   }
 
